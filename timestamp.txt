@@ -1,1 +1,0 @@
-2026-10-11 18:04:43 - Revised AGENTS.md: reframed app as dynamic training program, generalized training block definition, added today-suggested-workout as primary visit feature, removed change-log section
