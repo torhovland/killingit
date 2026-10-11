@@ -36,3 +36,4 @@ coverage/
 
 # Local tooling
 .opencode/
+.neon
