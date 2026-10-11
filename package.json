@@ -1,0 +1,25 @@
+{
+  "name": "killingit",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "bun run --filter '*' dev",
+    "dev:web": "bun run --filter @killingit/web dev",
+    "dev:api": "bun run --filter @killingit/api dev",
+    "build": "bun run --filter '*' build",
+    "typecheck": "bun run --filter '*' typecheck",
+    "test": "bun run --filter '*' test",
+    "db:up": "docker compose up -d db",
+    "db:down": "docker compose down",
+    "db:generate": "bun run --filter @killingit/api db:generate",
+    "db:migrate": "bun run --filter @killingit/api db:migrate"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.2"
+  }
+}

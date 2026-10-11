@@ -1,7 +1,10 @@
+# Environment variables
+.env
+.env.*
+!.env.example
+
 # Dependencies
 node_modules/
-.pnp
-.pnp.js
 
 # Build output
 dist/
@@ -10,11 +13,7 @@ out/
 .next/
 .nuxt/
 .vite/
-
-# Environment
-.env
-.env.*
-!.env.example
+*.tsbuildinfo
 
 # Logs
 *.log

@@ -87,18 +87,25 @@ The stack below is proposed and should be treated as the starting point. See
 - Use `cn()` (tailwind-merge + clsx) for predictable class merging. Avoid
   inline `style=` attributes and hard-coded magic values; reference tokens.
 
-### Backend (suggested)
+### Backend
 
 One TypeScript stack end-to-end keeps a single language and shared types
 across frontend and backend:
 
-- **Language/runtime:** TypeScript on Node.js (Bun optional).
+- **Language/runtime:** TypeScript on **Bun** (monorepo via Bun workspaces).
 - **API framework:** **Hono** — lightweight, TypeScript-first, runs on Node/Bun
   and edge runtimes, and pairs cleanly with Drizzle. (Fallback: **Fastify**.)
 - **ORM:** **Drizzle ORM** — SQL-first and fully type-safe. (Fallback:
   **Prisma**.)
 - **Validation:** **Zod** — shared between API handlers and frontend forms.
 - **API contract:** a typed client shared across the monorepo, or tRPC/OpenAPI.
+
+### Monorepo layout
+
+- Bun workspaces under `apps/*` and `packages/*`:
+  - `apps/web` — React + Vite + Tailwind frontend
+  - `apps/api` — Hono + Drizzle backend
+  - `packages/shared` — shared Zod schemas and TypeScript types
 
 ### Database
 
