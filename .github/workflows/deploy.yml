@@ -92,7 +92,8 @@ jobs:
             --region us-central1 \
             --platform managed \
             --allow-unauthenticated \
-            --set-env-vars DATABASE_URL=${{ secrets.TEST_DATABASE_URL }},CORS_ORIGIN=https://killingit-test.hovland.co
+            --set-env-vars "DATABASE_URL=${{ secrets.TEST_DATABASE_URL }}" \
+            --set-env-vars "CORS_ORIGIN=https://killingit-test.hovland.co"
 
   deploy-web-production:
     if: github.event_name == 'workflow_dispatch'
@@ -145,4 +146,5 @@ jobs:
             --region us-central1 \
             --platform managed \
             --allow-unauthenticated \
-            --set-env-vars DATABASE_URL=${{ secrets.PROD_DATABASE_URL }},CORS_ORIGIN=https://killingit.hovland.co
+            --set-env-vars "DATABASE_URL=${{ secrets.PROD_DATABASE_URL }}" \
+            --set-env-vars "CORS_ORIGIN=https://killingit.hovland.co"
