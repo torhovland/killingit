@@ -176,23 +176,38 @@ through a disciplined process:
    Keep diffs small and limited to a single concern.
 4. **Human review gate.** The agent proposes; a human verifies before the
    change is merged.
-5. **Static quality enforced everywhere.** TypeScript `strict`, ESLint,
-   Prettier — all run in CI and must pass.
+5. **Static quality enforced everywhere.** TypeScript `strict` (plus the extra
+   strictness flags in `tsconfig.base.json`), ESLint, and Prettier are all
+   checked in CI (`bun run typecheck`, `bun run lint`, `bun run format`) and
+   must pass.
 6. **Full test coverage on every feature**, across three layers:
    - **Unit tests** (Vitest) for pure logic and components.
    - **Integration tests** against the API and a test database.
    - **End-to-end tests** (Playwright) for critical user journeys.
-   Enforce coverage thresholds in CI (test pyramid: many unit, fewer
-   integration, a focused e2e set).
-7. **CI pipeline** (GitHub Actions): typecheck + lint + unit + integration +
-   e2e must pass before merge.
-8. **Decoupled, clearly named code.** Single-responsibility modules, explicit
+     Enforce coverage thresholds in CI (test pyramid: many unit, fewer
+     integration, a focused e2e set).
+7. **CI pipeline** (GitHub Actions, `.github/workflows/ci.yml`): typecheck +
+   lint + format + unit tests + a dependency-outdated check must pass before
+   merge. Integration and e2e checks follow the same rule as they are added.
+8. **Dependencies stay current.** CI fails the build when any dependency is
+   outdated (`bun run outdated`). When that happens, update the outdated
+   dependencies with `bun update`, verify typecheck/lint/format/tests still
+   pass, and commit the regenerated `bun.lock` (and any `package.json` changes)
+   in a separate new commit before pushing.
+9. **Decoupled, clearly named code.** Single-responsibility modules, explicit
    dependencies, descriptive names. Don't over-abstract prematurely, but
    extract real duplication.
-9. **Documents stay current.** Keep AGENTS.md accurate and write ADRs (a
-   decision log) for significant architectural choices.
-10. **Definition of done.** A change is done only when tests, types, and lint
+10. **Documents stay current.** Keep AGENTS.md accurate and write ADRs (a
+    decision log) for significant architectural choices.
+11. **Definition of done.** A change is done only when tests, types, and lint
     pass.
+
+## Working side effects
+
+- **Verify CI before pushing.** When asked to push changes, first run
+  `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`
+  locally (or verify the equivalent CI checks pass), and confirm they all
+  succeed before pushing.
 
 ## Development Guidelines
 

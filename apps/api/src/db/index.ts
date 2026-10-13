@@ -10,8 +10,7 @@ const connectionString =
 // the connection string omits it, so we never fail with
 // "connection is insecure" against a hosted database.
 const isLocal = /localhost|127\.0\.0\.1|::1/i.test(connectionString);
-const needsSsl =
-  !isLocal && !/sslmode=/.test(connectionString);
+const needsSsl = !isLocal && !/sslmode=/.test(connectionString);
 const effectiveUrl = needsSsl
   ? `${connectionString}${connectionString.includes("?") ? "&" : "?"}sslmode=require`
   : connectionString;

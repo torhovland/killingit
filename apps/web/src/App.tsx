@@ -8,13 +8,13 @@ const API_URL = import.meta.env.VITE_API_URL ?? "";
 async function fetchHealth(): Promise<Health> {
   const res = await fetch(`${API_URL}/api/health`);
   if (!res.ok) throw new Error(`health failed: ${res.status}`);
-  return res.json();
+  return (await res.json()) as Health;
 }
 
 async function fetchGreeting(): Promise<Greeting> {
   const res = await fetch(`${API_URL}/api/greet?name=athlete`);
   if (!res.ok) throw new Error(`greet failed: ${res.status}`);
-  return res.json();
+  return (await res.json()) as Greeting;
 }
 
 export function App() {
@@ -28,7 +28,9 @@ export function App() {
         setHealth(h);
         setGreeting(g);
       })
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
+      .catch((e: unknown) =>
+        setError(e instanceof Error ? e.message : String(e)),
+      );
   }, []);
 
   return (

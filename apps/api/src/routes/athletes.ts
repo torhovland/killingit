@@ -8,7 +8,7 @@ export const athletesRoute = new Hono()
     return c.json(rows);
   })
   .post("/", async (c) => {
-    const body = await c.req.json();
+    const body = await c.req.json<{ name: string; email: string }>();
     const [created] = await db
       .insert(athletes)
       .values({ name: body.name, email: body.email })
