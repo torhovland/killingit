@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@killingit/shared": "workspace:*",
+    "@sentry/react": "^11.7.0",
+    "@sentry/vite-plugin": "^5.4.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

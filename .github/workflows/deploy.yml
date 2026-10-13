@@ -16,15 +16,15 @@ jobs:
     outputs:
       image: ${{ steps.meta.outputs.image }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - id: auth
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-      - uses: google-github-actions/setup-gcloud@v2
+      - uses: google-github-actions/setup-gcloud@v3
 
       - id: meta
         run: |
@@ -36,24 +36,36 @@ jobs:
             "$(echo "${{ vars.ARTIFACT_REGISTRY }}" | cut -d/ -f1)" --quiet
 
       - name: Build and push API image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: apps/api/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.image }}
+          build-args: |
+            SENTRY_ORG=${{ vars.SENTRY_ORG }}
+            SENTRY_PROJECT=killingit-api
+            SENTRY_RELEASE=${{ github.sha }}
+          secrets: |
+            SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}
 
   deploy-web-test:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - name: Build web (test)
         run: bun run --filter @killingit/web build
         env:
           VITE_API_URL: ${{ vars.TEST_API_URL }}
+          VITE_SENTRY_DSN: ${{ secrets.TEST_VITE_SENTRY_DSN }}
+          VITE_SENTRY_RELEASE: ${{ github.sha }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ vars.SENTRY_ORG }}
+          SENTRY_PROJECT: killingit-web
+          SENTRY_RELEASE: ${{ github.sha }}
       - name: Publish to Cloudflare Pages (test)
         uses: cloudflare/wrangler-action@v4
         with:
@@ -67,15 +79,15 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - id: auth
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-      - uses: google-github-actions/setup-gcloud@v2
+      - uses: google-github-actions/setup-gcloud@v3
 
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
@@ -93,20 +105,28 @@ jobs:
             --platform managed \
             --allow-unauthenticated \
             --set-env-vars "DATABASE_URL=${{ secrets.TEST_DATABASE_URL }}" \
-            --set-env-vars "CORS_ORIGIN=https://killingit-test.hovland.co"
+            --set-env-vars "CORS_ORIGIN=https://killingit-test.hovland.co" \
+            --set-env-vars "SENTRY_DSN=${{ secrets.TEST_SENTRY_DSN }}" \
+            --set-env-vars "SENTRY_RELEASE=${{ github.sha }}"
 
   deploy-web-production:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: production
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - name: Build web (production)
         run: bun run --filter @killingit/web build
         env:
           VITE_API_URL: ${{ vars.PROD_API_URL }}
+          VITE_SENTRY_DSN: ${{ secrets.PROD_VITE_SENTRY_DSN }}
+          VITE_SENTRY_RELEASE: ${{ github.sha }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ vars.SENTRY_ORG }}
+          SENTRY_PROJECT: killingit-web
+          SENTRY_RELEASE: ${{ github.sha }}
       - name: Publish to Cloudflare Pages (production)
         uses: cloudflare/wrangler-action@v4
         with:
@@ -121,15 +141,15 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - id: auth
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-      - uses: google-github-actions/setup-gcloud@v2
+      - uses: google-github-actions/setup-gcloud@v3
 
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
@@ -147,4 +167,6 @@ jobs:
             --platform managed \
             --allow-unauthenticated \
             --set-env-vars "DATABASE_URL=${{ secrets.PROD_DATABASE_URL }}" \
-            --set-env-vars "CORS_ORIGIN=https://killingit.hovland.co"
+            --set-env-vars "CORS_ORIGIN=https://killingit.hovland.co" \
+            --set-env-vars "SENTRY_DSN=${{ secrets.PROD_SENTRY_DSN }}" \
+            --set-env-vars "SENTRY_RELEASE=${{ github.sha }}"
