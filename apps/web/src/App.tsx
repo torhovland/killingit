@@ -1,21 +1,18 @@
 import { useEffect, useState } from "react";
 import type { Greeting, Health } from "@killingit/shared";
+import { fetchJson } from "./fetchJson";
 import { reportError } from "./reportError";
 
 // Absolute API origin for deployed environments (e.g. the Cloud Run URL).
 // Empty string keeps relative "/api" for the local Vite dev proxy.
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
-async function fetchHealth(): Promise<Health> {
-  const res = await fetch(`${API_URL}/api/health`);
-  if (!res.ok) throw new Error(`health failed: ${res.status}`);
-  return (await res.json()) as Health;
+function fetchHealth(): Promise<Health> {
+  return fetchJson<Health>(`${API_URL}/api/health`);
 }
 
-async function fetchGreeting(): Promise<Greeting> {
-  const res = await fetch(`${API_URL}/api/greet?name=athlete`);
-  if (!res.ok) throw new Error(`greet failed: ${res.status}`);
-  return (await res.json()) as Greeting;
+function fetchGreeting(): Promise<Greeting> {
+  return fetchJson<Greeting>(`${API_URL}/api/greet?name=athlete`);
 }
 
 export function App() {
