@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { Greeting, Health } from "@killingit/shared";
+import { reportError } from "./reportError";
 
 // Absolute API origin for deployed environments (e.g. the Cloud Run URL).
 // Empty string keeps relative "/api" for the local Vite dev proxy.
@@ -28,9 +29,10 @@ export function App() {
         setHealth(h);
         setGreeting(g);
       })
-      .catch((e: unknown) =>
-        setError(e instanceof Error ? e.message : String(e)),
-      );
+      .catch((e: unknown) => {
+        // Show the error in the UI and report it to Sentry via reportError.
+        setError(reportError(e));
+      });
   }, []);
 
   return (
