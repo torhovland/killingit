@@ -205,6 +205,12 @@ through a disciplined process:
     decision log) for significant architectural choices.
 11. **Definition of done.** A change is done only when tests, types, and lint
     pass.
+12. **Clean, readable code first.** Readable, maintainable, clean code is as
+    important as working features. If a small feature requires a lot of new
+    lines, it is likely not worth it.
+13. **Strict review.** When asked to review, be strict and thorough.
+    Nitpicking is encouraged. Add your comments to the PR unless everything
+    looks good.
 
 ## Working side effects
 
@@ -212,6 +218,8 @@ through a disciplined process:
   `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`
   locally (or verify the equivalent CI checks pass), and confirm they all
   succeed before pushing.
+- **Make sure CI passes on PRs.** When asked to create or update a PR, make
+  sure CI passes.
 
 ## Development Guidelines
 
