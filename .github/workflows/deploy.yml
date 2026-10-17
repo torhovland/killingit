@@ -64,6 +64,9 @@ jobs:
           VITE_API_URL: ${{ vars.TEST_API_URL }}
           VITE_SENTRY_DSN: ${{ secrets.TEST_VITE_SENTRY_DSN }}
           VITE_SENTRY_RELEASE: ${{ github.sha }}
+          VITE_AUTH0_DOMAIN: ${{ vars.AUTH0_DOMAIN }}
+          VITE_AUTH0_CLIENT_ID: ${{ vars.AUTH0_CLIENT_ID }}
+          VITE_AUTH0_AUDIENCE: ${{ vars.AUTH0_AUDIENCE }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ vars.SENTRY_ORG }}
           SENTRY_PROJECT: killingit-web
@@ -109,7 +112,9 @@ jobs:
             --set-env-vars "DATABASE_URL=${{ secrets.TEST_DATABASE_URL }}" \
             --set-env-vars "CORS_ORIGIN=https://killingit-test.hovland.co" \
             --set-env-vars "SENTRY_DSN=${{ secrets.TEST_SENTRY_DSN }}" \
-            --set-env-vars "SENTRY_RELEASE=${{ github.sha }}"
+            --set-env-vars "SENTRY_RELEASE=${{ github.sha }}" \
+            --set-env-vars "AUTH0_ISSUER=${{ vars.AUTH0_ISSUER }}" \
+            --set-env-vars "AUTH0_AUDIENCE=${{ vars.AUTH0_AUDIENCE }}"
 
   deploy-web-production:
     if: github.event_name == 'workflow_dispatch'
@@ -125,6 +130,9 @@ jobs:
           VITE_API_URL: ${{ vars.PROD_API_URL }}
           VITE_SENTRY_DSN: ${{ secrets.PROD_VITE_SENTRY_DSN }}
           VITE_SENTRY_RELEASE: ${{ github.sha }}
+          VITE_AUTH0_DOMAIN: ${{ vars.AUTH0_DOMAIN }}
+          VITE_AUTH0_CLIENT_ID: ${{ vars.AUTH0_CLIENT_ID }}
+          VITE_AUTH0_AUDIENCE: ${{ vars.AUTH0_AUDIENCE }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ vars.SENTRY_ORG }}
           SENTRY_PROJECT: killingit-web
@@ -171,4 +179,6 @@ jobs:
             --set-env-vars "DATABASE_URL=${{ secrets.PROD_DATABASE_URL }}" \
             --set-env-vars "CORS_ORIGIN=https://killingit.hovland.co" \
             --set-env-vars "SENTRY_DSN=${{ secrets.PROD_SENTRY_DSN }}" \
-            --set-env-vars "SENTRY_RELEASE=${{ github.sha }}"
+            --set-env-vars "SENTRY_RELEASE=${{ github.sha }}" \
+            --set-env-vars "AUTH0_ISSUER=${{ vars.AUTH0_ISSUER }}" \
+            --set-env-vars "AUTH0_AUDIENCE=${{ vars.AUTH0_AUDIENCE }}"
