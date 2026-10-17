@@ -87,8 +87,8 @@ tokens, both ~$0 at low traffic.
 - **Negative:** Cloud Run free tier is restricted to `us-central1`, so athletes
   outside North America see extra API latency; scale-to-zero imposes a cold
   start on the first API request after idle.
-- **Follow-ups:** verify Auth0's free plan still covers custom social
-  connections (Strava/Garmin) at no cost, per `AGENTS.md`.
+- **Follow-ups:** resolved by ADR 0002 (Auth0 Free plan adopted; social
+  connections for Strava/Garmin are social, not enterprise).
 
 ## References
 
