@@ -28,8 +28,28 @@ export interface AuthState {
 const API_AUDIENCE = import.meta.env.VITE_AUTH0_AUDIENCE;
 const API_SCOPE = "openid profile email read:profile read:workouts";
 
+/** Whether Auth0 is configured for this build (VITE_* set at build time). */
+const AUTH0_CONFIGURED =
+  Boolean(import.meta.env.VITE_AUTH0_DOMAIN) &&
+  Boolean(import.meta.env.VITE_AUTH0_CLIENT_ID);
+
+/** Stable no-op state used when Auth0 is not configured for this build. */
+const NOOP_AUTH: AuthState = {
+  isAuthenticated: false,
+  isLoading: false,
+  login: () => Promise.resolve(),
+  logout: () => Promise.resolve(),
+  getToken: () => Promise.resolve(undefined),
+};
+
 /** The app's `useAuth` hook (thin wrapper around the Auth0 SDK hook). */
 export function useAuth(): AuthState {
+  // No hooks are needed when Auth0 is disabled; return a stable no-op state
+  // without invoking the SDK (whose `useAuth0` throws outside a provider).
+  if (!AUTH0_CONFIGURED) {
+    return NOOP_AUTH;
+  }
+
   const {
     isAuthenticated,
     isLoading,

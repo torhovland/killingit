@@ -227,6 +227,10 @@ the `DATABASE_URL_UNPOOLED` values go to `TEST_DATABASE_URL_UNPOOLED` /
 | `SENTRY_AUTH_TOKEN`              | secret | Sentry org auth token for source-map upload (org-scoped)                                    |
 | `SENTRY_ORG`                     | var    | `killing-it`                                                                                |
 | `SENTRY_PROJECT`                 | var    | `killingit-web`                                                                             |
+| `AUTH0_DOMAIN`                   | var    | Auth0 tenant domain (`dev-5qhhcjppmcpsomq0.us.auth0.com`); non-secret                       |
+| `AUTH0_CLIENT_ID`                | var    | Auth0 SPA client ID (`killingit-web`); non-secret (public by design for a SPA)              |
+| `AUTH0_AUDIENCE`                 | var    | API audience `https://api.killingit.hovland.co`                                             |
+| `AUTH0_ISSUER`                   | var    | Auth0 tenant issuer (domain + trailing slash); non-secret                                   |
 
 The `production` environment's API/web deploy jobs also require an approval
 gate (or protected-environment rule) in the repo settings to make the manual
