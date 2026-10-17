@@ -16,3 +16,8 @@ export const greetingSchema = z.object({
 });
 
 export type Greeting = z.infer<typeof greetingSchema>;
+
+export {
+  athleteIdentitySchema,
+  type AthleteIdentity,
+} from "./athleteIdentity.js";

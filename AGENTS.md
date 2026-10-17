@@ -128,11 +128,15 @@ OAuth 2.0** connections.
 - **Recommendation: Auth0 Free plan.** It includes 25k monthly active users,
   and (as of the 2024 plan refresh) unlimited social connections **and custom
   social connections**. Google and Apple are native; Strava and Garmin are set
-  up as custom social connections.
-- **Verify before committing:** Auth0's free tier historically limited
-  connections, and "Enterprise Connections" are a paid feature — confirm the
-  current free plan covers our custom social connections for
-  Strava/Garmin at no cost.
+  up as social connections (native where a Marketplace integration exists,
+  custom OAuth 2.0 otherwise).
+- **Decision / verification:** see ADR 0002. Auth0's own docs disagree on the
+  Free plan's social-connection limit ("unlimited" on the pricing page vs "a
+  maximum of two" in the Entity Limit Policy). All four of our connections are
+  **social** (not enterprise), and the Free plan includes 1 Enterprise
+  Connection, so no paid feature is required. A hard gate remains: confirm
+  empirically in the tenant dashboard that four social connections work on
+  Free before production sign-off, else fall back to Better Auth.
 - **Fallback ("build it ourselves"):** self-host **Better Auth** (open source,
   TypeScript, MIT) in our backend. It supports arbitrary OAuth2 providers
   (Google, Apple, Strava, Garmin) at no licensing cost; we own the operational

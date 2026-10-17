@@ -3,6 +3,10 @@
 .env.*
 !.env.example
 
+# Auth0 MCP (M2M) credentials -- ignored explicitly for defense in depth
+.env.auth0.local
+!.env.auth0.local.example
+
 # Dependencies
 node_modules/
 

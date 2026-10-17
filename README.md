@@ -100,6 +100,27 @@ default, unless `.env.local` carries a DSN, and the unit-test suite).
   `.opencode/opencode.json`. Authenticate once with `/mcps` → select `sentry` →
   sign in.
 
+### Auth0 (authentication)
+
+See ADR 0002 and `docs/specs/auth-integration.md`. The web app (SPA) signs in
+via Auth0; the API verifies access tokens (RS256) against the tenant JWKS. The
+tenant, application, API resource server, and client grant are managed via the
+**Auth0 MCP server** configured under `.opencode/opencode.json`.
+
+- **Agent access:** the launcher `scripts/auth0-mcp.sh` mints a fresh
+  Management API token on each launch (client-credentials/M2M grant) rather
+  than relying on the OS keychain, so it works in OpenCode's clean environment
+  and never holds a stale token. It reads `AUTH0_M2M_CLIENT_ID` /
+  `AUTH0_M2M_CLIENT_SECRET` from the gitignored `.env.auth0.local` (see
+  `.env.auth0.local.example`).
+- **Config:** `VITE_AUTH0_DOMAIN`, `VITE_AUTH0_CLIENT_ID`,
+  `VITE_AUTH0_AUDIENCE` (`apps/web/.env.local`, `VITE_` prefix required for
+  client bundling), and `AUTH0_ISSUER`, `AUTH0_AUDIENCE` (API runtime).
+  Documented in `.env.example`.
+- **Note:** the Auth0 MCP server exposes no Connections tools; social
+  connections (Google/Apple/…, and Strava/Garmin as custom OAuth2) are
+  configured in the Auth0 dashboard.
+
 The web app reports browser errors and tracing via `@sentry/react`, enabled
 only when `VITE_SENTRY_DSN` is set at build time.
 
