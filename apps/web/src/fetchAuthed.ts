@@ -1,5 +1,5 @@
 import { fetchJson } from "./fetchJson";
-import type { AuthState } from "./auth/auth0";
+import type { AuthState } from "./auth";
 
 /**
  * Fetch JSON, attaching a bearer token when authenticated. Uses the same

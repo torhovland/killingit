@@ -49,8 +49,8 @@ my profile" feature that follows.
 5. The API's auth logic depends only on a `AuthProvider` interface; the Auth0
    specifics live in one adapter module.
 6. Unit tests cover token verification (valid + each rejection reason); an
-   integration test exercises a protected route end-to-end against the test
-   database.
+   integration test exercises a protected route end-to-end (401 without a
+   token, 200 with a valid token).
 
 ## Data-model / API impact
 
@@ -102,15 +102,16 @@ only replaces that module.
   mocked (no live network).
 - **Unit (web):** the fetch-token-attachment helper (token present/absent).
 - **Integration (API):** `GET /api/me` returns 401 without a token and 200
-  with a token signed by a test JWKS. Uses the existing test-DB pattern.
+  with a token signed by a test JWKS.
 - Run `bun run typecheck`, `bun run lint`, `bun run format`, `bun run test`.
 
 ## Implementation notes (deviations from the original plan)
 
 - **Lazy provider creation:** the API creates its `Auth0Provider` on the first
   protected request (not at startup), so importing the app stays
-  side-effect-free and a missing `AUTH0_*` config surfaces as a 401 instead of
-  a boot crash — mirroring how Sentry is a no-op without a DSN.
+  side-effect-free — mirroring how Sentry is a no-op without a DSN. A missing
+  `AUTH0_*` config (or any other infrastructure failure) surfaces as 503, not
+  401, so it is not mistaken for a bad token.
 - **JWKS fetch is injected** into `Auth0Provider` via jose's `customFetch`
   symbol, so unit tests sign a local key and serve it from a stub `fetch`
   without network access.

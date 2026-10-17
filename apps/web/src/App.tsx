@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { AthleteIdentity, Greeting, Health } from "@killingit/shared";
-import { useAuth } from "./auth/auth0";
+import { useAuth } from "./auth";
 import { fetchJson } from "./fetchJson";
 import { fetchJsonAuthed } from "./fetchAuthed";
 import { reportError } from "./reportError";
@@ -44,9 +44,16 @@ export function App() {
     fetchJsonAuthed<AthleteIdentity>(`${API_URL}/api/me`, auth)
       .then(setMe)
       .catch((e: unknown) => {
+        // TODO: a 401 here (expired token / failed silent renewal) should
+        // trigger a re-auth rather than rendering a red "Error". Deferred —
+        // see review note #5.
         setError(reportError(e));
       });
-  }, [auth.isAuthenticated, auth]);
+    // Depend only on `auth.isAuthenticated`: `useAuth` memoizes `auth`, but the
+    // underlying SDK callbacks aren't guaranteed stable, so depending on the
+    // whole `auth` object risks re-running this effect (and re-fetching
+    // /api/me) on every render.
+  }, [auth.isAuthenticated]);
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center gap-6 p-8">

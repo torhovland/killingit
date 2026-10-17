@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
 import type { JWTPayload } from "jose";
 import { Auth0Provider, jwksUrl } from "./auth0.js";
+import { AuthVerificationError } from "./provider.js";
 
 const ISSUER = "https://dev-5qhhcjppmcpsomq0.us.auth0.com/";
 const AUDIENCE = "https://api.killingit.hovland.co";
@@ -58,16 +59,18 @@ async function setup() {
   return { provider, sign };
 }
 
-/** Asserts that a promise rejects. Wraps bun's `.rejects.toThrow()` in a way
- *  that satisfies both bun:test and the `await-thenable` lint rule. */
-async function expectRejects(promise: Promise<unknown>): Promise<void> {
-  let threw = false;
+/** Asserts that a promise rejects with an `AuthVerificationError`, returning
+ *  the thrown error so callers can assert its type/class. */
+async function expectVerificationReject(
+  promise: Promise<unknown>,
+): Promise<AuthVerificationError> {
   try {
     await promise;
-  } catch {
-    threw = true;
+  } catch (err) {
+    expect(err).toBeInstanceOf(AuthVerificationError);
+    return err as AuthVerificationError;
   }
-  expect(threw).toBe(true);
+  throw new Error("expected promise to reject");
 }
 
 describe("Auth0Provider.verify", () => {
@@ -90,36 +93,69 @@ describe("Auth0Provider.verify", () => {
       .setExpirationTime("1h")
       .sign(other.privateKey);
 
-    await expectRejects(provider.verify(token));
+    await expectVerificationReject(provider.verify(token));
   });
 
   it("rejects a token with the wrong audience", async () => {
     const { provider, sign } = await setup();
     const token = await sign({ aud: "https://evil.example" });
-    await expectRejects(provider.verify(token));
+    await expectVerificationReject(provider.verify(token));
   });
 
   it("rejects a token with the wrong issuer", async () => {
     const { provider, sign } = await setup();
     const token = await sign({ iss: "https://evil.example/" });
-    await expectRejects(provider.verify(token));
-  });
-
-  it("rejects a token missing a sub claim", async () => {
-    const { provider, sign } = await setup();
-    const token = await sign({}, { omitSub: true });
-    await expectRejects(provider.verify(token));
+    await expectVerificationReject(provider.verify(token));
   });
 
   it("rejects an expired token", async () => {
     const { provider, sign } = await setup();
     const token = await sign({}, { exp: Math.floor(Date.now() / 1000) - 60 });
-    await expectRejects(provider.verify(token));
+    await expectVerificationReject(provider.verify(token));
   });
 
   it("rejects a malformed (non-JWT) token", async () => {
     const { provider } = await setup();
-    await expectRejects(provider.verify("not-a-jwt"));
+    await expectVerificationReject(provider.verify("not-a-jwt"));
+  });
+
+  it("propagates an infrastructure failure (JWKS fetch error) as a non-verification error", async () => {
+    // Sign a well-formed token so jwtVerify proceeds to fetch the JWKS; the
+    // injected fetch then rejects, simulating an unreachable JWKS endpoint.
+    const { privateKey } = await generateKeyPair("RS256");
+    const token = await new SignJWT({})
+      .setProtectedHeader({ alg: "RS256", kid: "test-1" })
+      .setIssuer(ISSUER)
+      .setAudience(AUDIENCE)
+      .setSubject("auth0|athlete-123")
+      .setExpirationTime("1h")
+      .sign(privateKey);
+
+    const failingFetch = (input: string) => {
+      void input;
+      return Promise.reject(new Error("network down"));
+    };
+    const provider = new Auth0Provider(
+      { issuer: ISSUER, audience: AUDIENCE },
+      failingFetch,
+    );
+
+    let caught: unknown;
+    try {
+      await provider.verify(token);
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(Error);
+    expect(caught).not.toBeInstanceOf(AuthVerificationError);
+  });
+
+  it("rejects a token missing a sub claim with an AuthVerificationError", async () => {
+    const { provider, sign } = await setup();
+    const err = await expectVerificationReject(
+      provider.verify(await sign({}, { omitSub: true })),
+    );
+    expect(err.message).toMatch(/sub/i);
   });
 });
 

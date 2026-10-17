@@ -1,5 +1,6 @@
 import type { AthleteIdentity } from "@killingit/shared";
 import type { Context, MiddlewareHandler } from "hono";
+import { AuthVerificationError } from "./provider.js";
 import type { AuthProvider } from "./provider.js";
 
 export const ATHLETE_CONTEXT_KEY = "athlete";
@@ -13,8 +14,14 @@ declare module "hono" {
 /**
  * Reads `Authorization: Bearer <token>`, verifies it via the provider, and
  * stores the identity on the context. The provider may be a value or a lazy
- * getter (resolved per-request). Returns 401 with no body on failure — never
- * 500 — so callers can distinguish auth failures from server errors.
+ * getter (resolved per-request).
+ *
+ * Failure handling:
+ * - a missing/invalid token -> 401,
+ * - {@link AuthVerificationError} (token itself invalid) -> 401,
+ * - any other error (infrastructure, e.g. JWKS unreachable, or a missing
+ *   provider config) -> logged and returned as 503, so a JWKS outage is not
+ *   silently mistaken for "not signed in".
  */
 export function requireAuth(
   provider: AuthProvider | (() => AuthProvider),
@@ -36,8 +43,14 @@ export function requireAuth(
     try {
       const identity = await resolve().verify(token);
       c.set(ATHLETE_CONTEXT_KEY, identity);
-    } catch {
-      return c.text("Unauthorized", 401);
+    } catch (err) {
+      if (err instanceof AuthVerificationError) {
+        return c.text("Unauthorized", 401);
+      }
+      // Infrastructure / configuration failure. Surface it (Sentry + logs)
+      // rather than swallowing it as 401.
+      console.error("[auth] verification infrastructure failure:", err);
+      return c.text("Service Unavailable", 503);
     }
 
     await next();
