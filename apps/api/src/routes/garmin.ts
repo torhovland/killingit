@@ -11,11 +11,8 @@ import {
   GarminSidecarError,
   syncGarminActivities,
 } from "../garmin/client.js";
-import {
-  decrypt,
-  encrypt,
-  garminCredentialsKeyFromEnv,
-} from "../garmin/crypto.js";
+import { loadDecryptedGarminCredentials } from "../garmin/credentials.js";
+import { encrypt, garminCredentialsKeyFromEnv } from "../garmin/crypto.js";
 import { loadCredentials, saveCredentials } from "../garmin/store.js";
 
 /** Request body for POST /credentials — raw (soon-to-be-encrypted) values. */
@@ -23,25 +20,6 @@ const credentialsSchema = z.object({
   username: z.string().min(1),
   password: z.string().min(1),
 });
-
-/**
- * Decrypts the stored credential set using the env key. Returns null when no
- * credentials are stored (caller maps that to "not connected").
- */
-async function loadDecrypted(): Promise<{
-  username: string;
-  password: string;
-} | null> {
-  const stored = await loadCredentials();
-  if (!stored) {
-    return null;
-  }
-  const key = await garminCredentialsKeyFromEnv();
-  return {
-    username: await decrypt(stored.usernameEncrypted, key),
-    password: await decrypt(stored.passwordEncrypted, key),
-  };
-}
 
 /**
  * Garmin integration routes (ADR 0003 amendment). All paths sit behind auth and
@@ -91,7 +69,16 @@ export const garminRoute = new Hono()
     return c.json(garminConnectionStatusSchema.parse(status));
   })
   .get("/activities", async (c) => {
-    const credentials = await loadDecrypted();
+    let credentials;
+    try {
+      credentials = await loadDecryptedGarminCredentials();
+    } catch (err) {
+      console.error("[garmin] could not read stored credentials:", err);
+      return c.text(
+        "Garmin credentials are unavailable (check GARMIN_CREDENTIALS_KEY)",
+        503,
+      );
+    }
     if (!credentials) {
       return c.text("Not connected to Garmin", 401);
     }

@@ -5,9 +5,11 @@ import { createAuthProvider } from "./auth/index.js";
 import { requireAuth } from "./auth/middleware.js";
 import { withSentry } from "./instrumentation/sentry.js";
 import { athletesRoute } from "./routes/athletes.js";
+import { coachingRoute } from "./routes/coaching.js";
 import { garminRoute } from "./routes/garmin.js";
 import { greet } from "./routes/greet.js";
 import { health } from "./routes/health.js";
+import { llmRoute } from "./routes/llm.js";
 import { meRoute } from "./routes/me.js";
 
 // Load local environment for `bun run dev`. Bun does not auto-load dotenv
@@ -60,11 +62,26 @@ api.route("/me", meRoute);
 api.use("/garmin/*", requireAuth(getAuth));
 api.route("/garmin", garminRoute);
 
+// LLM provider configuration (API key + model) and model discovery. The key is
+// validated, encrypted at rest, and never serialized back to the client.
+api.use("/llm/*", requireAuth(getAuth));
+api.route("/llm", llmRoute);
+
+// Coaching reads synced Garmin activities, analyses them with the configured
+// LLM, and returns activity data with cached-or-fresh coach analysis.
+api.use("/coaching/*", requireAuth(getAuth));
+api.route("/coaching", coachingRoute);
+
 app.route("/api", api);
 
 export default {
   port: Number(process.env.PORT ?? 3001),
   hostname: "0.0.0.0",
+  // LLM analyses can take longer than Bun's default 10-second idle timeout.
+  // Without this, Bun closes the connection mid-request and Vite surfaces it as
+  // HTTP 502 even though the analyses continue and are persisted. 255s is the
+  // maximum Bun accepts and stays under Cloud Run's 300s request timeout.
+  idleTimeout: 255,
   fetch: app.fetch,
 };
 

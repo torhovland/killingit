@@ -15,6 +15,27 @@
       "when": 1792510670465,
       "tag": "0001_giant_unicorn",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792512416684,
+      "tag": "0002_burly_blue_shield",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792514966777,
+      "tag": "0003_wakeful_wilson_fisk",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792516896202,
+      "tag": "0004_true_sersi",
+      "breakpoints": true
     }
   ]
 }

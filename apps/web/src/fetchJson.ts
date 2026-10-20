@@ -24,7 +24,13 @@ export async function fetchJson<T>(
   const text = await res.text();
 
   if (!res.ok) {
-    throw new Error(`${method} ${url} failed: ${status} (${contentType})`);
+    // Surface the server's short text detail (e.g. "invalid OpenRouter API
+    // key") so configuration forms can show a useful message instead of only
+    // the status code.
+    const detail = text.trim();
+    throw new Error(
+      `${method} ${url} failed: ${status} (${contentType})${detail ? `: ${detail.slice(0, 300)}` : ""}`,
+    );
   }
 
   try {

@@ -73,5 +73,6 @@ describe("fetchJson", () => {
 
     expect(thrown).toBeInstanceOf(Error);
     expect((thrown as Error).message).toMatch(/failed: 500/);
+    expect((thrown as Error).message).toContain("nope");
   });
 });
