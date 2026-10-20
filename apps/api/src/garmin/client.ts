@@ -38,6 +38,70 @@ export function garminSidecarUrl(): string {
   return process.env.GARMIN_SIDECAR_URL?.trim() ?? "http://localhost:8000";
 }
 
+/** Cloud Run metadata endpoint that mints an OIDC identity token. */
+const METADATA_IDENTITY_URL =
+  "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/identity";
+
+/** Identity tokens live for an hour; refresh comfortably before then. */
+const ID_TOKEN_TTL_MS = 45 * 60 * 1000;
+
+let cachedIdToken: {
+  audience: string;
+  token: string;
+  expiresAt: number;
+} | null = null;
+
+/**
+ * Returns the headers that authenticate the API to the sidecar.
+ *
+ * In deployed environments the sidecar is a private Cloud Run service, so the
+ * API must present an OIDC identity token whose audience is the sidecar URL
+ * (`GARMIN_SIDECAR_AUDIENCE`). Locally the variable is unset and the sidecar
+ * accepts plain requests. Tokens are cached in memory until shortly before
+ * they expire.
+ */
+export async function sidecarAuthHeaders(
+  env: Record<string, string | undefined> = process.env,
+  fetchFn: typeof fetch = fetch,
+  now: () => number = Date.now,
+): Promise<Record<string, string>> {
+  const audience = env.GARMIN_SIDECAR_AUDIENCE?.trim();
+  if (!audience) {
+    return {};
+  }
+
+  if (cachedIdToken?.audience === audience && cachedIdToken.expiresAt > now()) {
+    return { authorization: `Bearer ${cachedIdToken.token}` };
+  }
+
+  const url = `${METADATA_IDENTITY_URL}?audience=${encodeURIComponent(audience)}`;
+  let res: Response;
+  try {
+    res = await fetchFn(url, { headers: { "Metadata-Flavor": "Google" } });
+  } catch (cause) {
+    throw new GarminSidecarError(
+      "could not obtain an identity token for the Garmin sidecar",
+      undefined,
+      { cause },
+    );
+  }
+  if (!res.ok) {
+    throw new GarminSidecarError(
+      `Garmin sidecar identity token endpoint returned ${res.status}`,
+    );
+  }
+
+  const token = (await res.text()).trim();
+  if (token === "") {
+    throw new GarminSidecarError(
+      "Garmin sidecar identity token endpoint returned an empty token",
+    );
+  }
+
+  cachedIdToken = { audience, token, expiresAt: now() + ID_TOKEN_TTL_MS };
+  return { authorization: `Bearer ${token}` };
+}
+
 /**
  * Authenticates credentials against the sidecar (which tries a Garmin login)
  * without fetching activities. Returns true on success.
@@ -87,11 +151,13 @@ async function sidecarPost(
   path: string,
   credentials: GarminCredentials,
 ): Promise<Response> {
+  const authHeaders = await sidecarAuthHeaders();
+
   let res: Response;
   try {
     res = await fetch(`${garminSidecarUrl()}${path}`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...authHeaders },
       body: JSON.stringify({
         username: credentials.username,
         password: credentials.password,

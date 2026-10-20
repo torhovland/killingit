@@ -3,6 +3,7 @@ import {
   authenticateGarmin,
   GarminAuthError,
   GarminSidecarError,
+  sidecarAuthHeaders,
   syncGarminActivities,
 } from "./client.js";
 
@@ -73,6 +74,66 @@ describe("authenticateGarmin", () => {
       Promise.reject(new GarminAuthError("invalid Garmin credentials")),
     );
     await expectRejectsWith(promise, GarminAuthError);
+  });
+});
+
+describe("sidecarAuthHeaders", () => {
+  it("returns no auth headers when no audience is configured", async () => {
+    const headers = await sidecarAuthHeaders({}, (() =>
+      Promise.reject(new Error("must not fetch"))) as unknown as typeof fetch);
+    expect(headers).toEqual({});
+  });
+
+  it("mints an identity token for the configured audience", async () => {
+    const calls: Array<{ url: string; init: RequestInit | undefined }> = [];
+    const fetchFn = ((url: string, init?: RequestInit) => {
+      calls.push({ url, init });
+      return Promise.resolve(new Response("id-token", { status: 200 }));
+    }) as unknown as typeof fetch;
+
+    const headers = await sidecarAuthHeaders(
+      { GARMIN_SIDECAR_AUDIENCE: "https://garmin-test.example.run.app" },
+      fetchFn,
+    );
+
+    expect(headers).toEqual({ authorization: "Bearer id-token" });
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.url).toContain(
+      "audience=https%3A%2F%2Fgarmin-test.example.run.app",
+    );
+    expect(calls[0]?.init?.headers).toEqual({ "Metadata-Flavor": "Google" });
+  });
+
+  it("caches the identity token until it expires", async () => {
+    let fetches = 0;
+    let now = 1_000;
+    const fetchFn = (() => {
+      fetches += 1;
+      return Promise.resolve(new Response(`token-${fetches}`, { status: 200 }));
+    }) as unknown as typeof fetch;
+    const env = { GARMIN_SIDECAR_AUDIENCE: "https://cached.example.run.app" };
+
+    const first = await sidecarAuthHeaders(env, fetchFn, () => now);
+    now += 60_000;
+    const second = await sidecarAuthHeaders(env, fetchFn, () => now);
+    expect(second).toEqual(first);
+    expect(fetches).toBe(1);
+
+    now += 46 * 60 * 1000;
+    const refreshed = await sidecarAuthHeaders(env, fetchFn, () => now);
+    expect(refreshed.authorization).toBe("Bearer token-2");
+    expect(fetches).toBe(2);
+  });
+
+  it("throws when the token endpoint fails", async () => {
+    const promise = sidecarAuthHeaders(
+      { GARMIN_SIDECAR_AUDIENCE: "https://broken.example.run.app" },
+      (() =>
+        Promise.resolve(
+          new Response("nope", { status: 500 }),
+        )) as unknown as typeof fetch,
+    );
+    await expectRejectsWith(promise, GarminSidecarError);
   });
 });
 

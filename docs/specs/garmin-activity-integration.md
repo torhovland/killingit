@@ -150,9 +150,11 @@ one swappable corner, and normalizes Garmin activities into the shared
   tokens; mitigated by app-level encryption at rest and never serializing them.
 - **MFA accounts** are unsupported by the library — surfaced clearly to the
   operator rather than failing silently.
-- **Sidecar deployment:** the current deploy pipeline (single Bun container)
-  needs a second container/process for the sidecar; deployment wiring is a
-  follow-up tracked separately from this data-path work.
+- **Sidecar deployment:** the deploy pipeline builds the sidecar image and
+  runs it as a private Cloud Run service (`killingit-garmin-test` /
+  `killingit-garmin`). The API authenticates with an OIDC identity token
+  (`GARMIN_SIDECAR_AUDIENCE`) and only its runtime service account holds
+  `roles/run.invoker`.
 - **Payload size:** full-resolution timeseries for a month of activities can be
   large. The sync response is the only consumer today; persistence and
   downsampling are deferred (see out of scope). Detail fetches add one Garmin

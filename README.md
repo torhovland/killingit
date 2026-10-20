@@ -153,12 +153,13 @@ only when `VITE_SENTRY_DSN` is set at build time.
 See [`docs/adrs/0001-hosting-cloud-run-neon-cloudflare.md`](./docs/adrs/0001-hosting-cloud-run-neon-cloudflare.md)
 for the decision record. Summary:
 
-| Concern               | Service                                                             |
-| --------------------- | ------------------------------------------------------------------- |
-| API (Hono + Bun)      | Google Cloud Run (always-free tier, `us-central1`)                  |
-| Database (PostgreSQL) | Neon (free tier)                                                    |
-| Web (React + Vite)    | Cloudflare Pages                                                    |
-| CI/CD                 | GitHub Actions → test (auto, `main`) / production (manual approval) |
+| Concern               | Service                                                               |
+| --------------------- | --------------------------------------------------------------------- |
+| API (Hono + Bun)      | Google Cloud Run (always-free tier, `us-central1`)                    |
+| Garmin sidecar        | Google Cloud Run, private (`--no-allow-unauthenticated`, IAM-invoked) |
+| Database (PostgreSQL) | Neon (free tier)                                                      |
+| Web (React + Vite)    | Cloudflare Pages                                                      |
+| CI/CD                 | GitHub Actions → test (auto, `main`) / production (manual approval)   |
 
 | Environment | Domain                      |
 | ----------- | --------------------------- |
@@ -218,6 +219,7 @@ the `DATABASE_URL_UNPOOLED` values go to `TEST_DATABASE_URL_UNPOOLED` /
 | Name                             | Kind   | Value                                                                                       |
 | -------------------------------- | ------ | ------------------------------------------------------------------------------------------- |
 | `GCP_PROJECT`                    | var    | `killingit`                                                                                 |
+| `GCP_PROJECT_NUMBER`             | var    | `619021024164` (used to address the default runtime service account)                        |
 | `ARTIFACT_REGISTRY`              | var    | `us-central1-docker.pkg.dev/killingit/killingit`                                            |
 | `GCP_WORKLOAD_IDENTITY_PROVIDER` | secret | `projects/619021024164/locations/global/workloadIdentityPools/github-pool/providers/github` |
 | `GCP_SERVICE_ACCOUNT`            | secret | `github-actions-deploy@killingit.iam.gserviceaccount.com`                                   |
@@ -233,6 +235,10 @@ the `DATABASE_URL_UNPOOLED` values go to `TEST_DATABASE_URL_UNPOOLED` /
 | `PROD_DATABASE_URL_UNPOOLED`     | secret | Neon production branch direct (`DATABASE_URL_UNPOOLED`)                                     |
 | `TEST_SENTRY_DSN`                | secret | Sentry DSN for the test API (`killingit-api`)                                               |
 | `PROD_SENTRY_DSN`                | secret | Sentry DSN for the production API (`killingit-api`)                                         |
+| `TEST_GARMIN_CREDENTIALS_KEY`    | secret | Passphrase for encrypting Garmin credentials at rest (test)                                 |
+| `PROD_GARMIN_CREDENTIALS_KEY`    | secret | Passphrase for encrypting Garmin credentials at rest (production)                           |
+| `TEST_LLM_CREDENTIALS_KEY`       | secret | Passphrase for encrypting the OpenRouter API key at rest (test)                             |
+| `PROD_LLM_CREDENTIALS_KEY`       | secret | Passphrase for encrypting the OpenRouter API key at rest (production)                       |
 | `TEST_VITE_SENTRY_DSN`           | secret | Sentry DSN for the test web build (`killingit-web`)                                         |
 | `PROD_VITE_SENTRY_DSN`           | secret | Sentry DSN for the production web build (`killingit-web`)                                   |
 | `SENTRY_AUTH_TOKEN`              | secret | Sentry org auth token for source-map upload (org-scoped)                                    |
@@ -246,6 +252,26 @@ the `DATABASE_URL_UNPOOLED` values go to `TEST_DATABASE_URL_UNPOOLED` /
 The `production` environment's API/web deploy jobs also require an approval
 gate (or protected-environment rule) in the repo settings to make the manual
 step real.
+
+**Garmin sidecar**
+
+The deploy workflow builds `services/garmin/Dockerfile` and deploys it as the
+private Cloud Run services `killingit-garmin-test` / `killingit-garmin`. It:
+
+- deploys with `--no-allow-unauthenticated`, so only IAM-authorized callers can
+  invoke it;
+- grants `roles/run.invoker` on the sidecar to the API's runtime service
+  account (the Compute Engine default service account, since the API deploy
+  does not set `--service-account`);
+- passes the resulting URL to the API as `GARMIN_SIDECAR_URL` and
+  `GARMIN_SIDECAR_AUDIENCE`. The API mints an OIDC identity token for that
+  audience from the Cloud Run metadata server and caches it in memory.
+
+The sidecar keeps Garmin session tokens under `/tmp`, so `--max-instances 1`
+avoids repeated Garmin logins (and their 429 rate limit). Set the
+`*_GARMIN_CREDENTIALS_KEY` / `*_LLM_CREDENTIALS_KEY` repo secrets to long random
+values (e.g. `openssl rand -hex 32`); changing one makes previously stored
+ciphertext unreadable, so re-enter the affected credentials afterwards.
 
 **Cloudflare DNS — `hovland.co`**
 
