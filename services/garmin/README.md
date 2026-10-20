@@ -21,6 +21,13 @@ pip install -r requirements.txt
 python app.py
 ```
 
+## Container
+
+`Dockerfile` builds the Cloud Run image. It listens on `$PORT` (Cloud Run sets
+`8080`) and runs as an unprivileged user. The deploy workflow publishes it as
+the **private** Cloud Run services `killingit-garmin-test` / `killingit-garmin`;
+the API invokes them with an OIDC identity token (see the root README).
+
 ## Endpoints
 
 | Method | Path            | Body                   | Response                 |

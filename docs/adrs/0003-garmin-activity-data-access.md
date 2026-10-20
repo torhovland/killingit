@@ -76,9 +76,10 @@ and strict non-serialization.
   added cost; data flows into the app behind a provider-agnostic seam.
 - **Negative / limits:** single-operator only; unofficially supported; MFA
   accounts unsupported; the sidecar is a second process to deploy and operate.
-- **Follow-ups:** wire the sidecar into the deploy pipeline; re-audit the ToS
-  posture before any multi-user launch; revisit an aggregator when demand
-  justifies it.
+- **Follow-ups:** re-audit the ToS posture before any multi-user launch; revisit
+  an aggregator when demand justifies it. (The sidecar is now deployed by the
+  pipeline as a private Cloud Run service and invoked with an OIDC identity
+  token.)
 
 ## References
 

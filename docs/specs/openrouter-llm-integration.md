@@ -142,9 +142,9 @@ on the main page.
 - **Duplicate work in React StrictMode/dev:** the initial analysis request can
   run twice; the cache prevents re-billing once the first request persists.
   Server-side in-flight deduplication is a possible later refinement.
-- **Deploy wiring:** `LLM_CREDENTIALS_KEY` must be injected in Cloud Run
-  (alongside the Garmin key) before the configuration form works in deployed
-  environments.
+- **Deploy wiring:** `LLM_CREDENTIALS_KEY` is injected in Cloud Run (alongside
+  the Garmin key) from the `TEST_LLM_CREDENTIALS_KEY` /
+  `PROD_LLM_CREDENTIALS_KEY` repo secrets.
 
 ## Definition of done
 

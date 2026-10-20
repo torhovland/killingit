@@ -4,6 +4,9 @@ on:
   workflow_run:
     workflows: [ci]
     types: [completed]
+    # Only deploy after CI on main; PR CI runs otherwise redeploy test on every
+    # push to a pull request branch.
+    branches: [main]
   workflow_dispatch: {}
 
 permissions:
@@ -51,6 +54,39 @@ jobs:
           secrets: |
             SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}
 
+  build-and-push-garmin:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - id: auth
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v3
+
+      - id: meta
+        run: |
+          echo "image=${{ vars.ARTIFACT_REGISTRY }}/killingit-garmin:${{ github.sha }}" >> "$GITHUB_OUTPUT"
+
+      - name: Configure Docker for Artifact Registry
+        run: |
+          gcloud auth configure-docker \
+            "$(echo "${{ vars.ARTIFACT_REGISTRY }}" | cut -d/ -f1)" --quiet
+
+      - name: Build and push Garmin sidecar image
+        uses: docker/build-push-action@v7
+        with:
+          context: services/garmin
+          file: services/garmin/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.image }}
+
   deploy-web-test:
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
@@ -80,7 +116,7 @@ jobs:
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
 
   deploy-api-test:
-    needs: build-and-push-api
+    needs: [build-and-push-api, build-and-push-garmin]
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
@@ -101,6 +137,45 @@ jobs:
         env:
           DATABASE_URL_UNPOOLED: ${{ secrets.TEST_DATABASE_URL_UNPOOLED }}
 
+      - name: Deploy Garmin sidecar to Cloud Run (test)
+        id: garmin
+        run: |
+          gcloud run deploy killingit-garmin-test \
+            --image ${{ needs.build-and-push-garmin.outputs.image }} \
+            --project ${{ vars.GCP_PROJECT }} \
+            --region us-central1 \
+            --platform managed \
+            --no-allow-unauthenticated \
+            --memory 1Gi \
+            --concurrency 4 \
+            --max-instances 1 \
+            --timeout 300 \
+            --quiet
+
+          url="$(gcloud run services describe killingit-garmin-test \
+            --project ${{ vars.GCP_PROJECT }} \
+            --region us-central1 \
+            --format='value(status.url)')"
+          echo "url=${url}" >> "$GITHUB_OUTPUT"
+
+      - name: Allow the API to invoke the Garmin sidecar (test)
+        run: |
+          # Use the API's configured runtime service account, or the Compute
+          # Engine default service account when --service-account is unset.
+          api_sa="$(gcloud run services describe killingit-api-test \
+            --project ${{ vars.GCP_PROJECT }} \
+            --region us-central1 \
+            --format='value(spec.template.spec.serviceAccountName)')"
+          if [[ -z "${api_sa}" ]]; then
+            api_sa="${{ vars.GCP_PROJECT_NUMBER }}-compute@developer.gserviceaccount.com"
+          fi
+          gcloud run services add-iam-policy-binding killingit-garmin-test \
+            --project ${{ vars.GCP_PROJECT }} \
+            --region us-central1 \
+            --member="serviceAccount:${api_sa}" \
+            --role=roles/run.invoker \
+            --quiet
+
       - name: Deploy API to Cloud Run (test)
         run: |
           gcloud run deploy killingit-api-test \
@@ -114,7 +189,11 @@ jobs:
             --set-env-vars "SENTRY_DSN=${{ secrets.TEST_SENTRY_DSN }}" \
             --set-env-vars "SENTRY_RELEASE=${{ github.sha }}" \
             --set-env-vars "AUTH0_ISSUER=${{ vars.AUTH0_ISSUER }}" \
-            --set-env-vars "AUTH0_AUDIENCE=${{ vars.AUTH0_AUDIENCE }}"
+            --set-env-vars "AUTH0_AUDIENCE=${{ vars.AUTH0_AUDIENCE }}" \
+            --set-env-vars "GARMIN_SIDECAR_URL=${{ steps.garmin.outputs.url }}" \
+            --set-env-vars "GARMIN_SIDECAR_AUDIENCE=${{ steps.garmin.outputs.url }}" \
+            --set-env-vars "GARMIN_CREDENTIALS_KEY=${{ secrets.TEST_GARMIN_CREDENTIALS_KEY }}" \
+            --set-env-vars "LLM_CREDENTIALS_KEY=${{ secrets.TEST_LLM_CREDENTIALS_KEY }}"
 
   deploy-web-production:
     if: github.event_name == 'workflow_dispatch'
@@ -146,7 +225,7 @@ jobs:
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
 
   deploy-api-production:
-    needs: build-and-push-api
+    needs: [build-and-push-api, build-and-push-garmin]
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: production
@@ -168,6 +247,45 @@ jobs:
         env:
           DATABASE_URL_UNPOOLED: ${{ secrets.PROD_DATABASE_URL_UNPOOLED }}
 
+      - name: Deploy Garmin sidecar to Cloud Run (production)
+        id: garmin
+        run: |
+          gcloud run deploy killingit-garmin \
+            --image ${{ needs.build-and-push-garmin.outputs.image }} \
+            --project ${{ vars.GCP_PROJECT }} \
+            --region us-central1 \
+            --platform managed \
+            --no-allow-unauthenticated \
+            --memory 1Gi \
+            --concurrency 4 \
+            --max-instances 1 \
+            --timeout 300 \
+            --quiet
+
+          url="$(gcloud run services describe killingit-garmin \
+            --project ${{ vars.GCP_PROJECT }} \
+            --region us-central1 \
+            --format='value(status.url)')"
+          echo "url=${url}" >> "$GITHUB_OUTPUT"
+
+      - name: Allow the API to invoke the Garmin sidecar (production)
+        run: |
+          # Use the API's configured runtime service account, or the Compute
+          # Engine default service account when --service-account is unset.
+          api_sa="$(gcloud run services describe killingit-api \
+            --project ${{ vars.GCP_PROJECT }} \
+            --region us-central1 \
+            --format='value(spec.template.spec.serviceAccountName)')"
+          if [[ -z "${api_sa}" ]]; then
+            api_sa="${{ vars.GCP_PROJECT_NUMBER }}-compute@developer.gserviceaccount.com"
+          fi
+          gcloud run services add-iam-policy-binding killingit-garmin \
+            --project ${{ vars.GCP_PROJECT }} \
+            --region us-central1 \
+            --member="serviceAccount:${api_sa}" \
+            --role=roles/run.invoker \
+            --quiet
+
       - name: Deploy API to Cloud Run (production)
         run: |
           gcloud run deploy killingit-api \
@@ -181,4 +299,8 @@ jobs:
             --set-env-vars "SENTRY_DSN=${{ secrets.PROD_SENTRY_DSN }}" \
             --set-env-vars "SENTRY_RELEASE=${{ github.sha }}" \
             --set-env-vars "AUTH0_ISSUER=${{ vars.AUTH0_ISSUER }}" \
-            --set-env-vars "AUTH0_AUDIENCE=${{ vars.AUTH0_AUDIENCE }}"
+            --set-env-vars "AUTH0_AUDIENCE=${{ vars.AUTH0_AUDIENCE }}" \
+            --set-env-vars "GARMIN_SIDECAR_URL=${{ steps.garmin.outputs.url }}" \
+            --set-env-vars "GARMIN_SIDECAR_AUDIENCE=${{ steps.garmin.outputs.url }}" \
+            --set-env-vars "GARMIN_CREDENTIALS_KEY=${{ secrets.PROD_GARMIN_CREDENTIALS_KEY }}" \
+            --set-env-vars "LLM_CREDENTIALS_KEY=${{ secrets.PROD_LLM_CREDENTIALS_KEY }}"
