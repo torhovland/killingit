@@ -1,4 +1,4 @@
-import type { ActivitySummary } from "@killingit/shared";
+import type { Activity } from "@killingit/shared";
 
 /**
  * Thrown when the Garmin sidecar rejects a request — either an authentication
@@ -31,7 +31,7 @@ export interface GarminCredentials {
 
 export type SyncTransport = (
   credentials: GarminCredentials,
-) => Promise<ActivitySummary[]>;
+) => Promise<Activity[]>;
 
 /** Base URL of the sidecar, from env (defaults to the local dev address). */
 export function garminSidecarUrl(): string {
@@ -53,21 +53,19 @@ export async function authenticateGarmin(
 type AuthenticateTransport = (credentials: GarminCredentials) => Promise<void>;
 
 /**
- * Fetches the last 31 days of activities from the sidecar, mapped to the
- * shared {@link ActivitySummary} shape. The transport is injectable so tests
- * stub the network.
+ * Fetches the last 31 days of activities (with their workout timeseries) from
+ * the sidecar, mapped to the shared {@link Activity} shape. The transport is
+ * injectable so tests stub the network.
  */
 export async function syncGarminActivities(
   credentials: GarminCredentials,
   transport: SyncTransport = postSync,
-): Promise<ActivitySummary[]> {
+): Promise<Activity[]> {
   return transport(credentials);
 }
 
 /** Default transport: POSTs credentials to the sidecar's `/sync` endpoint. */
-async function postSync(
-  credentials: GarminCredentials,
-): Promise<ActivitySummary[]> {
+async function postSync(credentials: GarminCredentials): Promise<Activity[]> {
   const res = await sidecarPost("/sync", credentials);
   const body = (await res.json()) as { activities?: unknown };
   if (!Array.isArray(body.activities)) {
@@ -75,7 +73,7 @@ async function postSync(
       "sidecar returned a malformed activities payload",
     );
   }
-  return body.activities as ActivitySummary[];
+  return body.activities as Activity[];
 }
 
 /** Default transport: POSTs credentials to the sidecar's `/authenticate`. */

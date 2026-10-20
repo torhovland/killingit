@@ -10,9 +10,11 @@
 Sync the operator's own **last 31 days of Garmin activities** into the app
 using [`python-garminconnect`](https://github.com/cyberjunky/python-garminconnect),
 with the operator entering their Garmin **username and password** through the
-app. Activities are normalized into a shared `ActivitySummary` shape, and the
-sync runs automatically when the operator visits the app while credentials are
-present, with progress shown on the main page.
+app. Activities are normalized into a shared `ActivitySummary` shape, **with
+each activity's recorded timeseries** (GPS location, heart rate, power,
+temperature, speed, distance, elevation, cadence) normalized into `samples`,
+and the sync runs automatically when the operator visits the app while
+credentials are present, with progress shown on the main page.
 
 ## Why a Python sidecar (and not a backend rewrite)
 
@@ -35,7 +37,8 @@ one swappable corner, and normalizes Garmin activities into the shared
 1. **Python sidecar** (`services/garmin/`) — a FastAPI service that:
    - authenticates to Garmin Connect with username/password (via
      `python-garminconnect`'s `Garmin().login()`), and
-   - returns the last 31 days of activities in a normalized shape.
+   - returns the last 31 days of activities in a normalized shape, **including
+     each activity's timeseries samples**.
 2. **Credential entry** — a web form (behind Auth0 sign-in) that POSTs the
    Garmin username/password to a protected API endpoint.
 3. **Encrypted storage** — credentials encrypted at rest with AES-256-GCM,
@@ -43,8 +46,12 @@ one swappable corner, and normalizes Garmin activities into the shared
    serialized back to the client.
 4. **Sync trigger** — automatically when the operator loads the app while
    credentials exist; progress surfaced on the main page.
-5. **Shared types** — a Garmin connection-status schema and (re)use of the
-   existing `ActivitySummary` shape.
+5. **Shared types** — a Garmin connection-status schema, the existing
+   `ActivitySummary` shape, and a `samples` timeseries on each synced activity
+   (shared `Activity` type).
+6. **Workout timeseries** — per-activity detail metrics from Garmin are
+   normalized per sample into timestamp + location, heart rate, power,
+   temperature, speed, distance, elevation, and cadence where recorded.
 
 ### Out of scope (explicitly deferred)
 
@@ -55,6 +62,8 @@ one swappable corner, and normalizes Garmin activities into the shared
 - **Webhooks / real-time sync**, and wiring activities into the **LLM** (a
   separate later spec).
 - **Incremental sync** — always pulls the full 31-day window for now.
+- **Timeseries persistence and downsampling** — samples travel with the sync
+  response; storing them and serving downsampled chart data is a follow-up.
 
 ## Acceptance criteria
 
@@ -65,8 +74,11 @@ one swappable corner, and normalizes Garmin activities into the shared
 3. Bad credentials surface as a clear auth error (not a 500); missing
    credentials surface as "not connected".
 4. Encrypted credentials are never returned by any API response.
-5. Unit tests cover credential encryption, activity mapping, and the sidecar
-   client; quality gates (`typecheck`/`lint`/`format`/`test`) pass.
+5. Each synced activity carries a `samples` timeseries normalized from Garmin's
+   activity details, with absent channels omitted per sample and one bad detail
+   fetch not failing the whole sync.
+6. Unit tests cover credential encryption, activity/sample mapping, and the
+   sidecar client; quality gates (`typecheck`/`lint`/`format`/`test`) pass.
 
 ## Data-model / API impact
 
@@ -78,7 +90,10 @@ one swappable corner, and normalizes Garmin activities into the shared
   - `GET  /api/garmin/status` — connected / not connected (no secrets).
   - `GET  /api/garmin/activities` — trigger + return the 31-day sync.
 - **New sidecar** `services/garmin/` — `POST /sync` (credentials → normalized
-  activities), `POST /authenticate` (validate credentials).
+  activities, each with a normalized `samples` timeseries),
+  `POST /authenticate` (validate credentials).
+- **Shared type** — `Activity` extends `ActivitySummary` with
+  `samples: ActivitySample[]`; no database change.
 - **New env var** `GARMIN_CREDENTIALS_KEY` (encryption key) + sidecar URL
   config.
 
@@ -88,7 +103,12 @@ one swappable corner, and normalizes Garmin activities into the shared
 
 - FastAPI + `python-garminconnect`. Endpoints:
   - `POST /sync` — body `{ "username", "password" }` → `{ "activities": [...] }`
-    for the last 31 days.
+    for the last 31 days. For each activity it also calls
+    `get_activity_details()` and resolves the positional
+    `activityDetailMetrics` with the library's
+    `parse_activity_detail_metrics()` into normalized `samples`. A failed
+    detail fetch logs and yields `samples: []` for that activity; a Garmin
+    rate-limit still fails the sync with `429`.
   - `POST /authenticate` — body `{ "username", "password" }` → `{ "ok": true }`
     or auth error (used to validate before storing).
 - Kept dependency-minimal and isolated so the Bun app treats it as a
@@ -114,8 +134,8 @@ one swappable corner, and normalizes Garmin activities into the shared
 
 - **Unit (API):** AES encrypt/decrypt round-trip and tamper detection; sidecar
   client mapping + error handling; config-from-env.
-- **Unit (Python):** activity normalization + 31-day filtering with a stubbed
-  Garmin client (no live network).
+- **Unit (Python):** activity and sample normalization + 31-day filtering with
+  a stubbed Garmin client (no live network).
 - Run `bun run typecheck`, `bun run lint`, `bun run format`, `bun run test` and
   the sidecar's own test suite.
 
@@ -131,6 +151,10 @@ one swappable corner, and normalizes Garmin activities into the shared
 - **Sidecar deployment:** the current deploy pipeline (single Bun container)
   needs a second container/process for the sidecar; deployment wiring is a
   follow-up tracked separately from this data-path work.
+- **Payload size:** full-resolution timeseries for a month of activities can be
+  large. The sync response is the only consumer today; persistence and
+  downsampling are deferred (see out of scope). Detail fetches add one Garmin
+  request per activity, so the existing rate-limit handling covers them.
 
 ## Implementation notes (deviations from the original plan)
 
@@ -151,11 +175,26 @@ one swappable corner, and normalizes Garmin activities into the shared
   previously produced a stringified dict; it now yields `"unknown"`.
 - **Sidecar tooling is excluded from JS lint/format** (`services/**/.venv`,
   `__pycache__`).
+- **Malformed sync payloads cannot blank the page.** The web validates the
+  `{ activities }` response against the shared `activitiesResponseSchema`
+  before rendering; a shape error becomes an inline Garmin error. `samples`
+  defaults to `[]` so a pre-timeseries sidecar still parses. Independently, a
+  top-level React `ErrorBoundary` renders a recovery page ("Something went
+  wrong", retry/reload) for any uncaught render error and reports it to Sentry
+  through React 19's `onCaughtError` hook.
+- **Timeseries from activity details.** Each activity triggers
+  `get_activity_details()`, whose positional `activityDetailMetrics` are
+  resolved through the library's `parse_activity_detail_metrics()` and mapped
+  to a normalized `samples` list (epoch milliseconds → ISO-8601 UTC; absent or
+  non-numeric channels omitted). `sumDistance` is preferred over
+  `directDistance` for cumulative distance. A failed detail fetch yields
+  `samples: []` for that activity rather than failing the sync.
 
 ## Definition of done
 
 - Credential entry → encrypted storage → auto-sync → rendered activities works
   end-to-end in dev against the operator's own Garmin account. (Verified against
   the operator's account: 5 activities returned in the 31-day window.)
+- Every synced activity carries its normalized timeseries `samples`.
 - All four quality gates pass, plus the sidecar's tests.
 - ADR 0003 amended and this spec kept current.

@@ -18,6 +18,16 @@ describe("syncGarminActivities", () => {
         movingTime: 1500,
         elapsedTime: 1600,
         totalElevationGain: 55,
+        samples: [
+          {
+            timestamp: "2026-10-01T06:30:00Z",
+            latitude: 59.91,
+            longitude: 10.75,
+            heartRate: 140,
+            power: 250,
+            temperature: 12.5,
+          },
+        ],
       },
     ];
     const result = await syncGarminActivities(
@@ -25,6 +35,7 @@ describe("syncGarminActivities", () => {
       () => Promise.resolve(activities),
     );
     expect(result).toEqual(activities);
+    expect(result[0]?.samples[0]?.heartRate).toBe(140);
   });
 
   it("propagates a transport rejection", async () => {
