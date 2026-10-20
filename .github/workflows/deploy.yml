@@ -4,6 +4,9 @@ on:
   workflow_run:
     workflows: [ci]
     types: [completed]
+    # Only deploy after CI on main; PR CI runs otherwise redeploy test on every
+    # push to a pull request branch.
+    branches: [main]
   workflow_dispatch: {}
 
 permissions:
