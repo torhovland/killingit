@@ -10,6 +10,9 @@ export default tseslint.config(
       "**/dist/**",
       "**/build/**",
       "**/coverage/**",
+      // Python sidecar artifacts (not application JS/TS).
+      "services/**/.venv/**",
+      "services/**/__pycache__/**",
     ],
   },
   js.configs.recommended,

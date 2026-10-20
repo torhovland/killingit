@@ -5,3 +5,5 @@ coverage/
 bun.lock
 .git/
 *.snap
+services/**/.venv/
+services/**/__pycache__/

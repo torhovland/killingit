@@ -5,6 +5,7 @@ import { createAuthProvider } from "./auth/index.js";
 import { requireAuth } from "./auth/middleware.js";
 import { withSentry } from "./instrumentation/sentry.js";
 import { athletesRoute } from "./routes/athletes.js";
+import { garminRoute } from "./routes/garmin.js";
 import { greet } from "./routes/greet.js";
 import { health } from "./routes/health.js";
 import { meRoute } from "./routes/me.js";
@@ -53,6 +54,11 @@ const getAuth = () => (cachedAuth ??= createAuthProvider());
 
 api.use("/me/*", requireAuth(getAuth));
 api.route("/me", meRoute);
+
+// Garmin integration is authenticated (credential entry + data sync are
+// operator-only). Credentials are never serialized in responses.
+api.use("/garmin/*", requireAuth(getAuth));
+api.route("/garmin", garminRoute);
 
 app.route("/api", api);
 

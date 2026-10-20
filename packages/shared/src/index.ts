@@ -21,3 +21,10 @@ export {
   athleteIdentitySchema,
   type AthleteIdentity,
 } from "./athleteIdentity.js";
+
+export {
+  garminConnectionStatusSchema,
+  type GarminConnectionStatus,
+} from "./garminConnection.js";
+
+export { activitySummarySchema, type ActivitySummary } from "./activity.js";
