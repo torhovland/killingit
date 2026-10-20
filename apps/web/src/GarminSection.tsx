@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import type {
-  ActivitySummary,
-  GarminConnectionStatus,
+import {
+  activitiesResponseSchema,
+  type Activity,
+  type GarminConnectionStatus,
 } from "@killingit/shared";
 import { useAuth } from "./auth";
 import { fetchJsonAuthed } from "./fetchAuthed";
@@ -20,7 +21,7 @@ type SyncState = "idle" | "syncing" | "done" | "error";
 export function GarminSection() {
   const auth = useAuth();
   const [status, setStatus] = useState<GarminConnectionStatus | null>(null);
-  const [activities, setActivities] = useState<ActivitySummary[]>([]);
+  const [activities, setActivities] = useState<Activity[]>([]);
   const [syncState, setSyncState] = useState<SyncState>("idle");
   const [error, setError] = useState<string | null>(null);
 
@@ -49,11 +50,17 @@ export function GarminSection() {
   async function sync(authState = auth): Promise<void> {
     setSyncState("syncing");
     try {
-      const res = await fetchJsonAuthed<{ activities: ActivitySummary[] }>(
+      const res = await fetchJsonAuthed<unknown>(
         `${API_URL}/api/garmin/activities`,
         authState,
       );
-      setActivities(res.activities);
+      const parsed = activitiesResponseSchema.safeParse(res);
+      if (!parsed.success) {
+        throw new Error("Garmin sync returned an unexpected response", {
+          cause: parsed.error,
+        });
+      }
+      setActivities(parsed.data.activities);
       setSyncState("done");
     } catch (e: unknown) {
       setSyncState("error");
@@ -152,6 +159,12 @@ export function GarminSection() {
             {activities.map((a) => (
               <li key={a.id} data-testid="garmin-activity">
                 {a.name} — {a.type} ({Math.round(a.distance)}m)
+                {a.samples.length > 0 && (
+                  <span className="opacity-60">
+                    {" "}
+                    · {a.samples.length} samples
+                  </span>
+                )}
               </li>
             ))}
           </ul>

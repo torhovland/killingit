@@ -16,13 +16,16 @@ those tokens instead of logging in again.
 
 The /sync response activities are normalized to the same shape the web app and
 shared types expect: id, name, type, startDate (ISO 8601 UTC), distance (m),
-movingTime (s), elapsedTime (s), totalElevationGain (m).
+movingTime (s), elapsedTime (s), totalElevationGain (m), plus a `samples`
+timeseries normalized from Garmin's activity details (timestamp, location,
+heart rate, power, temperature, speed, distance, elevation, cadence).
 """
 
 from __future__ import annotations
 
 import hashlib
 import logging
+import math
 import os
 import tempfile
 from datetime import UTC, datetime, timedelta
@@ -35,6 +38,7 @@ from garminconnect import (
     GarminConnectConnectionError,
     GarminConnectTooManyRequestsError,
 )
+from garminconnect.activity_details import parse_activity_detail_metrics
 from pydantic import BaseModel
 
 logger = logging.getLogger("garmin-sidecar")
@@ -131,10 +135,37 @@ def _sync(credentials: Credentials) -> list[dict]:
         logger.exception("Garmin activity fetch failed")
         raise _UpstreamError("Garmin activity fetch failed") from exc
 
-    return [_to_activity(raw) for raw in raw_activities or []]
+    try:
+        return [
+            _to_activity(raw, _samples_for(garmin, raw.get("activityId")))
+            for raw in raw_activities or []
+        ]
+    except GarminConnectTooManyRequestsError as exc:
+        raise _RateLimitedError(
+            "Garmin is rate limiting requests. Wait a few minutes and try again."
+        ) from exc
 
 
-def _to_activity(raw: dict) -> dict:
+def _samples_for(garmin, activity_id) -> list[dict]:
+    """Fetch and normalize one activity's timeseries.
+
+    A single failed detail fetch must not fail the whole 31-day sync, so it is
+    logged and treated as an activity with no recorded samples. Rate limiting is
+    different: it is re-raised so the caller can surface `429`.
+    """
+    if activity_id is None:
+        return []
+    try:
+        details = garmin.get_activity_details(str(activity_id))
+    except GarminConnectTooManyRequestsError:
+        raise
+    except Exception:  # noqa: BLE001 - any library/network failure
+        logger.exception("Garmin activity details fetch failed for %s", activity_id)
+        return []
+    return _to_samples(details or {})
+
+
+def _to_activity(raw: dict, samples: list[dict] | None = None) -> dict:
     """Map a Garmin activity to the shared normalized shape."""
 
     def _num(value, default: float = 0.0) -> float:
@@ -153,7 +184,78 @@ def _to_activity(raw: dict) -> dict:
         "movingTime": _num(raw.get("movingDuration")),
         "elapsedTime": _num(raw.get("duration")),
         "totalElevationGain": _num(raw.get("elevationGain")),
+        "samples": samples or [],
     }
+
+
+# Garmin detail metric keys -> normalized sample fields, in priority order.
+# Keys vary by device and activity type; for aliases (temperature, elevation,
+# cadence) the first key present wins, and absent channels are omitted from the
+# sample entirely.
+_SAMPLE_METRICS = (
+    ("directLatitude", "latitude"),
+    ("directLongitude", "longitude"),
+    ("directHeartRate", "heartRate"),
+    ("directPower", "power"),
+    ("directAirTemperature", "temperature"),
+    ("directTemperature", "temperature"),
+    ("directSpeed", "speed"),
+    ("directCorrectedElevation", "elevation"),
+    ("directElevation", "elevation"),
+    ("directUncorrectedElevation", "elevation"),
+    ("directBikeCadence", "cadence"),
+    ("directFractionalCadence", "cadence"),
+    ("directCadence", "cadence"),
+)
+
+
+def _to_samples(details: dict) -> list[dict]:
+    """Resolve Garmin's positional detail metrics into normalized samples."""
+    samples = []
+    for raw in parse_activity_detail_metrics(details):
+        timestamp = _epoch_iso(raw.get("directTimestamp"))
+        if timestamp is None:
+            continue
+
+        sample = {"timestamp": timestamp}
+        for source_key, field in _SAMPLE_METRICS:
+            if field in sample:
+                continue
+            value = _finite_or_none(raw.get(source_key))
+            if value is not None:
+                sample[field] = value
+
+        # Garmin usually reports cumulative distance as `sumDistance`, but some
+        # devices only provide the instantaneous `directDistance`.
+        distance = _finite_or_none(raw.get("sumDistance"))
+        if distance is None:
+            distance = _finite_or_none(raw.get("directDistance"))
+        if distance is not None:
+            sample["distance"] = distance
+
+        samples.append(sample)
+    return samples
+
+
+def _finite_or_none(value) -> float | None:
+    """Return a finite float, or None for missing/non-numeric values."""
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number if math.isfinite(number) else None
+
+
+def _epoch_iso(value) -> str | None:
+    """Convert Garmin's epoch-millisecond timestamp to an ISO 8601 UTC string."""
+    milliseconds = _finite_or_none(value)
+    if milliseconds is None:
+        return None
+    try:
+        moment = datetime.fromtimestamp(milliseconds / 1000, tz=UTC)
+    except (OverflowError, OSError, ValueError):
+        return None
+    return moment.isoformat().replace("+00:00", "Z")
 
 
 def normalize_type(activity_type) -> str:

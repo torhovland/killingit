@@ -27,4 +27,13 @@ export {
   type GarminConnectionStatus,
 } from "./garminConnection.js";
 
-export { activitySummarySchema, type ActivitySummary } from "./activity.js";
+export {
+  activitiesResponseSchema,
+  activitySampleSchema,
+  activitySchema,
+  activitySummarySchema,
+  type ActivitiesResponse,
+  type Activity,
+  type ActivitySample,
+  type ActivitySummary,
+} from "./activity.js";

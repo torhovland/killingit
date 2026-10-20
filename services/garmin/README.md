@@ -47,6 +47,14 @@ pytest
 ## Notes
 
 - MFA-required Garmin accounts are **not supported** and return 403.
-- The `/sync` activities are normalized to the shared `ActivitySummary` shape
+- The `/sync` activities are normalized to the shared `Activity` shape
   (`id`, `name`, `type`, `startDate` ISO-8601 UTC, `distance` m, `movingTime` s,
-  `elapsedTime` s, `totalElevationGain` m).
+  `elapsedTime` s, `totalElevationGain` m) plus a `samples` timeseries.
+- Each sample is built from Garmin's `get_activity_details()` metrics and
+  contains a UTC `timestamp` plus any recorded channels: `latitude`,
+  `longitude`, `heartRate` (bpm), `power` (W), `temperature` (°C), `speed`
+  (m/s), `distance` (m, cumulative), `elevation` (m), and `cadence`. Absent
+  channels are omitted per sample.
+- Activity-detail calls add one Garmin request per activity. If a detail fetch
+  fails, that activity is returned with `samples: []` and the sync continues;
+  Garmin rate limiting still fails the whole sync with `429`.
