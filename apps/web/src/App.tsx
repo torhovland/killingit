@@ -4,6 +4,7 @@ import { useAuth } from "./auth";
 import { fetchJson } from "./fetchJson";
 import { fetchJsonAuthed } from "./fetchAuthed";
 import { reportError } from "./reportError";
+import { GarminSection } from "./GarminSection";
 
 // Absolute API origin for deployed environments (e.g. the Cloud Run URL).
 // Empty string keeps relative "/api" for the local Vite dev proxy.
@@ -75,6 +76,8 @@ export function App() {
           >
             Sign out
           </button>
+
+          <GarminSection />
         </>
       ) : (
         <button

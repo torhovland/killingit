@@ -41,3 +41,9 @@ coverage/
 # Local tooling
 .opencode/
 .neon
+
+# Python (Garmin sidecar)
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/

@@ -13,6 +13,8 @@ workouts.
 - **API:** Hono + TypeScript
 - **Shared:** Zod schemas + shared types (workspace package)
 - **DB:** PostgreSQL + Drizzle ORM
+- **Garmin:** Python sidecar (FastAPI + `python-garminconnect`) — see
+  `services/garmin/` and ADR 0003.
 
 ## Layout
 
@@ -22,6 +24,8 @@ apps/
   api/       Hono backend (Drizzle + Postgres)
 packages/
   shared/    Shared Zod schemas and types
+services/
+  garmin/    Python Garmin sync sidecar (FastAPI + python-garminconnect)
 ```
 
 ## Prerequisites
