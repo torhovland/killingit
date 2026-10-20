@@ -1,34 +1,44 @@
 import { afterEach, describe, expect, it, spyOn } from "bun:test";
 import type { Mock } from "bun:test";
 import * as Sentry from "@sentry/react";
+import { ApiError } from "./fetchJson";
 import { reportError } from "./reportError";
 
-type CaptureException = (exception: unknown) => string;
+type CaptureException = typeof Sentry.captureException;
 
 describe("reportError", () => {
-  let capture: Mock<CaptureException>;
+  let captureException: Mock<CaptureException>;
+
+  function spyOnCapture() {
+    captureException = spyOn(Sentry, "captureException");
+  }
 
   afterEach(() => {
-    capture.mockRestore();
+    captureException.mockRestore();
   });
 
-  it("reports an Error to Sentry and returns its message", () => {
-    capture = spyOn(Sentry, "captureException");
+  it("reports unexpected errors and returns the message", () => {
+    spyOnCapture();
+    const error = new Error("boom");
 
-    const message = reportError(new Error("boom"));
-
-    expect(capture).toHaveBeenCalledTimes(1);
-    expect(capture.mock.calls[0]?.[0]).toBeInstanceOf(Error);
-    expect(message).toBe("boom");
+    expect(reportError(error)).toBe("boom");
+    expect(captureException).toHaveBeenCalledWith(error);
   });
 
-  it("reports a non-Error value to Sentry and stringifies it", () => {
-    capture = spyOn(Sentry, "captureException");
+  it("reports server errors", () => {
+    spyOnCapture();
+    const error = new ApiError("failed: 503", 503);
 
-    const message = reportError("something went wrong");
+    reportError(error);
+    expect(captureException).toHaveBeenCalledWith(error);
+  });
 
-    expect(capture).toHaveBeenCalledTimes(1);
-    expect(capture.mock.calls[0]?.[0]).toBe("something went wrong");
-    expect(message).toBe("something went wrong");
+  it("does not report expected client errors", () => {
+    spyOnCapture();
+
+    reportError(new ApiError("invalid Garmin credentials", 401));
+    reportError(new ApiError("Garmin requires MFA", 403));
+
+    expect(captureException).not.toHaveBeenCalled();
   });
 });

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, spyOn } from "bun:test";
 import type { Mock } from "bun:test";
 import * as Sentry from "@sentry/react";
-import { fetchJson } from "./fetchJson";
+import { ApiError, fetchJson } from "./fetchJson";
 
 type AddBreadcrumb = typeof Sentry.addBreadcrumb;
 
@@ -71,7 +71,8 @@ describe("fetchJson", () => {
       thrown = e;
     }
 
-    expect(thrown).toBeInstanceOf(Error);
+    expect(thrown).toBeInstanceOf(ApiError);
+    expect((thrown as ApiError).status).toBe(500);
     expect((thrown as Error).message).toMatch(/failed: 500/);
     expect((thrown as Error).message).toContain("nope");
   });

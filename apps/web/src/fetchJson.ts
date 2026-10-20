@@ -1,5 +1,21 @@
 import * as Sentry from "@sentry/react";
 
+/**
+ * A non-2xx API response. Callers (and `reportError`) can tell expected client
+ * failures (4xx: bad credentials, rate limiting, expired session) apart from
+ * server-side faults (5xx).
+ */
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    options?: { cause?: unknown },
+  ) {
+    super(message, options);
+    this.name = "ApiError";
+  }
+}
+
 // Fetches a URL and parses it as JSON, recording a Sentry breadcrumb for the
 // request and throwing an Error that carries enough context (URL, status,
 // content type) to make the resulting Sentry event actionable even when the
@@ -28,8 +44,9 @@ export async function fetchJson<T>(
     // key") so configuration forms can show a useful message instead of only
     // the status code.
     const detail = text.trim();
-    throw new Error(
+    throw new ApiError(
       `${method} ${url} failed: ${status} (${contentType})${detail ? `: ${detail.slice(0, 300)}` : ""}`,
+      status,
     );
   }
 
