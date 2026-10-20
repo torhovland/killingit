@@ -59,8 +59,8 @@ one swappable corner, and normalizes Garmin activities into the shared
 - **Multi-factor Garmin accounts** — MFA-required accounts are a known
   limitation of `python-garminconnect`; documented, not solved.
 - **Garmin official developer-program API** — still gated/paused (ADR 0003).
-- **Webhooks / real-time sync**, and wiring activities into the **LLM** (a
-  separate later spec).
+- **Webhooks / real-time sync.** (Wiring activities into the LLM is now covered
+  by `docs/specs/openrouter-llm-integration.md`.)
 - **Incremental sync** — always pulls the full 31-day window for now.
 - **Timeseries persistence and downsampling** — samples travel with the sync
   response; storing them and serving downsampled chart data is a follow-up.
@@ -122,12 +122,14 @@ one swappable corner, and normalizes Garmin activities into the shared
 - `store.ts` — Drizzle upsert/load of the single `garmin_connections` row.
 - `routes/garmin.ts` — the three routes above, guarded by `requireAuth`.
 
-### Web (`apps/web/src/GarminSection.tsx`)
+### Web (`apps/web/src/`)
 
-- Credential form (username/password) after sign-in; `POST`s to
-  `/api/garmin/credentials`.
-- On load, if status is connected, fetches `/api/garmin/activities` and renders
-  a "Syncing…" state, then the activity list.
+- `GarminSection.tsx` — credential form (username/password) after sign-in;
+  `POST`s to `/api/garmin/credentials`. It shows the connected state; activity
+  loading lives in the coaching dashboard.
+- `CoachDashboard.tsx` / `ActivityCard.tsx` — on load, if status is connected,
+  fetches `/api/coaching/activities` (which syncs Garmin and optionally analyses
+  the activities) and renders a "Syncing…" state, then the activity list.
 - Kept thin; no new SDK dependency beyond the existing fetch helpers.
 
 ## Testing

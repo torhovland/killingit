@@ -15,6 +15,8 @@ workouts.
 - **DB:** PostgreSQL + Drizzle ORM
 - **Garmin:** Python sidecar (FastAPI + `python-garminconnect`) — see
   `services/garmin/` and ADR 0003.
+- **LLM:** OpenRouter chat completions behind a provider-agnostic interface —
+  see ADR 0004. The operator enters an API key and picks a model in the app.
 
 ## Layout
 
@@ -79,6 +81,11 @@ development out of the box.
 
 The `athletes` table is a placeholder proving the Drizzle wiring. The real
 athlete-profile and training data model will replace it.
+
+Integration tables: `garmin_connections` (encrypted Garmin credentials),
+`llm_settings` (encrypted OpenRouter key + selected model), and
+`activity_analyses` (cached coach analysis per activity/model). See ADR 0003,
+ADR 0004, and the specs in `docs/specs/`.
 
 ## Error monitoring (Sentry)
 

@@ -37,3 +37,20 @@ export {
   type ActivitySample,
   type ActivitySummary,
 } from "./activity.js";
+
+export {
+  analyzedActivitiesResponseSchema,
+  analyzedActivitySchema,
+  coachAnalysisSchema,
+  llmModelSchema,
+  llmModelsResponseSchema,
+  llmSettingsSchema,
+  llmSettingsUpdateSchema,
+  type AnalyzedActivitiesResponse,
+  type AnalyzedActivity,
+  type CoachAnalysis,
+  type LlmModel,
+  type LlmModelsResponse,
+  type LlmSettings,
+  type LlmSettingsUpdate,
+} from "./llm.js";

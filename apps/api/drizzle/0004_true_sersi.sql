@@ -1,0 +1,1 @@
+ALTER TABLE "activity_analyses" ADD COLUMN "prompt_version" integer DEFAULT 1 NOT NULL;

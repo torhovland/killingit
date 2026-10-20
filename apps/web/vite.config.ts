@@ -41,6 +41,10 @@ export default defineConfig({
       "/api": {
         target: "http://127.0.0.1:3001",
         changeOrigin: true,
+        // LLM analysis batches can take a while; keep the dev proxy from
+        // cutting the upstream connection before the API responds.
+        timeout: 300_000,
+        proxyTimeout: 300_000,
       },
     },
   },

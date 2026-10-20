@@ -1,3 +1,4 @@
+import { eq, ne } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { garminConnections } from "../db/schema.js";
 
@@ -13,20 +14,27 @@ export interface EncryptedCredentials {
 export async function saveCredentials(
   credentials: EncryptedCredentials,
 ): Promise<void> {
-  await db
-    .insert(garminConnections)
-    .values({
-      usernameEncrypted: credentials.usernameEncrypted,
-      passwordEncrypted: credentials.passwordEncrypted,
-    })
-    .onConflictDoUpdate({
-      target: garminConnections.id,
-      set: {
+  // Fixed id 1 is required for a real single-row upsert; an insert without an
+  // id would advance the sequence and append a second row. Delete any legacy
+  // duplicates first so the fix is self-healing.
+  await db.transaction(async (tx) => {
+    await tx.delete(garminConnections).where(ne(garminConnections.id, 1));
+    await tx
+      .insert(garminConnections)
+      .values({
+        id: 1,
         usernameEncrypted: credentials.usernameEncrypted,
         passwordEncrypted: credentials.passwordEncrypted,
-        updatedAt: new Date(),
-      },
-    });
+      })
+      .onConflictDoUpdate({
+        target: garminConnections.id,
+        set: {
+          usernameEncrypted: credentials.usernameEncrypted,
+          passwordEncrypted: credentials.passwordEncrypted,
+          updatedAt: new Date(),
+        },
+      });
+  });
 }
 
 /**
@@ -35,7 +43,11 @@ export async function saveCredentials(
  * with the encryption key and never serialize it.
  */
 export async function loadCredentials(): Promise<EncryptedCredentials | null> {
-  const rows = await db.select().from(garminConnections).limit(1);
+  const rows = await db
+    .select()
+    .from(garminConnections)
+    .where(eq(garminConnections.id, 1))
+    .limit(1);
   const row = rows[0];
   if (!row) {
     return null;
