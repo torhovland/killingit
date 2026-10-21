@@ -35,8 +35,8 @@ question wording changes.
 - Answer types other than free text (choice, numeric, scale, …). A new type is
   an additive column/field on the version row.
 - Reordering questions, restoring archived questions, or a version-history UI.
-- Admin roles. The current phase is single-operator, so any authenticated user
-  may manage questions (mirroring Garmin and OpenRouter configuration).
+- Admin management UI (invite/promote/demote). The role exists (ADR 0006); only
+  the first account is an admin for now.
 
 ## Acceptance criteria
 
@@ -51,10 +51,10 @@ question wording changes.
 4. `DELETE /api/admin/questions/:id` archives the question, returns `{ id }`,
    and removes it from the list; all version rows remain. A second delete is
    idempotent; an unknown id returns `404`.
-5. Blank or too-long prompts are rejected with `400`. All endpoints require a
-   signed-in user (`401` without a valid bearer token).
-6. The dashboard admin section can list, add, edit, and delete questions without
-   a page reload, and surfaces API errors inline.
+5. Blank or too-long prompts are rejected with `400`. All endpoints require an
+   admin (`401` without a valid bearer token, `403` for a signed-in member).
+6. The admin settings page can list, add, edit, and delete questions without a
+   page reload, and surfaces API errors inline.
 7. `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`
    pass.
 
@@ -79,7 +79,7 @@ question wording changes.
 Invariants: a version row for `questions.current_version` always exists; versions
 are never updated or deleted by the API; archiving does not touch versions.
 
-### Routes (all behind `requireAuth`)
+### Routes (all behind `requireAuth` + `requireAdmin`)
 
 - `GET /api/admin/questions` → `{ questions: Question[] }`
 - `POST /api/admin/questions` → `Question` (201)
@@ -107,7 +107,8 @@ re-exported from the package index.
 - `routes/adminQuestions.ts` — Zod validation for params and bodies, 404 for
   unknown/archived questions, and response schema parsing before serialization.
 - `db/schema.ts` — Drizzle tables and inferred types.
-- `index.ts` — mount `/api/admin/questions` behind `requireAuth`.
+- `index.ts` — mount `/api/admin/questions` behind `requireAuth` +
+  `requireAdmin`.
 
 ### Web (`apps/web/src/`)
 
@@ -116,14 +117,15 @@ re-exported from the package index.
 - `QuestionRow.tsx` — renders one question and toggles an inline editor; delete
   asks for confirmation and explains that history is preserved.
 - `QuestionForm.tsx` — shared create/edit form (prompt + required).
-- `CoachDashboard.tsx` — renders the admin section after the LLM configuration.
+- `AdminSettingsPage.tsx` — hosts the section on the admin-only page (ADR 0006);
+  `CoachDashboard.tsx` no longer renders it.
 
 ## Testing
 
 - **Shared unit tests:** prompt trimming, required default, blank/oversized
   prompt rejection, question/response schema parsing.
 - **API unit tests:** the stored-row mapper and route authorization (401 without
-  a token), which also proves the route is mounted.
+  a token, 403 for a member), which also proves the route is mounted.
 - **Web unit tests:** static rendering of a question row (prompt, version,
   required, actions) and the shared form.
 - DB-backed route integration tests are deferred until CI has a Postgres

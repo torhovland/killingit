@@ -151,6 +151,10 @@ OAuth 2.0** connections.
 Regardless of provider, the Strava/Garmin connections must also grant the data
 scopes we need to pull training data — not just identity.
 
+Application roles live in the `users` table, not in provider tokens. The first
+account provisioned in an environment is the admin; later accounts are members.
+Only the admin can manage athlete questions (see ADR 0006).
+
 ### Error monitoring
 
 - **Sentry.io has a free plan** ("Developer"): 5,000 errors/month, 5M spans,

@@ -1,5 +1,6 @@
 import type { AthleteIdentity } from "@killingit/shared";
 import type { Context, MiddlewareHandler } from "hono";
+import type { UserStore } from "../users/store.js";
 import { AuthVerificationError } from "./provider.js";
 import type { AuthProvider } from "./provider.js";
 
@@ -60,4 +61,31 @@ export function requireAuth(
 /** Read the authenticated athlete set by {@link requireAuth}. */
 export function getAthlete(c: Context): AthleteIdentity {
   return c.var[ATHLETE_CONTEXT_KEY];
+}
+
+/**
+ * Resolves the account behind the authenticated subject and rejects non-admins
+ * with 403. Must run after {@link requireAuth}, which is where the subject comes
+ * from. The account is provisioned on first sight, so the first user in an
+ * environment becomes the admin (ADR 0006).
+ *
+ * A database failure while resolving the account is an infrastructure failure,
+ * not a denial: log it and return 503.
+ */
+export function requireAdmin(store: UserStore): MiddlewareHandler {
+  return async (c, next) => {
+    const { sub } = getAthlete(c);
+
+    try {
+      const user = await store.ensureUser(sub);
+      if (user.role !== "admin") {
+        return c.text("Forbidden", 403);
+      }
+    } catch (err) {
+      console.error("[auth] failed to resolve the current user:", err);
+      return c.text("Service Unavailable", 503);
+    }
+
+    await next();
+  };
 }

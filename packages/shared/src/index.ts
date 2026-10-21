@@ -23,6 +23,13 @@ export {
 } from "./athleteIdentity.js";
 
 export {
+  currentUserSchema,
+  userRoleSchema,
+  type CurrentUser,
+  type UserRole,
+} from "./user.js";
+
+export {
   garminConnectionStatusSchema,
   type GarminConnectionStatus,
 } from "./garminConnection.js";

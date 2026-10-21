@@ -35,10 +35,9 @@ make the admin view awkward.
   (the `question_versions.id`) alongside the version number, so a future answer
   submission can pin the exact wording the athlete saw even if an admin edits the
   question concurrently.
-- **Any signed-in user is an operator for now.** The project is in the
-  single-operator phase (ADR 0003), matching how Garmin credentials and the
-  OpenRouter key are configured. A role check can be added to the route group
-  when multi-user auth lands.
+- **Admin-only management.** Question management requires the `admin` role
+  (ADR 0006). The first account in an environment becomes admin; other accounts
+  are members and receive `403` from the admin routes.
 
 ## Consequences
 
@@ -47,10 +46,10 @@ make the admin view awkward.
   edits are visible in the data model; archiving avoids orphaning references.
 - **Negative / limits:** reads need a join or second query to resolve the current
   version; every edit adds a row (intended); there is no restore or history UI
-  yet; role separation is still absent.
+  yet; only one admin can manage questions until role management lands.
 - **Follow-ups:** add answers keyed by `question_versions.id`; include the active
   question/answer set in coach prompts; add archive restore and an
-  ordered/reorderable list if onboarding needs it; add admin roles.
+  ordered/reorderable list if onboarding needs it; add admin management.
 
 ## Rejected alternatives
 
