@@ -162,3 +162,44 @@ export const questionVersions = pgTable(
 
 export type QuestionVersionRow = typeof questionVersions.$inferSelect;
 export type NewQuestionVersion = typeof questionVersions.$inferInsert;
+
+/**
+ * One athlete's answer to an exact question version (ADR 0007). The version
+ * reference pins the wording the athlete saw; a unique `(user_id,
+ * question_version_id)` pair makes resubmission an upsert. A null answer records
+ * an explicit skip of an optional question. Answers to old versions and archived
+ * questions are retained.
+ */
+export const questionAnswers = pgTable(
+  "question_answers",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    questionVersionId: integer("question_version_id")
+      .notNull()
+      .references(() => questionVersions.id, { onDelete: "cascade" }),
+    // Null means the athlete explicitly skipped an optional question.
+    answer: text("answer"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("question_answers_user_id_question_version_id_idx").on(
+      table.userId,
+      table.questionVersionId,
+    ),
+    check(
+      "question_answers_answer_check",
+      sql`${table.answer} is null or length(btrim(${table.answer})) > 0`,
+    ),
+  ],
+);
+
+export type QuestionAnswerRow = typeof questionAnswers.$inferSelect;
+export type NewQuestionAnswer = typeof questionAnswers.$inferInsert;

@@ -63,11 +63,21 @@ export {
 } from "./llm.js";
 
 export {
+  athleteQuestionSchema,
+  athleteQuestionsResponseSchema,
+  isQuestionnaireComplete,
+  QUESTION_ANSWER_MAX_LENGTH,
+  questionAnswerInputSchema,
+  questionAnswersInputSchema,
   questionArchivedResponseSchema,
   questionInputSchema,
   questionSchema,
   questionsResponseSchema,
+  type AthleteQuestion,
+  type AthleteQuestionsResponse,
   type Question,
+  type QuestionAnswerInput,
+  type QuestionAnswersInput,
   type QuestionArchivedResponse,
   type QuestionInput,
   type QuestionsResponse,

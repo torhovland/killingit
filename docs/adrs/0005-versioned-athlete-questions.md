@@ -47,9 +47,9 @@ make the admin view awkward.
 - **Negative / limits:** reads need a join or second query to resolve the current
   version; every edit adds a row (intended); there is no restore or history UI
   yet; only one admin can manage questions until role management lands.
-- **Follow-ups:** add answers keyed by `question_versions.id`; include the active
-  question/answer set in coach prompts; add archive restore and an
-  ordered/reorderable list if onboarding needs it; add admin management.
+- **Follow-ups:** ~~add answers keyed by `question_versions.id`~~ (ADR 0007);
+  include the active question/answer set in coach prompts; add archive restore
+  and an ordered/reorderable list if onboarding needs it; add admin management.
 
 ## Rejected alternatives
 

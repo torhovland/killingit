@@ -3,36 +3,21 @@ import {
   questionInputSchema,
   questionSchema,
   questionsResponseSchema,
-  type Question,
 } from "@killingit/shared";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { z } from "zod";
+import { toQuestionResponse } from "../questions/serializers.js";
 import {
   addQuestionVersion,
   archiveQuestion,
   createQuestion,
   listActiveQuestions,
-  type StoredQuestion,
 } from "../questions/store.js";
 
 const questionIdParamSchema = z.object({
   id: z.coerce.number().int().positive(),
 });
-
-/** Serializes dates; response schemas validate the rest. */
-function toQuestionResponse(question: StoredQuestion): Question {
-  return {
-    id: question.id,
-    versionId: question.versionId,
-    prompt: question.prompt,
-    required: question.required,
-    version: question.version,
-    versionCount: question.versionCount,
-    createdAt: question.createdAt.toISOString(),
-    updatedAt: question.updatedAt.toISOString(),
-  };
-}
 
 /**
  * Admin management of the versioned athlete question set. Editing appends a new

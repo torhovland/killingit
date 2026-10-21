@@ -11,13 +11,20 @@ without adding a Python runtime to the main backend (see ADR 0003 amendment and
 
 ## Run
 
+From the repository root:
+
 ```sh
-# create a virtualenv and install deps
+bun run dev:garmin   # sidecar only (listens on :8000 by default)
+bun run dev          # sidecar alongside the web and API dev servers
+```
+
+The first run creates `.venv` and installs `requirements.txt`. To set it up
+manually instead:
+
+```sh
 python3 -m venv .venv
 . .venv/bin/activate
 pip install -r requirements.txt
-
-# run (listens on :8000 by default)
 python app.py
 ```
 

@@ -34,6 +34,8 @@ services/
 
 - [Bun](https://bun.sh) ≥ 1.4
 - Docker (for the local Postgres database)
+- Python 3 (for the Garmin sidecar; `bun run dev` creates its virtualenv on
+  first run)
 
 ## Getting started
 
@@ -44,15 +46,16 @@ bun install
 # Start Postgres
 bun run db:up
 
-# Apply migrations (creates tables)
-bun run db:migrate
-
-# Run the API and web app together
+# Apply pending migrations, then run the API, web app, and Garmin sidecar
 bun run dev
 ```
 
+`bun run dev` applies pending Drizzle migrations before starting the services.
+Use `bun run db:migrate` on its own when you only want to migrate.
+
 - Web: http://localhost:5173
 - API: http://localhost:3001/api
+- Garmin sidecar: http://localhost:8000
 
 The web dev server proxies `/api` requests to the API, so the frontend can call
 `/api/...` directly.
@@ -64,18 +67,19 @@ development out of the box.
 
 ## Scripts
 
-| Command               | Description                     |
-| --------------------- | ------------------------------- |
-| `bun run dev`         | Run web + api dev servers       |
-| `bun run dev:web`     | Run web dev server only         |
-| `bun run dev:api`     | Run api dev server only         |
-| `bun run build`       | Build all packages              |
-| `bun run typecheck`   | Typecheck all packages          |
-| `bun run test`        | Run all tests                   |
-| `bun run db:up`       | Start Postgres (docker compose) |
-| `bun run db:down`     | Stop Postgres                   |
-| `bun run db:generate` | Generate a Drizzle migration    |
-| `bun run db:migrate`  | Apply Drizzle migrations        |
+| Command               | Description                                  |
+| --------------------- | -------------------------------------------- |
+| `bun run dev`         | Migrate, then run web + api + Garmin sidecar |
+| `bun run dev:web`     | Run web dev server only                      |
+| `bun run dev:api`     | Run api dev server only                      |
+| `bun run dev:garmin`  | Run Garmin sidecar only                      |
+| `bun run build`       | Build all packages                           |
+| `bun run typecheck`   | Typecheck all packages                       |
+| `bun run test`        | Run all tests                                |
+| `bun run db:up`       | Start Postgres (docker compose)              |
+| `bun run db:down`     | Stop Postgres                                |
+| `bun run db:generate` | Generate a Drizzle migration                 |
+| `bun run db:migrate`  | Apply Drizzle migrations                     |
 
 ## Database
 
@@ -86,7 +90,8 @@ Integration tables: `garmin_connections` (encrypted Garmin credentials),
 `llm_settings` (encrypted OpenRouter key + selected model),
 `activity_analyses` (cached coach analysis per activity/model),
 `questions` / `question_versions` (versioned athlete questions; see ADR 0005),
-and `users` (accounts and roles; see ADR 0006).
+`question_answers` (per-athlete answers and skips; see ADR 0007), and `users`
+(accounts and roles; see ADR 0006).
 See ADR 0003, ADR 0004, ADR 0005, ADR 0006, and the specs in `docs/specs/`.
 
 ### Admin accounts

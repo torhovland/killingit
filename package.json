@@ -8,9 +8,10 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "bun run --filter '*' dev",
+    "dev": "bun run db:migrate && bun run --parallel dev:web dev:api dev:garmin",
     "dev:web": "bun run --filter @killingit/web dev",
     "dev:api": "bun run --filter @killingit/api dev",
+    "dev:garmin": "scripts/dev-garmin.sh",
     "build": "bun run --filter '*' build",
     "typecheck": "bun run --filter '*' typecheck",
     "lint": "eslint .",

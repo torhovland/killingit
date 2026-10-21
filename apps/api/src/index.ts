@@ -5,6 +5,10 @@ import { createAuthProvider } from "./auth/index.js";
 import { requireAdmin, requireAuth } from "./auth/middleware.js";
 import type { AuthProvider } from "./auth/provider.js";
 import { withSentry } from "./instrumentation/sentry.js";
+import {
+  dbQuestionAnswerStore,
+  type QuestionAnswerStore,
+} from "./questions/answers.js";
 import { adminQuestionsRoute } from "./routes/adminQuestions.js";
 import { athletesRoute } from "./routes/athletes.js";
 import { coachingRoute } from "./routes/coaching.js";
@@ -13,6 +17,7 @@ import { greet } from "./routes/greet.js";
 import { health } from "./routes/health.js";
 import { llmRoute } from "./routes/llm.js";
 import { createMeRoute } from "./routes/me.js";
+import { createQuestionsRoute } from "./routes/questions.js";
 import { dbUserStore, type UserStore } from "./users/store.js";
 
 // Load local environment for `bun run dev`. Bun does not auto-load dotenv
@@ -36,6 +41,8 @@ export interface AppDependencies {
   authProvider?: AuthProvider | (() => AuthProvider);
   /** Account store used for role checks and first-user provisioning. */
   userStore?: UserStore;
+  /** Athlete answer storage, injectable for DB-free route tests. */
+  answerStore?: QuestionAnswerStore;
 }
 
 // Authentication is opt-in per route. The provider is created lazily on the
@@ -49,6 +56,7 @@ export function createApp(deps: AppDependencies = {}): Hono {
   const authProvider =
     deps.authProvider ?? (() => (cachedAuth ??= createAuthProvider()));
   const userStore = deps.userStore ?? dbUserStore;
+  const answerStore = deps.answerStore ?? dbQuestionAnswerStore;
 
   const app = new Hono();
 
@@ -72,6 +80,14 @@ export function createApp(deps: AppDependencies = {}): Hono {
   // /api/me also provisions the account on first sign-in and returns its role.
   api.use("/me/*", requireAuth(authProvider));
   api.route("/me", createMeRoute(userStore));
+
+  // Athlete-facing questionnaire. Answers are scoped to the signed-in account
+  // and gate the coaching dashboard until every active question is resolved.
+  api.use("/questions/*", requireAuth(authProvider));
+  api.route(
+    "/questions",
+    createQuestionsRoute({ users: userStore, answers: answerStore }),
+  );
 
   // Garmin integration is authenticated (credential entry + data sync are
   // operator-only). Credentials are never serialized in responses.
