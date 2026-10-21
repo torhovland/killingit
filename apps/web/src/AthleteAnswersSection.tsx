@@ -29,7 +29,7 @@ export function AthleteAnswersSection({
 
   return (
     <section
-      className="flex flex-col gap-3 rounded border p-4"
+      className="flex flex-col gap-3 rounded border bg-card p-4"
       data-testid="athlete-profile"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -37,7 +37,7 @@ export function AthleteAnswersSection({
         {!editing && (
           <button
             type="button"
-            className="rounded border px-3 py-1 text-sm"
+            className="rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted"
             onClick={() => setEditing(true)}
           >
             Edit answers
@@ -47,15 +47,18 @@ export function AthleteAnswersSection({
 
       {!editing && (
         <>
-          <p className="text-sm opacity-70">
+          <p className="text-sm text-muted-foreground">
             These answers shape your training plan. You can update them at any
             time.
           </p>
           <dl className="flex flex-col gap-2">
             {questions.map((question) => (
-              <div key={question.id} className="rounded border p-3 text-sm">
+              <div
+                key={question.id}
+                className="rounded border bg-muted p-3 text-sm"
+              >
                 <dt className="font-medium">{question.prompt}</dt>
-                <dd className="whitespace-pre-wrap opacity-80">
+                <dd className="whitespace-pre-wrap text-muted-foreground">
                   {question.answer ??
                     (question.skipped ? "Skipped" : "Not answered")}
                 </dd>

@@ -28,12 +28,12 @@ function formatDate(iso: string): string {
 export function ActivityCard({ activity }: { activity: AnalyzedActivity }) {
   return (
     <article
-      className="flex flex-col gap-2 rounded-lg border p-4 text-left"
+      className="flex flex-col gap-2 rounded-lg border bg-card p-4 text-left"
       data-testid="activity-card"
     >
       <header className="flex flex-col gap-1">
         <h3 className="text-lg font-semibold">{activity.name}</h3>
-        <p className="text-sm opacity-70">
+        <p className="text-sm text-muted-foreground">
           {formatDate(activity.startDate)} · {activity.type} ·{" "}
           {(activity.distance / 1000).toFixed(2)} km ·{" "}
           {formatDuration(activity.movingTime)} ·{" "}
@@ -53,7 +53,10 @@ export function ActivityCard({ activity }: { activity: AnalyzedActivity }) {
           {activity.analysis.text}
         </p>
       ) : (
-        <p className="text-amber-600" data-testid="activity-analysis-error">
+        <p
+          className="rounded bg-accent/15 p-2 text-sm"
+          data-testid="activity-analysis-error"
+        >
           {activity.analysisError
             ? `Coach analysis unavailable: ${activity.analysisError}`
             : "No coach analysis available yet."}
@@ -61,7 +64,7 @@ export function ActivityCard({ activity }: { activity: AnalyzedActivity }) {
       )}
 
       {activity.analysis && (
-        <footer className="text-xs opacity-50">
+        <footer className="text-xs text-muted-foreground">
           {activity.analysis.model} ·{" "}
           {formatDate(activity.analysis.generatedAt)}
         </footer>

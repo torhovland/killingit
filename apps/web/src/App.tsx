@@ -80,20 +80,22 @@ export function App() {
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center gap-6 p-8">
-      <h1 className="text-4xl font-bold">Killing It</h1>
-      <p className="text-lg opacity-70">Your AI coach for training.</p>
+      <h1 className="text-4xl font-bold text-primary">Killing It</h1>
+      <p className="text-lg text-muted-foreground">
+        Your AI coach for training.
+      </p>
 
-      {error && <p className="text-red-500">Error: {error}</p>}
+      {error && <p className="text-destructive">Error: {error}</p>}
 
       {auth.isLoading ? (
-        <p className="text-sm opacity-60">Loading…</p>
+        <p className="text-sm text-muted-foreground">Loading…</p>
       ) : auth.isAuthenticated ? (
         <>
           <div className="flex flex-wrap items-center justify-center gap-4">
             <p className="text-sm" data-testid="me">
               Signed in as {me?.sub ?? "…"}
               {isAdmin && (
-                <span className="ml-2 rounded border px-2 py-0.5 text-xs">
+                <span className="ml-2 rounded border border-transparent bg-accent px-2 py-0.5 text-xs text-accent-foreground">
                   Admin
                 </span>
               )}
@@ -102,7 +104,7 @@ export function App() {
               <nav className="flex gap-2" aria-label="Sections">
                 <button
                   type="button"
-                  className="rounded border px-3 py-1 text-sm disabled:opacity-50"
+                  className="rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted disabled:opacity-50 aria-[current=page]:border-transparent aria-[current=page]:bg-primary aria-[current=page]:text-primary-foreground aria-[current=page]:opacity-100"
                   onClick={() => setPage("coach")}
                   aria-current={page === "coach" ? "page" : undefined}
                   disabled={page === "coach"}
@@ -111,7 +113,7 @@ export function App() {
                 </button>
                 <button
                   type="button"
-                  className="rounded border px-3 py-1 text-sm disabled:opacity-50"
+                  className="rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted disabled:opacity-50 aria-[current=page]:border-transparent aria-[current=page]:bg-primary aria-[current=page]:text-primary-foreground aria-[current=page]:opacity-100"
                   onClick={() => setPage("admin")}
                   aria-current={page === "admin" ? "page" : undefined}
                   disabled={page === "admin"}
@@ -121,7 +123,7 @@ export function App() {
               </nav>
             )}
             <button
-              className="rounded border px-4 py-2"
+              className="rounded border border-transparent bg-primary px-4 py-2 text-primary-foreground enabled:hover:bg-primary-hover"
               onClick={() => void auth.logout()}
             >
               Sign out
@@ -136,7 +138,7 @@ export function App() {
         </>
       ) : (
         <button
-          className="rounded border px-4 py-2"
+          className="rounded border border-transparent bg-primary px-4 py-2 text-primary-foreground enabled:hover:bg-primary-hover"
           onClick={() => void auth.login()}
         >
           Sign in
@@ -150,7 +152,7 @@ export function App() {
       )}
 
       {health && (
-        <p className="text-sm opacity-60" data-testid="health">
+        <p className="text-sm text-muted-foreground" data-testid="health">
           {health.service} {health.version} — {health.status}
         </p>
       )}

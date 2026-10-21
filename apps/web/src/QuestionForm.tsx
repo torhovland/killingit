@@ -47,7 +47,7 @@ export function QuestionForm({
   return (
     <form
       onSubmit={(e) => void submit(e)}
-      className="flex flex-col gap-2 rounded border p-3"
+      className="flex flex-col gap-2 rounded border bg-card p-3"
       data-testid="question-form"
     >
       <label className="flex flex-col gap-1 text-sm">
@@ -58,7 +58,7 @@ export function QuestionForm({
           maxLength={2000}
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          className="rounded border px-3 py-1"
+          className="rounded border bg-card px-3 py-1"
           placeholder="What should the athlete answer?"
         />
       </label>
@@ -72,14 +72,14 @@ export function QuestionForm({
         Required
       </label>
       {error && (
-        <p className="text-red-500" data-testid="question-form-error">
+        <p className="text-destructive" data-testid="question-form-error">
           {error}
         </p>
       )}
       <div className="flex gap-2">
         <button
           type="submit"
-          className="self-start rounded border px-4 py-2"
+          className="self-start rounded border border-transparent bg-primary px-4 py-2 text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
           disabled={disabled}
         >
           {submitting ? "Saving…" : submitLabel}
@@ -87,7 +87,7 @@ export function QuestionForm({
         {onCancel && (
           <button
             type="button"
-            className="self-start rounded border px-4 py-2"
+            className="self-start rounded border bg-card px-4 py-2 enabled:hover:bg-muted disabled:opacity-50"
             onClick={onCancel}
             disabled={submitting}
           >

@@ -61,7 +61,7 @@ export function GarminSection({ connected, onConnected }: GarminSectionProps) {
 
   if (connected) {
     return (
-      <p className="text-sm text-green-600" data-testid="garmin-status">
+      <p className="text-sm text-success" data-testid="garmin-status">
         Garmin connected
       </p>
     );
@@ -71,7 +71,7 @@ export function GarminSection({ connected, onConnected }: GarminSectionProps) {
     <section className="flex flex-col gap-2">
       <h2 className="text-xl font-semibold">Connect Garmin</h2>
       {error && (
-        <p className="text-red-500" data-testid="garmin-error">
+        <p className="text-destructive" data-testid="garmin-error">
           {error}
         </p>
       )}
@@ -86,7 +86,7 @@ export function GarminSection({ connected, onConnected }: GarminSectionProps) {
           placeholder="Garmin email"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
-          className="rounded border px-3 py-1"
+          className="rounded border bg-card px-3 py-1"
           autoComplete="username"
         />
         <input
@@ -95,12 +95,12 @@ export function GarminSection({ connected, onConnected }: GarminSectionProps) {
           placeholder="Garmin password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="rounded border px-3 py-1"
+          className="rounded border bg-card px-3 py-1"
           autoComplete="current-password"
         />
         <button
           type="submit"
-          className="rounded border px-4 py-2"
+          className="rounded border border-transparent bg-primary px-4 py-2 text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
           disabled={saving || !username || !password}
         >
           {saving ? "Connecting…" : "Connect Garmin"}

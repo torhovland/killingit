@@ -94,7 +94,10 @@ export function CoachDashboard() {
 
   if (loadingQuestions && questions === null) {
     return (
-      <p className="text-sm opacity-60" data-testid="questions-loading">
+      <p
+        className="text-sm text-muted-foreground"
+        data-testid="questions-loading"
+      >
         Loading your questions…
       </p>
     );
@@ -104,11 +107,11 @@ export function CoachDashboard() {
     return (
       <section className="flex flex-col items-center gap-2">
         {questionsError && (
-          <p className="text-red-500">Error: {questionsError}</p>
+          <p className="text-destructive">Error: {questionsError}</p>
         )}
         <button
           type="button"
-          className="rounded border px-4 py-2"
+          className="rounded border bg-card px-4 py-2 enabled:hover:bg-muted"
           onClick={() => void loadQuestions()}
         >
           Retry
@@ -219,7 +222,7 @@ function CoachingSurface({ questions, onSaveAnswers }: CoachingSurfaceProps) {
 
   if (loadingStatuses && (garmin === null || llm === null)) {
     return (
-      <p className="text-sm opacity-60" data-testid="coach-loading">
+      <p className="text-sm text-muted-foreground" data-testid="coach-loading">
         Loading integrations…
       </p>
     );
@@ -228,10 +231,10 @@ function CoachingSurface({ questions, onSaveAnswers }: CoachingSurfaceProps) {
   if (garmin === null || llm === null) {
     return (
       <section className="flex flex-col items-center gap-2">
-        {error && <p className="text-red-500">Error: {error}</p>}
+        {error && <p className="text-destructive">Error: {error}</p>}
         <button
           type="button"
-          className="rounded border px-4 py-2"
+          className="rounded border bg-card px-4 py-2 enabled:hover:bg-muted"
           onClick={() => void loadStatuses()}
         >
           Retry
@@ -243,7 +246,7 @@ function CoachingSurface({ questions, onSaveAnswers }: CoachingSurfaceProps) {
   return (
     <section className="flex w-full max-w-3xl flex-col gap-6 text-left">
       {error && (
-        <p className="text-red-500" data-testid="coach-error">
+        <p className="text-destructive" data-testid="coach-error">
           Error: {error}
         </p>
       )}
@@ -260,7 +263,7 @@ function CoachingSurface({ questions, onSaveAnswers }: CoachingSurfaceProps) {
             <h2 className="text-xl font-semibold">Latest activities</h2>
             <button
               type="button"
-              className="rounded border px-3 py-1 text-sm"
+              className="rounded border border-transparent bg-primary px-3 py-1 text-sm text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
               onClick={() => void loadAnalyses(llm.configured)}
               disabled={loadingAnalyses}
             >
@@ -273,13 +276,16 @@ function CoachingSurface({ questions, onSaveAnswers }: CoachingSurfaceProps) {
           </div>
 
           {!llm.configured && (
-            <p className="text-sm opacity-60">
+            <p className="text-sm text-muted-foreground">
               Configure OpenRouter above to add coach analysis.
             </p>
           )}
 
           {loadingAnalyses && data === null && (
-            <p className="text-sm opacity-60" data-testid="analysis-loading">
+            <p
+              className="text-sm text-muted-foreground"
+              data-testid="analysis-loading"
+            >
               {llm.configured
                 ? "Syncing Garmin and asking the coach to analyse your workouts…"
                 : "Syncing Garmin activities…"}
@@ -287,7 +293,7 @@ function CoachingSurface({ questions, onSaveAnswers }: CoachingSurfaceProps) {
           )}
 
           {!loadingAnalyses && data && data.activities.length === 0 && (
-            <p className="text-sm opacity-60">
+            <p className="text-sm text-muted-foreground">
               No activities in the last 31 days.
             </p>
           )}

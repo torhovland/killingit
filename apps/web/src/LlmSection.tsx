@@ -120,12 +120,12 @@ export function LlmSection({ settings, onSaved }: LlmSectionProps) {
   if (!editing) {
     return (
       <section className="flex flex-col gap-1" data-testid="llm-status">
-        <p className="text-sm text-green-600">
+        <p className="text-sm text-success">
           OpenRouter connected · {settings.model}
         </p>
         <button
           type="button"
-          className="self-start rounded border px-3 py-1 text-sm"
+          className="self-start rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted"
           onClick={() => setEditing(true)}
         >
           Change model or key
@@ -137,19 +137,22 @@ export function LlmSection({ settings, onSaved }: LlmSectionProps) {
   return (
     <section className="flex flex-col gap-2">
       <h2 className="text-xl font-semibold">OpenRouter setup</h2>
-      <p className="text-sm opacity-70">
+      <p className="text-sm text-muted-foreground">
         Paste an OpenRouter API key and choose the model that analyses your
         workouts. The key is validated, encrypted at rest, and never shown
         again.
       </p>
 
       {error && (
-        <p className="text-red-500" data-testid="llm-error">
+        <p className="text-destructive" data-testid="llm-error">
           {error}
         </p>
       )}
       {modelsError && (
-        <p className="text-amber-600" data-testid="llm-models-error">
+        <p
+          className="rounded bg-accent/15 p-2 text-sm"
+          data-testid="llm-models-error"
+        >
           Could not load the model catalog ({modelsError}). You can still enter
           a model id manually.
         </p>
@@ -170,7 +173,7 @@ export function LlmSection({ settings, onSaved }: LlmSectionProps) {
           }
           value={apiKey}
           onChange={(e) => setApiKey(e.target.value)}
-          className="rounded border px-3 py-1"
+          className="rounded border bg-card px-3 py-1"
           autoComplete="off"
         />
         <input
@@ -184,7 +187,7 @@ export function LlmSection({ settings, onSaved }: LlmSectionProps) {
           }
           value={model}
           onChange={(e) => setModel(e.target.value)}
-          className="rounded border px-3 py-1"
+          className="rounded border bg-card px-3 py-1"
         />
         <datalist id="openrouter-models">
           {models.map((candidate) => (
@@ -195,7 +198,7 @@ export function LlmSection({ settings, onSaved }: LlmSectionProps) {
         </datalist>
         <button
           type="submit"
-          className="self-start rounded border px-4 py-2"
+          className="self-start rounded border border-transparent bg-primary px-4 py-2 text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
           disabled={
             saving || model === "" || (!settings.configured && apiKey === "")
           }
