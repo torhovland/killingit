@@ -54,3 +54,14 @@ export {
   type LlmSettings,
   type LlmSettingsUpdate,
 } from "./llm.js";
+
+export {
+  questionArchivedResponseSchema,
+  questionInputSchema,
+  questionSchema,
+  questionsResponseSchema,
+  type Question,
+  type QuestionArchivedResponse,
+  type QuestionInput,
+  type QuestionsResponse,
+} from "./questions.js";

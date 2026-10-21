@@ -4,6 +4,7 @@ import { logger } from "hono/logger";
 import { createAuthProvider } from "./auth/index.js";
 import { requireAuth } from "./auth/middleware.js";
 import { withSentry } from "./instrumentation/sentry.js";
+import { adminQuestionsRoute } from "./routes/adminQuestions.js";
 import { athletesRoute } from "./routes/athletes.js";
 import { coachingRoute } from "./routes/coaching.js";
 import { garminRoute } from "./routes/garmin.js";
@@ -71,6 +72,11 @@ api.route("/llm", llmRoute);
 // LLM, and returns activity data with cached-or-fresh coach analysis.
 api.use("/coaching/*", requireAuth(getAuth));
 api.route("/coaching", coachingRoute);
+
+// Admin management of the versioned athlete question set. In the current
+// single-operator phase any signed-in user is an operator (see ADR 0005).
+api.use("/admin/questions/*", requireAuth(getAuth));
+api.route("/admin/questions", adminQuestionsRoute);
 
 app.route("/api", api);
 

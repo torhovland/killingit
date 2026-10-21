@@ -1,10 +1,12 @@
 import {
   bigint,
+  boolean,
   integer,
   pgTable,
   serial,
   text,
   timestamp,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 /**
@@ -79,3 +81,53 @@ export const activityAnalyses = pgTable("activity_analyses", {
 
 export type ActivityAnalysis = typeof activityAnalyses.$inferSelect;
 export type NewActivityAnalysis = typeof activityAnalyses.$inferInsert;
+
+/**
+ * Stable identity for an athlete question. The wording lives in
+ * `question_versions` and is append-only; `currentVersion` points at the version
+ * athletes are asked now. Deleting archives the question so historical answers
+ * keep referring to intact versions.
+ */
+export const questions = pgTable("questions", {
+  id: serial("id").primaryKey(),
+  currentVersion: integer("current_version").notNull().default(1),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  archivedAt: timestamp("archived_at", { withTimezone: true }),
+});
+
+export type QuestionRow = typeof questions.$inferSelect;
+export type NewQuestion = typeof questions.$inferInsert;
+
+/**
+ * Immutable prompt content for one version of a question. Future answers should
+ * reference `id` so the exact wording is preserved.
+ */
+export const questionVersions = pgTable(
+  "question_versions",
+  {
+    id: serial("id").primaryKey(),
+    questionId: integer("question_id")
+      .notNull()
+      .references(() => questions.id, { onDelete: "cascade" }),
+    version: integer("version").notNull(),
+    prompt: text("prompt").notNull(),
+    required: boolean("required").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("question_versions_question_id_version_idx").on(
+      table.questionId,
+      table.version,
+    ),
+  ],
+);
+
+export type QuestionVersionRow = typeof questionVersions.$inferSelect;
+export type NewQuestionVersion = typeof questionVersions.$inferInsert;
