@@ -1,7 +1,10 @@
 import { llmModelSchema, type LlmModel } from "@killingit/shared";
 
 const DEFAULT_BASE_URL = "https://openrouter.ai/api/v1";
-const REQUEST_TIMEOUT_MS = 60_000;
+// Plan generation uses slow reasoning models and a multi-step cascade. Keep
+// this below the Bun server idle timeout (255s) but well above a single
+// completion's typical latency.
+const REQUEST_TIMEOUT_MS = 240_000;
 const KEY_CHECK_TIMEOUT_MS = 15_000;
 
 /** Raised when the LLM provider rejects or cannot serve a request. */
@@ -24,9 +27,37 @@ export class LlmAuthError extends LlmProviderError {
   }
 }
 
+/** Raised when the provider rate-limits a request or hits a daily quota (429). */
+export class LlmRateLimitError extends LlmProviderError {
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message, 429, options);
+    this.name = "LlmRateLimitError";
+  }
+}
+
+/** Raised when the provider stops at the requested output-token limit. */
+export class LlmTokenLimitError extends LlmProviderError {
+  constructor(message: string) {
+    super(message);
+    this.name = "LlmTokenLimitError";
+  }
+}
+
 export interface LlmMessage {
   role: "system" | "user" | "assistant";
   content: string;
+}
+
+/**
+ * OpenRouter's normalized reasoning controls. Reasoning tokens count against
+ * `maxTokens`, so `minimal` is appropriate for structured JSON generations.
+ */
+export interface LlmReasoning {
+  effort?: "minimal" | "low" | "medium" | "high" | "none";
+  /** Direct reasoning-token cap for Anthropic/Gemini/Qwen-style models. */
+  max_tokens?: number;
+  /** Hide the reasoning text from the response; it still counts as output. */
+  exclude?: boolean;
 }
 
 export interface LlmCompletionRequest {
@@ -35,6 +66,7 @@ export interface LlmCompletionRequest {
   messages: LlmMessage[];
   temperature: number;
   maxTokens: number;
+  reasoning?: LlmReasoning;
 }
 
 /**
@@ -139,6 +171,9 @@ export function createOpenRouterProvider(
             messages: input.messages,
             temperature: input.temperature,
             max_tokens: input.maxTokens,
+            ...(input.reasoning !== undefined
+              ? { reasoning: input.reasoning }
+              : {}),
           }),
           signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         },
@@ -152,6 +187,12 @@ export function createOpenRouterProvider(
         throw new LlmProviderError(
           "OpenRouter account has insufficient credits",
           402,
+        );
+      }
+      if (res.status === 429) {
+        const detail = await providerDetail(res, "OpenRouter rate limit");
+        throw new LlmRateLimitError(
+          `${detail} This may be a per-minute rate limit or a free-model daily request cap that is separate from your credit balance. Wait a few minutes and retry, or switch to a paid model.`,
         );
       }
       if (!res.ok) {
@@ -172,8 +213,8 @@ export function createOpenRouterProvider(
       };
       const choice = body.choices?.[0];
       if (choice?.finish_reason === "length") {
-        throw new LlmProviderError(
-          "OpenRouter stopped the analysis at the token limit; try again or choose a model with a larger output budget",
+        throw new LlmTokenLimitError(
+          "OpenRouter stopped the response at the token limit; try again or choose a model with a larger output budget",
         );
       }
       const content = choice?.message?.content;

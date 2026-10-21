@@ -99,6 +99,10 @@ on the main page.
 - `analyze.ts` — one completion per activity (temperature 0.3, 2048 max
   tokens). Reasoning models count reasoning against that budget; completions
   with `finish_reason: "length"` are rejected rather than shown truncated.
+- `planCompletion.ts` — plan generations request `reasoning: { effort:
+"minimal" }` so most of the output budget is available for the JSON. If a
+  model still stops at the limit, it retries with reasoning disabled and a
+  doubled budget before falling back to no reasoning control.
 - `store.ts` / `analysisStore.ts` — Drizzle upserts and model-scoped cache reads.
 - `routes/llm.ts` — settings + catalog; `routes/coaching.ts` — sync, bounded
   concurrency (3), cached-or-fresh analyses, per-activity error isolation. The

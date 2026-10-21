@@ -57,6 +57,20 @@
       "when": 1792600781459,
       "tag": "0007_fine_thor_girl",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792604999879,
+      "tag": "0008_hard_susan_delgado",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792609425443,
+      "tag": "0009_strange_goliath",
+      "breakpoints": true
     }
   ]
 }

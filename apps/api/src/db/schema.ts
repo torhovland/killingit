@@ -1,9 +1,16 @@
+import type {
+  BlockPlan,
+  DayPlan,
+  SeasonPlan,
+  WeekPlan,
+} from "@killingit/shared";
 import { sql } from "drizzle-orm";
 import {
   bigint,
   boolean,
   check,
   integer,
+  jsonb,
   pgTable,
   serial,
   text,
@@ -203,3 +210,83 @@ export const questionAnswers = pgTable(
 
 export type QuestionAnswerRow = typeof questionAnswers.$inferSelect;
 export type NewQuestionAnswer = typeof questionAnswers.$inferInsert;
+
+/**
+ * The athlete's current four-level coach plan. One row per user; a regeneration
+ * replaces the stored JSON while keeping the previous plan visible until the
+ * new one is ready. The date columns duplicate values inside the JSON so the
+ * pending/staleness checks can be done without parsing and are easy to index.
+ */
+export const coachPlans = pgTable(
+  "coach_plans",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    season: jsonb("season").$type<SeasonPlan>().notNull(),
+    block: jsonb("block").$type<BlockPlan>().notNull(),
+    week: jsonb("week").$type<WeekPlan>().notNull(),
+    today: jsonb("today").$type<DayPlan>().notNull(),
+    /** Suggested session for tomorrow; shown after 18:00 local time. */
+    tomorrow: jsonb("tomorrow").$type<DayPlan | null>(),
+    dayDate: text("day_date").notNull(),
+    weekStartDate: text("week_start_date").notNull(),
+    blockStartDate: text("block_start_date").notNull(),
+    blockEndDate: text("block_end_date").notNull(),
+    seasonStartDate: text("season_start_date").notNull(),
+    seasonEndDate: text("season_end_date").notNull(),
+    // The newest question-answer timestamp included in this plan. A newer answer
+    // makes the plan stale and triggers a regeneration.
+    answersUpdatedAt: timestamp("answers_updated_at", { withTimezone: true }),
+    generatedAt: timestamp("generated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [uniqueIndex("coach_plans_user_id_idx").on(table.userId)],
+);
+
+export type CoachPlanRow = typeof coachPlans.$inferSelect;
+export type NewCoachPlan = typeof coachPlans.$inferInsert;
+
+/**
+ * Per-user generation status used by the UI to show progress while the coach is
+ * thinking. A single row is upserted; `begin` refuses to start a second run
+ * while the status is `running`.
+ */
+export const planGenerations = pgTable(
+  "plan_generations",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    status: text("status", { enum: ["idle", "running", "done", "error"] })
+      .notNull()
+      .default("idle"),
+    step: text("step"),
+    progress: integer("progress").notNull().default(0),
+    error: text("error"),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("plan_generations_user_id_idx").on(table.userId),
+    check(
+      "plan_generations_status_check",
+      sql`${table.status} in ('idle', 'running', 'done', 'error')`,
+    ),
+    check(
+      "plan_generations_progress_check",
+      sql`${table.progress} >= 0 and ${table.progress} <= 100`,
+    ),
+  ],
+);
+
+export type PlanGenerationRow = typeof planGenerations.$inferSelect;
+export type NewPlanGeneration = typeof planGenerations.$inferInsert;

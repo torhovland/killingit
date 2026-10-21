@@ -1,0 +1,1 @@
+ALTER TABLE "coach_plans" ADD COLUMN "tomorrow" jsonb;

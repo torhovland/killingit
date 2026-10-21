@@ -1,0 +1,340 @@
+import { useEffect, useRef, useState } from "react";
+import {
+  coachPlanResponseSchema,
+  type CoachPlanResponse,
+} from "@killingit/shared";
+import { useAuth } from "./auth";
+import { CoachPlanView } from "./CoachPlanView";
+import { fetchJsonAuthed } from "./fetchAuthed";
+import { reportError } from "./reportError";
+
+const API_URL = import.meta.env.VITE_API_URL ?? "";
+const POLL_INTERVAL_MS = 1500;
+const POLL_TIMEOUT_MS = 10 * 60 * 1000;
+
+interface CoachPlanSectionProps {
+  /** Increment after answers are saved so the section regenerates the plan. */
+  refreshKey: number;
+  /** Garmin and OpenRouter must both be configured to generate a plan. */
+  ready: boolean;
+}
+
+/**
+ * The four-level coach plan. Loads the stored plan, fills in anything missing
+ * for today, and polls while the coach is thinking so the user sees progress.
+ * The old plan stays visible during a regeneration.
+ */
+export function CoachPlanSection({ refreshKey, ready }: CoachPlanSectionProps) {
+  const auth = useAuth();
+  const [data, setData] = useState<CoachPlanResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const inFlight = useRef(false);
+  const pendingRefresh = useRef(false);
+
+  async function fetchPlan(
+    today: string,
+    includeTomorrow: boolean,
+  ): Promise<CoachPlanResponse> {
+    const response = await fetchJsonAuthed<unknown>(
+      `${API_URL}/api/coaching/plan?today=${today}&includeTomorrow=${includeTomorrow}`,
+      auth,
+    );
+    const parsed = coachPlanResponseSchema.safeParse(response);
+    if (!parsed.success) {
+      throw new Error("Loading your plan returned an unexpected response", {
+        cause: parsed.error,
+      });
+    }
+    return parsed.data;
+  }
+
+  async function load(): Promise<CoachPlanResponse | null> {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await fetchPlan(localToday(), isAfter18());
+      setData(result);
+      return result;
+    } catch (err: unknown) {
+      setError(reportError(err));
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function pollUntilDone(
+    today: string,
+    request: Promise<unknown> | null,
+    includeTomorrow = false,
+  ): Promise<void> {
+    let requestDone = request === null;
+    if (request !== null) {
+      void request
+        .finally(() => {
+          requestDone = true;
+        })
+        .catch(() => {
+          // The status endpoint carries the error; polling shows it.
+        });
+    }
+
+    const deadline = Date.now() + POLL_TIMEOUT_MS;
+    while (Date.now() < deadline) {
+      await sleep(POLL_INTERVAL_MS);
+      let result: CoachPlanResponse;
+      try {
+        result = await fetchPlan(today, includeTomorrow);
+      } catch (err: unknown) {
+        setError(reportError(err));
+        return;
+      }
+      setData(result);
+
+      if (result.generation.status === "running") {
+        continue;
+      }
+      if (result.generation.status === "error") {
+        return;
+      }
+      // A `done` status from the previous run must not stop us before the new
+      // request has even started; wait for the request to settle.
+      if (result.generation.status === "done" && requestDone) {
+        return;
+      }
+    }
+
+    setError(
+      "The coach is taking longer than expected. Refresh to check again.",
+    );
+  }
+
+  async function generate(force: boolean): Promise<void> {
+    if (inFlight.current) {
+      // Answers may have changed while a run was already in flight. Queue one
+      // more pass so the saved answers are not missed.
+      pendingRefresh.current = true;
+      return;
+    }
+    inFlight.current = true;
+    setGenerating(true);
+    setError(null);
+
+    const today = localToday();
+    const includeTomorrow = isAfter18();
+    const request = fetchJsonAuthed<unknown>(
+      `${API_URL}/api/coaching/plan/generate`,
+      auth,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          today,
+          timezone:
+            Intl.DateTimeFormat().resolvedOptions().timeZone || undefined,
+          force,
+          includeTomorrow,
+        }),
+      },
+    );
+
+    try {
+      await pollUntilDone(today, request, includeTomorrow);
+    } finally {
+      setGenerating(false);
+      inFlight.current = false;
+      if (pendingRefresh.current) {
+        pendingRefresh.current = false;
+        void generate(false);
+      }
+    }
+  }
+
+  useEffect(() => {
+    if (!auth.isAuthenticated) {
+      return;
+    }
+    let cancelled = false;
+
+    async function run(): Promise<void> {
+      const result = await load();
+      if (cancelled || result === null) {
+        return;
+      }
+      if (result.generation.status === "running") {
+        await pollUntilDone(localToday(), null);
+        return;
+      }
+      if (result.generation.status === "error") {
+        // Surface the failure and let the athlete retry explicitly instead of
+        // re-billing the model on every page load.
+        return;
+      }
+      const needsUpdate =
+        result.stale ||
+        result.pending.initial ||
+        result.pending.day ||
+        result.pending.week ||
+        result.pending.block ||
+        result.pending.tomorrow;
+      if (needsUpdate && ready) {
+        await generate(false);
+      }
+    }
+
+    void run();
+    return () => {
+      cancelled = true;
+    };
+    // Re-run when sign-in, integration readiness, or the answers change.
+  }, [auth.isAuthenticated, ready, refreshKey]);
+
+  if (!auth.isAuthenticated) {
+    return null;
+  }
+
+  const running = generating || data?.generation.status === "running";
+  // While a new run is starting, the stored status is still the previous run's
+  // `done` (often 100%). Show a neutral starting state until the first poll.
+  const progress =
+    generating && data?.generation.status !== "running"
+      ? { step: "Starting the coach…", progress: 0 }
+      : data?.generation;
+  const setupError =
+    data?.generation.status === "error" ? data.generation.error : null;
+
+  return (
+    <section
+      className="flex w-full flex-col gap-4 rounded-lg border bg-card p-4 text-left"
+      data-testid="coach-plan"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-xl font-semibold">Your plan</h2>
+          <p className="text-sm text-muted-foreground">
+            {data?.generatedAt
+              ? `Generated ${formatDateTime(data.generatedAt)}`
+              : "Your coach builds the season, block, week, and today from your profile and recent training."}
+          </p>
+        </div>
+        <button
+          type="button"
+          className="rounded border border-transparent bg-primary px-3 py-1 text-sm text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
+          onClick={() => void generate(true)}
+          disabled={!ready || running}
+        >
+          {running ? "Coach is thinking…" : "Regenerate plan"}
+        </button>
+      </div>
+
+      {!ready && (
+        <p className="rounded border bg-muted p-3 text-sm text-muted-foreground">
+          Connect Garmin and OpenRouter to generate your training plan.
+        </p>
+      )}
+
+      {error && (
+        <p className="text-destructive" data-testid="plan-error">
+          Error: {error}
+        </p>
+      )}
+
+      {setupError && !generating && (
+        <p className="text-destructive" data-testid="plan-generation-error">
+          The coach could not finish your plan: {setupError}
+        </p>
+      )}
+
+      {running && (
+        <div
+          className="flex flex-col gap-2 rounded border bg-muted p-3"
+          data-testid="plan-progress"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+            <span className="font-medium">
+              {progress?.step ?? "The coach is thinking…"}
+            </span>
+            <span className="text-muted-foreground">
+              {progress?.progress ?? 0}%
+            </span>
+          </div>
+          <div className="h-2 w-full overflow-hidden rounded bg-card">
+            <div
+              className="h-full rounded bg-primary transition-all"
+              // Dynamic width is the one value that must be inline.
+              style={{ width: `${progress?.progress ?? 0}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {data?.stale && !running && ready && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded border bg-muted p-3 text-sm">
+          <span>Your answers changed, so your plan is out of date.</span>
+          <button
+            type="button"
+            className="rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted"
+            onClick={() => void generate(false)}
+          >
+            Update plan
+          </button>
+        </div>
+      )}
+
+      {loading && data === null && (
+        <p className="text-sm text-muted-foreground" data-testid="plan-loading">
+          Loading your plan…
+        </p>
+      )}
+
+      {data?.plan ? (
+        <CoachPlanView plan={data.plan} showTomorrow={isAfter18()} />
+      ) : (
+        !loading &&
+        !running &&
+        ready && (
+          <div className="flex flex-col items-start gap-2">
+            <p className="text-sm text-muted-foreground">
+              No plan yet. Your coach will build it from your profile and recent
+              training.
+            </p>
+            <button
+              type="button"
+              className="rounded border border-transparent bg-primary px-3 py-1 text-sm text-primary-foreground enabled:hover:bg-primary-hover"
+              onClick={() => void generate(false)}
+            >
+              Generate my plan
+            </button>
+          </div>
+        )
+      )}
+    </section>
+  );
+}
+
+/** After 18:00 local time, the plan should also offer tomorrow's session. */
+function isAfter18(): boolean {
+  return new Date().getHours() >= 18;
+}
+
+function localToday(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function formatDateTime(iso: string): string {
+  const parsed = new Date(iso);
+  if (Number.isNaN(parsed.getTime())) {
+    return iso;
+  }
+  return parsed.toLocaleString();
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}

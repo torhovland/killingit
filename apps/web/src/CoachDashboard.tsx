@@ -15,6 +15,7 @@ import { ActivityCard } from "./ActivityCard";
 import { useAuth } from "./auth";
 import { AthleteAnswersSection } from "./AthleteAnswersSection";
 import { AthleteQuestionsForm } from "./AthleteQuestionsForm";
+import { CoachPlanSection } from "./CoachPlanSection";
 import { fetchJsonAuthed } from "./fetchAuthed";
 import { GarminSection } from "./GarminSection";
 import { LlmSection } from "./LlmSection";
@@ -155,6 +156,14 @@ function CoachingSurface({ questions, onSaveAnswers }: CoachingSurfaceProps) {
   const [loadingStatuses, setLoadingStatuses] = useState(true);
   const [loadingAnalyses, setLoadingAnalyses] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [planRefreshKey, setPlanRefreshKey] = useState(0);
+
+  async function saveAnswers(answers: QuestionAnswerInput[]): Promise<void> {
+    await onSaveAnswers(answers);
+    // Answers changed: refetch the plan status, which marks the stored plan
+    // stale and starts a regeneration.
+    setPlanRefreshKey((key) => key + 1);
+  }
 
   async function loadStatuses(): Promise<void> {
     setLoadingStatuses(true);
@@ -251,7 +260,12 @@ function CoachingSurface({ questions, onSaveAnswers }: CoachingSurfaceProps) {
         </p>
       )}
 
-      <AthleteAnswersSection questions={questions} onSubmit={onSaveAnswers} />
+      <CoachPlanSection
+        refreshKey={planRefreshKey}
+        ready={garmin.connected && llm.configured}
+      />
+
+      <AthleteAnswersSection questions={questions} onSubmit={saveAnswers} />
 
       <GarminSection connected={garmin.connected} onConnected={setGarmin} />
 
