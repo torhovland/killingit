@@ -54,12 +54,14 @@ my profile" feature that follows.
 
 ## Data-model / API impact
 
-- **No database schema change.** The existing `athletes` table is a placeholder
-  and is intentionally untouched; linking `sub` → athlete row is a later task.
-- **New API route** `GET /api/me` — protected; returns the verified `sub` (and
-  later the athlete profile). This is the minimal canary for the auth seam.
-- **Shared types** — add `AthleteIdentity` (`{ sub: string }`) to
-  `packages/shared` so web and API share the shape.
+- **Accounts table.** The `athletes` placeholder is still untouched; `sub` is
+  linked to an application account in `users` (ADR 0006), which owns the
+  `admin`/`member` role.
+- **New API route** `GET /api/me` — protected; returns the verified `sub` and
+  the account's application role (and later the athlete profile). It also
+  provisions the account on first sight.
+- **Shared types** — `AthleteIdentity` (`{ sub: string }`) and `CurrentUser`
+  (`{ sub, role }`) live in `packages/shared` so web and API share the shapes.
 
 ## Technical approach
 
@@ -75,7 +77,8 @@ my profile" feature that follows.
   - No network in tests: JWKS fetch is injected/mocked.
 - Hono middleware `requireAuth` that reads `Authorization: Bearer …`, calls the
   provider, and sets `c.set("athlete", identity)` or returns 401.
-- `GET /api/me` uses `requireAuth`.
+- `GET /api/me` uses `requireAuth`, then resolves/provisions the account and
+  returns `{ sub, role }`.
 - Deps: add `jose` (JWKS + JWT verify), already a transitive standard.
 
 ### Web (`apps/web`)
@@ -101,8 +104,8 @@ only replaces that module.
   signature / wrong issuer / wrong audience / expired each rejected. JWKS
   mocked (no live network).
 - **Unit (web):** the fetch-token-attachment helper (token present/absent).
-- **Integration (API):** `GET /api/me` returns 401 without a token and 200
-  with a token signed by a test JWKS.
+- **Integration (API):** `GET /api/me` returns 401 without a token and 200 with
+  a `sub` + `role` when signed with a test JWKS (the account store is faked).
 - Run `bun run typecheck`, `bun run lint`, `bun run format`, `bun run test`.
 
 ## Implementation notes (deviations from the original plan)

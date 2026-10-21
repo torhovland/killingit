@@ -43,6 +43,13 @@
       "when": 1792519451244,
       "tag": "0005_peaceful_exiles",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792599596408,
+      "tag": "0006_massive_arachne",
+      "breakpoints": true
     }
   ]
 }

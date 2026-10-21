@@ -1,6 +1,8 @@
+import { sql } from "drizzle-orm";
 import {
   bigint,
   boolean,
+  check,
   integer,
   pgTable,
   serial,
@@ -24,6 +26,35 @@ export const athletes = pgTable("athletes", {
 
 export type Athlete = typeof athletes.$inferSelect;
 export type NewAthlete = typeof athletes.$inferInsert;
+
+/**
+ * An application account, keyed by the auth provider's subject (`sub`). Roles
+ * live here rather than in the token so authorisation is owned by the app and
+ * survives provider changes (ADR 0006). The first account provisioned in an
+ * environment is an admin; everyone after is a member.
+ */
+export const users = pgTable(
+  "users",
+  {
+    id: serial("id").primaryKey(),
+    authSubject: text("auth_subject").notNull().unique(),
+    role: text("role", { enum: ["admin", "member"] })
+      .notNull()
+      .default("member"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    check("users_role_check", sql`${table.role} in ('admin', 'member')`),
+  ],
+);
+
+export type UserRow = typeof users.$inferSelect;
+export type NewUserRow = typeof users.$inferInsert;
 
 /**
  * Single-row Garmin connection (ADR 0003: one operator). Username and password

@@ -84,9 +84,18 @@ athlete-profile and training data model will replace it.
 
 Integration tables: `garmin_connections` (encrypted Garmin credentials),
 `llm_settings` (encrypted OpenRouter key + selected model),
-`activity_analyses` (cached coach analysis per activity/model), and
-`questions` / `question_versions` (versioned athlete questions; see ADR 0005).
-See ADR 0003, ADR 0004, ADR 0005, and the specs in `docs/specs/`.
+`activity_analyses` (cached coach analysis per activity/model),
+`questions` / `question_versions` (versioned athlete questions; see ADR 0005),
+and `users` (accounts and roles; see ADR 0006).
+See ADR 0003, ADR 0004, ADR 0005, ADR 0006, and the specs in `docs/specs/`.
+
+### Admin accounts
+
+The first account provisioned against an environment's database becomes the
+admin; every later account is a member. If a database already has accounts but
+no admin, the earliest account is promoted. Only the admin sees the admin
+settings page and can manage athlete questions; the API enforces the role
+(`403` for members). See ADR 0006.
 
 ## Error monitoring (Sentry)
 

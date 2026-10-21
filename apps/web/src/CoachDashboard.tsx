@@ -8,7 +8,6 @@ import {
   type LlmSettings,
 } from "@killingit/shared";
 import { ActivityCard } from "./ActivityCard";
-import { AdminQuestionsSection } from "./AdminQuestionsSection";
 import { useAuth } from "./auth";
 import { fetchJsonAuthed } from "./fetchAuthed";
 import { GarminSection } from "./GarminSection";
@@ -129,8 +128,6 @@ export function CoachDashboard() {
       <GarminSection connected={garmin.connected} onConnected={setGarmin} />
 
       <LlmSection settings={llm} onSaved={setLlm} />
-
-      <AdminQuestionsSection />
 
       {garmin.connected && (
         <section className="flex flex-col gap-3">

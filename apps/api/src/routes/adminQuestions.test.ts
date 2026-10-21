@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import app from "../index";
+import app, { createApp } from "../index";
 
 describe("admin questions route", () => {
   it("requires a bearer token to list questions", async () => {
@@ -20,5 +20,28 @@ describe("admin questions route", () => {
     );
 
     expect(res.status).toBe(401);
+  });
+
+  it("rejects a signed-in non-admin with 403", async () => {
+    const nonAdminApp = createApp({
+      authProvider: { verify: () => Promise.resolve({ sub: "athlete-2" }) },
+      userStore: {
+        ensureUser: (sub) =>
+          Promise.resolve({
+            id: 2,
+            sub,
+            role: "member",
+            createdAt: new Date(0),
+          }),
+      },
+    });
+
+    const res = await nonAdminApp.fetch(
+      new Request("http://localhost/api/admin/questions", {
+        headers: { authorization: "Bearer anything" },
+      }),
+    );
+
+    expect(res.status).toBe(403);
   });
 });

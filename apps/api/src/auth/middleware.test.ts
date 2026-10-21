@@ -1,6 +1,8 @@
+import type { UserRole } from "@killingit/shared";
 import { describe, expect, it } from "bun:test";
 import { Hono } from "hono";
-import { requireAuth } from "./middleware.js";
+import type { UserStore } from "../users/store.js";
+import { requireAdmin, requireAuth } from "./middleware.js";
 import type { AuthProvider } from "./provider.js";
 import { AuthVerificationError } from "./provider.js";
 
@@ -50,5 +52,52 @@ describe("requireAuth", () => {
       }),
     );
     expect(res.status).toBe(200);
+  });
+});
+
+function storeWithRole(role: UserRole): UserStore {
+  return {
+    ensureUser: (sub) =>
+      Promise.resolve({ id: 1, sub, role, createdAt: new Date(0) }),
+  };
+}
+
+function appWithAdmin(store: UserStore) {
+  const app = new Hono();
+  app.use(
+    "*",
+    requireAuth(() => validProvider),
+  );
+  app.use("*", requireAdmin(store));
+  app.get("/", (c) => c.json({ ok: true }));
+  return app;
+}
+
+const authedRequest = () =>
+  new Request("http://localhost/", {
+    headers: { authorization: "Bearer anything" },
+  });
+
+describe("requireAdmin", () => {
+  it("allows an admin", async () => {
+    const res = await appWithAdmin(storeWithRole("admin")).fetch(
+      authedRequest(),
+    );
+    expect(res.status).toBe(200);
+  });
+
+  it("rejects a member with 403", async () => {
+    const res = await appWithAdmin(storeWithRole("member")).fetch(
+      authedRequest(),
+    );
+    expect(res.status).toBe(403);
+  });
+
+  it("returns 503 when the account cannot be resolved", async () => {
+    const store: UserStore = {
+      ensureUser: () => Promise.reject(new Error("database down")),
+    };
+    const res = await appWithAdmin(store).fetch(authedRequest());
+    expect(res.status).toBe(503);
   });
 });
