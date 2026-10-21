@@ -111,12 +111,12 @@ export function AthleteQuestionsForm({
         >
           {copy.title}
         </Heading>
-        <p className="text-sm opacity-70">{copy.description}</p>
+        <p className="text-sm text-muted-foreground">{copy.description}</p>
       </div>
 
       <form
         onSubmit={(event) => void submit(event)}
-        className="flex flex-col gap-4 rounded border p-4"
+        className="flex flex-col gap-4 rounded border bg-card p-4"
         data-testid="athlete-questions-form"
       >
         {questions.map((question) => (
@@ -127,7 +127,7 @@ export function AthleteQuestionsForm({
           >
             <span className="flex flex-wrap items-center gap-2 font-medium">
               {question.prompt}
-              <span className="rounded border px-2 py-0.5 text-xs font-normal opacity-70">
+              <span className="rounded border bg-muted px-2 py-0.5 text-xs font-normal text-muted-foreground">
                 {question.required ? "Required" : "Optional"}
               </span>
             </span>
@@ -144,20 +144,20 @@ export function AthleteQuestionsForm({
                   [question.id]: event.target.value,
                 }))
               }
-              className="rounded border px-3 py-1"
+              className="rounded border bg-card px-3 py-1"
               placeholder="Your answer"
             />
           </label>
         ))}
 
         {error && (
-          <p className="text-red-500" data-testid="athlete-questions-error">
+          <p className="text-destructive" data-testid="athlete-questions-error">
             {error}
           </p>
         )}
 
         {missingRequired && (
-          <p className="text-sm opacity-70">
+          <p className="text-sm text-muted-foreground">
             Answer all required questions to continue.
           </p>
         )}
@@ -165,7 +165,7 @@ export function AthleteQuestionsForm({
         <div className="flex gap-2">
           <button
             type="submit"
-            className="rounded border px-4 py-2 disabled:opacity-50"
+            className="rounded border border-transparent bg-primary px-4 py-2 text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
             disabled={submitting || missingRequired}
           >
             {submitting ? "Saving…" : copy.submitLabel}
@@ -173,7 +173,7 @@ export function AthleteQuestionsForm({
           {onCancel && (
             <button
               type="button"
-              className="rounded border px-4 py-2 disabled:opacity-50"
+              className="rounded border bg-card px-4 py-2 enabled:hover:bg-muted disabled:opacity-50"
               onClick={onCancel}
               disabled={submitting}
             >

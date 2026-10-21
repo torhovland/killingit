@@ -143,7 +143,7 @@ export function AdminQuestionsSection() {
         {!adding && (
           <button
             type="button"
-            className="rounded border px-3 py-1 text-sm"
+            className="rounded border border-transparent bg-primary px-3 py-1 text-sm text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
             onClick={() => setAdding(true)}
             disabled={loading}
           >
@@ -151,20 +151,20 @@ export function AdminQuestionsSection() {
           </button>
         )}
       </div>
-      <p className="text-sm opacity-70">
+      <p className="text-sm text-muted-foreground">
         Free-text questions for the athlete profile and coach prompts. Editing a
         question adds a new version; deleting archives it and keeps every
         previous version.
       </p>
 
       {error && (
-        <p className="text-red-500" data-testid="admin-questions-error">
+        <p className="text-destructive" data-testid="admin-questions-error">
           {error}
         </p>
       )}
 
       {loading && questions === null && (
-        <p className="text-sm opacity-60">Loading questions…</p>
+        <p className="text-sm text-muted-foreground">Loading questions…</p>
       )}
 
       {adding && (
@@ -176,7 +176,7 @@ export function AdminQuestionsSection() {
       )}
 
       {!loading && !adding && questions !== null && questions.length === 0 && (
-        <p className="text-sm opacity-60">
+        <p className="text-sm text-muted-foreground">
           No questions yet. Add the first one.
         </p>
       )}

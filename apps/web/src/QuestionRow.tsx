@@ -56,30 +56,30 @@ export function QuestionRow({ question, onSave, onDelete }: QuestionRowProps) {
 
   return (
     <li
-      className="flex flex-col gap-2 rounded border p-3"
+      className="flex flex-col gap-2 rounded border bg-card p-3"
       data-testid="question-row"
     >
       <p className="whitespace-pre-wrap font-medium">{question.prompt}</p>
-      <p className="text-xs opacity-60">
+      <p className="text-xs text-muted-foreground">
         v{question.version} of {question.versionCount} ·{" "}
         {question.required ? "Required" : "Optional"}
       </p>
       {error && (
-        <p className="text-red-500" data-testid="question-row-error">
+        <p className="text-destructive" data-testid="question-row-error">
           {error}
         </p>
       )}
       <div className="flex gap-2">
         <button
           type="button"
-          className="rounded border px-3 py-1 text-sm"
+          className="rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted"
           onClick={() => setEditing(true)}
         >
           Edit
         </button>
         <button
           type="button"
-          className="rounded border px-3 py-1 text-sm"
+          className="rounded border border-destructive/40 px-3 py-1 text-sm text-destructive enabled:hover:bg-destructive/10 disabled:opacity-50"
           onClick={() => void remove()}
           disabled={deleting}
         >
