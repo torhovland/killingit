@@ -29,8 +29,9 @@ question wording changes.
 
 ### Out of scope (deferred)
 
-- Athlete-facing question display and answer capture. A future `answers` table
-  should reference `question_versions.id`, not only `questions.id`.
+- ~~Athlete-facing question display and answer capture.~~ Implemented by
+  `docs/specs/athlete-question-answers.md`; answers reference
+  `question_versions.id`.
 - Feeding questions/answers into coach prompts (the next integration step).
 - Answer types other than free text (choice, numeric, scale, …). A new type is
   an additive column/field on the version row.

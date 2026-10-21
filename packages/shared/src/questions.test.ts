@@ -1,5 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import {
+  athleteQuestionsResponseSchema,
+  isQuestionnaireComplete,
+  questionAnswersInputSchema,
   questionArchivedResponseSchema,
   questionInputSchema,
   questionSchema,
@@ -70,5 +73,121 @@ describe("question response schemas", () => {
 
   it("parses an archive acknowledgement", () => {
     expect(questionArchivedResponseSchema.parse({ id: 1 })).toEqual({ id: 1 });
+  });
+});
+
+const athleteQuestion = {
+  ...question,
+  answer: "A little tired, but the pace held.",
+  skipped: false,
+  answeredAt: "2026-10-21T08:00:00.000Z",
+};
+
+describe("questionAnswersInputSchema", () => {
+  it("trims answers and keeps the pinned version", () => {
+    const parsed = questionAnswersInputSchema.parse({
+      answers: [{ questionId: 1, versionId: 2, answer: "  Felt strong.  " }],
+    });
+
+    expect(parsed.answers).toEqual([
+      { questionId: 1, versionId: 2, answer: "Felt strong." },
+    ]);
+  });
+
+  it("accepts a null answer as an explicit optional skip", () => {
+    const parsed = questionAnswersInputSchema.parse({
+      answers: [{ questionId: 1, versionId: 2, answer: null }],
+    });
+
+    expect(parsed.answers[0]?.answer).toBeNull();
+  });
+
+  it("rejects blank answers", () => {
+    const result = questionAnswersInputSchema.safeParse({
+      answers: [{ questionId: 1, versionId: 2, answer: "   " }],
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects an empty submission", () => {
+    const result = questionAnswersInputSchema.safeParse({ answers: [] });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects the same question version twice", () => {
+    const result = questionAnswersInputSchema.safeParse({
+      answers: [
+        { questionId: 1, versionId: 2, answer: "First" },
+        { questionId: 2, versionId: 2, answer: "Second" },
+      ],
+    });
+
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("athlete question response", () => {
+  it("parses a question with the athlete's answer", () => {
+    const parsed = athleteQuestionsResponseSchema.parse({
+      questions: [athleteQuestion],
+      complete: true,
+    });
+
+    expect(parsed.questions[0]?.answer).toBe(
+      "A little tired, but the pace held.",
+    );
+    expect(parsed.complete).toBe(true);
+  });
+
+  it("accepts an unanswered question", () => {
+    const parsed = athleteQuestionsResponseSchema.parse({
+      questions: [
+        {
+          ...athleteQuestion,
+          answer: null,
+          skipped: false,
+          answeredAt: null,
+        },
+      ],
+      complete: false,
+    });
+
+    expect(parsed.questions[0]?.answer).toBeNull();
+    expect(parsed.questions[0]?.skipped).toBe(false);
+  });
+});
+
+describe("isQuestionnaireComplete", () => {
+  it("is complete when required questions are answered and optional ones are skipped", () => {
+    expect(
+      isQuestionnaireComplete([
+        { required: true, answer: "Yes", skipped: false },
+        { required: false, answer: null, skipped: true },
+      ]),
+    ).toBe(true);
+  });
+
+  it("is incomplete when an optional question is neither answered nor skipped", () => {
+    expect(
+      isQuestionnaireComplete([
+        { required: true, answer: "Yes", skipped: false },
+        { required: false, answer: null, skipped: false },
+      ]),
+    ).toBe(false);
+  });
+
+  it("is incomplete when a required question is skipped", () => {
+    expect(
+      isQuestionnaireComplete([
+        { required: true, answer: null, skipped: true },
+        { required: false, answer: "Optional answer", skipped: false },
+      ]),
+    ).toBe(false);
+  });
+
+  it("is complete when there are no questions", () => {
+    expect(isQuestionnaireComplete([])).toBe(true);
   });
 });

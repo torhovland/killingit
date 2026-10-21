@@ -50,6 +50,13 @@
       "when": 1792599596408,
       "tag": "0006_massive_arachne",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792600781459,
+      "tag": "0007_fine_thor_girl",
+      "breakpoints": true
     }
   ]
 }
