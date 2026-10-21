@@ -34,6 +34,8 @@ services/
 
 - [Bun](https://bun.sh) ≥ 1.4
 - Docker (for the local Postgres database)
+- Python 3 (for the Garmin sidecar; `bun run dev` creates its virtualenv on
+  first run)
 
 ## Getting started
 
@@ -47,12 +49,13 @@ bun run db:up
 # Apply migrations (creates tables)
 bun run db:migrate
 
-# Run the API and web app together
+# Run the API, web app, and Garmin sidecar together
 bun run dev
 ```
 
 - Web: http://localhost:5173
 - API: http://localhost:3001/api
+- Garmin sidecar: http://localhost:8000
 
 The web dev server proxies `/api` requests to the API, so the frontend can call
 `/api/...` directly.
@@ -64,18 +67,19 @@ development out of the box.
 
 ## Scripts
 
-| Command               | Description                     |
-| --------------------- | ------------------------------- |
-| `bun run dev`         | Run web + api dev servers       |
-| `bun run dev:web`     | Run web dev server only         |
-| `bun run dev:api`     | Run api dev server only         |
-| `bun run build`       | Build all packages              |
-| `bun run typecheck`   | Typecheck all packages          |
-| `bun run test`        | Run all tests                   |
-| `bun run db:up`       | Start Postgres (docker compose) |
-| `bun run db:down`     | Stop Postgres                   |
-| `bun run db:generate` | Generate a Drizzle migration    |
-| `bun run db:migrate`  | Apply Drizzle migrations        |
+| Command               | Description                                |
+| --------------------- | ------------------------------------------ |
+| `bun run dev`         | Run web + api + Garmin sidecar dev servers |
+| `bun run dev:web`     | Run web dev server only                    |
+| `bun run dev:api`     | Run api dev server only                    |
+| `bun run dev:garmin`  | Run Garmin sidecar only                    |
+| `bun run build`       | Build all packages                         |
+| `bun run typecheck`   | Typecheck all packages                     |
+| `bun run test`        | Run all tests                              |
+| `bun run db:up`       | Start Postgres (docker compose)            |
+| `bun run db:down`     | Stop Postgres                              |
+| `bun run db:generate` | Generate a Drizzle migration               |
+| `bun run db:migrate`  | Apply Drizzle migrations                   |
 
 ## Database
 
