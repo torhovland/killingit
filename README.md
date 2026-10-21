@@ -83,9 +83,10 @@ The `athletes` table is a placeholder proving the Drizzle wiring. The real
 athlete-profile and training data model will replace it.
 
 Integration tables: `garmin_connections` (encrypted Garmin credentials),
-`llm_settings` (encrypted OpenRouter key + selected model), and
-`activity_analyses` (cached coach analysis per activity/model). See ADR 0003,
-ADR 0004, and the specs in `docs/specs/`.
+`llm_settings` (encrypted OpenRouter key + selected model),
+`activity_analyses` (cached coach analysis per activity/model), and
+`questions` / `question_versions` (versioned athlete questions; see ADR 0005).
+See ADR 0003, ADR 0004, ADR 0005, and the specs in `docs/specs/`.
 
 ## Error monitoring (Sentry)
 
