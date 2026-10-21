@@ -3,6 +3,7 @@ import {
   createOpenRouterProvider,
   LlmAuthError,
   LlmProviderError,
+  LlmRateLimitError,
 } from "./openrouter.js";
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -167,6 +168,34 @@ describe("complete", () => {
     } catch (err) {
       expect(err).toBeInstanceOf(LlmProviderError);
       expect((err as LlmProviderError).status).toBe(402);
+    }
+  });
+
+  it("maps a 429 to LlmRateLimitError with quota guidance", async () => {
+    const provider = createOpenRouterProvider({
+      fetchImpl: stubFetch(() =>
+        Promise.resolve(
+          jsonResponse(
+            { error: { message: "Daily limit exceeded for free model" } },
+            429,
+          ),
+        ),
+      ),
+    });
+    try {
+      await provider.complete({
+        apiKey: "sk-or-v1-test",
+        model: "openrouter/free",
+        messages: [{ role: "user", content: "analyse" }],
+        temperature: 0.3,
+        maxTokens: 500,
+      });
+      throw new Error("expected completion to reject");
+    } catch (err) {
+      expect(err).toBeInstanceOf(LlmRateLimitError);
+      expect((err as LlmRateLimitError).status).toBe(429);
+      expect((err as Error).message).toContain("Daily limit exceeded");
+      expect((err as Error).message).toContain("free-model daily request cap");
     }
   });
 

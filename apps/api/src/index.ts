@@ -5,6 +5,14 @@ import { createAuthProvider } from "./auth/index.js";
 import { requireAdmin, requireAuth } from "./auth/middleware.js";
 import type { AuthProvider } from "./auth/provider.js";
 import { withSentry } from "./instrumentation/sentry.js";
+import type { ActivityFeed } from "./coaching/activities.js";
+import type { LlmClient } from "./llm/client.js";
+import {
+  dbPlanGenerationStore,
+  dbPlanStore,
+  type PlanGenerationStore,
+  type PlanStore,
+} from "./plans/store.js";
 import {
   dbQuestionAnswerStore,
   type QuestionAnswerStore,
@@ -17,6 +25,7 @@ import { greet } from "./routes/greet.js";
 import { health } from "./routes/health.js";
 import { llmRoute } from "./routes/llm.js";
 import { createMeRoute } from "./routes/me.js";
+import { createPlanRoute } from "./routes/plan.js";
 import { createQuestionsRoute } from "./routes/questions.js";
 import { dbUserStore, type UserStore } from "./users/store.js";
 
@@ -43,6 +52,12 @@ export interface AppDependencies {
   userStore?: UserStore;
   /** Athlete answer storage, injectable for DB-free route tests. */
   answerStore?: QuestionAnswerStore;
+  /** Stored coach plan and generation progress, injectable for route tests. */
+  planStore?: PlanStore;
+  generationStore?: PlanGenerationStore;
+  /** Activity/LLM loaders, injectable for DB-free plan route tests. */
+  loadActivities?: () => Promise<ActivityFeed>;
+  loadLlm?: () => Promise<LlmClient | null>;
 }
 
 // Authentication is opt-in per route. The provider is created lazily on the
@@ -57,6 +72,8 @@ export function createApp(deps: AppDependencies = {}): Hono {
     deps.authProvider ?? (() => (cachedAuth ??= createAuthProvider()));
   const userStore = deps.userStore ?? dbUserStore;
   const answerStore = deps.answerStore ?? dbQuestionAnswerStore;
+  const planStore = deps.planStore ?? dbPlanStore;
+  const generationStore = deps.generationStore ?? dbPlanGenerationStore;
 
   const app = new Hono();
 
@@ -103,6 +120,22 @@ export function createApp(deps: AppDependencies = {}): Hono {
   // LLM, and returns activity data with cached-or-fresh coach analysis.
   api.use("/coaching/*", requireAuth(authProvider));
   api.route("/coaching", coachingRoute);
+
+  // The four-level coach plan and its generation progress. The plan is stored
+  // per user and advanced by the daily/weekly/block cascade.
+  api.route(
+    "/coaching/plan",
+    createPlanRoute({
+      users: userStore,
+      answers: answerStore,
+      plans: planStore,
+      generations: generationStore,
+      ...(deps.loadActivities !== undefined
+        ? { loadActivities: deps.loadActivities }
+        : {}),
+      ...(deps.loadLlm !== undefined ? { loadLlm: deps.loadLlm } : {}),
+    }),
+  );
 
   // Admin-only configuration. Only the admin (the first account in the
   // environment) may manage the versioned athlete question set (ADR 0006).

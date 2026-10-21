@@ -62,6 +62,9 @@ about a past workout, or before a suggested workout, to steer the coach.
   (`apps/api/src/llm/openrouter.ts`), with the API key encrypted at rest and
   chosen model stored in `llm_settings`. Activity analyses are cached in
   `activity_analyses`. See ADR 0004.
+- The four-level plan is stored per user in `coach_plans`; generation progress
+  is in `plan_generations`. The lazy day → week → block cascade and the plan UI
+  are documented in `docs/specs/coach-plan-lifecycle.md`.
 
 ## Stack
 
