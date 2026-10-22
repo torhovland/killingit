@@ -4,7 +4,8 @@
 - **Date:** 2026-10-21
 - **Related:** `docs/specs/coach-plan-prompts.md`, ADR 0004 (OpenRouter),
   `docs/specs/openrouter-llm-integration.md`,
-  `docs/specs/athlete-question-answers.md`.
+  `docs/specs/athlete-question-answers.md`,
+  `docs/specs/coach-feedback-and-program-review.md`.
 
 ## Goal
 
@@ -132,8 +133,10 @@ block's dates.
      revised block);
    - if the block/week changed or `pending.day`, call the daily prompt (today +
      revised week).
-5. Save the plan with the current answer timestamp, mark the status `done`, and
-   return the refreshed response.
+5. Save the plan with the current answer timestamp. After a full build, review
+   recent activities against the finished plan (see
+   `docs/specs/coach-feedback-and-program-review.md`), then mark the status
+   `done` and return the refreshed response.
 6. On any failure, mark the status `error` and leave the previous plan in place.
 
 All LLM responses are parsed defensively (`parsePlanJson`) so markdown fences or

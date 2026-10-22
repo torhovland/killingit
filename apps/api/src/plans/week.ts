@@ -29,6 +29,9 @@ export function applyCompletedDays(
       sampleCount: 0,
       analysis: null,
       analysisError: null,
+      programAnalysis: null,
+      comment: null,
+      coachReply: null,
     })),
   ];
 

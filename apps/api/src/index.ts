@@ -6,13 +6,21 @@ import { requireAdmin, requireAuth } from "./auth/middleware.js";
 import type { AuthProvider } from "./auth/provider.js";
 import { withSentry } from "./instrumentation/sentry.js";
 import type { ActivityFeed } from "./coaching/activities.js";
+import type { replyToCoachingInput } from "./coaching/replies.js";
 import type { LlmClient } from "./llm/client.js";
 import {
+  loadManualActivities,
+  loadWeeklyNote,
   saveActivityComment,
   saveManualActivity,
   saveWeeklyNote,
+  updateManualActivity,
   type CoachingInputs,
 } from "./plans/inputs.js";
+import type {
+  loadManualActivityReplies,
+  loadWeeklyNoteReply,
+} from "./plans/replies.js";
 import type { triggerPlanGeneration } from "./plans/trigger.js";
 import {
   dbPlanGenerationStore,
@@ -70,10 +78,17 @@ export interface AppDependencies {
     userId: number,
     weekStartDate: string,
   ) => Promise<CoachingInputs>;
-  /** Coaching-input writers, injectable for DB-free route tests. */
+  /** Coaching-input readers and writers, injectable for DB-free route tests. */
+  loadManualActivities?: typeof loadManualActivities;
+  loadWeeklyNote?: typeof loadWeeklyNote;
   saveActivityComment?: typeof saveActivityComment;
   saveManualActivity?: typeof saveManualActivity;
   saveWeeklyNote?: typeof saveWeeklyNote;
+  updateManualActivity?: typeof updateManualActivity;
+  /** Coach replies and their loaders, injectable for DB-free route tests. */
+  loadManualActivityReplies?: typeof loadManualActivityReplies;
+  loadWeeklyNoteReply?: typeof loadWeeklyNoteReply;
+  replyToCoachingInput?: typeof replyToCoachingInput;
   /** Plan generation trigger, injectable for DB-free route tests. */
   triggerPlanGeneration?: typeof triggerPlanGeneration;
 }
@@ -151,6 +166,12 @@ export function createApp(deps: AppDependencies = {}): Hono {
       ...(deps.loadCoachingInputs !== undefined
         ? { loadCoachingInputs: deps.loadCoachingInputs }
         : {}),
+      ...(deps.loadManualActivities !== undefined
+        ? { loadManualActivities: deps.loadManualActivities }
+        : {}),
+      ...(deps.loadWeeklyNote !== undefined
+        ? { loadWeeklyNote: deps.loadWeeklyNote }
+        : {}),
       ...(deps.saveActivityComment !== undefined
         ? { saveActivityComment: deps.saveActivityComment }
         : {}),
@@ -159,6 +180,18 @@ export function createApp(deps: AppDependencies = {}): Hono {
         : {}),
       ...(deps.saveWeeklyNote !== undefined
         ? { saveWeeklyNote: deps.saveWeeklyNote }
+        : {}),
+      ...(deps.updateManualActivity !== undefined
+        ? { updateManualActivity: deps.updateManualActivity }
+        : {}),
+      ...(deps.loadManualActivityReplies !== undefined
+        ? { loadManualActivityReplies: deps.loadManualActivityReplies }
+        : {}),
+      ...(deps.loadWeeklyNoteReply !== undefined
+        ? { loadWeeklyNoteReply: deps.loadWeeklyNoteReply }
+        : {}),
+      ...(deps.replyToCoachingInput !== undefined
+        ? { replyToCoachingInput: deps.replyToCoachingInput }
         : {}),
       ...(deps.triggerPlanGeneration !== undefined
         ? { triggerPlanGeneration: deps.triggerPlanGeneration }

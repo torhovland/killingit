@@ -19,6 +19,9 @@ const activity: AnalyzedActivity = {
     generatedAt: "2026-10-01T07:00:00Z",
   },
   analysisError: null,
+  programAnalysis: null,
+  comment: null,
+  coachReply: null,
 };
 
 describe("ActivityCard", () => {
@@ -58,11 +61,39 @@ describe("ActivityCard", () => {
     expect(html).toContain("No coach analysis available yet.");
   });
 
+  it("renders the program review, saved comment, and coach reply", () => {
+    const html = renderToStaticMarkup(
+      <ActivityCard
+        activity={{
+          ...activity,
+          programAnalysis: {
+            text: "The effort fit the base block, but the finish was too hard.",
+            model: "openrouter/auto",
+            generatedAt: "2026-10-01T07:05:00Z",
+          },
+          comment: "Felt strong on the hills.",
+          coachReply: {
+            text: "Good work; I will keep Thursday easy.",
+            model: "openrouter/auto",
+            generatedAt: "2026-10-01T07:06:00Z",
+          },
+        }}
+      />,
+    );
+
+    expect(html).toContain('data-testid="activity-program-analysis"');
+    expect(html).toContain("How it fit your plan");
+    expect(html).toContain("the finish was too hard");
+    expect(html).toContain("Felt strong on the hills.");
+    expect(html).toContain('data-testid="activity-coach-reply"');
+    expect(html).toContain("I will keep Thursday easy.");
+  });
+
   it("renders a comment form when a submit handler is provided", () => {
     const html = renderToStaticMarkup(
       <ActivityCard
         activity={activity}
-        onSubmitComment={() => Promise.resolve()}
+        onSubmitComment={() => Promise.resolve(null)}
       />,
     );
 

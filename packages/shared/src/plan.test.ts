@@ -1,13 +1,17 @@
 import { describe, expect, it } from "bun:test";
 import {
+  activityCommentRequestSchema,
   coachPlanResponseSchema,
   coachPlanSchema,
+  coachingInputSaveResponseSchema,
   dailyPlanUpdateSchema,
   dayPlanSchema,
   initialBlockUpdateSchema,
+  manualActivitySchema,
   planDateSchema,
   seasonPlanUpdateSchema,
   weekPlanSchema,
+  weeklyNoteResponseSchema,
 } from "./plan.js";
 
 function makeWeek() {
@@ -184,6 +188,45 @@ describe("coachPlanResponseSchema", () => {
     });
     expect(parsed.plan).toBeNull();
     expect(parsed.pending.initial).toBe(true);
+  });
+});
+
+describe("coaching-input feedback schemas", () => {
+  it("requires the commented activity's date", () => {
+    expect(() =>
+      activityCommentRequestSchema.parse({
+        today: "2026-10-21",
+        comment: "Felt strong.",
+      }),
+    ).toThrow();
+  });
+
+  it("accepts a save response with no reply", () => {
+    const parsed = coachingInputSaveResponseSchema.parse({
+      message: "Comment saved",
+    });
+    expect(parsed.reply).toBeNull();
+  });
+
+  it("defaults a manual activity's reply to null", () => {
+    const parsed = manualActivitySchema.parse({
+      id: 7,
+      startDate: "2026-10-21",
+      details: "Pool swim",
+    });
+    expect(parsed.coachReply).toBeNull();
+  });
+
+  it("returns a weekly note with its reply", () => {
+    const parsed = weeklyNoteResponseSchema.parse({
+      note: "No training on Thursday.",
+      reply: {
+        text: "Understood; I moved Thursday's session.",
+        model: "openrouter/auto",
+        generatedAt: "2026-10-21T08:00:00Z",
+      },
+    });
+    expect(parsed.reply?.text).toContain("Thursday");
   });
 });
 

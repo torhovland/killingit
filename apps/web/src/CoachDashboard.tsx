@@ -2,13 +2,18 @@ import { useEffect, useState } from "react";
 import {
   analyzedActivitiesResponseSchema,
   athleteQuestionsResponseSchema,
+  coachingInputSaveResponseSchema,
   garminConnectionStatusSchema,
   llmSettingsSchema,
+  manualActivitiesResponseSchema,
+  weeklyNoteResponseSchema,
   type AnalyzedActivitiesResponse,
   type AthleteQuestion,
   type AthleteQuestionsResponse,
+  type CoachAnalysis,
   type GarminConnectionStatus,
   type LlmSettings,
+  type ManualActivity,
   type QuestionAnswerInput,
 } from "@killingit/shared";
 import { ActivityCard } from "./ActivityCard";
@@ -38,6 +43,9 @@ export function CoachDashboard() {
   const [loadingQuestions, setLoadingQuestions] = useState(true);
   const [questionsError, setQuestionsError] = useState<string | null>(null);
   const [weeklyNote, setWeeklyNote] = useState<string>("");
+  const [weeklyNoteReply, setWeeklyNoteReply] = useState<CoachAnalysis | null>(
+    null,
+  );
 
   async function loadQuestions(): Promise<void> {
     setLoadingQuestions(true);
@@ -67,11 +75,21 @@ export function CoachDashboard() {
   async function fetchWeeklyNote(): Promise<void> {
     try {
       const { today } = getToday();
-      const response = await fetchJsonAuthed<{ note: string | null }>(
+      const response = await fetchJsonAuthed<unknown>(
         `${API_URL}/api/coaching/weekly/notes?today=${today}`,
         auth,
       );
-      setWeeklyNote(response.note ?? "");
+      const parsed = weeklyNoteResponseSchema.safeParse(response);
+      if (!parsed.success) {
+        throw new Error(
+          "Loading the weekly note returned an unexpected response",
+          {
+            cause: parsed.error,
+          },
+        );
+      }
+      setWeeklyNote(parsed.data.note ?? "");
+      setWeeklyNoteReply(parsed.data.reply);
     } catch (err: unknown) {
       // Don't block the dashboard if the note fails to load.
       console.error("Failed to load weekly note:", err);
@@ -153,14 +171,10 @@ export function CoachDashboard() {
       onSaveAnswers={saveAnswers}
       weeklyNote={weeklyNote}
       onWeeklyNoteChange={setWeeklyNote}
+      weeklyNoteReply={weeklyNoteReply}
+      onWeeklyNoteReplyChange={setWeeklyNoteReply}
     />
   );
-}
-
-interface ManualActivity {
-  id: number;
-  startDate: string;
-  details: string;
 }
 
 interface CoachingSurfaceProps {
@@ -168,6 +182,8 @@ interface CoachingSurfaceProps {
   onSaveAnswers: (answers: QuestionAnswerInput[]) => Promise<void>;
   weeklyNote: string;
   onWeeklyNoteChange: (note: string) => void;
+  weeklyNoteReply: CoachAnalysis | null;
+  onWeeklyNoteReplyChange: (reply: CoachAnalysis | null) => void;
 }
 
 /**
@@ -180,6 +196,8 @@ function CoachingSurface({
   onSaveAnswers,
   weeklyNote,
   onWeeklyNoteChange,
+  weeklyNoteReply,
+  onWeeklyNoteReplyChange,
 }: CoachingSurfaceProps) {
   const auth = useAuth();
   const [garmin, setGarmin] = useState<GarminConnectionStatus | null>(null);
@@ -305,10 +323,20 @@ function CoachingSurface({
 
   async function loadManualActivities(): Promise<void> {
     try {
-      const response = await fetchJsonAuthed<{
-        manualActivities: ManualActivity[];
-      }>(`${API_URL}/api/coaching/activities/manual`, auth);
-      setManualActivities(response.manualActivities);
+      const response = await fetchJsonAuthed<unknown>(
+        `${API_URL}/api/coaching/activities/manual`,
+        auth,
+      );
+      const parsed = manualActivitiesResponseSchema.safeParse(response);
+      if (!parsed.success) {
+        throw new Error(
+          "Loading manual activities returned an unexpected response",
+          {
+            cause: parsed.error,
+          },
+        );
+      }
+      setManualActivities(parsed.data.manualActivities);
     } catch (err: unknown) {
       setError(reportError(err));
     }
@@ -317,9 +345,9 @@ function CoachingSurface({
   async function submitComment(
     activityId: string,
     comment: string,
-  ): Promise<void> {
+  ): Promise<string | null> {
     const { today } = getToday();
-    await fetchJsonAuthed(
+    const response = await fetchJsonAuthed<unknown>(
       `${API_URL}/api/coaching/activities/${activityId}/comments`,
       auth,
       {
@@ -329,26 +357,53 @@ function CoachingSurface({
           today,
           timezone:
             Intl.DateTimeFormat().resolvedOptions().timeZone || undefined,
+          activityDate: activityStartDate(activityId),
           comment,
         }),
       },
     );
+    const parsed = coachingInputSaveResponseSchema.safeParse(response);
+    if (!parsed.success) {
+      throw new Error("Saving your comment returned an unexpected response", {
+        cause: parsed.error,
+      });
+    }
     // The server saved the comment and started a plan revision. Refresh the
-    // plan section so the athlete sees the coach's response.
+    // plan section so the athlete sees the revised week.
     setPlanRefreshKey((key) => key + 1);
+    return parsed.data.reply?.text ?? null;
+  }
+
+  function activityStartDate(activityId: string): string {
+    const activity = data?.activities.find(
+      (entry) => String(entry.id) === activityId,
+    );
+    return (activity?.startDate ?? getToday().today).slice(0, 10);
   }
 
   async function submitWeeklyNote(note: string): Promise<void> {
     const { today } = getToday();
-    await fetchJsonAuthed(`${API_URL}/api/coaching/weekly/notes`, auth, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        today,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || undefined,
-        note,
-      }),
-    });
+    const response = await fetchJsonAuthed<unknown>(
+      `${API_URL}/api/coaching/weekly/notes`,
+      auth,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          today,
+          timezone:
+            Intl.DateTimeFormat().resolvedOptions().timeZone || undefined,
+          note,
+        }),
+      },
+    );
+    const parsed = coachingInputSaveResponseSchema.safeParse(response);
+    if (!parsed.success) {
+      throw new Error("Saving your note returned an unexpected response", {
+        cause: parsed.error,
+      });
+    }
+    onWeeklyNoteReplyChange(parsed.data.reply);
     setPlanRefreshKey((key) => key + 1);
   }
 
@@ -357,15 +412,21 @@ function CoachingSurface({
     details: string;
   }): Promise<void> {
     const { today } = getToday();
-    await fetchJsonAuthed(`${API_URL}/api/coaching/activities/manual`, auth, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        today,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || undefined,
-        ...activity,
-      }),
-    });
+    const response = await fetchJsonAuthed<unknown>(
+      `${API_URL}/api/coaching/activities/manual`,
+      auth,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          today,
+          timezone:
+            Intl.DateTimeFormat().resolvedOptions().timeZone || undefined,
+          ...activity,
+        }),
+      },
+    );
+    parseSaveResponse(response);
     setPlanRefreshKey((key) => key + 1);
   }
 
@@ -374,7 +435,7 @@ function CoachingSurface({
     activity: { startDate: string; details: string },
   ): Promise<void> {
     const { today } = getToday();
-    await fetchJsonAuthed(
+    const response = await fetchJsonAuthed<unknown>(
       `${API_URL}/api/coaching/activities/manual/${activityId}`,
       auth,
       {
@@ -388,7 +449,17 @@ function CoachingSurface({
         }),
       },
     );
+    parseSaveResponse(response);
     setPlanRefreshKey((key) => key + 1);
+  }
+
+  function parseSaveResponse(response: unknown): void {
+    const parsed = coachingInputSaveResponseSchema.safeParse(response);
+    if (!parsed.success) {
+      throw new Error("Saving the activity returned an unexpected response", {
+        cause: parsed.error,
+      });
+    }
   }
 
   useEffect(() => {
@@ -446,6 +517,7 @@ function CoachingSurface({
       <CoachPlanSection
         refreshKey={planRefreshKey}
         ready={garmin.connected && llm.configured}
+        onGenerated={() => void loadAnalyses()}
       />
 
       <AthleteAnswersSection questions={questions} onSubmit={saveAnswers} />
@@ -485,6 +557,14 @@ function CoachingSurface({
           >
             Save weekly note
           </button>
+          {weeklyNoteReply && (
+            <p
+              className="rounded border bg-muted p-2 text-sm"
+              data-testid="weekly-note-reply"
+            >
+              <span className="font-medium">Coach:</span> {weeklyNoteReply.text}
+            </p>
+          )}
         </form>
 
         <form
@@ -538,9 +618,19 @@ function CoachingSurface({
                   key={activity.id}
                   className="flex items-start justify-between gap-2 rounded border bg-card p-2 text-sm"
                 >
-                  <div>
-                    <span className="font-medium">{activity.startDate}</span> —{" "}
-                    {activity.details}
+                  <div className="flex flex-col gap-1">
+                    <span>
+                      <span className="font-medium">{activity.startDate}</span>{" "}
+                      — {activity.details}
+                    </span>
+                    {activity.coachReply && (
+                      <span className="text-muted-foreground">
+                        <span className="font-medium text-foreground">
+                          Coach:
+                        </span>{" "}
+                        {activity.coachReply.text}
+                      </span>
+                    )}
                   </div>
                   <button
                     type="button"

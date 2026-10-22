@@ -75,6 +75,29 @@ describe("analyzedActivitySchema", () => {
     expect(parsed.analysis).toBeNull();
     expect(parsed.analysisError).toBeNull();
     expect(parsed.sampleCount).toBe(1);
+    expect(parsed.programAnalysis).toBeNull();
+    expect(parsed.comment).toBeNull();
+    expect(parsed.coachReply).toBeNull();
+  });
+
+  it("carries the program review, comment, and coach reply", () => {
+    const parsed = analyzedActivitySchema.parse({
+      ...summary,
+      programAnalysis: {
+        text: "This fit the base block well, but the finish was too hard.",
+        model: "openrouter/auto",
+        generatedAt: "2026-10-01T07:00:00Z",
+      },
+      comment: "Felt strong on the hills.",
+      coachReply: {
+        text: "Good work; I will keep Thursday easy.",
+        model: "openrouter/auto",
+        generatedAt: "2026-10-01T07:05:00Z",
+      },
+    });
+    expect(parsed.programAnalysis?.text).toContain("fit the base block");
+    expect(parsed.comment).toBe("Felt strong on the hills.");
+    expect(parsed.coachReply?.text).toContain("Thursday easy");
   });
 
   it("does not expose the full timeseries to the client", () => {

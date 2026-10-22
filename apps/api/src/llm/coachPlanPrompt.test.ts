@@ -86,6 +86,9 @@ function makeAnalyzedActivity(
       generatedAt: "2026-10-20T08:00:00Z",
     },
     analysisError: null,
+    programAnalysis: null,
+    comment: null,
+    coachReply: null,
     ...overrides,
   };
 }

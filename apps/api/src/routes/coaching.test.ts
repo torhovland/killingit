@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { ActivityFeed } from "../coaching/activities.js";
-import { createApp } from "../index.js";
+import { createApp, type AppDependencies } from "../index.js";
 import type { CoachingInputs } from "../plans/inputs.js";
 import type {
   PlanGenerationStore,
@@ -134,13 +134,18 @@ function makeApp(options: {
       startDate: string;
       details: string;
     },
-  ) => Promise<void>;
+  ) => Promise<number>;
   saveWeeklyNote?: (
     userId: number,
     today: string,
     note: string,
   ) => Promise<void>;
-  triggerPlanGeneration?: () => Promise<boolean>;
+  replyToCoachingInput?: AppDependencies["replyToCoachingInput"];
+  loadManualActivities?: AppDependencies["loadManualActivities"];
+  loadManualActivityReplies?: AppDependencies["loadManualActivityReplies"];
+  loadWeeklyNote?: AppDependencies["loadWeeklyNote"];
+  loadWeeklyNoteReply?: AppDependencies["loadWeeklyNoteReply"];
+  triggerPlanGeneration?: AppDependencies["triggerPlanGeneration"];
 }) {
   return createApp({
     authProvider: { verify: () => Promise.resolve({ sub: "athlete-1" }) },
@@ -177,6 +182,15 @@ function makeApp(options: {
       }),
     loadCoachingInputs:
       options.loadCoachingInputs ?? (() => Promise.resolve(emptyInputs)),
+    replyToCoachingInput:
+      options.replyToCoachingInput ?? (() => Promise.resolve(null)),
+    loadManualActivities:
+      options.loadManualActivities ?? (() => Promise.resolve([])),
+    loadManualActivityReplies:
+      options.loadManualActivityReplies ?? (() => Promise.resolve(new Map())),
+    loadWeeklyNote: options.loadWeeklyNote ?? (() => Promise.resolve(null)),
+    loadWeeklyNoteReply:
+      options.loadWeeklyNoteReply ?? (() => Promise.resolve(null)),
     ...(options.saveActivityComment !== undefined
       ? { saveActivityComment: options.saveActivityComment }
       : {}),
@@ -218,19 +232,27 @@ describe("coaching activity feed", () => {
 });
 
 describe("coaching activity comments", () => {
-  it("saves a comment and triggers plan generation", async () => {
+  it("saves a comment, replies, and keeps today's session for today's activity", async () => {
     const saved: {
       value: { userId: number; activityId: string; comment: string } | null;
     } = { value: null };
-    let triggered = false;
+    let keepToday: boolean | undefined;
 
     const app = makeApp({
       saveActivityComment: (userId, input) => {
         saved.value = { userId, ...input };
         return Promise.resolve();
       },
-      triggerPlanGeneration: () => {
-        triggered = true;
+      replyToCoachingInput: () =>
+        Promise.resolve({
+          kind: "activity_comment",
+          target: "123",
+          text: "Good work; I will keep Thursday easy.",
+          model: "test-model",
+          generatedAt: new Date("2026-10-21T12:00:00Z"),
+        }),
+      triggerPlanGeneration: (_deps, options) => {
+        keepToday = options.keepToday;
         return Promise.resolve(true);
       },
     });
@@ -241,6 +263,7 @@ describe("coaching activity comments", () => {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           today: "2026-10-21",
+          activityDate: "2026-10-21",
           comment: "Felt strong on the hills.",
         }),
       }),
@@ -252,7 +275,50 @@ describe("coaching activity comments", () => {
       activityId: "123",
       comment: "Felt strong on the hills.",
     });
-    expect(triggered).toBe(true);
+    expect(keepToday).toBe(true);
+    const body = (await res.json()) as { reply: { text: string } | null };
+    expect(body.reply?.text).toBe("Good work; I will keep Thursday easy.");
+  });
+
+  it("does not keep today's session for an earlier activity", async () => {
+    let keepToday: boolean | undefined;
+    const app = makeApp({
+      saveActivityComment: () => Promise.resolve(),
+      triggerPlanGeneration: (_deps, options) => {
+        keepToday = options.keepToday;
+        return Promise.resolve(true);
+      },
+    });
+
+    const res = await app.fetch(
+      authenticatedRequest("/api/coaching/activities/123/comments", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          today: "2026-10-21",
+          activityDate: "2026-10-19",
+          comment: "Felt strong on the hills.",
+        }),
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(keepToday).toBe(false);
+  });
+
+  it("rejects a comment without an activity date", async () => {
+    const app = makeApp({});
+    const res = await app.fetch(
+      authenticatedRequest("/api/coaching/activities/123/comments", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          today: "2026-10-21",
+          comment: "Felt strong.",
+        }),
+      }),
+    );
+    expect(res.status).toBe(400);
   });
 
   it("rejects an empty comment", async () => {
@@ -261,7 +327,11 @@ describe("coaching activity comments", () => {
       authenticatedRequest("/api/coaching/activities/123/comments", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ today: "2026-10-21", comment: "" }),
+        body: JSON.stringify({
+          today: "2026-10-21",
+          activityDate: "2026-10-21",
+          comment: "",
+        }),
       }),
     );
     expect(res.status).toBe(400);
@@ -269,17 +339,31 @@ describe("coaching activity comments", () => {
 });
 
 describe("coaching manual activities", () => {
-  it("saves a manual activity and triggers plan generation", async () => {
+  it("saves a manual activity, replies, and keeps today's session when dated today", async () => {
     const savedDetails: { value: string | null } = { value: null };
-    let triggered = false;
+    let keepToday: boolean | undefined;
+    const repliedTo: { target: number | null } = { target: null };
 
     const app = makeApp({
       saveManualActivity: (_userId, activity) => {
         savedDetails.value = activity.details;
-        return Promise.resolve();
+        return Promise.resolve(7);
       },
-      triggerPlanGeneration: () => {
-        triggered = true;
+      replyToCoachingInput: (_deps, options) => {
+        repliedTo.target =
+          options.request.kind === "manual_activity"
+            ? options.request.manualActivityId
+            : null;
+        return Promise.resolve({
+          kind: "manual_activity",
+          target: "7",
+          text: "Noted; I will count the swim as today's session.",
+          model: "test-model",
+          generatedAt: new Date("2026-10-21T12:00:00Z"),
+        });
+      },
+      triggerPlanGeneration: (_deps, options) => {
+        keepToday = options.keepToday;
         return Promise.resolve(true);
       },
     });
@@ -290,7 +374,7 @@ describe("coaching manual activities", () => {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           today: "2026-10-21",
-          startDate: "2026-10-20",
+          startDate: "2026-10-21",
           details: "Pool swim",
         }),
       }),
@@ -298,7 +382,10 @@ describe("coaching manual activities", () => {
 
     expect(res.status).toBe(200);
     expect(savedDetails.value).toBe("Pool swim");
-    expect(triggered).toBe(true);
+    expect(repliedTo.target).toBe(7);
+    expect(keepToday).toBe(true);
+    const body = (await res.json()) as { reply: { text: string } | null };
+    expect(body.reply?.text).toContain("swim");
   });
 
   it("rejects a manual activity without details", async () => {
@@ -316,10 +403,44 @@ describe("coaching manual activities", () => {
     );
     expect(res.status).toBe(400);
   });
+
+  it("returns saved manual activities with their coach replies", async () => {
+    const app = makeApp({
+      loadManualActivities: () =>
+        Promise.resolve([
+          { id: 7, startDate: "2026-10-21", details: "Pool swim" },
+        ]),
+      loadManualActivityReplies: () =>
+        Promise.resolve(
+          new Map([
+            [
+              7,
+              {
+                kind: "manual_activity" as const,
+                target: "7",
+                text: "Nice session.",
+                model: "test-model",
+                generatedAt: new Date("2026-10-21T12:00:00Z"),
+              },
+            ],
+          ]),
+        ),
+    });
+
+    const res = await app.fetch(
+      authenticatedRequest("/api/coaching/activities/manual"),
+    );
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      manualActivities: Array<{ coachReply: { text: string } | null }>;
+    };
+    expect(body.manualActivities[0]?.coachReply?.text).toBe("Nice session.");
+  });
 });
 
 describe("coaching weekly notes", () => {
-  it("saves a weekly note and triggers plan generation", async () => {
+  it("saves a weekly note, replies, and triggers plan generation", async () => {
     const savedNote: { value: string | null } = { value: null };
     let triggered = false;
 
@@ -328,6 +449,14 @@ describe("coaching weekly notes", () => {
         savedNote.value = note;
         return Promise.resolve();
       },
+      replyToCoachingInput: () =>
+        Promise.resolve({
+          kind: "weekly_note",
+          target: "2026-10-19",
+          text: "Understood; Thursday will be a rest day.",
+          model: "test-model",
+          generatedAt: new Date("2026-10-21T12:00:00Z"),
+        }),
       triggerPlanGeneration: () => {
         triggered = true;
         return Promise.resolve(true);
@@ -348,6 +477,34 @@ describe("coaching weekly notes", () => {
     expect(res.status).toBe(200);
     expect(savedNote.value).toBe("I cannot train on Thursday this week.");
     expect(triggered).toBe(true);
+    const body = (await res.json()) as { reply: { text: string } | null };
+    expect(body.reply?.text).toContain("Thursday");
+  });
+
+  it("returns the saved note with its coach reply", async () => {
+    const app = makeApp({
+      loadWeeklyNote: () => Promise.resolve("No training on Thursday."),
+      loadWeeklyNoteReply: () =>
+        Promise.resolve({
+          kind: "weekly_note",
+          target: "2026-10-19",
+          text: "Understood; Thursday will be a rest day.",
+          model: "test-model",
+          generatedAt: new Date("2026-10-21T12:00:00Z"),
+        }),
+    });
+
+    const res = await app.fetch(
+      authenticatedRequest("/api/coaching/weekly/notes?today=2026-10-21"),
+    );
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      note: string | null;
+      reply: { text: string } | null;
+    };
+    expect(body.note).toBe("No training on Thursday.");
+    expect(body.reply?.text).toContain("rest day");
   });
 
   it("rejects an empty weekly note", async () => {

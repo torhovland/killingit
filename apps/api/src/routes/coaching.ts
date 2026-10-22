@@ -1,9 +1,12 @@
 import {
   activityCommentRequestSchema,
   analyzedActivitiesResponseSchema,
+  coachingInputSaveResponseSchema,
+  manualActivitiesResponseSchema,
   manualActivityRequestSchema,
   planDateSchema,
   weeklyNoteRequestSchema,
+  weeklyNoteResponseSchema,
 } from "@killingit/shared";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
@@ -18,8 +21,12 @@ import {
   MAX_ACTIVITIES,
   type ActivityFeed,
 } from "../coaching/activities.js";
+import {
+  replyToCoachingInput,
+  type CoachingReplyRequest,
+} from "../coaching/replies.js";
 import { GarminAuthError, GarminSidecarError } from "../garmin/client.js";
-import type { LlmClient } from "../llm/client.js";
+import { loadLlmClient, type LlmClient } from "../llm/client.js";
 import { LlmAuthError, LlmProviderError } from "../llm/openrouter.js";
 import { startOfWeek } from "../plans/dates.js";
 import {
@@ -31,8 +38,16 @@ import {
   updateManualActivity,
 } from "../plans/inputs.js";
 import type { CoachingInputs } from "../plans/inputs.js";
+import {
+  loadManualActivityReplies,
+  loadWeeklyNoteReply,
+  toCoachAnalysis,
+} from "../plans/replies.js";
 import type { PlanGenerationStore, PlanStore } from "../plans/store.js";
-import { triggerPlanGeneration } from "../plans/trigger.js";
+import {
+  triggerPlanGeneration,
+  type PlanTriggerDependencies,
+} from "../plans/trigger.js";
 import type { QuestionAnswerStore } from "../questions/answers.js";
 import type { UserStore } from "../users/store.js";
 
@@ -64,10 +79,14 @@ export interface CoachingRouteDependencies {
   /** Injectable for route tests; default to the database-backed writers. */
   loadWeeklyNote?: typeof loadWeeklyNote;
   loadManualActivities?: typeof loadManualActivities;
+  loadManualActivityReplies?: typeof loadManualActivityReplies;
+  loadWeeklyNoteReply?: typeof loadWeeklyNoteReply;
   saveActivityComment?: typeof saveActivityComment;
   saveManualActivity?: typeof saveManualActivity;
   saveWeeklyNote?: typeof saveWeeklyNote;
   updateManualActivity?: typeof updateManualActivity;
+  /** Injectable for route tests; defaults to the real coach reply generator. */
+  replyToCoachingInput?: typeof replyToCoachingInput;
   /** Injectable for route tests; defaults to the real plan generation trigger. */
   triggerPlanGeneration?: typeof triggerPlanGeneration;
 }
@@ -75,9 +94,9 @@ export interface CoachingRouteDependencies {
 /**
  * Coaching routes (ADR 0004). Syncs the operator's Garmin activities, analyses
  * the most recent ones with the configured LLM, and returns activity data plus
- * cached-or-fresh coach analysis. One failed analysis does not fail the batch.
- * Also accepts activity comments and manual activity logs, which automatically
- * trigger plan generation when the plan is already established.
+ * cached-or-fresh coach analysis. Also accepts activity comments and manual
+ * activity logs, replies to them briefly, and triggers a plan revision when the
+ * plan is already established.
  */
 export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
   const loadActivities =
@@ -92,9 +111,40 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
   const saveManual = deps.saveManualActivity ?? saveManualActivity;
   const saveWeekly = deps.saveWeeklyNote ?? saveWeeklyNote;
   const loadNote = deps.loadWeeklyNote ?? loadWeeklyNote;
+  const loadNoteReply = deps.loadWeeklyNoteReply ?? loadWeeklyNoteReply;
   const loadManual = deps.loadManualActivities ?? loadManualActivities;
+  const loadManualReplies =
+    deps.loadManualActivityReplies ?? loadManualActivityReplies;
   const updateManual = deps.updateManualActivity ?? updateManualActivity;
+  const reply = deps.replyToCoachingInput ?? replyToCoachingInput;
   const trigger = deps.triggerPlanGeneration ?? triggerPlanGeneration;
+  const llmLoader = deps.loadLlm ?? loadLlmClient;
+
+  const triggerDeps: PlanTriggerDependencies = {
+    users: deps.users,
+    answers: deps.answers,
+    plans: deps.plans,
+    generations: deps.generations,
+    ...(deps.loadActivities !== undefined
+      ? { loadActivities: deps.loadActivities }
+      : {}),
+    ...(deps.loadLlm !== undefined ? { loadLlm: deps.loadLlm } : {}),
+    ...(deps.loadCoachingInputs !== undefined
+      ? { loadCoachingInputs: deps.loadCoachingInputs }
+      : {}),
+  };
+
+  async function replyTo(
+    userId: number,
+    today: string,
+    request: CoachingReplyRequest,
+  ) {
+    const stored = await reply(
+      { plans: deps.plans, answers: deps.answers, loadLlm: llmLoader },
+      { userId, today, request },
+    );
+    return stored === null ? null : toCoachAnalysis(stored);
+  }
 
   return new Hono()
     .get("/activities", async (c) => {
@@ -141,38 +191,48 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
       async (c) => {
         const user = await deps.users.ensureUser(getAthlete(c).sub);
         const { activityId } = c.req.param();
-        const { today, timezone, comment } = c.req.valid("json");
+        const { today, timezone, activityDate, comment } = c.req.valid("json");
 
         await saveComment(user.id, { activityId, comment });
+        const coachReply = await replyTo(user.id, today, {
+          kind: "activity_comment",
+          activityId,
+          activityDate,
+          comment,
+        });
 
-        await trigger(
-          {
-            users: deps.users,
-            answers: deps.answers,
-            plans: deps.plans,
-            generations: deps.generations,
-            ...(deps.loadActivities !== undefined
-              ? { loadActivities: deps.loadActivities }
-              : {}),
-            ...(deps.loadLlm !== undefined ? { loadLlm: deps.loadLlm } : {}),
-            ...(deps.loadCoachingInputs !== undefined
-              ? { loadCoachingInputs: deps.loadCoachingInputs }
-              : {}),
-          },
-          {
-            userId: user.id,
-            today,
-            ...(timezone !== undefined ? { timezone } : {}),
-          },
+        await trigger(triggerDeps, {
+          userId: user.id,
+          today,
+          ...(timezone !== undefined ? { timezone } : {}),
+          keepToday: activityDate === today,
+        });
+
+        return c.json(
+          coachingInputSaveResponseSchema.parse({
+            message: "Comment saved",
+            reply: coachReply,
+          }),
         );
-
-        return c.json({ message: "Comment saved" });
       },
     )
     .get("/activities/manual", async (c) => {
       const user = await deps.users.ensureUser(getAthlete(c).sub);
-      const activities = await loadManual(user.id);
-      return c.json({ manualActivities: activities });
+      const [activities, replies] = await Promise.all([
+        loadManual(user.id),
+        loadManualReplies(user.id),
+      ]);
+      return c.json(
+        manualActivitiesResponseSchema.parse({
+          manualActivities: activities.map((activity) => {
+            const stored = replies.get(activity.id);
+            return {
+              ...activity,
+              coachReply: stored ? toCoachAnalysis(stored) : null,
+            };
+          }),
+        }),
+      );
     })
     .post(
       "/activities/manual",
@@ -181,30 +241,27 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
         const user = await deps.users.ensureUser(getAthlete(c).sub);
         const { today, timezone, ...activity } = c.req.valid("json");
 
-        await saveManual(user.id, activity);
+        const id = await saveManual(user.id, activity);
+        const coachReply = await replyTo(user.id, today, {
+          kind: "manual_activity",
+          manualActivityId: id,
+          startDate: activity.startDate,
+          details: activity.details,
+        });
 
-        await trigger(
-          {
-            users: deps.users,
-            answers: deps.answers,
-            plans: deps.plans,
-            generations: deps.generations,
-            ...(deps.loadActivities !== undefined
-              ? { loadActivities: deps.loadActivities }
-              : {}),
-            ...(deps.loadLlm !== undefined ? { loadLlm: deps.loadLlm } : {}),
-            ...(deps.loadCoachingInputs !== undefined
-              ? { loadCoachingInputs: deps.loadCoachingInputs }
-              : {}),
-          },
-          {
-            userId: user.id,
-            today,
-            ...(timezone !== undefined ? { timezone } : {}),
-          },
+        await trigger(triggerDeps, {
+          userId: user.id,
+          today,
+          ...(timezone !== undefined ? { timezone } : {}),
+          keepToday: activity.startDate === today,
+        });
+
+        return c.json(
+          coachingInputSaveResponseSchema.parse({
+            message: "Manual activity saved",
+            reply: coachReply,
+          }),
         );
-
-        return c.json({ message: "Manual activity saved" });
       },
     )
     .put(
@@ -223,28 +280,26 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
           return c.text("Manual activity not found", 404);
         }
 
-        await trigger(
-          {
-            users: deps.users,
-            answers: deps.answers,
-            plans: deps.plans,
-            generations: deps.generations,
-            ...(deps.loadActivities !== undefined
-              ? { loadActivities: deps.loadActivities }
-              : {}),
-            ...(deps.loadLlm !== undefined ? { loadLlm: deps.loadLlm } : {}),
-            ...(deps.loadCoachingInputs !== undefined
-              ? { loadCoachingInputs: deps.loadCoachingInputs }
-              : {}),
-          },
-          {
-            userId: user.id,
-            today,
-            ...(timezone !== undefined ? { timezone } : {}),
-          },
-        );
+        const coachReply = await replyTo(user.id, today, {
+          kind: "manual_activity",
+          manualActivityId: id,
+          startDate: activity.startDate,
+          details: activity.details,
+        });
 
-        return c.json({ message: "Manual activity updated" });
+        await trigger(triggerDeps, {
+          userId: user.id,
+          today,
+          ...(timezone !== undefined ? { timezone } : {}),
+          keepToday: activity.startDate === today,
+        });
+
+        return c.json(
+          coachingInputSaveResponseSchema.parse({
+            message: "Manual activity updated",
+            reply: coachReply,
+          }),
+        );
       },
     )
     .get("/weekly/notes", async (c) => {
@@ -253,8 +308,17 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
       if (!today.success) {
         return c.text("A valid today date (YYYY-MM-DD) is required", 400);
       }
-      const note = await loadNote(user.id, startOfWeek(today.data));
-      return c.json({ note });
+      const weekStartDate = startOfWeek(today.data);
+      const [note, storedReply] = await Promise.all([
+        loadNote(user.id, weekStartDate),
+        loadNoteReply(user.id, weekStartDate),
+      ]);
+      return c.json(
+        weeklyNoteResponseSchema.parse({
+          note,
+          reply: storedReply ? toCoachAnalysis(storedReply) : null,
+        }),
+      );
     })
     .post(
       "/weekly/notes",
@@ -264,29 +328,24 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
         const { today, timezone, note } = c.req.valid("json");
 
         await saveWeekly(user.id, today, note);
+        const coachReply = await replyTo(user.id, today, {
+          kind: "weekly_note",
+          weekStartDate: startOfWeek(today),
+          note,
+        });
 
-        await trigger(
-          {
-            users: deps.users,
-            answers: deps.answers,
-            plans: deps.plans,
-            generations: deps.generations,
-            ...(deps.loadActivities !== undefined
-              ? { loadActivities: deps.loadActivities }
-              : {}),
-            ...(deps.loadLlm !== undefined ? { loadLlm: deps.loadLlm } : {}),
-            ...(deps.loadCoachingInputs !== undefined
-              ? { loadCoachingInputs: deps.loadCoachingInputs }
-              : {}),
-          },
-          {
-            userId: user.id,
-            today,
-            ...(timezone !== undefined ? { timezone } : {}),
-          },
+        await trigger(triggerDeps, {
+          userId: user.id,
+          today,
+          ...(timezone !== undefined ? { timezone } : {}),
+        });
+
+        return c.json(
+          coachingInputSaveResponseSchema.parse({
+            message: "Weekly note saved",
+            reply: coachReply,
+          }),
         );
-
-        return c.json({ message: "Weekly note saved" });
       },
     );
 }

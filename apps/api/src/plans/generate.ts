@@ -49,6 +49,13 @@ export interface GeneratePlanInput {
   force?: boolean;
   /** The client is after 18:00, so tomorrow's session is wanted. */
   includeTomorrow?: boolean;
+  /** Revise the week around a new input without changing today's session. */
+  keepToday?: boolean;
+  /**
+   * Runs after a full build so recent activities can be reviewed against the
+   * finished plan. Never runs on a day/week cascade.
+   */
+  reviewActivities?: (plan: CoachPlan) => Promise<void>;
   plan: StoredPlan | null;
   context: PlanGenerationContext;
   plans: PlanStore;
@@ -142,6 +149,19 @@ export async function runPlanGeneration(
         context.answersUpdatedAt,
         context.coachingInputsUpdatedAt,
       );
+      if (input.reviewActivities) {
+        await generations.update(
+          userId,
+          "Reviewing your recent training against your plan",
+          95,
+        );
+        try {
+          await input.reviewActivities(saved.plan);
+        } catch (err) {
+          // The plan is saved; a supplementary review must not fail the build.
+          console.error("[plan] activity review failed:", err);
+        }
+      }
       await generations.finish(userId);
       return saved;
     }
@@ -266,6 +286,11 @@ async function advancePlan(
     tomorrowPlan = update.tomorrow;
   }
 
+  if (input.keepToday === true && current.today.date === today) {
+    week = restoreTodaysSession(week, current, today);
+    todayPlan = current.today;
+  }
+
   const plan = {
     season,
     block,
@@ -280,6 +305,30 @@ async function advancePlan(
   };
   assertPlanCoversToday(plan, today);
   return plan;
+}
+
+/**
+ * Keeps the stored session for today while the rest of the week is revised.
+ * Used when the athlete's new input describes today's session, so the coach
+ * cannot propose a second workout for the same day.
+ */
+function restoreTodaysSession(
+  week: WeekPlan,
+  current: CoachPlan,
+  today: string,
+): WeekPlan {
+  const existing = current.week.sessions.find(
+    (session) => session.date === today,
+  );
+  if (!existing) {
+    return week;
+  }
+  return {
+    ...week,
+    sessions: week.sessions.map((session) =>
+      session.date === today ? existing : session,
+    ),
+  };
 }
 
 /**

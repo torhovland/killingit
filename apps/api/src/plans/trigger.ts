@@ -3,6 +3,7 @@ import {
   DEFAULT_ACTIVITIES,
   loadAnalyzedActivities,
 } from "../coaching/activities.js";
+import { analyzeActivitiesAgainstPlan } from "../coaching/programAnalysis.js";
 import type { LlmClient } from "../llm/client.js";
 import { loadLlmClient } from "../llm/client.js";
 import type { QuestionAnswerStore } from "../questions/answers.js";
@@ -43,9 +44,12 @@ export async function triggerPlanGeneration(
     timezone?: string;
     force?: boolean;
     includeTomorrow?: boolean;
+    /** Keep today's stored session while revising around a new input. */
+    keepToday?: boolean;
   },
 ): Promise<boolean> {
-  const { userId, today, timezone, force, includeTomorrow } = options;
+  const { userId, today, timezone, force, includeTomorrow, keepToday } =
+    options;
   if (!(await deps.generations.begin(userId))) {
     return false;
   }
@@ -93,6 +97,17 @@ export async function triggerPlanGeneration(
     ...(timezone !== undefined ? { timezone } : {}),
     ...(force !== undefined ? { force } : {}),
     ...(includeTomorrow !== undefined ? { includeTomorrow } : {}),
+    ...(keepToday !== undefined ? { keepToday } : {}),
+    reviewActivities: (plan) =>
+      analyzeActivitiesAgainstPlan({
+        provider: llm.provider,
+        apiKey: llm.apiKey,
+        model: llm.model,
+        today,
+        plan,
+        activities: activities.activities,
+        activityComments: coachingInputs.activityComments,
+      }),
     plan,
     context: {
       answers,
