@@ -277,6 +277,31 @@ function CoachingSurface({
     setManualDetails("");
   }
 
+  async function handleDeleteManualActivity(
+    activity: ManualActivity,
+  ): Promise<void> {
+    if (
+      !window.confirm(`Delete the manual activity from ${activity.startDate}?`)
+    ) {
+      return;
+    }
+    try {
+      const response = await fetchJsonAuthed<unknown>(
+        `${API_URL}/api/coaching/activities/manual/${activity.id}?${coachingDateQuery()}`,
+        auth,
+        { method: "DELETE" },
+      );
+      parseSaveResponse(response);
+      if (editingActivityId === activity.id) {
+        handleCancelEdit();
+      }
+      await loadManualActivities();
+      setPlanRefreshKey((key) => key + 1);
+    } catch (err: unknown) {
+      setError(reportError(err));
+    }
+  }
+
   async function loadStatuses(): Promise<void> {
     setLoadingStatuses(true);
     setError(null);
@@ -340,6 +365,35 @@ function CoachingSurface({
     } catch (err: unknown) {
       setError(reportError(err));
     }
+  }
+
+  function coachingDateQuery(): string {
+    const params = new URLSearchParams({ today: getToday().today });
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (timezone) {
+      params.set("timezone", timezone);
+    }
+    return params.toString();
+  }
+
+  async function deleteActivity(activityId: string): Promise<void> {
+    const response = await fetchJsonAuthed<unknown>(
+      `${API_URL}/api/coaching/activities/${activityId}?${coachingDateQuery()}`,
+      auth,
+      { method: "DELETE" },
+    );
+    parseSaveResponse(response);
+    setData((current) =>
+      current
+        ? {
+            ...current,
+            activities: current.activities.filter(
+              (activity) => String(activity.id) !== activityId,
+            ),
+          }
+        : current,
+    );
+    setPlanRefreshKey((key) => key + 1);
   }
 
   async function submitComment(
@@ -632,13 +686,22 @@ function CoachingSurface({
                       </span>
                     )}
                   </div>
-                  <button
-                    type="button"
-                    className="text-xs text-muted-foreground hover:underline"
-                    onClick={() => handleEditActivity(activity)}
-                  >
-                    Edit
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      className="text-xs text-muted-foreground hover:underline"
+                      onClick={() => handleEditActivity(activity)}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      className="text-xs text-destructive hover:underline"
+                      onClick={() => void handleDeleteManualActivity(activity)}
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>
@@ -692,6 +755,7 @@ function CoachingSurface({
               key={activity.id}
               activity={activity}
               onSubmitComment={submitComment}
+              onDelete={deleteActivity}
             />
           ))}
         </section>

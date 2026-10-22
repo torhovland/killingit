@@ -255,6 +255,45 @@ export type ManualActivityRow = typeof manualActivities.$inferSelect;
 export type NewManualActivity = typeof manualActivities.$inferInsert;
 
 /**
+ * An activity the athlete removed from their coaching view. Imported activities
+ * are re-synced from Garmin on every visit, so deleting one records a tombstone
+ * rather than touching the source. Manual activities are deleted from
+ * `manual_activities`; their tombstone preserves a timestamp that tells plan
+ * generation the athlete's inputs changed.
+ */
+export const activityDeletions = pgTable(
+  "activity_deletions",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    source: text("source", { enum: ["garmin", "manual"] }).notNull(),
+    activityId: text("activity_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("activity_deletions_user_id_source_activity_id_idx").on(
+      table.userId,
+      table.source,
+      table.activityId,
+    ),
+    check(
+      "activity_deletions_source_check",
+      sql`${table.source} in ('garmin', 'manual')`,
+    ),
+  ],
+);
+
+export type ActivityDeletionRow = typeof activityDeletions.$inferSelect;
+export type NewActivityDeletion = typeof activityDeletions.$inferInsert;
+
+/**
  * A comment the athlete added to an activity (synced or manual). The activity id
  * is stored as text so both Garmin's numeric ids and manual ids can be used.
  */

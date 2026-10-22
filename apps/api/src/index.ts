@@ -6,6 +6,10 @@ import { requireAdmin, requireAuth } from "./auth/middleware.js";
 import type { AuthProvider } from "./auth/provider.js";
 import { withSentry } from "./instrumentation/sentry.js";
 import type { ActivityFeed } from "./coaching/activities.js";
+import type {
+  deleteImportedActivity,
+  deleteManualActivity,
+} from "./coaching/deletions.js";
 import type { replyToCoachingInput } from "./coaching/replies.js";
 import type { LlmClient } from "./llm/client.js";
 import {
@@ -85,6 +89,8 @@ export interface AppDependencies {
   saveManualActivity?: typeof saveManualActivity;
   saveWeeklyNote?: typeof saveWeeklyNote;
   updateManualActivity?: typeof updateManualActivity;
+  deleteImportedActivity?: typeof deleteImportedActivity;
+  deleteManualActivity?: typeof deleteManualActivity;
   /** Coach replies and their loaders, injectable for DB-free route tests. */
   loadManualActivityReplies?: typeof loadManualActivityReplies;
   loadWeeklyNoteReply?: typeof loadWeeklyNoteReply;
@@ -183,6 +189,12 @@ export function createApp(deps: AppDependencies = {}): Hono {
         : {}),
       ...(deps.updateManualActivity !== undefined
         ? { updateManualActivity: deps.updateManualActivity }
+        : {}),
+      ...(deps.deleteImportedActivity !== undefined
+        ? { deleteImportedActivity: deps.deleteImportedActivity }
+        : {}),
+      ...(deps.deleteManualActivity !== undefined
+        ? { deleteManualActivity: deps.deleteManualActivity }
         : {}),
       ...(deps.loadManualActivityReplies !== undefined
         ? { loadManualActivityReplies: deps.loadManualActivityReplies }

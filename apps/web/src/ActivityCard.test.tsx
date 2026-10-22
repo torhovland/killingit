@@ -102,6 +102,18 @@ describe("ActivityCard", () => {
     expect(html).toContain("Save comment");
   });
 
+  it("renders a delete action only when a delete handler is provided", () => {
+    const withDelete = renderToStaticMarkup(
+      <ActivityCard activity={activity} onDelete={() => Promise.resolve()} />,
+    );
+    const withoutDelete = renderToStaticMarkup(
+      <ActivityCard activity={activity} />,
+    );
+
+    expect(withDelete).toContain('data-testid="activity-delete"');
+    expect(withoutDelete).not.toContain('data-testid="activity-delete"');
+  });
+
   it("omits the comment form when no submit handler is provided", () => {
     const html = renderToStaticMarkup(<ActivityCard activity={activity} />);
 

@@ -140,6 +140,14 @@ function makeApp(options: {
     today: string,
     note: string,
   ) => Promise<void>;
+  deleteImportedActivity?: (
+    userId: number,
+    activityId: string,
+  ) => Promise<void>;
+  deleteManualActivity?: (
+    userId: number,
+    activityId: number,
+  ) => Promise<boolean>;
   replyToCoachingInput?: AppDependencies["replyToCoachingInput"];
   loadManualActivities?: AppDependencies["loadManualActivities"];
   loadManualActivityReplies?: AppDependencies["loadManualActivityReplies"];
@@ -199,6 +207,12 @@ function makeApp(options: {
       : {}),
     ...(options.saveWeeklyNote !== undefined
       ? { saveWeeklyNote: options.saveWeeklyNote }
+      : {}),
+    ...(options.deleteImportedActivity !== undefined
+      ? { deleteImportedActivity: options.deleteImportedActivity }
+      : {}),
+    ...(options.deleteManualActivity !== undefined
+      ? { deleteManualActivity: options.deleteManualActivity }
       : {}),
     ...(options.triggerPlanGeneration !== undefined
       ? { triggerPlanGeneration: options.triggerPlanGeneration }
@@ -436,6 +450,103 @@ describe("coaching manual activities", () => {
       manualActivities: Array<{ coachReply: { text: string } | null }>;
     };
     expect(body.manualActivities[0]?.coachReply?.text).toBe("Nice session.");
+  });
+
+  it("deletes a manual activity and triggers a plan revision", async () => {
+    const deleted: { userId: number | null; id: number | null } = {
+      userId: null,
+      id: null,
+    };
+    let triggered = false;
+
+    const app = makeApp({
+      deleteManualActivity: (userId, activityId) => {
+        deleted.userId = userId;
+        deleted.id = activityId;
+        return Promise.resolve(true);
+      },
+      triggerPlanGeneration: () => {
+        triggered = true;
+        return Promise.resolve(true);
+      },
+    });
+
+    const res = await app.fetch(
+      authenticatedRequest(
+        "/api/coaching/activities/manual/7?today=2026-10-21",
+        {
+          method: "DELETE",
+        },
+      ),
+    );
+
+    expect(res.status).toBe(200);
+    expect(deleted).toEqual({ userId: 42, id: 7 });
+    expect(triggered).toBe(true);
+    const body = (await res.json()) as { message: string };
+    expect(body.message).toBe("Manual activity deleted");
+  });
+
+  it("returns 404 when deleting an unknown manual activity", async () => {
+    const app = makeApp({
+      deleteManualActivity: () => Promise.resolve(false),
+    });
+
+    const res = await app.fetch(
+      authenticatedRequest(
+        "/api/coaching/activities/manual/7?today=2026-10-21",
+        {
+          method: "DELETE",
+        },
+      ),
+    );
+
+    expect(res.status).toBe(404);
+  });
+});
+
+describe("coaching activity deletion", () => {
+  it("deletes an imported activity and triggers a plan revision", async () => {
+    const deleted: { userId: number | null; activityId: string | null } = {
+      userId: null,
+      activityId: null,
+    };
+    let triggered = false;
+
+    const app = makeApp({
+      deleteImportedActivity: (userId, activityId) => {
+        deleted.userId = userId;
+        deleted.activityId = activityId;
+        return Promise.resolve();
+      },
+      triggerPlanGeneration: () => {
+        triggered = true;
+        return Promise.resolve(true);
+      },
+    });
+
+    const res = await app.fetch(
+      authenticatedRequest("/api/coaching/activities/123?today=2026-10-21", {
+        method: "DELETE",
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(deleted).toEqual({ userId: 42, activityId: "123" });
+    expect(triggered).toBe(true);
+    const body = (await res.json()) as { message: string };
+    expect(body.message).toBe("Activity deleted");
+  });
+
+  it("requires a today date when deleting an activity", async () => {
+    const app = makeApp({});
+    const res = await app.fetch(
+      authenticatedRequest("/api/coaching/activities/123", {
+        method: "DELETE",
+      }),
+    );
+
+    expect(res.status).toBe(400);
   });
 });
 

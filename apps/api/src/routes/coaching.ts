@@ -22,6 +22,10 @@ import {
   type ActivityFeed,
 } from "../coaching/activities.js";
 import {
+  deleteImportedActivity,
+  deleteManualActivity,
+} from "../coaching/deletions.js";
+import {
   replyToCoachingInput,
   type CoachingReplyRequest,
 } from "../coaching/replies.js";
@@ -64,6 +68,11 @@ const querySchema = z.object({
     .transform((value) => value === "true"),
 });
 
+const deletionQuerySchema = z.object({
+  today: planDateSchema,
+  timezone: z.string().min(1).max(100).optional(),
+});
+
 export interface CoachingRouteDependencies {
   users: UserStore;
   answers: QuestionAnswerStore;
@@ -85,6 +94,8 @@ export interface CoachingRouteDependencies {
   saveManualActivity?: typeof saveManualActivity;
   saveWeeklyNote?: typeof saveWeeklyNote;
   updateManualActivity?: typeof updateManualActivity;
+  deleteImportedActivity?: typeof deleteImportedActivity;
+  deleteManualActivity?: typeof deleteManualActivity;
   /** Injectable for route tests; defaults to the real coach reply generator. */
   replyToCoachingInput?: typeof replyToCoachingInput;
   /** Injectable for route tests; defaults to the real plan generation trigger. */
@@ -116,6 +127,8 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
   const loadManualReplies =
     deps.loadManualActivityReplies ?? loadManualActivityReplies;
   const updateManual = deps.updateManualActivity ?? updateManualActivity;
+  const deleteImported = deps.deleteImportedActivity ?? deleteImportedActivity;
+  const deleteManual = deps.deleteManualActivity ?? deleteManualActivity;
   const reply = deps.replyToCoachingInput ?? replyToCoachingInput;
   const trigger = deps.triggerPlanGeneration ?? triggerPlanGeneration;
   const llmLoader = deps.loadLlm ?? loadLlmClient;
@@ -216,6 +229,29 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
         );
       },
     )
+    .delete("/activities/:activityId", async (c) => {
+      const query = deletionQuerySchema.safeParse(c.req.query());
+      if (!query.success) {
+        return c.text("A valid today date (YYYY-MM-DD) is required", 400);
+      }
+
+      const user = await deps.users.ensureUser(getAthlete(c).sub);
+      const { activityId } = c.req.param();
+      const { today, timezone } = query.data;
+
+      await deleteImported(user.id, activityId);
+      await trigger(triggerDeps, {
+        userId: user.id,
+        today,
+        ...(timezone !== undefined ? { timezone } : {}),
+      });
+
+      return c.json(
+        coachingInputSaveResponseSchema.parse({
+          message: "Activity deleted",
+        }),
+      );
+    })
     .get("/activities/manual", async (c) => {
       const user = await deps.users.ensureUser(getAthlete(c).sub);
       const [activities, replies] = await Promise.all([
@@ -302,6 +338,36 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
         );
       },
     )
+    .delete("/activities/manual/:id", async (c) => {
+      const query = deletionQuerySchema.safeParse(c.req.query());
+      if (!query.success) {
+        return c.text("A valid today date (YYYY-MM-DD) is required", 400);
+      }
+
+      const user = await deps.users.ensureUser(getAthlete(c).sub);
+      const id = Number(c.req.param("id"));
+      if (Number.isNaN(id)) {
+        return c.text("Invalid manual activity id", 400);
+      }
+      const { today, timezone } = query.data;
+
+      const deleted = await deleteManual(user.id, id);
+      if (!deleted) {
+        return c.text("Manual activity not found", 404);
+      }
+
+      await trigger(triggerDeps, {
+        userId: user.id,
+        today,
+        ...(timezone !== undefined ? { timezone } : {}),
+      });
+
+      return c.json(
+        coachingInputSaveResponseSchema.parse({
+          message: "Manual activity deleted",
+        }),
+      );
+    })
     .get("/weekly/notes", async (c) => {
       const user = await deps.users.ensureUser(getAthlete(c).sub);
       const today = planDateSchema.safeParse(c.req.query("today"));

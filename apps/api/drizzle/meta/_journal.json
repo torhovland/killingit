@@ -99,6 +99,13 @@
       "when": 1792688732704,
       "tag": "0013_foamy_gravity",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1792689343576,
+      "tag": "0014_equal_wonder_man",
+      "breakpoints": true
     }
   ]
 }
