@@ -189,13 +189,14 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
   async function submitComment(
     activityId: string,
     comment: string,
+    mode: "create" | "edit",
   ): Promise<string | null> {
     const { today } = getToday(timeZone);
     const response = await fetchJsonAuthed<unknown>(
       `${API_URL}/api/coaching/activities/${activityId}/comments`,
       auth,
       {
-        method: "POST",
+        method: mode === "edit" ? "PUT" : "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           today,
@@ -211,6 +212,8 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
         cause: parsed.error,
       });
     }
+    // Leave the activity in place for this visit. A reload only shows activities
+    // without a response, so the commented activity drops off then.
     setLocalPlanRefresh((key) => key + 1);
     return parsed.data.reply?.text ?? null;
   }

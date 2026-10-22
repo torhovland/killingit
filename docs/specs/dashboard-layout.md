@@ -19,7 +19,9 @@ header, outstanding activities, the plan, and the inputs that shape it.
 ## Main coaching page
 
 1. **Activities awaiting attention** — completed activities that have neither a
-   comment nor a `No comment` acknowledgement.
+   comment nor a `No comment` acknowledgement. Commenting on an activity keeps
+   it in place for the rest of the visit; the next page load drops it because it
+   now has a response.
 2. **Plan** — a tabbed view with `Day`, `Week`, `Block`, and `Season`. `Day` is
    selected by default and shows today plus tomorrow after 18:00.
 3. **Coaching inputs** — the weekly note and a by-the-way question.
@@ -38,8 +40,9 @@ and answer are not stored and never trigger or influence plan generation
 ## Activities page
 
 Lists every imported Garmin activity (up to the API limit) and the athlete's
-manual activities. It offers manual entry, sync / re-analyse, comments, and
-delete. Every activity card on this page and the main page has a delete action.
+manual activities. It offers manual entry, sync / re-analyse, comments and
+comment editing, and delete. Every activity card on this page and the main page
+has a delete action.
 
 `No comment` records an acknowledgement in `activity_reviews`, which is a UI
 concern only and does not affect plan staleness.

@@ -152,13 +152,14 @@ export function ActivitiesPage() {
   async function submitComment(
     activityId: string,
     comment: string,
+    mode: "create" | "edit",
   ): Promise<string | null> {
     const { today } = getToday(timeZone);
     const response = await fetchJsonAuthed<unknown>(
       `${API_URL}/api/coaching/activities/${activityId}/comments`,
       auth,
       {
-        method: "POST",
+        method: mode === "edit" ? "PUT" : "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           today,
@@ -173,6 +174,24 @@ export function ActivitiesPage() {
       throw new Error("Saving your comment returned an unexpected response", {
         cause: parsed.error,
       });
+    }
+    const next = data
+      ? {
+          ...data,
+          activities: data.activities.map((activity) =>
+            String(activity.id) === activityId
+              ? {
+                  ...activity,
+                  comment,
+                  coachReply: parsed.data.reply ?? activity.coachReply,
+                }
+              : activity,
+          ),
+        }
+      : null;
+    setData(next);
+    if (next) {
+      saveCachedActivities(authSub.current, next);
     }
     return parsed.data.reply?.text ?? null;
   }

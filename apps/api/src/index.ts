@@ -18,11 +18,12 @@ import type {
 import type { saveActivityReview } from "./coaching/reviews.js";
 import type { LlmClient } from "./llm/client.js";
 import {
+  createActivityComment,
   loadManualActivities,
   loadWeeklyNote,
-  saveActivityComment,
   saveManualActivity,
   saveWeeklyNote,
+  updateActivityComment,
   updateManualActivity,
   type CoachingInputs,
 } from "./plans/inputs.js";
@@ -91,7 +92,8 @@ export interface AppDependencies {
   /** Coaching-input readers and writers, injectable for DB-free route tests. */
   loadManualActivities?: typeof loadManualActivities;
   loadWeeklyNote?: typeof loadWeeklyNote;
-  saveActivityComment?: typeof saveActivityComment;
+  createActivityComment?: typeof createActivityComment;
+  updateActivityComment?: typeof updateActivityComment;
   saveActivityReview?: typeof saveActivityReview;
   saveManualActivity?: typeof saveManualActivity;
   saveWeeklyNote?: typeof saveWeeklyNote;
@@ -189,8 +191,11 @@ export function createApp(deps: AppDependencies = {}): Hono {
       ...(deps.loadWeeklyNote !== undefined
         ? { loadWeeklyNote: deps.loadWeeklyNote }
         : {}),
-      ...(deps.saveActivityComment !== undefined
-        ? { saveActivityComment: deps.saveActivityComment }
+      ...(deps.createActivityComment !== undefined
+        ? { createActivityComment: deps.createActivityComment }
+        : {}),
+      ...(deps.updateActivityComment !== undefined
+        ? { updateActivityComment: deps.updateActivityComment }
         : {}),
       ...(deps.saveActivityReview !== undefined
         ? { saveActivityReview: deps.saveActivityReview }
