@@ -269,7 +269,12 @@ async function advancePlan(
   const plan = {
     season,
     block,
-    week: applyCompletedDays(week, context.activities, today, context.manualActivities),
+    week: applyCompletedDays(
+      week,
+      context.activities,
+      today,
+      context.manualActivities,
+    ),
     today: todayPlan,
     tomorrow: tomorrowPlan,
   };

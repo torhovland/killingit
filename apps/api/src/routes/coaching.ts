@@ -20,7 +20,11 @@ import {
 import { GarminAuthError, GarminSidecarError } from "../garmin/client.js";
 import type { LlmClient } from "../llm/client.js";
 import { LlmAuthError, LlmProviderError } from "../llm/openrouter.js";
-import { saveActivityComment, saveManualActivity, saveWeeklyNote } from "../plans/inputs.js";
+import {
+  saveActivityComment,
+  saveManualActivity,
+  saveWeeklyNote,
+} from "../plans/inputs.js";
 import type { CoachingInputs } from "../plans/inputs.js";
 import type { PlanGenerationStore, PlanStore } from "../plans/store.js";
 import { triggerPlanGeneration } from "../plans/trigger.js";
