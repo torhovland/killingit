@@ -82,6 +82,9 @@ function makePlan(today = "2026-10-21"): CoachPlan {
       intensity: "easy",
       alternatives: [],
       rationale: "Easy aerobic work.",
+      optional: false,
+      optionalRationale:
+        "This easy run keeps the week consistent; skip it only if you feel unusually tired.",
     },
     tomorrow: null,
   };

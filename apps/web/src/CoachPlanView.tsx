@@ -73,6 +73,17 @@ function DayCard({
         <span className="font-medium">Coach's rationale: </span>
         <span className="text-muted-foreground">{day.rationale}</span>
       </p>
+      {day.optionalRationale && (
+        <div
+          className="rounded border bg-muted p-3 text-sm"
+          data-testid={`${testId}-optionality`}
+        >
+          <p className="font-medium">
+            {day.optional ? "Optional session" : "Do not skip this session"}
+          </p>
+          <p className="text-muted-foreground">{day.optionalRationale}</p>
+        </div>
+      )}
     </article>
   );
 }

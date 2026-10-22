@@ -31,7 +31,8 @@ answers change and as days, weeks, and blocks roll over.
    "Regenerate plan" action.
 6. A plan section in the coaching dashboard showing:
    - generation progress (step + bar) while the coach is working;
-   - today's workout/rest with alternatives;
+   - today's workout/rest with alternatives and a note on whether it can be
+     skipped (the same note is shown for tomorrow after 18:00);
    - the current week, block, and season;
    - a stale-plan banner and retry/error states;
    - a setup message until Garmin and OpenRouter are configured.
@@ -157,14 +158,15 @@ problems; the error names the offending fields if the repair also fails. See
 ## Testing
 
 - Shared schema tests for the plan contract, seven-session weeks, date format,
-  alternatives default, empty responses, and the daily update shape.
+  alternatives default, optionality defaults, empty responses, and the daily
+  update shape.
 - API unit tests for pending/staleness, date helpers, JSON parsing, prompt
   contents, and the full/day/week/block cascade with in-memory stores and a fake
   provider.
 - API route tests for auth, valid/invalid dates, the empty state, full
   generation, and the already-running `202` case.
 - Web render tests for the four-level view (today, week, block, season,
-  alternatives).
+  alternatives, optionality).
 - Run `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`.
 
 ## Risks / open questions

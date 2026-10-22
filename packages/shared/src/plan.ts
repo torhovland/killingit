@@ -103,6 +103,10 @@ export const dayPlanSchema = z.object({
   alternatives: z.array(z.string().min(1)).default([]),
   /** The coach's explanation of why this session suits today. */
   rationale: z.string().min(1),
+  /** Whether the athlete can skip this session without derailing the plan. */
+  optional: z.boolean().default(false),
+  /** Why the athlete should not skip this session, or why it is optional. */
+  optionalRationale: z.string().min(1).optional(),
 });
 
 export type DayPlan = z.infer<typeof dayPlanSchema>;

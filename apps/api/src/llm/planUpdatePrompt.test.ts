@@ -119,6 +119,9 @@ describe("daily update prompts", () => {
     expect(prompt).toContain('"tomorrow"');
     expect(prompt).toContain('"week"');
     expect(prompt).toContain('"alternatives"');
+    expect(prompt).toContain('"optional"');
+    expect(prompt).toContain('"optionalRationale"');
+    expect(prompt).toContain("can be skipped without undermining the plan");
   });
 
   it("includes the profile, activities, season, block, and week", () => {
