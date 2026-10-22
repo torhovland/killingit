@@ -30,22 +30,31 @@ const sentryPlugins =
       ]
     : [];
 
-export default defineConfig({
-  plugins: [react(), tailwindcss(), ...sentryPlugins],
-  build: {
-    sourcemap: true,
-  },
-  server: {
-    port: 5173,
-    proxy: {
-      "/api": {
-        target: "http://127.0.0.1:3001",
-        changeOrigin: true,
-        // LLM analysis batches can take a while; keep the dev proxy from
-        // cutting the upstream connection before the API responds.
-        timeout: 300_000,
-        proxyTimeout: 300_000,
+export default defineConfig(({ command }) => {
+  // Expose a single, explicit environment flag to the app so features can be
+  // enabled in Development and Test but never in Production. The deploy
+  // pipeline overrides this for deployed environments; local dev defaults to
+  // "Development" and a plain build defaults to "Production".
+  process.env.VITE_APP_ENV ??=
+    command === "serve" ? "Development" : "Production";
+
+  return {
+    plugins: [react(), tailwindcss(), ...sentryPlugins],
+    build: {
+      sourcemap: true,
+    },
+    server: {
+      port: 5173,
+      proxy: {
+        "/api": {
+          target: "http://127.0.0.1:3001",
+          changeOrigin: true,
+          // LLM analysis batches can take a while; keep the dev proxy from
+          // cutting the upstream connection before the API responds.
+          timeout: 300_000,
+          proxyTimeout: 300_000,
+        },
       },
     },
-  },
+  };
 });

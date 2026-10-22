@@ -7,6 +7,7 @@ import { useAuth } from "./auth";
 import { CoachPlanView } from "./CoachPlanView";
 import { fetchJsonAuthed } from "./fetchAuthed";
 import { reportError } from "./reportError";
+import { getToday } from "./useToday";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 const POLL_INTERVAL_MS = 1500;
@@ -26,6 +27,7 @@ interface CoachPlanSectionProps {
  */
 export function CoachPlanSection({ refreshKey, ready }: CoachPlanSectionProps) {
   const auth = useAuth();
+  const { today, isAfter18 } = getToday();
   const [data, setData] = useState<CoachPlanResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -54,7 +56,7 @@ export function CoachPlanSection({ refreshKey, ready }: CoachPlanSectionProps) {
     setLoading(true);
     setError(null);
     try {
-      const result = await fetchPlan(localToday(), isAfter18());
+      const result = await fetchPlan(today, isAfter18);
       setData(result);
       return result;
     } catch (err: unknown) {
@@ -122,8 +124,7 @@ export function CoachPlanSection({ refreshKey, ready }: CoachPlanSectionProps) {
     setGenerating(true);
     setError(null);
 
-    const today = localToday();
-    const includeTomorrow = isAfter18();
+    const includeTomorrow = isAfter18;
     const request = fetchJsonAuthed<unknown>(
       `${API_URL}/api/coaching/plan/generate`,
       auth,
@@ -164,7 +165,7 @@ export function CoachPlanSection({ refreshKey, ready }: CoachPlanSectionProps) {
         return;
       }
       if (result.generation.status === "running") {
-        await pollUntilDone(localToday(), null);
+        await pollUntilDone(today, null);
         return;
       }
       if (result.generation.status === "error") {
@@ -290,7 +291,7 @@ export function CoachPlanSection({ refreshKey, ready }: CoachPlanSectionProps) {
       )}
 
       {data?.plan ? (
-        <CoachPlanView plan={data.plan} showTomorrow={isAfter18()} />
+        <CoachPlanView plan={data.plan} showTomorrow={isAfter18} />
       ) : (
         !loading &&
         !running &&
@@ -312,19 +313,6 @@ export function CoachPlanSection({ refreshKey, ready }: CoachPlanSectionProps) {
       )}
     </section>
   );
-}
-
-/** After 18:00 local time, the plan should also offer tomorrow's session. */
-function isAfter18(): boolean {
-  return new Date().getHours() >= 18;
-}
-
-function localToday(): string {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
 }
 
 function formatDateTime(iso: string): string {
