@@ -1,6 +1,7 @@
 import type { Activity } from "@killingit/shared";
 import { buildActivityAnalysisMessages } from "./activityPrompt.js";
 import type { LlmProvider } from "./openrouter.js";
+import { completeWithFallbacks } from "./resilientCompletion.js";
 
 export interface AnalysisInput {
   apiKey: string;
@@ -13,14 +14,15 @@ export function analyzeActivity(
   input: AnalysisInput,
   activity: Activity,
 ): Promise<string> {
-  return provider.complete({
-    apiKey: input.apiKey,
-    model: input.model,
-    messages: buildActivityAnalysisMessages(activity),
-    temperature: 0.3,
+  return completeWithFallbacks(
+    provider,
+    input,
+    buildActivityAnalysisMessages(activity),
     // Reasoning models count their reasoning tokens against this budget, so a
     // low cap truncates the visible analysis mid-sentence. 2048 leaves room for
-    // reasoning plus a complete 3-5 sentence analysis.
-    maxTokens: 2048,
-  });
+    // reasoning plus a complete 3-5 sentence analysis; the fallbacks retry with
+    // reasoning disabled or a larger budget if that still is not enough.
+    2048,
+    0.3,
+  );
 }
