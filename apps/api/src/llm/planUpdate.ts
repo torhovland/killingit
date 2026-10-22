@@ -7,8 +7,7 @@ import {
   type WeeklyPlanUpdate,
 } from "@killingit/shared";
 import type { LlmProvider } from "./openrouter.js";
-import { completePlan } from "./planCompletion.js";
-import { parsePlanJson } from "./planJson.js";
+import { completePlanJson } from "./planCompletion.js";
 import {
   buildBlockUpdateMessages,
   buildDailyUpdateMessages,
@@ -29,13 +28,13 @@ export async function generateDailyUpdate(
   credentials: PlanUpdateCredentials,
   input: DailyUpdateInput,
 ): Promise<DailyPlanUpdate> {
-  const text = await completePlan(
+  return completePlanJson(
+    dailyPlanUpdateSchema,
     provider,
     credentials,
     buildDailyUpdateMessages(input),
     4096,
   );
-  return parsePlanJson(dailyPlanUpdateSchema, text);
 }
 
 /** Asks the coach for a new week and a revised block. */
@@ -44,13 +43,13 @@ export async function generateWeeklyUpdate(
   credentials: PlanUpdateCredentials,
   input: WeeklyUpdateInput,
 ): Promise<WeeklyPlanUpdate> {
-  const text = await completePlan(
+  return completePlanJson(
+    weeklyPlanUpdateSchema,
     provider,
     credentials,
     buildWeeklyUpdateMessages(input),
     4096,
   );
-  return parsePlanJson(weeklyPlanUpdateSchema, text);
 }
 
 /** Asks the coach for the next block and a revised season. */
@@ -59,11 +58,11 @@ export async function generateBlockUpdate(
   credentials: PlanUpdateCredentials,
   input: BlockUpdateInput,
 ): Promise<BlockPlanUpdate> {
-  const text = await completePlan(
+  return completePlanJson(
+    blockPlanUpdateSchema,
     provider,
     credentials,
     buildBlockUpdateMessages(input),
     4096,
   );
-  return parsePlanJson(blockPlanUpdateSchema, text);
 }

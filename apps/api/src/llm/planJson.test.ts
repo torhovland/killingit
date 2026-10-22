@@ -40,4 +40,23 @@ describe("parsePlanJson", () => {
       parsePlanJson(dayPlanSchema, JSON.stringify({ title: "No date" })),
     ).toThrow(PlanJsonError);
   });
+
+  it("names the invalid field so the failure is actionable", () => {
+    let failure: unknown;
+    try {
+      parsePlanJson(
+        dayPlanSchema,
+        JSON.stringify({ ...validDay, intensity: "sprint" }),
+      );
+    } catch (err) {
+      failure = err;
+    }
+
+    expect(failure).toBeInstanceOf(PlanJsonError);
+    const message = (failure as Error).message;
+    expect(message).toContain(
+      "The coach returned a plan with an unexpected shape",
+    );
+    expect(message).toContain("intensity");
+  });
 });

@@ -2,9 +2,15 @@ import type { z } from "zod";
 
 /** Raised when the coach's JSON cannot be parsed or does not match the schema. */
 export class PlanJsonError extends Error {
-  constructor(message: string, options?: { cause?: unknown }) {
+  readonly issues: z.ZodIssue[] | undefined;
+
+  constructor(
+    message: string,
+    options?: { cause?: unknown; issues?: z.ZodIssue[] },
+  ) {
     super(message, options);
     this.name = "PlanJsonError";
+    this.issues = options?.issues;
   }
 }
 
@@ -26,11 +32,25 @@ export function parsePlanJson<T>(schema: z.ZodType<T>, text: string): T {
   const result = schema.safeParse(parsed);
   if (!result.success) {
     throw new PlanJsonError(
-      "The coach returned a plan with an unexpected shape.",
-      { cause: result.error },
+      `The coach returned a plan with an unexpected shape (${formatPlanIssues(
+        result.error,
+      )}).`,
+      { cause: result.error, issues: result.error.issues },
     );
   }
   return result.data;
+}
+
+/** Summarizes the first few validation problems without dumping the payload. */
+function formatPlanIssues(error: z.ZodError, limit = 5): string {
+  const problems = error.issues.slice(0, limit).map((issue) => {
+    const path = issue.path.length > 0 ? issue.path.join(".") : "plan";
+    return `${path}: ${issue.message}`;
+  });
+  const remaining = error.issues.length - problems.length;
+  return remaining > 0
+    ? `${problems.join("; ")}; and ${remaining} more`
+    : problems.join("; ");
 }
 
 function extractJsonObject(text: string): string {
