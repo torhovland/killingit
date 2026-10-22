@@ -5,6 +5,8 @@ import {
   manualActivitiesResponseSchema,
   manualActivityRequestSchema,
   planDateSchema,
+  quickQuestionRequestSchema,
+  quickQuestionResponseSchema,
   weeklyNoteRequestSchema,
   weeklyNoteResponseSchema,
 } from "@killingit/shared";
@@ -27,9 +29,11 @@ import {
 } from "../coaching/deletions.js";
 import { loadCachedActivityFeed } from "../coaching/feedCache.js";
 import {
+  answerCoachingQuestion,
   replyToCoachingInput,
   type CoachingReplyRequest,
 } from "../coaching/replies.js";
+import { saveActivityReview } from "../coaching/reviews.js";
 import { GarminAuthError, GarminSidecarError } from "../garmin/client.js";
 import { loadLlmClient, type LlmClient } from "../llm/client.js";
 import { LlmAuthError, LlmProviderError } from "../llm/openrouter.js";
@@ -94,6 +98,7 @@ export interface CoachingRouteDependencies {
   loadManualActivityReplies?: typeof loadManualActivityReplies;
   loadWeeklyNoteReply?: typeof loadWeeklyNoteReply;
   saveActivityComment?: typeof saveActivityComment;
+  saveActivityReview?: typeof saveActivityReview;
   saveManualActivity?: typeof saveManualActivity;
   saveWeeklyNote?: typeof saveWeeklyNote;
   updateManualActivity?: typeof updateManualActivity;
@@ -101,6 +106,8 @@ export interface CoachingRouteDependencies {
   deleteManualActivity?: typeof deleteManualActivity;
   /** Injectable for route tests; defaults to the real coach reply generator. */
   replyToCoachingInput?: typeof replyToCoachingInput;
+  /** Injectable for route tests; defaults to the real one-off question answer. */
+  answerCoachingQuestion?: typeof answerCoachingQuestion;
   /** Injectable for route tests; defaults to the real plan generation trigger. */
   triggerPlanGeneration?: typeof triggerPlanGeneration;
 }
@@ -123,6 +130,7 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
       }));
   const loadCachedFeed = deps.loadCachedFeed ?? loadCachedActivityFeed;
   const saveComment = deps.saveActivityComment ?? saveActivityComment;
+  const saveReview = deps.saveActivityReview ?? saveActivityReview;
   const saveManual = deps.saveManualActivity ?? saveManualActivity;
   const saveWeekly = deps.saveWeeklyNote ?? saveWeeklyNote;
   const loadNote = deps.loadWeeklyNote ?? loadWeeklyNote;
@@ -134,6 +142,7 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
   const deleteImported = deps.deleteImportedActivity ?? deleteImportedActivity;
   const deleteManual = deps.deleteManualActivity ?? deleteManualActivity;
   const reply = deps.replyToCoachingInput ?? replyToCoachingInput;
+  const answerQuestion = deps.answerCoachingQuestion ?? answerCoachingQuestion;
   const trigger = deps.triggerPlanGeneration ?? triggerPlanGeneration;
   const llmLoader = deps.loadLlm ?? loadLlmClient;
 
@@ -247,6 +256,17 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
         );
       },
     )
+    .post("/activities/:activityId/reviewed", async (c) => {
+      const user = await deps.users.ensureUser(getAthlete(c).sub);
+      const { activityId } = c.req.param();
+
+      await saveReview(user.id, activityId);
+      return c.json(
+        coachingInputSaveResponseSchema.parse({
+          message: "Activity acknowledged",
+        }),
+      );
+    })
     .delete("/activities/:activityId", async (c) => {
       const query = deletionQuerySchema.safeParse(c.req.query());
       if (!query.success) {
@@ -386,6 +406,25 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
         }),
       );
     })
+    .post(
+      "/questions",
+      zValidator("json", quickQuestionRequestSchema),
+      async (c) => {
+        const user = await deps.users.ensureUser(getAthlete(c).sub);
+        const { today, question } = c.req.valid("json");
+
+        const answer = await answerQuestion(
+          { plans: deps.plans, answers: deps.answers, loadLlm: llmLoader },
+          { userId: user.id, today, question },
+        );
+
+        return c.json(
+          quickQuestionResponseSchema.parse({
+            reply: answer === null ? null : toCoachAnalysis(answer),
+          }),
+        );
+      },
+    )
     .get("/weekly/notes", async (c) => {
       const user = await deps.users.ensureUser(getAthlete(c).sub);
       const today = planDateSchema.safeParse(c.req.query("today"));

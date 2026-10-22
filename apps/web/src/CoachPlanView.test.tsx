@@ -107,21 +107,46 @@ describe("CoachPlanView", () => {
     expect(html).toContain("Easy aerobic work supports recovery.");
   });
 
-  it("renders the week, block, and season levels with rationales", () => {
+  it("shows the four plan tabs with Day selected by default", () => {
     const html = renderToStaticMarkup(<CoachPlanView plan={plan} />);
 
-    expect(html).toContain("This week · Aerobic base");
-    expect(html).toContain("Keep the week easy and consistent.");
-    expect(html).toContain("Block · Base");
-    expect(html).toContain("Establish consistent aerobic volume.");
-    expect(html).toContain("Season · Sub-4-hour marathon");
-    expect(html).toContain(
+    expect(html).toContain('role="tablist"');
+    expect(html).toContain("Day");
+    expect(html).toContain("Week");
+    expect(html).toContain("Block");
+    expect(html).toContain("Season");
+    expect(html).toContain('aria-selected="true"');
+    expect(html).toContain('aria-selected="false"');
+    expect(html).toContain('data-testid="plan-today"');
+    expect(html).not.toContain("This week · Aerobic base");
+  });
+
+  it("renders the week, block, and season levels with rationales", () => {
+    const week = renderToStaticMarkup(
+      <CoachPlanView plan={plan} defaultTab="week" />,
+    );
+    expect(week).toContain("This week · Aerobic base");
+    expect(week).toContain("Keep the week easy and consistent.");
+
+    const block = renderToStaticMarkup(
+      <CoachPlanView plan={plan} defaultTab="block" />,
+    );
+    expect(block).toContain("Block · Base");
+    expect(block).toContain("Establish consistent aerobic volume.");
+
+    const season = renderToStaticMarkup(
+      <CoachPlanView plan={plan} defaultTab="season" />,
+    );
+    expect(season).toContain("Season · Sub-4-hour marathon");
+    expect(season).toContain(
       "Build a strong aerobic base before marathon-specific work.",
     );
   });
 
   it("shows completed and missed sessions for past days", () => {
-    const html = renderToStaticMarkup(<CoachPlanView plan={plan} />);
+    const html = renderToStaticMarkup(
+      <CoachPlanView plan={plan} defaultTab="week" />,
+    );
 
     expect(html).toContain("Morning Run");
     expect(html).toContain("Completed: running · 10.00 km · 45 min");

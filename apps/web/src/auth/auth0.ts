@@ -14,6 +14,10 @@ export interface AuthState {
   isLoading: boolean;
   /** The provider's stable user id (`sub`), or null when signed out. */
   sub?: string | null;
+  /** The athlete's first name, for the header greeting. */
+  firstName?: string | null;
+  /** The athlete's profile photo, when the provider has one. */
+  picture?: string | null;
   /** Sign in, returning to the current page afterwards. */
   login(): Promise<void>;
   /** Sign out, returning to the site origin. */
@@ -40,6 +44,8 @@ const NOOP_AUTH: AuthState = {
   isAuthenticated: false,
   isLoading: false,
   sub: null,
+  firstName: null,
+  picture: null,
   login: () => Promise.resolve(),
   logout: () => Promise.resolve(),
   getToken: () => Promise.resolve(undefined),
@@ -69,6 +75,8 @@ export function useAuth(): AuthState {
       isAuthenticated,
       isLoading,
       sub: user?.sub ?? null,
+      firstName: resolveFirstName(user),
+      picture: user?.picture ?? null,
       login: () =>
         loginWithRedirect({
           authorizationParams: {
@@ -93,6 +101,11 @@ export function useAuth(): AuthState {
     }),
     [
       user?.sub,
+      user?.given_name,
+      user?.name,
+      user?.nickname,
+      user?.email,
+      user?.picture,
       isAuthenticated,
       isLoading,
       getAccessTokenSilently,
@@ -100,4 +113,27 @@ export function useAuth(): AuthState {
       logout,
     ],
   );
+}
+
+function resolveFirstName(
+  user:
+    | { given_name?: string; name?: string; nickname?: string; email?: string }
+    | undefined,
+): string | null {
+  if (!user) {
+    return null;
+  }
+  const given = user.given_name?.trim();
+  if (given) {
+    return given;
+  }
+  const fromName = user.name?.trim().split(/\s+/)[0];
+  if (fromName) {
+    return fromName;
+  }
+  const nickname = user.nickname?.trim();
+  if (nickname) {
+    return nickname;
+  }
+  return user.email?.split("@")[0] ?? null;
 }

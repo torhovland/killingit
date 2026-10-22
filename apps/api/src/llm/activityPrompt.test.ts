@@ -141,7 +141,9 @@ describe("buildActivityAnalysisPrompt", () => {
     expect(prompt).toContain(
       "Match it to the planned session for that date, today's planned session, or another session this week that fits the data.",
     );
-    expect(prompt).toContain("naming the planned session you matched");
+    expect(prompt).toContain(
+      "Include how well the workout fit its planned session",
+    );
   });
 
   it("does not trust the recorded activity type", () => {

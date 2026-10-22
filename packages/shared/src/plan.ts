@@ -246,6 +246,21 @@ export const activityCommentInputSchema = z.object({
 
 export type ActivityCommentInput = z.infer<typeof activityCommentInputSchema>;
 
+/** A one-off question the athlete asks the coach. */
+export const quickQuestionRequestSchema = z.object({
+  today: planDateSchema,
+  question: z.string().min(1).max(2000),
+});
+
+export type QuickQuestionRequest = z.infer<typeof quickQuestionRequestSchema>;
+
+/** Response body of `POST /api/coaching/questions`. */
+export const quickQuestionResponseSchema = z.object({
+  reply: coachAnalysisSchema.nullable().default(null),
+});
+
+export type QuickQuestionResponse = z.infer<typeof quickQuestionResponseSchema>;
+
 /** A general note the athlete added for the current week. */
 export const weeklyNoteInputSchema = z.object({
   note: z.string().min(1).max(2000),

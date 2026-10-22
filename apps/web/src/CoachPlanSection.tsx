@@ -3,6 +3,7 @@ import {
   coachPlanResponseSchema,
   type CoachPlanResponse,
 } from "@killingit/shared";
+import { useAppStatus } from "./AppStatus";
 import { useAuth } from "./auth";
 import { CoachPlanView } from "./CoachPlanView";
 import { fetchJsonAuthed } from "./fetchAuthed";
@@ -33,6 +34,7 @@ export function CoachPlanSection({
   onGenerated,
 }: CoachPlanSectionProps) {
   const auth = useAuth();
+  const { setStatus } = useAppStatus();
   const { today, isAfter18 } = getToday();
   const [data, setData] = useState<CoachPlanResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -205,11 +207,17 @@ export function CoachPlanSection({
     // Re-run when sign-in, integration readiness, or the answers change.
   }, [auth.isAuthenticated, ready, refreshKey]);
 
+  const running = generating || data?.generation.status === "running";
+
+  useEffect(() => {
+    setStatus("coach-plan", running ? "thinking" : null);
+    return () => setStatus("coach-plan", null);
+  }, [running, setStatus]);
+
   if (!auth.isAuthenticated) {
     return null;
   }
 
-  const running = generating || data?.generation.status === "running";
   // While a new run is starting, the stored status is still the previous run's
   // `done` (often 100%). Show a neutral starting state until the first poll.
   const progress =

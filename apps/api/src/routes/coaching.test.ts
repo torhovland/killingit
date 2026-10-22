@@ -129,6 +129,7 @@ function makeApp(options: {
     userId: number,
     input: { activityId: string; comment: string },
   ) => Promise<void>;
+  saveActivityReview?: AppDependencies["saveActivityReview"];
   saveManualActivity?: (
     userId: number,
     activity: {
@@ -150,6 +151,7 @@ function makeApp(options: {
     activityId: number,
   ) => Promise<boolean>;
   replyToCoachingInput?: AppDependencies["replyToCoachingInput"];
+  answerCoachingQuestion?: AppDependencies["answerCoachingQuestion"];
   loadManualActivities?: AppDependencies["loadManualActivities"];
   loadManualActivityReplies?: AppDependencies["loadManualActivityReplies"];
   loadWeeklyNote?: AppDependencies["loadWeeklyNote"];
@@ -196,6 +198,8 @@ function makeApp(options: {
       options.loadCoachingInputs ?? (() => Promise.resolve(emptyInputs)),
     replyToCoachingInput:
       options.replyToCoachingInput ?? (() => Promise.resolve(null)),
+    answerCoachingQuestion:
+      options.answerCoachingQuestion ?? (() => Promise.resolve(null)),
     loadManualActivities:
       options.loadManualActivities ?? (() => Promise.resolve([])),
     loadManualActivityReplies:
@@ -205,6 +209,9 @@ function makeApp(options: {
       options.loadWeeklyNoteReply ?? (() => Promise.resolve(null)),
     ...(options.saveActivityComment !== undefined
       ? { saveActivityComment: options.saveActivityComment }
+      : {}),
+    ...(options.saveActivityReview !== undefined
+      ? { saveActivityReview: options.saveActivityReview }
       : {}),
     ...(options.saveManualActivity !== undefined
       ? { saveManualActivity: options.saveManualActivity }
@@ -681,6 +688,95 @@ describe("coaching weekly notes", () => {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ today: "2026-10-21", note: "" }),
+      }),
+    );
+    expect(res.status).toBe(400);
+  });
+});
+
+describe("coaching activity review", () => {
+  it("marks an activity as reviewed without triggering a plan revision", async () => {
+    const reviewed: {
+      value: { userId: number; activityId: string } | null;
+    } = { value: null };
+    let triggered = false;
+
+    const app = makeApp({
+      saveActivityReview: (userId, activityId) => {
+        reviewed.value = { userId, activityId };
+        return Promise.resolve();
+      },
+      triggerPlanGeneration: () => {
+        triggered = true;
+        return Promise.resolve(true);
+      },
+    });
+
+    const res = await app.fetch(
+      authenticatedRequest("/api/coaching/activities/123/reviewed", {
+        method: "POST",
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(reviewed.value).toEqual({ userId: 42, activityId: "123" });
+    expect(triggered).toBe(false);
+  });
+});
+
+describe("coaching by-the-way questions", () => {
+  it("returns the coach's answer without saving or revising the plan", async () => {
+    const received: {
+      value: { userId: number; question: string } | null;
+    } = { value: null };
+    let triggered = false;
+
+    const app = makeApp({
+      answerCoachingQuestion: (_deps, options) => {
+        received.value = {
+          userId: options.userId,
+          question: options.question,
+        };
+        return Promise.resolve({
+          text: "Run it on Saturday.",
+          model: "test-model",
+          generatedAt: new Date("2026-10-21T12:00:00Z"),
+        });
+      },
+      triggerPlanGeneration: () => {
+        triggered = true;
+        return Promise.resolve(true);
+      },
+    });
+
+    const res = await app.fetch(
+      authenticatedRequest("/api/coaching/questions", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          today: "2026-10-21",
+          question: "Should I run on Saturday or Sunday?",
+        }),
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(received.value).toEqual({
+      userId: 42,
+      question: "Should I run on Saturday or Sunday?",
+    });
+    expect(triggered).toBe(false);
+    const body = (await res.json()) as { reply: { text: string } | null };
+    expect(body.reply?.text).toBe("Run it on Saturday.");
+  });
+
+  it("rejects an empty question", async () => {
+    const app = makeApp({});
+    const res = await app.fetch(
+      authenticatedRequest("/api/coaching/questions", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ today: "2026-10-21", question: "" }),
       }),
     );
     expect(res.status).toBe(400);

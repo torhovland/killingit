@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type {
   BlockPlan,
   CoachPlan,
@@ -7,26 +8,69 @@ import type {
   WeekSessionStatus,
 } from "@killingit/shared";
 
+export type PlanTab = "day" | "week" | "block" | "season";
+
+const TABS: Array<{ id: PlanTab; label: string }> = [
+  { id: "day", label: "Day" },
+  { id: "week", label: "Week" },
+  { id: "block", label: "Block" },
+  { id: "season", label: "Season" },
+];
+
 /**
- * Presentational four-level plan. Kept separate from the fetching/progress
- * container so it can be rendered and tested without auth or network access.
+ * Presentational four-level plan in a tabbed view. Day is the default tab and
+ * shows today's session plus tomorrow's after 18:00. Kept separate from the
+ * fetching/progress container so it can be rendered and tested without auth.
  */
 export function CoachPlanView({
   plan,
   showTomorrow = false,
+  defaultTab = "day",
 }: {
   plan: CoachPlan;
   showTomorrow?: boolean;
+  defaultTab?: PlanTab;
 }) {
+  const [tab, setTab] = useState<PlanTab>(defaultTab);
+
   return (
     <div className="flex flex-col gap-4" data-testid="coach-plan-view">
-      <DayCard day={plan.today} label="Today" testId="plan-today" />
-      {showTomorrow && plan.tomorrow && (
-        <DayCard day={plan.tomorrow} label="Tomorrow" testId="plan-tomorrow" />
-      )}
-      <WeekSection week={plan.week} />
-      <BlockSection block={plan.block} />
-      <SeasonSection season={plan.season} />
+      <div
+        className="flex flex-wrap gap-1"
+        role="tablist"
+        aria-label="Plan levels"
+      >
+        {TABS.map((entry) => (
+          <button
+            key={entry.id}
+            type="button"
+            role="tab"
+            aria-selected={tab === entry.id}
+            className="rounded border bg-card px-3 py-1 text-sm aria-[selected=true]:border-transparent aria-[selected=true]:bg-primary aria-[selected=true]:text-primary-foreground"
+            onClick={() => setTab(entry.id)}
+          >
+            {entry.label}
+          </button>
+        ))}
+      </div>
+
+      <div role="tabpanel">
+        {tab === "day" && (
+          <div className="flex flex-col gap-4">
+            <DayCard day={plan.today} label="Today" testId="plan-today" />
+            {showTomorrow && plan.tomorrow && (
+              <DayCard
+                day={plan.tomorrow}
+                label="Tomorrow"
+                testId="plan-tomorrow"
+              />
+            )}
+          </div>
+        )}
+        {tab === "week" && <WeekSection week={plan.week} />}
+        {tab === "block" && <BlockSection block={plan.block} />}
+        {tab === "season" && <SeasonSection season={plan.season} />}
+      </div>
     </div>
   );
 }
@@ -90,10 +134,8 @@ function DayCard({
 
 function WeekSection({ week }: { week: WeekPlan }) {
   return (
-    <details open className="rounded-lg border bg-card p-4">
-      <summary className="cursor-pointer text-lg font-semibold">
-        This week · {week.focus}
-      </summary>
+    <section className="rounded-lg border bg-card p-4">
+      <h3 className="text-lg font-semibold">This week · {week.focus}</h3>
       <p className="mt-2 text-sm text-muted-foreground">{week.rationale}</p>
       <ul className="mt-3 flex flex-col gap-2">
         {week.sessions.map((session) => (
@@ -118,7 +160,7 @@ function WeekSection({ week }: { week: WeekPlan }) {
           </li>
         ))}
       </ul>
-    </details>
+    </section>
   );
 }
 
@@ -132,10 +174,8 @@ function StatusBadge({ status }: { status: WeekSessionStatus }) {
 
 function BlockSection({ block }: { block: BlockPlan }) {
   return (
-    <details className="rounded-lg border bg-card p-4">
-      <summary className="cursor-pointer text-lg font-semibold">
-        Block · {block.name}
-      </summary>
+    <section className="rounded-lg border bg-card p-4">
+      <h3 className="text-lg font-semibold">Block · {block.name}</h3>
       <p className="mt-2 text-sm text-muted-foreground">{block.focus}</p>
       <p className="text-sm text-muted-foreground">
         {formatPlanDate(block.startDate)} → {formatPlanDate(block.endDate)}
@@ -152,16 +192,14 @@ function BlockSection({ block }: { block: BlockPlan }) {
           </li>
         ))}
       </ul>
-    </details>
+    </section>
   );
 }
 
 function SeasonSection({ season }: { season: SeasonPlan }) {
   return (
-    <details className="rounded-lg border bg-card p-4">
-      <summary className="cursor-pointer text-lg font-semibold">
-        Season · {season.goal}
-      </summary>
+    <section className="rounded-lg border bg-card p-4">
+      <h3 className="text-lg font-semibold">Season · {season.goal}</h3>
       <p className="mt-2 text-sm text-muted-foreground">
         {formatPlanDate(season.startDate)} → {formatPlanDate(season.endDate)}
       </p>
@@ -182,7 +220,7 @@ function SeasonSection({ season }: { season: SeasonPlan }) {
           </li>
         ))}
       </ol>
-    </details>
+    </section>
   );
 }
 

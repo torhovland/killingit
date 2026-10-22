@@ -212,6 +212,7 @@ export async function loadAnalyzedActivities(options: {
           coachReply: activityFeedback?.reply
             ? toCoachAnalysis(activityFeedback.reply)
             : null,
+          reviewed: activityFeedback?.reviewed ?? false,
         };
       }
     },
@@ -258,6 +259,7 @@ function withStoredAnalysis(
     programAnalysis: program ? toCoachAnalysis(program) : null,
     comment: feedback?.comment ?? null,
     coachReply: feedback?.reply ? toCoachAnalysis(feedback.reply) : null,
+    reviewed: feedback?.reviewed ?? false,
   };
 }
 
@@ -273,5 +275,6 @@ function withoutAnalysis(
     programAnalysis: null,
     comment: feedback?.comment ?? null,
     coachReply: feedback?.reply ? toCoachAnalysis(feedback.reply) : null,
+    reviewed: feedback?.reviewed ?? false,
   };
 }

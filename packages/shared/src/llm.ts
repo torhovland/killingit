@@ -74,6 +74,8 @@ export const analyzedActivitySchema = activitySummarySchema.extend({
   comment: z.string().nullable().default(null),
   /** The coach's latest reply to that comment, if any. */
   coachReply: coachAnalysisSchema.nullable().default(null),
+  /** The athlete dismissed the activity with "No comment". */
+  reviewed: z.boolean().optional(),
 });
 
 export type AnalyzedActivity = z.infer<typeof analyzedActivitySchema>;
