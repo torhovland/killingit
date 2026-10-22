@@ -1,11 +1,13 @@
 import { describe, expect, it } from "bun:test";
+import { z } from "zod";
 import {
   LlmAuthError,
   LlmTokenLimitError,
   type LlmCompletionRequest,
   type LlmProvider,
 } from "./openrouter.js";
-import { completePlan } from "./planCompletion.js";
+import { completePlan, completePlanJson } from "./planCompletion.js";
+import { PlanJsonError } from "./planJson.js";
 
 class FakeProvider implements LlmProvider {
   readonly id = "fake";
@@ -30,6 +32,70 @@ class FakeProvider implements LlmProvider {
     return Promise.resolve(outcome ?? "");
   }
 }
+
+const resultSchema = z.object({ title: z.string().min(1) });
+const credentials = { apiKey: "key", model: "model" };
+const messages = [{ role: "user" as const, content: "plan" }];
+
+describe("completePlanJson", () => {
+  it("returns a valid response without asking for a repair", async () => {
+    const provider = new FakeProvider(['{"title":"Easy run"}']);
+
+    const result = await completePlanJson(
+      resultSchema,
+      provider,
+      credentials,
+      messages,
+      4096,
+    );
+
+    expect(result).toEqual({ title: "Easy run" });
+    expect(provider.requests).toHaveLength(1);
+  });
+
+  it("asks the model to correct an invalid shape once", async () => {
+    const provider = new FakeProvider(['{"title":""}', '{"title":"Easy run"}']);
+
+    const result = await completePlanJson(
+      resultSchema,
+      provider,
+      credentials,
+      messages,
+      4096,
+    );
+
+    expect(result).toEqual({ title: "Easy run" });
+    expect(provider.requests).toHaveLength(2);
+    const repair = provider.requests[1]?.messages ?? [];
+    expect(repair.slice(0, -2)).toEqual(messages);
+    expect(repair.at(-2)).toEqual({
+      role: "assistant",
+      content: '{"title":""}',
+    });
+    expect(repair.at(-1)?.content).toContain("title");
+    expect(repair.at(-1)?.content).toContain("corrected JSON object");
+  });
+
+  it("does not retry more than once", async () => {
+    const provider = new FakeProvider(['{"title":""}', '{"title":""}']);
+
+    let failure: unknown;
+    try {
+      await completePlanJson(
+        resultSchema,
+        provider,
+        credentials,
+        messages,
+        4096,
+      );
+    } catch (err) {
+      failure = err;
+    }
+
+    expect(failure).toBeInstanceOf(PlanJsonError);
+    expect(provider.requests).toHaveLength(2);
+  });
+});
 
 describe("completePlan", () => {
   it("uses minimal reasoning and retries with a larger budget", async () => {

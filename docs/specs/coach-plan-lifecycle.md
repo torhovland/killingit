@@ -137,7 +137,10 @@ block's dates.
 
 All LLM responses are parsed defensively (`parsePlanJson`) so markdown fences or
 a short prose wrapper do not break the flow, and the shared Zod schemas reject
-malformed plans.
+malformed plans. When a response is valid JSON but has the wrong shape, the
+completion gets one repair attempt with the rejected response and the validation
+problems; the error names the offending fields if the repair also fails. See
+`docs/specs/plan-json-repair.md`.
 
 ## UI
 

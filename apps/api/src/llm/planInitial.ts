@@ -5,14 +5,13 @@ import {
   type SeasonPlanUpdate,
 } from "@killingit/shared";
 import type { LlmProvider } from "./openrouter.js";
-import { completePlan } from "./planCompletion.js";
+import { completePlanJson } from "./planCompletion.js";
 import {
   buildInitialBlockMessages,
   buildSeasonPlanMessages,
   type InitialBlockInput,
   type SeasonPlanInput,
 } from "./planInitialPrompt.js";
-import { parsePlanJson } from "./planJson.js";
 import type { PlanUpdateCredentials } from "./planUpdate.js";
 
 /** Asks the coach for the season plan alone. */
@@ -21,13 +20,13 @@ export async function generateSeasonPlan(
   credentials: PlanUpdateCredentials,
   input: SeasonPlanInput,
 ): Promise<SeasonPlanUpdate> {
-  const text = await completePlan(
+  return completePlanJson(
+    seasonPlanUpdateSchema,
     provider,
     credentials,
     buildSeasonPlanMessages(input),
     4096,
   );
-  return parsePlanJson(seasonPlanUpdateSchema, text);
 }
 
 /** Asks the coach for the first block of the season. */
@@ -36,11 +35,11 @@ export async function generateInitialBlock(
   credentials: PlanUpdateCredentials,
   input: InitialBlockInput,
 ): Promise<InitialBlockUpdate> {
-  const text = await completePlan(
+  return completePlanJson(
+    initialBlockUpdateSchema,
     provider,
     credentials,
     buildInitialBlockMessages(input),
     4096,
   );
-  return parsePlanJson(initialBlockUpdateSchema, text);
 }

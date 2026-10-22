@@ -100,7 +100,7 @@ export const SEASON_CONTRACT = `{
 }`;
 
 export const ENUM_RULES = `For every type field use either "workout" or "rest"; for every intensity field use "easy", "moderate", "hard", or "rest".`;
-export const JSON_RULES = `Return only a single valid JSON object with exactly this shape. Do not add markdown fences, headings, explanations, or extra fields.`;
+export const JSON_RULES = `Return only a single valid JSON object with exactly this shape. Do not add markdown fences, headings, explanations, or extra fields. When a contract lists choices separated by "|", output exactly one of those choices and never the list itself. Replace every placeholder such as "YYYY-MM-DD", "string", or 0 with a real value.`;
 
 export const DAILY_UPDATE_SYSTEM_PROMPT = `You are an expert endurance coach. Update today's session, the rest of the current week, and tomorrow's session for an amateur athlete. Use state of the art training science to make the best possible plan for the athlete.
 
