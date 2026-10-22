@@ -33,6 +33,14 @@ export interface ActivityCommentContext {
   comment: string;
 }
 
+/**
+ * Shared rule for every prompt that receives activity comments: a comment is
+ * the athlete's description of an activity that is already listed, not another
+ * activity.
+ */
+export const ACTIVITY_COMMENT_RULE =
+  "A comment on an activity describes that same activity. It is not an additional activity and must never be added on top of the activity's recorded time or treated as extra training.";
+
 /** The complete context passed to the coach for a plan generation. */
 export interface PlanContextInput {
   athleteAnswers: readonly AthleteAnswerContext[];
@@ -56,15 +64,28 @@ export function formatAthleteAnswers(
 
 /**
  * Renders recent training for a prompt, including each activity's coach
- * analysis. The empty case tells the model to plan conservatively.
+ * analysis and the athlete's comment when there is one. The empty case tells
+ * the model to plan conservatively.
  */
 export function formatRecentActivities(
   entries: readonly RecentActivityContext[],
+  comments: readonly ActivityCommentContext[] = [],
 ): string {
   if (entries.length === 0) {
     return "No recent activities were recorded. Assume the athlete is starting from the fitness and experience described in the profile, and build the plan conservatively.";
   }
-  return entries.map(formatActivity).join("\n");
+  const commentsById = new Map(
+    comments.map((entry) => [entry.activityId, entry.comment]),
+  );
+  return entries
+    .map((entry, index) =>
+      formatActivity(
+        entry,
+        index,
+        commentsById.get(String(entry.summary.id)) ?? null,
+      ),
+    )
+    .join("\n");
 }
 
 /**
@@ -77,13 +98,21 @@ export function formatPlanContext(input: PlanContextInput): string[] {
   if (input.timezone !== undefined && input.timezone.trim() !== "") {
     lines.push(`Athlete timezone: ${input.timezone.trim()}`);
   }
+  const comments = input.activityComments ?? [];
+  const listedActivityIds = new Set(
+    input.recentActivities.map((entry) => String(entry.summary.id)),
+  );
+  const unlistedComments = comments.filter(
+    (entry) => !listedActivityIds.has(entry.activityId),
+  );
+
   lines.push(
     "",
     "Athlete profile:",
     formatAthleteAnswers(input.athleteAnswers),
     "",
-    "Recent activities (most recent first):",
-    formatRecentActivities(input.recentActivities),
+    `Recent activities (most recent first). ${ACTIVITY_COMMENT_RULE}`,
+    formatRecentActivities(input.recentActivities, comments),
   );
 
   if (input.manualActivities && input.manualActivities.length > 0) {
@@ -94,11 +123,12 @@ export function formatPlanContext(input: PlanContextInput): string[] {
     );
   }
 
-  if (input.activityComments && input.activityComments.length > 0) {
+  if (unlistedComments.length > 0) {
     lines.push(
       "",
       "Activity comments:",
-      formatActivityComments(input.activityComments),
+      "Each comment describes the activity with the matching ID. It is not a separate activity or extra training.",
+      formatActivityComments(unlistedComments),
     );
   }
 
@@ -186,7 +216,11 @@ function formatAthleteAnswer(entry: AthleteAnswerContext): string {
   return `- ${label}: (not answered)`;
 }
 
-function formatActivity(entry: RecentActivityContext, index: number): string {
+function formatActivity(
+  entry: RecentActivityContext,
+  index: number,
+  comment: string | null,
+): string {
   const { summary, analysis } = entry;
   const details: string[] = [];
   if (summary.distance > 0) {
@@ -204,6 +238,11 @@ function formatActivity(entry: RecentActivityContext, index: number): string {
     lines.push(`   Coach analysis: ${analysis.trim()}`);
   } else {
     lines.push("   Coach analysis: not available.");
+  }
+  if (comment !== null && comment.trim() !== "") {
+    lines.push(
+      `   Athlete comment about this same activity (not an additional session): ${comment.trim()}`,
+    );
   }
   return lines.join("\n");
 }

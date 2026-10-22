@@ -93,6 +93,11 @@ and the reply is null; the failure is logged.
   plain-text reply that acknowledges the input, explains the effect on the plan,
   and states what the coach will adjust. The user prompt contains the current
   plan and the specific input. No JSON and no markdown.
+- **Plan generation** (`planContext`): each activity comment is rendered
+  inline under the activity it references, together with an explicit rule that
+  the comment describes that same activity and is never additional training.
+  Comments for activities outside the recent list stay in a separate section
+  with the same rule.
 
 ## Generation flow
 
