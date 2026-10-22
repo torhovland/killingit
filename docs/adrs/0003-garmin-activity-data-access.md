@@ -36,7 +36,9 @@ tier, unjustifiable pre-revenue.
 - **The operator enters their Garmin username/password** through the app.
   Credentials are **encrypted at rest** (AES-256-GCM, key from
   `GARMIN_CREDENTIALS_KEY`) and never serialized to the client.
-- **Single operator only** for now; no multi-user credential storage.
+- **Credentials are stored per account** (`garmin_connections.user_id`), so each
+  signed-in athlete connects their own Garmin account. One Garmin connection per
+  user.
 - **Do not adopt an aggregator yet.** Revisit when there is paying demand; an
   aggregator is the natural unlock for first-class Garmin and multi-user
   support later, replacing the sidecar behind the same adapter seam.
@@ -74,8 +76,8 @@ and strict non-serialization.
 
 - **Positive:** Garmin activity sync works today with zero approval and zero
   added cost; data flows into the app behind a provider-agnostic seam.
-- **Negative / limits:** single-operator only; unofficially supported; MFA
-  accounts unsupported; the sidecar is a second process to deploy and operate.
+- **Negative / limits:** unofficially supported; MFA accounts unsupported; the
+  sidecar is a second process to deploy and operate.
 - **Follow-ups:** re-audit the ToS posture before any multi-user launch; revisit
   an aggregator when demand justifies it. (The sidecar is now deployed by the
   pipeline as a private Cloud Run service and invoked with an OIDC identity

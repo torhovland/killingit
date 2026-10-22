@@ -40,9 +40,9 @@ one swappable corner, and normalizes Garmin activities into the shared
    - returns the last 31 days of activities in a normalized shape, **including
      each activity's timeseries samples**.
 2. **Credential entry** — a web form (behind Auth0 sign-in) that POSTs the
-   Garmin username/password to a protected API endpoint.
+   Garmin username/password to a protected, per-account API endpoint.
 3. **Encrypted storage** — credentials encrypted at rest with AES-256-GCM,
-   key from `GARMIN_CREDENTIALS_KEY` (env), stored in Postgres. Never
+   key from `GARMIN_CREDENTIALS_KEY` (env), stored in Postgres per user. Never
    serialized back to the client.
 4. **Sync trigger** — automatically when the operator loads the app while
    credentials exist; progress surfaced on the main page.
@@ -55,7 +55,6 @@ one swappable corner, and normalizes Garmin activities into the shared
 
 ### Out of scope (explicitly deferred)
 
-- **Multi-user** — single operator only (ADR 0003).
 - **Multi-factor Garmin accounts** — MFA-required accounts are a known
   limitation of `python-garminconnect`; documented, not solved.
 - **Garmin official developer-program API** — still gated/paused (ADR 0003).
@@ -82,10 +81,11 @@ one swappable corner, and normalizes Garmin activities into the shared
 
 ## Data-model / API impact
 
-- **New table** `garmin_connections` (single row, replace on re-entry):
-  `username_encrypted`, `password_encrypted`, `updated_at`. Ciphertext columns
-  are never serialized to the client.
-- **New routes** (`apps/api/src/routes/garmin.ts`, all behind `requireAuth`):
+- **Table** `garmin_connections` (one row per user, upsert on `user_id`):
+  `user_id`, `username_encrypted`, `password_encrypted`, `updated_at`.
+  Ciphertext columns are never serialized to the client.
+- **Routes** (`apps/api/src/routes/garmin.ts`, all behind `requireAuth` and
+  scoped to the signed-in account):
   - `POST /api/garmin/credentials` — store encrypted credentials.
   - `GET  /api/garmin/status` — connected / not connected (no secrets).
   - `GET  /api/garmin/activities` — trigger + return the 31-day sync.
@@ -119,7 +119,7 @@ one swappable corner, and normalizes Garmin activities into the shared
 - `crypto.ts` — AES-256-GCM encrypt/decrypt helpers (key from
   `GARMIN_CREDENTIALS_KEY`).
 - `client.ts` — thin HTTP client to the sidecar, injectable for tests.
-- `store.ts` — Drizzle upsert/load of the single `garmin_connections` row.
+- `store.ts` — Drizzle upsert/load of the user's `garmin_connections` row.
 - `routes/garmin.ts` — the three routes above, guarded by `requireAuth`.
 
 ### Web (`apps/web/src/`)

@@ -3,11 +3,13 @@ import { decrypt, garminCredentialsKeyFromEnv } from "./crypto.js";
 import { loadCredentials } from "./store.js";
 
 /**
- * Loads and decrypts the stored Garmin credential set. Returns null when none
- * is configured; ciphertext never leaves this module.
+ * Loads and decrypts one user's stored Garmin credential set. Returns null when
+ * none is configured; ciphertext never leaves this module.
  */
-export async function loadDecryptedGarminCredentials(): Promise<GarminCredentials | null> {
-  const stored = await loadCredentials();
+export async function loadDecryptedGarminCredentials(
+  userId: number,
+): Promise<GarminCredentials | null> {
+  const stored = await loadCredentials(userId);
   if (!stored) {
     return null;
   }

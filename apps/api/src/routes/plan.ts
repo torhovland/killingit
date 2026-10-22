@@ -27,7 +27,7 @@ export interface PlanRouteDependencies {
   plans: PlanStore;
   generations: PlanGenerationStore;
   /** Injectable for route tests; defaults to a Garmin sync. */
-  loadActivities?: () => Promise<ActivityFeed>;
+  loadActivities?: (userId: number) => Promise<ActivityFeed>;
   /** Injectable for route tests; defaults to the stored OpenRouter config. */
   loadLlm?: () => Promise<LlmClient | null>;
   /** Injectable for route tests; defaults to the database-backed loader. */

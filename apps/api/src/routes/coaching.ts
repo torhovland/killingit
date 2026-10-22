@@ -54,7 +54,7 @@ export interface CoachingRouteDependencies {
   answers: QuestionAnswerStore;
   plans: PlanStore;
   generations: PlanGenerationStore;
-  loadActivities?: () => Promise<ActivityFeed>;
+  loadActivities?: (userId: number) => Promise<ActivityFeed>;
   loadLlm?: () => Promise<LlmClient | null>;
   /** Injectable for route tests; defaults to the database-backed loader. */
   loadCoachingInputs?: (
@@ -82,8 +82,12 @@ export interface CoachingRouteDependencies {
 export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
   const loadActivities =
     deps.loadActivities ??
-    (() =>
-      loadAnalyzedActivities({ limit: DEFAULT_ACTIVITIES, refresh: false }));
+    ((userId) =>
+      loadAnalyzedActivities({
+        userId,
+        limit: DEFAULT_ACTIVITIES,
+        refresh: false,
+      }));
   const saveComment = deps.saveActivityComment ?? saveActivityComment;
   const saveManual = deps.saveManualActivity ?? saveManualActivity;
   const saveWeekly = deps.saveWeeklyNote ?? saveWeeklyNote;
@@ -100,7 +104,8 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
       }
 
       try {
-        const feed = await loadActivities();
+        const user = await deps.users.ensureUser(getAthlete(c).sub);
+        const feed = await loadActivities(user.id);
         return c.json(analyzedActivitiesResponseSchema.parse(feed));
       } catch (err) {
         if (err instanceof GarminNotConnectedError) {

@@ -19,7 +19,7 @@ export interface PlanTriggerDependencies {
   plans: PlanStore;
   generations: PlanGenerationStore;
   /** Injectable for route tests; defaults to a Garmin sync. */
-  loadActivities?: () => Promise<ActivityFeed>;
+  loadActivities?: (userId: number) => Promise<ActivityFeed>;
   /** Injectable for route tests; defaults to the stored OpenRouter config. */
   loadLlm?: () => Promise<LlmClient | null>;
   /** Injectable for route tests; defaults to the database-backed loader. */
@@ -61,8 +61,9 @@ export async function triggerPlanGeneration(
       deps.plans.load(userId),
       deps.answers.listForUser(userId),
       deps.loadActivities
-        ? deps.loadActivities()
+        ? deps.loadActivities(userId)
         : loadAnalyzedActivities({
+            userId,
             limit: DEFAULT_ACTIVITIES,
             refresh: false,
           }),
