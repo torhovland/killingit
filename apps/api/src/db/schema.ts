@@ -1,4 +1,5 @@
 import type {
+  AnalyzedActivitiesResponse,
   BlockPlan,
   DayPlan,
   SeasonPlan,
@@ -140,6 +141,24 @@ export const activityAnalyses = pgTable(
 
 export type ActivityAnalysis = typeof activityAnalyses.$inferSelect;
 export type NewActivityAnalysis = typeof activityAnalyses.$inferInsert;
+
+/**
+ * The last successfully synced activity feed per user. It lets the dashboard
+ * show existing activities immediately on load, while the live Garmin sync and
+ * any new analyses run. Replaced after every successful sync.
+ */
+export const activityFeedCache = pgTable("activity_feed_cache", {
+  userId: integer("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  feed: jsonb("feed").$type<AnalyzedActivitiesResponse>().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export type ActivityFeedCacheRow = typeof activityFeedCache.$inferSelect;
+export type NewActivityFeedCache = typeof activityFeedCache.$inferInsert;
 
 /**
  * Stable identity for an athlete question. The wording lives in

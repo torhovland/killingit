@@ -107,6 +107,22 @@ describe("buildProgramAnalysisMessages", () => {
     expect(prompt).toContain("Steady aerobic effort");
     expect(prompt).toContain("Felt strong on the hills.");
     expect(prompt).toContain("what could have been done better");
+    expect(prompt).toContain(
+      "Match this activity to a planned session, then review",
+    );
+  });
+
+  it("asks the coach to match against another session when the date has none", () => {
+    const prompt = buildProgramAnalysisPrompt({
+      today: "2026-10-30",
+      plan: makePlan(),
+      activity: { ...activity, startDate: "2026-10-30T06:30:00Z" },
+    });
+
+    expect(prompt).toContain("No session was planned for 2026-10-30");
+    expect(prompt).toContain(
+      "Match the activity to another session in this week if its data fits one.",
+    );
   });
 
   it("uses a plain-text review system prompt", () => {
@@ -121,5 +137,8 @@ describe("buildProgramAnalysisMessages", () => {
       "reviewing one completed workout against the athlete's current training program",
     );
     expect(messages[0]?.content).toContain("Do not use headings, bullets");
+    expect(messages[0]?.content).toContain("do not trust it");
+    expect(messages[0]?.content).toContain("strength-training workout");
+    expect(messages[0]?.content).toContain("any other session this week");
   });
 });

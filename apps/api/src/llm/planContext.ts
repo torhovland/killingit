@@ -4,7 +4,7 @@ import type {
   SeasonPlan,
   WeekPlan,
 } from "@killingit/shared";
-import { formatDuration } from "./activityPrompt.js";
+import { formatDuration } from "./duration.js";
 
 /** One interview question with the athlete's answer or explicit skip. */
 export interface AthleteAnswerContext {

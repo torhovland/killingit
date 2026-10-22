@@ -89,6 +89,9 @@ one swappable corner, and normalizes Garmin activities into the shared
   - `POST /api/garmin/credentials` — store encrypted credentials.
   - `GET  /api/garmin/status` — connected / not connected (no secrets).
   - `GET  /api/garmin/activities` — trigger + return the 31-day sync.
+  - `GET  /api/coaching/activities/cached` — return the last successfully
+    synced activity feed without contacting Garmin, so the dashboard can show
+    existing cards while the live sync runs.
 - **New sidecar** `services/garmin/` — `POST /sync` (credentials → normalized
   activities, each with a normalized `samples` timeseries),
   `POST /authenticate` (validate credentials).
@@ -131,7 +134,9 @@ one swappable corner, and normalizes Garmin activities into the shared
   coaching dashboard.
 - `CoachDashboard.tsx` / `ActivityCard.tsx` — on load, if status is connected,
   fetches `/api/coaching/activities` (which syncs Garmin and optionally analyses
-  the activities) and renders a "Syncing…" state, then the activity list.
+  the activities) and renders a "Syncing…" state, then the activity list. The
+  last successful feed is cached in browser storage per account, so existing
+  cards render immediately on reload while the sync and analyses refresh.
 - Kept thin; no new SDK dependency beyond the existing fetch helpers.
 
 ## Testing

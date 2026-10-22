@@ -81,10 +81,14 @@ and the reply is null; the failure is logged.
 
 - **Program review** (`programAnalysisPrompt`): system prompt asks for 3–5
   sentences on fit with the program and what could have been done better, citing
-  the activity data. The user prompt contains the season goal and rationale, the
-  block focus, the week focus and sessions, the session planned for the
-  activity's date, the activity summary, its general analysis, and the athlete's
-  comment when present. Versioned with `PROGRAM_ANALYSIS_PROMPT_VERSION`.
+  the activity data. It first matches the activity to the session planned for
+  its date, today's session, or another session that week, and treats the
+  device's activity type as unreliable (erratic heart rate may indicate a
+  planned strength session). The user prompt contains the season goal and
+  rationale, the block focus, the week focus and sessions, the session planned
+  for the activity's date (or a fallback to another session), the activity
+  summary, its general analysis, and the athlete's comment when present.
+  Versioned with `PROGRAM_ANALYSIS_PROMPT_VERSION`.
 - **Coach reply** (`coachReplyPrompt`): system prompt asks for a 1–2 sentence
   plain-text reply that acknowledges the input, explains the effect on the plan,
   and states what the coach will adjust. The user prompt contains the current

@@ -29,6 +29,8 @@ import {
   type LlmProvider,
 } from "../llm/openrouter.js";
 import { loadLlmSettings } from "../llm/store.js";
+import { dbPlanStore } from "../plans/store.js";
+import { saveCachedActivityFeed } from "./feedCache.js";
 
 /** How many of the latest synced activities can be returned in one feed. */
 export const MAX_ACTIVITIES = 20;
@@ -101,21 +103,38 @@ export async function loadAnalyzedActivities(options: {
     .sort((a, b) => Date.parse(b.startDate) - Date.parse(a.startDate))
     .slice(0, options.limit);
 
-  const [settings, feedback] = await Promise.all([
+  // Store the synced activities before the (potentially slow) LLM analyses so
+  // a reload during analysis still shows the existing cards.
+  await persistFeed(options.userId, {
+    model: null,
+    activities: latest.map((activity) => withoutAnalysis(activity)),
+  });
+
+  const [settings, feedback, storedPlan] = await Promise.all([
     loadLlmSettings(),
     loadActivityFeedback(
       options.userId,
       latest.map((activity) => activity.id),
     ),
+    dbPlanStore.load(options.userId),
   ]);
   if (!settings) {
-    return {
+    const feed: ActivityFeed = {
       model: null,
       activities: latest.map((activity) =>
         withoutAnalysis(activity, feedback.get(String(activity.id))),
       ),
     };
+    await persistFeed(options.userId, feed);
+    return feed;
   }
+
+  const analysisContext = storedPlan
+    ? {
+        today: storedPlan.plan.today.date,
+        week: storedPlan.plan.week,
+      }
+    : undefined;
 
   let apiKey: string;
   try {
@@ -157,6 +176,7 @@ export async function loadAnalyzedActivities(options: {
           provider,
           { apiKey, model: settings.model },
           activity,
+          analysisContext,
         );
         const saved = await saveAnalysis({
           activityId: activity.id,
@@ -197,7 +217,19 @@ export async function loadAnalyzedActivities(options: {
     },
   );
 
-  return { model: settings.model, activities: analysed };
+  const feed: ActivityFeed = { model: settings.model, activities: analysed };
+  await persistFeed(options.userId, feed);
+  return feed;
+}
+
+/** Stores the feed for a fast first paint; a cache failure must not fail sync. */
+async function persistFeed(userId: number, feed: ActivityFeed): Promise<void> {
+  try {
+    await saveCachedActivityFeed(userId, feed);
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    console.error(`[coaching] could not cache the activity feed: ${detail}`);
+  }
 }
 
 /** Strips the (large) timeseries, keeping the summary and its sample count. */

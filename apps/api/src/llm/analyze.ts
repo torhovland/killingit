@@ -1,5 +1,8 @@
 import type { Activity } from "@killingit/shared";
-import { buildActivityAnalysisMessages } from "./activityPrompt.js";
+import {
+  buildActivityAnalysisMessages,
+  type ActivityAnalysisContext,
+} from "./activityPrompt.js";
 import type { LlmProvider } from "./openrouter.js";
 import { completeWithFallbacks } from "./resilientCompletion.js";
 
@@ -13,11 +16,12 @@ export function analyzeActivity(
   provider: LlmProvider,
   input: AnalysisInput,
   activity: Activity,
+  context?: ActivityAnalysisContext,
 ): Promise<string> {
   return completeWithFallbacks(
     provider,
     input,
-    buildActivityAnalysisMessages(activity),
+    buildActivityAnalysisMessages(activity, context),
     // Reasoning models count their reasoning tokens against this budget, so a
     // low cap truncates the visible analysis mid-sentence. 2048 leaves room for
     // reasoning plus a complete 3-5 sentence analysis; the fallbacks retry with

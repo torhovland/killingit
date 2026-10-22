@@ -120,6 +120,7 @@ function makeApp(options: {
   generationStore?: PlanGenerationStore;
   answers?: QuestionAnswerStore;
   loadActivities?: (userId: number) => Promise<ActivityFeed>;
+  loadCachedFeed?: AppDependencies["loadCachedFeed"];
   loadCoachingInputs?: (
     userId: number,
     weekStartDate: string,
@@ -177,6 +178,9 @@ function makeApp(options: {
     loadActivities:
       options.loadActivities ??
       (() => Promise.resolve({ model: "test-model", activities: [] })),
+    ...(options.loadCachedFeed !== undefined
+      ? { loadCachedFeed: options.loadCachedFeed }
+      : {}),
     loadLlm: () =>
       Promise.resolve({
         provider: {
@@ -242,6 +246,58 @@ describe("coaching activity feed", () => {
 
     expect(res.status).toBe(200);
     expect(requested.userId).toBe(42);
+  });
+
+  it("returns the stored feed without syncing Garmin", async () => {
+    const requested = { userId: null as number | null };
+    const app = makeApp({
+      loadCachedFeed: (userId) => {
+        requested.userId = userId;
+        return Promise.resolve({
+          model: "test-model",
+          activities: [
+            {
+              id: 7,
+              name: "Morning Run",
+              type: "running",
+              startDate: "2026-10-21T06:30:00Z",
+              distance: 5000,
+              movingTime: 1500,
+              elapsedTime: 1600,
+              totalElevationGain: 20,
+              sampleCount: 10,
+              analysis: null,
+              analysisError: null,
+              programAnalysis: null,
+              comment: null,
+              coachReply: null,
+            },
+          ],
+        });
+      },
+    });
+
+    const res = await app.fetch(
+      authenticatedRequest("/api/coaching/activities/cached"),
+    );
+
+    expect(res.status).toBe(200);
+    expect(requested.userId).toBe(42);
+    const body = (await res.json()) as { activities: Array<{ name: string }> };
+    expect(body.activities[0]?.name).toBe("Morning Run");
+  });
+
+  it("returns an empty feed when nothing has been cached yet", async () => {
+    const app = makeApp({
+      loadCachedFeed: () => Promise.resolve(null),
+    });
+
+    const res = await app.fetch(
+      authenticatedRequest("/api/coaching/activities/cached"),
+    );
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ model: null, activities: [] });
   });
 });
 

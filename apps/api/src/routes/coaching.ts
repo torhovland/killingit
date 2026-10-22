@@ -25,6 +25,7 @@ import {
   deleteImportedActivity,
   deleteManualActivity,
 } from "../coaching/deletions.js";
+import { loadCachedActivityFeed } from "../coaching/feedCache.js";
 import {
   replyToCoachingInput,
   type CoachingReplyRequest,
@@ -79,6 +80,8 @@ export interface CoachingRouteDependencies {
   plans: PlanStore;
   generations: PlanGenerationStore;
   loadActivities?: (userId: number) => Promise<ActivityFeed>;
+  /** Injectable for route tests; defaults to the stored feed reader. */
+  loadCachedFeed?: typeof loadCachedActivityFeed;
   loadLlm?: () => Promise<LlmClient | null>;
   /** Injectable for route tests; defaults to the database-backed loader. */
   loadCoachingInputs?: (
@@ -118,6 +121,7 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
         limit: DEFAULT_ACTIVITIES,
         refresh: false,
       }));
+  const loadCachedFeed = deps.loadCachedFeed ?? loadCachedActivityFeed;
   const saveComment = deps.saveActivityComment ?? saveActivityComment;
   const saveManual = deps.saveManualActivity ?? saveManualActivity;
   const saveWeekly = deps.saveWeeklyNote ?? saveWeeklyNote;
@@ -160,6 +164,20 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
   }
 
   return new Hono()
+    .get("/activities/cached", async (c) => {
+      try {
+        const user = await deps.users.ensureUser(getAthlete(c).sub);
+        const feed = await loadCachedFeed(user.id);
+        return c.json(
+          analyzedActivitiesResponseSchema.parse(
+            feed ?? { model: null, activities: [] },
+          ),
+        );
+      } catch (err) {
+        console.error("[coaching] cached activity feed failure:", err);
+        return c.text("Service Unavailable", 503);
+      }
+    })
     .get("/activities", async (c) => {
       const query = querySchema.safeParse(c.req.query());
       if (!query.success) {

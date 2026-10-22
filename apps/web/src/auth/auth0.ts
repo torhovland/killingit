@@ -12,6 +12,8 @@ import type { AppState } from "@auth0/auth0-react";
 export interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
+  /** The provider's stable user id (`sub`), or null when signed out. */
+  sub?: string | null;
   /** Sign in, returning to the current page afterwards. */
   login(): Promise<void>;
   /** Sign out, returning to the site origin. */
@@ -37,6 +39,7 @@ const AUTH0_CONFIGURED =
 const NOOP_AUTH: AuthState = {
   isAuthenticated: false,
   isLoading: false,
+  sub: null,
   login: () => Promise.resolve(),
   logout: () => Promise.resolve(),
   getToken: () => Promise.resolve(undefined),
@@ -51,6 +54,7 @@ export function useAuth(): AuthState {
   }
 
   const {
+    user,
     isAuthenticated,
     isLoading,
     getAccessTokenSilently,
@@ -64,6 +68,7 @@ export function useAuth(): AuthState {
     () => ({
       isAuthenticated,
       isLoading,
+      sub: user?.sub ?? null,
       login: () =>
         loginWithRedirect({
           authorizationParams: {
@@ -87,6 +92,7 @@ export function useAuth(): AuthState {
       },
     }),
     [
+      user?.sub,
       isAuthenticated,
       isLoading,
       getAccessTokenSilently,
