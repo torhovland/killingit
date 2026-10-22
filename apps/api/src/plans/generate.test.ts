@@ -603,6 +603,89 @@ describe("runPlanGeneration", () => {
     expect(saved?.plan.tomorrow?.date).toBe("2026-10-22");
   });
 
+  it("refreshes today's completed summary when an activity was recorded today", async () => {
+    const current = makePlan("2026-10-21");
+    const storedToday = {
+      ...makeDay("2026-10-21"),
+      title: "Stale completed strength session",
+      description: "Completed: stale summary with extra cardio.",
+    };
+    const storedWeek = makeWeek("2026-10-19");
+    const stored = makeStoredPlan(
+      {
+        ...current,
+        today: storedToday,
+        week: {
+          ...storedWeek,
+          sessions: storedWeek.sessions.map((session) =>
+            session.date === "2026-10-21"
+              ? { ...session, title: "Stale completed strength session" }
+              : session,
+          ),
+        },
+      },
+      new Date("2026-10-20T10:00:00Z"),
+      new Date("2026-10-20T10:00:00Z"),
+    );
+    const provider = new FakeProvider({
+      weekly: JSON.stringify({
+        week: makeWeek("2026-10-19"),
+        block: makeBlock(),
+      }),
+      daily: JSON.stringify({
+        today: {
+          ...makeDay("2026-10-21"),
+          title: "Strength training",
+          description: "Completed: corrected strength summary.",
+        },
+        tomorrow: makeDay("2026-10-22"),
+        week: makeWeek("2026-10-19"),
+      }),
+    });
+    const plans = new MemoryPlanStore(stored);
+    const generations = new MemoryGenerationStore();
+    const context = makeContext(
+      provider,
+      new Date("2026-10-20T10:00:00Z"),
+      new Date("2026-10-21T10:00:00Z"),
+    );
+    context.activities = [
+      {
+        id: 42,
+        name: "Strength training",
+        type: "cardio",
+        startDate: "2026-10-21T17:00:00Z",
+        distance: 0,
+        movingTime: 2400,
+        elapsedTime: 2400,
+        totalElevationGain: 0,
+        sampleCount: 0,
+        analysis: null,
+        analysisError: null,
+        programAnalysis: null,
+        comment: "This is the gym session.",
+        coachReply: null,
+      },
+    ];
+    context.activityComments = [
+      { activityId: "42", comment: "This is the gym session." },
+    ];
+
+    const saved = await runPlanGeneration({
+      userId: 1,
+      today: "2026-10-21",
+      plan: stored,
+      keepToday: true,
+      context,
+      plans,
+      generations,
+    });
+
+    expect(saved?.plan.today.description).toBe(
+      "Completed: corrected strength summary.",
+    );
+  });
+
   it("records a failed generation", async () => {
     const provider = new FakeProvider({});
     const plans = new MemoryPlanStore(null);
