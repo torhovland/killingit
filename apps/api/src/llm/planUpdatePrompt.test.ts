@@ -107,13 +107,8 @@ const base = {
   manualActivities: [
     {
       id: 99,
-      name: "Manual Swim",
-      type: "swimming",
-      startDate: "2026-10-19T07:00:00Z",
-      distance: 2000,
-      movingTime: 1800,
-      elapsedTime: 1900,
-      totalElevationGain: 0,
+      startDate: "2026-10-19",
+      details: "Manual Swim",
     },
   ],
   activityComments: [

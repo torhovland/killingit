@@ -24,8 +24,6 @@ export interface PlanStore {
     answersUpdatedAt: Date | null,
     coachingInputsUpdatedAt: Date | null,
   ): Promise<StoredPlan>;
-  /** Marks the plan as needing a revision after a coaching input changed. */
-  markInputsUpdated(userId: number): Promise<void>;
 }
 
 export interface PlanGenerationStore {
@@ -124,13 +122,6 @@ export const dbPlanStore: PlanStore = {
       throw new Error("failed to persist the coach plan");
     }
     return toStoredPlan(row);
-  },
-
-  async markInputsUpdated(userId) {
-    await db
-      .update(coachPlans)
-      .set({ coachingInputsUpdatedAt: new Date() })
-      .where(eq(coachPlans.userId, userId));
   },
 };
 

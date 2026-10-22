@@ -37,6 +37,7 @@ export function CoachDashboard() {
   );
   const [loadingQuestions, setLoadingQuestions] = useState(true);
   const [questionsError, setQuestionsError] = useState<string | null>(null);
+  const [weeklyNote, setWeeklyNote] = useState<string>("");
 
   async function loadQuestions(): Promise<void> {
     setLoadingQuestions(true);
@@ -60,6 +61,20 @@ export function CoachDashboard() {
       setQuestionsError(reportError(err));
     } finally {
       setLoadingQuestions(false);
+    }
+  }
+
+  async function fetchWeeklyNote(): Promise<void> {
+    try {
+      const { today } = getToday();
+      const response = await fetchJsonAuthed<{ note: string | null }>(
+        `${API_URL}/api/coaching/weekly/notes?today=${today}`,
+        auth,
+      );
+      setWeeklyNote(response.note ?? "");
+    } catch (err: unknown) {
+      // Don't block the dashboard if the note fails to load.
+      console.error("Failed to load weekly note:", err);
     }
   }
 
@@ -87,6 +102,7 @@ export function CoachDashboard() {
       return;
     }
     void loadQuestions();
+    void fetchWeeklyNote();
     // Only re-run when sign-in state flips; `auth` is consumed inside.
   }, [auth.isAuthenticated]);
 
@@ -135,13 +151,23 @@ export function CoachDashboard() {
     <CoachingSurface
       questions={questions.questions}
       onSaveAnswers={saveAnswers}
+      weeklyNote={weeklyNote}
+      onWeeklyNoteChange={setWeeklyNote}
     />
   );
+}
+
+interface ManualActivity {
+  id: number;
+  startDate: string;
+  details: string;
 }
 
 interface CoachingSurfaceProps {
   questions: AthleteQuestion[];
   onSaveAnswers: (answers: QuestionAnswerInput[]) => Promise<void>;
+  weeklyNote: string;
+  onWeeklyNoteChange: (note: string) => void;
 }
 
 /**
@@ -149,7 +175,12 @@ interface CoachingSurfaceProps {
  * configure OpenRouter, then show the latest synced activities with their coach
  * analyses. Analysis is cached server-side; "Re-analyze" forces a fresh pass.
  */
-function CoachingSurface({ questions, onSaveAnswers }: CoachingSurfaceProps) {
+function CoachingSurface({
+  questions,
+  onSaveAnswers,
+  weeklyNote,
+  onWeeklyNoteChange,
+}: CoachingSurfaceProps) {
   const auth = useAuth();
   const [garmin, setGarmin] = useState<GarminConnectionStatus | null>(null);
   const [llm, setLlm] = useState<LlmSettings | null>(null);
@@ -158,12 +189,74 @@ function CoachingSurface({ questions, onSaveAnswers }: CoachingSurfaceProps) {
   const [loadingAnalyses, setLoadingAnalyses] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [planRefreshKey, setPlanRefreshKey] = useState(0);
+  const [manualActivities, setManualActivities] = useState<ManualActivity[]>(
+    [],
+  );
+  const [editingActivityId, setEditingActivityId] = useState<number | null>(
+    null,
+  );
+  const [manualStartDate, setManualStartDate] = useState(getToday().today);
+  const [manualDetails, setManualDetails] = useState("");
 
   async function saveAnswers(answers: QuestionAnswerInput[]): Promise<void> {
     await onSaveAnswers(answers);
     // Answers changed: refetch the plan status, which marks the stored plan
     // stale and starts a regeneration.
     setPlanRefreshKey((key) => key + 1);
+  }
+
+  async function handleWeeklyNoteSubmit(
+    event: React.FormEvent<HTMLFormElement>,
+  ): Promise<void> {
+    event.preventDefault();
+    if (!weeklyNote.trim()) {
+      return;
+    }
+    try {
+      await submitWeeklyNote(weeklyNote);
+    } catch (err: unknown) {
+      setError(reportError(err));
+    }
+  }
+
+  async function handleManualActivitySubmit(
+    event: React.FormEvent<HTMLFormElement>,
+  ): Promise<void> {
+    event.preventDefault();
+    if (!manualStartDate || !manualDetails.trim()) {
+      return;
+    }
+    try {
+      if (editingActivityId !== null) {
+        await updateManualActivity(editingActivityId, {
+          startDate: manualStartDate,
+          details: manualDetails,
+        });
+        setEditingActivityId(null);
+      } else {
+        await submitManualActivity({
+          startDate: manualStartDate,
+          details: manualDetails,
+        });
+      }
+      await loadManualActivities();
+      setManualStartDate(getToday().today);
+      setManualDetails("");
+    } catch (err: unknown) {
+      setError(reportError(err));
+    }
+  }
+
+  function handleEditActivity(activity: ManualActivity): void {
+    setEditingActivityId(activity.id);
+    setManualStartDate(activity.startDate);
+    setManualDetails(activity.details);
+  }
+
+  function handleCancelEdit(): void {
+    setEditingActivityId(null);
+    setManualStartDate(getToday().today);
+    setManualDetails("");
   }
 
   async function loadStatuses(): Promise<void> {
@@ -210,6 +303,17 @@ function CoachingSurface({ questions, onSaveAnswers }: CoachingSurfaceProps) {
     }
   }
 
+  async function loadManualActivities(): Promise<void> {
+    try {
+      const response = await fetchJsonAuthed<{
+        manualActivities: ManualActivity[];
+      }>(`${API_URL}/api/coaching/activities/manual`, auth);
+      setManualActivities(response.manualActivities);
+    } catch (err: unknown) {
+      setError(reportError(err));
+    }
+  }
+
   async function submitComment(
     activityId: string,
     comment: string,
@@ -249,13 +353,8 @@ function CoachingSurface({ questions, onSaveAnswers }: CoachingSurfaceProps) {
   }
 
   async function submitManualActivity(activity: {
-    name: string;
-    type: string;
     startDate: string;
-    distance: number;
-    movingTime: number;
-    elapsedTime: number;
-    totalElevationGain: number;
+    details: string;
   }): Promise<void> {
     const { today } = getToday();
     await fetchJsonAuthed(`${API_URL}/api/coaching/activities/manual`, auth, {
@@ -270,53 +369,26 @@ function CoachingSurface({ questions, onSaveAnswers }: CoachingSurfaceProps) {
     setPlanRefreshKey((key) => key + 1);
   }
 
-  async function handleWeeklyNoteSubmit(
-    event: React.FormEvent<HTMLFormElement>,
+  async function updateManualActivity(
+    activityId: number,
+    activity: { startDate: string; details: string },
   ): Promise<void> {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const formData = new FormData(form);
-    const note = formData.get("note") as string;
-    if (!note.trim()) {
-      return;
-    }
-    try {
-      await submitWeeklyNote(note);
-      form.reset();
-    } catch (err: unknown) {
-      setError(reportError(err));
-    }
-  }
-
-  async function handleManualActivitySubmit(
-    event: React.FormEvent<HTMLFormElement>,
-  ): Promise<void> {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const formData = new FormData(form);
-    const name = formData.get("name") as string;
-    const type = formData.get("type") as string;
-    const distance = Number(formData.get("distance"));
-    const movingTime = Number(formData.get("movingTime"));
-    const elapsedTime = Number(formData.get("elapsedTime"));
-    const totalElevationGain = Number(formData.get("totalElevationGain"));
-    if (!name.trim() || !type.trim()) {
-      return;
-    }
-    try {
-      await submitManualActivity({
-        name,
-        type,
-        startDate: new Date().toISOString(),
-        distance,
-        movingTime,
-        elapsedTime: elapsedTime || movingTime,
-        totalElevationGain,
-      });
-      form.reset();
-    } catch (err: unknown) {
-      setError(reportError(err));
-    }
+    const { today } = getToday();
+    await fetchJsonAuthed(
+      `${API_URL}/api/coaching/activities/manual/${activityId}`,
+      auth,
+      {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          today,
+          timezone:
+            Intl.DateTimeFormat().resolvedOptions().timeZone || undefined,
+          ...activity,
+        }),
+      },
+    );
+    setPlanRefreshKey((key) => key + 1);
   }
 
   useEffect(() => {
@@ -324,6 +396,7 @@ function CoachingSurface({ questions, onSaveAnswers }: CoachingSurfaceProps) {
       return;
     }
     void loadStatuses();
+    void loadManualActivities();
     // Only re-run when sign-in state flips; `auth` is consumed inside.
   }, [auth.isAuthenticated]);
 
@@ -403,6 +476,8 @@ function CoachingSurface({ questions, onSaveAnswers }: CoachingSurfaceProps) {
             className="w-full rounded border bg-card p-2 text-sm"
             placeholder="e.g. I won't have time to train on Thursday this week."
             rows={2}
+            value={weeklyNote}
+            onChange={(event) => onWeeklyNoteChange(event.target.value)}
           />
           <button
             type="submit"
@@ -416,50 +491,69 @@ function CoachingSurface({ questions, onSaveAnswers }: CoachingSurfaceProps) {
           className="flex flex-col gap-2"
           onSubmit={(event) => void handleManualActivitySubmit(event)}
         >
-          <label className="text-sm font-medium">Manual activity</label>
-          <div className="flex flex-wrap gap-2">
-            <input
-              name="name"
-              placeholder="Name"
-              className="rounded border bg-card px-2 py-1 text-sm"
-            />
-            <input
-              name="type"
-              placeholder="Type"
-              className="rounded border bg-card px-2 py-1 text-sm"
-            />
-            <input
-              name="distance"
-              type="number"
-              placeholder="Distance (m)"
-              className="rounded border bg-card px-2 py-1 text-sm"
-            />
-            <input
-              name="movingTime"
-              type="number"
-              placeholder="Moving time (s)"
-              className="rounded border bg-card px-2 py-1 text-sm"
-            />
-            <input
-              name="elapsedTime"
-              type="number"
-              placeholder="Elapsed time (s)"
-              className="rounded border bg-card px-2 py-1 text-sm"
-            />
-            <input
-              name="totalElevationGain"
-              type="number"
-              placeholder="Elevation (m)"
-              className="rounded border bg-card px-2 py-1 text-sm"
-            />
+          <label className="text-sm font-medium" htmlFor="manual-start-date">
+            {editingActivityId ? "Edit manual activity" : "Manual activity"}
+          </label>
+          <input
+            id="manual-start-date"
+            name="startDate"
+            type="date"
+            className="w-fit rounded border bg-card px-2 py-1 text-sm"
+            value={manualStartDate}
+            onChange={(event) => setManualStartDate(event.target.value)}
+          />
+          <textarea
+            name="details"
+            placeholder="Describe your activity"
+            className="w-full rounded border bg-card p-2 text-sm"
+            rows={2}
+            value={manualDetails}
+            onChange={(event) => setManualDetails(event.target.value)}
+          />
+          <div className="flex gap-2">
+            <button
+              type="submit"
+              className="self-start rounded border border-transparent bg-primary px-3 py-1 text-sm text-primary-foreground enabled:hover:bg-primary-hover"
+            >
+              {editingActivityId ? "Update activity" : "Add manual activity"}
+            </button>
+            {editingActivityId && (
+              <button
+                type="button"
+                className="self-start rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted"
+                onClick={handleCancelEdit}
+              >
+                Cancel
+              </button>
+            )}
           </div>
-          <button
-            type="submit"
-            className="self-start rounded border border-transparent bg-primary px-3 py-1 text-sm text-primary-foreground enabled:hover:bg-primary-hover"
-          >
-            Add manual activity
-          </button>
         </form>
+
+        {manualActivities.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <h3 className="text-sm font-medium">Saved manual activities</h3>
+            <ul className="flex flex-col gap-1">
+              {manualActivities.map((activity) => (
+                <li
+                  key={activity.id}
+                  className="flex items-start justify-between gap-2 rounded border bg-card p-2 text-sm"
+                >
+                  <div>
+                    <span className="font-medium">{activity.startDate}</span> —{" "}
+                    {activity.details}
+                  </div>
+                  <button
+                    type="button"
+                    className="text-xs text-muted-foreground hover:underline"
+                    onClick={() => handleEditActivity(activity)}
+                  >
+                    Edit
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </section>
 
       {garmin.connected && (

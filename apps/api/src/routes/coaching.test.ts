@@ -55,16 +55,6 @@ class MemoryPlanStore implements PlanStore {
     };
     return Promise.resolve(this.stored);
   }
-
-  markInputsUpdated(): Promise<void> {
-    if (this.stored) {
-      this.stored = {
-        ...this.stored,
-        coachingInputsUpdatedAt: new Date(),
-      };
-    }
-    return Promise.resolve();
-  }
 }
 
 class MemoryGenerationStore implements PlanGenerationStore {
@@ -141,13 +131,8 @@ function makeApp(options: {
   saveManualActivity?: (
     userId: number,
     activity: {
-      name: string;
-      type: string;
       startDate: string;
-      distance: number;
-      movingTime: number;
-      elapsedTime: number;
-      totalElevationGain: number;
+      details: string;
     },
   ) => Promise<void>;
   saveWeeklyNote?: (
@@ -266,12 +251,12 @@ describe("coaching activity comments", () => {
 
 describe("coaching manual activities", () => {
   it("saves a manual activity and triggers plan generation", async () => {
-    const savedName: { value: string | null } = { value: null };
+    const savedDetails: { value: string | null } = { value: null };
     let triggered = false;
 
     const app = makeApp({
       saveManualActivity: (_userId, activity) => {
-        savedName.value = activity.name;
+        savedDetails.value = activity.details;
         return Promise.resolve();
       },
       triggerPlanGeneration: () => {
@@ -286,23 +271,18 @@ describe("coaching manual activities", () => {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           today: "2026-10-21",
-          name: "Pool swim",
-          type: "swimming",
-          startDate: "2026-10-20T07:00:00Z",
-          distance: 2000,
-          movingTime: 1800,
-          elapsedTime: 1900,
-          totalElevationGain: 0,
+          startDate: "2026-10-20",
+          details: "Pool swim",
         }),
       }),
     );
 
     expect(res.status).toBe(200);
-    expect(savedName.value).toBe("Pool swim");
+    expect(savedDetails.value).toBe("Pool swim");
     expect(triggered).toBe(true);
   });
 
-  it("rejects a manual activity without a name", async () => {
+  it("rejects a manual activity without details", async () => {
     const app = makeApp({});
     const res = await app.fetch(
       authenticatedRequest("/api/coaching/activities/manual", {
@@ -310,13 +290,8 @@ describe("coaching manual activities", () => {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           today: "2026-10-21",
-          name: "",
-          type: "swimming",
-          startDate: "2026-10-20T07:00:00Z",
-          distance: 2000,
-          movingTime: 1800,
-          elapsedTime: 1900,
-          totalElevationGain: 0,
+          startDate: "2026-10-20",
+          details: "",
         }),
       }),
     );

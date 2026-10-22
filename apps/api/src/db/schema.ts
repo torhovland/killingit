@@ -213,20 +213,15 @@ export type NewQuestionAnswer = typeof questionAnswers.$inferInsert;
 
 /**
  * An activity manually recorded by the athlete, e.g. a workout not captured by
- * Garmin. Mirrors the fields of a synced activity summary.
+ * Garmin. Kept intentionally simple: a date and free text.
  */
 export const manualActivities = pgTable("manual_activities", {
   id: serial("id").primaryKey(),
   userId: integer("user_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
-  name: text("name").notNull(),
-  type: text("type").notNull(),
   startDate: text("start_date").notNull(),
-  distance: integer("distance").notNull().default(0),
-  movingTime: integer("moving_time").notNull().default(0),
-  elapsedTime: integer("elapsed_time").notNull().default(0),
-  totalElevationGain: integer("total_elevation_gain").notNull().default(0),
+  details: text("details").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

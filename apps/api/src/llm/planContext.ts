@@ -23,13 +23,8 @@ export interface RecentActivityContext {
 /** A manually recorded activity. */
 export interface ManualActivityContext {
   id: number;
-  name: string;
-  type: string;
   startDate: string;
-  distance: number;
-  movingTime: number;
-  elapsedTime: number;
-  totalElevationGain: number;
+  details: string;
 }
 
 /** A comment the athlete added to an activity. */
@@ -124,15 +119,7 @@ export function formatManualActivities(
 ): string {
   return entries
     .map((entry, index) => {
-      const details: string[] = [];
-      if (entry.distance > 0) {
-        details.push(`${(entry.distance / 1000).toFixed(2)} km`);
-      }
-      details.push(`${formatDuration(entry.movingTime)} moving`);
-      if (entry.totalElevationGain > 0) {
-        details.push(`${Math.round(entry.totalElevationGain)} m elevation`);
-      }
-      return `${index + 1}. ${entry.startDate.slice(0, 10)} — ${entry.type} — ${entry.name}: ${details.join(", ")}.`;
+      return `${index + 1}. ${entry.startDate} — ${entry.details}`;
     })
     .join("\n");
 }

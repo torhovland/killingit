@@ -9,7 +9,8 @@ import { Hono } from "hono";
 import { getAthlete } from "../auth/middleware.js";
 import type { ActivityFeed } from "../coaching/activities.js";
 import type { LlmClient } from "../llm/client.js";
-import type { CoachingInputs } from "../plans/inputs.js";
+import { startOfWeek } from "../plans/dates.js";
+import { loadCoachingInputs, type CoachingInputs } from "../plans/inputs.js";
 import {
   latestAnswerTimestamp,
   planIsStale,
@@ -47,11 +48,16 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
     today: string,
     includeTomorrow = false,
   ) {
-    const [storedPlan, generation, answers] = await Promise.all([
-      deps.plans.load(userId),
-      deps.generations.load(userId),
-      deps.answers.listForUser(userId),
-    ]);
+    const [storedPlan, generation, answers, coachingInputs] = await Promise.all(
+      [
+        deps.plans.load(userId),
+        deps.generations.load(userId),
+        deps.answers.listForUser(userId),
+        deps.loadCoachingInputs
+          ? deps.loadCoachingInputs(userId, startOfWeek(today))
+          : loadCoachingInputs(userId, startOfWeek(today)),
+      ],
+    );
     const answersUpdatedAt = latestAnswerTimestamp(answers);
 
     // A plan saved under an older schema (or a partial write) must not crash
@@ -66,7 +72,11 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
         : null;
     const stale =
       storedPlan && parsed?.success
-        ? planIsStale(storedPlan.answersUpdatedAt, answersUpdatedAt)
+        ? planIsStale(storedPlan.answersUpdatedAt, answersUpdatedAt) ||
+          planIsStale(
+            storedPlan.coachingInputsUpdatedAt,
+            coachingInputs.updatedAt,
+          )
         : false;
 
     return coachPlanResponseSchema.parse({

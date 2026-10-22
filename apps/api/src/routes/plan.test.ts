@@ -112,16 +112,6 @@ class MemoryPlanStore implements PlanStore {
     };
     return Promise.resolve(this.stored);
   }
-
-  markInputsUpdated(): Promise<void> {
-    if (this.stored) {
-      this.stored = {
-        ...this.stored,
-        coachingInputsUpdatedAt: new Date(),
-      };
-    }
-    return Promise.resolve();
-  }
 }
 
 class MemoryGenerationStore implements PlanGenerationStore {
@@ -186,6 +176,7 @@ function makeApp(options: {
   planStore?: PlanStore;
   generationStore?: PlanGenerationStore;
   answers?: QuestionAnswerStore;
+  coachingInputs?: CoachingInputs;
 }) {
   return createApp({
     authProvider: { verify: () => Promise.resolve({ sub: "athlete-1" }) },
@@ -220,12 +211,14 @@ function makeApp(options: {
         model: "test-model",
       }),
     loadCoachingInputs: () =>
-      Promise.resolve({
-        manualActivities: [],
-        activityComments: [],
-        weeklyNote: null,
-        updatedAt: null,
-      } satisfies CoachingInputs),
+      Promise.resolve(
+        options.coachingInputs ?? {
+          manualActivities: [],
+          activityComments: [],
+          weeklyNote: null,
+          updatedAt: null,
+        },
+      ),
   });
 }
 
@@ -309,6 +302,30 @@ describe("coach plan route", () => {
       tomorrow: false,
     });
     expect(body.stale).toBe(false);
+  });
+
+  it("marks the plan stale when a coaching input is newer than the plan", async () => {
+    const plan = makePlan();
+    const planStore = new MemoryPlanStore({
+      plan,
+      answersUpdatedAt: new Date("2026-10-20T10:00:00Z"),
+      coachingInputsUpdatedAt: new Date("2026-10-20T10:00:00Z"),
+      generatedAt: new Date("2026-10-20T10:00:00Z"),
+    });
+
+    const res = await makeApp({
+      planStore,
+      coachingInputs: {
+        manualActivities: [],
+        activityComments: [],
+        weeklyNote: "I cannot train on Friday this week.",
+        updatedAt: new Date("2026-10-21T08:00:00Z"),
+      },
+    }).fetch(authenticatedRequest("/api/coaching/plan?today=2026-10-21"));
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { stale: boolean };
+    expect(body.stale).toBe(true);
   });
 
   it("treats an invalid stored plan as absent instead of failing", async () => {

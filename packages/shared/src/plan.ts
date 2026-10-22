@@ -231,13 +231,8 @@ export type PlanGenerateInput = z.infer<typeof planGenerateInputSchema>;
 
 /** A manual activity the athlete recorded themselves. */
 export const manualActivityInputSchema = z.object({
-  name: z.string().min(1).max(200),
-  type: z.string().min(1).max(100),
-  startDate: z.string().datetime(),
-  distance: z.number().nonnegative(),
-  movingTime: z.number().nonnegative(),
-  elapsedTime: z.number().nonnegative(),
-  totalElevationGain: z.number().nonnegative(),
+  startDate: planDateSchema,
+  details: z.string().min(1).max(2000),
 });
 
 export type ManualActivityInput = z.infer<typeof manualActivityInputSchema>;

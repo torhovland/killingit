@@ -6,7 +6,6 @@ import { and, eq } from "drizzle-orm";
 import { db } from "../db/index.js";
 import {
   activityComments,
-  coachPlans,
   manualActivities,
   weeklyNotes,
 } from "../db/schema.js";
@@ -69,13 +68,8 @@ export async function loadCoachingInputs(
   return {
     manualActivities: manualRows.map((row) => ({
       id: row.id,
-      name: row.name,
-      type: row.type,
       startDate: row.startDate,
-      distance: row.distance,
-      movingTime: row.movingTime,
-      elapsedTime: row.elapsedTime,
-      totalElevationGain: row.totalElevationGain,
+      details: row.details,
     })),
     activityComments: commentRows.map((row) => ({
       activityId: row.activityId,
@@ -86,7 +80,53 @@ export async function loadCoachingInputs(
   };
 }
 
-/** Records a manual activity and marks the plan for a revision. */
+/** Loads all manual activities for a user. */
+export async function loadManualActivities(
+  userId: number,
+): Promise<ManualActivityContext[]> {
+  const rows = await db
+    .select()
+    .from(manualActivities)
+    .where(eq(manualActivities.userId, userId));
+  return rows.map((row) => ({
+    id: row.id,
+    startDate: row.startDate,
+    details: row.details,
+  }));
+}
+
+/**
+ * Updates a manual activity. The plan's stored input timestamp is deliberately
+ * left unchanged: it still points at the inputs the plan was generated from, so
+ * the newer activity makes the plan stale and triggers a revision.
+ */
+export async function updateManualActivity(
+  userId: number,
+  activityId: number,
+  input: ManualActivityInput,
+): Promise<boolean> {
+  const now = new Date();
+  const rows = await db
+    .update(manualActivities)
+    .set({
+      startDate: input.startDate,
+      details: input.details,
+      updatedAt: now,
+    })
+    .where(
+      and(
+        eq(manualActivities.userId, userId),
+        eq(manualActivities.id, activityId),
+      ),
+    )
+    .returning({ id: manualActivities.id });
+  return rows.length > 0;
+}
+
+/**
+ * Records a manual activity. The plan's stored input timestamp is deliberately
+ * left unchanged so the next status read sees the newer input and regenerates.
+ */
 export async function saveManualActivity(
   userId: number,
   input: ManualActivityInput,
@@ -94,20 +134,14 @@ export async function saveManualActivity(
   const now = new Date();
   await db.insert(manualActivities).values({
     userId,
-    name: input.name,
-    type: input.type,
     startDate: input.startDate,
-    distance: input.distance,
-    movingTime: input.movingTime,
-    elapsedTime: input.elapsedTime,
-    totalElevationGain: input.totalElevationGain,
+    details: input.details,
     createdAt: now,
     updatedAt: now,
   });
-  await markInputsUpdated(userId);
 }
 
-/** Upserts a comment on an activity and marks the plan for a revision. */
+/** Upserts a comment on an activity. The plan's input timestamp stays unchanged. */
 export async function saveActivityComment(
   userId: number,
   input: ActivityCommentInput,
@@ -126,10 +160,27 @@ export async function saveActivityComment(
       target: [activityComments.userId, activityComments.activityId],
       set: { comment: input.comment, updatedAt: now },
     });
-  await markInputsUpdated(userId);
 }
 
-/** Upserts the note for the week containing `today` and marks the plan dirty. */
+/** Loads the note for `weekStartDate`, or null when none was saved. */
+export async function loadWeeklyNote(
+  userId: number,
+  weekStartDate: string,
+): Promise<string | null> {
+  const rows = await db
+    .select({ note: weeklyNotes.note })
+    .from(weeklyNotes)
+    .where(
+      and(
+        eq(weeklyNotes.userId, userId),
+        eq(weeklyNotes.weekStartDate, weekStartDate),
+      ),
+    )
+    .limit(1);
+  return rows[0]?.note ?? null;
+}
+
+/** The plan's stored input timestamp stays unchanged so the next read regenerates. */
 export async function saveWeeklyNote(
   userId: number,
   today: string,
@@ -150,12 +201,4 @@ export async function saveWeeklyNote(
       target: [weeklyNotes.userId, weeklyNotes.weekStartDate],
       set: { note, updatedAt: now },
     });
-  await markInputsUpdated(userId);
-}
-
-async function markInputsUpdated(userId: number): Promise<void> {
-  await db
-    .update(coachPlans)
-    .set({ coachingInputsUpdatedAt: new Date() })
-    .where(eq(coachPlans.userId, userId));
 }
