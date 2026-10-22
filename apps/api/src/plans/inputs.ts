@@ -6,6 +6,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "../db/index.js";
 import {
   activityComments,
+  activityDeletions,
   manualActivities,
   weeklyNotes,
 } from "../db/schema.js";
@@ -44,7 +45,7 @@ export async function loadCoachingInputs(
   userId: number,
   weekStartDate: string,
 ): Promise<CoachingInputs> {
-  const [manualRows, commentRows, noteRows] = await Promise.all([
+  const [manualRows, commentRows, noteRows, deletionRows] = await Promise.all([
     db
       .select()
       .from(manualActivities)
@@ -63,6 +64,10 @@ export async function loadCoachingInputs(
         ),
       )
       .limit(1),
+    db
+      .select()
+      .from(activityDeletions)
+      .where(eq(activityDeletions.userId, userId)),
   ]);
 
   return {
@@ -76,7 +81,12 @@ export async function loadCoachingInputs(
       comment: row.comment,
     })),
     weeklyNote: noteRows[0]?.note ?? null,
-    updatedAt: newest([...manualRows, ...commentRows, ...noteRows]),
+    updatedAt: newest([
+      ...manualRows,
+      ...commentRows,
+      ...noteRows,
+      ...deletionRows,
+    ]),
   };
 }
 

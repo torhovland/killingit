@@ -32,18 +32,42 @@ function formatDate(iso: string): string {
 export function ActivityCard({
   activity,
   onSubmitComment,
+  onDelete,
 }: {
   activity: AnalyzedActivity;
   onSubmitComment?: (
     activityId: string,
     comment: string,
   ) => Promise<string | null>;
+  onDelete?: (activityId: string) => Promise<void>;
 }) {
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [savedComment, setSavedComment] = useState<string | null>(null);
   const [coachReply, setCoachReply] = useState<string | null>(null);
+
+  async function handleDelete(): Promise<void> {
+    if (!onDelete || deleting) {
+      return;
+    }
+    if (!window.confirm("Delete this activity from your coaching view?")) {
+      return;
+    }
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await onDelete(String(activity.id));
+    } catch (err: unknown) {
+      setDeleteError(
+        err instanceof Error ? err.message : "Could not delete activity",
+      );
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   async function handleSubmit(
     event: React.FormEvent<HTMLFormElement>,
@@ -75,22 +99,37 @@ export function ActivityCard({
       className="flex flex-col gap-2 rounded-lg border bg-card p-4 text-left"
       data-testid="activity-card"
     >
-      <header className="flex flex-col gap-1">
-        <h3 className="text-lg font-semibold">{activity.name}</h3>
-        <p className="text-sm text-muted-foreground">
-          {formatDate(activity.startDate)} · {activity.type} ·{" "}
-          {(activity.distance / 1000).toFixed(2)} km ·{" "}
-          {formatDuration(activity.movingTime)} ·{" "}
-          {Math.round(activity.totalElevationGain)} m climb
-          {activity.sampleCount > 0 && (
-            <span>
-              {" "}
-              · {activity.sampleCount} sample
-              {activity.sampleCount === 1 ? "" : "s"}
-            </span>
-          )}
-        </p>
+      <header className="flex items-start justify-between gap-2">
+        <div className="flex flex-col gap-1">
+          <h3 className="text-lg font-semibold">{activity.name}</h3>
+          <p className="text-sm text-muted-foreground">
+            {formatDate(activity.startDate)} · {activity.type} ·{" "}
+            {(activity.distance / 1000).toFixed(2)} km ·{" "}
+            {formatDuration(activity.movingTime)} ·{" "}
+            {Math.round(activity.totalElevationGain)} m climb
+            {activity.sampleCount > 0 && (
+              <span>
+                {" "}
+                · {activity.sampleCount} sample
+                {activity.sampleCount === 1 ? "" : "s"}
+              </span>
+            )}
+          </p>
+        </div>
+        {onDelete && (
+          <button
+            type="button"
+            className="text-xs text-destructive enabled:hover:underline disabled:opacity-50"
+            onClick={() => void handleDelete()}
+            disabled={deleting}
+            data-testid="activity-delete"
+          >
+            {deleting ? "Deleting…" : "Delete"}
+          </button>
+        )}
       </header>
+
+      {deleteError && <p className="text-xs text-destructive">{deleteError}</p>}
 
       {activity.analysis ? (
         <p className="whitespace-pre-line" data-testid="activity-analysis">

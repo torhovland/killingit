@@ -188,6 +188,9 @@ one swappable corner, and normalizes Garmin activities into the shared
   top-level React `ErrorBoundary` renders a recovery page ("Something went
   wrong", retry/reload) for any uncaught render error and reports it to Sentry
   through React 19's `onCaughtError` hook.
+- **Deleting an imported activity is local.** Garmin Connect remains the source
+  of truth, so a deletion stores a per-user tombstone and filters the activity
+  out of the feed and plan. See `docs/specs/activity-deletion.md`.
 - **Timeseries from activity details.** Each activity triggers
   `get_activity_details()`, whose positional `activityDetailMetrics` are
   resolved through the library's `parse_activity_detail_metrics()` and mapped

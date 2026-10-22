@@ -5,6 +5,7 @@ import type {
 } from "@killingit/shared";
 import { decrypt } from "../crypto/credentials.js";
 import { syncGarminActivities } from "../garmin/client.js";
+import { loadDeletedActivityIds } from "./deletions.js";
 import { loadDecryptedGarminCredentials } from "../garmin/credentials.js";
 import { mapWithConcurrency } from "../lib/mapWithConcurrency.js";
 import { ANALYSIS_PROMPT_VERSION } from "../llm/activityPrompt.js";
@@ -94,7 +95,9 @@ export async function loadAnalyzedActivities(options: {
   }
 
   const activities = await syncGarminActivities(garminCredentials);
+  const deletedIds = await loadDeletedActivityIds(options.userId, "garmin");
   const latest = [...activities]
+    .filter((activity) => !deletedIds.has(String(activity.id)))
     .sort((a, b) => Date.parse(b.startDate) - Date.parse(a.startDate))
     .slice(0, options.limit);
 
