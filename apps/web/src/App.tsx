@@ -11,6 +11,7 @@ import { fetchJsonAuthed } from "./fetchAuthed";
 import { reportError } from "./reportError";
 import { AdminSettingsPage } from "./AdminSettingsPage";
 import { CoachDashboard } from "./CoachDashboard";
+import { DevDatePicker } from "./DevDatePicker";
 
 type Page = "coach" | "admin";
 
@@ -156,6 +157,8 @@ export function App() {
           {health.service} {health.version} — {health.status}
         </p>
       )}
+
+      <DevDatePicker />
     </main>
   );
 }

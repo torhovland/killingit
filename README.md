@@ -65,6 +65,15 @@ The web dev server proxies `/api` requests to the API, so the frontend can call
 Copy `.env.example` to `.env` and adjust as needed. Defaults work for local
 development out of the box.
 
+### Overriding "today" in development
+
+When the web app runs in development, a "Dev: Override today" picker appears in
+the bottom-right corner. Picking a date stores it as an override and reloads the
+app, so the visit behaves exactly like a fresh visit on that day: the plan status
+is re-evaluated and any missing day, week, or block is generated for the selected
+date. Use "Clear override" to return to the real clock. The override lives in
+`localStorage` and is disabled in production builds.
+
 ## Scripts
 
 | Command               | Description                                  |
