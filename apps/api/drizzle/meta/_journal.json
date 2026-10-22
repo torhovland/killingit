@@ -71,6 +71,13 @@
       "when": 1792609425443,
       "tag": "0009_strange_goliath",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792674806162,
+      "tag": "0010_shiny_wallflower",
+      "breakpoints": true
     }
   ]
 }
