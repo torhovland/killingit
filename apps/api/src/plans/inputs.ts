@@ -69,13 +69,8 @@ export async function loadCoachingInputs(
   return {
     manualActivities: manualRows.map((row) => ({
       id: row.id,
-      name: row.name,
-      type: row.type,
       startDate: row.startDate,
-      distance: row.distance,
-      movingTime: row.movingTime,
-      elapsedTime: row.elapsedTime,
-      totalElevationGain: row.totalElevationGain,
+      details: row.details,
     })),
     activityComments: commentRows.map((row) => ({
       activityId: row.activityId,
@@ -94,13 +89,8 @@ export async function saveManualActivity(
   const now = new Date();
   await db.insert(manualActivities).values({
     userId,
-    name: input.name,
-    type: input.type,
     startDate: input.startDate,
-    distance: input.distance,
-    movingTime: input.movingTime,
-    elapsedTime: input.elapsedTime,
-    totalElevationGain: input.totalElevationGain,
+    details: input.details,
     createdAt: now,
     updatedAt: now,
   });
@@ -127,6 +117,24 @@ export async function saveActivityComment(
       set: { comment: input.comment, updatedAt: now },
     });
   await markInputsUpdated(userId);
+}
+
+/** Loads the note for `weekStartDate`, or null when none was saved. */
+export async function loadWeeklyNote(
+  userId: number,
+  weekStartDate: string,
+): Promise<string | null> {
+  const rows = await db
+    .select({ note: weeklyNotes.note })
+    .from(weeklyNotes)
+    .where(
+      and(
+        eq(weeklyNotes.userId, userId),
+        eq(weeklyNotes.weekStartDate, weekStartDate),
+      ),
+    )
+    .limit(1);
+  return rows[0]?.note ?? null;
 }
 
 /** Upserts the note for the week containing `today` and marks the plan dirty. */

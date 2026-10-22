@@ -2,6 +2,7 @@ import {
   activityCommentRequestSchema,
   analyzedActivitiesResponseSchema,
   manualActivityRequestSchema,
+  planDateSchema,
   weeklyNoteRequestSchema,
 } from "@killingit/shared";
 import { zValidator } from "@hono/zod-validator";
@@ -20,7 +21,9 @@ import {
 import { GarminAuthError, GarminSidecarError } from "../garmin/client.js";
 import type { LlmClient } from "../llm/client.js";
 import { LlmAuthError, LlmProviderError } from "../llm/openrouter.js";
+import { startOfWeek } from "../plans/dates.js";
 import {
+  loadWeeklyNote,
   saveActivityComment,
   saveManualActivity,
   saveWeeklyNote,
@@ -57,6 +60,7 @@ export interface CoachingRouteDependencies {
     weekStartDate: string,
   ) => Promise<CoachingInputs>;
   /** Injectable for route tests; default to the database-backed writers. */
+  loadWeeklyNote?: typeof loadWeeklyNote;
   saveActivityComment?: typeof saveActivityComment;
   saveManualActivity?: typeof saveManualActivity;
   saveWeeklyNote?: typeof saveWeeklyNote;
@@ -79,6 +83,7 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
   const saveComment = deps.saveActivityComment ?? saveActivityComment;
   const saveManual = deps.saveManualActivity ?? saveManualActivity;
   const saveWeekly = deps.saveWeeklyNote ?? saveWeeklyNote;
+  const loadNote = deps.loadWeeklyNote ?? loadWeeklyNote;
   const trigger = deps.triggerPlanGeneration ?? triggerPlanGeneration;
 
   return new Hono()
@@ -186,6 +191,15 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
         return c.json({ message: "Manual activity saved" });
       },
     )
+    .get("/weekly/notes", async (c) => {
+      const user = await deps.users.ensureUser(getAthlete(c).sub);
+      const today = planDateSchema.safeParse(c.req.query("today"));
+      if (!today.success) {
+        return c.text("A valid today date (YYYY-MM-DD) is required", 400);
+      }
+      const note = await loadNote(user.id, startOfWeek(today.data));
+      return c.json({ note });
+    })
     .post(
       "/weekly/notes",
       zValidator("json", weeklyNoteRequestSchema),

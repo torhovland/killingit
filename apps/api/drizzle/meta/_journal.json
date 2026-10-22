@@ -78,6 +78,13 @@
       "when": 1792674806162,
       "tag": "0010_shiny_wallflower",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792675000000,
+      "tag": "0011_simplify_manual_activities",
+      "breakpoints": true
     }
   ]
 }
