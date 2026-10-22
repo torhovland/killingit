@@ -8,6 +8,13 @@ import { withSentry } from "./instrumentation/sentry.js";
 import type { ActivityFeed } from "./coaching/activities.js";
 import type { LlmClient } from "./llm/client.js";
 import {
+  saveActivityComment,
+  saveManualActivity,
+  saveWeeklyNote,
+  type CoachingInputs,
+} from "./plans/inputs.js";
+import type { triggerPlanGeneration } from "./plans/trigger.js";
+import {
   dbPlanGenerationStore,
   dbPlanStore,
   type PlanGenerationStore,
@@ -19,7 +26,7 @@ import {
 } from "./questions/answers.js";
 import { adminQuestionsRoute } from "./routes/adminQuestions.js";
 import { athletesRoute } from "./routes/athletes.js";
-import { coachingRoute } from "./routes/coaching.js";
+import { createCoachingRoute } from "./routes/coaching.js";
 import { garminRoute } from "./routes/garmin.js";
 import { greet } from "./routes/greet.js";
 import { health } from "./routes/health.js";
@@ -58,6 +65,17 @@ export interface AppDependencies {
   /** Activity/LLM loaders, injectable for DB-free plan route tests. */
   loadActivities?: () => Promise<ActivityFeed>;
   loadLlm?: () => Promise<LlmClient | null>;
+  /** Coaching-input loader, injectable for DB-free route tests. */
+  loadCoachingInputs?: (
+    userId: number,
+    weekStartDate: string,
+  ) => Promise<CoachingInputs>;
+  /** Coaching-input writers, injectable for DB-free route tests. */
+  saveActivityComment?: typeof saveActivityComment;
+  saveManualActivity?: typeof saveManualActivity;
+  saveWeeklyNote?: typeof saveWeeklyNote;
+  /** Plan generation trigger, injectable for DB-free route tests. */
+  triggerPlanGeneration?: typeof triggerPlanGeneration;
 }
 
 // Authentication is opt-in per route. The provider is created lazily on the
@@ -119,7 +137,34 @@ export function createApp(deps: AppDependencies = {}): Hono {
   // Coaching reads synced Garmin activities, analyses them with the configured
   // LLM, and returns activity data with cached-or-fresh coach analysis.
   api.use("/coaching/*", requireAuth(authProvider));
-  api.route("/coaching", coachingRoute);
+  api.route(
+    "/coaching",
+    createCoachingRoute({
+      users: userStore,
+      answers: answerStore,
+      plans: planStore,
+      generations: generationStore,
+      ...(deps.loadActivities !== undefined
+        ? { loadActivities: deps.loadActivities }
+        : {}),
+      ...(deps.loadLlm !== undefined ? { loadLlm: deps.loadLlm } : {}),
+      ...(deps.loadCoachingInputs !== undefined
+        ? { loadCoachingInputs: deps.loadCoachingInputs }
+        : {}),
+      ...(deps.saveActivityComment !== undefined
+        ? { saveActivityComment: deps.saveActivityComment }
+        : {}),
+      ...(deps.saveManualActivity !== undefined
+        ? { saveManualActivity: deps.saveManualActivity }
+        : {}),
+      ...(deps.saveWeeklyNote !== undefined
+        ? { saveWeeklyNote: deps.saveWeeklyNote }
+        : {}),
+      ...(deps.triggerPlanGeneration !== undefined
+        ? { triggerPlanGeneration: deps.triggerPlanGeneration }
+        : {}),
+    }),
+  );
 
   // The four-level coach plan and its generation progress. The plan is stored
   // per user and advanced by the daily/weekly/block cascade.
@@ -134,6 +179,9 @@ export function createApp(deps: AppDependencies = {}): Hono {
         ? { loadActivities: deps.loadActivities }
         : {}),
       ...(deps.loadLlm !== undefined ? { loadLlm: deps.loadLlm } : {}),
+      ...(deps.loadCoachingInputs !== undefined
+        ? { loadCoachingInputs: deps.loadCoachingInputs }
+        : {}),
     }),
   );
 

@@ -17,7 +17,9 @@ import {
   generateWeeklyUpdate,
 } from "../llm/planUpdate.js";
 import type {
+  ActivityCommentContext,
   AthleteAnswerContext,
+  ManualActivityContext,
   RecentActivityContext,
 } from "../llm/planContext.js";
 import type { LlmProvider } from "../llm/openrouter.js";
@@ -30,6 +32,10 @@ export interface PlanGenerationContext {
   answers: readonly AthleteAnswerContext[];
   answersUpdatedAt: Date | null;
   activities: readonly AnalyzedActivity[];
+  manualActivities: readonly ManualActivityContext[];
+  activityComments: readonly ActivityCommentContext[];
+  weeklyNote: string | null;
+  coachingInputsUpdatedAt: Date | null;
   provider: LlmProvider;
   apiKey: string;
   model: string;
@@ -64,6 +70,12 @@ export async function runPlanGeneration(
     input.plan !== null &&
     planIsStale(input.plan.answersUpdatedAt, context.answersUpdatedAt);
   const needsFullPlan = currentPlan === null || stale || input.force === true;
+  const inputsChanged =
+    input.plan !== null &&
+    context.coachingInputsUpdatedAt !== null &&
+    (input.plan.coachingInputsUpdatedAt === null ||
+      context.coachingInputsUpdatedAt.getTime() >
+        input.plan.coachingInputsUpdatedAt.getTime());
 
   try {
     if (needsFullPlan) {
@@ -113,7 +125,12 @@ export async function runPlanGeneration(
       const generated = {
         season,
         block: weekUpdate.block,
-        week: applyCompletedDays(dayUpdate.week, context.activities, today),
+        week: applyCompletedDays(
+          dayUpdate.week,
+          context.activities,
+          today,
+          context.manualActivities,
+        ),
         today: dayUpdate.today,
         tomorrow: dayUpdate.tomorrow,
       };
@@ -123,20 +140,32 @@ export async function runPlanGeneration(
         userId,
         generated,
         context.answersUpdatedAt,
+        context.coachingInputsUpdatedAt,
       );
       await generations.finish(userId);
       return saved;
     }
 
     const pending = planPending(currentPlan, today, input.includeTomorrow);
-    if (!pending.block && !pending.week && !pending.day && !pending.tomorrow) {
+    if (
+      !pending.block &&
+      !pending.week &&
+      !pending.day &&
+      !pending.tomorrow &&
+      !inputsChanged
+    ) {
       await generations.finish(userId);
       return input.plan;
     }
 
-    const plan = await advancePlan(input, currentPlan, pending);
+    const plan = await advancePlan(input, currentPlan, pending, inputsChanged);
     await generations.update(userId, "Saving your plan", 95);
-    const saved = await plans.save(userId, plan, context.answersUpdatedAt);
+    const saved = await plans.save(
+      userId,
+      plan,
+      context.answersUpdatedAt,
+      context.coachingInputsUpdatedAt,
+    );
     await generations.finish(userId);
     return saved;
   } catch (err) {
@@ -151,6 +180,7 @@ async function advancePlan(
   input: GeneratePlanInput,
   current: CoachPlan,
   pending: ReturnType<typeof planPending>,
+  inputsChanged: boolean,
 ): Promise<CoachPlan> {
   const { userId, today, context, generations } = input;
   let season: SeasonPlan = current.season;
@@ -188,7 +218,7 @@ async function advancePlan(
     today: todayPlan,
     tomorrow: tomorrowPlan,
   };
-  if (blockChanged || planPending(afterBlock, today).week) {
+  if (blockChanged || inputsChanged || planPending(afterBlock, today).week) {
     await generations.update(userId, "Building this week's plan", 45);
     const update = await generateWeeklyUpdate(
       context.provider,
@@ -216,6 +246,7 @@ async function advancePlan(
   if (
     blockChanged ||
     weekChanged ||
+    inputsChanged ||
     afterWeekPending.day ||
     afterWeekPending.tomorrow
   ) {
@@ -238,7 +269,7 @@ async function advancePlan(
   const plan = {
     season,
     block,
-    week: applyCompletedDays(week, context.activities, today),
+    week: applyCompletedDays(week, context.activities, today, context.manualActivities),
     today: todayPlan,
     tomorrow: tomorrowPlan,
   };
@@ -291,5 +322,14 @@ function baseContext(input: GeneratePlanInput) {
     recentActivities,
     today: input.today,
     ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),
+    ...(input.context.manualActivities.length > 0
+      ? { manualActivities: input.context.manualActivities }
+      : {}),
+    ...(input.context.activityComments.length > 0
+      ? { activityComments: input.context.activityComments }
+      : {}),
+    ...(input.context.weeklyNote !== null
+      ? { weeklyNote: input.context.weeklyNote }
+      : {}),
   };
 }

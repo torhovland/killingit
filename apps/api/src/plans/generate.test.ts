@@ -127,10 +127,12 @@ function buildResponses(today = "2026-10-21") {
 function makeStoredPlan(
   plan: CoachPlan,
   answersUpdatedAt: Date | null = new Date("2026-10-20T10:00:00Z"),
+  coachingInputsUpdatedAt: Date | null = null,
 ): StoredPlan {
   return {
     plan,
     answersUpdatedAt,
+    coachingInputsUpdatedAt,
     generatedAt: new Date("2026-10-20T10:00:00Z"),
   };
 }
@@ -138,11 +140,16 @@ function makeStoredPlan(
 function makeContext(
   provider: LlmProvider,
   answersUpdatedAt: Date | null = new Date("2026-10-20T10:00:00Z"),
+  coachingInputsUpdatedAt: Date | null = null,
 ): PlanGenerationContext {
   return {
     answers: [{ prompt: "Goal?", answer: "Marathon", skipped: false }],
     answersUpdatedAt,
     activities: [],
+    manualActivities: [],
+    activityComments: [],
+    weeklyNote: null,
+    coachingInputsUpdatedAt,
     provider,
     apiKey: "test-key",
     model: "test-model",
@@ -164,9 +171,25 @@ class MemoryPlanStore implements PlanStore {
     _userId: number,
     plan: CoachPlan,
     answersUpdatedAt: Date | null,
+    coachingInputsUpdatedAt: Date | null = null,
   ): Promise<StoredPlan> {
-    this.saved = { plan, answersUpdatedAt, generatedAt: new Date() };
+    this.saved = {
+      plan,
+      answersUpdatedAt,
+      coachingInputsUpdatedAt,
+      generatedAt: new Date(),
+    };
     return Promise.resolve(this.saved);
+  }
+
+  markInputsUpdated(): Promise<void> {
+    if (this.saved) {
+      this.saved = {
+        ...this.saved,
+        coachingInputsUpdatedAt: new Date(),
+      };
+    }
+    return Promise.resolve();
   }
 }
 
@@ -343,6 +366,43 @@ describe("runPlanGeneration", () => {
     });
 
     expect(provider.calls).toEqual(["daily"]);
+    expect(saved?.plan.today.date).toBe("2026-10-21");
+    expect(generations.status.status).toBe("done");
+  });
+
+  it("revises the week and day when coaching inputs change", async () => {
+    const provider = new FakeProvider({
+      weekly: JSON.stringify({
+        week: makeWeek("2026-10-19"),
+        block: makeBlock(),
+      }),
+      daily: JSON.stringify({
+        today: makeDay("2026-10-21"),
+        week: makeWeek("2026-10-19"),
+      }),
+    });
+    const existing = makeStoredPlan(
+      makePlan("2026-10-21"),
+      new Date("2026-10-20T10:00:00Z"),
+      new Date("2026-10-20T10:00:00Z"),
+    );
+    const plans = new MemoryPlanStore(existing);
+    const generations = new MemoryGenerationStore();
+
+    const saved = await runPlanGeneration({
+      userId: 1,
+      today: "2026-10-21",
+      plan: existing,
+      context: makeContext(
+        provider,
+        new Date("2026-10-20T10:00:00Z"),
+        new Date("2026-10-21T10:00:00Z"),
+      ),
+      plans,
+      generations,
+    });
+
+    expect(provider.calls).toEqual(["weekly", "daily"]);
     expect(saved?.plan.today.date).toBe("2026-10-21");
     expect(generations.status.status).toBe("done");
   });

@@ -228,3 +228,59 @@ export const planGenerateInputSchema = z.object({
 });
 
 export type PlanGenerateInput = z.infer<typeof planGenerateInputSchema>;
+
+/** A manual activity the athlete recorded themselves. */
+export const manualActivityInputSchema = z.object({
+  name: z.string().min(1).max(200),
+  type: z.string().min(1).max(100),
+  startDate: z.string().datetime(),
+  distance: z.number().nonnegative(),
+  movingTime: z.number().nonnegative(),
+  elapsedTime: z.number().nonnegative(),
+  totalElevationGain: z.number().nonnegative(),
+});
+
+export type ManualActivityInput = z.infer<typeof manualActivityInputSchema>;
+
+/** A comment the athlete added to an activity. */
+export const activityCommentInputSchema = z.object({
+  activityId: z.string().min(1),
+  comment: z.string().min(1).max(2000),
+});
+
+export type ActivityCommentInput = z.infer<typeof activityCommentInputSchema>;
+
+/** A general note the athlete added for the current week. */
+export const weeklyNoteInputSchema = z.object({
+  note: z.string().min(1).max(2000),
+});
+
+export type WeeklyNoteInput = z.infer<typeof weeklyNoteInputSchema>;
+
+/** Request body of `POST /api/coaching/weekly/notes`. */
+export const weeklyNoteRequestSchema = z.object({
+  today: planDateSchema,
+  timezone: z.string().min(1).max(100).optional(),
+  note: z.string().min(1).max(2000),
+});
+
+export type WeeklyNoteRequest = z.infer<typeof weeklyNoteRequestSchema>;
+
+/** Request body of `POST /api/coaching/activities/:activityId/comments`. */
+export const activityCommentRequestSchema = z.object({
+  today: planDateSchema,
+  timezone: z.string().min(1).max(100).optional(),
+  comment: z.string().min(1).max(2000),
+});
+
+export type ActivityCommentRequest = z.infer<
+  typeof activityCommentRequestSchema
+>;
+
+/** Request body of `POST /api/coaching/activities/manual`. */
+export const manualActivityRequestSchema = manualActivityInputSchema.extend({
+  today: planDateSchema,
+  timezone: z.string().min(1).max(100).optional(),
+});
+
+export type ManualActivityRequest = z.infer<typeof manualActivityRequestSchema>;

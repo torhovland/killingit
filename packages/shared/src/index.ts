@@ -63,6 +63,8 @@ export {
 } from "./llm.js";
 
 export {
+  activityCommentInputSchema,
+  activityCommentRequestSchema,
   blockPlanSchema,
   blockPlanUpdateSchema,
   blockWeekSummarySchema,
@@ -71,6 +73,8 @@ export {
   dailyPlanUpdateSchema,
   dayPlanSchema,
   initialBlockUpdateSchema,
+  manualActivityInputSchema,
+  manualActivityRequestSchema,
   planDateSchema,
   planGenerateInputSchema,
   planGenerationStatusSchema,
@@ -81,7 +85,11 @@ export {
   weekPlanSchema,
   weekSessionSchema,
   weekSessionStatusSchema,
+  weeklyNoteInputSchema,
+  weeklyNoteRequestSchema,
   weeklyPlanUpdateSchema,
+  type ActivityCommentInput,
+  type ActivityCommentRequest,
   type BlockPlan,
   type BlockPlanUpdate,
   type BlockWeekSummary,
@@ -90,6 +98,8 @@ export {
   type DailyPlanUpdate,
   type DayPlan,
   type InitialBlockUpdate,
+  type ManualActivityInput,
+  type ManualActivityRequest,
   type PlanGenerateInput,
   type PlanGenerationStatus,
   type PlanPending,
@@ -99,6 +109,8 @@ export {
   type WeekPlan,
   type WeekSession,
   type WeekSessionStatus,
+  type WeeklyNoteInput,
+  type WeeklyNoteRequest,
   type WeeklyPlanUpdate,
 } from "./plan.js";
 

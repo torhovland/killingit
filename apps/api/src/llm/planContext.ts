@@ -20,6 +20,35 @@ export interface RecentActivityContext {
   analysis: string | null;
 }
 
+/** A manually recorded activity. */
+export interface ManualActivityContext {
+  id: number;
+  name: string;
+  type: string;
+  startDate: string;
+  distance: number;
+  movingTime: number;
+  elapsedTime: number;
+  totalElevationGain: number;
+}
+
+/** A comment the athlete added to an activity. */
+export interface ActivityCommentContext {
+  activityId: string;
+  comment: string;
+}
+
+/** The complete context passed to the coach for a plan generation. */
+export interface PlanContextInput {
+  athleteAnswers: readonly AthleteAnswerContext[];
+  recentActivities: readonly RecentActivityContext[];
+  today: string;
+  timezone?: string;
+  manualActivities?: readonly ManualActivityContext[];
+  activityComments?: readonly ActivityCommentContext[];
+  weeklyNote?: string | null;
+}
+
 /** Renders the athlete's profile for a prompt. */
 export function formatAthleteAnswers(
   entries: readonly AthleteAnswerContext[],
@@ -45,14 +74,10 @@ export function formatRecentActivities(
 
 /**
  * The shared athlete/training context at the top of every plan prompt: today's
- * date, timezone, profile, and recent activities with coach analyses.
+ * date, timezone, profile, recent activities with coach analyses, manually
+ * recorded activities, activity comments, and the weekly note.
  */
-export function formatPlanContext(input: {
-  athleteAnswers: readonly AthleteAnswerContext[];
-  recentActivities: readonly RecentActivityContext[];
-  today: string;
-  timezone?: string;
-}): string[] {
+export function formatPlanContext(input: PlanContextInput): string[] {
   const lines = [`Today's date: ${input.today}`];
   if (input.timezone !== undefined && input.timezone.trim() !== "") {
     lines.push(`Athlete timezone: ${input.timezone.trim()}`);
@@ -65,7 +90,60 @@ export function formatPlanContext(input: {
     "Recent activities (most recent first):",
     formatRecentActivities(input.recentActivities),
   );
+
+  if (input.manualActivities && input.manualActivities.length > 0) {
+    lines.push(
+      "",
+      "Manually recorded activities:",
+      formatManualActivities(input.manualActivities),
+    );
+  }
+
+  if (input.activityComments && input.activityComments.length > 0) {
+    lines.push(
+      "",
+      "Activity comments:",
+      formatActivityComments(input.activityComments),
+    );
+  }
+
+  if (
+    input.weeklyNote !== undefined &&
+    input.weeklyNote !== null &&
+    input.weeklyNote.trim() !== ""
+  ) {
+    lines.push("", "Weekly note:", input.weeklyNote.trim());
+  }
+
   return lines;
+}
+
+/** Renders manually recorded activities for a prompt. */
+export function formatManualActivities(
+  entries: readonly ManualActivityContext[],
+): string {
+  return entries
+    .map((entry, index) => {
+      const details: string[] = [];
+      if (entry.distance > 0) {
+        details.push(`${(entry.distance / 1000).toFixed(2)} km`);
+      }
+      details.push(`${formatDuration(entry.movingTime)} moving`);
+      if (entry.totalElevationGain > 0) {
+        details.push(`${Math.round(entry.totalElevationGain)} m elevation`);
+      }
+      return `${index + 1}. ${entry.startDate.slice(0, 10)} — ${entry.type} — ${entry.name}: ${details.join(", ")}.`;
+    })
+    .join("\n");
+}
+
+/** Renders activity comments for a prompt. */
+export function formatActivityComments(
+  entries: readonly ActivityCommentContext[],
+): string {
+  return entries
+    .map((entry) => `- Activity ${entry.activityId}: ${entry.comment.trim()}`)
+    .join("\n");
 }
 
 /** Renders the season plan as an ordered block overview. */
