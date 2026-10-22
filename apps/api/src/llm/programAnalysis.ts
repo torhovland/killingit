@@ -3,6 +3,7 @@ import {
   buildProgramAnalysisMessages,
   type ProgramAnalysisInput,
 } from "./programAnalysisPrompt.js";
+import { completeWithFallbacks } from "./resilientCompletion.js";
 
 export interface ProgramAnalysisCredentials {
   apiKey: string;
@@ -15,12 +16,12 @@ export function analyzeActivityAgainstPlan(
   credentials: ProgramAnalysisCredentials,
   input: ProgramAnalysisInput,
 ): Promise<string> {
-  return provider.complete({
-    apiKey: credentials.apiKey,
-    model: credentials.model,
-    messages: buildProgramAnalysisMessages(input),
-    temperature: 0.3,
+  return completeWithFallbacks(
+    provider,
+    credentials,
+    buildProgramAnalysisMessages(input),
     // Leave room for reasoning tokens plus a complete 3-5 sentence review.
-    maxTokens: 2048,
-  });
+    2048,
+    0.3,
+  );
 }

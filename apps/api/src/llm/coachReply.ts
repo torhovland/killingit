@@ -3,6 +3,7 @@ import {
   buildCoachReplyMessages,
   type CoachReplyPromptInput,
 } from "./coachReplyPrompt.js";
+import { completeWithFallbacks } from "./resilientCompletion.js";
 
 export interface CoachReplyCredentials {
   apiKey: string;
@@ -15,12 +16,12 @@ export function generateCoachReply(
   credentials: CoachReplyCredentials,
   input: CoachReplyPromptInput,
 ): Promise<string> {
-  return provider.complete({
-    apiKey: credentials.apiKey,
-    model: credentials.model,
-    messages: buildCoachReplyMessages(input),
-    temperature: 0.4,
+  return completeWithFallbacks(
+    provider,
+    credentials,
+    buildCoachReplyMessages(input),
     // Brief text; leave room for reasoning tokens on reasoning models.
-    maxTokens: 1024,
-  });
+    1024,
+    0.4,
+  );
 }
