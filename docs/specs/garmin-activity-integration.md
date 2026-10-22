@@ -125,8 +125,10 @@ one swappable corner, and normalizes Garmin activities into the shared
 ### Web (`apps/web/src/`)
 
 - `GarminSection.tsx` — credential form (username/password) after sign-in;
-  `POST`s to `/api/garmin/credentials`. It shows the connected state; activity
-  loading lives in the coaching dashboard.
+  `POST`s to `/api/garmin/credentials`. When connected it shows the connected
+  state and an "Update Garmin credentials" action that reopens the form; saving
+  replaces that user's stored credentials. Activity loading lives in the
+  coaching dashboard.
 - `CoachDashboard.tsx` / `ActivityCard.tsx` — on load, if status is connected,
   fetches `/api/coaching/activities` (which syncs Garmin and optionally analyses
   the activities) and renders a "Syncing…" state, then the activity list.
