@@ -28,14 +28,21 @@ on the main page.
 4. **Coach analysis for activities**:
    - Sync the last 31 days of Garmin activities.
    - Analyse the latest activities (default 10, max 20), each with a prompt
-     containing the summary, aggregate channel stats, and a downsampled
-     timeseries (≤90 rows; first/last preserved).
+     containing the summary, the current week's planned sessions, aggregate
+     channel stats, and a downsampled timeseries (≤90 rows; first/last
+     preserved).
+   - Ask the coach to match each activity to the planned session for its date,
+     today's session, or another session that week, treating the device's
+     activity type as unreliable (erratic heart rate may indicate a planned
+     strength session).
    - Return activity data with the analysis (or a per-activity error) for the
      main page.
 5. **Analysis cache** in `activity_analyses` keyed by activity id, invalidated
    when the selected model changes, with `?refresh=true` to force regeneration.
 6. **Main page** showing the latest activities with their analysis, model, and
-   generation time; "Sync & re-analyze" forces a fresh pass.
+   generation time; "Sync & re-analyze" forces a fresh pass. The last
+   successful feed is cached per account in browser storage so existing cards
+   are visible as soon as the page loads, before the new sync finishes.
 
 ### Out of scope (deferred)
 
@@ -73,16 +80,23 @@ on the main page.
   ids exceed 32-bit integers), `model`, `prompt_version`, `analysis`,
   `created_at`, `updated_at`. A cached analysis is reused only when both the
   model and prompt version match.
+- **New table `activity_feed_cache`**: one row per user with the last
+  successfully synced `{ model, activities }` feed. It is replaced after every
+  successful sync and lets the dashboard show existing cards on page load
+  without waiting for Garmin. Also cached in browser storage per account for a
+  synchronous first paint.
 - **New env var** `LLM_CREDENTIALS_KEY` (encryption key) and optional
   `OPENROUTER_API_URL` (base-URL override).
 - **New routes** (all behind `requireAuth`):
   - `GET  /api/llm/settings` — `{ configured, provider, model }`, no key.
   - `PUT  /api/llm/settings` — `{ apiKey?, model }`; validates and stores.
   - `GET  /api/llm/models` — normalized OpenRouter catalog.
-  - `GET  /api/coaching/activities?limit=10&refresh=false` — sync Garmin,
+  - `GET  /api/coaching/activities`, `?limit=10&refresh=false` — sync Garmin,
     analyse the latest activities, return activities + analyses. Before
     OpenRouter is configured it returns the activities with `model: null` and no
     analyses, so the Garmin sync remains useful.
+  - `GET  /api/coaching/activities/cached` — return the last synced feed
+    immediately, without syncing Garmin, or an empty feed before the first sync.
 - **Shared types** — `llmSettings`, `llmModel`, `coachAnalysis`,
   `analyzedActivity`, and their response schemas.
 
@@ -94,8 +108,10 @@ on the main page.
   tests. Maps 401 → `LlmAuthError`, 402 (no credits) → distinct message,
   transport failures → 503. No SDK dependency.
 - `activityPrompt.ts` — aggregate stats per channel, even downsampling to 90
-  samples (first/last kept), a compact `elapsed | channel…` table, and the
-  system instructions for a 3–5 sentence coach response with one recommendation.
+  samples (first/last kept), a compact `elapsed | channel…` table, the current
+  week plan, and system instructions to match the activity to a planned session
+  without trusting the device's activity type (a 3–5 sentence coach response
+  with one recommendation).
 - `analyze.ts` — one completion per activity (temperature 0.3, 2048 max
   tokens). Reasoning models count reasoning against that budget; completions
   with `finish_reason: "length"` are rejected rather than shown truncated.
@@ -104,6 +120,8 @@ on the main page.
   model still stops at the limit, it retries with reasoning disabled and a
   doubled budget before falling back to no reasoning control.
 - `store.ts` / `analysisStore.ts` — Drizzle upserts and model-scoped cache reads.
+- `coaching/feedCache.ts` — stores the last successfully synced feed per user
+  (`activity_feed_cache`) so the page can render it while a new sync runs.
 - `routes/llm.ts` — settings + catalog; `routes/coaching.ts` — sync, bounded
   concurrency (3), cached-or-fresh analyses, per-activity error isolation. The
   response carries activity summaries and a `sampleCount`; the full timeseries

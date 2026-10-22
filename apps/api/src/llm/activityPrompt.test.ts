@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import type { Activity } from "@killingit/shared";
+import type { Activity, WeekPlan } from "@killingit/shared";
 import {
+  buildActivityAnalysisMessages,
   buildActivityAnalysisPrompt,
   channelStats,
   downsampleSamples,
@@ -110,6 +111,47 @@ describe("buildActivityAnalysisPrompt", () => {
     expect(prompt).toContain("elapsed | distance km | HR bpm | power W");
     expect(prompt).toContain("0:00 | 0.00 | 120 | 180");
     expect(prompt).toContain("10:00 | 5.00 | 150 | 240");
+  });
+
+  it("includes the week plan so the coach can match the activity to a session", () => {
+    const week: WeekPlan = {
+      startDate: "2026-09-28",
+      focus: "Aerobic base",
+      rationale: "Keep the week easy.",
+      sessions: Array.from({ length: 7 }, (_, index) => ({
+        date: `2026-10-${String(index + 1).padStart(2, "0")}`,
+        day: "Monday",
+        type: index === 2 ? ("rest" as const) : ("workout" as const),
+        title: index === 0 ? "Easy ride" : `Session ${index + 1}`,
+        description: "Steady aerobic work.",
+        durationMinutes: 60,
+        intensity: index === 0 ? ("easy" as const) : ("moderate" as const),
+        status: "planned" as const,
+      })),
+    };
+
+    const messages = buildActivityAnalysisMessages(makeActivity(), {
+      today: "2026-10-01",
+      week,
+    });
+    const prompt = messages[1]?.content ?? "";
+
+    expect(prompt).toContain("Current week plan:");
+    expect(prompt).toContain("2026-10-01 (Monday) [planned]: Easy ride");
+    expect(prompt).toContain(
+      "Match it to the planned session for that date, today's planned session, or another session this week that fits the data.",
+    );
+    expect(prompt).toContain("naming the planned session you matched");
+  });
+
+  it("does not trust the recorded activity type", () => {
+    const messages = buildActivityAnalysisMessages(makeActivity());
+
+    expect(messages[0]?.content).toContain("do not trust it");
+    expect(messages[0]?.content).toContain("strength-training workout");
+    expect(messages[1]?.content).toContain(
+      "Type (recorded by the device; may be wrong)",
+    );
   });
 
   it("handles an activity without recorded samples", () => {

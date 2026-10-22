@@ -6,6 +6,7 @@ import { requireAdmin, requireAuth } from "./auth/middleware.js";
 import type { AuthProvider } from "./auth/provider.js";
 import { withSentry } from "./instrumentation/sentry.js";
 import type { ActivityFeed } from "./coaching/activities.js";
+import type { loadCachedActivityFeed } from "./coaching/feedCache.js";
 import type {
   deleteImportedActivity,
   deleteManualActivity,
@@ -76,6 +77,7 @@ export interface AppDependencies {
   generationStore?: PlanGenerationStore;
   /** Activity/LLM loaders, injectable for DB-free plan route tests. */
   loadActivities?: (userId: number) => Promise<ActivityFeed>;
+  loadCachedFeed?: typeof loadCachedActivityFeed;
   loadLlm?: () => Promise<LlmClient | null>;
   /** Coaching-input loader, injectable for DB-free route tests. */
   loadCoachingInputs?: (
@@ -167,6 +169,9 @@ export function createApp(deps: AppDependencies = {}): Hono {
       generations: generationStore,
       ...(deps.loadActivities !== undefined
         ? { loadActivities: deps.loadActivities }
+        : {}),
+      ...(deps.loadCachedFeed !== undefined
+        ? { loadCachedFeed: deps.loadCachedFeed }
         : {}),
       ...(deps.loadLlm !== undefined ? { loadLlm: deps.loadLlm } : {}),
       ...(deps.loadCoachingInputs !== undefined

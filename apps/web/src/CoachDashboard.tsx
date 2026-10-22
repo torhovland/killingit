@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   analyzedActivitiesResponseSchema,
   athleteQuestionsResponseSchema,
@@ -17,6 +17,7 @@ import {
   type QuestionAnswerInput,
 } from "@killingit/shared";
 import { ActivityCard } from "./ActivityCard";
+import { loadCachedActivities, saveCachedActivities } from "./activityCache";
 import { useAuth } from "./auth";
 import { AthleteAnswersSection } from "./AthleteAnswersSection";
 import { AthleteQuestionsForm } from "./AthleteQuestionsForm";
@@ -200,9 +201,16 @@ function CoachingSurface({
   onWeeklyNoteReplyChange,
 }: CoachingSurfaceProps) {
   const auth = useAuth();
+  // `loadAnalyses` is started by an effect that does not depend on the auth
+  // object; keep the latest account id in a ref so a cache write after the
+  // request settles uses the real `sub` rather than an early `null`.
+  const authSub = useRef(auth.sub);
+  authSub.current = auth.sub;
   const [garmin, setGarmin] = useState<GarminConnectionStatus | null>(null);
   const [llm, setLlm] = useState<LlmSettings | null>(null);
-  const [data, setData] = useState<AnalyzedActivitiesResponse | null>(null);
+  const [data, setData] = useState<AnalyzedActivitiesResponse | null>(() =>
+    loadCachedActivities(auth.sub),
+  );
   const [loadingStatuses, setLoadingStatuses] = useState(true);
   const [loadingAnalyses, setLoadingAnalyses] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -324,6 +332,28 @@ function CoachingSurface({
     }
   }
 
+  async function loadCachedFeed(): Promise<void> {
+    try {
+      const res = await fetchJsonAuthed<unknown>(
+        `${API_URL}/api/coaching/activities/cached`,
+        auth,
+      );
+      const parsed = analyzedActivitiesResponseSchema.safeParse(res);
+      if (!parsed.success || parsed.data.activities.length === 0) {
+        return;
+      }
+      saveCachedActivities(authSub.current, parsed.data);
+      setData((current) =>
+        current === null || current.activities.length === 0
+          ? parsed.data
+          : current,
+      );
+    } catch (err: unknown) {
+      // The live sync is still running; a missing server cache is not an error.
+      console.error("Failed to load cached activities:", err);
+    }
+  }
+
   async function loadAnalyses(refresh = false): Promise<void> {
     setLoadingAnalyses(true);
     setError(null);
@@ -339,6 +369,7 @@ function CoachingSurface({
         });
       }
       setData(parsed.data);
+      saveCachedActivities(authSub.current, parsed.data);
     } catch (err: unknown) {
       setError(reportError(err));
     } finally {
@@ -383,16 +414,18 @@ function CoachingSurface({
       { method: "DELETE" },
     );
     parseSaveResponse(response);
-    setData((current) =>
-      current
-        ? {
-            ...current,
-            activities: current.activities.filter(
-              (activity) => String(activity.id) !== activityId,
-            ),
-          }
-        : current,
-    );
+    const next = data
+      ? {
+          ...data,
+          activities: data.activities.filter(
+            (activity) => String(activity.id) !== activityId,
+          ),
+        }
+      : null;
+    setData(next);
+    if (next) {
+      saveCachedActivities(authSub.current, next);
+    }
     setPlanRefreshKey((key) => key + 1);
   }
 
@@ -529,9 +562,25 @@ function CoachingSurface({
     if (!garmin?.connected) {
       return;
     }
+    if (data === null || data.activities.length === 0) {
+      void loadCachedFeed();
+    }
     void loadAnalyses();
     // Re-run when Garmin connects or the LLM setup changes, not every render.
   }, [garmin?.connected, llm?.configured]);
+
+  // Auth0 can report an authenticated session before it exposes `user.sub`.
+  // Retry the cache read once the account key becomes available so existing
+  // activities still appear on the first paint after a reload.
+  useEffect(() => {
+    if (data !== null) {
+      return;
+    }
+    const cached = loadCachedActivities(auth.sub);
+    if (cached !== null) {
+      setData(cached);
+    }
+  }, [auth.sub, data]);
 
   if (!auth.isAuthenticated) {
     return null;
@@ -733,14 +782,17 @@ function CoachingSurface({
             </p>
           )}
 
-          {loadingAnalyses && data === null && (
+          {loadingAnalyses && (
             <p
               className="text-sm text-muted-foreground"
               data-testid="analysis-loading"
+              aria-live="polite"
             >
-              {llm.configured
-                ? "Syncing Garmin and asking the coach to analyse your workouts…"
-                : "Syncing Garmin activities…"}
+              {data === null
+                ? llm.configured
+                  ? "Syncing Garmin and asking the coach to analyse your workouts…"
+                  : "Syncing Garmin activities…"
+                : "Refreshing your latest activities…"}
             </p>
           )}
 
