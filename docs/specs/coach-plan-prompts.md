@@ -57,19 +57,27 @@ covered by `docs/specs/coach-plan-lifecycle.md`.
    moving time, elevation, and its coach analysis when present. It says so
    explicitly when no activities were recorded.
 5. The prompt includes today's date and the athlete's timezone when supplied.
-6. `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`
+6. The prompt asks for an optionality assessment on today's and tomorrow's
+   sessions: whether each can be skipped without undermining the plan, with a
+   concise explanation either way.
+7. `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`
    pass.
 
 ## Data-model / API impact
 
-No database, route, or shared-schema change. The builder consumes existing
-shapes (`StoredAthleteQuestion` and `AnalyzedActivity`) structurally and returns
-`LlmProvider` chat messages.
+Adds `optional` (boolean, default `false`) and `optionalRationale` (optional
+string) to `dayPlanSchema` in `@killingit/shared`, so generated day plans can
+state whether a session should not be skipped or is optional. No database or
+route change; stored JSON without the new fields still parses. The builder
+consumes existing shapes (`StoredAthleteQuestion` and `AnalyzedActivity`)
+structurally and returns `LlmProvider` chat messages.
 
 ## Technical approach
 
 - `coachPlanPrompt.ts` exports `COACH_PLAN_PROMPT_VERSION`, the input interfaces,
-  `buildCoachPlanPrompt(input)`, and `buildCoachPlanMessages(input)`.
+  `buildCoachPlanPrompt(input)`, and `buildCoachPlanMessages(input)`. The JSON
+  contract and the split daily prompt both include `optional` and
+  `optionalRationale` for today's and tomorrow's sessions.
 - The combined prompt describes a coherent full plan in one JSON object. The
   lifecycle build now splits the initial plan into four smaller calls (season,
   first block, week, day) so every response fits the model's output budget; the
@@ -82,7 +90,7 @@ shapes (`StoredAthleteQuestion` and `AnalyzedActivity`) structurally and returns
 ## Testing
 
 - Unit tests assert the system-prompt requirements, the JSON contract, the
-  athlete profile rendering (answered, skipped, unanswered), the activity
-  rendering (with and without analysis), the empty-activity fallback, and the
-  date/timezone context.
+  optionality fields for today and tomorrow, the athlete profile rendering
+  (answered, skipped, unanswered), the activity rendering (with and without
+  analysis), the empty-activity fallback, and the date/timezone context.
 - Run `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`.

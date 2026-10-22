@@ -46,7 +46,9 @@ const DAY_CONTRACT = `{
   "durationMinutes": 0,
   "intensity": "easy | moderate | hard | rest",
   "alternatives": ["string"],
-  "rationale": "string"
+  "rationale": "string",
+  "optional": false,
+  "optionalRationale": "string"
 }`;
 
 const WEEK_CONTRACT = `{
@@ -108,7 +110,7 @@ You receive the athlete's profile, recent activities with coach analyses, the cu
 
 Keep the week's start date and exactly seven sessions. For days before today, do not propose new workouts: describe what the athlete actually did using the recent activities and set each status to "completed", "missed", or "rest". The today object must match today's date and must be present as the matching session in week.sessions. Revise the remaining sessions so the week stays coherent with the block's focus and the athlete's current fatigue. Include a rationale for today's session and for the week's overall structure.
 
-Also provide a suggested workout or rest for tomorrow, consistent with the revised week and the block's focus.
+Also provide a suggested workout or rest for tomorrow, consistent with the revised week and the block's focus. For both today and tomorrow, set "optional" to true when the session can be skipped without undermining the plan (for example, an easy recovery session), and false when skipping would hurt the athlete's progression. In "optionalRationale", explain concisely why the session should not be skipped or why it is safe to consider it optional.
 
 ${ENUM_RULES}
 

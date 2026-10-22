@@ -58,6 +58,9 @@ function makePlan(): CoachPlan {
       intensity: "easy",
       alternatives: [],
       rationale: "Easy aerobic work.",
+      optional: false,
+      optionalRationale:
+        "This easy run keeps the week consistent; skip it only if you feel unusually tired.",
     },
     tomorrow: null,
   };
@@ -105,6 +108,9 @@ describe("planPending", () => {
       intensity: "easy",
       alternatives: [],
       rationale: "Easy aerobic work.",
+      optional: false,
+      optionalRationale:
+        "This easy run keeps the week consistent; skip it only if you feel unusually tired.",
     };
     expect(planPending(plan, "2026-10-21", true).tomorrow).toBe(false);
   });

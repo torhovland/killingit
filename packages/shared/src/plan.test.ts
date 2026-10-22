@@ -70,6 +70,9 @@ function makePlan() {
       intensity: "easy",
       alternatives: ["Cross-train for 45 minutes."],
       rationale: "Easy aerobic work supports recovery.",
+      optional: false,
+      optionalRationale:
+        "This easy run keeps the week consistent; skip it only if you feel unusually tired.",
     },
     tomorrow: null,
   };
@@ -110,6 +113,30 @@ describe("dayPlanSchema", () => {
       rationale: "Recovery is part of the plan.",
     });
     expect(parsed.alternatives).toEqual([]);
+  });
+
+  it("defaults optional to false and accepts an optional rationale", () => {
+    const parsed = dayPlanSchema.parse({
+      date: "2026-10-21",
+      type: "workout",
+      title: "Easy run",
+      description: "45 minutes easy.",
+      durationMinutes: 45,
+      intensity: "easy",
+      rationale: "Easy aerobic work.",
+    });
+    expect(parsed.optional).toBe(false);
+    expect(parsed.optionalRationale).toBeUndefined();
+
+    const withRationale = dayPlanSchema.parse({
+      ...parsed,
+      optional: true,
+      optionalRationale: "Skip it if your legs are tired.",
+    });
+    expect(withRationale.optional).toBe(true);
+    expect(withRationale.optionalRationale).toBe(
+      "Skip it if your legs are tired.",
+    );
   });
 });
 
@@ -171,10 +198,17 @@ describe("dailyPlanUpdateSchema", () => {
         durationMinutes: 45,
         intensity: "easy",
         rationale: "Easy aerobic work.",
+        optional: true,
+        optionalRationale:
+          "Skip it if your legs are tired; the plan still works without it.",
       },
       week: makeWeek(),
     });
     expect(parsed.today.alternatives).toEqual([]);
+    expect(parsed.today.optional).toBe(true);
+    expect(parsed.today.optionalRationale).toBe(
+      "Skip it if your legs are tired; the plan still works without it.",
+    );
     expect(parsed.week.sessions).toHaveLength(7);
   });
 });

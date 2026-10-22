@@ -11,7 +11,7 @@ import {
  * callers can invalidate cached plans the same way activity analyses are
  * versioned.
  */
-export const COACH_PLAN_PROMPT_VERSION = 1;
+export const COACH_PLAN_PROMPT_VERSION = 2;
 
 export type CoachPlanAthleteAnswer = AthleteAnswerContext;
 export type CoachPlanActivity = RecentActivityContext;
@@ -87,7 +87,9 @@ const COACH_PLAN_RESPONSE_CONTRACT = `{
     "durationMinutes": 0,
     "intensity": "easy | moderate | hard | rest",
     "alternatives": ["string"],
-    "rationale": "string"
+    "rationale": "string",
+    "optional": false,
+    "optionalRationale": "string"
   },
   "tomorrow": {
     "date": "YYYY-MM-DD",
@@ -97,7 +99,9 @@ const COACH_PLAN_RESPONSE_CONTRACT = `{
     "durationMinutes": 0,
     "intensity": "easy | moderate | hard | rest",
     "alternatives": ["string"],
-    "rationale": "string"
+    "rationale": "string",
+    "optional": false,
+    "optionalRationale": "string"
   }
 }`;
 
@@ -109,8 +113,10 @@ Create four consistent levels of the plan:
 1. season — the overall season with its goal, dates, blocks, and a rationale explaining the season's shape.
 2. block — the first block of the season, with its weeks, progression, and a rationale.
 3. week — the first week of that block, with one session for each day, a rationale, and per-session status.
-4. today — the concrete workout or rest for today, with a rationale.
-5. tomorrow — the suggested workout or rest for tomorrow, with a rationale.
+4. today — the concrete workout or rest for today, with a rationale and an optionality assessment.
+5. tomorrow — the suggested workout or rest for tomorrow, with a rationale and an optionality assessment.
+
+For today and tomorrow, set "optional" to true when the session can be skipped without undermining the plan (for example, an easy recovery session), and false when skipping would hurt the athlete's progression. In "optionalRationale", explain concisely why the session matters or why it is safe to skip.
 
 The season starts on the supplied today date. The block is the first entry in season.blocks. The week is the first week in block.weeks, so block.weeks[0].startDate and week.startDate must match. week.sessions must contain exactly seven entries, one for each day of that week, and today must match the entry for today's date in week.sessions. For days before today, do not propose new workouts: describe what actually happened using the activities and set each status to "completed", "missed", or "rest". Respect the athlete's available training days and hours, and include rest days where they are the best choice.
 

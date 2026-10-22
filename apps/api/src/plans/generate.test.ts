@@ -93,6 +93,9 @@ function makeDay(date: string): DayPlan {
     intensity: "easy",
     alternatives: [],
     rationale: "Easy aerobic work supports recovery.",
+    optional: false,
+    optionalRationale:
+      "This easy run keeps the week consistent; skip it only if you feel unusually tired.",
   };
 }
 

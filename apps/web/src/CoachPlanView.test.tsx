@@ -77,6 +77,9 @@ const plan: CoachPlan = {
     intensity: "easy",
     alternatives: ["Cross-train for 45 minutes."],
     rationale: "Easy aerobic work supports recovery.",
+    optional: false,
+    optionalRationale:
+      "This easy run is part of a consistent aerobic week; skipping it now makes the weekend long run harder.",
   },
   tomorrow: {
     date: "2026-10-22",
@@ -87,6 +90,9 @@ const plan: CoachPlan = {
     intensity: "easy",
     alternatives: [],
     rationale: "Keep the aerobic week consistent.",
+    optional: true,
+    optionalRationale:
+      "This is a short recovery run. If your legs are tired, it is fine to skip it or replace it with a walk.",
   },
 };
 
@@ -121,6 +127,21 @@ describe("CoachPlanView", () => {
     expect(html).toContain("Completed: running · 10.00 km · 45 min");
     expect(html).toContain("No activity recorded");
     expect(html).toContain("missed");
+  });
+
+  it("explains whether today's and tomorrow's sessions should be skipped", () => {
+    const html = renderToStaticMarkup(
+      <CoachPlanView plan={plan} showTomorrow />,
+    );
+
+    expect(html).toContain("Do not skip this session");
+    expect(html).toContain(
+      "This easy run is part of a consistent aerobic week; skipping it now makes the weekend long run harder.",
+    );
+    expect(html).toContain("Optional session");
+    expect(html).toContain(
+      "This is a short recovery run. If your legs are tired, it is fine to skip it or replace it with a walk.",
+    );
   });
 
   it("shows tomorrow only when requested", () => {
