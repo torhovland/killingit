@@ -10,8 +10,9 @@
 Make the coach feel like it is listening. After a full plan is built, review
 recent activities against the plan. After the athlete comments on an activity,
 writes a weekly note, or records/edits a manual activity, reply briefly and
-refresh the week around the new input without overwriting a workout that has
-already happened (or that the athlete is reporting today).
+refresh the week around the new input without replacing a workout that has
+already happened with a new suggestion, while keeping today's completed summary
+in sync with the athlete's latest comment.
 
 ## Scope
 
@@ -29,10 +30,12 @@ already happened (or that the athlete is reporting today).
    can show it immediately and after a reload.
 3. **Refresh around the input.** Every coaching-input save keeps triggering the
    existing weekly + daily revision. The revision now also refreshes tomorrow.
-4. **Do not overwrite today's session** when the new input describes today: a
-   comment on today's activity, or a manual activity dated today. The stored
-   day plan and today's week session are preserved while the rest of the week
-   and tomorrow are revised.
+4. **Refresh today's completed session** when the new input describes today: a
+   comment on today's activity, or a manual activity dated today. Today's plan
+   is regenerated from the recorded activity and its latest comment so the
+   completed summary stays accurate, but the coach must describe what happened
+   rather than propose a second workout. Other inputs preserve the stored day
+   plan.
 
 ### Out of scope
 
@@ -71,8 +74,10 @@ One latest reply per athlete input:
   - `comment` (the athlete's saved comment, or null),
   - `coachReply` (the latest coach reply, or null).
 - `POST /api/coaching/activities/:id/comments` accepts `activityDate` and returns
-  `{ message, reply }`. `keepToday` is set when `activityDate === today`. It
-  creates the activity's comment and returns `409` if one already exists.
+  `{ message, reply }`. `keepToday` is set when `activityDate === today`; because
+  the activity is already recorded, generation refreshes today's completed plan
+  instead of preserving a stale summary. It creates the activity's comment and
+  returns `409` if one already exists.
 - `PUT /api/coaching/activities/:id/comments` accepts the same body. It edits the
   existing comment, regenerates the single coach reply, and returns
   `{ message, reply }`; it returns `404` when the activity has no comment.
@@ -115,9 +120,11 @@ and the reply is null; the failure is logged.
 2. It then starts the normal plan trigger. `keepToday` is true when the input is
    about today.
 3. `runPlanGeneration` rebuilds/reviews as before. In the cascade, when
-   `keepToday` is set and the stored plan is for today, the generated plan takes
-   the stored `today` day plan and the stored week session for today; everything
-   else (week, tomorrow) comes from the new completion.
+   `keepToday` is set and the stored plan is for today, the stored `today` day
+   plan and today's week session are preserved **unless an activity was recorded
+   today**. In that case the generated today plan describes the completed
+   activity from the latest comment. Everything else (week, tomorrow) comes from
+   the new completion.
 4. A full build calls an injected `reviewActivities(plan)` after saving the plan
    and before marking the generation done. The implementation runs the program
    reviews with bounded concurrency and saves them as `kind = "program"`. Review
@@ -141,13 +148,15 @@ and the reply is null; the failure is logged.
 
 1. A full plan build (initial, stale answers, or force) produces a program
    review for recent activities; a day/week cascade alone does not.
-2. Commenting on an activity returns and persists a brief coach reply, triggers a
-   week/day/tomorrow revision, and does not change today's session when the
-   commented activity is today's.
+2. Commenting on or editing an activity returns and persists a brief coach
+   reply and triggers a week/day/tomorrow revision. When the commented activity
+   is today's, today's completed summary is refreshed from the latest comment and
+   no second workout is proposed.
 3. Saving a weekly note returns and persists a reply and keeps triggering the
    revision.
 4. Creating or editing a manual activity returns and persists a reply; when its
-   date is today, today's session is preserved while week and tomorrow change.
+   date is today, today's completed summary reflects the manual activity while
+   week and tomorrow change.
 5. Replies and program reviews survive a page reload.
 6. An activity has at most one comment. A second add is rejected, and editing
    the comment replaces the coach's existing reply and refreshes the plan.

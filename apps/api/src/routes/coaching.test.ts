@@ -325,7 +325,7 @@ describe("coaching activity feed", () => {
 });
 
 describe("coaching activity comments", () => {
-  it("saves a comment, replies, and keeps today's session for today's activity", async () => {
+  it("saves a comment, replies, and marks today's activity for a summary refresh", async () => {
     const saved: {
       value: { userId: number; activityId: string; comment: string } | null;
     } = { value: null };

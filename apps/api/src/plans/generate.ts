@@ -49,7 +49,11 @@ export interface GeneratePlanInput {
   force?: boolean;
   /** The client is after 18:00, so tomorrow's session is wanted. */
   includeTomorrow?: boolean;
-  /** Revise the week around a new input without changing today's session. */
+  /**
+   * Revise the week around a new input. Today's stored session is preserved
+   * unless an activity was already recorded today, in which case today's plan
+   * is refreshed to describe the completed activity.
+   */
   keepToday?: boolean;
   /**
    * Runs after a full build so recent activities can be reviewed against the
@@ -286,7 +290,11 @@ async function advancePlan(
     tomorrowPlan = update.tomorrow;
   }
 
-  if (input.keepToday === true && current.today.date === today) {
+  if (
+    input.keepToday === true &&
+    current.today.date === today &&
+    !hasActivityOn(context, today)
+  ) {
     week = restoreTodaysSession(week, current, today);
     todayPlan = current.today;
   }
@@ -307,10 +315,24 @@ async function advancePlan(
   return plan;
 }
 
+/** True when a synced or manually recorded activity happened on `date`. */
+function hasActivityOn(context: PlanGenerationContext, date: string): boolean {
+  return (
+    context.activities.some(
+      (activity) => activity.startDate.slice(0, 10) === date,
+    ) ||
+    context.manualActivities.some(
+      (activity) => activity.startDate.slice(0, 10) === date,
+    )
+  );
+}
+
 /**
  * Keeps the stored session for today while the rest of the week is revised.
  * Used when the athlete's new input describes today's session, so the coach
- * cannot propose a second workout for the same day.
+ * cannot propose a second workout for the same day. When an activity has
+ * already been recorded today, the caller skips this so the completed session
+ * can be refreshed from the latest comment instead.
  */
 function restoreTodaysSession(
   week: WeekPlan,

@@ -123,6 +123,9 @@ describe("daily update prompts", () => {
     expect(prompt).toContain("state of the art training science");
     expect(prompt).toContain("exactly seven sessions");
     expect(prompt).toContain("today object must match today's date");
+    expect(prompt).toContain(
+      "today's plan must describe that completed activity",
+    );
     expect(prompt).toContain("do not propose new workouts");
     expect(prompt).toContain("rationale");
     expect(prompt).toContain("status");
