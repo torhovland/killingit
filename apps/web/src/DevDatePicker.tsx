@@ -1,15 +1,15 @@
 import type { ChangeEvent } from "react";
-import { getToday, setTodayOverride } from "./useToday";
+import { getToday, isDateOverrideAllowed, setTodayOverride } from "./useToday";
 
 /**
- * Development-only date picker. Selecting a date stores it as an override and
- * reloads the app, so the visit behaves exactly like a fresh visit on that day.
- * It renders nothing outside development.
+ * Date picker for development and test environments. Selecting a date stores it
+ * as an override and reloads the app, so the visit behaves exactly like a fresh
+ * visit on that day. It renders nothing in production.
  */
 export function DevDatePicker() {
   const { today, isOverridden } = getToday();
 
-  if (!import.meta.env.DEV) {
+  if (!isDateOverrideAllowed()) {
     return null;
   }
 

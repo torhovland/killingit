@@ -97,6 +97,7 @@ jobs:
       - name: Build web (test)
         run: bun run --filter @killingit/web build
         env:
+          VITE_APP_ENV: Test
           VITE_API_URL: ${{ vars.TEST_API_URL }}
           VITE_SENTRY_DSN: ${{ secrets.TEST_VITE_SENTRY_DSN }}
           VITE_SENTRY_RELEASE: ${{ github.sha }}
@@ -206,6 +207,7 @@ jobs:
       - name: Build web (production)
         run: bun run --filter @killingit/web build
         env:
+          VITE_APP_ENV: Production
           VITE_API_URL: ${{ vars.PROD_API_URL }}
           VITE_SENTRY_DSN: ${{ secrets.PROD_VITE_SENTRY_DSN }}
           VITE_SENTRY_RELEASE: ${{ github.sha }}

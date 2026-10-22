@@ -7,6 +7,8 @@ interface ImportMetaEnv {
   readonly VITE_AUTH0_DOMAIN?: string;
   readonly VITE_AUTH0_CLIENT_ID?: string;
   readonly VITE_AUTH0_AUDIENCE?: string;
+  /** Deployment environment: "Development", "Test", or "Production". */
+  readonly VITE_APP_ENV?: string;
 }
 
 interface ImportMeta {
