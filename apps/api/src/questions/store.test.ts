@@ -8,6 +8,7 @@ const updatedAt = new Date("2026-10-20T10:00:00.000Z");
 const question: QuestionRow = {
   id: 7,
   currentVersion: 2,
+  position: 0,
   createdAt,
   updatedAt,
   archivedAt: null,

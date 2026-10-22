@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { currentUserSchema, type CurrentUser } from "@killingit/shared";
 import { ActivitiesPage } from "./ActivitiesPage";
 import { AdminSettingsPage } from "./AdminSettingsPage";
@@ -6,14 +6,13 @@ import { AppStatusProvider, useAppStatus } from "./AppStatus";
 import { CoachDashboard } from "./CoachDashboard";
 import { CoachingSurveyPage } from "./CoachingSurveyPage";
 import { useAuth } from "./auth";
-import { DevDatePicker } from "./DevDatePicker";
 import { AthleteQuestionsForm } from "./AthleteQuestionsForm";
 import { fetchJsonAuthed } from "./fetchAuthed";
+import { NavigationProvider, type Page } from "./navigation";
 import { reportError } from "./reportError";
 import { SettingsPage } from "./SettingsPage";
+import { TimeZoneProvider } from "./TimeZoneContext";
 import { useAthleteQuestions } from "./useAthleteQuestions";
-
-type Page = "coach" | "activities" | "survey" | "settings" | "admin";
 
 // Absolute API origin for deployed environments (e.g. the Cloud Run URL).
 // Empty string keeps relative "/api" for the local Vite dev proxy.
@@ -39,6 +38,8 @@ function AppShell() {
   const auth = useAuth();
   const { status, setStatus } = useAppStatus();
   const [me, setMe] = useState<CurrentUser | null>(null);
+  const [timeZone, setTimeZone] = useState<string | null>(null);
+  const timeZoneTouched = useRef(false);
   const [page, setPage] = useState<Page>("coach");
   const [planRefreshKey, setPlanRefreshKey] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -62,6 +63,8 @@ function AppShell() {
   useEffect(() => {
     if (!auth.isAuthenticated) {
       setMe(null);
+      setTimeZone(null);
+      timeZoneTouched.current = false;
       return;
     }
     fetchJsonAuthed<unknown>(`${API_URL}/api/me`, auth)
@@ -74,6 +77,9 @@ function AppShell() {
           );
         }
         setMe(parsed.data);
+        if (!timeZoneTouched.current) {
+          setTimeZone(parsed.data.timezone);
+        }
       })
       .catch((e: unknown) => {
         setError(reportError(e));
@@ -97,82 +103,101 @@ function AppShell() {
   const signedIn = auth.isAuthenticated;
 
   return (
-    <div className="flex min-h-screen w-full flex-col">
-      <header className="flex w-full flex-wrap items-center gap-x-3 gap-y-2 border-b px-3 py-2 sm:px-4">
-        <div className="flex min-w-0 flex-wrap items-baseline gap-x-2">
-          <h1 className="text-xl font-bold text-primary">Killing It</h1>
-          <p className="text-sm text-muted-foreground">
-            Your AI coach for training.
-          </p>
-        </div>
+    <TimeZoneProvider timeZone={timeZone}>
+      <NavigationProvider navigate={navigate}>
+        <div className="flex min-h-screen w-full flex-col">
+          <header className="flex w-full flex-wrap items-center gap-x-3 gap-y-2 border-b px-3 py-2 sm:px-4">
+            <div className="flex min-w-0 flex-wrap items-baseline gap-x-2">
+              <a
+                href="/"
+                className="text-xl font-bold text-primary no-underline hover:no-underline"
+                onClick={(event) => {
+                  event.preventDefault();
+                  navigate("coach");
+                }}
+              >
+                Killing It
+              </a>
+              <p className="text-sm text-muted-foreground">
+                Your AI coach for training.
+              </p>
+            </div>
 
-        <div className="ml-auto flex items-center gap-2">
-          {signedIn ? (
-            <UserMenu
-              firstName={auth.firstName}
-              picture={auth.picture}
-              isAdmin={isAdmin}
-              status={status}
-              onNavigate={navigate}
-              onSignOut={() => void auth.logout()}
-            />
-          ) : auth.isLoading ? (
-            <p className="text-sm text-muted-foreground">Loading…</p>
-          ) : null}
-        </div>
-      </header>
+            <div className="ml-auto flex items-center gap-2">
+              {signedIn ? (
+                <UserMenu
+                  firstName={auth.firstName}
+                  picture={auth.picture}
+                  isAdmin={isAdmin}
+                  status={status}
+                  onNavigate={navigate}
+                  onSignOut={() => void auth.logout()}
+                />
+              ) : auth.isLoading ? (
+                <p className="text-sm text-muted-foreground">Loading…</p>
+              ) : null}
+            </div>
+          </header>
 
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-0 py-4 sm:px-4 sm:py-6">
-        {error && <p className="text-destructive">Error: {error}</p>}
+          <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-0 py-4 sm:px-4 sm:py-6">
+            {error && <p className="text-destructive">Error: {error}</p>}
 
-        {!signedIn ? (
-          auth.isLoading ? (
-            <p className="text-sm text-muted-foreground">Loading…</p>
-          ) : (
-            <button
-              className="self-start rounded border border-transparent bg-primary px-4 py-2 text-primary-foreground enabled:hover:bg-primary-hover"
-              onClick={() => void auth.login()}
-            >
-              Sign in
-            </button>
-          )
-        ) : loadingQuestions && questions === null ? (
-          <p className="text-sm text-muted-foreground">Loading your profile…</p>
-        ) : questions === null ? (
-          <section className="flex flex-col items-start gap-2">
-            {questionsError && (
-              <p className="text-destructive">Error: {questionsError}</p>
+            {!signedIn ? (
+              auth.isLoading ? (
+                <p className="text-sm text-muted-foreground">Loading…</p>
+              ) : (
+                <button
+                  className="self-start rounded border border-transparent bg-primary px-4 py-2 text-primary-foreground enabled:hover:bg-primary-hover"
+                  onClick={() => void auth.login()}
+                >
+                  Sign in
+                </button>
+              )
+            ) : loadingQuestions && questions === null ? (
+              <p className="text-sm text-muted-foreground">
+                Loading your profile…
+              </p>
+            ) : questions === null ? (
+              <section className="flex flex-col items-start gap-2">
+                {questionsError && (
+                  <p className="text-destructive">Error: {questionsError}</p>
+                )}
+                <button
+                  type="button"
+                  className="rounded border bg-card px-4 py-2 enabled:hover:bg-muted"
+                  onClick={() => void loadQuestions()}
+                >
+                  Retry
+                </button>
+              </section>
+            ) : !questions.complete ? (
+              <AthleteQuestionsForm
+                questions={questions.questions}
+                onSubmit={handleAnswersSaved}
+              />
+            ) : page === "activities" ? (
+              <ActivitiesPage />
+            ) : page === "survey" ? (
+              <CoachingSurveyPage
+                onAnswersSaved={() => setPlanRefreshKey((key) => key + 1)}
+              />
+            ) : page === "settings" ? (
+              <SettingsPage
+                timeZone={timeZone}
+                onTimeZoneChanged={(timezone) => {
+                  timeZoneTouched.current = true;
+                  setTimeZone(timezone);
+                }}
+              />
+            ) : page === "admin" && isAdmin ? (
+              <AdminSettingsPage />
+            ) : (
+              <CoachDashboard planRefreshKey={planRefreshKey} />
             )}
-            <button
-              type="button"
-              className="rounded border bg-card px-4 py-2 enabled:hover:bg-muted"
-              onClick={() => void loadQuestions()}
-            >
-              Retry
-            </button>
-          </section>
-        ) : !questions.complete ? (
-          <AthleteQuestionsForm
-            questions={questions.questions}
-            onSubmit={handleAnswersSaved}
-          />
-        ) : page === "activities" ? (
-          <ActivitiesPage />
-        ) : page === "survey" ? (
-          <CoachingSurveyPage
-            onAnswersSaved={() => setPlanRefreshKey((key) => key + 1)}
-          />
-        ) : page === "settings" ? (
-          <SettingsPage />
-        ) : page === "admin" && isAdmin ? (
-          <AdminSettingsPage />
-        ) : (
-          <CoachDashboard planRefreshKey={planRefreshKey} />
-        )}
-
-        <DevDatePicker />
-      </div>
-    </div>
+          </div>
+        </div>
+      </NavigationProvider>
+    </TimeZoneProvider>
   );
 }
 
@@ -213,7 +238,22 @@ function UserMenu({
 
   return (
     <details className="relative" data-testid="user-menu">
-      <summary className="flex cursor-pointer list-none items-center gap-2 rounded px-1 py-0.5 text-sm [&::-webkit-details-marker]:hidden">
+      <summary
+        className="flex cursor-pointer list-none items-center gap-2 rounded border bg-card px-2 py-1.5 text-sm hover:bg-muted [&::-webkit-details-marker]:hidden"
+        aria-label="Open account menu"
+        title="Menu"
+      >
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+          className="size-5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        >
+          <path d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
         {picture ? (
           <img
             src={picture}

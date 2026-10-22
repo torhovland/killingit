@@ -7,16 +7,41 @@ interface QuestionRowProps {
   question: Question;
   onSave: (input: QuestionInput) => Promise<void>;
   onDelete: () => Promise<void>;
+  onMoveUp?: (() => Promise<void>) | undefined;
+  onMoveDown?: (() => Promise<void>) | undefined;
 }
 
 /**
  * One active question. Editing opens the shared form; saving appends a new
  * version through `onSave`. Deleting archives the question after confirmation.
  */
-export function QuestionRow({ question, onSave, onDelete }: QuestionRowProps) {
+export function QuestionRow({
+  question,
+  onSave,
+  onDelete,
+  onMoveUp,
+  onMoveDown,
+}: QuestionRowProps) {
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [moving, setMoving] = useState<"up" | "down" | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  async function move(direction: "up" | "down"): Promise<void> {
+    const handler = direction === "up" ? onMoveUp : onMoveDown;
+    if (!handler || moving !== null) {
+      return;
+    }
+    setMoving(direction);
+    setError(null);
+    try {
+      await handler();
+    } catch (err: unknown) {
+      setError(reportError(err));
+    } finally {
+      setMoving(null);
+    }
+  }
 
   async function remove(): Promise<void> {
     const confirmed = window.confirm(
@@ -69,7 +94,31 @@ export function QuestionRow({ question, onSave, onDelete }: QuestionRowProps) {
           {error}
         </p>
       )}
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
+        {onMoveUp && (
+          <button
+            type="button"
+            className="rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted disabled:opacity-50"
+            onClick={() => void move("up")}
+            disabled={moving !== null || deleting}
+            aria-label={`Move "${question.prompt}" up`}
+            data-testid="question-move-up"
+          >
+            ↑
+          </button>
+        )}
+        {onMoveDown && (
+          <button
+            type="button"
+            className="rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted disabled:opacity-50"
+            onClick={() => void move("down")}
+            disabled={moving !== null || deleting}
+            aria-label={`Move "${question.prompt}" down`}
+            data-testid="question-move-down"
+          >
+            ↓
+          </button>
+        )}
         <button
           type="button"
           className="rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted"

@@ -1,5 +1,5 @@
 import type { QuestionInput } from "@killingit/shared";
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull, max } from "drizzle-orm";
 import { db } from "../db/index.js";
 import {
   questions,
@@ -51,7 +51,7 @@ export async function listActiveQuestions(): Promise<StoredQuestion[]> {
     .select()
     .from(questions)
     .where(isNull(questions.archivedAt))
-    .orderBy(questions.id);
+    .orderBy(questions.position, questions.id);
 
   if (activeQuestions.length === 0) {
     return [];
@@ -97,9 +97,15 @@ export async function createQuestion(
   input: QuestionInput,
 ): Promise<StoredQuestion> {
   return db.transaction(async (tx) => {
+    const [last] = await tx
+      .select({ maxPosition: max(questions.position) })
+      .from(questions);
     const [question] = await tx
       .insert(questions)
-      .values({ currentVersion: 1 })
+      .values({
+        currentVersion: 1,
+        position: (last?.maxPosition ?? -1) + 1,
+      })
       .returning();
     if (!question) {
       throw new Error("failed to insert question");
@@ -166,6 +172,33 @@ export async function addQuestionVersion(
     }
 
     return toStoredQuestion(updated, version, versionNumber);
+  });
+}
+
+/**
+ * Applies a complete ordering of the active question set. Returns false when
+ * `ids` is not exactly the set of active questions, so the caller can answer
+ * 400 instead of silently dropping or duplicating entries.
+ */
+export async function reorderQuestions(ids: number[]): Promise<boolean> {
+  return db.transaction(async (tx) => {
+    const active = await tx
+      .select({ id: questions.id })
+      .from(questions)
+      .where(isNull(questions.archivedAt));
+    const activeIds = new Set(active.map((question) => question.id));
+    if (ids.length !== activeIds.size || ids.some((id) => !activeIds.has(id))) {
+      return false;
+    }
+
+    const now = new Date();
+    for (const [position, id] of ids.entries()) {
+      await tx
+        .update(questions)
+        .set({ position, updatedAt: now })
+        .where(eq(questions.id, id));
+    }
+    return true;
   });
 }
 

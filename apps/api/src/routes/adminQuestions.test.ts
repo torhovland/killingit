@@ -22,6 +22,18 @@ describe("admin questions route", () => {
     expect(res.status).toBe(401);
   });
 
+  it("requires a bearer token to reorder questions", async () => {
+    const res = await app.fetch(
+      new Request("http://localhost/api/admin/questions/order", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ids: [1, 2] }),
+      }),
+    );
+
+    expect(res.status).toBe(401);
+  });
+
   it("rejects a signed-in non-admin with 403", async () => {
     const nonAdminApp = createApp({
       authProvider: { verify: () => Promise.resolve({ sub: "athlete-2" }) },
@@ -31,6 +43,15 @@ describe("admin questions route", () => {
             id: 2,
             sub,
             role: "member",
+            timezone: null,
+            createdAt: new Date(0),
+          }),
+        updateTimezone: (sub, timezone) =>
+          Promise.resolve({
+            id: 2,
+            sub,
+            role: "member",
+            timezone,
             createdAt: new Date(0),
           }),
       },

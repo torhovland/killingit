@@ -4,6 +4,7 @@ import { useAppStatus } from "./AppStatus";
 import { useAuth } from "./auth";
 import { fetchJsonAuthed } from "./fetchAuthed";
 import { reportError } from "./reportError";
+import { useTimeZone } from "./TimeZoneContext";
 import { getToday } from "./useToday";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
@@ -17,6 +18,7 @@ const POLL_TIMEOUT_MS = 10 * 60 * 1000;
 export function RegeneratePlanButton() {
   const auth = useAuth();
   const { setStatus } = useAppStatus();
+  const timeZone = useTimeZone();
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
@@ -34,7 +36,7 @@ export function RegeneratePlanButton() {
     setRunning(true);
     setError(null);
     setDone(false);
-    const { today, isAfter18 } = getToday();
+    const { today, isAfter18 } = getToday(timeZone);
     try {
       await fetchJsonAuthed<unknown>(
         `${API_URL}/api/coaching/plan/generate`,
@@ -44,8 +46,7 @@ export function RegeneratePlanButton() {
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
             today,
-            timezone:
-              Intl.DateTimeFormat().resolvedOptions().timeZone || undefined,
+            timezone: timeZone,
             force: true,
             includeTomorrow: isAfter18,
           }),

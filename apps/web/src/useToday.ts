@@ -19,20 +19,62 @@ export interface Today {
 }
 
 /**
- * Resolves the effective "today" from a clock reading and an optional
- * `YYYY-MM-DD` override. Pure so it can be tested without a browser.
+ * Resolves the effective "today" from a clock reading, an optional
+ * `YYYY-MM-DD` override, and the athlete's display time zone. Pure so it can be
+ * tested without a browser.
  */
-export function resolveToday(now: Date, override: string | null): Today {
-  const actualToday = [
-    now.getFullYear(),
-    String(now.getMonth() + 1).padStart(2, "0"),
-    String(now.getDate()).padStart(2, "0"),
-  ].join("-");
+export function resolveToday(
+  now: Date,
+  override: string | null,
+  timeZone?: string,
+): Today {
+  const { today: actualToday, hour } = localDateParts(now, timeZone);
 
   return {
     today: override ?? actualToday,
-    isAfter18: now.getHours() >= 18,
+    isAfter18: hour >= 18,
     isOverridden: override !== null,
+  };
+}
+
+/** The calendar date and hour in a time zone (falling back to the device). */
+function localDateParts(
+  now: Date,
+  timeZone: string | undefined,
+): { today: string; hour: number } {
+  if (timeZone !== undefined) {
+    try {
+      const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        hourCycle: "h23",
+      }).formatToParts(now);
+      const value = (type: Intl.DateTimeFormatPartTypes): string =>
+        parts.find((part) => part.type === type)?.value ?? "";
+      const year = value("year");
+      const month = value("month");
+      const day = value("day");
+      if (year !== "" && month !== "" && day !== "") {
+        return {
+          today: `${year}-${month}-${day}`,
+          hour: Number(value("hour")),
+        };
+      }
+    } catch {
+      // Fall through to the device's local date.
+    }
+  }
+
+  return {
+    today: [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, "0"),
+      String(now.getDate()).padStart(2, "0"),
+    ].join("-"),
+    hour: now.getHours(),
   };
 }
 
@@ -97,6 +139,6 @@ export function setTodayOverride(date: string | null): void {
 }
 
 /** Returns the effective "today" date and time-of-day flag. */
-export function getToday(): Today {
-  return resolveToday(new Date(), readTodayOverride());
+export function getToday(timeZone?: string): Today {
+  return resolveToday(new Date(), readTodayOverride(), timeZone);
 }

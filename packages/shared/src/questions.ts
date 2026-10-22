@@ -45,6 +45,21 @@ export type QuestionArchivedResponse = z.infer<
   typeof questionArchivedResponseSchema
 >;
 
+/**
+ * Body of `PUT /api/admin/questions/order`. The list must contain every active
+ * question exactly once; its order becomes the onboarding order.
+ */
+export const questionOrderInputSchema = z
+  .object({
+    ids: z.array(z.number().int().positive()).min(1).max(500),
+  })
+  .refine((value) => new Set(value.ids).size === value.ids.length, {
+    message: "Each question may appear once",
+    path: ["ids"],
+  });
+
+export type QuestionOrderInput = z.infer<typeof questionOrderInputSchema>;
+
 /** The maximum length accepted for one free-text answer. */
 export const QUESTION_ANSWER_MAX_LENGTH = 4000;
 

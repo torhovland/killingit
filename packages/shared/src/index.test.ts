@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
   activitiesResponseSchema,
   activitySchema,
+  formatActivityType,
   greetingSchema,
   healthSchema,
 } from "./index";
@@ -71,6 +72,19 @@ describe("activitySchema", () => {
 
   it("defaults missing samples to an empty list", () => {
     expect(activitySchema.parse(summary).samples).toEqual([]);
+  });
+});
+
+describe("formatActivityType", () => {
+  it("turns snake_case activity keys into natural language", () => {
+    expect(formatActivityType("indoor_cycling")).toBe("Indoor cycling");
+    expect(formatActivityType("strength_training")).toBe("Strength training");
+    expect(formatActivityType("running")).toBe("Running");
+  });
+
+  it("handles GPS and unknown labels", () => {
+    expect(formatActivityType("gps_run")).toBe("GPS run");
+    expect(formatActivityType("  ")).toBe("Unknown activity");
   });
 });
 

@@ -15,7 +15,9 @@ import { loadCachedActivities, saveCachedActivities } from "./activityCache";
 import { useAppStatus } from "./AppStatus";
 import { useAuth } from "./auth";
 import { fetchJsonAuthed } from "./fetchAuthed";
+import { useNavigate } from "./navigation";
 import { reportError } from "./reportError";
+import { useTimeZone } from "./TimeZoneContext";
 import { getToday } from "./useToday";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
@@ -27,6 +29,8 @@ const API_URL = import.meta.env.VITE_API_URL ?? "";
 export function ActivitiesPage() {
   const auth = useAuth();
   const { setStatus } = useAppStatus();
+  const navigate = useNavigate();
+  const timeZone = useTimeZone();
   const authSub = useRef(auth.sub);
   authSub.current = auth.sub;
   const [garmin, setGarmin] = useState<GarminConnectionStatus | null>(null);
@@ -43,7 +47,9 @@ export function ActivitiesPage() {
   const [editingActivityId, setEditingActivityId] = useState<number | null>(
     null,
   );
-  const [manualStartDate, setManualStartDate] = useState(getToday().today);
+  const [manualStartDate, setManualStartDate] = useState(
+    () => getToday(timeZone).today,
+  );
   const [manualDetails, setManualDetails] = useState("");
 
   useEffect(() => {
@@ -116,12 +122,10 @@ export function ActivitiesPage() {
   }
 
   function coachingDateQuery(): string {
-    const params = new URLSearchParams({ today: getToday().today });
-    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    if (timezone) {
-      params.set("timezone", timezone);
-    }
-    return params.toString();
+    return new URLSearchParams({
+      today: getToday(timeZone).today,
+      timezone: timeZone,
+    }).toString();
   }
 
   async function deleteActivity(activityId: string): Promise<void> {
@@ -149,7 +153,7 @@ export function ActivitiesPage() {
     activityId: string,
     comment: string,
   ): Promise<string | null> {
-    const { today } = getToday();
+    const { today } = getToday(timeZone);
     const response = await fetchJsonAuthed<unknown>(
       `${API_URL}/api/coaching/activities/${activityId}/comments`,
       auth,
@@ -158,8 +162,7 @@ export function ActivitiesPage() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           today,
-          timezone:
-            Intl.DateTimeFormat().resolvedOptions().timeZone || undefined,
+          timezone: timeZone,
           activityDate: activityStartDate(activityId),
           comment,
         }),
@@ -178,7 +181,7 @@ export function ActivitiesPage() {
     const activity = data?.activities.find(
       (entry) => String(entry.id) === activityId,
     );
-    return (activity?.startDate ?? getToday().today).slice(0, 10);
+    return (activity?.startDate ?? getToday(timeZone).today).slice(0, 10);
   }
 
   async function handleManualActivitySubmit(
@@ -189,7 +192,7 @@ export function ActivitiesPage() {
       return;
     }
     try {
-      const { today } = getToday();
+      const { today } = getToday(timeZone);
       const path =
         editingActivityId === null
           ? `${API_URL}/api/coaching/activities/manual`
@@ -199,15 +202,14 @@ export function ActivitiesPage() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           today,
-          timezone:
-            Intl.DateTimeFormat().resolvedOptions().timeZone || undefined,
+          timezone: timeZone,
           startDate: manualStartDate,
           details: manualDetails,
         }),
       });
       parseSaveResponse(response);
       setEditingActivityId(null);
-      setManualStartDate(getToday().today);
+      setManualStartDate(getToday(timeZone).today);
       setManualDetails("");
       await loadManualActivities();
     } catch (err: unknown) {
@@ -223,7 +225,7 @@ export function ActivitiesPage() {
 
   function handleCancelEdit(): void {
     setEditingActivityId(null);
-    setManualStartDate(getToday().today);
+    setManualStartDate(getToday(timeZone).today);
     setManualDetails("");
   }
 
@@ -306,10 +308,21 @@ export function ActivitiesPage() {
         </button>
       </div>
 
-      {!garmin?.connected && !loading && (
-        <p className="rounded border bg-muted p-3 text-sm text-muted-foreground">
-          Connect Garmin in Settings to import activities.
-        </p>
+      {!loading && (!garmin?.connected || !llm?.configured) && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded border bg-muted p-3 text-sm">
+          <span className="text-muted-foreground">
+            {!garmin?.connected
+              ? "Connect Garmin in Settings to import activities."
+              : "Add an OpenRouter key in Settings to get coach analyses."}
+          </span>
+          <button
+            type="button"
+            className="rounded border bg-card px-3 py-1 enabled:hover:bg-muted"
+            onClick={() => navigate("settings")}
+          >
+            Open settings
+          </button>
+        </div>
       )}
 
       <form

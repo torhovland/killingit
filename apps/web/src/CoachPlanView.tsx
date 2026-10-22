@@ -149,7 +149,10 @@ function WeekSection({ week }: { week: WeekPlan }) {
               <StatusBadge status={session.status} />
               {session.type === "rest"
                 ? "Rest"
-                : `${session.durationMinutes} min · ${session.intensity}`}
+                : session.status === "completed" &&
+                    session.durationMinutes === 0
+                  ? "Logged manually"
+                  : `${session.durationMinutes} min · ${session.intensity}`}
             </span>
             {(session.status === "completed" ||
               session.status === "missed") && (

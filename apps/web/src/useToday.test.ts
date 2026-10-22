@@ -24,6 +24,20 @@ describe("resolveToday", () => {
     });
   });
 
+  it("uses the athlete's time zone for the date and evening cutoff", () => {
+    const now = new Date(Date.UTC(2026, 9, 22, 23, 30, 0));
+    expect(resolveToday(now, null, "Europe/Oslo")).toEqual({
+      today: "2026-10-23",
+      isAfter18: false,
+      isOverridden: false,
+    });
+    expect(resolveToday(now, null, "America/New_York")).toEqual({
+      today: "2026-10-22",
+      isAfter18: true,
+      isOverridden: false,
+    });
+  });
+
   it("keeps the real time-of-day when the date is overridden", () => {
     const now = new Date(2026, 9, 22, 19, 0, 0);
     expect(resolveToday(now, "2027-03-15")).toEqual({

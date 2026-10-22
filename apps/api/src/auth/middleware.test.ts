@@ -58,7 +58,21 @@ describe("requireAuth", () => {
 function storeWithRole(role: UserRole): UserStore {
   return {
     ensureUser: (sub) =>
-      Promise.resolve({ id: 1, sub, role, createdAt: new Date(0) }),
+      Promise.resolve({
+        id: 1,
+        sub,
+        role,
+        timezone: null,
+        createdAt: new Date(0),
+      }),
+    updateTimezone: (sub, timezone) =>
+      Promise.resolve({
+        id: 1,
+        sub,
+        role,
+        timezone,
+        createdAt: new Date(0),
+      }),
   };
 }
 
@@ -96,6 +110,7 @@ describe("requireAdmin", () => {
   it("returns 503 when the account cannot be resolved", async () => {
     const store: UserStore = {
       ensureUser: () => Promise.reject(new Error("database down")),
+      updateTimezone: () => Promise.reject(new Error("database down")),
     };
     const res = await appWithAdmin(store).fetch(authedRequest());
     expect(res.status).toBe(503);

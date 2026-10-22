@@ -49,6 +49,8 @@ export const users = pgTable(
     role: text("role", { enum: ["admin", "member"] })
       .notNull()
       .default("member"),
+    // IANA zone used to display the athlete's times; null means device zone.
+    timezone: text("timezone"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -169,6 +171,8 @@ export type NewActivityFeedCache = typeof activityFeedCache.$inferInsert;
 export const questions = pgTable("questions", {
   id: serial("id").primaryKey(),
   currentVersion: integer("current_version").notNull().default(1),
+  // Ascending onboarding order; ties fall back to id for stable listing.
+  position: integer("position").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

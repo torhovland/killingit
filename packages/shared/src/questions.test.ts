@@ -5,6 +5,7 @@ import {
   questionAnswersInputSchema,
   questionArchivedResponseSchema,
   questionInputSchema,
+  questionOrderInputSchema,
   questionSchema,
   questionsResponseSchema,
 } from "./questions.js";
@@ -73,6 +74,21 @@ describe("question response schemas", () => {
 
   it("parses an archive acknowledgement", () => {
     expect(questionArchivedResponseSchema.parse({ id: 1 })).toEqual({ id: 1 });
+  });
+});
+
+describe("questionOrderInputSchema", () => {
+  it("accepts a complete question order", () => {
+    expect(questionOrderInputSchema.parse({ ids: [3, 1, 2] })).toEqual({
+      ids: [3, 1, 2],
+    });
+  });
+
+  it("rejects duplicates and empty orders", () => {
+    expect(questionOrderInputSchema.safeParse({ ids: [1, 1] }).success).toBe(
+      false,
+    );
+    expect(questionOrderInputSchema.safeParse({ ids: [] }).success).toBe(false);
   });
 });
 

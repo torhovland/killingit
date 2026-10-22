@@ -7,7 +7,10 @@ import { useAppStatus } from "./AppStatus";
 import { useAuth } from "./auth";
 import { CoachPlanView } from "./CoachPlanView";
 import { fetchJsonAuthed } from "./fetchAuthed";
+import { useNavigate } from "./navigation";
 import { reportError } from "./reportError";
+import { useTimeZone } from "./TimeZoneContext";
+import { formatDateTime } from "./timeZone";
 import { getToday } from "./useToday";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
@@ -35,7 +38,9 @@ export function CoachPlanSection({
 }: CoachPlanSectionProps) {
   const auth = useAuth();
   const { setStatus } = useAppStatus();
-  const { today, isAfter18 } = getToday();
+  const navigate = useNavigate();
+  const timeZone = useTimeZone();
+  const { today, isAfter18 } = getToday(timeZone);
   const [data, setData] = useState<CoachPlanResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -142,8 +147,7 @@ export function CoachPlanSection({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           today,
-          timezone:
-            Intl.DateTimeFormat().resolvedOptions().timeZone || undefined,
+          timezone: timeZone,
           force,
           includeTomorrow,
         }),
@@ -237,7 +241,7 @@ export function CoachPlanSection({
           <h2 className="text-xl font-semibold">Your plan</h2>
           <p className="text-sm text-muted-foreground">
             {data?.generatedAt
-              ? `Generated ${formatDateTime(data.generatedAt)}`
+              ? `Generated ${formatDateTime(data.generatedAt, timeZone)}`
               : "Your coach builds the season, block, week, and today from your profile and recent training."}
           </p>
         </div>
@@ -252,9 +256,18 @@ export function CoachPlanSection({
       </div>
 
       {!ready && (
-        <p className="rounded border bg-muted p-3 text-sm text-muted-foreground">
-          Connect Garmin and OpenRouter to generate your training plan.
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded border bg-muted p-3 text-sm">
+          <span className="text-muted-foreground">
+            Connect Garmin and OpenRouter to generate your training plan.
+          </span>
+          <button
+            type="button"
+            className="rounded border bg-card px-3 py-1 enabled:hover:bg-muted"
+            onClick={() => navigate("settings")}
+          >
+            Open settings
+          </button>
+        </div>
       )}
 
       {error && (
@@ -336,14 +349,6 @@ export function CoachPlanSection({
       )}
     </section>
   );
-}
-
-function formatDateTime(iso: string): string {
-  const parsed = new Date(iso);
-  if (Number.isNaN(parsed.getTime())) {
-    return iso;
-  }
-  return parsed.toLocaleString();
 }
 
 function sleep(ms: number): Promise<void> {

@@ -1,4 +1,8 @@
-import type { AnalyzedActivity, WeekPlan } from "@killingit/shared";
+import {
+  formatActivityType,
+  type AnalyzedActivity,
+  type WeekPlan,
+} from "@killingit/shared";
 import type { ManualActivityContext } from "../llm/planContext.js";
 
 /**
@@ -58,7 +62,11 @@ export function applyCompletedDays(
         type: "workout",
         title: activity.name,
         description: describeActivity(activity),
-        durationMinutes: Math.max(1, Math.round(activity.movingTime / 60)),
+        // A manual entry has no measured duration; do not invent one.
+        durationMinutes:
+          activity.type === "manual"
+            ? 0
+            : Math.max(1, Math.round(activity.elapsedTime / 60)),
         status: "completed",
       } as const;
     }
@@ -80,11 +88,17 @@ export function applyCompletedDays(
 }
 
 function describeActivity(activity: AnalyzedActivity): string {
-  const parts: string[] = [activity.type];
+  if (activity.type === "manual") {
+    // Manual entries only carry a date and free text; there is no duration or
+    // distance to report.
+    return "Completed: logged manually";
+  }
+
+  const parts: string[] = [formatActivityType(activity.type)];
   if (activity.distance > 0) {
     parts.push(`${(activity.distance / 1000).toFixed(2)} km`);
   }
-  parts.push(`${Math.round(activity.movingTime / 60)} min`);
+  parts.push(`${Math.round(activity.elapsedTime / 60)} min`);
   if (activity.totalElevationGain > 0) {
     parts.push(`${Math.round(activity.totalElevationGain)} m climb`);
   }

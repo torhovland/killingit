@@ -1,5 +1,8 @@
 import { useState } from "react";
-import type { AnalyzedActivity } from "@killingit/shared";
+import { formatActivityType, type AnalyzedActivity } from "@killingit/shared";
+import { ActivityMap } from "./ActivityMap";
+import { useTimeZone } from "./TimeZoneContext";
+import { formatDateTime } from "./timeZone";
 
 /** Formats seconds as `m:ss` or `h:mm:ss` for activity metadata. */
 function formatDuration(seconds: number): string {
@@ -11,15 +14,6 @@ function formatDuration(seconds: number): string {
   return hours > 0
     ? `${hours}:${pad(minutes)}:${pad(secs)}`
     : `${minutes}:${pad(secs)}`;
-}
-
-/** Formats an ISO timestamp as a stable, UTC-labelled string. */
-function formatDate(iso: string): string {
-  const parsed = new Date(iso);
-  if (Number.isNaN(parsed.getTime())) {
-    return iso;
-  }
-  return `${parsed.toISOString().slice(0, 16).replace("T", " ")} UTC`;
 }
 
 /**
@@ -43,6 +37,7 @@ export function ActivityCard({
   onNoComment?: (activityId: string) => Promise<void>;
   onDelete?: (activityId: string) => Promise<void>;
 }) {
+  const timeZone = useTimeZone();
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -118,51 +113,75 @@ export function ActivityCard({
   // analysis.
   const summary =
     activity.programAnalysis?.text.trim() || activity.analysis?.text.trim();
+  const route = activity.route ?? [];
+  const hasMap = route.length >= 2;
+  const metadata = [
+    formatDateTime(activity.startDate, timeZone),
+    formatActivityType(activity.type),
+  ];
+  if (activity.distance > 0) {
+    metadata.push(`${(activity.distance / 1000).toFixed(2)} km`);
+  }
+  metadata.push(formatDuration(activity.elapsedTime));
+  if (activity.totalElevationGain > 0) {
+    metadata.push(`${Math.round(activity.totalElevationGain)} m climb`);
+  }
 
   return (
     <article
       className="flex flex-col gap-2 rounded-lg border bg-card p-4 text-left"
       data-testid="activity-card"
     >
-      <header className="flex items-start justify-between gap-2">
-        <div className="flex flex-col gap-1">
-          <h3 className="text-lg font-semibold">{activity.name}</h3>
-          <p className="text-sm text-muted-foreground">
-            {formatDate(activity.startDate)} · {activity.type} ·{" "}
-            {(activity.distance / 1000).toFixed(2)} km ·{" "}
-            {formatDuration(activity.movingTime)} ·{" "}
-            {Math.round(activity.totalElevationGain)} m climb
-          </p>
+      <div
+        className={
+          hasMap
+            ? "grid gap-3 sm:grid-cols-[minmax(0,1fr)_16rem] sm:items-start"
+            : "flex flex-col gap-2"
+        }
+      >
+        <div className="flex flex-col gap-2">
+          <header className="flex flex-col gap-1">
+            <h3 className="text-lg font-semibold">{activity.name}</h3>
+            <p className="text-sm text-muted-foreground">
+              {metadata.join(" · ")}
+              {onDelete && (
+                <>
+                  {" · "}
+                  <button
+                    type="button"
+                    className="text-destructive enabled:hover:underline disabled:opacity-50"
+                    onClick={() => void handleDelete()}
+                    disabled={deleting}
+                    data-testid="activity-delete"
+                  >
+                    {deleting ? "Deleting…" : "Delete"}
+                  </button>
+                </>
+              )}
+            </p>
+          </header>
+
+          {deleteError && (
+            <p className="text-xs text-destructive">{deleteError}</p>
+          )}
+
+          {summary ? (
+            <p className="whitespace-pre-line" data-testid="activity-analysis">
+              {summary}
+            </p>
+          ) : (
+            <p
+              className="rounded bg-accent/15 p-2 text-sm"
+              data-testid="activity-analysis-error"
+            >
+              {activity.analysisError
+                ? `Coach analysis unavailable: ${activity.analysisError}`
+                : "No coach analysis available yet."}
+            </p>
+          )}
         </div>
-        {onDelete && (
-          <button
-            type="button"
-            className="text-xs text-destructive enabled:hover:underline disabled:opacity-50"
-            onClick={() => void handleDelete()}
-            disabled={deleting}
-            data-testid="activity-delete"
-          >
-            {deleting ? "Deleting…" : "Delete"}
-          </button>
-        )}
-      </header>
-
-      {deleteError && <p className="text-xs text-destructive">{deleteError}</p>}
-
-      {summary ? (
-        <p className="whitespace-pre-line" data-testid="activity-analysis">
-          {summary}
-        </p>
-      ) : (
-        <p
-          className="rounded bg-accent/15 p-2 text-sm"
-          data-testid="activity-analysis-error"
-        >
-          {activity.analysisError
-            ? `Coach analysis unavailable: ${activity.analysisError}`
-            : "No coach analysis available yet."}
-        </p>
-      )}
+        {hasMap && <ActivityMap route={route} />}
+      </div>
 
       {shownComment && (
         <p className="text-sm" data-testid="activity-comment">
@@ -178,18 +197,13 @@ export function ActivityCard({
 
       {onSubmitComment && (
         <form
-          className="flex flex-col gap-2 border-t pt-2"
+          className="flex flex-col gap-2"
           onSubmit={(event) => void handleSubmit(event)}
           data-testid="activity-comment-form"
         >
-          <label
-            className="text-xs font-medium text-muted-foreground"
-            htmlFor={`activity-comment-${activity.id}`}
-          >
-            Add a comment about this activity
-          </label>
           <textarea
             id={`activity-comment-${activity.id}`}
+            aria-label="Comment about this activity"
             className="w-full rounded border bg-card p-2 text-sm"
             placeholder="How did it feel? Anything the coach should know?"
             value={comment}

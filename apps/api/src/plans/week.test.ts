@@ -51,9 +51,10 @@ describe("applyCompletedDays", () => {
     const monday = week.sessions[0];
     expect(monday?.status).toBe("completed");
     expect(monday?.title).toBe("Morning Run");
-    expect(monday?.description).toContain("Completed: running");
+    expect(monday?.description).toContain("Completed: Running");
     expect(monday?.description).toContain("10.00 km");
-    expect(monday?.durationMinutes).toBe(45);
+    expect(monday?.durationMinutes).toBe(47);
+    expect(monday?.description).toContain("47 min");
 
     const tuesday = week.sessions[1];
     expect(tuesday?.status).toBe("missed");
@@ -68,6 +69,23 @@ describe("applyCompletedDays", () => {
     expect(week.sessions[2]?.title).toBe("Session 3");
     expect(week.sessions[3]?.status).toBe("planned");
     expect(week.sessions[6]?.status).toBe("rest");
+  });
+
+  it("does not invent a one-minute duration for a manual activity", () => {
+    const week = applyCompletedDays(makeWeek(), [], "2026-10-21", [
+      {
+        id: 5,
+        startDate: "2026-10-19",
+        details: "Strength session at the gym",
+      },
+    ]);
+
+    const monday = week.sessions[0];
+    expect(monday?.status).toBe("completed");
+    expect(monday?.title).toBe("Strength session at the gym");
+    expect(monday?.durationMinutes).toBe(0);
+    expect(monday?.description).toBe("Completed: logged manually");
+    expect(monday?.description).not.toContain("1 min");
   });
 
   it("keeps a past rest day as rest", () => {

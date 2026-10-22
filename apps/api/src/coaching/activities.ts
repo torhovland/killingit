@@ -2,6 +2,7 @@ import type {
   Activity,
   ActivitySummary,
   AnalyzedActivity,
+  RoutePoint,
 } from "@killingit/shared";
 import { decrypt } from "../crypto/credentials.js";
 import { syncGarminActivities } from "../garmin/client.js";
@@ -31,6 +32,7 @@ import {
 import { loadLlmSettings } from "../llm/store.js";
 import { dbPlanStore } from "../plans/store.js";
 import { saveCachedActivityFeed } from "./feedCache.js";
+import { routeFromSamples } from "./route.js";
 
 /** How many of the latest synced activities can be returned in one feed. */
 export const MAX_ACTIVITIES = 20;
@@ -233,12 +235,21 @@ async function persistFeed(userId: number, feed: ActivityFeed): Promise<void> {
   }
 }
 
-/** Strips the (large) timeseries, keeping the summary and its sample count. */
+/**
+ * Strips the (large) timeseries, keeping the summary, its sample count, and a
+ * bounded GPS route for the activity map.
+ */
 function summarize(activity: Activity): ActivitySummary & {
   sampleCount: number;
+  route?: RoutePoint[];
 } {
   const { samples, ...summary } = activity;
-  return { ...summary, sampleCount: samples.length };
+  const route = routeFromSamples(samples);
+  return {
+    ...summary,
+    sampleCount: samples.length,
+    ...(route.length >= 2 ? { route } : {}),
+  };
 }
 
 /** Wraps cached analyses and athlete feedback in the shared response shape. */

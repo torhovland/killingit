@@ -29,6 +29,15 @@ const users: UserStore = {
       id: sub === "athlete-1" ? 1 : 2,
       sub,
       role: "member",
+      timezone: null,
+      createdAt: new Date(0),
+    }),
+  updateTimezone: (sub, timezone) =>
+    Promise.resolve({
+      id: sub === "athlete-1" ? 1 : 2,
+      sub,
+      role: "member",
+      timezone,
       createdAt: new Date(0),
     }),
 };

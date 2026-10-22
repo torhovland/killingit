@@ -110,6 +110,42 @@ export function AdminQuestionsSection() {
     setError(null);
   }
 
+  async function moveQuestion(id: number, offset: -1 | 1): Promise<void> {
+    if (questions === null) {
+      return;
+    }
+    const index = questions.findIndex((question) => question.id === id);
+    const target = index + offset;
+    if (index === -1 || target < 0 || target >= questions.length) {
+      return;
+    }
+
+    const next = [...questions];
+    const [moved] = next.splice(index, 1);
+    if (moved === undefined) {
+      return;
+    }
+    next.splice(target, 0, moved);
+
+    const response = await fetchJsonAuthed<unknown>(
+      `${API_URL}/api/admin/questions/order`,
+      auth,
+      {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ids: next.map((question) => question.id) }),
+      },
+    );
+    const parsed = questionsResponseSchema.safeParse(response);
+    if (!parsed.success) {
+      throw new Error("Reordering questions returned an unexpected response", {
+        cause: parsed.error,
+      });
+    }
+    setQuestions(parsed.data.questions);
+    setError(null);
+  }
+
   async function deleteQuestion(id: number): Promise<void> {
     const response = await fetchJsonAuthed<unknown>(
       `${API_URL}/api/admin/questions/${id}`,
@@ -183,12 +219,20 @@ export function AdminQuestionsSection() {
 
       {questions !== null && questions.length > 0 && (
         <ul className="flex flex-col gap-2">
-          {questions.map((question) => (
+          {questions.map((question, index) => (
             <QuestionRow
               key={question.id}
               question={question}
               onSave={(input) => saveQuestion(question.id, input)}
               onDelete={() => deleteQuestion(question.id)}
+              onMoveUp={
+                index === 0 ? undefined : () => moveQuestion(question.id, -1)
+              }
+              onMoveDown={
+                index === questions.length - 1
+                  ? undefined
+                  : () => moveQuestion(question.id, 1)
+              }
             />
           ))}
         </ul>

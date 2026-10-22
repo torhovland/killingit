@@ -1,4 +1,5 @@
 import type { ChangeEvent } from "react";
+import { useTimeZone } from "./TimeZoneContext";
 import { getToday, isDateOverrideAllowed, setTodayOverride } from "./useToday";
 
 /**
@@ -7,7 +8,8 @@ import { getToday, isDateOverrideAllowed, setTodayOverride } from "./useToday";
  * visit on that day. It renders nothing in production.
  */
 export function DevDatePicker() {
-  const { today, isOverridden } = getToday();
+  const timeZone = useTimeZone();
+  const { today, isOverridden } = getToday(timeZone);
 
   if (!isDateOverrideAllowed()) {
     return null;
@@ -28,12 +30,17 @@ export function DevDatePicker() {
   };
 
   return (
-    <div
-      className="fixed right-4 bottom-4 z-50 flex flex-col gap-2 rounded-lg border bg-card p-3 text-sm shadow-lg"
+    <section
+      className="flex flex-col gap-2 rounded-lg border bg-card p-4 text-sm"
       data-testid="dev-date-picker"
     >
+      <h3 className="text-xl font-semibold">Development</h3>
+      <p className="text-muted-foreground">
+        Simulate a visit on another date. This panel only appears in development
+        and test environments.
+      </p>
       <label className="flex flex-col gap-1">
-        <span className="font-medium">Dev: Override today</span>
+        <span className="font-medium">Override today</span>
         <input
           type="date"
           className="rounded border bg-background px-2 py-1"
@@ -55,6 +62,6 @@ export function DevDatePicker() {
           ? "Simulating a visit on the selected date."
           : "Using the real date."}
       </p>
-    </div>
+    </section>
   );
 }
