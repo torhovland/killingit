@@ -9,9 +9,10 @@ import {
   quickQuestionResponseSchema,
   weeklyNoteRequestSchema,
   weeklyNoteResponseSchema,
+  type ActivityCommentRequest,
 } from "@killingit/shared";
 import { zValidator } from "@hono/zod-validator";
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { z } from "zod";
 import { getAthlete } from "../auth/middleware.js";
 import {
@@ -39,11 +40,12 @@ import { loadLlmClient, type LlmClient } from "../llm/client.js";
 import { LlmAuthError, LlmProviderError } from "../llm/openrouter.js";
 import { startOfWeek } from "../plans/dates.js";
 import {
+  createActivityComment,
   loadManualActivities,
   loadWeeklyNote,
-  saveActivityComment,
   saveManualActivity,
   saveWeeklyNote,
+  updateActivityComment,
   updateManualActivity,
 } from "../plans/inputs.js";
 import type { CoachingInputs } from "../plans/inputs.js";
@@ -97,7 +99,8 @@ export interface CoachingRouteDependencies {
   loadManualActivities?: typeof loadManualActivities;
   loadManualActivityReplies?: typeof loadManualActivityReplies;
   loadWeeklyNoteReply?: typeof loadWeeklyNoteReply;
-  saveActivityComment?: typeof saveActivityComment;
+  createActivityComment?: typeof createActivityComment;
+  updateActivityComment?: typeof updateActivityComment;
   saveActivityReview?: typeof saveActivityReview;
   saveManualActivity?: typeof saveManualActivity;
   saveWeeklyNote?: typeof saveWeeklyNote;
@@ -129,7 +132,8 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
         refresh: false,
       }));
   const loadCachedFeed = deps.loadCachedFeed ?? loadCachedActivityFeed;
-  const saveComment = deps.saveActivityComment ?? saveActivityComment;
+  const createComment = deps.createActivityComment ?? createActivityComment;
+  const updateComment = deps.updateActivityComment ?? updateActivityComment;
   const saveReview = deps.saveActivityReview ?? saveActivityReview;
   const saveManual = deps.saveManualActivity ?? saveManualActivity;
   const saveWeekly = deps.saveWeeklyNote ?? saveWeeklyNote;
@@ -170,6 +174,55 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
       { userId, today, request },
     );
     return stored === null ? null : toCoachAnalysis(stored);
+  }
+
+  /**
+   * Saves the activity's single comment, regenerates its coach reply, and
+   * starts a plan revision. `create` refuses to replace an existing comment;
+   * `edit` requires one to exist.
+   */
+  async function saveActivityComment(
+    c: Context,
+    mode: "create" | "edit",
+    user: { id: number },
+    activityId: string,
+    input: ActivityCommentRequest,
+  ) {
+    const { today, timezone, activityDate, comment } = input;
+
+    const saved =
+      mode === "create"
+        ? await createComment(user.id, { activityId, comment })
+        : await updateComment(user.id, { activityId, comment });
+    if (!saved) {
+      return c.text(
+        mode === "create"
+          ? "This activity already has a comment; edit it instead"
+          : "This activity has no comment to edit",
+        mode === "create" ? 409 : 404,
+      );
+    }
+
+    const coachReply = await replyTo(user.id, today, {
+      kind: "activity_comment",
+      activityId,
+      activityDate,
+      comment,
+    });
+
+    await trigger(triggerDeps, {
+      userId: user.id,
+      today,
+      ...(timezone !== undefined ? { timezone } : {}),
+      keepToday: activityDate === today,
+    });
+
+    return c.json(
+      coachingInputSaveResponseSchema.parse({
+        message: mode === "create" ? "Comment saved" : "Comment updated",
+        reply: coachReply,
+      }),
+    );
   }
 
   return new Hono()
@@ -231,28 +284,27 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
       async (c) => {
         const user = await deps.users.ensureUser(getAthlete(c).sub);
         const { activityId } = c.req.param();
-        const { today, timezone, activityDate, comment } = c.req.valid("json");
-
-        await saveComment(user.id, { activityId, comment });
-        const coachReply = await replyTo(user.id, today, {
-          kind: "activity_comment",
+        return saveActivityComment(
+          c,
+          "create",
+          user,
           activityId,
-          activityDate,
-          comment,
-        });
-
-        await trigger(triggerDeps, {
-          userId: user.id,
-          today,
-          ...(timezone !== undefined ? { timezone } : {}),
-          keepToday: activityDate === today,
-        });
-
-        return c.json(
-          coachingInputSaveResponseSchema.parse({
-            message: "Comment saved",
-            reply: coachReply,
-          }),
+          c.req.valid("json"),
+        );
+      },
+    )
+    .put(
+      "/activities/:activityId/comments",
+      zValidator("json", activityCommentRequestSchema),
+      async (c) => {
+        const user = await deps.users.ensureUser(getAthlete(c).sub);
+        const { activityId } = c.req.param();
+        return saveActivityComment(
+          c,
+          "edit",
+          user,
+          activityId,
+          c.req.valid("json"),
         );
       },
     )

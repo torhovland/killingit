@@ -125,10 +125,14 @@ function makeApp(options: {
     userId: number,
     weekStartDate: string,
   ) => Promise<CoachingInputs>;
-  saveActivityComment?: (
+  createActivityComment?: (
     userId: number,
     input: { activityId: string; comment: string },
-  ) => Promise<void>;
+  ) => Promise<boolean>;
+  updateActivityComment?: (
+    userId: number,
+    input: { activityId: string; comment: string },
+  ) => Promise<boolean>;
   saveActivityReview?: AppDependencies["saveActivityReview"];
   saveManualActivity?: (
     userId: number,
@@ -216,8 +220,11 @@ function makeApp(options: {
     loadWeeklyNote: options.loadWeeklyNote ?? (() => Promise.resolve(null)),
     loadWeeklyNoteReply:
       options.loadWeeklyNoteReply ?? (() => Promise.resolve(null)),
-    ...(options.saveActivityComment !== undefined
-      ? { saveActivityComment: options.saveActivityComment }
+    ...(options.createActivityComment !== undefined
+      ? { createActivityComment: options.createActivityComment }
+      : {}),
+    ...(options.updateActivityComment !== undefined
+      ? { updateActivityComment: options.updateActivityComment }
       : {}),
     ...(options.saveActivityReview !== undefined
       ? { saveActivityReview: options.saveActivityReview }
@@ -325,9 +332,9 @@ describe("coaching activity comments", () => {
     let keepToday: boolean | undefined;
 
     const app = makeApp({
-      saveActivityComment: (userId, input) => {
+      createActivityComment: (userId, input) => {
         saved.value = { userId, ...input };
-        return Promise.resolve();
+        return Promise.resolve(true);
       },
       replyToCoachingInput: () =>
         Promise.resolve({
@@ -369,7 +376,7 @@ describe("coaching activity comments", () => {
   it("does not keep today's session for an earlier activity", async () => {
     let keepToday: boolean | undefined;
     const app = makeApp({
-      saveActivityComment: () => Promise.resolve(),
+      createActivityComment: () => Promise.resolve(true),
       triggerPlanGeneration: (_deps, options) => {
         keepToday = options.keepToday;
         return Promise.resolve(true);
@@ -421,6 +428,115 @@ describe("coaching activity comments", () => {
       }),
     );
     expect(res.status).toBe(400);
+  });
+
+  it("refuses to add a second comment to the same activity", async () => {
+    let triggered = false;
+    const app = makeApp({
+      createActivityComment: () => Promise.resolve(false),
+      triggerPlanGeneration: () => {
+        triggered = true;
+        return Promise.resolve(true);
+      },
+    });
+
+    const res = await app.fetch(
+      authenticatedRequest("/api/coaching/activities/123/comments", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          today: "2026-10-21",
+          activityDate: "2026-10-21",
+          comment: "A second comment.",
+        }),
+      }),
+    );
+
+    expect(res.status).toBe(409);
+    expect(triggered).toBe(false);
+  });
+
+  it("edits the existing comment, refreshes the coach reply, and triggers a plan revision", async () => {
+    const saved: {
+      value: { userId: number; activityId: string; comment: string } | null;
+    } = { value: null };
+    const repliedTo: { comment: string | null } = { comment: null };
+    let triggered = false;
+
+    const app = makeApp({
+      updateActivityComment: (userId, input) => {
+        saved.value = { userId, ...input };
+        return Promise.resolve(true);
+      },
+      replyToCoachingInput: (_deps, options) => {
+        repliedTo.comment =
+          options.request.kind === "activity_comment"
+            ? options.request.comment
+            : null;
+        return Promise.resolve({
+          kind: "activity_comment",
+          target: "123",
+          text: "Updated reply.",
+          model: "test-model",
+          generatedAt: new Date("2026-10-21T12:00:00Z"),
+        });
+      },
+      triggerPlanGeneration: () => {
+        triggered = true;
+        return Promise.resolve(true);
+      },
+    });
+
+    const res = await app.fetch(
+      authenticatedRequest("/api/coaching/activities/123/comments", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          today: "2026-10-21",
+          activityDate: "2026-10-19",
+          comment: "On reflection, the hills felt harder than I said.",
+        }),
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(saved.value).toEqual({
+      userId: 42,
+      activityId: "123",
+      comment: "On reflection, the hills felt harder than I said.",
+    });
+    expect(repliedTo.comment).toBe(
+      "On reflection, the hills felt harder than I said.",
+    );
+    expect(triggered).toBe(true);
+    const body = (await res.json()) as { reply: { text: string } | null };
+    expect(body.reply?.text).toBe("Updated reply.");
+  });
+
+  it("returns 404 when editing an activity without a comment", async () => {
+    let triggered = false;
+    const app = makeApp({
+      updateActivityComment: () => Promise.resolve(false),
+      triggerPlanGeneration: () => {
+        triggered = true;
+        return Promise.resolve(true);
+      },
+    });
+
+    const res = await app.fetch(
+      authenticatedRequest("/api/coaching/activities/123/comments", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          today: "2026-10-21",
+          activityDate: "2026-10-21",
+          comment: "A comment that does not exist yet.",
+        }),
+      }),
+    );
+
+    expect(res.status).toBe(404);
+    expect(triggered).toBe(false);
   });
 });
 

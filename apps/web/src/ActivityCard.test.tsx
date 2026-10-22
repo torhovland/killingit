@@ -185,6 +185,31 @@ describe("ActivityCard", () => {
     expect(html).not.toContain("border-t pt-2");
   });
 
+  it("offers to edit an existing comment instead of adding another", () => {
+    const html = renderToStaticMarkup(
+      <ActivityCard
+        activity={{ ...activity, comment: "Felt strong on the hills." }}
+        onSubmitComment={() => Promise.resolve(null)}
+      />,
+    );
+
+    expect(html).toContain('data-testid="activity-comment-edit"');
+    expect(html).toContain("Edit comment");
+    expect(html).not.toContain('data-testid="activity-comment-form"');
+    expect(html).not.toContain("Save comment");
+  });
+
+  it("does not offer editing without a submit handler", () => {
+    const html = renderToStaticMarkup(
+      <ActivityCard
+        activity={{ ...activity, comment: "Felt strong on the hills." }}
+      />,
+    );
+
+    expect(html).not.toContain('data-testid="activity-comment-edit"');
+    expect(html).toContain("Felt strong on the hills.");
+  });
+
   it("renders a no-comment action only when a handler is provided", () => {
     const withNoComment = renderToStaticMarkup(
       <ActivityCard
@@ -203,6 +228,15 @@ describe("ActivityCard", () => {
     expect(withNoComment).toContain('data-testid="activity-no-comment"');
     expect(withNoComment).toContain("No comment");
     expect(withoutNoComment).not.toContain('data-testid="activity-no-comment"');
+
+    const alreadyCommented = renderToStaticMarkup(
+      <ActivityCard
+        activity={{ ...activity, comment: "Felt strong on the hills." }}
+        onSubmitComment={() => Promise.resolve(null)}
+        onNoComment={() => Promise.resolve()}
+      />,
+    );
+    expect(alreadyCommented).not.toContain('data-testid="activity-no-comment"');
   });
 
   it("renders a delete action only when a delete handler is provided", () => {

@@ -19,9 +19,10 @@ function formatDuration(seconds: number): string {
 /**
  * One synced activity with its coach analysis and program review.
  * Presentational only so it can be rendered and tested without any data
- * fetching. When `onSubmitComment` is provided, the card also offers a comment
- * box; the saved comment feeds the next plan revision and the coach replies
- * immediately.
+ * fetching. When `onSubmitComment` is provided, the card offers a comment box
+ * for activities without a comment, and an edit action for the single comment
+ * an activity may have. Saving a comment feeds the next plan revision and the
+ * coach replies immediately.
  */
 export function ActivityCard({
   activity,
@@ -33,6 +34,7 @@ export function ActivityCard({
   onSubmitComment?: (
     activityId: string,
     comment: string,
+    mode: "create" | "edit",
   ) => Promise<string | null>;
   onNoComment?: (activityId: string) => Promise<void>;
   onDelete?: (activityId: string) => Promise<void>;
@@ -45,6 +47,7 @@ export function ActivityCard({
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [savedComment, setSavedComment] = useState<string | null>(null);
   const [coachReply, setCoachReply] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
   const [dismissing, setDismissing] = useState(false);
 
   async function handleDelete(): Promise<void> {
@@ -78,15 +81,32 @@ export function ActivityCard({
     setSubmitting(true);
     setError(null);
     try {
-      const reply = await onSubmitComment(String(activity.id), submitted);
+      const reply = await onSubmitComment(
+        String(activity.id),
+        submitted,
+        shownComment === null ? "create" : "edit",
+      );
       setSavedComment(submitted);
       setCoachReply(reply);
       setComment("");
+      setEditing(false);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Could not save comment");
     } finally {
       setSubmitting(false);
     }
+  }
+
+  function handleEditComment(): void {
+    setComment(shownComment ?? "");
+    setError(null);
+    setEditing(true);
+  }
+
+  function handleCancelEdit(): void {
+    setEditing(false);
+    setComment("");
+    setError(null);
   }
 
   async function handleNoComment(): Promise<void> {
@@ -184,9 +204,21 @@ export function ActivityCard({
       </div>
 
       {shownComment && (
-        <p className="text-sm" data-testid="activity-comment">
-          <span className="font-medium">You:</span> {shownComment}
-        </p>
+        <div className="flex flex-wrap items-baseline gap-2 text-sm">
+          <p data-testid="activity-comment">
+            <span className="font-medium">You:</span> {shownComment}
+          </p>
+          {onSubmitComment && !editing && (
+            <button
+              type="button"
+              className="text-xs text-muted-foreground hover:underline"
+              onClick={handleEditComment}
+              data-testid="activity-comment-edit"
+            >
+              Edit comment
+            </button>
+          )}
+        </div>
       )}
 
       {shownReply && (
@@ -195,7 +227,7 @@ export function ActivityCard({
         </p>
       )}
 
-      {onSubmitComment && (
+      {onSubmitComment && (shownComment === null || editing) && (
         <form
           className="flex flex-col gap-2"
           onSubmit={(event) => void handleSubmit(event)}
@@ -218,9 +250,23 @@ export function ActivityCard({
               className="self-start rounded border border-transparent bg-primary px-3 py-1 text-sm text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
               disabled={submitting || !comment.trim()}
             >
-              {submitting ? "Saving…" : "Save comment"}
+              {submitting
+                ? "Saving…"
+                : shownComment === null
+                  ? "Save comment"
+                  : "Save changes"}
             </button>
-            {onNoComment && (
+            {shownComment !== null && (
+              <button
+                type="button"
+                className="self-start rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted disabled:opacity-50"
+                onClick={handleCancelEdit}
+                disabled={submitting}
+              >
+                Cancel
+              </button>
+            )}
+            {onNoComment && shownComment === null && (
               <button
                 type="button"
                 className="self-start rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted disabled:opacity-50"

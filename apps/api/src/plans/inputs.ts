@@ -158,13 +158,17 @@ export async function saveManualActivity(
   return row.id;
 }
 
-/** Upserts a comment on an activity. The plan's input timestamp stays unchanged. */
-export async function saveActivityComment(
+/**
+ * Adds the one comment an activity is allowed to have. Returns false when a
+ * comment already exists, so the caller can reject a second add rather than
+ * silently replacing the existing comment.
+ */
+export async function createActivityComment(
   userId: number,
   input: ActivityCommentInput,
-): Promise<void> {
+): Promise<boolean> {
   const now = new Date();
-  await db
+  const rows = await db
     .insert(activityComments)
     .values({
       userId,
@@ -173,10 +177,33 @@ export async function saveActivityComment(
       createdAt: now,
       updatedAt: now,
     })
-    .onConflictDoUpdate({
+    .onConflictDoNothing({
       target: [activityComments.userId, activityComments.activityId],
-      set: { comment: input.comment, updatedAt: now },
-    });
+    })
+    .returning({ id: activityComments.id });
+  return rows.length > 0;
+}
+
+/**
+ * Edits an existing activity comment. Returns false when the activity has no
+ * comment yet. The plan's stored input timestamp stays unchanged, so the newer
+ * `updatedAt` makes the plan stale and triggers a revision.
+ */
+export async function updateActivityComment(
+  userId: number,
+  input: ActivityCommentInput,
+): Promise<boolean> {
+  const rows = await db
+    .update(activityComments)
+    .set({ comment: input.comment, updatedAt: new Date() })
+    .where(
+      and(
+        eq(activityComments.userId, userId),
+        eq(activityComments.activityId, input.activityId),
+      ),
+    )
+    .returning({ id: activityComments.id });
+  return rows.length > 0;
 }
 
 /** Loads the note for `weekStartDate`, or null when none was saved. */

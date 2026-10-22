@@ -44,6 +44,12 @@ already happened (or that the athlete is reporting today).
 
 ## Data model
 
+### `activity_comments`
+
+One comment per `(user_id, activity_id)` at most. Adding a comment when one
+already exists is rejected; editing updates the existing row and its
+`updated_at`.
+
 ### `activity_analyses`
 
 Add `kind` (`general | program`, default `general`). The unique constraint moves
@@ -65,7 +71,11 @@ One latest reply per athlete input:
   - `comment` (the athlete's saved comment, or null),
   - `coachReply` (the latest coach reply, or null).
 - `POST /api/coaching/activities/:id/comments` accepts `activityDate` and returns
-  `{ message, reply }`. `keepToday` is set when `activityDate === today`.
+  `{ message, reply }`. `keepToday` is set when `activityDate === today`. It
+  creates the activity's comment and returns `409` if one already exists.
+- `PUT /api/coaching/activities/:id/comments` accepts the same body. It edits the
+  existing comment, regenerates the single coach reply, and returns
+  `{ message, reply }`; it returns `404` when the activity has no comment.
 - `GET /api/coaching/weekly/notes` returns `{ note, reply }`;
   `POST` returns `{ message, reply }`.
 - `GET /api/coaching/activities/manual` returns each activity with its
@@ -117,7 +127,13 @@ and the reply is null; the failure is logged.
 
 - `ActivityCard` shows the program review (when present), the athlete's saved
   comment, and the coach reply. Saving a comment renders the returned reply
-  immediately.
+  immediately. An activity without a comment shows the comment form; once a
+  comment exists the form is replaced by an `Edit comment` action that opens it
+  prefilled. Editing regenerates the coach reply and refreshes the plan.
+- The main coaching page only lists activities without a response. Commenting on
+  an activity leaves it in place for the rest of the visit; the next page load
+  drops it now that it has a comment. The activities page lists all activities
+  and offers the edit action for every existing comment.
 - The coaching-inputs section shows the coach reply under the weekly note and
   under each saved manual activity.
 
@@ -133,5 +149,7 @@ and the reply is null; the failure is logged.
 4. Creating or editing a manual activity returns and persists a reply; when its
    date is today, today's session is preserved while week and tomorrow change.
 5. Replies and program reviews survive a page reload.
-6. `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`
+6. An activity has at most one comment. A second add is rejected, and editing
+   the comment replaces the coach's existing reply and refreshes the plan.
+7. `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`
    pass.
