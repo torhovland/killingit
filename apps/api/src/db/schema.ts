@@ -212,6 +212,95 @@ export type QuestionAnswerRow = typeof questionAnswers.$inferSelect;
 export type NewQuestionAnswer = typeof questionAnswers.$inferInsert;
 
 /**
+ * An activity manually recorded by the athlete, e.g. a workout not captured by
+ * Garmin. Mirrors the fields of a synced activity summary.
+ */
+export const manualActivities = pgTable("manual_activities", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  type: text("type").notNull(),
+  startDate: text("start_date").notNull(),
+  distance: integer("distance").notNull().default(0),
+  movingTime: integer("moving_time").notNull().default(0),
+  elapsedTime: integer("elapsed_time").notNull().default(0),
+  totalElevationGain: integer("total_elevation_gain").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export type ManualActivityRow = typeof manualActivities.$inferSelect;
+export type NewManualActivity = typeof manualActivities.$inferInsert;
+
+/**
+ * A comment the athlete added to an activity (synced or manual). The activity id
+ * is stored as text so both Garmin's numeric ids and manual ids can be used.
+ */
+export const activityComments = pgTable(
+  "activity_comments",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    activityId: text("activity_id").notNull(),
+    comment: text("comment").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("activity_comments_user_id_activity_id_idx").on(
+      table.userId,
+      table.activityId,
+    ),
+  ],
+);
+
+export type ActivityCommentRow = typeof activityComments.$inferSelect;
+export type NewActivityComment = typeof activityComments.$inferInsert;
+
+/**
+ * A general note the athlete added for a specific week (e.g. "won't train on
+ * Thursday"). The note applies to the week starting on `weekStartDate`.
+ */
+export const weeklyNotes = pgTable(
+  "weekly_notes",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    weekStartDate: text("week_start_date").notNull(),
+    note: text("note").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("weekly_notes_user_id_week_start_date_idx").on(
+      table.userId,
+      table.weekStartDate,
+    ),
+  ],
+);
+
+export type WeeklyNoteRow = typeof weeklyNotes.$inferSelect;
+export type NewWeeklyNote = typeof weeklyNotes.$inferInsert;
+
+/**
  * The athlete's current four-level coach plan. One row per user; a regeneration
  * replaces the stored JSON while keeping the previous plan visible until the
  * new one is ready. The date columns duplicate values inside the JSON so the
@@ -239,6 +328,12 @@ export const coachPlans = pgTable(
     // The newest question-answer timestamp included in this plan. A newer answer
     // makes the plan stale and triggers a regeneration.
     answersUpdatedAt: timestamp("answers_updated_at", { withTimezone: true }),
+    // The newest activity-comment, manual-activity, or weekly-note timestamp
+    // included in this plan. A newer input triggers a revision of the week and
+    // today/tomorrow without discarding the existing plan.
+    coachingInputsUpdatedAt: timestamp("coaching_inputs_updated_at", {
+      withTimezone: true,
+    }),
     generatedAt: timestamp("generated_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

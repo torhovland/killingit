@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import type { CoachPlan, PlanGenerationStatus } from "@killingit/shared";
 import { createApp } from "../index.js";
+import type { CoachingInputs } from "../plans/inputs.js";
 import type {
   PlanGenerationStore,
   PlanStore,
@@ -101,9 +102,25 @@ class MemoryPlanStore implements PlanStore {
     _userId: number,
     plan: CoachPlan,
     answersUpdatedAt: Date | null,
+    coachingInputsUpdatedAt: Date | null = null,
   ): Promise<StoredPlan> {
-    this.stored = { plan, answersUpdatedAt, generatedAt: new Date() };
+    this.stored = {
+      plan,
+      answersUpdatedAt,
+      coachingInputsUpdatedAt,
+      generatedAt: new Date(),
+    };
     return Promise.resolve(this.stored);
+  }
+
+  markInputsUpdated(): Promise<void> {
+    if (this.stored) {
+      this.stored = {
+        ...this.stored,
+        coachingInputsUpdatedAt: new Date(),
+      };
+    }
+    return Promise.resolve();
   }
 }
 
@@ -202,6 +219,13 @@ function makeApp(options: {
         apiKey: "test-key",
         model: "test-model",
       }),
+    loadCoachingInputs: () =>
+      Promise.resolve({
+        manualActivities: [],
+        activityComments: [],
+        weeklyNote: null,
+        updatedAt: null,
+      } satisfies CoachingInputs),
   });
 }
 
@@ -258,6 +282,7 @@ describe("coach plan route", () => {
     const planStore = new MemoryPlanStore({
       plan,
       answersUpdatedAt: new Date("2026-10-20T10:00:00Z"),
+      coachingInputsUpdatedAt: null,
       generatedAt: new Date("2026-10-20T10:00:00Z"),
     });
 
@@ -293,6 +318,7 @@ describe("coach plan route", () => {
     const planStore = new MemoryPlanStore({
       plan: invalidPlan,
       answersUpdatedAt: new Date("2026-10-20T10:00:00Z"),
+      coachingInputsUpdatedAt: null,
       generatedAt: new Date("2026-10-20T10:00:00Z"),
     });
 

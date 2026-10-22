@@ -12,6 +12,7 @@ import {
 export interface StoredPlan {
   plan: CoachPlan;
   answersUpdatedAt: Date | null;
+  coachingInputsUpdatedAt: Date | null;
   generatedAt: Date;
 }
 
@@ -21,7 +22,10 @@ export interface PlanStore {
     userId: number,
     plan: CoachPlan,
     answersUpdatedAt: Date | null,
+    coachingInputsUpdatedAt: Date | null,
   ): Promise<StoredPlan>;
+  /** Marks the plan as needing a revision after a coaching input changed. */
+  markInputsUpdated(userId: number): Promise<void>;
 }
 
 export interface PlanGenerationStore {
@@ -61,6 +65,7 @@ function toStoredPlan(row: CoachPlanRow): StoredPlan {
       tomorrow: row.tomorrow,
     },
     answersUpdatedAt: row.answersUpdatedAt,
+    coachingInputsUpdatedAt: row.coachingInputsUpdatedAt,
     generatedAt: row.generatedAt,
   };
 }
@@ -87,7 +92,7 @@ export const dbPlanStore: PlanStore = {
     return row ? toStoredPlan(row) : null;
   },
 
-  async save(userId, plan, answersUpdatedAt) {
+  async save(userId, plan, answersUpdatedAt, coachingInputsUpdatedAt) {
     const now = new Date();
     const planValues = {
       season: plan.season,
@@ -102,6 +107,7 @@ export const dbPlanStore: PlanStore = {
       seasonStartDate: plan.season.startDate,
       seasonEndDate: plan.season.endDate,
       answersUpdatedAt,
+      coachingInputsUpdatedAt,
       generatedAt: now,
       updatedAt: now,
     };
@@ -118,6 +124,13 @@ export const dbPlanStore: PlanStore = {
       throw new Error("failed to persist the coach plan");
     }
     return toStoredPlan(row);
+  },
+
+  async markInputsUpdated(userId) {
+    await db
+      .update(coachPlans)
+      .set({ coachingInputsUpdatedAt: new Date() })
+      .where(eq(coachPlans.userId, userId));
   },
 };
 

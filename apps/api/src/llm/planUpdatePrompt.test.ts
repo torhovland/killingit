@@ -104,6 +104,22 @@ const base = {
   timezone: "Europe/Oslo",
   athleteAnswers: answers,
   recentActivities: activities,
+  manualActivities: [
+    {
+      id: 99,
+      name: "Manual Swim",
+      type: "swimming",
+      startDate: "2026-10-19T07:00:00Z",
+      distance: 2000,
+      movingTime: 1800,
+      elapsedTime: 1900,
+      totalElevationGain: 0,
+    },
+  ],
+  activityComments: [
+    { activityId: "123", comment: "Felt strong on the hills." },
+  ],
+  weeklyNote: "I cannot train on Thursday this week.",
 };
 
 describe("daily update prompts", () => {
@@ -132,6 +148,12 @@ describe("daily update prompts", () => {
     expect(prompt).toContain("Finish a sub-4-hour marathon.");
     expect(prompt).toContain("Morning Run");
     expect(prompt).toContain("Steady aerobic effort.");
+    expect(prompt).toContain("Manually recorded activities:");
+    expect(prompt).toContain("Manual Swim");
+    expect(prompt).toContain("Activity comments:");
+    expect(prompt).toContain("Felt strong on the hills.");
+    expect(prompt).toContain("Weekly note:");
+    expect(prompt).toContain("I cannot train on Thursday this week.");
     expect(prompt).toContain("Goal: Sub-4-hour marathon");
     expect(prompt).toContain("Block: Base");
     expect(prompt).toContain("Week starting 2026-10-19");

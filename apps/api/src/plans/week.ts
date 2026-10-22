@@ -1,18 +1,39 @@
 import type { AnalyzedActivity, WeekPlan } from "@killingit/shared";
+import type { ManualActivityContext } from "../llm/planContext.js";
 
 /**
  * Replaces planned sessions on days before `today` with what actually
  * happened: a matching activity becomes a `completed` session and an unfulfilled
  * workout becomes `missed`. Today and future days stay `planned` (or `rest`).
- * Past days never carry future suggestions.
+ * Past days never carry future suggestions. Manually recorded activities are
+ * treated exactly like synced activities.
  */
 export function applyCompletedDays(
   week: WeekPlan,
   activities: readonly AnalyzedActivity[],
   today: string,
+  manualActivities: readonly ManualActivityContext[] = [],
 ): WeekPlan {
+  const allActivities: AnalyzedActivity[] = [
+    ...activities,
+    ...manualActivities.map((manual) => ({
+      id: manual.id,
+      name: manual.name,
+      type: manual.type,
+      startDate: manual.startDate,
+      distance: manual.distance,
+      movingTime: manual.movingTime,
+      elapsedTime: manual.elapsedTime,
+      totalElevationGain: manual.totalElevationGain,
+      samples: [],
+      sampleCount: 0,
+      analysis: null,
+      analysisError: null,
+    })),
+  ];
+
   const activityByDate = new Map<string, AnalyzedActivity>();
-  for (const activity of activities) {
+  for (const activity of allActivities) {
     const date = activity.startDate.slice(0, 10);
     if (!activityByDate.has(date)) {
       activityByDate.set(date, activity);

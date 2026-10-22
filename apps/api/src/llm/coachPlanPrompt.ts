@@ -1,8 +1,10 @@
 import type { AnalyzedActivity } from "@killingit/shared";
 import {
-  formatAthleteAnswers,
-  formatRecentActivities,
+  formatPlanContext,
+  type ActivityCommentContext,
   type AthleteAnswerContext,
+  type ManualActivityContext,
+  type PlanContextInput,
   type RecentActivityContext,
 } from "./planContext.js";
 
@@ -11,12 +13,12 @@ import {
  * callers can invalidate cached plans the same way activity analyses are
  * versioned.
  */
-export const COACH_PLAN_PROMPT_VERSION = 2;
+export const COACH_PLAN_PROMPT_VERSION = 3;
 
 export type CoachPlanAthleteAnswer = AthleteAnswerContext;
 export type CoachPlanActivity = RecentActivityContext;
 
-export interface CoachPlanInput {
+export interface CoachPlanInput extends PlanContextInput {
   /** The athlete's interview answers, in display order. */
   athleteAnswers: readonly AthleteAnswerContext[];
   /** Recent activities, most recent first, with their coach analyses. */
@@ -25,6 +27,12 @@ export interface CoachPlanInput {
   today: string;
   /** The athlete's IANA timezone, when known. */
   timezone?: string;
+  /** Manually recorded activities. */
+  manualActivities?: readonly ManualActivityContext[];
+  /** Comments the athlete added to activities. */
+  activityComments?: readonly ActivityCommentContext[];
+  /** A general note for the current week. */
+  weeklyNote?: string | null;
 }
 
 /**
@@ -107,7 +115,7 @@ const COACH_PLAN_RESPONSE_CONTRACT = `{
 
 export const COACH_PLAN_SYSTEM_PROMPT = `You are an expert endurance coach designing a personalised, periodised training plan for an amateur athlete. Use state of the art training science to make the best possible plan that fulfils the athlete's needs. Apply the principles that current research and elite practice agree on: individualisation, progressive overload, specificity, periodisation, adequate recovery, and a taper before the main goal. Prefer sustainable, injury-free progress over quick fixes.
 
-You receive the athlete's questionnaire answers and a summary of their recent training, including coach analyses. Use the answers to understand their goal, available time, experience, preferences, and constraints. Use the recent activities and analyses to judge current fitness, fatigue, consistency, and the next sensible stimulus. Do not invent facts that are not in the input. When an important detail is missing, make a conservative assumption and state it briefly in the relevant focus or description.
+You receive the athlete's questionnaire answers and a summary of their recent training, including coach analyses. You also receive manually recorded activities, comments on activities, and a general weekly note. Use all of these to understand the athlete's goal, available time, experience, preferences, constraints, and subjective feedback. Use the recent activities and analyses to judge current fitness, fatigue, consistency, and the next sensible stimulus. Do not invent facts that are not in the input. When an important detail is missing, make a conservative assumption and state it briefly in the relevant focus or description.
 
 Create four consistent levels of the plan:
 1. season — the overall season with its goal, dates, blocks, and a rationale explaining the season's shape.
@@ -148,26 +156,9 @@ export function buildCoachPlanMessages(input: CoachPlanInput): {
 
 /** Exposed for tests and for inspecting exactly what is sent to the model. */
 export function buildCoachPlanPrompt(input: CoachPlanInput): string {
-  const lines: string[] = [`Today's date: ${input.today}`];
-  if (input.timezone !== undefined && input.timezone.trim() !== "") {
-    lines.push(`Athlete timezone: ${input.timezone.trim()}`);
-  }
-
-  lines.push(
-    "",
-    "Athlete profile:",
-    formatAthleteAnswers(input.athleteAnswers),
-  );
-
-  lines.push(
-    "",
-    "Recent activities (most recent first):",
-    formatRecentActivities(input.recentActivities),
-  );
-
-  lines.push(
+  return [
+    ...formatPlanContext(input),
     "",
     "Using the athlete profile and recent training, create the season plan, the first block, the first week, and today's session. Use state of the art training science to make the best possible plan for this athlete. Return only the JSON object described in the system prompt.",
-  );
-  return lines.join("\n");
+  ].join("\n");
 }
