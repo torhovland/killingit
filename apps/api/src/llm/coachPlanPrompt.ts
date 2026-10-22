@@ -1,5 +1,6 @@
 import type { AnalyzedActivity } from "@killingit/shared";
 import {
+  ACTIVITY_COMMENT_RULE,
   formatPlanContext,
   type ActivityCommentContext,
   type AthleteAnswerContext,
@@ -115,7 +116,7 @@ const COACH_PLAN_RESPONSE_CONTRACT = `{
 
 export const COACH_PLAN_SYSTEM_PROMPT = `You are an expert endurance coach designing a personalised, periodised training plan for an amateur athlete. Use state of the art training science to make the best possible plan that fulfils the athlete's needs. Apply the principles that current research and elite practice agree on: individualisation, progressive overload, specificity, periodisation, adequate recovery, and a taper before the main goal. Prefer sustainable, injury-free progress over quick fixes.
 
-You receive the athlete's questionnaire answers and a summary of their recent training, including coach analyses. You also receive manually recorded activities, comments on activities, and a general weekly note. Use all of these to understand the athlete's goal, available time, experience, preferences, constraints, and subjective feedback. Use the recent activities and analyses to judge current fitness, fatigue, consistency, and the next sensible stimulus. Do not invent facts that are not in the input. When an important detail is missing, make a conservative assumption and state it briefly in the relevant focus or description.
+You receive the athlete's questionnaire answers and a summary of their recent training, including coach analyses. You also receive manually recorded activities, comments on activities, and a general weekly note. ${ACTIVITY_COMMENT_RULE} Use all of these to understand the athlete's goal, available time, experience, preferences, constraints, and subjective feedback. Use the recent activities and analyses to judge current fitness, fatigue, consistency, and the next sensible stimulus. Do not invent facts that are not in the input. When an important detail is missing, make a conservative assumption and state it briefly in the relevant focus or description.
 
 Create four consistent levels of the plan:
 1. season — the overall season with its goal, dates, blocks, and a rationale explaining the season's shape.

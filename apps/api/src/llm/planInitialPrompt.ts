@@ -1,5 +1,6 @@
 import type { SeasonPlan } from "@killingit/shared";
 import {
+  ACTIVITY_COMMENT_RULE,
   formatPlanContext,
   formatSeasonPlan,
   type ActivityCommentContext,
@@ -30,7 +31,7 @@ export interface InitialBlockInput extends SeasonPlanInput {
 
 export const SEASON_PLAN_SYSTEM_PROMPT = `You are an expert endurance coach. Create a season plan for an amateur athlete. Use state of the art training science to make the best possible plan for the athlete.
 
-You receive the athlete's profile and recent training. You also receive manually recorded activities, comments on activities, and a general weekly note. Use all of these to understand their goal, available time, experience, preferences, constraints, and subjective feedback. Use the recent activities to judge their current fitness, fatigue, and consistency.
+You receive the athlete's profile and recent training. You also receive manually recorded activities, comments on activities, and a general weekly note. ${ACTIVITY_COMMENT_RULE} Use all of these to understand their goal, available time, experience, preferences, constraints, and subjective feedback. Use the recent activities to judge their current fitness, fatigue, and consistency.
 
 The season starts on today's date and ends at the athlete's main goal or the end of the available training period. Divide the season into ordered, contiguous blocks (for example base, build, specialization, taper, or whatever best fits the athlete). Each block needs a name, focus, start and end dates, and a week count. The blocks must cover the season without gaps and the first block must start on today's date. Include a concise rationale explaining the season's shape and the training-science reasoning behind the block order.
 
@@ -41,7 +42,7 @@ ${JSON_RULES}
 
 export const INITIAL_BLOCK_SYSTEM_PROMPT = `You are an expert endurance coach. Create the first block of the season plan for an amateur athlete. Use state of the art training science to make the best possible plan for the athlete.
 
-You receive the athlete's profile, recent training, manually recorded activities, comments on activities, a general weekly note, and the season plan. The first block summary in the season defines the block's name, focus, dates, and week count. Expand it into a detailed block plan with its weeks and target loads. The block must start on today's date, and its weeks must add up to the planned week count. Keep the season unchanged. Include a concise rationale explaining the block's purpose and progression.
+You receive the athlete's profile, recent training, manually recorded activities, comments on activities, a general weekly note, and the season plan. ${ACTIVITY_COMMENT_RULE} The first block summary in the season defines the block's name, focus, dates, and week count. Expand it into a detailed block plan with its weeks and target loads. The block must start on today's date, and its weeks must add up to the planned week count. Keep the season unchanged. Include a concise rationale explaining the block's purpose and progression.
 
 ${JSON_RULES}
 {
