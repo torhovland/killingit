@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { AnalyzedActivity } from "@killingit/shared";
 
 /** Formats seconds as `m:ss` or `h:mm:ss` for activity metadata. */
@@ -23,9 +24,40 @@ function formatDate(iso: string): string {
 
 /**
  * One synced activity with its coach analysis. Presentational only so it can be
- * rendered and tested without any data fetching.
+ * rendered and tested without any data fetching. When `onSubmitComment` is
+ * provided, the card also offers a comment box so the athlete can tell the coach
+ * how the session felt; the saved comment feeds the next plan revision.
  */
-export function ActivityCard({ activity }: { activity: AnalyzedActivity }) {
+export function ActivityCard({
+  activity,
+  onSubmitComment,
+}: {
+  activity: AnalyzedActivity;
+  onSubmitComment?: (activityId: string, comment: string) => Promise<void>;
+}) {
+  const [comment, setComment] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(
+    event: React.FormEvent<HTMLFormElement>,
+  ): Promise<void> {
+    event.preventDefault();
+    if (!onSubmitComment || !comment.trim()) {
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      await onSubmitComment(String(activity.id), comment);
+      setComment("");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Could not save comment");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   return (
     <article
       className="flex flex-col gap-2 rounded-lg border bg-card p-4 text-left"
@@ -68,6 +100,38 @@ export function ActivityCard({ activity }: { activity: AnalyzedActivity }) {
           {activity.analysis.model} ·{" "}
           {formatDate(activity.analysis.generatedAt)}
         </footer>
+      )}
+
+      {onSubmitComment && (
+        <form
+          className="flex flex-col gap-2 border-t pt-2"
+          onSubmit={(event) => void handleSubmit(event)}
+          data-testid="activity-comment-form"
+        >
+          <label
+            className="text-xs font-medium text-muted-foreground"
+            htmlFor={`activity-comment-${activity.id}`}
+          >
+            Add a comment about this activity
+          </label>
+          <textarea
+            id={`activity-comment-${activity.id}`}
+            className="w-full rounded border bg-card p-2 text-sm"
+            placeholder="How did it feel? Anything the coach should know?"
+            value={comment}
+            onChange={(event) => setComment(event.target.value)}
+            disabled={submitting}
+            rows={2}
+          />
+          {error && <p className="text-xs text-destructive">{error}</p>}
+          <button
+            type="submit"
+            className="self-start rounded border border-transparent bg-primary px-3 py-1 text-sm text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
+            disabled={submitting || !comment.trim()}
+          >
+            {submitting ? "Saving…" : "Save comment"}
+          </button>
+        </form>
       )}
     </article>
   );

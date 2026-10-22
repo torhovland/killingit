@@ -57,4 +57,24 @@ describe("ActivityCard", () => {
 
     expect(html).toContain("No coach analysis available yet.");
   });
+
+  it("renders a comment form when a submit handler is provided", () => {
+    const html = renderToStaticMarkup(
+      <ActivityCard
+        activity={activity}
+        onSubmitComment={() => Promise.resolve()}
+      />,
+    );
+
+    expect(html).toContain('data-testid="activity-comment-form"');
+    expect(html).toContain("Add a comment about this activity");
+    expect(html).toContain("Save comment");
+  });
+
+  it("omits the comment form when no submit handler is provided", () => {
+    const html = renderToStaticMarkup(<ActivityCard activity={activity} />);
+
+    expect(html).not.toContain('data-testid="activity-comment-form"');
+    expect(html).not.toContain("Add a comment about this activity");
+  });
 });
