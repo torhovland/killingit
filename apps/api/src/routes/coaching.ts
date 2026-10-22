@@ -23,10 +23,12 @@ import type { LlmClient } from "../llm/client.js";
 import { LlmAuthError, LlmProviderError } from "../llm/openrouter.js";
 import { startOfWeek } from "../plans/dates.js";
 import {
+  loadManualActivities,
   loadWeeklyNote,
   saveActivityComment,
   saveManualActivity,
   saveWeeklyNote,
+  updateManualActivity,
 } from "../plans/inputs.js";
 import type { CoachingInputs } from "../plans/inputs.js";
 import type { PlanGenerationStore, PlanStore } from "../plans/store.js";
@@ -61,9 +63,11 @@ export interface CoachingRouteDependencies {
   ) => Promise<CoachingInputs>;
   /** Injectable for route tests; default to the database-backed writers. */
   loadWeeklyNote?: typeof loadWeeklyNote;
+  loadManualActivities?: typeof loadManualActivities;
   saveActivityComment?: typeof saveActivityComment;
   saveManualActivity?: typeof saveManualActivity;
   saveWeeklyNote?: typeof saveWeeklyNote;
+  updateManualActivity?: typeof updateManualActivity;
   /** Injectable for route tests; defaults to the real plan generation trigger. */
   triggerPlanGeneration?: typeof triggerPlanGeneration;
 }
@@ -84,6 +88,8 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
   const saveManual = deps.saveManualActivity ?? saveManualActivity;
   const saveWeekly = deps.saveWeeklyNote ?? saveWeeklyNote;
   const loadNote = deps.loadWeeklyNote ?? loadWeeklyNote;
+  const loadManual = deps.loadManualActivities ?? loadManualActivities;
+  const updateManual = deps.updateManualActivity ?? updateManualActivity;
   const trigger = deps.triggerPlanGeneration ?? triggerPlanGeneration;
 
   return new Hono()
@@ -158,6 +164,11 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
         return c.json({ message: "Comment saved" });
       },
     )
+    .get("/activities/manual", async (c) => {
+      const user = await deps.users.ensureUser(getAthlete(c).sub);
+      const activities = await loadManual(user.id);
+      return c.json({ manualActivities: activities });
+    })
     .post(
       "/activities/manual",
       zValidator("json", manualActivityRequestSchema),
@@ -189,6 +200,46 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
         );
 
         return c.json({ message: "Manual activity saved" });
+      },
+    )
+    .put(
+      "/activities/manual/:id",
+      zValidator("json", manualActivityRequestSchema),
+      async (c) => {
+        const user = await deps.users.ensureUser(getAthlete(c).sub);
+        const id = Number(c.req.param("id"));
+        if (Number.isNaN(id)) {
+          return c.text("Invalid manual activity id", 400);
+        }
+        const { today, timezone, ...activity } = c.req.valid("json");
+
+        const updated = await updateManual(user.id, id, activity);
+        if (!updated) {
+          return c.text("Manual activity not found", 404);
+        }
+
+        await trigger(
+          {
+            users: deps.users,
+            answers: deps.answers,
+            plans: deps.plans,
+            generations: deps.generations,
+            ...(deps.loadActivities !== undefined
+              ? { loadActivities: deps.loadActivities }
+              : {}),
+            ...(deps.loadLlm !== undefined ? { loadLlm: deps.loadLlm } : {}),
+            ...(deps.loadCoachingInputs !== undefined
+              ? { loadCoachingInputs: deps.loadCoachingInputs }
+              : {}),
+          },
+          {
+            userId: user.id,
+            today,
+            ...(timezone !== undefined ? { timezone } : {}),
+          },
+        );
+
+        return c.json({ message: "Manual activity updated" });
       },
     )
     .get("/weekly/notes", async (c) => {

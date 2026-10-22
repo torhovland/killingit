@@ -55,16 +55,6 @@ class MemoryPlanStore implements PlanStore {
     };
     return Promise.resolve(this.stored);
   }
-
-  markInputsUpdated(): Promise<void> {
-    if (this.stored) {
-      this.stored = {
-        ...this.stored,
-        coachingInputsUpdatedAt: new Date(),
-      };
-    }
-    return Promise.resolve();
-  }
 }
 
 class MemoryGenerationStore implements PlanGenerationStore {

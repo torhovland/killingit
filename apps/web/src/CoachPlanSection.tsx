@@ -273,7 +273,9 @@ export function CoachPlanSection({ refreshKey, ready }: CoachPlanSectionProps) {
 
       {data?.stale && !running && ready && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded border bg-muted p-3 text-sm">
-          <span>Your answers changed, so your plan is out of date.</span>
+          <span>
+            Your coaching inputs changed, so your plan is out of date.
+          </span>
           <button
             type="button"
             className="rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted"

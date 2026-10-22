@@ -181,16 +181,6 @@ class MemoryPlanStore implements PlanStore {
     };
     return Promise.resolve(this.saved);
   }
-
-  markInputsUpdated(): Promise<void> {
-    if (this.saved) {
-      this.saved = {
-        ...this.saved,
-        coachingInputsUpdatedAt: new Date(),
-      };
-    }
-    return Promise.resolve();
-  }
 }
 
 class MemoryGenerationStore implements PlanGenerationStore {
