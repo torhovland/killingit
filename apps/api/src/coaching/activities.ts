@@ -67,6 +67,7 @@ export interface ActivityFeed {
  * analyses so the Garmin sync remains useful.
  */
 export async function loadAnalyzedActivities(options: {
+  userId: number;
   limit: number;
   refresh: boolean;
   provider?: LlmProvider;
@@ -75,7 +76,7 @@ export async function loadAnalyzedActivities(options: {
 
   let garminCredentials;
   try {
-    garminCredentials = await loadDecryptedGarminCredentials();
+    garminCredentials = await loadDecryptedGarminCredentials(options.userId);
   } catch (err) {
     throw new GarminCredentialsError(
       "Garmin credentials are unavailable (check GARMIN_CREDENTIALS_KEY)",

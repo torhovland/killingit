@@ -27,7 +27,7 @@ import {
 import { adminQuestionsRoute } from "./routes/adminQuestions.js";
 import { athletesRoute } from "./routes/athletes.js";
 import { createCoachingRoute } from "./routes/coaching.js";
-import { garminRoute } from "./routes/garmin.js";
+import { createGarminRoute } from "./routes/garmin.js";
 import { greet } from "./routes/greet.js";
 import { health } from "./routes/health.js";
 import { llmRoute } from "./routes/llm.js";
@@ -63,7 +63,7 @@ export interface AppDependencies {
   planStore?: PlanStore;
   generationStore?: PlanGenerationStore;
   /** Activity/LLM loaders, injectable for DB-free plan route tests. */
-  loadActivities?: () => Promise<ActivityFeed>;
+  loadActivities?: (userId: number) => Promise<ActivityFeed>;
   loadLlm?: () => Promise<LlmClient | null>;
   /** Coaching-input loader, injectable for DB-free route tests. */
   loadCoachingInputs?: (
@@ -124,10 +124,10 @@ export function createApp(deps: AppDependencies = {}): Hono {
     createQuestionsRoute({ users: userStore, answers: answerStore }),
   );
 
-  // Garmin integration is authenticated (credential entry + data sync are
-  // operator-only). Credentials are never serialized in responses.
+  // Garmin integration is authenticated and per-user. Credentials are never
+  // serialized in responses.
   api.use("/garmin/*", requireAuth(authProvider));
-  api.route("/garmin", garminRoute);
+  api.route("/garmin", createGarminRoute({ users: userStore }));
 
   // LLM provider configuration (API key + model) and model discovery. The key is
   // validated, encrypted at rest, and never serialized back to the client.

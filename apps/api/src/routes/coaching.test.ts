@@ -119,7 +119,7 @@ function makeApp(options: {
   planStore?: PlanStore;
   generationStore?: PlanGenerationStore;
   answers?: QuestionAnswerStore;
-  loadActivities?: () => Promise<ActivityFeed>;
+  loadActivities?: (userId: number) => Promise<ActivityFeed>;
   loadCoachingInputs?: (
     userId: number,
     weekStartDate: string,
@@ -197,6 +197,25 @@ function authenticatedRequest(path: string, init?: RequestInit): Request {
   headers.set("authorization", "Bearer anything");
   return new Request(`http://localhost${path}`, { ...init, headers });
 }
+
+describe("coaching activity feed", () => {
+  it("loads activities for the signed-in account", async () => {
+    const requested = { userId: null as number | null };
+    const app = makeApp({
+      loadActivities: (userId) => {
+        requested.userId = userId;
+        return Promise.resolve({ model: "test-model", activities: [] });
+      },
+    });
+
+    const res = await app.fetch(
+      authenticatedRequest("/api/coaching/activities"),
+    );
+
+    expect(res.status).toBe(200);
+    expect(requested.userId).toBe(42);
+  });
+});
 
 describe("coaching activity comments", () => {
   it("saves a comment and triggers plan generation", async () => {

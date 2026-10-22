@@ -21,6 +21,7 @@ interface GarminSectionProps {
  */
 export function GarminSection({ connected, onConnected }: GarminSectionProps) {
   const auth = useAuth();
+  const [editing, setEditing] = useState(!connected);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [saving, setSaving] = useState(false);
@@ -47,6 +48,7 @@ export function GarminSection({ connected, onConnected }: GarminSectionProps) {
         });
       }
       setPassword("");
+      setEditing(false);
       onConnected(parsed.data);
     } catch (err: unknown) {
       setError(reportError(err));
@@ -59,17 +61,27 @@ export function GarminSection({ connected, onConnected }: GarminSectionProps) {
     return null;
   }
 
-  if (connected) {
+  if (connected && !editing) {
     return (
-      <p className="text-sm text-success" data-testid="garmin-status">
-        Garmin connected
-      </p>
+      <section className="flex flex-col gap-1" data-testid="garmin-status">
+        <p className="text-sm text-success">Garmin connected</p>
+        <button
+          type="button"
+          className="self-start rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted"
+          onClick={() => setEditing(true)}
+          data-testid="garmin-edit-credentials"
+        >
+          Update Garmin credentials
+        </button>
+      </section>
     );
   }
 
   return (
     <section className="flex flex-col gap-2">
-      <h2 className="text-xl font-semibold">Connect Garmin</h2>
+      <h2 className="text-xl font-semibold">
+        {connected ? "Update Garmin credentials" : "Connect Garmin"}
+      </h2>
       {error && (
         <p className="text-destructive" data-testid="garmin-error">
           {error}
@@ -103,8 +115,22 @@ export function GarminSection({ connected, onConnected }: GarminSectionProps) {
           className="rounded border border-transparent bg-primary px-4 py-2 text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
           disabled={saving || !username || !password}
         >
-          {saving ? "Connecting…" : "Connect Garmin"}
+          {saving ? "Saving…" : connected ? "Update Garmin" : "Connect Garmin"}
         </button>
+        {connected && (
+          <button
+            type="button"
+            className="rounded border bg-card px-4 py-2 enabled:hover:bg-muted"
+            onClick={() => {
+              setUsername("");
+              setPassword("");
+              setError(null);
+              setEditing(false);
+            }}
+          >
+            Cancel
+          </button>
+        )}
       </form>
     </section>
   );
