@@ -119,7 +119,7 @@ function AppShell() {
                 Killing It
               </a>
               <p className="text-sm text-muted-foreground">
-                Your AI coach for training.
+                Deadly serious about your progress
               </p>
             </div>
 
