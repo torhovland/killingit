@@ -1,52 +1,62 @@
 import { useEffect, useState } from "react";
-import {
-  currentUserSchema,
-  type CurrentUser,
-  type Greeting,
-  type Health,
-} from "@killingit/shared";
+import { currentUserSchema, type CurrentUser } from "@killingit/shared";
+import { ActivitiesPage } from "./ActivitiesPage";
+import { AdminSettingsPage } from "./AdminSettingsPage";
+import { AppStatusProvider, useAppStatus } from "./AppStatus";
+import { CoachDashboard } from "./CoachDashboard";
+import { CoachingSurveyPage } from "./CoachingSurveyPage";
 import { useAuth } from "./auth";
-import { fetchJson } from "./fetchJson";
+import { DevDatePicker } from "./DevDatePicker";
+import { AthleteQuestionsForm } from "./AthleteQuestionsForm";
 import { fetchJsonAuthed } from "./fetchAuthed";
 import { reportError } from "./reportError";
-import { AdminSettingsPage } from "./AdminSettingsPage";
-import { CoachDashboard } from "./CoachDashboard";
-import { DevDatePicker } from "./DevDatePicker";
+import { SettingsPage } from "./SettingsPage";
+import { useAthleteQuestions } from "./useAthleteQuestions";
 
-type Page = "coach" | "admin";
+type Page = "coach" | "activities" | "survey" | "settings" | "admin";
 
 // Absolute API origin for deployed environments (e.g. the Cloud Run URL).
 // Empty string keeps relative "/api" for the local Vite dev proxy.
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
-function fetchHealth(): Promise<Health> {
-  return fetchJson<Health>(`${API_URL}/api/health`);
-}
-
-function fetchGreeting(): Promise<Greeting> {
-  return fetchJson<Greeting>(`${API_URL}/api/greet?name=athlete`);
-}
+const PAGE_LABELS: Record<Page, string> = {
+  coach: "Coach",
+  activities: "Activities",
+  survey: "Coaching survey",
+  settings: "Settings",
+  admin: "Admin settings",
+};
 
 export function App() {
+  return (
+    <AppStatusProvider>
+      <AppShell />
+    </AppStatusProvider>
+  );
+}
+
+function AppShell() {
   const auth = useAuth();
-  const [health, setHealth] = useState<Health | null>(null);
-  const [greeting, setGreeting] = useState<Greeting | null>(null);
+  const { status, setStatus } = useAppStatus();
   const [me, setMe] = useState<CurrentUser | null>(null);
   const [page, setPage] = useState<Page>("coach");
+  const [planRefreshKey, setPlanRefreshKey] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const {
+    questions,
+    loading: loadingQuestions,
+    error: questionsError,
+    load: loadQuestions,
+    saveAnswers,
+  } = useAthleteQuestions();
 
   const isAdmin = me?.role === "admin";
 
   useEffect(() => {
-    Promise.all([fetchHealth(), fetchGreeting()])
-      .then(([h, g]) => {
-        setHealth(h);
-        setGreeting(g);
-      })
-      .catch((e: unknown) => {
-        setError(reportError(e));
-      });
-  }, []);
+    const loading = auth.isLoading || (loadingQuestions && questions === null);
+    setStatus("app", loading ? "loading" : null);
+    return () => setStatus("app", null);
+  }, [auth.isLoading, loadingQuestions, questions, setStatus]);
 
   // When authenticated, fetch the protected /api/me to prove the token flows.
   useEffect(() => {
@@ -60,105 +70,215 @@ export function App() {
         if (!parsed.success) {
           throw new Error(
             "Loading the current user returned an unexpected response",
-            {
-              cause: parsed.error,
-            },
+            { cause: parsed.error },
           );
         }
         setMe(parsed.data);
       })
       .catch((e: unknown) => {
-        // TODO: a 401 here (expired token / failed silent renewal) should
-        // trigger a re-auth rather than rendering a red "Error". Deferred —
-        // see review note #5.
         setError(reportError(e));
       });
     // Depend only on `auth.isAuthenticated`: `useAuth` memoizes `auth`, but the
-    // underlying SDK callbacks aren't guaranteed stable, so depending on the
-    // whole `auth` object risks re-running this effect (and re-fetching
-    // /api/me) on every render.
+    // underlying SDK callbacks aren't guaranteed stable.
   }, [auth.isAuthenticated]);
 
+  function navigate(next: Page): void {
+    setPage(next);
+    setError(null);
+  }
+
+  async function handleAnswersSaved(
+    answers: Parameters<typeof saveAnswers>[0],
+  ): Promise<void> {
+    await saveAnswers(answers);
+    setPlanRefreshKey((key) => key + 1);
+  }
+
+  const signedIn = auth.isAuthenticated;
+
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center gap-6 p-8">
-      <h1 className="text-4xl font-bold text-primary">Killing It</h1>
-      <p className="text-lg text-muted-foreground">
-        Your AI coach for training.
-      </p>
+    <div className="flex min-h-screen w-full flex-col">
+      <header className="flex w-full flex-wrap items-center gap-x-3 gap-y-2 border-b px-3 py-2 sm:px-4">
+        <div className="flex min-w-0 flex-wrap items-baseline gap-x-2">
+          <h1 className="text-xl font-bold text-primary">Killing It</h1>
+          <p className="text-sm text-muted-foreground">
+            Your AI coach for training.
+          </p>
+        </div>
 
-      {error && <p className="text-destructive">Error: {error}</p>}
+        <div className="ml-auto flex items-center gap-2">
+          {signedIn ? (
+            <UserMenu
+              firstName={auth.firstName}
+              picture={auth.picture}
+              isAdmin={isAdmin}
+              status={status}
+              onNavigate={navigate}
+              onSignOut={() => void auth.logout()}
+            />
+          ) : auth.isLoading ? (
+            <p className="text-sm text-muted-foreground">Loading…</p>
+          ) : null}
+        </div>
+      </header>
 
-      {auth.isLoading ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
-      ) : auth.isAuthenticated ? (
-        <>
-          <div className="flex flex-wrap items-center justify-center gap-4">
-            <p className="text-sm" data-testid="me">
-              Signed in as {me?.sub ?? "…"}
-              {isAdmin && (
-                <span className="ml-2 rounded border border-transparent bg-accent px-2 py-0.5 text-xs text-accent-foreground">
-                  Admin
-                </span>
-              )}
-            </p>
-            {isAdmin && (
-              <nav className="flex gap-2" aria-label="Sections">
-                <button
-                  type="button"
-                  className="rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted disabled:opacity-50 aria-[current=page]:border-transparent aria-[current=page]:bg-primary aria-[current=page]:text-primary-foreground aria-[current=page]:opacity-100"
-                  onClick={() => setPage("coach")}
-                  aria-current={page === "coach" ? "page" : undefined}
-                  disabled={page === "coach"}
-                >
-                  Coach
-                </button>
-                <button
-                  type="button"
-                  className="rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted disabled:opacity-50 aria-[current=page]:border-transparent aria-[current=page]:bg-primary aria-[current=page]:text-primary-foreground aria-[current=page]:opacity-100"
-                  onClick={() => setPage("admin")}
-                  aria-current={page === "admin" ? "page" : undefined}
-                  disabled={page === "admin"}
-                >
-                  Admin settings
-                </button>
-              </nav>
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-0 py-4 sm:px-4 sm:py-6">
+        {error && <p className="text-destructive">Error: {error}</p>}
+
+        {!signedIn ? (
+          auth.isLoading ? (
+            <p className="text-sm text-muted-foreground">Loading…</p>
+          ) : (
+            <button
+              className="self-start rounded border border-transparent bg-primary px-4 py-2 text-primary-foreground enabled:hover:bg-primary-hover"
+              onClick={() => void auth.login()}
+            >
+              Sign in
+            </button>
+          )
+        ) : loadingQuestions && questions === null ? (
+          <p className="text-sm text-muted-foreground">Loading your profile…</p>
+        ) : questions === null ? (
+          <section className="flex flex-col items-start gap-2">
+            {questionsError && (
+              <p className="text-destructive">Error: {questionsError}</p>
             )}
             <button
-              className="rounded border border-transparent bg-primary px-4 py-2 text-primary-foreground enabled:hover:bg-primary-hover"
-              onClick={() => void auth.logout()}
+              type="button"
+              className="rounded border bg-card px-4 py-2 enabled:hover:bg-muted"
+              onClick={() => void loadQuestions()}
             >
-              Sign out
+              Retry
             </button>
-          </div>
+          </section>
+        ) : !questions.complete ? (
+          <AthleteQuestionsForm
+            questions={questions.questions}
+            onSubmit={handleAnswersSaved}
+          />
+        ) : page === "activities" ? (
+          <ActivitiesPage />
+        ) : page === "survey" ? (
+          <CoachingSurveyPage
+            onAnswersSaved={() => setPlanRefreshKey((key) => key + 1)}
+          />
+        ) : page === "settings" ? (
+          <SettingsPage />
+        ) : page === "admin" && isAdmin ? (
+          <AdminSettingsPage />
+        ) : (
+          <CoachDashboard planRefreshKey={planRefreshKey} />
+        )}
 
-          {isAdmin && page === "admin" ? (
-            <AdminSettingsPage />
-          ) : (
-            <CoachDashboard />
-          )}
-        </>
-      ) : (
-        <button
-          className="rounded border border-transparent bg-primary px-4 py-2 text-primary-foreground enabled:hover:bg-primary-hover"
-          onClick={() => void auth.login()}
-        >
-          Sign in
-        </button>
-      )}
-
-      {greeting && (
-        <p className="text-xl" data-testid="greeting">
-          {greeting.message}
-        </p>
-      )}
-
-      {health && (
-        <p className="text-sm text-muted-foreground" data-testid="health">
-          {health.service} {health.version} — {health.status}
-        </p>
-      )}
-
-      <DevDatePicker />
-    </main>
+        <DevDatePicker />
+      </div>
+    </div>
   );
+}
+
+function UserMenu({
+  firstName,
+  picture,
+  isAdmin,
+  status,
+  onNavigate,
+  onSignOut,
+}: {
+  firstName?: string | null | undefined;
+  picture?: string | null | undefined;
+  isAdmin: boolean;
+  status: "idle" | "loading" | "syncing" | "thinking";
+  onNavigate: (page: Page) => void;
+  onSignOut: () => void;
+}) {
+  const name = firstName?.trim() || "Athlete";
+  const label =
+    status === "thinking"
+      ? "The coach is thinking"
+      : status === "syncing"
+        ? "Syncing"
+        : status === "loading"
+          ? "Loading"
+          : null;
+
+  function choose(page: Page, event: React.MouseEvent<HTMLButtonElement>) {
+    closeMenu(event);
+    onNavigate(page);
+  }
+
+  function signOut(event: React.MouseEvent<HTMLButtonElement>) {
+    closeMenu(event);
+    onSignOut();
+  }
+
+  return (
+    <details className="relative" data-testid="user-menu">
+      <summary className="flex cursor-pointer list-none items-center gap-2 rounded px-1 py-0.5 text-sm [&::-webkit-details-marker]:hidden">
+        {picture ? (
+          <img
+            src={picture}
+            alt=""
+            className="size-7 rounded-full object-cover"
+          />
+        ) : (
+          <span className="flex size-7 items-center justify-center rounded-full bg-accent text-xs font-medium text-accent-foreground">
+            {name.slice(0, 1).toUpperCase()}
+          </span>
+        )}
+        <span className="font-medium">{name}</span>
+        {isAdmin && (
+          <span className="rounded border border-transparent bg-accent px-2 py-0.5 text-xs text-accent-foreground">
+            Admin
+          </span>
+        )}
+        {label && (
+          <span
+            className="inline-flex size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+            role="status"
+            aria-label={label}
+            title={label}
+            data-testid="header-spinner"
+            data-state={status}
+          />
+        )}
+      </summary>
+      <nav
+        className="absolute right-0 z-10 mt-1 flex min-w-48 flex-col rounded border bg-card p-1 text-sm shadow-lg"
+        aria-label="Account"
+      >
+        {(["coach", "activities", "survey", "settings"] as const).map(
+          (entry) => (
+            <button
+              key={entry}
+              type="button"
+              className="rounded px-3 py-1.5 text-left hover:bg-muted"
+              onClick={(event) => choose(entry, event)}
+            >
+              {PAGE_LABELS[entry]}
+            </button>
+          ),
+        )}
+        {isAdmin && (
+          <button
+            type="button"
+            className="rounded px-3 py-1.5 text-left hover:bg-muted"
+            onClick={(event) => choose("admin", event)}
+          >
+            {PAGE_LABELS.admin}
+          </button>
+        )}
+        <button
+          type="button"
+          className="rounded px-3 py-1.5 text-left text-destructive hover:bg-muted"
+          onClick={signOut}
+        >
+          Sign out
+        </button>
+      </nav>
+    </details>
+  );
+}
+
+function closeMenu(event: React.MouseEvent<HTMLButtonElement>): void {
+  event.currentTarget.closest("details")?.removeAttribute("open");
 }

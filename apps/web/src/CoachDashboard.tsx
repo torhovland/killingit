@@ -1,206 +1,39 @@
 import { useEffect, useRef, useState } from "react";
 import {
   analyzedActivitiesResponseSchema,
-  athleteQuestionsResponseSchema,
   coachingInputSaveResponseSchema,
   garminConnectionStatusSchema,
   llmSettingsSchema,
-  manualActivitiesResponseSchema,
+  quickQuestionResponseSchema,
   weeklyNoteResponseSchema,
   type AnalyzedActivitiesResponse,
-  type AthleteQuestion,
-  type AthleteQuestionsResponse,
   type CoachAnalysis,
   type GarminConnectionStatus,
   type LlmSettings,
-  type ManualActivity,
-  type QuestionAnswerInput,
 } from "@killingit/shared";
 import { ActivityCard } from "./ActivityCard";
 import { loadCachedActivities, saveCachedActivities } from "./activityCache";
+import { useAppStatus } from "./AppStatus";
 import { useAuth } from "./auth";
-import { AthleteAnswersSection } from "./AthleteAnswersSection";
-import { AthleteQuestionsForm } from "./AthleteQuestionsForm";
 import { CoachPlanSection } from "./CoachPlanSection";
 import { fetchJsonAuthed } from "./fetchAuthed";
-import { GarminSection } from "./GarminSection";
-import { LlmSection } from "./LlmSection";
 import { reportError } from "./reportError";
 import { getToday } from "./useToday";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
-/**
- * Signed-in coaching entry point. Every active athlete question must be
- * resolved (answered, or explicitly skipped when optional) before the coaching
- * surface (statuses and activities) mounts, so activities are neither shown nor
- * fetched until onboarding is complete (ADR 0007).
- */
-export function CoachDashboard() {
-  const auth = useAuth();
-  const [questions, setQuestions] = useState<AthleteQuestionsResponse | null>(
-    null,
-  );
-  const [loadingQuestions, setLoadingQuestions] = useState(true);
-  const [questionsError, setQuestionsError] = useState<string | null>(null);
-  const [weeklyNote, setWeeklyNote] = useState<string>("");
-  const [weeklyNoteReply, setWeeklyNoteReply] = useState<CoachAnalysis | null>(
-    null,
-  );
-
-  async function loadQuestions(): Promise<void> {
-    setLoadingQuestions(true);
-    setQuestionsError(null);
-    try {
-      const response = await fetchJsonAuthed<unknown>(
-        `${API_URL}/api/questions`,
-        auth,
-      );
-      const parsed = athleteQuestionsResponseSchema.safeParse(response);
-      if (!parsed.success) {
-        throw new Error(
-          "Loading your questions returned an unexpected response",
-          {
-            cause: parsed.error,
-          },
-        );
-      }
-      setQuestions(parsed.data);
-    } catch (err: unknown) {
-      setQuestionsError(reportError(err));
-    } finally {
-      setLoadingQuestions(false);
-    }
-  }
-
-  async function fetchWeeklyNote(): Promise<void> {
-    try {
-      const { today } = getToday();
-      const response = await fetchJsonAuthed<unknown>(
-        `${API_URL}/api/coaching/weekly/notes?today=${today}`,
-        auth,
-      );
-      const parsed = weeklyNoteResponseSchema.safeParse(response);
-      if (!parsed.success) {
-        throw new Error(
-          "Loading the weekly note returned an unexpected response",
-          {
-            cause: parsed.error,
-          },
-        );
-      }
-      setWeeklyNote(parsed.data.note ?? "");
-      setWeeklyNoteReply(parsed.data.reply);
-    } catch (err: unknown) {
-      // Don't block the dashboard if the note fails to load.
-      console.error("Failed to load weekly note:", err);
-    }
-  }
-
-  async function saveAnswers(submitted: QuestionAnswerInput[]): Promise<void> {
-    const response = await fetchJsonAuthed<unknown>(
-      `${API_URL}/api/questions/answers`,
-      auth,
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ answers: submitted }),
-      },
-    );
-    const parsed = athleteQuestionsResponseSchema.safeParse(response);
-    if (!parsed.success) {
-      throw new Error("Saving your answers returned an unexpected response", {
-        cause: parsed.error,
-      });
-    }
-    setQuestions(parsed.data);
-  }
-
-  useEffect(() => {
-    if (!auth.isAuthenticated) {
-      return;
-    }
-    void loadQuestions();
-    void fetchWeeklyNote();
-    // Only re-run when sign-in state flips; `auth` is consumed inside.
-  }, [auth.isAuthenticated]);
-
-  if (!auth.isAuthenticated) {
-    return null;
-  }
-
-  if (loadingQuestions && questions === null) {
-    return (
-      <p
-        className="text-sm text-muted-foreground"
-        data-testid="questions-loading"
-      >
-        Loading your questions…
-      </p>
-    );
-  }
-
-  if (questions === null) {
-    return (
-      <section className="flex flex-col items-center gap-2">
-        {questionsError && (
-          <p className="text-destructive">Error: {questionsError}</p>
-        )}
-        <button
-          type="button"
-          className="rounded border bg-card px-4 py-2 enabled:hover:bg-muted"
-          onClick={() => void loadQuestions()}
-        >
-          Retry
-        </button>
-      </section>
-    );
-  }
-
-  if (!questions.complete) {
-    return (
-      <AthleteQuestionsForm
-        questions={questions.questions}
-        onSubmit={saveAnswers}
-      />
-    );
-  }
-
-  return (
-    <CoachingSurface
-      questions={questions.questions}
-      onSaveAnswers={saveAnswers}
-      weeklyNote={weeklyNote}
-      onWeeklyNoteChange={setWeeklyNote}
-      weeklyNoteReply={weeklyNoteReply}
-      onWeeklyNoteReplyChange={setWeeklyNoteReply}
-    />
-  );
-}
-
-interface CoachingSurfaceProps {
-  questions: AthleteQuestion[];
-  onSaveAnswers: (answers: QuestionAnswerInput[]) => Promise<void>;
-  weeklyNote: string;
-  onWeeklyNoteChange: (note: string) => void;
-  weeklyNoteReply: CoachAnalysis | null;
-  onWeeklyNoteReplyChange: (reply: CoachAnalysis | null) => void;
+interface CoachDashboardProps {
+  /** Increment when athlete answers change so the plan refreshes. */
+  planRefreshKey: number;
 }
 
 /**
- * The coaching surface proper: review or edit athlete answers, connect Garmin,
- * configure OpenRouter, then show the latest synced activities with their coach
- * analyses. Analysis is cached server-side; "Re-analyze" forces a fresh pass.
+ * The main coaching page: activities that still need the athlete's attention,
+ * the tabbed plan, and the coaching inputs that shape it.
  */
-function CoachingSurface({
-  questions,
-  onSaveAnswers,
-  weeklyNote,
-  onWeeklyNoteChange,
-  weeklyNoteReply,
-  onWeeklyNoteReplyChange,
-}: CoachingSurfaceProps) {
+export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
   const auth = useAuth();
+  const { setStatus } = useAppStatus();
   // `loadAnalyses` is started by an effect that does not depend on the auth
   // object; keep the latest account id in a ref so a cache write after the
   // request settles uses the real `sub` rather than an early `null`.
@@ -211,104 +44,27 @@ function CoachingSurface({
   const [data, setData] = useState<AnalyzedActivitiesResponse | null>(() =>
     loadCachedActivities(auth.sub),
   );
+  const [weeklyNote, setWeeklyNote] = useState<string>("");
+  const [weeklyNoteReply, setWeeklyNoteReply] = useState<CoachAnalysis | null>(
+    null,
+  );
+  const [question, setQuestion] = useState("");
+  const [questionReply, setQuestionReply] = useState<string | null>(null);
+  const [asking, setAsking] = useState(false);
   const [loadingStatuses, setLoadingStatuses] = useState(true);
   const [loadingAnalyses, setLoadingAnalyses] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [planRefreshKey, setPlanRefreshKey] = useState(0);
-  const [manualActivities, setManualActivities] = useState<ManualActivity[]>(
-    [],
-  );
-  const [editingActivityId, setEditingActivityId] = useState<number | null>(
-    null,
-  );
-  const [manualStartDate, setManualStartDate] = useState(getToday().today);
-  const [manualDetails, setManualDetails] = useState("");
+  const [localPlanRefresh, setLocalPlanRefresh] = useState(0);
 
-  async function saveAnswers(answers: QuestionAnswerInput[]): Promise<void> {
-    await onSaveAnswers(answers);
-    // Answers changed: refetch the plan status, which marks the stored plan
-    // stale and starts a regeneration.
-    setPlanRefreshKey((key) => key + 1);
-  }
+  useEffect(() => {
+    setStatus("dashboard-status", loadingStatuses ? "loading" : null);
+    return () => setStatus("dashboard-status", null);
+  }, [loadingStatuses, setStatus]);
 
-  async function handleWeeklyNoteSubmit(
-    event: React.FormEvent<HTMLFormElement>,
-  ): Promise<void> {
-    event.preventDefault();
-    if (!weeklyNote.trim()) {
-      return;
-    }
-    try {
-      await submitWeeklyNote(weeklyNote);
-    } catch (err: unknown) {
-      setError(reportError(err));
-    }
-  }
-
-  async function handleManualActivitySubmit(
-    event: React.FormEvent<HTMLFormElement>,
-  ): Promise<void> {
-    event.preventDefault();
-    if (!manualStartDate || !manualDetails.trim()) {
-      return;
-    }
-    try {
-      if (editingActivityId !== null) {
-        await updateManualActivity(editingActivityId, {
-          startDate: manualStartDate,
-          details: manualDetails,
-        });
-        setEditingActivityId(null);
-      } else {
-        await submitManualActivity({
-          startDate: manualStartDate,
-          details: manualDetails,
-        });
-      }
-      await loadManualActivities();
-      setManualStartDate(getToday().today);
-      setManualDetails("");
-    } catch (err: unknown) {
-      setError(reportError(err));
-    }
-  }
-
-  function handleEditActivity(activity: ManualActivity): void {
-    setEditingActivityId(activity.id);
-    setManualStartDate(activity.startDate);
-    setManualDetails(activity.details);
-  }
-
-  function handleCancelEdit(): void {
-    setEditingActivityId(null);
-    setManualStartDate(getToday().today);
-    setManualDetails("");
-  }
-
-  async function handleDeleteManualActivity(
-    activity: ManualActivity,
-  ): Promise<void> {
-    if (
-      !window.confirm(`Delete the manual activity from ${activity.startDate}?`)
-    ) {
-      return;
-    }
-    try {
-      const response = await fetchJsonAuthed<unknown>(
-        `${API_URL}/api/coaching/activities/manual/${activity.id}?${coachingDateQuery()}`,
-        auth,
-        { method: "DELETE" },
-      );
-      parseSaveResponse(response);
-      if (editingActivityId === activity.id) {
-        handleCancelEdit();
-      }
-      await loadManualActivities();
-      setPlanRefreshKey((key) => key + 1);
-    } catch (err: unknown) {
-      setError(reportError(err));
-    }
-  }
+  useEffect(() => {
+    setStatus("dashboard-activities", loadingAnalyses ? "syncing" : null);
+    return () => setStatus("dashboard-activities", null);
+  }, [loadingAnalyses, setStatus]);
 
   async function loadStatuses(): Promise<void> {
     setLoadingStatuses(true);
@@ -359,7 +115,7 @@ function CoachingSurface({
     setError(null);
     try {
       const res = await fetchJsonAuthed<unknown>(
-        `${API_URL}/api/coaching/activities?limit=10${refresh ? "&refresh=true" : ""}`,
+        `${API_URL}/api/coaching/activities?limit=20${refresh ? "&refresh=true" : ""}`,
         auth,
       );
       const parsed = analyzedActivitiesResponseSchema.safeParse(res);
@@ -377,24 +133,25 @@ function CoachingSurface({
     }
   }
 
-  async function loadManualActivities(): Promise<void> {
+  async function fetchWeeklyNote(): Promise<void> {
     try {
+      const { today } = getToday();
       const response = await fetchJsonAuthed<unknown>(
-        `${API_URL}/api/coaching/activities/manual`,
+        `${API_URL}/api/coaching/weekly/notes?today=${today}`,
         auth,
       );
-      const parsed = manualActivitiesResponseSchema.safeParse(response);
+      const parsed = weeklyNoteResponseSchema.safeParse(response);
       if (!parsed.success) {
         throw new Error(
-          "Loading manual activities returned an unexpected response",
-          {
-            cause: parsed.error,
-          },
+          "Loading the weekly note returned an unexpected response",
+          { cause: parsed.error },
         );
       }
-      setManualActivities(parsed.data.manualActivities);
+      setWeeklyNote(parsed.data.note ?? "");
+      setWeeklyNoteReply(parsed.data.reply);
     } catch (err: unknown) {
-      setError(reportError(err));
+      // Don't block the dashboard if the note fails to load.
+      console.error("Failed to load weekly note:", err);
     }
   }
 
@@ -426,7 +183,7 @@ function CoachingSurface({
     if (next) {
       saveCachedActivities(authSub.current, next);
     }
-    setPlanRefreshKey((key) => key + 1);
+    setLocalPlanRefresh((key) => key + 1);
   }
 
   async function submitComment(
@@ -455,10 +212,31 @@ function CoachingSurface({
         cause: parsed.error,
       });
     }
-    // The server saved the comment and started a plan revision. Refresh the
-    // plan section so the athlete sees the revised week.
-    setPlanRefreshKey((key) => key + 1);
+    setLocalPlanRefresh((key) => key + 1);
     return parsed.data.reply?.text ?? null;
+  }
+
+  async function markNoComment(activityId: string): Promise<void> {
+    const response = await fetchJsonAuthed<unknown>(
+      `${API_URL}/api/coaching/activities/${activityId}/reviewed`,
+      auth,
+      { method: "POST" },
+    );
+    parseSaveResponse(response);
+    const next = data
+      ? {
+          ...data,
+          activities: data.activities.map((activity) =>
+            String(activity.id) === activityId
+              ? { ...activity, reviewed: true }
+              : activity,
+          ),
+        }
+      : null;
+    setData(next);
+    if (next) {
+      saveCachedActivities(authSub.current, next);
+    }
   }
 
   function activityStartDate(activityId: string): string {
@@ -490,54 +268,47 @@ function CoachingSurface({
         cause: parsed.error,
       });
     }
-    onWeeklyNoteReplyChange(parsed.data.reply);
-    setPlanRefreshKey((key) => key + 1);
+    setWeeklyNoteReply(parsed.data.reply);
+    setLocalPlanRefresh((key) => key + 1);
   }
 
-  async function submitManualActivity(activity: {
-    startDate: string;
-    details: string;
-  }): Promise<void> {
-    const { today } = getToday();
-    const response = await fetchJsonAuthed<unknown>(
-      `${API_URL}/api/coaching/activities/manual`,
-      auth,
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          today,
-          timezone:
-            Intl.DateTimeFormat().resolvedOptions().timeZone || undefined,
-          ...activity,
-        }),
-      },
-    );
-    parseSaveResponse(response);
-    setPlanRefreshKey((key) => key + 1);
-  }
-
-  async function updateManualActivity(
-    activityId: number,
-    activity: { startDate: string; details: string },
+  async function askQuestion(
+    event: React.FormEvent<HTMLFormElement>,
   ): Promise<void> {
-    const { today } = getToday();
-    const response = await fetchJsonAuthed<unknown>(
-      `${API_URL}/api/coaching/activities/manual/${activityId}`,
-      auth,
-      {
-        method: "PUT",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          today,
-          timezone:
-            Intl.DateTimeFormat().resolvedOptions().timeZone || undefined,
-          ...activity,
-        }),
-      },
-    );
-    parseSaveResponse(response);
-    setPlanRefreshKey((key) => key + 1);
+    event.preventDefault();
+    if (!question.trim() || asking) {
+      return;
+    }
+    setAsking(true);
+    setError(null);
+    setStatus("by-the-way", "thinking");
+    try {
+      const { today } = getToday();
+      const response = await fetchJsonAuthed<unknown>(
+        `${API_URL}/api/coaching/questions`,
+        auth,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ today, question: question.trim() }),
+        },
+      );
+      const parsed = quickQuestionResponseSchema.safeParse(response);
+      if (!parsed.success) {
+        throw new Error("Asking the coach returned an unexpected response", {
+          cause: parsed.error,
+        });
+      }
+      setQuestionReply(
+        parsed.data.reply?.text ??
+          "The coach could not answer right now. Try again later.",
+      );
+    } catch (err: unknown) {
+      setError(reportError(err));
+    } finally {
+      setAsking(false);
+      setStatus("by-the-way", null);
+    }
   }
 
   function parseSaveResponse(response: unknown): void {
@@ -554,7 +325,7 @@ function CoachingSurface({
       return;
     }
     void loadStatuses();
-    void loadManualActivities();
+    void fetchWeeklyNote();
     // Only re-run when sign-in state flips; `auth` is consumed inside.
   }, [auth.isAuthenticated]);
 
@@ -570,8 +341,6 @@ function CoachingSurface({
   }, [garmin?.connected, llm?.configured]);
 
   // Auth0 can report an authenticated session before it exposes `user.sub`.
-  // Retry the cache read once the account key becomes available so existing
-  // activities still appear on the first paint after a reload.
   useEffect(() => {
     if (data !== null) {
       return;
@@ -609,42 +378,80 @@ function CoachingSurface({
     );
   }
 
+  const pendingActivities =
+    data?.activities.filter(
+      (activity) => activity.comment === null && !activity.reviewed,
+    ) ?? [];
+  const ready = garmin.connected && llm.configured;
+
   return (
-    <section className="flex w-full max-w-3xl flex-col gap-6 text-left">
+    <section className="flex w-full flex-col gap-4 text-left">
       {error && (
         <p className="text-destructive" data-testid="coach-error">
           Error: {error}
         </p>
       )}
 
+      {garmin.connected && pendingActivities.length > 0 && (
+        <section
+          className="flex flex-col gap-3"
+          data-testid="pending-activities"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-xl font-semibold">Recent activities</h2>
+            <p className="text-sm text-muted-foreground">
+              Add a comment, or mark it with no comment.
+            </p>
+          </div>
+          {pendingActivities.map((activity) => (
+            <ActivityCard
+              key={activity.id}
+              activity={activity}
+              onSubmitComment={submitComment}
+              onNoComment={markNoComment}
+              onDelete={deleteActivity}
+            />
+          ))}
+        </section>
+      )}
+
       <CoachPlanSection
-        refreshKey={planRefreshKey}
-        ready={garmin.connected && llm.configured}
+        refreshKey={planRefreshKey + localPlanRefresh}
+        ready={ready}
         onGenerated={() => void loadAnalyses()}
       />
 
-      <AthleteAnswersSection questions={questions} onSubmit={saveAnswers} />
-
-      <GarminSection connected={garmin.connected} onConnected={setGarmin} />
-
-      <LlmSection settings={llm} onSaved={setLlm} />
-
-      <section className="flex flex-col gap-4 rounded-lg border bg-card p-4 text-left">
+      <section
+        className="flex flex-col gap-4 rounded-lg border bg-card p-4 text-left"
+        data-testid="coaching-inputs"
+      >
         <div className="flex flex-col gap-1">
           <h2 className="text-xl font-semibold">Coaching inputs</h2>
           <p className="text-sm text-muted-foreground">
-            These inputs are sent to your coach when generating your plan.
-            Saving one automatically triggers a plan refresh.
+            Share context with your coach. The weekly note shapes your plan; a
+            by-the-way question is only a conversation.
           </p>
         </div>
 
         <form
           className="flex flex-col gap-2"
-          onSubmit={(event) => void handleWeeklyNoteSubmit(event)}
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!weeklyNote.trim()) {
+              return;
+            }
+            void submitWeeklyNote(weeklyNote).catch((err: unknown) =>
+              setError(reportError(err)),
+            );
+          }}
         >
           <label className="text-sm font-medium" htmlFor="weekly-note">
             Weekly note
           </label>
+          <p className="text-xs text-muted-foreground">
+            Requests and additional information that should influence your
+            training plan. Saving it refreshes the affected plan.
+          </p>
           <textarea
             id="weekly-note"
             name="note"
@@ -652,7 +459,7 @@ function CoachingSurface({
             placeholder="e.g. I won't have time to train on Thursday this week."
             rows={2}
             value={weeklyNote}
-            onChange={(event) => onWeeklyNoteChange(event.target.value)}
+            onChange={(event) => setWeeklyNote(event.target.value)}
           />
           <button
             type="submit"
@@ -671,146 +478,47 @@ function CoachingSurface({
         </form>
 
         <form
-          className="flex flex-col gap-2"
-          onSubmit={(event) => void handleManualActivitySubmit(event)}
+          className="flex flex-col gap-2 border-t pt-3"
+          onSubmit={(event) => void askQuestion(event)}
         >
-          <label className="text-sm font-medium" htmlFor="manual-start-date">
-            {editingActivityId ? "Edit manual activity" : "Manual activity"}
+          <label className="text-sm font-medium" htmlFor="by-the-way">
+            By the way
           </label>
-          <input
-            id="manual-start-date"
-            name="startDate"
-            type="date"
-            className="w-fit rounded border bg-card px-2 py-1 text-sm"
-            value={manualStartDate}
-            onChange={(event) => setManualStartDate(event.target.value)}
-          />
+          <p className="text-xs text-muted-foreground">
+            Ask your coach a one-off question. The question and answer are not
+            stored and do not influence your training plan.
+          </p>
           <textarea
-            name="details"
-            placeholder="Describe your activity"
+            id="by-the-way"
+            name="question"
             className="w-full rounded border bg-card p-2 text-sm"
+            placeholder="e.g. Should I do my long run on Saturday or Sunday?"
             rows={2}
-            value={manualDetails}
-            onChange={(event) => setManualDetails(event.target.value)}
+            value={question}
+            onChange={(event) => setQuestion(event.target.value)}
           />
-          <div className="flex gap-2">
-            <button
-              type="submit"
-              className="self-start rounded border border-transparent bg-primary px-3 py-1 text-sm text-primary-foreground enabled:hover:bg-primary-hover"
+          <button
+            type="submit"
+            className="self-start rounded border border-transparent bg-primary px-3 py-1 text-sm text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
+            disabled={asking || !question.trim()}
+          >
+            {asking ? "Coach is thinking…" : "Ask the coach"}
+          </button>
+          {questionReply && (
+            <p
+              className="rounded border bg-muted p-2 text-sm"
+              data-testid="by-the-way-reply"
             >
-              {editingActivityId ? "Update activity" : "Add manual activity"}
-            </button>
-            {editingActivityId && (
-              <button
-                type="button"
-                className="self-start rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted"
-                onClick={handleCancelEdit}
-              >
-                Cancel
-              </button>
-            )}
-          </div>
+              <span className="font-medium">Coach:</span> {questionReply}
+            </p>
+          )}
         </form>
-
-        {manualActivities.length > 0 && (
-          <div className="flex flex-col gap-2">
-            <h3 className="text-sm font-medium">Saved manual activities</h3>
-            <ul className="flex flex-col gap-1">
-              {manualActivities.map((activity) => (
-                <li
-                  key={activity.id}
-                  className="flex items-start justify-between gap-2 rounded border bg-card p-2 text-sm"
-                >
-                  <div className="flex flex-col gap-1">
-                    <span>
-                      <span className="font-medium">{activity.startDate}</span>{" "}
-                      — {activity.details}
-                    </span>
-                    {activity.coachReply && (
-                      <span className="text-muted-foreground">
-                        <span className="font-medium text-foreground">
-                          Coach:
-                        </span>{" "}
-                        {activity.coachReply.text}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      className="text-xs text-muted-foreground hover:underline"
-                      onClick={() => handleEditActivity(activity)}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      className="text-xs text-destructive hover:underline"
-                      onClick={() => void handleDeleteManualActivity(activity)}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
       </section>
 
-      {garmin.connected && (
-        <section className="flex flex-col gap-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-xl font-semibold">Latest activities</h2>
-            <button
-              type="button"
-              className="rounded border border-transparent bg-primary px-3 py-1 text-sm text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
-              onClick={() => void loadAnalyses(llm.configured)}
-              disabled={loadingAnalyses}
-            >
-              {loadingAnalyses
-                ? "Working…"
-                : llm.configured
-                  ? "Sync & re-analyze"
-                  : "Sync activities"}
-            </button>
-          </div>
-
-          {!llm.configured && (
-            <p className="text-sm text-muted-foreground">
-              Configure OpenRouter above to add coach analysis.
-            </p>
-          )}
-
-          {loadingAnalyses && (
-            <p
-              className="text-sm text-muted-foreground"
-              data-testid="analysis-loading"
-              aria-live="polite"
-            >
-              {data === null
-                ? llm.configured
-                  ? "Syncing Garmin and asking the coach to analyse your workouts…"
-                  : "Syncing Garmin activities…"
-                : "Refreshing your latest activities…"}
-            </p>
-          )}
-
-          {!loadingAnalyses && data && data.activities.length === 0 && (
-            <p className="text-sm text-muted-foreground">
-              No activities in the last 31 days.
-            </p>
-          )}
-
-          {data?.activities.map((activity) => (
-            <ActivityCard
-              key={activity.id}
-              activity={activity}
-              onSubmitComment={submitComment}
-              onDelete={deleteActivity}
-            />
-          ))}
-        </section>
+      {!garmin.connected && (
+        <p className="text-sm text-muted-foreground">
+          Connect Garmin in Settings to see your recent activities.
+        </p>
       )}
     </section>
   );

@@ -22,6 +22,11 @@ export type CoachingReplyRequest =
       details: string;
     };
 
+/** A one-off question the athlete asks, answered without storing anything. */
+export interface CoachingQuestionRequest {
+  question: string;
+}
+
 export interface CoachReplyDependencies {
   plans: PlanStore;
   answers: QuestionAnswerStore;
@@ -83,6 +88,66 @@ export async function replyToCoachingInput(
     });
   } catch (err) {
     console.error("[coach-reply] could not generate a reply:", err);
+    return null;
+  }
+}
+
+/**
+ * Answers a one-off "by the way" question. Unlike `replyToCoachingInput`, this
+ * persists nothing and never triggers a plan revision.
+ */
+export interface CoachingQuestionAnswer {
+  text: string;
+  model: string;
+  generatedAt: Date;
+}
+
+export async function answerCoachingQuestion(
+  deps: CoachReplyDependencies,
+  options: { userId: number; today: string; question: string },
+): Promise<CoachingQuestionAnswer | null> {
+  const { userId, today, question } = options;
+
+  let plan: Awaited<ReturnType<PlanStore["load"]>>;
+  let answers: Awaited<ReturnType<QuestionAnswerStore["listForUser"]>>;
+  let llm: LlmClient | null;
+  try {
+    [plan, answers, llm] = await Promise.all([
+      deps.plans.load(userId),
+      deps.answers.listForUser(userId),
+      deps.loadLlm(),
+    ]);
+  } catch (err) {
+    console.error("[coach-question] could not load the reply context:", err);
+    return null;
+  }
+
+  if (plan === null || llm === null) {
+    return null;
+  }
+
+  try {
+    const text = await generateCoachReply(
+      llm.provider,
+      { apiKey: llm.apiKey, model: llm.model },
+      {
+        today,
+        plan: plan.plan,
+        athleteAnswers: answers.map(toAnswerContext),
+        request: { kind: "quick_question", question },
+      },
+    );
+    const reply = text.trim();
+    if (reply === "") {
+      return null;
+    }
+    return {
+      text: reply,
+      model: llm.model,
+      generatedAt: new Date(),
+    };
+  } catch (err) {
+    console.error("[coach-question] could not generate a reply:", err);
     return null;
   }
 }

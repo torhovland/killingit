@@ -11,7 +11,11 @@ import type {
   deleteImportedActivity,
   deleteManualActivity,
 } from "./coaching/deletions.js";
-import type { replyToCoachingInput } from "./coaching/replies.js";
+import type {
+  answerCoachingQuestion,
+  replyToCoachingInput,
+} from "./coaching/replies.js";
+import type { saveActivityReview } from "./coaching/reviews.js";
 import type { LlmClient } from "./llm/client.js";
 import {
   loadManualActivities,
@@ -88,6 +92,7 @@ export interface AppDependencies {
   loadManualActivities?: typeof loadManualActivities;
   loadWeeklyNote?: typeof loadWeeklyNote;
   saveActivityComment?: typeof saveActivityComment;
+  saveActivityReview?: typeof saveActivityReview;
   saveManualActivity?: typeof saveManualActivity;
   saveWeeklyNote?: typeof saveWeeklyNote;
   updateManualActivity?: typeof updateManualActivity;
@@ -97,6 +102,7 @@ export interface AppDependencies {
   loadManualActivityReplies?: typeof loadManualActivityReplies;
   loadWeeklyNoteReply?: typeof loadWeeklyNoteReply;
   replyToCoachingInput?: typeof replyToCoachingInput;
+  answerCoachingQuestion?: typeof answerCoachingQuestion;
   /** Plan generation trigger, injectable for DB-free route tests. */
   triggerPlanGeneration?: typeof triggerPlanGeneration;
 }
@@ -186,6 +192,9 @@ export function createApp(deps: AppDependencies = {}): Hono {
       ...(deps.saveActivityComment !== undefined
         ? { saveActivityComment: deps.saveActivityComment }
         : {}),
+      ...(deps.saveActivityReview !== undefined
+        ? { saveActivityReview: deps.saveActivityReview }
+        : {}),
       ...(deps.saveManualActivity !== undefined
         ? { saveManualActivity: deps.saveManualActivity }
         : {}),
@@ -209,6 +218,9 @@ export function createApp(deps: AppDependencies = {}): Hono {
         : {}),
       ...(deps.replyToCoachingInput !== undefined
         ? { replyToCoachingInput: deps.replyToCoachingInput }
+        : {}),
+      ...(deps.answerCoachingQuestion !== undefined
+        ? { answerCoachingQuestion: deps.answerCoachingQuestion }
         : {}),
       ...(deps.triggerPlanGeneration !== undefined
         ? { triggerPlanGeneration: deps.triggerPlanGeneration }

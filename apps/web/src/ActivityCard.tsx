@@ -32,6 +32,7 @@ function formatDate(iso: string): string {
 export function ActivityCard({
   activity,
   onSubmitComment,
+  onNoComment,
   onDelete,
 }: {
   activity: AnalyzedActivity;
@@ -39,6 +40,7 @@ export function ActivityCard({
     activityId: string,
     comment: string,
   ) => Promise<string | null>;
+  onNoComment?: (activityId: string) => Promise<void>;
   onDelete?: (activityId: string) => Promise<void>;
 }) {
   const [comment, setComment] = useState("");
@@ -48,6 +50,7 @@ export function ActivityCard({
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [savedComment, setSavedComment] = useState<string | null>(null);
   const [coachReply, setCoachReply] = useState<string | null>(null);
+  const [dismissing, setDismissing] = useState(false);
 
   async function handleDelete(): Promise<void> {
     if (!onDelete || deleting) {
@@ -91,8 +94,30 @@ export function ActivityCard({
     }
   }
 
+  async function handleNoComment(): Promise<void> {
+    if (!onNoComment || dismissing) {
+      return;
+    }
+    setDismissing(true);
+    setError(null);
+    try {
+      await onNoComment(String(activity.id));
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error ? err.message : "Could not mark the activity",
+      );
+    } finally {
+      setDismissing(false);
+    }
+  }
+
   const shownComment = savedComment ?? activity.comment;
   const shownReply = coachReply ?? activity.coachReply?.text ?? null;
+  // Plan fit is part of the coach summary, not its own section. The program
+  // review (when present) is the plan-aware summary; otherwise use the general
+  // analysis.
+  const summary =
+    activity.programAnalysis?.text.trim() || activity.analysis?.text.trim();
 
   return (
     <article
@@ -107,13 +132,6 @@ export function ActivityCard({
             {(activity.distance / 1000).toFixed(2)} km ·{" "}
             {formatDuration(activity.movingTime)} ·{" "}
             {Math.round(activity.totalElevationGain)} m climb
-            {activity.sampleCount > 0 && (
-              <span>
-                {" "}
-                · {activity.sampleCount} sample
-                {activity.sampleCount === 1 ? "" : "s"}
-              </span>
-            )}
           </p>
         </div>
         {onDelete && (
@@ -131,9 +149,9 @@ export function ActivityCard({
 
       {deleteError && <p className="text-xs text-destructive">{deleteError}</p>}
 
-      {activity.analysis ? (
+      {summary ? (
         <p className="whitespace-pre-line" data-testid="activity-analysis">
-          {activity.analysis.text}
+          {summary}
         </p>
       ) : (
         <p
@@ -144,25 +162,6 @@ export function ActivityCard({
             ? `Coach analysis unavailable: ${activity.analysisError}`
             : "No coach analysis available yet."}
         </p>
-      )}
-
-      {activity.analysis && (
-        <footer className="text-xs text-muted-foreground">
-          {activity.analysis.model} ·{" "}
-          {formatDate(activity.analysis.generatedAt)}
-        </footer>
-      )}
-
-      {activity.programAnalysis && (
-        <section
-          className="flex flex-col gap-1 rounded border bg-muted/60 p-2"
-          data-testid="activity-program-analysis"
-        >
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            How it fit your plan
-          </h4>
-          <p className="whitespace-pre-line">{activity.programAnalysis.text}</p>
-        </section>
       )}
 
       {shownComment && (
@@ -199,13 +198,26 @@ export function ActivityCard({
             rows={2}
           />
           {error && <p className="text-xs text-destructive">{error}</p>}
-          <button
-            type="submit"
-            className="self-start rounded border border-transparent bg-primary px-3 py-1 text-sm text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
-            disabled={submitting || !comment.trim()}
-          >
-            {submitting ? "Saving…" : "Save comment"}
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="submit"
+              className="self-start rounded border border-transparent bg-primary px-3 py-1 text-sm text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
+              disabled={submitting || !comment.trim()}
+            >
+              {submitting ? "Saving…" : "Save comment"}
+            </button>
+            {onNoComment && (
+              <button
+                type="button"
+                className="self-start rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted disabled:opacity-50"
+                onClick={() => void handleNoComment()}
+                disabled={dismissing || submitting}
+                data-testid="activity-no-comment"
+              >
+                {dismissing ? "Saving…" : "No comment"}
+              </button>
+            )}
+          </div>
         </form>
       )}
     </article>

@@ -31,9 +31,9 @@ describe("ActivityCard", () => {
     expect(html).toContain("Morning Run");
     expect(html).toContain("5.00 km");
     expect(html).toContain("25:00");
-    expect(html).toContain("1 sample");
+    expect(html).not.toContain("sample");
     expect(html).toContain("You held a steady aerobic effort.");
-    expect(html).toContain("openrouter/auto");
+    expect(html).not.toContain("openrouter/auto");
   });
 
   it("renders the analysis error when generation failed", () => {
@@ -61,7 +61,7 @@ describe("ActivityCard", () => {
     expect(html).toContain("No coach analysis available yet.");
   });
 
-  it("renders the program review, saved comment, and coach reply", () => {
+  it("keeps the plan fit inside the summary and shows the comment and reply", () => {
     const html = renderToStaticMarkup(
       <ActivityCard
         activity={{
@@ -81,9 +81,9 @@ describe("ActivityCard", () => {
       />,
     );
 
-    expect(html).toContain('data-testid="activity-program-analysis"');
-    expect(html).toContain("How it fit your plan");
-    expect(html).toContain("the finish was too hard");
+    expect(html).not.toContain('data-testid="activity-program-analysis"');
+    expect(html).not.toContain("How it fit your plan");
+    expect(html).toContain("The effort fit the base block");
     expect(html).toContain("Felt strong on the hills.");
     expect(html).toContain('data-testid="activity-coach-reply"');
     expect(html).toContain("I will keep Thursday easy.");
@@ -100,6 +100,26 @@ describe("ActivityCard", () => {
     expect(html).toContain('data-testid="activity-comment-form"');
     expect(html).toContain("Add a comment about this activity");
     expect(html).toContain("Save comment");
+  });
+
+  it("renders a no-comment action only when a handler is provided", () => {
+    const withNoComment = renderToStaticMarkup(
+      <ActivityCard
+        activity={activity}
+        onSubmitComment={() => Promise.resolve(null)}
+        onNoComment={() => Promise.resolve()}
+      />,
+    );
+    const withoutNoComment = renderToStaticMarkup(
+      <ActivityCard
+        activity={activity}
+        onSubmitComment={() => Promise.resolve(null)}
+      />,
+    );
+
+    expect(withNoComment).toContain('data-testid="activity-no-comment"');
+    expect(withNoComment).toContain("No comment");
+    expect(withoutNoComment).not.toContain('data-testid="activity-no-comment"');
   });
 
   it("renders a delete action only when a delete handler is provided", () => {

@@ -3,6 +3,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { db } from "../db/index.js";
 import {
   activityComments,
+  activityReviews,
   coachReplies,
   type CoachReplyRow,
 } from "../db/schema.js";
@@ -24,6 +25,8 @@ export interface StoredCoachReply {
 export interface ActivityFeedback {
   comment: string | null;
   reply: StoredCoachReply | null;
+  /** The athlete dismissed the activity with "No comment". */
+  reviewed: boolean;
 }
 
 function toStoredReply(row: CoachReplyRow): StoredCoachReply {
@@ -142,7 +145,7 @@ export async function loadActivityFeedback(
     return new Map();
   }
 
-  const [commentRows, replyRows] = await Promise.all([
+  const [commentRows, replyRows, reviewRows] = await Promise.all([
     db
       .select()
       .from(activityComments)
@@ -162,6 +165,15 @@ export async function loadActivityFeedback(
           inArray(coachReplies.target, ids),
         ),
       ),
+    db
+      .select()
+      .from(activityReviews)
+      .where(
+        and(
+          eq(activityReviews.userId, userId),
+          inArray(activityReviews.activityId, ids),
+        ),
+      ),
   ]);
 
   const feedback = new Map<string, ActivityFeedback>();
@@ -170,7 +182,11 @@ export async function loadActivityFeedback(
     if (existing) {
       return existing;
     }
-    const created: ActivityFeedback = { comment: null, reply: null };
+    const created: ActivityFeedback = {
+      comment: null,
+      reply: null,
+      reviewed: false,
+    };
     feedback.set(activityId, created);
     return created;
   };
@@ -180,6 +196,9 @@ export async function loadActivityFeedback(
   }
   for (const row of replyRows) {
     entry(row.target).reply = toStoredReply(row);
+  }
+  for (const row of reviewRows) {
+    entry(row.activityId).reviewed = true;
   }
   return feedback;
 }

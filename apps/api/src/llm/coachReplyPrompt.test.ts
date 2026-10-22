@@ -107,6 +107,26 @@ describe("buildCoachReplyMessages", () => {
     expect(prompt).toContain("Today's session has already happened");
   });
 
+  it("answers a by-the-way question without changing the plan", () => {
+    const messages = buildCoachReplyMessages({
+      today: "2026-10-21",
+      plan: makePlan(),
+      athleteAnswers: answers,
+      request: {
+        kind: "quick_question",
+        question: "Should I run on Saturday or Sunday?",
+      },
+    });
+
+    expect(messages[1]?.content).toContain(
+      'Question: "Should I run on Saturday or Sunday?"',
+    );
+    expect(messages[1]?.content).toContain(
+      "It is not stored and does not change the plan",
+    );
+    expect(messages[0]?.content).toContain("This is a conversation only");
+  });
+
   it("uses a brief plain-text reply system prompt", () => {
     const messages = buildCoachReplyMessages({
       today: "2026-10-21",

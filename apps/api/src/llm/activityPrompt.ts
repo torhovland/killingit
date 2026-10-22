@@ -11,7 +11,7 @@ export const MAX_PROMPT_SAMPLES = 90;
  * Bump when the prompt or generation parameters change materially. Cached
  * analyses from an older version are ignored and regenerated.
  */
-export const ANALYSIS_PROMPT_VERSION = 3;
+export const ANALYSIS_PROMPT_VERSION = 4;
 
 /** The athlete's current week, used to match an activity to its planned session. */
 export interface ActivityAnalysisContext {
@@ -20,10 +20,9 @@ export interface ActivityAnalysisContext {
 }
 
 const ANALYSIS_SYSTEM_PROMPT = `You are an experienced endurance coach reviewing one completed workout for an amateur athlete.
-The activity type recorded by the device is only a label and may be wrong: do not trust it. If the heart-rate data looks erratic — sudden spikes or drops that do not fit the steady effort the summary suggests — this may be a strength-training workout even when the device labelled it as running, cycling, or another endurance activity. Use the duration, distance, heart-rate shape, cadence, and power to decide what the athlete actually did.
-When the athlete's current week plan is provided, first match the workout to a planned session: the session planned for the workout's date, today's planned session, or any other session this week whose type, duration, intensity, and effort pattern fit. Say which planned session you think it is and why, or say clearly that it does not match any planned session. Then analyse the workout in that context, using the summary and the recorded time series. Comment on pacing and effort distribution, heart-rate response (including drift if visible), power, cadence, elevation, and anything else the data shows. Be specific and cite numbers from the data.
-Finish with one clear, actionable recommendation for the next session.
-Reply with 3-5 sentences of plain text. Do not use headings, bullets, or markdown.`;
+The activity type recorded by the device is only a label and may be wrong: do not trust it. If the heart-rate data looks erratic — sudden spikes or drops that do not fit the steady effort the summary suggests — this may be a strength-training workout even when the device labelled it as running, cycling, or another endurance activity.
+When the athlete's current week plan is provided, match the workout to the planned session it best fits, then make how well it fit the plan part of the same summary. If it followed the plan reasonably well, say so warmly and encouragingly. If it did not, point out clearly what could be improved without being harsh.
+Be brief and to the point: use 2-3 sentences of plain text, cite only the most useful numbers, and finish with one actionable recommendation for the next session. Do not use headings, bullets, markdown, or a separate plan-fit section.`;
 
 type NumericChannel =
   | "heartRate"
@@ -252,8 +251,8 @@ export function buildActivityAnalysisPrompt(
   lines.push(
     "",
     context
-      ? "Write the coach analysis, naming the planned session you matched and citing the time-series evidence where relevant."
-      : "Write the coach analysis, citing the time-series evidence where relevant.",
+      ? "Write the brief coach summary. Include how well the workout fit its planned session and cite only the most useful evidence."
+      : "Write the brief coach summary, citing only the most useful evidence.",
   );
   return lines.join("\n");
 }

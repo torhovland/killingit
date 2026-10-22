@@ -344,6 +344,33 @@ export type ActivityCommentRow = typeof activityComments.$inferSelect;
 export type NewActivityComment = typeof activityComments.$inferInsert;
 
 /**
+ * Activities the athlete marked as reviewed with "No comment". Reviews are a
+ * UI acknowledgement only and deliberately do not influence the plan.
+ */
+export const activityReviews = pgTable(
+  "activity_reviews",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    activityId: text("activity_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("activity_reviews_user_id_activity_id_idx").on(
+      table.userId,
+      table.activityId,
+    ),
+  ],
+);
+
+export type ActivityReviewRow = typeof activityReviews.$inferSelect;
+export type NewActivityReview = typeof activityReviews.$inferInsert;
+
+/**
  * A general note the athlete added for a specific week (e.g. "won't train on
  * Thursday"). The note applies to the week starting on `weekStartDate`.
  */

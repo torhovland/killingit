@@ -10,7 +10,7 @@ import {
  * Bump when the review prompt or generation parameters change materially. Cached
  * program reviews from an older version are ignored and regenerated.
  */
-export const PROGRAM_ANALYSIS_PROMPT_VERSION = 2;
+export const PROGRAM_ANALYSIS_PROMPT_VERSION = 3;
 
 export interface ProgramAnalysisInput {
   today: string;
@@ -22,9 +22,8 @@ export interface ProgramAnalysisInput {
 
 const PROGRAM_ANALYSIS_SYSTEM_PROMPT = `You are an experienced endurance coach reviewing one completed workout against the athlete's current training program.
 The activity type recorded by the device is only a label and may be wrong: do not trust it. If the heart-rate data looks erratic — sudden spikes or drops that do not fit the steady effort the summary suggests — this may be a strength-training workout even when the device labelled it as running, cycling, or another endurance activity.
-Match the workout to a planned session: the session planned for its date, today's planned session, or any other session this week whose type, duration, intensity, and effort pattern fit. Say which session you matched and why, or state that it does not match any planned session. Then explain how well the workout fit the program: did it serve the block and week's intent, was the load and intensity right, and did it fit the athlete's recent training? Then say what could have been done better, or confirm the workout was well executed. Cite specific numbers from the activity data and refer to the planned session when it is useful.
-Finish with one clear, actionable takeaway for the next comparable session.
-Reply with 3-5 sentences of plain text. Do not use headings, bullets, or markdown.`;
+Match the workout to a planned session, then weave how well it fit the plan into one brief summary rather than a separate section. Be encouraging when the workout was at least somewhat conforming, but do not hesitate to point out what could be improved. Cite only the most useful numbers.
+Use 2-3 sentences of plain text and finish with one actionable takeaway. Do not use headings, bullets, or markdown.`;
 
 /** Builds the chat messages for a program-aware activity review. */
 export function buildProgramAnalysisMessages(input: ProgramAnalysisInput): {
@@ -82,7 +81,7 @@ export function buildProgramAnalysisPrompt(
 
   lines.push(
     "",
-    "Match this activity to a planned session, then review how well it fit the program and what could have been done better.",
+    "Write a brief summary that includes how well this activity fit its planned session and what could be done better.",
   );
   return lines.join("\n");
 }

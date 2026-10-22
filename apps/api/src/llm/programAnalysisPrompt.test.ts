@@ -106,10 +106,8 @@ describe("buildProgramAnalysisMessages", () => {
     expect(prompt).toContain("10.20 km");
     expect(prompt).toContain("Steady aerobic effort");
     expect(prompt).toContain("Felt strong on the hills.");
-    expect(prompt).toContain("what could have been done better");
-    expect(prompt).toContain(
-      "Match this activity to a planned session, then review",
-    );
+    expect(prompt).toContain("what could be done better");
+    expect(prompt).toContain("how well this activity fit its planned session");
   });
 
   it("asks the coach to match against another session when the date has none", () => {
@@ -139,6 +137,8 @@ describe("buildProgramAnalysisMessages", () => {
     expect(messages[0]?.content).toContain("Do not use headings, bullets");
     expect(messages[0]?.content).toContain("do not trust it");
     expect(messages[0]?.content).toContain("strength-training workout");
-    expect(messages[0]?.content).toContain("any other session this week");
+    expect(messages[0]?.content).toContain(
+      "weave how well it fit the plan into one brief summary",
+    );
   });
 });
