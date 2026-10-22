@@ -30,4 +30,18 @@ describe("QuestionRow", () => {
     expect(html).toContain("Edit");
     expect(html).toContain("Delete");
   });
+
+  it("renders reorder controls at the ends they are available", () => {
+    const html = renderToStaticMarkup(
+      <QuestionRow
+        question={question}
+        onSave={() => Promise.resolve()}
+        onDelete={() => Promise.resolve()}
+        onMoveUp={() => Promise.resolve()}
+      />,
+    );
+
+    expect(html).toContain('data-testid="question-move-up"');
+    expect(html).not.toContain('data-testid="question-move-down"');
+  });
 });

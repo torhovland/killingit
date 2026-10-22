@@ -120,6 +120,13 @@
       "when": 1792699039249,
       "tag": "0016_cuddly_gravity",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1792700538912,
+      "tag": "0017_rapid_mantis",
+      "breakpoints": true
     }
   ]
 }

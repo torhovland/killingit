@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { activitySummarySchema } from "./activity.js";
+import { activitySummarySchema, routePointSchema } from "./activity.js";
 
 /**
  * One model offered by the LLM provider, normalized for the model picker.
@@ -63,6 +63,11 @@ export type CoachAnalysis = z.infer<typeof coachAnalysisSchema>;
  */
 export const analyzedActivitySchema = activitySummarySchema.extend({
   sampleCount: z.number().int().nonnegative().default(0),
+  /**
+   * A downsampled GPS trace for the route preview. Absent for activities
+   * without position data (for example indoor sessions).
+   */
+  route: z.array(routePointSchema).optional(),
   analysis: coachAnalysisSchema.nullable().default(null),
   analysisError: z.string().nullable().default(null),
   /**

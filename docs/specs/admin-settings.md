@@ -29,7 +29,9 @@ repaired so the earliest account is always an admin.
 5. **Admin-only API.** Every route under `/api/admin/*` requires an admin and
    returns `403` for members.
 6. **Admin settings page.** A signed-in admin gets an "Admin settings" page that
-   contains athlete question management; members do not see it.
+   contains athlete question management and, in development/test environments,
+   the date override used to simulate visiting on another day. Members do not
+   see the page.
 
 ### Out of scope (deferred)
 
@@ -52,8 +54,13 @@ repaired so the earliest account is always an admin.
    `403` for a member, and works for an admin.
 7. The web app shows the admin nav entry and admin settings page only for
    `role: "admin"`; the questions section is no longer on the coach dashboard.
-8. `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`
-   pass.
+8. In development and test environments, the date override lives on the admin
+   settings page rather than floating over every page, and it renders nothing
+   in production.
+9. Athlete questions can be reordered from the admin page; the chosen order is
+   used for onboarding and coach prompts.
+10. `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`
+    pass.
 
 ## Data-model / API impact
 

@@ -16,7 +16,21 @@ let signedInSub = "";
 
 const userStore: UserStore = {
   ensureUser: (sub) =>
-    Promise.resolve({ id: 1, sub, role: "admin", createdAt: new Date(0) }),
+    Promise.resolve({
+      id: 1,
+      sub,
+      role: "admin",
+      timezone: null,
+      createdAt: new Date(0),
+    }),
+  updateTimezone: (sub, timezone) =>
+    Promise.resolve({
+      id: 1,
+      sub,
+      role: "admin",
+      timezone,
+      createdAt: new Date(0),
+    }),
 };
 
 beforeAll(async () => {
@@ -89,8 +103,45 @@ describe("GET /api/me", () => {
       }),
     );
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { sub: string; role: string };
+    const body = (await res.json()) as {
+      sub: string;
+      role: string;
+      timezone: string | null;
+    };
     expect(body.sub).toBe(signedInSub);
     expect(body.role).toBe("admin");
+    expect(body.timezone).toBeNull();
+  });
+
+  it("saves the athlete's time zone", async () => {
+    const res = await app.fetch(
+      new Request("http://localhost/api/me", {
+        method: "PATCH",
+        headers: {
+          authorization: `Bearer ${validToken}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ timezone: "Europe/Oslo" }),
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { timezone: string | null };
+    expect(body.timezone).toBe("Europe/Oslo");
+  });
+
+  it("rejects an unknown time zone", async () => {
+    const res = await app.fetch(
+      new Request("http://localhost/api/me", {
+        method: "PATCH",
+        headers: {
+          authorization: `Bearer ${validToken}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ timezone: "Mars/Olympus_Mons" }),
+      }),
+    );
+
+    expect(res.status).toBe(400);
   });
 });

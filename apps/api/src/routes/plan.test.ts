@@ -186,6 +186,15 @@ function makeApp(options: {
           id: 42,
           sub,
           role: "member",
+          timezone: null,
+          createdAt: new Date(0),
+        }),
+      updateTimezone: (sub, timezone) =>
+        Promise.resolve({
+          id: 42,
+          sub,
+          role: "member",
+          timezone,
           createdAt: new Date(0),
         }),
     },

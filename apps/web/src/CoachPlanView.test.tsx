@@ -154,6 +154,31 @@ describe("CoachPlanView", () => {
     expect(html).toContain("missed");
   });
 
+  it("labels a manual completion without a duration", () => {
+    const manualPlan: CoachPlan = {
+      ...plan,
+      week: {
+        ...plan.week,
+        sessions: plan.week.sessions.map((session, index) =>
+          index === 0
+            ? {
+                ...session,
+                title: "Strength session",
+                durationMinutes: 0,
+                description: "Completed: logged manually",
+              }
+            : { ...session, intensity: "moderate" },
+        ),
+      },
+    };
+    const html = renderToStaticMarkup(
+      <CoachPlanView plan={manualPlan} defaultTab="week" />,
+    );
+
+    expect(html).toContain("Logged manually");
+    expect(html).not.toContain("0 min · easy");
+  });
+
   it("explains whether today's and tomorrow's sessions should be skipped", () => {
     const html = renderToStaticMarkup(
       <CoachPlanView plan={plan} showTomorrow />,

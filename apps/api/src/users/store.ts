@@ -8,6 +8,8 @@ export interface StoredUser {
   id: number;
   sub: string;
   role: UserRole;
+  /** Preferred IANA display time zone; null means the device's zone. */
+  timezone: string | null;
   createdAt: Date;
 }
 
@@ -18,6 +20,8 @@ export interface StoredUser {
  */
 export interface UserStore {
   ensureUser(sub: string): Promise<StoredUser>;
+  /** Stores the athlete's display time zone; null clears it. */
+  updateTimezone(sub: string, timezone: string | null): Promise<StoredUser>;
 }
 
 export interface ProvisioningPlan {
@@ -54,6 +58,7 @@ function toStoredUser(row: UserRow): StoredUser {
     id: row.id,
     sub: row.authSubject,
     role: row.role,
+    timezone: row.timezone,
     createdAt: row.createdAt,
   };
 }
@@ -125,5 +130,17 @@ export const dbUserStore: UserStore = {
       }
       return toStoredUser(created);
     });
+  },
+
+  async updateTimezone(sub, timezone) {
+    const [updated] = await db
+      .update(users)
+      .set({ timezone, updatedAt: new Date() })
+      .where(eq(users.authSubject, sub))
+      .returning();
+    if (!updated) {
+      throw new Error("failed to update the user's time zone");
+    }
+    return toStoredUser(updated);
   },
 };

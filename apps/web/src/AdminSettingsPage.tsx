@@ -1,4 +1,5 @@
 import { AdminQuestionsSection } from "./AdminQuestionsSection";
+import { DevDatePicker } from "./DevDatePicker";
 
 /**
  * Admin-only configuration surface. Visibility here is convenience; the API
@@ -13,6 +14,7 @@ export function AdminSettingsPage() {
       <h2 className="text-2xl font-semibold">Admin settings</h2>
 
       <AdminQuestionsSection />
+      <DevDatePicker />
     </section>
   );
 }

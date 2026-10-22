@@ -1,6 +1,7 @@
 import {
   questionArchivedResponseSchema,
   questionInputSchema,
+  questionOrderInputSchema,
   questionSchema,
   questionsResponseSchema,
 } from "@killingit/shared";
@@ -13,6 +14,7 @@ import {
   archiveQuestion,
   createQuestion,
   listActiveQuestions,
+  reorderQuestions,
 } from "../questions/store.js";
 
 const questionIdParamSchema = z.object({
@@ -26,6 +28,21 @@ const questionIdParamSchema = z.object({
  */
 export const adminQuestionsRoute = new Hono()
   .get("/", async (c) => {
+    const questions = await listActiveQuestions();
+    return c.json(
+      questionsResponseSchema.parse({
+        questions: questions.map(toQuestionResponse),
+      }),
+    );
+  })
+  .put("/order", zValidator("json", questionOrderInputSchema), async (c) => {
+    const { ids } = c.req.valid("json");
+    if (!(await reorderQuestions(ids))) {
+      return c.text(
+        "Order must include every active question exactly once",
+        400,
+      );
+    }
     const questions = await listActiveQuestions();
     return c.json(
       questionsResponseSchema.parse({

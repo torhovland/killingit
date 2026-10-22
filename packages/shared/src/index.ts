@@ -24,9 +24,14 @@ export {
 
 export {
   currentUserSchema,
+  isValidTimeZone,
+  timeZoneSchema,
   userRoleSchema,
+  userSettingsUpdateSchema,
   type CurrentUser,
+  type TimeZone,
   type UserRole,
+  type UserSettingsUpdate,
 } from "./user.js";
 
 export {
@@ -39,10 +44,13 @@ export {
   activitySampleSchema,
   activitySchema,
   activitySummarySchema,
+  formatActivityType,
+  routePointSchema,
   type ActivitiesResponse,
   type Activity,
   type ActivitySample,
   type ActivitySummary,
+  type RoutePoint,
 } from "./activity.js";
 
 export {
@@ -135,6 +143,7 @@ export {
   questionAnswersInputSchema,
   questionArchivedResponseSchema,
   questionInputSchema,
+  questionOrderInputSchema,
   questionSchema,
   questionsResponseSchema,
   type AthleteQuestion,
@@ -144,5 +153,6 @@ export {
   type QuestionAnswersInput,
   type QuestionArchivedResponse,
   type QuestionInput,
+  type QuestionOrderInput,
   type QuestionsResponse,
 } from "./questions.js";

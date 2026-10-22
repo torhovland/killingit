@@ -26,6 +26,8 @@ question wording changes.
    all of its versions for future answer/audit references.
 5. Shared Zod schemas, typed API routes, Drizzle tables/migration, and an admin
    UI section on the coaching dashboard.
+6. **Reorder the active questions.** The admin can move a question up or down;
+   the chosen order drives onboarding and coach prompts.
 
 ### Out of scope (deferred)
 
@@ -35,7 +37,7 @@ question wording changes.
 - Feeding questions/answers into coach prompts (the next integration step).
 - Answer types other than free text (choice, numeric, scale, …). A new type is
   an additive column/field on the version row.
-- Reordering questions, restoring archived questions, or a version-history UI.
+- Restoring archived questions or a version-history UI.
 - Admin management UI (invite/promote/demote). The role exists (ADR 0006); only
   the first account is an admin for now.
 
@@ -54,9 +56,11 @@ question wording changes.
    idempotent; an unknown id returns `404`.
 5. Blank or too-long prompts are rejected with `400`. All endpoints require an
    admin (`401` without a valid bearer token, `403` for a signed-in member).
-6. The admin settings page can list, add, edit, and delete questions without a
-   page reload, and surfaces API errors inline.
-7. `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`
+6. The admin settings page can list, add, edit, delete, and reorder questions
+   without a page reload, and surfaces API errors inline.
+7. `PUT /api/admin/questions/order` accepts every active question exactly once
+   and returns the reordered list; an incomplete or duplicate order is rejected.
+8. `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`
    pass.
 
 ## Data-model / API impact
@@ -66,6 +70,7 @@ question wording changes.
 - **`questions`** — stable question identity:
   - `id` serial primary key
   - `current_version` integer not null default 1
+  - `position` integer not null default 0; ascending display order
   - `created_at`, `updated_at` timestamptz not null default now()
   - `archived_at` timestamptz nullable
 - **`question_versions`** — append-only content:
@@ -86,13 +91,14 @@ are never updated or deleted by the API; archiving does not touch versions.
 - `POST /api/admin/questions` → `Question` (201)
 - `POST /api/admin/questions/:id/versions` → `Question`
 - `DELETE /api/admin/questions/:id` → `{ id }`
+- `PUT /api/admin/questions/order` with `{ ids: number[] }` → `{ questions }`
 
 ### Shared types
 
 `questionInputSchema` (`prompt`, `required`), `questionSchema` (including the
-current `versionId`), `questionsResponseSchema`, and
-`questionArchivedResponseSchema` in `packages/shared/src/questions.ts`,
-re-exported from the package index.
+current `versionId`), `questionOrderInputSchema` (`ids`),
+`questionsResponseSchema`, and `questionArchivedResponseSchema` in
+`packages/shared/src/questions.ts`, re-exported from the package index.
 
 ## Technical approach
 
@@ -103,8 +109,11 @@ re-exported from the package index.
   - New versions are allocated under a `SELECT … FOR UPDATE` row lock on the
     question, so concurrent edits produce sequential version numbers instead of
     unique-constraint races.
-  - Listing loads active questions and their versions in two queries and maps
-    the current version plus total count in memory (the admin set is small).
+  - Listing loads active questions in `position` order (ties fall back to id)
+    and their versions in two queries, mapping the current version plus total
+    count in memory (the admin set is small).
+  - `reorderQuestions(ids)` verifies that `ids` is exactly the active set before
+    assigning sequential positions in one transaction.
 - `routes/adminQuestions.ts` — Zod validation for params and bodies, 404 for
   unknown/archived questions, and response schema parsing before serialization.
 - `db/schema.ts` — Drizzle tables and inferred types.
@@ -120,6 +129,8 @@ re-exported from the package index.
 - `QuestionForm.tsx` — shared create/edit form (prompt + required).
 - `AdminSettingsPage.tsx` — hosts the section on the admin-only page (ADR 0006);
   `CoachDashboard.tsx` no longer renders it.
+- `AdminQuestionsSection.tsx` / `QuestionRow.tsx` — move up/down actions send
+  the new complete order and replace the list with the server's response.
 
 ## Testing
 
@@ -141,11 +152,13 @@ re-exported from the package index.
   direct database update until the admin view supports archived entries.
 - **Immutability is enforced by the API, not by database grants.** Future code
   must not update or delete `question_versions` rows that may have answers.
-- **Question ordering** is creation order. If onboarding needs explicit order,
-  add a `position` column and reordering endpoint as a separate change.
+- **Question ordering** is explicit through `questions.position`; ties fall back
+  to id. A reorder request must name the complete active set, so a stale admin
+  view cannot silently drop a question.
 
 ## Definition of done
 
-- Migration adds both tables and applies cleanly.
-- Admin UI can create, version, and archive free-text questions.
+- Migration adds both tables and applies cleanly, backfilling existing question
+  positions.
+- Admin UI can create, version, archive, and reorder free-text questions.
 - Shared/API/web tests cover the new behavior, and all four quality gates pass.

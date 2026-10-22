@@ -67,12 +67,12 @@ development out of the box.
 
 ### Overriding "today" in development and test
 
-When the web app runs in a Development or Test environment, a "Dev: Override
-today" picker appears in the bottom-right corner. Picking a date stores it as an
-override and reloads the app, so the visit behaves exactly like a fresh visit on
-that day: the plan status is re-evaluated and any missing day, week, or block is
-generated for the selected date. Use "Clear override" to return to the real
-clock. The override lives in `localStorage` and is hidden in production builds.
+When the web app runs in a Development or Test environment, an "Override today"
+picker appears in Admin settings. Picking a date stores it as an override and
+reloads the app, so the visit behaves exactly like a fresh visit on that day:
+the plan status is re-evaluated and any missing day, week, or block is generated
+for the selected date. Use "Clear override" to return to the real clock. The
+override lives in `localStorage` and is hidden in production builds.
 
 The environment is chosen by `VITE_APP_ENV` ("Development", "Test", or
 "Production"). The Vite dev server defaults to "Development" and a plain build

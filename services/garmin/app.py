@@ -174,7 +174,10 @@ def _to_activity(raw: dict, samples: list[dict] | None = None) -> dict:
         except (TypeError, ValueError):
             return default
 
-    start = raw.get("startTimeLocal")
+    # Prefer Garmin's UTC timestamp. `startTimeLocal` is wall-clock time with no
+    # zone offset, so treating it as UTC makes every activity shift when the
+    # athlete changes their display time zone.
+    start = raw.get("startTimeGMT") or raw.get("startTimeLocal")
     return {
         "id": int(raw.get("activityId") or 0),
         "name": raw.get("activityName") or "",

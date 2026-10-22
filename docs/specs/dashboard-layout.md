@@ -8,10 +8,12 @@ header, outstanding activities, the plan, and the inputs that shape it.
 ## Header
 
 - One row with the app name, byline, a status spinner, and the signed-in user.
-- The user shows their first name, an optional round avatar, and an `Admin`
-  badge for administrators.
-- A dropdown on the user links to the coaching dashboard, activities, coaching
-  survey, settings, admin settings (admins only), and sign out.
+- The app name is an underline-free link back to the coaching dashboard.
+- The account menu is opened from a visible hamburger button. The user's first
+  name, optional round avatar, `Admin` badge, and the status spinner sit next to
+  the hamburger icon, not inside the menu.
+- The menu links to the coaching dashboard, activities, coaching survey,
+  settings, admin settings (admins only), and sign out.
 - The spinner reports `loading`, `syncing`, or `thinking` across any page.
 
 ## Main coaching page
@@ -44,8 +46,11 @@ concern only and does not affect plan staleness.
 
 ## Settings page
 
-Configures Garmin credentials, OpenRouter (API key and model), and a forced plan
-regeneration.
+Configures the display time zone, Garmin credentials, OpenRouter (API key and
+model), and a forced plan regeneration. The time zone is an IANA zone stored on
+the account; leaving it unset follows the device's zone. Activity timestamps and
+plan generation times are displayed in that local zone, and outgoing coaching
+requests send it to the API.
 
 ## Coaching survey page
 
@@ -57,4 +62,22 @@ athlete's answers with an inline editor, and offers a plan regeneration button.
 The coach summary is brief (2–3 sentences), includes how the activity fit the
 plan as part of the summary rather than a separate section, is encouraging when
 the activity reasonably conformed, and is direct about improvements. Cards do
-not show the generating model or the number of recorded samples.
+not show the generating model or the number of recorded samples. Activity types
+are shown in natural language (`indoor_cycling` becomes `Indoor cycling`) in
+cards and weekly-plan descriptions. Duration is **elapsed** time, not moving
+time, so indoor activities report their real elapsed duration. Distance and
+climb are omitted when zero.
+
+When an activity has GPS positions, a compact route map on an OpenStreetMap
+background (with attribution) is shown next to the coach analysis. Activities
+without position data (for example indoor sessions) show no map. The comment box
+has no separate "Add a comment" heading; its placeholder and accessible label
+describe it.
+
+Times are shown in the athlete's chosen local zone without appending a time-zone
+identifier. When Garmin or OpenRouter is not configured, the plan and activities
+pages show an "Open settings" action that takes the athlete directly to the
+Settings page.
+
+A manually logged activity has only a date and free text, so the weekly plan
+labels it `Logged manually` instead of inventing a duration such as one minute.

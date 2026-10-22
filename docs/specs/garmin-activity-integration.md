@@ -76,7 +76,10 @@ one swappable corner, and normalizes Garmin activities into the shared
 5. Each synced activity carries a `samples` timeseries normalized from Garmin's
    activity details, with absent channels omitted per sample and one bad detail
    fetch not failing the whole sync.
-6. Unit tests cover credential encryption, activity/sample mapping, and the
+6. `startDate` is the activity's UTC start (`startTimeGMT`), not the naive
+   wall-clock `startTimeLocal`, so the UI can render it in the athlete's chosen
+   time zone.
+7. Unit tests cover credential encryption, activity/sample mapping, and the
    sidecar client; quality gates (`typecheck`/`lint`/`format`/`test`) pass.
 
 ## Data-model / API impact

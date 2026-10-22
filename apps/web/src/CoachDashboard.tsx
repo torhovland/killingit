@@ -18,6 +18,7 @@ import { useAuth } from "./auth";
 import { CoachPlanSection } from "./CoachPlanSection";
 import { fetchJsonAuthed } from "./fetchAuthed";
 import { reportError } from "./reportError";
+import { useTimeZone } from "./TimeZoneContext";
 import { getToday } from "./useToday";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
@@ -34,6 +35,7 @@ interface CoachDashboardProps {
 export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
   const auth = useAuth();
   const { setStatus } = useAppStatus();
+  const timeZone = useTimeZone();
   // `loadAnalyses` is started by an effect that does not depend on the auth
   // object; keep the latest account id in a ref so a cache write after the
   // request settles uses the real `sub` rather than an early `null`.
@@ -135,7 +137,7 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
 
   async function fetchWeeklyNote(): Promise<void> {
     try {
-      const { today } = getToday();
+      const { today } = getToday(timeZone);
       const response = await fetchJsonAuthed<unknown>(
         `${API_URL}/api/coaching/weekly/notes?today=${today}`,
         auth,
@@ -156,12 +158,10 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
   }
 
   function coachingDateQuery(): string {
-    const params = new URLSearchParams({ today: getToday().today });
-    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    if (timezone) {
-      params.set("timezone", timezone);
-    }
-    return params.toString();
+    return new URLSearchParams({
+      today: getToday(timeZone).today,
+      timezone: timeZone,
+    }).toString();
   }
 
   async function deleteActivity(activityId: string): Promise<void> {
@@ -190,7 +190,7 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
     activityId: string,
     comment: string,
   ): Promise<string | null> {
-    const { today } = getToday();
+    const { today } = getToday(timeZone);
     const response = await fetchJsonAuthed<unknown>(
       `${API_URL}/api/coaching/activities/${activityId}/comments`,
       auth,
@@ -199,8 +199,7 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           today,
-          timezone:
-            Intl.DateTimeFormat().resolvedOptions().timeZone || undefined,
+          timezone: timeZone,
           activityDate: activityStartDate(activityId),
           comment,
         }),
@@ -243,11 +242,11 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
     const activity = data?.activities.find(
       (entry) => String(entry.id) === activityId,
     );
-    return (activity?.startDate ?? getToday().today).slice(0, 10);
+    return (activity?.startDate ?? getToday(timeZone).today).slice(0, 10);
   }
 
   async function submitWeeklyNote(note: string): Promise<void> {
-    const { today } = getToday();
+    const { today } = getToday(timeZone);
     const response = await fetchJsonAuthed<unknown>(
       `${API_URL}/api/coaching/weekly/notes`,
       auth,
@@ -256,8 +255,7 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           today,
-          timezone:
-            Intl.DateTimeFormat().resolvedOptions().timeZone || undefined,
+          timezone: timeZone,
           note,
         }),
       },
@@ -283,7 +281,7 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
     setError(null);
     setStatus("by-the-way", "thinking");
     try {
-      const { today } = getToday();
+      const { today } = getToday(timeZone);
       const response = await fetchJsonAuthed<unknown>(
         `${API_URL}/api/coaching/questions`,
         auth,
