@@ -35,6 +35,9 @@ function makeActivity(
     sampleCount: 100,
     analysis: null,
     analysisError: null,
+    programAnalysis: null,
+    comment: null,
+    coachReply: null,
     ...overrides,
   };
 }

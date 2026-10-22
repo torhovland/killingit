@@ -18,6 +18,8 @@ interface CoachPlanSectionProps {
   refreshKey: number;
   /** Garmin and OpenRouter must both be configured to generate a plan. */
   ready: boolean;
+  /** Called when a generation finishes, so activity analyses can be reloaded. */
+  onGenerated?: () => void;
 }
 
 /**
@@ -25,7 +27,11 @@ interface CoachPlanSectionProps {
  * for today, and polls while the coach is thinking so the user sees progress.
  * The old plan stays visible during a regeneration.
  */
-export function CoachPlanSection({ refreshKey, ready }: CoachPlanSectionProps) {
+export function CoachPlanSection({
+  refreshKey,
+  ready,
+  onGenerated,
+}: CoachPlanSectionProps) {
   const auth = useAuth();
   const { today, isAfter18 } = getToday();
   const [data, setData] = useState<CoachPlanResponse | null>(null);
@@ -71,7 +77,7 @@ export function CoachPlanSection({ refreshKey, ready }: CoachPlanSectionProps) {
     today: string,
     request: Promise<unknown> | null,
     includeTomorrow = false,
-  ): Promise<void> {
+  ): Promise<CoachPlanResponse | null> {
     let requestDone = request === null;
     if (request !== null) {
       void request
@@ -91,7 +97,7 @@ export function CoachPlanSection({ refreshKey, ready }: CoachPlanSectionProps) {
         result = await fetchPlan(today, includeTomorrow);
       } catch (err: unknown) {
         setError(reportError(err));
-        return;
+        return null;
       }
       setData(result);
 
@@ -99,18 +105,19 @@ export function CoachPlanSection({ refreshKey, ready }: CoachPlanSectionProps) {
         continue;
       }
       if (result.generation.status === "error") {
-        return;
+        return result;
       }
       // A `done` status from the previous run must not stop us before the new
       // request has even started; wait for the request to settle.
       if (result.generation.status === "done" && requestDone) {
-        return;
+        return result;
       }
     }
 
     setError(
       "The coach is taking longer than expected. Refresh to check again.",
     );
+    return null;
   }
 
   async function generate(force: boolean): Promise<void> {
@@ -142,7 +149,10 @@ export function CoachPlanSection({ refreshKey, ready }: CoachPlanSectionProps) {
     );
 
     try {
-      await pollUntilDone(today, request, includeTomorrow);
+      const result = await pollUntilDone(today, request, includeTomorrow);
+      if (result?.generation.status === "done") {
+        onGenerated?.();
+      }
     } finally {
       setGenerating(false);
       inFlight.current = false;
@@ -165,7 +175,10 @@ export function CoachPlanSection({ refreshKey, ready }: CoachPlanSectionProps) {
         return;
       }
       if (result.generation.status === "running") {
-        await pollUntilDone(today, null);
+        const final = await pollUntilDone(today, null);
+        if (final?.generation.status === "done") {
+          onGenerated?.();
+        }
         return;
       }
       if (result.generation.status === "error") {

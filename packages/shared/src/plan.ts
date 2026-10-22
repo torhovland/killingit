@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { coachAnalysisSchema } from "./llm.js";
 
 /** A calendar date in `YYYY-MM-DD` form. */
 export const planDateSchema = z
@@ -265,6 +266,8 @@ export type WeeklyNoteRequest = z.infer<typeof weeklyNoteRequestSchema>;
 export const activityCommentRequestSchema = z.object({
   today: planDateSchema,
   timezone: z.string().min(1).max(100).optional(),
+  /** The commented activity's date, used to decide whether it is today's. */
+  activityDate: planDateSchema,
   comment: z.string().min(1).max(2000),
 });
 
@@ -279,3 +282,41 @@ export const manualActivityRequestSchema = manualActivityInputSchema.extend({
 });
 
 export type ManualActivityRequest = z.infer<typeof manualActivityRequestSchema>;
+
+/** A saved manual activity with the coach's latest reply, if any. */
+export const manualActivitySchema = manualActivityInputSchema.extend({
+  id: z.number().int().positive(),
+  coachReply: coachAnalysisSchema.nullable().default(null),
+});
+
+export type ManualActivity = z.infer<typeof manualActivitySchema>;
+
+/** Response body of `GET /api/coaching/activities/manual`. */
+export const manualActivitiesResponseSchema = z.object({
+  manualActivities: z.array(manualActivitySchema),
+});
+
+export type ManualActivitiesResponse = z.infer<
+  typeof manualActivitiesResponseSchema
+>;
+
+/**
+ * Response body of the coaching-input save endpoints (activity comment, manual
+ * activity, weekly note). The reply is null when the coach could not answer.
+ */
+export const coachingInputSaveResponseSchema = z.object({
+  message: z.string(),
+  reply: coachAnalysisSchema.nullable().default(null),
+});
+
+export type CoachingInputSaveResponse = z.infer<
+  typeof coachingInputSaveResponseSchema
+>;
+
+/** Response body of `GET /api/coaching/weekly/notes`. */
+export const weeklyNoteResponseSchema = z.object({
+  note: z.string().nullable(),
+  reply: coachAnalysisSchema.nullable().default(null),
+});
+
+export type WeeklyNoteResponse = z.infer<typeof weeklyNoteResponseSchema>;

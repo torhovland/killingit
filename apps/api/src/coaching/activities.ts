@@ -14,6 +14,12 @@ import {
   saveAnalysis,
   type StoredAnalysis,
 } from "../llm/analysisStore.js";
+import { PROGRAM_ANALYSIS_PROMPT_VERSION } from "../llm/programAnalysisPrompt.js";
+import {
+  loadActivityFeedback,
+  toCoachAnalysis,
+  type ActivityFeedback,
+} from "../plans/replies.js";
 import { llmCredentialsKeyFromEnv } from "../llm/credentials.js";
 import {
   createOpenRouterProvider,
@@ -92,11 +98,19 @@ export async function loadAnalyzedActivities(options: {
     .sort((a, b) => Date.parse(b.startDate) - Date.parse(a.startDate))
     .slice(0, options.limit);
 
-  const settings = await loadLlmSettings();
+  const [settings, feedback] = await Promise.all([
+    loadLlmSettings(),
+    loadActivityFeedback(
+      options.userId,
+      latest.map((activity) => activity.id),
+    ),
+  ]);
   if (!settings) {
     return {
       model: null,
-      activities: latest.map(withoutAnalysis),
+      activities: latest.map((activity) =>
+        withoutAnalysis(activity, feedback.get(String(activity.id))),
+      ),
     };
   }
 
@@ -111,21 +125,28 @@ export async function loadAnalyzedActivities(options: {
     );
   }
 
-  const cached = options.refresh
-    ? new Map<number, StoredAnalysis>()
-    : await loadAnalyses(
-        latest.map((activity) => activity.id),
-        settings.model,
-        ANALYSIS_PROMPT_VERSION,
-      );
+  const activityIds = latest.map((activity) => activity.id);
+  const [cached, cachedProgram] = options.refresh
+    ? [new Map<number, StoredAnalysis>(), new Map<number, StoredAnalysis>()]
+    : await Promise.all([
+        loadAnalyses(activityIds, settings.model, ANALYSIS_PROMPT_VERSION),
+        loadAnalyses(
+          activityIds,
+          settings.model,
+          PROGRAM_ANALYSIS_PROMPT_VERSION,
+          "program",
+        ),
+      ]);
 
   const analysed = await mapWithConcurrency(
     latest,
     ANALYSIS_CONCURRENCY,
     async (activity): Promise<AnalyzedActivity> => {
+      const activityFeedback = feedback.get(String(activity.id));
       const hit = cached.get(activity.id);
+      const program = cachedProgram.get(activity.id) ?? null;
       if (hit) {
-        return withStoredAnalysis(activity, hit);
+        return withStoredAnalysis(activity, hit, program, activityFeedback);
       }
 
       try {
@@ -140,7 +161,7 @@ export async function loadAnalyzedActivities(options: {
           promptVersion: ANALYSIS_PROMPT_VERSION,
           text,
         });
-        return withStoredAnalysis(activity, saved);
+        return withStoredAnalysis(activity, saved, program, activityFeedback);
       } catch (err) {
         // A revoked/invalid key affects every activity; surface it instead of
         // returning a list where every card says "analysis failed".
@@ -163,6 +184,11 @@ export async function loadAnalyzedActivities(options: {
             err instanceof LlmProviderError
               ? err.message
               : "The coach analysis could not be saved.",
+          programAnalysis: program ? toCoachAnalysis(program) : null,
+          comment: activityFeedback?.comment ?? null,
+          coachReply: activityFeedback?.reply
+            ? toCoachAnalysis(activityFeedback.reply)
+            : null,
         };
       }
     },
@@ -179,10 +205,12 @@ function summarize(activity: Activity): ActivitySummary & {
   return { ...summary, sampleCount: samples.length };
 }
 
-/** Wraps a cached analysis in the shared activity response shape. */
+/** Wraps cached analyses and athlete feedback in the shared response shape. */
 function withStoredAnalysis(
   activity: Activity,
   stored: StoredAnalysis,
+  program: StoredAnalysis | null,
+  feedback?: ActivityFeedback,
 ): AnalyzedActivity {
   return {
     ...summarize(activity),
@@ -192,10 +220,23 @@ function withStoredAnalysis(
       generatedAt: stored.generatedAt.toISOString(),
     },
     analysisError: null,
+    programAnalysis: program ? toCoachAnalysis(program) : null,
+    comment: feedback?.comment ?? null,
+    coachReply: feedback?.reply ? toCoachAnalysis(feedback.reply) : null,
   };
 }
 
 /** An activity shown before an LLM has been configured. */
-function withoutAnalysis(activity: Activity): AnalyzedActivity {
-  return { ...summarize(activity), analysis: null, analysisError: null };
+function withoutAnalysis(
+  activity: Activity,
+  feedback?: ActivityFeedback,
+): AnalyzedActivity {
+  return {
+    ...summarize(activity),
+    analysis: null,
+    analysisError: null,
+    programAnalysis: null,
+    comment: feedback?.comment ?? null,
+    coachReply: feedback?.reply ? toCoachAnalysis(feedback.reply) : null,
+  };
 }

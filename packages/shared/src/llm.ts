@@ -65,6 +65,15 @@ export const analyzedActivitySchema = activitySummarySchema.extend({
   sampleCount: z.number().int().nonnegative().default(0),
   analysis: coachAnalysisSchema.nullable().default(null),
   analysisError: z.string().nullable().default(null),
+  /**
+   * How the activity fit the athlete's training program, generated after a full
+   * plan build. Null until the plan has been rebuilt with program context.
+   */
+  programAnalysis: coachAnalysisSchema.nullable().default(null),
+  /** The athlete's saved comment on the activity, if any. */
+  comment: z.string().nullable().default(null),
+  /** The coach's latest reply to that comment, if any. */
+  coachReply: coachAnalysisSchema.nullable().default(null),
 });
 
 export type AnalyzedActivity = z.infer<typeof analyzedActivitySchema>;

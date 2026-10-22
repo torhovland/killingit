@@ -23,21 +23,27 @@ function formatDate(iso: string): string {
 }
 
 /**
- * One synced activity with its coach analysis. Presentational only so it can be
- * rendered and tested without any data fetching. When `onSubmitComment` is
- * provided, the card also offers a comment box so the athlete can tell the coach
- * how the session felt; the saved comment feeds the next plan revision.
+ * One synced activity with its coach analysis and program review.
+ * Presentational only so it can be rendered and tested without any data
+ * fetching. When `onSubmitComment` is provided, the card also offers a comment
+ * box; the saved comment feeds the next plan revision and the coach replies
+ * immediately.
  */
 export function ActivityCard({
   activity,
   onSubmitComment,
 }: {
   activity: AnalyzedActivity;
-  onSubmitComment?: (activityId: string, comment: string) => Promise<void>;
+  onSubmitComment?: (
+    activityId: string,
+    comment: string,
+  ) => Promise<string | null>;
 }) {
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [savedComment, setSavedComment] = useState<string | null>(null);
+  const [coachReply, setCoachReply] = useState<string | null>(null);
 
   async function handleSubmit(
     event: React.FormEvent<HTMLFormElement>,
@@ -46,10 +52,13 @@ export function ActivityCard({
     if (!onSubmitComment || !comment.trim()) {
       return;
     }
+    const submitted = comment.trim();
     setSubmitting(true);
     setError(null);
     try {
-      await onSubmitComment(String(activity.id), comment);
+      const reply = await onSubmitComment(String(activity.id), submitted);
+      setSavedComment(submitted);
+      setCoachReply(reply);
       setComment("");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Could not save comment");
@@ -57,6 +66,9 @@ export function ActivityCard({
       setSubmitting(false);
     }
   }
+
+  const shownComment = savedComment ?? activity.comment;
+  const shownReply = coachReply ?? activity.coachReply?.text ?? null;
 
   return (
     <article
@@ -100,6 +112,30 @@ export function ActivityCard({
           {activity.analysis.model} ·{" "}
           {formatDate(activity.analysis.generatedAt)}
         </footer>
+      )}
+
+      {activity.programAnalysis && (
+        <section
+          className="flex flex-col gap-1 rounded border bg-muted/60 p-2"
+          data-testid="activity-program-analysis"
+        >
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            How it fit your plan
+          </h4>
+          <p className="whitespace-pre-line">{activity.programAnalysis.text}</p>
+        </section>
+      )}
+
+      {shownComment && (
+        <p className="text-sm" data-testid="activity-comment">
+          <span className="font-medium">You:</span> {shownComment}
+        </p>
+      )}
+
+      {shownReply && (
+        <p className="text-sm" data-testid="activity-coach-reply">
+          <span className="font-medium">Coach:</span> {shownReply}
+        </p>
       )}
 
       {onSubmitComment && (

@@ -105,24 +105,38 @@ export type LlmSetting = typeof llmSettings.$inferSelect;
 export type NewLlmSetting = typeof llmSettings.$inferInsert;
 
 /**
- * Cached coach analysis for one activity, keyed by the source activity id.
- * Reused across page visits; regenerated when the selected model changes.
+ * Cached coach analysis for one activity, keyed by the source activity id and
+ * analysis kind. `general` reviews the workout on its own; `program` reviews it
+ * against the athlete's training plan after a full plan build. Reused across
+ * page visits; regenerated when the selected model changes.
  */
-export const activityAnalyses = pgTable("activity_analyses", {
-  id: serial("id").primaryKey(),
-  // Garmin activity ids are ~2.5e10, beyond a 32-bit integer. `mode: "number"`
-  // is safe for the full range of ids we receive (well under 2^53).
-  activityId: bigint("activity_id", { mode: "number" }).notNull().unique(),
-  model: text("model").notNull(),
-  promptVersion: integer("prompt_version").notNull().default(1),
-  analysis: text("analysis").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
+export const activityAnalyses = pgTable(
+  "activity_analyses",
+  {
+    id: serial("id").primaryKey(),
+    // Garmin activity ids are ~2.5e10, beyond a 32-bit integer. `mode: "number"`
+    // is safe for the full range of ids we receive (well under 2^53).
+    activityId: bigint("activity_id", { mode: "number" }).notNull(),
+    kind: text("kind", { enum: ["general", "program"] })
+      .notNull()
+      .default("general"),
+    model: text("model").notNull(),
+    promptVersion: integer("prompt_version").notNull().default(1),
+    analysis: text("analysis").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("activity_analyses_activity_id_kind_idx").on(
+      table.activityId,
+      table.kind,
+    ),
+  ],
+);
 
 export type ActivityAnalysis = typeof activityAnalyses.$inferSelect;
 export type NewActivityAnalysis = typeof activityAnalyses.$inferInsert;
@@ -301,6 +315,48 @@ export const weeklyNotes = pgTable(
 
 export type WeeklyNoteRow = typeof weeklyNotes.$inferSelect;
 export type NewWeeklyNote = typeof weeklyNotes.$inferInsert;
+
+/**
+ * The coach's latest short reply to an athlete input: a comment on an activity,
+ * a weekly note, or a manual activity. `target` is the activity id, the week
+ * start date, or the manual activity id depending on `kind`. One row per input,
+ * replaced when the athlete adds a newer reply.
+ */
+export const coachReplies = pgTable(
+  "coach_replies",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    kind: text("kind", {
+      enum: ["activity_comment", "weekly_note", "manual_activity"],
+    }).notNull(),
+    target: text("target").notNull(),
+    reply: text("reply").notNull(),
+    model: text("model").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("coach_replies_user_id_kind_target_idx").on(
+      table.userId,
+      table.kind,
+      table.target,
+    ),
+    check(
+      "coach_replies_kind_check",
+      sql`${table.kind} in ('activity_comment', 'weekly_note', 'manual_activity')`,
+    ),
+  ],
+);
+
+export type CoachReplyRow = typeof coachReplies.$inferSelect;
+export type NewCoachReply = typeof coachReplies.$inferInsert;
 
 /**
  * The athlete's current four-level coach plan. One row per user; a regeneration

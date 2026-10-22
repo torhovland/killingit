@@ -130,15 +130,22 @@ export async function updateManualActivity(
 export async function saveManualActivity(
   userId: number,
   input: ManualActivityInput,
-): Promise<void> {
+): Promise<number> {
   const now = new Date();
-  await db.insert(manualActivities).values({
-    userId,
-    startDate: input.startDate,
-    details: input.details,
-    createdAt: now,
-    updatedAt: now,
-  });
+  const [row] = await db
+    .insert(manualActivities)
+    .values({
+      userId,
+      startDate: input.startDate,
+      details: input.details,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .returning({ id: manualActivities.id });
+  if (!row) {
+    throw new Error("failed to persist the manual activity");
+  }
+  return row.id;
 }
 
 /** Upserts a comment on an activity. The plan's input timestamp stays unchanged. */

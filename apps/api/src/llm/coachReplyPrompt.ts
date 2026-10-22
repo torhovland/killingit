@@ -1,0 +1,117 @@
+import type { CoachPlan, DayPlan } from "@killingit/shared";
+import type { AthleteAnswerContext } from "./planContext.js";
+import {
+  formatAthleteAnswers,
+  formatBlockPlan,
+  formatSeasonPlan,
+  formatWeekPlan,
+} from "./planContext.js";
+
+/** The athlete input the coach is replying to. */
+export type CoachReplyTarget =
+  | {
+      kind: "activity_comment";
+      activityDate: string;
+      comment: string;
+    }
+  | { kind: "weekly_note"; weekStartDate: string; note: string }
+  | { kind: "manual_activity"; startDate: string; details: string };
+
+export interface CoachReplyPromptInput {
+  today: string;
+  plan: CoachPlan;
+  athleteAnswers: readonly AthleteAnswerContext[];
+  request: CoachReplyTarget;
+}
+
+const COACH_REPLY_SYSTEM_PROMPT = `You are the athlete's endurance coach. The athlete has just shared something about their training: a comment on a workout, a note for the week, or a manual activity.
+Reply briefly in 1-2 sentences of plain text. Acknowledge the input in your own words, explain how it affects the plan, and state what you will adjust. Be specific to the athlete's goal and current block. Do not restate the whole plan, do not ask questions, and do not use headings, bullets, or markdown. Do not invent training results you were not given.`;
+
+/** Builds the chat messages for a short reply to an athlete input. */
+export function buildCoachReplyMessages(input: CoachReplyPromptInput): {
+  role: "system" | "user";
+  content: string;
+}[] {
+  return [
+    { role: "system", content: COACH_REPLY_SYSTEM_PROMPT },
+    { role: "user", content: buildCoachReplyPrompt(input) },
+  ];
+}
+
+/** Exposed for tests and for inspecting exactly what is sent to the model. */
+export function buildCoachReplyPrompt(input: CoachReplyPromptInput): string {
+  const { plan, request } = input;
+  const targetDate =
+    request.kind === "weekly_note" ? null : requestDate(request);
+  const targetSession =
+    targetDate === null
+      ? null
+      : plan.week.sessions.find((session) => session.date === targetDate);
+
+  const lines = [
+    `Today's date: ${input.today}`,
+    "",
+    "Athlete profile:",
+    formatAthleteAnswers(input.athleteAnswers),
+    "",
+    "Season plan:",
+    formatSeasonPlan(plan.season),
+    "",
+    "Current block plan:",
+    formatBlockPlan(plan.block),
+    "",
+    "Current week plan:",
+    formatWeekPlan(plan.week),
+    "",
+    "Today's session:",
+    formatDayPlan(plan.today),
+  ];
+
+  if (plan.tomorrow !== null) {
+    lines.push("", "Tomorrow's session:", formatDayPlan(plan.tomorrow));
+  }
+  if (targetSession) {
+    lines.push(
+      "",
+      `Planned session on ${targetDate}: ${targetSession.title} [${targetSession.type}, ${targetSession.intensity}, ${targetSession.durationMinutes} min] — ${targetSession.description}`,
+    );
+  }
+
+  lines.push("", "The athlete just shared:", formatRequest(request));
+
+  if (request.kind !== "weekly_note" && targetDate === input.today) {
+    lines.push(
+      "Today's session has already happened or is being reported, so it will not be changed. The rest of the week and tomorrow will be revised.",
+    );
+  } else {
+    lines.push(
+      "The week and tomorrow will be revised around this input if it changes the plan.",
+    );
+  }
+
+  lines.push("", "Write your brief reply to the athlete.");
+  return lines.join("\n");
+}
+
+function requestDate(request: CoachReplyTarget): string {
+  return request.kind === "weekly_note"
+    ? request.weekStartDate
+    : request.kind === "activity_comment"
+      ? request.activityDate
+      : request.startDate;
+}
+
+function formatRequest(request: CoachReplyTarget): string {
+  switch (request.kind) {
+    case "activity_comment":
+      return `Comment on the activity on ${request.activityDate}: "${request.comment.trim()}"`;
+    case "weekly_note":
+      return `Weekly note for the week starting ${request.weekStartDate}: "${request.note.trim()}"`;
+    case "manual_activity":
+      return `Manual activity on ${request.startDate}: "${request.details.trim()}"`;
+  }
+}
+
+function formatDayPlan(day: DayPlan): string {
+  return `${day.date} — ${day.title} [${day.type}, ${day.intensity}, ${day.durationMinutes} min]: ${day.description}`;
+}
