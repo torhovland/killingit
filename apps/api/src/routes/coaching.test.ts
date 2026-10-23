@@ -51,11 +51,13 @@ class MemoryPlanStore implements PlanStore {
     plan: StoredPlan["plan"],
     answersUpdatedAt: Date | null,
     coachingInputsUpdatedAt: Date | null = null,
+    activitiesUpdatedAt: Date | null = null,
   ): Promise<StoredPlan> {
     this.stored = {
       plan,
       answersUpdatedAt,
       coachingInputsUpdatedAt,
+      activitiesUpdatedAt,
       generatedAt: new Date(),
     };
     return Promise.resolve(this.stored);
@@ -404,6 +406,7 @@ describe("coaching activity analysis", () => {
     plan: {} as StoredPlan["plan"],
     answersUpdatedAt: null,
     coachingInputsUpdatedAt: null,
+    activitiesUpdatedAt: new Date("2026-10-21T08:00:00Z"),
     generatedAt: new Date("2026-10-21T08:00:00Z"),
   };
 

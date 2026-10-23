@@ -64,7 +64,9 @@ answers change and as days, weeks, and blocks roll over.
    rebuild. The dashboard offers only "Update plan" on the stale banner.
 4. On a new day, the first visit generates today's session and revises the rest
    of the week around what the athlete actually did. A newly analysed activity
-   also revises the remaining week even when the stored day is still current.
+   also revises the remaining week even when the stored day is still current,
+   including past activities imported days later (for example a Monday workout
+   first synced on Thursday).
 5. On a new week, the first visit generates the new week and revises the block.
 6. When the block has ended, the first visit generates the next block and revises
    the season, then cascades down to the week and today.
@@ -88,6 +90,13 @@ One row per user (`unique (user_id)`):
   `season_start_date`, `season_end_date` — duplicated calendar dates for
   pending/staleness checks.
 - `answers_updated_at` — newest answer timestamp included in the plan.
+- `coaching_inputs_updated_at` — newest comment/manual-activity/weekly-note
+  timestamp included in the plan.
+- `activities_updated_at` — newest activity analysis included in the plan. It is
+  deliberately not `generated_at`: an import or analysis can finish while a
+  generation is already running, so a plan can be saved later without the new
+  activity. Comparing against the included analysis makes the next visit revise
+  the plan.
 - `generated_at`, `updated_at`.
 
 ### `plan_generations`
@@ -131,9 +140,11 @@ block's dates.
    Splitting keeps
    every response comfortably below the model's output budget and gives the
    progress panel real steps.
-4. Otherwise, treat a coach analysis produced after the plan was saved as a
-   revision trigger too: the new knowledge from the activity must reach the
-   remaining week (and, through the weekly prompt, the block).
+4. Otherwise, treat a coach analysis that was not included in the saved plan as
+   a revision trigger too: the new knowledge from the activity must reach the
+   remaining week (and, through the weekly prompt, the block). This includes an
+   activity imported days later, and an import that finished while an earlier
+   generation was still running.
    - if `pending.block`, call the block prompt (new block + revised season);
    - if the block changed, coaching inputs or activity analyses changed, or
      `pending.week`, call the weekly prompt (new week + revised block);
@@ -157,7 +168,9 @@ problems; the error names the offending fields if the repair also fails. See
 - `CoachPlanSection` owns fetching, generation, polling, and the progress
   panel. It polls every 1.5s for up to 10 minutes.
 - `CoachPlanView` is the presentational four-level plan, so it can be tested
-  without auth or network.
+  without auth or network. If a stored plan has today's `completed`/`partial`
+  result missing from today's week session, `pending.week` becomes true and the
+  normal weekly + daily cascade refreshes the week.
 - `CoachDashboard` increments a refresh key after answers are saved, which
   makes the plan section refetch, spot the stale plan, and start the
   regeneration.

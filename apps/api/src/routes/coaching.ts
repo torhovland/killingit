@@ -328,7 +328,8 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
       if (
         stored === null ||
         analysedAt === null ||
-        analysedAt.getTime() <= stored.generatedAt.getTime()
+        (stored.activitiesUpdatedAt !== null &&
+          analysedAt.getTime() <= stored.activitiesUpdatedAt.getTime())
       ) {
         return;
       }

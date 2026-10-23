@@ -94,12 +94,15 @@ export async function runPlanGeneration(
     (input.plan.coachingInputsUpdatedAt === null ||
       context.coachingInputsUpdatedAt.getTime() >
         input.plan.coachingInputsUpdatedAt.getTime());
-  // A coach analysis produced after the plan was saved means the plan has not
-  // yet used the knowledge gained from that activity.
+  // Compare against the analyses included in the plan, not when the plan was
+  // saved: an import can finish while a generation is running, so the plan may
+  // be newer than its save time yet still not contain the activity.
   const activitiesChanged =
     input.plan !== null &&
     context.activitiesUpdatedAt != null &&
-    context.activitiesUpdatedAt.getTime() > input.plan.generatedAt.getTime();
+    (input.plan.activitiesUpdatedAt === null ||
+      context.activitiesUpdatedAt.getTime() >
+        input.plan.activitiesUpdatedAt.getTime());
   const revisionNeeded = inputsChanged || activitiesChanged;
 
   try {
@@ -192,6 +195,7 @@ export async function runPlanGeneration(
         generated,
         context.answersUpdatedAt,
         context.coachingInputsUpdatedAt,
+        context.activitiesUpdatedAt ?? null,
       );
       if (input.reviewActivities) {
         await generations.update(
@@ -229,6 +233,7 @@ export async function runPlanGeneration(
       plan,
       context.answersUpdatedAt,
       context.coachingInputsUpdatedAt,
+      context.activitiesUpdatedAt ?? null,
     );
     await generations.finish(userId);
     return saved;

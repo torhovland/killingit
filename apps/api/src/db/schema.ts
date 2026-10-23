@@ -534,6 +534,12 @@ export const coachPlans = pgTable(
     coachingInputsUpdatedAt: timestamp("coaching_inputs_updated_at", {
       withTimezone: true,
     }),
+    // The newest activity analysis included in this plan. A newer analysis
+    // means an imported activity has not reached the plan yet, even if the
+    // plan was saved later while the activity sync was still running.
+    activitiesUpdatedAt: timestamp("activities_updated_at", {
+      withTimezone: true,
+    }),
     generatedAt: timestamp("generated_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

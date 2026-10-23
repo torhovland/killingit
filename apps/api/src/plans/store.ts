@@ -13,6 +13,8 @@ export interface StoredPlan {
   plan: CoachPlan;
   answersUpdatedAt: Date | null;
   coachingInputsUpdatedAt: Date | null;
+  /** Newest activity analysis included in this plan. */
+  activitiesUpdatedAt: Date | null;
   generatedAt: Date;
 }
 
@@ -23,6 +25,7 @@ export interface PlanStore {
     plan: CoachPlan,
     answersUpdatedAt: Date | null,
     coachingInputsUpdatedAt: Date | null,
+    activitiesUpdatedAt: Date | null,
   ): Promise<StoredPlan>;
 }
 
@@ -64,6 +67,7 @@ function toStoredPlan(row: CoachPlanRow): StoredPlan {
     },
     answersUpdatedAt: row.answersUpdatedAt,
     coachingInputsUpdatedAt: row.coachingInputsUpdatedAt,
+    activitiesUpdatedAt: row.activitiesUpdatedAt,
     generatedAt: row.generatedAt,
   };
 }
@@ -90,7 +94,13 @@ export const dbPlanStore: PlanStore = {
     return row ? toStoredPlan(row) : null;
   },
 
-  async save(userId, plan, answersUpdatedAt, coachingInputsUpdatedAt) {
+  async save(
+    userId,
+    plan,
+    answersUpdatedAt,
+    coachingInputsUpdatedAt,
+    activitiesUpdatedAt,
+  ) {
     const now = new Date();
     const planValues = {
       season: plan.season,
@@ -106,6 +116,7 @@ export const dbPlanStore: PlanStore = {
       seasonEndDate: plan.season.endDate,
       answersUpdatedAt,
       coachingInputsUpdatedAt,
+      activitiesUpdatedAt,
       generatedAt: now,
       updatedAt: now,
     };

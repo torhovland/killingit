@@ -67,6 +67,14 @@ export function applyCompletedDays(
 
     if (session.date === today) {
       if (!activity) {
+        // Keep a completed/partial day and its week session in agreement even
+        // when the activity itself is not in this generation's context.
+        if (
+          todayPlan?.status === "completed" ||
+          todayPlan?.status === "partial"
+        ) {
+          return mirrorToday(session, null, todayPlan);
+        }
         return {
           ...session,
           status: session.type === "rest" ? "rest" : "planned",
@@ -112,15 +120,22 @@ export function applyCompletedDays(
  */
 function mirrorToday(
   session: WeekSession,
-  activity: AnalyzedActivity,
+  activity: AnalyzedActivity | null,
   todayPlan: DayPlan | undefined,
 ): WeekSession {
   const status =
     todayPlan?.status === "completed" || todayPlan?.status === "partial"
       ? todayPlan.status
-      : completionStatus(session, activity);
+      : activity
+        ? completionStatus(session, activity)
+        : session.type === "rest"
+          ? "rest"
+          : "planned";
 
   if (!todayPlan) {
+    if (!activity) {
+      return { ...session, status };
+    }
     return {
       ...session,
       type: "workout",

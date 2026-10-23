@@ -76,6 +76,7 @@ function storedPlan(): StoredPlan {
     plan: makePlan(),
     answersUpdatedAt: new Date("2026-10-20T10:00:00Z"),
     coachingInputsUpdatedAt: null,
+    activitiesUpdatedAt: null,
     generatedAt: new Date("2026-10-20T10:00:00Z"),
   };
 }
