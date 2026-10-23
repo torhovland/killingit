@@ -4,12 +4,17 @@ import {
   coachingInputSaveResponseSchema,
   manualActivitiesResponseSchema,
   manualActivityRequestSchema,
+  periodReviewCommentRequestSchema,
+  periodReviewsResponseSchema,
   planDateSchema,
   quickQuestionRequestSchema,
   quickQuestionResponseSchema,
+  reviewKindSchema,
   weeklyNoteRequestSchema,
   weeklyNoteResponseSchema,
   type ActivityCommentRequest,
+  type PeriodReview,
+  type ReviewKind,
 } from "@killingit/shared";
 import { zValidator } from "@hono/zod-validator";
 import { Hono, type Context } from "hono";
@@ -50,6 +55,14 @@ import {
   updateManualActivity,
 } from "../plans/inputs.js";
 import type { CoachingInputs } from "../plans/inputs.js";
+import {
+  createPeriodReviewComment,
+  loadPeriodReview,
+  loadPeriodReviews,
+  markPeriodReviewReviewed,
+  toPeriodReview,
+  updatePeriodReviewComment,
+} from "../plans/periodReviews.js";
 import {
   loadManualActivityReplies,
   loadWeeklyNoteReply,
@@ -106,6 +119,11 @@ export interface CoachingRouteDependencies {
   createActivityComment?: typeof createActivityComment;
   updateActivityComment?: typeof updateActivityComment;
   saveActivityReview?: typeof saveActivityReview;
+  loadPeriodReviews?: typeof loadPeriodReviews;
+  loadPeriodReview?: typeof loadPeriodReview;
+  createPeriodReviewComment?: typeof createPeriodReviewComment;
+  updatePeriodReviewComment?: typeof updatePeriodReviewComment;
+  markPeriodReviewReviewed?: typeof markPeriodReviewReviewed;
   saveManualActivity?: typeof saveManualActivity;
   saveWeeklyNote?: typeof saveWeeklyNote;
   updateManualActivity?: typeof updateManualActivity;
@@ -139,6 +157,14 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
   const createComment = deps.createActivityComment ?? createActivityComment;
   const updateComment = deps.updateActivityComment ?? updateActivityComment;
   const saveReview = deps.saveActivityReview ?? saveActivityReview;
+  const loadReviews = deps.loadPeriodReviews ?? loadPeriodReviews;
+  const loadReview = deps.loadPeriodReview ?? loadPeriodReview;
+  const createReviewComment =
+    deps.createPeriodReviewComment ?? createPeriodReviewComment;
+  const updateReviewComment =
+    deps.updatePeriodReviewComment ?? updatePeriodReviewComment;
+  const markReviewReviewed =
+    deps.markPeriodReviewReviewed ?? markPeriodReviewReviewed;
   const saveManual = deps.saveManualActivity ?? saveManualActivity;
   const saveWeekly = deps.saveWeeklyNote ?? saveWeeklyNote;
   const loadNote = deps.loadWeeklyNote ?? loadWeeklyNote;
@@ -224,6 +250,59 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
     return c.json(
       coachingInputSaveResponseSchema.parse({
         message: mode === "create" ? "Comment saved" : "Comment updated",
+        reply: coachReply,
+      }),
+    );
+  }
+
+  /**
+   * Saves a comment on a completed week or block, generates the coach's reply
+   * to it, and starts a plan revision. `create` refuses to replace an existing
+   * comment; `edit` requires one to exist.
+   */
+  async function savePeriodReviewComment(
+    c: Context,
+    mode: "create" | "edit",
+    user: { id: number },
+    kind: ReviewKind,
+    startDate: string,
+    input: { today: string; timezone?: string | undefined; comment: string },
+  ) {
+    const review = await loadReview(user.id, kind, startDate);
+    if (review === null) {
+      return c.text("Review not found", 404);
+    }
+
+    const saved =
+      mode === "create"
+        ? await createReviewComment(user.id, kind, startDate, input.comment)
+        : await updateReviewComment(user.id, kind, startDate, input.comment);
+    if (!saved) {
+      return c.text(
+        mode === "create"
+          ? "This review already has a comment; edit it instead"
+          : "This review has no comment to edit",
+        mode === "create" ? 409 : 404,
+      );
+    }
+
+    const coachReply = await replyTo(user.id, input.today, {
+      kind: kind === "week" ? "week_review" : "block_review",
+      startDate: review.startDate,
+      endDate: review.endDate,
+      summary: review.summary,
+      comment: input.comment,
+    });
+
+    await trigger(triggerDeps, {
+      userId: user.id,
+      today: input.today,
+      ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),
+    });
+
+    return c.json(
+      coachingInputSaveResponseSchema.parse({
+        message: mode === "create" ? "Review comment saved" : "Review updated",
         reply: coachReply,
       }),
     );
@@ -366,6 +445,75 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
       return c.json(
         coachingInputSaveResponseSchema.parse({
           message: "Activity acknowledged",
+        }),
+      );
+    })
+    .get("/reviews", async (c) => {
+      const user = await deps.users.ensureUser(getAthlete(c).sub);
+      const entries = await loadReviews(user.id);
+      const reviews: PeriodReview[] = entries
+        .map(toPeriodReview)
+        .sort((a, b) => b.startDate.localeCompare(a.startDate));
+      return c.json(periodReviewsResponseSchema.parse({ reviews }));
+    })
+    .post(
+      "/reviews/:kind/:startDate/comments",
+      zValidator("json", periodReviewCommentRequestSchema),
+      async (c) => {
+        const user = await deps.users.ensureUser(getAthlete(c).sub);
+        const kind = reviewKindSchema.safeParse(c.req.param("kind"));
+        const startDate = planDateSchema.safeParse(c.req.param("startDate"));
+        if (!kind.success || !startDate.success) {
+          return c.text("Invalid review", 400);
+        }
+        return savePeriodReviewComment(
+          c,
+          "create",
+          user,
+          kind.data,
+          startDate.data,
+          c.req.valid("json"),
+        );
+      },
+    )
+    .put(
+      "/reviews/:kind/:startDate/comments",
+      zValidator("json", periodReviewCommentRequestSchema),
+      async (c) => {
+        const user = await deps.users.ensureUser(getAthlete(c).sub);
+        const kind = reviewKindSchema.safeParse(c.req.param("kind"));
+        const startDate = planDateSchema.safeParse(c.req.param("startDate"));
+        if (!kind.success || !startDate.success) {
+          return c.text("Invalid review", 400);
+        }
+        return savePeriodReviewComment(
+          c,
+          "edit",
+          user,
+          kind.data,
+          startDate.data,
+          c.req.valid("json"),
+        );
+      },
+    )
+    .post("/reviews/:kind/:startDate/reviewed", async (c) => {
+      const user = await deps.users.ensureUser(getAthlete(c).sub);
+      const kind = reviewKindSchema.safeParse(c.req.param("kind"));
+      const startDate = planDateSchema.safeParse(c.req.param("startDate"));
+      if (!kind.success || !startDate.success) {
+        return c.text("Invalid review", 400);
+      }
+      const updated = await markReviewReviewed(
+        user.id,
+        kind.data,
+        startDate.data,
+      );
+      if (!updated) {
+        return c.text("Review not found", 404);
+      }
+      return c.json(
+        coachingInputSaveResponseSchema.parse({
+          message: "Review acknowledged",
         }),
       );
     })

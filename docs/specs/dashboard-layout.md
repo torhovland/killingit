@@ -58,7 +58,8 @@ requests send it to the API.
 ## Coaching survey page
 
 Explains that thorough answers directly influence the training plan, lists the
-athlete's answers with an inline editor, and offers a plan regeneration button.
+athlete's answers with an inline editor. Forced plan regeneration lives on the
+coaching survey and settings pages, not the dashboard.
 
 ## Activity summaries
 

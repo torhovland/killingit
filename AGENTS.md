@@ -65,6 +65,9 @@ about a past workout, or before a suggested workout, to steer the coach.
 - The four-level plan is stored per user in `coach_plans`; generation progress
   is in `plan_generations`. The lazy day → week → block cascade and the plan UI
   are documented in `docs/specs/coach-plan-lifecycle.md`.
+- Completed weeks and blocks get a coach summary, athlete comment, and coach
+  reply in `period_reviews` / `coach_replies`; the dashboard and season review
+  page are documented in `docs/specs/period-reviews.md`.
 
 ## Stack
 

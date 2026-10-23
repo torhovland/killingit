@@ -29,7 +29,8 @@ answers change and as days, weeks, and blocks roll over.
    - week missing → generate the new week, then revise the block;
    - block missing → generate the next block, then revise the season.
 5. Trigger a fresh full plan when answers are saved, and offer an explicit
-   "Regenerate plan" action.
+   "Regenerate plan" action on the coaching survey and settings pages (not on
+   the dashboard).
 6. A plan section in the coaching dashboard showing:
    - generation progress (step + bar) while the coach is working;
    - today's workout/rest with alternatives and a note on whether it can be
@@ -58,8 +59,9 @@ answers change and as days, weeks, and blocks roll over.
    levels. The old plan remains visible during a regeneration.
 2. The progress panel shows the current step and a determinate bar, and the plan
    appears without a page reload when generation finishes.
-3. Saving changed answers marks the plan stale and starts a regeneration; a
-   manual "Regenerate plan" button forces a full rebuild.
+3. Saving changed answers marks the plan stale and starts a regeneration; the
+   "Regenerate plan" button on the survey and settings pages forces a full
+   rebuild. The dashboard offers only "Update plan" on the stale banner.
 4. On a new day, the first visit generates today's session and revises the rest
    of the week around what the athlete actually did. A newly analysed activity
    also revises the remaining week even when the stored day is still current.
@@ -124,8 +126,9 @@ block's dates.
    LLM client. Fail the generation with a readable error if Garmin or OpenRouter
    is not configured.
 3. If there is no plan, the answers are stale, or `force` is set, build the plan
-   in four smaller completions: the season, the first block, the first week
-   (with a block revision), then today (with a week revision). Splitting keeps
+   in four smaller completions: the season, the block containing today, the week
+   containing today (with a block revision), then today (with a week revision).
+   Splitting keeps
    every response comfortably below the model's output budget and gives the
    progress panel real steps.
 4. Otherwise, treat a coach analysis produced after the plan was saved as a
@@ -160,6 +163,10 @@ problems; the error names the offending fields if the repair also fails. See
   regeneration.
 - The plan section is rendered before the profile/integrations so the plan is
   the main surface on each visit.
+- The stale banner's "Update plan" is a fallback: the plan section already
+  starts a non-forced generation automatically when it sees stale answers or a
+  pending level. The banner stays available if that automatic run failed or the
+  plan is still stale after it finishes.
 
 ## Testing
 
@@ -177,8 +184,8 @@ problems; the error names the offending fields if the repair also fails. See
 
 ## Risks / open questions
 
-- **Cost:** an initial plan is four smaller completions (season, first block,
-  first week, today); a cascade can be up to three. Each generation first
+- **Cost:** an initial plan is four smaller completions (season, current block,
+  current week, today); a cascade can be up to three. Each generation first
   syncs/analyses recent Garmin activities (cached analyses are reused). The
   plan is lazily generated only when needed.
 - **Long requests:** generation runs inside the POST. The API already sets a

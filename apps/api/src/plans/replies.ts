@@ -10,7 +10,11 @@ import {
 
 /** What the coach replied to. Mirrors the `coach_replies.kind` column. */
 export type CoachReplyKind =
-  "activity_comment" | "weekly_note" | "manual_activity";
+  | "activity_comment"
+  | "weekly_note"
+  | "manual_activity"
+  | "week_review"
+  | "block_review";
 
 export interface StoredCoachReply {
   kind: CoachReplyKind;

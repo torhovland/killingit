@@ -245,14 +245,6 @@ export function CoachPlanSection({
               : "Your coach builds the season, block, week, and today from your profile and recent training."}
           </p>
         </div>
-        <button
-          type="button"
-          className="rounded border border-transparent bg-primary px-3 py-1 text-sm text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
-          onClick={() => void generate(true)}
-          disabled={!ready || running}
-        >
-          {running ? "Coach is thinking…" : "Regenerate plan"}
-        </button>
       </div>
 
       {!ready && (

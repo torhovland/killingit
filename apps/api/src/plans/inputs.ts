@@ -13,14 +13,18 @@ import {
 import type {
   ActivityCommentContext,
   ManualActivityContext,
+  PeriodReviewContext,
 } from "../llm/planContext.js";
 import { startOfWeek } from "./dates.js";
+import { loadPeriodReviews } from "./periodReviews.js";
 
 /** Everything the athlete has added on top of their synced training. */
 export interface CoachingInputs {
   manualActivities: ManualActivityContext[];
   activityComments: ActivityCommentContext[];
   weeklyNote: string | null;
+  /** Coach summaries of completed weeks and blocks, with athlete feedback. */
+  periodReviews: PeriodReviewContext[];
   /** The newest `updatedAt` across all coaching inputs. */
   updatedAt: Date | null;
 }
@@ -37,38 +41,40 @@ function newest(rows: readonly { updatedAt: Date }[]): Date | null {
 
 /**
  * Loads the coaching inputs that sit alongside the synced activities: manually
- * recorded activities, activity comments, and the note for `weekStartDate`.
- * The returned `updatedAt` is the newest timestamp across all inputs and drives
- * the plan's automatic revision.
+ * recorded activities, activity comments, the note for `weekStartDate`, and
+ * completed week/block reviews. The returned `updatedAt` is the newest
+ * athlete-input timestamp and drives the plan's automatic revision.
  */
 export async function loadCoachingInputs(
   userId: number,
   weekStartDate: string,
 ): Promise<CoachingInputs> {
-  const [manualRows, commentRows, noteRows, deletionRows] = await Promise.all([
-    db
-      .select()
-      .from(manualActivities)
-      .where(eq(manualActivities.userId, userId)),
-    db
-      .select()
-      .from(activityComments)
-      .where(eq(activityComments.userId, userId)),
-    db
-      .select()
-      .from(weeklyNotes)
-      .where(
-        and(
-          eq(weeklyNotes.userId, userId),
-          eq(weeklyNotes.weekStartDate, weekStartDate),
-        ),
-      )
-      .limit(1),
-    db
-      .select()
-      .from(activityDeletions)
-      .where(eq(activityDeletions.userId, userId)),
-  ]);
+  const [manualRows, commentRows, noteRows, deletionRows, reviewEntries] =
+    await Promise.all([
+      db
+        .select()
+        .from(manualActivities)
+        .where(eq(manualActivities.userId, userId)),
+      db
+        .select()
+        .from(activityComments)
+        .where(eq(activityComments.userId, userId)),
+      db
+        .select()
+        .from(weeklyNotes)
+        .where(
+          and(
+            eq(weeklyNotes.userId, userId),
+            eq(weeklyNotes.weekStartDate, weekStartDate),
+          ),
+        )
+        .limit(1),
+      db
+        .select()
+        .from(activityDeletions)
+        .where(eq(activityDeletions.userId, userId)),
+      loadPeriodReviews(userId),
+    ]);
 
   return {
     manualActivities: manualRows.map((row) => ({
@@ -81,11 +87,25 @@ export async function loadCoachingInputs(
       comment: row.comment,
     })),
     weeklyNote: noteRows[0]?.note ?? null,
+    periodReviews: reviewEntries.map(({ review, reply }) => ({
+      kind: review.kind,
+      title: review.title,
+      startDate: review.startDate,
+      endDate: review.endDate,
+      summary: review.summary,
+      comment: review.comment,
+      reply: reply?.text ?? null,
+    })),
     updatedAt: newest([
       ...manualRows,
       ...commentRows,
       ...noteRows,
       ...deletionRows,
+      // A generated summary or a dismissal is not athlete input; only a comment
+      // should make the plan stale.
+      ...reviewEntries
+        .filter(({ review }) => review.comment !== null)
+        .map(({ review }) => review),
     ]),
   };
 }

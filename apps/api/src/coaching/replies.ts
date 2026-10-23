@@ -20,6 +20,13 @@ export type CoachingReplyRequest =
       manualActivityId: number;
       startDate: string;
       details: string;
+    }
+  | {
+      kind: "week_review" | "block_review";
+      startDate: string;
+      endDate: string;
+      summary: string;
+      comment: string;
     };
 
 /** A one-off question the athlete asks, answered without storing anything. */
@@ -172,6 +179,9 @@ function replyTarget(request: CoachingReplyRequest): string {
       return request.weekStartDate;
     case "manual_activity":
       return String(request.manualActivityId);
+    case "week_review":
+    case "block_review":
+      return request.startDate;
   }
 }
 
@@ -194,6 +204,15 @@ function toPromptTarget(request: CoachingReplyRequest): CoachReplyTarget {
         kind: request.kind,
         startDate: request.startDate,
         details: request.details,
+      };
+    case "week_review":
+    case "block_review":
+      return {
+        kind: request.kind,
+        startDate: request.startDate,
+        endDate: request.endDate,
+        summary: request.summary,
+        comment: request.comment,
       };
   }
 }

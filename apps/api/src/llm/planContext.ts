@@ -18,6 +18,21 @@ export interface AthleteAnswerContext {
 export interface RecentActivityContext {
   summary: ActivitySummary;
   analysis: string | null;
+  /** How the activity fit the plan, generated after a full plan build. */
+  programAnalysis?: string | null;
+  /** The coach's latest reply to the athlete's comment on the activity. */
+  coachReply?: string | null;
+}
+
+/** A coach review of a completed week or block, with athlete feedback. */
+export interface PeriodReviewContext {
+  kind: "week" | "block";
+  title: string;
+  startDate: string;
+  endDate: string;
+  summary: string;
+  comment: string | null;
+  reply: string | null;
 }
 
 /** A manually recorded activity. */
@@ -50,6 +65,8 @@ export interface PlanContextInput {
   manualActivities?: readonly ManualActivityContext[];
   activityComments?: readonly ActivityCommentContext[];
   weeklyNote?: string | null;
+  /** Coach reviews of completed weeks and blocks, with athlete feedback. */
+  periodReviews?: readonly PeriodReviewContext[];
 }
 
 /** Renders the athlete's profile for a prompt. */
@@ -140,7 +157,36 @@ export function formatPlanContext(input: PlanContextInput): string[] {
     lines.push("", "Weekly note:", input.weeklyNote.trim());
   }
 
+  if (input.periodReviews && input.periodReviews.length > 0) {
+    lines.push(
+      "",
+      "Completed week and block reviews (most recent first):",
+      formatPeriodReviews(input.periodReviews),
+    );
+  }
+
   return lines;
+}
+
+/** Renders completed-period summaries and the athlete's feedback on them. */
+export function formatPeriodReviews(
+  entries: readonly PeriodReviewContext[],
+): string {
+  return entries
+    .map((entry) => {
+      const lines = [
+        `- Completed ${entry.kind}: ${entry.title} (${entry.startDate} → ${entry.endDate})`,
+        `  Coach summary: ${entry.summary.trim()}`,
+      ];
+      if (entry.comment !== null && entry.comment.trim() !== "") {
+        lines.push(`  Athlete comment: ${entry.comment.trim()}`);
+      }
+      if (entry.reply !== null && entry.reply.trim() !== "") {
+        lines.push(`  Coach reply: ${entry.reply.trim()}`);
+      }
+      return lines.join("\n");
+    })
+    .join("\n");
 }
 
 /** Renders manually recorded activities for a prompt. */
@@ -239,10 +285,26 @@ function formatActivity(
   } else {
     lines.push("   Coach analysis: not available.");
   }
+  if (
+    entry.programAnalysis !== undefined &&
+    entry.programAnalysis !== null &&
+    entry.programAnalysis.trim() !== ""
+  ) {
+    lines.push(
+      `   Coach review against the plan: ${entry.programAnalysis.trim()}`,
+    );
+  }
   if (comment !== null && comment.trim() !== "") {
     lines.push(
       `   Athlete comment about this same activity (not an additional session): ${comment.trim()}`,
     );
+  }
+  if (
+    entry.coachReply !== undefined &&
+    entry.coachReply !== null &&
+    entry.coachReply.trim() !== ""
+  ) {
+    lines.push(`   Coach reply to that comment: ${entry.coachReply.trim()}`);
   }
   return lines.join("\n");
 }

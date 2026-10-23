@@ -28,6 +28,13 @@ import {
   type CoachingInputs,
 } from "./plans/inputs.js";
 import type {
+  createPeriodReviewComment,
+  loadPeriodReview,
+  loadPeriodReviews,
+  markPeriodReviewReviewed,
+  updatePeriodReviewComment,
+} from "./plans/periodReviews.js";
+import type {
   loadManualActivityReplies,
   loadWeeklyNoteReply,
 } from "./plans/replies.js";
@@ -95,6 +102,11 @@ export interface AppDependencies {
   createActivityComment?: typeof createActivityComment;
   updateActivityComment?: typeof updateActivityComment;
   saveActivityReview?: typeof saveActivityReview;
+  loadPeriodReviews?: typeof loadPeriodReviews;
+  loadPeriodReview?: typeof loadPeriodReview;
+  createPeriodReviewComment?: typeof createPeriodReviewComment;
+  updatePeriodReviewComment?: typeof updatePeriodReviewComment;
+  markPeriodReviewReviewed?: typeof markPeriodReviewReviewed;
   saveManualActivity?: typeof saveManualActivity;
   saveWeeklyNote?: typeof saveWeeklyNote;
   updateManualActivity?: typeof updateManualActivity;
@@ -199,6 +211,21 @@ export function createApp(deps: AppDependencies = {}): Hono {
         : {}),
       ...(deps.saveActivityReview !== undefined
         ? { saveActivityReview: deps.saveActivityReview }
+        : {}),
+      ...(deps.loadPeriodReviews !== undefined
+        ? { loadPeriodReviews: deps.loadPeriodReviews }
+        : {}),
+      ...(deps.loadPeriodReview !== undefined
+        ? { loadPeriodReview: deps.loadPeriodReview }
+        : {}),
+      ...(deps.createPeriodReviewComment !== undefined
+        ? { createPeriodReviewComment: deps.createPeriodReviewComment }
+        : {}),
+      ...(deps.updatePeriodReviewComment !== undefined
+        ? { updatePeriodReviewComment: deps.updatePeriodReviewComment }
+        : {}),
+      ...(deps.markPeriodReviewReviewed !== undefined
+        ? { markPeriodReviewReviewed: deps.markPeriodReviewReviewed }
         : {}),
       ...(deps.saveManualActivity !== undefined
         ? { saveManualActivity: deps.saveManualActivity }

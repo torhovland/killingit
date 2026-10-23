@@ -3,6 +3,7 @@ import {
   DEFAULT_ACTIVITIES,
   loadAnalyzedActivities,
 } from "../coaching/activities.js";
+import { captureCompletedPeriodReviews } from "../coaching/periodReviews.js";
 import { analyzeActivitiesAgainstPlan } from "../coaching/programAnalysis.js";
 import type { LlmClient } from "../llm/client.js";
 import { loadLlmClient } from "../llm/client.js";
@@ -101,6 +102,7 @@ export async function triggerPlanGeneration(
     ...(force !== undefined ? { force } : {}),
     ...(includeTomorrow !== undefined ? { includeTomorrow } : {}),
     ...(keepToday !== undefined ? { keepToday } : {}),
+    capturePeriodReviews: captureCompletedPeriodReviews,
     reviewActivities: (plan) =>
       analyzeActivitiesAgainstPlan({
         provider: llm.provider,
@@ -119,6 +121,7 @@ export async function triggerPlanGeneration(
       manualActivities: coachingInputs.manualActivities,
       activityComments: coachingInputs.activityComments,
       weeklyNote: coachingInputs.weeklyNote,
+      periodReviews: coachingInputs.periodReviews,
       coachingInputsUpdatedAt: coachingInputs.updatedAt,
       activitiesUpdatedAt: latestActivityAnalysisTimestamp(
         activities.activities,
