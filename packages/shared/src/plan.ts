@@ -58,6 +58,7 @@ export type BlockPlan = z.infer<typeof blockPlanSchema>;
 /** One day in the current week's plan. */
 export const weekSessionStatusSchema = z.enum([
   "completed",
+  "partial",
   "planned",
   "missed",
   "rest",
@@ -74,8 +75,9 @@ export const weekSessionSchema = z.object({
   durationMinutes: z.number().int().nonnegative(),
   intensity: z.enum(["easy", "moderate", "hard", "rest"]),
   /**
-   * Past days describe what actually happened (`completed`, `missed`, or
-   * `rest`); today and future days are `planned` unless they are rest days.
+   * Past days and today describe what actually happened (`completed`,
+   * `partial`, `missed`, or `rest`); future days are `planned` unless they are
+   * rest days.
    */
   status: weekSessionStatusSchema.default("planned"),
 });
@@ -108,6 +110,11 @@ export const dayPlanSchema = z.object({
   optional: z.boolean().default(false),
   /** Why the athlete should not skip this session, or why it is optional. */
   optionalRationale: z.string().min(1).optional(),
+  /**
+   * What happened on this day. Today is `completed` or `partial` when an
+   * activity was recorded; otherwise it stays `planned`, or `rest` on rest days.
+   */
+  status: weekSessionStatusSchema.default("planned"),
 });
 
 export type DayPlan = z.infer<typeof dayPlanSchema>;

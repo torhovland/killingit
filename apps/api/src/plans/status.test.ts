@@ -1,6 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import type { CoachPlan } from "@killingit/shared";
-import { latestAnswerTimestamp, planIsStale, planPending } from "./status.js";
+import {
+  latestActivityAnalysisTimestamp,
+  latestAnswerTimestamp,
+  planIsStale,
+  planPending,
+} from "./status.js";
 
 function makePlan(): CoachPlan {
   return {
@@ -61,6 +66,7 @@ function makePlan(): CoachPlan {
       optional: false,
       optionalRationale:
         "This easy run keeps the week consistent; skip it only if you feel unusually tired.",
+      status: "planned",
     },
     tomorrow: null,
   };
@@ -111,6 +117,7 @@ describe("planPending", () => {
       optional: false,
       optionalRationale:
         "This easy run keeps the week consistent; skip it only if you feel unusually tired.",
+      status: "planned",
     };
     expect(planPending(plan, "2026-10-21", true).tomorrow).toBe(false);
   });
@@ -161,6 +168,23 @@ describe("planIsStale", () => {
   it("treats a missing stored timestamp as older", () => {
     expect(planIsStale(null, new Date("2026-10-21T10:00:00Z"))).toBe(true);
     expect(planIsStale(null, null)).toBe(false);
+  });
+});
+
+describe("latestActivityAnalysisTimestamp", () => {
+  it("returns the newest analysis, ignoring unanalysed activities", () => {
+    expect(
+      latestActivityAnalysisTimestamp([
+        { analysis: null },
+        { analysis: { generatedAt: "2026-10-20T10:00:00Z" } },
+        { analysis: { generatedAt: "2026-10-21T10:00:00Z" } },
+      ]),
+    ).toEqual(new Date("2026-10-21T10:00:00Z"));
+  });
+
+  it("returns null without an analysis", () => {
+    expect(latestActivityAnalysisTimestamp([])).toBeNull();
+    expect(latestActivityAnalysisTimestamp([{ analysis: null }])).toBeNull();
   });
 });
 

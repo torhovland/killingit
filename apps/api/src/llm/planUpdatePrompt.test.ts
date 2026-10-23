@@ -129,6 +129,8 @@ describe("daily update prompts", () => {
     expect(prompt).toContain("do not propose new workouts");
     expect(prompt).toContain("rationale");
     expect(prompt).toContain("status");
+    expect(prompt).toContain("partial");
+    expect(prompt).toContain("a 60-minute ride recorded as 50 minutes");
     expect(prompt).toContain('"today"');
     expect(prompt).toContain('"tomorrow"');
     expect(prompt).toContain('"week"');
@@ -168,6 +170,8 @@ describe("weekly update prompts", () => {
     expect(prompt).toContain("do not propose new workouts");
     expect(prompt).toContain("rationale");
     expect(prompt).toContain("status");
+    expect(prompt).toContain("partial");
+    expect(prompt).toContain("Allow reasonable slack");
     expect(prompt).toContain('"week"');
     expect(prompt).toContain('"block"');
   });

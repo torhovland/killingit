@@ -17,6 +17,7 @@ import { useAppStatus } from "./AppStatus";
 import { useAuth } from "./auth";
 import { CoachPlanSection } from "./CoachPlanSection";
 import { fetchJsonAuthed } from "./fetchAuthed";
+import { selectPendingActivities } from "./pendingActivities";
 import { reportError } from "./reportError";
 import { useTimeZone } from "./TimeZoneContext";
 import { getToday } from "./useToday";
@@ -57,6 +58,9 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
   const [loadingAnalyses, setLoadingAnalyses] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [localPlanRefresh, setLocalPlanRefresh] = useState(0);
+  // Commented-on activities stay on the page for this visit. The server feed
+  // omits them once they have a comment; a reload clears this set.
+  const keptActivityIds = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     setStatus("dashboard-status", loadingStatuses ? "loading" : null);
@@ -116,8 +120,17 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
     setLoadingAnalyses(true);
     setError(null);
     try {
+      const { today } = getToday(timeZone);
+      const params = new URLSearchParams({
+        limit: "20",
+        today,
+        timezone: timeZone,
+      });
+      if (refresh) {
+        params.set("refresh", "true");
+      }
       const res = await fetchJsonAuthed<unknown>(
-        `${API_URL}/api/coaching/activities?limit=20${refresh ? "&refresh=true" : ""}`,
+        `${API_URL}/api/coaching/activities?${params.toString()}`,
         auth,
       );
       const parsed = analyzedActivitiesResponseSchema.safeParse(res);
@@ -128,6 +141,8 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
       }
       setData(parsed.data);
       saveCachedActivities(authSub.current, parsed.data);
+      // A new analysis may have started a background plan revision.
+      setLocalPlanRefresh((key) => key + 1);
     } catch (err: unknown) {
       setError(reportError(err));
     } finally {
@@ -214,6 +229,7 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
     }
     // Leave the activity in place for this visit. A reload only shows activities
     // without a response, so the commented activity drops off then.
+    keptActivityIds.current.add(activityId);
     setLocalPlanRefresh((key) => key + 1);
     return parsed.data.reply?.text ?? null;
   }
@@ -379,10 +395,9 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
     );
   }
 
-  const pendingActivities =
-    data?.activities.filter(
-      (activity) => activity.comment === null && !activity.reviewed,
-    ) ?? [];
+  const pendingActivities = data
+    ? selectPendingActivities(data.activities, keptActivityIds.current)
+    : [];
   const ready = garmin.connected && llm.configured;
 
   return (

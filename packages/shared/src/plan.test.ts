@@ -77,6 +77,7 @@ function makePlan() {
       optional: false,
       optionalRationale:
         "This easy run keeps the week consistent; skip it only if you feel unusually tired.",
+      status: "planned",
     },
     tomorrow: null,
   };
@@ -102,6 +103,18 @@ describe("weekPlanSchema", () => {
         sessions: week.sessions.slice(0, 6),
       }).success,
     ).toBe(false);
+  });
+
+  it("accepts a partially completed session", () => {
+    const week = makeWeek();
+    expect(
+      weekPlanSchema.parse({
+        ...week,
+        sessions: week.sessions.map((session, index) =>
+          index === 0 ? { ...session, status: "partial" } : session,
+        ),
+      }).sessions[0]?.status,
+    ).toBe("partial");
   });
 });
 
@@ -131,6 +144,7 @@ describe("dayPlanSchema", () => {
     });
     expect(parsed.optional).toBe(false);
     expect(parsed.optionalRationale).toBeUndefined();
+    expect(parsed.status).toBe("planned");
 
     const withRationale = dayPlanSchema.parse({
       ...parsed,
@@ -248,6 +262,7 @@ describe("dailyPlanUpdateSchema", () => {
       week: makeWeek(),
     });
     expect(parsed.today.alternatives).toEqual([]);
+    expect(parsed.today.status).toBe("planned");
     expect(parsed.today.optional).toBe(true);
     expect(parsed.today.optionalRationale).toBe(
       "Skip it if your legs are tired; the plan still works without it.",

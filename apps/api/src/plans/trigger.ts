@@ -11,7 +11,10 @@ import type { UserStore } from "../users/store.js";
 import { startOfWeek } from "./dates.js";
 import { runPlanGeneration } from "./generate.js";
 import { loadCoachingInputs, type CoachingInputs } from "./inputs.js";
-import { latestAnswerTimestamp } from "./status.js";
+import {
+  latestActivityAnalysisTimestamp,
+  latestAnswerTimestamp,
+} from "./status.js";
 import type { PlanGenerationStore, PlanStore } from "./store.js";
 
 export interface PlanTriggerDependencies {
@@ -117,6 +120,9 @@ export async function triggerPlanGeneration(
       activityComments: coachingInputs.activityComments,
       weeklyNote: coachingInputs.weeklyNote,
       coachingInputsUpdatedAt: coachingInputs.updatedAt,
+      activitiesUpdatedAt: latestActivityAnalysisTimestamp(
+        activities.activities,
+      ),
       provider: llm.provider,
       apiKey: llm.apiKey,
       model: llm.model,

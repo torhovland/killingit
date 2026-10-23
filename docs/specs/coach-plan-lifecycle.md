@@ -61,7 +61,8 @@ answers change and as days, weeks, and blocks roll over.
 3. Saving changed answers marks the plan stale and starts a regeneration; a
    manual "Regenerate plan" button forces a full rebuild.
 4. On a new day, the first visit generates today's session and revises the rest
-   of the week around what the athlete actually did.
+   of the week around what the athlete actually did. A newly analysed activity
+   also revises the remaining week even when the stored day is still current.
 5. On a new week, the first visit generates the new week and revises the block.
 6. When the block has ended, the first visit generates the next block and revises
    the season, then cascades down to the week and today.
@@ -127,12 +128,14 @@ block's dates.
    (with a block revision), then today (with a week revision). Splitting keeps
    every response comfortably below the model's output budget and gives the
    progress panel real steps.
-4. Otherwise:
+4. Otherwise, treat a coach analysis produced after the plan was saved as a
+   revision trigger too: the new knowledge from the activity must reach the
+   remaining week (and, through the weekly prompt, the block).
    - if `pending.block`, call the block prompt (new block + revised season);
-   - if the block changed or `pending.week`, call the weekly prompt (new week +
-     revised block);
-   - if the block/week changed or `pending.day`, call the daily prompt (today +
-     revised week).
+   - if the block changed, coaching inputs or activity analyses changed, or
+     `pending.week`, call the weekly prompt (new week + revised block);
+   - if the block/week changed, inputs or analyses changed, or `pending.day`,
+     call the daily prompt (today + revised week).
 5. Save the plan with the current answer timestamp. After a full build, review
    recent activities against the finished plan (see
    `docs/specs/coach-feedback-and-program-review.md`), then mark the status

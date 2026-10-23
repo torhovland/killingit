@@ -80,6 +80,7 @@ const plan: CoachPlan = {
     optional: false,
     optionalRationale:
       "This easy run is part of a consistent aerobic week; skipping it now makes the weekend long run harder.",
+    status: "planned",
   },
   tomorrow: {
     date: "2026-10-22",
@@ -93,6 +94,7 @@ const plan: CoachPlan = {
     optional: true,
     optionalRationale:
       "This is a short recovery run. If your legs are tired, it is fine to skip it or replace it with a walk.",
+    status: "planned",
   },
 };
 
@@ -152,6 +154,29 @@ describe("CoachPlanView", () => {
     expect(html).toContain("Completed: running · 10.00 km · 45 min");
     expect(html).toContain("No activity recorded");
     expect(html).toContain("missed");
+  });
+
+  it("labels today's and past partially completed sessions", () => {
+    const partialPlan: CoachPlan = {
+      ...plan,
+      today: { ...plan.today, status: "partial" },
+      week: {
+        ...plan.week,
+        sessions: plan.week.sessions.map((session, index) =>
+          index === 0 || index === 2
+            ? { ...session, status: "partial" }
+            : session,
+        ),
+      },
+    };
+
+    const day = renderToStaticMarkup(<CoachPlanView plan={partialPlan} />);
+    expect(day).toContain("partial");
+
+    const week = renderToStaticMarkup(
+      <CoachPlanView plan={partialPlan} defaultTab="week" />,
+    );
+    expect(week.match(/partial/g)?.length).toBeGreaterThanOrEqual(2);
   });
 
   it("labels a manual completion without a duration", () => {
