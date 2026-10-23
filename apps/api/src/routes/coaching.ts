@@ -39,6 +39,7 @@ import { GarminAuthError, GarminSidecarError } from "../garmin/client.js";
 import { loadLlmClient, type LlmClient } from "../llm/client.js";
 import { LlmAuthError, LlmProviderError } from "../llm/openrouter.js";
 import { startOfWeek } from "../plans/dates.js";
+import { latestActivityAnalysisTimestamp } from "../plans/status.js";
 import {
   createActivityComment,
   loadManualActivities,
@@ -73,6 +74,9 @@ const querySchema = z.object({
     .enum(["true", "false"])
     .default("false")
     .transform((value) => value === "true"),
+  /** Supplied by the dashboard so a new analysis can refresh the plan. */
+  today: planDateSchema.optional(),
+  timezone: z.string().min(1).max(100).optional(),
 });
 
 const deletionQuerySchema = z.object({
@@ -225,6 +229,46 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
     );
   }
 
+  /**
+   * Starts a plan revision when the feed contains an analysis produced after
+   * the stored plan was saved. The already-synced feed is reused so the trigger
+   * does not hit Garmin again. A failure here must not break the activity list.
+   */
+  async function refreshPlanAfterAnalysis(
+    userId: number,
+    feed: ActivityFeed,
+    today: string | undefined,
+    timezone: string | undefined,
+  ): Promise<void> {
+    if (today === undefined) {
+      return;
+    }
+    try {
+      const stored = await deps.plans.load(userId);
+      const analysedAt = latestActivityAnalysisTimestamp(feed.activities);
+      if (
+        stored === null ||
+        analysedAt === null ||
+        analysedAt.getTime() <= stored.generatedAt.getTime()
+      ) {
+        return;
+      }
+      await trigger(
+        { ...triggerDeps, loadActivities: () => Promise.resolve(feed) },
+        {
+          userId,
+          today,
+          ...(timezone !== undefined ? { timezone } : {}),
+        },
+      );
+    } catch (err) {
+      console.error(
+        "[coaching] could not refresh the plan after analysis:",
+        err,
+      );
+    }
+  }
+
   return new Hono()
     .get("/activities/cached", async (c) => {
       try {
@@ -249,6 +293,12 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
       try {
         const user = await deps.users.ensureUser(getAthlete(c).sub);
         const feed = await loadActivities(user.id);
+        await refreshPlanAfterAnalysis(
+          user.id,
+          feed,
+          query.data.today,
+          query.data.timezone,
+        );
         return c.json(analyzedActivitiesResponseSchema.parse(feed));
       } catch (err) {
         if (err instanceof GarminNotConnectedError) {

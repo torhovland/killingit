@@ -49,6 +49,30 @@ export function planIsStale(
   return currentAnswersUpdatedAt.getTime() > planAnswersUpdatedAt.getTime();
 }
 
+/**
+ * The newest general coach analysis timestamp across the supplied activities.
+ * This is compared with the saved plan to tell whether an activity was analysed
+ * after the plan was last generated.
+ */
+export function latestActivityAnalysisTimestamp(
+  activities: readonly { analysis: { generatedAt: string } | null }[],
+): Date | null {
+  let latest: Date | null = null;
+  for (const activity of activities) {
+    if (activity.analysis === null) {
+      continue;
+    }
+    const generatedAt = new Date(activity.analysis.generatedAt);
+    if (Number.isNaN(generatedAt.getTime())) {
+      continue;
+    }
+    if (latest === null || generatedAt.getTime() > latest.getTime()) {
+      latest = generatedAt;
+    }
+  }
+  return latest;
+}
+
 /** The newest `answeredAt` across the athlete's current answers. */
 export function latestAnswerTimestamp(
   answers: readonly { answeredAt: Date | null }[],

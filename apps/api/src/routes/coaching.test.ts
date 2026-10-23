@@ -324,6 +324,89 @@ describe("coaching activity feed", () => {
   });
 });
 
+describe("coaching activity analysis", () => {
+  function feedWithAnalysis(generatedAt: string): ActivityFeed {
+    return {
+      model: "test-model",
+      activities: [
+        {
+          id: 7,
+          name: "Morning Run",
+          type: "running",
+          startDate: "2026-10-21T06:30:00Z",
+          distance: 5000,
+          movingTime: 1500,
+          elapsedTime: 1600,
+          totalElevationGain: 20,
+          sampleCount: 0,
+          analysis: {
+            text: "Steady aerobic effort.",
+            model: "test-model",
+            generatedAt,
+          },
+          analysisError: null,
+          programAnalysis: null,
+          comment: null,
+          coachReply: null,
+        },
+      ],
+    };
+  }
+
+  const storedPlan: StoredPlan = {
+    plan: {} as StoredPlan["plan"],
+    answersUpdatedAt: null,
+    coachingInputsUpdatedAt: null,
+    generatedAt: new Date("2026-10-21T08:00:00Z"),
+  };
+
+  it("starts a plan revision when an activity was analysed after the plan", async () => {
+    let triggered = false;
+    const requested: { today: string | null } = { today: null };
+    const app = makeApp({
+      planStore: new MemoryPlanStore(storedPlan),
+      loadActivities: () =>
+        Promise.resolve(feedWithAnalysis("2026-10-21T09:00:00Z")),
+      triggerPlanGeneration: (deps, options) => {
+        triggered = true;
+        requested.today = options.today;
+        expect(deps.loadActivities).toBeDefined();
+        return Promise.resolve(true);
+      },
+    });
+
+    const res = await app.fetch(
+      authenticatedRequest(
+        "/api/coaching/activities?today=2026-10-21&timezone=Europe%2FOslo",
+      ),
+    );
+
+    expect(res.status).toBe(200);
+    expect(triggered).toBe(true);
+    expect(requested.today).toBe("2026-10-21");
+  });
+
+  it("does not revise when the analysis predates the plan", async () => {
+    let triggered = false;
+    const app = makeApp({
+      planStore: new MemoryPlanStore(storedPlan),
+      loadActivities: () =>
+        Promise.resolve(feedWithAnalysis("2026-10-21T07:00:00Z")),
+      triggerPlanGeneration: () => {
+        triggered = true;
+        return Promise.resolve(true);
+      },
+    });
+
+    const res = await app.fetch(
+      authenticatedRequest("/api/coaching/activities?today=2026-10-21"),
+    );
+
+    expect(res.status).toBe(200);
+    expect(triggered).toBe(false);
+  });
+});
+
 describe("coaching activity comments", () => {
   it("saves a comment, replies, and marks today's activity for a summary refresh", async () => {
     const saved: {

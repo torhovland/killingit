@@ -65,6 +65,7 @@ function makePlan(): CoachPlan {
       alternatives: [],
       rationale: "Easy aerobic work.",
       optional: false,
+      status: "planned",
     },
     tomorrow: null,
   };

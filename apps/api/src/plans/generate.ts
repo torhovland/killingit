@@ -26,7 +26,7 @@ import type { LlmProvider } from "../llm/openrouter.js";
 import { addDays, startOfWeek } from "./dates.js";
 import { planIsStale, planPending } from "./status.js";
 import type { PlanGenerationStore, PlanStore, StoredPlan } from "./store.js";
-import { applyCompletedDays } from "./week.js";
+import { applyCompletedDays, completionStatus } from "./week.js";
 
 export interface PlanGenerationContext {
   answers: readonly AthleteAnswerContext[];
@@ -36,6 +36,8 @@ export interface PlanGenerationContext {
   activityComments: readonly ActivityCommentContext[];
   weeklyNote: string | null;
   coachingInputsUpdatedAt: Date | null;
+  /** Newest general coach analysis among the recent activities, if any. */
+  activitiesUpdatedAt?: Date | null;
   provider: LlmProvider;
   apiKey: string;
   model: string;
@@ -87,6 +89,13 @@ export async function runPlanGeneration(
     (input.plan.coachingInputsUpdatedAt === null ||
       context.coachingInputsUpdatedAt.getTime() >
         input.plan.coachingInputsUpdatedAt.getTime());
+  // A coach analysis produced after the plan was saved means the plan has not
+  // yet used the knowledge gained from that activity.
+  const activitiesChanged =
+    input.plan !== null &&
+    context.activitiesUpdatedAt != null &&
+    context.activitiesUpdatedAt.getTime() > input.plan.generatedAt.getTime();
+  const revisionNeeded = inputsChanged || activitiesChanged;
 
   try {
     if (needsFullPlan) {
@@ -133,6 +142,12 @@ export async function runPlanGeneration(
         },
       );
 
+      const todayPlan = deriveTodayStatus(
+        context,
+        today,
+        dayUpdate.today,
+        dayUpdate.today,
+      );
       const generated = {
         season,
         block: weekUpdate.block,
@@ -141,8 +156,9 @@ export async function runPlanGeneration(
           context.activities,
           today,
           context.manualActivities,
+          todayPlan,
         ),
-        today: dayUpdate.today,
+        today: todayPlan,
         tomorrow: dayUpdate.tomorrow,
       };
       assertPlanCoversToday(generated, today);
@@ -176,13 +192,13 @@ export async function runPlanGeneration(
       !pending.week &&
       !pending.day &&
       !pending.tomorrow &&
-      !inputsChanged
+      !revisionNeeded
     ) {
       await generations.finish(userId);
       return input.plan;
     }
 
-    const plan = await advancePlan(input, currentPlan, pending, inputsChanged);
+    const plan = await advancePlan(input, currentPlan, pending, revisionNeeded);
     await generations.update(userId, "Saving your plan", 95);
     const saved = await plans.save(
       userId,
@@ -204,7 +220,7 @@ async function advancePlan(
   input: GeneratePlanInput,
   current: CoachPlan,
   pending: ReturnType<typeof planPending>,
-  inputsChanged: boolean,
+  revisionNeeded: boolean,
 ): Promise<CoachPlan> {
   const { userId, today, context, generations } = input;
   let season: SeasonPlan = current.season;
@@ -242,7 +258,7 @@ async function advancePlan(
     today: todayPlan,
     tomorrow: tomorrowPlan,
   };
-  if (blockChanged || inputsChanged || planPending(afterBlock, today).week) {
+  if (blockChanged || revisionNeeded || planPending(afterBlock, today).week) {
     await generations.update(userId, "Building this week's plan", 45);
     const update = await generateWeeklyUpdate(
       context.provider,
@@ -270,7 +286,7 @@ async function advancePlan(
   if (
     blockChanged ||
     weekChanged ||
-    inputsChanged ||
+    revisionNeeded ||
     afterWeekPending.day ||
     afterWeekPending.tomorrow
   ) {
@@ -299,6 +315,13 @@ async function advancePlan(
     todayPlan = current.today;
   }
 
+  todayPlan = deriveTodayStatus(
+    context,
+    today,
+    todayPlan,
+    current.today.date === today ? current.today : todayPlan,
+  );
+
   const plan = {
     season,
     block,
@@ -307,6 +330,7 @@ async function advancePlan(
       context.activities,
       today,
       context.manualActivities,
+      todayPlan,
     ),
     today: todayPlan,
     tomorrow: tomorrowPlan,
@@ -317,14 +341,57 @@ async function advancePlan(
 
 /** True when a synced or manually recorded activity happened on `date`. */
 function hasActivityOn(context: PlanGenerationContext, date: string): boolean {
-  return (
-    context.activities.some(
-      (activity) => activity.startDate.slice(0, 10) === date,
-    ) ||
-    context.manualActivities.some(
-      (activity) => activity.startDate.slice(0, 10) === date,
-    )
+  return activityOn(context, date) !== null;
+}
+
+interface CompletionActivity {
+  type: string;
+  elapsedTime: number;
+}
+
+/** The first synced or manually recorded activity on `date`, if any. */
+function activityOn(
+  context: PlanGenerationContext,
+  date: string,
+): CompletionActivity | null {
+  const synced = context.activities.find(
+    (activity) => activity.startDate.slice(0, 10) === date,
   );
+  if (synced) {
+    return { type: synced.type, elapsedTime: synced.elapsedTime };
+  }
+  const manual = context.manualActivities.find(
+    (activity) => activity.startDate.slice(0, 10) === date,
+  );
+  return manual ? { type: "manual", elapsedTime: 0 } : null;
+}
+
+/**
+ * Settles today's status from what was recorded. The coach's `partial` verdict
+ * is kept because it can see the activity's analysis and comments; when it only
+ * returns `planned`, compare the activity with the planned duration (with
+ * slack). Without an activity, today cannot be completed.
+ */
+function deriveTodayStatus(
+  context: PlanGenerationContext,
+  today: string,
+  plan: DayPlan,
+  planned: DayPlan,
+): DayPlan {
+  if (plan.date !== today) {
+    return plan;
+  }
+  const activity = activityOn(context, today);
+  if (!activity) {
+    return {
+      ...plan,
+      status: plan.type === "rest" ? "rest" : "planned",
+    };
+  }
+  if (plan.status === "completed" || plan.status === "partial") {
+    return plan;
+  }
+  return { ...plan, status: completionStatus(planned, activity) };
 }
 
 /**

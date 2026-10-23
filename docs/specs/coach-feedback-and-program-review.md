@@ -30,12 +30,16 @@ in sync with the athlete's latest comment.
    can show it immediately and after a reload.
 3. **Refresh around the input.** Every coaching-input save keeps triggering the
    existing weekly + daily revision. The revision now also refreshes tomorrow.
+   A newly generated activity analysis triggers the same revision, so what the
+   coach learned from an activity shapes the remaining week (and block).
 4. **Refresh today's completed session** when the new input describes today: a
    comment on today's activity, or a manual activity dated today. Today's plan
    is regenerated from the recorded activity and its latest comment so the
    completed summary stays accurate, but the coach must describe what happened
    rather than propose a second workout. Other inputs preserve the stored day
-   plan.
+   plan. A completed session is marked `completed` on both today and the week;
+   a session that only did a meaningful part is marked `partial`. Both prompts
+   allow slack for a slightly shorter session and small power/pace-zone misses.
 
 ### Out of scope
 
@@ -138,9 +142,12 @@ and the reply is null; the failure is logged.
   comment exists the form is replaced by an `Edit comment` action that opens it
   prefilled. Editing regenerates the coach reply and refreshes the plan.
 - The main coaching page only lists activities without a response. Commenting on
-  an activity leaves it in place for the rest of the visit; the next page load
-  drops it now that it has a comment. The activities page lists all activities
-  and offers the edit action for every existing comment.
+  an activity leaves it in place for the rest of the visit, even when a plan
+  refresh reloads the feed; the next page load drops it now that it has a
+  comment. The activities page lists all activities and offers the edit action
+  for every existing comment.
+- An analysis-driven plan revision starts from the activity feed route itself,
+  reusing the feed that was just analysed rather than syncing Garmin twice.
 - The coaching-inputs section shows the coach reply under the weekly note and
   under each saved manual activity.
 
@@ -160,5 +167,11 @@ and the reply is null; the failure is logged.
 5. Replies and program reviews survive a page reload.
 6. An activity has at most one comment. A second add is rejected, and editing
    the comment replaces the coach's existing reply and refreshes the plan.
-7. `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`
-   pass.
+7. A newly analysed activity revises the remaining week and block even when no
+   coaching input changed.
+8. Today's activity is marked completed (with duration slack) or partial on both
+   the day plan and the week plan.
+9. A commented activity stays on the main page for the rest of the visit, even
+   after a plan refresh.
+10. `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`
+    pass.

@@ -93,10 +93,15 @@ function DayCard({
         <h3 className="text-lg font-semibold">
           {label} · {formatPlanDate(day.date)}
         </h3>
-        <span className="rounded border bg-muted px-2 py-0.5 text-xs capitalize">
-          {day.type === "rest"
-            ? "Rest day"
-            : `${day.durationMinutes} min · ${day.intensity}`}
+        <span className="flex items-center gap-2">
+          {(day.status === "completed" || day.status === "partial") && (
+            <StatusBadge status={day.status} />
+          )}
+          <span className="rounded border bg-muted px-2 py-0.5 text-xs capitalize">
+            {day.type === "rest"
+              ? "Rest day"
+              : `${day.durationMinutes} min · ${day.intensity}`}
+          </span>
         </span>
       </div>
       <p className="text-base font-medium">{day.title}</p>
@@ -155,6 +160,7 @@ function WeekSection({ week }: { week: WeekPlan }) {
                   : `${session.durationMinutes} min · ${session.intensity}`}
             </span>
             {(session.status === "completed" ||
+              session.status === "partial" ||
               session.status === "missed") && (
               <p className="w-full text-xs text-muted-foreground">
                 {session.description}
