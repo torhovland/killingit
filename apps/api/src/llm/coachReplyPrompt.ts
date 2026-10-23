@@ -16,6 +16,13 @@ export type CoachReplyTarget =
     }
   | { kind: "weekly_note"; weekStartDate: string; note: string }
   | { kind: "manual_activity"; startDate: string; details: string }
+  | {
+      kind: "week_review" | "block_review";
+      startDate: string;
+      endDate: string;
+      summary: string;
+      comment: string;
+    }
   | { kind: "quick_question"; question: string };
 
 export interface CoachReplyPromptInput {
@@ -25,7 +32,7 @@ export interface CoachReplyPromptInput {
   request: CoachReplyTarget;
 }
 
-const COACH_REPLY_SYSTEM_PROMPT = `You are the athlete's endurance coach. The athlete has just shared something about their training: a comment on a workout, a note for the week, or a manual activity.
+const COACH_REPLY_SYSTEM_PROMPT = `You are the athlete's endurance coach. The athlete has just shared something about their training: a comment on a workout, a completed week or block, a note for the week, or a manual activity.
 Reply briefly in 1-2 sentences of plain text. Acknowledge the input in your own words, explain how it affects the plan, and state what you will adjust. Be specific to the athlete's goal and current block. Do not restate the whole plan, do not ask questions, and do not use headings, bullets, or markdown. Do not invent training results you were not given.`;
 
 const QUICK_QUESTION_SYSTEM_PROMPT = `You are the athlete's endurance coach. The athlete is asking a one-off question about their training.
@@ -52,7 +59,10 @@ export function buildCoachReplyMessages(input: CoachReplyPromptInput): {
 export function buildCoachReplyPrompt(input: CoachReplyPromptInput): string {
   const { plan, request } = input;
   const targetDate =
-    request.kind === "weekly_note" || request.kind === "quick_question"
+    request.kind === "weekly_note" ||
+    request.kind === "quick_question" ||
+    request.kind === "week_review" ||
+    request.kind === "block_review"
       ? null
       : requestDate(request);
   const targetSession =
@@ -88,6 +98,13 @@ export function buildCoachReplyPrompt(input: CoachReplyPromptInput): string {
       `Planned session on ${targetDate}: ${targetSession.title} [${targetSession.type}, ${targetSession.intensity}, ${targetSession.durationMinutes} min] — ${targetSession.description}`,
     );
   }
+  if (request.kind === "week_review" || request.kind === "block_review") {
+    lines.push(
+      "",
+      `Coach summary of the completed ${request.kind === "week_review" ? "week" : "block"} (${request.startDate} → ${request.endDate}):`,
+      request.summary.trim(),
+    );
+  }
 
   lines.push("", "The athlete just shared:", formatRequest(request));
 
@@ -110,11 +127,12 @@ export function buildCoachReplyPrompt(input: CoachReplyPromptInput): string {
 }
 
 function requestDate(request: CoachReplyTarget): string {
-  return request.kind === "weekly_note" || request.kind === "quick_question"
-    ? ""
-    : request.kind === "activity_comment"
-      ? request.activityDate
-      : request.startDate;
+  if (request.kind === "weekly_note" || request.kind === "quick_question") {
+    return "";
+  }
+  return request.kind === "activity_comment"
+    ? request.activityDate
+    : request.startDate;
 }
 
 function formatRequest(request: CoachReplyTarget): string {
@@ -125,6 +143,9 @@ function formatRequest(request: CoachReplyTarget): string {
       return `Weekly note for the week starting ${request.weekStartDate}: "${request.note.trim()}"`;
     case "manual_activity":
       return `Manual activity on ${request.startDate}: "${request.details.trim()}"`;
+    case "week_review":
+    case "block_review":
+      return `Comment on the completed ${request.kind === "week_review" ? "week" : "block"} (${request.startDate} → ${request.endDate}): "${request.comment.trim()}"`;
     case "quick_question":
       return `Question: "${request.question.trim()}"`;
   }

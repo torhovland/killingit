@@ -419,7 +419,13 @@ export const coachReplies = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     kind: text("kind", {
-      enum: ["activity_comment", "weekly_note", "manual_activity"],
+      enum: [
+        "activity_comment",
+        "weekly_note",
+        "manual_activity",
+        "week_review",
+        "block_review",
+      ],
     }).notNull(),
     target: text("target").notNull(),
     reply: text("reply").notNull(),
@@ -439,13 +445,60 @@ export const coachReplies = pgTable(
     ),
     check(
       "coach_replies_kind_check",
-      sql`${table.kind} in ('activity_comment', 'weekly_note', 'manual_activity')`,
+      sql`${table.kind} in ('activity_comment', 'weekly_note', 'manual_activity', 'week_review', 'block_review')`,
     ),
   ],
 );
 
 export type CoachReplyRow = typeof coachReplies.$inferSelect;
 export type NewCoachReply = typeof coachReplies.$inferInsert;
+
+/**
+ * The coach's summary of a completed week or block, with the athlete's comment
+ * and a UI acknowledgement. Weeks and blocks are replaced as the plan advances,
+ * so the review is stored separately as a lightweight history.
+ */
+export const periodReviews = pgTable(
+  "period_reviews",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    kind: text("kind", { enum: ["week", "block"] }).notNull(),
+    startDate: text("start_date").notNull(),
+    endDate: text("end_date").notNull(),
+    title: text("title").notNull(),
+    summary: text("summary").notNull(),
+    model: text("model").notNull(),
+    promptVersion: integer("prompt_version").notNull(),
+    /** The athlete's comment on the review, if any. */
+    comment: text("comment"),
+    /** The athlete dismissed the review with "No comment". */
+    reviewed: boolean("reviewed").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("period_reviews_user_id_kind_start_date_idx").on(
+      table.userId,
+      table.kind,
+      table.startDate,
+    ),
+    check("period_reviews_kind_check", sql`${table.kind} in ('week', 'block')`),
+    check(
+      "period_reviews_comment_check",
+      sql`${table.comment} is null or length(btrim(${table.comment})) > 0`,
+    ),
+  ],
+);
+
+export type PeriodReviewRow = typeof periodReviews.$inferSelect;
+export type NewPeriodReview = typeof periodReviews.$inferInsert;
 
 /**
  * The athlete's current four-level coach plan. One row per user; a regeneration

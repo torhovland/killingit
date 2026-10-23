@@ -12,8 +12,8 @@ Once the athlete has completed the interview, build the prompts that ask the
 coach LLM for a complete, coherent training plan:
 
 1. a season plan with blocks,
-2. a plan for the first block of weeks,
-3. a plan for the first week, and
+2. a plan for the block containing today,
+3. a plan for the week containing today, and
 4. a concrete workout or rest for today.
 
 The prompts must carry the athlete's questions and answers and the coach's
@@ -45,12 +45,12 @@ covered by `docs/specs/coach-plan-lifecycle.md`.
 
 ## Acceptance criteria
 
-1. The system prompt instructs the model to design the season, the first block,
-   the first week, and today, and to use **state of the art training science**
-   for the best possible plan for the athlete.
+1. The system prompt instructs the model to design the season, the block
+   containing today, the week containing today, and today, and to use **state of
+   the art training science** for the best possible plan for the athlete.
 2. The system prompt states the exact JSON shape, including the fields that tie
-   the four levels together (the first block is in `season.blocks`, the first
-   week is in `block.weeks`, and `today` matches today's `week.sessions` entry).
+   the four levels together (the block is in `season.blocks`, the week is in
+   `block.weeks`, and `today` matches today's `week.sessions` entry).
 3. The user prompt includes every answered question with its prompt and answer,
    marks explicitly skipped questions, and marks unanswered questions.
 4. The user prompt includes each recent activity's date, type, name, distance,
@@ -80,7 +80,7 @@ structurally and returns `LlmProvider` chat messages.
   `optionalRationale` for today's and tomorrow's sessions.
 - The combined prompt describes a coherent full plan in one JSON object. The
   lifecycle build now splits the initial plan into four smaller calls (season,
-  first block, week, day) so every response fits the model's output budget; the
+  block, week, day) so every response fits the model's output budget; the
   combined prompt remains the reference contract and a full-plan fallback.
 - `coachPlan.ts` exports `generateCoachPlan(provider, credentials, input)`, which
   sends the combined prompt (temperature 0.4, 4096 output tokens).

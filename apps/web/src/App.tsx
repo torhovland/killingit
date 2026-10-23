@@ -10,6 +10,7 @@ import { AthleteQuestionsForm } from "./AthleteQuestionsForm";
 import { fetchJsonAuthed } from "./fetchAuthed";
 import { NavigationProvider, type Page } from "./navigation";
 import { reportError } from "./reportError";
+import { SeasonReviewPage } from "./SeasonReviewPage";
 import { SettingsPage } from "./SettingsPage";
 import { TimeZoneProvider } from "./TimeZoneContext";
 import { useAthleteQuestions } from "./useAthleteQuestions";
@@ -21,6 +22,7 @@ const API_URL = import.meta.env.VITE_API_URL ?? "";
 const PAGE_LABELS: Record<Page, string> = {
   coach: "Coach",
   activities: "Activities",
+  seasonReview: "Season review",
   survey: "Coaching survey",
   settings: "Settings",
   admin: "Admin settings",
@@ -177,6 +179,8 @@ function AppShell() {
               />
             ) : page === "activities" ? (
               <ActivitiesPage />
+            ) : page === "seasonReview" ? (
+              <SeasonReviewPage />
             ) : page === "survey" ? (
               <CoachingSurveyPage
                 onAnswersSaved={() => setPlanRefreshKey((key) => key + 1)}
@@ -286,18 +290,18 @@ function UserMenu({
         className="absolute right-0 z-10 mt-1 flex min-w-48 flex-col rounded border bg-card p-1 text-sm shadow-lg"
         aria-label="Account"
       >
-        {(["coach", "activities", "survey", "settings"] as const).map(
-          (entry) => (
-            <button
-              key={entry}
-              type="button"
-              className="rounded px-3 py-1.5 text-left hover:bg-muted"
-              onClick={(event) => choose(entry, event)}
-            >
-              {PAGE_LABELS[entry]}
-            </button>
-          ),
-        )}
+        {(
+          ["coach", "activities", "seasonReview", "survey", "settings"] as const
+        ).map((entry) => (
+          <button
+            key={entry}
+            type="button"
+            className="rounded px-3 py-1.5 text-left hover:bg-muted"
+            onClick={(event) => choose(entry, event)}
+          >
+            {PAGE_LABELS[entry]}
+          </button>
+        ))}
         {isAdmin && (
           <button
             type="button"

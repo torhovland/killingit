@@ -310,8 +310,8 @@ describe("runPlanGeneration", () => {
     expect(saved?.plan.today.date).toBe("2026-10-21");
     expect(generations.status.status).toBe("done");
     expect(generations.steps).toContain("Designing your season");
-    expect(generations.steps).toContain("Designing your first block");
-    expect(generations.steps).toContain("Building your first week");
+    expect(generations.steps).toContain("Designing your block");
+    expect(generations.steps).toContain("Building your week");
   });
 
   it("regenerates everything in steps when the answers are stale", async () => {

@@ -127,6 +127,13 @@
       "when": 1792700538912,
       "tag": "0017_rapid_mantis",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1792787200313,
+      "tag": "0018_thin_big_bertha",
+      "breakpoints": true
     }
   ]
 }

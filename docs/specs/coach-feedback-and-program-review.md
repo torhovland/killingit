@@ -32,6 +32,8 @@ in sync with the athlete's latest comment.
    existing weekly + daily revision. The revision now also refreshes tomorrow.
    A newly generated activity analysis triggers the same revision, so what the
    coach learned from an activity shapes the remaining week (and block).
+   Completed week and block summaries, athlete comments, and coach replies are
+   included in the same prompt context (see `docs/specs/period-reviews.md`).
 4. **Refresh today's completed session** when the new input describes today: a
    comment on today's activity, or a manual activity dated today. Today's plan
    is regenerated from the recorded activity and its latest comment so the

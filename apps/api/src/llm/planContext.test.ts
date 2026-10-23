@@ -50,6 +50,55 @@ describe("formatPlanContext", () => {
     expect(text).not.toContain("Activity comments:");
   });
 
+  it("includes the activity program review and the coach's reply", () => {
+    const text = formatPlanContext(
+      input({
+        recentActivities: [
+          {
+            ...activity,
+            programAnalysis: "The session matched the planned easy day.",
+            coachReply: "Keep the next run just as relaxed.",
+          },
+        ],
+        activityComments: [
+          { activityId: "42", comment: "Felt easy throughout." },
+        ],
+      }),
+    ).join("\n");
+
+    expect(text).toContain(
+      "Coach review against the plan: The session matched the planned easy day.",
+    );
+    expect(text).toContain(
+      "Coach reply to that comment: Keep the next run just as relaxed.",
+    );
+  });
+
+  it("includes completed week and block reviews with athlete feedback", () => {
+    const text = formatPlanContext(
+      input({
+        periodReviews: [
+          {
+            kind: "week",
+            title: "Week starting 2026-10-13",
+            startDate: "2026-10-13",
+            endDate: "2026-10-19",
+            summary: "A consistent week of easy work.",
+            comment: "I felt strong.",
+            reply: "Keep the momentum.",
+          },
+        ],
+      }),
+    ).join("\n");
+
+    expect(text).toContain(
+      "Completed week: Week starting 2026-10-13 (2026-10-13 → 2026-10-19)",
+    );
+    expect(text).toContain("Coach summary: A consistent week of easy work.");
+    expect(text).toContain("Athlete comment: I felt strong.");
+    expect(text).toContain("Coach reply: Keep the momentum.");
+  });
+
   it("keeps comments for unlisted activities clearly separate", () => {
     const text = formatPlanContext(
       input({

@@ -16,10 +16,12 @@ import {
   generateDailyUpdate,
   generateWeeklyUpdate,
 } from "../llm/planUpdate.js";
+import { captureCompletedPeriodReviews } from "../coaching/periodReviews.js";
 import type {
   ActivityCommentContext,
   AthleteAnswerContext,
   ManualActivityContext,
+  PeriodReviewContext,
   RecentActivityContext,
 } from "../llm/planContext.js";
 import type { LlmProvider } from "../llm/openrouter.js";
@@ -35,6 +37,7 @@ export interface PlanGenerationContext {
   manualActivities: readonly ManualActivityContext[];
   activityComments: readonly ActivityCommentContext[];
   weeklyNote: string | null;
+  periodReviews?: readonly PeriodReviewContext[];
   coachingInputsUpdatedAt: Date | null;
   /** Newest general coach analysis among the recent activities, if any. */
   activitiesUpdatedAt?: Date | null;
@@ -62,6 +65,8 @@ export interface GeneratePlanInput {
    * finished plan. Never runs on a day/week cascade.
    */
   reviewActivities?: (plan: CoachPlan) => Promise<void>;
+  /** Injectable for tests; defaults to the database-backed period review writer. */
+  capturePeriodReviews?: typeof captureCompletedPeriodReviews;
   plan: StoredPlan | null;
   context: PlanGenerationContext;
   plans: PlanStore;
@@ -98,6 +103,25 @@ export async function runPlanGeneration(
   const revisionNeeded = inputsChanged || activitiesChanged;
 
   try {
+    // The cascade is about to replace the current week/block. Summarise them
+    // first when they have ended, so the athlete keeps a review of the work.
+    if (input.plan !== null && input.capturePeriodReviews) {
+      await input.capturePeriodReviews({
+        userId,
+        today,
+        ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),
+        plan: input.plan.plan,
+        provider: context.provider,
+        apiKey: context.apiKey,
+        model: context.model,
+        athleteAnswers: context.answers,
+        activities: context.activities,
+        manualActivities: context.manualActivities,
+        activityComments: context.activityComments,
+        weeklyNote: context.weeklyNote,
+      });
+    }
+
     if (needsFullPlan) {
       await generations.update(
         userId,
@@ -111,14 +135,14 @@ export async function runPlanGeneration(
         baseContext(input),
       );
 
-      await generations.update(userId, "Designing your first block", 45);
+      await generations.update(userId, "Designing your block", 45);
       const { block } = await generateInitialBlock(
         context.provider,
         credentials(context),
         { ...baseContext(input), season },
       );
 
-      await generations.update(userId, "Building your first week", 65);
+      await generations.update(userId, "Building your week", 65);
       const weekUpdate = await generateWeeklyUpdate(
         context.provider,
         credentials(context),
@@ -473,6 +497,10 @@ function baseContext(input: GeneratePlanInput) {
       : {}),
     ...(input.context.weeklyNote !== null
       ? { weeklyNote: input.context.weeklyNote }
+      : {}),
+    ...(input.context.periodReviews !== undefined &&
+    input.context.periodReviews.length > 0
+      ? { periodReviews: input.context.periodReviews }
       : {}),
   };
 }

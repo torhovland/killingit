@@ -135,6 +135,17 @@ export {
 } from "./plan.js";
 
 export {
+  periodReviewCommentRequestSchema,
+  periodReviewSchema,
+  periodReviewsResponseSchema,
+  reviewKindSchema,
+  type PeriodReview,
+  type PeriodReviewCommentRequest,
+  type PeriodReviewsResponse,
+  type ReviewKind,
+} from "./review.js";
+
+export {
   athleteQuestionSchema,
   athleteQuestionsResponseSchema,
   isQuestionnaireComplete,

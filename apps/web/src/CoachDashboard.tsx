@@ -4,12 +4,15 @@ import {
   coachingInputSaveResponseSchema,
   garminConnectionStatusSchema,
   llmSettingsSchema,
+  periodReviewsResponseSchema,
   quickQuestionResponseSchema,
   weeklyNoteResponseSchema,
   type AnalyzedActivitiesResponse,
   type CoachAnalysis,
   type GarminConnectionStatus,
   type LlmSettings,
+  type PeriodReview,
+  type ReviewKind,
 } from "@killingit/shared";
 import { ActivityCard } from "./ActivityCard";
 import { loadCachedActivities, saveCachedActivities } from "./activityCache";
@@ -18,6 +21,8 @@ import { useAuth } from "./auth";
 import { CoachPlanSection } from "./CoachPlanSection";
 import { fetchJsonAuthed } from "./fetchAuthed";
 import { selectPendingActivities } from "./pendingActivities";
+import { PeriodReviewCard } from "./PeriodReviewCard";
+import { reviewKey, selectPendingReviews } from "./pendingReviews";
 import { reportError } from "./reportError";
 import { useTimeZone } from "./TimeZoneContext";
 import { getToday } from "./useToday";
@@ -58,9 +63,11 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
   const [loadingAnalyses, setLoadingAnalyses] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [localPlanRefresh, setLocalPlanRefresh] = useState(0);
-  // Commented-on activities stay on the page for this visit. The server feed
-  // omits them once they have a comment; a reload clears this set.
+  const [reviews, setReviews] = useState<PeriodReview[]>([]);
+  // Commented-on activities and reviews stay on the page for this visit. The
+  // server feed omits them once they have been answered; a reload clears this.
   const keptActivityIds = useRef<Set<string>>(new Set());
+  const keptReviewKeys = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     setStatus("dashboard-status", loadingStatuses ? "loading" : null);
@@ -113,6 +120,25 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
     } catch (err: unknown) {
       // The live sync is still running; a missing server cache is not an error.
       console.error("Failed to load cached activities:", err);
+    }
+  }
+
+  async function loadReviews(): Promise<void> {
+    try {
+      const response = await fetchJsonAuthed<unknown>(
+        `${API_URL}/api/coaching/reviews`,
+        auth,
+      );
+      const parsed = periodReviewsResponseSchema.safeParse(response);
+      if (!parsed.success) {
+        throw new Error(
+          "Loading your week and block reviews returned an unexpected response",
+          { cause: parsed.error },
+        );
+      }
+      setReviews(parsed.data.reviews);
+    } catch (err: unknown) {
+      setError(reportError(err));
     }
   }
 
@@ -257,6 +283,59 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
     }
   }
 
+  async function submitReviewComment(
+    kind: ReviewKind,
+    startDate: string,
+    comment: string,
+    mode: "create" | "edit",
+  ): Promise<string | null> {
+    const { today } = getToday(timeZone);
+    const response = await fetchJsonAuthed<unknown>(
+      `${API_URL}/api/coaching/reviews/${kind}/${startDate}/comments`,
+      auth,
+      {
+        method: mode === "edit" ? "PUT" : "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          today,
+          timezone: timeZone,
+          comment,
+        }),
+      },
+    );
+    const parsed = coachingInputSaveResponseSchema.safeParse(response);
+    if (!parsed.success) {
+      throw new Error("Saving your comment returned an unexpected response", {
+        cause: parsed.error,
+      });
+    }
+    // Leave the review in place for this visit; the next page load only shows
+    // reviews without a response.
+    keptReviewKeys.current.add(reviewKey({ kind, startDate }));
+    setLocalPlanRefresh((key) => key + 1);
+    return parsed.data.reply?.text ?? null;
+  }
+
+  async function markReviewNoComment(
+    kind: ReviewKind,
+    startDate: string,
+  ): Promise<void> {
+    const response = await fetchJsonAuthed<unknown>(
+      `${API_URL}/api/coaching/reviews/${kind}/${startDate}/reviewed`,
+      auth,
+      { method: "POST" },
+    );
+    parseSaveResponse(response);
+    keptReviewKeys.current.add(reviewKey({ kind, startDate }));
+    setReviews((current) =>
+      current.map((review) =>
+        review.kind === kind && review.startDate === startDate
+          ? { ...review, reviewed: true }
+          : review,
+      ),
+    );
+  }
+
   function activityStartDate(activityId: string): string {
     const activity = data?.activities.find(
       (entry) => String(entry.id) === activityId,
@@ -343,6 +422,7 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
     }
     void loadStatuses();
     void fetchWeeklyNote();
+    void loadReviews();
     // Only re-run when sign-in state flips; `auth` is consumed inside.
   }, [auth.isAuthenticated]);
 
@@ -398,6 +478,13 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
   const pendingActivities = data
     ? selectPendingActivities(data.activities, keptActivityIds.current)
     : [];
+  const pendingReviews = selectPendingReviews(reviews, keptReviewKeys.current);
+  const pendingWeeks = pendingReviews.filter(
+    (review) => review.kind === "week",
+  );
+  const pendingBlocks = pendingReviews.filter(
+    (review) => review.kind === "block",
+  );
   const ready = garmin.connected && llm.configured;
 
   return (
@@ -431,10 +518,50 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
         </section>
       )}
 
+      {pendingReviews.length > 0 && (
+        <section className="flex flex-col gap-3" data-testid="pending-reviews">
+          <div className="flex flex-col gap-1">
+            <h2 className="text-xl font-semibold">Completed training</h2>
+            <p className="text-sm text-muted-foreground">
+              Review your coach's summary and add a comment.
+            </p>
+          </div>
+          {pendingBlocks.length > 0 && (
+            <div className="flex flex-col gap-3">
+              <h3 className="text-lg font-medium">Block reviews</h3>
+              {pendingBlocks.map((review) => (
+                <PeriodReviewCard
+                  key={`block:${review.startDate}`}
+                  review={review}
+                  onSubmitComment={submitReviewComment}
+                  onNoComment={markReviewNoComment}
+                />
+              ))}
+            </div>
+          )}
+          {pendingWeeks.length > 0 && (
+            <div className="flex flex-col gap-3">
+              <h3 className="text-lg font-medium">Week reviews</h3>
+              {pendingWeeks.map((review) => (
+                <PeriodReviewCard
+                  key={`week:${review.startDate}`}
+                  review={review}
+                  onSubmitComment={submitReviewComment}
+                  onNoComment={markReviewNoComment}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
       <CoachPlanSection
         refreshKey={planRefreshKey + localPlanRefresh}
         ready={ready}
-        onGenerated={() => void loadAnalyses()}
+        onGenerated={() => {
+          void loadAnalyses();
+          void loadReviews();
+        }}
       />
 
       <section

@@ -73,6 +73,25 @@ const answers = [
 ];
 
 describe("buildCoachReplyMessages", () => {
+  it("includes the completed week summary when replying to its review", () => {
+    const prompt = buildCoachReplyPrompt({
+      today: "2026-10-21",
+      plan: makePlan(),
+      athleteAnswers: answers,
+      request: {
+        kind: "week_review",
+        startDate: "2026-10-13",
+        endDate: "2026-10-19",
+        summary: "You completed five of six sessions.",
+        comment: "I felt strong all week.",
+      },
+    });
+
+    expect(prompt).toContain("Coach summary of the completed week");
+    expect(prompt).toContain("You completed five of six sessions.");
+    expect(prompt).toContain("I felt strong all week.");
+  });
+
   it("describes a weekly note and the week it applies to", () => {
     const prompt = buildCoachReplyPrompt({
       today: "2026-10-21",
