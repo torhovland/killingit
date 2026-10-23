@@ -126,9 +126,16 @@ only replaces that module.
 
 - **`jose` vs hand-rolled verification:** use `jose` (maintained, mature) rather
   than `jsonwebtoken` (stale) or manual JWKS handling.
-- **Token refresh in the SPA:** handled by the Auth0 SDK (silent renewal);
-  verify it works with the Vite dev proxy origin (`localhost:5173`) and the
-  deployed origins already registered on the app.
+- **Token refresh in the SPA:** the Auth0 SDK renews tokens with rotating
+  refresh tokens (`useRefreshTokens`) and persists the session in
+  `localStorage` (`cacheLocation`), rather than the default hidden-iframe
+  silent-auth flow. Browsers that block third-party cookies (e.g. Brave) cannot
+  complete the iframe request, causing a signed-in athlete to see the sign-in
+  button after a reload. The Auth0 application must allow the `refresh_token`
+  grant; verify this works with the Vite dev proxy origin (`localhost:5173`)
+  and the deployed origins already registered on the app. As with any SPA
+  token storage, `localStorage` is readable by same-origin scripts, so XSS
+  remains the relevant threat.
 - **`auth0-react` bundles Auth0 UI; confirm bundle size is acceptable**, or use
   `@auth0/auth0-spa-js` directly behind the adapter for a smaller footprint.
 
