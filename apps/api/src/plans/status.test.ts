@@ -139,6 +139,28 @@ describe("planPending", () => {
     });
   });
 
+  it("marks the week pending when today's result is not on the week", () => {
+    const plan = makePlan();
+    plan.today = { ...plan.today, status: "completed" };
+
+    expect(planPending(plan, "2026-10-21").week).toBe(true);
+  });
+
+  it("does not mark the week pending when today's result matches", () => {
+    const plan = makePlan();
+    plan.today = { ...plan.today, status: "partial" };
+    plan.week = {
+      ...plan.week,
+      sessions: plan.week.sessions.map((session) =>
+        session.date === "2026-10-21"
+          ? { ...session, status: "partial" }
+          : session,
+      ),
+    };
+
+    expect(planPending(plan, "2026-10-21").week).toBe(false);
+  });
+
   it("marks the block when today is outside its range", () => {
     expect(planPending(makePlan(), "2026-12-02")).toEqual({
       initial: false,

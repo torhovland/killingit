@@ -159,6 +159,25 @@ describe("applyCompletedDays", () => {
     expect(today?.status).toBe("completed");
   });
 
+  it("mirrors an already completed today even without the activity", () => {
+    const applied = applyCompletedDays(makeWeek(), [], "2026-10-21", [], {
+      date: "2026-10-21",
+      type: "workout",
+      title: "Completed ride",
+      description: "Completed: 50 min ride.",
+      durationMinutes: 50,
+      intensity: "moderate",
+      alternatives: [],
+      rationale: "The ride matched the plan.",
+      optional: false,
+      status: "completed",
+    });
+
+    const today = applied.sessions[2];
+    expect(today?.status).toBe("completed");
+    expect(today?.title).toBe("Completed ride");
+  });
+
   it("keeps a past rest day as rest", () => {
     const week = makeWeek();
     const restWeek: WeekPlan = {

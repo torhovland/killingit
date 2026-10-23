@@ -22,10 +22,21 @@ export function planPending(
     };
   }
 
+  const todaySession = plan.week.sessions.find(
+    (session) => session.date === today,
+  );
   return {
     initial: false,
     day: plan.today.date !== today,
-    week: !plan.week.sessions.some((session) => session.date === today),
+    // A recorded result belongs on both today and the week. Treat a mismatch
+    // as pending so the regular cascade refreshes the week instead of leaving
+    // the two views disagreeing.
+    week:
+      todaySession === undefined ||
+      (plan.today.date === today &&
+        (plan.today.status === "completed" ||
+          plan.today.status === "partial") &&
+        todaySession.status !== plan.today.status),
     block: today < plan.block.startDate || today > plan.block.endDate,
     tomorrow: includeTomorrow && plan.tomorrow?.date !== addDays(today, 1),
   };

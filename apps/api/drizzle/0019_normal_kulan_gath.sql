@@ -1,0 +1,1 @@
+ALTER TABLE "coach_plans" ADD COLUMN "activities_updated_at" timestamp with time zone;

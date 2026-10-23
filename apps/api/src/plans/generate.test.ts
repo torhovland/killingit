@@ -129,11 +129,13 @@ function makeStoredPlan(
   plan: CoachPlan,
   answersUpdatedAt: Date | null = new Date("2026-10-20T10:00:00Z"),
   coachingInputsUpdatedAt: Date | null = null,
+  activitiesUpdatedAt: Date | null = null,
 ): StoredPlan {
   return {
     plan,
     answersUpdatedAt,
     coachingInputsUpdatedAt,
+    activitiesUpdatedAt,
     generatedAt: new Date("2026-10-20T10:00:00Z"),
   };
 }
@@ -173,11 +175,13 @@ class MemoryPlanStore implements PlanStore {
     plan: CoachPlan,
     answersUpdatedAt: Date | null,
     coachingInputsUpdatedAt: Date | null = null,
+    activitiesUpdatedAt: Date | null = null,
   ): Promise<StoredPlan> {
     this.saved = {
       plan,
       answersUpdatedAt,
       coachingInputsUpdatedAt,
+      activitiesUpdatedAt,
       generatedAt: new Date(),
     };
     return Promise.resolve(this.saved);
@@ -429,7 +433,12 @@ describe("runPlanGeneration", () => {
 
   it("does not revise when the stored plan already includes the analysis", async () => {
     const provider = new FakeProvider({});
-    const existing = makeStoredPlan(makePlan("2026-10-21"));
+    const existing = makeStoredPlan(
+      makePlan("2026-10-21"),
+      new Date("2026-10-20T10:00:00Z"),
+      null,
+      new Date("2026-10-20T09:00:00Z"),
+    );
     const plans = new MemoryPlanStore(existing);
     const generations = new MemoryGenerationStore();
     const context = makeContext(provider);
@@ -446,6 +455,98 @@ describe("runPlanGeneration", () => {
 
     expect(provider.calls).toEqual([]);
     expect(saved).toBe(existing);
+  });
+
+  it("marks a late-imported past activity on the week", async () => {
+    const provider = new FakeProvider({
+      weekly: JSON.stringify({
+        week: makeWeek("2026-10-19"),
+        block: makeBlock(),
+      }),
+      daily: JSON.stringify({
+        today: makeDay("2026-10-22"),
+        week: makeWeek("2026-10-19"),
+      }),
+    });
+    const existing = makeStoredPlan(makePlan("2026-10-22"));
+    const plans = new MemoryPlanStore(existing);
+    const generations = new MemoryGenerationStore();
+    const context = makeContext(provider);
+    context.activities = [
+      {
+        id: 45,
+        name: "Monday Run",
+        type: "running",
+        startDate: "2026-10-19T06:30:00Z",
+        distance: 10000,
+        movingTime: 2500,
+        elapsedTime: 2500,
+        totalElevationGain: 40,
+        sampleCount: 0,
+        analysis: {
+          text: "A steady aerobic run.",
+          model: "test-model",
+          generatedAt: "2026-10-22T09:00:00Z",
+        },
+        analysisError: null,
+        programAnalysis: null,
+        comment: null,
+        coachReply: null,
+      },
+    ];
+    context.activitiesUpdatedAt = new Date("2026-10-22T09:00:00Z");
+
+    const saved = await runPlanGeneration({
+      userId: 1,
+      today: "2026-10-22",
+      plan: existing,
+      context,
+      plans,
+      generations,
+    });
+
+    expect(provider.calls).toEqual(["weekly", "daily"]);
+    const monday = saved?.plan.week.sessions.find(
+      (session) => session.date === "2026-10-19",
+    );
+    expect(monday?.status).toBe("completed");
+    expect(monday?.title).toBe("Monday Run");
+  });
+
+  it("revises for an activity analysed while the plan was generating", async () => {
+    const provider = new FakeProvider({
+      weekly: JSON.stringify({
+        week: makeWeek("2026-10-19"),
+        block: makeBlock(),
+      }),
+      daily: JSON.stringify({
+        today: makeDay("2026-10-21"),
+        week: makeWeek("2026-10-19"),
+      }),
+    });
+    // The plan was saved after the analysis, but its context did not include it.
+    const existing = makeStoredPlan(
+      makePlan("2026-10-21"),
+      new Date("2026-10-20T10:00:00Z"),
+      null,
+      new Date("2026-10-20T08:00:00Z"),
+    );
+    existing.generatedAt = new Date("2026-10-21T10:00:00Z");
+    const plans = new MemoryPlanStore(existing);
+    const generations = new MemoryGenerationStore();
+    const context = makeContext(provider);
+    context.activitiesUpdatedAt = new Date("2026-10-21T09:00:00Z");
+
+    await runPlanGeneration({
+      userId: 1,
+      today: "2026-10-21",
+      plan: existing,
+      context,
+      plans,
+      generations,
+    });
+
+    expect(provider.calls).toEqual(["weekly", "daily"]);
   });
 
   it("marks today's completed activity on both the day and the week", async () => {
@@ -498,6 +599,61 @@ describe("runPlanGeneration", () => {
     expect(saved?.plan.today.status).toBe("completed");
     expect(todaySession?.status).toBe("completed");
     expect(todaySession?.title).toBe(saved?.plan.today.title);
+  });
+
+  it("cascades a mismatched today result into the week", async () => {
+    const current = makePlan("2026-10-21");
+    const stored = makeStoredPlan({
+      ...current,
+      today: { ...current.today, status: "completed" },
+    });
+    const provider = new FakeProvider({
+      weekly: JSON.stringify({
+        week: makeWeek("2026-10-19"),
+        block: makeBlock(),
+      }),
+      daily: JSON.stringify({
+        today: makeDay("2026-10-21"),
+        week: makeWeek("2026-10-19"),
+      }),
+    });
+    const plans = new MemoryPlanStore(stored);
+    const generations = new MemoryGenerationStore();
+    const context = makeContext(provider);
+    context.activities = [
+      {
+        id: 44,
+        name: "Morning Run",
+        type: "running",
+        startDate: "2026-10-21T06:30:00Z",
+        distance: 10000,
+        movingTime: 2500,
+        elapsedTime: 2500,
+        totalElevationGain: 40,
+        sampleCount: 0,
+        analysis: null,
+        analysisError: null,
+        programAnalysis: null,
+        comment: null,
+        coachReply: null,
+      },
+    ];
+
+    const saved = await runPlanGeneration({
+      userId: 1,
+      today: "2026-10-21",
+      plan: stored,
+      context,
+      plans,
+      generations,
+    });
+
+    expect(provider.calls).toEqual(["weekly", "daily"]);
+    const todaySession = saved?.plan.week.sessions.find(
+      (session) => session.date === "2026-10-21",
+    );
+    expect(saved?.plan.today.status).toBe("completed");
+    expect(todaySession?.status).toBe("completed");
   });
 
   it("marks today's much shorter activity as partial", async () => {

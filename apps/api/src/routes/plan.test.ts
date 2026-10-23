@@ -104,11 +104,13 @@ class MemoryPlanStore implements PlanStore {
     plan: CoachPlan,
     answersUpdatedAt: Date | null,
     coachingInputsUpdatedAt: Date | null = null,
+    activitiesUpdatedAt: Date | null = null,
   ): Promise<StoredPlan> {
     this.stored = {
       plan,
       answersUpdatedAt,
       coachingInputsUpdatedAt,
+      activitiesUpdatedAt,
       generatedAt: new Date(),
     };
     return Promise.resolve(this.stored);
@@ -287,6 +289,7 @@ describe("coach plan route", () => {
       plan,
       answersUpdatedAt: new Date("2026-10-20T10:00:00Z"),
       coachingInputsUpdatedAt: null,
+      activitiesUpdatedAt: null,
       generatedAt: new Date("2026-10-20T10:00:00Z"),
     });
 
@@ -315,12 +318,42 @@ describe("coach plan route", () => {
     expect(body.stale).toBe(false);
   });
 
+  it("treats a completed day that is still planned on the week as pending", async () => {
+    const plan = makePlan();
+    plan.today = {
+      ...plan.today,
+      title: "Completed morning run",
+      description: "Completed: running · 10.00 km · 50 min",
+      durationMinutes: 50,
+      status: "completed",
+    };
+    const planStore = new MemoryPlanStore({
+      plan,
+      answersUpdatedAt: new Date("2026-10-20T10:00:00Z"),
+      coachingInputsUpdatedAt: null,
+      activitiesUpdatedAt: null,
+      generatedAt: new Date("2026-10-20T10:00:00Z"),
+    });
+
+    const res = await makeApp({ planStore }).fetch(
+      authenticatedRequest("/api/coaching/plan?today=2026-10-21"),
+    );
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      pending: { week: boolean; day: boolean };
+    };
+    expect(body.pending.day).toBe(false);
+    expect(body.pending.week).toBe(true);
+  });
+
   it("marks the plan stale when a coaching input is newer than the plan", async () => {
     const plan = makePlan();
     const planStore = new MemoryPlanStore({
       plan,
       answersUpdatedAt: new Date("2026-10-20T10:00:00Z"),
       coachingInputsUpdatedAt: new Date("2026-10-20T10:00:00Z"),
+      activitiesUpdatedAt: null,
       generatedAt: new Date("2026-10-20T10:00:00Z"),
     });
 
@@ -348,6 +381,7 @@ describe("coach plan route", () => {
       plan: invalidPlan,
       answersUpdatedAt: new Date("2026-10-20T10:00:00Z"),
       coachingInputsUpdatedAt: null,
+      activitiesUpdatedAt: null,
       generatedAt: new Date("2026-10-20T10:00:00Z"),
     });
 
