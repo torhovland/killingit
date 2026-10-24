@@ -113,6 +113,7 @@ class FakeProvider implements LlmProvider {
 describe("analyzeActivitiesAgainstPlan", () => {
   it("saves a program review for each activity", async () => {
     const saved: Array<{
+      userId: number;
       activityId: number;
       kind: string | undefined;
       model: string;
@@ -121,6 +122,7 @@ describe("analyzeActivitiesAgainstPlan", () => {
     }> = [];
 
     await analyzeActivitiesAgainstPlan({
+      userId: 42,
       provider: new FakeProvider(),
       apiKey: "test-key",
       model: "test-model",
@@ -145,6 +147,7 @@ describe("analyzeActivitiesAgainstPlan", () => {
 
     expect(saved).toHaveLength(2);
     expect(saved.map((entry) => entry.activityId).sort()).toEqual([1, 2]);
+    expect(saved[0]?.userId).toBe(42);
     expect(saved[0]?.kind).toBe("program");
     expect(saved[0]?.model).toBe("test-model");
     expect(saved[0]?.promptVersion).toBe(PROGRAM_ANALYSIS_PROMPT_VERSION);
@@ -154,6 +157,7 @@ describe("analyzeActivitiesAgainstPlan", () => {
     const saved: number[] = [];
 
     await analyzeActivitiesAgainstPlan({
+      userId: 42,
       provider: new FakeProvider("Evening Run"),
       apiKey: "test-key",
       model: "test-model",

@@ -54,9 +54,8 @@ my profile" feature that follows.
 
 ## Data-model / API impact
 
-- **Accounts table.** The `athletes` placeholder is still untouched; `sub` is
-  linked to an application account in `users` (ADR 0006), which owns the
-  `admin`/`member` role.
+- **Accounts table.** The provider `sub` is linked to an application account in
+  `users` (ADR 0006), which owns the `admin`/`member` role.
 - **New API route** `GET /api/me` — protected; returns the verified `sub` and
   the account's application role (and later the athlete profile). It also
   provisions the account on first sight.

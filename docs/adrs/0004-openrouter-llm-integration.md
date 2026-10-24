@@ -11,10 +11,9 @@ first data source is in place (Garmin, ADR 0003), including per-activity
 timeseries, but nothing yet turns that data into coach analysis.
 
 `AGENTS.md` states that we use a model from **OpenRouter** by default and that
-the LLM integration must sit behind a provider-agnostic interface so per-user
-keys for OpenRouter, OpenAI, Anthropic, or another provider can be added later.
-The current phase is single-operator (ADR 0003), so a single stored key is
-sufficient for now.
+the LLM integration must sit behind a provider-agnostic interface. The app has
+multiple accounts per environment, so each account configures and uses its own
+key.
 
 ## Decision
 
@@ -22,7 +21,7 @@ sufficient for now.
   interface (`apps/api/src/llm/openrouter.ts`). The interface exposes
   `listModels`, `validateKey`, and `complete`; the coaching route depends only
   on that interface.
-- **The operator configures the key and model in the app.** The key is
+- **Each account configures its own key and model in the app.** The key is
   validated against OpenRouter (`GET /key`) before storage, encrypted at rest
   with AES-256-GCM using a key derived from `LLM_CREDENTIALS_KEY`, and never
   serialized back to the client. `GET /api/llm/models` exposes the model
@@ -33,18 +32,20 @@ sufficient for now.
   timeseries (up to 90 rows, first and last points preserved) so the model can
   reason about how the workout unfolded. Each analysis is 3–5 plain-text
   sentences ending in one actionable recommendation.
-- **Cache analyses in Postgres** (`activity_analyses`), keyed by source
-  activity id, so revisiting the page does not re-bill tokens. An analysis is
-  regenerated when the selected model changes; `?refresh=true` forces a fresh
-  pass.
+- **Cache analyses in Postgres** (`activity_analyses`), keyed by account and
+  source activity id, so revisiting the page does not re-bill tokens. An
+  analysis is regenerated when the selected model changes; `?refresh=true`
+  forces a fresh pass.
 - **Fail per activity, not per batch**: one provider error yields an
   `analysisError` on that card while the rest still render. An invalid/revoked
   key (401) fails the whole request so the operator sees the real problem.
 
 ## Security and privacy
 
-- The API key is encrypted at rest and never returned by any endpoint; only
-  `configured`, `provider`, and the selected model are exposed.
+- Each account's API key is encrypted at rest and never returned by any
+  endpoint; only `configured`, `provider`, and the selected model are exposed.
+- Accounts cannot read or use each other's keys: settings are scoped by account
+  id, and analyses are cached per account.
 - Activity summaries and timeseries (including heart rate) are sent to
   OpenRouter as prompt content. This is inherent to LLM coaching and is
   documented in the spec.
@@ -55,17 +56,16 @@ sufficient for now.
 
 - **Positive:** working coach analysis for real Garmin activities with no
   provider lock-in at the route level; token spend is bounded by caching and a
-  10-activity default (max 20 per request); the key can be rotated independently
-  of the Garmin credential key.
-- **Negative / limits:** single stored key (not yet per user); activity data
-  leaves the system to a third-party LLM provider; the first analysis of each
-  activity costs one completion; OpenRouter availability becomes a dependency
-  of the coaching page.
-- **Follow-ups:** per-user keys and provider choice (add a `user_id`/provider
-  dimension and a `user_provider_keys` table); persist full activities so the
-  page does not re-sync Garmin on every visit; add a coaching conversation and
-  workout-steering input (product vision); add deploy-time injection of
-  `LLM_CREDENTIALS_KEY` alongside the Garmin key.
+  10-activity default (max 20 per request); each account can bring its own key
+  and model; the key can be rotated independently of the Garmin credential key.
+- **Negative / limits:** activity data leaves the system to a third-party LLM
+  provider; the first analysis of each activity costs one completion;
+  OpenRouter availability becomes a dependency of the coaching page.
+- **Follow-ups:** provider choice per account (add a `provider` dimension to
+  `llm_settings`); persist full activities so the page does not re-sync Garmin
+  on every visit; add a coaching conversation and workout-steering input
+  (product vision); add deploy-time injection of `LLM_CREDENTIALS_KEY`
+  alongside the Garmin key.
 
 ## Rejected alternatives
 

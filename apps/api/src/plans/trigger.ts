@@ -25,8 +25,8 @@ export interface PlanTriggerDependencies {
   generations: PlanGenerationStore;
   /** Injectable for route tests; defaults to a Garmin sync. */
   loadActivities?: (userId: number) => Promise<ActivityFeed>;
-  /** Injectable for route tests; defaults to the stored OpenRouter config. */
-  loadLlm?: () => Promise<LlmClient | null>;
+  /** Injectable for route tests; defaults to the account's stored config. */
+  loadLlm?: (userId: number) => Promise<LlmClient | null>;
   /** Injectable for route tests; defaults to the database-backed loader. */
   loadCoachingInputs?: (
     userId: number,
@@ -75,7 +75,7 @@ export async function triggerPlanGeneration(
             limit: DEFAULT_ACTIVITIES,
             refresh: false,
           }),
-      deps.loadLlm ? deps.loadLlm() : loadLlmClient(),
+      deps.loadLlm ? deps.loadLlm(userId) : loadLlmClient(userId),
       deps.loadCoachingInputs
         ? deps.loadCoachingInputs(userId, startOfWeek(today))
         : loadCoachingInputs(userId, startOfWeek(today)),
@@ -105,6 +105,7 @@ export async function triggerPlanGeneration(
     capturePeriodReviews: captureCompletedPeriodReviews,
     reviewActivities: (plan) =>
       analyzeActivitiesAgainstPlan({
+        userId,
         provider: llm.provider,
         apiKey: llm.apiKey,
         model: llm.model,
