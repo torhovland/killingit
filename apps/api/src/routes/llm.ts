@@ -7,6 +7,7 @@ import {
 import { zValidator } from "@hono/zod-validator";
 import type { Context } from "hono";
 import { Hono } from "hono";
+import { getAthlete } from "../auth/middleware.js";
 import { encrypt } from "../crypto/credentials.js";
 import { llmCredentialsKeyFromEnv } from "../llm/credentials.js";
 import {
@@ -15,6 +16,14 @@ import {
   LlmProviderError,
 } from "../llm/openrouter.js";
 import { loadLlmSettings, saveLlmSettings } from "../llm/store.js";
+import type { UserStore } from "../users/store.js";
+
+export interface LlmRouteDependencies {
+  users: UserStore;
+  /** Injectable for route tests; defaults to the database-backed store. */
+  loadSettings?: typeof loadLlmSettings;
+  saveSettings?: typeof saveLlmSettings;
+}
 
 /** Reads the stored configuration without ever exposing the encrypted key. */
 function settingsFromStored(stored: {
@@ -42,70 +51,82 @@ function respondProviderError(c: Context, err: unknown): Response {
 }
 
 /**
- * LLM provider configuration and model discovery (ADR 0004). The API key is
- * validated against OpenRouter before being stored encrypted, and is never
- * serialized back to the client.
+ * LLM provider configuration and model discovery (ADR 0004). Each account
+ * configures its own provider key and model. The API key is validated against
+ * OpenRouter before being stored encrypted, and is never serialized back to the
+ * client.
  */
-export const llmRoute = new Hono()
-  .get("/settings", async (c) => {
-    const stored = await loadLlmSettings();
-    return c.json(
-      llmSettingsSchema.parse(
-        stored
-          ? settingsFromStored(stored)
-          : { configured: false, provider: "openrouter", model: null },
-      ),
-    );
-  })
-  .put("/settings", zValidator("json", llmSettingsUpdateSchema), async (c) => {
-    const { apiKey, model } = c.req.valid("json");
+export function createLlmRoute(deps: LlmRouteDependencies): Hono {
+  const loadSettings = deps.loadSettings ?? loadLlmSettings;
+  const saveSettings = deps.saveSettings ?? saveLlmSettings;
 
-    let key: CryptoKey;
-    try {
-      key = await llmCredentialsKeyFromEnv();
-    } catch (err) {
-      return c.text((err as Error).message, 503);
-    }
+  return new Hono()
+    .get("/settings", async (c) => {
+      const user = await deps.users.ensureUser(getAthlete(c).sub);
+      const stored = await loadSettings(user.id);
+      return c.json(
+        llmSettingsSchema.parse(
+          stored
+            ? settingsFromStored(stored)
+            : { configured: false, provider: "openrouter", model: null },
+        ),
+      );
+    })
+    .put(
+      "/settings",
+      zValidator("json", llmSettingsUpdateSchema),
+      async (c) => {
+        const { apiKey, model } = c.req.valid("json");
+        const user = await deps.users.ensureUser(getAthlete(c).sub);
 
-    const existing = await loadLlmSettings();
-    const provider = createOpenRouterProvider();
-    let apiKeyEncrypted = existing?.apiKeyEncrypted;
+        let key: CryptoKey;
+        try {
+          key = await llmCredentialsKeyFromEnv();
+        } catch (err) {
+          return c.text((err as Error).message, 503);
+        }
 
-    if (apiKey !== undefined) {
+        const existing = await loadSettings(user.id);
+        const provider = createOpenRouterProvider();
+        let apiKeyEncrypted = existing?.apiKeyEncrypted;
+
+        if (apiKey !== undefined) {
+          try {
+            await provider.validateKey(apiKey);
+          } catch (err) {
+            return respondProviderError(c, err);
+          }
+          apiKeyEncrypted = await encrypt(apiKey, key);
+        }
+        if (apiKeyEncrypted === undefined) {
+          return c.text("An OpenRouter API key is required", 400);
+        }
+
+        // Reject typos before they become silent per-activity failures later.
+        try {
+          const models = await provider.listModels();
+          if (!models.some((candidate) => candidate.id === model)) {
+            return c.text(`Unknown OpenRouter model: ${model}`, 400);
+          }
+        } catch (err) {
+          return respondProviderError(c, err);
+        }
+
+        await saveSettings(user.id, {
+          provider: provider.id,
+          apiKeyEncrypted,
+          model,
+        });
+        return c.json(settingsFromStored({ provider: provider.id, model }));
+      },
+    )
+    .get("/models", async (c) => {
+      const provider = createOpenRouterProvider();
       try {
-        await provider.validateKey(apiKey);
+        const models = await provider.listModels();
+        return c.json(llmModelsResponseSchema.parse({ models }));
       } catch (err) {
         return respondProviderError(c, err);
       }
-      apiKeyEncrypted = await encrypt(apiKey, key);
-    }
-    if (apiKeyEncrypted === undefined) {
-      return c.text("An OpenRouter API key is required", 400);
-    }
-
-    // Reject typos before they become silent per-activity failures later.
-    try {
-      const models = await provider.listModels();
-      if (!models.some((candidate) => candidate.id === model)) {
-        return c.text(`Unknown OpenRouter model: ${model}`, 400);
-      }
-    } catch (err) {
-      return respondProviderError(c, err);
-    }
-
-    await saveLlmSettings({
-      provider: provider.id,
-      apiKeyEncrypted,
-      model,
     });
-    return c.json(settingsFromStored({ provider: provider.id, model }));
-  })
-  .get("/models", async (c) => {
-    const provider = createOpenRouterProvider();
-    try {
-      const models = await provider.listModels();
-      return c.json(llmModelsResponseSchema.parse({ models }));
-    } catch (err) {
-      return respondProviderError(c, err);
-    }
-  });
+}

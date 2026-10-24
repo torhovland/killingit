@@ -40,7 +40,7 @@ export const DEFAULT_ACTIVITIES = 10;
 /** Bounded concurrency so a batch does not flood OpenRouter. */
 const ANALYSIS_CONCURRENCY = 3;
 
-/** The operator has not connected Garmin yet. */
+/** The account has not connected Garmin yet. */
 export class GarminNotConnectedError extends Error {
   readonly status = 401;
   constructor() {
@@ -113,7 +113,7 @@ export async function loadAnalyzedActivities(options: {
   });
 
   const [settings, feedback, storedPlan] = await Promise.all([
-    loadLlmSettings(),
+    loadLlmSettings(options.userId),
     loadActivityFeedback(
       options.userId,
       latest.map((activity) => activity.id),
@@ -153,8 +153,14 @@ export async function loadAnalyzedActivities(options: {
   const [cached, cachedProgram] = options.refresh
     ? [new Map<number, StoredAnalysis>(), new Map<number, StoredAnalysis>()]
     : await Promise.all([
-        loadAnalyses(activityIds, settings.model, ANALYSIS_PROMPT_VERSION),
         loadAnalyses(
+          options.userId,
+          activityIds,
+          settings.model,
+          ANALYSIS_PROMPT_VERSION,
+        ),
+        loadAnalyses(
+          options.userId,
           activityIds,
           settings.model,
           PROGRAM_ANALYSIS_PROMPT_VERSION,
@@ -181,6 +187,7 @@ export async function loadAnalyzedActivities(options: {
           analysisContext,
         );
         const saved = await saveAnalysis({
+          userId: options.userId,
           activityId: activity.id,
           model: settings.model,
           promptVersion: ANALYSIS_PROMPT_VERSION,

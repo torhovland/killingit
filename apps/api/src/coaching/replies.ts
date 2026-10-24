@@ -37,7 +37,7 @@ export interface CoachingQuestionRequest {
 export interface CoachReplyDependencies {
   plans: PlanStore;
   answers: QuestionAnswerStore;
-  loadLlm: () => Promise<LlmClient | null>;
+  loadLlm: (userId: number) => Promise<LlmClient | null>;
   /** Injectable for tests; defaults to the database-backed writer. */
   saveReply?: typeof saveCoachReply;
 }
@@ -60,7 +60,7 @@ export async function replyToCoachingInput(
     [plan, answers, llm] = await Promise.all([
       deps.plans.load(userId),
       deps.answers.listForUser(userId),
-      deps.loadLlm(),
+      deps.loadLlm(userId),
     ]);
   } catch (err) {
     console.error("[coach-reply] could not load the reply context:", err);
@@ -122,7 +122,7 @@ export async function answerCoachingQuestion(
     [plan, answers, llm] = await Promise.all([
       deps.plans.load(userId),
       deps.answers.listForUser(userId),
-      deps.loadLlm(),
+      deps.loadLlm(userId),
     ]);
   } catch (err) {
     console.error("[coach-question] could not load the reply context:", err);

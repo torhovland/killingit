@@ -123,9 +123,15 @@ class FakeProvider implements LlmProvider {
   }
 }
 
-function llm(provider: FakeProvider) {
-  return () =>
-    Promise.resolve({ provider, apiKey: "test-key", model: "test-model" });
+function llm(provider: FakeProvider, userIds?: number[]) {
+  return (userId: number) => {
+    userIds?.push(userId);
+    return Promise.resolve({
+      provider,
+      apiKey: "test-key",
+      model: "test-model",
+    });
+  };
 }
 
 function planStore(plan: StoredPlan | null): PlanStore {
@@ -138,6 +144,7 @@ function planStore(plan: StoredPlan | null): PlanStore {
 describe("replyToCoachingInput", () => {
   it("generates and stores a reply for an activity comment", async () => {
     const provider = new FakeProvider("Good work; I will keep Thursday easy.");
+    const llmUserIds: number[] = [];
     const saved: {
       value: {
         userId: number;
@@ -152,7 +159,7 @@ describe("replyToCoachingInput", () => {
       {
         plans: planStore(storedPlan()),
         answers,
-        loadLlm: llm(provider),
+        loadLlm: llm(provider, llmUserIds),
         saveReply: (input) => {
           saved.value = input;
           return Promise.resolve({
@@ -184,6 +191,7 @@ describe("replyToCoachingInput", () => {
       model: "test-model",
     });
     expect(result?.text).toBe("Good work; I will keep Thursday easy.");
+    expect(llmUserIds).toEqual([42]);
     expect(provider.requests[0]?.messages[1]?.content).toContain(
       "Felt strong on the hills.",
     );

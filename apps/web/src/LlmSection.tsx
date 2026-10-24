@@ -67,7 +67,7 @@ export function LlmSection({ settings, onSaved }: LlmSectionProps) {
   }, [editing, auth.isAuthenticated]);
 
   // Suggest a sensible default once the catalog loads, without overwriting a
-  // model the operator has already chosen.
+  // model the athlete has already chosen.
   useEffect(() => {
     if (model !== "" || models.length === 0) {
       return;

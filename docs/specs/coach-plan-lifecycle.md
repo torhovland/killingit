@@ -50,7 +50,6 @@ answers change and as days, weeks, and blocks roll over.
 - Plan history/versioning. The previous plan is overwritten once the new one is
   saved.
 - Weather/daylight inputs in the prompts (the provider seam is ready for it).
-- Per-user Garmin/LLM credentials (the single-operator phase continues).
 
 ## Acceptance criteria
 

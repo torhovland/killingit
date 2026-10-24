@@ -10,12 +10,13 @@ export interface LlmClient {
 }
 
 /**
- * Loads the configured provider and decrypts its API key. Returns null when no
- * provider has been configured yet. Throws when the stored key cannot be
- * decrypted (a configuration problem the caller should surface).
+ * Loads the account's configured provider and decrypts its API key. Returns
+ * null when the account has not configured a provider yet. Throws when the
+ * stored key cannot be decrypted (a configuration problem the caller should
+ * surface).
  */
-export async function loadLlmClient(): Promise<LlmClient | null> {
-  const settings = await loadLlmSettings();
+export async function loadLlmClient(userId: number): Promise<LlmClient | null> {
+  const settings = await loadLlmSettings(userId);
   if (!settings) {
     return null;
   }

@@ -61,8 +61,9 @@ already exists is rejected; editing updates the existing row and its
 
 ### `activity_analyses`
 
-Add `kind` (`general | program`, default `general`). The unique constraint moves
-from `activity_id` to `(activity_id, kind)` so both analyses can coexist.
+Add `kind` (`general | program`, default `general`). The unique constraint is
+`(user_id, activity_id, kind)` so both analyses can coexist for one account
+without sharing rows across accounts.
 
 ### `coach_replies`
 

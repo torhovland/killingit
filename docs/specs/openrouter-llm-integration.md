@@ -2,14 +2,16 @@
 
 - **Status:** Accepted (implemented)
 - **Date:** 2026-10-20
+- **Revision:** 2026-10-24 — LLM settings and the activity-analysis cache moved
+  from the single-operator phase to per-account scoping.
 - **Related:** ADR 0004 (OpenRouter), ADR 0003 / Garmin spec (activity data).
 
 ## Goal
 
-Give the operator a configuration surface for OpenRouter (API key + model
-choice), then use that model to analyse each of the latest Garmin activities —
-including their timeseries — and show the latest activities with coach analysis
-on the main page.
+Give each account a configuration surface for OpenRouter (API key + model
+choice), then use that account's model to analyse each of the latest Garmin
+activities — including their timeseries — and show the latest activities with
+coach analysis on the main page.
 
 ## Scope
 
@@ -20,9 +22,9 @@ on the main page.
    - Model picker populated from OpenRouter's model catalog (with manual entry
      as a fallback if the catalog cannot be loaded).
    - A compact "OpenRouter connected · <model>" state with a change action.
-2. **Encrypted storage** of the API key (AES-256-GCM, key from
-   `LLM_CREDENTIALS_KEY`) plus the selected model in a single-row
-   `llm_settings` table. The key is never returned by any endpoint.
+2. **Encrypted storage** of each account's API key (AES-256-GCM, key from
+   `LLM_CREDENTIALS_KEY`) plus the selected model in `llm_settings`, one row per
+   account. The key is never returned by any endpoint.
 3. **Provider-agnostic LLM seam** (`LlmProvider`) implemented by OpenRouter:
    `listModels`, `validateKey`, `complete`.
 4. **Coach analysis for activities**:
@@ -37,8 +39,9 @@ on the main page.
      strength session).
    - Return activity data with the analysis (or a per-activity error) for the
      main page.
-5. **Analysis cache** in `activity_analyses` keyed by activity id, invalidated
-   when the selected model changes, with `?refresh=true` to force regeneration.
+5. **Analysis cache** in `activity_analyses` keyed by account and activity id,
+   invalidated when the account's selected model changes, with
+   `?refresh=true` to force regeneration.
 6. **Main page** showing the latest activities with their analysis, model, and
    generation time; "Sync & re-analyze" forces a fresh pass. The last
    successful feed is cached per account in browser storage so existing cards
@@ -46,7 +49,7 @@ on the main page.
 
 ### Out of scope (deferred)
 
-- Per-user keys and multiple providers (ADR 0004 follow-up).
+- Multiple providers per account (ADR 0004 follow-up).
 - Streaming responses / live "thinking" progress.
 - Cost/token accounting and budgets.
 - Persisting full Garmin activities; the page still re-syncs from Garmin.
@@ -55,9 +58,9 @@ on the main page.
 
 ## Acceptance criteria
 
-1. With `LLM_CREDENTIALS_KEY` set, the operator can save a valid OpenRouter key
-   and a model; an invalid key returns 401, an unknown model returns 400, and
-   the stored key is never serialized.
+1. With `LLM_CREDENTIALS_KEY` set, an athlete can save a valid OpenRouter key
+   and a model for their own account; an invalid key returns 401, an unknown
+   model returns 400, and the stored key is never serialized.
 2. The model picker lists OpenRouter models; manual model entry works if the
    catalog request fails.
 3. With Garmin connected and OpenRouter configured, visiting the page syncs
@@ -74,12 +77,14 @@ on the main page.
 
 ## Data-model / API impact
 
-- **New table `llm_settings`** (single row at fixed id 1, replace on save):
-  `provider` (default `openrouter`), `api_key_encrypted`, `model`, `updated_at`.
-- **New table `activity_analyses`**: `activity_id` (unique, `bigint` — Garmin
-  ids exceed 32-bit integers), `model`, `prompt_version`, `analysis`,
-  `created_at`, `updated_at`. A cached analysis is reused only when both the
-  model and prompt version match.
+- **New table `llm_settings`** (one row per account, unique `user_id`, replace
+  on save): `provider` (default `openrouter`), `api_key_encrypted`, `model`,
+  `updated_at`.
+- **New table `activity_analyses`**: `user_id`, `activity_id` (`bigint` — Garmin
+  ids exceed 32-bit integers), `kind`, `model`, `prompt_version`, `analysis`,
+  `created_at`, `updated_at`; unique `(user_id, activity_id, kind)`. A cached
+  analysis is reused only when the account, model, prompt version, and kind all
+  match.
 - **New table `activity_feed_cache`**: one row per user with the last
   successfully synced `{ model, activities }` feed. It is replaced after every
   successful sync and lets the dashboard show existing cards on page load

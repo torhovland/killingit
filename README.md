@@ -16,7 +16,7 @@ workouts.
 - **Garmin:** Python sidecar (FastAPI + `python-garminconnect`) — see
   `services/garmin/` and ADR 0003.
 - **LLM:** OpenRouter chat completions behind a provider-agnostic interface —
-  see ADR 0004. The operator enters an API key and picks a model in the app.
+  see ADR 0004. Each athlete enters an API key and picks a model in the app.
 
 ## Layout
 
@@ -97,12 +97,10 @@ explicitly. Only Development and Test allow the override.
 
 ## Database
 
-The `athletes` table is a placeholder proving the Drizzle wiring. The real
-athlete-profile and training data model will replace it.
-
-Integration tables: `garmin_connections` (encrypted Garmin credentials),
-`llm_settings` (encrypted OpenRouter key + selected model),
-`activity_analyses` (cached coach analysis per activity/model),
+Every account keeps its own settings and activity data. Integration tables:
+`garmin_connections` and `llm_settings` (each account's encrypted Garmin
+credentials and encrypted LLM provider key + selected model),
+`activity_analyses` (cached coach analysis per account/activity/model),
 `questions` / `question_versions` (versioned athlete questions; see ADR 0005),
 `question_answers` (per-athlete answers and skips; see ADR 0007), and `users`
 (accounts and roles; see ADR 0006).
@@ -202,7 +200,7 @@ Neon database:
 
 ```sh
 scripts/agent.sh logs api --env test
-scripts/agent.sh sql "SELECT * FROM athletes;" --env test
+scripts/agent.sh sql "SELECT * FROM users;" --env test
 ```
 
 It reads `GCP_PROJECT` and `DATABASE_URL` from the environment.

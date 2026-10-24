@@ -105,7 +105,7 @@ export interface CoachingRouteDependencies {
   loadActivities?: (userId: number) => Promise<ActivityFeed>;
   /** Injectable for route tests; defaults to the stored feed reader. */
   loadCachedFeed?: typeof loadCachedActivityFeed;
-  loadLlm?: () => Promise<LlmClient | null>;
+  loadLlm?: (userId: number) => Promise<LlmClient | null>;
   /** Injectable for route tests; defaults to the database-backed loader. */
   loadCoachingInputs?: (
     userId: number,
@@ -138,7 +138,8 @@ export interface CoachingRouteDependencies {
 }
 
 /**
- * Coaching routes (ADR 0004). Syncs the operator's Garmin activities, analyses
+ * Coaching routes (ADR 0004). Syncs the signed-in athlete's Garmin activities,
+ * analyses
  * the most recent ones with the configured LLM, and returns activity data plus
  * cached-or-fresh coach analysis. Also accepts activity comments and manual
  * activity logs, replies to them briefly, and triggers a plan revision when the

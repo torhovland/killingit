@@ -10,6 +10,7 @@ import type { LlmProvider } from "../llm/openrouter.js";
 export const PROGRAM_REVIEW_CONCURRENCY = 3;
 
 export interface AnalyzeActivitiesAgainstPlanInput {
+  userId: number;
   provider: LlmProvider;
   apiKey: string;
   model: string;
@@ -50,6 +51,7 @@ export async function analyzeActivitiesAgainstPlan(
           },
         );
         await save({
+          userId: input.userId,
           activityId: activity.id,
           kind: "program",
           model: input.model,
