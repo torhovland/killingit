@@ -30,14 +30,17 @@ function createTestApp(store: QuestionAnswerStore) {
           sub,
           role: "member",
           timezone: null,
+          location: null,
           createdAt: new Date(0),
         }),
-      updateTimezone: (sub, timezone) =>
+      getById: () => Promise.resolve(null),
+      updateSettings: (sub, settings) =>
         Promise.resolve({
           id: 42,
           sub,
           role: "member",
-          timezone,
+          timezone: settings.timezone ?? null,
+          location: settings.location ?? null,
           createdAt: new Date(0),
         }),
     },

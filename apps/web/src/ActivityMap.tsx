@@ -1,46 +1,18 @@
 import type { RoutePoint } from "@killingit/shared";
+import { mapTiles, projectPoint, TILE_SIZE } from "./mapProjection";
 
 const WIDTH = 300;
 const HEIGHT = 300;
-const PADDING = 18;
-const TILE_SIZE = 256;
+const PADDING = 16;
 const MAX_ZOOM = 16;
 const MIN_ZOOM = 1;
-
-interface WorldPoint {
-  x: number;
-  y: number;
-}
-
-interface MapTile {
-  key: string;
-  href: string;
-  x: number;
-  y: number;
-}
-
-/** Web Mercator world pixel coordinates at a given zoom level. */
-function worldPoint(point: RoutePoint, zoom: number): WorldPoint {
-  const scale = TILE_SIZE * 2 ** zoom;
-  const latitude = Math.max(
-    Math.min(point.latitude, 85.05112878),
-    -85.05112878,
-  );
-  const sinLatitude = Math.sin((latitude * Math.PI) / 180);
-  return {
-    x: ((point.longitude + 180) / 360) * scale,
-    y:
-      (0.5 - Math.log((1 + sinLatitude) / (1 - sinLatitude)) / (4 * Math.PI)) *
-      scale,
-  };
-}
 
 /** Picks the highest zoom where the route fits inside the map. */
 function chooseZoom(route: readonly RoutePoint[]): number {
   const maxWidth = WIDTH - PADDING * 2;
   const maxHeight = HEIGHT - PADDING * 2;
   for (let zoom = MAX_ZOOM; zoom >= MIN_ZOOM; zoom -= 1) {
-    const points = route.map((point) => worldPoint(point, zoom));
+    const points = route.map((point) => projectPoint(point, zoom));
     const xs = points.map((point) => point.x);
     const ys = points.map((point) => point.y);
     const spanX = Math.max(...xs) - Math.min(...xs);
@@ -52,31 +24,6 @@ function chooseZoom(route: readonly RoutePoint[]): number {
   return MIN_ZOOM;
 }
 
-function mapTiles(topLeft: WorldPoint, zoom: number): MapTile[] {
-  const tileCount = 2 ** zoom;
-  const firstX = Math.floor(topLeft.x / TILE_SIZE);
-  const lastX = Math.floor((topLeft.x + WIDTH) / TILE_SIZE);
-  const firstY = Math.floor(topLeft.y / TILE_SIZE);
-  const lastY = Math.floor((topLeft.y + HEIGHT) / TILE_SIZE);
-  const tiles: MapTile[] = [];
-
-  for (let y = firstY; y <= lastY; y += 1) {
-    if (y < 0 || y >= tileCount) {
-      continue;
-    }
-    for (let x = firstX; x <= lastX; x += 1) {
-      const wrappedX = ((x % tileCount) + tileCount) % tileCount;
-      tiles.push({
-        key: `${zoom}/${x}/${y}`,
-        href: `https://tile.openstreetmap.org/${zoom}/${wrappedX}/${y}.png`,
-        x: x * TILE_SIZE - topLeft.x,
-        y: y * TILE_SIZE - topLeft.y,
-      });
-    }
-  }
-  return tiles;
-}
-
 /**
  * A compact activity route on an OpenStreetMap background. Tiles are rendered
  * directly as SVG images so the preview stays dependency-free; a failed tile
@@ -84,7 +31,7 @@ function mapTiles(topLeft: WorldPoint, zoom: number): MapTile[] {
  */
 export function ActivityMap({ route }: { route: readonly RoutePoint[] }) {
   const zoom = chooseZoom(route);
-  const world = route.map((point) => worldPoint(point, zoom));
+  const world = route.map((point) => projectPoint(point, zoom));
   const xs = world.map((point) => point.x);
   const ys = world.map((point) => point.y);
   const centerX = (Math.min(...xs) + Math.max(...xs)) / 2;
@@ -93,7 +40,7 @@ export function ActivityMap({ route }: { route: readonly RoutePoint[] }) {
     x: centerX - WIDTH / 2,
     y: centerY - HEIGHT / 2,
   };
-  const tiles = mapTiles(topLeft, zoom);
+  const tiles = mapTiles(topLeft, zoom, WIDTH, HEIGHT);
   const points = world.map((point) => ({
     x: point.x - topLeft.x,
     y: point.y - topLeft.y,

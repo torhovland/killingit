@@ -9,6 +9,7 @@ function toCurrentUser(sub: string, user: StoredUser) {
     sub,
     role: user.role,
     timezone: user.timezone,
+    location: user.location,
   });
 }
 
@@ -27,8 +28,11 @@ export function createMeRoute(users: UserStore): Hono {
     .patch("/", zValidator("json", userSettingsUpdateSchema), async (c) => {
       const identity = getAthlete(c);
       await users.ensureUser(identity.sub);
-      const { timezone } = c.req.valid("json");
-      const user = await users.updateTimezone(identity.sub, timezone);
+      const { timezone, location } = c.req.valid("json");
+      const user = await users.updateSettings(identity.sub, {
+        ...(timezone !== undefined ? { timezone } : {}),
+        ...(location !== undefined ? { location } : {}),
+      });
       return c.json(toCurrentUser(identity.sub, user));
     });
 }

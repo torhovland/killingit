@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { coachAnalysisSchema } from "./llm.js";
+import { dailyWeatherSchema } from "./weather.js";
 
 /** A calendar date in `YYYY-MM-DD` form. */
 export const planDateSchema = z
@@ -80,6 +81,13 @@ export const weekSessionSchema = z.object({
    * rest days.
    */
   status: weekSessionStatusSchema.default("planned"),
+  /**
+   * Whether the session is done outdoors. Missing means outdoor so plans stored
+   * before weather planning still show weather when a forecast is available.
+   */
+  outdoor: z.boolean().optional(),
+  /** The forecast for this date, attached by the API when a location is set. */
+  weather: dailyWeatherSchema.nullable().optional(),
 });
 
 export type WeekSession = z.infer<typeof weekSessionSchema>;
@@ -115,6 +123,10 @@ export const dayPlanSchema = z.object({
    * activity was recorded; otherwise it stays `planned`, or `rest` on rest days.
    */
   status: weekSessionStatusSchema.default("planned"),
+  /** False for indoor sessions; missing is treated as outdoor. */
+  outdoor: z.boolean().optional(),
+  /** The forecast for this date, attached by the API when a location is set. */
+  weather: dailyWeatherSchema.nullable().optional(),
 });
 
 export type DayPlan = z.infer<typeof dayPlanSchema>;

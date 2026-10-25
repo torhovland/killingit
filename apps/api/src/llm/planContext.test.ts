@@ -99,6 +99,43 @@ describe("formatPlanContext", () => {
     expect(text).toContain("Coach reply: Keep the momentum.");
   });
 
+  it("renders the forecast with units and the location name", () => {
+    const text = formatPlanContext(
+      input({
+        locationName: "Oslo, Norway",
+        forecast: [
+          {
+            date: "2026-10-25",
+            icon: "sun",
+            temperatureMaxC: 12.4,
+            temperatureMinC: 4.2,
+            windMaxMs: 4.6,
+            gustMaxMs: 8.2,
+            precipitationMm: 0,
+          },
+          {
+            date: "2026-10-26",
+            icon: "rain",
+            temperatureMaxC: 9.1,
+            temperatureMinC: 3.8,
+            windMaxMs: 6.2,
+            gustMaxMs: 11.4,
+            precipitationMm: 3.6,
+          },
+        ],
+      }),
+    ).join("\n");
+
+    expect(text).toContain("Daily weather forecast for Oslo, Norway");
+    expect(text).toContain("Temperatures are in °C");
+    expect(text).toContain(
+      "- 2026-10-25: Sunny (sun), 4–12 °C, wind up to 5 m/s, gusts up to 8 m/s, 0.0 mm precipitation",
+    );
+    expect(text).toContain(
+      "- 2026-10-26: Rain (rain), 4–9 °C, wind up to 6 m/s, gusts up to 11 m/s, 3.6 mm precipitation",
+    );
+  });
+
   it("keeps comments for unlisted activities clearly separate", () => {
     const text = formatPlanContext(
       input({

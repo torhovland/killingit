@@ -49,7 +49,8 @@ answers change and as days, weeks, and blocks roll over.
   a separate status endpoint.
 - Plan history/versioning. The previous plan is overwritten once the new one is
   saved.
-- Weather/daylight inputs in the prompts (the provider seam is ready for it).
+- Daylight/sunrise/sunset inputs. Weather is implemented separately in
+  `docs/specs/location-and-weather.md`.
 
 ## Acceptance criteria
 

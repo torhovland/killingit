@@ -23,16 +23,30 @@ export {
 } from "./athleteIdentity.js";
 
 export {
+  athleteLocationSchema,
   currentUserSchema,
   isValidTimeZone,
   timeZoneSchema,
   userRoleSchema,
   userSettingsUpdateSchema,
+  type AthleteLocation,
   type CurrentUser,
   type TimeZone,
   type UserRole,
   type UserSettingsUpdate,
 } from "./user.js";
+
+export {
+  dailyWeatherSchema,
+  geocodeResponseSchema,
+  geocodedLocationSchema,
+  WEATHER_ICON_LABELS,
+  weatherIconSchema,
+  type DailyWeather,
+  type GeocodeResponse,
+  type GeocodedLocation,
+  type WeatherIcon,
+} from "./weather.js";
 
 export {
   garminConnectionStatusSchema,

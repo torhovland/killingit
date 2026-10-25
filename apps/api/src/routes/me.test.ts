@@ -21,14 +21,25 @@ const userStore: UserStore = {
       sub,
       role: "admin",
       timezone: null,
+      location: null,
       createdAt: new Date(0),
     }),
-  updateTimezone: (sub, timezone) =>
+  getById: (id) =>
+    Promise.resolve({
+      id,
+      sub: signedInSub || "auth0|athlete-123",
+      role: "admin",
+      timezone: null,
+      location: null,
+      createdAt: new Date(0),
+    }),
+  updateSettings: (sub, settings) =>
     Promise.resolve({
       id: 1,
       sub,
       role: "admin",
-      timezone,
+      timezone: settings.timezone !== undefined ? settings.timezone : null,
+      location: settings.location !== undefined ? settings.location : null,
       createdAt: new Date(0),
     }),
 };
@@ -143,5 +154,69 @@ describe("GET /api/me", () => {
     );
 
     expect(res.status).toBe(400);
+  });
+
+  it("saves and clears the athlete's location", async () => {
+    const saved = await app.fetch(
+      new Request("http://localhost/api/me", {
+        method: "PATCH",
+        headers: {
+          authorization: `Bearer ${validToken}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          location: {
+            latitude: 59.91,
+            longitude: 10.75,
+            name: "Oslo, Norway",
+          },
+        }),
+      }),
+    );
+    expect(saved.status).toBe(200);
+    const body = (await saved.json()) as {
+      location: { latitude: number; longitude: number; name: string } | null;
+    };
+    expect(body.location).toEqual({
+      latitude: 59.91,
+      longitude: 10.75,
+      name: "Oslo, Norway",
+    });
+
+    const cleared = await app.fetch(
+      new Request("http://localhost/api/me", {
+        method: "PATCH",
+        headers: {
+          authorization: `Bearer ${validToken}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ location: null }),
+      }),
+    );
+    expect(cleared.status).toBe(200);
+    const clearedBody = (await cleared.json()) as {
+      location: unknown;
+    };
+    expect(clearedBody.location).toBeNull();
+  });
+
+  it("rejects out-of-range coordinates and an empty patch", async () => {
+    for (const body of [
+      { location: { latitude: 91, longitude: 10 } },
+      { location: { latitude: 10, longitude: 181 } },
+      {},
+    ]) {
+      const response = await app.fetch(
+        new Request("http://localhost/api/me", {
+          method: "PATCH",
+          headers: {
+            authorization: `Bearer ${validToken}`,
+            "content-type": "application/json",
+          },
+          body: JSON.stringify(body),
+        }),
+      );
+      expect(response.status).toBe(400);
+    }
   });
 });

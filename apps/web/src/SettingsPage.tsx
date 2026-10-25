@@ -3,6 +3,7 @@ import {
   currentUserSchema,
   garminConnectionStatusSchema,
   llmSettingsSchema,
+  type AthleteLocation,
   type GarminConnectionStatus,
   type LlmSettings,
 } from "@killingit/shared";
@@ -11,6 +12,7 @@ import { useAuth } from "./auth";
 import { fetchJsonAuthed } from "./fetchAuthed";
 import { GarminSection } from "./GarminSection";
 import { LlmSection } from "./LlmSection";
+import { LocationSection } from "./LocationSection";
 import { RegeneratePlanButton } from "./RegeneratePlanButton";
 import { reportError } from "./reportError";
 
@@ -28,9 +30,13 @@ function supportedTimeZones(): string[] {
 export function SettingsPage({
   timeZone,
   onTimeZoneChanged,
+  location,
+  onLocationChanged,
 }: {
   timeZone: string | null;
   onTimeZoneChanged: (timeZone: string | null) => void;
+  location: AthleteLocation | null;
+  onLocationChanged: (location: AthleteLocation | null) => void;
 }) {
   const auth = useAuth();
   const { setStatus } = useAppStatus();
@@ -128,8 +134,8 @@ export function SettingsPage({
       <div className="flex flex-col gap-1">
         <h2 className="text-2xl font-semibold">Settings</h2>
         <p className="text-sm text-muted-foreground">
-          Connect your training data, configure the coach's model, and rebuild
-          your plan.
+          Connect your training data, set your location, configure the coach's
+          model, and rebuild your plan.
         </p>
       </div>
 
@@ -180,6 +186,18 @@ export function SettingsPage({
             >
               {savingTimeZone ? "Saving…" : "Save time zone"}
             </button>
+          </section>
+
+          <section className="flex flex-col gap-3 rounded-lg border bg-card p-4">
+            <h3 className="text-xl font-semibold">Location</h3>
+            <p className="text-sm text-muted-foreground">
+              Choose the place the coach should use for weather. Plans use the
+              forecast to schedule outdoor sessions around rain, wind, and cold.
+            </p>
+            <LocationSection
+              location={location}
+              onChanged={onLocationChanged}
+            />
           </section>
 
           <section className="flex flex-col gap-3 rounded-lg border bg-card p-4">

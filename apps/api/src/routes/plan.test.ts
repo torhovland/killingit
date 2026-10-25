@@ -1,5 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import type { CoachPlan, PlanGenerationStatus } from "@killingit/shared";
+import type {
+  AthleteLocation,
+  CoachPlan,
+  DailyWeather,
+  PlanGenerationStatus,
+} from "@killingit/shared";
 import { createApp } from "../index.js";
 import type { CoachingInputs } from "../plans/inputs.js";
 import type {
@@ -180,7 +185,10 @@ function makeApp(options: {
   generationStore?: PlanGenerationStore;
   answers?: QuestionAnswerStore;
   coachingInputs?: CoachingInputs;
+  location?: AthleteLocation | null;
+  loadForecast?: (location: AthleteLocation) => Promise<DailyWeather[]>;
 }) {
+  const location = options.location ?? null;
   return createApp({
     authProvider: { verify: () => Promise.resolve({ sub: "athlete-1" }) },
     userStore: {
@@ -190,17 +198,31 @@ function makeApp(options: {
           sub,
           role: "member",
           timezone: null,
+          location,
           createdAt: new Date(0),
         }),
-      updateTimezone: (sub, timezone) =>
+      getById: (id) =>
+        Promise.resolve({
+          id,
+          sub: "athlete-1",
+          role: "member",
+          timezone: null,
+          location,
+          createdAt: new Date(0),
+        }),
+      updateSettings: (sub, settings) =>
         Promise.resolve({
           id: 42,
           sub,
           role: "member",
-          timezone,
+          timezone: settings.timezone ?? null,
+          location: settings.location ?? null,
           createdAt: new Date(0),
         }),
     },
+    ...(options.loadForecast !== undefined
+      ? { loadForecast: options.loadForecast }
+      : {}),
     answerStore:
       options.answers ??
       ({
@@ -422,6 +444,72 @@ describe("coach plan route", () => {
     await waitForGeneration(generationStore);
     expect(generationStore.status.status).toBe("done");
     expect(planStore.stored?.plan.today.date).toBe("2026-10-21");
+  });
+
+  it("loads the forecast for the saved location and attaches it", async () => {
+    const planStore = new MemoryPlanStore(null);
+    const generationStore = new MemoryGenerationStore();
+    const location: AthleteLocation = {
+      latitude: 59.91,
+      longitude: 10.75,
+      name: "Oslo",
+    };
+    const seen: AthleteLocation[] = [];
+    const testApp = makeApp({
+      planStore,
+      generationStore,
+      location,
+      loadForecast: (entry) => {
+        seen.push(entry);
+        return Promise.resolve([
+          {
+            date: "2026-10-21",
+            icon: "rain",
+            temperatureMaxC: 9,
+            temperatureMinC: 5,
+            windMaxMs: 4,
+            gustMaxMs: 8,
+            precipitationMm: 2,
+          },
+        ]);
+      },
+    });
+
+    const res = await testApp.fetch(
+      authenticatedRequest("/api/coaching/plan/generate", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ today: "2026-10-21" }),
+      }),
+    );
+    expect(res.status).toBe(202);
+    await waitForGeneration(generationStore);
+
+    expect(seen).toEqual([location]);
+    expect(planStore.stored?.plan.today.weather?.icon).toBe("rain");
+  });
+
+  it("continues when the forecast service fails", async () => {
+    const planStore = new MemoryPlanStore(null);
+    const generationStore = new MemoryGenerationStore();
+    const testApp = makeApp({
+      planStore,
+      generationStore,
+      location: { latitude: 59.91, longitude: 10.75, name: "Oslo" },
+      loadForecast: () => Promise.reject(new Error("weather down")),
+    });
+
+    const res = await testApp.fetch(
+      authenticatedRequest("/api/coaching/plan/generate", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ today: "2026-10-21" }),
+      }),
+    );
+    expect(res.status).toBe(202);
+    await waitForGeneration(generationStore);
+    expect(generationStore.status.status).toBe("done");
+    expect(planStore.stored?.plan.today.weather).toBeUndefined();
   });
 
   it("returns 202 when a generation is already running", async () => {

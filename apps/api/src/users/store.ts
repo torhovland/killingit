@@ -1,4 +1,4 @@
-import type { UserRole } from "@killingit/shared";
+import type { AthleteLocation, UserRole } from "@killingit/shared";
 import { eq, sql } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { users, type UserRow } from "../db/schema.js";
@@ -8,9 +8,17 @@ export interface StoredUser {
   id: number;
   sub: string;
   role: UserRole;
-  /** Preferred IANA display time zone; null means the device's zone. */
+  /** Preferred IANA time zone; null means the device's time zone. */
   timezone: string | null;
+  /** Home location for weather forecasts; null means weather is not used. */
+  location: AthleteLocation | null;
   createdAt: Date;
+}
+
+/** A partial settings update; omitted fields keep their stored value. */
+export interface UserSettingsPatch {
+  timezone?: string | null;
+  location?: AthleteLocation | null;
 }
 
 /**
@@ -20,8 +28,10 @@ export interface StoredUser {
  */
 export interface UserStore {
   ensureUser(sub: string): Promise<StoredUser>;
-  /** Stores the athlete's display time zone; null clears it. */
-  updateTimezone(sub: string, timezone: string | null): Promise<StoredUser>;
+  /** Loads an account by its internal id, or null when it no longer exists. */
+  getById(id: number): Promise<StoredUser | null>;
+  /** Stores the supplied time zone and/or location; null clears a setting. */
+  updateSettings(sub: string, update: UserSettingsPatch): Promise<StoredUser>;
 }
 
 export interface ProvisioningPlan {
@@ -59,8 +69,28 @@ function toStoredUser(row: UserRow): StoredUser {
     sub: row.authSubject,
     role: row.role,
     timezone: row.timezone,
+    location:
+      row.latitude !== null && row.longitude !== null
+        ? {
+            latitude: row.latitude,
+            longitude: row.longitude,
+            name: row.locationName,
+          }
+        : null,
     createdAt: row.createdAt,
   };
+}
+
+function locationColumns(
+  location: AthleteLocation | null,
+): Pick<UserRow, "latitude" | "longitude" | "locationName"> {
+  return location === null
+    ? { latitude: null, longitude: null, locationName: null }
+    : {
+        latitude: location.latitude,
+        longitude: location.longitude,
+        locationName: location.name,
+      };
 }
 
 async function findUserBySub(sub: string): Promise<StoredUser | null> {
@@ -132,14 +162,29 @@ export const dbUserStore: UserStore = {
     });
   },
 
-  async updateTimezone(sub, timezone) {
+  async getById(id) {
+    const [row] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, id))
+      .limit(1);
+    return row ? toStoredUser(row) : null;
+  },
+
+  async updateSettings(sub, update) {
     const [updated] = await db
       .update(users)
-      .set({ timezone, updatedAt: new Date() })
+      .set({
+        ...(update.timezone !== undefined ? { timezone: update.timezone } : {}),
+        ...(update.location !== undefined
+          ? locationColumns(update.location)
+          : {}),
+        updatedAt: new Date(),
+      })
       .where(eq(users.authSubject, sub))
       .returning();
     if (!updated) {
-      throw new Error("failed to update the user's time zone");
+      throw new Error("failed to update the user's settings");
     }
     return toStoredUser(updated);
   },

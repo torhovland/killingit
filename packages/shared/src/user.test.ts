@@ -33,6 +33,42 @@ describe("time zone schemas", () => {
   });
 });
 
+describe("location settings", () => {
+  it("accepts a location and clears it with null", () => {
+    expect(
+      userSettingsUpdateSchema.parse({
+        location: {
+          latitude: 59.91,
+          longitude: 10.75,
+          name: "Oslo, Norway",
+        },
+      }),
+    ).toEqual({
+      location: { latitude: 59.91, longitude: 10.75, name: "Oslo, Norway" },
+    });
+    expect(userSettingsUpdateSchema.parse({ location: null })).toEqual({
+      location: null,
+    });
+  });
+
+  it("defaults a missing name and rejects out-of-range coordinates", () => {
+    expect(
+      userSettingsUpdateSchema.parse({
+        location: { latitude: 59.91, longitude: 10.75 },
+      }).location,
+    ).toEqual({ latitude: 59.91, longitude: 10.75, name: null });
+    expect(() =>
+      userSettingsUpdateSchema.parse({
+        location: { latitude: 91, longitude: 10 },
+      }),
+    ).toThrow();
+  });
+
+  it("rejects an empty settings patch", () => {
+    expect(() => userSettingsUpdateSchema.parse({})).toThrow();
+  });
+});
+
 describe("currentUserSchema", () => {
   it("parses the signed-in user with their role", () => {
     const parsed = currentUserSchema.parse({
@@ -43,6 +79,7 @@ describe("currentUserSchema", () => {
     expect(parsed.sub).toBe("auth0|athlete-123");
     expect(parsed.role).toBe("admin");
     expect(parsed.timezone).toBeNull();
+    expect(parsed.location).toBeNull();
   });
 
   it("keeps a configured time zone", () => {

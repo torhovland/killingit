@@ -38,7 +38,10 @@ import type {
   loadManualActivityReplies,
   loadWeeklyNoteReply,
 } from "./plans/replies.js";
-import type { triggerPlanGeneration } from "./plans/trigger.js";
+import type {
+  PlanTriggerDependencies,
+  triggerPlanGeneration,
+} from "./plans/trigger.js";
 import {
   dbPlanGenerationStore,
   dbPlanStore,
@@ -58,7 +61,9 @@ import { createLlmRoute } from "./routes/llm.js";
 import { createMeRoute } from "./routes/me.js";
 import { createPlanRoute } from "./routes/plan.js";
 import { createQuestionsRoute } from "./routes/questions.js";
+import { createWeatherRoute } from "./routes/weather.js";
 import { dbUserStore, type UserStore } from "./users/store.js";
+import type { searchLocations } from "./weather/openMeteo.js";
 
 // Load local environment for `bun run dev`. Bun does not auto-load dotenv
 // files (unlike Vite/Node --env-file). Anchor at the repo root (three levels
@@ -118,6 +123,10 @@ export interface AppDependencies {
   answerCoachingQuestion?: typeof answerCoachingQuestion;
   /** Plan generation trigger, injectable for DB-free route tests. */
   triggerPlanGeneration?: typeof triggerPlanGeneration;
+  /** Address search, injectable for DB-free weather route tests. */
+  searchLocations?: typeof searchLocations;
+  /** Forecast loader, injectable for DB-free plan generation tests. */
+  loadForecast?: PlanTriggerDependencies["loadForecast"];
 }
 
 // Authentication is opt-in per route. The provider is created lazily on the
@@ -173,6 +182,18 @@ export function createApp(deps: AppDependencies = {}): Hono {
   // to the client.
   api.use("/llm/*", requireAuth(authProvider));
   api.route("/llm", createLlmRoute({ users: userStore }));
+
+  // Address search for the athlete's home location. The actual forecast is
+  // fetched during plan generation, not exposed as a public route.
+  api.use("/weather/*", requireAuth(authProvider));
+  api.route(
+    "/weather",
+    createWeatherRoute(
+      deps.searchLocations !== undefined
+        ? { searchLocations: deps.searchLocations }
+        : {},
+    ),
+  );
 
   // Coaching reads synced Garmin activities, analyses them with the configured
   // LLM, and returns activity data with cached-or-fresh coach analysis.
@@ -254,6 +275,9 @@ export function createApp(deps: AppDependencies = {}): Hono {
       ...(deps.triggerPlanGeneration !== undefined
         ? { triggerPlanGeneration: deps.triggerPlanGeneration }
         : {}),
+      ...(deps.loadForecast !== undefined
+        ? { loadForecast: deps.loadForecast }
+        : {}),
     }),
   );
 
@@ -272,6 +296,9 @@ export function createApp(deps: AppDependencies = {}): Hono {
       ...(deps.loadLlm !== undefined ? { loadLlm: deps.loadLlm } : {}),
       ...(deps.loadCoachingInputs !== undefined
         ? { loadCoachingInputs: deps.loadCoachingInputs }
+        : {}),
+      ...(deps.loadForecast !== undefined
+        ? { loadForecast: deps.loadForecast }
         : {}),
     }),
   );

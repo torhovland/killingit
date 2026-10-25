@@ -6,6 +6,7 @@ import {
   buildDailyUpdatePrompt,
   buildWeeklyUpdatePrompt,
   DAILY_UPDATE_SYSTEM_PROMPT,
+  WEATHER_PLANNING_RULES,
   WEEKLY_UPDATE_SYSTEM_PROMPT,
 } from "./planUpdatePrompt.js";
 
@@ -159,6 +160,36 @@ describe("daily update prompts", () => {
     expect(prompt).toContain("Week starting 2026-10-19");
     expect(prompt).toContain("Easy run");
   });
+
+  it("asks the coach to respect weather and mark outdoor sessions", () => {
+    expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain(WEATHER_PLANNING_RULES);
+    expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain('"outdoor"');
+    expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain("not ride outdoors in rain");
+  });
+
+  it("includes the forecast when one is supplied", () => {
+    const prompt = buildDailyUpdatePrompt({
+      ...base,
+      season,
+      block,
+      week,
+      locationName: "Oslo",
+      forecast: [
+        {
+          date: "2026-10-21",
+          icon: "rain",
+          temperatureMaxC: 9,
+          temperatureMinC: 5,
+          windMaxMs: 4,
+          gustMaxMs: 8,
+          precipitationMm: 2,
+        },
+      ],
+    });
+
+    expect(prompt).toContain("Daily weather forecast for Oslo");
+    expect(prompt).toContain("Rain (rain)");
+  });
 });
 
 describe("weekly update prompts", () => {
@@ -188,6 +219,13 @@ describe("weekly update prompts", () => {
     expect(prompt).toContain("Goal: Sub-4-hour marathon");
     expect(prompt).toContain("Block: Base");
     expect(prompt).toContain("Aerobic base + strides");
+  });
+
+  it("asks the coach to place sessions around the weather", () => {
+    expect(WEEKLY_UPDATE_SYSTEM_PROMPT).toContain(WEATHER_PLANNING_RULES);
+    expect(WEEKLY_UPDATE_SYSTEM_PROMPT).toContain(
+      "Saturday is sunny and Sunday is rainy",
+    );
   });
 });
 

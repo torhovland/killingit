@@ -10,6 +10,7 @@ import {
   bigint,
   boolean,
   check,
+  doublePrecision,
   integer,
   jsonb,
   pgTable,
@@ -35,6 +36,11 @@ export const users = pgTable(
       .default("member"),
     // IANA zone used to display the athlete's times; null means device zone.
     timezone: text("timezone"),
+    // Home location used for weather-aware planning. Latitude and longitude are
+    // always set together; `locationName` is only a display label.
+    latitude: doublePrecision("latitude"),
+    longitude: doublePrecision("longitude"),
+    locationName: text("location_name"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -44,6 +50,10 @@ export const users = pgTable(
   },
   (table) => [
     check("users_role_check", sql`${table.role} in ('admin', 'member')`),
+    check(
+      "users_location_check",
+      sql`(${table.latitude} is null and ${table.longitude} is null) or (${table.latitude} is not null and ${table.longitude} is not null)`,
+    ),
   ],
 );
 

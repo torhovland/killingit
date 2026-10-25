@@ -7,8 +7,10 @@ import { captureCompletedPeriodReviews } from "../coaching/periodReviews.js";
 import { analyzeActivitiesAgainstPlan } from "../coaching/programAnalysis.js";
 import type { LlmClient } from "../llm/client.js";
 import { loadLlmClient } from "../llm/client.js";
+import type { AthleteLocation, DailyWeather } from "@killingit/shared";
 import type { QuestionAnswerStore } from "../questions/answers.js";
 import type { UserStore } from "../users/store.js";
+import { fetchWeatherForecast } from "../weather/openMeteo.js";
 import { startOfWeek } from "./dates.js";
 import { runPlanGeneration } from "./generate.js";
 import { loadCoachingInputs, type CoachingInputs } from "./inputs.js";
@@ -32,6 +34,8 @@ export interface PlanTriggerDependencies {
     userId: number,
     weekStartDate: string,
   ) => Promise<CoachingInputs>;
+  /** Injectable for tests; defaults to Open-Meteo. */
+  loadForecast?: (location: AthleteLocation) => Promise<DailyWeather[]>;
 }
 
 /**
@@ -63,9 +67,10 @@ export async function triggerPlanGeneration(
   let activities: ActivityFeed;
   let llm: LlmClient | null;
   let coachingInputs: CoachingInputs;
+  let user: Awaited<ReturnType<UserStore["getById"]>>;
 
   try {
-    [plan, answers, activities, llm, coachingInputs] = await Promise.all([
+    [plan, answers, activities, llm, coachingInputs, user] = await Promise.all([
       deps.plans.load(userId),
       deps.answers.listForUser(userId),
       deps.loadActivities
@@ -79,6 +84,7 @@ export async function triggerPlanGeneration(
       deps.loadCoachingInputs
         ? deps.loadCoachingInputs(userId, startOfWeek(today))
         : loadCoachingInputs(userId, startOfWeek(today)),
+      deps.users.getById(userId),
     ]);
   } catch (err) {
     const message =
@@ -91,6 +97,20 @@ export async function triggerPlanGeneration(
     const message = "OpenRouter is not configured. Add a key and model first.";
     await deps.generations.fail(userId, message);
     return true;
+  }
+
+  const location = user?.location ?? null;
+  let forecast: DailyWeather[] | null = null;
+  if (location !== null) {
+    try {
+      const loadForecast =
+        deps.loadForecast ??
+        ((entry: AthleteLocation) => fetchWeatherForecast(entry));
+      forecast = await loadForecast(location);
+    } catch (err) {
+      // Weather is advisory. A forecast outage must not stop the plan.
+      console.error("[weather] could not load the forecast:", err);
+    }
   }
 
   // Run the long cascade after responding so the request cannot hit the server
@@ -127,6 +147,8 @@ export async function triggerPlanGeneration(
       activitiesUpdatedAt: latestActivityAnalysisTimestamp(
         activities.activities,
       ),
+      location,
+      forecast,
       provider: llm.provider,
       apiKey: llm.apiKey,
       model: llm.model,

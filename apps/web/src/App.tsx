@@ -192,6 +192,12 @@ function AppShell() {
                   timeZoneTouched.current = true;
                   setTimeZone(timezone);
                 }}
+                location={me?.location ?? null}
+                onLocationChanged={(location) => {
+                  setMe((current) =>
+                    current === null ? current : { ...current, location },
+                  );
+                }}
               />
             ) : page === "admin" && isAdmin ? (
               <AdminSettingsPage />
