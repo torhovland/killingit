@@ -5,6 +5,7 @@ import {
   formatPlanContext,
   formatSeasonPlan,
   formatWeekPlan,
+  SESSION_PURPOSE_RULES,
   type ActivityCommentContext,
   type AthleteAnswerContext,
   type ManualActivityContext,
@@ -131,7 +132,9 @@ Keep the week's start date and exactly seven sessions. For days before today, do
 
 ${WEATHER_PLANNING_RULES}
 
-Also provide a suggested workout or rest for tomorrow, consistent with the revised week and the block's focus. For both today and tomorrow, set "optional" to true when the session can be skipped without undermining the plan (for example, an easy recovery session), and false when skipping would hurt the athlete's progression. In "optionalRationale", explain concisely why the session should not be skipped or why it is safe to consider it optional.
+Also provide a suggested workout or rest for tomorrow, consistent with the revised week and the block's focus.
+
+${SESSION_PURPOSE_RULES}
 
 ${ENUM_RULES}
 

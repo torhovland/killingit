@@ -58,6 +58,20 @@ export interface ActivityCommentContext {
 export const ACTIVITY_COMMENT_RULE =
   "A comment on an activity describes that same activity. It is not an additional activity and must never be added on top of the activity's recorded time or treated as extra training.";
 
+/**
+ * Shared rule for the day the athlete is about to train. A session must earn
+ * its place: the coach states what it builds toward the plan's goal and what
+ * skipping costs, and treats a session it cannot justify as a reason to revise
+ * the week instead of hiding it behind an "optional" label.
+ */
+export const SESSION_PURPOSE_RULES = `For today's and tomorrow's workouts, explain the session's purpose against the plan's goal. In "optionalRationale", name the concrete adaptation or fitness quality the session builds toward the season goal, the block's focus, and the week's target load, and state what the athlete loses toward that goal if they skip it. Be specific and motivating (for example, "the aerobic durability that carries you through the last 10 km of the marathon") rather than generic encouragement.
+
+Set "optional" to true only when the cost of skipping is genuinely small, and explain in "optionalRationale" why that cost is acceptable today (for example, a short recovery run at the end of a hard week). Never use "optional" as a label for a workout with no clear purpose.
+
+Before returning, apply the same test to every workout in the week: if you cannot state a concrete loss for skipping a planned session, that session is filler. Revise the week so every workout serves the goal, or replace the session with rest, and update today's plan to match. The week must be the best plan you can make for this athlete's goal, not a template to fill.
+
+If today or tomorrow is a rest day, explain in "rationale" why rest is the best choice today; no optionality assessment is needed.`;
+
 /** The complete context passed to the coach for a plan generation. */
 export interface PlanContextInput {
   athleteAnswers: readonly AthleteAnswerContext[];

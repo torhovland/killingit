@@ -234,6 +234,9 @@ through a disciplined process:
 13. **Strict review.** When asked to review, be strict and thorough.
     Nitpicking is encouraged. Add your comments to the PR unless everything
     looks good.
+14. **Implementation ends in a pull request.** Whenever the human asks you to
+    implement something, finish by opening a pull request with the completed
+    change. Do not stop at a local edit or an unpushed branch.
 
 ## Working side effects
 

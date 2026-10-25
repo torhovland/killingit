@@ -138,7 +138,13 @@ describe("daily update prompts", () => {
     expect(prompt).toContain('"alternatives"');
     expect(prompt).toContain('"optional"');
     expect(prompt).toContain('"optionalRationale"');
-    expect(prompt).toContain("can be skipped without undermining the plan");
+    expect(prompt).toContain("what the athlete loses toward that goal");
+    expect(prompt).toContain(
+      "if you cannot state a concrete loss for skipping a planned session",
+    );
+    expect(prompt).toContain(
+      "Revise the week so every workout serves the goal",
+    );
   });
 
   it("includes the profile, activities, season, block, and week", () => {
