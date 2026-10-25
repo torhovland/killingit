@@ -47,13 +47,22 @@ export function weatherIconForCode(code: number): WeatherIcon {
   return "very_cloudy";
 }
 
-function asNumberArray(value: unknown): number[] | null {
+/**
+ * Open-Meteo pads the end of the requested range with `null` once it runs out
+ * of forecast data, so a missing value is allowed here and the incomplete day
+ * is skipped later.
+ */
+function asNumberArray(value: unknown): (number | null)[] | null {
   if (!Array.isArray(value)) {
     return null;
   }
   const entries: unknown[] = value;
-  const numbers: number[] = [];
+  const numbers: (number | null)[] = [];
   for (const entry of entries) {
+    if (entry === null) {
+      numbers.push(null);
+      continue;
+    }
     if (typeof entry !== "number" || !Number.isFinite(entry)) {
       return null;
     }
@@ -126,17 +135,26 @@ export function parseForecastResponse(body: unknown): DailyWeather[] {
     const windMaxMs = windSpeeds[index];
     const gustMaxMs = windGusts[index];
     const precipitationMm = precipitation[index];
+    if (date === undefined || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      throw new Error("Weather service returned an invalid forecast date");
+    }
+    // Drop days the service has not filled in yet. The preceding days are
+    // still useful, and the plan simply has no weather for the missing dates.
     if (
-      date === undefined ||
-      !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+      code === null ||
       code === undefined ||
+      temperatureMaxC === null ||
       temperatureMaxC === undefined ||
+      temperatureMinC === null ||
       temperatureMinC === undefined ||
+      windMaxMs === null ||
       windMaxMs === undefined ||
+      gustMaxMs === null ||
       gustMaxMs === undefined ||
+      precipitationMm === null ||
       precipitationMm === undefined
     ) {
-      throw new Error("Weather service returned an incomplete forecast day");
+      continue;
     }
     days.push({
       date,

@@ -62,6 +62,22 @@ describe("parseForecastResponse", () => {
     expect(days[1]?.precipitationMm).toBe(3.6);
   });
 
+  it("skips incomplete trailing days instead of failing the forecast", () => {
+    const days = parseForecastResponse({
+      daily: {
+        time: ["2026-10-25", "2026-10-26", "2026-10-27"],
+        weather_code: [0, 61, null],
+        temperature_2m_max: [12.4, 9.1, null],
+        temperature_2m_min: [4.2, 3.8, null],
+        wind_speed_10m_max: [4.5, 6.2, null],
+        wind_gusts_10m_max: [8.1, 11.4, null],
+        precipitation_sum: [0, 3.6, null],
+      },
+    });
+
+    expect(days.map((day) => day.date)).toEqual(["2026-10-25", "2026-10-26"]);
+  });
+
   it("rejects a malformed or mismatched response", () => {
     expect(() => parseForecastResponse({})).toThrow();
     expect(() =>
