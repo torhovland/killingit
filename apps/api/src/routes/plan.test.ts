@@ -18,6 +18,8 @@ import type {
   QuestionAnswerStore,
   StoredAthleteQuestion,
 } from "../questions/answers.js";
+import { combineForecasts } from "../weather/combine.js";
+import type { WeatherForecastSet } from "../weather/forecast.js";
 
 const storedQuestion: StoredAthleteQuestion = {
   id: 1,
@@ -110,6 +112,17 @@ function weekForecast(icon: DailyWeather["icon"]): DailyWeather[] {
     gustMaxMs: 5,
     precipitationMm: 0,
   }));
+}
+
+function forecastSet(
+  openMeteo: DailyWeather[],
+  yr: DailyWeather[] = [],
+): WeatherForecastSet {
+  return {
+    openMeteo,
+    yr,
+    combined: combineForecasts(openMeteo, yr),
+  };
 }
 
 function withWeekWeather(
@@ -222,7 +235,10 @@ function makeApp(options: {
   answers?: QuestionAnswerStore;
   coachingInputs?: CoachingInputs;
   location?: AthleteLocation | null;
-  loadForecast?: (location: AthleteLocation) => Promise<DailyWeather[]>;
+  loadForecast?: (
+    location: AthleteLocation,
+    timezone: string | null,
+  ) => Promise<WeatherForecastSet>;
 }) {
   const location = options.location ?? null;
   return createApp({
@@ -404,7 +420,7 @@ describe("coach plan route", () => {
     const res = await makeApp({
       planStore,
       location,
-      loadForecast: () => Promise.resolve(changed),
+      loadForecast: () => Promise.resolve(forecastSet(changed)),
     }).fetch(authenticatedRequest("/api/coaching/plan?today=2026-10-21"));
 
     expect(res.status).toBe(200);
@@ -430,7 +446,8 @@ describe("coach plan route", () => {
     const res = await makeApp({
       planStore,
       location,
-      loadForecast: () => Promise.resolve(weekForecast("partly_cloudy")),
+      loadForecast: () =>
+        Promise.resolve(forecastSet(weekForecast("partly_cloudy"))),
     }).fetch(authenticatedRequest("/api/coaching/plan?today=2026-10-21"));
 
     expect(res.status).toBe(200);
@@ -686,7 +703,7 @@ describe("coach plan route", () => {
       location,
       loadForecast: (entry) => {
         seen.push(entry);
-        return Promise.resolve([
+        const openMeteo: DailyWeather[] = [
           {
             date: "2026-10-21",
             icon: "rain",
@@ -696,7 +713,19 @@ describe("coach plan route", () => {
             gustMaxMs: 8,
             precipitationMm: 2,
           },
-        ]);
+        ];
+        const yr: DailyWeather[] = [
+          {
+            date: "2026-10-21",
+            icon: "rain",
+            temperatureMaxC: 11,
+            temperatureMinC: 7,
+            windMaxMs: 6,
+            gustMaxMs: 10,
+            precipitationMm: 4,
+          },
+        ];
+        return Promise.resolve(forecastSet(openMeteo, yr));
       },
     });
 
@@ -712,6 +741,16 @@ describe("coach plan route", () => {
 
     expect(seen).toEqual([location]);
     expect(planStore.stored?.plan.today.weather?.icon).toBe("rain");
+    expect(planStore.stored?.plan.today.weather?.temperatureMaxC).toBe(10);
+    expect(
+      planStore.stored?.plan.today.forecasts?.openMeteo?.temperatureMaxC,
+    ).toBe(9);
+    expect(planStore.stored?.plan.today.forecasts?.yr?.temperatureMaxC).toBe(
+      11,
+    );
+    expect(
+      planStore.stored?.plan.today.forecasts?.combined?.temperatureMaxC,
+    ).toBe(10);
   });
 
   it("continues when the forecast service fails", async () => {

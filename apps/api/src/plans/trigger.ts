@@ -10,7 +10,10 @@ import { loadLlmClient } from "../llm/client.js";
 import type { AthleteLocation, DailyWeather } from "@killingit/shared";
 import type { QuestionAnswerStore } from "../questions/answers.js";
 import type { UserStore } from "../users/store.js";
-import { fetchWeatherForecast } from "../weather/openMeteo.js";
+import {
+  fetchWeatherForecasts,
+  type WeatherForecastSet,
+} from "../weather/forecast.js";
 import { startOfWeek } from "./dates.js";
 import { GENERATION_HEARTBEAT_MS } from "./generation.js";
 import { runPlanGeneration } from "./generate.js";
@@ -35,8 +38,11 @@ export interface PlanTriggerDependencies {
     userId: number,
     weekStartDate: string,
   ) => Promise<CoachingInputs>;
-  /** Injectable for tests; defaults to Open-Meteo. */
-  loadForecast?: (location: AthleteLocation) => Promise<DailyWeather[]>;
+  /** Injectable for tests; defaults to Open-Meteo and Yr.no. */
+  loadForecast?: (
+    location: AthleteLocation,
+    timezone: string | null,
+  ) => Promise<WeatherForecastSet>;
 }
 
 /**
@@ -112,16 +118,23 @@ export async function triggerPlanGeneration(
   }
 
   const location = user?.location ?? null;
+  let weatherForecasts: WeatherForecastSet | null = null;
   let forecast: DailyWeather[] | null = null;
   if (location !== null) {
     try {
       const loadForecast =
         deps.loadForecast ??
-        ((entry: AthleteLocation) => fetchWeatherForecast(entry));
-      forecast = await loadForecast(location);
+        ((entry: AthleteLocation, zone: string | null) =>
+          fetchWeatherForecasts(entry, { timezone: zone }));
+      weatherForecasts = await loadForecast(
+        location,
+        timezone ?? user?.timezone ?? null,
+      );
+      forecast =
+        weatherForecasts.combined.length > 0 ? weatherForecasts.combined : null;
     } catch (err) {
       // Weather is advisory. A forecast outage must not stop the plan.
-      console.error("[weather] could not load the forecast:", err);
+      console.error("[weather] could not fetch the forecast:", err);
     }
   }
 
@@ -161,6 +174,7 @@ export async function triggerPlanGeneration(
       ),
       location,
       forecast,
+      weatherForecasts,
       provider: llm.provider,
       apiKey: llm.apiKey,
       model: llm.model,

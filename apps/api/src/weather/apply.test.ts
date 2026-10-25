@@ -2,6 +2,8 @@ import { describe, expect, it } from "bun:test";
 import type { CoachPlan, DailyWeather } from "@killingit/shared";
 import { addDays } from "../plans/dates.js";
 import { applyForecastToPlan } from "./apply.js";
+import { combineForecasts } from "./combine.js";
+import type { WeatherForecastSet } from "./forecast.js";
 
 const forecast: DailyWeather[] = [
   {
@@ -23,6 +25,17 @@ const forecast: DailyWeather[] = [
     precipitationMm: 0,
   },
 ];
+
+function forecastSet(
+  openMeteo: DailyWeather[],
+  yr: DailyWeather[] = [],
+): WeatherForecastSet {
+  return {
+    openMeteo,
+    yr,
+    combined: combineForecasts(openMeteo, yr),
+  };
+}
 
 function plan(): CoachPlan {
   return {
@@ -102,13 +115,25 @@ function plan(): CoachPlan {
 
 describe("applyForecastToPlan", () => {
   it("attaches the matching forecast to sessions, today, and tomorrow", () => {
-    const result = applyForecastToPlan(plan(), forecast);
+    const result = applyForecastToPlan(plan(), forecastSet(forecast));
 
     expect(result.week.sessions[2]?.weather?.icon).toBe("rain");
     expect(result.week.sessions[3]?.weather?.icon).toBe("sun");
     expect(result.week.sessions[0]?.weather).toBeNull();
+    expect(result.week.sessions[0]?.forecasts).toBeNull();
     expect(result.today.weather?.icon).toBe("rain");
     expect(result.tomorrow?.weather?.icon).toBe("sun");
+  });
+
+  it("stores every provider's forecast alongside the combined values", () => {
+    const yr = forecast.map((day) => ({ ...day, icon: "snow" as const }));
+    const result = applyForecastToPlan(plan(), forecastSet(forecast, yr));
+
+    const session = result.week.sessions[2];
+    expect(session?.weather?.icon).toBe("snow");
+    expect(session?.forecasts?.openMeteo?.icon).toBe("rain");
+    expect(session?.forecasts?.yr?.icon).toBe("snow");
+    expect(session?.forecasts?.combined?.icon).toBe("snow");
   });
 
   it("attaches the forecast to a stored next week", () => {
@@ -134,7 +159,7 @@ describe("applyForecastToPlan", () => {
       },
     ];
 
-    const result = applyForecastToPlan(withNext, nextForecast);
+    const result = applyForecastToPlan(withNext, forecastSet(nextForecast));
 
     expect(result.nextWeek?.sessions[0]?.weather?.icon).toBe("partly_cloudy");
     expect(result.nextWeek?.sessions[1]?.weather).toBeNull();
@@ -143,6 +168,6 @@ describe("applyForecastToPlan", () => {
   it("leaves a plan untouched without a forecast", () => {
     const original = plan();
     expect(applyForecastToPlan(original, null)).toBe(original);
-    expect(applyForecastToPlan(original, [])).toBe(original);
+    expect(applyForecastToPlan(original, forecastSet([]))).toBe(original);
   });
 });

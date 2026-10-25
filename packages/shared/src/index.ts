@@ -37,11 +37,15 @@ export {
 } from "./user.js";
 
 export {
+  dailyForecastsSchema,
   dailyWeatherSchema,
+  FORECAST_PROVIDER_LABELS,
+  formatDailyWeatherLine,
   geocodeResponseSchema,
   geocodedLocationSchema,
   WEATHER_ICON_LABELS,
   weatherIconSchema,
+  type DailyForecasts,
   type DailyWeather,
   type GeocodeResponse,
   type GeocodedLocation,

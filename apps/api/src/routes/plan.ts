@@ -28,7 +28,7 @@ import {
 import type { QuestionAnswerStore } from "../questions/answers.js";
 import type { UserStore } from "../users/store.js";
 import { planWeatherChanged } from "../weather/changes.js";
-import { fetchWeatherForecast } from "../weather/openMeteo.js";
+import { fetchWeatherForecasts } from "../weather/forecast.js";
 
 export interface PlanRouteDependencies {
   users: UserStore;
@@ -44,7 +44,7 @@ export interface PlanRouteDependencies {
     userId: number,
     weekStartDate: string,
   ) => Promise<CoachingInputs>;
-  /** Injectable for route tests; defaults to Open-Meteo. */
+  /** Injectable for route tests; defaults to Open-Meteo and Yr. */
   loadForecast?: PlanTriggerDependencies["loadForecast"];
 }
 
@@ -58,11 +58,15 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
     plan: CoachPlan,
     location: AthleteLocation,
     today: string,
+    timezone: string | null,
   ): Promise<boolean> {
     try {
-      const loadForecast = deps.loadForecast ?? fetchWeatherForecast;
-      const forecast = await loadForecast(location);
-      return planWeatherChanged(plan, forecast, today);
+      const loadForecast =
+        deps.loadForecast ??
+        ((target: AthleteLocation, zone: string | null) =>
+          fetchWeatherForecasts(target, { timezone: zone }));
+      const { combined } = await loadForecast(location, timezone);
+      return planWeatherChanged(plan, combined, today);
     } catch (err) {
       // Weather is advisory. An outage must not make the plan look pending or
       // fail the request.
@@ -74,6 +78,7 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
   async function buildResponse(
     userId: number,
     location: AthleteLocation | null,
+    timezone: string | null,
     today: string,
     includeTomorrow = false,
   ) {
@@ -124,7 +129,7 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
     // the client is polling, and the finished response checks the saved plan.
     const weatherChanged =
       plan !== null && location !== null && generation.status !== "running"
-        ? await hasWeatherChanged(plan, location, today)
+        ? await hasWeatherChanged(plan, location, today, timezone)
         : false;
 
     return coachPlanResponseSchema.parse({
@@ -148,6 +153,7 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
         await buildResponse(
           user.id,
           user.location,
+          user.timezone,
           today.data,
           includeTomorrow,
         ),
@@ -188,13 +194,19 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
 
         if (!started) {
           return c.json(
-            await buildResponse(user.id, user.location, today),
+            await buildResponse(user.id, user.location, user.timezone, today),
             202,
           );
         }
 
         return c.json(
-          await buildResponse(user.id, user.location, today, includeTomorrow),
+          await buildResponse(
+            user.id,
+            user.location,
+            user.timezone,
+            today,
+            includeTomorrow,
+          ),
           202,
         );
       },

@@ -366,15 +366,68 @@ describe("CoachPlanView", () => {
     const html = renderToStaticMarkup(<CoachPlanView plan={weatherPlan} />);
 
     expect(html).toContain("Rain");
-    expect(html).toContain("5–9 °C");
-    expect(html).toContain("wind 4 m/s");
-    expect(html).toContain("gusts 8 m/s");
-    expect(html).toContain("sunrise 07:45");
-    expect(html).toContain("sunset 16:30");
+    expect(html).toContain(
+      "Rain · 5–9 °C · wind 4 m/s (8 m/s) · daylight 07:45 - 16:30",
+    );
     expect(html).toContain('aria-label="Rain"');
     expect(html).toContain('data-testid="weather"');
     expect(html).toContain("stroke-sky-500");
     expect(html).toContain("stroke-slate-400");
+  });
+
+  it("shows each provider forecast in the day and week views", () => {
+    const openMeteo = {
+      date: "2026-10-21",
+      icon: "sun" as const,
+      temperatureMaxC: 12,
+      temperatureMinC: 6,
+      windMaxMs: 3,
+      gustMaxMs: 7,
+      precipitationMm: 0,
+      sunrise: "07:45",
+      sunset: "16:30",
+    };
+    const yr = {
+      ...openMeteo,
+      icon: "rain" as const,
+      temperatureMaxC: 14,
+      temperatureMinC: 8,
+    };
+    const combined = {
+      ...openMeteo,
+      icon: "rain" as const,
+      temperatureMaxC: 13,
+      temperatureMinC: 7,
+    };
+    const forecasts = { openMeteo, yr, combined };
+    const weatherPlan: CoachPlan = {
+      ...plan,
+      today: {
+        ...plan.today,
+        outdoor: true,
+        weather: combined,
+        forecasts,
+      },
+      week: {
+        ...plan.week,
+        sessions: plan.week.sessions.map((session) =>
+          session.date === "2026-10-21"
+            ? { ...session, outdoor: true, weather: combined, forecasts }
+            : session,
+        ),
+      },
+    };
+
+    const day = renderToStaticMarkup(<CoachPlanView plan={weatherPlan} />);
+    const week = renderToStaticMarkup(
+      <CoachPlanView plan={weatherPlan} defaultTab="week" />,
+    );
+
+    for (const html of [day, week]) {
+      expect(html).toContain("Open-Meteo");
+      expect(html).toContain("Yr.no");
+      expect(html).toContain("Combined");
+    }
   });
 
   it("hides the forecast for indoor sessions and rest days", () => {
@@ -433,9 +486,9 @@ describe("CoachPlanView", () => {
     );
 
     expect(html).toContain("Sunny");
-    expect(html).toContain("7–14 °C");
-    expect(html).toContain("sunrise 07:45");
-    expect(html).toContain("sunset 16:30");
+    expect(html).toContain(
+      "Sunny · 7–14 °C · wind 2 m/s (5 m/s) · daylight 07:45 - 16:30",
+    );
     expect(html).toContain('class="w-full" data-testid="week-weather"');
     expect(html).toContain("stroke-amber-500");
   });

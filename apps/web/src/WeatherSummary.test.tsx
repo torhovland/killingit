@@ -19,15 +19,13 @@ function weather(overrides: Partial<DailyWeather> = {}): DailyWeather {
 }
 
 describe("WeatherSummary", () => {
-  it("shows the forecast and the local sunrise and sunset", () => {
+  it("shows the forecast as a line with centre dots and daylight", () => {
     const html = renderToStaticMarkup(<WeatherSummary weather={weather()} />);
 
-    expect(html).toContain("Sunny");
-    expect(html).toContain("4–12 °C");
-    expect(html).toContain("wind 5 m/s");
-    expect(html).toContain("gusts 8 m/s");
-    expect(html).toContain("sunrise 07:45");
-    expect(html).toContain("sunset 16:30");
+    expect(html).toContain("Forecast");
+    expect(html).toContain(
+      "Sunny · 4–12 °C · wind 5 m/s (8 m/s) · daylight 07:45 - 16:30",
+    );
   });
 
   it("shows only the daylight times that are available", () => {
@@ -45,7 +43,32 @@ describe("WeatherSummary", () => {
     );
 
     expect(html).toContain("Sunny");
-    expect(html).not.toContain("sunrise");
-    expect(html).not.toContain("sunset");
+    expect(html).not.toContain("daylight");
+  });
+
+  it("labels every provider and the combined forecast", () => {
+    const openMeteo = weather();
+    const yr = weather({ icon: "rain", sunrise: undefined, sunset: undefined });
+    const combined = weather({ icon: "rain" });
+    const html = renderToStaticMarkup(
+      <WeatherSummary forecasts={{ openMeteo, yr, combined }} />,
+    );
+
+    expect(html).toContain("Combined");
+    expect(html).toContain("Open-Meteo");
+    expect(html).toContain("Yr.no");
+    expect(html).toContain(
+      "Rain · 4–12 °C · wind 5 m/s (8 m/s) · daylight 07:45 - 16:30",
+    );
+  });
+
+  it("names a provider that has no forecast", () => {
+    const html = renderToStaticMarkup(
+      <WeatherSummary
+        forecasts={{ openMeteo: weather(), yr: null, combined: weather() }}
+      />,
+    );
+
+    expect(html).toContain("Yr.no · no forecast");
   });
 });

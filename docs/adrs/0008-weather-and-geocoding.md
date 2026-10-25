@@ -1,9 +1,9 @@
 # ADR 0008: Weather and geocoding via Open-Meteo
 
-- **Status:** Accepted
+- **Status:** Accepted; amended by ADR 0010 (Yr.no and an averaged forecast)
 - **Date:** 2026-10-25
 - **Deciders:** torhovland
-- **Related:** `docs/specs/location-and-weather.md`
+- **Related:** `docs/specs/location-and-weather.md`, ADR 0010
 
 ## Context
 

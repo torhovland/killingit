@@ -39,8 +39,9 @@ training science.
 
 - Plan history/versioning.
 
-The plan prompts include the location's weather and daylight; see
-`docs/specs/location-and-weather.md`.
+The plan prompts include the location's combined weather and daylight (an
+average of Open-Meteo and Yr.no); the provider rows are shown in the UI only.
+See `docs/specs/location-and-weather.md`.
 
 Persistence, cascade generation, answer-change triggers, and the plan UI are
 covered by `docs/specs/coach-plan-lifecycle.md`.

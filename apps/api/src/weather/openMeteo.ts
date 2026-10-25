@@ -222,7 +222,7 @@ export function parseForecastResponse(body: unknown): DailyWeather[] {
  */
 export async function fetchWeatherForecast(
   location: AthleteLocation,
-  options: { fetchImpl?: FetchLike } = {},
+  options: { fetchImpl?: FetchLike; timezone?: string | null } = {},
 ): Promise<DailyWeather[]> {
   const fetchImpl = options.fetchImpl ?? fetch;
   const url = new URL(FORECAST_URL);
@@ -241,7 +241,7 @@ export async function fetchWeatherForecast(
       "sunset",
     ].join(","),
   );
-  url.searchParams.set("timezone", "auto");
+  url.searchParams.set("timezone", options.timezone ?? "auto");
   url.searchParams.set("wind_speed_unit", "ms");
   url.searchParams.set("forecast_days", String(FORECAST_DAYS));
 

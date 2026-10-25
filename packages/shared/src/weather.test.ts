@@ -1,6 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import {
+  dailyForecastsSchema,
   dailyWeatherSchema,
+  formatDailyWeatherLine,
   geocodedLocationSchema,
   WEATHER_ICON_LABELS,
   weatherIconSchema,
@@ -92,6 +94,49 @@ describe("weather schemas", () => {
         precipitationMm: 0,
       }),
     ).toThrow();
+  });
+});
+
+describe("daily forecast presentation", () => {
+  const day = {
+    date: "2026-10-25",
+    icon: "very_cloudy" as const,
+    temperatureMaxC: 11.4,
+    temperatureMinC: 8.2,
+    windMaxMs: 9.6,
+    gustMaxMs: 18.4,
+    precipitationMm: 0,
+    sunrise: "07:35",
+    sunset: "16:28",
+  };
+
+  it("formats a line with centre dots, gusts in parentheses, and daylight", () => {
+    expect(formatDailyWeatherLine(day)).toBe(
+      "Very cloudy · 8–11 °C · wind 10 m/s (18 m/s) · daylight 07:35 - 16:28",
+    );
+  });
+
+  it("omits unavailable daylight and uses one temperature for a flat range", () => {
+    expect(
+      formatDailyWeatherLine({
+        ...day,
+        temperatureMaxC: 7,
+        temperatureMinC: 7,
+        sunrise: null,
+        sunset: null,
+      }),
+    ).toBe("Very cloudy · 7 °C · wind 10 m/s (18 m/s)");
+  });
+
+  it("parses the forecast rows for all three sources", () => {
+    const parsed = dailyForecastsSchema.parse({
+      openMeteo: day,
+      yr: null,
+      combined: day,
+    });
+    expect(parsed.openMeteo?.icon).toBe("very_cloudy");
+    expect(parsed.yr).toBeNull();
+    expect(parsed.combined?.temperatureMaxC).toBe(11.4);
   });
 });
 

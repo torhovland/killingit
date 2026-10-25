@@ -3,7 +3,8 @@
 - **Status:** Accepted (implemented)
 - **Date:** 2026-10-25
 - **Related:** `docs/specs/coach-plan-lifecycle.md`,
-  `docs/specs/coach-plan-prompts.md`, ADR 0008 (Open-Meteo).
+  `docs/specs/coach-plan-prompts.md`, ADR 0008 (Open-Meteo), ADR 0010
+  (Yr.no and the averaged forecast).
 
 ## Goal
 
@@ -24,9 +25,10 @@ a session on a particular day and whether it happens in daylight.
      result;
    - save and clear actions that persist the location through `PATCH /api/me`.
 3. When a location is set, the API fetches the daily forecast, including
-   sunrise and sunset, from Open-Meteo whenever a week or day plan is generated
-   or revised.
-4. The weekly and daily prompts receive the forecast and its daylight times and:
+   sunrise and sunset, from Open-Meteo and Yr.no whenever a week or day plan is
+   generated or revised. It also builds an averaged forecast from the two.
+4. The weekly and daily prompts receive the combined forecast and its daylight
+   times and:
    - respect explicit weather preferences in the athlete's survey answers, such
      as "no outdoor riding in rain" or "not below 10 °C";
    - follow the athlete's stated daylight or darkness preference, defaulting to
@@ -36,10 +38,12 @@ a session on a particular day and whether it happens in daylight.
      working hours;
    - otherwise use common sense, moving longer or more demanding outdoor
      sessions to the best-weather days.
-5. The generated plan stores the forecast for each session date. Outdoor
-   workouts in the Day and Week plan views show a weather icon (sun, partly
-   cloudy, very cloudy, rain, or snow), temperature in °C, wind and gusts in
-   m/s, and the local sunrise and sunset.
+5. The generated plan stores the combined forecast and both provider forecasts
+   for each session date. Outdoor workouts in the Day and Week plan views show
+   three labelled rows — Open-Meteo, Yr.no, and Combined — with a weather icon
+   (sun, partly cloudy, very cloudy, rain, or snow), temperature in °C, wind and
+   gusts in m/s, and the local daylight window. Each row reads like
+   `Very cloudy · 8–11 °C · wind 10 m/s (18 m/s) · daylight 07:35 - 16:28`.
 6. Sessions are marked indoor or outdoor by the coach so weather and daylight
    are shown only for outdoor activities. Missing `outdoor` (older stored plans)
    is treated as outdoor.
@@ -61,8 +65,20 @@ a session on a particular day and whether it happens in daylight.
 
 - An unset location changes nothing: plans generate as before and no weather is
   shown.
-- A forecast is best-effort. If Open-Meteo is unavailable, plan generation
-  continues without weather rather than failing.
+- A forecast is best-effort. Open-Meteo and Yr.no are loaded independently. If
+  one is unavailable the other still supplies a forecast and the combined row
+  falls back to it; if both fail, plan generation continues without weather
+  rather than failing.
+- The two providers are asked for the same location and the athlete's time
+  zone, so their daily dates line up. Yr.no is bucketed by the athlete's local
+  calendar day; the account time zone is used, with UTC as the fallback.
+- The combined row averages temperature, wind, gusts, and precipitation from
+  both providers. It uses Open-Meteo's daylight times because Yr.no does not
+  publish them. When the weather types differ, it takes the more severe icon
+  (sun, partly cloudy, very cloudy, rain, snow); ties keep Open-Meteo's type.
+  A date covered by only one provider is copied from that provider unchanged.
+- The combined forecast is the only forecast given to the coach for planning
+  and weather-change checks. The provider rows are for the athlete to compare.
 - Address search results are suggestions only; nothing is saved until the
   athlete presses Save.
 - A map click clears any searched name and sets the marker to the clicked
@@ -72,7 +88,8 @@ a session on a particular day and whether it happens in daylight.
   icons, numbers, and times come from the forecast rather than model invention.
 - Sunrise and sunset are local clock times at the athlete's location. Open-Meteo
   returns null when the sun neither rises nor sets (polar day or polar night),
-  and the UI then omits that time.
+  and the UI then omits that time. Yr.no rows show no daylight because the
+  provider does not supply it.
 - The coach places outdoor sessions in daylight by default. It follows any
   explicit darkness preference in the athlete's answers, weekly notes, or
   activity comments, and does not invent one. If the athlete can only train
@@ -139,24 +156,32 @@ message.
 `weekSessionSchema` and `dayPlanSchema` gain:
 
 - `outdoor?: boolean` — false for indoor sessions; missing means outdoor.
-- `weather?: DailyWeather | null` — the forecast for that date.
+- `weather?: DailyWeather | null` — the combined forecast for that date.
+- `forecasts?: DailyForecasts | null` — the same date from each source.
 
 `DailyWeather` contains `date`, `icon`, `temperatureMaxC`, `temperatureMinC`,
 `windMaxMs`, `gustMaxMs`, `precipitationMm`, and optional `sunrise`/`sunset`
 local `HH:MM` times that may be `null` on polar days. Icons are one of `sun`,
 `partly_cloudy`, `very_cloudy`, `rain`, `snow`.
 
+`DailyForecasts` has `openMeteo`, `yr`, and `combined` fields, each a
+`DailyWeather` or `null`. Older plans without `forecasts` still parse and show
+their single `weather` line.
+
 ## Generation flow
 
-1. The plan trigger loads the account, including its location.
-2. If a location exists, it loads up to 16 days of daily forecast, including
-   sunrise and sunset, from Open-Meteo. Weather failures are logged and ignored.
-3. The weekly and daily prompts include the forecast and the weather/daylight
-   planning rules. The season and block prompts do not need a daily forecast.
-4. After the model response, the server attaches the matching forecast day to
-   each week session, today, and tomorrow before saving the plan.
-5. The UI renders the weather and daylight on outdoor workouts. Rest days and
-   indoor sessions do not show it.
+1. The plan trigger loads the account, including its location and time zone.
+2. If a location exists, it loads the daily forecast from Open-Meteo and Yr.no
+   in parallel and builds the averaged forecast. Weather failures are logged and
+   ignored.
+3. The weekly and daily prompts include the combined forecast and the
+   weather/daylight planning rules. The season and block prompts do not need a
+   daily forecast.
+4. After the model response, the server attaches the combined day and both
+   provider days to each week session, today, and tomorrow before saving the
+   plan.
+5. The UI renders all three labelled forecast rows and the daylight on outdoor
+   workouts. Rest days and indoor sessions do not show them.
 6. `GET /api/coaching/plan` loads the forecast for the athlete's location (when
    one is set) unless a generation is already running. A significant difference
    from the weather attached to the stored current or next week sets
@@ -164,10 +189,10 @@ local `HH:MM` times that may be `null` on polar days. Icons are one of `sun`,
    forecast. The saved plan then carries that forecast, so the same change does
    not trigger another refresh.
 
-## Academic / weather code mapping
+## Weather code mapping
 
-Open-Meteo returns WMO weather codes. The API maps them to the five display
-icons:
+Open-Meteo returns WMO weather codes, and Yr.no returns MET Norway symbol
+codes. The API maps both to the five display icons:
 
 | Codes         | Icon          |
 | ------------- | ------------- |
@@ -178,13 +203,18 @@ icons:
 | 71–77, 85, 86 | snow          |
 | 95–99         | rain          |
 
+Yr.no symbol codes map by family: `clearsky*` → sun, `fair*` and
+`partlycloudy*` → partly cloudy, `cloudy*` and `fog*` → very cloudy, a code
+containing `snow` or `sleet` → snow, and a code containing `rain` → rain.
+
 ## Testing
 
 - Shared schema tests for location validation, weather icons, optional daylight
   times, and plan fields.
-- API unit tests for WMO mapping, Open-Meteo response parsing (including polar
-  nulls and invalid daylight), geocoding, forecast attachment, prompt rendering,
-  and weather/daylight rules.
+- API unit tests for WMO and MET Norway symbol mapping, Open-Meteo and Yr.no
+  response parsing (including local-day grouping, daylight and incomplete
+  values), the averaged forecast, provider failure fallback, geocoding,
+  forecast attachment, prompt rendering, and weather/daylight rules.
 - API route tests for location save/clear, geocode auth/validation/errors, and a
   plan generation that receives an injected forecast.
 - Web tests for map projection/click conversion, the weather and daylight
