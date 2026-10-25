@@ -63,6 +63,15 @@ export async function triggerPlanGeneration(
     return false;
   }
 
+  // Keep the running row fresh from the moment it is claimed. Loading the
+  // activities can itself take minutes, so it must not look like a dead run.
+  const heartbeat = setInterval(() => {
+    void deps.generations.heartbeat(userId).catch((err: unknown) => {
+      console.error("[plan] could not refresh generation status:", err);
+    });
+  }, GENERATION_HEARTBEAT_MS);
+  heartbeat.unref();
+
   let plan: Awaited<ReturnType<PlanStore["load"]>>;
   let answers: Awaited<ReturnType<QuestionAnswerStore["listForUser"]>>;
   let activities: ActivityFeed;
@@ -88,6 +97,7 @@ export async function triggerPlanGeneration(
       deps.users.getById(userId),
     ]);
   } catch (err) {
+    clearInterval(heartbeat);
     const message =
       err instanceof Error ? err.message : "The plan could not be generated.";
     await deps.generations.fail(userId, message);
@@ -95,6 +105,7 @@ export async function triggerPlanGeneration(
   }
 
   if (!llm) {
+    clearInterval(heartbeat);
     const message = "OpenRouter is not configured. Add a key and model first.";
     await deps.generations.fail(userId, message);
     return true;
@@ -115,16 +126,7 @@ export async function triggerPlanGeneration(
   }
 
   // Run the long cascade after responding so the request cannot hit the server
-  // idle timeout. The client polls GET for progress. The heartbeat keeps the
-  // generation claim fresh; without it a restarted process would leave the row
-  // `running` and block every later attempt.
-  const heartbeat = setInterval(() => {
-    void deps.generations.heartbeat(userId).catch((err: unknown) => {
-      console.error("[plan] could not refresh generation status:", err);
-    });
-  }, GENERATION_HEARTBEAT_MS);
-  heartbeat.unref();
-
+  // idle timeout. The client polls GET for progress.
   void runPlanGeneration({
     userId,
     today,
