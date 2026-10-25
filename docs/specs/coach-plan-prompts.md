@@ -59,8 +59,11 @@ covered by `docs/specs/coach-plan-lifecycle.md`.
    explicitly when no activities were recorded.
 5. The prompt includes today's date and the athlete's timezone when supplied.
 6. The prompt asks for an optionality assessment on today's and tomorrow's
-   sessions: whether each can be skipped without undermining the plan, with a
-   concise explanation either way.
+   sessions: what each session builds toward the plan's goal, what skipping it
+   would cost, and — only when the cost is genuinely small — why it is safe to
+   skip today. A session the coach cannot justify must be revised out of the
+   week instead of labelled optional. Rest days are exempt. See
+   `docs/specs/session-purpose.md`.
 7. `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`
    pass.
 
@@ -68,8 +71,9 @@ covered by `docs/specs/coach-plan-lifecycle.md`.
 
 Adds `optional` (boolean, default `false`) and `optionalRationale` (optional
 string) to `dayPlanSchema` in `@killingit/shared`, so generated day plans can
-state whether a session should not be skipped or is optional. No database or
-route change; stored JSON without the new fields still parses. The builder
+state whether skipping a session costs little today and why the session matters
+toward the plan's goal. No database or route change; stored JSON without the new
+fields still parses. The builder
 consumes existing shapes (`StoredAthleteQuestion` and `AnalyzedActivity`)
 structurally and returns `LlmProvider` chat messages.
 

@@ -79,7 +79,7 @@ const plan: CoachPlan = {
     rationale: "Easy aerobic work supports recovery.",
     optional: false,
     optionalRationale:
-      "This easy run is part of a consistent aerobic week; skipping it now makes the weekend long run harder.",
+      "This easy run builds the aerobic durability your sub-4-hour marathon needs. Skipping it would leave you underprepared for the Sunday long run and slow the base build.",
     status: "planned",
   },
   tomorrow: {
@@ -93,7 +93,7 @@ const plan: CoachPlan = {
     rationale: "Keep the aerobic week consistent.",
     optional: true,
     optionalRationale:
-      "This is a short recovery run. If your legs are tired, it is fine to skip it or replace it with a walk.",
+      "This short recovery run adds easy volume toward the marathon goal. Skipping it costs little today because the hard work this week is already done.",
     status: "planned",
   },
   nextWeek: null,
@@ -257,19 +257,41 @@ describe("CoachPlanView", () => {
     expect(html).not.toContain("0 min · easy");
   });
 
-  it("explains whether today's and tomorrow's sessions should be skipped", () => {
+  it("explains what skipping today's and tomorrow's sessions would cost", () => {
     const html = renderToStaticMarkup(
       <CoachPlanView plan={plan} showTomorrow />,
     );
 
+    expect(html.match(/Why this session matters/g)?.length).toBe(2);
     expect(html).toContain("Do not skip this session");
     expect(html).toContain(
-      "This easy run is part of a consistent aerobic week; skipping it now makes the weekend long run harder.",
+      "This easy run builds the aerobic durability your sub-4-hour marathon needs. Skipping it would leave you underprepared for the Sunday long run and slow the base build.",
     );
     expect(html).toContain("Optional session");
     expect(html).toContain(
-      "This is a short recovery run. If your legs are tired, it is fine to skip it or replace it with a walk.",
+      "This short recovery run adds easy volume toward the marathon goal. Skipping it costs little today because the hard work this week is already done.",
     );
+  });
+
+  it("does not show skip guidance on a rest day", () => {
+    const restPlan: CoachPlan = {
+      ...plan,
+      today: {
+        ...plan.today,
+        type: "rest",
+        title: "Rest",
+        description: "Take the day off.",
+        durationMinutes: 0,
+        intensity: "rest",
+        optional: true,
+        optionalRationale: "Rest today supports tomorrow's session.",
+      },
+    };
+
+    const html = renderToStaticMarkup(<CoachPlanView plan={restPlan} />);
+
+    expect(html).not.toContain("Why this session matters");
+    expect(html).not.toContain("Optional session");
   });
 
   it("shows tomorrow only when requested", () => {

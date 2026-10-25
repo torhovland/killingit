@@ -244,7 +244,7 @@ problems; the error names the offending fields if the repair also fails. See
 - API route tests for auth, valid/invalid dates, the empty state, full
   generation, the already-running `202` case, and a normalised next period.
 - Web render tests for the four-level view (today, week, next week, block, next
-  block, season, alternatives, optionality).
+  block, season, alternatives, and the goal-linked skip guidance on workouts).
 - Run `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`.
 
 ## Risks / open questions

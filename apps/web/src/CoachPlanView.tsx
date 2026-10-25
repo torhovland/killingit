@@ -148,15 +148,18 @@ function DayCard({
         <span className="font-medium">Coach's rationale: </span>
         <span className="text-muted-foreground">{day.rationale}</span>
       </p>
-      {day.optionalRationale && (
+      {day.type === "workout" && day.optionalRationale && (
         <div
           className="rounded border bg-muted p-3 text-sm"
           data-testid={`${testId}-optionality`}
         >
-          <p className="font-medium">
-            {day.optional ? "Optional session" : "Do not skip this session"}
-          </p>
-          <p className="text-muted-foreground">{day.optionalRationale}</p>
+          <div className="flex flex-wrap items-baseline gap-2">
+            <p className="font-medium">Why this session matters</p>
+            <span className="rounded border bg-background px-1.5 py-0.5 text-xs text-muted-foreground">
+              {day.optional ? "Optional session" : "Do not skip this session"}
+            </span>
+          </div>
+          <p className="mt-1 text-muted-foreground">{day.optionalRationale}</p>
         </div>
       )}
     </article>

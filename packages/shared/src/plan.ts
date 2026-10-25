@@ -114,9 +114,16 @@ export const dayPlanSchema = z.object({
   alternatives: z.array(z.string().min(1)).default([]),
   /** The coach's explanation of why this session suits today. */
   rationale: z.string().min(1),
-  /** Whether the athlete can skip this session without derailing the plan. */
+  /**
+   * Whether skipping this session costs little today. A session the coach cannot
+   * justify toward the plan's goal should have been revised away, not marked
+   * optional.
+   */
   optional: z.boolean().default(false),
-  /** Why the athlete should not skip this session, or why it is optional. */
+  /**
+   * What the session builds toward the plan's goal and what skipping it would
+   * cost; for an optional session, why that cost is acceptable today.
+   */
   optionalRationale: z.string().min(1).optional(),
   /**
    * What happened on this day. Today is `completed` or `partial` when an
