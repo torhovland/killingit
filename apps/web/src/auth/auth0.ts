@@ -24,7 +24,7 @@ export interface AuthState {
   /** Sign out, returning to the site origin. */
   logout(): Promise<void>;
   /** Resolve a fresh access token for the API, or undefined if signed out. */
-  getToken(): Promise<string | undefined>;
+  getToken(options?: { forceRefresh?: boolean }): Promise<string | undefined>;
 }
 
 /**
@@ -88,12 +88,15 @@ export function useAuth(): AuthState {
         }),
       logout: () =>
         logout({ logoutParams: { returnTo: window.location.origin } }),
-      getToken: async () => {
+      getToken: async (options) => {
         if (!isAuthenticated) {
           return undefined;
         }
         try {
           return await getAccessTokenSilently({
+            // A 401 means the cached token was rejected. Skip the cache and
+            // renew with the refresh token (or the silent iframe fallback).
+            ...(options?.forceRefresh ? { cacheMode: "off" as const } : {}),
             authorizationParams: {
               ...(API_AUDIENCE ? { audience: API_AUDIENCE } : {}),
               scope: API_SCOPE,

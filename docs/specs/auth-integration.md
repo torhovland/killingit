@@ -137,7 +137,12 @@ only replaces that module.
   "Your session has expired. Sign in again to continue.", and `reportError`
   keeps the expected outcome out of Sentry. `useRefreshTokensFallback` stays
   on so a session cached before refresh tokens existed is renewed silently via
-  the hidden iframe instead of expiring.
+  the iframe instead of failing.
+- **A 401 refreshes once before it surfaces.** If the API rejects a bearer
+  token, `fetchJsonAuthed` calls `getToken({ forceRefresh: true })`, which
+  bypasses the Auth0 token cache (`cacheMode: "off"`), and retries the request
+  once. This covers the two-hour web-token lifetime boundary where the cached
+  token has expired but the SDK has not renewed it yet.
 
 ## Risks / open questions
 
