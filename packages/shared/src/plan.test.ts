@@ -341,10 +341,12 @@ describe("weather on plan sessions", () => {
       intensity: "easy",
       rationale: "Easy aerobic work.",
       outdoor: false,
+      canBeOutdoor: true,
       weather,
       forecasts,
     });
     expect(parsed.outdoor).toBe(false);
+    expect(parsed.canBeOutdoor).toBe(true);
     expect(parsed.weather?.icon).toBe("rain");
     expect(parsed.forecasts?.yr?.icon).toBe("sun");
 
@@ -353,11 +355,18 @@ describe("weather on plan sessions", () => {
       ...week,
       sessions: week.sessions.map((session, index) =>
         index === 2
-          ? { ...session, weather, forecasts, outdoor: true }
+          ? {
+              ...session,
+              weather,
+              forecasts,
+              outdoor: true,
+              canBeOutdoor: false,
+            }
           : session,
       ),
     });
     expect(withWeather.sessions[2]?.weather?.gustMaxMs).toBe(8);
+    expect(withWeather.sessions[2]?.canBeOutdoor).toBe(false);
     expect(withWeather.sessions[2]?.forecasts?.openMeteo?.icon).toBe("rain");
   });
 
@@ -372,6 +381,7 @@ describe("weather on plan sessions", () => {
       rationale: "Easy aerobic work.",
     });
     expect(parsed.outdoor).toBeUndefined();
+    expect(parsed.canBeOutdoor).toBeUndefined();
     expect(parsed.weather).toBeUndefined();
   });
 });

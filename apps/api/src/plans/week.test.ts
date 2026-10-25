@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { AnalyzedActivity, WeekPlan } from "@killingit/shared";
-import { applyCompletedDays } from "./week.js";
+import { applyCompletedDays, mirrorDay } from "./week.js";
 
 function makeWeek(): WeekPlan {
   return {
@@ -150,6 +150,8 @@ describe("applyCompletedDays", () => {
         alternatives: [],
         rationale: "Matches the plan.",
         optional: false,
+        outdoor: false,
+        canBeOutdoor: true,
       },
     );
 
@@ -157,6 +159,30 @@ describe("applyCompletedDays", () => {
     expect(today?.title).toBe("Completed easy run");
     expect(today?.description).toBe("Completed: 45 easy minutes.");
     expect(today?.status).toBe("completed");
+    expect(today?.outdoor).toBe(false);
+    expect(today?.canBeOutdoor).toBe(true);
+  });
+
+  it("mirrors an indoor/outdoor classification into the week", () => {
+    const week = makeWeek();
+    const mirrored = mirrorDay(week, {
+      date: "2026-10-22",
+      type: "workout",
+      title: "Easy ride",
+      description: "Easy ride.",
+      durationMinutes: 45,
+      intensity: "easy",
+      alternatives: [],
+      rationale: "Base building.",
+      optional: false,
+      status: "planned",
+      outdoor: false,
+      canBeOutdoor: true,
+    });
+
+    expect(week.sessions[3]?.canBeOutdoor).toBeUndefined();
+    expect(mirrored.sessions[3]?.outdoor).toBe(false);
+    expect(mirrored.sessions[3]?.canBeOutdoor).toBe(true);
   });
 
   it("mirrors an already completed today even without the activity", () => {

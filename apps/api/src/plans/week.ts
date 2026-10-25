@@ -154,6 +154,10 @@ function mirrorToday(
     durationMinutes: todayPlan.durationMinutes,
     intensity: todayPlan.intensity,
     status,
+    ...(todayPlan.outdoor !== undefined ? { outdoor: todayPlan.outdoor } : {}),
+    ...(todayPlan.canBeOutdoor !== undefined
+      ? { canBeOutdoor: todayPlan.canBeOutdoor }
+      : {}),
   };
 }
 
@@ -181,6 +185,9 @@ export function mirrorDay(week: WeekPlan, day: DayPlan): WeekPlan {
             intensity: day.intensity,
             status: day.status,
             ...(day.outdoor !== undefined ? { outdoor: day.outdoor } : {}),
+            ...(day.canBeOutdoor !== undefined
+              ? { canBeOutdoor: day.canBeOutdoor }
+              : {}),
           }
         : session,
     ),

@@ -10,8 +10,9 @@
 
 Let the athlete set a home location and use its weather forecast and daylight
 times when the coach plans a week or a day. Show the forecast and the sunrise
-and sunset next to outdoor workouts so the athlete can see why the coach placed
-a session on a particular day and whether it happens in daylight.
+and sunset next to workouts so the athlete can see why the coach placed a
+session on a particular day, whether it is planned for outdoors, and whether it
+would be sensible to take it outside.
 
 ## Scope
 
@@ -39,14 +40,19 @@ a session on a particular day and whether it happens in daylight.
    - otherwise use common sense, moving longer or more demanding outdoor
      sessions to the best-weather days.
 5. The generated plan stores the combined forecast and both provider forecasts
-   for each session date. Outdoor workouts in the Day and Week plan views show
-   three labelled rows — Open-Meteo, Yr.no, and Combined — with a weather icon
-   (sun, partly cloudy, very cloudy, rain, or snow), temperature in °C, wind and
-   gusts in m/s, and the local daylight window. Each row reads like
+   for each session date. Workouts that can be done outdoors show three labelled
+   rows — Open-Meteo, Yr.no, and Combined — with a weather icon (sun, partly
+   cloudy, very cloudy, rain, or snow), temperature in °C, wind and gusts in
+   m/s, and the local daylight window. Each row reads like
    `Very cloudy · 8–11 °C · wind 10 m/s (18 m/s) · daylight 07:35 - 16:28`.
-6. Sessions are marked indoor or outdoor by the coach so weather and daylight
-   are shown only for outdoor activities. Missing `outdoor` (older stored plans)
-   is treated as outdoor.
+6. Sessions are marked with two independent flags: `outdoor` says where this
+   instance is planned, and `canBeOutdoor` says whether the activity could
+   reasonably be done outdoors. The forecast and daylight are shown for every
+   workout that is not indoor-only, including flexible sessions that the coach
+   planned indoors, so the athlete can see the conditions and judge whether to
+   take the session outside. Sessions tied to indoor equipment or a venue
+   (trainer, treadmill, gym, pool) and rest days show no forecast. Missing flags
+   in older stored plans are treated as outdoor and can-be-outdoor.
 7. On each plan read, compare the stored forecast with the latest forecast for
    upcoming days in the current week and, when planned, the next week. A
    significant change, including daylight appearing for the first time, updates
@@ -90,6 +96,11 @@ a session on a particular day and whether it happens in daylight.
   returns null when the sun neither rises nor sets (polar day or polar night),
   and the UI then omits that time. Yr.no rows show no daylight because the
   provider does not supply it.
+- The UI shows the forecast on workouts that are not indoor-only: flexible
+  sessions keep the forecast even when the coach plans this instance indoors,
+  because the athlete may choose to move them outside. Sessions tied to indoor
+  equipment or a venue use `canBeOutdoor: false` and show no forecast. Rest days
+  show none either.
 - The coach places outdoor sessions in daylight by default. It follows any
   explicit darkness preference in the athlete's answers, weekly notes, or
   activity comments, and does not invent one. If the athlete can only train
@@ -155,7 +166,11 @@ message.
 
 `weekSessionSchema` and `dayPlanSchema` gain:
 
-- `outdoor?: boolean` — false for indoor sessions; missing means outdoor.
+- `outdoor?: boolean` — false when this instance is planned indoors; missing
+  means outdoor.
+- `canBeOutdoor?: boolean` — false for sessions tied to indoor equipment or a
+  venue (trainer, treadmill, gym, pool); missing means the session can be done
+  outdoors.
 - `weather?: DailyWeather | null` — the combined forecast for that date.
 - `forecasts?: DailyForecasts | null` — the same date from each source.
 
@@ -180,8 +195,9 @@ their single `weather` line.
 4. After the model response, the server attaches the combined day and both
    provider days to each week session, today, and tomorrow before saving the
    plan.
-5. The UI renders all three labelled forecast rows and the daylight on outdoor
-   workouts. Rest days and indoor sessions do not show them.
+5. The UI renders all three labelled forecast rows and the daylight on workouts
+   that can be done outdoors. Indoor-only sessions and rest days do not show
+   them.
 6. `GET /api/coaching/plan` loads the forecast for the athlete's location (when
    one is set) unless a generation is already running. A significant difference
    from the weather attached to the stored current or next week sets
@@ -218,7 +234,9 @@ containing `snow` or `sleet` → snow, and a code containing `rain` → rain.
 - API route tests for location save/clear, geocode auth/validation/errors, and a
   plan generation that receives an injected forecast.
 - Web tests for map projection/click conversion, the weather and daylight
-  summary, and the Day/Week plan rendering (outdoor only, indoor/rest hidden).
+  summary, and the Day/Week plan rendering (flexible workouts show the forecast;
+  indoor-only sessions and rest days do not), plus the Week view's session
+  descriptions and indoor/outdoor intent.
 - API tests for significant/non-significant forecast comparisons, newly
   available daylight, current and next week coverage, the plan-read pending
   flag, and weather-service failure handling.

@@ -224,10 +224,12 @@ problems; the error names the offending fields if the repair also fails. See
 
 - `CoachPlanSection` owns fetching, generation, polling, and the progress
   panel. It polls every 1.5s for up to 10 minutes.
-- `CoachPlanView` is the presentational four-level plan, so it can be tested
+- `CoachPlanView` is the pure presentation of the plan, so it can be tested
   without auth or network. The Day tab shows today and, after 18:00, tomorrow.
-  The Week tab shows the current week and, when one has been planned for
-  tomorrow, the next week. The Block tab does the same for blocks. If a stored
+  The Week tab shows today's week and, when one has been planned for tomorrow,
+  the next week, with each session's description, planned duration, intensity,
+  and whether the coach set it indoors or outdoors. The Block tab does the same
+  for blocks. If a stored
   plan has today's `completed`/`partial` result missing from today's week
   session, `pending.week` becomes true and the normal weekly + daily cascade
   refreshes the week.

@@ -87,6 +87,12 @@ export const weekSessionSchema = z.object({
    */
   outdoor: z.boolean().optional(),
   /**
+   * Whether the session could reasonably be done outdoors. False for sessions
+   * tied to indoor equipment or a venue (trainer, treadmill, gym, pool). Missing
+   * is treated as true so older plans still show the forecast.
+   */
+  canBeOutdoor: z.boolean().optional(),
+  /**
    * The forecast for this date from each source and their average. The
    * combined forecast is also stored in `weather` for older readers.
    */
@@ -137,6 +143,12 @@ export const dayPlanSchema = z.object({
   status: weekSessionStatusSchema.default("planned"),
   /** False for indoor sessions; missing is treated as outdoor. */
   outdoor: z.boolean().optional(),
+  /**
+   * Whether the session could reasonably be done outdoors. False for sessions
+   * tied to indoor equipment or a venue (trainer, treadmill, gym, pool). Missing
+   * is treated as true so older plans still show the forecast.
+   */
+  canBeOutdoor: z.boolean().optional(),
   /**
    * The forecast for this date from each source and their average. The
    * combined forecast is also stored in `weather` for older readers.
