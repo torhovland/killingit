@@ -59,7 +59,8 @@ const DAY_CONTRACT = `{
   "rationale": "string",
   "optional": false,
   "optionalRationale": "string",
-  "outdoor": true
+  "outdoor": true,
+  "canBeOutdoor": true
 }`;
 
 const WEEK_CONTRACT = `{
@@ -76,7 +77,8 @@ const WEEK_CONTRACT = `{
       "durationMinutes": 0,
       "intensity": "easy | moderate | hard | rest",
       "status": "completed | partial | planned | missed | rest",
-      "outdoor": true
+      "outdoor": true,
+      "canBeOutdoor": true
     }
   ]
 }`;
@@ -122,7 +124,9 @@ export const JSON_RULES = `Return only a single valid JSON object with exactly t
  * without one, the coach should still place outdoor work sensibly and prefer
  * daylight.
  */
-export const WEATHER_PLANNING_RULES = `When a daily forecast is provided, use it to choose which day gets each session. Set "outdoor" to false for sessions done indoors (gym, treadmill, trainer, pool) and true for sessions done outside (running, cycling, hiking, and similar). Weather only restricts outdoor sessions.
+export const WEATHER_PLANNING_RULES = `When a daily forecast is provided, use it to choose which day gets each session. Set "outdoor" to false when this instance is done indoors (gym, treadmill, trainer, pool) and true when it is done outside (running, cycling, hiking, and similar). Set "canBeOutdoor" to false only when the session is tied to indoor equipment or a venue (indoor cycling or trainer, treadmill, gym, pool, rowing machine); set it true when the same session could reasonably be done outdoors (road ride, run, hike, walk), even when you plan this instance indoors. Weather only restricts outdoor sessions.
+
+Read the forecast row for the exact date. Do not describe a day as rainy or snowy, and do not move a flexible session indoors, when that date's forecast is dry and the athlete has no stated preference against training outdoors.
 
 Respect every weather preference or limit the athlete states in their profile. For example, if they will not ride outdoors in rain or when the temperature is below 10 °C, do not schedule such a ride; move it to a suitable day, make it indoor, or replace it with an equivalent session. If the athlete has no weather preference, use common sense: put longer or more demanding outdoor sessions on the best-weather days and shorter or indoor sessions on the poorer days. For example, if Saturday is sunny and Sunday is rainy, schedule a long hike on Saturday and a short run on Sunday.
 

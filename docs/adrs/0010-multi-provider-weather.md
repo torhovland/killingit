@@ -30,9 +30,11 @@ and six-hourly data in UTC, and does not publish sunrise or sunset.
   values unchanged.
 - **Storage:** every session keeps the combined forecast in its existing
   `weather` field and all three rows in a new optional `forecasts` object. Old
-  stored plans keep working and render the single combined line. The UI shows
-  the forecast for indoor workouts as well as outdoor ones; only rest days hide
-  it.
+  stored plans keep working and render the single combined line. `outdoor`
+  records where the coach planned the session; `canBeOutdoor` records whether
+  the activity could reasonably be moved outside. The UI shows the forecast for
+  can-be-outdoor workouts (including flexible sessions planned indoors) and
+  hides it for indoor-only sessions and rest days.
 - **Analysis:** the plan prompts and weather-change checks receive only the
   combined forecast. The three rows exist for comparison in the Day and Week
   tabs, not to give the model conflicting inputs.

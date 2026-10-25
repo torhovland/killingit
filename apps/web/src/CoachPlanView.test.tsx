@@ -430,7 +430,7 @@ describe("CoachPlanView", () => {
     }
   });
 
-  it("shows the forecast for indoor sessions but not rest days", () => {
+  it("shows the forecast for flexible sessions and hides it for indoor-only sessions and rest days", () => {
     const weather = {
       date: "2026-10-21",
       icon: "snow" as const,
@@ -440,12 +440,36 @@ describe("CoachPlanView", () => {
       gustMaxMs: 6,
       precipitationMm: 1,
     };
-    const indoor = renderToStaticMarkup(
+    const flexible = renderToStaticMarkup(
       <CoachPlanView
-        plan={{ ...plan, today: { ...plan.today, outdoor: false, weather } }}
+        plan={{
+          ...plan,
+          today: {
+            ...plan.today,
+            outdoor: false,
+            canBeOutdoor: true,
+            weather,
+          },
+        }}
       />,
     );
-    expect(indoor).toContain("Snow");
+    expect(flexible).toContain("Snow");
+    expect(flexible).toContain("· indoor");
+
+    const indoorOnly = renderToStaticMarkup(
+      <CoachPlanView
+        plan={{
+          ...plan,
+          today: {
+            ...plan.today,
+            outdoor: false,
+            canBeOutdoor: false,
+            weather,
+          },
+        }}
+      />,
+    );
+    expect(indoorOnly).not.toContain("Snow");
 
     const indoorWeek = renderToStaticMarkup(
       <CoachPlanView
@@ -455,7 +479,12 @@ describe("CoachPlanView", () => {
             ...plan.week,
             sessions: plan.week.sessions.map((session) =>
               session.date === "2026-10-21"
-                ? { ...session, outdoor: false, weather }
+                ? {
+                    ...session,
+                    outdoor: false,
+                    canBeOutdoor: false,
+                    weather,
+                  }
                 : session,
             ),
           },
@@ -463,7 +492,7 @@ describe("CoachPlanView", () => {
         defaultTab="week"
       />,
     );
-    expect(indoorWeek).toContain("Snow");
+    expect(indoorWeek).not.toContain("Snow");
 
     const rest = renderToStaticMarkup(
       <CoachPlanView
@@ -474,6 +503,33 @@ describe("CoachPlanView", () => {
       />,
     );
     expect(rest).not.toContain("Snow");
+  });
+
+  it("shows the coach's session details and indoor/outdoor intent in the week view", () => {
+    const week = renderToStaticMarkup(
+      <CoachPlanView
+        plan={{
+          ...plan,
+          week: {
+            ...plan.week,
+            sessions: plan.week.sessions.map((session) =>
+              session.date === "2026-10-21"
+                ? {
+                    ...session,
+                    description: "Easy trainer ride with cadence blocks.",
+                    outdoor: false,
+                    canBeOutdoor: true,
+                  }
+                : session,
+            ),
+          },
+        }}
+        defaultTab="week"
+      />,
+    );
+
+    expect(week).toContain("Easy trainer ride with cadence blocks.");
+    expect(week).toContain("· indoor");
   });
 
   it("shows weather for an outdoor session in the week view", () => {

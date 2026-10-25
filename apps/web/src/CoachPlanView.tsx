@@ -140,12 +140,13 @@ function DayCard({
             <span className="rounded border bg-muted px-2 py-0.5 text-xs capitalize">
               {day.type === "rest"
                 ? "Rest day"
-                : `${day.durationMinutes} min · ${day.intensity}`}
+                : `${day.durationMinutes} min · ${day.intensity}${formatSessionSetting(day.outdoor)}`}
             </span>
           </span>
         </div>
         <p className="text-base font-medium">{day.title}</p>
         {day.type === "workout" &&
+          day.canBeOutdoor !== false &&
           (day.weather != null || day.forecasts != null) && (
             <WeatherSummary weather={day.weather} forecasts={day.forecasts} />
           )}
@@ -235,9 +236,10 @@ function WeekSection({
                 : session.status === "completed" &&
                     session.durationMinutes === 0
                   ? "Logged manually"
-                  : `${session.durationMinutes} min · ${session.intensity}`}
+                  : `${session.durationMinutes} min · ${session.intensity}${formatSessionSetting(session.outdoor)}`}
             </span>
             {session.type === "workout" &&
+              session.canBeOutdoor !== false &&
               (session.weather != null || session.forecasts != null) && (
                 <div className="w-full" data-testid="week-weather">
                   <WeatherSummary
@@ -246,9 +248,7 @@ function WeekSection({
                   />
                 </div>
               )}
-            {(session.status === "completed" ||
-              session.status === "partial" ||
-              session.status === "missed") && (
+            {session.description.trim() !== "" && (
               <p className="w-full text-xs text-muted-foreground">
                 {session.description}
               </p>
@@ -328,6 +328,15 @@ function SeasonSection({ season }: { season: SeasonPlan }) {
       </ol>
     </section>
   );
+}
+
+/**
+ * Suffix that states whether the coach planned a session indoors or outdoors.
+ * Missing is treated as outdoor, but showing no suffix avoids claiming a
+ * setting for plans stored before the field existed.
+ */
+function formatSessionSetting(outdoor: boolean | undefined): string {
+  return outdoor === false ? " · indoor" : outdoor === true ? " · outdoor" : "";
 }
 
 export function formatPlanDate(date: string): string {

@@ -170,15 +170,20 @@ describe("daily update prompts", () => {
     );
   });
 
-  it("asks the coach to respect weather and daylight and mark outdoor sessions", () => {
+  it("asks the coach to respect weather and daylight and classify indoor/outdoor sessions", () => {
     expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain(WEATHER_PLANNING_RULES);
     expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain('"outdoor"');
+    expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain('"canBeOutdoor"');
+    expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain(
+      "could reasonably be done outdoors",
+    );
     expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain("not ride outdoors in rain");
     expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain("prefers daylight");
     expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain("train in the dark");
     expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain("before or after work");
     expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain("long outdoor sessions");
     expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain("weekend");
+    expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain("dry");
   });
 
   it("requires the exact enum values from the schema", () => {
