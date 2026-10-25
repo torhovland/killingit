@@ -578,7 +578,15 @@ export const planGenerations = pgTable(
       .notNull()
       .default("idle"),
     step: text("step"),
+    /** Stable step key used to learn how long this step takes. */
+    stepId: text("step_id"),
     progress: integer("progress").notNull().default(0),
+    /** Percentage the current step moves towards while it runs. */
+    progressEnd: integer("progress_end").notNull().default(100),
+    /** When the current step began; heartbeats only touch `updated_at`. */
+    stepStartedAt: timestamp("step_started_at", { withTimezone: true }),
+    /** Expected duration of the current step, copied from its learned average. */
+    stepExpectedMs: integer("step_expected_ms").notNull().default(0),
     error: text("error"),
     startedAt: timestamp("started_at", { withTimezone: true }),
     updatedAt: timestamp("updated_at", { withTimezone: true })
@@ -595,8 +603,38 @@ export const planGenerations = pgTable(
       "plan_generations_progress_check",
       sql`${table.progress} >= 0 and ${table.progress} <= 100`,
     ),
+    check(
+      "plan_generations_progress_end_check",
+      sql`${table.progressEnd} >= 0 and ${table.progressEnd} <= 100`,
+    ),
   ],
 );
 
 export type PlanGenerationRow = typeof planGenerations.$inferSelect;
 export type NewPlanGeneration = typeof planGenerations.$inferInsert;
+
+/**
+ * Learned duration of each generation step. The first observation is used as
+ * is; later ones update the average. Shared by all users, because it is a
+ * display heuristic rather than a per-account setting.
+ */
+export const planGenerationStepDurations = pgTable(
+  "plan_generation_step_durations",
+  {
+    stepId: text("step_id").primaryKey(),
+    averageMs: integer("average_ms").notNull(),
+    samples: integer("samples").notNull().default(0),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    check(
+      "plan_generation_step_durations_average_check",
+      sql`${table.averageMs} > 0`,
+    ),
+  ],
+);
+
+export type PlanGenerationStepDurationRow =
+  typeof planGenerationStepDurations.$inferSelect;

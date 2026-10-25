@@ -21,6 +21,7 @@ import {
 import { addDays } from "./dates.js";
 import { runPlanGeneration, type PlanGenerationContext } from "./generate.js";
 import { planPending } from "./status.js";
+import type { PlanGenerationStep } from "./steps.js";
 import {
   idleGenerationStatus,
   type PlanGenerationStore,
@@ -262,13 +263,13 @@ class MemoryGenerationStore implements PlanGenerationStore {
     return Promise.resolve(true);
   }
 
-  update(_userId: number, step: string, progress: number): Promise<void> {
-    this.steps.push(step);
+  update(_userId: number, step: PlanGenerationStep): Promise<void> {
+    this.steps.push(step.label);
     this.status = {
       ...this.status,
       status: "running",
-      step,
-      progress,
+      step: step.label,
+      progress: step.target,
       updatedAt: new Date().toISOString(),
     };
     return Promise.resolve();

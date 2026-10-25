@@ -162,6 +162,13 @@
       "when": 1792952983200,
       "tag": "0022_unknown_stranger",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1792966216868,
+      "tag": "0023_steady_landau",
+      "breakpoints": true
     }
   ]
 }

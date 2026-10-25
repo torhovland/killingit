@@ -8,6 +8,7 @@ import type {
 import { createApp } from "../index.js";
 import { STALE_GENERATION_MS } from "../plans/generation.js";
 import type { CoachingInputs } from "../plans/inputs.js";
+import type { PlanGenerationStep } from "../plans/steps.js";
 import type {
   PlanGenerationStore,
   PlanStore,
@@ -190,12 +191,12 @@ class MemoryGenerationStore implements PlanGenerationStore {
     return Promise.resolve(true);
   }
 
-  update(_userId: number, step: string, progress: number): Promise<void> {
+  update(_userId: number, step: PlanGenerationStep): Promise<void> {
     this.status = {
       ...this.status,
       status: "running",
-      step,
-      progress,
+      step: step.label,
+      progress: step.target,
       updatedAt: new Date().toISOString(),
     };
     return Promise.resolve();

@@ -316,7 +316,9 @@ export function CoachPlanSection({
           </div>
           <div className="h-2 w-full overflow-hidden rounded bg-card">
             <div
-              className="h-full rounded bg-primary transition-all"
+              // Match the poll interval so each small increase blends into a
+              // continuous move instead of a visible step.
+              className="h-full rounded bg-primary transition-[width] duration-[1500ms] ease-linear"
               // Dynamic width is the one value that must be inline.
               style={{ width: `${progress?.progress ?? 0}%` }}
             />

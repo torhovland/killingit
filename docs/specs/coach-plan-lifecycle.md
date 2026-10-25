@@ -133,9 +133,22 @@ One row per user (`unique (user_id)`):
 
 - `status` — `idle | running | done | error`.
 - `step` — human-readable current step.
-- `progress` — integer 0–100.
+- `step_id` — stable key used to learn how long the step takes.
+- `progress` — the percentage reached when the current step started.
+- `progress_end` — the percentage the current step moves towards.
+- `step_started_at` — when the current step began (heartbeats only touch
+  `updated_at`).
+- `step_expected_ms` — expected duration of the current step, copied from its
+  learned average.
 - `error` — failure detail, null on success.
 - `started_at`, `updated_at`.
+
+While a step runs, `GET` reports `progress` interpolated from the value reached
+when the step started towards `progress_end` over `step_expected_ms`. Durations
+are learned in `plan_generation_step_durations`, one row per `step_id` with an
+exponentially weighted average; a step that has never run uses its default. This
+keeps the bar moving during a long LLM call instead of waiting for the next
+checkpoint. See `docs/specs/plan-generation-progress.md`.
 
 `begin` inserts the row if needed and flips it to `running` only when it is not
 already `running`, so concurrent requests cannot start two generations. A live
