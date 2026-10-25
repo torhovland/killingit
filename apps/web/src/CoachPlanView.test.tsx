@@ -147,6 +147,25 @@ describe("CoachPlanView", () => {
     );
   });
 
+  it("lists block weeks like season blocks, with muted details and rules", () => {
+    const block = renderToStaticMarkup(
+      <CoachPlanView plan={plan} defaultTab="block" />,
+    );
+    expect(block).toContain("Week 1");
+    expect(block).toContain("Week starting Mon, Oct 19");
+    expect(block).toContain("Target load: Easy");
+    expect(block).toContain("Aerobic base");
+    expect(block).toContain("border-b");
+
+    const season = renderToStaticMarkup(
+      <CoachPlanView plan={plan} defaultTab="season" />,
+    );
+    expect(season).toContain("1. Base");
+    expect(season).toContain("6 weeks");
+    expect(season).toContain("Aerobic endurance");
+    expect(season).toContain("border-b");
+  });
+
   it("renders the next week and next block after 18:00", () => {
     const nextDates = [
       "2026-10-26",

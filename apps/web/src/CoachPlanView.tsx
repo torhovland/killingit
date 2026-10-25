@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import type {
   BlockPlan,
   CoachPlan,
@@ -282,22 +282,28 @@ function BlockSection({
       <h3 className="text-lg font-semibold">
         {label} · {block.name}
       </h3>
-      <p className="mt-2 text-sm text-muted-foreground">{block.focus}</p>
-      <p className="text-sm text-muted-foreground">
+      <p className="mt-2 text-sm text-muted-foreground">
         {formatPlanDate(block.startDate)} → {formatPlanDate(block.endDate)}
       </p>
-      <p className="mt-2 text-sm">
+      <p className="mt-3 text-sm text-muted-foreground">{block.focus}</p>
+      <p className="mt-3 text-sm">
         <span className="font-medium">Coach's rationale: </span>
         <span className="text-muted-foreground">{block.rationale}</span>
       </p>
-      <ul className="mt-3 flex flex-col gap-1 text-sm">
+      <PlanList>
         {block.weeks.map((week) => (
-          <li key={`${week.number}-${week.startDate}`}>
-            <span className="font-medium">Week {week.number}</span> ·{" "}
-            {week.focus} · {week.targetLoad}
-          </li>
+          <PlanListItem key={`${week.number}-${week.startDate}`}>
+            <p className="font-medium">Week {week.number}</p>
+            <p className="text-muted-foreground">
+              Week starting {formatPlanDate(week.startDate)}
+            </p>
+            <p className="text-muted-foreground">
+              Target load: {week.targetLoad}
+            </p>
+            <p className="text-muted-foreground">{week.focus}</p>
+          </PlanListItem>
         ))}
-      </ul>
+      </PlanList>
     </section>
   );
 }
@@ -309,24 +315,39 @@ function SeasonSection({ season }: { season: SeasonPlan }) {
       <p className="mt-2 text-sm text-muted-foreground">
         {formatPlanDate(season.startDate)} → {formatPlanDate(season.endDate)}
       </p>
-      <p className="mt-2 text-sm">
+      <p className="mt-3 text-sm">
         <span className="font-medium">Coach's rationale: </span>
         <span className="text-muted-foreground">{season.rationale}</span>
       </p>
-      <ol className="mt-3 flex flex-col gap-2 text-sm">
+      <PlanList>
         {season.blocks.map((block, index) => (
-          <li key={`${block.name}-${block.startDate}`}>
-            <span className="font-medium">
+          <PlanListItem key={`${block.name}-${block.startDate}`}>
+            <p className="font-medium">
               {index + 1}. {block.name}
-            </span>{" "}
-            · {formatPlanDate(block.startDate)} →{" "}
-            {formatPlanDate(block.endDate)} · {block.weekCount}{" "}
-            {block.weekCount === 1 ? "week" : "weeks"}
+            </p>
+            <p className="text-muted-foreground">
+              {formatPlanDate(block.startDate)} →{" "}
+              {formatPlanDate(block.endDate)} · {block.weekCount}{" "}
+              {block.weekCount === 1 ? "week" : "weeks"}
+            </p>
             <p className="text-muted-foreground">{block.focus}</p>
-          </li>
+          </PlanListItem>
         ))}
-      </ol>
+      </PlanList>
     </section>
+  );
+}
+
+/** List shared by the block and season views, with the Week tab's rules. */
+function PlanList({ children }: { children: ReactNode }) {
+  return <ol className="mt-4 flex flex-col gap-3 text-sm">{children}</ol>;
+}
+
+function PlanListItem({ children }: { children: ReactNode }) {
+  return (
+    <li className="flex flex-col gap-1 border-b pb-3 last:border-b-0 last:pb-0">
+      {children}
+    </li>
   );
 }
 
