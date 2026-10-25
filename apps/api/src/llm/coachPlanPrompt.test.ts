@@ -95,7 +95,7 @@ function makeAnalyzedActivity(
 
 describe("coach plan prompts", () => {
   it("exposes a prompt version for cache invalidation", () => {
-    expect(COACH_PLAN_PROMPT_VERSION).toBe(4);
+    expect(COACH_PLAN_PROMPT_VERSION).toBe(5);
   });
 
   it("builds a system and a user message", () => {
@@ -148,6 +148,12 @@ describe("coach plan prompts", () => {
     );
     expect(prompt).toContain("today must match the entry for today's date");
     expect(prompt).toContain('use either "workout" or "rest"');
+    expect(prompt).toContain(
+      'never output a session name such as "run", "strength", or "rest day" as a type',
+    );
+    expect(prompt).toContain(
+      "Every field must use the exact name and value type shown in the contract",
+    );
   });
 
   it("includes today's date, the timezone, and the athlete profile", () => {
@@ -222,6 +228,9 @@ describe("coach plan prompts", () => {
 
     expect(prompt).toContain(
       "Use state of the art training science to make the best possible plan for this athlete.",
+    );
+    expect(prompt).toContain(
+      'top-level keys are exactly "season", "block", "week", "today", and "tomorrow"',
     );
   });
 });

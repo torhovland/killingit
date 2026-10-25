@@ -63,7 +63,7 @@ export function buildSeasonPlanPrompt(input: SeasonPlanInput): string {
   return [
     ...formatPlanContext(input),
     "",
-    "Create the season plan. Return only the JSON object described in the system prompt.",
+    'Create the season plan. Return one JSON object whose top-level key is exactly "season".',
   ].join("\n");
 }
 
@@ -84,6 +84,6 @@ export function buildInitialBlockPrompt(input: InitialBlockInput): string {
     "Current season plan:",
     formatSeasonPlan(input.season),
     "",
-    "Create the first block. Return only the JSON object described in the system prompt.",
+    'Create the first block. Return one JSON object whose top-level key is exactly "block".',
   ].join("\n");
 }

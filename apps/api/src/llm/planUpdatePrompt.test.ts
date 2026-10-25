@@ -165,6 +165,9 @@ describe("daily update prompts", () => {
     expect(prompt).toContain("Block: Base");
     expect(prompt).toContain("Week starting 2026-10-19");
     expect(prompt).toContain("Easy run");
+    expect(prompt).toContain(
+      'top-level keys are exactly "today", "tomorrow", and "week"',
+    );
   });
 
   it("asks the coach to respect weather and daylight and mark outdoor sessions", () => {
@@ -176,6 +179,21 @@ describe("daily update prompts", () => {
     expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain("before or after work");
     expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain("long outdoor sessions");
     expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain("weekend");
+  });
+
+  it("requires the exact enum values from the schema", () => {
+    expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain(
+      'never output a session name such as "run", "strength", or "rest day" as a type',
+    );
+    expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain(
+      "Every field must use the exact name and value type shown in the contract",
+    );
+    expect(WEEKLY_UPDATE_SYSTEM_PROMPT).toContain(
+      'never output a session name such as "run", "strength", or "rest day" as a type',
+    );
+    expect(WEEKLY_UPDATE_SYSTEM_PROMPT).toContain(
+      "Every field must use the exact name and value type shown in the contract",
+    );
   });
 
   it("includes the forecast when one is supplied", () => {
@@ -233,6 +251,7 @@ describe("weekly update prompts", () => {
     expect(prompt).toContain("Goal: Sub-4-hour marathon");
     expect(prompt).toContain("Block: Base");
     expect(prompt).toContain("Aerobic base + strides");
+    expect(prompt).toContain('top-level keys are exactly "week" and "block"');
   });
 
   it("asks the coach to place sessions around the weather and daylight", () => {
@@ -267,5 +286,6 @@ describe("block update prompts", () => {
     expect(prompt).toContain("Goal: Sub-4-hour marathon");
     expect(prompt).toContain("Completed block plan:");
     expect(prompt).toContain("Block: Base");
+    expect(prompt).toContain('top-level keys are exactly "block" and "season"');
   });
 });
