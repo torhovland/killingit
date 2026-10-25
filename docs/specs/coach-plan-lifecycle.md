@@ -3,6 +3,7 @@
 - **Status:** Accepted (implemented)
 - **Date:** 2026-10-21
 - **Related:** `docs/specs/coach-plan-prompts.md`, ADR 0004 (OpenRouter),
+  ADR 0009 (next-period planning),
   `docs/specs/openrouter-llm-integration.md`,
   `docs/specs/athlete-question-answers.md`,
   `docs/specs/coach-feedback-and-program-review.md`.
@@ -28,17 +29,28 @@ answers change and as days, weeks, and blocks roll over.
      done or missed;
    - week missing → generate the new week, then revise the block;
    - block missing → generate the next block, then revise the season.
-5. Trigger a fresh full plan when answers are saved, and offer an explicit
+5. Plan the next period when tomorrow has crossed into it (after 18:00):
+   - tomorrow in the next week → generate the next week, leaving the current
+     week untouched;
+   - tomorrow in the next block → generate the next block and its first week,
+     leaving the current block untouched;
+   - generate tomorrow's session against that next week and block so the Day
+     tab agrees with the Week and Block tabs.
+6. Promote the next week and block when today enters them, dropping the ended
+   period after its review has been captured.
+7. Trigger a fresh full plan when answers are saved, and offer an explicit
    "Regenerate plan" action on the coaching survey and settings pages (not on
    the dashboard).
-6. A plan section in the coaching dashboard showing:
+8. A plan section in the coaching dashboard showing:
    - generation progress (step + bar) while the coach is working;
    - today's workout/rest with alternatives and a note on whether it can be
      skipped (the same note is shown for tomorrow after 18:00);
-   - the current week, block, and season;
+   - the current week and, after 18:00 when it is planned, the next week;
+   - the current block and, after 18:00 when it is planned, the next block;
+   - the season;
    - a stale-plan banner and retry/error states;
    - a setup message until Garmin and OpenRouter are configured.
-7. Shared Zod schemas for the plan, generation status, pending flags, and
+9. Shared Zod schemas for the plan, generation status, pending flags, and
    generation request.
 
 ### Out of scope (deferred)
@@ -70,12 +82,21 @@ answers change and as days, weeks, and blocks roll over.
 5. On a new week, the first visit generates the new week and revises the block.
 6. When the block has ended, the first visit generates the next block and revises
    the season, then cascades down to the week and today.
-7. A failed generation leaves the previous plan visible, records the error, and
+7. After 18:00, when tomorrow falls in the next week, the plan section generates
+   that week and tomorrow's session without changing the current week. When
+   tomorrow also falls in the next block, it generates the next block first and
+   then that week. The current block and week stay as stored until they end.
+8. On the first visit after the current week or block ends, the stored next week
+   or next block becomes current, the previous period is summarised, and the
+   dashboard shows a single current week and block again.
+9. A failed generation leaves the previous plan visible, records the error, and
    offers a retry (regenerate).
-8. Generation is not started twice concurrently for the same user.
-9. `GET /api/coaching/plan` reports the stored plan, generation status, stale
-   flag, and pending day/week/block/initial flags for the supplied date.
-10. All four quality gates pass.
+10. Generation is not started twice concurrently for the same user.
+11. `GET /api/coaching/plan` reports the stored plan, generation status, stale
+    flag, and pending day/week/block/next-week/next-block/tomorrow/initial flags
+    for the supplied date. The returned plan is normalised so a stored next week
+    or block that contains today is shown as current.
+12. All four quality gates pass.
 
 ## Data model
 
@@ -83,9 +104,13 @@ answers change and as days, weeks, and blocks roll over.
 
 One row per user (`unique (user_id)`):
 
-- `season`, `block`, `week`, `today` — `jsonb` copies of the four levels.
-- `tomorrow` — optional `jsonb` day plan so the UI can offer tomorrow's session
-  after 18:00 without another generation (migration `0009`).
+- `season`, `block`, `week`, `today` — the current season, block, week and day.
+- `next_block`, `next_week` — optional plans for the block and week that contain
+  tomorrow when tomorrow has left the current ones (for example Sunday evening).
+  They are generated together with tomorrow so the day, week and block agree,
+  and are promoted when the date reaches them.
+- `tomorrow` — optional `tomorrow` day plan so the UI can show the next day
+  without another generation (migration `0009`).
 - `day_date`, `week_start_date`, `block_start_date`, `block_end_date`,
   `season_start_date`, `season_end_date` — duplicated calendar dates for
   pending/staleness checks.
@@ -118,7 +143,8 @@ Both routes are behind `requireAuth`.
 
 - `GET /api/coaching/plan?today=YYYY-MM-DD`
   → `{ plan, generatedAt, generation, stale, pending }`.
-- `POST /api/coaching/plan/generate` with `{ today, timezone?, force? }`
+- `POST /api/coaching/plan/generate` with
+  `{ today, timezone?, force?, includeTomorrow? }`
   → the same response body after generation completes; `202` if a generation is
   already running.
 
@@ -126,7 +152,17 @@ Both routes are behind `requireAuth`.
 `coach_plans.answers_updated_at`. `pending.day` is true when the stored day is
 not for `today`; `pending.week` is true when `today` is not one of the stored
 week's sessions; `pending.block` is true when `today` falls outside the stored
-block's dates.
+block's dates. After 18:00, `pending.tomorrow` is true when tomorrow's day plan
+is missing, is not covered by a stored week, or falls outside a stored block;
+`pending.nextWeek` and `pending.nextBlock` are true when tomorrow has crossed
+into a period that has not been generated yet.
+
+The `plan` in the response is normalised for `today`: if a stored `next_week` or
+`next_block` contains today, it is promoted in the returned plan (and the day
+plan for today is taken from `tomorrow` when it matches). Pending flags are
+computed from the stored plan, so the first visit after a rollover still starts
+a generation that persists the promotion and captures the ended period's
+review.
 
 ## Generation flow
 
@@ -144,17 +180,29 @@ block's dates.
    a revision trigger too: the new knowledge from the activity must reach the
    remaining week (and, through the weekly prompt, the block). This includes an
    activity imported days later, and an import that finished while an earlier
-   generation was still running.
+   generation was still running. Advance the current period first:
    - if `pending.block`, call the block prompt (new block + revised season);
    - if the block changed, coaching inputs or activity analyses changed, or
      `pending.week`, call the weekly prompt (new week + revised block);
-   - if the block/week changed, inputs or analyses changed, or `pending.day`,
-     call the daily prompt (today + revised week).
-5. Save the plan with the current answer timestamp. After a full build, review
-   recent activities against the finished plan (see
+   - if the block/week changed, inputs or analyses changed, `pending.day`, or
+     tomorrow is missing from the current week, call the daily prompt (today +
+     revised week + tomorrow).
+5. After 18:00, ensure tomorrow is covered by a week and a block. These steps
+   never revise the current week or block when tomorrow has left them:
+   - if tomorrow falls outside the current block, call the block prompt to
+     create `next_block` (with a revised season);
+   - if tomorrow falls outside the current week, call the weekly prompt for
+     `startOfWeek(tomorrow)` and store it as `next_week`;
+   - call the daily prompt with tomorrow as its day and the target week and
+     block, store the returned day as `tomorrow`, and mirror it into that
+     week's matching session. The returned week replaces `next_week` (or, for a
+     mid-week block transition, the current week's remaining days).
+6. Save the plan with the current answer timestamp. When today has entered a
+   stored `next_week` or `next_block`, promote it to the current level first.
+   After a full build, review recent activities against the finished plan (see
    `docs/specs/coach-feedback-and-program-review.md`), then mark the status
    `done` and return the refreshed response.
-6. On any failure, mark the status `error` and leave the previous plan in place.
+7. On any failure, mark the status `error` and leave the previous plan in place.
 
 All LLM responses are parsed defensively (`parsePlanJson`) so markdown fences or
 a short prose wrapper do not break the flow, and the shared Zod schemas reject
@@ -168,9 +216,12 @@ problems; the error names the offending fields if the repair also fails. See
 - `CoachPlanSection` owns fetching, generation, polling, and the progress
   panel. It polls every 1.5s for up to 10 minutes.
 - `CoachPlanView` is the presentational four-level plan, so it can be tested
-  without auth or network. If a stored plan has today's `completed`/`partial`
-  result missing from today's week session, `pending.week` becomes true and the
-  normal weekly + daily cascade refreshes the week.
+  without auth or network. The Day tab shows today and, after 18:00, tomorrow.
+  The Week tab shows the current week and, when one has been planned for
+  tomorrow, the next week. The Block tab does the same for blocks. If a stored
+  plan has today's `completed`/`partial` result missing from today's week
+  session, `pending.week` becomes true and the normal weekly + daily cascade
+  refreshes the week.
 - `CoachDashboard` increments a refresh key after answers are saved, which
   makes the plan section refetch, spot the stale plan, and start the
   regeneration.
@@ -187,20 +238,23 @@ problems; the error names the offending fields if the repair also fails. See
   alternatives default, optionality defaults, empty responses, and the daily
   update shape.
 - API unit tests for pending/staleness, date helpers, JSON parsing, prompt
-  contents, and the full/day/week/block cascade with in-memory stores and a fake
-  provider.
+  contents, the full/day/week/block cascade with in-memory stores and a fake
+  provider, next-week/next-block generation, and promotion after the date moves
+  on.
 - API route tests for auth, valid/invalid dates, the empty state, full
-  generation, and the already-running `202` case.
-- Web render tests for the four-level view (today, week, block, season,
-  alternatives, optionality).
+  generation, the already-running `202` case, and a normalised next period.
+- Web render tests for the four-level view (today, week, next week, block, next
+  block, season, alternatives, optionality).
 - Run `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`.
 
 ## Risks / open questions
 
 - **Cost:** an initial plan is four smaller completions (season, current block,
-  current week, today); a cascade can be up to three. Each generation first
-  syncs/analyses recent Garmin activities (cached analyses are reused). The
-  plan is lazily generated only when needed.
+  current week, today). A cascade can be up to three. After 18:00, a crossing
+  into a new week or block adds up to three more completions (next block, next
+  week, tomorrow), and the next period is reused on later visits. Each
+  generation first syncs/analyses recent Garmin activities (cached analyses are
+  reused). The plan is lazily generated only when needed.
 - **Long requests:** generation runs inside the POST. The API already sets a
   255s Bun idle timeout; the UI polls a separate status endpoint so it can show
   progress without waiting for the POST to resolve.

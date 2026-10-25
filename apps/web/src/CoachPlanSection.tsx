@@ -198,7 +198,9 @@ export function CoachPlanSection({
         result.pending.day ||
         result.pending.week ||
         result.pending.block ||
-        result.pending.tomorrow;
+        result.pending.tomorrow ||
+        result.pending.nextWeek ||
+        result.pending.nextBlock;
       if (needsUpdate && ready) {
         await generate(false);
       }

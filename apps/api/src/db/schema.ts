@@ -524,6 +524,10 @@ export const coachPlans = pgTable(
     today: jsonb("today").$type<DayPlan>().notNull(),
     /** Suggested session for tomorrow; shown after 18:00 local time. */
     tomorrow: jsonb("tomorrow").$type<DayPlan | null>(),
+    /** The week containing tomorrow once it has crossed the current week. */
+    nextWeek: jsonb("next_week").$type<WeekPlan | null>(),
+    /** The block containing tomorrow once it has crossed the current block. */
+    nextBlock: jsonb("next_block").$type<BlockPlan | null>(),
     dayDate: text("day_date").notNull(),
     weekStartDate: text("week_start_date").notNull(),
     blockStartDate: text("block_start_date").notNull(),

@@ -21,15 +21,17 @@ export function applyForecastToPlan(
     return plan;
   }
   const byDate = new Map(forecast.map((day) => [day.date, day]));
+  const withWeather = (week: CoachPlan["week"]): CoachPlan["week"] => ({
+    ...week,
+    sessions: week.sessions.map((session) => ({
+      ...session,
+      weather: forecastFor(session.date, byDate),
+    })),
+  });
   return {
     ...plan,
-    week: {
-      ...plan.week,
-      sessions: plan.week.sessions.map((session) => ({
-        ...session,
-        weather: forecastFor(session.date, byDate),
-      })),
-    },
+    week: withWeather(plan.week),
+    nextWeek: plan.nextWeek === null ? null : withWeather(plan.nextWeek),
     today: {
       ...plan.today,
       weather: forecastFor(plan.today.date, byDate),

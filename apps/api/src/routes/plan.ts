@@ -11,6 +11,7 @@ import type { ActivityFeed } from "../coaching/activities.js";
 import type { LlmClient } from "../llm/client.js";
 import { startOfWeek } from "../plans/dates.js";
 import { loadCoachingInputs, type CoachingInputs } from "../plans/inputs.js";
+import { promoteNextPeriod } from "../plans/periods.js";
 import {
   latestAnswerTimestamp,
   planIsStale,
@@ -70,7 +71,10 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
     const parsed = storedPlan
       ? coachPlanSchema.safeParse(storedPlan.plan)
       : null;
-    const plan = parsed?.success ? parsed.data : null;
+    const stored = parsed?.success ? parsed.data : null;
+    // Show a next week or block as current once today has reached it, even
+    // before the background promotion has been persisted.
+    const plan = stored === null ? null : promoteNextPeriod(stored, today);
     const generatedAt =
       storedPlan && parsed?.success
         ? storedPlan.generatedAt.toISOString()
@@ -89,7 +93,7 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
       generatedAt,
       generation,
       stale,
-      pending: planPending(plan, today, includeTomorrow),
+      pending: planPending(stored, today, includeTomorrow),
     });
   }
 

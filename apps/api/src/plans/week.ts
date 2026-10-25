@@ -158,6 +158,36 @@ function mirrorToday(
 }
 
 /**
+ * Copies a generated day plan into its week session so the Day and Week views
+ * cannot disagree about the session. Throws when the day does not belong to the
+ * week, which would mean the coach returned inconsistent levels.
+ */
+export function mirrorDay(week: WeekPlan, day: DayPlan): WeekPlan {
+  if (!week.sessions.some((session) => session.date === day.date)) {
+    throw new Error(
+      "The coach returned a session that is not in the planned week.",
+    );
+  }
+  return {
+    ...week,
+    sessions: week.sessions.map((session) =>
+      session.date === day.date
+        ? {
+            ...session,
+            type: day.type,
+            title: day.title,
+            description: day.description,
+            durationMinutes: day.durationMinutes,
+            intensity: day.intensity,
+            status: day.status,
+            ...(day.outdoor !== undefined ? { outdoor: day.outdoor } : {}),
+          }
+        : session,
+    ),
+  };
+}
+
+/**
  * Judges a recorded activity against the planned session's duration. A little
  * slack is intentional: a 60-minute ride recorded as 50 minutes is still
  * completed, and small power/pace-zone deviations do not make a session partial.

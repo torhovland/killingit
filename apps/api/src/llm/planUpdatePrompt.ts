@@ -142,7 +142,7 @@ ${JSON_RULES}
   "week": ${WEEK_CONTRACT}
 }`;
 
-export const WEEKLY_UPDATE_SYSTEM_PROMPT = `You are an expert endurance coach. Create the week starting on the supplied week start date and revise the current block plan for an amateur athlete. Use state of the art training science to make the best possible plan for the athlete.
+export const WEEKLY_UPDATE_SYSTEM_PROMPT = `You are an expert endurance coach. Create the week starting on the supplied week start date and revise the block plan for an amateur athlete. Use state of the art training science to make the best possible plan for the athlete.
 
 You receive the athlete's profile, recent activities with coach analyses, program reviews, and coach replies, the current season, and the current block. You also receive manually recorded activities, comments on activities, a general weekly note, and coach summaries of completed weeks and blocks with the athlete's feedback on them. Use all of these to judge what the athlete completed, how they responded, how the block's progression should be adjusted, and what constraints or feedback they have for the week. ${ACTIVITY_COMMENT_RULE} The weekly note is a hard constraint: if it says the athlete cannot train on a specific day, move or cancel the session on that day. If a manually recorded activity indicates significant fatigue or extra load, adjust the week's sessions accordingly. The new week must fit the block's focus and progression, must start on the supplied week start date, and must contain exactly seven sessions. For days before today, do not propose new workouts: describe what actually happened and set each status to "completed", "partial", "missed", or "rest". Allow reasonable slack when judging completion: a session with a slightly shorter duration than planned (for example a 60-minute ride recorded as 50 minutes) or slightly missed power/pace zones is still "completed"; use "partial" only when a meaningful part of the session was not done. Include a rationale for the week and for the revised block.
 
@@ -215,10 +215,10 @@ export function buildWeeklyUpdatePrompt(input: WeeklyUpdateInput): string {
     "Current season plan:",
     formatSeasonPlan(input.season),
     "",
-    "Current block plan:",
+    "Block plan for the week:",
     formatBlockPlan(input.block),
     "",
-    "Create the new week and revise the block plan. Return only the JSON object described in the system prompt.",
+    "Create the new week and revise this block. Return only the JSON object described in the system prompt.",
   ].join("\n");
 }
 

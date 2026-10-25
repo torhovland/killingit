@@ -68,8 +68,30 @@ export function CoachPlanView({
             )}
           </div>
         )}
-        {tab === "week" && <WeekSection week={plan.week} />}
-        {tab === "block" && <BlockSection block={plan.block} />}
+        {tab === "week" && (
+          <div className="flex flex-col gap-4">
+            <WeekSection week={plan.week} label="This week" />
+            {plan.nextWeek !== null && (
+              <WeekSection
+                week={plan.nextWeek}
+                label="Next week"
+                testId="plan-next-week"
+              />
+            )}
+          </div>
+        )}
+        {tab === "block" && (
+          <div className="flex flex-col gap-4">
+            <BlockSection block={plan.block} label="Current block" />
+            {plan.nextBlock !== null && (
+              <BlockSection
+                block={plan.nextBlock}
+                label="Next block"
+                testId="plan-next-block"
+              />
+            )}
+          </div>
+        )}
         {tab === "season" && <SeasonSection season={plan.season} />}
       </div>
     </div>
@@ -141,10 +163,23 @@ function DayCard({
   );
 }
 
-function WeekSection({ week }: { week: WeekPlan }) {
+function WeekSection({
+  week,
+  label,
+  testId,
+}: {
+  week: WeekPlan;
+  label: string;
+  testId?: string;
+}) {
   return (
-    <section className="rounded-lg border bg-card p-4">
-      <h3 className="text-lg font-semibold">This week · {week.focus}</h3>
+    <section className="rounded-lg border bg-card p-4" data-testid={testId}>
+      <h3 className="text-lg font-semibold">
+        {label} · {week.focus}
+      </h3>
+      <p className="text-sm text-muted-foreground">
+        Week starting {formatPlanDate(week.startDate)}
+      </p>
       <p className="mt-2 text-sm text-muted-foreground">{week.rationale}</p>
       <ul className="mt-3 flex flex-col gap-2">
         {week.sessions.map((session) => (
@@ -192,10 +227,20 @@ function StatusBadge({ status }: { status: WeekSessionStatus }) {
   );
 }
 
-function BlockSection({ block }: { block: BlockPlan }) {
+function BlockSection({
+  block,
+  label,
+  testId,
+}: {
+  block: BlockPlan;
+  label: string;
+  testId?: string;
+}) {
   return (
-    <section className="rounded-lg border bg-card p-4">
-      <h3 className="text-lg font-semibold">Block · {block.name}</h3>
+    <section className="rounded-lg border bg-card p-4" data-testid={testId}>
+      <h3 className="text-lg font-semibold">
+        {label} · {block.name}
+      </h3>
       <p className="mt-2 text-sm text-muted-foreground">{block.focus}</p>
       <p className="text-sm text-muted-foreground">
         {formatPlanDate(block.startDate)} → {formatPlanDate(block.endDate)}

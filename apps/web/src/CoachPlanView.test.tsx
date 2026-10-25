@@ -96,6 +96,8 @@ const plan: CoachPlan = {
       "This is a short recovery run. If your legs are tired, it is fine to skip it or replace it with a walk.",
     status: "planned",
   },
+  nextWeek: null,
+  nextBlock: null,
 };
 
 describe("CoachPlanView", () => {
@@ -133,7 +135,7 @@ describe("CoachPlanView", () => {
     const block = renderToStaticMarkup(
       <CoachPlanView plan={plan} defaultTab="block" />,
     );
-    expect(block).toContain("Block · Base");
+    expect(block).toContain("Current block · Base");
     expect(block).toContain("Establish consistent aerobic volume.");
 
     const season = renderToStaticMarkup(
@@ -143,6 +145,57 @@ describe("CoachPlanView", () => {
     expect(season).toContain(
       "Build a strong aerobic base before marathon-specific work.",
     );
+  });
+
+  it("renders the next week and next block after 18:00", () => {
+    const nextDates = [
+      "2026-10-26",
+      "2026-10-27",
+      "2026-10-28",
+      "2026-10-29",
+      "2026-10-30",
+      "2026-10-31",
+      "2026-11-01",
+    ];
+    const nextPlan: CoachPlan = {
+      ...plan,
+      nextWeek: {
+        ...plan.week,
+        startDate: "2026-10-26",
+        focus: "Aerobic build",
+        rationale: "Start the next week with an easy aerobic block.",
+        sessions: plan.week.sessions.map((session, index) => ({
+          ...session,
+          date: nextDates[index] ?? session.date,
+          title: `Next session ${index + 1}`,
+        })),
+      },
+      nextBlock: {
+        ...plan.block,
+        name: "Build",
+        focus: "Threshold work",
+        rationale: "Add threshold work after the aerobic base.",
+        startDate: "2026-12-02",
+        endDate: "2027-01-15",
+      },
+    };
+
+    const week = renderToStaticMarkup(
+      <CoachPlanView plan={nextPlan} defaultTab="week" />,
+    );
+    expect(week).toContain("This week · Aerobic base");
+    expect(week).toContain("Next week · Aerobic build");
+    expect(week).toContain("Week starting Mon, Oct 26");
+    expect(week).toContain("Next session 1");
+    expect(week).toContain('data-testid="plan-next-week"');
+
+    const block = renderToStaticMarkup(
+      <CoachPlanView plan={nextPlan} defaultTab="block" />,
+    );
+    expect(block).toContain("Current block · Base");
+    expect(block).toContain("Next block · Build");
+    expect(block).toContain("Add threshold work after the aerobic base.");
+    expect(block).toContain('data-testid="plan-next-block"');
   });
 
   it("shows completed and missed sessions for past days", () => {

@@ -23,7 +23,10 @@ header, outstanding activities, the plan, and the inputs that shape it.
    it in place for the rest of the visit; the next page load drops it because it
    now has a response.
 2. **Plan** — a tabbed view with `Day`, `Week`, `Block`, and `Season`. `Day` is
-   selected by default and shows today plus tomorrow after 18:00.
+   selected by default and shows today plus tomorrow after 18:00. After 18:00,
+   `Week` shows the current week and the next week when tomorrow has crossed
+   into it, and `Block` shows the current block and the next block when tomorrow
+   has crossed into it.
 3. **Coaching inputs** — the weekly note and a by-the-way question.
 
 ### Weekly note

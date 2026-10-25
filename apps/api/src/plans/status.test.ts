@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { CoachPlan } from "@killingit/shared";
+import { addDays } from "./dates";
 import {
   latestActivityAnalysisTimestamp,
   latestAnswerTimestamp,
@@ -69,6 +70,8 @@ function makePlan(): CoachPlan {
       status: "planned",
     },
     tomorrow: null,
+    nextWeek: null,
+    nextBlock: null,
   };
 }
 
@@ -80,6 +83,8 @@ describe("planPending", () => {
       week: true,
       block: true,
       tomorrow: true,
+      nextWeek: true,
+      nextBlock: true,
     });
   });
 
@@ -90,6 +95,8 @@ describe("planPending", () => {
       week: false,
       block: false,
       tomorrow: false,
+      nextWeek: false,
+      nextBlock: false,
     });
   });
 
@@ -100,6 +107,8 @@ describe("planPending", () => {
       week: false,
       block: false,
       tomorrow: true,
+      nextWeek: false,
+      nextBlock: false,
     });
   });
 
@@ -129,6 +138,8 @@ describe("planPending", () => {
       week: false,
       block: false,
       tomorrow: false,
+      nextWeek: false,
+      nextBlock: false,
     });
     expect(planPending(makePlan(), "2026-10-26")).toEqual({
       initial: false,
@@ -136,6 +147,8 @@ describe("planPending", () => {
       week: true,
       block: false,
       tomorrow: false,
+      nextWeek: false,
+      nextBlock: false,
     });
   });
 
@@ -168,6 +181,65 @@ describe("planPending", () => {
       week: true,
       block: true,
       tomorrow: false,
+      nextWeek: false,
+      nextBlock: false,
+    });
+  });
+
+  it("marks next week and next block when tomorrow has crossed both", () => {
+    const plan = makePlan();
+    plan.block = { ...plan.block, endDate: "2026-10-25" };
+    plan.today = { ...plan.today, date: "2026-10-25" };
+
+    expect(planPending(plan, "2026-10-25", true)).toEqual({
+      initial: false,
+      day: false,
+      week: false,
+      block: false,
+      tomorrow: true,
+      nextWeek: true,
+      nextBlock: true,
+    });
+  });
+
+  it("does not mark next periods when they already cover tomorrow", () => {
+    const plan = makePlan();
+    plan.block = { ...plan.block, endDate: "2026-10-25" };
+    plan.today = { ...plan.today, date: "2026-10-25" };
+    plan.tomorrow = {
+      date: "2026-10-26",
+      type: "workout",
+      title: "Easy run",
+      description: "Easy.",
+      durationMinutes: 45,
+      intensity: "easy",
+      alternatives: [],
+      rationale: "Easy aerobic work.",
+      optional: false,
+      status: "planned",
+    };
+    plan.nextWeek = {
+      ...plan.week,
+      startDate: "2026-10-26",
+      sessions: plan.week.sessions.map((session, index) => ({
+        ...session,
+        date: addDays("2026-10-26", index),
+      })),
+    };
+    plan.nextBlock = {
+      ...plan.block,
+      startDate: "2026-10-26",
+      endDate: "2026-12-06",
+    };
+
+    expect(planPending(plan, "2026-10-25", true)).toEqual({
+      initial: false,
+      day: false,
+      week: false,
+      block: false,
+      tomorrow: false,
+      nextWeek: false,
+      nextBlock: false,
     });
   });
 });
