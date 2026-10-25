@@ -20,9 +20,17 @@ export const WEATHER_ICON_LABELS: Record<WeatherIcon, string> = {
   snow: "Snow",
 };
 
+/** A local 24-hour clock time such as `07:45` or `16:30`. */
+const clockTimeSchema = z
+  .string()
+  .regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/, "Expected an HH:MM clock time");
+
 /**
  * One day of forecast for the athlete's location. Named values use SI units:
  * temperatures in °C, wind and gusts in m/s, precipitation in millimetres.
+ * Sunrise and sunset are local clock times at the location, or null when the
+ * sun does not rise or set (polar day or night). Both are optional so plans
+ * stored before daylight planning still parse.
  */
 export const dailyWeatherSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Expected a YYYY-MM-DD date"),
@@ -32,6 +40,8 @@ export const dailyWeatherSchema = z.object({
   windMaxMs: z.number().nonnegative(),
   gustMaxMs: z.number().nonnegative(),
   precipitationMm: z.number().nonnegative(),
+  sunrise: clockTimeSchema.nullable().optional(),
+  sunset: clockTimeSchema.nullable().optional(),
 });
 
 export type DailyWeather = z.infer<typeof dailyWeatherSchema>;

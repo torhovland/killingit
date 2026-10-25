@@ -54,7 +54,9 @@ coach analysis on the main page.
 - Cost/token accounting and budgets.
 - Persisting full Garmin activities; the page still re-syncs from Garmin.
 - Chat-style coaching and pre-workout steering.
-- Weather/daylight in prompts.
+
+Weather and daylight are included in the plan prompts; see
+`docs/specs/location-and-weather.md`.
 
 ## Acceptance criteria
 

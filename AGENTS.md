@@ -70,9 +70,9 @@ about a past workout, or before a suggested workout, to steer the coach.
   plan UI are documented in `docs/specs/coach-plan-lifecycle.md`.
 - The athlete's home location is stored on `users` and set in the settings
   location picker. When a week or day is planned, the API loads an Open-Meteo
-  forecast, gives it to the coach, and attaches it to outdoor sessions. A
-  significant change in the stored forecast marks the week pending and refreshes
-  the week and day. See ADR 0008 and
+  forecast, including sunrise and sunset, gives it to the coach, and attaches it
+  to outdoor sessions. A significant change in the stored forecast marks the
+  week pending and refreshes the week and day. See ADR 0008 and
   `docs/specs/location-and-weather.md`.
 - Completed weeks and blocks get a coach summary, athlete comment, and coach
   reply in `period_reviews` / `coach_replies`; the dashboard and season review
@@ -178,11 +178,15 @@ Only the admin can manage athlete questions (see ADR 0006).
 
 ### Weather and daylight data
 
-- Weather from a free/cheap API (e.g. Open-Meteo), and daylight (sunrise/sunset)
-  computed from the athlete's location. Treat these as a provider behind a
+- Weather from a free/cheap API (e.g. Open-Meteo), and **daylight**
+  (sunrise/sunset) at the athlete's location. Treat these as a provider behind a
   small interface so sources can be swapped. Location (map click or address
-  search) and weather-aware planning are implemented via Open-Meteo; daylight
-  remains deferred.
+  search), weather-aware planning, and sunrise/sunset display are implemented
+  via Open-Meteo.
+- The coach prefers daylight for outdoor sessions. It honours any explicit
+  statement the athlete makes about training in darkness and otherwise assumes
+  a daylight preference. When a weekday window leaves only working-hour
+  daylight, long outdoor sessions move to the weekend.
 
 ## Observability and agent access
 

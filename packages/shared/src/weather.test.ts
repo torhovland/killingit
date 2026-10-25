@@ -21,7 +21,7 @@ describe("weather schemas", () => {
     expect(() => weatherIconSchema.parse("hail")).toThrow();
   });
 
-  it("parses a daily forecast with SI units", () => {
+  it("parses a daily forecast with SI units and local daylight times", () => {
     const parsed = dailyWeatherSchema.parse({
       date: "2026-10-25",
       icon: "rain",
@@ -30,9 +30,43 @@ describe("weather schemas", () => {
       windMaxMs: 5.2,
       gustMaxMs: 9.8,
       precipitationMm: 3.4,
+      sunrise: "07:42",
+      sunset: "16:35",
     });
     expect(parsed.icon).toBe("rain");
     expect(parsed.gustMaxMs).toBe(9.8);
+    expect(parsed.sunrise).toBe("07:42");
+    expect(parsed.sunset).toBe("16:35");
+  });
+
+  it("keeps daylight optional for forecasts stored before it existed", () => {
+    const parsed = dailyWeatherSchema.parse({
+      date: "2026-10-25",
+      icon: "sun",
+      temperatureMaxC: 12,
+      temperatureMinC: 4,
+      windMaxMs: 1,
+      gustMaxMs: 4,
+      precipitationMm: 0,
+    });
+
+    expect(parsed.sunrise).toBeUndefined();
+    expect(parsed.sunset).toBeUndefined();
+  });
+
+  it("rejects a malformed daylight time", () => {
+    expect(() =>
+      dailyWeatherSchema.parse({
+        date: "2026-10-25",
+        icon: "sun",
+        temperatureMaxC: 12,
+        temperatureMinC: 4,
+        windMaxMs: 1,
+        gustMaxMs: 4,
+        precipitationMm: 0,
+        sunrise: "7:42",
+      }),
+    ).toThrow();
   });
 
   it("rejects a negative wind speed or a malformed date", () => {

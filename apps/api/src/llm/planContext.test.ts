@@ -112,6 +112,8 @@ describe("formatPlanContext", () => {
             windMaxMs: 4.6,
             gustMaxMs: 8.2,
             precipitationMm: 0,
+            sunrise: "07:45",
+            sunset: "16:30",
           },
           {
             date: "2026-10-26",
@@ -121,19 +123,46 @@ describe("formatPlanContext", () => {
             windMaxMs: 6.2,
             gustMaxMs: 11.4,
             precipitationMm: 3.6,
+            sunrise: "07:47",
+            sunset: "16:27",
           },
         ],
       }),
     ).join("\n");
 
-    expect(text).toContain("Daily weather forecast for Oslo, Norway");
+    expect(text).toContain(
+      "Daily weather and daylight forecast for Oslo, Norway",
+    );
     expect(text).toContain("Temperatures are in °C");
+    expect(text).toContain("sunrise and sunset are local clock times");
     expect(text).toContain(
-      "- 2026-10-25: Sunny (sun), 4–12 °C, wind up to 5 m/s, gusts up to 8 m/s, 0.0 mm precipitation",
+      "- 2026-10-25: Sunny (sun), 4–12 °C, wind up to 5 m/s, gusts up to 8 m/s, 0.0 mm precipitation, sunrise 07:45, sunset 16:30",
     );
     expect(text).toContain(
-      "- 2026-10-26: Rain (rain), 4–9 °C, wind up to 6 m/s, gusts up to 11 m/s, 3.6 mm precipitation",
+      "- 2026-10-26: Rain (rain), 4–9 °C, wind up to 6 m/s, gusts up to 11 m/s, 3.6 mm precipitation, sunrise 07:47, sunset 16:27",
     );
+  });
+
+  it("omits daylight times when the forecast has none", () => {
+    const text = formatPlanContext(
+      input({
+        forecast: [
+          {
+            date: "2026-10-25",
+            icon: "sun",
+            temperatureMaxC: 12.4,
+            temperatureMinC: 4.2,
+            windMaxMs: 4.6,
+            gustMaxMs: 8.2,
+            precipitationMm: 0,
+          },
+        ],
+      }),
+    ).join("\n");
+
+    expect(text).toContain("0.0 mm precipitation");
+    expect(text).not.toMatch(/sunrise \d{2}:\d{2}/);
+    expect(text).not.toMatch(/sunset \d{2}:\d{2}/);
   });
 
   it("keeps comments for unlisted activities clearly separate", () => {

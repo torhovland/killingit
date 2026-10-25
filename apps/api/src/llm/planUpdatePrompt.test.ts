@@ -167,10 +167,15 @@ describe("daily update prompts", () => {
     expect(prompt).toContain("Easy run");
   });
 
-  it("asks the coach to respect weather and mark outdoor sessions", () => {
+  it("asks the coach to respect weather and daylight and mark outdoor sessions", () => {
     expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain(WEATHER_PLANNING_RULES);
     expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain('"outdoor"');
     expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain("not ride outdoors in rain");
+    expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain("prefers daylight");
+    expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain("train in the dark");
+    expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain("before or after work");
+    expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain("long outdoor sessions");
+    expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain("weekend");
   });
 
   it("includes the forecast when one is supplied", () => {
@@ -189,12 +194,15 @@ describe("daily update prompts", () => {
           windMaxMs: 4,
           gustMaxMs: 8,
           precipitationMm: 2,
+          sunrise: "07:45",
+          sunset: "16:30",
         },
       ],
     });
 
-    expect(prompt).toContain("Daily weather forecast for Oslo");
+    expect(prompt).toContain("Daily weather and daylight forecast for Oslo");
     expect(prompt).toContain("Rain (rain)");
+    expect(prompt).toContain("sunrise 07:45, sunset 16:30");
   });
 });
 
@@ -227,11 +235,12 @@ describe("weekly update prompts", () => {
     expect(prompt).toContain("Aerobic base + strides");
   });
 
-  it("asks the coach to place sessions around the weather", () => {
+  it("asks the coach to place sessions around the weather and daylight", () => {
     expect(WEEKLY_UPDATE_SYSTEM_PROMPT).toContain(WEATHER_PLANNING_RULES);
     expect(WEEKLY_UPDATE_SYSTEM_PROMPT).toContain(
       "Saturday is sunny and Sunday is rainy",
     );
+    expect(WEEKLY_UPDATE_SYSTEM_PROMPT).toContain("prefers daylight");
   });
 });
 

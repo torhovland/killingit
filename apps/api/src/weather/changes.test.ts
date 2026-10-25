@@ -19,6 +19,8 @@ function weather(
     windMaxMs: 3,
     gustMaxMs: 5,
     precipitationMm: 0,
+    sunrise: "07:45",
+    sunset: "16:30",
     ...overrides,
   };
 }
@@ -189,6 +191,29 @@ describe("weatherChangedSignificantly", () => {
         weather("2026-10-21", { icon: "sun" }),
         weather("2026-10-21", { icon: "very_cloudy" }),
       ),
+    ).toBe(false);
+  });
+
+  it("refreshes a stored forecast that has no daylight times yet", () => {
+    const stored = weather("2026-10-21");
+
+    expect(
+      weatherChangedSignificantly(
+        { ...stored, sunrise: undefined, sunset: undefined },
+        stored,
+      ),
+    ).toBe(true);
+  });
+
+  it("ignores ordinary sunrise and sunset shifts", () => {
+    const stored = weather("2026-10-21");
+
+    expect(
+      weatherChangedSignificantly(stored, {
+        ...stored,
+        sunrise: "07:49",
+        sunset: "16:26",
+      }),
     ).toBe(false);
   });
 });

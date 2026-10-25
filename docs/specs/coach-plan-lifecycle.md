@@ -61,8 +61,9 @@ answers change and as days, weeks, and blocks roll over.
   a separate status endpoint.
 - Plan history/versioning. The previous plan is overwritten once the new one is
   saved.
-- Daylight/sunrise/sunset inputs. Weather is implemented separately in
-  `docs/specs/location-and-weather.md`.
+- Daylight/sunrise/sunset inputs. Implemented separately in
+  `docs/specs/location-and-weather.md`; the lifecycle only reacts to a
+  significant forecast change.
 
 ## Acceptance criteria
 

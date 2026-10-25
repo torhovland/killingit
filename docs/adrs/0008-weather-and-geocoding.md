@@ -17,7 +17,7 @@ interface.
 
 - **Forecast:** Open-Meteo's forecast API. It is free for non-commercial use,
   needs no API key, supports wind speed in m/s, temperature in °C, and returns
-  up to 16 daily forecast days.
+  up to 16 daily forecast days, including sunrise and sunset in local time.
 - **Geocoding:** Open-Meteo's geocoding API, so weather and address search share
   one provider and one usage policy.
 - **Map:** OpenStreetMap raster tiles rendered directly in an SVG, reusing the
@@ -35,6 +35,9 @@ interface.
   per plan generation (not per session) and one geocode request per search.
 - A forecast failure must never block planning; the plan is generated without
   weather instead.
+- Sunrise and sunset come from the same daily forecast and are displayed with
+  the weather on outdoor sessions. The coach uses them to prefer daylight and to
+  keep weekday sessions inside the athlete's available light.
 - If a paid provider is needed later, only the weather module and its loader
   seam change.
 
