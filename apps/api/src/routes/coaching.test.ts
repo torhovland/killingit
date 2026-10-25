@@ -12,6 +12,7 @@ import type {
   StoredPlan,
 } from "../plans/store.js";
 import { idleGenerationStatus } from "../plans/store.js";
+import type { PlanGenerationStep } from "../plans/steps.js";
 import type {
   QuestionAnswerStore,
   StoredAthleteQuestion,
@@ -87,12 +88,12 @@ class MemoryGenerationStore implements PlanGenerationStore {
     return Promise.resolve(true);
   }
 
-  update(_userId: number, step: string, progress: number) {
+  update(_userId: number, step: PlanGenerationStep) {
     this.status = {
       ...this.status,
       status: "running",
-      step,
-      progress,
+      step: step.label,
+      progress: step.target,
       updatedAt: new Date().toISOString(),
     };
     return Promise.resolve();

@@ -33,6 +33,7 @@ import type { LlmProvider } from "../llm/openrouter.js";
 import { addDays, startOfWeek } from "./dates.js";
 import { blockFor, promoteNextPeriod, weekFor } from "./periods.js";
 import { planIsStale, planPending } from "./status.js";
+import { PLAN_GENERATION_STEPS } from "./steps.js";
 import type { PlanGenerationStore, PlanStore, StoredPlan } from "./store.js";
 import { applyCompletedDays, completionStatus, mirrorDay } from "./week.js";
 
@@ -152,26 +153,22 @@ export async function runPlanGeneration(
     }
 
     if (needsFullPlan) {
-      await generations.update(
-        userId,
-        "Reviewing your profile and recent training",
-        10,
-      );
-      await generations.update(userId, "Designing your season", 25);
+      await generations.update(userId, PLAN_GENERATION_STEPS.review);
+      await generations.update(userId, PLAN_GENERATION_STEPS.season);
       const { season } = await generateSeasonPlan(
         context.provider,
         credentials(context),
         baseContext(input),
       );
 
-      await generations.update(userId, "Designing your block", 45);
+      await generations.update(userId, PLAN_GENERATION_STEPS.initialBlock);
       const { block } = await generateInitialBlock(
         context.provider,
         credentials(context),
         { ...baseContext(input), season },
       );
 
-      await generations.update(userId, "Building your week", 65);
+      await generations.update(userId, PLAN_GENERATION_STEPS.initialWeek);
       const weekUpdate = await generateWeeklyUpdate(
         context.provider,
         credentials(context),
@@ -184,7 +181,7 @@ export async function runPlanGeneration(
         },
       );
 
-      await generations.update(userId, "Choosing today's session", 85);
+      await generations.update(userId, PLAN_GENERATION_STEPS.day);
       const dayUpdate = await generateDailyUpdate(
         context.provider,
         credentials(context),
@@ -231,7 +228,7 @@ export async function runPlanGeneration(
         forecastForStorage(context),
       );
       assertPlanValid(generated, today, input.includeTomorrow === true);
-      await generations.update(userId, "Saving your plan", 95);
+      await generations.update(userId, PLAN_GENERATION_STEPS.save);
       const saved = await plans.save(
         userId,
         generated,
@@ -242,8 +239,7 @@ export async function runPlanGeneration(
       if (input.reviewActivities) {
         await generations.update(
           userId,
-          "Reviewing your recent training against your plan",
-          95,
+          PLAN_GENERATION_STEPS.reviewActivities,
         );
         try {
           await input.reviewActivities(saved.plan);
@@ -289,7 +285,7 @@ export async function runPlanGeneration(
     }
 
     const plan = await advancePlan(input, currentPlan, pending, revisionNeeded);
-    await generations.update(userId, "Saving your plan", 95);
+    await generations.update(userId, PLAN_GENERATION_STEPS.save);
     const saved = await plans.save(
       userId,
       plan,
@@ -319,7 +315,7 @@ async function advancePlan(
   let weekChanged = false;
 
   if (pending.block) {
-    await generations.update(userId, "Designing your next block", 20);
+    await generations.update(userId, PLAN_GENERATION_STEPS.cascadeBlock);
     const update = await generateBlockUpdate(
       context.provider,
       credentials(context),
@@ -344,7 +340,7 @@ async function advancePlan(
   }
 
   if (blockChanged || revisionNeeded || pending.week) {
-    await generations.update(userId, "Building this week's plan", 45);
+    await generations.update(userId, PLAN_GENERATION_STEPS.cascadeWeek);
     const update = await generateWeeklyUpdate(
       context.provider,
       credentials(context),
@@ -380,7 +376,7 @@ async function advancePlan(
       tomorrowInCurrentWeek &&
       afterCurrent.tomorrow)
   ) {
-    await generations.update(userId, "Choosing today's session", 70);
+    await generations.update(userId, PLAN_GENERATION_STEPS.day);
     const update = await generateDailyUpdate(
       context.provider,
       credentials(context),
@@ -474,7 +470,7 @@ async function planNextPeriod(
   }
 
   if (targetBlock === null) {
-    await generations.update(userId, "Designing your next block", 55);
+    await generations.update(userId, PLAN_GENERATION_STEPS.nextBlock);
     const update = await generateBlockUpdate(
       context.provider,
       credentials(context),
@@ -500,11 +496,7 @@ async function planNextPeriod(
 
   if (targetWeek === null) {
     const weekStartDate = startOfWeek(tomorrowDate);
-    await generations.update(
-      userId,
-      "Building next week's plan",
-      regenerated ? 75 : 45,
-    );
+    await generations.update(userId, PLAN_GENERATION_STEPS.nextWeek);
     const update = await generateWeeklyUpdate(
       context.provider,
       credentials(context),
@@ -542,7 +534,7 @@ async function planNextPeriod(
     next.tomorrow?.date !== tomorrowDate ||
     !hasTargetSession
   ) {
-    await generations.update(userId, "Choosing tomorrow's session", 90);
+    await generations.update(userId, PLAN_GENERATION_STEPS.tomorrow);
     const update = await generateTargetDayUpdate(
       context.provider,
       credentials(context),
