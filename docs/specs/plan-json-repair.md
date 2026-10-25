@@ -22,11 +22,17 @@ before the generation fails.
 2. After a response fails validation, send one repair completion: the original
    messages, the rejected response as an assistant message, and a user message
    listing the validation problems with an instruction to return corrected JSON.
-3. Use the repair path for all plan completions (season, block, week, day, and
+   The caller may add a targeted hint, such as the exact dates the week must
+   contain, when the generic message does not carry enough information.
+3. The week and day prompts state the calendars they must produce: the week
+   starts on the requested date, contains exactly that week's seven dates, and
+   the day update's `today` date must match one of those sessions. The same
+   constraint is validated after the response and included in the repair hint.
+4. Use the repair path for all plan completions (season, block, week, day, and
    the cascade updates).
-4. Keep the original opaque phrase as a prefix so existing UI/reporting remains
+5. Keep the original opaque phrase as a prefix so existing UI/reporting remains
    recognisable.
-5. When the cascade plans a specific target day against a known week (the next
+6. When the cascade plans a specific target day against a known week (the next
    week's Monday after 18:00), validate only the target day and its week. The
    response's unused day-after-target field must not fail the generation and
    leave the plan pending forever.
@@ -53,9 +59,13 @@ before the generation fails.
    the exact top-level keys, so a bare inner object, an array, or a wrapper such
    as `{"plan": ...}` is rejected. The repair message repeats the allowed `type`
    values.
-5. `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`
+5. A day or week response whose dates do not match the requested week is
+   rejected, and the repair turn repeats the exact week dates and, for a day
+   update, the exact `today` date. A response with the correct dates passes
+   without a repair.
+6. `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`
    pass.
-6. A target-day cascade response with a malformed unused day-after field still
+7. A target-day cascade response with a malformed unused day-after field still
    produces the target day and its week, so `pending.tomorrow` clears instead of
    triggering another failed generation on every visit.
 
