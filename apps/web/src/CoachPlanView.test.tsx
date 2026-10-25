@@ -252,6 +252,8 @@ describe("CoachPlanView", () => {
     expect(html).toContain("gusts 8 m/s");
     expect(html).toContain('aria-label="Rain"');
     expect(html).toContain('data-testid="weather"');
+    expect(html).toContain("stroke-sky-500");
+    expect(html).toContain("stroke-slate-400");
   });
 
   it("hides the forecast for indoor sessions and rest days", () => {
@@ -309,5 +311,7 @@ describe("CoachPlanView", () => {
 
     expect(html).toContain("Sunny");
     expect(html).toContain("7–14 °C");
+    expect(html).toContain('class="w-full" data-testid="week-weather"');
+    expect(html).toContain("stroke-amber-500");
   });
 });

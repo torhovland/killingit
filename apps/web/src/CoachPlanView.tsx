@@ -162,12 +162,14 @@ function WeekSection({ week }: { week: WeekPlan }) {
                     session.durationMinutes === 0
                   ? "Logged manually"
                   : `${session.durationMinutes} min · ${session.intensity}`}
-              {session.type === "workout" &&
-                session.outdoor !== false &&
-                session.weather != null && (
-                  <WeatherSummary weather={session.weather} />
-                )}
             </span>
+            {session.type === "workout" &&
+              session.outdoor !== false &&
+              session.weather != null && (
+                <div className="w-full" data-testid="week-weather">
+                  <WeatherSummary weather={session.weather} />
+                </div>
+              )}
             {(session.status === "completed" ||
               session.status === "partial" ||
               session.status === "missed") && (
