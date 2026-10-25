@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import type { AppState } from "@auth0/auth0-react";
+import { isUnrecoverableSessionError, SessionExpiredError } from "./session.js";
 
 /**
  * Auth0-specific adapter for the web app (ADR 0002 / spec `auth-integration`).
@@ -91,12 +92,22 @@ export function useAuth(): AuthState {
         if (!isAuthenticated) {
           return undefined;
         }
-        return getAccessTokenSilently({
-          authorizationParams: {
-            ...(API_AUDIENCE ? { audience: API_AUDIENCE } : {}),
-            scope: API_SCOPE,
-          },
-        });
+        try {
+          return await getAccessTokenSilently({
+            authorizationParams: {
+              ...(API_AUDIENCE ? { audience: API_AUDIENCE } : {}),
+              scope: API_SCOPE,
+            },
+          });
+        } catch (error) {
+          if (!isUnrecoverableSessionError(error)) {
+            throw error;
+          }
+          // The cached session can never renew again, so drop it and let the
+          // app render the sign-in button instead of retrying a dead session.
+          await logout({ openUrl: false });
+          throw new SessionExpiredError(error);
+        }
       },
     }),
     [

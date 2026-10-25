@@ -14,7 +14,13 @@ export interface Auth0Config {
  * tokens rather than the SDK's default hidden-iframe flow. Browsers that block
  * third-party cookies (e.g. Brave) cannot complete the iframe request, so a
  * signed-in athlete would otherwise look signed out after every reload. The
- * Auth0 application must allow the `refresh_token` grant.
+ * Auth0 application must allow the `refresh_token` grant and the API resource
+ * server must allow offline access, otherwise Auth0 issues no refresh token.
+ *
+ * The iframe stays as a fallback for sessions cached before refresh tokens
+ * were issued (and for any other case where the cached token has none): it can
+ * silently renew them, where the SDK would otherwise throw
+ * "Missing Refresh Token".
  *
  * Returns `null` when Auth0 is not configured, so the app can render without a
  * provider (see `main.tsx`).
@@ -32,6 +38,7 @@ export function auth0ProviderOptions(
     clientId,
     cacheLocation: "localstorage",
     useRefreshTokens: true,
+    useRefreshTokensFallback: true,
     authorizationParams: {
       redirect_uri: redirectUri,
       ...(audience ? { audience } : {}),

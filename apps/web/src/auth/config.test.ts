@@ -22,6 +22,7 @@ describe("auth0ProviderOptions", () => {
       clientId: base.clientId,
       cacheLocation: "localstorage",
       useRefreshTokens: true,
+      useRefreshTokensFallback: true,
       authorizationParams: { redirect_uri: base.redirectUri },
     });
   });

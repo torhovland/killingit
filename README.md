@@ -155,6 +155,12 @@ tenant, application, API resource server, and client grant are managed via the
   `VITE_AUTH0_AUDIENCE` (`apps/web/.env.local`, `VITE_` prefix required for
   client bundling), and `AUTH0_ISSUER`, `AUTH0_AUDIENCE` (API runtime).
   Documented in `.env.example`.
+- **Tenant settings the app depends on:** the SPA renews sessions with refresh
+  tokens, so the `killingit-api` resource server must have **Allow Offline
+  Access** enabled and the `killingit-web` application must allow the
+  `refresh_token` grant. Without the resource-server flag, Auth0 still issues
+  access tokens but no refresh token, so the first renewal after the 2 h web
+  token lifetime fails with `Missing Refresh Token`.
 - **Note:** the Auth0 MCP server exposes no Connections tools; social
   connections (Google/Apple/…, and Strava/Garmin as custom OAuth2) are
   configured in the Auth0 dashboard.

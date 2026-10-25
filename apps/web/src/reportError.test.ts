@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, spyOn } from "bun:test";
 import type { Mock } from "bun:test";
 import * as Sentry from "@sentry/react";
+import { SessionExpiredError } from "./auth";
 import { ApiError } from "./fetchJson";
 import { reportError } from "./reportError";
 
@@ -39,6 +40,16 @@ describe("reportError", () => {
     reportError(new ApiError("invalid Garmin credentials", 401));
     reportError(new ApiError("Garmin requires MFA", 403));
 
+    expect(captureException).not.toHaveBeenCalled();
+  });
+
+  it("does not report an expired session, which the athlete fixes by signing in", () => {
+    spyOnCapture();
+    const error = new SessionExpiredError();
+
+    expect(reportError(error)).toBe(
+      "Your session has expired. Sign in again to continue.",
+    );
     expect(captureException).not.toHaveBeenCalled();
   });
 });
