@@ -15,6 +15,8 @@ header, outstanding activities, the plan, and the inputs that shape it.
 - The menu links to the coaching dashboard, activities, coaching survey,
   settings, admin settings (admins only), and sign out.
 - The spinner reports `loading`, `syncing`, or `thinking` across any page.
+- Saving a comment, a weekly note, or a by-the-way question shows the header
+  spinner and a spinner inside the submit button until the request settles.
 
 ## Main coaching page
 

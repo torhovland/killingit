@@ -16,7 +16,7 @@ import {
 } from "@killingit/shared";
 import { ActivityCard } from "./ActivityCard";
 import { loadCachedActivities, saveCachedActivities } from "./activityCache";
-import { useAppStatus } from "./AppStatus";
+import { useAppStatus, useBusyReporter } from "./AppStatus";
 import { useAuth } from "./auth";
 import { CoachPlanSection } from "./CoachPlanSection";
 import { fetchJsonAuthed } from "./fetchAuthed";
@@ -24,6 +24,7 @@ import { selectPendingActivities } from "./pendingActivities";
 import { PeriodReviewCard } from "./PeriodReviewCard";
 import { reviewKey, selectPendingReviews } from "./pendingReviews";
 import { reportError } from "./reportError";
+import { SubmitButton } from "./SubmitButton";
 import { useTimeZone } from "./TimeZoneContext";
 import { getToday } from "./useToday";
 
@@ -41,6 +42,9 @@ interface CoachDashboardProps {
 export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
   const auth = useAuth();
   const { setStatus } = useAppStatus();
+  const reportCommentSave = useBusyReporter("comment-save");
+  const reportWeeklyNoteSave = useBusyReporter("weekly-note-save");
+  const reportQuestion = useBusyReporter("by-the-way");
   const timeZone = useTimeZone();
   // `loadAnalyses` is started by an effect that does not depend on the auth
   // object; keep the latest account id in a ref so a cache write after the
@@ -59,6 +63,7 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
   const [question, setQuestion] = useState("");
   const [questionReply, setQuestionReply] = useState<string | null>(null);
   const [asking, setAsking] = useState(false);
+  const [savingWeeklyNote, setSavingWeeklyNote] = useState(false);
   const [loadingStatuses, setLoadingStatuses] = useState(true);
   const [loadingAnalyses, setLoadingAnalyses] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -232,32 +237,37 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
     comment: string,
     mode: "create" | "edit",
   ): Promise<string | null> {
-    const { today } = getToday(timeZone);
-    const response = await fetchJsonAuthed<unknown>(
-      `${API_URL}/api/coaching/activities/${activityId}/comments`,
-      auth,
-      {
-        method: mode === "edit" ? "PUT" : "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          today,
-          timezone: timeZone,
-          activityDate: activityStartDate(activityId),
-          comment,
-        }),
-      },
-    );
-    const parsed = coachingInputSaveResponseSchema.safeParse(response);
-    if (!parsed.success) {
-      throw new Error("Saving your comment returned an unexpected response", {
-        cause: parsed.error,
-      });
+    reportCommentSave(true);
+    try {
+      const { today } = getToday(timeZone);
+      const response = await fetchJsonAuthed<unknown>(
+        `${API_URL}/api/coaching/activities/${activityId}/comments`,
+        auth,
+        {
+          method: mode === "edit" ? "PUT" : "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            today,
+            timezone: timeZone,
+            activityDate: activityStartDate(activityId),
+            comment,
+          }),
+        },
+      );
+      const parsed = coachingInputSaveResponseSchema.safeParse(response);
+      if (!parsed.success) {
+        throw new Error("Saving your comment returned an unexpected response", {
+          cause: parsed.error,
+        });
+      }
+      // Leave the activity in place for this visit. A reload only shows
+      // activities without a response, so the commented activity drops off then.
+      keptActivityIds.current.add(activityId);
+      setLocalPlanRefresh((key) => key + 1);
+      return parsed.data.reply?.text ?? null;
+    } finally {
+      reportCommentSave(false);
     }
-    // Leave the activity in place for this visit. A reload only shows activities
-    // without a response, so the commented activity drops off then.
-    keptActivityIds.current.add(activityId);
-    setLocalPlanRefresh((key) => key + 1);
-    return parsed.data.reply?.text ?? null;
   }
 
   async function markNoComment(activityId: string): Promise<void> {
@@ -289,31 +299,36 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
     comment: string,
     mode: "create" | "edit",
   ): Promise<string | null> {
-    const { today } = getToday(timeZone);
-    const response = await fetchJsonAuthed<unknown>(
-      `${API_URL}/api/coaching/reviews/${kind}/${startDate}/comments`,
-      auth,
-      {
-        method: mode === "edit" ? "PUT" : "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          today,
-          timezone: timeZone,
-          comment,
-        }),
-      },
-    );
-    const parsed = coachingInputSaveResponseSchema.safeParse(response);
-    if (!parsed.success) {
-      throw new Error("Saving your comment returned an unexpected response", {
-        cause: parsed.error,
-      });
+    reportCommentSave(true);
+    try {
+      const { today } = getToday(timeZone);
+      const response = await fetchJsonAuthed<unknown>(
+        `${API_URL}/api/coaching/reviews/${kind}/${startDate}/comments`,
+        auth,
+        {
+          method: mode === "edit" ? "PUT" : "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            today,
+            timezone: timeZone,
+            comment,
+          }),
+        },
+      );
+      const parsed = coachingInputSaveResponseSchema.safeParse(response);
+      if (!parsed.success) {
+        throw new Error("Saving your comment returned an unexpected response", {
+          cause: parsed.error,
+        });
+      }
+      // Leave the review in place for this visit; the next page load only shows
+      // reviews without a response.
+      keptReviewKeys.current.add(reviewKey({ kind, startDate }));
+      setLocalPlanRefresh((key) => key + 1);
+      return parsed.data.reply?.text ?? null;
+    } finally {
+      reportCommentSave(false);
     }
-    // Leave the review in place for this visit; the next page load only shows
-    // reviews without a response.
-    keptReviewKeys.current.add(reviewKey({ kind, startDate }));
-    setLocalPlanRefresh((key) => key + 1);
-    return parsed.data.reply?.text ?? null;
   }
 
   async function markReviewNoComment(
@@ -344,28 +359,35 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
   }
 
   async function submitWeeklyNote(note: string): Promise<void> {
-    const { today } = getToday(timeZone);
-    const response = await fetchJsonAuthed<unknown>(
-      `${API_URL}/api/coaching/weekly/notes`,
-      auth,
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          today,
-          timezone: timeZone,
-          note,
-        }),
-      },
-    );
-    const parsed = coachingInputSaveResponseSchema.safeParse(response);
-    if (!parsed.success) {
-      throw new Error("Saving your note returned an unexpected response", {
-        cause: parsed.error,
-      });
+    setSavingWeeklyNote(true);
+    reportWeeklyNoteSave(true);
+    try {
+      const { today } = getToday(timeZone);
+      const response = await fetchJsonAuthed<unknown>(
+        `${API_URL}/api/coaching/weekly/notes`,
+        auth,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            today,
+            timezone: timeZone,
+            note,
+          }),
+        },
+      );
+      const parsed = coachingInputSaveResponseSchema.safeParse(response);
+      if (!parsed.success) {
+        throw new Error("Saving your note returned an unexpected response", {
+          cause: parsed.error,
+        });
+      }
+      setWeeklyNoteReply(parsed.data.reply);
+      setLocalPlanRefresh((key) => key + 1);
+    } finally {
+      setSavingWeeklyNote(false);
+      reportWeeklyNoteSave(false);
     }
-    setWeeklyNoteReply(parsed.data.reply);
-    setLocalPlanRefresh((key) => key + 1);
   }
 
   async function askQuestion(
@@ -377,7 +399,7 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
     }
     setAsking(true);
     setError(null);
-    setStatus("by-the-way", "thinking");
+    reportQuestion(true);
     try {
       const { today } = getToday(timeZone);
       const response = await fetchJsonAuthed<unknown>(
@@ -403,7 +425,7 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
       setError(reportError(err));
     } finally {
       setAsking(false);
-      setStatus("by-the-way", null);
+      reportQuestion(false);
     }
   }
 
@@ -604,12 +626,13 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
             value={weeklyNote}
             onChange={(event) => setWeeklyNote(event.target.value)}
           />
-          <button
-            type="submit"
-            className="self-start rounded border border-transparent bg-primary px-3 py-1 text-sm text-primary-foreground enabled:hover:bg-primary-hover"
+          <SubmitButton
+            busy={savingWeeklyNote}
+            className="self-start rounded border border-transparent bg-primary px-3 py-1 text-sm text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
+            disabled={!weeklyNote.trim()}
           >
             Save weekly note
-          </button>
+          </SubmitButton>
           {weeklyNoteReply && (
             <p
               className="rounded border bg-muted p-2 text-sm"
@@ -640,13 +663,13 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
             value={question}
             onChange={(event) => setQuestion(event.target.value)}
           />
-          <button
-            type="submit"
+          <SubmitButton
+            busy={asking}
             className="self-start rounded border border-transparent bg-primary px-3 py-1 text-sm text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
-            disabled={asking || !question.trim()}
+            disabled={!question.trim()}
           >
             {asking ? "Coach is thinking…" : "Ask the coach"}
-          </button>
+          </SubmitButton>
           {questionReply && (
             <p
               className="rounded border bg-muted p-2 text-sm"
