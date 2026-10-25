@@ -229,7 +229,7 @@ export function CoachPlanSection({
   // `done` (often 100%). Show a neutral starting state until the first poll.
   const progress =
     generating && data?.generation.status !== "running"
-      ? { step: "Starting the coach…", progress: 0 }
+      ? { step: "Waking the coach…", progress: 0 }
       : data?.generation;
   const setupError =
     data?.generation.status === "error" ? data.generation.error : null;
