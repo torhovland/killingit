@@ -75,10 +75,12 @@ answers change and as days, weeks, and blocks roll over.
    "Regenerate plan" button on the survey and settings pages forces a full
    rebuild. The dashboard offers only "Update plan" on the stale banner.
 4. On a new day, the first visit generates today's session and revises the rest
-   of the week around what the athlete actually did. A newly analysed activity
-   also revises the remaining week even when the stored day is still current,
-   including past activities imported days later (for example a Monday workout
-   first synced on Thursday).
+   of the week around what the athlete actually did. While that generation runs,
+   the out-of-date Today and Tomorrow cards are dimmed behind a spinner labelled
+   "Updating today's/tomorrow's plan", so stale content is never presented as
+   current. A newly analysed activity also revises the remaining week even when
+   the stored day is still current, including past activities imported days
+   later (for example a Monday workout first synced on Thursday).
 5. On a new week, the first visit generates the new week and revises the block.
 6. When the block has ended, the first visit generates the next block and revises
    the season, then cascades down to the week and today.

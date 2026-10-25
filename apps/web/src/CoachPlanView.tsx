@@ -27,10 +27,13 @@ export function CoachPlanView({
   plan,
   showTomorrow = false,
   defaultTab = "day",
+  refreshingDays = {},
 }: {
   plan: CoachPlan;
   showTomorrow?: boolean;
   defaultTab?: PlanTab;
+  /** Days whose stored content is being replaced by a generation in flight. */
+  refreshingDays?: { today?: boolean; tomorrow?: boolean };
 }) {
   const [tab, setTab] = useState<PlanTab>(defaultTab);
 
@@ -58,12 +61,18 @@ export function CoachPlanView({
       <div role="tabpanel">
         {tab === "day" && (
           <div className="flex flex-col gap-4">
-            <DayCard day={plan.today} label="Today" testId="plan-today" />
+            <DayCard
+              day={plan.today}
+              label="Today"
+              testId="plan-today"
+              refreshing={refreshingDays.today ?? false}
+            />
             {showTomorrow && plan.tomorrow && (
               <DayCard
                 day={plan.tomorrow}
                 label="Tomorrow"
                 testId="plan-tomorrow"
+                refreshing={refreshingDays.tomorrow ?? false}
               />
             )}
           </div>
@@ -102,64 +111,90 @@ function DayCard({
   day,
   label,
   testId,
+  refreshing = false,
 }: {
   day: DayPlan;
   label: string;
   testId: string;
+  refreshing?: boolean;
 }) {
   return (
     <article
-      className="flex flex-col gap-2 rounded-lg border bg-card p-4"
+      className="relative flex flex-col gap-2 rounded-lg border bg-card p-4"
       data-testid={testId}
+      aria-busy={refreshing || undefined}
     >
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-lg font-semibold">
-          {label} · {formatPlanDate(day.date)}
-        </h3>
-        <span className="flex items-center gap-2">
-          {(day.status === "completed" || day.status === "partial") && (
-            <StatusBadge status={day.status} />
-          )}
-          <span className="rounded border bg-muted px-2 py-0.5 text-xs capitalize">
-            {day.type === "rest"
-              ? "Rest day"
-              : `${day.durationMinutes} min · ${day.intensity}`}
-          </span>
-        </span>
-      </div>
-      <p className="text-base font-medium">{day.title}</p>
-      {day.type === "workout" &&
-        day.outdoor !== false &&
-        day.weather != null && <WeatherSummary weather={day.weather} />}
-      <p className="whitespace-pre-line text-sm text-muted-foreground">
-        {day.description}
-      </p>
-      {day.alternatives.length > 0 && (
-        <div className="text-sm">
-          <p className="font-medium">Alternatives</p>
-          <ul className="list-disc pl-5 text-muted-foreground">
-            {day.alternatives.map((alternative) => (
-              <li key={alternative}>{alternative}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-      <p className="text-sm">
-        <span className="font-medium">Coach's rationale: </span>
-        <span className="text-muted-foreground">{day.rationale}</span>
-      </p>
-      {day.type === "workout" && day.optionalRationale && (
-        <div
-          className="rounded border bg-muted p-3 text-sm"
-          data-testid={`${testId}-optionality`}
-        >
-          <div className="flex flex-wrap items-baseline gap-2">
-            <p className="font-medium">Why this session matters</p>
-            <span className="rounded border bg-background px-1.5 py-0.5 text-xs text-muted-foreground">
-              {day.optional ? "Optional session" : "Do not skip this session"}
+      <div
+        className={
+          refreshing ? "flex flex-col gap-2 opacity-40" : "flex flex-col gap-2"
+        }
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-lg font-semibold">
+            {label} · {formatPlanDate(day.date)}
+          </h3>
+          <span className="flex items-center gap-2">
+            {(day.status === "completed" || day.status === "partial") && (
+              <StatusBadge status={day.status} />
+            )}
+            <span className="rounded border bg-muted px-2 py-0.5 text-xs capitalize">
+              {day.type === "rest"
+                ? "Rest day"
+                : `${day.durationMinutes} min · ${day.intensity}`}
             </span>
+          </span>
+        </div>
+        <p className="text-base font-medium">{day.title}</p>
+        {day.type === "workout" &&
+          day.outdoor !== false &&
+          day.weather != null && <WeatherSummary weather={day.weather} />}
+        <p className="whitespace-pre-line text-sm text-muted-foreground">
+          {day.description}
+        </p>
+        {day.alternatives.length > 0 && (
+          <div className="text-sm">
+            <p className="font-medium">Alternatives</p>
+            <ul className="list-disc pl-5 text-muted-foreground">
+              {day.alternatives.map((alternative) => (
+                <li key={alternative}>{alternative}</li>
+              ))}
+            </ul>
           </div>
-          <p className="mt-1 text-muted-foreground">{day.optionalRationale}</p>
+        )}
+        <p className="text-sm">
+          <span className="font-medium">Coach's rationale: </span>
+          <span className="text-muted-foreground">{day.rationale}</span>
+        </p>
+        {day.type === "workout" && day.optionalRationale && (
+          <div
+            className="rounded border bg-muted p-3 text-sm"
+            data-testid={`${testId}-optionality`}
+          >
+            <div className="flex flex-wrap items-baseline gap-2">
+              <p className="font-medium">Why this session matters</p>
+              <span className="rounded border bg-background px-1.5 py-0.5 text-xs text-muted-foreground">
+                {day.optional ? "Optional session" : "Do not skip this session"}
+              </span>
+            </div>
+            <p className="mt-1 text-muted-foreground">
+              {day.optionalRationale}
+            </p>
+          </div>
+        )}
+      </div>
+      {refreshing && (
+        <div
+          className="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-lg bg-card/60"
+          data-testid={`${testId}-refreshing`}
+        >
+          <span
+            className="inline-flex size-6 animate-spin rounded-full border-2 border-current border-t-transparent text-primary"
+            role="status"
+            aria-label={`Updating ${label.toLowerCase()}'s plan`}
+          />
+          <span className="text-sm text-muted-foreground">
+            Updating {label.toLowerCase()}&apos;s plan…
+          </span>
         </div>
       )}
     </article>

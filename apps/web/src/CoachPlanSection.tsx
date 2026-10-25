@@ -29,7 +29,8 @@ interface CoachPlanSectionProps {
 /**
  * The four-level coach plan. Loads the stored plan, fills in anything missing
  * for today, and polls while the coach is thinking so the user sees progress.
- * The old plan stays visible during a regeneration.
+ * The old plan stays visible during a regeneration, except on the Day tab where
+ * a superseded day is greyed out until its replacement arrives.
  */
 export function CoachPlanSection({
   refreshKey,
@@ -321,7 +322,14 @@ export function CoachPlanSection({
       )}
 
       {data?.plan ? (
-        <CoachPlanView plan={data.plan} showTomorrow={isAfter18} />
+        <CoachPlanView
+          plan={data.plan}
+          showTomorrow={isAfter18}
+          refreshingDays={{
+            today: running && data.pending.day,
+            tomorrow: running && data.pending.tomorrow,
+          }}
+        />
       ) : (
         !loading &&
         !running &&

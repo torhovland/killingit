@@ -305,6 +305,48 @@ describe("CoachPlanView", () => {
     expect(withoutTomorrow).not.toContain("Tomorrow");
   });
 
+  it("dims today's stale session and shows a spinner while it is refreshed", () => {
+    const html = renderToStaticMarkup(
+      <CoachPlanView
+        plan={plan}
+        showTomorrow
+        refreshingDays={{ today: true, tomorrow: false }}
+      />,
+    );
+
+    expect(html).toContain('data-testid="plan-today-refreshing"');
+    expect(html).toContain('aria-busy="true"');
+    expect(html).toContain("Updating today");
+    expect(html).toContain("animate-spin");
+    expect(html).toContain("opacity-40");
+    expect(html).not.toContain('data-testid="plan-tomorrow-refreshing"');
+  });
+
+  it("dims tomorrow's stale session while it is refreshed", () => {
+    const html = renderToStaticMarkup(
+      <CoachPlanView
+        plan={plan}
+        showTomorrow
+        refreshingDays={{ today: true, tomorrow: true }}
+      />,
+    );
+
+    expect(html).toContain('data-testid="plan-today-refreshing"');
+    expect(html).toContain('data-testid="plan-tomorrow-refreshing"');
+    expect(html).toContain("Updating tomorrow");
+    expect(html.match(/animate-spin/g)).toHaveLength(2);
+  });
+
+  it("leaves the days undimmed when no refresh is in flight", () => {
+    const html = renderToStaticMarkup(
+      <CoachPlanView plan={plan} showTomorrow />,
+    );
+
+    expect(html).not.toContain("-refreshing");
+    expect(html).not.toContain("animate-spin");
+    expect(html).not.toContain('aria-busy="true"');
+  });
+
   it("shows the forecast on an outdoor workout", () => {
     const weather = {
       date: "2026-10-21",
