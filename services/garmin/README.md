@@ -18,8 +18,9 @@ bun run dev:garmin   # sidecar only (listens on :8000 by default)
 bun run dev          # sidecar alongside the web and API dev servers
 ```
 
-The first run creates `.venv` and installs `requirements.txt`. To set it up
-manually instead:
+The first run creates `.venv` and installs `requirements.txt`. The dev script
+runs Uvicorn with `--reload`, so editing a file in `services/garmin` restarts the
+sidecar automatically. To set it up manually instead:
 
 ```sh
 python3 -m venv .venv
