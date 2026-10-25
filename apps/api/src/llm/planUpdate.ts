@@ -1,9 +1,11 @@
 import {
   blockPlanUpdateSchema,
   dailyPlanUpdateSchema,
+  targetDayUpdateSchema,
   weeklyPlanUpdateSchema,
   type BlockPlanUpdate,
   type DailyPlanUpdate,
+  type TargetDayUpdate,
   type WeeklyPlanUpdate,
 } from "@killingit/shared";
 import type { LlmProvider } from "./openrouter.js";
@@ -30,6 +32,26 @@ export async function generateDailyUpdate(
 ): Promise<DailyPlanUpdate> {
   return completePlanJson(
     dailyPlanUpdateSchema,
+    provider,
+    credentials,
+    buildDailyUpdateMessages(input),
+    4096,
+  );
+}
+
+/**
+ * Asks the coach for a specific target day (tomorrow when planning the next
+ * period) and its week. The prompt also asks for the day after the target, but
+ * that field is not used; ignoring it keeps a malformed optional suggestion
+ * from failing the generation.
+ */
+export async function generateTargetDayUpdate(
+  provider: LlmProvider,
+  credentials: PlanUpdateCredentials,
+  input: DailyUpdateInput,
+): Promise<TargetDayUpdate> {
+  return completePlanJson(
+    targetDayUpdateSchema,
     provider,
     credentials,
     buildDailyUpdateMessages(input),
