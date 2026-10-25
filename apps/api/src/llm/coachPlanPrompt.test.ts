@@ -229,6 +229,9 @@ describe("coach plan prompts", () => {
     expect(prompt).toContain(
       "Use state of the art training science to make the best possible plan for this athlete.",
     );
+    expect(prompt).toContain(
+      'top-level keys are exactly "season", "block", "week", "today", and "tomorrow"',
+    );
   });
 });
 

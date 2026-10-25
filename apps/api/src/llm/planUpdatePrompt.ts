@@ -113,7 +113,7 @@ export const SEASON_CONTRACT = `{
 }`;
 
 export const ENUM_RULES = `For every type field use either "workout" or "rest"; for every intensity field use "easy", "moderate", "hard", or "rest". For a rest session set both type and intensity to "rest"; for a workout set type to "workout" and intensity to "easy", "moderate", or "hard". These are exact, lowercase strings: never output a session name such as "run", "strength", or "rest day" as a type, and never copy the "|" choices from the contract into the response.`;
-export const JSON_RULES = `Return only a single valid JSON object with exactly this shape. Do not add markdown fences, headings, explanations, or extra fields. Every field must use the exact name and value type shown in the contract. When a contract lists choices separated by "|", output exactly one of those choices as a string and never the list itself. Replace every placeholder such as "YYYY-MM-DD", "string", or 0 with a real value.`;
+export const JSON_RULES = `Return only a single valid JSON object with exactly this shape. Do not add markdown fences, headings, explanations, or extra fields. Every field must use the exact name and value type shown in the contract. The top-level keys must be exactly the keys shown at the top level of the contract, with the same nesting; never return a bare inner object, an array, or a wrapper such as "plan" or "response". When a contract lists choices separated by "|", output exactly one of those choices as a string and never the list itself. Replace every placeholder such as "YYYY-MM-DD", "string", or 0 with a real value.`;
 
 /**
  * Shared weather instruction for prompts that choose which day gets which
@@ -196,7 +196,7 @@ export function buildDailyUpdatePrompt(input: DailyUpdateInput): string {
     "Current week plan:",
     formatWeekPlan(input.week),
     "",
-    "Create today's session and revise this week's remaining sessions. Return only the JSON object described in the system prompt.",
+    'Create today\'s session and revise this week\'s remaining sessions. Return one JSON object whose top-level keys are exactly "today", "tomorrow", and "week".',
   ].join("\n");
 }
 
@@ -221,7 +221,7 @@ export function buildWeeklyUpdatePrompt(input: WeeklyUpdateInput): string {
     "Block plan for the week:",
     formatBlockPlan(input.block),
     "",
-    "Create the new week and revise this block. Return only the JSON object described in the system prompt.",
+    'Create the new week and revise this block. Return one JSON object whose top-level keys are exactly "week" and "block".',
   ].join("\n");
 }
 
@@ -246,6 +246,6 @@ export function buildBlockUpdatePrompt(input: BlockUpdateInput): string {
     "Completed block plan:",
     formatBlockPlan(input.block),
     "",
-    "Create the next block and revise the season plan. Return only the JSON object described in the system prompt.",
+    'Create the next block and revise the season plan. Return one JSON object whose top-level keys are exactly "block" and "season".',
   ].join("\n");
 }

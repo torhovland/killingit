@@ -165,6 +165,9 @@ describe("daily update prompts", () => {
     expect(prompt).toContain("Block: Base");
     expect(prompt).toContain("Week starting 2026-10-19");
     expect(prompt).toContain("Easy run");
+    expect(prompt).toContain(
+      'top-level keys are exactly "today", "tomorrow", and "week"',
+    );
   });
 
   it("asks the coach to respect weather and mark outdoor sessions", () => {
@@ -240,6 +243,7 @@ describe("weekly update prompts", () => {
     expect(prompt).toContain("Goal: Sub-4-hour marathon");
     expect(prompt).toContain("Block: Base");
     expect(prompt).toContain("Aerobic base + strides");
+    expect(prompt).toContain('top-level keys are exactly "week" and "block"');
   });
 
   it("asks the coach to place sessions around the weather", () => {
@@ -273,5 +277,6 @@ describe("block update prompts", () => {
     expect(prompt).toContain("Goal: Sub-4-hour marathon");
     expect(prompt).toContain("Completed block plan:");
     expect(prompt).toContain("Block: Base");
+    expect(prompt).toContain('top-level keys are exactly "block" and "season"');
   });
 });

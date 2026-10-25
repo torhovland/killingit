@@ -49,7 +49,9 @@ before the generation fails.
 4. Prompt contracts explicitly tell the model not to copy `|` choice lists or
    placeholders literally, and state that `type` and `intensity` are exact,
    lowercase enum strings. A `type` is never a session name such as "run",
-   "strength", or "rest day". The repair message repeats the allowed `type`
+   "strength", or "rest day". The prompts and the repair message also require
+   the exact top-level keys, so a bare inner object, an array, or a wrapper such
+   as `{"plan": ...}` is rejected. The repair message repeats the allowed `type`
    values.
 5. `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`
    pass.

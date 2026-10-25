@@ -73,6 +73,7 @@ describe("season plan prompt", () => {
     expect(prompt).toContain("Finish a sub-4-hour marathon.");
     expect(prompt).toContain("Steady aerobic effort.");
     expect(prompt).toContain("Create the season plan.");
+    expect(prompt).toContain('top-level key is exactly "season"');
   });
 });
 
@@ -95,5 +96,6 @@ describe("initial block prompt", () => {
     expect(prompt).toContain("Goal: Sub-4-hour marathon");
     expect(prompt).toContain("Base");
     expect(prompt).toContain("Create the first block.");
+    expect(prompt).toContain('top-level key is exactly "block"');
   });
 });

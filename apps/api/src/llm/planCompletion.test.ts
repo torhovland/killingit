@@ -77,6 +77,9 @@ describe("completePlanJson", () => {
     expect(repair.at(-1)?.content).toContain(
       'for every type field use either "workout" or "rest"',
     );
+    expect(repair.at(-1)?.content).toContain(
+      "The top-level object must contain every key named at the top level of the contract",
+    );
   });
 
   it("does not retry more than once", async () => {

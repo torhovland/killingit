@@ -164,6 +164,6 @@ export function buildCoachPlanPrompt(input: CoachPlanInput): string {
   return [
     ...formatPlanContext(input),
     "",
-    "Using the athlete profile and recent training, create the season plan, the first block, the first week, and today's session. Use state of the art training science to make the best possible plan for this athlete. Return only the JSON object described in the system prompt.",
+    'Using the athlete profile and recent training, create the season plan, the first block, the first week, and today\'s session. Use state of the art training science to make the best possible plan for this athlete. Return one JSON object whose top-level keys are exactly "season", "block", "week", "today", and "tomorrow".',
   ].join("\n");
 }
