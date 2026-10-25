@@ -58,7 +58,9 @@ The `kind` enum gains `week_review` and `block_review`. `target` is the review's
 ## API
 
 - `GET /api/coaching/reviews` → `{ reviews }`, most recent first. Each review
-  includes its summary, comment, coach reply, and reviewed flag.
+  includes its summary, comment, coach reply, and reviewed flag. A week review
+  also carries the week's saved note and the coach's reply to that note, for
+  reference.
 - `POST /api/coaching/reviews/:kind/:startDate/comments` → `{ message, reply }`.
   Creates the single comment; `409` when one already exists.
 - `PUT /api/coaching/reviews/:kind/:startDate/comments` → `{ message, reply }`.
@@ -96,7 +98,8 @@ new comment and the review summaries, so the plan revision is built on them.
 ## UI
 
 - `PeriodReviewCard` renders one summary, its comment and reply, and the comment
-  form / edit and "No comment" actions.
+  form / edit and "No comment" actions. On the season review page a week review
+  also shows the weekly note saved for that week and the coach's reply to it.
 - `CoachDashboard` loads reviews, filters with `selectPendingReviews`, and keeps
   answered reviews visible for the visit.
 - `SeasonReviewPage` lists every review and offers the edit action. It is

@@ -15,6 +15,7 @@ const review: PeriodReview = {
   },
   comment: null,
   coachReply: null,
+  weeklyNote: null,
   reviewed: false,
 };
 
@@ -56,5 +57,28 @@ describe("PeriodReviewCard", () => {
     expect(html).toContain("Great consistency");
     expect(html).toContain('data-testid="period-review-comment-edit"');
     expect(html).toContain("Edit comment");
+  });
+
+  it("shows the week's saved note and coach reply only when requested", () => {
+    const withNote: PeriodReview = {
+      ...review,
+      weeklyNote: {
+        note: "I was travelling and could only run twice.",
+        coachReply: {
+          text: "Thanks for the context; I kept the week light.",
+          model: "test-model",
+          generatedAt: "2026-10-15T09:00:00.000Z",
+        },
+      },
+    };
+
+    const visible = renderToStaticMarkup(
+      <PeriodReviewCard review={withNote} showWeeklyNote />,
+    );
+    const hidden = renderToStaticMarkup(<PeriodReviewCard review={withNote} />);
+
+    expect(visible).toContain("I was travelling and could only run twice.");
+    expect(visible).toContain("I kept the week light.");
+    expect(hidden).not.toContain("I was travelling");
   });
 });

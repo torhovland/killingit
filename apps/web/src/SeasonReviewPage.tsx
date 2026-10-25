@@ -154,6 +154,7 @@ export function SeasonReviewPage() {
               key={`week:${review.startDate}`}
               review={review}
               onSubmitComment={submitComment}
+              showWeeklyNote
             />
           ))}
         </div>

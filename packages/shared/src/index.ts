@@ -151,11 +151,13 @@ export {
 export {
   periodReviewCommentRequestSchema,
   periodReviewSchema,
+  periodReviewWeeklyNoteSchema,
   periodReviewsResponseSchema,
   reviewKindSchema,
   type PeriodReview,
   type PeriodReviewCommentRequest,
   type PeriodReviewsResponse,
+  type PeriodReviewWeeklyNote,
   type ReviewKind,
 } from "./review.js";
 

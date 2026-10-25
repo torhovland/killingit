@@ -15,6 +15,7 @@ export function PeriodReviewCard({
   review,
   onSubmitComment,
   onNoComment,
+  showWeeklyNote = false,
 }: {
   review: PeriodReview;
   onSubmitComment?: (
@@ -24,6 +25,8 @@ export function PeriodReviewCard({
     mode: "create" | "edit",
   ) => Promise<string | null>;
   onNoComment?: (kind: ReviewKind, startDate: string) => Promise<void>;
+  /** Show the week's saved note and the coach's reply for reference. */
+  showWeeklyNote?: boolean;
 }) {
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -108,6 +111,27 @@ export function PeriodReviewCard({
       <p className="whitespace-pre-line" data-testid="period-review-summary">
         {review.summary.text}
       </p>
+
+      {showWeeklyNote && review.weeklyNote && (
+        <div
+          className="flex flex-col gap-1 rounded border bg-muted p-2 text-sm"
+          data-testid="period-review-weekly-note"
+        >
+          <p className="whitespace-pre-line">
+            <span className="font-medium">Your weekly note:</span>{" "}
+            {review.weeklyNote.note}
+          </p>
+          {review.weeklyNote.coachReply && (
+            <p
+              className="whitespace-pre-line"
+              data-testid="period-review-weekly-note-reply"
+            >
+              <span className="font-medium">Coach:</span>{" "}
+              {review.weeklyNote.coachReply.text}
+            </p>
+          )}
+        </div>
+      )}
 
       {shownComment && (
         <div className="flex flex-wrap items-baseline gap-2 text-sm">
