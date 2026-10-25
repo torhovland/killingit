@@ -194,7 +194,7 @@ export function formatPlanContext(input: PlanContextInput): string[] {
         : "";
     lines.push(
       "",
-      `Daily weather forecast${where}. Temperatures are in °C; wind and gusts are in m/s.`,
+      `Daily weather and daylight forecast${where}. Temperatures are in °C; wind and gusts are in m/s; sunrise and sunset are local clock times.`,
       formatWeatherForecast(input.forecast),
     );
   }
@@ -223,13 +223,18 @@ export function formatPeriodReviews(
     .join("\n");
 }
 
-/** Renders the daily forecast for a prompt. */
+/** Renders the daily forecast, including local daylight times, for a prompt. */
 export function formatWeatherForecast(days: readonly DailyWeather[]): string {
   return days
-    .map(
-      (day) =>
-        `- ${day.date}: ${WEATHER_ICON_LABELS[day.icon]} (${day.icon}), ${Math.round(day.temperatureMinC)}–${Math.round(day.temperatureMaxC)} °C, wind up to ${Math.round(day.windMaxMs)} m/s, gusts up to ${Math.round(day.gustMaxMs)} m/s, ${day.precipitationMm.toFixed(1)} mm precipitation`,
-    )
+    .map((day) => {
+      const daylight = [
+        day.sunrise != null ? `sunrise ${day.sunrise}` : null,
+        day.sunset != null ? `sunset ${day.sunset}` : null,
+      ].filter((entry): entry is string => entry !== null);
+      const daylightText =
+        daylight.length === 0 ? "" : `, ${daylight.join(", ")}`;
+      return `- ${day.date}: ${WEATHER_ICON_LABELS[day.icon]} (${day.icon}), ${Math.round(day.temperatureMinC)}–${Math.round(day.temperatureMaxC)} °C, wind up to ${Math.round(day.windMaxMs)} m/s, gusts up to ${Math.round(day.gustMaxMs)} m/s, ${day.precipitationMm.toFixed(1)} mm precipitation${daylightText}`;
+    })
     .join("\n");
 }
 

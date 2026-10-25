@@ -34,7 +34,7 @@ function sameLocation(
 
 /**
  * Location settings: search for an address or click the map, then save the
- * point used for the coach's weather forecast.
+ * point used for the coach's weather and daylight forecast.
  */
 export function LocationSection({
   location,
@@ -176,7 +176,7 @@ export function LocationSection({
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <p className="text-muted-foreground" data-testid="location-summary">
           {draft === null
-            ? "No location set. Weather is not used in your plan."
+            ? "No location set. Weather and daylight are not used in your plan."
             : `${label ? `${label} · ` : ""}${draft.latitude.toFixed(4)}, ${draft.longitude.toFixed(4)}`}
         </p>
       </div>

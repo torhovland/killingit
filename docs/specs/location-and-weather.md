@@ -1,4 +1,4 @@
-# Spec: Athlete location and weather-aware planning
+# Spec: Athlete location, weather, and daylight-aware planning
 
 - **Status:** Accepted (implemented)
 - **Date:** 2026-10-25
@@ -7,9 +7,10 @@
 
 ## Goal
 
-Let the athlete set a home location and use its weather forecast when the coach
-plans a week or a day. Show the forecast next to outdoor workouts so the athlete
-can see why the coach placed a session on a particular day.
+Let the athlete set a home location and use its weather forecast and daylight
+times when the coach plans a week or a day. Show the forecast and the sunrise
+and sunset next to outdoor workouts so the athlete can see why the coach placed
+a session on a particular day and whether it happens in daylight.
 
 ## Scope
 
@@ -22,24 +23,30 @@ can see why the coach placed a session on a particular day.
    - address search (Open-Meteo geocoding) that recenters the map and selects a
      result;
    - save and clear actions that persist the location through `PATCH /api/me`.
-3. When a location is set, the API fetches the daily forecast from Open-Meteo
-   whenever a week or day plan is generated or revised.
-4. The weekly and daily prompts receive the forecast and instructions to:
+3. When a location is set, the API fetches the daily forecast, including
+   sunrise and sunset, from Open-Meteo whenever a week or day plan is generated
+   or revised.
+4. The weekly and daily prompts receive the forecast and its daylight times and:
    - respect explicit weather preferences in the athlete's survey answers, such
      as "no outdoor riding in rain" or "not below 10 °C";
+   - follow the athlete's stated daylight or darkness preference, defaulting to
+     a preference for daylight when they have not said anything;
+   - move long outdoor sessions to the weekend when the athlete can only train
+     before or after work on weekdays and the available daylight falls inside
+     working hours;
    - otherwise use common sense, moving longer or more demanding outdoor
      sessions to the best-weather days.
 5. The generated plan stores the forecast for each session date. Outdoor
    workouts in the Day and Week plan views show a weather icon (sun, partly
-   cloudy, very cloudy, rain, or snow), temperature in °C, and wind and gusts in
-   m/s.
-6. Sessions are marked indoor or outdoor by the coach so weather is shown only
-   for outdoor activities. Missing `outdoor` (older stored plans) is treated as
-   outdoor.
+   cloudy, very cloudy, rain, or snow), temperature in °C, wind and gusts in
+   m/s, and the local sunrise and sunset.
+6. Sessions are marked indoor or outdoor by the coach so weather and daylight
+   are shown only for outdoor activities. Missing `outdoor` (older stored plans)
+   is treated as outdoor.
 7. On each plan read, compare the stored forecast with the latest forecast for
    upcoming days in the current week and, when planned, the next week. A
-   significant change marks the week pending so the client starts the usual week
-   revision.
+   significant change, including daylight appearing for the first time, updates
+   the week pending so the client starts the usual week revision.
 
 ### Out of scope
 
@@ -47,7 +54,8 @@ can see why the coach placed a session on a particular day.
 - Hourly forecasts or choosing a time of day based on the forecast.
 - Automatic location detection from GPS or the browser.
 - Multiple saved locations.
-- Daylight/sunrise/sunset input (still deferred).
+- A structured daylight-preference setting; the coach reads the athlete's
+  free-text answers and notes.
 
 ## Behaviour
 
@@ -60,15 +68,24 @@ can see why the coach placed a session on a particular day.
 - A map click clears any searched name and sets the marker to the clicked
   coordinates.
 - The location uses decimal degrees (WGS 84), matching activity GPS points.
-- Weather is attached by the server after the model response, so icons and
-  numbers come from the forecast rather than model invention.
+- Weather and daylight are attached by the server after the model response, so
+  icons, numbers, and times come from the forecast rather than model invention.
+- Sunrise and sunset are local clock times at the athlete's location. Open-Meteo
+  returns null when the sun neither rises nor sets (polar day or polar night),
+  and the UI then omits that time.
+- The coach places outdoor sessions in daylight by default. It follows any
+  explicit darkness preference in the athlete's answers, weekly notes, or
+  activity comments, and does not invent one. If the athlete can only train
+  before or after work on weekdays and the available daylight falls inside
+  working hours, long outdoor sessions move to the weekend.
 - A forecast change is significant when a dry day becomes wet (rain or snow) or
-  the reverse, rain becomes snow, or the daily maximum temperature, maximum
-  wind, maximum gust, or precipitation moves by at least 5 °C, 5 m/s, 8 m/s, or
-  5 mm. Cloud-only icon changes do not trigger a refresh. Past days are ignored,
-  but rest days and indoor sessions are still compared: the coach may have
-  chosen them because the weather was bad, and improved weather can turn them
-  back into outdoor training.
+  the reverse, rain becomes snow, the daylight times appear for the first time,
+  or the daily maximum temperature, maximum wind, maximum gust, or precipitation
+  moves by at least 5 °C, 5 m/s, 8 m/s, or 5 mm. Ordinary day-to-day shifts in
+  sunrise and sunset and cloud-only icon changes do not trigger a refresh. Past
+  days are ignored, but rest days and indoor sessions are still compared: the
+  coach may have chosen them because the weather was bad, and improved weather
+  can turn them back into outdoor training.
 - Checking the forecast is best effort. If it cannot be loaded, the plan's
   pending state is unchanged.
 
@@ -125,20 +142,21 @@ message.
 - `weather?: DailyWeather | null` — the forecast for that date.
 
 `DailyWeather` contains `date`, `icon`, `temperatureMaxC`, `temperatureMinC`,
-`windMaxMs`, `gustMaxMs`, and `precipitationMm`. Icons are one of `sun`,
+`windMaxMs`, `gustMaxMs`, `precipitationMm`, and optional `sunrise`/`sunset`
+local `HH:MM` times that may be `null` on polar days. Icons are one of `sun`,
 `partly_cloudy`, `very_cloudy`, `rain`, `snow`.
 
 ## Generation flow
 
 1. The plan trigger loads the account, including its location.
-2. If a location exists, it loads up to 16 days of daily forecast from
-   Open-Meteo. Weather failures are logged and ignored.
-3. The weekly and daily prompts include the forecast and the weather planning
-   rules. The season and block prompts do not need a daily forecast.
+2. If a location exists, it loads up to 16 days of daily forecast, including
+   sunrise and sunset, from Open-Meteo. Weather failures are logged and ignored.
+3. The weekly and daily prompts include the forecast and the weather/daylight
+   planning rules. The season and block prompts do not need a daily forecast.
 4. After the model response, the server attaches the matching forecast day to
    each week session, today, and tomorrow before saving the plan.
-5. The UI renders the weather on outdoor workouts. Rest days and indoor
-   sessions do not show it.
+5. The UI renders the weather and daylight on outdoor workouts. Rest days and
+   indoor sessions do not show it.
 6. `GET /api/coaching/plan` loads the forecast for the athlete's location (when
    one is set) unless a generation is already running. A significant difference
    from the weather attached to the stored current or next week sets
@@ -162,14 +180,16 @@ icons:
 
 ## Testing
 
-- Shared schema tests for location validation, weather icons, and plan fields.
-- API unit tests for WMO mapping, Open-Meteo response parsing, geocoding,
-  forecast attachment, prompt rendering, and weather rules.
+- Shared schema tests for location validation, weather icons, optional daylight
+  times, and plan fields.
+- API unit tests for WMO mapping, Open-Meteo response parsing (including polar
+  nulls and invalid daylight), geocoding, forecast attachment, prompt rendering,
+  and weather/daylight rules.
 - API route tests for location save/clear, geocode auth/validation/errors, and a
   plan generation that receives an injected forecast.
-- Web tests for map projection/click conversion, the weather summary, and the
-  Day/Week plan rendering (outdoor only, indoor/rest hidden).
-- API tests for significant/non-significant forecast comparisons, current and
-  next week coverage, the plan-read pending flag, and weather-service failure
-  handling.
+- Web tests for map projection/click conversion, the weather and daylight
+  summary, and the Day/Week plan rendering (outdoor only, indoor/rest hidden).
+- API tests for significant/non-significant forecast comparisons, newly
+  available daylight, current and next week coverage, the plan-read pending
+  flag, and weather-service failure handling.
 - All four quality gates pass: typecheck, lint, format, test.

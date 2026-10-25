@@ -116,13 +116,16 @@ export const ENUM_RULES = `For every type field use either "workout" or "rest"; 
 export const JSON_RULES = `Return only a single valid JSON object with exactly this shape. Do not add markdown fences, headings, explanations, or extra fields. When a contract lists choices separated by "|", output exactly one of those choices and never the list itself. Replace every placeholder such as "YYYY-MM-DD", "string", or 0 with a real value.`;
 
 /**
- * Shared weather instruction for prompts that choose which day gets which
- * session. The athlete's survey answers define explicit limits; without one,
- * the coach should still place outdoor work sensibly.
+ * Shared weather and daylight instruction for prompts that choose which day
+ * gets which session. The athlete's survey answers define explicit limits;
+ * without one, the coach should still place outdoor work sensibly and prefer
+ * daylight.
  */
 export const WEATHER_PLANNING_RULES = `When a daily forecast is provided, use it to choose which day gets each session. Set "outdoor" to false for sessions done indoors (gym, treadmill, trainer, pool) and true for sessions done outside (running, cycling, hiking, and similar). Weather only restricts outdoor sessions.
 
-Respect every weather preference or limit the athlete states in their profile. For example, if they will not ride outdoors in rain or when the temperature is below 10 °C, do not schedule such a ride; move it to a suitable day, make it indoor, or replace it with an equivalent session. If the athlete has no weather preference, use common sense: put longer or more demanding outdoor sessions on the best-weather days and shorter or indoor sessions on the poorer days. For example, if Saturday is sunny and Sunday is rainy, schedule a long hike on Saturday and a short run on Sunday.`;
+Respect every weather preference or limit the athlete states in their profile. For example, if they will not ride outdoors in rain or when the temperature is below 10 °C, do not schedule such a ride; move it to a suitable day, make it indoor, or replace it with an equivalent session. If the athlete has no weather preference, use common sense: put longer or more demanding outdoor sessions on the best-weather days and shorter or indoor sessions on the poorer days. For example, if Saturday is sunny and Sunday is rainy, schedule a long hike on Saturday and a short run on Sunday.
+
+The daylight times let you keep outdoor work in daylight. Unless the athlete's profile, weekly notes, activity comments, or other input explicitly says they are willing or able to train in the dark, or prefer it, assume the athlete prefers daylight over darkness. Honour any such statement they do make and do not invent a darkness preference they did not state. If the athlete says they can train before or after work on weekdays, compare those training windows with sunrise and sunset. When the only daylight falls inside their working day, so a weekday outdoor session would happen in the dark, put long outdoor sessions at the weekend and keep weekday outdoor sessions within the available daylight or make them indoor.`;
 
 export const DAILY_UPDATE_SYSTEM_PROMPT = `You are an expert endurance coach. Update today's session, the rest of the current week, and tomorrow's session for an amateur athlete. Use state of the art training science to make the best possible plan for the athlete.
 

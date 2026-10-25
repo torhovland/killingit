@@ -16,16 +16,30 @@ function isPrecipitation(weather: DailyWeather): boolean {
   return weather.icon === "rain" || weather.icon === "snow";
 }
 
+function isMissing(value: string | null | undefined): boolean {
+  return value === null || value === undefined;
+}
+
 /**
- * A forecast update matters when it changes whether a day is wet or snowy, or
- * when the temperature, wind, gusts, or rain amount move by a meaningful
- * amount. Cloud-cover changes alone do not affect training.
+ * A forecast update matters when it changes whether a day is wet or snowy, when
+ * daylight times appear for the first time, or when the temperature, wind,
+ * gusts, or rain amount move by a meaningful amount. Cloud-cover changes alone
+ * do not affect training.
  */
 export function weatherChangedSignificantly(
   previous: DailyWeather | null | undefined,
   next: DailyWeather,
 ): boolean {
   if (previous === null || previous === undefined) {
+    return true;
+  }
+  // A plan stored before daylight planning has no sunrise or sunset. Treat the
+  // first forecast that does as a change so the week is refreshed once and the
+  // daylight times appear in the plan.
+  if (
+    (isMissing(previous.sunrise) && !isMissing(next.sunrise)) ||
+    (isMissing(previous.sunset) && !isMissing(next.sunset))
+  ) {
     return true;
   }
   if (

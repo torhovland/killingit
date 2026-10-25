@@ -356,6 +356,8 @@ describe("CoachPlanView", () => {
       windMaxMs: 4.3,
       gustMaxMs: 8.1,
       precipitationMm: 2,
+      sunrise: "07:45",
+      sunset: "16:30",
     };
     const weatherPlan = {
       ...plan,
@@ -367,6 +369,8 @@ describe("CoachPlanView", () => {
     expect(html).toContain("5–9 °C");
     expect(html).toContain("wind 4 m/s");
     expect(html).toContain("gusts 8 m/s");
+    expect(html).toContain("sunrise 07:45");
+    expect(html).toContain("sunset 16:30");
     expect(html).toContain('aria-label="Rain"');
     expect(html).toContain('data-testid="weather"');
     expect(html).toContain("stroke-sky-500");
@@ -410,6 +414,8 @@ describe("CoachPlanView", () => {
       windMaxMs: 2,
       gustMaxMs: 5,
       precipitationMm: 0,
+      sunrise: "07:45",
+      sunset: "16:30",
     };
     const weekPlan = {
       ...plan,
@@ -428,6 +434,8 @@ describe("CoachPlanView", () => {
 
     expect(html).toContain("Sunny");
     expect(html).toContain("7–14 °C");
+    expect(html).toContain("sunrise 07:45");
+    expect(html).toContain("sunset 16:30");
     expect(html).toContain('class="w-full" data-testid="week-weather"');
     expect(html).toContain("stroke-amber-500");
   });

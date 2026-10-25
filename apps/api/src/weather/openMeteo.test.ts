@@ -24,6 +24,8 @@ function forecastBody() {
       wind_speed_10m_max: [4.5, 6.2],
       wind_gusts_10m_max: [8.1, 11.4],
       precipitation_sum: [0, 3.6],
+      sunrise: ["2026-10-25T07:42", "2026-10-26T07:44"] as (string | null)[],
+      sunset: ["2026-10-25T16:35", "2026-10-26T16:32"] as (string | null)[],
     },
   };
 }
@@ -57,9 +59,32 @@ describe("parseForecastResponse", () => {
       windMaxMs: 4.5,
       gustMaxMs: 8.1,
       precipitationMm: 0,
+      sunrise: "07:42",
+      sunset: "16:35",
     });
     expect(days[1]?.icon).toBe("rain");
     expect(days[1]?.precipitationMm).toBe(3.6);
+    expect(days[1]?.sunrise).toBe("07:44");
+    expect(days[1]?.sunset).toBe("16:32");
+  });
+
+  it("keeps null daylight values for polar days and nights", () => {
+    const body = forecastBody();
+    body.daily.sunrise = [null, "2026-10-26T07:44"];
+    body.daily.sunset = [null, "2026-10-26T16:32"];
+
+    const days = parseForecastResponse(body);
+
+    expect(days[0]?.sunrise).toBeNull();
+    expect(days[0]?.sunset).toBeNull();
+    expect(days[1]?.sunrise).toBe("07:44");
+  });
+
+  it("rejects a malformed daylight time", () => {
+    const body = forecastBody();
+    body.daily.sunrise = ["not a time", "2026-10-26T07:44"];
+
+    expect(() => parseForecastResponse(body)).toThrow();
   });
 
   it("skips incomplete trailing days instead of failing the forecast", () => {
@@ -72,6 +97,8 @@ describe("parseForecastResponse", () => {
         wind_speed_10m_max: [4.5, 6.2, null],
         wind_gusts_10m_max: [8.1, 11.4, null],
         precipitation_sum: [0, 3.6, null],
+        sunrise: ["2026-10-25T07:42", "2026-10-26T07:44", null],
+        sunset: ["2026-10-25T16:35", "2026-10-26T16:32", null],
       },
     });
 
@@ -110,6 +137,8 @@ describe("fetchWeatherForecast", () => {
     expect(url?.searchParams.get("timezone")).toBe("auto");
     expect(url?.searchParams.get("latitude")).toBe("59.91");
     expect(url?.searchParams.get("daily")).toContain("weather_code");
+    expect(url?.searchParams.get("daily")).toContain("sunrise");
+    expect(url?.searchParams.get("daily")).toContain("sunset");
   });
 
   it("rejects a non-success response", () =>

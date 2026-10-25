@@ -86,6 +86,42 @@ function asStringArray(value: unknown): string[] | null {
   return strings;
 }
 
+/** Like `asStringArray`, but Open-Meteo returns null for polar day and night. */
+function asNullableStringArray(value: unknown): (string | null)[] | null {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+  const entries: unknown[] = value;
+  const strings: (string | null)[] = [];
+  for (const entry of entries) {
+    if (entry === null || typeof entry === "string") {
+      strings.push(entry);
+      continue;
+    }
+    return null;
+  }
+  return strings;
+}
+
+/**
+ * Open-Meteo returns sunrise and sunset as local ISO date-times such as
+ * `2026-10-25T07:42`. The plan only needs the clock time, so the date and any
+ * offset are dropped.
+ */
+function localClockTime(value: string | null): string | null {
+  if (value === null) {
+    return null;
+  }
+  const match =
+    /^\d{4}-\d{2}-\d{2}T(\d{2}:\d{2})(?::\d{2})?(?:Z|[+-]\d{2}:\d{2})?$/.exec(
+      value,
+    );
+  if (match?.[1] === undefined) {
+    throw new Error("Weather service returned an invalid daylight time");
+  }
+  return match[1];
+}
+
 /**
  * Parses Open-Meteo's daily forecast response. The arrays are validated as a
  * set so a partial or malformed response fails loudly instead of producing
@@ -108,6 +144,8 @@ export function parseForecastResponse(body: unknown): DailyWeather[] {
   const windSpeeds = asNumberArray(fields.wind_speed_10m_max);
   const windGusts = asNumberArray(fields.wind_gusts_10m_max);
   const precipitation = asNumberArray(fields.precipitation_sum);
+  const sunrises = asNullableStringArray(fields.sunrise);
+  const sunsets = asNullableStringArray(fields.sunset);
   if (
     !dates ||
     !codes ||
@@ -116,12 +154,16 @@ export function parseForecastResponse(body: unknown): DailyWeather[] {
     !windSpeeds ||
     !windGusts ||
     !precipitation ||
+    !sunrises ||
+    !sunsets ||
     dates.length !== codes.length ||
     dates.length !== maxTemperatures.length ||
     dates.length !== minTemperatures.length ||
     dates.length !== windSpeeds.length ||
     dates.length !== windGusts.length ||
-    dates.length !== precipitation.length
+    dates.length !== precipitation.length ||
+    dates.length !== sunrises.length ||
+    dates.length !== sunsets.length
   ) {
     throw new Error("Weather service returned an unexpected forecast shape");
   }
@@ -135,6 +177,8 @@ export function parseForecastResponse(body: unknown): DailyWeather[] {
     const windMaxMs = windSpeeds[index];
     const gustMaxMs = windGusts[index];
     const precipitationMm = precipitation[index];
+    const sunrise = localClockTime(sunrises[index] ?? null);
+    const sunset = localClockTime(sunsets[index] ?? null);
     if (date === undefined || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       throw new Error("Weather service returned an invalid forecast date");
     }
@@ -164,6 +208,8 @@ export function parseForecastResponse(body: unknown): DailyWeather[] {
       windMaxMs,
       gustMaxMs,
       precipitationMm,
+      sunrise,
+      sunset,
     });
   }
   return days;
@@ -191,6 +237,8 @@ export async function fetchWeatherForecast(
       "wind_speed_10m_max",
       "wind_gusts_10m_max",
       "precipitation_sum",
+      "sunrise",
+      "sunset",
     ].join(","),
   );
   url.searchParams.set("timezone", "auto");

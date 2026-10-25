@@ -191,8 +191,9 @@ export function SettingsPage({
           <section className="flex flex-col gap-3 rounded-lg border bg-card p-4">
             <h3 className="text-xl font-semibold">Location</h3>
             <p className="text-sm text-muted-foreground">
-              Choose the place the coach should use for weather. Plans use the
-              forecast to schedule outdoor sessions around rain, wind, and cold.
+              Choose the place the coach should use for weather and daylight.
+              Plans use the forecast to schedule outdoor sessions around rain,
+              wind, cold, sunrise, and sunset.
             </p>
             <LocationSection
               location={location}
