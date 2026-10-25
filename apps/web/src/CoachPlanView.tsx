@@ -7,6 +7,7 @@ import type {
   WeekPlan,
   WeekSessionStatus,
 } from "@killingit/shared";
+import { WeatherSummary } from "./WeatherSummary";
 
 export type PlanTab = "day" | "week" | "block" | "season";
 
@@ -105,6 +106,9 @@ function DayCard({
         </span>
       </div>
       <p className="text-base font-medium">{day.title}</p>
+      {day.type === "workout" &&
+        day.outdoor !== false &&
+        day.weather != null && <WeatherSummary weather={day.weather} />}
       <p className="whitespace-pre-line text-sm text-muted-foreground">
         {day.description}
       </p>
@@ -159,6 +163,13 @@ function WeekSection({ week }: { week: WeekPlan }) {
                   ? "Logged manually"
                   : `${session.durationMinutes} min · ${session.intensity}`}
             </span>
+            {session.type === "workout" &&
+              session.outdoor !== false &&
+              session.weather != null && (
+                <div className="w-full" data-testid="week-weather">
+                  <WeatherSummary weather={session.weather} />
+                </div>
+              )}
             {(session.status === "completed" ||
               session.status === "partial" ||
               session.status === "missed") && (

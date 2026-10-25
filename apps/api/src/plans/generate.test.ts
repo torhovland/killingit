@@ -996,6 +996,36 @@ describe("runPlanGeneration", () => {
     );
   });
 
+  it("attaches the supplied forecast to the saved plan", async () => {
+    const provider = new FakeProvider(buildResponses());
+    const plans = new MemoryPlanStore(null);
+    const generations = new MemoryGenerationStore();
+    const context = makeContext(provider);
+    context.forecast = [
+      {
+        date: "2026-10-21",
+        icon: "rain",
+        temperatureMaxC: 9,
+        temperatureMinC: 5,
+        windMaxMs: 4,
+        gustMaxMs: 8,
+        precipitationMm: 2,
+      },
+    ];
+
+    const saved = await runPlanGeneration({
+      userId: 1,
+      today: "2026-10-21",
+      plan: null,
+      context,
+      plans,
+      generations,
+    });
+
+    expect(saved?.plan.today.weather?.icon).toBe("rain");
+    expect(saved?.plan.week.sessions[2]?.weather?.windMaxMs).toBe(4);
+  });
+
   it("records a failed generation", async () => {
     const provider = new FakeProvider({});
     const plans = new MemoryPlanStore(null);

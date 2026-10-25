@@ -270,3 +270,53 @@ describe("dailyPlanUpdateSchema", () => {
     expect(parsed.week.sessions).toHaveLength(7);
   });
 });
+
+describe("weather on plan sessions", () => {
+  it("keeps an attached forecast and outdoor flag", () => {
+    const weather = {
+      date: "2026-10-21",
+      icon: "rain" as const,
+      temperatureMaxC: 9,
+      temperatureMinC: 5,
+      windMaxMs: 4,
+      gustMaxMs: 8,
+      precipitationMm: 2.5,
+    };
+    const parsed = dayPlanSchema.parse({
+      date: "2026-10-21",
+      type: "workout",
+      title: "Easy run",
+      description: "45 minutes easy.",
+      durationMinutes: 45,
+      intensity: "easy",
+      rationale: "Easy aerobic work.",
+      outdoor: false,
+      weather,
+    });
+    expect(parsed.outdoor).toBe(false);
+    expect(parsed.weather?.icon).toBe("rain");
+
+    const week = makeWeek();
+    const withWeather = weekPlanSchema.parse({
+      ...week,
+      sessions: week.sessions.map((session, index) =>
+        index === 2 ? { ...session, weather, outdoor: true } : session,
+      ),
+    });
+    expect(withWeather.sessions[2]?.weather?.gustMaxMs).toBe(8);
+  });
+
+  it("leaves the fields optional for plans stored before weather existed", () => {
+    const parsed = dayPlanSchema.parse({
+      date: "2026-10-21",
+      type: "workout",
+      title: "Easy run",
+      description: "45 minutes easy.",
+      durationMinutes: 45,
+      intensity: "easy",
+      rationale: "Easy aerobic work.",
+    });
+    expect(parsed.outdoor).toBeUndefined();
+    expect(parsed.weather).toBeUndefined();
+  });
+});

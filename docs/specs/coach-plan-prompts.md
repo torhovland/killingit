@@ -37,7 +37,8 @@ training science.
 
 ### Out of scope (deferred)
 
-- Weather/daylight context in the prompt.
+- Daylight/sunrise/sunset context in the prompt. Weather context is covered by
+  `docs/specs/location-and-weather.md`.
 - Plan history/versioning.
 
 Persistence, cascade generation, answer-change triggers, and the plan UI are

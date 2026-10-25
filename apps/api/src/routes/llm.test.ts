@@ -12,14 +12,25 @@ const userStore: UserStore = {
       sub,
       role: "member",
       timezone: null,
+      location: null,
       createdAt: new Date(0),
     }),
-  updateTimezone: (sub, timezone) =>
+  getById: (id) =>
+    Promise.resolve({
+      id,
+      sub: "athlete-1",
+      role: "member",
+      timezone: null,
+      location: null,
+      createdAt: new Date(0),
+    }),
+  updateSettings: (sub, settings) =>
     Promise.resolve({
       id: 42,
       sub,
       role: "member",
-      timezone,
+      timezone: settings.timezone ?? null,
+      location: settings.location ?? null,
       createdAt: new Date(0),
     }),
 };

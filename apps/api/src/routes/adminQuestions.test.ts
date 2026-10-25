@@ -44,14 +44,17 @@ describe("admin questions route", () => {
             sub,
             role: "member",
             timezone: null,
+            location: null,
             createdAt: new Date(0),
           }),
-        updateTimezone: (sub, timezone) =>
+        getById: () => Promise.resolve(null),
+        updateSettings: (sub, update) =>
           Promise.resolve({
             id: 2,
             sub,
             role: "member",
-            timezone,
+            timezone: update.timezone ?? null,
+            location: update.location ?? null,
             createdAt: new Date(0),
           }),
       },

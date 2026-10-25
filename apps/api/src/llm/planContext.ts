@@ -1,8 +1,10 @@
-import type {
-  ActivitySummary,
-  BlockPlan,
-  SeasonPlan,
-  WeekPlan,
+import {
+  WEATHER_ICON_LABELS,
+  type ActivitySummary,
+  type BlockPlan,
+  type DailyWeather,
+  type SeasonPlan,
+  type WeekPlan,
 } from "@killingit/shared";
 import { formatDuration } from "./duration.js";
 
@@ -67,6 +69,10 @@ export interface PlanContextInput {
   weeklyNote?: string | null;
   /** Coach reviews of completed weeks and blocks, with athlete feedback. */
   periodReviews?: readonly PeriodReviewContext[];
+  /** Daily forecast for the athlete's location, when one has been set. */
+  forecast?: readonly DailyWeather[];
+  /** The location label for the forecast, if the athlete named one. */
+  locationName?: string | null;
 }
 
 /** Renders the athlete's profile for a prompt. */
@@ -165,6 +171,20 @@ export function formatPlanContext(input: PlanContextInput): string[] {
     );
   }
 
+  if (input.forecast && input.forecast.length > 0) {
+    const where =
+      input.locationName !== undefined &&
+      input.locationName !== null &&
+      input.locationName.trim() !== ""
+        ? ` for ${input.locationName.trim()}`
+        : "";
+    lines.push(
+      "",
+      `Daily weather forecast${where}. Temperatures are in °C; wind and gusts are in m/s.`,
+      formatWeatherForecast(input.forecast),
+    );
+  }
+
   return lines;
 }
 
@@ -186,6 +206,16 @@ export function formatPeriodReviews(
       }
       return lines.join("\n");
     })
+    .join("\n");
+}
+
+/** Renders the daily forecast for a prompt. */
+export function formatWeatherForecast(days: readonly DailyWeather[]): string {
+  return days
+    .map(
+      (day) =>
+        `- ${day.date}: ${WEATHER_ICON_LABELS[day.icon]} (${day.icon}), ${Math.round(day.temperatureMinC)}–${Math.round(day.temperatureMaxC)} °C, wind up to ${Math.round(day.windMaxMs)} m/s, gusts up to ${Math.round(day.gustMaxMs)} m/s, ${day.precipitationMm.toFixed(1)} mm precipitation`,
+    )
     .join("\n");
 }
 

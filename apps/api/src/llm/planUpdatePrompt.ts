@@ -56,7 +56,8 @@ const DAY_CONTRACT = `{
   "alternatives": ["string"],
   "rationale": "string",
   "optional": false,
-  "optionalRationale": "string"
+  "optionalRationale": "string",
+  "outdoor": true
 }`;
 
 const WEEK_CONTRACT = `{
@@ -72,7 +73,8 @@ const WEEK_CONTRACT = `{
       "description": "string",
       "durationMinutes": 0,
       "intensity": "easy | moderate | hard | rest",
-      "status": "completed | partial | planned | missed | rest"
+      "status": "completed | partial | planned | missed | rest",
+      "outdoor": true
     }
   ]
 }`;
@@ -112,11 +114,22 @@ export const SEASON_CONTRACT = `{
 export const ENUM_RULES = `For every type field use either "workout" or "rest"; for every intensity field use "easy", "moderate", "hard", or "rest".`;
 export const JSON_RULES = `Return only a single valid JSON object with exactly this shape. Do not add markdown fences, headings, explanations, or extra fields. When a contract lists choices separated by "|", output exactly one of those choices and never the list itself. Replace every placeholder such as "YYYY-MM-DD", "string", or 0 with a real value.`;
 
+/**
+ * Shared weather instruction for prompts that choose which day gets which
+ * session. The athlete's survey answers define explicit limits; without one,
+ * the coach should still place outdoor work sensibly.
+ */
+export const WEATHER_PLANNING_RULES = `When a daily forecast is provided, use it to choose which day gets each session. Set "outdoor" to false for sessions done indoors (gym, treadmill, trainer, pool) and true for sessions done outside (running, cycling, hiking, and similar). Weather only restricts outdoor sessions.
+
+Respect every weather preference or limit the athlete states in their profile. For example, if they will not ride outdoors in rain or when the temperature is below 10 °C, do not schedule such a ride; move it to a suitable day, make it indoor, or replace it with an equivalent session. If the athlete has no weather preference, use common sense: put longer or more demanding outdoor sessions on the best-weather days and shorter or indoor sessions on the poorer days. For example, if Saturday is sunny and Sunday is rainy, schedule a long hike on Saturday and a short run on Sunday.`;
+
 export const DAILY_UPDATE_SYSTEM_PROMPT = `You are an expert endurance coach. Update today's session, the rest of the current week, and tomorrow's session for an amateur athlete. Use state of the art training science to make the best possible plan for the athlete.
 
 You receive the athlete's profile, recent activities with coach analyses, program reviews, and coach replies, the current season, the current block, and the current week. You also receive manually recorded activities, comments on activities, a general weekly note, and coach summaries of completed weeks and blocks with the athlete's feedback on them. Use all of these to see what the athlete actually completed or missed, how they responded, whether today should be a workout or a rest day, and what constraints or feedback they have for the week. ${ACTIVITY_COMMENT_RULE} Respect the athlete's available time and constraints. The weekly note is a hard constraint: if it says the athlete cannot train on a specific day, move or cancel the session on that day. If a manually recorded activity indicates significant fatigue or extra load, adjust the upcoming sessions accordingly.
 
 Keep the week's start date and exactly seven sessions. For days before today, do not propose new workouts: describe what the athlete actually did using the recent activities and set each status to "completed", "partial", "missed", or "rest". If an activity has already been recorded for today, today's plan must describe that completed activity, using the athlete's latest comment to correct the summary, instead of proposing another workout. The today object must match today's date and must be present as the matching session in week.sessions. Give today's plan and today's week session the same status: "completed" when the recorded activity substantially matched the planned session, or "partial" when only a meaningful part was done. Allow reasonable slack: a 60-minute ride recorded as 50 minutes is still completed, and power or pace zones that are close but not exact do not make a session partial. Revise the remaining sessions so the week stays coherent with the block's focus and the athlete's current fatigue. Include a rationale for today's session and for the week's overall structure.
+
+${WEATHER_PLANNING_RULES}
 
 Also provide a suggested workout or rest for tomorrow, consistent with the revised week and the block's focus. For both today and tomorrow, set "optional" to true when the session can be skipped without undermining the plan (for example, an easy recovery session), and false when skipping would hurt the athlete's progression. In "optionalRationale", explain concisely why the session should not be skipped or why it is safe to consider it optional.
 
@@ -132,6 +145,8 @@ ${JSON_RULES}
 export const WEEKLY_UPDATE_SYSTEM_PROMPT = `You are an expert endurance coach. Create the week starting on the supplied week start date and revise the current block plan for an amateur athlete. Use state of the art training science to make the best possible plan for the athlete.
 
 You receive the athlete's profile, recent activities with coach analyses, program reviews, and coach replies, the current season, and the current block. You also receive manually recorded activities, comments on activities, a general weekly note, and coach summaries of completed weeks and blocks with the athlete's feedback on them. Use all of these to judge what the athlete completed, how they responded, how the block's progression should be adjusted, and what constraints or feedback they have for the week. ${ACTIVITY_COMMENT_RULE} The weekly note is a hard constraint: if it says the athlete cannot train on a specific day, move or cancel the session on that day. If a manually recorded activity indicates significant fatigue or extra load, adjust the week's sessions accordingly. The new week must fit the block's focus and progression, must start on the supplied week start date, and must contain exactly seven sessions. For days before today, do not propose new workouts: describe what actually happened and set each status to "completed", "partial", "missed", or "rest". Allow reasonable slack when judging completion: a session with a slightly shorter duration than planned (for example a 60-minute ride recorded as 50 minutes) or slightly missed power/pace zones is still "completed"; use "partial" only when a meaningful part of the session was not done. Include a rationale for the week and for the revised block.
+
+${WEATHER_PLANNING_RULES}
 
 Revise the block's weeks and target loads where the athlete's progress or recent training requires it. Keep the block's name, focus, and dates unless a change is clearly justified. Do not change the season plan.
 

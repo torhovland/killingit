@@ -1,12 +1,15 @@
 import type {
   AnalyzedActivity,
+  AthleteLocation,
   BlockPlan,
   CoachPlan,
+  DailyWeather,
   SeasonPlan,
   WeekPlan,
   DayPlan,
 } from "@killingit/shared";
 import { toCoachPlanActivity } from "../llm/coachPlanPrompt.js";
+import { applyForecastToPlan } from "../weather/apply.js";
 import {
   generateInitialBlock,
   generateSeasonPlan,
@@ -41,6 +44,10 @@ export interface PlanGenerationContext {
   coachingInputsUpdatedAt: Date | null;
   /** Newest general coach analysis among the recent activities, if any. */
   activitiesUpdatedAt?: Date | null;
+  /** The athlete's home location, used to label the forecast in prompts. */
+  location?: AthleteLocation | null;
+  /** Daily forecast loaded when the athlete has set a location. */
+  forecast?: readonly DailyWeather[] | null;
   provider: LlmProvider;
   apiKey: string;
   model: string;
@@ -151,6 +158,7 @@ export async function runPlanGeneration(
         credentials(context),
         {
           ...baseContext(input),
+          ...weatherContext(input),
           season,
           block,
           weekStartDate: startOfWeek(today),
@@ -163,6 +171,7 @@ export async function runPlanGeneration(
         credentials(context),
         {
           ...baseContext(input),
+          ...weatherContext(input),
           season,
           block: weekUpdate.block,
           week: weekUpdate.week,
@@ -175,19 +184,22 @@ export async function runPlanGeneration(
         dayUpdate.today,
         dayUpdate.today,
       );
-      const generated = {
-        season,
-        block: weekUpdate.block,
-        week: applyCompletedDays(
-          dayUpdate.week,
-          context.activities,
-          today,
-          context.manualActivities,
-          todayPlan,
-        ),
-        today: todayPlan,
-        tomorrow: dayUpdate.tomorrow,
-      };
+      const generated = applyForecastToPlan(
+        {
+          season,
+          block: weekUpdate.block,
+          week: applyCompletedDays(
+            dayUpdate.week,
+            context.activities,
+            today,
+            context.manualActivities,
+            todayPlan,
+          ),
+          today: todayPlan,
+          tomorrow: dayUpdate.tomorrow,
+        },
+        context.forecast,
+      );
       assertPlanCoversToday(generated, today);
       await generations.update(userId, "Saving your plan", 95);
       const saved = await plans.save(
@@ -294,6 +306,7 @@ async function advancePlan(
       credentials(context),
       {
         ...baseContext(input),
+        ...weatherContext(input),
         season,
         block,
         weekStartDate: startOfWeek(today),
@@ -325,6 +338,7 @@ async function advancePlan(
       credentials(context),
       {
         ...baseContext(input),
+        ...weatherContext(input),
         season,
         block,
         week,
@@ -351,19 +365,22 @@ async function advancePlan(
     current.today.date === today ? current.today : todayPlan,
   );
 
-  const plan = {
-    season,
-    block,
-    week: applyCompletedDays(
-      week,
-      context.activities,
-      today,
-      context.manualActivities,
-      todayPlan,
-    ),
-    today: todayPlan,
-    tomorrow: tomorrowPlan,
-  };
+  const plan = applyForecastToPlan(
+    {
+      season,
+      block,
+      week: applyCompletedDays(
+        week,
+        context.activities,
+        today,
+        context.manualActivities,
+        todayPlan,
+      ),
+      today: todayPlan,
+      tomorrow: tomorrowPlan,
+    },
+    context.forecast,
+  );
   assertPlanCoversToday(plan, today);
   return plan;
 }
@@ -507,5 +524,21 @@ function baseContext(input: GeneratePlanInput) {
     input.context.periodReviews.length > 0
       ? { periodReviews: input.context.periodReviews }
       : {}),
+  };
+}
+
+/**
+ * Weather is only relevant to the week and day prompts, so it is added to
+ * those prompts rather than to the season and block prompts.
+ */
+function weatherContext(input: GeneratePlanInput) {
+  const forecast = input.context.forecast;
+  if (!forecast || forecast.length === 0) {
+    return {};
+  }
+  const name = input.context.location?.name;
+  return {
+    forecast,
+    ...(name !== undefined && name !== null ? { locationName: name } : {}),
   };
 }

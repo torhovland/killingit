@@ -135,6 +135,8 @@ export interface CoachingRouteDependencies {
   answerCoachingQuestion?: typeof answerCoachingQuestion;
   /** Injectable for route tests; defaults to the real plan generation trigger. */
   triggerPlanGeneration?: typeof triggerPlanGeneration;
+  /** Injectable for route tests; defaults to Open-Meteo. */
+  loadForecast?: PlanTriggerDependencies["loadForecast"];
 }
 
 /**
@@ -192,6 +194,9 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
     ...(deps.loadLlm !== undefined ? { loadLlm: deps.loadLlm } : {}),
     ...(deps.loadCoachingInputs !== undefined
       ? { loadCoachingInputs: deps.loadCoachingInputs }
+      : {}),
+    ...(deps.loadForecast !== undefined
+      ? { loadForecast: deps.loadForecast }
       : {}),
   };
 

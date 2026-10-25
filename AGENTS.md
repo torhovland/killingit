@@ -65,6 +65,10 @@ about a past workout, or before a suggested workout, to steer the coach.
 - The four-level plan is stored per user in `coach_plans`; generation progress
   is in `plan_generations`. The lazy day → week → block cascade and the plan UI
   are documented in `docs/specs/coach-plan-lifecycle.md`.
+- The athlete's home location is stored on `users` and set in the settings
+  location picker. When a week or day is planned, the API loads an Open-Meteo
+  forecast, gives it to the coach, and attaches it to outdoor sessions. See ADR
+  0008 and `docs/specs/location-and-weather.md`.
 - Completed weeks and blocks get a coach summary, athlete comment, and coach
   reply in `period_reviews` / `coach_replies`; the dashboard and season review
   page are documented in `docs/specs/period-reviews.md`.
@@ -171,7 +175,9 @@ Only the admin can manage athlete questions (see ADR 0006).
 
 - Weather from a free/cheap API (e.g. Open-Meteo), and daylight (sunrise/sunset)
   computed from the athlete's location. Treat these as a provider behind a
-  small interface so sources can be swapped.
+  small interface so sources can be swapped. Location (map click or address
+  search) and weather-aware planning are implemented via Open-Meteo; daylight
+  remains deferred.
 
 ## Observability and agent access
 

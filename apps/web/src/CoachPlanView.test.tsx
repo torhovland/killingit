@@ -229,4 +229,89 @@ describe("CoachPlanView", () => {
     const withoutTomorrow = renderToStaticMarkup(<CoachPlanView plan={plan} />);
     expect(withoutTomorrow).not.toContain("Tomorrow");
   });
+
+  it("shows the forecast on an outdoor workout", () => {
+    const weather = {
+      date: "2026-10-21",
+      icon: "rain" as const,
+      temperatureMaxC: 9.4,
+      temperatureMinC: 5.2,
+      windMaxMs: 4.3,
+      gustMaxMs: 8.1,
+      precipitationMm: 2,
+    };
+    const weatherPlan = {
+      ...plan,
+      today: { ...plan.today, outdoor: true, weather },
+    };
+    const html = renderToStaticMarkup(<CoachPlanView plan={weatherPlan} />);
+
+    expect(html).toContain("Rain");
+    expect(html).toContain("5–9 °C");
+    expect(html).toContain("wind 4 m/s");
+    expect(html).toContain("gusts 8 m/s");
+    expect(html).toContain('aria-label="Rain"');
+    expect(html).toContain('data-testid="weather"');
+    expect(html).toContain("stroke-sky-500");
+    expect(html).toContain("stroke-slate-400");
+  });
+
+  it("hides the forecast for indoor sessions and rest days", () => {
+    const weather = {
+      date: "2026-10-21",
+      icon: "snow" as const,
+      temperatureMaxC: 0,
+      temperatureMinC: -4,
+      windMaxMs: 3,
+      gustMaxMs: 6,
+      precipitationMm: 1,
+    };
+    const indoor = renderToStaticMarkup(
+      <CoachPlanView
+        plan={{ ...plan, today: { ...plan.today, outdoor: false, weather } }}
+      />,
+    );
+    expect(indoor).not.toContain("Snow");
+
+    const rest = renderToStaticMarkup(
+      <CoachPlanView
+        plan={{
+          ...plan,
+          today: { ...plan.today, type: "rest", weather },
+        }}
+      />,
+    );
+    expect(rest).not.toContain("Snow");
+  });
+
+  it("shows weather for an outdoor session in the week view", () => {
+    const weather = {
+      date: "2026-10-22",
+      icon: "sun" as const,
+      temperatureMaxC: 14,
+      temperatureMinC: 7,
+      windMaxMs: 2,
+      gustMaxMs: 5,
+      precipitationMm: 0,
+    };
+    const weekPlan = {
+      ...plan,
+      week: {
+        ...plan.week,
+        sessions: plan.week.sessions.map((session) =>
+          session.date === "2026-10-22"
+            ? { ...session, outdoor: true, weather }
+            : session,
+        ),
+      },
+    };
+    const html = renderToStaticMarkup(
+      <CoachPlanView plan={weekPlan} defaultTab="week" />,
+    );
+
+    expect(html).toContain("Sunny");
+    expect(html).toContain("7–14 °C");
+    expect(html).toContain('class="w-full" data-testid="week-weather"');
+    expect(html).toContain("stroke-amber-500");
+  });
 });

@@ -17,7 +17,10 @@ import {
   planPending,
 } from "../plans/status.js";
 import type { PlanGenerationStore, PlanStore } from "../plans/store.js";
-import { triggerPlanGeneration } from "../plans/trigger.js";
+import {
+  triggerPlanGeneration,
+  type PlanTriggerDependencies,
+} from "../plans/trigger.js";
 import type { QuestionAnswerStore } from "../questions/answers.js";
 import type { UserStore } from "../users/store.js";
 
@@ -35,6 +38,8 @@ export interface PlanRouteDependencies {
     userId: number,
     weekStartDate: string,
   ) => Promise<CoachingInputs>;
+  /** Injectable for route tests; defaults to Open-Meteo. */
+  loadForecast?: PlanTriggerDependencies["loadForecast"];
 }
 
 /**
@@ -117,6 +122,9 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
             ...(deps.loadLlm !== undefined ? { loadLlm: deps.loadLlm } : {}),
             ...(deps.loadCoachingInputs !== undefined
               ? { loadCoachingInputs: deps.loadCoachingInputs }
+              : {}),
+            ...(deps.loadForecast !== undefined
+              ? { loadForecast: deps.loadForecast }
               : {}),
           },
           {
