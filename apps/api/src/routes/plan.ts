@@ -3,6 +3,8 @@ import {
   coachPlanSchema,
   planDateSchema,
   planGenerateInputSchema,
+  type AthleteLocation,
+  type CoachPlan,
 } from "@killingit/shared";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
@@ -24,6 +26,8 @@ import {
 } from "../plans/trigger.js";
 import type { QuestionAnswerStore } from "../questions/answers.js";
 import type { UserStore } from "../users/store.js";
+import { planWeatherChanged } from "../weather/changes.js";
+import { fetchWeatherForecast } from "../weather/openMeteo.js";
 
 export interface PlanRouteDependencies {
   users: UserStore;
@@ -49,8 +53,26 @@ export interface PlanRouteDependencies {
  * awaiting the response and polls GET for progress.
  */
 export function createPlanRoute(deps: PlanRouteDependencies): Hono {
+  async function hasWeatherChanged(
+    plan: CoachPlan,
+    location: AthleteLocation,
+    today: string,
+  ): Promise<boolean> {
+    try {
+      const loadForecast = deps.loadForecast ?? fetchWeatherForecast;
+      const forecast = await loadForecast(location);
+      return planWeatherChanged(plan, forecast, today);
+    } catch (err) {
+      // Weather is advisory. An outage must not make the plan look pending or
+      // fail the request.
+      console.error("[weather] could not check the forecast:", err);
+      return false;
+    }
+  }
+
   async function buildResponse(
     userId: number,
+    location: AthleteLocation | null,
     today: string,
     includeTomorrow = false,
   ) {
@@ -87,13 +109,20 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
             coachingInputs.updatedAt,
           )
         : false;
+    // A significantly different forecast should refresh the Week tab even when
+    // the stored plan is otherwise current. Skip while a generation is running:
+    // the client is polling, and the finished response checks the saved plan.
+    const weatherChanged =
+      plan !== null && location !== null && generation.status !== "running"
+        ? await hasWeatherChanged(plan, location, today)
+        : false;
 
     return coachPlanResponseSchema.parse({
       plan,
       generatedAt,
       generation,
       stale,
-      pending: planPending(stored, today, includeTomorrow),
+      pending: planPending(stored, today, includeTomorrow, weatherChanged),
     });
   }
 
@@ -105,7 +134,14 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
         return c.text("A valid today date (YYYY-MM-DD) is required", 400);
       }
       const includeTomorrow = c.req.query("includeTomorrow") === "true";
-      return c.json(await buildResponse(user.id, today.data, includeTomorrow));
+      return c.json(
+        await buildResponse(
+          user.id,
+          user.location,
+          today.data,
+          includeTomorrow,
+        ),
+      );
     })
     .post(
       "/generate",
@@ -141,11 +177,14 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
         );
 
         if (!started) {
-          return c.json(await buildResponse(user.id, today), 202);
+          return c.json(
+            await buildResponse(user.id, user.location, today),
+            202,
+          );
         }
 
         return c.json(
-          await buildResponse(user.id, today, includeTomorrow),
+          await buildResponse(user.id, user.location, today, includeTomorrow),
           202,
         );
       },

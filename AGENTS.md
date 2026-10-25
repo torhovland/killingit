@@ -70,8 +70,10 @@ about a past workout, or before a suggested workout, to steer the coach.
   plan UI are documented in `docs/specs/coach-plan-lifecycle.md`.
 - The athlete's home location is stored on `users` and set in the settings
   location picker. When a week or day is planned, the API loads an Open-Meteo
-  forecast, gives it to the coach, and attaches it to outdoor sessions. See ADR
-  0008 and `docs/specs/location-and-weather.md`.
+  forecast, gives it to the coach, and attaches it to outdoor sessions. A
+  significant change in the stored forecast marks the week pending and refreshes
+  the week and day. See ADR 0008 and
+  `docs/specs/location-and-weather.md`.
 - Completed weeks and blocks get a coach summary, athlete comment, and coach
   reply in `period_reviews` / `coach_replies`; the dashboard and season review
   page are documented in `docs/specs/period-reviews.md`.

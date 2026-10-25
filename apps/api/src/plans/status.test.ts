@@ -152,6 +152,10 @@ describe("planPending", () => {
     });
   });
 
+  it("marks the week pending when the weather forecast changed", () => {
+    expect(planPending(makePlan(), "2026-10-21", false, true).week).toBe(true);
+  });
+
   it("marks the week pending when today's result is not on the week", () => {
     const plan = makePlan();
     plan.today = { ...plan.today, status: "completed" };

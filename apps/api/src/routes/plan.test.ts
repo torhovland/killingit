@@ -99,6 +99,35 @@ function makePlan(today = "2026-10-21"): CoachPlan {
   };
 }
 
+function weekForecast(icon: DailyWeather["icon"]): DailyWeather[] {
+  return Array.from({ length: 7 }, (_, index) => ({
+    date: `2026-10-${String(19 + index)}`,
+    icon,
+    temperatureMinC: 7,
+    temperatureMaxC: 15,
+    windMaxMs: 3,
+    gustMaxMs: 5,
+    precipitationMm: 0,
+  }));
+}
+
+function withWeekWeather(
+  plan: CoachPlan,
+  forecast: readonly DailyWeather[],
+): CoachPlan {
+  const byDate = new Map(forecast.map((day) => [day.date, day]));
+  return {
+    ...plan,
+    week: {
+      ...plan.week,
+      sessions: plan.week.sessions.map((session) => ({
+        ...session,
+        weather: byDate.get(session.date) ?? null,
+      })),
+    },
+  };
+}
+
 class MemoryPlanStore implements PlanStore {
   constructor(public stored: StoredPlan | null) {}
 
@@ -344,6 +373,89 @@ describe("coach plan route", () => {
       nextBlock: false,
     });
     expect(body.stale).toBe(false);
+  });
+
+  it("marks the week pending when the forecast changes significantly", async () => {
+    const location: AthleteLocation = {
+      latitude: 59.91,
+      longitude: 10.75,
+      name: "Oslo",
+    };
+    const previous = weekForecast("sun");
+    const planStore = new MemoryPlanStore({
+      plan: withWeekWeather(makePlan(), previous),
+      answersUpdatedAt: new Date("2026-10-20T10:00:00Z"),
+      coachingInputsUpdatedAt: null,
+      activitiesUpdatedAt: null,
+      generatedAt: new Date("2026-10-20T10:00:00Z"),
+    });
+    const changed = weekForecast("sun");
+    const friday = changed[4];
+    if (friday === undefined) {
+      throw new Error("missing test forecast day");
+    }
+    changed[4] = { ...friday, icon: "rain", precipitationMm: 4 };
+
+    const res = await makeApp({
+      planStore,
+      location,
+      loadForecast: () => Promise.resolve(changed),
+    }).fetch(authenticatedRequest("/api/coaching/plan?today=2026-10-21"));
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { pending: { week: boolean } };
+    expect(body.pending.week).toBe(true);
+  });
+
+  it("does not mark the week pending for a small forecast change", async () => {
+    const location: AthleteLocation = {
+      latitude: 59.91,
+      longitude: 10.75,
+      name: "Oslo",
+    };
+    const previous = weekForecast("sun");
+    const planStore = new MemoryPlanStore({
+      plan: withWeekWeather(makePlan(), previous),
+      answersUpdatedAt: new Date("2026-10-20T10:00:00Z"),
+      coachingInputsUpdatedAt: null,
+      activitiesUpdatedAt: null,
+      generatedAt: new Date("2026-10-20T10:00:00Z"),
+    });
+
+    const res = await makeApp({
+      planStore,
+      location,
+      loadForecast: () => Promise.resolve(weekForecast("partly_cloudy")),
+    }).fetch(authenticatedRequest("/api/coaching/plan?today=2026-10-21"));
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { pending: { week: boolean } };
+    expect(body.pending.week).toBe(false);
+  });
+
+  it("does not fail when the forecast cannot be fetched", async () => {
+    const location: AthleteLocation = {
+      latitude: 59.91,
+      longitude: 10.75,
+      name: "Oslo",
+    };
+    const planStore = new MemoryPlanStore({
+      plan: withWeekWeather(makePlan(), weekForecast("sun")),
+      answersUpdatedAt: new Date("2026-10-20T10:00:00Z"),
+      coachingInputsUpdatedAt: null,
+      activitiesUpdatedAt: null,
+      generatedAt: new Date("2026-10-20T10:00:00Z"),
+    });
+
+    const res = await makeApp({
+      planStore,
+      location,
+      loadForecast: () => Promise.reject(new Error("weather down")),
+    }).fetch(authenticatedRequest("/api/coaching/plan?today=2026-10-21"));
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { pending: { week: boolean } };
+    expect(body.pending.week).toBe(false);
   });
 
   it("treats a completed day that is still planned on the week as pending", async () => {
