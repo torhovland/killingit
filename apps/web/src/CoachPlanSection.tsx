@@ -214,7 +214,8 @@ export function CoachPlanSection({
     // Re-run when sign-in, integration readiness, or the answers change.
   }, [auth.isAuthenticated, ready, refreshKey]);
 
-  const running = generating || data?.generation.status === "running";
+  const running =
+    generating || (data?.generation.status === "running" && error === null);
 
   useEffect(() => {
     setStatus("coach-plan", running ? "thinking" : null);
@@ -229,7 +230,7 @@ export function CoachPlanSection({
   // `done` (often 100%). Show a neutral starting state until the first poll.
   const progress =
     generating && data?.generation.status !== "running"
-      ? { step: "Starting the coach…", progress: 0 }
+      ? { step: "Waking the coach…", progress: 0 }
       : data?.generation;
   const setupError =
     data?.generation.status === "error" ? data.generation.error : null;
@@ -266,9 +267,20 @@ export function CoachPlanSection({
       )}
 
       {error && (
-        <p className="text-destructive" data-testid="plan-error">
-          Error: {error}
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-destructive" data-testid="plan-error">
+            Error: {error}
+          </p>
+          {!generating && (
+            <button
+              type="button"
+              className="rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted"
+              onClick={() => void generate(false)}
+            >
+              Try again
+            </button>
+          )}
+        </div>
       )}
 
       {setupError && !generating && (

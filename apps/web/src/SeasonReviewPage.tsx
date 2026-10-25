@@ -7,7 +7,7 @@ import {
 } from "@killingit/shared";
 import { useAuth } from "./auth";
 import { fetchJsonAuthed } from "./fetchAuthed";
-import { useAppStatus } from "./AppStatus";
+import { useAppStatus, useBusyReporter } from "./AppStatus";
 import { PeriodReviewCard } from "./PeriodReviewCard";
 import { reportError } from "./reportError";
 import { useTimeZone } from "./TimeZoneContext";
@@ -23,6 +23,7 @@ const API_URL = import.meta.env.VITE_API_URL ?? "";
 export function SeasonReviewPage() {
   const auth = useAuth();
   const { setStatus } = useAppStatus();
+  const reportCommentSave = useBusyReporter("comment-save");
   const timeZone = useTimeZone();
   const [reviews, setReviews] = useState<PeriodReview[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,38 +63,43 @@ export function SeasonReviewPage() {
     comment: string,
     mode: "create" | "edit",
   ): Promise<string | null> {
-    const { today } = getToday(timeZone);
-    const response = await fetchJsonAuthed<unknown>(
-      `${API_URL}/api/coaching/reviews/${kind}/${startDate}/comments`,
-      auth,
-      {
-        method: mode === "edit" ? "PUT" : "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          today,
-          timezone: timeZone,
-          comment,
-        }),
-      },
-    );
-    const parsed = coachingInputSaveResponseSchema.safeParse(response);
-    if (!parsed.success) {
-      throw new Error("Saving your comment returned an unexpected response", {
-        cause: parsed.error,
-      });
+    reportCommentSave(true);
+    try {
+      const { today } = getToday(timeZone);
+      const response = await fetchJsonAuthed<unknown>(
+        `${API_URL}/api/coaching/reviews/${kind}/${startDate}/comments`,
+        auth,
+        {
+          method: mode === "edit" ? "PUT" : "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            today,
+            timezone: timeZone,
+            comment,
+          }),
+        },
+      );
+      const parsed = coachingInputSaveResponseSchema.safeParse(response);
+      if (!parsed.success) {
+        throw new Error("Saving your comment returned an unexpected response", {
+          cause: parsed.error,
+        });
+      }
+      setReviews((current) =>
+        current.map((review) =>
+          review.kind === kind && review.startDate === startDate
+            ? {
+                ...review,
+                comment,
+                coachReply: parsed.data.reply ?? review.coachReply,
+              }
+            : review,
+        ),
+      );
+      return parsed.data.reply?.text ?? null;
+    } finally {
+      reportCommentSave(false);
     }
-    setReviews((current) =>
-      current.map((review) =>
-        review.kind === kind && review.startDate === startDate
-          ? {
-              ...review,
-              comment,
-              coachReply: parsed.data.reply ?? review.coachReply,
-            }
-          : review,
-      ),
-    );
-    return parsed.data.reply?.text ?? null;
   }
 
   useEffect(() => {

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { PeriodReview, ReviewKind } from "@killingit/shared";
+import { SubmitButton } from "./SubmitButton";
 
 const KIND_LABELS: Record<ReviewKind, string> = {
   week: "Week review",
@@ -174,17 +175,13 @@ export function PeriodReviewCard({
           />
           {error && <p className="text-xs text-destructive">{error}</p>}
           <div className="flex flex-wrap gap-2">
-            <button
-              type="submit"
+            <SubmitButton
+              busy={submitting}
               className="self-start rounded border border-transparent bg-primary px-3 py-1 text-sm text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
-              disabled={submitting || !comment.trim()}
+              disabled={!comment.trim()}
             >
-              {submitting
-                ? "Saving…"
-                : shownComment === null
-                  ? "Save comment"
-                  : "Save changes"}
-            </button>
+              {submitting ? "Coach is thinking…" : "Send to coach"}
+            </SubmitButton>
             {shownComment !== null && (
               <button
                 type="button"

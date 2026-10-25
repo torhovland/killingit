@@ -12,7 +12,7 @@ import {
 } from "@killingit/shared";
 import { ActivityCard } from "./ActivityCard";
 import { loadCachedActivities, saveCachedActivities } from "./activityCache";
-import { useAppStatus } from "./AppStatus";
+import { useAppStatus, useBusyReporter } from "./AppStatus";
 import { useAuth } from "./auth";
 import { fetchJsonAuthed } from "./fetchAuthed";
 import { useNavigate } from "./navigation";
@@ -29,6 +29,7 @@ const API_URL = import.meta.env.VITE_API_URL ?? "";
 export function ActivitiesPage() {
   const auth = useAuth();
   const { setStatus } = useAppStatus();
+  const reportCommentSave = useBusyReporter("comment-save");
   const navigate = useNavigate();
   const timeZone = useTimeZone();
   const authSub = useRef(auth.sub);
@@ -154,46 +155,51 @@ export function ActivitiesPage() {
     comment: string,
     mode: "create" | "edit",
   ): Promise<string | null> {
-    const { today } = getToday(timeZone);
-    const response = await fetchJsonAuthed<unknown>(
-      `${API_URL}/api/coaching/activities/${activityId}/comments`,
-      auth,
-      {
-        method: mode === "edit" ? "PUT" : "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          today,
-          timezone: timeZone,
-          activityDate: activityStartDate(activityId),
-          comment,
-        }),
-      },
-    );
-    const parsed = coachingInputSaveResponseSchema.safeParse(response);
-    if (!parsed.success) {
-      throw new Error("Saving your comment returned an unexpected response", {
-        cause: parsed.error,
-      });
+    reportCommentSave(true);
+    try {
+      const { today } = getToday(timeZone);
+      const response = await fetchJsonAuthed<unknown>(
+        `${API_URL}/api/coaching/activities/${activityId}/comments`,
+        auth,
+        {
+          method: mode === "edit" ? "PUT" : "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            today,
+            timezone: timeZone,
+            activityDate: activityStartDate(activityId),
+            comment,
+          }),
+        },
+      );
+      const parsed = coachingInputSaveResponseSchema.safeParse(response);
+      if (!parsed.success) {
+        throw new Error("Saving your comment returned an unexpected response", {
+          cause: parsed.error,
+        });
+      }
+      const next = data
+        ? {
+            ...data,
+            activities: data.activities.map((activity) =>
+              String(activity.id) === activityId
+                ? {
+                    ...activity,
+                    comment,
+                    coachReply: parsed.data.reply ?? activity.coachReply,
+                  }
+                : activity,
+            ),
+          }
+        : null;
+      setData(next);
+      if (next) {
+        saveCachedActivities(authSub.current, next);
+      }
+      return parsed.data.reply?.text ?? null;
+    } finally {
+      reportCommentSave(false);
     }
-    const next = data
-      ? {
-          ...data,
-          activities: data.activities.map((activity) =>
-            String(activity.id) === activityId
-              ? {
-                  ...activity,
-                  comment,
-                  coachReply: parsed.data.reply ?? activity.coachReply,
-                }
-              : activity,
-          ),
-        }
-      : null;
-    setData(next);
-    if (next) {
-      saveCachedActivities(authSub.current, next);
-    }
-    return parsed.data.reply?.text ?? null;
   }
 
   function activityStartDate(activityId: string): string {

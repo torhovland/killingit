@@ -12,6 +12,7 @@ import type { QuestionAnswerStore } from "../questions/answers.js";
 import type { UserStore } from "../users/store.js";
 import { fetchWeatherForecast } from "../weather/openMeteo.js";
 import { startOfWeek } from "./dates.js";
+import { GENERATION_HEARTBEAT_MS } from "./generation.js";
 import { runPlanGeneration } from "./generate.js";
 import { loadCoachingInputs, type CoachingInputs } from "./inputs.js";
 import {
@@ -62,6 +63,15 @@ export async function triggerPlanGeneration(
     return false;
   }
 
+  // Keep the running row fresh from the moment it is claimed. Loading the
+  // activities can itself take minutes, so it must not look like a dead run.
+  const heartbeat = setInterval(() => {
+    void deps.generations.heartbeat(userId).catch((err: unknown) => {
+      console.error("[plan] could not refresh generation status:", err);
+    });
+  }, GENERATION_HEARTBEAT_MS);
+  heartbeat.unref();
+
   let plan: Awaited<ReturnType<PlanStore["load"]>>;
   let answers: Awaited<ReturnType<QuestionAnswerStore["listForUser"]>>;
   let activities: ActivityFeed;
@@ -87,6 +97,7 @@ export async function triggerPlanGeneration(
       deps.users.getById(userId),
     ]);
   } catch (err) {
+    clearInterval(heartbeat);
     const message =
       err instanceof Error ? err.message : "The plan could not be generated.";
     await deps.generations.fail(userId, message);
@@ -94,6 +105,7 @@ export async function triggerPlanGeneration(
   }
 
   if (!llm) {
+    clearInterval(heartbeat);
     const message = "OpenRouter is not configured. Add a key and model first.";
     await deps.generations.fail(userId, message);
     return true;
@@ -155,9 +167,11 @@ export async function triggerPlanGeneration(
     },
     plans: deps.plans,
     generations: deps.generations,
-  }).catch((err: unknown) => {
-    console.error("[plan] background generation failed:", err);
-  });
+  })
+    .catch((err: unknown) => {
+      console.error("[plan] background generation failed:", err);
+    })
+    .finally(() => clearInterval(heartbeat));
 
   return true;
 }

@@ -2,6 +2,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -70,4 +71,27 @@ export function useAppStatus(): AppStatusContextValue {
     throw new Error("useAppStatus must be used inside AppStatusProvider");
   }
   return value;
+}
+
+/**
+ * Reports a busy state for a page action that may run more than once at the
+ * same time. Call the returned function with `true` when an operation starts
+ * and `false` when it settles; the header spinner stays visible until every
+ * overlapping operation has finished.
+ */
+export function useBusyReporter(
+  source: string,
+  state: AppBusyState = "thinking",
+): (busy: boolean) => void {
+  const { setStatus } = useAppStatus();
+  const [pending, setPending] = useState(0);
+
+  useEffect(() => {
+    setStatus(source, pending > 0 ? state : null);
+    return () => setStatus(source, null);
+  }, [pending, setStatus, source, state]);
+
+  return useCallback((busy: boolean) => {
+    setPending((current) => Math.max(0, current + (busy ? 1 : -1)));
+  }, []);
 }

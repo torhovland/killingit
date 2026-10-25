@@ -12,6 +12,7 @@ import { getAthlete } from "../auth/middleware.js";
 import type { ActivityFeed } from "../coaching/activities.js";
 import type { LlmClient } from "../llm/client.js";
 import { startOfWeek } from "../plans/dates.js";
+import { isStaleRunning } from "../plans/generation.js";
 import { loadCoachingInputs, type CoachingInputs } from "../plans/inputs.js";
 import { promoteNextPeriod } from "../plans/periods.js";
 import {
@@ -76,16 +77,25 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
     today: string,
     includeTomorrow = false,
   ) {
-    const [storedPlan, generation, answers, coachingInputs] = await Promise.all(
-      [
+    const [storedPlan, loadedGeneration, answers, coachingInputs] =
+      await Promise.all([
         deps.plans.load(userId),
         deps.generations.load(userId),
         deps.answers.listForUser(userId),
         deps.loadCoachingInputs
           ? deps.loadCoachingInputs(userId, startOfWeek(today))
           : loadCoachingInputs(userId, startOfWeek(today)),
-      ],
-    );
+      ]);
+    // A process that stopped mid-generation leaves the row `running`. Release
+    // the claim so the client stops polling and can start a fresh run.
+    let generation = loadedGeneration;
+    if (isStaleRunning(generation)) {
+      await deps.generations.fail(
+        userId,
+        "The coach stopped before finishing. Try again.",
+      );
+      generation = await deps.generations.load(userId);
+    }
     const answersUpdatedAt = latestAnswerTimestamp(answers);
 
     // A plan saved under an older schema (or a partial write) must not crash
