@@ -1,7 +1,13 @@
 import type { PeriodReview, ReviewKind } from "@killingit/shared";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "../db/index.js";
-import { coachReplies, periodReviews } from "../db/schema.js";
+import {
+  coachReplies,
+  periodReviews,
+  weeklyNotes,
+  type CoachReplyRow,
+  type WeeklyNoteRow,
+} from "../db/schema.js";
 import { toCoachAnalysis, type StoredCoachReply } from "./replies.js";
 
 /** A stored week or block review before it is turned into the API shape. */
@@ -21,6 +27,14 @@ export interface StoredPeriodReview {
 
 export interface PeriodReviewWithReply {
   review: StoredPeriodReview;
+  reply: StoredCoachReply | null;
+  /** The weekly note saved for a week review and the coach's reply to it. */
+  weeklyNote?: StoredWeeklyNote | null;
+}
+
+/** The athlete's note for a week and the coach's reply to that note. */
+export interface StoredWeeklyNote {
+  note: string;
   reply: StoredCoachReply | null;
 }
 
@@ -55,15 +69,44 @@ export async function loadPeriodReviews(
     updatedAt: row.updatedAt,
   }));
 
-  const replyRows = await db
-    .select()
-    .from(coachReplies)
-    .where(
-      and(
-        eq(coachReplies.userId, userId),
-        inArray(coachReplies.kind, ["week_review", "block_review"]),
+  const weekStartDates = reviewRows
+    .filter((review) => review.kind === "week")
+    .map((review) => review.startDate);
+
+  const [replyRows, noteRows, noteReplyRows] = await Promise.all([
+    db
+      .select()
+      .from(coachReplies)
+      .where(
+        and(
+          eq(coachReplies.userId, userId),
+          inArray(coachReplies.kind, ["week_review", "block_review"]),
+        ),
       ),
-    );
+    weekStartDates.length === 0
+      ? Promise.resolve([] as WeeklyNoteRow[])
+      : db
+          .select()
+          .from(weeklyNotes)
+          .where(
+            and(
+              eq(weeklyNotes.userId, userId),
+              inArray(weeklyNotes.weekStartDate, weekStartDates),
+            ),
+          ),
+    weekStartDates.length === 0
+      ? Promise.resolve([] as CoachReplyRow[])
+      : db
+          .select()
+          .from(coachReplies)
+          .where(
+            and(
+              eq(coachReplies.userId, userId),
+              eq(coachReplies.kind, "weekly_note"),
+              inArray(coachReplies.target, weekStartDates),
+            ),
+          ),
+  ]);
 
   const replies = new Map<string, StoredCoachReply>();
   for (const row of replyRows) {
@@ -76,10 +119,38 @@ export async function loadPeriodReviews(
     });
   }
 
-  return reviewRows.map((review) => ({
-    review,
-    reply: replies.get(`${replyKind(review.kind)}:${review.startDate}`) ?? null,
-  }));
+  const notes = new Map<string, string>();
+  for (const row of noteRows) {
+    notes.set(row.weekStartDate, row.note);
+  }
+
+  const noteReplies = new Map<string, StoredCoachReply>();
+  for (const row of noteReplyRows) {
+    noteReplies.set(row.target, {
+      kind: row.kind,
+      target: row.target,
+      text: row.reply,
+      model: row.model,
+      generatedAt: row.updatedAt,
+    });
+  }
+
+  return reviewRows.map((review) => {
+    const note =
+      review.kind === "week" ? notes.get(review.startDate) : undefined;
+    return {
+      review,
+      reply:
+        replies.get(`${replyKind(review.kind)}:${review.startDate}`) ?? null,
+      weeklyNote:
+        note === undefined
+          ? null
+          : {
+              note,
+              reply: noteReplies.get(review.startDate) ?? null,
+            },
+    };
+  });
 }
 
 /** Loads one review, or null when it does not exist. */
@@ -239,6 +310,15 @@ export function toPeriodReview(entry: PeriodReviewWithReply): PeriodReview {
     }),
     comment: entry.review.comment,
     coachReply: entry.reply ? toCoachAnalysis(entry.reply) : null,
+    weeklyNote:
+      entry.review.kind === "week" && entry.weeklyNote
+        ? {
+            note: entry.weeklyNote.note,
+            coachReply: entry.weeklyNote.reply
+              ? toCoachAnalysis(entry.weeklyNote.reply)
+              : null,
+          }
+        : null,
     reviewed: entry.review.reviewed,
   };
 }

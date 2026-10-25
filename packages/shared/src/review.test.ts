@@ -17,14 +17,24 @@ const review = {
   },
   comment: null,
   coachReply: null,
+  weeklyNote: {
+    note: "I cannot train on Thursday this week.",
+    coachReply: {
+      text: "I moved Thursday's session to Friday.",
+      model: "test-model",
+      generatedAt: "2026-10-14T09:00:00.000Z",
+    },
+  },
   reviewed: false,
 };
 
 describe("period review schemas", () => {
-  it("parses a week review", () => {
+  it("parses a week review with its weekly note", () => {
     const parsed = periodReviewSchema.parse(review);
     expect(parsed.kind).toBe("week");
     expect(parsed.summary.text).toContain("consistent");
+    expect(parsed.weeklyNote?.note).toContain("Thursday");
+    expect(parsed.weeklyNote?.coachReply?.text).toContain("Friday");
   });
 
   it("defaults the optional feedback fields", () => {
@@ -37,6 +47,7 @@ describe("period review schemas", () => {
     });
     expect(parsed.comment).toBeNull();
     expect(parsed.coachReply).toBeNull();
+    expect(parsed.weeklyNote).toBeNull();
     expect(parsed.reviewed).toBe(false);
   });
 

@@ -15,6 +15,7 @@ function review(overrides: Partial<PeriodReview> = {}): PeriodReview {
     },
     comment: null,
     coachReply: null,
+    weeklyNote: null,
     reviewed: false,
     ...overrides,
   };

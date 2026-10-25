@@ -1084,6 +1084,41 @@ describe("coaching week and block reviews", () => {
     );
   });
 
+  it("includes the week's note and the coach's reply to it", async () => {
+    const entry = makePeriodReview();
+    entry.weeklyNote = {
+      note: "I will be travelling this week.",
+      reply: {
+        kind: "weekly_note",
+        target: "2026-10-13",
+        text: "I kept the week light while you travel.",
+        model: "test-model",
+        generatedAt: new Date("2026-10-14T10:00:00Z"),
+      },
+    };
+    const app = makeApp({
+      loadPeriodReviews: () => Promise.resolve([entry]),
+    });
+
+    const res = await app.fetch(authenticatedRequest("/api/coaching/reviews"));
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      reviews: Array<{
+        weeklyNote: {
+          note: string;
+          coachReply: { text: string } | null;
+        } | null;
+      }>;
+    };
+    expect(body.reviews[0]?.weeklyNote?.note).toBe(
+      "I will be travelling this week.",
+    );
+    expect(body.reviews[0]?.weeklyNote?.coachReply?.text).toBe(
+      "I kept the week light while you travel.",
+    );
+  });
+
   it("saves a review comment, replies, and triggers a plan refresh", async () => {
     const saved = { value: false };
     const triggered = { value: false };

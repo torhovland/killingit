@@ -8,6 +8,20 @@ export const reviewKindSchema = z.enum(["week", "block"]);
 export type ReviewKind = z.infer<typeof reviewKindSchema>;
 
 /**
+ * The athlete's note for a completed week and the coach's reply to it. Kept on
+ * the week review so the season review can show the context the athlete gave
+ * while the week was still running.
+ */
+export const periodReviewWeeklyNoteSchema = z.object({
+  note: z.string().min(1),
+  coachReply: coachAnalysisSchema.nullable().default(null),
+});
+
+export type PeriodReviewWeeklyNote = z.infer<
+  typeof periodReviewWeeklyNoteSchema
+>;
+
+/**
  * The coach's summary of one completed week or block, plus the athlete's
  * comment and the coach's reply. Reviews are stored separately from the live
  * plan because the plan only keeps the current week and block.
@@ -23,6 +37,8 @@ export const periodReviewSchema = z.object({
   comment: z.string().nullable().default(null),
   /** The coach's latest reply to the comment, if any. */
   coachReply: coachAnalysisSchema.nullable().default(null),
+  /** The note the athlete saved for that week, for reference. */
+  weeklyNote: periodReviewWeeklyNoteSchema.nullable().default(null),
   /** The athlete dismissed the review with "No comment". */
   reviewed: z.boolean().default(false),
 });
