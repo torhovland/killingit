@@ -29,7 +29,8 @@ interface CoachPlanSectionProps {
 /**
  * The four-level coach plan. Loads the stored plan, fills in anything missing
  * for today, and polls while the coach is thinking so the user sees progress.
- * The old plan stays visible during a regeneration.
+ * The old plan stays visible during a regeneration, except on the Day tab where
+ * a superseded day is greyed out until its replacement arrives.
  */
 export function CoachPlanSection({
   refreshKey,
@@ -271,9 +272,21 @@ export function CoachPlanSection({
       )}
 
       {setupError && !generating && (
-        <p className="text-destructive" data-testid="plan-generation-error">
-          The coach could not finish your plan: {setupError}
-        </p>
+        <div
+          className="flex flex-wrap items-center justify-between gap-2 rounded border bg-muted p-3 text-sm"
+          data-testid="plan-generation-error"
+        >
+          <p className="text-destructive">
+            The coach could not finish your plan: {setupError}
+          </p>
+          <button
+            type="button"
+            className="rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted"
+            onClick={() => void generate(false)}
+          >
+            Try again
+          </button>
+        </div>
       )}
 
       {running && (
@@ -321,7 +334,14 @@ export function CoachPlanSection({
       )}
 
       {data?.plan ? (
-        <CoachPlanView plan={data.plan} showTomorrow={isAfter18} />
+        <CoachPlanView
+          plan={data.plan}
+          showTomorrow={isAfter18}
+          refreshingDays={{
+            today: running && data.pending.day,
+            tomorrow: running && data.pending.tomorrow,
+          }}
+        />
       ) : (
         !loading &&
         !running &&

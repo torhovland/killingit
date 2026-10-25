@@ -19,6 +19,7 @@ import {
 } from "../llm/planUpdatePrompt.js";
 import { addDays } from "./dates.js";
 import { runPlanGeneration, type PlanGenerationContext } from "./generate.js";
+import { planPending } from "./status.js";
 import {
   idleGenerationStatus,
   type PlanGenerationStore,
@@ -1117,6 +1118,46 @@ describe("runPlanGeneration", () => {
     expect(monday?.title).toBe(saved?.plan.tomorrow?.title);
     expect(monday?.description).toBe(saved?.plan.tomorrow?.description);
     expect(monday?.durationMinutes).toBe(saved?.plan.tomorrow?.durationMinutes);
+  });
+
+  it("recovers from an uncovered stored tomorrow by planning next week", async () => {
+    const today = "2026-10-25";
+    const stored = makeStoredPlan({
+      ...makePlan(today),
+      week: makeEndedWeek("2026-10-19", today),
+      tomorrow: makeDay("2026-10-26"),
+      nextWeek: null,
+      nextBlock: null,
+    });
+    const nextWeek = makeWeek("2026-10-26");
+    const provider = new FakeProvider({
+      weekly: JSON.stringify({ week: nextWeek, block: makeBlock() }),
+      daily: JSON.stringify({
+        today: makeDay("2026-10-26"),
+        // The day after the target is unused here and may be malformed without
+        // failing the generation and leaving tomorrow pending forever.
+        tomorrow: { ...makeDay("2026-10-27"), type: "rest day" },
+        week: nextWeek,
+      }),
+    });
+    const plans = new MemoryPlanStore(stored);
+    const generations = new MemoryGenerationStore();
+
+    const saved = await runPlanGeneration({
+      userId: 1,
+      today,
+      plan: stored,
+      includeTomorrow: true,
+      context: makeContext(provider),
+      plans,
+      generations,
+    });
+
+    expect(provider.calls).toEqual(["weekly", "daily"]);
+    expect(saved?.plan.nextWeek?.startDate).toBe("2026-10-26");
+    expect(saved?.plan.tomorrow?.date).toBe("2026-10-26");
+    expect(planPending(saved!.plan, today, true).tomorrow).toBe(false);
+    expect(generations.status.status).toBe("done");
   });
 
   it("generates the next block before the next week when tomorrow crosses both", async () => {

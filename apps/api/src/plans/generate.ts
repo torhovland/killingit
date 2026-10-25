@@ -16,6 +16,7 @@ import {
 import {
   generateBlockUpdate,
   generateDailyUpdate,
+  generateTargetDayUpdate,
   generateWeeklyUpdate,
 } from "../llm/planUpdate.js";
 import { captureCompletedPeriodReviews } from "../coaching/periodReviews.js";
@@ -526,7 +527,7 @@ async function planNextPeriod(
     !hasTargetSession
   ) {
     await generations.update(userId, "Choosing tomorrow's session", 90);
-    const update = await generateDailyUpdate(
+    const update = await generateTargetDayUpdate(
       context.provider,
       credentials(context),
       {

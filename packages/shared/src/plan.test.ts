@@ -10,6 +10,7 @@ import {
   manualActivitySchema,
   planDateSchema,
   seasonPlanUpdateSchema,
+  targetDayUpdateSchema,
   weekPlanSchema,
   weeklyNoteResponseSchema,
 } from "./plan.js";
@@ -191,6 +192,33 @@ describe("split build schemas", () => {
     expect(initialBlockUpdateSchema.parse({ block: plan.block })).toEqual({
       block: plan.block,
     });
+  });
+});
+
+describe("targetDayUpdateSchema", () => {
+  it("ignores an unused malformed day-after-target field", () => {
+    const plan = makePlan();
+
+    const parsed = targetDayUpdateSchema.parse({
+      today: plan.today,
+      week: plan.week,
+      tomorrow: { ...plan.today, date: "2026-10-22", type: "rest day" },
+    });
+
+    expect(parsed.today.date).toBe("2026-10-21");
+    expect(parsed.week.startDate).toBe("2026-10-19");
+    expect("tomorrow" in parsed).toBe(false);
+  });
+
+  it("rejects a target day outside the week", () => {
+    const plan = makePlan();
+
+    expect(() =>
+      targetDayUpdateSchema.parse({
+        today: { ...plan.today, date: "2026-11-02" },
+        week: plan.week,
+      }),
+    ).toThrow();
   });
 });
 

@@ -26,6 +26,10 @@ before the generation fails.
    the cascade updates).
 4. Keep the original opaque phrase as a prefix so existing UI/reporting remains
    recognisable.
+5. When the cascade plans a specific target day against a known week (the next
+   week's Monday after 18:00), validate only the target day and its week. The
+   response's unused day-after-target field must not fail the generation and
+   leave the plan pending forever.
 
 ### Out of scope
 
@@ -45,6 +49,9 @@ before the generation fails.
    placeholders literally.
 5. `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`
    pass.
+6. A target-day cascade response with a malformed unused day-after field still
+   produces the target day and its week, so `pending.tomorrow` clears instead of
+   triggering another failed generation on every visit.
 
 ## Data-model / API impact
 
