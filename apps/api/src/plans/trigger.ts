@@ -12,6 +12,7 @@ import type { QuestionAnswerStore } from "../questions/answers.js";
 import type { UserStore } from "../users/store.js";
 import { fetchWeatherForecast } from "../weather/openMeteo.js";
 import { startOfWeek } from "./dates.js";
+import { GENERATION_HEARTBEAT_MS } from "./generation.js";
 import { runPlanGeneration } from "./generate.js";
 import { loadCoachingInputs, type CoachingInputs } from "./inputs.js";
 import {
@@ -114,7 +115,16 @@ export async function triggerPlanGeneration(
   }
 
   // Run the long cascade after responding so the request cannot hit the server
-  // idle timeout. The client polls GET for progress.
+  // idle timeout. The client polls GET for progress. The heartbeat keeps the
+  // generation claim fresh; without it a restarted process would leave the row
+  // `running` and block every later attempt.
+  const heartbeat = setInterval(() => {
+    void deps.generations.heartbeat(userId).catch((err: unknown) => {
+      console.error("[plan] could not refresh generation status:", err);
+    });
+  }, GENERATION_HEARTBEAT_MS);
+  heartbeat.unref();
+
   void runPlanGeneration({
     userId,
     today,
@@ -155,9 +165,11 @@ export async function triggerPlanGeneration(
     },
     plans: deps.plans,
     generations: deps.generations,
-  }).catch((err: unknown) => {
-    console.error("[plan] background generation failed:", err);
-  });
+  })
+    .catch((err: unknown) => {
+      console.error("[plan] background generation failed:", err);
+    })
+    .finally(() => clearInterval(heartbeat));
 
   return true;
 }

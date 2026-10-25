@@ -274,6 +274,10 @@ class MemoryGenerationStore implements PlanGenerationStore {
     return Promise.resolve();
   }
 
+  heartbeat(): Promise<void> {
+    return Promise.resolve();
+  }
+
   finish(): Promise<void> {
     this.status = {
       ...this.status,

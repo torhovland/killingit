@@ -6,6 +6,7 @@ import type {
   PlanGenerationStatus,
 } from "@killingit/shared";
 import { createApp } from "../index.js";
+import { STALE_GENERATION_MS } from "../plans/generation.js";
 import type { CoachingInputs } from "../plans/inputs.js";
 import type {
   PlanGenerationStore,
@@ -184,6 +185,10 @@ class MemoryGenerationStore implements PlanGenerationStore {
       progress,
       updatedAt: new Date().toISOString(),
     };
+    return Promise.resolve();
+  }
+
+  heartbeat(): Promise<void> {
     return Promise.resolve();
   }
 
@@ -730,6 +735,53 @@ describe("coach plan route", () => {
     await waitForGeneration(generationStore);
     expect(generationStore.status.status).toBe("done");
     expect(planStore.stored?.plan.today.weather).toBeUndefined();
+  });
+
+  it("releases a stale running generation so the athlete can retry", async () => {
+    const generationStore = new MemoryGenerationStore();
+    generationStore.running = true;
+    generationStore.status = {
+      ...generationStore.status,
+      status: "running",
+      step: "Choosing tomorrow's session",
+      progress: 90,
+      updatedAt: new Date(
+        Date.now() - STALE_GENERATION_MS - 1000,
+      ).toISOString(),
+    };
+
+    const res = await makeApp({ generationStore }).fetch(
+      authenticatedRequest("/api/coaching/plan?today=2026-10-21"),
+    );
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      generation: { status: string; error: string | null };
+    };
+    expect(body.generation.status).toBe("error");
+    expect(body.generation.error).toContain("stopped before finishing");
+    expect(generationStore.running).toBe(false);
+  });
+
+  it("keeps a fresh running generation live", async () => {
+    const generationStore = new MemoryGenerationStore();
+    generationStore.running = true;
+    generationStore.status = {
+      ...generationStore.status,
+      status: "running",
+      step: "Choosing tomorrow's session",
+      progress: 90,
+      updatedAt: new Date().toISOString(),
+    };
+
+    const res = await makeApp({ generationStore }).fetch(
+      authenticatedRequest("/api/coaching/plan?today=2026-10-21"),
+    );
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { generation: { status: string } };
+    expect(body.generation.status).toBe("running");
+    expect(generationStore.running).toBe(true);
   });
 
   it("returns 202 when a generation is already running", async () => {

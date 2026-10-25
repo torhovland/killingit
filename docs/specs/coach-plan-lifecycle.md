@@ -138,7 +138,11 @@ One row per user (`unique (user_id)`):
 - `started_at`, `updated_at`.
 
 `begin` inserts the row if needed and flips it to `running` only when it is not
-already `running`, so concurrent requests cannot start two generations.
+already `running`, so concurrent requests cannot start two generations. A live
+generation refreshes `updated_at` every 15 seconds. A `running` row that has not
+been refreshed for two minutes is considered abandoned (for example by a server
+restart); `GET` records it as an error so the client stops polling and offers
+`Try again`, and `begin` may take over the stale claim.
 
 ## API
 
@@ -270,9 +274,10 @@ problems; the error names the offending fields if the repair also fails. See
   calls request `reasoning.effort: "minimal"`; if a model still stops at the
   token limit, `completePlan` retries with reasoning disabled and a doubled
   budget before falling back to the normal budget without reasoning control.
-- **Cloud Run:** if the request is terminated mid-generation, the status stays
-  `running` until the timeout and the UI reports the delay. A background worker
-  is the future fix.
+- **Cloud Run:** if the process is terminated mid-generation, its heartbeat
+  stops. After two minutes without a refresh, `GET` marks the run as failed and
+  the UI offers `Try again`; `begin` can take over the stale claim. A background
+  worker is the future fix.
 - **Date trust:** the client supplies `today` and its timezone. A personal app
   accepts this; a multi-tenant version should derive the athlete's timezone from
   their profile and validate the date server-side.

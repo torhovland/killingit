@@ -1,5 +1,5 @@
 import type { CoachPlan, PlanGenerationStatus } from "@killingit/shared";
-import { and, eq, isNull, lt, ne, or } from "drizzle-orm";
+import { and, eq, lt, ne, or } from "drizzle-orm";
 import { db } from "../db/index.js";
 import {
   coachPlans,
@@ -7,6 +7,7 @@ import {
   type CoachPlanRow,
   type PlanGenerationRow,
 } from "../db/schema.js";
+import { STALE_GENERATION_MS } from "./generation.js";
 
 /** A persisted plan plus the answer timestamp it was generated from. */
 export interface StoredPlan {
@@ -34,16 +35,11 @@ export interface PlanGenerationStore {
   /** Marks a run as running. Returns false when one is already in progress. */
   begin(userId: number): Promise<boolean>;
   update(userId: number, step: string, progress: number): Promise<void>;
+  /** Refreshes a running run so a dead process can be detected. */
+  heartbeat(userId: number): Promise<void>;
   finish(userId: number): Promise<void>;
   fail(userId: number, error: string): Promise<void>;
 }
-
-/**
- * A `running` row older than this is assumed to be from a terminated request
- * (for example a Cloud Run instance that stopped mid-generation), so a new
- * attempt may take it over.
- */
-const STALE_GENERATION_MS = 10 * 60 * 1000;
 
 /** The status returned before the first generation has ever run. */
 export function idleGenerationStatus(): PlanGenerationStatus {
@@ -176,8 +172,7 @@ export const dbPlanGenerationStore: PlanGenerationStore = {
           eq(planGenerations.userId, userId),
           or(
             ne(planGenerations.status, "running"),
-            isNull(planGenerations.startedAt),
-            lt(planGenerations.startedAt, staleBefore),
+            lt(planGenerations.updatedAt, staleBefore),
           ),
         ),
       )
@@ -191,6 +186,18 @@ export const dbPlanGenerationStore: PlanGenerationStore = {
       .update(planGenerations)
       .set({ step, progress, updatedAt: new Date() })
       .where(eq(planGenerations.userId, userId));
+  },
+
+  async heartbeat(userId) {
+    await db
+      .update(planGenerations)
+      .set({ updatedAt: new Date() })
+      .where(
+        and(
+          eq(planGenerations.userId, userId),
+          eq(planGenerations.status, "running"),
+        ),
+      );
   },
 
   async finish(userId) {
