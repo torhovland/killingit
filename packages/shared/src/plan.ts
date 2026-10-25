@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { coachAnalysisSchema } from "./llm.js";
-import { dailyWeatherSchema } from "./weather.js";
+import { dailyForecastsSchema, dailyWeatherSchema } from "./weather.js";
 
 /** A calendar date in `YYYY-MM-DD` form. */
 export const planDateSchema = z
@@ -86,7 +86,12 @@ export const weekSessionSchema = z.object({
    * before weather planning still show weather when a forecast is available.
    */
   outdoor: z.boolean().optional(),
-  /** The forecast for this date, attached by the API when a location is set. */
+  /**
+   * The forecast for this date from each source and their average. The
+   * combined forecast is also stored in `weather` for older readers.
+   */
+  forecasts: dailyForecastsSchema.nullable().optional(),
+  /** The combined forecast for this date, attached when a location is set. */
   weather: dailyWeatherSchema.nullable().optional(),
 });
 
@@ -132,7 +137,12 @@ export const dayPlanSchema = z.object({
   status: weekSessionStatusSchema.default("planned"),
   /** False for indoor sessions; missing is treated as outdoor. */
   outdoor: z.boolean().optional(),
-  /** The forecast for this date, attached by the API when a location is set. */
+  /**
+   * The forecast for this date from each source and their average. The
+   * combined forecast is also stored in `weather` for older readers.
+   */
+  forecasts: dailyForecastsSchema.nullable().optional(),
+  /** The combined forecast for this date, attached when a location is set. */
   weather: dailyWeatherSchema.nullable().optional(),
 });
 

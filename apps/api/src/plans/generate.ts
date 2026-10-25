@@ -10,6 +10,7 @@ import type {
 import { toCoachPlanActivity } from "../llm/coachPlanPrompt.js";
 import { applyForecastToPlan } from "../weather/apply.js";
 import { planWeatherChanged } from "../weather/changes.js";
+import type { WeatherForecastSet } from "../weather/forecast.js";
 import {
   generateInitialBlock,
   generateSeasonPlan,
@@ -48,8 +49,10 @@ export interface PlanGenerationContext {
   activitiesUpdatedAt?: Date | null;
   /** The athlete's home location, used to label the forecast in prompts. */
   location?: AthleteLocation | null;
-  /** Daily forecast loaded when the athlete has set a location. */
+  /** The combined forecast, used by prompts and weather-change checks. */
   forecast?: readonly DailyWeather[] | null;
+  /** Both provider forecasts and their combined average, stored on sessions. */
+  weatherForecasts?: WeatherForecastSet | null;
   provider: LlmProvider;
   apiKey: string;
   model: string;
@@ -225,7 +228,7 @@ export async function runPlanGeneration(
       };
       const generated = applyForecastToPlan(
         dropUnplacedTomorrow(completed, input.includeTomorrow === true),
-        context.forecast,
+        forecastForStorage(context),
       );
       assertPlanValid(generated, today, input.includeTomorrow === true);
       await generations.update(userId, "Saving your plan", 95);
@@ -435,7 +438,7 @@ async function advancePlan(
   };
   const finalPlan = applyForecastToPlan(
     dropUnplacedTomorrow(plan, input.includeTomorrow === true),
-    context.forecast,
+    forecastForStorage(context),
   );
   assertPlanValid(finalPlan, today, input.includeTomorrow === true);
   return finalPlan;
@@ -795,6 +798,26 @@ function baseContext(input: GeneratePlanInput) {
     input.context.periodReviews.length > 0
       ? { periodReviews: input.context.periodReviews }
       : {}),
+  };
+}
+
+/**
+ * The full provider set is stored on sessions for display. Older tests and
+ * callers may supply only the combined forecast, so use that as a fallback.
+ */
+function forecastForStorage(
+  context: PlanGenerationContext,
+): WeatherForecastSet | null {
+  if (context.weatherForecasts) {
+    return context.weatherForecasts;
+  }
+  if (!context.forecast || context.forecast.length === 0) {
+    return null;
+  }
+  return {
+    openMeteo: [],
+    yr: [],
+    combined: [...context.forecast],
   };
 }
 

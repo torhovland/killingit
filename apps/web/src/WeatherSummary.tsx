@@ -1,27 +1,60 @@
-import { WEATHER_ICON_LABELS, type DailyWeather } from "@killingit/shared";
+import {
+  FORECAST_PROVIDER_LABELS,
+  formatDailyWeatherLine,
+  type DailyForecasts,
+  type DailyWeather,
+} from "@killingit/shared";
 import { WeatherIcon } from "./WeatherIcon";
 
+const SOURCES = ["combined", "openMeteo", "yr"] as const;
+
 /**
- * A compact forecast line for a planned outdoor session. Temperature is shown
- * in °C and wind speeds in m/s, matching the units the coach receives. Sunrise
- * and sunset are the location's local clock times, shown next to the weather so
- * the athlete can see the daylight window.
+ * The forecast lines for a planned outdoor session. Each provider is shown on
+ * its own line so the athlete can see where the combined forecast came from.
+ * Older stored plans only carry the combined values; those render as a single
+ * forecast line.
  */
-export function WeatherSummary({ weather }: { weather: DailyWeather }) {
-  const low = Math.round(weather.temperatureMinC);
-  const high = Math.round(weather.temperatureMaxC);
+export function WeatherSummary({
+  weather,
+  forecasts,
+}: {
+  weather?: DailyWeather | null | undefined;
+  forecasts?: DailyForecasts | null | undefined;
+}) {
+  const rows = forecasts
+    ? SOURCES.map((source) => ({
+        key: source,
+        label: FORECAST_PROVIDER_LABELS[source],
+        weather: forecasts[source],
+      }))
+    : weather != null
+      ? [{ key: "combined" as const, label: "Forecast", weather }]
+      : [];
+  if (rows.length === 0) {
+    return null;
+  }
   return (
-    <span
-      className="inline-flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground"
+    <div
+      className="flex flex-col gap-0.5 text-xs text-muted-foreground"
       data-testid="weather"
     >
-      <WeatherIcon icon={weather.icon} className="size-4" />
-      <span>{WEATHER_ICON_LABELS[weather.icon]}</span>
-      <span>{low === high ? `${high} °C` : `${low}–${high} °C`}</span>
-      <span>wind {Math.round(weather.windMaxMs)} m/s</span>
-      <span>gusts {Math.round(weather.gustMaxMs)} m/s</span>
-      {weather.sunrise != null && <span>sunrise {weather.sunrise}</span>}
-      {weather.sunset != null && <span>sunset {weather.sunset}</span>}
-    </span>
+      {rows.map((row) => (
+        <span
+          key={row.key}
+          className="inline-flex flex-wrap items-center gap-x-1.5 gap-y-0.5"
+          data-testid={`weather-${row.key}`}
+        >
+          {row.weather != null ? (
+            <>
+              <WeatherIcon icon={row.weather.icon} className="size-4" />
+              <span className="font-medium">{row.label}</span>{" "}
+              <span>{formatDailyWeatherLine(row.weather)}</span>
+            </>
+          ) : (
+            <span>{row.label} · no forecast</span>
+          )}
+        </span>
+      ))}
+    </div>
   );
 }

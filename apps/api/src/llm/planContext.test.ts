@@ -131,7 +131,7 @@ describe("formatPlanContext", () => {
     ).join("\n");
 
     expect(text).toContain(
-      "Daily weather and daylight forecast for Oslo, Norway",
+      "Combined daily weather and daylight forecast for Oslo, Norway",
     );
     expect(text).toContain("Temperatures are in °C");
     expect(text).toContain("sunrise and sunset are local clock times");

@@ -218,7 +218,9 @@ describe("daily update prompts", () => {
       ],
     });
 
-    expect(prompt).toContain("Daily weather and daylight forecast for Oslo");
+    expect(prompt).toContain(
+      "Combined daily weather and daylight forecast for Oslo",
+    );
     expect(prompt).toContain("Rain (rain)");
     expect(prompt).toContain("sunrise 07:45, sunset 16:30");
   });

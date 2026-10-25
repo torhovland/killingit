@@ -46,6 +46,49 @@ export const dailyWeatherSchema = z.object({
 
 export type DailyWeather = z.infer<typeof dailyWeatherSchema>;
 
+/** The three forecast rows the UI can show for one day. */
+export const dailyForecastsSchema = z.object({
+  openMeteo: dailyWeatherSchema.nullable(),
+  yr: dailyWeatherSchema.nullable(),
+  combined: dailyWeatherSchema.nullable(),
+});
+
+export type DailyForecasts = z.infer<typeof dailyForecastsSchema>;
+
+/** Human-readable names for the forecast sources shown in the plan. */
+export const FORECAST_PROVIDER_LABELS: Record<keyof DailyForecasts, string> = {
+  combined: "Combined",
+  openMeteo: "Open-Meteo",
+  yr: "Yr.no",
+};
+
+/**
+ * Formats one day of weather as a single readable line. The units match the
+ * forecast data: °C, m/s, and the location's local clock time. Gusts follow the
+ * sustained wind in parentheses, and the daylight window is rendered as a
+ * range when both sunrise and sunset are known.
+ */
+export function formatDailyWeatherLine(weather: DailyWeather): string {
+  const low = Math.round(weather.temperatureMinC);
+  const high = Math.round(weather.temperatureMaxC);
+  const temperature = low === high ? `${high} °C` : `${low}–${high} °C`;
+  const wind = `wind ${Math.round(weather.windMaxMs)} m/s (${Math.round(weather.gustMaxMs)} m/s)`;
+  const daylight =
+    weather.sunrise != null && weather.sunset != null
+      ? `daylight ${weather.sunrise} - ${weather.sunset}`
+      : weather.sunrise != null
+        ? `sunrise ${weather.sunrise}`
+        : weather.sunset != null
+          ? `sunset ${weather.sunset}`
+          : null;
+  return [
+    WEATHER_ICON_LABELS[weather.icon],
+    temperature,
+    wind,
+    ...(daylight === null ? [] : [daylight]),
+  ].join(" · ");
+}
+
 /** One address suggestion returned by the geocoding proxy. */
 export const geocodedLocationSchema = z.object({
   name: z.string().min(1),

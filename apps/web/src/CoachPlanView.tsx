@@ -147,7 +147,9 @@ function DayCard({
         <p className="text-base font-medium">{day.title}</p>
         {day.type === "workout" &&
           day.outdoor !== false &&
-          day.weather != null && <WeatherSummary weather={day.weather} />}
+          (day.weather != null || day.forecasts != null) && (
+            <WeatherSummary weather={day.weather} forecasts={day.forecasts} />
+          )}
         <p className="whitespace-pre-line text-sm text-muted-foreground">
           {day.description}
         </p>
@@ -238,9 +240,12 @@ function WeekSection({
             </span>
             {session.type === "workout" &&
               session.outdoor !== false &&
-              session.weather != null && (
+              (session.weather != null || session.forecasts != null) && (
                 <div className="w-full" data-testid="week-weather">
-                  <WeatherSummary weather={session.weather} />
+                  <WeatherSummary
+                    weather={session.weather}
+                    forecasts={session.forecasts}
+                  />
                 </div>
               )}
             {(session.status === "completed" ||

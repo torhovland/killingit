@@ -194,7 +194,7 @@ export function formatPlanContext(input: PlanContextInput): string[] {
         : "";
     lines.push(
       "",
-      `Daily weather and daylight forecast${where}. Temperatures are in °C; wind and gusts are in m/s; sunrise and sunset are local clock times.`,
+      `Combined daily weather and daylight forecast${where} (the average of Open-Meteo and Yr.no). Temperatures are in °C; wind and gusts are in m/s; sunrise and sunset are local clock times.`,
       formatWeatherForecast(input.forecast),
     );
   }

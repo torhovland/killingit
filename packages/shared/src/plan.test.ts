@@ -327,6 +327,11 @@ describe("weather on plan sessions", () => {
       gustMaxMs: 8,
       precipitationMm: 2.5,
     };
+    const forecasts = {
+      openMeteo: weather,
+      yr: { ...weather, icon: "sun" as const },
+      combined: weather,
+    };
     const parsed = dayPlanSchema.parse({
       date: "2026-10-21",
       type: "workout",
@@ -337,18 +342,23 @@ describe("weather on plan sessions", () => {
       rationale: "Easy aerobic work.",
       outdoor: false,
       weather,
+      forecasts,
     });
     expect(parsed.outdoor).toBe(false);
     expect(parsed.weather?.icon).toBe("rain");
+    expect(parsed.forecasts?.yr?.icon).toBe("sun");
 
     const week = makeWeek();
     const withWeather = weekPlanSchema.parse({
       ...week,
       sessions: week.sessions.map((session, index) =>
-        index === 2 ? { ...session, weather, outdoor: true } : session,
+        index === 2
+          ? { ...session, weather, forecasts, outdoor: true }
+          : session,
       ),
     });
     expect(withWeather.sessions[2]?.weather?.gustMaxMs).toBe(8);
+    expect(withWeather.sessions[2]?.forecasts?.openMeteo?.icon).toBe("rain");
   });
 
   it("leaves the fields optional for plans stored before weather existed", () => {

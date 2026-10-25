@@ -59,15 +59,16 @@ entire first paint wait for a container boot.
 
 ## Cost at zero usage
 
-| Component                     | Cost                                                |
-| ----------------------------- | --------------------------------------------------- |
-| Cloud Run (API)               | ~$0 (always-free tier, scale-to-zero)               |
-| Neon (Postgres)               | $0 (free tier)                                      |
-| Cloudflare Pages              | $0 (free tier)                                      |
-| Auth0                         | $0 (free plan; custom social connections to verify) |
-| Sentry                        | $0 (Developer plan)                                 |
-| Open-Meteo (weather/daylight) | $0                                                  |
-| OpenRouter (LLM)              | $0 at zero usage (per-token)                        |
+| Component                     | Cost                                                 |
+| ----------------------------- | ---------------------------------------------------- |
+| Cloud Run (API)               | ~$0 (always-free tier, scale-to-zero)                |
+| Neon (Postgres)               | $0 (free tier)                                       |
+| Cloudflare Pages              | $0 (free tier)                                       |
+| Auth0                         | $0 (free plan; custom social connections to verify)  |
+| Sentry                        | $0 (Developer plan)                                  |
+| Open-Meteo (weather/daylight) | $0                                                   |
+| Yr.no / MET Norway (weather)  | $0 (free, no key; requires a descriptive User-Agent) |
+| OpenRouter (LLM)              | $0 at zero usage (per-token)                         |
 
 The only metered items are Cloud Run egress beyond the free allowance and LLM
 tokens, both ~$0 at low traffic.

@@ -192,8 +192,8 @@ export function SettingsPage({
             <h3 className="text-xl font-semibold">Location</h3>
             <p className="text-sm text-muted-foreground">
               Choose the place the coach should use for weather and daylight.
-              Plans use the forecast to schedule outdoor sessions around rain,
-              wind, cold, sunrise, and sunset.
+              Plans use Open-Meteo and Yr.no forecasts to schedule outdoor
+              sessions around rain, wind, cold, sunrise, and sunset.
             </p>
             <LocationSection
               location={location}
