@@ -430,7 +430,7 @@ describe("CoachPlanView", () => {
     }
   });
 
-  it("hides the forecast for indoor sessions and rest days", () => {
+  it("shows the forecast for indoor sessions but not rest days", () => {
     const weather = {
       date: "2026-10-21",
       icon: "snow" as const,
@@ -445,7 +445,25 @@ describe("CoachPlanView", () => {
         plan={{ ...plan, today: { ...plan.today, outdoor: false, weather } }}
       />,
     );
-    expect(indoor).not.toContain("Snow");
+    expect(indoor).toContain("Snow");
+
+    const indoorWeek = renderToStaticMarkup(
+      <CoachPlanView
+        plan={{
+          ...plan,
+          week: {
+            ...plan.week,
+            sessions: plan.week.sessions.map((session) =>
+              session.date === "2026-10-21"
+                ? { ...session, outdoor: false, weather }
+                : session,
+            ),
+          },
+        }}
+        defaultTab="week"
+      />,
+    );
+    expect(indoorWeek).toContain("Snow");
 
     const rest = renderToStaticMarkup(
       <CoachPlanView

@@ -28,9 +28,11 @@ and six-hourly data in UTC, and does not publish sunrise or sunset.
   rain < snow); the alternative would be to show a type neither provider
   actually forecast. When only one provider covers a date, copy that provider's
   values unchanged.
-- **Storage:** each outdoor session keeps the combined forecast in its existing
+- **Storage:** every session keeps the combined forecast in its existing
   `weather` field and all three rows in a new optional `forecasts` object. Old
-  stored plans keep working and render the single combined line.
+  stored plans keep working and render the single combined line. The UI shows
+  the forecast for indoor workouts as well as outdoor ones; only rest days hide
+  it.
 - **Analysis:** the plan prompts and weather-change checks receive only the
   combined forecast. The three rows exist for comparison in the Day and Week
   tabs, not to give the model conflicting inputs.

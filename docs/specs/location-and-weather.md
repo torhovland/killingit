@@ -10,8 +10,9 @@
 
 Let the athlete set a home location and use its weather forecast and daylight
 times when the coach plans a week or a day. Show the forecast and the sunrise
-and sunset next to outdoor workouts so the athlete can see why the coach placed
-a session on a particular day and whether it happens in daylight.
+and sunset next to workouts so the athlete can see why the coach placed a
+session on a particular day, whether it is planned for outdoors, and whether it
+would be sensible to take it outside.
 
 ## Scope
 
@@ -44,9 +45,11 @@ a session on a particular day and whether it happens in daylight.
    (sun, partly cloudy, very cloudy, rain, or snow), temperature in °C, wind and
    gusts in m/s, and the local daylight window. Each row reads like
    `Very cloudy · 8–11 °C · wind 10 m/s (18 m/s) · daylight 07:35 - 16:28`.
-6. Sessions are marked indoor or outdoor by the coach so weather and daylight
-   are shown only for outdoor activities. Missing `outdoor` (older stored plans)
-   is treated as outdoor.
+6. Sessions are marked indoor or outdoor by the coach. The forecast and daylight
+   are shown on every workout, including indoor sessions, so the athlete can see
+   the conditions the coach planned around and judge whether the session could
+   be done outside. Rest days show no forecast. Missing `outdoor` (older stored
+   plans) is treated as outdoor.
 7. On each plan read, compare the stored forecast with the latest forecast for
    upcoming days in the current week and, when planned, the next week. A
    significant change, including daylight appearing for the first time, updates
@@ -90,6 +93,9 @@ a session on a particular day and whether it happens in daylight.
   returns null when the sun neither rises nor sets (polar day or polar night),
   and the UI then omits that time. Yr.no rows show no daylight because the
   provider does not supply it.
+- The UI shows the forecast on every workout, indoor or outdoor. An indoor
+  session still shows the forecast so the athlete can see the conditions and
+  decide whether to take it outside. Rest days show no forecast.
 - The coach places outdoor sessions in daylight by default. It follows any
   explicit darkness preference in the athlete's answers, weekly notes, or
   activity comments, and does not invent one. If the athlete can only train
@@ -180,8 +186,8 @@ their single `weather` line.
 4. After the model response, the server attaches the combined day and both
    provider days to each week session, today, and tomorrow before saving the
    plan.
-5. The UI renders all three labelled forecast rows and the daylight on outdoor
-   workouts. Rest days and indoor sessions do not show them.
+5. The UI renders all three labelled forecast rows and the daylight on every
+   workout, including indoor sessions. Rest days do not show them.
 6. `GET /api/coaching/plan` loads the forecast for the athlete's location (when
    one is set) unless a generation is already running. A significant difference
    from the weather attached to the stored current or next week sets
@@ -218,7 +224,8 @@ containing `snow` or `sleet` → snow, and a code containing `rain` → rain.
 - API route tests for location save/clear, geocode auth/validation/errors, and a
   plan generation that receives an injected forecast.
 - Web tests for map projection/click conversion, the weather and daylight
-  summary, and the Day/Week plan rendering (outdoor only, indoor/rest hidden).
+  summary, and the Day/Week plan rendering (indoor and outdoor workouts show the
+  forecast; rest days do not).
 - API tests for significant/non-significant forecast comparisons, newly
   available daylight, current and next week coverage, the plan-read pending
   flag, and weather-service failure handling.

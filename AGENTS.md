@@ -72,9 +72,10 @@ about a past workout, or before a suggested workout, to steer the coach.
   location picker. When a week or day is planned, the API loads Open-Meteo and
   Yr.no forecasts, including sunrise and sunset, builds an averaged combined
   forecast, gives the combined forecast to the coach, and attaches all three to
-  outdoor sessions. A significant change in the combined forecast marks the
-  week pending and refreshes the week and day. See ADR 0008, ADR 0010, and
-  `docs/specs/location-and-weather.md`.
+  sessions. The UI shows them on indoor workouts too, so the athlete can compare
+  the conditions with the coach's indoor/outdoor choice. A significant change in
+  the combined forecast marks the week pending and refreshes the week and day.
+  See ADR 0008, ADR 0010, and `docs/specs/location-and-weather.md`.
 - Completed weeks and blocks get a coach summary, athlete comment, and coach
   reply in `period_reviews` / `coach_replies`; the dashboard and season review
   page are documented in `docs/specs/period-reviews.md`.

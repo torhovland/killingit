@@ -146,7 +146,6 @@ function DayCard({
         </div>
         <p className="text-base font-medium">{day.title}</p>
         {day.type === "workout" &&
-          day.outdoor !== false &&
           (day.weather != null || day.forecasts != null) && (
             <WeatherSummary weather={day.weather} forecasts={day.forecasts} />
           )}
@@ -239,7 +238,6 @@ function WeekSection({
                   : `${session.durationMinutes} min · ${session.intensity}`}
             </span>
             {session.type === "workout" &&
-              session.outdoor !== false &&
               (session.weather != null || session.forecasts != null) && (
                 <div className="w-full" data-testid="week-weather">
                   <WeatherSummary
