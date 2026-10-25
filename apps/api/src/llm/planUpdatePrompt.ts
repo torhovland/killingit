@@ -1,4 +1,5 @@
 import type { BlockPlan, SeasonPlan, WeekPlan } from "@killingit/shared";
+import { addDays, startOfWeek } from "../plans/dates.js";
 import {
   ACTIVITY_COMMENT_RULE,
   formatBlockPlan,
@@ -187,6 +188,8 @@ export function buildDailyUpdateMessages(input: DailyUpdateInput): {
 }
 
 export function buildDailyUpdatePrompt(input: DailyUpdateInput): string {
+  const weekStart = startOfWeek(input.today);
+  const weekEnd = addDays(weekStart, 6);
   return [
     ...formatPlanContext(input),
     "",
@@ -198,6 +201,8 @@ export function buildDailyUpdatePrompt(input: DailyUpdateInput): string {
     "",
     "Current week plan:",
     formatWeekPlan(input.week),
+    "",
+    `The week must start on ${weekStart} and cover ${weekStart} through ${weekEnd}. Keep exactly seven sessions with those dates, and make sure one session has the date ${input.today}; the "today" object must use that same date.`,
     "",
     'Create today\'s session and revise this week\'s remaining sessions. Return one JSON object whose top-level keys are exactly "today", "tomorrow", and "week".',
   ].join("\n");
@@ -216,7 +221,7 @@ export function buildWeeklyUpdateMessages(input: WeeklyUpdateInput): {
 export function buildWeeklyUpdatePrompt(input: WeeklyUpdateInput): string {
   return [
     ...formatPlanContext(input),
-    `Week start date: ${input.weekStartDate}`,
+    `Week start date: ${input.weekStartDate}. The week must contain exactly seven sessions dated ${input.weekStartDate} through ${addDays(input.weekStartDate, 6)}.`,
     "",
     "Current season plan:",
     formatSeasonPlan(input.season),

@@ -8,6 +8,15 @@ import {
 
 export type PlanCompletionCredentials = CompletionCredentials;
 
+export interface PlanJsonCompletionOptions {
+  /**
+   * Extra instruction for the repair turn. Used when the caller knows a
+   * constraint the generic validation message cannot express, such as the exact
+   * dates a week must contain.
+   */
+  repairHint?: string;
+}
+
 /**
  * Sends a structured plan request with the shared reasoning-model fallbacks
  * (see {@link completeWithFallbacks}). This keeps non-reasoning models working
@@ -43,6 +52,7 @@ export async function completePlanJson<T>(
   credentials: PlanCompletionCredentials,
   messages: LlmMessage[],
   maxTokens: number,
+  options: PlanJsonCompletionOptions = {},
 ): Promise<T> {
   const text = await completePlan(provider, credentials, messages, maxTokens);
   try {
@@ -54,7 +64,7 @@ export async function completePlanJson<T>(
     const repaired = await completePlan(
       provider,
       credentials,
-      repairMessages(messages, text, err),
+      repairMessages(messages, text, err, options.repairHint),
       maxTokens,
       0.2,
     );
@@ -67,6 +77,7 @@ function repairMessages(
   messages: LlmMessage[],
   previous: string,
   error: PlanJsonError,
+  repairHint: string | undefined,
 ): LlmMessage[] {
   return [
     ...messages,
@@ -75,6 +86,9 @@ function repairMessages(
       role: "user",
       content: [
         `Your previous response could not be used. ${error.message}`,
+        ...(repairHint === undefined || repairHint.trim() === ""
+          ? []
+          : ["", repairHint.trim()]),
         "",
         'Return the corrected JSON object with exactly the required shape. Fix every problem listed above. The top-level object must contain every key named at the top level of the contract, with no wrapper or bare inner object. Use the exact field names and only the allowed string values from the contract; for every type field use either "workout" or "rest". Return only the JSON object; do not add markdown fences, headings, or commentary.',
       ].join("\n"),

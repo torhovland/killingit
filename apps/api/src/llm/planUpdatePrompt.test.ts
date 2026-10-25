@@ -196,6 +196,21 @@ describe("daily update prompts", () => {
     );
   });
 
+  it("states the exact week and today dates", () => {
+    const prompt = buildDailyUpdatePrompt({
+      ...base,
+      season,
+      block,
+      week,
+    });
+
+    expect(prompt).toContain(
+      "The week must start on 2026-10-19 and cover 2026-10-19 through 2026-10-25.",
+    );
+    expect(prompt).toContain("one session has the date 2026-10-21");
+    expect(prompt).toContain('the "today" object must use that same date');
+  });
+
   it("includes the forecast when one is supplied", () => {
     const prompt = buildDailyUpdatePrompt({
       ...base,
@@ -249,7 +264,9 @@ describe("weekly update prompts", () => {
       weekStartDate: "2026-10-26",
     });
 
-    expect(prompt).toContain("Week start date: 2026-10-26");
+    expect(prompt).toContain(
+      "Week start date: 2026-10-26. The week must contain exactly seven sessions dated 2026-10-26 through 2026-11-01.",
+    );
     expect(prompt).toContain("Goal: Sub-4-hour marathon");
     expect(prompt).toContain("Block: Base");
     expect(prompt).toContain("Aerobic base + strides");

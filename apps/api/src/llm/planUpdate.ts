@@ -8,6 +8,8 @@ import {
   type TargetDayUpdate,
   type WeeklyPlanUpdate,
 } from "@killingit/shared";
+import type { z } from "zod";
+import { addDays, startOfWeek } from "../plans/dates.js";
 import type { LlmProvider } from "./openrouter.js";
 import { completePlanJson } from "./planCompletion.js";
 import {
@@ -24,18 +26,65 @@ export interface PlanUpdateCredentials {
   model: string;
 }
 
+interface DatedWeek {
+  startDate: string;
+  sessions: readonly { date: string }[];
+}
+
+/** The seven calendar dates a Monday-based week must contain. */
+function weekDates(startDate: string): string[] {
+  return Array.from({ length: 7 }, (_, index) => addDays(startDate, index));
+}
+
+function hasWeekDates(week: DatedWeek, startDate: string): boolean {
+  const dates = weekDates(startDate);
+  return (
+    week.startDate === startDate &&
+    dates.every((date) =>
+      week.sessions.some((session) => session.date === date),
+    )
+  );
+}
+
+/**
+ * Adds the concrete date requirement to a schema. The generic "must be one of
+ * the week's sessions" error does not tell the model which dates to use, so the
+ * repair turn repeats the exact week.
+ */
+function withWeekDates<T extends { week: DatedWeek }>(
+  schema: z.ZodType<T>,
+  startDate: string,
+): z.ZodType<T> {
+  const dates = weekDates(startDate);
+  return schema.refine((value) => hasWeekDates(value.week, startDate), {
+    message: `The week must start on ${startDate} and contain exactly seven sessions dated ${dates.join(", ")}`,
+    path: ["week", "sessions"],
+  });
+}
+
+function weekDateHint(startDate: string): string {
+  const dates = weekDates(startDate);
+  return `The week must start on ${startDate} and contain exactly seven sessions dated ${dates.join(", ")} (${dates[0]} through ${dates[6]}).`;
+}
+
+function dailyDateHint(today: string, startDate: string): string {
+  return `The "today" object's date must be exactly ${today}, and week.sessions must contain a session with that exact date. ${weekDateHint(startDate)}`;
+}
+
 /** Asks the coach for today's session and a revised week. */
 export async function generateDailyUpdate(
   provider: LlmProvider,
   credentials: PlanUpdateCredentials,
   input: DailyUpdateInput,
 ): Promise<DailyPlanUpdate> {
+  const weekStartDate = startOfWeek(input.today);
   return completePlanJson(
-    dailyPlanUpdateSchema,
+    withWeekDates(dailyPlanUpdateSchema, weekStartDate),
     provider,
     credentials,
     buildDailyUpdateMessages(input),
     4096,
+    { repairHint: dailyDateHint(input.today, weekStartDate) },
   );
 }
 
@@ -50,12 +99,14 @@ export async function generateTargetDayUpdate(
   credentials: PlanUpdateCredentials,
   input: DailyUpdateInput,
 ): Promise<TargetDayUpdate> {
+  const weekStartDate = startOfWeek(input.today);
   return completePlanJson(
-    targetDayUpdateSchema,
+    withWeekDates(targetDayUpdateSchema, weekStartDate),
     provider,
     credentials,
     buildDailyUpdateMessages(input),
     4096,
+    { repairHint: dailyDateHint(input.today, weekStartDate) },
   );
 }
 
@@ -66,11 +117,12 @@ export async function generateWeeklyUpdate(
   input: WeeklyUpdateInput,
 ): Promise<WeeklyPlanUpdate> {
   return completePlanJson(
-    weeklyPlanUpdateSchema,
+    withWeekDates(weeklyPlanUpdateSchema, input.weekStartDate),
     provider,
     credentials,
     buildWeeklyUpdateMessages(input),
     4096,
+    { repairHint: weekDateHint(input.weekStartDate) },
   );
 }
 
