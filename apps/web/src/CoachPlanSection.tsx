@@ -272,9 +272,21 @@ export function CoachPlanSection({
       )}
 
       {setupError && !generating && (
-        <p className="text-destructive" data-testid="plan-generation-error">
-          The coach could not finish your plan: {setupError}
-        </p>
+        <div
+          className="flex flex-wrap items-center justify-between gap-2 rounded border bg-muted p-3 text-sm"
+          data-testid="plan-generation-error"
+        >
+          <p className="text-destructive">
+            The coach could not finish your plan: {setupError}
+          </p>
+          <button
+            type="button"
+            className="rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted"
+            onClick={() => void generate(false)}
+          >
+            Try again
+          </button>
+        </div>
       )}
 
       {running && (

@@ -233,6 +233,9 @@ problems; the error names the offending fields if the repair also fails. See
   starts a non-forced generation automatically when it sees stale answers or a
   pending level. The banner stays available if that automatic run failed or the
   plan is still stale after it finishes.
+- A failed generation is surfaced with its error and a "Try again" button. The
+  section deliberately does not retry on every page load, so a persistent
+  failure cannot turn into an endless run.
 
 ## Testing
 
