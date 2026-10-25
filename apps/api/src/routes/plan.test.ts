@@ -94,6 +94,8 @@ function makePlan(today = "2026-10-21"): CoachPlan {
       status: "planned",
     },
     tomorrow: null,
+    nextWeek: null,
+    nextBlock: null,
   };
 }
 
@@ -327,6 +329,8 @@ describe("coach plan route", () => {
         week: boolean;
         block: boolean;
         tomorrow: boolean;
+        nextWeek: boolean;
+        nextBlock: boolean;
       };
       stale: boolean;
     };
@@ -336,6 +340,8 @@ describe("coach plan route", () => {
       week: false,
       block: false,
       tomorrow: false,
+      nextWeek: false,
+      nextBlock: false,
     });
     expect(body.stale).toBe(false);
   });
@@ -367,6 +373,108 @@ describe("coach plan route", () => {
     };
     expect(body.pending.day).toBe(false);
     expect(body.pending.week).toBe(true);
+  });
+
+  it("shows a stored next week as current once today has reached it", async () => {
+    const plan = makePlan("2026-10-25");
+    plan.week = {
+      ...plan.week,
+      startDate: "2026-10-19",
+      sessions: plan.week.sessions.map((session, index) => ({
+        ...session,
+        date: `2026-10-${String(19 + index)}`,
+      })),
+    };
+    plan.tomorrow = {
+      ...plan.today,
+      date: "2026-10-26",
+      title: "Monday easy run",
+    };
+    plan.nextWeek = {
+      ...plan.week,
+      startDate: "2026-10-26",
+      sessions: plan.week.sessions.map((session, index) => ({
+        ...session,
+        date:
+          [
+            "2026-10-26",
+            "2026-10-27",
+            "2026-10-28",
+            "2026-10-29",
+            "2026-10-30",
+            "2026-10-31",
+            "2026-11-01",
+          ][index] ?? session.date,
+      })),
+    };
+    const planStore = new MemoryPlanStore({
+      plan,
+      answersUpdatedAt: new Date("2026-10-21T10:00:00Z"),
+      coachingInputsUpdatedAt: null,
+      activitiesUpdatedAt: null,
+      generatedAt: new Date("2026-10-25T10:00:00Z"),
+    });
+
+    const res = await makeApp({ planStore }).fetch(
+      authenticatedRequest("/api/coaching/plan?today=2026-10-26"),
+    );
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      plan: {
+        week: { startDate: string };
+        today: { date: string; title: string };
+        tomorrow: unknown;
+        nextWeek: unknown;
+      };
+      pending: { week: boolean; day: boolean };
+    };
+    expect(body.plan.week.startDate).toBe("2026-10-26");
+    expect(body.plan.today.date).toBe("2026-10-26");
+    expect(body.plan.today.title).toBe("Monday easy run");
+    expect(body.plan.tomorrow).toBeNull();
+    expect(body.plan.nextWeek).toBeNull();
+    // The stored plan still needs advancing so the promotion is persisted.
+    expect(body.pending.week).toBe(true);
+    expect(body.pending.day).toBe(true);
+  });
+
+  it("reports when tomorrow has crossed into a new week and block", async () => {
+    const plan = makePlan("2026-10-25");
+    plan.block = { ...plan.block, endDate: "2026-10-25" };
+    plan.week = {
+      ...plan.week,
+      startDate: "2026-10-19",
+      sessions: plan.week.sessions.map((session, index) => ({
+        ...session,
+        date: `2026-10-${String(19 + index)}`,
+      })),
+    };
+    const planStore = new MemoryPlanStore({
+      plan,
+      answersUpdatedAt: new Date("2026-10-21T10:00:00Z"),
+      coachingInputsUpdatedAt: null,
+      activitiesUpdatedAt: null,
+      generatedAt: new Date("2026-10-25T10:00:00Z"),
+    });
+
+    const res = await makeApp({ planStore }).fetch(
+      authenticatedRequest(
+        "/api/coaching/plan?today=2026-10-25&includeTomorrow=true",
+      ),
+    );
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      pending: {
+        tomorrow: boolean;
+        nextWeek: boolean;
+        nextBlock: boolean;
+      };
+    };
+    expect(body.pending.tomorrow).toBe(true);
+    expect(body.pending.nextWeek).toBe(true);
+    expect(body.pending.nextBlock).toBe(true);
   });
 
   it("marks the plan stale when a coaching input is newer than the plan", async () => {

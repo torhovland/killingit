@@ -142,6 +142,16 @@ export const coachPlanSchema = z.object({
    * show it after 18:00 without another generation.
    */
   tomorrow: dayPlanSchema.nullable().default(null),
+  /**
+   * The week containing tomorrow when it has crossed into a new week. It is
+   * generated with tomorrow and promoted to `week` when the date reaches it.
+   */
+  nextWeek: weekPlanSchema.nullable().default(null),
+  /**
+   * The block that contains tomorrow when it falls after the current block.
+   * Promoted to `block` when the date reaches it.
+   */
+  nextBlock: blockPlanSchema.nullable().default(null),
 });
 
 export type CoachPlan = z.infer<typeof coachPlanSchema>;
@@ -222,6 +232,10 @@ export const planPendingSchema = z.object({
   block: z.boolean(),
   /** After 18:00, tomorrow's session should also be present. */
   tomorrow: z.boolean(),
+  /** After 18:00, tomorrow has crossed into a week that is not planned yet. */
+  nextWeek: z.boolean(),
+  /** After 18:00, tomorrow has crossed into a block that is not planned yet. */
+  nextBlock: z.boolean(),
 });
 
 export type PlanPending = z.infer<typeof planPendingSchema>;

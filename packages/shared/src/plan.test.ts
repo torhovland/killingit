@@ -80,6 +80,8 @@ function makePlan() {
       status: "planned",
     },
     tomorrow: null,
+    nextWeek: null,
+    nextBlock: null,
   };
 }
 
@@ -164,6 +166,19 @@ describe("coachPlanSchema", () => {
     expect(parsed.season.blocks).toHaveLength(1);
     expect(parsed.week.sessions).toHaveLength(7);
     expect(parsed.today.title).toBe("Easy run");
+    expect(parsed.nextWeek).toBeNull();
+    expect(parsed.nextBlock).toBeNull();
+  });
+
+  it("defaults the next period to null for plans stored before it existed", () => {
+    const legacy: Record<string, unknown> = { ...makePlan() };
+    delete legacy.nextWeek;
+    delete legacy.nextBlock;
+
+    const parsed = coachPlanSchema.parse(legacy);
+
+    expect(parsed.nextWeek).toBeNull();
+    expect(parsed.nextBlock).toBeNull();
   });
 });
 
@@ -198,6 +213,8 @@ describe("coachPlanResponseSchema", () => {
         week: true,
         block: true,
         tomorrow: true,
+        nextWeek: true,
+        nextBlock: true,
       },
     });
     expect(parsed.plan).toBeNull();

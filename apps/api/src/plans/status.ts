@@ -1,11 +1,14 @@
 import type { CoachPlan, PlanPending } from "@killingit/shared";
 import { addDays } from "./dates.js";
+import { blockFor, weekFor } from "./periods.js";
 
 /**
  * Works out which plan levels are missing for `today`. A day is missing when it
  * is not for today, a week is missing when today is not one of its sessions,
  * and a block is missing when today falls outside its date range. After 18:00
- * (`includeTomorrow`), a missing tomorrow session is also pending.
+ * (`includeTomorrow`), tomorrow's session is checked against the stored week
+ * and block, and a crossing into a new week or block is reported so the next
+ * one can be generated.
  */
 export function planPending(
   plan: CoachPlan | null,
@@ -19,12 +22,17 @@ export function planPending(
       week: true,
       block: true,
       tomorrow: true,
+      nextWeek: true,
+      nextBlock: true,
     };
   }
 
   const todaySession = plan.week.sessions.find(
     (session) => session.date === today,
   );
+  const tomorrowDate = addDays(today, 1);
+  const tomorrowWeek = includeTomorrow ? weekFor(plan, tomorrowDate) : null;
+  const tomorrowBlock = includeTomorrow ? blockFor(plan, tomorrowDate) : null;
   return {
     initial: false,
     day: plan.today.date !== today,
@@ -38,7 +46,15 @@ export function planPending(
           plan.today.status === "partial") &&
         todaySession.status !== plan.today.status),
     block: today < plan.block.startDate || today > plan.block.endDate,
-    tomorrow: includeTomorrow && plan.tomorrow?.date !== addDays(today, 1),
+    tomorrow:
+      includeTomorrow &&
+      (plan.tomorrow?.date !== tomorrowDate ||
+        tomorrowWeek === null ||
+        !tomorrowWeek.sessions.some(
+          (session) => session.date === tomorrowDate,
+        )),
+    nextWeek: includeTomorrow && tomorrowWeek === null,
+    nextBlock: includeTomorrow && tomorrowBlock === null,
   };
 }
 

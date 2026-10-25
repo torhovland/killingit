@@ -63,8 +63,11 @@ about a past workout, or before a suggested workout, to steer the coach.
   rest and its chosen model stored in `llm_settings`. Activity analyses are
   cached per account in `activity_analyses`. See ADR 0004.
 - The four-level plan is stored per user in `coach_plans`; generation progress
-  is in `plan_generations`. The lazy day → week → block cascade and the plan UI
-  are documented in `docs/specs/coach-plan-lifecycle.md`.
+  is in `plan_generations`. After 18:00 the stored plan also carries tomorrow's
+  session and, when tomorrow has crossed a week or block boundary, the next week
+  and next block, so the Day, Week and Block tabs agree. The next period is
+  promoted when today reaches it. The lazy day → week → block cascade and the
+  plan UI are documented in `docs/specs/coach-plan-lifecycle.md`.
 - The athlete's home location is stored on `users` and set in the settings
   location picker. When a week or day is planned, the API loads an Open-Meteo
   forecast, gives it to the coach, and attaches it to outdoor sessions. See ADR

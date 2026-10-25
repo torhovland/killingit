@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { CoachPlan, DailyWeather } from "@killingit/shared";
+import { addDays } from "../plans/dates.js";
 import { applyForecastToPlan } from "./apply.js";
 
 const forecast: DailyWeather[] = [
@@ -94,6 +95,8 @@ function plan(): CoachPlan {
       optional: false,
       status: "planned",
     },
+    nextWeek: null,
+    nextBlock: null,
   };
 }
 
@@ -106,6 +109,35 @@ describe("applyForecastToPlan", () => {
     expect(result.week.sessions[0]?.weather).toBeNull();
     expect(result.today.weather?.icon).toBe("rain");
     expect(result.tomorrow?.weather?.icon).toBe("sun");
+  });
+
+  it("attaches the forecast to a stored next week", () => {
+    const withNext = plan();
+    withNext.nextWeek = {
+      ...withNext.week,
+      startDate: "2026-10-26",
+      sessions: withNext.week.sessions.map((session, index) => ({
+        ...session,
+        date: addDays("2026-10-26", index),
+      })),
+    };
+    const nextForecast: DailyWeather[] = [
+      ...forecast,
+      {
+        date: "2026-10-26",
+        icon: "partly_cloudy",
+        temperatureMaxC: 12,
+        temperatureMinC: 6,
+        windMaxMs: 3,
+        gustMaxMs: 5,
+        precipitationMm: 0,
+      },
+    ];
+
+    const result = applyForecastToPlan(withNext, nextForecast);
+
+    expect(result.nextWeek?.sessions[0]?.weather?.icon).toBe("partly_cloudy");
+    expect(result.nextWeek?.sessions[1]?.weather).toBeNull();
   });
 
   it("leaves a plan untouched without a forecast", () => {

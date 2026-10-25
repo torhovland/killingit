@@ -69,6 +69,8 @@ const plan: CoachPlan = {
     status: "planned",
   },
   tomorrow: null,
+  nextWeek: null,
+  nextBlock: null,
 };
 
 const context: PlanContextInput = {

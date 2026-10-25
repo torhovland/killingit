@@ -65,6 +65,8 @@ function makePlan(): CoachPlan {
       status: "planned",
     },
     tomorrow: null,
+    nextWeek: null,
+    nextBlock: null,
   };
 }
 
