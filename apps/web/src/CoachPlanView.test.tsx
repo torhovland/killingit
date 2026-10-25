@@ -152,6 +152,7 @@ describe("CoachPlanView", () => {
       <CoachPlanView plan={plan} defaultTab="block" />,
     );
     expect(block).toContain("Week 1");
+    expect(block).toContain("Week starting Mon, Oct 19");
     expect(block).toContain("Target load: Easy");
     expect(block).toContain("Aerobic base");
     expect(block).toContain("border-b");

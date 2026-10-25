@@ -295,8 +295,10 @@ function BlockSection({
           <PlanListItem key={`${week.number}-${week.startDate}`}>
             <p className="font-medium">Week {week.number}</p>
             <p className="text-muted-foreground">
-              Week starting {formatPlanDate(week.startDate)} · Target load:{" "}
-              {week.targetLoad}
+              Week starting {formatPlanDate(week.startDate)}
+            </p>
+            <p className="text-muted-foreground">
+              Target load: {week.targetLoad}
             </p>
             <p className="text-muted-foreground">{week.focus}</p>
           </PlanListItem>
