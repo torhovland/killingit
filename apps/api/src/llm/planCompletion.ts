@@ -76,7 +76,7 @@ function repairMessages(
       content: [
         `Your previous response could not be used. ${error.message}`,
         "",
-        "Return the corrected JSON object with exactly the required shape. Fix every problem listed above. Return only the JSON object; do not add markdown fences, headings, or commentary.",
+        'Return the corrected JSON object with exactly the required shape. Fix every problem listed above. Use the exact field names and only the allowed string values from the contract; for every type field use either "workout" or "rest". Return only the JSON object; do not add markdown fences, headings, or commentary.',
       ].join("\n"),
     },
   ];

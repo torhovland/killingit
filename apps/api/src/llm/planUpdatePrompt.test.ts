@@ -173,6 +173,21 @@ describe("daily update prompts", () => {
     expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain("not ride outdoors in rain");
   });
 
+  it("requires the exact enum values from the schema", () => {
+    expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain(
+      'never output a session name such as "run", "strength", or "rest day" as a type',
+    );
+    expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain(
+      "Every field must use the exact name and value type shown in the contract",
+    );
+    expect(WEEKLY_UPDATE_SYSTEM_PROMPT).toContain(
+      'never output a session name such as "run", "strength", or "rest day" as a type',
+    );
+    expect(WEEKLY_UPDATE_SYSTEM_PROMPT).toContain(
+      "Every field must use the exact name and value type shown in the contract",
+    );
+  });
+
   it("includes the forecast when one is supplied", () => {
     const prompt = buildDailyUpdatePrompt({
       ...base,

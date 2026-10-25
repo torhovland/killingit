@@ -36,7 +36,8 @@ before the generation fails.
 - Looping repairs until valid. One repair keeps cost and latency bounded.
 - Provider-specific structured outputs. The fix stays inside the
   provider-agnostic seam.
-- Weakening the plan schemas to accept malformed values.
+- Weakening the plan schemas to accept malformed values. Invalid enum values are
+  rejected; the prompt and repair must produce exact values instead.
 
 ## Acceptance criteria
 
@@ -46,7 +47,10 @@ before the generation fails.
    summary.
 3. The repair prompt includes the rejected response and the validation details.
 4. Prompt contracts explicitly tell the model not to copy `|` choice lists or
-   placeholders literally.
+   placeholders literally, and state that `type` and `intensity` are exact,
+   lowercase enum strings. A `type` is never a session name such as "run",
+   "strength", or "rest day". The repair message repeats the allowed `type`
+   values.
 5. `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`
    pass.
 6. A target-day cascade response with a malformed unused day-after field still

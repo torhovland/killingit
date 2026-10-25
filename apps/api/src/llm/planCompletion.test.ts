@@ -74,6 +74,9 @@ describe("completePlanJson", () => {
     });
     expect(repair.at(-1)?.content).toContain("title");
     expect(repair.at(-1)?.content).toContain("corrected JSON object");
+    expect(repair.at(-1)?.content).toContain(
+      'for every type field use either "workout" or "rest"',
+    );
   });
 
   it("does not retry more than once", async () => {
