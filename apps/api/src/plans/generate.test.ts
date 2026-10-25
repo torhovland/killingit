@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import type {
   BlockPlan,
   CoachPlan,
+  DailyWeather,
   DayPlan,
   PlanGenerationStatus,
   SeasonPlan,
@@ -132,6 +133,35 @@ function makePlan(today = "2026-10-21"): CoachPlan {
     tomorrow: null,
     nextWeek: null,
     nextBlock: null,
+  };
+}
+
+function weekForecast(icon: DailyWeather["icon"]): DailyWeather[] {
+  return Array.from({ length: 7 }, (_, index) => ({
+    date: `2026-10-${String(19 + index)}`,
+    icon,
+    temperatureMaxC: 15,
+    temperatureMinC: 7,
+    windMaxMs: 3,
+    gustMaxMs: 5,
+    precipitationMm: 0,
+  }));
+}
+
+function withWeather(
+  plan: CoachPlan,
+  forecast: readonly DailyWeather[],
+): CoachPlan {
+  const byDate = new Map(forecast.map((day) => [day.date, day]));
+  return {
+    ...plan,
+    week: {
+      ...plan.week,
+      sessions: plan.week.sessions.map((session) => ({
+        ...session,
+        weather: byDate.get(session.date) ?? null,
+      })),
+    },
   };
 }
 
@@ -1049,6 +1079,74 @@ describe("runPlanGeneration", () => {
 
     expect(saved?.plan.today.weather?.icon).toBe("rain");
     expect(saved?.plan.week.sessions[2]?.weather?.windMaxMs).toBe(4);
+  });
+
+  it("revises the week and day when the forecast changes significantly", async () => {
+    const provider = new FakeProvider({
+      weekly: JSON.stringify({
+        week: makeWeek("2026-10-19"),
+        block: makeBlock(),
+      }),
+      daily: JSON.stringify({
+        today: makeDay("2026-10-21"),
+        week: makeWeek("2026-10-19"),
+      }),
+    });
+    const existing = makeStoredPlan(
+      withWeather(makePlan("2026-10-21"), weekForecast("sun")),
+    );
+    const plans = new MemoryPlanStore(existing);
+    const generations = new MemoryGenerationStore();
+    const context = makeContext(provider);
+    context.forecast = weekForecast("rain");
+
+    const saved = await runPlanGeneration({
+      userId: 1,
+      today: "2026-10-21",
+      plan: existing,
+      context,
+      plans,
+      generations,
+    });
+
+    expect(provider.calls).toEqual(["weekly", "daily"]);
+    expect(saved?.plan.week.sessions[0]?.weather?.icon).toBe("rain");
+
+    // The saved plan now carries the new forecast, so the next visit does not
+    // start another generation for the same change.
+    const again = await runPlanGeneration({
+      userId: 1,
+      today: "2026-10-21",
+      plan: saved,
+      context,
+      plans,
+      generations,
+    });
+    expect(provider.calls).toEqual(["weekly", "daily"]);
+    expect(again).toBe(saved);
+  });
+
+  it("does not revise when the forecast change is not significant", async () => {
+    const provider = new FakeProvider({});
+    const existing = makeStoredPlan(
+      withWeather(makePlan("2026-10-21"), weekForecast("sun")),
+    );
+    const plans = new MemoryPlanStore(existing);
+    const generations = new MemoryGenerationStore();
+    const context = makeContext(provider);
+    context.forecast = weekForecast("partly_cloudy");
+
+    const saved = await runPlanGeneration({
+      userId: 1,
+      today: "2026-10-21",
+      plan: existing,
+      context,
+      plans,
+      generations,
+    });
+
+    expect(provider.calls).toEqual([]);
+    expect(saved).toBe(existing);
   });
 
   it("records a failed generation", async () => {

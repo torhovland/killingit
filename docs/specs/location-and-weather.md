@@ -36,6 +36,10 @@ can see why the coach placed a session on a particular day.
 6. Sessions are marked indoor or outdoor by the coach so weather is shown only
    for outdoor activities. Missing `outdoor` (older stored plans) is treated as
    outdoor.
+7. On each plan read, compare the stored forecast with the latest forecast for
+   upcoming days in the current week and, when planned, the next week. A
+   significant change marks the week pending so the client starts the usual week
+   revision.
 
 ### Out of scope
 
@@ -58,6 +62,15 @@ can see why the coach placed a session on a particular day.
 - The location uses decimal degrees (WGS 84), matching activity GPS points.
 - Weather is attached by the server after the model response, so icons and
   numbers come from the forecast rather than model invention.
+- A forecast change is significant when a dry day becomes wet (rain or snow) or
+  the reverse, rain becomes snow, or the daily maximum temperature, maximum
+  wind, maximum gust, or precipitation moves by at least 5 °C, 5 m/s, 8 m/s, or
+  5 mm. Cloud-only icon changes do not trigger a refresh. Past days are ignored,
+  but rest days and indoor sessions are still compared: the coach may have
+  chosen them because the weather was bad, and improved weather can turn them
+  back into outdoor training.
+- Checking the forecast is best effort. If it cannot be loaded, the plan's
+  pending state is unchanged.
 
 ## Data model / API
 
@@ -126,6 +139,12 @@ message.
    each week session, today, and tomorrow before saving the plan.
 5. The UI renders the weather on outdoor workouts. Rest days and indoor
    sessions do not show it.
+6. `GET /api/coaching/plan` loads the forecast for the athlete's location (when
+   one is set) unless a generation is already running. A significant difference
+   from the weather attached to the stored current or next week sets
+   `pending.week`; the next generation revises the week and day with the new
+   forecast. The saved plan then carries that forecast, so the same change does
+   not trigger another refresh.
 
 ## Academic / weather code mapping
 
@@ -150,4 +169,7 @@ icons:
   plan generation that receives an injected forecast.
 - Web tests for map projection/click conversion, the weather summary, and the
   Day/Week plan rendering (outdoor only, indoor/rest hidden).
+- API tests for significant/non-significant forecast comparisons, current and
+  next week coverage, the plan-read pending flag, and weather-service failure
+  handling.
 - All four quality gates pass: typecheck, lint, format, test.

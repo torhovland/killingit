@@ -9,6 +9,7 @@ import type {
 } from "@killingit/shared";
 import { toCoachPlanActivity } from "../llm/coachPlanPrompt.js";
 import { applyForecastToPlan } from "../weather/apply.js";
+import { planWeatherChanged } from "../weather/changes.js";
 import {
   generateInitialBlock,
   generateSeasonPlan,
@@ -120,6 +121,13 @@ export async function runPlanGeneration(
       stored === null ? null : promoteNextPeriod(stored, today);
     const promoted = currentPlan !== null && currentPlan !== stored;
     const needsFullPlan = currentPlan === null || stale || input.force === true;
+    // The forecast can move enough to make the stored week's weather advice
+    // wrong even when every level is present. Treat that like any other week
+    // revision so the coach can move sessions to the better days.
+    const weatherChanged =
+      currentPlan !== null &&
+      context.forecast != null &&
+      planWeatherChanged(currentPlan, context.forecast, today);
 
     // The cascade is about to replace the current week/block. Summarise them
     // first when they have ended, so the athlete keeps a review of the work.
@@ -245,7 +253,12 @@ export async function runPlanGeneration(
       return saved;
     }
 
-    const pending = planPending(currentPlan, today, input.includeTomorrow);
+    const pending = planPending(
+      currentPlan,
+      today,
+      input.includeTomorrow,
+      weatherChanged,
+    );
     if (
       !pending.block &&
       !pending.week &&

@@ -8,12 +8,14 @@ import { blockFor, weekFor } from "./periods.js";
  * and a block is missing when today falls outside its date range. After 18:00
  * (`includeTomorrow`), tomorrow's session is checked against the stored week
  * and block, and a crossing into a new week or block is reported so the next
- * one can be generated.
+ * one can be generated. `weatherChanged` marks the week for a refresh when the
+ * latest forecast differs significantly from the weather stored on it.
  */
 export function planPending(
   plan: CoachPlan | null,
   today: string,
   includeTomorrow = false,
+  weatherChanged = false,
 ): PlanPending {
   if (!plan) {
     return {
@@ -40,6 +42,7 @@ export function planPending(
     // as pending so the regular cascade refreshes the week instead of leaving
     // the two views disagreeing.
     week:
+      weatherChanged ||
       todaySession === undefined ||
       (plan.today.date === today &&
         (plan.today.status === "completed" ||

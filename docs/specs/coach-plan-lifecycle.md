@@ -153,11 +153,13 @@ Both routes are behind `requireAuth`.
 `stale` is true when the newest current answer is newer than
 `coach_plans.answers_updated_at`. `pending.day` is true when the stored day is
 not for `today`; `pending.week` is true when `today` is not one of the stored
-week's sessions; `pending.block` is true when `today` falls outside the stored
-block's dates. After 18:00, `pending.tomorrow` is true when tomorrow's day plan
-is missing, is not covered by a stored week, or falls outside a stored block;
-`pending.nextWeek` and `pending.nextBlock` are true when tomorrow has crossed
-into a period that has not been generated yet.
+week's sessions, or when the latest forecast differs significantly from the
+weather stored on the current or planned next week (see
+`docs/specs/location-and-weather.md`); `pending.block` is true when `today`
+falls outside the stored block's dates. After 18:00, `pending.tomorrow` is true
+when tomorrow's day plan is missing, is not covered by a stored week, or falls
+outside a stored block; `pending.nextWeek` and `pending.nextBlock` are true when
+tomorrow has crossed into a period that has not been generated yet.
 
 The `plan` in the response is normalised for `today`: if a stored `next_week` or
 `next_block` contains today, it is promoted in the returned plan (and the day
