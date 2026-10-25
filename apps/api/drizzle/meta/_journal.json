@@ -141,6 +141,13 @@
       "when": 1792791728460,
       "tag": "0019_normal_kulan_gath",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1792861357130,
+      "tag": "0020_ambitious_loki",
+      "breakpoints": true
     }
   ]
 }

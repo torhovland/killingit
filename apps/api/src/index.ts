@@ -50,12 +50,11 @@ import {
   type QuestionAnswerStore,
 } from "./questions/answers.js";
 import { adminQuestionsRoute } from "./routes/adminQuestions.js";
-import { athletesRoute } from "./routes/athletes.js";
 import { createCoachingRoute } from "./routes/coaching.js";
 import { createGarminRoute } from "./routes/garmin.js";
 import { greet } from "./routes/greet.js";
 import { health } from "./routes/health.js";
-import { llmRoute } from "./routes/llm.js";
+import { createLlmRoute } from "./routes/llm.js";
 import { createMeRoute } from "./routes/me.js";
 import { createPlanRoute } from "./routes/plan.js";
 import { createQuestionsRoute } from "./routes/questions.js";
@@ -90,7 +89,7 @@ export interface AppDependencies {
   /** Activity/LLM loaders, injectable for DB-free plan route tests. */
   loadActivities?: (userId: number) => Promise<ActivityFeed>;
   loadCachedFeed?: typeof loadCachedActivityFeed;
-  loadLlm?: () => Promise<LlmClient | null>;
+  loadLlm?: (userId: number) => Promise<LlmClient | null>;
   /** Coaching-input loader, injectable for DB-free route tests. */
   loadCoachingInputs?: (
     userId: number,
@@ -150,10 +149,7 @@ export function createApp(deps: AppDependencies = {}): Hono {
     }),
   );
 
-  const api = new Hono()
-    .route("/health", health)
-    .route("/greet", greet)
-    .route("/athletes", athletesRoute);
+  const api = new Hono().route("/health", health).route("/greet", greet);
 
   // /api/me also provisions the account on first sign-in and returns its role.
   api.use("/me/*", requireAuth(authProvider));
@@ -172,10 +168,11 @@ export function createApp(deps: AppDependencies = {}): Hono {
   api.use("/garmin/*", requireAuth(authProvider));
   api.route("/garmin", createGarminRoute({ users: userStore }));
 
-  // LLM provider configuration (API key + model) and model discovery. The key is
-  // validated, encrypted at rest, and never serialized back to the client.
+  // LLM provider configuration (API key + model) and model discovery, per
+  // account. The key is validated, encrypted at rest, and never serialized back
+  // to the client.
   api.use("/llm/*", requireAuth(authProvider));
-  api.route("/llm", llmRoute);
+  api.route("/llm", createLlmRoute({ users: userStore }));
 
   // Coaching reads synced Garmin activities, analyses them with the configured
   // LLM, and returns activity data with cached-or-fresh coach analysis.

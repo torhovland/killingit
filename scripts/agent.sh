@@ -12,7 +12,7 @@
 #
 # Usage:
 #   scripts/agent.sh logs api [--env test|prod] [--tail 100]
-#   scripts/agent.sh sql "SELECT * FROM athletes;" [--env test|prod]
+#   scripts/agent.sh sql "SELECT * FROM users;" [--env test|prod]
 #
 set -euo pipefail
 

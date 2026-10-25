@@ -20,22 +20,6 @@ import {
 } from "drizzle-orm/pg-core";
 
 /**
- * Placeholder table to prove out the Drizzle + Postgres wiring.
- * Will be replaced by the real athlete/training data model.
- */
-export const athletes = pgTable("athletes", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  email: text("email").notNull().unique(),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
-
-export type Athlete = typeof athletes.$inferSelect;
-export type NewAthlete = typeof athletes.$inferInsert;
-
-/**
  * An application account, keyed by the auth provider's subject (`sub`). Roles
  * live here rather than in the token so authorisation is owned by the app and
  * survives provider changes (ADR 0006). The first account provisioned in an
@@ -90,33 +74,43 @@ export type GarminConnection = typeof garminConnections.$inferSelect;
 export type NewGarminConnection = typeof garminConnections.$inferInsert;
 
 /**
- * Single-row LLM provider configuration (single-operator phase). The API key is
+ * One LLM provider configuration per account. The API key is
  * AES-256-GCM-encrypted at rest and never serialized. `provider` is stored now
  * so another provider can be added without a schema change.
  */
-export const llmSettings = pgTable("llm_settings", {
-  id: serial("id").primaryKey(),
-  provider: text("provider").notNull().default("openrouter"),
-  apiKeyEncrypted: text("api_key_encrypted").notNull(),
-  model: text("model").notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
+export const llmSettings = pgTable(
+  "llm_settings",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    provider: text("provider").notNull().default("openrouter"),
+    apiKeyEncrypted: text("api_key_encrypted").notNull(),
+    model: text("model").notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [uniqueIndex("llm_settings_user_id_idx").on(table.userId)],
+);
 
 export type LlmSetting = typeof llmSettings.$inferSelect;
 export type NewLlmSetting = typeof llmSettings.$inferInsert;
 
 /**
- * Cached coach analysis for one activity, keyed by the source activity id and
- * analysis kind. `general` reviews the workout on its own; `program` reviews it
- * against the athlete's training plan after a full plan build. Reused across
- * page visits; regenerated when the selected model changes.
+ * Cached coach analysis for one athlete activity, keyed by the account, source
+ * activity id, and analysis kind. `general` reviews the workout on its own;
+ * `program` reviews it against the athlete's training plan after a full plan
+ * build. Reused across page visits; regenerated when the selected model changes.
  */
 export const activityAnalyses = pgTable(
   "activity_analyses",
   {
     id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
     // Garmin activity ids are ~2.5e10, beyond a 32-bit integer. `mode: "number"`
     // is safe for the full range of ids we receive (well under 2^53).
     activityId: bigint("activity_id", { mode: "number" }).notNull(),
@@ -134,7 +128,8 @@ export const activityAnalyses = pgTable(
       .defaultNow(),
   },
   (table) => [
-    uniqueIndex("activity_analyses_activity_id_kind_idx").on(
+    uniqueIndex("activity_analyses_user_id_activity_id_kind_idx").on(
+      table.userId,
       table.activityId,
       table.kind,
     ),
