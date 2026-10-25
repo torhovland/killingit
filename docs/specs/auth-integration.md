@@ -120,6 +120,24 @@ only replaces that module.
 - **`requireAuth` accepts a provider or a lazy getter** `() => AuthProvider`,
   so it can resolve the (cached) provider per-request; a provider-construction
   error is treated as an auth failure (401), never 500.
+- **Refresh tokens need offline access on the API, not just the grant on the
+  app.** `useRefreshTokens` makes the SDK request the `offline_access` scope,
+  but Auth0 only issues a refresh token when the **API resource server**
+  (`killingit-api`, identifier `https://api.killingit.hovland.co`) has _Allow
+  Offline Access_ enabled. With it disabled, logins still succeed, the response
+  simply carries no refresh token, and the first token renewal after the
+  access-token lifetime (2 h for web tokens) throws `Missing Refresh Token`.
+  The tenant setting is enabled; Auth0 logs show `seacft` (code exchange) events
+  and, once renewal happens, `sertft` (refresh-token exchange) events.
+- **Expired sessions are recoverable, not errors.** `getToken()` leaves
+  transient failures (network, Auth0 outage) untouched, but when the cached
+  session can never renew (`MissingRefreshTokenError`, `login_required`,
+  `consent_required`, `invalid_grant`) the adapter clears the local session and
+  throws `SessionExpiredError`. The app then shows the sign-in button with
+  "Your session has expired. Sign in again to continue.", and `reportError`
+  keeps the expected outcome out of Sentry. `useRefreshTokensFallback` stays
+  on so a session cached before refresh tokens existed is renewed silently via
+  the hidden iframe instead of expiring.
 
 ## Risks / open questions
 
@@ -131,10 +149,10 @@ only replaces that module.
   silent-auth flow. Browsers that block third-party cookies (e.g. Brave) cannot
   complete the iframe request, causing a signed-in athlete to see the sign-in
   button after a reload. The Auth0 application must allow the `refresh_token`
-  grant; verify this works with the Vite dev proxy origin (`localhost:5173`)
-  and the deployed origins already registered on the app. As with any SPA
-  token storage, `localStorage` is readable by same-origin scripts, so XSS
-  remains the relevant threat.
+  grant **and the API resource server must allow offline access**; verify both
+  with the Vite dev proxy origin (`localhost:5173`) and the deployed origins
+  already registered on the app. As with any SPA token storage, `localStorage`
+  is readable by same-origin scripts, so XSS remains the relevant threat.
 - **`auth0-react` bundles Auth0 UI; confirm bundle size is acceptable**, or use
   `@auth0/auth0-spa-js` directly behind the adapter for a smaller footprint.
 

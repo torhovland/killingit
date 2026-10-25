@@ -4,3 +4,4 @@
  * keys, …) changes only the import inside this file, not every consumer.
  */
 export { useAuth, type AuthState } from "./auth0.js";
+export { SessionExpiredError } from "./session.js";
