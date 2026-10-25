@@ -180,11 +180,7 @@ export function PeriodReviewCard({
               className="self-start rounded border border-transparent bg-primary px-3 py-1 text-sm text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
               disabled={!comment.trim()}
             >
-              {submitting
-                ? "Saving…"
-                : shownComment === null
-                  ? "Save comment"
-                  : "Save changes"}
+              {submitting ? "Coach is thinking…" : "Send to coach"}
             </SubmitButton>
             {shownComment !== null && (
               <button

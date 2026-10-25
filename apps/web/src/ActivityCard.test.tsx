@@ -180,7 +180,7 @@ describe("ActivityCard", () => {
     );
 
     expect(html).toContain('data-testid="activity-comment-form"');
-    expect(html).toContain("Save comment");
+    expect(html).toContain("Send to coach");
     expect(html).not.toContain("Add a comment about this activity");
     expect(html).not.toContain("border-t pt-2");
   });
@@ -196,7 +196,7 @@ describe("ActivityCard", () => {
     expect(html).toContain('data-testid="activity-comment-edit"');
     expect(html).toContain("Edit comment");
     expect(html).not.toContain('data-testid="activity-comment-form"');
-    expect(html).not.toContain("Save comment");
+    expect(html).not.toContain("Send to coach");
   });
 
   it("does not offer editing without a submit handler", () => {

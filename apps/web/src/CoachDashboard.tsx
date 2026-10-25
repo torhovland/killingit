@@ -631,7 +631,7 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
             className="self-start rounded border border-transparent bg-primary px-3 py-1 text-sm text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
             disabled={!weeklyNote.trim()}
           >
-            Save weekly note
+            {savingWeeklyNote ? "Coach is thinking…" : "Send to coach"}
           </SubmitButton>
           {weeklyNoteReply && (
             <p
