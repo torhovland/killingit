@@ -90,7 +90,10 @@ structurally and returns `LlmProvider` chat messages.
   block, week, day) so every response fits the model's output budget; the
   combined prompt remains the reference contract and a full-plan fallback.
 - `coachPlan.ts` exports `generateCoachPlan(provider, credentials, input)`, which
-  sends the combined prompt (temperature 0.4, 4096 output tokens).
+  sends the combined prompt (temperature 0.4, `PLAN_MAX_TOKENS` output tokens).
+  The split season/block/week/day plan calls use the same budget. Reasoning
+  tokens count against it; `completeWithFallbacks` retries with a larger budget
+  (up to 32,768) when a model is truncated.
 - `formatDuration` is reused from `activityPrompt.ts` so durations read the same
   way across coaching prompts.
 

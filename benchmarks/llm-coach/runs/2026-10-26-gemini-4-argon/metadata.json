@@ -1,0 +1,24 @@
+{
+  "runId": "2026-10-26-gemini-4-argon",
+  "runAt": "2026-10-26T06:44:49.133Z",
+  "gitCommit": "65161b4",
+  "userId": 1,
+  "today": "2026-10-26",
+  "refreshToday": "2026-11-02",
+  "benchmarkModel": "google/gemini-4-argon",
+  "models": [
+    "google/gemini-4-argon",
+    "anthropic/claude-opus-5.5",
+    "z-ai/glm-5.3",
+    "z-ai/glm-5.3-prime",
+    "deepseek/deepseek-v4.1-flash-1017",
+    "recursive/flint-v1.0:free",
+    "deepseek/deepseek-v4-pro-0813"
+  ],
+  "planMaxTokens": 16384,
+  "exclusions": [
+    "Weather and daylight are not loaded; the benchmark does not depend on a saved location.",
+    "The completed-week summary and post-build activity-review calls are excluded; they do not change the four plan levels.",
+    "Plans are generated in memory and are never written to the athlete's stored plan."
+  ]
+}

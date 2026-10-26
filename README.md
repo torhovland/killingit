@@ -81,19 +81,27 @@ explicitly. Only Development and Test allow the override.
 
 ## Scripts
 
-| Command               | Description                                  |
-| --------------------- | -------------------------------------------- |
-| `bun run dev`         | Migrate, then run web + api + Garmin sidecar |
-| `bun run dev:web`     | Run web dev server only                      |
-| `bun run dev:api`     | Run api dev server only                      |
-| `bun run dev:garmin`  | Run Garmin sidecar only                      |
-| `bun run build`       | Build all packages                           |
-| `bun run typecheck`   | Typecheck all packages                       |
-| `bun run test`        | Run all tests                                |
-| `bun run db:up`       | Start Postgres (docker compose)              |
-| `bun run db:down`     | Stop Postgres                                |
-| `bun run db:generate` | Generate a Drizzle migration                 |
-| `bun run db:migrate`  | Apply Drizzle migrations                     |
+| Command                 | Description                                  |
+| ----------------------- | -------------------------------------------- |
+| `bun run dev`           | Migrate, then run web + api + Garmin sidecar |
+| `bun run dev:web`       | Run web dev server only                      |
+| `bun run dev:api`       | Run api dev server only                      |
+| `bun run dev:garmin`    | Run Garmin sidecar only                      |
+| `bun run build`         | Build all packages                           |
+| `bun run typecheck`     | Typecheck all packages                       |
+| `bun run test`          | Run all tests                                |
+| `bun run benchmark:llm` | Compare OpenRouter models (see below)        |
+| `bun run db:up`         | Start Postgres (docker compose)              |
+| `bun run db:down`       | Stop Postgres                                |
+| `bun run db:generate`   | Generate a Drizzle migration                 |
+| `bun run db:migrate`    | Apply Drizzle migrations                     |
+
+## Benchmarks
+
+`bun run benchmark:llm <model> [<model> ...]` compares OpenRouter models on the
+real four-level plan generation and new-week refresh. The first model is the
+benchmark. Results are written to `benchmarks/llm-coach/runs/` and are committed
+so comparisons stay reproducible. See `docs/specs/llm-benchmark.md`.
 
 ## Database
 

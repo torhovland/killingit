@@ -12,7 +12,7 @@ describe("generateCoachPlan", () => {
         expect(request.apiKey).toBe("test-key");
         expect(request.model).toBe("test-model");
         expect(request.temperature).toBe(0.4);
-        expect(request.maxTokens).toBe(4096);
+        expect(request.maxTokens).toBe(16_384);
         expect(request.messages).toHaveLength(2);
         expect(request.messages[0]?.content).toContain(
           "state of the art training science",

@@ -1,0 +1,452 @@
+{
+  "full": {
+    "season": {
+      "goal": "Paris-Brest-Paris (August 2027) with intermediate milestones: Pole Vault World Championship (Jan 7, 2027), Randonneur Brevet Series (starting April 2027), and general cycling fitness for long tour races.",
+      "startDate": "2026-10-26",
+      "endDate": "2027-08-31",
+      "blocks": [
+        {
+          "name": "Rebuild & Fat Loss Foundation",
+          "focus": "Restore aerobic consistency, initiate safe fat loss via steady-state cardio, and introduce beginner strength training with strict form focus to protect the lower back. Emphasis on hip mobility and establishing non-negotiable daily habits.",
+          "startDate": "2026-10-26",
+          "endDate": "2026-11-29",
+          "weekCount": 5
+        },
+        {
+          "name": "Pole Vault Specific Preparation",
+          "focus": "Shift primary stimulus to explosive power, sprint mechanics, and plyometrics required for the January 7th World Championship. Maintain easy aerobic cycling/rowing as active recovery. Strength training moves toward heavy posterior chain loading (RDLs/Squats) with careful progression.",
+          "startDate": "2026-11-30",
+          "endDate": "2027-01-07",
+          "weekCount": 6
+        },
+        {
+          "name": "Winter Aerobic Base & Recovery",
+          "focus": "Post-championship mental and physical reset. Replace high-intensity vault work with low-impact winter activities: Cross-Country Skiing, Snowshoeing, and Indoor Rowing. Focus on building mitochondrial density and continuing gradual fat loss through volume rather than intensity.",
+          "startDate": "2027-01-08",
+          "endDate": "2027-02-28",
+          "weekCount": 8
+        },
+        {
+          "name": "Spring Cycling Build",
+          "focus": "Transition to outdoor cycling (studded tires/fatbike). Introduce structured indoor ERG intervals to raise FTP towards 280W target. Begin specific randonneur preparation: long weekend rides, nutrition practice, and core stability work for long-duration comfort.",
+          "startDate": "2027-03-01",
+          "endDate": "2027-04-30",
+          "weekCount": 9
+        },
+        {
+          "name": "Brevet Milestone Block",
+          "focus": "Peak for the first 200km brevet in April. Focus on pacing efficiency, saddle time tolerance, and managing fatigue over 6-8 hours. Minimal intensity; maximum specificity to race conditions.",
+          "startDate": "2027-05-01",
+          "endDate": "2027-05-31",
+          "weekCount": 5
+        },
+        {
+          "name": "Ultra-Endurance Specialization",
+          "focus": "Prepare for Paris-Brest-Paris. Increase weekly volume significantly. Practice night riding, heat management, and multi-day fatigue accumulation. Include longer brevets (300/400km) if schedule permits. Strength maintenance shifts to injury prevention only.",
+          "startDate": "2027-06-01",
+          "endDate": "2027-07-31",
+          "weekCount": 9
+        },
+        {
+          "name": "PBP Taper & Race",
+          "focus": "Reduce volume by 40-50% while maintaining frequency. Sharpen neuromuscular connection with short, high-quality efforts. Prioritize sleep, glycogen storage, and mental readiness for the 1200km challenge.",
+          "startDate": "2027-08-01",
+          "endDate": "2027-08-31",
+          "weekCount": 5
+        }
+      ],
+      "rationale": "The season is structured around the athlete's self-reported '4-month discipline limit' and specific injury/fat-loss constraints. It begins with a short Rebuild & Fat Loss Foundation phase to restore aerobic base and hip mobility without triggering burnout or back injury. This transitions into a specialized Pole Vault Preparation block (Nov-Dec) focusing on explosive power and posterior chain strength, culminating in a taper for the Jan 7 championship. Post-championship, a Winter Base block utilizes cross-country skiing and indoor rowing to maintain aerobic volume while allowing mental recovery from vault-specific intensity. The Spring Build (Feb-Apr) introduces structured cycling intervals and prepares for the April 200km brevet. Finally, the PBP Specialization block (May-Aug) focuses on ultra-endurance pacing, nutrition strategy, and heat acclimatization, ensuring peak performance aligns exactly with the August goal date."
+    },
+    "block": {
+      "name": "Rebuild & Fat Loss Foundation",
+      "focus": "Restore aerobic consistency, initiate safe fat loss via steady-state cardio, and introduce beginner strength training with strict form focus to protect the lower back. Emphasis on hip mobility and establishing non-negotiable daily habits.",
+      "startDate": "2026-10-26",
+      "endDate": "2026-11-29",
+      "weeks": [
+        {
+          "number": 1,
+          "startDate": "2026-10-26",
+          "focus": "Habit Re-establishment & Mobility Introduction",
+          "targetLoad": "Low Volume / Very Low Intensity"
+        },
+        {
+          "number": 2,
+          "startDate": "2026-11-02",
+          "focus": "Aerobic Consistency & Strength Technique",
+          "targetLoad": "Low-Moderate Volume / Low Intensity"
+        },
+        {
+          "number": 3,
+          "startDate": "2026-11-09",
+          "focus": "Endurance Tolerance & Core Stability",
+          "targetLoad": "Moderate Volume / Low Intensity"
+        },
+        {
+          "number": 4,
+          "startDate": "2026-11-16",
+          "focus": "Volume Accumulation & Fat Loss Optimization",
+          "targetLoad": "Moderate-High Volume / Low Intensity"
+        },
+        {
+          "number": 5,
+          "startDate": "2026-11-23",
+          "focus": "Consolidation & Prep for Vault Phase",
+          "targetLoad": "Moderate Volume / Variable Intensity (Introduction of light plyometrics)"
+        }
+      ],
+      "rationale": "This block serves as a critical physiological and psychological reset following the detraining period after the July bikepacking race. Given the athlete's history of burnout with disciplined training beyond 4 months and specific lower back vulnerability, the primary objective is not performance gain but habit formation and tissue tolerance. We utilize low-intensity steady-state (LISS) cycling and hiking to maximize fat oxidation without triggering excessive hunger or cortisol spikes associated with high intensity. Strength work focuses exclusively on posterior chain activation and hip mobility to address the root causes of sit-bone discomfort and back ache, ensuring the body is structurally prepared for the upcoming Pole Vault preparation phase. The volume is capped to prevent injury while re-establishing neuromuscular patterns for running and rowing."
+    },
+    "week": {
+      "startDate": "2026-10-26",
+      "focus": "Recovery from unplanned volume, Hip Mobility & Fat Loss Habits",
+      "sessions": [
+        {
+          "date": "2026-10-26",
+          "day": "Monday",
+          "type": "rest",
+          "title": "Full Rest & Hip Mobility",
+          "description": "No cardio or strength training. Focus entirely on hip mobility: 90/90 stretches, pigeon pose, and deep squat holds. Goal: Decompress lower back after weekend hiking volume.",
+          "durationMinutes": 30,
+          "intensity": "rest",
+          "status": "rest",
+          "outdoor": false,
+          "canBeOutdoor": false
+        },
+        {
+          "date": "2026-10-27",
+          "day": "Tuesday",
+          "type": "workout",
+          "title": "Indoor Cycling - Steady State",
+          "description": "Indoor trainer ride in ERG mode. Warm-up 10 min @ 100W. Main set: 40 min steady at 140-150 W (Zone 1/2). Cool-down 10 min. Keep HR under 135 bpm. No surges.",
+          "durationMinutes": 60,
+          "intensity": "easy",
+          "status": "planned",
+          "outdoor": false,
+          "canBeOutdoor": true
+        },
+        {
+          "date": "2026-10-28",
+          "day": "Wednesday",
+          "type": "workout",
+          "title": "Beginner Rowing Technique",
+          "description": "Indoor rowing machine. Focus on form over power. 10 min warm-up (paddle only). 3 x 5 min steady rowing (Rate 18-20 spm, HR < 140) with 2 min rest between sets. 10 min cool-down stretch. Emphasize leg drive and core stability.",
+          "durationMinutes": 45,
+          "intensity": "easy",
+          "status": "planned",
+          "outdoor": false,
+          "canBeOutdoor": false
+        },
+        {
+          "date": "2026-10-29",
+          "day": "Thursday",
+          "type": "workout",
+          "title": "Strength Session 2 - Posterior Chain",
+          "description": "Gym session. Warm-up: 5 min bike + dynamic stretching. 1. Goblet Squat: 3x10 @ 12kg (add 3rd set this time). 2. Romanian Deadlift (Light): 3x10 @ 20-30kg (Focus strictly on hip hinge, keep back neutral). 3. Glute Bridge: 3x15. 4. Pallof Press: 3x10/side. 5. Plank: 3x30s. Finish with 10 mins dedicated hip flexor stretching.",
+          "durationMinutes": 60,
+          "intensity": "moderate",
+          "status": "planned",
+          "outdoor": false,
+          "canBeOutdoor": false
+        },
+        {
+          "date": "2026-10-30",
+          "day": "Friday",
+          "type": "rest",
+          "title": "Rest Day",
+          "description": "Complete rest from structured exercise. Light walking is permitted if desired, but prioritize sleep and hydration to prepare for Saturday's activity.",
+          "durationMinutes": 0,
+          "intensity": "rest",
+          "status": "rest",
+          "outdoor": false,
+          "canBeOutdoor": false
+        },
+        {
+          "date": "2026-10-31",
+          "day": "Saturday",
+          "type": "workout",
+          "title": "Easy Run/Walk Introduction",
+          "description": "Outdoor run/walk. 4 minutes jogging / 1 minute walking intervals. Total duration: 30 minutes. Keep pace very easy (conversational). If legs feel heavy from Monday's hike, reduce to a brisk 30-minute walk instead.",
+          "durationMinutes": 30,
+          "intensity": "easy",
+          "status": "planned",
+          "outdoor": true,
+          "canBeOutdoor": true
+        },
+        {
+          "date": "2026-11-01",
+          "day": "Sunday",
+          "type": "workout",
+          "title": "Long Hike Prep - Moderate Walk",
+          "description": "Note: The original plan called for a 5-hour hike today. Given the unplanned 2h45m hike last week, we are modifying this to a moderate 2-hour hike/walk to maintain aerobic volume without excessive fatigue accumulation before the next block. Choose a flat or gently rolling route. Keep HR in Zone 1/2 (<140 bpm).",
+          "durationMinutes": 120,
+          "intensity": "easy",
+          "status": "planned",
+          "outdoor": true,
+          "canBeOutdoor": true
+        }
+      ],
+      "rationale": "The athlete significantly exceeded the planned load for Week 1 by performing a 2h45m hike (vs 30m run/walk) and adding an extra indoor ride. This creates fatigue that must be managed to protect the upcoming 5-hour hike on Nov 1. The plan shifts focus to active recovery, strict hip mobility work (addressing the 'can't touch floor' constraint), and establishing dietary habits for fat loss. The Sunday session is adjusted to a lighter walk/jog to ensure freshness for the long hike."
+    },
+    "today": {
+      "date": "2026-10-26",
+      "type": "rest",
+      "title": "Full Rest & Hip Mobility Focus",
+      "description": "No structured cardio or strength training. Perform 20-30 minutes of dedicated hip mobility work: 90/90 stretches, pigeon pose holds (2 min per side), and deep squat holds with support if needed. This is critical to decompress the lower back after yesterday's unplanned high-volume hike.",
+      "durationMinutes": 30,
+      "intensity": "rest",
+      "alternatives": [
+        "If you feel compelled to move, take a very short, flat walk (max 20 mins) but keep HR below 100 bpm."
+      ],
+      "rationale": "You significantly exceeded the planned load for Week 1 by performing a 2h45m hike instead of the planned 30-minute run/walk. This creates fatigue that must be managed to protect your upcoming long hikes and prevent injury. Today is strictly for recovery and addressing your hip flexibility constraint through mobility work only.",
+      "optional": false,
+      "optionalRationale": "Skipping this rest day risks overtraining and exacerbating lower back tightness from the weekend's excessive hiking volume, which would compromise the quality of the remaining sessions in this rebuild week.",
+      "status": "rest",
+      "outdoor": false,
+      "canBeOutdoor": false
+    },
+    "tomorrow": {
+      "date": "2026-10-27",
+      "type": "workout",
+      "title": "Indoor Cycling - Steady State Recovery",
+      "description": "Indoor trainer ride in ERG mode. Warm-up 10 min @ 100W. Main set: 40 min steady at 140-150 W (Zone 1/2). Cool-down 10 min. Keep HR under 135 bpm. No surges.",
+      "durationMinutes": 60,
+      "intensity": "easy",
+      "alternatives": [
+        "If legs are still heavy from Sunday, reduce main set power to 120-130 W."
+      ],
+      "rationale": "This session re-establishes aerobic consistency without adding significant stress. The low-intensity steady state promotes blood flow to aid recovery from the weekend's hiking volume while maintaining the habit of daily movement required for fat loss.",
+      "optional": false,
+      "optionalRationale": "Skipping this delays the re-establishment of aerobic rhythm and reduces the weekly volume needed for metabolic health during the rebuild phase.",
+      "status": "planned",
+      "outdoor": false,
+      "canBeOutdoor": true
+    },
+    "nextWeek": null,
+    "nextBlock": null
+  },
+  "refresh": {
+    "season": {
+      "goal": "Paris-Brest-Paris (August 2027) with intermediate milestones: Pole Vault World Championship (Jan 7, 2027), Randonneur Brevet Series (starting April 2027), and general cycling fitness for long tour races.",
+      "startDate": "2026-10-26",
+      "endDate": "2027-08-31",
+      "blocks": [
+        {
+          "name": "Rebuild & Fat Loss Foundation",
+          "focus": "Restore aerobic consistency, initiate safe fat loss via steady-state cardio, and introduce beginner strength training with strict form focus to protect the lower back. Emphasis on hip mobility and establishing non-negotiable daily habits.",
+          "startDate": "2026-10-26",
+          "endDate": "2026-11-29",
+          "weekCount": 5
+        },
+        {
+          "name": "Pole Vault Specific Preparation",
+          "focus": "Shift primary stimulus to explosive power, sprint mechanics, and plyometrics required for the January 7th World Championship. Maintain easy aerobic cycling/rowing as active recovery. Strength training moves toward heavy posterior chain loading (RDLs/Squats) with careful progression.",
+          "startDate": "2026-11-30",
+          "endDate": "2027-01-07",
+          "weekCount": 6
+        },
+        {
+          "name": "Winter Aerobic Base & Recovery",
+          "focus": "Post-championship mental and physical reset. Replace high-intensity vault work with low-impact winter activities: Cross-Country Skiing, Snowshoeing, and Indoor Rowing. Focus on building mitochondrial density and continuing gradual fat loss through volume rather than intensity.",
+          "startDate": "2027-01-08",
+          "endDate": "2027-02-28",
+          "weekCount": 8
+        },
+        {
+          "name": "Spring Cycling Build",
+          "focus": "Transition to outdoor cycling (studded tires/fatbike). Introduce structured indoor ERG intervals to raise FTP towards 280W target. Begin specific randonneur preparation: long weekend rides, nutrition practice, and core stability work for long-duration comfort.",
+          "startDate": "2027-03-01",
+          "endDate": "2027-04-30",
+          "weekCount": 9
+        },
+        {
+          "name": "Brevet Milestone Block",
+          "focus": "Peak for the first 200km brevet in April. Focus on pacing efficiency, saddle time tolerance, and managing fatigue over 6-8 hours. Minimal intensity; maximum specificity to race conditions.",
+          "startDate": "2027-05-01",
+          "endDate": "2027-05-31",
+          "weekCount": 5
+        },
+        {
+          "name": "Ultra-Endurance Specialization",
+          "focus": "Prepare for Paris-Brest-Paris. Increase weekly volume significantly. Practice night riding, heat management, and multi-day fatigue accumulation. Include longer brevets (300/400km) if schedule permits. Strength maintenance shifts to injury prevention only.",
+          "startDate": "2027-06-01",
+          "endDate": "2027-07-31",
+          "weekCount": 9
+        },
+        {
+          "name": "PBP Taper & Race",
+          "focus": "Reduce volume by 40-50% while maintaining frequency. Sharpen neuromuscular connection with short, high-quality efforts. Prioritize sleep, glycogen storage, and mental readiness for the 1200km challenge.",
+          "startDate": "2027-08-01",
+          "endDate": "2027-08-31",
+          "weekCount": 5
+        }
+      ],
+      "rationale": "The season is structured around the athlete's self-reported '4-month discipline limit' and specific injury/fat-loss constraints. It begins with a short Rebuild & Fat Loss Foundation phase to restore aerobic base and hip mobility without triggering burnout or back injury. This transitions into a specialized Pole Vault Preparation block (Nov-Dec) focusing on explosive power and posterior chain strength, culminating in a taper for the Jan 7 championship. Post-championship, a Winter Base block utilizes cross-country skiing and indoor rowing to maintain aerobic volume while allowing mental recovery from vault-specific intensity. The Spring Build (Feb-Apr) introduces structured cycling intervals and prepares for the April 200km brevet. Finally, the PBP Specialization block (May-Aug) focuses on ultra-endurance pacing, nutrition strategy, and heat acclimatization, ensuring peak performance aligns exactly with the August goal date."
+    },
+    "block": {
+      "name": "Rebuild & Fat Loss Foundation",
+      "focus": "Restore aerobic consistency, initiate safe fat loss via steady-state cardio, and introduce beginner strength training with strict form focus to protect the lower back. Emphasis on hip mobility and establishing non-negotiable daily habits.",
+      "startDate": "2026-10-26",
+      "endDate": "2026-11-29",
+      "weeks": [
+        {
+          "number": 1,
+          "startDate": "2026-10-26",
+          "focus": "Habit Re-establishment & Mobility Introduction",
+          "targetLoad": "Low Volume / Very Low Intensity"
+        },
+        {
+          "number": 2,
+          "startDate": "2026-11-02",
+          "focus": "Aerobic Consistency & Strength Technique",
+          "targetLoad": "Low-Moderate Volume / Low Intensity"
+        },
+        {
+          "number": 3,
+          "startDate": "2026-11-09",
+          "focus": "Endurance Tolerance & Core Stability",
+          "targetLoad": "Moderate Volume / Low Intensity"
+        },
+        {
+          "number": 4,
+          "startDate": "2026-11-16",
+          "focus": "Volume Accumulation & Fat Loss Optimization",
+          "targetLoad": "Moderate-High Volume / Low Intensity"
+        },
+        {
+          "number": 5,
+          "startDate": "2026-11-23",
+          "focus": "Consolidation & Prep for Vault Phase",
+          "targetLoad": "Moderate Volume / Variable Intensity (Introduction of light plyometrics)"
+        }
+      ],
+      "rationale": "This block serves as a critical physiological and psychological reset following the detraining period after the July bikepacking race. Given the athlete's history of burnout with disciplined training beyond 4 months and specific lower back vulnerability, the primary objective is not performance gain but habit formation and tissue tolerance. We utilize low-intensity steady-state (LISS) cycling and hiking to maximize fat oxidation without triggering excessive hunger or cortisol spikes associated with high intensity. Strength work focuses exclusively on posterior chain activation and hip mobility to address the root causes of sit-bone discomfort and back ache, ensuring the body is structurally prepared for the upcoming Pole Vault preparation phase. The volume is capped to prevent injury while re-establishing neuromuscular patterns for running and rowing."
+    },
+    "week": {
+      "startDate": "2026-11-02",
+      "focus": "Aerobic Consistency & Strength Technique",
+      "sessions": [
+        {
+          "date": "2026-11-02",
+          "day": "Monday",
+          "type": "workout",
+          "title": "Indoor Cycling - Steady State Re-entry",
+          "description": "45-minute indoor ride on trainer. Focus on flat power output between 130-150 W. Keep heart rate under 135 bpm. This serves as active recovery after the weekend hike and reinforces the steady-state pattern needed for fat oxidation. No surges.",
+          "durationMinutes": 45,
+          "intensity": "easy",
+          "status": "planned",
+          "outdoor": false,
+          "canBeOutdoor": true
+        },
+        {
+          "date": "2026-11-03",
+          "day": "Tuesday",
+          "type": "workout",
+          "title": "Gym Session - Posterior Chain Introduction",
+          "description": "Strength training focusing on hip hinge mechanics. Warm-up: 10 min rowing (HR < 130). Main work: 3x8 Goblet Squats (12-16 kg), 3x8 Light Romanian Deadlifts (start with empty bar or 20kg total, focus strictly on neutral spine and hamstring stretch, NO lower back rounding), 3x10 Glute Bridges, 3x10 Pallof Press per side. Cool-down: 10 min dedicated hip flexor and hamstring stretching.",
+          "durationMinutes": 60,
+          "intensity": "moderate",
+          "status": "planned",
+          "outdoor": false,
+          "canBeOutdoor": false
+        },
+        {
+          "date": "2026-11-04",
+          "day": "Wednesday",
+          "type": "rest",
+          "title": "Rest Day",
+          "description": "Full rest. Optional: 10 minutes of gentle mobility/yoga if feeling stiff, but no cardio or strength loading. Allow CNS recovery from Tuesday's gym session.",
+          "durationMinutes": 0,
+          "intensity": "rest",
+          "status": "rest",
+          "outdoor": false,
+          "canBeOutdoor": false
+        },
+        {
+          "date": "2026-11-05",
+          "day": "Thursday",
+          "type": "workout",
+          "title": "Run/Walk Progression",
+          "description": "Beginner running introduction. Total time 30 minutes. Structure: 5 min brisk walk warm-up. Then repeat 4 times: 4 minutes easy jog (conversational pace, HR < 145) / 1 minute walk. Finish with 5 min cool-down walk. If joints feel heavy, substitute with 30 min indoor rowing at easy intensity.",
+          "durationMinutes": 30,
+          "intensity": "easy",
+          "status": "planned",
+          "outdoor": true,
+          "canBeOutdoor": true
+        },
+        {
+          "date": "2026-11-06",
+          "day": "Friday",
+          "type": "workout",
+          "title": "Indoor Cycling - Endurance Base",
+          "description": "60-minute indoor ride. Target power 140-160 W. Cadence 85-95 rpm. Maintain steady effort; avoid the surge-recover pattern seen in previous spinning classes. Use ERG mode if available to ensure consistency. Heart rate cap 140 bpm.",
+          "durationMinutes": 60,
+          "intensity": "easy",
+          "status": "planned",
+          "outdoor": false,
+          "canBeOutdoor": true
+        },
+        {
+          "date": "2026-11-07",
+          "day": "Saturday",
+          "type": "workout",
+          "title": "Long Hike - Aerobic Volume",
+          "description": "3-hour mountain hike. Focus on consistent uphill effort rather than speed. Keep heart rate mostly in Zone 1-2 (< 140 bpm). Carry light pack. This builds the endurance base required for future randonneuring events while burning calories through sustained activity.",
+          "durationMinutes": 180,
+          "intensity": "moderate",
+          "status": "planned",
+          "outdoor": true,
+          "canBeOutdoor": true
+        },
+        {
+          "date": "2026-11-08",
+          "day": "Sunday",
+          "type": "rest",
+          "title": "Active Recovery & Mobility",
+          "description": "No structured workout. Perform 20 minutes of deep stretching focusing on hips, hamstrings, and lower back. Light walking around the house or neighborhood is encouraged to aid recovery from Saturday's hike.",
+          "durationMinutes": 20,
+          "intensity": "rest",
+          "status": "rest",
+          "outdoor": false,
+          "canBeOutdoor": false
+        }
+      ],
+      "rationale": "This week transitions from pure habit re-establishment to introducing structured strength technique and slightly higher aerobic volume. The primary goal is to safely load the posterior chain (glutes/hamstrings) via Romanian Deadlifts (RDLs) while maintaining strict form to protect the lower back, addressing the athlete's specific injury history. Aerobic work remains low-intensity steady-state (LISS) cycling and hiking to support fat loss without triggering excessive hunger or fatigue. A short, controlled run/walk session is introduced to begin the 'coach-to-5K' progression, keeping impact low. Indoor sessions are prioritized for intervals/technique due to November weather in Norway, while weekend hikes utilize daylight hours."
+    },
+    "today": {
+      "date": "2026-11-02",
+      "type": "workout",
+      "title": "Indoor Cycling - Steady State Re-entry",
+      "description": "45-minute indoor ride on trainer. Focus on flat power output between 130-150 W. Keep heart rate under 135 bpm. This serves as active recovery after the weekend hike and reinforces the steady-state pattern needed for fat oxidation. No surges.",
+      "durationMinutes": 45,
+      "intensity": "easy",
+      "alternatives": [
+        "If legs feel heavy from Sunday's hike, reduce duration to 30 minutes or lower target power to 110-130 W."
+      ],
+      "rationale": "This session establishes the 'steady state' habit required for fat loss without triggering the hunger spikes associated with high intensity. It acts as a controlled flush of metabolic waste from yesterday's long hike while preparing your aerobic system for the strength work tomorrow.",
+      "optional": false,
+      "optionalRationale": "Skipping this session removes the primary low-intensity aerobic stimulus for fat oxidation today and delays the re-establishment of the steady-power discipline needed for future randonneur events. The cost is a missed opportunity to build mitochondrial density safely.",
+      "status": "planned",
+      "outdoor": false,
+      "canBeOutdoor": true
+    },
+    "tomorrow": {
+      "date": "2026-11-03",
+      "type": "workout",
+      "title": "Gym Session - Posterior Chain Introduction",
+      "description": "Strength training focusing on hip hinge mechanics. Warm-up: 10 min rowing (HR < 130). Main work: 3x8 Goblet Squats (12-16 kg), 3x8 Light Romanian Deadlifts (start with empty bar or 20kg total, focus strictly on neutral spine and hamstring stretch, NO lower back rounding), 3x10 Glute Bridges, 3x10 Pallof Press per side. Cool-down: 10 min dedicated hip flexor and hamstring stretching.",
+      "durationMinutes": 60,
+      "intensity": "moderate",
+      "alternatives": [
+        "If lower back feels tight, skip RDLs and perform extra Glute Bridges and Bird-Dogs instead."
+      ],
+      "rationale": "The primary goal is safe loading of the posterior chain to support cycling posture and prevent back injury. Strict form on the Romanian Deadlift is critical here; we are building tissue tolerance, not max strength.",
+      "optional": false,
+      "optionalRationale": "Skipping this session delays the introduction of safe posterior chain loading, which is essential for protecting your lower back during climbs and improving hip mobility for a more aerodynamic cycling position. Without it, you risk carrying forward the structural weaknesses that caused previous injuries.",
+      "status": "planned",
+      "outdoor": false,
+      "canBeOutdoor": false
+    },
+    "nextWeek": null,
+    "nextBlock": null
+  }
+}
