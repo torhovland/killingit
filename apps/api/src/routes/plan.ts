@@ -164,7 +164,8 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
       zValidator("json", planGenerateInputSchema),
       async (c) => {
         const user = await deps.users.ensureUser(getAthlete(c).sub);
-        const { today, timezone, force, includeTomorrow } = c.req.valid("json");
+        const { today, timezone, mode, force, includeTomorrow } =
+          c.req.valid("json");
 
         const started = await triggerPlanGeneration(
           {
@@ -187,6 +188,7 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
             userId: user.id,
             today,
             ...(timezone !== undefined ? { timezone } : {}),
+            mode,
             force,
             includeTomorrow,
           },

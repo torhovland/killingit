@@ -13,7 +13,7 @@ import { fetchJsonAuthed } from "./fetchAuthed";
 import { GarminSection } from "./GarminSection";
 import { LlmSection } from "./LlmSection";
 import { LocationSection } from "./LocationSection";
-import { RegeneratePlanButton } from "./RegeneratePlanButton";
+import { PlanRegenerationButtons } from "./PlanRegenerationButtons";
 import { reportError } from "./reportError";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
@@ -217,10 +217,10 @@ export function SettingsPage({
           <section className="flex flex-col gap-3 rounded-lg border bg-card p-4">
             <h3 className="text-xl font-semibold">Training plan</h3>
             <p className="text-sm text-muted-foreground">
-              Rebuild the season, block, week, and today from your current
-              profile and training.
+              Start a new season from today, or keep the completed part of the
+              current season and re-plan the rest.
             </p>
-            <RegeneratePlanButton />
+            <PlanRegenerationButtons />
           </section>
         </>
       )}

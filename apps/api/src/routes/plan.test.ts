@@ -689,6 +689,36 @@ describe("coach plan route", () => {
     expect(planStore.stored?.plan.today.date).toBe("2026-10-21");
   });
 
+  it("starts a new season even when the stored plan is current", async () => {
+    const stored = makePlan();
+    stored.season = { ...stored.season, goal: "Old goal" };
+    const planStore = new MemoryPlanStore({
+      plan: stored,
+      answersUpdatedAt: new Date("2026-10-20T10:00:00Z"),
+      coachingInputsUpdatedAt: null,
+      activitiesUpdatedAt: null,
+      generatedAt: new Date("2026-10-20T10:00:00Z"),
+    });
+    const generationStore = new MemoryGenerationStore();
+    const testApp = makeApp({ planStore, generationStore });
+
+    const res = await testApp.fetch(
+      authenticatedRequest("/api/coaching/plan/generate", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          today: "2026-10-21",
+          mode: "newSeason",
+        }),
+      }),
+    );
+
+    expect(res.status).toBe(202);
+    await waitForGeneration(generationStore);
+    expect(generationStore.status.status).toBe("done");
+    expect(planStore.stored?.plan.season.goal).toBe("Run a marathon.");
+  });
+
   it("loads the forecast for the saved location and attaches it", async () => {
     const planStore = new MemoryPlanStore(null);
     const generationStore = new MemoryGenerationStore();

@@ -43,6 +43,12 @@ export const PLAN_GENERATION_STEPS = {
     target: 40,
     defaultMs: LLM_STEP_MS,
   },
+  seasonRefresh: {
+    id: "seasonRefresh",
+    label: "Refreshing your season",
+    target: 50,
+    defaultMs: LLM_STEP_MS,
+  },
   initialBlock: {
     id: "block",
     label: "Designing your block",

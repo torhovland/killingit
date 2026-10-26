@@ -4,8 +4,10 @@ import {
   BLOCK_UPDATE_SYSTEM_PROMPT,
   buildBlockUpdatePrompt,
   buildDailyUpdatePrompt,
+  buildSeasonRefreshPrompt,
   buildWeeklyUpdatePrompt,
   DAILY_UPDATE_SYSTEM_PROMPT,
+  SEASON_REFRESH_SYSTEM_PROMPT,
   WEATHER_PLANNING_RULES,
   WEEKLY_UPDATE_SYSTEM_PROMPT,
 } from "./planUpdatePrompt.js";
@@ -310,6 +312,29 @@ describe("block update prompts", () => {
     expect(prompt).toContain("Goal: Sub-4-hour marathon");
     expect(prompt).toContain("Completed block plan:");
     expect(prompt).toContain("Block: Base");
+    expect(prompt).toContain('top-level keys are exactly "block" and "season"');
+  });
+});
+
+describe("season refresh prompt", () => {
+  it("asks for the remaining season and the block starting today", () => {
+    const prompt = SEASON_REFRESH_SYSTEM_PROMPT;
+    expect(prompt).toContain("state of the art training science");
+    expect(prompt).toContain("remaining");
+    expect(prompt).toContain("ended before today");
+    expect(prompt).toContain("start on today's date");
+    expect(prompt).toContain("without gaps");
+    expect(prompt).toContain('"block"');
+    expect(prompt).toContain('"season"');
+  });
+
+  it("includes the existing season, current block, and today's date", () => {
+    const prompt = buildSeasonRefreshPrompt({ ...base, season, block });
+
+    expect(prompt).toContain("Today's date: 2026-10-21");
+    expect(prompt).toContain("Goal: Sub-4-hour marathon");
+    expect(prompt).toContain("Block: Base");
+    expect(prompt).toContain("Finish a sub-4-hour marathon.");
     expect(prompt).toContain('top-level keys are exactly "block" and "season"');
   });
 });

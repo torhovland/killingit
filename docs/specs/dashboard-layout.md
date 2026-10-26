@@ -55,7 +55,8 @@ concern only and does not affect plan staleness.
 ## Settings page
 
 Configures the display time zone, Garmin credentials, OpenRouter (API key and
-model), and a forced plan regeneration. The time zone is an IANA zone stored on
+model), and the plan regeneration actions (start a new season or update the
+existing one). The time zone is an IANA zone stored on
 the account; leaving it unset follows the device's zone. Activity timestamps and
 plan generation times are displayed in that local zone, and outgoing coaching
 requests send it to the API.
@@ -63,8 +64,8 @@ requests send it to the API.
 ## Coaching survey page
 
 Explains that thorough answers directly influence the training plan, lists the
-athlete's answers with an inline editor. Forced plan regeneration lives on the
-coaching survey and settings pages, not the dashboard.
+athlete's answers with an inline editor. The new-season and season-update
+actions live on the coaching survey and settings pages, not the dashboard.
 
 ## Activity summaries
 

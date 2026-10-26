@@ -89,6 +89,11 @@ structurally and returns `LlmProvider` chat messages.
   lifecycle build now splits the initial plan into four smaller calls (season,
   block, week, day) so every response fits the model's output budget; the
   combined prompt remains the reference contract and a full-plan fallback.
+- A season update uses a separate prompt that receives the existing season and
+  current block and returns the remaining season plus the detailed block
+  starting today. It keeps completed blocks and the season goal as reference but
+  re-plans the future from the athlete's latest input. See
+  `docs/specs/season-regeneration.md`.
 - `coachPlan.ts` exports `generateCoachPlan(provider, credentials, input)`, which
   sends the combined prompt (temperature 0.4, `PLAN_MAX_TOKENS` output tokens).
   The split season/block/week/day plan calls use the same budget. Reasoning

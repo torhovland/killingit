@@ -7,7 +7,11 @@ import { captureCompletedPeriodReviews } from "../coaching/periodReviews.js";
 import { analyzeActivitiesAgainstPlan } from "../coaching/programAnalysis.js";
 import type { LlmClient } from "../llm/client.js";
 import { loadLlmClient } from "../llm/client.js";
-import type { AthleteLocation, DailyWeather } from "@killingit/shared";
+import type {
+  AthleteLocation,
+  DailyWeather,
+  PlanGenerateMode,
+} from "@killingit/shared";
 import type { QuestionAnswerStore } from "../questions/answers.js";
 import type { UserStore } from "../users/store.js";
 import {
@@ -57,13 +61,14 @@ export async function triggerPlanGeneration(
     userId: number;
     today: string;
     timezone?: string;
+    mode?: PlanGenerateMode;
     force?: boolean;
     includeTomorrow?: boolean;
     /** Keep today's stored session while revising around a new input. */
     keepToday?: boolean;
   },
 ): Promise<boolean> {
-  const { userId, today, timezone, force, includeTomorrow, keepToday } =
+  const { userId, today, timezone, mode, force, includeTomorrow, keepToday } =
     options;
   if (!(await deps.generations.begin(userId))) {
     return false;
@@ -144,6 +149,7 @@ export async function triggerPlanGeneration(
     userId,
     today,
     ...(timezone !== undefined ? { timezone } : {}),
+    ...(mode !== undefined ? { mode } : {}),
     ...(force !== undefined ? { force } : {}),
     ...(includeTomorrow !== undefined ? { includeTomorrow } : {}),
     ...(keepToday !== undefined ? { keepToday } : {}),

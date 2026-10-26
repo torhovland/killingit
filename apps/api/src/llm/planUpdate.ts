@@ -16,9 +16,11 @@ import { PLAN_MAX_TOKENS } from "./planBudget.js";
 import {
   buildBlockUpdateMessages,
   buildDailyUpdateMessages,
+  buildSeasonRefreshMessages,
   buildWeeklyUpdateMessages,
   type BlockUpdateInput,
   type DailyUpdateInput,
+  type SeasonRefreshInput,
   type WeeklyUpdateInput,
 } from "./planUpdatePrompt.js";
 
@@ -124,6 +126,27 @@ export async function generateWeeklyUpdate(
     buildWeeklyUpdateMessages(input),
     PLAN_MAX_TOKENS,
     { repairHint: weekDateHint(input.weekStartDate) },
+  );
+}
+
+/**
+ * Asks the coach to re-plan the rest of the season from today and to create
+ * the detailed block that starts today.
+ */
+export async function generateSeasonRefresh(
+  provider: LlmProvider,
+  credentials: PlanUpdateCredentials,
+  input: SeasonRefreshInput,
+): Promise<BlockPlanUpdate> {
+  return completePlanJson(
+    blockPlanUpdateSchema,
+    provider,
+    credentials,
+    buildSeasonRefreshMessages(input),
+    PLAN_MAX_TOKENS,
+    {
+      repairHint: `The first remaining block in season.blocks and block.startDate must both be exactly ${input.today}.`,
+    },
   );
 }
 

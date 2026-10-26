@@ -47,6 +47,12 @@ export interface BlockUpdateInput extends BasePlanUpdateInput {
   nextBlockStartDate: string;
 }
 
+/** Input for refreshing the rest of an existing season from today. */
+export interface SeasonRefreshInput extends BasePlanUpdateInput {
+  season: SeasonPlan;
+  block: BlockPlan;
+}
+
 const DAY_CONTRACT = `{
   "date": "YYYY-MM-DD",
   "type": "workout | rest",
@@ -181,6 +187,22 @@ ${JSON_RULES}
   "season": ${SEASON_CONTRACT}
 }`;
 
+export const SEASON_REFRESH_SYSTEM_PROMPT = `You are an expert endurance coach. Refresh the remaining part of an existing season plan and create the block that starts today for an amateur athlete. Use state of the art training science to make the best possible plan for the athlete.
+
+You receive the athlete's profile, recent activities with coach analyses, program reviews, and coach replies, the existing season plan, and the current block. You also receive manually recorded activities, comments on activities, a general weekly note, and coach summaries of completed weeks and blocks with the athlete's feedback on them. Use all of these to judge their current fitness, fatigue, consistency, goal, available time, and constraints. ${ACTIVITY_COMMENT_RULE}
+
+The season has already started. Blocks that ended before today are complete: keep their summaries exactly as supplied. Re-plan the remaining part of the season from scratch. The first remaining block must start on today's date, every later block must start the day after the previous block ends, and the remaining blocks must cover the rest of the season without gaps. Keep the season's goal, start date, and end date unless the athlete's current answers clearly change the goal or end date; never change the season start date. Do not include the completed blocks before today in the returned season.
+
+Create the detailed plan for the block that starts today, using that block's summary for its name, focus, dates, and week count. Its weeks must add up to the planned week count. Include a concise rationale for the refreshed season and for the new current block.
+
+${ENUM_RULES}
+
+${JSON_RULES}
+{
+  "block": ${BLOCK_CONTRACT},
+  "season": ${SEASON_CONTRACT}
+}`;
+
 export function buildDailyUpdateMessages(input: DailyUpdateInput): {
   role: "system" | "user";
   content: string;
@@ -259,5 +281,31 @@ export function buildBlockUpdatePrompt(input: BlockUpdateInput): string {
     formatBlockPlan(input.block),
     "",
     'Create the next block and revise the season plan. Return one JSON object whose top-level keys are exactly "block" and "season".',
+  ].join("\n");
+}
+
+export function buildSeasonRefreshMessages(input: SeasonRefreshInput): {
+  role: "system" | "user";
+  content: string;
+}[] {
+  return [
+    { role: "system", content: SEASON_REFRESH_SYSTEM_PROMPT },
+    { role: "user", content: buildSeasonRefreshPrompt(input) },
+  ];
+}
+
+export function buildSeasonRefreshPrompt(input: SeasonRefreshInput): string {
+  return [
+    ...formatPlanContext(input),
+    "",
+    "Existing season plan:",
+    formatSeasonPlan(input.season),
+    "",
+    "Current block plan:",
+    formatBlockPlan(input.block),
+    "",
+    `Re-plan the remaining season from today's date, ${input.today}. The first remaining block must start on today's date. Return the remaining season without the blocks that ended before today.`,
+    "",
+    'Return one JSON object whose top-level keys are exactly "block" and "season".',
   ].join("\n");
 }

@@ -4,6 +4,8 @@ import type {
   BlockPlan,
   CoachPlan,
   DailyWeather,
+  PlanGenerateMode,
+  SeasonPlan,
   WeekPlan,
   DayPlan,
 } from "@killingit/shared";
@@ -18,6 +20,7 @@ import {
 import {
   generateBlockUpdate,
   generateDailyUpdate,
+  generateSeasonRefresh,
   generateTargetDayUpdate,
   generateWeeklyUpdate,
 } from "../llm/planUpdate.js";
@@ -63,6 +66,8 @@ export interface GeneratePlanInput {
   userId: number;
   today: string;
   timezone?: string;
+  /** How an explicit regeneration should treat the stored season. */
+  mode?: PlanGenerateMode;
   /** Rebuild every level even when the stored plan is still current. */
   force?: boolean;
   /** The client is after 18:00, so tomorrow's session is wanted. */
@@ -124,7 +129,23 @@ export async function runPlanGeneration(
     const currentPlan =
       stored === null ? null : promoteNextPeriod(stored, today);
     const promoted = currentPlan !== null && currentPlan !== stored;
-    const needsFullPlan = currentPlan === null || stale || input.force === true;
+    const mode = input.mode ?? "auto";
+    // An explicit update, or answers saved after the plan, refreshes the
+    // existing season instead of silently starting a new one. Without a season
+    // that covers today there is nothing to refresh, so fall back to a build.
+    const refreshRequested =
+      mode === "updateSeason" || (mode === "auto" && stale);
+    const refreshSeason =
+      input.force !== true &&
+      mode !== "newSeason" &&
+      refreshRequested &&
+      currentPlan !== null &&
+      seasonCovers(currentPlan.season, today);
+    const needsFullPlan =
+      currentPlan === null ||
+      input.force === true ||
+      mode === "newSeason" ||
+      refreshRequested;
     // The forecast can move enough to make the stored week's weather advice
     // wrong even when every level is present. Treat that like any other week
     // revision so the coach can move sessions to the better days.
@@ -154,19 +175,44 @@ export async function runPlanGeneration(
 
     if (needsFullPlan) {
       await generations.update(userId, PLAN_GENERATION_STEPS.review);
-      await generations.update(userId, PLAN_GENERATION_STEPS.season);
-      const { season } = await generateSeasonPlan(
-        context.provider,
-        credentials(context),
-        baseContext(input),
-      );
+      let season: SeasonPlan;
+      let block: BlockPlan;
 
-      await generations.update(userId, PLAN_GENERATION_STEPS.initialBlock);
-      const { block } = await generateInitialBlock(
-        context.provider,
-        credentials(context),
-        { ...baseContext(input), season },
-      );
+      if (refreshSeason && currentPlan !== null) {
+        await generations.update(userId, PLAN_GENERATION_STEPS.seasonRefresh);
+        const refreshed = await generateSeasonRefresh(
+          context.provider,
+          credentials(context),
+          {
+            ...baseContext(input),
+            season: currentPlan.season,
+            block: currentPlan.block,
+          },
+        );
+        season = withCompletedSeasonBlocks(
+          refreshed.season,
+          currentPlan.season,
+          today,
+        );
+        block = refreshed.block;
+        assertRefreshedSeason(season, block, today);
+      } else {
+        await generations.update(userId, PLAN_GENERATION_STEPS.season);
+        const generated = await generateSeasonPlan(
+          context.provider,
+          credentials(context),
+          baseContext(input),
+        );
+        season = generated.season;
+
+        await generations.update(userId, PLAN_GENERATION_STEPS.initialBlock);
+        const generatedBlock = await generateInitialBlock(
+          context.provider,
+          credentials(context),
+          { ...baseContext(input), season },
+        );
+        block = generatedBlock.block;
+      }
 
       await generations.update(userId, PLAN_GENERATION_STEPS.initialWeek);
       const weekUpdate = await generateWeeklyUpdate(
@@ -672,6 +718,72 @@ function dropUnplacedTomorrow(
     return plan;
   }
   return { ...plan, tomorrow: null };
+}
+
+/** True when `today` falls inside the season's dates. */
+function seasonCovers(season: SeasonPlan, today: string): boolean {
+  return today >= season.startDate && today <= season.endDate;
+}
+
+/**
+ * Restores the season's history after a refresh. Completed blocks are the
+ * stored ones, unchanged; everything from today onward comes from the coach's
+ * refreshed season. The original start date keeps the history in one season.
+ */
+function withCompletedSeasonBlocks(
+  generated: SeasonPlan,
+  previous: SeasonPlan,
+  today: string,
+): SeasonPlan {
+  const completed = previous.blocks.filter((entry) => entry.endDate < today);
+  const remaining = generated.blocks.filter((entry) => entry.endDate >= today);
+  return {
+    ...generated,
+    startDate: previous.startDate,
+    blocks: [...completed, ...remaining],
+  };
+}
+
+/**
+ * A refreshed season must restart at today. Without this check the model can
+ * keep the old current block dates, so the "new" plan changes nothing.
+ */
+function assertRefreshedSeason(
+  season: SeasonPlan,
+  block: BlockPlan,
+  today: string,
+): void {
+  const remaining = season.blocks.filter((entry) => entry.endDate >= today);
+  const first = remaining[0];
+  if (first === undefined || first.startDate !== today) {
+    throw new Error(
+      "The coach returned a season refresh that does not start today. Please regenerate the plan.",
+    );
+  }
+  for (let index = 1; index < remaining.length; index += 1) {
+    const previous = remaining[index - 1];
+    const current = remaining[index];
+    if (
+      previous !== undefined &&
+      current !== undefined &&
+      current.startDate !== addDays(previous.endDate, 1)
+    ) {
+      throw new Error(
+        "The coach returned a season refresh with a gap between blocks. Please regenerate the plan.",
+      );
+    }
+  }
+  const last = remaining[remaining.length - 1];
+  if (last !== undefined && last.endDate !== season.endDate) {
+    throw new Error(
+      "The coach returned a season refresh that does not cover the rest of the season. Please regenerate the plan.",
+    );
+  }
+  if (block.startDate !== today || block.endDate !== first.endDate) {
+    throw new Error(
+      "The coach returned a block refresh that does not match the remaining season. Please regenerate the plan.",
+    );
+  }
 }
 
 /**

@@ -3,7 +3,8 @@
 - **Status:** Accepted (implemented)
 - **Date:** 2026-10-21
 - **Related:** `docs/specs/coach-plan-prompts.md`, ADR 0004 (OpenRouter),
-  ADR 0009 (next-period planning),
+  ADR 0009 (next-period planning), ADR 0011 (new season vs update),
+  `docs/specs/season-regeneration.md`,
   `docs/specs/openrouter-llm-integration.md`,
   `docs/specs/athlete-question-answers.md`,
   `docs/specs/coach-feedback-and-program-review.md`.
@@ -38,9 +39,10 @@ answers change and as days, weeks, and blocks roll over.
      tab agrees with the Week and Block tabs.
 6. Promote the next week and block when today enters them, dropping the ended
    period after its review has been captured.
-7. Trigger a fresh full plan when answers are saved, and offer an explicit
-   "Regenerate plan" action on the coaching survey and settings pages (not on
-   the dashboard).
+7. Refresh the remaining season when answers are saved and a season exists, and
+   offer explicit "Plan a new season" and "Update season plan" actions on the
+   coaching survey and settings pages (not on the dashboard). See
+   `docs/specs/season-regeneration.md`.
 8. A plan section in the coaching dashboard showing:
    - generation progress (step + bar) while the coach is working;
    - today's workout/rest with alternatives and a note on whether it can be
@@ -72,9 +74,13 @@ answers change and as days, weeks, and blocks roll over.
    levels. The old plan remains visible during a regeneration.
 2. The progress panel shows the current step and a determinate bar, and the plan
    appears without a page reload when generation finishes.
-3. Saving changed answers marks the plan stale and starts a regeneration; the
-   "Regenerate plan" button on the survey and settings pages forces a full
-   rebuild. The dashboard offers only "Update plan" on the stale banner.
+3. Saving changed answers marks the plan stale and starts a regeneration. When
+   a season containing today is stored, that regeneration re-plans the rest of
+   the season and keeps completed blocks. The survey and settings pages offer
+   "Plan a new season" (a fresh season from today) and "Update season plan"
+   (refresh the existing season); the update action appears only when a season
+   containing today exists. The dashboard offers only "Update plan" on the
+   stale banner.
 4. On a new day, the first visit generates today's session and revises the rest
    of the week around what the athlete actually did. While that generation runs,
    the out-of-date Today and Tomorrow cards are dimmed behind a spinner labelled
@@ -99,7 +105,11 @@ answers change and as days, weeks, and blocks roll over.
     flag, and pending day/week/block/next-week/next-block/tomorrow/initial flags
     for the supplied date. The returned plan is normalised so a stored next week
     or block that contains today is shown as current.
-12. All four quality gates pass.
+12. An explicit update keeps the stored blocks that ended before today and the
+    original season start date, then re-plans the remaining season from today.
+    A refreshed season that does not start today is rejected and the previous
+    plan stays in place.
+13. All four quality gates pass.
 
 ## Data model
 
@@ -164,9 +174,10 @@ Both routes are behind `requireAuth`.
 - `GET /api/coaching/plan?today=YYYY-MM-DD`
   → `{ plan, generatedAt, generation, stale, pending }`.
 - `POST /api/coaching/plan/generate` with
-  `{ today, timezone?, force?, includeTomorrow? }`
+  `{ today, timezone?, mode?, force?, includeTomorrow? }`
   → the same response body after generation completes; `202` if a generation is
-  already running.
+  already running. `mode` is `auto` (default), `newSeason`, or `updateSeason`;
+  `force: true` behaves like `newSeason`.
 
 `stale` is true when the newest current answer is newer than
 `coach_plans.answers_updated_at`. `pending.day` is true when the stored day is
@@ -192,12 +203,15 @@ review.
 2. Load the stored plan, current answers, recent analysed activities, and the
    LLM client. Fail the generation with a readable error if Garmin or OpenRouter
    is not configured.
-3. If there is no plan, the answers are stale, or `force` is set, build the plan
-   in four smaller completions: the season, the block containing today, the week
-   containing today (with a block revision), then today (with a week revision).
-   Splitting keeps
-   every response comfortably below the model's output budget and gives the
-   progress panel real steps.
+3. If there is no plan, the request asks for a new season, or `force` is set,
+   build a fresh season in four smaller completions: the season, the block
+   containing today, the week containing today (with a block revision), then
+   today (with a week revision). If the request asks to update the season, or
+   the answers are stale and the stored season contains today, refresh the
+   remaining season instead: one completion returns the rest of the season and
+   the detailed block starting today, then the week and today are rebuilt. The
+   stored blocks that ended before today and the original season start date are
+   restored before the result is validated.
 4. Otherwise, treat a coach analysis that was not included in the saved plan as
    a revision trigger too: the new knowledge from the activity must reach the
    remaining week (and, through the weekly prompt, the block). This includes an
@@ -248,13 +262,17 @@ problems; the error names the offending fields if the repair also fails. See
   refreshes the week.
 - `CoachDashboard` increments a refresh key after answers are saved, which
   makes the plan section refetch, spot the stale plan, and start the
-  regeneration.
+  regeneration. With a stored season that contains today, that regeneration is
+  an update, so completed blocks survive.
+- `PlanRegenerationButtons` on the survey and settings pages reads plan
+  availability from `GET /api/coaching/plan`, then offers "Plan a new season"
+  and, when a season contains today, "Update season plan".
 - The plan section is rendered before the profile/integrations so the plan is
   the main surface on each visit.
 - The stale banner's "Update plan" is a fallback: the plan section already
-  starts a non-forced generation automatically when it sees stale answers or a
-  pending level. The banner stays available if that automatic run failed or the
-  plan is still stale after it finishes.
+  starts an automatic generation when it sees stale answers or a pending level,
+  refreshing an existing season. The banner stays available if that automatic
+  run failed or the plan is still stale after it finishes.
 - A failed generation is surfaced with its error and a "Try again" button. The
   section deliberately does not retry on every page load, so a persistent
   failure cannot turn into an endless run.
@@ -266,8 +284,8 @@ problems; the error names the offending fields if the repair also fails. See
   update shape.
 - API unit tests for pending/staleness, date helpers, JSON parsing, prompt
   contents, the full/day/week/block cascade with in-memory stores and a fake
-  provider, next-week/next-block generation, and promotion after the date moves
-  on.
+  provider, new-season and season-update modes, next-week/next-block
+  generation, and promotion after the date moves on.
 - API route tests for auth, valid/invalid dates, the empty state, full
   generation, the already-running `202` case, and a normalised next period.
 - Web render tests for the four-level view (today, week, next week, block, next

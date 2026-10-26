@@ -9,6 +9,7 @@ import {
   initialBlockUpdateSchema,
   manualActivitySchema,
   planDateSchema,
+  planGenerateInputSchema,
   seasonPlanUpdateSchema,
   targetDayUpdateSchema,
   weekPlanSchema,
@@ -383,5 +384,38 @@ describe("weather on plan sessions", () => {
     expect(parsed.outdoor).toBeUndefined();
     expect(parsed.canBeOutdoor).toBeUndefined();
     expect(parsed.weather).toBeUndefined();
+  });
+});
+
+describe("plan generation mode", () => {
+  it("defaults to automatic generation", () => {
+    const parsed = planGenerateInputSchema.parse({ today: "2026-10-21" });
+
+    expect(parsed.mode).toBe("auto");
+    expect(parsed.force).toBe(false);
+  });
+
+  it("accepts the explicit new-season and update-season modes", () => {
+    expect(
+      planGenerateInputSchema.parse({
+        today: "2026-10-21",
+        mode: "newSeason",
+      }).mode,
+    ).toBe("newSeason");
+    expect(
+      planGenerateInputSchema.parse({
+        today: "2026-10-21",
+        mode: "updateSeason",
+      }).mode,
+    ).toBe("updateSeason");
+  });
+
+  it("rejects an unknown mode", () => {
+    expect(
+      planGenerateInputSchema.safeParse({
+        today: "2026-10-21",
+        mode: "refresh",
+      }).success,
+    ).toBe(false);
   });
 });
