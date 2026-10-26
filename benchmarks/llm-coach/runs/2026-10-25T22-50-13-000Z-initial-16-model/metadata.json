@@ -1,0 +1,33 @@
+{
+  "runId": "2026-10-25T22-50-13-000Z-initial-16-model",
+  "runAt": "2026-10-25T22:50:13.268Z",
+  "gitCommit": "92f07c0",
+  "userId": 1,
+  "today": "2026-10-26",
+  "refreshToday": "2026-11-02",
+  "benchmarkModel": "anthropic/claude-opus-5.5",
+  "models": [
+    "anthropic/claude-opus-5.5",
+    "anthropic/claude-sonnet-5.5",
+    "anthropic/claude-haiku-5.5",
+    "deepseek/deepseek-v4.1-flash-1017",
+    "deepseek/deepseek-v4-pro-0813",
+    "qwen/qwen3.8-flash",
+    "qwen/qwen3.7-plus",
+    "qwen/qwen3.6-plus",
+    "inception/mercury-3",
+    "moonshotai/kimi-k3.1-pro",
+    "recursive/flint-v1.0:free",
+    "minimax/minimax-m3.1-flash",
+    "google/gemini-4-argon",
+    "openai/gpt-6.1-sol-pro",
+    "openai/gpt-6.1-sol",
+    "z-ai/glm-5.3-prime"
+  ],
+  "planMaxTokens": 4096,
+  "exclusions": [
+    "Initial ad-hoc run, before the reusable benchmark runner; this run used 4,096 output tokens, which truncated reasoning models.",
+    "The DeepSeek V4.1 Flash row is the successful retry; its first full run failed schema validation after 95.2 s and $0.0455.",
+    "Weather/daylight, the completed-week summary and post-build activity-review calls are excluded."
+  ]
+}

@@ -1,0 +1,442 @@
+{
+  "full": {
+    "season": {
+      "goal": "Finish the randonneur brevet series (200 km in April 2027) and complete Paris-Brest-Paris in August 2027, while competing in the pole vault world championship on 2027-01-07, losing fat from 24.5% to 15% body fat, and rebuilding general cycling fitness.",
+      "startDate": "2026-10-26",
+      "endDate": "2027-08-22",
+      "blocks": [
+        {
+          "name": "Rebuild & Fat Loss Foundation",
+          "focus": "Easy aerobic re-entry (steady indoor rides, hikes, beginner run/walk), hip mobility, back-safe gym strength progression (goblet squats, RDLs, Pallof press), and establishing fat-loss habits; prepare for the 5-hour hike on 1 November.",
+          "startDate": "2026-10-26",
+          "endDate": "2026-11-15",
+          "weekCount": 3
+        },
+        {
+          "name": "Vault Preparation Base",
+          "focus": "Transition toward pole vault demands: sprint/run conditioning, plyometrics, progressive posterior-chain loading, and technical vault work, with easy cycling and hiking as supporting aerobic volume.",
+          "startDate": "2026-11-16",
+          "endDate": "2026-12-20",
+          "weekCount": 5
+        },
+        {
+          "name": "Vault Peak & Taper",
+          "focus": "Sharpen explosive power and vault technique with reduced volume, full recovery, and a taper into the pole vault world championship on 2027-01-07.",
+          "startDate": "2026-12-21",
+          "endDate": "2027-01-10",
+          "weekCount": 3
+        },
+        {
+          "name": "Winter Aerobic Base",
+          "focus": "Post-championship recovery then broad aerobic base via cross-country skiing, snowshoeing, fatbike and indoor trainer rides, beginner rowing and running programs, and continued gym strength; steady fat-loss focus.",
+          "startDate": "2027-01-11",
+          "endDate": "2027-02-28",
+          "weekCount": 7
+        },
+        {
+          "name": "Brevet Build",
+          "focus": "Return to road cycling in March; build endurance volume, tempo and climbing strength toward the 200 km brevet in April, with indoor ERG intervals for FTP and long weekend rides.",
+          "startDate": "2027-03-01",
+          "endDate": "2027-04-18",
+          "weekCount": 7
+        },
+        {
+          "name": "Recovery & General Fitness Reset",
+          "focus": "Short recovery week after the brevet, then reintroduce general cycling fitness: structured indoor intervals, group rides, and preparation for longer tour races, plus continued strength and mobility.",
+          "startDate": "2027-04-19",
+          "endDate": "2027-05-16",
+          "weekCount": 4
+        },
+        {
+          "name": "PBP Endurance Build",
+          "focus": "Long-distance specialization: progressively longer endurance rides, back-to-back long weekend rides, night riding practice, climbing volume, and fueling/handling rehearsal for multi-day randonneuring.",
+          "startDate": "2027-05-17",
+          "endDate": "2027-07-18",
+          "weekCount": 9
+        },
+        {
+          "name": "PBP Final Preparation & Taper",
+          "focus": "Final long rides with full brevet simulation, then a two-week taper reducing volume while keeping intensity touches so you arrive at Paris-Brest-Paris fresh and confident.",
+          "startDate": "2027-07-19",
+          "endDate": "2027-08-22",
+          "weekCount": 5
+        }
+      ],
+      "rationale": "The season spans roughly ten months from a detrained state to Paris-Brest-Paris in August 2027, with two intermediate peaks: the pole vault world championship on 7 January and the 200 km brevet in April. Given your history of sustaining disciplined training for at most about four months, the plan deliberately avoids one long linear ramp. Instead it uses short, focused blocks with distinct purposes: first a low-intensity foundation phase that rebuilds the aerobic base, hip mobility, and gym strength while establishing the fat-loss habits; then a compressed six-week pole vault specialization with a taper into 7 January, since explosive power, sprint conditioning, and technical vault work need priority and your back-safe posterior-chain loading (RDL progression) is the key risk to manage. After the vault championship we return to winter base on skis, fatbike, indoor trainer, and continued gym work, incorporating the beginner running and rowing programs as cross-training. From March, road cycling resumes and the plan builds toward the April 200 km brevet with endurance volume and tempo work, followed by a short recovery week. The final long block is the PBP build: sustained endurance rides, climbing strength, and back-to-back long rides to prepare for multi-day randonneuring, ending with a two-week taper so you arrive at PBP fresh. Fat loss is pursued steadily throughout via easy aerobic volume and consistent habits rather than aggressive restriction, protecting performance and recovery."
+    },
+    "block": {
+      "name": "Rebuild & Fat Loss Foundation",
+      "focus": "Easy aerobic re-entry (steady indoor rides, hikes, beginner run/walk), hip mobility, back-safe gym strength progression, and fat-loss habits, with the 5-hour hike on 1 November as the anchor event.",
+      "startDate": "2026-10-26",
+      "endDate": "2026-11-15",
+      "weeks": [
+        {
+          "number": 1,
+          "startDate": "2026-10-26",
+          "focus": "Freshness ahead of the 5-hour hike on 1 November: two full rest days early after last week's oversized hike, one gym session (third goblet squat set at 12 kg, light Romanian deadlifts with strict hip hinge), one or two short easy indoor rides at 140-150 W, and daily 10-15 min hip mobility.",
+          "targetLoad": "4-5 hours total: 1 gym session (50-60 min), 1-2 easy indoor rides (40-55 min at 140-150 W, flat HR line), daily hip mobility, and the 5-hour hike on Sunday 1 November (HR under 145 on climbs, summit stops under 5 minutes)."
+        },
+        {
+          "number": 2,
+          "startDate": "2026-11-02",
+          "focus": "Post-hike recovery: two easy days after the 5-hour hike, then resume the run/walk beginner progression (4 min jog / 1 min walk, HR under 145) only if legs feel fresh, a second gym session with the full back-safe progression, and a steady 60-75 min indoor ride at 145-155 W with a flat HR line.",
+          "targetLoad": "4-5 hours total: 2 gym sessions (50-60 min each, RDLs progressing carefully), 2 easy indoor rides (60-75 min at 145-155 W), 1-2 short run/walk sessions (25-30 min) only if recovered, daily hip mobility, and one 2-hour easy weekend hike or ride."
+        },
+        {
+          "number": 3,
+          "startDate": "2026-11-09",
+          "focus": "Consolidation and habit lock-in: extend the longest easy ride toward 90 minutes, complete a third gym session if recovery allows, continue the run/walk progression (5 min jog / 1 min walk), and confirm the fat-loss dinner and evening-snack habits are stable, ending the block ready for vault preparation starting 16 November.",
+          "targetLoad": "5-6 hours total: 2-3 gym sessions (50-60 min), 2-3 easy rides (60-90 min, longest steady at 145-160 W), 2 run/walk sessions (30 min), daily hip mobility, and one 2-2.5 hour weekend hike or fatbike ride as winter conditions allow."
+        }
+      ],
+      "rationale": "The block's purpose and structure are unchanged, but week 1 is revised to be lighter than originally planned: the athlete's 25 October hike was roughly four times the planned load with HR well above the easy cap, and an unplanned 60-minute ride on 24 October added volume on a planned rest day, so the 'light close' to the re-entry week did not happen. Week 1 therefore becomes a freshness week with two full rest days before the 1 November hike. Week 2 stays a post-hike recovery week with the run/walk reintroduced only if legs are fresh, and week 3 consolidates habits and extends easy volume, ending the block ready for the vault preparation phase starting 16 November. No intensity is introduced anywhere in this block; spinning classes and hard surges remain off-limits."
+    },
+    "week": {
+      "startDate": "2026-10-26",
+      "focus": "Freshness ahead of the 5-hour hike on 1 November: short easy sessions, gym session 2 with RDL introduction, and daily hip mobility.",
+      "sessions": [
+        {
+          "date": "2026-10-26",
+          "day": "Monday",
+          "type": "rest",
+          "title": "Rest and hip mobility",
+          "description": "Full rest after Sunday's bigger-than-planned mountain hike. 10-15 minutes of hip mobility: couch stretch 2x60s/side, 90/90 hip rotations 2x10/side, standing forward-fold with soft knees 3x30s, supine piriformis stretch 2x45s/side.",
+          "durationMinutes": 15,
+          "intensity": "rest",
+          "status": "rest",
+          "outdoor": false,
+          "canBeOutdoor": false
+        },
+        {
+          "date": "2026-10-27",
+          "day": "Tuesday",
+          "type": "workout",
+          "title": "Gym strength session 2",
+          "description": "Warm-up: 5 min easy rowing, HR under 130. Main: goblet squat 3x10 at 12 kg; Romanian deadlift 3x8 with empty bar or 20 kg, strict hip hinge, spine neutral, stop at mid-shin; glute bridge 3x12; lat pulldown 3x10 at 40-50 kg; Pallof press 3x10/side; plank 3x45s. Finish with 12-15 minutes of hip stretching. Total 50-60 min.",
+          "durationMinutes": 55,
+          "intensity": "moderate",
+          "status": "planned",
+          "outdoor": false,
+          "canBeOutdoor": false
+        },
+        {
+          "date": "2026-10-28",
+          "day": "Wednesday",
+          "type": "workout",
+          "title": "Easy indoor ride",
+          "description": "45-55 min on the trainer, ERG mode. 15 min warm-up at 90-110 W, then 25-30 min perfectly steady at 140-150 W, cadence 85-95, HR 125-145 with a flat line (back off if HR drifts more than ~10 bpm above target), 5 min cool-down. No surges, no intervals.",
+          "durationMinutes": 50,
+          "intensity": "easy",
+          "status": "planned",
+          "outdoor": false,
+          "canBeOutdoor": false
+        },
+        {
+          "date": "2026-10-29",
+          "day": "Thursday",
+          "type": "rest",
+          "title": "Rest and extended hip mobility",
+          "description": "Full rest day. 15 minutes of hip mobility and stretching: couch stretch, 90/90 rotations, deep squat holds 3x30s holding a support, hamstring stretches. Keep everything gentle.",
+          "durationMinutes": 15,
+          "intensity": "rest",
+          "status": "rest",
+          "outdoor": false,
+          "canBeOutdoor": false
+        },
+        {
+          "date": "2026-10-30",
+          "day": "Friday",
+          "type": "workout",
+          "title": "Short easy indoor ride or flat walk",
+          "description": "Only if legs feel fresh: 40-45 min easy trainer ride, 10 min warm-up at 90-110 W then 25 min steady at 135-145 W, HR under 140, 5 min cool-down. If legs are heavy from the week, replace with a 40-minute flat walk (HR under 120). Either way, finish with 10 minutes of hip mobility.",
+          "durationMinutes": 45,
+          "intensity": "easy",
+          "status": "planned",
+          "outdoor": false,
+          "canBeOutdoor": true
+        },
+        {
+          "date": "2026-10-31",
+          "day": "Saturday",
+          "type": "rest",
+          "title": "Full rest before the long hike",
+          "description": "Complete rest ahead of Sunday's 5-hour hike. Optional 10 minutes of gentle hip mobility in the evening. Prepare gear, food, and clothing for tomorrow; eat a normal dinner and avoid late-night snacking so you start the hike fueled but not heavy.",
+          "durationMinutes": 10,
+          "intensity": "rest",
+          "status": "rest",
+          "outdoor": false,
+          "canBeOutdoor": false
+        },
+        {
+          "date": "2026-11-01",
+          "day": "Sunday",
+          "type": "workout",
+          "title": "5-hour anchor hike",
+          "description": "The block's anchor event: approximately 5 hours of mountain hiking, 15-20 km with 600-900 m of climbing. Keep HR under 145 on climbs (walk steep pitches with short strides rather than surging), summit and food stops under 5 minutes each, and aim for a steady, even effort throughout. Carry snacks and eat a little every hour.",
+          "durationMinutes": 300,
+          "intensity": "moderate",
+          "status": "planned",
+          "outdoor": true,
+          "canBeOutdoor": true
+        }
+      ],
+      "rationale": "Sunday's hike was roughly four times the planned load with HR well above the easy cap, and an unplanned 60-minute ride landed on Saturday's planned rest day, so the 'light close' to the re-entry week did not happen. This week is therefore deliberately stripped back: two full rest days early, only short easy aerobic work, no run/walk until legs prove fresh, and the gym session progressing exactly as agreed after session 1 (third goblet squat set, light RDLs, extended stretching). Sunday's 5-hour hike is the anchor: HR under 145 on climbs, summit stops under 5 minutes."
+    },
+    "today": {
+      "date": "2026-10-26",
+      "type": "rest",
+      "title": "Rest and hip mobility",
+      "description": "Full rest after Sunday's bigger-than-planned mountain hike (11.1 km, 608 m climbing, HR in the 140s-160s). Do 10-15 minutes of hip mobility: couch stretch 2x60s/side, 90/90 hip rotations 2x10/side, standing forward-fold with soft knees 3x30s, supine piriformis stretch 2x45s/side.",
+      "durationMinutes": 15,
+      "intensity": "rest",
+      "alternatives": [
+        "If you feel restless, a 20-30 minute flat walk (HR under 120) is acceptable, but no more than that."
+      ],
+      "rationale": "Yesterday's hike was roughly four times the planned load with HR well above the easy cap, just a week before the 5-hour hike on 1 November. Rest today is the best way to absorb that overshoot and arrive fresh for the anchor event, while the mobility work directly targets the hip flexibility that limits your riding position and causes sit-bone and back issues on long rides.",
+      "optional": false,
+      "optionalRationale": "Rest is not optional today: skipping it would carry yesterday's fatigue into the week and compromise the 5-hour hike on 1 November, the block's anchor event.",
+      "status": "rest",
+      "outdoor": false,
+      "canBeOutdoor": false
+    },
+    "tomorrow": {
+      "date": "2026-10-27",
+      "type": "workout",
+      "title": "Gym strength session 2",
+      "description": "Warm-up: 5 min easy rowing, HR under 130. Main: goblet squat 3x10 at 12 kg (complete all three sets this time); Romanian deadlift 3x8 with empty bar or 20 kg, strict hip hinge, spine neutral, stop at mid-shin; glute bridge 3x12; lat pulldown 3x10 at 40-50 kg; Pallof press 3x10/side; plank 3x45s. Finish with 12-15 minutes of hip stretching. Total 50-60 min.",
+      "durationMinutes": 55,
+      "intensity": "moderate",
+      "alternatives": [
+        "If the gym is unavailable: same exercises at home with a backpack/dumbbell, keeping loads conservative."
+      ],
+      "rationale": "This is the second back-safe strength session of the rebuild, adding the third goblet squat set and introducing light Romanian deadlifts to begin loading the posterior chain through a strict hip hinge — the exact progression needed both for your hip flexibility and back-robustness goals and as the foundation for pole vault loading later in the block sequence.",
+      "optional": false,
+      "optionalRationale": "Skipping this session delays the posterior-chain strength progression that underpins both your long-ride back durability and the vault preparation starting 16 November; with two rest days this week there is no fatigue reason to miss it.",
+      "status": "planned",
+      "outdoor": false,
+      "canBeOutdoor": false
+    },
+    "nextWeek": null,
+    "nextBlock": null
+  },
+  "refresh": {
+    "season": {
+      "goal": "Finish the randonneur brevet series (200 km in April 2027) and complete Paris-Brest-Paris in August 2027, while competing in the pole vault world championship on 2027-01-07, losing fat from 24.5% to 15% body fat, and rebuilding general cycling fitness.",
+      "startDate": "2026-10-26",
+      "endDate": "2027-08-22",
+      "blocks": [
+        {
+          "name": "Rebuild & Fat Loss Foundation",
+          "focus": "Easy aerobic re-entry (steady indoor rides, hikes, beginner run/walk), hip mobility, back-safe gym strength progression (goblet squats, RDLs, Pallof press), and establishing fat-loss habits; prepare for the 5-hour hike on 1 November.",
+          "startDate": "2026-10-26",
+          "endDate": "2026-11-15",
+          "weekCount": 3
+        },
+        {
+          "name": "Vault Preparation Base",
+          "focus": "Transition toward pole vault demands: sprint/run conditioning, plyometrics, progressive posterior-chain loading, and technical vault work, with easy cycling and hiking as supporting aerobic volume.",
+          "startDate": "2026-11-16",
+          "endDate": "2026-12-20",
+          "weekCount": 5
+        },
+        {
+          "name": "Vault Peak & Taper",
+          "focus": "Sharpen explosive power and vault technique with reduced volume, full recovery, and a taper into the pole vault world championship on 2027-01-07.",
+          "startDate": "2026-12-21",
+          "endDate": "2027-01-10",
+          "weekCount": 3
+        },
+        {
+          "name": "Winter Aerobic Base",
+          "focus": "Post-championship recovery then broad aerobic base via cross-country skiing, snowshoeing, fatbike and indoor trainer rides, beginner rowing and running programs, and continued gym strength; steady fat-loss focus.",
+          "startDate": "2027-01-11",
+          "endDate": "2027-02-28",
+          "weekCount": 7
+        },
+        {
+          "name": "Brevet Build",
+          "focus": "Return to road cycling in March; build endurance volume, tempo and climbing strength toward the 200 km brevet in April, with indoor ERG intervals for FTP and long weekend rides.",
+          "startDate": "2027-03-01",
+          "endDate": "2027-04-18",
+          "weekCount": 7
+        },
+        {
+          "name": "Recovery & General Fitness Reset",
+          "focus": "Short recovery week after the brevet, then reintroduce general cycling fitness: structured indoor intervals, group rides, and preparation for longer tour races, plus continued strength and mobility.",
+          "startDate": "2027-04-19",
+          "endDate": "2027-05-16",
+          "weekCount": 4
+        },
+        {
+          "name": "PBP Endurance Build",
+          "focus": "Long-distance specialization: progressively longer endurance rides, back-to-back long weekend rides, night riding practice, climbing volume, and fueling/handling rehearsal for multi-day randonneuring.",
+          "startDate": "2027-05-17",
+          "endDate": "2027-07-18",
+          "weekCount": 9
+        },
+        {
+          "name": "PBP Final Preparation & Taper",
+          "focus": "Final long rides with full brevet simulation, then a two-week taper reducing volume while keeping intensity touches so you arrive at Paris-Brest-Paris fresh and confident.",
+          "startDate": "2027-07-19",
+          "endDate": "2027-08-22",
+          "weekCount": 5
+        }
+      ],
+      "rationale": "The season spans roughly ten months from a detrained state to Paris-Brest-Paris in August 2027, with two intermediate peaks: the pole vault world championship on 7 January and the 200 km brevet in April. Given your history of sustaining disciplined training for at most about four months, the plan deliberately avoids one long linear ramp. Instead it uses short, focused blocks with distinct purposes: first a low-intensity foundation phase that rebuilds the aerobic base, hip mobility, and gym strength while establishing the fat-loss habits; then a compressed six-week pole vault specialization with a taper into 7 January, since explosive power, sprint conditioning, and technical vault work need priority and your back-safe posterior-chain loading (RDL progression) is the key risk to manage. After the vault championship we return to winter base on skis, fatbike, indoor trainer, and continued gym work, incorporating the beginner running and rowing programs as cross-training. From March, road cycling resumes and the plan builds toward the April 200 km brevet with endurance volume and tempo work, followed by a short recovery week. The final long block is the PBP build: sustained endurance rides, climbing strength, and back-to-back long rides to prepare for multi-day randonneuring, ending with a two-week taper so you arrive at PBP fresh. Fat loss is pursued steadily throughout via easy aerobic volume and consistent habits rather than aggressive restriction, protecting performance and recovery."
+    },
+    "block": {
+      "name": "Rebuild & Fat Loss Foundation",
+      "focus": "Easy aerobic re-entry (steady indoor rides, hikes, beginner run/walk), hip mobility, back-safe gym strength progression, and fat-loss habits, anchored by the 5-hour hike on 1 November.",
+      "startDate": "2026-10-26",
+      "endDate": "2026-11-15",
+      "weeks": [
+        {
+          "number": 1,
+          "startDate": "2026-10-26",
+          "focus": "Freshness ahead of the 5-hour hike on 1 November, with the anchor hike completed on Sunday.",
+          "targetLoad": "4-5 hours total: 1 gym session, 1-2 easy indoor rides at 140-150 W, daily hip mobility, and the 5-hour hike on 1 November (completed)."
+        },
+        {
+          "number": 2,
+          "startDate": "2026-11-02",
+          "focus": "Post-hike recovery: two easy days after the 5-hour hike, run/walk reintroduced only if legs are fresh, full back-safe gym progression, and a steady 60-75 min indoor ride at 145-155 W.",
+          "targetLoad": "4-5 hours total: 2 gym sessions (50-60 min each, RDLs progressing carefully), 2 easy indoor rides (60-75 min at 145-155 W), 1 short run/walk (25-30 min) only if recovered, daily hip mobility, and one 2-hour easy weekend hike or fatbike ride."
+        },
+        {
+          "number": 3,
+          "startDate": "2026-11-09",
+          "focus": "Consolidation and habit lock-in: extend the longest easy ride toward 90 minutes, continue the run/walk progression (5 min jog / 1 min walk), and confirm the fat-loss dinner and evening-snack habits are stable, ending the block ready for vault preparation starting 16 November.",
+          "targetLoad": "5-6 hours total: 2-3 gym sessions (50-60 min), 2-3 easy rides (60-90 min, longest steady at 145-160 W), 2 run/walk sessions (30 min), daily hip mobility, and one 2-2.5 hour weekend hike or fatbike ride as winter conditions allow."
+        }
+      ],
+      "rationale": "The block's structure and dates are unchanged. Week 1 was revised to a freshness week after the oversized 25 October hike, and the 1 November anchor hike has now been completed, so week 2 becomes a post-hike recovery week with the run/walk reintroduced only if legs are fresh, and week 3 consolidates habits and extends easy volume before the vault preparation phase begins on 16 November. The January 7 pole vault world championship is already reflected in the season plan's Vault Preparation Base and Vault Peak & Taper blocks; this block stays purely easy and back-safe, with the RDL progression deliberately building the posterior-chain foundation that vault loading will require."
+    },
+    "week": {
+      "startDate": "2026-11-02",
+      "focus": "Post-hike recovery and habit re-establishment: easy aerobic work, back-safe gym progression, and reintroduction of the run/walk only if legs are fresh.",
+      "sessions": [
+        {
+          "date": "2026-11-02",
+          "day": "Monday",
+          "type": "rest",
+          "title": "Full rest + hip mobility",
+          "description": "Recovery day after Sunday's 5-hour hike. 10-15 minutes of hip mobility: couch stretch, 90/90 hip rotations, straight-leg hamstring reach toward the floor, and gentle cat-cow. No training.",
+          "durationMinutes": 15,
+          "intensity": "rest",
+          "status": "rest",
+          "outdoor": false,
+          "canBeOutdoor": false
+        },
+        {
+          "date": "2026-11-03",
+          "day": "Tuesday",
+          "type": "workout",
+          "title": "Gym strength session 1",
+          "description": "10 min rowing warm-up (HR under 130). Goblet squat 3x10 at 12 kg (all three sets this time). Romanian deadlift 3x10 with an empty bar or 20 kg, strict hip hinge, stop at any back twinge. Glute bridge 3x12. Lat pulldown 3x10 progressing 40-50 kg. Pallof press 3x10/side. Plank 3x30-45s. Finish with 10 minutes of hip stretching.",
+          "durationMinutes": 60,
+          "intensity": "moderate",
+          "status": "planned",
+          "outdoor": false,
+          "canBeOutdoor": false
+        },
+        {
+          "date": "2026-11-04",
+          "day": "Wednesday",
+          "type": "workout",
+          "title": "Easy indoor ride",
+          "description": "60 min on the trainer in ERG mode: 10 min warm-up at 100-120 W, then 45 min steady at 145-155 W, cadence 85-95, HR 125-145 with a flat line — back off immediately if HR drifts more than ~10 bpm above target. 5 min cool-down.",
+          "durationMinutes": 60,
+          "intensity": "easy",
+          "status": "planned",
+          "outdoor": false,
+          "canBeOutdoor": false
+        },
+        {
+          "date": "2026-11-05",
+          "day": "Thursday",
+          "type": "workout",
+          "title": "Run/walk (if legs are fresh)",
+          "description": "25-30 min flat run/walk: 4 min easy jog / 1 min walk, HR under 145. If legs are still heavy from the hike and Tuesday's gym session, replace with a 30-40 min flat walk. Follow with 10 min hip mobility.",
+          "durationMinutes": 30,
+          "intensity": "easy",
+          "status": "planned",
+          "outdoor": true,
+          "canBeOutdoor": true
+        },
+        {
+          "date": "2026-11-06",
+          "day": "Friday",
+          "type": "rest",
+          "title": "Rest + hip mobility",
+          "description": "Full rest day. 10-15 minutes of hip mobility and stretching, plus a short walk if desired. Keep the fat-loss habits on track: measured dinner portion, no evening snacks.",
+          "durationMinutes": 15,
+          "intensity": "rest",
+          "status": "rest",
+          "outdoor": false,
+          "canBeOutdoor": false
+        },
+        {
+          "date": "2026-11-07",
+          "day": "Saturday",
+          "type": "workout",
+          "title": "Gym strength session 2",
+          "description": "10 min rowing warm-up (HR under 130). Goblet squat 3x10 at 12 kg. Romanian deadlift 3x10, add 5-10 kg only if the hinge felt clean on Tuesday. Glute bridge 3x12. Lat pulldown 3x10 at 50 kg. Pallof press 3x10/side. Side plank 2x30s/side. 10 min hip stretching.",
+          "durationMinutes": 60,
+          "intensity": "moderate",
+          "status": "planned",
+          "outdoor": false,
+          "canBeOutdoor": false
+        },
+        {
+          "date": "2026-11-08",
+          "day": "Sunday",
+          "type": "workout",
+          "title": "2-hour easy hike or fatbike ride",
+          "description": "2 hours easy: a hike with 300-500 m of climbing, HR under 135 on the flats and under 145 on steep pitches, summit stops under 5 minutes; or a fatbike ride at an easy effort, HR under 145. Choose based on weather and trail conditions.",
+          "durationMinutes": 120,
+          "intensity": "easy",
+          "status": "planned",
+          "outdoor": true,
+          "canBeOutdoor": true
+        }
+      ],
+      "rationale": "Sunday's 5-hour hike was the block's anchor event and the biggest recent load, so Monday is a full rest day with hip mobility. The rest of the week follows the revised week 2 plan: two gym sessions building the back-safe progression (third goblet squat set, careful RDL loading), two steady indoor rides at 145-155 W with a flat HR line, a short run/walk reintroduced mid-week only if the legs feel recovered, and a 2-hour easy weekend hike or fatbike ride. All intensity stays easy; spinning classes and surges remain off-limits."
+    },
+    "today": {
+      "date": "2026-11-02",
+      "type": "rest",
+      "title": "Full rest + hip mobility",
+      "description": "Recovery day after Sunday's 5-hour hike. 10-15 minutes of hip mobility: couch stretch, 90/90 hip rotations, straight-leg hamstring reach toward the floor, and gentle cat-cow. No training.",
+      "durationMinutes": 15,
+      "intensity": "rest",
+      "alternatives": [
+        "Add a short 20-30 min flat walk if you feel restless, keeping HR under 120"
+      ],
+      "rationale": "Sunday's 5-hour hike was the biggest load you've had since the July bikepacking race, and the 25 October hike before it was also oversized. A genuine rest day today is what lets Tuesday's gym session and the rest of the week land well, and it protects your back and hips as the RDL progression begins.",
+      "optional": false,
+      "optionalRationale": "Rest is the best choice today: after the anchor hike, recovery is the training effect — skipping mobility would slow the hip-flexibility progress that underpins both your long-ride comfort and the vault preparation starting 16 November.",
+      "status": "rest",
+      "outdoor": false,
+      "canBeOutdoor": false
+    },
+    "tomorrow": {
+      "date": "2026-11-03",
+      "type": "workout",
+      "title": "Gym strength session 1",
+      "description": "10 min rowing warm-up (HR under 130). Goblet squat 3x10 at 12 kg (all three sets this time). Romanian deadlift 3x10 with an empty bar or 20 kg, strict hip hinge, stop at any back twinge. Glute bridge 3x12. Lat pulldown 3x10 progressing 40-50 kg. Pallof press 3x10/side. Plank 3x30-45s. Finish with 10 minutes of hip stretching (double last week's 2.5 minutes).",
+      "durationMinutes": 60,
+      "intensity": "moderate",
+      "alternatives": [
+        "If the gym is unreachable, do the same session with dumbbells at home, keeping loads conservative"
+      ],
+      "rationale": "This is the first full back-safe strength session of the block, adding the third goblet squat set and introducing Romanian deadlifts. The RDL progression is the foundation your posterior chain needs both for the hip flexibility goal (touching the floor with straight legs) and for the pole vault loading that starts in the vault preparation block on 16 November.",
+      "optional": false,
+      "optionalRationale": "Skipping this session delays the posterior-chain and hip-hinge foundation that the January 7 vault championship depends on — every week without careful RDL loading compresses the runway for safe explosive work later. The hip stretching also directly targets the sit-bone and back-ache problems on long rides.",
+      "status": "planned",
+      "outdoor": false,
+      "canBeOutdoor": false
+    },
+    "nextWeek": null,
+    "nextBlock": null
+  }
+}

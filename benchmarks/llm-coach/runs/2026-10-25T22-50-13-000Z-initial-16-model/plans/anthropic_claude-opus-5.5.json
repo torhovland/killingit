@@ -1,0 +1,457 @@
+{
+  "full": {
+    "season": {
+      "goal": "Finish Paris-Brest-Paris (August 2027) comfortably and with a decent pace. Along the way: complete a full randonneur brevet series starting with a 200 km in April, compete in the pole vault world championship on 7 January 2027, and do some longer tour races. Fat loss from 24.5% toward 15% body fat. Improve hip flexibility, core and back resilience.",
+      "startDate": "2026-10-26",
+      "endDate": "2027-08-19",
+      "blocks": [
+        {
+          "name": "Rebuild & Habit Foundation",
+          "focus": "Rebuild consistency with easy aerobic cycling (Z2 power), hiking, the beginner run/walk and rowing programmes, back-safe gym technique (hinge, goblet squat, light RDL, core), daily hip mobility, and fat-loss eating habits for evenings.",
+          "startDate": "2026-10-26",
+          "endDate": "2026-11-22",
+          "weekCount": 4
+        },
+        {
+          "name": "Pole Vault Prep & Winter Aerobic Maintenance",
+          "focus": "Vault-specific sprints, low-volume plyometrics, technical vaulting and progressive posterior-chain and upper-body strength with strict back safety. Easy cycling, skiing and snowshoeing maintain the aerobic base. The run and row programmes continue at an easy level.",
+          "startDate": "2026-11-23",
+          "endDate": "2026-12-27",
+          "weekCount": 5
+        },
+        {
+          "name": "Vault Taper & World Championship",
+          "focus": "Reduce volume while keeping sharpness (short sprints, technical runs) and maintenance strength. Keep food intake at maintenance, with no deficit. Compete on 7 January, then recover with easy aerobic sessions.",
+          "startDate": "2026-12-28",
+          "endDate": "2027-01-10",
+          "weekCount": 2
+        },
+        {
+          "name": "Winter Base & Strength",
+          "focus": "High-volume low-intensity aerobic work (XC skiing, snowshoeing, fatbike, Z2 trainer, rowing, stair machine). Progressive gym strength (squat, RDL, split squat, rows, core) and hip mobility to support a lower, more aerodynamic bike position. Steady fat loss.",
+          "startDate": "2027-01-11",
+          "endDate": "2027-02-28",
+          "weekCount": 7
+        },
+        {
+          "name": "Pre-Season Return to Road",
+          "focus": "Begin disciplined training: sweet spot and tempo intervals in ERG mode, long outdoor road rides building toward 150+ km, saddle and position adaptation, and fuelling practice. Strength shifts toward maintenance.",
+          "startDate": "2027-03-01",
+          "endDate": "2027-04-04",
+          "weekCount": 5
+        },
+        {
+          "name": "Brevet Build (200–300 km)",
+          "focus": "Complete the 200 km and then the 300 km brevets comfortably. Add threshold and VO2max sessions, and use tour races as quality efforts. Build long-ride durability with maintenance strength and mobility.",
+          "startDate": "2027-04-05",
+          "endDate": "2027-05-30",
+          "weekCount": 8
+        },
+        {
+          "name": "PBP-Specific Endurance (400–600 km)",
+          "focus": "Complete the 400 and 600 km brevets and some back-to-back long days. Rehearse night riding, sleep management, nutrition and pacing. Hold threshold and tempo with one quality session per week. Fat-loss deficit paused around long events.",
+          "startDate": "2027-05-31",
+          "endDate": "2027-07-25",
+          "weekCount": 8
+        },
+        {
+          "name": "Taper & Paris-Brest-Paris",
+          "focus": "Cut volume progressively while keeping short intensity touches. Finalise equipment, bike fit and the nutrition plan. Arrive fresh and well fuelled for PBP.",
+          "startDate": "2027-07-26",
+          "endDate": "2027-08-19",
+          "weekCount": 4
+        }
+      ],
+      "rationale": "You are detrained after July's 1130 km race, with FTP around 220 W against roughly 280 W when fit. You also have a back that injures easily, a fat-loss priority, and an honest history of keeping disciplined training going for only about 4 months.\n\nThe season is therefore shaped as a low-pressure but purposeful foundation, followed by a single disciplined arc of roughly 4.5 months peaking at PBP.\n\nFoundation phase (October to February):\n- The opening rebuild re-establishes the training habit with easy aerobic work, hiking and the beginner run and row programmes.\n- Gym work is back-safe: hip-hinge technique, goblet squats, RDL progression, anti-rotation core and daily hip mobility. This targets the flexibility and back problems that cause saddle and climbing issues.\n- The pole vault world championship on 7 January gets a short specific block. It uses sprints, low-volume plyometrics and careful posterior-chain loading, then a two-week taper and the meet. Easy endurance continues underneath as maintenance.\n- After the meet, a winter base block uses skiing, snowshoeing, fatbike, rowing, stair machine and Z2 trainer riding with progressive strength. This gives high aerobic volume at low injury risk. It also supports a modest calorie deficit, since easy volume is the best fat-loss stimulus and threshold work is not needed yet.\n\nDisciplined phase (March to August):\n- In March, road riding returns with a pre-season block that adds sweet spot and tempo. This restores FTP toward 260+ W and builds the saddle tolerance and position changes needed for April's 200 km.\n- The brevet build progresses from 200 to 300 km while adding threshold and VO2max work. Tour races fit here as quality sessions.\n- The specific-endurance block completes the 400 and 600 km brevets. It adds back-to-back long days, night riding, fuelling and pacing practice, and gym work shifts to strength maintenance.\n- A 3–4 week taper cuts volume while keeping some intensity, so you arrive fresh at PBP.\n\nFat-loss approach: the deficit is kept modest throughout and removed during the vault taper, long brevets and the PBP taper, so it does not compromise performance or recovery."
+    },
+    "block": {
+      "name": "Rebuild & Habit Foundation",
+      "focus": "Rebuild consistency with easy aerobic cycling (Z2 power), hiking, the beginner run/walk and rowing programmes, back-safe gym technique (hinge, goblet squat, light RDL, core), daily hip mobility, and fat-loss eating habits for evenings.",
+      "startDate": "2026-10-26",
+      "endDate": "2026-11-22",
+      "weeks": [
+        {
+          "number": 1,
+          "startDate": "2026-10-26",
+          "focus": "Absorb the 25 Oct hike. Gym 2 adds a third goblet set and RDL technique. Intro row, one 30-min run/walk, one Z2 ERG ride, easy long hike on 1 Nov, daily hip mobility.",
+          "targetLoad": "~8 h total (4.5-5 h hike); 1 gym; 1 Z2 ride 60 min at 145 W; 1 row 35 min; 1 run/walk 35 min; all Z1-Z2"
+        },
+        {
+          "number": 2,
+          "startDate": "2026-11-02",
+          "focus": "Consistency: 2 Z2 rides at 140-150 W, 2 run/walks (3-4 min jog intervals), 2 rows of 20-25 min, 2 gym sessions with goblet squat and RDL progression, weekend hike or fatbike 2-2.5 h.",
+          "targetLoad": "6.5-7.5 h; 2 gym; no intervals; HR under 145 on all cardio"
+        },
+        {
+          "number": 3,
+          "startDate": "2026-11-09",
+          "focus": "Progression: weekend ride, fatbike or snowshoe 2.5-3 h at Z2. Run/walk with 5-8 min jog segments plus 4-6 relaxed strides once. Row 25 min. Gym adds split squat and single-arm row, with RDL loads up slightly.",
+          "targetLoad": "7-8 h; 2 gym; all Z1-Z2 except strides"
+        },
+        {
+          "number": 4,
+          "startDate": "2026-11-16",
+          "focus": "Consolidation: keep frequency but cut duration about 25%. Gym holds loads with a hinge/squat reassessment and the toe-touch test. Arrive fresh for vault prep.",
+          "targetLoad": "5-5.5 h; 2 gym (reduced sets); 1 Z2 ride 60 min, 1 hike 2 h, 2 short runs, 1 row; all easy"
+        }
+      ],
+      "rationale": "Dates and focus stay the same. Last week showed good steady-HR control on the trainer at about 120-135 W and solid tolerance of hikes and rides, so the aerobic base is there. Gym capacity is still low: quads burned at 12 kg and deadlifts were skipped.\n\nThe main risk is unplanned volume and intensity, such as the hike and the extra rides, rather than too little work. The block therefore keeps planned sessions explicit and prefers flexibility within easy intensity.\n\nWith the 7 January vault meet now in the plan:\n- run/walk progression and short strides start in weeks 2-3, to prepare tendons for sprints\n- RDL and glute loading progress steadily, to prepare the posterior chain for vault-specific work from 23 November\n- recreational vaulting stays light and playful\n\nTrainer power targets rise to 140-150 W as HR allows. Week 4 stays lighter so you arrive fresh for vault prep."
+    },
+    "week": {
+      "startDate": "2026-10-26",
+      "focus": "Absorb the 25 Oct hike, then easy re-entry: second gym session with RDL technique, intro row, short run/walk, one Z2 ride, easy long hike on 1 Nov",
+      "sessions": [
+        {
+          "date": "2026-10-26",
+          "day": "Monday",
+          "type": "rest",
+          "title": "Rest + hip mobility",
+          "description": "Full rest after Sunday's big hike. 15 min hip mobility (90/90 switches, couch stretch, hip flexor stretch, hamstring strap, cat-cow, child's pose). Optional flat walk of 20-30 min at HR under 110.",
+          "durationMinutes": 15,
+          "intensity": "rest",
+          "status": "rest",
+          "outdoor": false,
+          "canBeOutdoor": true
+        },
+        {
+          "date": "2026-10-27",
+          "day": "Tuesday",
+          "type": "workout",
+          "title": "Gym session: back-safe strength 2",
+          "description": "8 min row warm-up, then goblet squat 3x10 at 12 kg, RDL technique (dowel 2x8, then 2x8 kg dumbbells 2x8), loaded glute bridge 3x12 with 10 kg, lat pulldown 3x10 at 45 kg, cable row 3x10 at 35 kg, Pallof press 3x10/side, planks, dead bug. Finish with 10 min stretching.",
+          "durationMinutes": 60,
+          "intensity": "easy",
+          "status": "planned",
+          "outdoor": false,
+          "canBeOutdoor": false
+        },
+        {
+          "date": "2026-10-28",
+          "day": "Wednesday",
+          "type": "workout",
+          "title": "Beginner row intro + mobility",
+          "description": "5 min easy technique rowing (legs, body, arms), then 3x4 min at 20-22 spm, HR 115-130, with 1 min easy between. 3 min cool-down. Damper at 4-5. Follow with 10 min hip mobility.",
+          "durationMinutes": 35,
+          "intensity": "easy",
+          "status": "planned",
+          "outdoor": false,
+          "canBeOutdoor": false
+        },
+        {
+          "date": "2026-10-29",
+          "day": "Thursday",
+          "type": "workout",
+          "title": "Run/walk 30 min",
+          "description": "5 min brisk walk, then 5 rounds of 3 min easy jog / 2 min walk, jog HR under 145. Finish with a 5 min walk. Headlamp if dark, soft surface preferred. Stretch calves and hip flexors for 5 min after.",
+          "durationMinutes": 35,
+          "intensity": "easy",
+          "status": "planned",
+          "outdoor": true,
+          "canBeOutdoor": true
+        },
+        {
+          "date": "2026-10-30",
+          "day": "Friday",
+          "type": "workout",
+          "title": "Z2 ERG ride 60 min",
+          "description": "10 min warm-up ramping from 100 to 130 W. Then 45 min ERG at 145 W, cadence 85-95, HR 120-140; drop to 135 W if HR goes above 140. 5 min cool-down at 100 W. Practise a forward pelvic roll for 2 min, twice.",
+          "durationMinutes": 60,
+          "intensity": "easy",
+          "status": "planned",
+          "outdoor": false,
+          "canBeOutdoor": false
+        },
+        {
+          "date": "2026-10-31",
+          "day": "Saturday",
+          "type": "rest",
+          "title": "Rest + hip mobility",
+          "description": "Rest ahead of the long hike. 15 min hip mobility. Prepare food and drink for about 40-60 g carbs per hour on Sunday's hike.",
+          "durationMinutes": 15,
+          "intensity": "rest",
+          "status": "rest",
+          "outdoor": false,
+          "canBeOutdoor": true
+        },
+        {
+          "date": "2026-11-01",
+          "day": "Sunday",
+          "type": "workout",
+          "title": "Long easy mountain hike",
+          "description": "4.5-5 h hike at HR under 135. Use short strides on steep pitches and keep stops under 5 min each. Eat on the move. Bring a headlamp, warm layers and spikes if icy. Stretch for 10 min after.",
+          "durationMinutes": 285,
+          "intensity": "easy",
+          "status": "planned",
+          "outdoor": true,
+          "canBeOutdoor": true
+        }
+      ],
+      "rationale": "Last week ended with unplanned volume: two easy rides plus a 2h45 mountain hike with hard climbs. Monday is therefore full rest.\n\nThe rest of the week builds the block's habits in small, purposeful doses:\n- Tuesday gym: hinge and squat progression for back safety and vault prep\n- Wednesday rowing intro: the start of the beginner programme\n- Thursday run/walk: tendon preparation for the sprints in the vault block\n- Friday Z2 ERG ride at 145 W: aerobic base for the cycling season\n- Saturday rest, so Sunday's long hike stays genuinely easy (HR under 135)\n\nEvery session stays at easy intensity. Please stick to the plan rather than adding extra sessions: unplanned load is currently the main risk to your back and to consistency. Evening nutrition habits (protein snack after work, standard plate, kitchen closed at 21:00) run all week. No forecast was supplied, and you are fine with rain and darkness."
+    },
+    "today": {
+      "date": "2026-10-26",
+      "type": "rest",
+      "title": "Rest + hip mobility",
+      "description": "Full rest after Sunday's 2h45 mountain hike (608 m, HR in the 140s-160s on climbs) and two extra rides on Friday and Saturday.\n\n15 min hip mobility:\n- 90/90 hip switches 2x8/side\n- couch stretch 2x60 s/side\n- half-kneeling hip flexor stretch with glute squeeze 2x45 s/side\n- supine hamstring strap stretch 2x60 s/side\n- cat-cow x10\n- child's pose 60 s\n\nOptional 20-30 min flat walk, HR under 110.\n\nNutrition: have a protein snack (250 g skyr) before leaving work, put dinner on a standard plate with half of it vegetables, and close the kitchen at 21:00.",
+      "durationMinutes": 15,
+      "intensity": "rest",
+      "alternatives": [
+        "20-30 min flat walk at HR under 110 plus the mobility routine",
+        "Mobility routine only, done in the evening before bed"
+      ],
+      "rationale": "You stacked three unplanned days in a row: rides on Friday and Saturday, then a big hike with hard climbs on Sunday. A full rest day lets your legs and back absorb that load. It means tomorrow's gym session, where the RDL is introduced, starts on fresh, uninjured tissue. Pushing on now raises the injury risk for your sensitive back. Daily hip mobility is the one habit that directly attacks your saddle-pressure and back-ache problems, so do it even on rest days.",
+      "optional": false,
+      "optionalRationale": "Rest is the session. The 15 min of mobility should not be skipped: hip flexibility only changes with daily frequency.",
+      "status": "rest",
+      "outdoor": false,
+      "canBeOutdoor": true
+    },
+    "tomorrow": {
+      "date": "2026-10-27",
+      "type": "workout",
+      "title": "Gym session: back-safe strength 2",
+      "description": "Warm-up: 8 min easy row, HR under 125, then cat-cow x10, glute bridge x10 and bird dog x6/side.\n\nMain work (rest 60-90 s between sets):\n1. Goblet squat to a box at parallel, 3x10 at 12 kg. Use a 3 s descent and keep ribs down. Stop if your back tightens.\n2. RDL technique: 2x8 with a dowel along your back (head, upper back and tailbone in contact), then 2x8 with 2x8 kg dumbbells. Hips back, soft knees, stop at mid-shin or wherever your back starts to round.\n3. Glute bridge 3x12 with a 2 s hold, with a 10 kg plate on the hips.\n4. Lat pulldown 3x10 at 45 kg.\n5. Seated cable row 3x10 at 35 kg.\n6. Pallof press 3x10/side.\n7. Front plank 3x30 s. Side plank 2x20 s/side.\n8. Dead bug 2x8/side.\n\nCool-down: 10 min stretching (hip flexor, hamstring strap, 90/90, pigeon), 60 s each side.\n\nKeep any pole vaulting light and playful afterwards, 15 min max.",
+      "durationMinutes": 60,
+      "intensity": "easy",
+      "alternatives": [
+        "If legs are still sore from the hike: do the full upper-body and core work, and cut squats and RDL to 2 sets at the same loads"
+      ],
+      "rationale": "This is the key session of the week for your back. It grooves the hip hinge before any real loading and adds the third goblet squat set you couldn't complete last week.",
+      "optional": false,
+      "optionalRationale": "This session builds the hinge pattern and posterior-chain tolerance that protect your back on long PBP climbs and when crouching at work. It also lays the base for the vault-prep loading that starts on 23 November. Skip it, and the RDL introduction slips a week, which compresses the safe progression before vault work begins.",
+      "status": "planned",
+      "outdoor": false,
+      "canBeOutdoor": false
+    },
+    "nextWeek": null,
+    "nextBlock": null
+  },
+  "refresh": {
+    "season": {
+      "goal": "Finish Paris-Brest-Paris (August 2027) comfortably and with a decent pace. Along the way: complete a full randonneur brevet series starting with a 200 km in April, compete in the pole vault world championship on 7 January 2027, and do some longer tour races. Fat loss from 24.5% toward 15% body fat. Improve hip flexibility, core and back resilience.",
+      "startDate": "2026-10-26",
+      "endDate": "2027-08-19",
+      "blocks": [
+        {
+          "name": "Rebuild & Habit Foundation",
+          "focus": "Rebuild consistency with easy aerobic cycling (Z2 power), hiking, the beginner run/walk and rowing programmes, back-safe gym technique (hinge, goblet squat, light RDL, core), daily hip mobility, and fat-loss eating habits for evenings.",
+          "startDate": "2026-10-26",
+          "endDate": "2026-11-22",
+          "weekCount": 4
+        },
+        {
+          "name": "Pole Vault Prep & Winter Aerobic Maintenance",
+          "focus": "Vault-specific sprints, low-volume plyometrics, technical vaulting and progressive posterior-chain and upper-body strength with strict back safety. Easy cycling, skiing and snowshoeing maintain the aerobic base. The run and row programmes continue at an easy level.",
+          "startDate": "2026-11-23",
+          "endDate": "2026-12-27",
+          "weekCount": 5
+        },
+        {
+          "name": "Vault Taper & World Championship",
+          "focus": "Reduce volume while keeping sharpness (short sprints, technical runs) and maintenance strength. Keep food intake at maintenance, with no deficit. Compete on 7 January, then recover with easy aerobic sessions.",
+          "startDate": "2026-12-28",
+          "endDate": "2027-01-10",
+          "weekCount": 2
+        },
+        {
+          "name": "Winter Base & Strength",
+          "focus": "High-volume low-intensity aerobic work (XC skiing, snowshoeing, fatbike, Z2 trainer, rowing, stair machine). Progressive gym strength (squat, RDL, split squat, rows, core) and hip mobility to support a lower, more aerodynamic bike position. Steady fat loss.",
+          "startDate": "2027-01-11",
+          "endDate": "2027-02-28",
+          "weekCount": 7
+        },
+        {
+          "name": "Pre-Season Return to Road",
+          "focus": "Begin disciplined training: sweet spot and tempo intervals in ERG mode, long outdoor road rides building toward 150+ km, saddle and position adaptation, and fuelling practice. Strength shifts toward maintenance.",
+          "startDate": "2027-03-01",
+          "endDate": "2027-04-04",
+          "weekCount": 5
+        },
+        {
+          "name": "Brevet Build (200–300 km)",
+          "focus": "Complete the 200 km and then the 300 km brevets comfortably. Add threshold and VO2max sessions, and use tour races as quality efforts. Build long-ride durability with maintenance strength and mobility.",
+          "startDate": "2027-04-05",
+          "endDate": "2027-05-30",
+          "weekCount": 8
+        },
+        {
+          "name": "PBP-Specific Endurance (400–600 km)",
+          "focus": "Complete the 400 and 600 km brevets and some back-to-back long days. Rehearse night riding, sleep management, nutrition and pacing. Hold threshold and tempo with one quality session per week. Fat-loss deficit paused around long events.",
+          "startDate": "2027-05-31",
+          "endDate": "2027-07-25",
+          "weekCount": 8
+        },
+        {
+          "name": "Taper & Paris-Brest-Paris",
+          "focus": "Cut volume progressively while keeping short intensity touches. Finalise equipment, bike fit and the nutrition plan. Arrive fresh and well fuelled for PBP.",
+          "startDate": "2027-07-26",
+          "endDate": "2027-08-19",
+          "weekCount": 4
+        }
+      ],
+      "rationale": "You are detrained after July's 1130 km race, with FTP around 220 W against roughly 280 W when fit. You also have a back that injures easily, a fat-loss priority, and an honest history of keeping disciplined training going for only about 4 months.\n\nThe season is therefore shaped as a low-pressure but purposeful foundation, followed by a single disciplined arc of roughly 4.5 months peaking at PBP.\n\nFoundation phase (October to February):\n- The opening rebuild re-establishes the training habit with easy aerobic work, hiking and the beginner run and row programmes.\n- Gym work is back-safe: hip-hinge technique, goblet squats, RDL progression, anti-rotation core and daily hip mobility. This targets the flexibility and back problems that cause saddle and climbing issues.\n- The pole vault world championship on 7 January gets a short specific block. It uses sprints, low-volume plyometrics and careful posterior-chain loading, then a two-week taper and the meet. Easy endurance continues underneath as maintenance.\n- After the meet, a winter base block uses skiing, snowshoeing, fatbike, rowing, stair machine and Z2 trainer riding with progressive strength. This gives high aerobic volume at low injury risk. It also supports a modest calorie deficit, since easy volume is the best fat-loss stimulus and threshold work is not needed yet.\n\nDisciplined phase (March to August):\n- In March, road riding returns with a pre-season block that adds sweet spot and tempo. This restores FTP toward 260+ W and builds the saddle tolerance and position changes needed for April's 200 km.\n- The brevet build progresses from 200 to 300 km while adding threshold and VO2max work. Tour races fit here as quality sessions.\n- The specific-endurance block completes the 400 and 600 km brevets. It adds back-to-back long days, night riding, fuelling and pacing practice, and gym work shifts to strength maintenance.\n- A 3–4 week taper cuts volume while keeping some intensity, so you arrive fresh at PBP.\n\nFat-loss approach: the deficit is kept modest throughout and removed during the vault taper, long brevets and the PBP taper, so it does not compromise performance or recovery."
+    },
+    "block": {
+      "name": "Rebuild & Habit Foundation",
+      "focus": "Rebuild consistency with easy aerobic cycling (Z2 power), hiking, the beginner run/walk and rowing programmes, back-safe gym technique (hinge, goblet squat, light RDL, core), daily hip mobility, and fat-loss eating habits for evenings.",
+      "startDate": "2026-10-26",
+      "endDate": "2026-11-22",
+      "weeks": [
+        {
+          "number": 1,
+          "startDate": "2026-10-26",
+          "focus": "Re-entry: absorb the 25 Oct hike, gym technique, intro row, Z2 ride, long easy hike.",
+          "targetLoad": "~8 h planned; all Z1-Z2"
+        },
+        {
+          "number": 2,
+          "startDate": "2026-11-02",
+          "focus": "Consistency: 2 Z2 ERG rides at 140-150 W, 2 run/walks (3-3.5 min jogs), 2 gym sessions with goblet squat 3x10 at 12 kg and light RDL, 1 short row, weekend hike or fatbike 2-2.5 h, daily mobility.",
+          "targetLoad": "~7 h; 2 gym; no intervals; HR under 145 on all cardio"
+        },
+        {
+          "number": 3,
+          "startDate": "2026-11-09",
+          "focus": "Progression: weekend fatbike or snowshoe 2.5-3 h at Z2. Run/walk with 5-8 min jog segments plus 4-6 relaxed strides once. 2 rows of 25 min. Gym adds split squat and single-arm row, with RDL up to 2x10-12 kg.",
+          "targetLoad": "7-8 h; 2 gym; all Z1-Z2 except strides"
+        },
+        {
+          "number": 4,
+          "startDate": "2026-11-16",
+          "focus": "Consolidation: keep frequency but cut duration about 25%. Gym holds loads with a hinge/squat reassessment and the toe-touch test. Arrive fresh for vault prep.",
+          "targetLoad": "5-5.5 h; 2 gym (reduced sets); 1 Z2 ride 60 min, 1 hike 2 h, 2 short runs, 1 row; all easy"
+        }
+      ],
+      "rationale": "Dates and focus stay the same. The week 1 data received is limited: no activities after 25 Oct are recorded, so week 2 repeats the planned consistency targets rather than progressing aggressively.\n\nThe trainer HR response at 120-135 W supports moving to 140-150 W. Gym loads progress slowly because of quad fatigue at 12 kg and your back history. RDLs start light so the posterior chain is ready for vault prep from 23 November.\n\nRun/walk builds tendon tolerance, with strides added in week 3 ahead of sprint work. Week 4 deloads so you arrive fresh."
+    },
+    "week": {
+      "startDate": "2026-11-02",
+      "focus": "Consistency week. It includes:\n- Two Z2 rides at 140-150 W.\n- Two run/walks building toward 3-3.5 min jogs.\n- One technique row.\n- Two back-safe gym sessions progressing goblet squats and introducing RDLs.\n- A 2 h weekend aerobic outing.\n- Daily hip mobility.\n- A full rest day on Sunday.",
+      "sessions": [
+        {
+          "date": "2026-11-02",
+          "day": "Monday",
+          "type": "workout",
+          "title": "Z2 ERG ride + hip mobility",
+          "description": "Indoor ERG ride, 60 min:\n- 10 min warm-up at 100-130 W.\n- 45 min at 140-150 W, cadence 85-95, HR cap 145 (drop 10 W if over).\n- 5 min cool-down at 100 W.\n\nThen 10 min mobility:\n- 90/90 hip switches, 2x8 per side.\n- Couch stretch, 2x45 s per side.\n- Hamstring strap stretch, 2x45 s per leg.\n- Cat-cow, 10 reps.",
+          "durationMinutes": 70,
+          "intensity": "easy",
+          "status": "planned",
+          "outdoor": false,
+          "canBeOutdoor": false
+        },
+        {
+          "date": "2026-11-03",
+          "day": "Tuesday",
+          "type": "workout",
+          "title": "Gym A: goblet squat progression + RDL intro",
+          "description": "Warm-up:\n- 8 min easy row, HR under 130.\n- Bodyweight squats, 2x10.\n- Dowel hinge, 2x10.\n\nMain work:\n1. Goblet squat: 4 kg x 10, then 3x10 at 12 kg with a 3 s descent. Rest 90 s.\n2. Dumbbell RDL: 3x10 at 2x8 kg to mid-shin, neutral spine.\n3. Glute bridge: 3x12 at 20 kg, 2 s pause at the top.\n4. Lat pulldown: 3x10 at 45 kg.\n5. Pallof press: 3x10 per side.\n6. Plank: 3x30 s.\n7. Dead bug: 2x8 per side.\n\nFinish with 10 min stretching (couch stretch, seated forward fold, pigeon pose), 45 s each per side. Stop anything that causes back pain.",
+          "durationMinutes": 60,
+          "intensity": "moderate",
+          "status": "planned",
+          "outdoor": false,
+          "canBeOutdoor": false
+        },
+        {
+          "date": "2026-11-04",
+          "day": "Wednesday",
+          "type": "workout",
+          "title": "Run/walk 3 min jogs + technique row",
+          "description": "Outdoor run/walk with headlamp, about 35 min:\n- 5 min brisk walk.\n- 5 rounds of 3 min easy jog / 1.5 min walk, HR cap 145. Jog slowly enough to talk.\n- 5 min walk.\n\nAt home, 20 min rowing machine:\n- Damper 3-4, 20-22 strokes per minute, HR 115-135.\n- Drive sequence is legs-body-arms. Recovery is arms-body-legs.\n- Every 5 min, row 1 min arms-only plus body swing as a drill.",
+          "durationMinutes": 55,
+          "intensity": "easy",
+          "status": "planned",
+          "outdoor": true,
+          "canBeOutdoor": true
+        },
+        {
+          "date": "2026-11-05",
+          "day": "Thursday",
+          "type": "workout",
+          "title": "Run/walk 3.5 min jogs + Z2 ride",
+          "description": "Run first, while fresh, about 25 min:\n- 3 min walk.\n- 4 rounds of 3.5 min easy jog / 1.5 min walk, HR cap 145.\n- 2 min walk.\n\nThen ride 45 min Z2, either indoors in ERG mode or outdoors on the power-meter bike with lights:\n- 5 min warm-up at 100-130 W.\n- 35 min at 145-150 W, cadence 85-95, HR cap 145.\n- 5 min easy.\n\nFinish with 5 min of couch stretch and the hamstring strap stretch.",
+          "durationMinutes": 75,
+          "intensity": "easy",
+          "status": "planned",
+          "outdoor": true,
+          "canBeOutdoor": true
+        },
+        {
+          "date": "2026-11-06",
+          "day": "Friday",
+          "type": "workout",
+          "title": "Gym B: hinge, hip thrust, pull/push, carries",
+          "description": "Warm-up:\n- 8 min easy row, HR under 130.\n- Dowel hinge, 2x10.\n- Bird dog, 2x8 per side.\n\nMain work:\n1. Goblet squat: 3x10 at 12 kg. Use 14 kg only if Tuesday's three sets felt smooth.\n2. Dumbbell RDL: 3x10 at 2x8 kg. Use 2x10 kg if Tuesday's sets were pain-free with a neutral spine.\n3. Bench hip thrust: 3x10 at 30 kg.\n4. Seated cable row: 3x12 at 35 kg.\n5. Dumbbell bench press: 3x10 at 2x12 kg.\n6. Side plank: 3x20 s per side.\n7. Suitcase carry: 3x20 m per side at 16 kg.\n\nFinish with 10 min stretching.\n\nOptional: up to 15 min of playful vault technique, with no maximal jumps.",
+          "durationMinutes": 60,
+          "intensity": "moderate",
+          "status": "planned",
+          "outdoor": false,
+          "canBeOutdoor": false
+        },
+        {
+          "date": "2026-11-07",
+          "day": "Saturday",
+          "type": "workout",
+          "title": "Easy hike or fatbike, 2 h",
+          "description": "Choose a hike or a fatbike ride, about 2 h of moving time.\n- Hike: HR 105-135. Walk steep pitches with short strides and keep stops under 5 min.\n- Fatbike: HR 110-140. There is no power meter, so ride by HR and spin easy on climbs.\n- Bring water and a small snack.\n- Swap with Sunday if the weather is clearly better then.\n\nFinish with 5 min hip stretches.",
+          "durationMinutes": 120,
+          "intensity": "easy",
+          "status": "planned",
+          "outdoor": true,
+          "canBeOutdoor": true
+        },
+        {
+          "date": "2026-11-08",
+          "day": "Sunday",
+          "type": "rest",
+          "title": "Rest + 15 min hip mobility",
+          "description": "Full rest day with no cardio. Do 15 min of mobility:\n- 90/90 hip switches.\n- Couch stretch.\n- Pigeon pose.\n- Hamstring strap stretch.\n- Cat-cow.\n- Toe-touch reach with soft knees.\n\nA relaxed walk with family is fine. Swap with Saturday if Sunday's weather is better for the outing.",
+          "durationMinutes": 15,
+          "intensity": "rest",
+          "status": "rest",
+          "outdoor": false,
+          "canBeOutdoor": false
+        }
+      ],
+      "rationale": "No activities from 26 Oct to 1 Nov were recorded, so I don't know if last week's 5-hour hike happened. You also tend to add unplanned extras, like the 24 Oct ride and the big Selbu hike. That makes this a consolidation week, not a big step up.\n\nI trimmed the original ~8.5 h layout to about 7.25 h, matching the block's ~7 h target. I also added a genuine rest day on Sunday so you start week 3 fresh. At 51 and coming back from detraining, recovery is where the adaptation actually happens.\n\nHow the week is built:\n- The two gym days are Tuesday and Friday, 72 h apart, so squat and hinge loading can progress safely ahead of vault prep on 23 November.\n- Run/walks are on Wednesday and Thursday. Two weekly exposures build the tendon tolerance needed for strides in week 3 and sprints in December.\n- Thursday pairs the second run/walk with a shorter Z2 ride, run first while fresh. This keeps two rides and two runs without adding a seventh training day.\n- Saturday holds the longer outdoor session. You are fine with darkness, rain and cold, and no forecast was given, so it can swap with Sunday if Saturday's weather is clearly worse.\n- Every cardio session stays under 145 bpm, with no intervals.\n\nFat loss: keep the 15:30 protein snack and the after-dinner kitchen-closing routine every day. Easy volume plus those two habits is the whole strategy for now, with no calorie counting."
+    },
+    "today": {
+      "date": "2026-11-02",
+      "type": "workout",
+      "title": "Z2 ERG ride + hip mobility",
+      "description": "Indoor trainer in ERG mode, 60 min ride, then 10 min mobility.\n\nRide:\n- Warm-up: 10 min rising from 100 to 130 W, cadence 85-90.\n- Main: 45 min at 140-150 W, cadence 85-95.\n- HR cap is 145 bpm, and you should expect about 120-135. If HR goes over 145, drop 10 W and stay there.\n- Keep the effort flat, with no surges and no standing sprints.\n- Cool-down: 5 min at 100 W.\n\nMobility right after the ride, about 10 min:\n- 90/90 hip switches, 2x8 per side.\n- Couch stretch, 2x45 s per side.\n- Supine hamstring strap stretch, 2x45 s per leg.\n- Cat-cow, 10 slow reps.\n\nFat-loss habit for today:\n- Have a protein snack around 15:30, such as skyr with fruit, so you don't arrive home starving.\n- After dinner, close the kitchen with a fixed routine: tea, then brush your teeth.",
+      "durationMinutes": 70,
+      "intensity": "easy",
+      "alternatives": [
+        "Outdoor ride on the road/gravel bike with power meter and lights: 60 min at 140-150 W on flat-to-rolling roads, HR under 145. Spin easy on climbs rather than pushing over 160 W.",
+        "If you are short on time: 40 min at 140-150 W plus the full 10 min of mobility. The mobility is the part not to drop."
+      ],
+      "rationale": "This opens week 2 of the rebuild. No activities from 26 Oct to 1 Nov reached me, so I can't confirm that last week's 5-hour hike happened. An easy, controlled Z2 ride is therefore the safest and most useful start. Your 23 Oct ride showed HR around 120 at 115-135 W, so 140-150 W is the planned small step up. Keeping the effort flat continues the steady-pacing habit we corrected after the October spinning classes. Monday is the right day for it: low impact on the legs before tomorrow's squat and RDL session.",
+      "optional": false,
+      "optionalRationale": "This ride does three things:\n- It rebuilds the low-intensity aerobic engine and fat oxidation that your 200 km brevet in April and PBP depend on, and that you lost after July.\n- It is one of only two cycling sessions this week, so skipping it halves this week's bike-specific aerobic stimulus.\n- It breaks the consistency streak this block exists to build.\n\nThe mobility afterwards is the daily dose that, over months, lets your hips allow a lower, less sit-bone-loaded position on the bike.",
+      "status": "planned",
+      "outdoor": false,
+      "canBeOutdoor": false
+    },
+    "tomorrow": {
+      "date": "2026-11-03",
+      "type": "workout",
+      "title": "Gym A: goblet squat progression + RDL intro",
+      "description": "Warm-up:\n- 8 min easy row, HR under 130.\n- Bodyweight squats, 2x10.\n- Dowel hip-hinge drill, 2x10, with the dowel touching head, upper back and tailbone.\n\nMain work:\n1. Goblet squat: 4 kg x 10 to warm up, then 3x10 at 12 kg. Take 3 s on the way down and rest 90 s between sets. Aim to complete all three sets this time.\n2. Dumbbell Romanian deadlift: 3x10 at 2x8 kg. Keep a strict neutral spine, push the hips back, and use a soft knee. Stop at mid-shin, or earlier if your back starts to round. Rest 90 s.\n3. Glute bridge: 3x12 with a 20 kg bar or dumbbell on the hips, 2 s pause at the top.\n4. Lat pulldown: 3x10 at 45 kg.\n5. Pallof press: 3x10 per side.\n6. Front plank: 3x30 s.\n7. Dead bug: 2x8 per side, slow, lower back pressed into the floor.\n\nFinish with 10 min stretching, 45 s each per side:\n- Couch stretch.\n- Seated forward fold with soft knees.\n- Pigeon pose.\n\nStop any exercise that causes back pain. Pole vault play is fine if you want it, but keep it light and skip it if your legs are tired from the squats.",
+      "durationMinutes": 60,
+      "intensity": "moderate",
+      "alternatives": [
+        "If the quads burn badly again at 12 kg: do 3x10 at 10 kg and keep the RDLs, since the hinge is the priority.",
+        "If the gym is impossible: home version with goblet squat, single-leg RDL and glute bridge at 3x10 each, with dead bug and plank."
+      ],
+      "rationale": "Gym A follows an easy aerobic day, so your legs are fresh for technique-focused loading. Squats and hinges get the most attention because they protect your back.",
+      "optional": false,
+      "optionalRationale": "This session builds the hip-hinge pattern and posterior-chain strength your back currently lacks, which is why it aches on long climbs and when you crouch. That strength also has to be in place before the vault prep block starts on 23 November, when sprints and plyometrics load the back far more. Skipping it delays the RDL introduction by a week. That pushes back-safe loading closer to the vault block, which is exactly when an injury would cost you the most.",
+      "status": "planned",
+      "outdoor": false,
+      "canBeOutdoor": false
+    },
+    "nextWeek": null,
+    "nextBlock": null
+  }
+}

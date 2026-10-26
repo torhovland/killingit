@@ -1,0 +1,66 @@
+{
+  "anthropic/claude-opus-5.5": {
+    "quality": 9.5,
+    "notes": "Benchmark. Best grounding, safety and week/day coaching; season ends 19 Aug, before PBP."
+  },
+  "anthropic/claude-sonnet-5.5": {
+    "quality": 7,
+    "notes": "Detailed and fast, but dismisses the pole-vault event, ends before PBP and starts RDLs at 20–30 kg."
+  },
+  "anthropic/claude-haiku-5.5": {
+    "quality": 7.5,
+    "notes": "Includes a vault block and is very cheap; hallucinates a completed week 1 and uses 20 kg RDLs twice."
+  },
+  "deepseek/deepseek-v4.1-flash-1017": {
+    "quality": 5.5,
+    "notes": "First run failed schema; retry is cheap and detailed but has a PBP typo, aggressive vault work and factual slips."
+  },
+  "deepseek/deepseek-v4-pro-0813": {
+    "quality": 4.5,
+    "notes": "Final plan omits PBP and the 300/400/600 series; the first truncated attempt did include them."
+  },
+  "qwen/qwen3.8-flash": {
+    "quality": 5,
+    "notes": "12-minute run; 200 km block is after April, no 600, shortens the athlete's 5 h hike."
+  },
+  "qwen/qwen3.7-plus": {
+    "quality": 8,
+    "notes": "Good season and conservative strength, but 12 minutes, no nutrition detail and no explicit 600."
+  },
+  "qwen/qwen3.6-plus": {
+    "quality": 4,
+    "notes": "Over-prioritises the vault, puts the 200 km brevet after April and adds early intensity in refresh."
+  },
+  "inception/mercury-3": {
+    "quality": 7,
+    "notes": "Very fast and cheap with a good 200 km taper; vault timing is inconsistent and it invents a temperature."
+  },
+  "moonshotai/kimi-k3.1-pro": {
+    "quality": 9,
+    "notes": "Close to Opus: safe, complete and well reasoned; race week ends on the PBP start date."
+  },
+  "recursive/flint-v1.0:free": {
+    "quality": 0,
+    "notes": "Failed with LlmTokenLimitError after 10 calls; no plan."
+  },
+  "minimax/minimax-m3.1-flash": {
+    "quality": 6.5,
+    "notes": "Fast and cheap with good week 1; no brevet series and early plyometrics."
+  },
+  "google/gemini-4-argon": {
+    "quality": 9.5,
+    "notes": "Matches Opus: PBP through 29 Aug, full brevet series, honest refresh; verbose."
+  },
+  "openai/gpt-6.1-sol-pro": {
+    "quality": 8.5,
+    "notes": "Complete and safe, but over-conservative and shortens the requested 5 h hike to 85 min."
+  },
+  "openai/gpt-6.1-sol": {
+    "quality": 8.5,
+    "notes": "Complete and honest, but week 1 is 3–4 h and the 5 h hike becomes 80 min."
+  },
+  "z-ai/glm-5.3-prime": {
+    "quality": 7.5,
+    "notes": "Good season and full brevets; week totals are wrong and the vault block is aggressive."
+  }
+}

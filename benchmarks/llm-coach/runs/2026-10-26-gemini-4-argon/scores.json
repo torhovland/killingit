@@ -1,0 +1,30 @@
+{
+  "google/gemini-4-argon": {
+    "quality": 9.5,
+    "notes": "Benchmark. Full 200/300/400/600, PBP through the 22 Aug start, strong grounding and an honest refresh that does not assume the 1 Nov hike happened. Slightly verbose; this sample omits the mid-summer reset."
+  },
+  "anthropic/claude-opus-5.5": {
+    "quality": 9.5,
+    "notes": "Matches the benchmark: full brevet series, a short vault block, a 10-block season and the most polished week/day coaching. Ends 19 Aug, before PBP, and is the most expensive paid model."
+  },
+  "z-ai/glm-5.3": {
+    "quality": 7.5,
+    "notes": "Fast and cheap with a coherent season and 300/400 brevets, but no 600 km qualifier, week totals understate the 5 h hike, and the refresh assumes the hike happened."
+  },
+  "z-ai/glm-5.3-prime": {
+    "quality": 7,
+    "notes": "Detailed vault and PBP prose, but only plans the April 200 km: no 300/400/600 qualifiers. RDL 20 kg in week 1; refresh needs two repairs."
+  },
+  "deepseek/deepseek-v4.1-flash-1017": {
+    "quality": 8,
+    "notes": "The budget fix restored the full season: PBP through 29 Aug and an explicit 300/400/600 series. Still has a 20 kg RDL, generic nutrition and assumes the 5 h hike in refresh."
+  },
+  "recursive/flint-v1.0:free": {
+    "quality": 5,
+    "notes": "Succeeded only after 10 + 8 calls and 21 minutes. The plan is vague, ends 15 Aug before PBP, omits the 300/400/600 series, and calls the 25 Oct hike 5 h 20 (it was 2 h 45 moving / 3 h 20 elapsed)."
+  },
+  "deepseek/deepseek-v4-pro-0813": {
+    "quality": 7,
+    "notes": "The budget fix restored PBP through 29 Aug and the full four-call build, but the season still has no 300/400/600 qualifiers; it is a detailed foundation plan, not a complete PBP campaign."
+  }
+}

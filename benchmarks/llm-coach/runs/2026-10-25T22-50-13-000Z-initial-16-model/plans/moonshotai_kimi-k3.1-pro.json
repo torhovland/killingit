@@ -1,0 +1,479 @@
+{
+  "full": {
+    "season": {
+      "goal": "Reach Paris-Brest-Paris in August 2027 healthy and prepared to finish strongly, comfortably complete the 2027 randonneur brevet series beginning with the April 200 km, improve general cycling and longer-race fitness, reduce body fat gradually toward 15%, and develop back-safe strength, hip mobility, running, and rowing.",
+      "startDate": "2026-10-26",
+      "endDate": "2027-08-22",
+      "blocks": [
+        {
+          "name": "Rebuild and Fat-Loss Foundation",
+          "focus": "Restore consistency with short, steady aerobic sessions; two progressive back-safe full-body gym sessions weekly; daily hip and hamstring mobility; beginner rowing technique; and sustainable meal and evening-snack habits. Keep cycling predominantly easy and avoid spinning-class intensity while rebuilding tolerance.",
+          "startDate": "2026-10-26",
+          "endDate": "2026-11-29",
+          "weekCount": 5
+        },
+        {
+          "name": "Pole-Vault Preparation",
+          "focus": "Carefully introduce vault technique, short accelerations, low-volume plyometrics, and posterior-chain strength while monitoring back symptoms and tendon response. Retain limited easy cycling or skiing and mobility work for aerobic maintenance and fat loss, avoiding excessive fatigue.",
+          "startDate": "2026-11-30",
+          "endDate": "2027-01-03",
+          "weekCount": 5
+        },
+        {
+          "name": "Pole-Vault Taper and Reset",
+          "focus": "Reduce volume, retain brief sharp technical efforts, and arrive fresh for the January 7 championship. After competition, recover and transition away from explosive specialization without immediately adding hard cycling training.",
+          "startDate": "2027-01-04",
+          "endDate": "2027-01-10",
+          "weekCount": 1
+        },
+        {
+          "name": "Winter Aerobic and Movement Base",
+          "focus": "Build mostly easy volume through indoor cycling, fatbiking, cross-country skiing, snowshoeing, and hiking. Continue progressive full-body lifting and hip mobility, advance a beginner run/walk program toward continuous easy 5 km running, and develop beginner rowing technique. Add only small amounts of controlled cycling tempo late in the block.",
+          "startDate": "2027-01-11",
+          "endDate": "2027-03-07",
+          "weekCount": 8
+        },
+        {
+          "name": "Spring Cycling Transition and 200 km Brevet",
+          "focus": "Move endurance riding outdoors as road conditions allow, increase weekend ride duration gradually, and use one controlled indoor power-based session weekly. Practice climbing position, comfort, fueling, and steady pacing; complete the April 200 km brevet with appropriate preparation and recovery while maintaining strength and other aerobic activities at reduced volume.",
+          "startDate": "2027-03-08",
+          "endDate": "2027-04-25",
+          "weekCount": 7
+        },
+        {
+          "name": "Disciplined Endurance Build",
+          "focus": "Begin the focused PBP campaign with progressive aerobic volume, structured sweet-spot or threshold work in modest doses, longer weekend rides, and selective harder riding for general race fitness. Use recovery weeks, retain one or two strength sessions, and pursue slow fat loss without compromising training quality or recovery.",
+          "startDate": "2027-04-26",
+          "endDate": "2027-06-06",
+          "weekCount": 6
+        },
+        {
+          "name": "Randonneur and PBP Specialization",
+          "focus": "Complete the remaining brevet-series distances as scheduled, using them as qualification and specific rehearsal rather than maximal races. Develop long steady endurance, climbing durability, occasional back-to-back riding days, night-riding and sleep strategies, equipment comfort, and hourly fueling. Include suitable longer tour races only when they replace rather than add to key workloads, and prioritize resolving sit-bone and back discomfort.",
+          "startDate": "2027-06-07",
+          "endDate": "2027-08-01",
+          "weekCount": 8
+        },
+        {
+          "name": "PBP Taper",
+          "focus": "Reduce training volume substantially while retaining brief race-pace and neuromuscular reminders. Emphasize sleep, mobility, equipment checks, nutrition planning, and a stable body weight rather than attempting further fat loss or fitness gains.",
+          "startDate": "2027-08-02",
+          "endDate": "2027-08-15",
+          "weekCount": 2
+        },
+        {
+          "name": "Paris-Brest-Paris Race Week",
+          "focus": "Arrive rested, execute a conservative pacing and fueling plan, manage sleep and comfort deliberately, and aim for a strong, safe PBP finish. Adjust the final days to the confirmed event start date, then begin unstructured recovery.",
+          "startDate": "2027-08-16",
+          "endDate": "2027-08-22",
+          "weekCount": 1
+        }
+      ],
+      "rationale": "The season begins with a conservative rebuild because current fitness is detrained and recent training has been inconsistent. Easy aerobic work, technique-based gym lifting, hip mobility, and a modest sustainable energy deficit establish tolerance without chasing rapid weight loss or early intensity. The January 7 pole-vault championship requires a short, carefully controlled specialization and taper, with explosive work introduced only as back and tendon tolerance permit. Winter then provides a low-pressure aerobic and strength base using skiing, snowshoeing, fatbiking, indoor cycling, hiking, beginner running, and beginner rowing. Spring progressively transfers fitness to outdoor cycling and prepares for the April 200 km without starting an unsustainably long disciplined build. The final 17 weeks form the focused PBP campaign: general endurance and threshold support first, then long-ride, brevet, climbing, fueling, and overnight-endurance specialization, followed by a two-week taper and race week. This delays the most demanding training until within the athlete's roughly four-month productive window while retaining enough year-round activity to preserve the base."
+    },
+    "block": {
+      "name": "Rebuild and Fat-Loss Foundation",
+      "focus": "Restore consistent training with steady aerobic work, two progressive back-safe full-body gym sessions weekly, daily hip and hamstring mobility, beginner rowing and running, and sustainable fat-loss habits.",
+      "startDate": "2026-10-26",
+      "endDate": "2026-11-29",
+      "weeks": [
+        {
+          "number": 1,
+          "startDate": "2026-10-26",
+          "focus": "Recover from the extra weekend load, complete two short steady rides and two technique-first gym sessions, maintain daily mobility, skip running, and arrive fresh enough for the five-hour hike on 1 November.",
+          "targetLoad": "Approximately 8-8.5 hours including the five-hour hike; otherwise very easy, with two strength sessions and no formal intensity."
+        },
+        {
+          "number": 2,
+          "startDate": "2026-11-02",
+          "focus": "Recover from the hike before resuming normal training. Use two easy 60-75-minute rides and two 50-60-minute gym sessions, introduce 20-25 minutes of beginner rowing below HR 130, and add one 30-minute 4:1 run/walk below HR 145 only if the legs are fresh. Finish with an easy outing of up to two hours.",
+          "targetLoad": "Approximately 6.5-7.5 hours, all aerobic work easy; two strength sessions, one rowing technique session, and at most one short run/walk."
+        },
+        {
+          "number": 3,
+          "startDate": "2026-11-09",
+          "focus": "Build consistency through 2-3 easy aerobic sessions, including one weekend ride or hike of about two hours. Retain controlled goblet squats and light RDLs, add supported step-ups only if comfortable, row 25-30 minutes technically, and complete 1-2 cautious 30-35-minute run/walk sessions without unusual soreness.",
+          "targetLoad": "Approximately 7-8 hours with roughly 85-90% of aerobic time easy; no intervals, spinning classes, plyometrics, or strength testing."
+        },
+        {
+          "number": 4,
+          "startDate": "2026-11-16",
+          "focus": "Extend duration rather than intensity with one 2-2.5-hour weekend endurance outing, 1-2 shorter steady rides, two full-body gym sessions, 30-35 minutes of easy rowing, and up to two 35-40-minute run/walk sessions if recovery is good. Practice fueling every 45-60 minutes on the long outing.",
+          "targetLoad": "Approximately 7.5-8.5 hours, the block's highest volume but still easy; two full-body strength sessions and no more than two short runs."
+        },
+        {
+          "number": 5,
+          "startDate": "2026-11-23",
+          "focus": "Deload and assess readiness for pole-vault preparation. Reduce aerobic duration by roughly 30-40%, retain one relaxed outing of no more than 90 minutes, use two lighter gym sessions with about two sets per exercise, and keep rowing and running technical and optional. Review back response, energy, sleep, adherence, and weight trend.",
+          "targetLoad": "Approximately 5-6 hours, entirely easy, with reduced strength volume and no progression in running, rowing, or endurance duration."
+        }
+      ],
+      "rationale": "The five-week structure and dates remain appropriate, but the opening week is explicitly recovery-led because the unplanned 24 October ride and 25 October mountain hike added substantial load. The successful 23 October ride confirms that steady, surge-free cycling is well tolerated, while the first gym session supports cautious progression to three goblet-squat sets and light Romanian deadlifts without rushing posterior-chain loading. Running is withheld until after the 1 November hike, and no extra endurance session is added to compensate for missed or changed workouts. Weeks 2-4 restore aerobic volume, lifting technique, rowing skill, and impact tolerance gradually; week 5 remains a deload. The January pole-vault championship will be addressed in the following specialization block rather than by prematurely adding explosive work now. Fat loss remains gradual through repeatable meal and evening-snack routines, with performance, recovery, and back symptoms taking precedence over rapid weight change."
+    },
+    "week": {
+      "startDate": "2026-10-26",
+      "focus": "Recovery-led re-entry with two steady trainer rides, two technique-first gym sessions, daily hip mobility, and a comfortable five-hour hike on Sunday.",
+      "sessions": [
+        {
+          "date": "2026-10-26",
+          "day": "Monday",
+          "type": "rest",
+          "title": "Recovery and hip mobility",
+          "description": "Full training rest after the extra weekend load. Take only an optional short, flat walk if it helps loosen the legs. Complete 10-15 minutes of gentle hip-flexor, hamstring, adductor, and thoracic mobility without forcing range. Eat normally rather than trying to compensate for the weekend with restriction.",
+          "durationMinutes": 0,
+          "intensity": "rest",
+          "status": "rest",
+          "outdoor": false,
+          "canBeOutdoor": false
+        },
+        {
+          "date": "2026-10-27",
+          "day": "Tuesday",
+          "type": "workout",
+          "title": "Very easy steady trainer ride",
+          "description": "Ride 45 minutes indoors with 10 minutes easy warm-up, 30 minutes perfectly steady at 140-150 W and cadence 85-95 rpm, then 5 minutes easy. Aim for HR approximately 115-135 bpm with no surges or intervals; reduce power immediately if HR drifts above 135 bpm or hiking fatigue remains obvious. Finish with 10 minutes of hip-flexor, hamstring, and thoracic mobility.",
+          "durationMinutes": 45,
+          "intensity": "easy",
+          "status": "planned",
+          "outdoor": false,
+          "canBeOutdoor": false
+        },
+        {
+          "date": "2026-10-28",
+          "day": "Wednesday",
+          "type": "workout",
+          "title": "Back-safe full-body strength A",
+          "description": "Warm up with 5 minutes easy rowing below HR 130 and gentle hip mobility. Complete goblet squat 3x8 at 12 kg, using a box or reduced depth if needed; Romanian deadlift 2x8 with an empty bar or very light dumbbells, stopping well before back strain; glute bridge 3x12; lat pulldown 3x10 at a controlled load around 40 kg; Pallof press 3x10 per side; and front plank 3x20-30 seconds. Leave several repetitions in reserve and stop any movement that provokes back symptoms. Finish with at least 10 minutes of hip-flexor, hamstring, and thoracic stretching. No pole-vault jumping.",
+          "durationMinutes": 55,
+          "intensity": "moderate",
+          "status": "planned",
+          "outdoor": false,
+          "canBeOutdoor": false
+        },
+        {
+          "date": "2026-10-29",
+          "day": "Thursday",
+          "type": "rest",
+          "title": "Rest and movement reset",
+          "description": "No formal workout. Complete 10-15 minutes of relaxed hip-flexor, hamstring, adductor, and thoracic mobility, plus an optional 10-20-minute flat walk only if the legs and back feel good. Monitor the response to Wednesday's squats and Romanian deadlifts and prioritize sleep.",
+          "durationMinutes": 0,
+          "intensity": "rest",
+          "status": "rest",
+          "outdoor": false,
+          "canBeOutdoor": false
+        },
+        {
+          "date": "2026-10-30",
+          "day": "Friday",
+          "type": "workout",
+          "title": "Back-safe full-body strength B",
+          "description": "Warm up with 5 minutes easy cardio and mobility. Complete goblet squat 3x8 at 12 kg; Romanian deadlift 2x8 at Wednesday's load only if there has been no back reaction, otherwise substitute glute bridges; glute bridge 3x12; lat pulldown 3x10-12; Pallof press 3x10 per side; dead bug 2x8 per side; and plank 2x20-30 seconds only if trunk control remains clean. Keep at least three repetitions in reserve. Finish with 10 minutes of hip and hamstring mobility, then stop rather than adding conditioning.",
+          "durationMinutes": 50,
+          "intensity": "moderate",
+          "status": "planned",
+          "outdoor": false,
+          "canBeOutdoor": false
+        },
+        {
+          "date": "2026-10-31",
+          "day": "Saturday",
+          "type": "workout",
+          "title": "Short steady ride before the hike",
+          "description": "Ride 45 minutes indoors: 10 minutes easy, 30 minutes steady at 140-150 W with HR approximately 115-135 bpm, and 5 minutes easy. Use no intervals, surges, or spinning-class efforts. If fatigue or back soreness persists, replace this with a 20-30-minute flat walk or rest. Do 10 minutes of gentle mobility and prepare food, fluids, clothing, and breaks for the hike.",
+          "durationMinutes": 45,
+          "intensity": "easy",
+          "status": "planned",
+          "outdoor": false,
+          "canBeOutdoor": false
+        },
+        {
+          "date": "2026-11-01",
+          "day": "Sunday",
+          "type": "workout",
+          "title": "Five-hour easy endurance hike",
+          "description": "Hike at a conversational effort, keeping HR mostly below 135-140 bpm and walking steep pitches with short strides rather than surging. Treat five hours as a ceiling, not a target to force if legs, back, weather, or footing deteriorate. Begin fueling within the first hour, eat regularly, drink to thirst, and keep summit and other stops purposeful at about 5 minutes where practical. Use a comfortable backpack and footwear, and finish with gentle hip mobility rather than additional training.",
+          "durationMinutes": 300,
+          "intensity": "easy",
+          "status": "planned",
+          "outdoor": true,
+          "canBeOutdoor": true
+        }
+      ],
+      "rationale": "The extra 60-minute ride on 24 October and demanding 11.1 km mountain hike on 25 October make recovery the priority at the start of this week. Two short, perfectly steady rides maintain the aerobic rebuilding process without adding intensity, while two gym sessions cautiously progress goblet squats and introduce light Romanian deadlifts only with a comfortable hip hinge and a calm back. Running remains withheld, mobility is increased to a useful daily dose, and Sunday's hike is capped at five hours rather than treated as a target to force. The resulting load is approximately 8-8.5 hours including the hike. Fat loss continues through regular meals, a planned after-work meal, adequate protein, and a deliberate evening snack rather than compensatory restriction or extra exercise."
+    },
+    "today": {
+      "date": "2026-10-26",
+      "type": "rest",
+      "title": "Recovery and hip mobility",
+      "description": "Take a full training rest after the extra weekend load. Complete 10-15 minutes of gentle hip-flexor, hamstring, adductor, and thoracic mobility without forcing range. An optional short, flat walk is fine if it helps loosen the legs. Eat normally rather than restricting food to compensate for the weekend.",
+      "durationMinutes": 0,
+      "intensity": "rest",
+      "alternatives": [
+        "If your legs feel stiff, take a relaxed 10-20-minute flat walk instead of remaining sedentary; otherwise do no training."
+      ],
+      "rationale": "Rest is the best choice because Saturday's unplanned 60-minute ride and Sunday's substantial mountain hike removed the intended light finish to last week. A recovery day now limits accumulated fatigue and back irritation, improves the quality of Tuesday's steady ride and Wednesday's lifting, and helps you arrive capable of completing Sunday's long hike comfortably.",
+      "optional": false,
+      "optionalRationale": "Rest is the planned session, so no workout-optionality assessment is needed.",
+      "status": "rest",
+      "outdoor": false,
+      "canBeOutdoor": false
+    },
+    "tomorrow": {
+      "date": "2026-10-27",
+      "type": "workout",
+      "title": "Very easy steady trainer ride",
+      "description": "Ride 45 minutes indoors: 10 minutes easy warm-up, 30 minutes perfectly steady at 140-150 W with cadence 85-95 rpm, then 5 minutes easy. Aim for HR approximately 115-135 bpm with no surges or intervals. Reduce power immediately if HR rises above 135 bpm or hiking fatigue remains obvious. Finish with 10 minutes of hip-flexor, hamstring, and thoracic mobility.",
+      "durationMinutes": 45,
+      "intensity": "easy",
+      "alternatives": [
+        "If your legs remain heavy, shorten the steady portion to 20 minutes at 130-140 W; if fatigue or back soreness is significant, take another rest day instead."
+      ],
+      "rationale": "This short ride restores controlled aerobic training without interfering with recovery from the weekend or Wednesday's strength session. The flat power target practices the steady, economical pacing needed for long-distance cycling while keeping the week's non-hiking load deliberately low.",
+      "optional": false,
+      "optionalRationale": "The session rebuilds the aerobic efficiency and surge-free pacing that will support comfortable brevet riding and gradual fat loss. Skipping it removes one of only two planned cycling stimuli in this recovery-led week and delays the return to consistent aerobic training, although no extra endurance volume should be added elsewhere to compensate.",
+      "status": "planned",
+      "outdoor": false,
+      "canBeOutdoor": false
+    },
+    "nextWeek": null,
+    "nextBlock": null
+  },
+  "refresh": {
+    "season": {
+      "goal": "Reach Paris-Brest-Paris in August 2027 healthy and prepared to finish strongly, comfortably complete the 2027 randonneur brevet series beginning with the April 200 km, improve general cycling and longer-race fitness, reduce body fat gradually toward 15%, and develop back-safe strength, hip mobility, running, and rowing.",
+      "startDate": "2026-10-26",
+      "endDate": "2027-08-22",
+      "blocks": [
+        {
+          "name": "Rebuild and Fat-Loss Foundation",
+          "focus": "Restore consistency with short, steady aerobic sessions; two progressive back-safe full-body gym sessions weekly; daily hip and hamstring mobility; beginner rowing technique; and sustainable meal and evening-snack habits. Keep cycling predominantly easy and avoid spinning-class intensity while rebuilding tolerance.",
+          "startDate": "2026-10-26",
+          "endDate": "2026-11-29",
+          "weekCount": 5
+        },
+        {
+          "name": "Pole-Vault Preparation",
+          "focus": "Carefully introduce vault technique, short accelerations, low-volume plyometrics, and posterior-chain strength while monitoring back symptoms and tendon response. Retain limited easy cycling or skiing and mobility work for aerobic maintenance and fat loss, avoiding excessive fatigue.",
+          "startDate": "2026-11-30",
+          "endDate": "2027-01-03",
+          "weekCount": 5
+        },
+        {
+          "name": "Pole-Vault Taper and Reset",
+          "focus": "Reduce volume, retain brief sharp technical efforts, and arrive fresh for the January 7 championship. After competition, recover and transition away from explosive specialization without immediately adding hard cycling training.",
+          "startDate": "2027-01-04",
+          "endDate": "2027-01-10",
+          "weekCount": 1
+        },
+        {
+          "name": "Winter Aerobic and Movement Base",
+          "focus": "Build mostly easy volume through indoor cycling, fatbiking, cross-country skiing, snowshoeing, and hiking. Continue progressive full-body lifting and hip mobility, advance a beginner run/walk program toward continuous easy 5 km running, and develop beginner rowing technique. Add only small amounts of controlled cycling tempo late in the block.",
+          "startDate": "2027-01-11",
+          "endDate": "2027-03-07",
+          "weekCount": 8
+        },
+        {
+          "name": "Spring Cycling Transition and 200 km Brevet",
+          "focus": "Move endurance riding outdoors as road conditions allow, increase weekend ride duration gradually, and use one controlled indoor power-based session weekly. Practice climbing position, comfort, fueling, and steady pacing; complete the April 200 km brevet with appropriate preparation and recovery while maintaining strength and other aerobic activities at reduced volume.",
+          "startDate": "2027-03-08",
+          "endDate": "2027-04-25",
+          "weekCount": 7
+        },
+        {
+          "name": "Disciplined Endurance Build",
+          "focus": "Begin the focused PBP campaign with progressive aerobic volume, structured sweet-spot or threshold work in modest doses, longer weekend rides, and selective harder riding for general race fitness. Use recovery weeks, retain one or two strength sessions, and pursue slow fat loss without compromising training quality or recovery.",
+          "startDate": "2027-04-26",
+          "endDate": "2027-06-06",
+          "weekCount": 6
+        },
+        {
+          "name": "Randonneur and PBP Specialization",
+          "focus": "Complete the remaining brevet-series distances as scheduled, using them as qualification and specific rehearsal rather than maximal races. Develop long steady endurance, climbing durability, occasional back-to-back riding days, night-riding and sleep strategies, equipment comfort, and hourly fueling. Include suitable longer tour races only when they replace rather than add to key workloads, and prioritize resolving sit-bone and back discomfort.",
+          "startDate": "2027-06-07",
+          "endDate": "2027-08-01",
+          "weekCount": 8
+        },
+        {
+          "name": "PBP Taper",
+          "focus": "Reduce training volume substantially while retaining brief race-pace and neuromuscular reminders. Emphasize sleep, mobility, equipment checks, nutrition planning, and a stable body weight rather than attempting further fat loss or fitness gains.",
+          "startDate": "2027-08-02",
+          "endDate": "2027-08-15",
+          "weekCount": 2
+        },
+        {
+          "name": "Paris-Brest-Paris Race Week",
+          "focus": "Arrive rested, execute a conservative pacing and fueling plan, manage sleep and comfort deliberately, and aim for a strong, safe PBP finish. Adjust the final days to the confirmed event start date, then begin unstructured recovery.",
+          "startDate": "2027-08-16",
+          "endDate": "2027-08-22",
+          "weekCount": 1
+        }
+      ],
+      "rationale": "The season begins with a conservative rebuild because current fitness is detrained and recent training has been inconsistent. Easy aerobic work, technique-based gym lifting, hip mobility, and a modest sustainable energy deficit establish tolerance without chasing rapid weight loss or early intensity. The January 7 pole-vault championship requires a short, carefully controlled specialization and taper, with explosive work introduced only as back and tendon tolerance permit. Winter then provides a low-pressure aerobic and strength base using skiing, snowshoeing, fatbiking, indoor cycling, hiking, beginner running, and beginner rowing. Spring progressively transfers fitness to outdoor cycling and prepares for the April 200 km without starting an unsustainably long disciplined build. The final 17 weeks form the focused PBP campaign: general endurance and threshold support first, then long-ride, brevet, climbing, fueling, and overnight-endurance specialization, followed by a two-week taper and race week. This delays the most demanding training until within the athlete's roughly four-month productive window while retaining enough year-round activity to preserve the base."
+    },
+    "block": {
+      "name": "Rebuild and Fat-Loss Foundation",
+      "focus": "Restore consistent training with steady aerobic work, two progressive back-safe full-body gym sessions weekly, daily hip and hamstring mobility, beginner rowing and running, and sustainable fat-loss habits.",
+      "startDate": "2026-10-26",
+      "endDate": "2026-11-29",
+      "weeks": [
+        {
+          "number": 1,
+          "startDate": "2026-10-26",
+          "focus": "Recover from the extra weekend load, complete two short steady rides and two technique-first gym sessions, maintain daily mobility, skip running, and arrive fresh enough for the five-hour hike on 1 November.",
+          "targetLoad": "Approximately 8-8.5 hours including the five-hour hike; otherwise very easy, with two strength sessions and no formal intensity."
+        },
+        {
+          "number": 2,
+          "startDate": "2026-11-02",
+          "focus": "Begin with a full recovery day, then complete two easy 65-70-minute rides and two technique-first gym sessions. Combine 20 minutes of beginner rowing with one gym session, include one conditional 4:1 run/walk, and finish with a controlled hike of under two hours.",
+          "targetLoad": "Approximately 6.75-7 hours; all aerobic work easy, two moderate but submaximal strength sessions, one rowing technique exposure, and at most one short run/walk."
+        },
+        {
+          "number": 3,
+          "startDate": "2026-11-09",
+          "focus": "Build consistency through 2-3 easy aerobic sessions, including one weekend ride or hike of about two hours. Retain controlled goblet squats and light RDLs, add supported step-ups only if comfortable, row 25-30 minutes technically, and complete 1-2 cautious 30-35-minute run/walk sessions without unusual soreness.",
+          "targetLoad": "Approximately 7-8 hours with roughly 85-90% of aerobic time easy; no intervals, spinning classes, plyometrics, or strength testing."
+        },
+        {
+          "number": 4,
+          "startDate": "2026-11-16",
+          "focus": "Extend duration rather than intensity with one 2-2.5-hour weekend endurance outing, 1-2 shorter steady rides, two full-body gym sessions, 30-35 minutes of easy rowing, and up to two 35-40-minute run/walk sessions if recovery is good. Practice fueling every 45-60 minutes on the long outing.",
+          "targetLoad": "Approximately 7.5-8.5 hours, the block's highest volume but still easy; two full-body strength sessions and no more than two short runs."
+        },
+        {
+          "number": 5,
+          "startDate": "2026-11-23",
+          "focus": "Deload and assess readiness for pole-vault preparation. Reduce aerobic duration by roughly 30-40%, retain one relaxed outing of no more than 90 minutes, use two lighter gym sessions with about two sets per exercise, and keep rowing and running technical and optional. Review back response, energy, sleep, adherence, and weight trend.",
+          "targetLoad": "Approximately 5-6 hours, entirely easy, with reduced strength volume and no progression in running, rowing, or endurance duration."
+        }
+      ],
+      "rationale": "The five-week structure and dates remain appropriate. Week 2 opens with explicit recovery from the long hike and combines beginner rowing with a gym session so that variety does not eliminate the recovery day. The successful steady riding in late October supports a modest move toward 140-150 W indoors, while strength progresses only through repeatable goblet-squat technique and light Romanian deadlifts. Running remains conditional on freshness, and weekend volume is split between a short ride and a controlled hike rather than another very long outing. Weeks 3-4 extend duration and movement tolerance without adding intervals or explosive work; week 5 remains a deload and readiness check before pole-vault specialization. Fat loss stays gradual, with recovery, back response, sleep, and adherence taking priority over rapid weight change."
+    },
+    "week": {
+      "startDate": "2026-11-02",
+      "focus": "Recover from the long hike, then restore consistent easy aerobic training, technique-first strength, rowing skill, hip mobility, and cautious run/walk exposure.",
+      "sessions": [
+        {
+          "date": "2026-11-02",
+          "day": "Monday",
+          "type": "rest",
+          "title": "Recovery and mobility",
+          "description": "Full training rest after the long-hike load. Take an optional relaxed 10-20-minute walk only if it helps stiffness, but do not count it as training. Complete 10 minutes of gentle hip-flexor, hamstring, glute, and thoracic mobility without forcing end ranges. Eat a normal protein-containing dinner and prepare a planned evening snack to avoid grazing.",
+          "durationMinutes": 0,
+          "intensity": "rest",
+          "status": "rest",
+          "outdoor": false,
+          "canBeOutdoor": false
+        },
+        {
+          "date": "2026-11-03",
+          "day": "Tuesday",
+          "type": "workout",
+          "title": "Steady indoor aerobic ride",
+          "description": "Use the trainer in ERG mode if legs are adequately recovered. Warm up for 10 minutes at 90-120 W, ride 45 minutes steadily at 140-150 W with cadence 85-95 rpm, then cool down for 10 minutes at 90-110 W. Keep HR approximately 125-145 bpm and avoid surges; reduce power if HR drifts above this range. Finish with 8-10 minutes of hip-flexor and hamstring mobility. If hike soreness is substantial, replace the ride with 25-30 minutes of very easy walking rather than postponing it.",
+          "durationMinutes": 65,
+          "intensity": "easy",
+          "status": "planned",
+          "outdoor": false,
+          "canBeOutdoor": false
+        },
+        {
+          "date": "2026-11-04",
+          "day": "Wednesday",
+          "type": "workout",
+          "title": "Gym strength and beginner rowing",
+          "description": "Begin with 20 minutes of easy rowing below HR 130: 5 minutes of relaxed technique, then 10 x 1 minute at controlled pressure with 30 seconds very easy between, focusing on legs-body-arms sequencing and a long, unforced recovery. After a short transition, complete goblet squat 3 x 10 at 12 kg, light Romanian deadlift 2 x 10 with a load that permits a perfect hip hinge and neutral back, glute bridge 3 x 12, lat pulldown 3 x 10 at 40-50 kg, machine chest press 2 x 10 at a light controlled load, and Pallof press 3 x 10 per side. Stop any lift that causes back symptoms. Finish with at least 8 minutes of hip and hamstring mobility.",
+          "durationMinutes": 80,
+          "intensity": "moderate",
+          "status": "planned",
+          "outdoor": false,
+          "canBeOutdoor": false
+        },
+        {
+          "date": "2026-11-05",
+          "day": "Thursday",
+          "type": "workout",
+          "title": "Conditional easy run/walk",
+          "description": "Only if legs feel fresh and there is no unusual soreness or back discomfort: on a flat, forgiving route, warm up with 5 minutes of walking, then complete 5 rounds of 4 minutes very easy jogging and 1 minute walking. Keep HR below 145 bpm and the jog conversational. Cool down with 5 minutes of walking and perform gentle hip mobility. If recovery is incomplete, replace the jogging rounds with 25 minutes of easy walking rather than postponing the run to another day.",
+          "durationMinutes": 35,
+          "intensity": "easy",
+          "status": "planned",
+          "outdoor": true,
+          "canBeOutdoor": true
+        },
+        {
+          "date": "2026-11-06",
+          "day": "Friday",
+          "type": "workout",
+          "title": "Back-safe full-body gym session",
+          "description": "Warm up with 5 minutes of easy rowing below HR 125 and controlled hip-hinge practice. Complete goblet squat 3 x 10 at 12 kg, Romanian deadlift 3 x 8 with the same light load used Wednesday only if technique and back response were good, glute bridge 3 x 12, lat pulldown 3 x 10 at 40-50 kg, machine chest press 3 x 10 at a light load, Pallof press 3 x 10 per side, and front plank 3 x 20-30 seconds. Leave at least 3-4 repetitions in reserve and never lift through back pain. Finish with 10 minutes of hip-flexor, hamstring, and glute mobility.",
+          "durationMinutes": 60,
+          "intensity": "moderate",
+          "status": "planned",
+          "outdoor": false,
+          "canBeOutdoor": false
+        },
+        {
+          "date": "2026-11-07",
+          "day": "Saturday",
+          "type": "workout",
+          "title": "Short steady outdoor ride",
+          "description": "If conditions are dry, use the road or gravel bike with suitable tires and power meter for a relaxed outdoor ride. After 10-15 minutes easy, hold approximately 130-155 W on flatter sections, keeping HR below 145 bpm and avoiding hard climbing or sprinting. Do not chase power on steep or slippery sections. If outdoor conditions are unsuitable, ride indoors at 135-150 W with the same steady intent. Finish with 8-10 minutes of hip mobility.",
+          "durationMinutes": 70,
+          "intensity": "easy",
+          "status": "planned",
+          "outdoor": true,
+          "canBeOutdoor": true
+        },
+        {
+          "date": "2026-11-08",
+          "day": "Sunday",
+          "type": "workout",
+          "title": "Easy weekend hike",
+          "description": "Choose a moderate route and keep the entire outing conversational, generally below HR 135-140 bpm. Shorten strides or walk steep pitches rather than surging, and keep any summit or food stops brief. This is endurance and movement practice, not a long mountain challenge; turn around early if legs, back, or energy deteriorate. Include a small planned snack if needed and finish with relaxed hip and hamstring mobility.",
+          "durationMinutes": 110,
+          "intensity": "easy",
+          "status": "planned",
+          "outdoor": true,
+          "canBeOutdoor": true
+        }
+      ],
+      "rationale": "Monday is reserved for recovery before training resumes with two short steady rides, two back-safe gym sessions, one beginner rowing exposure, one conditional run/walk, and a controlled weekend hike. Total planned training is about seven hours, with no formal cycling intensity and no additional long mountain outing. Cycling remains steady below the estimated 220 W FTP, strength progresses only through technically repeatable loads, and running is replaced by walking if hiking soreness persists. Each session has a distinct role: aerobic consistency, strength and position resilience, movement variety, or weekend endurance. Daily hip and hamstring mobility and repeatable dinner and evening-snack routines support long-ride comfort and gradual fat loss without aggressive restriction."
+    },
+    "today": {
+      "date": "2026-11-02",
+      "type": "rest",
+      "title": "Recovery and mobility",
+      "description": "Take a full training rest day after the long-hike load. A relaxed 10-20-minute walk is fine if it reduces stiffness, but do not count it as training or add another workout. Complete 10 minutes of gentle hip-flexor, hamstring, glute, and thoracic mobility without forcing end ranges. Eat a normal protein-containing dinner and prepare a planned evening snack to avoid grazing.",
+      "durationMinutes": 0,
+      "intensity": "rest",
+      "alternatives": [],
+      "rationale": "Rest is the best choice today because the first training adaptation this week is recovery from the long hike, not additional calorie burning or aerobic volume. Keeping today genuinely easy protects the quality of Tuesday's steady ride and Wednesday's first rowing-and-strength combination while reducing the risk that residual soreness provokes back compensation.",
+      "optional": false,
+      "optionalRationale": "Not applicable because today is a planned recovery day rather than an optional workout.",
+      "status": "rest",
+      "outdoor": false,
+      "canBeOutdoor": false
+    },
+    "tomorrow": {
+      "date": "2026-11-03",
+      "type": "workout",
+      "title": "Steady indoor aerobic ride",
+      "description": "Use the trainer in ERG mode if your legs are adequately recovered. Warm up for 10 minutes at 90-120 W, ride 45 minutes steadily at 140-150 W with cadence 85-95 rpm, then cool down for 10 minutes at 90-110 W. Keep HR approximately 125-145 bpm and avoid surges; reduce power if HR drifts above this range. Finish with 8-10 minutes of hip-flexor and hamstring mobility. If hike soreness remains substantial, replace the ride with 25-30 minutes of very easy walking rather than forcing the power targets.",
+      "durationMinutes": 65,
+      "intensity": "easy",
+      "alternatives": [
+        "If substantial hiking soreness remains, take 25-30 minutes of very easy walking and keep the ride out of the week rather than moving it to Wednesday.",
+        "If 140-150 W causes HR to rise above 145 bpm despite steady breathing, reduce the main-set power to 125-140 W."
+      ],
+      "rationale": "This is the week's first controlled aerobic stimulus: long enough to restart consistent fat oxidation and cycling-specific aerobic work, but well below the estimated 220 W FTP so it does not compromise the two strength sessions. A smooth power and HR line also rebuilds the steady pacing needed for long randonneur rides.",
+      "optional": false,
+      "optionalRationale": "This ride restores the aerobic consistency and steady cycling control that later support long brevets and gradual fat loss. Skipping it without replacing it because of soreness would leave the week with only one ride and remove an important low-fatigue aerobic stimulus; replacing it with walking when sore preserves recovery without pretending that a forced ride would be productive.",
+      "status": "planned",
+      "outdoor": false,
+      "canBeOutdoor": false
+    },
+    "nextWeek": null,
+    "nextBlock": null
+  }
+}

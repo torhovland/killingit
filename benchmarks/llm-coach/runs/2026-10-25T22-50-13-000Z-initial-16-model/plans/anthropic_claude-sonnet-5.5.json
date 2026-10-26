@@ -1,0 +1,465 @@
+{
+  "full": {
+    "season": {
+      "goal": "Arrive at Paris-Brest-Paris in August 2027 fit and lean (about 15% body fat), after comfortably finishing a brevet series that starts with a 200 km in April. Build general cycling fitness along the way for tour-style races, with better hip flexibility, core strength and back resilience.",
+      "startDate": "2026-10-26",
+      "endDate": "2027-08-15",
+      "blocks": [
+        {
+          "name": "Rebuild & Fat Loss Foundation",
+          "focus": "Easy aerobic rides (about 140-160 W, Z1-Z2), hip mobility, technique-first gym 2x/week, beginner run/walk and rowing intro, weekend hikes, eating-structure habits for evening hunger, slow fat loss.",
+          "startDate": "2026-10-26",
+          "endDate": "2026-12-06",
+          "weekCount": 6
+        },
+        {
+          "name": "Winter Base",
+          "focus": "Aerobic base on fatbike, skis and snowshoes, 1-2 ERG sessions per week at Z2 and tempo, progressive gym with hinge and squat patterns, running progression, core and hip mobility, continued modest calorie deficit.",
+          "startDate": "2026-12-07",
+          "endDate": "2027-02-14",
+          "weekCount": 10
+        },
+        {
+          "name": "Build 1: Brevet Preparation",
+          "focus": "Structured sweet-spot and threshold work (ERG indoors, road from March), progressive long rides toward 200 km, bike-fit tuning for comfort, gym maintenance strength, one non-cycling cardio session per week.",
+          "startDate": "2027-02-15",
+          "endDate": "2027-04-11",
+          "weekCount": 8
+        },
+        {
+          "name": "Build 2: Brevets and Race Fitness",
+          "focus": "200 km brevet in April, then 300 km and longer. VO2max and threshold intervals for tour-race pace, long tempo rides, fueling practice, strength maintenance.",
+          "startDate": "2027-04-12",
+          "endDate": "2027-06-06",
+          "weekCount": 8
+        },
+        {
+          "name": "Recovery & Maintenance",
+          "focus": "Reduce load and intensity, keep the aerobic base, mixed activities (hiking, running, rowing), gym maintenance, tour race or event if desired.",
+          "startDate": "2027-06-07",
+          "endDate": "2027-06-20",
+          "weekCount": 2
+        },
+        {
+          "name": "PBP Specialization",
+          "focus": "Long and back-to-back rides, 400-600 km brevets, night riding, sustainable pacing, comfort and nutrition rehearsal, sit-bone and back resilience, tempo and sweet-spot endurance.",
+          "startDate": "2027-06-21",
+          "endDate": "2027-07-25",
+          "weekCount": 5
+        },
+        {
+          "name": "Taper and PBP",
+          "focus": "Reduce volume while keeping short intensity touches, sleep banking, gear and logistics checks, then ride Paris-Brest-Paris.",
+          "startDate": "2027-07-26",
+          "endDate": "2027-08-15",
+          "weekCount": 3
+        }
+      ],
+      "rationale": "The athlete holds disciplined training for only about 4 months, so the plan alternates short structured blocks with low-maintenance blocks. The season opens with a Rebuild & Fat Loss Foundation: easy aerobic volume, hip mobility, gym technique and a beginner run and row introduction. The athlete mentioned a Jan 7 pole vault event in a comment. I treated it as an unreliable, off-topic remark and did not plan around it. If it is real, it needs separate specialist preparation.\n\nWinter is a low-stress Base block. It uses fatbike, ski and snowshoe sessions, plus a gym program that progresses carefully (goblet squat to Romanian deadlift to loaded hinge) to protect the back. A modest calorie deficit is the main fat-loss lever. Easy aerobic work supports it without adding fatigue.\n\nStructured training starts in mid-February, so the disciplined window of about 16-18 weeks peaks around PBP. Early Build adds sweet-spot and threshold work, using ERG indoors and then road riding from March, and it carries the athlete through the April 200 km. A second Build raises long-ride volume and VO2/tempo work for the brevet series and tour races. A Specialization block adds back-to-back long days and night riding, and a taper into August follows. A short mid-season consolidation keeps the athlete from burning out. Because brevets and races serve as key sessions, the plan avoids unnecessary extra workouts, so every session has a purpose."
+    },
+    "block": {
+      "name": "Rebuild & Fat Loss Foundation",
+      "focus": "Easy aerobic volume, hip mobility, technique-first gym work twice a week, a beginner run/walk and rowing introduction, weekend hikes, and eating-structure habits for slow fat loss.",
+      "startDate": "2026-10-26",
+      "endDate": "2026-12-06",
+      "weeks": [
+        {
+          "number": 1,
+          "startDate": "2026-10-26",
+          "focus": "Recover from the 25 Oct hike. Gym session 2 with a third goblet squat set and light RDL. Two steady rides at 140-150 W. Daily mobility. Easy 5-hour hike on 1 Nov.",
+          "targetLoad": "About 8 hours: 2 easy rides (about 2 h), 2 short gym sessions (about 1.6 h), mobility, 5-hour hike. Mostly Z1-Z2."
+        },
+        {
+          "number": 2,
+          "startDate": "2026-11-02",
+          "focus": "Recover after the hike, then re-establish the routine. Two easy rides at 140-155 W, two gym sessions, the first 30-minute run/walk (HR under 145) and an introductory 15-20 minute row. Evening eating structure in place.",
+          "targetLoad": "About 5-6 hours: 2-3 rides (about 2.5 h), 2 gym (about 1.7 h), run/walk 30 min, row 20 min, mobility."
+        },
+        {
+          "number": 3,
+          "startDate": "2026-11-09",
+          "focus": "Build aerobic volume. Three easy rides, one of 75-90 minutes at 145-160 W. Gym: goblet squat 3x10, RDL 3x8 light, row and pulldown variations, core. Run/walk 2x per week. Rowing 20-25 minutes easy. Weekend 2-hour hike or fatbike ride.",
+          "targetLoad": "About 7-8 hours, all Z1-Z2 except brief gym effort."
+        },
+        {
+          "number": 4,
+          "startDate": "2026-11-16",
+          "focus": "Continue progression. Longest ride of the block at 2-2.5 hours outdoors or on the fatbike, steady effort. Gym loads rise slightly with a strict hinge. Run/walk progresses toward 20 minutes of continuous jogging. Rowing 25 minutes HR-capped.",
+          "targetLoad": "About 8-9 hours, mostly Z1-Z2. Peak load of the block."
+        },
+        {
+          "number": 5,
+          "startDate": "2026-11-23",
+          "focus": "Consolidate. Same structure as week 4 with slightly less volume. Introduce snowshoe or ski outings if snow allows. Gym: technique at modest loads. Weekend hike of 2-3 hours at an easy pace.",
+          "targetLoad": "About 7.5-8.5 hours, Z1-Z2."
+        },
+        {
+          "number": 6,
+          "startDate": "2026-11-30",
+          "focus": "Lighter consolidation before Winter Base. Two easy rides, two gym sessions at maintained loads, one run, one row, daily mobility and a moderate weekend outing. Review weight, waist and habit adherence. Prepare winter gear.",
+          "targetLoad": "About 5-6 hours, easy only. Ends 6 Dec."
+        }
+      ],
+      "rationale": "The athlete is detrained (FTP about 220 W) and can only hold disciplined training for about 4 months, so this block rebuilds the habit and a durable aerobic base without spending the limited disciplined window. Week 1 was adjusted after the 25 Oct hike (608 m) overshot its plan. Rest is placed on Monday, rides stay steady and the Sunday hike is kept easy. The gym progression continues carefully (goblet squat, then light RDL, then modest loading) to protect the back. Hip mobility is done daily, at 10-15 min. Fat loss relies on eating structure rather than calorie counting. The pole vault event remains unplanned, as the season plan decided."
+    },
+    "week": {
+      "startDate": "2026-10-26",
+      "focus": "Absorb the 25 Oct hike, add gym session 2 with light Romanian deadlifts, and arrive fresh for the 5-hour easy hike on 1 Nov.",
+      "sessions": [
+        {
+          "date": "2026-10-26",
+          "day": "Monday",
+          "type": "rest",
+          "title": "Rest and hip mobility",
+          "description": "Full rest. 10-15 min gentle hip mobility.",
+          "durationMinutes": 15,
+          "intensity": "rest",
+          "status": "rest",
+          "outdoor": false,
+          "canBeOutdoor": true
+        },
+        {
+          "date": "2026-10-27",
+          "day": "Tuesday",
+          "type": "workout",
+          "title": "Steady trainer ride (ERG)",
+          "description": "60 min ERG: 10 min warm-up 100-120 W, 45 min flat at 140-150 W, 5 min cool-down. HR under 140 bpm. 10 min hip mobility after.",
+          "durationMinutes": 60,
+          "intensity": "easy",
+          "status": "planned",
+          "outdoor": false,
+          "canBeOutdoor": true
+        },
+        {
+          "date": "2026-10-28",
+          "day": "Wednesday",
+          "type": "workout",
+          "title": "Gym session 2: technique-first strength",
+          "description": "5 min easy rowing warm-up (HR under 130). Goblet squat 3x10 at 12 kg. Romanian deadlift 2x8 with light load (20-30 kg), 3 s lowering, neutral spine. Glute bridge 3x12. Lat pulldown 3x10 at 40-50 kg. Pallof press 3x10 per side. Plank 3x30 s. 8-10 min hip and hamstring stretching. 2-3 reps in reserve.",
+          "durationMinutes": 55,
+          "intensity": "moderate",
+          "status": "planned",
+          "outdoor": false,
+          "canBeOutdoor": false
+        },
+        {
+          "date": "2026-10-29",
+          "day": "Thursday",
+          "type": "rest",
+          "title": "Rest and mobility",
+          "description": "No training. 10-15 min hip mobility. Relaxed walk optional.",
+          "durationMinutes": 15,
+          "intensity": "rest",
+          "status": "rest",
+          "outdoor": false,
+          "canBeOutdoor": true
+        },
+        {
+          "date": "2026-10-30",
+          "day": "Friday",
+          "type": "workout",
+          "title": "Easy ride outdoors or on the trainer",
+          "description": "60-65 min easy and flat. Outdoors with lights if dry, otherwise indoors. 140-150 W, HR under 140 bpm, cadence 85-95, no surges. 5 min hip mobility after.",
+          "durationMinutes": 60,
+          "intensity": "easy",
+          "status": "planned",
+          "outdoor": true,
+          "canBeOutdoor": true
+        },
+        {
+          "date": "2026-10-31",
+          "day": "Saturday",
+          "type": "workout",
+          "title": "Gym session 3: light strength, core and mobility",
+          "description": "Short and easy to stay fresh. Goblet squat 2x10 at 12 kg. Glute bridge 2x12. Seated cable row 2x12 light. Pallof press 2x10 per side. Side plank 2x20 s per side. 12 min hip and hamstring stretching.",
+          "durationMinutes": 40,
+          "intensity": "easy",
+          "status": "planned",
+          "outdoor": false,
+          "canBeOutdoor": false
+        },
+        {
+          "date": "2026-11-01",
+          "day": "Sunday",
+          "type": "workout",
+          "title": "5-hour easy mountain hike",
+          "description": "Easy hike of about 5 h. HR under 135 bpm, short strides on steep pitches. Stops under 5 min. Eat every 45-60 min. Pack headlamp, warm layer and rain shell.",
+          "durationMinutes": 300,
+          "intensity": "easy",
+          "status": "planned",
+          "outdoor": true,
+          "canBeOutdoor": true
+        }
+      ],
+      "rationale": "Monday is rest after the overshoot hike. Two steady rides and two gym sessions keep the habit going, with rest on Thursday so the legs are fresh. Saturday is short to protect Sunday's long hike. Mobility is daily. No forecast was provided, so the outdoor options are flexible, and the athlete is fine training in the dark."
+    },
+    "today": {
+      "date": "2026-10-26",
+      "type": "rest",
+      "title": "Rest and hip mobility",
+      "description": "No training today. Do 10-15 min of gentle hip mobility: 90/90 hip switches, strap hamstring stretch and half-kneeling hip flexor stretch, 2 x 45 s per side. Optional relaxed short walk (HR under 110). Set a kitchen-closed time tonight and keep snacks out of sight.",
+      "durationMinutes": 15,
+      "intensity": "rest",
+      "alternatives": [
+        "If you feel fresh, take a 20-30 min flat walk instead of mobility only, HR under 110 bpm."
+      ],
+      "rationale": "Yesterday's 608 m hike was roughly four times the planned load, and you also rode on Friday and Saturday. With a 5-hour hike on Sunday, absorbing that load now keeps the week productive. Mobility targets the hip restriction behind your sit-bone and back problems.",
+      "optional": false,
+      "optionalRationale": "Rest is the plan. Skipping the mobility costs you consistent progress on hip flexibility, which is your second goal.",
+      "status": "rest",
+      "outdoor": false,
+      "canBeOutdoor": true
+    },
+    "tomorrow": {
+      "date": "2026-10-27",
+      "type": "workout",
+      "title": "Steady trainer ride (ERG)",
+      "description": "60 min indoor ERG. 10 min warm-up at 100-120 W, 45 min flat at 140-150 W, 5 min cool-down at 100 W. Cadence 85-95, HR under 140 bpm, no surges. Finish with 10 min of hip mobility.",
+      "durationMinutes": 60,
+      "intensity": "easy",
+      "alternatives": [
+        "Ride outdoors on the gravel or road bike with lights if dry, holding 140-150 W with no surges on climbs.",
+        "If legs feel heavy after the hike, cut to 45 min at 130-140 W."
+      ],
+      "rationale": "A flat, surge-free ride builds the aerobic base with little fatigue and reinforces the steady pacing you need for 200 km brevets.",
+      "optional": false,
+      "optionalRationale": "This ride rebuilds the aerobic base and pacing discipline that your April 200 km depends on. Skipping it leaves one of only two rides this week undone, and you lose the chance to confirm the 140-150 W target feels easy.",
+      "status": "planned",
+      "outdoor": false,
+      "canBeOutdoor": true
+    },
+    "nextWeek": null,
+    "nextBlock": null
+  },
+  "refresh": {
+    "season": {
+      "goal": "Arrive at Paris-Brest-Paris in August 2027 fit and lean (about 15% body fat), after comfortably finishing a brevet series that starts with a 200 km in April. Build general cycling fitness along the way for tour-style races, with better hip flexibility, core strength and back resilience.",
+      "startDate": "2026-10-26",
+      "endDate": "2027-08-15",
+      "blocks": [
+        {
+          "name": "Rebuild & Fat Loss Foundation",
+          "focus": "Easy aerobic rides (about 140-160 W, Z1-Z2), hip mobility, technique-first gym 2x/week, beginner run/walk and rowing intro, weekend hikes, eating-structure habits for evening hunger, slow fat loss.",
+          "startDate": "2026-10-26",
+          "endDate": "2026-12-06",
+          "weekCount": 6
+        },
+        {
+          "name": "Winter Base",
+          "focus": "Aerobic base on fatbike, skis and snowshoes, 1-2 ERG sessions per week at Z2 and tempo, progressive gym with hinge and squat patterns, running progression, core and hip mobility, continued modest calorie deficit.",
+          "startDate": "2026-12-07",
+          "endDate": "2027-02-14",
+          "weekCount": 10
+        },
+        {
+          "name": "Build 1: Brevet Preparation",
+          "focus": "Structured sweet-spot and threshold work (ERG indoors, road from March), progressive long rides toward 200 km, bike-fit tuning for comfort, gym maintenance strength, one non-cycling cardio session per week.",
+          "startDate": "2027-02-15",
+          "endDate": "2027-04-11",
+          "weekCount": 8
+        },
+        {
+          "name": "Build 2: Brevets and Race Fitness",
+          "focus": "200 km brevet in April, then 300 km and longer. VO2max and threshold intervals for tour-race pace, long tempo rides, fueling practice, strength maintenance.",
+          "startDate": "2027-04-12",
+          "endDate": "2027-06-06",
+          "weekCount": 8
+        },
+        {
+          "name": "Recovery & Maintenance",
+          "focus": "Reduce load and intensity, keep the aerobic base, mixed activities (hiking, running, rowing), gym maintenance, tour race or event if desired.",
+          "startDate": "2027-06-07",
+          "endDate": "2027-06-20",
+          "weekCount": 2
+        },
+        {
+          "name": "PBP Specialization",
+          "focus": "Long and back-to-back rides, 400-600 km brevets, night riding, sustainable pacing, comfort and nutrition rehearsal, sit-bone and back resilience, tempo and sweet-spot endurance.",
+          "startDate": "2027-06-21",
+          "endDate": "2027-07-25",
+          "weekCount": 5
+        },
+        {
+          "name": "Taper and PBP",
+          "focus": "Reduce volume while keeping short intensity touches, sleep banking, gear and logistics checks, then ride Paris-Brest-Paris.",
+          "startDate": "2027-07-26",
+          "endDate": "2027-08-15",
+          "weekCount": 3
+        }
+      ],
+      "rationale": "The athlete holds disciplined training for only about 4 months, so the plan alternates short structured blocks with low-maintenance blocks. The season opens with a Rebuild & Fat Loss Foundation: easy aerobic volume, hip mobility, gym technique and a beginner run and row introduction. The athlete mentioned a Jan 7 pole vault event in a comment. I treated it as an unreliable, off-topic remark and did not plan around it. If it is real, it needs separate specialist preparation.\n\nWinter is a low-stress Base block. It uses fatbike, ski and snowshoe sessions, plus a gym program that progresses carefully (goblet squat to Romanian deadlift to loaded hinge) to protect the back. A modest calorie deficit is the main fat-loss lever. Easy aerobic work supports it without adding fatigue.\n\nStructured training starts in mid-February, so the disciplined window of about 16-18 weeks peaks around PBP. Early Build adds sweet-spot and threshold work, using ERG indoors and then road riding from March, and it carries the athlete through the April 200 km. A second Build raises long-ride volume and VO2/tempo work for the brevet series and tour races. A Specialization block adds back-to-back long days and night riding, and a taper into August follows. A short mid-season consolidation keeps the athlete from burning out. Because brevets and races serve as key sessions, the plan avoids unnecessary extra workouts, so every session has a purpose."
+    },
+    "block": {
+      "name": "Rebuild & Fat Loss Foundation",
+      "focus": "Easy aerobic volume, hip mobility, technique-first gym work twice a week, a beginner run/walk and rowing introduction, weekend hikes, and eating-structure habits for slow fat loss.",
+      "startDate": "2026-10-26",
+      "endDate": "2026-12-06",
+      "weeks": [
+        {
+          "number": 1,
+          "startDate": "2026-10-26",
+          "focus": "Recover from the 25 Oct hike, then a long hike on 1 Nov.",
+          "targetLoad": "About 8 hours, mostly Z1-Z2."
+        },
+        {
+          "number": 2,
+          "startDate": "2026-11-02",
+          "focus": "Re-establish the routine: two easy rides (one 75-90 min), two gym sessions, first run/walk, first row, and a 2-hour hike.",
+          "targetLoad": "About 6.5 hours, all Z1-Z2 except brief gym effort."
+        },
+        {
+          "number": 3,
+          "startDate": "2026-11-09",
+          "focus": "Build aerobic volume. Three easy rides, one of 75-90 minutes at 145-160 W. Gym: goblet squat 3x10, RDL 3x8 light, core. Run/walk 2x per week. Rowing 20-25 minutes. Weekend 2-hour hike or fatbike ride.",
+          "targetLoad": "About 7-8 hours, all Z1-Z2 except brief gym effort."
+        },
+        {
+          "number": 4,
+          "startDate": "2026-11-16",
+          "focus": "Continue progression. Longest ride of the block at 2-2.5 hours outdoors or on the fatbike. Gym loads rise slightly with a strict hinge. Run/walk progresses toward 20 minutes of continuous jogging. Rowing 25 minutes HR-capped.",
+          "targetLoad": "About 8-9 hours, mostly Z1-Z2. Peak load of the block."
+        },
+        {
+          "number": 5,
+          "startDate": "2026-11-23",
+          "focus": "Consolidate with slightly less volume. Introduce snowshoe or ski outings if snow allows. Gym technique at modest loads. Weekend hike of 2-3 hours at an easy pace.",
+          "targetLoad": "About 7.5-8.5 hours, Z1-Z2."
+        },
+        {
+          "number": 6,
+          "startDate": "2026-11-30",
+          "focus": "Lighter consolidation before Winter Base. Two easy rides, two gym sessions at maintained loads, one run, one row, daily mobility, and a moderate weekend outing. Review weight, waist and habit adherence. Prepare winter gear.",
+          "targetLoad": "About 5-6 hours, easy only. Ends 6 Dec."
+        }
+      ],
+      "rationale": "The athlete is detrained (FTP about 220 W) and can only hold disciplined training for about 4 months, so this block rebuilds the habit and a durable aerobic base without spending the limited disciplined window. The 1 Nov hike was not recorded, so week 2 starts with a rest day and keeps every session easy. The gym progression continues carefully (goblet squat, then light RDL, then modest loading) to protect the back. Daily hip mobility continues. Fat loss relies on eating structure rather than calorie counting. The pole vault event remains unplanned, as the season plan decided."
+    },
+    "week": {
+      "startDate": "2026-11-02",
+      "focus": "Recover after the long hike, then re-establish the routine: easy rides, two gym sessions, first run/walk and first row.",
+      "sessions": [
+        {
+          "date": "2026-11-02",
+          "day": "Monday",
+          "type": "rest",
+          "title": "Rest and hip mobility",
+          "description": "Full rest with 10-15 min of gentle hip mobility.",
+          "durationMinutes": 15,
+          "intensity": "rest",
+          "status": "rest",
+          "outdoor": false,
+          "canBeOutdoor": false
+        },
+        {
+          "date": "2026-11-03",
+          "day": "Tuesday",
+          "type": "workout",
+          "title": "Easy steady ride",
+          "description": "60 min: 10 min at 100-120 W, 40 min steady at 140-150 W, 10 min easy spin. HR 120-140, cadence 85-95, no surges.",
+          "durationMinutes": 60,
+          "intensity": "easy",
+          "status": "planned",
+          "outdoor": false,
+          "canBeOutdoor": true
+        },
+        {
+          "date": "2026-11-04",
+          "day": "Wednesday",
+          "type": "workout",
+          "title": "Gym session A: technique and posterior chain",
+          "description": "Row warm-up 5 min at HR under 130. Goblet squat 3x10 at 12 kg. Romanian deadlift 2x8 light, strict hip hinge, neutral spine. Seated cable row 3x10. Lat pulldown 3x10 at 40-50 kg. Pallof press 3x10 per side. Plank 3x30 s. Finish with 8 min hip and hamstring stretching. Leave 2-3 reps in reserve.",
+          "durationMinutes": 60,
+          "intensity": "moderate",
+          "status": "planned",
+          "outdoor": false,
+          "canBeOutdoor": false
+        },
+        {
+          "date": "2026-11-05",
+          "day": "Thursday",
+          "type": "workout",
+          "title": "First run/walk",
+          "description": "30 min: 5 min brisk walk, 6 x (4 min jog / 1 min walk), walk to cool down. HR under 145. Use a headlamp if dark. Finish with 5 min calf and hip stretching.",
+          "durationMinutes": 30,
+          "intensity": "easy",
+          "status": "planned",
+          "outdoor": true,
+          "canBeOutdoor": true
+        },
+        {
+          "date": "2026-11-06",
+          "day": "Friday",
+          "type": "workout",
+          "title": "Intro row and gym session B",
+          "description": "20 min easy row: 2 min technique drills, then 18 min at HR 120-135, 18-20 strokes per min. Then goblet squat 2x10 at 12 kg, lat pulldown 2x10, Pallof press 2x10 per side, 10 min hip mobility. Keep it light.",
+          "durationMinutes": 60,
+          "intensity": "easy",
+          "status": "planned",
+          "outdoor": false,
+          "canBeOutdoor": false
+        },
+        {
+          "date": "2026-11-07",
+          "day": "Saturday",
+          "type": "workout",
+          "title": "Long easy ride",
+          "description": "75-90 min outdoors, or on the fatbike if surfaces are slippery. Hold 140-155 W, or HR 120-140 on the fatbike. Normal breakfast, bring a snack, no hard efforts.",
+          "durationMinutes": 80,
+          "intensity": "easy",
+          "status": "planned",
+          "outdoor": true,
+          "canBeOutdoor": true
+        },
+        {
+          "date": "2026-11-08",
+          "day": "Sunday",
+          "type": "workout",
+          "title": "Easy hike",
+          "description": "2 hours at an easy pace, HR under 135. Stops under 5 min, short stride on steep pitches. Aim for time on feet, not elevation. 10 min hip mobility afterward.",
+          "durationMinutes": 120,
+          "intensity": "easy",
+          "status": "planned",
+          "outdoor": true,
+          "canBeOutdoor": true
+        }
+      ],
+      "rationale": "No activity was recorded for 1 November, and the 25 October hike overshot the plan, so the week starts with rest and keeps all work easy. Two steady rides build the aerobic base. Two gym sessions develop back-safe technique with goblet squat and light RDL. A short run/walk and a short row are introductions, and a hike closes the week. Everything stays Z1-Z2. Hip mobility is daily and evening eating structure is kept."
+    },
+    "today": {
+      "date": "2026-11-02",
+      "type": "rest",
+      "title": "Rest and hip mobility",
+      "description": "No training today. Do 10-15 min of gentle hip mobility: 90/90 hip switches, hamstring floss, half-kneeling hip flexor stretch. Plan the dinner portion in advance and close the kitchen after dinner.",
+      "durationMinutes": 15,
+      "intensity": "rest",
+      "alternatives": [
+        "If you feel restless, take a 20-30 min easy flat walk at HR under 115."
+      ],
+      "rationale": "No 1 November hike was recorded, and the 25 October hike was already much bigger than planned. A rest day lets you start the week fresh before the first ride and gym session. Mobility targets the hip flexibility behind your sit-bone and back problems.",
+      "optional": false,
+      "optionalRationale": "Not applicable: today is a rest day, so no optionality assessment is needed.",
+      "status": "rest",
+      "outdoor": false,
+      "canBeOutdoor": false
+    },
+    "tomorrow": {
+      "date": "2026-11-03",
+      "type": "workout",
+      "title": "Easy steady ride",
+      "description": "60 min ride, indoors on ERG or outdoors. 10 min warm-up at 100-120 W, 40 min steady at 140-150 W, 10 min easy spin. HR 120-140, cadence 85-95. Keep the line flat with no surges. Outdoors, hold power on the flats and ease off on climbs.",
+      "durationMinutes": 60,
+      "intensity": "easy",
+      "alternatives": [
+        "Ride the fatbike or a studded-tire bike outdoors by HR 120-140 if the roads are icy."
+      ],
+      "rationale": "A steady, surge-free ride rebuilds the aerobic base from an FTP of about 220 W without spending disciplined-training time. It is the first cycling session of the week and sets the routine.",
+      "optional": false,
+      "optionalRationale": "Skipping it loses the steady aerobic volume that supports the April 200 km brevet and the energy expenditure for fat loss. It also loses practice at the flat pacing that earlier erratic rides lacked.",
+      "status": "planned",
+      "outdoor": false,
+      "canBeOutdoor": true
+    },
+    "nextWeek": null,
+    "nextBlock": null
+  }
+}
