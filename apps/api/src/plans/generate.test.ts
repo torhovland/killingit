@@ -16,9 +16,10 @@ import type { LlmCompletionRequest, LlmProvider } from "../llm/openrouter.js";
 import {
   BLOCK_UPDATE_SYSTEM_PROMPT,
   DAILY_UPDATE_SYSTEM_PROMPT,
+  SEASON_REFRESH_SYSTEM_PROMPT,
   WEEKLY_UPDATE_SYSTEM_PROMPT,
 } from "../llm/planUpdatePrompt.js";
-import { addDays } from "./dates.js";
+import { addDays, startOfWeek } from "./dates.js";
 import { runPlanGeneration, type PlanGenerationContext } from "./generate.js";
 import { planPending } from "./status.js";
 import type { PlanGenerationStep } from "./steps.js";
@@ -170,14 +171,76 @@ function buildResponses(today = "2026-10-21") {
   return {
     season: JSON.stringify({ season: makeSeason() }),
     block: JSON.stringify({ block: makeBlock() }),
+    seasonRefresh: JSON.stringify({
+      season: makeRefreshedSeason(today),
+      block: makeBlock(today, "2026-12-31"),
+    }),
     weekly: JSON.stringify({
-      week: makeWeek("2026-10-19"),
+      week: makeWeek(startOfWeek(today)),
       block: makeBlock(),
     }),
     daily: JSON.stringify({
       today: makeDay(today),
-      week: makeWeek("2026-10-19"),
+      week: makeWeek(startOfWeek(today)),
     }),
+  };
+}
+
+/** The remaining season returned by a refresh: current block plus a future one. */
+function makeRefreshedSeason(startDate = "2026-10-21"): SeasonPlan {
+  return {
+    goal: "Sub-4-hour marathon",
+    startDate,
+    endDate: "2027-04-01",
+    rationale: "Re-plan the rest of the season around current fitness.",
+    blocks: [
+      {
+        name: "Rebuild",
+        focus: "Aerobic endurance",
+        startDate,
+        endDate: "2026-12-31",
+        weekCount: 7,
+      },
+      {
+        name: "Peak",
+        focus: "Threshold and race pace",
+        startDate: "2027-01-01",
+        endDate: "2027-04-01",
+        weekCount: 13,
+      },
+    ],
+  };
+}
+
+/** A stored plan in the middle of a season with one completed block. */
+function makeMidSeasonPlan(today = "2026-11-15"): CoachPlan {
+  const plan = makePlan(today);
+  const season = makeSeason();
+  return {
+    ...plan,
+    season: {
+      ...season,
+      startDate: "2026-10-01",
+      blocks: [
+        {
+          name: "Base",
+          focus: "Aerobic endurance",
+          startDate: "2026-10-01",
+          endDate: "2026-10-31",
+          weekCount: 4,
+        },
+        {
+          name: "Build",
+          focus: "Threshold",
+          startDate: "2026-11-01",
+          endDate: "2026-12-31",
+          weekCount: 9,
+        },
+      ],
+    },
+    block: makeBlock("2026-11-01", "2026-12-31"),
+    week: makeWeek("2026-11-09"),
+    today: makeDay(today),
   };
 }
 
@@ -310,6 +373,7 @@ class FakeProvider implements LlmProvider {
       season?: string;
       block?: string;
       blockUpdate?: string;
+      seasonRefresh?: string;
       daily?: string;
       weekly?: string;
     },
@@ -340,6 +404,10 @@ class FakeProvider implements LlmProvider {
     if (system === WEEKLY_UPDATE_SYSTEM_PROMPT) {
       this.calls.push("weekly");
       return this.respond(this.responses.weekly);
+    }
+    if (system === SEASON_REFRESH_SYSTEM_PROMPT) {
+      this.calls.push("season-refresh");
+      return this.respond(this.responses.seasonRefresh);
     }
     if (system === BLOCK_UPDATE_SYSTEM_PROMPT) {
       this.calls.push("block-update");
@@ -378,7 +446,7 @@ describe("runPlanGeneration", () => {
     expect(generations.steps).toContain("Building your week");
   });
 
-  it("regenerates everything in steps when the answers are stale", async () => {
+  it("refreshes the existing season when the answers are stale", async () => {
     const provider = new FakeProvider(buildResponses());
     const existing = makeStoredPlan(
       makePlan(),
@@ -396,7 +464,7 @@ describe("runPlanGeneration", () => {
       generations,
     });
 
-    expect(provider.calls).toEqual(["season", "block", "weekly", "daily"]);
+    expect(provider.calls).toEqual(["season-refresh", "weekly", "daily"]);
     expect(generations.status.status).toBe("done");
   });
 
@@ -1422,5 +1490,202 @@ describe("runPlanGeneration", () => {
     expect(saved?.plan.today.date).toBe("2026-10-26");
     expect(saved?.plan.today.title).toBe(tomorrow.title);
     expect(saved?.plan.tomorrow).toBeNull();
+  });
+
+  it("builds a fresh season from today when asked for a new season", async () => {
+    const today = "2026-11-15";
+    const provider = new FakeProvider({
+      season: JSON.stringify({ season: makeRefreshedSeason(today) }),
+      block: JSON.stringify({ block: makeBlock(today, "2026-12-31") }),
+      weekly: JSON.stringify({
+        week: makeWeek(startOfWeek(today)),
+        block: makeBlock(today, "2026-12-31"),
+      }),
+      daily: JSON.stringify({
+        today: makeDay(today),
+        week: makeWeek(startOfWeek(today)),
+      }),
+    });
+    const existing = makeStoredPlan(makeMidSeasonPlan(today));
+    const plans = new MemoryPlanStore(existing);
+    const generations = new MemoryGenerationStore();
+
+    const saved = await runPlanGeneration({
+      userId: 1,
+      today,
+      mode: "newSeason",
+      plan: existing,
+      context: makeContext(provider),
+      plans,
+      generations,
+    });
+
+    expect(provider.calls).toEqual(["season", "block", "weekly", "daily"]);
+    expect(saved?.plan.season.startDate).toBe(today);
+    expect(saved?.plan.season.blocks[0]?.name).toBe("Rebuild");
+    expect(saved?.plan.block.startDate).toBe(today);
+  });
+
+  it("refreshes the current block in place and keeps completed blocks", async () => {
+    const today = "2026-11-15";
+    const previous = makeMidSeasonPlan(today);
+    const completed = previous.season.blocks[0];
+    const provider = new FakeProvider({
+      seasonRefresh: JSON.stringify({
+        season: makeRefreshedSeason("2026-11-01"),
+        block: makeBlock("2026-11-01", "2026-12-31"),
+      }),
+      weekly: JSON.stringify({
+        week: makeWeek(startOfWeek(today)),
+        block: makeBlock("2026-11-01", "2026-12-31"),
+      }),
+      daily: JSON.stringify({
+        today: makeDay(today),
+        week: makeWeek(startOfWeek(today)),
+      }),
+    });
+    const existing = makeStoredPlan(previous);
+    const plans = new MemoryPlanStore(existing);
+    const generations = new MemoryGenerationStore();
+
+    const saved = await runPlanGeneration({
+      userId: 1,
+      today,
+      mode: "updateSeason",
+      plan: existing,
+      context: makeContext(provider),
+      plans,
+      generations,
+    });
+
+    expect(provider.calls).toEqual(["season-refresh", "weekly", "daily"]);
+    expect(saved?.plan.season.startDate).toBe("2026-10-01");
+    expect(saved?.plan.season.blocks[0]).toEqual(completed);
+    expect(saved?.plan.season.blocks[1]?.startDate).toBe("2026-11-01");
+    expect(saved?.plan.season.blocks[1]?.name).toBe("Rebuild");
+    expect(saved?.plan.block.startDate).toBe("2026-11-01");
+    expect(saved?.plan.today.date).toBe(today);
+    expect(generations.steps).toContain("Refreshing your season");
+  });
+
+  it("refreshes an existing season automatically when answers are stale", async () => {
+    const today = "2026-11-15";
+    const previous = makeMidSeasonPlan(today);
+    const provider = new FakeProvider({
+      seasonRefresh: JSON.stringify({
+        season: makeRefreshedSeason("2026-11-01"),
+        block: makeBlock("2026-11-01", "2026-12-31"),
+      }),
+      weekly: JSON.stringify({
+        week: makeWeek(startOfWeek(today)),
+        block: makeBlock("2026-11-01", "2026-12-31"),
+      }),
+      daily: JSON.stringify({
+        today: makeDay(today),
+        week: makeWeek(startOfWeek(today)),
+      }),
+    });
+    const existing = makeStoredPlan(previous, new Date("2026-11-01T10:00:00Z"));
+    const plans = new MemoryPlanStore(existing);
+    const generations = new MemoryGenerationStore();
+
+    await runPlanGeneration({
+      userId: 1,
+      today,
+      plan: existing,
+      context: makeContext(provider, new Date("2026-11-15T10:00:00Z")),
+      plans,
+      generations,
+    });
+
+    expect(provider.calls).toEqual(["season-refresh", "weekly", "daily"]);
+  });
+
+  it("falls back to a new season when update mode has no season to refresh", async () => {
+    const provider = new FakeProvider(buildResponses());
+    const plans = new MemoryPlanStore(null);
+    const generations = new MemoryGenerationStore();
+
+    await runPlanGeneration({
+      userId: 1,
+      today: "2026-10-21",
+      mode: "updateSeason",
+      plan: null,
+      context: makeContext(provider),
+      plans,
+      generations,
+    });
+
+    expect(provider.calls).toEqual(["season", "block", "weekly", "daily"]);
+  });
+
+  it("rejects a refreshed season that moves the current block start date", async () => {
+    const today = "2026-11-15";
+    const previous = makeMidSeasonPlan(today);
+    const provider = new FakeProvider({
+      seasonRefresh: JSON.stringify({
+        season: makeRefreshedSeason(today),
+        block: makeBlock(today, "2026-12-31"),
+      }),
+    });
+    const existing = makeStoredPlan(previous);
+    const plans = new MemoryPlanStore(existing);
+    const generations = new MemoryGenerationStore();
+
+    let failure: unknown;
+    try {
+      await runPlanGeneration({
+        userId: 1,
+        today,
+        mode: "updateSeason",
+        plan: existing,
+        context: makeContext(provider),
+        plans,
+        generations,
+      });
+    } catch (err) {
+      failure = err;
+    }
+
+    expect((failure as Error).message).toContain("refresh");
+    expect(generations.status.status).toBe("error");
+    expect(plans.saved).toBe(existing);
+  });
+
+  it("rejects a weekly revision that moves the current block start date", async () => {
+    const today = "2026-11-15";
+    const previous = makeMidSeasonPlan(today);
+    const provider = new FakeProvider({
+      seasonRefresh: JSON.stringify({
+        season: makeRefreshedSeason("2026-11-01"),
+        block: makeBlock("2026-11-01", "2026-12-31"),
+      }),
+      weekly: JSON.stringify({
+        week: makeWeek(startOfWeek(today)),
+        block: makeBlock(today, "2026-12-31"),
+      }),
+    });
+    const existing = makeStoredPlan(previous);
+    const plans = new MemoryPlanStore(existing);
+    const generations = new MemoryGenerationStore();
+
+    let failure: unknown;
+    try {
+      await runPlanGeneration({
+        userId: 1,
+        today,
+        mode: "updateSeason",
+        plan: existing,
+        context: makeContext(provider),
+        plans,
+        generations,
+      });
+    } catch (err) {
+      failure = err;
+    }
+
+    expect((failure as Error).message).toContain("start date");
+    expect(generations.status.status).toBe("error");
+    expect(plans.saved).toBe(existing);
   });
 });

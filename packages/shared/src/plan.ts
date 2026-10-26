@@ -303,10 +303,25 @@ export const coachPlanResponseSchema = z.object({
 
 export type CoachPlanResponse = z.infer<typeof coachPlanResponseSchema>;
 
+/** How an explicit regeneration should treat the stored season. */
+export const planGenerateModeSchema = z.enum([
+  "auto",
+  "newSeason",
+  "updateSeason",
+]);
+
+export type PlanGenerateMode = z.infer<typeof planGenerateModeSchema>;
+
 /** Request body of `POST /api/coaching/plan/generate`. */
 export const planGenerateInputSchema = z.object({
   today: planDateSchema,
   timezone: z.string().min(1).max(100).optional(),
+  /**
+   * `auto` fills in whatever is missing and refreshes a stale existing season.
+   * `newSeason` starts a fresh season today; `updateSeason` re-plans the rest of
+   * the stored season from today.
+   */
+  mode: planGenerateModeSchema.default("auto"),
   /** Rebuild the whole plan even when the stored levels are still current. */
   force: z.boolean().default(false),
   /** The client's local time is after 18:00, so tomorrow's session is wanted. */

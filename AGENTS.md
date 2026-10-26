@@ -66,8 +66,12 @@ about a past workout, or before a suggested workout, to steer the coach.
   is in `plan_generations`. After 18:00 the stored plan also carries tomorrow's
   session and, when tomorrow has crossed a week or block boundary, the next week
   and next block, so the Day, Week and Block tabs agree. The next period is
-  promoted when today reaches it. The lazy day → week → block cascade and the
-  plan UI are documented in `docs/specs/coach-plan-lifecycle.md`.
+  promoted when today reaches it. Explicit regeneration can start a new season
+  from today or update the remaining part of the stored season; stale answers
+  update an existing season by default. See
+  `docs/specs/season-regeneration.md` and ADR 0011. The lazy day → week → block
+  cascade and the plan UI are documented in
+  `docs/specs/coach-plan-lifecycle.md`.
 - Plan completions use a 16,384-token output budget, with reasoning fallbacks up
   to 32,768, so reasoning models can think and still return the complete JSON.
   Model comparisons run through `bun run benchmark:llm` against the test

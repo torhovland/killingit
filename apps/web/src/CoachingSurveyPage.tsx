@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { AthleteAnswersSection } from "./AthleteAnswersSection";
 import { useAppStatus } from "./AppStatus";
-import { RegeneratePlanButton } from "./RegeneratePlanButton";
+import { PlanRegenerationButtons } from "./PlanRegenerationButtons";
 import { useAthleteQuestions } from "./useAthleteQuestions";
 
 interface CoachingSurveyPageProps {
@@ -68,9 +68,10 @@ export function CoachingSurveyPage({
         <h3 className="text-xl font-semibold">Training plan</h3>
         <p className="text-sm text-muted-foreground">
           After updating your answers, rebuild the plan so your coach can use
-          them.
+          them. Updating an existing season keeps the blocks you have already
+          completed.
         </p>
-        <RegeneratePlanButton />
+        <PlanRegenerationButtons />
       </section>
     </section>
   );

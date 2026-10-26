@@ -104,8 +104,8 @@ new comment and the review summaries, so the plan revision is built on them.
   answered reviews visible for the visit.
 - `SeasonReviewPage` lists every review and offers the edit action. It is
   reachable from the account menu as **Season review**.
-- The dashboard no longer has a "Regenerate plan" button. Forced regeneration
-  remains on the coaching survey and settings pages.
+- The dashboard no longer has a regeneration button. The new-season and
+  season-update actions remain on the coaching survey and settings pages.
 
 ## Testing
 
@@ -128,5 +128,6 @@ new comment and the review summaries, so the plan revision is built on them.
    the prompt for a plan refresh.
 5. Season review lists all reviews and supports editing a comment, which
    regenerates the reply and refreshes the plan.
-6. The dashboard has no "Regenerate plan" button; survey and settings still do.
+6. The dashboard has no regeneration button; the survey and settings pages have
+   the new-season and season-update actions.
 7. All four quality gates pass.
