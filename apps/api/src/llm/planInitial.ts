@@ -6,6 +6,7 @@ import {
 } from "@killingit/shared";
 import type { LlmProvider } from "./openrouter.js";
 import { completePlanJson } from "./planCompletion.js";
+import { PLAN_MAX_TOKENS } from "./planBudget.js";
 import {
   buildInitialBlockMessages,
   buildSeasonPlanMessages,
@@ -25,7 +26,7 @@ export async function generateSeasonPlan(
     provider,
     credentials,
     buildSeasonPlanMessages(input),
-    4096,
+    PLAN_MAX_TOKENS,
   );
 }
 
@@ -40,6 +41,6 @@ export async function generateInitialBlock(
     provider,
     credentials,
     buildInitialBlockMessages(input),
-    4096,
+    PLAN_MAX_TOKENS,
   );
 }

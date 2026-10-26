@@ -77,6 +77,46 @@ describe("completeWithFallbacks", () => {
     expect(provider.requests[2]?.maxTokens).toBe(4096);
   });
 
+  it("caps the doubled budget at MAX_COMPLETION_TOKENS", async () => {
+    const provider = new FakeProvider([
+      new LlmTokenLimitError("limit"),
+      new LlmTokenLimitError("limit"),
+      "Analysis.",
+    ]);
+
+    const text = await completeWithFallbacks(
+      provider,
+      credentials,
+      messages,
+      16_384,
+      0.3,
+    );
+
+    expect(text).toBe("Analysis.");
+    expect(provider.requests[2]?.maxTokens).toBe(32_768);
+  });
+
+  it("retries with a small budget for providers that reject a large one", async () => {
+    const provider = new FakeProvider([
+      new LlmProviderError("max_tokens too large", 400),
+      new LlmProviderError("max_tokens too large", 400),
+      new LlmProviderError("max_tokens too large", 400),
+      new LlmProviderError("max_tokens too large", 400),
+      "Analysis.",
+    ]);
+
+    const text = await completeWithFallbacks(
+      provider,
+      credentials,
+      messages,
+      16_384,
+      0.3,
+    );
+
+    expect(text).toBe("Analysis.");
+    expect(provider.requests[4]?.maxTokens).toBe(4096);
+  });
+
   it("drops reasoning control for models that reject it", async () => {
     const provider = new FakeProvider([
       new LlmProviderError("unsupported reasoning", 400),

@@ -5,6 +5,7 @@ import {
   type LlmProvider,
   type LlmReasoning,
 } from "./openrouter.js";
+import { MAX_COMPLETION_TOKENS } from "./planBudget.js";
 
 export interface CompletionCredentials {
   apiKey: string;
@@ -24,12 +25,16 @@ interface CompletionAttempt {
  * 2. the normal budget with reasoning disabled;
  * 3. a doubled budget with reasoning disabled;
  * 4. a doubled budget without reasoning control;
- * 5. the normal budget without reasoning control, for models that reject both
- *    the reasoning parameter and an oversized `max_tokens`.
+ * 5. a small budget with reasoning disabled, for models that reject a large
+ *    `max_tokens`;
+ * 6. the small budget without reasoning control;
+ * 7. the normal budget without reasoning control.
  *
  * Reasoning tokens count against `maxTokens`, so a model can exhaust the budget
  * before it writes any visible text. Retrying with less reasoning or a larger
- * budget avoids surfacing a truncated response as a hard failure.
+ * budget avoids surfacing a truncated response as a hard failure. The small
+ * budget is only added when the caller asks for more than 4,096 tokens; it
+ * keeps models with a low output ceiling usable after a 400 rejection.
  */
 export async function completeWithFallbacks(
   provider: LlmProvider,
@@ -38,14 +43,20 @@ export async function completeWithFallbacks(
   maxTokens: number,
   temperature = 0.4,
 ): Promise<string> {
-  const doubled = Math.min(maxTokens * 2, 16384);
+  const doubled = Math.min(maxTokens * 2, MAX_COMPLETION_TOKENS);
   const attempts: CompletionAttempt[] = [
     { maxTokens, reasoning: { effort: "minimal" } },
     { maxTokens, reasoning: { effort: "none" } },
     { maxTokens: doubled, reasoning: { effort: "none" } },
     { maxTokens: doubled },
-    { maxTokens },
   ];
+  if (maxTokens > 4096) {
+    attempts.push(
+      { maxTokens: 4096, reasoning: { effort: "none" } },
+      { maxTokens: 4096 },
+    );
+  }
+  attempts.push({ maxTokens });
 
   let lastError: unknown;
   for (const [index, attempt] of attempts.entries()) {

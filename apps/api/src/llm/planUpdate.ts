@@ -12,6 +12,7 @@ import type { z } from "zod";
 import { addDays, startOfWeek } from "../plans/dates.js";
 import type { LlmProvider } from "./openrouter.js";
 import { completePlanJson } from "./planCompletion.js";
+import { PLAN_MAX_TOKENS } from "./planBudget.js";
 import {
   buildBlockUpdateMessages,
   buildDailyUpdateMessages,
@@ -83,7 +84,7 @@ export async function generateDailyUpdate(
     provider,
     credentials,
     buildDailyUpdateMessages(input),
-    4096,
+    PLAN_MAX_TOKENS,
     { repairHint: dailyDateHint(input.today, weekStartDate) },
   );
 }
@@ -105,7 +106,7 @@ export async function generateTargetDayUpdate(
     provider,
     credentials,
     buildDailyUpdateMessages(input),
-    4096,
+    PLAN_MAX_TOKENS,
     { repairHint: dailyDateHint(input.today, weekStartDate) },
   );
 }
@@ -121,7 +122,7 @@ export async function generateWeeklyUpdate(
     provider,
     credentials,
     buildWeeklyUpdateMessages(input),
-    4096,
+    PLAN_MAX_TOKENS,
     { repairHint: weekDateHint(input.weekStartDate) },
   );
 }
@@ -137,6 +138,6 @@ export async function generateBlockUpdate(
     provider,
     credentials,
     buildBlockUpdateMessages(input),
-    4096,
+    PLAN_MAX_TOKENS,
   );
 }

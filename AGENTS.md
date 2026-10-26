@@ -68,6 +68,11 @@ about a past workout, or before a suggested workout, to steer the coach.
   and next block, so the Day, Week and Block tabs agree. The next period is
   promoted when today reaches it. The lazy day → week → block cascade and the
   plan UI are documented in `docs/specs/coach-plan-lifecycle.md`.
+- Plan completions use a 16,384-token output budget, with reasoning fallbacks up
+  to 32,768, so reasoning models can think and still return the complete JSON.
+  Model comparisons run through `bun run benchmark:llm` against the test
+  athlete; results and quality notes are kept under `benchmarks/llm-coach/`. The
+  first model in a run is the benchmark. See `docs/specs/llm-benchmark.md`.
 - The athlete's home location is stored on `users` and set in the settings
   location picker. When a week or day is planned, the API loads Open-Meteo and
   Yr.no forecasts, including sunrise and sunset, builds an averaged combined
