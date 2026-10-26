@@ -146,6 +146,12 @@ export async function runPlanGeneration(
       input.force === true ||
       mode === "newSeason" ||
       refreshRequested;
+    // A partially completed block keeps the date it started, even though its
+    // plan is refreshed in place.
+    const currentBlockStartDate =
+      refreshSeason && currentPlan !== null
+        ? currentPlan.block.startDate
+        : null;
     // The forecast can move enough to make the stored week's weather advice
     // wrong even when every level is present. Treat that like any other week
     // revision so the coach can move sessions to the better days.
@@ -195,7 +201,12 @@ export async function runPlanGeneration(
           today,
         );
         block = refreshed.block;
-        assertRefreshedSeason(season, block, today);
+        assertRefreshedSeason(
+          season,
+          block,
+          today,
+          currentBlockStartDate ?? currentPlan.block.startDate,
+        );
       } else {
         await generations.update(userId, PLAN_GENERATION_STEPS.season);
         const generated = await generateSeasonPlan(
@@ -224,8 +235,19 @@ export async function runPlanGeneration(
           season,
           block,
           weekStartDate: startOfWeek(today),
+          ...(currentBlockStartDate !== null
+            ? { keepBlockStartDate: currentBlockStartDate }
+            : {}),
         },
       );
+      if (
+        currentBlockStartDate !== null &&
+        weekUpdate.block.startDate !== currentBlockStartDate
+      ) {
+        throw new Error(
+          "The coach moved the current block's start date while refreshing the season. Please regenerate the plan.",
+        );
+      }
 
       await generations.update(userId, PLAN_GENERATION_STEPS.day);
       const dayUpdate = await generateDailyUpdate(
@@ -745,19 +767,21 @@ function withCompletedSeasonBlocks(
 }
 
 /**
- * A refreshed season must restart at today. Without this check the model can
- * keep the old current block dates, so the "new" plan changes nothing.
+ * A refreshed season must keep the current block in place while re-planning
+ * from today. Without this check the model can replace a partially completed
+ * block with one that starts today, losing the block's original start date.
  */
 function assertRefreshedSeason(
   season: SeasonPlan,
   block: BlockPlan,
   today: string,
+  currentBlockStartDate: string,
 ): void {
   const remaining = season.blocks.filter((entry) => entry.endDate >= today);
   const first = remaining[0];
-  if (first === undefined || first.startDate !== today) {
+  if (first === undefined || first.startDate !== currentBlockStartDate) {
     throw new Error(
-      "The coach returned a season refresh that does not start today. Please regenerate the plan.",
+      "The coach returned a season refresh that moved the current block's start date. Please regenerate the plan.",
     );
   }
   for (let index = 1; index < remaining.length; index += 1) {
@@ -779,7 +803,10 @@ function assertRefreshedSeason(
       "The coach returned a season refresh that does not cover the rest of the season. Please regenerate the plan.",
     );
   }
-  if (block.startDate !== today || block.endDate !== first.endDate) {
+  if (
+    block.startDate !== currentBlockStartDate ||
+    block.endDate !== first.endDate
+  ) {
     throw new Error(
       "The coach returned a block refresh that does not match the remaining season. Please regenerate the plan.",
     );

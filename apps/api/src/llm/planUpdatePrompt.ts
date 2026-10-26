@@ -37,6 +37,8 @@ export interface WeeklyUpdateInput extends BasePlanUpdateInput {
   block: BlockPlan;
   /** Monday of the week being planned (YYYY-MM-DD). */
   weekStartDate: string;
+  /** A block that started earlier and must keep this start date. */
+  keepBlockStartDate?: string;
 }
 
 /** Input for the block cascade: the next block plus the season. */
@@ -191,9 +193,9 @@ export const SEASON_REFRESH_SYSTEM_PROMPT = `You are an expert endurance coach. 
 
 You receive the athlete's profile, recent activities with coach analyses, program reviews, and coach replies, the existing season plan, and the current block. You also receive manually recorded activities, comments on activities, a general weekly note, and coach summaries of completed weeks and blocks with the athlete's feedback on them. Use all of these to judge their current fitness, fatigue, consistency, goal, available time, and constraints. ${ACTIVITY_COMMENT_RULE}
 
-The season has already started. Blocks that ended before today are complete: keep their summaries exactly as supplied. Re-plan the remaining part of the season from scratch. The first remaining block must start on today's date, every later block must start the day after the previous block ends, and the remaining blocks must cover the rest of the season without gaps. Keep the season's goal, start date, and end date unless the athlete's current answers clearly change the goal or end date; never change the season start date. Do not include the completed blocks before today in the returned season.
+The season has already started. Blocks that ended before today are complete: keep their summaries exactly as supplied. Refresh the block that contains today in place: keep its existing start date, and re-plan its weeks and progression around what the athlete has actually done. Re-plan the blocks that follow it from scratch. Every later block must start the day after the previous block ends, and the remaining blocks must cover the rest of the season without gaps. Keep the season's goal, start date, and end date unless the athlete's current answers clearly change the goal or end date; never change the season start date. Do not include the completed blocks before today in the returned season.
 
-Create the detailed plan for the block that starts today, using that block's summary for its name, focus, dates, and week count. Its weeks must add up to the planned week count. Include a concise rationale for the refreshed season and for the new current block.
+Create the detailed plan for the block that contains today from its refreshed summary, using that summary's name, focus, dates, and week count. Its weeks must add up to the planned week count. Include a concise rationale for the refreshed season and for the current block.
 
 ${ENUM_RULES}
 
@@ -248,6 +250,12 @@ export function buildWeeklyUpdatePrompt(input: WeeklyUpdateInput): string {
   return [
     ...formatPlanContext(input),
     `Week start date: ${input.weekStartDate}. The week must contain exactly seven sessions dated ${input.weekStartDate} through ${addDays(input.weekStartDate, 6)}.`,
+    ...(input.keepBlockStartDate !== undefined
+      ? [
+          "",
+          `The current block already started on ${input.keepBlockStartDate}. Keep that start date while revising the block.`,
+        ]
+      : []),
     "",
     "Current season plan:",
     formatSeasonPlan(input.season),
@@ -304,7 +312,7 @@ export function buildSeasonRefreshPrompt(input: SeasonRefreshInput): string {
     "Current block plan:",
     formatBlockPlan(input.block),
     "",
-    `Re-plan the remaining season from today's date, ${input.today}. The first remaining block must start on today's date. Return the remaining season without the blocks that ended before today.`,
+    `Re-plan the remaining season from today's date, ${input.today}. The current block already started on ${input.block.startDate}; keep that start date while refreshing it. Return the remaining season without the blocks that ended before today.`,
     "",
     'Return one JSON object whose top-level keys are exactly "block" and "season".',
   ].join("\n");

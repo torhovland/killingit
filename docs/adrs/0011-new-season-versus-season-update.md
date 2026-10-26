@@ -24,11 +24,11 @@ edit does not throw away the season.
   `auto` (default), `newSeason`, and `updateSeason`.
 - `newSeason` is the old forced rebuild: a fresh season starting today, its
   first block, the current week, and today.
-- `updateSeason` re-plans the existing season from today. One completion asks
-  for the remaining season and the detailed block that starts today. The API
-  restores every stored block that ended before today, keeps the original
-  season start date, and validates that the remaining blocks start today and
-  cover the rest of the season.
+- `updateSeason` refreshes the existing season in place. One completion asks for
+  the remaining season and the detailed current block. The API restores every
+  stored block that ended before today and the original season start date, and
+  validates that the partially completed current block keeps its stored start
+  date and the following blocks cover the rest of the season.
 - `auto` keeps the lazy cascade. When saved answers make the plan stale, it
   uses `updateSeason` if today is inside the stored season; otherwise it falls
   back to a new season.
@@ -49,10 +49,9 @@ edit does not throw away the season.
 
 - A stale-answer regeneration costs three completions (season refresh, week,
   day) instead of four (season, block, week, day).
-- The previous current block is replaced by a block starting today. Its past
-  weeks are not retained as a detailed history; only completed block summaries
-  are kept.
+- The partially completed current block is refreshed in place and keeps its
+  existing start date. Only completed block summaries are kept as history.
 - The season refresh can still revise the season goal and end date from the
-  latest answers, but it cannot move the season start date or rewrite completed
-  blocks.
+  latest answers, but it cannot move the season or current block start date or
+  rewrite completed blocks.
 - `force: true` remains for the benchmark and behaves like `newSeason`.

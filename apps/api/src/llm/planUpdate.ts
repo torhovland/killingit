@@ -145,7 +145,7 @@ export async function generateSeasonRefresh(
     buildSeasonRefreshMessages(input),
     PLAN_MAX_TOKENS,
     {
-      repairHint: `The first remaining block in season.blocks and block.startDate must both be exactly ${input.today}.`,
+      repairHint: `The current block in season.blocks and block.startDate must both keep the existing start date ${input.block.startDate}.`,
     },
   );
 }

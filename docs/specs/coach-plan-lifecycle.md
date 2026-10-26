@@ -106,9 +106,10 @@ answers change and as days, weeks, and blocks roll over.
     for the supplied date. The returned plan is normalised so a stored next week
     or block that contains today is shown as current.
 12. An explicit update keeps the stored blocks that ended before today and the
-    original season start date, then re-plans the remaining season from today.
-    A refreshed season that does not start today is rejected and the previous
-    plan stays in place.
+    original season start date, refreshes the partially completed current block
+    in place with its stored start date, and re-plans the blocks after it. A
+    refreshed season that moves the current block's start date is rejected and
+    the previous plan stays in place.
 13. All four quality gates pass.
 
 ## Data model
@@ -209,9 +210,10 @@ review.
    today (with a week revision). If the request asks to update the season, or
    the answers are stale and the stored season contains today, refresh the
    remaining season instead: one completion returns the rest of the season and
-   the detailed block starting today, then the week and today are rebuilt. The
-   stored blocks that ended before today and the original season start date are
-   restored before the result is validated.
+   the detailed current block, then the week and today are rebuilt. The stored
+   blocks that ended before today and the original season start date are
+   restored, and the current block must keep its stored start date, before the
+   result is validated. A later weekly revision may not move that start date.
 4. Otherwise, treat a coach analysis that was not included in the saved plan as
    a revision trigger too: the new knowledge from the activity must reach the
    remaining week (and, through the weekly prompt, the block). This includes an

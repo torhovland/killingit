@@ -187,17 +187,17 @@ function buildResponses(today = "2026-10-21") {
 }
 
 /** The remaining season returned by a refresh: current block plus a future one. */
-function makeRefreshedSeason(today = "2026-10-21"): SeasonPlan {
+function makeRefreshedSeason(startDate = "2026-10-21"): SeasonPlan {
   return {
     goal: "Sub-4-hour marathon",
-    startDate: today,
+    startDate,
     endDate: "2027-04-01",
     rationale: "Re-plan the rest of the season around current fitness.",
     blocks: [
       {
         name: "Rebuild",
         focus: "Aerobic endurance",
-        startDate: today,
+        startDate,
         endDate: "2026-12-31",
         weekCount: 7,
       },
@@ -1526,18 +1526,18 @@ describe("runPlanGeneration", () => {
     expect(saved?.plan.block.startDate).toBe(today);
   });
 
-  it("refreshes the remaining season and keeps completed blocks", async () => {
+  it("refreshes the current block in place and keeps completed blocks", async () => {
     const today = "2026-11-15";
     const previous = makeMidSeasonPlan(today);
     const completed = previous.season.blocks[0];
     const provider = new FakeProvider({
       seasonRefresh: JSON.stringify({
-        season: makeRefreshedSeason(today),
-        block: makeBlock(today, "2026-12-31"),
+        season: makeRefreshedSeason("2026-11-01"),
+        block: makeBlock("2026-11-01", "2026-12-31"),
       }),
       weekly: JSON.stringify({
         week: makeWeek(startOfWeek(today)),
-        block: makeBlock(today, "2026-12-31"),
+        block: makeBlock("2026-11-01", "2026-12-31"),
       }),
       daily: JSON.stringify({
         today: makeDay(today),
@@ -1561,9 +1561,9 @@ describe("runPlanGeneration", () => {
     expect(provider.calls).toEqual(["season-refresh", "weekly", "daily"]);
     expect(saved?.plan.season.startDate).toBe("2026-10-01");
     expect(saved?.plan.season.blocks[0]).toEqual(completed);
-    expect(saved?.plan.season.blocks[1]?.startDate).toBe(today);
+    expect(saved?.plan.season.blocks[1]?.startDate).toBe("2026-11-01");
     expect(saved?.plan.season.blocks[1]?.name).toBe("Rebuild");
-    expect(saved?.plan.block.startDate).toBe(today);
+    expect(saved?.plan.block.startDate).toBe("2026-11-01");
     expect(saved?.plan.today.date).toBe(today);
     expect(generations.steps).toContain("Refreshing your season");
   });
@@ -1573,12 +1573,12 @@ describe("runPlanGeneration", () => {
     const previous = makeMidSeasonPlan(today);
     const provider = new FakeProvider({
       seasonRefresh: JSON.stringify({
-        season: makeRefreshedSeason(today),
-        block: makeBlock(today, "2026-12-31"),
+        season: makeRefreshedSeason("2026-11-01"),
+        block: makeBlock("2026-11-01", "2026-12-31"),
       }),
       weekly: JSON.stringify({
         week: makeWeek(startOfWeek(today)),
-        block: makeBlock(today, "2026-12-31"),
+        block: makeBlock("2026-11-01", "2026-12-31"),
       }),
       daily: JSON.stringify({
         today: makeDay(today),
@@ -1619,12 +1619,12 @@ describe("runPlanGeneration", () => {
     expect(provider.calls).toEqual(["season", "block", "weekly", "daily"]);
   });
 
-  it("rejects a refreshed season that does not start today", async () => {
+  it("rejects a refreshed season that moves the current block start date", async () => {
     const today = "2026-11-15";
     const previous = makeMidSeasonPlan(today);
     const provider = new FakeProvider({
       seasonRefresh: JSON.stringify({
-        season: makeRefreshedSeason("2026-11-01"),
+        season: makeRefreshedSeason(today),
         block: makeBlock(today, "2026-12-31"),
       }),
     });
@@ -1648,6 +1648,43 @@ describe("runPlanGeneration", () => {
     }
 
     expect((failure as Error).message).toContain("refresh");
+    expect(generations.status.status).toBe("error");
+    expect(plans.saved).toBe(existing);
+  });
+
+  it("rejects a weekly revision that moves the current block start date", async () => {
+    const today = "2026-11-15";
+    const previous = makeMidSeasonPlan(today);
+    const provider = new FakeProvider({
+      seasonRefresh: JSON.stringify({
+        season: makeRefreshedSeason("2026-11-01"),
+        block: makeBlock("2026-11-01", "2026-12-31"),
+      }),
+      weekly: JSON.stringify({
+        week: makeWeek(startOfWeek(today)),
+        block: makeBlock(today, "2026-12-31"),
+      }),
+    });
+    const existing = makeStoredPlan(previous);
+    const plans = new MemoryPlanStore(existing);
+    const generations = new MemoryGenerationStore();
+
+    let failure: unknown;
+    try {
+      await runPlanGeneration({
+        userId: 1,
+        today,
+        mode: "updateSeason",
+        plan: existing,
+        context: makeContext(provider),
+        plans,
+        generations,
+      });
+    } catch (err) {
+      failure = err;
+    }
+
+    expect((failure as Error).message).toContain("start date");
     expect(generations.status.status).toBe("error");
     expect(plans.saved).toBe(existing);
   });
