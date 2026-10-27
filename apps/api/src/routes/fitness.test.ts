@@ -219,6 +219,7 @@ describe("fitness route", () => {
     expect(body.days.at(-1)?.date).toBe("2026-10-25");
     expect(body.days.at(-1)?.planned).toEqual({
       title: "Ride",
+      type: "workout",
       durationMinutes: 60,
     });
     expect(body.ftp.at(-1)).toEqual({ date: "2026-10-25", watts: 255 });

@@ -74,9 +74,9 @@ out. Days without activities return an empty list.
 ### Planned workouts
 
 Each day also carries the stored plan's session for that date, when the plan
-covers it: the workout title and its length in minutes. Rest days are left
-empty. The hover card shows the planned workout when the athlete has not logged
-anything that day.
+covers it: the workout title, whether it is a workout or a rest day, and its
+length in minutes. The hover card shows the planned workout when the athlete
+has not logged anything that day, and "Planned: Rest" for a planned rest day.
 
 ### FTP series
 
@@ -96,9 +96,10 @@ Shared (`@killingit/shared`):
 
 - `fitness.ts`: `fitnessRangeSchema` and its labels, `fitnessDayActivitySchema`
   (`id`, `name`, `type`, optional `durationMinutes`), `fitnessDayPlanSchema`
-  (`title`, `durationMinutes`), `fitnessHistoryDaySchema` (`date`, the existing
-  `trainingLoadSchema`, `activities`, and `planned`), `ftpHistoryPointSchema`
-  (`date`, `watts`), and `fitnessHistoryResponseSchema` (`days`, `ftp`).
+  (`title`, `type`, `durationMinutes`), `fitnessHistoryDaySchema` (`date`, the
+  existing `trainingLoadSchema`, `activities`, and `planned`),
+  `ftpHistoryPointSchema` (`date`, `watts`), and
+  `fitnessHistoryResponseSchema` (`days`, `ftp`).
 - `trainingLoad.ts`: `FORM_ZONES`, the TSB bands (`from` inclusive, `to`
   exclusive) used to shade the chart. The band colours stay in the web theme
   (`--form-*`), so they cannot drift from the interpretation text.
@@ -116,7 +117,7 @@ API:
 
 - The account menu gains `Fitness` (after `Coach`).
 - A range picker (`Show: Week | Month | Quarter | Year | All time`) sits above
-  the charts and refetches the history. The Today panel stays on the current
+  the charts, aligned to the right, and refetches the history. The Today panel stays on the current
   day whatever the range.
 - The page shows a Today panel: `Training stress · Fatigue · Fitness · Form`
   with each acronym beside the spelled-out name and the interpretation in its
@@ -168,8 +169,8 @@ API:
    beside their acronyms, reads larger than the compact plan/activity line, and
    shows today's estimated FTP.
 8. Pointing at a day of either chart shows that day's numbers and the
-   activities logged on it, or the planned workout when none was; the FTP chart
-   also shows that day's FTP.
+   activities logged on it, or the planned workout when none was (a planned
+   rest day reads "Planned: Rest"); the FTP chart also shows that day's FTP.
 9. The range picker switches between the five windows, and `All time` starts at
    the first recorded or manual activity.
 10. The page is reachable from the account menu and renders today's load line.

@@ -113,11 +113,9 @@ function plannedSessions(
   }
   const sessions = [...plan.week.sessions, ...(plan.nextWeek?.sessions ?? [])];
   for (const session of sessions) {
-    if (session.type === "rest") {
-      continue;
-    }
     result.set(session.date, {
       title: session.title,
+      type: session.type,
       durationMinutes: session.durationMinutes,
     });
   }

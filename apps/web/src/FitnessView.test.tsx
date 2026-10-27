@@ -24,7 +24,11 @@ function history(
         ctl: 41,
         tsb: 12.4,
         activities: [],
-        planned: { title: "Endurance ride", durationMinutes: 90 },
+        planned: {
+          title: "Endurance ride",
+          type: "workout",
+          durationMinutes: 90,
+        },
       },
       {
         date: "2026-10-22",

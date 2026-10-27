@@ -285,11 +285,36 @@ describe("buildFitnessHistory", () => {
 
     expect(
       history.days.find((day) => day.date === "2026-10-22")?.planned,
-    ).toEqual({ title: "Ride", durationMinutes: 60 });
+    ).toEqual({ title: "Ride", type: "workout", durationMinutes: 60 });
     // Days before the plan's first session have no planned workout.
     expect(
       history.days.find((day) => day.date === "2026-10-16")?.planned,
     ).toBeNull();
+  });
+
+  it("carries a planned rest day too", () => {
+    const restPlan: CoachPlan = {
+      ...plan(),
+      week: {
+        ...plan().week,
+        sessions: plan().week.sessions.map((session, index) =>
+          index === 3
+            ? {
+                ...session,
+                type: "rest" as const,
+                title: "Rest day",
+                intensity: "rest" as const,
+                durationMinutes: 0,
+              }
+            : session,
+        ),
+      },
+    };
+    const history = buildFitnessHistory({ ...base, plan: restPlan });
+
+    expect(
+      history.days.find((day) => day.date === "2026-10-22")?.planned,
+    ).toEqual({ title: "Rest day", type: "rest", durationMinutes: 0 });
   });
 
   it("plots the coach's weekly estimate inside the plan and the stated FTP before it", () => {

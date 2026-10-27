@@ -54,6 +54,7 @@ export const DEFAULT_FITNESS_RANGE: FitnessRange = "month";
 /** The planned session for a day the stored plan covers. */
 export const fitnessDayPlanSchema = z.object({
   title: z.string().min(1),
+  type: z.enum(["workout", "rest"]),
   durationMinutes: z.number().int().nonnegative(),
 });
 

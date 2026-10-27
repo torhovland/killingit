@@ -73,7 +73,12 @@ export function FitnessView({
             </div>
           )}
 
-          <div className="flex items-center gap-2 text-sm">
+          <div className="flex items-center justify-end gap-2 text-sm">
+            {loading && (
+              <span className="text-muted-foreground" aria-live="polite">
+                Updating…
+              </span>
+            )}
             <label className="flex items-center gap-2">
               <span className="text-muted-foreground">Show</span>
               <select
@@ -90,11 +95,6 @@ export function FitnessView({
                 ))}
               </select>
             </label>
-            {loading && (
-              <span className="text-muted-foreground" aria-live="polite">
-                Updating…
-              </span>
-            )}
           </div>
 
           {history.days.length > 1 ? (

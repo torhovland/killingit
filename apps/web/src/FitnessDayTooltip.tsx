@@ -30,9 +30,11 @@ export function FitnessDayTooltip({
         <p className="text-muted-foreground">
           Planned:{" "}
           <span className="font-medium text-foreground">
-            {day.planned.title}
-          </span>{" "}
-          · {day.planned.durationMinutes} min
+            {day.planned.type === "rest" ? "Rest" : day.planned.title}
+          </span>
+          {day.planned.type === "rest"
+            ? ""
+            : ` · ${day.planned.durationMinutes} min`}
         </p>
       ) : day.activities.length === 0 ? (
         <p className="text-muted-foreground">No activities recorded</p>

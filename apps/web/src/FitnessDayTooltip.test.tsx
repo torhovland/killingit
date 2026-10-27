@@ -66,7 +66,11 @@ describe("FitnessDayTooltip", () => {
     const html = renderToStaticMarkup(
       <FitnessDayTooltip
         day={day({
-          planned: { title: "Endurance ride", durationMinutes: 90 },
+          planned: {
+            title: "Endurance ride",
+            type: "workout",
+            durationMinutes: 90,
+          },
         })}
       />,
     );
@@ -77,6 +81,21 @@ describe("FitnessDayTooltip", () => {
     expect(html).not.toContain("No activities recorded");
   });
 
+  it("says Rest for a planned rest day", () => {
+    const html = renderToStaticMarkup(
+      <FitnessDayTooltip
+        day={day({
+          planned: { title: "Rest day", type: "rest", durationMinutes: 0 },
+        })}
+      />,
+    );
+
+    expect(html).toContain("Planned:");
+    expect(html).toContain("Rest");
+    expect(html).not.toContain("0 min");
+    expect(html).not.toContain("No activities recorded");
+  });
+
   it("prefers what was logged over the plan", () => {
     const html = renderToStaticMarkup(
       <FitnessDayTooltip
@@ -84,7 +103,11 @@ describe("FitnessDayTooltip", () => {
           activities: [
             { id: "activity-1", name: "Morning ride", type: "cycling" },
           ],
-          planned: { title: "Endurance ride", durationMinutes: 90 },
+          planned: {
+            title: "Endurance ride",
+            type: "workout",
+            durationMinutes: 90,
+          },
         })}
       />,
     );
