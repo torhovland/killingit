@@ -82,6 +82,17 @@ summarized: power is expanded onto a one-second timeline, averaged over a
 summary stores average and normalized power, so the plan generator never needs
 the raw timeseries.
 
+### Manual activities
+
+A manually recorded activity has only a date and free text. When it is saved or
+edited, the API asks the coach's model for a TSS estimate from the wording,
+using the athlete's FTP when known. The prompt is a small structured call; if
+the model is unavailable or fails, a deterministic fallback reads the duration
+(`3 hour`, `3-hour`, `1h30`, `45 minutes`) and intensity clues (`race`,
+`easy`, a high heart rate) and scores the entry. The estimate is stored in
+`manual_activities.estimated_tss`, so it is stable across visits and available
+to the plan, the Activities page, and ATL/CTL calculations.
+
 ### ATL, CTL, and TSB
 
 For every day in the week:
@@ -122,9 +133,11 @@ from TSB in the shared schema module and rendered with the app's theme tokens
 Shared (`@killingit/shared`):
 
 - `trainingLoadSchema`: `{ tss, atl, ctl, tsb }` on week sessions and day plans.
-- `estimatedTss` (optional, non-negative) on week sessions and day plans, and
-  `estimatedFtpWatts` (optional, nullable) on block week summaries and week
-  plans.
+- `estimatedTss` (optional, non-negative) on week sessions, day plans, and
+  manual activities, and `estimatedFtpWatts` (optional, nullable) on block week
+  summaries, block plans, season plans, and week plans.
+- `trainingLoad` (optional, nullable) on analyzed activities and manual
+  activities.
 - `averagePower` and `normalizedPower` (optional) on activity summaries.
 - `trainingLoad.ts`: normalized power, power TSS, bike-workout TSS, daily
   exponentially weighted load, and a duration-based session estimate.
@@ -135,13 +148,16 @@ API:
   the newest dated coaching input.
 - `apps/api/src/training/load.ts` resolves TSS and attaches the load series
   after every generation path, including promotion-only saves.
-- `apps/api/src/coaching/activities.ts` stores power metrics while summarizing
-  synced activities.
+- `apps/api/src/coaching/activities.ts` stores power metrics and activity loads
+  while summarizing synced activities.
+- `apps/api/src/training/manualTss.ts` estimates a manual entry's TSS with the
+  coach and falls back to a duration/intensity parser.
+- `manual_activities.estimated_tss` stores the manual estimate (migration
+  `0024`).
 - The plan prompts include the athlete's FTP (when known), the week's FTP field,
   the per-session TSS field, and the training-load rules. The combined prompt
   version is bumped to 6.
-
-No database migration: the new values live in the existing plan JSON.
+- Plan values live in the existing plan JSON; no other database schema change.
 
 ## UI
 
@@ -155,7 +171,7 @@ No database migration: the new values live in the existing plan JSON.
 - **Activities page** shows the same TSS/ATL/CTL/TSB line and interpretation on
   each imported activity card and saved manual entry. Imported activities use
   measured power, the stored plan's coach estimate, or the duration fallback;
-  manual entries use the plan estimate for their date when one exists.
+  manual entries use their stored coach-estimated TSS.
 - Older stored plans and cached activity payloads without the new fields render
   exactly as before.
 
@@ -184,7 +200,10 @@ No database migration: the new values live in the existing plan JSON.
 12. Each imported activity card and saved manual entry on the Activities page
     shows the same TSS/ATL/CTL/TSB line and interpretation when a load is
     available.
-13. The full quality gates pass: typecheck, lint, format, tests.
+13. A manual entry such as "I did a 3 hour Zwift race with average HR at 187
+    bpm" receives a coach-estimated TSS (or the deterministic fallback) and
+    uses it in the plan and Activities views.
+14. The full quality gates pass: typecheck, lint, format, tests.
 
 ## Testing
 

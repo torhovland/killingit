@@ -18,6 +18,11 @@ import type {
 import { startOfWeek } from "./dates.js";
 import { loadPeriodReviews } from "./periodReviews.js";
 
+/** A manual entry plus the coach's TSS estimate, when one has been made. */
+export type ManualActivityWriteInput = ManualActivityInput & {
+  estimatedTss?: number | null;
+};
+
 /** Everything the athlete has added on top of their synced training. */
 export interface CoachingInputs {
   manualActivities: ManualActivityContext[];
@@ -83,6 +88,7 @@ export async function loadCoachingInputs(
       id: row.id,
       startDate: row.startDate,
       details: row.details,
+      estimatedTss: row.estimatedTss,
       updatedAt: row.updatedAt.toISOString(),
     })),
     activityComments: commentRows.map((row) => ({
@@ -128,6 +134,7 @@ export async function loadManualActivities(
     id: row.id,
     startDate: row.startDate,
     details: row.details,
+    estimatedTss: row.estimatedTss,
     updatedAt: row.updatedAt.toISOString(),
   }));
 }
@@ -140,7 +147,7 @@ export async function loadManualActivities(
 export async function updateManualActivity(
   userId: number,
   activityId: number,
-  input: ManualActivityInput,
+  input: ManualActivityWriteInput,
 ): Promise<boolean> {
   const now = new Date();
   const rows = await db
@@ -148,6 +155,7 @@ export async function updateManualActivity(
     .set({
       startDate: input.startDate,
       details: input.details,
+      estimatedTss: input.estimatedTss ?? null,
       updatedAt: now,
     })
     .where(
@@ -166,7 +174,7 @@ export async function updateManualActivity(
  */
 export async function saveManualActivity(
   userId: number,
-  input: ManualActivityInput,
+  input: ManualActivityWriteInput,
 ): Promise<number> {
   const now = new Date();
   const [row] = await db
@@ -175,6 +183,7 @@ export async function saveManualActivity(
       userId,
       startDate: input.startDate,
       details: input.details,
+      estimatedTss: input.estimatedTss ?? null,
       createdAt: now,
       updatedAt: now,
     })

@@ -59,6 +59,9 @@ deterministically would lose the model's judgement for sessions without power.
 - Synced activities now carry `averagePower` and `normalizedPower`, computed
   once while the timeseries is still available. The Garmin sync window is 42
   days, matching the chronic-load window.
+- Manual activities store a coach-estimated TSS from their free text, with a
+  deterministic duration/intensity fallback, so they contribute to the
+  Activities page and the load series.
 - A revised FTP mentioned in a later athlete input replaces the profile value
   and floors the current week's estimate, so a test result is not undercut by an
   older projection. FTP anchors form a timeline; completed weeks before a new

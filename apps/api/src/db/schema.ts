@@ -271,6 +271,9 @@ export const manualActivities = pgTable("manual_activities", {
     .references(() => users.id, { onDelete: "cascade" }),
   startDate: text("start_date").notNull(),
   details: text("details").notNull(),
+  // Coach-estimated training stress for this entry, derived from the free-text
+  // details when it is saved. Null until it has been estimated.
+  estimatedTss: integer("estimated_tss"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

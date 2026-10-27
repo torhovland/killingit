@@ -179,6 +179,39 @@ describe("applyTrainingLoad", () => {
     expect(loaded.tomorrow?.bikeWorkout?.ftpWatts).toBe(250);
   });
 
+  it("uses a manual activity's stored TSS", () => {
+    const loaded = applyTrainingLoad(
+      {
+        ...plan,
+        week: {
+          ...week,
+          sessions: week.sessions.map((entry) =>
+            entry.date === "2026-10-20"
+              ? { ...entry, description: "Completed: logged manually" }
+              : entry,
+          ),
+        },
+      },
+      {
+        answers: [ftpAnswer],
+        activities: [],
+        manualActivities: [
+          {
+            id: 1,
+            startDate: "2026-10-20",
+            details: "3 hour Zwift race",
+            estimatedTss: 120,
+          },
+        ],
+      },
+    );
+    const tuesday = loaded.week.sessions.find(
+      (entry) => entry.date === "2026-10-20",
+    );
+    expect(tuesday?.trainingLoad?.tss).toBe(120);
+    expect(loaded.today.trainingLoad?.tss).toBe(120);
+  });
+
   it("uses the coach's estimate and a duration fallback for other sessions", () => {
     const loaded = applyTrainingLoad(plan, {
       answers: [ftpAnswer],

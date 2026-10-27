@@ -68,10 +68,21 @@ export function applyTrainingLoad(
   const baseFtpWatts = timeline.latest?.watts ?? null;
   const floorAtBase = timeline.latest?.fromRevision ?? false;
   const activitiesByDate = groupActivitiesByDate(context.activities);
+  const manualTssByDate = new Map<string, number>();
+  for (const activity of context.manualActivities ?? []) {
+    if (activity.estimatedTss === null || activity.estimatedTss === undefined) {
+      continue;
+    }
+    manualTssByDate.set(
+      activity.startDate,
+      (manualTssByDate.get(activity.startDate) ?? 0) + activity.estimatedTss,
+    );
+  }
   const current = applyWeekLoad(
     plan.week,
     timeline,
     activitiesByDate,
+    manualTssByDate,
     undefined,
     weekFtpFromBlock(plan.block, plan.week.startDate),
     floorAtBase,
@@ -83,6 +94,7 @@ export function applyTrainingLoad(
           plan.nextWeek,
           timeline,
           activitiesByDate,
+          manualTssByDate,
           current.tssByDate,
           weekFtpFromBlock(
             plan.nextBlock ?? plan.block,
@@ -138,6 +150,7 @@ function applyWeekLoad(
   week: WeekPlan,
   timeline: FtpTimeline,
   activitiesByDate: ReadonlyMap<string, readonly AnalyzedActivity[]>,
+  manualTssByDate: ReadonlyMap<string, number>,
   priorTssByDate?: ReadonlyMap<string, number>,
   blockEstimate?: number | null,
   floorAtBase = false,
@@ -159,6 +172,7 @@ function applyWeekLoad(
         session,
         timeline,
         activitiesByDate.get(session.date) ?? [],
+        manualTssByDate,
       ),
     );
   }
@@ -310,6 +324,7 @@ function resolveSessionTss(
   session: WeekSession,
   timeline: FtpTimeline,
   activities: readonly AnalyzedActivity[],
+  manualTssByDate: ReadonlyMap<string, number>,
 ): number {
   if (session.type === "rest" || session.status === "missed") {
     return 0;
@@ -321,6 +336,10 @@ function resolveSessionTss(
   }
   if (session.bikeWorkout !== null && session.bikeWorkout !== undefined) {
     return bikeWorkoutTrainingStressScore(session.bikeWorkout);
+  }
+  const manualTss = manualTssByDate.get(session.date);
+  if (manualTss !== undefined && manualTss > 0) {
+    return Math.round(manualTss);
   }
   if (session.estimatedTss !== undefined && session.estimatedTss > 0) {
     return Math.round(session.estimatedTss);

@@ -135,6 +135,7 @@ function makeApp(options: {
   loadActivities?: (userId: number) => Promise<ActivityFeed>;
   loadCachedFeed?: AppDependencies["loadCachedFeed"];
   loadActivityTrainingLoads?: AppDependencies["loadActivityTrainingLoads"];
+  estimateManualTss?: AppDependencies["estimateManualTss"];
   loadCoachingInputs?: (
     userId: number,
     weekStartDate: string,
@@ -148,13 +149,7 @@ function makeApp(options: {
     input: { activityId: string; comment: string },
   ) => Promise<boolean>;
   saveActivityReview?: AppDependencies["saveActivityReview"];
-  saveManualActivity?: (
-    userId: number,
-    activity: {
-      startDate: string;
-      details: string;
-    },
-  ) => Promise<number>;
+  saveManualActivity?: AppDependencies["saveManualActivity"];
   saveWeeklyNote?: (
     userId: number,
     today: string,
@@ -226,6 +221,7 @@ function makeApp(options: {
     loadCachedFeed: options.loadCachedFeed ?? (() => Promise.resolve(null)),
     loadActivityTrainingLoads:
       options.loadActivityTrainingLoads ?? (() => Promise.resolve(new Map())),
+    estimateManualTss: options.estimateManualTss ?? (() => Promise.resolve(0)),
     loadLlm: () =>
       Promise.resolve({
         provider: {
@@ -739,6 +735,35 @@ describe("coaching manual activities", () => {
     expect(keepToday).toBe(true);
     const body = (await res.json()) as { reply: { text: string } | null };
     expect(body.reply?.text).toContain("swim");
+  });
+
+  it("estimates TSS for a manual activity from its details", async () => {
+    const saved: { tss: number | null | undefined } = { tss: undefined };
+    const app = makeApp({
+      saveManualActivity: (_userId, activity) => {
+        saved.tss = activity.estimatedTss;
+        return Promise.resolve(7);
+      },
+      estimateManualTss: (_provider, _credentials, input) =>
+        Promise.resolve(input.details.includes("Zwift race") ? 255 : 0),
+      replyToCoachingInput: () => Promise.resolve(null),
+      triggerPlanGeneration: () => Promise.resolve(true),
+    });
+
+    const res = await app.fetch(
+      authenticatedRequest("/api/coaching/activities/manual", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          today: "2026-10-21",
+          startDate: "2026-10-21",
+          details: "I did a 3 hour Zwift race with average HR at 187 bpm",
+        }),
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(saved.tss).toBe(255);
   });
 
   it("rejects a manual activity without details", async () => {

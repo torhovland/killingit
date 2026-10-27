@@ -475,6 +475,8 @@ export type ManualActivityRequest = z.infer<typeof manualActivityRequestSchema>;
 export const manualActivitySchema = manualActivityInputSchema.extend({
   id: z.number().int().positive(),
   coachReply: coachAnalysisSchema.nullable().default(null),
+  /** The coach's TSS estimate for this manual entry, when it has one. */
+  estimatedTss: z.number().nonnegative().max(2000).nullable().optional(),
   /** Training stress for the day, when it can be derived. */
   trainingLoad: trainingLoadSchema.nullable().optional(),
 });

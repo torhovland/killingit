@@ -47,6 +47,8 @@ export interface ManualActivityContext {
   id: number;
   startDate: string;
   details: string;
+  /** The coach-estimated TSS for this entry, when it has one. */
+  estimatedTss?: number | null;
   /** When the athlete last edited the entry; used to order FTP revisions. */
   updatedAt?: string;
 }
@@ -263,7 +265,11 @@ export function formatManualActivities(
 ): string {
   return entries
     .map((entry, index) => {
-      return `${index + 1}. ${entry.startDate} — ${entry.details}`;
+      const tss =
+        entry.estimatedTss !== undefined && entry.estimatedTss !== null
+          ? ` (estimated TSS ${entry.estimatedTss})`
+          : "";
+      return `${index + 1}. ${entry.startDate} — ${entry.details}${tss}`;
     })
     .join("\n");
 }

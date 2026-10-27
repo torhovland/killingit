@@ -129,11 +129,17 @@ export async function loadAnalyzedActivities(options: {
     ),
     dbPlanStore.load(options.userId),
   ]);
-  const loads = await loadUserActivityTrainingLoads(
-    options.userId,
-    synced.map((activity) => withoutAnalysis(activity)),
-    storedPlan?.plan,
-  );
+  let loads = new Map<string, TrainingLoad>();
+  try {
+    loads = await loadUserActivityTrainingLoads(
+      options.userId,
+      synced.map((activity) => withoutAnalysis(activity)),
+      storedPlan?.plan,
+    );
+  } catch (err) {
+    // Load values are supplementary; the activity feed must still load.
+    console.error("[training-load] could not score activities:", err);
+  }
   if (!settings) {
     const feed: ActivityFeed = {
       model: null,
@@ -261,7 +267,7 @@ export async function loadUserActivityTrainingLoads(
   userId: number,
   activities: readonly AnalyzedActivity[],
   plan: CoachPlan | undefined,
-  extraDates: readonly string[] = [],
+  extraTssByDate: ReadonlyMap<string, number> = new Map(),
 ): Promise<Map<string, TrainingLoad>> {
   const planDate = plan?.today.date ?? new Date().toISOString().slice(0, 10);
   const [answers, coachingInputs] = await Promise.all([
@@ -277,12 +283,13 @@ export async function loadUserActivityTrainingLoads(
     weeklyNoteUpdatedAt: coachingInputs.weeklyNoteUpdatedAt,
     periodReviews: coachingInputs.periodReviews,
   });
-  return buildActivityTrainingLoads(
-    activities,
-    timeline,
-    planTssByDate(plan),
-    extraDates,
-  );
+  const tssByDate = planTssByDate(plan);
+  // A manual entry's stored estimate replaces the plan's estimate for that
+  // date; the map already sums multiple manual entries on the same day.
+  for (const [date, tss] of extraTssByDate) {
+    tssByDate.set(date, tss);
+  }
+  return buildActivityTrainingLoads(activities, timeline, tssByDate);
 }
 
 /** The resolved or coach-estimated TSS for each day the stored plan covers. */

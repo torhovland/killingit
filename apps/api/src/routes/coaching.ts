@@ -15,6 +15,7 @@ import {
   type ActivityCommentRequest,
   type PeriodReview,
   type ReviewKind,
+  type TrainingLoad,
 } from "@killingit/shared";
 import { zValidator } from "@hono/zod-validator";
 import { Hono, type Context } from "hono";
@@ -44,6 +45,11 @@ import { saveActivityReview } from "../coaching/reviews.js";
 import { GarminAuthError, GarminSidecarError } from "../garmin/client.js";
 import { loadLlmClient, type LlmClient } from "../llm/client.js";
 import { LlmAuthError, LlmProviderError } from "../llm/openrouter.js";
+import { extractFtpWatts } from "../training/ftp.js";
+import {
+  estimateManualActivityTss,
+  fallbackManualTss,
+} from "../training/manualTss.js";
 import { startOfWeek } from "../plans/dates.js";
 import { latestActivityAnalysisTimestamp } from "../plans/status.js";
 import {
@@ -108,6 +114,8 @@ export interface CoachingRouteDependencies {
   loadCachedFeed?: typeof loadCachedActivityFeed;
   /** Injectable for route tests; defaults to the training-load builder. */
   loadActivityTrainingLoads?: typeof loadUserActivityTrainingLoads;
+  /** Injectable for route tests; defaults to the LLM TSS estimator. */
+  estimateManualTss?: typeof estimateManualActivityTss;
   loadLlm?: (userId: number) => Promise<LlmClient | null>;
   /** Injectable for route tests; defaults to the database-backed loader. */
   loadCoachingInputs?: (
@@ -162,6 +170,7 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
   const loadCachedFeed = deps.loadCachedFeed ?? loadCachedActivityFeed;
   const loadActivityTrainingLoads =
     deps.loadActivityTrainingLoads ?? loadUserActivityTrainingLoads;
+  const estimateTss = deps.estimateManualTss ?? estimateManualActivityTss;
   const createComment = deps.createActivityComment ?? createActivityComment;
   const updateComment = deps.updateActivityComment ?? updateActivityComment;
   const saveReview = deps.saveActivityReview ?? saveActivityReview;
@@ -204,6 +213,39 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
       ? { loadForecast: deps.loadForecast }
       : {}),
   };
+
+  /**
+   * Estimates TSS for a manual entry from its free text. Uses the coach when a
+   * model is configured and a deterministic duration/intensity estimate
+   * otherwise, so every manual activity still gets a score.
+   */
+  async function estimateManualTss(
+    userId: number,
+    startDate: string,
+    details: string,
+  ): Promise<number> {
+    try {
+      const [answers, llm] = await Promise.all([
+        deps.answers.listForUser(userId),
+        llmLoader(userId),
+      ]);
+      if (llm === null) {
+        return fallbackManualTss(details);
+      }
+      return await estimateTss(
+        llm.provider,
+        { apiKey: llm.apiKey, model: llm.model },
+        {
+          startDate,
+          details,
+          ftpWatts: extractFtpWatts(answers),
+        },
+      );
+    } catch (err) {
+      console.error("[manual-tss] could not estimate the entry:", err);
+      return fallbackManualTss(details);
+    }
+  }
 
   async function replyTo(
     userId: number,
@@ -560,12 +602,34 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
         loadCachedFeed(user.id),
         deps.plans.load(user.id),
       ]);
-      const loads = await loadActivityTrainingLoads(
-        user.id,
-        cached?.activities ?? [],
-        storedPlan?.plan,
-        activities.map((activity) => activity.startDate),
-      );
+      const manualTssByDate = new Map<string, number>();
+      for (const activity of activities) {
+        if (
+          activity.estimatedTss === null ||
+          activity.estimatedTss === undefined
+        ) {
+          continue;
+        }
+        manualTssByDate.set(
+          activity.startDate,
+          (manualTssByDate.get(activity.startDate) ?? 0) +
+            activity.estimatedTss,
+        );
+      }
+      let loads = new Map<string, TrainingLoad>();
+      try {
+        loads = await loadActivityTrainingLoads(
+          user.id,
+          cached?.activities ?? [],
+          storedPlan?.plan,
+          manualTssByDate,
+        );
+      } catch (err) {
+        console.error(
+          "[training-load] could not score manual activities:",
+          err,
+        );
+      }
       return c.json(
         manualActivitiesResponseSchema.parse({
           manualActivities: activities.map((activity) => {
@@ -585,8 +649,13 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
       async (c) => {
         const user = await deps.users.ensureUser(getAthlete(c).sub);
         const { today, timezone, ...activity } = c.req.valid("json");
+        const estimatedTss = await estimateManualTss(
+          user.id,
+          activity.startDate,
+          activity.details,
+        );
 
-        const id = await saveManual(user.id, activity);
+        const id = await saveManual(user.id, { ...activity, estimatedTss });
         const coachReply = await replyTo(user.id, today, {
           kind: "manual_activity",
           manualActivityId: id,
@@ -619,8 +688,16 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
           return c.text("Invalid manual activity id", 400);
         }
         const { today, timezone, ...activity } = c.req.valid("json");
+        const estimatedTss = await estimateManualTss(
+          user.id,
+          activity.startDate,
+          activity.details,
+        );
 
-        const updated = await updateManual(user.id, id, activity);
+        const updated = await updateManual(user.id, id, {
+          ...activity,
+          estimatedTss,
+        });
         if (!updated) {
           return c.text("Manual activity not found", 404);
         }

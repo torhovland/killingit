@@ -100,8 +100,10 @@ about a past workout, or before a suggested workout, to steer the coach.
   Activities page. TSB carries a coloured form label (Risk, Productive,
   Maintaining, Fresh, Detraining).
   Garmin syncs the last 42 days, and power metrics are stored on activity
-  summaries so the raw timeseries is not needed. See
-  `docs/specs/training-load.md` and ADR 0012.
+  summaries so the raw timeseries is not needed. Manual activities get a
+  coach-estimated TSS from their free text (with a duration fallback), stored
+  in `manual_activities.estimated_tss`. See `docs/specs/training-load.md` and
+  ADR 0012.
 - Completed weeks and blocks get a coach summary, athlete comment, and coach
   reply in `period_reviews` / `coach_replies`; the dashboard and season review
   page are documented in `docs/specs/period-reviews.md`.
