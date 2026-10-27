@@ -50,7 +50,9 @@ export function FitnessChart({ days }: { days: readonly FitnessHistoryDay[] }) {
 
   return (
     <figure className="flex flex-col gap-2 rounded-lg border bg-card p-4">
-      <figcaption className="text-sm font-medium">Fitness and form</figcaption>
+      <figcaption className="text-base font-medium">
+        Fitness and form
+      </figcaption>
       <div className="relative">
         <svg
           viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}

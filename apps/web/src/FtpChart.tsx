@@ -49,7 +49,7 @@ export function FtpChart({
 
   return (
     <figure className="flex flex-col gap-2 rounded-lg border bg-card p-4">
-      <figcaption className="text-sm font-medium">
+      <figcaption className="text-base font-medium">
         Estimated FTP{" "}
         {current !== undefined && (
           <span className="font-medium text-foreground">{current.watts} W</span>
@@ -70,13 +70,6 @@ export function FtpChart({
           <g
             transform={`translate(${CHART_PADDING.left} ${CHART_PADDING.top})`}
           >
-            <rect
-              x={0}
-              y={0}
-              width={scale.plotWidth}
-              height={scale.plotHeight}
-              className="fill-chart-plot"
-            />
             {axisTicks(domain).map((tick) => (
               <line
                 key={tick}
@@ -84,7 +77,7 @@ export function FtpChart({
                 x2={scale.plotWidth}
                 y1={scale.y(tick)}
                 y2={scale.y(tick)}
-                className="stroke-chart-ink-muted/20"
+                className="stroke-border"
                 strokeWidth={1}
               />
             ))}
@@ -94,7 +87,7 @@ export function FtpChart({
                 x2={hovered.x}
                 y1={0}
                 y2={scale.plotHeight}
-                className="stroke-chart-ink/40"
+                className="stroke-foreground/40"
                 strokeWidth={1}
                 strokeDasharray="2 2"
               />
@@ -104,7 +97,7 @@ export function FtpChart({
                 points.map((point) => point.watts),
                 scale,
               )}
-              className="fill-none stroke-chart-ink"
+              className="fill-none stroke-primary"
               strokeWidth={2}
             />
             {hovered !== null && hoveredWatts !== null && (
@@ -112,7 +105,7 @@ export function FtpChart({
                 cx={hovered.x}
                 cy={scale.y(hoveredWatts)}
                 r={3.5}
-                className="fill-chart-ink"
+                className="fill-primary"
               />
             )}
           </g>

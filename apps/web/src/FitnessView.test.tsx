@@ -49,8 +49,14 @@ describe("FitnessView", () => {
     );
 
     expect(html).toContain("Fitness");
-    expect(html).toContain("TSS 60");
-    expect(html).toContain("TSB +8");
+    // The summary spells each metric out and keeps the acronym beside it.
+    expect(html).toContain("Training stress 60");
+    expect(html).toContain("Fatigue 33");
+    expect(html).toContain("Fitness 42");
+    expect(html).toContain("Form +8");
+    for (const acronym of ["TSS", "ATL", "CTL", "TSB"]) {
+      expect(html).toContain(`(${acronym})`);
+    }
     expect(html).toContain("Fresh");
   });
 

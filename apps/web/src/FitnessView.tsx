@@ -38,7 +38,11 @@ export function FitnessView({
           {todayLoad !== null && (
             <div className="flex flex-col gap-1 rounded-lg border bg-card p-4">
               <span className="text-sm font-medium">Today</span>
-              <TrainingLoadLine load={todayLoad} testId="fitness-today-load" />
+              <TrainingLoadLine
+                load={todayLoad}
+                testId="fitness-today-load"
+                variant="described"
+              />
             </div>
           )}
 
