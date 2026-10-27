@@ -16,13 +16,19 @@ export function buildZwoWorkout(input: ZwoWorkoutInput): string {
     (interval) =>
       `    <SteadyState Duration="${interval.durationSeconds}" Power="${formatPower(interval.powerPercent)}"/>`,
   );
+  // ZWO has no portable FTP metadata field. Put the estimate in the
+  // description so the file still tells the athlete which FTP the relative
+  // zones were built from.
+  const description = `${input.description}
+
+Estimated FTP: ${input.workout.ftpWatts} W. Set your trainer app to this FTP for the intended power zones.`;
 
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',
     "<workout_file>",
     "  <author>Killing It</author>",
     `  <name>${escapeXml(input.title)}</name>`,
-    `  <description>${escapeXml(input.description)}</description>`,
+    `  <description>${escapeXml(description)}</description>`,
     "  <sportType>bike</sportType>",
     "  <tags/>",
     "  <workout>",
@@ -49,9 +55,13 @@ export function zwoFilename(date: string, title: string): string {
   return `${date}-${slug === "" ? "workout" : slug}.zwo`;
 }
 
-/** ZWO stores power as a fraction of FTP (75% becomes 0.75). */
+/**
+ * ZWO stores power as a fraction of FTP (75% becomes 0.75). Keep four decimal
+ * places so a fractional percentage such as 87.33% is not rounded to a coarse
+ * two-decimal zone.
+ */
 function formatPower(powerPercent: number): string {
-  return Number((powerPercent / 100).toFixed(4)).toString();
+  return (powerPercent / 100).toFixed(4);
 }
 
 function escapeXml(value: string): string {
