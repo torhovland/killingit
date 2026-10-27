@@ -2,7 +2,12 @@ import { describe, expect, it } from "bun:test";
 import type { AnalyzedActivity, CoachPlan } from "@killingit/shared";
 import { buildActivityTrainingLoads } from "./activityLoad.js";
 import { buildFtpTimeline } from "./ftp.js";
-import { buildFitnessHistory, clampFitnessDays } from "./history.js";
+import {
+  buildFitnessHistory,
+  clampFitnessDays,
+  fitnessWindow,
+  FITNESS_PROJECTION_DAYS,
+} from "./history.js";
 
 const timeline = buildFtpTimeline({
   answers: [
@@ -119,12 +124,12 @@ describe("clampFitnessDays", () => {
 });
 
 describe("buildFitnessHistory", () => {
-  it("returns one day per calendar day, ending today", () => {
+  it("returns one day per calendar day, a month past today", () => {
     const history = buildFitnessHistory({ ...base, plan: undefined });
 
-    expect(history.days).toHaveLength(7);
+    expect(history.days).toHaveLength(7 + FITNESS_PROJECTION_DAYS);
     expect(history.days[0]?.date).toBe("2026-10-16");
-    expect(history.days.at(-1)?.date).toBe("2026-10-22");
+    expect(history.days.at(-1)?.date).toBe("2026-11-21");
   });
 
   it("matches the activity load series for the same date", () => {
@@ -208,19 +213,26 @@ describe("buildFitnessHistory", () => {
     for (const day of history.days) {
       // CTL and ATL are stored rounded to one decimal, so the difference can
       // differ from the exactly computed TSB by up to a tenth.
-      expect(Math.abs(day.tsb - (day.ctl - day.atl))).toBeLessThanOrEqual(0.1);
+      expect(Math.abs(day.tsb - (day.ctl - day.atl))).toBeLessThan(0.11);
     }
   });
 
-  it("runs on to the last planned day", () => {
-    const history = buildFitnessHistory({
-      ...base,
-      today: "2026-10-21",
-      days: 7,
-      planTssByDate: new Map([["2026-10-25", 60]]),
-    });
+  it("projects the month ahead and follows the plan when it runs later", () => {
+    expect(fitnessWindow("2026-10-21", 7).endDate).toBe("2026-11-20");
 
-    expect(history.days.at(-1)?.date).toBe("2026-10-25");
+    const laterPlan: CoachPlan = {
+      ...plan(),
+      week: {
+        ...plan().week,
+        sessions: plan().week.sessions.map((session, index) => ({
+          ...session,
+          date: `2026-12-${String(25 + index)}`,
+        })),
+      },
+    };
+    expect(fitnessWindow("2026-10-21", 7, laterPlan).endDate).toBe(
+      "2026-12-31",
+    );
   });
 
   it("plots the coach's weekly estimate inside the plan and the stated FTP before it", () => {

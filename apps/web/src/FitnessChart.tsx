@@ -1,7 +1,6 @@
 import {
   FORM_INTERPRETATION_LABELS,
   FORM_ZONES,
-  interpretTrainingStressBalance,
   type FitnessHistoryDay,
 } from "@killingit/shared";
 import {
@@ -18,7 +17,9 @@ import {
   chartScale,
   formatChartDate,
   formatZoneRange,
+  FUTURE_DASH,
   labelIndices,
+  lastIndexOnOrBefore,
   linePath,
   niceDomain,
   tsbSegments,
@@ -33,7 +34,14 @@ import { useChartHover } from "./useChartHover";
  * TSB line and its legend stay readable. Pointing at a day shows its numbers
  * and the activities logged that day.
  */
-export function FitnessChart({ days }: { days: readonly FitnessHistoryDay[] }) {
+export function FitnessChart({
+  days,
+  today,
+}: {
+  days: readonly FitnessHistoryDay[];
+  /** The last measured day; later days are the plan's projection. */
+  today: string;
+}) {
   const { hovered, onPointerMove, onPointerLeave } = useChartHover(
     days.length,
     (index) => days[index],
@@ -47,6 +55,15 @@ export function FitnessChart({ days }: { days: readonly FitnessHistoryDay[] }) {
   ]);
   const scale = chartScale(days.length, domain);
   const xLabels = labelIndices(days.length);
+  // Everything after today is a projection, so it is drawn dotted.
+  const split = lastIndexOnOrBefore(
+    days.map((day) => day.date),
+    today,
+  );
+  const futureStart = Math.max(split, 0);
+  const hasFuture = split < days.length - 1;
+  const ctl = days.map((day) => day.ctl);
+  const atl = days.map((day) => day.atl);
 
   return (
     <figure className="flex flex-col gap-2 rounded-lg border bg-card p-4">
@@ -109,24 +126,38 @@ export function FitnessChart({ days }: { days: readonly FitnessHistoryDay[] }) {
               />
             )}
             <path
-              d={linePath(
-                days.map((day) => day.ctl),
-                scale,
-              )}
+              d={linePath(ctl.slice(0, split + 1), scale)}
               className="fill-none stroke-chart-ink"
               strokeWidth={2.5}
               data-series="ctl"
             />
             <path
-              d={linePath(
-                days.map((day) => day.atl),
-                scale,
-              )}
+              d={linePath(atl.slice(0, split + 1), scale)}
               className="fill-none stroke-chart-ink-muted"
               strokeWidth={1.5}
               strokeDasharray="4 2"
               data-series="atl"
             />
+            {hasFuture && (
+              <>
+                <path
+                  d={linePath(ctl.slice(futureStart), scale, futureStart)}
+                  className="fill-none stroke-chart-ink"
+                  strokeWidth={2.5}
+                  strokeDasharray={FUTURE_DASH}
+                  data-series="ctl"
+                  data-future="true"
+                />
+                <path
+                  d={linePath(atl.slice(futureStart), scale, futureStart)}
+                  className="fill-none stroke-chart-ink-muted"
+                  strokeWidth={1.5}
+                  strokeDasharray={FUTURE_DASH}
+                  data-series="atl"
+                  data-future="true"
+                />
+              </>
+            )}
             {tsbSegments(
               days.map((day) => day.tsb),
               scale,
@@ -139,20 +170,18 @@ export function FitnessChart({ days }: { days: readonly FitnessHistoryDay[] }) {
                 y2={segment.to.y}
                 className={FORM_STROKE_CLASSES[segment.interpretation]}
                 strokeWidth={2}
+                {...(segment.index > split
+                  ? { strokeDasharray: FUTURE_DASH, "data-future": "true" }
+                  : {})}
                 data-zone={segment.interpretation}
               />
             ))}
             {hovered !== null && (
               <circle
                 cx={hovered.x}
-                cy={scale.y(hovered.day.tsb)}
+                cy={scale.y(hovered.day.ctl)}
                 r={3.5}
-                className={`fill-chart-plot ${
-                  FORM_STROKE_CLASSES[
-                    interpretTrainingStressBalance(hovered.day.tsb)
-                  ]
-                }`}
-                strokeWidth={2}
+                className="fill-chart-ink"
               />
             )}
           </g>

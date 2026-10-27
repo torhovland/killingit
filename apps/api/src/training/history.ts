@@ -19,6 +19,8 @@ import { ftpAt, type FtpTimeline } from "./ftp.js";
 
 /** The window the Fitness page requests by default. */
 export const DEFAULT_FITNESS_DAYS = 90;
+/** How far past today the charts project, so the athlete sees the month ahead. */
+export const FITNESS_PROJECTION_DAYS = 30;
 export const MIN_FITNESS_DAYS = 7;
 export const MAX_FITNESS_DAYS = 365;
 
@@ -159,17 +161,24 @@ export async function loadFitnessHistory(
   });
 }
 
-/** The first and last day of the chart, covering the stored plan's last day. */
+/**
+ * The first and last day of the chart. It covers the requested history, the
+ * month ahead, and the stored plan's last day when that runs even later.
+ */
 export function fitnessWindow(
   today: string,
   days: number,
   plan?: CoachPlan,
 ): { startDate: string; endDate: string } {
   const length = clampFitnessDays(days);
+  const projectedEnd = addDays(today, FITNESS_PROJECTION_DAYS);
   const plannedEnd = plannedEndDate(plan);
   return {
     startDate: addDays(today, -(length - 1)),
-    endDate: plannedEnd !== null && plannedEnd > today ? plannedEnd : today,
+    endDate:
+      plannedEnd !== null && plannedEnd > projectedEnd
+        ? plannedEnd
+        : projectedEnd,
   };
 }
 

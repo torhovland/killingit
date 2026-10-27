@@ -41,8 +41,10 @@ and activity views.
 
 - `today` is required and must be `YYYY-MM-DD`.
 - `days` defaults to 90 and is clamped to 7–365.
-- The window starts at `today − (days − 1)` and ends at the later of `today`
-  and the last day the stored plan covers, so the projected week is visible.
+- The window starts at `today − (days − 1)` and ends a month past today (or the
+  stored plan's last day, when that runs even later), so the athlete sees the
+  month ahead. Days after today are the plan's projection: they follow the
+  stored plan's sessions and count as rest once the plan runs out.
 - Every day in the window is returned, ascending, including rest days.
 
 ### Load series
@@ -120,11 +122,13 @@ API:
 - The zone legend sits on one line above the CTL/ATL/TSB legend. Both align
   with the plot's left edge rather than the axis gutter, and the main content
   panel is wider (`max-w-5xl`) so the zone legend fits on one line.
+- The part of every line after today is dotted, marking it as the projection.
 - Pointing at (or tapping) either chart marks the nearest day with a guide line
-  and shows a card with the date, the load numbers and interpretation, and the
-  activities logged that day. The FTP chart's card also shows that day's
-  estimated FTP. The charts are tall enough for the card to sit over the top of
-  the plot without hiding the lines below it.
+  and a marker on the CTL line, and shows a card with the date, the load
+  numbers and interpretation, and the activities logged that day. The FTP
+  chart's card also shows that day's estimated FTP. The charts are tall enough
+  for the card to sit over the top of the plot without hiding the lines below
+  it.
 - The charts are static SVG (no new dependency), scale with the page width, and
   carry an accessible title.
 - Loading, error, and (when there is no planned or recorded training) empty
@@ -143,13 +147,14 @@ API:
    changes colour exactly where it crosses from one zone into the next.
 5. The FTP chart plots the coach's weekly estimate inside the stored block and
    the athlete's stated/tested values elsewhere, and is hidden without an FTP.
-6. The Today panel spells out training stress, fatigue, fitness, and form
+6. The charts run a month past today, and the part after today is dotted.
+7. The Today panel spells out training stress, fatigue, fitness, and form
    beside their acronyms, reads larger than the compact plan/activity line, and
    shows today's estimated FTP.
-7. Pointing at a day of either chart shows that day's numbers and the
+8. Pointing at a day of either chart shows that day's numbers and the
    activities logged on it, if any; the FTP chart also shows that day's FTP.
-8. The page is reachable from the account menu and renders today's load line.
-9. Typecheck, lint, format, and tests pass.
+9. The page is reachable from the account menu and renders today's load line.
+10. Typecheck, lint, format, and tests pass.
 
 ## Testing
 

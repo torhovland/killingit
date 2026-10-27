@@ -139,6 +139,8 @@ export interface TsbSegment {
   from: { x: number; y: number };
   to: { x: number; y: number };
   interpretation: FormInterpretation;
+  /** The day index the segment runs to, for telling past from projection. */
+  index: number;
 }
 
 /** The TSB values where the form zone changes, lowest first. */
@@ -174,6 +176,7 @@ export function tsbSegments(
         from: pointAt(0, previous),
         to: pointAt(1, value),
         interpretation: interpretTrainingStressBalance(value),
+        index,
       });
       continue;
     }
@@ -195,6 +198,7 @@ export function tsbSegments(
         from: pointAt((start - previous) / (value - previous), start),
         to: pointAt((end - previous) / (value - previous), end),
         interpretation: interpretTrainingStressBalance((start + end) / 2),
+        index,
       });
     }
   }
@@ -212,23 +216,57 @@ export function zoneBlocks(
   })).filter((block) => block.to > block.from);
 }
 
-/** A polyline through every value. */
-export function linePath(values: readonly number[], scale: ChartScale): string {
+/** The dash pattern of the projected part of a line. */
+export const FUTURE_DASH = "2 3";
+
+/**
+ * The last day index that is on or before `date`. Used to split each line into
+ * what was measured (solid) and what the stored plan projects (dotted).
+ */
+export function lastIndexOnOrBefore(
+  dates: readonly string[],
+  date: string,
+): number {
+  let last = -1;
+  for (let index = 0; index < dates.length; index += 1) {
+    const day = dates[index];
+    if (day === undefined || day > date) {
+      break;
+    }
+    last = index;
+  }
+  return last;
+}
+
+/**
+ * A polyline through the values, starting at day `start` of the chart. Pass a
+ * slice of the values with the slice offset so the path keeps the chart scale.
+ */
+export function linePath(
+  values: readonly number[],
+  scale: ChartScale,
+  start = 0,
+): string {
   return values
-    .map(
-      (value, index) =>
-        `${index === 0 ? "M" : "L"}${round(scale.x(index))} ${round(scale.y(value))}`,
-    )
+    .map((value, offset) => {
+      const index = start + offset;
+      return `${offset === 0 ? "M" : "L"}${round(scale.x(index))} ${round(scale.y(value))}`;
+    })
     .join(" ");
 }
 
 /** A step-after path: each value holds until the next day. */
-export function stepPath(values: readonly number[], scale: ChartScale): string {
+export function stepPath(
+  values: readonly number[],
+  scale: ChartScale,
+  start = 0,
+): string {
   return values
-    .map((value, index) => {
+    .map((value, offset) => {
+      const index = start + offset;
       const x = round(scale.x(index));
       const y = round(scale.y(value));
-      if (index === 0) {
+      if (offset === 0) {
         return `M${x} ${y}`;
       }
       return `H${x} V${y}`;

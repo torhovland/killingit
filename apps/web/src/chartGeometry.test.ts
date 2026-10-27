@@ -10,6 +10,7 @@ import {
   formatZoneRange,
   indexAt,
   labelIndices,
+  lastIndexOnOrBefore,
   linePath,
   niceDomain,
   stepPath,
@@ -84,6 +85,18 @@ describe("indexAt", () => {
 
   it("stays on the only day of a one-point chart", () => {
     expect(indexAt(0.7, 1)).toBe(0);
+  });
+});
+
+describe("lastIndexOnOrBefore", () => {
+  it("finds the last measured day", () => {
+    const dates = ["2026-10-20", "2026-10-21", "2026-10-22", "2026-10-23"];
+
+    expect(lastIndexOnOrBefore(dates, "2026-10-21")).toBe(1);
+    expect(lastIndexOnOrBefore(dates, "2026-10-22")).toBe(2);
+    expect(lastIndexOnOrBefore(dates, "2026-10-31")).toBe(3);
+    expect(lastIndexOnOrBefore(dates, "2026-10-19")).toBe(-1);
+    expect(lastIndexOnOrBefore([], "2026-10-19")).toBe(-1);
   });
 });
 

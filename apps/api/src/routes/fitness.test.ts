@@ -206,11 +206,12 @@ describe("fitness route", () => {
 
     expect(res.status).toBe(200);
     const body = (await res.json()) as FitnessHistoryResponse;
-    // The stored week runs past today, so the chart shows the planned days.
-    expect(body.days).toHaveLength(10);
+    // The chart shows a week of history plus a month of projection.
+    expect(body.days).toHaveLength(37);
     expect(body.days[0]?.date).toBe("2026-10-16");
-    expect(body.days.at(-1)?.date).toBe("2026-10-25");
-    expect(body.ftp.at(-1)).toEqual({ date: "2026-10-25", watts: 255 });
+    expect(body.days.at(-1)?.date).toBe("2026-11-21");
+    // Past the plan's last week, the estimate falls back to the stated FTP.
+    expect(body.ftp.at(-1)).toEqual({ date: "2026-11-21", watts: 250 });
   });
 
   it("clamps an excessive window to a year", async () => {
@@ -219,7 +220,8 @@ describe("fitness route", () => {
     );
 
     const body = (await res.json()) as FitnessHistoryResponse;
-    expect(body.days).toHaveLength(365);
+    // A year of history plus the month of projection.
+    expect(body.days).toHaveLength(395);
     expect(body.days[0]?.date).toBe("2025-10-23");
   });
 
@@ -230,7 +232,7 @@ describe("fitness route", () => {
 
     expect(res.status).toBe(200);
     const body = (await res.json()) as FitnessHistoryResponse;
-    expect(body.days).toHaveLength(7);
-    expect(body.ftp.at(-1)).toEqual({ date: "2026-10-22", watts: 250 });
+    expect(body.days).toHaveLength(37);
+    expect(body.ftp.at(-1)).toEqual({ date: "2026-11-21", watts: 250 });
   });
 });

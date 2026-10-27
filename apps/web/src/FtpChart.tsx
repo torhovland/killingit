@@ -6,7 +6,9 @@ import {
   CHART_WIDTH,
   chartScale,
   formatChartDate,
+  FUTURE_DASH,
   labelIndices,
+  lastIndexOnOrBefore,
   niceDomain,
   stepPath,
 } from "./chartGeometry";
@@ -21,9 +23,12 @@ import { useChartHover } from "./useChartHover";
 export function FtpChart({
   days,
   points,
+  today,
 }: {
   days: readonly FitnessHistoryDay[];
   points: readonly FtpHistoryPoint[];
+  /** The last measured day; later days are the plan's projection. */
+  today: string;
 }) {
   const { hovered, onPointerMove, onPointerLeave } = useChartHover(
     points.length,
@@ -39,6 +44,14 @@ export function FtpChart({
   }
   const domain = niceDomain(points.map((point) => point.watts));
   const scale = chartScale(points.length, domain);
+  // The part of the estimate after today is a projection, so it is dotted.
+  const split = lastIndexOnOrBefore(
+    points.map((point) => point.date),
+    today,
+  );
+  const futureStart = Math.max(split, 0);
+  const hasFuture = split < points.length - 1;
+  const watts = points.map((point) => point.watts);
   const xLabels = labelIndices(points.length);
   const hoveredWatts =
     hovered === null
@@ -87,13 +100,21 @@ export function FtpChart({
               />
             )}
             <path
-              d={stepPath(
-                points.map((point) => point.watts),
-                scale,
-              )}
+              d={stepPath(watts.slice(0, split + 1), scale)}
               className="fill-none stroke-primary"
               strokeWidth={2}
+              data-series="ftp"
             />
+            {hasFuture && (
+              <path
+                d={stepPath(watts.slice(futureStart), scale, futureStart)}
+                className="fill-none stroke-primary"
+                strokeWidth={2}
+                strokeDasharray={FUTURE_DASH}
+                data-series="ftp"
+                data-future="true"
+              />
+            )}
             {hovered !== null && hoveredWatts !== null && (
               <circle
                 cx={hovered.x}

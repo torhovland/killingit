@@ -39,7 +39,7 @@ export function FitnessView({
         <>
           {(todayLoad !== null || todayFtp !== null) && (
             <div className="flex flex-col gap-1 rounded-lg border bg-card p-4">
-              <span className="text-sm font-medium">Today</span>
+              <span className="text-lg font-semibold">Today</span>
               {todayLoad !== null && (
                 <TrainingLoadLine
                   load={todayLoad}
@@ -61,7 +61,7 @@ export function FitnessView({
           )}
 
           {history.days.length > 1 ? (
-            <FitnessChart days={history.days} />
+            <FitnessChart days={history.days} today={today} />
           ) : (
             <p className="text-sm text-muted-foreground">
               Not enough history yet. Sync your activities or follow the plan
@@ -69,7 +69,7 @@ export function FitnessView({
             </p>
           )}
 
-          <FtpChart days={history.days} points={history.ftp} />
+          <FtpChart days={history.days} points={history.ftp} today={today} />
         </>
       )}
     </section>
