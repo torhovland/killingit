@@ -117,7 +117,7 @@ export async function authenticateGarmin(
 type AuthenticateTransport = (credentials: GarminCredentials) => Promise<void>;
 
 /**
- * Fetches the last 31 days of activities (with their workout timeseries) from
+ * Fetches the last 42 days of activities (with their workout timeseries) from
  * the sidecar, mapped to the shared {@link Activity} shape. The transport is
  * injectable so tests stub the network.
  */

@@ -41,6 +41,12 @@ numbers must agree across the Day, Week, and Block tabs.
   answers. It accepts `FTP: 250`, `FTP around 220 W`, `280 W FTP`, and similar.
   The first value is the current baseline; a later "when fit" number is not
   used as the current FTP.
+- A revised FTP is picked up from any dated athlete input: an activity comment,
+  a manual activity, the weekly note, or a week/block review comment. The
+  newest mention wins. If the survey answers were saved after that mention, the
+  profile is treated as the newer source. A revised test result also floors the
+  current and next week's estimate, so an older weekly projection cannot show a
+  lower current FTP than the test.
 - With a stated FTP, the coach returns `estimatedFtpWatts` for the week and for
   every week of the block. The API clamps each estimate to 70–150% of the
   stated value so a model error cannot produce an absurd number. A missing
@@ -79,10 +85,13 @@ For every day in the week:
 - `CTL = CTL_prev + (TSS − CTL_prev) / 42`
 - `TSB = CTL − ATL`
 
-The series starts 42 days before the week. Recorded activities in that window
-seed the history: power activities are scored as above, and other activities
-use a duration-based estimate purely for seeding (they are never shown as a
-workout's TSS). A day without activity or a planned session counts as rest.
+The series starts 42 days before the week. Garmin now syncs the last 42 days,
+matching this window. Plan generation analyses the largest feed the activity
+cap allows (20 activities); the load seeding uses whatever activity history is
+available. Recorded activities are scored with measured power where possible;
+the rest use a duration-based estimate purely for seeding (they are never shown
+as a workout's TSS). A day without activity or a planned session counts as
+rest.
 
 The resolved `trainingLoad` is copied from the week session into the matching
 `today`/`tomorrow` day plan, so the Day and Week tabs cannot disagree.
@@ -101,7 +110,8 @@ Shared (`@killingit/shared`):
 
 API:
 
-- `apps/api/src/training/ftp.ts` extracts the profile FTP.
+- `apps/api/src/training/ftp.ts` resolves the current FTP from the profile and
+  the newest dated coaching input.
 - `apps/api/src/training/load.ts` resolves TSS and attaches the load series
   after every generation path, including promotion-only saves.
 - `apps/api/src/coaching/activities.ts` stores power metrics while summarizing
@@ -135,7 +145,10 @@ No database migration: the new values live in the existing plan JSON.
 6. Today, Tomorrow, and Week show ATL, CTL, and TSB for the same date with the
    same values.
 7. ATL reacts faster than CTL, and TSB equals `CTL − ATL` for the day.
-8. The full quality gates pass: typecheck, lint, format, tests.
+8. A new FTP test result in a later activity comment, manual activity, weekly
+   note, or review comment becomes the baseline and floors the current and next
+   week's estimate. A later survey answer update takes precedence again.
+9. The full quality gates pass: typecheck, lint, format, tests.
 
 ## Testing
 

@@ -34,7 +34,7 @@ import type {
 } from "../llm/planContext.js";
 import type { LlmProvider } from "../llm/openrouter.js";
 import { applyTrainingLoad } from "../training/load.js";
-import { extractFtpWatts } from "../training/ftp.js";
+import { detectFtpBaseline } from "../training/ftp.js";
 import { addDays, startOfWeek } from "./dates.js";
 import { blockFor, promoteNextPeriod, weekFor } from "./periods.js";
 import { planIsStale, planPending } from "./status.js";
@@ -49,6 +49,8 @@ export interface PlanGenerationContext {
   manualActivities: readonly ManualActivityContext[];
   activityComments: readonly ActivityCommentContext[];
   weeklyNote: string | null;
+  /** When the current week's note was last saved. */
+  weeklyNoteUpdatedAt?: Date | null;
   periodReviews?: readonly PeriodReviewContext[];
   coachingInputsUpdatedAt: Date | null;
   /** Newest general coach analysis among the recent activities, if any. */
@@ -925,7 +927,25 @@ function withTrainingLoad(
 ): CoachPlan {
   return applyTrainingLoad(plan, {
     answers: context.answers,
+    answersUpdatedAt: context.answersUpdatedAt,
     activities: context.activities,
+    manualActivities: context.manualActivities,
+    activityComments: context.activityComments,
+    weeklyNote: context.weeklyNote,
+    weeklyNoteUpdatedAt: context.weeklyNoteUpdatedAt ?? null,
+    periodReviews: context.periodReviews,
+  });
+}
+
+function ftpBaseline(context: PlanGenerationContext) {
+  return detectFtpBaseline({
+    answers: context.answers,
+    answersUpdatedAt: context.answersUpdatedAt,
+    manualActivities: context.manualActivities,
+    activityComments: context.activityComments,
+    weeklyNote: context.weeklyNote,
+    weeklyNoteUpdatedAt: context.weeklyNoteUpdatedAt ?? null,
+    periodReviews: context.periodReviews,
   });
 }
 
@@ -936,7 +956,7 @@ function baseContext(input: GeneratePlanInput) {
   return {
     athleteAnswers: input.context.answers,
     recentActivities,
-    athleteFtpWatts: extractFtpWatts(input.context.answers),
+    athleteFtpWatts: ftpBaseline(input.context)?.watts ?? null,
     today: input.today,
     ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),
     ...(input.context.manualActivities.length > 0

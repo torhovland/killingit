@@ -28,7 +28,7 @@ coach analysis on the main page.
 3. **Provider-agnostic LLM seam** (`LlmProvider`) implemented by OpenRouter:
    `listModels`, `validateKey`, `complete`.
 4. **Coach analysis for activities**:
-   - Sync the last 31 days of Garmin activities.
+   - Sync the last 42 days of Garmin activities.
    - Analyse the latest activities (default 10, max 20), each with a prompt
      containing the summary, the current week's planned sessions, aggregate
      channel stats, and a downsampled timeseries (≤90 rows; first/last

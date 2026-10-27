@@ -258,7 +258,24 @@ describe("applyTrainingLoad", () => {
     expect(loaded.block.weeks[1]?.estimatedFtpWatts).toBe(260);
   });
 
-  it("turns FTP estimates off when the athlete gave no FTP", () => {
+  it("updates the estimate when a later comment reports a new FTP test", () => {
+    const loaded = applyTrainingLoad(plan, {
+      answers: [{ prompt: "FTP?", answer: "Around 240 W.", skipped: false }],
+      answersUpdatedAt: new Date("2026-10-01T10:00:00Z"),
+      activityComments: [
+        {
+          activityId: "1",
+          comment: "FTP test today: 260 W.",
+          updatedAt: "2026-10-20T18:00:00Z",
+        },
+      ],
+      activities: [activity()],
+    });
+    expect(loaded.week.estimatedFtpWatts).toBe(260);
+    expect(loaded.today.trainingLoad?.tss).toBe(59);
+  });
+
+  it("turns FTP estimates off when the athlete has never provided one", () => {
     const loaded = applyTrainingLoad(plan, {
       answers: [{ prompt: "Goal?", answer: "Ride a century.", skipped: false }],
       activities: [activity()],

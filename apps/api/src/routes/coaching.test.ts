@@ -36,6 +36,7 @@ const emptyInputs: CoachingInputs = {
   manualActivities: [],
   activityComments: [],
   weeklyNote: null,
+  weeklyNoteUpdatedAt: null,
   periodReviews: [],
   updatedAt: null,
 };

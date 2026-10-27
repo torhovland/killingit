@@ -11,13 +11,24 @@ import {
   type WeekPlan,
   type WeekSession,
 } from "@killingit/shared";
-import type { AthleteAnswerContext } from "../llm/planContext.js";
+import type {
+  ActivityCommentContext,
+  AthleteAnswerContext,
+  ManualActivityContext,
+  PeriodReviewContext,
+} from "../llm/planContext.js";
 import { addDays } from "../plans/dates.js";
-import { extractFtpWatts } from "./ftp.js";
+import { detectFtpBaseline } from "./ftp.js";
 
 export interface TrainingLoadContext {
   answers: readonly AthleteAnswerContext[];
+  answersUpdatedAt?: Date | null;
   activities: readonly AnalyzedActivity[];
+  manualActivities?: readonly ManualActivityContext[] | undefined;
+  activityComments?: readonly ActivityCommentContext[] | undefined;
+  weeklyNote?: string | null | undefined;
+  weeklyNoteUpdatedAt?: Date | null | undefined;
+  periodReviews?: readonly PeriodReviewContext[] | undefined;
 }
 
 interface LoadedWeek {
@@ -41,7 +52,17 @@ export function applyTrainingLoad(
   plan: CoachPlan,
   context: TrainingLoadContext,
 ): CoachPlan {
-  const baseFtpWatts = extractFtpWatts(context.answers);
+  const baseline = detectFtpBaseline({
+    answers: context.answers,
+    answersUpdatedAt: context.answersUpdatedAt ?? null,
+    manualActivities: context.manualActivities,
+    activityComments: context.activityComments,
+    weeklyNote: context.weeklyNote,
+    weeklyNoteUpdatedAt: context.weeklyNoteUpdatedAt ?? null,
+    periodReviews: context.periodReviews,
+  });
+  const baseFtpWatts = baseline?.watts ?? null;
+  const floorAtBase = baseline?.fromRevision ?? false;
   const activitiesByDate = groupActivitiesByDate(context.activities);
   const current = applyWeekLoad(
     plan.week,
@@ -49,6 +70,7 @@ export function applyTrainingLoad(
     activitiesByDate,
     undefined,
     weekFtpFromBlock(plan.block, plan.week.startDate),
+    floorAtBase,
   );
   const next =
     plan.nextWeek === null
@@ -62,6 +84,7 @@ export function applyTrainingLoad(
             plan.nextBlock ?? plan.block,
             plan.nextWeek.startDate,
           ),
+          floorAtBase,
         );
 
   const sessions = new Map<string, WeekSession>();
@@ -102,10 +125,12 @@ function applyWeekLoad(
   activitiesByDate: ReadonlyMap<string, readonly AnalyzedActivity[]>,
   priorTssByDate?: ReadonlyMap<string, number>,
   blockEstimate?: number | null,
+  floorAtBase = false,
 ): LoadedWeek {
   const ftpWatts = resolveFtpWatts(
     week.estimatedFtpWatts ?? blockEstimate,
     baseFtpWatts,
+    floorAtBase,
   );
   const tssByDate = new Map<string, number>();
 
@@ -172,6 +197,7 @@ function applyWeekLoad(
 function resolveFtpWatts(
   estimate: number | null | undefined,
   baseFtpWatts: number | null,
+  floorAtBase = false,
 ): number | null {
   if (baseFtpWatts === null) {
     return null;
@@ -181,7 +207,10 @@ function resolveFtpWatts(
   }
   const minimum = Math.round(baseFtpWatts * 0.7);
   const maximum = Math.round(baseFtpWatts * 1.5);
-  return Math.min(maximum, Math.max(minimum, Math.round(estimate)));
+  const resolved = Math.min(maximum, Math.max(minimum, Math.round(estimate)));
+  // A fresh test result is a measurement, not a projection: do not let an
+  // older weekly estimate present a lower current FTP than the athlete's test.
+  return floorAtBase ? Math.max(baseFtpWatts, resolved) : resolved;
 }
 
 /** The coach's block-level estimate for the week starting on `startDate`. */

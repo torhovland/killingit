@@ -23,6 +23,8 @@ export interface CoachingInputs {
   manualActivities: ManualActivityContext[];
   activityComments: ActivityCommentContext[];
   weeklyNote: string | null;
+  /** When the current week's note was last saved. */
+  weeklyNoteUpdatedAt: Date | null;
   /** Coach summaries of completed weeks and blocks, with athlete feedback. */
   periodReviews: PeriodReviewContext[];
   /** The newest `updatedAt` across all coaching inputs. */
@@ -81,12 +83,15 @@ export async function loadCoachingInputs(
       id: row.id,
       startDate: row.startDate,
       details: row.details,
+      updatedAt: row.updatedAt.toISOString(),
     })),
     activityComments: commentRows.map((row) => ({
       activityId: row.activityId,
       comment: row.comment,
+      updatedAt: row.updatedAt.toISOString(),
     })),
     weeklyNote: noteRows[0]?.note ?? null,
+    weeklyNoteUpdatedAt: noteRows[0]?.updatedAt ?? null,
     periodReviews: reviewEntries.map(({ review, reply }) => ({
       kind: review.kind,
       title: review.title,
@@ -95,6 +100,7 @@ export async function loadCoachingInputs(
       summary: review.summary,
       comment: review.comment,
       reply: reply?.text ?? null,
+      updatedAt: review.updatedAt.toISOString(),
     })),
     updatedAt: newest([
       ...manualRows,
@@ -122,6 +128,7 @@ export async function loadManualActivities(
     id: row.id,
     startDate: row.startDate,
     details: row.details,
+    updatedAt: row.updatedAt.toISOString(),
   }));
 }
 

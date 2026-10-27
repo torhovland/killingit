@@ -36,6 +36,8 @@ export interface PeriodReviewContext {
   summary: string;
   comment: string | null;
   reply: string | null;
+  /** When the review or its athlete comment was last edited. */
+  updatedAt?: string;
 }
 
 /** A manually recorded activity. */
@@ -43,12 +45,16 @@ export interface ManualActivityContext {
   id: number;
   startDate: string;
   details: string;
+  /** When the athlete last edited the entry; used to order FTP revisions. */
+  updatedAt?: string;
 }
 
 /** A comment the athlete added to an activity. */
 export interface ActivityCommentContext {
   activityId: string;
   comment: string;
+  /** When the comment was last edited; used to order FTP revisions. */
+  updatedAt?: string;
 }
 
 /**
@@ -154,7 +160,7 @@ export function formatPlanContext(input: PlanContextInput): string[] {
   if (input.athleteFtpWatts !== undefined && input.athleteFtpWatts !== null) {
     lines.push(
       "",
-      `Athlete FTP from their profile: ${input.athleteFtpWatts} W. Use this as the baseline for the week-by-week FTP estimate and for TSS.`,
+      `Athlete FTP: ${input.athleteFtpWatts} W (the latest FTP the athlete stated, including any revised test result). Use this as the baseline for the week-by-week FTP estimate and for TSS.`,
     );
   }
   lines.push(

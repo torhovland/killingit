@@ -21,9 +21,11 @@ deterministically would lose the model's judgement for sessions without power.
 
 ## Decision
 
-- **FTP is read deterministically from the profile.** The first plausible FTP
-  stated in the athlete's answers is the baseline. With no stated FTP the
-  feature stays off.
+- **FTP is read deterministically from the profile and newer athlete inputs.**
+  The first plausible FTP stated in the answers is the baseline. A later
+  activity comment, manual activity, weekly note, or review comment that
+  mentions an FTP test/revised estimate replaces it, unless the survey answers
+  were saved after that mention. With no FTP source the feature stays off.
 - **The coach estimates the weekly progression and per-session TSS.** The week
   prompt (and the block prompt) receives the completed training and the stated
   FTP and returns `estimatedFtpWatts` for each week and `estimatedTss` for each
@@ -55,7 +57,11 @@ deterministically would lose the model's judgement for sessions without power.
   `estimatedFtpWatts`) and old plans remain readable because every new field is
   optional.
 - Synced activities now carry `averagePower` and `normalizedPower`, computed
-  once while the timeseries is still available.
+  once while the timeseries is still available. The Garmin sync window is 42
+  days, matching the chronic-load window.
+- A revised FTP mentioned in a later athlete input replaces the profile value
+  and floors the current week's estimate, so a test result is not undercut by an
+  older projection.
 - ATL/CTL from before the 42-day feed window are unknown, so a new account
   starts at zero and settles over a few weeks. This follows from not adding a
   separate load-history store.
