@@ -102,21 +102,24 @@ The resolved `trainingLoad` is copied from the week session into the matching
 `today`/`tomorrow` day plan, so the Day and Week tabs cannot disagree.
 
 Each TSB value also carries a plain-language interpretation, shown after the
-number. The zones use TSB only:
+number. The zones use TSB as a percentage of CTL (`TSB ÷ CTL`):
 
-| TSB        | Label       | Colour |
-| ---------- | ----------- | ------ |
-| > +25      | Detraining  | orange |
-| +5 to +25  | Fresh       | blue   |
-| −10 to +5  | Maintaining | grey   |
-| −30 to −10 | Productive  | green  |
-| < −30      | Risk        | red    |
+| Form         | Label       | Colour |
+| ------------ | ----------- | ------ |
+| > +20%       | Detraining  | orange |
+| +5% to +20%  | Fresh       | blue   |
+| −10% to +5%  | Maintaining | grey   |
+| −30% to −10% | Productive  | green  |
+| < −30%       | Risk        | red    |
 
-For example: `TSS 20 · ATL 18 · CTL 16 · TSB -2 · Maintaining` or
-`TSS 85 · ATL 65 · CTL 45 · TSB -20 · Productive`. The interpretation is derived
-from the TSB value in the shared schema module and rendered with the app's theme
-tokens (`--form-risk`, `--form-productive`, and so on), so it follows the dark
-palette.
+For example: `TSS 20 · ATL 20 · CTL 20 · TSB 0 · Maintaining` or
+`TSS 85 · ATL 120 · CTL 100 · TSB -20 · Productive`. The interpretation is
+derived from TSB and CTL in the shared schema module and rendered with the app's
+theme tokens (`--form-risk`, `--form-productive`, and so on), so it follows the
+dark palette.
+
+With no fitness base (CTL of zero) a non-positive TSB is `Maintaining` and a
+positive TSB is `Detraining`.
 
 ## Data model / API impact
 

@@ -37,27 +37,35 @@ export const FORM_INTERPRETATION_LABELS: Record<FormInterpretation, string> = {
 };
 
 /**
- * Reads the training stress balance as a plain-language form state:
+ * Reads the training stress balance as a percentage of chronic load (fitness)
+ * and maps it to a plain-language form state:
  *
- * - below −30: risk
- * - −30 to −10: productive
- * - −10 to +5: maintaining
- * - +5 to +25: fresh
- * - above +25: detraining
+ * - above +20%: detraining
+ * - +5% to +20%: fresh
+ * - −10% to +5%: maintaining
+ * - −30% to −10%: productive
+ * - below −30%: risk
  */
-export function interpretTrainingStressBalance(
-  tsb: number,
-): FormInterpretation {
-  if (tsb > 25) {
+export function interpretTrainingForm(load: {
+  tsb: number;
+  ctl: number;
+}): FormInterpretation {
+  // Without a fitness base there is no percentage to interpret. No fatigue
+  // means neither building nor detraining; any positive form means lost load.
+  if (load.ctl <= 0) {
+    return load.tsb > 0 ? "detraining" : "maintaining";
+  }
+  const percent = (load.tsb / load.ctl) * 100;
+  if (percent > 20) {
     return "detraining";
   }
-  if (tsb >= 5) {
+  if (percent >= 5) {
     return "fresh";
   }
-  if (tsb >= -10) {
+  if (percent >= -10) {
     return "maintaining";
   }
-  if (tsb >= -30) {
+  if (percent >= -30) {
     return "productive";
   }
   return "risk";

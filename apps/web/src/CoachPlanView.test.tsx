@@ -707,7 +707,7 @@ describe("CoachPlanView", () => {
     expect(html).toContain("ATL 9");
     expect(html).toContain("CTL 2");
     expect(html).toContain("TSB -8");
-    expect(html).toContain("Maintaining");
+    expect(html).toContain("Risk");
   });
 
   it("labels the TSB interpretation with its colour", () => {
@@ -715,14 +715,14 @@ describe("CoachPlanView", () => {
       ...plan,
       today: {
         ...plan.today,
-        trainingLoad: { tss: 20, atl: 18, ctl: 16, tsb: -2 },
+        trainingLoad: { tss: 20, atl: 20, ctl: 20, tsb: 0 },
       },
     };
 
     const html = renderToStaticMarkup(<CoachPlanView plan={loadedPlan} />);
 
     expect(html).toContain("TSS 20");
-    expect(html).toContain("TSB -2");
+    expect(html).toContain("TSB 0");
     expect(html).toContain("Maintaining");
     expect(html).toContain("text-form-maintaining");
   });
