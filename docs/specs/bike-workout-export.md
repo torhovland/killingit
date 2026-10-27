@@ -33,7 +33,9 @@ details in the Today and Tomorrow views offer a file download.
    the session is an indoor bike workout with power targets.
 7. The estimated FTP is shown on bike workouts in the Today and Tomorrow cards,
    so the athlete can set the same FTP in the trainer app that the relative
-   zones were built from.
+   zones were built from. The workout's `ftpWatts` follows the week's estimated
+   FTP (see `docs/specs/training-load.md`), so the Week tab, Day card, and
+   downloaded file agree.
 
 ### Out of scope (deferred)
 

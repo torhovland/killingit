@@ -109,6 +109,27 @@ describe("weekPlanSchema", () => {
     ).toBe(false);
   });
 
+  it("accepts an estimated FTP and per-session training load", () => {
+    const week = makeWeek();
+    const parsed = weekPlanSchema.parse({
+      ...week,
+      estimatedFtpWatts: 250,
+      sessions: week.sessions.map((session, index) =>
+        index === 0
+          ? {
+              ...session,
+              estimatedTss: 60,
+              trainingLoad: { tss: 60, atl: 8.6, ctl: 1.4, tsb: -7.2 },
+            }
+          : session,
+      ),
+    });
+
+    expect(parsed.estimatedFtpWatts).toBe(250);
+    expect(parsed.sessions[0]?.trainingLoad?.tss).toBe(60);
+    expect(parsed.sessions[0]?.estimatedTss).toBe(60);
+  });
+
   it("accepts a partially completed session", () => {
     const week = makeWeek();
     expect(

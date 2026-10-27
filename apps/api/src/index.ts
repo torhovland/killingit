@@ -5,7 +5,11 @@ import { createAuthProvider } from "./auth/index.js";
 import { requireAdmin, requireAuth } from "./auth/middleware.js";
 import type { AuthProvider } from "./auth/provider.js";
 import { withSentry } from "./instrumentation/sentry.js";
-import type { ActivityFeed } from "./coaching/activities.js";
+import {
+  loadUserActivityTrainingLoads,
+  type ActivityFeed,
+} from "./coaching/activities.js";
+import { estimateManualActivityTss } from "./training/manualTss.js";
 import type { loadCachedActivityFeed } from "./coaching/feedCache.js";
 import type {
   deleteImportedActivity,
@@ -94,6 +98,8 @@ export interface AppDependencies {
   /** Activity/LLM loaders, injectable for DB-free plan route tests. */
   loadActivities?: (userId: number) => Promise<ActivityFeed>;
   loadCachedFeed?: typeof loadCachedActivityFeed;
+  loadActivityTrainingLoads?: typeof loadUserActivityTrainingLoads;
+  estimateManualTss?: typeof estimateManualActivityTss;
   loadLlm?: (userId: number) => Promise<LlmClient | null>;
   /** Coaching-input loader, injectable for DB-free route tests. */
   loadCoachingInputs?: (
@@ -213,6 +219,12 @@ export function createApp(deps: AppDependencies = {}): Hono {
         : {}),
       ...(deps.loadCachedFeed !== undefined
         ? { loadCachedFeed: deps.loadCachedFeed }
+        : {}),
+      ...(deps.loadActivityTrainingLoads !== undefined
+        ? { loadActivityTrainingLoads: deps.loadActivityTrainingLoads }
+        : {}),
+      ...(deps.estimateManualTss !== undefined
+        ? { estimateManualTss: deps.estimateManualTss }
         : {}),
       ...(deps.loadLlm !== undefined ? { loadLlm: deps.loadLlm } : {}),
       ...(deps.loadCoachingInputs !== undefined

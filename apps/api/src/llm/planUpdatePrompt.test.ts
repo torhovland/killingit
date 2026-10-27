@@ -143,6 +143,9 @@ describe("daily update prompts", () => {
     expect(prompt).toContain('"bikeWorkout"');
     expect(prompt).toContain('"powerPercent"');
     expect(prompt).toContain('set "bikeWorkout" to null');
+    expect(prompt).toContain('"estimatedTss"');
+    expect(prompt).toContain("training stress score");
+    expect(prompt).toContain('"estimatedFtpWatts"');
     expect(prompt).toContain("what the athlete loses toward that goal");
     expect(prompt).toContain(
       "if you cannot state a concrete loss for skipping a planned session",
@@ -266,6 +269,9 @@ describe("weekly update prompts", () => {
     expect(prompt).toContain('"block"');
     expect(prompt).toContain('"bikeWorkout"');
     expect(prompt).toContain('"powerPercent"');
+    expect(prompt).toContain('"estimatedTss"');
+    expect(prompt).toContain('"estimatedFtpWatts"');
+    expect(prompt).toContain("training stress score");
   });
 
   it("includes the week start date and the current block", () => {

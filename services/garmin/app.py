@@ -1,7 +1,7 @@
 """Garmin activity sync sidecar.
 
 A minimal HTTP service that wraps `python-garminconnect` so the Bun/Hono API
-can pull the operator's last 31 days of Garmin activities without adding a
+can pull the operator's last 42 days of Garmin activities without adding a
 Python runtime to the main backend (see ADR 0003 amendment).
 
 Endpoints:
@@ -45,8 +45,9 @@ logger = logging.getLogger("garmin-sidecar")
 
 app = FastAPI(title="killingit-garmin-sidecar")
 
-# Number of days of history to sync (inclusive window ending today).
-SYNC_WINDOW_DAYS = 31
+# Number of days of history to sync (inclusive window ending today). This
+# matches the chronic-training-load window used by the plan's ATL/CTL numbers.
+SYNC_WINDOW_DAYS = 42
 
 # Where the library caches Garmin session tokens between calls. Configurable so
 # deployments can point it at a persistent volume; defaults to a private temp
@@ -149,7 +150,7 @@ def _sync(credentials: Credentials) -> list[dict]:
 def _samples_for(garmin, activity_id) -> list[dict]:
     """Fetch and normalize one activity's timeseries.
 
-    A single failed detail fetch must not fail the whole 31-day sync, so it is
+    A single failed detail fetch must not fail the whole 42-day sync, so it is
     logged and treated as an activity with no recorded samples. Rate limiting is
     different: it is re-raised so the caller can surface `429`.
     """

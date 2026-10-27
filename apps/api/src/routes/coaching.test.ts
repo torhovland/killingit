@@ -36,6 +36,7 @@ const emptyInputs: CoachingInputs = {
   manualActivities: [],
   activityComments: [],
   weeklyNote: null,
+  weeklyNoteUpdatedAt: null,
   periodReviews: [],
   updatedAt: null,
 };
@@ -133,6 +134,8 @@ function makeApp(options: {
   answers?: QuestionAnswerStore;
   loadActivities?: (userId: number) => Promise<ActivityFeed>;
   loadCachedFeed?: AppDependencies["loadCachedFeed"];
+  loadActivityTrainingLoads?: AppDependencies["loadActivityTrainingLoads"];
+  estimateManualTss?: AppDependencies["estimateManualTss"];
   loadCoachingInputs?: (
     userId: number,
     weekStartDate: string,
@@ -146,13 +149,7 @@ function makeApp(options: {
     input: { activityId: string; comment: string },
   ) => Promise<boolean>;
   saveActivityReview?: AppDependencies["saveActivityReview"];
-  saveManualActivity?: (
-    userId: number,
-    activity: {
-      startDate: string;
-      details: string;
-    },
-  ) => Promise<number>;
+  saveManualActivity?: AppDependencies["saveManualActivity"];
   saveWeeklyNote?: (
     userId: number,
     today: string,
@@ -221,9 +218,10 @@ function makeApp(options: {
     loadActivities:
       options.loadActivities ??
       (() => Promise.resolve({ model: "test-model", activities: [] })),
-    ...(options.loadCachedFeed !== undefined
-      ? { loadCachedFeed: options.loadCachedFeed }
-      : {}),
+    loadCachedFeed: options.loadCachedFeed ?? (() => Promise.resolve(null)),
+    loadActivityTrainingLoads:
+      options.loadActivityTrainingLoads ?? (() => Promise.resolve(new Map())),
+    estimateManualTss: options.estimateManualTss ?? (() => Promise.resolve(0)),
     loadLlm: () =>
       Promise.resolve({
         provider: {
@@ -363,6 +361,10 @@ describe("coaching activity feed", () => {
           ],
         });
       },
+      loadActivityTrainingLoads: () =>
+        Promise.resolve(
+          new Map([["2026-10-21", { tss: 85, atl: 29, ctl: 20, tsb: -20 }]]),
+        ),
     });
 
     const res = await app.fetch(
@@ -371,8 +373,14 @@ describe("coaching activity feed", () => {
 
     expect(res.status).toBe(200);
     expect(requested.userId).toBe(42);
-    const body = (await res.json()) as { activities: Array<{ name: string }> };
+    const body = (await res.json()) as {
+      activities: Array<{
+        name: string;
+        trainingLoad?: { tss: number } | null;
+      }>;
+    };
     expect(body.activities[0]?.name).toBe("Morning Run");
+    expect(body.activities[0]?.trainingLoad?.tss).toBe(85);
   });
 
   it("returns an empty feed when nothing has been cached yet", async () => {
@@ -737,6 +745,35 @@ describe("coaching manual activities", () => {
     expect(keepToday).toBe(true);
     const body = (await res.json()) as { reply: { text: string } | null };
     expect(body.reply?.text).toContain("swim");
+  });
+
+  it("estimates TSS for a manual activity from its details", async () => {
+    const saved: { tss: number | null | undefined } = { tss: undefined };
+    const app = makeApp({
+      saveManualActivity: (_userId, activity) => {
+        saved.tss = activity.estimatedTss;
+        return Promise.resolve(7);
+      },
+      estimateManualTss: (_provider, _credentials, input) =>
+        Promise.resolve(input.details.includes("Zwift race") ? 255 : 0),
+      replyToCoachingInput: () => Promise.resolve(null),
+      triggerPlanGeneration: () => Promise.resolve(true),
+    });
+
+    const res = await app.fetch(
+      authenticatedRequest("/api/coaching/activities/manual", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          today: "2026-10-21",
+          startDate: "2026-10-21",
+          details: "I did a 3 hour Zwift race with average HR at 187 bpm",
+        }),
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(saved.tss).toBe(255);
   });
 
   it("rejects a manual activity without details", async () => {

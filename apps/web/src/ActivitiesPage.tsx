@@ -12,6 +12,7 @@ import {
 } from "@killingit/shared";
 import { ActivityCard } from "./ActivityCard";
 import { loadCachedActivities, saveCachedActivities } from "./activityCache";
+import { TrainingLoadLine } from "./TrainingLoadLine";
 import { useAppStatus, useBusyReporter } from "./AppStatus";
 import { useAuth } from "./auth";
 import { fetchJsonAuthed } from "./fetchAuthed";
@@ -103,6 +104,30 @@ export function ActivitiesPage() {
     }
   }
 
+  /**
+   * Refreshes the displayed activity loads from the cache without syncing
+   * Garmin. The API recalculates every activity's ATL/CTL/TSB from the current
+   * manual entries and plan.
+   */
+  async function loadCachedAnalyses(): Promise<void> {
+    try {
+      const res = await fetchJsonAuthed<unknown>(
+        `${API_URL}/api/coaching/activities/cached`,
+        auth,
+      );
+      const parsed = analyzedActivitiesResponseSchema.safeParse(res);
+      if (!parsed.success) {
+        throw new Error("Cached activities returned an unexpected response", {
+          cause: parsed.error,
+        });
+      }
+      setData(parsed.data);
+      saveCachedActivities(authSub.current, parsed.data);
+    } catch (err: unknown) {
+      setError(reportError(err));
+    }
+  }
+
   async function loadManualActivities(): Promise<void> {
     try {
       const response = await fetchJsonAuthed<unknown>(
@@ -148,6 +173,8 @@ export function ActivitiesPage() {
     if (next) {
       saveCachedActivities(authSub.current, next);
     }
+    // Removing a day changes every later snapshot, so rebuild the feed.
+    await loadAnalyses();
   }
 
   async function submitComment(
@@ -236,7 +263,7 @@ export function ActivitiesPage() {
       setEditingActivityId(null);
       setManualStartDate(getToday(timeZone).today);
       setManualDetails("");
-      await loadManualActivities();
+      await Promise.all([loadManualActivities(), loadCachedAnalyses()]);
     } catch (err: unknown) {
       setError(reportError(err));
     }
@@ -272,7 +299,7 @@ export function ActivitiesPage() {
       if (editingActivityId === activity.id) {
         handleCancelEdit();
       }
-      await loadManualActivities();
+      await Promise.all([loadManualActivities(), loadCachedAnalyses()]);
     } catch (err: unknown) {
       setError(reportError(err));
     }
@@ -414,6 +441,13 @@ export function ActivitiesPage() {
                       {activity.coachReply.text}
                     </span>
                   )}
+                  {activity.trainingLoad !== null &&
+                    activity.trainingLoad !== undefined && (
+                      <TrainingLoadLine
+                        load={activity.trainingLoad}
+                        testId="manual-activity-load"
+                      />
+                    )}
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -447,7 +481,7 @@ export function ActivitiesPage() {
 
       {!syncing && data && data.activities.length === 0 && (
         <p className="text-sm text-muted-foreground">
-          No activities in the last 31 days.
+          No activities in the last 42 days.
         </p>
       )}
 

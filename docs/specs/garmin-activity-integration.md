@@ -7,7 +7,7 @@
 
 ## Goal
 
-Sync the operator's own **last 31 days of Garmin activities** into the app
+Sync the operator's own **last 42 days of Garmin activities** into the app
 using [`python-garminconnect`](https://github.com/cyberjunky/python-garminconnect),
 with the operator entering their Garmin **username and password** through the
 app. Activities are normalized into a shared `ActivitySummary` shape, **with
@@ -37,7 +37,7 @@ one swappable corner, and normalizes Garmin activities into the shared
 1. **Python sidecar** (`services/garmin/`) — a FastAPI service that:
    - authenticates to Garmin Connect with username/password (via
      `python-garminconnect`'s `Garmin().login()`), and
-   - returns the last 31 days of activities in a normalized shape, **including
+   - returns the last 42 days of activities in a normalized shape, **including
      each activity's timeseries samples**.
 2. **Credential entry** — a web form (behind Auth0 sign-in) that POSTs the
    Garmin username/password to a protected, per-account API endpoint.
@@ -60,7 +60,7 @@ one swappable corner, and normalizes Garmin activities into the shared
 - **Garmin official developer-program API** — still gated/paused (ADR 0003).
 - **Webhooks / real-time sync.** (Wiring activities into the LLM is now covered
   by `docs/specs/openrouter-llm-integration.md`.)
-- **Incremental sync** — always pulls the full 31-day window for now.
+- **Incremental sync** — always pulls the full 42-day window for now.
 - **Timeseries persistence and downsampling** — samples travel with the sync
   response; storing them and serving downsampled chart data is a follow-up.
 
@@ -68,14 +68,16 @@ one swappable corner, and normalizes Garmin activities into the shared
 
 1. With valid Garmin credentials, the operator enters them in the web form and
    the app stores them encrypted.
-2. Visiting the app (with credentials stored) automatically syncs the last 31
+2. Visiting the app (with credentials stored) automatically syncs the last 42
    days of activities and shows progress on the main page.
 3. Bad credentials surface as a clear auth error (not a 500); missing
    credentials surface as "not connected".
 4. Encrypted credentials are never returned by any API response.
 5. Each synced activity carries a `samples` timeseries normalized from Garmin's
    activity details, with absent channels omitted per sample and one bad detail
-   fetch not failing the whole sync.
+   fetch not failing the whole sync. The stored summary also carries average and
+   normalized power when the activity recorded power, so training-load scoring
+   does not need the raw timeseries.
 6. `startDate` is the activity's UTC start (`startTimeGMT`), not the naive
    wall-clock `startTimeLocal`, so the UI can render it in the athlete's chosen
    time zone.
@@ -91,7 +93,7 @@ one swappable corner, and normalizes Garmin activities into the shared
   scoped to the signed-in account):
   - `POST /api/garmin/credentials` — store encrypted credentials.
   - `GET  /api/garmin/status` — connected / not connected (no secrets).
-  - `GET  /api/garmin/activities` — trigger + return the 31-day sync.
+  - `GET  /api/garmin/activities` — trigger + return the 42-day sync.
   - `GET  /api/coaching/activities/cached` — return the last successfully
     synced activity feed without contacting Garmin, so the dashboard can show
     existing cards while the live sync runs.
@@ -109,7 +111,7 @@ one swappable corner, and normalizes Garmin activities into the shared
 
 - FastAPI + `python-garminconnect`. Endpoints:
   - `POST /sync` — body `{ "username", "password" }` → `{ "activities": [...] }`
-    for the last 31 days. For each activity it also calls
+    for the last 42 days. For each activity it also calls
     `get_activity_details()` and resolves the positional
     `activityDetailMetrics` with the library's
     `parse_activity_detail_metrics()` into normalized `samples`. A failed
@@ -146,7 +148,7 @@ one swappable corner, and normalizes Garmin activities into the shared
 
 - **Unit (API):** AES encrypt/decrypt round-trip and tamper detection; sidecar
   client mapping + error handling; config-from-env.
-- **Unit (Python):** activity and sample normalization + 31-day filtering with
+- **Unit (Python):** activity and sample normalization + 42-day filtering with
   a stubbed Garmin client (no live network).
 - Run `bun run typecheck`, `bun run lint`, `bun run format`, `bun run test` and
   the sidecar's own test suite.
@@ -211,7 +213,7 @@ one swappable corner, and normalizes Garmin activities into the shared
 
 - Credential entry → encrypted storage → auto-sync → rendered activities works
   end-to-end in dev against the operator's own Garmin account. (Verified against
-  the operator's account: 5 activities returned in the 31-day window.)
+  the operator's account: 5 activities returned in the 42-day window.)
 - Every synced activity carries its normalized timeseries `samples`.
 - All four quality gates pass, plus the sidecar's tests.
 - ADR 0003 amended and this spec kept current.

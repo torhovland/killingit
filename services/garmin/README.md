@@ -2,7 +2,7 @@
 
 A small FastAPI service wrapping
 [`python-garminconnect`](https://github.com/cyberjunky/python-garminconnect) so
-the Bun/Hono API can sync the operator's last 31 days of Garmin activities
+the Bun/Hono API can sync the operator's last 42 days of Garmin activities
 without adding a Python runtime to the main backend (see ADR 0003 amendment and
 `docs/specs/garmin-activity-integration.md`).
 

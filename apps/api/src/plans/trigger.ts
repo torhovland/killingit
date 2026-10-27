@@ -1,7 +1,7 @@
 import type { ActivityFeed } from "../coaching/activities.js";
 import {
-  DEFAULT_ACTIVITIES,
   loadAnalyzedActivities,
+  MAX_ACTIVITIES,
 } from "../coaching/activities.js";
 import { captureCompletedPeriodReviews } from "../coaching/periodReviews.js";
 import { analyzeActivitiesAgainstPlan } from "../coaching/programAnalysis.js";
@@ -98,7 +98,9 @@ export async function triggerPlanGeneration(
         ? deps.loadActivities(userId)
         : loadAnalyzedActivities({
             userId,
-            limit: DEFAULT_ACTIVITIES,
+            // The sidecar syncs 42 days. Use the largest feed the analysis cap
+            // allows so ATL/CTL have as much history as possible.
+            limit: MAX_ACTIVITIES,
             refresh: false,
           }),
       deps.loadLlm ? deps.loadLlm(userId) : loadLlmClient(userId),
@@ -173,6 +175,7 @@ export async function triggerPlanGeneration(
       manualActivities: coachingInputs.manualActivities,
       activityComments: coachingInputs.activityComments,
       weeklyNote: coachingInputs.weeklyNote,
+      weeklyNoteUpdatedAt: coachingInputs.weeklyNoteUpdatedAt,
       periodReviews: coachingInputs.periodReviews,
       coachingInputsUpdatedAt: coachingInputs.updatedAt,
       activitiesUpdatedAt: latestActivityAnalysisTimestamp(

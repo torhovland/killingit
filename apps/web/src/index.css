@@ -73,6 +73,20 @@
   --accent-foreground: var(--palette-plum);
   --success: color-mix(in srgb, var(--palette-sage) 55%, var(--palette-mist));
   --destructive: #f7c2c9;
+  /* Training-stress-balance interpretations. */
+  --form-risk: #f2a1ac;
+  --form-maintaining: color-mix(
+    in srgb,
+    var(--palette-mist) 52%,
+    var(--palette-slate)
+  );
+  --form-productive: color-mix(
+    in srgb,
+    var(--palette-sage) 70%,
+    var(--palette-mist)
+  );
+  --form-fresh: #9bc9e8;
+  --form-detraining: #e6b86b;
   --border: color-mix(in srgb, var(--palette-mist) 24%, var(--palette-purple));
   --ring: var(--palette-sage);
 
@@ -109,6 +123,11 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-success: var(--success);
   --color-destructive: var(--destructive);
+  --color-form-risk: var(--form-risk);
+  --color-form-maintaining: var(--form-maintaining);
+  --color-form-productive: var(--form-productive);
+  --color-form-fresh: var(--form-fresh);
+  --color-form-detraining: var(--form-detraining);
   --color-border: var(--border);
   --color-ring: var(--ring);
 }

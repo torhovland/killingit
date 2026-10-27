@@ -1,8 +1,11 @@
-import type {
-  Activity,
-  ActivitySummary,
-  AnalyzedActivity,
-  RoutePoint,
+import {
+  recordedPowerSummary,
+  type Activity,
+  type ActivitySummary,
+  type AnalyzedActivity,
+  type CoachPlan,
+  type RoutePoint,
+  type TrainingLoad,
 } from "@killingit/shared";
 import { decrypt } from "../crypto/credentials.js";
 import { syncGarminActivities } from "../garmin/client.js";
@@ -30,7 +33,13 @@ import {
   type LlmProvider,
 } from "../llm/openrouter.js";
 import { loadLlmSettings } from "../llm/store.js";
+import { startOfWeek } from "../plans/dates.js";
+import { loadCoachingInputs } from "../plans/inputs.js";
+import { latestAnswerTimestamp } from "../plans/status.js";
 import { dbPlanStore } from "../plans/store.js";
+import { dbQuestionAnswerStore } from "../questions/answers.js";
+import { buildActivityTrainingLoads } from "../training/activityLoad.js";
+import { buildFtpTimeline } from "../training/ftp.js";
 import { saveCachedActivityFeed } from "./feedCache.js";
 import { routeFromSamples } from "./route.js";
 
@@ -100,10 +109,10 @@ export async function loadAnalyzedActivities(options: {
 
   const activities = await syncGarminActivities(garminCredentials);
   const deletedIds = await loadDeletedActivityIds(options.userId, "garmin");
-  const latest = [...activities]
+  const synced = [...activities]
     .filter((activity) => !deletedIds.has(String(activity.id)))
-    .sort((a, b) => Date.parse(b.startDate) - Date.parse(a.startDate))
-    .slice(0, options.limit);
+    .sort((a, b) => Date.parse(b.startDate) - Date.parse(a.startDate));
+  const latest = synced.slice(0, options.limit);
 
   // Store the synced activities before the (potentially slow) LLM analyses so
   // a reload during analysis still shows the existing cards.
@@ -120,11 +129,25 @@ export async function loadAnalyzedActivities(options: {
     ),
     dbPlanStore.load(options.userId),
   ]);
+  let loads = new Map<string, TrainingLoad>();
+  try {
+    loads = await loadUserActivityTrainingLoads(
+      options.userId,
+      synced.map((activity) => withoutAnalysis(activity)),
+      storedPlan?.plan,
+    );
+  } catch (err) {
+    // Load values are supplementary; the activity feed must still load.
+    console.error("[training-load] could not score activities:", err);
+  }
   if (!settings) {
     const feed: ActivityFeed = {
       model: null,
       activities: latest.map((activity) =>
-        withoutAnalysis(activity, feedback.get(String(activity.id))),
+        withActivityLoad(
+          withoutAnalysis(activity, feedback.get(String(activity.id))),
+          loads,
+        ),
       ),
     };
     await persistFeed(options.userId, feed);
@@ -227,9 +250,83 @@ export async function loadAnalyzedActivities(options: {
     },
   );
 
-  const feed: ActivityFeed = { model: settings.model, activities: analysed };
+  const feed: ActivityFeed = {
+    model: settings.model,
+    activities: analysed.map((activity) => withActivityLoad(activity, loads)),
+  };
   await persistFeed(options.userId, feed);
   return feed;
+}
+
+/**
+ * Builds the training-load snapshots for the synced activity dates. The FTP
+ * timeline includes any revised test result the athlete mentioned, and the
+ * stored plan supplies coach TSS estimates for the days it covers.
+ */
+export async function loadUserActivityTrainingLoads(
+  userId: number,
+  activities: readonly AnalyzedActivity[],
+  plan: CoachPlan | undefined,
+): Promise<Map<string, TrainingLoad>> {
+  const planDate = plan?.today.date ?? new Date().toISOString().slice(0, 10);
+  const [answers, coachingInputs] = await Promise.all([
+    dbQuestionAnswerStore.listForUser(userId),
+    loadCoachingInputs(userId, startOfWeek(planDate)),
+  ]);
+  const timeline = buildFtpTimeline({
+    answers,
+    answersUpdatedAt: latestAnswerTimestamp(answers),
+    manualActivities: coachingInputs.manualActivities,
+    activityComments: coachingInputs.activityComments,
+    weeklyNote: coachingInputs.weeklyNote,
+    weeklyNoteUpdatedAt: coachingInputs.weeklyNoteUpdatedAt,
+    periodReviews: coachingInputs.periodReviews,
+  });
+  const tssByDate = planTssByDate(plan);
+  // Manual entries are part of the same load history. Their stored estimates
+  // replace the plan's estimate for the date and are summed when the athlete
+  // logged more than one entry that day.
+  const manualTssByDate = new Map<string, number>();
+  for (const manual of coachingInputs.manualActivities) {
+    if (manual.estimatedTss === null || manual.estimatedTss === undefined) {
+      continue;
+    }
+    manualTssByDate.set(
+      manual.startDate,
+      (manualTssByDate.get(manual.startDate) ?? 0) + manual.estimatedTss,
+    );
+  }
+  for (const [date, tss] of manualTssByDate) {
+    tssByDate.set(date, tss);
+  }
+  return buildActivityTrainingLoads(activities, timeline, tssByDate);
+}
+
+/** The resolved or coach-estimated TSS for each day the stored plan covers. */
+function planTssByDate(plan: CoachPlan | undefined): Map<string, number> {
+  const result = new Map<string, number>();
+  if (plan === undefined) {
+    return result;
+  }
+  const sessions = [...plan.week.sessions, ...(plan.nextWeek?.sessions ?? [])];
+  for (const session of sessions) {
+    const tss = session.trainingLoad?.tss ?? session.estimatedTss;
+    if (tss !== undefined) {
+      result.set(session.date, tss);
+    }
+  }
+  return result;
+}
+
+/** Attaches the day's resolved training load to an activity for the page. */
+function withActivityLoad(
+  activity: AnalyzedActivity,
+  loads: ReadonlyMap<string, TrainingLoad>,
+): AnalyzedActivity {
+  return {
+    ...activity,
+    trainingLoad: loads.get(activity.startDate.slice(0, 10)) ?? null,
+  };
 }
 
 /** Stores the feed for a fast first paint; a cache failure must not fail sync. */
@@ -252,9 +349,16 @@ function summarize(activity: Activity): ActivitySummary & {
 } {
   const { samples, ...summary } = activity;
   const route = routeFromSamples(samples);
+  const power = recordedPowerSummary(samples);
   return {
     ...summary,
     sampleCount: samples.length,
+    ...(power.averagePower !== null
+      ? { averagePower: power.averagePower }
+      : {}),
+    ...(power.normalizedPower !== null
+      ? { normalizedPower: power.normalizedPower }
+      : {}),
     ...(route.length >= 2 ? { route } : {}),
   };
 }

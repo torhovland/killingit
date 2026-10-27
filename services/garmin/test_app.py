@@ -99,7 +99,7 @@ def test_date_window_returns_plain_dates():
     now = datetime(2026, 10, 20, 15, 30, tzinfo=UTC)
     start, end = _date_window(now)
     assert end == "2026-10-20"
-    assert start == "2026-09-19"
+    assert start == "2026-09-08"
     assert (datetime.fromisoformat(end).date() - datetime.fromisoformat(start).date()).days == SYNC_WINDOW_DAYS
 
 

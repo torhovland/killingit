@@ -9,14 +9,18 @@ import {
   type PlanContextInput,
   type RecentActivityContext,
 } from "./planContext.js";
-import { ENUM_RULES, JSON_RULES } from "./planUpdatePrompt.js";
+import {
+  ENUM_RULES,
+  JSON_RULES,
+  TRAINING_LOAD_RULES,
+} from "./planUpdatePrompt.js";
 
 /**
  * Bump when the plan prompt or its generation parameters change materially, so
  * callers can invalidate cached plans the same way activity analyses are
  * versioned.
  */
-export const COACH_PLAN_PROMPT_VERSION = 5;
+export const COACH_PLAN_PROMPT_VERSION = 6;
 
 export type CoachPlanAthleteAnswer = AthleteAnswerContext;
 export type CoachPlanActivity = RecentActivityContext;
@@ -69,7 +73,8 @@ const COACH_PLAN_RESPONSE_CONTRACT = `{
         "number": 1,
         "startDate": "YYYY-MM-DD",
         "focus": "string",
-        "targetLoad": "string"
+        "targetLoad": "string",
+        "estimatedFtpWatts": 0
       }
     ]
   },
@@ -77,6 +82,7 @@ const COACH_PLAN_RESPONSE_CONTRACT = `{
     "startDate": "YYYY-MM-DD",
     "focus": "string",
     "rationale": "string",
+    "estimatedFtpWatts": 0,
     "sessions": [
       {
         "date": "YYYY-MM-DD",
@@ -86,7 +92,8 @@ const COACH_PLAN_RESPONSE_CONTRACT = `{
         "description": "string",
         "durationMinutes": 0,
         "intensity": "easy | moderate | hard | rest",
-        "status": "completed | partial | planned | missed | rest"
+        "status": "completed | partial | planned | missed | rest",
+        "estimatedTss": 0
       }
     ]
   },
@@ -100,7 +107,8 @@ const COACH_PLAN_RESPONSE_CONTRACT = `{
     "alternatives": ["string"],
     "rationale": "string",
     "optional": false,
-    "optionalRationale": "string"
+    "optionalRationale": "string",
+    "estimatedTss": 0
   },
   "tomorrow": {
     "date": "YYYY-MM-DD",
@@ -112,7 +120,8 @@ const COACH_PLAN_RESPONSE_CONTRACT = `{
     "alternatives": ["string"],
     "rationale": "string",
     "optional": false,
-    "optionalRationale": "string"
+    "optionalRationale": "string",
+    "estimatedTss": 0
   }
 }`;
 
@@ -128,6 +137,8 @@ Create four consistent levels of the plan:
 5. tomorrow — the suggested workout or rest for tomorrow, with a rationale and an optionality assessment.
 
 ${SESSION_PURPOSE_RULES}
+
+${TRAINING_LOAD_RULES}
 
 The season starts on the supplied today date. The block is the first entry in season.blocks. The week is the first week in block.weeks, so block.weeks[0].startDate and week.startDate must match. week.sessions must contain exactly seven entries, one for each day of that week, and today must match the entry for today's date in week.sessions. For days before today, do not propose new workouts: describe what actually happened using the activities and set each status to "completed", "missed", or "rest". Respect the athlete's available training days and hours, and include rest days where they are the best choice.
 

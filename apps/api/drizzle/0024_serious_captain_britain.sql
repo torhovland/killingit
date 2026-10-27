@@ -1,0 +1,1 @@
+ALTER TABLE "manual_activities" ADD COLUMN "estimated_tss" integer;

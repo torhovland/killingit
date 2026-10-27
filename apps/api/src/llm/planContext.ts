@@ -15,6 +15,8 @@ export interface AthleteAnswerContext {
   answer: string | null;
   /** True when the athlete explicitly left this optional question blank. */
   skipped: boolean;
+  /** When this answer was last saved, used to date an FTP statement. */
+  answeredAt?: Date | string | null;
 }
 
 /** A recent activity plus the coach analysis generated for it, if any. */
@@ -36,6 +38,8 @@ export interface PeriodReviewContext {
   summary: string;
   comment: string | null;
   reply: string | null;
+  /** When the review or its athlete comment was last edited. */
+  updatedAt?: string;
 }
 
 /** A manually recorded activity. */
@@ -43,12 +47,18 @@ export interface ManualActivityContext {
   id: number;
   startDate: string;
   details: string;
+  /** The coach-estimated TSS for this entry, when it has one. */
+  estimatedTss?: number | null;
+  /** When the athlete last edited the entry; used to order FTP revisions. */
+  updatedAt?: string;
 }
 
 /** A comment the athlete added to an activity. */
 export interface ActivityCommentContext {
   activityId: string;
   comment: string;
+  /** When the comment was last edited; used to order FTP revisions. */
+  updatedAt?: string;
 }
 
 /**
@@ -88,6 +98,8 @@ export interface PlanContextInput {
   forecast?: readonly DailyWeather[];
   /** The location label for the forecast, if the athlete named one. */
   locationName?: string | null;
+  /** The FTP stated in the athlete's profile, when they gave one. */
+  athleteFtpWatts?: number | null;
 }
 
 /** Renders the athlete's profile for a prompt. */
@@ -148,6 +160,14 @@ export function formatPlanContext(input: PlanContextInput): string[] {
     "",
     "Athlete profile:",
     formatAthleteAnswers(input.athleteAnswers),
+  );
+  if (input.athleteFtpWatts !== undefined && input.athleteFtpWatts !== null) {
+    lines.push(
+      "",
+      `Athlete FTP: ${input.athleteFtpWatts} W (the latest FTP the athlete stated, including any revised test result). Use this as the baseline for the week-by-week FTP estimate and for TSS.`,
+    );
+  }
+  lines.push(
     "",
     `Recent activities (most recent first). ${ACTIVITY_COMMENT_RULE}`,
     formatRecentActivities(input.recentActivities, comments),
@@ -245,7 +265,11 @@ export function formatManualActivities(
 ): string {
   return entries
     .map((entry, index) => {
-      return `${index + 1}. ${entry.startDate} — ${entry.details}`;
+      const tss =
+        entry.estimatedTss !== undefined && entry.estimatedTss !== null
+          ? ` (estimated TSS ${entry.estimatedTss})`
+          : "";
+      return `${index + 1}. ${entry.startDate} — ${entry.details}${tss}`;
     })
     .join("\n");
 }
@@ -263,7 +287,7 @@ export function formatActivityComments(
 export function formatSeasonPlan(plan: SeasonPlan): string {
   return [
     `Goal: ${plan.goal}`,
-    `Dates: ${plan.startDate} → ${plan.endDate}`,
+    `Dates: ${plan.startDate} → ${plan.endDate}${plan.estimatedFtpWatts != null ? ` — estimated FTP ${plan.estimatedFtpWatts} W` : ""}`,
     `Rationale: ${plan.rationale}`,
     "Blocks:",
     ...plan.blocks.map(
@@ -278,12 +302,12 @@ export function formatBlockPlan(plan: BlockPlan): string {
   return [
     `Block: ${plan.name}`,
     `Focus: ${plan.focus}`,
-    `Dates: ${plan.startDate} → ${plan.endDate}`,
+    `Dates: ${plan.startDate} → ${plan.endDate}${plan.estimatedFtpWatts != null ? ` — estimated FTP ${plan.estimatedFtpWatts} W` : ""}`,
     `Rationale: ${plan.rationale}`,
     "Weeks:",
     ...plan.weeks.map(
       (week) =>
-        `- Week ${week.number} (from ${week.startDate}): ${week.focus}; target load: ${week.targetLoad}`,
+        `- Week ${week.number} (from ${week.startDate}): ${week.focus}; target load: ${week.targetLoad}${week.estimatedFtpWatts != null ? `; estimated FTP ${week.estimatedFtpWatts} W` : ""}`,
     ),
   ].join("\n");
 }
@@ -291,7 +315,7 @@ export function formatBlockPlan(plan: BlockPlan): string {
 /** Renders the current week's seven sessions. */
 export function formatWeekPlan(plan: WeekPlan): string {
   return [
-    `Week starting ${plan.startDate} — focus: ${plan.focus}`,
+    `Week starting ${plan.startDate} — focus: ${plan.focus}${plan.estimatedFtpWatts != null ? ` — estimated FTP ${plan.estimatedFtpWatts} W` : ""}`,
     `Rationale: ${plan.rationale}`,
     "Sessions:",
     ...plan.sessions.map((session) => {
@@ -299,7 +323,11 @@ export function formatWeekPlan(plan: WeekPlan): string {
         session.bikeWorkout != null
           ? `; ${formatBikeWorkout(session.bikeWorkout)}`
           : "";
-      return `- ${session.date} (${session.day}) [${session.status}]: ${session.title} [${session.type}, ${session.intensity}, ${session.durationMinutes} min] — ${session.description}${bikeWorkout}`;
+      const tss =
+        session.estimatedTss !== undefined
+          ? `; estimated TSS ${session.estimatedTss}`
+          : "";
+      return `- ${session.date} (${session.day}) [${session.status}]: ${session.title} [${session.type}, ${session.intensity}, ${session.durationMinutes} min] — ${session.description}${bikeWorkout}${tss}`;
     }),
   ].join("\n");
 }
@@ -339,6 +367,11 @@ function formatActivity(
   details.push(`${formatDuration(summary.movingTime)} moving`);
   if (summary.totalElevationGain > 0) {
     details.push(`${Math.round(summary.totalElevationGain)} m elevation`);
+  }
+  if (summary.normalizedPower != null) {
+    details.push(
+      `NP ${Math.round(summary.normalizedPower)} W${summary.averagePower != null ? ` (average ${Math.round(summary.averagePower)} W)` : ""}`,
+    );
   }
 
   const lines = [
