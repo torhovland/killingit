@@ -20,11 +20,26 @@ describe("buildZwoWorkout", () => {
 
     expect(zwo).toContain("<name>Sweet spot intervals</name>");
     expect(zwo).toContain("<sportType>bike</sportType>");
-    expect(zwo).toContain('<SteadyState Duration="600" Power="0.5"/>');
-    expect(zwo).toContain('<SteadyState Duration="480" Power="0.9"/>');
-    expect(zwo).toContain('<SteadyState Duration="300" Power="0.45"/>');
+    expect(zwo).toContain("<ftpOverride>250</ftpOverride>");
+    expect(zwo).toContain("Estimated FTP: 250 W.");
+    expect(zwo).toContain('<SteadyState Duration="600" Power="0.5000"/>');
+    expect(zwo).toContain('<SteadyState Duration="480" Power="0.9000"/>');
+    expect(zwo).toContain('<SteadyState Duration="300" Power="0.4500"/>');
     expect(zwo.startsWith('<?xml version="1.0" encoding="UTF-8"?>')).toBe(true);
     expect(zwo.trimEnd().endsWith("</workout_file>")).toBe(true);
+  });
+
+  it("keeps four decimals for fractional power percentages", () => {
+    const zwo = buildZwoWorkout({
+      title: "Fractional",
+      description: "Precise target.",
+      workout: {
+        ftpWatts: 250,
+        intervals: [{ durationSeconds: 600, powerPercent: 87.33 }],
+      },
+    });
+
+    expect(zwo).toContain('<SteadyState Duration="600" Power="0.8733"/>');
   });
 
   it("escapes XML in the title and description", () => {
@@ -37,8 +52,9 @@ describe("buildZwoWorkout", () => {
     expect(zwo).toContain(
       "<name>Hard &amp; fast &lt;&quot;intervals&quot;&gt;</name>",
     );
+    expect(zwo).toContain("<description>Don&apos;t skip &amp; recover.");
     expect(zwo).toContain(
-      "<description>Don&apos;t skip &amp; recover.</description>",
+      "Set your trainer app to this FTP for the intended power zones.",
     );
   });
 });

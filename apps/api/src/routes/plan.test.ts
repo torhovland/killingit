@@ -943,7 +943,8 @@ describe("coach plan route", () => {
     );
     const body = await res.text();
     expect(body).toContain("<name>Sweet spot &amp; tempo</name>");
-    expect(body).toContain('<SteadyState Duration="600" Power="0.55"/>');
+    expect(body).toContain("<ftpOverride>220</ftpOverride>");
+    expect(body).toContain('<SteadyState Duration="600" Power="0.5500"/>');
     expect(body).toContain("<sportType>bike</sportType>");
   });
 
@@ -986,7 +987,7 @@ describe("coach plan route", () => {
     expect(res.status).toBe(200);
     const body = await res.text();
     expect(body).toContain("<name>Endurance ride</name>");
-    expect(body).toContain('<SteadyState Duration="900" Power="0.7"/>');
+    expect(body).toContain('<SteadyState Duration="900" Power="0.7000"/>');
   });
 
   it("does not export a bike workout planned outdoors", async () => {

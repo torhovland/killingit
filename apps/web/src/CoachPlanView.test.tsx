@@ -622,8 +622,20 @@ describe("CoachPlanView", () => {
 
     expect(html).toContain('data-testid="plan-today-download"');
     expect(html).toContain('data-testid="plan-tomorrow-download"');
+    expect(html).toContain('data-testid="plan-today-ftp"');
+    expect(html).toContain('data-testid="plan-tomorrow-ftp"');
+    expect(html).toContain("Estimated FTP:");
+    expect(html).toContain("250 W");
+    expect(html).toContain("Set this FTP in Zwift or another trainer app");
     expect(html).toContain("Download workout file (.zwo)");
     expect(html).toContain("For Zwift or another trainer app.");
+  });
+
+  it("shows no estimated FTP when the session has no structured power targets", () => {
+    const html = renderToStaticMarkup(<CoachPlanView plan={plan} />);
+
+    expect(html).not.toContain('data-testid="plan-today-ftp"');
+    expect(html).not.toContain("Estimated FTP:");
   });
 
   it("hides the download when the session is not an indoor power workout", () => {
@@ -641,6 +653,8 @@ describe("CoachPlanView", () => {
       />,
     );
     expect(outdoor).not.toContain('data-testid="plan-today-download"');
+    // The estimated FTP still helps even when this instance is ridden outside.
+    expect(outdoor).toContain('data-testid="plan-today-ftp"');
 
     const noTargets = renderToStaticMarkup(
       <CoachPlanView

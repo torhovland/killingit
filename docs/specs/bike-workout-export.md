@@ -24,12 +24,16 @@ details in the Today and Tomorrow views offer a file download.
    `bikeWorkout` to null everywhere else.
 3. The existing week context given to a regeneration prompt includes the
    structured targets, so a revised week keeps or updates them.
-4. ZWO generation from a structured workout, with an ASCII-only filename and
-   XML escaping.
+4. ZWO generation from a structured workout, with four-decimal power values, an
+   `<ftpOverride>` set to the estimated FTP, an ASCII-only filename, and XML
+   escaping.
 5. `GET /api/coaching/plan/workouts/:date` returns the ZWO file as an
    attachment.
 6. A "Download workout file (.zwo)" button on the Today and Tomorrow cards when
    the session is an indoor bike workout with power targets.
+7. The estimated FTP is shown on bike workouts in the Today and Tomorrow cards,
+   so the athlete can set the same FTP in the trainer app that the relative
+   zones were built from.
 
 ### Out of scope (deferred)
 
@@ -80,15 +84,29 @@ plans stored before this feature remain valid.
 ## ZWO mapping
 
 Each interval becomes a `<SteadyState Duration="..." Power="..."/>` step. ZWO
-stores power as a fraction of FTP, so 90% is written as `0.9`. The file includes
-the session title, description, and `<sportType>bike</sportType>`.
+stores power as a fraction of FTP, so 90% is written as `0.9000`. Four decimal
+places are kept so fractional percentages are not rounded into a coarser zone.
+The file includes the session title, description, and
+`<sportType>bike</sportType>`.
+
+ZWO has no standard metadata field that carries the athlete's FTP, but the
+reverse-engineered `<ftpOverride>` element pins the rider's FTP for a workout.
+The generator writes `<ftpOverride>` with the estimated FTP so the relative
+power values produce the prescribed absolute watts even when the athlete's app
+FTP differs. The estimate is also surfaced in the app and appended to the ZWO
+description as a human-readable note. Because `<ftpOverride>` support varies
+between trainer apps, the UI still tells the athlete to set the same FTP
+manually.
 
 ## UI
 
 `CoachPlanView` accepts an optional `onDownloadWorkout(date)` callback and the
 date currently being prepared. `CoachPlanSection` owns the authenticated fetch,
 the browser save, and the error message. The button appears only when
-`hasExportableBikeWorkout` is true for a Today or Tomorrow card.
+`hasExportableBikeWorkout` is true for a Today or Tomorrow card. A bike session
+with `bikeWorkout` also shows "Estimated FTP: N W" and tells the athlete to set
+that value in the trainer app; this line is shown whether the session is indoor
+or outdoor.
 
 ## Acceptance criteria
 
@@ -96,8 +114,11 @@ the browser save, and the error message. The button appears only when
    `bikeWorkout`, and the prompt tells the coach when to supply it.
 2. Opening that session in the Today or Tomorrow view shows a download button;
    outdoor sessions, runs, rest days, and sessions without power targets do not.
+   The same cards show the estimated FTP whenever `bikeWorkout` is present.
 3. Downloading returns a valid ZWO file whose steps match the structured
-   intervals and whose title is XML-escaped.
+   intervals, whose power fractions use four decimals, whose title is
+   XML-escaped, whose description states the estimated FTP, and which sets
+   `<ftpOverride>` to that FTP.
 4. The download works after the access token has expired (one silent refresh and
    retry, like the JSON routes).
 5. Existing stored plans without `bikeWorkout` continue to load and render.

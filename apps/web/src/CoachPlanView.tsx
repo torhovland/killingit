@@ -168,6 +168,18 @@ function DayCard({
         <p className="whitespace-pre-line text-sm text-muted-foreground">
           {day.description}
         </p>
+        {day.type === "workout" && day.bikeWorkout != null && (
+          <div className="flex flex-col gap-1" data-testid={`${testId}-ftp`}>
+            <p className="text-sm">
+              <span className="font-medium">Estimated FTP: </span>
+              {day.bikeWorkout.ftpWatts} W
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Set this FTP in Zwift or another trainer app so the downloaded
+              power zones match.
+            </p>
+          </div>
+        )}
         {onDownloadWorkout !== undefined && hasExportableBikeWorkout(day) && (
           <div className="flex flex-wrap items-center gap-2">
             <button
