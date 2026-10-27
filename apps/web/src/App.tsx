@@ -3,6 +3,7 @@ import { currentUserSchema, type CurrentUser } from "@killingit/shared";
 import { ActivitiesPage } from "./ActivitiesPage";
 import { AdminSettingsPage } from "./AdminSettingsPage";
 import { AppStatusProvider, useAppStatus } from "./AppStatus";
+import { CalendarPage } from "./CalendarPage";
 import { CoachDashboard } from "./CoachDashboard";
 import { CoachingSurveyPage } from "./CoachingSurveyPage";
 import { useAuth } from "./auth";
@@ -23,6 +24,7 @@ const API_URL = import.meta.env.VITE_API_URL ?? "";
 const PAGE_LABELS: Record<Page, string> = {
   coach: "Coach",
   fitness: "Fitness",
+  calendar: "Calendar",
   activities: "Activities",
   seasonReview: "Season review",
   survey: "Coaching survey",
@@ -181,6 +183,8 @@ function AppShell() {
               />
             ) : page === "fitness" ? (
               <FitnessPage />
+            ) : page === "calendar" ? (
+              <CalendarPage />
             ) : page === "activities" ? (
               <ActivitiesPage />
             ) : page === "seasonReview" ? (
@@ -304,6 +308,7 @@ function UserMenu({
           [
             "coach",
             "fitness",
+            "calendar",
             "activities",
             "seasonReview",
             "survey",

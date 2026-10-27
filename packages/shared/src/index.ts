@@ -72,6 +72,19 @@ export {
 } from "./activity.js";
 
 export {
+  calendarActivitySchema,
+  calendarDaySchema,
+  calendarImportedActivitySchema,
+  calendarManualActivitySchema,
+  calendarResponseSchema,
+  type CalendarActivity,
+  type CalendarDay,
+  type CalendarImportedActivity,
+  type CalendarManualActivity,
+  type CalendarResponse,
+} from "./calendar.js";
+
+export {
   analyzedActivitiesResponseSchema,
   analyzedActivitySchema,
   coachAnalysisSchema,

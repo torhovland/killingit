@@ -110,6 +110,10 @@ about a past workout, or before a suggested workout, to steer the coach.
 - Completed weeks and blocks get a coach summary, athlete comment, and coach
   reply in `period_reviews` / `coach_replies`; the dashboard and season review
   page are documented in `docs/specs/period-reviews.md`.
+- A Calendar page shows a month of recorded activities, planned workouts and
+  rest days, with block starts and the season end. Selecting an entry opens its
+  full details, including the athlete comment, coach reply, and the route map
+  for outdoor activities. See `docs/specs/calendar-page.md`.
 
 ## Stack
 
