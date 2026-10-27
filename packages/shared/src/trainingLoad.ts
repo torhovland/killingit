@@ -16,6 +16,53 @@ export const trainingLoadSchema = z.object({
 
 export type TrainingLoad = z.infer<typeof trainingLoadSchema>;
 
+/** How the athlete should read today's training stress balance. */
+export const formInterpretationSchema = z.enum([
+  "risk",
+  "unproductive",
+  "productive",
+  "fresh",
+  "detraining",
+]);
+
+export type FormInterpretation = z.infer<typeof formInterpretationSchema>;
+
+/** Display labels for each TSB interpretation. */
+export const FORM_INTERPRETATION_LABELS: Record<FormInterpretation, string> = {
+  risk: "Risk",
+  unproductive: "Unproductive",
+  productive: "Productive",
+  fresh: "Fresh",
+  detraining: "Detraining",
+};
+
+/**
+ * Reads the training stress balance as a plain-language form state.
+ *
+ * The bands are deliberately symmetric around ordinary training: a TSB of
+ * −30 or lower means the athlete is carrying a lot of fatigue and is at risk;
+ * −30 to −10 is unproductive (still building fatigue without much room to
+ * absorb it); −10 to +5 is the productive training band; +5 to +20 is fresh;
+ * and above +20 means the athlete has detrained or is fully rested.
+ */
+export function interpretTrainingStressBalance(
+  tsb: number,
+): FormInterpretation {
+  if (tsb <= -30) {
+    return "risk";
+  }
+  if (tsb < -10) {
+    return "unproductive";
+  }
+  if (tsb < 5) {
+    return "productive";
+  }
+  if (tsb < 20) {
+    return "fresh";
+  }
+  return "detraining";
+}
+
 /** Time constant of the acute (fatigue) load. */
 export const ATL_DAYS = 7;
 /** Time constant of the chronic (fitness) load. */

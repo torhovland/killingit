@@ -1,9 +1,12 @@
 import { useState, type ReactNode } from "react";
 import {
+  FORM_INTERPRETATION_LABELS,
   hasExportableBikeWorkout,
+  interpretTrainingStressBalance,
   type BlockPlan,
   type CoachPlan,
   type DayPlan,
+  type FormInterpretation,
   type SeasonPlan,
   type TrainingLoad,
   type WeekPlan,
@@ -339,6 +342,7 @@ function TrainingLoadLine({
   load: TrainingLoad;
   testId?: string;
 }) {
+  const form = interpretTrainingStressBalance(load.tsb);
   return (
     <p
       className="w-full text-xs text-muted-foreground tabular-nums"
@@ -351,8 +355,24 @@ function TrainingLoadLine({
       {" · "}ATL {Math.round(load.atl)}
       {" · "}CTL {Math.round(load.ctl)}
       {" · "}TSB {formatSigned(load.tsb)}
+      {" · "}
+      <span className={formClass(form)}>
+        {FORM_INTERPRETATION_LABELS[form]}
+      </span>
     </p>
   );
+}
+
+const FORM_CLASSES: Record<FormInterpretation, string> = {
+  risk: "font-medium text-form-risk",
+  unproductive: "text-form-unproductive",
+  productive: "font-medium text-form-productive",
+  fresh: "text-form-fresh",
+  detraining: "text-form-detraining",
+};
+
+function formClass(interpretation: FormInterpretation): string {
+  return FORM_CLASSES[interpretation];
 }
 
 function formatSigned(value: number): string {
@@ -376,6 +396,12 @@ function BlockSection({
       </h3>
       <p className="mt-2 text-sm text-muted-foreground">
         {formatPlanDate(block.startDate)} → {formatPlanDate(block.endDate)}
+        {block.estimatedFtpWatts != null && (
+          <span data-testid="block-ftp">
+            {" · "}Estimated FTP:{" "}
+            <span className="font-medium">{block.estimatedFtpWatts} W</span>
+          </span>
+        )}
       </p>
       <p className="mt-3 text-sm text-muted-foreground">{block.focus}</p>
       <p className="mt-3 text-sm">
@@ -411,6 +437,12 @@ function SeasonSection({ season }: { season: SeasonPlan }) {
       <h3 className="text-lg font-semibold">Season · {season.goal}</h3>
       <p className="mt-2 text-sm text-muted-foreground">
         {formatPlanDate(season.startDate)} → {formatPlanDate(season.endDate)}
+        {season.estimatedFtpWatts != null && (
+          <span data-testid="season-ftp">
+            {" · "}Estimated FTP:{" "}
+            <span className="font-medium">{season.estimatedFtpWatts} W</span>
+          </span>
+        )}
       </p>
       <p className="mt-3 text-sm">
         <span className="font-medium">Coach's rationale: </span>

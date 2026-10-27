@@ -4,6 +4,7 @@ import {
   bikeWorkoutTrainingStressScore,
   dailyTrainingLoad,
   estimatedTssFromSession,
+  interpretTrainingStressBalance,
   normalizedPower,
   powerTrainingStressScore,
   recordedPowerSummary,
@@ -148,6 +149,19 @@ describe("dailyTrainingLoad", () => {
     expect(trainingLoadSchema.safeParse(series.get("2026-01-01")).success).toBe(
       true,
     );
+  });
+});
+
+describe("interpretTrainingStressBalance", () => {
+  it("maps the form bands to readable interpretations", () => {
+    expect(interpretTrainingStressBalance(-40)).toBe("risk");
+    expect(interpretTrainingStressBalance(-30)).toBe("risk");
+    expect(interpretTrainingStressBalance(-20)).toBe("unproductive");
+    expect(interpretTrainingStressBalance(-10)).toBe("productive");
+    expect(interpretTrainingStressBalance(0)).toBe("productive");
+    expect(interpretTrainingStressBalance(5)).toBe("fresh");
+    expect(interpretTrainingStressBalance(19)).toBe("fresh");
+    expect(interpretTrainingStressBalance(20)).toBe("detraining");
   });
 });
 

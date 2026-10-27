@@ -47,6 +47,11 @@ numbers must agree across the Day, Week, and Block tabs.
   profile is treated as the newer source. A revised test result also floors the
   current and next week's estimate, so an older weekly projection cannot show a
   lower current FTP than the test.
+- The known FTP values form a timeline. Completing a new test discards the
+  coach's estimates for the completed weeks before it and interpolates the FTP
+  between the previous anchor and the new test date. TSS for recorded power in
+  that period is recalculated with the interpolated FTP. The current and next
+  week use the new value, and the block and season summaries are refreshed.
 - With a stated FTP, the coach returns `estimatedFtpWatts` for the week and for
   every week of the block. The API clamps each estimate to 70–150% of the
   stated value so a model error cannot produce an absurd number. A missing
@@ -96,6 +101,22 @@ rest.
 The resolved `trainingLoad` is copied from the week session into the matching
 `today`/`tomorrow` day plan, so the Day and Week tabs cannot disagree.
 
+Each TSB value also carries a plain-language interpretation, shown after the
+number:
+
+| TSB        | Label        | Colour |
+| ---------- | ------------ | ------ |
+| ≤ −30      | Risk         | red    |
+| −30 to −10 | Unproductive | grey   |
+| −10 to +5  | Productive   | green  |
+| +5 to +20  | Fresh        | blue   |
+| ≥ +20      | Detraining   | orange |
+
+For example: `TSS 85 · ATL 29 · CTL 9 · TSB -20 · Unproductive`. The
+interpretation is derived from the TSB value in the shared schema module and
+rendered with the app's theme tokens (`--form-risk`, `--form-productive`, and
+so on), so it follows the dark palette.
+
 ## Data model / API impact
 
 Shared (`@killingit/shared`):
@@ -124,11 +145,13 @@ No database migration: the new values live in the existing plan JSON.
 
 ## UI
 
-- **Today and Tomorrow cards** show `TSS · ATL · CTL · TSB` for the day when a
-  load is stored.
-- **Week tab** shows `Estimated FTP: N W` in the week header and the same four
-  numbers for every session row.
-- **Block tab** shows each week's estimated FTP beside its target load.
+- **Today and Tomorrow cards** show `TSS · ATL · CTL · TSB · Interpretation`
+  for the day when a load is stored.
+- **Week tab** shows `Estimated FTP: N W` in the week header and the same
+  numbers plus the interpretation for every session row.
+- **Block tab** shows the block's current estimated FTP in the header and each
+  week's estimate beside its target load.
+- **Season tab** shows the current estimated FTP in the header.
 - Older stored plans without the new fields render exactly as before.
 
 ## Acceptance criteria
@@ -148,7 +171,11 @@ No database migration: the new values live in the existing plan JSON.
 8. A new FTP test result in a later activity comment, manual activity, weekly
    note, or review comment becomes the baseline and floors the current and next
    week's estimate. A later survey answer update takes precedence again.
-9. The full quality gates pass: typecheck, lint, format, tests.
+9. Every displayed TSB has its interpretation label and colour: Risk,
+   Unproductive, Productive, Fresh, or Detraining.
+10. A revised FTP is interpolated through the completed period, and the block
+    and season headers show the refreshed estimate.
+11. The full quality gates pass: typecheck, lint, format, tests.
 
 ## Testing
 

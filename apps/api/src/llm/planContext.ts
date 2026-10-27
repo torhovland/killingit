@@ -15,6 +15,8 @@ export interface AthleteAnswerContext {
   answer: string | null;
   /** True when the athlete explicitly left this optional question blank. */
   skipped: boolean;
+  /** When this answer was last saved, used to date an FTP statement. */
+  answeredAt?: Date | string | null;
 }
 
 /** A recent activity plus the coach analysis generated for it, if any. */
@@ -279,7 +281,7 @@ export function formatActivityComments(
 export function formatSeasonPlan(plan: SeasonPlan): string {
   return [
     `Goal: ${plan.goal}`,
-    `Dates: ${plan.startDate} → ${plan.endDate}`,
+    `Dates: ${plan.startDate} → ${plan.endDate}${plan.estimatedFtpWatts != null ? ` — estimated FTP ${plan.estimatedFtpWatts} W` : ""}`,
     `Rationale: ${plan.rationale}`,
     "Blocks:",
     ...plan.blocks.map(
@@ -294,7 +296,7 @@ export function formatBlockPlan(plan: BlockPlan): string {
   return [
     `Block: ${plan.name}`,
     `Focus: ${plan.focus}`,
-    `Dates: ${plan.startDate} → ${plan.endDate}`,
+    `Dates: ${plan.startDate} → ${plan.endDate}${plan.estimatedFtpWatts != null ? ` — estimated FTP ${plan.estimatedFtpWatts} W` : ""}`,
     `Rationale: ${plan.rationale}`,
     "Weeks:",
     ...plan.weeks.map(

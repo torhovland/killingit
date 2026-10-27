@@ -707,6 +707,44 @@ describe("CoachPlanView", () => {
     expect(html).toContain("ATL 9");
     expect(html).toContain("CTL 2");
     expect(html).toContain("TSB -8");
+    expect(html).toContain("Productive");
+  });
+
+  it("labels the TSB interpretation with its colour", () => {
+    const loadedPlan: CoachPlan = {
+      ...plan,
+      today: {
+        ...plan.today,
+        trainingLoad: { tss: 85, atl: 29, ctl: 9, tsb: -20 },
+      },
+    };
+
+    const html = renderToStaticMarkup(<CoachPlanView plan={loadedPlan} />);
+
+    expect(html).toContain("TSS 85");
+    expect(html).toContain("TSB -20");
+    expect(html).toContain("Unproductive");
+    expect(html).toContain("text-form-unproductive");
+  });
+
+  it("shows estimated FTP on the block and season tabs", () => {
+    const withFtp: CoachPlan = {
+      ...plan,
+      block: { ...plan.block, estimatedFtpWatts: 250 },
+      season: { ...plan.season, estimatedFtpWatts: 250 },
+    };
+
+    const block = renderToStaticMarkup(
+      <CoachPlanView plan={withFtp} defaultTab="block" />,
+    );
+    expect(block).toContain('data-testid="block-ftp"');
+    expect(block).toContain("250 W");
+
+    const season = renderToStaticMarkup(
+      <CoachPlanView plan={withFtp} defaultTab="season" />,
+    );
+    expect(season).toContain('data-testid="season-ftp"');
+    expect(season).toContain("250 W");
   });
 
   it("shows the training load in the today and tomorrow cards", () => {

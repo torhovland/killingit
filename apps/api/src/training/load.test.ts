@@ -258,6 +258,59 @@ describe("applyTrainingLoad", () => {
     expect(loaded.block.weeks[1]?.estimatedFtpWatts).toBe(260);
   });
 
+  it("interpolates the old period and refreshes every level after a test", () => {
+    const loaded = applyTrainingLoad(
+      {
+        ...plan,
+        block: {
+          ...plan.block,
+          weeks: [
+            {
+              number: 1,
+              startDate: "2026-10-12",
+              focus: "Base",
+              targetLoad: "5 hours",
+              estimatedFtpWatts: 250,
+            },
+            ...plan.block.weeks.map((week) => ({
+              ...week,
+              number: week.number + 1,
+            })),
+          ],
+        },
+      },
+      {
+        answers: [
+          {
+            prompt: "FTP?",
+            answer: "FTP is 200 W.",
+            skipped: false,
+            answeredAt: new Date("2026-10-01T10:00:00Z"),
+          },
+        ],
+        activityComments: [
+          {
+            activityId: "1",
+            comment: "FTP test today: 260 W.",
+            updatedAt: "2026-10-26T18:00:00Z",
+          },
+        ],
+        activities: [activity()],
+      },
+    );
+
+    // The current week is refreshed to the new test value.
+    expect(loaded.week.estimatedFtpWatts).toBe(260);
+    // The earlier block week is interpolated from 200 to 260.
+    expect(loaded.block.weeks[0]?.estimatedFtpWatts).toBe(225);
+    expect(loaded.block.weeks[1]?.estimatedFtpWatts).toBe(260);
+    expect(loaded.block.weeks[2]?.estimatedFtpWatts).toBe(260);
+    expect(loaded.block.estimatedFtpWatts).toBe(260);
+    expect(loaded.season.estimatedFtpWatts).toBe(260);
+    // Tuesday's measured TSS uses the interpolated FTP at its date (245 W).
+    expect(loaded.today.trainingLoad?.tss).toBe(67);
+  });
+
   it("updates the estimate when a later comment reports a new FTP test", () => {
     const loaded = applyTrainingLoad(plan, {
       answers: [{ prompt: "FTP?", answer: "Around 240 W.", skipped: false }],

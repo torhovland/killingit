@@ -20,9 +20,22 @@ export interface FtpBaseline {
   fromRevision: boolean;
 }
 
+/** One known FTP value at the moment the athlete stated it. */
+export interface FtpAnchor {
+  at: number;
+  watts: number;
+  source: "profile" | "update";
+}
+
+/** The athlete's FTP values over time, oldest first. */
+export interface FtpTimeline {
+  anchors: FtpAnchor[];
+  latest: FtpBaseline | null;
+}
+
 /** Everything that can contain an athlete-stated FTP value. */
 export interface FtpInput {
-  answers: readonly Pick<AthleteAnswerContext, "answer">[];
+  answers: readonly Pick<AthleteAnswerContext, "answer" | "answeredAt">[];
   /** When the survey answers were last saved, if known. */
   answersUpdatedAt?: Date | null;
   manualActivities?: readonly ManualActivityContext[] | undefined;
@@ -59,26 +72,94 @@ export function extractFtpWatts(
 }
 
 /**
- * Resolves the athlete's current FTP from the profile and every dated coaching
- * input. A revised test result in a later comment, manual activity, weekly
- * note, or review comment replaces the profile value. When the survey answers
- * were saved after the latest mention, the profile is treated as the newer
- * source and wins.
+ * Builds the FTP timeline from the profile and every dated coaching input. A
+ * later test result becomes the new anchor, and the API interpolates between
+ * anchors so the historical TSS values reflect the athlete's revised numbers
+ * instead of the coach's old projection.
  */
+export function buildFtpTimeline(input: FtpInput): FtpTimeline {
+  const mentions = datedMentions(input).sort((a, b) => a.at - b.at);
+  const profile = profileAnchor(input, mentions);
+  const anchors = [...(profile === null ? [] : [profile]), ...mentions].sort(
+    (a, b) =>
+      a.at - b.at ||
+      (a.source === "profile" ? -1 : b.source === "profile" ? 1 : 0),
+  );
+
+  // At an identical timestamp the more specific athlete update wins.
+  const deduped: FtpAnchor[] = [];
+  for (const anchor of anchors) {
+    const previous = deduped[deduped.length - 1];
+    if (previous !== undefined && previous.at === anchor.at) {
+      deduped[deduped.length - 1] = anchor;
+    } else {
+      deduped.push(anchor);
+    }
+  }
+
+  const latest = deduped[deduped.length - 1];
+  return {
+    anchors: deduped,
+    latest:
+      latest === undefined
+        ? null
+        : { watts: latest.watts, fromRevision: latest.source === "update" },
+  };
+}
+
+/** Resolves the athlete's current FTP, including any newer test result. */
 export function detectFtpBaseline(input: FtpInput): FtpBaseline | null {
-  const profile = extractFtpWatts(input.answers);
-  const latest = latestDatedMention(input);
-  if (latest === null) {
-    return profile === null ? null : { watts: profile, fromRevision: false };
+  return buildFtpTimeline(input).latest;
+}
+
+/**
+ * The FTP in effect on a date, interpolated between the two surrounding
+ * anchors. Before the first anchor the earliest value applies; after the last
+ * anchor the latest value applies.
+ */
+export function ftpAt(
+  timeline: FtpTimeline | null,
+  date: string | Date,
+): number | null {
+  if (timeline === null || timeline.anchors.length === 0) {
+    return null;
   }
-  if (
-    profile !== null &&
-    input.answersUpdatedAt != null &&
-    input.answersUpdatedAt.getTime() >= latest.at
-  ) {
-    return { watts: profile, fromRevision: false };
+  const at =
+    date instanceof Date
+      ? date.getTime()
+      : Date.parse(
+          /^\d{4}-\d{2}-\d{2}$/.test(date) ? `${date}T00:00:00Z` : date,
+        );
+  if (!Number.isFinite(at)) {
+    return null;
   }
-  return { watts: latest.watts, fromRevision: true };
+
+  const first = timeline.anchors[0];
+  const last = timeline.anchors[timeline.anchors.length - 1];
+  if (first === undefined || last === undefined) {
+    return null;
+  }
+  if (at <= first.at) {
+    return first.watts;
+  }
+  if (at >= last.at) {
+    return last.watts;
+  }
+
+  for (let index = 1; index < timeline.anchors.length; index += 1) {
+    const right = timeline.anchors[index];
+    const left = timeline.anchors[index - 1];
+    if (right === undefined || left === undefined || at > right.at) {
+      continue;
+    }
+    const span = right.at - left.at;
+    if (span <= 0) {
+      return right.watts;
+    }
+    const fraction = (at - left.at) / span;
+    return Math.round(left.watts + (right.watts - left.watts) * fraction);
+  }
+  return last.watts;
 }
 
 /** Finds an FTP value in one piece of text, or null when none is stated. */
@@ -103,14 +184,36 @@ export function firstFtpInText(text: string): number | null {
   return null;
 }
 
-interface DatedMention {
-  watts: number;
-  at: number;
+/** The profile's FTP anchor, dated by the answer or the latest answer save. */
+function profileAnchor(
+  input: FtpInput,
+  mentions: readonly FtpAnchor[],
+): FtpAnchor | null {
+  for (const entry of input.answers) {
+    const text = entry.answer?.trim();
+    if (!text) {
+      continue;
+    }
+    const watts = firstFtpInText(text);
+    if (watts === null) {
+      continue;
+    }
+    const dated = parseTimestamp(entry.answeredAt ?? input.answersUpdatedAt);
+    // Without a profile date, keep the profile flat until the first mention
+    // rather than ramping from an arbitrary point in the past.
+    const at =
+      dated ?? (mentions[0]?.at !== undefined ? mentions[0].at - 1 : null);
+    if (at === null) {
+      return { at: 0, watts, source: "profile" };
+    }
+    return { at, watts, source: "profile" };
+  }
+  return null;
 }
 
-/** The newest FTP number in a dated athlete-authored input. */
-function latestDatedMention(input: FtpInput): DatedMention | null {
-  const mentions: DatedMention[] = [];
+/** Every FTP number in a dated athlete-authored input. */
+function datedMentions(input: FtpInput): FtpAnchor[] {
+  const mentions: FtpAnchor[] = [];
 
   for (const entry of input.activityComments ?? []) {
     addMention(mentions, entry.comment, entry.updatedAt);
@@ -129,17 +232,11 @@ function latestDatedMention(input: FtpInput): DatedMention | null {
     }
   }
 
-  let latest: DatedMention | null = null;
-  for (const mention of mentions) {
-    if (latest === null || mention.at > latest.at) {
-      latest = mention;
-    }
-  }
-  return latest;
+  return mentions;
 }
 
 function addMention(
-  mentions: DatedMention[],
+  mentions: FtpAnchor[],
   text: string | null | undefined,
   updatedAt: Date | string | null | undefined,
 ): void {
@@ -152,7 +249,7 @@ function addMention(
   }
   const watts = firstFtpInText(text);
   if (watts !== null) {
-    mentions.push({ watts, at });
+    mentions.push({ at, watts, source: "update" });
   }
 }
 

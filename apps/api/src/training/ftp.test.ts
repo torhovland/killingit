@@ -1,5 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { detectFtpBaseline, extractFtpWatts, firstFtpInText } from "./ftp.js";
+import {
+  buildFtpTimeline,
+  detectFtpBaseline,
+  extractFtpWatts,
+  firstFtpInText,
+  ftpAt,
+} from "./ftp.js";
 
 describe("extractFtpWatts", () => {
   it("reads the first stated FTP from the answers", () => {
@@ -88,6 +94,66 @@ describe("detectFtpBaseline", () => {
     });
 
     expect(baseline).toEqual({ watts: 270, fromRevision: true });
+  });
+
+  it("interpolates between the profile date and a later test", () => {
+    const timeline = buildFtpTimeline({
+      answers: [
+        {
+          answer: "FTP is 200 W.",
+          answeredAt: new Date("2026-01-01T00:00:00Z"),
+        },
+      ],
+      activityComments: [
+        {
+          activityId: "1",
+          comment: "FTP test today: 240 W.",
+          updatedAt: "2026-01-31T00:00:00Z",
+        },
+      ],
+    });
+
+    expect(ftpAt(timeline, "2026-01-01")).toBe(200);
+    expect(ftpAt(timeline, "2026-01-16")).toBe(220);
+    expect(ftpAt(timeline, "2026-01-31")).toBe(240);
+    expect(ftpAt(timeline, "2026-02-10")).toBe(240);
+    expect(timeline.latest).toEqual({ watts: 240, fromRevision: true });
+  });
+
+  it("keeps the profile when it was answered after the mention", () => {
+    const timeline = buildFtpTimeline({
+      answers: [
+        {
+          answer: "FTP is 230 W.",
+          answeredAt: new Date("2026-02-01T10:00:00Z"),
+        },
+      ],
+      activityComments: [
+        {
+          activityId: "1",
+          comment: "FTP test: 210 W.",
+          updatedAt: "2026-01-01T10:00:00Z",
+        },
+      ],
+    });
+
+    expect(timeline.latest).toEqual({ watts: 230, fromRevision: false });
+  });
+
+  it("keeps the profile flat when the answer has no date", () => {
+    const timeline = buildFtpTimeline({
+      answers: [{ answer: "FTP is 200 W." }],
+      activityComments: [
+        {
+          activityId: "1",
+          comment: "FTP test: 240 W.",
+          updatedAt: "2026-01-31T10:00:00Z",
+        },
+      ],
+    });
+
+    expect(ftpAt(timeline, "2026-01-15")).toBe(200);
+    expect(ftpAt(timeline, "2026-02-01")).toBe(240);
   });
 
   it("enables the estimate when the mention is the only FTP source", () => {

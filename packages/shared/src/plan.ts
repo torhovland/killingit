@@ -31,6 +31,14 @@ export const seasonPlanSchema = z.object({
   blocks: z.array(seasonBlockSummarySchema).min(1),
   /** The coach's explanation of the season's shape and training science. */
   rationale: z.string().min(1),
+  /** The athlete's estimated FTP at the current point in the season. */
+  estimatedFtpWatts: z
+    .number()
+    .int()
+    .nonnegative()
+    .max(2000)
+    .nullable()
+    .optional(),
 });
 
 export type SeasonPlan = z.infer<typeof seasonPlanSchema>;
@@ -66,6 +74,14 @@ export const blockPlanSchema = z.object({
   weeks: z.array(blockWeekSummarySchema).min(1),
   /** The coach's explanation of this block's purpose and progression. */
   rationale: z.string().min(1),
+  /** The athlete's estimated FTP at the current point in the block. */
+  estimatedFtpWatts: z
+    .number()
+    .int()
+    .nonnegative()
+    .max(2000)
+    .nullable()
+    .optional(),
 });
 
 export type BlockPlan = z.infer<typeof blockPlanSchema>;

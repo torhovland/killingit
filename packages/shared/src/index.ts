@@ -171,10 +171,14 @@ export {
   bikeWorkoutTrainingStressScore,
   dailyTrainingLoad,
   estimatedTssFromSession,
+  FORM_INTERPRETATION_LABELS,
+  formInterpretationSchema,
+  interpretTrainingStressBalance,
   normalizedPower,
   powerTrainingStressScore,
   recordedPowerSummary,
   trainingLoadSchema,
+  type FormInterpretation,
   type TrainingLoad,
 } from "./trainingLoad.js";
 
