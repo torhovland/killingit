@@ -4,7 +4,7 @@ import {
   bikeWorkoutTrainingStressScore,
   dailyTrainingLoad,
   estimatedTssFromSession,
-  interpretTrainingForm,
+  interpretTrainingStressBalance,
   normalizedPower,
   powerTrainingStressScore,
   recordedPowerSummary,
@@ -152,20 +152,16 @@ describe("dailyTrainingLoad", () => {
   });
 });
 
-describe("interpretTrainingForm", () => {
-  it("treats more training as productive until it becomes risky", () => {
-    expect(interpretTrainingForm({ tsb: -40, ctl: 60 })).toBe("risk");
-    expect(interpretTrainingForm({ tsb: -30, ctl: 60 })).toBe("risk");
-    expect(interpretTrainingForm({ tsb: -20, ctl: 60 })).toBe("productive");
-    expect(interpretTrainingForm({ tsb: 0, ctl: 30 })).toBe("productive");
-    expect(interpretTrainingForm({ tsb: 4, ctl: 30 })).toBe("productive");
-  });
-
-  it("uses the retained fitness to separate low load from freshness", () => {
-    expect(interpretTrainingForm({ tsb: 10, ctl: 30 })).toBe("unproductive");
-    expect(interpretTrainingForm({ tsb: 10, ctl: 50 })).toBe("fresh");
-    expect(interpretTrainingForm({ tsb: 35, ctl: 30 })).toBe("detraining");
-    expect(interpretTrainingForm({ tsb: 35, ctl: 50 })).toBe("fresh");
+describe("interpretTrainingStressBalance", () => {
+  it("maps the TSB zones to readable interpretations", () => {
+    expect(interpretTrainingStressBalance(26)).toBe("detraining");
+    expect(interpretTrainingStressBalance(25)).toBe("fresh");
+    expect(interpretTrainingStressBalance(5)).toBe("fresh");
+    expect(interpretTrainingStressBalance(4)).toBe("maintaining");
+    expect(interpretTrainingStressBalance(-10)).toBe("maintaining");
+    expect(interpretTrainingStressBalance(-11)).toBe("productive");
+    expect(interpretTrainingStressBalance(-30)).toBe("productive");
+    expect(interpretTrainingStressBalance(-31)).toBe("risk");
   });
 });
 

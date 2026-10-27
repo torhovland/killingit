@@ -707,7 +707,7 @@ describe("CoachPlanView", () => {
     expect(html).toContain("ATL 9");
     expect(html).toContain("CTL 2");
     expect(html).toContain("TSB -8");
-    expect(html).toContain("Productive");
+    expect(html).toContain("Maintaining");
   });
 
   it("labels the TSB interpretation with its colour", () => {
@@ -715,16 +715,16 @@ describe("CoachPlanView", () => {
       ...plan,
       today: {
         ...plan.today,
-        trainingLoad: { tss: 20, atl: 18, ctl: 30, tsb: 12 },
+        trainingLoad: { tss: 20, atl: 18, ctl: 16, tsb: -2 },
       },
     };
 
     const html = renderToStaticMarkup(<CoachPlanView plan={loadedPlan} />);
 
     expect(html).toContain("TSS 20");
-    expect(html).toContain("TSB +12");
-    expect(html).toContain("Unproductive");
-    expect(html).toContain("text-form-unproductive");
+    expect(html).toContain("TSB -2");
+    expect(html).toContain("Maintaining");
+    expect(html).toContain("text-form-maintaining");
   });
 
   it("marks a very high fatigue balance as risk", () => {
@@ -732,13 +732,13 @@ describe("CoachPlanView", () => {
       ...plan,
       today: {
         ...plan.today,
-        trainingLoad: { tss: 120, atl: 70, ctl: 40, tsb: -30 },
+        trainingLoad: { tss: 120, atl: 75, ctl: 40, tsb: -35 },
       },
     };
 
     const html = renderToStaticMarkup(<CoachPlanView plan={loadedPlan} />);
 
-    expect(html).toContain("TSB -30");
+    expect(html).toContain("TSB -35");
     expect(html).toContain("Risk");
     expect(html).toContain("text-form-risk");
   });

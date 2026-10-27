@@ -75,7 +75,7 @@
   --destructive: #f7c2c9;
   /* Training-stress-balance interpretations. */
   --form-risk: #f2a1ac;
-  --form-unproductive: color-mix(
+  --form-maintaining: color-mix(
     in srgb,
     var(--palette-mist) 52%,
     var(--palette-slate)
@@ -124,7 +124,7 @@
   --color-success: var(--success);
   --color-destructive: var(--destructive);
   --color-form-risk: var(--form-risk);
-  --color-form-unproductive: var(--form-unproductive);
+  --color-form-maintaining: var(--form-maintaining);
   --color-form-productive: var(--form-productive);
   --color-form-fresh: var(--form-fresh);
   --color-form-detraining: var(--form-detraining);

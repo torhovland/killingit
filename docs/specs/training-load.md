@@ -102,22 +102,21 @@ The resolved `trainingLoad` is copied from the week session into the matching
 `today`/`tomorrow` day plan, so the Day and Week tabs cannot disagree.
 
 Each TSB value also carries a plain-language interpretation, shown after the
-number. More training is productive until it becomes risky; positive form is
-read together with retained fitness (CTL):
+number. The zones use TSB only:
 
-| TSB   | CTL  | Label        | Colour |
-| ----- | ---- | ------------ | ------ |
-| ≤ −30 | any  | Risk         | red    |
-| < +5  | any  | Productive   | green  |
-| ≥ +5  | ≥ 40 | Fresh        | blue   |
-| ≥ +30 | < 40 | Detraining   | orange |
-| ≥ +5  | < 40 | Unproductive | grey   |
+| TSB        | Label       | Colour |
+| ---------- | ----------- | ------ |
+| > +25      | Detraining  | orange |
+| +5 to +25  | Fresh       | blue   |
+| −10 to +5  | Maintaining | grey   |
+| −30 to −10 | Productive  | green  |
+| < −30      | Risk        | red    |
 
-For example: `TSS 30 · ATL 18 · CTL 30 · TSB +12 · Unproductive` or
-`TSS 85 · ATL 65 · CTL 45 · TSB -20 · Productive`. The interpretation is
-derived from the TSB and CTL values in the shared schema module and rendered
-with the app's theme tokens (`--form-risk`, `--form-productive`, and so on), so
-it follows the dark palette.
+For example: `TSS 20 · ATL 18 · CTL 16 · TSB -2 · Maintaining` or
+`TSS 85 · ATL 65 · CTL 45 · TSB -20 · Productive`. The interpretation is derived
+from the TSB value in the shared schema module and rendered with the app's theme
+tokens (`--form-risk`, `--form-productive`, and so on), so it follows the dark
+palette.
 
 ## Data model / API impact
 
@@ -174,7 +173,7 @@ No database migration: the new values live in the existing plan JSON.
    note, or review comment becomes the baseline and floors the current and next
    week's estimate. A later survey answer update takes precedence again.
 9. Every displayed TSB has its interpretation label and colour: Risk,
-   Unproductive, Productive, Fresh, or Detraining.
+   Productive, Maintaining, Fresh, or Detraining.
 10. A revised FTP is interpolated through the completed period, and the block
     and season headers show the refreshed estimate.
 11. The full quality gates pass: typecheck, lint, format, tests.

@@ -19,8 +19,8 @@ export type TrainingLoad = z.infer<typeof trainingLoadSchema>;
 /** How the athlete should read today's training stress balance. */
 export const formInterpretationSchema = z.enum([
   "risk",
-  "unproductive",
   "productive",
+  "maintaining",
   "fresh",
   "detraining",
 ]);
@@ -30,40 +30,37 @@ export type FormInterpretation = z.infer<typeof formInterpretationSchema>;
 /** Display labels for each TSB interpretation. */
 export const FORM_INTERPRETATION_LABELS: Record<FormInterpretation, string> = {
   risk: "Risk",
-  unproductive: "Unproductive",
   productive: "Productive",
+  maintaining: "Maintaining",
   fresh: "Fresh",
   detraining: "Detraining",
 };
 
 /**
- * Reads the training stress balance and fitness as a plain-language form
- * state. More training is good until it becomes risky:
+ * Reads the training stress balance as a plain-language form state:
  *
- * - TSB at or below −30 means too much fatigue: risk.
- * - TSB below +5 means the athlete is training and absorbing the load:
- *   productive.
- * - Positive TSB means little recent training. With retained fitness (CTL
- *   ≥ 40) that is fresh; with lower fitness it is unproductive, and a very
- *   high TSB with lower fitness means detraining.
+ * - below −30: risk
+ * - −30 to −10: productive
+ * - −10 to +5: maintaining
+ * - +5 to +25: fresh
+ * - above +25: detraining
  */
-export function interpretTrainingForm(load: {
-  tsb: number;
-  ctl: number;
-}): FormInterpretation {
-  if (load.tsb <= -30) {
-    return "risk";
-  }
-  if (load.tsb < 5) {
-    return "productive";
-  }
-  if (load.ctl >= 40) {
-    return "fresh";
-  }
-  if (load.tsb >= 30) {
+export function interpretTrainingStressBalance(
+  tsb: number,
+): FormInterpretation {
+  if (tsb > 25) {
     return "detraining";
   }
-  return "unproductive";
+  if (tsb >= 5) {
+    return "fresh";
+  }
+  if (tsb >= -10) {
+    return "maintaining";
+  }
+  if (tsb >= -30) {
+    return "productive";
+  }
+  return "risk";
 }
 
 /** Time constant of the acute (fatigue) load. */

@@ -97,7 +97,7 @@ about a past workout, or before a suggested workout, to steer the coach.
   power or a structured indoor bike workout when available, and from the
   coach's estimate otherwise; the API then calculates ATL, CTL, and TSB day by
   day and shows them in the Today, Tomorrow, and Week views. TSB carries a
-  coloured form label (Risk, Unproductive, Productive, Fresh, Detraining).
+  coloured form label (Risk, Productive, Maintaining, Fresh, Detraining).
   Garmin syncs the last 42 days, and power metrics are stored on activity
   summaries so the raw timeseries is not needed. See
   `docs/specs/training-load.md` and ADR 0012.

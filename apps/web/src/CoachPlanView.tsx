@@ -2,7 +2,7 @@ import { useState, type ReactNode } from "react";
 import {
   FORM_INTERPRETATION_LABELS,
   hasExportableBikeWorkout,
-  interpretTrainingForm,
+  interpretTrainingStressBalance,
   type BlockPlan,
   type CoachPlan,
   type DayPlan,
@@ -342,7 +342,7 @@ function TrainingLoadLine({
   load: TrainingLoad;
   testId?: string;
 }) {
-  const form = interpretTrainingForm({ tsb: load.tsb, ctl: load.ctl });
+  const form = interpretTrainingStressBalance(load.tsb);
   return (
     <p
       className="w-full text-xs text-muted-foreground tabular-nums"
@@ -365,8 +365,8 @@ function TrainingLoadLine({
 
 const FORM_CLASSES: Record<FormInterpretation, string> = {
   risk: "font-medium text-form-risk",
-  unproductive: "text-form-unproductive",
   productive: "font-medium text-form-productive",
+  maintaining: "text-form-maintaining",
   fresh: "text-form-fresh",
   detraining: "text-form-detraining",
 };
