@@ -143,7 +143,7 @@ function AppShell() {
             </div>
           </header>
 
-          <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-0 py-4 sm:px-4 sm:py-6">
+          <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-0 py-4 sm:px-4 sm:py-6">
             {error && <p className="text-destructive">Error: {error}</p>}
 
             {!signedIn ? (

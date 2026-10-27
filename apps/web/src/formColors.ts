@@ -1,6 +1,6 @@
 import type { FormInterpretation } from "@killingit/shared";
 
-/** Text colour for a TSB interpretation, matching the chart zone fill. */
+/** Text colour for a TSB interpretation, matching the chart's zone colours. */
 export const FORM_TEXT_CLASSES: Record<FormInterpretation, string> = {
   risk: "font-medium text-form-risk",
   productive: "font-medium text-form-productive",
@@ -10,15 +10,24 @@ export const FORM_TEXT_CLASSES: Record<FormInterpretation, string> = {
 };
 
 /**
- * Zone fill for the fitness chart. Painted solid on the white plot so each band
- * matches its legend swatch exactly.
+ * Zone band fill for the fitness chart: the zone colour kept pale on the white
+ * plot so the coloured TSB line stays distinct.
  */
 export const FORM_FILL_CLASSES: Record<FormInterpretation, string> = {
-  risk: "fill-form-risk",
-  productive: "fill-form-productive",
-  maintaining: "fill-form-maintaining",
-  fresh: "fill-form-fresh",
-  detraining: "fill-form-detraining",
+  risk: "fill-form-risk/25",
+  productive: "fill-form-productive/25",
+  maintaining: "fill-form-maintaining/25",
+  fresh: "fill-form-fresh/25",
+  detraining: "fill-form-detraining/25",
+};
+
+/** The solid TSB line, coloured by the zone it is in. */
+export const FORM_STROKE_CLASSES: Record<FormInterpretation, string> = {
+  risk: "stroke-form-risk-line",
+  productive: "stroke-form-productive-line",
+  maintaining: "stroke-form-maintaining-line",
+  fresh: "stroke-form-fresh-line",
+  detraining: "stroke-form-detraining-line",
 };
 
 /** Swatch for the chart legend. */

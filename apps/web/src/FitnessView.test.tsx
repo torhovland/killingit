@@ -69,9 +69,22 @@ describe("FitnessView", () => {
     ]) {
       expect(html).toContain(`data-testid="form-zone-${zone}"`);
     }
-    expect(html).toContain("fill-form-productive");
+    expect(html).toContain("fill-form-productive/25");
     expect(html).toContain("Productive");
     expect(html).toContain("above +25");
+  });
+
+  it("draws the TSB line in the zone colours and lists the zones first", () => {
+    const html = renderToStaticMarkup(
+      <FitnessView history={history()} today="2026-10-22" />,
+    );
+
+    expect(html).toContain("stroke-form-fresh-line");
+    // The zone legend comes first, then the CTL/ATL/TSB legend (whose name also
+    // appears in the chart's accessible label, hence the last match).
+    expect(html.indexOf("Detraining")).toBeLessThan(
+      html.lastIndexOf("Fitness (CTL)"),
+    );
   });
 
   it("plots the estimated FTP over the window", () => {

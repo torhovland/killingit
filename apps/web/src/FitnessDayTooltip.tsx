@@ -6,17 +6,32 @@ import { TrainingLoadLine } from "./TrainingLoadLine";
  * The hover card for one day of the fitness chart: the day's load numbers and
  * the activities the athlete logged that day.
  */
-export function FitnessDayTooltip({ day }: { day: FitnessHistoryDay }) {
+export function FitnessDayTooltip({
+  day,
+  ftpWatts,
+}: {
+  day: FitnessHistoryDay;
+  /** The estimated FTP on that day, when the FTP chart is the one hovered. */
+  ftpWatts?: number | null;
+}) {
   return (
     <div className="flex flex-col gap-1" data-testid="fitness-tooltip">
-      <p className="text-sm font-medium">{formatChartDate(day.date)}</p>
+      <p className="text-sm font-medium">
+        {formatChartDate(day.date)}
+        {ftpWatts !== null && ftpWatts !== undefined && (
+          <span className="font-normal text-muted-foreground">
+            {" "}
+            · FTP {ftpWatts} W
+          </span>
+        )}
+      </p>
       <TrainingLoadLine load={day} />
       {day.activities.length === 0 ? (
         <p className="text-muted-foreground">No activities recorded</p>
       ) : (
         <ul className="flex flex-col gap-0.5">
           {day.activities.map((activity) => (
-            <li key={activity.id} className="line-clamp-2">
+            <li key={activity.id} className="truncate">
               <span className="font-medium">{activity.name}</span>{" "}
               <span className="text-muted-foreground">
                 {formatActivityType(activity.type)}

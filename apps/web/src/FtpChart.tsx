@@ -1,4 +1,4 @@
-import type { FtpHistoryPoint } from "@killingit/shared";
+import type { FitnessHistoryDay, FtpHistoryPoint } from "@killingit/shared";
 import {
   axisTicks,
   CHART_HEIGHT,
@@ -10,12 +10,30 @@ import {
   niceDomain,
   stepPath,
 } from "./chartGeometry";
+import { FitnessDayTooltip } from "./FitnessDayTooltip";
+import { useChartHover } from "./useChartHover";
 
 /**
  * The estimated FTP over the same window. Steps, not a smooth line: the weekly
- * estimate holds for the whole week and changes at the next one.
+ * estimate holds for the whole week and changes at the next one. Hovering shows
+ * the same day card as the fitness chart.
  */
-export function FtpChart({ points }: { points: readonly FtpHistoryPoint[] }) {
+export function FtpChart({
+  days,
+  points,
+}: {
+  days: readonly FitnessHistoryDay[];
+  points: readonly FtpHistoryPoint[];
+}) {
+  const { hovered, onPointerMove, onPointerLeave } = useChartHover(
+    points.length,
+    (index) => {
+      const point = points[index];
+      return point === undefined
+        ? undefined
+        : days.find((day) => day.date === point.date);
+    },
+  );
   if (points.length === 0) {
     return null;
   }
@@ -23,6 +41,11 @@ export function FtpChart({ points }: { points: readonly FtpHistoryPoint[] }) {
   const scale = chartScale(points.length, domain);
   const current = points[points.length - 1];
   const xLabels = labelIndices(points.length);
+  const hoveredWatts =
+    hovered === null
+      ? null
+      : (points.find((point) => point.date === hovered.day.date)?.watts ??
+        null);
 
   return (
     <figure className="flex flex-col gap-2 rounded-lg border bg-card p-4">
@@ -32,78 +55,112 @@ export function FtpChart({ points }: { points: readonly FtpHistoryPoint[] }) {
           <span className="font-medium text-foreground">{current.watts} W</span>
         )}
       </figcaption>
-      <svg
-        viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-        className="h-auto w-full overflow-hidden rounded-md"
-        role="img"
-        aria-label="Estimated FTP chart"
-        data-testid="ftp-chart"
-      >
-        <title>{`Estimated FTP over the last ${points.length} days`}</title>
-        <rect
-          x={0}
-          y={0}
-          width={CHART_WIDTH}
-          height={CHART_HEIGHT}
-          className="fill-chart-plot"
-        />
-        <g transform={`translate(${CHART_PADDING.left} ${CHART_PADDING.top})`}>
-          {axisTicks(domain).map((tick) => (
-            <line
-              key={tick}
-              x1={0}
-              x2={scale.plotWidth}
-              y1={scale.y(tick)}
-              y2={scale.y(tick)}
-              className="stroke-chart-ink-muted/20"
-              strokeWidth={0.5}
-            />
-          ))}
-          <path
-            d={stepPath(
-              points.map((point) => point.watts),
-              scale,
-            )}
-            className="fill-none stroke-chart-ink"
-            strokeWidth={2}
-          />
-        </g>
-        {axisTicks(domain).map((tick) => (
-          <text
-            key={tick}
-            x={CHART_PADDING.left - 6}
-            y={CHART_PADDING.top + scale.y(tick)}
-            textAnchor="end"
-            dominantBaseline="middle"
-            className="fill-chart-ink-muted text-[10px]"
+      <div className="relative">
+        <svg
+          viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
+          className="h-auto w-full"
+          role="img"
+          aria-label="Estimated FTP chart"
+          data-testid="ftp-chart"
+          onPointerMove={onPointerMove}
+          onPointerDown={onPointerMove}
+          onPointerLeave={onPointerLeave}
+        >
+          <title>{`Estimated FTP over the last ${points.length} days`}</title>
+          <g
+            transform={`translate(${CHART_PADDING.left} ${CHART_PADDING.top})`}
           >
-            {Math.round(tick)} W
-          </text>
-        ))}
-        {xLabels.map((index) => {
-          const point = points[index];
-          if (point === undefined) {
-            return null;
-          }
-          return (
+            <rect
+              x={0}
+              y={0}
+              width={scale.plotWidth}
+              height={scale.plotHeight}
+              className="fill-chart-plot"
+            />
+            {axisTicks(domain).map((tick) => (
+              <line
+                key={tick}
+                x1={0}
+                x2={scale.plotWidth}
+                y1={scale.y(tick)}
+                y2={scale.y(tick)}
+                className="stroke-chart-ink-muted/20"
+                strokeWidth={1}
+              />
+            ))}
+            {hovered !== null && (
+              <line
+                x1={hovered.x}
+                x2={hovered.x}
+                y1={0}
+                y2={scale.plotHeight}
+                className="stroke-chart-ink/40"
+                strokeWidth={1}
+                strokeDasharray="2 2"
+              />
+            )}
+            <path
+              d={stepPath(
+                points.map((point) => point.watts),
+                scale,
+              )}
+              className="fill-none stroke-chart-ink"
+              strokeWidth={2}
+            />
+            {hovered !== null && hoveredWatts !== null && (
+              <circle
+                cx={hovered.x}
+                cy={scale.y(hoveredWatts)}
+                r={3.5}
+                className="fill-chart-ink"
+              />
+            )}
+          </g>
+          {axisTicks(domain).map((tick) => (
             <text
-              key={point.date}
-              x={CHART_PADDING.left + scale.x(index)}
-              y={CHART_PADDING.top + scale.plotHeight + 14}
-              textAnchor={
-                index === 0
-                  ? "start"
-                  : index === points.length - 1
-                    ? "end"
-                    : "middle"
-              }
-              className="fill-chart-ink-muted text-[10px]"
+              key={tick}
+              x={CHART_PADDING.left - 6}
+              y={CHART_PADDING.top + scale.y(tick)}
+              textAnchor="end"
+              dominantBaseline="middle"
+              className="fill-muted-foreground text-[10px]"
             >
-              {formatChartDate(point.date)}
+              {Math.round(tick)} W
             </text>
-          );
-        })}
-      </svg>
+          ))}
+          {xLabels.map((index) => {
+            const point = points[index];
+            if (point === undefined) {
+              return null;
+            }
+            return (
+              <text
+                key={point.date}
+                x={CHART_PADDING.left + scale.x(index)}
+                y={CHART_PADDING.top + scale.plotHeight + 14}
+                textAnchor={
+                  index === 0
+                    ? "start"
+                    : index === points.length - 1
+                      ? "end"
+                      : "middle"
+                }
+                className="fill-muted-foreground text-[10px]"
+              >
+                {formatChartDate(point.date)}
+              </text>
+            );
+          })}
+        </svg>
+        {hovered !== null && (
+          <div
+            className="pointer-events-none absolute top-2 z-10 w-56 -translate-x-1/2 rounded border bg-card p-2 text-xs shadow-lg"
+            style={{ left: `${hovered.percent}%` }}
+          >
+            <FitnessDayTooltip day={hovered.day} ftpWatts={hoveredWatts} />
+          </div>
+        )}
+      </div>
     </figure>
   );
 }

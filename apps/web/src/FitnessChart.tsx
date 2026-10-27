@@ -1,11 +1,12 @@
-import { useState, type PointerEvent } from "react";
 import {
   FORM_INTERPRETATION_LABELS,
   FORM_ZONES,
+  interpretTrainingStressBalance,
   type FitnessHistoryDay,
 } from "@killingit/shared";
 import {
   FORM_FILL_CLASSES,
+  FORM_STROKE_CLASSES,
   FORM_SWATCH_CLASSES,
   FORM_TEXT_CLASSES,
 } from "./formColors";
@@ -17,29 +18,26 @@ import {
   chartScale,
   formatChartDate,
   formatZoneRange,
-  indexAt,
   labelIndices,
   linePath,
   niceDomain,
+  tsbSegments,
   zoneBlocks,
 } from "./chartGeometry";
 import { FitnessDayTooltip } from "./FitnessDayTooltip";
-
-interface HoveredDay {
-  day: FitnessHistoryDay;
-  /** The day's x position in the plot. */
-  x: number;
-  /** Where the hover card sits, as a share of the chart's width. */
-  percent: number;
-}
+import { useChartHover } from "./useChartHover";
 
 /**
- * Fitness (CTL), fatigue (ATL), and form (TSB) over the returned days, drawn
- * on a white plot so the TSB zone bands match their legend swatches. Pointing
- * at a day shows its numbers and the activities logged that day.
+ * Fitness (CTL), fatigue (ATL), and form (TSB) over the returned days. The plot
+ * is white and the TSB bands are pale tints of the zone colours, so the solid
+ * TSB line and its legend stay readable. Pointing at a day shows its numbers
+ * and the activities logged that day.
  */
 export function FitnessChart({ days }: { days: readonly FitnessHistoryDay[] }) {
-  const [hovered, setHovered] = useState<HoveredDay | null>(null);
+  const { hovered, onPointerMove, onPointerLeave } = useChartHover(
+    days.length,
+    (index) => days[index],
+  );
   const domain = niceDomain([
     ...days.map((day) => day.ctl),
     ...days.map((day) => day.atl),
@@ -50,61 +48,31 @@ export function FitnessChart({ days }: { days: readonly FitnessHistoryDay[] }) {
   const scale = chartScale(days.length, domain);
   const xLabels = labelIndices(days.length);
 
-  function handlePointerMove(event: PointerEvent<SVGSVGElement>): void {
-    const bounds = event.currentTarget.getBoundingClientRect();
-    if (bounds.width === 0) {
-      return;
-    }
-    // Work in viewBox units so the hover follows the rendered scale.
-    const viewX =
-      ((event.clientX - bounds.left) / bounds.width) * CHART_WIDTH -
-      CHART_PADDING.left;
-    const index = indexAt(viewX / scale.plotWidth, days.length);
-    const day = days[index];
-    if (day === undefined) {
-      setHovered(null);
-      return;
-    }
-    setHovered({
-      day,
-      x: scale.x(index),
-      // Keep the card inside the chart's edges.
-      percent: Math.min(
-        80,
-        Math.max(
-          20,
-          ((CHART_PADDING.left + scale.x(index)) / CHART_WIDTH) * 100,
-        ),
-      ),
-    });
-  }
-
   return (
     <figure className="flex flex-col gap-2 rounded-lg border bg-card p-4">
       <figcaption className="text-sm font-medium">Fitness and form</figcaption>
       <div className="relative">
         <svg
           viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-          className="h-auto w-full overflow-hidden rounded-md"
+          className="h-auto w-full"
           role="img"
           aria-label="Fitness (CTL), fatigue (ATL), and form (TSB) chart over the training-stress-balance zones"
           data-testid="fitness-chart"
-          onPointerMove={handlePointerMove}
-          onPointerDown={handlePointerMove}
-          onPointerLeave={() => setHovered(null)}
+          onPointerMove={onPointerMove}
+          onPointerDown={onPointerMove}
+          onPointerLeave={onPointerLeave}
         >
           <title>{`Fitness, fatigue, and form over the last ${days.length} days`}</title>
-          {/* The whole chart sits on white, axis labels included. */}
-          <rect
-            x={0}
-            y={0}
-            width={CHART_WIDTH}
-            height={CHART_HEIGHT}
-            className="fill-chart-plot"
-          />
           <g
             transform={`translate(${CHART_PADDING.left} ${CHART_PADDING.top})`}
           >
+            <rect
+              x={0}
+              y={0}
+              width={scale.plotWidth}
+              height={scale.plotHeight}
+              className="fill-chart-plot"
+            />
             {zoneBlocks(domain).map(({ zone, from, to }) => (
               <rect
                 key={zone.interpretation}
@@ -157,28 +125,34 @@ export function FitnessChart({ days }: { days: readonly FitnessHistoryDay[] }) {
               strokeDasharray="4 2"
               data-series="atl"
             />
-            <path
-              d={linePath(
-                days.map((day) => day.tsb),
-                scale,
-              )}
-              className="fill-none stroke-chart-ink"
-              strokeWidth={1.5}
-              strokeDasharray="2 3"
-              data-series="tsb"
-            />
-            {hovered !== null &&
-              [hovered.day.ctl, hovered.day.atl, hovered.day.tsb].map(
-                (value, series) => (
-                  <circle
-                    key={series}
-                    cx={hovered.x}
-                    cy={scale.y(value)}
-                    r={3}
-                    className="fill-chart-ink"
-                  />
-                ),
-              )}
+            {tsbSegments(
+              days.map((day) => day.tsb),
+              scale,
+            ).map((segment, index) => (
+              <line
+                key={index}
+                x1={segment.from.x}
+                y1={segment.from.y}
+                x2={segment.to.x}
+                y2={segment.to.y}
+                className={FORM_STROKE_CLASSES[segment.interpretation]}
+                strokeWidth={2}
+                data-zone={segment.interpretation}
+              />
+            ))}
+            {hovered !== null && (
+              <circle
+                cx={hovered.x}
+                cy={scale.y(hovered.day.tsb)}
+                r={3.5}
+                className={`fill-chart-plot ${
+                  FORM_STROKE_CLASSES[
+                    interpretTrainingStressBalance(hovered.day.tsb)
+                  ]
+                }`}
+                strokeWidth={2}
+              />
+            )}
           </g>
           {axisTicks(domain).map((tick) => (
             <text
@@ -187,7 +161,7 @@ export function FitnessChart({ days }: { days: readonly FitnessHistoryDay[] }) {
               y={CHART_PADDING.top + scale.y(tick)}
               textAnchor="end"
               dominantBaseline="middle"
-              className="fill-chart-ink-muted text-[10px]"
+              className="fill-muted-foreground text-[10px]"
             >
               {Math.round(tick)}
             </text>
@@ -209,7 +183,7 @@ export function FitnessChart({ days }: { days: readonly FitnessHistoryDay[] }) {
                       ? "end"
                       : "middle"
                 }
-                className="fill-chart-ink-muted text-[10px]"
+                className="fill-muted-foreground text-[10px]"
               >
                 {formatChartDate(day.date)}
               </text>
@@ -226,18 +200,6 @@ export function FitnessChart({ days }: { days: readonly FitnessHistoryDay[] }) {
         )}
       </div>
       <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
-        <li className="flex items-center gap-1.5">
-          <LineSwatch className="bg-chart-ink" />
-          Fitness (CTL)
-        </li>
-        <li className="flex items-center gap-1.5">
-          <LineSwatch className="border-t border-dashed border-chart-ink-muted" />
-          Fatigue (ATL)
-        </li>
-        <li className="flex items-center gap-1.5">
-          <LineSwatch className="border-t border-dotted border-chart-ink" />
-          Form (TSB)
-        </li>
         {[...FORM_ZONES].reverse().map((zone) => (
           <li
             key={zone.interpretation}
@@ -255,6 +217,20 @@ export function FitnessChart({ days }: { days: readonly FitnessHistoryDay[] }) {
             </span>
           </li>
         ))}
+      </ul>
+      <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+        <li className="flex items-center gap-1.5">
+          <LineSwatch className="bg-chart-ink" />
+          Fitness (CTL)
+        </li>
+        <li className="flex items-center gap-1.5">
+          <LineSwatch className="border-t border-dashed border-chart-ink-muted" />
+          Fatigue (ATL)
+        </li>
+        <li className="flex items-center gap-1.5">
+          <LineSwatch className="bg-form-productive-line" />
+          Form (TSB)
+        </li>
       </ul>
     </figure>
   );

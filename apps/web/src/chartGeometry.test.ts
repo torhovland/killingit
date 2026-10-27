@@ -13,6 +13,7 @@ import {
   linePath,
   niceDomain,
   stepPath,
+  tsbSegments,
   zoneBlocks,
 } from "./chartGeometry";
 
@@ -119,6 +120,28 @@ describe("paths", () => {
     expect(stepPath([0, 10], chartScale(2, { min: 0, max: 10 }))).toBe(
       `M0 ${height} H${scale.plotWidth} V0`,
     );
+  });
+});
+
+describe("tsbSegments", () => {
+  it("colours each day-to-day step by the zone it sits in", () => {
+    const segments = tsbSegments(
+      [20, 0, -40],
+      chartScale(3, { min: -50, max: 50 }),
+    );
+
+    expect(segments.map((segment) => segment.interpretation)).toEqual([
+      "fresh",
+      "productive",
+    ]);
+  });
+
+  it("runs from one day's value to the next", () => {
+    const scale = chartScale(2, { min: 0, max: 10 });
+    const [segment] = tsbSegments([0, 10], scale);
+
+    expect(segment?.from).toEqual({ x: 0, y: scale.plotHeight });
+    expect(segment?.to).toEqual({ x: scale.plotWidth, y: 0 });
   });
 });
 

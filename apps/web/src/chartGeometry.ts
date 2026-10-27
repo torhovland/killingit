@@ -1,8 +1,13 @@
-import { FORM_ZONES, type FormZone } from "@killingit/shared";
+import {
+  FORM_ZONES,
+  interpretTrainingStressBalance,
+  type FormInterpretation,
+  type FormZone,
+} from "@killingit/shared";
 
 /** The SVG viewBox the charts are drawn in; the page scales it to its width. */
 export const CHART_WIDTH = 640;
-export const CHART_HEIGHT = 220;
+export const CHART_HEIGHT = 320;
 
 /** Room for the axis labels around the plotted area. */
 export const CHART_PADDING = { top: 10, right: 8, bottom: 22, left: 40 };
@@ -127,6 +132,37 @@ export function indexAt(plotFraction: number, count: number): number {
   }
   const clamped = Math.min(1, Math.max(0, plotFraction));
   return Math.round(clamped * (count - 1));
+}
+
+/** One day-to-day step of the TSB line, coloured by its form zone. */
+export interface TsbSegment {
+  from: { x: number; y: number };
+  to: { x: number; y: number };
+  interpretation: FormInterpretation;
+}
+
+/**
+ * The TSB line as one segment per day-to-day step, each in the colour of the
+ * zone it is in. A step that crosses a boundary takes the zone of its midpoint.
+ */
+export function tsbSegments(
+  values: readonly number[],
+  scale: ChartScale,
+): TsbSegment[] {
+  const segments: TsbSegment[] = [];
+  for (let index = 1; index < values.length; index += 1) {
+    const previous = values[index - 1];
+    const value = values[index];
+    if (previous === undefined || value === undefined) {
+      continue;
+    }
+    segments.push({
+      from: { x: scale.x(index - 1), y: scale.y(previous) },
+      to: { x: scale.x(index), y: scale.y(value) },
+      interpretation: interpretTrainingStressBalance((previous + value) / 2),
+    });
+  }
+  return segments;
 }
 
 /** The TSB bands clipped to the visible domain, lowest first. */

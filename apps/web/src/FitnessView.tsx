@@ -51,7 +51,7 @@ export function FitnessView({
             </p>
           )}
 
-          <FtpChart points={history.ftp} />
+          <FtpChart days={history.days} points={history.ftp} />
         </>
       )}
     </section>

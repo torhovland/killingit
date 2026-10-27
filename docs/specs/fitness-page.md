@@ -106,12 +106,19 @@ API:
   fitness/form chart with CTL, ATL, and TSB lines over coloured TSB zone bands,
   a legend naming each zone with its threshold and colour, and an estimated-FTP
   step chart.
-- The plot is white and the zone bands are painted solid, so every band matches
-  its legend swatch exactly. The lines use the chart ink tokens
-  (`--chart-ink`, `--chart-ink-muted`) for contrast on the light plot.
-- Pointing at (or tapping) the fitness chart marks the nearest day with a guide
-  line and shows a card with the date, the load numbers and interpretation, and
-  the activities logged that day.
+- Only the plot itself is white, so the zone tints stay clean while the rest of
+  the chart keeps the card's surface. The bands are pale tints (25%) of the
+  zone colours, and the TSB line is solid and coloured by the zone it is in
+  (`--form-*-line`, the zone colours darkened towards black), so line and band
+  stay distinct. CTL and ATL use the chart ink tokens (`--chart-ink`,
+  `--chart-ink-muted`).
+- The zone legend sits on one line above the CTL/ATL/TSB legend; the main
+  content panel is wider (`max-w-5xl`) so it fits.
+- Pointing at (or tapping) either chart marks the nearest day with a guide line
+  and shows a card with the date, the load numbers and interpretation, and the
+  activities logged that day. The FTP chart's card also shows that day's
+  estimated FTP. The charts are tall enough for the card to sit over the top of
+  the plot without hiding the lines below it.
 - The charts are static SVG (no new dependency), scale with the page width, and
   carry an accessible title.
 - Loading, error, and (when there is no planned or recorded training) empty
@@ -126,12 +133,12 @@ API:
 3. A day's TSS comes from measured power, then the coach estimate, then the
    manual entry, matching the Activities page.
 4. The TSB zone bands and the legend use the same colours as the interpretation
-   text (`--form-risk`, `--form-productive`, …), and the bands are painted solid
-   on a white plot so they match the swatches.
+   text (`--form-risk`, `--form-productive`, …), and the TSB line is solid and
+   coloured by its zone.
 5. The FTP chart plots the coach's weekly estimate inside the stored block and
    the athlete's stated/tested values elsewhere, and is hidden without an FTP.
-6. Pointing at a day of the fitness chart shows that day's numbers and the
-   activities logged on it, if any.
+6. Pointing at a day of either chart shows that day's numbers and the
+   activities logged on it, if any; the FTP chart also shows that day's FTP.
 7. The page is reachable from the account menu and renders today's load line.
 8. Typecheck, lint, format, and tests pass.
 
