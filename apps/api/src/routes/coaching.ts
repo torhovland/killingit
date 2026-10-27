@@ -106,6 +106,8 @@ export interface CoachingRouteDependencies {
   loadActivities?: (userId: number) => Promise<ActivityFeed>;
   /** Injectable for route tests; defaults to the stored feed reader. */
   loadCachedFeed?: typeof loadCachedActivityFeed;
+  /** Injectable for route tests; defaults to the training-load builder. */
+  loadActivityTrainingLoads?: typeof loadUserActivityTrainingLoads;
   loadLlm?: (userId: number) => Promise<LlmClient | null>;
   /** Injectable for route tests; defaults to the database-backed loader. */
   loadCoachingInputs?: (
@@ -158,6 +160,8 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
         refresh: false,
       }));
   const loadCachedFeed = deps.loadCachedFeed ?? loadCachedActivityFeed;
+  const loadActivityTrainingLoads =
+    deps.loadActivityTrainingLoads ?? loadUserActivityTrainingLoads;
   const createComment = deps.createActivityComment ?? createActivityComment;
   const updateComment = deps.updateActivityComment ?? updateActivityComment;
   const saveReview = deps.saveActivityReview ?? saveActivityReview;
@@ -556,7 +560,7 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
         loadCachedFeed(user.id),
         deps.plans.load(user.id),
       ]);
-      const loads = await loadUserActivityTrainingLoads(
+      const loads = await loadActivityTrainingLoads(
         user.id,
         cached?.activities ?? [],
         storedPlan?.plan,

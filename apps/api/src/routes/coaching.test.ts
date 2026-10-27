@@ -134,6 +134,7 @@ function makeApp(options: {
   answers?: QuestionAnswerStore;
   loadActivities?: (userId: number) => Promise<ActivityFeed>;
   loadCachedFeed?: AppDependencies["loadCachedFeed"];
+  loadActivityTrainingLoads?: AppDependencies["loadActivityTrainingLoads"];
   loadCoachingInputs?: (
     userId: number,
     weekStartDate: string,
@@ -222,9 +223,9 @@ function makeApp(options: {
     loadActivities:
       options.loadActivities ??
       (() => Promise.resolve({ model: "test-model", activities: [] })),
-    ...(options.loadCachedFeed !== undefined
-      ? { loadCachedFeed: options.loadCachedFeed }
-      : {}),
+    loadCachedFeed: options.loadCachedFeed ?? (() => Promise.resolve(null)),
+    loadActivityTrainingLoads:
+      options.loadActivityTrainingLoads ?? (() => Promise.resolve(new Map())),
     loadLlm: () =>
       Promise.resolve({
         provider: {
