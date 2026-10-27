@@ -76,7 +76,8 @@ out. Days without activities return an empty list.
 Each day also carries the stored plan's session for that date, when the plan
 covers it: the workout title, whether it is a workout or a rest day, and its
 length in minutes. The hover card shows the planned workout when the athlete
-has not logged anything that day, and "Planned: Rest" for a planned rest day.
+has not logged anything that day. A rest day that is still ahead reads
+"Planned: Rest"; once it has arrived or passed it reads simply "Rest".
 
 ### FTP series
 
@@ -169,8 +170,9 @@ API:
    beside their acronyms, reads larger than the compact plan/activity line, and
    shows today's estimated FTP.
 8. Pointing at a day of either chart shows that day's numbers and the
-   activities logged on it, or the planned workout when none was (a planned
-   rest day reads "Planned: Rest"); the FTP chart also shows that day's FTP.
+   activities logged on it, or the planned workout when none was (a future
+   rest day reads "Planned: Rest", today's or a past one just "Rest"); the FTP
+   chart also shows that day's FTP.
 9. The range picker switches between the five windows, and `All time` starts at
    the first recorded or manual activity.
 10. The page is reachable from the account menu and renders today's load line.

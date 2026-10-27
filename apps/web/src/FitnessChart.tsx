@@ -226,7 +226,7 @@ export function FitnessChart({
             className="pointer-events-none absolute top-2 z-10 w-56 -translate-x-1/2 rounded border bg-card p-2 text-xs shadow-lg"
             style={{ left: `${hovered.percent}%` }}
           >
-            <FitnessDayTooltip day={hovered.day} />
+            <FitnessDayTooltip day={hovered.day} today={today} />
           </div>
         )}
       </div>

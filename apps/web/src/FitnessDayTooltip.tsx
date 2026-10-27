@@ -8,12 +8,19 @@ import { TrainingLoadLine } from "./TrainingLoadLine";
  */
 export function FitnessDayTooltip({
   day,
+  today,
   ftpWatts,
 }: {
   day: FitnessHistoryDay;
+  /** The athlete's current date; later days read as plans, not history. */
+  today: string;
   /** The estimated FTP on that day, when the FTP chart is the one hovered. */
   ftpWatts?: number | null;
 }) {
+  const planned = day.planned;
+  const isRest = planned?.type === "rest";
+  const isFuture = day.date > today;
+
   return (
     <div className="flex flex-col gap-1" data-testid="fitness-tooltip">
       <p className="text-sm font-medium">
@@ -26,16 +33,21 @@ export function FitnessDayTooltip({
         )}
       </p>
       <TrainingLoadLine load={day} />
-      {day.activities.length === 0 && day.planned !== null ? (
-        <p className="text-muted-foreground">
-          Planned:{" "}
-          <span className="font-medium text-foreground">
-            {day.planned.type === "rest" ? "Rest" : day.planned.title}
-          </span>
-          {day.planned.type === "rest"
-            ? ""
-            : ` · ${day.planned.durationMinutes} min`}
-        </p>
+      {day.activities.length === 0 && planned !== null ? (
+        isRest && !isFuture ? (
+          // A rest day that has arrived (or passed) is history, not a plan.
+          <p className="text-muted-foreground">
+            <span className="font-medium text-foreground">Rest</span>
+          </p>
+        ) : (
+          <p className="text-muted-foreground">
+            Planned:{" "}
+            <span className="font-medium text-foreground">
+              {isRest ? "Rest" : planned.title}
+            </span>
+            {isRest ? "" : ` · ${planned.durationMinutes} min`}
+          </p>
+        )
       ) : day.activities.length === 0 ? (
         <p className="text-muted-foreground">No activities recorded</p>
       ) : (

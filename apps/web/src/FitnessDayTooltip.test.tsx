@@ -18,7 +18,9 @@ function day(overrides: Partial<FitnessHistoryDay> = {}): FitnessHistoryDay {
 
 describe("FitnessDayTooltip", () => {
   it("shows the day's load and its interpretation", () => {
-    const html = renderToStaticMarkup(<FitnessDayTooltip day={day()} />);
+    const html = renderToStaticMarkup(
+      <FitnessDayTooltip day={day()} today="2026-10-22" />,
+    );
 
     expect(html).toContain("22 Oct");
     expect(html).toContain("TSS 95");
@@ -28,7 +30,7 @@ describe("FitnessDayTooltip", () => {
 
   it("adds the estimated FTP when the FTP chart is hovered", () => {
     const html = renderToStaticMarkup(
-      <FitnessDayTooltip day={day()} ftpWatts={255} />,
+      <FitnessDayTooltip day={day()} today="2026-10-22" ftpWatts={255} />,
     );
 
     expect(html).toContain("FTP 255 W");
@@ -37,6 +39,7 @@ describe("FitnessDayTooltip", () => {
   it("lists the activities logged that day", () => {
     const html = renderToStaticMarkup(
       <FitnessDayTooltip
+        today="2026-10-22"
         day={day({
           activities: [
             {
@@ -65,6 +68,7 @@ describe("FitnessDayTooltip", () => {
   it("names the planned workout when nothing was logged", () => {
     const html = renderToStaticMarkup(
       <FitnessDayTooltip
+        today="2026-10-22"
         day={day({
           planned: {
             title: "Endurance ride",
@@ -81,10 +85,27 @@ describe("FitnessDayTooltip", () => {
     expect(html).not.toContain("No activities recorded");
   });
 
-  it("says Rest for a planned rest day", () => {
+  it("says Rest on a rest day that has arrived", () => {
     const html = renderToStaticMarkup(
       <FitnessDayTooltip
+        today="2026-10-22"
         day={day({
+          planned: { title: "Rest day", type: "rest", durationMinutes: 0 },
+        })}
+      />,
+    );
+
+    expect(html).toContain("Rest");
+    expect(html).not.toContain("Planned:");
+    expect(html).not.toContain("No activities recorded");
+  });
+
+  it("says Planned: Rest for a rest day still ahead", () => {
+    const html = renderToStaticMarkup(
+      <FitnessDayTooltip
+        today="2026-10-22"
+        day={day({
+          date: "2026-10-25",
           planned: { title: "Rest day", type: "rest", durationMinutes: 0 },
         })}
       />,
@@ -93,12 +114,12 @@ describe("FitnessDayTooltip", () => {
     expect(html).toContain("Planned:");
     expect(html).toContain("Rest");
     expect(html).not.toContain("0 min");
-    expect(html).not.toContain("No activities recorded");
   });
 
   it("prefers what was logged over the plan", () => {
     const html = renderToStaticMarkup(
       <FitnessDayTooltip
+        today="2026-10-22"
         day={day({
           activities: [
             { id: "activity-1", name: "Morning ride", type: "cycling" },
@@ -117,7 +138,9 @@ describe("FitnessDayTooltip", () => {
   });
 
   it("says so when nothing was logged and nothing is planned", () => {
-    const html = renderToStaticMarkup(<FitnessDayTooltip day={day()} />);
+    const html = renderToStaticMarkup(
+      <FitnessDayTooltip day={day()} today="2026-10-22" />,
+    );
 
     expect(html).toContain("No activities recorded");
   });
