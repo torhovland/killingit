@@ -10,15 +10,15 @@ export const FORM_TEXT_CLASSES: Record<FormInterpretation, string> = {
 };
 
 /**
- * Zone band fill for the fitness chart: the zone colour kept pale on the white
- * plot so the coloured TSB line stays distinct.
+ * Zone band fill for the fitness chart: the zone colour over the white plot,
+ * soft enough that the coloured TSB line stays distinct on top.
  */
 export const FORM_FILL_CLASSES: Record<FormInterpretation, string> = {
-  risk: "fill-form-risk/25",
-  productive: "fill-form-productive/25",
-  maintaining: "fill-form-maintaining/25",
-  fresh: "fill-form-fresh/25",
-  detraining: "fill-form-detraining/25",
+  risk: "fill-form-risk/[62.5%]",
+  productive: "fill-form-productive/[62.5%]",
+  maintaining: "fill-form-maintaining/[62.5%]",
+  fresh: "fill-form-fresh/[62.5%]",
+  detraining: "fill-form-detraining/[62.5%]",
 };
 
 /** The solid TSB line, coloured by the zone it is in. */

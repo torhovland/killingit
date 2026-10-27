@@ -134,16 +134,22 @@ export function indexAt(plotFraction: number, count: number): number {
   return Math.round(clamped * (count - 1));
 }
 
-/** One day-to-day step of the TSB line, coloured by its form zone. */
+/** One run of the TSB line inside a single form zone. */
 export interface TsbSegment {
   from: { x: number; y: number };
   to: { x: number; y: number };
   interpretation: FormInterpretation;
 }
 
+/** The TSB values where the form zone changes, lowest first. */
+const ZONE_BOUNDARIES = FORM_ZONES.map((zone) => zone.from).filter(
+  Number.isFinite,
+);
+
 /**
- * The TSB line as one segment per day-to-day step, each in the colour of the
- * zone it is in. A step that crosses a boundary takes the zone of its midpoint.
+ * The TSB line split into segments, each coloured by the zone the line is in.
+ * A day-to-day step that crosses a zone boundary is split at the crossing, so
+ * the colour changes exactly where the line enters the next zone.
  */
 export function tsbSegments(
   values: readonly number[],
@@ -156,11 +162,41 @@ export function tsbSegments(
     if (previous === undefined || value === undefined) {
       continue;
     }
-    segments.push({
-      from: { x: scale.x(index - 1), y: scale.y(previous) },
-      to: { x: scale.x(index), y: scale.y(value) },
-      interpretation: interpretTrainingStressBalance((previous + value) / 2),
+    const x0 = scale.x(index - 1);
+    const x1 = scale.x(index);
+    const pointAt = (fraction: number, at: number) => ({
+      x: x0 + (x1 - x0) * fraction,
+      y: scale.y(at),
     });
+
+    if (previous === value) {
+      segments.push({
+        from: pointAt(0, previous),
+        to: pointAt(1, value),
+        interpretation: interpretTrainingStressBalance(value),
+      });
+      continue;
+    }
+
+    const rising = value > previous;
+    const crossings = ZONE_BOUNDARIES.filter((boundary) =>
+      rising
+        ? boundary > previous && boundary < value
+        : boundary < previous && boundary > value,
+    ).sort((a, b) => (rising ? a - b : b - a));
+    const stops = [previous, ...crossings, value];
+    for (let stop = 1; stop < stops.length; stop += 1) {
+      const start = stops[stop - 1];
+      const end = stops[stop];
+      if (start === undefined || end === undefined || start === end) {
+        continue;
+      }
+      segments.push({
+        from: pointAt((start - previous) / (value - previous), start),
+        to: pointAt((end - previous) / (value - previous), end),
+        interpretation: interpretTrainingStressBalance((start + end) / 2),
+      });
+    }
   }
   return segments;
 }

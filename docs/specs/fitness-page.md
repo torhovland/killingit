@@ -107,13 +107,15 @@ API:
   a legend naming each zone with its threshold and colour, and an estimated-FTP
   step chart.
 - Only the plot itself is white, so the zone tints stay clean while the rest of
-  the chart keeps the card's surface. The bands are pale tints (25%) of the
+  the chart keeps the card's surface. The bands are soft tints (62.5%) of the
   zone colours, and the TSB line is solid and coloured by the zone it is in
   (`--form-*-line`, the zone colours darkened towards black), so line and band
-  stay distinct. CTL and ATL use the chart ink tokens (`--chart-ink`,
-  `--chart-ink-muted`).
-- The zone legend sits on one line above the CTL/ATL/TSB legend; the main
-  content panel is wider (`max-w-5xl`) so it fits.
+  stay distinct. The line changes colour where it crosses a zone boundary, not
+  once per day, so a day that dips out of a zone is drawn partly in each colour.
+  CTL and ATL use the chart ink tokens (`--chart-ink`, `--chart-ink-muted`).
+- The zone legend sits on one line above the CTL/ATL/TSB legend. Both align
+  with the plot's left edge rather than the axis gutter, and the main content
+  panel is wider (`max-w-5xl`) so the zone legend fits on one line.
 - Pointing at (or tapping) either chart marks the nearest day with a guide line
   and shows a card with the date, the load numbers and interpretation, and the
   activities logged that day. The FTP chart's card also shows that day's
@@ -134,7 +136,7 @@ API:
    manual entry, matching the Activities page.
 4. The TSB zone bands and the legend use the same colours as the interpretation
    text (`--form-risk`, `--form-productive`, …), and the TSB line is solid and
-   coloured by its zone.
+   changes colour exactly where it crosses from one zone into the next.
 5. The FTP chart plots the coach's weekly estimate inside the stored block and
    the athlete's stated/tested values elsewhere, and is hidden without an FTP.
 6. Pointing at a day of either chart shows that day's numbers and the

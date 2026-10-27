@@ -69,7 +69,7 @@ describe("FitnessView", () => {
     ]) {
       expect(html).toContain(`data-testid="form-zone-${zone}"`);
     }
-    expect(html).toContain("fill-form-productive/25");
+    expect(html).toContain("fill-form-productive/[62.5%]");
     expect(html).toContain("Productive");
     expect(html).toContain("above +25");
   });

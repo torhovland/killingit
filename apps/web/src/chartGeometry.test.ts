@@ -124,24 +124,42 @@ describe("paths", () => {
 });
 
 describe("tsbSegments", () => {
-  it("colours each day-to-day step by the zone it sits in", () => {
+  it("changes colour where the line crosses into the next zone", () => {
+    const scale = chartScale(2, { min: -50, max: 50 });
+    const segments = tsbSegments([20, 0], scale);
+
+    expect(segments.map((segment) => segment.interpretation)).toEqual([
+      "fresh",
+      "maintaining",
+    ]);
+    // The step falls from +20 to 0, so it passes +5 three quarters of the way.
+    expect(segments[0]?.from).toEqual({ x: 0, y: scale.y(20) });
+    expect(segments[0]?.to).toEqual({
+      x: 0.75 * scale.plotWidth,
+      y: scale.y(5),
+    });
+    expect(segments[1]?.to).toEqual({ x: scale.plotWidth, y: scale.y(0) });
+  });
+
+  it("splits a step that crosses several zones", () => {
     const segments = tsbSegments(
-      [20, 0, -40],
-      chartScale(3, { min: -50, max: 50 }),
+      [10, -40],
+      chartScale(2, { min: -50, max: 50 }),
     );
 
     expect(segments.map((segment) => segment.interpretation)).toEqual([
       "fresh",
+      "maintaining",
       "productive",
+      "risk",
     ]);
   });
 
-  it("runs from one day's value to the next", () => {
-    const scale = chartScale(2, { min: 0, max: 10 });
-    const [segment] = tsbSegments([0, 10], scale);
+  it("colours a flat step by its own zone", () => {
+    const segments = tsbSegments([0, 0], chartScale(2, { min: -50, max: 50 }));
 
-    expect(segment?.from).toEqual({ x: 0, y: scale.plotHeight });
-    expect(segment?.to).toEqual({ x: scale.plotWidth, y: 0 });
+    expect(segments).toHaveLength(1);
+    expect(segments[0]?.interpretation).toBe("maintaining");
   });
 });
 

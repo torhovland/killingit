@@ -199,7 +199,7 @@ export function FitnessChart({ days }: { days: readonly FitnessHistoryDay[] }) {
           </div>
         )}
       </div>
-      <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+      <ul className={LEGEND_CLASSES} style={{ paddingLeft: LEGEND_INSET }}>
         {[...FORM_ZONES].reverse().map((zone) => (
           <li
             key={zone.interpretation}
@@ -218,7 +218,7 @@ export function FitnessChart({ days }: { days: readonly FitnessHistoryDay[] }) {
           </li>
         ))}
       </ul>
-      <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+      <ul className={LEGEND_CLASSES} style={{ paddingLeft: LEGEND_INSET }}>
         <li className="flex items-center gap-1.5">
           <LineSwatch className="bg-chart-ink" />
           Fitness (CTL)
@@ -235,6 +235,14 @@ export function FitnessChart({ days }: { days: readonly FitnessHistoryDay[] }) {
     </figure>
   );
 }
+
+/**
+ * The legends line up with the plot's left edge rather than the axis gutter:
+ * the gutter is `CHART_PADDING.left` of the chart's `CHART_WIDTH` viewBox, and
+ * the SVG scales to the figure's width.
+ */
+const LEGEND_INSET = `${((CHART_PADDING.left / CHART_WIDTH) * 100).toFixed(4)}%`;
+const LEGEND_CLASSES = "flex flex-wrap gap-x-4 gap-y-1 text-xs";
 
 /** A line-style legend swatch, drawn on the same white as the plot. */
 function LineSwatch({ className }: { className: string }) {
