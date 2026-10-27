@@ -102,20 +102,22 @@ The resolved `trainingLoad` is copied from the week session into the matching
 `today`/`tomorrow` day plan, so the Day and Week tabs cannot disagree.
 
 Each TSB value also carries a plain-language interpretation, shown after the
-number:
+number. More training is productive until it becomes risky; positive form is
+read together with retained fitness (CTL):
 
-| TSB        | Label        | Colour |
-| ---------- | ------------ | ------ |
-| ≤ −30      | Risk         | red    |
-| −30 to −10 | Unproductive | grey   |
-| −10 to +5  | Productive   | green  |
-| +5 to +20  | Fresh        | blue   |
-| ≥ +20      | Detraining   | orange |
+| TSB   | CTL  | Label        | Colour |
+| ----- | ---- | ------------ | ------ |
+| ≤ −30 | any  | Risk         | red    |
+| < +5  | any  | Productive   | green  |
+| ≥ +5  | ≥ 40 | Fresh        | blue   |
+| ≥ +30 | < 40 | Detraining   | orange |
+| ≥ +5  | < 40 | Unproductive | grey   |
 
-For example: `TSS 85 · ATL 29 · CTL 9 · TSB -20 · Unproductive`. The
-interpretation is derived from the TSB value in the shared schema module and
-rendered with the app's theme tokens (`--form-risk`, `--form-productive`, and
-so on), so it follows the dark palette.
+For example: `TSS 30 · ATL 18 · CTL 30 · TSB +12 · Unproductive` or
+`TSS 85 · ATL 65 · CTL 45 · TSB -20 · Productive`. The interpretation is
+derived from the TSB and CTL values in the shared schema module and rendered
+with the app's theme tokens (`--form-risk`, `--form-productive`, and so on), so
+it follows the dark palette.
 
 ## Data model / API impact
 

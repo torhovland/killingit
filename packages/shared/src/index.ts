@@ -173,7 +173,7 @@ export {
   estimatedTssFromSession,
   FORM_INTERPRETATION_LABELS,
   formInterpretationSchema,
-  interpretTrainingStressBalance,
+  interpretTrainingForm,
   normalizedPower,
   powerTrainingStressScore,
   recordedPowerSummary,

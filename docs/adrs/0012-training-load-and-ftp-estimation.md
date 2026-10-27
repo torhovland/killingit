@@ -63,9 +63,11 @@ deterministically would lose the model's judgement for sessions without power.
   and floors the current week's estimate, so a test result is not undercut by an
   older projection. FTP anchors form a timeline; completed weeks before a new
   test are re-interpolated and their TSS/ATL/CTL/TSB are recomputed.
-- TSB is labelled (Risk, Unproductive, Productive, Fresh, Detraining) and
-  coloured in the UI from shared bands, so the number reads as form rather than
-  an unexplained statistic.
+- TSB is labelled and coloured in the UI: more training is Productive until a
+  very negative TSB becomes Risk; positive form with retained fitness is Fresh;
+  positive form with lower fitness is Unproductive, and a long rest that has
+  cost fitness is Detraining. This makes the number read as form rather than an
+  unexplained statistic.
 - ATL/CTL from before the 42-day feed window are unknown, so a new account
   starts at zero and settles over a few weeks. This follows from not adding a
   separate load-history store.

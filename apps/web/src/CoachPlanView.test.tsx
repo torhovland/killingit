@@ -715,16 +715,32 @@ describe("CoachPlanView", () => {
       ...plan,
       today: {
         ...plan.today,
-        trainingLoad: { tss: 85, atl: 29, ctl: 9, tsb: -20 },
+        trainingLoad: { tss: 20, atl: 18, ctl: 30, tsb: 12 },
       },
     };
 
     const html = renderToStaticMarkup(<CoachPlanView plan={loadedPlan} />);
 
-    expect(html).toContain("TSS 85");
-    expect(html).toContain("TSB -20");
+    expect(html).toContain("TSS 20");
+    expect(html).toContain("TSB +12");
     expect(html).toContain("Unproductive");
     expect(html).toContain("text-form-unproductive");
+  });
+
+  it("marks a very high fatigue balance as risk", () => {
+    const loadedPlan: CoachPlan = {
+      ...plan,
+      today: {
+        ...plan.today,
+        trainingLoad: { tss: 120, atl: 70, ctl: 40, tsb: -30 },
+      },
+    };
+
+    const html = renderToStaticMarkup(<CoachPlanView plan={loadedPlan} />);
+
+    expect(html).toContain("TSB -30");
+    expect(html).toContain("Risk");
+    expect(html).toContain("text-form-risk");
   });
 
   it("shows estimated FTP on the block and season tabs", () => {

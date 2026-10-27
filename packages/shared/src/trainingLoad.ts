@@ -37,30 +37,33 @@ export const FORM_INTERPRETATION_LABELS: Record<FormInterpretation, string> = {
 };
 
 /**
- * Reads the training stress balance as a plain-language form state.
+ * Reads the training stress balance and fitness as a plain-language form
+ * state. More training is good until it becomes risky:
  *
- * The bands are deliberately symmetric around ordinary training: a TSB of
- * −30 or lower means the athlete is carrying a lot of fatigue and is at risk;
- * −30 to −10 is unproductive (still building fatigue without much room to
- * absorb it); −10 to +5 is the productive training band; +5 to +20 is fresh;
- * and above +20 means the athlete has detrained or is fully rested.
+ * - TSB at or below −30 means too much fatigue: risk.
+ * - TSB below +5 means the athlete is training and absorbing the load:
+ *   productive.
+ * - Positive TSB means little recent training. With retained fitness (CTL
+ *   ≥ 40) that is fresh; with lower fitness it is unproductive, and a very
+ *   high TSB with lower fitness means detraining.
  */
-export function interpretTrainingStressBalance(
-  tsb: number,
-): FormInterpretation {
-  if (tsb <= -30) {
+export function interpretTrainingForm(load: {
+  tsb: number;
+  ctl: number;
+}): FormInterpretation {
+  if (load.tsb <= -30) {
     return "risk";
   }
-  if (tsb < -10) {
-    return "unproductive";
-  }
-  if (tsb < 5) {
+  if (load.tsb < 5) {
     return "productive";
   }
-  if (tsb < 20) {
+  if (load.ctl >= 40) {
     return "fresh";
   }
-  return "detraining";
+  if (load.tsb >= 30) {
+    return "detraining";
+  }
+  return "unproductive";
 }
 
 /** Time constant of the acute (fatigue) load. */
