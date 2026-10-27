@@ -9,13 +9,16 @@ export const FORM_TEXT_CLASSES: Record<FormInterpretation, string> = {
   detraining: "text-form-detraining",
 };
 
-/** Zone fill for the fitness chart, soft enough for lines to stay readable. */
+/**
+ * Zone fill for the fitness chart. Painted solid on the white plot so each band
+ * matches its legend swatch exactly.
+ */
 export const FORM_FILL_CLASSES: Record<FormInterpretation, string> = {
-  risk: "fill-form-risk/20",
-  productive: "fill-form-productive/20",
-  maintaining: "fill-form-maintaining/20",
-  fresh: "fill-form-fresh/20",
-  detraining: "fill-form-detraining/20",
+  risk: "fill-form-risk",
+  productive: "fill-form-productive",
+  maintaining: "fill-form-maintaining",
+  fresh: "fill-form-fresh",
+  detraining: "fill-form-detraining",
 };
 
 /** Swatch for the chart legend. */

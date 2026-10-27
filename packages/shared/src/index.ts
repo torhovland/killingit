@@ -185,9 +185,11 @@ export {
 } from "./trainingLoad.js";
 
 export {
+  fitnessDayActivitySchema,
   fitnessHistoryDaySchema,
   fitnessHistoryResponseSchema,
   ftpHistoryPointSchema,
+  type FitnessDayActivity,
   type FitnessHistoryDay,
   type FitnessHistoryResponse,
   type FtpHistoryPoint,

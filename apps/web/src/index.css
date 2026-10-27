@@ -89,6 +89,12 @@
   --form-detraining: #e6b86b;
   --border: color-mix(in srgb, var(--palette-mist) 24%, var(--palette-purple));
   --ring: var(--palette-sage);
+  /* Chart surface. The TSB zone bands are painted on white so they read at the
+   * same strength as their legend swatches; the lines use these inks so they
+   * stay readable on a light plot. */
+  --chart-plot: #ffffff;
+  --chart-ink: var(--palette-plum);
+  --chart-ink-muted: var(--palette-slate);
 
   color-scheme: dark;
 }
@@ -130,6 +136,9 @@
   --color-form-detraining: var(--form-detraining);
   --color-border: var(--border);
   --color-ring: var(--ring);
+  --color-chart-plot: var(--chart-plot);
+  --color-chart-ink: var(--chart-ink);
+  --color-chart-ink-muted: var(--chart-ink-muted);
 }
 
 @layer base {

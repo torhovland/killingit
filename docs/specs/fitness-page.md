@@ -21,10 +21,12 @@ and activity views.
 2. A new day-by-day estimated-FTP series for the same window.
 3. A `Fitness` page with a fitness/form chart, a coloured TSB zone legend using
    the existing interpretation colours, and an estimated-FTP chart.
+4. A hover card on the fitness chart showing the pointed-at day's numbers and
+   the activities logged that day.
 
 ### Out of scope (deferred)
 
-- Interactive charts (hover tooltips, zooming, brushing).
+- Zooming and brushing on the charts.
 - Selecting an arbitrary date range in the UI. The API accepts a window length;
   the page always asks for the default.
 - Persisting load history beyond the Garmin sync window (42 days) and the
@@ -56,6 +58,14 @@ The ATL/CTL recurrence is seeded 42 days before the window start (rest days
 count as zero), so the chart and the Activities page agree for the same date.
 `TSB = CTL − ATL`, as in the plan views.
 
+### Activities per day
+
+Each day carries the activities logged on it, for the chart's hover card:
+imported activities with their name, raw type, and moving time in minutes; then
+manual entries with the athlete's description and the type `manual`. An activity
+without a name falls back to its formatted type, and a missing duration is left
+out. Days without activities return an empty list.
+
 ### FTP series
 
 For each day, the estimated FTP is:
@@ -72,9 +82,10 @@ the FTP chart.
 
 Shared (`@killingit/shared`):
 
-- `fitness.ts`: `fitnessHistoryDaySchema` (`date` plus the existing
-  `trainingLoadSchema`), `ftpHistoryPointSchema` (`date`, `watts`), and
-  `fitnessHistoryResponseSchema` (`days`, `ftp`).
+- `fitness.ts`: `fitnessDayActivitySchema` (`id`, `name`, `type`, optional
+  `durationMinutes`), `fitnessHistoryDaySchema` (`date`, the existing
+  `trainingLoadSchema`, and `activities`), `ftpHistoryPointSchema` (`date`,
+  `watts`), and `fitnessHistoryResponseSchema` (`days`, `ftp`).
 - `trainingLoad.ts`: `FORM_ZONES`, the TSB bands (`from` inclusive, `to`
   exclusive) used to shade the chart. The band colours stay in the web theme
   (`--form-*`), so they cannot drift from the interpretation text.
@@ -95,6 +106,12 @@ API:
   fitness/form chart with CTL, ATL, and TSB lines over coloured TSB zone bands,
   a legend naming each zone with its threshold and colour, and an estimated-FTP
   step chart.
+- The plot is white and the zone bands are painted solid, so every band matches
+  its legend swatch exactly. The lines use the chart ink tokens
+  (`--chart-ink`, `--chart-ink-muted`) for contrast on the light plot.
+- Pointing at (or tapping) the fitness chart marks the nearest day with a guide
+  line and shows a card with the date, the load numbers and interpretation, and
+  the activities logged that day.
 - The charts are static SVG (no new dependency), scale with the page width, and
   carry an accessible title.
 - Loading, error, and (when there is no planned or recorded training) empty
@@ -109,18 +126,23 @@ API:
 3. A day's TSS comes from measured power, then the coach estimate, then the
    manual entry, matching the Activities page.
 4. The TSB zone bands and the legend use the same colours as the interpretation
-   text (`--form-risk`, `--form-productive`, …).
+   text (`--form-risk`, `--form-productive`, …), and the bands are painted solid
+   on a white plot so they match the swatches.
 5. The FTP chart plots the coach's weekly estimate inside the stored block and
    the athlete's stated/tested values elsewhere, and is hidden without an FTP.
-6. The page is reachable from the account menu and renders today's load line.
-7. Typecheck, lint, format, and tests pass.
+6. Pointing at a day of the fitness chart shows that day's numbers and the
+   activities logged on it, if any.
+7. The page is reachable from the account menu and renders today's load line.
+8. Typecheck, lint, format, and tests pass.
 
 ## Testing
 
 - Shared: no new schema behaviour beyond the existing training-load tests;
   `FORM_ZONES` is exercised through the web chart tests.
 - API unit tests for `buildFitnessHistory`: continuous days, TSS precedence,
-  manual entries, plan TSS, FTP weekly estimate vs. timeline, and no FTP.
+  manual entries, plan TSS, FTP weekly estimate vs. timeline, no FTP, and the
+  activities listed per day.
 - API route tests: auth, missing date, day clamping, and the happy path.
-- Web unit tests for the chart scale helpers and a render test for the page
-  view (load line, zone legend, both charts, hidden FTP chart).
+- Web unit tests for the chart scale helpers, a render test for the page view
+  (load line, zone legend, both charts, hidden FTP chart), and a render test for
+  the hover card.

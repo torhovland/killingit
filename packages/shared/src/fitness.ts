@@ -2,9 +2,27 @@ import { z } from "zod";
 import { planDateSchema } from "./plan.js";
 import { trainingLoadSchema } from "./trainingLoad.js";
 
-/** One day of the fitness chart: the date plus its resolved training load. */
+/**
+ * One activity logged on a day of the fitness chart, shown when the athlete
+ * points at that day. Imported activities carry a name and duration; manual
+ * entries carry the athlete's own description.
+ */
+export const fitnessDayActivitySchema = z.object({
+  /** Stable key, e.g. `activity-1234` or `manual-7`. */
+  id: z.string().min(1),
+  name: z.string().min(1),
+  /** The raw activity type, formatted for display by the web app. */
+  type: z.string().min(1),
+  /** Time spent in minutes, when the source knows it. */
+  durationMinutes: z.number().int().nonnegative().optional(),
+});
+
+export type FitnessDayActivity = z.infer<typeof fitnessDayActivitySchema>;
+
+/** One day of the fitness chart: the date, its load, and what was done. */
 export const fitnessHistoryDaySchema = trainingLoadSchema.extend({
   date: planDateSchema,
+  activities: z.array(fitnessDayActivitySchema).default([]),
 });
 
 export type FitnessHistoryDay = z.infer<typeof fitnessHistoryDaySchema>;

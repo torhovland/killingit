@@ -8,9 +8,30 @@ function history(
 ): FitnessHistoryResponse {
   return {
     days: [
-      { date: "2026-10-20", tss: 0, atl: 20, ctl: 40, tsb: 20 },
-      { date: "2026-10-21", tss: 80, atl: 28.6, ctl: 41, tsb: 12.4 },
-      { date: "2026-10-22", tss: 60, atl: 33.1, ctl: 41.5, tsb: 8.4 },
+      { date: "2026-10-20", tss: 0, atl: 20, ctl: 40, tsb: 20, activities: [] },
+      {
+        date: "2026-10-21",
+        tss: 80,
+        atl: 28.6,
+        ctl: 41,
+        tsb: 12.4,
+        activities: [],
+      },
+      {
+        date: "2026-10-22",
+        tss: 60,
+        atl: 33.1,
+        ctl: 41.5,
+        tsb: 8.4,
+        activities: [
+          {
+            id: "activity-1",
+            name: "Morning ride",
+            type: "cycling",
+            durationMinutes: 60,
+          },
+        ],
+      },
     ],
     ftp: [
       { date: "2026-10-20", watts: 250 },

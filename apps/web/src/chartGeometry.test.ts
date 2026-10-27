@@ -8,6 +8,7 @@ import {
   chartScale,
   formatChartDate,
   formatZoneRange,
+  indexAt,
   labelIndices,
   linePath,
   niceDomain,
@@ -38,22 +39,26 @@ describe("chartScale", () => {
 });
 
 describe("niceDomain", () => {
-  it("pads the values and rounds to the step", () => {
-    expect(niceDomain([12, 78])).toEqual({ min: 0, max: 90 });
+  it("pads the values and rounds to a tick boundary", () => {
+    expect(niceDomain([12, 78])).toEqual({ min: 0, max: 100 });
   });
 
   it("gives flat data a readable span", () => {
-    expect(niceDomain([250, 250])).toEqual({ min: 240, max: 260 });
+    expect(niceDomain([250, 250])).toEqual({ min: 230, max: 270 });
   });
 
   it("falls back to a default span with no values", () => {
-    expect(niceDomain([])).toEqual({ min: 0, max: 10 });
+    expect(niceDomain([])).toEqual({ min: 0, max: 20 });
   });
 });
 
 describe("axisTicks", () => {
-  it("includes both edges of the domain", () => {
+  it("lands on round numbers", () => {
     expect(axisTicks({ min: 0, max: 100 }, 4)).toEqual([0, 25, 50, 75, 100]);
+    expect(axisTicks({ min: -50, max: 100 }, 4)).toEqual([-50, 0, 50, 100]);
+    expect(axisTicks({ min: 230, max: 270 }, 4)).toEqual([
+      230, 240, 250, 260, 270,
+    ]);
   });
 });
 
@@ -63,6 +68,21 @@ describe("labelIndices", () => {
     expect(labelIndices(3)).toEqual([0, 1, 2]);
     expect(labelIndices(1)).toEqual([0]);
     expect(labelIndices(0)).toEqual([]);
+  });
+});
+
+describe("indexAt", () => {
+  it("snaps a pointer position to the nearest day", () => {
+    expect(indexAt(0, 5)).toBe(0);
+    expect(indexAt(0.2, 5)).toBe(1);
+    expect(indexAt(0.5, 5)).toBe(2);
+    expect(indexAt(1, 5)).toBe(4);
+    expect(indexAt(1.4, 5)).toBe(4);
+    expect(indexAt(-0.3, 5)).toBe(0);
+  });
+
+  it("stays on the only day of a one-point chart", () => {
+    expect(indexAt(0.7, 1)).toBe(0);
   });
 });
 

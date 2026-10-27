@@ -168,6 +168,37 @@ describe("buildFitnessHistory", () => {
     expect(manual.days.find((day) => day.date === "2026-10-20")?.tss).toBe(120);
   });
 
+  it("lists the activities and manual entries logged on each day", () => {
+    const history = buildFitnessHistory({
+      ...base,
+      activities: [
+        activity({ id: 7, name: "Morning ride", type: "indoor_cycling" }),
+        activity({ id: 8, name: "", type: "running", movingTime: 0 }),
+      ],
+      manualActivities: [
+        { id: 3, startDate: "2026-10-20", details: "Gym session" },
+      ],
+    });
+
+    expect(
+      history.days.find((day) => day.date === "2026-10-20")?.activities,
+    ).toEqual([
+      {
+        id: "activity-7",
+        name: "Morning ride",
+        type: "indoor_cycling",
+        durationMinutes: 60,
+      },
+      // An unnamed activity falls back to its formatted type, and a missing
+      // duration is left out rather than shown as zero.
+      { id: "activity-8", name: "Running", type: "running" },
+      { id: "manual-3", name: "Gym session", type: "manual" },
+    ]);
+    expect(
+      history.days.find((day) => day.date === "2026-10-21")?.activities,
+    ).toEqual([]);
+  });
+
   it("keeps TSB equal to CTL minus ATL on every day", () => {
     const history = buildFitnessHistory({
       ...base,

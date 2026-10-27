@@ -1,4 +1,5 @@
 import type { CoachPlan } from "@killingit/shared";
+import type { ManualActivityContext } from "../llm/planContext.js";
 import { startOfWeek } from "../plans/dates.js";
 import { loadCoachingInputs, type CoachingInputs } from "../plans/inputs.js";
 import { latestAnswerTimestamp } from "../plans/status.js";
@@ -12,6 +13,8 @@ export interface TrainingContext {
   planTssByDate: Map<string, number>;
   /** The summed manual estimate for each day that has manual entries. */
   manualTssByDate: Map<string, number>;
+  /** The athlete's manual entries, in the order they were loaded. */
+  manualActivities: readonly ManualActivityContext[];
 }
 
 /**
@@ -40,6 +43,7 @@ export async function loadTrainingContext(
     }),
     planTssByDate: planTssByDate(plan),
     manualTssByDate: manualTssByDate(coachingInputs),
+    manualActivities: coachingInputs.manualActivities,
   };
 }
 

@@ -34,21 +34,28 @@ export function FtpChart({ points }: { points: readonly FtpHistoryPoint[] }) {
       </figcaption>
       <svg
         viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-        className="h-auto w-full"
+        className="h-auto w-full overflow-hidden rounded-md"
         role="img"
         aria-label="Estimated FTP chart"
         data-testid="ftp-chart"
       >
         <title>{`Estimated FTP over the last ${points.length} days`}</title>
+        <rect
+          x={0}
+          y={0}
+          width={CHART_WIDTH}
+          height={CHART_HEIGHT}
+          className="fill-chart-plot"
+        />
         <g transform={`translate(${CHART_PADDING.left} ${CHART_PADDING.top})`}>
-          {axisTicks(domain, 2).map((tick) => (
+          {axisTicks(domain).map((tick) => (
             <line
               key={tick}
               x1={0}
               x2={scale.plotWidth}
               y1={scale.y(tick)}
               y2={scale.y(tick)}
-              className="stroke-border"
+              className="stroke-chart-ink-muted/20"
               strokeWidth={0.5}
             />
           ))}
@@ -57,18 +64,18 @@ export function FtpChart({ points }: { points: readonly FtpHistoryPoint[] }) {
               points.map((point) => point.watts),
               scale,
             )}
-            className="fill-none stroke-primary"
+            className="fill-none stroke-chart-ink"
             strokeWidth={2}
           />
         </g>
-        {axisTicks(domain, 2).map((tick) => (
+        {axisTicks(domain).map((tick) => (
           <text
             key={tick}
             x={CHART_PADDING.left - 6}
             y={CHART_PADDING.top + scale.y(tick)}
             textAnchor="end"
             dominantBaseline="middle"
-            className="fill-muted-foreground text-[10px]"
+            className="fill-chart-ink-muted text-[10px]"
           >
             {Math.round(tick)} W
           </text>
@@ -90,7 +97,7 @@ export function FtpChart({ points }: { points: readonly FtpHistoryPoint[] }) {
                     ? "end"
                     : "middle"
               }
-              className="fill-muted-foreground text-[10px]"
+              className="fill-chart-ink-muted text-[10px]"
             >
               {formatChartDate(point.date)}
             </text>

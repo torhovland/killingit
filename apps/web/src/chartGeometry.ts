@@ -45,30 +45,61 @@ export function chartScale(
 }
 
 /**
- * A y domain that covers every value with 10% breathing room and lands on
- * round `step` boundaries, so the axis ticks read as whole numbers.
+ * A y domain that covers every value with breathing room and lands on round
+ * tick boundaries, so the axis reads as whole numbers. `minSpan` keeps a flat
+ * series from filling the plot with a two-watt range.
  */
-export function niceDomain(values: readonly number[], step = 10): Domain {
+export function niceDomain(
+  values: readonly number[],
+  options: { minSpan?: number; tickCount?: number } = {},
+): Domain {
+  const { minSpan = 20, tickCount = 4 } = options;
   const finite = values.filter((value) => Number.isFinite(value));
   if (finite.length === 0) {
-    return { min: 0, max: step };
+    return { min: 0, max: minSpan };
   }
-  const lowest = Math.min(...finite);
-  const highest = Math.max(...finite);
-  const padding = Math.max(highest - lowest, step) * 0.1;
+  let lowest = Math.min(...finite);
+  let highest = Math.max(...finite);
+  if (highest - lowest < minSpan) {
+    const middle = (lowest + highest) / 2;
+    lowest = middle - minSpan / 2;
+    highest = middle + minSpan / 2;
+  }
+  const padding = (highest - lowest) * 0.05;
+  const step = tickStep(highest - lowest + padding * 2, tickCount);
   return {
     min: Math.floor((lowest - padding) / step) * step,
     max: Math.ceil((highest + padding) / step) * step,
   };
 }
 
-/** Evenly spaced y-axis ticks, including both edges of the domain. */
+/**
+ * Y-axis ticks on a round step (1, 2, 5, 10, 20, 50, …), so the labels never
+ * show fractions of a watt or a load point.
+ */
 export function axisTicks(domain: Domain, count = 4): number[] {
+  const step = tickStep(domain.max - domain.min, count);
   const ticks: number[] = [];
-  for (let index = 0; index <= count; index += 1) {
-    ticks.push(domain.min + ((domain.max - domain.min) * index) / count);
+  for (
+    let value = Math.ceil(domain.min / step) * step;
+    value <= domain.max + step / 1000;
+    value += step
+  ) {
+    ticks.push(Math.round(value * 1000) / 1000);
   }
   return ticks;
+}
+
+/** The round step closest to `span / count` at or above it. */
+function tickStep(span: number, count: number): number {
+  const raw = span / Math.max(1, count);
+  if (!(raw > 0)) {
+    return 1;
+  }
+  const magnitude = 10 ** Math.floor(Math.log10(raw));
+  const normalised = raw / magnitude;
+  const factor = [1, 2, 2.5, 5, 10].find((step) => normalised <= step) ?? 10;
+  return factor * magnitude;
 }
 
 /** Up to `max` evenly spaced point indices, including the first and last. */
@@ -84,6 +115,18 @@ export function labelIndices(count: number, max = 4): number[] {
   return [
     ...new Set(Array.from({ length: wanted }, (_, i) => Math.round(i * step))),
   ];
+}
+
+/**
+ * The day index nearest to a pointer position, given as a share of the plot
+ * width (0 at the first day, 1 at the last).
+ */
+export function indexAt(plotFraction: number, count: number): number {
+  if (count <= 1 || !Number.isFinite(plotFraction)) {
+    return 0;
+  }
+  const clamped = Math.min(1, Math.max(0, plotFraction));
+  return Math.round(clamped * (count - 1));
 }
 
 /** The TSB bands clipped to the visible domain, lowest first. */

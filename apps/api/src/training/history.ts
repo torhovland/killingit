@@ -1,14 +1,17 @@
 import {
   CTL_DAYS,
   dailyTrainingLoad,
+  formatActivityType,
   type AnalyzedActivity,
   type BlockWeekSummary,
   type CoachPlan,
+  type FitnessDayActivity,
   type FitnessHistoryDay,
   type FitnessHistoryResponse,
   type FtpHistoryPoint,
   type WeekPlan,
 } from "@killingit/shared";
+import type { ManualActivityContext } from "../llm/planContext.js";
 import { addDays, startOfWeek } from "../plans/dates.js";
 import { activityDayTss, groupActivitiesByDate } from "./activityLoad.js";
 import { loadTrainingContext } from "./context.js";
@@ -42,6 +45,8 @@ export interface FitnessHistoryInput {
   planTssByDate: ReadonlyMap<string, number>;
   /** Summed coach estimate for each day with manual entries. */
   manualTssByDate: ReadonlyMap<string, number>;
+  /** The athlete's manual entries, listed on the day they were logged. */
+  manualActivities?: readonly ManualActivityContext[] | undefined;
 }
 
 /**
@@ -76,15 +81,61 @@ export function buildFitnessHistory(
     endDate,
     tssByDate,
   });
+  const activitiesByDate = activitiesPerDay(
+    input.activities,
+    input.manualActivities ?? [],
+  );
   const days: FitnessHistoryDay[] = [];
   for (let date = startDate; date <= endDate; date = addDays(date, 1)) {
     const load = series.get(date);
     if (load !== undefined) {
-      days.push({ date, ...load });
+      days.push({
+        date,
+        ...load,
+        activities: activitiesByDate.get(date) ?? [],
+      });
     }
   }
 
   return { days, ftp: ftpHistory(input.timeline, input.plan, days) };
+}
+
+/**
+ * The activities logged on each day, for the chart's hover card. Imported
+ * activities come first; manual entries follow with the athlete's description.
+ */
+function activitiesPerDay(
+  activities: readonly AnalyzedActivity[],
+  manualActivities: readonly ManualActivityContext[],
+): Map<string, FitnessDayActivity[]> {
+  const result = new Map<string, FitnessDayActivity[]>();
+  const add = (date: string, entry: FitnessDayActivity): void => {
+    const entries = result.get(date);
+    if (entries === undefined) {
+      result.set(date, [entry]);
+    } else {
+      entries.push(entry);
+    }
+  };
+
+  for (const activity of activities) {
+    add(activity.startDate.slice(0, 10), {
+      id: `activity-${activity.id}`,
+      name: activity.name.trim() || formatActivityType(activity.type),
+      type: activity.type,
+      ...(activity.movingTime > 0
+        ? { durationMinutes: Math.round(activity.movingTime / 60) }
+        : {}),
+    });
+  }
+  for (const manual of manualActivities) {
+    add(manual.startDate, {
+      id: `manual-${manual.id}`,
+      name: manual.details,
+      type: "manual",
+    });
+  }
+  return result;
 }
 
 /** Loads the cached activities and stores the fitness history for the page. */
@@ -104,6 +155,7 @@ export async function loadFitnessHistory(
     timeline: context.timeline,
     planTssByDate: context.planTssByDate,
     manualTssByDate: context.manualTssByDate,
+    manualActivities: context.manualActivities,
   });
 }
 
