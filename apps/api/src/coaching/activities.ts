@@ -33,13 +33,9 @@ import {
   type LlmProvider,
 } from "../llm/openrouter.js";
 import { loadLlmSettings } from "../llm/store.js";
-import { startOfWeek } from "../plans/dates.js";
-import { loadCoachingInputs } from "../plans/inputs.js";
-import { latestAnswerTimestamp } from "../plans/status.js";
 import { dbPlanStore } from "../plans/store.js";
-import { dbQuestionAnswerStore } from "../questions/answers.js";
 import { buildActivityTrainingLoads } from "../training/activityLoad.js";
-import { buildFtpTimeline } from "../training/ftp.js";
+import { loadTrainingContext } from "../training/context.js";
 import { saveCachedActivityFeed } from "./feedCache.js";
 import { routeFromSamples } from "./route.js";
 
@@ -268,54 +264,13 @@ export async function loadUserActivityTrainingLoads(
   activities: readonly AnalyzedActivity[],
   plan: CoachPlan | undefined,
 ): Promise<Map<string, TrainingLoad>> {
-  const planDate = plan?.today.date ?? new Date().toISOString().slice(0, 10);
-  const [answers, coachingInputs] = await Promise.all([
-    dbQuestionAnswerStore.listForUser(userId),
-    loadCoachingInputs(userId, startOfWeek(planDate)),
-  ]);
-  const timeline = buildFtpTimeline({
-    answers,
-    answersUpdatedAt: latestAnswerTimestamp(answers),
-    manualActivities: coachingInputs.manualActivities,
-    activityComments: coachingInputs.activityComments,
-    weeklyNote: coachingInputs.weeklyNote,
-    weeklyNoteUpdatedAt: coachingInputs.weeklyNoteUpdatedAt,
-    periodReviews: coachingInputs.periodReviews,
-  });
-  const tssByDate = planTssByDate(plan);
-  // Manual entries are part of the same load history. Their stored estimates
-  // replace the plan's estimate for the date and are summed when the athlete
-  // logged more than one entry that day.
-  const manualTssByDate = new Map<string, number>();
-  for (const manual of coachingInputs.manualActivities) {
-    if (manual.estimatedTss === null || manual.estimatedTss === undefined) {
-      continue;
-    }
-    manualTssByDate.set(
-      manual.startDate,
-      (manualTssByDate.get(manual.startDate) ?? 0) + manual.estimatedTss,
-    );
-  }
+  const { timeline, planTssByDate, manualTssByDate } =
+    await loadTrainingContext(userId, plan);
+  const tssByDate = new Map(planTssByDate);
   for (const [date, tss] of manualTssByDate) {
     tssByDate.set(date, tss);
   }
   return buildActivityTrainingLoads(activities, timeline, tssByDate);
-}
-
-/** The resolved or coach-estimated TSS for each day the stored plan covers. */
-function planTssByDate(plan: CoachPlan | undefined): Map<string, number> {
-  const result = new Map<string, number>();
-  if (plan === undefined) {
-    return result;
-  }
-  const sessions = [...plan.week.sessions, ...(plan.nextWeek?.sessions ?? [])];
-  for (const session of sessions) {
-    const tss = session.trainingLoad?.tss ?? session.estimatedTss;
-    if (tss !== undefined) {
-      result.set(session.date, tss);
-    }
-  }
-  return result;
 }
 
 /** Attaches the day's resolved training load to an activity for the page. */

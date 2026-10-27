@@ -30,7 +30,7 @@ numbers must agree across the Day, Week, and Block tabs.
 - A user-editable FTP setting. The athlete states FTP in the profile for now.
 - Persisting a multi-season training-load history. ATL/CTL are seeded from the
   recent activity feed (42 days) on each generation.
-- A dedicated load chart. This change adds the numbers, not a graph.
+- A dedicated load chart. Added separately in `docs/specs/fitness-page.md`.
 - Sport-specific threshold models (running pace, swim CSS, rowing).
 
 ## Behaviour
@@ -179,6 +179,9 @@ API:
   each imported activity card and saved manual entry. Imported activities use
   measured power, the stored plan's coach estimate, or the duration fallback;
   manual entries use their stored coach-estimated TSS.
+- **Fitness page** charts the daily CTL, ATL, and TSB with the TSB zone colours
+  and the estimated FTP over the same window; see
+  `docs/specs/fitness-page.md`.
 - Older stored plans and cached activity payloads without the new fields render
   exactly as before.
 
