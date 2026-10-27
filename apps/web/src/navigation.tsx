@@ -1,7 +1,13 @@
 import { createContext, useContext, type ReactNode } from "react";
 
 export type Page =
-  "coach" | "activities" | "seasonReview" | "survey" | "settings" | "admin";
+  | "coach"
+  | "fitness"
+  | "activities"
+  | "seasonReview"
+  | "survey"
+  | "settings"
+  | "admin";
 
 const NavigationContext = createContext<(page: Page) => void>(() => {});
 

@@ -58,6 +58,7 @@ import {
 } from "./questions/answers.js";
 import { adminQuestionsRoute } from "./routes/adminQuestions.js";
 import { createCoachingRoute } from "./routes/coaching.js";
+import { createFitnessRoute } from "./routes/fitness.js";
 import { createGarminRoute } from "./routes/garmin.js";
 import { greet } from "./routes/greet.js";
 import { health } from "./routes/health.js";
@@ -66,6 +67,7 @@ import { createMeRoute } from "./routes/me.js";
 import { createPlanRoute } from "./routes/plan.js";
 import { createQuestionsRoute } from "./routes/questions.js";
 import { createWeatherRoute } from "./routes/weather.js";
+import { loadFitnessHistory } from "./training/history.js";
 import { dbUserStore, type UserStore } from "./users/store.js";
 import type { searchLocations } from "./weather/openMeteo.js";
 
@@ -99,6 +101,7 @@ export interface AppDependencies {
   loadActivities?: (userId: number) => Promise<ActivityFeed>;
   loadCachedFeed?: typeof loadCachedActivityFeed;
   loadActivityTrainingLoads?: typeof loadUserActivityTrainingLoads;
+  loadFitnessHistory?: typeof loadFitnessHistory;
   estimateManualTss?: typeof estimateManualActivityTss;
   loadLlm?: (userId: number) => Promise<LlmClient | null>;
   /** Coaching-input loader, injectable for DB-free route tests. */
@@ -292,6 +295,23 @@ export function createApp(deps: AppDependencies = {}): Hono {
         : {}),
       ...(deps.loadForecast !== undefined
         ? { loadForecast: deps.loadForecast }
+        : {}),
+    }),
+  );
+
+  // The fitness history behind the Fitness page: daily load and the estimated
+  // FTP over a window. Read-only; derived from the cached feed and the plan.
+  api.use("/fitness/*", requireAuth(authProvider));
+  api.route(
+    "/fitness",
+    createFitnessRoute({
+      users: userStore,
+      plans: planStore,
+      ...(deps.loadCachedFeed !== undefined
+        ? { loadCachedFeed: deps.loadCachedFeed }
+        : {}),
+      ...(deps.loadFitnessHistory !== undefined
+        ? { loadHistory: deps.loadFitnessHistory }
         : {}),
     }),
   );

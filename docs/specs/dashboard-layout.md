@@ -12,8 +12,8 @@ header, outstanding activities, the plan, and the inputs that shape it.
 - The account menu is opened from a visible hamburger button. The user's first
   name, optional round avatar, `Admin` badge, and the status spinner sit next to
   the hamburger icon, not inside the menu.
-- The menu links to the coaching dashboard, activities, coaching survey,
-  settings, admin settings (admins only), and sign out.
+- The menu links to the coaching dashboard, fitness, activities, season review,
+  coaching survey, settings, admin settings (admins only), and sign out.
 - The spinner reports `loading`, `syncing`, or `thinking` across any page.
 - Saving a comment, a weekly note, or a by-the-way question shows the header
   spinner and a spinner inside the submit button until the request settles.
@@ -51,6 +51,13 @@ has a delete action.
 
 `No comment` records an acknowledgement in `activity_reviews`, which is a UI
 concern only and does not affect plan staleness.
+
+## Fitness page
+
+Today's training-stress line, a fitness/form chart (CTL, ATL, and TSB over the
+TSB zone colours), a zone legend using the interpretation colours, and the
+estimated FTP over the same window. The data comes from `GET /api/fitness`; see
+`docs/specs/fitness-page.md`.
 
 ## Settings page
 

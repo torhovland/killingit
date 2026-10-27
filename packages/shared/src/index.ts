@@ -172,6 +172,7 @@ export {
   dailyTrainingLoad,
   estimatedTssFromSession,
   FORM_INTERPRETATION_LABELS,
+  FORM_ZONES,
   formInterpretationSchema,
   interpretTrainingStressBalance,
   normalizedPower,
@@ -179,8 +180,18 @@ export {
   recordedPowerSummary,
   trainingLoadSchema,
   type FormInterpretation,
+  type FormZone,
   type TrainingLoad,
 } from "./trainingLoad.js";
+
+export {
+  fitnessHistoryDaySchema,
+  fitnessHistoryResponseSchema,
+  ftpHistoryPointSchema,
+  type FitnessHistoryDay,
+  type FitnessHistoryResponse,
+  type FtpHistoryPoint,
+} from "./fitness.js";
 
 export {
   periodReviewCommentRequestSchema,

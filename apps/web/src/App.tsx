@@ -8,6 +8,7 @@ import { CoachingSurveyPage } from "./CoachingSurveyPage";
 import { useAuth } from "./auth";
 import { AthleteQuestionsForm } from "./AthleteQuestionsForm";
 import { fetchJsonAuthed } from "./fetchAuthed";
+import { FitnessPage } from "./FitnessPage";
 import { NavigationProvider, type Page } from "./navigation";
 import { reportError } from "./reportError";
 import { SeasonReviewPage } from "./SeasonReviewPage";
@@ -21,6 +22,7 @@ const API_URL = import.meta.env.VITE_API_URL ?? "";
 
 const PAGE_LABELS: Record<Page, string> = {
   coach: "Coach",
+  fitness: "Fitness",
   activities: "Activities",
   seasonReview: "Season review",
   survey: "Coaching survey",
@@ -177,6 +179,8 @@ function AppShell() {
                 questions={questions.questions}
                 onSubmit={handleAnswersSaved}
               />
+            ) : page === "fitness" ? (
+              <FitnessPage />
             ) : page === "activities" ? (
               <ActivitiesPage />
             ) : page === "seasonReview" ? (
@@ -297,7 +301,14 @@ function UserMenu({
         aria-label="Account"
       >
         {(
-          ["coach", "activities", "seasonReview", "survey", "settings"] as const
+          [
+            "coach",
+            "fitness",
+            "activities",
+            "seasonReview",
+            "survey",
+            "settings",
+          ] as const
         ).map((entry) => (
           <button
             key={entry}
