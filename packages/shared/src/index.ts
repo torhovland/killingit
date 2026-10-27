@@ -185,13 +185,20 @@ export {
 } from "./trainingLoad.js";
 
 export {
+  DEFAULT_FITNESS_RANGE,
+  FITNESS_RANGE_LABELS,
+  FITNESS_RANGES,
   fitnessDayActivitySchema,
+  fitnessDayPlanSchema,
   fitnessHistoryDaySchema,
   fitnessHistoryResponseSchema,
+  fitnessRangeSchema,
   ftpHistoryPointSchema,
   type FitnessDayActivity,
+  type FitnessDayPlan,
   type FitnessHistoryDay,
   type FitnessHistoryResponse,
+  type FitnessRange,
   type FtpHistoryPoint,
 } from "./fitness.js";
 

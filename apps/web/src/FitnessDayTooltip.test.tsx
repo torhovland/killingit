@@ -11,6 +11,7 @@ function day(overrides: Partial<FitnessHistoryDay> = {}): FitnessHistoryDay {
     ctl: 41.5,
     tsb: 8.4,
     activities: [],
+    planned: null,
     ...overrides,
   };
 }
@@ -61,7 +62,38 @@ describe("FitnessDayTooltip", () => {
     expect(html).toContain("Manual");
   });
 
-  it("says so when nothing was logged", () => {
+  it("names the planned workout when nothing was logged", () => {
+    const html = renderToStaticMarkup(
+      <FitnessDayTooltip
+        day={day({
+          planned: { title: "Endurance ride", durationMinutes: 90 },
+        })}
+      />,
+    );
+
+    expect(html).toContain("Planned:");
+    expect(html).toContain("Endurance ride");
+    expect(html).toContain("90 min");
+    expect(html).not.toContain("No activities recorded");
+  });
+
+  it("prefers what was logged over the plan", () => {
+    const html = renderToStaticMarkup(
+      <FitnessDayTooltip
+        day={day({
+          activities: [
+            { id: "activity-1", name: "Morning ride", type: "cycling" },
+          ],
+          planned: { title: "Endurance ride", durationMinutes: 90 },
+        })}
+      />,
+    );
+
+    expect(html).toContain("Morning ride");
+    expect(html).not.toContain("Planned:");
+  });
+
+  it("says so when nothing was logged and nothing is planned", () => {
     const html = renderToStaticMarkup(<FitnessDayTooltip day={day()} />);
 
     expect(html).toContain("No activities recorded");

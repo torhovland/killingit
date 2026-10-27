@@ -4,9 +4,9 @@ import { buildActivityTrainingLoads } from "./activityLoad.js";
 import { buildFtpTimeline } from "./ftp.js";
 import {
   buildFitnessHistory,
-  clampFitnessDays,
+  earliestRecordedDate,
   fitnessWindow,
-  FITNESS_PROJECTION_DAYS,
+  FITNESS_RANGE_DAYS,
 } from "./history.js";
 
 const timeline = buildFtpTimeline({
@@ -106,7 +106,7 @@ function plan(overrides: Partial<CoachPlan> = {}): CoachPlan {
 
 const base = {
   today: "2026-10-22",
-  days: 7,
+  range: "week" as const,
   activities: [] as readonly AnalyzedActivity[],
   timeline,
   plan: plan(),
@@ -114,22 +114,85 @@ const base = {
   manualTssByDate: new Map<string, number>(),
 };
 
-describe("clampFitnessDays", () => {
-  it("keeps the window within the supported range", () => {
-    expect(clampFitnessDays(1)).toBe(7);
-    expect(clampFitnessDays(90)).toBe(90);
-    expect(clampFitnessDays(10_000)).toBe(365);
-    expect(clampFitnessDays(Number.NaN)).toBe(90);
+describe("fitnessWindow", () => {
+  it("starts the fixed ranges the right distance back", () => {
+    expect(fitnessWindow({ today: "2026-10-22", range: "week" })).toEqual({
+      startDate: "2026-10-16",
+      endDate: "2026-10-22",
+    });
+    expect(
+      fitnessWindow({ today: "2026-10-22", range: "month" }).startDate,
+    ).toBe("2026-09-23");
+    expect(
+      fitnessWindow({ today: "2026-10-22", range: "quarter" }).startDate,
+    ).toBe("2026-07-25");
+    expect(
+      fitnessWindow({ today: "2026-10-22", range: "year" }).startDate,
+    ).toBe("2025-10-23");
+    expect(FITNESS_RANGE_DAYS.week).toBe(7);
+  });
+
+  it("starts 'all' at the first recorded activity", () => {
+    expect(
+      fitnessWindow({
+        today: "2026-10-22",
+        range: "all",
+        earliestDate: "2025-03-04",
+      }).startDate,
+    ).toBe("2025-03-04");
+    // Nothing recorded yet: fall back to the past week.
+    expect(fitnessWindow({ today: "2026-10-22", range: "all" }).startDate).toBe(
+      "2026-10-16",
+    );
+  });
+
+  it("ends where the planned workouts end", () => {
+    expect(fitnessWindow({ today: "2026-10-21", range: "week" }).endDate).toBe(
+      "2026-10-21",
+    );
+
+    const laterPlan: CoachPlan = {
+      ...plan(),
+      week: {
+        ...plan().week,
+        sessions: plan().week.sessions.map((session, index) => ({
+          ...session,
+          date: `2026-12-${String(25 + index)}`,
+        })),
+      },
+    };
+    expect(
+      fitnessWindow({
+        today: "2026-10-21",
+        range: "week",
+        plan: laterPlan,
+      }).endDate,
+    ).toBe("2026-12-31");
+  });
+});
+
+describe("earliestRecordedDate", () => {
+  it("takes the first imported or manual entry", () => {
+    expect(
+      earliestRecordedDate(
+        [activity({ startDate: "2026-10-20T09:00:00Z" })],
+        [
+          { id: 1, startDate: "2026-09-02", details: "Old gym session" },
+          { id: 2, startDate: "2026-10-01", details: "Newer" },
+        ],
+      ),
+    ).toBe("2026-09-02");
+    expect(earliestRecordedDate([], [])).toBeNull();
   });
 });
 
 describe("buildFitnessHistory", () => {
-  it("returns one day per calendar day, a month past today", () => {
+  it("returns one day per calendar day for the chosen range", () => {
     const history = buildFitnessHistory({ ...base, plan: undefined });
 
-    expect(history.days).toHaveLength(7 + FITNESS_PROJECTION_DAYS);
+    expect(history.days).toHaveLength(7);
     expect(history.days[0]?.date).toBe("2026-10-16");
-    expect(history.days.at(-1)?.date).toBe("2026-11-21");
+    expect(history.days.at(-1)?.date).toBe("2026-10-22");
   });
 
   it("matches the activity load series for the same date", () => {
@@ -217,26 +280,20 @@ describe("buildFitnessHistory", () => {
     }
   });
 
-  it("projects the month ahead and follows the plan when it runs later", () => {
-    expect(fitnessWindow("2026-10-21", 7).endDate).toBe("2026-11-20");
+  it("carries the plan's session on the days it covers", () => {
+    const history = buildFitnessHistory(base);
 
-    const laterPlan: CoachPlan = {
-      ...plan(),
-      week: {
-        ...plan().week,
-        sessions: plan().week.sessions.map((session, index) => ({
-          ...session,
-          date: `2026-12-${String(25 + index)}`,
-        })),
-      },
-    };
-    expect(fitnessWindow("2026-10-21", 7, laterPlan).endDate).toBe(
-      "2026-12-31",
-    );
+    expect(
+      history.days.find((day) => day.date === "2026-10-22")?.planned,
+    ).toEqual({ title: "Ride", durationMinutes: 60 });
+    // Days before the plan's first session have no planned workout.
+    expect(
+      history.days.find((day) => day.date === "2026-10-16")?.planned,
+    ).toBeNull();
   });
 
   it("plots the coach's weekly estimate inside the plan and the stated FTP before it", () => {
-    const history = buildFitnessHistory({ ...base, days: 14 });
+    const history = buildFitnessHistory({ ...base, range: "month" });
 
     expect(ftpOn(history.ftp, "2026-10-15")).toBe(250);
     expect(ftpOn(history.ftp, "2026-10-19")).toBe(255);

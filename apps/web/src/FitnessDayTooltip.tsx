@@ -26,7 +26,15 @@ export function FitnessDayTooltip({
         )}
       </p>
       <TrainingLoadLine load={day} />
-      {day.activities.length === 0 ? (
+      {day.activities.length === 0 && day.planned !== null ? (
+        <p className="text-muted-foreground">
+          Planned:{" "}
+          <span className="font-medium text-foreground">
+            {day.planned.title}
+          </span>{" "}
+          · {day.planned.durationMinutes} min
+        </p>
+      ) : day.activities.length === 0 ? (
         <p className="text-muted-foreground">No activities recorded</p>
       ) : (
         <ul className="flex flex-col gap-0.5">

@@ -12,6 +12,7 @@ function day(date: string, overrides: Partial<FitnessHistoryDay> = {}) {
     ctl: 40,
     tsb: 10,
     activities: [],
+    planned: null,
     ...overrides,
   } satisfies FitnessHistoryDay;
 }

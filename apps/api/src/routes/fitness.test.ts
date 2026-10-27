@@ -159,12 +159,12 @@ function makeApp(options: { plan?: CoachPlan | null } = {}) {
       activities,
       storedPlan,
       today,
-      days,
+      range,
     ): Promise<FitnessHistoryResponse> =>
       Promise.resolve(
         buildFitnessHistory({
           today,
-          days,
+          range,
           activities,
           plan: storedPlan,
           timeline,
@@ -199,40 +199,49 @@ describe("fitness route", () => {
     expect(res.status).toBe(400);
   });
 
+  it("rejects an unknown range", async () => {
+    const res = await makeApp().fetch(
+      authenticatedRequest("/api/fitness?today=2026-10-22&range=decade"),
+    );
+    expect(res.status).toBe(400);
+  });
+
   it("returns the daily load and FTP series", async () => {
     const res = await makeApp().fetch(
-      authenticatedRequest("/api/fitness?today=2026-10-22&days=7"),
+      authenticatedRequest("/api/fitness?today=2026-10-22&range=week"),
     );
 
     expect(res.status).toBe(200);
     const body = (await res.json()) as FitnessHistoryResponse;
-    // The chart shows a week of history plus a month of projection.
-    expect(body.days).toHaveLength(37);
+    // A week back, plus the planned days of the stored week.
+    expect(body.days).toHaveLength(10);
     expect(body.days[0]?.date).toBe("2026-10-16");
-    expect(body.days.at(-1)?.date).toBe("2026-11-21");
-    // Past the plan's last week, the estimate falls back to the stated FTP.
-    expect(body.ftp.at(-1)).toEqual({ date: "2026-11-21", watts: 250 });
+    expect(body.days.at(-1)?.date).toBe("2026-10-25");
+    expect(body.days.at(-1)?.planned).toEqual({
+      title: "Ride",
+      durationMinutes: 60,
+    });
+    expect(body.ftp.at(-1)).toEqual({ date: "2026-10-25", watts: 255 });
   });
 
-  it("clamps an excessive window to a year", async () => {
+  it("answers for the wider ranges", async () => {
     const res = await makeApp({ plan: null }).fetch(
-      authenticatedRequest("/api/fitness?today=2026-10-22&days=10000"),
+      authenticatedRequest("/api/fitness?today=2026-10-22&range=year"),
     );
 
     const body = (await res.json()) as FitnessHistoryResponse;
-    // A year of history plus the month of projection.
-    expect(body.days).toHaveLength(395);
+    expect(body.days).toHaveLength(365);
     expect(body.days[0]?.date).toBe("2025-10-23");
   });
 
   it("still answers without a stored plan", async () => {
     const res = await makeApp({ plan: null }).fetch(
-      authenticatedRequest("/api/fitness?today=2026-10-22&days=7"),
+      authenticatedRequest("/api/fitness?today=2026-10-22&range=week"),
     );
 
     expect(res.status).toBe(200);
     const body = (await res.json()) as FitnessHistoryResponse;
-    expect(body.days).toHaveLength(37);
-    expect(body.ftp.at(-1)).toEqual({ date: "2026-11-21", watts: 250 });
+    expect(body.days).toHaveLength(7);
+    expect(body.ftp.at(-1)).toEqual({ date: "2026-10-22", watts: 250 });
   });
 });

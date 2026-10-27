@@ -8,7 +8,15 @@ function history(
 ): FitnessHistoryResponse {
   return {
     days: [
-      { date: "2026-10-20", tss: 0, atl: 20, ctl: 40, tsb: 20, activities: [] },
+      {
+        date: "2026-10-20",
+        tss: 0,
+        atl: 20,
+        ctl: 40,
+        tsb: 20,
+        activities: [],
+        planned: null,
+      },
       {
         date: "2026-10-21",
         tss: 80,
@@ -16,6 +24,7 @@ function history(
         ctl: 41,
         tsb: 12.4,
         activities: [],
+        planned: { title: "Endurance ride", durationMinutes: 90 },
       },
       {
         date: "2026-10-22",
@@ -31,6 +40,7 @@ function history(
             durationMinutes: 60,
           },
         ],
+        planned: null,
       },
     ],
     ftp: [
@@ -42,11 +52,23 @@ function history(
   };
 }
 
+function view(
+  overrides: Partial<Parameters<typeof FitnessView>[0]> = {},
+): string {
+  return renderToStaticMarkup(
+    <FitnessView
+      history={history()}
+      today="2026-10-22"
+      range="month"
+      onRangeChange={() => undefined}
+      {...overrides}
+    />,
+  );
+}
+
 describe("FitnessView", () => {
   it("shows today's load with its form interpretation", () => {
-    const html = renderToStaticMarkup(
-      <FitnessView history={history()} today="2026-10-22" />,
-    );
+    const html = view();
 
     expect(html).toContain("Fitness");
     // The summary spells each metric out and keeps the acronym beside it.
@@ -60,10 +82,21 @@ describe("FitnessView", () => {
     expect(html).toContain("Fresh");
   });
 
-  it("shades the chart with the TSB zone colours and names every zone", () => {
-    const html = renderToStaticMarkup(
-      <FitnessView history={history()} today="2026-10-22" />,
+  it("offers every range in the picker above the charts", () => {
+    const html = view();
+    const picker = html.slice(
+      html.indexOf("<select"),
+      html.indexOf('data-testid="fitness-chart"'),
     );
+
+    for (const label of ["Week", "Month", "Quarter", "Year", "All time"]) {
+      expect(picker).toContain(`>${label}</option>`);
+    }
+    expect(picker).toContain('value="month" selected');
+  });
+
+  it("shades the chart with the TSB zone colours and names every zone", () => {
+    const html = view();
 
     expect(html).toContain('data-testid="fitness-chart"');
     for (const zone of [
@@ -81,9 +114,7 @@ describe("FitnessView", () => {
   });
 
   it("draws the TSB line in the zone colours and lists the zones first", () => {
-    const html = renderToStaticMarkup(
-      <FitnessView history={history()} today="2026-10-22" />,
-    );
+    const html = view();
 
     expect(html).toContain("stroke-form-fresh-line");
     // The zone legend comes first, then the CTL/ATL/TSB legend (whose name also
@@ -94,9 +125,7 @@ describe("FitnessView", () => {
   });
 
   it("shows today's estimated FTP in the Today panel", () => {
-    const html = renderToStaticMarkup(
-      <FitnessView history={history()} today="2026-10-22" />,
-    );
+    const html = view();
 
     const todayPanel = html.slice(
       html.indexOf('data-testid="fitness-today-load"'),
@@ -107,32 +136,24 @@ describe("FitnessView", () => {
   });
 
   it("hides the FTP chart and the estimate when the athlete has no FTP", () => {
-    const html = renderToStaticMarkup(
-      <FitnessView history={history({ ftp: [] })} today="2026-10-22" />,
-    );
+    const html = view({ history: history({ ftp: [] }) });
 
     expect(html).not.toContain('data-testid="ftp-chart"');
     expect(html).not.toContain("Estimated FTP");
   });
 
   it("asks for training history when there is nothing to chart yet", () => {
-    const html = renderToStaticMarkup(
-      <FitnessView history={history({ days: [] })} today="2026-10-22" />,
-    );
+    const html = view({ history: history({ days: [] }) });
 
     expect(html).toContain("Not enough history yet");
     expect(html).not.toContain('data-testid="fitness-chart"');
   });
 
-  it("shows loading and error states", () => {
-    const loading = renderToStaticMarkup(
-      <FitnessView history={null} today="2026-10-22" />,
+  it("shows loading, updating, and error states", () => {
+    expect(view({ history: null })).toContain("Loading…");
+    expect(view({ loading: true })).toContain("Updating…");
+    expect(view({ history: null, error: "Network down" })).toContain(
+      "Error: Network down",
     );
-    expect(loading).toContain("Loading…");
-
-    const failed = renderToStaticMarkup(
-      <FitnessView history={null} today="2026-10-22" error="Network down" />,
-    );
-    expect(failed).toContain("Error: Network down");
   });
 });

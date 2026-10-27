@@ -1,6 +1,8 @@
 import {
   coachPlanSchema,
+  DEFAULT_FITNESS_RANGE,
   fitnessHistoryResponseSchema,
+  fitnessRangeSchema,
   planDateSchema,
   type AnalyzedActivitiesResponse,
 } from "@killingit/shared";
@@ -8,10 +10,7 @@ import { Hono } from "hono";
 import { getAthlete } from "../auth/middleware.js";
 import { loadCachedActivityFeed } from "../coaching/feedCache.js";
 import type { PlanStore } from "../plans/store.js";
-import {
-  DEFAULT_FITNESS_DAYS,
-  loadFitnessHistory,
-} from "../training/history.js";
+import { loadFitnessHistory } from "../training/history.js";
 import type { UserStore } from "../users/store.js";
 
 export interface FitnessRouteDependencies {
@@ -38,8 +37,15 @@ export function createFitnessRoute(deps: FitnessRouteDependencies): Hono {
     if (!today.success) {
       return c.text("A valid today date (YYYY-MM-DD) is required", 400);
     }
-    // An unparseable length falls back to the default inside the loader.
-    const days = Number(c.req.query("days") ?? DEFAULT_FITNESS_DAYS);
+    const range = fitnessRangeSchema.safeParse(
+      c.req.query("range") ?? DEFAULT_FITNESS_RANGE,
+    );
+    if (!range.success) {
+      return c.text(
+        "A valid range (week, month, quarter, year, all) is required",
+        400,
+      );
+    }
 
     try {
       const user = await deps.users.ensureUser(getAthlete(c).sub);
@@ -54,7 +60,7 @@ export function createFitnessRoute(deps: FitnessRouteDependencies): Hono {
         feed?.activities ?? [],
         parsedPlan?.success ? parsedPlan.data : undefined,
         today.data,
-        days,
+        range.data,
       );
       return c.json(fitnessHistoryResponseSchema.parse(history));
     } catch (err) {

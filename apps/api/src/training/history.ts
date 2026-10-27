@@ -6,8 +6,10 @@ import {
   type BlockWeekSummary,
   type CoachPlan,
   type FitnessDayActivity,
+  type FitnessDayPlan,
   type FitnessHistoryDay,
   type FitnessHistoryResponse,
+  type FitnessRange,
   type FtpHistoryPoint,
   type WeekPlan,
 } from "@killingit/shared";
@@ -17,29 +19,22 @@ import { activityDayTss, groupActivitiesByDate } from "./activityLoad.js";
 import { loadTrainingContext } from "./context.js";
 import { ftpAt, type FtpTimeline } from "./ftp.js";
 
-/** The window the Fitness page requests by default. */
-export const DEFAULT_FITNESS_DAYS = 90;
-/** How far past today the charts project, so the athlete sees the month ahead. */
-export const FITNESS_PROJECTION_DAYS = 30;
-export const MIN_FITNESS_DAYS = 7;
-export const MAX_FITNESS_DAYS = 365;
-
-/** Keeps the requested window inside the range the page supports. */
-export function clampFitnessDays(days: number): number {
-  if (!Number.isFinite(days)) {
-    return DEFAULT_FITNESS_DAYS;
-  }
-  return Math.min(
-    MAX_FITNESS_DAYS,
-    Math.max(MIN_FITNESS_DAYS, Math.round(days)),
-  );
-}
+/** How many days of history each fixed range covers, today included. */
+export const FITNESS_RANGE_DAYS: Record<
+  Exclude<FitnessRange, "all">,
+  number
+> = {
+  week: 7,
+  month: 30,
+  quarter: 90,
+  year: 365,
+};
 
 export interface FitnessHistoryInput {
   /** The athlete's current date; the window ends here unless the plan runs on. */
   today: string;
-  /** Requested window length in days, clamped by `clampFitnessDays`. */
-  days: number;
+  /** How far back to look. `all` starts at the first recorded activity. */
+  range: FitnessRange;
   activities: readonly AnalyzedActivity[];
   timeline: FtpTimeline;
   plan?: CoachPlan | undefined;
@@ -60,11 +55,15 @@ export interface FitnessHistoryInput {
 export function buildFitnessHistory(
   input: FitnessHistoryInput,
 ): FitnessHistoryResponse {
-  const { startDate, endDate } = fitnessWindow(
-    input.today,
-    input.days,
-    input.plan,
-  );
+  const { startDate, endDate } = fitnessWindow({
+    today: input.today,
+    range: input.range,
+    plan: input.plan,
+    earliestDate: earliestRecordedDate(
+      input.activities,
+      input.manualActivities ?? [],
+    ),
+  });
   // Same precedence as the Activities page: a manual entry replaces the plan's
   // estimate for its date, and measured power wins over either.
   const tssByDate = new Map(input.planTssByDate);
@@ -87,6 +86,7 @@ export function buildFitnessHistory(
     input.activities,
     input.manualActivities ?? [],
   );
+  const plannedByDate = plannedSessions(input.plan);
   const days: FitnessHistoryDay[] = [];
   for (let date = startDate; date <= endDate; date = addDays(date, 1)) {
     const load = series.get(date);
@@ -95,11 +95,45 @@ export function buildFitnessHistory(
         date,
         ...load,
         activities: activitiesByDate.get(date) ?? [],
+        planned: plannedByDate.get(date) ?? null,
       });
     }
   }
 
   return { days, ftp: ftpHistory(input.timeline, input.plan, days) };
+}
+
+/** The stored plan's session for each day it covers. */
+function plannedSessions(
+  plan: CoachPlan | undefined,
+): Map<string, FitnessDayPlan> {
+  const result = new Map<string, FitnessDayPlan>();
+  if (plan === undefined) {
+    return result;
+  }
+  const sessions = [...plan.week.sessions, ...(plan.nextWeek?.sessions ?? [])];
+  for (const session of sessions) {
+    if (session.type === "rest") {
+      continue;
+    }
+    result.set(session.date, {
+      title: session.title,
+      durationMinutes: session.durationMinutes,
+    });
+  }
+  return result;
+}
+
+/** The earliest activity the athlete recorded or logged by hand. */
+export function earliestRecordedDate(
+  activities: readonly AnalyzedActivity[],
+  manualActivities: readonly ManualActivityContext[],
+): string | null {
+  const dates = [
+    ...activities.map((activity) => activity.startDate.slice(0, 10)),
+    ...manualActivities.map((manual) => manual.startDate),
+  ].sort();
+  return dates[0] ?? null;
 }
 
 /**
@@ -146,12 +180,12 @@ export async function loadFitnessHistory(
   activities: readonly AnalyzedActivity[],
   plan: CoachPlan | undefined,
   today: string,
-  days: number,
+  range: FitnessRange,
 ): Promise<FitnessHistoryResponse> {
   const context = await loadTrainingContext(userId, plan);
   return buildFitnessHistory({
     today,
-    days,
+    range,
     activities,
     plan,
     timeline: context.timeline,
@@ -162,23 +196,31 @@ export async function loadFitnessHistory(
 }
 
 /**
- * The first and last day of the chart. It covers the requested history, the
- * month ahead, and the stored plan's last day when that runs even later.
+ * The first and last day of the chart. The start follows the chosen range; the
+ * end is the later of today and the stored plan's last day, so the chart runs
+ * exactly as far ahead as there are planned workouts.
  */
-export function fitnessWindow(
-  today: string,
-  days: number,
-  plan?: CoachPlan,
-): { startDate: string; endDate: string } {
-  const length = clampFitnessDays(days);
-  const projectedEnd = addDays(today, FITNESS_PROJECTION_DAYS);
-  const plannedEnd = plannedEndDate(plan);
+export function fitnessWindow(input: {
+  today: string;
+  range: FitnessRange;
+  plan?: CoachPlan | undefined;
+  /** The first recorded or manually logged activity, for the `all` range. */
+  earliestDate?: string | null | undefined;
+}): { startDate: string; endDate: string } {
+  const earliest = input.earliestDate ?? null;
+  const startDate =
+    input.range === "all"
+      ? earliest !== null && earliest < input.today
+        ? earliest
+        : addDays(input.today, -6)
+      : addDays(input.today, -(FITNESS_RANGE_DAYS[input.range] - 1));
+  const plannedEnd = plannedEndDate(input.plan);
   return {
-    startDate: addDays(today, -(length - 1)),
+    startDate: startDate <= input.today ? startDate : input.today,
     endDate:
-      plannedEnd !== null && plannedEnd > projectedEnd
+      plannedEnd !== null && plannedEnd > input.today
         ? plannedEnd
-        : projectedEnd,
+        : input.today,
   };
 }
 

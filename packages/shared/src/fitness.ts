@@ -19,10 +19,52 @@ export const fitnessDayActivitySchema = z.object({
 
 export type FitnessDayActivity = z.infer<typeof fitnessDayActivitySchema>;
 
+/** How far back the Fitness page looks. */
+export const fitnessRangeSchema = z.enum([
+  "week",
+  "month",
+  "quarter",
+  "year",
+  "all",
+]);
+
+export type FitnessRange = z.infer<typeof fitnessRangeSchema>;
+
+/** The ranges in menu order. */
+export const FITNESS_RANGES: readonly FitnessRange[] = [
+  "week",
+  "month",
+  "quarter",
+  "year",
+  "all",
+];
+
+/** Menu labels for the range picker. */
+export const FITNESS_RANGE_LABELS: Record<FitnessRange, string> = {
+  week: "Week",
+  month: "Month",
+  quarter: "Quarter",
+  year: "Year",
+  all: "All time",
+};
+
+/** The range the Fitness page opens with. */
+export const DEFAULT_FITNESS_RANGE: FitnessRange = "month";
+
+/** The planned session for a day the stored plan covers. */
+export const fitnessDayPlanSchema = z.object({
+  title: z.string().min(1),
+  durationMinutes: z.number().int().nonnegative(),
+});
+
+export type FitnessDayPlan = z.infer<typeof fitnessDayPlanSchema>;
+
 /** One day of the fitness chart: the date, its load, and what was done. */
 export const fitnessHistoryDaySchema = trainingLoadSchema.extend({
   date: planDateSchema,
   activities: z.array(fitnessDayActivitySchema).default([]),
+  /** The stored plan's session for the day, when the plan covers it. */
+  planned: fitnessDayPlanSchema.nullable().default(null),
 });
 
 export type FitnessHistoryDay = z.infer<typeof fitnessHistoryDaySchema>;

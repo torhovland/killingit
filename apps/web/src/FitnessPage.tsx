@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import {
+  DEFAULT_FITNESS_RANGE,
   fitnessHistoryResponseSchema,
   type FitnessHistoryResponse,
+  type FitnessRange,
 } from "@killingit/shared";
 import { useAppStatus } from "./AppStatus";
 import { useAuth } from "./auth";
@@ -20,6 +22,7 @@ export function FitnessPage() {
   const timeZone = useTimeZone();
   const today = getToday(timeZone).today;
   const [history, setHistory] = useState<FitnessHistoryResponse | null>(null);
+  const [range, setRange] = useState<FitnessRange>(DEFAULT_FITNESS_RANGE);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,7 +38,7 @@ export function FitnessPage() {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    const query = new URLSearchParams({ today }).toString();
+    const query = new URLSearchParams({ today, range }).toString();
     fetchJsonAuthed<unknown>(`${API_URL}/api/fitness?${query}`, auth)
       .then((response) => {
         const parsed = fitnessHistoryResponseSchema.safeParse(response);
@@ -65,12 +68,21 @@ export function FitnessPage() {
       cancelled = true;
     };
     // `auth` is consumed inside and is not guaranteed to be referentially
-    // stable, so only the sign-in state and the date re-run the request.
-  }, [auth.isAuthenticated, today]);
+    // stable, so only the sign-in state, the date, and the range re-run it.
+  }, [auth.isAuthenticated, today, range]);
 
   if (!auth.isAuthenticated) {
     return null;
   }
 
-  return <FitnessView history={history} today={today} error={error} />;
+  return (
+    <FitnessView
+      history={history}
+      today={today}
+      range={range}
+      onRangeChange={setRange}
+      loading={loading}
+      error={error}
+    />
+  );
 }

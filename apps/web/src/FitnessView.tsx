@@ -1,20 +1,33 @@
-import type { FitnessHistoryResponse } from "@killingit/shared";
+import {
+  FITNESS_RANGE_LABELS,
+  FITNESS_RANGES,
+  type FitnessHistoryResponse,
+  type FitnessRange,
+} from "@killingit/shared";
 import { FitnessChart } from "./FitnessChart";
 import { FtpChart } from "./FtpChart";
 import { TrainingLoadLine } from "./TrainingLoadLine";
 
 /**
  * The Fitness page content: today's load line with the current FTP estimate,
- * the fitness/form chart with its TSB zone legend, and the FTP chart.
+ * the range picker, the fitness/form chart with its TSB zone legend, and the
+ * FTP chart.
  */
 export function FitnessView({
   history,
   today,
+  range,
+  onRangeChange,
+  loading = false,
   error,
 }: {
-  /** Null while the history is loading. */
+  /** Null while the history is loading for the first time. */
   history: FitnessHistoryResponse | null;
   today: string;
+  range: FitnessRange;
+  onRangeChange: (range: FitnessRange) => void;
+  /** True while a new range is being fetched. */
+  loading?: boolean;
   error?: string | null;
 }) {
   const todayLoad = history?.days.find((day) => day.date === today) ?? null;
@@ -59,6 +72,30 @@ export function FitnessView({
               )}
             </div>
           )}
+
+          <div className="flex items-center gap-2 text-sm">
+            <label className="flex items-center gap-2">
+              <span className="text-muted-foreground">Show</span>
+              <select
+                className="rounded border bg-card px-2 py-1"
+                value={range}
+                onChange={(event) =>
+                  onRangeChange(event.target.value as FitnessRange)
+                }
+              >
+                {FITNESS_RANGES.map((entry) => (
+                  <option key={entry} value={entry}>
+                    {FITNESS_RANGE_LABELS[entry]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {loading && (
+              <span className="text-muted-foreground" aria-live="polite">
+                Updating…
+              </span>
+            )}
+          </div>
 
           {history.days.length > 1 ? (
             <FitnessChart days={history.days} today={today} />

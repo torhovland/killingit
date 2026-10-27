@@ -21,14 +21,14 @@ and activity views.
 2. A new day-by-day estimated-FTP series for the same window.
 3. A `Fitness` page with a fitness/form chart, a coloured TSB zone legend using
    the existing interpretation colours, and an estimated-FTP chart.
-4. A hover card on the fitness chart showing the pointed-at day's numbers and
-   the activities logged that day.
+4. A hover card on either chart showing the pointed-at day's numbers, the
+   activities logged that day, or the planned workout when none was logged.
+5. A range picker (Week, Month, Quarter, Year, All time) above the charts.
 
 ### Out of scope (deferred)
 
 - Zooming and brushing on the charts.
-- Selecting an arbitrary date range in the UI. The API accepts a window length;
-  the page always asks for the default.
+- A custom date range. The API accepts the five named ranges only.
 - Persisting load history beyond the Garmin sync window (42 days) and the
   stored plan.
 - Per-sport load or separate running/cycling FTP models.
@@ -37,14 +37,17 @@ and activity views.
 
 ### Window
 
-`GET /api/fitness?today=YYYY-MM-DD&days=N`
+`GET /api/fitness?today=YYYY-MM-DD&range=week|month|quarter|year|all`
 
 - `today` is required and must be `YYYY-MM-DD`.
-- `days` defaults to 90 and is clamped to 7–365.
-- The window starts at `today − (days − 1)` and ends a month past today (or the
-  stored plan's last day, when that runs even later), so the athlete sees the
-  month ahead. Days after today are the plan's projection: they follow the
-  stored plan's sessions and count as rest once the plan runs out.
+- `range` defaults to `month`; anything else is a 400.
+- The window starts `week` (7), `month` (30), `quarter` (90), or `year` (365)
+  days back, or at the first recorded or manually entered activity for `all`
+  (falling back to the past week when nothing has been logged).
+- The window ends at the later of today and the stored plan's last day, so the
+  chart runs exactly as far ahead as there are planned workouts. Days after
+  today are that projection: they follow the stored plan's sessions and count
+  as rest once the plan runs out.
 - Every day in the window is returned, ascending, including rest days.
 
 ### Load series
@@ -68,6 +71,13 @@ manual entries with the athlete's description and the type `manual`. An activity
 without a name falls back to its formatted type, and a missing duration is left
 out. Days without activities return an empty list.
 
+### Planned workouts
+
+Each day also carries the stored plan's session for that date, when the plan
+covers it: the workout title and its length in minutes. Rest days are left
+empty. The hover card shows the planned workout when the athlete has not logged
+anything that day.
+
 ### FTP series
 
 For each day, the estimated FTP is:
@@ -84,10 +94,11 @@ the FTP chart.
 
 Shared (`@killingit/shared`):
 
-- `fitness.ts`: `fitnessDayActivitySchema` (`id`, `name`, `type`, optional
-  `durationMinutes`), `fitnessHistoryDaySchema` (`date`, the existing
-  `trainingLoadSchema`, and `activities`), `ftpHistoryPointSchema` (`date`,
-  `watts`), and `fitnessHistoryResponseSchema` (`days`, `ftp`).
+- `fitness.ts`: `fitnessRangeSchema` and its labels, `fitnessDayActivitySchema`
+  (`id`, `name`, `type`, optional `durationMinutes`), `fitnessDayPlanSchema`
+  (`title`, `durationMinutes`), `fitnessHistoryDaySchema` (`date`, the existing
+  `trainingLoadSchema`, `activities`, and `planned`), `ftpHistoryPointSchema`
+  (`date`, `watts`), and `fitnessHistoryResponseSchema` (`days`, `ftp`).
 - `trainingLoad.ts`: `FORM_ZONES`, the TSB bands (`from` inclusive, `to`
   exclusive) used to shade the chart. The band colours stay in the web theme
   (`--form-*`), so they cannot drift from the interpretation text.
@@ -104,6 +115,9 @@ API:
 ## UI
 
 - The account menu gains `Fitness` (after `Coach`).
+- A range picker (`Show: Week | Month | Quarter | Year | All time`) sits above
+  the charts and refetches the history. The Today panel stays on the current
+  day whatever the range.
 - The page shows a Today panel: `Training stress · Fatigue · Fitness · Form`
   with each acronym beside the spelled-out name and the interpretation in its
   zone colour, one size larger than the compact line used on the plan and
@@ -125,8 +139,9 @@ API:
 - The part of every line after today is dotted, marking it as the projection.
 - Pointing at (or tapping) either chart marks the nearest day with a guide line
   and a marker on the CTL line, and shows a card with the date, the load
-  numbers and interpretation, and the activities logged that day. The FTP
-  chart's card also shows that day's estimated FTP. The charts are tall enough
+  numbers and interpretation, and the activities logged that day — or the
+  planned workout when nothing was logged. The FTP chart's card also shows that
+  day's estimated FTP. The charts are tall enough
   for the card to sit over the top of the plot without hiding the lines below
   it.
 - The charts are static SVG (no new dependency), scale with the page width, and
@@ -147,14 +162,18 @@ API:
    changes colour exactly where it crosses from one zone into the next.
 5. The FTP chart plots the coach's weekly estimate inside the stored block and
    the athlete's stated/tested values elsewhere, and is hidden without an FTP.
-6. The charts run a month past today, and the part after today is dotted.
+6. The charts run as far ahead as the stored plan has workouts, and the part
+   after today is dotted.
 7. The Today panel spells out training stress, fatigue, fitness, and form
    beside their acronyms, reads larger than the compact plan/activity line, and
    shows today's estimated FTP.
 8. Pointing at a day of either chart shows that day's numbers and the
-   activities logged on it, if any; the FTP chart also shows that day's FTP.
-9. The page is reachable from the account menu and renders today's load line.
-10. Typecheck, lint, format, and tests pass.
+   activities logged on it, or the planned workout when none was; the FTP chart
+   also shows that day's FTP.
+9. The range picker switches between the five windows, and `All time` starts at
+   the first recorded or manual activity.
+10. The page is reachable from the account menu and renders today's load line.
+11. Typecheck, lint, format, and tests pass.
 
 ## Testing
 
