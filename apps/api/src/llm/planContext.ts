@@ -1,6 +1,7 @@
 import {
   WEATHER_ICON_LABELS,
   type ActivitySummary,
+  type BikeWorkout,
   type BlockPlan,
   type DailyWeather,
   type SeasonPlan,
@@ -293,11 +294,25 @@ export function formatWeekPlan(plan: WeekPlan): string {
     `Week starting ${plan.startDate} — focus: ${plan.focus}`,
     `Rationale: ${plan.rationale}`,
     "Sessions:",
-    ...plan.sessions.map(
-      (session) =>
-        `- ${session.date} (${session.day}) [${session.status}]: ${session.title} [${session.type}, ${session.intensity}, ${session.durationMinutes} min] — ${session.description}`,
-    ),
+    ...plan.sessions.map((session) => {
+      const bikeWorkout =
+        session.bikeWorkout != null
+          ? `; ${formatBikeWorkout(session.bikeWorkout)}`
+          : "";
+      return `- ${session.date} (${session.day}) [${session.status}]: ${session.title} [${session.type}, ${session.intensity}, ${session.durationMinutes} min] — ${session.description}${bikeWorkout}`;
+    }),
   ].join("\n");
+}
+
+/** Renders a structured bike workout's power targets for a generation prompt. */
+function formatBikeWorkout(workout: BikeWorkout): string {
+  const intervals = workout.intervals
+    .map(
+      (interval) =>
+        `${interval.durationSeconds}s at ${interval.powerPercent}% FTP`,
+    )
+    .join(", ");
+  return `power targets at FTP ${workout.ftpWatts} W: ${intervals}`;
 }
 
 function formatAthleteAnswer(entry: AthleteAnswerContext): string {

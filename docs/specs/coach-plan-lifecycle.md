@@ -47,6 +47,9 @@ answers change and as days, weeks, and blocks roll over.
    - generation progress (step + bar) while the coach is working;
    - today's workout/rest with alternatives and a note on whether it can be
      skipped (the same note is shown for tomorrow after 18:00);
+   - a workout-file download for indoor bike sessions with structured power
+     targets, in both the Today and Tomorrow cards (see
+     `docs/specs/bike-workout-export.md`);
    - the current week and, after 18:00 when it is planned, the next week;
    - the current block and, after 18:00 when it is planned, the next block;
    - the season;

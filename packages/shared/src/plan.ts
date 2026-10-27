@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { coachAnalysisSchema } from "./llm.js";
 import { dailyForecastsSchema, dailyWeatherSchema } from "./weather.js";
+import { bikeWorkoutSchema } from "./workout.js";
 
 /** A calendar date in `YYYY-MM-DD` form. */
 export const planDateSchema = z
@@ -93,6 +94,11 @@ export const weekSessionSchema = z.object({
    */
   canBeOutdoor: z.boolean().optional(),
   /**
+   * Power targets for an indoor bike session, used to build a downloadable
+   * trainer workout. Missing or null on every other kind of session.
+   */
+  bikeWorkout: bikeWorkoutSchema.nullable().optional(),
+  /**
    * The forecast for this date from each source and their average. The
    * combined forecast is also stored in `weather` for older readers.
    */
@@ -149,6 +155,11 @@ export const dayPlanSchema = z.object({
    * is treated as true so older plans still show the forecast.
    */
   canBeOutdoor: z.boolean().optional(),
+  /**
+   * Power targets for an indoor bike session, used to build a downloadable
+   * trainer workout. Missing or null on every other kind of session.
+   */
+  bikeWorkout: bikeWorkoutSchema.nullable().optional(),
   /**
    * The forecast for this date from each source and their average. The
    * combined forecast is also stored in `weather` for older readers.

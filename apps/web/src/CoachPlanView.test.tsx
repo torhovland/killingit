@@ -585,4 +585,102 @@ describe("CoachPlanView", () => {
     expect(html).toContain('class="w-full" data-testid="week-weather"');
     expect(html).toContain("stroke-amber-500");
   });
+
+  it("offers a workout-file download for indoor bike power sessions", () => {
+    const bikeWorkout = {
+      ftpWatts: 250,
+      intervals: [
+        { durationSeconds: 600, powerPercent: 55 },
+        { durationSeconds: 480, powerPercent: 90 },
+      ],
+    };
+    const bikePlan: CoachPlan = {
+      ...plan,
+      today: {
+        ...plan.today,
+        title: "Sweet spot",
+        outdoor: false,
+        canBeOutdoor: false,
+        bikeWorkout,
+      },
+      tomorrow: {
+        ...(plan.tomorrow ?? plan.today),
+        title: "Tempo blocks",
+        outdoor: false,
+        canBeOutdoor: false,
+        bikeWorkout,
+      },
+    };
+
+    const html = renderToStaticMarkup(
+      <CoachPlanView
+        plan={bikePlan}
+        showTomorrow
+        onDownloadWorkout={() => undefined}
+      />,
+    );
+
+    expect(html).toContain('data-testid="plan-today-download"');
+    expect(html).toContain('data-testid="plan-tomorrow-download"');
+    expect(html).toContain("Download workout file (.zwo)");
+    expect(html).toContain("For Zwift or another trainer app.");
+  });
+
+  it("hides the download when the session is not an indoor power workout", () => {
+    const bikeWorkout = {
+      ftpWatts: 250,
+      intervals: [{ durationSeconds: 600, powerPercent: 55 }],
+    };
+    const outdoor = renderToStaticMarkup(
+      <CoachPlanView
+        plan={{
+          ...plan,
+          today: { ...plan.today, outdoor: true, bikeWorkout },
+        }}
+        onDownloadWorkout={() => undefined}
+      />,
+    );
+    expect(outdoor).not.toContain('data-testid="plan-today-download"');
+
+    const noTargets = renderToStaticMarkup(
+      <CoachPlanView
+        plan={{ ...plan, today: { ...plan.today, outdoor: false } }}
+        onDownloadWorkout={() => undefined}
+      />,
+    );
+    expect(noTargets).not.toContain('data-testid="plan-today-download"');
+
+    const withoutHandler = renderToStaticMarkup(
+      <CoachPlanView
+        plan={{
+          ...plan,
+          today: { ...plan.today, outdoor: false, bikeWorkout },
+        }}
+      />,
+    );
+    expect(withoutHandler).not.toContain('data-testid="plan-today-download"');
+  });
+
+  it("disables the download button while the file is prepared", () => {
+    const html = renderToStaticMarkup(
+      <CoachPlanView
+        plan={{
+          ...plan,
+          today: {
+            ...plan.today,
+            outdoor: false,
+            bikeWorkout: {
+              ftpWatts: 250,
+              intervals: [{ durationSeconds: 600, powerPercent: 55 }],
+            },
+          },
+        }}
+        onDownloadWorkout={() => undefined}
+        downloadingWorkoutDate={plan.today.date}
+      />,
+    );
+
+    expect(html).toContain("Preparing workout file…");
+    expect(html).toContain("disabled");
+  });
 });

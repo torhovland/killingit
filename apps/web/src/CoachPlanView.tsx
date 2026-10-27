@@ -1,11 +1,12 @@
 import { useState, type ReactNode } from "react";
-import type {
-  BlockPlan,
-  CoachPlan,
-  DayPlan,
-  SeasonPlan,
-  WeekPlan,
-  WeekSessionStatus,
+import {
+  hasExportableBikeWorkout,
+  type BlockPlan,
+  type CoachPlan,
+  type DayPlan,
+  type SeasonPlan,
+  type WeekPlan,
+  type WeekSessionStatus,
 } from "@killingit/shared";
 import { WeatherSummary } from "./WeatherSummary";
 
@@ -28,12 +29,18 @@ export function CoachPlanView({
   showTomorrow = false,
   defaultTab = "day",
   refreshingDays = {},
+  onDownloadWorkout,
+  downloadingWorkoutDate = null,
 }: {
   plan: CoachPlan;
   showTomorrow?: boolean;
   defaultTab?: PlanTab;
   /** Days whose stored content is being replaced by a generation in flight. */
   refreshingDays?: { today?: boolean; tomorrow?: boolean };
+  /** Starts a download of the structured workout for a date. */
+  onDownloadWorkout?: (date: string) => void;
+  /** The date whose workout file is currently being prepared. */
+  downloadingWorkoutDate?: string | null;
 }) {
   const [tab, setTab] = useState<PlanTab>(defaultTab);
 
@@ -66,6 +73,8 @@ export function CoachPlanView({
               label="Today"
               testId="plan-today"
               refreshing={refreshingDays.today ?? false}
+              onDownloadWorkout={onDownloadWorkout}
+              downloading={downloadingWorkoutDate === plan.today.date}
             />
             {showTomorrow && plan.tomorrow && (
               <DayCard
@@ -73,6 +82,8 @@ export function CoachPlanView({
                 label="Tomorrow"
                 testId="plan-tomorrow"
                 refreshing={refreshingDays.tomorrow ?? false}
+                onDownloadWorkout={onDownloadWorkout}
+                downloading={downloadingWorkoutDate === plan.tomorrow.date}
               />
             )}
           </div>
@@ -112,11 +123,15 @@ function DayCard({
   label,
   testId,
   refreshing = false,
+  onDownloadWorkout,
+  downloading = false,
 }: {
   day: DayPlan;
   label: string;
   testId: string;
   refreshing?: boolean;
+  onDownloadWorkout?: ((date: string) => void) | undefined;
+  downloading?: boolean;
 }) {
   return (
     <article
@@ -153,6 +168,24 @@ function DayCard({
         <p className="whitespace-pre-line text-sm text-muted-foreground">
           {day.description}
         </p>
+        {onDownloadWorkout !== undefined && hasExportableBikeWorkout(day) && (
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className="rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted disabled:opacity-60"
+              onClick={() => onDownloadWorkout?.(day.date)}
+              disabled={downloading}
+              data-testid={`${testId}-download`}
+            >
+              {downloading
+                ? "Preparing workout file…"
+                : "Download workout file (.zwo)"}
+            </button>
+            <span className="text-xs text-muted-foreground">
+              For Zwift or another trainer app.
+            </span>
+          </div>
+        )}
         {day.alternatives.length > 0 && (
           <div className="text-sm">
             <p className="font-medium">Alternatives</p>

@@ -94,6 +94,9 @@ export function applyCompletedDays(
         // The coach has the full activity and comments, so keep its `partial`
         // verdict. Without one, a recorded activity counts as completed.
         status: session.status === "partial" ? "partial" : "completed",
+        // The recorded activity replaced the prescription, so its power targets
+        // no longer describe the day.
+        bikeWorkout: null,
       } as const;
     }
 
@@ -143,6 +146,7 @@ function mirrorToday(
       description: describeActivity(activity),
       durationMinutes: durationMinutesFor(activity),
       status,
+      bikeWorkout: null,
     };
   }
 
@@ -158,6 +162,7 @@ function mirrorToday(
     ...(todayPlan.canBeOutdoor !== undefined
       ? { canBeOutdoor: todayPlan.canBeOutdoor }
       : {}),
+    bikeWorkout: todayPlan.bikeWorkout ?? null,
   };
 }
 
@@ -188,6 +193,7 @@ export function mirrorDay(week: WeekPlan, day: DayPlan): WeekPlan {
             ...(day.canBeOutdoor !== undefined
               ? { canBeOutdoor: day.canBeOutdoor }
               : {}),
+            bikeWorkout: day.bikeWorkout ?? null,
           }
         : session,
     ),

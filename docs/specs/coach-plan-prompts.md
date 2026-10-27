@@ -74,10 +74,12 @@ covered by `docs/specs/coach-plan-lifecycle.md`.
 Adds `optional` (boolean, default `false`) and `optionalRationale` (optional
 string) to `dayPlanSchema` in `@killingit/shared`, so generated day plans can
 state whether skipping a session costs little today and why the session matters
-toward the plan's goal. No database or route change; stored JSON without the new
-fields still parses. The builder
-consumes existing shapes (`StoredAthleteQuestion` and `AnalyzedActivity`)
-structurally and returns `LlmProvider` chat messages.
+toward the plan's goal. It also adds an optional `bikeWorkout` (FTP plus ordered
+intervals) to day plans and week sessions for indoor bike sessions with power
+targets; see `docs/specs/bike-workout-export.md`. No database or route change;
+stored JSON without the new fields still parses. The builder consumes existing
+shapes (`StoredAthleteQuestion` and `AnalyzedActivity`) structurally and returns
+`LlmProvider` chat messages.
 
 ## Technical approach
 
