@@ -155,6 +155,9 @@ export function createApp(deps: AppDependencies = {}): Hono {
     "*",
     cors({
       origin: (process.env.CORS_ORIGIN ?? "http://localhost:5173").split(","),
+      // File downloads read the server's filename from this header, which a
+      // cross-origin browser otherwise hides from JavaScript.
+      exposeHeaders: ["Content-Disposition"],
     }),
   );
 

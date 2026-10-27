@@ -71,7 +71,10 @@ about a past workout, or before a suggested workout, to steer the coach.
   update an existing season by default. See
   `docs/specs/season-regeneration.md` and ADR 0011. The lazy day → week → block
   cascade and the plan UI are documented in
-  `docs/specs/coach-plan-lifecycle.md`.
+  `docs/specs/coach-plan-lifecycle.md`. Indoor bike workouts with power targets
+  carry a structured `bikeWorkout` and can be downloaded as ZWO files from the
+  Day tab; see `docs/specs/coach-plan-lifecycle.md` and
+  `docs/specs/bike-workout-export.md`.
 - Plan completions use a 16,384-token output budget, with reasoning fallbacks up
   to 32,768, so reasoning models can think and still return the complete JSON.
   Model comparisons run through `bun run benchmark:llm` against the test

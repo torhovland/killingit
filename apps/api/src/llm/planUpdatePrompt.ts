@@ -68,7 +68,16 @@ const DAY_CONTRACT = `{
   "optional": false,
   "optionalRationale": "string",
   "outdoor": true,
-  "canBeOutdoor": true
+  "canBeOutdoor": true,
+  "bikeWorkout": {
+    "ftpWatts": 0,
+    "intervals": [
+      {
+        "durationSeconds": 0,
+        "powerPercent": 75
+      }
+    ]
+  }
 }`;
 
 const WEEK_CONTRACT = `{
@@ -86,7 +95,16 @@ const WEEK_CONTRACT = `{
       "intensity": "easy | moderate | hard | rest",
       "status": "completed | partial | planned | missed | rest",
       "outdoor": true,
-      "canBeOutdoor": true
+      "canBeOutdoor": true,
+      "bikeWorkout": {
+        "ftpWatts": 0,
+        "intervals": [
+          {
+            "durationSeconds": 0,
+            "powerPercent": 75
+          }
+        ]
+      }
     }
   ]
 }`;
@@ -140,6 +158,13 @@ Respect every weather preference or limit the athlete states in their profile. F
 
 The daylight times let you keep outdoor work in daylight. Unless the athlete's profile, weekly notes, activity comments, or other input explicitly says they are willing or able to train in the dark, or prefer it, assume the athlete prefers daylight over darkness. Honour any such statement they do make and do not invent a darkness preference they did not state. If the athlete says they can train before or after work on weekdays, compare those training windows with sunrise and sunset. When the only daylight falls inside their working day, so a weekday outdoor session would happen in the dark, put long outdoor sessions at the weekend and keep weekday outdoor sessions within the available daylight or make them indoor.`;
 
+/**
+ * Instruction for structured indoor bike workouts. The athlete can download
+ * these as a trainer workout file, so the intervals and power targets must be
+ * machine-readable rather than only prose.
+ */
+export const BIKE_WORKOUT_RULES = `When you prescribe an indoor bike workout with power targets (for example a trainer or ERG session), set "outdoor" to false and include "bikeWorkout". "ftpWatts" is the FTP you used; when the athlete's profile does not state one, estimate it from their current performance and mention the assumption in the description. List the session in order in "intervals", with each block's "durationSeconds" and its target "powerPercent" of FTP (75 means 75%). Include the warm-up, every work interval, every recovery, and the cool-down as separate entries. Their durations should add up to "durationMinutes" (rounding is fine). Use at most 40 intervals and keep each block at a steady power. For every other session, including outdoor rides and rest days, set "bikeWorkout" to null. If you revise an existing indoor bike session, keep or update its "bikeWorkout" so it still matches the description.`;
+
 export const DAILY_UPDATE_SYSTEM_PROMPT = `You are an expert endurance coach. Update today's session, the rest of the current week, and tomorrow's session for an amateur athlete. Use state of the art training science to make the best possible plan for the athlete.
 
 You receive the athlete's profile, recent activities with coach analyses, program reviews, and coach replies, the current season, the current block, and the current week. You also receive manually recorded activities, comments on activities, a general weekly note, and coach summaries of completed weeks and blocks with the athlete's feedback on them. Use all of these to see what the athlete actually completed or missed, how they responded, whether today should be a workout or a rest day, and what constraints or feedback they have for the week. ${ACTIVITY_COMMENT_RULE} Respect the athlete's available time and constraints. The weekly note is a hard constraint: if it says the athlete cannot train on a specific day, move or cancel the session on that day. If a manually recorded activity indicates significant fatigue or extra load, adjust the upcoming sessions accordingly.
@@ -147,6 +172,8 @@ You receive the athlete's profile, recent activities with coach analyses, progra
 Keep the week's start date and exactly seven sessions. For days before today, do not propose new workouts: describe what the athlete actually did using the recent activities and set each status to "completed", "partial", "missed", or "rest". If an activity has already been recorded for today, today's plan must describe that completed activity, using the athlete's latest comment to correct the summary, instead of proposing another workout. The today object must match today's date and must be present as the matching session in week.sessions. Give today's plan and today's week session the same status: "completed" when the recorded activity substantially matched the planned session, or "partial" when only a meaningful part was done. Allow reasonable slack: a 60-minute ride recorded as 50 minutes is still completed, and power or pace zones that are close but not exact do not make a session partial. Revise the remaining sessions so the week stays coherent with the block's focus and the athlete's current fatigue. Include a rationale for today's session and for the week's overall structure.
 
 ${WEATHER_PLANNING_RULES}
+
+${BIKE_WORKOUT_RULES}
 
 Also provide a suggested workout or rest for tomorrow, consistent with the revised week and the block's focus.
 
@@ -166,6 +193,8 @@ export const WEEKLY_UPDATE_SYSTEM_PROMPT = `You are an expert endurance coach. C
 You receive the athlete's profile, recent activities with coach analyses, program reviews, and coach replies, the current season, and the current block. You also receive manually recorded activities, comments on activities, a general weekly note, and coach summaries of completed weeks and blocks with the athlete's feedback on them. Use all of these to judge what the athlete completed, how they responded, how the block's progression should be adjusted, and what constraints or feedback they have for the week. ${ACTIVITY_COMMENT_RULE} The weekly note is a hard constraint: if it says the athlete cannot train on a specific day, move or cancel the session on that day. If a manually recorded activity indicates significant fatigue or extra load, adjust the week's sessions accordingly. The new week must fit the block's focus and progression, must start on the supplied week start date, and must contain exactly seven sessions. For days before today, do not propose new workouts: describe what actually happened and set each status to "completed", "partial", "missed", or "rest". Allow reasonable slack when judging completion: a session with a slightly shorter duration than planned (for example a 60-minute ride recorded as 50 minutes) or slightly missed power/pace zones is still "completed"; use "partial" only when a meaningful part of the session was not done. Include a rationale for the week and for the revised block.
 
 ${WEATHER_PLANNING_RULES}
+
+${BIKE_WORKOUT_RULES}
 
 Revise the block's weeks and target loads where the athlete's progress or recent training requires it. Keep the block's name, focus, and dates unless a change is clearly justified. Do not change the season plan.
 

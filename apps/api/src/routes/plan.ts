@@ -1,9 +1,11 @@
 import {
   coachPlanResponseSchema,
   coachPlanSchema,
+  hasExportableBikeWorkout,
   planDateSchema,
   planGenerateInputSchema,
   type AthleteLocation,
+  type BikeWorkout,
   type CoachPlan,
 } from "@killingit/shared";
 import { zValidator } from "@hono/zod-validator";
@@ -14,7 +16,7 @@ import type { LlmClient } from "../llm/client.js";
 import { startOfWeek } from "../plans/dates.js";
 import { isStaleRunning } from "../plans/generation.js";
 import { loadCoachingInputs, type CoachingInputs } from "../plans/inputs.js";
-import { promoteNextPeriod } from "../plans/periods.js";
+import { promoteNextPeriod, weekFor } from "../plans/periods.js";
 import {
   latestAnswerTimestamp,
   planIsStale,
@@ -29,6 +31,52 @@ import type { QuestionAnswerStore } from "../questions/answers.js";
 import type { UserStore } from "../users/store.js";
 import { planWeatherChanged } from "../weather/changes.js";
 import { fetchWeatherForecasts } from "../weather/forecast.js";
+import { buildZwoWorkout, zwoFilename } from "../workouts/zwo.js";
+
+/** The parts of a session needed to build a trainer workout file. */
+interface ExportableBikeWorkout {
+  title: string;
+  description: string;
+  bikeWorkout: BikeWorkout;
+}
+
+/**
+ * Finds the indoor bike workout for a date. Today and tomorrow come from the
+ * day plans so the download matches the Day tab; other dates fall back to the
+ * stored week (including next week after 18:00).
+ */
+function findExportableBikeWorkout(
+  plan: CoachPlan,
+  date: string,
+): ExportableBikeWorkout | null {
+  const day =
+    plan.today.date === date
+      ? plan.today
+      : plan.tomorrow !== null && plan.tomorrow.date === date
+        ? plan.tomorrow
+        : null;
+  if (day !== null) {
+    return hasExportableBikeWorkout(day)
+      ? {
+          title: day.title,
+          description: day.description,
+          bikeWorkout: day.bikeWorkout,
+        }
+      : null;
+  }
+
+  const session = weekFor(plan, date)?.sessions.find(
+    (entry) => entry.date === date,
+  );
+  if (session === undefined || !hasExportableBikeWorkout(session)) {
+    return null;
+  }
+  return {
+    title: session.title,
+    description: session.description,
+    bikeWorkout: session.bikeWorkout,
+  };
+}
 
 export interface PlanRouteDependencies {
   users: UserStore;
@@ -157,6 +205,36 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
           today.data,
           includeTomorrow,
         ),
+      );
+    })
+    .get("/workouts/:date", async (c) => {
+      const date = planDateSchema.safeParse(c.req.param("date"));
+      if (!date.success) {
+        return c.text("A valid date (YYYY-MM-DD) is required", 400);
+      }
+      const user = await deps.users.ensureUser(getAthlete(c).sub);
+      const stored = await deps.plans.load(user.id);
+      const parsed =
+        stored === null ? null : coachPlanSchema.safeParse(stored.plan);
+      if (parsed === null || !parsed.success) {
+        return c.text("No coach plan is available", 404);
+      }
+      const workout = findExportableBikeWorkout(parsed.data, date.data);
+      if (workout === null) {
+        return c.text("No downloadable bike workout for that date", 404);
+      }
+      return c.body(
+        buildZwoWorkout({
+          title: workout.title,
+          description: workout.description,
+          workout: workout.bikeWorkout,
+        }),
+        200,
+        {
+          "content-type": "application/xml; charset=utf-8",
+          "content-disposition": `attachment; filename="${zwoFilename(date.data, workout.title)}"`,
+          "cache-control": "no-store",
+        },
       );
     })
     .post(

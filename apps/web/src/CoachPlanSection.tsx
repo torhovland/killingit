@@ -6,7 +6,8 @@ import {
 import { useAppStatus } from "./AppStatus";
 import { useAuth } from "./auth";
 import { CoachPlanView } from "./CoachPlanView";
-import { fetchJsonAuthed } from "./fetchAuthed";
+import { saveBlob } from "./download";
+import { fetchFileAuthed, fetchJsonAuthed } from "./fetchAuthed";
 import { useNavigate } from "./navigation";
 import { reportError } from "./reportError";
 import { useTimeZone } from "./TimeZoneContext";
@@ -46,6 +47,9 @@ export function CoachPlanSection({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [downloadingWorkoutDate, setDownloadingWorkoutDate] = useState<
+    string | null
+  >(null);
   const inFlight = useRef(false);
   const pendingRefresh = useRef(false);
 
@@ -167,6 +171,22 @@ export function CoachPlanSection({
         pendingRefresh.current = false;
         void generate(false);
       }
+    }
+  }
+
+  async function downloadWorkout(date: string): Promise<void> {
+    setDownloadingWorkoutDate(date);
+    setError(null);
+    try {
+      const { blob, filename } = await fetchFileAuthed(
+        `${API_URL}/api/coaching/plan/workouts/${date}`,
+        auth,
+      );
+      saveBlob(blob, filename ?? `${date}-workout.zwo`);
+    } catch (err: unknown) {
+      setError(reportError(err));
+    } finally {
+      setDownloadingWorkoutDate(null);
     }
   }
 
@@ -355,6 +375,8 @@ export function CoachPlanSection({
             today: running && data.pending.day,
             tomorrow: running && data.pending.tomorrow,
           }}
+          onDownloadWorkout={(date) => void downloadWorkout(date)}
+          downloadingWorkoutDate={downloadingWorkoutDate}
         />
       ) : (
         !loading &&

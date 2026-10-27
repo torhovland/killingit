@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
   ACTIVITY_COMMENT_RULE,
   formatPlanContext,
+  formatWeekPlan,
   type PlanContextInput,
   type RecentActivityContext,
 } from "./planContext.js";
@@ -177,5 +178,41 @@ describe("formatPlanContext", () => {
       "Each comment describes the activity with the matching ID. It is not a separate activity or extra training.",
     );
     expect(text).toContain("- Activity 99: An older session.");
+  });
+
+  it("renders the power targets of a structured bike workout", () => {
+    const text = formatWeekPlan({
+      startDate: "2026-10-19",
+      focus: "Threshold",
+      rationale: "Build power.",
+      sessions: Array.from({ length: 7 }, (_, index) => ({
+        date: `2026-10-${19 + index}`,
+        day: "Monday",
+        type: "workout" as const,
+        title: `Session ${index + 1}`,
+        description: "Indoor trainer ride.",
+        durationMinutes: 30,
+        intensity: "moderate" as const,
+        status: "planned" as const,
+        ...(index === 2
+          ? {
+              outdoor: false,
+              canBeOutdoor: false,
+              bikeWorkout: {
+                ftpWatts: 220,
+                intervals: [
+                  { durationSeconds: 600, powerPercent: 55 },
+                  { durationSeconds: 480, powerPercent: 90 },
+                ],
+              },
+            }
+          : {}),
+      })),
+    });
+
+    expect(text).toContain(
+      "power targets at FTP 220 W: 600s at 55% FTP, 480s at 90% FTP",
+    );
+    expect(text).toContain("Indoor trainer ride.");
   });
 });

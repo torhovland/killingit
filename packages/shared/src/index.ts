@@ -157,6 +157,15 @@ export {
 } from "./plan.js";
 
 export {
+  bikeWorkoutIntervalSchema,
+  bikeWorkoutSchema,
+  hasExportableBikeWorkout,
+  type BikeWorkout,
+  type BikeWorkoutInterval,
+  type BikeWorkoutSession,
+} from "./workout.js";
+
+export {
   periodReviewCommentRequestSchema,
   periodReviewSchema,
   periodReviewWeeklyNoteSchema,
