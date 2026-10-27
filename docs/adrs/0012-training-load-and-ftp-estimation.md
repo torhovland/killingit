@@ -61,7 +61,9 @@ deterministically would lose the model's judgement for sessions without power.
   days, matching the chronic-load window.
 - Manual activities store a coach-estimated TSS from their free text, with a
   deterministic duration/intensity fallback, so they contribute to the
-  Activities page and the load series.
+  Activities page and the load series. Any edit or Garmin import rebuilds the
+  whole daily series rather than patching one day, so later snapshots stay
+  consistent.
 - A revised FTP mentioned in a later athlete input replaces the profile value
   and floors the current week's estimate, so a test result is not undercut by an
   older projection. FTP anchors form a timeline; completed weeks before a new

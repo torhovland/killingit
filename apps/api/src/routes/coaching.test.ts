@@ -361,6 +361,10 @@ describe("coaching activity feed", () => {
           ],
         });
       },
+      loadActivityTrainingLoads: () =>
+        Promise.resolve(
+          new Map([["2026-10-21", { tss: 85, atl: 29, ctl: 20, tsb: -20 }]]),
+        ),
     });
 
     const res = await app.fetch(
@@ -369,8 +373,14 @@ describe("coaching activity feed", () => {
 
     expect(res.status).toBe(200);
     expect(requested.userId).toBe(42);
-    const body = (await res.json()) as { activities: Array<{ name: string }> };
+    const body = (await res.json()) as {
+      activities: Array<{
+        name: string;
+        trainingLoad?: { tss: number } | null;
+      }>;
+    };
     expect(body.activities[0]?.name).toBe("Morning Run");
+    expect(body.activities[0]?.trainingLoad?.tss).toBe(85);
   });
 
   it("returns an empty feed when nothing has been cached yet", async () => {

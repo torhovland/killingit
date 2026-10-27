@@ -267,7 +267,6 @@ export async function loadUserActivityTrainingLoads(
   userId: number,
   activities: readonly AnalyzedActivity[],
   plan: CoachPlan | undefined,
-  extraTssByDate: ReadonlyMap<string, number> = new Map(),
 ): Promise<Map<string, TrainingLoad>> {
   const planDate = plan?.today.date ?? new Date().toISOString().slice(0, 10);
   const [answers, coachingInputs] = await Promise.all([
@@ -284,9 +283,20 @@ export async function loadUserActivityTrainingLoads(
     periodReviews: coachingInputs.periodReviews,
   });
   const tssByDate = planTssByDate(plan);
-  // A manual entry's stored estimate replaces the plan's estimate for that
-  // date; the map already sums multiple manual entries on the same day.
-  for (const [date, tss] of extraTssByDate) {
+  // Manual entries are part of the same load history. Their stored estimates
+  // replace the plan's estimate for the date and are summed when the athlete
+  // logged more than one entry that day.
+  const manualTssByDate = new Map<string, number>();
+  for (const manual of coachingInputs.manualActivities) {
+    if (manual.estimatedTss === null || manual.estimatedTss === undefined) {
+      continue;
+    }
+    manualTssByDate.set(
+      manual.startDate,
+      (manualTssByDate.get(manual.startDate) ?? 0) + manual.estimatedTss,
+    );
+  }
+  for (const [date, tss] of manualTssByDate) {
     tssByDate.set(date, tss);
   }
   return buildActivityTrainingLoads(activities, timeline, tssByDate);

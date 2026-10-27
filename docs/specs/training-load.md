@@ -112,6 +112,13 @@ rest.
 The resolved `trainingLoad` is copied from the week session into the matching
 `today`/`tomorrow` day plan, so the Day and Week tabs cannot disagree.
 
+Load is never applied incrementally. Every change rebuilds the daily series
+from the earliest relevant date (42 days before the first activity) through the
+latest one, so editing a manual entry, deleting one, or importing/updating a
+Garmin activity recalculates the TSS, ATL, CTL, and TSB for every later day and
+activity. The Activities page refreshes the cached feed after a manual edit or
+delete and resyncs after an imported activity is deleted.
+
 Each TSB value also carries a plain-language interpretation, shown after the
 number. The zones use TSB only:
 
@@ -203,7 +210,10 @@ API:
 13. A manual entry such as "I did a 3 hour Zwift race with average HR at 187
     bpm" receives a coach-estimated TSS (or the deterministic fallback) and
     uses it in the plan and Activities views.
-14. The full quality gates pass: typecheck, lint, format, tests.
+14. Editing or deleting a manual entry, or importing/updating a Garmin
+    activity, recalculates ATL, CTL, and TSB for every later activity in the
+    displayed window.
+15. The full quality gates pass: typecheck, lint, format, tests.
 
 ## Testing
 

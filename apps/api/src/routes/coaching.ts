@@ -406,11 +406,34 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
     .get("/activities/cached", async (c) => {
       try {
         const user = await deps.users.ensureUser(getAthlete(c).sub);
-        const feed = await loadCachedFeed(user.id);
+        const [feed, storedPlan] = await Promise.all([
+          loadCachedFeed(user.id),
+          deps.plans.load(user.id),
+        ]);
+        if (feed === null) {
+          return c.json(
+            analyzedActivitiesResponseSchema.parse({
+              model: null,
+              activities: [],
+            }),
+          );
+        }
+        let activities = feed.activities;
+        try {
+          const loads = await loadActivityTrainingLoads(
+            user.id,
+            feed.activities,
+            storedPlan?.plan,
+          );
+          activities = feed.activities.map((activity) => ({
+            ...activity,
+            trainingLoad: loads.get(activity.startDate.slice(0, 10)) ?? null,
+          }));
+        } catch (err) {
+          console.error("[training-load] cached activity scoring failed:", err);
+        }
         return c.json(
-          analyzedActivitiesResponseSchema.parse(
-            feed ?? { model: null, activities: [] },
-          ),
+          analyzedActivitiesResponseSchema.parse({ ...feed, activities }),
         );
       } catch (err) {
         console.error("[coaching] cached activity feed failure:", err);
@@ -602,27 +625,12 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
         loadCachedFeed(user.id),
         deps.plans.load(user.id),
       ]);
-      const manualTssByDate = new Map<string, number>();
-      for (const activity of activities) {
-        if (
-          activity.estimatedTss === null ||
-          activity.estimatedTss === undefined
-        ) {
-          continue;
-        }
-        manualTssByDate.set(
-          activity.startDate,
-          (manualTssByDate.get(activity.startDate) ?? 0) +
-            activity.estimatedTss,
-        );
-      }
       let loads = new Map<string, TrainingLoad>();
       try {
         loads = await loadActivityTrainingLoads(
           user.id,
           cached?.activities ?? [],
           storedPlan?.plan,
-          manualTssByDate,
         );
       } catch (err) {
         console.error(
