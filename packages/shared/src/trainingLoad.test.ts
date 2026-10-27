@@ -4,7 +4,7 @@ import {
   bikeWorkoutTrainingStressScore,
   dailyTrainingLoad,
   estimatedTssFromSession,
-  interpretTrainingForm,
+  interpretTrainingStressBalance,
   normalizedPower,
   powerTrainingStressScore,
   recordedPowerSummary,
@@ -152,26 +152,16 @@ describe("dailyTrainingLoad", () => {
   });
 });
 
-describe("interpretTrainingForm", () => {
-  it("maps TSB as a percentage of CTL to the form zones", () => {
-    expect(interpretTrainingForm({ tsb: 21, ctl: 100 })).toBe("detraining");
-    expect(interpretTrainingForm({ tsb: 20, ctl: 100 })).toBe("fresh");
-    expect(interpretTrainingForm({ tsb: 5, ctl: 100 })).toBe("fresh");
-    expect(interpretTrainingForm({ tsb: 4, ctl: 100 })).toBe("maintaining");
-    expect(interpretTrainingForm({ tsb: -10, ctl: 100 })).toBe("maintaining");
-    expect(interpretTrainingForm({ tsb: -11, ctl: 100 })).toBe("productive");
-    expect(interpretTrainingForm({ tsb: -30, ctl: 100 })).toBe("productive");
-    expect(interpretTrainingForm({ tsb: -31, ctl: 100 })).toBe("risk");
-  });
-
-  it("scales the interpretation with the athlete's fitness", () => {
-    expect(interpretTrainingForm({ tsb: -10, ctl: 20 })).toBe("risk");
-    expect(interpretTrainingForm({ tsb: -10, ctl: 100 })).toBe("maintaining");
-  });
-
-  it("handles a missing fitness base", () => {
-    expect(interpretTrainingForm({ tsb: 0, ctl: 0 })).toBe("maintaining");
-    expect(interpretTrainingForm({ tsb: 5, ctl: 0 })).toBe("detraining");
+describe("interpretTrainingStressBalance", () => {
+  it("maps the TSB zones to readable interpretations", () => {
+    expect(interpretTrainingStressBalance(26)).toBe("detraining");
+    expect(interpretTrainingStressBalance(25)).toBe("fresh");
+    expect(interpretTrainingStressBalance(5)).toBe("fresh");
+    expect(interpretTrainingStressBalance(4)).toBe("maintaining");
+    expect(interpretTrainingStressBalance(-10)).toBe("maintaining");
+    expect(interpretTrainingStressBalance(-11)).toBe("productive");
+    expect(interpretTrainingStressBalance(-30)).toBe("productive");
+    expect(interpretTrainingStressBalance(-31)).toBe("risk");
   });
 });
 

@@ -63,10 +63,10 @@ deterministically would lose the model's judgement for sessions without power.
   and floors the current week's estimate, so a test result is not undercut by an
   older projection. FTP anchors form a timeline; completed weeks before a new
   test are re-interpolated and their TSS/ATL/CTL/TSB are recomputed.
-- TSB is labelled and coloured in the UI using TSB as a percentage of CTL:
-  Maintaining in the middle, Productive under training load, Risk below −30%,
-  Fresh as form rises above +5%, and Detraining above +20%. This makes the
-  number read as form rather than an unexplained statistic.
+- TSB is labelled and coloured in the UI using TSB-only zones: Detraining above
+  +25, Fresh from +5 to +25, Maintaining from −10 to +5, Productive from −30 to
+  −10, and Risk below −30. This makes the number read as form rather than an
+  unexplained statistic. The same line is shown on the Activities page.
 - ATL/CTL from before the 42-day feed window are unknown, so a new account
   starts at zero and settles over a few weeks. This follows from not adding a
   separate load-history store.

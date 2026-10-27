@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { activitySummarySchema, routePointSchema } from "./activity.js";
+import { trainingLoadSchema } from "./trainingLoad.js";
 
 /**
  * One model offered by the LLM provider, normalized for the model picker.
@@ -81,6 +82,12 @@ export const analyzedActivitySchema = activitySummarySchema.extend({
   coachReply: coachAnalysisSchema.nullable().default(null),
   /** The athlete dismissed the activity with "No comment". */
   reviewed: z.boolean().optional(),
+  /**
+   * Training stress and the fitness snapshot for the activity's day. Derived
+   * when the feed is served; absent on cached payloads from before the field
+   * existed.
+   */
+  trainingLoad: trainingLoadSchema.nullable().optional(),
 });
 
 export type AnalyzedActivity = z.infer<typeof analyzedActivitySchema>;

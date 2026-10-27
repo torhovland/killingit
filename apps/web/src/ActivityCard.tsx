@@ -2,6 +2,7 @@ import { useState } from "react";
 import { formatActivityType, type AnalyzedActivity } from "@killingit/shared";
 import { ActivityMap } from "./ActivityMap";
 import { SubmitButton } from "./SubmitButton";
+import { TrainingLoadLine } from "./TrainingLoadLine";
 import { useTimeZone } from "./TimeZoneContext";
 import { formatDateTime } from "./timeZone";
 
@@ -185,6 +186,14 @@ export function ActivityCard({
           {deleteError && (
             <p className="text-xs text-destructive">{deleteError}</p>
           )}
+
+          {activity.trainingLoad !== null &&
+            activity.trainingLoad !== undefined && (
+              <TrainingLoadLine
+                load={activity.trainingLoad}
+                testId="activity-load"
+              />
+            )}
 
           {summary ? (
             <p className="whitespace-pre-line" data-testid="activity-analysis">

@@ -26,6 +26,7 @@ import {
   GarminNotConnectedError,
   LlmCredentialsError,
   loadAnalyzedActivities,
+  loadUserActivityTrainingLoads,
   MAX_ACTIVITIES,
   type ActivityFeed,
 } from "../coaching/activities.js";
@@ -549,10 +550,18 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
     })
     .get("/activities/manual", async (c) => {
       const user = await deps.users.ensureUser(getAthlete(c).sub);
-      const [activities, replies] = await Promise.all([
+      const [activities, replies, cached, storedPlan] = await Promise.all([
         loadManual(user.id),
         loadManualReplies(user.id),
+        loadCachedFeed(user.id),
+        deps.plans.load(user.id),
       ]);
+      const loads = await loadUserActivityTrainingLoads(
+        user.id,
+        cached?.activities ?? [],
+        storedPlan?.plan,
+        activities.map((activity) => activity.startDate),
+      );
       return c.json(
         manualActivitiesResponseSchema.parse({
           manualActivities: activities.map((activity) => {
@@ -560,6 +569,7 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
             return {
               ...activity,
               coachReply: stored ? toCoachAnalysis(stored) : null,
+              trainingLoad: loads.get(activity.startDate) ?? null,
             };
           }),
         }),

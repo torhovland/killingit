@@ -102,24 +102,20 @@ The resolved `trainingLoad` is copied from the week session into the matching
 `today`/`tomorrow` day plan, so the Day and Week tabs cannot disagree.
 
 Each TSB value also carries a plain-language interpretation, shown after the
-number. The zones use TSB as a percentage of CTL (`TSB ÷ CTL`):
+number. The zones use TSB only:
 
-| Form         | Label       | Colour |
-| ------------ | ----------- | ------ |
-| > +20%       | Detraining  | orange |
-| +5% to +20%  | Fresh       | blue   |
-| −10% to +5%  | Maintaining | grey   |
-| −30% to −10% | Productive  | green  |
-| < −30%       | Risk        | red    |
+| TSB        | Label       | Colour |
+| ---------- | ----------- | ------ |
+| > +25      | Detraining  | orange |
+| +5 to +25  | Fresh       | blue   |
+| −10 to +5  | Maintaining | grey   |
+| −30 to −10 | Productive  | green  |
+| < −30      | Risk        | red    |
 
-For example: `TSS 20 · ATL 20 · CTL 20 · TSB 0 · Maintaining` or
-`TSS 85 · ATL 120 · CTL 100 · TSB -20 · Productive`. The interpretation is
-derived from TSB and CTL in the shared schema module and rendered with the app's
-theme tokens (`--form-risk`, `--form-productive`, and so on), so it follows the
-dark palette.
-
-With no fitness base (CTL of zero) a non-positive TSB is `Maintaining` and a
-positive TSB is `Detraining`.
+For example: `TSS 20 · ATL 18 · CTL 16 · TSB -8 · Maintaining` or
+`TSS 85 · ATL 65 · CTL 45 · TSB -20 · Productive`. The interpretation is derived
+from TSB in the shared schema module and rendered with the app's theme tokens
+(`--form-risk`, `--form-productive`, and so on), so it follows the dark palette.
 
 ## Data model / API impact
 
@@ -156,7 +152,12 @@ No database migration: the new values live in the existing plan JSON.
 - **Block tab** shows the block's current estimated FTP in the header and each
   week's estimate beside its target load.
 - **Season tab** shows the current estimated FTP in the header.
-- Older stored plans without the new fields render exactly as before.
+- **Activities page** shows the same TSS/ATL/CTL/TSB line and interpretation on
+  each imported activity card and saved manual entry. Imported activities use
+  measured power, the stored plan's coach estimate, or the duration fallback;
+  manual entries use the plan estimate for their date when one exists.
+- Older stored plans and cached activity payloads without the new fields render
+  exactly as before.
 
 ## Acceptance criteria
 
@@ -179,7 +180,11 @@ No database migration: the new values live in the existing plan JSON.
    Productive, Maintaining, Fresh, or Detraining.
 10. A revised FTP is interpolated through the completed period, and the block
     and season headers show the refreshed estimate.
-11. The full quality gates pass: typecheck, lint, format, tests.
+11. The Week tab shows the estimated FTP for the current and next week.
+12. Each imported activity card and saved manual entry on the Activities page
+    shows the same TSS/ATL/CTL/TSB line and interpretation when a load is
+    available.
+13. The full quality gates pass: typecheck, lint, format, tests.
 
 ## Testing
 

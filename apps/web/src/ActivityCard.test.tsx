@@ -39,6 +39,31 @@ describe("ActivityCard", () => {
     expect(html).not.toContain("openrouter/auto");
   });
 
+  it("shows the day's training load when it is available", () => {
+    const html = renderToStaticMarkup(
+      <ActivityCard
+        activity={{
+          ...activity,
+          trainingLoad: { tss: 85, atl: 29, ctl: 20, tsb: -20 },
+        }}
+      />,
+    );
+
+    expect(html).toContain('data-testid="activity-load"');
+    expect(html).toContain("TSS 85");
+    expect(html).toContain("ATL 29");
+    expect(html).toContain("CTL 20");
+    expect(html).toContain("TSB -20");
+    expect(html).toContain("Productive");
+  });
+
+  it("omits the training load when it is not available", () => {
+    const html = renderToStaticMarkup(<ActivityCard activity={activity} />);
+
+    expect(html).not.toContain('data-testid="activity-load"');
+    expect(html).not.toContain("TSS");
+  });
+
   it("renders the analysis error when generation failed", () => {
     const html = renderToStaticMarkup(
       <ActivityCard

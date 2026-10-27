@@ -12,6 +12,7 @@ import {
 } from "@killingit/shared";
 import { ActivityCard } from "./ActivityCard";
 import { loadCachedActivities, saveCachedActivities } from "./activityCache";
+import { TrainingLoadLine } from "./TrainingLoadLine";
 import { useAppStatus, useBusyReporter } from "./AppStatus";
 import { useAuth } from "./auth";
 import { fetchJsonAuthed } from "./fetchAuthed";
@@ -414,6 +415,13 @@ export function ActivitiesPage() {
                       {activity.coachReply.text}
                     </span>
                   )}
+                  {activity.trainingLoad !== null &&
+                    activity.trainingLoad !== undefined && (
+                      <TrainingLoadLine
+                        load={activity.trainingLoad}
+                        testId="manual-activity-load"
+                      />
+                    )}
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -447,7 +455,7 @@ export function ActivitiesPage() {
 
       {!syncing && data && data.activities.length === 0 && (
         <p className="text-sm text-muted-foreground">
-          No activities in the last 31 days.
+          No activities in the last 42 days.
         </p>
       )}
 

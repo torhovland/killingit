@@ -183,6 +183,7 @@ describe("CoachPlanView", () => {
         startDate: "2026-10-26",
         focus: "Aerobic build",
         rationale: "Start the next week with an easy aerobic block.",
+        estimatedFtpWatts: 260,
         sessions: plan.week.sessions.map((session, index) => ({
           ...session,
           date: nextDates[index] ?? session.date,
@@ -207,6 +208,7 @@ describe("CoachPlanView", () => {
     expect(week).toContain("Week starting Mon, Oct 26");
     expect(week).toContain("Next session 1");
     expect(week).toContain('data-testid="plan-next-week"');
+    expect(week).toContain("260 W");
 
     const block = renderToStaticMarkup(
       <CoachPlanView plan={nextPlan} defaultTab="block" />,
@@ -707,7 +709,7 @@ describe("CoachPlanView", () => {
     expect(html).toContain("ATL 9");
     expect(html).toContain("CTL 2");
     expect(html).toContain("TSB -8");
-    expect(html).toContain("Risk");
+    expect(html).toContain("Maintaining");
   });
 
   it("labels the TSB interpretation with its colour", () => {

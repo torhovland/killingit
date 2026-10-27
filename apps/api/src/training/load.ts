@@ -3,7 +3,6 @@ import {
   CTL_DAYS,
   dailyTrainingLoad,
   estimatedTssFromSession,
-  powerTrainingStressScore,
   type AnalyzedActivity,
   type BlockPlan,
   type CoachPlan,
@@ -18,6 +17,11 @@ import type {
   PeriodReviewContext,
 } from "../llm/planContext.js";
 import { addDays } from "../plans/dates.js";
+import {
+  activityDayTss,
+  groupActivitiesByDate,
+  measuredActivityTss,
+} from "./activityLoad.js";
 import { buildFtpTimeline, ftpAt, type FtpTimeline } from "./ftp.js";
 
 export interface TrainingLoadContext {
@@ -311,7 +315,7 @@ function resolveSessionTss(
     return 0;
   }
 
-  const measured = measuredTss(activities, timeline);
+  const measured = measuredActivityTss(activities, timeline);
   if (measured !== null) {
     return measured;
   }
@@ -322,100 +326,4 @@ function resolveSessionTss(
     return Math.round(session.estimatedTss);
   }
   return estimatedTssFromSession(session);
-}
-
-/** Sums the power-scored TSS of every activity on one day, when measurable. */
-function measuredTss(
-  activities: readonly AnalyzedActivity[],
-  timeline: FtpTimeline,
-): number | null {
-  let total: number | null = null;
-  for (const activity of activities) {
-    const normalized = activity.normalizedPower;
-    if (normalized === null || normalized === undefined) {
-      continue;
-    }
-    const ftpWatts = ftpAt(timeline, activity.startDate);
-    if (ftpWatts === null) {
-      continue;
-    }
-    const durationSeconds =
-      activity.movingTime > 0 ? activity.movingTime : activity.elapsedTime;
-    const tss = powerTrainingStressScore({
-      durationSeconds,
-      normalizedPowerWatts: normalized,
-      ftpWatts,
-    });
-    if (tss !== null) {
-      total = (total ?? 0) + tss;
-    }
-  }
-  return total;
-}
-
-/** TSS used only to seed the fitness history before the planned week. */
-function activityDayTss(
-  activities: readonly AnalyzedActivity[],
-  timeline: FtpTimeline,
-): number {
-  const measured = measuredTss(activities, timeline);
-  if (measured !== null) {
-    return measured;
-  }
-  return activities.reduce(
-    (total, activity) => total + fallbackActivityTss(activity),
-    0,
-  );
-}
-
-/**
- * A conservative stress estimate for a recorded activity without power. It is
- * used only to seed ATL/CTL before the planned week, never as a workout's
- * displayed TSS; the coach estimates those.
- */
-function fallbackActivityTss(activity: AnalyzedActivity): number {
-  if (activity.type === "manual" || activity.movingTime <= 0) {
-    return 0;
-  }
-  const hours = activity.movingTime / 3600;
-  return Math.round(hours * tssPerHour(activity.type));
-}
-
-function tssPerHour(type: string): number {
-  const normalized = type.toLowerCase();
-  if (normalized.includes("cycl") || normalized.includes("bik")) {
-    return 55;
-  }
-  if (normalized.includes("run")) {
-    return 65;
-  }
-  if (normalized.includes("hik")) {
-    return 45;
-  }
-  if (normalized.includes("walk")) {
-    return 35;
-  }
-  if (normalized.includes("strength") || normalized.includes("weight")) {
-    return 40;
-  }
-  if (normalized.includes("row") || normalized.includes("ski")) {
-    return 50;
-  }
-  return 45;
-}
-
-function groupActivitiesByDate(
-  activities: readonly AnalyzedActivity[],
-): Map<string, AnalyzedActivity[]> {
-  const grouped = new Map<string, AnalyzedActivity[]>();
-  for (const activity of activities) {
-    const date = activity.startDate.slice(0, 10);
-    const entries = grouped.get(date);
-    if (entries) {
-      entries.push(activity);
-    } else {
-      grouped.set(date, [activity]);
-    }
-  }
-  return grouped;
 }

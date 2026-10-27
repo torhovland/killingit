@@ -475,6 +475,8 @@ export type ManualActivityRequest = z.infer<typeof manualActivityRequestSchema>;
 export const manualActivitySchema = manualActivityInputSchema.extend({
   id: z.number().int().positive(),
   coachReply: coachAnalysisSchema.nullable().default(null),
+  /** Training stress for the day, when it can be derived. */
+  trainingLoad: trainingLoadSchema.nullable().optional(),
 });
 
 export type ManualActivity = z.infer<typeof manualActivitySchema>;
