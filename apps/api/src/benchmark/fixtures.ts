@@ -133,6 +133,12 @@ export async function loadBenchmarkFixture(input: {
       movingTime: activity.movingTime,
       elapsedTime: activity.elapsedTime,
       totalElevationGain: activity.totalElevationGain,
+      ...(activity.averagePower !== undefined
+        ? { averagePower: activity.averagePower }
+        : {}),
+      ...(activity.normalizedPower !== undefined
+        ? { normalizedPower: activity.normalizedPower }
+        : {}),
       sampleCount: activity.sampleCount,
       analysis: asCoachAnalysis(activity.analysis),
       analysisError: activity.analysisError,

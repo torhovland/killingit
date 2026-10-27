@@ -51,6 +51,27 @@ describe("formatPlanContext", () => {
     expect(text).not.toContain("Activity comments:");
   });
 
+  it("includes the athlete's FTP and recorded power", () => {
+    const text = formatPlanContext(
+      input({
+        athleteFtpWatts: 250,
+        recentActivities: [
+          {
+            ...activity,
+            summary: {
+              ...activity.summary,
+              normalizedPower: 200,
+              averagePower: 195,
+            },
+          },
+        ],
+      }),
+    ).join("\n");
+
+    expect(text).toContain("Athlete FTP from their profile: 250 W");
+    expect(text).toContain("NP 200 W (average 195 W)");
+  });
+
   it("includes the activity program review and the coach's reply", () => {
     const text = formatPlanContext(
       input({

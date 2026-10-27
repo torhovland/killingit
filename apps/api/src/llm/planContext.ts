@@ -88,6 +88,8 @@ export interface PlanContextInput {
   forecast?: readonly DailyWeather[];
   /** The location label for the forecast, if the athlete named one. */
   locationName?: string | null;
+  /** The FTP stated in the athlete's profile, when they gave one. */
+  athleteFtpWatts?: number | null;
 }
 
 /** Renders the athlete's profile for a prompt. */
@@ -148,6 +150,14 @@ export function formatPlanContext(input: PlanContextInput): string[] {
     "",
     "Athlete profile:",
     formatAthleteAnswers(input.athleteAnswers),
+  );
+  if (input.athleteFtpWatts !== undefined && input.athleteFtpWatts !== null) {
+    lines.push(
+      "",
+      `Athlete FTP from their profile: ${input.athleteFtpWatts} W. Use this as the baseline for the week-by-week FTP estimate and for TSS.`,
+    );
+  }
+  lines.push(
     "",
     `Recent activities (most recent first). ${ACTIVITY_COMMENT_RULE}`,
     formatRecentActivities(input.recentActivities, comments),
@@ -283,7 +293,7 @@ export function formatBlockPlan(plan: BlockPlan): string {
     "Weeks:",
     ...plan.weeks.map(
       (week) =>
-        `- Week ${week.number} (from ${week.startDate}): ${week.focus}; target load: ${week.targetLoad}`,
+        `- Week ${week.number} (from ${week.startDate}): ${week.focus}; target load: ${week.targetLoad}${week.estimatedFtpWatts != null ? `; estimated FTP ${week.estimatedFtpWatts} W` : ""}`,
     ),
   ].join("\n");
 }
@@ -291,7 +301,7 @@ export function formatBlockPlan(plan: BlockPlan): string {
 /** Renders the current week's seven sessions. */
 export function formatWeekPlan(plan: WeekPlan): string {
   return [
-    `Week starting ${plan.startDate} — focus: ${plan.focus}`,
+    `Week starting ${plan.startDate} — focus: ${plan.focus}${plan.estimatedFtpWatts != null ? ` — estimated FTP ${plan.estimatedFtpWatts} W` : ""}`,
     `Rationale: ${plan.rationale}`,
     "Sessions:",
     ...plan.sessions.map((session) => {
@@ -299,7 +309,11 @@ export function formatWeekPlan(plan: WeekPlan): string {
         session.bikeWorkout != null
           ? `; ${formatBikeWorkout(session.bikeWorkout)}`
           : "";
-      return `- ${session.date} (${session.day}) [${session.status}]: ${session.title} [${session.type}, ${session.intensity}, ${session.durationMinutes} min] — ${session.description}${bikeWorkout}`;
+      const tss =
+        session.estimatedTss !== undefined
+          ? `; estimated TSS ${session.estimatedTss}`
+          : "";
+      return `- ${session.date} (${session.day}) [${session.status}]: ${session.title} [${session.type}, ${session.intensity}, ${session.durationMinutes} min] — ${session.description}${bikeWorkout}${tss}`;
     }),
   ].join("\n");
 }
@@ -339,6 +353,11 @@ function formatActivity(
   details.push(`${formatDuration(summary.movingTime)} moving`);
   if (summary.totalElevationGain > 0) {
     details.push(`${Math.round(summary.totalElevationGain)} m elevation`);
+  }
+  if (summary.normalizedPower != null) {
+    details.push(
+      `NP ${Math.round(summary.normalizedPower)} W${summary.averagePower != null ? ` (average ${Math.round(summary.averagePower)} W)` : ""}`,
+    );
   }
 
   const lines = [

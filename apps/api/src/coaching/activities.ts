@@ -1,8 +1,9 @@
-import type {
-  Activity,
-  ActivitySummary,
-  AnalyzedActivity,
-  RoutePoint,
+import {
+  recordedPowerSummary,
+  type Activity,
+  type ActivitySummary,
+  type AnalyzedActivity,
+  type RoutePoint,
 } from "@killingit/shared";
 import { decrypt } from "../crypto/credentials.js";
 import { syncGarminActivities } from "../garmin/client.js";
@@ -252,9 +253,16 @@ function summarize(activity: Activity): ActivitySummary & {
 } {
   const { samples, ...summary } = activity;
   const route = routeFromSamples(samples);
+  const power = recordedPowerSummary(samples);
   return {
     ...summary,
     sampleCount: samples.length,
+    ...(power.averagePower !== null
+      ? { averagePower: power.averagePower }
+      : {}),
+    ...(power.normalizedPower !== null
+      ? { normalizedPower: power.normalizedPower }
+      : {}),
     ...(route.length >= 2 ? { route } : {}),
   };
 }

@@ -67,6 +67,7 @@ const DAY_CONTRACT = `{
   "rationale": "string",
   "optional": false,
   "optionalRationale": "string",
+  "estimatedTss": 0,
   "outdoor": true,
   "canBeOutdoor": true,
   "bikeWorkout": {
@@ -84,6 +85,7 @@ const WEEK_CONTRACT = `{
   "startDate": "YYYY-MM-DD",
   "focus": "string",
   "rationale": "string",
+  "estimatedFtpWatts": 0,
   "sessions": [
     {
       "date": "YYYY-MM-DD",
@@ -94,6 +96,7 @@ const WEEK_CONTRACT = `{
       "durationMinutes": 0,
       "intensity": "easy | moderate | hard | rest",
       "status": "completed | partial | planned | missed | rest",
+      "estimatedTss": 0,
       "outdoor": true,
       "canBeOutdoor": true,
       "bikeWorkout": {
@@ -120,7 +123,8 @@ export const BLOCK_CONTRACT = `{
       "number": 1,
       "startDate": "YYYY-MM-DD",
       "focus": "string",
-      "targetLoad": "string"
+      "targetLoad": "string",
+      "estimatedFtpWatts": 0
     }
   ]
 }`;
@@ -163,7 +167,16 @@ The daylight times let you keep outdoor work in daylight. Unless the athlete's p
  * these as a trainer workout file, so the intervals and power targets must be
  * machine-readable rather than only prose.
  */
-export const BIKE_WORKOUT_RULES = `When you prescribe an indoor bike workout with power targets (for example a trainer or ERG session), set "outdoor" to false and include "bikeWorkout". "ftpWatts" is the FTP you used; when the athlete's profile does not state one, estimate it from their current performance and mention the assumption in the description. List the session in order in "intervals", with each block's "durationSeconds" and its target "powerPercent" of FTP (75 means 75%). Include the warm-up, every work interval, every recovery, and the cool-down as separate entries. Their durations should add up to "durationMinutes" (rounding is fine). Use at most 40 intervals and keep each block at a steady power. For every other session, including outdoor rides and rest days, set "bikeWorkout" to null. If you revise an existing indoor bike session, keep or update its "bikeWorkout" so it still matches the description.`;
+export const BIKE_WORKOUT_RULES = `When you prescribe an indoor bike workout with power targets (for example a trainer or ERG session), set "outdoor" to false and include "bikeWorkout". "ftpWatts" is the FTP you used; when the week has an "estimatedFtpWatts", use that value, and when the athlete's profile states no FTP at all, estimate one from their current performance and mention the assumption in the description. List the session in order in "intervals", with each block's "durationSeconds" and its target "powerPercent" of FTP (75 means 75%). Include the warm-up, every work interval, every recovery, and the cool-down as separate entries. Their durations should add up to "durationMinutes" (rounding is fine). Use at most 40 intervals and keep each block at a steady power. For every other session, including outdoor rides and rest days, set "bikeWorkout" to null. If you revise an existing indoor bike session, keep or update its "bikeWorkout" so it still matches the description.`;
+
+/**
+ * Shared instruction for the week-by-week FTP estimate and the TSS numbers the
+ * API uses when a session has no measured power. The estimate is anchored to
+ * the FTP stated in the athlete's profile; without one the feature stays off.
+ */
+export const TRAINING_LOAD_RULES = `When the athlete's profile states an FTP (functional threshold power), estimate how it will change week by week from the training they have actually completed, their recent form, and the plan's progression. Set "estimatedFtpWatts" in the week plan to the estimate for that week. When the response contract also includes the block, set it in every week of the block so the athlete can see the progression. Be realistic: consistent completed load supports small gains, a deload or a missed week holds or reduces the estimate, and you never invent a large jump. When the profile states no FTP, set "estimatedFtpWatts" to null in the week and block weeks and do not invent one.
+
+Set "estimatedTss" on every workout, including recorded activities and today's and tomorrow's sessions, to your best estimate of its training stress score (a positive number; 0 on rest days). Use the session's duration and intensity, the athlete's FTP when known, and any recorded power or heart-rate data. Use roughly 100 for an hour at FTP, 60-70 for an easy aerobic hour, and 20-40 for a short strength session. When measured power is available the app recalculates the number from the recorded effort and the estimated FTP.`;
 
 export const DAILY_UPDATE_SYSTEM_PROMPT = `You are an expert endurance coach. Update today's session, the rest of the current week, and tomorrow's session for an amateur athlete. Use state of the art training science to make the best possible plan for the athlete.
 
@@ -174,6 +187,8 @@ Keep the week's start date and exactly seven sessions. For days before today, do
 ${WEATHER_PLANNING_RULES}
 
 ${BIKE_WORKOUT_RULES}
+
+${TRAINING_LOAD_RULES}
 
 Also provide a suggested workout or rest for tomorrow, consistent with the revised week and the block's focus.
 
@@ -196,6 +211,8 @@ ${WEATHER_PLANNING_RULES}
 
 ${BIKE_WORKOUT_RULES}
 
+${TRAINING_LOAD_RULES}
+
 Revise the block's weeks and target loads where the athlete's progress or recent training requires it. Keep the block's name, focus, and dates unless a change is clearly justified. Do not change the season plan.
 
 ${ENUM_RULES}
@@ -209,6 +226,8 @@ ${JSON_RULES}
 export const BLOCK_UPDATE_SYSTEM_PROMPT = `You are an expert endurance coach. Create the next block and revise the season plan for an amateur athlete. Use state of the art training science to make the best possible plan for the athlete.
 
 The current block has ended. You receive the athlete's profile, recent activities with coach analyses, program reviews, and coach replies, the current season, the completed block, and the coach summaries of its completed weeks with the athlete's feedback on them. Create the next block starting on the supplied next block start date, consistent with the season goal and any remaining blocks in the season. Revise the season plan to include the new block and adjust upcoming blocks where the athlete's progress requires it. Keep the season goal and completed blocks intact. Include a rationale for the new block and for the revised season.
+
+${TRAINING_LOAD_RULES}
 
 ${ENUM_RULES}
 
@@ -225,6 +244,8 @@ You receive the athlete's profile, recent activities with coach analyses, progra
 The season has already started. Blocks that ended before today are complete: keep their summaries exactly as supplied. Refresh the block that contains today in place: keep its existing start date, and re-plan its weeks and progression around what the athlete has actually done. Re-plan the blocks that follow it from scratch. Every later block must start the day after the previous block ends, and the remaining blocks must cover the rest of the season without gaps. Keep the season's goal, start date, and end date unless the athlete's current answers clearly change the goal or end date; never change the season start date. Do not include the completed blocks before today in the returned season.
 
 Create the detailed plan for the block that contains today from its refreshed summary, using that summary's name, focus, dates, and week count. Its weeks must add up to the planned week count. Include a concise rationale for the refreshed season and for the current block.
+
+${TRAINING_LOAD_RULES}
 
 ${ENUM_RULES}
 

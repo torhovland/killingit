@@ -95,7 +95,7 @@ function makeAnalyzedActivity(
 
 describe("coach plan prompts", () => {
   it("exposes a prompt version for cache invalidation", () => {
-    expect(COACH_PLAN_PROMPT_VERSION).toBe(5);
+    expect(COACH_PLAN_PROMPT_VERSION).toBe(6);
   });
 
   it("builds a system and a user message", () => {
@@ -135,6 +135,9 @@ describe("coach plan prompts", () => {
     expect(prompt).toContain('"alternatives"');
     expect(prompt).toContain('"optional"');
     expect(prompt).toContain('"optionalRationale"');
+    expect(prompt).toContain('"estimatedTss"');
+    expect(prompt).toContain('"estimatedFtpWatts"');
+    expect(prompt).toContain("training stress score");
     expect(prompt).toContain("what the athlete loses toward that goal");
     expect(prompt).toContain(
       "if you cannot state a concrete loss for skipping a planned session",

@@ -166,6 +166,19 @@ export {
 } from "./workout.js";
 
 export {
+  ATL_DAYS,
+  CTL_DAYS,
+  bikeWorkoutTrainingStressScore,
+  dailyTrainingLoad,
+  estimatedTssFromSession,
+  normalizedPower,
+  powerTrainingStressScore,
+  recordedPowerSummary,
+  trainingLoadSchema,
+  type TrainingLoad,
+} from "./trainingLoad.js";
+
+export {
   periodReviewCommentRequestSchema,
   periodReviewSchema,
   periodReviewWeeklyNoteSchema,

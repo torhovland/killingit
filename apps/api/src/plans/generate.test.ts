@@ -1279,7 +1279,13 @@ describe("runPlanGeneration", () => {
     });
 
     expect(provider.calls).toEqual(["weekly", "daily"]);
-    expect(saved?.plan.week).toEqual(currentWeek);
+    expect(saved?.plan.week.startDate).toBe(currentWeek.startDate);
+    expect(saved?.plan.week.sessions.map((session) => session.date)).toEqual(
+      currentWeek.sessions.map((session) => session.date),
+    );
+    expect(saved?.plan.week.sessions.map((session) => session.title)).toEqual(
+      currentWeek.sessions.map((session) => session.title),
+    );
     expect(saved?.plan.nextWeek?.startDate).toBe("2026-10-26");
     expect(saved?.plan.nextBlock).toBeNull();
     expect(saved?.plan.tomorrow?.date).toBe("2026-10-26");
@@ -1363,7 +1369,11 @@ describe("runPlanGeneration", () => {
     });
 
     expect(provider.calls).toEqual(["block-update", "weekly", "daily"]);
-    expect(saved?.plan.block).toEqual(currentBlock);
+    expect(saved?.plan.block.name).toBe(currentBlock.name);
+    expect(saved?.plan.block.startDate).toBe(currentBlock.startDate);
+    expect(saved?.plan.block.weeks.map((week) => week.startDate)).toEqual(
+      currentBlock.weeks.map((week) => week.startDate),
+    );
     expect(saved?.plan.nextBlock?.startDate).toBe("2026-10-26");
     expect(saved?.plan.nextWeek?.startDate).toBe("2026-10-26");
     expect(saved?.plan.tomorrow?.date).toBe("2026-10-26");

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { coachAnalysisSchema } from "./llm.js";
+import { trainingLoadSchema } from "./trainingLoad.js";
 import { dailyForecastsSchema, dailyWeatherSchema } from "./weather.js";
 import { bikeWorkoutSchema } from "./workout.js";
 
@@ -40,6 +41,18 @@ export const blockWeekSummarySchema = z.object({
   startDate: planDateSchema,
   focus: z.string().min(1),
   targetLoad: z.string().min(1),
+  /**
+   * The coach's estimate of the athlete's FTP for this week, based on their
+   * stated FTP and the training completed so far. Null when the profile has no
+   * FTP to anchor the estimate.
+   */
+  estimatedFtpWatts: z
+    .number()
+    .int()
+    .nonnegative()
+    .max(2000)
+    .nullable()
+    .optional(),
 });
 
 export type BlockWeekSummary = z.infer<typeof blockWeekSummarySchema>;
@@ -105,6 +118,18 @@ export const weekSessionSchema = z.object({
   forecasts: dailyForecastsSchema.nullable().optional(),
   /** The combined forecast for this date, attached when a location is set. */
   weather: dailyWeatherSchema.nullable().optional(),
+  /**
+   * The coach's best estimate of this session's training stress score. Used
+   * when the session has no measured power; a measured power activity replaces
+   * it with the calculated value.
+   */
+  estimatedTss: z.number().nonnegative().max(2000).optional(),
+  /**
+   * Resolved training stress for the day plus the fitness and fatigue snapshot,
+   * calculated after the coach responds. Missing on plans stored before
+   * training-load tracking.
+   */
+  trainingLoad: trainingLoadSchema.nullable().optional(),
 });
 
 export type WeekSession = z.infer<typeof weekSessionSchema>;
@@ -116,6 +141,17 @@ export const weekPlanSchema = z.object({
   sessions: z.array(weekSessionSchema).length(7),
   /** The coach's explanation of this week's focus and load. */
   rationale: z.string().min(1),
+  /**
+   * The coach's estimate of the athlete's FTP for this week. Null when the
+   * athlete has not provided an FTP to anchor the estimate.
+   */
+  estimatedFtpWatts: z
+    .number()
+    .int()
+    .nonnegative()
+    .max(2000)
+    .nullable()
+    .optional(),
 });
 
 export type WeekPlan = z.infer<typeof weekPlanSchema>;
@@ -167,6 +203,16 @@ export const dayPlanSchema = z.object({
   forecasts: dailyForecastsSchema.nullable().optional(),
   /** The combined forecast for this date, attached when a location is set. */
   weather: dailyWeatherSchema.nullable().optional(),
+  /**
+   * The coach's best estimate of this session's training stress score. Used
+   * when the session has no measured power.
+   */
+  estimatedTss: z.number().nonnegative().max(2000).optional(),
+  /**
+   * Resolved training stress for the day plus the fitness and fatigue snapshot.
+   * Mirrored from the matching week session so Day and Week always agree.
+   */
+  trainingLoad: trainingLoadSchema.nullable().optional(),
 });
 
 export type DayPlan = z.infer<typeof dayPlanSchema>;

@@ -5,6 +5,7 @@ import {
   type CoachPlan,
   type DayPlan,
   type SeasonPlan,
+  type TrainingLoad,
   type WeekPlan,
   type WeekSessionStatus,
 } from "@killingit/shared";
@@ -160,6 +161,9 @@ function DayCard({
           </span>
         </div>
         <p className="text-base font-medium">{day.title}</p>
+        {day.trainingLoad !== null && day.trainingLoad !== undefined && (
+          <TrainingLoadLine load={day.trainingLoad} testId={`${testId}-load`} />
+        )}
         {day.type === "workout" &&
           day.canBeOutdoor !== false &&
           (day.weather != null || day.forecasts != null) && (
@@ -264,6 +268,13 @@ function WeekSection({
       </h3>
       <p className="text-sm text-muted-foreground">
         Week starting {formatPlanDate(week.startDate)}
+        {week.estimatedFtpWatts != null && (
+          <span data-testid="week-ftp">
+            {" · "}
+            Estimated FTP:{" "}
+            <span className="font-medium">{week.estimatedFtpWatts} W</span>
+          </span>
+        )}
       </p>
       <p className="mt-2 text-sm text-muted-foreground">{week.rationale}</p>
       <ul className="mt-3 flex flex-col gap-2">
@@ -283,6 +294,13 @@ function WeekSection({
                   ? "Logged manually"
                   : `${session.durationMinutes} min · ${session.intensity}${formatSessionSetting(session.outdoor)}`}
             </span>
+            {session.trainingLoad !== null &&
+              session.trainingLoad !== undefined && (
+                <TrainingLoadLine
+                  load={session.trainingLoad}
+                  testId="session-load"
+                />
+              )}
             {session.type === "workout" &&
               session.canBeOutdoor !== false &&
               (session.weather != null || session.forecasts != null) && (
@@ -311,6 +329,35 @@ function StatusBadge({ status }: { status: WeekSessionStatus }) {
       {status}
     </span>
   );
+}
+
+/** Training stress and the fitness/fatigue snapshot for one day. */
+function TrainingLoadLine({
+  load,
+  testId,
+}: {
+  load: TrainingLoad;
+  testId?: string;
+}) {
+  return (
+    <p
+      className="w-full text-xs text-muted-foreground tabular-nums"
+      data-testid={testId}
+      title="TSS: training stress score. ATL: acute load (fatigue). CTL: chronic load (fitness). TSB: training stress balance (form)."
+    >
+      <span className="font-medium text-foreground">
+        TSS {Math.round(load.tss)}
+      </span>
+      {" · "}ATL {Math.round(load.atl)}
+      {" · "}CTL {Math.round(load.ctl)}
+      {" · "}TSB {formatSigned(load.tsb)}
+    </p>
+  );
+}
+
+function formatSigned(value: number): string {
+  const rounded = Math.round(value);
+  return rounded > 0 ? `+${rounded}` : String(rounded);
 }
 
 function BlockSection({
@@ -345,6 +392,11 @@ function BlockSection({
             <p className="text-muted-foreground">
               Target load: {week.targetLoad}
             </p>
+            {week.estimatedFtpWatts != null && (
+              <p className="text-muted-foreground">
+                Estimated FTP: {week.estimatedFtpWatts} W
+              </p>
+            )}
             <p className="text-muted-foreground">{week.focus}</p>
           </PlanListItem>
         ))}

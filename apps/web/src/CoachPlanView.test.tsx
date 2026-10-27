@@ -675,6 +675,62 @@ describe("CoachPlanView", () => {
     expect(withoutHandler).not.toContain('data-testid="plan-today-download"');
   });
 
+  it("shows the week's estimated FTP and training load", () => {
+    const load: { tss: number; atl: number; ctl: number; tsb: number } = {
+      tss: 64,
+      atl: 9.1,
+      ctl: 1.5,
+      tsb: -7.6,
+    };
+    const loadedPlan: CoachPlan = {
+      ...plan,
+      week: {
+        ...plan.week,
+        estimatedFtpWatts: 250,
+        sessions: plan.week.sessions.map((session) =>
+          session.date === "2026-10-21"
+            ? { ...session, trainingLoad: load }
+            : session,
+        ),
+      },
+    };
+
+    const html = renderToStaticMarkup(
+      <CoachPlanView plan={loadedPlan} defaultTab="week" />,
+    );
+
+    expect(html).toContain('data-testid="week-ftp"');
+    expect(html).toContain("Estimated FTP:");
+    expect(html).toContain("250 W");
+    expect(html).toContain('data-testid="session-load"');
+    expect(html).toContain("TSS 64");
+    expect(html).toContain("ATL 9");
+    expect(html).toContain("CTL 2");
+    expect(html).toContain("TSB -8");
+  });
+
+  it("shows the training load in the today and tomorrow cards", () => {
+    const load: { tss: number; atl: number; ctl: number; tsb: number } = {
+      tss: 64,
+      atl: 9.1,
+      ctl: 1.5,
+      tsb: -7.6,
+    };
+    const loadedPlan: CoachPlan = {
+      ...plan,
+      today: { ...plan.today, trainingLoad: load },
+      tomorrow: { ...(plan.tomorrow ?? plan.today), trainingLoad: load },
+    };
+
+    const html = renderToStaticMarkup(
+      <CoachPlanView plan={loadedPlan} showTomorrow />,
+    );
+
+    expect(html).toContain('data-testid="plan-today-load"');
+    expect(html).toContain('data-testid="plan-tomorrow-load"');
+    expect(html).toContain("TSS 64");
+  });
+
   it("disables the download button while the file is prepared", () => {
     const html = renderToStaticMarkup(
       <CoachPlanView

@@ -15,6 +15,14 @@ export const activitySummarySchema = z.object({
   movingTime: z.number(),
   elapsedTime: z.number(),
   totalElevationGain: z.number(),
+  /**
+   * Time-weighted mean power of the recorded samples, in watts. Present only
+   * when the activity has power data, so consumers can distinguish measured
+   * power from an estimate.
+   */
+  averagePower: z.number().nonnegative().nullable().optional(),
+  /** Normalized power from the recorded samples, in watts. */
+  normalizedPower: z.number().nonnegative().nullable().optional(),
 });
 
 export type ActivitySummary = z.infer<typeof activitySummarySchema>;

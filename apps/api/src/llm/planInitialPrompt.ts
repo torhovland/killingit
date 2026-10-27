@@ -13,6 +13,7 @@ import {
   BLOCK_CONTRACT,
   JSON_RULES,
   SEASON_CONTRACT,
+  TRAINING_LOAD_RULES,
 } from "./planUpdatePrompt.js";
 
 export interface SeasonPlanInput extends PlanContextInput {
@@ -43,6 +44,8 @@ ${JSON_RULES}
 export const INITIAL_BLOCK_SYSTEM_PROMPT = `You are an expert endurance coach. Create the first block of the season plan for an amateur athlete. Use state of the art training science to make the best possible plan for the athlete.
 
 You receive the athlete's profile, recent training with coach reviews and replies, manually recorded activities, comments on activities, a general weekly note, coach summaries of completed weeks and blocks, and the season plan. ${ACTIVITY_COMMENT_RULE} The first block summary in the season defines the block's name, focus, dates, and week count. Expand it into a detailed block plan with its weeks and target loads. The block must start on today's date, and its weeks must add up to the planned week count. Keep the season unchanged. Include a concise rationale explaining the block's purpose and progression.
+
+${TRAINING_LOAD_RULES}
 
 ${JSON_RULES}
 {
