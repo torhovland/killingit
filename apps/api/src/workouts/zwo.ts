@@ -30,6 +30,10 @@ Estimated FTP: ${input.workout.ftpWatts} W. Set your trainer app to this FTP for
     `  <name>${escapeXml(input.title)}</name>`,
     `  <description>${escapeXml(description)}</description>`,
     "  <sportType>bike</sportType>",
+    // Pin the workout to the FTP the coach used, so the relative power values
+    // produce the prescribed absolute watts even when the athlete's app FTP
+    // differs.
+    `  <ftpOverride>${input.workout.ftpWatts}</ftpOverride>`,
     "  <tags/>",
     "  <workout>",
     ...steps,

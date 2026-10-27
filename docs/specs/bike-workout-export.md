@@ -25,7 +25,8 @@ details in the Today and Tomorrow views offer a file download.
 3. The existing week context given to a regeneration prompt includes the
    structured targets, so a revised week keeps or updates them.
 4. ZWO generation from a structured workout, with four-decimal power values, an
-   ASCII-only filename, and XML escaping.
+   `<ftpOverride>` set to the estimated FTP, an ASCII-only filename, and XML
+   escaping.
 5. `GET /api/coaching/plan/workouts/:date` returns the ZWO file as an
    attachment.
 6. A "Download workout file (.zwo)" button on the Today and Tomorrow cards when
@@ -88,12 +89,14 @@ places are kept so fractional percentages are not rounded into a coarser zone.
 The file includes the session title, description, and
 `<sportType>bike</sportType>`.
 
-ZWO has no standard metadata field that carries the athlete's FTP. It also has
-a reverse-engineered `<ftpOverride>` element that pins the rider's FTP for a
-fixed-power workout, but support varies between trainer apps, so this generator
-does not write it. The estimated FTP is surfaced in the app and appended to the
-ZWO description as a human-readable note, and the athlete sets it in the trainer
-app to get the intended absolute watts.
+ZWO has no standard metadata field that carries the athlete's FTP, but the
+reverse-engineered `<ftpOverride>` element pins the rider's FTP for a workout.
+The generator writes `<ftpOverride>` with the estimated FTP so the relative
+power values produce the prescribed absolute watts even when the athlete's app
+FTP differs. The estimate is also surfaced in the app and appended to the ZWO
+description as a human-readable note. Because `<ftpOverride>` support varies
+between trainer apps, the UI still tells the athlete to set the same FTP
+manually.
 
 ## UI
 
@@ -114,7 +117,8 @@ or outdoor.
    The same cards show the estimated FTP whenever `bikeWorkout` is present.
 3. Downloading returns a valid ZWO file whose steps match the structured
    intervals, whose power fractions use four decimals, whose title is
-   XML-escaped, and whose description states the estimated FTP.
+   XML-escaped, whose description states the estimated FTP, and which sets
+   `<ftpOverride>` to that FTP.
 4. The download works after the access token has expired (one silent refresh and
    retry, like the JSON routes).
 5. Existing stored plans without `bikeWorkout` continue to load and render.

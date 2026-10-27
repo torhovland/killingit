@@ -20,6 +20,7 @@ describe("buildZwoWorkout", () => {
 
     expect(zwo).toContain("<name>Sweet spot intervals</name>");
     expect(zwo).toContain("<sportType>bike</sportType>");
+    expect(zwo).toContain("<ftpOverride>250</ftpOverride>");
     expect(zwo).toContain("Estimated FTP: 250 W.");
     expect(zwo).toContain('<SteadyState Duration="600" Power="0.5000"/>');
     expect(zwo).toContain('<SteadyState Duration="480" Power="0.9000"/>');

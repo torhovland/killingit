@@ -943,6 +943,7 @@ describe("coach plan route", () => {
     );
     const body = await res.text();
     expect(body).toContain("<name>Sweet spot &amp; tempo</name>");
+    expect(body).toContain("<ftpOverride>220</ftpOverride>");
     expect(body).toContain('<SteadyState Duration="600" Power="0.5500"/>');
     expect(body).toContain("<sportType>bike</sportType>");
   });
