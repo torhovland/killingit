@@ -93,22 +93,26 @@ describe("FitnessView", () => {
     );
   });
 
-  it("plots the estimated FTP over the window", () => {
+  it("shows today's estimated FTP in the Today panel", () => {
     const html = renderToStaticMarkup(
       <FitnessView history={history()} today="2026-10-22" />,
     );
 
+    const todayPanel = html.slice(
+      html.indexOf('data-testid="fitness-today-load"'),
+      html.indexOf('data-testid="fitness-chart"'),
+    );
+    expect(todayPanel).toContain("Estimated FTP 255 W");
     expect(html).toContain('data-testid="ftp-chart"');
-    expect(html).toContain("Estimated FTP");
-    expect(html).toContain("255 W");
   });
 
-  it("hides the FTP chart when the athlete has no FTP", () => {
+  it("hides the FTP chart and the estimate when the athlete has no FTP", () => {
     const html = renderToStaticMarkup(
       <FitnessView history={history({ ftp: [] })} today="2026-10-22" />,
     );
 
     expect(html).not.toContain('data-testid="ftp-chart"');
+    expect(html).not.toContain("Estimated FTP");
   });
 
   it("asks for training history when there is nothing to chart yet", () => {

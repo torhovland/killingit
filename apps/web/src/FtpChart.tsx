@@ -39,7 +39,6 @@ export function FtpChart({
   }
   const domain = niceDomain(points.map((point) => point.watts));
   const scale = chartScale(points.length, domain);
-  const current = points[points.length - 1];
   const xLabels = labelIndices(points.length);
   const hoveredWatts =
     hovered === null
@@ -49,12 +48,7 @@ export function FtpChart({
 
   return (
     <figure className="flex flex-col gap-2 rounded-lg border bg-card p-4">
-      <figcaption className="text-base font-medium">
-        Estimated FTP{" "}
-        {current !== undefined && (
-          <span className="font-medium text-foreground">{current.watts} W</span>
-        )}
-      </figcaption>
+      <figcaption className="text-base font-medium">Estimated FTP</figcaption>
       <div className="relative">
         <svg
           viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}

@@ -105,10 +105,11 @@ API:
 - The page shows a Today panel: `Training stress · Fatigue · Fitness · Form`
   with each acronym beside the spelled-out name and the interpretation in its
   zone colour, one size larger than the compact line used on the plan and
-  activity views.
+  activity views. The panel also shows the estimated FTP in effect today.
 - Below it, a fitness/form chart with CTL, ATL, and TSB lines over coloured TSB
   zone bands, a legend naming each zone with its threshold and colour, and an
-  estimated-FTP step chart.
+  estimated-FTP step chart whose heading carries no value (the current estimate
+  is in the Today panel).
 - Only the fitness chart's plot is white, so the zone tints stay clean while the
   rest of that chart — and the whole FTP chart — keeps the card's surface. The bands are soft tints (62.5%) of the
   zone colours, and the TSB line is solid and coloured by the zone it is in
@@ -143,7 +144,8 @@ API:
 5. The FTP chart plots the coach's weekly estimate inside the stored block and
    the athlete's stated/tested values elsewhere, and is hidden without an FTP.
 6. The Today panel spells out training stress, fatigue, fitness, and form
-   beside their acronyms, and reads larger than the compact plan/activity line.
+   beside their acronyms, reads larger than the compact plan/activity line, and
+   shows today's estimated FTP.
 7. Pointing at a day of either chart shows that day's numbers and the
    activities logged on it, if any; the FTP chart also shows that day's FTP.
 8. The page is reachable from the account menu and renders today's load line.

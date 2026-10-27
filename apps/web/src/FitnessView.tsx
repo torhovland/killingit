@@ -4,8 +4,8 @@ import { FtpChart } from "./FtpChart";
 import { TrainingLoadLine } from "./TrainingLoadLine";
 
 /**
- * The Fitness page content: today's load line, the fitness/form chart with its
- * TSB zone legend, and the estimated-FTP chart.
+ * The Fitness page content: today's load line with the current FTP estimate,
+ * the fitness/form chart with its TSB zone legend, and the FTP chart.
  */
 export function FitnessView({
   history,
@@ -18,6 +18,8 @@ export function FitnessView({
   error?: string | null;
 }) {
   const todayLoad = history?.days.find((day) => day.date === today) ?? null;
+  const todayFtp =
+    history?.ftp.find((point) => point.date === today)?.watts ?? null;
 
   return (
     <section className="flex w-full flex-col gap-4 text-left">
@@ -35,14 +37,26 @@ export function FitnessView({
         !error && <p className="text-sm text-muted-foreground">Loading…</p>
       ) : (
         <>
-          {todayLoad !== null && (
+          {(todayLoad !== null || todayFtp !== null) && (
             <div className="flex flex-col gap-1 rounded-lg border bg-card p-4">
               <span className="text-sm font-medium">Today</span>
-              <TrainingLoadLine
-                load={todayLoad}
-                testId="fitness-today-load"
-                variant="described"
-              />
+              {todayLoad !== null && (
+                <TrainingLoadLine
+                  load={todayLoad}
+                  testId="fitness-today-load"
+                  variant="described"
+                />
+              )}
+              {todayFtp !== null && (
+                <p
+                  className="w-full text-base text-muted-foreground tabular-nums"
+                  data-testid="fitness-today-ftp"
+                >
+                  <span className="font-medium text-foreground">
+                    Estimated FTP {todayFtp} W
+                  </span>
+                </p>
+              )}
             </div>
           )}
 
