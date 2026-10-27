@@ -3,6 +3,7 @@ import { createContext, useContext, type ReactNode } from "react";
 export type Page =
   | "coach"
   | "fitness"
+  | "calendar"
   | "activities"
   | "seasonReview"
   | "survey"

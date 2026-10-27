@@ -57,6 +57,7 @@ import {
   type QuestionAnswerStore,
 } from "./questions/answers.js";
 import { adminQuestionsRoute } from "./routes/adminQuestions.js";
+import { createCalendarRoute } from "./routes/calendar.js";
 import { createCoachingRoute } from "./routes/coaching.js";
 import { createFitnessRoute } from "./routes/fitness.js";
 import { createGarminRoute } from "./routes/garmin.js";
@@ -312,6 +313,26 @@ export function createApp(deps: AppDependencies = {}): Hono {
         : {}),
       ...(deps.loadFitnessHistory !== undefined
         ? { loadHistory: deps.loadFitnessHistory }
+        : {}),
+    }),
+  );
+
+  // The calendar page: activities, manual entries, planned sessions, block
+  // starts, and the season end over the range the athlete has data for.
+  api.use("/calendar/*", requireAuth(authProvider));
+  api.route(
+    "/calendar",
+    createCalendarRoute({
+      users: userStore,
+      plans: planStore,
+      ...(deps.loadCachedFeed !== undefined
+        ? { loadCachedFeed: deps.loadCachedFeed }
+        : {}),
+      ...(deps.loadManualActivities !== undefined
+        ? { loadManualActivities: deps.loadManualActivities }
+        : {}),
+      ...(deps.loadManualActivityReplies !== undefined
+        ? { loadManualActivityReplies: deps.loadManualActivityReplies }
         : {}),
     }),
   );
