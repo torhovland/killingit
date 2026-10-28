@@ -4,25 +4,20 @@ import { DevDatePicker } from "./DevDatePicker";
 
 /**
  * Admin-only configuration surface. Visibility here is convenience; the API
- * enforces the admin role on every admin route (ADR 0006).
+ * enforces the admin role on every admin route (ADR 0006). The development
+ * tools come first because they are what an admin reaches for while testing.
  */
 export function AdminSettingsPage() {
   return (
     <section
-      className="flex w-full max-w-5xl flex-col gap-6 text-left"
+      className="flex w-full flex-col gap-6 text-left"
       data-testid="admin-settings"
     >
       <h2 className="text-2xl font-semibold">Admin settings</h2>
 
-      {/* The prompt log needs the wider container for its list/detail split;
-          the other sections keep a narrower reading measure. */}
-      <div className="max-w-3xl">
-        <AdminQuestionsSection />
-      </div>
+      <DevDatePicker />
+      <AdminQuestionsSection />
       <AdminLlmCallsSection />
-      <div className="max-w-3xl">
-        <DevDatePicker />
-      </div>
     </section>
   );
 }

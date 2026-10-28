@@ -77,10 +77,13 @@ reloads the newest 50.
 
 On wide screens the log is a list/detail split: the list keeps its own scroll
 area in a left column and the selected call is rendered beside it, so reading a
-prompt never means scrolling past the remaining list entries. The section uses
-the full content width of the Admin settings page; the other admin sections keep
-their narrower reading measure. Below the `lg` breakpoint the list and the
-detail stack, and an empty pane invites the admin to pick a call.
+prompt never means scrolling past the remaining list entries. Below the `lg`
+breakpoint the list and the detail stack, and an empty pane invites the admin to
+pick a call.
+
+The Admin settings page uses the full width of the content panel for every
+section, and its development date override comes first, above the athlete
+questions and the prompt log.
 
 ## Acceptance criteria
 
