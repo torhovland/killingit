@@ -271,7 +271,13 @@ problems; the error names the offending fields if the repair also fails. See
   an update, so completed blocks survive.
 - `PlanRegenerationButtons` on the survey and settings pages reads plan
   availability from `GET /api/coaching/plan`, then offers "Plan a new season"
-  and, when a season contains today, "Update season plan".
+  and, when a season contains today, "Update season plan". The update action is
+  primary whenever it is shown; "Plan a new season" is primary only when it is
+  the sole action. The running action shows a spinner and "Coach is thinking…".
+- Every button that asks the coach for work shows the same spinner and coach
+  label while it runs: the plan generation actions ("Generate my plan", "Update
+  plan"), "Sync & re-analyze" (when a model is configured), and saving a manual
+  activity, a comment, a weekly note, or a by-the-way question.
 - The plan section is rendered before the profile/integrations so the plan is
   the main surface on each visit.
 - The stale banner's "Update plan" is a fallback: the plan section already

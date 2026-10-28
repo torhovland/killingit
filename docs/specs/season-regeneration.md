@@ -107,8 +107,12 @@ and means the same as `newSeason`.
   explanation of the difference.
 - Button availability is read from `GET /api/coaching/plan`; the update action
   appears only when the returned plan has a season containing today.
-- Progress continues to use the shared header status. The running button names
-  the action being performed.
+- "Update season plan" is the primary button whenever it is shown, since it is
+  the safer action. "Plan a new season" is primary only when it is the only
+  action offered; alongside the update action it is the secondary button.
+- Progress continues to use the shared header status. The action being run
+  shows a spinner and the coach label ("Coach is thinking…"); the other action
+  is disabled until the run finishes.
 
 ## Testing
 
@@ -122,5 +126,6 @@ and means the same as `newSeason`.
   - rejecting a refreshed season or weekly revision that moves the current
     block's start date.
 - Web render tests for both actions, including hiding the update action when no
-  season exists.
+  season exists, which action is primary, and the spinner and coach label on the
+  running action.
 - Run `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`.

@@ -18,6 +18,7 @@ import { useAuth } from "./auth";
 import { fetchJsonAuthed } from "./fetchAuthed";
 import { useNavigate } from "./navigation";
 import { reportError } from "./reportError";
+import { SubmitButton } from "./SubmitButton";
 import { useTimeZone } from "./TimeZoneContext";
 import { getToday } from "./useToday";
 
@@ -53,6 +54,7 @@ export function ActivitiesPage() {
     () => getToday(timeZone).today,
   );
   const [manualDetails, setManualDetails] = useState("");
+  const [savingManual, setSavingManual] = useState(false);
 
   useEffect(() => {
     setStatus("activities-page", syncing ? "syncing" : null);
@@ -240,9 +242,10 @@ export function ActivitiesPage() {
     event: React.FormEvent<HTMLFormElement>,
   ): Promise<void> {
     event.preventDefault();
-    if (!manualStartDate || !manualDetails.trim()) {
+    if (!manualStartDate || !manualDetails.trim() || savingManual) {
       return;
     }
+    setSavingManual(true);
     try {
       const { today } = getToday(timeZone);
       const path =
@@ -266,6 +269,8 @@ export function ActivitiesPage() {
       await Promise.all([loadManualActivities(), loadCachedAnalyses()]);
     } catch (err: unknown) {
       setError(reportError(err));
+    } finally {
+      setSavingManual(false);
     }
   }
 
@@ -335,6 +340,23 @@ export function ActivitiesPage() {
     return null;
   }
 
+  // A sync only asks the coach to analyse the workouts when a model is set up.
+  const syncLabel = syncing
+    ? llm?.configured
+      ? "Coach is thinking…"
+      : "Syncing…"
+    : llm?.configured
+      ? "Sync & re-analyze"
+      : "Sync activities";
+  // A manual entry is saved with the coach's TSS estimate and reply.
+  const manualLabel = savingManual
+    ? llm?.configured
+      ? "Coach is thinking…"
+      : "Saving…"
+    : editingActivityId !== null
+      ? "Update activity"
+      : "Add manual activity";
+
   return (
     <section className="flex w-full flex-col gap-4 text-left">
       {error && <p className="text-destructive">Error: {error}</p>}
@@ -346,18 +368,15 @@ export function ActivitiesPage() {
             Every imported activity, plus anything you record manually.
           </p>
         </div>
-        <button
+        <SubmitButton
           type="button"
+          busy={syncing}
           className="rounded border border-transparent bg-primary px-3 py-1 text-sm text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
           onClick={() => void loadAnalyses(llm?.configured ?? false)}
-          disabled={!garmin?.connected || syncing}
+          disabled={!garmin?.connected}
         >
-          {syncing
-            ? "Working…"
-            : llm?.configured
-              ? "Sync & re-analyze"
-              : "Sync activities"}
-        </button>
+          {syncLabel}
+        </SubmitButton>
       </div>
 
       {!loading && (!garmin?.connected || !llm?.configured) && (
@@ -391,6 +410,7 @@ export function ActivitiesPage() {
           className="w-fit rounded border bg-card px-2 py-1 text-sm"
           value={manualStartDate}
           onChange={(event) => setManualStartDate(event.target.value)}
+          disabled={savingManual}
         />
         <textarea
           name="details"
@@ -399,19 +419,22 @@ export function ActivitiesPage() {
           rows={2}
           value={manualDetails}
           onChange={(event) => setManualDetails(event.target.value)}
+          disabled={savingManual}
         />
         <div className="flex gap-2">
-          <button
-            type="submit"
-            className="self-start rounded border border-transparent bg-primary px-3 py-1 text-sm text-primary-foreground enabled:hover:bg-primary-hover"
+          <SubmitButton
+            busy={savingManual}
+            className="self-start rounded border border-transparent bg-primary px-3 py-1 text-sm text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
+            disabled={!manualStartDate || !manualDetails.trim()}
           >
-            {editingActivityId ? "Update activity" : "Add manual activity"}
-          </button>
+            {manualLabel}
+          </SubmitButton>
           {editingActivityId && (
             <button
               type="button"
-              className="self-start rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted"
+              className="self-start rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted disabled:opacity-50"
               onClick={handleCancelEdit}
+              disabled={savingManual}
             >
               Cancel
             </button>
