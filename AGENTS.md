@@ -76,7 +76,11 @@ about a past workout, or before a suggested workout, to steer the coach.
   update an existing season by default. See
   `docs/specs/season-regeneration.md` and ADR 0011. The lazy day → week → block
   cascade and the plan UI are documented in
-  `docs/specs/coach-plan-lifecycle.md`. Indoor bike workouts with power targets
+  `docs/specs/coach-plan-lifecycle.md`. Week and next-week plans are outlines:
+  only today's and tomorrow's sessions are fully detailed, while later days keep
+  a brief session type, focus, approximate duration and intensity, estimated
+  TSS, and the week's estimated FTP until the daily update details them. See
+  `docs/specs/week-outline.md`. Indoor bike workouts with power targets
   carry a structured `bikeWorkout` and can be downloaded as ZWO files from the
   Day tab; see `docs/specs/coach-plan-lifecycle.md` and
   `docs/specs/bike-workout-export.md`.
@@ -105,11 +109,11 @@ about a past workout, or before a suggested workout, to steer the coach.
   reports, so a value edited out of a comment disappears, while Garmin values
   and coach estimates are untouched. The reading runs before every plan
   generation and fails open.
-  The coach's weekly `coach_plans` estimates and the structured FTP estimate in
+  The coach's per-day `coach_plans` estimates and the structured FTP estimate in
   each activity analysis are stored as `coach` points; a newer estimate deletes
   later coach estimates but never an athlete measurement. The Week, Block, and
-  Season tabs show the weekly estimate, and completed weeks before a revised
-  test are re-interpolated. Every plan and activity-analysis prompt receives the
+  Season tabs show the week's single estimate, the Fitness page charts the daily
+  projection, and completed weeks before a revised test are re-interpolated. Every plan and activity-analysis prompt receives the
   FTP history. Every plan response also carries a dated `bodyMetrics` array and
   an activity analysis carries `weightKg`/`bodyFatPercent` for its date, filled
   only from numbers the athlete stated in the profile, a note, or a comment.

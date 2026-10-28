@@ -78,6 +78,7 @@ function plan(overrides: Partial<CoachPlan> = {}): CoachPlan {
         durationMinutes: 60,
         intensity: "easy" as const,
         status: "planned" as const,
+        ...(index >= 3 ? { estimatedFtpWatts: 255 + index - 3 } : {}),
       })),
     },
     today: {
@@ -312,11 +313,35 @@ describe("buildFitnessHistory", () => {
     ).toEqual({ title: "Rest day", type: "rest", durationMinutes: 0 });
   });
 
-  it("plots the coach's weekly estimate inside the plan and the stated FTP before it", () => {
+  it("plots the coach's daily estimate from today and the stated FTP before it", () => {
     const history = buildFitnessHistory({ ...base, range: "month" });
 
     expect(ftpOn(history.ftp, "2026-10-15")).toBe(250);
-    expect(ftpOn(history.ftp, "2026-10-19")).toBe(255);
+    expect(ftpOn(history.ftp, "2026-10-21")).toBe(250);
+    expect(ftpOn(history.ftp, "2026-10-22")).toBe(255);
+    expect(ftpOn(history.ftp, "2026-10-23")).toBe(256);
+    expect(ftpOn(history.ftp, "2026-10-25")).toBe(258);
+  });
+
+  it("falls back to the week estimate for a plan without daily values", () => {
+    const weeklyPlan: CoachPlan = {
+      ...plan(),
+      week: {
+        ...plan().week,
+        estimatedFtpWatts: 255,
+        sessions: plan().week.sessions.map((session) => ({
+          ...session,
+          estimatedFtpWatts: undefined,
+        })),
+      },
+    };
+    const history = buildFitnessHistory({
+      ...base,
+      plan: weeklyPlan,
+      range: "month",
+    });
+
+    expect(ftpOn(history.ftp, "2026-10-22")).toBe(255);
     expect(ftpOn(history.ftp, "2026-10-25")).toBe(255);
   });
 

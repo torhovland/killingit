@@ -84,13 +84,17 @@ has not logged anything that day. A rest day that is still ahead reads
 
 For each day, the estimated FTP is:
 
-1. the stored plan's weekly estimate for the week containing that day (the
-   current and next week, and each week of the current and next block); or
-2. the interpolated athlete timeline value (`ftpAt`), which covers the stated
-   profile FTP and every later FTP test the athlete mentioned.
+1. the stored plan's per-day estimate for that date, from today onward;
+2. the week's single estimate when that day has no value (the current and next
+   week, and each week of the current and next block); or
+3. the interpolated athlete timeline value (`ftpAt`), which covers the stated
+   profile FTP, every later FTP test the athlete mentioned, and recorded history
+   before today.
 
 The series is empty when the athlete has never stated an FTP, and the page hides
-the FTP chart.
+the FTP chart. The same daily values are stored as `coach` points in
+`athlete_metrics`, so the series survives the plan's JSON shape and feeds the
+prompts as FTP history.
 
 ### Body series
 
@@ -188,8 +192,9 @@ API:
 4. The TSB zone bands and the legend use the same colours as the interpretation
    text (`--form-risk`, `--form-productive`, …), and the TSB line is solid and
    changes colour exactly where it crosses from one zone into the next.
-5. The FTP chart plots the coach's weekly estimate inside the stored block and
-   the athlete's stated/tested values elsewhere, and is hidden without an FTP.
+5. The FTP chart plots the coach's daily plan estimate from today onward, the
+   week's single estimate where a day has no daily value, and the athlete's
+   stated/tested values for recorded history, and is hidden without an FTP.
 6. The charts run as far ahead as the stored plan has workouts, and the part
    after today is dotted.
 7. The Today panel spells out training stress, fatigue, fitness, and form
@@ -213,8 +218,8 @@ API:
 - Shared: no new schema behaviour beyond the existing training-load tests;
   `FORM_ZONES` is exercised through the web chart tests.
 - API unit tests for `buildFitnessHistory`: continuous days, TSS precedence,
-  manual entries, plan TSS, FTP weekly estimate vs. timeline, no FTP, the
-  activities listed per day, and the interpolated body series.
+  manual entries, plan TSS, daily plan estimate vs. week fallback vs. timeline,
+  no FTP, the activities listed per day, and the interpolated body series.
 - API route tests: auth, missing date, day clamping, and the happy path.
 - Web unit tests for the chart scale helpers, a render test for the page view
   (load line, zone legend, both charts, hidden FTP chart, body chart and its

@@ -157,6 +157,18 @@ export const weekSessionSchema = z.object({
    */
   estimatedTss: z.number().nonnegative().max(2000).optional(),
   /**
+   * The coach's estimate of the athlete's FTP on this day, used for the daily
+   * projection on the Fitness page. The Week view still shows only the week's
+   * single estimate. Null or missing for days before today.
+   */
+  estimatedFtpWatts: z
+    .number()
+    .int()
+    .nonnegative()
+    .max(2000)
+    .nullable()
+    .optional(),
+  /**
    * Resolved training stress for the day plus the fitness and fatigue snapshot,
    * calculated after the coach responds. Missing on plans stored before
    * training-load tracking.

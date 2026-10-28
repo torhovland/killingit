@@ -110,7 +110,7 @@ export function buildFitnessHistory(
 
   return {
     days,
-    ftp: ftpHistory(input.timeline, input.plan, days),
+    ftp: ftpHistory(input.timeline, input.plan, days, input.today),
     body: {
       weight: interpolateMetricSeries(
         input.bodyPoints?.weight ?? [],
@@ -251,24 +251,59 @@ export function fitnessWindow(input: {
 }
 
 /**
- * The estimated FTP for each day: the stored plan's weekly estimate where the
- * plan covers the day, otherwise the athlete's interpolated timeline value.
- * Empty when the athlete has never stated an FTP.
+ * The estimated FTP for each day: the coach's daily plan estimate from today
+ * onward, the week's single estimate as a fallback, and the athlete's
+ * interpolated timeline for recorded history. Empty when the athlete has never
+ * stated an FTP.
  */
 function ftpHistory(
   timeline: FtpTimeline,
   plan: CoachPlan | undefined,
   days: readonly { date: string }[],
+  today: string,
 ): FtpHistoryPoint[] {
+  const daily = dailyFtpEstimates(plan, today);
   const weekly = weeklyFtpEstimates(plan);
   const points: FtpHistoryPoint[] = [];
   for (const { date } of days) {
-    const watts = weekly.get(startOfWeek(date)) ?? ftpAt(timeline, date);
+    const planned =
+      date >= today
+        ? (daily.get(date) ?? weekly.get(startOfWeek(date)))
+        : undefined;
+    const watts = planned ?? ftpAt(timeline, date);
     if (watts !== null) {
       points.push({ date, watts });
     }
   }
   return points;
+}
+
+/** The coach's per-day estimates for the planned days from today onward. */
+function dailyFtpEstimates(
+  plan: CoachPlan | undefined,
+  today: string,
+): Map<string, number> {
+  const result = new Map<string, number>();
+  if (plan === undefined) {
+    return result;
+  }
+  const addWeek = (week: WeekPlan | null): void => {
+    if (week === null) {
+      return;
+    }
+    for (const session of week.sessions) {
+      if (
+        session.date >= today &&
+        session.estimatedFtpWatts !== null &&
+        session.estimatedFtpWatts !== undefined
+      ) {
+        result.set(session.date, session.estimatedFtpWatts);
+      }
+    }
+  };
+  addWeek(plan.week);
+  addWeek(plan.nextWeek);
+  return result;
 }
 
 /** The coach's estimate for every week the stored plan describes. */

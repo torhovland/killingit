@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { BlockPlan, SeasonPlan, WeekPlan } from "@killingit/shared";
-import { BODY_METRIC_RULES } from "./planContext.js";
+import { BODY_METRIC_RULES, WEEK_OUTLINE_RULES } from "./planContext.js";
 import {
   BLOCK_UPDATE_SYSTEM_PROMPT,
   buildBlockUpdatePrompt,
@@ -147,6 +147,8 @@ describe("daily update prompts", () => {
     expect(prompt).toContain('"estimatedTss"');
     expect(prompt).toContain("training stress score");
     expect(prompt).toContain('"estimatedFtpWatts"');
+    expect(prompt).toContain("estimate how it will change day by day");
+    expect(prompt).toContain('Set "estimatedFtpWatts" on every week session');
     expect(prompt).toContain('"bodyMetrics"');
     expect(prompt).toContain('"weightKg"');
     expect(prompt).toContain('"bodyFatPercent"');
@@ -157,6 +159,19 @@ describe("daily update prompts", () => {
     );
     expect(prompt).toContain(
       "Revise the week so every workout serves the goal",
+    );
+  });
+
+  it("keeps days after tomorrow as outlines", () => {
+    expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain(WEEK_OUTLINE_RULES);
+    expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain(
+      "Treat the week as an outline, not seven finished workouts",
+    );
+    expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain(
+      "Keep every other future day as a short outline",
+    );
+    expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain(
+      "Fully detail only the sessions",
     );
   });
 
@@ -227,6 +242,27 @@ describe("daily update prompts", () => {
     );
     expect(prompt).toContain("one session has the date 2026-10-21");
     expect(prompt).toContain('the "today" object must use that same date');
+    expect(prompt).toContain(
+      "Fully detail the sessions dated 2026-10-21 through 2026-10-22",
+    );
+    expect(prompt).toContain(
+      "Keep every later session in the week as a short outline.",
+    );
+  });
+
+  it("details only the target day when planning the next period", () => {
+    const prompt = buildDailyUpdatePrompt({
+      ...base,
+      today: "2026-10-26",
+      detailThrough: "2026-10-26",
+      season,
+      block,
+      week: { ...week, startDate: "2026-10-26" },
+    });
+
+    expect(prompt).toContain(
+      "Fully detail the sessions dated 2026-10-26 through 2026-10-26",
+    );
   });
 
   it("includes the forecast when one is supplied", () => {
@@ -276,9 +312,31 @@ describe("weekly update prompts", () => {
     expect(prompt).toContain('"powerPercent"');
     expect(prompt).toContain('"estimatedTss"');
     expect(prompt).toContain('"estimatedFtpWatts"');
+    expect(prompt).toContain("estimate how it will change day by day");
+    expect(prompt).toContain('Set "estimatedFtpWatts" on every week session');
     expect(prompt).toContain('"bodyMetrics"');
     expect(prompt).toContain(BODY_METRIC_RULES);
     expect(prompt).toContain("training stress score");
+  });
+
+  it("requires a week outline and leaves the detail to the daily update", () => {
+    expect(WEEKLY_UPDATE_SYSTEM_PROMPT).toContain(WEEK_OUTLINE_RULES);
+    expect(WEEKLY_UPDATE_SYSTEM_PROMPT).toContain(
+      "Treat the week as an outline, not seven finished workouts",
+    );
+    expect(WEEKLY_UPDATE_SYSTEM_PROMPT).toContain(
+      "the daily update will turn an outline into a concrete workout",
+    );
+    expect(
+      buildWeeklyUpdatePrompt({
+        ...base,
+        season,
+        block,
+        weekStartDate: "2026-10-26",
+      }),
+    ).toContain(
+      "Create all seven days as short outlines; the following daily update will turn each day into a concrete workout when it arrives.",
+    );
   });
 
   it("includes the week start date and the current block", () => {

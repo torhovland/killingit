@@ -8,6 +8,7 @@ import {
   toCoachPlanActivity,
   type CoachPlanInput,
 } from "./coachPlanPrompt.js";
+import { WEEK_OUTLINE_RULES } from "./planContext.js";
 
 function makeInput(overrides: Partial<CoachPlanInput> = {}): CoachPlanInput {
   return {
@@ -95,7 +96,7 @@ function makeAnalyzedActivity(
 
 describe("coach plan prompts", () => {
   it("exposes a prompt version for cache invalidation", () => {
-    expect(COACH_PLAN_PROMPT_VERSION).toBe(7);
+    expect(COACH_PLAN_PROMPT_VERSION).toBe(9);
   });
 
   it("builds a system and a user message", () => {
@@ -156,6 +157,13 @@ describe("coach plan prompts", () => {
     );
     expect(prompt).toContain(
       "Every field must use the exact name and value type shown in the contract",
+    );
+    expect(prompt).toContain(WEEK_OUTLINE_RULES);
+    expect(prompt).toContain(
+      "Treat the week as an outline, not seven finished workouts",
+    );
+    expect(prompt).toContain(
+      "Fully detail today's and tomorrow's sessions; keep every later day in the week as a short outline.",
     );
   });
 

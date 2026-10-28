@@ -260,7 +260,10 @@ problems; the error names the offending fields if the repair also fails. See
   without auth or network. The Day tab shows today and, after 18:00, tomorrow.
   The Week tab shows today's week and, when one has been planned for tomorrow,
   the next week, with each session's description, planned duration, intensity,
-  and whether the coach set it indoors or outdoors. The Block tab does the same
+  and whether the coach set it indoors or outdoors. Days after tomorrow are
+  outlines with a short description, so the Week tab shows the week's shape
+  rather than a finished workout for every day; the daily update details today
+  and tomorrow (see `docs/specs/week-outline.md`). The Block tab does the same
   for blocks. If a stored
   plan has today's `completed`/`partial` result missing from today's week
   session, `pending.week` becomes true and the normal weekly + daily cascade

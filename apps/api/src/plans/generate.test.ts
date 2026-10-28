@@ -20,7 +20,11 @@ import {
   WEEKLY_UPDATE_SYSTEM_PROMPT,
 } from "../llm/planUpdatePrompt.js";
 import { addDays, startOfWeek } from "./dates.js";
-import { runPlanGeneration, type PlanGenerationContext } from "./generate.js";
+import {
+  planFtpEstimates,
+  runPlanGeneration,
+  type PlanGenerationContext,
+} from "./generate.js";
 import { planPending } from "./status.js";
 import type { PlanGenerationStep } from "./steps.js";
 import {
@@ -83,6 +87,21 @@ function makeWeek(startDate: string): WeekPlan {
       durationMinutes: 45,
       intensity: "easy",
       status: "planned",
+    })),
+  };
+}
+
+/** The same week with a structured workout on every day. */
+function makeBikeWeek(startDate: string): WeekPlan {
+  const week = makeWeek(startDate);
+  return {
+    ...week,
+    sessions: week.sessions.map((session) => ({
+      ...session,
+      bikeWorkout: {
+        ftpWatts: 250,
+        intervals: [{ durationSeconds: 600, powerPercent: 75 }],
+      },
     })),
   };
 }
@@ -444,6 +463,74 @@ describe("runPlanGeneration", () => {
     expect(generations.steps).toContain("Designing your season");
     expect(generations.steps).toContain("Designing your block");
     expect(generations.steps).toContain("Building your week");
+  });
+
+  it("keeps detailed workouts only for today and tomorrow", async () => {
+    const today = "2026-10-21";
+    const bikeWorkout = {
+      ftpWatts: 250,
+      intervals: [{ durationSeconds: 600, powerPercent: 75 }],
+    };
+    const provider = new FakeProvider({
+      ...buildResponses(today),
+      weekly: JSON.stringify({
+        week: makeBikeWeek(startOfWeek(today)),
+        block: makeBlock(),
+      }),
+      daily: JSON.stringify({
+        today: { ...makeDay(today), bikeWorkout },
+        week: makeBikeWeek(startOfWeek(today)),
+      }),
+    });
+
+    const saved = await runPlanGeneration({
+      userId: 1,
+      today,
+      plan: null,
+      context: makeContext(provider),
+      plans: new MemoryPlanStore(null),
+      generations: new MemoryGenerationStore(),
+    });
+
+    const sessions = saved?.plan.week.sessions ?? [];
+    expect(
+      sessions.find((session) => session.date === "2026-10-22")?.bikeWorkout,
+    ).not.toBeNull();
+    expect(
+      sessions
+        .filter((session) => session.date > "2026-10-22")
+        .every((session) => session.bikeWorkout == null),
+    ).toBe(true);
+  });
+
+  it("stores one FTP point per planned day from today onward", () => {
+    const plan = makePlan("2026-10-21");
+    const estimates = planFtpEstimates({
+      ...plan,
+      week: {
+        ...plan.week,
+        estimatedFtpWatts: 255,
+        sessions: plan.week.sessions.map((session) =>
+          session.date === "2026-10-22"
+            ? { ...session, estimatedFtpWatts: 260 }
+            : session,
+        ),
+      },
+    });
+
+    expect(estimates.map((entry) => entry.date)).toEqual([
+      "2026-10-21",
+      "2026-10-22",
+      "2026-10-23",
+      "2026-10-24",
+      "2026-10-25",
+    ]);
+    expect(estimates.find((entry) => entry.date === "2026-10-21")?.watts).toBe(
+      255,
+    );
+    expect(estimates.find((entry) => entry.date === "2026-10-22")?.watts).toBe(
+      260,
+    );
   });
 
   it("stores the body metrics the coach found in the input", async () => {

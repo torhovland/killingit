@@ -119,6 +119,7 @@ describe("weekPlanSchema", () => {
           ? {
               ...session,
               estimatedTss: 60,
+              estimatedFtpWatts: 252,
               trainingLoad: { tss: 60, atl: 8.6, ctl: 1.4, tsb: -7.2 },
             }
           : session,
@@ -128,6 +129,7 @@ describe("weekPlanSchema", () => {
     expect(parsed.estimatedFtpWatts).toBe(250);
     expect(parsed.sessions[0]?.trainingLoad?.tss).toBe(60);
     expect(parsed.sessions[0]?.estimatedTss).toBe(60);
+    expect(parsed.sessions[0]?.estimatedFtpWatts).toBe(252);
   });
 
   it("accepts a partially completed session", () => {
