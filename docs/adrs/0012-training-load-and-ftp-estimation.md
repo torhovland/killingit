@@ -92,3 +92,16 @@ plan generations return a structured FTP estimate that is written back to the
 series; a newer estimate removes later coach points but never an athlete
 measurement. Plan and activity prompts receive the FTP history. See
 `docs/specs/body-metrics.md`.
+
+## Amendment (2026-10-29): the coach reads the athlete's words
+
+The deterministic reading of FTP was dropped. A phrase list cannot tell "I
+reach 280 W when fit, but I am now close to 220 W" from "I want an FTP of
+300 W", and extending it for body weight and body fat would have multiplied the
+same weakness. A dedicated coach call now reads the profile and every dated
+piece of athlete text and returns dated FTP, weight, and body-fat statements;
+the API stores them as `user` points. The same rule applies to a manual
+activity's free-text TSS estimate: the coach reads the wording, and when no
+model is available the entry stays unscored instead of being guessed from
+keywords. This supersedes the "read deterministically from the profile" decision
+above.

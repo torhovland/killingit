@@ -7,13 +7,12 @@ import type {
   WeekSession,
 } from "@killingit/shared";
 import { applyTrainingLoad } from "./load.js";
-import type { AthleteAnswerContext } from "../llm/planContext.js";
+import { buildFtpTimelineFromPoints } from "./ftp.js";
 
-const ftpAnswer: AthleteAnswerContext = {
-  prompt: "What is your current performance?",
-  answer: "My FTP is 250 W.",
-  skipped: false,
-};
+/** The athlete's stated FTP, as the coach read it and the API stored it. */
+const statedFtp = buildFtpTimelineFromPoints([
+  { date: "2026-10-01", value: 250, source: "user" },
+]);
 
 function activity(overrides: Partial<AnalyzedActivity> = {}): AnalyzedActivity {
   return {
@@ -150,7 +149,7 @@ const plan: CoachPlan = {
 describe("applyTrainingLoad", () => {
   it("scores measured power before the coach's estimate", () => {
     const loaded = applyTrainingLoad(plan, {
-      answers: [ftpAnswer],
+      ftpTimeline: statedFtp,
       activities: [activity()],
     });
     const tuesday = loaded.week.sessions.find(
@@ -166,7 +165,7 @@ describe("applyTrainingLoad", () => {
 
   it("scores planned bike workouts from their intervals", () => {
     const loaded = applyTrainingLoad(plan, {
-      answers: [ftpAnswer],
+      ftpTimeline: statedFtp,
       activities: [activity()],
     });
     const wednesday = loaded.week.sessions.find(
@@ -193,7 +192,7 @@ describe("applyTrainingLoad", () => {
         },
       },
       {
-        answers: [ftpAnswer],
+        ftpTimeline: statedFtp,
         activities: [],
         manualActivities: [
           {
@@ -214,7 +213,7 @@ describe("applyTrainingLoad", () => {
 
   it("uses the coach's estimate and a duration fallback for other sessions", () => {
     const loaded = applyTrainingLoad(plan, {
-      answers: [ftpAnswer],
+      ftpTimeline: statedFtp,
       activities: [activity()],
     });
     const thursday = loaded.week.sessions.find(
@@ -240,7 +239,7 @@ describe("applyTrainingLoad", () => {
           ),
         },
       },
-      { answers: [ftpAnswer], activities: [activity()] },
+      { ftpTimeline: statedFtp, activities: [activity()] },
     );
     const friday = loaded.week.sessions.find(
       (entry) => entry.date === "2026-10-23",
@@ -250,7 +249,7 @@ describe("applyTrainingLoad", () => {
 
   it("mirrors the week's load into today and tomorrow", () => {
     const loaded = applyTrainingLoad(plan, {
-      answers: [ftpAnswer],
+      ftpTimeline: statedFtp,
       activities: [activity()],
     });
     expect(loaded.today.trainingLoad?.tss).toBe(64);
@@ -274,7 +273,7 @@ describe("applyTrainingLoad", () => {
         nextWeek,
         tomorrow: day("2026-10-28"),
       },
-      { answers: [ftpAnswer], activities: [activity()] },
+      { ftpTimeline: statedFtp, activities: [activity()] },
     );
 
     expect(loaded.nextWeek?.estimatedFtpWatts).toBe(260);
@@ -284,7 +283,7 @@ describe("applyTrainingLoad", () => {
 
   it("keeps the block's week-by-week FTP anchored to the stated FTP", () => {
     const loaded = applyTrainingLoad(plan, {
-      answers: [ftpAnswer],
+      ftpTimeline: statedFtp,
       activities: [activity()],
     });
     expect(loaded.block.weeks[0]?.estimatedFtpWatts).toBe(250);
@@ -313,21 +312,10 @@ describe("applyTrainingLoad", () => {
         },
       },
       {
-        answers: [
-          {
-            prompt: "FTP?",
-            answer: "FTP is 200 W.",
-            skipped: false,
-            answeredAt: new Date("2026-10-01T10:00:00Z"),
-          },
-        ],
-        activityComments: [
-          {
-            activityId: "1",
-            comment: "FTP test today: 260 W.",
-            updatedAt: "2026-10-26T18:00:00Z",
-          },
-        ],
+        ftpTimeline: buildFtpTimelineFromPoints([
+          { date: "2026-10-01", value: 200, source: "user" },
+          { date: "2026-10-26", value: 260, source: "user" },
+        ]),
         activities: [activity()],
       },
     );
@@ -335,26 +323,21 @@ describe("applyTrainingLoad", () => {
     // The current week is refreshed to the new test value.
     expect(loaded.week.estimatedFtpWatts).toBe(260);
     // The earlier block week is interpolated from 200 to 260.
-    expect(loaded.block.weeks[0]?.estimatedFtpWatts).toBe(225);
+    expect(loaded.block.weeks[0]?.estimatedFtpWatts).toBe(226);
     expect(loaded.block.weeks[1]?.estimatedFtpWatts).toBe(260);
     expect(loaded.block.weeks[2]?.estimatedFtpWatts).toBe(260);
     expect(loaded.block.estimatedFtpWatts).toBe(260);
     expect(loaded.season.estimatedFtpWatts).toBe(260);
-    // Tuesday's measured TSS uses the interpolated FTP at its date (245 W).
-    expect(loaded.today.trainingLoad?.tss).toBe(67);
+    // Tuesday's measured TSS uses the interpolated FTP at its date (247 W).
+    expect(loaded.today.trainingLoad?.tss).toBe(66);
   });
 
   it("updates the estimate when a later comment reports a new FTP test", () => {
     const loaded = applyTrainingLoad(plan, {
-      answers: [{ prompt: "FTP?", answer: "Around 240 W.", skipped: false }],
-      answersUpdatedAt: new Date("2026-10-01T10:00:00Z"),
-      activityComments: [
-        {
-          activityId: "1",
-          comment: "FTP test today: 260 W.",
-          updatedAt: "2026-10-20T18:00:00Z",
-        },
-      ],
+      ftpTimeline: buildFtpTimelineFromPoints([
+        { date: "2026-10-01", value: 240, source: "user" },
+        { date: "2026-10-20", value: 260, source: "user" },
+      ]),
       activities: [activity()],
     });
     expect(loaded.week.estimatedFtpWatts).toBe(260);
@@ -363,7 +346,6 @@ describe("applyTrainingLoad", () => {
 
   it("turns FTP estimates off when the athlete has never provided one", () => {
     const loaded = applyTrainingLoad(plan, {
-      answers: [{ prompt: "Goal?", answer: "Ride a century.", skipped: false }],
       activities: [activity()],
     });
     const tuesday = loaded.week.sessions.find(
@@ -379,7 +361,7 @@ describe("applyTrainingLoad", () => {
         ...plan,
         week: { ...week, estimatedFtpWatts: 900 },
       },
-      { answers: [ftpAnswer], activities: [] },
+      { ftpTimeline: statedFtp, activities: [] },
     );
     expect(loaded.week.estimatedFtpWatts).toBe(375);
   });

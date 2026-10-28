@@ -64,6 +64,32 @@ export type GarminBodyMetricSample = z.infer<
   typeof garminBodyMetricSampleSchema
 >;
 
+/**
+ * One dated measurement the athlete stated in their own words, as the coach
+ * reads it: a stated FTP, body weight, or body-fat percentage. A statement
+ * usually carries one value and leaves the others null.
+ */
+export const athleteMetricStatementSchema = z.object({
+  date: planDateSchema,
+  /** FTP in watts. */
+  ftpWatts: z.number().int().min(50).max(2000).nullable().default(null),
+  /** Body weight in kilograms. */
+  weightKg: z.number().positive().max(500).nullable().default(null),
+  /** Body fat as a percentage of body weight. */
+  bodyFatPercent: z.number().positive().max(75).nullable().default(null),
+});
+
+export type AthleteMetricStatement = z.infer<
+  typeof athleteMetricStatementSchema
+>;
+
+/** The coach's reading of every measurement the athlete states. */
+export const athleteMetricsResultSchema = z.object({
+  statements: z.array(athleteMetricStatementSchema).default([]),
+});
+
+export type AthleteMetricsResult = z.infer<typeof athleteMetricsResultSchema>;
+
 /** Response body of the Garmin sidecar's metric sync. */
 export const garminFtpSampleSchema = z.object({
   date: planDateSchema,

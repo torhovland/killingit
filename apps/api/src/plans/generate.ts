@@ -37,11 +37,7 @@ import type {
 } from "../llm/planContext.js";
 import type { LlmProvider } from "../llm/openrouter.js";
 import { applyTrainingLoad } from "../training/load.js";
-import {
-  ftpBaselineAt,
-  detectFtpBaseline,
-  type FtpTimeline,
-} from "../training/ftp.js";
+import { ftpBaselineAt, type FtpTimeline } from "../training/ftp.js";
 import { addDays, startOfWeek } from "./dates.js";
 import { blockFor, promoteNextPeriod, weekFor } from "./periods.js";
 import { planIsStale, planPending } from "./status.js";
@@ -1051,31 +1047,22 @@ function withTrainingLoad(
   context: PlanGenerationContext,
 ): CoachPlan {
   return applyTrainingLoad(plan, {
-    answers: context.answers,
-    answersUpdatedAt: context.answersUpdatedAt,
     activities: context.activities,
     manualActivities: context.manualActivities,
-    activityComments: context.activityComments,
-    weeklyNote: context.weeklyNote,
-    weeklyNoteUpdatedAt: context.weeklyNoteUpdatedAt ?? null,
-    periodReviews: context.periodReviews,
     ftpTimeline: context.ftpTimeline,
   });
 }
 
+/**
+ * The current FTP for prompts and TSS. It comes only from the stored metric
+ * series: the coach read the athlete's stated FTP and the API stored it, so no
+ * free text is parsed here.
+ */
 function ftpBaseline(context: PlanGenerationContext, today: string) {
-  if (context.ftpTimeline !== undefined) {
-    return ftpBaselineAt(context.ftpTimeline, today);
+  if (context.ftpTimeline === undefined) {
+    return null;
   }
-  return detectFtpBaseline({
-    answers: context.answers,
-    answersUpdatedAt: context.answersUpdatedAt,
-    manualActivities: context.manualActivities,
-    activityComments: context.activityComments,
-    weeklyNote: context.weeklyNote,
-    weeklyNoteUpdatedAt: context.weeklyNoteUpdatedAt ?? null,
-    periodReviews: context.periodReviews,
-  });
+  return ftpBaselineAt(context.ftpTimeline, today);
 }
 
 function baseContext(input: GeneratePlanInput) {

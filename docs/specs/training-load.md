@@ -37,24 +37,24 @@ numbers must agree across the Day, Week, and Block tabs.
 
 ### FTP
 
-- `extractFtpWatts` reads the present FTP (50–2000 W) from the athlete's
-  answers. It accepts `FTP: 250`, `FTP around 220 W`, `280 W FTP`, and similar.
-  A value described as current ("now", "currently", "at the moment", "these
-  days") wins over one described as a peak or a typical best ("when fit", "in
-  shape", "typically", "used to", "peak"), whichever comes first in the answer;
-  without those cues the first value is the baseline. An answer that names the
-  FTP can then state the present level without repeating the word ("I am now
-  close to 220 W").
-- A revised FTP is picked up from any dated athlete input: an activity comment,
-  a manual activity, the weekly note, or a week/block review comment. The
-  newest mention wins. If the survey answers were saved after that mention, the
-  profile is treated as the newer source. A revised test result also floors the
-  current and next week's estimate, so an older weekly projection cannot show a
-  lower current FTP than the test.
+- The coach reads the athlete's free-text input; nothing is pattern-matched.
+  A dedicated prompt (`kind: athlete_metrics`) sends the profile and every dated
+  piece of athlete text — activity comments, manual activities, weekly notes,
+  and week/block review comments — and asks for the FTP, body weight, and
+  body-fat percentage the athlete states about themselves, one statement per
+  date. The model understands "FTP around 220 W", "280 W when fit but I am now
+  close to 220 W", "74 kg", "down to 12 %", and refuses to turn a goal into a
+  measurement.
+- A number in the profile with no date of its own is dated by the profile's last
+  save; every other statement is dated by the day the athlete wrote it. A value
+  dated after today is ignored. The newest value for a date wins.
+- The coach's reading runs before every plan generation, which the app only
+  starts when a plan level is missing or an input changed. A failed read is
+  logged and the stored series is used unchanged.
 - The known FTP values are stored as a daily time series in `athlete_metrics`
-  with a source of `user`, `garmin`, or `coach`. `extractFtpWatts` seeds the
-  athlete's free-text statements into it; Garmin's historic cycling FTP is
-  synced as a measurement; and the coach's weekly plan estimates and activity
+  with a source of `user`, `garmin`, or `coach`. The coach's reading of the
+  athlete's own words is stored as `user` points; Garmin's historic cycling FTP
+  is synced as a measurement; and the coach's weekly plan estimates and activity
   analyses are stored as `coach` points. A newer coach estimate removes later
   coach points, but never a `user` or `garmin` measurement.
 - The FTP timeline is built from those points. Completing a new test discards the
@@ -97,10 +97,10 @@ the raw timeseries.
 
 A manually recorded activity has only a date and free text. When it is saved or
 edited, the API asks the coach's model for a TSS estimate from the wording,
-using the athlete's FTP when known. The prompt is a small structured call; if
-the model is unavailable or fails, a deterministic fallback reads the duration
-(`3 hour`, `3-hour`, `1h30`, `45 minutes`) and intensity clues (`race`,
-`easy`, a high heart rate) and scores the entry. The estimate is stored in
+using the stored FTP in effect on that date. The wording is read by the model,
+not by a keyword list. If no model is configured or the call fails, the entry
+is left unscored (`estimated_tss` stays null) rather than guessed; the athlete
+can edit the entry to retry. The estimate is stored in
 `manual_activities.estimated_tss`, so it is stable across visits and available
 to the plan, the Activities page, and ATL/CTL calculations.
 
@@ -162,14 +162,18 @@ Shared (`@killingit/shared`):
 
 API:
 
-- `apps/api/src/training/ftp.ts` resolves the current FTP from the profile and
-  the newest dated coaching input.
+- `apps/api/src/llm/athleteMetricsPrompt.ts` and
+  `apps/api/src/coaching/athleteMetrics.ts` read the FTP, body weight, and
+  body-fat values the athlete states in their own words and store them as
+  `user` metric points. No free text is pattern-matched.
+- `apps/api/src/training/ftp.ts` builds the timeline from the stored metric
+  points and resolves the current FTP.
 - `apps/api/src/training/load.ts` resolves TSS and attaches the load series
   after every generation path, including promotion-only saves.
 - `apps/api/src/coaching/activities.ts` stores power metrics and activity loads
   while summarizing synced activities.
 - `apps/api/src/training/manualTss.ts` estimates a manual entry's TSS with the
-  coach and falls back to a duration/intensity parser.
+  coach from its wording and returns null when the model is unavailable.
 - `manual_activities.estimated_tss` stores the manual estimate (migration
   `0024`).
 - The plan prompts include the athlete's FTP (when known), the week's FTP field,
@@ -222,8 +226,8 @@ API:
     shows the same TSS/ATL/CTL/TSB line and interpretation when a load is
     available.
 13. A manual entry such as "I did a 3 hour Zwift race with average HR at 187
-    bpm" receives a coach-estimated TSS (or the deterministic fallback) and
-    uses it in the plan and Activities views.
+    bpm" receives a coach-estimated TSS, which the plan and the Activities view
+    use. Without a model the entry stays unscored rather than being guessed.
 14. Editing or deleting a manual entry, or importing/updating a Garmin
     activity, recalculates ATL, CTL, and TSB for every later activity in the
     displayed window.
@@ -233,7 +237,9 @@ API:
 
 - Shared unit tests for power TSS, bike-workout TSS, normalized power, the
   duration fallback, and the ATL/CTL/TSB recurrence.
-- API unit tests for FTP extraction and for power-vs-coach TSS resolution, the
-  no-FTP case, clamping, block progression, and day/week mirroring.
+- API unit tests for the coach's metric reading (prompt and storage, fail-open,
+  one value per date), the FTP timeline from stored points, power-vs-coach TSS
+  resolution, the no-FTP case, clamping, block progression, and day/week
+  mirroring.
 - Prompt tests for the new contract fields and rules.
 - Web render tests for the FTP line and the load numbers in all three views.

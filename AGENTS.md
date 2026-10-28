@@ -96,20 +96,26 @@ about a past workout, or before a suggested workout, to steer the coach.
   `docs/specs/location-and-weather.md`.
 - FTP, body weight, and body-fat percentage are stored as daily time series in
   `athlete_metrics`, with a source of `user`, `garmin`, or `coach`. The athlete's
-  stated or tested FTP is read from survey answers and newer comments, manual
-  activities, weekly notes, and review comments, and seeded into the series.
+  stated or tested FTP, weight, and body fat are read by the coach, not by a
+  phrase list: a dedicated `athlete_metrics` call sends the profile and every
+  dated piece of athlete text — comments, manual activities, weekly notes, and
+  review comments — and returns dated statements that are stored as `user`
+  points. A profile number with no date of its own is dated by the profile's
+  last save. A successful read replaces the `user` points of the metrics it
+  reports, so a value edited out of a comment disappears, while Garmin values
+  and coach estimates are untouched. The reading runs before every plan
+  generation and fails open.
   The coach's weekly `coach_plans` estimates and the structured FTP estimate in
   each activity analysis are stored as `coach` points; a newer estimate deletes
   later coach estimates but never an athlete measurement. The Week, Block, and
   Season tabs show the weekly estimate, and completed weeks before a revised
   test are re-interpolated. Every plan and activity-analysis prompt receives the
-  FTP history. Body weight and body fat are also reported by the coach: every
-  plan response carries a dated `bodyMetrics` array and an activity analysis
-  carries `weightKg`/`bodyFatPercent` for its date, filled only from numbers the
-  athlete stated in the profile, a note, or a comment. They are stored as
-  `coach` points (a `user` or `garmin` value for the day wins) so the Fitness
-  page charts a body trend before Garmin is connected. Sessions get a TSS from
-  measured power or a structured indoor
+  FTP history. Every plan response also carries a dated `bodyMetrics` array and
+  an activity analysis carries `weightKg`/`bodyFatPercent` for its date, filled
+  only from numbers the athlete stated in the profile, a note, or a comment.
+  They are stored as `coach` points (a `user` or `garmin` value for the day
+  wins) so the Fitness page charts a body trend before Garmin is connected.
+  Sessions get a TSS from measured power or a structured indoor
   bike workout when available, and from the coach's estimate otherwise; the API
   then calculates ATL, CTL, and TSB day by day and shows them in the Today,
   Tomorrow, and Week views and on the Activities page. TSB carries a coloured
@@ -117,8 +123,9 @@ about a past workout, or before a suggested workout, to steer the coach.
   Garmin syncs the last 42 days of activities, body composition, and historic
   cycling FTP, and power metrics are stored on activity summaries so the raw
   timeseries is not needed.
-  Manual activities get a coach-estimated TSS from their free text (with a
-  duration fallback), stored in `manual_activities.estimated_tss`. Any manual
+  Manual activities get a coach-estimated TSS read from their free text, stored
+  in `manual_activities.estimated_tss`; without a model the entry stays
+  unscored. Any manual
   edit or Garmin import rebuilds the full daily series, so every later
   activity's load is recalculated. The Fitness page charts that series with the
   TSB zone colours, the estimated FTP, and interpolated body weight/body fat

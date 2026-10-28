@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import type { AnalyzedActivity, CoachPlan } from "@killingit/shared";
 import { buildActivityTrainingLoads } from "./activityLoad.js";
-import { buildFtpTimeline } from "./ftp.js";
+import { buildFtpTimelineFromPoints } from "./ftp.js";
 import {
   buildFitnessHistory,
   earliestRecordedDate,
@@ -9,14 +9,9 @@ import {
   FITNESS_RANGE_DAYS,
 } from "./history.js";
 
-const timeline = buildFtpTimeline({
-  answers: [
-    {
-      answer: "FTP is 250 W.",
-      answeredAt: new Date("2026-10-01T00:00:00Z"),
-    },
-  ],
-});
+const timeline = buildFtpTimelineFromPoints([
+  { date: "2026-10-01", value: 250, source: "user" },
+]);
 
 function activity(overrides: Partial<AnalyzedActivity> = {}): AnalyzedActivity {
   return {
@@ -328,7 +323,7 @@ describe("buildFitnessHistory", () => {
   it("has no FTP points when the athlete has not stated one", () => {
     const history = buildFitnessHistory({
       ...base,
-      timeline: buildFtpTimeline({ answers: [] }),
+      timeline: buildFtpTimelineFromPoints([]),
       plan: undefined,
     });
 

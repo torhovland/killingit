@@ -1,23 +1,91 @@
 import { describe, expect, it } from "bun:test";
-import { fallbackManualTss } from "./manualTss.js";
+import type { LlmCompletionRequest, LlmProvider } from "../llm/openrouter.js";
+import { estimateManualActivityTss } from "./manualTss.js";
 
-describe("fallbackManualTss", () => {
-  it("scores a hard race from its duration and heart rate", () => {
-    expect(
-      fallbackManualTss("I did a 3 hour Zwift race with average HR at 187 bpm"),
-    ).toBe(255);
+class FakeProvider implements LlmProvider {
+  readonly id = "fake";
+  readonly requests: LlmCompletionRequest[] = [];
+
+  constructor(private readonly response: string | Error) {}
+
+  listModels(): Promise<never[]> {
+    return Promise.resolve([]);
+  }
+
+  validateKey(): Promise<void> {
+    return Promise.resolve();
+  }
+
+  complete(request: LlmCompletionRequest): Promise<string> {
+    this.requests.push(request);
+    return this.response instanceof Error
+      ? Promise.reject(this.response)
+      : Promise.resolve(this.response);
+  }
+}
+
+describe("estimateManualActivityTss", () => {
+  it("lets the coach score the entry from the athlete's wording", async () => {
+    const provider = new FakeProvider(JSON.stringify({ tss: 255 }));
+
+    const tss = await estimateManualActivityTss(
+      provider,
+      { apiKey: "test-key", model: "test-model" },
+      {
+        startDate: "2026-10-21",
+        details: "I did a 3 hour Zwift race with average HR at 187 bpm",
+        ftpWatts: 250,
+      },
+    );
+
+    expect(tss).toBe(255);
+    expect(provider.requests[0]?.messages[1]?.content).toContain(
+      "Activity details: I did a 3 hour Zwift race",
+    );
+    expect(provider.requests[0]?.messages[1]?.content).toContain(
+      "Athlete FTP: 250 W",
+    );
   });
 
-  it("reads compact and hyphenated durations", () => {
-    expect(fallbackManualTss("1h30 easy hike")).toBe(53);
-    expect(fallbackManualTss("3-hour ride")).toBe(165);
+  it("tells the coach when no FTP is known", async () => {
+    const provider = new FakeProvider(JSON.stringify({ tss: 40 }));
+
+    await estimateManualActivityTss(
+      provider,
+      { apiKey: "test-key", model: "test-model" },
+      {
+        startDate: "2026-10-21",
+        details: "45 minutes easy run",
+        ftpWatts: null,
+      },
+    );
+
+    expect(provider.requests[0]?.messages[1]?.content).toContain(
+      "Athlete FTP: not stated",
+    );
   });
 
-  it("scores an easy session lower than a hard one", () => {
-    expect(fallbackManualTss("45 minutes easy run")).toBe(34);
+  it("leaves the entry unscored when the coach cannot read it", async () => {
+    const provider = new FakeProvider(new Error("model unavailable"));
+
+    const tss = await estimateManualActivityTss(
+      provider,
+      { apiKey: "test-key", model: "test-model" },
+      { startDate: "2026-10-21", details: "3-hour ride", ftpWatts: 250 },
+    );
+
+    expect(tss).toBeNull();
   });
 
-  it("returns zero when no duration is given", () => {
-    expect(fallbackManualTss("Pool swim")).toBe(0);
+  it("leaves the entry unscored for a response outside the contract", async () => {
+    const provider = new FakeProvider("about 120");
+
+    const tss = await estimateManualActivityTss(
+      provider,
+      { apiKey: "test-key", model: "test-model" },
+      { startDate: "2026-10-21", details: "3-hour ride", ftpWatts: 250 },
+    );
+
+    expect(tss).toBeNull();
   });
 });

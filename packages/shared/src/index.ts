@@ -217,6 +217,8 @@ export {
 
 export {
   athleteMetricSchema,
+  athleteMetricStatementSchema,
+  athleteMetricsResultSchema,
   bestFitSlope,
   fitnessBodySchema,
   fitnessMetricPointSchema,
@@ -227,6 +229,8 @@ export {
   metricPointSchema,
   metricSourceSchema,
   type AthleteMetric,
+  type AthleteMetricStatement,
+  type AthleteMetricsResult,
   type FitnessBody,
   type FitnessMetricPoint,
   type GarminBodyMetricSample,

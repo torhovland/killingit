@@ -1,31 +1,19 @@
-import type {
-  ActivityCommentContext,
-  AthleteAnswerContext,
-  ManualActivityContext,
-  PeriodReviewContext,
-} from "../llm/planContext.js";
-
-/** Plausible human FTP range in watts. */
-const MIN_FTP_WATTS = 50;
-const MAX_FTP_WATTS = 2000;
-
-/** The latest FTP baseline, and whether it came from a coaching update. */
+/** The latest FTP baseline, and whether the athlete measured it. */
 export interface FtpBaseline {
   watts: number;
   /**
-   * True when the value came from a dated activity comment, manual activity,
-   * weekly note, or review comment rather than the survey profile. A revised
-   * test result should not be undercut by an older weekly projection.
+   * True when the athlete supplied the value rather than the coach estimating
+   * it. A revised test result should not be undercut by an older projection.
    */
   fromRevision: boolean;
 }
 
-/** One known FTP value at the moment the athlete stated it. */
+/** One known FTP value at the moment it applies. */
 export interface FtpAnchor {
   at: number;
   watts: number;
-  /** Profile and later athlete inputs are measurements; `coach` is an estimate. */
-  source: "profile" | "update" | "coach";
+  /** A measurement the athlete supplied; `coach` is an estimate. */
+  source: "measurement" | "coach";
 }
 
 /** A stored metric point from the database, keyed by calendar date. */
@@ -41,70 +29,6 @@ export interface FtpTimeline {
   latest: FtpBaseline | null;
 }
 
-/** Everything that can contain an athlete-stated FTP value. */
-export interface FtpInput {
-  answers: readonly Pick<AthleteAnswerContext, "answer" | "answeredAt">[];
-  /** When the survey answers were last saved, if known. */
-  answersUpdatedAt?: Date | null;
-  manualActivities?: readonly ManualActivityContext[] | undefined;
-  activityComments?: readonly ActivityCommentContext[] | undefined;
-  weeklyNote?: string | null | undefined;
-  weeklyNoteUpdatedAt?: Date | null | undefined;
-  periodReviews?: readonly PeriodReviewContext[] | undefined;
-}
-
-/**
- * The first FTP value the athlete states in their survey answers. The
- * answers are free-form, so this accepts the common phrasings ("FTP: 250",
- * "FTP around 220 W", "280 W FTP") and ignores everything outside a plausible
- * wattage range.
- *
- * The first value is deliberately used as the current baseline: a profile such
- * as "FTP around 220 W against roughly 280 W when fit" describes the present
- * first and a past peak second.
- */
-export function extractFtpWatts(
-  answers: readonly Pick<AthleteAnswerContext, "answer">[],
-): number | null {
-  for (const entry of answers) {
-    const text = entry.answer?.trim();
-    if (!text) {
-      continue;
-    }
-    const value = firstFtpInText(text);
-    if (value !== null) {
-      return value;
-    }
-  }
-  return null;
-}
-
-/**
- * The profile value and every dated athlete-authored FTP mention, oldest first.
- * Used to seed the FTP time series from existing free-text inputs.
- */
-export function extractFtpAnchors(input: FtpInput): FtpAnchor[] {
-  const mentions = datedMentions(input).sort((a, b) => a.at - b.at);
-  const profile = profileAnchor(input, mentions);
-  const anchors = [...(profile === null ? [] : [profile]), ...mentions].sort(
-    (a, b) =>
-      a.at - b.at ||
-      (a.source === "profile" ? -1 : b.source === "profile" ? 1 : 0),
-  );
-  return dedupeAnchors(anchors);
-}
-
-/**
- * Builds the FTP timeline from the profile and every dated coaching input. A
- * later test result becomes the new anchor, and the API interpolates between
- * anchors so the historical TSS values reflect the athlete's revised numbers
- * instead of the coach's old projection.
- */
-export function buildFtpTimeline(input: FtpInput): FtpTimeline {
-  const deduped = extractFtpAnchors(input);
-  return timelineFromAnchors(deduped);
-}
-
 /** Builds a timeline from already-deduplicated anchors. */
 function timelineFromAnchors(anchors: FtpAnchor[]): FtpTimeline {
   const latest = anchors[anchors.length - 1];
@@ -113,7 +37,10 @@ function timelineFromAnchors(anchors: FtpAnchor[]): FtpTimeline {
     latest:
       latest === undefined
         ? null
-        : { watts: latest.watts, fromRevision: latest.source === "update" },
+        : {
+            watts: latest.watts,
+            fromRevision: latest.source === "measurement",
+          },
   };
 }
 
@@ -137,7 +64,9 @@ export function buildFtpTimelineFromPoints(
       at: Date.parse(`${point.date}T00:00:00Z`),
       watts: point.value,
       source:
-        point.source === "coach" ? ("coach" as const) : ("update" as const),
+        point.source === "coach"
+          ? ("coach" as const)
+          : ("measurement" as const),
     }))
     .filter((anchor) => Number.isFinite(anchor.at))
     .sort(
@@ -160,11 +89,6 @@ function dedupeAnchors(anchors: readonly FtpAnchor[]): FtpAnchor[] {
     }
   }
   return deduped;
-}
-
-/** Resolves the athlete's current FTP, including any newer test result. */
-export function detectFtpBaseline(input: FtpInput): FtpBaseline | null {
-  return buildFtpTimeline(input).latest;
 }
 
 /**
@@ -197,7 +121,7 @@ export function ftpBaselineAt(
   }
   return result === null
     ? null
-    : { watts: result.watts, fromRevision: result.source === "update" };
+    : { watts: result.watts, fromRevision: result.source === "measurement" };
 }
 
 /**
@@ -248,183 +172,4 @@ export function ftpAt(
     return Math.round(left.watts + (right.watts - left.watts) * fraction);
   }
   return last.watts;
-}
-
-/** Words that mark a value as the level the athlete is at now. */
-const CURRENT_FTP_CUES =
-  /\b(now|current(?:ly)?|at the moment|these days|right now|recently|lately|close to|today)\b/i;
-
-/** Words that mark a value as a past peak or a typical best. */
-const PEAK_FTP_CUES =
-  /\b(when fit|in shape|typical(?:ly)?|usually|used to|peak|best|previously|formerly|a few years ago)\b/i;
-
-/** Words that state a level as an approximation at the present moment. */
-const CURRENT_FTP_PHRASE =
-  /(?:\bnow\b|\bcurrently\b|\bat the moment\b|\bthese days\b)[^.!?\n]{0,20}\b(?:close to|around|about|roughly|at)\s*$/i;
-
-/** Text that names an FTP explicitly. */
-const FTP_LABEL = /\b(?:ftp|threshold(?: power)? test)\b/i;
-
-/** How far before a value to look for the word that describes it. */
-const FTP_CUE_WINDOW = 60;
-
-/**
- * Finds the FTP value the athlete describes as current, or null when none is
- * stated. A profile such as "I reach 280 W when fit; I am now close to 220 W"
- * states its present level second, so the value with a "now" or "current" cue
- * wins over one described as a typical best; without such a cue the first value
- * is used.
- */
-export function firstFtpInText(text: string): number | null {
-  const patterns = [
-    /\b(?:ftp|threshold(?: power)? test)\b[^0-9]{0,30}(\d{2,4})\s*(?:w\b|watts?\b)?/gi,
-    /(\d{2,4})\s*(?:w|watts?)\b[^0-9]{0,12}\b(?:ftp|threshold(?: power)? test)\b/gi,
-  ];
-  const candidates: { value: number; score: number }[] = [];
-  const add = (value: number, score: number): void => {
-    if (value >= MIN_FTP_WATTS && value <= MAX_FTP_WATTS) {
-      candidates.push({ value, score });
-    }
-  };
-
-  for (const pattern of patterns) {
-    for (const match of text.matchAll(pattern)) {
-      const raw = match[1];
-      const index = match.index;
-      if (raw !== undefined && index !== undefined) {
-        add(Number(raw), ftpCueScore(text, index));
-      }
-    }
-  }
-
-  // An answer that names the FTP can then describe the present level without
-  // repeating the word: "I am now close to 220 W".
-  if (FTP_LABEL.test(text)) {
-    for (const match of text.matchAll(/(\d{2,4})\s*(?:w\b|watts?\b)/gi)) {
-      const raw = match[1];
-      const index = match.index;
-      if (raw === undefined || index === undefined) {
-        continue;
-      }
-      const before = text.slice(Math.max(0, index - 40), index);
-      if (CURRENT_FTP_PHRASE.test(before)) {
-        add(Number(raw), 2);
-      }
-    }
-  }
-
-  let best: { value: number; score: number } | null = null;
-  for (const candidate of candidates) {
-    if (best === null || candidate.score > best.score) {
-      best = candidate;
-    }
-  }
-  return best?.value ?? null;
-}
-
-/**
- * Scores how the text before `index` describes the value there: 2 for a
- * present level, 1 for an unqualified value, and 0 for one described as a past
- * peak or a typical best.
- */
-function ftpCueScore(text: string, index: number): number {
-  const sentenceStart = Math.max(
-    text.lastIndexOf(".", index - 1),
-    text.lastIndexOf("!", index - 1),
-    text.lastIndexOf("?", index - 1),
-    text.lastIndexOf("\n", index - 1),
-  );
-  const before = text.slice(
-    Math.max(sentenceStart + 1, index - FTP_CUE_WINDOW),
-    index,
-  );
-  if (CURRENT_FTP_CUES.test(before)) {
-    return 2;
-  }
-  return PEAK_FTP_CUES.test(before) ? 0 : 1;
-}
-
-/** The profile's FTP anchor, dated by the answer or the latest answer save. */
-function profileAnchor(
-  input: FtpInput,
-  mentions: readonly FtpAnchor[],
-): FtpAnchor | null {
-  for (const entry of input.answers) {
-    const text = entry.answer?.trim();
-    if (!text) {
-      continue;
-    }
-    const watts = firstFtpInText(text);
-    if (watts === null) {
-      continue;
-    }
-    const dated = parseTimestamp(entry.answeredAt ?? input.answersUpdatedAt);
-    // Without a profile date, keep the profile flat until the first mention
-    // rather than ramping from an arbitrary point in the past.
-    const at =
-      dated ?? (mentions[0]?.at !== undefined ? mentions[0].at - 1 : null);
-    if (at === null) {
-      return { at: 0, watts, source: "profile" };
-    }
-    return { at, watts, source: "profile" };
-  }
-  return null;
-}
-
-/** Every FTP number in a dated athlete-authored input. */
-function datedMentions(input: FtpInput): FtpAnchor[] {
-  const mentions: FtpAnchor[] = [];
-
-  for (const entry of input.activityComments ?? []) {
-    addMention(mentions, entry.comment, entry.updatedAt);
-  }
-  for (const entry of input.manualActivities ?? []) {
-    addMention(mentions, entry.details, entry.updatedAt);
-  }
-  addMention(
-    mentions,
-    input.weeklyNote,
-    input.weeklyNoteUpdatedAt?.toISOString() ?? null,
-  );
-  for (const review of input.periodReviews ?? []) {
-    if (review.comment !== null) {
-      addMention(mentions, review.comment, review.updatedAt);
-    }
-  }
-
-  return mentions;
-}
-
-function addMention(
-  mentions: FtpAnchor[],
-  text: string | null | undefined,
-  updatedAt: Date | string | null | undefined,
-): void {
-  if (text == null || text.trim() === "") {
-    return;
-  }
-  const at = parseTimestamp(updatedAt);
-  if (at === null) {
-    return;
-  }
-  const watts = firstFtpInText(text);
-  if (watts !== null) {
-    mentions.push({ at, watts, source: "update" });
-  }
-}
-
-/** Parses an ISO timestamp or calendar date into milliseconds. */
-function parseTimestamp(
-  value: Date | string | null | undefined,
-): number | null {
-  if (value == null) {
-    return null;
-  }
-  const at =
-    value instanceof Date
-      ? value.getTime()
-      : Date.parse(
-          /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00Z` : value,
-        );
-  return Number.isFinite(at) ? at : null;
 }

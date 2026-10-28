@@ -7,18 +7,13 @@ import type {
 import { createApp } from "../index.js";
 import type { PlanStore, StoredPlan } from "../plans/store.js";
 import type { QuestionAnswerStore } from "../questions/answers.js";
-import { buildFtpTimeline } from "../training/ftp.js";
+import { buildFtpTimelineFromPoints } from "../training/ftp.js";
 import { buildFitnessHistory } from "../training/history.js";
 import type { UserStore } from "../users/store.js";
 
-const timeline = buildFtpTimeline({
-  answers: [
-    {
-      answer: "FTP is 250 W.",
-      answeredAt: new Date("2026-10-01T00:00:00Z"),
-    },
-  ],
-});
+const timeline = buildFtpTimelineFromPoints([
+  { date: "2026-10-01", value: 250, source: "user" },
+]);
 
 function makePlan(): CoachPlan {
   return {

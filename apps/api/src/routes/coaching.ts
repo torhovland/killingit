@@ -45,11 +45,9 @@ import { saveActivityReview } from "../coaching/reviews.js";
 import { GarminAuthError, GarminSidecarError } from "../garmin/client.js";
 import { loadLlmClient, type LlmClient } from "../llm/client.js";
 import { LlmAuthError, LlmProviderError } from "../llm/openrouter.js";
-import { extractFtpWatts } from "../training/ftp.js";
-import {
-  estimateManualActivityTss,
-  fallbackManualTss,
-} from "../training/manualTss.js";
+import { loadFtpHistoryForUser } from "../metrics/store.js";
+import { estimateManualActivityTss } from "../training/manualTss.js";
+import { ftpBaselineAt } from "../training/ftp.js";
 import { startOfWeek } from "../plans/dates.js";
 import { latestActivityAnalysisTimestamp } from "../plans/status.js";
 import {
@@ -116,6 +114,8 @@ export interface CoachingRouteDependencies {
   loadActivityTrainingLoads?: typeof loadUserActivityTrainingLoads;
   /** Injectable for route tests; defaults to the LLM TSS estimator. */
   estimateManualTss?: typeof estimateManualActivityTss;
+  /** Injectable for route tests; defaults to the stored FTP time series. */
+  loadFtpHistory?: typeof loadFtpHistoryForUser;
   loadLlm?: (userId: number) => Promise<LlmClient | null>;
   /** Injectable for route tests; defaults to the database-backed loader. */
   loadCoachingInputs?: (
@@ -196,6 +196,7 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
   const answerQuestion = deps.answerCoachingQuestion ?? answerCoachingQuestion;
   const trigger = deps.triggerPlanGeneration ?? triggerPlanGeneration;
   const llmLoader = deps.loadLlm ?? loadLlmClient;
+  const loadFtp = deps.loadFtpHistory ?? loadFtpHistoryForUser;
 
   const triggerDeps: PlanTriggerDependencies = {
     users: deps.users,
@@ -212,38 +213,41 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
     ...(deps.loadForecast !== undefined
       ? { loadForecast: deps.loadForecast }
       : {}),
+    ...(deps.loadFtpHistory !== undefined
+      ? { loadFtpHistory: deps.loadFtpHistory }
+      : {}),
   };
 
   /**
-   * Estimates TSS for a manual entry from its free text. Uses the coach when a
-   * model is configured and a deterministic duration/intensity estimate
-   * otherwise, so every manual activity still gets a score.
+   * Estimates TSS for a manual entry from its free text. The coach reads the
+   * wording; the FTP is the stored value in effect on that date, which the
+   * coach itself read from the athlete's input. Without a model there is no
+   * estimate, and the entry stays unscored rather than being guessed from
+   * keywords.
    */
   async function estimateManualTss(
     userId: number,
     startDate: string,
     details: string,
-  ): Promise<number> {
+  ): Promise<number | null> {
     try {
-      const [answers, llm] = await Promise.all([
-        deps.answers.listForUser(userId),
-        llmLoader(userId),
-      ]);
+      const llm = await llmLoader(userId);
       if (llm === null) {
-        return fallbackManualTss(details);
+        return null;
       }
+      const ftp = await loadFtp(userId, startDate);
       return await estimateTss(
         llm.provider,
         { apiKey: llm.apiKey, model: llm.model },
         {
           startDate,
           details,
-          ftpWatts: extractFtpWatts(answers),
+          ftpWatts: ftpBaselineAt(ftp.timeline, startDate)?.watts ?? null,
         },
       );
     } catch (err) {
       console.error("[manual-tss] could not estimate the entry:", err);
-      return fallbackManualTss(details);
+      return null;
     }
   }
 

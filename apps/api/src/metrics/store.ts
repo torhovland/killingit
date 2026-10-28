@@ -1,19 +1,18 @@
 import type {
   AthleteMetric,
+  AthleteMetricStatement,
   BodyMetricEstimate,
   GarminBodyMetricSample,
   GarminFtpSample,
   MetricPoint,
   MetricSource,
 } from "@killingit/shared";
-import { and, asc, eq, gt } from "drizzle-orm";
+import { and, asc, eq, gt, inArray } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { athleteMetrics } from "../db/schema.js";
 import type { BodyMetricHistory } from "../llm/planContext.js";
 import {
-  extractFtpAnchors,
   buildFtpTimelineFromPoints,
-  type FtpInput,
   type FtpTimeline,
 } from "../training/ftp.js";
 
@@ -281,26 +280,72 @@ async function recordMeasuredMetric(input: {
 }
 
 /**
- * Seeds the FTP time series from existing free-text profile answers and dated
- * athlete inputs. This keeps accounts that stated an FTP before the time series
- * existed working, and lets later edits add a new measurement.
+ * Stores the measurements the coach read from the athlete's own words. The
+ * coach does the reading (it understands "around 240 W", "74 kg", or "down to
+ * 12 %"), so this only persists what it reported. A statement dated after today
+ * is ignored, and a value the coach did not find is skipped.
+ *
+ * A successful read reports everything the athlete has ever stated, so it
+ * replaces the `user` points of every metric it reported: a value the athlete
+ * later edits out of a comment disappears instead of lingering. Garmin
+ * measurements and coach estimates are left alone, and a metric the read says
+ * nothing about is untouched.
  */
-export async function syncFtpFromInputs(
+export async function recordAthleteMetricStatements(
   userId: number,
-  input: FtpInput,
-  undatedProfileDate = new Date().toISOString().slice(0, 10),
+  statements: readonly AthleteMetricStatement[],
+  throughDate: string,
 ): Promise<void> {
-  for (const anchor of extractFtpAnchors(input)) {
-    const date =
-      anchor.at > 0
-        ? new Date(anchor.at).toISOString().slice(0, 10)
-        : undatedProfileDate;
-    await recordUserMetric({
-      userId,
-      metric: "ftp",
-      date,
-      value: anchor.watts,
-    });
+  const current = statements.filter((entry) => entry.date <= throughDate);
+  const reported = new Set<AthleteMetric>();
+  if (current.some((entry) => entry.ftpWatts !== null)) {
+    reported.add("ftp");
+  }
+  if (current.some((entry) => entry.weightKg !== null)) {
+    reported.add("weight");
+  }
+  if (current.some((entry) => entry.bodyFatPercent !== null)) {
+    reported.add("body_fat");
+  }
+  if (reported.size === 0) {
+    return;
+  }
+
+  await db
+    .delete(athleteMetrics)
+    .where(
+      and(
+        eq(athleteMetrics.userId, userId),
+        inArray(athleteMetrics.metric, [...reported]),
+        eq(athleteMetrics.source, "user"),
+      ),
+    );
+
+  for (const statement of current) {
+    if (statement.ftpWatts !== null) {
+      await recordUserMetric({
+        userId,
+        metric: "ftp",
+        date: statement.date,
+        value: statement.ftpWatts,
+      });
+    }
+    if (statement.weightKg !== null) {
+      await recordUserMetric({
+        userId,
+        metric: "weight",
+        date: statement.date,
+        value: statement.weightKg,
+      });
+    }
+    if (statement.bodyFatPercent !== null) {
+      await recordUserMetric({
+        userId,
+        metric: "body_fat",
+        date: statement.date,
+        value: statement.bodyFatPercent,
+      });
+    }
   }
 }
 
@@ -316,15 +361,14 @@ export async function loadBodyHistoryForUser(
 }
 
 /**
- * Seeds the FTP series from the athlete's free-text inputs, then returns the
- * stored points and a timeline that ignores estimates dated after `throughDate`.
+ * Returns the stored FTP points and a timeline that ignores estimates dated
+ * after `throughDate`. The athlete's stated FTP is read by the coach and stored
+ * separately, so this no longer scans free text.
  */
 export async function loadFtpHistoryForUser(
   userId: number,
-  input: FtpInput,
   throughDate: string,
 ): Promise<{ points: MetricPoint[]; timeline: FtpTimeline }> {
-  await syncFtpFromInputs(userId, input, throughDate);
   const points = await loadMetricPoints(userId, "ftp");
   return {
     points,

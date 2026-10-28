@@ -10,30 +10,22 @@ import {
   type WeekPlan,
   type WeekSession,
 } from "@killingit/shared";
-import type {
-  ActivityCommentContext,
-  AthleteAnswerContext,
-  ManualActivityContext,
-  PeriodReviewContext,
-} from "../llm/planContext.js";
+import type { ManualActivityContext } from "../llm/planContext.js";
 import { addDays } from "../plans/dates.js";
 import {
   activityDayTss,
   groupActivitiesByDate,
   measuredActivityTss,
 } from "./activityLoad.js";
-import { buildFtpTimeline, ftpAt, type FtpTimeline } from "./ftp.js";
+import { ftpAt, type FtpTimeline } from "./ftp.js";
 
 export interface TrainingLoadContext {
-  answers: readonly AthleteAnswerContext[];
-  answersUpdatedAt?: Date | null;
   activities: readonly AnalyzedActivity[];
   manualActivities?: readonly ManualActivityContext[] | undefined;
-  activityComments?: readonly ActivityCommentContext[] | undefined;
-  weeklyNote?: string | null | undefined;
-  weeklyNoteUpdatedAt?: Date | null | undefined;
-  periodReviews?: readonly PeriodReviewContext[] | undefined;
-  /** The stored FTP time series, when the caller has already loaded it. */
+  /**
+   * The stored FTP time series. The athlete's stated FTP is read by the coach
+   * and stored before this runs, so no free text is read here.
+   */
   ftpTimeline?: FtpTimeline | null | undefined;
 }
 
@@ -58,17 +50,7 @@ export function applyTrainingLoad(
   plan: CoachPlan,
   context: TrainingLoadContext,
 ): CoachPlan {
-  const timeline =
-    context.ftpTimeline ??
-    buildFtpTimeline({
-      answers: context.answers,
-      answersUpdatedAt: context.answersUpdatedAt ?? null,
-      manualActivities: context.manualActivities,
-      activityComments: context.activityComments,
-      weeklyNote: context.weeklyNote,
-      weeklyNoteUpdatedAt: context.weeklyNoteUpdatedAt ?? null,
-      periodReviews: context.periodReviews,
-    });
+  const timeline = context.ftpTimeline ?? { anchors: [], latest: null };
   const baseFtpWatts = timeline.latest?.watts ?? null;
   const floorAtBase = timeline.latest?.fromRevision ?? false;
   const activitiesByDate = groupActivitiesByDate(context.activities);
