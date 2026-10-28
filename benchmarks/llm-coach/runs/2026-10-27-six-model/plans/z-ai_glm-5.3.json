@@ -1,0 +1,706 @@
+{
+  "full": {
+    "season": {
+      "goal": "Finish the randonneur brevet series (200 km in April through 600 km) and complete Paris-Brest-Paris in August 2027, while losing fat from 24.5% to ~15% body fat, building back-safe hip and core strength, and developing general cycling fitness for longer tour races.",
+      "startDate": "2026-10-26",
+      "endDate": "2027-08-21",
+      "blocks": [
+        {
+          "name": "Rebuild & Fat Loss Foundation",
+          "focus": "Re-establish the training habit with easy, surge-free aerobic work (flat ERG rides at 140-160 W, easy run/walks, hikes), back-safe gym strength (goblet squats, light RDLs, core), daily hip mobility, and structured dinner/evening eating habits for gradual fat loss. No hard intervals, no spinning classes.",
+          "startDate": "2026-10-26",
+          "endDate": "2026-12-06",
+          "weekCount": 6
+        },
+        {
+          "name": "Winter Base & Strength",
+          "focus": "Build aerobic volume via cross-country skiing, snowshoeing, fatbike rides on studded tires, and steady ERG endurance; progress the gym lifting program (hip hinges, squats, pulls) with strict load management for the back; continue the beginner running (toward 5K) and beginner rowing programs; keep the fat-loss deficit modest and sustainable.",
+          "startDate": "2026-12-07",
+          "endDate": "2027-02-28",
+          "weekCount": 12
+        },
+        {
+          "name": "Spring Road Return & 200 km Brevet Prep",
+          "focus": "Transition to road cycling on tarmac as conditions allow in March; extend weekend endurance rides toward 120-150 km; introduce the first low-threshold ERG intervals; confirm bike fit and a slightly lower, more sustainable position enabled by improved hip flexibility; complete the 200 km brevet in April as the season's first milestone.",
+          "startDate": "2027-03-01",
+          "endDate": "2027-04-04",
+          "weekCount": 5
+        },
+        {
+          "name": "Brevet Build 1",
+          "focus": "Structured sweet-spot and threshold ERG intervals midweek with long weekend endurance and climbing rides; complete the 300 km brevet and ride the 400 km; grow weekly volume progressively with recovery weeks every 4th week; maintain two gym sessions and hip mobility to protect the back on long climbs.",
+          "startDate": "2027-04-05",
+          "endDate": "2027-05-30",
+          "weekCount": 8
+        },
+        {
+          "name": "Brevet Build 2 & Race Fitness",
+          "focus": "Complete the 600 km brevet; add race-specific intensity (long intervals at threshold, over-unders) to lift FTP toward 280 W; include one longer tour race or hard group event; night-riding practice and fueling rehearsal for PBP; keep strength maintenance sessions light.",
+          "startDate": "2027-05-31",
+          "endDate": "2027-06-27",
+          "weekCount": 4
+        },
+        {
+          "name": "PBP Specialization & Peak",
+          "focus": "Peak-phase durability: back-to-back long rides (200 km + 150 km weekends), climbing volume, time-trial-paced endurance work, and full rehearsal of PBP pacing, nutrition, and sleep strategy; this is the disciplined 4-month window the athlete thrives in — every session counts toward PBP.",
+          "startDate": "2027-06-28",
+          "endDate": "2027-08-15",
+          "weekCount": 7
+        },
+        {
+          "name": "PBP Taper",
+          "focus": "Reduce volume sharply while keeping a touch of intensity to stay sharp; prioritize sleep, carbohydrate loading, and equipment checks; arrive at the Paris start rested, fueled, and with hips and back in good condition.",
+          "startDate": "2027-08-16",
+          "endDate": "2027-08-21",
+          "weekCount": 1
+        }
+      ],
+      "rationale": "The athlete is currently detrained (estimated FTP ~220 W vs 280 W when fit) after a successful 1130 km bikepacking race in July and a long break, so the season must start with a gentle rebuild that re-establishes the training habit without intensity. He also believes — correctly, and consistent with periodization science — that sustained peak-form training only works for a limited stretch (he has historically maintained disciplined training for a maximum of 4 months). The plan therefore keeps the first ~5 months as low-discipline foundation work: easy aerobic volume, fat loss through diet structure and gradual energy deficit, back-safe progressive gym strength, hip mobility, and beginner running and rowing programs, with Norwegian winter cross-training (cross-country skiing, snowshoeing, fatbike) replacing road rides from December through February. The disciplined, race-specific phase is deliberately compressed into the final ~4.5 months before PBP: a spring return to tarmac in March, the 200 km brevet in April as the first milestone, a progressive brevet build through May and June that also lifts FTP with indoor ERG intervals, a PBP-specific block in July with back-to-back long rides and climbing durability work, and a short taper into the August start. This ordering matches his own experience of how long he can train optimally, ensures every workout in the final phase has a clear purpose, and uses the long foundation to keep the base from falling further behind while fat loss and hip flexibility — which need months, not weeks — progress steadily in the background.",
+      "estimatedFtpWatts": 220
+    },
+    "block": {
+      "name": "Rebuild & Fat Loss Foundation",
+      "focus": "Re-establish the training habit with easy, surge-free aerobic work (flat ERG rides at 140-160 W, easy run/walks, weekend hikes), back-safe gym strength (goblet squats, light RDLs, core), daily hip mobility, and structured evening eating for gradual fat loss. No hard intervals, no spinning classes, no pole vaulting or plyometrics.",
+      "startDate": "2026-10-26",
+      "endDate": "2026-12-06",
+      "weeks": [
+        {
+          "number": 1,
+          "startDate": "2026-10-26",
+          "focus": "Re-entry week: one back-safe gym session (completed Tuesday), two easy ERG rides (flat 140-148 W, HR under 145), one easy run/walk (HR 125-135), and the 5-hour hike anchor on Sunday 1 November with stops capped at 5 minutes.",
+          "targetLoad": "~5-6 h total, ~250-300 TSS; deliberately light midweek to protect the long Sunday hike.",
+          "estimatedFtpWatts": 220
+        },
+        {
+          "number": 2,
+          "startDate": "2026-11-02",
+          "focus": "First full habit week: 2-3 easy ERG rides (flat 145-160 W), gym strength adding the third goblet squat set at 12 kg plus light RDLs with a strict hinge, easy run/walk, and a 2.5-3 h weekend hike; daily 10-min hip mobility.",
+          "targetLoad": "~6-7 h, ~300-350 TSS.",
+          "estimatedFtpWatts": 221
+        },
+        {
+          "number": 3,
+          "startDate": "2026-11-09",
+          "focus": "Consistency: same structure with slightly longer midweek ERG rides (60-75 min at 150-160 W), gym progression on lat pulldown and RDL load, run/walk extending toward 40-45 min, weekend hike 3-4 h.",
+          "targetLoad": "~7-8 h, ~350-400 TSS.",
+          "estimatedFtpWatts": 223
+        },
+        {
+          "number": 4,
+          "startDate": "2026-11-16",
+          "focus": "Progression: ERG rides 75 min with brief 5-min bouts at 180-190 W inside the steady ride (still no true intervals), gym loads up one small step, run/walk continuous 30 min, weekend hike 4 h with terrain gain.",
+          "targetLoad": "~8 h, ~400-430 TSS.",
+          "estimatedFtpWatts": 224
+        },
+        {
+          "number": 5,
+          "startDate": "2026-11-23",
+          "focus": "Consolidation: hold the week-4 structure, add a second short gym session if the back feels good, and test a 5 km continuous easy run; keep evening eating structure strict as daylight and temperatures drop.",
+          "targetLoad": "~8 h, ~400-450 TSS.",
+          "estimatedFtpWatts": 225
+        },
+        {
+          "number": 6,
+          "startDate": "2026-11-30",
+          "focus": "Transition/deload week: slightly shorter sessions (ERG rides 60 min at 150-160 W, one gym session, easy run/walk), a 3-4 h weekend hike or fatbike ride, and a review of hip mobility and body-fat progress before the winter block starts 7 December.",
+          "targetLoad": "~6-7 h, ~300-350 TSS deload before the Winter Base & Strength block.",
+          "estimatedFtpWatts": 228
+        }
+      ],
+      "rationale": "After the July bikepacking race and a long detraining break, the priority is habit, not intensity: consistent easy aerobic sessions rebuild the aerobic base, back-safe progressive lifting restores hip and trunk strength without risking his easily-injured back, and a modest sustainable energy deficit drives slow fat loss toward 15% body fat. Power stays capped at 140-160 W (well under his ~220 W current FTP) so every session is surge-free, with the weekly long hike as the durability anchor. Week 1 was adjusted in place: Tuesday's gym session was completed early, so Wednesday became an easy ERG ride plus mobility instead of a second strength session, keeping the week light around Sunday's 5-hour hike. All vault, sprint, and plyometric content is removed per the athlete's request. FTP is expected to recover only slightly (220 to ~228 W) since the work is deliberately easy; bigger gains come in later blocks.",
+      "estimatedFtpWatts": 220
+    },
+    "week": {
+      "startDate": "2026-10-26",
+      "focus": "Re-entry week: easy surge-free aerobic work, back-safe gym strength, and the 5-hour hike anchor on Sunday 1 November.",
+      "sessions": [
+        {
+          "date": "2026-10-26",
+          "day": "Monday",
+          "type": "rest",
+          "title": "Rest day",
+          "description": "Full rest after Sunday's unplanned 3h20 Selbu hike. Optional 10 min gentle hip mobility (90/90 switches, supported deep squat holds) in the evening.",
+          "durationMinutes": 0,
+          "intensity": "rest",
+          "status": "rest",
+          "outdoor": false,
+          "canBeOutdoor": false,
+          "bikeWorkout": null,
+          "estimatedTss": 0,
+          "trainingLoad": {
+            "tss": 0,
+            "atl": 20.2,
+            "ctl": 7.4,
+            "tsb": -12.9
+          }
+        },
+        {
+          "date": "2026-10-27",
+          "day": "Tuesday",
+          "type": "workout",
+          "title": "Back-safe gym strength",
+          "description": "Gym session: goblet squats 3x10 at 12 kg (third set added), light Romanian deadlifts 2x10 with strict hinge, glute bridges 3x12, lat pulldowns 3x10 up to 50 kg, Pallof press 3x10/side, planks 3x30-45s, 8-10 min hip stretching. Stop any lift at the first back twinge.",
+          "durationMinutes": 40,
+          "intensity": "moderate",
+          "status": "planned",
+          "outdoor": false,
+          "canBeOutdoor": false,
+          "bikeWorkout": null,
+          "estimatedTss": 25,
+          "trainingLoad": {
+            "tss": 25,
+            "atl": 20.9,
+            "ctl": 7.8,
+            "tsb": -13.1
+          }
+        },
+        {
+          "date": "2026-10-28",
+          "day": "Wednesday",
+          "type": "workout",
+          "title": "Easy ERG ride + hip mobility",
+          "description": "60 min on the trainer in ERG mode: 10 min warm-up at ~110 W, 40 min flat at 140-145 W (drop to 140 W if HR climbs early), 10 min cool-down at ~90 W. Cadence 85-95 rpm, HR under 145 throughout. Finish with 10 min hip mobility: 90/90 switches, supported deep squat holds, couch stretch.",
+          "durationMinutes": 70,
+          "intensity": "easy",
+          "status": "planned",
+          "outdoor": false,
+          "canBeOutdoor": false,
+          "bikeWorkout": {
+            "ftpWatts": 220,
+            "intervals": [
+              {
+                "durationSeconds": 600,
+                "powerPercent": 50
+              },
+              {
+                "durationSeconds": 2400,
+                "powerPercent": 65
+              },
+              {
+                "durationSeconds": 600,
+                "powerPercent": 41
+              }
+            ]
+          },
+          "estimatedTss": 45,
+          "trainingLoad": {
+            "tss": 35,
+            "atl": 22.9,
+            "ctl": 8.4,
+            "tsb": -14.5
+          }
+        },
+        {
+          "date": "2026-10-29",
+          "day": "Thursday",
+          "type": "workout",
+          "title": "Easy run/walk",
+          "description": "40 min run/walk: 3 min easy jog / 2 min walk repeats from the first minute, effort capped at 125-135 bpm. Walk immediately whenever HR drifts above 135. Short strides, land soft — time on feet and habit, not pace.",
+          "durationMinutes": 40,
+          "intensity": "easy",
+          "status": "planned",
+          "outdoor": true,
+          "canBeOutdoor": true,
+          "bikeWorkout": null,
+          "estimatedTss": 30,
+          "trainingLoad": {
+            "tss": 30,
+            "atl": 23.9,
+            "ctl": 8.9,
+            "tsb": -15
+          }
+        },
+        {
+          "date": "2026-10-30",
+          "day": "Friday",
+          "type": "workout",
+          "title": "Short easy ERG ride",
+          "description": "45 min on the trainer in ERG mode: 10 min warm-up at ~110 W, 25 min flat at 145 W with HR under 145, 10 min cool-down at ~90 W. Flat and surge-free; if the legs feel Tuesday's gym work, ride the main block at 140 W. Kept short to protect Sunday.",
+          "durationMinutes": 45,
+          "intensity": "easy",
+          "status": "planned",
+          "outdoor": false,
+          "canBeOutdoor": false,
+          "bikeWorkout": {
+            "ftpWatts": 220,
+            "intervals": [
+              {
+                "durationSeconds": 600,
+                "powerPercent": 50
+              },
+              {
+                "durationSeconds": 1500,
+                "powerPercent": 66
+              },
+              {
+                "durationSeconds": 600,
+                "powerPercent": 41
+              }
+            ]
+          },
+          "estimatedTss": 35,
+          "trainingLoad": {
+            "tss": 25,
+            "atl": 24.1,
+            "ctl": 9.3,
+            "tsb": -14.8
+          }
+        },
+        {
+          "date": "2026-10-31",
+          "day": "Saturday",
+          "type": "rest",
+          "title": "Rest and hike prep",
+          "description": "Full rest to arrive fresh for Sunday's 5-hour hike. Optional 10 min gentle hip mobility in the evening, plus gear check: hiking boots, layers, headlamp, food and drink for a 5-hour day.",
+          "durationMinutes": 0,
+          "intensity": "rest",
+          "status": "rest",
+          "outdoor": false,
+          "canBeOutdoor": false,
+          "bikeWorkout": null,
+          "estimatedTss": 0,
+          "trainingLoad": {
+            "tss": 0,
+            "atl": 20.6,
+            "ctl": 9.1,
+            "tsb": -11.5
+          }
+        },
+        {
+          "date": "2026-11-01",
+          "day": "Sunday",
+          "type": "workout",
+          "title": "5-hour endurance hike (week anchor)",
+          "description": "The week's durability anchor: 5 hours of hiking with terrain gain, moving pace 4.5-5 km/h aiming for roughly 22-24 km. Keep HR at 110-135 on the climbs — short strides rather than pushing steep pitches (no repeat of the 164 bpm spikes from the Selbu hike). Cap every stop at 5 minutes with a timer so clock time converts to distance. Bring food and drink; treat it as a full endurance day.",
+          "durationMinutes": 300,
+          "intensity": "moderate",
+          "status": "planned",
+          "outdoor": true,
+          "canBeOutdoor": true,
+          "bikeWorkout": null,
+          "estimatedTss": 250,
+          "trainingLoad": {
+            "tss": 250,
+            "atl": 53.4,
+            "ctl": 14.8,
+            "tsb": -38.6
+          }
+        }
+      ],
+      "rationale": "Week 1 of the Rebuild & Fat Loss Foundation block stays deliberately light: one gym strength session, two short flat ERG rides, one easy run/walk, and full rest before Sunday's 5-hour hike. The unplanned Selbu hike on 25 Oct added aerobic volume just before the week, so everything midweek is capped (ERG at 140-148 W, HR under 145) to arrive fresh for the anchor. No spinning classes, no hard intervals, no pole vaulting.",
+      "estimatedFtpWatts": 220
+    },
+    "today": {
+      "date": "2026-10-26",
+      "type": "rest",
+      "title": "Rest day",
+      "description": "Full rest to open the Rebuild & Fat Loss Foundation block. Optional 10 minutes of gentle hip mobility in the evening (90/90 hip switches, supported deep squat holds, couch stretch) — no training stress today.",
+      "durationMinutes": 0,
+      "intensity": "rest",
+      "alternatives": [
+        "10 min gentle hip mobility only"
+      ],
+      "rationale": "Yesterday's unplanned 3h20 Selbu hike (608 m gain, avg HR 128) loaded the legs right before this week, and Sunday's 5-hour hike is the week's anchor. Starting the week with full rest keeps the re-entry week easy and surge-free, exactly what a return to training after detraining needs.",
+      "optional": false,
+      "optionalRationale": "Rest is the correct choice today, so there is no optionality to assess — skipping training today costs nothing and protects the whole week's structure.",
+      "status": "rest",
+      "outdoor": false,
+      "canBeOutdoor": false,
+      "bikeWorkout": null,
+      "estimatedTss": 0,
+      "trainingLoad": {
+        "tss": 0,
+        "atl": 20.2,
+        "ctl": 7.4,
+        "tsb": -12.9
+      }
+    },
+    "tomorrow": {
+      "date": "2026-10-27",
+      "type": "workout",
+      "title": "Back-safe gym strength",
+      "description": "Gym session, ~40 min total: 5 min easy rowing warm-up (HR under 130). Goblet squats 3x10 at 12 kg (third set added now that day-one quad burn is known). Romanian deadlifts 2x10 light (10-15 kg) with a strict hip hinge — stop at any back twinge. Glute bridges 3x12. Lat pulldowns 3x10, progressing from 40 to 50 kg. Pallof press 3x10/side. Planks 3x30-45s. Finish with 8-10 minutes of hip stretching. No pole vaulting, no plyometrics.",
+      "durationMinutes": 40,
+      "intensity": "moderate",
+      "alternatives": [],
+      "rationale": "This is the week's one strength dose: rebuilding the hip and trunk strength that protects your back on long climbs and later supports a lower, more sustainable riding position for the brevet series and PBP.",
+      "optional": false,
+      "optionalRationale": "Skipping it costs the slow strength foundation that takes months to build — exactly the work that cannot be crammed into the 2027 race phase, and the hinge pattern directly addresses your sit-bone and back issues on long rides.",
+      "status": "planned",
+      "outdoor": false,
+      "canBeOutdoor": false,
+      "bikeWorkout": null,
+      "estimatedTss": 25,
+      "trainingLoad": {
+        "tss": 25,
+        "atl": 20.9,
+        "ctl": 7.8,
+        "tsb": -13.1
+      }
+    },
+    "nextWeek": null,
+    "nextBlock": null
+  },
+  "refresh": {
+    "season": {
+      "goal": "Finish the randonneur brevet series (200 km in April through 600 km) and complete Paris-Brest-Paris in August 2027, while losing fat from 24.5% to ~15% body fat, building back-safe hip and core strength, and developing general cycling fitness for longer tour races.",
+      "startDate": "2026-10-26",
+      "endDate": "2027-08-21",
+      "blocks": [
+        {
+          "name": "Rebuild & Fat Loss Foundation",
+          "focus": "Re-establish the training habit with easy, surge-free aerobic work (flat ERG rides at 140-160 W, easy run/walks, hikes), back-safe gym strength (goblet squats, light RDLs, core), daily hip mobility, and structured dinner/evening eating habits for gradual fat loss. No hard intervals, no spinning classes.",
+          "startDate": "2026-10-26",
+          "endDate": "2026-12-06",
+          "weekCount": 6
+        },
+        {
+          "name": "Winter Base & Strength",
+          "focus": "Build aerobic volume via cross-country skiing, snowshoeing, fatbike rides on studded tires, and steady ERG endurance; progress the gym lifting program (hip hinges, squats, pulls) with strict load management for the back; continue the beginner running (toward 5K) and beginner rowing programs; keep the fat-loss deficit modest and sustainable.",
+          "startDate": "2026-12-07",
+          "endDate": "2027-02-28",
+          "weekCount": 12
+        },
+        {
+          "name": "Spring Road Return & 200 km Brevet Prep",
+          "focus": "Transition to road cycling on tarmac as conditions allow in March; extend weekend endurance rides toward 120-150 km; introduce the first low-threshold ERG intervals; confirm bike fit and a slightly lower, more sustainable position enabled by improved hip flexibility; complete the 200 km brevet in April as the season's first milestone.",
+          "startDate": "2027-03-01",
+          "endDate": "2027-04-04",
+          "weekCount": 5
+        },
+        {
+          "name": "Brevet Build 1",
+          "focus": "Structured sweet-spot and threshold ERG intervals midweek with long weekend endurance and climbing rides; complete the 300 km brevet and ride the 400 km; grow weekly volume progressively with recovery weeks every 4th week; maintain two gym sessions and hip mobility to protect the back on long climbs.",
+          "startDate": "2027-04-05",
+          "endDate": "2027-05-30",
+          "weekCount": 8
+        },
+        {
+          "name": "Brevet Build 2 & Race Fitness",
+          "focus": "Complete the 600 km brevet; add race-specific intensity (long intervals at threshold, over-unders) to lift FTP toward 280 W; include one longer tour race or hard group event; night-riding practice and fueling rehearsal for PBP; keep strength maintenance sessions light.",
+          "startDate": "2027-05-31",
+          "endDate": "2027-06-27",
+          "weekCount": 4
+        },
+        {
+          "name": "PBP Specialization & Peak",
+          "focus": "Peak-phase durability: back-to-back long rides (200 km + 150 km weekends), climbing volume, time-trial-paced endurance work, and full rehearsal of PBP pacing, nutrition, and sleep strategy; this is the disciplined 4-month window the athlete thrives in — every session counts toward PBP.",
+          "startDate": "2027-06-28",
+          "endDate": "2027-08-15",
+          "weekCount": 7
+        },
+        {
+          "name": "PBP Taper",
+          "focus": "Reduce volume sharply while keeping a touch of intensity to stay sharp; prioritize sleep, carbohydrate loading, and equipment checks; arrive at the Paris start rested, fueled, and with hips and back in good condition.",
+          "startDate": "2027-08-16",
+          "endDate": "2027-08-21",
+          "weekCount": 1
+        }
+      ],
+      "rationale": "The athlete is currently detrained (estimated FTP ~220 W vs 280 W when fit) after a successful 1130 km bikepacking race in July and a long break, so the season must start with a gentle rebuild that re-establishes the training habit without intensity. He also believes — correctly, and consistent with periodization science — that sustained peak-form training only works for a limited stretch (he has historically maintained disciplined training for a maximum of 4 months). The plan therefore keeps the first ~5 months as low-discipline foundation work: easy aerobic volume, fat loss through diet structure and gradual energy deficit, back-safe progressive gym strength, hip mobility, and beginner running and rowing programs, with Norwegian winter cross-training (cross-country skiing, snowshoeing, fatbike) replacing road rides from December through February. The disciplined, race-specific phase is deliberately compressed into the final ~4.5 months before PBP: a spring return to tarmac in March, the 200 km brevet in April as the first milestone, a progressive brevet build through May and June that also lifts FTP with indoor ERG intervals, a PBP-specific block in July with back-to-back long rides and climbing durability work, and a short taper into the August start. This ordering matches his own experience of how long he can train optimally, ensures every workout in the final phase has a clear purpose, and uses the long foundation to keep the base from falling further behind while fat loss and hip flexibility — which need months, not weeks — progress steadily in the background.",
+      "estimatedFtpWatts": 221
+    },
+    "block": {
+      "name": "Rebuild & Fat Loss Foundation",
+      "focus": "Re-establish the training habit with easy, surge-free aerobic work (flat ERG rides at 140-160 W, easy run/walks, weekend hikes), back-safe gym strength (goblet squats, light RDLs, core), daily hip mobility, and structured evening eating for gradual fat loss. No hard intervals, no spinning classes, no pole vaulting or plyometrics.",
+      "startDate": "2026-10-26",
+      "endDate": "2026-12-06",
+      "weeks": [
+        {
+          "number": 1,
+          "startDate": "2026-10-26",
+          "focus": "Re-entry week: one back-safe gym session (completed early), two easy ERG rides (flat 140-148 W, HR under 145), one easy run/walk (HR 125-135), plus the unplanned 3h20 Selbu hike as the long-day stimulus.",
+          "targetLoad": "~5-6 h total, ~250-300 TSS; deliberately light midweek to protect the long hike.",
+          "estimatedFtpWatts": 220
+        },
+        {
+          "number": 2,
+          "startDate": "2026-11-02",
+          "focus": "First full habit week: two easy ERG rides (flat 150-155 W, HR under 145), gym strength adding the third goblet squat set at 12 kg plus light RDLs with a strict hinge, 40-min easy run/walk (HR 125-135), and a 2.5-3 h weekend hike; daily 10-min hip mobility.",
+          "targetLoad": "~6-7 h, ~300-350 TSS.",
+          "estimatedFtpWatts": 221
+        },
+        {
+          "number": 3,
+          "startDate": "2026-11-09",
+          "focus": "Consistency: same structure with slightly longer midweek ERG rides (60-75 min at 150-160 W), gym progression on lat pulldown and RDL load, run/walk extending toward 40-45 min, weekend hike 3-4 h.",
+          "targetLoad": "~7-8 h, ~350-400 TSS.",
+          "estimatedFtpWatts": 223
+        },
+        {
+          "number": 4,
+          "startDate": "2026-11-16",
+          "focus": "Progression: ERG rides 75 min with brief 5-min bouts at 180-190 W inside the steady ride (still no true intervals), gym loads up one small step, run/walk continuous 30 min, weekend hike 4 h with terrain gain.",
+          "targetLoad": "~8 h, ~400-430 TSS.",
+          "estimatedFtpWatts": 224
+        },
+        {
+          "number": 5,
+          "startDate": "2026-11-23",
+          "focus": "Consolidation: hold the week-4 structure, add a second short gym session if the back feels good, and test a 5 km continuous easy run; keep evening eating structure strict as daylight and temperatures drop.",
+          "targetLoad": "~8 h, ~400-450 TSS.",
+          "estimatedFtpWatts": 225
+        },
+        {
+          "number": 6,
+          "startDate": "2026-11-30",
+          "focus": "Transition/deload week: slightly shorter sessions (ERG rides 60 min at 150-160 W, one gym session, easy run/walk), a 3-4 h weekend hike or first fatbike ride on studded tires, and a review of hip mobility and body-fat progress before the winter block starts 7 December.",
+          "targetLoad": "~6-7 h, ~300-350 TSS deload before the Winter Base & Strength block.",
+          "estimatedFtpWatts": 228
+        }
+      ],
+      "rationale": "Week 1 confirmed the approach works: the gym session was completed with smart load management (skipping the third set and deadlifts on day one was correct), Friday's indoor ride was genuinely steady, and the unplanned Selbu hike banked the long-day stimulus early. The block therefore stays as designed, with week 2 now set as the first full habit week: two ERG rides at 145-155 W, the gym progression to three goblet sets plus light RDLs, a 40-minute run/walk restart, and a 2.5-3 h hike — slightly shorter than originally sketched because the Selbu hike already covered that load. Progression across weeks 3-5 stays gradual (longer ERG rides, small gym load steps, run/walk toward 30 continuous minutes, hikes up to 4 h), with week 6 as a deload and review before the Winter Base & Strength block begins 7 December. All vault, sprint, and plyometric content remains removed. FTP is expected to recover only modestly (220 to ~228 W) since the work is deliberately easy; bigger gains come in later blocks.",
+      "estimatedFtpWatts": 221
+    },
+    "week": {
+      "startDate": "2026-11-02",
+      "focus": "First full habit week of the Rebuild & Fat Loss Foundation block: two easy surge-free ERG rides, one easy run/walk, one back-safe gym strength session with the third goblet squat set and light RDLs, and a 2.5-3 h weekend hike as the durability anchor. Daily hip mobility and structured evening eating continue.",
+      "sessions": [
+        {
+          "date": "2026-11-02",
+          "day": "Monday",
+          "type": "rest",
+          "title": "Rest day + optional hip mobility",
+          "description": "Full rest after Sunday's Selbu hike and last Tuesday's strength session. Optional 10 minutes of gentle hip mobility (couch stretch, 90/90 hip switches, deep squat holds) if the body feels good — no riding, no gym.",
+          "durationMinutes": 10,
+          "intensity": "rest",
+          "status": "rest",
+          "outdoor": false,
+          "canBeOutdoor": false,
+          "bikeWorkout": null,
+          "estimatedTss": 0,
+          "trainingLoad": {
+            "tss": 0,
+            "atl": 7.7,
+            "ctl": 6.5,
+            "tsb": -1.2
+          }
+        },
+        {
+          "date": "2026-11-03",
+          "day": "Tuesday",
+          "type": "workout",
+          "title": "Easy ERG ride — flat 150 W",
+          "description": "Indoor trainer, ERG mode. 10 min warm-up at ~90 W, 40 min perfectly flat at 150 W (cadence 85-95 rpm), 10 min cool-down at ~90 W. HR must stay under 145; if it drifts up early, drop the main block to 140 W. No surges, no spikes — the goal is aerobic smoothness.",
+          "durationMinutes": 60,
+          "intensity": "easy",
+          "status": "planned",
+          "outdoor": false,
+          "canBeOutdoor": false,
+          "bikeWorkout": {
+            "ftpWatts": 221,
+            "intervals": [
+              {
+                "durationSeconds": 600,
+                "powerPercent": 41
+              },
+              {
+                "durationSeconds": 2400,
+                "powerPercent": 68
+              },
+              {
+                "durationSeconds": 600,
+                "powerPercent": 41
+              }
+            ]
+          },
+          "estimatedTss": 55,
+          "trainingLoad": {
+            "tss": 36,
+            "atl": 11.7,
+            "ctl": 7.2,
+            "tsb": -4.5
+          }
+        },
+        {
+          "date": "2026-11-04",
+          "day": "Wednesday",
+          "type": "workout",
+          "title": "Back-safe gym strength + hip mobility",
+          "description": "Full gym session, ~50 min. Warm-up: 5 min easy rowing (HR under 130) plus hip openers. Main: goblet squat 3x10 at 12 kg (add the third set this week); Romanian deadlift 3x8 with a light bar or dumbbells (start ~20 kg total, strict hinge, stop at any back twinge); glute bridge 3x12; lat pulldown 3x10 progressing 40-50 kg; Pallof press 3x10/side; plank 3x30-45 s. Finish with 10-12 minutes of hip-flexor and hamstring stretching — a required part of the session, not optional.",
+          "durationMinutes": 50,
+          "intensity": "moderate",
+          "status": "planned",
+          "outdoor": false,
+          "canBeOutdoor": false,
+          "bikeWorkout": null,
+          "estimatedTss": 30,
+          "trainingLoad": {
+            "tss": 30,
+            "atl": 14.3,
+            "ctl": 7.8,
+            "tsb": -6.6
+          }
+        },
+        {
+          "date": "2026-11-05",
+          "day": "Thursday",
+          "type": "workout",
+          "title": "Easy run/walk — 40 min restart",
+          "description": "40 minutes total: 5 min walking warm-up, then alternate easy running with 2-minute walk breaks whenever HR drifts above 135. Cap effort at HR 125-135 from the first minute — unlike the September run, do not let HR sit at 150+. Finish with 5 min walking cool-down. Headlamp is fine; you are comfortable in the dark.",
+          "durationMinutes": 40,
+          "intensity": "easy",
+          "status": "planned",
+          "outdoor": true,
+          "canBeOutdoor": true,
+          "bikeWorkout": null,
+          "estimatedTss": 30,
+          "trainingLoad": {
+            "tss": 30,
+            "atl": 16.6,
+            "ctl": 8.3,
+            "tsb": -8.3
+          }
+        },
+        {
+          "date": "2026-11-06",
+          "day": "Friday",
+          "type": "workout",
+          "title": "Easy ERG ride — flat 155 W",
+          "description": "Indoor trainer, ERG mode. 10 min warm-up at ~95 W, 45 min flat at 155 W (cadence 85-95 rpm), 10 min cool-down at ~90 W. HR cap 145. If the legs are heavy from Wednesday's gym session, drop the main block to 145 W — keeping it easy and steady matters more than watts this week.",
+          "durationMinutes": 65,
+          "intensity": "easy",
+          "status": "planned",
+          "outdoor": false,
+          "canBeOutdoor": false,
+          "bikeWorkout": {
+            "ftpWatts": 221,
+            "intervals": [
+              {
+                "durationSeconds": 600,
+                "powerPercent": 43
+              },
+              {
+                "durationSeconds": 2700,
+                "powerPercent": 70
+              },
+              {
+                "durationSeconds": 600,
+                "powerPercent": 41
+              }
+            ]
+          },
+          "estimatedTss": 62,
+          "trainingLoad": {
+            "tss": 43,
+            "atl": 20.3,
+            "ctl": 9.1,
+            "tsb": -11.2
+          }
+        },
+        {
+          "date": "2026-11-07",
+          "day": "Saturday",
+          "type": "rest",
+          "title": "Rest day + hip mobility",
+          "description": "Full rest before Sunday's hike. Do 10 minutes of hip mobility (couch stretch, pigeon pose, deep squat holds, hamstring stretches) and keep the evening eating structure strict — this is the habit window where snacks tend to creep in.",
+          "durationMinutes": 10,
+          "intensity": "rest",
+          "status": "rest",
+          "outdoor": false,
+          "canBeOutdoor": false,
+          "bikeWorkout": null,
+          "estimatedTss": 0,
+          "trainingLoad": {
+            "tss": 0,
+            "atl": 17.4,
+            "ctl": 8.9,
+            "tsb": -8.5
+          }
+        },
+        {
+          "date": "2026-11-08",
+          "day": "Sunday",
+          "type": "workout",
+          "title": "Long hike — 2.5-3 h durability anchor",
+          "description": "Hike 2.5-3 hours on hilly terrain, aiming for roughly 12-14 km with 400-600 m of gain. Keep HR at 110-135 on the climbs (short strides rather than pushing steep pitches — no repeat of the 164 bpm spikes from Selbu), moving pace above 4 km/h, and cap every stop at 5 minutes with a timer so clock time converts into actual moving time. This is the week's anchor session.",
+          "durationMinutes": 170,
+          "intensity": "easy",
+          "status": "planned",
+          "outdoor": true,
+          "canBeOutdoor": true,
+          "bikeWorkout": null,
+          "estimatedTss": 95,
+          "trainingLoad": {
+            "tss": 95,
+            "atl": 28.5,
+            "ctl": 10.9,
+            "tsb": -17.6
+          }
+        }
+      ],
+      "rationale": "Last week went well but left extra leg fatigue: the unplanned Selbu hike plus last Tuesday's strength circuit mean you start this week slightly loaded, so Monday is a full rest and the week stays at the easy end of the block's week-2 progression. ERG power holds at 145-155 W (~65-70% of estimated 221 W FTP) with HR capped at 145, the gym session adds the third goblet set at 12 kg and introduces light Romanian deadlifts with a strict hinge (stopping at any back twinge), the run/walk restarts at 40 minutes with HR 125-135 and 2-minute walk breaks, and Sunday's hike is 2.5-3 h — deliberately shorter than the 5 h originally floated, since Selbu already banked the long-day stimulus. Stretching gets real time (10+ min) after the gym session. No spinning classes, no intervals, no vaulting.",
+      "estimatedFtpWatts": 221
+    },
+    "today": {
+      "date": "2026-11-02",
+      "type": "rest",
+      "title": "Rest day + optional hip mobility",
+      "description": "Full rest after Sunday's 3h20 Selbu hike and last Tuesday's strength session. If the body feels good, do 10 minutes of gentle hip mobility: couch stretch, 90/90 hip switches, and deep squat holds. No riding, no gym — the legs need a genuine recovery day before the first full habit week begins.",
+      "durationMinutes": 10,
+      "intensity": "rest",
+      "alternatives": [
+        "10 min couch stretch + 90/90 hip switches + deep squat holds",
+        "Short easy walk if legs feel stagnant"
+      ],
+      "rationale": "You enter this week carrying real fatigue: the unplanned Selbu hike (11.1 km, 608 m gain) plus last Tuesday's strength circuit loaded the legs more than a normal re-entry week. A full rest today lets Tuesday's ERG ride and Wednesday's gym progression land on fresh legs, and protects Sunday's hike as the week's anchor. Rest is the best choice today because the block's goal is habit and consistency, not load — starting week 2 already slightly fatigued means recovery days are where adaptation happens.",
+      "optional": false,
+      "optionalRationale": "Rest is prescribed, not optional: skipping the recovery would mean starting the habit week with unabsorbed fatigue, which would degrade Tuesday's ride and Wednesday's gym progression and risk the back on the RDL introduction.",
+      "status": "rest",
+      "outdoor": false,
+      "canBeOutdoor": false,
+      "bikeWorkout": null,
+      "estimatedTss": 0,
+      "trainingLoad": {
+        "tss": 0,
+        "atl": 7.7,
+        "ctl": 6.5,
+        "tsb": -1.2
+      }
+    },
+    "tomorrow": {
+      "date": "2026-11-03",
+      "type": "workout",
+      "title": "Easy ERG ride — flat 150 W",
+      "description": "Indoor trainer, ERG mode, 60 minutes total. 10 min warm-up at ~90 W, 40 min perfectly flat at 150 W (cadence 85-95 rpm), 10 min cool-down at ~90 W. HR must stay under 145; if it drifts up early, drop the main block to 140 W. No surges, no spikes — the goal is aerobic smoothness, rebuilding the flat HR line you nailed on Friday's ride.",
+      "durationMinutes": 60,
+      "intensity": "easy",
+      "alternatives": [
+        "Drop main block to 140 W if HR climbs early",
+        "60 min easy fatbike ride outdoors if preferred, keeping HR under 145"
+      ],
+      "rationale": "First aerobic session of the full habit week. The flat 150 W line (~68% of your estimated 221 W FTP) rebuilds the steady aerobic base that the winter block and next spring's 200 km brevet sit on, while staying easy enough to absorb Sunday's hike fatigue.",
+      "optional": false,
+      "optionalRationale": "Skipping it costs the aerobic smoothness that carries you through the back half of a 200 km brevet — this flat-line work is exactly the stimulus your detrained base is missing right now, and missing it means week 2 starts with a hole in the habit pattern the whole block is built on.",
+      "status": "planned",
+      "outdoor": false,
+      "canBeOutdoor": false,
+      "bikeWorkout": {
+        "ftpWatts": 221,
+        "intervals": [
+          {
+            "durationSeconds": 600,
+            "powerPercent": 41
+          },
+          {
+            "durationSeconds": 2400,
+            "powerPercent": 68
+          },
+          {
+            "durationSeconds": 600,
+            "powerPercent": 41
+          }
+        ]
+      },
+      "estimatedTss": 55,
+      "trainingLoad": {
+        "tss": 36,
+        "atl": 11.7,
+        "ctl": 7.2,
+        "tsb": -4.5
+      }
+    },
+    "nextWeek": null,
+    "nextBlock": null
+  }
+}

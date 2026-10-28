@@ -1,0 +1,23 @@
+{
+  "runId": "2026-10-27-six-model",
+  "runAt": "2026-10-27T22:36:17.217Z",
+  "gitCommit": "beaea772315552f8ead11ed2a8b5b78b6c142958",
+  "userId": 1,
+  "today": "2026-10-26",
+  "refreshToday": "2026-11-02",
+  "benchmarkModel": "google/gemini-4-argon",
+  "models": [
+    "google/gemini-4-argon",
+    "anthropic/claude-haiku-5.5",
+    "deepseek/deepseek-v4.1-flash-1017",
+    "inception/mercury-3",
+    "minimax/minimax-m3.1-flash",
+    "z-ai/glm-5.3"
+  ],
+  "planMaxTokens": 16384,
+  "exclusions": [
+    "Weather and daylight are not loaded; the benchmark does not depend on a saved location.",
+    "The completed-week summary and post-build activity-review calls are excluded; they do not change the four plan levels.",
+    "Plans are generated in memory and are never written to the athlete's stored plan."
+  ]
+}
