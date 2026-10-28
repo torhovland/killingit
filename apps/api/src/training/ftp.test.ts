@@ -19,6 +19,31 @@ describe("extractFtpWatts", () => {
     ).toBe(220);
   });
 
+  it("picks the present level when the profile lists a peak first", () => {
+    expect(
+      extractFtpWatts([
+        {
+          answer:
+            "I typically reach a cycling FTP above 280 W when I am in shape. With the recent detraining, I believe I am now close to 220 W.",
+        },
+      ]),
+    ).toBe(220);
+  });
+
+  it("picks the present level when the peak is described before it", () => {
+    expect(
+      firstFtpInText(
+        "When I am in shape I reach 280 W FTP, but now I'm near 220 W.",
+      ),
+    ).toBe(220);
+  });
+
+  it("keeps the first value when nothing marks it as past or present", () => {
+    expect(firstFtpInText("FTP is around 220 W, roughly 280 W when fit.")).toBe(
+      220,
+    );
+  });
+
   it("supports the common phrasings", () => {
     expect(firstFtpInText("FTP: 250")).toBe(250);
     expect(firstFtpInText("FTP around 280W.")).toBe(280);

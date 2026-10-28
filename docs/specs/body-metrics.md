@@ -31,6 +31,9 @@ days that the stored plan covers.
 6. Including the FTP history in plan and activity-analysis prompts.
 7. A body chart on the Fitness page with interpolation between measurements and
    a best-fit projection after the last measurement.
+8. Capturing the body weight and body-fat percentage the coach finds in the
+   athlete's input, on the dates it refers to, so the body chart has data before
+   Garmin is connected.
 
 ### Out of scope (deferred)
 
@@ -96,6 +99,30 @@ athlete measurements are never deleted.
 - Prompts receive the most recent 60 FTP points, oldest first, with their
   source.
 
+### Coach-found body metrics
+
+- Every plan response carries a `bodyMetrics` array of
+  `{ date, weightKg, bodyFatPercent }` points, and an activity analysis carries
+  `weightKg` and `bodyFatPercent` for the activity's date. The coach reports
+  only numbers that appear in the input — the profile, a weekly note, an
+  activity comment, or a manual entry — and sets a value to `null` when the
+  input does not give it. It never guesses a weigh-in or turns a goal
+  ("down to 15 %") into a measurement. A number in the profile with no date of
+  its own is dated by the profile's last save (shown in the prompt as
+  "answers last saved YYYY-MM-DD"), so regenerating on a later day does not
+  create a fresh weigh-in at the old value.
+- A plan prompt receives the stored weight and body-fat history, so the coach
+  does not repeat a value it has already reported.
+- The points are merged across the generation steps into the plan's
+  `bodyMetrics` (one per date, oldest first) and stored after the plan is saved
+  with source `coach`. Points dated after today are ignored: a projection is
+  not a measurement.
+- A `user` or `garmin` value for the same day wins and is never replaced. Unlike
+  FTP estimates, a newer point does not delete later ones, because body
+  measurements are not a projection that a fresher estimate supersedes.
+- Storing a point is fail-open: a failed write is logged and never fails the
+  plan or the activity analysis.
+
 ### Fitness page
 
 `GET /api/fitness` gains `body: { weight, bodyFat }`, each an array of
@@ -116,7 +143,12 @@ athlete measurements are never deleted.
 
 - `GET /api/fitness` response adds the optional-with-default `body` object.
 - Garmin sidecar `POST /metrics`.
-- No other public route changes.
+- Plan response schemas gain `bodyMetrics` (default `[]`), and
+  `coachPlanSchema` carries it as an optional array. `coachAnalysisResultSchema`
+  gains `weightKg` and `bodyFatPercent` (nullable, default `null`).
+- The plan and activity-analysis prompts ask for those fields and receive the
+  stored body history; the prompt versions are bumped.
+- No public route changes.
 
 ## Acceptance criteria
 
@@ -132,7 +164,13 @@ athlete measurements are never deleted.
    with a best-fit trend after the last known date, through the plan end.
 6. The body chart is hidden without measurements and omits a line whose metric
    has no data.
-7. Typecheck, lint, format, unit tests, and the Garmin sidecar tests pass.
+7. A profile that states "89,5 kg and 24,5 % body fat" produces a `coach` weight
+   and body-fat point on the profile's last save date, and the Fitness page
+   draws both lines.
+8. A weigh-in the athlete mentions in an activity comment is stored on the
+   activity's date, and a later Garmin or user value on that day is not
+   overwritten.
+9. Typecheck, lint, format, unit tests, and the Garmin sidecar tests pass.
 
 ## Testing
 

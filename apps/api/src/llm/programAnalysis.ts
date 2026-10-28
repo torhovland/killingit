@@ -39,6 +39,8 @@ export async function analyzeActivityAgainstPlan(
     return {
       analysis: text.trim() || "The coach did not return a review.",
       estimatedFtpWatts: null,
+      weightKg: null,
+      bodyFatPercent: null,
     };
   }
 }

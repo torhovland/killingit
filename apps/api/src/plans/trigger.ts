@@ -8,7 +8,9 @@ import { analyzeActivitiesAgainstPlan } from "../coaching/programAnalysis.js";
 import type { LlmClient } from "../llm/client.js";
 import { loadLlmClient } from "../llm/client.js";
 import {
+  loadBodyHistoryForUser,
   loadFtpHistoryForUser,
+  recordCoachBodyMetrics,
   recordPlanFtpEstimates,
 } from "../metrics/store.js";
 import type {
@@ -42,6 +44,8 @@ export interface PlanTriggerDependencies {
   loadActivities?: (userId: number) => Promise<ActivityFeed>;
   /** Injectable for route tests; defaults to the stored FTP time series. */
   loadFtpHistory?: typeof loadFtpHistoryForUser;
+  /** Injectable for route tests; defaults to the stored body metrics. */
+  loadBodyHistory?: typeof loadBodyHistoryForUser;
   /** Injectable for route tests; defaults to the account's stored config. */
   loadLlm?: (userId: number) => Promise<LlmClient | null>;
   /** Injectable for route tests; defaults to the database-backed loader. */
@@ -146,6 +150,9 @@ export async function triggerPlanGeneration(
     },
     today,
   );
+  const bodyHistory = await (deps.loadBodyHistory ?? loadBodyHistoryForUser)(
+    userId,
+  );
   let weatherForecasts: WeatherForecastSet | null = null;
   let forecast: DailyWeather[] | null = null;
   if (location !== null) {
@@ -179,6 +186,8 @@ export async function triggerPlanGeneration(
     capturePeriodReviews: captureCompletedPeriodReviews,
     recordFtpEstimates: (generatedPlan) =>
       recordPlanFtpEstimates(userId, planFtpEstimates(generatedPlan)),
+    recordBodyMetrics: (points) =>
+      recordCoachBodyMetrics(userId, points, today),
     reviewActivities: (plan) =>
       analyzeActivitiesAgainstPlan({
         userId,
@@ -211,6 +220,7 @@ export async function triggerPlanGeneration(
       weatherForecasts,
       ftpTimeline: ftp.timeline,
       ftpHistory: ftp.points.filter((point) => point.date <= today),
+      bodyHistory,
       provider: llm.provider,
       apiKey: llm.apiKey,
       model: llm.model,

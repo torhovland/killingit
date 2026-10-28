@@ -1,5 +1,6 @@
 import type {
   AthleteMetric,
+  BodyMetricEstimate,
   GarminBodyMetricSample,
   GarminFtpSample,
   MetricPoint,
@@ -8,6 +9,7 @@ import type {
 import { and, asc, eq, gt } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { athleteMetrics } from "../db/schema.js";
+import type { BodyMetricHistory } from "../llm/planContext.js";
 import {
   extractFtpAnchors,
   buildFtpTimelineFromPoints,
@@ -179,28 +181,89 @@ async function recordGarminMetric(
   date: string,
   value: number,
 ): Promise<void> {
+  await recordMeasuredMetric({
+    userId,
+    metric,
+    date,
+    value,
+    source: "garmin",
+    keepSources: ["user"],
+  });
+}
+
+/**
+ * Stores the body-composition values the coach found in the athlete's input.
+ * The point is dated by the statement it came from, so a weight mentioned in a
+ * comment lands on that activity's day. Points after `throughDate` are ignored:
+ * a future projection is not a measurement.
+ */
+export async function recordCoachBodyMetrics(
+  userId: number,
+  points: readonly BodyMetricEstimate[],
+  throughDate?: string,
+): Promise<void> {
+  for (const point of points) {
+    if (throughDate !== undefined && point.date > throughDate) {
+      continue;
+    }
+    if (point.weightKg !== null) {
+      await recordMeasuredMetric({
+        userId,
+        metric: "weight",
+        date: point.date,
+        value: point.weightKg,
+        source: "coach",
+        keepSources: ["user", "garmin"],
+      });
+    }
+    if (point.bodyFatPercent !== null) {
+      await recordMeasuredMetric({
+        userId,
+        metric: "body_fat",
+        date: point.date,
+        value: point.bodyFatPercent,
+        source: "coach",
+        keepSources: ["user", "garmin"],
+      });
+    }
+  }
+}
+
+/**
+ * Writes one metric value unless a stronger source already holds that day. A
+ * stronger value (`keepSources`) is never replaced by this one.
+ */
+async function recordMeasuredMetric(input: {
+  userId: number;
+  metric: AthleteMetric;
+  date: string;
+  value: number;
+  source: MetricSource;
+  keepSources: readonly MetricSource[];
+}): Promise<void> {
   const existing = await db
     .select({ source: athleteMetrics.source })
     .from(athleteMetrics)
     .where(
       and(
-        eq(athleteMetrics.userId, userId),
-        eq(athleteMetrics.metric, metric),
-        eq(athleteMetrics.date, date),
+        eq(athleteMetrics.userId, input.userId),
+        eq(athleteMetrics.metric, input.metric),
+        eq(athleteMetrics.date, input.date),
       ),
     )
     .limit(1);
-  if (existing[0]?.source === "user") {
+  const current = existing[0];
+  if (current !== undefined && input.keepSources.includes(current.source)) {
     return;
   }
   await db
     .insert(athleteMetrics)
     .values({
-      userId,
-      metric,
-      source: "garmin" satisfies MetricSource,
-      date,
-      value,
+      userId: input.userId,
+      metric: input.metric,
+      source: input.source,
+      date: input.date,
+      value: input.value,
       updatedAt: new Date(),
     })
     .onConflictDoUpdate({
@@ -209,7 +272,11 @@ async function recordGarminMetric(
         athleteMetrics.metric,
         athleteMetrics.date,
       ],
-      set: { source: "garmin", value, updatedAt: new Date() },
+      set: {
+        source: input.source,
+        value: input.value,
+        updatedAt: new Date(),
+      },
     });
 }
 
@@ -235,6 +302,17 @@ export async function syncFtpFromInputs(
       value: anchor.watts,
     });
   }
+}
+
+/** Loads the stored body weight and body-fat series for a prompt. */
+export async function loadBodyHistoryForUser(
+  userId: number,
+): Promise<BodyMetricHistory> {
+  const [weight, bodyFat] = await Promise.all([
+    loadMetricPoints(userId, "weight"),
+    loadMetricPoints(userId, "body_fat"),
+  ]);
+  return { weight, bodyFat };
 }
 
 /**

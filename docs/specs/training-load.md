@@ -37,10 +37,14 @@ numbers must agree across the Day, Week, and Block tabs.
 
 ### FTP
 
-- `extractFtpWatts` reads the first plausible FTP (50–2000 W) from the athlete's
+- `extractFtpWatts` reads the present FTP (50–2000 W) from the athlete's
   answers. It accepts `FTP: 250`, `FTP around 220 W`, `280 W FTP`, and similar.
-  The first value is the current baseline; a later "when fit" number is not
-  used as the current FTP.
+  A value described as current ("now", "currently", "at the moment", "these
+  days") wins over one described as a peak or a typical best ("when fit", "in
+  shape", "typically", "used to", "peak"), whichever comes first in the answer;
+  without those cues the first value is the baseline. An answer that names the
+  FTP can then state the present level without repeating the word ("I am now
+  close to 220 W").
 - A revised FTP is picked up from any dated athlete input: an activity comment,
   a manual activity, the weekly note, or a week/block review comment. The
   newest mention wins. If the survey answers were saved after that mention, the

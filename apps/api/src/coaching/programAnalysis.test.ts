@@ -112,6 +112,24 @@ class FakeProvider implements LlmProvider {
   }
 }
 
+class JsonProvider implements LlmProvider {
+  readonly id = "fake";
+
+  constructor(private readonly result: unknown) {}
+
+  listModels(): Promise<never[]> {
+    return Promise.resolve([]);
+  }
+
+  validateKey(): Promise<void> {
+    return Promise.resolve();
+  }
+
+  complete(): Promise<string> {
+    return Promise.resolve(JSON.stringify(this.result));
+  }
+}
+
 describe("analyzeActivitiesAgainstPlan", () => {
   it("saves a program review for each activity", async () => {
     const saved: Array<{
@@ -153,6 +171,47 @@ describe("analyzeActivitiesAgainstPlan", () => {
     expect(saved[0]?.kind).toBe("program");
     expect(saved[0]?.model).toBe("test-model");
     expect(saved[0]?.promptVersion).toBe(PROGRAM_ANALYSIS_PROMPT_VERSION);
+  });
+
+  it("stores the body weight the athlete stated for the activity", async () => {
+    const stored: unknown[] = [];
+
+    await analyzeActivitiesAgainstPlan({
+      userId: 42,
+      provider: new JsonProvider({
+        analysis: "A good easy run.",
+        estimatedFtpWatts: null,
+        weightKg: 88.4,
+        bodyFatPercent: 22,
+      }),
+      apiKey: "test-key",
+      model: "test-model",
+      today: "2026-10-21",
+      plan: makePlan(),
+      activities: [makeActivity(1, "Morning Run")],
+      activityComments: [
+        { activityId: "1", comment: "Weighed 88.4 kg at 22 % this morning." },
+      ],
+      save: (input) =>
+        Promise.resolve({
+          activityId: input.activityId,
+          kind: input.kind ?? "general",
+          model: input.model,
+          text: input.text,
+          generatedAt: new Date(),
+        }),
+      saveBodyMetrics: (userId, points) => {
+        stored.push({ userId, points });
+        return Promise.resolve();
+      },
+    });
+
+    expect(stored).toEqual([
+      {
+        userId: 42,
+        points: [{ date: "2026-10-19", weightKg: 88.4, bodyFatPercent: 22 }],
+      },
+    ]);
   });
 
   it("continues when one review fails", async () => {

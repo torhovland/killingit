@@ -156,7 +156,8 @@ export const coachAnalysisSchema = z.object({
 /**
  * The structured response the coach returns for an activity analysis. The
  * visible analysis stays plain text, while the FTP estimate is persisted as a
- * coach-sourced point in the athlete's FTP time series.
+ * coach-sourced point in the athlete's FTP time series. Body weight and body-fat
+ * values the athlete stated for the activity are stored the same way.
  */
 export const coachAnalysisResultSchema = z.object({
   analysis: z.string().trim().min(1),
@@ -167,6 +168,10 @@ export const coachAnalysisResultSchema = z.object({
     .max(2000)
     .nullable()
     .default(null),
+  /** Body weight in kilograms when the activity's input states it. */
+  weightKg: z.number().positive().max(500).nullable().default(null),
+  /** Body fat as a percentage of body weight when the input states it. */
+  bodyFatPercent: z.number().positive().max(75).nullable().default(null),
 });
 
 export type CoachAnalysisResult = z.infer<typeof coachAnalysisResultSchema>;

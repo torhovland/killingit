@@ -10,6 +10,22 @@ export const planDateSchema = z
   .regex(/^\d{4}-\d{2}-\d{2}$/, "Expected a YYYY-MM-DD date");
 
 /**
+ * One dated body-composition value the coach found in the athlete's input, such
+ * as a weight or body-fat percentage stated in the profile or a comment. Either
+ * value may be missing, because a statement rarely gives both. A point with
+ * neither value is ignored.
+ */
+export const bodyMetricEstimateSchema = z.object({
+  date: planDateSchema,
+  /** Body weight in kilograms. */
+  weightKg: z.number().positive().max(500).nullable().default(null),
+  /** Body fat as a percentage of body weight. */
+  bodyFatPercent: z.number().positive().max(75).nullable().default(null),
+});
+
+export type BodyMetricEstimate = z.infer<typeof bodyMetricEstimateSchema>;
+
+/**
  * One block in the season plan. `weekCount` is the planned length; the
  * detailed weeks live in the current block plan while that block is active.
  */
@@ -254,6 +270,11 @@ export const coachPlanSchema = z.object({
    * Promoted to `block` when the date reaches it.
    */
   nextBlock: blockPlanSchema.nullable().default(null),
+  /**
+   * Body-composition points the coach found in the athlete's input, one per
+   * date. Stored in the athlete metric series as coach estimates.
+   */
+  bodyMetrics: z.array(bodyMetricEstimateSchema).optional(),
 });
 
 export type CoachPlan = z.infer<typeof coachPlanSchema>;
@@ -264,6 +285,7 @@ export type CoachPlan = z.infer<typeof coachPlanSchema>;
  */
 export const seasonPlanUpdateSchema = z.object({
   season: seasonPlanSchema,
+  bodyMetrics: z.array(bodyMetricEstimateSchema).default([]),
 });
 
 export type SeasonPlanUpdate = z.infer<typeof seasonPlanUpdateSchema>;
@@ -271,6 +293,7 @@ export type SeasonPlanUpdate = z.infer<typeof seasonPlanUpdateSchema>;
 /** The second step of a full build: the first block of the season. */
 export const initialBlockUpdateSchema = z.object({
   block: blockPlanSchema,
+  bodyMetrics: z.array(bodyMetricEstimateSchema).default([]),
 });
 
 export type InitialBlockUpdate = z.infer<typeof initialBlockUpdateSchema>;
@@ -284,6 +307,7 @@ export const dailyPlanUpdateSchema = z
     today: dayPlanSchema,
     tomorrow: dayPlanSchema.nullable().default(null),
     week: weekPlanSchema,
+    bodyMetrics: z.array(bodyMetricEstimateSchema).default([]),
   })
   .refine(
     (value) =>
@@ -307,6 +331,7 @@ export const targetDayUpdateSchema = z
   .object({
     today: dayPlanSchema,
     week: weekPlanSchema,
+    bodyMetrics: z.array(bodyMetricEstimateSchema).default([]),
   })
   .refine(
     (value) =>
@@ -323,6 +348,7 @@ export type TargetDayUpdate = z.infer<typeof targetDayUpdateSchema>;
 export const weeklyPlanUpdateSchema = z.object({
   week: weekPlanSchema,
   block: blockPlanSchema,
+  bodyMetrics: z.array(bodyMetricEstimateSchema).default([]),
 });
 
 export type WeeklyPlanUpdate = z.infer<typeof weeklyPlanUpdateSchema>;
@@ -331,6 +357,7 @@ export type WeeklyPlanUpdate = z.infer<typeof weeklyPlanUpdateSchema>;
 export const blockPlanUpdateSchema = z.object({
   block: blockPlanSchema,
   season: seasonPlanSchema,
+  bodyMetrics: z.array(bodyMetricEstimateSchema).default([]),
 });
 
 export type BlockPlanUpdate = z.infer<typeof blockPlanUpdateSchema>;

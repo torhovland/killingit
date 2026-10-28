@@ -86,7 +86,9 @@ shapes (`StoredAthleteQuestion` and `AnalyzedActivity`) structurally and returns
 - `coachPlanPrompt.ts` exports `COACH_PLAN_PROMPT_VERSION`, the input interfaces,
   `buildCoachPlanPrompt(input)`, and `buildCoachPlanMessages(input)`. The JSON
   contract and the split daily prompt both include `optional` and
-  `optionalRationale` for today's and tomorrow's sessions.
+  `optionalRationale` for today's and tomorrow's sessions, and the dated
+  `bodyMetrics` array that carries the body weight and body-fat values the
+  coach found in the athlete's input (see `docs/specs/body-metrics.md`).
 - The combined prompt describes a coherent full plan in one JSON object. The
   lifecycle build now splits the initial plan into four smaller calls (season,
   block, week, day) so every response fits the model's output budget; the

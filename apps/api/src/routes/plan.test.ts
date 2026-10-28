@@ -291,6 +291,7 @@ function makeApp(options: {
         points: [],
         timeline: { anchors: [], latest: null },
       }),
+    loadBodyHistory: () => Promise.resolve({ weight: [], bodyFat: [] }),
     loadLlm: () =>
       Promise.resolve({
         provider: {

@@ -250,26 +250,98 @@ export function ftpAt(
   return last.watts;
 }
 
-/** Finds an FTP value in one piece of text, or null when none is stated. */
+/** Words that mark a value as the level the athlete is at now. */
+const CURRENT_FTP_CUES =
+  /\b(now|current(?:ly)?|at the moment|these days|right now|recently|lately|close to|today)\b/i;
+
+/** Words that mark a value as a past peak or a typical best. */
+const PEAK_FTP_CUES =
+  /\b(when fit|in shape|typical(?:ly)?|usually|used to|peak|best|previously|formerly|a few years ago)\b/i;
+
+/** Words that state a level as an approximation at the present moment. */
+const CURRENT_FTP_PHRASE =
+  /(?:\bnow\b|\bcurrently\b|\bat the moment\b|\bthese days\b)[^.!?\n]{0,20}\b(?:close to|around|about|roughly|at)\s*$/i;
+
+/** Text that names an FTP explicitly. */
+const FTP_LABEL = /\b(?:ftp|threshold(?: power)? test)\b/i;
+
+/** How far before a value to look for the word that describes it. */
+const FTP_CUE_WINDOW = 60;
+
+/**
+ * Finds the FTP value the athlete describes as current, or null when none is
+ * stated. A profile such as "I reach 280 W when fit; I am now close to 220 W"
+ * states its present level second, so the value with a "now" or "current" cue
+ * wins over one described as a typical best; without such a cue the first value
+ * is used.
+ */
 export function firstFtpInText(text: string): number | null {
   const patterns = [
     /\b(?:ftp|threshold(?: power)? test)\b[^0-9]{0,30}(\d{2,4})\s*(?:w\b|watts?\b)?/gi,
     /(\d{2,4})\s*(?:w|watts?)\b[^0-9]{0,12}\b(?:ftp|threshold(?: power)? test)\b/gi,
   ];
+  const candidates: { value: number; score: number }[] = [];
+  const add = (value: number, score: number): void => {
+    if (value >= MIN_FTP_WATTS && value <= MAX_FTP_WATTS) {
+      candidates.push({ value, score });
+    }
+  };
 
   for (const pattern of patterns) {
     for (const match of text.matchAll(pattern)) {
       const raw = match[1];
-      if (raw === undefined) {
-        continue;
-      }
-      const value = Number(raw);
-      if (value >= MIN_FTP_WATTS && value <= MAX_FTP_WATTS) {
-        return value;
+      const index = match.index;
+      if (raw !== undefined && index !== undefined) {
+        add(Number(raw), ftpCueScore(text, index));
       }
     }
   }
-  return null;
+
+  // An answer that names the FTP can then describe the present level without
+  // repeating the word: "I am now close to 220 W".
+  if (FTP_LABEL.test(text)) {
+    for (const match of text.matchAll(/(\d{2,4})\s*(?:w\b|watts?\b)/gi)) {
+      const raw = match[1];
+      const index = match.index;
+      if (raw === undefined || index === undefined) {
+        continue;
+      }
+      const before = text.slice(Math.max(0, index - 40), index);
+      if (CURRENT_FTP_PHRASE.test(before)) {
+        add(Number(raw), 2);
+      }
+    }
+  }
+
+  let best: { value: number; score: number } | null = null;
+  for (const candidate of candidates) {
+    if (best === null || candidate.score > best.score) {
+      best = candidate;
+    }
+  }
+  return best?.value ?? null;
+}
+
+/**
+ * Scores how the text before `index` describes the value there: 2 for a
+ * present level, 1 for an unqualified value, and 0 for one described as a past
+ * peak or a typical best.
+ */
+function ftpCueScore(text: string, index: number): number {
+  const sentenceStart = Math.max(
+    text.lastIndexOf(".", index - 1),
+    text.lastIndexOf("!", index - 1),
+    text.lastIndexOf("?", index - 1),
+    text.lastIndexOf("\n", index - 1),
+  );
+  const before = text.slice(
+    Math.max(sentenceStart + 1, index - FTP_CUE_WINDOW),
+    index,
+  );
+  if (CURRENT_FTP_CUES.test(before)) {
+    return 2;
+  }
+  return PEAK_FTP_CUES.test(before) ? 0 : 1;
 }
 
 /** The profile's FTP anchor, dated by the answer or the latest answer save. */

@@ -84,6 +84,14 @@ Before returning, apply the same test to every workout in the week: if you canno
 
 If today or tomorrow is a rest day, explain in "rationale" why rest is the best choice today; no optionality assessment is needed.`;
 
+/**
+ * Shared instruction for the body-composition points the coach reports. The
+ * app stores them in the same daily time series as Garmin's weigh-ins, so the
+ * athlete sees a weight and body-fat trend on the Fitness page even before
+ * their scale is connected.
+ */
+export const BODY_METRIC_RULES = `When the profile, a weekly note, an activity comment, or another part of the input states the athlete's body weight or body-fat percentage, report it in "bodyMetrics" as { "date": "YYYY-MM-DD", "weightKg": number, "bodyFatPercent": number }. Give body weight in kilograms and body fat as a percentage of body weight; convert a stated weight in pounds. Use the date the statement refers to. For a number in the profile that names no date, use the date the profile was last saved; for anything added more recently, use today's date. Set a value the input does not give to null, and return an empty "bodyMetrics" array when the input says nothing about either number. Report only numbers that appear in the input: never guess a weight, a body-fat percentage, or a future trend, and never turn a goal into a measurement. The stored history tells you what is already known; do not repeat a value for the same date.`;
+
 /** The complete context passed to the coach for a plan generation. */
 export interface PlanContextInput {
   athleteAnswers: readonly AthleteAnswerContext[];
@@ -103,6 +111,31 @@ export interface PlanContextInput {
   athleteFtpWatts?: number | null;
   /** The stored FTP time series, oldest first, including coach estimates. */
   ftpHistory?: readonly Pick<MetricPoint, "date" | "value" | "source">[];
+  /** The stored body weight and body-fat series, oldest first. */
+  bodyHistory?: BodyMetricHistory | undefined;
+}
+
+/** The stored body-composition series handed to a prompt. */
+export interface BodyMetricHistory {
+  weight: readonly Pick<MetricPoint, "date" | "value" | "source">[];
+  bodyFat: readonly Pick<MetricPoint, "date" | "value" | "source">[];
+}
+
+/** The most recent answer date, or null when no answer carries one. */
+function latestAnswerDate(
+  answers: readonly AthleteAnswerContext[],
+): string | null {
+  const dates = answers
+    .map((entry) => entry.answeredAt)
+    .filter(
+      (value): value is Date | string => value !== undefined && value !== null,
+    )
+    .map((value) =>
+      (value instanceof Date ? value.toISOString() : value).slice(0, 10),
+    )
+    .filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date))
+    .sort();
+  return dates.at(-1) ?? null;
 }
 
 /** Renders the athlete's profile for a prompt. */
@@ -159,9 +192,14 @@ export function formatPlanContext(input: PlanContextInput): string[] {
     (entry) => !listedActivityIds.has(entry.activityId),
   );
 
+  // Dating the profile lets the coach place an undated statement (such as the
+  // weight in the survey answers) on the day it was actually given.
+  const profileDate = latestAnswerDate(input.athleteAnswers);
   lines.push(
     "",
-    "Athlete profile:",
+    profileDate === null
+      ? "Athlete profile:"
+      : `Athlete profile (answers last saved ${profileDate}):`,
     formatAthleteAnswers(input.athleteAnswers),
   );
   if (input.athleteFtpWatts !== undefined && input.athleteFtpWatts !== null) {
@@ -176,6 +214,9 @@ export function formatPlanContext(input: PlanContextInput): string[] {
       'FTP history (oldest first; "user" values are measurements the athlete stated, "garmin" values are synced measurements, and "coach" values are earlier estimates):',
       ...formatFtpHistory(input.ftpHistory),
     );
+  }
+  if (input.bodyHistory !== undefined) {
+    lines.push(...formatBodyHistory(input.bodyHistory));
   }
   lines.push(
     "",
@@ -373,6 +414,40 @@ function formatFtpHistory(
     .map(
       (point) =>
         `- ${point.date}: ${Math.round(point.value)} W (${point.source})`,
+    );
+}
+
+/**
+ * The stored body weight and body-fat series, oldest first. Both lists share
+ * the FTP history's source meaning; coach values are only earlier estimates.
+ */
+export function formatBodyHistory(history: BodyMetricHistory): string[] {
+  const lines: string[] = [];
+  if (history.weight.length > 0) {
+    lines.push(
+      "",
+      'Body weight history (oldest first; "user" and "garmin" values are measurements, "coach" values are earlier estimates):',
+      ...recentMetricLines(history.weight, (value) => `${value.toFixed(1)} kg`),
+    );
+  }
+  if (history.bodyFat.length > 0) {
+    lines.push(
+      "",
+      'Body fat history (oldest first; "user" and "garmin" values are measurements, "coach" values are earlier estimates):',
+      ...recentMetricLines(history.bodyFat, (value) => `${value.toFixed(1)} %`),
+    );
+  }
+  return lines;
+}
+
+function recentMetricLines(
+  points: readonly Pick<MetricPoint, "date" | "value" | "source">[],
+  format: (value: number) => string,
+): string[] {
+  return points
+    .slice(-60)
+    .map(
+      (point) => `- ${point.date}: ${format(point.value)} (${point.source})`,
     );
 }
 

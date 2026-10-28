@@ -1,5 +1,6 @@
 import type {
   AnalyzedActivity,
+  BodyMetricEstimate,
   CoachPlan,
   MetricPoint,
 } from "@killingit/shared";
@@ -7,7 +8,7 @@ import { analyzeActivityAgainstPlan } from "../llm/programAnalysis.js";
 import { PROGRAM_ANALYSIS_PROMPT_VERSION } from "../llm/programAnalysisPrompt.js";
 import type { ActivityCommentContext } from "../llm/planContext.js";
 import { saveAnalysis } from "../llm/analysisStore.js";
-import { recordCoachFtp } from "../metrics/store.js";
+import { recordCoachBodyMetrics, recordCoachFtp } from "../metrics/store.js";
 import { mapWithConcurrency } from "../lib/mapWithConcurrency.js";
 import { ftpBaselineAt, type FtpTimeline } from "../training/ftp.js";
 import type { LlmProvider } from "../llm/openrouter.js";
@@ -32,6 +33,8 @@ export interface AnalyzeActivitiesAgainstPlanInput {
   save?: typeof saveAnalysis;
   /** Injectable for tests; defaults to the database-backed writer. */
   saveFtp?: typeof recordCoachFtp;
+  /** Injectable for tests; defaults to the database-backed writer. */
+  saveBodyMetrics?: typeof recordCoachBodyMetrics;
 }
 
 /**
@@ -44,10 +47,12 @@ export async function analyzeActivitiesAgainstPlan(
 ): Promise<void> {
   const save = input.save ?? saveAnalysis;
   const saveFtp = input.saveFtp ?? recordCoachFtp;
+  const saveBodyMetrics = input.saveBodyMetrics ?? recordCoachBodyMetrics;
   const comments = new Map(
     input.activityComments.map((entry) => [entry.activityId, entry.comment]),
   );
   const ftpEstimates: { date: string; watts: number }[] = [];
+  const bodyMetrics: BodyMetricEstimate[] = [];
 
   await mapWithConcurrency(
     input.activities,
@@ -87,6 +92,13 @@ export async function analyzeActivitiesAgainstPlan(
             watts: result.estimatedFtpWatts,
           });
         }
+        if (result.weightKg !== null || result.bodyFatPercent !== null) {
+          bodyMetrics.push({
+            date: activityDate,
+            weightKg: result.weightKg,
+            bodyFatPercent: result.bodyFatPercent,
+          });
+        }
       } catch (err) {
         const detail = err instanceof Error ? err.message : String(err);
         console.error(
@@ -103,6 +115,17 @@ export async function analyzeActivitiesAgainstPlan(
       await saveFtp({ userId: input.userId, ...estimate });
     } catch (err) {
       console.error("[metrics] could not store a program FTP estimate:", err);
+    }
+  }
+
+  if (bodyMetrics.length > 0) {
+    try {
+      await saveBodyMetrics(
+        input.userId,
+        bodyMetrics.sort((a, b) => a.date.localeCompare(b.date)),
+      );
+    } catch (err) {
+      console.error("[metrics] could not store program body metrics:", err);
     }
   }
 }

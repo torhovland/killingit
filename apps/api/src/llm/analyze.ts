@@ -49,6 +49,8 @@ export async function analyzeActivity(
     return {
       analysis: text.trim() || "The coach did not return an analysis.",
       estimatedFtpWatts: null,
+      weightKg: null,
+      bodyFatPercent: null,
     };
   }
 }

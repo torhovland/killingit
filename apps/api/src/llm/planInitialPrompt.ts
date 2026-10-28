@@ -1,6 +1,7 @@
 import type { SeasonPlan } from "@killingit/shared";
 import {
   ACTIVITY_COMMENT_RULE,
+  BODY_METRIC_RULES,
   formatPlanContext,
   formatSeasonPlan,
   type ActivityCommentContext,
@@ -11,6 +12,7 @@ import {
 } from "./planContext.js";
 import {
   BLOCK_CONTRACT,
+  BODY_METRIC_POINT_CONTRACT,
   JSON_RULES,
   SEASON_CONTRACT,
   TRAINING_LOAD_RULES,
@@ -36,9 +38,12 @@ You receive the athlete's profile and recent training, including each activity's
 
 The season starts on today's date and ends at the athlete's main goal or the end of the available training period. Divide the season into ordered, contiguous blocks (for example base, build, specialization, taper, or whatever best fits the athlete). Each block needs a name, focus, start and end dates, and a week count. The blocks must cover the season without gaps and the first block must start on today's date. Include a concise rationale explaining the season's shape and the training-science reasoning behind the block order.
 
+${BODY_METRIC_RULES}
+
 ${JSON_RULES}
 {
-  "season": ${SEASON_CONTRACT}
+  "season": ${SEASON_CONTRACT},
+  "bodyMetrics": [${BODY_METRIC_POINT_CONTRACT}]
 }`;
 
 export const INITIAL_BLOCK_SYSTEM_PROMPT = `You are an expert endurance coach. Create the first block of the season plan for an amateur athlete. Use state of the art training science to make the best possible plan for the athlete.
@@ -47,9 +52,12 @@ You receive the athlete's profile, recent training with coach reviews and replie
 
 ${TRAINING_LOAD_RULES}
 
+${BODY_METRIC_RULES}
+
 ${JSON_RULES}
 {
-  "block": ${BLOCK_CONTRACT}
+  "block": ${BLOCK_CONTRACT},
+  "bodyMetrics": [${BODY_METRIC_POINT_CONTRACT}]
 }`;
 
 export function buildSeasonPlanMessages(input: SeasonPlanInput): {
@@ -66,7 +74,7 @@ export function buildSeasonPlanPrompt(input: SeasonPlanInput): string {
   return [
     ...formatPlanContext(input),
     "",
-    'Create the season plan. Return one JSON object whose top-level key is exactly "season".',
+    'Create the season plan. Return one JSON object whose top-level keys are exactly "season" and "bodyMetrics".',
   ].join("\n");
 }
 
@@ -87,6 +95,6 @@ export function buildInitialBlockPrompt(input: InitialBlockInput): string {
     "Current season plan:",
     formatSeasonPlan(input.season),
     "",
-    'Create the first block. Return one JSON object whose top-level key is exactly "block".',
+    'Create the first block. Return one JSON object whose top-level keys are exactly "block" and "bodyMetrics".',
   ].join("\n");
 }

@@ -3,6 +3,7 @@ import {
   type Activity,
   type ActivitySummary,
   type AnalyzedActivity,
+  type BodyMetricEstimate,
   type CoachPlan,
   type MetricPoint,
   type RoutePoint,
@@ -13,6 +14,7 @@ import { syncGarminActivities, syncGarminMetrics } from "../garmin/client.js";
 import { loadDeletedActivityIds } from "./deletions.js";
 import { loadDecryptedGarminCredentials } from "../garmin/credentials.js";
 import {
+  recordCoachBodyMetrics,
   recordCoachFtp,
   recordGarminBodyMetrics,
   recordGarminFtp,
@@ -216,6 +218,7 @@ export async function loadAnalyzedActivities(options: {
       ]);
 
   const ftpEstimates: { date: string; watts: number }[] = [];
+  const bodyMetrics: BodyMetricEstimate[] = [];
   const analysed = await mapWithConcurrency(
     latest,
     ANALYSIS_CONCURRENCY,
@@ -252,6 +255,13 @@ export async function loadAnalyzedActivities(options: {
           ftpEstimates.push({
             date: activityDate,
             watts: result.estimatedFtpWatts,
+          });
+        }
+        if (result.weightKg !== null || result.bodyFatPercent !== null) {
+          bodyMetrics.push({
+            date: activityDate,
+            weightKg: result.weightKg,
+            bodyFatPercent: result.bodyFatPercent,
           });
         }
         return withStoredAnalysis(activity, saved, program, activityFeedback);
@@ -297,6 +307,17 @@ export async function loadAnalyzedActivities(options: {
       await recordCoachFtp({ userId: options.userId, ...estimate });
     } catch (err) {
       console.error("[metrics] could not store an activity FTP estimate:", err);
+    }
+  }
+
+  if (bodyMetrics.length > 0) {
+    try {
+      await recordCoachBodyMetrics(
+        options.userId,
+        bodyMetrics.sort((a, b) => a.date.localeCompare(b.date)),
+      );
+    } catch (err) {
+      console.error("[metrics] could not store activity body metrics:", err);
     }
   }
 

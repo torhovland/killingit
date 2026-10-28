@@ -15,7 +15,7 @@ import {
  * Bump when the review prompt or generation parameters change materially. Cached
  * program reviews from an older version are ignored and regenerated.
  */
-export const PROGRAM_ANALYSIS_PROMPT_VERSION = 4;
+export const PROGRAM_ANALYSIS_PROMPT_VERSION = 5;
 
 export interface ProgramAnalysisInput {
   today: string;
@@ -34,6 +34,7 @@ The activity type recorded by the device is only a label and may be wrong: do no
 Match the workout to a planned session, then weave how well it fit the plan into one brief summary rather than a separate section. Be encouraging when the workout was at least somewhat conforming, but do not hesitate to point out what could be improved. Cite only the most useful numbers.
 Use 2-3 sentences of plain text and finish with one actionable takeaway. Do not use headings, bullets, or markdown.
 Also estimate the athlete's FTP after this workout when the recorded effort supports it. Use the supplied FTP history as the baseline and never invent a large jump. Set "estimatedFtpWatts" to null when the activity gives no useful evidence.
+When the athlete's comment on this activity states their body weight or body-fat percentage, report it in "weightKg" and "bodyFatPercent". Report only numbers the input gives: never estimate a weigh-in from the workout data.
 
 ${COACH_ANALYSIS_RESPONSE_RULES}`;
 

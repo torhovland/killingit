@@ -103,7 +103,13 @@ about a past workout, or before a suggested workout, to steer the coach.
   later coach estimates but never an athlete measurement. The Week, Block, and
   Season tabs show the weekly estimate, and completed weeks before a revised
   test are re-interpolated. Every plan and activity-analysis prompt receives the
-  FTP history. Sessions get a TSS from measured power or a structured indoor
+  FTP history. Body weight and body fat are also reported by the coach: every
+  plan response carries a dated `bodyMetrics` array and an activity analysis
+  carries `weightKg`/`bodyFatPercent` for its date, filled only from numbers the
+  athlete stated in the profile, a note, or a comment. They are stored as
+  `coach` points (a `user` or `garmin` value for the day wins) so the Fitness
+  page charts a body trend before Garmin is connected. Sessions get a TSS from
+  measured power or a structured indoor
   bike workout when available, and from the coach's estimate otherwise; the API
   then calculates ATL, CTL, and TSB day by day and shows them in the Today,
   Tomorrow, and Week views and on the Activities page. TSB carries a coloured

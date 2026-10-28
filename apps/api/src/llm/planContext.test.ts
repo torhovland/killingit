@@ -74,6 +74,54 @@ describe("formatPlanContext", () => {
     expect(text).toContain("NP 200 W (average 195 W)");
   });
 
+  it("dates the profile so an undated weight is not read as today's", () => {
+    const text = formatPlanContext(
+      input({
+        athleteAnswers: [
+          {
+            prompt: "Health goals?",
+            answer: "I am 89,5 kg and 24,5 % body fat.",
+            skipped: false,
+            answeredAt: new Date("2026-10-20T08:00:00Z"),
+          },
+        ],
+      }),
+    ).join("\n");
+
+    expect(text).toContain("Athlete profile (answers last saved 2026-10-20):");
+    expect(text).toContain("I am 89,5 kg and 24,5 % body fat.");
+  });
+
+  it("includes the stored body weight and body-fat history", () => {
+    const text = formatPlanContext(
+      input({
+        bodyHistory: {
+          weight: [
+            { date: "2026-10-20", value: 90, source: "user" },
+            { date: "2026-10-22", value: 89.5, source: "coach" },
+          ],
+          bodyFat: [{ date: "2026-10-20", value: 24.5, source: "garmin" }],
+        },
+      }),
+    ).join("\n");
+
+    expect(text).toContain(
+      'Body weight history (oldest first; "user" and "garmin" values are measurements, "coach" values are earlier estimates):',
+    );
+    expect(text).toContain("- 2026-10-20: 90.0 kg (user)");
+    expect(text).toContain("- 2026-10-22: 89.5 kg (coach)");
+    expect(text).toContain("- 2026-10-20: 24.5 % (garmin)");
+  });
+
+  it("omits a body history that has no measurements", () => {
+    const text = formatPlanContext(
+      input({ bodyHistory: { weight: [], bodyFat: [] } }),
+    ).join("\n");
+
+    expect(text).not.toContain("Body weight history");
+    expect(text).not.toContain("Body fat history");
+  });
+
   it("includes the activity program review and the coach's reply", () => {
     const text = formatPlanContext(
       input({
