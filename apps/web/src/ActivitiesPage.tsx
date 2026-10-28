@@ -12,6 +12,7 @@ import {
 } from "@killingit/shared";
 import { ActivityCard } from "./ActivityCard";
 import { loadCachedActivities, saveCachedActivities } from "./activityCache";
+import { DatePicker } from "./DatePicker";
 import { formatDate } from "./dates";
 import { TrainingLoadLine } from "./TrainingLoadLine";
 import { useAppStatus, useBusyReporter } from "./AppStatus";
@@ -406,13 +407,10 @@ export function ActivitiesPage() {
         <label className="text-sm font-medium" htmlFor="manual-start-date">
           {editingActivityId ? "Edit manual activity" : "Manual activity"}
         </label>
-        <input
+        <DatePicker
           id="manual-start-date"
-          name="startDate"
-          type="date"
-          className="w-fit rounded border bg-card px-2 py-1 text-sm"
           value={manualStartDate}
-          onChange={(event) => setManualStartDate(event.target.value)}
+          onChange={setManualStartDate}
           disabled={savingManual}
         />
         <textarea

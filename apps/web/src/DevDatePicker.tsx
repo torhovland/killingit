@@ -1,4 +1,4 @@
-import type { ChangeEvent } from "react";
+import { DatePicker } from "./DatePicker";
 import { useTimeZone } from "./TimeZoneContext";
 import { getToday, isDateOverrideAllowed, setTodayOverride } from "./useToday";
 
@@ -15,8 +15,7 @@ export function DevDatePicker() {
     return null;
   }
 
-  const handleChange = (event: ChangeEvent<HTMLInputElement>): void => {
-    const value = event.target.value;
+  const handleChange = (value: string): void => {
     if (!value) {
       return;
     }
@@ -39,15 +38,14 @@ export function DevDatePicker() {
         Simulate a visit on another date. This panel only appears in development
         and test environments.
       </p>
-      <label className="flex flex-col gap-1">
+      <div className="flex flex-col gap-1">
         <span className="font-medium">Override today</span>
-        <input
-          type="date"
-          className="rounded border bg-background px-2 py-1"
+        <DatePicker
           value={today}
           onChange={handleChange}
+          ariaLabel="Override today"
         />
-      </label>
+      </div>
       {isOverridden && (
         <button
           type="button"
