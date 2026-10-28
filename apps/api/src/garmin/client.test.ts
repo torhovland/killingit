@@ -5,6 +5,7 @@ import {
   GarminSidecarError,
   sidecarAuthHeaders,
   syncGarminActivities,
+  syncGarminMetrics,
 } from "./client.js";
 
 describe("syncGarminActivities", () => {
@@ -60,6 +61,31 @@ async function expectRejectsWith<T extends Error>(
   }
   throw new Error("expected promise to reject");
 }
+
+describe("syncGarminMetrics", () => {
+  it("returns normalized body-composition and FTP samples from the transport", async () => {
+    const snapshot = {
+      metrics: [
+        { date: "2026-10-01", weightKg: 78.5, bodyFatPercent: 24.5 },
+        { date: "2026-10-02", weightKg: 78.2 },
+      ],
+      ftp: [{ date: "2026-10-01", watts: 255 }],
+    };
+    const result = await syncGarminMetrics(
+      { username: "u", password: "p" },
+      () => Promise.resolve(snapshot),
+    );
+
+    expect(result).toEqual(snapshot);
+  });
+
+  it("propagates a transport rejection", async () => {
+    const promise = syncGarminMetrics({ username: "u", password: "p" }, () =>
+      Promise.reject(new GarminSidecarError("boom")),
+    );
+    await expectRejectsWith(promise, GarminSidecarError);
+  });
+});
 
 describe("authenticateGarmin", () => {
   it("resolves true on success", async () => {

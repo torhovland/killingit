@@ -24,7 +24,15 @@ export interface FtpBaseline {
 export interface FtpAnchor {
   at: number;
   watts: number;
-  source: "profile" | "update";
+  /** Profile and later athlete inputs are measurements; `coach` is an estimate. */
+  source: "profile" | "update" | "coach";
+}
+
+/** A stored metric point from the database, keyed by calendar date. */
+export interface FtpTimelinePoint {
+  date: string;
+  value: number;
+  source: "user" | "coach" | "garmin";
 }
 
 /** The athlete's FTP values over time, oldest first. */
@@ -46,8 +54,8 @@ export interface FtpInput {
 }
 
 /**
- * Reads the first FTP value the athlete states in their survey answers. The
- * answer text is free-form, so this accepts the common phrasings ("FTP: 250",
+ * The first FTP value the athlete states in their survey answers. The
+ * answers are free-form, so this accepts the common phrasings ("FTP: 250",
  * "FTP around 220 W", "280 W FTP") and ignores everything outside a plausible
  * wattage range.
  *
@@ -72,12 +80,10 @@ export function extractFtpWatts(
 }
 
 /**
- * Builds the FTP timeline from the profile and every dated coaching input. A
- * later test result becomes the new anchor, and the API interpolates between
- * anchors so the historical TSS values reflect the athlete's revised numbers
- * instead of the coach's old projection.
+ * The profile value and every dated athlete-authored FTP mention, oldest first.
+ * Used to seed the FTP time series from existing free-text inputs.
  */
-export function buildFtpTimeline(input: FtpInput): FtpTimeline {
+export function extractFtpAnchors(input: FtpInput): FtpAnchor[] {
   const mentions = datedMentions(input).sort((a, b) => a.at - b.at);
   const profile = profileAnchor(input, mentions);
   const anchors = [...(profile === null ? [] : [profile]), ...mentions].sort(
@@ -85,8 +91,65 @@ export function buildFtpTimeline(input: FtpInput): FtpTimeline {
       a.at - b.at ||
       (a.source === "profile" ? -1 : b.source === "profile" ? 1 : 0),
   );
+  return dedupeAnchors(anchors);
+}
 
-  // At an identical timestamp the more specific athlete update wins.
+/**
+ * Builds the FTP timeline from the profile and every dated coaching input. A
+ * later test result becomes the new anchor, and the API interpolates between
+ * anchors so the historical TSS values reflect the athlete's revised numbers
+ * instead of the coach's old projection.
+ */
+export function buildFtpTimeline(input: FtpInput): FtpTimeline {
+  const deduped = extractFtpAnchors(input);
+  return timelineFromAnchors(deduped);
+}
+
+/** Builds a timeline from already-deduplicated anchors. */
+function timelineFromAnchors(anchors: FtpAnchor[]): FtpTimeline {
+  const latest = anchors[anchors.length - 1];
+  return {
+    anchors,
+    latest:
+      latest === undefined
+        ? null
+        : { watts: latest.watts, fromRevision: latest.source === "update" },
+  };
+}
+
+/**
+ * Builds a timeline from stored metric points. Points after `throughDate` are
+ * excluded so a future coach projection cannot become the current baseline.
+ * At an identical timestamp the more specific athlete measurement wins.
+ */
+export function buildFtpTimelineFromPoints(
+  points: readonly FtpTimelinePoint[],
+  throughDate?: string | null,
+): FtpTimeline {
+  const anchors = points
+    .filter(
+      (point) =>
+        throughDate === undefined ||
+        throughDate === null ||
+        point.date <= throughDate,
+    )
+    .map((point) => ({
+      at: Date.parse(`${point.date}T00:00:00Z`),
+      watts: point.value,
+      source:
+        point.source === "coach" ? ("coach" as const) : ("update" as const),
+    }))
+    .filter((anchor) => Number.isFinite(anchor.at))
+    .sort(
+      (a, b) =>
+        a.at - b.at ||
+        (a.source === "coach" ? -1 : b.source === "coach" ? 1 : 0),
+    );
+  return timelineFromAnchors(dedupeAnchors(anchors));
+}
+
+/** Keeps the last anchor for an identical timestamp. */
+function dedupeAnchors(anchors: readonly FtpAnchor[]): FtpAnchor[] {
   const deduped: FtpAnchor[] = [];
   for (const anchor of anchors) {
     const previous = deduped[deduped.length - 1];
@@ -96,20 +159,45 @@ export function buildFtpTimeline(input: FtpInput): FtpTimeline {
       deduped.push(anchor);
     }
   }
-
-  const latest = deduped[deduped.length - 1];
-  return {
-    anchors: deduped,
-    latest:
-      latest === undefined
-        ? null
-        : { watts: latest.watts, fromRevision: latest.source === "update" },
-  };
+  return deduped;
 }
 
 /** Resolves the athlete's current FTP, including any newer test result. */
 export function detectFtpBaseline(input: FtpInput): FtpBaseline | null {
   return buildFtpTimeline(input).latest;
+}
+
+/**
+ * The FTP baseline in effect on a date. Unlike `timeline.latest`, this ignores
+ * estimates dated in the future, which is what a plan needs when it reasons
+ * about today.
+ */
+export function ftpBaselineAt(
+  timeline: FtpTimeline | null,
+  date: string | Date,
+): FtpBaseline | null {
+  if (timeline === null || timeline.anchors.length === 0) {
+    return null;
+  }
+  const at =
+    date instanceof Date
+      ? date.getTime()
+      : Date.parse(
+          /^\d{4}-\d{2}-\d{2}$/.test(date) ? `${date}T00:00:00Z` : date,
+        );
+  if (!Number.isFinite(at)) {
+    return null;
+  }
+  let result = timeline.anchors[0] ?? null;
+  for (const anchor of timeline.anchors) {
+    if (anchor.at > at) {
+      break;
+    }
+    result = anchor;
+  }
+  return result === null
+    ? null
+    : { watts: result.watts, fromRevision: result.source === "update" };
 }
 
 /**

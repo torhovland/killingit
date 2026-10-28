@@ -1,4 +1,8 @@
-import type { Activity } from "@killingit/shared";
+import {
+  garminMetricsResponseSchema,
+  type Activity,
+  type GarminMetricsResponse,
+} from "@killingit/shared";
 
 /**
  * Thrown when the Garmin sidecar rejects a request — either an authentication
@@ -32,6 +36,11 @@ export interface GarminCredentials {
 export type SyncTransport = (
   credentials: GarminCredentials,
 ) => Promise<Activity[]>;
+
+/** Injectable transport for the body-composition and FTP sync. */
+export type SyncMetricsTransport = (
+  credentials: GarminCredentials,
+) => Promise<GarminMetricsResponse>;
 
 /** Base URL of the sidecar, from env (defaults to the local dev address). */
 export function garminSidecarUrl(): string {
@@ -138,6 +147,31 @@ async function postSync(credentials: GarminCredentials): Promise<Activity[]> {
     );
   }
   return body.activities as Activity[];
+}
+
+/**
+ * Fetches body-composition weigh-ins and the historic cycling FTP from the
+ * sidecar. The transport is injectable so tests stub the network.
+ */
+export async function syncGarminMetrics(
+  credentials: GarminCredentials,
+  transport: SyncMetricsTransport = postMetrics,
+): Promise<GarminMetricsResponse> {
+  return transport(credentials);
+}
+
+/** Default transport: POSTs credentials to the sidecar's `/metrics` endpoint. */
+async function postMetrics(
+  credentials: GarminCredentials,
+): Promise<GarminMetricsResponse> {
+  const res = await sidecarPost("/metrics", credentials);
+  const parsed = garminMetricsResponseSchema.safeParse(await res.json());
+  if (!parsed.success) {
+    throw new GarminSidecarError(
+      "sidecar returned a malformed body-metrics payload",
+    );
+  }
+  return parsed.data;
 }
 
 /** Default transport: POSTs credentials to the sidecar's `/authenticate`. */

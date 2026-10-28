@@ -4,6 +4,7 @@ import {
   type FitnessHistoryResponse,
   type FitnessRange,
 } from "@killingit/shared";
+import { BodyChart } from "./BodyChart";
 import { FitnessChart } from "./FitnessChart";
 import { FtpChart } from "./FtpChart";
 import { TrainingLoadLine } from "./TrainingLoadLine";
@@ -39,8 +40,9 @@ export function FitnessView({
       <div className="flex flex-col gap-1">
         <h2 className="text-xl font-semibold">Fitness</h2>
         <p className="text-sm text-muted-foreground">
-          How your training load has moved your fitness, fatigue, and form, and
-          where the coach expects your FTP to be.
+          How your training load has moved your fitness, fatigue, and form,
+          where the coach expects your FTP to be, and how your body weight and
+          body fat are trending.
         </p>
       </div>
 
@@ -107,6 +109,13 @@ export function FitnessView({
           )}
 
           <FtpChart days={history.days} points={history.ftp} today={today} />
+
+          <BodyChart
+            days={history.days}
+            weight={history.body.weight}
+            bodyFat={history.body.bodyFat}
+            today={today}
+          />
         </>
       )}
     </section>

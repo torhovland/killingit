@@ -334,6 +334,35 @@ describe("buildFitnessHistory", () => {
 
     expect(history.ftp).toEqual([]);
   });
+
+  it("interpolates body weight and body fat over the window", () => {
+    const history = buildFitnessHistory({
+      ...base,
+      plan: undefined,
+      bodyPoints: {
+        weight: [
+          { date: "2026-10-01", value: 80, source: "garmin" },
+          { date: "2026-10-11", value: 78, source: "garmin" },
+        ],
+        bodyFat: [{ date: "2026-10-06", value: 20, source: "garmin" }],
+      },
+    });
+
+    expect(history.body.weight[0]).toEqual({
+      date: "2026-10-16",
+      value: 77,
+    });
+    expect(history.body.bodyFat[0]).toEqual({
+      date: "2026-10-16",
+      value: 20,
+    });
+  });
+
+  it("has empty body series when the athlete has no measurements", () => {
+    const history = buildFitnessHistory(base);
+
+    expect(history.body).toEqual({ weight: [], bodyFat: [] });
+  });
 });
 
 function ftpOn(

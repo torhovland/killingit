@@ -69,7 +69,7 @@ describe("formatPlanContext", () => {
     ).join("\n");
 
     expect(text).toContain(
-      "Athlete FTP: 250 W (the latest FTP the athlete stated, including any revised test result)",
+      "Athlete FTP: 250 W (the latest FTP the athlete stated or the coach estimated as of today)",
     );
     expect(text).toContain("NP 200 W (average 195 W)");
   });

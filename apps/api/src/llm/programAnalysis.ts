@@ -1,8 +1,13 @@
+import {
+  coachAnalysisResultSchema,
+  type CoachAnalysisResult,
+} from "@killingit/shared";
 import type { LlmProvider } from "./openrouter.js";
 import {
   buildProgramAnalysisMessages,
   type ProgramAnalysisInput,
 } from "./programAnalysisPrompt.js";
+import { parsePlanJson, PlanJsonError } from "./planJson.js";
 import { completeWithFallbacks } from "./resilientCompletion.js";
 
 export interface ProgramAnalysisCredentials {
@@ -11,12 +16,12 @@ export interface ProgramAnalysisCredentials {
 }
 
 /** Asks the provider to review one activity against the athlete's plan. */
-export function analyzeActivityAgainstPlan(
+export async function analyzeActivityAgainstPlan(
   provider: LlmProvider,
   credentials: ProgramAnalysisCredentials,
   input: ProgramAnalysisInput,
-): Promise<string> {
-  return completeWithFallbacks(
+): Promise<CoachAnalysisResult> {
+  const text = await completeWithFallbacks(
     provider,
     credentials,
     buildProgramAnalysisMessages(input),
@@ -25,4 +30,15 @@ export function analyzeActivityAgainstPlan(
     0.3,
     { kind: "program_analysis" },
   );
+  try {
+    return parsePlanJson(coachAnalysisResultSchema, text);
+  } catch (err) {
+    if (!(err instanceof PlanJsonError)) {
+      throw err;
+    }
+    return {
+      analysis: text.trim() || "The coach did not return a review.",
+      estimatedFtpWatts: null,
+    };
+  }
 }

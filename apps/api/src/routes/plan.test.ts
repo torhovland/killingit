@@ -286,6 +286,11 @@ function makeApp(options: {
     generationStore: options.generationStore ?? new MemoryGenerationStore(),
     loadActivities: () =>
       Promise.resolve({ model: "test-model", activities: [] }),
+    loadFtpHistory: () =>
+      Promise.resolve({
+        points: [],
+        timeline: { anchors: [], latest: null },
+      }),
     loadLlm: () =>
       Promise.resolve({
         provider: {

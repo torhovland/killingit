@@ -4,6 +4,7 @@ import type {
   BlockPlan,
   CoachPlan,
   DailyWeather,
+  MetricPoint,
   PlanGenerateMode,
   SeasonPlan,
   WeekPlan,
@@ -34,7 +35,11 @@ import type {
 } from "../llm/planContext.js";
 import type { LlmProvider } from "../llm/openrouter.js";
 import { applyTrainingLoad } from "../training/load.js";
-import { detectFtpBaseline } from "../training/ftp.js";
+import {
+  ftpBaselineAt,
+  detectFtpBaseline,
+  type FtpTimeline,
+} from "../training/ftp.js";
 import { addDays, startOfWeek } from "./dates.js";
 import { blockFor, promoteNextPeriod, weekFor } from "./periods.js";
 import { planIsStale, planPending } from "./status.js";
@@ -61,6 +66,10 @@ export interface PlanGenerationContext {
   forecast?: readonly DailyWeather[] | null;
   /** Both provider forecasts and their combined average, stored on sessions. */
   weatherForecasts?: WeatherForecastSet | null;
+  /** The stored FTP time series as of today, shared by load and prompts. */
+  ftpTimeline?: FtpTimeline | undefined;
+  /** Stored FTP points, including future coach estimates, for the prompt. */
+  ftpHistory?: readonly MetricPoint[] | undefined;
   provider: LlmProvider;
   apiKey: string;
   model: string;
@@ -82,11 +91,11 @@ export interface GeneratePlanInput {
    * is refreshed to describe the completed activity.
    */
   keepToday?: boolean;
-  /**
-   * Runs after a full build so recent activities can be reviewed against the
-   * finished plan. Never runs on a day/week cascade.
-   */
+  /** Runs after a full build so recent activities can be reviewed against the
+   * finished plan. Never runs on a day/week cascade. */
   reviewActivities?: (plan: CoachPlan) => Promise<void>;
+  /** Stores the coach's FTP estimates from a generated plan, when supplied. */
+  recordFtpEstimates?: (plan: CoachPlan) => Promise<void>;
   /** Injectable for tests; defaults to the database-backed period review writer. */
   capturePeriodReviews?: typeof captureCompletedPeriodReviews;
   plan: StoredPlan | null;
@@ -323,6 +332,10 @@ export async function runPlanGeneration(
           console.error("[plan] activity review failed:", err);
         }
       }
+      // The reviews can return an older FTP estimate for an activity date. Save
+      // the plan's weekly estimates afterwards so its projection wins and is
+      // not deleted by those older points.
+      await persistFtpEstimates(input, generated);
       await generations.finish(userId);
       return saved;
     }
@@ -368,6 +381,7 @@ export async function runPlanGeneration(
       context.coachingInputsUpdatedAt,
       context.activitiesUpdatedAt ?? null,
     );
+    await persistFtpEstimates(input, plan);
     await generations.finish(userId);
     return saved;
   } catch (err) {
@@ -917,6 +931,50 @@ function credentials(context: PlanGenerationContext) {
   return { apiKey: context.apiKey, model: context.model };
 }
 
+/** Stores the coach's weekly FTP estimates after a plan has been saved. */
+async function persistFtpEstimates(
+  input: GeneratePlanInput,
+  plan: CoachPlan,
+): Promise<void> {
+  if (!input.recordFtpEstimates) {
+    return;
+  }
+  try {
+    await input.recordFtpEstimates(plan);
+  } catch (err) {
+    // The plan itself is saved; the time series must not fail the build.
+    console.error("[plan] could not store FTP estimates:", err);
+  }
+}
+
+/** The coach's weekly FTP estimates, keyed by the week's start date. */
+export function planFtpEstimates(
+  plan: CoachPlan,
+): { date: string; watts: number }[] {
+  const estimates = new Map<string, number>();
+  const addWeeks = (
+    weeks: readonly {
+      startDate: string;
+      estimatedFtpWatts?: number | null | undefined;
+    }[],
+  ): void => {
+    for (const week of weeks) {
+      if (week.estimatedFtpWatts != null && week.estimatedFtpWatts > 0) {
+        estimates.set(week.startDate, week.estimatedFtpWatts);
+      }
+    }
+  };
+  addWeeks(plan.block.weeks);
+  if (plan.nextBlock !== null) {
+    addWeeks(plan.nextBlock.weeks);
+  }
+  addWeeks([plan.week]);
+  if (plan.nextWeek !== null) {
+    addWeeks([plan.nextWeek]);
+  }
+  return [...estimates].map(([date, watts]) => ({ date, watts }));
+}
+
 /**
  * Attaches the resolved training stress and fitness snapshot after every
  * generation path, so stored plans always show consistent TSS/ATL/CTL/TSB.
@@ -934,10 +992,14 @@ function withTrainingLoad(
     weeklyNote: context.weeklyNote,
     weeklyNoteUpdatedAt: context.weeklyNoteUpdatedAt ?? null,
     periodReviews: context.periodReviews,
+    ftpTimeline: context.ftpTimeline,
   });
 }
 
-function ftpBaseline(context: PlanGenerationContext) {
+function ftpBaseline(context: PlanGenerationContext, today: string) {
+  if (context.ftpTimeline !== undefined) {
+    return ftpBaselineAt(context.ftpTimeline, today);
+  }
   return detectFtpBaseline({
     answers: context.answers,
     answersUpdatedAt: context.answersUpdatedAt,
@@ -956,7 +1018,10 @@ function baseContext(input: GeneratePlanInput) {
   return {
     athleteAnswers: input.context.answers,
     recentActivities,
-    athleteFtpWatts: ftpBaseline(input.context)?.watts ?? null,
+    athleteFtpWatts: ftpBaseline(input.context, input.today)?.watts ?? null,
+    ...(input.context.ftpHistory !== undefined
+      ? { ftpHistory: input.context.ftpHistory }
+      : {}),
     today: input.today,
     ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),
     ...(input.context.manualActivities.length > 0

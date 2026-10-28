@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { fitnessBodySchema } from "./metrics.js";
 import { planDateSchema } from "./plan.js";
 import { trainingLoadSchema } from "./trainingLoad.js";
 
@@ -81,11 +82,13 @@ export type FtpHistoryPoint = z.infer<typeof ftpHistoryPointSchema>;
 /**
  * The fitness history for a window: one entry per calendar day, ascending, and
  * the estimated FTP for the same days. `ftp` is empty when the athlete has not
- * stated an FTP.
+ * stated an FTP. `body` carries the interpolated body-weight and body-fat
+ * series, empty when the athlete has no such data.
  */
 export const fitnessHistoryResponseSchema = z.object({
   days: z.array(fitnessHistoryDaySchema),
   ftp: z.array(ftpHistoryPointSchema),
+  body: fitnessBodySchema.default({ weight: [], bodyFat: [] }),
 });
 
 export type FitnessHistoryResponse = z.infer<

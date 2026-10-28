@@ -153,6 +153,24 @@ export const coachAnalysisSchema = z.object({
   generatedAt: z.string().datetime(),
 });
 
+/**
+ * The structured response the coach returns for an activity analysis. The
+ * visible analysis stays plain text, while the FTP estimate is persisted as a
+ * coach-sourced point in the athlete's FTP time series.
+ */
+export const coachAnalysisResultSchema = z.object({
+  analysis: z.string().trim().min(1),
+  estimatedFtpWatts: z
+    .number()
+    .int()
+    .min(50)
+    .max(2000)
+    .nullable()
+    .default(null),
+});
+
+export type CoachAnalysisResult = z.infer<typeof coachAnalysisResultSchema>;
+
 export type CoachAnalysis = z.infer<typeof coachAnalysisSchema>;
 
 /**

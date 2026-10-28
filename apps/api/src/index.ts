@@ -72,6 +72,7 @@ import { createMeRoute } from "./routes/me.js";
 import { createPlanRoute } from "./routes/plan.js";
 import { createQuestionsRoute } from "./routes/questions.js";
 import { createWeatherRoute } from "./routes/weather.js";
+import { loadFtpHistoryForUser } from "./metrics/store.js";
 import { loadFitnessHistory } from "./training/history.js";
 import { dbUserStore, type UserStore } from "./users/store.js";
 import type { searchLocations } from "./weather/openMeteo.js";
@@ -104,6 +105,7 @@ export interface AppDependencies {
   generationStore?: PlanGenerationStore;
   /** Activity/LLM loaders, injectable for DB-free plan route tests. */
   loadActivities?: (userId: number) => Promise<ActivityFeed>;
+  loadFtpHistory?: typeof loadFtpHistoryForUser;
   loadCachedFeed?: typeof loadCachedActivityFeed;
   loadActivityTrainingLoads?: typeof loadUserActivityTrainingLoads;
   loadFitnessHistory?: typeof loadFitnessHistory;
@@ -354,6 +356,9 @@ export function createApp(deps: AppDependencies = {}): Hono {
       generations: generationStore,
       ...(deps.loadActivities !== undefined
         ? { loadActivities: deps.loadActivities }
+        : {}),
+      ...(deps.loadFtpHistory !== undefined
+        ? { loadFtpHistory: deps.loadFtpHistory }
         : {}),
       ...(deps.loadLlm !== undefined ? { loadLlm: deps.loadLlm } : {}),
       ...(deps.loadCoachingInputs !== undefined

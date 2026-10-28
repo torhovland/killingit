@@ -1,10 +1,12 @@
 import { describe, expect, it } from "bun:test";
 import {
   buildFtpTimeline,
+  buildFtpTimelineFromPoints,
   detectFtpBaseline,
   extractFtpWatts,
   firstFtpInText,
   ftpAt,
+  ftpBaselineAt,
 } from "./ftp.js";
 
 describe("extractFtpWatts", () => {
@@ -174,5 +176,39 @@ describe("detectFtpBaseline", () => {
         ],
       }),
     ).toEqual({ watts: 245, fromRevision: true });
+  });
+});
+
+describe("buildFtpTimelineFromPoints", () => {
+  const points = [
+    { date: "2026-10-01", value: 240, source: "user" as const },
+    { date: "2026-10-10", value: 250, source: "coach" as const },
+    { date: "2026-10-20", value: 260, source: "user" as const },
+  ];
+
+  it("interpolates between stored points and marks user values as measurements", () => {
+    const timeline = buildFtpTimelineFromPoints(points);
+
+    expect(ftpAt(timeline, "2026-10-05")).toBe(244);
+    expect(timeline.latest).toEqual({ watts: 260, fromRevision: true });
+  });
+
+  it("excludes values dated after the reference day", () => {
+    const timeline = buildFtpTimelineFromPoints(points, "2026-10-10");
+
+    expect(timeline.latest).toEqual({ watts: 250, fromRevision: false });
+    expect(ftpBaselineAt(timeline, "2026-10-20")).toEqual({
+      watts: 250,
+      fromRevision: false,
+    });
+  });
+
+  it("keeps a user value when a coach estimate shares its date", () => {
+    const timeline = buildFtpTimelineFromPoints([
+      { date: "2026-10-10", value: 250, source: "user" },
+      { date: "2026-10-10", value: 300, source: "coach" },
+    ]);
+
+    expect(timeline.latest).toEqual({ watts: 250, fromRevision: true });
   });
 });

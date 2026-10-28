@@ -1,14 +1,17 @@
-import type { CoachPlan } from "@killingit/shared";
+import type { CoachPlan, MetricPoint } from "@killingit/shared";
 import type { ManualActivityContext } from "../llm/planContext.js";
+import { loadFtpHistoryForUser } from "../metrics/store.js";
 import { startOfWeek } from "../plans/dates.js";
 import { loadCoachingInputs, type CoachingInputs } from "../plans/inputs.js";
 import { latestAnswerTimestamp } from "../plans/status.js";
 import { dbQuestionAnswerStore } from "../questions/answers.js";
-import { buildFtpTimeline, type FtpTimeline } from "./ftp.js";
+import { type FtpTimeline } from "./ftp.js";
 
 /** Everything the load calculations share: FTP history and TSS by date. */
 export interface TrainingContext {
   timeline: FtpTimeline;
+  /** Every stored FTP point, including future coach estimates. */
+  ftpHistory: MetricPoint[];
   /** The resolved or coach-estimated TSS for each day the stored plan covers. */
   planTssByDate: Map<string, number>;
   /** The summed manual estimate for each day that has manual entries. */
@@ -19,8 +22,10 @@ export interface TrainingContext {
 
 /**
  * Loads the athlete's FTP timeline and the TSS the stored plan and manual
- * entries contribute. The timeline includes any revised test result the athlete
- * mentioned, so activity TSS uses the FTP in effect on the activity's date.
+ * entries contribute. The timeline is read from the metric time series, which
+ * includes the profile FTP, every later test the athlete mentioned, and coach
+ * estimates. Values dated after the plan date are excluded from the timeline
+ * used for load, so a future projection cannot become today's baseline.
  */
 export async function loadTrainingContext(
   userId: number,
@@ -31,16 +36,19 @@ export async function loadTrainingContext(
     dbQuestionAnswerStore.listForUser(userId),
     loadCoachingInputs(userId, startOfWeek(planDate)),
   ]);
+  const ftpInput = {
+    answers,
+    answersUpdatedAt: latestAnswerTimestamp(answers),
+    manualActivities: coachingInputs.manualActivities,
+    activityComments: coachingInputs.activityComments,
+    weeklyNote: coachingInputs.weeklyNote,
+    weeklyNoteUpdatedAt: coachingInputs.weeklyNoteUpdatedAt,
+    periodReviews: coachingInputs.periodReviews,
+  };
+  const ftp = await loadFtpHistoryForUser(userId, ftpInput, planDate);
   return {
-    timeline: buildFtpTimeline({
-      answers,
-      answersUpdatedAt: latestAnswerTimestamp(answers),
-      manualActivities: coachingInputs.manualActivities,
-      activityComments: coachingInputs.activityComments,
-      weeklyNote: coachingInputs.weeklyNote,
-      weeklyNoteUpdatedAt: coachingInputs.weeklyNoteUpdatedAt,
-      periodReviews: coachingInputs.periodReviews,
-    }),
+    timeline: ftp.timeline,
+    ftpHistory: ftp.points,
     planTssByDate: planTssByDate(plan),
     manualTssByDate: manualTssByDate(coachingInputs),
     manualActivities: coachingInputs.manualActivities,

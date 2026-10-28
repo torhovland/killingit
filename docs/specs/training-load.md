@@ -47,11 +47,18 @@ numbers must agree across the Day, Week, and Block tabs.
   profile is treated as the newer source. A revised test result also floors the
   current and next week's estimate, so an older weekly projection cannot show a
   lower current FTP than the test.
-- The known FTP values form a timeline. Completing a new test discards the
+- The known FTP values are stored as a daily time series in `athlete_metrics`
+  with a source of `user`, `garmin`, or `coach`. `extractFtpWatts` seeds the
+  athlete's free-text statements into it; Garmin's historic cycling FTP is
+  synced as a measurement; and the coach's weekly plan estimates and activity
+  analyses are stored as `coach` points. A newer coach estimate removes later
+  coach points, but never a `user` or `garmin` measurement.
+- The FTP timeline is built from those points. Completing a new test discards the
   coach's estimates for the completed weeks before it and interpolates the FTP
   between the previous anchor and the new test date. TSS for recorded power in
   that period is recalculated with the interpolated FTP. The current and next
   week use the new value, and the block and season summaries are refreshed.
+  Every plan and activity-analysis prompt receives the FTP history.
 - With a stated FTP, the coach returns `estimatedFtpWatts` for the week and for
   every week of the block. The API clamps each estimate to 70–150% of the
   stated value so a model error cannot produce an absurd number. A missing

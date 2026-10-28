@@ -1,4 +1,9 @@
-import type { Activity, ActivitySample, WeekPlan } from "@killingit/shared";
+import type {
+  Activity,
+  ActivitySample,
+  MetricPoint,
+  WeekPlan,
+} from "@killingit/shared";
 import { formatDuration } from "./duration.js";
 import { formatWeekPlan } from "./planContext.js";
 
@@ -11,18 +16,32 @@ export const MAX_PROMPT_SAMPLES = 90;
  * Bump when the prompt or generation parameters change materially. Cached
  * analyses from an older version are ignored and regenerated.
  */
-export const ANALYSIS_PROMPT_VERSION = 4;
+export const ANALYSIS_PROMPT_VERSION = 5;
 
 /** The athlete's current week, used to match an activity to its planned session. */
 export interface ActivityAnalysisContext {
   today: string;
   week: WeekPlan;
+  /** The stored FTP time series, oldest first, including coach estimates. */
+  ftpHistory?: readonly Pick<MetricPoint, "date" | "value" | "source">[];
+  /** The FTP in effect on the activity date, when known. */
+  currentFtpWatts?: number | null;
 }
+
+export const COACH_ANALYSIS_RESPONSE_RULES = `Return only one JSON object with exactly this shape:
+{
+  "analysis": "string",
+  "estimatedFtpWatts": 0
+}
+Replace "estimatedFtpWatts" with the integer estimate in watts, or null when there is no useful evidence. Put the whole coach summary in "analysis". Do not add markdown fences, commentary, or extra fields.`;
 
 const ANALYSIS_SYSTEM_PROMPT = `You are an experienced endurance coach reviewing one completed workout for an amateur athlete.
 The activity type recorded by the device is only a label and may be wrong: do not trust it. If the heart-rate data looks erratic — sudden spikes or drops that do not fit the steady effort the summary suggests — this may be a strength-training workout even when the device labelled it as running, cycling, or another endurance activity.
 When the athlete's current week plan is provided, match the workout to the planned session it best fits, then make how well it fit the plan part of the same summary. If it followed the plan reasonably well, say so warmly and encouragingly. If it did not, point out clearly what could be improved without being harsh.
-Be brief and to the point: use 2-3 sentences of plain text, cite only the most useful numbers, and finish with one actionable recommendation for the next session. Do not use headings, bullets, markdown, or a separate plan-fit section.`;
+Be brief and to the point: use 2-3 sentences of plain text, cite only the most useful numbers, and finish with one actionable recommendation for the next session. Do not use headings, bullets, markdown, or a separate plan-fit section.
+Also estimate the athlete's FTP after this workout when the recorded effort supports it. Use the supplied FTP history as the baseline, respect its trend, and never invent a large jump. Set "estimatedFtpWatts" to null when the activity gives no useful evidence (for example a rest day, a strength session, or a workout with no power or hard aerobic effort).
+
+${COACH_ANALYSIS_RESPONSE_RULES}`;
 
 type NumericChannel =
   | "heartRate"
@@ -190,6 +209,24 @@ export function buildActivityAnalysisPrompt(
       `The workout happened on ${activityDate}. Match it to the planned session for that date, today's planned session, or another session this week that fits the data.`,
       "",
     );
+    if (
+      context.currentFtpWatts !== undefined &&
+      context.currentFtpWatts !== null
+    ) {
+      lines.push(`Current FTP: ${context.currentFtpWatts} W`, "");
+    }
+    if (context.ftpHistory !== undefined && context.ftpHistory.length > 0) {
+      lines.push(
+        'FTP history (oldest first; "user" and "garmin" values are measurements, "coach" values are earlier estimates):',
+        ...context.ftpHistory
+          .slice(-60)
+          .map(
+            (point) =>
+              `- ${point.date}: ${Math.round(point.value)} W (${point.source})`,
+          ),
+        "",
+      );
+    }
   }
 
   lines.push(
@@ -251,8 +288,8 @@ export function buildActivityAnalysisPrompt(
   lines.push(
     "",
     context
-      ? "Write the brief coach summary. Include how well the workout fit its planned session and cite only the most useful evidence."
-      : "Write the brief coach summary, citing only the most useful evidence.",
+      ? "Write the brief coach summary. Include how well the workout fit its planned session and cite only the most useful evidence. Return the JSON object described in the system prompt."
+      : "Write the brief coach summary, citing only the most useful evidence. Return the JSON object described in the system prompt.",
   );
   return lines.join("\n");
 }
