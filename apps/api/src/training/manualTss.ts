@@ -42,6 +42,7 @@ export async function estimateManualActivityTss(
         },
       ],
       1024,
+      { kind: "manual_tss" },
     );
     return result.tss;
   } catch (err) {

@@ -143,6 +143,9 @@ describe("generateDailyUpdate", () => {
 
     expect(result.today.date).toBe("2026-10-21");
     expect(provider.requests).toHaveLength(2);
+    expect(provider.requests[0]?.kind).toBe("daily_update");
+    expect(provider.requests[1]?.kind).toBe("daily_update");
+    expect(provider.requests[1]?.metadata).toMatchObject({ repair: true });
     expect(provider.requests[1]?.messages.at(-1)?.content).toContain(
       'The "today" object\'s date must be exactly 2026-10-21',
     );

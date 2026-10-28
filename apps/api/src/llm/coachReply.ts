@@ -15,6 +15,7 @@ export function generateCoachReply(
   provider: LlmProvider,
   credentials: CoachReplyCredentials,
   input: CoachReplyPromptInput,
+  kind: "coach_reply" | "coaching_question",
 ): Promise<string> {
   return completeWithFallbacks(
     provider,
@@ -23,5 +24,6 @@ export function generateCoachReply(
     // Brief text; leave room for reasoning tokens on reasoning models.
     1024,
     0.4,
+    { kind },
   );
 }

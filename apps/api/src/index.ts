@@ -57,6 +57,10 @@ import {
   type QuestionAnswerStore,
 } from "./questions/answers.js";
 import { adminQuestionsRoute } from "./routes/adminQuestions.js";
+import {
+  createAdminLlmCallsRoute,
+  type AdminLlmCallsDependencies,
+} from "./routes/adminLlmCalls.js";
 import { createCalendarRoute } from "./routes/calendar.js";
 import { createCoachingRoute } from "./routes/coaching.js";
 import { createFitnessRoute } from "./routes/fitness.js";
@@ -137,6 +141,8 @@ export interface AppDependencies {
   searchLocations?: typeof searchLocations;
   /** Forecast loader, injectable for DB-free plan generation tests. */
   loadForecast?: PlanTriggerDependencies["loadForecast"];
+  /** Prompt log readers, injectable for DB-free admin route tests. */
+  adminLlmCalls?: AdminLlmCallsDependencies;
 }
 
 // Authentication is opt-in per route. The provider is created lazily on the
@@ -363,6 +369,7 @@ export function createApp(deps: AppDependencies = {}): Hono {
   // environment) may manage the versioned athlete question set (ADR 0006).
   api.use("/admin/*", requireAuth(authProvider), requireAdmin(userStore));
   api.route("/admin/questions", adminQuestionsRoute);
+  api.route("/admin/llm-calls", createAdminLlmCallsRoute(deps.adminLlmCalls));
 
   app.route("/api", api);
   return app;

@@ -46,6 +46,106 @@ export const llmSettingsUpdateSchema = z.object({
 
 export type LlmSettingsUpdate = z.infer<typeof llmSettingsUpdateSchema>;
 
+/**
+ * The coaching task a prompt belongs to. Stored with every LLM call so the
+ * admin prompt log can label and filter calls without re-reading the prompt.
+ */
+export const LLM_PROMPT_KINDS = [
+  "coach_plan",
+  "season_plan",
+  "initial_block",
+  "daily_update",
+  "target_day_update",
+  "weekly_update",
+  "season_refresh",
+  "block_update",
+  "activity_analysis",
+  "program_analysis",
+  "coach_reply",
+  "coaching_question",
+  "period_review",
+  "manual_tss",
+  "other",
+] as const;
+
+export const llmPromptKindSchema = z.enum(LLM_PROMPT_KINDS);
+
+export type LlmPromptKind = z.infer<typeof llmPromptKindSchema>;
+
+/** Human-readable labels for the prompt types shown in the admin log. */
+export const LLM_PROMPT_KIND_LABELS: Record<LlmPromptKind, string> = {
+  coach_plan: "Full coach plan",
+  season_plan: "Season plan",
+  initial_block: "Initial block",
+  daily_update: "Daily update",
+  target_day_update: "Target day update",
+  weekly_update: "Weekly update",
+  season_refresh: "Season refresh",
+  block_update: "Block update",
+  activity_analysis: "Activity analysis",
+  program_analysis: "Program analysis",
+  coach_reply: "Coach reply",
+  coaching_question: "Coaching question",
+  period_review: "Period review",
+  manual_tss: "Manual activity TSS",
+  other: "Other",
+};
+
+/** One message sent to the provider, as stored in the prompt log. */
+export const llmCallMessageSchema = z.object({
+  role: z.enum(["system", "user", "assistant"]),
+  content: z.string(),
+});
+
+export type LlmCallMessage = z.infer<typeof llmCallMessageSchema>;
+
+/** Token usage reported by the provider, when it includes it. */
+export const llmCallUsageSchema = z.object({
+  promptTokens: z.number().int().nonnegative().nullable(),
+  completionTokens: z.number().int().nonnegative().nullable(),
+  totalTokens: z.number().int().nonnegative().nullable(),
+});
+
+export type LlmCallUsage = z.infer<typeof llmCallUsageSchema>;
+
+/** A logged LLM request without its (potentially large) prompt and response. */
+export const llmCallSummarySchema = z.object({
+  id: z.number().int().positive(),
+  createdAt: z.string().datetime(),
+  userId: z.number().int().positive(),
+  /** The account's auth subject, the best human identifier we store. */
+  userLabel: z.string(),
+  kind: llmPromptKindSchema,
+  provider: z.string(),
+  model: z.string(),
+  durationMs: z.number().int().nonnegative(),
+  failed: z.boolean(),
+});
+
+export type LlmCallSummary = z.infer<typeof llmCallSummarySchema>;
+
+/** Response body of `GET /api/admin/llm-calls`. */
+export const llmCallsResponseSchema = z.object({
+  calls: z.array(llmCallSummarySchema),
+});
+
+export type LlmCallsResponse = z.infer<typeof llmCallsResponseSchema>;
+
+/**
+ * One full LLM call for the admin detail view: the exact messages sent, the
+ * response (or error), token usage, and request metadata such as temperature,
+ * output budget, and retry attempt.
+ */
+export const llmCallDetailSchema = llmCallSummarySchema.extend({
+  messages: z.array(llmCallMessageSchema),
+  response: z.string().nullable(),
+  error: z.string().nullable(),
+  usage: llmCallUsageSchema.nullable(),
+  metadata: z.record(z.string(), z.unknown()),
+});
+
+export type LlmCallDetail = z.infer<typeof llmCallDetailSchema>;
+
 /** A coach's analysis of one activity, persisted so revisits are cheap. */
 export const coachAnalysisSchema = z.object({
   text: z.string(),

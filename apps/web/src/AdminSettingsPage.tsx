@@ -1,4 +1,5 @@
 import { AdminQuestionsSection } from "./AdminQuestionsSection";
+import { AdminLlmCallsSection } from "./AdminLlmCallsSection";
 import { DevDatePicker } from "./DevDatePicker";
 
 /**
@@ -14,6 +15,7 @@ export function AdminSettingsPage() {
       <h2 className="text-2xl font-semibold">Admin settings</h2>
 
       <AdminQuestionsSection />
+      <AdminLlmCallsSection />
       <DevDatePicker />
     </section>
   );

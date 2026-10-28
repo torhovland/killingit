@@ -23,5 +23,6 @@ export function generatePeriodReview(
     // Leave room for reasoning tokens plus a complete 3-5 sentence summary.
     2048,
     0.3,
+    { kind: "period_review", metadata: { periodKind: input.kind } },
   );
 }

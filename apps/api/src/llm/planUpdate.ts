@@ -87,7 +87,10 @@ export async function generateDailyUpdate(
     credentials,
     buildDailyUpdateMessages(input),
     PLAN_MAX_TOKENS,
-    { repairHint: dailyDateHint(input.today, weekStartDate) },
+    {
+      repairHint: dailyDateHint(input.today, weekStartDate),
+      kind: "daily_update",
+    },
   );
 }
 
@@ -109,7 +112,10 @@ export async function generateTargetDayUpdate(
     credentials,
     buildDailyUpdateMessages(input),
     PLAN_MAX_TOKENS,
-    { repairHint: dailyDateHint(input.today, weekStartDate) },
+    {
+      repairHint: dailyDateHint(input.today, weekStartDate),
+      kind: "target_day_update",
+    },
   );
 }
 
@@ -125,7 +131,7 @@ export async function generateWeeklyUpdate(
     credentials,
     buildWeeklyUpdateMessages(input),
     PLAN_MAX_TOKENS,
-    { repairHint: weekDateHint(input.weekStartDate) },
+    { repairHint: weekDateHint(input.weekStartDate), kind: "weekly_update" },
   );
 }
 
@@ -146,6 +152,7 @@ export async function generateSeasonRefresh(
     PLAN_MAX_TOKENS,
     {
       repairHint: `The current block in season.blocks and block.startDate must both keep the existing start date ${input.block.startDate}.`,
+      kind: "season_refresh",
     },
   );
 }
@@ -162,5 +169,6 @@ export async function generateBlockUpdate(
     credentials,
     buildBlockUpdateMessages(input),
     PLAN_MAX_TOKENS,
+    { kind: "block_update" },
   );
 }
