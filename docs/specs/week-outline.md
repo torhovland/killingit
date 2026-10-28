@@ -31,17 +31,17 @@ and makes later daily revisions rewrite detail that was never actionable.
 4. A normalisation step drops a structured `bikeWorkout` from every day after
    tomorrow, so a model that ignores the prompt cannot leak a downloadable
    workout into an outline day.
-5. Outline days still carry `estimatedTss`, and the week still carries
-   `estimatedFtpWatts`, so training load and the fitness chart stay complete.
+5. Outline days still carry `estimatedTss` and the day's `estimatedFtpWatts`,
+   and the week still carries its single `estimatedFtpWatts`, so training load
+   and the fitness chart stay complete.
 
 ### Out of scope
 
-- Changing the week-session schema. An outline uses the existing fields with a
-  shorter, less specific value.
-- Per-day FTP values. The week's estimated FTP still applies to every day in
-  the week; `estimatedTss` is estimated against it.
 - A UI redesign. The Week tab already renders an outline as a title, duration,
-  intensity, load, and a short description.
+  intensity, load, and a short description, and keeps showing only the week's
+  single FTP estimate.
+- Showing the daily FTP projection on each day in the Week view. The Fitness
+  page charts the daily series instead; see `docs/specs/fitness-page.md`.
 
 ## What "outline" means
 
@@ -52,6 +52,7 @@ For a day after tomorrow:
 - `description` is one sentence about the session's intent.
 - `durationMinutes` and `intensity` are approximate.
 - `estimatedTss` is complete.
+- `estimatedFtpWatts` is the coach's projection for that day.
 - `bikeWorkout` is null; no intervals, repetitions, paces, or power targets are
   prescribed.
 
@@ -73,7 +74,8 @@ Past days keep describing what actually happened, as before.
    tomorrow.
 4. After a weekly, daily, or next-period generation, no week session dated after
    tomorrow has a `bikeWorkout`; today's and tomorrow's sessions keep theirs.
-5. Outline days keep `estimatedTss`, and the week keeps `estimatedFtpWatts`.
+5. Outline days keep `estimatedTss` and their daily `estimatedFtpWatts`, and
+   the week keeps its single `estimatedFtpWatts`.
 6. `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`
    pass.
 
@@ -95,8 +97,10 @@ days simply use shorter values and leave `bikeWorkout` empty.
   `bikeWorkout` on every session in `week` and `nextWeek` dated after tomorrow.
   It runs on the final draft before training load and weather are attached, in
   both the full-build and cascade paths.
-- `applyTrainingLoad` is unchanged: an outline day without `bikeWorkout` falls
-  back to the coach's `estimatedTss`.
+- `applyTrainingLoad` resolves each day's `estimatedFtpWatts` from the coach's
+  daily value, falling back to the week's estimate and then the stored
+  timeline. An outline day without `bikeWorkout` still falls back to the coach's
+  `estimatedTss` for TSS.
 
 ## Testing
 

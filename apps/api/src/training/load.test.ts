@@ -178,6 +178,44 @@ describe("applyTrainingLoad", () => {
     expect(loaded.tomorrow?.bikeWorkout?.ftpWatts).toBe(250);
   });
 
+  it("keeps a daily FTP projection and uses the day's value for a bike workout", () => {
+    const loaded = applyTrainingLoad(
+      {
+        ...plan,
+        week: {
+          ...week,
+          sessions: week.sessions.map((entry) => ({
+            ...entry,
+            estimatedFtpWatts:
+              entry.date >= "2026-10-20"
+                ? 252 + Number(entry.date.slice(-2)) - 20
+                : undefined,
+          })),
+        },
+      },
+      { ftpTimeline: statedFtp, activities: [] },
+    );
+
+    expect(loaded.week.estimatedFtpWatts).toBe(250);
+    expect(
+      loaded.week.sessions.find((entry) => entry.date === "2026-10-19")
+        ?.estimatedFtpWatts,
+    ).toBeUndefined();
+    expect(
+      loaded.week.sessions.find((entry) => entry.date === "2026-10-20")
+        ?.estimatedFtpWatts,
+    ).toBe(252);
+    expect(
+      loaded.week.sessions.find((entry) => entry.date === "2026-10-25")
+        ?.estimatedFtpWatts,
+    ).toBe(257);
+    expect(
+      loaded.week.sessions.find((entry) => entry.date === "2026-10-21")
+        ?.bikeWorkout?.ftpWatts,
+    ).toBe(253);
+    expect(loaded.tomorrow?.bikeWorkout?.ftpWatts).toBe(253);
+  });
+
   it("uses a manual activity's stored TSS", () => {
     const loaded = applyTrainingLoad(
       {

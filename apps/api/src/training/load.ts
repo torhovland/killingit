@@ -66,6 +66,7 @@ export function applyTrainingLoad(
   }
   const current = applyWeekLoad(
     plan.week,
+    plan.today.date,
     timeline,
     activitiesByDate,
     manualTssByDate,
@@ -78,6 +79,7 @@ export function applyTrainingLoad(
       ? null
       : applyWeekLoad(
           plan.nextWeek,
+          plan.today.date,
           timeline,
           activitiesByDate,
           manualTssByDate,
@@ -134,6 +136,7 @@ export function applyTrainingLoad(
  */
 function applyWeekLoad(
   week: WeekPlan,
+  today: string,
   timeline: FtpTimeline,
   activitiesByDate: ReadonlyMap<string, readonly AnalyzedActivity[]>,
   manualTssByDate: ReadonlyMap<string, number>,
@@ -190,21 +193,59 @@ function applyWeekLoad(
     tssByDate: seriesInput,
   });
 
-  const sessions = week.sessions.map((session) => ({
-    ...session,
-    // Keep the downloaded workout's FTP in step with the week's estimate, so
-    // the Day card, the Week header, and the trainer file agree.
-    bikeWorkout:
-      session.bikeWorkout != null && ftpWatts !== null
-        ? { ...session.bikeWorkout, ftpWatts }
-        : session.bikeWorkout,
-    trainingLoad: series.get(session.date) ?? null,
-  }));
+  const sessions = week.sessions.map((session) => {
+    const dayFtp = resolveDayFtp(
+      session,
+      today,
+      estimate,
+      timeline,
+      baseFtpWatts,
+      floorAtBase,
+    );
+    return {
+      ...session,
+      // Days from today onward carry the daily projection the Fitness page
+      // charts. Past days keep their historical value, if any.
+      ...(session.date >= today ? { estimatedFtpWatts: dayFtp ?? null } : {}),
+      // Keep the downloaded workout's FTP in step with the day it belongs to.
+      bikeWorkout:
+        session.bikeWorkout != null && dayFtp != null
+          ? { ...session.bikeWorkout, ftpWatts: dayFtp }
+          : session.bikeWorkout,
+      trainingLoad: series.get(session.date) ?? null,
+    };
+  });
 
   return {
     week: { ...week, estimatedFtpWatts: ftpWatts, sessions },
     tssByDate,
   };
+}
+
+/**
+ * The FTP estimate for one day. Days from today onward use the coach's daily
+ * estimate, falling back to the week's estimate and then the stored timeline.
+ * A past day keeps whatever historical value the plan already carries; the
+ * Fitness page reads recorded history from the timeline instead.
+ */
+function resolveDayFtp(
+  session: WeekSession,
+  today: string,
+  weekEstimate: number | null | undefined,
+  timeline: FtpTimeline,
+  baseFtpWatts: number | null,
+  floorAtBase: boolean,
+): number | null | undefined {
+  if (session.date < today) {
+    return session.estimatedFtpWatts;
+  }
+  const raw = session.estimatedFtpWatts ?? weekEstimate;
+  if (raw !== null && raw !== undefined) {
+    return resolveFtpWatts(raw, baseFtpWatts, floorAtBase);
+  }
+  return floorAtBase
+    ? baseFtpWatts
+    : (ftpAt(timeline, session.date) ?? baseFtpWatts);
 }
 
 /**

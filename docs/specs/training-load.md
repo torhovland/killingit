@@ -63,10 +63,13 @@ numbers must agree across the Day, Week, and Block tabs.
   that period is recalculated with the interpolated FTP. The current and next
   week use the new value, and the block and season summaries are refreshed.
   Every plan and activity-analysis prompt receives the FTP history.
-- With a stated FTP, the coach returns `estimatedFtpWatts` for the week and for
-  every week of the block. The API clamps each estimate to 70–150% of the
-  stated value so a model error cannot produce an absurd number. A missing
-  estimate falls back to the stated FTP.
+- With a stated FTP, the coach returns `estimatedFtpWatts` for the week, for
+  every week of the block, and for every day from today onward, including rest
+  days. The API clamps each estimate to 70–150% of the stated value so a model
+  error cannot produce an absurd number; a day without a value falls back to
+  the week's estimate. The Week, Block, and Season tabs show the week's single
+  estimate, while the daily values are stored as `coach` points so the Fitness
+  page charts the projection day by day.
 - With no stated FTP, every `estimatedFtpWatts` is stored as `null`, and the
   UI hides it. The coach is told not to invent one.
 
@@ -153,7 +156,7 @@ Shared (`@killingit/shared`):
 - `trainingLoadSchema`: `{ tss, atl, ctl, tsb }` on week sessions and day plans.
 - `estimatedTss` (optional, non-negative) on week sessions, day plans, and
   manual activities, and `estimatedFtpWatts` (optional, nullable) on block week
-  summaries, block plans, season plans, and week plans.
+  summaries, block plans, season plans, week plans, and week sessions.
 - `trainingLoad` (optional, nullable) on analyzed activities and manual
   activities.
 - `averagePower` and `normalizedPower` (optional) on activity summaries.
@@ -176,9 +179,9 @@ API:
   coach from its wording and returns null when the model is unavailable.
 - `manual_activities.estimated_tss` stores the manual estimate (migration
   `0024`).
-- The plan prompts include the athlete's FTP (when known), the week's FTP field,
-  the per-session TSS field, and the training-load rules. The combined prompt
-  version is bumped to 6.
+- The plan prompts include the athlete's FTP (when known), the week's and
+  session's FTP fields, the per-session TSS field, and the training-load rules.
+  The combined prompt version is bumped to 9.
 - Plan values live in the existing plan JSON; no other database schema change.
 
 ## UI
@@ -195,7 +198,7 @@ API:
   measured power, the stored plan's coach estimate, or the duration fallback;
   manual entries use their stored coach-estimated TSS.
 - **Fitness page** charts the daily CTL, ATL, and TSB with the TSB zone colours
-  and the estimated FTP over the same window; see
+  and the day-by-day estimated FTP over the same window; see
   `docs/specs/fitness-page.md`.
 - Older stored plans and cached activity payloads without the new fields render
   exactly as before.
@@ -203,8 +206,8 @@ API:
 ## Acceptance criteria
 
 1. An athlete whose profile states an FTP sees an estimated FTP for the current
-   week and for each week of the block. The estimate stays within 70–150% of
-   the stated value.
+   week, for each week of the block, and as a daily projection from today
+   onward. Each estimate stays within 70–150% of the stated value.
 2. An athlete with no stated FTP sees no FTP estimate, even if the model returns
    one.
 3. Every workout in the Week tab shows a TSS number; rest days show 0.

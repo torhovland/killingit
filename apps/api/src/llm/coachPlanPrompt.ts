@@ -23,7 +23,7 @@ import {
  * callers can invalidate cached plans the same way activity analyses are
  * versioned.
  */
-export const COACH_PLAN_PROMPT_VERSION = 8;
+export const COACH_PLAN_PROMPT_VERSION = 9;
 
 export type CoachPlanAthleteAnswer = AthleteAnswerContext;
 export type CoachPlanActivity = RecentActivityContext;
@@ -96,7 +96,8 @@ const COACH_PLAN_RESPONSE_CONTRACT = `{
         "durationMinutes": 0,
         "intensity": "easy | moderate | hard | rest",
         "status": "completed | partial | planned | missed | rest",
-        "estimatedTss": 0
+        "estimatedTss": 0,
+        "estimatedFtpWatts": 0
       }
     ]
   },

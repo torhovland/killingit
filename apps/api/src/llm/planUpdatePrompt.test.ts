@@ -147,6 +147,8 @@ describe("daily update prompts", () => {
     expect(prompt).toContain('"estimatedTss"');
     expect(prompt).toContain("training stress score");
     expect(prompt).toContain('"estimatedFtpWatts"');
+    expect(prompt).toContain("estimate how it will change day by day");
+    expect(prompt).toContain('Set "estimatedFtpWatts" on every week session');
     expect(prompt).toContain('"bodyMetrics"');
     expect(prompt).toContain('"weightKg"');
     expect(prompt).toContain('"bodyFatPercent"');
@@ -310,6 +312,8 @@ describe("weekly update prompts", () => {
     expect(prompt).toContain('"powerPercent"');
     expect(prompt).toContain('"estimatedTss"');
     expect(prompt).toContain('"estimatedFtpWatts"');
+    expect(prompt).toContain("estimate how it will change day by day");
+    expect(prompt).toContain('Set "estimatedFtpWatts" on every week session');
     expect(prompt).toContain('"bodyMetrics"');
     expect(prompt).toContain(BODY_METRIC_RULES);
     expect(prompt).toContain("training stress score");

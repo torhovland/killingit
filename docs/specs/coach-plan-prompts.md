@@ -68,8 +68,9 @@ covered by `docs/specs/coach-plan-lifecycle.md`.
    `docs/specs/session-purpose.md`.
 7. Week plans are outlines: only today's and tomorrow's sessions are fully
    detailed, while later days keep the session type, a brief focus, an
-   approximate duration and intensity, estimated TSS, and the week's estimated
-   FTP. See `docs/specs/week-outline.md`.
+   approximate duration and intensity, estimated TSS, their daily estimated
+   FTP, and the week's single estimated FTP. See `docs/specs/week-outline.md`
+   and `docs/specs/training-load.md`.
 8. `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`
    pass.
 

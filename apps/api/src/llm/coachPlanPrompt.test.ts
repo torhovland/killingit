@@ -96,7 +96,7 @@ function makeAnalyzedActivity(
 
 describe("coach plan prompts", () => {
   it("exposes a prompt version for cache invalidation", () => {
-    expect(COACH_PLAN_PROMPT_VERSION).toBe(8);
+    expect(COACH_PLAN_PROMPT_VERSION).toBe(9);
   });
 
   it("builds a system and a user message", () => {

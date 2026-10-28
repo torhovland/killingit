@@ -20,7 +20,11 @@ import {
   WEEKLY_UPDATE_SYSTEM_PROMPT,
 } from "../llm/planUpdatePrompt.js";
 import { addDays, startOfWeek } from "./dates.js";
-import { runPlanGeneration, type PlanGenerationContext } from "./generate.js";
+import {
+  planFtpEstimates,
+  runPlanGeneration,
+  type PlanGenerationContext,
+} from "./generate.js";
 import { planPending } from "./status.js";
 import type { PlanGenerationStep } from "./steps.js";
 import {
@@ -497,6 +501,36 @@ describe("runPlanGeneration", () => {
         .filter((session) => session.date > "2026-10-22")
         .every((session) => session.bikeWorkout == null),
     ).toBe(true);
+  });
+
+  it("stores one FTP point per planned day from today onward", () => {
+    const plan = makePlan("2026-10-21");
+    const estimates = planFtpEstimates({
+      ...plan,
+      week: {
+        ...plan.week,
+        estimatedFtpWatts: 255,
+        sessions: plan.week.sessions.map((session) =>
+          session.date === "2026-10-22"
+            ? { ...session, estimatedFtpWatts: 260 }
+            : session,
+        ),
+      },
+    });
+
+    expect(estimates.map((entry) => entry.date)).toEqual([
+      "2026-10-21",
+      "2026-10-22",
+      "2026-10-23",
+      "2026-10-24",
+      "2026-10-25",
+    ]);
+    expect(estimates.find((entry) => entry.date === "2026-10-21")?.watts).toBe(
+      255,
+    );
+    expect(estimates.find((entry) => entry.date === "2026-10-22")?.watts).toBe(
+      260,
+    );
   });
 
   it("stores the body metrics the coach found in the input", async () => {
