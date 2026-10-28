@@ -40,6 +40,8 @@ export interface PlanTriggerDependencies {
   generations: PlanGenerationStore;
   /** Injectable for route tests; defaults to a Garmin sync. */
   loadActivities?: (userId: number) => Promise<ActivityFeed>;
+  /** Injectable for route tests; defaults to the stored FTP time series. */
+  loadFtpHistory?: typeof loadFtpHistoryForUser;
   /** Injectable for route tests; defaults to the account's stored config. */
   loadLlm?: (userId: number) => Promise<LlmClient | null>;
   /** Injectable for route tests; defaults to the database-backed loader. */
@@ -130,7 +132,8 @@ export async function triggerPlanGeneration(
   }
 
   const location = user?.location ?? null;
-  const ftp = await loadFtpHistoryForUser(
+  const loadFtpHistory = deps.loadFtpHistory ?? loadFtpHistoryForUser;
+  const ftp = await loadFtpHistory(
     userId,
     {
       answers,
