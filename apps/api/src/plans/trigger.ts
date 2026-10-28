@@ -7,6 +7,10 @@ import { captureCompletedPeriodReviews } from "../coaching/periodReviews.js";
 import { analyzeActivitiesAgainstPlan } from "../coaching/programAnalysis.js";
 import type { LlmClient } from "../llm/client.js";
 import { loadLlmClient } from "../llm/client.js";
+import {
+  loadFtpHistoryForUser,
+  recordPlanFtpEstimates,
+} from "../metrics/store.js";
 import type {
   AthleteLocation,
   DailyWeather,
@@ -21,6 +25,7 @@ import {
 import { startOfWeek } from "./dates.js";
 import { GENERATION_HEARTBEAT_MS } from "./generation.js";
 import { runPlanGeneration } from "./generate.js";
+import { planFtpEstimates } from "./generate.js";
 import { loadCoachingInputs, type CoachingInputs } from "./inputs.js";
 import {
   latestActivityAnalysisTimestamp,
@@ -125,6 +130,19 @@ export async function triggerPlanGeneration(
   }
 
   const location = user?.location ?? null;
+  const ftp = await loadFtpHistoryForUser(
+    userId,
+    {
+      answers,
+      answersUpdatedAt: latestAnswerTimestamp(answers),
+      manualActivities: coachingInputs.manualActivities,
+      activityComments: coachingInputs.activityComments,
+      weeklyNote: coachingInputs.weeklyNote,
+      weeklyNoteUpdatedAt: coachingInputs.weeklyNoteUpdatedAt,
+      periodReviews: coachingInputs.periodReviews,
+    },
+    today,
+  );
   let weatherForecasts: WeatherForecastSet | null = null;
   let forecast: DailyWeather[] | null = null;
   if (location !== null) {
@@ -156,6 +174,8 @@ export async function triggerPlanGeneration(
     ...(includeTomorrow !== undefined ? { includeTomorrow } : {}),
     ...(keepToday !== undefined ? { keepToday } : {}),
     capturePeriodReviews: captureCompletedPeriodReviews,
+    recordFtpEstimates: (generatedPlan) =>
+      recordPlanFtpEstimates(userId, planFtpEstimates(generatedPlan)),
     reviewActivities: (plan) =>
       analyzeActivitiesAgainstPlan({
         userId,
@@ -166,6 +186,8 @@ export async function triggerPlanGeneration(
         plan,
         activities: activities.activities,
         activityComments: coachingInputs.activityComments,
+        ftpHistory: ftp.points.filter((point) => point.date <= today),
+        ftpTimeline: ftp.timeline,
       }),
     plan,
     context: {
@@ -184,6 +206,8 @@ export async function triggerPlanGeneration(
       location,
       forecast,
       weatherForecasts,
+      ftpTimeline: ftp.timeline,
+      ftpHistory: ftp.points.filter((point) => point.date <= today),
       provider: llm.provider,
       apiKey: llm.apiKey,
       model: llm.model,

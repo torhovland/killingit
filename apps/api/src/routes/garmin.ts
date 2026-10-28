@@ -11,10 +11,12 @@ import {
   GarminAuthError,
   GarminSidecarError,
   syncGarminActivities,
+  syncGarminMetrics,
 } from "../garmin/client.js";
 import { loadDecryptedGarminCredentials } from "../garmin/credentials.js";
 import { encrypt, garminCredentialsKeyFromEnv } from "../garmin/crypto.js";
 import { loadCredentials, saveCredentials } from "../garmin/store.js";
+import { recordGarminBodyMetrics, recordGarminFtp } from "../metrics/store.js";
 import type { UserStore } from "../users/store.js";
 
 /** Request body for POST /credentials — raw (soon-to-be-encrypted) values. */
@@ -31,6 +33,11 @@ export interface GarminRouteDependencies {
   loadDecryptedCredentials?: typeof loadDecryptedGarminCredentials;
   authenticate?: typeof authenticateGarmin;
   syncActivities?: typeof syncGarminActivities;
+  syncMetrics?: typeof syncGarminMetrics;
+  /** Injectable for tests; defaults to the database-backed writer. */
+  saveMetrics?: typeof recordGarminBodyMetrics;
+  /** Injectable for tests; defaults to the database-backed writer. */
+  saveFtp?: typeof recordGarminFtp;
 }
 
 /**
@@ -45,6 +52,9 @@ export function createGarminRoute(deps: GarminRouteDependencies): Hono {
     deps.loadDecryptedCredentials ?? loadDecryptedGarminCredentials;
   const authenticate = deps.authenticate ?? authenticateGarmin;
   const sync = deps.syncActivities ?? syncGarminActivities;
+  const syncMetrics = deps.syncMetrics ?? syncGarminMetrics;
+  const saveMetrics = deps.saveMetrics ?? recordGarminBodyMetrics;
+  const saveFtp = deps.saveFtp ?? recordGarminFtp;
 
   return new Hono()
     .post("/credentials", zValidator("json", credentialsSchema), async (c) => {
@@ -110,6 +120,14 @@ export function createGarminRoute(deps: GarminRouteDependencies): Hono {
 
       try {
         const activities = await sync(credentials);
+        try {
+          const snapshot = await syncMetrics(credentials);
+          await saveMetrics(user.id, snapshot.metrics);
+          await saveFtp(user.id, snapshot.ftp);
+        } catch (err) {
+          // Body composition is supplementary; the activity sync still counts.
+          console.error("[garmin] body metrics failure:", err);
+        }
         return c.json({ activities });
       } catch (err) {
         if (err instanceof GarminAuthError) {

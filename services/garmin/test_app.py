@@ -13,10 +13,15 @@ import app as sidecar
 from app import (
     SYNC_WINDOW_DAYS,
     Credentials,
+    _body_fat_percent,
     _date_window,
     _iso,
+    _metric_date,
     _to_activity,
+    _to_body_metrics,
+    _to_ftp_history,
     _to_samples,
+    _weight_kg,
     normalize_type,
 )
 
@@ -298,3 +303,91 @@ def test_sync_maps_a_detail_rate_limit_to_rate_limited(monkeypatch):
 
     with pytest.raises(sidecar._RateLimitedError):
         sidecar._sync(Credentials(username="u", password="p"))
+
+
+def test_to_body_metrics_normalizes_weight_and_body_fat():
+    payload = {
+        "dateWeightList": [
+            {
+                "calendarDate": "2026-10-01",
+                "weight": 78500,
+                "bodyFat": 24.5,
+                "unitKey": "g",
+            },
+            {
+                "calendarDate": "2026-10-02",
+                "weight": 78.0,
+                "unitKey": "kg",
+                "weightUnit": "kg",
+            },
+        ]
+    }
+
+    assert _to_body_metrics(payload) == [
+        {"date": "2026-10-01", "weightKg": 78.5, "bodyFatPercent": 24.5},
+        {"date": "2026-10-02", "weightKg": 78.0},
+    ]
+
+
+def test_weight_converts_pounds_and_grams():
+    assert _weight_kg({"weight": 172.0, "unitKey": "lbs"}) == 78.02
+    assert _weight_kg({"weight": 78500}) == 78.5
+    assert _weight_kg({"weight": 78.0}) == 78.0
+    assert _weight_kg({"weight": 0}) is None
+
+
+def test_body_fat_accepts_fraction_and_rejects_impossible_values():
+    assert _body_fat_percent({"bodyFat": 0.245}) == 24.5
+    assert _body_fat_percent({"percentFat": 18.2}) == 18.2
+    assert _body_fat_percent({"bodyFat": 80}) is None
+
+
+def test_metric_date_reads_calendar_date_and_epoch():
+    assert _metric_date({"calendarDate": "2026-10-01"}) == "2026-10-01"
+    assert (
+        _metric_date({"timestampGMT": 1790836200000})
+        == datetime.fromtimestamp(1790836200, tz=UTC).date().isoformat()
+    )
+
+
+def test_sync_metrics_uses_body_composition(monkeypatch):
+    class _MetricsFake:
+        def get_body_composition(self, startdate, enddate):
+            return {
+                "dateWeightList": [
+                    {"calendarDate": "2026-10-01", "weight": 78000}
+                ]
+            }
+
+        def get_functional_threshold_power_range(
+            self, startdate, enddate, *, sport, aggregation
+        ):
+            return [
+                {
+                    "calendarDate": "2026-10-01",
+                    "functionalThresholdPower": 255,
+                }
+            ]
+
+    monkeypatch.setattr(sidecar, "_login", lambda credentials: _MetricsFake())
+
+    assert sidecar._sync_metrics(Credentials(username="u", password="p")) == {
+        "metrics": [{"date": "2026-10-01", "weightKg": 78.0}],
+        "ftp": [{"date": "2026-10-01", "watts": 255}],
+    }
+
+
+def test_to_ftp_history_handles_lists_and_nested_records():
+    assert _to_ftp_history(
+        [
+            {"calendarDate": "2026-10-01", "functionalThresholdPower": 250},
+            {"calendarDate": "2026-10-02", "ftp": {"value": 255}},
+            {"calendarDate": "2026-10-03", "value": 20},
+        ]
+    ) == [
+        {"date": "2026-10-01", "watts": 250},
+        {"date": "2026-10-02", "watts": 255},
+    ]
+    assert _to_ftp_history(
+        {"functionalThresholdPower": [{"calendarDate": "2026-10-01", "value": 260}]}
+    ) == [{"date": "2026-10-01", "watts": 260}]

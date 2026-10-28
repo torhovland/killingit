@@ -80,6 +80,9 @@ function makeApp(authenticate?: () => Promise<boolean>) {
         synced.push(credentials);
         return Promise.resolve([] as Activity[]);
       }) satisfies SyncTransport,
+      syncMetrics: () => Promise.resolve({ metrics: [], ftp: [] }),
+      saveMetrics: () => Promise.resolve(),
+      saveFtp: () => Promise.resolve(),
     }),
   );
 

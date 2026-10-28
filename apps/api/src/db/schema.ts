@@ -66,6 +66,52 @@ export type UserRow = typeof users.$inferSelect;
 export type NewUserRow = typeof users.$inferInsert;
 
 /**
+ * One athlete metric value per day. FTP is stored alongside body weight and
+ * body-fat percentage so the same time-series code can interpolate and
+ * extrapolate all three. `source` records whether the athlete stated the value,
+ * Garmin supplied it, or the coach estimated it; only coach estimates are
+ * replaced when the LLM produces a newer one.
+ */
+export const athleteMetrics = pgTable(
+  "athlete_metrics",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    metric: text("metric", { enum: ["ftp", "weight", "body_fat"] }).notNull(),
+    source: text("source", { enum: ["user", "coach", "garmin"] }).notNull(),
+    date: text("date").notNull(),
+    value: doublePrecision("value").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("athlete_metrics_user_id_metric_date_idx").on(
+      table.userId,
+      table.metric,
+      table.date,
+    ),
+    index("athlete_metrics_user_id_metric_idx").on(table.userId, table.metric),
+    check(
+      "athlete_metrics_metric_check",
+      sql`${table.metric} in ('ftp', 'weight', 'body_fat')`,
+    ),
+    check(
+      "athlete_metrics_source_check",
+      sql`${table.source} in ('user', 'coach', 'garmin')`,
+    ),
+  ],
+);
+
+export type AthleteMetricRow = typeof athleteMetrics.$inferSelect;
+export type NewAthleteMetricRow = typeof athleteMetrics.$inferInsert;
+
+/**
  * One Garmin connection per account. Username and password are stored
  * AES-256-GCM-encrypted; ciphertext is never serialized.
  */

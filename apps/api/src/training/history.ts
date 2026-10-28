@@ -2,6 +2,7 @@ import {
   CTL_DAYS,
   dailyTrainingLoad,
   formatActivityType,
+  interpolateMetricSeries,
   type AnalyzedActivity,
   type BlockWeekSummary,
   type CoachPlan,
@@ -11,9 +12,11 @@ import {
   type FitnessHistoryResponse,
   type FitnessRange,
   type FtpHistoryPoint,
+  type MetricPoint,
   type WeekPlan,
 } from "@killingit/shared";
 import type { ManualActivityContext } from "../llm/planContext.js";
+import { loadMetricPoints } from "../metrics/store.js";
 import { addDays, startOfWeek } from "../plans/dates.js";
 import { activityDayTss, groupActivitiesByDate } from "./activityLoad.js";
 import { loadTrainingContext } from "./context.js";
@@ -44,6 +47,11 @@ export interface FitnessHistoryInput {
   manualTssByDate: ReadonlyMap<string, number>;
   /** The athlete's manual entries, listed on the day they were logged. */
   manualActivities?: readonly ManualActivityContext[] | undefined;
+  /** Stored body-composition measurements, used for the body chart. */
+  bodyPoints?: {
+    weight: readonly MetricPoint[];
+    bodyFat: readonly MetricPoint[];
+  };
 }
 
 /**
@@ -100,7 +108,22 @@ export function buildFitnessHistory(
     }
   }
 
-  return { days, ftp: ftpHistory(input.timeline, input.plan, days) };
+  return {
+    days,
+    ftp: ftpHistory(input.timeline, input.plan, days),
+    body: {
+      weight: interpolateMetricSeries(
+        input.bodyPoints?.weight ?? [],
+        startDate,
+        endDate,
+      ),
+      bodyFat: interpolateMetricSeries(
+        input.bodyPoints?.bodyFat ?? [],
+        startDate,
+        endDate,
+      ),
+    },
+  };
 }
 
 /** The stored plan's session for each day it covers. */
@@ -180,7 +203,11 @@ export async function loadFitnessHistory(
   today: string,
   range: FitnessRange,
 ): Promise<FitnessHistoryResponse> {
-  const context = await loadTrainingContext(userId, plan);
+  const [context, weight, bodyFat] = await Promise.all([
+    loadTrainingContext(userId, plan),
+    loadMetricPoints(userId, "weight"),
+    loadMetricPoints(userId, "body_fat"),
+  ]);
   return buildFitnessHistory({
     today,
     range,
@@ -190,6 +217,7 @@ export async function loadFitnessHistory(
     planTssByDate: context.planTssByDate,
     manualTssByDate: context.manualTssByDate,
     manualActivities: context.manualActivities,
+    bodyPoints: { weight, bodyFat },
   });
 }
 

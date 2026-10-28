@@ -94,24 +94,31 @@ about a past workout, or before a suggested workout, to steer the coach.
   sessions and rest days. A significant change in the combined forecast marks
   the week pending and refreshes the week and day. See ADR 0008, ADR 0010, and
   `docs/specs/location-and-weather.md`.
-- The athlete's latest stated FTP (survey answers or a newer comment, manual
-  activity, weekly note, or review comment mentioning an FTP test/revised
-  estimate) anchors a week-by-week FTP estimate returned by the coach in
-  `coach_plans`. The Week, Block, and Season tabs show it, and completed weeks
-  before a revised test are re-interpolated. Sessions get a TSS from measured
-  power or a structured indoor bike workout when available, and from the
-  coach's estimate otherwise; the API then calculates ATL, CTL, and TSB day by
-  day and shows them in the Today, Tomorrow, and Week views and on the
-  Activities page. TSB carries a coloured form label (Risk, Productive,
-  Maintaining, Fresh, Detraining).
-  Garmin syncs the last 42 days, and power metrics are stored on activity
-  summaries so the raw timeseries is not needed. Manual activities get a
-  coach-estimated TSS from their free text (with a duration fallback), stored
-  in `manual_activities.estimated_tss`. Any manual edit or Garmin import
-  rebuilds the full daily series, so every later activity's load is
-  recalculated. The Fitness page charts that series with the TSB zone colours
-  and the estimated FTP over the same window (`GET /api/fitness`). See
-  `docs/specs/training-load.md`, `docs/specs/fitness-page.md`, and ADR 0012.
+- FTP, body weight, and body-fat percentage are stored as daily time series in
+  `athlete_metrics`, with a source of `user`, `garmin`, or `coach`. The athlete's
+  stated or tested FTP is read from survey answers and newer comments, manual
+  activities, weekly notes, and review comments, and seeded into the series.
+  The coach's weekly `coach_plans` estimates and the structured FTP estimate in
+  each activity analysis are stored as `coach` points; a newer estimate deletes
+  later coach estimates but never an athlete measurement. The Week, Block, and
+  Season tabs show the weekly estimate, and completed weeks before a revised
+  test are re-interpolated. Every plan and activity-analysis prompt receives the
+  FTP history. Sessions get a TSS from measured power or a structured indoor
+  bike workout when available, and from the coach's estimate otherwise; the API
+  then calculates ATL, CTL, and TSB day by day and shows them in the Today,
+  Tomorrow, and Week views and on the Activities page. TSB carries a coloured
+  form label (Risk, Productive, Maintaining, Fresh, Detraining).
+  Garmin syncs the last 42 days of activities, body composition, and historic
+  cycling FTP, and power metrics are stored on activity summaries so the raw
+  timeseries is not needed.
+  Manual activities get a coach-estimated TSS from their free text (with a
+  duration fallback), stored in `manual_activities.estimated_tss`. Any manual
+  edit or Garmin import rebuilds the full daily series, so every later
+  activity's load is recalculated. The Fitness page charts that series with the
+  TSB zone colours, the estimated FTP, and interpolated body weight/body fat
+  with a best-fit projection to the plan's last day (`GET /api/fitness`). See
+  `docs/specs/training-load.md`, `docs/specs/fitness-page.md`,
+  `docs/specs/body-metrics.md`, and ADR 0012.
 - Completed weeks and blocks get a coach summary, athlete comment, and coach
   reply in `period_reviews` / `coach_replies`; the dashboard and season review
   page are documented in `docs/specs/period-reviews.md`.

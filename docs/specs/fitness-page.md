@@ -8,9 +8,9 @@
 ## Goal
 
 Give the athlete a single place to see how their fitness (CTL), fatigue (ATL),
-and form (TSB) have moved, and how the coach's estimated FTP is progressing.
-The numbers and the TSB colours must match the ones already shown on the plan
-and activity views.
+and form (TSB) have moved, how the coach's estimated FTP is progressing, and
+how body weight and body-fat percentage are trending. The numbers and the TSB
+colours must match the ones already shown on the plan and activity views.
 
 ## Scope
 
@@ -20,8 +20,9 @@ and activity views.
    a window, using the same TSS resolution as the Activities page.
 2. A new day-by-day estimated-FTP series for the same window.
 3. A `Fitness` page with a fitness/form chart, a coloured TSB zone legend using
-   the existing interpretation colours, and an estimated-FTP chart.
-4. A hover card on either chart showing the pointed-at day's numbers, the
+   the existing interpretation colours, an estimated-FTP chart, and a body
+   weight/body-fat chart when measurements exist.
+4. A hover card on either load chart showing the pointed-at day's numbers, the
    activities logged that day, or the planned workout when none was logged.
 5. A range picker (Week, Month, Quarter, Year, All time) above the charts.
 
@@ -91,6 +92,22 @@ For each day, the estimated FTP is:
 The series is empty when the athlete has never stated an FTP, and the page hides
 the FTP chart.
 
+### Body series
+
+The response carries `body.weight` and `body.bodyFat`, each a daily
+`{ date, value }` series.
+
+1. Values between measurements are linearly interpolated. The series starts at
+   the first known measurement.
+2. After the last measurement the line continues with the least-squares slope
+   through every known point, anchored at the last measured value. With one
+   point the projection is flat.
+3. The series ends with the chart window, which already extends to the stored
+   plan's last planned session.
+4. A metric with no measurements produces an empty series. The page hides the
+   whole body chart when both are empty, and draws only the available line when
+   one is empty.
+
 ## Data model / API impact
 
 Shared (`@killingit/shared`):
@@ -99,8 +116,10 @@ Shared (`@killingit/shared`):
   (`id`, `name`, `type`, optional `durationMinutes`), `fitnessDayPlanSchema`
   (`title`, `type`, `durationMinutes`), `fitnessHistoryDaySchema` (`date`, the
   existing `trainingLoadSchema`, `activities`, and `planned`),
-  `ftpHistoryPointSchema` (`date`, `watts`), and
-  `fitnessHistoryResponseSchema` (`days`, `ftp`).
+  `ftpHistoryPointSchema` (`date`, `watts`),
+  `fitnessMetricPointSchema` (`date`, `value`), `fitnessBodySchema`
+  (`weight`, `bodyFat`), and `fitnessHistoryResponseSchema` (`days`, `ftp`,
+  `body`). `metrics.ts` also holds the interpolation and best-fit helpers.
 - `trainingLoad.ts`: `FORM_ZONES`, the TSB bands (`from` inclusive, `to`
   exclusive) used to shade the chart. The band colours stay in the web theme
   (`--form-*`), so they cannot drift from the interpretation text.
@@ -108,11 +127,14 @@ Shared (`@killingit/shared`):
 API:
 
 - `apps/api/src/training/history.ts` — `buildFitnessHistory` (pure) and
-  `loadFitnessHistory` (loads the cached activity feed's FTP context).
+  `loadFitnessHistory` (loads the cached activity feed's FTP context and body
+  metric series).
+- `apps/api/src/metrics/store.ts` — the `athlete_metrics` time-series reads and
+  writes, including the coach-estimate replacement rule.
 - `apps/api/src/training/context.ts` — the FTP timeline, plan TSS, and manual
   TSS shared with `loadUserActivityTrainingLoads`.
 - `apps/api/src/routes/fitness.ts` — the endpoint above.
-- No database migration.
+- Migration `0026_ancient_deathbird.sql` adds `athlete_metrics`.
 
 ## UI
 
@@ -125,9 +147,13 @@ API:
   zone colour, one size larger than the compact line used on the plan and
   activity views. The panel also shows the estimated FTP in effect today.
 - Below it, a fitness/form chart with CTL, ATL, and TSB lines over coloured TSB
-  zone bands, a legend naming each zone with its threshold and colour, and an
+  zone bands, a legend naming each zone with its threshold and colour, an
   estimated-FTP step chart whose heading carries no value (the current estimate
-  is in the Today panel).
+  is in the Today panel), and a body chart when body measurements exist.
+- The body chart draws weight on the left axis in kilograms and body fat on the
+  right axis in percent over the same date axis, with a legend for each
+  available line. The part after today is dotted, like the other projections.
+  Pointing at it shows the date and the available measurements.
 - Only the fitness chart's plot is white, so the zone tints stay clean while the
   rest of that chart — and the whole FTP chart — keeps the card's surface. The bands are soft tints (62.5%) of the
   zone colours, and the TSB line is solid and coloured by the zone it is in
@@ -176,16 +202,20 @@ API:
 9. The range picker switches between the five windows, and `All time` starts at
    the first recorded or manual activity.
 10. The page is reachable from the account menu and renders today's load line.
-11. Typecheck, lint, format, and tests pass.
+11. Body weight and body fat are interpolated between measurements and projected
+    with a best-fit trend after the last measurement, through the plan's last
+    day. The chart is hidden without measurements, and a metric without data
+    does not draw a line.
+12. Typecheck, lint, format, and tests pass.
 
 ## Testing
 
 - Shared: no new schema behaviour beyond the existing training-load tests;
   `FORM_ZONES` is exercised through the web chart tests.
 - API unit tests for `buildFitnessHistory`: continuous days, TSS precedence,
-  manual entries, plan TSS, FTP weekly estimate vs. timeline, no FTP, and the
-  activities listed per day.
+  manual entries, plan TSS, FTP weekly estimate vs. timeline, no FTP, the
+  activities listed per day, and the interpolated body series.
 - API route tests: auth, missing date, day clamping, and the happy path.
 - Web unit tests for the chart scale helpers, a render test for the page view
-  (load line, zone legend, both charts, hidden FTP chart), and a render test for
-  the hover card.
+  (load line, zone legend, both charts, hidden FTP chart, body chart and its
+  hidden states), and a render test for the hover card.

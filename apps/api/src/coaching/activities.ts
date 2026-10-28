@@ -4,13 +4,19 @@ import {
   type ActivitySummary,
   type AnalyzedActivity,
   type CoachPlan,
+  type MetricPoint,
   type RoutePoint,
   type TrainingLoad,
 } from "@killingit/shared";
 import { decrypt } from "../crypto/credentials.js";
-import { syncGarminActivities } from "../garmin/client.js";
+import { syncGarminActivities, syncGarminMetrics } from "../garmin/client.js";
 import { loadDeletedActivityIds } from "./deletions.js";
 import { loadDecryptedGarminCredentials } from "../garmin/credentials.js";
+import {
+  recordCoachFtp,
+  recordGarminBodyMetrics,
+  recordGarminFtp,
+} from "../metrics/store.js";
 import { mapWithConcurrency } from "../lib/mapWithConcurrency.js";
 import { ANALYSIS_PROMPT_VERSION } from "../llm/activityPrompt.js";
 import { analyzeActivity } from "../llm/analyze.js";
@@ -37,6 +43,7 @@ import { loadLlmSettings } from "../llm/store.js";
 import { dbPlanStore } from "../plans/store.js";
 import { buildActivityTrainingLoads } from "../training/activityLoad.js";
 import { loadTrainingContext } from "../training/context.js";
+import { ftpBaselineAt, type FtpTimeline } from "../training/ftp.js";
 import { saveCachedActivityFeed } from "./feedCache.js";
 import { routeFromSamples } from "./route.js";
 
@@ -107,6 +114,7 @@ export async function loadAnalyzedActivities(options: {
   }
 
   const activities = await syncGarminActivities(garminCredentials);
+  await syncBodyMetrics(options.userId, garminCredentials);
   const deletedIds = await loadDeletedActivityIds(options.userId, "garmin");
   const synced = [...activities]
     .filter((activity) => !deletedIds.has(String(activity.id)))
@@ -129,11 +137,27 @@ export async function loadAnalyzedActivities(options: {
     dbPlanStore.load(options.userId),
   ]);
   let loads = new Map<string, TrainingLoad>();
+  let ftpHistory: MetricPoint[] = [];
+  let ftpTimeline: FtpTimeline | null = null;
   try {
-    loads = await loadUserActivityTrainingLoads(
+    const training = await loadTrainingContext(
       options.userId,
-      synced.map((activity) => withoutAnalysis(activity)),
       storedPlan?.plan,
+    );
+    const promptThroughDate =
+      storedPlan?.plan.today.date ?? new Date().toISOString().slice(0, 10);
+    ftpHistory = training.ftpHistory.filter(
+      (point) => point.date <= promptThroughDate,
+    );
+    ftpTimeline = training.timeline;
+    const tssByDate = new Map(training.planTssByDate);
+    for (const [date, tss] of training.manualTssByDate) {
+      tssByDate.set(date, tss);
+    }
+    loads = buildActivityTrainingLoads(
+      synced.map((activity) => withoutAnalysis(activity)),
+      training.timeline,
+      tssByDate,
     );
   } catch (err) {
     // Load values are supplementary; the activity feed must still load.
@@ -157,6 +181,7 @@ export async function loadAnalyzedActivities(options: {
     ? {
         today: storedPlan.plan.today.date,
         week: storedPlan.plan.week,
+        ftpHistory,
       }
     : undefined;
 
@@ -190,6 +215,7 @@ export async function loadAnalyzedActivities(options: {
         ),
       ]);
 
+  const ftpEstimates: { date: string; watts: number }[] = [];
   const analysed = await mapWithConcurrency(
     latest,
     ANALYSIS_CONCURRENCY,
@@ -202,19 +228,32 @@ export async function loadAnalyzedActivities(options: {
       }
 
       try {
-        const text = await analyzeActivity(
+        const activityDate = activity.startDate.slice(0, 10);
+        const currentFtpWatts =
+          ftpTimeline === null
+            ? null
+            : (ftpBaselineAt(ftpTimeline, activityDate)?.watts ?? null);
+        const result = await analyzeActivity(
           provider,
           { apiKey, model: settings.model },
           activity,
-          analysisContext,
+          analysisContext === undefined
+            ? undefined
+            : { ...analysisContext, currentFtpWatts },
         );
         const saved = await saveAnalysis({
           userId: options.userId,
           activityId: activity.id,
           model: settings.model,
           promptVersion: ANALYSIS_PROMPT_VERSION,
-          text,
+          text: result.analysis,
         });
+        if (result.estimatedFtpWatts !== null) {
+          ftpEstimates.push({
+            date: activityDate,
+            watts: result.estimatedFtpWatts,
+          });
+        }
         return withStoredAnalysis(activity, saved, program, activityFeedback);
       } catch (err) {
         // A revoked/invalid key affects every activity; surface it instead of
@@ -249,6 +288,18 @@ export async function loadAnalyzedActivities(options: {
     },
   );
 
+  // Apply estimates oldest first so a newer activity cannot be removed by an
+  // older one that happened to finish its LLM call later.
+  for (const estimate of ftpEstimates.sort((a, b) =>
+    a.date.localeCompare(b.date),
+  )) {
+    try {
+      await recordCoachFtp({ userId: options.userId, ...estimate });
+    } catch (err) {
+      console.error("[metrics] could not store an activity FTP estimate:", err);
+    }
+  }
+
   const feed: ActivityFeed = {
     model: settings.model,
     activities: analysed.map((activity) => withActivityLoad(activity, loads)),
@@ -274,6 +325,24 @@ export async function loadUserActivityTrainingLoads(
     tssByDate.set(date, tss);
   }
   return buildActivityTrainingLoads(activities, timeline, tssByDate);
+}
+
+/**
+ * Pulls Garmin body-composition weigh-ins into the metric time series. A
+ * failure here must not fail the activity feed: body data is supplementary.
+ */
+async function syncBodyMetrics(
+  userId: number,
+  credentials: { username: string; password: string },
+): Promise<void> {
+  try {
+    const snapshot = await syncGarminMetrics(credentials);
+    await recordGarminBodyMetrics(userId, snapshot.metrics);
+    await recordGarminFtp(userId, snapshot.ftp);
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    console.error(`[garmin] could not sync body metrics: ${detail}`);
+  }
 }
 
 /** Attaches the day's resolved training load to an activity for the page. */

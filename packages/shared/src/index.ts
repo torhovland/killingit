@@ -87,6 +87,7 @@ export {
 export {
   analyzedActivitiesResponseSchema,
   analyzedActivitySchema,
+  coachAnalysisResultSchema,
   coachAnalysisSchema,
   llmCallDetailSchema,
   llmCallMessageSchema,
@@ -103,6 +104,7 @@ export {
   type AnalyzedActivitiesResponse,
   type AnalyzedActivity,
   type CoachAnalysis,
+  type CoachAnalysisResult,
   type LlmCallDetail,
   type LlmCallMessage,
   type LlmCallSummary,
@@ -210,6 +212,27 @@ export {
   type FormZone,
   type TrainingLoad,
 } from "./trainingLoad.js";
+
+export {
+  athleteMetricSchema,
+  bestFitSlope,
+  fitnessBodySchema,
+  fitnessMetricPointSchema,
+  garminBodyMetricSampleSchema,
+  garminFtpSampleSchema,
+  garminMetricsResponseSchema,
+  interpolateMetricSeries,
+  metricPointSchema,
+  metricSourceSchema,
+  type AthleteMetric,
+  type FitnessBody,
+  type FitnessMetricPoint,
+  type GarminBodyMetricSample,
+  type GarminFtpSample,
+  type GarminMetricsResponse,
+  type MetricPoint,
+  type MetricSource,
+} from "./metrics.js";
 
 export {
   DEFAULT_FITNESS_RANGE,

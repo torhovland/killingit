@@ -52,6 +52,14 @@ function history(
       { date: "2026-10-21", watts: 250 },
       { date: "2026-10-22", watts: 255 },
     ],
+    body: {
+      weight: [
+        { date: "2026-10-20", value: 78.2 },
+        { date: "2026-10-21", value: 78.1 },
+        { date: "2026-10-22", value: 78.0 },
+      ],
+      bodyFat: [{ date: "2026-10-20", value: 18.4 }],
+    },
     ...overrides,
   };
 }
@@ -137,6 +145,39 @@ describe("FitnessView", () => {
     );
     expect(todayPanel).toContain("Estimated FTP 255 W");
     expect(html).toContain('data-testid="ftp-chart"');
+  });
+
+  it("shows body weight and body fat when the athlete has measurements", () => {
+    const html = view();
+
+    expect(html).toContain('data-testid="body-chart"');
+    expect(html).toContain("Weight (kg)");
+    expect(html).toContain("Body fat (%)");
+    expect(html).toContain('data-series="weight"');
+    expect(html).toContain('data-series="body-fat"');
+  });
+
+  it("hides the body chart without any measurements", () => {
+    const html = view({
+      history: history({ body: { weight: [], bodyFat: [] } }),
+    });
+
+    expect(html).not.toContain('data-testid="body-chart"');
+  });
+
+  it("shows only weight when there is no body-fat data", () => {
+    const html = view({
+      history: history({
+        body: {
+          weight: [{ date: "2026-10-20", value: 78.2 }],
+          bodyFat: [],
+        },
+      }),
+    });
+
+    expect(html).toContain('data-testid="body-chart"');
+    expect(html).toContain("Weight (kg)");
+    expect(html).not.toContain("Body fat (%)");
   });
 
   it("hides the FTP chart and the estimate when the athlete has no FTP", () => {

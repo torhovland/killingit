@@ -183,6 +183,13 @@
       "when": 1793168567298,
       "tag": "0025_absurd_catseye",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1793171173542,
+      "tag": "0026_ancient_deathbird",
+      "breakpoints": true
     }
   ]
 }

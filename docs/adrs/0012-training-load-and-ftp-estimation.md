@@ -81,3 +81,14 @@ deterministically would lose the model's judgement for sessions without power.
 - The feature is gated on the athlete stating an FTP. Without one, the plan
   still shows coach-estimated TSS and the load numbers; only the FTP-derived
   pieces are hidden.
+
+## Amendment (2026-10-28)
+
+FTP is now stored in the `athlete_metrics` time series rather than derived only
+from free text at read time. Body weight and body-fat percentage use the same
+table, seeded from the Garmin body-composition and historic-FTP sync. Each point
+records whether it is a `user`, `garmin`, or `coach` value. Activity analyses and
+plan generations return a structured FTP estimate that is written back to the
+series; a newer estimate removes later coach points but never an athlete
+measurement. Plan and activity prompts receive the FTP history. See
+`docs/specs/body-metrics.md`.

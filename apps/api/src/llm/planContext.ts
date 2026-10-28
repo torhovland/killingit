@@ -4,6 +4,7 @@ import {
   type BikeWorkout,
   type BlockPlan,
   type DailyWeather,
+  type MetricPoint,
   type SeasonPlan,
   type WeekPlan,
 } from "@killingit/shared";
@@ -100,6 +101,8 @@ export interface PlanContextInput {
   locationName?: string | null;
   /** The FTP stated in the athlete's profile, when they gave one. */
   athleteFtpWatts?: number | null;
+  /** The stored FTP time series, oldest first, including coach estimates. */
+  ftpHistory?: readonly Pick<MetricPoint, "date" | "value" | "source">[];
 }
 
 /** Renders the athlete's profile for a prompt. */
@@ -164,7 +167,14 @@ export function formatPlanContext(input: PlanContextInput): string[] {
   if (input.athleteFtpWatts !== undefined && input.athleteFtpWatts !== null) {
     lines.push(
       "",
-      `Athlete FTP: ${input.athleteFtpWatts} W (the latest FTP the athlete stated, including any revised test result). Use this as the baseline for the week-by-week FTP estimate and for TSS.`,
+      `Athlete FTP: ${input.athleteFtpWatts} W (the latest FTP the athlete stated or the coach estimated as of today). Use this as the baseline for the week-by-week FTP estimate and for TSS.`,
+    );
+  }
+  if (input.ftpHistory !== undefined && input.ftpHistory.length > 0) {
+    lines.push(
+      "",
+      'FTP history (oldest first; "user" values are measurements the athlete stated, "garmin" values are synced measurements, and "coach" values are earlier estimates):',
+      ...formatFtpHistory(input.ftpHistory),
     );
   }
   lines.push(
@@ -352,6 +362,18 @@ function formatAthleteAnswer(entry: AthleteAnswerContext): string {
     return `- ${label}: (skipped)`;
   }
   return `- ${label}: (not answered)`;
+}
+
+/** The most recent FTP points, oldest first, as a compact prompt table. */
+function formatFtpHistory(
+  points: readonly Pick<MetricPoint, "date" | "value" | "source">[],
+): string[] {
+  return points
+    .slice(-60)
+    .map(
+      (point) =>
+        `- ${point.date}: ${Math.round(point.value)} W (${point.source})`,
+    );
 }
 
 function formatActivity(

@@ -38,11 +38,12 @@ the API invokes them with an OIDC identity token (see the root README).
 
 ## Endpoints
 
-| Method | Path            | Body                   | Response                 |
-| ------ | --------------- | ---------------------- | ------------------------ |
-| `POST` | `/authenticate` | `{username, password}` | 204 (or 401/403/429/502) |
-| `POST` | `/sync`         | `{username, password}` | `{ activities: [...] }`  |
-| `GET`  | `/health`       | —                      | `{status: "ok"}`         |
+| Method | Path            | Body                   | Response                         |
+| ------ | --------------- | ---------------------- | -------------------------------- |
+| `POST` | `/authenticate` | `{username, password}` | 204 (or 401/403/429/502)         |
+| `POST` | `/sync`         | `{username, password}` | `{ activities: [...] }`          |
+| `POST` | `/metrics`      | `{username, password}` | `{ metrics: [...], ftp: [...] }` |
+| `GET`  | `/health`       | —                      | `{status: "ok"}`                 |
 
 The Bun API talks to this service via `GARMIN_SIDECAR_URL` (default
 `http://localhost:8000`).
@@ -65,6 +66,11 @@ pytest
 - The `/sync` activities are normalized to the shared `Activity` shape
   (`id`, `name`, `type`, `startDate` ISO-8601 UTC, `distance` m, `movingTime` s,
   `elapsedTime` s, `totalElevationGain` m) plus a `samples` timeseries.
+- The `/metrics` response contains one `{ date, weightKg?, bodyFatPercent? }`
+  entry per weigh-in in the same 42-day window, plus a `ftp` list of
+  `{ date, watts }` samples from Garmin's historic cycling FTP. Weight is always
+  kilograms (pounds and grams are converted) and body fat is always a
+  percentage. A failed FTP fetch leaves the body measurements intact.
 - Each sample is built from Garmin's `get_activity_details()` metrics and
   contains a UTC `timestamp` plus any recorded channels: `latitude`,
   `longitude`, `heartRate` (bpm), `power` (W), `temperature` (°C), `speed`

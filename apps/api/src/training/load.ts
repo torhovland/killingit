@@ -33,6 +33,8 @@ export interface TrainingLoadContext {
   weeklyNote?: string | null | undefined;
   weeklyNoteUpdatedAt?: Date | null | undefined;
   periodReviews?: readonly PeriodReviewContext[] | undefined;
+  /** The stored FTP time series, when the caller has already loaded it. */
+  ftpTimeline?: FtpTimeline | null | undefined;
 }
 
 interface LoadedWeek {
@@ -56,15 +58,17 @@ export function applyTrainingLoad(
   plan: CoachPlan,
   context: TrainingLoadContext,
 ): CoachPlan {
-  const timeline = buildFtpTimeline({
-    answers: context.answers,
-    answersUpdatedAt: context.answersUpdatedAt ?? null,
-    manualActivities: context.manualActivities,
-    activityComments: context.activityComments,
-    weeklyNote: context.weeklyNote,
-    weeklyNoteUpdatedAt: context.weeklyNoteUpdatedAt ?? null,
-    periodReviews: context.periodReviews,
-  });
+  const timeline =
+    context.ftpTimeline ??
+    buildFtpTimeline({
+      answers: context.answers,
+      answersUpdatedAt: context.answersUpdatedAt ?? null,
+      manualActivities: context.manualActivities,
+      activityComments: context.activityComments,
+      weeklyNote: context.weeklyNote,
+      weeklyNoteUpdatedAt: context.weeklyNoteUpdatedAt ?? null,
+      periodReviews: context.periodReviews,
+    });
   const baseFtpWatts = timeline.latest?.watts ?? null;
   const floorAtBase = timeline.latest?.fromRevision ?? false;
   const activitiesByDate = groupActivitiesByDate(context.activities);

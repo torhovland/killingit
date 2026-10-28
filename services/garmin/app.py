@@ -7,6 +7,7 @@ Python runtime to the main backend (see ADR 0003 amendment).
 Endpoints:
   POST /authenticate   { "username", "password" } -> 204 (or 401/403/429/502)
   POST /sync           { "username", "password" } -> { "activities": [...] }
+  POST /metrics        { "username", "password" } -> { "metrics": [...] }
   GET  /health         -> {"status": "ok"}
 
 Garmin rate-limits repeated SSO logins aggressively (429), so the sidecar
@@ -145,6 +146,193 @@ def _sync(credentials: Credentials) -> list[dict]:
         raise _RateLimitedError(
             "Garmin is rate limiting requests. Wait a few minutes and try again."
         ) from exc
+
+
+def _sync_metrics(credentials: Credentials) -> dict:
+    """Fetch body composition and FTP history for the same sync window.
+
+    Garmin returns weight, body-fat percentage, and other scale data per
+    weigh-in. Only the two values the Fitness chart needs are normalized; a
+    missing body-fat value is left out instead of being invented. The historic
+    cycling FTP is fetched separately and treated as supplementary: a failure
+    there does not lose the body measurements.
+    """
+    garmin = _login(credentials)
+    startdate, enddate = _date_window()
+
+    try:
+        payload = garmin.get_body_composition(startdate, enddate)
+    except GarminConnectTooManyRequestsError as exc:
+        raise _RateLimitedError(
+            "Garmin is rate limiting requests. Wait a few minutes and try again."
+        ) from exc
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("Garmin body composition fetch failed")
+        raise _UpstreamError("Garmin body composition fetch failed") from exc
+
+    return {
+        "metrics": _to_body_metrics(payload or {}),
+        "ftp": _sync_ftp_history(garmin, startdate, enddate),
+    }
+
+
+def _sync_ftp_history(garmin, startdate: str, enddate: str) -> list[dict]:
+    """Fetch and normalize Garmin's historic cycling FTP, or [] on failure."""
+    try:
+        payload = garmin.get_functional_threshold_power_range(
+            startdate,
+            enddate,
+            sport="CYCLING",
+            aggregation="daily",
+        )
+    except Exception:  # noqa: BLE001 - supplementary data
+        logger.exception("Garmin FTP history fetch failed")
+        return []
+    return _to_ftp_history(payload)
+
+
+def _to_ftp_history(payload) -> list[dict]:
+    """Normalize Garmin's FTP range response into dated watt samples."""
+    samples: dict[str, dict] = {}
+    for raw in _ftp_records(payload):
+        if not isinstance(raw, dict):
+            continue
+        date = _metric_date(raw)
+        watts = _ftp_watts(raw)
+        if date is None or watts is None:
+            continue
+        samples[date] = {"date": date, "watts": watts}
+    return [samples[date] for date in sorted(samples)]
+
+
+def _ftp_records(payload) -> list:
+    """Return the list of FTP records from Garmin's several response shapes."""
+    if isinstance(payload, list):
+        return payload
+    if not isinstance(payload, dict):
+        return []
+    for key in (
+        "functionalThresholdPowerList",
+        "functionalThresholdPower",
+        "ftpList",
+        "values",
+        "series",
+        "data",
+        "items",
+        "records",
+        "dailyValues",
+    ):
+        value = payload.get(key)
+        if isinstance(value, list):
+            return value
+    return [payload]
+
+
+def _ftp_watts(raw: dict) -> int | None:
+    """Read a plausible FTP in watts from a Garmin FTP record."""
+    for key in (
+        "functionalThresholdPower",
+        "ftp",
+        "watts",
+        "value",
+        "thresholdPower",
+    ):
+        value = raw.get(key)
+        if isinstance(value, dict):
+            value = value.get("value")
+        number = _finite_or_none(value)
+        if number is not None and 50 <= number <= 2000:
+            return round(number)
+    return None
+
+
+def _to_body_metrics(payload: dict) -> list[dict]:
+    """Normalize Garmin's body-composition payload into daily samples."""
+    samples: list[dict] = []
+    seen_dates: set[str] = set()
+    for raw in payload.get("dateWeightList") or []:
+        if not isinstance(raw, dict):
+            continue
+        date = _metric_date(raw)
+        if date is None or date in seen_dates:
+            continue
+        weight = _weight_kg(raw)
+        body_fat = _body_fat_percent(raw)
+        if weight is None and body_fat is None:
+            continue
+        sample = {"date": date}
+        if weight is not None:
+            sample["weightKg"] = weight
+        if body_fat is not None:
+            sample["bodyFatPercent"] = body_fat
+        samples.append(sample)
+        seen_dates.add(date)
+    return sorted(samples, key=lambda sample: sample["date"])
+
+
+def _metric_date(raw: dict) -> str | None:
+    """Read a YYYY-MM-DD date from a Garmin weigh-in entry."""
+    for key in ("calendarDate", "date"):
+        value = raw.get(key)
+        if isinstance(value, str) and len(value) >= 10:
+            candidate = value[:10]
+            if _is_plain_date(candidate):
+                return candidate
+    for key in ("sampleTimeGMT", "timestampGMT", "gmtTimestamp", "dateTimestamp"):
+        value = raw.get(key)
+        if isinstance(value, str):
+            candidate = value[:10]
+            if _is_plain_date(candidate):
+                return candidate
+        milliseconds = _finite_or_none(value)
+        if milliseconds is not None:
+            try:
+                return datetime.fromtimestamp(milliseconds / 1000, tz=UTC).date().isoformat()
+            except (OverflowError, OSError, ValueError):
+                continue
+    return None
+
+
+def _is_plain_date(value: str) -> bool:
+    try:
+        datetime.strptime(value, "%Y-%m-%d")
+    except ValueError:
+        return False
+    return True
+
+
+def _weight_kg(raw: dict) -> float | None:
+    """Normalize Garmin's weight to kilograms."""
+    value = _finite_or_none(raw.get("weight"))
+    if value is None:
+        value = _finite_or_none(raw.get("value"))
+    if value is None or value <= 0:
+        return None
+    unit = str(raw.get("unitKey") or raw.get("weightUnit") or "").lower()
+    if unit in ("lb", "lbs", "pound", "pounds"):
+        value *= 0.45359237
+    elif unit in ("g", "gram", "grams"):
+        value /= 1000
+    elif value > 500:
+        # Garmin's date-range payload commonly reports grams without a unit.
+        value /= 1000
+    return round(value, 2)
+
+
+def _body_fat_percent(raw: dict) -> float | None:
+    """Normalize a body-fat value to a percentage."""
+    value = _finite_or_none(raw.get("bodyFat"))
+    if value is None:
+        value = _finite_or_none(raw.get("percentFat"))
+    if value is None:
+        value = _finite_or_none(raw.get("bodyFatPercent"))
+    if value is None or value <= 0:
+        return None
+    if value <= 1:
+        value *= 100
+    if value > 75:
+        return None
+    return round(value, 1)
 
 
 def _samples_for(garmin, activity_id) -> list[dict]:
@@ -320,6 +508,16 @@ def authenticate(credentials: Credentials):
 def sync(credentials: Credentials) -> dict:
     try:
         return {"activities": _sync(credentials)}
+    except HTTPException:
+        raise
+    except Exception as exc:  # noqa: BLE001 - translated to HTTP below
+        raise _http_error(exc) from exc
+
+
+@app.post("/metrics")
+def metrics(credentials: Credentials) -> dict:
+    try:
+        return {"metrics": _sync_metrics(credentials)}
     except HTTPException:
         raise
     except Exception as exc:  # noqa: BLE001 - translated to HTTP below
