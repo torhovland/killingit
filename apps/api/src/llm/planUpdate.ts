@@ -110,7 +110,7 @@ export async function generateTargetDayUpdate(
     withWeekDates(targetDayUpdateSchema, weekStartDate),
     provider,
     credentials,
-    buildDailyUpdateMessages(input),
+    buildDailyUpdateMessages({ ...input, detailThrough: input.today }),
     PLAN_MAX_TOKENS,
     {
       repairHint: dailyDateHint(input.today, weekStartDate),

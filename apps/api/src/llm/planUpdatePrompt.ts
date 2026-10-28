@@ -8,6 +8,7 @@ import {
   formatSeasonPlan,
   formatWeekPlan,
   SESSION_PURPOSE_RULES,
+  WEEK_OUTLINE_RULES,
   type ActivityCommentContext,
   type AthleteAnswerContext,
   type ManualActivityContext,
@@ -30,6 +31,12 @@ export interface DailyUpdateInput extends BasePlanUpdateInput {
   season: SeasonPlan;
   block: BlockPlan;
   week: WeekPlan;
+  /**
+   * The last date that may carry a fully detailed workout. Defaults to
+   * tomorrow. The next-period update passes the target day so the day after it
+   * stays an outline.
+   */
+  detailThrough?: string;
 }
 
 /** Input for the weekly cascade: the new week plus the current block. */
@@ -186,7 +193,9 @@ export const DAILY_UPDATE_SYSTEM_PROMPT = `You are an expert endurance coach. Up
 
 You receive the athlete's profile, recent activities with coach analyses, program reviews, and coach replies, the current season, the current block, and the current week. You also receive manually recorded activities, comments on activities, a general weekly note, and coach summaries of completed weeks and blocks with the athlete's feedback on them. Use all of these to see what the athlete actually completed or missed, how they responded, whether today should be a workout or a rest day, and what constraints or feedback they have for the week. ${ACTIVITY_COMMENT_RULE} Respect the athlete's available time and constraints. The weekly note is a hard constraint: if it says the athlete cannot train on a specific day, move or cancel the session on that day. If a manually recorded activity indicates significant fatigue or extra load, adjust the upcoming sessions accordingly.
 
-Keep the week's start date and exactly seven sessions. For days before today, do not propose new workouts: describe what the athlete actually did using the recent activities and set each status to "completed", "partial", "missed", or "rest". If an activity has already been recorded for today, today's plan must describe that completed activity, using the athlete's latest comment to correct the summary, instead of proposing another workout. The today object must match today's date and must be present as the matching session in week.sessions. Give today's plan and today's week session the same status: "completed" when the recorded activity substantially matched the planned session, or "partial" when only a meaningful part was done. Allow reasonable slack: a 60-minute ride recorded as 50 minutes is still completed, and power or pace zones that are close but not exact do not make a session partial. Revise the remaining sessions so the week stays coherent with the block's focus and the athlete's current fatigue. Include a rationale for today's session and for the week's overall structure.
+Keep the week's start date and exactly seven sessions. For days before today, do not propose new workouts: describe what the athlete actually did using the recent activities and set each status to "completed", "partial", "missed", or "rest". If an activity has already been recorded for today, today's plan must describe that completed activity, using the athlete's latest comment to correct the summary, instead of proposing another workout. The today object must match today's date and must be present as the matching session in week.sessions. Give today's plan and today's week session the same status: "completed" when the recorded activity substantially matched the planned session, or "partial" when only a meaningful part was done. Allow reasonable slack: a 60-minute ride recorded as 50 minutes is still completed, and power or pace zones that are close but not exact do not make a session partial. Revise the remaining sessions so the week stays coherent with the block's focus and the athlete's current fatigue, keeping every day after tomorrow as a short outline. Include a rationale for today's session and for the week's overall structure.
+
+${WEEK_OUTLINE_RULES}
 
 ${WEATHER_PLANNING_RULES}
 
@@ -213,6 +222,8 @@ ${JSON_RULES}
 export const WEEKLY_UPDATE_SYSTEM_PROMPT = `You are an expert endurance coach. Create the week starting on the supplied week start date and revise the block plan for an amateur athlete. Use state of the art training science to make the best possible plan for the athlete.
 
 You receive the athlete's profile, recent activities with coach analyses, program reviews, and coach replies, the current season, and the current block. You also receive manually recorded activities, comments on activities, a general weekly note, and coach summaries of completed weeks and blocks with the athlete's feedback on them. Use all of these to judge what the athlete completed, how they responded, how the block's progression should be adjusted, and what constraints or feedback they have for the week. ${ACTIVITY_COMMENT_RULE} The weekly note is a hard constraint: if it says the athlete cannot train on a specific day, move or cancel the session on that day. If a manually recorded activity indicates significant fatigue or extra load, adjust the week's sessions accordingly. The new week must fit the block's focus and progression, must start on the supplied week start date, and must contain exactly seven sessions. For days before today, do not propose new workouts: describe what actually happened and set each status to "completed", "partial", "missed", or "rest". Allow reasonable slack when judging completion: a session with a slightly shorter duration than planned (for example a 60-minute ride recorded as 50 minutes) or slightly missed power/pace zones is still "completed"; use "partial" only when a meaningful part of the session was not done. Include a rationale for the week and for the revised block.
+
+${WEEK_OUTLINE_RULES}
 
 ${WEATHER_PLANNING_RULES}
 
@@ -284,6 +295,7 @@ export function buildDailyUpdateMessages(input: DailyUpdateInput): {
 export function buildDailyUpdatePrompt(input: DailyUpdateInput): string {
   const weekStart = startOfWeek(input.today);
   const weekEnd = addDays(weekStart, 6);
+  const detailThrough = input.detailThrough ?? addDays(input.today, 1);
   return [
     ...formatPlanContext(input),
     "",
@@ -297,6 +309,8 @@ export function buildDailyUpdatePrompt(input: DailyUpdateInput): string {
     formatWeekPlan(input.week),
     "",
     `The week must start on ${weekStart} and cover ${weekStart} through ${weekEnd}. Keep exactly seven sessions with those dates, and make sure one session has the date ${input.today}; the "today" object must use that same date.`,
+    "",
+    `Fully detail the sessions dated ${input.today} through ${detailThrough}. Keep every later session in the week as a short outline.`,
     "",
     'Create today\'s session and revise this week\'s remaining sessions. Return one JSON object whose top-level keys are exactly "today", "tomorrow", "week", and "bodyMetrics".',
   ].join("\n");
@@ -316,6 +330,7 @@ export function buildWeeklyUpdatePrompt(input: WeeklyUpdateInput): string {
   return [
     ...formatPlanContext(input),
     `Week start date: ${input.weekStartDate}. The week must contain exactly seven sessions dated ${input.weekStartDate} through ${addDays(input.weekStartDate, 6)}.`,
+    "Create all seven days as short outlines; the following daily update will turn each day into a concrete workout when it arrives.",
     ...(input.keepBlockStartDate !== undefined
       ? [
           "",

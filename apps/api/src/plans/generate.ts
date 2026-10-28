@@ -39,6 +39,7 @@ import type { LlmProvider } from "../llm/openrouter.js";
 import { applyTrainingLoad } from "../training/load.js";
 import { ftpBaselineAt, type FtpTimeline } from "../training/ftp.js";
 import { addDays, startOfWeek } from "./dates.js";
+import { outlineFutureSessions } from "./outline.js";
 import { blockFor, promoteNextPeriod, weekFor } from "./periods.js";
 import { planIsStale, planPending } from "./status.js";
 import { PLAN_GENERATION_STEPS } from "./steps.js";
@@ -319,7 +320,10 @@ export async function runPlanGeneration(
       };
       const generated = withTrainingLoad(
         applyForecastToPlan(
-          dropUnplacedTomorrow(completed, input.includeTomorrow === true),
+          dropUnplacedTomorrow(
+            outlineFutureSessions(completed, today),
+            input.includeTomorrow === true,
+          ),
           forecastForStorage(context),
         ),
         context,
@@ -541,7 +545,10 @@ async function advancePlan(
   };
   const finalPlan = withTrainingLoad(
     applyForecastToPlan(
-      dropUnplacedTomorrow(plan, input.includeTomorrow === true),
+      dropUnplacedTomorrow(
+        outlineFutureSessions(plan, today),
+        input.includeTomorrow === true,
+      ),
       forecastForStorage(context),
     ),
     context,

@@ -76,7 +76,11 @@ about a past workout, or before a suggested workout, to steer the coach.
   update an existing season by default. See
   `docs/specs/season-regeneration.md` and ADR 0011. The lazy day → week → block
   cascade and the plan UI are documented in
-  `docs/specs/coach-plan-lifecycle.md`. Indoor bike workouts with power targets
+  `docs/specs/coach-plan-lifecycle.md`. Week and next-week plans are outlines:
+  only today's and tomorrow's sessions are fully detailed, while later days keep
+  a brief session type, focus, approximate duration and intensity, estimated
+  TSS, and the week's estimated FTP until the daily update details them. See
+  `docs/specs/week-outline.md`. Indoor bike workouts with power targets
   carry a structured `bikeWorkout` and can be downloaded as ZWO files from the
   Day tab; see `docs/specs/coach-plan-lifecycle.md` and
   `docs/specs/bike-workout-export.md`.

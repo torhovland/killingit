@@ -85,6 +85,14 @@ Before returning, apply the same test to every workout in the week: if you canno
 If today or tomorrow is a rest day, explain in "rationale" why rest is the best choice today; no optionality assessment is needed.`;
 
 /**
+ * Shared instruction for the level of detail in a week plan. A week is a
+ * shape, not seven finished workouts: only today and tomorrow need a concrete
+ * prescription, because the daily update will detail each later day when it
+ * arrives.
+ */
+export const WEEK_OUTLINE_RULES = `Treat the week as an outline, not seven finished workouts. Fully detail only the sessions the request says need detail: a concrete description, and for an indoor bike workout with power targets a "bikeWorkout". Keep every other future day as a short outline: the session type, a brief title naming the kind of session, a one-sentence description of its intent, an approximate duration and intensity, and an "estimatedTss". Do not prescribe detailed intervals, repetitions, paces, or power targets for outline days, and set "bikeWorkout" to null there; the daily update will turn an outline into a concrete workout when that day arrives. The outline must still show the week's shape: which days are long, hard, easy, or rest. Set the week's "estimatedFtpWatts" from the athlete's profile and the plan's progression, and estimate each outline day's "estimatedTss" against it.`;
+
+/**
  * Shared instruction for the body-composition points the coach reports. The
  * app stores them in the same daily time series as Garmin's weigh-ins, so the
  * athlete sees a weight and body-fat trend on the Fitness page even before

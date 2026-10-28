@@ -87,6 +87,21 @@ function makeWeek(startDate: string): WeekPlan {
   };
 }
 
+/** The same week with a structured workout on every day. */
+function makeBikeWeek(startDate: string): WeekPlan {
+  const week = makeWeek(startDate);
+  return {
+    ...week,
+    sessions: week.sessions.map((session) => ({
+      ...session,
+      bikeWorkout: {
+        ftpWatts: 250,
+        intervals: [{ durationSeconds: 600, powerPercent: 75 }],
+      },
+    })),
+  };
+}
+
 /**
  * A week whose days before `today` already carry their settled results, so a
  * later `applyCompletedDays` pass leaves the stored week unchanged.
@@ -444,6 +459,44 @@ describe("runPlanGeneration", () => {
     expect(generations.steps).toContain("Designing your season");
     expect(generations.steps).toContain("Designing your block");
     expect(generations.steps).toContain("Building your week");
+  });
+
+  it("keeps detailed workouts only for today and tomorrow", async () => {
+    const today = "2026-10-21";
+    const bikeWorkout = {
+      ftpWatts: 250,
+      intervals: [{ durationSeconds: 600, powerPercent: 75 }],
+    };
+    const provider = new FakeProvider({
+      ...buildResponses(today),
+      weekly: JSON.stringify({
+        week: makeBikeWeek(startOfWeek(today)),
+        block: makeBlock(),
+      }),
+      daily: JSON.stringify({
+        today: { ...makeDay(today), bikeWorkout },
+        week: makeBikeWeek(startOfWeek(today)),
+      }),
+    });
+
+    const saved = await runPlanGeneration({
+      userId: 1,
+      today,
+      plan: null,
+      context: makeContext(provider),
+      plans: new MemoryPlanStore(null),
+      generations: new MemoryGenerationStore(),
+    });
+
+    const sessions = saved?.plan.week.sessions ?? [];
+    expect(
+      sessions.find((session) => session.date === "2026-10-22")?.bikeWorkout,
+    ).not.toBeNull();
+    expect(
+      sessions
+        .filter((session) => session.date > "2026-10-22")
+        .every((session) => session.bikeWorkout == null),
+    ).toBe(true);
   });
 
   it("stores the body metrics the coach found in the input", async () => {

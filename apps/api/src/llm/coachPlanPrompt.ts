@@ -4,6 +4,7 @@ import {
   BODY_METRIC_RULES,
   formatPlanContext,
   SESSION_PURPOSE_RULES,
+  WEEK_OUTLINE_RULES,
   type ActivityCommentContext,
   type AthleteAnswerContext,
   type ManualActivityContext,
@@ -22,7 +23,7 @@ import {
  * callers can invalidate cached plans the same way activity analyses are
  * versioned.
  */
-export const COACH_PLAN_PROMPT_VERSION = 7;
+export const COACH_PLAN_PROMPT_VERSION = 8;
 
 export type CoachPlanAthleteAnswer = AthleteAnswerContext;
 export type CoachPlanActivity = RecentActivityContext;
@@ -138,6 +139,10 @@ Create four consistent levels of the plan:
 3. week — the first week of that block, with one session for each day, a rationale, and per-session status.
 4. today — the concrete workout or rest for today, with a rationale and an optionality assessment.
 5. tomorrow — the suggested workout or rest for tomorrow, with a rationale and an optionality assessment.
+
+${WEEK_OUTLINE_RULES}
+
+Fully detail today's and tomorrow's sessions; keep every later day in the week as a short outline.
 
 ${SESSION_PURPOSE_RULES}
 
