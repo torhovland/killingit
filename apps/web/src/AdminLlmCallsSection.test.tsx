@@ -71,6 +71,28 @@ describe("LlmCallsView", () => {
     expect(html).toContain("Prompt tokens");
   });
 
+  it("puts the selected call beside the list instead of below it", () => {
+    const html = view();
+
+    // Two columns on wide screens: the list scrolls on its own and the full
+    // prompt is visible next to it, without scrolling past the rest of the list.
+    expect(html).toContain("lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]");
+    const listIndex = html.indexOf('data-testid="llm-calls-list"');
+    const detailPaneIndex = html.indexOf('data-testid="llm-call-detail-pane"');
+    const detailIndex = html.indexOf('data-testid="llm-call-detail"');
+    expect(listIndex).toBeGreaterThan(-1);
+    expect(detailPaneIndex).toBeGreaterThan(listIndex);
+    expect(detailIndex).toBeGreaterThan(detailPaneIndex);
+    expect(html).not.toContain("Select a prompt to read it in full.");
+  });
+
+  it("prompts the admin to pick a call when none is selected", () => {
+    const html = view({ selected: null });
+
+    expect(html).toContain("Select a prompt to read it in full.");
+    expect(html).not.toContain('data-testid="llm-call-detail"');
+  });
+
   it("shows an empty state when nothing has been logged", () => {
     const html = view({ calls: [], selected: null });
 
