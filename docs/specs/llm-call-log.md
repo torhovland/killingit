@@ -75,6 +75,13 @@ succeeded/failed status. Selecting a row fetches the full call and shows the
 metadata, each message by role, and the response or error. A refresh button
 reloads the newest 50.
 
+On wide screens the log is a list/detail split: the list keeps its own scroll
+area in a left column and the selected call is rendered beside it, so reading a
+prompt never means scrolling past the remaining list entries. The section uses
+the full content width of the Admin settings page; the other admin sections keep
+their narrower reading measure. Below the `lg` breakpoint the list and the
+detail stack, and an empty pane invites the admin to pick a call.
+
 ## Acceptance criteria
 
 - Every production completion attempt produces exactly one `llm_calls` row,

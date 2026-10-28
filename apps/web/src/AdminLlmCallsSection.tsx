@@ -148,7 +148,7 @@ export function LlmCallsView({
       </div>
       <p className="text-sm text-muted-foreground">
         Every prompt sent to the coach, with its response and request metadata.
-        Showing the newest {PAGE_SIZE} calls; select one to see the full text.
+        Showing the newest {PAGE_SIZE} calls; select one to read it in full.
       </p>
 
       {error && (
@@ -157,66 +157,88 @@ export function LlmCallsView({
         </p>
       )}
 
-      {loading && calls === null && (
-        <p className="text-sm text-muted-foreground">Loading prompts…</p>
-      )}
+      {/* The list and the selected call sit side by side on wide screens, so
+          reading a prompt never means scrolling past the rest of the list. */}
+      <div className="grid items-start gap-3 lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
+        <div
+          className="flex min-w-0 flex-col gap-3"
+          data-testid="llm-calls-list"
+        >
+          {loading && calls === null && (
+            <p className="text-sm text-muted-foreground">Loading prompts…</p>
+          )}
 
-      {!loading && calls !== null && calls.length === 0 && (
-        <p className="text-sm text-muted-foreground">
-          No prompts have been sent yet.
-        </p>
-      )}
+          {!loading && calls !== null && calls.length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              No prompts have been sent yet.
+            </p>
+          )}
 
-      {calls !== null && calls.length > 0 && (
-        <ul className="divide-y overflow-hidden rounded border bg-card">
-          {calls.map((call) => (
-            <li key={call.id}>
-              <button
-                type="button"
-                className={`flex w-full flex-col gap-1 px-3 py-2 text-left hover:bg-muted ${
-                  call.id === selectedId ? "bg-accent" : ""
-                }`}
-                onClick={() => onSelect(call.id)}
-                aria-current={call.id === selectedId ? "true" : undefined}
-              >
-                <span className="flex flex-wrap items-baseline gap-x-2">
-                  <span className="font-medium">
-                    {LLM_PROMPT_KIND_LABELS[call.kind]}
-                  </span>
-                  <span
-                    className="truncate text-xs text-muted-foreground"
-                    title={call.model}
-                  >
-                    {call.model}
-                  </span>
-                  <span
-                    className={`ml-auto text-xs ${
-                      call.failed ? "text-destructive" : "text-muted-foreground"
+          {calls !== null && calls.length > 0 && (
+            <ul className="max-h-[60vh] divide-y overflow-y-auto rounded border bg-card lg:max-h-[70vh]">
+              {calls.map((call) => (
+                <li key={call.id}>
+                  <button
+                    type="button"
+                    className={`flex w-full flex-col gap-1 px-3 py-2 text-left hover:bg-muted ${
+                      call.id === selectedId ? "bg-accent" : ""
                     }`}
+                    onClick={() => onSelect(call.id)}
+                    aria-current={call.id === selectedId ? "true" : undefined}
                   >
-                    {call.failed ? "Failed" : "Succeeded"}
-                  </span>
-                </span>
-                <span className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
-                  <span>
-                    {formatDateTime(call.createdAt, browserTimeZone())}
-                  </span>
-                  <span className="truncate" title={call.userLabel}>
-                    {call.userLabel}
-                  </span>
-                  <span>{call.durationMs} ms</span>
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+                    <span className="flex flex-wrap items-baseline gap-x-2">
+                      <span className="font-medium">
+                        {LLM_PROMPT_KIND_LABELS[call.kind]}
+                      </span>
+                      <span
+                        className="truncate text-xs text-muted-foreground"
+                        title={call.model}
+                      >
+                        {call.model}
+                      </span>
+                      <span
+                        className={`ml-auto text-xs ${
+                          call.failed
+                            ? "text-destructive"
+                            : "text-muted-foreground"
+                        }`}
+                      >
+                        {call.failed ? "Failed" : "Succeeded"}
+                      </span>
+                    </span>
+                    <span className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+                      <span>
+                        {formatDateTime(call.createdAt, browserTimeZone())}
+                      </span>
+                      <span className="truncate" title={call.userLabel}>
+                        {call.userLabel}
+                      </span>
+                      <span>{call.durationMs} ms</span>
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
 
-      {detailLoading && (
-        <p className="text-sm text-muted-foreground">Loading call…</p>
-      )}
+        <div
+          className="flex min-w-0 flex-col gap-3"
+          data-testid="llm-call-detail-pane"
+        >
+          {detailLoading && (
+            <p className="text-sm text-muted-foreground">Loading call…</p>
+          )}
 
-      {selected !== null && <LlmCallDetailView call={selected} />}
+          {selected !== null && <LlmCallDetailView call={selected} />}
+
+          {selected === null && !detailLoading && (calls?.length ?? 0) > 0 && (
+            <p className="rounded border border-dashed bg-card px-3 py-6 text-center text-sm text-muted-foreground">
+              Select a prompt to read it in full.
+            </p>
+          )}
+        </div>
+      </div>
     </section>
   );
 }

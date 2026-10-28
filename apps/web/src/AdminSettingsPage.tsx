@@ -9,14 +9,20 @@ import { DevDatePicker } from "./DevDatePicker";
 export function AdminSettingsPage() {
   return (
     <section
-      className="flex w-full max-w-3xl flex-col gap-6 text-left"
+      className="flex w-full max-w-5xl flex-col gap-6 text-left"
       data-testid="admin-settings"
     >
       <h2 className="text-2xl font-semibold">Admin settings</h2>
 
-      <AdminQuestionsSection />
+      {/* The prompt log needs the wider container for its list/detail split;
+          the other sections keep a narrower reading measure. */}
+      <div className="max-w-3xl">
+        <AdminQuestionsSection />
+      </div>
       <AdminLlmCallsSection />
-      <DevDatePicker />
+      <div className="max-w-3xl">
+        <DevDatePicker />
+      </div>
     </section>
   );
 }
