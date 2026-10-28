@@ -87,6 +87,8 @@ export interface PlanRouteDependencies {
   loadActivities?: (userId: number) => Promise<ActivityFeed>;
   /** Injectable for route tests; defaults to the stored FTP time series. */
   loadFtpHistory?: PlanTriggerDependencies["loadFtpHistory"];
+  /** Injectable for route tests; defaults to the stored body metrics. */
+  loadBodyHistory?: PlanTriggerDependencies["loadBodyHistory"];
   /** Injectable for route tests; defaults to the account's stored config. */
   loadLlm?: (userId: number) => Promise<LlmClient | null>;
   /** Injectable for route tests; defaults to the database-backed loader. */
@@ -258,6 +260,9 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
               : {}),
             ...(deps.loadFtpHistory !== undefined
               ? { loadFtpHistory: deps.loadFtpHistory }
+              : {}),
+            ...(deps.loadBodyHistory !== undefined
+              ? { loadBodyHistory: deps.loadBodyHistory }
               : {}),
             ...(deps.loadLlm !== undefined ? { loadLlm: deps.loadLlm } : {}),
             ...(deps.loadCoachingInputs !== undefined

@@ -62,6 +62,8 @@ describe("analyzeActivity", () => {
     expect(result).toEqual({
       analysis: "Solid aerobic effort.",
       estimatedFtpWatts: 255,
+      weightKg: null,
+      bodyFatPercent: null,
     });
     expect(captured?.model).toBe("test/model");
     expect(captured?.apiKey).toBe("test-key");
@@ -103,6 +105,8 @@ describe("analyzeActivity", () => {
     expect(result).toEqual({
       analysis: "Solid aerobic effort.",
       estimatedFtpWatts: null,
+      weightKg: null,
+      bodyFatPercent: null,
     });
   });
 });

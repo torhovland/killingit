@@ -2,6 +2,7 @@ import type {
   AnalyzedActivity,
   AthleteLocation,
   BlockPlan,
+  BodyMetricEstimate,
   CoachPlan,
   DailyWeather,
   MetricPoint,
@@ -29,17 +30,14 @@ import { captureCompletedPeriodReviews } from "../coaching/periodReviews.js";
 import type {
   ActivityCommentContext,
   AthleteAnswerContext,
+  BodyMetricHistory,
   ManualActivityContext,
   PeriodReviewContext,
   RecentActivityContext,
 } from "../llm/planContext.js";
 import type { LlmProvider } from "../llm/openrouter.js";
 import { applyTrainingLoad } from "../training/load.js";
-import {
-  ftpBaselineAt,
-  detectFtpBaseline,
-  type FtpTimeline,
-} from "../training/ftp.js";
+import { ftpBaselineAt, type FtpTimeline } from "../training/ftp.js";
 import { addDays, startOfWeek } from "./dates.js";
 import { blockFor, promoteNextPeriod, weekFor } from "./periods.js";
 import { planIsStale, planPending } from "./status.js";
@@ -70,6 +68,8 @@ export interface PlanGenerationContext {
   ftpTimeline?: FtpTimeline | undefined;
   /** Stored FTP points, including future coach estimates, for the prompt. */
   ftpHistory?: readonly MetricPoint[] | undefined;
+  /** Stored body weight and body-fat points, for the prompt. */
+  bodyHistory?: BodyMetricHistory | undefined;
   provider: LlmProvider;
   apiKey: string;
   model: string;
@@ -96,6 +96,8 @@ export interface GeneratePlanInput {
   reviewActivities?: (plan: CoachPlan) => Promise<void>;
   /** Stores the coach's FTP estimates from a generated plan, when supplied. */
   recordFtpEstimates?: (plan: CoachPlan) => Promise<void>;
+  /** Stores the body-composition points the coach found, when supplied. */
+  recordBodyMetrics?: (points: readonly BodyMetricEstimate[]) => Promise<void>;
   /** Injectable for tests; defaults to the database-backed period review writer. */
   capturePeriodReviews?: typeof captureCompletedPeriodReviews;
   plan: StoredPlan | null;
@@ -196,6 +198,7 @@ export async function runPlanGeneration(
       await generations.update(userId, PLAN_GENERATION_STEPS.review);
       let season: SeasonPlan;
       let block: BlockPlan;
+      let foundBodyMetrics: readonly BodyMetricEstimate[] = [];
 
       if (refreshSeason && currentPlan !== null) {
         await generations.update(userId, PLAN_GENERATION_STEPS.seasonRefresh);
@@ -214,6 +217,7 @@ export async function runPlanGeneration(
           today,
         );
         block = refreshed.block;
+        foundBodyMetrics = refreshed.bodyMetrics;
         assertRefreshedSeason(
           season,
           block,
@@ -236,6 +240,10 @@ export async function runPlanGeneration(
           { ...baseContext(input), season },
         );
         block = generatedBlock.block;
+        foundBodyMetrics = mergeBodyMetrics(
+          generated.bodyMetrics,
+          generatedBlock.bodyMetrics,
+        );
       }
 
       await generations.update(userId, PLAN_GENERATION_STEPS.initialWeek);
@@ -289,6 +297,11 @@ export async function runPlanGeneration(
         tomorrow: dayUpdate.tomorrow,
         nextWeek: null,
         nextBlock: null,
+        bodyMetrics: mergeBodyMetrics(
+          foundBodyMetrics,
+          weekUpdate.bodyMetrics,
+          dayUpdate.bodyMetrics,
+        ),
       };
       const withNextPeriod =
         input.includeTomorrow === true
@@ -336,6 +349,7 @@ export async function runPlanGeneration(
       // the plan's weekly estimates afterwards so its projection wins and is
       // not deleted by those older points.
       await persistFtpEstimates(input, generated);
+      await persistBodyMetrics(input, generated);
       await generations.finish(userId);
       return saved;
     }
@@ -382,6 +396,7 @@ export async function runPlanGeneration(
       context.activitiesUpdatedAt ?? null,
     );
     await persistFtpEstimates(input, plan);
+    await persistBodyMetrics(input, plan);
     await generations.finish(userId);
     return saved;
   } catch (err) {
@@ -424,6 +439,7 @@ async function advancePlan(
       nextBlock: null,
       nextWeek: null,
       tomorrow: null,
+      bodyMetrics: mergeBodyMetrics(plan.bodyMetrics, update.bodyMetrics),
     };
     blockChanged = true;
   }
@@ -448,6 +464,7 @@ async function advancePlan(
       nextWeek: null,
       nextBlock: null,
       tomorrow: null,
+      bodyMetrics: mergeBodyMetrics(plan.bodyMetrics, update.bodyMetrics),
     };
     weekChanged = true;
   }
@@ -482,6 +499,7 @@ async function advancePlan(
       week: update.week,
       today: update.today,
       tomorrow: update.tomorrow,
+      bodyMetrics: mergeBodyMetrics(plan.bodyMetrics, update.bodyMetrics),
     };
   }
 
@@ -580,6 +598,7 @@ async function planNextPeriod(
       // Any next week was planned under the old block.
       nextWeek: null,
       tomorrow: null,
+      bodyMetrics: mergeBodyMetrics(next.bodyMetrics, update.bodyMetrics),
     };
     targetBlock = update.block;
     targetWeek = null;
@@ -613,6 +632,10 @@ async function planNextPeriod(
     next = startsNextWeek
       ? { ...next, nextWeek: update.week }
       : { ...next, week: update.week };
+    next = {
+      ...next,
+      bodyMetrics: mergeBodyMetrics(next.bodyMetrics, update.bodyMetrics),
+    };
     targetBlock = sameBlock ? update.block : next.block;
     targetWeek = update.week;
     regenerated = true;
@@ -654,6 +677,10 @@ async function planNextPeriod(
       targetWeek.startDate === next.week.startDate
         ? { ...next, week: mirrorDay(update.week, day), tomorrow: day }
         : { ...next, nextWeek: mirrorDay(update.week, day), tomorrow: day };
+    next = {
+      ...next,
+      bodyMetrics: mergeBodyMetrics(next.bodyMetrics, update.bodyMetrics),
+    };
   }
 
   return next;
@@ -947,6 +974,42 @@ async function persistFtpEstimates(
   }
 }
 
+/** Stores the body-composition points the coach found after a plan is saved. */
+async function persistBodyMetrics(
+  input: GeneratePlanInput,
+  plan: CoachPlan,
+): Promise<void> {
+  const points = plan.bodyMetrics ?? [];
+  if (!input.recordBodyMetrics || points.length === 0) {
+    return;
+  }
+  try {
+    await input.recordBodyMetrics(points);
+  } catch (err) {
+    // The plan itself is saved; the time series must not fail the build.
+    console.error("[plan] could not store body metrics:", err);
+  }
+}
+
+/**
+ * Combines the body-composition points from several coach responses into one
+ * point per date, oldest first. A point with neither value is dropped.
+ */
+function mergeBodyMetrics(
+  ...sources: readonly (readonly BodyMetricEstimate[] | undefined)[]
+): BodyMetricEstimate[] {
+  const byDate = new Map<string, BodyMetricEstimate>();
+  for (const source of sources) {
+    for (const point of source ?? []) {
+      if (point.weightKg === null && point.bodyFatPercent === null) {
+        continue;
+      }
+      byDate.set(point.date, point);
+    }
+  }
+  return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
+}
+
 /** The coach's weekly FTP estimates, keyed by the week's start date. */
 export function planFtpEstimates(
   plan: CoachPlan,
@@ -984,31 +1047,22 @@ function withTrainingLoad(
   context: PlanGenerationContext,
 ): CoachPlan {
   return applyTrainingLoad(plan, {
-    answers: context.answers,
-    answersUpdatedAt: context.answersUpdatedAt,
     activities: context.activities,
     manualActivities: context.manualActivities,
-    activityComments: context.activityComments,
-    weeklyNote: context.weeklyNote,
-    weeklyNoteUpdatedAt: context.weeklyNoteUpdatedAt ?? null,
-    periodReviews: context.periodReviews,
     ftpTimeline: context.ftpTimeline,
   });
 }
 
+/**
+ * The current FTP for prompts and TSS. It comes only from the stored metric
+ * series: the coach read the athlete's stated FTP and the API stored it, so no
+ * free text is parsed here.
+ */
 function ftpBaseline(context: PlanGenerationContext, today: string) {
-  if (context.ftpTimeline !== undefined) {
-    return ftpBaselineAt(context.ftpTimeline, today);
+  if (context.ftpTimeline === undefined) {
+    return null;
   }
-  return detectFtpBaseline({
-    answers: context.answers,
-    answersUpdatedAt: context.answersUpdatedAt,
-    manualActivities: context.manualActivities,
-    activityComments: context.activityComments,
-    weeklyNote: context.weeklyNote,
-    weeklyNoteUpdatedAt: context.weeklyNoteUpdatedAt ?? null,
-    periodReviews: context.periodReviews,
-  });
+  return ftpBaselineAt(context.ftpTimeline, today);
 }
 
 function baseContext(input: GeneratePlanInput) {
@@ -1021,6 +1075,9 @@ function baseContext(input: GeneratePlanInput) {
     athleteFtpWatts: ftpBaseline(input.context, input.today)?.watts ?? null,
     ...(input.context.ftpHistory !== undefined
       ? { ftpHistory: input.context.ftpHistory }
+      : {}),
+    ...(input.context.bodyHistory !== undefined
+      ? { bodyHistory: input.context.bodyHistory }
       : {}),
     today: input.today,
     ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),

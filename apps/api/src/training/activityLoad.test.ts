@@ -1,16 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import type { AnalyzedActivity } from "@killingit/shared";
 import { buildActivityTrainingLoads } from "./activityLoad.js";
-import { buildFtpTimeline } from "./ftp.js";
+import { buildFtpTimelineFromPoints } from "./ftp.js";
 
-const timeline = buildFtpTimeline({
-  answers: [
-    {
-      answer: "FTP is 250 W.",
-      answeredAt: new Date("2026-10-01T00:00:00Z"),
-    },
-  ],
-});
+const timeline = buildFtpTimelineFromPoints([
+  { date: "2026-10-01", value: 250, source: "user" },
+]);
 
 function activity(overrides: Partial<AnalyzedActivity> = {}): AnalyzedActivity {
   return {

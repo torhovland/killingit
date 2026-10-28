@@ -16,7 +16,7 @@ export const MAX_PROMPT_SAMPLES = 90;
  * Bump when the prompt or generation parameters change materially. Cached
  * analyses from an older version are ignored and regenerated.
  */
-export const ANALYSIS_PROMPT_VERSION = 5;
+export const ANALYSIS_PROMPT_VERSION = 6;
 
 /** The athlete's current week, used to match an activity to its planned session. */
 export interface ActivityAnalysisContext {
@@ -31,15 +31,18 @@ export interface ActivityAnalysisContext {
 export const COACH_ANALYSIS_RESPONSE_RULES = `Return only one JSON object with exactly this shape:
 {
   "analysis": "string",
-  "estimatedFtpWatts": 0
+  "estimatedFtpWatts": 0,
+  "weightKg": 0,
+  "bodyFatPercent": 0
 }
-Replace "estimatedFtpWatts" with the integer estimate in watts, or null when there is no useful evidence. Put the whole coach summary in "analysis". Do not add markdown fences, commentary, or extra fields.`;
+Replace "estimatedFtpWatts" with the integer estimate in watts, or null when there is no useful evidence. Set "weightKg" to the athlete's body weight in kilograms and "bodyFatPercent" to their body fat as a percentage only when the input for this activity states them, and to null otherwise. Put the whole coach summary in "analysis". Do not add markdown fences, commentary, or extra fields.`;
 
 const ANALYSIS_SYSTEM_PROMPT = `You are an experienced endurance coach reviewing one completed workout for an amateur athlete.
 The activity type recorded by the device is only a label and may be wrong: do not trust it. If the heart-rate data looks erratic — sudden spikes or drops that do not fit the steady effort the summary suggests — this may be a strength-training workout even when the device labelled it as running, cycling, or another endurance activity.
 When the athlete's current week plan is provided, match the workout to the planned session it best fits, then make how well it fit the plan part of the same summary. If it followed the plan reasonably well, say so warmly and encouragingly. If it did not, point out clearly what could be improved without being harsh.
 Be brief and to the point: use 2-3 sentences of plain text, cite only the most useful numbers, and finish with one actionable recommendation for the next session. Do not use headings, bullets, markdown, or a separate plan-fit section.
 Also estimate the athlete's FTP after this workout when the recorded effort supports it. Use the supplied FTP history as the baseline, respect its trend, and never invent a large jump. Set "estimatedFtpWatts" to null when the activity gives no useful evidence (for example a rest day, a strength session, or a workout with no power or hard aerobic effort).
+When the athlete's comment on this activity states their body weight or body-fat percentage, report it in "weightKg" and "bodyFatPercent". Report only numbers the input gives: never estimate a weigh-in from the workout data.
 
 ${COACH_ANALYSIS_RESPONSE_RULES}`;
 

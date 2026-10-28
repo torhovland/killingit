@@ -146,6 +146,15 @@ describe("buildActivityAnalysisPrompt", () => {
     );
   });
 
+  it("asks for body weight and body fat from the athlete's own words", () => {
+    const system =
+      buildActivityAnalysisMessages(makeActivity())[0]?.content ?? "";
+
+    expect(system).toContain('"weightKg"');
+    expect(system).toContain('"bodyFatPercent"');
+    expect(system).toContain("never estimate a weigh-in from the workout data");
+  });
+
   it("does not trust the recorded activity type", () => {
     const messages = buildActivityAnalysisMessages(makeActivity());
 

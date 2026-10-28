@@ -210,10 +210,36 @@ describe("split build schemas", () => {
     const plan = makePlan();
     expect(seasonPlanUpdateSchema.parse({ season: plan.season })).toEqual({
       season: plan.season,
+      bodyMetrics: [],
     });
     expect(initialBlockUpdateSchema.parse({ block: plan.block })).toEqual({
       block: plan.block,
+      bodyMetrics: [],
     });
+  });
+
+  it("keeps the body metrics the coach found", () => {
+    const plan = makePlan();
+    const parsed = seasonPlanUpdateSchema.parse({
+      season: plan.season,
+      bodyMetrics: [
+        { date: "2026-10-21", weightKg: 89.5, bodyFatPercent: 24.5 },
+      ],
+    });
+
+    expect(parsed.bodyMetrics).toEqual([
+      { date: "2026-10-21", weightKg: 89.5, bodyFatPercent: 24.5 },
+    ]);
+  });
+
+  it("defaults a body metric that gives only one value", () => {
+    const plan = makePlan();
+    const parsed = seasonPlanUpdateSchema.parse({
+      season: plan.season,
+      bodyMetrics: [{ date: "2026-10-21", weightKg: 89.5 }],
+    });
+
+    expect(parsed.bodyMetrics[0]?.bodyFatPercent).toBeNull();
   });
 });
 

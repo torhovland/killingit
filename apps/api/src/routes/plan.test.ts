@@ -291,6 +291,8 @@ function makeApp(options: {
         points: [],
         timeline: { anchors: [], latest: null },
       }),
+    loadBodyHistory: () => Promise.resolve({ weight: [], bodyFat: [] }),
+    syncAthleteMetrics: () => Promise.resolve(null),
     loadLlm: () =>
       Promise.resolve({
         provider: {

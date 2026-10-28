@@ -446,6 +446,72 @@ describe("runPlanGeneration", () => {
     expect(generations.steps).toContain("Building your week");
   });
 
+  it("stores the body metrics the coach found in the input", async () => {
+    const provider = new FakeProvider({
+      ...buildResponses(),
+      season: JSON.stringify({
+        season: makeSeason(),
+        bodyMetrics: [
+          { date: "2026-10-21", weightKg: 89.5, bodyFatPercent: 24.5 },
+        ],
+      }),
+      daily: JSON.stringify({
+        today: makeDay("2026-10-21"),
+        week: makeWeek(startOfWeek("2026-10-21")),
+        bodyMetrics: [
+          { date: "2026-10-21", weightKg: 89.5, bodyFatPercent: 24.5 },
+          { date: "2026-10-20", weightKg: 90 },
+        ],
+      }),
+    });
+    const stored: unknown[] = [];
+
+    const saved = await runPlanGeneration({
+      userId: 1,
+      today: "2026-10-21",
+      plan: null,
+      context: makeContext(provider),
+      plans: new MemoryPlanStore(null),
+      generations: new MemoryGenerationStore(),
+      recordBodyMetrics: (points) => {
+        stored.push(...points);
+        return Promise.resolve();
+      },
+    });
+
+    expect(stored).toEqual([
+      { date: "2026-10-20", weightKg: 90, bodyFatPercent: null },
+      { date: "2026-10-21", weightKg: 89.5, bodyFatPercent: 24.5 },
+    ]);
+    expect(saved?.plan.bodyMetrics).toEqual([
+      { date: "2026-10-20", weightKg: 90, bodyFatPercent: null },
+      { date: "2026-10-21", weightKg: 89.5, bodyFatPercent: 24.5 },
+    ]);
+  });
+
+  it("keeps the plan when storing the body metrics fails", async () => {
+    const provider = new FakeProvider({
+      ...buildResponses(),
+      daily: JSON.stringify({
+        today: makeDay("2026-10-21"),
+        week: makeWeek(startOfWeek("2026-10-21")),
+        bodyMetrics: [{ date: "2026-10-21", weightKg: 89.5 }],
+      }),
+    });
+
+    const saved = await runPlanGeneration({
+      userId: 1,
+      today: "2026-10-21",
+      plan: null,
+      context: makeContext(provider),
+      plans: new MemoryPlanStore(null),
+      generations: new MemoryGenerationStore(),
+      recordBodyMetrics: () => Promise.reject(new Error("database down")),
+    });
+
+    expect(saved?.plan.today.date).toBe("2026-10-21");
+  });
+
   it("refreshes the existing season when the answers are stale", async () => {
     const provider = new FakeProvider(buildResponses());
     const existing = makeStoredPlan(

@@ -1,17 +1,18 @@
 import type {
   AthleteMetric,
+  AthleteMetricStatement,
+  BodyMetricEstimate,
   GarminBodyMetricSample,
   GarminFtpSample,
   MetricPoint,
   MetricSource,
 } from "@killingit/shared";
-import { and, asc, eq, gt } from "drizzle-orm";
+import { and, asc, eq, gt, inArray } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { athleteMetrics } from "../db/schema.js";
+import type { BodyMetricHistory } from "../llm/planContext.js";
 import {
-  extractFtpAnchors,
   buildFtpTimelineFromPoints,
-  type FtpInput,
   type FtpTimeline,
 } from "../training/ftp.js";
 
@@ -179,28 +180,89 @@ async function recordGarminMetric(
   date: string,
   value: number,
 ): Promise<void> {
+  await recordMeasuredMetric({
+    userId,
+    metric,
+    date,
+    value,
+    source: "garmin",
+    keepSources: ["user"],
+  });
+}
+
+/**
+ * Stores the body-composition values the coach found in the athlete's input.
+ * The point is dated by the statement it came from, so a weight mentioned in a
+ * comment lands on that activity's day. Points after `throughDate` are ignored:
+ * a future projection is not a measurement.
+ */
+export async function recordCoachBodyMetrics(
+  userId: number,
+  points: readonly BodyMetricEstimate[],
+  throughDate?: string,
+): Promise<void> {
+  for (const point of points) {
+    if (throughDate !== undefined && point.date > throughDate) {
+      continue;
+    }
+    if (point.weightKg !== null) {
+      await recordMeasuredMetric({
+        userId,
+        metric: "weight",
+        date: point.date,
+        value: point.weightKg,
+        source: "coach",
+        keepSources: ["user", "garmin"],
+      });
+    }
+    if (point.bodyFatPercent !== null) {
+      await recordMeasuredMetric({
+        userId,
+        metric: "body_fat",
+        date: point.date,
+        value: point.bodyFatPercent,
+        source: "coach",
+        keepSources: ["user", "garmin"],
+      });
+    }
+  }
+}
+
+/**
+ * Writes one metric value unless a stronger source already holds that day. A
+ * stronger value (`keepSources`) is never replaced by this one.
+ */
+async function recordMeasuredMetric(input: {
+  userId: number;
+  metric: AthleteMetric;
+  date: string;
+  value: number;
+  source: MetricSource;
+  keepSources: readonly MetricSource[];
+}): Promise<void> {
   const existing = await db
     .select({ source: athleteMetrics.source })
     .from(athleteMetrics)
     .where(
       and(
-        eq(athleteMetrics.userId, userId),
-        eq(athleteMetrics.metric, metric),
-        eq(athleteMetrics.date, date),
+        eq(athleteMetrics.userId, input.userId),
+        eq(athleteMetrics.metric, input.metric),
+        eq(athleteMetrics.date, input.date),
       ),
     )
     .limit(1);
-  if (existing[0]?.source === "user") {
+  const current = existing[0];
+  if (current !== undefined && input.keepSources.includes(current.source)) {
     return;
   }
   await db
     .insert(athleteMetrics)
     .values({
-      userId,
-      metric,
-      source: "garmin" satisfies MetricSource,
-      date,
-      value,
+      userId: input.userId,
+      metric: input.metric,
+      source: input.source,
+      date: input.date,
+      value: input.value,
       updatedAt: new Date(),
     })
     .onConflictDoUpdate({
@@ -209,44 +271,104 @@ async function recordGarminMetric(
         athleteMetrics.metric,
         athleteMetrics.date,
       ],
-      set: { source: "garmin", value, updatedAt: new Date() },
+      set: {
+        source: input.source,
+        value: input.value,
+        updatedAt: new Date(),
+      },
     });
 }
 
 /**
- * Seeds the FTP time series from existing free-text profile answers and dated
- * athlete inputs. This keeps accounts that stated an FTP before the time series
- * existed working, and lets later edits add a new measurement.
+ * Stores the measurements the coach read from the athlete's own words. The
+ * coach does the reading (it understands "around 240 W", "74 kg", or "down to
+ * 12 %"), so this only persists what it reported. A statement dated after today
+ * is ignored, and a value the coach did not find is skipped.
+ *
+ * A successful read reports everything the athlete has ever stated, so it
+ * replaces the `user` points of every metric it reported: a value the athlete
+ * later edits out of a comment disappears instead of lingering. Garmin
+ * measurements and coach estimates are left alone, and a metric the read says
+ * nothing about is untouched.
  */
-export async function syncFtpFromInputs(
+export async function recordAthleteMetricStatements(
   userId: number,
-  input: FtpInput,
-  undatedProfileDate = new Date().toISOString().slice(0, 10),
+  statements: readonly AthleteMetricStatement[],
+  throughDate: string,
 ): Promise<void> {
-  for (const anchor of extractFtpAnchors(input)) {
-    const date =
-      anchor.at > 0
-        ? new Date(anchor.at).toISOString().slice(0, 10)
-        : undatedProfileDate;
-    await recordUserMetric({
-      userId,
-      metric: "ftp",
-      date,
-      value: anchor.watts,
-    });
+  const current = statements.filter((entry) => entry.date <= throughDate);
+  const reported = new Set<AthleteMetric>();
+  if (current.some((entry) => entry.ftpWatts !== null)) {
+    reported.add("ftp");
+  }
+  if (current.some((entry) => entry.weightKg !== null)) {
+    reported.add("weight");
+  }
+  if (current.some((entry) => entry.bodyFatPercent !== null)) {
+    reported.add("body_fat");
+  }
+  if (reported.size === 0) {
+    return;
+  }
+
+  await db
+    .delete(athleteMetrics)
+    .where(
+      and(
+        eq(athleteMetrics.userId, userId),
+        inArray(athleteMetrics.metric, [...reported]),
+        eq(athleteMetrics.source, "user"),
+      ),
+    );
+
+  for (const statement of current) {
+    if (statement.ftpWatts !== null) {
+      await recordUserMetric({
+        userId,
+        metric: "ftp",
+        date: statement.date,
+        value: statement.ftpWatts,
+      });
+    }
+    if (statement.weightKg !== null) {
+      await recordUserMetric({
+        userId,
+        metric: "weight",
+        date: statement.date,
+        value: statement.weightKg,
+      });
+    }
+    if (statement.bodyFatPercent !== null) {
+      await recordUserMetric({
+        userId,
+        metric: "body_fat",
+        date: statement.date,
+        value: statement.bodyFatPercent,
+      });
+    }
   }
 }
 
+/** Loads the stored body weight and body-fat series for a prompt. */
+export async function loadBodyHistoryForUser(
+  userId: number,
+): Promise<BodyMetricHistory> {
+  const [weight, bodyFat] = await Promise.all([
+    loadMetricPoints(userId, "weight"),
+    loadMetricPoints(userId, "body_fat"),
+  ]);
+  return { weight, bodyFat };
+}
+
 /**
- * Seeds the FTP series from the athlete's free-text inputs, then returns the
- * stored points and a timeline that ignores estimates dated after `throughDate`.
+ * Returns the stored FTP points and a timeline that ignores estimates dated
+ * after `throughDate`. The athlete's stated FTP is read by the coach and stored
+ * separately, so this no longer scans free text.
  */
 export async function loadFtpHistoryForUser(
   userId: number,
-  input: FtpInput,
   throughDate: string,
 ): Promise<{ points: MetricPoint[]; timeline: FtpTimeline }> {
-  await syncFtpFromInputs(userId, input, throughDate);
   const points = await loadMetricPoints(userId, "ftp");
   return {
     points,

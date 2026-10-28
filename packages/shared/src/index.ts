@@ -123,6 +123,7 @@ export {
   blockPlanSchema,
   blockPlanUpdateSchema,
   blockWeekSummarySchema,
+  bodyMetricEstimateSchema,
   coachPlanResponseSchema,
   coachPlanSchema,
   coachingInputSaveResponseSchema,
@@ -156,6 +157,7 @@ export {
   type BlockPlan,
   type BlockPlanUpdate,
   type BlockWeekSummary,
+  type BodyMetricEstimate,
   type CoachPlan,
   type CoachPlanResponse,
   type CoachingInputSaveResponse,
@@ -215,6 +217,8 @@ export {
 
 export {
   athleteMetricSchema,
+  athleteMetricStatementSchema,
+  athleteMetricsResultSchema,
   bestFitSlope,
   fitnessBodySchema,
   fitnessMetricPointSchema,
@@ -225,6 +229,8 @@ export {
   metricPointSchema,
   metricSourceSchema,
   type AthleteMetric,
+  type AthleteMetricStatement,
+  type AthleteMetricsResult,
   type FitnessBody,
   type FitnessMetricPoint,
   type GarminBodyMetricSample,

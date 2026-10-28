@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { BlockPlan, SeasonPlan, WeekPlan } from "@killingit/shared";
+import { BODY_METRIC_RULES } from "./planContext.js";
 import {
   BLOCK_UPDATE_SYSTEM_PROMPT,
   buildBlockUpdatePrompt,
@@ -146,6 +147,10 @@ describe("daily update prompts", () => {
     expect(prompt).toContain('"estimatedTss"');
     expect(prompt).toContain("training stress score");
     expect(prompt).toContain('"estimatedFtpWatts"');
+    expect(prompt).toContain('"bodyMetrics"');
+    expect(prompt).toContain('"weightKg"');
+    expect(prompt).toContain('"bodyFatPercent"');
+    expect(prompt).toContain(BODY_METRIC_RULES);
     expect(prompt).toContain("what the athlete loses toward that goal");
     expect(prompt).toContain(
       "if you cannot state a concrete loss for skipping a planned session",
@@ -174,7 +179,7 @@ describe("daily update prompts", () => {
     expect(prompt).toContain("Week starting 2026-10-19");
     expect(prompt).toContain("Easy run");
     expect(prompt).toContain(
-      'top-level keys are exactly "today", "tomorrow", and "week"',
+      'top-level keys are exactly "today", "tomorrow", "week", and "bodyMetrics"',
     );
   });
 
@@ -271,6 +276,8 @@ describe("weekly update prompts", () => {
     expect(prompt).toContain('"powerPercent"');
     expect(prompt).toContain('"estimatedTss"');
     expect(prompt).toContain('"estimatedFtpWatts"');
+    expect(prompt).toContain('"bodyMetrics"');
+    expect(prompt).toContain(BODY_METRIC_RULES);
     expect(prompt).toContain("training stress score");
   });
 
@@ -288,7 +295,9 @@ describe("weekly update prompts", () => {
     expect(prompt).toContain("Goal: Sub-4-hour marathon");
     expect(prompt).toContain("Block: Base");
     expect(prompt).toContain("Aerobic base + strides");
-    expect(prompt).toContain('top-level keys are exactly "week" and "block"');
+    expect(prompt).toContain(
+      'top-level keys are exactly "week", "block", and "bodyMetrics"',
+    );
   });
 
   it("asks the coach to place sessions around the weather and daylight", () => {
@@ -323,7 +332,9 @@ describe("block update prompts", () => {
     expect(prompt).toContain("Goal: Sub-4-hour marathon");
     expect(prompt).toContain("Completed block plan:");
     expect(prompt).toContain("Block: Base");
-    expect(prompt).toContain('top-level keys are exactly "block" and "season"');
+    expect(prompt).toContain(
+      'top-level keys are exactly "block", "season", and "bodyMetrics"',
+    );
   });
 });
 
@@ -349,6 +360,8 @@ describe("season refresh prompt", () => {
       "The current block already started on 2026-10-21; keep that start date",
     );
     expect(prompt).toContain("Finish a sub-4-hour marathon.");
-    expect(prompt).toContain('top-level keys are exactly "block" and "season"');
+    expect(prompt).toContain(
+      'top-level keys are exactly "block", "season", and "bodyMetrics"',
+    );
   });
 });

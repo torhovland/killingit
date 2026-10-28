@@ -2,6 +2,7 @@ import type { BlockPlan, SeasonPlan, WeekPlan } from "@killingit/shared";
 import { addDays, startOfWeek } from "../plans/dates.js";
 import {
   ACTIVITY_COMMENT_RULE,
+  BODY_METRIC_RULES,
   formatBlockPlan,
   formatPlanContext,
   formatSeasonPlan,
@@ -145,6 +146,9 @@ export const SEASON_CONTRACT = `{
   ]
 }`;
 
+/** One dated body-composition point in a plan response. */
+export const BODY_METRIC_POINT_CONTRACT = `{ "date": "YYYY-MM-DD", "weightKg": 0, "bodyFatPercent": 0 }`;
+
 export const ENUM_RULES = `For every type field use either "workout" or "rest"; for every intensity field use "easy", "moderate", "hard", or "rest". For a rest session set both type and intensity to "rest"; for a workout set type to "workout" and intensity to "easy", "moderate", or "hard". These are exact, lowercase strings: never output a session name such as "run", "strength", or "rest day" as a type, and never copy the "|" choices from the contract into the response.`;
 export const JSON_RULES = `Return only a single valid JSON object with exactly this shape. Do not add markdown fences, headings, explanations, or extra fields. Every field must use the exact name and value type shown in the contract. The top-level keys must be exactly the keys shown at the top level of the contract, with the same nesting; never return a bare inner object, an array, or a wrapper such as "plan" or "response". When a contract lists choices separated by "|", output exactly one of those choices as a string and never the list itself. Replace every placeholder such as "YYYY-MM-DD", "string", or 0 with a real value.`;
 
@@ -190,6 +194,8 @@ ${BIKE_WORKOUT_RULES}
 
 ${TRAINING_LOAD_RULES}
 
+${BODY_METRIC_RULES}
+
 Also provide a suggested workout or rest for tomorrow, consistent with the revised week and the block's focus.
 
 ${SESSION_PURPOSE_RULES}
@@ -200,7 +206,8 @@ ${JSON_RULES}
 {
   "today": ${DAY_CONTRACT},
   "tomorrow": ${DAY_CONTRACT},
-  "week": ${WEEK_CONTRACT}
+  "week": ${WEEK_CONTRACT},
+  "bodyMetrics": [${BODY_METRIC_POINT_CONTRACT}]
 }`;
 
 export const WEEKLY_UPDATE_SYSTEM_PROMPT = `You are an expert endurance coach. Create the week starting on the supplied week start date and revise the block plan for an amateur athlete. Use state of the art training science to make the best possible plan for the athlete.
@@ -213,6 +220,8 @@ ${BIKE_WORKOUT_RULES}
 
 ${TRAINING_LOAD_RULES}
 
+${BODY_METRIC_RULES}
+
 Revise the block's weeks and target loads where the athlete's progress or recent training requires it. Keep the block's name, focus, and dates unless a change is clearly justified. Do not change the season plan.
 
 ${ENUM_RULES}
@@ -220,7 +229,8 @@ ${ENUM_RULES}
 ${JSON_RULES}
 {
   "week": ${WEEK_CONTRACT},
-  "block": ${BLOCK_CONTRACT}
+  "block": ${BLOCK_CONTRACT},
+  "bodyMetrics": [${BODY_METRIC_POINT_CONTRACT}]
 }`;
 
 export const BLOCK_UPDATE_SYSTEM_PROMPT = `You are an expert endurance coach. Create the next block and revise the season plan for an amateur athlete. Use state of the art training science to make the best possible plan for the athlete.
@@ -229,12 +239,15 @@ The current block has ended. You receive the athlete's profile, recent activitie
 
 ${TRAINING_LOAD_RULES}
 
+${BODY_METRIC_RULES}
+
 ${ENUM_RULES}
 
 ${JSON_RULES}
 {
   "block": ${BLOCK_CONTRACT},
-  "season": ${SEASON_CONTRACT}
+  "season": ${SEASON_CONTRACT},
+  "bodyMetrics": [${BODY_METRIC_POINT_CONTRACT}]
 }`;
 
 export const SEASON_REFRESH_SYSTEM_PROMPT = `You are an expert endurance coach. Refresh the remaining part of an existing season plan and create the block that starts today for an amateur athlete. Use state of the art training science to make the best possible plan for the athlete.
@@ -247,12 +260,15 @@ Create the detailed plan for the block that contains today from its refreshed su
 
 ${TRAINING_LOAD_RULES}
 
+${BODY_METRIC_RULES}
+
 ${ENUM_RULES}
 
 ${JSON_RULES}
 {
   "block": ${BLOCK_CONTRACT},
-  "season": ${SEASON_CONTRACT}
+  "season": ${SEASON_CONTRACT},
+  "bodyMetrics": [${BODY_METRIC_POINT_CONTRACT}]
 }`;
 
 export function buildDailyUpdateMessages(input: DailyUpdateInput): {
@@ -282,7 +298,7 @@ export function buildDailyUpdatePrompt(input: DailyUpdateInput): string {
     "",
     `The week must start on ${weekStart} and cover ${weekStart} through ${weekEnd}. Keep exactly seven sessions with those dates, and make sure one session has the date ${input.today}; the "today" object must use that same date.`,
     "",
-    'Create today\'s session and revise this week\'s remaining sessions. Return one JSON object whose top-level keys are exactly "today", "tomorrow", and "week".',
+    'Create today\'s session and revise this week\'s remaining sessions. Return one JSON object whose top-level keys are exactly "today", "tomorrow", "week", and "bodyMetrics".',
   ].join("\n");
 }
 
@@ -313,7 +329,7 @@ export function buildWeeklyUpdatePrompt(input: WeeklyUpdateInput): string {
     "Block plan for the week:",
     formatBlockPlan(input.block),
     "",
-    'Create the new week and revise this block. Return one JSON object whose top-level keys are exactly "week" and "block".',
+    'Create the new week and revise this block. Return one JSON object whose top-level keys are exactly "week", "block", and "bodyMetrics".',
   ].join("\n");
 }
 
@@ -338,7 +354,7 @@ export function buildBlockUpdatePrompt(input: BlockUpdateInput): string {
     "Completed block plan:",
     formatBlockPlan(input.block),
     "",
-    'Create the next block and revise the season plan. Return one JSON object whose top-level keys are exactly "block" and "season".',
+    'Create the next block and revise the season plan. Return one JSON object whose top-level keys are exactly "block", "season", and "bodyMetrics".',
   ].join("\n");
 }
 
@@ -364,6 +380,6 @@ export function buildSeasonRefreshPrompt(input: SeasonRefreshInput): string {
     "",
     `Re-plan the remaining season from today's date, ${input.today}. The current block already started on ${input.block.startDate}; keep that start date while refreshing it. Return the remaining season without the blocks that ended before today.`,
     "",
-    'Return one JSON object whose top-level keys are exactly "block" and "season".',
+    'Return one JSON object whose top-level keys are exactly "block", "season", and "bodyMetrics".',
   ].join("\n");
 }

@@ -1,6 +1,7 @@
 import type { AnalyzedActivity } from "@killingit/shared";
 import {
   ACTIVITY_COMMENT_RULE,
+  BODY_METRIC_RULES,
   formatPlanContext,
   SESSION_PURPOSE_RULES,
   type ActivityCommentContext,
@@ -10,6 +11,7 @@ import {
   type RecentActivityContext,
 } from "./planContext.js";
 import {
+  BODY_METRIC_POINT_CONTRACT,
   ENUM_RULES,
   JSON_RULES,
   TRAINING_LOAD_RULES,
@@ -20,7 +22,7 @@ import {
  * callers can invalidate cached plans the same way activity analyses are
  * versioned.
  */
-export const COACH_PLAN_PROMPT_VERSION = 6;
+export const COACH_PLAN_PROMPT_VERSION = 7;
 
 export type CoachPlanAthleteAnswer = AthleteAnswerContext;
 export type CoachPlanActivity = RecentActivityContext;
@@ -122,7 +124,8 @@ const COACH_PLAN_RESPONSE_CONTRACT = `{
     "optional": false,
     "optionalRationale": "string",
     "estimatedTss": 0
-  }
+  },
+  "bodyMetrics": [${BODY_METRIC_POINT_CONTRACT}]
 }`;
 
 export const COACH_PLAN_SYSTEM_PROMPT = `You are an expert endurance coach designing a personalised, periodised training plan for an amateur athlete. Use state of the art training science to make the best possible plan that fulfils the athlete's needs. Apply the principles that current research and elite practice agree on: individualisation, progressive overload, specificity, periodisation, adequate recovery, and a taper before the main goal. Prefer sustainable, injury-free progress over quick fixes.
@@ -139,6 +142,8 @@ Create four consistent levels of the plan:
 ${SESSION_PURPOSE_RULES}
 
 ${TRAINING_LOAD_RULES}
+
+${BODY_METRIC_RULES}
 
 The season starts on the supplied today date. The block is the first entry in season.blocks. The week is the first week in block.weeks, so block.weeks[0].startDate and week.startDate must match. week.sessions must contain exactly seven entries, one for each day of that week, and today must match the entry for today's date in week.sessions. For days before today, do not propose new workouts: describe what actually happened using the activities and set each status to "completed", "missed", or "rest". Respect the athlete's available training days and hours, and include rest days where they are the best choice.
 
@@ -175,6 +180,6 @@ export function buildCoachPlanPrompt(input: CoachPlanInput): string {
   return [
     ...formatPlanContext(input),
     "",
-    'Using the athlete profile and recent training, create the season plan, the first block, the first week, and today\'s session. Use state of the art training science to make the best possible plan for this athlete. Return one JSON object whose top-level keys are exactly "season", "block", "week", "today", and "tomorrow".',
+    'Using the athlete profile and recent training, create the season plan, the first block, the first week, and today\'s session. Use state of the art training science to make the best possible plan for this athlete. Return one JSON object whose top-level keys are exactly "season", "block", "week", "today", "tomorrow", and "bodyMetrics".',
   ].join("\n");
 }

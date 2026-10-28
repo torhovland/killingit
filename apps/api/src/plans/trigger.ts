@@ -3,12 +3,18 @@ import {
   loadAnalyzedActivities,
   MAX_ACTIVITIES,
 } from "../coaching/activities.js";
+import {
+  buildAthleteMetricSource,
+  syncAthleteMetrics,
+} from "../coaching/athleteMetrics.js";
 import { captureCompletedPeriodReviews } from "../coaching/periodReviews.js";
 import { analyzeActivitiesAgainstPlan } from "../coaching/programAnalysis.js";
 import type { LlmClient } from "../llm/client.js";
 import { loadLlmClient } from "../llm/client.js";
 import {
+  loadBodyHistoryForUser,
   loadFtpHistoryForUser,
+  recordCoachBodyMetrics,
   recordPlanFtpEstimates,
 } from "../metrics/store.js";
 import type {
@@ -42,6 +48,10 @@ export interface PlanTriggerDependencies {
   loadActivities?: (userId: number) => Promise<ActivityFeed>;
   /** Injectable for route tests; defaults to the stored FTP time series. */
   loadFtpHistory?: typeof loadFtpHistoryForUser;
+  /** Injectable for route tests; defaults to the stored body metrics. */
+  loadBodyHistory?: typeof loadBodyHistoryForUser;
+  /** Injectable for route tests; defaults to the coach reading the text. */
+  syncAthleteMetrics?: typeof syncAthleteMetrics;
   /** Injectable for route tests; defaults to the account's stored config. */
   loadLlm?: (userId: number) => Promise<LlmClient | null>;
   /** Injectable for route tests; defaults to the database-backed loader. */
@@ -132,19 +142,36 @@ export async function triggerPlanGeneration(
   }
 
   const location = user?.location ?? null;
-  const loadFtpHistory = deps.loadFtpHistory ?? loadFtpHistoryForUser;
-  const ftp = await loadFtpHistory(
+
+  // The coach reads the athlete's own words for a stated FTP, weight, and body
+  // fat before the plan is generated, so every prompt and the TSS maths use the
+  // newest numbers. Reading is a model task, not a phrase list. A generation is
+  // only requested when a level is missing or an input changed, so this costs
+  // one small call per real generation.
+  await (deps.syncAthleteMetrics ?? syncAthleteMetrics)({
     userId,
-    {
-      answers,
-      answersUpdatedAt: latestAnswerTimestamp(answers),
-      manualActivities: coachingInputs.manualActivities,
-      activityComments: coachingInputs.activityComments,
-      weeklyNote: coachingInputs.weeklyNote,
-      weeklyNoteUpdatedAt: coachingInputs.weeklyNoteUpdatedAt,
-      periodReviews: coachingInputs.periodReviews,
-    },
     today,
+    source: buildAthleteMetricSource(
+      {
+        answers,
+        activityComments: coachingInputs.activityComments,
+        manualActivities: coachingInputs.manualActivities,
+        weeklyNote: coachingInputs.weeklyNote,
+        weeklyNoteUpdatedAt: coachingInputs.weeklyNoteUpdatedAt,
+        periodReviews: coachingInputs.periodReviews,
+      },
+      today,
+    ),
+    provider: llm.provider,
+    credentials: { apiKey: llm.apiKey, model: llm.model },
+  });
+
+  const ftp = await (deps.loadFtpHistory ?? loadFtpHistoryForUser)(
+    userId,
+    today,
+  );
+  const bodyHistory = await (deps.loadBodyHistory ?? loadBodyHistoryForUser)(
+    userId,
   );
   let weatherForecasts: WeatherForecastSet | null = null;
   let forecast: DailyWeather[] | null = null;
@@ -179,6 +206,8 @@ export async function triggerPlanGeneration(
     capturePeriodReviews: captureCompletedPeriodReviews,
     recordFtpEstimates: (generatedPlan) =>
       recordPlanFtpEstimates(userId, planFtpEstimates(generatedPlan)),
+    recordBodyMetrics: (points) =>
+      recordCoachBodyMetrics(userId, points, today),
     reviewActivities: (plan) =>
       analyzeActivitiesAgainstPlan({
         userId,
@@ -211,6 +240,7 @@ export async function triggerPlanGeneration(
       weatherForecasts,
       ftpTimeline: ftp.timeline,
       ftpHistory: ftp.points.filter((point) => point.date <= today),
+      bodyHistory,
       provider: llm.provider,
       apiKey: llm.apiKey,
       model: llm.model,
