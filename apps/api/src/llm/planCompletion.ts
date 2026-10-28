@@ -1,9 +1,11 @@
+import type { LlmPromptKind } from "@killingit/shared";
 import type { z } from "zod";
 import type { LlmMessage, LlmProvider } from "./openrouter.js";
 import { parsePlanJson, PlanJsonError } from "./planJson.js";
 import {
   completeWithFallbacks,
   type CompletionCredentials,
+  type CompletionOptions,
 } from "./resilientCompletion.js";
 
 export type PlanCompletionCredentials = CompletionCredentials;
@@ -15,6 +17,10 @@ export interface PlanJsonCompletionOptions {
    * dates a week must contain.
    */
   repairHint?: string;
+  /** The coaching task, recorded in the prompt log. */
+  kind?: LlmPromptKind;
+  /** Extra prompt-log metadata such as the season or week being planned. */
+  metadata?: Record<string, unknown>;
 }
 
 /**
@@ -29,6 +35,7 @@ export function completePlan(
   messages: LlmMessage[],
   maxTokens: number,
   temperature = 0.4,
+  options: CompletionOptions = {},
 ): Promise<string> {
   return completeWithFallbacks(
     provider,
@@ -36,6 +43,7 @@ export function completePlan(
     messages,
     maxTokens,
     temperature,
+    options,
   );
 }
 
@@ -54,7 +62,18 @@ export async function completePlanJson<T>(
   maxTokens: number,
   options: PlanJsonCompletionOptions = {},
 ): Promise<T> {
-  const text = await completePlan(provider, credentials, messages, maxTokens);
+  const callOptions: CompletionOptions = {
+    ...(options.kind !== undefined ? { kind: options.kind } : {}),
+    ...(options.metadata !== undefined ? { metadata: options.metadata } : {}),
+  };
+  const text = await completePlan(
+    provider,
+    credentials,
+    messages,
+    maxTokens,
+    0.4,
+    callOptions,
+  );
   try {
     return parsePlanJson(schema, text);
   } catch (err) {
@@ -67,6 +86,10 @@ export async function completePlanJson<T>(
       repairMessages(messages, text, err, options.repairHint),
       maxTokens,
       0.2,
+      {
+        ...callOptions,
+        metadata: { ...(options.metadata ?? {}), repair: true },
+      },
     );
     return parsePlanJson(schema, repaired);
   }

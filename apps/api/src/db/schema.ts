@@ -2,15 +2,20 @@ import type {
   AnalyzedActivitiesResponse,
   BlockPlan,
   DayPlan,
+  LlmCallMessage,
+  LlmCallUsage,
+  LlmPromptKind,
   SeasonPlan,
   WeekPlan,
 } from "@killingit/shared";
+import { LLM_PROMPT_KINDS } from "@killingit/shared";
 import { sql } from "drizzle-orm";
 import {
   bigint,
   boolean,
   check,
   doublePrecision,
+  index,
   integer,
   jsonb,
   pgTable,
@@ -107,6 +112,54 @@ export const llmSettings = pgTable(
 
 export type LlmSetting = typeof llmSettings.$inferSelect;
 export type NewLlmSetting = typeof llmSettings.$inferInsert;
+
+/**
+ * One prompt sent to an LLM provider, with the response (or the error) and the
+ * request metadata. Written for every completion attempt so the admin can
+ * debug coaching output; retries and repair turns appear as separate rows.
+ * Prompt text can contain athlete health and training details, so the log is
+ * admin-only and deleted with the account.
+ */
+export const llmCalls = pgTable(
+  "llm_calls",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    kind: text("kind").$type<LlmPromptKind>().notNull(),
+    provider: text("provider").notNull(),
+    model: text("model").notNull(),
+    /** The exact messages sent, including a repair turn's prior response. */
+    messages: jsonb("messages").$type<LlmCallMessage[]>().notNull(),
+    response: text("response"),
+    error: text("error"),
+    usage: jsonb("usage").$type<LlmCallUsage | null>(),
+    /** Temperature, output budget, reasoning options, attempt, and model. */
+    metadata: jsonb("metadata")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
+    durationMs: integer("duration_ms").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("llm_calls_created_at_idx").on(table.createdAt),
+    index("llm_calls_user_id_created_at_idx").on(table.userId, table.createdAt),
+    check(
+      "llm_calls_kind_check",
+      sql`${table.kind} in (${sql.raw(
+        LLM_PROMPT_KINDS.map((kind) => `'${kind}'`).join(", "),
+      )})`,
+    ),
+    check("llm_calls_duration_ms_check", sql`${table.durationMs} >= 0`),
+  ],
+);
+
+export type LlmCallRow = typeof llmCalls.$inferSelect;
+export type NewLlmCallRow = typeof llmCalls.$inferInsert;
 
 /**
  * Cached coach analysis for one athlete activity, keyed by the account, source

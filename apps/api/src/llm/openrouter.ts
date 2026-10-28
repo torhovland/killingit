@@ -1,4 +1,9 @@
-import { llmModelSchema, type LlmModel } from "@killingit/shared";
+import {
+  llmModelSchema,
+  type LlmCallUsage,
+  type LlmModel,
+  type LlmPromptKind,
+} from "@killingit/shared";
 
 const DEFAULT_BASE_URL = "https://openrouter.ai/api/v1";
 // Plan generation uses slow reasoning models and a multi-step cascade. Keep
@@ -67,6 +72,22 @@ export interface LlmCompletionRequest {
   temperature: number;
   maxTokens: number;
   reasoning?: LlmReasoning;
+  /** The coaching task this prompt belongs to, recorded in the prompt log. */
+  kind?: LlmPromptKind;
+  /**
+   * Extra debug metadata for the prompt log (retry attempt, repair turn).
+   * Never sent to the provider.
+   */
+  metadata?: Record<string, unknown>;
+}
+
+/** The normalised result of one completion, including provider diagnostics. */
+export interface LlmCompletionResult {
+  text: string;
+  /** The model OpenRouter actually routed to, when it reports one. */
+  model: string | null;
+  finishReason: string | null;
+  usage: LlmCallUsage | null;
 }
 
 /**
@@ -78,6 +99,14 @@ export interface LlmProvider {
   listModels(): Promise<LlmModel[]>;
   validateKey(apiKey: string): Promise<void>;
   complete(request: LlmCompletionRequest): Promise<string>;
+  /**
+   * Optional richer completion used by the prompt log. Providers that implement
+   * it also return usage and routing details; `complete` remains the minimal
+   * contract so simple providers and test doubles stay valid.
+   */
+  completeDetailed?(
+    request: LlmCompletionRequest,
+  ): Promise<LlmCompletionResult>;
 }
 
 export interface OpenRouterOptions {
@@ -97,6 +126,91 @@ export function createOpenRouterProvider(
     process.env.OPENROUTER_API_URL ??
     DEFAULT_BASE_URL
   ).replace(/\/$/, "");
+
+  const completeDetailed = async (
+    input: LlmCompletionRequest,
+  ): Promise<LlmCompletionResult> => {
+    const res = await request(
+      fetchImpl,
+      `${baseUrl}/chat/completions`,
+      {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${input.apiKey}`,
+          "content-type": "application/json",
+          "HTTP-Referer": "https://killingit.hovland.co",
+          "X-Title": "Killing It",
+        },
+        body: JSON.stringify({
+          model: input.model,
+          messages: input.messages,
+          temperature: input.temperature,
+          max_tokens: input.maxTokens,
+          ...(input.reasoning !== undefined
+            ? { reasoning: input.reasoning }
+            : {}),
+        }),
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      },
+      "could not reach OpenRouter for the completion",
+    );
+
+    if (res.status === 401) {
+      throw new LlmAuthError("invalid OpenRouter API key");
+    }
+    if (res.status === 402) {
+      throw new LlmProviderError(
+        "OpenRouter account has insufficient credits",
+        402,
+      );
+    }
+    if (res.status === 429) {
+      const detail = await providerDetail(res, "OpenRouter rate limit");
+      throw new LlmRateLimitError(
+        `${detail} This may be a per-minute rate limit or a free-model daily request cap that is separate from your credit balance. Wait a few minutes and retry, or switch to a paid model.`,
+      );
+    }
+    if (!res.ok) {
+      throw new LlmProviderError(
+        await providerDetail(
+          res,
+          `OpenRouter completion returned ${res.status}`,
+        ),
+        res.status,
+      );
+    }
+
+    const body = (await res.json()) as {
+      model?: unknown;
+      usage?: {
+        prompt_tokens?: unknown;
+        completion_tokens?: unknown;
+        total_tokens?: unknown;
+      };
+      choices?: Array<{
+        message?: { content?: unknown };
+        finish_reason?: unknown;
+      }>;
+    };
+    const choice = body.choices?.[0];
+    const finishReason =
+      typeof choice?.finish_reason === "string" ? choice.finish_reason : null;
+    if (finishReason === "length") {
+      throw new LlmTokenLimitError(
+        "OpenRouter stopped the response at the token limit; try again or choose a model with a larger output budget",
+      );
+    }
+    const content = choice?.message?.content;
+    if (typeof content !== "string" || content.trim() === "") {
+      throw new LlmProviderError("OpenRouter returned an empty completion");
+    }
+    return {
+      text: content.trim(),
+      model: typeof body.model === "string" ? body.model : null,
+      finishReason,
+      usage: normalizeUsage(body.usage),
+    };
+  };
 
   return {
     id: "openrouter",
@@ -154,75 +268,8 @@ export function createOpenRouterProvider(
       await res.text();
     },
 
-    async complete(input) {
-      const res = await request(
-        fetchImpl,
-        `${baseUrl}/chat/completions`,
-        {
-          method: "POST",
-          headers: {
-            authorization: `Bearer ${input.apiKey}`,
-            "content-type": "application/json",
-            "HTTP-Referer": "https://killingit.hovland.co",
-            "X-Title": "Killing It",
-          },
-          body: JSON.stringify({
-            model: input.model,
-            messages: input.messages,
-            temperature: input.temperature,
-            max_tokens: input.maxTokens,
-            ...(input.reasoning !== undefined
-              ? { reasoning: input.reasoning }
-              : {}),
-          }),
-          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-        },
-        "could not reach OpenRouter for the completion",
-      );
-
-      if (res.status === 401) {
-        throw new LlmAuthError("invalid OpenRouter API key");
-      }
-      if (res.status === 402) {
-        throw new LlmProviderError(
-          "OpenRouter account has insufficient credits",
-          402,
-        );
-      }
-      if (res.status === 429) {
-        const detail = await providerDetail(res, "OpenRouter rate limit");
-        throw new LlmRateLimitError(
-          `${detail} This may be a per-minute rate limit or a free-model daily request cap that is separate from your credit balance. Wait a few minutes and retry, or switch to a paid model.`,
-        );
-      }
-      if (!res.ok) {
-        throw new LlmProviderError(
-          await providerDetail(
-            res,
-            `OpenRouter completion returned ${res.status}`,
-          ),
-          res.status,
-        );
-      }
-
-      const body = (await res.json()) as {
-        choices?: Array<{
-          message?: { content?: unknown };
-          finish_reason?: unknown;
-        }>;
-      };
-      const choice = body.choices?.[0];
-      if (choice?.finish_reason === "length") {
-        throw new LlmTokenLimitError(
-          "OpenRouter stopped the response at the token limit; try again or choose a model with a larger output budget",
-        );
-      }
-      const content = choice?.message?.content;
-      if (typeof content !== "string" || content.trim() === "") {
-        throw new LlmProviderError("OpenRouter returned an empty completion");
-      }
-      return content.trim();
-    },
+    complete: async (input) => (await completeDetailed(input)).text,
+    completeDetailed,
   };
 }
 
@@ -238,6 +285,39 @@ async function request(
   } catch (cause) {
     throw new LlmProviderError(unreachableMessage, undefined, { cause });
   }
+}
+
+/** Normalizes OpenRouter's token usage, or null when it reports none. */
+function normalizeUsage(
+  raw:
+    | {
+        prompt_tokens?: unknown;
+        completion_tokens?: unknown;
+        total_tokens?: unknown;
+      }
+    | undefined,
+): LlmCallUsage | null {
+  if (raw === undefined) {
+    return null;
+  }
+  const promptTokens = tokenCount(raw.prompt_tokens);
+  const completionTokens = tokenCount(raw.completion_tokens);
+  const totalTokens = tokenCount(raw.total_tokens);
+  if (
+    promptTokens === null &&
+    completionTokens === null &&
+    totalTokens === null
+  ) {
+    return null;
+  }
+  return { promptTokens, completionTokens, totalTokens };
+}
+
+/** Reads a non-negative token count, or null when the value is unusable. */
+function tokenCount(raw: unknown): number | null {
+  return typeof raw === "number" && Number.isFinite(raw) && raw >= 0
+    ? Math.round(raw)
+    : null;
 }
 
 /** Normalizes one OpenRouter model entry, or null when it is malformed. */

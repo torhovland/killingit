@@ -26,6 +26,7 @@ import {
   type ActivityFeedback,
 } from "../plans/replies.js";
 import { llmCredentialsKeyFromEnv } from "../llm/credentials.js";
+import { withPromptLogging } from "../llm/callLog.js";
 import {
   createOpenRouterProvider,
   LlmAuthError,
@@ -88,7 +89,9 @@ export async function loadAnalyzedActivities(options: {
   refresh: boolean;
   provider?: LlmProvider;
 }): Promise<ActivityFeed> {
-  const provider = options.provider ?? createOpenRouterProvider();
+  const provider =
+    options.provider ??
+    withPromptLogging(createOpenRouterProvider(), { userId: options.userId });
 
   let garminCredentials;
   try {

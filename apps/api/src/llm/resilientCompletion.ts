@@ -1,3 +1,4 @@
+import type { LlmPromptKind } from "@killingit/shared";
 import {
   LlmProviderError,
   LlmTokenLimitError,
@@ -10,6 +11,12 @@ import { MAX_COMPLETION_TOKENS } from "./planBudget.js";
 export interface CompletionCredentials {
   apiKey: string;
   model: string;
+}
+
+/** The coaching task and extra metadata recorded in the prompt log. */
+export interface CompletionOptions {
+  kind?: LlmPromptKind;
+  metadata?: Record<string, unknown>;
 }
 
 interface CompletionAttempt {
@@ -42,6 +49,7 @@ export async function completeWithFallbacks(
   messages: LlmMessage[],
   maxTokens: number,
   temperature = 0.4,
+  options: CompletionOptions = {},
 ): Promise<string> {
   const doubled = Math.min(maxTokens * 2, MAX_COMPLETION_TOKENS);
   const attempts: CompletionAttempt[] = [
@@ -70,6 +78,12 @@ export async function completeWithFallbacks(
         ...(attempt.reasoning !== undefined
           ? { reasoning: attempt.reasoning }
           : {}),
+        ...(options.kind !== undefined ? { kind: options.kind } : {}),
+        metadata: {
+          ...(options.metadata ?? {}),
+          attempt: index + 1,
+          ofAttempts: attempts.length,
+        },
       });
     } catch (err) {
       lastError = err;

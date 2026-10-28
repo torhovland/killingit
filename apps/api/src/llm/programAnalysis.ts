@@ -23,5 +23,6 @@ export function analyzeActivityAgainstPlan(
     // Leave room for reasoning tokens plus a complete 3-5 sentence review.
     2048,
     0.3,
+    { kind: "program_analysis" },
   );
 }

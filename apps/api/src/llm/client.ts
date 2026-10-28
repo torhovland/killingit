@@ -1,4 +1,5 @@
 import { decrypt } from "../crypto/credentials.js";
+import { withPromptLogging } from "./callLog.js";
 import { llmCredentialsKeyFromEnv } from "./credentials.js";
 import { createOpenRouterProvider, type LlmProvider } from "./openrouter.js";
 import { loadLlmSettings } from "./store.js";
@@ -23,7 +24,7 @@ export async function loadLlmClient(userId: number): Promise<LlmClient | null> {
   const key = await llmCredentialsKeyFromEnv();
   const apiKey = await decrypt(settings.apiKeyEncrypted, key);
   return {
-    provider: createOpenRouterProvider(),
+    provider: withPromptLogging(createOpenRouterProvider(), { userId }),
     apiKey,
     model: settings.model,
   };

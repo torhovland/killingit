@@ -28,5 +28,6 @@ export function analyzeActivity(
     // reasoning disabled or a larger budget if that still is not enough.
     2048,
     0.3,
+    { kind: "activity_analysis" },
   );
 }

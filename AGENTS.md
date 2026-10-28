@@ -62,6 +62,11 @@ about a past workout, or before a suggested workout, to steer the coach.
   (`apps/api/src/llm/openrouter.ts`). Each account's API key is encrypted at
   rest and its chosen model stored in `llm_settings`. Activity analyses are
   cached per account in `activity_analyses`. See ADR 0004.
+- Every completion attempt is stored in `llm_calls` with its full messages,
+  response or error, model, usage, and request metadata. The admin settings
+  page lists them under "LLM prompts" (`GET /api/admin/llm-calls`). Logging is
+  admin-only and fail-open, so a log write can never break coaching. See
+  `docs/specs/llm-call-log.md`.
 - The four-level plan is stored per user in `coach_plans`; generation progress
   is in `plan_generations`. After 18:00 the stored plan also carries tomorrow's
   session and, when tomorrow has crossed a week or block boundary, the next week

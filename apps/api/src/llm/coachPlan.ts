@@ -30,5 +30,6 @@ export function generateCoachPlan(
     // models also count their reasoning tokens against this cap.
     PLAN_MAX_TOKENS,
     0.4,
+    { kind: "coach_plan" },
   );
 }

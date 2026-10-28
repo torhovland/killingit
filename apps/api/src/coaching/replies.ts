@@ -81,6 +81,7 @@ export async function replyToCoachingInput(
         athleteAnswers: answers.map(toAnswerContext),
         request: toPromptTarget(request),
       },
+      "coach_reply",
     );
     const reply = text.trim();
     if (reply === "") {
@@ -143,6 +144,7 @@ export async function answerCoachingQuestion(
         athleteAnswers: answers.map(toAnswerContext),
         request: { kind: "quick_question", question },
       },
+      "coaching_question",
     );
     const reply = text.trim();
     if (reply === "") {

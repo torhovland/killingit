@@ -58,6 +58,7 @@ describe("analyzeActivity", () => {
     expect(captured?.model).toBe("test/model");
     expect(captured?.apiKey).toBe("test-key");
     expect(captured?.maxTokens).toBe(2048);
+    expect(captured?.kind).toBe("activity_analysis");
     expect(captured?.messages).toHaveLength(2);
     expect(captured?.messages[1]?.content).toContain("Time series:");
   });

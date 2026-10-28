@@ -150,6 +150,44 @@ describe("complete", () => {
     });
   });
 
+  it("returns routing and usage details from completeDetailed", async () => {
+    const provider = createOpenRouterProvider({
+      baseUrl: "https://example.test/api/v1",
+      fetchImpl: stubFetch(() =>
+        Promise.resolve(
+          jsonResponse({
+            model: "anthropic/claude-test",
+            usage: {
+              prompt_tokens: 120,
+              completion_tokens: 30,
+              total_tokens: 150,
+            },
+            choices: [
+              { message: { content: "Plan ready." }, finish_reason: "stop" },
+            ],
+          }),
+        ),
+      ),
+    });
+    const result = await provider.completeDetailed?.({
+      apiKey: "sk-or-v1-test",
+      model: "openrouter/auto",
+      messages: [{ role: "user", content: "analyse" }],
+      temperature: 0.3,
+      maxTokens: 500,
+    });
+    if (result === undefined) {
+      throw new Error("expected completeDetailed to be implemented");
+    }
+
+    expect(result).toEqual({
+      text: "Plan ready.",
+      model: "anthropic/claude-test",
+      finishReason: "stop",
+      usage: { promptTokens: 120, completionTokens: 30, totalTokens: 150 },
+    });
+  });
+
   it("surfaces insufficient credits distinctly", async () => {
     const provider = createOpenRouterProvider({
       fetchImpl: stubFetch(() =>

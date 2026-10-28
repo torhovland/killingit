@@ -27,6 +27,7 @@ export async function generateSeasonPlan(
     credentials,
     buildSeasonPlanMessages(input),
     PLAN_MAX_TOKENS,
+    { kind: "season_plan" },
   );
 }
 
@@ -42,5 +43,6 @@ export async function generateInitialBlock(
     credentials,
     buildInitialBlockMessages(input),
     PLAN_MAX_TOKENS,
+    { kind: "initial_block" },
   );
 }
