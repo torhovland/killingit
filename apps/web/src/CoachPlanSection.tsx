@@ -10,6 +10,7 @@ import { saveBlob } from "./download";
 import { fetchFileAuthed, fetchJsonAuthed } from "./fetchAuthed";
 import { useNavigate } from "./navigation";
 import { reportError } from "./reportError";
+import { SubmitButton } from "./SubmitButton";
 import { useTimeZone } from "./TimeZoneContext";
 import { formatDateTime } from "./timeZone";
 import { getToday } from "./useToday";
@@ -346,18 +347,19 @@ export function CoachPlanSection({
         </div>
       )}
 
-      {data?.stale && !running && ready && (
+      {data?.stale && ready && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded border bg-muted p-3 text-sm">
           <span>
             Your coaching inputs changed, so your plan is out of date.
           </span>
-          <button
+          <SubmitButton
             type="button"
-            className="rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted"
+            busy={running}
+            className="rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted disabled:opacity-50"
             onClick={() => void generate(false)}
           >
-            Update plan
-          </button>
+            {running ? "Coach is thinking…" : "Update plan"}
+          </SubmitButton>
         </div>
       )}
 
@@ -380,20 +382,20 @@ export function CoachPlanSection({
         />
       ) : (
         !loading &&
-        !running &&
         ready && (
           <div className="flex flex-col items-start gap-2">
             <p className="text-sm text-muted-foreground">
               No plan yet. Your coach will build it from your profile and recent
               training.
             </p>
-            <button
+            <SubmitButton
               type="button"
-              className="rounded border border-transparent bg-primary px-3 py-1 text-sm text-primary-foreground enabled:hover:bg-primary-hover"
+              busy={running}
+              className="rounded border border-transparent bg-primary px-3 py-1 text-sm text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
               onClick={() => void generate(false)}
             >
-              Generate my plan
-            </button>
+              {running ? "Coach is thinking…" : "Generate my plan"}
+            </SubmitButton>
           </div>
         )
       )}

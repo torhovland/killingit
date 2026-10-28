@@ -7,12 +7,18 @@ import { useAppStatus } from "./AppStatus";
 import { useAuth } from "./auth";
 import { fetchJsonAuthed } from "./fetchAuthed";
 import { reportError } from "./reportError";
+import { SubmitButton } from "./SubmitButton";
 import { useTimeZone } from "./TimeZoneContext";
 import { getToday } from "./useToday";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 const POLL_INTERVAL_MS = 1500;
 const POLL_TIMEOUT_MS = 10 * 60 * 1000;
+
+const PRIMARY_BUTTON =
+  "rounded border border-transparent bg-primary px-3 py-1 text-sm text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50";
+const SECONDARY_BUTTON =
+  "rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted disabled:opacity-50";
 
 type PlanAction = Extract<PlanGenerateMode, "newSeason" | "updateSeason">;
 
@@ -177,36 +183,52 @@ export function PlanRegenerationButtonsView({
   onUpdateSeason,
 }: PlanRegenerationButtonsViewProps) {
   const busy = running !== null;
+  // Updating a season is the safer default whenever there is one: it keeps the
+  // completed blocks. Starting over is only primary when it is the sole action.
+  const actions: Array<{
+    action: PlanAction;
+    label: string;
+    primary: boolean;
+    onClick: () => void;
+  }> = [
+    ...(hasSeason
+      ? [
+          {
+            action: "updateSeason" as const,
+            label: "Update season plan",
+            primary: true,
+            onClick: onUpdateSeason,
+          },
+        ]
+      : []),
+    {
+      action: "newSeason",
+      label: "Plan a new season",
+      primary: !hasSeason,
+      onClick: onNewSeason,
+    },
+  ];
 
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          className="rounded border border-transparent bg-primary px-3 py-1 text-sm text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
-          onClick={onNewSeason}
-          disabled={busy}
-        >
-          {running === "newSeason"
-            ? "Planning a new season…"
-            : "Plan a new season"}
-        </button>
-        {hasSeason && (
-          <button
+        {actions.map((entry) => (
+          <SubmitButton
+            key={entry.action}
             type="button"
-            className="rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted disabled:opacity-50"
-            onClick={onUpdateSeason}
+            busy={running === entry.action}
+            className={entry.primary ? PRIMARY_BUTTON : SECONDARY_BUTTON}
             disabled={busy}
+            onClick={entry.onClick}
           >
-            {running === "updateSeason"
-              ? "Updating your season…"
-              : "Update season plan"}
-          </button>
-        )}
+            {running === entry.action ? "Coach is thinking…" : entry.label}
+          </SubmitButton>
+        ))}
       </div>
       <p className="text-xs text-muted-foreground">
-        A new season starts today. Updating keeps completed blocks and re-plans
-        the rest of this season.
+        {hasSeason
+          ? "Updating keeps completed blocks and re-plans the rest of this season. A new season starts today."
+          : "A new season starts today."}
       </p>
       {done && (
         <p className="text-sm text-success" role="status">
