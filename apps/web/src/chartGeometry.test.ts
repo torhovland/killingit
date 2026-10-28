@@ -6,7 +6,6 @@ import {
   CHART_PADDING,
   CHART_WIDTH,
   chartScale,
-  formatChartDate,
   formatZoneRange,
   indexAt,
   labelIndices,
@@ -187,15 +186,5 @@ describe("formatZoneRange", () => {
     expect(formatZoneRange({ interpretation: "fresh", from: 5, to: 25 })).toBe(
       "+5 to +25",
     );
-  });
-});
-
-describe("formatChartDate", () => {
-  it("writes a short day and month", () => {
-    expect(formatChartDate("2026-10-22")).toBe("22 Oct");
-  });
-
-  it("passes through anything unexpected", () => {
-    expect(formatChartDate("")).toBe("");
   });
 });

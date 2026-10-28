@@ -147,7 +147,7 @@ describe("CalendarView", () => {
     );
 
     expect(html).toContain("Calendar");
-    expect(html).toContain("October 2026");
+    expect(html).toContain("Oct 2026");
     expect(html).toContain("Season ends");
     expect(html).toContain("Ride a century.");
     expect(html).toContain("Block starts · Base");

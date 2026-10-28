@@ -5,12 +5,12 @@ import {
   CHART_PADDING,
   CHART_WIDTH,
   chartScale,
-  formatChartDate,
   FUTURE_DASH,
   labelIndices,
   lastIndexOnOrBefore,
   niceDomain,
 } from "./chartGeometry";
+import { formatDate } from "./dates";
 import { useChartHover } from "./useChartHover";
 
 /**
@@ -235,7 +235,7 @@ export function BodyChart({
                 }
                 className="fill-muted-foreground text-[10px]"
               >
-                {formatChartDate(day.date)}
+                {formatDate(day.date)}
               </text>
             );
           })}
@@ -245,7 +245,7 @@ export function BodyChart({
             className="pointer-events-none absolute top-2 z-10 w-44 -translate-x-1/2 rounded border bg-card p-2 text-xs shadow-lg"
             style={{ left: `${hovered.percent}%` }}
           >
-            <p className="font-medium">{formatChartDate(hovered.day.date)}</p>
+            <p className="font-medium">{formatDate(hovered.day.date)}</p>
             {hoveredWeight !== null && <p>Weight {hoveredWeight} kg</p>}
             {hoveredFat !== null && <p>Body fat {hoveredFat}%</p>}
             {hoveredWeight === null && hoveredFat === null && (

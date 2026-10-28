@@ -172,6 +172,12 @@ The stack below is proposed and should be treated as the starting point. See
 - Use `cn()` (tailwind-merge + clsx) for predictable class merging. Avoid
   inline `style=` attributes and hard-coded magic values; reference tokens.
 
+#### Display formatting
+
+- Dates render as `d. MMM YYYY` (for example `1. Oct 2026`) and clock times
+  use a 24-hour clock. Use the helpers in `apps/web/src/dates.ts` rather than
+  locale-default formatting, so every view reads the same.
+
 ### Backend
 
 One TypeScript stack end-to-end keeps a single language and shared types

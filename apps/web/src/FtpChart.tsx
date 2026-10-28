@@ -5,13 +5,13 @@ import {
   CHART_PADDING,
   CHART_WIDTH,
   chartScale,
-  formatChartDate,
   FUTURE_DASH,
   labelIndices,
   lastIndexOnOrBefore,
   niceDomain,
   stepPath,
 } from "./chartGeometry";
+import { formatDate } from "./dates";
 import { FitnessDayTooltip } from "./FitnessDayTooltip";
 import { useChartHover } from "./useChartHover";
 
@@ -155,7 +155,7 @@ export function FtpChart({
                 }
                 className="fill-muted-foreground text-[10px]"
               >
-                {formatChartDate(point.date)}
+                {formatDate(point.date)}
               </text>
             );
           })}

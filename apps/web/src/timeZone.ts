@@ -25,19 +25,3 @@ export function resolveTimeZone(setting?: string | null): string {
     return browserTimeZone();
   }
 }
-
-/** Formats an ISO timestamp in the given zone without a zone identifier. */
-export function formatDateTime(iso: string, timeZone: string): string {
-  const parsed = new Date(iso);
-  if (Number.isNaN(parsed.getTime())) {
-    return iso;
-  }
-  return parsed.toLocaleString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone,
-  });
-}

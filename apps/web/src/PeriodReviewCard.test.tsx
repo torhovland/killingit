@@ -29,7 +29,7 @@ describe("PeriodReviewCard", () => {
     );
 
     expect(html).toContain("Week review");
-    expect(html).toContain("Week starting 2026-10-13");
+    expect(html).toContain("Week starting 13. Oct 2026");
     expect(html).toContain("five of six planned sessions");
     expect(html).toContain('data-testid="period-review-comment-form"');
     expect(html).toContain("Send to coach");

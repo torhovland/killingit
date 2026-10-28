@@ -3,7 +3,6 @@ import {
   buildMonthGrid,
   clampMonth,
   dayNumber,
-  formatMonth,
   monthOf,
   shiftMonth,
 } from "./calendarDates";
@@ -31,9 +30,7 @@ describe("calendarDates", () => {
     expect(grid.at(-1)?.date).toBe("2026-11-08");
   });
 
-  it("formats the month heading and day number", () => {
-    expect(formatMonth("2026-10")).toContain("2026");
-    expect(formatMonth("2026-10")).toContain("October");
+  it("reads the day number for a grid cell", () => {
     expect(dayNumber("2026-10-07")).toBe(7);
   });
 });

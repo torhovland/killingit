@@ -54,19 +54,6 @@ export function buildMonthGrid(month: string): MonthCell[] {
   });
 }
 
-/** A human-readable month heading, e.g. "October 2026". */
-export function formatMonth(month: string): string {
-  const parsed = new Date(`${month}-01T00:00:00Z`);
-  if (Number.isNaN(parsed.getTime())) {
-    return month;
-  }
-  return parsed.toLocaleDateString(undefined, {
-    month: "long",
-    year: "numeric",
-    timeZone: "UTC",
-  });
-}
-
 /** A short day number for a grid cell. */
 export function dayNumber(date: string): number {
   return Number(date.slice(8, 10));

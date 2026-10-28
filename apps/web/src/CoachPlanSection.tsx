@@ -12,7 +12,7 @@ import { useNavigate } from "./navigation";
 import { reportError } from "./reportError";
 import { SubmitButton } from "./SubmitButton";
 import { useTimeZone } from "./TimeZoneContext";
-import { formatDateTime } from "./timeZone";
+import { formatDateTime } from "./dates";
 import { getToday } from "./useToday";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";

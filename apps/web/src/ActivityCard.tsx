@@ -5,7 +5,7 @@ import { formatDuration } from "./formatDuration";
 import { SubmitButton } from "./SubmitButton";
 import { TrainingLoadLine } from "./TrainingLoadLine";
 import { useTimeZone } from "./TimeZoneContext";
-import { formatDateTime } from "./timeZone";
+import { formatDateTime } from "./dates";
 
 /**
  * One synced activity with its coach analysis and program review.

@@ -9,7 +9,8 @@ import {
 import { useAuth } from "./auth";
 import { fetchJsonAuthed } from "./fetchAuthed";
 import { reportError } from "./reportError";
-import { browserTimeZone, formatDateTime } from "./timeZone";
+import { formatDateTime } from "./dates";
+import { browserTimeZone } from "./timeZone";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 const PAGE_SIZE = 50;

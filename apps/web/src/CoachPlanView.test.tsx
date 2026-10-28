@@ -152,7 +152,7 @@ describe("CoachPlanView", () => {
       <CoachPlanView plan={plan} defaultTab="block" />,
     );
     expect(block).toContain("Week 1");
-    expect(block).toContain("Week starting Mon, Oct 19");
+    expect(block).toContain("Week starting 19. Oct 2026");
     expect(block).toContain("Target load: Easy");
     expect(block).toContain("Aerobic base");
     expect(block).toContain("border-b");
@@ -205,7 +205,7 @@ describe("CoachPlanView", () => {
     );
     expect(week).toContain("This week · Aerobic base");
     expect(week).toContain("Next week · Aerobic build");
-    expect(week).toContain("Week starting Mon, Oct 26");
+    expect(week).toContain("Week starting 26. Oct 2026");
     expect(week).toContain("Next session 1");
     expect(week).toContain('data-testid="plan-next-week"');
     expect(week).toContain("260 W");

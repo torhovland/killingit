@@ -12,15 +12,13 @@ import {
   buildMonthGrid,
   clampMonth,
   dayNumber,
-  formatMonth,
   monthOf,
   shiftMonth,
 } from "./calendarDates";
-import { formatPlanDate } from "./CoachPlanView";
+import { formatDate, formatDateTime, formatMonth } from "./dates";
 import { formatDuration } from "./formatDuration";
 import { TrainingLoadLine } from "./TrainingLoadLine";
 import { useTimeZone } from "./TimeZoneContext";
-import { formatDateTime } from "./timeZone";
 import { WeatherSummary } from "./WeatherSummary";
 
 export type CalendarSelection =
@@ -173,9 +171,8 @@ export function CalendarView({
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Showing {formatPlanDate(data.earliestDate)} –{" "}
-        {formatPlanDate(data.latestDate)}. Future workouts appear as the coach
-        plans each week.
+        Showing {formatDate(data.earliestDate)} – {formatDate(data.latestDate)}.
+        Future workouts appear as the coach plans each week.
       </p>
 
       <CalendarEntryDialog
@@ -200,7 +197,7 @@ function CalendarHeading({
       {season && (
         <p className="text-sm" data-testid="calendar-season">
           <span className="font-medium">
-            Season ends {formatPlanDate(season.endDate)}
+            Season ends {formatDate(season.endDate)}
           </span>
           <span className="text-muted-foreground"> · {season.goal}</span>
         </p>
@@ -395,7 +392,7 @@ export function CalendarEntryDialog({
           <h3 className="text-lg font-semibold">
             {selection.kind === "activity"
               ? selection.activity.name
-              : `${formatPlanDate(selection.session.date)} · ${selection.session.title}`}
+              : `${formatDate(selection.session.date)} · ${selection.session.title}`}
           </h3>
           <button
             type="button"
@@ -424,7 +421,7 @@ function ActivityDetails({ activity }: { activity: CalendarActivity }) {
     return (
       <div className="flex flex-col gap-2">
         <p className="text-sm text-muted-foreground">
-          Manual activity · {formatPlanDate(activity.startDate)}
+          Manual activity · {formatDate(activity.startDate)}
         </p>
         <p className="whitespace-pre-line">{activity.details}</p>
         {activity.estimatedTss != null && (
@@ -534,7 +531,7 @@ function SessionDetails({ session }: { session: WeekSession }) {
   return (
     <div className="flex flex-col gap-2">
       <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-        <span>{formatPlanDate(session.date)}</span>
+        <span>{formatDate(session.date)}</span>
         <StatusBadge status={session.status} />
         <span>
           {session.type === "rest"

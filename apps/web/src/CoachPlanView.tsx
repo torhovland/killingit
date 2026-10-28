@@ -8,6 +8,7 @@ import {
   type WeekPlan,
   type WeekSessionStatus,
 } from "@killingit/shared";
+import { formatDate } from "./dates";
 import { TrainingLoadLine } from "./TrainingLoadLine";
 import { WeatherSummary } from "./WeatherSummary";
 
@@ -147,7 +148,7 @@ function DayCard({
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-lg font-semibold">
-            {label} · {formatPlanDate(day.date)}
+            {label} · {formatDate(day.date)}
           </h3>
           <span className="flex items-center gap-2">
             {(day.status === "completed" || day.status === "partial") && (
@@ -267,7 +268,7 @@ function WeekSection({
         {label} · {week.focus}
       </h3>
       <p className="text-sm text-muted-foreground">
-        Week starting {formatPlanDate(week.startDate)}
+        Week starting {formatDate(week.startDate)}
         {week.estimatedFtpWatts != null && (
           <span data-testid="week-ftp">
             {" · "}
@@ -283,7 +284,7 @@ function WeekSection({
             key={session.date}
             className="flex flex-wrap items-baseline justify-between gap-2 border-b pb-2 text-sm last:border-b-0 last:pb-0"
           >
-            <span className="font-medium">{formatPlanDate(session.date)}</span>
+            <span className="font-medium">{formatDate(session.date)}</span>
             <span>{session.title}</span>
             <span className="flex items-center gap-2 text-muted-foreground">
               <StatusBadge status={session.status} />
@@ -346,7 +347,7 @@ function BlockSection({
         {label} · {block.name}
       </h3>
       <p className="mt-2 text-sm text-muted-foreground">
-        {formatPlanDate(block.startDate)} → {formatPlanDate(block.endDate)}
+        {formatDate(block.startDate)} → {formatDate(block.endDate)}
         {block.estimatedFtpWatts != null && (
           <span data-testid="block-ftp">
             {" · "}Estimated FTP:{" "}
@@ -364,7 +365,7 @@ function BlockSection({
           <PlanListItem key={`${week.number}-${week.startDate}`}>
             <p className="font-medium">Week {week.number}</p>
             <p className="text-muted-foreground">
-              Week starting {formatPlanDate(week.startDate)}
+              Week starting {formatDate(week.startDate)}
             </p>
             <p className="text-muted-foreground">
               Target load: {week.targetLoad}
@@ -387,7 +388,7 @@ function SeasonSection({ season }: { season: SeasonPlan }) {
     <section className="rounded-lg border bg-card p-4">
       <h3 className="text-lg font-semibold">Season · {season.goal}</h3>
       <p className="mt-2 text-sm text-muted-foreground">
-        {formatPlanDate(season.startDate)} → {formatPlanDate(season.endDate)}
+        {formatDate(season.startDate)} → {formatDate(season.endDate)}
         {season.estimatedFtpWatts != null && (
           <span data-testid="season-ftp">
             {" · "}Estimated FTP:{" "}
@@ -406,9 +407,8 @@ function SeasonSection({ season }: { season: SeasonPlan }) {
               {index + 1}. {block.name}
             </p>
             <p className="text-muted-foreground">
-              {formatPlanDate(block.startDate)} →{" "}
-              {formatPlanDate(block.endDate)} · {block.weekCount}{" "}
-              {block.weekCount === 1 ? "week" : "weeks"}
+              {formatDate(block.startDate)} → {formatDate(block.endDate)} ·{" "}
+              {block.weekCount} {block.weekCount === 1 ? "week" : "weeks"}
             </p>
             <p className="text-muted-foreground">{block.focus}</p>
           </PlanListItem>
@@ -438,17 +438,4 @@ function PlanListItem({ children }: { children: ReactNode }) {
  */
 function formatSessionSetting(outdoor: boolean | undefined): string {
   return outdoor === false ? " · indoor" : outdoor === true ? " · outdoor" : "";
-}
-
-export function formatPlanDate(date: string): string {
-  const parsed = new Date(`${date}T00:00:00Z`);
-  if (Number.isNaN(parsed.getTime())) {
-    return date;
-  }
-  return parsed.toLocaleDateString(undefined, {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    timeZone: "UTC",
-  });
 }

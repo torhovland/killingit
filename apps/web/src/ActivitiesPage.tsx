@@ -12,6 +12,7 @@ import {
 } from "@killingit/shared";
 import { ActivityCard } from "./ActivityCard";
 import { loadCachedActivities, saveCachedActivities } from "./activityCache";
+import { formatDate } from "./dates";
 import { TrainingLoadLine } from "./TrainingLoadLine";
 import { useAppStatus, useBusyReporter } from "./AppStatus";
 import { useAuth } from "./auth";
@@ -290,7 +291,9 @@ export function ActivitiesPage() {
     activity: ManualActivity,
   ): Promise<void> {
     if (
-      !window.confirm(`Delete the manual activity from ${activity.startDate}?`)
+      !window.confirm(
+        `Delete the manual activity from ${formatDate(activity.startDate)}?`,
+      )
     ) {
       return;
     }
@@ -453,8 +456,10 @@ export function ActivitiesPage() {
               >
                 <div className="flex flex-col gap-1">
                   <span>
-                    <span className="font-medium">{activity.startDate}</span> —{" "}
-                    {activity.details}
+                    <span className="font-medium">
+                      {formatDate(activity.startDate)}
+                    </span>{" "}
+                    — {activity.details}
                   </span>
                   {activity.coachReply && (
                     <span className="text-muted-foreground">

@@ -15,7 +15,6 @@ import {
   CHART_PADDING,
   CHART_WIDTH,
   chartScale,
-  formatChartDate,
   formatZoneRange,
   FUTURE_DASH,
   labelIndices,
@@ -25,6 +24,7 @@ import {
   tsbSegments,
   zoneBlocks,
 } from "./chartGeometry";
+import { formatDate } from "./dates";
 import { FitnessDayTooltip } from "./FitnessDayTooltip";
 import { useChartHover } from "./useChartHover";
 
@@ -216,7 +216,7 @@ export function FitnessChart({
                 }
                 className="fill-muted-foreground text-[10px]"
               >
-                {formatChartDate(day.date)}
+                {formatDate(day.date)}
               </text>
             );
           })}

@@ -22,7 +22,7 @@ describe("FitnessDayTooltip", () => {
       <FitnessDayTooltip day={day()} today="2026-10-22" />,
     );
 
-    expect(html).toContain("22 Oct");
+    expect(html).toContain("22. Oct 2026");
     expect(html).toContain("TSS 95");
     expect(html).toContain("TSB +8");
     expect(html).toContain("Fresh");

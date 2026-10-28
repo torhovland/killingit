@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { PeriodReview, ReviewKind } from "@killingit/shared";
+import { formatDate } from "./dates";
 import { SubmitButton } from "./SubmitButton";
 
 const KIND_LABELS: Record<ReviewKind, string> = {
@@ -96,6 +97,10 @@ export function PeriodReviewCard({
 
   const shownComment = savedComment ?? review.comment;
   const shownReply = coachReply ?? review.coachReply?.text ?? null;
+  const reviewTitle =
+    review.kind === "week"
+      ? `Week starting ${formatDate(review.startDate)}`
+      : review.title;
 
   return (
     <article
@@ -105,7 +110,8 @@ export function PeriodReviewCard({
       <header className="flex flex-col gap-1">
         <h3 className="text-lg font-semibold">{KIND_LABELS[review.kind]}</h3>
         <p className="text-sm text-muted-foreground">
-          {review.title} · {review.startDate} → {review.endDate}
+          {reviewTitle} · {formatDate(review.startDate)} →{" "}
+          {formatDate(review.endDate)}
         </p>
       </header>
 
