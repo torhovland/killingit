@@ -28,6 +28,7 @@ import { planPending } from "./status.js";
 import type { PlanGenerationStep } from "./steps.js";
 import {
   idleGenerationStatus,
+  type PlanGenerationFailure,
   type PlanGenerationStore,
   type PlanStore,
   type StoredPlan,
@@ -339,17 +340,20 @@ class MemoryPlanStore implements PlanStore {
 class MemoryGenerationStore implements PlanGenerationStore {
   status: PlanGenerationStatus = idleGenerationStatus();
   steps: string[] = [];
+  autoRetries = 0;
 
   load(): Promise<PlanGenerationStatus> {
     return Promise.resolve(this.status);
   }
 
-  begin(): Promise<boolean> {
+  begin(_userId?: number, options?: { retry?: boolean }): Promise<boolean> {
+    this.autoRetries = options?.retry === true ? this.autoRetries + 1 : 0;
     this.status = {
       ...this.status,
       status: "running",
       step: "Preparing your plan",
       progress: 5,
+      error: null,
       updatedAt: new Date().toISOString(),
     };
     return Promise.resolve(true);
@@ -382,14 +386,17 @@ class MemoryGenerationStore implements PlanGenerationStore {
     return Promise.resolve();
   }
 
-  fail(_userId: number, error: string): Promise<Date | null> {
+  fail(_userId: number, error: string): Promise<PlanGenerationFailure | null> {
     this.status = {
       ...this.status,
       status: "error",
       error,
       updatedAt: new Date().toISOString(),
     };
-    return Promise.resolve(new Date());
+    return Promise.resolve({
+      startedAt: new Date(),
+      autoRetries: this.autoRetries,
+    });
   }
 }
 

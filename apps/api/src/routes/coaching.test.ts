@@ -8,6 +8,7 @@ import type {
   StoredPeriodReview,
 } from "../plans/periodReviews.js";
 import type {
+  PlanGenerationFailure,
   PlanGenerationStore,
   PlanStore,
   StoredPlan,
@@ -74,21 +75,24 @@ class MemoryPlanStore implements PlanStore {
 class MemoryGenerationStore implements PlanGenerationStore {
   status = idleGenerationStatus();
   running = false;
+  autoRetries = 0;
 
   load() {
     return Promise.resolve(this.status);
   }
 
-  begin() {
+  begin(_userId?: number, options?: { retry?: boolean }) {
     if (this.running) {
       return Promise.resolve(false);
     }
     this.running = true;
+    this.autoRetries = options?.retry === true ? this.autoRetries + 1 : 0;
     this.status = {
       ...this.status,
       status: "running",
       step: "Preparing your plan",
       progress: 5,
+      error: null,
       updatedAt: new Date().toISOString(),
     };
     return Promise.resolve(true);
@@ -121,7 +125,7 @@ class MemoryGenerationStore implements PlanGenerationStore {
     return Promise.resolve();
   }
 
-  fail(_userId: number, error: string): Promise<Date | null> {
+  fail(_userId: number, error: string): Promise<PlanGenerationFailure | null> {
     this.running = false;
     this.status = {
       ...this.status,
@@ -129,7 +133,10 @@ class MemoryGenerationStore implements PlanGenerationStore {
       error,
       updatedAt: new Date().toISOString(),
     };
-    return Promise.resolve(new Date());
+    return Promise.resolve({
+      startedAt: new Date(),
+      autoRetries: this.autoRetries,
+    });
   }
 }
 

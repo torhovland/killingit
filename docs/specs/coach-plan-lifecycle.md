@@ -161,6 +161,8 @@ One row per user (`unique (user_id)`):
 - `step_expected_ms` — expected duration of the current step, copied from its
   learned average.
 - `error` — failure detail, null on success.
+- `auto_retries` — automatic retries used by the current run chain. A normal
+  start or a successful finish resets it.
 - `started_at`, `updated_at`.
 
 While a step runs, `GET` reports `progress` interpolated from the value reached
@@ -174,8 +176,9 @@ checkpoint. See `docs/specs/plan-generation-progress.md`.
 already `running`, so concurrent requests cannot start two generations. A live
 generation refreshes `updated_at` every 15 seconds. A `running` row that has not
 been refreshed for two minutes is considered abandoned (for example by a server
-restart); `GET` records it as an error so the client stops polling and offers
-`Try again`, and `begin` may take over the stale claim.
+restart); `GET` records it as an error and starts one automatic retry, so only a
+second abandoned run stops polling and offers `Try again`. `begin` may take over
+the stale claim.
 
 Releasing a stale run is a compare-and-set: the `GET` passes the `updated_at` it
 observed, and `fail` only changes a `running` row that still has that exact
@@ -184,6 +187,13 @@ the run alive, and a run that replaced the stale one is never cleared by the
 older request. The release also marks the prompt-log rows from that run as
 belonging to a failed plan, and settles any prompt the dead process left in
 flight as failed with the stale-run message (see `docs/specs/llm-call-log.md`).
+
+A released run is retried automatically once, because a deploy or an instance
+shutdown is usually transient. The retry claims a fresh run and loads its
+inputs in the background, so the polling `GET` answers immediately and the
+athlete keeps seeing progress instead of an error. `auto_retries` records the
+retry, so a second abandoned run in the same chain stays failed and shows
+`Try again`. An explicit start (or a successful finish) resets the allowance.
 
 ## API
 
@@ -305,9 +315,10 @@ problems; the error names the offending fields if the repair also fails. See
   starts an automatic generation when it sees stale answers or a pending level,
   refreshing an existing season. The banner stays available if that automatic
   run failed or the plan is still stale after it finishes.
-- A failed generation is surfaced with its error and a "Try again" button. The
-  section deliberately does not retry on every page load, so a persistent
-  failure cannot turn into an endless run.
+- A failed generation is surfaced with its error and a "Try again" button. A
+  stale run is retried once on the server before that, but the section still
+  does not retry on every page load, so a persistent failure cannot turn into an
+  endless run.
 
 ## Testing
 
@@ -319,7 +330,8 @@ problems; the error names the offending fields if the repair also fails. See
   provider, new-season and season-update modes, next-week/next-block
   generation, and promotion after the date moves on.
 - API route tests for auth, valid/invalid dates, the empty state, full
-  generation, the already-running `202` case, and a normalised next period.
+  generation, the already-running `202` case, a normalised next period, a stale
+  run's single automatic retry, and a second stale run that stays failed.
 - Web render tests for the four-level view (today, week, next week, block, next
   block, season, alternatives, and the goal-linked skip guidance on workouts).
 - Run `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`.
@@ -333,18 +345,18 @@ problems; the error names the offending fields if the repair also fails. See
   three steps it replaces. The next period is reused on later visits. Each
   generation first syncs/analyses recent Garmin activities (cached analyses are
   reused). The plan is lazily generated only when needed.
-- **Long requests:** generation runs inside the POST. The API already sets a
-  255s Bun idle timeout; the UI polls a separate status endpoint so it can show
-  progress without waiting for the POST to resolve.
+- **Long requests:** the POST claims the generation and returns `202`; the
+  cascade continues in the background while the UI polls GET for progress. The
+  API sets a 255s Bun idle timeout so the request itself is not closed early.
 - **Reasoning models:** reasoning tokens count against the output budget. Plan
   calls request `reasoning.effort: "minimal"`; if a model still stops at the
   token limit, `completePlan` retries with reasoning disabled and a doubled
   budget before falling back to the normal budget without reasoning control.
 - **Cloud Run:** if the process is terminated mid-generation, its heartbeat
   stops. After two minutes without a refresh, `GET` marks the run as failed and
-  the UI offers `Try again`; `begin` can take over the stale claim. The prompt
-  log shows the attempt the process was waiting for as failed. A background
-  worker is the future fix.
+  starts one automatic retry; only a second abandoned run shows `Try again`.
+  `begin` can take over the stale claim. The prompt log shows the attempt the
+  process was waiting for as failed. A background worker is the future fix.
 - **Date trust:** the client supplies `today` and its timezone. A personal app
   accepts this; a multi-tenant version should derive the athlete's timezone from
   their profile and validate the date server-side.

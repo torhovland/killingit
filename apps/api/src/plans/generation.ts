@@ -10,6 +10,13 @@ export const GENERATION_HEARTBEAT_MS = 15_000;
  */
 export const STALE_GENERATION_MS = 2 * 60 * 1000;
 
+/**
+ * How many times an abandoned run is restarted automatically before the athlete
+ * sees an error. One retry hides a single deploy or instance shutdown without
+ * re-billing the model in a loop.
+ */
+export const MAX_AUTO_RETRIES = 1;
+
 /** True when a `running` status has gone quiet for longer than the lease. */
 export function isStaleRunning(
   status: PlanGenerationStatus,
