@@ -28,6 +28,27 @@ export default tseslint.config(
     },
   },
   {
+    files: ["**/*.{ts,tsx}"],
+    rules: {
+      // Detect unused variables and constants. TypeScript's noUnusedLocals
+      // already checks non-exported values; this keeps the same check in the
+      // linter, including for values TypeScript treats as part of a module's
+      // public surface.
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          args: "after-used",
+          argsIgnorePattern: "^_",
+          caughtErrors: "all",
+          caughtErrorsIgnorePattern: "^_",
+          ignoreRestSiblings: true,
+          vars: "all",
+          varsIgnorePattern: "^_",
+        },
+      ],
+    },
+  },
+  {
     files: ["**/*.{js,mjs,cjs}"],
     ...tseslint.configs.disableTypeChecked,
   },
