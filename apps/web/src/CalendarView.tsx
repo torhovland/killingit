@@ -244,7 +244,7 @@ function CalendarCell({
           data-testid="calendar-block-start"
         >
           Block starts
-          <Bullet />
+          <br />
           {day.blockStart.name}
         </span>
       )}
