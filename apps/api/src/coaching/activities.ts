@@ -8,7 +8,6 @@ import {
   type CoachPlan,
   type MetricPoint,
   type RoutePoint,
-  type TrainingLoad,
 } from "@killingit/shared";
 import { decrypt } from "../crypto/credentials.js";
 import { syncGarminActivities, syncGarminMetrics } from "../garmin/client.js";
@@ -46,7 +45,10 @@ import {
 } from "../llm/openrouter.js";
 import { loadLlmSettings } from "../llm/store.js";
 import { dbPlanStore } from "../plans/store.js";
-import { buildActivityTrainingLoads } from "../training/activityLoad.js";
+import {
+  buildActivityLoads,
+  type ActivityLoads,
+} from "../training/activityLoad.js";
 import { loadTrainingContext } from "../training/context.js";
 import { ftpBaselineAt, type FtpTimeline } from "../training/ftp.js";
 import { saveCachedActivityFeed } from "./feedCache.js";
@@ -143,7 +145,10 @@ export async function loadAnalyzedActivities(options: {
     ),
     dbPlanStore.load(options.userId),
   ]);
-  let loads = new Map<string, TrainingLoad>();
+  let loads: ActivityLoads = {
+    byDate: new Map(),
+    byActivityId: new Map(),
+  };
   let ftpHistory: MetricPoint[] = [];
   let ftpTimeline: FtpTimeline | null = null;
   try {
@@ -161,7 +166,7 @@ export async function loadAnalyzedActivities(options: {
     for (const [date, tss] of training.manualTssByDate) {
       tssByDate.set(date, tss);
     }
-    loads = buildActivityTrainingLoads(
+    loads = buildActivityLoads(
       synced.map((activity) => withoutAnalysis(activity)),
       training.timeline,
       tssByDate,
@@ -351,22 +356,23 @@ export async function loadAnalyzedActivities(options: {
 }
 
 /**
- * Builds the training-load snapshots for the synced activity dates. The FTP
- * timeline includes any revised test result the athlete mentioned, and the
- * stored plan supplies coach TSS estimates for the days it covers.
+ * Builds the training-load snapshots for the synced activity dates and the TSS
+ * each activity contributes on its own. The FTP timeline includes any revised
+ * test result the athlete mentioned, and the stored plan supplies coach TSS
+ * estimates for the days it covers.
  */
 export async function loadUserActivityTrainingLoads(
   userId: number,
   activities: readonly AnalyzedActivity[],
   plan: CoachPlan | undefined,
-): Promise<Map<string, TrainingLoad>> {
+): Promise<ActivityLoads> {
   const { timeline, planTssByDate, manualTssByDate } =
     await loadTrainingContext(userId, plan);
   const tssByDate = new Map(planTssByDate);
   for (const [date, tss] of manualTssByDate) {
     tssByDate.set(date, tss);
   }
-  return buildActivityTrainingLoads(activities, timeline, tssByDate);
+  return buildActivityLoads(activities, timeline, tssByDate);
 }
 
 /**
@@ -387,14 +393,16 @@ async function syncBodyMetrics(
   }
 }
 
-/** Attaches the day's resolved training load to an activity for the page. */
+/** Attaches the day's fitness snapshot and the activity's own TSS for the page. */
 function withActivityLoad(
   activity: AnalyzedActivity,
-  loads: ReadonlyMap<string, TrainingLoad>,
+  loads: ActivityLoads,
 ): AnalyzedActivity {
   return {
     ...activity,
-    trainingLoad: loads.get(activity.startDate.slice(0, 10)) ?? null,
+    activityTss:
+      loads.byActivityId.get(activity.id) ?? activity.activityTss ?? null,
+    trainingLoad: loads.byDate.get(activity.startDate.slice(0, 10)) ?? null,
   };
 }
 

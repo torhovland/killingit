@@ -514,6 +514,7 @@ function ActivitySummaryDetails({
       {activity.trainingLoad != null && (
         <TrainingLoadLine
           load={activity.trainingLoad}
+          tss={activity.activityTss ?? undefined}
           testId="calendar-dialog-load"
         />
       )}

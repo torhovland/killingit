@@ -181,6 +181,7 @@ export function ActivityCard({
             activity.trainingLoad !== undefined && (
               <TrainingLoadLine
                 load={activity.trainingLoad}
+                tss={activity.activityTss ?? undefined}
                 testId="activity-load"
               />
             )}

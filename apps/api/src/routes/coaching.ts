@@ -17,7 +17,6 @@ import {
   type ActivityCommentRequest,
   type PeriodReview,
   type ReviewKind,
-  type TrainingLoad,
 } from "@killingit/shared";
 import { zValidator } from "@hono/zod-validator";
 import { Hono, type Context } from "hono";
@@ -38,6 +37,7 @@ import {
   deleteManualActivity,
 } from "../coaching/deletions.js";
 import { loadCachedActivityFeed } from "../coaching/feedCache.js";
+import type { ActivityLoads } from "../training/activityLoad.js";
 import {
   answerCoachingQuestion,
   replyToCoachQuestion,
@@ -455,7 +455,12 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
           );
           activities = feed.activities.map((activity) => ({
             ...activity,
-            trainingLoad: loads.get(activity.startDate.slice(0, 10)) ?? null,
+            activityTss:
+              loads.byActivityId.get(activity.id) ??
+              activity.activityTss ??
+              null,
+            trainingLoad:
+              loads.byDate.get(activity.startDate.slice(0, 10)) ?? null,
           }));
         } catch (err) {
           console.error("[training-load] cached activity scoring failed:", err);
@@ -721,7 +726,10 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
         loadCachedFeed(user.id),
         deps.plans.load(user.id),
       ]);
-      let loads = new Map<string, TrainingLoad>();
+      let loads: ActivityLoads = {
+        byDate: new Map(),
+        byActivityId: new Map(),
+      };
       try {
         loads = await loadActivityTrainingLoads(
           user.id,
@@ -741,7 +749,7 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
             return {
               ...activity,
               coachReply: stored ? toCoachAnalysis(stored) : null,
-              trainingLoad: loads.get(activity.startDate) ?? null,
+              trainingLoad: loads.byDate.get(activity.startDate) ?? null,
             };
           }),
         }),

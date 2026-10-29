@@ -79,7 +79,8 @@ For each session in the stored week (and next week), the resolved TSS is:
 
 1. **Measured power.** If the date has a recorded activity with normalized
    power and the week has an estimated FTP, score
-   `hours × (NP / FTP)² × 100`. Multiple activities on a day are summed.
+   `hours × (NP / FTP)² × 100`. An unpowered activity on the same day adds its
+   duration-based stress, so the day's total is the sum of its activities.
 2. **Structured indoor workout.** If the session has a `bikeWorkout`, score
    every interval from its percentage of FTP. The absolute FTP cancels out, so
    this works even without a stated FTP.
@@ -89,6 +90,13 @@ For each session in the stored week (and next week), the resolved TSS is:
    hard). This keeps every workout with a number.
 
 Rest days score 0.
+
+Each recorded activity also carries its own TSS, separate from the day's total.
+An activity with power is scored from that power; one without power uses its
+duration-based fallback. When no activity on a day has power and the coach gave
+a day estimate, that estimate is split across the activities in proportion to
+their duration-based stress, so the parts add up to the day total. Duration
+falls back to elapsed time when the source reports no moving time.
 
 Normalized power is computed from the recorded samples when the activity feed is
 summarized: power is expanded onto a one-second timeline, averaged over a
@@ -158,7 +166,8 @@ Shared (`@killingit/shared`):
   manual activities, and `estimatedFtpWatts` (optional, nullable) on block week
   summaries, block plans, season plans, week plans, and week sessions.
 - `trainingLoad` (optional, nullable) on analyzed activities and manual
-  activities.
+  activities; `activityTss` (optional, nullable) on analyzed activities carries
+  the TSS credited to that activity alone.
 - `averagePower` and `normalizedPower` (optional) on activity summaries.
 - `trainingLoad.ts`: normalized power, power TSS, bike-workout TSS, daily
   exponentially weighted load, and a duration-based session estimate.
@@ -193,10 +202,11 @@ API:
 - **Block tab** shows the block's current estimated FTP in the header and each
   week's estimate beside its target load.
 - **Season tab** shows the current estimated FTP in the header.
-- **Activities page** shows the same TSS/ATL/CTL/TSB line and interpretation on
-  each imported activity card and saved manual entry. Imported activities use
-  measured power, the stored plan's coach estimate, or the duration fallback;
-  manual entries use their stored coach-estimated TSS.
+- **Activities page** shows each imported activity's own TSS beside the day's
+  ATL/CTL/TSB and interpretation, so two workouts on one day show different
+  stress values and the Week row shows their sum. Imported activities use
+  measured power or a duration fallback; manual entries use their stored
+  coach-estimated TSS.
 - **Fitness page** charts the daily CTL, ATL, and TSB with the TSB zone colours
   and the day-by-day estimated FTP over the same window; see
   `docs/specs/fitness-page.md`.
@@ -225,9 +235,10 @@ API:
 10. A revised FTP is interpolated through the completed period, and the block
     and season headers show the refreshed estimate.
 11. The Week tab shows the estimated FTP for the current and next week.
-12. Each imported activity card and saved manual entry on the Activities page
-    shows the same TSS/ATL/CTL/TSB line and interpretation when a load is
-    available.
+12. Each imported activity card shows the activity's own TSS with the day's
+    ATL/CTL/TSB line and interpretation. Two activities on one day can show
+    different TSS values, and a saved manual entry shows its coach-estimated
+    TSS rather than another entry's value on the same day.
 13. A manual entry such as "I did a 3 hour Zwift race with average HR at 187
     bpm" receives a coach-estimated TSS, which the plan and the Activities view
     use. Without a model the entry stays unscored rather than being guessed.

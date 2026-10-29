@@ -164,6 +164,30 @@ describe("applyTrainingLoad", () => {
     expect(tuesday?.trainingLoad?.tsb).toBe(-7.6);
   });
 
+  it("adds an unpowered activity's fallback to the day's measured TSS", () => {
+    const loaded = applyTrainingLoad(plan, {
+      ftpTimeline: statedFtp,
+      activities: [
+        activity(),
+        activity({
+          id: 2,
+          type: "indoor_rowing",
+          startDate: "2026-10-20T11:00:00Z",
+          movingTime: 0,
+          elapsedTime: 1800,
+          normalizedPower: undefined,
+          averagePower: undefined,
+        }),
+      ],
+    });
+    const tuesday = loaded.week.sessions.find(
+      (entry) => entry.date === "2026-10-20",
+    );
+
+    // 64 from the ride plus 30 min of rowing at 50 TSS/hour.
+    expect(tuesday?.trainingLoad?.tss).toBe(89);
+  });
+
   it("scores planned bike workouts from their intervals", () => {
     const loaded = applyTrainingLoad(plan, {
       ftpTimeline: statedFtp,

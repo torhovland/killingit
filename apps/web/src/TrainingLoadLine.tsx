@@ -18,15 +18,22 @@ export function TrainingLoadLine({
   load,
   testId,
   variant = "compact",
+  tss,
 }: {
   load: TrainingLoad;
   testId?: string;
   variant?: TrainingLoadLineVariant;
+  /** Shows this activity's TSS instead of the day's total. */
+  tss?: number | null | undefined;
 }) {
   const form = interpretTrainingStressBalance(load.tsb);
   const described = variant === "described";
   const metrics = [
-    { name: "Training stress", short: "TSS", value: Math.round(load.tss) },
+    {
+      name: "Training stress",
+      short: "TSS",
+      value: Math.round(tss ?? load.tss),
+    },
     { name: "Fatigue", short: "ATL", value: Math.round(load.atl) },
     { name: "Fitness", short: "CTL", value: Math.round(load.ctl) },
     { name: "Form", short: "TSB", value: formatSigned(load.tsb) },
