@@ -159,9 +159,48 @@ describe("buildActivityAnalysisPrompt", () => {
     expect(prompt).toContain("Current week plan:");
     expect(prompt).toContain("2026-10-01 (Monday) [planned]: Easy ride");
     expect(prompt).toContain(
-      "Match it to the planned session for that date, today's planned session, or another session this week that fits the data.",
+      "The workout happened on 2026-10-01, within the current week. Match it to the planned session for that date, or another session this week that fits the data.",
     );
     expect(prompt).toContain(
+      "Include how well the workout fit its planned session",
+    );
+  });
+
+  it("does not match an activity that happened outside the supplied week", () => {
+    const week: WeekPlan = {
+      startDate: "2026-10-05",
+      focus: "Aerobic base",
+      rationale: "Keep the week easy.",
+      sessions: Array.from({ length: 7 }, (_, index) => ({
+        date: `2026-10-${String(index + 5).padStart(2, "0")}`,
+        day: "Monday",
+        type: "workout" as const,
+        title: index === 0 ? "Run-walk" : `Session ${index + 1}`,
+        description: "Steady aerobic work.",
+        durationMinutes: 60,
+        intensity: "easy" as const,
+        status: "planned" as const,
+      })),
+    };
+
+    const messages = buildActivityAnalysisMessages(
+      makeActivity({ type: "running" }),
+      { today: "2026-10-26", week },
+    );
+    const prompt = messages[1]?.content ?? "";
+
+    expect(prompt).toContain(
+      "The workout happened on 2026-10-01, outside the current week (2026-10-05 to 2026-10-11).",
+    );
+    expect(prompt).toContain("Do not match it to a planned session");
+    expect(prompt).toContain("analyse it on its own merits");
+    expect(prompt).not.toContain(
+      "Match it to the planned session for that date",
+    );
+    expect(prompt).toContain(
+      "Do not compare the workout to the current week plan",
+    );
+    expect(prompt).not.toContain(
       "Include how well the workout fit its planned session",
     );
   });

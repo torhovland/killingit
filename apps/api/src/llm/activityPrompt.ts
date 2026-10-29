@@ -6,6 +6,7 @@ import type {
   WeekPlan,
 } from "@killingit/shared";
 import { downsample } from "../lib/downsample.js";
+import { weekCovers, weekEnd } from "../plans/periods.js";
 import { formatDuration } from "./duration.js";
 import {
   formatActivitySummary,
@@ -32,9 +33,12 @@ export const MAX_PROMPT_SAMPLES = 90;
  * Bump when the prompt or generation parameters change materially. Cached
  * analyses from an older version are ignored and regenerated.
  */
-export const ANALYSIS_PROMPT_VERSION = 8;
+export const ANALYSIS_PROMPT_VERSION = 9;
 
-/** The athlete's current week, used to match an activity to its planned session. */
+/**
+ * The athlete's current week, used to match an activity to its planned session
+ * when the activity happened inside that week.
+ */
 export interface ActivityAnalysisContext {
   today: string;
   week: WeekPlan;
@@ -48,7 +52,7 @@ const ANALYSIS_SYSTEM_PROMPT = promptSections(
   GLOBAL_PROMPT_RULES,
   "Review one completed workout for an amateur athlete.",
   ACTIVITY_TYPE_RULE,
-  "When the athlete's current week plan is provided, match the workout to the planned session it best fits, then make how well it fit the plan part of the same summary. If it followed the plan reasonably well, say so warmly and encouragingly. If it did not, point out clearly what could be improved without being harsh.",
+  "When the athlete's current week plan is provided and the workout happened within that week, match the workout to the planned session it best fits, then make how well it fit the plan part of the same summary. If it followed the plan reasonably well, say so warmly and encouragingly. If it did not, point out clearly what could be improved without being harsh. When the workout happened outside the supplied week, do not match it to any planned session and do not compare it to the plan; the athlete may have older activities that have not been analysed yet, so analyse the workout on its own merits.",
   "Be brief and to the point: use 2-3 sentences of plain text, cite only the most useful numbers, and finish with one actionable recommendation for the next session. Do not add a separate plan-fit section.",
   ACTIVITY_FTP_ESTIMATE_RULES,
   ACTIVITY_BODY_METRIC_RULES,
@@ -216,6 +220,7 @@ export function buildActivityAnalysisPrompt(
 ): string {
   const shown = downsampleSamples(activity.samples);
   const activityDate = activity.startDate.slice(0, 10);
+  const inWeek = context ? weekCovers(context.week, activityDate) : false;
   const lines: string[] = [];
 
   if (context) {
@@ -225,7 +230,9 @@ export function buildActivityAnalysisPrompt(
       "Current week plan:",
       formatWeekPlan(context.week),
       "",
-      `The workout happened on ${activityDate}. Match it to the planned session for that date, today's planned session, or another session this week that fits the data.`,
+      inWeek
+        ? `The workout happened on ${activityDate}, within the current week. Match it to the planned session for that date, or another session this week that fits the data.`
+        : `The workout happened on ${activityDate}, outside the current week (${context.week.startDate} to ${weekEnd(context.week)}). Do not match it to a planned session in the current week or comment on how it fit the plan; it is an older activity that has not been analysed yet, so analyse it on its own merits.`,
       "",
     );
     if (
@@ -293,7 +300,9 @@ export function buildActivityAnalysisPrompt(
   lines.push(
     "",
     context
-      ? "Write the brief coach summary. Include how well the workout fit its planned session and cite only the most useful evidence."
+      ? inWeek
+        ? "Write the brief coach summary. Include how well the workout fit its planned session and cite only the most useful evidence."
+        : "Write the brief coach summary. Do not compare the workout to the current week plan; cite only the most useful evidence."
       : "Write the brief coach summary, citing only the most useful evidence.",
     RETURN_JSON_FROM_SYSTEM_PROMPT,
   );
