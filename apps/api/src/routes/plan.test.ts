@@ -218,7 +218,17 @@ class MemoryGenerationStore implements PlanGenerationStore {
     return Promise.resolve();
   }
 
-  fail(_userId: number, error: string): Promise<void> {
+  fail(
+    _userId: number,
+    error: string,
+    observedUpdatedAt?: string,
+  ): Promise<Date | null> {
+    if (
+      observedUpdatedAt !== undefined &&
+      observedUpdatedAt !== this.status.updatedAt
+    ) {
+      return Promise.resolve(null);
+    }
     this.running = false;
     this.status = {
       ...this.status,
@@ -226,7 +236,7 @@ class MemoryGenerationStore implements PlanGenerationStore {
       error,
       updatedAt: new Date().toISOString(),
     };
-    return Promise.resolve();
+    return Promise.resolve(new Date());
   }
 }
 
@@ -240,6 +250,11 @@ function makeApp(options: {
     location: AthleteLocation,
     timezone: string | null,
   ) => Promise<WeatherForecastSet>;
+  markPlanPromptsFailed?: (
+    userId: number,
+    since: Date,
+    error: string,
+  ) => Promise<void>;
 }) {
   const location = options.location ?? null;
   return createApp({
@@ -275,6 +290,9 @@ function makeApp(options: {
     },
     ...(options.loadForecast !== undefined
       ? { loadForecast: options.loadForecast }
+      : {}),
+    ...(options.markPlanPromptsFailed !== undefined
+      ? { markPlanPromptsFailed: options.markPlanPromptsFailed }
       : {}),
     answerStore:
       options.answers ??
@@ -836,10 +854,15 @@ describe("coach plan route", () => {
         Date.now() - STALE_GENERATION_MS - 1000,
       ).toISOString(),
     };
+    const marked: { userId: number; error: string }[] = [];
 
-    const res = await makeApp({ generationStore }).fetch(
-      authenticatedRequest("/api/coaching/plan?today=2026-10-21"),
-    );
+    const res = await makeApp({
+      generationStore,
+      markPlanPromptsFailed: (userId, _since, error) => {
+        marked.push({ userId, error });
+        return Promise.resolve();
+      },
+    }).fetch(authenticatedRequest("/api/coaching/plan?today=2026-10-21"));
 
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
@@ -848,6 +871,53 @@ describe("coach plan route", () => {
     expect(body.generation.status).toBe("error");
     expect(body.generation.error).toContain("stopped before finishing");
     expect(generationStore.running).toBe(false);
+    expect(marked).toHaveLength(1);
+    expect(marked[0]?.userId).toBe(42);
+    expect(marked[0]?.error).toContain("stopped before finishing");
+  });
+
+  it("keeps a run that heartbeated after the stale status was read", async () => {
+    class HeartbeatOnFailStore extends MemoryGenerationStore {
+      override fail(
+        userId: number,
+        error: string,
+        observedUpdatedAt?: string,
+      ): Promise<Date | null> {
+        // A heartbeat lands between the GET's read and its release.
+        this.status = { ...this.status, updatedAt: new Date().toISOString() };
+        return super.fail(userId, error, observedUpdatedAt);
+      }
+    }
+
+    const generationStore = new HeartbeatOnFailStore();
+    generationStore.running = true;
+    generationStore.status = {
+      ...generationStore.status,
+      status: "running",
+      step: "Choosing tomorrow's session",
+      progress: 90,
+      updatedAt: new Date(
+        Date.now() - STALE_GENERATION_MS - 1000,
+      ).toISOString(),
+    };
+    const marked: string[] = [];
+
+    const res = await makeApp({
+      generationStore,
+      markPlanPromptsFailed: (_userId, _since, error) => {
+        marked.push(error);
+        return Promise.resolve();
+      },
+    }).fetch(authenticatedRequest("/api/coaching/plan?today=2026-10-21"));
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      generation: { status: string; error: string | null };
+    };
+    expect(body.generation.status).toBe("running");
+    expect(body.generation.error).toBeNull();
+    expect(generationStore.running).toBe(true);
+    expect(marked).toEqual([]);
   });
 
   it("keeps a fresh running generation live", async () => {

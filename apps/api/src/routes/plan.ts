@@ -12,6 +12,7 @@ import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { getAthlete } from "../auth/middleware.js";
 import type { ActivityFeed } from "../coaching/activities.js";
+import { markPlanPromptsFailed } from "../llm/callStore.js";
 import type { LlmClient } from "../llm/client.js";
 import { startOfWeek } from "../plans/dates.js";
 import { isStaleRunning } from "../plans/generation.js";
@@ -98,6 +99,8 @@ export interface PlanRouteDependencies {
   ) => Promise<CoachingInputs>;
   /** Injectable for route tests; defaults to Open-Meteo and Yr. */
   loadForecast?: PlanTriggerDependencies["loadForecast"];
+  /** Injectable for route tests; defaults to the prompt-log writer. */
+  markPlanPromptsFailed?: PlanTriggerDependencies["markPlanPromptsFailed"];
 }
 
 /**
@@ -144,13 +147,24 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
           : loadCoachingInputs(userId, startOfWeek(today)),
       ]);
     // A process that stopped mid-generation leaves the row `running`. Release
-    // the claim so the client stops polling and can start a fresh run.
+    // the claim so the client stops polling and can start a fresh run. Pass the
+    // heartbeat we observed: a run that refreshed itself after this read, or
+    // one that replaced it, must stay untouched.
     let generation = loadedGeneration;
     if (isStaleRunning(generation)) {
-      await deps.generations.fail(
+      const message = "The coach stopped before finishing. Try again.";
+      const startedAt = await deps.generations.fail(
         userId,
-        "The coach stopped before finishing. Try again.",
+        message,
+        generation.updatedAt,
       );
+      if (startedAt !== null) {
+        await (deps.markPlanPromptsFailed ?? markPlanPromptsFailed)(
+          userId,
+          startedAt,
+          message,
+        );
+      }
       generation = await deps.generations.load(userId);
     }
     const answersUpdatedAt = latestAnswerTimestamp(answers);
@@ -285,6 +299,9 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
               : {}),
             ...(deps.loadForecast !== undefined
               ? { loadForecast: deps.loadForecast }
+              : {}),
+            ...(deps.markPlanPromptsFailed !== undefined
+              ? { markPlanPromptsFailed: deps.markPlanPromptsFailed }
               : {}),
           },
           {

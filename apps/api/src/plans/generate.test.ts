@@ -382,14 +382,14 @@ class MemoryGenerationStore implements PlanGenerationStore {
     return Promise.resolve();
   }
 
-  fail(_userId: number, error: string): Promise<void> {
+  fail(_userId: number, error: string): Promise<Date | null> {
     this.status = {
       ...this.status,
       status: "error",
       error,
       updatedAt: new Date().toISOString(),
     };
-    return Promise.resolve();
+    return Promise.resolve(new Date());
   }
 }
 
@@ -1133,6 +1133,7 @@ describe("runPlanGeneration", () => {
     });
     const plans = new MemoryPlanStore(null);
     const generations = new MemoryGenerationStore();
+    const marked: { userId: number; since: Date; error: string }[] = [];
 
     let failure: unknown;
     try {
@@ -1143,6 +1144,10 @@ describe("runPlanGeneration", () => {
         context: makeContext(provider),
         plans,
         generations,
+        markPromptsFailed: (userId, since, error) => {
+          marked.push({ userId, since, error });
+          return Promise.resolve();
+        },
       });
     } catch (err) {
       failure = err;
@@ -1150,6 +1155,9 @@ describe("runPlanGeneration", () => {
 
     expect((failure as Error).message).toContain("wrong date");
     expect(generations.status.status).toBe("error");
+    expect(marked).toHaveLength(1);
+    expect(marked[0]?.userId).toBe(1);
+    expect(marked[0]?.error).toContain("wrong date");
   });
 
   it("reviews recent activities after a full plan build", async () => {

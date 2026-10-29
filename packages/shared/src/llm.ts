@@ -124,6 +124,13 @@ export const llmCallSummarySchema = z.object({
   model: z.string(),
   durationMs: z.number().int().nonnegative(),
   failed: z.boolean(),
+  /** The JSON repair turn that followed a rejected plan response. */
+  repair: z.boolean(),
+  /** The provider attempt that produced this row, when it was part of a chain. */
+  attempt: z.number().int().positive().nullable(),
+  ofAttempts: z.number().int().positive().nullable(),
+  /** The plan generation this prompt belongs to ended in failure. */
+  planFailed: z.boolean(),
 });
 
 export type LlmCallSummary = z.infer<typeof llmCallSummarySchema>;

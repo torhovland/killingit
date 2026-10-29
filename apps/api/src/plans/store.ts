@@ -45,7 +45,17 @@ export interface PlanGenerationStore {
   /** Refreshes a running run so a dead process can be detected. */
   heartbeat(userId: number): Promise<void>;
   finish(userId: number): Promise<void>;
-  fail(userId: number, error: string): Promise<void>;
+  /**
+   * Marks a running generation as failed and returns the start of the run it
+   * cleared, or null when nothing was cleared. With `observedUpdatedAt`, only
+   * the run with that heartbeat is cleared, so a release that raced a live
+   * heartbeat (or a newer run) does not touch it.
+   */
+  fail(
+    userId: number,
+    error: string,
+    observedUpdatedAt?: string,
+  ): Promise<Date | null>;
 }
 
 /** The status returned before the first generation has ever run. */
@@ -322,13 +332,21 @@ export const dbPlanGenerationStore: PlanGenerationStore = {
       .where(eq(planGenerations.userId, userId));
   },
 
-  async fail(userId, error) {
+  async fail(userId, error, observedUpdatedAt) {
     const now = new Date();
     const previous = await loadGenerationRow(userId);
+    if (previous === null) {
+      return null;
+    }
+    const observed =
+      observedUpdatedAt === undefined ? null : new Date(observedUpdatedAt);
+    if (observed !== null && Number.isNaN(observed.getTime())) {
+      return null;
+    }
     // Keep the percentage the athlete last saw instead of falling back to the
     // start of the failed step.
-    const reached = previous ? reportedProgress(previous, now.getTime()) : 0;
-    await db
+    const reached = reportedProgress(previous, now.getTime());
+    const [row] = await db
       .update(planGenerations)
       .set({
         status: "error",
@@ -338,6 +356,21 @@ export const dbPlanGenerationStore: PlanGenerationStore = {
         error,
         updatedAt: now,
       })
-      .where(eq(planGenerations.userId, userId));
+      .where(
+        and(
+          eq(planGenerations.userId, userId),
+          eq(planGenerations.status, "running"),
+          ...(observed === null
+            ? []
+            : [eq(planGenerations.updatedAt, observed)]),
+        ),
+      )
+      .returning({ startedAt: planGenerations.startedAt });
+    if (row === undefined) {
+      // A heartbeat or a newer run replaced the status after it was read.
+      return null;
+    }
+    await learnDuration(previous, now);
+    return row.startedAt;
   },
 };

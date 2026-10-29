@@ -60,7 +60,7 @@ function inMemoryStores(initial: StoredPlan | null): InMemoryStores {
     update: () => Promise.resolve(),
     heartbeat: () => Promise.resolve(),
     finish: () => Promise.resolve(),
-    fail: () => Promise.resolve(),
+    fail: () => Promise.resolve(null),
   };
   return { plans, generations, current: () => stored };
 }

@@ -9,6 +9,7 @@ import {
 } from "../coaching/athleteMetrics.js";
 import { captureCompletedPeriodReviews } from "../coaching/periodReviews.js";
 import { analyzeActivitiesAgainstPlan } from "../coaching/programAnalysis.js";
+import { markPlanPromptsFailed } from "../llm/callStore.js";
 import type { LlmClient } from "../llm/client.js";
 import { loadLlmClient } from "../llm/client.js";
 import {
@@ -64,6 +65,8 @@ export interface PlanTriggerDependencies {
     location: AthleteLocation,
     timezone: string | null,
   ) => Promise<WeatherForecastSet>;
+  /** Injectable for tests; defaults to the prompt-log writer. */
+  markPlanPromptsFailed?: typeof markPlanPromptsFailed;
 }
 
 /**
@@ -204,6 +207,7 @@ export async function triggerPlanGeneration(
     ...(includeTomorrow !== undefined ? { includeTomorrow } : {}),
     ...(keepToday !== undefined ? { keepToday } : {}),
     capturePeriodReviews: captureCompletedPeriodReviews,
+    markPromptsFailed: deps.markPlanPromptsFailed ?? markPlanPromptsFailed,
     recordFtpEstimates: (generatedPlan) =>
       recordPlanFtpEstimates(userId, planFtpEstimates(generatedPlan)),
     recordBodyMetrics: (points) =>

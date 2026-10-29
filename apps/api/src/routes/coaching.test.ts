@@ -120,7 +120,7 @@ class MemoryGenerationStore implements PlanGenerationStore {
     return Promise.resolve();
   }
 
-  fail(_userId: number, error: string) {
+  fail(_userId: number, error: string): Promise<Date | null> {
     this.running = false;
     this.status = {
       ...this.status,
@@ -128,7 +128,7 @@ class MemoryGenerationStore implements PlanGenerationStore {
       error,
       updatedAt: new Date().toISOString(),
     };
-    return Promise.resolve();
+    return Promise.resolve(new Date());
   }
 }
 

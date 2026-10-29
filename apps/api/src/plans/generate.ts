@@ -110,6 +110,12 @@ export interface GeneratePlanInput {
   capturePeriodReviews?: (
     input: Parameters<typeof captureCompletedPeriodReviews>[0],
   ) => Promise<readonly PeriodReviewContext[] | void>;
+  /** Marks prompt-log rows from a generation that ended in failure. */
+  markPromptsFailed?: (
+    userId: number,
+    since: Date,
+    error: string,
+  ) => Promise<void>;
   plan: StoredPlan | null;
   context: PlanGenerationContext;
   plans: PlanStore;
@@ -450,7 +456,10 @@ export async function runPlanGeneration(
   } catch (err) {
     const message =
       err instanceof Error ? err.message : "The plan could not be generated.";
-    await generations.fail(userId, message);
+    const startedAt = await generations.fail(userId, message);
+    if (startedAt !== null) {
+      await input.markPromptsFailed?.(userId, startedAt, message);
+    }
     throw err;
   }
 }

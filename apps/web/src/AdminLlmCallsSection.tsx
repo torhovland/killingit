@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   llmCallDetailSchema,
   llmCallsResponseSchema,
@@ -186,24 +186,19 @@ export function LlmCallsView({
                     onClick={() => onSelect(call.id)}
                     aria-current={call.id === selectedId ? "true" : undefined}
                   >
-                    <span className="flex flex-wrap items-baseline gap-x-2">
+                    <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
                       <span className="font-medium">
                         {LLM_PROMPT_KIND_LABELS[call.kind]}
                       </span>
+                      <CallBadges call={call} />
                       <span
                         className="truncate text-xs text-muted-foreground"
                         title={call.model}
                       >
                         {call.model}
                       </span>
-                      <span
-                        className={`ml-auto text-xs ${
-                          call.failed
-                            ? "text-destructive"
-                            : "text-muted-foreground"
-                        }`}
-                      >
-                        {call.failed ? "Failed" : "Succeeded"}
+                      <span className="ml-auto">
+                        <CallStatus failed={call.failed} />
                       </span>
                     </span>
                     <span className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
@@ -214,6 +209,13 @@ export function LlmCallsView({
                         {call.userLabel}
                       </span>
                       <span>{call.durationMs} ms</span>
+                      {call.ofAttempts !== null &&
+                        call.attempt !== null &&
+                        call.ofAttempts > 1 && (
+                          <span data-testid="llm-call-attempt">
+                            Attempt {call.attempt}/{call.ofAttempts}
+                          </span>
+                        )}
                     </span>
                   </button>
                 </li>
@@ -259,17 +261,21 @@ export function LlmCallDetailView({ call }: { call: LlmCallDetail }) {
             {formatDateTime(call.createdAt, browserTimeZone())} ·{" "}
             {call.userLabel} · {call.model}
           </p>
+          <div className="flex flex-wrap items-center gap-1">
+            <CallBadges call={call} />
+          </div>
         </div>
-        <span
-          className={`rounded border px-2 py-0.5 text-xs ${
-            call.failed
-              ? "border-destructive/40 text-destructive"
-              : "border-transparent bg-accent text-accent-foreground"
-          }`}
-        >
-          {call.failed ? "Failed" : "Succeeded"}
-        </span>
+        <CallStatus failed={call.failed} />
       </header>
+
+      {call.planFailed && typeof call.metadata.planError === "string" && (
+        <p
+          className="text-sm text-destructive"
+          data-testid="llm-call-plan-error"
+        >
+          Plan failure: {call.metadata.planError}
+        </p>
+      )}
 
       <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-3">
         <Metadata label="Call" value={`#${call.id}`} />
@@ -328,6 +334,57 @@ export function LlmCallDetailView({ call }: { call: LlmCallDetail }) {
         )}
       </section>
     </article>
+  );
+}
+
+/** Retry and plan-failure markers shared by the list and the detail view. */
+function CallBadges({ call }: { call: LlmCallSummary }) {
+  const retried = call.repair || (call.attempt !== null && call.attempt > 1);
+  return (
+    <>
+      {retried && (
+        <Badge tone="accent" testId="llm-call-retry">
+          Retry
+        </Badge>
+      )}
+      {call.planFailed && (
+        <Badge tone="danger" testId="llm-call-plan-failed">
+          Plan failed
+        </Badge>
+      )}
+    </>
+  );
+}
+
+function CallStatus({ failed }: { failed: boolean }) {
+  return (
+    <Badge tone={failed ? "danger" : "muted"} testId="llm-call-status">
+      {failed ? "Failed" : "Succeeded"}
+    </Badge>
+  );
+}
+
+function Badge({
+  tone,
+  testId,
+  children,
+}: {
+  tone: "accent" | "danger" | "muted";
+  testId: string;
+  children: ReactNode;
+}) {
+  const toneClass = {
+    accent: "border-transparent bg-accent text-accent-foreground",
+    danger: "border-destructive/40 text-destructive",
+    muted: "border-border text-muted-foreground",
+  }[tone];
+  return (
+    <span
+      className={`rounded border px-2 py-0.5 text-xs ${toneClass}`}
+      data-testid={testId}
+    >
+      {children}
+    </span>
   );
 }
 
