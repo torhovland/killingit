@@ -236,7 +236,8 @@ review.
    season when a refresh is requested. A generated week review or an answer to
    one marks the block pending and revises the current block in place, even
    while today is still inside it. A generated block review or an answer to one
-   refreshes the remaining season.
+   refreshes the remaining season. Every returned rationale explains the plan
+   as it stands after the revision, not why the plan was revised.
 5. After 18:00, ensure tomorrow is covered by a week and a block. The same
    update response can carry the next period:
    - if tomorrow falls outside the current block, it returns `next_block` with

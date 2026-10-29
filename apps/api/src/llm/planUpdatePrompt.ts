@@ -295,6 +295,8 @@ const PLAN_UPDATE_CONTRACT = `{
   "bodyMetrics": [${BODY_METRIC_POINT_CONTRACT}]
 }`;
 
+export const RATIONALE_RULES = `Every "rationale" field explains the plan as it stands after the revision, not the act of revising it. Explain why this goal, season shape, block, week, session, or rest day is right for the athlete from this point forward, using the latest training and feedback. Do not describe the previous plan, what changed, or why the plan was revised. Do not write phrases such as "we adjusted", "we changed", "this replaces", or "because of the new review". State the current rationale directly.`;
+
 export const PLAN_UPDATE_SYSTEM_PROMPT = `You are an expert endurance coach. Update an athlete's training plan. Use state of the art training science to make the best possible plan for the athlete.
 
 You receive the complete current plan at every level: the season, the current block, the current week, today's session, tomorrow's session when one has been planned, the next week when one has been planned, and the next block when one has been planned. You also receive the athlete's profile, recent activities with coach analyses, program reviews, and coach replies, manually recorded activities, comments on activities, a general weekly note, and coach summaries of completed weeks and blocks with the athlete's feedback on them. Use all of these to see what the athlete actually completed or missed, how they responded, whether today should be a workout or a rest day, and what constraints or feedback they have for the week. ${ACTIVITY_COMMENT_RULE} Respect the athlete's available time and constraints. The weekly note is a hard constraint: if it says the athlete cannot train on a specific day, move or cancel the session on that day. If a manually recorded activity indicates significant fatigue or extra load, adjust the upcoming sessions accordingly.
@@ -309,6 +311,8 @@ The revision request lists the levels that need to change. Return every level in
 - When the next week is requested, start it on the supplied next week start date and give it exactly seven sessions. When the next block is requested, start it on the supplied next block start date and put it in "nextBlock"; update "season" so its block summaries include it. If the block that starts tomorrow falls inside the current week, re-plan the remaining days of the current week under that next block and keep today's session.
 - For days before today, do not propose new workouts: describe what the athlete actually did and set each status to "completed", "partial", "missed", or "rest". If an activity has already been recorded for today, today's plan must describe that completed activity, using the athlete's latest comment to correct the summary, instead of proposing another workout. Allow reasonable slack when judging completion: a 60-minute ride recorded as 50 minutes is still completed, and power or pace zones that are close but not exact do not make a session partial.
 - Give today's plan and today's week session the same status. Include a rationale for today's session and for the week's overall structure.
+
+${RATIONALE_RULES}
 
 ${WEEK_OUTLINE_RULES}
 

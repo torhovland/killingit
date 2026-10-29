@@ -104,6 +104,10 @@ shapes (`StoredAthleteQuestion` and `AnalyzedActivity`) structurally and returns
   tomorrow, next week and next block) and a revision request. The response is
   the full `CoachPlan` shape, so the coach can show a revised block with its
   week and day instead of the API chaining separate calls. See ADR 0013.
+- Every update rationale explains the plan as it stands after the revision,
+  not the revision itself. The prompt rejects change-log phrasing such as "we
+  adjusted" or "this replaces" and asks for the reason the current plan is
+  right from this point forward.
 - A season update uses that same prompt: it receives the existing season and
   current block, keeps completed blocks and the season goal as reference, and
   re-plans the future from the athlete's latest input. A new season still uses

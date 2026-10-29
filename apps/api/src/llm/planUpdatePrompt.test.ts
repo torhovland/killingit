@@ -12,6 +12,7 @@ import {
   buildWeeklyUpdatePrompt,
   DAILY_UPDATE_SYSTEM_PROMPT,
   PLAN_UPDATE_SYSTEM_PROMPT,
+  RATIONALE_RULES,
   WEATHER_PLANNING_RULES,
   WEEKLY_UPDATE_SYSTEM_PROMPT,
   type PlanUpdateInput,
@@ -304,6 +305,19 @@ describe("unified plan update prompt", () => {
     expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain('"bodyMetrics"');
     expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain(
       "what the athlete loses toward that goal",
+    );
+  });
+
+  it("asks for rationales about the revised plan, not the revision", () => {
+    expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain(RATIONALE_RULES);
+    expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain(
+      "explains the plan as it stands after the revision, not the act of revising it",
+    );
+    expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain(
+      "Do not describe the previous plan, what changed, or why the plan was revised.",
+    );
+    expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain(
+      'Do not write phrases such as "we adjusted", "we changed", "this replaces", or "because of the new review".',
     );
   });
 });
