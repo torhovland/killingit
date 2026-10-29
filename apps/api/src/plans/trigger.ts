@@ -231,6 +231,7 @@ export async function triggerPlanGeneration(
       weeklyNote: coachingInputs.weeklyNote,
       weeklyNoteUpdatedAt: coachingInputs.weeklyNoteUpdatedAt,
       periodReviews: coachingInputs.periodReviews,
+      weekReviewUpdatedAt: coachingInputs.weekReviewUpdatedAt,
       coachingInputsUpdatedAt: coachingInputs.updatedAt,
       activitiesUpdatedAt: latestActivityAnalysisTimestamp(
         activities.activities,

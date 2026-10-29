@@ -32,6 +32,12 @@ export interface CoachingInputs {
   weeklyNoteUpdatedAt: Date | null;
   /** Coach summaries of completed weeks and blocks, with athlete feedback. */
   periodReviews: PeriodReviewContext[];
+  /**
+   * The newest week review event: when a week review was generated or when its
+   * comment was answered. A newer week review makes the block pending so the
+   * coach can respond to the completed week's feedback.
+   */
+  weekReviewUpdatedAt: Date | null;
   /** The newest `updatedAt` across all coaching inputs. */
   updatedAt: Date | null;
 }
@@ -83,6 +89,17 @@ export async function loadCoachingInputs(
       loadPeriodReviews(userId),
     ]);
 
+  const weekReviewUpdatedAt = newest(
+    reviewEntries
+      .filter(({ review }) => review.kind === "week")
+      .map(({ review }) => ({
+        // A generated summary matters even before anyone comments. Once the
+        // athlete answers it, the comment's timestamp is the newer event.
+        updatedAt:
+          review.comment !== null ? review.updatedAt : review.generatedAt,
+      })),
+  );
+
   return {
     manualActivities: manualRows.map((row) => ({
       id: row.id,
@@ -108,16 +125,20 @@ export async function loadCoachingInputs(
       reply: reply?.text ?? null,
       updatedAt: review.updatedAt.toISOString(),
     })),
+    weekReviewUpdatedAt,
     updatedAt: newest([
       ...manualRows,
       ...commentRows,
       ...noteRows,
       ...deletionRows,
-      // A generated summary or a dismissal is not athlete input; only a comment
-      // should make the plan stale.
+      // A completed week's review and its answer are inputs to the next block.
+      // A block review or a dismissal alone is not.
       ...reviewEntries
         .filter(({ review }) => review.comment !== null)
         .map(({ review }) => review),
+      ...(weekReviewUpdatedAt === null
+        ? []
+        : [{ updatedAt: weekReviewUpdatedAt }]),
     ]),
   };
 }

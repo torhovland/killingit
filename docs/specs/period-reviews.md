@@ -23,7 +23,9 @@ a plan refresh that uses all of it.
 3. Keep an answered review on the dashboard for the rest of the visit. The next
    visit or reload omits it.
 4. Let the athlete comment on a week or block, generate a short coach reply, and
-   start a plan revision.
+   start a plan revision. A completed week's review marks the current block
+   pending both when the review is generated and when the athlete answers it, so
+   the block is revised in place with that feedback.
 5. Feed the coach summary, the athlete's comment, and the coach reply into every
    later plan generation for all three review levels: workout, week, and block.
 6. Add a **Season review** page listing every week and block review, with an
@@ -81,7 +83,12 @@ new comment and the review summaries, so the plan revision is built on them.
    season/block context, the recent activities and analyses, and the athlete's
    profile and feedback.
 3. Store the summary. A failure is logged and never fails the plan.
-4. On later plan generations, `formatPlanContext` includes every period review
+4. A generated week review, or an answer to one, is newer than the plan's
+   stored coaching-input timestamp. That makes `pending.block` true even while
+   today is still inside the current block. The update asks the coach to revise
+   the current block in place, keeping its start date, and returns the revised
+   block, week and today in one response.
+5. On later plan generations, `formatPlanContext` includes every period review
    with its summary, athlete comment, and coach reply. Recent activities also
    carry their program review and coach reply.
 
@@ -125,7 +132,8 @@ new comment and the review summaries, so the plan revision is built on them.
    stays until the next visit.
 3. A comment gets a coach reply and starts a plan refresh.
 4. Workout, week, and block summaries, comments, and replies are all present in
-   the prompt for a plan refresh.
+   the prompt for a plan refresh. A generated week review or an answer to it
+   makes the block pending and revises it in place on the next update.
 5. Season review lists all reviews and supports editing a comment, which
    regenerates the reply and refreshes the plan.
 6. The dashboard has no regeneration button; the survey and settings pages have

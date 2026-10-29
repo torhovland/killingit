@@ -312,6 +312,7 @@ function makeApp(options: {
           weeklyNote: null,
           weeklyNoteUpdatedAt: null,
           periodReviews: [],
+          weekReviewUpdatedAt: null,
           updatedAt: null,
         },
       ),
@@ -638,6 +639,7 @@ describe("coach plan route", () => {
         weeklyNote: "I cannot train on Friday this week.",
         weeklyNoteUpdatedAt: new Date("2026-10-21T08:00:00Z"),
         periodReviews: [],
+        weekReviewUpdatedAt: null,
         updatedAt: new Date("2026-10-21T08:00:00Z"),
       },
     }).fetch(authenticatedRequest("/api/coaching/plan?today=2026-10-21"));

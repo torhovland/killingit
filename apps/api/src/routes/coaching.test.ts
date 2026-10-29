@@ -38,6 +38,7 @@ const emptyInputs: CoachingInputs = {
   weeklyNote: null,
   weeklyNoteUpdatedAt: null,
   periodReviews: [],
+  weekReviewUpdatedAt: null,
   updatedAt: null,
 };
 

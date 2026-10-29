@@ -687,6 +687,93 @@ describe("runPlanGeneration", () => {
     expect(saved?.plan.nextWeek?.startDate).toBe(storedNextWeek.startDate);
   });
 
+  it("revises the current block in place when a week review arrives", async () => {
+    const revisedBlock = {
+      ...makeBlock(),
+      focus: "Aerobic endurance with more recovery",
+    };
+    const provider = new FakeProvider({
+      planUpdate: makeUpdate("2026-10-21", { block: revisedBlock }),
+    });
+    const existing = makeStoredPlan(
+      makePlan("2026-10-21"),
+      new Date("2026-10-20T10:00:00Z"),
+      new Date("2026-10-20T10:00:00Z"),
+    );
+    const context = makeContext(
+      provider,
+      new Date("2026-10-20T10:00:00Z"),
+      new Date("2026-10-21T10:00:00Z"),
+    );
+    context.weekReviewUpdatedAt = new Date("2026-10-21T10:00:00Z");
+    const plans = new MemoryPlanStore(existing);
+    const generations = new MemoryGenerationStore();
+
+    const saved = await runPlanGeneration({
+      userId: 1,
+      today: "2026-10-21",
+      plan: existing,
+      context,
+      plans,
+      generations,
+    });
+
+    expect(provider.calls).toEqual(["plan-update"]);
+    expect(saved?.plan.block.startDate).toBe("2026-10-21");
+    expect(saved?.plan.block.focus).toBe(
+      "Aerobic endurance with more recovery",
+    );
+  });
+
+  it("uses a week review generated in the same run to revise the block", async () => {
+    const revisedBlock = {
+      ...makeBlock(),
+      focus: "Aerobic endurance with a recovery week",
+    };
+    const provider = new FakeProvider({
+      planUpdate: makeUpdate("2026-10-21", { block: revisedBlock }),
+    });
+    const existing = makeStoredPlan(
+      makePlan("2026-10-21"),
+      new Date("2026-10-20T10:00:00Z"),
+      new Date("2026-10-20T10:00:00Z"),
+    );
+    const plans = new MemoryPlanStore(existing);
+    const generations = new MemoryGenerationStore();
+
+    const saved = await runPlanGeneration({
+      userId: 1,
+      today: "2026-10-21",
+      plan: existing,
+      context: makeContext(
+        provider,
+        new Date("2026-10-20T10:00:00Z"),
+        new Date("2026-10-20T10:00:00Z"),
+      ),
+      plans,
+      generations,
+      capturePeriodReviews: () =>
+        Promise.resolve([
+          {
+            kind: "week" as const,
+            title: "Week starting 2026-10-12",
+            startDate: "2026-10-12",
+            endDate: "2026-10-18",
+            summary: "The week was consistent; the long run was hard.",
+            comment: null,
+            reply: null,
+            updatedAt: new Date().toISOString(),
+          },
+        ]),
+    });
+
+    expect(provider.calls).toEqual(["plan-update"]);
+    expect(saved?.plan.block.startDate).toBe("2026-10-21");
+    expect(saved?.plan.block.focus).toBe(
+      "Aerobic endurance with a recovery week",
+    );
+  });
+
   it("revises the week and day when coaching inputs change", async () => {
     const provider = new FakeProvider({
       planUpdate: makeUpdate("2026-10-21"),

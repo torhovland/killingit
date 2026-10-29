@@ -89,6 +89,8 @@ export interface PlanUpdateInput extends BasePlanUpdateInput {
   revision: PlanUpdateRevision;
   /** The date the revised current block must start on. */
   blockStartDate?: string;
+  /** Revise the current block in place instead of creating a new one. */
+  reviseBlock?: boolean;
   /** The date the next block must start on. */
   nextBlockStartDate?: string;
   /** The Monday the next week must start on. */
@@ -299,7 +301,7 @@ You receive the complete current plan at every level: the season, the current bl
 
 The revision request lists the levels that need to change. Return every level in the contract, so the saved plan always has a coherent season, block, week and day:
 - Keep the season, block, week, today, tomorrow, next week and next block exactly as supplied unless the request names them. Keep a level that is null and not requested as null.
-- When the current block is revised, return the revised block, a revised current week that fits it, and today's detailed session. Keep the current block's start date when the request says to keep it; otherwise start the new block on the supplied block start date. Update the season block summaries only when the revised block changes them.
+- When the current block is revised, return the revised block, a revised current week that fits it, and today's detailed session. Keep the current block's start date when the request says to keep it; otherwise start the new block on the supplied block start date. When a completed week review or its answer is supplied, use that feedback to adjust the block's progression. Update the season block summaries only when the revised block changes them.
 - When the season is refreshed, keep the blocks that ended before today exactly as supplied, keep the current block's existing start date, re-plan the rest of the season from the current block, and return the detailed current block. Later blocks must follow one another without gaps and cover the rest of the season.
 - When the current week is revised, change the remaining sessions so the week stays coherent with the block's focus and the athlete's current fatigue. Keep every day after tomorrow as a short outline. If only today's session is revised, update today's session in the week while keeping the rest of the week as supplied.
 - If the current block is revised, or the current week is re-planned under a next block that starts tomorrow, keep today's session unchanged unless the request also revises today.
@@ -330,6 +332,10 @@ function revisionInstructions(input: PlanUpdateInput): string[] {
   if (input.revision.season) {
     lines.push(
       `- Refresh the season and the current block in place. The current block must start on ${input.blockStartDate ?? input.block.startDate} and keep the blocks that ended before today unchanged. Return the remaining season in "season" and the detailed current block in "block".`,
+    );
+  } else if (input.revision.block && input.reviseBlock) {
+    lines.push(
+      `- Revise the current block in place: keep its start date (${input.blockStartDate ?? input.block.startDate}) and update its weeks and target loads where the completed week's review or the athlete's feedback requires it. Return it in "block" and update the season's block summaries if they change.`,
     );
   } else if (input.revision.block) {
     lines.push(

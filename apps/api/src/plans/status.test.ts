@@ -100,6 +100,18 @@ describe("planPending", () => {
     });
   });
 
+  it("marks the block pending when a new week review has arrived", () => {
+    expect(planPending(makePlan(), "2026-10-21", false, false, true)).toEqual({
+      initial: false,
+      day: false,
+      week: false,
+      block: true,
+      tomorrow: false,
+      nextWeek: false,
+      nextBlock: false,
+    });
+  });
+
   it("marks tomorrow when requested and it is missing", () => {
     expect(planPending(makePlan(), "2026-10-21", true)).toEqual({
       initial: false,

@@ -189,14 +189,15 @@ Both routes are behind `requireAuth`.
   already running. `mode` is `auto` (default), `newSeason`, or `updateSeason`;
   `force: true` behaves like `newSeason`.
 
-`stale` is true when the newest current answer is newer than
-`coach_plans.answers_updated_at`. `pending.day` is true when the stored day is
+`stale` is true when the newest answer or coaching input is newer than the
+timestamp the plan was saved with. `pending.day` is true when the stored day is
 not for `today`; `pending.week` is true when `today` is not one of the stored
 week's sessions, or when the latest forecast differs significantly from the
 weather stored on the current or planned next week (see
 `docs/specs/location-and-weather.md`); `pending.block` is true when `today`
-falls outside the stored block's dates. After 18:00, `pending.tomorrow` is true
-when tomorrow's day plan is missing, is not covered by a stored week, or falls
+falls outside the stored block's dates, or when a week review was generated or
+answered after the plan was saved. After 18:00, `pending.tomorrow` is true when
+tomorrow's day plan is missing, is not covered by a stored week, or falls
 outside a stored block; `pending.nextWeek` and `pending.nextBlock` are true when
 tomorrow has crossed into a period that has not been generated yet.
 
@@ -232,7 +233,9 @@ review.
    tomorrow, next week and next block with a revision request naming the levels
    that are stale. The response returns the revised block, week and today when
    a block changed; the week and today when a week or day changed; and the
-   season when a refresh is requested.
+   season when a refresh is requested. A generated week review or an answer to
+   one marks the block pending and revises the current block in place, even
+   while today is still inside it.
 5. After 18:00, ensure tomorrow is covered by a week and a block. The same
    update response can carry the next period:
    - if tomorrow falls outside the current block, it returns `next_block` with

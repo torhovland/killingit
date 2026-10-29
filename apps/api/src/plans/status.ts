@@ -5,7 +5,8 @@ import { blockFor, weekFor } from "./periods.js";
 /**
  * Works out which plan levels are missing for `today`. A day is missing when it
  * is not for today, a week is missing when today is not one of its sessions,
- * and a block is missing when today falls outside its date range. After 18:00
+ * and a block is missing when today falls outside its date range or a week
+ * review arrived after the plan was saved. After 18:00
  * (`includeTomorrow`), tomorrow's session is checked against the stored week
  * and block, and a crossing into a new week or block is reported so the next
  * one can be generated. `weatherChanged` marks the week for a refresh when the
@@ -16,6 +17,7 @@ export function planPending(
   today: string,
   includeTomorrow = false,
   weatherChanged = false,
+  weekReviewPending = false,
 ): PlanPending {
   if (!plan) {
     return {
@@ -48,7 +50,10 @@ export function planPending(
         (plan.today.status === "completed" ||
           plan.today.status === "partial") &&
         todaySession.status !== plan.today.status),
-    block: today < plan.block.startDate || today > plan.block.endDate,
+    block:
+      weekReviewPending ||
+      today < plan.block.startDate ||
+      today > plan.block.endDate,
     tomorrow:
       includeTomorrow &&
       (plan.tomorrow?.date !== tomorrowDate ||

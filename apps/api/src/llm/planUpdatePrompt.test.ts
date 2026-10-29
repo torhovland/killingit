@@ -240,6 +240,45 @@ describe("unified plan update prompt", () => {
     );
   });
 
+  it("includes a completed week review, its comment and the coach reply", () => {
+    const prompt = buildPlanUpdatePrompt(
+      updateInput({
+        periodReviews: [
+          {
+            kind: "week",
+            title: "Week starting 2026-10-12",
+            startDate: "2026-10-12",
+            endDate: "2026-10-18",
+            summary: "The week was consistent but the long run was hard.",
+            comment: "My legs felt heavy after Thursday.",
+            reply: "Keep the next long run easy and shorten the intervals.",
+            updatedAt: "2026-10-19T08:00:00Z",
+          },
+        ],
+        revision: {
+          ...updateInput().revision,
+          block: true,
+          week: true,
+          day: true,
+        },
+        reviseBlock: true,
+        blockStartDate: "2026-10-21",
+      }),
+    );
+
+    expect(prompt).toContain("Completed week and block reviews");
+    expect(prompt).toContain(
+      "The week was consistent but the long run was hard.",
+    );
+    expect(prompt).toContain(
+      "Athlete comment: My legs felt heavy after Thursday.",
+    );
+    expect(prompt).toContain(
+      "Coach reply: Keep the next long run easy and shorten the intervals.",
+    );
+    expect(prompt).toContain("Revise the current block in place");
+  });
+
   it("keeps the shared coaching, weather, load and outline rules", () => {
     expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain(
       "state of the art training science",

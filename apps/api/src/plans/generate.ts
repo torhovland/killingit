@@ -55,6 +55,8 @@ export interface PlanGenerationContext {
   /** When the current week's note was last saved. */
   weeklyNoteUpdatedAt?: Date | null;
   periodReviews?: readonly PeriodReviewContext[];
+  /** When the newest week review was generated or its comment answered. */
+  weekReviewUpdatedAt?: Date | null;
   coachingInputsUpdatedAt: Date | null;
   /** Newest general coach analysis among the recent activities, if any. */
   activitiesUpdatedAt?: Date | null;
@@ -99,7 +101,9 @@ export interface GeneratePlanInput {
   /** Stores the body-composition points the coach found, when supplied. */
   recordBodyMetrics?: (points: readonly BodyMetricEstimate[]) => Promise<void>;
   /** Injectable for tests; defaults to the database-backed period review writer. */
-  capturePeriodReviews?: typeof captureCompletedPeriodReviews;
+  capturePeriodReviews?: (
+    input: Parameters<typeof captureCompletedPeriodReviews>[0],
+  ) => Promise<readonly PeriodReviewContext[] | void>;
   plan: StoredPlan | null;
   context: PlanGenerationContext;
   plans: PlanStore;
@@ -115,27 +119,12 @@ export interface GeneratePlanInput {
 export async function runPlanGeneration(
   input: GeneratePlanInput,
 ): Promise<StoredPlan | null> {
-  const { userId, today, context, plans, generations } = input;
+  const { userId, today, plans, generations } = input;
+  let context = input.context;
   const stored = input.plan?.plan ?? null;
   const stale =
     input.plan !== null &&
     planIsStale(input.plan.answersUpdatedAt, context.answersUpdatedAt);
-  const inputsChanged =
-    input.plan !== null &&
-    context.coachingInputsUpdatedAt !== null &&
-    (input.plan.coachingInputsUpdatedAt === null ||
-      context.coachingInputsUpdatedAt.getTime() >
-        input.plan.coachingInputsUpdatedAt.getTime());
-  // Compare against the analyses included in the plan, not when the plan was
-  // saved: an import can finish while a generation is running, so the plan may
-  // be newer than its save time yet still not contain the activity.
-  const activitiesChanged =
-    input.plan !== null &&
-    context.activitiesUpdatedAt != null &&
-    (input.plan.activitiesUpdatedAt === null ||
-      context.activitiesUpdatedAt.getTime() >
-        input.plan.activitiesUpdatedAt.getTime());
-  const revisionNeeded = inputsChanged || activitiesChanged;
 
   try {
     // Today may have moved into a week or block that was planned last night.
@@ -174,8 +163,10 @@ export async function runPlanGeneration(
 
     // The cascade is about to replace the current week/block. Summarise them
     // first when they have ended, so the athlete keeps a review of the work.
+    // The new review is added to this run's context, so the block update can
+    // use it immediately and the block becomes pending in the same visit.
     if (input.plan !== null && input.capturePeriodReviews) {
-      await input.capturePeriodReviews({
+      const captured = await input.capturePeriodReviews({
         userId,
         today,
         ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),
@@ -189,7 +180,37 @@ export async function runPlanGeneration(
         activityComments: context.activityComments,
         weeklyNote: context.weeklyNote,
       });
+      if (captured !== undefined && captured.length > 0) {
+        input.context = mergeCapturedPeriodReviews(input.context, captured);
+        context = input.context;
+      }
     }
+
+    const inputsChanged =
+      input.plan !== null &&
+      context.coachingInputsUpdatedAt !== null &&
+      (input.plan.coachingInputsUpdatedAt === null ||
+        context.coachingInputsUpdatedAt.getTime() >
+          input.plan.coachingInputsUpdatedAt.getTime());
+    // Compare against the analyses included in the plan, not when the plan was
+    // saved: an import can finish while a generation is running, so the plan
+    // may be newer than its save time yet still not contain the activity.
+    const activitiesChanged =
+      input.plan !== null &&
+      context.activitiesUpdatedAt != null &&
+      (input.plan.activitiesUpdatedAt === null ||
+        context.activitiesUpdatedAt.getTime() >
+          input.plan.activitiesUpdatedAt.getTime());
+    // A newly generated week review, or an answer to one, makes the block
+    // pending. The block is revised in place when today is still inside it.
+    const weekReviewPending =
+      input.plan !== null &&
+      context.weekReviewUpdatedAt != null &&
+      (input.plan.coachingInputsUpdatedAt === null ||
+        context.weekReviewUpdatedAt.getTime() >
+          input.plan.coachingInputsUpdatedAt.getTime());
+    const revisionNeeded =
+      inputsChanged || activitiesChanged || weekReviewPending;
 
     if (needsFullPlan) {
       await generations.update(userId, PLAN_GENERATION_STEPS.review);
@@ -322,6 +343,7 @@ export async function runPlanGeneration(
         today,
         input.includeTomorrow,
         weatherChanged,
+        weekReviewPending,
       );
       const plan = await advancePlan(
         input,
@@ -329,6 +351,7 @@ export async function runPlanGeneration(
         pending,
         revisionNeeded,
         true,
+        weekReviewPending,
       );
       await generations.update(userId, PLAN_GENERATION_STEPS.save);
       const saved = await plans.save(
@@ -361,6 +384,7 @@ export async function runPlanGeneration(
       today,
       input.includeTomorrow,
       weatherChanged,
+      weekReviewPending,
     );
     if (
       !pending.block &&
@@ -388,7 +412,14 @@ export async function runPlanGeneration(
       return input.plan;
     }
 
-    const plan = await advancePlan(input, currentPlan, pending, revisionNeeded);
+    const plan = await advancePlan(
+      input,
+      currentPlan,
+      pending,
+      revisionNeeded,
+      false,
+      weekReviewPending,
+    );
     await generations.update(userId, PLAN_GENERATION_STEPS.save);
     const saved = await plans.save(
       userId,
@@ -425,6 +456,8 @@ interface PlanUpdateOptions {
   expectedBlockStartDate?: string;
   nextBlockStartDate?: string;
   nextWeekStartDate?: string;
+  /** Revise the current block in place instead of creating a new one. */
+  reviseBlock?: boolean;
 }
 
 /**
@@ -440,12 +473,18 @@ async function advancePlan(
   pending: ReturnType<typeof planPending>,
   revisionNeeded: boolean,
   seasonRefresh = false,
+  weekReviewPending = false,
 ): Promise<CoachPlan> {
   const { today, context } = input;
   const includeTomorrow = input.includeTomorrow === true;
   const tomorrowDate = addDays(today, 1);
   const tomorrowWeek = weekFor(current, tomorrowDate);
-  const blockRevision = seasonRefresh || pending.block;
+  const blockInPlace =
+    weekReviewPending &&
+    !seasonRefresh &&
+    today >= current.block.startDate &&
+    today <= current.block.endDate;
+  const blockRevision = seasonRefresh || pending.block || weekReviewPending;
   const nextBlockRevision =
     includeTomorrow && pending.nextBlock && (seasonRefresh || !blockRevision);
   const nextBlockSameWeek =
@@ -493,11 +532,12 @@ async function advancePlan(
       nextBlockRevision,
   };
   const options: PlanUpdateOptions = {
-    ...(seasonRefresh
+    ...(seasonRefresh || blockInPlace
       ? { expectedBlockStartDate: current.block.startDate }
       : blockRevision
         ? { expectedBlockStartDate: nextBlockStartDate(current.block, today) }
         : {}),
+    ...(blockInPlace ? { reviseBlock: true } : {}),
     ...(nextBlockRevision
       ? { nextBlockStartDate: nextBlockStartDate(current.block, today) }
       : {}),
@@ -599,6 +639,7 @@ async function requestPlanUpdate(
       ...(options.expectedBlockStartDate !== undefined
         ? { blockStartDate: options.expectedBlockStartDate }
         : {}),
+      ...(options.reviseBlock === true ? { reviseBlock: true } : {}),
       ...(options.nextBlockStartDate !== undefined
         ? { nextBlockStartDate: options.nextBlockStartDate }
         : {}),
@@ -1069,6 +1110,50 @@ function mergeBodyMetrics(
     }
   }
   return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/**
+ * Adds reviews generated at the start of this run to the context before the
+ * plan update. A new week review also advances the coaching-input timestamp, so
+ * the saved plan records that it already used the review.
+ */
+function mergeCapturedPeriodReviews(
+  context: PlanGenerationContext,
+  captured: readonly PeriodReviewContext[],
+): PlanGenerationContext {
+  const weekReview = captured.find((review) => review.kind === "week");
+  const capturedAt =
+    weekReview === undefined
+      ? null
+      : weekReview.updatedAt === undefined
+        ? new Date()
+        : new Date(weekReview.updatedAt);
+  const weekReviewUpdatedAt =
+    capturedAt !== null && !Number.isNaN(capturedAt.getTime())
+      ? capturedAt
+      : (context.weekReviewUpdatedAt ?? null);
+  return {
+    ...context,
+    periodReviews: [...(context.periodReviews ?? []), ...captured],
+    weekReviewUpdatedAt,
+    coachingInputsUpdatedAt: latestDate(
+      context.coachingInputsUpdatedAt,
+      weekReviewUpdatedAt,
+    ),
+  };
+}
+
+function latestDate(
+  first: Date | null | undefined,
+  second: Date | null | undefined,
+): Date | null {
+  if (first == null) {
+    return second ?? null;
+  }
+  if (second == null) {
+    return first;
+  }
+  return second.getTime() > first.getTime() ? second : first;
 }
 
 /**

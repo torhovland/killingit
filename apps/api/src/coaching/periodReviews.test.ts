@@ -108,7 +108,7 @@ function input(overrides: Record<string, unknown> = {}) {
 describe("captureCompletedPeriodReviews", () => {
   it("summarises the completed week and block", async () => {
     const saved: Array<{ kind: string; startDate: string; title: string }> = [];
-    await captureCompletedPeriodReviews(
+    const captured = await captureCompletedPeriodReviews(
       input({
         save: (entry: { kind: string; startDate: string; title: string }) => {
           saved.push(entry);
@@ -117,6 +117,10 @@ describe("captureCompletedPeriodReviews", () => {
       }),
     );
 
+    expect(captured.map((entry) => entry.kind).sort()).toEqual([
+      "block",
+      "week",
+    ]);
     expect(saved.map((entry) => entry.kind).sort()).toEqual(["block", "week"]);
     expect(saved.find((entry) => entry.kind === "week")?.startDate).toBe(
       "2026-09-07",
