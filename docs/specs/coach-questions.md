@@ -19,6 +19,9 @@ remarks about difficulties or objections, and show those remarks to the admin.
 
 1. Every strictly JSON coach response may carry `coachQuestions` (an array of
    question strings) and `modelsRemarks` (a string or null). The prompt asks for
+   at most one question per response, never one per activity, day, week, block
+   or season level, and requires the question to name the activity, date, week
+   or metric it is about so the athlete knows the context. The prompt asks for
    `modelsRemarks` to be null when the task had no problems.
 2. Persist new clarification questions in `coach_questions`. Repeated pending
    questions are skipped.
