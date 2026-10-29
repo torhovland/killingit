@@ -240,7 +240,7 @@ function CalendarCell({
 
       {day?.blockStart && (
         <span
-          className="rounded bg-accent/20 px-1 py-0.5 font-medium text-accent-foreground"
+          className="rounded bg-accent px-1 py-0.5 font-medium text-accent-foreground"
           data-testid="calendar-block-start"
         >
           Block starts
@@ -251,7 +251,7 @@ function CalendarCell({
 
       {day?.seasonEnd && (
         <span
-          className="rounded bg-accent/20 px-1 py-0.5 font-medium text-accent-foreground"
+          className="rounded bg-accent px-1 py-0.5 font-medium text-accent-foreground"
           data-testid="calendar-season-end"
         >
           Season ends
