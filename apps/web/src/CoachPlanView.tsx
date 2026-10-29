@@ -32,6 +32,8 @@ export function CoachPlanView({
   showTomorrow = false,
   defaultTab = "day",
   refreshingDays = {},
+  refreshingWeeks = {},
+  refreshingBlocks = {},
   onDownloadWorkout,
   downloadingWorkoutDate = null,
 }: {
@@ -40,6 +42,10 @@ export function CoachPlanView({
   defaultTab?: PlanTab;
   /** Days whose stored content is being replaced by a generation in flight. */
   refreshingDays?: { today?: boolean; tomorrow?: boolean };
+  /** Weeks whose stored content is being replaced by a generation in flight. */
+  refreshingWeeks?: { week?: boolean; nextWeek?: boolean };
+  /** Blocks whose stored content is being replaced by a generation in flight. */
+  refreshingBlocks?: { block?: boolean; nextBlock?: boolean };
   /** Starts a download of the structured workout for a date. */
   onDownloadWorkout?: (date: string) => void;
   /** The date whose workout file is currently being prepared. */
@@ -93,24 +99,36 @@ export function CoachPlanView({
         )}
         {tab === "week" && (
           <div className="flex flex-col gap-4">
-            <WeekSection week={plan.week} label="This week" />
+            <WeekSection
+              week={plan.week}
+              label="This week"
+              testId="plan-week"
+              refreshing={refreshingWeeks.week ?? false}
+            />
             {plan.nextWeek !== null && (
               <WeekSection
                 week={plan.nextWeek}
                 label="Next week"
                 testId="plan-next-week"
+                refreshing={refreshingWeeks.nextWeek ?? false}
               />
             )}
           </div>
         )}
         {tab === "block" && (
           <div className="flex flex-col gap-4">
-            <BlockSection block={plan.block} label="Current block" />
+            <BlockSection
+              block={plan.block}
+              label="Current block"
+              testId="plan-block"
+              refreshing={refreshingBlocks.block ?? false}
+            />
             {plan.nextBlock !== null && (
               <BlockSection
                 block={plan.nextBlock}
                 label="Next block"
                 testId="plan-next-block"
+                refreshing={refreshingBlocks.nextBlock ?? false}
               />
             )}
           </div>
@@ -245,21 +263,38 @@ function DayCard({
         )}
       </div>
       {refreshing && (
-        <div
-          className="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-lg bg-card/60"
-          data-testid={`${testId}-refreshing`}
-        >
-          <span
-            className="inline-flex size-6 animate-spin rounded-full border-2 border-current border-t-transparent text-primary"
-            role="status"
-            aria-label={`Updating ${label.toLowerCase()}'s plan`}
-          />
-          <span className="text-base text-muted-foreground">
-            Updating {label.toLowerCase()}&apos;s plan…
-          </span>
-        </div>
+        <RefreshingOverlay
+          label={`${label.toLowerCase()}'s`}
+          testId={`${testId}-refreshing`}
+        />
       )}
     </article>
+  );
+}
+
+/** Dimmed overlay shown while a plan level is being replaced in flight. */
+function RefreshingOverlay({
+  label,
+  testId,
+}: {
+  /** Possessive name of the level, such as `today's` or `this week's`. */
+  label: string;
+  testId: string;
+}) {
+  return (
+    <div
+      className="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-lg bg-card/60"
+      data-testid={testId}
+    >
+      <span
+        className="inline-flex size-6 animate-spin rounded-full border-2 border-current border-t-transparent text-primary"
+        role="status"
+        aria-label={`Updating ${label} plan`}
+      />
+      <span className="text-base text-muted-foreground">
+        Updating {label} plan…
+      </span>
+    </div>
   );
 }
 
@@ -267,83 +302,99 @@ function WeekSection({
   week,
   label,
   testId,
+  refreshing = false,
 }: {
   week: WeekPlan;
   label: string;
   testId?: string;
+  refreshing?: boolean;
 }) {
   return (
-    <section className="rounded-lg border bg-card p-4" data-testid={testId}>
-      <h3 className="text-xl font-semibold">
-        {label}
-        <Bullet />
-        {week.focus}
-      </h3>
-      <p className="text-base text-muted-foreground">
-        Week starting {formatPlanDate(week.startDate)}
-        {week.estimatedFtpWatts != null && (
-          <span data-testid="week-ftp">
-            <Bullet />
-            Estimated FTP:{" "}
-            <span className="font-medium">{week.estimatedFtpWatts} W</span>
-          </span>
-        )}
-      </p>
-      <p className="mt-2 text-base text-muted-foreground">{week.rationale}</p>
-      <ul className="mt-3 flex flex-col gap-2">
-        {week.sessions.map((session) => (
-          <li
-            key={session.date}
-            className="flex flex-wrap items-baseline justify-between gap-2 border-b pb-2 text-base last:border-b-0 last:pb-0"
-          >
-            <span className="font-medium">
-              {formatPlanDate(session.date)}
+    <section
+      className="relative rounded-lg border bg-card p-4"
+      data-testid={testId}
+      aria-busy={refreshing || undefined}
+    >
+      <div
+        className={refreshing ? "flex flex-col opacity-40" : "flex flex-col"}
+      >
+        <h3 className="text-xl font-semibold">
+          {label}
+          <Bullet />
+          {week.focus}
+        </h3>
+        <p className="text-base text-muted-foreground">
+          Week starting {formatPlanDate(week.startDate)}
+          {week.estimatedFtpWatts != null && (
+            <span data-testid="week-ftp">
               <Bullet />
-              {session.title}
+              Estimated FTP:{" "}
+              <span className="font-medium">{week.estimatedFtpWatts} W</span>
             </span>
-            <span className="ml-auto flex items-center gap-3 text-muted-foreground">
-              {session.type !== "rest" && (
-                <span>
-                  {session.status === "completed" &&
-                  session.durationMinutes === 0 ? (
-                    "Logged manually"
-                  ) : (
-                    <>
-                      {session.durationMinutes} min
-                      <Bullet />
-                      {session.intensity}
-                      <SessionSetting outdoor={session.outdoor} />
-                    </>
-                  )}
-                </span>
-              )}
-              <StatusBadge status={session.status} />
-            </span>
-            {session.trainingLoad !== null &&
-              session.trainingLoad !== undefined && (
-                <TrainingLoadLine
-                  load={session.trainingLoad}
-                  testId="session-load"
-                />
-              )}
-            {session.type === "workout" &&
-              session.canBeOutdoor !== false &&
-              (session.weather != null || session.forecasts != null) && (
-                <div className="w-full" data-testid="week-weather">
-                  <WeatherSummary
-                    weather={session.weather}
-                    forecasts={session.forecasts}
+          )}
+        </p>
+        <p className="mt-2 text-base text-muted-foreground">{week.rationale}</p>
+        <ul className="mt-3 flex flex-col gap-2">
+          {week.sessions.map((session) => (
+            <li
+              key={session.date}
+              className="flex flex-wrap items-baseline justify-between gap-2 border-b pb-2 text-base last:border-b-0 last:pb-0"
+            >
+              <span className="font-medium">
+                {formatPlanDate(session.date)}
+                <Bullet />
+                {session.title}
+              </span>
+              <span className="ml-auto flex items-center gap-3 text-muted-foreground">
+                {session.type !== "rest" && (
+                  <span>
+                    {session.status === "completed" &&
+                    session.durationMinutes === 0 ? (
+                      "Logged manually"
+                    ) : (
+                      <>
+                        {session.durationMinutes} min
+                        <Bullet />
+                        {session.intensity}
+                        <SessionSetting outdoor={session.outdoor} />
+                      </>
+                    )}
+                  </span>
+                )}
+                <StatusBadge status={session.status} />
+              </span>
+              {session.trainingLoad !== null &&
+                session.trainingLoad !== undefined && (
+                  <TrainingLoadLine
+                    load={session.trainingLoad}
+                    testId="session-load"
                   />
-                </div>
+                )}
+              {session.type === "workout" &&
+                session.canBeOutdoor !== false &&
+                (session.weather != null || session.forecasts != null) && (
+                  <div className="w-full" data-testid="week-weather">
+                    <WeatherSummary
+                      weather={session.weather}
+                      forecasts={session.forecasts}
+                    />
+                  </div>
+                )}
+              {session.description.trim() !== "" && (
+                <p className="w-full text-sm text-muted-foreground">
+                  {session.description}
+                </p>
               )}
-            {session.description.trim() !== "" && (
-              <p className="w-full text-sm text-muted-foreground">
-                {session.description}
-              </p>
-            )}
-          </li>
-        ))}
-      </ul>
+            </li>
+          ))}
+        </ul>
+      </div>
+      {refreshing && (
+        <RefreshingOverlay
+          label={`${label.toLowerCase()}'s`}
+          testId={`${testId ?? "plan-week"}-refreshing`}
+        />
+      )}
     </section>
   );
 }
@@ -360,52 +411,68 @@ function BlockSection({
   block,
   label,
   testId,
+  refreshing = false,
 }: {
   block: BlockPlan;
   label: string;
   testId?: string;
+  refreshing?: boolean;
 }) {
   return (
-    <section className="rounded-lg border bg-card p-4" data-testid={testId}>
-      <h3 className="text-xl font-semibold">
-        {label}
-        <Bullet />
-        {block.name}
-      </h3>
-      <p className="mt-2 text-base text-muted-foreground">
-        {formatPlanDate(block.startDate)} → {formatPlanDate(block.endDate)}
-        {block.estimatedFtpWatts != null && (
-          <span data-testid="block-ftp">
-            <Bullet />
-            Estimated FTP:{" "}
-            <span className="font-medium">{block.estimatedFtpWatts} W</span>
-          </span>
-        )}
-      </p>
-      <p className="mt-3 text-base text-muted-foreground">{block.focus}</p>
-      <p className="mt-3 text-base">
-        <span className="font-medium">Coach's rationale: </span>
-        <span className="text-muted-foreground">{block.rationale}</span>
-      </p>
-      <PlanList>
-        {block.weeks.map((week) => (
-          <PlanListItem key={`${week.number}-${week.startDate}`}>
-            <p className="font-medium">Week {week.number}</p>
-            <p className="text-muted-foreground">
-              Week starting {formatPlanDate(week.startDate)}
-            </p>
-            <p className="text-muted-foreground">
-              Target load: {week.targetLoad}
-            </p>
-            {week.estimatedFtpWatts != null && (
+    <section
+      className="relative rounded-lg border bg-card p-4"
+      data-testid={testId}
+      aria-busy={refreshing || undefined}
+    >
+      <div
+        className={refreshing ? "flex flex-col opacity-40" : "flex flex-col"}
+      >
+        <h3 className="text-xl font-semibold">
+          {label}
+          <Bullet />
+          {block.name}
+        </h3>
+        <p className="mt-2 text-base text-muted-foreground">
+          {formatPlanDate(block.startDate)} → {formatPlanDate(block.endDate)}
+          {block.estimatedFtpWatts != null && (
+            <span data-testid="block-ftp">
+              <Bullet />
+              Estimated FTP:{" "}
+              <span className="font-medium">{block.estimatedFtpWatts} W</span>
+            </span>
+          )}
+        </p>
+        <p className="mt-3 text-base text-muted-foreground">{block.focus}</p>
+        <p className="mt-3 text-base">
+          <span className="font-medium">Coach's rationale: </span>
+          <span className="text-muted-foreground">{block.rationale}</span>
+        </p>
+        <PlanList>
+          {block.weeks.map((week) => (
+            <PlanListItem key={`${week.number}-${week.startDate}`}>
+              <p className="font-medium">Week {week.number}</p>
               <p className="text-muted-foreground">
-                Estimated FTP: {week.estimatedFtpWatts} W
+                Week starting {formatPlanDate(week.startDate)}
               </p>
-            )}
-            <p className="text-muted-foreground">{week.focus}</p>
-          </PlanListItem>
-        ))}
-      </PlanList>
+              <p className="text-muted-foreground">
+                Target load: {week.targetLoad}
+              </p>
+              {week.estimatedFtpWatts != null && (
+                <p className="text-muted-foreground">
+                  Estimated FTP: {week.estimatedFtpWatts} W
+                </p>
+              )}
+              <p className="text-muted-foreground">{week.focus}</p>
+            </PlanListItem>
+          ))}
+        </PlanList>
+      </div>
+      {refreshing && (
+        <RefreshingOverlay
+          label={`${label.toLowerCase()}'s`}
+          testId={`${testId ?? "plan-block"}-refreshing`}
+        />
+      )}
     </section>
   );
 }
