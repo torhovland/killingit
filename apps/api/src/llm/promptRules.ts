@@ -99,12 +99,18 @@ export const WEEK_OUTLINE_RULES = `Treat the week as an outline, not seven finis
 export const ONLY_STATED_NUMBERS_RULE = `Report only numbers the athlete states in the input. Never infer or guess a measurement from training data, a workout summary, the training plan, or earlier coach notes, never estimate a weigh-in from the workout data, and never turn a goal into a measurement.`;
 
 /**
+ * The units every prompt uses for body measurements: kilograms and body-fat
+ * percentage of body weight.
+ */
+export const BODY_METRIC_UNITS_RULE = `Give body weight in kilograms and body fat as a percentage of body weight; convert a stated weight in pounds or stone. A fraction such as 0.245 and "24.5 %" both mean 24.5 % body fat.`;
+
+/**
  * Shared instruction for the body-composition points the coach reports. The
  * app stores them in the same daily time series as Garmin's weigh-ins, so the
  * athlete sees a weight and body-fat trend on the Fitness page even before
  * their scale is connected.
  */
-export const BODY_METRIC_RULES = `When the profile, a weekly note, an activity comment, or another part of the input states the athlete's body weight or body-fat percentage, report it in "bodyMetrics" as { "date": "YYYY-MM-DD", "weightKg": number, "bodyFatPercent": number }. Give body weight in kilograms and body fat as a percentage of body weight; convert a stated weight in pounds. Use the date the statement refers to. For a number in the profile that names no date, use the date the profile was last saved; for anything added more recently, use today's date. Set a value the input does not give to null, and return an empty "bodyMetrics" array when the input says nothing about either number. ${ONLY_STATED_NUMBERS_RULE} The stored history tells you what is already known; do not repeat a value for the same date.`;
+export const BODY_METRIC_RULES = `When the profile, a weekly note, an activity comment, or another part of the input states the athlete's body weight or body-fat percentage, report it in "bodyMetrics" as { "date": "YYYY-MM-DD", "weightKg": number, "bodyFatPercent": number }. ${BODY_METRIC_UNITS_RULE} Use the date the statement refers to. For a number in the profile that names no date, use the date the profile was last saved; for anything added more recently, use today's date. Set a value the input does not give to null, and return an empty "bodyMetrics" array when the input says nothing about either number. ${ONLY_STATED_NUMBERS_RULE} The stored history tells you what is already known; do not repeat a value for the same date.`;
 
 /**
  * Shared weather and daylight instruction for prompts that choose which day
@@ -160,6 +166,9 @@ export const PLAIN_TEXT_RULES = `Do not use headings, bullets, or markdown. Do n
 /** The full JSON output rule for the plan prompts. */
 export const JSON_RULES = `Return only a single valid JSON object with exactly this shape. ${JSON_ONLY_RULES} Every field must use the exact name and value type shown in the contract. The top-level keys must be exactly the keys shown at the top level of the contract, with the same nesting; never return a bare inner object, an array, or a wrapper such as "plan" or "response". When a contract lists choices separated by "|", output exactly one of those choices as a string and never the list itself. Replace every placeholder such as "YYYY-MM-DD", "string", or 0 with a real value.`;
 
+/** The structured power targets shared by the day and week session contracts. */
+export const BIKE_WORKOUT_CONTRACT = `{ "ftpWatts": 0, "intervals": [{ "durationSeconds": 0, "powerPercent": 75 }] }`;
+
 export const DAY_CONTRACT = `{
   "date": "YYYY-MM-DD",
   "type": "workout | rest",
@@ -175,15 +184,7 @@ export const DAY_CONTRACT = `{
   "estimatedTss": 0,
   "outdoor": true,
   "canBeOutdoor": true,
-  "bikeWorkout": {
-    "ftpWatts": 0,
-    "intervals": [
-      {
-        "durationSeconds": 0,
-        "powerPercent": 75
-      }
-    ]
-  }
+  "bikeWorkout": ${BIKE_WORKOUT_CONTRACT}
 }`;
 
 export const WEEK_CONTRACT = `{
@@ -205,15 +206,7 @@ export const WEEK_CONTRACT = `{
       "estimatedFtpWatts": 0,
       "outdoor": true,
       "canBeOutdoor": true,
-      "bikeWorkout": {
-        "ftpWatts": 0,
-        "intervals": [
-          {
-            "durationSeconds": 0,
-            "powerPercent": 75
-          }
-        ]
-      }
+      "bikeWorkout": ${BIKE_WORKOUT_CONTRACT}
     }
   ]
 }`;
@@ -262,6 +255,31 @@ export const ACTIVITY_TYPE_RULE = `The activity type recorded by the device is o
 
 /** The FTP estimate every activity review reports when the effort supports one. */
 export const ACTIVITY_FTP_ESTIMATE_RULES = `Also estimate the athlete's FTP after this workout when the recorded effort supports it. Use the supplied FTP history as the baseline, respect its trend, and never invent a large jump. Set "estimatedFtpWatts" to null when the activity gives no useful evidence (for example a rest day, a strength session, or a workout with no power or hard aerobic effort).`;
+
+/**
+ * The body-composition fields every activity review reports when the athlete's
+ * comment states them.
+ */
+export const ACTIVITY_BODY_METRIC_RULES = `When the athlete's comment on this activity states their body weight or body-fat percentage, report it in "weightKg" and "bodyFatPercent". ${ONLY_STATED_NUMBERS_RULE}`;
+
+/** The shared closing instruction for prompts that return JSON. */
+export const RETURN_JSON_FROM_SYSTEM_PROMPT =
+  "Return the JSON object described in the system prompt.";
+
+/**
+ * The sentence that names the exact top-level keys a plan response must use.
+ * Kept as a helper so every plan prompt spells the response keys the same way.
+ */
+export function jsonTopLevelKeys(keys: readonly string[]): string {
+  const quoted = keys.map((key) => `"${key}"`);
+  const list =
+    quoted.length <= 1
+      ? (quoted[0] ?? "")
+      : quoted.length === 2
+        ? `${quoted[0]} and ${quoted[1]}`
+        : `${quoted.slice(0, -1).join(", ")}, and ${quoted.at(-1)}`;
+  return `Return one JSON object whose top-level keys are exactly ${list}.`;
+}
 
 /** The JSON contract shared by the activity and program reviews. */
 export const COACH_ANALYSIS_RESPONSE_RULES = `Return only one JSON object with exactly this shape:

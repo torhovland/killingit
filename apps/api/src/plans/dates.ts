@@ -18,3 +18,8 @@ export function addDays(date: string, days: number): string {
   parsed.setUTCDate(parsed.getUTCDate() + days);
   return parsed.toISOString().slice(0, 10);
 }
+
+/** The seven calendar dates in the week starting on `startDate`. */
+export function weekDates(startDate: string): string[] {
+  return Array.from({ length: 7 }, (_, index) => addDays(startDate, index));
+}

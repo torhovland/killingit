@@ -410,15 +410,11 @@ export function formatWeekPlan(plan: WeekPlan): string {
     `Rationale: ${plan.rationale}`,
     "Sessions:",
     ...plan.sessions.map((session) => {
-      const bikeWorkout =
-        session.bikeWorkout != null
-          ? `; ${formatBikeWorkout(session.bikeWorkout)}`
-          : "";
       const tss =
         session.estimatedTss !== undefined
           ? `; estimated TSS ${session.estimatedTss}`
           : "";
-      return `- ${session.date} (${session.day}) [${session.status}]: ${session.title} [${session.type}, ${session.intensity}, ${session.durationMinutes} min] — ${session.description}${bikeWorkout}${tss}`;
+      return `- ${session.date} (${session.day}) [${session.status}]: ${formatPlannedSession(session)}${tss}`;
     }),
   ].join("\n");
 }
@@ -460,6 +456,23 @@ export function formatDayPlan(plan: DayPlan): string {
 }
 
 /**
+ * The season and current block, rendered the same way for every prompt that
+ * starts from the athlete's current plan.
+ */
+export function formatSeasonAndBlock(
+  season: SeasonPlan,
+  block: BlockPlan,
+): string[] {
+  return [
+    "Current season plan:",
+    formatSeasonPlan(season),
+    "",
+    "Current block plan:",
+    formatBlockPlan(block),
+  ];
+}
+
+/**
  * The season, current block and current week, rendered the same way for every
  * prompt that starts from the athlete's current plan.
  */
@@ -467,11 +480,7 @@ export function formatPlanLevels(
   plan: Pick<CoachPlan, "season" | "block" | "week">,
 ): string[] {
   return [
-    "Season plan:",
-    formatSeasonPlan(plan.season),
-    "",
-    "Current block plan:",
-    formatBlockPlan(plan.block),
+    ...formatSeasonAndBlock(plan.season, plan.block),
     "",
     "Current week plan:",
     formatWeekPlan(plan.week),

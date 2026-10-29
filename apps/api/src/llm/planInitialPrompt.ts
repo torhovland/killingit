@@ -10,6 +10,7 @@ import {
   BODY_METRIC_RULES,
   COACH_PERSONA,
   JSON_RULES,
+  jsonTopLevelKeys,
   PLAN_INPUT_GUIDANCE,
   RATIONALE_RULES,
   SEASON_CONTRACT,
@@ -69,7 +70,7 @@ export function buildSeasonPlanPrompt(input: SeasonPlanInput): string {
   return [
     ...formatPlanContext(input),
     "",
-    'Create the season plan. Return one JSON object whose top-level keys are exactly "season" and "bodyMetrics".',
+    `Create the season plan. ${jsonTopLevelKeys(["season", "bodyMetrics"])}`,
   ].join("\n");
 }
 
@@ -90,6 +91,6 @@ export function buildInitialBlockPrompt(input: InitialBlockInput): string {
     "Current season plan:",
     formatSeasonPlan(input.season),
     "",
-    'Create the first block. Return one JSON object whose top-level keys are exactly "block" and "bodyMetrics".',
+    `Create the first block. ${jsonTopLevelKeys(["block", "bodyMetrics"])}`,
   ].join("\n");
 }

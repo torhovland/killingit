@@ -11,12 +11,13 @@ import {
   formatWeekPlan,
 } from "./planContext.js";
 import {
+  ACTIVITY_BODY_METRIC_RULES,
   ACTIVITY_FTP_ESTIMATE_RULES,
   ACTIVITY_TYPE_RULE,
   COACH_ANALYSIS_RESPONSE_RULES,
   COACH_PERSONA,
-  ONLY_STATED_NUMBERS_RULE,
   PLAIN_TEXT_RULES,
+  RETURN_JSON_FROM_SYSTEM_PROMPT,
 } from "./promptRules.js";
 
 export { formatDuration } from "./duration.js";
@@ -45,7 +46,7 @@ ${ACTIVITY_TYPE_RULE}
 When the athlete's current week plan is provided, match the workout to the planned session it best fits, then make how well it fit the plan part of the same summary. If it followed the plan reasonably well, say so warmly and encouragingly. If it did not, point out clearly what could be improved without being harsh.
 Be brief and to the point: use 2-3 sentences of plain text, cite only the most useful numbers, and finish with one actionable recommendation for the next session. Do not add a separate plan-fit section. ${PLAIN_TEXT_RULES}
 ${ACTIVITY_FTP_ESTIMATE_RULES}
-When the athlete's comment on this activity states their body weight or body-fat percentage, report it in "weightKg" and "bodyFatPercent". ${ONLY_STATED_NUMBERS_RULE}
+${ACTIVITY_BODY_METRIC_RULES}
 
 ${COACH_ANALYSIS_RESPONSE_RULES}`;
 
@@ -279,8 +280,8 @@ export function buildActivityAnalysisPrompt(
   lines.push(
     "",
     context
-      ? "Write the brief coach summary. Include how well the workout fit its planned session and cite only the most useful evidence. Return the JSON object described in the system prompt."
-      : "Write the brief coach summary, citing only the most useful evidence. Return the JSON object described in the system prompt.",
+      ? `Write the brief coach summary. Include how well the workout fit its planned session and cite only the most useful evidence. ${RETURN_JSON_FROM_SYSTEM_PROMPT}`
+      : `Write the brief coach summary, citing only the most useful evidence. ${RETURN_JSON_FROM_SYSTEM_PROMPT}`,
   );
   return lines.join("\n");
 }

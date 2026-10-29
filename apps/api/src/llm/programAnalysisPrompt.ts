@@ -10,12 +10,13 @@ import {
   formatPlannedSession,
 } from "./planContext.js";
 import {
+  ACTIVITY_BODY_METRIC_RULES,
   ACTIVITY_FTP_ESTIMATE_RULES,
   ACTIVITY_TYPE_RULE,
   COACH_ANALYSIS_RESPONSE_RULES,
   COACH_PERSONA,
-  ONLY_STATED_NUMBERS_RULE,
   PLAIN_TEXT_RULES,
+  RETURN_JSON_FROM_SYSTEM_PROMPT,
 } from "./promptRules.js";
 
 /**
@@ -41,7 +42,7 @@ ${ACTIVITY_TYPE_RULE}
 Match the workout to a planned session, then weave how well it fit the plan into one brief summary rather than a separate section. Be encouraging when the workout was at least somewhat conforming, but do not hesitate to point out what could be improved. Cite only the most useful numbers.
 Use 2-3 sentences of plain text and finish with one actionable takeaway. ${PLAIN_TEXT_RULES}
 ${ACTIVITY_FTP_ESTIMATE_RULES}
-When the athlete's comment on this activity states their body weight or body-fat percentage, report it in "weightKg" and "bodyFatPercent". ${ONLY_STATED_NUMBERS_RULE}
+${ACTIVITY_BODY_METRIC_RULES}
 
 ${COACH_ANALYSIS_RESPONSE_RULES}`;
 
@@ -98,7 +99,7 @@ export function buildProgramAnalysisPrompt(
 
   lines.push(
     "",
-    "Write a brief summary that includes how well this activity fit its planned session and what could be done better. Return the JSON object described in the system prompt.",
+    `Write a brief summary that includes how well this activity fit its planned session and what could be done better. ${RETURN_JSON_FROM_SYSTEM_PROMPT}`,
   );
   return lines.join("\n");
 }

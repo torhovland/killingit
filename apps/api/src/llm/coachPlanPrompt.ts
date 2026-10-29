@@ -14,6 +14,7 @@ import {
   DAY_CONTRACT,
   ENUM_RULES,
   JSON_RULES,
+  jsonTopLevelKeys,
   PLAN_INPUT_GUIDANCE,
   RATIONALE_RULES,
   SEASON_CONTRACT,
@@ -120,6 +121,6 @@ export function buildCoachPlanPrompt(input: CoachPlanInput): string {
   return [
     ...formatPlanContext(input),
     "",
-    `Using the athlete profile and recent training, create the season plan, the first block, the first week, and today's session. ${TRAINING_SCIENCE_RULE} Return one JSON object whose top-level keys are exactly "season", "block", "week", "today", "tomorrow", and "bodyMetrics".`,
+    `Using the athlete profile and recent training, create the season plan, the first block, the first week, and today's session. ${TRAINING_SCIENCE_RULE} ${jsonTopLevelKeys(["season", "block", "week", "today", "tomorrow", "bodyMetrics"])}`,
   ].join("\n");
 }

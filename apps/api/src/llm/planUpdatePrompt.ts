@@ -4,12 +4,13 @@ import type {
   SeasonPlan,
   WeekPlan,
 } from "@killingit/shared";
-import { addDays, startOfWeek } from "../plans/dates.js";
+import { addDays, startOfWeek, weekDates } from "../plans/dates.js";
 import {
   formatBlockPlan,
   formatDayPlan,
   formatPlanContext,
-  formatSeasonPlan,
+  formatPlanLevels,
+  formatSeasonAndBlock,
   formatWeekPlan,
   type PlanContextInput,
 } from "./planContext.js";
@@ -24,6 +25,7 @@ import {
   DAY_CONTRACT,
   ENUM_RULES,
   JSON_RULES,
+  jsonTopLevelKeys,
   PLAN_INPUT_GUIDANCE,
   PAST_SESSION_RULES,
   RATIONALE_RULES,
@@ -101,11 +103,6 @@ export interface PlanUpdateInput extends PlanContextInput {
   nextBlockStartDate?: string;
   /** The Monday the next week must start on. */
   nextWeekStartDate?: string;
-}
-
-/** The seven calendar dates a Monday-based week must contain. */
-function weekDates(startDate: string): string[] {
-  return Array.from({ length: 7 }, (_, index) => addDays(startDate, index));
 }
 
 export const DAILY_UPDATE_SYSTEM_PROMPT = `${COACH_PERSONA} Update today's session, the rest of the current week, and tomorrow's session for an amateur athlete. ${TRAINING_SCIENCE_RULE}
@@ -299,14 +296,7 @@ export function buildPlanUpdatePrompt(input: PlanUpdateInput): string {
   return [
     ...formatPlanContext(input),
     "",
-    "Current season plan:",
-    formatSeasonPlan(input.season),
-    "",
-    "Current block plan:",
-    formatBlockPlan(input.block),
-    "",
-    "Current week plan:",
-    formatWeekPlan(input.week),
+    ...formatPlanLevels(input),
     "",
     "Today's plan:",
     formatDayPlan(input.todayPlan),
@@ -338,7 +328,16 @@ export function buildPlanUpdatePrompt(input: PlanUpdateInput): string {
         ]
       : []),
     "",
-    'Return one JSON object whose top-level keys are exactly "season", "block", "week", "today", "tomorrow", "nextWeek", "nextBlock", and "bodyMetrics".',
+    jsonTopLevelKeys([
+      "season",
+      "block",
+      "week",
+      "today",
+      "tomorrow",
+      "nextWeek",
+      "nextBlock",
+      "bodyMetrics",
+    ]),
   ].join("\n");
 }
 
@@ -359,20 +358,13 @@ export function buildDailyUpdatePrompt(input: DailyUpdateInput): string {
   return [
     ...formatPlanContext(input),
     "",
-    "Current season plan:",
-    formatSeasonPlan(input.season),
-    "",
-    "Current block plan:",
-    formatBlockPlan(input.block),
-    "",
-    "Current week plan:",
-    formatWeekPlan(input.week),
+    ...formatPlanLevels(input),
     "",
     `The week must start on ${weekStart} and cover ${weekStart} through ${weekEnd}. Keep exactly seven sessions with those dates, and make sure one session has the date ${input.today}; the "today" object must use that same date.`,
     "",
     `Fully detail the sessions dated ${input.today} through ${detailThrough}. Keep every later session in the week as a short outline.`,
     "",
-    'Create today\'s session and revise this week\'s remaining sessions. Return one JSON object whose top-level keys are exactly "today", "tomorrow", "week", and "bodyMetrics".',
+    `Create today's session and revise this week's remaining sessions. ${jsonTopLevelKeys(["today", "tomorrow", "week", "bodyMetrics"])}`,
   ].join("\n");
 }
 
@@ -398,12 +390,8 @@ export function buildWeeklyUpdatePrompt(input: WeeklyUpdateInput): string {
         ]
       : []),
     "",
-    "Current season plan:",
-    formatSeasonPlan(input.season),
+    ...formatSeasonAndBlock(input.season, input.block),
     "",
-    "Block plan for the week:",
-    formatBlockPlan(input.block),
-    "",
-    'Create the new week and revise this block. Return one JSON object whose top-level keys are exactly "week", "block", and "bodyMetrics".',
+    `Create the new week and revise this block. ${jsonTopLevelKeys(["week", "block", "bodyMetrics"])}`,
   ].join("\n");
 }

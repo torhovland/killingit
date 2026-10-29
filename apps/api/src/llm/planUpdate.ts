@@ -7,7 +7,7 @@ import {
   type WeeklyPlanUpdate,
 } from "@killingit/shared";
 import type { z } from "zod";
-import { addDays, startOfWeek } from "../plans/dates.js";
+import { addDays, startOfWeek, weekDates } from "../plans/dates.js";
 import type { LlmProvider } from "./openrouter.js";
 import { completePlanJson } from "./planCompletion.js";
 import { PLAN_MAX_TOKENS } from "./planBudget.js";
@@ -28,11 +28,6 @@ export interface PlanUpdateCredentials {
 interface DatedWeek {
   startDate: string;
   sessions: readonly { date: string }[];
-}
-
-/** The seven calendar dates a Monday-based week must contain. */
-function weekDates(startDate: string): string[] {
-  return Array.from({ length: 7 }, (_, index) => addDays(startDate, index));
 }
 
 function hasWeekDates(week: DatedWeek, startDate: string): boolean {
