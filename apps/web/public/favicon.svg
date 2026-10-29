@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="favicon-title">
+  <title id="favicon-title">Killing It</title>
+  <defs>
+    <linearGradient id="favicon-gradient" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#E4FF4F" />
+      <stop offset="100%" stop-color="#5CFF9A" />
+    </linearGradient>
+    <mask id="favicon-cutouts" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512">
+      <rect width="512" height="512" fill="#fff" />
+      <circle cx="190" cy="242" r="54" fill="#000" />
+      <circle cx="322" cy="242" r="54" fill="#000" />
+      <polygon points="120,130 250,130 250,232 120,198" fill="#fff" />
+      <polygon points="392,130 262,130 262,232 392,198" fill="#fff" />
+      <polygon points="256,300 290,352 222,352" fill="#000" stroke="#000" stroke-width="10" stroke-linejoin="round" />
+    </mask>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="#1B2C86" />
+  <g transform="translate(-5.9 -4.7) scale(0.148)">
+    <path
+      mask="url(#favicon-cutouts)"
+      fill="url(#favicon-gradient)"
+      d="M256 72 C352 72 424 140 424 236 C424 290 400 324 368 344 L368 392 Q368 424 336 424 L176 424 Q144 424 144 392 L144 344 C112 324 88 290 88 236 C88 140 160 72 256 72 Z"
+    />
+  </g>
+</svg>

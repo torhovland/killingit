@@ -1,49 +1,26 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="logo-title">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="logo-title">
   <title id="logo-title">Killing It</title>
   <defs>
-    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#68478D" />
-      <stop offset="1" stop-color="#3F2A56" />
+    <linearGradient id="logo-gradient" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#E4FF4F" />
+      <stop offset="100%" stop-color="#5CFF9A" />
     </linearGradient>
+    <mask id="logo-cutouts" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512">
+      <rect width="512" height="512" fill="#fff" />
+      <circle cx="192" cy="240" r="46" fill="#000" />
+      <circle cx="320" cy="240" r="46" fill="#000" />
+      <polygon points="130,140 250,140 250,233.5 130,203.5" fill="#fff" />
+      <polygon points="382,140 262,140 262,233.5 382,203.5" fill="#fff" />
+      <polygon points="256,292 282,332 230,332" fill="#000" stroke="#000" stroke-width="8" stroke-linejoin="round" />
+      <rect x="178" y="384" width="30" height="20" rx="6" fill="#000" />
+      <rect x="220" y="372" width="30" height="32" rx="6" fill="#000" />
+      <rect x="262" y="360" width="30" height="44" rx="6" fill="#000" />
+      <rect x="304" y="348" width="30" height="56" rx="6" fill="#000" />
+    </mask>
   </defs>
-  <rect width="64" height="64" rx="14" fill="url(#tile)" />
-  <rect
-    x="1"
-    y="1"
-    width="62"
-    height="62"
-    rx="13"
-    fill="none"
-    stroke="#E2E8D2"
-    stroke-opacity="0.18"
-    stroke-width="1.5"
-  />
   <path
-    d="M20.5 14.5V49.5"
-    fill="none"
-    stroke="#E2E8D2"
-    stroke-width="8"
-    stroke-linecap="round"
-  />
-  <path
-    d="M22.5 34L39.5 49.5"
-    fill="none"
-    stroke="#E2E8D2"
-    stroke-width="8"
-    stroke-linecap="round"
-  />
-  <path
-    d="M24 34L39 19"
-    fill="none"
-    stroke="#A9C47F"
-    stroke-width="7.5"
-    stroke-linecap="round"
-  />
-  <path
-    d="M48 10L43.6 23.6L34.4 14.4Z"
-    fill="#A9C47F"
-    stroke="#A9C47F"
-    stroke-width="1.5"
-    stroke-linejoin="round"
+    mask="url(#logo-cutouts)"
+    fill="url(#logo-gradient)"
+    d="M256 72 C352 72 424 140 424 236 C424 290 400 324 368 344 L368 392 Q368 424 336 424 L176 424 Q144 424 144 392 L144 344 C112 324 88 290 88 236 C88 140 160 72 256 72 Z"
   />
 </svg>
