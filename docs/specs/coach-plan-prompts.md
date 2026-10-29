@@ -99,9 +99,9 @@ shapes (`StoredAthleteQuestion` and `AnalyzedActivity`) structurally and returns
   together. The `promptSections` helper keeps each shared fragment on its own
   section, separate from prompt-specific prose, so a fragment can be updated
   without rewriting the surrounding text. Rules that every plan prompt includes
-  live in `PLAN_PROMPT_GLOBAL_RULES`: the coach persona, the training-science
-  requirement, the standard input guidance, the rationale rules and the
-  body-metric rules.
+  are merged into the single literal `PLAN_PROMPT_GLOBAL_RULES`: the coach
+  persona, the training-science requirement, the standard input guidance, the
+  rationale rules and the body-metric rules.
 - `coachPlanPrompt.ts` exports `COACH_PLAN_PROMPT_VERSION`, the input interfaces,
   `buildCoachPlanPrompt(input)`, and `buildCoachPlanMessages(input)`. Its
   response contract is assembled from the same level contracts as the update

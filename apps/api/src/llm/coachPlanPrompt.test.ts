@@ -11,9 +11,8 @@ import {
 import {
   BIKE_WORKOUT_RULES,
   COMPLETED_SESSION_RULES,
-  RATIONALE_RULES,
+  PLAN_PROMPT_GLOBAL_RULES,
   TODAY_IN_WEEK_RULE,
-  TRAINING_SCIENCE_RULE,
   WEEK_OUTLINE_RULES,
   WEEK_SHAPE_RULES,
   WEATHER_PLANNING_RULES,
@@ -179,7 +178,7 @@ describe("coach plan prompts", () => {
   it("uses the same planning rules as the update prompt", () => {
     expect(COACH_PLAN_SYSTEM_PROMPT).toContain(WEATHER_PLANNING_RULES);
     expect(COACH_PLAN_SYSTEM_PROMPT).toContain(BIKE_WORKOUT_RULES);
-    expect(COACH_PLAN_SYSTEM_PROMPT).toContain(RATIONALE_RULES);
+    expect(COACH_PLAN_SYSTEM_PROMPT).toContain(PLAN_PROMPT_GLOBAL_RULES);
     expect(COACH_PLAN_SYSTEM_PROMPT).toContain(COMPLETED_SESSION_RULES);
   });
 
@@ -250,10 +249,10 @@ describe("coach plan prompts", () => {
     expect(prompt).not.toContain("Athlete timezone:");
   });
 
-  it("asks for state of the art training science in the user prompt", () => {
+  it("asks for state of the art training science and names the response keys", () => {
     const prompt = buildCoachPlanPrompt(makeInput());
 
-    expect(prompt).toContain(TRAINING_SCIENCE_RULE);
+    expect(COACH_PLAN_SYSTEM_PROMPT).toContain(PLAN_PROMPT_GLOBAL_RULES);
     expect(prompt).toContain(
       'top-level keys are exactly "season", "block", "week", "today", "tomorrow", and "bodyMetrics"',
     );

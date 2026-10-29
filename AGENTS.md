@@ -332,10 +332,10 @@ through a disciplined process:
   patterns of the surrounding code.
 - Treat unfamiliar files or changes as potential user work; do not overwrite or
   delete them without investigating first.
-- **Never duplicate prompt fragments.** Put every reusable prompt fragment — a
-  persona, rule, JSON contract, output instruction, response sentence or key
-  list — in `apps/api/src/llm/promptRules.ts`, and compose every prompt from
-  those exports. Keep fragments that every plan prompt uses in the single
-  `PLAN_PROMPT_GLOBAL_RULES` fragment. Before writing prompt text, check that
-  module and extend it instead of adding a second copy. A duplicated fragment
-  is a bug waiting to diverge.
+- **Never duplicate prompt fragments across prompts.** Put every reusable
+  prompt fragment — a persona, rule, JSON contract, output instruction,
+  response sentence or key list — in `apps/api/src/llm/promptRules.ts`, and
+  compose every prompt from those exports. Merge fragments that every plan
+  prompt uses into the single literal `PLAN_PROMPT_GLOBAL_RULES`. Before
+  writing prompt text, check that module and extend it instead of adding a
+  second copy. A duplicated fragment is a bug waiting to diverge.

@@ -105,16 +105,16 @@ export interface PlanUpdateInput extends PlanContextInput {
 export const DAILY_UPDATE_SYSTEM_PROMPT = promptSections(
   PLAN_PROMPT_GLOBAL_RULES,
   "Update today's session, the rest of the current week, and tomorrow's session for an amateur athlete.",
+  "Revise the remaining sessions so the week stays coherent with the block's focus and the athlete's current fatigue, keeping every day after tomorrow as a short outline. Include a rationale for today's session and for the week's overall structure.",
+  "Also provide a suggested workout or rest for tomorrow, consistent with the revised week and the block's focus.",
   WEEK_SHAPE_RULES,
   TODAY_IN_WEEK_RULE,
   COMPLETED_SESSION_RULES,
-  "Revise the remaining sessions so the week stays coherent with the block's focus and the athlete's current fatigue, keeping every day after tomorrow as a short outline. Include a rationale for today's session and for the week's overall structure.",
-  "Also provide a suggested workout or rest for tomorrow, consistent with the revised week and the block's focus.",
   WEEK_OUTLINE_RULES,
+  SESSION_PURPOSE_RULES,
   WEATHER_PLANNING_RULES,
   BIKE_WORKOUT_RULES,
   TRAINING_LOAD_RULES,
-  SESSION_PURPOSE_RULES,
   ENUM_RULES,
   JSON_RULES,
   `{
@@ -128,15 +128,15 @@ export const DAILY_UPDATE_SYSTEM_PROMPT = promptSections(
 export const WEEKLY_UPDATE_SYSTEM_PROMPT = promptSections(
   PLAN_PROMPT_GLOBAL_RULES,
   "Create the week starting on the supplied week start date and revise the block plan for an amateur athlete.",
+  "The new week must fit the block's focus and progression. Include a rationale for the week and for the revised block.",
+  "Revise the block's weeks and target loads where the athlete's progress or recent training requires it. Keep the block's name, focus, and dates unless a change is clearly justified. Do not change the season plan.",
   WEEK_SHAPE_RULES,
   PAST_SESSION_RULES,
   COMPLETION_SLACK_RULES,
-  "The new week must fit the block's focus and progression. Include a rationale for the week and for the revised block.",
   WEEK_OUTLINE_RULES,
   WEATHER_PLANNING_RULES,
   BIKE_WORKOUT_RULES,
   TRAINING_LOAD_RULES,
-  "Revise the block's weeks and target loads where the athlete's progress or recent training requires it. Keep the block's name, focus, and dates unless a change is clearly justified. Do not change the season plan.",
   ENUM_RULES,
   JSON_RULES,
   `{
@@ -161,9 +161,6 @@ export const PLAN_UPDATE_SYSTEM_PROMPT = promptSections(
   PLAN_PROMPT_GLOBAL_RULES,
   "Update an athlete's training plan.",
   "You receive the complete current plan at every level: the season, the current block, the current week, today's session, tomorrow's session when one has been planned, the next week when one has been planned, and the next block when one has been planned.",
-  WEEK_SHAPE_RULES,
-  TODAY_IN_WEEK_RULE,
-  COMPLETED_SESSION_RULES,
   `The revision request lists the levels that need to change. Return every level in the contract, so the saved plan always has a coherent season, block, week and day:
 - Keep the season, block, week, today, tomorrow, next week and next block exactly as supplied unless the request names them. Keep a level that is null and not requested as null.
 - When the current block is revised, return the revised block, a revised current week that fits it, and today's detailed session. Keep the current block's start date when the request says to keep it; otherwise start the new block on the supplied block start date. When a completed week review or its answer is supplied, use that feedback to adjust the block's progression. Update the season block summaries only when the revised block changes them.
@@ -173,11 +170,14 @@ export const PLAN_UPDATE_SYSTEM_PROMPT = promptSections(
 - When tomorrow is requested, return it and make sure it is the matching session in the current week or, when it falls in the next week, in the next week. Respect every weather preference and daylight constraint.
 - When the next week is requested, start it on the supplied next week start date and give it exactly seven sessions. When the next block is requested, start it on the supplied next block start date and put it in "nextBlock"; update "season" so its block summaries include it. If the block that starts tomorrow falls inside the current week, re-plan the remaining days of the current week under that next block and keep today's session.
 - Include a rationale for today's session and for the week's overall structure.`,
+  WEEK_SHAPE_RULES,
+  TODAY_IN_WEEK_RULE,
+  COMPLETED_SESSION_RULES,
   WEEK_OUTLINE_RULES,
+  SESSION_PURPOSE_RULES,
   WEATHER_PLANNING_RULES,
   BIKE_WORKOUT_RULES,
   TRAINING_LOAD_RULES,
-  SESSION_PURPOSE_RULES,
   ENUM_RULES,
   JSON_RULES,
   PLAN_UPDATE_CONTRACT,

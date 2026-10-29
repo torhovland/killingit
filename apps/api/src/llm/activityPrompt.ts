@@ -48,9 +48,9 @@ const ANALYSIS_SYSTEM_PROMPT = promptSections(
   ACTIVITY_TYPE_RULE,
   "When the athlete's current week plan is provided, match the workout to the planned session it best fits, then make how well it fit the plan part of the same summary. If it followed the plan reasonably well, say so warmly and encouragingly. If it did not, point out clearly what could be improved without being harsh.",
   "Be brief and to the point: use 2-3 sentences of plain text, cite only the most useful numbers, and finish with one actionable recommendation for the next session. Do not add a separate plan-fit section.",
-  PLAIN_TEXT_RULES,
   ACTIVITY_FTP_ESTIMATE_RULES,
   ACTIVITY_BODY_METRIC_RULES,
+  PLAIN_TEXT_RULES,
   COACH_ANALYSIS_RESPONSE_RULES,
 );
 

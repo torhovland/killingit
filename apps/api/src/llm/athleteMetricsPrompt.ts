@@ -46,9 +46,9 @@ export const ATHLETE_METRICS_SYSTEM_PROMPT = promptSections(
   BODY_METRIC_UNITS_RULE,
   "Body mass index, weight lost, and other derived numbers are not measurements.",
   "Date every statement with the date it was given, which is the date shown beside that piece of text. A number in the profile with no date of its own uses the profile's save date. Never use a future date. When the athlete states more than one value for the same date, report only the newest one.",
+  `Set a value the input does not state to null. Return { "statements": [] } when the athlete states none of these measurements.`,
   `Return only one JSON object with exactly this shape:
 { "statements": [ { "date": "YYYY-MM-DD", "ftpWatts": 0, "weightKg": 0, "bodyFatPercent": 0 } ] }`,
-  `Set a value the input does not state to null. Return { "statements": [] } when the athlete states none of these measurements.`,
   JSON_ONLY_RULES,
 );
 
