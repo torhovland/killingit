@@ -1,9 +1,11 @@
+import { cadenceUnit } from "@killingit/shared";
 import type {
   Activity,
   ActivitySample,
   MetricPoint,
   WeekPlan,
 } from "@killingit/shared";
+import { downsample } from "../lib/downsample.js";
 import { formatDuration } from "./duration.js";
 import {
   formatActivitySummary,
@@ -30,7 +32,7 @@ export const MAX_PROMPT_SAMPLES = 90;
  * Bump when the prompt or generation parameters change materially. Cached
  * analyses from an older version are ignored and regenerated.
  */
-export const ANALYSIS_PROMPT_VERSION = 7;
+export const ANALYSIS_PROMPT_VERSION = 8;
 
 /** The athlete's current week, used to match an activity to its planned session. */
 export interface ActivityAnalysisContext {
@@ -134,6 +136,27 @@ export interface ChannelStats {
   count: number;
 }
 
+/** The time-series column label, including the unit for the activity type. */
+function channelLabel(
+  channel: ChannelDefinition,
+  activityType: string,
+): string {
+  return channel.key === "cadence"
+    ? `cadence ${cadenceUnit(activityType)}`
+    : channel.label;
+}
+
+/** An aggregate value with its unit, matching the activity's cadence unit. */
+function channelStat(
+  channel: ChannelDefinition,
+  value: number,
+  activityType: string,
+): string {
+  return channel.key === "cadence"
+    ? `${Math.round(value)} ${cadenceUnit(activityType)}`
+    : channel.stat(value);
+}
+
 /**
  * Picks at most `maxSamples` samples spread evenly across the activity,
  * always keeping the first and last recorded point.
@@ -142,22 +165,7 @@ export function downsampleSamples(
   samples: readonly ActivitySample[],
   maxSamples = MAX_PROMPT_SAMPLES,
 ): ActivitySample[] {
-  if (samples.length <= maxSamples) {
-    return [...samples];
-  }
-  if (maxSamples <= 1) {
-    return samples[0] === undefined ? [] : [samples[0]];
-  }
-
-  const step = (samples.length - 1) / (maxSamples - 1);
-  const picked: ActivitySample[] = [];
-  for (let i = 0; i < maxSamples; i++) {
-    const sample = samples[Math.round(i * step)];
-    if (sample !== undefined) {
-      picked.push(sample);
-    }
-  }
-  return picked;
+  return downsample(samples, maxSamples);
 }
 
 /** Min/avg/max for one numeric channel, or null when it was not recorded. */
@@ -241,7 +249,7 @@ export function buildActivityAnalysisPrompt(
     const stats = channelStats(activity.samples, channel.key);
     if (stats) {
       statsLines.push(
-        `- ${channel.name}: avg ${channel.stat(stats.avg)}, min ${channel.stat(stats.min)}, max ${channel.stat(stats.max)}`,
+        `- ${channel.name}: avg ${channelStat(channel, stats.avg, activity.type)}, min ${channelStat(channel, stats.min, activity.type)}, max ${channelStat(channel, stats.max, activity.type)}`,
       );
     }
   }
@@ -257,9 +265,10 @@ export function buildActivityAnalysisPrompt(
       shown.some((sample) => Number.isFinite(sample[channel.key])),
     );
     const start = Date.parse(shown[0]?.timestamp ?? activity.startDate);
-    const header = ["elapsed", ...present.map((channel) => channel.label)].join(
-      " | ",
-    );
+    const header = [
+      "elapsed",
+      ...present.map((channel) => channelLabel(channel, activity.type)),
+    ].join(" | ");
     lines.push(header);
 
     for (const sample of shown) {

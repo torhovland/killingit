@@ -140,6 +140,7 @@ export async function loadBenchmarkFixture(input: {
         ? { normalizedPower: activity.normalizedPower }
         : {}),
       sampleCount: activity.sampleCount,
+      samples: activity.samples,
       analysis: asCoachAnalysis(activity.analysis),
       analysisError: activity.analysisError,
       programAnalysis: asCoachAnalysis(activity.programAnalysis),

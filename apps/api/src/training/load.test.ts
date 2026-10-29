@@ -25,6 +25,7 @@ function activity(overrides: Partial<AnalyzedActivity> = {}): AnalyzedActivity {
     elapsedTime: 3600,
     totalElevationGain: 0,
     sampleCount: 100,
+    samples: [],
     normalizedPower: 200,
     averagePower: 195,
     analysis: null,

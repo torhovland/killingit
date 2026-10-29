@@ -132,7 +132,10 @@ about a past workout, or before a suggested workout, to steer the coach.
   form label (Risk, Productive, Maintaining, Fresh, Detraining).
   Garmin syncs the last 42 days of activities, body composition, and historic
   cycling FTP, and power metrics are stored on activity summaries so the raw
-  timeseries is not needed.
+  timeseries is not needed. Each activity in the feed also carries a bounded,
+  downsampled sample preview, shown as a collapsible table on the Activities
+  page. Running cadence is normalized to total steps per minute and cycling
+  cadence to rpm, matching Garmin Connect.
   Manual activities get a coach-estimated TSS read from their free text, stored
   in `manual_activities.estimated_tss`; without a model the entry stays
   unscored. Any manual

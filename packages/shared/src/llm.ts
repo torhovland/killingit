@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { activitySummarySchema, routePointSchema } from "./activity.js";
+import {
+  activitySampleSchema,
+  activitySummarySchema,
+  routePointSchema,
+} from "./activity.js";
 import { trainingLoadSchema } from "./trainingLoad.js";
 
 /**
@@ -229,11 +233,17 @@ export type CoachAnalysis = z.infer<typeof coachAnalysisSchema>;
  * A synced activity plus its coach analysis. `analysis` is null when generation
  * failed for this activity; `analysisError` then carries the reason.
  *
- * Only the activity summary is returned: the timeseries is used server-side to
- * build the prompt, and the page only needs its sample count.
+ * The full-resolution timeseries stays server-side to build the prompt; the
+ * page gets its sample count plus a downsampled preview of the recorded
+ * channels.
  */
 export const analyzedActivitySchema = activitySummarySchema.extend({
   sampleCount: z.number().int().nonnegative().default(0),
+  /**
+   * An evenly spaced, bounded preview of the recorded timeseries for the
+   * sample table. Empty for activities without recorded samples.
+   */
+  samples: z.array(activitySampleSchema).default([]),
   /**
    * A downsampled GPS trace for the route preview. Absent for activities
    * without position data (for example indoor sessions).

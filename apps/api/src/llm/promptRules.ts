@@ -140,13 +140,21 @@ export const BIKE_WORKOUT_RULES = `When you prescribe an indoor bike workout wit
 export const TSS_ESTIMATE_GUIDE = `A score of 100 is roughly one hour at FTP, 60-70 is an easy aerobic hour, and 20-40 is a short strength session.`;
 
 /**
+ * The data-availability caveat shared by prompts that judge a recorded
+ * activity: a missing channel means nothing was recorded, not that nothing
+ * happened.
+ */
+export const ACTIVITY_DATA_LIMITS_RULE = `Recorded activities can be incomplete: an indoor session may have no moving time and no distance, and an activity may or may not have power or heart-rate data. Treat a missing or zero value as not recorded rather than as no effort.`;
+
+/**
  * Shared instruction for the week-by-week FTP estimate and the TSS numbers the
  * API uses when a session has no measured power. The estimate is anchored to
  * the FTP stated in the athlete's profile; without one the feature stays off.
  */
 export const TRAINING_LOAD_RULES = promptSections(
   `When the athlete's profile states an FTP (functional threshold power), estimate how it will change day by day from the training they have actually completed, their recent form, and the plan's progression. Set "estimatedFtpWatts" on every week session from today onward, including rest days, to your estimate for that date; this daily projection feeds the athlete's FTP chart. Set the week's "estimatedFtpWatts" to the estimate for the day the week is shown from (today in the current week, otherwise the week's first day) so the Week view can show it once. Leave a past session's "estimatedFtpWatts" null. When the response contract also includes the block, set the weekly estimate in every week of the block so the athlete can see the progression. Be realistic: consistent completed load supports small gains, a deload or a missed week holds or reduces the estimate, and you never invent a large jump. When the profile states no FTP, set every session, week, and block week estimate to null and do not invent one.`,
-  `Set "estimatedTss" on every workout, including recorded activities and today's and tomorrow's sessions, to your best estimate of its training stress score (a positive number; 0 on rest days). Use the session's duration and intensity, the athlete's FTP when known, and any recorded power or heart-rate data.`,
+  `Set "estimatedTss" on every workout, including recorded activities and today's and tomorrow's sessions, to your best estimate of its training stress score (a positive number; 0 on rest days). Use the session's duration and intensity, the athlete's FTP when known, and any recorded power or heart-rate data. When those channels are missing, still estimate TSS as best you can from the elapsed time, the session type, and any other recorded effort.`,
+  ACTIVITY_DATA_LIMITS_RULE,
   TSS_ESTIMATE_GUIDE,
   "When measured power is available the app recalculates the number from the recorded effort and the estimated FTP.",
 );
@@ -161,7 +169,7 @@ export const ENUM_RULES = `For every type field use either "workout" or "rest"; 
 export const ACTIVITY_TYPE_RULE = `The activity type recorded by the device is only a label and may be wrong: do not trust it. If the heart-rate data looks erratic — sudden spikes or drops that do not fit the steady effort the summary suggests — this may be a strength-training workout even when the device labelled it as running, cycling, or another endurance activity.`;
 
 /** The FTP estimate every activity review reports when the effort supports one. */
-export const ACTIVITY_FTP_ESTIMATE_RULES = `Also estimate the athlete's FTP after this workout when the recorded effort supports it. Use the supplied FTP history as the baseline, respect its trend, and never invent a large jump. Set "estimatedFtpWatts" to null when the activity gives no useful evidence (for example a rest day, a strength session, or a workout with no power or hard aerobic effort).`;
+export const ACTIVITY_FTP_ESTIMATE_RULES = `${ACTIVITY_DATA_LIMITS_RULE} Also estimate the athlete's FTP after this workout when the recorded effort supports it. Use the supplied FTP history as the baseline, respect its trend, and never invent a large jump. Set "estimatedFtpWatts" to null when the activity gives no useful evidence (for example a rest day, a strength session, a workout with no power or hard aerobic effort, or an activity with neither power nor usable heart-rate data); do not guess an FTP change from incomplete recordings.`;
 
 /**
  * The body-composition fields every activity review reports when the athlete's

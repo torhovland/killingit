@@ -100,12 +100,18 @@ describe("analyzedActivitySchema", () => {
     expect(parsed.coachReply?.text).toContain("Thursday easy");
   });
 
-  it("does not expose the full timeseries to the client", () => {
+  it("carries the downsampled sample preview", () => {
     const parsed = analyzedActivitySchema.parse({
       ...summary,
       samples: [{ timestamp: "2026-10-01T06:30:00Z", heartRate: 140 }],
     });
-    expect("samples" in parsed).toBe(false);
+    expect(parsed.samples).toEqual([
+      { timestamp: "2026-10-01T06:30:00Z", heartRate: 140 },
+    ]);
+  });
+
+  it("defaults missing samples to an empty list", () => {
+    expect(analyzedActivitySchema.parse(summary).samples).toEqual([]);
   });
 });
 

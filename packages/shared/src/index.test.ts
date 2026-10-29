@@ -2,7 +2,9 @@ import { describe, expect, it } from "bun:test";
 import {
   activitiesResponseSchema,
   activitySchema,
+  cadenceUnit,
   formatActivityType,
+  isRunningActivity,
   greetingSchema,
   healthSchema,
 } from "./index";
@@ -72,6 +74,15 @@ describe("activitySchema", () => {
 
   it("defaults missing samples to an empty list", () => {
     expect(activitySchema.parse(summary).samples).toEqual([]);
+  });
+});
+
+describe("cadence unit", () => {
+  it("uses steps per minute for runs and rpm for rides", () => {
+    expect(isRunningActivity("trail_running")).toBe(true);
+    expect(cadenceUnit("running")).toBe("spm");
+    expect(isRunningActivity("indoor_cycling")).toBe(false);
+    expect(cadenceUnit("indoor_cycling")).toBe("rpm");
   });
 });
 

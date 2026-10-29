@@ -36,6 +36,7 @@ const feed: AnalyzedActivitiesResponse = {
       elapsedTime: 1600,
       totalElevationGain: 55,
       sampleCount: 1,
+      samples: [],
       analysis: {
         text: "Steady aerobic effort.",
         model: "openrouter/auto",
