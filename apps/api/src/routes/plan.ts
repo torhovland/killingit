@@ -176,6 +176,15 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
             coachingInputs.updatedAt,
           )
         : false;
+    // A generated week review or an answer to one revises the block, even while
+    // today is still inside the stored block's dates.
+    const weekReviewPending =
+      storedPlan && parsed?.success
+        ? planIsStale(
+            storedPlan.coachingInputsUpdatedAt,
+            coachingInputs.weekReviewUpdatedAt,
+          )
+        : false;
     // A significantly different forecast should refresh the Week tab even when
     // the stored plan is otherwise current. Skip while a generation is running:
     // the client is polling, and the finished response checks the saved plan.
@@ -189,7 +198,13 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
       generatedAt,
       generation,
       stale,
-      pending: planPending(stored, today, includeTomorrow, weatherChanged),
+      pending: planPending(
+        stored,
+        today,
+        includeTomorrow,
+        weatherChanged,
+        weekReviewPending,
+      ),
     });
   }
 

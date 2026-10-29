@@ -4,10 +4,12 @@ import {
   type BikeWorkout,
   type BlockPlan,
   type DailyWeather,
+  type DayPlan,
   type MetricPoint,
   type SeasonPlan,
   type WeekPlan,
 } from "@killingit/shared";
+import { addDays, startOfWeek } from "../plans/dates.js";
 import { formatDuration } from "./duration.js";
 
 /** One interview question with the athlete's answer or explicit skip. */
@@ -39,6 +41,11 @@ export interface PeriodReviewContext {
   summary: string;
   comment: string | null;
   reply: string | null;
+  /** The note the athlete saved for that week and the coach's reply to it. */
+  weeklyNote?: {
+    note: string;
+    reply: string | null;
+  } | null;
   /** When the review or its athlete comment was last edited. */
   updatedAt?: string;
 }
@@ -69,6 +76,13 @@ export interface ActivityCommentContext {
  */
 export const ACTIVITY_COMMENT_RULE =
   "A comment on an activity describes that same activity. It is not an additional activity and must never be added on top of the activity's recorded time or treated as extra training.";
+
+/**
+ * A weekly note is dated by its week. Without an explicit statement to the
+ * contrary, constraints in it apply to that week only; a recurring statement
+ * such as "on Thursdays I have a meetup" applies every week.
+ */
+export const WEEKLY_NOTE_SCOPE_RULE = `A weekly note is normally scoped to the week it was written for. If it says the athlete cannot train on Thursday, assume that Thursday of that week only. If it says that on Thursdays they have a meetup that keeps them from training, assume it applies to every Thursday. Unless the athlete explicitly says otherwise, do not extend a week-specific constraint to other weeks.`;
 
 /**
  * Shared rule for the day the athlete is about to train. A session must earn
@@ -109,6 +123,10 @@ export interface PlanContextInput {
   manualActivities?: readonly ManualActivityContext[];
   activityComments?: readonly ActivityCommentContext[];
   weeklyNote?: string | null;
+  /** The Monday of the week the current note belongs to. */
+  weeklyNoteWeekStartDate?: string | null;
+  /** The coach's reply to the current week's note. */
+  weeklyNoteReply?: string | null;
   /** Coach reviews of completed weeks and blocks, with athlete feedback. */
   periodReviews?: readonly PeriodReviewContext[];
   /** Daily forecast for the athlete's location, when one has been set. */
@@ -249,12 +267,39 @@ export function formatPlanContext(input: PlanContextInput): string[] {
     );
   }
 
-  if (
+  const hasCurrentWeeklyNote =
     input.weeklyNote !== undefined &&
     input.weeklyNote !== null &&
-    input.weeklyNote.trim() !== ""
+    input.weeklyNote.trim() !== "";
+  const hasReviewWeeklyNote =
+    input.periodReviews?.some(
+      (review) => review.weeklyNote !== undefined && review.weeklyNote !== null,
+    ) ?? false;
+  if (hasCurrentWeeklyNote || hasReviewWeeklyNote) {
+    lines.push("", WEEKLY_NOTE_SCOPE_RULE);
+  }
+  if (
+    hasCurrentWeeklyNote &&
+    input.weeklyNote !== null &&
+    input.weeklyNote !== undefined
   ) {
-    lines.push("", "Weekly note:", input.weeklyNote.trim());
+    const weekStart = input.weeklyNoteWeekStartDate ?? startOfWeek(input.today);
+    const weekEnd = addDays(weekStart, 6);
+    lines.push(
+      "",
+      `Weekly note for the week starting ${weekStart} (${weekStart} → ${weekEnd}):`,
+      input.weeklyNote.trim(),
+    );
+    if (
+      input.weeklyNoteReply !== undefined &&
+      input.weeklyNoteReply !== null &&
+      input.weeklyNoteReply.trim() !== ""
+    ) {
+      lines.push(
+        "Coach reply to the weekly note:",
+        input.weeklyNoteReply.trim(),
+      );
+    }
   }
 
   if (input.periodReviews && input.periodReviews.length > 0) {
@@ -292,6 +337,19 @@ export function formatPeriodReviews(
         `- Completed ${entry.kind}: ${entry.title} (${entry.startDate} → ${entry.endDate})`,
         `  Coach summary: ${entry.summary.trim()}`,
       ];
+      if (entry.weeklyNote !== undefined && entry.weeklyNote !== null) {
+        lines.push(
+          `  Weekly note for the week starting ${entry.startDate} (${entry.startDate} → ${entry.endDate}): ${entry.weeklyNote.note.trim()}`,
+        );
+        if (
+          entry.weeklyNote.reply !== null &&
+          entry.weeklyNote.reply.trim() !== ""
+        ) {
+          lines.push(
+            `  Coach reply to the weekly note: ${entry.weeklyNote.reply.trim()}`,
+          );
+        }
+      }
       if (entry.comment !== null && entry.comment.trim() !== "") {
         lines.push(`  Athlete comment: ${entry.comment.trim()}`);
       }
@@ -389,6 +447,42 @@ export function formatWeekPlan(plan: WeekPlan): string {
       return `- ${session.date} (${session.day}) [${session.status}]: ${session.title} [${session.type}, ${session.intensity}, ${session.durationMinutes} min] — ${session.description}${bikeWorkout}${tss}`;
     }),
   ].join("\n");
+}
+
+/**
+ * Renders one concrete day plan for a prompt. The week plan only carries the
+ * session summary; a day plan also carries alternatives and the optionality
+ * guidance, so the update prompt can see the full current day.
+ */
+export function formatDayPlan(plan: DayPlan): string {
+  const lines = [
+    `Date: ${plan.date}`,
+    `Title: ${plan.title}`,
+    `Type: ${plan.type}; intensity: ${plan.intensity}; duration: ${plan.durationMinutes} min; status: ${plan.status}`,
+    `Description: ${plan.description}`,
+    `Rationale: ${plan.rationale}`,
+  ];
+  if (plan.alternatives !== undefined && plan.alternatives.length > 0) {
+    lines.push(`Alternatives: ${plan.alternatives.join("; ")}`);
+  }
+  if (plan.optional) {
+    lines.push(
+      `Optional: true${plan.optionalRationale !== undefined ? ` — ${plan.optionalRationale}` : ""}`,
+    );
+  }
+  if (plan.outdoor !== undefined) {
+    lines.push(`Outdoor: ${plan.outdoor}`);
+  }
+  if (plan.canBeOutdoor !== undefined) {
+    lines.push(`Can be outdoor: ${plan.canBeOutdoor}`);
+  }
+  if (plan.bikeWorkout != null) {
+    lines.push(`Bike workout: ${formatBikeWorkout(plan.bikeWorkout)}`);
+  }
+  if (plan.estimatedTss !== undefined) {
+    lines.push(`Estimated TSS: ${plan.estimatedTss}`);
+  }
+  return lines.join("\n");
 }
 
 /** Renders a structured bike workout's power targets for a generation prompt. */

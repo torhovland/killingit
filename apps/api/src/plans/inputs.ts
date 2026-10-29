@@ -17,6 +17,7 @@ import type {
 } from "../llm/planContext.js";
 import { startOfWeek } from "./dates.js";
 import { loadPeriodReviews } from "./periodReviews.js";
+import { loadWeeklyNoteReply } from "./replies.js";
 
 /** A manual entry plus the coach's TSS estimate, when one has been made. */
 export type ManualActivityWriteInput = ManualActivityInput & {
@@ -28,10 +29,25 @@ export interface CoachingInputs {
   manualActivities: ManualActivityContext[];
   activityComments: ActivityCommentContext[];
   weeklyNote: string | null;
+  /** The Monday of the week the current note belongs to. */
+  weeklyNoteWeekStartDate: string | null;
+  /** The coach's reply to the current week's note, if one exists. */
+  weeklyNoteReply: string | null;
   /** When the current week's note was last saved. */
   weeklyNoteUpdatedAt: Date | null;
   /** Coach summaries of completed weeks and blocks, with athlete feedback. */
   periodReviews: PeriodReviewContext[];
+  /**
+   * The newest week review event: when a week review was generated or when its
+   * comment was answered. A newer week review makes the block pending so the
+   * coach can respond to the completed week's feedback.
+   */
+  weekReviewUpdatedAt: Date | null;
+  /**
+   * The newest block review event: when a block review was generated or when
+   * its comment was answered. A newer block review makes the season pending.
+   */
+  blockReviewUpdatedAt: Date | null;
   /** The newest `updatedAt` across all coaching inputs. */
   updatedAt: Date | null;
 }
@@ -56,32 +72,53 @@ export async function loadCoachingInputs(
   userId: number,
   weekStartDate: string,
 ): Promise<CoachingInputs> {
-  const [manualRows, commentRows, noteRows, deletionRows, reviewEntries] =
-    await Promise.all([
-      db
-        .select()
-        .from(manualActivities)
-        .where(eq(manualActivities.userId, userId)),
-      db
-        .select()
-        .from(activityComments)
-        .where(eq(activityComments.userId, userId)),
-      db
-        .select()
-        .from(weeklyNotes)
-        .where(
-          and(
-            eq(weeklyNotes.userId, userId),
-            eq(weeklyNotes.weekStartDate, weekStartDate),
-          ),
-        )
-        .limit(1),
-      db
-        .select()
-        .from(activityDeletions)
-        .where(eq(activityDeletions.userId, userId)),
-      loadPeriodReviews(userId),
-    ]);
+  const [
+    manualRows,
+    commentRows,
+    noteRows,
+    deletionRows,
+    reviewEntries,
+    noteReply,
+  ] = await Promise.all([
+    db
+      .select()
+      .from(manualActivities)
+      .where(eq(manualActivities.userId, userId)),
+    db
+      .select()
+      .from(activityComments)
+      .where(eq(activityComments.userId, userId)),
+    db
+      .select()
+      .from(weeklyNotes)
+      .where(
+        and(
+          eq(weeklyNotes.userId, userId),
+          eq(weeklyNotes.weekStartDate, weekStartDate),
+        ),
+      )
+      .limit(1),
+    db
+      .select()
+      .from(activityDeletions)
+      .where(eq(activityDeletions.userId, userId)),
+    loadPeriodReviews(userId),
+    loadWeeklyNoteReply(userId, weekStartDate),
+  ]);
+
+  const reviewEventAt = (kind: "week" | "block"): Date | null =>
+    newest(
+      reviewEntries
+        .filter(({ review }) => review.kind === kind)
+        .map(({ review }) => ({
+          // A generated summary matters even before anyone comments. Once the
+          // athlete answers it, the comment's timestamp is the newer event.
+          updatedAt:
+            review.comment !== null ? review.updatedAt : review.generatedAt,
+        })),
+    );
+  const weekReviewUpdatedAt = reviewEventAt("week");
+  const blockReviewUpdatedAt = reviewEventAt("block");
 
   return {
     manualActivities: manualRows.map((row) => ({
@@ -97,8 +134,10 @@ export async function loadCoachingInputs(
       updatedAt: row.updatedAt.toISOString(),
     })),
     weeklyNote: noteRows[0]?.note ?? null,
+    weeklyNoteWeekStartDate: noteRows[0] === undefined ? null : weekStartDate,
+    weeklyNoteReply: noteReply?.text ?? null,
     weeklyNoteUpdatedAt: noteRows[0]?.updatedAt ?? null,
-    periodReviews: reviewEntries.map(({ review, reply }) => ({
+    periodReviews: reviewEntries.map(({ review, reply, weeklyNote }) => ({
       kind: review.kind,
       title: review.title,
       startDate: review.startDate,
@@ -106,18 +145,34 @@ export async function loadCoachingInputs(
       summary: review.summary,
       comment: review.comment,
       reply: reply?.text ?? null,
+      weeklyNote:
+        weeklyNote === undefined || weeklyNote === null
+          ? null
+          : {
+              note: weeklyNote.note,
+              reply: weeklyNote.reply?.text ?? null,
+            },
       updatedAt: review.updatedAt.toISOString(),
     })),
+    weekReviewUpdatedAt,
+    blockReviewUpdatedAt,
     updatedAt: newest([
       ...manualRows,
       ...commentRows,
       ...noteRows,
       ...deletionRows,
-      // A generated summary or a dismissal is not athlete input; only a comment
-      // should make the plan stale.
+      // A completed week's review and its answer are inputs to the next block;
+      // a completed block's review and its answer are inputs to the next
+      // season. A dismissal alone is not.
       ...reviewEntries
         .filter(({ review }) => review.comment !== null)
         .map(({ review }) => review),
+      ...(weekReviewUpdatedAt === null
+        ? []
+        : [{ updatedAt: weekReviewUpdatedAt }]),
+      ...(blockReviewUpdatedAt === null
+        ? []
+        : [{ updatedAt: blockReviewUpdatedAt }]),
     ]),
   };
 }

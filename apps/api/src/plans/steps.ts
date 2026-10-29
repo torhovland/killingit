@@ -46,7 +46,7 @@ export const PLAN_GENERATION_STEPS = {
   seasonRefresh: {
     id: "seasonRefresh",
     label: "Refreshing your season",
-    target: 50,
+    target: 90,
     defaultMs: LLM_STEP_MS,
   },
   initialBlock: {
@@ -55,15 +55,9 @@ export const PLAN_GENERATION_STEPS = {
     target: 58,
     defaultMs: LLM_STEP_MS,
   },
-  cascadeBlock: {
-    id: "block",
-    label: "Designing your next block",
-    target: 58,
-    defaultMs: LLM_STEP_MS,
-  },
-  nextBlock: {
-    id: "block",
-    label: "Designing your next block",
+  planUpdate: {
+    id: "planUpdate",
+    label: "Updating your plan",
     target: 90,
     defaultMs: LLM_STEP_MS,
   },
@@ -73,28 +67,10 @@ export const PLAN_GENERATION_STEPS = {
     target: 72,
     defaultMs: LLM_STEP_MS,
   },
-  cascadeWeek: {
-    id: "week",
-    label: "Building this week's plan",
-    target: 72,
-    defaultMs: LLM_STEP_MS,
-  },
-  nextWeek: {
-    id: "week",
-    label: "Building next week's plan",
-    target: 94,
-    defaultMs: LLM_STEP_MS,
-  },
   day: {
     id: "day",
     label: "Choosing today's session",
     target: 85,
-    defaultMs: LLM_STEP_MS,
-  },
-  tomorrow: {
-    id: "tomorrow",
-    label: "Choosing tomorrow's session",
-    target: 96,
     defaultMs: LLM_STEP_MS,
   },
   save: {

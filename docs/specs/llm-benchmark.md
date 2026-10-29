@@ -21,7 +21,7 @@ compared with its cost, time and plan quality.
    - loads an athlete's survey answers, cached activity feed, activity analyses,
      comments, weekly notes and completed-period reviews from the database;
    - runs the real `runPlanGeneration` full build for the supplied day;
-   - runs the real new-week cascade for a Monday after that day, using the
+   - runs the real new-week plan update for a Monday after that day, using the
      model's own full plan;
    - keeps plan stores in memory, so it never writes the athlete's stored plan;
    - records each OpenRouter completion's latency, tokens, finish reason and

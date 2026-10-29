@@ -14,9 +14,8 @@ import {
 } from "../llm/planInitialPrompt.js";
 import type { LlmCompletionRequest, LlmProvider } from "../llm/openrouter.js";
 import {
-  BLOCK_UPDATE_SYSTEM_PROMPT,
   DAILY_UPDATE_SYSTEM_PROMPT,
-  SEASON_REFRESH_SYSTEM_PROMPT,
+  PLAN_UPDATE_SYSTEM_PROMPT,
   WEEKLY_UPDATE_SYSTEM_PROMPT,
 } from "../llm/planUpdatePrompt.js";
 import { addDays, startOfWeek } from "./dates.js";
@@ -157,6 +156,14 @@ function makePlan(today = "2026-10-21"): CoachPlan {
   };
 }
 
+/** A complete plan returned by the single plan-update prompt. */
+function makeUpdate(
+  today = "2026-10-21",
+  overrides: Partial<CoachPlan> = {},
+): string {
+  return JSON.stringify({ ...makePlan(today), ...overrides });
+}
+
 function weekForecast(icon: DailyWeather["icon"]): DailyWeather[] {
   return Array.from({ length: 7 }, (_, index) => ({
     date: `2026-10-${String(19 + index)}`,
@@ -190,10 +197,6 @@ function buildResponses(today = "2026-10-21") {
   return {
     season: JSON.stringify({ season: makeSeason() }),
     block: JSON.stringify({ block: makeBlock() }),
-    seasonRefresh: JSON.stringify({
-      season: makeRefreshedSeason(today),
-      block: makeBlock(today, "2026-12-31"),
-    }),
     weekly: JSON.stringify({
       week: makeWeek(startOfWeek(today)),
       block: makeBlock(),
@@ -201,6 +204,13 @@ function buildResponses(today = "2026-10-21") {
     daily: JSON.stringify({
       today: makeDay(today),
       week: makeWeek(startOfWeek(today)),
+    }),
+    planUpdate: JSON.stringify({
+      ...makePlan(today),
+      season: makeRefreshedSeason(today),
+      block: makeBlock(today, "2026-12-31"),
+      week: makeWeek(startOfWeek(today)),
+      today: makeDay(today),
     }),
   };
 }
@@ -391,10 +401,9 @@ class FakeProvider implements LlmProvider {
     private readonly responses: {
       season?: string;
       block?: string;
-      blockUpdate?: string;
-      seasonRefresh?: string;
       daily?: string;
       weekly?: string;
+      planUpdate?: string;
     },
   ) {}
 
@@ -424,13 +433,9 @@ class FakeProvider implements LlmProvider {
       this.calls.push("weekly");
       return this.respond(this.responses.weekly);
     }
-    if (system === SEASON_REFRESH_SYSTEM_PROMPT) {
-      this.calls.push("season-refresh");
-      return this.respond(this.responses.seasonRefresh);
-    }
-    if (system === BLOCK_UPDATE_SYSTEM_PROMPT) {
-      this.calls.push("block-update");
-      return this.respond(this.responses.blockUpdate);
+    if (system === PLAN_UPDATE_SYSTEM_PROMPT) {
+      this.calls.push("plan-update");
+      return this.respond(this.responses.planUpdate);
     }
     return Promise.reject(new Error("unexpected prompt"));
   }
@@ -617,16 +622,13 @@ describe("runPlanGeneration", () => {
       generations,
     });
 
-    expect(provider.calls).toEqual(["season-refresh", "weekly", "daily"]);
+    expect(provider.calls).toEqual(["plan-update"]);
     expect(generations.status.status).toBe("done");
   });
 
   it("fills a missing day and revises the week", async () => {
     const provider = new FakeProvider({
-      daily: JSON.stringify({
-        today: makeDay("2026-10-21"),
-        week: makeWeek("2026-10-19"),
-      }),
+      planUpdate: makeUpdate("2026-10-21"),
     });
     const existing = makeStoredPlan(makePlan("2026-10-20"));
     const plans = new MemoryPlanStore(existing);
@@ -641,21 +643,140 @@ describe("runPlanGeneration", () => {
       generations,
     });
 
-    expect(provider.calls).toEqual(["daily"]);
+    expect(provider.calls).toEqual(["plan-update"]);
     expect(saved?.plan.today.date).toBe("2026-10-21");
     expect(generations.status.status).toBe("done");
   });
 
+  it("revises the rest of the week on a new day without dropping the next period", async () => {
+    const revisedWeek = makeWeek("2026-10-19");
+    const provider = new FakeProvider({
+      planUpdate: makeUpdate("2026-10-21", {
+        week: {
+          ...revisedWeek,
+          sessions: revisedWeek.sessions.map((session) =>
+            session.date === "2026-10-23"
+              ? { ...session, title: "Revised Friday" }
+              : session,
+          ),
+        },
+      }),
+    });
+    const storedNextWeek = makeWeek("2026-10-26");
+    const existing = makeStoredPlan({
+      ...makePlan("2026-10-20"),
+      nextWeek: storedNextWeek,
+    });
+    const plans = new MemoryPlanStore(existing);
+    const generations = new MemoryGenerationStore();
+
+    const saved = await runPlanGeneration({
+      userId: 1,
+      today: "2026-10-21",
+      plan: existing,
+      context: makeContext(provider),
+      plans,
+      generations,
+    });
+
+    expect(provider.calls).toEqual(["plan-update"]);
+    expect(
+      saved?.plan.week.sessions.find((session) => session.date === "2026-10-23")
+        ?.title,
+    ).toBe("Revised Friday");
+    expect(saved?.plan.nextWeek?.startDate).toBe(storedNextWeek.startDate);
+  });
+
+  it("revises the current block in place when a week review arrives", async () => {
+    const revisedBlock = {
+      ...makeBlock(),
+      focus: "Aerobic endurance with more recovery",
+    };
+    const provider = new FakeProvider({
+      planUpdate: makeUpdate("2026-10-21", { block: revisedBlock }),
+    });
+    const existing = makeStoredPlan(
+      makePlan("2026-10-21"),
+      new Date("2026-10-20T10:00:00Z"),
+      new Date("2026-10-20T10:00:00Z"),
+    );
+    const context = makeContext(
+      provider,
+      new Date("2026-10-20T10:00:00Z"),
+      new Date("2026-10-21T10:00:00Z"),
+    );
+    context.weekReviewUpdatedAt = new Date("2026-10-21T10:00:00Z");
+    const plans = new MemoryPlanStore(existing);
+    const generations = new MemoryGenerationStore();
+
+    const saved = await runPlanGeneration({
+      userId: 1,
+      today: "2026-10-21",
+      plan: existing,
+      context,
+      plans,
+      generations,
+    });
+
+    expect(provider.calls).toEqual(["plan-update"]);
+    expect(saved?.plan.block.startDate).toBe("2026-10-21");
+    expect(saved?.plan.block.focus).toBe(
+      "Aerobic endurance with more recovery",
+    );
+  });
+
+  it("uses a week review generated in the same run to revise the block", async () => {
+    const revisedBlock = {
+      ...makeBlock(),
+      focus: "Aerobic endurance with a recovery week",
+    };
+    const provider = new FakeProvider({
+      planUpdate: makeUpdate("2026-10-21", { block: revisedBlock }),
+    });
+    const existing = makeStoredPlan(
+      makePlan("2026-10-21"),
+      new Date("2026-10-20T10:00:00Z"),
+      new Date("2026-10-20T10:00:00Z"),
+    );
+    const plans = new MemoryPlanStore(existing);
+    const generations = new MemoryGenerationStore();
+
+    const saved = await runPlanGeneration({
+      userId: 1,
+      today: "2026-10-21",
+      plan: existing,
+      context: makeContext(
+        provider,
+        new Date("2026-10-20T10:00:00Z"),
+        new Date("2026-10-20T10:00:00Z"),
+      ),
+      plans,
+      generations,
+      capturePeriodReviews: () =>
+        Promise.resolve([
+          {
+            kind: "week" as const,
+            title: "Week starting 2026-10-12",
+            startDate: "2026-10-12",
+            endDate: "2026-10-18",
+            summary: "The week was consistent; the long run was hard.",
+            comment: null,
+            reply: null,
+            updatedAt: new Date().toISOString(),
+          },
+        ]),
+    });
+
+    expect(provider.calls).toEqual(["plan-update"]);
+    expect(saved?.plan.block.startDate).toBe("2026-10-21");
+    expect(saved?.plan.block.focus).toBe(
+      "Aerobic endurance with a recovery week",
+    );
+  });
+
   it("revises the week and day when coaching inputs change", async () => {
     const provider = new FakeProvider({
-      weekly: JSON.stringify({
-        week: makeWeek("2026-10-19"),
-        block: makeBlock(),
-      }),
-      daily: JSON.stringify({
-        today: makeDay("2026-10-21"),
-        week: makeWeek("2026-10-19"),
-      }),
+      planUpdate: makeUpdate("2026-10-21"),
     });
     const existing = makeStoredPlan(
       makePlan("2026-10-21"),
@@ -678,21 +799,14 @@ describe("runPlanGeneration", () => {
       generations,
     });
 
-    expect(provider.calls).toEqual(["weekly", "daily"]);
+    expect(provider.calls).toEqual(["plan-update"]);
     expect(saved?.plan.today.date).toBe("2026-10-21");
     expect(generations.status.status).toBe("done");
   });
 
   it("revises the week and day after a new activity analysis", async () => {
     const provider = new FakeProvider({
-      weekly: JSON.stringify({
-        week: makeWeek("2026-10-19"),
-        block: makeBlock(),
-      }),
-      daily: JSON.stringify({
-        today: makeDay("2026-10-21"),
-        week: makeWeek("2026-10-19"),
-      }),
+      planUpdate: makeUpdate("2026-10-21"),
     });
     const existing = makeStoredPlan(makePlan("2026-10-21"));
     const plans = new MemoryPlanStore(existing);
@@ -709,7 +823,7 @@ describe("runPlanGeneration", () => {
       generations,
     });
 
-    expect(provider.calls).toEqual(["weekly", "daily"]);
+    expect(provider.calls).toEqual(["plan-update"]);
   });
 
   it("does not revise when the stored plan already includes the analysis", async () => {
@@ -740,14 +854,7 @@ describe("runPlanGeneration", () => {
 
   it("marks a late-imported past activity on the week", async () => {
     const provider = new FakeProvider({
-      weekly: JSON.stringify({
-        week: makeWeek("2026-10-19"),
-        block: makeBlock(),
-      }),
-      daily: JSON.stringify({
-        today: makeDay("2026-10-22"),
-        week: makeWeek("2026-10-19"),
-      }),
+      planUpdate: makeUpdate("2026-10-22"),
     });
     const existing = makeStoredPlan(makePlan("2026-10-22"));
     const plans = new MemoryPlanStore(existing);
@@ -786,7 +893,7 @@ describe("runPlanGeneration", () => {
       generations,
     });
 
-    expect(provider.calls).toEqual(["weekly", "daily"]);
+    expect(provider.calls).toEqual(["plan-update"]);
     const monday = saved?.plan.week.sessions.find(
       (session) => session.date === "2026-10-19",
     );
@@ -796,14 +903,7 @@ describe("runPlanGeneration", () => {
 
   it("revises for an activity analysed while the plan was generating", async () => {
     const provider = new FakeProvider({
-      weekly: JSON.stringify({
-        week: makeWeek("2026-10-19"),
-        block: makeBlock(),
-      }),
-      daily: JSON.stringify({
-        today: makeDay("2026-10-21"),
-        week: makeWeek("2026-10-19"),
-      }),
+      planUpdate: makeUpdate("2026-10-21"),
     });
     // The plan was saved after the analysis, but its context did not include it.
     const existing = makeStoredPlan(
@@ -827,19 +927,12 @@ describe("runPlanGeneration", () => {
       generations,
     });
 
-    expect(provider.calls).toEqual(["weekly", "daily"]);
+    expect(provider.calls).toEqual(["plan-update"]);
   });
 
   it("marks today's completed activity on both the day and the week", async () => {
     const provider = new FakeProvider({
-      weekly: JSON.stringify({
-        week: makeWeek("2026-10-19"),
-        block: makeBlock(),
-      }),
-      daily: JSON.stringify({
-        today: makeDay("2026-10-21"),
-        week: makeWeek("2026-10-19"),
-      }),
+      planUpdate: makeUpdate("2026-10-21"),
     });
     const existing = makeStoredPlan(makePlan("2026-10-21"));
     const plans = new MemoryPlanStore(existing);
@@ -889,14 +982,7 @@ describe("runPlanGeneration", () => {
       today: { ...current.today, status: "completed" },
     });
     const provider = new FakeProvider({
-      weekly: JSON.stringify({
-        week: makeWeek("2026-10-19"),
-        block: makeBlock(),
-      }),
-      daily: JSON.stringify({
-        today: makeDay("2026-10-21"),
-        week: makeWeek("2026-10-19"),
-      }),
+      planUpdate: makeUpdate("2026-10-21"),
     });
     const plans = new MemoryPlanStore(stored);
     const generations = new MemoryGenerationStore();
@@ -929,7 +1015,7 @@ describe("runPlanGeneration", () => {
       generations,
     });
 
-    expect(provider.calls).toEqual(["weekly", "daily"]);
+    expect(provider.calls).toEqual(["plan-update"]);
     const todaySession = saved?.plan.week.sessions.find(
       (session) => session.date === "2026-10-21",
     );
@@ -939,14 +1025,7 @@ describe("runPlanGeneration", () => {
 
   it("marks today's much shorter activity as partial", async () => {
     const provider = new FakeProvider({
-      weekly: JSON.stringify({
-        week: makeWeek("2026-10-19"),
-        block: makeBlock(),
-      }),
-      daily: JSON.stringify({
-        today: makeDay("2026-10-21"),
-        week: makeWeek("2026-10-19"),
-      }),
+      planUpdate: makeUpdate("2026-10-21"),
     });
     const existing = makeStoredPlan(makePlan("2026-10-21"));
     const plans = new MemoryPlanStore(existing);
@@ -990,12 +1069,7 @@ describe("runPlanGeneration", () => {
 
   it("fills a missing week and then today", async () => {
     const provider = new FakeProvider({
-      weekly: JSON.stringify({
-        week: makeWeek("2026-10-26"),
-        block: makeBlock(),
-      }),
-      daily: JSON.stringify({
-        today: makeDay("2026-10-26"),
+      planUpdate: makeUpdate("2026-10-26", {
         week: makeWeek("2026-10-26"),
       }),
     });
@@ -1012,24 +1086,18 @@ describe("runPlanGeneration", () => {
       generations,
     });
 
-    expect(provider.calls).toEqual(["weekly", "daily"]);
+    expect(provider.calls).toEqual(["plan-update"]);
     expect(saved?.plan.week.startDate).toBe("2026-10-26");
     expect(saved?.plan.today.date).toBe("2026-10-26");
   });
 
   it("fills a missing block, then the week and today", async () => {
     const provider = new FakeProvider({
-      blockUpdate: JSON.stringify({
-        block: makeBlock("2026-12-02", "2027-01-15"),
+      planUpdate: makeUpdate("2026-12-02", {
         season: makeSeason(),
-      }),
-      weekly: JSON.stringify({
-        week: makeWeek("2026-11-30"),
         block: makeBlock("2026-12-02", "2027-01-15"),
-      }),
-      daily: JSON.stringify({
-        today: makeDay("2026-12-02"),
         week: makeWeek("2026-11-30"),
+        today: makeDay("2026-12-02"),
       }),
     });
     const existing = makeStoredPlan(makePlan("2026-10-21"));
@@ -1045,7 +1113,7 @@ describe("runPlanGeneration", () => {
       generations,
     });
 
-    expect(provider.calls).toEqual(["block-update", "weekly", "daily"]);
+    expect(provider.calls).toEqual(["plan-update"]);
     expect(saved?.plan.block.startDate).toBe("2026-12-02");
     expect(saved?.plan.today.date).toBe("2026-12-02");
   });
@@ -1109,10 +1177,7 @@ describe("runPlanGeneration", () => {
 
   it("does not review activities on a day-only cascade", async () => {
     const provider = new FakeProvider({
-      daily: JSON.stringify({
-        today: makeDay("2026-10-21"),
-        week: makeWeek("2026-10-19"),
-      }),
+      planUpdate: makeUpdate("2026-10-21"),
     });
     const existing = makeStoredPlan(makePlan("2026-10-20"));
     const plans = new MemoryPlanStore(existing);
@@ -1159,14 +1224,8 @@ describe("runPlanGeneration", () => {
       new Date("2026-10-20T10:00:00Z"),
     );
     const provider = new FakeProvider({
-      weekly: JSON.stringify({
-        week: makeWeek("2026-10-19"),
-        block: makeBlock(),
-      }),
-      daily: JSON.stringify({
-        today: makeDay("2026-10-21"),
+      planUpdate: makeUpdate("2026-10-21", {
         tomorrow: makeDay("2026-10-22"),
-        week: makeWeek("2026-10-19"),
       }),
     });
     const plans = new MemoryPlanStore(stored);
@@ -1177,6 +1236,7 @@ describe("runPlanGeneration", () => {
       today: "2026-10-21",
       plan: stored,
       keepToday: true,
+      includeTomorrow: true,
       context: makeContext(
         provider,
         new Date("2026-10-20T10:00:00Z"),
@@ -1219,18 +1279,13 @@ describe("runPlanGeneration", () => {
       new Date("2026-10-20T10:00:00Z"),
     );
     const provider = new FakeProvider({
-      weekly: JSON.stringify({
-        week: makeWeek("2026-10-19"),
-        block: makeBlock(),
-      }),
-      daily: JSON.stringify({
+      planUpdate: makeUpdate("2026-10-21", {
         today: {
           ...makeDay("2026-10-21"),
           title: "Strength training",
           description: "Completed: corrected strength summary.",
         },
         tomorrow: makeDay("2026-10-22"),
-        week: makeWeek("2026-10-19"),
       }),
     });
     const plans = new MemoryPlanStore(stored);
@@ -1309,14 +1364,7 @@ describe("runPlanGeneration", () => {
 
   it("revises the week and day when the forecast changes significantly", async () => {
     const provider = new FakeProvider({
-      weekly: JSON.stringify({
-        week: makeWeek("2026-10-19"),
-        block: makeBlock(),
-      }),
-      daily: JSON.stringify({
-        today: makeDay("2026-10-21"),
-        week: makeWeek("2026-10-19"),
-      }),
+      planUpdate: makeUpdate("2026-10-21"),
     });
     const existing = makeStoredPlan(
       withWeather(makePlan("2026-10-21"), weekForecast("sun")),
@@ -1335,7 +1383,7 @@ describe("runPlanGeneration", () => {
       generations,
     });
 
-    expect(provider.calls).toEqual(["weekly", "daily"]);
+    expect(provider.calls).toEqual(["plan-update"]);
     expect(saved?.plan.week.sessions[0]?.weather?.icon).toBe("rain");
 
     // The saved plan now carries the new forecast, so the next visit does not
@@ -1348,7 +1396,7 @@ describe("runPlanGeneration", () => {
       plans,
       generations,
     });
-    expect(provider.calls).toEqual(["weekly", "daily"]);
+    expect(provider.calls).toEqual(["plan-update"]);
     expect(again).toBe(saved);
   });
 
@@ -1412,10 +1460,9 @@ describe("runPlanGeneration", () => {
     });
     const nextWeek = makeWeek("2026-10-26");
     const provider = new FakeProvider({
-      weekly: JSON.stringify({ week: nextWeek, block: makeBlock() }),
-      daily: JSON.stringify({
-        today: makeDay("2026-10-26"),
-        week: nextWeek,
+      planUpdate: makeUpdate(today, {
+        nextWeek,
+        tomorrow: makeDay("2026-10-26"),
       }),
     });
     const plans = new MemoryPlanStore(stored);
@@ -1431,7 +1478,7 @@ describe("runPlanGeneration", () => {
       generations,
     });
 
-    expect(provider.calls).toEqual(["weekly", "daily"]);
+    expect(provider.calls).toEqual(["plan-update"]);
     expect(saved?.plan.week.startDate).toBe(currentWeek.startDate);
     expect(saved?.plan.week.sessions.map((session) => session.date)).toEqual(
       currentWeek.sessions.map((session) => session.date),
@@ -1461,13 +1508,9 @@ describe("runPlanGeneration", () => {
     });
     const nextWeek = makeWeek("2026-10-26");
     const provider = new FakeProvider({
-      weekly: JSON.stringify({ week: nextWeek, block: makeBlock() }),
-      daily: JSON.stringify({
-        today: makeDay("2026-10-26"),
-        // The day after the target is unused here and may be malformed without
-        // failing the generation and leaving tomorrow pending forever.
-        tomorrow: { ...makeDay("2026-10-27"), type: "rest day" },
-        week: nextWeek,
+      planUpdate: makeUpdate(today, {
+        nextWeek,
+        tomorrow: makeDay("2026-10-26"),
       }),
     });
     const plans = new MemoryPlanStore(stored);
@@ -1483,7 +1526,7 @@ describe("runPlanGeneration", () => {
       generations,
     });
 
-    expect(provider.calls).toEqual(["weekly", "daily"]);
+    expect(provider.calls).toEqual(["plan-update"]);
     expect(saved?.plan.nextWeek?.startDate).toBe("2026-10-26");
     expect(saved?.plan.tomorrow?.date).toBe("2026-10-26");
     expect(planPending(saved!.plan, today, true).tomorrow).toBe(false);
@@ -1501,11 +1544,13 @@ describe("runPlanGeneration", () => {
     const nextBlock = makeBlock("2026-10-26", "2026-12-06");
     const nextWeek = makeWeek("2026-10-26");
     const provider = new FakeProvider({
-      blockUpdate: JSON.stringify({ block: nextBlock, season: makeSeason() }),
-      weekly: JSON.stringify({ block: nextBlock, week: nextWeek }),
-      daily: JSON.stringify({
-        today: makeDay("2026-10-26"),
-        week: nextWeek,
+      planUpdate: makeUpdate(today, {
+        block: currentBlock,
+        week: makeEndedWeek("2026-10-19", today),
+        season: makeSeason(),
+        nextBlock,
+        nextWeek,
+        tomorrow: makeDay("2026-10-26"),
       }),
     });
     const plans = new MemoryPlanStore(stored);
@@ -1521,7 +1566,7 @@ describe("runPlanGeneration", () => {
       generations,
     });
 
-    expect(provider.calls).toEqual(["block-update", "weekly", "daily"]);
+    expect(provider.calls).toEqual(["plan-update"]);
     expect(saved?.plan.block.name).toBe(currentBlock.name);
     expect(saved?.plan.block.startDate).toBe(currentBlock.startDate);
     expect(saved?.plan.block.weeks.map((week) => week.startDate)).toEqual(
@@ -1548,14 +1593,9 @@ describe("runPlanGeneration", () => {
       new Date("2026-10-25T10:00:00Z"),
     );
     const provider = new FakeProvider({
-      weekly: JSON.stringify({
-        week: makeWeek("2026-10-19"),
-        block: makeBlock(),
-      }),
-      daily: JSON.stringify({
-        today: makeDay(today),
+      planUpdate: makeUpdate(today, {
+        nextWeek: makeWeek("2026-10-26"),
         tomorrow: makeDay("2026-10-26"),
-        week: makeWeek("2026-10-19"),
       }),
     });
     const plans = new MemoryPlanStore(stored);
@@ -1574,7 +1614,7 @@ describe("runPlanGeneration", () => {
       generations,
     });
 
-    expect(provider.calls).toEqual(["weekly", "daily"]);
+    expect(provider.calls).toEqual(["plan-update"]);
     expect(saved?.plan.tomorrow).toBeNull();
     expect(saved?.plan.nextWeek).toBeNull();
   });
@@ -1694,17 +1734,11 @@ describe("runPlanGeneration", () => {
     const previous = makeMidSeasonPlan(today);
     const completed = previous.season.blocks[0];
     const provider = new FakeProvider({
-      seasonRefresh: JSON.stringify({
+      planUpdate: makeUpdate(today, {
         season: makeRefreshedSeason("2026-11-01"),
         block: makeBlock("2026-11-01", "2026-12-31"),
-      }),
-      weekly: JSON.stringify({
         week: makeWeek(startOfWeek(today)),
-        block: makeBlock("2026-11-01", "2026-12-31"),
-      }),
-      daily: JSON.stringify({
         today: makeDay(today),
-        week: makeWeek(startOfWeek(today)),
       }),
     });
     const existing = makeStoredPlan(previous);
@@ -1721,7 +1755,7 @@ describe("runPlanGeneration", () => {
       generations,
     });
 
-    expect(provider.calls).toEqual(["season-refresh", "weekly", "daily"]);
+    expect(provider.calls).toEqual(["plan-update"]);
     expect(saved?.plan.season.startDate).toBe("2026-10-01");
     expect(saved?.plan.season.blocks[0]).toEqual(completed);
     expect(saved?.plan.season.blocks[1]?.startDate).toBe("2026-11-01");
@@ -1731,21 +1765,56 @@ describe("runPlanGeneration", () => {
     expect(generations.steps).toContain("Refreshing your season");
   });
 
+  it("refreshes the season when a block review is generated", async () => {
+    const today = "2026-11-15";
+    const previous = makeMidSeasonPlan(today);
+    const provider = new FakeProvider({
+      planUpdate: makeUpdate(today, {
+        season: makeRefreshedSeason("2026-11-01"),
+        block: makeBlock("2026-11-01", "2026-12-31"),
+        week: makeWeek(startOfWeek(today)),
+        today: makeDay(today),
+      }),
+    });
+    const existing = makeStoredPlan(previous);
+    const plans = new MemoryPlanStore(existing);
+    const generations = new MemoryGenerationStore();
+
+    await runPlanGeneration({
+      userId: 1,
+      today,
+      plan: existing,
+      context: makeContext(provider),
+      plans,
+      generations,
+      capturePeriodReviews: () =>
+        Promise.resolve([
+          {
+            kind: "block" as const,
+            title: "Build",
+            startDate: "2026-11-01",
+            endDate: "2026-11-14",
+            summary: "The block was consistent and the threshold work landed.",
+            comment: null,
+            reply: null,
+            updatedAt: new Date().toISOString(),
+          },
+        ]),
+    });
+
+    expect(provider.calls).toEqual(["plan-update"]);
+    expect(generations.steps).toContain("Refreshing your season");
+  });
+
   it("refreshes an existing season automatically when answers are stale", async () => {
     const today = "2026-11-15";
     const previous = makeMidSeasonPlan(today);
     const provider = new FakeProvider({
-      seasonRefresh: JSON.stringify({
+      planUpdate: makeUpdate(today, {
         season: makeRefreshedSeason("2026-11-01"),
         block: makeBlock("2026-11-01", "2026-12-31"),
-      }),
-      weekly: JSON.stringify({
         week: makeWeek(startOfWeek(today)),
-        block: makeBlock("2026-11-01", "2026-12-31"),
-      }),
-      daily: JSON.stringify({
         today: makeDay(today),
-        week: makeWeek(startOfWeek(today)),
       }),
     });
     const existing = makeStoredPlan(previous, new Date("2026-11-01T10:00:00Z"));
@@ -1761,7 +1830,7 @@ describe("runPlanGeneration", () => {
       generations,
     });
 
-    expect(provider.calls).toEqual(["season-refresh", "weekly", "daily"]);
+    expect(provider.calls).toEqual(["plan-update"]);
   });
 
   it("falls back to a new season when update mode has no season to refresh", async () => {
@@ -1786,9 +1855,11 @@ describe("runPlanGeneration", () => {
     const today = "2026-11-15";
     const previous = makeMidSeasonPlan(today);
     const provider = new FakeProvider({
-      seasonRefresh: JSON.stringify({
+      planUpdate: makeUpdate(today, {
         season: makeRefreshedSeason(today),
         block: makeBlock(today, "2026-12-31"),
+        week: makeWeek(startOfWeek(today)),
+        today: makeDay(today),
       }),
     });
     const existing = makeStoredPlan(previous);
@@ -1815,20 +1886,21 @@ describe("runPlanGeneration", () => {
     expect(plans.saved).toBe(existing);
   });
 
-  it("rejects a weekly revision that moves the current block start date", async () => {
+  it("rejects a block revision that moves the current block start date", async () => {
     const today = "2026-11-15";
     const previous = makeMidSeasonPlan(today);
+    const ended = {
+      ...previous,
+      block: { ...previous.block, endDate: "2026-11-14" },
+    };
     const provider = new FakeProvider({
-      seasonRefresh: JSON.stringify({
-        season: makeRefreshedSeason("2026-11-01"),
-        block: makeBlock("2026-11-01", "2026-12-31"),
-      }),
-      weekly: JSON.stringify({
+      planUpdate: makeUpdate(today, {
+        block: makeBlock("2026-11-16", "2026-12-31"),
         week: makeWeek(startOfWeek(today)),
-        block: makeBlock(today, "2026-12-31"),
+        today: makeDay(today),
       }),
     });
-    const existing = makeStoredPlan(previous);
+    const existing = makeStoredPlan(ended);
     const plans = new MemoryPlanStore(existing);
     const generations = new MemoryGenerationStore();
 
@@ -1837,7 +1909,6 @@ describe("runPlanGeneration", () => {
       await runPlanGeneration({
         userId: 1,
         today,
-        mode: "updateSeason",
         plan: existing,
         context: makeContext(provider),
         plans,

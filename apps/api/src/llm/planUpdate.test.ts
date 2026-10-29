@@ -1,8 +1,14 @@
 import { describe, expect, it } from "bun:test";
-import type { BlockPlan, SeasonPlan, WeekPlan } from "@killingit/shared";
+import type {
+  BlockPlan,
+  CoachPlan,
+  DayPlan,
+  SeasonPlan,
+  WeekPlan,
+} from "@killingit/shared";
 import type { LlmCompletionRequest, LlmProvider } from "./openrouter.js";
-import { generateDailyUpdate } from "./planUpdate.js";
-import type { DailyUpdateInput } from "./planUpdatePrompt.js";
+import { generateDailyUpdate, generatePlanUpdate } from "./planUpdate.js";
+import type { DailyUpdateInput, PlanUpdateInput } from "./planUpdatePrompt.js";
 
 class FakeProvider implements LlmProvider {
   readonly id = "fake";
@@ -84,8 +90,44 @@ function day(date: string) {
     intensity: "easy" as const,
     alternatives: [],
     rationale: "Easy aerobic work.",
+    optional: false,
     status: "planned" as const,
   };
+}
+
+function planUpdateInput(): PlanUpdateInput {
+  return {
+    ...input(),
+    todayPlan: day("2026-10-21"),
+    tomorrow: null,
+    nextWeek: null,
+    nextBlock: null,
+    revision: {
+      season: false,
+      block: false,
+      week: true,
+      day: true,
+      tomorrow: false,
+      nextWeek: false,
+      nextBlock: false,
+    },
+  };
+}
+
+function planUpdateResponse(overrides: Partial<CoachPlan> = {}): string {
+  const weekPlan = input().week;
+  const todayPlan: DayPlan = day("2026-10-21");
+  return JSON.stringify({
+    season,
+    block,
+    week: weekPlan,
+    today: todayPlan,
+    tomorrow: null,
+    nextWeek: null,
+    nextBlock: null,
+    bodyMetrics: [],
+    ...overrides,
+  });
 }
 
 function input(): DailyUpdateInput {
@@ -148,6 +190,51 @@ describe("generateDailyUpdate", () => {
     expect(provider.requests[1]?.metadata).toMatchObject({ repair: true });
     expect(provider.requests[1]?.messages.at(-1)?.content).toContain(
       'The "today" object\'s date must be exactly 2026-10-21',
+    );
+  });
+});
+
+describe("generatePlanUpdate", () => {
+  it("returns the complete plan from one completion", async () => {
+    const provider = new FakeProvider([planUpdateResponse()]);
+
+    const result = await generatePlanUpdate(
+      provider,
+      { apiKey: "key", model: "model" },
+      planUpdateInput(),
+    );
+
+    expect(result.week.startDate).toBe("2026-10-19");
+    expect(result.today.date).toBe("2026-10-21");
+    expect(provider.requests).toHaveLength(1);
+    expect(provider.requests[0]?.kind).toBe("plan_update");
+  });
+
+  it("repairs a next week that does not start on Monday", async () => {
+    const provider = new FakeProvider([
+      planUpdateResponse({
+        nextWeek: {
+          ...input().week,
+          startDate: "2026-10-27",
+        },
+      }),
+      planUpdateResponse(),
+    ]);
+
+    const result = await generatePlanUpdate(
+      provider,
+      { apiKey: "key", model: "model" },
+      {
+        ...planUpdateInput(),
+        revision: { ...planUpdateInput().revision, nextWeek: true },
+      },
+    );
+
+    expect(result.nextWeek).toBeNull();
+    expect(provider.requests).toHaveLength(2);
+    expect(provider.requests[1]?.metadata).toMatchObject({ repair: true });
+    expect(provider.requests[1]?.messages.at(-1)?.content).toContain(
+      "The next week must start on 2026-10-19",
     );
   });
 });

@@ -4,6 +4,7 @@ import type {
   ActivityCommentContext,
   AthleteAnswerContext,
   ManualActivityContext,
+  PeriodReviewContext,
   PlanContextInput,
 } from "../llm/planContext.js";
 import { generatePeriodReview } from "../llm/periodReview.js";
@@ -39,7 +40,8 @@ export interface CapturePeriodReviewsInput {
  */
 export async function captureCompletedPeriodReviews(
   input: CapturePeriodReviewsInput,
-): Promise<void> {
+): Promise<PeriodReviewContext[]> {
+  const captured: PeriodReviewContext[] = [];
   const save = input.save ?? savePeriodReview;
   const load = input.load ?? loadPeriodReview;
   const context: PlanContextInput = {
@@ -90,6 +92,16 @@ export async function captureCompletedPeriodReviews(
           model: input.model,
           promptVersion: PERIOD_REVIEW_PROMPT_VERSION,
         });
+        captured.push({
+          kind: "week",
+          title: `Week starting ${input.plan.week.startDate}`,
+          startDate: input.plan.week.startDate,
+          endDate: weekEnd,
+          summary: text.trim(),
+          comment: null,
+          reply: null,
+          updatedAt: new Date().toISOString(),
+        });
       }
     } catch (err) {
       const detail = err instanceof Error ? err.message : String(err);
@@ -129,10 +141,21 @@ export async function captureCompletedPeriodReviews(
           model: input.model,
           promptVersion: PERIOD_REVIEW_PROMPT_VERSION,
         });
+        captured.push({
+          kind: "block",
+          title: input.plan.block.name,
+          startDate: input.plan.block.startDate,
+          endDate: input.plan.block.endDate,
+          summary: text.trim(),
+          comment: null,
+          reply: null,
+          updatedAt: new Date().toISOString(),
+        });
       }
     } catch (err) {
       const detail = err instanceof Error ? err.message : String(err);
       console.error(`[period-review] block summary failed: ${detail}`);
     }
   }
+  return captured;
 }

@@ -332,31 +332,7 @@ export const dailyPlanUpdateSchema = z
 
 export type DailyPlanUpdate = z.infer<typeof dailyPlanUpdateSchema>;
 
-/**
- * The cascade output when a specific target day (for example tomorrow) is being
- * planned against a known week. Only the target day and its week are consumed;
- * the response's `tomorrow` field is irrelevant, so it is not validated here.
- * This keeps a malformed unused field from failing the whole generation and
- * leaving the plan pending forever.
- */
-export const targetDayUpdateSchema = z
-  .object({
-    today: dayPlanSchema,
-    week: weekPlanSchema,
-    bodyMetrics: z.array(bodyMetricEstimateSchema).default([]),
-  })
-  .refine(
-    (value) =>
-      value.week.sessions.some((session) => session.date === value.today.date),
-    {
-      message: "The target day's session must be one of the week's sessions",
-      path: ["today", "date"],
-    },
-  );
-
-export type TargetDayUpdate = z.infer<typeof targetDayUpdateSchema>;
-
-/** The weekly cascade output: the new week plus a revised block plan. */
+/** The weekly build output: the new week plus a revised block plan. */
 export const weeklyPlanUpdateSchema = z.object({
   week: weekPlanSchema,
   block: blockPlanSchema,
@@ -364,15 +340,6 @@ export const weeklyPlanUpdateSchema = z.object({
 });
 
 export type WeeklyPlanUpdate = z.infer<typeof weeklyPlanUpdateSchema>;
-
-/** The block cascade output: the next block plus a revised season plan. */
-export const blockPlanUpdateSchema = z.object({
-  block: blockPlanSchema,
-  season: seasonPlanSchema,
-  bodyMetrics: z.array(bodyMetricEstimateSchema).default([]),
-});
-
-export type BlockPlanUpdate = z.infer<typeof blockPlanUpdateSchema>;
 
 /**
  * Progress reported while the coach is generating. `progress` is a percentage

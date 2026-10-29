@@ -51,6 +51,25 @@ describe("formatPlanContext", () => {
     expect(text).not.toContain("Activity comments:");
   });
 
+  it("includes the weekly note and the coach's reply to it", () => {
+    const text = formatPlanContext(
+      input({
+        weeklyNote: "I can only train before work this week.",
+        weeklyNoteReply: "Then keep the weekday sessions short and easy.",
+      }),
+    ).join("\n");
+
+    expect(text).toContain(
+      "Weekly note for the week starting 2026-10-19 (2026-10-19 → 2026-10-25):\nI can only train before work this week.",
+    );
+    expect(text).toContain(
+      "Coach reply to the weekly note:\nThen keep the weekday sessions short and easy.",
+    );
+    expect(text).toContain(
+      "A weekly note is normally scoped to the week it was written for.",
+    );
+  });
+
   it("includes the athlete's FTP and recorded power", () => {
     const text = formatPlanContext(
       input({

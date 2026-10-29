@@ -43,7 +43,7 @@ The plan prompts include the location's combined weather and daylight (an
 average of Open-Meteo and Yr.no); the provider rows are shown in the UI only.
 See `docs/specs/location-and-weather.md`.
 
-Persistence, cascade generation, answer-change triggers, and the plan UI are
+Persistence, plan updates, answer-change triggers, and the plan UI are
 covered by `docs/specs/coach-plan-lifecycle.md`.
 
 ## Acceptance criteria
@@ -98,16 +98,26 @@ shapes (`StoredAthleteQuestion` and `AnalyzedActivity`) structurally and returns
   lifecycle build now splits the initial plan into four smaller calls (season,
   block, week, day) so every response fits the model's output budget; the
   combined prompt remains the reference contract and a full-plan fallback.
-- A season update uses a separate prompt that receives the existing season and
-  current block and returns the remaining season plus the detailed block
-  starting today. It keeps completed blocks and the season goal as reference but
-  re-plans the future from the athlete's latest input. See
+- `planUpdatePrompt.ts` also exports `PLAN_UPDATE_SYSTEM_PROMPT`,
+  `buildPlanUpdateMessages(input)` and `PlanUpdateInput` for the single update
+  prompt. It receives every current level (season, block, week, today,
+  tomorrow, next week and next block) and a revision request. The response is
+  the full `CoachPlan` shape, so the coach can show a revised block with its
+  week and day instead of the API chaining separate calls. See ADR 0013.
+- Every update rationale explains the plan as it stands after the revision,
+  not the revision itself. The prompt rejects change-log phrasing such as "we
+  adjusted" or "this replaces" and asks for the reason the current plan is
+  right from this point forward.
+- A season update uses that same prompt: it receives the existing season and
+  current block, keeps completed blocks and the season goal as reference, and
+  re-plans the future from the athlete's latest input. A new season still uses
+  the split build because there is no stored plan to update. See
   `docs/specs/season-regeneration.md`.
 - `coachPlan.ts` exports `generateCoachPlan(provider, credentials, input)`, which
   sends the combined prompt (temperature 0.4, `PLAN_MAX_TOKENS` output tokens).
-  The split season/block/week/day plan calls use the same budget. Reasoning
-  tokens count against it; `completeWithFallbacks` retries with a larger budget
-  (up to 32,768) when a model is truncated.
+  The split season/block/week/day plan calls and the plan-update call use the
+  same budget. Reasoning tokens count against it; `completeWithFallbacks`
+  retries with a larger budget (up to 32,768) when a model is truncated.
 - `formatDuration` is reused from `activityPrompt.ts` so durations read the same
   way across coaching prompts.
 

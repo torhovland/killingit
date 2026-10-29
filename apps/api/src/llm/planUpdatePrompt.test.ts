@@ -1,16 +1,21 @@
 import { describe, expect, it } from "bun:test";
-import type { BlockPlan, SeasonPlan, WeekPlan } from "@killingit/shared";
+import type {
+  BlockPlan,
+  DayPlan,
+  SeasonPlan,
+  WeekPlan,
+} from "@killingit/shared";
 import { BODY_METRIC_RULES, WEEK_OUTLINE_RULES } from "./planContext.js";
 import {
-  BLOCK_UPDATE_SYSTEM_PROMPT,
-  buildBlockUpdatePrompt,
   buildDailyUpdatePrompt,
-  buildSeasonRefreshPrompt,
+  buildPlanUpdatePrompt,
   buildWeeklyUpdatePrompt,
   DAILY_UPDATE_SYSTEM_PROMPT,
-  SEASON_REFRESH_SYSTEM_PROMPT,
+  PLAN_UPDATE_SYSTEM_PROMPT,
+  RATIONALE_RULES,
   WEATHER_PLANNING_RULES,
   WEEKLY_UPDATE_SYSTEM_PROMPT,
+  type PlanUpdateInput,
 } from "./planUpdatePrompt.js";
 
 const answers = [
@@ -119,7 +124,203 @@ const base = {
     { activityId: "123", comment: "Felt strong on the hills." },
   ],
   weeklyNote: "I cannot train on Thursday this week.",
+  weeklyNoteWeekStartDate: "2026-10-19",
+  weeklyNoteReply: "Understood; Thursday is a rest day.",
 };
+
+const todayPlan: DayPlan = {
+  date: "2026-10-21",
+  type: "workout",
+  title: "Easy run",
+  description: "Easy aerobic work.",
+  durationMinutes: 45,
+  intensity: "easy",
+  alternatives: ["Rest"],
+  rationale: "Keep the week easy.",
+  optional: false,
+  status: "planned",
+};
+
+function updateInput(
+  overrides: Partial<PlanUpdateInput> = {},
+): PlanUpdateInput {
+  return {
+    ...base,
+    season,
+    block,
+    week,
+    todayPlan,
+    tomorrow: null,
+    nextWeek: null,
+    nextBlock: null,
+    revision: {
+      season: false,
+      block: false,
+      week: false,
+      day: false,
+      tomorrow: false,
+      nextWeek: false,
+      nextBlock: false,
+    },
+    ...overrides,
+  };
+}
+
+describe("unified plan update prompt", () => {
+  it("receives every level and asks for every level in one response", () => {
+    const prompt = buildPlanUpdatePrompt(
+      updateInput({
+        revision: {
+          ...updateInput().revision,
+          block: true,
+          week: true,
+          day: true,
+        },
+        nextWeek: { ...week, startDate: "2026-10-26" },
+        nextBlock: { ...block, startDate: "2026-11-02", endDate: "2026-12-01" },
+      }),
+    );
+
+    expect(prompt).toContain("Current season plan:");
+    expect(prompt).toContain("Current block plan:");
+    expect(prompt).toContain("Current week plan:");
+    expect(prompt).toContain("Today's plan:");
+    expect(prompt).toContain("Tomorrow's plan:");
+    expect(prompt).toContain("Next week plan:");
+    expect(prompt).toContain("Next block plan:");
+    expect(prompt).toContain("Revision request:");
+    expect(prompt).toContain(
+      'top-level keys are exactly "season", "block", "week", "today", "tomorrow", "nextWeek", "nextBlock", and "bodyMetrics"',
+    );
+    expect(prompt).toContain("Create the current block starting on 2026-10-21");
+    expect(prompt).toContain("Revise the current week");
+    expect(prompt).toContain("Create or revise today's session");
+  });
+
+  it("asks for a season refresh in place with the stored block start date", () => {
+    const prompt = buildPlanUpdatePrompt(
+      updateInput({
+        revision: {
+          ...updateInput().revision,
+          season: true,
+          block: true,
+          week: true,
+          day: true,
+        },
+        blockStartDate: "2026-10-21",
+      }),
+    );
+
+    expect(prompt).toContain(
+      "Refresh the season and the current block in place",
+    );
+    expect(prompt).toContain(
+      "keep the blocks that ended before today unchanged",
+    );
+    expect(prompt).toContain("must start on 2026-10-21");
+  });
+
+  it("states the next week and tomorrow dates when they are requested", () => {
+    const prompt = buildPlanUpdatePrompt(
+      updateInput({
+        today: "2026-10-25",
+        todayPlan: { ...todayPlan, date: "2026-10-25" },
+        revision: {
+          ...updateInput().revision,
+          tomorrow: true,
+          nextWeek: true,
+        },
+        nextWeekStartDate: "2026-10-26",
+      }),
+    );
+
+    expect(prompt).toContain(
+      "The next week must start on 2026-10-26 and contain exactly seven sessions dated 2026-10-26, 2026-10-27, 2026-10-28, 2026-10-29, 2026-10-30, 2026-10-31, 2026-11-01.",
+    );
+    expect(prompt).toContain("Tomorrow is 2026-10-26.");
+    expect(prompt).toContain(
+      'Return tomorrow\'s session in "tomorrow" and place it in the current week or the next week.',
+    );
+  });
+
+  it("includes a completed week review, its comment and the coach reply", () => {
+    const prompt = buildPlanUpdatePrompt(
+      updateInput({
+        periodReviews: [
+          {
+            kind: "week",
+            title: "Week starting 2026-10-12",
+            startDate: "2026-10-12",
+            endDate: "2026-10-18",
+            summary: "The week was consistent but the long run was hard.",
+            comment: "My legs felt heavy after Thursday.",
+            reply: "Keep the next long run easy and shorten the intervals.",
+            weeklyNote: {
+              note: "I can only ride outdoors on Saturday.",
+              reply: "Then we will put the long ride on Saturday.",
+            },
+            updatedAt: "2026-10-19T08:00:00Z",
+          },
+        ],
+        revision: {
+          ...updateInput().revision,
+          block: true,
+          week: true,
+          day: true,
+        },
+        reviseBlock: true,
+        blockStartDate: "2026-10-21",
+      }),
+    );
+
+    expect(prompt).toContain("Completed week and block reviews");
+    expect(prompt).toContain(
+      "The week was consistent but the long run was hard.",
+    );
+    expect(prompt).toContain(
+      "Athlete comment: My legs felt heavy after Thursday.",
+    );
+    expect(prompt).toContain(
+      "Coach reply: Keep the next long run easy and shorten the intervals.",
+    );
+    expect(prompt).toContain(
+      "Weekly note for the week starting 2026-10-12 (2026-10-12 → 2026-10-18): I can only ride outdoors on Saturday.",
+    );
+    expect(prompt).toContain(
+      "Coach reply to the weekly note: Then we will put the long ride on Saturday.",
+    );
+    expect(prompt).toContain("Revise the current block in place");
+  });
+
+  it("keeps the shared coaching, weather, load and outline rules", () => {
+    expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain(
+      "state of the art training science",
+    );
+    expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain(WEEK_OUTLINE_RULES);
+    expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain(WEATHER_PLANNING_RULES);
+    expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain(BODY_METRIC_RULES);
+    expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain('"bikeWorkout"');
+    expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain('"estimatedTss"');
+    expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain('"estimatedFtpWatts"');
+    expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain('"bodyMetrics"');
+    expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain(
+      "what the athlete loses toward that goal",
+    );
+  });
+
+  it("asks for rationales about the revised plan, not the revision", () => {
+    expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain(RATIONALE_RULES);
+    expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain(
+      "explains the plan as it stands after the revision, not the act of revising it",
+    );
+    expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain(
+      "Do not describe the previous plan, what changed, or why the plan was revised.",
+    );
+    expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain(
+      'Do not write phrases such as "we adjusted", "we changed", "this replaces", or "because of the new review".',
+    );
+  });
+});
 
 describe("daily update prompts", () => {
   it("requires state of the art training science and a coherent day/week", () => {
@@ -187,8 +388,15 @@ describe("daily update prompts", () => {
     expect(prompt).toContain("Manual Swim");
     expect(prompt).toContain("Activity comments:");
     expect(prompt).toContain("Felt strong on the hills.");
-    expect(prompt).toContain("Weekly note:");
-    expect(prompt).toContain("I cannot train on Thursday this week.");
+    expect(prompt).toContain(
+      "Weekly note for the week starting 2026-10-19 (2026-10-19 → 2026-10-25):\nI cannot train on Thursday this week.",
+    );
+    expect(prompt).toContain(
+      "Coach reply to the weekly note:\nUnderstood; Thursday is a rest day.",
+    );
+    expect(prompt).toContain(
+      "A weekly note is normally scoped to the week it was written for.",
+    );
     expect(prompt).toContain("Goal: Sub-4-hour marathon");
     expect(prompt).toContain("Block: Base");
     expect(prompt).toContain("Week starting 2026-10-19");
@@ -364,62 +572,5 @@ describe("weekly update prompts", () => {
       "Saturday is sunny and Sunday is rainy",
     );
     expect(WEEKLY_UPDATE_SYSTEM_PROMPT).toContain("prefers daylight");
-  });
-});
-
-describe("block update prompts", () => {
-  it("requires a new block and a revised season", () => {
-    const prompt = BLOCK_UPDATE_SYSTEM_PROMPT;
-    expect(prompt).toContain("state of the art training science");
-    expect(prompt).toContain("Create the next block");
-    expect(prompt).toContain("Revise the season plan");
-    expect(prompt).toContain("rationale");
-    expect(prompt).toContain('"block"');
-    expect(prompt).toContain('"season"');
-  });
-
-  it("includes the next block start date and the completed block", () => {
-    const prompt = buildBlockUpdatePrompt({
-      ...base,
-      season,
-      block,
-      nextBlockStartDate: "2026-12-02",
-    });
-
-    expect(prompt).toContain("Next block start date: 2026-12-02");
-    expect(prompt).toContain("Goal: Sub-4-hour marathon");
-    expect(prompt).toContain("Completed block plan:");
-    expect(prompt).toContain("Block: Base");
-    expect(prompt).toContain(
-      'top-level keys are exactly "block", "season", and "bodyMetrics"',
-    );
-  });
-});
-
-describe("season refresh prompt", () => {
-  it("asks to refresh the current block in place and re-plan the future", () => {
-    const prompt = SEASON_REFRESH_SYSTEM_PROMPT;
-    expect(prompt).toContain("state of the art training science");
-    expect(prompt).toContain("Refresh the block that contains today");
-    expect(prompt).toContain("keep its existing start date");
-    expect(prompt).toContain("ended before today");
-    expect(prompt).toContain("without gaps");
-    expect(prompt).toContain('"block"');
-    expect(prompt).toContain('"season"');
-  });
-
-  it("includes the existing season, current block, and its start date", () => {
-    const prompt = buildSeasonRefreshPrompt({ ...base, season, block });
-
-    expect(prompt).toContain("Today's date: 2026-10-21");
-    expect(prompt).toContain("Goal: Sub-4-hour marathon");
-    expect(prompt).toContain("Block: Base");
-    expect(prompt).toContain(
-      "The current block already started on 2026-10-21; keep that start date",
-    );
-    expect(prompt).toContain("Finish a sub-4-hour marathon.");
-    expect(prompt).toContain(
-      'top-level keys are exactly "block", "season", and "bodyMetrics"',
-    );
   });
 });

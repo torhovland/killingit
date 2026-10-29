@@ -25,18 +25,21 @@ answers change and as days, weeks, and blocks roll over.
    poll and show a real step and percentage while the coach is thinking.
 3. Generate the initial plan from the athlete's answers and recent analysed
    Garmin activities when the plan is missing or the answers are stale.
-4. Advance the plan lazily when the athlete opens the app:
-   - day missing → generate today, then revise the week from what was actually
-     done or missed;
-   - week missing → generate the new week, then revise the block;
-   - block missing → generate the next block, then revise the season.
-5. Plan the next period when tomorrow has crossed into it (after 18:00):
-   - tomorrow in the next week → generate the next week, leaving the current
-     week untouched;
-   - tomorrow in the next block → generate the next block and its first week,
-     leaving the current block untouched;
-   - generate tomorrow's session against that next week and block so the Day
-     tab agrees with the Week and Block tabs.
+4. Advance the plan lazily when the athlete opens the app. One plan-update
+   prompt receives every current level and the revision request, and returns
+   all the levels the update needs:
+   - day missing → return today's session and the revised week;
+   - week missing → return the new week, a revised block and the detailed day;
+   - block missing → return the new block, the revised season, the week and the
+     detailed day.
+5. Plan the next period when tomorrow has crossed into it (after 18:00) in the
+   same plan-update response where possible:
+   - tomorrow in the next week → return the next week, leaving the current week
+     untouched;
+   - tomorrow in the next block → return the next block, its first week and
+     tomorrow's session, leaving the current block untouched;
+   - tomorrow's session is placed in its real week and block, so the Day tab
+     agrees with the Week and Block tabs.
 6. Promote the next week and block when today enters them, dropping the ended
    period after its review has been captured.
 7. Refresh the remaining season when answers are saved and a season exists, and
@@ -60,7 +63,7 @@ answers change and as days, weeks, and blocks roll over.
 
 ### Out of scope (deferred)
 
-- Cron-driven generation while the athlete is away. The cascade runs when the
+- Cron-driven generation while the athlete is away. The update runs when the
   dashboard loads.
 - Background workers; generation runs inside the POST request and the UI polls
   a separate status endpoint.
@@ -84,20 +87,23 @@ answers change and as days, weeks, and blocks roll over.
    (refresh the existing season); the update action appears only when a season
    containing today exists. The dashboard offers only "Update plan" on the
    stale banner.
-4. On a new day, the first visit generates today's session and revises the rest
-   of the week around what the athlete actually did. While that generation runs,
-   the out-of-date Today and Tomorrow cards are dimmed behind a spinner labelled
-   "Updating today's/tomorrow's plan", so stale content is never presented as
-   current. A newly analysed activity also revises the remaining week even when
-   the stored day is still current, including past activities imported days
-   later (for example a Monday workout first synced on Thursday).
-5. On a new week, the first visit generates the new week and revises the block.
-6. When the block has ended, the first visit generates the next block and revises
-   the season, then cascades down to the week and today.
-7. After 18:00, when tomorrow falls in the next week, the plan section generates
-   that week and tomorrow's session without changing the current week. When
-   tomorrow also falls in the next block, it generates the next block first and
-   then that week. The current block and week stay as stored until they end.
+4. On a new day, the first visit updates today's session and the rest of the
+   week around what the athlete actually did in one prompt. While that
+   generation runs, the out-of-date Today and Tomorrow cards are dimmed behind a
+   spinner labelled "Updating today's/tomorrow's plan", so stale content is
+   never presented as current. A newly analysed activity also revises the
+   remaining week even when the stored day is still current, including past
+   activities imported days later (for example a Monday workout first synced on
+   Thursday).
+5. On a new week, one prompt returns the new week, the revised block and the
+   detailed day.
+6. When the block has ended, one prompt returns the next block, the revised
+   season, the week and today's session.
+7. After 18:00, when tomorrow falls in the next week, the plan section returns
+   that week and tomorrow's session in the same update without changing the
+   current week. When tomorrow also falls in the next block, the same update
+   returns the next block. The current block and week stay as stored until they
+   end.
 8. On the first visit after the current week or block ends, the stored next week
    or next block becomes current, the previous period is summarised, and the
    dashboard shows a single current week and block again.
@@ -183,14 +189,15 @@ Both routes are behind `requireAuth`.
   already running. `mode` is `auto` (default), `newSeason`, or `updateSeason`;
   `force: true` behaves like `newSeason`.
 
-`stale` is true when the newest current answer is newer than
-`coach_plans.answers_updated_at`. `pending.day` is true when the stored day is
+`stale` is true when the newest answer or coaching input is newer than the
+timestamp the plan was saved with. `pending.day` is true when the stored day is
 not for `today`; `pending.week` is true when `today` is not one of the stored
 week's sessions, or when the latest forecast differs significantly from the
 weather stored on the current or planned next week (see
 `docs/specs/location-and-weather.md`); `pending.block` is true when `today`
-falls outside the stored block's dates. After 18:00, `pending.tomorrow` is true
-when tomorrow's day plan is missing, is not covered by a stored week, or falls
+falls outside the stored block's dates, or when a week review was generated or
+answered after the plan was saved. After 18:00, `pending.tomorrow` is true when
+tomorrow's day plan is missing, is not covered by a stored week, or falls
 outside a stored block; `pending.nextWeek` and `pending.nextBlock` are true when
 tomorrow has crossed into a period that has not been generated yet.
 
@@ -209,35 +216,38 @@ review.
    is not configured.
 3. If there is no plan, the request asks for a new season, or `force` is set,
    build a fresh season in four smaller completions: the season, the block
-   containing today, the week containing today (with a block revision), then
-   today (with a week revision). If the request asks to update the season, or
-   the answers are stale and the stored season contains today, refresh the
-   remaining season instead: one completion returns the rest of the season and
-   the detailed current block, then the week and today are rebuilt. The stored
+   containing today, the week containing today, then today. A new season has no
+   stored levels to update, so it keeps the split build. If the request asks to
+   update the season, or the answers are stale and the stored season contains
+   today, refresh the remaining season with the plan-update prompt instead: one
+   completion returns the rest of the season, the detailed current block, the
+   week and today (plus tomorrow and the next period when wanted). The stored
    blocks that ended before today and the original season start date are
    restored, and the current block must keep its stored start date, before the
-   result is validated. A later weekly revision may not move that start date.
+   result is validated.
 4. Otherwise, treat a coach analysis that was not included in the saved plan as
    a revision trigger too: the new knowledge from the activity must reach the
-   remaining week (and, through the weekly prompt, the block). This includes an
+   remaining week (and, through the update prompt, the block). This includes an
    activity imported days later, and an import that finished while an earlier
-   generation was still running. Advance the current period first:
-   - if `pending.block`, call the block prompt (new block + revised season);
-   - if the block changed, coaching inputs or activity analyses changed, or
-     `pending.week`, call the weekly prompt (new week + revised block);
-   - if the block/week changed, inputs or analyses changed, `pending.day`, or
-     tomorrow is missing from the current week, call the daily prompt (today +
-     revised week + tomorrow).
-5. After 18:00, ensure tomorrow is covered by a week and a block. These steps
-   never revise the current week or block when tomorrow has left them:
-   - if tomorrow falls outside the current block, call the block prompt to
-     create `next_block` (with a revised season);
-   - if tomorrow falls outside the current week, call the weekly prompt for
-     `startOfWeek(tomorrow)` and store it as `next_week`;
-   - call the daily prompt with tomorrow as its day and the target week and
-     block, store the returned day as `tomorrow`, and mirror it into that
-     week's matching session. The returned week replaces `next_week` (or, for a
-     mid-week block transition, the current week's remaining days).
+   generation was still running. Send the current season, block, week, today,
+   tomorrow, next week and next block with a revision request naming the levels
+   that are stale. The response returns the revised block, week and today when
+   a block changed; the week and today when a week or day changed; and the
+   season when a refresh is requested. A generated week review or an answer to
+   one marks the block pending and revises the current block in place, even
+   while today is still inside it. A generated block review or an answer to one
+   refreshes the remaining season. Every returned rationale explains the plan
+   as it stands after the revision, not why the plan was revised.
+5. After 18:00, ensure tomorrow is covered by a week and a block. The same
+   update response can carry the next period:
+   - if tomorrow falls outside the current block, it returns `next_block` with
+     a revised season;
+   - if tomorrow falls outside the current week, it returns that week as
+     `next_week`;
+   - it returns tomorrow's day and the update mirrors it into the matching
+     session. The returned week replaces `next_week` (or, for a mid-week block
+     transition, the current week's remaining days). The current week and block
+     are left alone when tomorrow has left them.
 6. Save the plan with the current answer timestamp. When today has entered a
    stored `next_week` or `next_block`, promote it to the current level first.
    After a full build, review recent activities against the finished plan (see
@@ -262,11 +272,11 @@ problems; the error names the offending fields if the repair also fails. See
   the next week, with each session's description, planned duration, intensity,
   and whether the coach set it indoors or outdoors. Days after tomorrow are
   outlines with a short description, so the Week tab shows the week's shape
-  rather than a finished workout for every day; the daily update details today
+  rather than a finished workout for every day; the plan update details today
   and tomorrow (see `docs/specs/week-outline.md`). The Block tab does the same
   for blocks. If a stored
   plan has today's `completed`/`partial` result missing from today's week
-  session, `pending.week` becomes true and the normal weekly + daily cascade
+  session, `pending.week` becomes true and the normal plan update
   refreshes the week.
 - `CoachDashboard` increments a refresh key after answers are saved, which
   makes the plan section refetch, spot the stale plan, and start the
@@ -294,10 +304,10 @@ problems; the error names the offending fields if the repair also fails. See
 ## Testing
 
 - Shared schema tests for the plan contract, seven-session weeks, date format,
-  alternatives default, optionality defaults, empty responses, and the daily
-  update shape.
+  alternatives default, optionality defaults, empty responses, and the
+  plan-update shape.
 - API unit tests for pending/staleness, date helpers, JSON parsing, prompt
-  contents, the full/day/week/block cascade with in-memory stores and a fake
+  contents, the full build and plan update with in-memory stores and a fake
   provider, new-season and season-update modes, next-week/next-block
   generation, and promotion after the date moves on.
 - API route tests for auth, valid/invalid dates, the empty state, full
@@ -309,9 +319,10 @@ problems; the error names the offending fields if the repair also fails. See
 ## Risks / open questions
 
 - **Cost:** an initial plan is four smaller completions (season, current block,
-  current week, today). A cascade can be up to three. After 18:00, a crossing
-  into a new week or block adds up to three more completions (next block, next
-  week, tomorrow), and the next period is reused on later visits. Each
+  current week, today). Every later update, including a season refresh and a
+  next-period change, is one plan-update completion. The response carries all
+  current levels, so it is larger than one old cascade step but smaller than the
+  three steps it replaces. The next period is reused on later visits. Each
   generation first syncs/analyses recent Garmin activities (cached analyses are
   reused). The plan is lazily generated only when needed.
 - **Long requests:** generation runs inside the POST. The API already sets a
@@ -330,4 +341,4 @@ problems; the error names the offending fields if the repair also fails. See
   their profile and validate the date server-side.
 - **Plan quality:** the prompts require state of the art training science, but
   the plan is only as good as the profile and activity data. The revision
-  cascade keeps it responsive rather than perfect.
+  update keeps it responsive rather than perfect.
