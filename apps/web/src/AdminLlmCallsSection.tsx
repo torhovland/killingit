@@ -199,7 +199,10 @@ export function LlmCallsView({
                         {call.model}
                       </span>
                       <span className="ml-auto">
-                        <CallStatus failed={call.failed} />
+                        <CallStatus
+                          failed={call.failed}
+                          pending={call.pending}
+                        />
                       </span>
                     </span>
                     <span className="flex flex-wrap gap-x-3 text-sm text-muted-foreground">
@@ -209,7 +212,7 @@ export function LlmCallsView({
                       <span className="truncate" title={call.userLabel}>
                         {call.userLabel}
                       </span>
-                      <span>{call.durationMs} ms</span>
+                      {!call.pending && <span>{call.durationMs} ms</span>}
                       {call.ofAttempts !== null &&
                         call.attempt !== null &&
                         call.ofAttempts > 1 && (
@@ -269,7 +272,7 @@ export function LlmCallDetailView({ call }: { call: LlmCallDetail }) {
             <CallBadges call={call} />
           </div>
         </div>
-        <CallStatus failed={call.failed} />
+        <CallStatus failed={call.failed} pending={call.pending} />
       </header>
 
       {call.planFailed && typeof call.metadata.planError === "string" && (
@@ -285,7 +288,10 @@ export function LlmCallDetailView({ call }: { call: LlmCallDetail }) {
         <Metadata label="Call" value={`#${call.id}`} />
         <Metadata label="User" value={`${call.userLabel} (#${call.userId})`} />
         <Metadata label="Provider" value={call.provider} />
-        <Metadata label="Duration" value={`${call.durationMs} ms`} />
+        <Metadata
+          label="Duration"
+          value={call.pending ? "In flight" : `${call.durationMs} ms`}
+        />
         <Metadata
           label="Prompt tokens"
           value={call.usage?.promptTokens ?? "—"}
@@ -326,6 +332,11 @@ export function LlmCallDetailView({ call }: { call: LlmCallDetail }) {
         <h4 className="text-base font-semibold">
           {call.failed ? "Error" : "Response"}
         </h4>
+        {call.pending && (
+          <p className="text-base text-muted-foreground">
+            Waiting for the provider to answer.
+          </p>
+        )}
         {call.error !== null && (
           <pre className="overflow-auto whitespace-pre-wrap break-words rounded bg-inset p-3 text-sm text-destructive">
             {call.error}
@@ -360,7 +371,20 @@ function CallBadges({ call }: { call: LlmCallSummary }) {
   );
 }
 
-function CallStatus({ failed }: { failed: boolean }) {
+function CallStatus({
+  failed,
+  pending,
+}: {
+  failed: boolean;
+  pending: boolean;
+}) {
+  if (pending) {
+    return (
+      <Badge tone="accent" testId="llm-call-status">
+        In flight
+      </Badge>
+    );
+  }
   return (
     <Badge tone={failed ? "danger" : "muted"} testId="llm-call-status">
       {failed ? "Failed" : "Succeeded"}

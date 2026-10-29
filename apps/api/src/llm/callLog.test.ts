@@ -2,8 +2,8 @@ import { describe, expect, it } from "bun:test";
 import type { LlmCompletionRequest, LlmProvider } from "./openrouter.js";
 import { LlmTokenLimitError } from "./openrouter.js";
 import { withPromptLogging } from "./callLog.js";
+import type { LlmCallResult, LlmCallSink, NewLlmCall } from "./callStore.js";
 import { completeWithFallbacks } from "./resilientCompletion.js";
-import type { NewLlmCall } from "./callStore.js";
 
 class StubProvider implements LlmProvider {
   readonly id = "stub";
@@ -29,6 +29,31 @@ class StubProvider implements LlmProvider {
   }
 }
 
+interface RecordedCall {
+  started: NewLlmCall;
+  result: LlmCallResult | null;
+}
+
+function recordingSink(): { calls: RecordedCall[]; sink: LlmCallSink } {
+  const calls: RecordedCall[] = [];
+  return {
+    calls,
+    sink: {
+      start: (call) => {
+        calls.push({ started: call, result: null });
+        return Promise.resolve(calls.length);
+      },
+      finish: (id, result) => {
+        const call = calls[id - 1];
+        if (call !== undefined) {
+          call.result = result;
+        }
+        return Promise.resolve();
+      },
+    },
+  };
+}
+
 const messages = [
   { role: "system" as const, content: "You are a coach." },
   { role: "user" as const, content: "Plan my season." },
@@ -48,15 +73,12 @@ function request(overrides: Partial<LlmCompletionRequest> = {}) {
 
 describe("withPromptLogging", () => {
   it("stores the prompt, response, kind, and request metadata", async () => {
-    const saved: NewLlmCall[] = [];
+    const { calls, sink } = recordingSink();
     let now = 0;
     const provider = new StubProvider(() => "The plan is ready.");
     const wrapped = withPromptLogging(provider, {
       userId: 7,
-      save: (call) => {
-        saved.push(call);
-        return Promise.resolve();
-      },
+      sink,
       clock: () => {
         now += 7;
         return now;
@@ -66,28 +88,47 @@ describe("withPromptLogging", () => {
     const text = await wrapped.complete(request({ metadata: { attempt: 1 } }));
 
     expect(text).toBe("The plan is ready.");
-    expect(saved).toHaveLength(1);
-    expect(saved[0]).toMatchObject({
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.started).toMatchObject({
       userId: 7,
       kind: "season_plan",
       provider: "stub",
       model: "openrouter/model",
       messages,
-      response: "The plan is ready.",
-      error: null,
-      durationMs: 7,
     });
-    expect(saved[0]?.metadata).toMatchObject({
+    expect(calls[0]?.started.metadata).toMatchObject({
       attempt: 1,
       temperature: 0.4,
       maxTokens: 1024,
+    });
+    expect(calls[0]?.result).toMatchObject({
+      response: "The plan is ready.",
+      error: null,
+      usage: null,
+      durationMs: 7,
+    });
+    expect(calls[0]?.result?.metadata).toMatchObject({
       responseModel: null,
       finishReason: null,
     });
   });
 
+  it("records the attempt before sending the request", async () => {
+    const { calls, sink } = recordingSink();
+    let seenBeforeSend = 0;
+    const provider = new StubProvider(() => {
+      seenBeforeSend = calls.length;
+      return "Ready";
+    });
+    const wrapped = withPromptLogging(provider, { userId: 7, sink });
+
+    await wrapped.complete(request());
+
+    expect(seenBeforeSend).toBe(1);
+  });
+
   it("uses the provider's rich completion for usage and routing metadata", async () => {
-    const saved: NewLlmCall[] = [];
+    const { calls, sink } = recordingSink();
     const provider: LlmProvider = {
       id: "stub",
       listModels: () => Promise.resolve([]),
@@ -101,43 +142,31 @@ describe("withPromptLogging", () => {
           usage: { promptTokens: 100, completionTokens: 20, totalTokens: 120 },
         }),
     };
-    const wrapped = withPromptLogging(provider, {
-      userId: 3,
-      save: (call) => {
-        saved.push(call);
-        return Promise.resolve();
-      },
-    });
+    const wrapped = withPromptLogging(provider, { userId: 3, sink });
 
     const text = await wrapped.complete(request());
 
     expect(text).toBe("Detailed response");
-    expect(saved[0]?.usage).toEqual({
+    expect(calls[0]?.result?.usage).toEqual({
       promptTokens: 100,
       completionTokens: 20,
       totalTokens: 120,
     });
-    expect(saved[0]?.metadata).toMatchObject({
+    expect(calls[0]?.result?.metadata).toMatchObject({
       responseModel: "routed/model",
       finishReason: "stop",
     });
   });
 
   it("stores failures and rethrows the provider error", async () => {
-    const saved: NewLlmCall[] = [];
+    const { calls, sink } = recordingSink();
     const provider: LlmProvider = {
       id: "stub",
       listModels: () => Promise.resolve([]),
       validateKey: () => Promise.resolve(),
       complete: () => Promise.reject(new Error("provider exploded")),
     };
-    const wrapped = withPromptLogging(provider, {
-      userId: 9,
-      save: (call) => {
-        saved.push(call);
-        return Promise.resolve();
-      },
-    });
+    const wrapped = withPromptLogging(provider, { userId: 9, sink });
 
     const error: unknown = await wrapped
       .complete(request())
@@ -146,44 +175,56 @@ describe("withPromptLogging", () => {
     expect(error).toBeInstanceOf(Error);
     expect((error as Error).message).toBe("provider exploded");
 
-    expect(saved).toHaveLength(1);
-    expect(saved[0]).toMatchObject({
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.started).toMatchObject({
       userId: 9,
       kind: "season_plan",
+      messages,
+    });
+    expect(calls[0]?.result).toMatchObject({
       response: null,
       error: "provider exploded",
       usage: null,
     });
-    expect(saved[0]?.messages).toEqual(messages);
   });
 
-  it("does not break the completion when logging fails", async () => {
+  it("does not break the completion when starting the log fails", async () => {
     const provider = new StubProvider(() => "Still works");
     const wrapped = withPromptLogging(provider, {
       userId: 1,
-      save: () => Promise.reject(new Error("database down")),
+      sink: {
+        start: () => Promise.reject(new Error("database down")),
+        finish: () => Promise.resolve(),
+      },
+    });
+
+    expect(await wrapped.complete(request())).toBe("Still works");
+  });
+
+  it("does not break the completion when finishing the log fails", async () => {
+    const provider = new StubProvider(() => "Still works");
+    const wrapped = withPromptLogging(provider, {
+      userId: 1,
+      sink: {
+        start: () => Promise.resolve(1),
+        finish: () => Promise.reject(new Error("database down")),
+      },
     });
 
     expect(await wrapped.complete(request())).toBe("Still works");
   });
 
   it("logs every retry attempt with its attempt number", async () => {
-    const saved: NewLlmCall[] = [];
-    let calls = 0;
+    const { calls, sink } = recordingSink();
+    let attempts = 0;
     const provider = new StubProvider(() => {
-      calls += 1;
-      if (calls === 1) {
+      attempts += 1;
+      if (attempts === 1) {
         throw new LlmTokenLimitError("too long");
       }
       return "Recovered";
     });
-    const wrapped = withPromptLogging(provider, {
-      userId: 5,
-      save: (call) => {
-        saved.push(call);
-        return Promise.resolve();
-      },
-    });
+    const wrapped = withPromptLogging(provider, { userId: 5, sink });
 
     const text = await completeWithFallbacks(
       wrapped,
@@ -195,10 +236,12 @@ describe("withPromptLogging", () => {
     );
 
     expect(text).toBe("Recovered");
-    expect(saved).toHaveLength(2);
-    expect(saved.map((call) => call.metadata.attempt)).toEqual([1, 2]);
-    expect(saved[0]?.error).toBe("too long");
-    expect(saved[1]?.response).toBe("Recovered");
-    expect(saved.every((call) => call.kind === "activity_analysis")).toBe(true);
+    expect(calls).toHaveLength(2);
+    expect(calls.map((call) => call.started.metadata.attempt)).toEqual([1, 2]);
+    expect(calls[0]?.result?.error).toBe("too long");
+    expect(calls[1]?.result?.response).toBe("Recovered");
+    expect(
+      calls.every((call) => call.started.kind === "activity_analysis"),
+    ).toBe(true);
   });
 });

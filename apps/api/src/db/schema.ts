@@ -190,6 +190,11 @@ export const llmCalls = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
+    /**
+     * When the provider settled. Null while the call is in flight, and when
+     * the process died before it could record a response or error.
+     */
+    completedAt: timestamp("completed_at", { withTimezone: true }),
   },
   (table) => [
     index("llm_calls_created_at_idx").on(table.createdAt),

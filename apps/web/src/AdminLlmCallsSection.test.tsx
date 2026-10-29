@@ -13,6 +13,7 @@ const summary: LlmCallSummary = {
   model: "openrouter/model",
   durationMs: 1200,
   failed: false,
+  pending: false,
   repair: false,
   attempt: null,
   ofAttempts: null,
@@ -103,6 +104,16 @@ describe("LlmCallsView", () => {
     expect(html).toContain("Failed");
   });
 
+  it("marks a call that has not settled as in flight", () => {
+    const html = view({
+      calls: [{ ...summary, pending: true }],
+      selected: null,
+    });
+
+    expect(html).toContain('data-testid="llm-call-status"');
+    expect(html).toContain("In flight");
+  });
+
   it("shows the full prompt and response for the selected call", () => {
     const html = view();
 
@@ -166,6 +177,17 @@ describe("LlmCallDetailView", () => {
     expect(html).toContain("Failed");
     expect(html).toContain("Provider rate limit");
     expect(html).not.toContain("Here is the plan.");
+  });
+
+  it("shows that a pending call is waiting for the provider", () => {
+    const html = renderToStaticMarkup(
+      <LlmCallDetailView
+        call={{ ...detail, pending: true, response: null, durationMs: 0 }}
+      />,
+    );
+
+    expect(html).toContain("In flight");
+    expect(html).toContain("Waiting for the provider to answer.");
   });
 
   it("shows a repair turn that belonged to a failed plan", () => {
