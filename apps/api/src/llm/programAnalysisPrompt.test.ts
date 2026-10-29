@@ -4,7 +4,7 @@ import {
   buildProgramAnalysisMessages,
   buildProgramAnalysisPrompt,
 } from "./programAnalysisPrompt.js";
-import { PLAIN_TEXT_RULES } from "./promptRules.js";
+import { GLOBAL_PROMPT_RULES, PLAIN_TEXT_RULES } from "./promptRules.js";
 
 function makePlan(): CoachPlan {
   return {
@@ -139,6 +139,7 @@ describe("buildProgramAnalysisMessages", () => {
       "Review one completed workout against the athlete's current training program",
     );
     expect(messages[0]?.content).toContain(PLAIN_TEXT_RULES);
+    expect(messages[0]?.content).toContain(GLOBAL_PROMPT_RULES);
     expect(messages[0]?.content).toContain("do not trust it");
     expect(messages[0]?.content).toContain("strength-training workout");
     expect(messages[0]?.content).toContain(

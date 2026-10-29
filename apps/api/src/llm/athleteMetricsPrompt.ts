@@ -2,7 +2,7 @@ import type { AthleteAnswerContext } from "./planContext.js";
 import { formatAthleteProfile } from "./planContext.js";
 import {
   BODY_METRIC_UNITS_RULE,
-  COACH_PERSONA,
+  GLOBAL_PROMPT_RULES,
   JSON_ONLY_RULES,
   ONLY_STATED_NUMBERS_RULE,
   promptSections,
@@ -38,7 +38,7 @@ export interface AthleteMetricSource {
 export const ATHLETE_METRICS_PROMPT_VERSION = 2;
 
 export const ATHLETE_METRICS_SYSTEM_PROMPT = promptSections(
-  COACH_PERSONA,
+  GLOBAL_PROMPT_RULES,
   "Read an amateur athlete's own words and report the measurements they state about themselves: FTP (functional threshold power), body weight, and body-fat percentage.",
   ONLY_STATED_NUMBERS_RULE,
   `For example, "I want an FTP of 300 W" and "I want to get to 15 % body fat" state targets, not current values.`,

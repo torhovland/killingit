@@ -13,7 +13,8 @@ import {
   ENUM_RULES,
   JSON_RULES,
   jsonTopLevelKeys,
-  PLAN_PROMPT_GLOBAL_RULES,
+  GLOBAL_PROMPT_RULES,
+  PLAN_PROMPT_RULES,
   promptSections,
   SEASON_CONTRACT,
   SESSION_PURPOSE_RULES,
@@ -55,7 +56,8 @@ const COACH_PLAN_RESPONSE_CONTRACT = `{
 }`;
 
 export const COACH_PLAN_SYSTEM_PROMPT = promptSections(
-  PLAN_PROMPT_GLOBAL_RULES,
+  GLOBAL_PROMPT_RULES,
+  PLAN_PROMPT_RULES,
   "Design a personalised, periodised training plan for an amateur athlete.",
   "Apply the principles that current research and elite practice agree on: individualisation, progressive overload, specificity, periodisation, adequate recovery, and a taper before the main goal. Prefer sustainable, injury-free progress over quick fixes.",
   "Use the recent activities and analyses to judge current fitness, fatigue, consistency, and the next sensible stimulus.",

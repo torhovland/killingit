@@ -25,7 +25,8 @@ import {
   JSON_RULES,
   jsonTopLevelKeys,
   PAST_SESSION_RULES,
-  PLAN_PROMPT_GLOBAL_RULES,
+  GLOBAL_PROMPT_RULES,
+  PLAN_PROMPT_RULES,
   promptSections,
   SEASON_CONTRACT,
   SESSION_PURPOSE_RULES,
@@ -103,7 +104,8 @@ export interface PlanUpdateInput extends PlanContextInput {
 }
 
 export const DAILY_UPDATE_SYSTEM_PROMPT = promptSections(
-  PLAN_PROMPT_GLOBAL_RULES,
+  GLOBAL_PROMPT_RULES,
+  PLAN_PROMPT_RULES,
   "Update today's session, the rest of the current week, and tomorrow's session for an amateur athlete.",
   "Revise the remaining sessions so the week stays coherent with the block's focus and the athlete's current fatigue, keeping every day after tomorrow as a short outline. Include a rationale for today's session and for the week's overall structure.",
   "Also provide a suggested workout or rest for tomorrow, consistent with the revised week and the block's focus.",
@@ -126,7 +128,8 @@ export const DAILY_UPDATE_SYSTEM_PROMPT = promptSections(
 );
 
 export const WEEKLY_UPDATE_SYSTEM_PROMPT = promptSections(
-  PLAN_PROMPT_GLOBAL_RULES,
+  GLOBAL_PROMPT_RULES,
+  PLAN_PROMPT_RULES,
   "Create the week starting on the supplied week start date and revise the block plan for an amateur athlete.",
   "The new week must fit the block's focus and progression. Include a rationale for the week and for the revised block.",
   "Revise the block's weeks and target loads where the athlete's progress or recent training requires it. Keep the block's name, focus, and dates unless a change is clearly justified. Do not change the season plan.",
@@ -158,7 +161,8 @@ const PLAN_UPDATE_CONTRACT = `{
 }`;
 
 export const PLAN_UPDATE_SYSTEM_PROMPT = promptSections(
-  PLAN_PROMPT_GLOBAL_RULES,
+  GLOBAL_PROMPT_RULES,
+  PLAN_PROMPT_RULES,
   "Update an athlete's training plan.",
   "You receive the complete current plan at every level: the season, the current block, the current week, today's session, tomorrow's session when one has been planned, the next week when one has been planned, and the next block when one has been planned.",
   `The revision request lists the levels that need to change. Return every level in the contract, so the saved plan always has a coherent season, block, week and day:

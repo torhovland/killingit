@@ -2,6 +2,7 @@ import js from "@eslint/js";
 import prettier from "eslint-config-prettier";
 import globals from "globals";
 import tseslint from "typescript-eslint";
+import local from "./eslint-rules/index.js";
 
 export default tseslint.config(
   {
@@ -46,6 +47,16 @@ export default tseslint.config(
           varsIgnorePattern: "^_",
         },
       ],
+    },
+  },
+  {
+    files: ["**/*.{js,mjs,cjs,ts,tsx}"],
+    plugins: { local },
+    rules: {
+      // Keep exported consts together before exported functions so modules
+      // read predictably. Within each group the existing semantic order is
+      // preserved.
+      "local/consts-before-functions": "error",
     },
   },
   {

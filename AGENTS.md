@@ -335,7 +335,12 @@ through a disciplined process:
 - **Never duplicate prompt fragments across prompts.** Put every reusable
   prompt fragment — a persona, rule, JSON contract, output instruction,
   response sentence or key list — in `apps/api/src/llm/promptRules.ts`, and
-  compose every prompt from those exports. Merge fragments that every plan
-  prompt uses into the single literal `PLAN_PROMPT_GLOBAL_RULES`. Before
-  writing prompt text, check that module and extend it instead of adding a
-  second copy. A duplicated fragment is a bug waiting to diverge.
+  compose every prompt from those exports. Every prompt starts with the single
+  `GLOBAL_PROMPT_RULES` fragment, and fragments that every plan prompt uses are
+  merged into `PLAN_PROMPT_RULES`. Before writing prompt text, check that
+  module and extend it instead of adding a second copy. A duplicated fragment
+  is a bug waiting to diverge.
+- **Keep exported constants above exported functions.** Top-level `export const`
+  declarations come before `export function` declarations in a module. The
+  `local/consts-before-functions` ESLint rule enforces it, while preserving the
+  semantic order within each group.

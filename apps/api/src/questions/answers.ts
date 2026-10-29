@@ -13,54 +13,6 @@ export interface StoredAthleteQuestion extends StoredQuestion {
 }
 
 /**
- * Pure mapping from a question and the athlete's answer row for its current
- * version. Kept separate so answer selection is testable without a database.
- */
-export function toStoredAthleteQuestion(
-  question: StoredQuestion,
-  answer: QuestionAnswerRow | null,
-): StoredAthleteQuestion {
-  return {
-    ...question,
-    answer: answer?.answer ?? null,
-    skipped: answer !== null && answer.answer === null,
-    answeredAt: answer?.updatedAt ?? null,
-  };
-}
-
-/**
- * Validates a submission against the active question set. Every entry must name
- * an active question and its current version, each question may appear only
- * once, and a required question cannot be skipped. Returns false for stale,
- * archived, unknown, duplicate, or invalid entries.
- */
-export function answersMatchCurrentQuestions(
-  activeQuestions: readonly StoredQuestion[],
-  answers: readonly QuestionAnswerInput[],
-): boolean {
-  const questionById = new Map(
-    activeQuestions.map((question) => [question.id, question]),
-  );
-  const answeredQuestionIds = new Set<number>();
-
-  for (const entry of answers) {
-    const question = questionById.get(entry.questionId);
-    if (!question || question.versionId !== entry.versionId) {
-      return false;
-    }
-    if (entry.answer === null && question.required) {
-      return false;
-    }
-    if (answeredQuestionIds.has(entry.questionId)) {
-      return false;
-    }
-    answeredQuestionIds.add(entry.questionId);
-  }
-
-  return true;
-}
-
-/**
  * Athlete-facing answer storage. Kept behind an interface so routes can be
  * tested without Postgres (matching the user/question store pattern).
  */
@@ -143,3 +95,51 @@ export const dbQuestionAnswerStore: QuestionAnswerStore = {
     return true;
   },
 };
+
+/**
+ * Pure mapping from a question and the athlete's answer row for its current
+ * version. Kept separate so answer selection is testable without a database.
+ */
+export function toStoredAthleteQuestion(
+  question: StoredQuestion,
+  answer: QuestionAnswerRow | null,
+): StoredAthleteQuestion {
+  return {
+    ...question,
+    answer: answer?.answer ?? null,
+    skipped: answer !== null && answer.answer === null,
+    answeredAt: answer?.updatedAt ?? null,
+  };
+}
+
+/**
+ * Validates a submission against the active question set. Every entry must name
+ * an active question and its current version, each question may appear only
+ * once, and a required question cannot be skipped. Returns false for stale,
+ * archived, unknown, duplicate, or invalid entries.
+ */
+export function answersMatchCurrentQuestions(
+  activeQuestions: readonly StoredQuestion[],
+  answers: readonly QuestionAnswerInput[],
+): boolean {
+  const questionById = new Map(
+    activeQuestions.map((question) => [question.id, question]),
+  );
+  const answeredQuestionIds = new Set<number>();
+
+  for (const entry of answers) {
+    const question = questionById.get(entry.questionId);
+    if (!question || question.versionId !== entry.versionId) {
+      return false;
+    }
+    if (entry.answer === null && question.required) {
+      return false;
+    }
+    if (answeredQuestionIds.has(entry.questionId)) {
+      return false;
+    }
+    answeredQuestionIds.add(entry.questionId);
+  }
+
+  return true;
+}

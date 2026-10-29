@@ -12,7 +12,7 @@ import {
   type PlanContextInput,
 } from "./planContext.js";
 import {
-  COACH_PERSONA,
+  GLOBAL_PROMPT_RULES,
   PLAIN_TEXT_RULES,
   promptSections,
 } from "./promptRules.js";
@@ -38,7 +38,7 @@ export interface PeriodReviewPromptInput {
 }
 
 const PERIOD_REVIEW_SYSTEM_PROMPT = promptSections(
-  COACH_PERSONA,
+  GLOBAL_PROMPT_RULES,
   "Summarise a completed training period for the athlete.",
   "Write 3-5 sentences of plain text. Say what the athlete completed and how consistently they trained, how the period fit the overall plan, what worked, and what should change in the next period. Cite only the most useful activity data. Be encouraging when the work was reasonable, but be honest about missed sessions and warning signs.",
   PLAIN_TEXT_RULES,

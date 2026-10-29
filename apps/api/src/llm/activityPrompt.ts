@@ -15,7 +15,7 @@ import {
   ACTIVITY_FTP_ESTIMATE_RULES,
   ACTIVITY_TYPE_RULE,
   COACH_ANALYSIS_RESPONSE_RULES,
-  COACH_PERSONA,
+  GLOBAL_PROMPT_RULES,
   PLAIN_TEXT_RULES,
   promptSections,
   RETURN_JSON_FROM_SYSTEM_PROMPT,
@@ -43,7 +43,7 @@ export interface ActivityAnalysisContext {
 }
 
 const ANALYSIS_SYSTEM_PROMPT = promptSections(
-  COACH_PERSONA,
+  GLOBAL_PROMPT_RULES,
   "Review one completed workout for an amateur athlete.",
   ACTIVITY_TYPE_RULE,
   "When the athlete's current week plan is provided, match the workout to the planned session it best fits, then make how well it fit the plan part of the same summary. If it followed the plan reasonably well, say so warmly and encouragingly. If it did not, point out clearly what could be improved without being harsh.",

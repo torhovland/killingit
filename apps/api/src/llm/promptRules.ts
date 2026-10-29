@@ -12,24 +12,13 @@
  * stays consistent no matter which completion produced it.
  */
 
-/** The coach persona that opens every planning prompt. */
-export const COACH_PERSONA = "You are an expert endurance coach.";
-
 /**
- * Joins prompt sections with a blank line, dropping empty sections. Shared
- * fragments and prompt-specific text stay separate so a fragment can be
- * updated without editing the prose around it.
+ * The rules every prompt includes: the coach identity and the requirement to
+ * stay grounded in the supplied input.
  */
-export function promptSections(
-  ...sections: readonly (string | false | null | undefined)[]
-): string {
-  return sections
-    .filter(
-      (section): section is string =>
-        typeof section === "string" && section.trim() !== "",
-    )
-    .join("\n\n");
-}
+export const GLOBAL_PROMPT_RULES = `You are an expert endurance coach.
+
+Do not invent facts that are not in the input.`;
 
 /**
  * Shared rule for every prompt that receives activity comments: a comment is
@@ -60,13 +49,11 @@ export const BODY_METRIC_UNITS_RULE = `Give body weight in kilograms and body fa
 
 /**
  * The rules every plan prompt includes regardless of the level it builds or
- * updates. Keeping them in one literal means the plan prompts share the same
- * persona, input reading, rationale and body-metric behaviour without listing
- * them separately.
+ * updates: training-science guidance, how to read the supplied input, the
+ * rationale rules and the body-metric rules. `GLOBAL_PROMPT_RULES` supplies the
+ * coach identity and the no-invention rule that every prompt shares.
  */
-export const PLAN_PROMPT_GLOBAL_RULES = `You are an expert endurance coach.
-
-Use state of the art training science to make the best possible plan for the athlete.
+export const PLAN_PROMPT_RULES = `Use state of the art training science to make the best possible plan for the athlete.
 
 You receive the athlete's profile, recent activities with coach analyses, program reviews, and coach replies, manually recorded activities, comments on activities, a general weekly note, and coach summaries of completed weeks and blocks with the athlete's feedback on them. Use all of these to understand the athlete's goal, available time, experience, preferences, constraints, and subjective feedback, and to see what they actually completed or missed and how they responded.
 
@@ -74,7 +61,7 @@ A comment on an activity describes that same activity. It is not an additional a
 
 Respect the athlete's available time and constraints. The weekly note is a hard constraint: if it says the athlete cannot train on a specific day, move or cancel the session on that day. If a manually recorded activity indicates significant fatigue or extra load, adjust the upcoming sessions accordingly.
 
-Do not invent facts that are not in the input. When an important detail is missing, make a conservative assumption and state it briefly in the relevant focus or description.
+When an important detail is missing, make a conservative assumption and state it briefly in the relevant focus or description.
 
 Every "rationale" field explains the plan as it stands, not the act of creating or revising it. Explain why this goal, season shape, block, week, session, or rest day is right for the athlete from this point forward, using the latest training and feedback. Do not describe a previous plan, what changed, or why it was revised. Do not write phrases such as "we adjusted", "we changed", "this replaces", or "because of the new review". State the current rationale directly.
 
@@ -210,7 +197,7 @@ export const JSON_ONLY_RULES = `Do not add markdown fences, headings, explanatio
 /**
  * The plain-text output rule shared by the coaching replies and reviews.
  */
-export const PLAIN_TEXT_RULES = `Do not use headings, bullets, or markdown. Do not invent activities or results you were not given.`;
+export const PLAIN_TEXT_RULES = `Do not use headings, bullets, or markdown.`;
 
 /** The full JSON output rule for the plan prompts. */
 export const JSON_RULES = promptSections(
@@ -222,21 +209,6 @@ export const JSON_RULES = promptSections(
 /** The shared closing instruction for prompts that return JSON. */
 export const RETURN_JSON_FROM_SYSTEM_PROMPT =
   "Return the JSON object described in the system prompt.";
-
-/**
- * The sentence that names the exact top-level keys a plan response must use.
- * Kept as a helper so every plan prompt spells the response keys the same way.
- */
-export function jsonTopLevelKeys(keys: readonly string[]): string {
-  const quoted = keys.map((key) => `"${key}"`);
-  const list =
-    quoted.length <= 1
-      ? (quoted[0] ?? "")
-      : quoted.length === 2
-        ? `${quoted[0]} and ${quoted[1]}`
-        : `${quoted.slice(0, -1).join(", ")}, and ${quoted.at(-1)}`;
-  return `Return one JSON object whose top-level keys are exactly ${list}.`;
-}
 
 /** The structured power targets shared by the day and week session contracts. */
 export const BIKE_WORKOUT_CONTRACT = `{ "ftpWatts": 0, "intervals": [{ "durationSeconds": 0, "powerPercent": 75 }] }`;
@@ -331,3 +303,34 @@ export const COACH_ANALYSIS_RESPONSE_RULES = promptSections(
   `Replace "estimatedFtpWatts" with the integer estimate in watts, or null when there is no useful evidence. Set "weightKg" to the athlete's body weight in kilograms and "bodyFatPercent" to their body fat as a percentage only when the input for this activity states them, and to null otherwise. Put the whole coach summary in "analysis".`,
   JSON_ONLY_RULES,
 );
+
+/**
+ * Joins prompt sections with a blank line, dropping empty sections. Shared
+ * fragments and prompt-specific text stay separate so a fragment can be
+ * updated without editing the prose around it.
+ */
+export function promptSections(
+  ...sections: readonly (string | false | null | undefined)[]
+): string {
+  return sections
+    .filter(
+      (section): section is string =>
+        typeof section === "string" && section.trim() !== "",
+    )
+    .join("\n\n");
+}
+
+/**
+ * The sentence that names the exact top-level keys a plan response must use.
+ * Kept as a helper so every plan prompt spells the response keys the same way.
+ */
+export function jsonTopLevelKeys(keys: readonly string[]): string {
+  const quoted = keys.map((key) => `"${key}"`);
+  const list =
+    quoted.length <= 1
+      ? (quoted[0] ?? "")
+      : quoted.length === 2
+        ? `${quoted[0]} and ${quoted[1]}`
+        : `${quoted.slice(0, -1).join(", ")}, and ${quoted.at(-1)}`;
+  return `Return one JSON object whose top-level keys are exactly ${list}.`;
+}

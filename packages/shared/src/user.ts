@@ -8,16 +8,6 @@ export const userRoleSchema = z.enum(["admin", "member"]);
 
 export type UserRole = z.infer<typeof userRoleSchema>;
 
-/** Whether `value` is an IANA time zone name the runtime understands. */
-export function isValidTimeZone(value: string): boolean {
-  try {
-    new Intl.DateTimeFormat("en-US", { timeZone: value });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 /**
  * An IANA time zone such as `Europe/Oslo`. A null setting means "use the
  * device's time zone", which lets a user follow their current location.
@@ -78,3 +68,13 @@ export const currentUserSchema = z.object({
 });
 
 export type CurrentUser = z.infer<typeof currentUserSchema>;
+
+/** Whether `value` is an IANA time zone name the runtime understands. */
+export function isValidTimeZone(value: string): boolean {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: value });
+    return true;
+  } catch {
+    return false;
+  }
+}

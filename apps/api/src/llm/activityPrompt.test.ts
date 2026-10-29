@@ -8,6 +8,7 @@ import {
   formatDuration,
   MAX_PROMPT_SAMPLES,
 } from "./activityPrompt.js";
+import { GLOBAL_PROMPT_RULES } from "./promptRules.js";
 
 function makeActivity(overrides: Partial<Activity> = {}): Activity {
   return {
@@ -153,6 +154,7 @@ describe("buildActivityAnalysisPrompt", () => {
     expect(system).toContain('"weightKg"');
     expect(system).toContain('"bodyFatPercent"');
     expect(system).toContain("never estimate a weigh-in from the workout data");
+    expect(system).toContain(GLOBAL_PROMPT_RULES);
   });
 
   it("does not trust the recorded activity type", () => {

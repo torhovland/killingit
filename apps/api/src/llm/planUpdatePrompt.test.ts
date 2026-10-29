@@ -6,7 +6,8 @@ import type {
   WeekPlan,
 } from "@killingit/shared";
 import {
-  PLAN_PROMPT_GLOBAL_RULES,
+  GLOBAL_PROMPT_RULES,
+  PLAN_PROMPT_RULES,
   WEEK_OUTLINE_RULES,
   WEATHER_PLANNING_RULES,
 } from "./promptRules.js";
@@ -300,7 +301,8 @@ describe("unified plan update prompt", () => {
     );
     expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain(WEEK_OUTLINE_RULES);
     expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain(WEATHER_PLANNING_RULES);
-    expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain(PLAN_PROMPT_GLOBAL_RULES);
+    expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain(PLAN_PROMPT_RULES);
+    expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain(GLOBAL_PROMPT_RULES);
     expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain('"bikeWorkout"');
     expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain('"estimatedTss"');
     expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain('"estimatedFtpWatts"');
@@ -311,7 +313,7 @@ describe("unified plan update prompt", () => {
   });
 
   it("asks for rationales about the revised plan, not the revision", () => {
-    expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain(PLAN_PROMPT_GLOBAL_RULES);
+    expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain(PLAN_PROMPT_RULES);
     expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain(
       "explains the plan as it stands, not the act of creating or revising it",
     );
@@ -355,7 +357,7 @@ describe("daily update prompts", () => {
     expect(prompt).toContain('"bodyMetrics"');
     expect(prompt).toContain('"weightKg"');
     expect(prompt).toContain('"bodyFatPercent"');
-    expect(prompt).toContain(PLAN_PROMPT_GLOBAL_RULES);
+    expect(prompt).toContain(PLAN_PROMPT_RULES);
     expect(prompt).toContain("what the athlete loses toward that goal");
     expect(prompt).toContain(
       "if you cannot state a concrete loss for skipping a planned session",
@@ -525,7 +527,7 @@ describe("weekly update prompts", () => {
     expect(prompt).toContain("estimate how it will change day by day");
     expect(prompt).toContain('Set "estimatedFtpWatts" on every week session');
     expect(prompt).toContain('"bodyMetrics"');
-    expect(prompt).toContain(PLAN_PROMPT_GLOBAL_RULES);
+    expect(prompt).toContain(PLAN_PROMPT_RULES);
     expect(prompt).toContain("training stress score");
   });
 

@@ -42,22 +42,6 @@ export interface ProvisioningPlan {
 }
 
 /**
- * Bootstrap rule for one provisioning pass: the first account in an empty
- * database is the admin; otherwise the new account is a member and, if the
- * database predates roles and has no admin, the earliest account is promoted.
- * Pure so the rule is testable without Postgres.
- */
-export function planUserProvisioning(
-  existingUserCount: number,
-  hasAdmin: boolean,
-): ProvisioningPlan {
-  if (existingUserCount === 0) {
-    return { promoteEarliest: false, role: "admin" };
-  }
-  return { promoteEarliest: !hasAdmin, role: "member" };
-}
-
-/**
  * Arbitrary transaction-scoped advisory lock key that serialises first-user
  * provisioning, so two concurrent first sign-ins cannot both become admin.
  */
@@ -189,3 +173,19 @@ export const dbUserStore: UserStore = {
     return toStoredUser(updated);
   },
 };
+
+/**
+ * Bootstrap rule for one provisioning pass: the first account in an empty
+ * database is the admin; otherwise the new account is a member and, if the
+ * database predates roles and has no admin, the earliest account is promoted.
+ * Pure so the rule is testable without Postgres.
+ */
+export function planUserProvisioning(
+  existingUserCount: number,
+  hasAdmin: boolean,
+): ProvisioningPlan {
+  if (existingUserCount === 0) {
+    return { promoteEarliest: false, role: "admin" };
+  }
+  return { promoteEarliest: !hasAdmin, role: "member" };
+}

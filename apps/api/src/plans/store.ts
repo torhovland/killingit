@@ -58,17 +58,6 @@ export interface PlanGenerationStore {
   ): Promise<Date | null>;
 }
 
-/** The status returned before the first generation has ever run. */
-export function idleGenerationStatus(): PlanGenerationStatus {
-  return {
-    status: "idle",
-    step: null,
-    progress: 0,
-    error: null,
-    updatedAt: new Date().toISOString(),
-  };
-}
-
 function toStoredPlan(row: CoachPlanRow): StoredPlan {
   return {
     plan: {
@@ -374,3 +363,14 @@ export const dbPlanGenerationStore: PlanGenerationStore = {
     return row.startedAt;
   },
 };
+
+/** The status returned before the first generation has ever run. */
+export function idleGenerationStatus(): PlanGenerationStatus {
+  return {
+    status: "idle",
+    step: null,
+    progress: 0,
+    error: null,
+    updatedAt: new Date().toISOString(),
+  };
+}

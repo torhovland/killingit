@@ -36,35 +36,6 @@ export const routePointSchema = z.object({
 export type RoutePoint = z.infer<typeof routePointSchema>;
 
 /**
- * Turns a source activity key such as `indoor_cycling` into readable text
- * (`Indoor cycling`) for display. Unknown keys are still shown rather than
- * hidden, because the device's classification is the best information we have.
- */
-export function formatActivityType(type: string): string {
-  const words = type
-    .trim()
-    .replace(/[_-]+/g, " ")
-    .split(/\s+/)
-    .filter((word) => word !== "");
-
-  if (words.length === 0) {
-    return "Unknown activity";
-  }
-
-  return words
-    .map((word, index) => {
-      const lower = word.toLowerCase();
-      if (lower === "gps") {
-        return "GPS";
-      }
-      return index === 0
-        ? `${lower.charAt(0).toUpperCase()}${lower.slice(1)}`
-        : lower;
-    })
-    .join(" ");
-}
-
-/**
  * One recorded point in an activity's timeseries. Channels are optional: a
  * sample only carries the values the device recorded at that moment.
  *
@@ -105,3 +76,32 @@ export const activitiesResponseSchema = z.object({
 });
 
 export type ActivitiesResponse = z.infer<typeof activitiesResponseSchema>;
+
+/**
+ * Turns a source activity key such as `indoor_cycling` into readable text
+ * (`Indoor cycling`) for display. Unknown keys are still shown rather than
+ * hidden, because the device's classification is the best information we have.
+ */
+export function formatActivityType(type: string): string {
+  const words = type
+    .trim()
+    .replace(/[_-]+/g, " ")
+    .split(/\s+/)
+    .filter((word) => word !== "");
+
+  if (words.length === 0) {
+    return "Unknown activity";
+  }
+
+  return words
+    .map((word, index) => {
+      const lower = word.toLowerCase();
+      if (lower === "gps") {
+        return "GPS";
+      }
+      return index === 0
+        ? `${lower.charAt(0).toUpperCase()}${lower.slice(1)}`
+        : lower;
+    })
+    .join(" ");
+}

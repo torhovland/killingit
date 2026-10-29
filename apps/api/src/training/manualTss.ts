@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { completePlanJson } from "../llm/planCompletion.js";
 import {
-  COACH_PERSONA,
+  GLOBAL_PROMPT_RULES,
   JSON_ONLY_RULES,
   promptSections,
   TSS_ESTIMATE_GUIDE,
@@ -14,7 +14,7 @@ const manualTssSchema = z.object({
 });
 
 const MANUAL_TSS_SYSTEM_PROMPT = promptSections(
-  COACH_PERSONA,
+  GLOBAL_PROMPT_RULES,
   "Estimate the training stress score (TSS) of an athlete's manually recorded activity.",
   TSS_ESTIMATE_GUIDE,
   "Read the duration, activity type, intensity clues, heart rate, and power from the athlete's own wording, and use the athlete's FTP when it is provided. If the description gives little detail, make a conservative assumption and keep the estimate modest.",

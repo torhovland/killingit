@@ -7,7 +7,8 @@ import {
   SEASON_PLAN_SYSTEM_PROMPT,
 } from "./planInitialPrompt.js";
 import {
-  PLAN_PROMPT_GLOBAL_RULES,
+  GLOBAL_PROMPT_RULES,
+  PLAN_PROMPT_RULES,
   TRAINING_LOAD_RULES,
 } from "./promptRules.js";
 
@@ -83,7 +84,8 @@ describe("season plan prompt", () => {
   });
 
   it("uses the shared input, rationale and body-metric rules", () => {
-    expect(SEASON_PLAN_SYSTEM_PROMPT).toContain(PLAN_PROMPT_GLOBAL_RULES);
+    expect(SEASON_PLAN_SYSTEM_PROMPT).toContain(GLOBAL_PROMPT_RULES);
+    expect(SEASON_PLAN_SYSTEM_PROMPT).toContain(PLAN_PROMPT_RULES);
   });
 });
 
@@ -97,7 +99,8 @@ describe("initial block prompt", () => {
     expect(INITIAL_BLOCK_SYSTEM_PROMPT).toContain('"block"');
     expect(INITIAL_BLOCK_SYSTEM_PROMPT).toContain('"targetLoad"');
     expect(INITIAL_BLOCK_SYSTEM_PROMPT).toContain("rationale");
-    expect(INITIAL_BLOCK_SYSTEM_PROMPT).toContain(PLAN_PROMPT_GLOBAL_RULES);
+    expect(INITIAL_BLOCK_SYSTEM_PROMPT).toContain(PLAN_PROMPT_RULES);
+    expect(INITIAL_BLOCK_SYSTEM_PROMPT).toContain(GLOBAL_PROMPT_RULES);
     expect(INITIAL_BLOCK_SYSTEM_PROMPT).toContain(TRAINING_LOAD_RULES);
   });
 

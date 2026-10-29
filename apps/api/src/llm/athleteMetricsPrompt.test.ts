@@ -4,6 +4,7 @@ import {
   buildAthleteMetricsPrompt,
   type AthleteMetricSource,
 } from "./athleteMetricsPrompt.js";
+import { GLOBAL_PROMPT_RULES } from "./promptRules.js";
 
 const source: AthleteMetricSource = {
   profile: [
@@ -26,6 +27,7 @@ const source: AthleteMetricSource = {
 
 describe("athlete metric prompts", () => {
   it("asks the coach, not a phrase list, to read the measurements", () => {
+    expect(ATHLETE_METRICS_SYSTEM_PROMPT).toContain(GLOBAL_PROMPT_RULES);
     expect(ATHLETE_METRICS_SYSTEM_PROMPT).toContain(
       "report the measurements they state about themselves",
     );

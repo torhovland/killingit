@@ -7,7 +7,7 @@ import {
   formatPlannedSession,
 } from "./planContext.js";
 import {
-  COACH_PERSONA,
+  GLOBAL_PROMPT_RULES,
   PLAIN_TEXT_RULES,
   promptSections,
 } from "./promptRules.js";
@@ -38,14 +38,14 @@ export interface CoachReplyPromptInput {
 }
 
 const COACH_REPLY_SYSTEM_PROMPT = promptSections(
-  COACH_PERSONA,
+  GLOBAL_PROMPT_RULES,
   "The athlete has just shared something about their training: a comment on a workout, a completed week or block, a note for the week, or a manual activity.",
   "Reply briefly in 1-2 sentences of plain text. Acknowledge the input in your own words, explain how it affects the plan, and state what you will adjust. Be specific to the athlete's goal and current block. Do not restate the whole plan or ask questions.",
   PLAIN_TEXT_RULES,
 );
 
 const QUICK_QUESTION_SYSTEM_PROMPT = promptSections(
-  COACH_PERSONA,
+  GLOBAL_PROMPT_RULES,
   "The athlete is asking a one-off question about their training.",
   "Answer it directly and briefly in 1-3 sentences of plain text, using their goal, current plan, and athlete profile. This is a conversation only: it does not change the training plan and nothing from it is stored. Do not ask follow-up questions.",
   PLAIN_TEXT_RULES,

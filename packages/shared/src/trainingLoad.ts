@@ -59,6 +59,17 @@ export const FORM_ZONES: readonly FormZone[] = [
   { interpretation: "detraining", from: 25, to: Infinity },
 ];
 
+/** Time constant of the acute (fatigue) load. */
+export const ATL_DAYS = 7;
+/** Time constant of the chronic (fitness) load. */
+export const CTL_DAYS = 42;
+
+/**
+ * Window used to normalize power before scoring it. A 30-second window removes
+ * short spikes while keeping the sustained effort that matters for TSS.
+ */
+export const POWER_WINDOW_SECONDS = 30;
+
 /**
  * Reads the training stress balance as a plain-language form state:
  *
@@ -85,17 +96,6 @@ export function interpretTrainingStressBalance(
   }
   return "risk";
 }
-
-/** Time constant of the acute (fatigue) load. */
-export const ATL_DAYS = 7;
-/** Time constant of the chronic (fitness) load. */
-export const CTL_DAYS = 42;
-
-/**
- * Window used to normalize power before scoring it. A 30-second window removes
- * short spikes while keeping the sustained effort that matters for TSS.
- */
-export const POWER_WINDOW_SECONDS = 30;
 
 /** Reasonable bounds for an activity's samples; the API caps at six hours. */
 const MAX_POWER_SECONDS = 6 * 60 * 60;
