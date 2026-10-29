@@ -109,6 +109,10 @@ new comment and the review summaries, so the plan revision is built on them.
 - **Coach reply** (`coachReplyPrompt`): the `week_review` and `block_review`
   targets include the stored summary and the athlete's comment. Replies stay
   1–2 sentences of plain text.
+- **Weekly notes**: every week note is rendered with its week start and end.
+  The shared rule says a note is scoped to that week unless the athlete states a
+  recurring pattern; "I cannot train on Thursday" means that Thursday, while
+  "on Thursdays I have a meetup" means every Thursday.
 
 ## UI
 

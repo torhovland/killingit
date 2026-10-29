@@ -123,6 +123,7 @@ const base = {
     { activityId: "123", comment: "Felt strong on the hills." },
   ],
   weeklyNote: "I cannot train on Thursday this week.",
+  weeklyNoteWeekStartDate: "2026-10-19",
   weeklyNoteReply: "Understood; Thursday is a rest day.",
 };
 
@@ -282,7 +283,7 @@ describe("unified plan update prompt", () => {
       "Coach reply: Keep the next long run easy and shorten the intervals.",
     );
     expect(prompt).toContain(
-      "Weekly note: I can only ride outdoors on Saturday.",
+      "Weekly note for the week starting 2026-10-12 (2026-10-12 → 2026-10-18): I can only ride outdoors on Saturday.",
     );
     expect(prompt).toContain(
       "Coach reply to the weekly note: Then we will put the long ride on Saturday.",
@@ -373,10 +374,14 @@ describe("daily update prompts", () => {
     expect(prompt).toContain("Manual Swim");
     expect(prompt).toContain("Activity comments:");
     expect(prompt).toContain("Felt strong on the hills.");
-    expect(prompt).toContain("Weekly note:");
-    expect(prompt).toContain("I cannot train on Thursday this week.");
+    expect(prompt).toContain(
+      "Weekly note for the week starting 2026-10-19 (2026-10-19 → 2026-10-25):\nI cannot train on Thursday this week.",
+    );
     expect(prompt).toContain(
       "Coach reply to the weekly note:\nUnderstood; Thursday is a rest day.",
+    );
+    expect(prompt).toContain(
+      "A weekly note is normally scoped to the week it was written for.",
     );
     expect(prompt).toContain("Goal: Sub-4-hour marathon");
     expect(prompt).toContain("Block: Base");

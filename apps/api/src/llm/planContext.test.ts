@@ -60,10 +60,13 @@ describe("formatPlanContext", () => {
     ).join("\n");
 
     expect(text).toContain(
-      "Weekly note:\nI can only train before work this week.",
+      "Weekly note for the week starting 2026-10-19 (2026-10-19 → 2026-10-25):\nI can only train before work this week.",
     );
     expect(text).toContain(
       "Coach reply to the weekly note:\nThen keep the weekday sessions short and easy.",
+    );
+    expect(text).toContain(
+      "A weekly note is normally scoped to the week it was written for.",
     );
   });
 

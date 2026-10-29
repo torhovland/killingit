@@ -229,6 +229,7 @@ export async function triggerPlanGeneration(
       manualActivities: coachingInputs.manualActivities,
       activityComments: coachingInputs.activityComments,
       weeklyNote: coachingInputs.weeklyNote,
+      weeklyNoteWeekStartDate: coachingInputs.weeklyNoteWeekStartDate,
       weeklyNoteReply: coachingInputs.weeklyNoteReply,
       weeklyNoteUpdatedAt: coachingInputs.weeklyNoteUpdatedAt,
       periodReviews: coachingInputs.periodReviews,

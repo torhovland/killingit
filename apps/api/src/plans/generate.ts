@@ -52,6 +52,8 @@ export interface PlanGenerationContext {
   manualActivities: readonly ManualActivityContext[];
   activityComments: readonly ActivityCommentContext[];
   weeklyNote: string | null;
+  /** The Monday of the week the current note belongs to. */
+  weeklyNoteWeekStartDate?: string | null;
   /** The coach's reply to the current week's note, when one exists. */
   weeklyNoteReply?: string | null;
   /** When the current week's note was last saved. */
@@ -1255,7 +1257,12 @@ function baseContext(input: GeneratePlanInput) {
       ? { activityComments: input.context.activityComments }
       : {}),
     ...(input.context.weeklyNote !== null
-      ? { weeklyNote: input.context.weeklyNote }
+      ? {
+          weeklyNote: input.context.weeklyNote,
+          ...(input.context.weeklyNoteWeekStartDate != null
+            ? { weeklyNoteWeekStartDate: input.context.weeklyNoteWeekStartDate }
+            : {}),
+        }
       : {}),
     ...(input.context.weeklyNoteReply != null
       ? { weeklyNoteReply: input.context.weeklyNoteReply }

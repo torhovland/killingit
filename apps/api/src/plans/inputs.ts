@@ -29,6 +29,8 @@ export interface CoachingInputs {
   manualActivities: ManualActivityContext[];
   activityComments: ActivityCommentContext[];
   weeklyNote: string | null;
+  /** The Monday of the week the current note belongs to. */
+  weeklyNoteWeekStartDate: string | null;
   /** The coach's reply to the current week's note, if one exists. */
   weeklyNoteReply: string | null;
   /** When the current week's note was last saved. */
@@ -132,6 +134,7 @@ export async function loadCoachingInputs(
       updatedAt: row.updatedAt.toISOString(),
     })),
     weeklyNote: noteRows[0]?.note ?? null,
+    weeklyNoteWeekStartDate: noteRows[0] === undefined ? null : weekStartDate,
     weeklyNoteReply: noteReply?.text ?? null,
     weeklyNoteUpdatedAt: noteRows[0]?.updatedAt ?? null,
     periodReviews: reviewEntries.map(({ review, reply, weeklyNote }) => ({
