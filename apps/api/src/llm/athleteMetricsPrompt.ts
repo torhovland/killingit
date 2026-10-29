@@ -1,6 +1,10 @@
 import type { AthleteAnswerContext } from "./planContext.js";
 import { formatAthleteProfile } from "./planContext.js";
-import { JSON_ONLY_RULES, ONLY_STATED_NUMBERS_RULE } from "./promptRules.js";
+import {
+  COACH_PERSONA,
+  JSON_ONLY_RULES,
+  ONLY_STATED_NUMBERS_RULE,
+} from "./promptRules.js";
 
 /**
  * One dated piece of athlete-authored text other than the profile: an activity
@@ -30,7 +34,7 @@ export interface AthleteMetricSource {
  */
 export const ATHLETE_METRICS_PROMPT_VERSION = 2;
 
-export const ATHLETE_METRICS_SYSTEM_PROMPT = `You read an amateur athlete's own words and report the measurements they state about themselves: FTP (functional threshold power), body weight, and body-fat percentage.
+export const ATHLETE_METRICS_SYSTEM_PROMPT = `${COACH_PERSONA} Read an amateur athlete's own words and report the measurements they state about themselves: FTP (functional threshold power), body weight, and body-fat percentage.
 
 ${ONLY_STATED_NUMBERS_RULE} For example, "I want an FTP of 300 W" and "I want to get to 15 % body fat" state targets, not current values.
 

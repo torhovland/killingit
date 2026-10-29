@@ -91,8 +91,8 @@ shapes (`StoredAthleteQuestion` and `AnalyzedActivity`) structurally and returns
 - `promptRules.ts` owns every rule and JSON contract shared by more than one
   prompt: the coach persona and training-science requirement, the standard input
   guidance, week-shape and completed-session rules, the outline, session-purpose,
-  rationale, weather, bike-workout, training-load, enum and JSON rules, the
-  season/block/week/day contracts, and the activity-review rules. Each prompt
+  rationale, weather, bike-workout, training-load, enum, JSON and plain-text
+  rules, the season/block/week/day contracts, and the activity-review rules. Each prompt
   composes those constants instead of restating them, so a change reaches the
   initial build, the combined plan, every update and the activity reviews
   together.

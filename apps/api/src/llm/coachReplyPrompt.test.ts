@@ -4,6 +4,7 @@ import {
   buildCoachReplyMessages,
   buildCoachReplyPrompt,
 } from "./coachReplyPrompt.js";
+import { PLAIN_TEXT_RULES } from "./promptRules.js";
 
 function makePlan(): CoachPlan {
   return {
@@ -163,8 +164,6 @@ describe("buildCoachReplyMessages", () => {
 
     expect(messages[0]?.role).toBe("system");
     expect(messages[0]?.content).toContain("Reply briefly in 1-2 sentences");
-    expect(messages[0]?.content).toContain(
-      "do not use headings, bullets, or markdown",
-    );
+    expect(messages[0]?.content).toContain(PLAIN_TEXT_RULES);
   });
 });

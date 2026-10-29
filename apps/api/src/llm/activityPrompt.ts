@@ -14,7 +14,9 @@ import {
   ACTIVITY_FTP_ESTIMATE_RULES,
   ACTIVITY_TYPE_RULE,
   COACH_ANALYSIS_RESPONSE_RULES,
+  COACH_PERSONA,
   ONLY_STATED_NUMBERS_RULE,
+  PLAIN_TEXT_RULES,
 } from "./promptRules.js";
 
 export { formatDuration } from "./duration.js";
@@ -38,10 +40,10 @@ export interface ActivityAnalysisContext {
   currentFtpWatts?: number | null;
 }
 
-const ANALYSIS_SYSTEM_PROMPT = `You are an experienced endurance coach reviewing one completed workout for an amateur athlete.
+const ANALYSIS_SYSTEM_PROMPT = `${COACH_PERSONA} Review one completed workout for an amateur athlete.
 ${ACTIVITY_TYPE_RULE}
 When the athlete's current week plan is provided, match the workout to the planned session it best fits, then make how well it fit the plan part of the same summary. If it followed the plan reasonably well, say so warmly and encouragingly. If it did not, point out clearly what could be improved without being harsh.
-Be brief and to the point: use 2-3 sentences of plain text, cite only the most useful numbers, and finish with one actionable recommendation for the next session. Do not use headings, bullets, markdown, or a separate plan-fit section.
+Be brief and to the point: use 2-3 sentences of plain text, cite only the most useful numbers, and finish with one actionable recommendation for the next session. Do not add a separate plan-fit section. ${PLAIN_TEXT_RULES}
 ${ACTIVITY_FTP_ESTIMATE_RULES}
 When the athlete's comment on this activity states their body weight or body-fat percentage, report it in "weightKg" and "bodyFatPercent". ${ONLY_STATED_NUMBERS_RULE}
 

@@ -152,6 +152,11 @@ export const ENUM_RULES = `For every type field use either "workout" or "rest"; 
 /** The JSON-only output rule shared by every structured prompt. */
 export const JSON_ONLY_RULES = `Do not add markdown fences, headings, explanations, commentary, or extra fields.`;
 
+/**
+ * The plain-text output rule shared by the coaching replies and reviews.
+ */
+export const PLAIN_TEXT_RULES = `Do not use headings, bullets, or markdown. Do not invent activities or results you were not given.`;
+
 /** The full JSON output rule for the plan prompts. */
 export const JSON_RULES = `Return only a single valid JSON object with exactly this shape. ${JSON_ONLY_RULES} Every field must use the exact name and value type shown in the contract. The top-level keys must be exactly the keys shown at the top level of the contract, with the same nesting; never return a bare inner object, an array, or a wrapper such as "plan" or "response". When a contract lists choices separated by "|", output exactly one of those choices as a string and never the list itself. Replace every placeholder such as "YYYY-MM-DD", "string", or 0 with a real value.`;
 

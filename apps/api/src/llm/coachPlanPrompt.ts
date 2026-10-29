@@ -18,10 +18,12 @@ import {
   RATIONALE_RULES,
   SEASON_CONTRACT,
   SESSION_PURPOSE_RULES,
+  TODAY_IN_WEEK_RULE,
   TRAINING_LOAD_RULES,
   TRAINING_SCIENCE_RULE,
   WEEK_CONTRACT,
   WEEK_OUTLINE_RULES,
+  WEEK_SHAPE_RULES,
   WEATHER_PLANNING_RULES,
 } from "./promptRules.js";
 
@@ -83,7 +85,7 @@ ${BODY_METRIC_RULES}
 
 ${COMPLETED_SESSION_RULES}
 
-The season starts on the supplied today date. The block is the first entry in season.blocks. The week is the first week in block.weeks, so block.weeks[0].startDate and week.startDate must match. week.sessions must contain exactly seven entries, one for each day of that week, and today must match the entry for today's date in week.sessions. Respect the athlete's available training days and hours, and include rest days where they are the best choice.
+The season starts on the supplied today date. The block is the first entry in season.blocks. The week is the first week in block.weeks, so block.weeks[0].startDate and week.startDate must match. ${WEEK_SHAPE_RULES} ${TODAY_IN_WEEK_RULE} Respect the athlete's available training days and hours, and include rest days where they are the best choice.
 
 ${ENUM_RULES}
 
@@ -118,6 +120,6 @@ export function buildCoachPlanPrompt(input: CoachPlanInput): string {
   return [
     ...formatPlanContext(input),
     "",
-    'Using the athlete profile and recent training, create the season plan, the first block, the first week, and today\'s session. Use state of the art training science to make the best possible plan for this athlete. Return one JSON object whose top-level keys are exactly "season", "block", "week", "today", "tomorrow", and "bodyMetrics".',
+    `Using the athlete profile and recent training, create the season plan, the first block, the first week, and today's session. ${TRAINING_SCIENCE_RULE} Return one JSON object whose top-level keys are exactly "season", "block", "week", "today", "tomorrow", and "bodyMetrics".`,
   ].join("\n");
 }

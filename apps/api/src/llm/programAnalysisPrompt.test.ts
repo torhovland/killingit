@@ -4,6 +4,7 @@ import {
   buildProgramAnalysisMessages,
   buildProgramAnalysisPrompt,
 } from "./programAnalysisPrompt.js";
+import { PLAIN_TEXT_RULES } from "./promptRules.js";
 
 function makePlan(): CoachPlan {
   return {
@@ -135,9 +136,9 @@ describe("buildProgramAnalysisMessages", () => {
 
     expect(messages[0]?.role).toBe("system");
     expect(messages[0]?.content).toContain(
-      "reviewing one completed workout against the athlete's current training program",
+      "Review one completed workout against the athlete's current training program",
     );
-    expect(messages[0]?.content).toContain("Do not use headings, bullets");
+    expect(messages[0]?.content).toContain(PLAIN_TEXT_RULES);
     expect(messages[0]?.content).toContain("do not trust it");
     expect(messages[0]?.content).toContain("strength-training workout");
     expect(messages[0]?.content).toContain(

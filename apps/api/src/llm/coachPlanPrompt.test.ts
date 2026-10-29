@@ -12,7 +12,10 @@ import {
   BIKE_WORKOUT_RULES,
   COMPLETED_SESSION_RULES,
   RATIONALE_RULES,
+  TODAY_IN_WEEK_RULE,
+  TRAINING_SCIENCE_RULE,
   WEEK_OUTLINE_RULES,
+  WEEK_SHAPE_RULES,
   WEATHER_PLANNING_RULES,
 } from "./promptRules.js";
 
@@ -152,11 +155,11 @@ describe("coach plan prompts", () => {
     expect(prompt).toContain(
       "Revise the week so every workout serves the goal",
     );
-    expect(prompt).toContain("exactly seven entries");
+    expect(prompt).toContain(WEEK_SHAPE_RULES);
     expect(prompt).toContain(
       "block.weeks[0].startDate and week.startDate must match",
     );
-    expect(prompt).toContain("today must match the entry for today's date");
+    expect(prompt).toContain(TODAY_IN_WEEK_RULE);
     expect(prompt).toContain('use either "workout" or "rest"');
     expect(prompt).toContain(
       'never output a session name such as "run", "strength", or "rest day" as a type',
@@ -250,9 +253,7 @@ describe("coach plan prompts", () => {
   it("asks for state of the art training science in the user prompt", () => {
     const prompt = buildCoachPlanPrompt(makeInput());
 
-    expect(prompt).toContain(
-      "Use state of the art training science to make the best possible plan for this athlete.",
-    );
+    expect(prompt).toContain(TRAINING_SCIENCE_RULE);
     expect(prompt).toContain(
       'top-level keys are exactly "season", "block", "week", "today", "tomorrow", and "bodyMetrics"',
     );
