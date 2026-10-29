@@ -243,7 +243,7 @@ function CalendarCell({
           className="rounded bg-accent px-1 py-0.5 font-medium text-accent-foreground"
           data-testid="calendar-block-start"
         >
-          Block starts
+          Block starts:
           <br />
           {day.blockStart.name}
         </span>
