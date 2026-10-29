@@ -283,16 +283,15 @@ function WeekSection({
             key={session.date}
             className="flex flex-wrap items-baseline justify-between gap-2 border-b pb-2 text-sm last:border-b-0 last:pb-0"
           >
-            <span className="font-medium">{formatPlanDate(session.date)}</span>
-            <span>{session.title}</span>
+            <span className="font-medium">
+              {formatPlanDate(session.date)} · {session.title}
+            </span>
             <span className="flex items-center gap-2 text-muted-foreground">
               <StatusBadge status={session.status} />
-              {session.type === "rest"
-                ? "Rest"
-                : session.status === "completed" &&
-                    session.durationMinutes === 0
+              {session.type !== "rest" &&
+                (session.status === "completed" && session.durationMinutes === 0
                   ? "Logged manually"
-                  : `${session.durationMinutes} min · ${session.intensity}${formatSessionSetting(session.outdoor)}`}
+                  : `${session.durationMinutes} min · ${session.intensity}${formatSessionSetting(session.outdoor)}`)}
             </span>
             {session.trainingLoad !== null &&
               session.trainingLoad !== undefined && (

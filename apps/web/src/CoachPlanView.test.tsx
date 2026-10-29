@@ -230,6 +230,23 @@ describe("CoachPlanView", () => {
     expect(html).toContain("missed");
   });
 
+  it("puts each week session's title right after its date", () => {
+    const html = renderToStaticMarkup(
+      <CoachPlanView plan={plan} defaultTab="week" />,
+    );
+
+    expect(html).toContain("Mon, Oct 19 · Morning Run");
+  });
+
+  it("shows a rest day's status box without repeating a rest label", () => {
+    const html = renderToStaticMarkup(
+      <CoachPlanView plan={plan} defaultTab="week" />,
+    );
+
+    expect(html).toContain(">rest<");
+    expect(html).not.toContain(">Rest<");
+  });
+
   it("labels today's and past partially completed sessions", () => {
     const partialPlan: CoachPlan = {
       ...plan,
