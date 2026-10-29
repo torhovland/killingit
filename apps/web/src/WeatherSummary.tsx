@@ -36,7 +36,7 @@ export function WeatherSummary({
   }
   return (
     <div
-      className="flex flex-col gap-0.5 text-xs text-muted-foreground"
+      className="flex flex-col gap-0.5 text-sm text-muted-foreground"
       data-testid="weather"
     >
       {rows.map((row) => (

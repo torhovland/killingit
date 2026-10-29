@@ -44,8 +44,8 @@ export function TrainingLoadLine({
     <p
       className={
         described
-          ? "w-full text-base text-muted-foreground tabular-nums"
-          : "w-full text-xs text-muted-foreground tabular-nums"
+          ? "w-full text-lg text-muted-foreground tabular-nums"
+          : "w-full text-sm text-muted-foreground tabular-nums"
       }
       data-testid={testId}
       title="TSS: training stress score. ATL: acute load (fatigue). CTL: chronic load (fitness). TSB: training stress balance (form)."

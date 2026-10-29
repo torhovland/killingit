@@ -14,7 +14,7 @@ export function AdminSettingsPage() {
       className="flex w-full flex-col gap-6 text-left"
       data-testid="admin-settings"
     >
-      <h2 className="text-2xl font-semibold">Admin settings</h2>
+      <h2 className="text-3xl font-semibold">Admin settings</h2>
 
       <DevDatePicker />
       <AdminQuestionsSection />

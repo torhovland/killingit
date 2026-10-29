@@ -175,11 +175,11 @@ export function AdminQuestionsSection() {
   return (
     <section className="flex flex-col gap-3" data-testid="admin-questions">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-xl font-semibold">Athlete questions</h2>
+        <h2 className="text-2xl font-semibold">Athlete questions</h2>
         {!adding && (
           <button
             type="button"
-            className="rounded border border-transparent bg-primary px-3 py-1 text-sm text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
+            className="rounded border border-transparent bg-primary px-3 py-1 text-base text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
             onClick={() => setAdding(true)}
             disabled={loading}
           >
@@ -187,7 +187,7 @@ export function AdminQuestionsSection() {
           </button>
         )}
       </div>
-      <p className="text-sm text-muted-foreground">
+      <p className="text-base text-muted-foreground">
         Free-text questions for the athlete profile and coach prompts. Editing a
         question adds a new version; deleting archives it and keeps every
         previous version.
@@ -200,7 +200,7 @@ export function AdminQuestionsSection() {
       )}
 
       {loading && questions === null && (
-        <p className="text-sm text-muted-foreground">Loading questions…</p>
+        <p className="text-base text-muted-foreground">Loading questions…</p>
       )}
 
       {adding && (
@@ -212,7 +212,7 @@ export function AdminQuestionsSection() {
       )}
 
       {!loading && !adding && questions !== null && questions.length === 0 && (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-base text-muted-foreground">
           No questions yet. Add the first one.
         </p>
       )}

@@ -38,8 +38,8 @@ export function FitnessView({
   return (
     <section className="flex w-full flex-col gap-4 text-left">
       <div className="flex flex-col gap-1">
-        <h2 className="text-xl font-semibold">Fitness</h2>
-        <p className="text-sm text-muted-foreground">
+        <h2 className="text-2xl font-semibold">Fitness</h2>
+        <p className="text-base text-muted-foreground">
           How your training load has moved your fitness, fatigue, and form,
           where the coach expects your FTP to be, and how your body weight and
           body fat are trending.
@@ -49,12 +49,12 @@ export function FitnessView({
       {error && <p className="text-destructive">Error: {error}</p>}
 
       {history === null ? (
-        !error && <p className="text-sm text-muted-foreground">Loading…</p>
+        !error && <p className="text-base text-muted-foreground">Loading…</p>
       ) : (
         <>
           {(todayLoad !== null || todayFtp !== null) && (
             <div className="flex flex-col gap-1 rounded-lg border bg-card p-4">
-              <span className="text-lg font-semibold">Today</span>
+              <span className="text-xl font-semibold">Today</span>
               {todayLoad !== null && (
                 <TrainingLoadLine
                   load={todayLoad}
@@ -64,7 +64,7 @@ export function FitnessView({
               )}
               {todayFtp !== null && (
                 <p
-                  className="w-full text-base text-muted-foreground tabular-nums"
+                  className="w-full text-lg text-muted-foreground tabular-nums"
                   data-testid="fitness-today-ftp"
                 >
                   <span className="font-medium text-foreground">
@@ -75,7 +75,7 @@ export function FitnessView({
             </div>
           )}
 
-          <div className="flex items-center justify-end gap-2 text-sm">
+          <div className="flex items-center justify-end gap-2 text-base">
             {loading && (
               <span className="text-muted-foreground" aria-live="polite">
                 Updating…
@@ -102,7 +102,7 @@ export function FitnessView({
           {history.days.length > 1 ? (
             <FitnessChart days={history.days} today={today} />
           ) : (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-base text-muted-foreground">
               Not enough history yet. Sync your activities or follow the plan
               for a few days and your fitness chart fills in.
             </p>

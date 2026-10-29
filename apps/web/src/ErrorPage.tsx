@@ -14,11 +14,14 @@ export function ErrorPage({ error, onRetry }: ErrorPageProps) {
       className="min-h-screen flex flex-col items-center justify-center gap-4 p-8 text-center"
       data-testid="error-page"
     >
-      <h1 className="text-2xl font-bold">Something went wrong</h1>
+      <h1 className="text-3xl font-bold">Something went wrong</h1>
       <p className="text-muted-foreground">
         The app hit an unexpected error. You can try again, or reload the page.
       </p>
-      <p className="text-sm text-destructive" data-testid="error-page-message">
+      <p
+        className="text-base text-destructive"
+        data-testid="error-page-message"
+      >
         {error.message}
       </p>
       <div className="flex gap-2">

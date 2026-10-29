@@ -24,7 +24,7 @@ export function FitnessDayTooltip({
 
   return (
     <div className="flex flex-col gap-1" data-testid="fitness-tooltip">
-      <p className="text-sm font-medium">
+      <p className="text-base font-medium">
         {formatChartDate(day.date)}
         {ftpWatts !== null && ftpWatts !== undefined && (
           <span className="font-normal text-muted-foreground">

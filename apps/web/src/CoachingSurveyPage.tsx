@@ -38,8 +38,8 @@ export function CoachingSurveyPage({
       data-testid="coaching-survey-page"
     >
       <div className="flex flex-col gap-1">
-        <h2 className="text-2xl font-semibold">Coaching survey</h2>
-        <p className="text-sm text-muted-foreground">
+        <h2 className="text-3xl font-semibold">Coaching survey</h2>
+        <p className="text-base text-muted-foreground">
           Answer the questions as thoroughly as you can. Everything you provide
           here is sent to your coach and influences your training plan.
         </p>
@@ -48,7 +48,7 @@ export function CoachingSurveyPage({
       {error && <p className="text-destructive">Error: {error}</p>}
 
       {loading && questions === null ? (
-        <p className="text-sm text-muted-foreground">Loading your answers…</p>
+        <p className="text-base text-muted-foreground">Loading your answers…</p>
       ) : questions === null ? (
         <button
           type="button"
@@ -65,8 +65,8 @@ export function CoachingSurveyPage({
       )}
 
       <section className="flex flex-col gap-3 rounded-lg border bg-card p-4">
-        <h3 className="text-xl font-semibold">Training plan</h3>
-        <p className="text-sm text-muted-foreground">
+        <h3 className="text-2xl font-semibold">Training plan</h3>
+        <p className="text-base text-muted-foreground">
           After updating your answers, rebuild the plan so your coach can use
           them. Updating an existing season keeps the blocks you have already
           completed.

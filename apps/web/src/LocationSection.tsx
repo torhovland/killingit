@@ -128,7 +128,7 @@ export function LocationSection({
         className="flex flex-wrap items-end gap-2"
         onSubmit={(event) => void search(event)}
       >
-        <label className="flex min-w-64 flex-1 flex-col gap-1 text-sm">
+        <label className="flex min-w-64 flex-1 flex-col gap-1 text-base">
           <span className="font-medium">Find an address</span>
           <input
             type="search"
@@ -141,7 +141,7 @@ export function LocationSection({
         </label>
         <button
           type="submit"
-          className="rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted disabled:opacity-50"
+          className="rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted disabled:opacity-50"
           disabled={searching || query.trim() === ""}
         >
           {searching ? "Searching…" : "Search"}
@@ -150,7 +150,7 @@ export function LocationSection({
 
       {results.length > 0 && (
         <ul
-          className="flex flex-col gap-1 rounded border bg-card p-2 text-sm"
+          className="flex flex-col gap-1 rounded border bg-card p-2 text-base"
           data-testid="location-results"
         >
           {results.map((place) => (
@@ -174,7 +174,7 @@ export function LocationSection({
         }}
       />
 
-      <div className="flex flex-wrap items-center gap-2 text-sm">
+      <div className="flex flex-wrap items-center gap-2 text-base">
         <p className="text-muted-foreground" data-testid="location-summary">
           {draft === null ? (
             "No location set. Weather and daylight are not used in your plan."
@@ -194,7 +194,7 @@ export function LocationSection({
 
       {error && <p className="text-destructive">{error}</p>}
 
-      <p className="text-xs text-muted-foreground">
+      <p className="text-sm text-muted-foreground">
         The forecast is used the next time your plan is built or refreshed.
         Weather data by{" "}
         <a
@@ -211,7 +211,7 @@ export function LocationSection({
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
-          className="rounded border border-transparent bg-primary px-3 py-1 text-sm text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
+          className="rounded border border-transparent bg-primary px-3 py-1 text-base text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
           onClick={() => void persist(draft)}
           disabled={saving || draft === null || sameLocation(draft, location)}
         >
@@ -220,7 +220,7 @@ export function LocationSection({
         {location !== null && (
           <button
             type="button"
-            className="rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted disabled:opacity-50"
+            className="rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted disabled:opacity-50"
             onClick={() => void persist(null)}
             disabled={saving}
           >

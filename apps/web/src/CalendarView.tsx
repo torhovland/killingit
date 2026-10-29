@@ -62,7 +62,7 @@ export function CalendarView({
         {error ? (
           <p className="text-destructive">Error: {error}</p>
         ) : (
-          <p className="text-sm text-muted-foreground">Loading…</p>
+          <p className="text-base text-muted-foreground">Loading…</p>
         )}
       </section>
     );
@@ -96,7 +96,7 @@ export function CalendarView({
         <div className="flex items-center gap-1">
           <button
             type="button"
-            className="rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted disabled:opacity-40"
+            className="rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted disabled:opacity-40"
             onClick={() => moveMonth(-1)}
             disabled={shownMonth <= minMonth}
             aria-label="Previous month"
@@ -105,7 +105,7 @@ export function CalendarView({
           </button>
           <button
             type="button"
-            className="rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted disabled:opacity-40"
+            className="rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted disabled:opacity-40"
             onClick={() => moveMonth(1)}
             disabled={shownMonth >= maxMonth}
             aria-label="Next month"
@@ -114,7 +114,7 @@ export function CalendarView({
           </button>
           <button
             type="button"
-            className="rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted"
+            className="rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted"
             onClick={() =>
               onMonthChange(clampMonth(monthOf(today), minMonth, maxMonth))
             }
@@ -124,15 +124,18 @@ export function CalendarView({
         </div>
         <div className="flex items-center gap-2">
           {loading && (
-            <span className="text-sm text-muted-foreground" aria-live="polite">
+            <span
+              className="text-base text-muted-foreground"
+              aria-live="polite"
+            >
               Updating…
             </span>
           )}
-          <label className="flex items-center gap-2 text-sm">
+          <label className="flex items-center gap-2 text-base">
             <span className="text-muted-foreground">Month</span>
             <input
               type="month"
-              className="rounded border bg-card px-2 py-1 text-sm"
+              className="rounded border bg-card px-2 py-1 text-base"
               value={shownMonth}
               min={minMonth}
               max={maxMonth}
@@ -148,13 +151,13 @@ export function CalendarView({
         </div>
       </div>
 
-      <h3 className="text-lg font-semibold" data-testid="calendar-month">
+      <h3 className="text-xl font-semibold" data-testid="calendar-month">
         {formatMonth(shownMonth)}
       </h3>
 
       <div className="overflow-x-auto">
         <div className="min-w-[42rem]">
-          <div className="grid grid-cols-7 gap-1 pb-1 text-center text-xs font-medium text-muted-foreground">
+          <div className="grid grid-cols-7 gap-1 pb-1 text-center text-sm font-medium text-muted-foreground">
             {WEEKDAYS.map((weekday) => (
               <span key={weekday}>{weekday}</span>
             ))}
@@ -174,7 +177,7 @@ export function CalendarView({
         </div>
       </div>
 
-      <p className="text-xs text-muted-foreground">
+      <p className="text-sm text-muted-foreground">
         Showing {formatPlanDate(data.earliestDate)} –{" "}
         {formatPlanDate(data.latestDate)}. Future workouts appear as the coach
         plans each week.
@@ -195,12 +198,12 @@ function CalendarHeading({
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <h2 className="text-xl font-semibold">Calendar</h2>
-      <p className="text-sm text-muted-foreground">
+      <h2 className="text-2xl font-semibold">Calendar</h2>
+      <p className="text-base text-muted-foreground">
         Your recorded activities, planned workouts and rest days in one month.
       </p>
       {season && (
-        <p className="text-sm" data-testid="calendar-season">
+        <p className="text-base" data-testid="calendar-season">
           <span className="font-medium">
             Season ends {formatPlanDate(season.endDate)}
           </span>
@@ -229,14 +232,14 @@ function CalendarCell({
 }) {
   return (
     <div
-      className={`flex min-h-28 flex-col gap-1 rounded border p-1.5 text-xs ${
+      className={`flex min-h-28 flex-col gap-1 rounded border p-1.5 text-sm ${
         inMonth ? "bg-card" : "bg-muted/40 text-muted-foreground"
       } ${isToday ? "ring-2 ring-ring" : ""}`}
       data-testid={inMonth ? "calendar-day" : undefined}
       data-date={date}
     >
       <span
-        className={`self-start rounded px-1 text-xs ${
+        className={`self-start rounded px-1 text-sm ${
           isToday ? "bg-primary font-semibold text-primary-foreground" : ""
         }`}
       >
@@ -309,7 +312,7 @@ function SessionChip({
       data-testid="calendar-session"
     >
       <span className="line-clamp-2 font-medium">{session.title}</span>
-      <span className="text-[10px] text-muted-foreground">
+      <span className="text-xs text-muted-foreground">
         {sessionStatusPrefix(session.status) !== "" && (
           <>
             {sessionStatusPrefix(session.status)}
@@ -345,7 +348,7 @@ function ActivityChip({
       data-testid="calendar-activity"
     >
       <span className="line-clamp-2 font-medium">{activity.name}</span>
-      <span className="text-[10px] text-muted-foreground">
+      <span className="text-xs text-muted-foreground">
         <Bullets parts={activityStat(activity)} />
       </span>
     </button>
@@ -410,7 +413,7 @@ export function CalendarEntryDialog({
         data-testid="calendar-entry-dialog"
       >
         <div className="flex items-start justify-between gap-3">
-          <h3 className="text-lg font-semibold">
+          <h3 className="text-xl font-semibold">
             {selection.kind === "activity" ? (
               selection.activity.name
             ) : (
@@ -423,7 +426,7 @@ export function CalendarEntryDialog({
           </h3>
           <button
             type="button"
-            className="rounded border bg-card px-2 py-0.5 text-sm enabled:hover:bg-muted"
+            className="rounded border bg-card px-2 py-0.5 text-base enabled:hover:bg-muted"
             onClick={onClose}
             autoFocus
           >
@@ -447,14 +450,14 @@ function ActivityDetails({ activity }: { activity: CalendarActivity }) {
   if (activity.source === "manual") {
     return (
       <div className="flex flex-col gap-2">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-base text-muted-foreground">
           Manual activity
           <Bullet />
           {formatPlanDate(activity.startDate)}
         </p>
         <p className="whitespace-pre-line">{activity.details}</p>
         {activity.estimatedTss != null && (
-          <p className="text-sm">
+          <p className="text-base">
             <span className="font-medium">Estimated TSS: </span>
             {Math.round(activity.estimatedTss)}
           </p>
@@ -466,7 +469,7 @@ function ActivityDetails({ activity }: { activity: CalendarActivity }) {
           />
         )}
         {activity.coachReply && (
-          <p className="text-sm" data-testid="calendar-dialog-coach-reply">
+          <p className="text-base" data-testid="calendar-dialog-coach-reply">
             <span className="font-medium">Coach:</span>{" "}
             {activity.coachReply.text}
           </p>
@@ -501,7 +504,7 @@ function ActivityDetails({ activity }: { activity: CalendarActivity }) {
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-sm text-muted-foreground">
+      <p className="text-base text-muted-foreground">
         <Bullets parts={metadata} />
       </p>
 
@@ -517,12 +520,12 @@ function ActivityDetails({ activity }: { activity: CalendarActivity }) {
       )}
 
       {activity.comment && (
-        <p className="text-sm" data-testid="calendar-dialog-comment">
+        <p className="text-base" data-testid="calendar-dialog-comment">
           <span className="font-medium">You:</span> {activity.comment}
         </p>
       )}
       {activity.coachReply && (
-        <p className="text-sm" data-testid="calendar-dialog-coach-reply">
+        <p className="text-base" data-testid="calendar-dialog-coach-reply">
           <span className="font-medium">Coach:</span> {activity.coachReply.text}
         </p>
       )}
@@ -549,7 +552,7 @@ function ActivitySummaryDetails({
       {summary ? (
         <p className="whitespace-pre-line">{summary}</p>
       ) : (
-        <p className="rounded bg-accent/15 p-2 text-sm">
+        <p className="rounded bg-accent/15 p-2 text-base">
           {activity.analysisError
             ? `Coach analysis unavailable: ${activity.analysisError}`
             : "No coach analysis available yet."}
@@ -562,7 +565,7 @@ function ActivitySummaryDetails({
 function SessionDetails({ session }: { session: WeekSession }) {
   return (
     <div className="flex flex-col gap-2">
-      <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+      <p className="flex flex-wrap items-center gap-2 text-base text-muted-foreground">
         <span>{formatPlanDate(session.date)}</span>
         <StatusBadge status={session.status} />
         <span>
@@ -592,13 +595,13 @@ function SessionDetails({ session }: { session: WeekSession }) {
             forecasts={session.forecasts}
           />
         )}
-      <p className="whitespace-pre-line text-sm text-muted-foreground">
+      <p className="whitespace-pre-line text-base text-muted-foreground">
         {session.description}
       </p>
       {session.type === "workout" &&
         session.trainingLoad == null &&
         session.estimatedTss != null && (
-          <p className="text-sm">
+          <p className="text-base">
             <span className="font-medium">Estimated TSS: </span>
             {Math.round(session.estimatedTss)}
           </p>
@@ -609,7 +612,7 @@ function SessionDetails({ session }: { session: WeekSession }) {
 
 function StatusBadge({ status }: { status: WeekSessionStatus }) {
   return (
-    <span className="rounded border bg-muted px-2 py-0.5 text-xs capitalize">
+    <span className="rounded border bg-muted px-2 py-0.5 text-sm capitalize">
       {status}
     </span>
   );

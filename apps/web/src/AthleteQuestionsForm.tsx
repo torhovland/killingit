@@ -105,13 +105,13 @@ export function AthleteQuestionsForm({
         <Heading
           className={
             variant === "edit"
-              ? "text-xl font-semibold"
-              : "text-2xl font-semibold"
+              ? "text-2xl font-semibold"
+              : "text-3xl font-semibold"
           }
         >
           {copy.title}
         </Heading>
-        <p className="text-sm text-muted-foreground">{copy.description}</p>
+        <p className="text-base text-muted-foreground">{copy.description}</p>
       </div>
 
       <form
@@ -123,11 +123,11 @@ export function AthleteQuestionsForm({
           <label
             key={question.id}
             htmlFor={`athlete-question-${question.id}`}
-            className="flex flex-col gap-1 text-sm"
+            className="flex flex-col gap-1 text-base"
           >
             <span className="flex flex-wrap items-center gap-2 font-medium">
               {question.prompt}
-              <span className="rounded border bg-muted px-2 py-0.5 text-xs font-normal text-muted-foreground">
+              <span className="rounded border bg-muted px-2 py-0.5 text-sm font-normal text-muted-foreground">
                 {question.required ? "Required" : "Optional"}
               </span>
             </span>
@@ -157,7 +157,7 @@ export function AthleteQuestionsForm({
         )}
 
         {missingRequired && (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-base text-muted-foreground">
             Answer all required questions to continue.
           </p>
         )}

@@ -33,11 +33,11 @@ export function AthleteAnswersSection({
       data-testid="athlete-profile"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-xl font-semibold">Your athlete profile</h2>
+        <h2 className="text-2xl font-semibold">Your athlete profile</h2>
         {!editing && (
           <button
             type="button"
-            className="rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted"
+            className="rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted"
             onClick={() => setEditing(true)}
           >
             Edit answers
@@ -47,7 +47,7 @@ export function AthleteAnswersSection({
 
       {!editing && (
         <>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-base text-muted-foreground">
             These answers shape your training plan. You can update them at any
             time.
           </p>
@@ -55,7 +55,7 @@ export function AthleteAnswersSection({
             {questions.map((question) => (
               <div
                 key={question.id}
-                className="rounded border bg-muted p-3 text-sm"
+                className="rounded border bg-muted p-3 text-base"
               >
                 <dt className="font-medium">{question.prompt}</dt>
                 <dd className="whitespace-pre-wrap text-muted-foreground">
