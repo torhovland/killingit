@@ -1,9 +1,12 @@
 import { describe, expect, it } from "bun:test";
 import type { CoachPlan } from "@killingit/shared";
 import type { LlmCompletionRequest, LlmProvider } from "../llm/openrouter.js";
+import type { PlanContextInput } from "../llm/planContext.js";
 import type { QuestionAnswerStore } from "../questions/answers.js";
 import type { PlanStore, StoredPlan } from "../plans/store.js";
 import {
+  answerCoachingQuestion,
+  replyToCoachQuestion,
   replyToCoachingInput,
   type CoachReplyDependencies,
 } from "./replies.js";
@@ -103,6 +106,26 @@ const answers: QuestionAnswerStore = {
   saveAnswers: () => Promise.resolve(true),
 };
 
+const context: PlanContextInput = {
+  today: "2026-10-21",
+  athleteAnswers: [{ prompt: "Goal?", answer: "Marathon", skipped: false }],
+  recentActivities: [
+    {
+      summary: {
+        id: 1,
+        name: "Morning Run",
+        type: "running",
+        startDate: "2026-10-20T06:30:00Z",
+        distance: 10200,
+        movingTime: 2700,
+        elapsedTime: 2800,
+        totalElevationGain: 120,
+      },
+      analysis: "Steady aerobic effort.",
+    },
+  ],
+};
+
 class FakeProvider implements LlmProvider {
   readonly id = "fake";
   requests: LlmCompletionRequest[] = [];
@@ -143,6 +166,19 @@ function planStore(plan: StoredPlan | null): PlanStore {
   };
 }
 
+function deps(
+  provider: FakeProvider,
+  overrides: Partial<CoachReplyDependencies> = {},
+): CoachReplyDependencies {
+  return {
+    plans: planStore(storedPlan()),
+    answers,
+    loadLlm: llm(provider),
+    loadContext: () => Promise.resolve(context),
+    ...overrides,
+  };
+}
+
 describe("replyToCoachingInput", () => {
   it("generates and stores a reply for an activity comment", async () => {
     const provider = new FakeProvider("Good work; I will keep Thursday easy.");
@@ -158,9 +194,7 @@ describe("replyToCoachingInput", () => {
     } = { value: null };
 
     const result = await replyToCoachingInput(
-      {
-        plans: planStore(storedPlan()),
-        answers,
+      deps(provider, {
         loadLlm: llm(provider, llmUserIds),
         saveReply: (input) => {
           saved.value = input;
@@ -172,7 +206,7 @@ describe("replyToCoachingInput", () => {
             generatedAt: new Date("2026-10-21T12:00:00Z"),
           });
         },
-      },
+      }),
       {
         userId: 42,
         today: "2026-10-21",
@@ -199,12 +233,65 @@ describe("replyToCoachingInput", () => {
     );
   });
 
+  it("shows the athlete's recent training in the reply prompt", async () => {
+    const provider = new FakeProvider();
+
+    await replyToCoachingInput(deps(provider), {
+      userId: 42,
+      today: "2026-10-21",
+      request: {
+        kind: "weekly_note",
+        weekStartDate: "2026-10-19",
+        note: "No Thursday training.",
+      },
+    });
+
+    const prompt = provider.requests[0]?.messages[1]?.content ?? "";
+    expect(prompt).toContain("Recent activities (most recent first).");
+    expect(prompt).toContain("Morning Run");
+    expect(prompt).toContain("Coach analysis: Steady aerobic effort.");
+  });
+
+  it("dates the athlete profile from the newest answer", async () => {
+    const provider = new FakeProvider();
+    const seen: PlanContextInput[] = [];
+
+    await replyToCoachingInput(
+      deps(provider, {
+        loadContext: (input) => {
+          const built: PlanContextInput = {
+            ...context,
+            today: input.today,
+            athleteAnswers: input.athleteAnswers,
+          };
+          seen.push(built);
+          return Promise.resolve(built);
+        },
+      }),
+      {
+        userId: 42,
+        today: "2026-10-21",
+        request: {
+          kind: "weekly_note",
+          weekStartDate: "2026-10-19",
+          note: "No Thursday training.",
+        },
+      },
+    );
+
+    expect(seen[0]?.today).toBe("2026-10-21");
+    expect(seen[0]?.athleteAnswers[0]?.answeredAt).toEqual(
+      new Date("2026-10-20T10:00:00Z"),
+    );
+    expect(provider.requests[0]?.messages[1]?.content).toContain(
+      "Athlete profile (answers last saved 2026-10-20)",
+    );
+  });
+
   it("targets the manual activity id and the week start date", async () => {
     const targets: string[] = [];
-    const deps: CoachReplyDependencies = {
-      plans: planStore(storedPlan()),
-      answers,
-      loadLlm: llm(new FakeProvider()),
+    const provider = new FakeProvider();
+    const store = deps(provider, {
       saveReply: (input) => {
         targets.push(input.target);
         return Promise.resolve({
@@ -215,9 +302,9 @@ describe("replyToCoachingInput", () => {
           generatedAt: new Date(),
         });
       },
-    };
+    });
 
-    await replyToCoachingInput(deps, {
+    await replyToCoachingInput(store, {
       userId: 42,
       today: "2026-10-21",
       request: {
@@ -227,7 +314,7 @@ describe("replyToCoachingInput", () => {
         details: "Pool swim",
       },
     });
-    await replyToCoachingInput(deps, {
+    await replyToCoachingInput(store, {
       userId: 42,
       today: "2026-10-21",
       request: {
@@ -244,11 +331,7 @@ describe("replyToCoachingInput", () => {
     const provider = new FakeProvider();
 
     const result = await replyToCoachingInput(
-      {
-        plans: planStore(null),
-        answers,
-        loadLlm: llm(provider),
-      },
+      deps(provider, { plans: planStore(null) }),
       {
         userId: 42,
         today: "2026-10-21",
@@ -266,11 +349,7 @@ describe("replyToCoachingInput", () => {
 
   it("returns null when the model call fails", async () => {
     const result = await replyToCoachingInput(
-      {
-        plans: planStore(storedPlan()),
-        answers,
-        loadLlm: llm(new FakeProvider(new Error("provider down"))),
-      },
+      deps(new FakeProvider(new Error("provider down"))),
       {
         userId: 42,
         today: "2026-10-21",
@@ -283,5 +362,65 @@ describe("replyToCoachingInput", () => {
     );
 
     expect(result).toBeNull();
+  });
+
+  it("does not call the model when the reply context cannot be loaded", async () => {
+    const provider = new FakeProvider();
+
+    const result = await replyToCoachingInput(
+      deps(provider, {
+        loadContext: () => Promise.reject(new Error("database down")),
+      }),
+      {
+        userId: 42,
+        today: "2026-10-21",
+        request: {
+          kind: "weekly_note",
+          weekStartDate: "2026-10-19",
+          note: "x",
+        },
+      },
+    );
+
+    expect(result).toBeNull();
+    expect(provider.requests).toHaveLength(0);
+  });
+});
+
+describe("replyToCoachQuestion", () => {
+  it("shows the recent training when replying to an answer", async () => {
+    const provider = new FakeProvider();
+
+    const answer = await replyToCoachQuestion(deps(provider), {
+      userId: 42,
+      today: "2026-10-21",
+      question: "Was the power data recorded with a power meter?",
+      answer: "Yes, a crank-based meter.",
+    });
+
+    expect(answer?.text).toBe("Keep Thursday easy.");
+    expect(provider.requests[0]?.messages[1]?.content).toContain(
+      "Recent activities (most recent first).",
+    );
+    expect(provider.requests[0]?.messages[1]?.content).toContain(
+      'Athlete answer: "Yes, a crank-based meter."',
+    );
+  });
+});
+
+describe("answerCoachingQuestion", () => {
+  it("answers a one-off question with the recent training in the prompt", async () => {
+    const provider = new FakeProvider();
+
+    const answer = await answerCoachingQuestion(deps(provider), {
+      userId: 42,
+      today: "2026-10-21",
+      question: "Should I ride today?",
+    });
+
+    expect(answer?.text).toBe("Keep Thursday easy.");
+    const prompt = provider.requests[0]?.messages[1]?.content ?? "";
+    expect(prompt).toContain('Question: "Should I ride today?"');
+    expect(prompt).toContain("Recent activities (most recent first).");
   });
 });

@@ -1,10 +1,14 @@
 import type { LlmClient } from "../llm/client.js";
 import { generateCoachReply } from "../llm/coachReply.js";
 import type { CoachReplyTarget } from "../llm/coachReplyPrompt.js";
-import type { AthleteAnswerContext } from "../llm/planContext.js";
+import type {
+  AthleteAnswerContext,
+  PlanContextInput,
+} from "../llm/planContext.js";
 import type { QuestionAnswerStore } from "../questions/answers.js";
 import { saveCoachReply, type StoredCoachReply } from "../plans/replies.js";
 import type { PlanStore } from "../plans/store.js";
+import { loadReplyContext, type ReplyContextInput } from "./replyContext.js";
 
 /** The athlete input the coach is replying to. */
 export type CoachingReplyRequest =
@@ -34,12 +38,31 @@ export interface CoachingQuestionRequest {
   question: string;
 }
 
+/** A one-off question's answer, with the model and time that produced it. */
+export interface CoachingQuestionAnswer {
+  text: string;
+  model: string;
+  generatedAt: Date;
+}
+
 export interface CoachReplyDependencies {
   plans: PlanStore;
   answers: QuestionAnswerStore;
   loadLlm: (userId: number) => Promise<LlmClient | null>;
+  /** Injectable for tests; defaults to the stored reply context. */
+  loadContext?: (input: ReplyContextInput) => Promise<PlanContextInput>;
   /** Injectable for tests; defaults to the database-backed writer. */
   saveReply?: typeof saveCoachReply;
+}
+
+/** One reply to generate, and the prompt kind it is logged under. */
+interface ReplyGeneration {
+  userId: number;
+  today: string;
+  request: CoachReplyTarget;
+  kind: "coach_reply" | "coaching_question";
+  /** Log prefix, so a failure names the feature that asked for the reply. */
+  label: string;
 }
 
 /**
@@ -52,50 +75,27 @@ export async function replyToCoachingInput(
   options: { userId: number; today: string; request: CoachingReplyRequest },
 ): Promise<StoredCoachReply | null> {
   const { userId, today, request } = options;
-
-  let plan: Awaited<ReturnType<PlanStore["load"]>>;
-  let answers: Awaited<ReturnType<QuestionAnswerStore["listForUser"]>>;
-  let llm: LlmClient | null;
-  try {
-    [plan, answers, llm] = await Promise.all([
-      deps.plans.load(userId),
-      deps.answers.listForUser(userId),
-      deps.loadLlm(userId),
-    ]);
-  } catch (err) {
-    console.error("[coach-reply] could not load the reply context:", err);
-    return null;
-  }
-
-  if (plan === null || llm === null) {
+  const reply = await generateReply(deps, {
+    userId,
+    today,
+    request: toPromptTarget(request),
+    kind: "coach_reply",
+    label: "coach-reply",
+  });
+  if (reply === null) {
     return null;
   }
 
   try {
-    const text = await generateCoachReply(
-      llm.provider,
-      { apiKey: llm.apiKey, model: llm.model },
-      {
-        today,
-        plan: plan.plan,
-        athleteAnswers: answers.map(toAnswerContext),
-        request: toPromptTarget(request),
-      },
-      "coach_reply",
-    );
-    const reply = text.trim();
-    if (reply === "") {
-      return null;
-    }
     return await (deps.saveReply ?? saveCoachReply)({
       userId,
       kind: request.kind,
       target: replyTarget(request),
-      reply,
-      model: llm.model,
+      reply: reply.text,
+      model: reply.model,
     });
   } catch (err) {
-    console.error("[coach-reply] could not generate a reply:", err);
+    console.error("[coach-reply] could not store the reply:", err);
     return null;
   }
 }
@@ -114,63 +114,48 @@ export async function replyToCoachQuestion(
   },
 ): Promise<CoachingQuestionAnswer | null> {
   const { userId, today, question, answer } = options;
-
-  let plan: Awaited<ReturnType<PlanStore["load"]>>;
-  let answers: Awaited<ReturnType<QuestionAnswerStore["listForUser"]>>;
-  let llm: LlmClient | null;
-  try {
-    [plan, answers, llm] = await Promise.all([
-      deps.plans.load(userId),
-      deps.answers.listForUser(userId),
-      deps.loadLlm(userId),
-    ]);
-  } catch (err) {
-    console.error("[coach-reply] could not load the reply context:", err);
-    return null;
-  }
-
-  if (plan === null || llm === null) {
-    return null;
-  }
-
-  try {
-    const text = await generateCoachReply(
-      llm.provider,
-      { apiKey: llm.apiKey, model: llm.model },
-      {
-        today,
-        plan: plan.plan,
-        athleteAnswers: answers.map(toAnswerContext),
-        request: { kind: "coach_question", question, answer },
-      },
-      "coach_reply",
-    );
-    const reply = text.trim();
-    return reply === ""
-      ? null
-      : { text: reply, model: llm.model, generatedAt: new Date() };
-  } catch (err) {
-    console.error("[coach-reply] could not answer the coach question:", err);
-    return null;
-  }
+  const reply = await generateReply(deps, {
+    userId,
+    today,
+    request: { kind: "coach_question", question, answer },
+    kind: "coach_reply",
+    label: "coach-reply",
+  });
+  return reply === null
+    ? null
+    : { text: reply.text, model: reply.model, generatedAt: new Date() };
 }
 
 /**
  * Answers a one-off "by the way" question. Unlike `replyToCoachingInput`, this
  * persists nothing and never triggers a plan revision.
  */
-export interface CoachingQuestionAnswer {
-  text: string;
-  model: string;
-  generatedAt: Date;
-}
-
 export async function answerCoachingQuestion(
   deps: CoachReplyDependencies,
   options: { userId: number; today: string; question: string },
 ): Promise<CoachingQuestionAnswer | null> {
   const { userId, today, question } = options;
+  const reply = await generateReply(deps, {
+    userId,
+    today,
+    request: { kind: "quick_question", question },
+    kind: "coaching_question",
+    label: "coach-question",
+  });
+  return reply === null
+    ? null
+    : { text: reply.text, model: reply.model, generatedAt: new Date() };
+}
 
+/**
+ * Loads the plan, the profile and the athlete's training context, then asks for
+ * the reply text. Every reply path shares this so they all see the same context.
+ */
+async function generateReply(
+  deps: CoachReplyDependencies,
+  options: ReplyGeneration,
+): Promise<{ text: string; model: string } | null> {
+  const { userId, today } = options;
   let plan: Awaited<ReturnType<PlanStore["load"]>>;
   let answers: Awaited<ReturnType<QuestionAnswerStore["listForUser"]>>;
   let llm: LlmClient | null;
@@ -181,7 +166,7 @@ export async function answerCoachingQuestion(
       deps.loadLlm(userId),
     ]);
   } catch (err) {
-    console.error("[coach-question] could not load the reply context:", err);
+    console.error(`[${options.label}] could not load the reply context:`, err);
     return null;
   }
 
@@ -194,24 +179,20 @@ export async function answerCoachingQuestion(
       llm.provider,
       { apiKey: llm.apiKey, model: llm.model },
       {
-        today,
         plan: plan.plan,
-        athleteAnswers: answers.map(toAnswerContext),
-        request: { kind: "quick_question", question },
+        context: await (deps.loadContext ?? loadReplyContext)({
+          userId,
+          today,
+          athleteAnswers: answers.map(toAnswerContext),
+        }),
+        request: options.request,
       },
-      "coaching_question",
+      options.kind,
     );
     const reply = text.trim();
-    if (reply === "") {
-      return null;
-    }
-    return {
-      text: reply,
-      model: llm.model,
-      generatedAt: new Date(),
-    };
+    return reply === "" ? null : { text: reply, model: llm.model };
   } catch (err) {
-    console.error("[coach-question] could not generate a reply:", err);
+    console.error(`[${options.label}] could not generate a reply:`, err);
     return null;
   }
 }
@@ -220,11 +201,13 @@ function toAnswerContext(entry: {
   prompt: string;
   answer: string | null;
   skipped: boolean;
+  answeredAt: Date | null;
 }): AthleteAnswerContext {
   return {
     prompt: entry.prompt,
     answer: entry.answer,
     skipped: entry.skipped,
+    answeredAt: entry.answeredAt,
   };
 }
 
