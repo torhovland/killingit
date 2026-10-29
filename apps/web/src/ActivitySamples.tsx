@@ -60,7 +60,7 @@ export function ActivitySamples({
 
   return (
     <details
-      className="rounded border bg-card text-base"
+      className="rounded border bg-inset text-base"
       data-testid="activity-samples"
     >
       <summary
@@ -71,7 +71,7 @@ export function ActivitySamples({
       </summary>
       <div className="max-h-64 overflow-auto">
         <table className="w-full text-left text-sm">
-          <thead className="sticky top-0 bg-card">
+          <thead className="sticky top-0 bg-inset">
             <tr className="border-b">
               <th className="px-2 py-1 font-medium">Elapsed</th>
               {channels.map((channel) => (

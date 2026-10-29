@@ -39,17 +39,20 @@
  *   #5CFF9A  mint         — gradient end, success, productive form
  *   #9DAAFF  periwinkle   — secondary accent, fresh form
  *   #1B2C86  cobalt       — page background
- *   #14216A  navy         — deep panels, text on lime
+ *   #14216A  navy         — inset panels, text on lime
  *   #24389E  royal        — cards and other surfaces
  *   #2C43AE  bright royal — raised and hovered surfaces
  *   #3A51BE  steel blue   — borders
  *   #B3BDF2  ice          — secondary text
  *   #F5F7FF  white        — body text
- *   #2B44B8  glow         — page glow and hero gradient start
+ *   #2B44B8  glow         — page glow
  *
- * The page is cobalt with a soft glow at the top; cards sit a step lighter on
- * it. Text is an off-white rather than pure white. Contrast on the cobalt
- * background was checked against WCAG AA (small text >= 4.5:1).
+ * The page is cobalt with a soft glow at the top. Cards sit a step lighter on
+ * it, and raised elements and hover states a step lighter again. Content that
+ * sits inside a card instead drops into the navy `--inset` well, so a panel
+ * inside a panel always lands on a visibly different shade. Text is an
+ * off-white rather than pure white. Contrast on the cobalt background was
+ * checked against WCAG AA (small text >= 4.5:1).
  *
  * The palette has no red, so `--destructive` is a light coral. It is used only
  * for error states.
@@ -76,6 +79,7 @@
   --background: var(--palette-cobalt);
   --foreground: var(--palette-white);
   --card: var(--palette-royal);
+  --inset: var(--palette-navy);
   --muted: var(--palette-bright-royal);
   --muted-foreground: var(--palette-ice);
   --primary: var(--palette-lime);
@@ -116,8 +120,6 @@
   --form-detraining-line: color-mix(in srgb, var(--form-detraining) 72%, #000);
   --border: var(--palette-steel);
   --ring: var(--palette-lime);
-  /* The lime halo that makes the logo lift off the header. */
-  --logo-glow: color-mix(in srgb, var(--palette-lime) 25%, transparent);
   /* Chart surface. The zone bands are painted on white so their tints stay
    * clean; the CTL/ATL lines use these inks so they read on the light plot. */
   --chart-plot: #ffffff;
@@ -131,6 +133,7 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
+  --color-inset: var(--inset);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-primary: var(--primary);
@@ -155,20 +158,6 @@
   --color-chart-plot: var(--chart-plot);
   --color-chart-ink: var(--chart-ink);
   --color-chart-ink-muted: var(--chart-ink-muted);
-}
-
-/* The header's hero panel, a glow behind the logo fading into the surface. */
-@utility hero-surface {
-  background-image: linear-gradient(
-    90deg,
-    var(--palette-glow) 0%,
-    var(--card) 45%
-  );
-}
-
-/* Lifts the lime mark off the hero panel. */
-@utility logo-glow {
-  filter: drop-shadow(0 0 18px var(--logo-glow));
 }
 
 @layer base {

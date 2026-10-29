@@ -66,7 +66,7 @@ export function CoachPlanView({
             type="button"
             role="tab"
             aria-selected={tab === entry.id}
-            className="rounded border bg-card px-3 py-1 text-base aria-[selected=true]:border-transparent aria-[selected=true]:bg-primary aria-[selected=true]:text-primary-foreground"
+            className="rounded border bg-inset px-3 py-1 text-base aria-[selected=true]:border-transparent aria-[selected=true]:bg-primary aria-[selected=true]:text-primary-foreground"
             onClick={() => setTab(entry.id)}
           >
             {entry.label}
@@ -156,7 +156,7 @@ function DayCard({
 }) {
   return (
     <article
-      className="relative flex flex-col gap-2 rounded-lg border bg-card p-4"
+      className="relative flex flex-col gap-2 rounded-lg border bg-inset p-4"
       data-testid={testId}
       aria-busy={refreshing || undefined}
     >
@@ -283,7 +283,7 @@ function RefreshingOverlay({
 }) {
   return (
     <div
-      className="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-lg bg-card/60"
+      className="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-lg bg-inset/60"
       data-testid={testId}
     >
       <span
@@ -311,7 +311,7 @@ function WeekSection({
 }) {
   return (
     <section
-      className="relative rounded-lg border bg-card p-4"
+      className="relative rounded-lg border bg-inset p-4"
       data-testid={testId}
       aria-busy={refreshing || undefined}
     >
@@ -420,7 +420,7 @@ function BlockSection({
 }) {
   return (
     <section
-      className="relative rounded-lg border bg-card p-4"
+      className="relative rounded-lg border bg-inset p-4"
       data-testid={testId}
       aria-busy={refreshing || undefined}
     >
@@ -479,7 +479,7 @@ function BlockSection({
 
 function SeasonSection({ season }: { season: SeasonPlan }) {
   return (
-    <section className="rounded-lg border bg-card p-4">
+    <section className="rounded-lg border bg-inset p-4">
       <h3 className="text-xl font-semibold">
         Season
         <Bullet />

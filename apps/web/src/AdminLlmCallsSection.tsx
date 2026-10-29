@@ -302,7 +302,7 @@ export function LlmCallDetailView({ call }: { call: LlmCallDetail }) {
           <summary className="cursor-pointer text-base font-medium">
             Request metadata
           </summary>
-          <pre className="mt-2 overflow-auto whitespace-pre-wrap break-words rounded bg-muted p-3 text-sm">
+          <pre className="mt-2 overflow-auto whitespace-pre-wrap break-words rounded bg-inset p-3 text-sm">
             {JSON.stringify(call.metadata, null, 2)}
           </pre>
         </details>
@@ -315,7 +315,7 @@ export function LlmCallDetailView({ call }: { call: LlmCallDetail }) {
             <p className="text-sm font-medium uppercase text-muted-foreground">
               {message.role}
             </p>
-            <pre className="overflow-auto whitespace-pre-wrap break-words rounded bg-muted p-3 text-sm">
+            <pre className="overflow-auto whitespace-pre-wrap break-words rounded bg-inset p-3 text-sm">
               {message.content}
             </pre>
           </div>
@@ -327,12 +327,12 @@ export function LlmCallDetailView({ call }: { call: LlmCallDetail }) {
           {call.failed ? "Error" : "Response"}
         </h4>
         {call.error !== null && (
-          <pre className="overflow-auto whitespace-pre-wrap break-words rounded bg-muted p-3 text-sm text-destructive">
+          <pre className="overflow-auto whitespace-pre-wrap break-words rounded bg-inset p-3 text-sm text-destructive">
             {call.error}
           </pre>
         )}
         {call.response !== null && (
-          <pre className="overflow-auto whitespace-pre-wrap break-words rounded bg-muted p-3 text-sm">
+          <pre className="overflow-auto whitespace-pre-wrap break-words rounded bg-inset p-3 text-sm">
             {call.response}
           </pre>
         )}

@@ -150,7 +150,7 @@ export function LocationSection({
 
       {results.length > 0 && (
         <ul
-          className="flex flex-col gap-1 rounded border bg-card p-2 text-base"
+          className="flex flex-col gap-1 rounded border bg-inset p-2 text-base"
           data-testid="location-results"
         >
           {results.map((place) => (

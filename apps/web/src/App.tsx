@@ -112,50 +112,48 @@ function AppShell() {
     <TimeZoneProvider timeZone={timeZone}>
       <NavigationProvider navigate={navigate}>
         <div className="flex min-h-screen w-full flex-col">
-          <header className="w-full px-3 pt-3 sm:px-4">
-            <div className="hero-surface flex w-full flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border px-4 py-3 sm:px-6">
-              <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
-                <a
-                  href="/"
-                  className="flex items-center gap-3 text-3xl font-bold tracking-tight no-underline hover:no-underline"
-                  onClick={(event) => {
-                    event.preventDefault();
-                    navigate("coach");
-                  }}
-                >
-                  <img
-                    src="/logo.svg"
-                    alt=""
-                    width={56}
-                    height={56}
-                    className="logo-glow size-14 shrink-0"
-                  />
-                  <span className="whitespace-nowrap">Killing It</span>
-                </a>
-                <span
-                  aria-hidden="true"
-                  className="hidden h-7 w-px bg-muted-foreground/45 sm:block"
+          <header className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 sm:px-4">
+            <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+              <a
+                href="/"
+                className="flex items-center gap-2 text-2xl font-bold tracking-tight no-underline hover:no-underline"
+                onClick={(event) => {
+                  event.preventDefault();
+                  navigate("coach");
+                }}
+              >
+                <img
+                  src="/logo.svg"
+                  alt=""
+                  width={32}
+                  height={32}
+                  className="size-8 shrink-0"
                 />
-                <p className="text-base text-muted-foreground">
-                  <b className="font-medium text-primary">Deadly serious</b>{" "}
-                  about your progress
-                </p>
-              </div>
+                <span className="whitespace-nowrap">Killing It</span>
+              </a>
+              <span
+                aria-hidden="true"
+                className="hidden h-5 w-px bg-muted-foreground/45 sm:block"
+              />
+              <p className="hidden text-sm text-muted-foreground sm:block">
+                <b className="font-medium text-primary">Deadly serious</b> about
+                your progress
+              </p>
+            </div>
 
-              <div className="ml-auto flex items-center gap-2">
-                {signedIn ? (
-                  <UserMenu
-                    firstName={auth.firstName}
-                    picture={auth.picture}
-                    isAdmin={isAdmin}
-                    status={status}
-                    onNavigate={navigate}
-                    onSignOut={() => void auth.logout()}
-                  />
-                ) : auth.isLoading ? (
-                  <p className="text-base text-muted-foreground">Loading…</p>
-                ) : null}
-              </div>
+            <div className="ml-auto flex items-center gap-2">
+              {signedIn ? (
+                <UserMenu
+                  firstName={auth.firstName}
+                  picture={auth.picture}
+                  isAdmin={isAdmin}
+                  status={status}
+                  onNavigate={navigate}
+                  onSignOut={() => void auth.logout()}
+                />
+              ) : auth.isLoading ? (
+                <p className="text-base text-muted-foreground">Loading…</p>
+              ) : null}
             </div>
           </header>
 
@@ -297,9 +295,9 @@ function UserMenu({
             {name.slice(0, 1).toUpperCase()}
           </span>
         )}
-        <span className="font-medium">{name}</span>
+        <span className="hidden font-medium sm:inline">{name}</span>
         {isAdmin && (
-          <span className="rounded border border-transparent bg-accent px-2 py-0.5 text-sm text-accent-foreground">
+          <span className="hidden rounded border border-transparent bg-accent px-2 py-0.5 text-sm text-accent-foreground sm:inline">
             Admin
           </span>
         )}
