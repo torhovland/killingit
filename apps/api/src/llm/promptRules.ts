@@ -16,6 +16,22 @@ export const TRAINING_SCIENCE_RULE =
   "Use state of the art training science to make the best possible plan for the athlete.";
 
 /**
+ * Joins prompt sections with a blank line, dropping empty sections. Shared
+ * fragments and prompt-specific text stay separate so a fragment can be
+ * updated without editing the prose around it.
+ */
+export function promptSections(
+  ...sections: readonly (string | false | null | undefined)[]
+): string {
+  return sections
+    .filter(
+      (section): section is string =>
+        typeof section === "string" && section.trim() !== "",
+    )
+    .join("\n\n");
+}
+
+/**
  * Shared rule for every prompt that receives activity comments: a comment is
  * the athlete's description of an activity that is already listed, not another
  * activity.
@@ -35,7 +51,12 @@ export const WEEKLY_NOTE_SCOPE_RULE = `A weekly note is normally scoped to the w
  * differ per prompt, but the profile, activities, notes, reviews and the rules
  * for using them are the same everywhere.
  */
-export const PLAN_INPUT_GUIDANCE = `You receive the athlete's profile, recent activities with coach analyses, program reviews, and coach replies, manually recorded activities, comments on activities, a general weekly note, and coach summaries of completed weeks and blocks with the athlete's feedback on them. Use all of these to understand the athlete's goal, available time, experience, preferences, constraints, and subjective feedback, and to see what they actually completed or missed and how they responded. ${ACTIVITY_COMMENT_RULE} Respect the athlete's available time and constraints. The weekly note is a hard constraint: if it says the athlete cannot train on a specific day, move or cancel the session on that day. If a manually recorded activity indicates significant fatigue or extra load, adjust the upcoming sessions accordingly. Do not invent facts that are not in the input. When an important detail is missing, make a conservative assumption and state it briefly in the relevant focus or description.`;
+export const PLAN_INPUT_GUIDANCE = promptSections(
+  "You receive the athlete's profile, recent activities with coach analyses, program reviews, and coach replies, manually recorded activities, comments on activities, a general weekly note, and coach summaries of completed weeks and blocks with the athlete's feedback on them. Use all of these to understand the athlete's goal, available time, experience, preferences, constraints, and subjective feedback, and to see what they actually completed or missed and how they responded.",
+  ACTIVITY_COMMENT_RULE,
+  "Respect the athlete's available time and constraints. The weekly note is a hard constraint: if it says the athlete cannot train on a specific day, move or cancel the session on that day. If a manually recorded activity indicates significant fatigue or extra load, adjust the upcoming sessions accordingly.",
+  "Do not invent facts that are not in the input. When an important detail is missing, make a conservative assumption and state it briefly in the relevant focus or description.",
+);
 
 /**
  * How a week hangs together: seven dated sessions starting on its start date.
@@ -68,7 +89,11 @@ export const COMPLETION_SLACK_RULES = `Allow reasonable slack when judging compl
  * The full completed-session rule for prompts that return both a day plan and
  * a week plan.
  */
-export const COMPLETED_SESSION_RULES = `${PAST_SESSION_RULES} ${TODAY_SESSION_RULES} ${COMPLETION_SLACK_RULES}`;
+export const COMPLETED_SESSION_RULES = promptSections(
+  PAST_SESSION_RULES,
+  TODAY_SESSION_RULES,
+  COMPLETION_SLACK_RULES,
+);
 
 /**
  * Shared rule for the day the athlete is about to train. A session must earn
@@ -110,7 +135,13 @@ export const BODY_METRIC_UNITS_RULE = `Give body weight in kilograms and body fa
  * athlete sees a weight and body-fat trend on the Fitness page even before
  * their scale is connected.
  */
-export const BODY_METRIC_RULES = `When the profile, a weekly note, an activity comment, or another part of the input states the athlete's body weight or body-fat percentage, report it in "bodyMetrics" as { "date": "YYYY-MM-DD", "weightKg": number, "bodyFatPercent": number }. ${BODY_METRIC_UNITS_RULE} Use the date the statement refers to. For a number in the profile that names no date, use the date the profile was last saved; for anything added more recently, use today's date. Set a value the input does not give to null, and return an empty "bodyMetrics" array when the input says nothing about either number. ${ONLY_STATED_NUMBERS_RULE} The stored history tells you what is already known; do not repeat a value for the same date.`;
+export const BODY_METRIC_RULES = promptSections(
+  `When the profile, a weekly note, an activity comment, or another part of the input states the athlete's body weight or body-fat percentage, report it in "bodyMetrics" as { "date": "YYYY-MM-DD", "weightKg": number, "bodyFatPercent": number }.`,
+  BODY_METRIC_UNITS_RULE,
+  'Use the date the statement refers to. For a number in the profile that names no date, use the date the profile was last saved; for anything added more recently, use today\'s date. Set a value the input does not give to null, and return an empty "bodyMetrics" array when the input says nothing about either number.',
+  ONLY_STATED_NUMBERS_RULE,
+  "The stored history tells you what is already known; do not repeat a value for the same date.",
+);
 
 /**
  * Shared weather and daylight instruction for prompts that choose which day
@@ -141,9 +172,12 @@ export const TSS_ESTIMATE_GUIDE = `A score of 100 is roughly one hour at FTP, 60
  * API uses when a session has no measured power. The estimate is anchored to
  * the FTP stated in the athlete's profile; without one the feature stays off.
  */
-export const TRAINING_LOAD_RULES = `When the athlete's profile states an FTP (functional threshold power), estimate how it will change day by day from the training they have actually completed, their recent form, and the plan's progression. Set "estimatedFtpWatts" on every week session from today onward, including rest days, to your estimate for that date; this daily projection feeds the athlete's FTP chart. Set the week's "estimatedFtpWatts" to the estimate for the day the week is shown from (today in the current week, otherwise the week's first day) so the Week view can show it once. Leave a past session's "estimatedFtpWatts" null. When the response contract also includes the block, set the weekly estimate in every week of the block so the athlete can see the progression. Be realistic: consistent completed load supports small gains, a deload or a missed week holds or reduces the estimate, and you never invent a large jump. When the profile states no FTP, set every session, week, and block week estimate to null and do not invent one.
-
-Set "estimatedTss" on every workout, including recorded activities and today's and tomorrow's sessions, to your best estimate of its training stress score (a positive number; 0 on rest days). Use the session's duration and intensity, the athlete's FTP when known, and any recorded power or heart-rate data. ${TSS_ESTIMATE_GUIDE} When measured power is available the app recalculates the number from the recorded effort and the estimated FTP.`;
+export const TRAINING_LOAD_RULES = promptSections(
+  `When the athlete's profile states an FTP (functional threshold power), estimate how it will change day by day from the training they have actually completed, their recent form, and the plan's progression. Set "estimatedFtpWatts" on every week session from today onward, including rest days, to your estimate for that date; this daily projection feeds the athlete's FTP chart. Set the week's "estimatedFtpWatts" to the estimate for the day the week is shown from (today in the current week, otherwise the week's first day) so the Week view can show it once. Leave a past session's "estimatedFtpWatts" null. When the response contract also includes the block, set the weekly estimate in every week of the block so the athlete can see the progression. Be realistic: consistent completed load supports small gains, a deload or a missed week holds or reduces the estimate, and you never invent a large jump. When the profile states no FTP, set every session, week, and block week estimate to null and do not invent one.`,
+  `Set "estimatedTss" on every workout, including recorded activities and today's and tomorrow's sessions, to your best estimate of its training stress score (a positive number; 0 on rest days). Use the session's duration and intensity, the athlete's FTP when known, and any recorded power or heart-rate data.`,
+  TSS_ESTIMATE_GUIDE,
+  "When measured power is available the app recalculates the number from the recorded effort and the estimated FTP.",
+);
 
 /**
  * Rationale rules for every plan response. A rationale describes the plan the
@@ -164,7 +198,11 @@ export const JSON_ONLY_RULES = `Do not add markdown fences, headings, explanatio
 export const PLAIN_TEXT_RULES = `Do not use headings, bullets, or markdown. Do not invent activities or results you were not given.`;
 
 /** The full JSON output rule for the plan prompts. */
-export const JSON_RULES = `Return only a single valid JSON object with exactly this shape. ${JSON_ONLY_RULES} Every field must use the exact name and value type shown in the contract. The top-level keys must be exactly the keys shown at the top level of the contract, with the same nesting; never return a bare inner object, an array, or a wrapper such as "plan" or "response". When a contract lists choices separated by "|", output exactly one of those choices as a string and never the list itself. Replace every placeholder such as "YYYY-MM-DD", "string", or 0 with a real value.`;
+export const JSON_RULES = promptSections(
+  "Return only a single valid JSON object with exactly this shape.",
+  JSON_ONLY_RULES,
+  `Every field must use the exact name and value type shown in the contract. The top-level keys must be exactly the keys shown at the top level of the contract, with the same nesting; never return a bare inner object, an array, or a wrapper such as "plan" or "response". When a contract lists choices separated by "|", output exactly one of those choices as a string and never the list itself. Replace every placeholder such as "YYYY-MM-DD", "string", or 0 with a real value.`,
+);
 
 /** The structured power targets shared by the day and week session contracts. */
 export const BIKE_WORKOUT_CONTRACT = `{ "ftpWatts": 0, "intervals": [{ "durationSeconds": 0, "powerPercent": 75 }] }`;
@@ -260,7 +298,10 @@ export const ACTIVITY_FTP_ESTIMATE_RULES = `Also estimate the athlete's FTP afte
  * The body-composition fields every activity review reports when the athlete's
  * comment states them.
  */
-export const ACTIVITY_BODY_METRIC_RULES = `When the athlete's comment on this activity states their body weight or body-fat percentage, report it in "weightKg" and "bodyFatPercent". ${ONLY_STATED_NUMBERS_RULE}`;
+export const ACTIVITY_BODY_METRIC_RULES = promptSections(
+  `When the athlete's comment on this activity states their body weight or body-fat percentage, report it in "weightKg" and "bodyFatPercent".`,
+  ONLY_STATED_NUMBERS_RULE,
+);
 
 /** The shared closing instruction for prompts that return JSON. */
 export const RETURN_JSON_FROM_SYSTEM_PROMPT =
@@ -282,11 +323,14 @@ export function jsonTopLevelKeys(keys: readonly string[]): string {
 }
 
 /** The JSON contract shared by the activity and program reviews. */
-export const COACH_ANALYSIS_RESPONSE_RULES = `Return only one JSON object with exactly this shape:
+export const COACH_ANALYSIS_RESPONSE_RULES = promptSections(
+  `Return only one JSON object with exactly this shape:
 {
   "analysis": "string",
   "estimatedFtpWatts": 0,
   "weightKg": 0,
   "bodyFatPercent": 0
-}
-Replace "estimatedFtpWatts" with the integer estimate in watts, or null when there is no useful evidence. Set "weightKg" to the athlete's body weight in kilograms and "bodyFatPercent" to their body fat as a percentage only when the input for this activity states them, and to null otherwise. Put the whole coach summary in "analysis". ${JSON_ONLY_RULES}`;
+}`,
+  `Replace "estimatedFtpWatts" with the integer estimate in watts, or null when there is no useful evidence. Set "weightKg" to the athlete's body weight in kilograms and "bodyFatPercent" to their body fat as a percentage only when the input for this activity states them, and to null otherwise. Put the whole coach summary in "analysis".`,
+  JSON_ONLY_RULES,
+);

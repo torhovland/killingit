@@ -11,7 +11,11 @@ import {
   formatWeekPlan,
   type PlanContextInput,
 } from "./planContext.js";
-import { COACH_PERSONA, PLAIN_TEXT_RULES } from "./promptRules.js";
+import {
+  COACH_PERSONA,
+  PLAIN_TEXT_RULES,
+  promptSections,
+} from "./promptRules.js";
 
 /**
  * Bump when the summary prompt or generation parameters change materially.
@@ -33,8 +37,12 @@ export interface PeriodReviewPromptInput {
   context: PlanContextInput;
 }
 
-const PERIOD_REVIEW_SYSTEM_PROMPT = `${COACH_PERSONA} Summarise a completed training period for the athlete.
-Write 3-5 sentences of plain text. Say what the athlete completed and how consistently they trained, how the period fit the overall plan, what worked, and what should change in the next period. Cite only the most useful activity data. Be encouraging when the work was reasonable, but be honest about missed sessions and warning signs. ${PLAIN_TEXT_RULES}`;
+const PERIOD_REVIEW_SYSTEM_PROMPT = promptSections(
+  COACH_PERSONA,
+  "Summarise a completed training period for the athlete.",
+  "Write 3-5 sentences of plain text. Say what the athlete completed and how consistently they trained, how the period fit the overall plan, what worked, and what should change in the next period. Cite only the most useful activity data. Be encouraging when the work was reasonable, but be honest about missed sessions and warning signs.",
+  PLAIN_TEXT_RULES,
+);
 
 /** Builds the messages that ask the coach for a week or block summary. */
 export function buildPeriodReviewMessages(input: PeriodReviewPromptInput): {

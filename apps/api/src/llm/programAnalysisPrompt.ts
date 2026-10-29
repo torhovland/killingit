@@ -16,6 +16,7 @@ import {
   COACH_ANALYSIS_RESPONSE_RULES,
   COACH_PERSONA,
   PLAIN_TEXT_RULES,
+  promptSections,
   RETURN_JSON_FROM_SYSTEM_PROMPT,
 } from "./promptRules.js";
 
@@ -37,14 +38,17 @@ export interface ProgramAnalysisInput {
   currentFtpWatts?: number | null;
 }
 
-const PROGRAM_ANALYSIS_SYSTEM_PROMPT = `${COACH_PERSONA} Review one completed workout against the athlete's current training program.
-${ACTIVITY_TYPE_RULE}
-Match the workout to a planned session, then weave how well it fit the plan into one brief summary rather than a separate section. Be encouraging when the workout was at least somewhat conforming, but do not hesitate to point out what could be improved. Cite only the most useful numbers.
-Use 2-3 sentences of plain text and finish with one actionable takeaway. ${PLAIN_TEXT_RULES}
-${ACTIVITY_FTP_ESTIMATE_RULES}
-${ACTIVITY_BODY_METRIC_RULES}
-
-${COACH_ANALYSIS_RESPONSE_RULES}`;
+const PROGRAM_ANALYSIS_SYSTEM_PROMPT = promptSections(
+  COACH_PERSONA,
+  "Review one completed workout against the athlete's current training program.",
+  ACTIVITY_TYPE_RULE,
+  "Match the workout to a planned session, then weave how well it fit the plan into one brief summary rather than a separate section. Be encouraging when the workout was at least somewhat conforming, but do not hesitate to point out what could be improved. Cite only the most useful numbers.",
+  "Use 2-3 sentences of plain text and finish with one actionable takeaway.",
+  PLAIN_TEXT_RULES,
+  ACTIVITY_FTP_ESTIMATE_RULES,
+  ACTIVITY_BODY_METRIC_RULES,
+  COACH_ANALYSIS_RESPONSE_RULES,
+);
 
 /** Builds the chat messages for a program-aware activity review. */
 export function buildProgramAnalysisMessages(input: ProgramAnalysisInput): {
@@ -99,7 +103,8 @@ export function buildProgramAnalysisPrompt(
 
   lines.push(
     "",
-    `Write a brief summary that includes how well this activity fit its planned session and what could be done better. ${RETURN_JSON_FROM_SYSTEM_PROMPT}`,
+    "Write a brief summary that includes how well this activity fit its planned session and what could be done better.",
+    RETURN_JSON_FROM_SYSTEM_PROMPT,
   );
   return lines.join("\n");
 }

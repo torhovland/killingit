@@ -16,6 +16,7 @@ import {
   JSON_RULES,
   jsonTopLevelKeys,
   PLAN_INPUT_GUIDANCE,
+  promptSections,
   RATIONALE_RULES,
   SEASON_CONTRACT,
   SESSION_PURPOSE_RULES,
@@ -57,41 +58,36 @@ const COACH_PLAN_RESPONSE_CONTRACT = `{
   "bodyMetrics": [${BODY_METRIC_POINT_CONTRACT}]
 }`;
 
-export const COACH_PLAN_SYSTEM_PROMPT = `${COACH_PERSONA} Design a personalised, periodised training plan for an amateur athlete. ${TRAINING_SCIENCE_RULE} Apply the principles that current research and elite practice agree on: individualisation, progressive overload, specificity, periodisation, adequate recovery, and a taper before the main goal. Prefer sustainable, injury-free progress over quick fixes.
-
-${PLAN_INPUT_GUIDANCE} Use the recent activities and analyses to judge current fitness, fatigue, consistency, and the next sensible stimulus.
-
-Create a consistent plan at every level:
+export const COACH_PLAN_SYSTEM_PROMPT = promptSections(
+  COACH_PERSONA,
+  "Design a personalised, periodised training plan for an amateur athlete.",
+  TRAINING_SCIENCE_RULE,
+  "Apply the principles that current research and elite practice agree on: individualisation, progressive overload, specificity, periodisation, adequate recovery, and a taper before the main goal. Prefer sustainable, injury-free progress over quick fixes.",
+  PLAN_INPUT_GUIDANCE,
+  "Use the recent activities and analyses to judge current fitness, fatigue, consistency, and the next sensible stimulus.",
+  `Create a consistent plan at every level:
 1. season — the overall season with its goal, dates, blocks, and a rationale explaining the season's shape.
 2. block — the first block of the season, with its weeks, progression, and a rationale.
 3. week — the first week of that block, with one session for each day, a rationale, and per-session status.
 4. today — the concrete workout or rest for today, with a rationale and an optionality assessment.
-5. tomorrow — the suggested workout or rest for tomorrow, with a rationale and an optionality assessment.
-
-${WEEK_OUTLINE_RULES}
-
-Fully detail today's and tomorrow's sessions; keep every later day in the week as a short outline.
-
-${SESSION_PURPOSE_RULES}
-
-${RATIONALE_RULES}
-
-${WEATHER_PLANNING_RULES}
-
-${BIKE_WORKOUT_RULES}
-
-${TRAINING_LOAD_RULES}
-
-${BODY_METRIC_RULES}
-
-${COMPLETED_SESSION_RULES}
-
-The season starts on the supplied today date. The block is the first entry in season.blocks. The week is the first week in block.weeks, so block.weeks[0].startDate and week.startDate must match. ${WEEK_SHAPE_RULES} ${TODAY_IN_WEEK_RULE} Respect the athlete's available training days and hours, and include rest days where they are the best choice.
-
-${ENUM_RULES}
-
-${JSON_RULES}
-${COACH_PLAN_RESPONSE_CONTRACT}`;
+5. tomorrow — the suggested workout or rest for tomorrow, with a rationale and an optionality assessment.`,
+  WEEK_OUTLINE_RULES,
+  "Fully detail today's and tomorrow's sessions; keep every later day in the week as a short outline.",
+  SESSION_PURPOSE_RULES,
+  RATIONALE_RULES,
+  WEATHER_PLANNING_RULES,
+  BIKE_WORKOUT_RULES,
+  TRAINING_LOAD_RULES,
+  BODY_METRIC_RULES,
+  COMPLETED_SESSION_RULES,
+  "The season starts on the supplied today date. The block is the first entry in season.blocks. The week is the first week in block.weeks, so block.weeks[0].startDate and week.startDate must match.",
+  WEEK_SHAPE_RULES,
+  TODAY_IN_WEEK_RULE,
+  "Respect the athlete's available training days and hours, and include rest days where they are the best choice.",
+  ENUM_RULES,
+  JSON_RULES,
+  COACH_PLAN_RESPONSE_CONTRACT,
+);
 
 /** Adapts an analyzed activity for the plan prompt. */
 export function toCoachPlanActivity(
@@ -121,6 +117,15 @@ export function buildCoachPlanPrompt(input: CoachPlanInput): string {
   return [
     ...formatPlanContext(input),
     "",
-    `Using the athlete profile and recent training, create the season plan, the first block, the first week, and today's session. ${TRAINING_SCIENCE_RULE} ${jsonTopLevelKeys(["season", "block", "week", "today", "tomorrow", "bodyMetrics"])}`,
+    "Using the athlete profile and recent training, create the season plan, the first block, the first week, and today's session.",
+    TRAINING_SCIENCE_RULE,
+    jsonTopLevelKeys([
+      "season",
+      "block",
+      "week",
+      "today",
+      "tomorrow",
+      "bodyMetrics",
+    ]),
   ].join("\n");
 }

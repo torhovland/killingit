@@ -3,6 +3,7 @@ import { completePlanJson } from "../llm/planCompletion.js";
 import {
   COACH_PERSONA,
   JSON_ONLY_RULES,
+  promptSections,
   TSS_ESTIMATE_GUIDE,
 } from "../llm/promptRules.js";
 import type { CompletionCredentials } from "../llm/resilientCompletion.js";
@@ -12,9 +13,14 @@ const manualTssSchema = z.object({
   tss: z.number().int().min(0).max(2000),
 });
 
-const MANUAL_TSS_SYSTEM_PROMPT = `${COACH_PERSONA} Estimate the training stress score (TSS) of an athlete's manually recorded activity. ${TSS_ESTIMATE_GUIDE} Read the duration, activity type, intensity clues, heart rate, and power from the athlete's own wording, and use the athlete's FTP when it is provided. If the description gives little detail, make a conservative assumption and keep the estimate modest.
-
-Return only a JSON object with exactly this shape: {"tss": 0}. "tss" is a whole number from 0 to 2000. ${JSON_ONLY_RULES}`;
+const MANUAL_TSS_SYSTEM_PROMPT = promptSections(
+  COACH_PERSONA,
+  "Estimate the training stress score (TSS) of an athlete's manually recorded activity.",
+  TSS_ESTIMATE_GUIDE,
+  "Read the duration, activity type, intensity clues, heart rate, and power from the athlete's own wording, and use the athlete's FTP when it is provided. If the description gives little detail, make a conservative assumption and keep the estimate modest.",
+  `Return only a JSON object with exactly this shape: {"tss": 0}. "tss" is a whole number from 0 to 2000.`,
+  JSON_ONLY_RULES,
+);
 
 /**
  * Asks the coach to turn a free-text manual activity into a TSS number. The

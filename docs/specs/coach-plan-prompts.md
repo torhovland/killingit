@@ -96,7 +96,9 @@ shapes (`StoredAthleteQuestion` and `AnalyzedActivity`) structurally and returns
   contract, the response-key sentence, and the activity-review rules. Each prompt
   composes those constants instead of restating them, so a change reaches the
   initial build, the combined plan, every update and the activity reviews
-  together.
+  together. The `promptSections` helper keeps each shared fragment on its own
+  section, separate from prompt-specific prose, so a fragment can be updated
+  without rewriting the surrounding text.
 - `coachPlanPrompt.ts` exports `COACH_PLAN_PROMPT_VERSION`, the input interfaces,
   `buildCoachPlanPrompt(input)`, and `buildCoachPlanMessages(input)`. Its
   response contract is assembled from the same level contracts as the update
