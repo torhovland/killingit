@@ -20,12 +20,11 @@ import {
   generateSeasonPlan,
 } from "../llm/planInitial.js";
 import {
-  generateBlockUpdate,
   generateDailyUpdate,
-  generateSeasonRefresh,
-  generateTargetDayUpdate,
+  generatePlanUpdate,
   generateWeeklyUpdate,
 } from "../llm/planUpdate.js";
+import type { PlanUpdateRevision } from "../llm/planUpdatePrompt.js";
 import { captureCompletedPeriodReviews } from "../coaching/periodReviews.js";
 import type {
   ActivityCommentContext,
@@ -157,17 +156,14 @@ export async function runPlanGeneration(
       refreshRequested &&
       currentPlan !== null &&
       seasonCovers(currentPlan.season, today);
+    // A missing plan, a deliberate fresh start, or an update with no usable
+    // season builds a new season. A refresh of an existing season uses the
+    // single plan-update prompt so the season, block, week and day agree.
     const needsFullPlan =
       currentPlan === null ||
       input.force === true ||
       mode === "newSeason" ||
-      refreshRequested;
-    // A partially completed block keeps the date it started, even though its
-    // plan is refreshed in place.
-    const currentBlockStartDate =
-      refreshSeason && currentPlan !== null
-        ? currentPlan.block.startDate
-        : null;
+      (refreshRequested && !refreshSeason);
     // The forecast can move enough to make the stored week's weather advice
     // wrong even when every level is present. Treat that like any other week
     // revision so the coach can move sessions to the better days.
@@ -197,55 +193,25 @@ export async function runPlanGeneration(
 
     if (needsFullPlan) {
       await generations.update(userId, PLAN_GENERATION_STEPS.review);
-      let season: SeasonPlan;
-      let block: BlockPlan;
-      let foundBodyMetrics: readonly BodyMetricEstimate[] = [];
+      await generations.update(userId, PLAN_GENERATION_STEPS.season);
+      const seasonUpdate = await generateSeasonPlan(
+        context.provider,
+        credentials(context),
+        baseContext(input),
+      );
+      const season: SeasonPlan = seasonUpdate.season;
 
-      if (refreshSeason && currentPlan !== null) {
-        await generations.update(userId, PLAN_GENERATION_STEPS.seasonRefresh);
-        const refreshed = await generateSeasonRefresh(
-          context.provider,
-          credentials(context),
-          {
-            ...baseContext(input),
-            season: currentPlan.season,
-            block: currentPlan.block,
-          },
-        );
-        season = withCompletedSeasonBlocks(
-          refreshed.season,
-          currentPlan.season,
-          today,
-        );
-        block = refreshed.block;
-        foundBodyMetrics = refreshed.bodyMetrics;
-        assertRefreshedSeason(
-          season,
-          block,
-          today,
-          currentBlockStartDate ?? currentPlan.block.startDate,
-        );
-      } else {
-        await generations.update(userId, PLAN_GENERATION_STEPS.season);
-        const generated = await generateSeasonPlan(
-          context.provider,
-          credentials(context),
-          baseContext(input),
-        );
-        season = generated.season;
-
-        await generations.update(userId, PLAN_GENERATION_STEPS.initialBlock);
-        const generatedBlock = await generateInitialBlock(
-          context.provider,
-          credentials(context),
-          { ...baseContext(input), season },
-        );
-        block = generatedBlock.block;
-        foundBodyMetrics = mergeBodyMetrics(
-          generated.bodyMetrics,
-          generatedBlock.bodyMetrics,
-        );
-      }
+      await generations.update(userId, PLAN_GENERATION_STEPS.initialBlock);
+      const generatedBlock = await generateInitialBlock(
+        context.provider,
+        credentials(context),
+        { ...baseContext(input), season },
+      );
+      const block: BlockPlan = generatedBlock.block;
+      const foundBodyMetrics: readonly BodyMetricEstimate[] = mergeBodyMetrics(
+        seasonUpdate.bodyMetrics,
+        generatedBlock.bodyMetrics,
+      );
 
       await generations.update(userId, PLAN_GENERATION_STEPS.initialWeek);
       const weekUpdate = await generateWeeklyUpdate(
@@ -257,19 +223,8 @@ export async function runPlanGeneration(
           season,
           block,
           weekStartDate: startOfWeek(today),
-          ...(currentBlockStartDate !== null
-            ? { keepBlockStartDate: currentBlockStartDate }
-            : {}),
         },
       );
-      if (
-        currentBlockStartDate !== null &&
-        weekUpdate.block.startDate !== currentBlockStartDate
-      ) {
-        throw new Error(
-          "The coach moved the current block's start date while refreshing the season. Please regenerate the plan.",
-        );
-      }
 
       await generations.update(userId, PLAN_GENERATION_STEPS.day);
       const dayUpdate = await generateDailyUpdate(
@@ -358,6 +313,49 @@ export async function runPlanGeneration(
       return saved;
     }
 
+    if (refreshSeason && currentPlan !== null) {
+      // A season refresh is an update like any other: one completion receives
+      // every level and returns the revised season, block, week and day (plus
+      // tomorrow and the next period when they are wanted).
+      const pending = planPending(
+        currentPlan,
+        today,
+        input.includeTomorrow,
+        weatherChanged,
+      );
+      const plan = await advancePlan(
+        input,
+        currentPlan,
+        pending,
+        revisionNeeded,
+        true,
+      );
+      await generations.update(userId, PLAN_GENERATION_STEPS.save);
+      const saved = await plans.save(
+        userId,
+        plan,
+        context.answersUpdatedAt,
+        context.coachingInputsUpdatedAt,
+        context.activitiesUpdatedAt ?? null,
+      );
+      if (input.reviewActivities) {
+        await generations.update(
+          userId,
+          PLAN_GENERATION_STEPS.reviewActivities,
+        );
+        try {
+          await input.reviewActivities(saved.plan);
+        } catch (err) {
+          // The plan is saved; a supplementary review must not fail the build.
+          console.error("[plan] activity review failed:", err);
+        }
+      }
+      await persistFtpEstimates(input, plan);
+      await persistBodyMetrics(input, plan);
+      await generations.finish(userId);
+      return saved;
+    }
+
     const pending = planPending(
       currentPlan,
       today,
@@ -411,101 +409,92 @@ export async function runPlanGeneration(
   }
 }
 
+interface PlanUpdateFlags {
+  season: boolean;
+  block: boolean;
+  week: boolean;
+  day: boolean;
+  tomorrow: boolean;
+  nextWeek: boolean;
+  nextBlock: boolean;
+}
+
+interface PlanUpdateOptions {
+  expectedBlockStartDate?: string;
+  nextBlockStartDate?: string;
+  nextWeekStartDate?: string;
+}
+
+/**
+ * Updates every level that is missing or needs revising in one completion. The
+ * coach receives the stored season, block, week and day plus the next week,
+ * next block and tomorrow when they exist, and returns the complete plan. The
+ * API keeps the levels the request did not revise, so one prompt replaces the
+ * old block → week → day cascade.
+ */
 async function advancePlan(
   input: GeneratePlanInput,
   current: CoachPlan,
   pending: ReturnType<typeof planPending>,
   revisionNeeded: boolean,
+  seasonRefresh = false,
 ): Promise<CoachPlan> {
-  const { userId, today, context, generations } = input;
-  let plan: CoachPlan = { ...current };
-  let blockChanged = false;
-  let weekChanged = false;
-
-  if (pending.block) {
-    await generations.update(userId, PLAN_GENERATION_STEPS.cascadeBlock);
-    const update = await generateBlockUpdate(
-      context.provider,
-      credentials(context),
-      {
-        ...baseContext(input),
-        season: plan.season,
-        block: plan.block,
-        // If the athlete has been away, start the new block today rather than
-        // backdating it into the past and immediately re-triggering the cascade.
-        nextBlockStartDate: nextBlockStartDate(plan.block, today),
-      },
-    );
-    plan = {
-      ...plan,
-      season: update.season,
-      block: update.block,
-      nextBlock: null,
-      nextWeek: null,
-      tomorrow: null,
-      bodyMetrics: mergeBodyMetrics(plan.bodyMetrics, update.bodyMetrics),
-    };
-    blockChanged = true;
-  }
-
-  if (blockChanged || revisionNeeded || pending.week) {
-    await generations.update(userId, PLAN_GENERATION_STEPS.cascadeWeek);
-    const update = await generateWeeklyUpdate(
-      context.provider,
-      credentials(context),
-      {
-        ...baseContext(input),
-        ...weatherContext(input),
-        season: plan.season,
-        block: plan.block,
-        weekStartDate: startOfWeek(today),
-      },
-    );
-    plan = {
-      ...plan,
-      block: update.block,
-      week: update.week,
-      nextWeek: null,
-      nextBlock: null,
-      tomorrow: null,
-      bodyMetrics: mergeBodyMetrics(plan.bodyMetrics, update.bodyMetrics),
-    };
-    weekChanged = true;
-  }
-
+  const { today, context } = input;
+  const includeTomorrow = input.includeTomorrow === true;
   const tomorrowDate = addDays(today, 1);
-  const tomorrowWeek = weekFor(plan, tomorrowDate);
-  const tomorrowInCurrentWeek = tomorrowWeek?.startDate === plan.week.startDate;
-  const afterCurrent = planPending(plan, today, input.includeTomorrow);
-  if (
-    blockChanged ||
-    weekChanged ||
+  const tomorrowWeek = weekFor(current, tomorrowDate);
+  const blockRevision = seasonRefresh || pending.block;
+  const nextBlockRevision =
+    includeTomorrow && pending.nextBlock && (seasonRefresh || !blockRevision);
+  const nextBlockSameWeek =
+    nextBlockRevision &&
+    tomorrowWeek !== null &&
+    tomorrowWeek.startDate === current.week.startDate;
+  const weekRevision =
+    seasonRefresh ||
+    blockRevision ||
     revisionNeeded ||
-    afterCurrent.day ||
-    (input.includeTomorrow === true &&
-      tomorrowInCurrentWeek &&
-      afterCurrent.tomorrow)
-  ) {
-    await generations.update(userId, PLAN_GENERATION_STEPS.day);
-    const update = await generateDailyUpdate(
-      context.provider,
-      credentials(context),
-      {
-        ...baseContext(input),
-        ...weatherContext(input),
-        season: plan.season,
-        block: plan.block,
-        week: plan.week,
-      },
-    );
-    plan = {
-      ...plan,
-      week: update.week,
-      today: update.today,
-      tomorrow: update.tomorrow,
-      bodyMetrics: mergeBodyMetrics(plan.bodyMetrics, update.bodyMetrics),
-    };
-  }
+    pending.week ||
+    nextBlockSameWeek;
+  const dayRevision =
+    seasonRefresh ||
+    blockRevision ||
+    revisionNeeded ||
+    pending.week ||
+    pending.day;
+  const nextWeekRevision =
+    includeTomorrow && startOfWeek(tomorrowDate) !== startOfWeek(today);
+  const tomorrowRevision =
+    includeTomorrow &&
+    (pending.tomorrow ||
+      weekRevision ||
+      dayRevision ||
+      nextBlockRevision ||
+      nextWeekRevision);
+  const flags: PlanUpdateFlags = {
+    season: seasonRefresh,
+    block: blockRevision,
+    week: weekRevision,
+    day: dayRevision,
+    tomorrow: tomorrowRevision,
+    nextWeek: nextWeekRevision,
+    nextBlock: nextBlockRevision,
+  };
+  const options: PlanUpdateOptions = {
+    ...(seasonRefresh
+      ? { expectedBlockStartDate: current.block.startDate }
+      : blockRevision
+        ? { expectedBlockStartDate: nextBlockStartDate(current.block, today) }
+        : {}),
+    ...(nextBlockRevision
+      ? { nextBlockStartDate: nextBlockStartDate(current.block, today) }
+      : {}),
+    ...(nextWeekRevision
+      ? { nextWeekStartDate: startOfWeek(tomorrowDate) }
+      : {}),
+  };
+
+  let plan = await requestPlanUpdate(input, current, flags, options);
 
   if (
     input.keepToday === true &&
@@ -529,10 +518,6 @@ async function advancePlan(
     ),
   };
 
-  if (input.includeTomorrow === true) {
-    plan = await planNextPeriod(input, plan);
-  }
-
   plan = {
     ...plan,
     week: applyCompletedDays(
@@ -554,143 +539,191 @@ async function advancePlan(
     context,
   );
   assertPlanValid(finalPlan, today, input.includeTomorrow === true);
+  if (input.includeTomorrow === true && finalPlan.tomorrow === null) {
+    throw new Error(
+      "The coach did not return tomorrow's session. Please regenerate the plan.",
+    );
+  }
   return finalPlan;
 }
 
+/** Runs the single plan-update prompt and applies only the requested levels. */
+async function requestPlanUpdate(
+  input: GeneratePlanInput,
+  current: CoachPlan,
+  flags: PlanUpdateFlags,
+  options: PlanUpdateOptions,
+): Promise<CoachPlan> {
+  const { userId, context, generations } = input;
+  const revision = { ...flags };
+  await generations.update(
+    userId,
+    flags.season
+      ? PLAN_GENERATION_STEPS.seasonRefresh
+      : PLAN_GENERATION_STEPS.planUpdate,
+  );
+  const update = await generatePlanUpdate(
+    context.provider,
+    credentials(context),
+    {
+      ...baseContext(input),
+      ...weatherContext(input),
+      season: current.season,
+      block: current.block,
+      week: current.week,
+      todayPlan: current.today,
+      tomorrow: current.tomorrow,
+      nextWeek: current.nextWeek,
+      nextBlock: current.nextBlock,
+      revision,
+      ...(options.expectedBlockStartDate !== undefined
+        ? { blockStartDate: options.expectedBlockStartDate }
+        : {}),
+      ...(options.nextBlockStartDate !== undefined
+        ? { nextBlockStartDate: options.nextBlockStartDate }
+        : {}),
+      ...(options.nextWeekStartDate !== undefined
+        ? { nextWeekStartDate: options.nextWeekStartDate }
+        : {}),
+    },
+  );
+  return applyPlanUpdate(input, current, update, revision, options);
+}
+
+/** Applies the levels the update prompt revised and keeps the rest stored. */
+function applyPlanUpdate(
+  input: GeneratePlanInput,
+  current: CoachPlan,
+  update: CoachPlan,
+  revision: PlanUpdateRevision,
+  options: PlanUpdateOptions,
+): CoachPlan {
+  const { today } = input;
+  let plan: CoachPlan = { ...current };
+
+  if (revision.season) {
+    const season = withCompletedSeasonBlocks(
+      update.season,
+      current.season,
+      today,
+    );
+    assertRefreshedSeason(season, update.block, today, current.block.startDate);
+    plan = { ...plan, season, block: update.block };
+  } else if (revision.block) {
+    plan = { ...plan, season: update.season, block: update.block };
+  } else if (revision.nextBlock) {
+    plan = { ...plan, season: update.season };
+  }
+
+  if (
+    revision.block &&
+    options.expectedBlockStartDate !== undefined &&
+    plan.block.startDate !== options.expectedBlockStartDate
+  ) {
+    throw new Error(
+      `The coach returned a block with start date ${plan.block.startDate} instead of ${options.expectedBlockStartDate}. Please regenerate the plan.`,
+    );
+  }
+
+  if (revision.day) {
+    plan = { ...plan, week: update.week, today: update.today };
+  } else if (revision.week) {
+    plan = { ...plan, week: update.week, today: current.today };
+  }
+
+  if ((revision.block || revision.week) && !revision.nextBlock) {
+    plan = { ...plan, nextBlock: null };
+  }
+  if ((revision.block || revision.week) && !revision.nextWeek) {
+    plan = { ...plan, nextWeek: null };
+  }
+  if (revision.nextBlock) {
+    plan = { ...plan, nextBlock: update.nextBlock };
+  }
+  if (revision.nextWeek) {
+    plan = { ...plan, nextWeek: update.nextWeek };
+  }
+
+  if ((revision.block || revision.week) && !revision.tomorrow) {
+    plan = { ...plan, tomorrow: null };
+  }
+  if (revision.tomorrow) {
+    plan = { ...plan, tomorrow: update.tomorrow };
+  }
+
+  const tomorrowDate = addDays(today, 1);
+  if (plan.tomorrow !== null && plan.tomorrow.date !== tomorrowDate) {
+    plan = { ...plan, tomorrow: null };
+  }
+  if (plan.tomorrow !== null) {
+    const week = weekFor(plan, plan.tomorrow.date);
+    if (week === null) {
+      throw new Error(
+        "The coach returned tomorrow's session outside a planned week. Please regenerate the plan.",
+      );
+    }
+    if (week.startDate === plan.week.startDate) {
+      plan = { ...plan, week: mirrorDay(plan.week, plan.tomorrow) };
+    } else {
+      plan = { ...plan, nextWeek: mirrorDay(week, plan.tomorrow) };
+    }
+  }
+
+  if (revision.week && !revision.day) {
+    plan = {
+      ...plan,
+      week: restoreTodaysSession(plan.week, current, today),
+      today: current.today,
+    };
+  }
+
+  return {
+    ...plan,
+    bodyMetrics: mergeBodyMetrics(current.bodyMetrics, update.bodyMetrics),
+  };
+}
+
 /**
- * Makes sure tomorrow is covered by a week and a block, generating the next
- * week and/or block when tomorrow has crossed into them. The current week and
- * block are left alone when tomorrow belongs to a later one. Tomorrow's day
- * plan is generated against the target week and mirrored into it, so the Day
- * tab and the Week tab always agree.
+ * Makes sure tomorrow is covered by a week and a block during a full build.
+ * The next period is generated with the same single update prompt, so it sees
+ * the current week and block as well.
  */
 async function planNextPeriod(
   input: GeneratePlanInput,
   plan: CoachPlan,
 ): Promise<CoachPlan> {
-  const { userId, today, context, generations } = input;
-  const tomorrowDate = addDays(today, 1);
-  let next = plan;
-  let targetBlock = blockFor(plan, tomorrowDate);
-  let targetWeek = weekFor(plan, tomorrowDate);
-  let regenerated = false;
-
-  // A week that covers tomorrow but does not start on its Monday is stale.
-  if (
-    targetWeek !== null &&
-    targetWeek.startDate !== startOfWeek(tomorrowDate)
-  ) {
-    if (next.nextWeek?.startDate === targetWeek.startDate) {
-      next = { ...next, nextWeek: null };
-    }
-    targetWeek = null;
+  if (input.includeTomorrow !== true) {
+    return plan;
   }
-
-  if (targetBlock === null) {
-    await generations.update(userId, PLAN_GENERATION_STEPS.nextBlock);
-    const update = await generateBlockUpdate(
-      context.provider,
-      credentials(context),
-      {
-        ...baseContext(input),
-        season: next.season,
-        block: next.block,
-        nextBlockStartDate: nextBlockStartDate(next.block, today),
-      },
-    );
-    next = {
-      ...next,
-      season: update.season,
-      nextBlock: update.block,
-      // Any next week was planned under the old block.
-      nextWeek: null,
-      tomorrow: null,
-      bodyMetrics: mergeBodyMetrics(next.bodyMetrics, update.bodyMetrics),
-    };
-    targetBlock = update.block;
-    targetWeek = null;
-    regenerated = true;
+  const pending = planPending(plan, input.today, true);
+  if (!pending.tomorrow && !pending.nextWeek && !pending.nextBlock) {
+    return plan;
   }
-
-  if (targetWeek === null) {
-    const weekStartDate = startOfWeek(tomorrowDate);
-    await generations.update(userId, PLAN_GENERATION_STEPS.nextWeek);
-    const update = await generateWeeklyUpdate(
-      context.provider,
-      credentials(context),
-      {
-        ...baseContext(input),
-        ...weatherContext(input),
-        season: next.season,
-        block: targetBlock,
-        weekStartDate,
-      },
-    );
-    if (update.week.startDate !== weekStartDate) {
-      throw new Error(
-        "The coach returned next week's plan for the wrong week. Please regenerate the plan.",
-      );
-    }
-    const sameBlock = targetBlock === next.nextBlock;
-    const startsNextWeek = update.week.startDate !== next.week.startDate;
-    next = sameBlock
-      ? { ...next, nextBlock: update.block }
-      : { ...next, block: update.block };
-    next = startsNextWeek
-      ? { ...next, nextWeek: update.week }
-      : { ...next, week: update.week };
-    next = {
-      ...next,
-      bodyMetrics: mergeBodyMetrics(next.bodyMetrics, update.bodyMetrics),
-    };
-    targetBlock = sameBlock ? update.block : next.block;
-    targetWeek = update.week;
-    regenerated = true;
-  }
-
-  const hasTargetSession = targetWeek.sessions.some(
-    (session) => session.date === tomorrowDate,
+  const tomorrowDate = addDays(input.today, 1);
+  const nextBlockSameWeek =
+    pending.nextBlock &&
+    weekFor(plan, tomorrowDate)?.startDate === plan.week.startDate;
+  return requestPlanUpdate(
+    input,
+    plan,
+    {
+      season: false,
+      block: false,
+      week: nextBlockSameWeek,
+      day: false,
+      tomorrow: true,
+      nextWeek: pending.nextWeek,
+      nextBlock: pending.nextBlock,
+    },
+    {
+      ...(pending.nextBlock
+        ? { nextBlockStartDate: nextBlockStartDate(plan.block, input.today) }
+        : {}),
+      ...(pending.nextWeek
+        ? { nextWeekStartDate: startOfWeek(tomorrowDate) }
+        : {}),
+    },
   );
-  if (
-    regenerated ||
-    next.tomorrow?.date !== tomorrowDate ||
-    !hasTargetSession
-  ) {
-    await generations.update(userId, PLAN_GENERATION_STEPS.tomorrow);
-    const update = await generateTargetDayUpdate(
-      context.provider,
-      credentials(context),
-      {
-        ...baseContext(input),
-        today: tomorrowDate,
-        ...weatherContext(input),
-        season: next.season,
-        block: targetBlock,
-        week: targetWeek,
-      },
-    );
-    if (update.today.date !== tomorrowDate) {
-      throw new Error(
-        "The coach returned tomorrow's session for the wrong date. Please regenerate the plan.",
-      );
-    }
-    if (update.week.startDate !== targetWeek.startDate) {
-      throw new Error(
-        "The coach returned a week that does not match tomorrow's week. Please regenerate the plan.",
-      );
-    }
-    const day = update.today;
-    next =
-      targetWeek.startDate === next.week.startDate
-        ? { ...next, week: mirrorDay(update.week, day), tomorrow: day }
-        : { ...next, nextWeek: mirrorDay(update.week, day), tomorrow: day };
-    next = {
-      ...next,
-      bodyMetrics: mergeBodyMetrics(next.bodyMetrics, update.bodyMetrics),
-    };
-  }
-
-  return next;
 }
 
 /** The day after the current block, or today if the block already ended. */

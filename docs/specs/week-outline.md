@@ -67,9 +67,9 @@ Past days keep describing what actually happened, as before.
 ## Acceptance criteria
 
 1. The weekly prompt explicitly asks for all seven days as short outlines.
-2. The daily prompt fully details today and, by default, tomorrow, keeps later
-   days as outlines, and names the last detailed date. The next-period update
-   names only its target day.
+2. The day update fully details today and, by default, tomorrow, keeps later
+   days as outlines, and names the last detailed date. A next-period update
+   details tomorrow and keeps the current week unchanged.
 3. The combined full-plan prompt contains the same rule and details today and
    tomorrow.
 4. After a weekly, daily, or next-period generation, no week session dated after
@@ -87,16 +87,13 @@ days simply use shorter values and leave `bikeWorkout` empty.
 ## Technical approach
 
 - `WEEK_OUTLINE_RULES` in `apps/api/src/llm/planContext.ts` states the rule once
-  and is included in the weekly, daily, and combined prompts. The prompt user
-  messages make it concrete: the weekly prompt asks for all seven days as
-  outlines, and the daily prompt names the last detailed date.
-- `generateTargetDayUpdate` passes `detailThrough: input.today` (the target day,
-  which is tomorrow in the caller), so only that day is detailed in the next
-  week.
+  and is included in the weekly, daily, combined, and plan-update prompts. The
+  prompt user messages make it concrete: the weekly prompt asks for all seven
+  days as outlines, and the update prompt names the dates it fully details.
 - `outlineFutureSessions(plan, today)` in `apps/api/src/plans/outline.ts` clears
   `bikeWorkout` on every session in `week` and `nextWeek` dated after tomorrow.
   It runs on the final draft before training load and weather are attached, in
-  both the full-build and cascade paths.
+  both the full-build and plan-update paths.
 - `applyTrainingLoad` resolves each day's `estimatedFtpWatts` from the coach's
   daily value, falling back to the week's estimate and then the stored
   timeline. An outline day without `bikeWorkout` still falls back to the coach's
@@ -104,7 +101,7 @@ days simply use shorter values and leave `bikeWorkout` empty.
 
 ## Testing
 
-- Prompt tests assert that the weekly and daily prompts contain the outline rule,
+- Prompt tests assert that the weekly prompt and the plan update contain the outline rule,
   that the weekly prompt asks for all seven days as outlines, and that the daily
   prompt names the last detailed date.
 - Unit tests for `outlineFutureSessions` cover the current week, a next week,

@@ -1,11 +1,9 @@
 import {
-  blockPlanUpdateSchema,
+  coachPlanSchema,
   dailyPlanUpdateSchema,
-  targetDayUpdateSchema,
   weeklyPlanUpdateSchema,
-  type BlockPlanUpdate,
+  type CoachPlan,
   type DailyPlanUpdate,
-  type TargetDayUpdate,
   type WeeklyPlanUpdate,
 } from "@killingit/shared";
 import type { z } from "zod";
@@ -14,13 +12,11 @@ import type { LlmProvider } from "./openrouter.js";
 import { completePlanJson } from "./planCompletion.js";
 import { PLAN_MAX_TOKENS } from "./planBudget.js";
 import {
-  buildBlockUpdateMessages,
   buildDailyUpdateMessages,
-  buildSeasonRefreshMessages,
+  buildPlanUpdateMessages,
   buildWeeklyUpdateMessages,
-  type BlockUpdateInput,
   type DailyUpdateInput,
-  type SeasonRefreshInput,
+  type PlanUpdateInput,
   type WeeklyUpdateInput,
 } from "./planUpdatePrompt.js";
 
@@ -74,6 +70,63 @@ function dailyDateHint(today: string, startDate: string): string {
   return `The "today" object's date must be exactly ${today}, and week.sessions must contain a session with that exact date. ${weekDateHint(startDate)}`;
 }
 
+/**
+ * Asks the coach to update any combination of levels in one completion. The
+ * prompt receives every current level and the revision request, and returns the
+ * complete plan so the API can keep the unchanged levels and apply the ones the
+ * request named.
+ */
+export async function generatePlanUpdate(
+  provider: LlmProvider,
+  credentials: PlanUpdateCredentials,
+  input: PlanUpdateInput,
+): Promise<CoachPlan> {
+  const weekStart = startOfWeek(input.today);
+  const nextWeekStart = input.revision.nextWeek
+    ? startOfWeek(addDays(input.today, 1))
+    : null;
+  const schema = withWeekDates(coachPlanSchema, weekStart)
+    .refine(
+      (value) =>
+        nextWeekStart === null ||
+        value.nextWeek === null ||
+        hasWeekDates(value.nextWeek, nextWeekStart),
+      {
+        message:
+          nextWeekStart === null
+            ? "The next week must start on a Monday"
+            : `The next week must start on ${nextWeekStart} and contain exactly seven sessions dated ${weekDates(nextWeekStart).join(", ")}`,
+        path: ["nextWeek", "sessions"],
+      },
+    )
+    .refine(
+      (value) =>
+        value.tomorrow === null ||
+        value.week.sessions.some(
+          (session) => session.date === value.tomorrow?.date,
+        ) ||
+        value.nextWeek?.sessions.some(
+          (session) => session.date === value.tomorrow?.date,
+        ) === true,
+      {
+        message:
+          "Tomorrow's session must be one of the current week's or the next week's sessions",
+        path: ["tomorrow", "date"],
+      },
+    );
+  return completePlanJson(
+    schema,
+    provider,
+    credentials,
+    buildPlanUpdateMessages(input),
+    PLAN_MAX_TOKENS,
+    {
+      repairHint: `${dailyDateHint(input.today, weekStart)} Tomorrow is ${addDays(input.today, 1)}; tomorrow's session must be in the current week or the next week${nextWeekStart === null ? "." : `, and the next week must start on ${nextWeekStart}.`}`,
+      kind: "plan_update",
+    },
+  );
+}
+
 /** Asks the coach for today's session and a revised week. */
 export async function generateDailyUpdate(
   provider: LlmProvider,
@@ -94,31 +147,6 @@ export async function generateDailyUpdate(
   );
 }
 
-/**
- * Asks the coach for a specific target day (tomorrow when planning the next
- * period) and its week. The prompt also asks for the day after the target, but
- * that field is not used; ignoring it keeps a malformed optional suggestion
- * from failing the generation.
- */
-export async function generateTargetDayUpdate(
-  provider: LlmProvider,
-  credentials: PlanUpdateCredentials,
-  input: DailyUpdateInput,
-): Promise<TargetDayUpdate> {
-  const weekStartDate = startOfWeek(input.today);
-  return completePlanJson(
-    withWeekDates(targetDayUpdateSchema, weekStartDate),
-    provider,
-    credentials,
-    buildDailyUpdateMessages({ ...input, detailThrough: input.today }),
-    PLAN_MAX_TOKENS,
-    {
-      repairHint: dailyDateHint(input.today, weekStartDate),
-      kind: "target_day_update",
-    },
-  );
-}
-
 /** Asks the coach for a new week and a revised block. */
 export async function generateWeeklyUpdate(
   provider: LlmProvider,
@@ -132,43 +160,5 @@ export async function generateWeeklyUpdate(
     buildWeeklyUpdateMessages(input),
     PLAN_MAX_TOKENS,
     { repairHint: weekDateHint(input.weekStartDate), kind: "weekly_update" },
-  );
-}
-
-/**
- * Asks the coach to re-plan the rest of the season from today and to create
- * the detailed block that starts today.
- */
-export async function generateSeasonRefresh(
-  provider: LlmProvider,
-  credentials: PlanUpdateCredentials,
-  input: SeasonRefreshInput,
-): Promise<BlockPlanUpdate> {
-  return completePlanJson(
-    blockPlanUpdateSchema,
-    provider,
-    credentials,
-    buildSeasonRefreshMessages(input),
-    PLAN_MAX_TOKENS,
-    {
-      repairHint: `The current block in season.blocks and block.startDate must both keep the existing start date ${input.block.startDate}.`,
-      kind: "season_refresh",
-    },
-  );
-}
-
-/** Asks the coach for the next block and a revised season. */
-export async function generateBlockUpdate(
-  provider: LlmProvider,
-  credentials: PlanUpdateCredentials,
-  input: BlockUpdateInput,
-): Promise<BlockPlanUpdate> {
-  return completePlanJson(
-    blockPlanUpdateSchema,
-    provider,
-    credentials,
-    buildBlockUpdateMessages(input),
-    PLAN_MAX_TOKENS,
-    { kind: "block_update" },
   );
 }

@@ -62,7 +62,7 @@ change still parse; new generations are prompted to provide it for workouts.
 
 - A shared `SESSION_PURPOSE_RULES` constant in `planContext.ts` is used by both
   `COACH_PLAN_SYSTEM_PROMPT` and `DAILY_UPDATE_SYSTEM_PROMPT`, so the wording
-  cannot drift between the reference contract and the live daily cascade.
+  cannot drift between the reference contract and the live plan update.
 - `COACH_PLAN_PROMPT_VERSION` is bumped because the prompt changed materially.
 - `CoachPlanView` keeps the existing `optional` flag to choose the badge but
   frames the block around the session's purpose.

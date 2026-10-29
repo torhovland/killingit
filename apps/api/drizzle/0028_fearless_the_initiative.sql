@@ -1,0 +1,2 @@
+ALTER TABLE "llm_calls" DROP CONSTRAINT "llm_calls_kind_check";--> statement-breakpoint
+ALTER TABLE "llm_calls" ADD CONSTRAINT "llm_calls_kind_check" CHECK ("llm_calls"."kind" in ('coach_plan', 'season_plan', 'initial_block', 'plan_update', 'daily_update', 'target_day_update', 'weekly_update', 'season_refresh', 'block_update', 'activity_analysis', 'program_analysis', 'athlete_metrics', 'coach_reply', 'coaching_question', 'period_review', 'manual_tss', 'other'));

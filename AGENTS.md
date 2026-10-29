@@ -74,13 +74,15 @@ about a past workout, or before a suggested workout, to steer the coach.
   promoted when today reaches it. Explicit regeneration can start a new season
   from today or update the remaining part of the stored season; stale answers
   update an existing season by default. See
-  `docs/specs/season-regeneration.md` and ADR 0011. The lazy day → week → block
-  cascade and the plan UI are documented in
-  `docs/specs/coach-plan-lifecycle.md`. Week and next-week plans are outlines:
-  only today's and tomorrow's sessions are fully detailed, while later days keep
-  a brief session type, focus, approximate duration and intensity, estimated
-  TSS, and the week's estimated FTP until the daily update details them. See
-  `docs/specs/week-outline.md`. Indoor bike workouts with power targets
+  `docs/specs/season-regeneration.md` and ADR 0011. Every lazy update (a day,
+  week, block or season refresh) sends all current levels to one prompt and
+  applies the returned block, week, day, next week, next block and tomorrow that
+  the update requested; the plan UI is documented in
+  `docs/specs/coach-plan-lifecycle.md` and ADR 0013. Week and next-week plans
+  are outlines: only today's and tomorrow's sessions are fully detailed, while
+  later days keep a brief session type, focus, approximate duration and
+  intensity, estimated TSS, and the week's estimated FTP until the daily update
+  details them. See `docs/specs/week-outline.md`. Indoor bike workouts with power targets
   carry a structured `bikeWorkout` and can be downloaded as ZWO files from the
   Day tab; see `docs/specs/coach-plan-lifecycle.md` and
   `docs/specs/bike-workout-export.md`.

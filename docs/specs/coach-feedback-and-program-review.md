@@ -126,7 +126,7 @@ and the reply is null; the failure is logged.
 1. A coaching-input route saves the input and generates the reply.
 2. It then starts the normal plan trigger. `keepToday` is true when the input is
    about today.
-3. `runPlanGeneration` rebuilds/reviews as before. In the cascade, when
+3. `runPlanGeneration` rebuilds/reviews as before. In a plan update, when
    `keepToday` is set and the stored plan is for today, the stored `today` day
    plan and today's week session are preserved **unless an activity was recorded
    today**. In that case the generated today plan describes the completed
@@ -157,7 +157,7 @@ and the reply is null; the failure is logged.
 ## Acceptance criteria
 
 1. A full plan build (initial, new season, season update, or stale answers)
-   produces a program review for recent activities; a day/week cascade alone
+   produces a program review for recent activities; a day/week update alone
    does not.
 2. Commenting on or editing an activity returns and persists a brief coach
    reply and triggers a week/day/tomorrow revision. When the commented activity

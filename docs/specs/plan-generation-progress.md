@@ -34,9 +34,9 @@ poll. Only the bar's CSS transition changes.
 
 A step is `{ id, label, target, defaultMs }`:
 
-- `id` is a stable key used to learn how long that kind of step takes. Several
-  call sites that use the same prompt share an id (for example the initial,
-  cascade, and next-period block updates).
+- `id` is a stable key used to learn how long that kind of step takes. The
+  initial build and the single plan-update completion have separate ids, so the
+  update bar keeps its own learned duration.
 - `label` is the existing UI copy.
 - `target` is the percentage the bar approaches while the step runs. Targets
   increase along every possible path, so progress never moves backwards.

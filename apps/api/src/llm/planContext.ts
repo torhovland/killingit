@@ -4,6 +4,7 @@ import {
   type BikeWorkout,
   type BlockPlan,
   type DailyWeather,
+  type DayPlan,
   type MetricPoint,
   type SeasonPlan,
   type WeekPlan,
@@ -389,6 +390,42 @@ export function formatWeekPlan(plan: WeekPlan): string {
       return `- ${session.date} (${session.day}) [${session.status}]: ${session.title} [${session.type}, ${session.intensity}, ${session.durationMinutes} min] — ${session.description}${bikeWorkout}${tss}`;
     }),
   ].join("\n");
+}
+
+/**
+ * Renders one concrete day plan for a prompt. The week plan only carries the
+ * session summary; a day plan also carries alternatives and the optionality
+ * guidance, so the update prompt can see the full current day.
+ */
+export function formatDayPlan(plan: DayPlan): string {
+  const lines = [
+    `Date: ${plan.date}`,
+    `Title: ${plan.title}`,
+    `Type: ${plan.type}; intensity: ${plan.intensity}; duration: ${plan.durationMinutes} min; status: ${plan.status}`,
+    `Description: ${plan.description}`,
+    `Rationale: ${plan.rationale}`,
+  ];
+  if (plan.alternatives !== undefined && plan.alternatives.length > 0) {
+    lines.push(`Alternatives: ${plan.alternatives.join("; ")}`);
+  }
+  if (plan.optional) {
+    lines.push(
+      `Optional: true${plan.optionalRationale !== undefined ? ` — ${plan.optionalRationale}` : ""}`,
+    );
+  }
+  if (plan.outdoor !== undefined) {
+    lines.push(`Outdoor: ${plan.outdoor}`);
+  }
+  if (plan.canBeOutdoor !== undefined) {
+    lines.push(`Can be outdoor: ${plan.canBeOutdoor}`);
+  }
+  if (plan.bikeWorkout != null) {
+    lines.push(`Bike workout: ${formatBikeWorkout(plan.bikeWorkout)}`);
+  }
+  if (plan.estimatedTss !== undefined) {
+    lines.push(`Estimated TSS: ${plan.estimatedTss}`);
+  }
+  return lines.join("\n");
 }
 
 /** Renders a structured bike workout's power targets for a generation prompt. */

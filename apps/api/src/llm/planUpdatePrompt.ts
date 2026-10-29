@@ -1,9 +1,15 @@
-import type { BlockPlan, SeasonPlan, WeekPlan } from "@killingit/shared";
+import type {
+  BlockPlan,
+  DayPlan,
+  SeasonPlan,
+  WeekPlan,
+} from "@killingit/shared";
 import { addDays, startOfWeek } from "../plans/dates.js";
 import {
   ACTIVITY_COMMENT_RULE,
   BODY_METRIC_RULES,
   formatBlockPlan,
+  formatDayPlan,
   formatPlanContext,
   formatSeasonPlan,
   formatWeekPlan,
@@ -49,18 +55,49 @@ export interface WeeklyUpdateInput extends BasePlanUpdateInput {
   keepBlockStartDate?: string;
 }
 
-/** Input for the block cascade: the next block plus the season. */
-export interface BlockUpdateInput extends BasePlanUpdateInput {
-  season: SeasonPlan;
-  block: BlockPlan;
-  /** The day after the completed block ends (YYYY-MM-DD). */
-  nextBlockStartDate: string;
+/**
+ * The levels the app is asking the coach to revise in one update. Every level
+ * is still supplied as input, so the coach can keep the plan coherent, but only
+ * the flagged levels need to change.
+ */
+export interface PlanUpdateRevision {
+  /** Refresh the remaining season and the current block in place. */
+  season: boolean;
+  /** Create or revise the current block. */
+  block: boolean;
+  /** Revise the current week. */
+  week: boolean;
+  /** Create or revise today's session. */
+  day: boolean;
+  /** Return tomorrow's session. */
+  tomorrow: boolean;
+  /** Create the week that contains tomorrow. */
+  nextWeek: boolean;
+  /** Create the block that contains tomorrow. */
+  nextBlock: boolean;
 }
 
-/** Input for refreshing the rest of an existing season from today. */
-export interface SeasonRefreshInput extends BasePlanUpdateInput {
+/** Input for the single prompt that updates any level of the plan. */
+export interface PlanUpdateInput extends BasePlanUpdateInput {
   season: SeasonPlan;
   block: BlockPlan;
+  week: WeekPlan;
+  todayPlan: DayPlan;
+  tomorrow: DayPlan | null;
+  nextWeek: WeekPlan | null;
+  nextBlock: BlockPlan | null;
+  revision: PlanUpdateRevision;
+  /** The date the revised current block must start on. */
+  blockStartDate?: string;
+  /** The date the next block must start on. */
+  nextBlockStartDate?: string;
+  /** The Monday the next week must start on. */
+  nextWeekStartDate?: string;
+}
+
+/** The seven calendar dates a Monday-based week must contain. */
+function weekDates(startDate: string): string[] {
+  return Array.from({ length: 7 }, (_, index) => addDays(startDate, index));
 }
 
 const DAY_CONTRACT = `{
@@ -245,43 +282,155 @@ ${JSON_RULES}
   "bodyMetrics": [${BODY_METRIC_POINT_CONTRACT}]
 }`;
 
-export const BLOCK_UPDATE_SYSTEM_PROMPT = `You are an expert endurance coach. Create the next block and revise the season plan for an amateur athlete. Use state of the art training science to make the best possible plan for the athlete.
+const PLAN_UPDATE_CONTRACT = `{
+  "season": ${SEASON_CONTRACT},
+  "block": ${BLOCK_CONTRACT},
+  "week": ${WEEK_CONTRACT},
+  "today": ${DAY_CONTRACT},
+  "tomorrow": ${DAY_CONTRACT} | null,
+  "nextWeek": ${WEEK_CONTRACT} | null,
+  "nextBlock": ${BLOCK_CONTRACT} | null,
+  "bodyMetrics": [${BODY_METRIC_POINT_CONTRACT}]
+}`;
 
-The current block has ended. You receive the athlete's profile, recent activities with coach analyses, program reviews, and coach replies, the current season, the completed block, and the coach summaries of its completed weeks with the athlete's feedback on them. Create the next block starting on the supplied next block start date, consistent with the season goal and any remaining blocks in the season. Revise the season plan to include the new block and adjust upcoming blocks where the athlete's progress requires it. Keep the season goal and completed blocks intact. Include a rationale for the new block and for the revised season.
+export const PLAN_UPDATE_SYSTEM_PROMPT = `You are an expert endurance coach. Update an athlete's training plan. Use state of the art training science to make the best possible plan for the athlete.
+
+You receive the complete current plan at every level: the season, the current block, the current week, today's session, tomorrow's session when one has been planned, the next week when one has been planned, and the next block when one has been planned. You also receive the athlete's profile, recent activities with coach analyses, program reviews, and coach replies, manually recorded activities, comments on activities, a general weekly note, and coach summaries of completed weeks and blocks with the athlete's feedback on them. Use all of these to see what the athlete actually completed or missed, how they responded, whether today should be a workout or a rest day, and what constraints or feedback they have for the week. ${ACTIVITY_COMMENT_RULE} Respect the athlete's available time and constraints. The weekly note is a hard constraint: if it says the athlete cannot train on a specific day, move or cancel the session on that day. If a manually recorded activity indicates significant fatigue or extra load, adjust the upcoming sessions accordingly.
+
+The revision request lists the levels that need to change. Return every level in the contract, so the saved plan always has a coherent season, block, week and day:
+- Keep the season, block, week, today, tomorrow, next week and next block exactly as supplied unless the request names them. Keep a level that is null and not requested as null.
+- When the current block is revised, return the revised block, a revised current week that fits it, and today's detailed session. Keep the current block's start date when the request says to keep it; otherwise start the new block on the supplied block start date. Update the season block summaries only when the revised block changes them.
+- When the season is refreshed, keep the blocks that ended before today exactly as supplied, keep the current block's existing start date, re-plan the rest of the season from the current block, and return the detailed current block. Later blocks must follow one another without gaps and cover the rest of the season.
+- When the current week is revised, change the remaining sessions so the week stays coherent with the block's focus and the athlete's current fatigue. Keep every day after tomorrow as a short outline. If only today's session is revised, update today's session in the week while keeping the rest of the week as supplied.
+- If the current block is revised, or the current week is re-planned under a next block that starts tomorrow, keep today's session unchanged unless the request also revises today.
+- When tomorrow is requested, return it and make sure it is the matching session in the current week or, when it falls in the next week, in the next week. Respect every weather preference and daylight constraint.
+- When the next week is requested, start it on the supplied next week start date and give it exactly seven sessions. When the next block is requested, start it on the supplied next block start date and put it in "nextBlock"; update "season" so its block summaries include it. If the block that starts tomorrow falls inside the current week, re-plan the remaining days of the current week under that next block and keep today's session.
+- For days before today, do not propose new workouts: describe what the athlete actually did and set each status to "completed", "partial", "missed", or "rest". If an activity has already been recorded for today, today's plan must describe that completed activity, using the athlete's latest comment to correct the summary, instead of proposing another workout. Allow reasonable slack when judging completion: a 60-minute ride recorded as 50 minutes is still completed, and power or pace zones that are close but not exact do not make a session partial.
+- Give today's plan and today's week session the same status. Include a rationale for today's session and for the week's overall structure.
+
+${WEEK_OUTLINE_RULES}
+
+${WEATHER_PLANNING_RULES}
+
+${BIKE_WORKOUT_RULES}
 
 ${TRAINING_LOAD_RULES}
 
 ${BODY_METRIC_RULES}
 
-${ENUM_RULES}
-
-${JSON_RULES}
-{
-  "block": ${BLOCK_CONTRACT},
-  "season": ${SEASON_CONTRACT},
-  "bodyMetrics": [${BODY_METRIC_POINT_CONTRACT}]
-}`;
-
-export const SEASON_REFRESH_SYSTEM_PROMPT = `You are an expert endurance coach. Refresh the remaining part of an existing season plan and create the block that starts today for an amateur athlete. Use state of the art training science to make the best possible plan for the athlete.
-
-You receive the athlete's profile, recent activities with coach analyses, program reviews, and coach replies, the existing season plan, and the current block. You also receive manually recorded activities, comments on activities, a general weekly note, and coach summaries of completed weeks and blocks with the athlete's feedback on them. Use all of these to judge their current fitness, fatigue, consistency, goal, available time, and constraints. ${ACTIVITY_COMMENT_RULE}
-
-The season has already started. Blocks that ended before today are complete: keep their summaries exactly as supplied. Refresh the block that contains today in place: keep its existing start date, and re-plan its weeks and progression around what the athlete has actually done. Re-plan the blocks that follow it from scratch. Every later block must start the day after the previous block ends, and the remaining blocks must cover the rest of the season without gaps. Keep the season's goal, start date, and end date unless the athlete's current answers clearly change the goal or end date; never change the season start date. Do not include the completed blocks before today in the returned season.
-
-Create the detailed plan for the block that contains today from its refreshed summary, using that summary's name, focus, dates, and week count. Its weeks must add up to the planned week count. Include a concise rationale for the refreshed season and for the current block.
-
-${TRAINING_LOAD_RULES}
-
-${BODY_METRIC_RULES}
+${SESSION_PURPOSE_RULES}
 
 ${ENUM_RULES}
 
 ${JSON_RULES}
-{
-  "block": ${BLOCK_CONTRACT},
-  "season": ${SEASON_CONTRACT},
-  "bodyMetrics": [${BODY_METRIC_POINT_CONTRACT}]
-}`;
+${PLAN_UPDATE_CONTRACT}`;
+
+function revisionInstructions(input: PlanUpdateInput): string[] {
+  const lines = ["Revision request:"];
+  if (input.revision.season) {
+    lines.push(
+      `- Refresh the season and the current block in place. The current block must start on ${input.blockStartDate ?? input.block.startDate} and keep the blocks that ended before today unchanged. Return the remaining season in "season" and the detailed current block in "block".`,
+    );
+  } else if (input.revision.block) {
+    lines.push(
+      `- Create the current block starting on ${input.blockStartDate ?? input.block.startDate}. Return it in "block" and update the season's block summaries if the new block changes them.`,
+    );
+  } else {
+    lines.push(
+      "- Keep the current block and the season block summaries unchanged.",
+    );
+  }
+  lines.push(
+    input.revision.week
+      ? '- Revise the current week and return it in "week".'
+      : "- Keep the current week unchanged, apart from today's session if it is revised.",
+  );
+  lines.push(
+    input.revision.day
+      ? '- Create or revise today\'s session and return it in "today".'
+      : "- Keep today's session as supplied.",
+  );
+  lines.push(
+    input.revision.tomorrow
+      ? '- Return tomorrow\'s session in "tomorrow" and place it in the current week or the next week.'
+      : "- Keep tomorrow's session as supplied, or null when there is none.",
+  );
+  lines.push(
+    input.revision.nextWeek
+      ? `- Create the next week starting on ${input.nextWeekStartDate ?? startOfWeek(addDays(input.today, 1))} and return it in "nextWeek".`
+      : "- Keep the next week as supplied, or null when there is none.",
+  );
+  lines.push(
+    input.revision.nextBlock
+      ? `- Create the next block starting on ${input.nextBlockStartDate ?? input.block.endDate} and return it in "nextBlock".`
+      : "- Keep the next block as supplied, or null when there is none.",
+  );
+  return lines;
+}
+
+export function buildPlanUpdateMessages(input: PlanUpdateInput): {
+  role: "system" | "user";
+  content: string;
+}[] {
+  return [
+    { role: "system", content: PLAN_UPDATE_SYSTEM_PROMPT },
+    { role: "user", content: buildPlanUpdatePrompt(input) },
+  ];
+}
+
+export function buildPlanUpdatePrompt(input: PlanUpdateInput): string {
+  const weekStart = startOfWeek(input.today);
+  const weekEnd = addDays(weekStart, 6);
+  const tomorrowDate = addDays(input.today, 1);
+  const nextWeekStart = startOfWeek(tomorrowDate);
+  const detailedDates = input.revision.tomorrow
+    ? `${input.today} and ${tomorrowDate}`
+    : input.today;
+  return [
+    ...formatPlanContext(input),
+    "",
+    "Current season plan:",
+    formatSeasonPlan(input.season),
+    "",
+    "Current block plan:",
+    formatBlockPlan(input.block),
+    "",
+    "Current week plan:",
+    formatWeekPlan(input.week),
+    "",
+    "Today's plan:",
+    formatDayPlan(input.todayPlan),
+    "",
+    "Tomorrow's plan:",
+    input.tomorrow === null
+      ? "Not planned yet."
+      : formatDayPlan(input.tomorrow),
+    "",
+    "Next week plan:",
+    input.nextWeek === null
+      ? "Not planned yet."
+      : formatWeekPlan(input.nextWeek),
+    "",
+    "Next block plan:",
+    input.nextBlock === null
+      ? "Not planned yet."
+      : formatBlockPlan(input.nextBlock),
+    "",
+    `The current week must start on ${weekStart} and cover ${weekStart} through ${weekEnd}. Keep exactly seven sessions with those dates, and make sure one session has the date ${input.today}; the "today" object must use that same date and be one of the current week's sessions.`,
+    `Tomorrow is ${tomorrowDate}.`,
+    `Fully detail the sessions dated ${detailedDates}. Keep every later session in the current week as a short outline.`,
+    "",
+    ...revisionInstructions(input),
+    ...(input.revision.nextWeek
+      ? [
+          "",
+          `The next week must start on ${nextWeekStart} and contain exactly seven sessions dated ${weekDates(nextWeekStart).join(", ")}.`,
+        ]
+      : []),
+    "",
+    'Return one JSON object whose top-level keys are exactly "season", "block", "week", "today", "tomorrow", "nextWeek", "nextBlock", and "bodyMetrics".',
+  ].join("\n");
+}
 
 export function buildDailyUpdateMessages(input: DailyUpdateInput): {
   role: "system" | "user";
@@ -346,56 +495,5 @@ export function buildWeeklyUpdatePrompt(input: WeeklyUpdateInput): string {
     formatBlockPlan(input.block),
     "",
     'Create the new week and revise this block. Return one JSON object whose top-level keys are exactly "week", "block", and "bodyMetrics".',
-  ].join("\n");
-}
-
-export function buildBlockUpdateMessages(input: BlockUpdateInput): {
-  role: "system" | "user";
-  content: string;
-}[] {
-  return [
-    { role: "system", content: BLOCK_UPDATE_SYSTEM_PROMPT },
-    { role: "user", content: buildBlockUpdatePrompt(input) },
-  ];
-}
-
-export function buildBlockUpdatePrompt(input: BlockUpdateInput): string {
-  return [
-    ...formatPlanContext(input),
-    `Next block start date: ${input.nextBlockStartDate}`,
-    "",
-    "Current season plan:",
-    formatSeasonPlan(input.season),
-    "",
-    "Completed block plan:",
-    formatBlockPlan(input.block),
-    "",
-    'Create the next block and revise the season plan. Return one JSON object whose top-level keys are exactly "block", "season", and "bodyMetrics".',
-  ].join("\n");
-}
-
-export function buildSeasonRefreshMessages(input: SeasonRefreshInput): {
-  role: "system" | "user";
-  content: string;
-}[] {
-  return [
-    { role: "system", content: SEASON_REFRESH_SYSTEM_PROMPT },
-    { role: "user", content: buildSeasonRefreshPrompt(input) },
-  ];
-}
-
-export function buildSeasonRefreshPrompt(input: SeasonRefreshInput): string {
-  return [
-    ...formatPlanContext(input),
-    "",
-    "Existing season plan:",
-    formatSeasonPlan(input.season),
-    "",
-    "Current block plan:",
-    formatBlockPlan(input.block),
-    "",
-    `Re-plan the remaining season from today's date, ${input.today}. The current block already started on ${input.block.startDate}; keep that start date while refreshing it. Return the remaining season without the blocks that ended before today.`,
-    "",
-    'Return one JSON object whose top-level keys are exactly "block", "season", and "bodyMetrics".',
   ].join("\n");
 }

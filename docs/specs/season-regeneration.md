@@ -22,7 +22,7 @@ place, and re-plans the future blocks from there.
    - **Update season plan** refreshes the remaining part of the stored season
      and is only shown when a season exists and today falls inside it.
 2. Add an explicit generation mode to `POST /api/coaching/plan/generate`:
-   - `auto` (default) keeps the existing cascade behaviour, except that stale
+   - `auto` (default) keeps the lazy update behaviour, except that stale
      answers refresh an existing season instead of silently starting a new one.
    - `newSeason` forces a full four-level build from today.
    - `updateSeason` refreshes the existing season in place.
@@ -90,15 +90,15 @@ and means the same as `newSeason`.
    - `updateSeason` (or `auto` with stale answers) and today inside the stored
      season → full build from a refreshed season;
    - `updateSeason` without a usable season → full build from a new season;
-   - otherwise → the existing day/week/block cascade.
-3. A refreshed season asks the coach for the remaining season and the detailed
-   current block in one completion. The API then restores the stored completed
-   block summaries and the original season start date, and checks that the
-   current block keeps its stored start date before accepting the result.
-4. Build the week and the revised block, then today (and tomorrow after 18:00),
-   using the same steps and validation as a full build. The weekly revision is
-   told to keep the current block's start date, and a response that moves it is
-   rejected.
+   - otherwise → the single day/week/block plan update.
+3. A refreshed season uses the single plan-update prompt. It receives the
+   existing season, block, week and day and returns the remaining season, the
+   detailed current block, the revised week and today (plus tomorrow and the
+   next period when wanted). The API then restores the stored completed block
+   summaries and the original season start date, and checks that the current
+   block keeps its stored start date before accepting the result.
+4. The returned week and day are validated together with the refreshed block.
+   A response that moves the current block's start date is rejected.
 5. Save with the current answer, coaching-input, and activity timestamps.
 
 ## UI

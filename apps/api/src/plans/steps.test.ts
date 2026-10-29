@@ -9,9 +9,7 @@ const FULL_BUILD = [
   PLAN_GENERATION_STEPS.initialBlock,
   PLAN_GENERATION_STEPS.initialWeek,
   PLAN_GENERATION_STEPS.day,
-  PLAN_GENERATION_STEPS.nextBlock,
-  PLAN_GENERATION_STEPS.nextWeek,
-  PLAN_GENERATION_STEPS.tomorrow,
+  PLAN_GENERATION_STEPS.planUpdate,
   PLAN_GENERATION_STEPS.save,
   PLAN_GENERATION_STEPS.reviewActivities,
 ];
@@ -19,12 +17,7 @@ const FULL_BUILD = [
 /** A cascade that starts at the block, without the full-build prefix. */
 const CASCADE = [
   PLAN_GENERATION_STEPS.prepare,
-  PLAN_GENERATION_STEPS.cascadeBlock,
-  PLAN_GENERATION_STEPS.cascadeWeek,
-  PLAN_GENERATION_STEPS.day,
-  PLAN_GENERATION_STEPS.nextBlock,
-  PLAN_GENERATION_STEPS.nextWeek,
-  PLAN_GENERATION_STEPS.tomorrow,
+  PLAN_GENERATION_STEPS.planUpdate,
   PLAN_GENERATION_STEPS.save,
   PLAN_GENERATION_STEPS.reviewActivities,
 ];

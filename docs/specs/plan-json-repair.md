@@ -29,13 +29,13 @@ before the generation fails.
    the day update's `today` date must match one of those sessions. The same
    constraint is validated after the response and included in the repair hint.
 4. Use the repair path for all plan completions (season, block, week, day, and
-   the cascade updates).
+   the single plan-update prompt).
 5. Keep the original opaque phrase as a prefix so existing UI/reporting remains
    recognisable.
-6. When the cascade plans a specific target day against a known week (the next
-   week's Monday after 18:00), validate only the target day and its week. The
-   response's unused day-after-target field must not fail the generation and
-   leave the plan pending forever.
+6. The plan-update response is validated as a complete plan: today must be one
+   of the current week's sessions, tomorrow must be in the current or next
+   week, and a returned next week must start on its Monday. The repair turn
+   repeats those dates.
 
 ### Out of scope
 
@@ -65,9 +65,10 @@ before the generation fails.
    without a repair.
 6. `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`
    pass.
-7. A target-day cascade response with a malformed unused day-after field still
-   produces the target day and its week, so `pending.tomorrow` clears instead of
-   triggering another failed generation on every visit.
+7. A plan-update response with a misplaced tomorrow or a next week that does
+   not start on Monday is repaired before it can be saved, so
+   `pending.tomorrow` clears instead of triggering another failed generation on
+   every visit.
 
 ## Data-model / API impact
 

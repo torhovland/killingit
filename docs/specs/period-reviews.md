@@ -16,7 +16,7 @@ a plan refresh that uses all of it.
 ### In scope
 
 1. Summarise the stored week and block once they have ended, before the lazy
-   cascade replaces them. Store the summary in `period_reviews`.
+   update replaces them. Store the summary in `period_reviews`.
 2. Show completed-week and completed-block reviews on the dashboard, but only
    those the athlete has not answered. Answering means saving a comment or
    choosing "No comment".
@@ -73,7 +73,7 @@ new comment and the review summaries, so the plan revision is built on them.
 
 ## Generation flow
 
-1. During plan generation, before the cascade replaces the stored week/block,
+1. During plan generation, before the update replaces the stored week/block,
    detect a week whose end date is before today and a block whose end date is
    before today.
 2. For each, skip when a review already exists; otherwise ask the coach for a
