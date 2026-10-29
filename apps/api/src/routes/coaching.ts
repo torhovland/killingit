@@ -266,6 +266,7 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
           startDate,
           details,
           ftpWatts: ftpBaselineAt(ftp.timeline, startDate)?.watts ?? null,
+          userId,
         },
       );
     } catch (err) {

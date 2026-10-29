@@ -1,6 +1,7 @@
 import { coachResponseNotesSchema } from "@killingit/shared";
 import { z } from "zod";
 import { completePlanJson } from "../llm/planCompletion.js";
+import { saveCoachQuestions } from "../plans/coachQuestions.js";
 import {
   COACH_RESPONSE_NOTES_CONTRACT,
   COACH_RESPONSE_NOTES_RULES,
@@ -43,6 +44,8 @@ export async function estimateManualActivityTss(
     startDate: string;
     details: string;
     ftpWatts: number | null;
+    /** When set, clarification questions are stored for the athlete. */
+    userId?: number;
   },
 ): Promise<number | null> {
   try {
@@ -64,6 +67,23 @@ export async function estimateManualActivityTss(
       1024,
       { kind: "manual_tss" },
     );
+    if (
+      input.userId !== undefined &&
+      result.coachQuestions !== undefined &&
+      result.coachQuestions !== null &&
+      result.coachQuestions.length > 0
+    ) {
+      try {
+        await saveCoachQuestions({
+          userId: input.userId,
+          questions: result.coachQuestions,
+          model: credentials.model,
+          sourceKind: "manual_tss",
+        });
+      } catch (err) {
+        console.error("[manual-tss] could not store coach questions:", err);
+      }
+    }
     return result.tss;
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err);
