@@ -417,6 +417,8 @@ interface PlanUpdateFlags {
   tomorrow: boolean;
   nextWeek: boolean;
   nextBlock: boolean;
+  /** A full week or block revision makes the stored next period stale. */
+  clearNextPeriod: boolean;
 }
 
 interface PlanUpdateOptions {
@@ -450,11 +452,15 @@ async function advancePlan(
     nextBlockRevision &&
     tomorrowWeek !== null &&
     tomorrowWeek.startDate === current.week.startDate;
+  // A new day revises today's session and the rest of the week around it. A
+  // next-block transition that lands in the current week revises the week but
+  // deliberately keeps today's session.
   const weekRevision =
     seasonRefresh ||
     blockRevision ||
     revisionNeeded ||
     pending.week ||
+    pending.day ||
     nextBlockSameWeek;
   const dayRevision =
     seasonRefresh ||
@@ -479,6 +485,12 @@ async function advancePlan(
     tomorrow: tomorrowRevision,
     nextWeek: nextWeekRevision,
     nextBlock: nextBlockRevision,
+    clearNextPeriod:
+      seasonRefresh ||
+      blockRevision ||
+      revisionNeeded ||
+      pending.week ||
+      nextBlockRevision,
   };
   const options: PlanUpdateOptions = {
     ...(seasonRefresh
@@ -555,7 +567,15 @@ async function requestPlanUpdate(
   options: PlanUpdateOptions,
 ): Promise<CoachPlan> {
   const { userId, context, generations } = input;
-  const revision = { ...flags };
+  const revision: PlanUpdateRevision = {
+    season: flags.season,
+    block: flags.block,
+    week: flags.week,
+    day: flags.day,
+    tomorrow: flags.tomorrow,
+    nextWeek: flags.nextWeek,
+    nextBlock: flags.nextBlock,
+  };
   await generations.update(
     userId,
     flags.season
@@ -587,7 +607,7 @@ async function requestPlanUpdate(
         : {}),
     },
   );
-  return applyPlanUpdate(input, current, update, revision, options);
+  return applyPlanUpdate(input, current, update, flags, options);
 }
 
 /** Applies the levels the update prompt revised and keeps the rest stored. */
@@ -595,7 +615,7 @@ function applyPlanUpdate(
   input: GeneratePlanInput,
   current: CoachPlan,
   update: CoachPlan,
-  revision: PlanUpdateRevision,
+  revision: PlanUpdateFlags,
   options: PlanUpdateOptions,
 ): CoachPlan {
   const { today } = input;
@@ -631,10 +651,10 @@ function applyPlanUpdate(
     plan = { ...plan, week: update.week, today: current.today };
   }
 
-  if ((revision.block || revision.week) && !revision.nextBlock) {
+  if (revision.clearNextPeriod && !revision.nextBlock) {
     plan = { ...plan, nextBlock: null };
   }
-  if ((revision.block || revision.week) && !revision.nextWeek) {
+  if (revision.clearNextPeriod && !revision.nextWeek) {
     plan = { ...plan, nextWeek: null };
   }
   if (revision.nextBlock) {
@@ -644,7 +664,7 @@ function applyPlanUpdate(
     plan = { ...plan, nextWeek: update.nextWeek };
   }
 
-  if ((revision.block || revision.week) && !revision.tomorrow) {
+  if (revision.clearNextPeriod && !revision.tomorrow) {
     plan = { ...plan, tomorrow: null };
   }
   if (revision.tomorrow) {
@@ -714,6 +734,7 @@ async function planNextPeriod(
       tomorrow: true,
       nextWeek: pending.nextWeek,
       nextBlock: pending.nextBlock,
+      clearNextPeriod: pending.nextBlock,
     },
     {
       ...(pending.nextBlock

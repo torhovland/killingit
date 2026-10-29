@@ -648,6 +648,45 @@ describe("runPlanGeneration", () => {
     expect(generations.status.status).toBe("done");
   });
 
+  it("revises the rest of the week on a new day without dropping the next period", async () => {
+    const revisedWeek = makeWeek("2026-10-19");
+    const provider = new FakeProvider({
+      planUpdate: makeUpdate("2026-10-21", {
+        week: {
+          ...revisedWeek,
+          sessions: revisedWeek.sessions.map((session) =>
+            session.date === "2026-10-23"
+              ? { ...session, title: "Revised Friday" }
+              : session,
+          ),
+        },
+      }),
+    });
+    const storedNextWeek = makeWeek("2026-10-26");
+    const existing = makeStoredPlan({
+      ...makePlan("2026-10-20"),
+      nextWeek: storedNextWeek,
+    });
+    const plans = new MemoryPlanStore(existing);
+    const generations = new MemoryGenerationStore();
+
+    const saved = await runPlanGeneration({
+      userId: 1,
+      today: "2026-10-21",
+      plan: existing,
+      context: makeContext(provider),
+      plans,
+      generations,
+    });
+
+    expect(provider.calls).toEqual(["plan-update"]);
+    expect(
+      saved?.plan.week.sessions.find((session) => session.date === "2026-10-23")
+        ?.title,
+    ).toBe("Revised Friday");
+    expect(saved?.plan.nextWeek?.startDate).toBe(storedNextWeek.startDate);
+  });
+
   it("revises the week and day when coaching inputs change", async () => {
     const provider = new FakeProvider({
       planUpdate: makeUpdate("2026-10-21"),
