@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="logo-title">
+  <title id="logo-title">Killing It</title>
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#68478D" />
+      <stop offset="1" stop-color="#3F2A56" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#tile)" />
+  <rect
+    x="1"
+    y="1"
+    width="62"
+    height="62"
+    rx="13"
+    fill="none"
+    stroke="#E2E8D2"
+    stroke-opacity="0.18"
+    stroke-width="1.5"
+  />
+  <path
+    d="M20.5 14.5V49.5"
+    fill="none"
+    stroke="#E2E8D2"
+    stroke-width="8"
+    stroke-linecap="round"
+  />
+  <path
+    d="M22.5 34L39.5 49.5"
+    fill="none"
+    stroke="#E2E8D2"
+    stroke-width="8"
+    stroke-linecap="round"
+  />
+  <path
+    d="M24 34L39 19"
+    fill="none"
+    stroke="#A9C47F"
+    stroke-width="7.5"
+    stroke-linecap="round"
+  />
+  <path
+    d="M48 10L43.6 23.6L34.4 14.4Z"
+    fill="#A9C47F"
+    stroke="#A9C47F"
+    stroke-width="1.5"
+    stroke-linejoin="round"
+  />
+</svg>

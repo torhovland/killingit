@@ -113,16 +113,23 @@ function AppShell() {
       <NavigationProvider navigate={navigate}>
         <div className="flex min-h-screen w-full flex-col">
           <header className="flex w-full flex-wrap items-center gap-x-3 gap-y-2 border-b px-3 py-2 sm:px-4">
-            <div className="flex min-w-0 flex-wrap items-baseline gap-x-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
               <a
                 href="/"
-                className="text-2xl font-bold text-primary no-underline hover:no-underline"
+                className="flex items-center gap-2 text-2xl font-bold text-primary no-underline hover:no-underline"
                 onClick={(event) => {
                   event.preventDefault();
                   navigate("coach");
                 }}
               >
-                Killing It
+                <img
+                  src="/logo.svg"
+                  alt=""
+                  width={32}
+                  height={32}
+                  className="h-8 w-8 shrink-0"
+                />
+                <span>Killing It</span>
               </a>
               <p className="text-base text-muted-foreground">
                 Deadly serious about your progress
