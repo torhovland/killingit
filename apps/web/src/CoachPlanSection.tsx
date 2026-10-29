@@ -31,8 +31,9 @@ interface CoachPlanSectionProps {
 /**
  * The four-level coach plan. Loads the stored plan, fills in anything missing
  * for today, and polls while the coach is thinking so the user sees progress.
- * The old plan stays visible during a regeneration, except on the Day tab where
- * a superseded day is greyed out until its replacement arrives.
+ * The old plan stays visible during a regeneration, except on the Day, Week,
+ * and Block tabs where a superseded level is greyed out until its replacement
+ * arrives.
  */
 export function CoachPlanSection({
   refreshKey,
@@ -379,6 +380,14 @@ export function CoachPlanSection({
           refreshingDays={{
             today: running && data.pending.day,
             tomorrow: running && data.pending.tomorrow,
+          }}
+          refreshingWeeks={{
+            week: running && data.pending.week,
+            nextWeek: running && data.pending.nextWeek,
+          }}
+          refreshingBlocks={{
+            block: running && data.pending.block,
+            nextBlock: running && data.pending.nextBlock,
           }}
           onDownloadWorkout={(date) => void downloadWorkout(date)}
           downloadingWorkoutDate={downloadingWorkoutDate}
