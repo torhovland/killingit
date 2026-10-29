@@ -55,7 +55,7 @@ export function AthleteAnswersSection({
             {questions.map((question) => (
               <div
                 key={question.id}
-                className="rounded border bg-muted p-3 text-base"
+                className="rounded border bg-inset p-3 text-base"
               >
                 <dt className="font-medium">{question.prompt}</dt>
                 <dd className="whitespace-pre-wrap text-muted-foreground">

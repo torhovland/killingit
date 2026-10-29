@@ -102,7 +102,7 @@ export function AdminModelRemarksSection() {
           {remarks.map((remark) => (
             <li
               key={remark.callId}
-              className="flex flex-col gap-1 rounded border bg-muted p-3 text-base"
+              className="flex flex-col gap-1 rounded border bg-inset p-3 text-base"
               data-testid="model-remark"
             >
               <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">

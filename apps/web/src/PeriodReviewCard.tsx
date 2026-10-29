@@ -118,7 +118,7 @@ export function PeriodReviewCard({
 
       {showWeeklyNote && review.weeklyNote && (
         <div
-          className="flex flex-col gap-1 rounded border bg-muted p-2 text-base"
+          className="flex flex-col gap-1 rounded border bg-inset p-2 text-base"
           data-testid="period-review-weekly-note"
         >
           <p className="whitespace-pre-line">

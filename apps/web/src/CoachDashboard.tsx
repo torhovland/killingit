@@ -708,7 +708,7 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
           </SubmitButton>
           {weeklyNoteReply && (
             <p
-              className="rounded border bg-muted p-2 text-base"
+              className="rounded border bg-inset p-2 text-base"
               data-testid="weekly-note-reply"
             >
               <span className="font-medium">Coach:</span> {weeklyNoteReply.text}
@@ -745,7 +745,7 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
           </SubmitButton>
           {questionReply && (
             <p
-              className="rounded border bg-muted p-2 text-base"
+              className="rounded border bg-inset p-2 text-base"
               data-testid="by-the-way-reply"
             >
               <span className="font-medium">Coach:</span> {questionReply}

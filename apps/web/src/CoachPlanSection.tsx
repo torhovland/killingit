@@ -274,7 +274,7 @@ export function CoachPlanSection({
       </div>
 
       {!ready && (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded border bg-muted p-3 text-base">
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded border bg-inset p-3 text-base">
           <span className="text-muted-foreground">
             Connect Garmin and OpenRouter to generate your training plan.
           </span>
@@ -307,7 +307,7 @@ export function CoachPlanSection({
 
       {setupError && !generating && (
         <div
-          className="flex flex-wrap items-center justify-between gap-2 rounded border bg-muted p-3 text-base"
+          className="flex flex-wrap items-center justify-between gap-2 rounded border bg-inset p-3 text-base"
           data-testid="plan-generation-error"
         >
           <p className="text-destructive">
@@ -325,7 +325,7 @@ export function CoachPlanSection({
 
       {running && (
         <div
-          className="flex flex-col gap-2 rounded border bg-muted p-3"
+          className="flex flex-col gap-2 rounded border bg-inset p-3"
           data-testid="plan-progress"
         >
           <div className="flex flex-wrap items-center justify-between gap-2 text-base">
@@ -349,7 +349,7 @@ export function CoachPlanSection({
       )}
 
       {data?.stale && ready && (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded border bg-muted p-3 text-base">
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded border bg-inset p-3 text-base">
           <span>
             Your coaching inputs changed, so your plan is out of date.
           </span>
