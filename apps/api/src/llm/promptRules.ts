@@ -1,6 +1,10 @@
 /**
  * Shared rules and response contracts for the coaching prompts.
  *
+ * Fragments are ordered roughly as they appear in a prompt: identity and input,
+ * plan-global rules, session shape, planning rules, activity-review rules,
+ * output rules, then response contracts.
+ *
  * A rule lives here when more than one prompt depends on it: the build prompts,
  * the update prompts, the activity reviews and the manual TSS estimate all
  * describe the same TSS scale, FTP projection, weather and outline behaviour.
@@ -43,6 +47,48 @@ export const ACTIVITY_COMMENT_RULE =
 export const WEEKLY_NOTE_SCOPE_RULE = `A weekly note is normally scoped to the week it was written for. If it says the athlete cannot train on Thursday, assume that Thursday of that week only. If it says that on Thursdays they have a meetup that keeps them from training, assume it applies to every Thursday. Unless the athlete explicitly says otherwise, do not extend a week-specific constraint to other weeks.`;
 
 /**
+ * Shared rule for every prompt that reports a measurement the athlete stated:
+ * only the athlete's own numbers count, and a goal is never a measurement.
+ */
+export const ONLY_STATED_NUMBERS_RULE = `Report only numbers the athlete states in the input. Never infer or guess a measurement from training data, a workout summary, the training plan, or earlier coach notes, never estimate a weigh-in from the workout data, and never turn a goal into a measurement.`;
+
+/**
+ * The units every prompt uses for body measurements: kilograms and body-fat
+ * percentage of body weight.
+ */
+export const BODY_METRIC_UNITS_RULE = `Give body weight in kilograms and body fat as a percentage of body weight; convert a stated weight in pounds or stone. A fraction such as 0.245 and "24.5 %" both mean 24.5 % body fat.`;
+
+/**
+ * The rules every plan prompt includes regardless of the level it builds or
+ * updates. Keeping them in one literal means the plan prompts share the same
+ * persona, input reading, rationale and body-metric behaviour without listing
+ * them separately.
+ */
+export const PLAN_PROMPT_GLOBAL_RULES = `You are an expert endurance coach.
+
+Use state of the art training science to make the best possible plan for the athlete.
+
+You receive the athlete's profile, recent activities with coach analyses, program reviews, and coach replies, manually recorded activities, comments on activities, a general weekly note, and coach summaries of completed weeks and blocks with the athlete's feedback on them. Use all of these to understand the athlete's goal, available time, experience, preferences, constraints, and subjective feedback, and to see what they actually completed or missed and how they responded.
+
+A comment on an activity describes that same activity. It is not an additional activity and must never be added on top of the activity's recorded time or treated as extra training.
+
+Respect the athlete's available time and constraints. The weekly note is a hard constraint: if it says the athlete cannot train on a specific day, move or cancel the session on that day. If a manually recorded activity indicates significant fatigue or extra load, adjust the upcoming sessions accordingly.
+
+Do not invent facts that are not in the input. When an important detail is missing, make a conservative assumption and state it briefly in the relevant focus or description.
+
+Every "rationale" field explains the plan as it stands, not the act of creating or revising it. Explain why this goal, season shape, block, week, session, or rest day is right for the athlete from this point forward, using the latest training and feedback. Do not describe a previous plan, what changed, or why it was revised. Do not write phrases such as "we adjusted", "we changed", "this replaces", or "because of the new review". State the current rationale directly.
+
+When the profile, a weekly note, an activity comment, or another part of the input states the athlete's body weight or body-fat percentage, report it in "bodyMetrics" as { "date": "YYYY-MM-DD", "weightKg": number, "bodyFatPercent": number }.
+
+Give body weight in kilograms and body fat as a percentage of body weight; convert a stated weight in pounds or stone. A fraction such as 0.245 and "24.5 %" both mean 24.5 % body fat.
+
+Use the date the statement refers to. For a number in the profile that names no date, use the date the profile was last saved; for anything added more recently, use today's date. Set a value the input does not give to null, and return an empty "bodyMetrics" array when the input says nothing about either number.
+
+Report only numbers the athlete states in the input. Never infer or guess a measurement from training data, a workout summary, the training plan, or earlier coach notes, never estimate a weigh-in from the workout data, and never turn a goal into a measurement.
+
+The stored history tells you what is already known; do not repeat a value for the same date.`;
+
+/**
  * How a week hangs together: seven dated sessions starting on its start date.
  * Every prompt that returns a week uses this.
  */
@@ -80,6 +126,14 @@ export const COMPLETED_SESSION_RULES = promptSections(
 );
 
 /**
+ * Shared instruction for the level of detail in a week plan. A week is a
+ * shape, not seven finished workouts: only today and tomorrow need a concrete
+ * prescription, because the daily update will detail each later day when it
+ * arrives.
+ */
+export const WEEK_OUTLINE_RULES = `Treat the week as an outline, not seven finished workouts. Fully detail only the sessions the request says need detail: a concrete description, and for an indoor bike workout with power targets a "bikeWorkout". Keep every other future day as a short outline: the session type, a brief title naming the kind of session, a one-sentence description of its intent, an approximate duration and intensity, and an "estimatedTss". Do not prescribe detailed intervals, repetitions, paces, or power targets for outline days, and set "bikeWorkout" to null there; the daily update will turn an outline into a concrete workout when that day arrives. The outline must still show the week's shape: which days are long, hard, easy, or rest. Set the week's "estimatedFtpWatts" from the athlete's profile and the plan's progression, and estimate each outline day's "estimatedTss" against it.`;
+
+/**
  * Shared rule for the day the athlete is about to train. A session must earn
  * its place: the coach states what it builds toward the plan's goal and what
  * skipping costs, and treats a session it cannot justify as a reason to revise
@@ -92,26 +146,6 @@ Set "optional" to true only when the cost of skipping is genuinely small, and ex
 Before returning, apply the same test to every workout in the week: if you cannot state a concrete loss for skipping a planned session, that session is filler. Revise the week so every workout serves the goal, or replace the session with rest, and update today's plan to match. The week must be the best plan you can make for this athlete's goal, not a template to fill.
 
 If today or tomorrow is a rest day, explain in "rationale" why rest is the best choice today; no optionality assessment is needed.`;
-
-/**
- * Shared instruction for the level of detail in a week plan. A week is a
- * shape, not seven finished workouts: only today and tomorrow need a concrete
- * prescription, because the daily update will detail each later day when it
- * arrives.
- */
-export const WEEK_OUTLINE_RULES = `Treat the week as an outline, not seven finished workouts. Fully detail only the sessions the request says need detail: a concrete description, and for an indoor bike workout with power targets a "bikeWorkout". Keep every other future day as a short outline: the session type, a brief title naming the kind of session, a one-sentence description of its intent, an approximate duration and intensity, and an "estimatedTss". Do not prescribe detailed intervals, repetitions, paces, or power targets for outline days, and set "bikeWorkout" to null there; the daily update will turn an outline into a concrete workout when that day arrives. The outline must still show the week's shape: which days are long, hard, easy, or rest. Set the week's "estimatedFtpWatts" from the athlete's profile and the plan's progression, and estimate each outline day's "estimatedTss" against it.`;
-
-/**
- * Shared rule for every prompt that reports a measurement the athlete stated:
- * only the athlete's own numbers count, and a goal is never a measurement.
- */
-export const ONLY_STATED_NUMBERS_RULE = `Report only numbers the athlete states in the input. Never infer or guess a measurement from training data, a workout summary, the training plan, or earlier coach notes, never estimate a weigh-in from the workout data, and never turn a goal into a measurement.`;
-
-/**
- * The units every prompt uses for body measurements: kilograms and body-fat
- * percentage of body weight.
- */
-export const BODY_METRIC_UNITS_RULE = `Give body weight in kilograms and body fat as a percentage of body weight; convert a stated weight in pounds or stone. A fraction such as 0.245 and "24.5 %" both mean 24.5 % body fat.`;
 
 /**
  * Shared weather and daylight instruction for prompts that choose which day
@@ -149,38 +183,26 @@ export const TRAINING_LOAD_RULES = promptSections(
   "When measured power is available the app recalculates the number from the recorded effort and the estimated FTP.",
 );
 
-/**
- * The rules every plan prompt includes regardless of the level it builds or
- * updates. Keeping them in one fragment means the plan prompts share the same
- * persona, input reading, rationale and body-metric behaviour without listing
- * them separately.
- */
-export const PLAN_PROMPT_GLOBAL_RULES = `You are an expert endurance coach.
-
-Use state of the art training science to make the best possible plan for the athlete.
-
-You receive the athlete's profile, recent activities with coach analyses, program reviews, and coach replies, manually recorded activities, comments on activities, a general weekly note, and coach summaries of completed weeks and blocks with the athlete's feedback on them. Use all of these to understand the athlete's goal, available time, experience, preferences, constraints, and subjective feedback, and to see what they actually completed or missed and how they responded.
-
-A comment on an activity describes that same activity. It is not an additional activity and must never be added on top of the activity's recorded time or treated as extra training.
-
-Respect the athlete's available time and constraints. The weekly note is a hard constraint: if it says the athlete cannot train on a specific day, move or cancel the session on that day. If a manually recorded activity indicates significant fatigue or extra load, adjust the upcoming sessions accordingly.
-
-Do not invent facts that are not in the input. When an important detail is missing, make a conservative assumption and state it briefly in the relevant focus or description.
-
-Every "rationale" field explains the plan as it stands, not the act of creating or revising it. Explain why this goal, season shape, block, week, session, or rest day is right for the athlete from this point forward, using the latest training and feedback. Do not describe a previous plan, what changed, or why it was revised. Do not write phrases such as "we adjusted", "we changed", "this replaces", or "because of the new review". State the current rationale directly.
-
-When the profile, a weekly note, an activity comment, or another part of the input states the athlete's body weight or body-fat percentage, report it in "bodyMetrics" as { "date": "YYYY-MM-DD", "weightKg": number, "bodyFatPercent": number }.
-
-Give body weight in kilograms and body fat as a percentage of body weight; convert a stated weight in pounds or stone. A fraction such as 0.245 and "24.5 %" both mean 24.5 % body fat.
-
-Use the date the statement refers to. For a number in the profile that names no date, use the date the profile was last saved; for anything added more recently, use today's date. Set a value the input does not give to null, and return an empty "bodyMetrics" array when the input says nothing about either number.
-
-Report only numbers the athlete states in the input. Never infer or guess a measurement from training data, a workout summary, the training plan, or earlier coach notes, never estimate a weigh-in from the workout data, and never turn a goal into a measurement.
-
-The stored history tells you what is already known; do not repeat a value for the same date.`;
-
 /** The exact enum values the plan schemas accept for a session. */
 export const ENUM_RULES = `For every type field use either "workout" or "rest"; for every intensity field use "easy", "moderate", "hard", or "rest". For a rest session set both type and intensity to "rest"; for a workout set type to "workout" and intensity to "easy", "moderate", or "hard". These are exact, lowercase strings: never output a session name such as "run", "strength", or "rest day" as a type, and never copy the "|" choices from the contract into the response.`;
+
+/**
+ * The activity-type caveat shared by both activity reviews: the device label
+ * is not evidence of what the session actually was.
+ */
+export const ACTIVITY_TYPE_RULE = `The activity type recorded by the device is only a label and may be wrong: do not trust it. If the heart-rate data looks erratic — sudden spikes or drops that do not fit the steady effort the summary suggests — this may be a strength-training workout even when the device labelled it as running, cycling, or another endurance activity.`;
+
+/** The FTP estimate every activity review reports when the effort supports one. */
+export const ACTIVITY_FTP_ESTIMATE_RULES = `Also estimate the athlete's FTP after this workout when the recorded effort supports it. Use the supplied FTP history as the baseline, respect its trend, and never invent a large jump. Set "estimatedFtpWatts" to null when the activity gives no useful evidence (for example a rest day, a strength session, or a workout with no power or hard aerobic effort).`;
+
+/**
+ * The body-composition fields every activity review reports when the athlete's
+ * comment states them.
+ */
+export const ACTIVITY_BODY_METRIC_RULES = promptSections(
+  `When the athlete's comment on this activity states their body weight or body-fat percentage, report it in "weightKg" and "bodyFatPercent".`,
+  ONLY_STATED_NUMBERS_RULE,
+);
 
 /** The JSON-only output rule shared by every structured prompt. */
 export const JSON_ONLY_RULES = `Do not add markdown fences, headings, explanations, commentary, or extra fields.`;
@@ -196,6 +218,25 @@ export const JSON_RULES = promptSections(
   JSON_ONLY_RULES,
   `Every field must use the exact name and value type shown in the contract. The top-level keys must be exactly the keys shown at the top level of the contract, with the same nesting; never return a bare inner object, an array, or a wrapper such as "plan" or "response". When a contract lists choices separated by "|", output exactly one of those choices as a string and never the list itself. Replace every placeholder such as "YYYY-MM-DD", "string", or 0 with a real value.`,
 );
+
+/** The shared closing instruction for prompts that return JSON. */
+export const RETURN_JSON_FROM_SYSTEM_PROMPT =
+  "Return the JSON object described in the system prompt.";
+
+/**
+ * The sentence that names the exact top-level keys a plan response must use.
+ * Kept as a helper so every plan prompt spells the response keys the same way.
+ */
+export function jsonTopLevelKeys(keys: readonly string[]): string {
+  const quoted = keys.map((key) => `"${key}"`);
+  const list =
+    quoted.length <= 1
+      ? (quoted[0] ?? "")
+      : quoted.length === 2
+        ? `${quoted[0]} and ${quoted[1]}`
+        : `${quoted.slice(0, -1).join(", ")}, and ${quoted.at(-1)}`;
+  return `Return one JSON object whose top-level keys are exactly ${list}.`;
+}
 
 /** The structured power targets shared by the day and week session contracts. */
 export const BIKE_WORKOUT_CONTRACT = `{ "ftpWatts": 0, "intervals": [{ "durationSeconds": 0, "powerPercent": 75 }] }`;
@@ -277,43 +318,6 @@ export const SEASON_CONTRACT = `{
 
 /** One dated body-composition point in a plan response. */
 export const BODY_METRIC_POINT_CONTRACT = `{ "date": "YYYY-MM-DD", "weightKg": 0, "bodyFatPercent": 0 }`;
-
-/**
- * The activity-type caveat shared by both activity reviews: the device label
- * is not evidence of what the session actually was.
- */
-export const ACTIVITY_TYPE_RULE = `The activity type recorded by the device is only a label and may be wrong: do not trust it. If the heart-rate data looks erratic — sudden spikes or drops that do not fit the steady effort the summary suggests — this may be a strength-training workout even when the device labelled it as running, cycling, or another endurance activity.`;
-
-/** The FTP estimate every activity review reports when the effort supports one. */
-export const ACTIVITY_FTP_ESTIMATE_RULES = `Also estimate the athlete's FTP after this workout when the recorded effort supports it. Use the supplied FTP history as the baseline, respect its trend, and never invent a large jump. Set "estimatedFtpWatts" to null when the activity gives no useful evidence (for example a rest day, a strength session, or a workout with no power or hard aerobic effort).`;
-
-/**
- * The body-composition fields every activity review reports when the athlete's
- * comment states them.
- */
-export const ACTIVITY_BODY_METRIC_RULES = promptSections(
-  `When the athlete's comment on this activity states their body weight or body-fat percentage, report it in "weightKg" and "bodyFatPercent".`,
-  ONLY_STATED_NUMBERS_RULE,
-);
-
-/** The shared closing instruction for prompts that return JSON. */
-export const RETURN_JSON_FROM_SYSTEM_PROMPT =
-  "Return the JSON object described in the system prompt.";
-
-/**
- * The sentence that names the exact top-level keys a plan response must use.
- * Kept as a helper so every plan prompt spells the response keys the same way.
- */
-export function jsonTopLevelKeys(keys: readonly string[]): string {
-  const quoted = keys.map((key) => `"${key}"`);
-  const list =
-    quoted.length <= 1
-      ? (quoted[0] ?? "")
-      : quoted.length === 2
-        ? `${quoted[0]} and ${quoted[1]}`
-        : `${quoted.slice(0, -1).join(", ")}, and ${quoted.at(-1)}`;
-  return `Return one JSON object whose top-level keys are exactly ${list}.`;
-}
 
 /** The JSON contract shared by the activity and program reviews. */
 export const COACH_ANALYSIS_RESPONSE_RULES = promptSections(
