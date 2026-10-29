@@ -64,10 +64,10 @@ export function GarminSection({ connected, onConnected }: GarminSectionProps) {
   if (connected && !editing) {
     return (
       <section className="flex flex-col gap-1" data-testid="garmin-status">
-        <p className="text-sm text-success">Garmin connected</p>
+        <p className="text-base text-success">Garmin connected</p>
         <button
           type="button"
-          className="self-start rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted"
+          className="self-start rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted"
           onClick={() => setEditing(true)}
           data-testid="garmin-edit-credentials"
         >
@@ -79,7 +79,7 @@ export function GarminSection({ connected, onConnected }: GarminSectionProps) {
 
   return (
     <section className="flex flex-col gap-2">
-      <h2 className="text-xl font-semibold">
+      <h2 className="text-2xl font-semibold">
         {connected ? "Update Garmin credentials" : "Connect Garmin"}
       </h2>
       {error && (

@@ -102,7 +102,7 @@ export function ActivityMap({ route }: { route: readonly RoutePoint[] }) {
           />
         )}
       </svg>
-      <figcaption className="px-1 text-[10px] text-muted-foreground">
+      <figcaption className="px-1 text-xs text-muted-foreground">
         <a
           href="https://www.openstreetmap.org/copyright"
           target="_blank"

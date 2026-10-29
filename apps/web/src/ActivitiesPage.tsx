@@ -363,15 +363,15 @@ export function ActivitiesPage() {
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-col gap-1">
-          <h2 className="text-xl font-semibold">Activities</h2>
-          <p className="text-sm text-muted-foreground">
+          <h2 className="text-2xl font-semibold">Activities</h2>
+          <p className="text-base text-muted-foreground">
             Every imported activity, plus anything you record manually.
           </p>
         </div>
         <SubmitButton
           type="button"
           busy={syncing}
-          className="rounded border border-transparent bg-primary px-3 py-1 text-sm text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
+          className="rounded border border-transparent bg-primary px-3 py-1 text-base text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
           onClick={() => void loadAnalyses(llm?.configured ?? false)}
           disabled={!garmin?.connected}
         >
@@ -380,7 +380,7 @@ export function ActivitiesPage() {
       </div>
 
       {!loading && (!garmin?.connected || !llm?.configured) && (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded border bg-muted p-3 text-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded border bg-muted p-3 text-base">
           <span className="text-muted-foreground">
             {!garmin?.connected
               ? "Connect Garmin in Settings to import activities."
@@ -400,14 +400,14 @@ export function ActivitiesPage() {
         className="flex flex-col gap-2 rounded-lg border bg-card p-4"
         onSubmit={(event) => void handleManualActivitySubmit(event)}
       >
-        <label className="text-sm font-medium" htmlFor="manual-start-date">
+        <label className="text-base font-medium" htmlFor="manual-start-date">
           {editingActivityId ? "Edit manual activity" : "Manual activity"}
         </label>
         <input
           id="manual-start-date"
           name="startDate"
           type="date"
-          className="w-fit rounded border bg-card px-2 py-1 text-sm"
+          className="w-fit rounded border bg-card px-2 py-1 text-base"
           value={manualStartDate}
           onChange={(event) => setManualStartDate(event.target.value)}
           disabled={savingManual}
@@ -415,7 +415,7 @@ export function ActivitiesPage() {
         <textarea
           name="details"
           placeholder="Describe your activity"
-          className="w-full rounded border bg-card p-2 text-sm"
+          className="w-full rounded border bg-card p-2 text-base"
           rows={2}
           value={manualDetails}
           onChange={(event) => setManualDetails(event.target.value)}
@@ -424,7 +424,7 @@ export function ActivitiesPage() {
         <div className="flex gap-2">
           <SubmitButton
             busy={savingManual}
-            className="self-start rounded border border-transparent bg-primary px-3 py-1 text-sm text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
+            className="self-start rounded border border-transparent bg-primary px-3 py-1 text-base text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
             disabled={!manualStartDate || !manualDetails.trim()}
           >
             {manualLabel}
@@ -432,7 +432,7 @@ export function ActivitiesPage() {
           {editingActivityId && (
             <button
               type="button"
-              className="self-start rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted disabled:opacity-50"
+              className="self-start rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted disabled:opacity-50"
               onClick={handleCancelEdit}
               disabled={savingManual}
             >
@@ -444,12 +444,12 @@ export function ActivitiesPage() {
 
       {manualActivities.length > 0 && (
         <div className="flex flex-col gap-2">
-          <h3 className="text-sm font-medium">Saved manual activities</h3>
+          <h3 className="text-base font-medium">Saved manual activities</h3>
           <ul className="flex flex-col gap-1">
             {manualActivities.map((activity) => (
               <li
                 key={activity.id}
-                className="flex items-start justify-between gap-2 rounded border bg-card p-2 text-sm"
+                className="flex items-start justify-between gap-2 rounded border bg-card p-2 text-base"
               >
                 <div className="flex flex-col gap-1">
                   <span>
@@ -476,14 +476,14 @@ export function ActivitiesPage() {
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    className="text-xs text-muted-foreground hover:underline"
+                    className="text-sm text-muted-foreground hover:underline"
                     onClick={() => handleEditActivity(activity)}
                   >
                     Edit
                   </button>
                   <button
                     type="button"
-                    className="text-xs text-destructive hover:underline"
+                    className="text-sm text-destructive hover:underline"
                     onClick={() => void handleDeleteManualActivity(activity)}
                   >
                     Delete
@@ -496,7 +496,7 @@ export function ActivitiesPage() {
       )}
 
       {syncing && (
-        <p className="text-sm text-muted-foreground" aria-live="polite">
+        <p className="text-base text-muted-foreground" aria-live="polite">
           {llm?.configured
             ? "Syncing Garmin and asking the coach to analyse your workouts…"
             : "Syncing Garmin activities…"}
@@ -504,7 +504,7 @@ export function ActivitiesPage() {
       )}
 
       {!syncing && data && data.activities.length === 0 && (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-base text-muted-foreground">
           No activities in the last 42 days.
         </p>
       )}

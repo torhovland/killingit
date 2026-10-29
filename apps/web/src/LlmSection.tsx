@@ -6,6 +6,7 @@ import {
   type LlmSettings,
 } from "@killingit/shared";
 import { useAuth } from "./auth";
+import { Bullet } from "./Bullet";
 import { fetchJsonAuthed } from "./fetchAuthed";
 import { reportError } from "./reportError";
 
@@ -120,12 +121,14 @@ export function LlmSection({ settings, onSaved }: LlmSectionProps) {
   if (!editing) {
     return (
       <section className="flex flex-col gap-1" data-testid="llm-status">
-        <p className="text-sm text-success">
-          OpenRouter connected · {settings.model}
+        <p className="text-base text-success">
+          OpenRouter connected
+          <Bullet />
+          {settings.model}
         </p>
         <button
           type="button"
-          className="self-start rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted"
+          className="self-start rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted"
           onClick={() => setEditing(true)}
         >
           Change model or key
@@ -136,8 +139,8 @@ export function LlmSection({ settings, onSaved }: LlmSectionProps) {
 
   return (
     <section className="flex flex-col gap-2">
-      <h2 className="text-xl font-semibold">OpenRouter setup</h2>
-      <p className="text-sm text-muted-foreground">
+      <h2 className="text-2xl font-semibold">OpenRouter setup</h2>
+      <p className="text-base text-muted-foreground">
         Paste an OpenRouter API key and choose the model that analyses your
         workouts. The key is validated, encrypted at rest, and never shown
         again.
@@ -150,7 +153,7 @@ export function LlmSection({ settings, onSaved }: LlmSectionProps) {
       )}
       {modelsError && (
         <p
-          className="rounded bg-accent/15 p-2 text-sm"
+          className="rounded bg-accent/15 p-2 text-base"
           data-testid="llm-models-error"
         >
           Could not load the model catalog ({modelsError}). You can still enter

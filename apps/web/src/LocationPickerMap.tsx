@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { AthleteLocation } from "@killingit/shared";
+import { Bullet } from "./Bullet";
 import {
   mapTiles,
   projectPoint,
@@ -163,7 +164,7 @@ export function LocationPickerMap({
       <div className="absolute top-2 right-2 flex flex-col gap-1">
         <button
           type="button"
-          className="flex size-8 items-center justify-center rounded border bg-card text-lg leading-none hover:bg-muted disabled:opacity-50"
+          className="flex size-8 items-center justify-center rounded border bg-card text-xl leading-none hover:bg-muted disabled:opacity-50"
           aria-label="Zoom in"
           onClick={() => setZoom((current) => clampZoom(current + 1))}
           disabled={zoom >= MAX_ZOOM}
@@ -172,7 +173,7 @@ export function LocationPickerMap({
         </button>
         <button
           type="button"
-          className="flex size-8 items-center justify-center rounded border bg-card text-lg leading-none hover:bg-muted disabled:opacity-50"
+          className="flex size-8 items-center justify-center rounded border bg-card text-xl leading-none hover:bg-muted disabled:opacity-50"
           aria-label="Zoom out"
           onClick={() => setZoom((current) => clampZoom(current - 1))}
           disabled={zoom <= MIN_ZOOM}
@@ -181,8 +182,9 @@ export function LocationPickerMap({
         </button>
       </div>
 
-      <p className="mt-1 px-1 text-[10px] text-muted-foreground">
-        Click or drag the map to choose a point ·{" "}
+      <p className="mt-1 px-1 text-xs text-muted-foreground">
+        Click or drag the map to choose a point
+        <Bullet />
         <a
           href="https://www.openstreetmap.org/copyright"
           target="_blank"

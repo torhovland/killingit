@@ -2,6 +2,7 @@ import { useState } from "react";
 import { formatActivityType, type AnalyzedActivity } from "@killingit/shared";
 import { ActivityMap } from "./ActivityMap";
 import { ActivitySamples } from "./ActivitySamples";
+import { Bullet, Bullets } from "./Bullet";
 import { formatDuration } from "./formatDuration";
 import { SubmitButton } from "./SubmitButton";
 import { TrainingLoadLine } from "./TrainingLoadLine";
@@ -153,12 +154,12 @@ export function ActivityCard({
       >
         <div className="flex flex-col gap-2">
           <header className="flex flex-col gap-1">
-            <h3 className="text-lg font-semibold">{activity.name}</h3>
-            <p className="text-sm text-muted-foreground">
-              {metadata.join(" · ")}
+            <h3 className="text-xl font-semibold">{activity.name}</h3>
+            <p className="text-base text-muted-foreground">
+              <Bullets parts={metadata} />
               {onDelete && (
                 <>
-                  {" · "}
+                  <Bullet />
                   <button
                     type="button"
                     className="text-destructive enabled:hover:underline disabled:opacity-50"
@@ -174,7 +175,7 @@ export function ActivityCard({
           </header>
 
           {deleteError && (
-            <p className="text-xs text-destructive">{deleteError}</p>
+            <p className="text-sm text-destructive">{deleteError}</p>
           )}
 
           {activity.trainingLoad !== null &&
@@ -192,7 +193,7 @@ export function ActivityCard({
             </p>
           ) : (
             <p
-              className="rounded bg-accent/15 p-2 text-sm"
+              className="rounded bg-accent/15 p-2 text-base"
               data-testid="activity-analysis-error"
             >
               {activity.analysisError
@@ -213,14 +214,14 @@ export function ActivityCard({
       )}
 
       {shownComment && (
-        <div className="flex flex-wrap items-baseline gap-2 text-sm">
+        <div className="flex flex-wrap items-baseline gap-2 text-base">
           <p data-testid="activity-comment">
             <span className="font-medium">You:</span> {shownComment}
           </p>
           {onSubmitComment && !editing && (
             <button
               type="button"
-              className="text-xs text-muted-foreground hover:underline"
+              className="text-sm text-muted-foreground hover:underline"
               onClick={handleEditComment}
               data-testid="activity-comment-edit"
             >
@@ -231,7 +232,7 @@ export function ActivityCard({
       )}
 
       {shownReply && (
-        <p className="text-sm" data-testid="activity-coach-reply">
+        <p className="text-base" data-testid="activity-coach-reply">
           <span className="font-medium">Coach:</span> {shownReply}
         </p>
       )}
@@ -245,18 +246,18 @@ export function ActivityCard({
           <textarea
             id={`activity-comment-${activity.id}`}
             aria-label="Comment about this activity"
-            className="w-full rounded border bg-card p-2 text-sm"
+            className="w-full rounded border bg-card p-2 text-base"
             placeholder="How did it feel? Anything the coach should know?"
             value={comment}
             onChange={(event) => setComment(event.target.value)}
             disabled={submitting}
             rows={2}
           />
-          {error && <p className="text-xs text-destructive">{error}</p>}
+          {error && <p className="text-sm text-destructive">{error}</p>}
           <div className="flex flex-wrap gap-2">
             <SubmitButton
               busy={submitting}
-              className="self-start rounded border border-transparent bg-primary px-3 py-1 text-sm text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
+              className="self-start rounded border border-transparent bg-primary px-3 py-1 text-base text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
               disabled={!comment.trim()}
             >
               {submitting ? "Coach is thinking…" : "Send to coach"}
@@ -264,7 +265,7 @@ export function ActivityCard({
             {shownComment !== null && (
               <button
                 type="button"
-                className="self-start rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted disabled:opacity-50"
+                className="self-start rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted disabled:opacity-50"
                 onClick={handleCancelEdit}
                 disabled={submitting}
               >
@@ -274,7 +275,7 @@ export function ActivityCard({
             {onNoComment && shownComment === null && (
               <button
                 type="button"
-                className="self-start rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted disabled:opacity-50"
+                className="self-start rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted disabled:opacity-50"
                 onClick={() => void handleNoComment()}
                 disabled={dismissing || submitting}
                 data-testid="activity-no-comment"

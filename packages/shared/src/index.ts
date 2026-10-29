@@ -41,6 +41,7 @@ export {
   dailyWeatherSchema,
   FORECAST_PROVIDER_LABELS,
   formatDailyWeatherLine,
+  formatDailyWeatherParts,
   geocodeResponseSchema,
   geocodedLocationSchema,
   WEATHER_ICON_LABELS,

@@ -31,10 +31,10 @@ export function DevDatePicker() {
 
   return (
     <section
-      className="flex flex-col gap-2 rounded-lg border bg-card p-4 text-sm"
+      className="flex flex-col gap-2 rounded-lg border bg-card p-4 text-base"
       data-testid="dev-date-picker"
     >
-      <h3 className="text-xl font-semibold">Development</h3>
+      <h3 className="text-2xl font-semibold">Development</h3>
       <p className="text-muted-foreground">
         Simulate a visit on another date. This panel only appears in development
         and test environments.
@@ -51,13 +51,13 @@ export function DevDatePicker() {
       {isOverridden && (
         <button
           type="button"
-          className="rounded border bg-muted px-2 py-1 text-xs enabled:hover:bg-card"
+          className="rounded border bg-muted px-2 py-1 text-sm enabled:hover:bg-card"
           onClick={clearOverride}
         >
           Clear override
         </button>
       )}
-      <p className="text-xs text-muted-foreground">
+      <p className="text-sm text-muted-foreground">
         {isOverridden
           ? "Simulating a visit on the selected date."
           : "Using the real date."}

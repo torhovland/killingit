@@ -132,8 +132,8 @@ export function SettingsPage({
       data-testid="settings-page"
     >
       <div className="flex flex-col gap-1">
-        <h2 className="text-2xl font-semibold">Settings</h2>
-        <p className="text-sm text-muted-foreground">
+        <h2 className="text-3xl font-semibold">Settings</h2>
+        <p className="text-base text-muted-foreground">
           Connect your training data, set your location, configure the coach's
           model, and rebuild your plan.
         </p>
@@ -142,7 +142,7 @@ export function SettingsPage({
       {error && <p className="text-destructive">Error: {error}</p>}
 
       {loading && (garmin === null || llm === null) ? (
-        <p className="text-sm text-muted-foreground">Loading settings…</p>
+        <p className="text-base text-muted-foreground">Loading settings…</p>
       ) : garmin === null || llm === null ? (
         <button
           type="button"
@@ -154,12 +154,12 @@ export function SettingsPage({
       ) : (
         <>
           <section className="flex flex-col gap-3 rounded-lg border bg-card p-4">
-            <h3 className="text-xl font-semibold">Time zone</h3>
-            <p className="text-sm text-muted-foreground">
+            <h3 className="text-2xl font-semibold">Time zone</h3>
+            <p className="text-base text-muted-foreground">
               Activity times and generated timestamps use this zone. Leave it on
               your device's zone to follow your current location.
             </p>
-            <label className="flex max-w-md flex-col gap-1 text-sm">
+            <label className="flex max-w-md flex-col gap-1 text-base">
               <span className="font-medium">Display time zone</span>
               <select
                 className="rounded border bg-card px-2 py-1"
@@ -180,7 +180,7 @@ export function SettingsPage({
             )}
             <button
               type="button"
-              className="self-start rounded border border-transparent bg-primary px-3 py-1 text-sm text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
+              className="self-start rounded border border-transparent bg-primary px-3 py-1 text-base text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
               onClick={() => void saveTimeZone()}
               disabled={savingTimeZone || selectedTimeZone === (timeZone ?? "")}
             >
@@ -189,8 +189,8 @@ export function SettingsPage({
           </section>
 
           <section className="flex flex-col gap-3 rounded-lg border bg-card p-4">
-            <h3 className="text-xl font-semibold">Location</h3>
-            <p className="text-sm text-muted-foreground">
+            <h3 className="text-2xl font-semibold">Location</h3>
+            <p className="text-base text-muted-foreground">
               Choose the place the coach should use for weather and daylight.
               Plans use Open-Meteo and Yr.no forecasts to schedule outdoor
               sessions around rain, wind, cold, sunrise, and sunset.
@@ -202,7 +202,7 @@ export function SettingsPage({
           </section>
 
           <section className="flex flex-col gap-3 rounded-lg border bg-card p-4">
-            <h3 className="text-xl font-semibold">Garmin</h3>
+            <h3 className="text-2xl font-semibold">Garmin</h3>
             <GarminSection
               connected={garmin.connected}
               onConnected={setGarmin}
@@ -210,13 +210,13 @@ export function SettingsPage({
           </section>
 
           <section className="flex flex-col gap-3 rounded-lg border bg-card p-4">
-            <h3 className="text-xl font-semibold">OpenRouter</h3>
+            <h3 className="text-2xl font-semibold">OpenRouter</h3>
             <LlmSection settings={llm} onSaved={setLlm} />
           </section>
 
           <section className="flex flex-col gap-3 rounded-lg border bg-card p-4">
-            <h3 className="text-xl font-semibold">Training plan</h3>
-            <p className="text-sm text-muted-foreground">
+            <h3 className="text-2xl font-semibold">Training plan</h3>
+            <p className="text-base text-muted-foreground">
               Start a new season from today, or keep the completed part of the
               current season and re-plan the rest.
             </p>

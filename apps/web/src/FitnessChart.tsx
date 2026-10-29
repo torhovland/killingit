@@ -67,9 +67,7 @@ export function FitnessChart({
 
   return (
     <figure className="flex flex-col gap-2 rounded-lg border bg-card p-4">
-      <figcaption className="text-base font-medium">
-        Fitness and form
-      </figcaption>
+      <figcaption className="text-lg font-medium">Fitness and form</figcaption>
       <div className="relative">
         <svg
           viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
@@ -192,7 +190,7 @@ export function FitnessChart({
               y={CHART_PADDING.top + scale.y(tick)}
               textAnchor="end"
               dominantBaseline="middle"
-              className="fill-muted-foreground text-[10px]"
+              className="fill-muted-foreground text-xs"
             >
               {Math.round(tick)}
             </text>
@@ -214,7 +212,7 @@ export function FitnessChart({
                       ? "end"
                       : "middle"
                 }
-                className="fill-muted-foreground text-[10px]"
+                className="fill-muted-foreground text-xs"
               >
                 {formatChartDate(day.date)}
               </text>
@@ -223,7 +221,7 @@ export function FitnessChart({
         </svg>
         {hovered !== null && (
           <div
-            className="pointer-events-none absolute top-2 z-10 w-56 -translate-x-1/2 rounded border bg-card p-2 text-xs shadow-lg"
+            className="pointer-events-none absolute top-2 z-10 w-56 -translate-x-1/2 rounded border bg-card p-2 text-sm shadow-lg"
             style={{ left: `${hovered.percent}%` }}
           >
             <FitnessDayTooltip day={hovered.day} today={today} />
@@ -273,7 +271,7 @@ export function FitnessChart({
  * the SVG scales to the figure's width.
  */
 const LEGEND_INSET = `${((CHART_PADDING.left / CHART_WIDTH) * 100).toFixed(4)}%`;
-const LEGEND_CLASSES = "flex flex-wrap gap-x-4 gap-y-1 text-xs";
+const LEGEND_CLASSES = "flex flex-wrap gap-x-4 gap-y-1 text-sm";
 
 /** A line-style legend swatch, drawn on the same white as the plot. */
 function LineSwatch({ className }: { className: string }) {

@@ -116,7 +116,7 @@ function AppShell() {
             <div className="flex min-w-0 flex-wrap items-baseline gap-x-2">
               <a
                 href="/"
-                className="text-xl font-bold text-primary no-underline hover:no-underline"
+                className="text-2xl font-bold text-primary no-underline hover:no-underline"
                 onClick={(event) => {
                   event.preventDefault();
                   navigate("coach");
@@ -124,7 +124,7 @@ function AppShell() {
               >
                 Killing It
               </a>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-base text-muted-foreground">
                 Deadly serious about your progress
               </p>
             </div>
@@ -140,7 +140,7 @@ function AppShell() {
                   onSignOut={() => void auth.logout()}
                 />
               ) : auth.isLoading ? (
-                <p className="text-sm text-muted-foreground">Loading…</p>
+                <p className="text-base text-muted-foreground">Loading…</p>
               ) : null}
             </div>
           </header>
@@ -150,7 +150,7 @@ function AppShell() {
 
             {!signedIn ? (
               auth.isLoading ? (
-                <p className="text-sm text-muted-foreground">Loading…</p>
+                <p className="text-base text-muted-foreground">Loading…</p>
               ) : (
                 <button
                   className="self-start rounded border border-transparent bg-primary px-4 py-2 text-primary-foreground enabled:hover:bg-primary-hover"
@@ -160,7 +160,7 @@ function AppShell() {
                 </button>
               )
             ) : loadingQuestions && questions === null ? (
-              <p className="text-sm text-muted-foreground">
+              <p className="text-base text-muted-foreground">
                 Loading your profile…
               </p>
             ) : questions === null ? (
@@ -257,7 +257,7 @@ function UserMenu({
   return (
     <details className="relative" data-testid="user-menu">
       <summary
-        className="flex cursor-pointer list-none items-center gap-2 rounded border bg-card px-2 py-1.5 text-sm hover:bg-muted [&::-webkit-details-marker]:hidden"
+        className="flex cursor-pointer list-none items-center gap-2 rounded border bg-card px-2 py-1.5 text-base hover:bg-muted [&::-webkit-details-marker]:hidden"
         aria-label="Open account menu"
         title="Menu"
       >
@@ -279,13 +279,13 @@ function UserMenu({
             className="size-7 rounded-full object-cover"
           />
         ) : (
-          <span className="flex size-7 items-center justify-center rounded-full bg-accent text-xs font-medium text-accent-foreground">
+          <span className="flex size-7 items-center justify-center rounded-full bg-accent text-sm font-medium text-accent-foreground">
             {name.slice(0, 1).toUpperCase()}
           </span>
         )}
         <span className="font-medium">{name}</span>
         {isAdmin && (
-          <span className="rounded border border-transparent bg-accent px-2 py-0.5 text-xs text-accent-foreground">
+          <span className="rounded border border-transparent bg-accent px-2 py-0.5 text-sm text-accent-foreground">
             Admin
           </span>
         )}
@@ -301,7 +301,7 @@ function UserMenu({
         )}
       </summary>
       <nav
-        className="absolute right-0 z-10 mt-1 flex min-w-48 flex-col rounded border bg-card p-1 text-sm shadow-lg"
+        className="absolute right-0 z-10 mt-1 flex min-w-48 flex-col rounded border bg-card p-1 text-base shadow-lg"
         aria-label="Account"
       >
         {(

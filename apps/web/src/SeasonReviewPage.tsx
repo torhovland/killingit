@@ -138,19 +138,19 @@ export function SeasonReviewPage() {
       {error && <p className="text-destructive">Error: {error}</p>}
 
       <div className="flex flex-col gap-1">
-        <h2 className="text-xl font-semibold">Season review</h2>
-        <p className="text-sm text-muted-foreground">
+        <h2 className="text-2xl font-semibold">Season review</h2>
+        <p className="text-base text-muted-foreground">
           The coach's summaries of every completed week and block. Edit a
           comment to get a new coach reply and refresh the plan.
         </p>
       </div>
 
       {loading && reviews.length === 0 && (
-        <p className="text-sm text-muted-foreground">Loading reviews…</p>
+        <p className="text-base text-muted-foreground">Loading reviews…</p>
       )}
 
       {!loading && reviews.length === 0 && (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-base text-muted-foreground">
           No completed week or block reviews yet.
         </p>
       )}
@@ -160,7 +160,7 @@ export function SeasonReviewPage() {
           className="flex flex-col gap-3"
           data-testid="season-coach-questions"
         >
-          <h3 className="text-lg font-medium">Coach questions</h3>
+          <h3 className="text-xl font-medium">Coach questions</h3>
           {coachQuestions.map((question) => (
             <CoachQuestionCard key={question.id} question={question} />
           ))}
@@ -169,7 +169,7 @@ export function SeasonReviewPage() {
 
       {blockReviews.length > 0 && (
         <div className="flex flex-col gap-3">
-          <h3 className="text-lg font-medium">Block reviews</h3>
+          <h3 className="text-xl font-medium">Block reviews</h3>
           {blockReviews.map((review) => (
             <PeriodReviewCard
               key={`block:${review.startDate}`}
@@ -182,7 +182,7 @@ export function SeasonReviewPage() {
 
       {weekReviews.length > 0 && (
         <div className="flex flex-col gap-3">
-          <h3 className="text-lg font-medium">Week reviews</h3>
+          <h3 className="text-xl font-medium">Week reviews</h3>
           {weekReviews.map((review) => (
             <PeriodReviewCard
               key={`week:${review.startDate}`}

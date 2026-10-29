@@ -3,6 +3,7 @@ import {
   interpretTrainingStressBalance,
   type TrainingLoad,
 } from "@killingit/shared";
+import { Bullet } from "./Bullet";
 import { FORM_TEXT_CLASSES } from "./formColors";
 
 /** How much of each metric to spell out. */
@@ -43,15 +44,15 @@ export function TrainingLoadLine({
     <p
       className={
         described
-          ? "w-full text-base text-muted-foreground tabular-nums"
-          : "w-full text-xs text-muted-foreground tabular-nums"
+          ? "w-full text-lg text-muted-foreground tabular-nums"
+          : "w-full text-sm text-muted-foreground tabular-nums"
       }
       data-testid={testId}
       title="TSS: training stress score. ATL: acute load (fatigue). CTL: chronic load (fitness). TSB: training stress balance (form)."
     >
       {metrics.map((metric, index) => (
         <span key={metric.short}>
-          {index > 0 && " · "}
+          {index > 0 && <Bullet />}
           <span className="font-medium text-foreground">
             {described
               ? `${metric.name} ${metric.value}`
@@ -60,7 +61,7 @@ export function TrainingLoadLine({
           {described && ` (${metric.short})`}
         </span>
       ))}
-      {" · "}
+      <Bullet />
       <span className={FORM_TEXT_CLASSES[form]}>
         {FORM_INTERPRETATION_LABELS[form]}
       </span>

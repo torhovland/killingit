@@ -60,7 +60,7 @@ export function ActivitySamples({
 
   return (
     <details
-      className="rounded border bg-card text-sm"
+      className="rounded border bg-card text-base"
       data-testid="activity-samples"
     >
       <summary
@@ -70,7 +70,7 @@ export function ActivitySamples({
         Recorded samples ({samples.length} of {total} shown)
       </summary>
       <div className="max-h-64 overflow-auto">
-        <table className="w-full text-left text-xs">
+        <table className="w-full text-left text-sm">
           <thead className="sticky top-0 bg-card">
             <tr className="border-b">
               <th className="px-2 py-1 font-medium">Elapsed</th>

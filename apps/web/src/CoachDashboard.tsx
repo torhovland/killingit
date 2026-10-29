@@ -536,7 +536,10 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
 
   if (loadingStatuses && (garmin === null || llm === null)) {
     return (
-      <p className="text-sm text-muted-foreground" data-testid="coach-loading">
+      <p
+        className="text-base text-muted-foreground"
+        data-testid="coach-loading"
+      >
         Loading integrations…
       </p>
     );
@@ -592,8 +595,8 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
           data-testid="pending-activities"
         >
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-xl font-semibold">Recent activities</h2>
-            <p className="text-sm text-muted-foreground">
+            <h2 className="text-2xl font-semibold">Recent activities</h2>
+            <p className="text-base text-muted-foreground">
               Add a comment, or mark it with no comment.
             </p>
           </div>
@@ -612,14 +615,14 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
       {pendingReviews.length > 0 && (
         <section className="flex flex-col gap-3" data-testid="pending-reviews">
           <div className="flex flex-col gap-1">
-            <h2 className="text-xl font-semibold">Completed training</h2>
-            <p className="text-sm text-muted-foreground">
+            <h2 className="text-2xl font-semibold">Completed training</h2>
+            <p className="text-base text-muted-foreground">
               Review your coach's summary and add a comment.
             </p>
           </div>
           {pendingBlocks.length > 0 && (
             <div className="flex flex-col gap-3">
-              <h3 className="text-lg font-medium">Block reviews</h3>
+              <h3 className="text-xl font-medium">Block reviews</h3>
               {pendingBlocks.map((review) => (
                 <PeriodReviewCard
                   key={`block:${review.startDate}`}
@@ -632,7 +635,7 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
           )}
           {pendingWeeks.length > 0 && (
             <div className="flex flex-col gap-3">
-              <h3 className="text-lg font-medium">Week reviews</h3>
+              <h3 className="text-xl font-medium">Week reviews</h3>
               {pendingWeeks.map((review) => (
                 <PeriodReviewCard
                   key={`week:${review.startDate}`}
@@ -661,8 +664,8 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
         data-testid="coaching-inputs"
       >
         <div className="flex flex-col gap-1">
-          <h2 className="text-xl font-semibold">Coaching inputs</h2>
-          <p className="text-sm text-muted-foreground">
+          <h2 className="text-2xl font-semibold">Coaching inputs</h2>
+          <p className="text-base text-muted-foreground">
             Share context with your coach. The weekly note shapes your plan; a
             by-the-way question is only a conversation.
           </p>
@@ -680,17 +683,17 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
             );
           }}
         >
-          <label className="text-sm font-medium" htmlFor="weekly-note">
+          <label className="text-base font-medium" htmlFor="weekly-note">
             Weekly note
           </label>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             Requests and additional information that should influence your
             training plan. Saving it refreshes the affected plan.
           </p>
           <textarea
             id="weekly-note"
             name="note"
-            className="w-full rounded border bg-card p-2 text-sm"
+            className="w-full rounded border bg-card p-2 text-base"
             placeholder="e.g. I won't have time to train on Thursday this week."
             rows={2}
             value={weeklyNote}
@@ -698,14 +701,14 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
           />
           <SubmitButton
             busy={savingWeeklyNote}
-            className="self-start rounded border border-transparent bg-primary px-3 py-1 text-sm text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
+            className="self-start rounded border border-transparent bg-primary px-3 py-1 text-base text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
             disabled={!weeklyNote.trim()}
           >
             {savingWeeklyNote ? "Coach is thinking…" : "Send to coach"}
           </SubmitButton>
           {weeklyNoteReply && (
             <p
-              className="rounded border bg-muted p-2 text-sm"
+              className="rounded border bg-muted p-2 text-base"
               data-testid="weekly-note-reply"
             >
               <span className="font-medium">Coach:</span> {weeklyNoteReply.text}
@@ -717,17 +720,17 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
           className="flex flex-col gap-2 border-t pt-3"
           onSubmit={(event) => void askQuestion(event)}
         >
-          <label className="text-sm font-medium" htmlFor="by-the-way">
+          <label className="text-base font-medium" htmlFor="by-the-way">
             By the way
           </label>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             Ask your coach a one-off question. The question and answer are not
             stored and do not influence your training plan.
           </p>
           <textarea
             id="by-the-way"
             name="question"
-            className="w-full rounded border bg-card p-2 text-sm"
+            className="w-full rounded border bg-card p-2 text-base"
             placeholder="e.g. Should I do my long run on Saturday or Sunday?"
             rows={2}
             value={question}
@@ -735,14 +738,14 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
           />
           <SubmitButton
             busy={asking}
-            className="self-start rounded border border-transparent bg-primary px-3 py-1 text-sm text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
+            className="self-start rounded border border-transparent bg-primary px-3 py-1 text-base text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
             disabled={!question.trim()}
           >
             {asking ? "Coach is thinking…" : "Ask the coach"}
           </SubmitButton>
           {questionReply && (
             <p
-              className="rounded border bg-muted p-2 text-sm"
+              className="rounded border bg-muted p-2 text-base"
               data-testid="by-the-way-reply"
             >
               <span className="font-medium">Coach:</span> {questionReply}
@@ -752,7 +755,7 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
       </section>
 
       {!garmin.connected && (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-base text-muted-foreground">
           Connect Garmin in Settings to see your recent activities.
         </p>
       )}

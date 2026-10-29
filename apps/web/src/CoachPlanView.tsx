@@ -8,6 +8,8 @@ import {
   type WeekPlan,
   type WeekSessionStatus,
 } from "@killingit/shared";
+import { Bullet } from "./Bullet";
+import { SessionSetting } from "./SessionSetting";
 import { TrainingLoadLine } from "./TrainingLoadLine";
 import { WeatherSummary } from "./WeatherSummary";
 
@@ -58,7 +60,7 @@ export function CoachPlanView({
             type="button"
             role="tab"
             aria-selected={tab === entry.id}
-            className="rounded border bg-card px-3 py-1 text-sm aria-[selected=true]:border-transparent aria-[selected=true]:bg-primary aria-[selected=true]:text-primary-foreground"
+            className="rounded border bg-card px-3 py-1 text-base aria-[selected=true]:border-transparent aria-[selected=true]:bg-primary aria-[selected=true]:text-primary-foreground"
             onClick={() => setTab(entry.id)}
           >
             {entry.label}
@@ -146,21 +148,30 @@ function DayCard({
         }
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-lg font-semibold">
-            {label} · {formatPlanDate(day.date)}
+          <h3 className="text-xl font-semibold">
+            {label}
+            <Bullet />
+            {formatPlanDate(day.date)}
           </h3>
           <span className="flex items-center gap-2">
             {(day.status === "completed" || day.status === "partial") && (
               <StatusBadge status={day.status} />
             )}
-            <span className="rounded border bg-muted px-2 py-0.5 text-xs capitalize">
-              {day.type === "rest"
-                ? "Rest day"
-                : `${day.durationMinutes} min · ${day.intensity}${formatSessionSetting(day.outdoor)}`}
+            <span className="rounded border bg-muted px-2 py-0.5 text-sm capitalize">
+              {day.type === "rest" ? (
+                "Rest day"
+              ) : (
+                <>
+                  {day.durationMinutes} min
+                  <Bullet />
+                  {day.intensity}
+                  <SessionSetting outdoor={day.outdoor} />
+                </>
+              )}
             </span>
           </span>
         </div>
-        <p className="text-base font-medium">{day.title}</p>
+        <p className="text-lg font-medium">{day.title}</p>
         {day.trainingLoad !== null && day.trainingLoad !== undefined && (
           <TrainingLoadLine load={day.trainingLoad} testId={`${testId}-load`} />
         )}
@@ -169,16 +180,16 @@ function DayCard({
           (day.weather != null || day.forecasts != null) && (
             <WeatherSummary weather={day.weather} forecasts={day.forecasts} />
           )}
-        <p className="whitespace-pre-line text-sm text-muted-foreground">
+        <p className="whitespace-pre-line text-base text-muted-foreground">
           {day.description}
         </p>
         {day.type === "workout" && day.bikeWorkout != null && (
           <div className="flex flex-col gap-1" data-testid={`${testId}-ftp`}>
-            <p className="text-sm">
+            <p className="text-base">
               <span className="font-medium">Estimated FTP: </span>
               {day.bikeWorkout.ftpWatts} W
             </p>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               Set this FTP in Zwift or another trainer app so the downloaded
               power zones match.
             </p>
@@ -188,7 +199,7 @@ function DayCard({
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              className="rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted disabled:opacity-60"
+              className="rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted disabled:opacity-60"
               onClick={() => onDownloadWorkout?.(day.date)}
               disabled={downloading}
               data-testid={`${testId}-download`}
@@ -197,13 +208,13 @@ function DayCard({
                 ? "Preparing workout file…"
                 : "Download workout file (.zwo)"}
             </button>
-            <span className="text-xs text-muted-foreground">
+            <span className="text-sm text-muted-foreground">
               For Zwift or another trainer app.
             </span>
           </div>
         )}
         {day.alternatives.length > 0 && (
-          <div className="text-sm">
+          <div className="text-base">
             <p className="font-medium">Alternatives</p>
             <ul className="list-disc pl-5 text-muted-foreground">
               {day.alternatives.map((alternative) => (
@@ -212,18 +223,18 @@ function DayCard({
             </ul>
           </div>
         )}
-        <p className="text-sm">
+        <p className="text-base">
           <span className="font-medium">Coach's rationale: </span>
           <span className="text-muted-foreground">{day.rationale}</span>
         </p>
         {day.type === "workout" && day.optionalRationale && (
           <div
-            className="rounded border bg-muted p-3 text-sm"
+            className="rounded border bg-muted p-3 text-base"
             data-testid={`${testId}-optionality`}
           >
             <div className="flex flex-wrap items-baseline gap-2">
               <p className="font-medium">Why this session matters</p>
-              <span className="rounded border bg-background px-1.5 py-0.5 text-xs text-muted-foreground">
+              <span className="rounded border bg-background px-1.5 py-0.5 text-sm text-muted-foreground">
                 {day.optional ? "Optional session" : "Do not skip this session"}
               </span>
             </div>
@@ -243,7 +254,7 @@ function DayCard({
             role="status"
             aria-label={`Updating ${label.toLowerCase()}'s plan`}
           />
-          <span className="text-sm text-muted-foreground">
+          <span className="text-base text-muted-foreground">
             Updating {label.toLowerCase()}&apos;s plan…
           </span>
         </div>
@@ -263,36 +274,50 @@ function WeekSection({
 }) {
   return (
     <section className="rounded-lg border bg-card p-4" data-testid={testId}>
-      <h3 className="text-lg font-semibold">
-        {label} · {week.focus}
+      <h3 className="text-xl font-semibold">
+        {label}
+        <Bullet />
+        {week.focus}
       </h3>
-      <p className="text-sm text-muted-foreground">
+      <p className="text-base text-muted-foreground">
         Week starting {formatPlanDate(week.startDate)}
         {week.estimatedFtpWatts != null && (
           <span data-testid="week-ftp">
-            {" · "}
+            <Bullet />
             Estimated FTP:{" "}
             <span className="font-medium">{week.estimatedFtpWatts} W</span>
           </span>
         )}
       </p>
-      <p className="mt-2 text-sm text-muted-foreground">{week.rationale}</p>
+      <p className="mt-2 text-base text-muted-foreground">{week.rationale}</p>
       <ul className="mt-3 flex flex-col gap-2">
         {week.sessions.map((session) => (
           <li
             key={session.date}
-            className="flex flex-wrap items-baseline justify-between gap-2 border-b pb-2 text-sm last:border-b-0 last:pb-0"
+            className="flex flex-wrap items-baseline justify-between gap-2 border-b pb-2 text-base last:border-b-0 last:pb-0"
           >
-            <span className="font-medium">{formatPlanDate(session.date)}</span>
-            <span>{session.title}</span>
-            <span className="flex items-center gap-2 text-muted-foreground">
+            <span className="font-medium">
+              {formatPlanDate(session.date)}
+              <Bullet />
+              {session.title}
+            </span>
+            <span className="ml-auto flex items-center gap-3 text-muted-foreground">
+              {session.type !== "rest" && (
+                <span>
+                  {session.status === "completed" &&
+                  session.durationMinutes === 0 ? (
+                    "Logged manually"
+                  ) : (
+                    <>
+                      {session.durationMinutes} min
+                      <Bullet />
+                      {session.intensity}
+                      <SessionSetting outdoor={session.outdoor} />
+                    </>
+                  )}
+                </span>
+              )}
               <StatusBadge status={session.status} />
-              {session.type === "rest"
-                ? "Rest"
-                : session.status === "completed" &&
-                    session.durationMinutes === 0
-                  ? "Logged manually"
-                  : `${session.durationMinutes} min · ${session.intensity}${formatSessionSetting(session.outdoor)}`}
             </span>
             {session.trainingLoad !== null &&
               session.trainingLoad !== undefined && (
@@ -312,7 +337,7 @@ function WeekSection({
                 </div>
               )}
             {session.description.trim() !== "" && (
-              <p className="w-full text-xs text-muted-foreground">
+              <p className="w-full text-sm text-muted-foreground">
                 {session.description}
               </p>
             )}
@@ -325,7 +350,7 @@ function WeekSection({
 
 function StatusBadge({ status }: { status: WeekSessionStatus }) {
   return (
-    <span className="rounded border bg-muted px-2 py-0.5 text-xs capitalize">
+    <span className="rounded border bg-muted px-2 py-0.5 text-sm capitalize">
       {status}
     </span>
   );
@@ -342,20 +367,23 @@ function BlockSection({
 }) {
   return (
     <section className="rounded-lg border bg-card p-4" data-testid={testId}>
-      <h3 className="text-lg font-semibold">
-        {label} · {block.name}
+      <h3 className="text-xl font-semibold">
+        {label}
+        <Bullet />
+        {block.name}
       </h3>
-      <p className="mt-2 text-sm text-muted-foreground">
+      <p className="mt-2 text-base text-muted-foreground">
         {formatPlanDate(block.startDate)} → {formatPlanDate(block.endDate)}
         {block.estimatedFtpWatts != null && (
           <span data-testid="block-ftp">
-            {" · "}Estimated FTP:{" "}
+            <Bullet />
+            Estimated FTP:{" "}
             <span className="font-medium">{block.estimatedFtpWatts} W</span>
           </span>
         )}
       </p>
-      <p className="mt-3 text-sm text-muted-foreground">{block.focus}</p>
-      <p className="mt-3 text-sm">
+      <p className="mt-3 text-base text-muted-foreground">{block.focus}</p>
+      <p className="mt-3 text-base">
         <span className="font-medium">Coach's rationale: </span>
         <span className="text-muted-foreground">{block.rationale}</span>
       </p>
@@ -385,17 +413,22 @@ function BlockSection({
 function SeasonSection({ season }: { season: SeasonPlan }) {
   return (
     <section className="rounded-lg border bg-card p-4">
-      <h3 className="text-lg font-semibold">Season · {season.goal}</h3>
-      <p className="mt-2 text-sm text-muted-foreground">
+      <h3 className="text-xl font-semibold">
+        Season
+        <Bullet />
+        {season.goal}
+      </h3>
+      <p className="mt-2 text-base text-muted-foreground">
         {formatPlanDate(season.startDate)} → {formatPlanDate(season.endDate)}
         {season.estimatedFtpWatts != null && (
           <span data-testid="season-ftp">
-            {" · "}Estimated FTP:{" "}
+            <Bullet />
+            Estimated FTP:{" "}
             <span className="font-medium">{season.estimatedFtpWatts} W</span>
           </span>
         )}
       </p>
-      <p className="mt-3 text-sm">
+      <p className="mt-3 text-base">
         <span className="font-medium">Coach's rationale: </span>
         <span className="text-muted-foreground">{season.rationale}</span>
       </p>
@@ -407,8 +440,9 @@ function SeasonSection({ season }: { season: SeasonPlan }) {
             </p>
             <p className="text-muted-foreground">
               {formatPlanDate(block.startDate)} →{" "}
-              {formatPlanDate(block.endDate)} · {block.weekCount}{" "}
-              {block.weekCount === 1 ? "week" : "weeks"}
+              {formatPlanDate(block.endDate)}
+              <Bullet />
+              {block.weekCount} {block.weekCount === 1 ? "week" : "weeks"}
             </p>
             <p className="text-muted-foreground">{block.focus}</p>
           </PlanListItem>
@@ -420,7 +454,7 @@ function SeasonSection({ season }: { season: SeasonPlan }) {
 
 /** List shared by the block and season views, with the Week tab's rules. */
 function PlanList({ children }: { children: ReactNode }) {
-  return <ol className="mt-4 flex flex-col gap-3 text-sm">{children}</ol>;
+  return <ol className="mt-4 flex flex-col gap-3 text-base">{children}</ol>;
 }
 
 function PlanListItem({ children }: { children: ReactNode }) {
@@ -429,15 +463,6 @@ function PlanListItem({ children }: { children: ReactNode }) {
       {children}
     </li>
   );
-}
-
-/**
- * Suffix that states whether the coach planned a session indoors or outdoors.
- * Missing is treated as outdoor, but showing no suffix avoids claiming a
- * setting for plans stored before the field existed.
- */
-function formatSessionSetting(outdoor: boolean | undefined): string {
-  return outdoor === false ? " · indoor" : outdoor === true ? " · outdoor" : "";
 }
 
 export function formatPlanDate(date: string): string {

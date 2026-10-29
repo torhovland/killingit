@@ -16,9 +16,9 @@ const POLL_INTERVAL_MS = 1500;
 const POLL_TIMEOUT_MS = 10 * 60 * 1000;
 
 const PRIMARY_BUTTON =
-  "rounded border border-transparent bg-primary px-3 py-1 text-sm text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50";
+  "rounded border border-transparent bg-primary px-3 py-1 text-base text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50";
 const SECONDARY_BUTTON =
-  "rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted disabled:opacity-50";
+  "rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted disabled:opacity-50";
 
 type PlanAction = Extract<PlanGenerateMode, "newSeason" | "updateSeason">;
 
@@ -225,17 +225,17 @@ export function PlanRegenerationButtonsView({
           </SubmitButton>
         ))}
       </div>
-      <p className="text-xs text-muted-foreground">
+      <p className="text-sm text-muted-foreground">
         {hasSeason
           ? "Updating keeps completed blocks and re-plans the rest of this season. A new season starts today."
           : "A new season starts today."}
       </p>
       {done && (
-        <p className="text-sm text-success" role="status">
+        <p className="text-base text-success" role="status">
           Your plan is up to date.
         </p>
       )}
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && <p className="text-base text-destructive">{error}</p>}
     </div>
   );
 }

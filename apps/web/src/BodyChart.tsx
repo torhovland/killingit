@@ -81,7 +81,7 @@ export function BodyChart({
 
   return (
     <figure className="flex flex-col gap-2 rounded-lg border bg-card p-4">
-      <figcaption className="text-base font-medium">Body</figcaption>
+      <figcaption className="text-lg font-medium">Body</figcaption>
       <div className="relative">
         <svg
           viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
@@ -197,7 +197,7 @@ export function BodyChart({
                 y={CHART_PADDING.top + weightScale.y(tick)}
                 textAnchor="end"
                 dominantBaseline="middle"
-                className="fill-muted-foreground text-[10px]"
+                className="fill-muted-foreground text-xs"
               >
                 {tick} kg
               </text>
@@ -211,7 +211,7 @@ export function BodyChart({
                 y={CHART_PADDING.top + fatScale.y(tick)}
                 textAnchor="end"
                 dominantBaseline="middle"
-                className="fill-muted-foreground text-[10px]"
+                className="fill-muted-foreground text-xs"
               >
                 {tick}%
               </text>
@@ -233,7 +233,7 @@ export function BodyChart({
                       ? "end"
                       : "middle"
                 }
-                className="fill-muted-foreground text-[10px]"
+                className="fill-muted-foreground text-xs"
               >
                 {formatChartDate(day.date)}
               </text>
@@ -242,7 +242,7 @@ export function BodyChart({
         </svg>
         {hovered !== null && (
           <div
-            className="pointer-events-none absolute top-2 z-10 w-44 -translate-x-1/2 rounded border bg-card p-2 text-xs shadow-lg"
+            className="pointer-events-none absolute top-2 z-10 w-44 -translate-x-1/2 rounded border bg-card p-2 text-sm shadow-lg"
             style={{ left: `${hovered.percent}%` }}
           >
             <p className="font-medium">{formatChartDate(hovered.day.date)}</p>
@@ -254,7 +254,7 @@ export function BodyChart({
           </div>
         )}
       </div>
-      <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+      <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
         {weight.length > 0 && (
           <li className="flex items-center gap-1.5">
             <span className="block h-0.5 w-4 bg-primary" />

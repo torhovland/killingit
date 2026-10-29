@@ -61,7 +61,7 @@ export function FtpChart({
 
   return (
     <figure className="flex flex-col gap-2 rounded-lg border bg-card p-4">
-      <figcaption className="text-base font-medium">Estimated FTP</figcaption>
+      <figcaption className="text-lg font-medium">Estimated FTP</figcaption>
       <div className="relative">
         <svg
           viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
@@ -131,7 +131,7 @@ export function FtpChart({
               y={CHART_PADDING.top + scale.y(tick)}
               textAnchor="end"
               dominantBaseline="middle"
-              className="fill-muted-foreground text-[10px]"
+              className="fill-muted-foreground text-xs"
             >
               {Math.round(tick)} W
             </text>
@@ -153,7 +153,7 @@ export function FtpChart({
                       ? "end"
                       : "middle"
                 }
-                className="fill-muted-foreground text-[10px]"
+                className="fill-muted-foreground text-xs"
               >
                 {formatChartDate(point.date)}
               </text>
@@ -162,7 +162,7 @@ export function FtpChart({
         </svg>
         {hovered !== null && (
           <div
-            className="pointer-events-none absolute top-2 z-10 w-56 -translate-x-1/2 rounded border bg-card p-2 text-xs shadow-lg"
+            className="pointer-events-none absolute top-2 z-10 w-56 -translate-x-1/2 rounded border bg-card p-2 text-sm shadow-lg"
             style={{ left: `${hovered.percent}%` }}
           >
             <FitnessDayTooltip

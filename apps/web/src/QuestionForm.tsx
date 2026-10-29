@@ -50,7 +50,7 @@ export function QuestionForm({
       className="flex flex-col gap-2 rounded border bg-card p-3"
       data-testid="question-form"
     >
-      <label className="flex flex-col gap-1 text-sm">
+      <label className="flex flex-col gap-1 text-base">
         Question prompt
         <textarea
           name="prompt"
@@ -62,7 +62,7 @@ export function QuestionForm({
           placeholder="What should the athlete answer?"
         />
       </label>
-      <label className="flex items-center gap-2 text-sm">
+      <label className="flex items-center gap-2 text-base">
         <input
           type="checkbox"
           name="required"

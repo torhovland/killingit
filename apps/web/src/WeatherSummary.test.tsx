@@ -3,6 +3,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import type { DailyWeather } from "@killingit/shared";
 import { WeatherSummary } from "./WeatherSummary";
 
+const BULLET = '<span class="mx-[0.75em]">·</span>';
+
 function weather(overrides: Partial<DailyWeather> = {}): DailyWeather {
   return {
     date: "2026-10-25",
@@ -24,7 +26,7 @@ describe("WeatherSummary", () => {
 
     expect(html).toContain("Forecast");
     expect(html).toContain(
-      "Sunny · 4–12 °C · wind 5 m/s (8 m/s) · daylight 07:45 - 16:30",
+      `Sunny${BULLET}4–12 °C${BULLET}wind 5 m/s (8 m/s)${BULLET}daylight 07:45 - 16:30`,
     );
   });
 
@@ -58,7 +60,7 @@ describe("WeatherSummary", () => {
     expect(html).toContain("Open-Meteo");
     expect(html).toContain("Yr.no");
     expect(html).toContain(
-      "Rain · 4–12 °C · wind 5 m/s (8 m/s) · daylight 07:45 - 16:30",
+      `Rain${BULLET}4–12 °C${BULLET}wind 5 m/s (8 m/s)${BULLET}daylight 07:45 - 16:30`,
     );
   });
 
@@ -69,6 +71,6 @@ describe("WeatherSummary", () => {
       />,
     );
 
-    expect(html).toContain("Yr.no · no forecast");
+    expect(html).toContain(`Yr.no${BULLET}no forecast`);
   });
 });

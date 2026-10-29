@@ -263,8 +263,8 @@ export function CoachPlanSection({
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex flex-col gap-1">
-          <h2 className="text-xl font-semibold">Your plan</h2>
-          <p className="text-sm text-muted-foreground">
+          <h2 className="text-2xl font-semibold">Your plan</h2>
+          <p className="text-base text-muted-foreground">
             {data?.generatedAt
               ? `Generated ${formatDateTime(data.generatedAt, timeZone)}`
               : "Your coach builds the season, block, week, and today from your profile and recent training."}
@@ -273,7 +273,7 @@ export function CoachPlanSection({
       </div>
 
       {!ready && (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded border bg-muted p-3 text-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded border bg-muted p-3 text-base">
           <span className="text-muted-foreground">
             Connect Garmin and OpenRouter to generate your training plan.
           </span>
@@ -295,7 +295,7 @@ export function CoachPlanSection({
           {!generating && (
             <button
               type="button"
-              className="rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted"
+              className="rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted"
               onClick={() => void generate(false)}
             >
               Try again
@@ -306,7 +306,7 @@ export function CoachPlanSection({
 
       {setupError && !generating && (
         <div
-          className="flex flex-wrap items-center justify-between gap-2 rounded border bg-muted p-3 text-sm"
+          className="flex flex-wrap items-center justify-between gap-2 rounded border bg-muted p-3 text-base"
           data-testid="plan-generation-error"
         >
           <p className="text-destructive">
@@ -314,7 +314,7 @@ export function CoachPlanSection({
           </p>
           <button
             type="button"
-            className="rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted"
+            className="rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted"
             onClick={() => void generate(false)}
           >
             Try again
@@ -327,7 +327,7 @@ export function CoachPlanSection({
           className="flex flex-col gap-2 rounded border bg-muted p-3"
           data-testid="plan-progress"
         >
-          <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-base">
             <span className="font-medium">
               {progress?.step ?? "The coach is thinking…"}
             </span>
@@ -348,14 +348,14 @@ export function CoachPlanSection({
       )}
 
       {data?.stale && ready && (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded border bg-muted p-3 text-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded border bg-muted p-3 text-base">
           <span>
             Your coaching inputs changed, so your plan is out of date.
           </span>
           <SubmitButton
             type="button"
             busy={running}
-            className="rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted disabled:opacity-50"
+            className="rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted disabled:opacity-50"
             onClick={() => void generate(false)}
           >
             {running ? "Coach is thinking…" : "Update plan"}
@@ -364,7 +364,10 @@ export function CoachPlanSection({
       )}
 
       {loading && data === null && (
-        <p className="text-sm text-muted-foreground" data-testid="plan-loading">
+        <p
+          className="text-base text-muted-foreground"
+          data-testid="plan-loading"
+        >
           Loading your plan…
         </p>
       )}
@@ -384,14 +387,14 @@ export function CoachPlanSection({
         !loading &&
         ready && (
           <div className="flex flex-col items-start gap-2">
-            <p className="text-sm text-muted-foreground">
+            <p className="text-base text-muted-foreground">
               No plan yet. Your coach will build it from your profile and recent
               training.
             </p>
             <SubmitButton
               type="button"
               busy={running}
-              className="rounded border border-transparent bg-primary px-3 py-1 text-sm text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
+              className="rounded border border-transparent bg-primary px-3 py-1 text-base text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
               onClick={() => void generate(false)}
             >
               {running ? "Coach is thinking…" : "Generate my plan"}

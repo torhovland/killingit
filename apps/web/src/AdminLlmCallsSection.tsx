@@ -7,6 +7,7 @@ import {
   type LlmCallSummary,
 } from "@killingit/shared";
 import { useAuth } from "./auth";
+import { Bullet } from "./Bullet";
 import { fetchJsonAuthed } from "./fetchAuthed";
 import { reportError } from "./reportError";
 import { browserTimeZone, formatDateTime } from "./timeZone";
@@ -136,17 +137,17 @@ export function LlmCallsView({
   return (
     <section className="flex flex-col gap-3" data-testid="admin-llm-calls">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-xl font-semibold">LLM prompts</h2>
+        <h2 className="text-2xl font-semibold">LLM prompts</h2>
         <button
           type="button"
-          className="rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted disabled:opacity-50"
+          className="rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted disabled:opacity-50"
           onClick={onRefresh}
           disabled={loading}
         >
           Refresh
         </button>
       </div>
-      <p className="text-sm text-muted-foreground">
+      <p className="text-base text-muted-foreground">
         Every prompt sent to the coach, with its response and request metadata.
         Showing the newest {PAGE_SIZE} calls; select one to read it in full.
       </p>
@@ -165,11 +166,11 @@ export function LlmCallsView({
           data-testid="llm-calls-list"
         >
           {loading && calls === null && (
-            <p className="text-sm text-muted-foreground">Loading prompts…</p>
+            <p className="text-base text-muted-foreground">Loading prompts…</p>
           )}
 
           {!loading && calls !== null && calls.length === 0 && (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-base text-muted-foreground">
               No prompts have been sent yet.
             </p>
           )}
@@ -192,7 +193,7 @@ export function LlmCallsView({
                       </span>
                       <CallBadges call={call} />
                       <span
-                        className="truncate text-xs text-muted-foreground"
+                        className="truncate text-sm text-muted-foreground"
                         title={call.model}
                       >
                         {call.model}
@@ -201,7 +202,7 @@ export function LlmCallsView({
                         <CallStatus failed={call.failed} />
                       </span>
                     </span>
-                    <span className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+                    <span className="flex flex-wrap gap-x-3 text-sm text-muted-foreground">
                       <span>
                         {formatDateTime(call.createdAt, browserTimeZone())}
                       </span>
@@ -229,13 +230,13 @@ export function LlmCallsView({
           data-testid="llm-call-detail-pane"
         >
           {detailLoading && (
-            <p className="text-sm text-muted-foreground">Loading call…</p>
+            <p className="text-base text-muted-foreground">Loading call…</p>
           )}
 
           {selected !== null && <LlmCallDetailView call={selected} />}
 
           {selected === null && !detailLoading && (calls?.length ?? 0) > 0 && (
-            <p className="rounded border border-dashed bg-card px-3 py-6 text-center text-sm text-muted-foreground">
+            <p className="rounded border border-dashed bg-card px-3 py-6 text-center text-base text-muted-foreground">
               Select a prompt to read it in full.
             </p>
           )}
@@ -254,12 +255,15 @@ export function LlmCallDetailView({ call }: { call: LlmCallDetail }) {
     >
       <header className="flex flex-wrap items-start justify-between gap-2">
         <div className="flex flex-col gap-1">
-          <h3 className="text-lg font-semibold">
+          <h3 className="text-xl font-semibold">
             {LLM_PROMPT_KIND_LABELS[call.kind]}
           </h3>
-          <p className="text-sm text-muted-foreground">
-            {formatDateTime(call.createdAt, browserTimeZone())} ·{" "}
-            {call.userLabel} · {call.model}
+          <p className="text-base text-muted-foreground">
+            {formatDateTime(call.createdAt, browserTimeZone())}
+            <Bullet />
+            {call.userLabel}
+            <Bullet />
+            {call.model}
           </p>
           <div className="flex flex-wrap items-center gap-1">
             <CallBadges call={call} />
@@ -270,14 +274,14 @@ export function LlmCallDetailView({ call }: { call: LlmCallDetail }) {
 
       {call.planFailed && typeof call.metadata.planError === "string" && (
         <p
-          className="text-sm text-destructive"
+          className="text-base text-destructive"
           data-testid="llm-call-plan-error"
         >
           Plan failure: {call.metadata.planError}
         </p>
       )}
 
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-3">
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-base sm:grid-cols-3">
         <Metadata label="Call" value={`#${call.id}`} />
         <Metadata label="User" value={`${call.userLabel} (#${call.userId})`} />
         <Metadata label="Provider" value={call.provider} />
@@ -295,23 +299,23 @@ export function LlmCallDetailView({ call }: { call: LlmCallDetail }) {
 
       {Object.keys(call.metadata).length > 0 && (
         <details>
-          <summary className="cursor-pointer text-sm font-medium">
+          <summary className="cursor-pointer text-base font-medium">
             Request metadata
           </summary>
-          <pre className="mt-2 overflow-auto whitespace-pre-wrap break-words rounded bg-muted p-3 text-xs">
+          <pre className="mt-2 overflow-auto whitespace-pre-wrap break-words rounded bg-muted p-3 text-sm">
             {JSON.stringify(call.metadata, null, 2)}
           </pre>
         </details>
       )}
 
       <section className="flex flex-col gap-2">
-        <h4 className="text-sm font-semibold">Prompt</h4>
+        <h4 className="text-base font-semibold">Prompt</h4>
         {call.messages.map((message, index) => (
           <div key={index} className="flex flex-col gap-1">
-            <p className="text-xs font-medium uppercase text-muted-foreground">
+            <p className="text-sm font-medium uppercase text-muted-foreground">
               {message.role}
             </p>
-            <pre className="overflow-auto whitespace-pre-wrap break-words rounded bg-muted p-3 text-xs">
+            <pre className="overflow-auto whitespace-pre-wrap break-words rounded bg-muted p-3 text-sm">
               {message.content}
             </pre>
           </div>
@@ -319,16 +323,16 @@ export function LlmCallDetailView({ call }: { call: LlmCallDetail }) {
       </section>
 
       <section className="flex flex-col gap-2">
-        <h4 className="text-sm font-semibold">
+        <h4 className="text-base font-semibold">
           {call.failed ? "Error" : "Response"}
         </h4>
         {call.error !== null && (
-          <pre className="overflow-auto whitespace-pre-wrap break-words rounded bg-muted p-3 text-xs text-destructive">
+          <pre className="overflow-auto whitespace-pre-wrap break-words rounded bg-muted p-3 text-sm text-destructive">
             {call.error}
           </pre>
         )}
         {call.response !== null && (
-          <pre className="overflow-auto whitespace-pre-wrap break-words rounded bg-muted p-3 text-xs">
+          <pre className="overflow-auto whitespace-pre-wrap break-words rounded bg-muted p-3 text-sm">
             {call.response}
           </pre>
         )}
@@ -380,7 +384,7 @@ function Badge({
   }[tone];
   return (
     <span
-      className={`rounded border px-2 py-0.5 text-xs ${toneClass}`}
+      className={`rounded border px-2 py-0.5 text-sm ${toneClass}`}
       data-testid={testId}
     >
       {children}
@@ -391,7 +395,7 @@ function Badge({
 function Metadata({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="flex flex-col">
-      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dt className="text-sm text-muted-foreground">{label}</dt>
       <dd className="break-words">{value}</dd>
     </div>
   );

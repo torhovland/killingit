@@ -1,9 +1,10 @@
 import {
   FORECAST_PROVIDER_LABELS,
-  formatDailyWeatherLine,
+  formatDailyWeatherParts,
   type DailyForecasts,
   type DailyWeather,
 } from "@killingit/shared";
+import { Bullet, Bullets } from "./Bullet";
 import { WeatherIcon } from "./WeatherIcon";
 
 const SOURCES = ["combined", "openMeteo", "yr"] as const;
@@ -35,7 +36,7 @@ export function WeatherSummary({
   }
   return (
     <div
-      className="flex flex-col gap-0.5 text-xs text-muted-foreground"
+      className="flex flex-col gap-0.5 text-sm text-muted-foreground"
       data-testid="weather"
     >
       {rows.map((row) => (
@@ -48,10 +49,16 @@ export function WeatherSummary({
             <>
               <WeatherIcon icon={row.weather.icon} className="size-4" />
               <span className="font-medium">{row.label}</span>{" "}
-              <span>{formatDailyWeatherLine(row.weather)}</span>
+              <span>
+                <Bullets parts={formatDailyWeatherParts(row.weather)} />
+              </span>
             </>
           ) : (
-            <span>{row.label} · no forecast</span>
+            <span>
+              {row.label}
+              <Bullet />
+              no forecast
+            </span>
           )}
         </span>
       ))}

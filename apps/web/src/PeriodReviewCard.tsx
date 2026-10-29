@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { PeriodReview, ReviewKind } from "@killingit/shared";
+import { Bullet } from "./Bullet";
 import { SubmitButton } from "./SubmitButton";
 
 const KIND_LABELS: Record<ReviewKind, string> = {
@@ -103,9 +104,11 @@ export function PeriodReviewCard({
       data-testid="period-review-card"
     >
       <header className="flex flex-col gap-1">
-        <h3 className="text-lg font-semibold">{KIND_LABELS[review.kind]}</h3>
-        <p className="text-sm text-muted-foreground">
-          {review.title} · {review.startDate} → {review.endDate}
+        <h3 className="text-xl font-semibold">{KIND_LABELS[review.kind]}</h3>
+        <p className="text-base text-muted-foreground">
+          {review.title}
+          <Bullet />
+          {review.startDate} → {review.endDate}
         </p>
       </header>
 
@@ -115,7 +118,7 @@ export function PeriodReviewCard({
 
       {showWeeklyNote && review.weeklyNote && (
         <div
-          className="flex flex-col gap-1 rounded border bg-muted p-2 text-sm"
+          className="flex flex-col gap-1 rounded border bg-muted p-2 text-base"
           data-testid="period-review-weekly-note"
         >
           <p className="whitespace-pre-line">
@@ -135,14 +138,14 @@ export function PeriodReviewCard({
       )}
 
       {shownComment && (
-        <div className="flex flex-wrap items-baseline gap-2 text-sm">
+        <div className="flex flex-wrap items-baseline gap-2 text-base">
           <p data-testid="period-review-comment">
             <span className="font-medium">You:</span> {shownComment}
           </p>
           {onSubmitComment && !editing && (
             <button
               type="button"
-              className="text-xs text-muted-foreground hover:underline"
+              className="text-sm text-muted-foreground hover:underline"
               onClick={handleEditComment}
               data-testid="period-review-comment-edit"
             >
@@ -153,7 +156,7 @@ export function PeriodReviewCard({
       )}
 
       {shownReply && (
-        <p className="text-sm" data-testid="period-review-coach-reply">
+        <p className="text-base" data-testid="period-review-coach-reply">
           <span className="font-medium">Coach:</span> {shownReply}
         </p>
       )}
@@ -166,18 +169,18 @@ export function PeriodReviewCard({
         >
           <textarea
             aria-label={`Comment about this ${review.kind}`}
-            className="w-full rounded border bg-card p-2 text-sm"
+            className="w-full rounded border bg-card p-2 text-base"
             placeholder="How did the week or block feel? Anything the coach should know?"
             value={comment}
             onChange={(event) => setComment(event.target.value)}
             disabled={submitting}
             rows={2}
           />
-          {error && <p className="text-xs text-destructive">{error}</p>}
+          {error && <p className="text-sm text-destructive">{error}</p>}
           <div className="flex flex-wrap gap-2">
             <SubmitButton
               busy={submitting}
-              className="self-start rounded border border-transparent bg-primary px-3 py-1 text-sm text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
+              className="self-start rounded border border-transparent bg-primary px-3 py-1 text-base text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
               disabled={!comment.trim()}
             >
               {submitting ? "Coach is thinking…" : "Send to coach"}
@@ -185,7 +188,7 @@ export function PeriodReviewCard({
             {shownComment !== null && (
               <button
                 type="button"
-                className="self-start rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted disabled:opacity-50"
+                className="self-start rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted disabled:opacity-50"
                 onClick={handleCancelEdit}
                 disabled={submitting}
               >
@@ -195,7 +198,7 @@ export function PeriodReviewCard({
             {onNoComment && shownComment === null && (
               <button
                 type="button"
-                className="self-start rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted disabled:opacity-50"
+                className="self-start rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted disabled:opacity-50"
                 onClick={() => void handleNoComment()}
                 disabled={dismissing || submitting}
                 data-testid="period-review-no-comment"

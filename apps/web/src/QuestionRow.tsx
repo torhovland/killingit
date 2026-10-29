@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { Question, QuestionInput } from "@killingit/shared";
+import { Bullet } from "./Bullet";
 import { QuestionForm } from "./QuestionForm";
 import { reportError } from "./reportError";
 
@@ -85,8 +86,9 @@ export function QuestionRow({
       data-testid="question-row"
     >
       <p className="whitespace-pre-wrap font-medium">{question.prompt}</p>
-      <p className="text-xs text-muted-foreground">
-        v{question.version} of {question.versionCount} ·{" "}
+      <p className="text-sm text-muted-foreground">
+        v{question.version} of {question.versionCount}
+        <Bullet />
         {question.required ? "Required" : "Optional"}
       </p>
       {error && (
@@ -98,7 +100,7 @@ export function QuestionRow({
         {onMoveUp && (
           <button
             type="button"
-            className="rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted disabled:opacity-50"
+            className="rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted disabled:opacity-50"
             onClick={() => void move("up")}
             disabled={moving !== null || deleting}
             aria-label={`Move "${question.prompt}" up`}
@@ -110,7 +112,7 @@ export function QuestionRow({
         {onMoveDown && (
           <button
             type="button"
-            className="rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted disabled:opacity-50"
+            className="rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted disabled:opacity-50"
             onClick={() => void move("down")}
             disabled={moving !== null || deleting}
             aria-label={`Move "${question.prompt}" down`}
@@ -121,14 +123,14 @@ export function QuestionRow({
         )}
         <button
           type="button"
-          className="rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted"
+          className="rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted"
           onClick={() => setEditing(true)}
         >
           Edit
         </button>
         <button
           type="button"
-          className="rounded border border-destructive/40 px-3 py-1 text-sm text-destructive enabled:hover:bg-destructive/10 disabled:opacity-50"
+          className="rounded border border-destructive/40 px-3 py-1 text-base text-destructive enabled:hover:bg-destructive/10 disabled:opacity-50"
           onClick={() => void remove()}
           disabled={deleting}
         >

@@ -8,6 +8,7 @@ import {
   type WeekSessionStatus,
 } from "@killingit/shared";
 import { ActivityMap } from "./ActivityMap";
+import { Bullet, Bullets } from "./Bullet";
 import {
   buildMonthGrid,
   clampMonth,
@@ -18,6 +19,7 @@ import {
 } from "./calendarDates";
 import { formatPlanDate } from "./CoachPlanView";
 import { formatDuration } from "./formatDuration";
+import { SessionSetting } from "./SessionSetting";
 import { TrainingLoadLine } from "./TrainingLoadLine";
 import { useTimeZone } from "./TimeZoneContext";
 import { formatDateTime } from "./timeZone";
@@ -60,7 +62,7 @@ export function CalendarView({
         {error ? (
           <p className="text-destructive">Error: {error}</p>
         ) : (
-          <p className="text-sm text-muted-foreground">Loading…</p>
+          <p className="text-base text-muted-foreground">Loading…</p>
         )}
       </section>
     );
@@ -94,7 +96,7 @@ export function CalendarView({
         <div className="flex items-center gap-1">
           <button
             type="button"
-            className="rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted disabled:opacity-40"
+            className="rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted disabled:opacity-40"
             onClick={() => moveMonth(-1)}
             disabled={shownMonth <= minMonth}
             aria-label="Previous month"
@@ -103,7 +105,7 @@ export function CalendarView({
           </button>
           <button
             type="button"
-            className="rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted disabled:opacity-40"
+            className="rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted disabled:opacity-40"
             onClick={() => moveMonth(1)}
             disabled={shownMonth >= maxMonth}
             aria-label="Next month"
@@ -112,7 +114,7 @@ export function CalendarView({
           </button>
           <button
             type="button"
-            className="rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted"
+            className="rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted"
             onClick={() =>
               onMonthChange(clampMonth(monthOf(today), minMonth, maxMonth))
             }
@@ -122,15 +124,18 @@ export function CalendarView({
         </div>
         <div className="flex items-center gap-2">
           {loading && (
-            <span className="text-sm text-muted-foreground" aria-live="polite">
+            <span
+              className="text-base text-muted-foreground"
+              aria-live="polite"
+            >
               Updating…
             </span>
           )}
-          <label className="flex items-center gap-2 text-sm">
+          <label className="flex items-center gap-2 text-base">
             <span className="text-muted-foreground">Month</span>
             <input
               type="month"
-              className="rounded border bg-card px-2 py-1 text-sm"
+              className="rounded border bg-card px-2 py-1 text-base"
               value={shownMonth}
               min={minMonth}
               max={maxMonth}
@@ -146,13 +151,13 @@ export function CalendarView({
         </div>
       </div>
 
-      <h3 className="text-lg font-semibold" data-testid="calendar-month">
+      <h3 className="text-xl font-semibold" data-testid="calendar-month">
         {formatMonth(shownMonth)}
       </h3>
 
       <div className="overflow-x-auto">
         <div className="min-w-[42rem]">
-          <div className="grid grid-cols-7 gap-1 pb-1 text-center text-xs font-medium text-muted-foreground">
+          <div className="grid grid-cols-7 gap-1 pb-1 text-center text-sm font-medium text-muted-foreground">
             {WEEKDAYS.map((weekday) => (
               <span key={weekday}>{weekday}</span>
             ))}
@@ -172,7 +177,7 @@ export function CalendarView({
         </div>
       </div>
 
-      <p className="text-xs text-muted-foreground">
+      <p className="text-sm text-muted-foreground">
         Showing {formatPlanDate(data.earliestDate)} –{" "}
         {formatPlanDate(data.latestDate)}. Future workouts appear as the coach
         plans each week.
@@ -193,16 +198,19 @@ function CalendarHeading({
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <h2 className="text-xl font-semibold">Calendar</h2>
-      <p className="text-sm text-muted-foreground">
+      <h2 className="text-2xl font-semibold">Calendar</h2>
+      <p className="text-base text-muted-foreground">
         Your recorded activities, planned workouts and rest days in one month.
       </p>
       {season && (
-        <p className="text-sm" data-testid="calendar-season">
+        <p className="text-base" data-testid="calendar-season">
           <span className="font-medium">
             Season ends {formatPlanDate(season.endDate)}
           </span>
-          <span className="text-muted-foreground"> · {season.goal}</span>
+          <span className="text-muted-foreground">
+            <Bullet />
+            {season.goal}
+          </span>
         </p>
       )}
     </div>
@@ -224,14 +232,14 @@ function CalendarCell({
 }) {
   return (
     <div
-      className={`flex min-h-28 flex-col gap-1 rounded border p-1.5 text-xs ${
+      className={`flex min-h-28 flex-col gap-1 rounded border p-1.5 text-sm ${
         inMonth ? "bg-card" : "bg-muted/40 text-muted-foreground"
       } ${isToday ? "ring-2 ring-ring" : ""}`}
       data-testid={inMonth ? "calendar-day" : undefined}
       data-date={date}
     >
       <span
-        className={`self-start rounded px-1 text-xs ${
+        className={`self-start rounded px-1 text-sm ${
           isToday ? "bg-primary font-semibold text-primary-foreground" : ""
         }`}
       >
@@ -243,7 +251,9 @@ function CalendarCell({
           className="rounded bg-accent/20 px-1 py-0.5 font-medium text-accent-foreground"
           data-testid="calendar-block-start"
         >
-          Block starts · {day.blockStart.name}
+          Block starts
+          <Bullet />
+          {day.blockStart.name}
         </span>
       )}
 
@@ -302,11 +312,22 @@ function SessionChip({
       data-testid="calendar-session"
     >
       <span className="line-clamp-2 font-medium">{session.title}</span>
-      <span className="text-[10px] text-muted-foreground">
-        {sessionStatusPrefix(session.status)}
-        {session.durationMinutes} min · {session.intensity}
-        {session.trainingLoad != null &&
-          ` · TSS ${Math.round(session.trainingLoad.tss)}`}
+      <span className="text-xs text-muted-foreground">
+        {sessionStatusPrefix(session.status) !== "" && (
+          <>
+            {sessionStatusPrefix(session.status)}
+            <Bullet />
+          </>
+        )}
+        {session.durationMinutes} min
+        <Bullet />
+        {session.intensity}
+        {session.trainingLoad != null && (
+          <>
+            <Bullet />
+            TSS {Math.round(session.trainingLoad.tss)}
+          </>
+        )}
       </span>
     </button>
   );
@@ -327,25 +348,25 @@ function ActivityChip({
       data-testid="calendar-activity"
     >
       <span className="line-clamp-2 font-medium">{activity.name}</span>
-      <span className="text-[10px] text-muted-foreground">
-        {activityStat(activity)}
+      <span className="text-xs text-muted-foreground">
+        <Bullets parts={activityStat(activity)} />
       </span>
     </button>
   );
 }
 
-function activityStat(activity: CalendarActivity): string {
+function activityStat(activity: CalendarActivity): string[] {
   if (activity.source === "manual") {
     return activity.estimatedTss != null
-      ? `Manual · TSS ${Math.round(activity.estimatedTss)}`
-      : "Manual";
+      ? ["Manual", `TSS ${Math.round(activity.estimatedTss)}`]
+      : ["Manual"];
   }
   const parts: string[] = [];
   if (activity.distance > 0) {
     parts.push(`${(activity.distance / 1000).toFixed(1)} km`);
   }
   parts.push(formatDuration(activity.elapsedTime));
-  return parts.join(" · ");
+  return parts;
 }
 
 export function CalendarEntryDialog({
@@ -392,14 +413,20 @@ export function CalendarEntryDialog({
         data-testid="calendar-entry-dialog"
       >
         <div className="flex items-start justify-between gap-3">
-          <h3 className="text-lg font-semibold">
-            {selection.kind === "activity"
-              ? selection.activity.name
-              : `${formatPlanDate(selection.session.date)} · ${selection.session.title}`}
+          <h3 className="text-xl font-semibold">
+            {selection.kind === "activity" ? (
+              selection.activity.name
+            ) : (
+              <>
+                {formatPlanDate(selection.session.date)}
+                <Bullet />
+                {selection.session.title}
+              </>
+            )}
           </h3>
           <button
             type="button"
-            className="rounded border bg-card px-2 py-0.5 text-sm enabled:hover:bg-muted"
+            className="rounded border bg-card px-2 py-0.5 text-base enabled:hover:bg-muted"
             onClick={onClose}
             autoFocus
           >
@@ -423,12 +450,14 @@ function ActivityDetails({ activity }: { activity: CalendarActivity }) {
   if (activity.source === "manual") {
     return (
       <div className="flex flex-col gap-2">
-        <p className="text-sm text-muted-foreground">
-          Manual activity · {formatPlanDate(activity.startDate)}
+        <p className="text-base text-muted-foreground">
+          Manual activity
+          <Bullet />
+          {formatPlanDate(activity.startDate)}
         </p>
         <p className="whitespace-pre-line">{activity.details}</p>
         {activity.estimatedTss != null && (
-          <p className="text-sm">
+          <p className="text-base">
             <span className="font-medium">Estimated TSS: </span>
             {Math.round(activity.estimatedTss)}
           </p>
@@ -440,7 +469,7 @@ function ActivityDetails({ activity }: { activity: CalendarActivity }) {
           />
         )}
         {activity.coachReply && (
-          <p className="text-sm" data-testid="calendar-dialog-coach-reply">
+          <p className="text-base" data-testid="calendar-dialog-coach-reply">
             <span className="font-medium">Coach:</span>{" "}
             {activity.coachReply.text}
           </p>
@@ -475,7 +504,9 @@ function ActivityDetails({ activity }: { activity: CalendarActivity }) {
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-sm text-muted-foreground">{metadata.join(" · ")}</p>
+      <p className="text-base text-muted-foreground">
+        <Bullets parts={metadata} />
+      </p>
 
       {hasMap ? (
         <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_16rem] sm:items-start">
@@ -489,12 +520,12 @@ function ActivityDetails({ activity }: { activity: CalendarActivity }) {
       )}
 
       {activity.comment && (
-        <p className="text-sm" data-testid="calendar-dialog-comment">
+        <p className="text-base" data-testid="calendar-dialog-comment">
           <span className="font-medium">You:</span> {activity.comment}
         </p>
       )}
       {activity.coachReply && (
-        <p className="text-sm" data-testid="calendar-dialog-coach-reply">
+        <p className="text-base" data-testid="calendar-dialog-coach-reply">
           <span className="font-medium">Coach:</span> {activity.coachReply.text}
         </p>
       )}
@@ -521,7 +552,7 @@ function ActivitySummaryDetails({
       {summary ? (
         <p className="whitespace-pre-line">{summary}</p>
       ) : (
-        <p className="rounded bg-accent/15 p-2 text-sm">
+        <p className="rounded bg-accent/15 p-2 text-base">
           {activity.analysisError
             ? `Coach analysis unavailable: ${activity.analysisError}`
             : "No coach analysis available yet."}
@@ -534,13 +565,20 @@ function ActivitySummaryDetails({
 function SessionDetails({ session }: { session: WeekSession }) {
   return (
     <div className="flex flex-col gap-2">
-      <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+      <p className="flex flex-wrap items-center gap-2 text-base text-muted-foreground">
         <span>{formatPlanDate(session.date)}</span>
         <StatusBadge status={session.status} />
         <span>
-          {session.type === "rest"
-            ? "Rest day"
-            : `${session.durationMinutes} min · ${session.intensity}${formatSessionSetting(session.outdoor)}`}
+          {session.type === "rest" ? (
+            "Rest day"
+          ) : (
+            <>
+              {session.durationMinutes} min
+              <Bullet />
+              {session.intensity}
+              <SessionSetting outdoor={session.outdoor} />
+            </>
+          )}
         </span>
       </p>
       {session.trainingLoad != null && (
@@ -557,13 +595,13 @@ function SessionDetails({ session }: { session: WeekSession }) {
             forecasts={session.forecasts}
           />
         )}
-      <p className="whitespace-pre-line text-sm text-muted-foreground">
+      <p className="whitespace-pre-line text-base text-muted-foreground">
         {session.description}
       </p>
       {session.type === "workout" &&
         session.trainingLoad == null &&
         session.estimatedTss != null && (
-          <p className="text-sm">
+          <p className="text-base">
             <span className="font-medium">Estimated TSS: </span>
             {Math.round(session.estimatedTss)}
           </p>
@@ -574,23 +612,19 @@ function SessionDetails({ session }: { session: WeekSession }) {
 
 function StatusBadge({ status }: { status: WeekSessionStatus }) {
   return (
-    <span className="rounded border bg-muted px-2 py-0.5 text-xs capitalize">
+    <span className="rounded border bg-muted px-2 py-0.5 text-sm capitalize">
       {status}
     </span>
   );
 }
 
-function formatSessionSetting(outdoor: boolean | undefined): string {
-  return outdoor === false ? " · indoor" : outdoor === true ? " · outdoor" : "";
-}
-
 /** A short status prefix for a day whose session has already been resolved. */
 function sessionStatusPrefix(status: WeekSessionStatus): string {
   if (status === "completed") {
-    return "Completed · ";
+    return "Completed";
   }
   if (status === "partial") {
-    return "Partial · ";
+    return "Partial";
   }
-  return status === "missed" ? "Missed · " : "";
+  return status === "missed" ? "Missed" : "";
 }

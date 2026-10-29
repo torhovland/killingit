@@ -69,15 +69,15 @@ export function AdminModelRemarksSection() {
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-col gap-1">
-          <h2 className="text-lg font-semibold">Model remarks</h2>
-          <p className="text-sm text-muted-foreground">
+          <h2 className="text-xl font-semibold">Model remarks</h2>
+          <p className="text-base text-muted-foreground">
             Difficulties or objections the model reported while answering recent
             prompts.
           </p>
         </div>
         <button
           type="button"
-          className="rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted"
+          className="rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted"
           onClick={() => {
             setRemarks(null);
             setReloadKey((value) => value + 1);
@@ -88,12 +88,12 @@ export function AdminModelRemarksSection() {
         </button>
       </div>
 
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && <p className="text-base text-destructive">{error}</p>}
       {loading && remarks === null && (
-        <p className="text-sm text-muted-foreground">Loading remarks…</p>
+        <p className="text-base text-muted-foreground">Loading remarks…</p>
       )}
       {!loading && remarks !== null && remarks.length === 0 && (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-base text-muted-foreground">
           No model remarks were reported recently.
         </p>
       )}
@@ -102,10 +102,10 @@ export function AdminModelRemarksSection() {
           {remarks.map((remark) => (
             <li
               key={remark.callId}
-              className="flex flex-col gap-1 rounded border bg-muted p-3 text-sm"
+              className="flex flex-col gap-1 rounded border bg-muted p-3 text-base"
               data-testid="model-remark"
             >
-              <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+              <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
                 <span className="font-medium">
                   {LLM_PROMPT_KIND_LABELS[remark.kind]}
                 </span>

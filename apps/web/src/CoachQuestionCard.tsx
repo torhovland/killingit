@@ -51,7 +51,7 @@ export function CoachQuestionCard({
       data-testid="coach-question-card"
     >
       <header className="flex flex-col gap-1">
-        <h3 className="text-lg font-semibold">Coach question</h3>
+        <h3 className="text-xl font-semibold">Coach question</h3>
       </header>
 
       <p className="whitespace-pre-line" data-testid="coach-question-text">
@@ -59,13 +59,13 @@ export function CoachQuestionCard({
       </p>
 
       {shownAnswer !== null && (
-        <p className="text-sm" data-testid="coach-question-answer">
+        <p className="text-base" data-testid="coach-question-answer">
           <span className="font-medium">You:</span> {shownAnswer}
         </p>
       )}
 
       {shownReply !== null && (
-        <p className="text-sm" data-testid="coach-question-reply">
+        <p className="text-base" data-testid="coach-question-reply">
           <span className="font-medium">Coach:</span> {shownReply}
         </p>
       )}
@@ -78,17 +78,17 @@ export function CoachQuestionCard({
         >
           <textarea
             aria-label="Answer the coach's question"
-            className="w-full rounded border bg-card p-2 text-sm"
+            className="w-full rounded border bg-card p-2 text-base"
             placeholder="Answer the coach so the plan can be adjusted."
             value={answer}
             onChange={(event) => setAnswer(event.target.value)}
             disabled={submitting}
             rows={2}
           />
-          {error && <p className="text-xs text-destructive">{error}</p>}
+          {error && <p className="text-sm text-destructive">{error}</p>}
           <SubmitButton
             busy={submitting}
-            className="self-start rounded border border-transparent bg-primary px-3 py-1 text-sm text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
+            className="self-start rounded border border-transparent bg-primary px-3 py-1 text-base text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
             disabled={!answer.trim()}
           >
             {submitting ? "Coach is thinking…" : "Answer coach"}
