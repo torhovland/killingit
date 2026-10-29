@@ -190,7 +190,7 @@ export function FitnessChart({
               y={CHART_PADDING.top + scale.y(tick)}
               textAnchor="end"
               dominantBaseline="middle"
-              className="fill-muted-foreground text-xs"
+              className="fill-muted-foreground text-[10px]"
             >
               {Math.round(tick)}
             </text>
@@ -212,7 +212,7 @@ export function FitnessChart({
                       ? "end"
                       : "middle"
                 }
-                className="fill-muted-foreground text-xs"
+                className="fill-muted-foreground text-[10px]"
               >
                 {formatChartDate(day.date)}
               </text>

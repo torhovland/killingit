@@ -145,7 +145,7 @@ describe("CalendarView", () => {
         data={data}
         month="2026-10"
         onMonthChange={() => {}}
-        today="2026-10-27"
+        today="2026-10-07"
       />,
     );
 
@@ -161,6 +161,39 @@ describe("CalendarView", () => {
     expect(html).toContain("Tempo ride");
     expect(html).toContain("75 min");
     expect(html).toContain("Rest");
+  });
+
+  it("hides planned sessions in the past and on today once an activity is recorded", () => {
+    const activityDayData: CalendarResponse = {
+      ...data,
+      days: data.days.map((day) =>
+        day.date === "2026-10-06"
+          ? { ...day, session: { ...workout, date: "2026-10-06" } }
+          : { ...day, session: null },
+      ),
+    };
+
+    const past = renderToStaticMarkup(
+      <CalendarView
+        data={activityDayData}
+        month="2026-10"
+        onMonthChange={() => {}}
+        today="2026-10-07"
+      />,
+    );
+    expect(past).not.toContain("Tempo ride");
+    expect(past).toContain("Morning ride");
+
+    const today = renderToStaticMarkup(
+      <CalendarView
+        data={activityDayData}
+        month="2026-10"
+        onMonthChange={() => {}}
+        today="2026-10-06"
+      />,
+    );
+    expect(today).not.toContain("Tempo ride");
+    expect(today).toContain("Morning ride");
   });
 
   it("bounds the month picker to the data range", () => {
