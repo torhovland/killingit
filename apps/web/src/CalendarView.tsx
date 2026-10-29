@@ -82,13 +82,7 @@ export function CalendarView({
 
   return (
     <section className="flex w-full flex-col gap-4 text-left">
-      <CalendarHeading
-        season={
-          data.season === null
-            ? null
-            : { goal: data.season.goal, endDate: data.season.endDate }
-        }
-      />
+      <CalendarHeading goal={data.season?.goal ?? null} />
 
       {error && <p className="text-destructive">Error: {error}</p>}
 
@@ -192,26 +186,14 @@ export function CalendarView({
   );
 }
 
-function CalendarHeading({
-  season,
-}: {
-  season?: { goal: string; endDate: string } | null;
-}) {
+function CalendarHeading({ goal }: { goal?: string | null }) {
   return (
     <div className="flex flex-col gap-1">
       <h2 className="text-2xl font-semibold">Calendar</h2>
-      <p className="text-base text-muted-foreground">
-        Your recorded activities, planned workouts and rest days in one month.
-      </p>
-      {season && (
+      {goal && (
         <p className="text-base" data-testid="calendar-season">
-          <span className="font-medium">
-            Season ends {formatPlanDate(season.endDate)}
-          </span>
-          <span className="text-muted-foreground">
-            <Bullet />
-            {season.goal}
-          </span>
+          <span className="font-medium">Goal: </span>
+          <span className="text-muted-foreground">{goal}</span>
         </p>
       )}
     </div>

@@ -68,7 +68,7 @@ comment, the coach's response, and the route map for outdoor activities.
   intensity and TSS stay in the detail dialog.
 - A block's `startDate` gets a `Block starts · <name>` marker on that day.
 - The season's `endDate` gets a `Season ends` marker, and the page heading
-  states the season end date and goal.
+  states the season goal.
 - Days with nothing to show are omitted by the API and render as empty cells.
 
 ### Detail dialog
