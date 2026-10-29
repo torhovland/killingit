@@ -85,10 +85,20 @@ export {
 } from "./calendar.js";
 
 export {
+  coachQuestionAnswerRequestSchema,
+  coachQuestionSchema,
+  coachQuestionsResponseSchema,
+  type CoachQuestion,
+  type CoachQuestionAnswerRequest,
+  type CoachQuestionsResponse,
+} from "./coachQuestion.js";
+
+export {
   analyzedActivitiesResponseSchema,
   analyzedActivitySchema,
   coachAnalysisResultSchema,
   coachAnalysisSchema,
+  coachResponseNotesSchema,
   llmCallDetailSchema,
   llmCallMessageSchema,
   llmCallSummarySchema,
@@ -96,6 +106,8 @@ export {
   llmCallsResponseSchema,
   LLM_PROMPT_KIND_LABELS,
   LLM_PROMPT_KINDS,
+  llmModelRemarksResponseSchema,
+  llmModelRemarkSchema,
   llmModelSchema,
   llmModelsResponseSchema,
   llmPromptKindSchema,
@@ -105,9 +117,12 @@ export {
   type AnalyzedActivity,
   type CoachAnalysis,
   type CoachAnalysisResult,
+  type CoachResponseNotes,
   type LlmCallDetail,
   type LlmCallMessage,
   type LlmCallSummary,
+  type LlmModelRemark,
+  type LlmModelRemarksResponse,
   type LlmCallUsage,
   type LlmCallsResponse,
   type LlmModel,

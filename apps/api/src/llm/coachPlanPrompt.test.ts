@@ -8,7 +8,16 @@ import {
   toCoachPlanActivity,
   type CoachPlanInput,
 } from "./coachPlanPrompt.js";
-import { WEEK_OUTLINE_RULES } from "./planContext.js";
+import {
+  BIKE_WORKOUT_RULES,
+  COMPLETED_SESSION_RULES,
+  GLOBAL_PROMPT_RULES,
+  PLAN_PROMPT_RULES,
+  TODAY_IN_WEEK_RULE,
+  WEEK_OUTLINE_RULES,
+  WEEK_SHAPE_RULES,
+  WEATHER_PLANNING_RULES,
+} from "./promptRules.js";
 
 function makeInput(overrides: Partial<CoachPlanInput> = {}): CoachPlanInput {
   return {
@@ -96,7 +105,7 @@ function makeAnalyzedActivity(
 
 describe("coach plan prompts", () => {
   it("exposes a prompt version for cache invalidation", () => {
-    expect(COACH_PLAN_PROMPT_VERSION).toBe(9);
+    expect(COACH_PLAN_PROMPT_VERSION).toBe(10);
   });
 
   it("builds a system and a user message", () => {
@@ -146,11 +155,11 @@ describe("coach plan prompts", () => {
     expect(prompt).toContain(
       "Revise the week so every workout serves the goal",
     );
-    expect(prompt).toContain("exactly seven entries");
+    expect(prompt).toContain(WEEK_SHAPE_RULES);
     expect(prompt).toContain(
       "block.weeks[0].startDate and week.startDate must match",
     );
-    expect(prompt).toContain("today must match the entry for today's date");
+    expect(prompt).toContain(TODAY_IN_WEEK_RULE);
     expect(prompt).toContain('use either "workout" or "rest"');
     expect(prompt).toContain(
       'never output a session name such as "run", "strength", or "rest day" as a type',
@@ -165,6 +174,14 @@ describe("coach plan prompts", () => {
     expect(prompt).toContain(
       "Fully detail today's and tomorrow's sessions; keep every later day in the week as a short outline.",
     );
+  });
+
+  it("uses the same planning rules as the update prompt", () => {
+    expect(COACH_PLAN_SYSTEM_PROMPT).toContain(WEATHER_PLANNING_RULES);
+    expect(COACH_PLAN_SYSTEM_PROMPT).toContain(BIKE_WORKOUT_RULES);
+    expect(COACH_PLAN_SYSTEM_PROMPT).toContain(PLAN_PROMPT_RULES);
+    expect(COACH_PLAN_SYSTEM_PROMPT).toContain(GLOBAL_PROMPT_RULES);
+    expect(COACH_PLAN_SYSTEM_PROMPT).toContain(COMPLETED_SESSION_RULES);
   });
 
   it("includes today's date, the timezone, and the athlete profile", () => {
@@ -234,12 +251,10 @@ describe("coach plan prompts", () => {
     expect(prompt).not.toContain("Athlete timezone:");
   });
 
-  it("asks for state of the art training science in the user prompt", () => {
+  it("asks for state of the art training science and names the response keys", () => {
     const prompt = buildCoachPlanPrompt(makeInput());
 
-    expect(prompt).toContain(
-      "Use state of the art training science to make the best possible plan for this athlete.",
-    );
+    expect(COACH_PLAN_SYSTEM_PROMPT).toContain(PLAN_PROMPT_RULES);
     expect(prompt).toContain(
       'top-level keys are exactly "season", "block", "week", "today", "tomorrow", and "bodyMetrics"',
     );

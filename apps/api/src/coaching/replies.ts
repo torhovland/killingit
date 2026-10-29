@@ -101,6 +101,61 @@ export async function replyToCoachingInput(
 }
 
 /**
+ * Generates a reply to an athlete's answer to a coach clarification question.
+ * Unlike `replyToCoachingInput`, the caller stores the reply with the question.
+ */
+export async function replyToCoachQuestion(
+  deps: CoachReplyDependencies,
+  options: {
+    userId: number;
+    today: string;
+    question: string;
+    answer: string;
+  },
+): Promise<CoachingQuestionAnswer | null> {
+  const { userId, today, question, answer } = options;
+
+  let plan: Awaited<ReturnType<PlanStore["load"]>>;
+  let answers: Awaited<ReturnType<QuestionAnswerStore["listForUser"]>>;
+  let llm: LlmClient | null;
+  try {
+    [plan, answers, llm] = await Promise.all([
+      deps.plans.load(userId),
+      deps.answers.listForUser(userId),
+      deps.loadLlm(userId),
+    ]);
+  } catch (err) {
+    console.error("[coach-reply] could not load the reply context:", err);
+    return null;
+  }
+
+  if (plan === null || llm === null) {
+    return null;
+  }
+
+  try {
+    const text = await generateCoachReply(
+      llm.provider,
+      { apiKey: llm.apiKey, model: llm.model },
+      {
+        today,
+        plan: plan.plan,
+        athleteAnswers: answers.map(toAnswerContext),
+        request: { kind: "coach_question", question, answer },
+      },
+      "coach_reply",
+    );
+    const reply = text.trim();
+    return reply === ""
+      ? null
+      : { text: reply, model: llm.model, generatedAt: new Date() };
+  } catch (err) {
+    console.error("[coach-reply] could not answer the coach question:", err);
+    return null;
+  }
+}
+
+/**
  * Answers a one-off "by the way" question. Unlike `replyToCoachingInput`, this
  * persists nothing and never triggers a plan revision.
  */

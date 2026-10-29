@@ -17,6 +17,7 @@ import type {
 } from "./coaching/deletions.js";
 import type {
   answerCoachingQuestion,
+  replyToCoachQuestion,
   replyToCoachingInput,
 } from "./coaching/replies.js";
 import type { saveActivityReview } from "./coaching/reviews.js";
@@ -38,6 +39,12 @@ import type {
   markPeriodReviewReviewed,
   updatePeriodReviewComment,
 } from "./plans/periodReviews.js";
+import type {
+  answerCoachQuestion,
+  loadAnsweredCoachQuestions,
+  loadCoachQuestion,
+  loadPendingCoachQuestion,
+} from "./plans/coachQuestions.js";
 import type {
   loadManualActivityReplies,
   loadWeeklyNoteReply,
@@ -134,6 +141,10 @@ export interface AppDependencies {
   createPeriodReviewComment?: typeof createPeriodReviewComment;
   updatePeriodReviewComment?: typeof updatePeriodReviewComment;
   markPeriodReviewReviewed?: typeof markPeriodReviewReviewed;
+  loadPendingCoachQuestion?: typeof loadPendingCoachQuestion;
+  loadAnsweredCoachQuestions?: typeof loadAnsweredCoachQuestions;
+  loadCoachQuestion?: typeof loadCoachQuestion;
+  answerCoachQuestion?: typeof answerCoachQuestion;
   saveManualActivity?: typeof saveManualActivity;
   saveWeeklyNote?: typeof saveWeeklyNote;
   updateManualActivity?: typeof updateManualActivity;
@@ -143,6 +154,7 @@ export interface AppDependencies {
   loadManualActivityReplies?: typeof loadManualActivityReplies;
   loadWeeklyNoteReply?: typeof loadWeeklyNoteReply;
   replyToCoachingInput?: typeof replyToCoachingInput;
+  replyToCoachQuestion?: typeof replyToCoachQuestion;
   answerCoachingQuestion?: typeof answerCoachingQuestion;
   /** Plan generation trigger, injectable for DB-free route tests. */
   triggerPlanGeneration?: typeof triggerPlanGeneration;
@@ -284,6 +296,18 @@ export function createApp(deps: AppDependencies = {}): Hono {
       ...(deps.markPeriodReviewReviewed !== undefined
         ? { markPeriodReviewReviewed: deps.markPeriodReviewReviewed }
         : {}),
+      ...(deps.loadPendingCoachQuestion !== undefined
+        ? { loadPendingCoachQuestion: deps.loadPendingCoachQuestion }
+        : {}),
+      ...(deps.loadAnsweredCoachQuestions !== undefined
+        ? { loadAnsweredCoachQuestions: deps.loadAnsweredCoachQuestions }
+        : {}),
+      ...(deps.loadCoachQuestion !== undefined
+        ? { loadCoachQuestion: deps.loadCoachQuestion }
+        : {}),
+      ...(deps.answerCoachQuestion !== undefined
+        ? { answerCoachQuestion: deps.answerCoachQuestion }
+        : {}),
       ...(deps.saveManualActivity !== undefined
         ? { saveManualActivity: deps.saveManualActivity }
         : {}),
@@ -307,6 +331,9 @@ export function createApp(deps: AppDependencies = {}): Hono {
         : {}),
       ...(deps.replyToCoachingInput !== undefined
         ? { replyToCoachingInput: deps.replyToCoachingInput }
+        : {}),
+      ...(deps.replyToCoachQuestion !== undefined
+        ? { replyToCoachQuestion: deps.replyToCoachQuestion }
         : {}),
       ...(deps.answerCoachingQuestion !== undefined
         ? { answerCoachingQuestion: deps.answerCoachingQuestion }

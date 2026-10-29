@@ -1,6 +1,5 @@
 import { describe, expect, it } from "bun:test";
 import {
-  ACTIVITY_COMMENT_RULE,
   formatPlanContext,
   formatWeekPlan,
   type PlanContextInput,
@@ -47,7 +46,6 @@ describe("formatPlanContext", () => {
     expect(text).toContain(
       "Athlete comment about this same activity (not an additional session): Goblet squats",
     );
-    expect(text).toContain(ACTIVITY_COMMENT_RULE);
     expect(text).not.toContain("Activity comments:");
   });
 

@@ -3,14 +3,17 @@ import {
   type ActivitySummary,
   type BikeWorkout,
   type BlockPlan,
+  type CoachPlan,
   type DailyWeather,
   type DayPlan,
   type MetricPoint,
   type SeasonPlan,
   type WeekPlan,
+  type WeekSession,
 } from "@killingit/shared";
 import { addDays, startOfWeek } from "../plans/dates.js";
 import { formatDuration } from "./duration.js";
+import { WEEKLY_NOTE_SCOPE_RULE } from "./promptRules.js";
 
 /** One interview question with the athlete's answer or explicit skip. */
 export interface AthleteAnswerContext {
@@ -69,51 +72,6 @@ export interface ActivityCommentContext {
   updatedAt?: string;
 }
 
-/**
- * Shared rule for every prompt that receives activity comments: a comment is
- * the athlete's description of an activity that is already listed, not another
- * activity.
- */
-export const ACTIVITY_COMMENT_RULE =
-  "A comment on an activity describes that same activity. It is not an additional activity and must never be added on top of the activity's recorded time or treated as extra training.";
-
-/**
- * A weekly note is dated by its week. Without an explicit statement to the
- * contrary, constraints in it apply to that week only; a recurring statement
- * such as "on Thursdays I have a meetup" applies every week.
- */
-export const WEEKLY_NOTE_SCOPE_RULE = `A weekly note is normally scoped to the week it was written for. If it says the athlete cannot train on Thursday, assume that Thursday of that week only. If it says that on Thursdays they have a meetup that keeps them from training, assume it applies to every Thursday. Unless the athlete explicitly says otherwise, do not extend a week-specific constraint to other weeks.`;
-
-/**
- * Shared rule for the day the athlete is about to train. A session must earn
- * its place: the coach states what it builds toward the plan's goal and what
- * skipping costs, and treats a session it cannot justify as a reason to revise
- * the week instead of hiding it behind an "optional" label.
- */
-export const SESSION_PURPOSE_RULES = `For today's and tomorrow's workouts, explain the session's purpose against the plan's goal. In "optionalRationale", name the concrete adaptation or fitness quality the session builds toward the season goal, the block's focus, and the week's target load, and state what the athlete loses toward that goal if they skip it. Be specific and motivating (for example, "the aerobic durability that carries you through the last 10 km of the marathon") rather than generic encouragement.
-
-Set "optional" to true only when the cost of skipping is genuinely small, and explain in "optionalRationale" why that cost is acceptable today (for example, a short recovery run at the end of a hard week). Never use "optional" as a label for a workout with no clear purpose.
-
-Before returning, apply the same test to every workout in the week: if you cannot state a concrete loss for skipping a planned session, that session is filler. Revise the week so every workout serves the goal, or replace the session with rest, and update today's plan to match. The week must be the best plan you can make for this athlete's goal, not a template to fill.
-
-If today or tomorrow is a rest day, explain in "rationale" why rest is the best choice today; no optionality assessment is needed.`;
-
-/**
- * Shared instruction for the level of detail in a week plan. A week is a
- * shape, not seven finished workouts: only today and tomorrow need a concrete
- * prescription, because the daily update will detail each later day when it
- * arrives.
- */
-export const WEEK_OUTLINE_RULES = `Treat the week as an outline, not seven finished workouts. Fully detail only the sessions the request says need detail: a concrete description, and for an indoor bike workout with power targets a "bikeWorkout". Keep every other future day as a short outline: the session type, a brief title naming the kind of session, a one-sentence description of its intent, an approximate duration and intensity, and an "estimatedTss". Do not prescribe detailed intervals, repetitions, paces, or power targets for outline days, and set "bikeWorkout" to null there; the daily update will turn an outline into a concrete workout when that day arrives. The outline must still show the week's shape: which days are long, hard, easy, or rest. Set the week's "estimatedFtpWatts" from the athlete's profile and the plan's progression, and estimate each outline day's "estimatedTss" against it.`;
-
-/**
- * Shared instruction for the body-composition points the coach reports. The
- * app stores them in the same daily time series as Garmin's weigh-ins, so the
- * athlete sees a weight and body-fat trend on the Fitness page even before
- * their scale is connected.
- */
-export const BODY_METRIC_RULES = `When the profile, a weekly note, an activity comment, or another part of the input states the athlete's body weight or body-fat percentage, report it in "bodyMetrics" as { "date": "YYYY-MM-DD", "weightKg": number, "bodyFatPercent": number }. Give body weight in kilograms and body fat as a percentage of body weight; convert a stated weight in pounds. Use the date the statement refers to. For a number in the profile that names no date, use the date the profile was last saved; for anything added more recently, use today's date. Set a value the input does not give to null, and return an empty "bodyMetrics" array when the input says nothing about either number. Report only numbers that appear in the input: never guess a weight, a body-fat percentage, or a future trend, and never turn a goal into a measurement. The stored history tells you what is already known; do not repeat a value for the same date.`;
-
 /** The complete context passed to the coach for a plan generation. */
 export interface PlanContextInput {
   athleteAnswers: readonly AthleteAnswerContext[];
@@ -164,6 +122,19 @@ function latestAnswerDate(
   return dates.at(-1) ?? null;
 }
 
+/** Renders the athlete's profile with the date its answers were last saved. */
+export function formatAthleteProfile(
+  entries: readonly AthleteAnswerContext[],
+  savedAt: string | null = latestAnswerDate(entries),
+): string[] {
+  return [
+    savedAt === null
+      ? "Athlete profile:"
+      : `Athlete profile (answers last saved ${savedAt}):`,
+    formatAthleteAnswers(entries),
+  ];
+}
+
 /** Renders the athlete's profile for a prompt. */
 export function formatAthleteAnswers(
   entries: readonly AthleteAnswerContext[],
@@ -172,6 +143,19 @@ export function formatAthleteAnswers(
     return "No interview answers were recorded.";
   }
   return entries.map(formatAthleteAnswer).join("\n");
+}
+
+/**
+ * Renders the stored FTP time series and its source meaning for any prompt
+ * that estimates or compares power.
+ */
+export function formatFtpContext(
+  points: readonly Pick<MetricPoint, "date" | "value" | "source">[],
+): string[] {
+  return [
+    'FTP history (oldest first; "user" and "garmin" values are measurements, "coach" values are earlier estimates):',
+    ...formatFtpHistory(points),
+  ];
 }
 
 /**
@@ -221,13 +205,7 @@ export function formatPlanContext(input: PlanContextInput): string[] {
   // Dating the profile lets the coach place an undated statement (such as the
   // weight in the survey answers) on the day it was actually given.
   const profileDate = latestAnswerDate(input.athleteAnswers);
-  lines.push(
-    "",
-    profileDate === null
-      ? "Athlete profile:"
-      : `Athlete profile (answers last saved ${profileDate}):`,
-    formatAthleteAnswers(input.athleteAnswers),
-  );
+  lines.push("", ...formatAthleteProfile(input.athleteAnswers, profileDate));
   if (input.athleteFtpWatts !== undefined && input.athleteFtpWatts !== null) {
     lines.push(
       "",
@@ -235,21 +213,16 @@ export function formatPlanContext(input: PlanContextInput): string[] {
     );
   }
   if (input.ftpHistory !== undefined && input.ftpHistory.length > 0) {
-    lines.push(
-      "",
-      'FTP history (oldest first; "user" values are measurements the athlete stated, "garmin" values are synced measurements, and "coach" values are earlier estimates):',
-      ...formatFtpHistory(input.ftpHistory),
-    );
+    lines.push("", ...formatFtpContext(input.ftpHistory));
   }
   if (input.bodyHistory !== undefined) {
     lines.push(...formatBodyHistory(input.bodyHistory));
   }
   lines.push(
     "",
-    `Recent activities (most recent first). ${ACTIVITY_COMMENT_RULE}`,
+    "Recent activities (most recent first).",
     formatRecentActivities(input.recentActivities, comments),
   );
-
   if (input.manualActivities && input.manualActivities.length > 0) {
     lines.push(
       "",
@@ -257,7 +230,6 @@ export function formatPlanContext(input: PlanContextInput): string[] {
       formatManualActivities(input.manualActivities),
     );
   }
-
   if (unlistedComments.length > 0) {
     lines.push(
       "",
@@ -266,7 +238,6 @@ export function formatPlanContext(input: PlanContextInput): string[] {
       formatActivityComments(unlistedComments),
     );
   }
-
   const hasCurrentWeeklyNote =
     input.weeklyNote !== undefined &&
     input.weeklyNote !== null &&
@@ -436,15 +407,11 @@ export function formatWeekPlan(plan: WeekPlan): string {
     `Rationale: ${plan.rationale}`,
     "Sessions:",
     ...plan.sessions.map((session) => {
-      const bikeWorkout =
-        session.bikeWorkout != null
-          ? `; ${formatBikeWorkout(session.bikeWorkout)}`
-          : "";
       const tss =
         session.estimatedTss !== undefined
           ? `; estimated TSS ${session.estimatedTss}`
           : "";
-      return `- ${session.date} (${session.day}) [${session.status}]: ${session.title} [${session.type}, ${session.intensity}, ${session.durationMinutes} min] — ${session.description}${bikeWorkout}${tss}`;
+      return `- ${session.date} (${session.day}) [${session.status}]: ${formatPlannedSession(session)}${tss}`;
     }),
   ].join("\n");
 }
@@ -483,6 +450,50 @@ export function formatDayPlan(plan: DayPlan): string {
     lines.push(`Estimated TSS: ${plan.estimatedTss}`);
   }
   return lines.join("\n");
+}
+
+/**
+ * The season and current block, rendered the same way for every prompt that
+ * starts from the athlete's current plan.
+ */
+export function formatSeasonAndBlock(
+  season: SeasonPlan,
+  block: BlockPlan,
+): string[] {
+  return [
+    "Current season plan:",
+    formatSeasonPlan(season),
+    "",
+    "Current block plan:",
+    formatBlockPlan(block),
+  ];
+}
+
+/**
+ * The season, current block and current week, rendered the same way for every
+ * prompt that starts from the athlete's current plan.
+ */
+export function formatPlanLevels(
+  plan: Pick<CoachPlan, "season" | "block" | "week">,
+): string[] {
+  return [
+    ...formatSeasonAndBlock(plan.season, plan.block),
+    "",
+    "Current week plan:",
+    formatWeekPlan(plan.week),
+  ];
+}
+
+/**
+ * Renders the one-line session summary shared by the coach reply and the
+ * program review, including a bike workout's power targets when it has one.
+ */
+export function formatPlannedSession(session: WeekSession): string {
+  const bikeWorkout =
+    session.bikeWorkout != null
+      ? `; ${formatBikeWorkout(session.bikeWorkout)}`
+      : "";
+  return `${session.title} [${session.type}, ${session.intensity}, ${session.durationMinutes} min] — ${session.description}${bikeWorkout}`;
 }
 
 /** Renders a structured bike workout's power targets for a generation prompt. */
@@ -551,6 +562,34 @@ function recentMetricLines(
     .map(
       (point) => `- ${point.date}: ${format(point.value)} (${point.source})`,
     );
+}
+
+/**
+ * Renders the recorded activity summary shared by the activity review and the
+ * program review, so both prompts describe the same numbers the same way.
+ */
+export function formatActivitySummary(
+  activity: Pick<
+    ActivitySummary,
+    | "name"
+    | "type"
+    | "startDate"
+    | "distance"
+    | "movingTime"
+    | "elapsedTime"
+    | "totalElevationGain"
+  >,
+  sampleCount: number,
+): string[] {
+  return [
+    `- Name: ${activity.name}`,
+    `- Type (recorded by the device; may be wrong): ${activity.type}`,
+    `- Started: ${activity.startDate}`,
+    `- Distance: ${(activity.distance / 1000).toFixed(2)} km`,
+    `- Moving time: ${formatDuration(activity.movingTime)}, elapsed time: ${formatDuration(activity.elapsedTime)}`,
+    `- Elevation gain: ${Math.round(activity.totalElevationGain)} m`,
+    `- Recorded samples: ${sampleCount}`,
+  ];
 }
 
 function formatActivity(

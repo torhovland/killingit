@@ -1,10 +1,12 @@
 import { describe, expect, it } from "bun:test";
 import type { BlockPlan, CoachPlan, WeekPlan } from "@killingit/shared";
 import {
+  buildPeriodReviewMessages,
   buildPeriodReviewPrompt,
   PERIOD_REVIEW_PROMPT_VERSION,
 } from "./periodReviewPrompt.js";
 import type { PlanContextInput } from "./planContext.js";
+import { GLOBAL_PROMPT_RULES } from "./promptRules.js";
 
 const week: WeekPlan = {
   startDate: "2026-10-13",
@@ -120,6 +122,21 @@ describe("buildPeriodReviewPrompt", () => {
     expect(prompt).toContain("Completed block: Base");
     expect(prompt).toContain("Completed block plan:");
     expect(prompt).toContain("Season plan:");
+  });
+
+  it("starts with the shared global prompt rules", () => {
+    const messages = buildPeriodReviewMessages({
+      context,
+      today: "2026-10-19",
+      kind: "week",
+      plan,
+      startDate: "2026-10-13",
+      endDate: "2026-10-19",
+      title: "Week starting 2026-10-13",
+      week,
+    });
+
+    expect(messages[0]?.content).toContain(GLOBAL_PROMPT_RULES);
   });
 
   it("has a stable prompt version", () => {

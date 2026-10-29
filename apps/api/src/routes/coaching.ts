@@ -1,6 +1,8 @@
 import {
   activityCommentRequestSchema,
   analyzedActivitiesResponseSchema,
+  coachQuestionAnswerRequestSchema,
+  coachQuestionsResponseSchema,
   coachingInputSaveResponseSchema,
   manualActivitiesResponseSchema,
   manualActivityRequestSchema,
@@ -38,6 +40,7 @@ import {
 import { loadCachedActivityFeed } from "../coaching/feedCache.js";
 import {
   answerCoachingQuestion,
+  replyToCoachQuestion,
   replyToCoachingInput,
   type CoachingReplyRequest,
 } from "../coaching/replies.js";
@@ -68,6 +71,12 @@ import {
   toPeriodReview,
   updatePeriodReviewComment,
 } from "../plans/periodReviews.js";
+import {
+  answerCoachQuestion,
+  loadAnsweredCoachQuestions,
+  loadCoachQuestion,
+  loadPendingCoachQuestion,
+} from "../plans/coachQuestions.js";
 import {
   loadManualActivityReplies,
   loadWeeklyNoteReply,
@@ -135,6 +144,10 @@ export interface CoachingRouteDependencies {
   createPeriodReviewComment?: typeof createPeriodReviewComment;
   updatePeriodReviewComment?: typeof updatePeriodReviewComment;
   markPeriodReviewReviewed?: typeof markPeriodReviewReviewed;
+  loadPendingCoachQuestion?: typeof loadPendingCoachQuestion;
+  loadAnsweredCoachQuestions?: typeof loadAnsweredCoachQuestions;
+  loadCoachQuestion?: typeof loadCoachQuestion;
+  answerCoachQuestion?: typeof answerCoachQuestion;
   saveManualActivity?: typeof saveManualActivity;
   saveWeeklyNote?: typeof saveWeeklyNote;
   updateManualActivity?: typeof updateManualActivity;
@@ -142,6 +155,8 @@ export interface CoachingRouteDependencies {
   deleteManualActivity?: typeof deleteManualActivity;
   /** Injectable for route tests; defaults to the real coach reply generator. */
   replyToCoachingInput?: typeof replyToCoachingInput;
+  /** Injectable for route tests; defaults to the real coach-question reply. */
+  replyToCoachQuestion?: typeof replyToCoachQuestion;
   /** Injectable for route tests; defaults to the real one-off question answer. */
   answerCoachingQuestion?: typeof answerCoachingQuestion;
   /** Injectable for route tests; defaults to the real plan generation trigger. */
@@ -193,7 +208,15 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
   const deleteImported = deps.deleteImportedActivity ?? deleteImportedActivity;
   const deleteManual = deps.deleteManualActivity ?? deleteManualActivity;
   const reply = deps.replyToCoachingInput ?? replyToCoachingInput;
+  const replyToQuestion = deps.replyToCoachQuestion ?? replyToCoachQuestion;
   const answerQuestion = deps.answerCoachingQuestion ?? answerCoachingQuestion;
+  const loadPendingQuestion =
+    deps.loadPendingCoachQuestion ?? loadPendingCoachQuestion;
+  const loadAnsweredQuestions =
+    deps.loadAnsweredCoachQuestions ?? loadAnsweredCoachQuestions;
+  const loadQuestion = deps.loadCoachQuestion ?? loadCoachQuestion;
+  const answerCoachQuestionStore =
+    deps.answerCoachQuestion ?? answerCoachQuestion;
   const trigger = deps.triggerPlanGeneration ?? triggerPlanGeneration;
   const llmLoader = deps.loadLlm ?? loadLlmClient;
   const loadFtp = deps.loadFtpHistory ?? loadFtpHistoryForUser;
@@ -243,6 +266,7 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
           startDate,
           details,
           ftpWatts: ftpBaselineAt(ftp.timeline, startDate)?.watts ?? null,
+          userId,
         },
       );
     } catch (err) {
@@ -529,6 +553,74 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
         }),
       );
     })
+    .get("/coach-questions", async (c) => {
+      const user = await deps.users.ensureUser(getAthlete(c).sub);
+      const [pending, answered] = await Promise.all([
+        loadPendingQuestion(user.id),
+        loadAnsweredQuestions(user.id),
+      ]);
+      return c.json(coachQuestionsResponseSchema.parse({ pending, answered }));
+    })
+    .post(
+      "/coach-questions/:id/answer",
+      zValidator("json", coachQuestionAnswerRequestSchema),
+      async (c) => {
+        const user = await deps.users.ensureUser(getAthlete(c).sub);
+        const id = Number(c.req.param("id"));
+        if (!Number.isInteger(id) || id <= 0) {
+          return c.json({ message: "Invalid question" }, 400);
+        }
+
+        const question = await loadQuestion(user.id, id);
+        if (question === null) {
+          return c.json({ message: "Question not found" }, 404);
+        }
+        if (question.answer !== null) {
+          return c.json({ message: "Question already answered" }, 409);
+        }
+
+        const input = c.req.valid("json");
+        const reply = await replyToQuestion(
+          { plans: deps.plans, answers: deps.answers, loadLlm: llmLoader },
+          {
+            userId: user.id,
+            today: input.today,
+            question: question.question,
+            answer: input.answer,
+          },
+        );
+        const saved = await answerCoachQuestionStore({
+          userId: user.id,
+          id,
+          answer: input.answer,
+          reply: reply?.text ?? null,
+          replyModel: reply?.model ?? null,
+        });
+        if (saved === null) {
+          return c.json({ message: "Question already answered" }, 409);
+        }
+
+        await trigger(triggerDeps, {
+          userId: user.id,
+          today: input.today,
+          ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),
+        });
+
+        return c.json(
+          coachingInputSaveResponseSchema.parse({
+            message: "Answer saved",
+            reply:
+              reply === null
+                ? null
+                : {
+                    text: reply.text,
+                    model: reply.model,
+                    generatedAt: reply.generatedAt.toISOString(),
+                  },
+          }),
+        );
+      },
+    )
     .get("/reviews", async (c) => {
       const user = await deps.users.ensureUser(getAthlete(c).sub);
       const entries = await loadReviews(user.id);

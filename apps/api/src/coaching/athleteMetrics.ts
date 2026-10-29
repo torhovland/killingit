@@ -13,6 +13,7 @@ import type {
   PeriodReviewContext,
 } from "../llm/planContext.js";
 import { recordAthleteMetricStatements } from "../metrics/store.js";
+import { saveCoachQuestions } from "../plans/coachQuestions.js";
 
 /** The athlete-authored text the coach reads for stated measurements. */
 export interface AthleteMetricInputs {
@@ -128,6 +129,23 @@ export async function syncAthleteMetrics(input: {
       err,
     );
     return null;
+  }
+
+  if (
+    result.coachQuestions !== undefined &&
+    result.coachQuestions !== null &&
+    result.coachQuestions.length > 0
+  ) {
+    try {
+      await saveCoachQuestions({
+        userId: input.userId,
+        questions: result.coachQuestions,
+        model: input.credentials.model,
+        sourceKind: "athlete_metrics",
+      });
+    } catch (err) {
+      console.error("[metrics] could not store coach questions:", err);
+    }
   }
 
   const statements = newestPerDate(result.statements, input.today);

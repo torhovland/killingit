@@ -12,6 +12,9 @@ export const CHART_HEIGHT = 320;
 /** Room for the axis labels around the plotted area. */
 export const CHART_PADDING = { top: 10, right: 8, bottom: 22, left: 40 };
 
+/** The dash pattern of the projected part of a line. */
+export const FUTURE_DASH = "2 3";
+
 /** A value range on the y axis. */
 export interface Domain {
   min: number;
@@ -215,9 +218,6 @@ export function zoneBlocks(
     to: Math.min(zone.to, domain.max),
   })).filter((block) => block.to > block.from);
 }
-
-/** The dash pattern of the projected part of a line. */
-export const FUTURE_DASH = "2 3";
 
 /**
  * The last day index that is on or before `date`. Used to split each line into

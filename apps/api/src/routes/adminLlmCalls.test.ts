@@ -1,5 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import type { LlmCallDetail, LlmCallSummary } from "@killingit/shared";
+import type {
+  LlmCallDetail,
+  LlmCallSummary,
+  LlmModelRemark,
+} from "@killingit/shared";
 import { createApp } from "../index.js";
 import type { UserStore, StoredUser } from "../users/store.js";
 
@@ -63,6 +67,7 @@ function app(options: {
   role?: "admin" | "member";
   listCalls?: (limit: number, offset: number) => Promise<LlmCallSummary[]>;
   getCall?: (id: number) => Promise<LlmCallDetail | null>;
+  listRemarks?: (limit: number) => Promise<LlmModelRemark[]>;
 }) {
   return createApp({
     authProvider: { verify: () => Promise.resolve({ sub: "auth|admin" }) },
@@ -73,6 +78,20 @@ function app(options: {
     adminLlmCalls: {
       listCalls: options.listCalls ?? (() => Promise.resolve([summary])),
       getCall: options.getCall ?? (() => Promise.resolve(detail)),
+      listRemarks:
+        options.listRemarks ??
+        (() =>
+          Promise.resolve([
+            {
+              callId: 12,
+              createdAt: summary.createdAt,
+              userId: summary.userId,
+              userLabel: summary.userLabel,
+              kind: summary.kind,
+              model: summary.model,
+              remarks: "The week had two hard days, so I kept the rest easy.",
+            },
+          ])),
     },
   });
 }
@@ -134,5 +153,32 @@ describe("admin LLM calls route", () => {
     const res = await app({}).fetch(request("/api/admin/llm-calls/abc"));
 
     expect(res.status).toBe(400);
+  });
+});
+
+describe("admin model remarks route", () => {
+  it("lists recent non-null remarks", async () => {
+    const received: { limit?: number } = {};
+    const res = await app({
+      listRemarks: (limit) => {
+        received.limit = limit;
+        return Promise.resolve([
+          {
+            callId: 12,
+            createdAt: summary.createdAt,
+            userId: summary.userId,
+            userLabel: summary.userLabel,
+            kind: summary.kind,
+            model: summary.model,
+            remarks: "I could not fit two hard days without a rest day.",
+          },
+        ]);
+      },
+    }).fetch(request("/api/admin/llm-calls/remarks?limit=5"));
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { remarks: LlmModelRemark[] };
+    expect(body.remarks[0]?.remarks).toContain("could not fit");
+    expect(received.limit).toBe(5);
   });
 });

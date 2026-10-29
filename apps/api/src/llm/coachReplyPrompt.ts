@@ -1,11 +1,16 @@
-import type { CoachPlan, DayPlan } from "@killingit/shared";
+import type { CoachPlan } from "@killingit/shared";
 import type { AthleteAnswerContext } from "./planContext.js";
 import {
-  formatAthleteAnswers,
-  formatBlockPlan,
-  formatSeasonPlan,
-  formatWeekPlan,
+  formatAthleteProfile,
+  formatDayPlan,
+  formatPlanLevels,
+  formatPlannedSession,
 } from "./planContext.js";
+import {
+  GLOBAL_PROMPT_RULES,
+  PLAIN_TEXT_RULES,
+  promptSections,
+} from "./promptRules.js";
 
 /** The athlete input the coach is replying to. */
 export type CoachReplyTarget =
@@ -23,7 +28,8 @@ export type CoachReplyTarget =
       summary: string;
       comment: string;
     }
-  | { kind: "quick_question"; question: string };
+  | { kind: "quick_question"; question: string }
+  | { kind: "coach_question"; question: string; answer: string };
 
 export interface CoachReplyPromptInput {
   today: string;
@@ -32,11 +38,19 @@ export interface CoachReplyPromptInput {
   request: CoachReplyTarget;
 }
 
-const COACH_REPLY_SYSTEM_PROMPT = `You are the athlete's endurance coach. The athlete has just shared something about their training: a comment on a workout, a completed week or block, a note for the week, or a manual activity.
-Reply briefly in 1-2 sentences of plain text. Acknowledge the input in your own words, explain how it affects the plan, and state what you will adjust. Be specific to the athlete's goal and current block. Do not restate the whole plan, do not ask questions, and do not use headings, bullets, or markdown. Do not invent training results you were not given.`;
+const COACH_REPLY_SYSTEM_PROMPT = promptSections(
+  GLOBAL_PROMPT_RULES,
+  "The athlete has just shared something about their training: a comment on a workout, a completed week or block, a note for the week, or a manual activity.",
+  "Reply briefly in 1-2 sentences of plain text. Acknowledge the input in your own words, explain how it affects the plan, and state what you will adjust. Be specific to the athlete's goal and current block. Do not restate the whole plan or ask questions.",
+  PLAIN_TEXT_RULES,
+);
 
-const QUICK_QUESTION_SYSTEM_PROMPT = `You are the athlete's endurance coach. The athlete is asking a one-off question about their training.
-Answer it directly and briefly in 1-3 sentences of plain text, using their goal, current plan, and athlete profile. This is a conversation only: it does not change the training plan and nothing from it is stored. Do not ask follow-up questions and do not use headings, bullets, or markdown. Do not invent training results you were not given.`;
+const QUICK_QUESTION_SYSTEM_PROMPT = promptSections(
+  GLOBAL_PROMPT_RULES,
+  "The athlete is asking a one-off question about their training.",
+  "Answer it directly and briefly in 1-3 sentences of plain text, using their goal, current plan, and athlete profile. This is a conversation only: it does not change the training plan and nothing from it is stored. Do not ask follow-up questions.",
+  PLAIN_TEXT_RULES,
+);
 
 /** Builds the chat messages for a short reply to an athlete input. */
 export function buildCoachReplyMessages(input: CoachReplyPromptInput): {
@@ -61,6 +75,7 @@ export function buildCoachReplyPrompt(input: CoachReplyPromptInput): string {
   const targetDate =
     request.kind === "weekly_note" ||
     request.kind === "quick_question" ||
+    request.kind === "coach_question" ||
     request.kind === "week_review" ||
     request.kind === "block_review"
       ? null
@@ -73,17 +88,9 @@ export function buildCoachReplyPrompt(input: CoachReplyPromptInput): string {
   const lines = [
     `Today's date: ${input.today}`,
     "",
-    "Athlete profile:",
-    formatAthleteAnswers(input.athleteAnswers),
+    ...formatAthleteProfile(input.athleteAnswers),
     "",
-    "Season plan:",
-    formatSeasonPlan(plan.season),
-    "",
-    "Current block plan:",
-    formatBlockPlan(plan.block),
-    "",
-    "Current week plan:",
-    formatWeekPlan(plan.week),
+    ...formatPlanLevels(plan),
     "",
     "Today's session:",
     formatDayPlan(plan.today),
@@ -95,7 +102,7 @@ export function buildCoachReplyPrompt(input: CoachReplyPromptInput): string {
   if (targetSession) {
     lines.push(
       "",
-      `Planned session on ${targetDate}: ${targetSession.title} [${targetSession.type}, ${targetSession.intensity}, ${targetSession.durationMinutes} min] — ${targetSession.description}`,
+      `Planned session on ${targetDate}: ${formatPlannedSession(targetSession)}`,
     );
   }
   if (request.kind === "week_review" || request.kind === "block_review") {
@@ -127,7 +134,11 @@ export function buildCoachReplyPrompt(input: CoachReplyPromptInput): string {
 }
 
 function requestDate(request: CoachReplyTarget): string {
-  if (request.kind === "weekly_note" || request.kind === "quick_question") {
+  if (
+    request.kind === "weekly_note" ||
+    request.kind === "quick_question" ||
+    request.kind === "coach_question"
+  ) {
     return "";
   }
   return request.kind === "activity_comment"
@@ -148,9 +159,7 @@ function formatRequest(request: CoachReplyTarget): string {
       return `Comment on the completed ${request.kind === "week_review" ? "week" : "block"} (${request.startDate} → ${request.endDate}): "${request.comment.trim()}"`;
     case "quick_question":
       return `Question: "${request.question.trim()}"`;
+    case "coach_question":
+      return `Your clarification question: "${request.question.trim()}"\nAthlete answer: "${request.answer.trim()}"`;
   }
-}
-
-function formatDayPlan(day: DayPlan): string {
-  return `${day.date} — ${day.title} [${day.type}, ${day.intensity}, ${day.durationMinutes} min]: ${day.description}`;
 }

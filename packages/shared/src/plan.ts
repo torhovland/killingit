@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { coachAnalysisSchema } from "./llm.js";
+import { coachAnalysisSchema, coachResponseNotesSchema } from "./llm.js";
 import { trainingLoadSchema } from "./trainingLoad.js";
 import { dailyForecastsSchema, dailyWeatherSchema } from "./weather.js";
 import { bikeWorkoutSchema } from "./workout.js";
@@ -262,32 +262,34 @@ export const dayPlanSchema = z.object({
 export type DayPlan = z.infer<typeof dayPlanSchema>;
 
 /** The complete four-level plan returned by an initial generation. */
-export const coachPlanSchema = z.object({
-  season: seasonPlanSchema,
-  block: blockPlanSchema,
-  week: weekPlanSchema,
-  today: dayPlanSchema,
-  /**
-   * A suggested session for tomorrow. The coach fills this in so the UI can
-   * show it after 18:00 without another generation.
-   */
-  tomorrow: dayPlanSchema.nullable().default(null),
-  /**
-   * The week containing tomorrow when it has crossed into a new week. It is
-   * generated with tomorrow and promoted to `week` when the date reaches it.
-   */
-  nextWeek: weekPlanSchema.nullable().default(null),
-  /**
-   * The block that contains tomorrow when it falls after the current block.
-   * Promoted to `block` when the date reaches it.
-   */
-  nextBlock: blockPlanSchema.nullable().default(null),
-  /**
-   * Body-composition points the coach found in the athlete's input, one per
-   * date. Stored in the athlete metric series as coach estimates.
-   */
-  bodyMetrics: z.array(bodyMetricEstimateSchema).optional(),
-});
+export const coachPlanSchema = z
+  .object({
+    season: seasonPlanSchema,
+    block: blockPlanSchema,
+    week: weekPlanSchema,
+    today: dayPlanSchema,
+    /**
+     * A suggested session for tomorrow. The coach fills this in so the UI can
+     * show it after 18:00 without another generation.
+     */
+    tomorrow: dayPlanSchema.nullable().default(null),
+    /**
+     * The week containing tomorrow when it has crossed into a new week. It is
+     * generated with tomorrow and promoted to `week` when the date reaches it.
+     */
+    nextWeek: weekPlanSchema.nullable().default(null),
+    /**
+     * The block that contains tomorrow when it falls after the current block.
+     * Promoted to `block` when the date reaches it.
+     */
+    nextBlock: blockPlanSchema.nullable().default(null),
+    /**
+     * Body-composition points the coach found in the athlete's input, one per
+     * date. Stored in the athlete metric series as coach estimates.
+     */
+    bodyMetrics: z.array(bodyMetricEstimateSchema).optional(),
+  })
+  .extend(coachResponseNotesSchema.shape);
 
 export type CoachPlan = z.infer<typeof coachPlanSchema>;
 
@@ -295,18 +297,22 @@ export type CoachPlan = z.infer<typeof coachPlanSchema>;
  * The first step of a full build: the season plan alone. Splitting the build
  * keeps each completion comfortably below the model's output budget.
  */
-export const seasonPlanUpdateSchema = z.object({
-  season: seasonPlanSchema,
-  bodyMetrics: z.array(bodyMetricEstimateSchema).default([]),
-});
+export const seasonPlanUpdateSchema = z
+  .object({
+    season: seasonPlanSchema,
+    bodyMetrics: z.array(bodyMetricEstimateSchema).default([]),
+  })
+  .extend(coachResponseNotesSchema.shape);
 
 export type SeasonPlanUpdate = z.infer<typeof seasonPlanUpdateSchema>;
 
 /** The second step of a full build: the first block of the season. */
-export const initialBlockUpdateSchema = z.object({
-  block: blockPlanSchema,
-  bodyMetrics: z.array(bodyMetricEstimateSchema).default([]),
-});
+export const initialBlockUpdateSchema = z
+  .object({
+    block: blockPlanSchema,
+    bodyMetrics: z.array(bodyMetricEstimateSchema).default([]),
+  })
+  .extend(coachResponseNotesSchema.shape);
 
 export type InitialBlockUpdate = z.infer<typeof initialBlockUpdateSchema>;
 
@@ -321,6 +327,7 @@ export const dailyPlanUpdateSchema = z
     week: weekPlanSchema,
     bodyMetrics: z.array(bodyMetricEstimateSchema).default([]),
   })
+  .extend(coachResponseNotesSchema.shape)
   .refine(
     (value) =>
       value.week.sessions.some((session) => session.date === value.today.date),
@@ -333,11 +340,13 @@ export const dailyPlanUpdateSchema = z
 export type DailyPlanUpdate = z.infer<typeof dailyPlanUpdateSchema>;
 
 /** The weekly build output: the new week plus a revised block plan. */
-export const weeklyPlanUpdateSchema = z.object({
-  week: weekPlanSchema,
-  block: blockPlanSchema,
-  bodyMetrics: z.array(bodyMetricEstimateSchema).default([]),
-});
+export const weeklyPlanUpdateSchema = z
+  .object({
+    week: weekPlanSchema,
+    block: blockPlanSchema,
+    bodyMetrics: z.array(bodyMetricEstimateSchema).default([]),
+  })
+  .extend(coachResponseNotesSchema.shape);
 
 export type WeeklyPlanUpdate = z.infer<typeof weeklyPlanUpdateSchema>;
 

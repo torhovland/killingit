@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import {
+  coachQuestionsResponseSchema,
   coachingInputSaveResponseSchema,
   periodReviewsResponseSchema,
+  type CoachQuestion,
   type PeriodReview,
   type ReviewKind,
 } from "@killingit/shared";
 import { useAuth } from "./auth";
+import { CoachQuestionCard } from "./CoachQuestionCard";
 import { fetchJsonAuthed } from "./fetchAuthed";
 import { useAppStatus, useBusyReporter } from "./AppStatus";
 import { PeriodReviewCard } from "./PeriodReviewCard";
@@ -26,6 +29,7 @@ export function SeasonReviewPage() {
   const reportCommentSave = useBusyReporter("comment-save");
   const timeZone = useTimeZone();
   const [reviews, setReviews] = useState<PeriodReview[]>([]);
+  const [coachQuestions, setCoachQuestions] = useState<CoachQuestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,10 +42,13 @@ export function SeasonReviewPage() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetchJsonAuthed<unknown>(
-        `${API_URL}/api/coaching/reviews`,
-        auth,
-      );
+      const [response, questionsResponse] = await Promise.all([
+        fetchJsonAuthed<unknown>(`${API_URL}/api/coaching/reviews`, auth),
+        fetchJsonAuthed<unknown>(
+          `${API_URL}/api/coaching/coach-questions`,
+          auth,
+        ),
+      ]);
       const parsed = periodReviewsResponseSchema.safeParse(response);
       if (!parsed.success) {
         throw new Error(
@@ -49,7 +56,16 @@ export function SeasonReviewPage() {
           { cause: parsed.error },
         );
       }
+      const questions =
+        coachQuestionsResponseSchema.safeParse(questionsResponse);
+      if (!questions.success) {
+        throw new Error(
+          "Loading the coach's questions returned an unexpected response",
+          { cause: questions.error },
+        );
+      }
       setReviews(parsed.data.reviews);
+      setCoachQuestions(questions.data.answered);
     } catch (err: unknown) {
       setError(reportError(err));
     } finally {
@@ -137,6 +153,18 @@ export function SeasonReviewPage() {
         <p className="text-sm text-muted-foreground">
           No completed week or block reviews yet.
         </p>
+      )}
+
+      {coachQuestions.length > 0 && (
+        <div
+          className="flex flex-col gap-3"
+          data-testid="season-coach-questions"
+        >
+          <h3 className="text-lg font-medium">Coach questions</h3>
+          {coachQuestions.map((question) => (
+            <CoachQuestionCard key={question.id} question={question} />
+          ))}
+        </div>
       )}
 
       {blockReviews.length > 0 && (

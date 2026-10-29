@@ -66,7 +66,11 @@ about a past workout, or before a suggested workout, to steer the coach.
   response or error, model, usage, and request metadata. The admin settings
   page lists them under "LLM prompts" (`GET /api/admin/llm-calls`). Logging is
   admin-only and fail-open, so a log write can never break coaching. See
-  `docs/specs/llm-call-log.md`.
+  `docs/specs/llm-call-log.md`. All reusable prompt fragments and JSON
+  contracts live in `apps/api/src/llm/promptRules.ts`; the build, update,
+  activity-review and manual-TSS prompts compose them so TSS, FTP, weather,
+  bike-workout, body-metric and week-outline behaviour stays consistent across
+  prompts.
 - The four-level plan is stored per user in `coach_plans`; generation progress
   is in `plan_generations`. After 18:00 the stored plan also carries tomorrow's
   session and, when tomorrow has crossed a week or block boundary, the next week
@@ -141,6 +145,12 @@ about a past workout, or before a suggested workout, to steer the coach.
 - Completed weeks and blocks get a coach summary, athlete comment, and coach
   reply in `period_reviews` / `coach_replies`; the dashboard and season review
   page are documented in `docs/specs/period-reviews.md`.
+- Structured coach responses may ask the athlete clarification questions
+  (`coachQuestions`) and report the model's own difficulties or objections
+  (`modelsRemarks`). The newest pending question is shown on the dashboard,
+  answered questions are kept for the season review, and recent non-null model
+  remarks are listed in the admin settings page. See
+  `docs/specs/coach-questions.md`.
 - A Calendar page shows a month of recorded activities, planned workouts and
   rest days, with block starts and the season end. Selecting an entry opens its
   full details, including the athlete comment, coach reply, and the route map
@@ -328,3 +338,15 @@ through a disciplined process:
   patterns of the surrounding code.
 - Treat unfamiliar files or changes as potential user work; do not overwrite or
   delete them without investigating first.
+- **Never duplicate prompt fragments across prompts.** Put every reusable
+  prompt fragment — a persona, rule, JSON contract, output instruction,
+  response sentence or key list — in `apps/api/src/llm/promptRules.ts`, and
+  compose every prompt from those exports. Every prompt starts with the single
+  `GLOBAL_PROMPT_RULES` fragment, and fragments that every plan prompt uses are
+  merged into `PLAN_PROMPT_RULES`. Before writing prompt text, check that
+  module and extend it instead of adding a second copy. A duplicated fragment
+  is a bug waiting to diverge.
+- **Keep exported constants above exported functions.** Top-level `export const`
+  declarations come before `export function` declarations in a module. The
+  `local/consts-before-functions` ESLint rule enforces it, while preserving the
+  semantic order within each group.

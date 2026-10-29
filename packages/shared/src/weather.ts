@@ -63,6 +63,26 @@ export const FORECAST_PROVIDER_LABELS: Record<keyof DailyForecasts, string> = {
 };
 
 /**
+ * One address suggestion returned by the geocoding proxy.
+ */
+export const geocodedLocationSchema = z.object({
+  name: z.string().min(1),
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
+  country: z.string().nullable().default(null),
+  admin1: z.string().nullable().default(null),
+});
+
+export type GeocodedLocation = z.infer<typeof geocodedLocationSchema>;
+
+/** Response body of `GET /api/weather/geocode`. */
+export const geocodeResponseSchema = z.object({
+  results: z.array(geocodedLocationSchema),
+});
+
+export type GeocodeResponse = z.infer<typeof geocodeResponseSchema>;
+
+/**
  * Formats one day of weather as a single readable line. The units match the
  * forecast data: °C, m/s, and the location's local clock time. Gusts follow the
  * sustained wind in parentheses, and the daylight window is rendered as a
@@ -88,21 +108,3 @@ export function formatDailyWeatherLine(weather: DailyWeather): string {
     ...(daylight === null ? [] : [daylight]),
   ].join(" · ");
 }
-
-/** One address suggestion returned by the geocoding proxy. */
-export const geocodedLocationSchema = z.object({
-  name: z.string().min(1),
-  latitude: z.number().min(-90).max(90),
-  longitude: z.number().min(-180).max(180),
-  country: z.string().nullable().default(null),
-  admin1: z.string().nullable().default(null),
-});
-
-export type GeocodedLocation = z.infer<typeof geocodedLocationSchema>;
-
-/** Response body of `GET /api/weather/geocode`. */
-export const geocodeResponseSchema = z.object({
-  results: z.array(geocodedLocationSchema),
-});
-
-export type GeocodeResponse = z.infer<typeof geocodeResponseSchema>;

@@ -8,6 +8,7 @@ import { analyzeActivityAgainstPlan } from "../llm/programAnalysis.js";
 import { PROGRAM_ANALYSIS_PROMPT_VERSION } from "../llm/programAnalysisPrompt.js";
 import type { ActivityCommentContext } from "../llm/planContext.js";
 import { saveAnalysis } from "../llm/analysisStore.js";
+import { saveCoachQuestions } from "../plans/coachQuestions.js";
 import { recordCoachBodyMetrics, recordCoachFtp } from "../metrics/store.js";
 import { mapWithConcurrency } from "../lib/mapWithConcurrency.js";
 import { ftpBaselineAt, type FtpTimeline } from "../training/ftp.js";
@@ -53,6 +54,7 @@ export async function analyzeActivitiesAgainstPlan(
   );
   const ftpEstimates: { date: string; watts: number }[] = [];
   const bodyMetrics: BodyMetricEstimate[] = [];
+  const coachQuestions: string[] = [];
 
   await mapWithConcurrency(
     input.activities,
@@ -86,6 +88,9 @@ export async function analyzeActivitiesAgainstPlan(
           promptVersion: PROGRAM_ANALYSIS_PROMPT_VERSION,
           text: result.analysis,
         });
+        if (result.coachQuestions !== undefined) {
+          coachQuestions.push(...(result.coachQuestions ?? []));
+        }
         if (result.estimatedFtpWatts !== null) {
           ftpEstimates.push({
             date: activityDate,
@@ -107,6 +112,19 @@ export async function analyzeActivitiesAgainstPlan(
       }
     },
   );
+
+  if (coachQuestions.length > 0) {
+    try {
+      await saveCoachQuestions({
+        userId: input.userId,
+        questions: coachQuestions,
+        model: input.model,
+        sourceKind: "program_analysis",
+      });
+    } catch (err) {
+      console.error("[coaching] could not store coach questions:", err);
+    }
+  }
 
   for (const estimate of ftpEstimates.sort((a, b) =>
     a.date.localeCompare(b.date),

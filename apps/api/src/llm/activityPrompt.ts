@@ -5,7 +5,21 @@ import type {
   WeekPlan,
 } from "@killingit/shared";
 import { formatDuration } from "./duration.js";
-import { formatWeekPlan } from "./planContext.js";
+import {
+  formatActivitySummary,
+  formatFtpContext,
+  formatWeekPlan,
+} from "./planContext.js";
+import {
+  ACTIVITY_BODY_METRIC_RULES,
+  ACTIVITY_FTP_ESTIMATE_RULES,
+  ACTIVITY_TYPE_RULE,
+  COACH_ANALYSIS_RESPONSE_RULES,
+  GLOBAL_PROMPT_RULES,
+  PLAIN_TEXT_RULES,
+  promptSections,
+  RETURN_JSON_FROM_SYSTEM_PROMPT,
+} from "./promptRules.js";
 
 export { formatDuration } from "./duration.js";
 
@@ -16,7 +30,7 @@ export const MAX_PROMPT_SAMPLES = 90;
  * Bump when the prompt or generation parameters change materially. Cached
  * analyses from an older version are ignored and regenerated.
  */
-export const ANALYSIS_PROMPT_VERSION = 6;
+export const ANALYSIS_PROMPT_VERSION = 7;
 
 /** The athlete's current week, used to match an activity to its planned session. */
 export interface ActivityAnalysisContext {
@@ -28,23 +42,17 @@ export interface ActivityAnalysisContext {
   currentFtpWatts?: number | null;
 }
 
-export const COACH_ANALYSIS_RESPONSE_RULES = `Return only one JSON object with exactly this shape:
-{
-  "analysis": "string",
-  "estimatedFtpWatts": 0,
-  "weightKg": 0,
-  "bodyFatPercent": 0
-}
-Replace "estimatedFtpWatts" with the integer estimate in watts, or null when there is no useful evidence. Set "weightKg" to the athlete's body weight in kilograms and "bodyFatPercent" to their body fat as a percentage only when the input for this activity states them, and to null otherwise. Put the whole coach summary in "analysis". Do not add markdown fences, commentary, or extra fields.`;
-
-const ANALYSIS_SYSTEM_PROMPT = `You are an experienced endurance coach reviewing one completed workout for an amateur athlete.
-The activity type recorded by the device is only a label and may be wrong: do not trust it. If the heart-rate data looks erratic — sudden spikes or drops that do not fit the steady effort the summary suggests — this may be a strength-training workout even when the device labelled it as running, cycling, or another endurance activity.
-When the athlete's current week plan is provided, match the workout to the planned session it best fits, then make how well it fit the plan part of the same summary. If it followed the plan reasonably well, say so warmly and encouragingly. If it did not, point out clearly what could be improved without being harsh.
-Be brief and to the point: use 2-3 sentences of plain text, cite only the most useful numbers, and finish with one actionable recommendation for the next session. Do not use headings, bullets, markdown, or a separate plan-fit section.
-Also estimate the athlete's FTP after this workout when the recorded effort supports it. Use the supplied FTP history as the baseline, respect its trend, and never invent a large jump. Set "estimatedFtpWatts" to null when the activity gives no useful evidence (for example a rest day, a strength session, or a workout with no power or hard aerobic effort).
-When the athlete's comment on this activity states their body weight or body-fat percentage, report it in "weightKg" and "bodyFatPercent". Report only numbers the input gives: never estimate a weigh-in from the workout data.
-
-${COACH_ANALYSIS_RESPONSE_RULES}`;
+const ANALYSIS_SYSTEM_PROMPT = promptSections(
+  GLOBAL_PROMPT_RULES,
+  "Review one completed workout for an amateur athlete.",
+  ACTIVITY_TYPE_RULE,
+  "When the athlete's current week plan is provided, match the workout to the planned session it best fits, then make how well it fit the plan part of the same summary. If it followed the plan reasonably well, say so warmly and encouragingly. If it did not, point out clearly what could be improved without being harsh.",
+  "Be brief and to the point: use 2-3 sentences of plain text, cite only the most useful numbers, and finish with one actionable recommendation for the next session. Do not add a separate plan-fit section.",
+  ACTIVITY_FTP_ESTIMATE_RULES,
+  ACTIVITY_BODY_METRIC_RULES,
+  PLAIN_TEXT_RULES,
+  COACH_ANALYSIS_RESPONSE_RULES,
+);
 
 type NumericChannel =
   | "heartRate"
@@ -219,28 +227,13 @@ export function buildActivityAnalysisPrompt(
       lines.push(`Current FTP: ${context.currentFtpWatts} W`, "");
     }
     if (context.ftpHistory !== undefined && context.ftpHistory.length > 0) {
-      lines.push(
-        'FTP history (oldest first; "user" and "garmin" values are measurements, "coach" values are earlier estimates):',
-        ...context.ftpHistory
-          .slice(-60)
-          .map(
-            (point) =>
-              `- ${point.date}: ${Math.round(point.value)} W (${point.source})`,
-          ),
-        "",
-      );
+      lines.push(...formatFtpContext(context.ftpHistory), "");
     }
   }
 
   lines.push(
     "Activity summary:",
-    `- Name: ${activity.name}`,
-    `- Type (recorded by the device; may be wrong): ${activity.type}`,
-    `- Started: ${activity.startDate}`,
-    `- Distance: ${(activity.distance / 1000).toFixed(2)} km`,
-    `- Moving time: ${formatDuration(activity.movingTime)}, elapsed time: ${formatDuration(activity.elapsedTime)}`,
-    `- Elevation gain: ${Math.round(activity.totalElevationGain)} m`,
-    `- Recorded samples: ${activity.samples.length}`,
+    ...formatActivitySummary(activity, activity.samples.length),
   );
 
   const statsLines: string[] = [];
@@ -291,8 +284,9 @@ export function buildActivityAnalysisPrompt(
   lines.push(
     "",
     context
-      ? "Write the brief coach summary. Include how well the workout fit its planned session and cite only the most useful evidence. Return the JSON object described in the system prompt."
-      : "Write the brief coach summary, citing only the most useful evidence. Return the JSON object described in the system prompt.",
+      ? "Write the brief coach summary. Include how well the workout fit its planned session and cite only the most useful evidence."
+      : "Write the brief coach summary, citing only the most useful evidence.",
+    RETURN_JSON_FROM_SYSTEM_PROMPT,
   );
   return lines.join("\n");
 }

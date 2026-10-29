@@ -608,6 +608,58 @@ export type PeriodReviewRow = typeof periodReviews.$inferSelect;
 export type NewPeriodReview = typeof periodReviews.$inferInsert;
 
 /**
+ * One clarification question the coach asked the athlete. Only the newest
+ * unanswered question is shown at a time; answered questions keep the coach's
+ * reply for the season review.
+ */
+export const coachQuestions = pgTable(
+  "coach_questions",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    question: text("question").notNull(),
+    /** The prompt kind that produced the question, for admin diagnostics. */
+    sourceKind: text("source_kind").notNull(),
+    model: text("model").notNull(),
+    /** The athlete's answer, null while the question is pending. */
+    answer: text("answer"),
+    /** The coach's reply after the athlete answers. */
+    reply: text("reply"),
+    replyModel: text("reply_model"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    answeredAt: timestamp("answered_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("coach_questions_user_id_created_at_idx").on(
+      table.userId,
+      table.createdAt,
+    ),
+    check(
+      "coach_questions_question_check",
+      sql`length(btrim(${table.question})) > 0`,
+    ),
+    check(
+      "coach_questions_answer_check",
+      sql`${table.answer} is null or length(btrim(${table.answer})) > 0`,
+    ),
+    check(
+      "coach_questions_reply_check",
+      sql`${table.reply} is null or length(btrim(${table.reply})) > 0`,
+    ),
+  ],
+);
+
+export type CoachQuestionRow = typeof coachQuestions.$inferSelect;
+export type NewCoachQuestion = typeof coachQuestions.$inferInsert;
+
+/**
  * The athlete's current four-level coach plan. One row per user; a regeneration
  * replaces the stored JSON while keeping the previous plan visible until the
  * new one is ready. The date columns duplicate values inside the JSON so the

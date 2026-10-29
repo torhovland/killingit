@@ -142,6 +142,27 @@ export const llmCallsResponseSchema = z.object({
 
 export type LlmCallsResponse = z.infer<typeof llmCallsResponseSchema>;
 
+/** One non-null `modelsRemarks` value from a recent prompt log entry. */
+export const llmModelRemarkSchema = z.object({
+  callId: z.number().int().positive(),
+  createdAt: z.string().datetime(),
+  userId: z.number().int().positive(),
+  userLabel: z.string(),
+  kind: llmPromptKindSchema,
+  model: z.string(),
+  remarks: z.string(),
+});
+
+export type LlmModelRemark = z.infer<typeof llmModelRemarkSchema>;
+
+export const llmModelRemarksResponseSchema = z.object({
+  remarks: z.array(llmModelRemarkSchema),
+});
+
+export type LlmModelRemarksResponse = z.infer<
+  typeof llmModelRemarksResponseSchema
+>;
+
 /**
  * One full LLM call for the admin detail view: the exact messages sent, the
  * response (or error), token usage, and request metadata such as temperature,
@@ -165,25 +186,40 @@ export const coachAnalysisSchema = z.object({
 });
 
 /**
+ * Extra notes every structured coach response may carry. Clarification
+ * questions are shown to the athlete; model remarks are reviewed by the admin.
+ */
+export const coachResponseNotesSchema = z.object({
+  /** Important clarification questions for the athlete, oldest first. */
+  coachQuestions: z.array(z.string().trim().min(1)).nullable().optional(),
+  /** Problems, inconsistencies or objections the model hit, or null. */
+  modelsRemarks: z.string().trim().min(1).nullable().optional(),
+});
+
+export type CoachResponseNotes = z.infer<typeof coachResponseNotesSchema>;
+
+/**
  * The structured response the coach returns for an activity analysis. The
  * visible analysis stays plain text, while the FTP estimate is persisted as a
  * coach-sourced point in the athlete's FTP time series. Body weight and body-fat
  * values the athlete stated for the activity are stored the same way.
  */
-export const coachAnalysisResultSchema = z.object({
-  analysis: z.string().trim().min(1),
-  estimatedFtpWatts: z
-    .number()
-    .int()
-    .min(50)
-    .max(2000)
-    .nullable()
-    .default(null),
-  /** Body weight in kilograms when the activity's input states it. */
-  weightKg: z.number().positive().max(500).nullable().default(null),
-  /** Body fat as a percentage of body weight when the input states it. */
-  bodyFatPercent: z.number().positive().max(75).nullable().default(null),
-});
+export const coachAnalysisResultSchema = z
+  .object({
+    analysis: z.string().trim().min(1),
+    estimatedFtpWatts: z
+      .number()
+      .int()
+      .min(50)
+      .max(2000)
+      .nullable()
+      .default(null),
+    /** Body weight in kilograms when the activity's input states it. */
+    weightKg: z.number().positive().max(500).nullable().default(null),
+    /** Body fat as a percentage of body weight when the input states it. */
+    bodyFatPercent: z.number().positive().max(75).nullable().default(null),
+  })
+  .extend(coachResponseNotesSchema.shape);
 
 export type CoachAnalysisResult = z.infer<typeof coachAnalysisResultSchema>;
 
