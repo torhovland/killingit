@@ -152,6 +152,8 @@ export interface AppDependencies {
   loadForecast?: PlanTriggerDependencies["loadForecast"];
   /** Prompt log readers, injectable for DB-free admin route tests. */
   adminLlmCalls?: AdminLlmCallsDependencies;
+  /** Prompt-log failure marker, injectable for DB-free plan route tests. */
+  markPlanPromptsFailed?: PlanTriggerDependencies["markPlanPromptsFailed"];
 }
 
 // Authentication is opt-in per route. The provider is created lazily on the
@@ -382,6 +384,9 @@ export function createApp(deps: AppDependencies = {}): Hono {
         : {}),
       ...(deps.loadForecast !== undefined
         ? { loadForecast: deps.loadForecast }
+        : {}),
+      ...(deps.markPlanPromptsFailed !== undefined
+        ? { markPlanPromptsFailed: deps.markPlanPromptsFailed }
         : {}),
     }),
   );

@@ -51,6 +51,28 @@ a retry chain is readable. The JSON repair turn is marked `repair: true`.
 Logging is fail-open: a database error is logged to the console and the
 completion is still returned.
 
+### Status markers in the list
+
+The list response carries the retry and failure state so the admin does not
+have to open every row:
+
+- `repair` — the completion was the JSON repair turn of a plan request.
+- `attempt` and `ofAttempts` — the provider attempt that produced the row, when
+  the call went through the fallback chain.
+- `planFailed` — the plan generation this prompt belongs to ended in failure.
+
+A plan generation can fail after a prompt succeeds (for example when the
+repaired JSON still breaks a season invariant). When the run fails,
+`markPlanPromptsFailed` adds `planFailed: true` and `planError` to the metadata
+of every plan-generation prompt logged since that run started. The marker is
+fail-open, like prompt logging itself. The rows therefore keep showing the
+failure after a later run succeeds.
+
+The list shows a `Retry` badge for a repair turn or a later fallback attempt,
+the attempt as `2/3` beside it, `Plan failed` for a prompt from a failed plan
+run, and a `Failed` badge for a completion that returned an error. The detail
+view repeats the retry and plan-failure badges and shows the plan error.
+
 ### Storage
 
 `llm_calls` holds the account, prompt kind, provider, requested model, messages
@@ -95,4 +117,6 @@ questions and the prompt log.
   non-admins with 403.
 - The admin UI lists recent calls and shows the complete prompt and response
   for a selected call.
+- The list identifies a JSON repair or fallback retry, and a prompt from a plan
+  run that failed, without opening the row.
 - A logging failure does not fail the coaching request.

@@ -22,6 +22,10 @@ const summary: LlmCallSummary = {
   model: "openrouter/model",
   durationMs: 1200,
   failed: false,
+  repair: false,
+  attempt: null,
+  ofAttempts: null,
+  planFailed: false,
 };
 
 const detail: LlmCallDetail = {

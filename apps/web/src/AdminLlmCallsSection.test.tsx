@@ -13,6 +13,10 @@ const summary: LlmCallSummary = {
   model: "openrouter/model",
   durationMs: 1200,
   failed: false,
+  repair: false,
+  attempt: null,
+  ofAttempts: null,
+  planFailed: false,
 };
 
 const detail: LlmCallDetail = {
@@ -58,6 +62,45 @@ describe("LlmCallsView", () => {
     expect(html).toContain("openrouter/model");
     expect(html).toContain("auth|admin");
     expect(html).toContain("1200 ms");
+  });
+
+  it("marks a JSON repair as a retry and a failed plan", () => {
+    const html = view({
+      calls: [
+        {
+          ...summary,
+          kind: "plan_update",
+          repair: true,
+          planFailed: true,
+        },
+      ],
+      selected: null,
+    });
+
+    expect(html).toContain('data-testid="llm-call-retry"');
+    expect(html).toContain("Retry");
+    expect(html).toContain('data-testid="llm-call-plan-failed"');
+    expect(html).toContain("Plan failed");
+  });
+
+  it("marks a fallback retry and its attempt number", () => {
+    const html = view({
+      calls: [{ ...summary, attempt: 2, ofAttempts: 3 }],
+      selected: null,
+    });
+
+    expect(html).toContain('data-testid="llm-call-retry"');
+    expect(html).toContain("Attempt 2/3");
+  });
+
+  it("gives a failed prompt its own status badge", () => {
+    const html = view({
+      calls: [{ ...summary, failed: true }],
+      selected: null,
+    });
+
+    expect(html).toContain('data-testid="llm-call-status"');
+    expect(html).toContain("Failed");
   });
 
   it("shows the full prompt and response for the selected call", () => {
@@ -123,5 +166,23 @@ describe("LlmCallDetailView", () => {
     expect(html).toContain("Failed");
     expect(html).toContain("Provider rate limit");
     expect(html).not.toContain("Here is the plan.");
+  });
+
+  it("shows a repair turn that belonged to a failed plan", () => {
+    const html = renderToStaticMarkup(
+      <LlmCallDetailView
+        call={{
+          ...detail,
+          kind: "plan_update",
+          repair: true,
+          planFailed: true,
+          metadata: { repair: true, planError: "The season has a gap." },
+        }}
+      />,
+    );
+
+    expect(html).toContain("Retry");
+    expect(html).toContain("Plan failed");
+    expect(html).toContain("Plan failure: The season has a gap.");
   });
 });

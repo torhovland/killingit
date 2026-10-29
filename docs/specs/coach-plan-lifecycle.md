@@ -177,6 +177,13 @@ been refreshed for two minutes is considered abandoned (for example by a server
 restart); `GET` records it as an error so the client stops polling and offers
 `Try again`, and `begin` may take over the stale claim.
 
+Releasing a stale run is a compare-and-set: the `GET` passes the `updated_at` it
+observed, and `fail` only changes a `running` row that still has that exact
+value. A heartbeat that lands between the read and the release therefore keeps
+the run alive, and a run that replaced the stale one is never cleared by the
+older request. The release also marks the prompt-log rows from that run as
+belonging to a failed plan (see `docs/specs/llm-call-log.md`).
+
 ## API
 
 Both routes are behind `requireAuth`.
