@@ -128,7 +128,9 @@ about a past workout, or before a suggested workout, to steer the coach.
   Sessions get a TSS from measured power or a structured indoor
   bike workout when available, and from the coach's estimate otherwise; the API
   then calculates ATL, CTL, and TSB day by day and shows them in the Today,
-  Tomorrow, and Week views and on the Activities page. TSB carries a coloured
+  Tomorrow, and Week views and on the Activities page. Each recorded activity
+  on the Activities page shows its own TSS with the day's fitness snapshot, so
+  two workouts on one day do not repeat the day's total. TSB carries a coloured
   form label (Risk, Productive, Maintaining, Fresh, Detraining).
   Garmin syncs the last 42 days of activities, body composition, and historic
   cycling FTP, and power metrics are stored on activity summaries so the raw

@@ -231,7 +231,12 @@ function makeApp(options: {
       (() => Promise.resolve({ model: "test-model", activities: [] })),
     loadCachedFeed: options.loadCachedFeed ?? (() => Promise.resolve(null)),
     loadActivityTrainingLoads:
-      options.loadActivityTrainingLoads ?? (() => Promise.resolve(new Map())),
+      options.loadActivityTrainingLoads ??
+      (() =>
+        Promise.resolve({
+          byDate: new Map(),
+          byActivityId: new Map(),
+        })),
     estimateManualTss: options.estimateManualTss ?? (() => Promise.resolve(0)),
     loadFtpHistory:
       options.loadFtpHistory ??
@@ -397,9 +402,12 @@ describe("coaching activity feed", () => {
         });
       },
       loadActivityTrainingLoads: () =>
-        Promise.resolve(
-          new Map([["2026-10-21", { tss: 85, atl: 29, ctl: 20, tsb: -20 }]]),
-        ),
+        Promise.resolve({
+          byDate: new Map([
+            ["2026-10-21", { tss: 85, atl: 29, ctl: 20, tsb: -20 }],
+          ]),
+          byActivityId: new Map([[7, 40]]),
+        }),
     });
 
     const res = await app.fetch(
@@ -411,10 +419,12 @@ describe("coaching activity feed", () => {
     const body = (await res.json()) as {
       activities: Array<{
         name: string;
+        activityTss?: number | null;
         trainingLoad?: { tss: number } | null;
       }>;
     };
     expect(body.activities[0]?.name).toBe("Morning Run");
+    expect(body.activities[0]?.activityTss).toBe(40);
     expect(body.activities[0]?.trainingLoad?.tss).toBe(85);
   });
 

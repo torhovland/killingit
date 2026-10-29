@@ -468,6 +468,7 @@ export function ActivitiesPage() {
                     activity.trainingLoad !== undefined && (
                       <TrainingLoadLine
                         load={activity.trainingLoad}
+                        tss={activity.estimatedTss ?? undefined}
                         testId="manual-activity-load"
                       />
                     )}

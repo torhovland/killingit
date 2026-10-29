@@ -263,6 +263,12 @@ export const analyzedActivitySchema = activitySummarySchema.extend({
   /** The athlete dismissed the activity with "No comment". */
   reviewed: z.boolean().optional(),
   /**
+   * Training stress credited to this activity alone (measured power or a
+   * duration-based fallback), distinct from the day's total in `trainingLoad`.
+   * Absent on cached payloads from before the field existed.
+   */
+  activityTss: z.number().nonnegative().max(10000).nullable().optional(),
+  /**
    * Training stress and the fitness snapshot for the activity's day. Derived
    * when the feed is served; absent on cached payloads from before the field
    * existed.

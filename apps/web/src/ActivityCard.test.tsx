@@ -58,6 +58,24 @@ describe("ActivityCard", () => {
     expect(html).toContain("Productive");
   });
 
+  it("shows the activity's own TSS with the day's fitness snapshot", () => {
+    const html = renderToStaticMarkup(
+      <ActivityCard
+        activity={{
+          ...activity,
+          activityTss: 13,
+          trainingLoad: { tss: 85, atl: 29, ctl: 20, tsb: -20 },
+        }}
+      />,
+    );
+
+    expect(html).toContain("TSS 13");
+    expect(html).not.toContain("TSS 85");
+    expect(html).toContain("ATL 29");
+    expect(html).toContain("CTL 20");
+    expect(html).toContain("TSB -20");
+  });
+
   it("omits the training load when it is not available", () => {
     const html = renderToStaticMarkup(<ActivityCard activity={activity} />);
 
