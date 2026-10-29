@@ -639,9 +639,9 @@ export const coachPlans = pgTable(
     // The newest question-answer timestamp included in this plan. A newer answer
     // makes the plan stale and triggers a regeneration.
     answersUpdatedAt: timestamp("answers_updated_at", { withTimezone: true }),
-    // The newest activity-comment, manual-activity, weekly-note, or week-review
-    // timestamp included in this plan. A newer input triggers a revision of the
-    // week and today/tomorrow without discarding the existing plan.
+    // The newest activity-comment, manual-activity, weekly-note, week-review,
+    // or block-review timestamp included in this plan. A newer input triggers a
+    // revision of the affected levels without discarding the existing plan.
     coachingInputsUpdatedAt: timestamp("coaching_inputs_updated_at", {
       withTimezone: true,
     }),

@@ -36,9 +36,11 @@ const emptyInputs: CoachingInputs = {
   manualActivities: [],
   activityComments: [],
   weeklyNote: null,
+  weeklyNoteReply: null,
   weeklyNoteUpdatedAt: null,
   periodReviews: [],
   weekReviewUpdatedAt: null,
+  blockReviewUpdatedAt: null,
   updatedAt: null,
 };
 

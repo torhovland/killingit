@@ -115,6 +115,8 @@ export interface PlanContextInput {
   manualActivities?: readonly ManualActivityContext[];
   activityComments?: readonly ActivityCommentContext[];
   weeklyNote?: string | null;
+  /** The coach's reply to the current week's note. */
+  weeklyNoteReply?: string | null;
   /** Coach reviews of completed weeks and blocks, with athlete feedback. */
   periodReviews?: readonly PeriodReviewContext[];
   /** Daily forecast for the athlete's location, when one has been set. */
@@ -261,6 +263,16 @@ export function formatPlanContext(input: PlanContextInput): string[] {
     input.weeklyNote.trim() !== ""
   ) {
     lines.push("", "Weekly note:", input.weeklyNote.trim());
+    if (
+      input.weeklyNoteReply !== undefined &&
+      input.weeklyNoteReply !== null &&
+      input.weeklyNoteReply.trim() !== ""
+    ) {
+      lines.push(
+        "Coach reply to the weekly note:",
+        input.weeklyNoteReply.trim(),
+      );
+    }
   }
 
   if (input.periodReviews && input.periodReviews.length > 0) {

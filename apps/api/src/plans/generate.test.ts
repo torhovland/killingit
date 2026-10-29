@@ -1765,6 +1765,47 @@ describe("runPlanGeneration", () => {
     expect(generations.steps).toContain("Refreshing your season");
   });
 
+  it("refreshes the season when a block review is generated", async () => {
+    const today = "2026-11-15";
+    const previous = makeMidSeasonPlan(today);
+    const provider = new FakeProvider({
+      planUpdate: makeUpdate(today, {
+        season: makeRefreshedSeason("2026-11-01"),
+        block: makeBlock("2026-11-01", "2026-12-31"),
+        week: makeWeek(startOfWeek(today)),
+        today: makeDay(today),
+      }),
+    });
+    const existing = makeStoredPlan(previous);
+    const plans = new MemoryPlanStore(existing);
+    const generations = new MemoryGenerationStore();
+
+    await runPlanGeneration({
+      userId: 1,
+      today,
+      plan: existing,
+      context: makeContext(provider),
+      plans,
+      generations,
+      capturePeriodReviews: () =>
+        Promise.resolve([
+          {
+            kind: "block" as const,
+            title: "Build",
+            startDate: "2026-11-01",
+            endDate: "2026-11-14",
+            summary: "The block was consistent and the threshold work landed.",
+            comment: null,
+            reply: null,
+            updatedAt: new Date().toISOString(),
+          },
+        ]),
+    });
+
+    expect(provider.calls).toEqual(["plan-update"]);
+    expect(generations.steps).toContain("Refreshing your season");
+  });
+
   it("refreshes an existing season automatically when answers are stale", async () => {
     const today = "2026-11-15";
     const previous = makeMidSeasonPlan(today);

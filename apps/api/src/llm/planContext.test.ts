@@ -51,6 +51,22 @@ describe("formatPlanContext", () => {
     expect(text).not.toContain("Activity comments:");
   });
 
+  it("includes the weekly note and the coach's reply to it", () => {
+    const text = formatPlanContext(
+      input({
+        weeklyNote: "I can only train before work this week.",
+        weeklyNoteReply: "Then keep the weekday sessions short and easy.",
+      }),
+    ).join("\n");
+
+    expect(text).toContain(
+      "Weekly note:\nI can only train before work this week.",
+    );
+    expect(text).toContain(
+      "Coach reply to the weekly note:\nThen keep the weekday sessions short and easy.",
+    );
+  });
+
   it("includes the athlete's FTP and recorded power", () => {
     const text = formatPlanContext(
       input({

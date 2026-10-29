@@ -123,6 +123,7 @@ const base = {
     { activityId: "123", comment: "Felt strong on the hills." },
   ],
   weeklyNote: "I cannot train on Thursday this week.",
+  weeklyNoteReply: "Understood; Thursday is a rest day.",
 };
 
 const todayPlan: DayPlan = {
@@ -374,6 +375,9 @@ describe("daily update prompts", () => {
     expect(prompt).toContain("Felt strong on the hills.");
     expect(prompt).toContain("Weekly note:");
     expect(prompt).toContain("I cannot train on Thursday this week.");
+    expect(prompt).toContain(
+      "Coach reply to the weekly note:\nUnderstood; Thursday is a rest day.",
+    );
     expect(prompt).toContain("Goal: Sub-4-hour marathon");
     expect(prompt).toContain("Block: Base");
     expect(prompt).toContain("Week starting 2026-10-19");

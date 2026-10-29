@@ -24,8 +24,10 @@ a plan refresh that uses all of it.
    visit or reload omits it.
 4. Let the athlete comment on a week or block, generate a short coach reply, and
    start a plan revision. A completed week's review marks the current block
-   pending both when the review is generated and when the athlete answers it, so
-   the block is revised in place with that feedback.
+   pending, and a completed block's review marks the season pending, both when
+   the review is generated and when the athlete answers it. The current block
+   is revised in place with the week's feedback; a block review refreshes the
+   remaining season around what the completed block achieved.
 5. Feed the coach summary, the athlete's comment, the coach reply, and the
    week's saved note with its reply into every later plan generation for all
    three review levels: workout, week, and block.
@@ -89,10 +91,14 @@ new comment and the review summaries, so the plan revision is built on them.
    today is still inside the current block. The update asks the coach to revise
    the current block in place, keeping its start date, and returns the revised
    block, week and today in one response.
-5. On later plan generations, `formatPlanContext` includes every period review
+5. A generated block review, or an answer to one, is likewise newer than the
+   plan. It requests a season refresh, so the remaining blocks are re-planned
+   around the completed block's review and the athlete's feedback.
+6. On later plan generations, `formatPlanContext` includes every period review
    with its summary, athlete comment, coach reply, and for a week review the
-   week's saved note and the coach's reply to it. Recent activities also carry
-   their program review and coach reply.
+   week's saved note and the coach's reply to it. The current week's note and
+   its coach reply are always included. Recent activities also carry their
+   program review and coach reply.
 
 ## Prompts
 
@@ -136,7 +142,8 @@ new comment and the review summaries, so the plan revision is built on them.
 4. Workout, week, and block summaries, comments, replies, and a week's saved
    note with its reply are all present in the prompt for a plan refresh. A
    generated week review or an answer to it makes the block pending and revises
-   it in place on the next update.
+   it in place on the next update. A generated block review or an answer to it
+   refreshes the season.
 5. Season review lists all reviews and supports editing a comment, which
    regenerates the reply and refreshes the plan.
 6. The dashboard has no regeneration button; the survey and settings pages have

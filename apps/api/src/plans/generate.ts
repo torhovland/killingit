@@ -52,11 +52,15 @@ export interface PlanGenerationContext {
   manualActivities: readonly ManualActivityContext[];
   activityComments: readonly ActivityCommentContext[];
   weeklyNote: string | null;
+  /** The coach's reply to the current week's note, when one exists. */
+  weeklyNoteReply?: string | null;
   /** When the current week's note was last saved. */
   weeklyNoteUpdatedAt?: Date | null;
   periodReviews?: readonly PeriodReviewContext[];
   /** When the newest week review was generated or its comment answered. */
   weekReviewUpdatedAt?: Date | null;
+  /** When the newest block review was generated or its comment answered. */
+  blockReviewUpdatedAt?: Date | null;
   coachingInputsUpdatedAt: Date | null;
   /** Newest general coach analysis among the recent activities, if any. */
   activitiesUpdatedAt?: Date | null;
@@ -134,32 +138,6 @@ export async function runPlanGeneration(
       stored === null ? null : promoteNextPeriod(stored, today);
     const promoted = currentPlan !== null && currentPlan !== stored;
     const mode = input.mode ?? "auto";
-    // An explicit update, or answers saved after the plan, refreshes the
-    // existing season instead of silently starting a new one. Without a season
-    // that covers today there is nothing to refresh, so fall back to a build.
-    const refreshRequested =
-      mode === "updateSeason" || (mode === "auto" && stale);
-    const refreshSeason =
-      input.force !== true &&
-      mode !== "newSeason" &&
-      refreshRequested &&
-      currentPlan !== null &&
-      seasonCovers(currentPlan.season, today);
-    // A missing plan, a deliberate fresh start, or an update with no usable
-    // season builds a new season. A refresh of an existing season uses the
-    // single plan-update prompt so the season, block, week and day agree.
-    const needsFullPlan =
-      currentPlan === null ||
-      input.force === true ||
-      mode === "newSeason" ||
-      (refreshRequested && !refreshSeason);
-    // The forecast can move enough to make the stored week's weather advice
-    // wrong even when every level is present. Treat that like any other week
-    // revision so the coach can move sessions to the better days.
-    const weatherChanged =
-      currentPlan !== null &&
-      context.forecast != null &&
-      planWeatherChanged(currentPlan, context.forecast, today);
 
     // The cascade is about to replace the current week/block. Summarise them
     // first when they have ended, so the athlete keeps a review of the work.
@@ -209,8 +187,43 @@ export async function runPlanGeneration(
       (input.plan.coachingInputsUpdatedAt === null ||
         context.weekReviewUpdatedAt.getTime() >
           input.plan.coachingInputsUpdatedAt.getTime());
+    // A newly generated block review, or an answer to one, refreshes the
+    // remaining season around what the completed block achieved.
+    const blockReviewPending =
+      input.plan !== null &&
+      context.blockReviewUpdatedAt != null &&
+      (input.plan.coachingInputsUpdatedAt === null ||
+        context.blockReviewUpdatedAt.getTime() >
+          input.plan.coachingInputsUpdatedAt.getTime());
     const revisionNeeded =
       inputsChanged || activitiesChanged || weekReviewPending;
+    // An explicit update, a saved answer, or a completed block's review
+    // refreshes the existing season instead of silently starting a new one.
+    // Without a season that covers today there is nothing to refresh.
+    const refreshRequested =
+      mode === "updateSeason" ||
+      (mode === "auto" && (stale || blockReviewPending));
+    const refreshSeason =
+      input.force !== true &&
+      mode !== "newSeason" &&
+      refreshRequested &&
+      currentPlan !== null &&
+      seasonCovers(currentPlan.season, today);
+    // A missing plan, a deliberate fresh start, or an update with no usable
+    // season builds a new season. A refresh of an existing season uses the
+    // single plan-update prompt so the season, block, week and day agree.
+    const needsFullPlan =
+      currentPlan === null ||
+      input.force === true ||
+      mode === "newSeason" ||
+      (refreshRequested && !refreshSeason);
+    // The forecast can move enough to make the stored week's weather advice
+    // wrong even when every level is present. Treat that like any other week
+    // revision so the coach can move sessions to the better days.
+    const weatherChanged =
+      currentPlan !== null &&
+      context.forecast != null &&
+      planWeatherChanged(currentPlan, context.forecast, today);
 
     if (needsFullPlan) {
       await generations.update(userId, PLAN_GENERATION_STEPS.review);
@@ -1121,24 +1134,27 @@ function mergeCapturedPeriodReviews(
   context: PlanGenerationContext,
   captured: readonly PeriodReviewContext[],
 ): PlanGenerationContext {
-  const weekReview = captured.find((review) => review.kind === "week");
-  const capturedAt =
-    weekReview === undefined
-      ? null
-      : weekReview.updatedAt === undefined
-        ? new Date()
-        : new Date(weekReview.updatedAt);
+  const capturedAt = (kind: "week" | "block"): Date | null => {
+    const review = captured.find((entry) => entry.kind === kind);
+    if (review === undefined) {
+      return null;
+    }
+    const at =
+      review.updatedAt === undefined ? new Date() : new Date(review.updatedAt);
+    return Number.isNaN(at.getTime()) ? null : at;
+  };
   const weekReviewUpdatedAt =
-    capturedAt !== null && !Number.isNaN(capturedAt.getTime())
-      ? capturedAt
-      : (context.weekReviewUpdatedAt ?? null);
+    capturedAt("week") ?? context.weekReviewUpdatedAt ?? null;
+  const blockReviewUpdatedAt =
+    capturedAt("block") ?? context.blockReviewUpdatedAt ?? null;
   return {
     ...context,
     periodReviews: [...(context.periodReviews ?? []), ...captured],
     weekReviewUpdatedAt,
+    blockReviewUpdatedAt,
     coachingInputsUpdatedAt: latestDate(
-      context.coachingInputsUpdatedAt,
-      weekReviewUpdatedAt,
+      latestDate(context.coachingInputsUpdatedAt, weekReviewUpdatedAt),
+      blockReviewUpdatedAt,
     ),
   };
 }
@@ -1240,6 +1256,9 @@ function baseContext(input: GeneratePlanInput) {
       : {}),
     ...(input.context.weeklyNote !== null
       ? { weeklyNote: input.context.weeklyNote }
+      : {}),
+    ...(input.context.weeklyNoteReply != null
+      ? { weeklyNoteReply: input.context.weeklyNoteReply }
       : {}),
     ...(input.context.periodReviews !== undefined &&
     input.context.periodReviews.length > 0
