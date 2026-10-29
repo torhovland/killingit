@@ -139,7 +139,14 @@ def _sync(credentials: Credentials) -> list[dict]:
 
     try:
         return [
-            _to_activity(raw, _samples_for(garmin, raw.get("activityId")))
+            _to_activity(
+                raw,
+                _samples_for(
+                    garmin,
+                    raw.get("activityId"),
+                    normalize_type(raw.get("activityType")),
+                ),
+            )
             for raw in raw_activities or []
         ]
     except GarminConnectTooManyRequestsError as exc:
@@ -335,7 +342,7 @@ def _body_fat_percent(raw: dict) -> float | None:
     return round(value, 1)
 
 
-def _samples_for(garmin, activity_id) -> list[dict]:
+def _samples_for(garmin, activity_id, activity_type: str = "") -> list[dict]:
     """Fetch and normalize one activity's timeseries.
 
     A single failed detail fetch must not fail the whole 42-day sync, so it is
@@ -351,7 +358,7 @@ def _samples_for(garmin, activity_id) -> list[dict]:
     except Exception:  # noqa: BLE001 - any library/network failure
         logger.exception("Garmin activity details fetch failed for %s", activity_id)
         return []
-    return _to_samples(details or {})
+    return _to_samples(details or {}, activity_type)
 
 
 def _to_activity(raw: dict, samples: list[dict] | None = None) -> dict:
@@ -381,9 +388,9 @@ def _to_activity(raw: dict, samples: list[dict] | None = None) -> dict:
 
 
 # Garmin detail metric keys -> normalized sample fields, in priority order.
-# Keys vary by device and activity type; for aliases (temperature, elevation,
-# cadence) the first key present wins, and absent channels are omitted from the
-# sample entirely.
+# Keys vary by device and activity type; for aliases (temperature, elevation)
+# the first key present wins, and absent channels are omitted from the sample
+# entirely. Cadence needs activity-type context, so it is resolved separately.
 _SAMPLE_METRICS = (
     ("directLatitude", "latitude"),
     ("directLongitude", "longitude"),
@@ -395,13 +402,10 @@ _SAMPLE_METRICS = (
     ("directCorrectedElevation", "elevation"),
     ("directElevation", "elevation"),
     ("directUncorrectedElevation", "elevation"),
-    ("directBikeCadence", "cadence"),
-    ("directFractionalCadence", "cadence"),
-    ("directCadence", "cadence"),
 )
 
 
-def _to_samples(details: dict) -> list[dict]:
+def _to_samples(details: dict, activity_type: str = "") -> list[dict]:
     """Resolve Garmin's positional detail metrics into normalized samples."""
     samples = []
     for raw in parse_activity_detail_metrics(details):
@@ -417,6 +421,10 @@ def _to_samples(details: dict) -> list[dict]:
             if value is not None:
                 sample[field] = value
 
+        cadence = _cadence(raw, activity_type)
+        if cadence is not None:
+            sample["cadence"] = cadence
+
         # Garmin usually reports cumulative distance as `sumDistance`, but some
         # devices only provide the instantaneous `directDistance`.
         distance = _finite_or_none(raw.get("sumDistance"))
@@ -427,6 +435,38 @@ def _to_samples(details: dict) -> list[dict]:
 
         samples.append(sample)
     return samples
+
+
+def _is_running(activity_type: str) -> bool:
+    """Whether a normalized Garmin type is a run, whose cadence is per leg."""
+    return "run" in activity_type
+
+
+def _cadence(raw: dict, activity_type: str) -> float | None:
+    """Resolve cadence in the unit Garmin Connect displays.
+
+    Running cadence is counted in total steps per minute: Garmin's
+    `directDoubleCadence` already holds that, while `directCadence` is the
+    per-leg half and is doubled for runs. Cycling cadence is the pedalling rate
+    in rpm, reported by `directBikeCadence` (or `directCadence` as a fallback).
+    `directFractionalCadence` is only the sub-unit remainder of `directCadence`,
+    never a cadence on its own, so reading it alone yields 0 or 1.
+    """
+    double = _finite_or_none(raw.get("directDoubleCadence"))
+    if double is not None and double > 0:
+        return double
+
+    bike = _finite_or_none(raw.get("directBikeCadence"))
+    if bike is not None:
+        return bike
+
+    cadence = _finite_or_none(raw.get("directCadence"))
+    if cadence is None:
+        return None
+    fraction = _finite_or_none(raw.get("directFractionalCadence"))
+    if fraction is not None and 0 <= fraction < 1:
+        cadence += fraction
+    return cadence * 2 if _is_running(activity_type) else cadence
 
 
 def _finite_or_none(value) -> float | None:

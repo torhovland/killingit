@@ -14,6 +14,7 @@ const activity: AnalyzedActivity = {
   elapsedTime: 1600,
   totalElevationGain: 55,
   sampleCount: 1,
+  samples: [],
   analysis: {
     text: "You held a steady aerobic effort.",
     model: "openrouter/auto",
@@ -172,6 +173,29 @@ describe("ActivityCard", () => {
     expect(html.indexOf('data-testid="activity-delete"')).toBeLessThan(
       html.indexOf('data-testid="activity-map"'),
     );
+  });
+
+  it("offers a sample preview when the activity recorded samples", () => {
+    const html = renderToStaticMarkup(
+      <ActivityCard
+        activity={{
+          ...activity,
+          type: "running",
+          sampleCount: 600,
+          samples: [
+            {
+              timestamp: "2026-10-01T06:30:00Z",
+              heartRate: 140,
+              cadence: 152,
+            },
+          ],
+        }}
+      />,
+    );
+
+    expect(html).toContain('data-testid="activity-samples"');
+    expect(html).toContain("Recorded samples (1 of 600 shown)");
+    expect(html).toContain("Cadence spm");
   });
 
   it("does not render a map without position data", () => {

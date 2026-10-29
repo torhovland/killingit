@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { formatActivityType, type AnalyzedActivity } from "@killingit/shared";
 import { ActivityMap } from "./ActivityMap";
+import { ActivitySamples } from "./ActivitySamples";
 import { formatDuration } from "./formatDuration";
 import { SubmitButton } from "./SubmitButton";
 import { TrainingLoadLine } from "./TrainingLoadLine";
@@ -201,6 +202,14 @@ export function ActivityCard({
         </div>
         {hasMap && <ActivityMap route={route} />}
       </div>
+
+      {activity.samples.length > 0 && (
+        <ActivitySamples
+          samples={activity.samples}
+          sampleCount={activity.sampleCount}
+          activityType={activity.type}
+        />
+      )}
 
       {shownComment && (
         <div className="flex flex-wrap items-baseline gap-2 text-sm">

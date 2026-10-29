@@ -114,6 +114,25 @@ describe("buildActivityAnalysisPrompt", () => {
     expect(prompt).toContain("10:00 | 5.00 | 150 | 240");
   });
 
+  it("labels running cadence in steps per minute", () => {
+    const prompt = buildActivityAnalysisPrompt(
+      makeActivity({ type: "running" }),
+    );
+
+    expect(prompt).toContain("cadence spm");
+    expect(prompt).toContain("cadence: avg 88 spm");
+    expect(prompt).not.toContain("cadence rpm");
+  });
+
+  it("explains incomplete recordings and refuses an FTP guess without data", () => {
+    const system =
+      buildActivityAnalysisMessages(makeActivity())[0]?.content ?? "";
+
+    expect(system).toContain("an indoor session may have no moving time");
+    expect(system).toContain("may or may not have power or heart-rate data");
+    expect(system).toContain("do not guess an FTP change from incomplete");
+  });
+
   it("includes the week plan so the coach can match the activity to a session", () => {
     const week: WeekPlan = {
       startDate: "2026-09-28",

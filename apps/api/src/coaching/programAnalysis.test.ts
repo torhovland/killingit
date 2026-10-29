@@ -80,6 +80,7 @@ function makeActivity(id: number, name: string): AnalyzedActivity {
     elapsedTime: 2800,
     totalElevationGain: 80,
     sampleCount: 100,
+    samples: [],
     analysis: null,
     analysisError: null,
     programAnalysis: null,

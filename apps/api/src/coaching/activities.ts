@@ -1,6 +1,7 @@
 import {
   recordedPowerSummary,
   type Activity,
+  type ActivitySample,
   type ActivitySummary,
   type AnalyzedActivity,
   type BodyMetricEstimate,
@@ -19,6 +20,7 @@ import {
   recordGarminBodyMetrics,
   recordGarminFtp,
 } from "../metrics/store.js";
+import { downsample } from "../lib/downsample.js";
 import { mapWithConcurrency } from "../lib/mapWithConcurrency.js";
 import { ANALYSIS_PROMPT_VERSION } from "../llm/activityPrompt.js";
 import { analyzeActivity } from "../llm/analyze.js";
@@ -53,6 +55,8 @@ import { routeFromSamples } from "./route.js";
 /** How many of the latest synced activities can be returned in one feed. */
 export const MAX_ACTIVITIES = 20;
 export const DEFAULT_ACTIVITIES = 10;
+/** Enough samples for a readable preview without bloating the cached feed. */
+export const MAX_PREVIEW_SAMPLES = 120;
 /** Bounded concurrency so a batch does not flood OpenRouter. */
 const ANALYSIS_CONCURRENCY = 3;
 
@@ -405,11 +409,13 @@ async function persistFeed(userId: number, feed: ActivityFeed): Promise<void> {
 }
 
 /**
- * Strips the (large) timeseries, keeping the summary, its sample count, and a
- * bounded GPS route for the activity map.
+ * Strips the (large) timeseries, keeping the summary, its sample count, a
+ * bounded sample preview for the activities page, and a bounded GPS route for
+ * the activity map.
  */
 function summarize(activity: Activity): ActivitySummary & {
   sampleCount: number;
+  samples: ActivitySample[];
   route?: RoutePoint[];
 } {
   const { samples, ...summary } = activity;
@@ -418,6 +424,7 @@ function summarize(activity: Activity): ActivitySummary & {
   return {
     ...summary,
     sampleCount: samples.length,
+    samples: downsample(samples, MAX_PREVIEW_SAMPLES),
     ...(power.averagePower !== null
       ? { averagePower: power.averagePower }
       : {}),

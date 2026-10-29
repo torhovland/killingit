@@ -76,6 +76,11 @@ pytest
   `longitude`, `heartRate` (bpm), `power` (W), `temperature` (°C), `speed`
   (m/s), `distance` (m, cumulative), `elevation` (m), and `cadence`. Absent
   channels are omitted per sample.
+- Cadence matches what Garmin Connect shows: runs use total steps per minute
+  (`directDoubleCadence`, or twice the per-leg `directCadence`), and rides use
+  pedalling rpm (`directBikeCadence`, falling back to `directCadence`).
+  `directFractionalCadence` is only the sub-unit remainder and is never read as
+  a cadence on its own.
 - Activity-detail calls add one Garmin request per activity. If a detail fetch
   fails, that activity is returned with `samples: []` and the sync continues;
   Garmin rate limiting still fails the whole sync with `429`.

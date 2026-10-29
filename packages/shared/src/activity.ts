@@ -78,6 +78,19 @@ export const activitiesResponseSchema = z.object({
 export type ActivitiesResponse = z.infer<typeof activitiesResponseSchema>;
 
 /**
+ * Whether a normalized activity type is a run. Running cadence is measured in
+ * total steps per minute, while cycling cadence is the pedalling rate in rpm.
+ */
+export function isRunningActivity(type: string): boolean {
+  return type.toLowerCase().includes("run");
+}
+
+/** The unit an activity's recorded cadence is expressed in. */
+export function cadenceUnit(type: string): "spm" | "rpm" {
+  return isRunningActivity(type) ? "spm" : "rpm";
+}
+
+/**
  * Turns a source activity key such as `indoor_cycling` into readable text
  * (`Indoor cycling`) for display. Unknown keys are still shown rather than
  * hidden, because the device's classification is the best information we have.

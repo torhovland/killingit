@@ -386,6 +386,7 @@ describe("coaching activity feed", () => {
               elapsedTime: 1600,
               totalElevationGain: 20,
               sampleCount: 10,
+              samples: [],
               analysis: null,
               analysisError: null,
               programAnalysis: null,
@@ -446,6 +447,7 @@ describe("coaching activity analysis", () => {
           elapsedTime: 1600,
           totalElevationGain: 20,
           sampleCount: 0,
+          samples: [],
           analysis: {
             text: "Steady aerobic effort.",
             model: "test-model",

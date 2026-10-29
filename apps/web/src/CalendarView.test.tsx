@@ -18,6 +18,7 @@ const recorded: CalendarImportedActivity = {
   elapsedTime: 3900,
   totalElevationGain: 300,
   sampleCount: 10,
+  samples: [],
   route: [
     { latitude: 59.9, longitude: 10.7 },
     { latitude: 59.92, longitude: 10.72 },

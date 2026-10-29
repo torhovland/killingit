@@ -192,7 +192,7 @@ def test_to_samples_supports_alternate_metric_keys():
             (0, "directTimestamp"),
             (1, "directTemperature"),
             (2, "directUncorrectedElevation"),
-            (3, "directFractionalCadence"),
+            (3, "directCadence"),
         ],
     )
     assert _to_samples(details) == [
@@ -203,6 +203,57 @@ def test_to_samples_supports_alternate_metric_keys():
             "cadence": 80.0,
         }
     ]
+
+
+def test_to_samples_never_reads_fractional_cadence_as_cadence():
+    # `directFractionalCadence` is the sub-revolution remainder (0..1); reading
+    # it alone made every running sample report a cadence of 0 or 1.
+    details = _details(
+        [1790836200000, 0.0],
+        descriptors=[(0, "directTimestamp"), (1, "directFractionalCadence")],
+    )
+    assert _to_samples(details, "running") == [
+        {"timestamp": "2026-10-01T06:30:00Z"}
+    ]
+
+
+def test_to_samples_uses_double_cadence_for_running():
+    details = _details(
+        [1790836200000, 152, 76, 0.5],
+        descriptors=[
+            (0, "directTimestamp"),
+            (1, "directDoubleCadence"),
+            (2, "directCadence"),
+            (3, "directFractionalCadence"),
+        ],
+    )
+    assert _to_samples(details, "running")[0]["cadence"] == 152.0
+
+
+def test_to_samples_doubles_the_per_leg_cadence_for_running():
+    # Devices that only report the per-leg value: Garmin Connect shows the
+    # total, so a 76-per-leg run is 152 steps per minute.
+    details = _details(
+        [1790836200000, 76, 0.25],
+        descriptors=[
+            (0, "directTimestamp"),
+            (1, "directCadence"),
+            (2, "directFractionalCadence"),
+        ],
+    )
+    assert _to_samples(details, "trail_running")[0]["cadence"] == 152.5
+
+
+def test_to_samples_keeps_pedalling_cadence_for_cycling():
+    details = _details(
+        [1790836200000, 90, 0.5],
+        descriptors=[
+            (0, "directTimestamp"),
+            (1, "directCadence"),
+            (2, "directFractionalCadence"),
+        ],
+    )
+    assert _to_samples(details, "indoor_cycling")[0]["cadence"] == 90.5
 
 
 def test_to_samples_prefers_primary_metric_aliases():

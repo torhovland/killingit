@@ -90,6 +90,7 @@ function makeAnalyzedActivity(
     elapsedTime: 2800,
     totalElevationGain: 120,
     sampleCount: 500,
+    samples: [],
     analysis: {
       text: "Steady aerobic effort with a slight heart-rate drift.",
       model: "openrouter/model",

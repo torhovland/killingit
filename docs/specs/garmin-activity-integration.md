@@ -61,8 +61,10 @@ one swappable corner, and normalizes Garmin activities into the shared
 - **Webhooks / real-time sync.** (Wiring activities into the LLM is now covered
   by `docs/specs/openrouter-llm-integration.md`.)
 - **Incremental sync** — always pulls the full 42-day window for now.
-- **Timeseries persistence and downsampling** — samples travel with the sync
-  response; storing them and serving downsampled chart data is a follow-up.
+- **Timeseries persistence and charts** — samples travel with the sync
+  response, and the activity feed carries a bounded, downsampled preview for
+  the Activities page; storing the full timeseries and serving chart data is
+  still a follow-up.
 
 ## Acceptance criteria
 
@@ -198,6 +200,16 @@ one swappable corner, and normalizes Garmin activities into the shared
   top-level React `ErrorBoundary` renders a recovery page ("Something went
   wrong", retry/reload) for any uncaught render error and reports it to Sentry
   through React 19's `onCaughtError` hook.
+- **Cadence is resolved per activity type.** Garmin exposes
+  `directFractionalCadence` (a 0..1 remainder), the per-leg `directCadence`,
+  the running total `directDoubleCadence`, and `directBikeCadence`. Reading the
+  fractional channel alone made running imports report 0 or 1. The sidecar now
+  prefers the running total, otherwise doubles the per-leg value for runs, and
+  keeps pedalling rpm for rides.
+- **Sample preview.** The feed keeps the full timeseries server-side and adds
+  an evenly spaced, bounded `samples` preview (`MAX_PREVIEW_SAMPLES`) to each
+  `AnalyzedActivity`. The Activities page shows it in a collapsible table so the
+  athlete can inspect what was recorded without a second Garmin request.
 - **Deleting an imported activity is local.** Garmin Connect remains the source
   of truth, so a deletion stores a per-user tombstone and filters the activity
   out of the feed and plan. See `docs/specs/activity-deletion.md`.
