@@ -82,13 +82,7 @@ export function CalendarView({
 
   return (
     <section className="flex w-full flex-col gap-4 text-left">
-      <CalendarHeading
-        season={
-          data.season === null
-            ? null
-            : { goal: data.season.goal, endDate: data.season.endDate }
-        }
-      />
+      <CalendarHeading goal={data.season?.goal ?? null} />
 
       {error && <p className="text-destructive">Error: {error}</p>}
 
@@ -169,6 +163,7 @@ export function CalendarView({
                 date={cell.date}
                 inMonth={cell.inMonth}
                 isToday={cell.date === today}
+                today={today}
                 day={daysByDate.get(cell.date)}
                 onSelect={setSelection}
               />
@@ -191,26 +186,14 @@ export function CalendarView({
   );
 }
 
-function CalendarHeading({
-  season,
-}: {
-  season?: { goal: string; endDate: string } | null;
-}) {
+function CalendarHeading({ goal }: { goal?: string | null }) {
   return (
     <div className="flex flex-col gap-1">
       <h2 className="text-2xl font-semibold">Calendar</h2>
-      <p className="text-base text-muted-foreground">
-        Your recorded activities, planned workouts and rest days in one month.
-      </p>
-      {season && (
+      {goal && (
         <p className="text-base" data-testid="calendar-season">
-          <span className="font-medium">
-            Season ends {formatPlanDate(season.endDate)}
-          </span>
-          <span className="text-muted-foreground">
-            <Bullet />
-            {season.goal}
-          </span>
+          <span className="font-medium">Goal: </span>
+          <span className="text-muted-foreground">{goal}</span>
         </p>
       )}
     </div>
@@ -221,15 +204,24 @@ function CalendarCell({
   date,
   inMonth,
   isToday,
+  today,
   day,
   onSelect,
 }: {
   date: string;
   inMonth: boolean;
   isToday: boolean;
+  today: string;
   day: CalendarDay | undefined;
   onSelect: (selection: CalendarSelection) => void;
 }) {
+  const session = day?.session ?? null;
+  // Past days show what was recorded, not what was planned. Today only keeps
+  // its planned session when nothing has been recorded yet.
+  const showSession =
+    session !== null &&
+    (date > today || (date === today && (day?.activities.length ?? 0) === 0));
+
   return (
     <div
       className={`flex min-h-28 flex-col gap-1 rounded border p-1.5 text-sm ${
@@ -248,30 +240,28 @@ function CalendarCell({
 
       {day?.blockStart && (
         <span
-          className="rounded bg-accent/20 px-1 py-0.5 font-medium text-accent-foreground"
+          className="rounded bg-accent px-1 py-0.5 font-medium text-accent-foreground"
           data-testid="calendar-block-start"
         >
-          Block starts
-          <Bullet />
+          Block starts:
+          <br />
           {day.blockStart.name}
         </span>
       )}
 
       {day?.seasonEnd && (
         <span
-          className="rounded bg-accent/20 px-1 py-0.5 font-medium text-accent-foreground"
+          className="rounded bg-accent px-1 py-0.5 font-medium text-accent-foreground"
           data-testid="calendar-season-end"
         >
           Season ends
         </span>
       )}
 
-      {day?.session && (
+      {showSession && session !== null && (
         <SessionChip
-          session={day.session}
-          onSelect={() =>
-            onSelect({ kind: "session", session: day.session as WeekSession })
-          }
+          session={session}
+          onSelect={() => onSelect({ kind: "session", session })}
         />
       )}
 
@@ -313,21 +303,7 @@ function SessionChip({
     >
       <span className="line-clamp-2 font-medium">{session.title}</span>
       <span className="text-xs text-muted-foreground">
-        {sessionStatusPrefix(session.status) !== "" && (
-          <>
-            {sessionStatusPrefix(session.status)}
-            <Bullet />
-          </>
-        )}
         {session.durationMinutes} min
-        <Bullet />
-        {session.intensity}
-        {session.trainingLoad != null && (
-          <>
-            <Bullet />
-            TSS {Math.round(session.trainingLoad.tss)}
-          </>
-        )}
       </span>
     </button>
   );
@@ -616,15 +592,4 @@ function StatusBadge({ status }: { status: WeekSessionStatus }) {
       {status}
     </span>
   );
-}
-
-/** A short status prefix for a day whose session has already been resolved. */
-function sessionStatusPrefix(status: WeekSessionStatus): string {
-  if (status === "completed") {
-    return "Completed";
-  }
-  if (status === "partial") {
-    return "Partial";
-  }
-  return status === "missed" ? "Missed" : "";
 }

@@ -131,7 +131,7 @@ export function FtpChart({
               y={CHART_PADDING.top + scale.y(tick)}
               textAnchor="end"
               dominantBaseline="middle"
-              className="fill-muted-foreground text-xs"
+              className="fill-muted-foreground text-[10px]"
             >
               {Math.round(tick)} W
             </text>
@@ -153,7 +153,7 @@ export function FtpChart({
                       ? "end"
                       : "middle"
                 }
-                className="fill-muted-foreground text-xs"
+                className="fill-muted-foreground text-[10px]"
               >
                 {formatChartDate(point.date)}
               </text>

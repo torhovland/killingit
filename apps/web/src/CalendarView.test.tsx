@@ -7,8 +7,6 @@ import type {
 } from "@killingit/shared";
 import { CalendarEntryDialog, CalendarView } from "./CalendarView";
 
-const BULLET = '<span class="mx-[0.75em]">·</span>';
-
 const recorded: CalendarImportedActivity = {
   source: "garmin",
   id: 123,
@@ -145,15 +143,15 @@ describe("CalendarView", () => {
         data={data}
         month="2026-10"
         onMonthChange={() => {}}
-        today="2026-10-27"
+        today="2026-10-07"
       />,
     );
 
     expect(html).toContain("Calendar");
     expect(html).toContain("October 2026");
-    expect(html).toContain("Season ends");
+    expect(html).toContain("Goal:");
     expect(html).toContain("Ride a century.");
-    expect(html).toContain(`Block starts${BULLET}Base`);
+    expect(html).toContain("Block starts:<br/>Base");
     expect(html).toContain("Morning ride");
     expect(html).toContain("25.0 km");
     expect(html).toContain("Club ride");
@@ -161,6 +159,39 @@ describe("CalendarView", () => {
     expect(html).toContain("Tempo ride");
     expect(html).toContain("75 min");
     expect(html).toContain("Rest");
+  });
+
+  it("hides planned sessions in the past and on today once an activity is recorded", () => {
+    const activityDayData: CalendarResponse = {
+      ...data,
+      days: data.days.map((day) =>
+        day.date === "2026-10-06"
+          ? { ...day, session: { ...workout, date: "2026-10-06" } }
+          : { ...day, session: null },
+      ),
+    };
+
+    const past = renderToStaticMarkup(
+      <CalendarView
+        data={activityDayData}
+        month="2026-10"
+        onMonthChange={() => {}}
+        today="2026-10-07"
+      />,
+    );
+    expect(past).not.toContain("Tempo ride");
+    expect(past).toContain("Morning ride");
+
+    const today = renderToStaticMarkup(
+      <CalendarView
+        data={activityDayData}
+        month="2026-10"
+        onMonthChange={() => {}}
+        today="2026-10-06"
+      />,
+    );
+    expect(today).not.toContain("Tempo ride");
+    expect(today).toContain("Morning ride");
   });
 
   it("bounds the month picker to the data range", () => {

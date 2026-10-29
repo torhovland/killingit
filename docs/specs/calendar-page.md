@@ -62,10 +62,13 @@ comment, the coach's response, and the route map for outdoor activities.
 - Manual activities show their description, the coach's reply, and the
   coach's TSS estimate when one exists.
 - Planned sessions come from the stored plan's current and next week. A rest
-  day is shown as `Rest` and is not selectable.
+  day is shown as `Rest` and is not selectable. Planned sessions are hidden on
+  past days, and on today when an activity has already been recorded.
+- Calendar cards show a planned workout's duration in minutes only; the
+  intensity and TSS stay in the detail dialog.
 - A block's `startDate` gets a `Block starts · <name>` marker on that day.
 - The season's `endDate` gets a `Season ends` marker, and the page heading
-  states the season end date and goal.
+  states the season goal.
 - Days with nothing to show are omitted by the API and render as empty cells.
 
 ### Detail dialog
