@@ -252,6 +252,10 @@ describe("unified plan update prompt", () => {
             summary: "The week was consistent but the long run was hard.",
             comment: "My legs felt heavy after Thursday.",
             reply: "Keep the next long run easy and shorten the intervals.",
+            weeklyNote: {
+              note: "I can only ride outdoors on Saturday.",
+              reply: "Then we will put the long ride on Saturday.",
+            },
             updatedAt: "2026-10-19T08:00:00Z",
           },
         ],
@@ -275,6 +279,12 @@ describe("unified plan update prompt", () => {
     );
     expect(prompt).toContain(
       "Coach reply: Keep the next long run easy and shorten the intervals.",
+    );
+    expect(prompt).toContain(
+      "Weekly note: I can only ride outdoors on Saturday.",
+    );
+    expect(prompt).toContain(
+      "Coach reply to the weekly note: Then we will put the long ride on Saturday.",
     );
     expect(prompt).toContain("Revise the current block in place");
   });

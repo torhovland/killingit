@@ -40,6 +40,11 @@ export interface PeriodReviewContext {
   summary: string;
   comment: string | null;
   reply: string | null;
+  /** The note the athlete saved for that week and the coach's reply to it. */
+  weeklyNote?: {
+    note: string;
+    reply: string | null;
+  } | null;
   /** When the review or its athlete comment was last edited. */
   updatedAt?: string;
 }
@@ -293,6 +298,17 @@ export function formatPeriodReviews(
         `- Completed ${entry.kind}: ${entry.title} (${entry.startDate} → ${entry.endDate})`,
         `  Coach summary: ${entry.summary.trim()}`,
       ];
+      if (entry.weeklyNote !== undefined && entry.weeklyNote !== null) {
+        lines.push(`  Weekly note: ${entry.weeklyNote.note.trim()}`);
+        if (
+          entry.weeklyNote.reply !== null &&
+          entry.weeklyNote.reply.trim() !== ""
+        ) {
+          lines.push(
+            `  Coach reply to the weekly note: ${entry.weeklyNote.reply.trim()}`,
+          );
+        }
+      }
       if (entry.comment !== null && entry.comment.trim() !== "") {
         lines.push(`  Athlete comment: ${entry.comment.trim()}`);
       }

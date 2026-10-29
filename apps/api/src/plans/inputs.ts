@@ -115,7 +115,7 @@ export async function loadCoachingInputs(
     })),
     weeklyNote: noteRows[0]?.note ?? null,
     weeklyNoteUpdatedAt: noteRows[0]?.updatedAt ?? null,
-    periodReviews: reviewEntries.map(({ review, reply }) => ({
+    periodReviews: reviewEntries.map(({ review, reply, weeklyNote }) => ({
       kind: review.kind,
       title: review.title,
       startDate: review.startDate,
@@ -123,6 +123,13 @@ export async function loadCoachingInputs(
       summary: review.summary,
       comment: review.comment,
       reply: reply?.text ?? null,
+      weeklyNote:
+        weeklyNote === undefined || weeklyNote === null
+          ? null
+          : {
+              note: weeklyNote.note,
+              reply: weeklyNote.reply?.text ?? null,
+            },
       updatedAt: review.updatedAt.toISOString(),
     })),
     weekReviewUpdatedAt,
