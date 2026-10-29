@@ -88,12 +88,22 @@ shapes (`StoredAthleteQuestion` and `AnalyzedActivity`) structurally and returns
 
 ## Technical approach
 
+- `promptRules.ts` owns every rule and JSON contract shared by more than one
+  prompt: the coach persona and training-science requirement, the standard input
+  guidance, week-shape and completed-session rules, the outline, session-purpose,
+  rationale, weather, bike-workout, training-load, enum and JSON rules, the
+  season/block/week/day contracts, and the activity-review rules. Each prompt
+  composes those constants instead of restating them, so a change reaches the
+  initial build, the combined plan, every update and the activity reviews
+  together.
 - `coachPlanPrompt.ts` exports `COACH_PLAN_PROMPT_VERSION`, the input interfaces,
-  `buildCoachPlanPrompt(input)`, and `buildCoachPlanMessages(input)`. The JSON
-  contract and the split daily prompt both include `optional` and
-  `optionalRationale` for today's and tomorrow's sessions, and the dated
-  `bodyMetrics` array that carries the body weight and body-fat values the
-  coach found in the athlete's input (see `docs/specs/body-metrics.md`).
+  `buildCoachPlanPrompt(input)`, and `buildCoachPlanMessages(input)`. Its
+  response contract is assembled from the same level contracts as the update
+  prompt, including `optional`, `optionalRationale`, `status`, the
+  indoor/outdoor fields, `bikeWorkout`, `estimatedTss`, the daily
+  `estimatedFtpWatts` and the dated `bodyMetrics` array that carries the body
+  weight and body-fat values the coach found in the athlete's input (see
+  `docs/specs/body-metrics.md`).
 - The combined prompt describes a coherent full plan in one JSON object. The
   lifecycle build now splits the initial plan into four smaller calls (season,
   block, week, day) so every response fits the model's output budget; the
@@ -104,10 +114,16 @@ shapes (`StoredAthleteQuestion` and `AnalyzedActivity`) structurally and returns
   tomorrow, next week and next block) and a revision request. The response is
   the full `CoachPlan` shape, so the coach can show a revised block with its
   week and day instead of the API chaining separate calls. See ADR 0013.
-- Every update rationale explains the plan as it stands after the revision,
-  not the revision itself. The prompt rejects change-log phrasing such as "we
-  adjusted" or "this replaces" and asks for the reason the current plan is
-  right from this point forward.
+- Every plan prompt uses the same rationale, outline, weather, bike-workout,
+  training-load, body-metric, session-purpose and enum rules. The initial
+  season and block prompts also ask for a rationale and the training-load
+  estimates, and the combined plan prompt asks for weather-aware,
+  bike-workout-capable sessions, so a plan looks the same whichever completion
+  built it.
+- Every update rationale explains the plan as it stands, not the revision
+  itself. The prompt rejects change-log phrasing such as "we adjusted" or "this
+  replaces" and asks for the reason the current plan is right from this point
+  forward.
 - A season update uses that same prompt: it receives the existing season and
   current block, keeps completed blocks and the season goal as reference, and
   re-plans the future from the athlete's latest input. A new season still uses
@@ -119,7 +135,10 @@ shapes (`StoredAthleteQuestion` and `AnalyzedActivity`) structurally and returns
   same budget. Reasoning tokens count against it; `completeWithFallbacks`
   retries with a larger budget (up to 32,768) when a model is truncated.
 - `formatDuration` is reused from `activityPrompt.ts` so durations read the same
-  way across coaching prompts.
+  way across coaching prompts. The activity review and program review share
+  `formatActivitySummary`, `formatFtpContext`, `formatPlanLevels` and
+  `formatPlannedSession` from `planContext.ts`, so both describe the same
+  activity and planned session the same way.
 
 ## Testing
 

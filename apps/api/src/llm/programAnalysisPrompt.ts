@@ -3,19 +3,24 @@ import type {
   CoachPlan,
   MetricPoint,
 } from "@killingit/shared";
-import { formatDuration } from "./activityPrompt.js";
-import { COACH_ANALYSIS_RESPONSE_RULES } from "./activityPrompt.js";
 import {
-  formatBlockPlan,
-  formatSeasonPlan,
-  formatWeekPlan,
+  formatActivitySummary,
+  formatFtpContext,
+  formatPlanLevels,
+  formatPlannedSession,
 } from "./planContext.js";
+import {
+  ACTIVITY_FTP_ESTIMATE_RULES,
+  ACTIVITY_TYPE_RULE,
+  COACH_ANALYSIS_RESPONSE_RULES,
+  ONLY_STATED_NUMBERS_RULE,
+} from "./promptRules.js";
 
 /**
  * Bump when the review prompt or generation parameters change materially. Cached
  * program reviews from an older version are ignored and regenerated.
  */
-export const PROGRAM_ANALYSIS_PROMPT_VERSION = 5;
+export const PROGRAM_ANALYSIS_PROMPT_VERSION = 6;
 
 export interface ProgramAnalysisInput {
   today: string;
@@ -30,11 +35,11 @@ export interface ProgramAnalysisInput {
 }
 
 const PROGRAM_ANALYSIS_SYSTEM_PROMPT = `You are an experienced endurance coach reviewing one completed workout against the athlete's current training program.
-The activity type recorded by the device is only a label and may be wrong: do not trust it. If the heart-rate data looks erratic — sudden spikes or drops that do not fit the steady effort the summary suggests — this may be a strength-training workout even when the device labelled it as running, cycling, or another endurance activity.
+${ACTIVITY_TYPE_RULE}
 Match the workout to a planned session, then weave how well it fit the plan into one brief summary rather than a separate section. Be encouraging when the workout was at least somewhat conforming, but do not hesitate to point out what could be improved. Cite only the most useful numbers.
 Use 2-3 sentences of plain text and finish with one actionable takeaway. Do not use headings, bullets, or markdown.
-Also estimate the athlete's FTP after this workout when the recorded effort supports it. Use the supplied FTP history as the baseline and never invent a large jump. Set "estimatedFtpWatts" to null when the activity gives no useful evidence.
-When the athlete's comment on this activity states their body weight or body-fat percentage, report it in "weightKg" and "bodyFatPercent". Report only numbers the input gives: never estimate a weigh-in from the workout data.
+${ACTIVITY_FTP_ESTIMATE_RULES}
+When the athlete's comment on this activity states their body weight or body-fat percentage, report it in "weightKg" and "bodyFatPercent". ${ONLY_STATED_NUMBERS_RULE}
 
 ${COACH_ANALYSIS_RESPONSE_RULES}`;
 
@@ -62,17 +67,10 @@ export function buildProgramAnalysisPrompt(
   const lines = [
     `Today's date: ${input.today}`,
     "",
-    "Season plan:",
-    formatSeasonPlan(plan.season),
-    "",
-    "Current block plan:",
-    formatBlockPlan(plan.block),
-    "",
-    "Current week plan:",
-    formatWeekPlan(plan.week),
+    ...formatPlanLevels(plan),
     "",
     plannedSession
-      ? `Planned session for ${activityDate}: ${plannedSession.title} [${plannedSession.type}, ${plannedSession.intensity}, ${plannedSession.durationMinutes} min] — ${plannedSession.description}`
+      ? `Planned session for ${activityDate}: ${formatPlannedSession(plannedSession)}`
       : `No session was planned for ${activityDate}. Match the activity to another session in this week if its data fits one.`,
     "",
   ];
@@ -81,27 +79,12 @@ export function buildProgramAnalysisPrompt(
     lines.push(`Current FTP: ${input.currentFtpWatts} W`, "");
   }
   if (input.ftpHistory !== undefined && input.ftpHistory.length > 0) {
-    lines.push(
-      'FTP history (oldest first; "user" and "garmin" values are measurements, "coach" values are earlier estimates):',
-      ...input.ftpHistory
-        .slice(-60)
-        .map(
-          (point) =>
-            `- ${point.date}: ${Math.round(point.value)} W (${point.source})`,
-        ),
-      "",
-    );
+    lines.push(...formatFtpContext(input.ftpHistory), "");
   }
 
   lines.push(
     "Completed activity:",
-    `- Date: ${activityDate}`,
-    `- Name: ${activity.name}`,
-    `- Type (recorded by the device; may be wrong): ${activity.type}`,
-    `- Distance: ${(activity.distance / 1000).toFixed(2)} km`,
-    `- Moving time: ${formatDuration(activity.movingTime)}, elapsed time: ${formatDuration(activity.elapsedTime)}`,
-    `- Elevation gain: ${Math.round(activity.totalElevationGain)} m`,
-    `- Recorded samples: ${activity.sampleCount}`,
+    ...formatActivitySummary(activity, activity.sampleCount),
   );
 
   if (activity.analysis !== null) {

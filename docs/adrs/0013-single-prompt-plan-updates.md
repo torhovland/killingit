@@ -60,7 +60,8 @@ sees the season, block, week, today, tomorrow and the next period together.
 - The response is larger because it carries every level, but a current plan is
   still small compared with the 16,384-token output budget.
 - The update prompt is longer and shares the weather, load, bike-workout,
-  optionality and outline rules with the build prompts.
+  optionality, rationale and outline rules with the build prompts through
+  `promptRules.ts`.
 - The app validates the returned week dates, next-period dates, today's date and
   tomorrow's placement before saving. A response that moves a required block
   start date or leaves tomorrow outside a planned week fails with the existing

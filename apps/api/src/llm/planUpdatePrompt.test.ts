@@ -5,15 +5,18 @@ import type {
   SeasonPlan,
   WeekPlan,
 } from "@killingit/shared";
-import { BODY_METRIC_RULES, WEEK_OUTLINE_RULES } from "./planContext.js";
+import {
+  BODY_METRIC_RULES,
+  RATIONALE_RULES,
+  WEEK_OUTLINE_RULES,
+  WEATHER_PLANNING_RULES,
+} from "./promptRules.js";
 import {
   buildDailyUpdatePrompt,
   buildPlanUpdatePrompt,
   buildWeeklyUpdatePrompt,
   DAILY_UPDATE_SYSTEM_PROMPT,
   PLAN_UPDATE_SYSTEM_PROMPT,
-  RATIONALE_RULES,
-  WEATHER_PLANNING_RULES,
   WEEKLY_UPDATE_SYSTEM_PROMPT,
   type PlanUpdateInput,
 } from "./planUpdatePrompt.js";
@@ -311,10 +314,10 @@ describe("unified plan update prompt", () => {
   it("asks for rationales about the revised plan, not the revision", () => {
     expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain(RATIONALE_RULES);
     expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain(
-      "explains the plan as it stands after the revision, not the act of revising it",
+      "explains the plan as it stands, not the act of creating or revising it",
     );
     expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain(
-      "Do not describe the previous plan, what changed, or why the plan was revised.",
+      "Do not describe a previous plan, what changed, or why it was revised.",
     );
     expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain(
       'Do not write phrases such as "we adjusted", "we changed", "this replaces", or "because of the new review".',

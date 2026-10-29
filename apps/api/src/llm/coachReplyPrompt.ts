@@ -1,10 +1,10 @@
-import type { CoachPlan, DayPlan } from "@killingit/shared";
+import type { CoachPlan } from "@killingit/shared";
 import type { AthleteAnswerContext } from "./planContext.js";
 import {
-  formatAthleteAnswers,
-  formatBlockPlan,
-  formatSeasonPlan,
-  formatWeekPlan,
+  formatAthleteProfile,
+  formatDayPlan,
+  formatPlanLevels,
+  formatPlannedSession,
 } from "./planContext.js";
 
 /** The athlete input the coach is replying to. */
@@ -73,17 +73,9 @@ export function buildCoachReplyPrompt(input: CoachReplyPromptInput): string {
   const lines = [
     `Today's date: ${input.today}`,
     "",
-    "Athlete profile:",
-    formatAthleteAnswers(input.athleteAnswers),
+    ...formatAthleteProfile(input.athleteAnswers),
     "",
-    "Season plan:",
-    formatSeasonPlan(plan.season),
-    "",
-    "Current block plan:",
-    formatBlockPlan(plan.block),
-    "",
-    "Current week plan:",
-    formatWeekPlan(plan.week),
+    ...formatPlanLevels(plan),
     "",
     "Today's session:",
     formatDayPlan(plan.today),
@@ -95,7 +87,7 @@ export function buildCoachReplyPrompt(input: CoachReplyPromptInput): string {
   if (targetSession) {
     lines.push(
       "",
-      `Planned session on ${targetDate}: ${targetSession.title} [${targetSession.type}, ${targetSession.intensity}, ${targetSession.durationMinutes} min] — ${targetSession.description}`,
+      `Planned session on ${targetDate}: ${formatPlannedSession(targetSession)}`,
     );
   }
   if (request.kind === "week_review" || request.kind === "block_review") {
@@ -149,8 +141,4 @@ function formatRequest(request: CoachReplyTarget): string {
     case "quick_question":
       return `Question: "${request.question.trim()}"`;
   }
-}
-
-function formatDayPlan(day: DayPlan): string {
-  return `${day.date} — ${day.title} [${day.type}, ${day.intensity}, ${day.durationMinutes} min]: ${day.description}`;
 }

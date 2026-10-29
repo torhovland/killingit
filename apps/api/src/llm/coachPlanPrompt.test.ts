@@ -8,7 +8,13 @@ import {
   toCoachPlanActivity,
   type CoachPlanInput,
 } from "./coachPlanPrompt.js";
-import { WEEK_OUTLINE_RULES } from "./planContext.js";
+import {
+  BIKE_WORKOUT_RULES,
+  COMPLETED_SESSION_RULES,
+  RATIONALE_RULES,
+  WEEK_OUTLINE_RULES,
+  WEATHER_PLANNING_RULES,
+} from "./promptRules.js";
 
 function makeInput(overrides: Partial<CoachPlanInput> = {}): CoachPlanInput {
   return {
@@ -96,7 +102,7 @@ function makeAnalyzedActivity(
 
 describe("coach plan prompts", () => {
   it("exposes a prompt version for cache invalidation", () => {
-    expect(COACH_PLAN_PROMPT_VERSION).toBe(9);
+    expect(COACH_PLAN_PROMPT_VERSION).toBe(10);
   });
 
   it("builds a system and a user message", () => {
@@ -165,6 +171,13 @@ describe("coach plan prompts", () => {
     expect(prompt).toContain(
       "Fully detail today's and tomorrow's sessions; keep every later day in the week as a short outline.",
     );
+  });
+
+  it("uses the same planning rules as the update prompt", () => {
+    expect(COACH_PLAN_SYSTEM_PROMPT).toContain(WEATHER_PLANNING_RULES);
+    expect(COACH_PLAN_SYSTEM_PROMPT).toContain(BIKE_WORKOUT_RULES);
+    expect(COACH_PLAN_SYSTEM_PROMPT).toContain(RATIONALE_RULES);
+    expect(COACH_PLAN_SYSTEM_PROMPT).toContain(COMPLETED_SESSION_RULES);
   });
 
   it("includes today's date, the timezone, and the athlete profile", () => {

@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import {
-  ACTIVITY_COMMENT_RULE,
   formatPlanContext,
   formatWeekPlan,
   type PlanContextInput,
   type RecentActivityContext,
 } from "./planContext.js";
+import { ACTIVITY_COMMENT_RULE } from "./promptRules.js";
 
 const activity: RecentActivityContext = {
   summary: {

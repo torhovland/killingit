@@ -66,7 +66,10 @@ about a past workout, or before a suggested workout, to steer the coach.
   response or error, model, usage, and request metadata. The admin settings
   page lists them under "LLM prompts" (`GET /api/admin/llm-calls`). Logging is
   admin-only and fail-open, so a log write can never break coaching. See
-  `docs/specs/llm-call-log.md`.
+  `docs/specs/llm-call-log.md`. Shared prompt rules and JSON contracts live in
+  `apps/api/src/llm/promptRules.ts`; the build, update, activity-review and
+  manual-TSS prompts compose them so TSS, FTP, weather, bike-workout,
+  body-metric and week-outline behaviour stays consistent across prompts.
 - The four-level plan is stored per user in `coach_plans`; generation progress
   is in `plan_generations`. After 18:00 the stored plan also carries tomorrow's
   session and, when tomorrow has crossed a week or block boundary, the next week
