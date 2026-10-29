@@ -83,12 +83,10 @@ export const geocodeResponseSchema = z.object({
 export type GeocodeResponse = z.infer<typeof geocodeResponseSchema>;
 
 /**
- * Formats one day of weather as a single readable line. The units match the
- * forecast data: °C, m/s, and the location's local clock time. Gusts follow the
- * sustained wind in parentheses, and the daylight window is rendered as a
- * range when both sunrise and sunset are known.
+ * The pieces of a forecast line, separated by bullets in the UI. Kept separate
+ * so the reader can space the separator without changing the text itself.
  */
-export function formatDailyWeatherLine(weather: DailyWeather): string {
+export function formatDailyWeatherParts(weather: DailyWeather): string[] {
   const low = Math.round(weather.temperatureMinC);
   const high = Math.round(weather.temperatureMaxC);
   const temperature = low === high ? `${high} °C` : `${low}–${high} °C`;
@@ -106,5 +104,15 @@ export function formatDailyWeatherLine(weather: DailyWeather): string {
     temperature,
     wind,
     ...(daylight === null ? [] : [daylight]),
-  ].join(" · ");
+  ];
+}
+
+/**
+ * Formats one day of weather as a single readable line. The units match the
+ * forecast data: °C, m/s, and the location's local clock time. Gusts follow the
+ * sustained wind in parentheses, and the daylight window is rendered as a
+ * range when both sunrise and sunset are known.
+ */
+export function formatDailyWeatherLine(weather: DailyWeather): string {
+  return formatDailyWeatherParts(weather).join(" · ");
 }

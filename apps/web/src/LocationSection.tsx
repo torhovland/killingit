@@ -6,6 +6,7 @@ import {
   type GeocodedLocation,
 } from "@killingit/shared";
 import { useAuth } from "./auth";
+import { Bullet } from "./Bullet";
 import { fetchJsonAuthed } from "./fetchAuthed";
 import { LocationPickerMap } from "./LocationPickerMap";
 import { reportError } from "./reportError";
@@ -175,9 +176,19 @@ export function LocationSection({
 
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <p className="text-muted-foreground" data-testid="location-summary">
-          {draft === null
-            ? "No location set. Weather and daylight are not used in your plan."
-            : `${label ? `${label} · ` : ""}${draft.latitude.toFixed(4)}, ${draft.longitude.toFixed(4)}`}
+          {draft === null ? (
+            "No location set. Weather and daylight are not used in your plan."
+          ) : (
+            <>
+              {label && (
+                <>
+                  {label}
+                  <Bullet />
+                </>
+              )}
+              {draft.latitude.toFixed(4)}, {draft.longitude.toFixed(4)}
+            </>
+          )}
         </p>
       </div>
 

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { Question, QuestionInput } from "@killingit/shared";
+import { Bullet } from "./Bullet";
 import { QuestionForm } from "./QuestionForm";
 import { reportError } from "./reportError";
 
@@ -86,7 +87,8 @@ export function QuestionRow({
     >
       <p className="whitespace-pre-wrap font-medium">{question.prompt}</p>
       <p className="text-xs text-muted-foreground">
-        v{question.version} of {question.versionCount} ·{" "}
+        v{question.version} of {question.versionCount}
+        <Bullet />
         {question.required ? "Required" : "Optional"}
       </p>
       {error && (

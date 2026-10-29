@@ -2,6 +2,7 @@ import { useState } from "react";
 import { formatActivityType, type AnalyzedActivity } from "@killingit/shared";
 import { ActivityMap } from "./ActivityMap";
 import { ActivitySamples } from "./ActivitySamples";
+import { Bullet, Bullets } from "./Bullet";
 import { formatDuration } from "./formatDuration";
 import { SubmitButton } from "./SubmitButton";
 import { TrainingLoadLine } from "./TrainingLoadLine";
@@ -155,10 +156,10 @@ export function ActivityCard({
           <header className="flex flex-col gap-1">
             <h3 className="text-lg font-semibold">{activity.name}</h3>
             <p className="text-sm text-muted-foreground">
-              {metadata.join(" · ")}
+              <Bullets parts={metadata} />
               {onDelete && (
                 <>
-                  {" · "}
+                  <Bullet />
                   <button
                     type="button"
                     className="text-destructive enabled:hover:underline disabled:opacity-50"

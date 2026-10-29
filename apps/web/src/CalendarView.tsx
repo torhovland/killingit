@@ -8,6 +8,7 @@ import {
   type WeekSessionStatus,
 } from "@killingit/shared";
 import { ActivityMap } from "./ActivityMap";
+import { Bullet, Bullets } from "./Bullet";
 import {
   buildMonthGrid,
   clampMonth,
@@ -18,6 +19,7 @@ import {
 } from "./calendarDates";
 import { formatPlanDate } from "./CoachPlanView";
 import { formatDuration } from "./formatDuration";
+import { SessionSetting } from "./SessionSetting";
 import { TrainingLoadLine } from "./TrainingLoadLine";
 import { useTimeZone } from "./TimeZoneContext";
 import { formatDateTime } from "./timeZone";
@@ -202,7 +204,10 @@ function CalendarHeading({
           <span className="font-medium">
             Season ends {formatPlanDate(season.endDate)}
           </span>
-          <span className="text-muted-foreground"> · {season.goal}</span>
+          <span className="text-muted-foreground">
+            <Bullet />
+            {season.goal}
+          </span>
         </p>
       )}
     </div>
@@ -243,7 +248,9 @@ function CalendarCell({
           className="rounded bg-accent/20 px-1 py-0.5 font-medium text-accent-foreground"
           data-testid="calendar-block-start"
         >
-          Block starts · {day.blockStart.name}
+          Block starts
+          <Bullet />
+          {day.blockStart.name}
         </span>
       )}
 
@@ -303,10 +310,21 @@ function SessionChip({
     >
       <span className="line-clamp-2 font-medium">{session.title}</span>
       <span className="text-[10px] text-muted-foreground">
-        {sessionStatusPrefix(session.status)}
-        {session.durationMinutes} min · {session.intensity}
-        {session.trainingLoad != null &&
-          ` · TSS ${Math.round(session.trainingLoad.tss)}`}
+        {sessionStatusPrefix(session.status) !== "" && (
+          <>
+            {sessionStatusPrefix(session.status)}
+            <Bullet />
+          </>
+        )}
+        {session.durationMinutes} min
+        <Bullet />
+        {session.intensity}
+        {session.trainingLoad != null && (
+          <>
+            <Bullet />
+            TSS {Math.round(session.trainingLoad.tss)}
+          </>
+        )}
       </span>
     </button>
   );
@@ -328,24 +346,24 @@ function ActivityChip({
     >
       <span className="line-clamp-2 font-medium">{activity.name}</span>
       <span className="text-[10px] text-muted-foreground">
-        {activityStat(activity)}
+        <Bullets parts={activityStat(activity)} />
       </span>
     </button>
   );
 }
 
-function activityStat(activity: CalendarActivity): string {
+function activityStat(activity: CalendarActivity): string[] {
   if (activity.source === "manual") {
     return activity.estimatedTss != null
-      ? `Manual · TSS ${Math.round(activity.estimatedTss)}`
-      : "Manual";
+      ? ["Manual", `TSS ${Math.round(activity.estimatedTss)}`]
+      : ["Manual"];
   }
   const parts: string[] = [];
   if (activity.distance > 0) {
     parts.push(`${(activity.distance / 1000).toFixed(1)} km`);
   }
   parts.push(formatDuration(activity.elapsedTime));
-  return parts.join(" · ");
+  return parts;
 }
 
 export function CalendarEntryDialog({
@@ -393,9 +411,15 @@ export function CalendarEntryDialog({
       >
         <div className="flex items-start justify-between gap-3">
           <h3 className="text-lg font-semibold">
-            {selection.kind === "activity"
-              ? selection.activity.name
-              : `${formatPlanDate(selection.session.date)} · ${selection.session.title}`}
+            {selection.kind === "activity" ? (
+              selection.activity.name
+            ) : (
+              <>
+                {formatPlanDate(selection.session.date)}
+                <Bullet />
+                {selection.session.title}
+              </>
+            )}
           </h3>
           <button
             type="button"
@@ -424,7 +448,9 @@ function ActivityDetails({ activity }: { activity: CalendarActivity }) {
     return (
       <div className="flex flex-col gap-2">
         <p className="text-sm text-muted-foreground">
-          Manual activity · {formatPlanDate(activity.startDate)}
+          Manual activity
+          <Bullet />
+          {formatPlanDate(activity.startDate)}
         </p>
         <p className="whitespace-pre-line">{activity.details}</p>
         {activity.estimatedTss != null && (
@@ -475,7 +501,9 @@ function ActivityDetails({ activity }: { activity: CalendarActivity }) {
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-sm text-muted-foreground">{metadata.join(" · ")}</p>
+      <p className="text-sm text-muted-foreground">
+        <Bullets parts={metadata} />
+      </p>
 
       {hasMap ? (
         <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_16rem] sm:items-start">
@@ -538,9 +566,16 @@ function SessionDetails({ session }: { session: WeekSession }) {
         <span>{formatPlanDate(session.date)}</span>
         <StatusBadge status={session.status} />
         <span>
-          {session.type === "rest"
-            ? "Rest day"
-            : `${session.durationMinutes} min · ${session.intensity}${formatSessionSetting(session.outdoor)}`}
+          {session.type === "rest" ? (
+            "Rest day"
+          ) : (
+            <>
+              {session.durationMinutes} min
+              <Bullet />
+              {session.intensity}
+              <SessionSetting outdoor={session.outdoor} />
+            </>
+          )}
         </span>
       </p>
       {session.trainingLoad != null && (
@@ -580,17 +615,13 @@ function StatusBadge({ status }: { status: WeekSessionStatus }) {
   );
 }
 
-function formatSessionSetting(outdoor: boolean | undefined): string {
-  return outdoor === false ? " · indoor" : outdoor === true ? " · outdoor" : "";
-}
-
 /** A short status prefix for a day whose session has already been resolved. */
 function sessionStatusPrefix(status: WeekSessionStatus): string {
   if (status === "completed") {
-    return "Completed · ";
+    return "Completed";
   }
   if (status === "partial") {
-    return "Partial · ";
+    return "Partial";
   }
-  return status === "missed" ? "Missed · " : "";
+  return status === "missed" ? "Missed" : "";
 }

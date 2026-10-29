@@ -1,4 +1,5 @@
 import { formatActivityType, type FitnessHistoryDay } from "@killingit/shared";
+import { Bullet } from "./Bullet";
 import { formatChartDate } from "./chartGeometry";
 import { TrainingLoadLine } from "./TrainingLoadLine";
 
@@ -27,8 +28,8 @@ export function FitnessDayTooltip({
         {formatChartDate(day.date)}
         {ftpWatts !== null && ftpWatts !== undefined && (
           <span className="font-normal text-muted-foreground">
-            {" "}
-            · FTP {ftpWatts} W
+            <Bullet />
+            FTP {ftpWatts} W
           </span>
         )}
       </p>
@@ -45,7 +46,14 @@ export function FitnessDayTooltip({
             <span className="font-medium text-foreground">
               {isRest ? "Rest" : planned.title}
             </span>
-            {isRest ? "" : ` · ${planned.durationMinutes} min`}
+            {isRest ? (
+              ""
+            ) : (
+              <>
+                <Bullet />
+                {planned.durationMinutes} min
+              </>
+            )}
           </p>
         )
       ) : day.activities.length === 0 ? (
@@ -57,8 +65,12 @@ export function FitnessDayTooltip({
               <span className="font-medium">{activity.name}</span>{" "}
               <span className="text-muted-foreground">
                 {formatActivityType(activity.type)}
-                {activity.durationMinutes !== undefined &&
-                  ` · ${formatDuration(activity.durationMinutes)}`}
+                {activity.durationMinutes !== undefined && (
+                  <>
+                    <Bullet />
+                    {formatDuration(activity.durationMinutes)}
+                  </>
+                )}
               </span>
             </li>
           ))}

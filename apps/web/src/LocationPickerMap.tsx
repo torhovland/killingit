@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { AthleteLocation } from "@killingit/shared";
+import { Bullet } from "./Bullet";
 import {
   mapTiles,
   projectPoint,
@@ -182,7 +183,8 @@ export function LocationPickerMap({
       </div>
 
       <p className="mt-1 px-1 text-[10px] text-muted-foreground">
-        Click or drag the map to choose a point ·{" "}
+        Click or drag the map to choose a point
+        <Bullet />
         <a
           href="https://www.openstreetmap.org/copyright"
           target="_blank"

@@ -3,6 +3,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import type { CoachPlan } from "@killingit/shared";
 import { CoachPlanView } from "./CoachPlanView";
 
+const BULLET = '<span class="mx-[0.75em]">·</span>';
+
 const plan: CoachPlan = {
   season: {
     goal: "Sub-4-hour marathon",
@@ -122,26 +124,26 @@ describe("CoachPlanView", () => {
     expect(html).toContain('aria-selected="true"');
     expect(html).toContain('aria-selected="false"');
     expect(html).toContain('data-testid="plan-today"');
-    expect(html).not.toContain("This week · Aerobic base");
+    expect(html).not.toContain(`This week${BULLET}Aerobic base`);
   });
 
   it("renders the week, block, and season levels with rationales", () => {
     const week = renderToStaticMarkup(
       <CoachPlanView plan={plan} defaultTab="week" />,
     );
-    expect(week).toContain("This week · Aerobic base");
+    expect(week).toContain(`This week${BULLET}Aerobic base`);
     expect(week).toContain("Keep the week easy and consistent.");
 
     const block = renderToStaticMarkup(
       <CoachPlanView plan={plan} defaultTab="block" />,
     );
-    expect(block).toContain("Current block · Base");
+    expect(block).toContain(`Current block${BULLET}Base`);
     expect(block).toContain("Establish consistent aerobic volume.");
 
     const season = renderToStaticMarkup(
       <CoachPlanView plan={plan} defaultTab="season" />,
     );
-    expect(season).toContain("Season · Sub-4-hour marathon");
+    expect(season).toContain(`Season${BULLET}Sub-4-hour marathon`);
     expect(season).toContain(
       "Build a strong aerobic base before marathon-specific work.",
     );
@@ -203,8 +205,8 @@ describe("CoachPlanView", () => {
     const week = renderToStaticMarkup(
       <CoachPlanView plan={nextPlan} defaultTab="week" />,
     );
-    expect(week).toContain("This week · Aerobic base");
-    expect(week).toContain("Next week · Aerobic build");
+    expect(week).toContain(`This week${BULLET}Aerobic base`);
+    expect(week).toContain(`Next week${BULLET}Aerobic build`);
     expect(week).toContain("Week starting Mon, Oct 26");
     expect(week).toContain("Next session 1");
     expect(week).toContain('data-testid="plan-next-week"');
@@ -213,8 +215,8 @@ describe("CoachPlanView", () => {
     const block = renderToStaticMarkup(
       <CoachPlanView plan={nextPlan} defaultTab="block" />,
     );
-    expect(block).toContain("Current block · Base");
-    expect(block).toContain("Next block · Build");
+    expect(block).toContain(`Current block${BULLET}Base`);
+    expect(block).toContain(`Next block${BULLET}Build`);
     expect(block).toContain("Add threshold work after the aerobic base.");
     expect(block).toContain('data-testid="plan-next-block"');
   });
@@ -235,7 +237,15 @@ describe("CoachPlanView", () => {
       <CoachPlanView plan={plan} defaultTab="week" />,
     );
 
-    expect(html).toContain("Mon, Oct 19 · Morning Run");
+    expect(html).toContain(`Mon, Oct 19${BULLET}Morning Run`);
+  });
+
+  it("puts the week session details before the status box", () => {
+    const html = renderToStaticMarkup(
+      <CoachPlanView plan={plan} defaultTab="week" />,
+    );
+
+    expect(html.indexOf("45 min")).toBeLessThan(html.indexOf(">completed<"));
   });
 
   it("shows a rest day's status box without repeating a rest label", () => {
@@ -292,7 +302,7 @@ describe("CoachPlanView", () => {
     );
 
     expect(html).toContain("Logged manually");
-    expect(html).not.toContain("0 min · easy");
+    expect(html).not.toContain(`0 min${BULLET}easy`);
   });
 
   it("explains what skipping today's and tomorrow's sessions would cost", () => {
@@ -405,7 +415,7 @@ describe("CoachPlanView", () => {
 
     expect(html).toContain("Rain");
     expect(html).toContain(
-      "Rain · 5–9 °C · wind 4 m/s (8 m/s) · daylight 07:45 - 16:30",
+      `Rain${BULLET}5–9 °C${BULLET}wind 4 m/s (8 m/s)${BULLET}daylight 07:45 - 16:30`,
     );
     expect(html).toContain('aria-label="Rain"');
     expect(html).toContain('data-testid="weather"');
@@ -492,7 +502,7 @@ describe("CoachPlanView", () => {
       />,
     );
     expect(flexible).toContain("Snow");
-    expect(flexible).toContain("· indoor");
+    expect(flexible).toContain(`${BULLET}indoor`);
 
     const indoorOnly = renderToStaticMarkup(
       <CoachPlanView
@@ -567,7 +577,7 @@ describe("CoachPlanView", () => {
     );
 
     expect(week).toContain("Easy trainer ride with cadence blocks.");
-    expect(week).toContain("· indoor");
+    expect(week).toContain(`${BULLET}indoor`);
   });
 
   it("shows weather for an outdoor session in the week view", () => {
@@ -599,7 +609,7 @@ describe("CoachPlanView", () => {
 
     expect(html).toContain("Sunny");
     expect(html).toContain(
-      "Sunny · 7–14 °C · wind 2 m/s (5 m/s) · daylight 07:45 - 16:30",
+      `Sunny${BULLET}7–14 °C${BULLET}wind 2 m/s (5 m/s)${BULLET}daylight 07:45 - 16:30`,
     );
     expect(html).toContain('class="w-full" data-testid="week-weather"');
     expect(html).toContain("stroke-amber-500");

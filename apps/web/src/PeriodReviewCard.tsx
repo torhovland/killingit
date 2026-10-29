@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { PeriodReview, ReviewKind } from "@killingit/shared";
+import { Bullet } from "./Bullet";
 import { SubmitButton } from "./SubmitButton";
 
 const KIND_LABELS: Record<ReviewKind, string> = {
@@ -105,7 +106,9 @@ export function PeriodReviewCard({
       <header className="flex flex-col gap-1">
         <h3 className="text-lg font-semibold">{KIND_LABELS[review.kind]}</h3>
         <p className="text-sm text-muted-foreground">
-          {review.title} · {review.startDate} → {review.endDate}
+          {review.title}
+          <Bullet />
+          {review.startDate} → {review.endDate}
         </p>
       </header>
 

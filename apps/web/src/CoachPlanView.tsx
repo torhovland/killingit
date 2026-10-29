@@ -8,6 +8,8 @@ import {
   type WeekPlan,
   type WeekSessionStatus,
 } from "@killingit/shared";
+import { Bullet } from "./Bullet";
+import { SessionSetting } from "./SessionSetting";
 import { TrainingLoadLine } from "./TrainingLoadLine";
 import { WeatherSummary } from "./WeatherSummary";
 
@@ -147,16 +149,25 @@ function DayCard({
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-lg font-semibold">
-            {label} · {formatPlanDate(day.date)}
+            {label}
+            <Bullet />
+            {formatPlanDate(day.date)}
           </h3>
           <span className="flex items-center gap-2">
             {(day.status === "completed" || day.status === "partial") && (
               <StatusBadge status={day.status} />
             )}
             <span className="rounded border bg-muted px-2 py-0.5 text-xs capitalize">
-              {day.type === "rest"
-                ? "Rest day"
-                : `${day.durationMinutes} min · ${day.intensity}${formatSessionSetting(day.outdoor)}`}
+              {day.type === "rest" ? (
+                "Rest day"
+              ) : (
+                <>
+                  {day.durationMinutes} min
+                  <Bullet />
+                  {day.intensity}
+                  <SessionSetting outdoor={day.outdoor} />
+                </>
+              )}
             </span>
           </span>
         </div>
@@ -264,13 +275,15 @@ function WeekSection({
   return (
     <section className="rounded-lg border bg-card p-4" data-testid={testId}>
       <h3 className="text-lg font-semibold">
-        {label} · {week.focus}
+        {label}
+        <Bullet />
+        {week.focus}
       </h3>
       <p className="text-sm text-muted-foreground">
         Week starting {formatPlanDate(week.startDate)}
         {week.estimatedFtpWatts != null && (
           <span data-testid="week-ftp">
-            {" · "}
+            <Bullet />
             Estimated FTP:{" "}
             <span className="font-medium">{week.estimatedFtpWatts} W</span>
           </span>
@@ -284,14 +297,27 @@ function WeekSection({
             className="flex flex-wrap items-baseline justify-between gap-2 border-b pb-2 text-sm last:border-b-0 last:pb-0"
           >
             <span className="font-medium">
-              {formatPlanDate(session.date)} · {session.title}
+              {formatPlanDate(session.date)}
+              <Bullet />
+              {session.title}
             </span>
-            <span className="flex items-center gap-2 text-muted-foreground">
+            <span className="ml-auto flex items-center gap-2 text-muted-foreground">
+              {session.type !== "rest" && (
+                <span>
+                  {session.status === "completed" &&
+                  session.durationMinutes === 0 ? (
+                    "Logged manually"
+                  ) : (
+                    <>
+                      {session.durationMinutes} min
+                      <Bullet />
+                      {session.intensity}
+                      <SessionSetting outdoor={session.outdoor} />
+                    </>
+                  )}
+                </span>
+              )}
               <StatusBadge status={session.status} />
-              {session.type !== "rest" &&
-                (session.status === "completed" && session.durationMinutes === 0
-                  ? "Logged manually"
-                  : `${session.durationMinutes} min · ${session.intensity}${formatSessionSetting(session.outdoor)}`)}
             </span>
             {session.trainingLoad !== null &&
               session.trainingLoad !== undefined && (
@@ -342,13 +368,16 @@ function BlockSection({
   return (
     <section className="rounded-lg border bg-card p-4" data-testid={testId}>
       <h3 className="text-lg font-semibold">
-        {label} · {block.name}
+        {label}
+        <Bullet />
+        {block.name}
       </h3>
       <p className="mt-2 text-sm text-muted-foreground">
         {formatPlanDate(block.startDate)} → {formatPlanDate(block.endDate)}
         {block.estimatedFtpWatts != null && (
           <span data-testid="block-ftp">
-            {" · "}Estimated FTP:{" "}
+            <Bullet />
+            Estimated FTP:{" "}
             <span className="font-medium">{block.estimatedFtpWatts} W</span>
           </span>
         )}
@@ -384,12 +413,17 @@ function BlockSection({
 function SeasonSection({ season }: { season: SeasonPlan }) {
   return (
     <section className="rounded-lg border bg-card p-4">
-      <h3 className="text-lg font-semibold">Season · {season.goal}</h3>
+      <h3 className="text-lg font-semibold">
+        Season
+        <Bullet />
+        {season.goal}
+      </h3>
       <p className="mt-2 text-sm text-muted-foreground">
         {formatPlanDate(season.startDate)} → {formatPlanDate(season.endDate)}
         {season.estimatedFtpWatts != null && (
           <span data-testid="season-ftp">
-            {" · "}Estimated FTP:{" "}
+            <Bullet />
+            Estimated FTP:{" "}
             <span className="font-medium">{season.estimatedFtpWatts} W</span>
           </span>
         )}
@@ -406,8 +440,9 @@ function SeasonSection({ season }: { season: SeasonPlan }) {
             </p>
             <p className="text-muted-foreground">
               {formatPlanDate(block.startDate)} →{" "}
-              {formatPlanDate(block.endDate)} · {block.weekCount}{" "}
-              {block.weekCount === 1 ? "week" : "weeks"}
+              {formatPlanDate(block.endDate)}
+              <Bullet />
+              {block.weekCount} {block.weekCount === 1 ? "week" : "weeks"}
             </p>
             <p className="text-muted-foreground">{block.focus}</p>
           </PlanListItem>
@@ -428,15 +463,6 @@ function PlanListItem({ children }: { children: ReactNode }) {
       {children}
     </li>
   );
-}
-
-/**
- * Suffix that states whether the coach planned a session indoors or outdoors.
- * Missing is treated as outdoor, but showing no suffix avoids claiming a
- * setting for plans stored before the field existed.
- */
-function formatSessionSetting(outdoor: boolean | undefined): string {
-  return outdoor === false ? " · indoor" : outdoor === true ? " · outdoor" : "";
 }
 
 export function formatPlanDate(date: string): string {

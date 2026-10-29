@@ -6,6 +6,7 @@ import {
   type LlmSettings,
 } from "@killingit/shared";
 import { useAuth } from "./auth";
+import { Bullet } from "./Bullet";
 import { fetchJsonAuthed } from "./fetchAuthed";
 import { reportError } from "./reportError";
 
@@ -121,7 +122,9 @@ export function LlmSection({ settings, onSaved }: LlmSectionProps) {
     return (
       <section className="flex flex-col gap-1" data-testid="llm-status">
         <p className="text-sm text-success">
-          OpenRouter connected · {settings.model}
+          OpenRouter connected
+          <Bullet />
+          {settings.model}
         </p>
         <button
           type="button"

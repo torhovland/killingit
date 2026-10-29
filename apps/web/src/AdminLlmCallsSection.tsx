@@ -7,6 +7,7 @@ import {
   type LlmCallSummary,
 } from "@killingit/shared";
 import { useAuth } from "./auth";
+import { Bullet } from "./Bullet";
 import { fetchJsonAuthed } from "./fetchAuthed";
 import { reportError } from "./reportError";
 import { browserTimeZone, formatDateTime } from "./timeZone";
@@ -258,8 +259,11 @@ export function LlmCallDetailView({ call }: { call: LlmCallDetail }) {
             {LLM_PROMPT_KIND_LABELS[call.kind]}
           </h3>
           <p className="text-sm text-muted-foreground">
-            {formatDateTime(call.createdAt, browserTimeZone())} ·{" "}
-            {call.userLabel} · {call.model}
+            {formatDateTime(call.createdAt, browserTimeZone())}
+            <Bullet />
+            {call.userLabel}
+            <Bullet />
+            {call.model}
           </p>
           <div className="flex flex-wrap items-center gap-1">
             <CallBadges call={call} />
