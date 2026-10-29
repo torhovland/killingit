@@ -30,6 +30,7 @@ import {
   type WeatherForecastSet,
 } from "../weather/forecast.js";
 import { startOfWeek } from "./dates.js";
+import { saveCoachQuestions } from "./coachQuestions.js";
 import { GENERATION_HEARTBEAT_MS } from "./generation.js";
 import { runPlanGeneration } from "./generate.js";
 import { planFtpEstimates } from "./generate.js";
@@ -212,6 +213,8 @@ export async function triggerPlanGeneration(
       recordPlanFtpEstimates(userId, planFtpEstimates(generatedPlan)),
     recordBodyMetrics: (points) =>
       recordCoachBodyMetrics(userId, points, today),
+    recordCoachQuestions: ({ questions, model, sourceKind }) =>
+      saveCoachQuestions({ userId, questions, model, sourceKind }),
     reviewActivities: (plan) =>
       analyzeActivitiesAgainstPlan({
         userId,

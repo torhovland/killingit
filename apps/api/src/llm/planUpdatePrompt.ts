@@ -18,6 +18,7 @@ import {
   BIKE_WORKOUT_RULES,
   BODY_METRIC_POINT_CONTRACT,
   BLOCK_CONTRACT,
+  COACH_RESPONSE_NOTES_CONTRACT,
   COMPLETED_SESSION_RULES,
   COMPLETION_SLACK_RULES,
   DAY_CONTRACT,
@@ -123,7 +124,8 @@ export const DAILY_UPDATE_SYSTEM_PROMPT = promptSections(
   "today": ${DAY_CONTRACT},
   "tomorrow": ${DAY_CONTRACT},
   "week": ${WEEK_CONTRACT},
-  "bodyMetrics": [${BODY_METRIC_POINT_CONTRACT}]
+  "bodyMetrics": [${BODY_METRIC_POINT_CONTRACT}],
+  ${COACH_RESPONSE_NOTES_CONTRACT}
 }`,
 );
 
@@ -145,7 +147,8 @@ export const WEEKLY_UPDATE_SYSTEM_PROMPT = promptSections(
   `{
   "week": ${WEEK_CONTRACT},
   "block": ${BLOCK_CONTRACT},
-  "bodyMetrics": [${BODY_METRIC_POINT_CONTRACT}]
+  "bodyMetrics": [${BODY_METRIC_POINT_CONTRACT}],
+  ${COACH_RESPONSE_NOTES_CONTRACT}
 }`,
 );
 
@@ -157,7 +160,8 @@ const PLAN_UPDATE_CONTRACT = `{
   "tomorrow": ${DAY_CONTRACT} | null,
   "nextWeek": ${WEEK_CONTRACT} | null,
   "nextBlock": ${BLOCK_CONTRACT} | null,
-  "bodyMetrics": [${BODY_METRIC_POINT_CONTRACT}]
+  "bodyMetrics": [${BODY_METRIC_POINT_CONTRACT}],
+  ${COACH_RESPONSE_NOTES_CONTRACT}
 }`;
 
 export const PLAN_UPDATE_SYSTEM_PROMPT = promptSections(

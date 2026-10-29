@@ -38,6 +38,7 @@ import type { LlmProvider } from "../llm/openrouter.js";
 import { applyTrainingLoad } from "../training/load.js";
 import { ftpBaselineAt, type FtpTimeline } from "../training/ftp.js";
 import { addDays, startOfWeek } from "./dates.js";
+import type { CoachQuestionSourceKind } from "./coachQuestions.js";
 import { outlineFutureSessions } from "./outline.js";
 import { blockFor, promoteNextPeriod, weekFor } from "./periods.js";
 import { planIsStale, planPending } from "./status.js";
@@ -106,6 +107,12 @@ export interface GeneratePlanInput {
   recordFtpEstimates?: (plan: CoachPlan) => Promise<void>;
   /** Stores the body-composition points the coach found, when supplied. */
   recordBodyMetrics?: (points: readonly BodyMetricEstimate[]) => Promise<void>;
+  /** Stores clarification questions the coach asked, when supplied. */
+  recordCoachQuestions?: (input: {
+    questions: readonly string[];
+    model: string;
+    sourceKind: CoachQuestionSourceKind;
+  }) => Promise<void>;
   /** Injectable for tests; defaults to the database-backed period review writer. */
   capturePeriodReviews?: (
     input: Parameters<typeof captureCompletedPeriodReviews>[0],
@@ -241,6 +248,11 @@ export async function runPlanGeneration(
         credentials(context),
         baseContext(input),
       );
+      await recordCoachQuestions(
+        input,
+        seasonUpdate.coachQuestions,
+        "season_plan",
+      );
       const season: SeasonPlan = seasonUpdate.season;
 
       await generations.update(userId, PLAN_GENERATION_STEPS.initialBlock);
@@ -248,6 +260,11 @@ export async function runPlanGeneration(
         context.provider,
         credentials(context),
         { ...baseContext(input), season },
+      );
+      await recordCoachQuestions(
+        input,
+        generatedBlock.coachQuestions,
+        "initial_block",
       );
       const block: BlockPlan = generatedBlock.block;
       const foundBodyMetrics: readonly BodyMetricEstimate[] = mergeBodyMetrics(
@@ -267,6 +284,11 @@ export async function runPlanGeneration(
           weekStartDate: startOfWeek(today),
         },
       );
+      await recordCoachQuestions(
+        input,
+        weekUpdate.coachQuestions,
+        "weekly_update",
+      );
 
       await generations.update(userId, PLAN_GENERATION_STEPS.day);
       const dayUpdate = await generateDailyUpdate(
@@ -279,6 +301,11 @@ export async function runPlanGeneration(
           block: weekUpdate.block,
           week: weekUpdate.week,
         },
+      );
+      await recordCoachQuestions(
+        input,
+        dayUpdate.coachQuestions,
+        "daily_update",
       );
 
       const todayPlan = deriveTodayStatus(
@@ -672,6 +699,7 @@ async function requestPlanUpdate(
         : {}),
     },
   );
+  await recordCoachQuestions(input, update.coachQuestions, "plan_update");
   return applyPlanUpdate(input, current, update, flags, options);
 }
 
@@ -1317,4 +1345,29 @@ function weatherContext(input: GeneratePlanInput) {
     forecast,
     ...(name !== undefined && name !== null ? { locationName: name } : {}),
   };
+}
+
+/** Stores clarification questions without letting a logging failure fail the plan. */
+async function recordCoachQuestions(
+  input: GeneratePlanInput,
+  questions: readonly string[] | null | undefined,
+  sourceKind: CoachQuestionSourceKind,
+): Promise<void> {
+  if (
+    input.recordCoachQuestions === undefined ||
+    questions === undefined ||
+    questions === null ||
+    questions.length === 0
+  ) {
+    return;
+  }
+  try {
+    await input.recordCoachQuestions({
+      questions,
+      model: input.context.model,
+      sourceKind,
+    });
+  } catch (err) {
+    console.error("[plan] could not store coach questions:", err);
+  }
 }

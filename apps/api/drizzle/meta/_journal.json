@@ -204,6 +204,13 @@
       "when": 1793255978922,
       "tag": "0028_fearless_the_initiative",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1793302412116,
+      "tag": "0029_useful_moonstone",
+      "breakpoints": true
     }
   ]
 }

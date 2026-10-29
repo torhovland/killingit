@@ -33,6 +33,7 @@ import {
   toCoachAnalysis,
   type ActivityFeedback,
 } from "../plans/replies.js";
+import { saveCoachQuestions } from "../plans/coachQuestions.js";
 import { llmCredentialsKeyFromEnv } from "../llm/credentials.js";
 import { withPromptLogging } from "../llm/callLog.js";
 import {
@@ -251,6 +252,22 @@ export async function loadAnalyzedActivities(options: {
           promptVersion: ANALYSIS_PROMPT_VERSION,
           text: result.analysis,
         });
+        if (
+          result.coachQuestions !== undefined &&
+          result.coachQuestions !== null &&
+          result.coachQuestions.length > 0
+        ) {
+          try {
+            await saveCoachQuestions({
+              userId: options.userId,
+              questions: result.coachQuestions,
+              model: settings.model,
+              sourceKind: "activity_analysis",
+            });
+          } catch (err) {
+            console.error("[coaching] could not store coach questions:", err);
+          }
+        }
         if (result.estimatedFtpWatts !== null) {
           ftpEstimates.push({
             date: activityDate,

@@ -1,6 +1,9 @@
+import { coachResponseNotesSchema } from "@killingit/shared";
 import { z } from "zod";
 import { completePlanJson } from "../llm/planCompletion.js";
 import {
+  COACH_RESPONSE_NOTES_CONTRACT,
+  COACH_RESPONSE_NOTES_RULES,
   GLOBAL_PROMPT_RULES,
   JSON_ONLY_RULES,
   promptSections,
@@ -9,16 +12,19 @@ import {
 import type { CompletionCredentials } from "../llm/resilientCompletion.js";
 import type { LlmProvider } from "../llm/openrouter.js";
 
-const manualTssSchema = z.object({
-  tss: z.number().int().min(0).max(2000),
-});
+const manualTssSchema = z
+  .object({
+    tss: z.number().int().min(0).max(2000),
+  })
+  .extend(coachResponseNotesSchema.shape);
 
 const MANUAL_TSS_SYSTEM_PROMPT = promptSections(
   GLOBAL_PROMPT_RULES,
   "Estimate the training stress score (TSS) of an athlete's manually recorded activity.",
   TSS_ESTIMATE_GUIDE,
   "Read the duration, activity type, intensity clues, heart rate, and power from the athlete's own wording, and use the athlete's FTP when it is provided. If the description gives little detail, make a conservative assumption and keep the estimate modest.",
-  `Return only a JSON object with exactly this shape: {"tss": 0}. "tss" is a whole number from 0 to 2000.`,
+  `Return only a JSON object with exactly this shape: {"tss": 0, ${COACH_RESPONSE_NOTES_CONTRACT}}. "tss" is a whole number from 0 to 2000.`,
+  COACH_RESPONSE_NOTES_RULES,
   JSON_ONLY_RULES,
 );
 

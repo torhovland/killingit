@@ -7,6 +7,7 @@ import {
 import {
   BLOCK_CONTRACT,
   BODY_METRIC_POINT_CONTRACT,
+  COACH_RESPONSE_NOTES_CONTRACT,
   JSON_RULES,
   jsonTopLevelKeys,
   GLOBAL_PROMPT_RULES,
@@ -27,11 +28,12 @@ export const SEASON_PLAN_SYSTEM_PROMPT = promptSections(
   PLAN_PROMPT_RULES,
   "Create a season plan for an amateur athlete.",
   "Use the recent activities to judge the athlete's current fitness, fatigue, and consistency.",
-  "The season starts on today's date and ends at the athlete's main goal or the end of the available training period. Divide the season into ordered, contiguous blocks (for example base, build, specialization, taper, or whatever best fits the athlete). Each block needs a name, focus, start and end dates, and a week count. The blocks must cover the season without gaps and the first block must start on today's date. Include a concise rationale explaining the season's shape and the training-science reasoning behind the block order.",
+  "The season starts on today's date and ends when the athlete's goals and any additional recovery have passed. Divide the season into ordered, contiguous blocks (for example base, build, specialization, taper, or whatever best fits the athlete). Each block needs a name, focus, start and end dates, and a week count. The blocks must cover the season without gaps and the first block must start on today's date. Include a concise rationale explaining the season's shape and the training-science reasoning behind the block order.",
   JSON_RULES,
   `{
   "season": ${SEASON_CONTRACT},
-  "bodyMetrics": [${BODY_METRIC_POINT_CONTRACT}]
+  "bodyMetrics": [${BODY_METRIC_POINT_CONTRACT}],
+  ${COACH_RESPONSE_NOTES_CONTRACT}
 }`,
 );
 
@@ -44,7 +46,8 @@ export const INITIAL_BLOCK_SYSTEM_PROMPT = promptSections(
   JSON_RULES,
   `{
   "block": ${BLOCK_CONTRACT},
-  "bodyMetrics": [${BODY_METRIC_POINT_CONTRACT}]
+  "bodyMetrics": [${BODY_METRIC_POINT_CONTRACT}],
+  ${COACH_RESPONSE_NOTES_CONTRACT}
 }`,
 );
 

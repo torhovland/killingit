@@ -1,5 +1,6 @@
 import { AdminQuestionsSection } from "./AdminQuestionsSection";
 import { AdminLlmCallsSection } from "./AdminLlmCallsSection";
+import { AdminModelRemarksSection } from "./AdminModelRemarksSection";
 import { DevDatePicker } from "./DevDatePicker";
 
 /**
@@ -18,6 +19,7 @@ export function AdminSettingsPage() {
       <DevDatePicker />
       <AdminQuestionsSection />
       <AdminLlmCallsSection />
+      <AdminModelRemarksSection />
     </section>
   );
 }

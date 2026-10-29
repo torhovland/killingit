@@ -13,20 +13,19 @@
  */
 
 /**
- * The rules every prompt includes: the coach identity and the requirement to
- * stay grounded in the supplied input.
+ * The rules every prompt includes: the coach identity, direct second-person
+ * address, the no-invention rule, body-measurement limits, the activity-comment
+ * rule and the body-measurement units.
  */
 export const GLOBAL_PROMPT_RULES = `You are an expert endurance coach.
 
-Do not invent facts that are not in the input.`;
+Address the athlete directly and use the second person ("you").
 
-/**
- * Shared rule for every prompt that receives activity comments: a comment is
- * the athlete's description of an activity that is already listed, not another
- * activity.
- */
-export const ACTIVITY_COMMENT_RULE =
-  "A comment on an activity describes that same activity. It is not an additional activity and must never be added on top of the activity's recorded time or treated as extra training.";
+Do not invent facts that are not in the input. For body weight and body-fat percentage, report only numbers the athlete states; never estimate a weigh-in from the workout data, never infer one from the plan, and never turn a goal into a measurement. You may estimate FTP and TSS from the training data.
+
+A comment on an activity describes that same activity. It is not an additional activity and must never be added on top of the activity's recorded time or treated as extra training.
+
+Give body weight in kilograms and body fat as a percentage of body weight; convert a stated weight in pounds or stone. A fraction such as 0.245 and "24.5 %" both mean 24.5 % body fat.`;
 
 /**
  * A weekly note is dated by its week. Without an explicit statement to the
@@ -34,18 +33,6 @@ export const ACTIVITY_COMMENT_RULE =
  * such as "on Thursdays I have a meetup" applies every week.
  */
 export const WEEKLY_NOTE_SCOPE_RULE = `A weekly note is normally scoped to the week it was written for. If it says the athlete cannot train on Thursday, assume that Thursday of that week only. If it says that on Thursdays they have a meetup that keeps them from training, assume it applies to every Thursday. Unless the athlete explicitly says otherwise, do not extend a week-specific constraint to other weeks.`;
-
-/**
- * Shared rule for every prompt that reports a measurement the athlete stated:
- * only the athlete's own numbers count, and a goal is never a measurement.
- */
-export const ONLY_STATED_NUMBERS_RULE = `Report only numbers the athlete states in the input. Never infer or guess a measurement from training data, a workout summary, the training plan, or earlier coach notes, never estimate a weigh-in from the workout data, and never turn a goal into a measurement.`;
-
-/**
- * The units every prompt uses for body measurements: kilograms and body-fat
- * percentage of body weight.
- */
-export const BODY_METRIC_UNITS_RULE = `Give body weight in kilograms and body fat as a percentage of body weight; convert a stated weight in pounds or stone. A fraction such as 0.245 and "24.5 %" both mean 24.5 % body fat.`;
 
 /**
  * The rules every plan prompt includes regardless of the level it builds or
@@ -57,9 +44,7 @@ export const PLAN_PROMPT_RULES = `Use state of the art training science to make 
 
 You receive the athlete's profile, recent activities with coach analyses, program reviews, and coach replies, manually recorded activities, comments on activities, a general weekly note, and coach summaries of completed weeks and blocks with the athlete's feedback on them. Use all of these to understand the athlete's goal, available time, experience, preferences, constraints, and subjective feedback, and to see what they actually completed or missed and how they responded.
 
-A comment on an activity describes that same activity. It is not an additional activity and must never be added on top of the activity's recorded time or treated as extra training.
-
-Respect the athlete's available time and constraints. The weekly note is a hard constraint: if it says the athlete cannot train on a specific day, move or cancel the session on that day. If a manually recorded activity indicates significant fatigue or extra load, adjust the upcoming sessions accordingly.
+Respect the athlete's available time and constraints. The weekly note is a hard constraint: if it says the athlete cannot train on a specific day, move or cancel the session on that day. If any recorded activity, including a manually recorded one, indicates significant fatigue or extra load, adjust the upcoming sessions accordingly.
 
 When an important detail is missing, make a conservative assumption and state it briefly in the relevant focus or description.
 
@@ -67,11 +52,7 @@ Every "rationale" field explains the plan as it stands, not the act of creating 
 
 When the profile, a weekly note, an activity comment, or another part of the input states the athlete's body weight or body-fat percentage, report it in "bodyMetrics" as { "date": "YYYY-MM-DD", "weightKg": number, "bodyFatPercent": number }.
 
-Give body weight in kilograms and body fat as a percentage of body weight; convert a stated weight in pounds or stone. A fraction such as 0.245 and "24.5 %" both mean 24.5 % body fat.
-
 Use the date the statement refers to. For a number in the profile that names no date, use the date the profile was last saved; for anything added more recently, use today's date. Set a value the input does not give to null, and return an empty "bodyMetrics" array when the input says nothing about either number.
-
-Report only numbers the athlete states in the input. Never infer or guess a measurement from training data, a workout summary, the training plan, or earlier coach notes, never estimate a weigh-in from the workout data, and never turn a goal into a measurement.
 
 The stored history tells you what is already known; do not repeat a value for the same date.`;
 
@@ -146,7 +127,7 @@ Read the forecast row for the exact date. Do not describe a day as rainy or snow
 
 Respect every weather preference or limit the athlete states in their profile. For example, if they will not ride outdoors in rain or when the temperature is below 10 °C, do not schedule such a ride; move it to a suitable day, make it indoor, or replace it with an equivalent session. If the athlete has no weather preference, use common sense: put longer or more demanding outdoor sessions on the best-weather days and shorter or indoor sessions on the poorer days. For example, if Saturday is sunny and Sunday is rainy, schedule a long hike on Saturday and a short run on Sunday.
 
-The daylight times let you keep outdoor work in daylight. Unless the athlete's profile, weekly notes, activity comments, or other input explicitly says they are willing or able to train in the dark, or prefer it, assume the athlete prefers daylight over darkness. Honour any such statement they do make and do not invent a darkness preference they did not state. If the athlete says they can train before or after work on weekdays, compare those training windows with sunrise and sunset. When the only daylight falls inside their working day, so a weekday outdoor session would happen in the dark, put long outdoor sessions at the weekend and keep weekday outdoor sessions within the available daylight or make them indoor.`;
+The daylight times let you keep outdoor work in daylight. Unless the athlete's profile, weekly notes, activity comments, or other input explicitly says they are willing or able to train in the dark, or prefer it, assume the athlete prefers daylight over darkness. Honour any such statement they do make and do not invent a darkness preference they did not state. If the athlete says they can train before or after work on weekdays, compare those training windows with sunrise and sunset. When the athlete has not stated a preference about training in darkness, a weekday outdoor session of up to one hour may fall in darkness, including outside working hours; do not move or shorten it just because it is dark. For longer weekday outdoor sessions, keep them within the available daylight or make them indoor. When the only daylight falls inside their working day, put long outdoor sessions at the weekend.`;
 
 /**
  * Instruction for structured indoor bike workouts. The athlete can download
@@ -186,10 +167,7 @@ export const ACTIVITY_FTP_ESTIMATE_RULES = `Also estimate the athlete's FTP afte
  * The body-composition fields every activity review reports when the athlete's
  * comment states them.
  */
-export const ACTIVITY_BODY_METRIC_RULES = promptSections(
-  `When the athlete's comment on this activity states their body weight or body-fat percentage, report it in "weightKg" and "bodyFatPercent".`,
-  ONLY_STATED_NUMBERS_RULE,
-);
+export const ACTIVITY_BODY_METRIC_RULES = `When the athlete's comment on this activity states their body weight or body-fat percentage, report it in "weightKg" and "bodyFatPercent".`;
 
 /** The JSON-only output rule shared by every structured prompt. */
 export const JSON_ONLY_RULES = `Do not add markdown fences, headings, explanations, commentary, or extra fields.`;
@@ -199,11 +177,21 @@ export const JSON_ONLY_RULES = `Do not add markdown fences, headings, explanatio
  */
 export const PLAIN_TEXT_RULES = `Do not use headings, bullets, or markdown.`;
 
+/**
+ * The two notes fields every structured coach response carries. Clarification
+ * questions are shown to the athlete; model remarks are reviewed by the admin.
+ */
+export const COACH_RESPONSE_NOTES_CONTRACT = `"coachQuestions": ["string"],
+  "modelsRemarks": "string | null"`;
+
+export const COACH_RESPONSE_NOTES_RULES = `Use "coachQuestions" only for important clarification questions you need the athlete to answer, and keep the array empty when nothing is needed. Use "modelsRemarks" for any difficulties, inconsistencies, questions or objections you had with the task, and set it to null when there were none.`;
+
 /** The full JSON output rule for the plan prompts. */
 export const JSON_RULES = promptSections(
   "Return only a single valid JSON object with exactly this shape.",
   JSON_ONLY_RULES,
   `Every field must use the exact name and value type shown in the contract. The top-level keys must be exactly the keys shown at the top level of the contract, with the same nesting; never return a bare inner object, an array, or a wrapper such as "plan" or "response". When a contract lists choices separated by "|", output exactly one of those choices as a string and never the list itself. Replace every placeholder such as "YYYY-MM-DD", "string", or 0 with a real value.`,
+  COACH_RESPONSE_NOTES_RULES,
 );
 
 /** The shared closing instruction for prompts that return JSON. */
@@ -298,9 +286,11 @@ export const COACH_ANALYSIS_RESPONSE_RULES = promptSections(
   "analysis": "string",
   "estimatedFtpWatts": 0,
   "weightKg": 0,
-  "bodyFatPercent": 0
+  "bodyFatPercent": 0,
+  ${COACH_RESPONSE_NOTES_CONTRACT}
 }`,
   `Replace "estimatedFtpWatts" with the integer estimate in watts, or null when there is no useful evidence. Set "weightKg" to the athlete's body weight in kilograms and "bodyFatPercent" to their body fat as a percentage only when the input for this activity states them, and to null otherwise. Put the whole coach summary in "analysis".`,
+  COACH_RESPONSE_NOTES_RULES,
   JSON_ONLY_RULES,
 );
 

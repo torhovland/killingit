@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { coachResponseNotesSchema } from "./llm.js";
 import { planDateSchema } from "./plan.js";
 import { addDays } from "./trainingLoad.js";
 
@@ -84,9 +85,11 @@ export type AthleteMetricStatement = z.infer<
 >;
 
 /** The coach's reading of every measurement the athlete states. */
-export const athleteMetricsResultSchema = z.object({
-  statements: z.array(athleteMetricStatementSchema).default([]),
-});
+export const athleteMetricsResultSchema = z
+  .object({
+    statements: z.array(athleteMetricStatementSchema).default([]),
+  })
+  .extend(coachResponseNotesSchema.shape);
 
 export type AthleteMetricsResult = z.infer<typeof athleteMetricsResultSchema>;
 

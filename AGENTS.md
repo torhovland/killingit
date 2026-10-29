@@ -145,6 +145,12 @@ about a past workout, or before a suggested workout, to steer the coach.
 - Completed weeks and blocks get a coach summary, athlete comment, and coach
   reply in `period_reviews` / `coach_replies`; the dashboard and season review
   page are documented in `docs/specs/period-reviews.md`.
+- Structured coach responses may ask the athlete clarification questions
+  (`coachQuestions`) and report the model's own difficulties or objections
+  (`modelsRemarks`). The newest pending question is shown on the dashboard,
+  answered questions are kept for the season review, and recent non-null model
+  remarks are listed in the admin settings page. See
+  `docs/specs/coach-questions.md`.
 - A Calendar page shows a month of recorded activities, planned workouts and
   rest days, with block starts and the season end. Selecting an entry opens its
   full details, including the athlete comment, coach reply, and the route map

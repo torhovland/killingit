@@ -13,10 +13,7 @@ import {
 } from "@killingit/shared";
 import { addDays, startOfWeek } from "../plans/dates.js";
 import { formatDuration } from "./duration.js";
-import {
-  ACTIVITY_COMMENT_RULE,
-  WEEKLY_NOTE_SCOPE_RULE,
-} from "./promptRules.js";
+import { WEEKLY_NOTE_SCOPE_RULE } from "./promptRules.js";
 
 /** One interview question with the athlete's answer or explicit skip. */
 export interface AthleteAnswerContext {
@@ -223,7 +220,7 @@ export function formatPlanContext(input: PlanContextInput): string[] {
   }
   lines.push(
     "",
-    `Recent activities (most recent first). ${ACTIVITY_COMMENT_RULE}`,
+    "Recent activities (most recent first).",
     formatRecentActivities(input.recentActivities, comments),
   );
   if (input.manualActivities && input.manualActivities.length > 0) {

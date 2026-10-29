@@ -28,7 +28,8 @@ export type CoachReplyTarget =
       summary: string;
       comment: string;
     }
-  | { kind: "quick_question"; question: string };
+  | { kind: "quick_question"; question: string }
+  | { kind: "coach_question"; question: string; answer: string };
 
 export interface CoachReplyPromptInput {
   today: string;
@@ -74,6 +75,7 @@ export function buildCoachReplyPrompt(input: CoachReplyPromptInput): string {
   const targetDate =
     request.kind === "weekly_note" ||
     request.kind === "quick_question" ||
+    request.kind === "coach_question" ||
     request.kind === "week_review" ||
     request.kind === "block_review"
       ? null
@@ -132,7 +134,11 @@ export function buildCoachReplyPrompt(input: CoachReplyPromptInput): string {
 }
 
 function requestDate(request: CoachReplyTarget): string {
-  if (request.kind === "weekly_note" || request.kind === "quick_question") {
+  if (
+    request.kind === "weekly_note" ||
+    request.kind === "quick_question" ||
+    request.kind === "coach_question"
+  ) {
     return "";
   }
   return request.kind === "activity_comment"
@@ -153,5 +159,7 @@ function formatRequest(request: CoachReplyTarget): string {
       return `Comment on the completed ${request.kind === "week_review" ? "week" : "block"} (${request.startDate} → ${request.endDate}): "${request.comment.trim()}"`;
     case "quick_question":
       return `Question: "${request.question.trim()}"`;
+    case "coach_question":
+      return `Your clarification question: "${request.question.trim()}"\nAthlete answer: "${request.answer.trim()}"`;
   }
 }

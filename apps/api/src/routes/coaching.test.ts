@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { ActivityFeed } from "../coaching/activities.js";
+import type { CoachQuestion } from "@killingit/shared";
 import { createApp, type AppDependencies } from "../index.js";
 import type { CoachingInputs } from "../plans/inputs.js";
 import type {
@@ -179,6 +180,11 @@ function makeApp(options: {
   createPeriodReviewComment?: AppDependencies["createPeriodReviewComment"];
   updatePeriodReviewComment?: AppDependencies["updatePeriodReviewComment"];
   markPeriodReviewReviewed?: AppDependencies["markPeriodReviewReviewed"];
+  loadPendingCoachQuestion?: AppDependencies["loadPendingCoachQuestion"];
+  loadAnsweredCoachQuestions?: AppDependencies["loadAnsweredCoachQuestions"];
+  loadCoachQuestion?: AppDependencies["loadCoachQuestion"];
+  answerCoachQuestion?: AppDependencies["answerCoachQuestion"];
+  replyToCoachQuestion?: AppDependencies["replyToCoachQuestion"];
   triggerPlanGeneration?: AppDependencies["triggerPlanGeneration"];
 }) {
   return createApp({
@@ -252,6 +258,21 @@ function makeApp(options: {
       options.replyToCoachingInput ?? (() => Promise.resolve(null)),
     answerCoachingQuestion:
       options.answerCoachingQuestion ?? (() => Promise.resolve(null)),
+    ...(options.replyToCoachQuestion !== undefined
+      ? { replyToCoachQuestion: options.replyToCoachQuestion }
+      : {}),
+    ...(options.loadPendingCoachQuestion !== undefined
+      ? { loadPendingCoachQuestion: options.loadPendingCoachQuestion }
+      : {}),
+    ...(options.loadAnsweredCoachQuestions !== undefined
+      ? { loadAnsweredCoachQuestions: options.loadAnsweredCoachQuestions }
+      : {}),
+    ...(options.loadCoachQuestion !== undefined
+      ? { loadCoachQuestion: options.loadCoachQuestion }
+      : {}),
+    ...(options.answerCoachQuestion !== undefined
+      ? { answerCoachQuestion: options.answerCoachQuestion }
+      : {}),
     loadManualActivities:
       options.loadManualActivities ?? (() => Promise.resolve([])),
     loadManualActivityReplies:
@@ -1279,5 +1300,103 @@ describe("coaching week and block reviews", () => {
 
     expect(res.status).toBe(200);
     expect(reviewed).toBe(true);
+  });
+});
+
+const pendingCoachQuestion: CoachQuestion = {
+  id: 7,
+  question: "How many hours can you train on weekdays?",
+  answer: null,
+  coachReply: null,
+  createdAt: "2026-10-20T09:00:00.000Z",
+  answeredAt: null,
+};
+
+describe("coach questions", () => {
+  it("returns the pending question and the answered history", async () => {
+    const app = makeApp({
+      loadPendingCoachQuestion: () => Promise.resolve(pendingCoachQuestion),
+      loadAnsweredCoachQuestions: () =>
+        Promise.resolve([
+          {
+            ...pendingCoachQuestion,
+            id: 6,
+            question: "Which day is your long ride?",
+            answer: "Saturday.",
+            answeredAt: "2026-10-19T10:00:00.000Z",
+            coachReply: {
+              text: "Saturday works well.",
+              model: "test-model",
+              generatedAt: "2026-10-19T10:00:00.000Z",
+            },
+          },
+        ]),
+    });
+
+    const res = await app.fetch(
+      authenticatedRequest("/api/coaching/coach-questions"),
+    );
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      pending: CoachQuestion;
+      answered: CoachQuestion[];
+    };
+    expect(body.pending.question).toBe(
+      "How many hours can you train on weekdays?",
+    );
+    expect(body.answered[0]?.answer).toBe("Saturday.");
+    expect(body.answered[0]?.coachReply?.text).toBe("Saturday works well.");
+  });
+
+  it("saves an answer, generates a reply and triggers the plan", async () => {
+    const saved: {
+      value: { answer: string; reply: string | null } | null;
+    } = { value: null };
+    let triggered = false;
+    const app = makeApp({
+      loadCoachQuestion: () => Promise.resolve(pendingCoachQuestion),
+      replyToCoachQuestion: () =>
+        Promise.resolve({
+          text: "Six hours is enough for a steady base.",
+          model: "test-model",
+          generatedAt: new Date("2026-10-20T10:00:00Z"),
+        }),
+      answerCoachQuestion: (input) => {
+        saved.value = { answer: input.answer, reply: input.reply };
+        return Promise.resolve({
+          ...pendingCoachQuestion,
+          answer: input.answer,
+          coachReply: {
+            text: input.reply ?? "",
+            model: input.replyModel ?? "test-model",
+            generatedAt: "2026-10-20T10:00:00.000Z",
+          },
+          answeredAt: "2026-10-20T10:00:00.000Z",
+        });
+      },
+      triggerPlanGeneration: () => {
+        triggered = true;
+        return Promise.resolve(true);
+      },
+    });
+
+    const res = await app.fetch(
+      authenticatedRequest("/api/coaching/coach-questions/7/answer", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          today: "2026-10-20",
+          answer: "About six hours.",
+        }),
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(saved.value).toEqual({
+      answer: "About six hours.",
+      reply: "Six hours is enough for a steady base.",
+    });
+    expect(triggered).toBe(true);
   });
 });

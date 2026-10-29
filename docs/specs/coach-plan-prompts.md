@@ -99,10 +99,18 @@ shapes (`StoredAthleteQuestion` and `AnalyzedActivity`) structurally and returns
   together. The `promptSections` helper keeps each shared fragment on its own
   section, separate from prompt-specific prose, so a fragment can be updated
   without rewriting the surrounding text. Every prompt starts with the literal
-  `GLOBAL_PROMPT_RULES`: the coach persona and the requirement not to invent
-  facts outside the input. Rules that every plan prompt includes are merged
-  into `PLAN_PROMPT_RULES`: the training-science requirement, the standard
-  input guidance, the rationale rules and the body-metric rules.
+  `GLOBAL_PROMPT_RULES`: the coach persona, direct second-person address, the
+  no-invention rule (with FTP/TSS inference allowed), the body-measurement
+  limits and units, and the activity-comment rule. Rules that every plan prompt
+  includes are merged into `PLAN_PROMPT_RULES`: the training-science
+  requirement, the standard input guidance, the rationale rules and the
+  body-metric output fields.
+- Every strictly JSON coach response also carries `coachQuestions` (important
+  clarification questions) and `modelsRemarks` (the model's own difficulties,
+  inconsistencies or objections, or null). The app shows the newest pending
+  question on the dashboard, stores answered questions for the season review,
+  and lists recent non-null model remarks on the admin page. See
+  `docs/specs/coach-questions.md`.
 - `coachPlanPrompt.ts` exports `COACH_PLAN_PROMPT_VERSION`, the input interfaces,
   `buildCoachPlanPrompt(input)`, and `buildCoachPlanMessages(input)`. Its
   response contract is assembled from the same level contracts as the update

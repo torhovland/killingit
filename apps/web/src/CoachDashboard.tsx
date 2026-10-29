@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   analyzedActivitiesResponseSchema,
+  coachQuestionsResponseSchema,
   coachingInputSaveResponseSchema,
   garminConnectionStatusSchema,
   llmSettingsSchema,
@@ -9,6 +10,7 @@ import {
   weeklyNoteResponseSchema,
   type AnalyzedActivitiesResponse,
   type CoachAnalysis,
+  type CoachQuestion,
   type GarminConnectionStatus,
   type LlmSettings,
   type PeriodReview,
@@ -19,6 +21,7 @@ import { loadCachedActivities, saveCachedActivities } from "./activityCache";
 import { useAppStatus, useBusyReporter } from "./AppStatus";
 import { useAuth } from "./auth";
 import { CoachPlanSection } from "./CoachPlanSection";
+import { CoachQuestionCard } from "./CoachQuestionCard";
 import { fetchJsonAuthed } from "./fetchAuthed";
 import { selectPendingActivities } from "./pendingActivities";
 import { PeriodReviewCard } from "./PeriodReviewCard";
@@ -69,6 +72,9 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
   const [error, setError] = useState<string | null>(null);
   const [localPlanRefresh, setLocalPlanRefresh] = useState(0);
   const [reviews, setReviews] = useState<PeriodReview[]>([]);
+  const [coachQuestion, setCoachQuestion] = useState<CoachQuestion | null>(
+    null,
+  );
   // Commented-on activities and reviews stay on the page for this visit. The
   // server feed omits them once they have been answered; a reload clears this.
   const keptActivityIds = useRef<Set<string>>(new Set());
@@ -145,6 +151,59 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
     } catch (err: unknown) {
       setError(reportError(err));
     }
+  }
+
+  async function loadCoachQuestions(): Promise<void> {
+    try {
+      const response = await fetchJsonAuthed<unknown>(
+        `${API_URL}/api/coaching/coach-questions`,
+        auth,
+      );
+      const parsed = coachQuestionsResponseSchema.safeParse(response);
+      if (!parsed.success) {
+        throw new Error(
+          "Loading the coach's questions returned an unexpected response",
+          { cause: parsed.error },
+        );
+      }
+      setCoachQuestion(parsed.data.pending);
+    } catch (err: unknown) {
+      setError(reportError(err));
+    }
+  }
+
+  async function submitCoachAnswer(
+    id: number,
+    answer: string,
+  ): Promise<string | null> {
+    const { today } = getToday(timeZone);
+    const res = await fetchJsonAuthed<unknown>(
+      `${API_URL}/api/coaching/coach-questions/${id}/answer`,
+      auth,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ today, timezone: timeZone, answer }),
+      },
+    );
+    const parsed = coachingInputSaveResponseSchema.safeParse(res);
+    if (!parsed.success) {
+      throw new Error("Saving your answer returned an unexpected response", {
+        cause: parsed.error,
+      });
+    }
+    setCoachQuestion((current) =>
+      current === null || current.id !== id
+        ? current
+        : {
+            ...current,
+            answer,
+            coachReply: parsed.data.reply,
+            answeredAt: new Date().toISOString(),
+          },
+    );
+    setLocalPlanRefresh((value) => value + 1);
+    return parsed.data.reply?.text ?? null;
   }
 
   async function loadAnalyses(refresh = false): Promise<void> {
@@ -445,6 +504,7 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
     void loadStatuses();
     void fetchWeeklyNote();
     void loadReviews();
+    void loadCoachQuestions();
     // Only re-run when sign-in state flips; `auth` is consumed inside.
   }, [auth.isAuthenticated]);
 
@@ -517,6 +577,15 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
         </p>
       )}
 
+      {coachQuestion !== null && (
+        <section className="flex flex-col gap-3" data-testid="coach-question">
+          <CoachQuestionCard
+            question={coachQuestion}
+            onSubmitAnswer={submitCoachAnswer}
+          />
+        </section>
+      )}
+
       {garmin.connected && pendingActivities.length > 0 && (
         <section
           className="flex flex-col gap-3"
@@ -583,6 +652,7 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
         onGenerated={() => {
           void loadAnalyses();
           void loadReviews();
+          void loadCoachQuestions();
         }}
       />
 

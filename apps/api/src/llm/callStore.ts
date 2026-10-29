@@ -3,6 +3,7 @@ import type {
   LlmCallMessage,
   LlmCallSummary,
   LlmCallUsage,
+  LlmModelRemark,
   LlmPromptKind,
 } from "@killingit/shared";
 import { and, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
@@ -131,6 +132,75 @@ export async function listLlmCalls(
     ofAttempts: positiveInteger(metadata.ofAttempts),
     planFailed: metadata.planFailed === true,
   }));
+}
+
+/** Recent non-null model remarks, newest first. */
+export async function listModelRemarks(
+  limit: number,
+): Promise<LlmModelRemark[]> {
+  const rows = await db
+    .select({
+      id: llmCalls.id,
+      createdAt: llmCalls.createdAt,
+      userId: llmCalls.userId,
+      userLabel: users.authSubject,
+      kind: llmCalls.kind,
+      model: llmCalls.model,
+      response: llmCalls.response,
+    })
+    .from(llmCalls)
+    .innerJoin(users, eq(users.id, llmCalls.userId))
+    .where(sql`${llmCalls.response} is not null`)
+    .orderBy(desc(llmCalls.id))
+    .limit(Math.max(limit * 5, 50));
+
+  const remarks: LlmModelRemark[] = [];
+  for (const row of rows) {
+    const text = modelsRemarksFrom(row.response);
+    if (text === null) {
+      continue;
+    }
+    remarks.push({
+      callId: row.id,
+      createdAt: row.createdAt.toISOString(),
+      userId: row.userId,
+      userLabel: row.userLabel,
+      kind: row.kind,
+      model: row.model,
+      remarks: text,
+    });
+    if (remarks.length >= limit) {
+      break;
+    }
+  }
+  return remarks;
+}
+
+function modelsRemarksFrom(response: string | null): string | null {
+  if (response === null) {
+    return null;
+  }
+  const start = response.indexOf("{");
+  const end = response.lastIndexOf("}");
+  if (start === -1 || end <= start) {
+    return null;
+  }
+  try {
+    const parsed: unknown = JSON.parse(response.slice(start, end + 1));
+    if (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      "modelsRemarks" in parsed
+    ) {
+      const value = (parsed as { modelsRemarks?: unknown }).modelsRemarks;
+      return typeof value === "string" && value.trim() !== ""
+        ? value.trim()
+        : null;
+    }
+  } catch {
+    return null;
+  }
+  return null;
 }
 
 /** One prompt log entry with its full messages, response, and metadata. */
