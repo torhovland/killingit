@@ -7,17 +7,14 @@ import {
 import {
   BIKE_WORKOUT_RULES,
   BODY_METRIC_POINT_CONTRACT,
-  BODY_METRIC_RULES,
   BLOCK_CONTRACT,
-  COACH_PERSONA,
   COMPLETED_SESSION_RULES,
   DAY_CONTRACT,
   ENUM_RULES,
   JSON_RULES,
   jsonTopLevelKeys,
-  PLAN_INPUT_GUIDANCE,
+  PLAN_PROMPT_GLOBAL_RULES,
   promptSections,
-  RATIONALE_RULES,
   SEASON_CONTRACT,
   SESSION_PURPOSE_RULES,
   TODAY_IN_WEEK_RULE,
@@ -59,11 +56,9 @@ const COACH_PLAN_RESPONSE_CONTRACT = `{
 }`;
 
 export const COACH_PLAN_SYSTEM_PROMPT = promptSections(
-  COACH_PERSONA,
+  PLAN_PROMPT_GLOBAL_RULES,
   "Design a personalised, periodised training plan for an amateur athlete.",
-  TRAINING_SCIENCE_RULE,
   "Apply the principles that current research and elite practice agree on: individualisation, progressive overload, specificity, periodisation, adequate recovery, and a taper before the main goal. Prefer sustainable, injury-free progress over quick fixes.",
-  PLAN_INPUT_GUIDANCE,
   "Use the recent activities and analyses to judge current fitness, fatigue, consistency, and the next sensible stimulus.",
   `Create a consistent plan at every level:
 1. season — the overall season with its goal, dates, blocks, and a rationale explaining the season's shape.
@@ -74,11 +69,9 @@ export const COACH_PLAN_SYSTEM_PROMPT = promptSections(
   WEEK_OUTLINE_RULES,
   "Fully detail today's and tomorrow's sessions; keep every later day in the week as a short outline.",
   SESSION_PURPOSE_RULES,
-  RATIONALE_RULES,
   WEATHER_PLANNING_RULES,
   BIKE_WORKOUT_RULES,
   TRAINING_LOAD_RULES,
-  BODY_METRIC_RULES,
   COMPLETED_SESSION_RULES,
   "The season starts on the supplied today date. The block is the first entry in season.blocks. The week is the first week in block.weeks, so block.weeks[0].startDate and week.startDate must match.",
   WEEK_SHAPE_RULES,

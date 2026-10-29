@@ -186,6 +186,20 @@ export const TRAINING_LOAD_RULES = promptSections(
  */
 export const RATIONALE_RULES = `Every "rationale" field explains the plan as it stands, not the act of creating or revising it. Explain why this goal, season shape, block, week, session, or rest day is right for the athlete from this point forward, using the latest training and feedback. Do not describe a previous plan, what changed, or why it was revised. Do not write phrases such as "we adjusted", "we changed", "this replaces", or "because of the new review". State the current rationale directly.`;
 
+/**
+ * The rules every plan prompt includes regardless of the level it builds or
+ * updates. Keeping them in one fragment means the plan prompts share the same
+ * persona, input reading, rationale and body-metric behaviour without listing
+ * them separately.
+ */
+export const PLAN_PROMPT_GLOBAL_RULES = promptSections(
+  COACH_PERSONA,
+  TRAINING_SCIENCE_RULE,
+  PLAN_INPUT_GUIDANCE,
+  RATIONALE_RULES,
+  BODY_METRIC_RULES,
+);
+
 /** The exact enum values the plan schemas accept for a session. */
 export const ENUM_RULES = `For every type field use either "workout" or "rest"; for every intensity field use "easy", "moderate", "hard", or "rest". For a rest session set both type and intensity to "rest"; for a workout set type to "workout" and intensity to "easy", "moderate", or "hard". These are exact, lowercase strings: never output a session name such as "run", "strength", or "rest day" as a type, and never copy the "|" choices from the contract into the response.`;
 

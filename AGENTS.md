@@ -335,6 +335,7 @@ through a disciplined process:
 - **Never duplicate prompt fragments.** Put every reusable prompt fragment — a
   persona, rule, JSON contract, output instruction, response sentence or key
   list — in `apps/api/src/llm/promptRules.ts`, and compose every prompt from
-  those exports. Before writing prompt text, check that module and extend it
-  instead of adding a second copy. A duplicated fragment is a bug waiting to
-  diverge.
+  those exports. Keep fragments that every plan prompt uses in the single
+  `PLAN_PROMPT_GLOBAL_RULES` fragment. Before writing prompt text, check that
+  module and extend it instead of adding a second copy. A duplicated fragment
+  is a bug waiting to diverge.

@@ -17,24 +17,20 @@ import {
 import {
   BIKE_WORKOUT_RULES,
   BODY_METRIC_POINT_CONTRACT,
-  BODY_METRIC_RULES,
   BLOCK_CONTRACT,
-  COACH_PERSONA,
   COMPLETED_SESSION_RULES,
   COMPLETION_SLACK_RULES,
   DAY_CONTRACT,
   ENUM_RULES,
   JSON_RULES,
   jsonTopLevelKeys,
-  PLAN_INPUT_GUIDANCE,
   PAST_SESSION_RULES,
+  PLAN_PROMPT_GLOBAL_RULES,
   promptSections,
-  RATIONALE_RULES,
   SEASON_CONTRACT,
   SESSION_PURPOSE_RULES,
   TODAY_IN_WEEK_RULE,
   TRAINING_LOAD_RULES,
-  TRAINING_SCIENCE_RULE,
   WEEK_CONTRACT,
   WEEK_OUTLINE_RULES,
   WEEK_SHAPE_RULES,
@@ -107,10 +103,8 @@ export interface PlanUpdateInput extends PlanContextInput {
 }
 
 export const DAILY_UPDATE_SYSTEM_PROMPT = promptSections(
-  COACH_PERSONA,
+  PLAN_PROMPT_GLOBAL_RULES,
   "Update today's session, the rest of the current week, and tomorrow's session for an amateur athlete.",
-  TRAINING_SCIENCE_RULE,
-  PLAN_INPUT_GUIDANCE,
   WEEK_SHAPE_RULES,
   TODAY_IN_WEEK_RULE,
   COMPLETED_SESSION_RULES,
@@ -120,8 +114,6 @@ export const DAILY_UPDATE_SYSTEM_PROMPT = promptSections(
   WEATHER_PLANNING_RULES,
   BIKE_WORKOUT_RULES,
   TRAINING_LOAD_RULES,
-  BODY_METRIC_RULES,
-  RATIONALE_RULES,
   SESSION_PURPOSE_RULES,
   ENUM_RULES,
   JSON_RULES,
@@ -134,10 +126,8 @@ export const DAILY_UPDATE_SYSTEM_PROMPT = promptSections(
 );
 
 export const WEEKLY_UPDATE_SYSTEM_PROMPT = promptSections(
-  COACH_PERSONA,
+  PLAN_PROMPT_GLOBAL_RULES,
   "Create the week starting on the supplied week start date and revise the block plan for an amateur athlete.",
-  TRAINING_SCIENCE_RULE,
-  PLAN_INPUT_GUIDANCE,
   WEEK_SHAPE_RULES,
   PAST_SESSION_RULES,
   COMPLETION_SLACK_RULES,
@@ -146,8 +136,6 @@ export const WEEKLY_UPDATE_SYSTEM_PROMPT = promptSections(
   WEATHER_PLANNING_RULES,
   BIKE_WORKOUT_RULES,
   TRAINING_LOAD_RULES,
-  BODY_METRIC_RULES,
-  RATIONALE_RULES,
   "Revise the block's weeks and target loads where the athlete's progress or recent training requires it. Keep the block's name, focus, and dates unless a change is clearly justified. Do not change the season plan.",
   ENUM_RULES,
   JSON_RULES,
@@ -170,11 +158,9 @@ const PLAN_UPDATE_CONTRACT = `{
 }`;
 
 export const PLAN_UPDATE_SYSTEM_PROMPT = promptSections(
-  COACH_PERSONA,
+  PLAN_PROMPT_GLOBAL_RULES,
   "Update an athlete's training plan.",
-  TRAINING_SCIENCE_RULE,
   "You receive the complete current plan at every level: the season, the current block, the current week, today's session, tomorrow's session when one has been planned, the next week when one has been planned, and the next block when one has been planned.",
-  PLAN_INPUT_GUIDANCE,
   WEEK_SHAPE_RULES,
   TODAY_IN_WEEK_RULE,
   COMPLETED_SESSION_RULES,
@@ -187,12 +173,10 @@ export const PLAN_UPDATE_SYSTEM_PROMPT = promptSections(
 - When tomorrow is requested, return it and make sure it is the matching session in the current week or, when it falls in the next week, in the next week. Respect every weather preference and daylight constraint.
 - When the next week is requested, start it on the supplied next week start date and give it exactly seven sessions. When the next block is requested, start it on the supplied next block start date and put it in "nextBlock"; update "season" so its block summaries include it. If the block that starts tomorrow falls inside the current week, re-plan the remaining days of the current week under that next block and keep today's session.
 - Include a rationale for today's session and for the week's overall structure.`,
-  RATIONALE_RULES,
   WEEK_OUTLINE_RULES,
   WEATHER_PLANNING_RULES,
   BIKE_WORKOUT_RULES,
   TRAINING_LOAD_RULES,
-  BODY_METRIC_RULES,
   SESSION_PURPOSE_RULES,
   ENUM_RULES,
   JSON_RULES,
