@@ -324,7 +324,7 @@ describe("buildFitnessHistory", () => {
     expect(ftpOn(history.ftp, "2026-10-25")).toBe(258);
   });
 
-  it("falls back to the week estimate for a plan without daily values", () => {
+  it("interpolates between the week estimates without daily values", () => {
     const weeklyPlan: CoachPlan = {
       ...plan(),
       week: {
@@ -342,8 +342,61 @@ describe("buildFitnessHistory", () => {
       range: "month",
     });
 
+    // Today keeps the current week's estimate; the following days climb
+    // towards the next week's 262 instead of holding 255 until it starts.
     expect(ftpOn(history.ftp, "2026-10-22")).toBe(255);
-    expect(ftpOn(history.ftp, "2026-10-25")).toBe(255);
+    expect(ftpOn(history.ftp, "2026-10-23")).toBe(257);
+    expect(ftpOn(history.ftp, "2026-10-25")).toBe(260);
+  });
+
+  it("interpolates towards the next week at the end of the week window", () => {
+    const weeklyPlan: CoachPlan = {
+      ...plan(),
+      today: { ...plan().today, date: "2026-10-30" },
+      week: {
+        ...plan().week,
+        startDate: "2026-10-26",
+        estimatedFtpWatts: 220,
+        sessions: plan().week.sessions.map((session, index) => ({
+          ...session,
+          date: index === 6 ? "2026-11-01" : `2026-10-${String(26 + index)}`,
+          estimatedFtpWatts: undefined,
+        })),
+      },
+      block: {
+        ...plan().block,
+        weeks: [
+          {
+            number: 1,
+            startDate: "2026-10-26",
+            focus: "Aerobic",
+            targetLoad: "Easy",
+            estimatedFtpWatts: 220,
+          },
+          {
+            number: 2,
+            startDate: "2026-11-02",
+            focus: "Aerobic",
+            targetLoad: "Easy",
+            estimatedFtpWatts: 222,
+          },
+        ],
+      },
+    };
+    const history = buildFitnessHistory({
+      ...base,
+      today: "2026-10-30",
+      plan: weeklyPlan,
+      timeline: buildFtpTimelineFromPoints([
+        { date: "2026-10-01", value: 220, source: "user" },
+      ]),
+    });
+
+    // The chart window ends on Sunday 1 November, but the line has already
+    // moved towards the following week's 222 W.
+    expect(ftpOn(history.ftp, "2026-10-30")).toBe(220);
+    expect(ftpOn(history.ftp, "2026-10-31")).toBe(221);
+    expect(ftpOn(history.ftp, "2026-11-01")).toBe(221);
   });
 
   it("has no FTP points when the athlete has not stated one", () => {

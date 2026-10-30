@@ -13,7 +13,6 @@ import {
   lastIndexOnOrBefore,
   linePath,
   niceDomain,
-  stepPath,
   tsbSegments,
   zoneBlocks,
 } from "./chartGeometry";
@@ -125,13 +124,6 @@ describe("paths", () => {
   it("draws a polyline through the values", () => {
     expect(linePath([0, 5, 10], scale)).toBe(
       `M0 ${scale.plotHeight} L${scale.plotWidth / 2} ${scale.plotHeight / 2} L${scale.plotWidth} 0`,
-    );
-  });
-
-  it("draws a step after each value", () => {
-    const height = scale.plotHeight;
-    expect(stepPath([0, 10], chartScale(2, { min: 0, max: 10 }))).toBe(
-      `M0 ${height} H${scale.plotWidth} V0`,
     );
   });
 });

@@ -82,19 +82,25 @@ has not logged anything that day. A rest day that is still ahead reads
 
 ### FTP series
 
-For each day, the estimated FTP is:
+For each day before today, the estimated FTP is the interpolated athlete
+timeline value (`ftpAt`), which covers the stated profile FTP, every later FTP
+test the athlete mentioned, and recorded history. From today onward the series
+is the plan's projection, interpolated rather than stepped:
 
-1. the stored plan's per-day estimate for that date, from today onward;
-2. the week's single estimate when that day has no value (the current and next
-   week, and each week of the current and next block); or
-3. the interpolated athlete timeline value (`ftpAt`), which covers the stated
-   profile FTP, every later FTP test the athlete mentioned, and recorded history
-   before today.
+1. the coach's per-day estimate for each fully detailed session;
+2. the weekly estimates of the current and next week and of every week of the
+   current and next block, anchored at their week's start; and
+3. today's current estimate, which anchors the start of the projection.
+
+The line therefore climbs from the current estimate toward the next weekly
+estimate across the week, so a week whose estimate rises from 220 W to 222 W
+shows the days in between on the way to 222 W instead of holding 220 W until
+the next week starts.
 
 The series is empty when the athlete has never stated an FTP, and the page hides
-the FTP chart. The same daily values are stored as `coach` points in
-`athlete_metrics`, so the series survives the plan's JSON shape and feeds the
-prompts as FTP history.
+the FTP chart. The plan's per-session estimates are stored as `coach` points in
+`athlete_metrics` when the plan is saved, so the projection survives the plan's
+JSON shape and feeds the prompts as FTP history.
 
 ### Body series
 
@@ -152,7 +158,7 @@ API:
   activity views. The panel also shows the estimated FTP in effect today.
 - Below it, a fitness/form chart with CTL, ATL, and TSB lines over coloured TSB
   zone bands, a legend naming each zone with its threshold and colour, an
-  estimated-FTP step chart whose heading carries no value (the current estimate
+  estimated-FTP line chart whose heading carries no value (the current estimate
   is in the Today panel), and a body chart when body measurements exist.
 - The body chart draws weight on the left axis in kilograms and body fat on the
   right axis in percent over the same date axis, with a legend for each
@@ -192,9 +198,10 @@ API:
 4. The TSB zone bands and the legend use the same colours as the interpretation
    text (`--form-risk`, `--form-productive`, …), and the TSB line is solid and
    changes colour exactly where it crosses from one zone into the next.
-5. The FTP chart plots the coach's daily plan estimate from today onward, the
-   week's single estimate where a day has no daily value, and the athlete's
-   stated/tested values for recorded history, and is hidden without an FTP.
+5. The FTP chart plots the plan's projection from today onward as a line
+   interpolated between the coach's daily estimates and the weekly estimates,
+   and the athlete's stated/tested values for recorded history, and is hidden
+   without an FTP.
 6. The charts run as far ahead as the stored plan has workouts, and the part
    after today is dotted.
 7. The Today panel spells out training stress, fatigue, fitness, and form
@@ -218,8 +225,9 @@ API:
 - Shared: no new schema behaviour beyond the existing training-load tests;
   `FORM_ZONES` is exercised through the web chart tests.
 - API unit tests for `buildFitnessHistory`: continuous days, TSS precedence,
-  manual entries, plan TSS, daily plan estimate vs. week fallback vs. timeline,
-  no FTP, the activities listed per day, and the interpolated body series.
+  manual entries, plan TSS, daily plan estimate vs. interpolated week estimate
+  vs. timeline, no FTP, the activities listed per day, and the interpolated body
+  series.
 - API route tests: auth, missing date, day clamping, and the happy path.
 - Web unit tests for the chart scale helpers, a render test for the page view
   (load line, zone legend, both charts, hidden FTP chart, body chart and its

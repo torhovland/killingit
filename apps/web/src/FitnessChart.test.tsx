@@ -51,7 +51,7 @@ describe("FitnessChart", () => {
 });
 
 describe("FtpChart", () => {
-  it("draws the projected FTP as dotted steps", () => {
+  it("draws the projected FTP as a dotted line", () => {
     const html = renderToStaticMarkup(
       <FtpChart days={days} points={points} today="2026-10-22" />,
     );
