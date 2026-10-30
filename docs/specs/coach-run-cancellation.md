@@ -66,7 +66,8 @@ input supersedes an older plan refresh.
 - A comment save adds the activity to the visit's kept list and returns at once.
 - While any activity has a comment but no coach reply, the dashboard polls
   `GET /api/coaching/activities/cached` every 1.5 seconds for up to one minute
-  and merges new replies into the feed on screen.
+  and merges new replies into the feed on screen. The activity card shows
+  `Coach: thinking…` under the athlete's comment until the reply replaces it.
 - The plan section continues to poll generation status. A superseded run never
   writes `done` or `error`; the new run owns the status row, so polling follows
   the newest run.
