@@ -141,6 +141,7 @@ function makeApp(options: {
   answers?: QuestionAnswerStore;
   loadActivities?: (userId: number) => Promise<ActivityFeed>;
   loadCachedFeed?: AppDependencies["loadCachedFeed"];
+  loadActivityFeedback?: AppDependencies["loadActivityFeedback"];
   loadActivityTrainingLoads?: AppDependencies["loadActivityTrainingLoads"];
   estimateManualTss?: AppDependencies["estimateManualTss"];
   loadFtpHistory?: AppDependencies["loadFtpHistory"];
@@ -233,6 +234,8 @@ function makeApp(options: {
       options.loadActivities ??
       (() => Promise.resolve({ model: "test-model", activities: [] })),
     loadCachedFeed: options.loadCachedFeed ?? (() => Promise.resolve(null)),
+    loadActivityFeedback:
+      options.loadActivityFeedback ?? (() => Promise.resolve(new Map())),
     loadActivityTrainingLoads:
       options.loadActivityTrainingLoads ??
       (() =>
@@ -443,6 +446,72 @@ describe("coaching activity feed", () => {
 
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ model: null, activities: [] });
+  });
+
+  it("merges feedback the coach stored after the feed was cached", async () => {
+    const app = makeApp({
+      loadCachedFeed: () =>
+        Promise.resolve({
+          model: "test-model",
+          activities: [
+            {
+              id: 7,
+              name: "Morning Run",
+              type: "running",
+              startDate: "2026-10-21T06:30:00Z",
+              distance: 5000,
+              movingTime: 1500,
+              elapsedTime: 1600,
+              totalElevationGain: 20,
+              sampleCount: 10,
+              samples: [],
+              analysis: null,
+              analysisError: null,
+              programAnalysis: null,
+              comment: null,
+              coachReply: null,
+            },
+          ],
+        }),
+      loadActivityFeedback: () =>
+        Promise.resolve(
+          new Map([
+            [
+              "7",
+              {
+                comment: "Felt strong on the climbs.",
+                reply: {
+                  kind: "activity_comment" as const,
+                  target: "7",
+                  text: "Good pacing; keep the climbs easy next time.",
+                  model: "test-model",
+                  generatedAt: new Date("2026-10-21T09:00:00Z"),
+                },
+                reviewed: false,
+              },
+            ],
+          ]),
+        ),
+    });
+
+    const res = await app.fetch(
+      authenticatedRequest("/api/coaching/activities/cached"),
+    );
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      activities: Array<{
+        comment: string | null;
+        coachReply: { text: string; generatedAt: string } | null;
+      }>;
+    };
+    expect(body.activities[0]?.comment).toBe("Felt strong on the climbs.");
+    expect(body.activities[0]?.coachReply?.text).toBe(
+      "Good pacing; keep the climbs easy next time.",
+    );
+    expect(body.activities[0]?.coachReply?.generatedAt).toBe(
+      "2026-10-21T09:00:00.000Z",
+    );
   });
 });
 
@@ -1343,11 +1412,11 @@ describe("coach questions", () => {
     expect(body.answered[0]?.coachReply?.text).toBe("Saturday works well.");
   });
 
-  it("saves an answer, generates a reply and triggers the plan", async () => {
+  it("saves an answer, generates a reply and starts a coach run", async () => {
     const saved: {
       value: { answer: string; reply: string | null } | null;
     } = { value: null };
-    let triggered = false;
+    const runs: Array<{ reply: boolean | undefined; today: string }> = [];
     const app = makeApp({
       loadCoachQuestion: () => Promise.resolve(pendingCoachQuestion),
       replyToCoachQuestion: () =>
@@ -1369,8 +1438,8 @@ describe("coach questions", () => {
           answeredAt: "2026-10-20T10:00:00.000Z",
         });
       },
-      triggerPlanGeneration: () => {
-        triggered = true;
+      startCoachRun: (_deps, options) => {
+        runs.push({ reply: options.reply, today: options.today });
         return Promise.resolve(true);
       },
     });
@@ -1391,6 +1460,6 @@ describe("coach questions", () => {
       answer: "About six hours.",
       reply: "Six hours is enough for a steady base.",
     });
-    expect(triggered).toBe(true);
+    expect(runs).toEqual([{ reply: true, today: "2026-10-20" }]);
   });
 });

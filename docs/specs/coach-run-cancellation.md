@@ -13,8 +13,8 @@ short completion before it starts the slower plan refresh.
 ## Behaviour
 
 1. Saving an activity comment stores it and starts a background coach run. The
-   HTTP response returns immediately with no reply; the dashboard polls for the
-   reply while the run works.
+   HTTP response returns immediately with no reply; the dashboard marks the
+   comment in its local feed and polls for the reply while the run works.
 2. The run claims the user's generation row with a new `runId`. Starting a run
    aborts the previous run's provider requests in the same process.
 3. The first phase asks the coach to answer every activity comment that has no
@@ -58,16 +58,21 @@ saves the returned replies by id. A comment whose id is missing from the
 response is left unanswered for the next run.
 
 The single-input reply paths (weekly note, manual activity, review comment,
-coach question) keep their existing prompts. They still trigger a run, so a new
-input supersedes an older plan refresh.
+coach question) keep their existing prompts. They still start a run, so a new
+input supersedes an older plan refresh; the coach-question answer also runs the
+reply phase so comments left waiting by a superseded run still get answered.
 
 ## UI
 
-- A comment save adds the activity to the visit's kept list and returns at once.
+- A comment save adds the activity to the visit's kept list, writes the comment
+  into the feed on screen, and returns at once.
 - While any activity has a comment but no coach reply, the dashboard polls
   `GET /api/coaching/activities/cached` every 1.5 seconds for up to one minute
-  and merges new replies into the feed on screen. The activity card shows
-  `Coach: thinking…` under the athlete's comment until the reply replaces it.
+  and merges new replies into the feed on screen. The endpoint overlays the
+  stored comment, reply and review state on the cached feed, so a reply written
+  by the reply phase shows up before the plan phase refreshes the feed. The
+  activity card shows `Coach: thinking…` under the athlete's comment until the
+  reply replaces it.
 - The plan section continues to poll generation status. A superseded run never
   writes `done` or `error`; the new run owns the status row, so polling follows
   the newest run.
@@ -77,6 +82,8 @@ input supersedes an older plan refresh.
 - Two comments saved while a run is active produce one superseded run and one
   current run that answers both comments.
 - The current run's replies are visible before the plan refresh finishes.
+- Answering a coach question also answers activity comments left waiting by a
+  superseded run.
 - A superseded run cannot overwrite the plan, mark the new run done or failed,
   or record its coach questions and metric estimates.
 - An aborted completion is not retried by the reasoning-model fallback cascade.

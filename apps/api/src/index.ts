@@ -47,6 +47,7 @@ import type {
   loadPendingCoachQuestion,
 } from "./plans/coachQuestions.js";
 import type {
+  loadActivityFeedback,
   loadManualActivityReplies,
   loadWeeklyNoteReply,
 } from "./plans/replies.js";
@@ -122,6 +123,8 @@ export interface AppDependencies {
   /** Injectable for route tests; defaults to the coach reading the text. */
   syncAthleteMetrics?: typeof syncAthleteMetrics;
   loadCachedFeed?: typeof loadCachedActivityFeed;
+  /** Injectable for route tests; defaults to the stored activity feedback. */
+  loadActivityFeedback?: typeof loadActivityFeedback;
   loadActivityTrainingLoads?: typeof loadUserActivityTrainingLoads;
   loadFitnessHistory?: typeof loadFitnessHistory;
   estimateManualTss?: typeof estimateManualActivityTss;
@@ -255,6 +258,9 @@ export function createApp(deps: AppDependencies = {}): Hono {
         : {}),
       ...(deps.loadCachedFeed !== undefined
         ? { loadCachedFeed: deps.loadCachedFeed }
+        : {}),
+      ...(deps.loadActivityFeedback !== undefined
+        ? { loadActivityFeedback: deps.loadActivityFeedback }
         : {}),
       ...(deps.loadActivityTrainingLoads !== undefined
         ? { loadActivityTrainingLoads: deps.loadActivityTrainingLoads }
