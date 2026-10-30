@@ -20,6 +20,21 @@ describe("COACH_RESPONSE_NOTES_RULES", () => {
     );
     expect(COACH_RESPONSE_NOTES_RULES).toContain("12 October endurance ride");
   });
+
+  it("does not treat normal missing input or an older activity as a problem", () => {
+    expect(COACH_RESPONSE_NOTES_RULES).toContain(
+      "Do not report a normal or expected outcome as a remark",
+    );
+    expect(COACH_RESPONSE_NOTES_RULES).toContain(
+      "a measurement the athlete did not state",
+    );
+    expect(COACH_RESPONSE_NOTES_RULES).toContain(
+      "an activity outside the current week",
+    );
+    expect(COACH_RESPONSE_NOTES_RULES).toContain(
+      "a workout that could not be matched to a planned session",
+    );
+  });
 });
 
 describe("WEATHER_PLANNING_RULES", () => {

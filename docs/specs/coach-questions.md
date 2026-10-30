@@ -22,7 +22,10 @@ remarks about difficulties or objections, and show those remarks to the admin.
    at most one question per response, never one per activity, day, week, block
    or season level, and requires the question to name the activity, date, week
    or metric it is about so the athlete knows the context. The prompt asks for
-   `modelsRemarks` to be null when the task had no problems.
+   `modelsRemarks` to be null when the task had no problems, and treats a normal
+   outcome — an athlete who stated no measurements, or an activity outside the
+   current week that cannot be matched to a planned session — as a non-problem
+   rather than a remark.
 2. Persist new clarification questions in `coach_questions`. Repeated pending
    questions are skipped.
 3. Show only the newest pending question at the top of the main dashboard, with
