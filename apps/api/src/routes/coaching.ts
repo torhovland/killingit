@@ -82,6 +82,7 @@ import {
   loadPendingCoachQuestion,
 } from "../plans/coachQuestions.js";
 import {
+  loadActivityFeedback,
   loadManualActivityReplies,
   loadWeeklyNoteReply,
   toCoachAnalysis,
@@ -123,6 +124,8 @@ export interface CoachingRouteDependencies {
   loadActivities?: (userId: number) => Promise<ActivityFeed>;
   /** Injectable for route tests; defaults to the stored feed reader. */
   loadCachedFeed?: typeof loadCachedActivityFeed;
+  /** Injectable for route tests; defaults to the stored activity feedback. */
+  loadActivityFeedback?: typeof loadActivityFeedback;
   /** Injectable for route tests; defaults to the training-load builder. */
   loadActivityTrainingLoads?: typeof loadUserActivityTrainingLoads;
   /** Injectable for route tests; defaults to the LLM TSS estimator. */
@@ -189,6 +192,7 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
         refresh: false,
       }));
   const loadCachedFeed = deps.loadCachedFeed ?? loadCachedActivityFeed;
+  const loadFeedback = deps.loadActivityFeedback ?? loadActivityFeedback;
   const loadActivityTrainingLoads =
     deps.loadActivityTrainingLoads ?? loadUserActivityTrainingLoads;
   const estimateTss = deps.estimateManualTss ?? estimateManualActivityTss;
@@ -455,13 +459,35 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
           );
         }
         let activities = feed.activities;
+        // The cached feed is written by a full sync, so it can lag behind a
+        // reply the coach stored during the reply phase. Overlay the current
+        // feedback so a reply appears as soon as it is stored.
+        try {
+          const feedback = await loadFeedback(
+            user.id,
+            feed.activities.map((activity) => activity.id),
+          );
+          activities = feed.activities.map((activity) => {
+            const entry = feedback.get(String(activity.id));
+            return entry === undefined
+              ? activity
+              : {
+                  ...activity,
+                  comment: entry.comment,
+                  coachReply: entry.reply ? toCoachAnalysis(entry.reply) : null,
+                  reviewed: entry.reviewed,
+                };
+          });
+        } catch (err) {
+          console.error("[coaching] cached activity feedback failed:", err);
+        }
         try {
           const loads = await loadActivityTrainingLoads(
             user.id,
-            feed.activities,
+            activities,
             storedPlan?.plan,
           );
-          activities = feed.activities.map((activity) => ({
+          activities = activities.map((activity) => ({
             ...activity,
             activityTss:
               loads.byActivityId.get(activity.id) ??
@@ -613,10 +639,14 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
           return c.json({ message: "Question already answered" }, 409);
         }
 
-        await trigger(triggerDeps, {
+        // Saving an answer is a new coach input, so it supersedes any in-flight
+        // run. The run also answers activity comments that are still waiting
+        // for their reply, so no pending "thinking" card is left behind.
+        await startRun(coachRunDeps, {
           userId: user.id,
           today: input.today,
           ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),
+          reply: true,
         });
 
         return c.json(

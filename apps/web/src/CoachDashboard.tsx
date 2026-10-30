@@ -63,6 +63,10 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
   const [data, setData] = useState<AnalyzedActivitiesResponse | null>(() =>
     loadCachedActivities(auth.sub),
   );
+  // The reply poll runs on an interval that outlives a single render; read the
+  // newest feed from a ref so a poll merges into what is actually on screen.
+  const dataRef = useRef<AnalyzedActivitiesResponse | null>(null);
+  dataRef.current = data;
   const [weeklyNote, setWeeklyNote] = useState<string>("");
   const [weeklyNoteReply, setWeeklyNoteReply] = useState<CoachAnalysis | null>(
     null,
@@ -126,7 +130,7 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
       if (!parsed.success || parsed.data.activities.length === 0) {
         return;
       }
-      const merged = mergeActivityFeeds(data, parsed.data);
+      const merged = mergeActivityFeeds(dataRef.current, parsed.data);
       setData(merged);
       saveCachedActivities(authSub.current, merged);
     } catch (err: unknown) {
@@ -323,6 +327,22 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
       // Leave the activity in place for this visit. A reload only shows
       // activities without a response, so the commented activity drops off then.
       keptActivityIds.current.add(activityId);
+      // Reflect the saved comment here as well, so the reply poll starts while
+      // the coach is still working and the card keeps its conversation.
+      const next = data
+        ? {
+            ...data,
+            activities: data.activities.map((activity) =>
+              String(activity.id) === activityId
+                ? { ...activity, comment, coachReply: null }
+                : activity,
+            ),
+          }
+        : null;
+      if (next !== null) {
+        setData(next);
+        saveCachedActivities(authSub.current, next);
+      }
       setLocalPlanRefresh((key) => key + 1);
       return parsed.data.reply?.text ?? null;
     } finally {
