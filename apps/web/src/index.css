@@ -37,7 +37,7 @@
  *
  *   #E4FF4F  lime         — primary actions, badges, accent
  *   #5CFF9A  mint         — gradient end, success, productive form
- *   #9DAAFF  periwinkle   — secondary accent, fresh form
+ *   #9DAAFF  periwinkle   — secondary accent
  *   #1B2C86  cobalt       — page background
  *   #14216A  navy         — inset panels, text on lime
  *   #24389E  royal        — cards and other surfaces
@@ -93,8 +93,10 @@
   --accent-foreground: var(--palette-navy);
   --success: var(--palette-mint);
   --destructive: #f7c2c9;
-  /* Training-stress-balance interpretations. */
-  --form-risk: #f2a1ac;
+  /* Training-stress-balance interpretations. Risk is a true red rather than a
+   * pink, and fresh a light sky blue rather than the periwinkle accent, so each
+   * zone reads clearly against its neighbours. */
+  --form-risk: #f59a9a;
   --form-maintaining: color-mix(
     in srgb,
     var(--palette-ice) 60%,
@@ -105,7 +107,7 @@
     var(--palette-mint) 70%,
     var(--palette-lime)
   );
-  --form-fresh: var(--palette-periwinkle);
+  --form-fresh: #8fd0ff;
   --form-detraining: #e6b86b;
   /* The same zones darkened towards black, for the chart's solid TSB line: the
    * band tints stay pale so the coloured line reads clearly on top. */
