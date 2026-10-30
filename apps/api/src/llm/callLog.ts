@@ -3,20 +3,27 @@ import type {
   LlmCompletionResult,
   LlmProvider,
 } from "./openrouter.js";
-import { saveLlmCall, type LlmCallSink, type NewLlmCall } from "./callStore.js";
+import {
+  dbLlmCallSink,
+  type LlmCallResult,
+  type LlmCallSink,
+  type NewLlmCall,
+} from "./callStore.js";
 
 export interface PromptLoggingOptions {
   /** The account the completion belongs to. */
   userId: number;
   /** Injectable for tests; defaults to the database writer. */
-  save?: LlmCallSink;
+  sink?: LlmCallSink;
   /** Injectable clock for tests; returns epoch milliseconds. */
   clock?: () => number;
 }
 
 /**
  * Wraps a provider so every completion attempt is stored with its prompt,
- * response (or error), and request metadata. Applied only in the app's real
+ * response (or error), and request metadata. The attempt is written before the
+ * request is sent, so a process that stops while waiting for the model still
+ * leaves a row that can be marked failed. Applied only in the app's real
  * provider setup, so test doubles never touch the database.
  *
  * The wrapper is deliberately fail-open: a logging failure must never break
@@ -26,12 +33,21 @@ export function withPromptLogging(
   provider: LlmProvider,
   options: PromptLoggingOptions,
 ): LlmProvider {
-  const save = options.save ?? saveLlmCall;
+  const sink = options.sink ?? dbLlmCallSink;
   const clock = options.clock ?? Date.now;
 
-  async function record(call: NewLlmCall): Promise<void> {
+  async function start(call: NewLlmCall): Promise<number | null> {
     try {
-      await save(call);
+      return await sink.start(call);
+    } catch (err) {
+      console.error("[llm-log] could not store the prompt:", err);
+      return null;
+    }
+  }
+
+  async function finish(id: number, result: LlmCallResult): Promise<void> {
+    try {
+      await sink.finish(id, result);
     } catch (err) {
       console.error("[llm-log] could not store the prompt:", err);
     }
@@ -44,38 +60,39 @@ export function withPromptLogging(
 
     async complete(request) {
       const startedAt = clock();
+      const id = await start({
+        userId: options.userId,
+        kind: request.kind ?? "other",
+        provider: provider.id,
+        model: request.model,
+        messages: request.messages,
+        metadata: requestMetadata(request),
+      });
       try {
         const result = await completeResult(provider, request);
-        await record({
-          userId: options.userId,
-          kind: request.kind ?? "other",
-          provider: provider.id,
-          model: request.model,
-          messages: request.messages,
-          response: result.text,
-          error: null,
-          usage: result.usage,
-          metadata: {
-            ...requestMetadata(request),
-            responseModel: result.model,
-            finishReason: result.finishReason,
-          },
-          durationMs: elapsedMs(startedAt, clock()),
-        });
+        if (id !== null) {
+          await finish(id, {
+            response: result.text,
+            error: null,
+            usage: result.usage,
+            metadata: {
+              responseModel: result.model,
+              finishReason: result.finishReason,
+            },
+            durationMs: elapsedMs(startedAt, clock()),
+          });
+        }
         return result.text;
       } catch (err) {
-        await record({
-          userId: options.userId,
-          kind: request.kind ?? "other",
-          provider: provider.id,
-          model: request.model,
-          messages: request.messages,
-          response: null,
-          error: errorMessage(err),
-          usage: null,
-          metadata: requestMetadata(request),
-          durationMs: elapsedMs(startedAt, clock()),
-        });
+        if (id !== null) {
+          await finish(id, {
+            response: null,
+            error: errorMessage(err),
+            usage: null,
+            metadata: {},
+            durationMs: elapsedMs(startedAt, clock()),
+          });
+        }
         throw err;
       }
     },

@@ -182,7 +182,8 @@ observed, and `fail` only changes a `running` row that still has that exact
 value. A heartbeat that lands between the read and the release therefore keeps
 the run alive, and a run that replaced the stale one is never cleared by the
 older request. The release also marks the prompt-log rows from that run as
-belonging to a failed plan (see `docs/specs/llm-call-log.md`).
+belonging to a failed plan, and settles any prompt the dead process left in
+flight as failed with the stale-run message (see `docs/specs/llm-call-log.md`).
 
 ## API
 
@@ -341,7 +342,8 @@ problems; the error names the offending fields if the repair also fails. See
   budget before falling back to the normal budget without reasoning control.
 - **Cloud Run:** if the process is terminated mid-generation, its heartbeat
   stops. After two minutes without a refresh, `GET` marks the run as failed and
-  the UI offers `Try again`; `begin` can take over the stale claim. A background
+  the UI offers `Try again`; `begin` can take over the stale claim. The prompt
+  log shows the attempt the process was waiting for as failed. A background
   worker is the future fix.
 - **Date trust:** the client supplies `today` and its timezone. A personal app
   accepts this; a multi-tenant version should derive the athlete's timezone from

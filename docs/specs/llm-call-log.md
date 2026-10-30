@@ -40,11 +40,16 @@ output rather than from a reproduction.
 
 `withPromptLogging` decorates the account's provider in `loadLlmClient` (plan
 generation, replies, reviews, program analysis, manual TSS) and in the default
-activity-analysis provider. Each `complete` call writes a row after the
-provider settles:
+activity-analysis provider. Each `complete` call writes a row in two steps:
 
-- success: response text, usage, routed model, finish reason, duration;
-- failure: the error message, duration, and the prompt that caused it.
+- before sending: the full prompt and request metadata;
+- after the provider settles: the response text or error message, usage, routed
+  model, finish reason, and duration.
+
+The row therefore exists while the request is in flight. A process that stops
+while waiting for the provider (for example a Cloud Run restart) leaves a
+visible row instead of losing the attempt, because the write does not depend on
+the answer arriving.
 
 `completeWithFallbacks` adds `attempt` and `ofAttempts` to the row metadata so
 a retry chain is readable. The JSON repair turn is marked `repair: true`.
@@ -56,29 +61,36 @@ completion is still returned.
 The list response carries the retry and failure state so the admin does not
 have to open every row:
 
+- `pending` — the provider has not settled yet, so there is no response or
+  error. A row left pending after its run ended belongs to a stopped process.
 - `repair` — the completion was the JSON repair turn of a plan request.
 - `attempt` and `ofAttempts` — the provider attempt that produced the row, when
   the call went through the fallback chain.
 - `planFailed` — the plan generation this prompt belongs to ended in failure.
 
 A plan generation can fail after a prompt succeeds (for example when the
-repaired JSON still breaks a season invariant). When the run fails,
-`markPlanPromptsFailed` adds `planFailed: true` and `planError` to the metadata
-of every plan-generation prompt logged since that run started. The marker is
-fail-open, like prompt logging itself. The rows therefore keep showing the
-failure after a later run succeeds.
+repaired JSON still breaks a season invariant). When the run fails, or when
+`GET` releases an abandoned run, `markPlanPromptsFailed` adds `planFailed: true`
+and `planError` to the metadata of every plan-generation prompt logged since
+that run started. A plan prompt that was still in flight is also settled as
+failed with the stale-run message, so the request that never returned appears
+in the log. The marker is fail-open, like prompt logging itself. The rows
+therefore keep showing the failure after a later run succeeds.
 
 The list shows a `Retry` badge for a repair turn or a later fallback attempt,
 the attempt as `2/3` beside it, `Plan failed` for a prompt from a failed plan
-run, and a `Failed` badge for a completion that returned an error. The detail
-view repeats the retry and plan-failure badges and shows the plan error.
+run, `In flight` while a call is still waiting for the provider, and a `Failed`
+badge for a completion that returned an error. The detail view repeats the
+retry, plan-failure, and in-flight markers and shows the plan error.
 
 ### Storage
 
 `llm_calls` holds the account, prompt kind, provider, requested model, messages
-(jsonb), response, error, usage, metadata (jsonb), duration, and creation time.
-Rows are deleted with the account (`on delete cascade`). Prompt text can contain
-health and training details, so the table is read only through admin routes.
+(jsonb), response, error, usage, metadata (jsonb), duration, creation time, and
+the time the provider settled (`completed_at`). `completed_at` is null while the
+call is in flight and when the process stopped before settling it. Rows are
+deleted with the account (`on delete cascade`). Prompt text can contain health
+and training details, so the table is read only through admin routes.
 
 ### API
 
@@ -111,8 +123,12 @@ questions and the prompt log.
 
 - Every production completion attempt produces exactly one `llm_calls` row,
   including failed attempts and repair turns.
+- An attempt is recorded before its request is sent, so a process that stops
+  while waiting for the provider still leaves a row.
 - A row contains the exact messages sent, the response or error, the model, and
   the prompt kind.
+- A plan prompt abandoned by a stopped run appears as failed and carries the
+  stale-run error.
 - The list and detail endpoints reject unauthenticated users with 401 and
   non-admins with 403.
 - The admin UI lists recent calls and shows the complete prompt and response

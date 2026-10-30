@@ -211,6 +211,13 @@
       "when": 1793302412116,
       "tag": "0029_useful_moonstone",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1793311523753,
+      "tag": "0030_parallel_red_wolf",
+      "breakpoints": true
     }
   ]
 }

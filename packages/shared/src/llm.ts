@@ -128,6 +128,11 @@ export const llmCallSummarySchema = z.object({
   model: z.string(),
   durationMs: z.number().int().nonnegative(),
   failed: z.boolean(),
+  /**
+   * The provider has not settled yet. A row left pending long after its run
+   * ended belongs to a process that stopped mid-call.
+   */
+  pending: z.boolean(),
   /** The JSON repair turn that followed a rejected plan response. */
   repair: z.boolean(),
   /** The provider attempt that produced this row, when it was part of a chain. */
