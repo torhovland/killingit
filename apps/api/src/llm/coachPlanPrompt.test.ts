@@ -170,10 +170,10 @@ describe("coach plan prompts", () => {
     );
     expect(prompt).toContain(WEEK_OUTLINE_RULES);
     expect(prompt).toContain(
-      "Treat the week as an outline, not seven finished workouts",
+      "Treat every week plan, the current week and the next week, as an outline, not seven finished workouts",
     );
     expect(prompt).toContain(
-      "Fully detail today's and tomorrow's sessions; keep every later day in the week as a short outline.",
+      "Fully detail the today and tomorrow day objects; keep every session in the week, including today and tomorrow, as a short outline.",
     );
   });
 

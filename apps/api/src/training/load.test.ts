@@ -142,7 +142,12 @@ const plan: CoachPlan = {
   },
   week,
   today: day("2026-10-20", { status: "completed" }),
-  tomorrow: day("2026-10-21"),
+  tomorrow: day("2026-10-21", {
+    bikeWorkout: {
+      ftpWatts: 200,
+      intervals: [{ durationSeconds: 3600, powerPercent: 100 }],
+    },
+  }),
   nextWeek: null,
   nextBlock: null,
 };

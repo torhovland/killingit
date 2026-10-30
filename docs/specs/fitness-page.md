@@ -92,7 +92,7 @@ timeline value (`ftpAt`), which covers the stated profile FTP, every later FTP
 test the athlete mentioned, and recorded history. From today onward the series
 is the plan's projection, interpolated rather than stepped:
 
-1. the coach's per-day estimate for each fully detailed session;
+1. the coach's per-day estimate for each planned session;
 2. the weekly estimates of the current and next week and of every week of the
    current and next block, anchored at their week's start; and
 3. today's current estimate, which anchors the start of the projection.

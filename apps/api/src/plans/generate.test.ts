@@ -482,7 +482,7 @@ describe("runPlanGeneration", () => {
     expect(generations.steps).toContain("Building your week");
   });
 
-  it("keeps detailed workouts only for today and tomorrow", async () => {
+  it("keeps detailed workouts only in the day plans", async () => {
     const today = "2026-10-21";
     const bikeWorkout = {
       ftpWatts: 250,
@@ -511,14 +511,8 @@ describe("runPlanGeneration", () => {
     });
 
     const sessions = saved?.plan.week.sessions ?? [];
-    expect(
-      sessions.find((session) => session.date === "2026-10-22")?.bikeWorkout,
-    ).not.toBeNull();
-    expect(
-      sessions
-        .filter((session) => session.date > "2026-10-22")
-        .every((session) => session.bikeWorkout == null),
-    ).toBe(true);
+    expect(sessions.every((session) => session.bikeWorkout == null)).toBe(true);
+    expect(saved?.plan.today.bikeWorkout).toEqual(bikeWorkout);
   });
 
   it("stores one FTP point per planned day from today onward", () => {
@@ -1000,7 +994,8 @@ describe("runPlanGeneration", () => {
     );
     expect(saved?.plan.today.status).toBe("completed");
     expect(todaySession?.status).toBe("completed");
-    expect(todaySession?.title).toBe(saved?.plan.today.title);
+    expect(todaySession?.title).toBe("Session 3");
+    expect(todaySession?.description).toBe("Easy aerobic work.");
   });
 
   it("cascades a mismatched today result into the week", async () => {
@@ -1501,6 +1496,54 @@ describe("runPlanGeneration", () => {
     expect(generations.status.error).toBe("no response configured");
   });
 
+  it("takes only tomorrow's outline from the coach's week", async () => {
+    const today = "2026-10-21";
+    const current = makePlan(today);
+    const stored = makeStoredPlan({ ...current, tomorrow: null });
+    const coachWeek = makeWeek("2026-10-19");
+    const provider = new FakeProvider({
+      planUpdate: makeUpdate(today, {
+        tomorrow: makeDay("2026-10-22"),
+        week: {
+          ...coachWeek,
+          sessions: coachWeek.sessions.map((session) =>
+            session.date === "2026-10-22"
+              ? {
+                  ...session,
+                  title: "Tomorrow outline",
+                  description: "Short overview.",
+                }
+              : session,
+          ),
+        },
+      }),
+    });
+    const plans = new MemoryPlanStore(stored);
+    const generations = new MemoryGenerationStore();
+
+    const saved = await runPlanGeneration({
+      userId: 1,
+      runId: "run-1",
+      today,
+      plan: stored,
+      includeTomorrow: true,
+      context: makeContext(provider),
+      plans,
+      generations,
+    });
+
+    const tomorrowSession = saved?.plan.week.sessions.find(
+      (session) => session.date === "2026-10-22",
+    );
+    const thursday = saved?.plan.week.sessions.find(
+      (session) => session.date === "2026-10-23",
+    );
+    expect(saved?.plan.tomorrow?.title).toBe("Easy run");
+    expect(tomorrowSession?.title).toBe("Tomorrow outline");
+    expect(tomorrowSession?.description).toBe("Short overview.");
+    expect(thursday?.title).toBe("Session 5");
+  });
+
   it("generates next week and tomorrow when tomorrow crosses into a new week", async () => {
     const today = "2026-10-25";
     const currentWeek = makeEndedWeek("2026-10-19", today);
@@ -1546,9 +1589,9 @@ describe("runPlanGeneration", () => {
     const monday = saved?.plan.nextWeek?.sessions.find(
       (session) => session.date === "2026-10-26",
     );
-    expect(monday?.title).toBe(saved?.plan.tomorrow?.title);
-    expect(monday?.description).toBe(saved?.plan.tomorrow?.description);
-    expect(monday?.durationMinutes).toBe(saved?.plan.tomorrow?.durationMinutes);
+    expect(monday?.title).toBe("Session 1");
+    expect(monday?.description).toBe("Easy aerobic work.");
+    expect(monday?.durationMinutes).toBe(45);
   });
 
   it("recovers from an uncovered stored tomorrow by planning next week", async () => {

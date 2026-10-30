@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { AnalyzedActivity, WeekPlan } from "@killingit/shared";
-import { applyCompletedDays, mirrorDay } from "./week.js";
+import { applyCompletedDays } from "./week.js";
 
 function makeWeek(): WeekPlan {
   return {
@@ -103,9 +103,9 @@ describe("applyCompletedDays", () => {
     const today = applied.sessions[2];
 
     expect(today?.status).toBe("completed");
-    expect(today?.title).toBe("Lunch Ride");
-    expect(today?.description).toContain("Completed: Running");
-    expect(today?.durationMinutes).toBe(40);
+    expect(today?.title).toBe("Session 3");
+    expect(today?.description).toBe("Easy aerobic work.");
+    expect(today?.durationMinutes).toBe(45);
   });
 
   it("marks today's workout as partial when it was much shorter", () => {
@@ -136,7 +136,7 @@ describe("applyCompletedDays", () => {
     expect(applied.sessions[0]?.status).toBe("partial");
   });
 
-  it("mirrors today's day plan into the week", () => {
+  it("keeps today's week outline and settles its status", () => {
     const applied = applyCompletedDays(
       makeWeek(),
       [makeActivity({ startDate: "2026-10-21T06:30:00Z" })],
@@ -145,8 +145,8 @@ describe("applyCompletedDays", () => {
       {
         ...makeWeek().sessions[2]!,
         date: "2026-10-21",
-        title: "Completed easy run",
-        description: "Completed: 45 easy minutes.",
+        title: "Detailed easy run with strides",
+        description: "45 minutes easy, then six strides.",
         status: "completed",
         alternatives: [],
         rationale: "Matches the plan.",
@@ -157,40 +157,18 @@ describe("applyCompletedDays", () => {
     );
 
     const today = applied.sessions[2];
-    expect(today?.title).toBe("Completed easy run");
-    expect(today?.description).toBe("Completed: 45 easy minutes.");
+    expect(today?.title).toBe("Session 3");
+    expect(today?.description).toBe("Easy aerobic work.");
     expect(today?.status).toBe("completed");
-    expect(today?.outdoor).toBe(false);
-    expect(today?.canBeOutdoor).toBe(true);
+    expect(today?.outdoor).toBeUndefined();
+    expect(today?.canBeOutdoor).toBeUndefined();
   });
 
-  it("mirrors an indoor/outdoor classification into the week", () => {
-    const week = makeWeek();
-    const mirrored = mirrorDay(week, {
-      date: "2026-10-22",
-      type: "workout",
-      title: "Easy ride",
-      description: "Easy ride.",
-      durationMinutes: 45,
-      intensity: "easy",
-      alternatives: [],
-      rationale: "Base building.",
-      optional: false,
-      status: "planned",
-      outdoor: false,
-      canBeOutdoor: true,
-    });
-
-    expect(week.sessions[3]?.canBeOutdoor).toBeUndefined();
-    expect(mirrored.sessions[3]?.outdoor).toBe(false);
-    expect(mirrored.sessions[3]?.canBeOutdoor).toBe(true);
-  });
-
-  it("mirrors an already completed today even without the activity", () => {
+  it("settles an already completed today even without the activity", () => {
     const applied = applyCompletedDays(makeWeek(), [], "2026-10-21", [], {
       date: "2026-10-21",
       type: "workout",
-      title: "Completed ride",
+      title: "Detailed completed ride",
       description: "Completed: 50 min ride.",
       durationMinutes: 50,
       intensity: "moderate",
@@ -202,7 +180,29 @@ describe("applyCompletedDays", () => {
 
     const today = applied.sessions[2];
     expect(today?.status).toBe("completed");
-    expect(today?.title).toBe("Completed ride");
+    expect(today?.title).toBe("Session 3");
+  });
+
+  it("shows a brief activity record when today was planned as rest", () => {
+    const week = makeWeek();
+    const restToday: WeekPlan = {
+      ...week,
+      sessions: week.sessions.map((session, index) =>
+        index === 2 ? { ...session, type: "rest", intensity: "rest" } : session,
+      ),
+    };
+
+    const applied = applyCompletedDays(
+      restToday,
+      [makeActivity({ startDate: "2026-10-21T06:30:00Z" })],
+      "2026-10-21",
+    );
+    const today = applied.sessions[2];
+
+    expect(today?.status).toBe("completed");
+    expect(today?.type).toBe("workout");
+    expect(today?.title).toBe("Morning Run");
+    expect(today?.description).toContain("Completed: Running");
   });
 
   it("keeps a past rest day as rest", () => {

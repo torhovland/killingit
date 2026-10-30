@@ -196,6 +196,8 @@ export async function loadAnalyzedActivities(options: {
     ? {
         today: storedPlan.plan.today.date,
         week: storedPlan.plan.week,
+        todayPlan: storedPlan.plan.today,
+        tomorrowPlan: storedPlan.plan.tomorrow,
         ftpHistory,
         thresholds: trainingThresholds,
       }

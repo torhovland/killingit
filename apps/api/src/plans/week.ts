@@ -16,8 +16,9 @@ import type { ManualActivityContext } from "../llm/planContext.js";
  * days never carry future suggestions. Manually recorded activities are treated
  * exactly like synced activities.
  *
- * `todayPlan`, when supplied, is mirrored into today's week session so the day
- * and week views agree on the title, description, and completion status.
+ * Today's week session keeps its outline, because the detailed prescription
+ * lives in the day plan; only its completion status is settled here. `todayPlan`
+ * supplies that verdict when the coach already gave one.
  */
 export function applyCompletedDays(
   week: WeekPlan,
@@ -66,21 +67,7 @@ export function applyCompletedDays(
     }
 
     if (session.date === today) {
-      if (!activity) {
-        // Keep a completed/partial day and its week session in agreement even
-        // when the activity itself is not in this generation's context.
-        if (
-          todayPlan?.status === "completed" ||
-          todayPlan?.status === "partial"
-        ) {
-          return mirrorToday(session, null, todayPlan);
-        }
-        return {
-          ...session,
-          status: session.type === "rest" ? "rest" : "planned",
-        } as const;
-      }
-      return mirrorToday(session, activity, todayPlan);
+      return settleTodaySession(session, activity ?? null, todayPlan);
     }
 
     if (activity) {
@@ -117,11 +104,11 @@ export function applyCompletedDays(
 }
 
 /**
- * Mirrors today's generated day plan into the week. The coach's `partial`
- * verdict is preserved; when it only says `planned`, fall back to comparing the
- * activity with the planned session.
+ * Settles today's completion status on the week's outline. The coach's
+ * `partial` verdict is preserved; when it only says `planned`, fall back to
+ * comparing the activity with the planned session.
  */
-function mirrorToday(
+function settleTodaySession(
   session: WeekSession,
   activity: AnalyzedActivity | null,
   todayPlan: DayPlan | undefined,
@@ -134,11 +121,9 @@ function mirrorToday(
         : session.type === "rest"
           ? "rest"
           : "planned";
-
-  if (!todayPlan) {
-    if (!activity) {
-      return { ...session, status };
-    }
+  // A planned rest day keeps its outline unless the athlete trained anyway;
+  // then the week shows a brief record of what was done instead.
+  if (session.type === "rest" && activity !== null) {
     return {
       ...session,
       type: "workout",
@@ -149,55 +134,7 @@ function mirrorToday(
       bikeWorkout: null,
     };
   }
-
-  return {
-    ...session,
-    type: todayPlan.type,
-    title: todayPlan.title,
-    description: todayPlan.description,
-    durationMinutes: todayPlan.durationMinutes,
-    intensity: todayPlan.intensity,
-    status,
-    ...(todayPlan.outdoor !== undefined ? { outdoor: todayPlan.outdoor } : {}),
-    ...(todayPlan.canBeOutdoor !== undefined
-      ? { canBeOutdoor: todayPlan.canBeOutdoor }
-      : {}),
-    bikeWorkout: todayPlan.bikeWorkout ?? null,
-  };
-}
-
-/**
- * Copies a generated day plan into its week session so the Day and Week views
- * cannot disagree about the session. Throws when the day does not belong to the
- * week, which would mean the coach returned inconsistent levels.
- */
-export function mirrorDay(week: WeekPlan, day: DayPlan): WeekPlan {
-  if (!week.sessions.some((session) => session.date === day.date)) {
-    throw new Error(
-      "The coach returned a session that is not in the planned week.",
-    );
-  }
-  return {
-    ...week,
-    sessions: week.sessions.map((session) =>
-      session.date === day.date
-        ? {
-            ...session,
-            type: day.type,
-            title: day.title,
-            description: day.description,
-            durationMinutes: day.durationMinutes,
-            intensity: day.intensity,
-            status: day.status,
-            ...(day.outdoor !== undefined ? { outdoor: day.outdoor } : {}),
-            ...(day.canBeOutdoor !== undefined
-              ? { canBeOutdoor: day.canBeOutdoor }
-              : {}),
-            bikeWorkout: day.bikeWorkout ?? null,
-          }
-        : session,
-    ),
-  };
+  return { ...session, status };
 }
 
 /**

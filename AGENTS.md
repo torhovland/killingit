@@ -93,10 +93,12 @@ about a past workout, or before a suggested workout, to steer the coach.
   applies the returned block, week, day, next week, next block and tomorrow that
   the update requested; the plan UI is documented in
   `docs/specs/coach-plan-lifecycle.md` and ADR 0013. Week and next-week plans
-  are outlines: only today's and tomorrow's sessions are fully detailed, while
-  later days keep a brief session type, focus, approximate duration and
-  intensity, estimated TSS, and the week's estimated FTP until the daily update
-  details them. See `docs/specs/week-outline.md`. Indoor bike workouts with power targets
+  are outlines: every week session keeps a brief session type, focus,
+  approximate duration and intensity, estimated TSS, and the week's estimated
+  FTP, while only the today and tomorrow day plans carry the full prescription.
+  The daily update details a day when it arrives. Block-week and season-block
+  focuses stay planned, with at most one completion sentence. See
+  `docs/specs/week-outline.md`. Indoor bike workouts with power targets
   carry a structured `bikeWorkout` and can be downloaded as ZWO files from the
   Day tab; see `docs/specs/coach-plan-lifecycle.md` and
   `docs/specs/bike-workout-export.md`.

@@ -339,7 +339,7 @@ function withEstimatedFtp(
   };
 }
 
-/** Copies a day's resolved load and workout from its week session. */
+/** Copies a day's resolved training load from its week session. */
 function withDayLoad(
   day: DayPlan,
   sessions: ReadonlyMap<string, WeekSession>,
@@ -348,12 +348,15 @@ function withDayLoad(
   if (session === undefined) {
     return { ...day, trainingLoad: null };
   }
+  const dayFtp = session.estimatedFtpWatts;
   return {
     ...day,
-    // The week session is the source of truth for the day's resolved training,
-    // so a completed activity's replacement workout is reflected here too.
+    // The day plan owns the detailed prescription, including its bike workout.
+    // Keep that workout's FTP in step with the day the week projects.
     bikeWorkout:
-      session.bikeWorkout === undefined ? day.bikeWorkout : session.bikeWorkout,
+      day.bikeWorkout != null && dayFtp != null
+        ? { ...day.bikeWorkout, ftpWatts: dayFtp }
+        : day.bikeWorkout,
     trainingLoad: session.trainingLoad ?? null,
   };
 }

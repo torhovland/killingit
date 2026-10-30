@@ -166,6 +166,46 @@ describe("buildActivityAnalysisPrompt", () => {
     );
   });
 
+  it("includes today's detailed day plan next to the week outline", () => {
+    const week: WeekPlan = {
+      startDate: "2026-09-28",
+      focus: "Aerobic base",
+      rationale: "Keep the week easy.",
+      sessions: Array.from({ length: 7 }, (_, index) => ({
+        date: `2026-10-${String(index + 1).padStart(2, "0")}`,
+        day: "Monday",
+        type: "workout" as const,
+        title: "Easy ride",
+        description: "Steady aerobic work.",
+        durationMinutes: 60,
+        intensity: "easy" as const,
+        status: "planned" as const,
+      })),
+    };
+
+    const prompt =
+      buildActivityAnalysisMessages(makeActivity(), {
+        today: "2026-10-01",
+        todayPlan: {
+          date: "2026-10-01",
+          type: "workout",
+          title: "Easy ride with cadence blocks",
+          description: "60 minutes easy with four cadence blocks.",
+          durationMinutes: 60,
+          intensity: "easy",
+          alternatives: [],
+          rationale: "Cadence work keeps the aerobic ride purposeful.",
+          optional: false,
+          status: "planned",
+          bikeWorkout: null,
+        },
+        week,
+      })[1]?.content ?? "";
+
+    expect(prompt).toContain("Detailed planned session for 2026-10-01:");
+    expect(prompt).toContain("60 minutes easy with four cadence blocks.");
+  });
+
   it("does not match an activity that happened outside the supplied week", () => {
     const week: WeekPlan = {
       startDate: "2026-10-05",
