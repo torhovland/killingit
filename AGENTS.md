@@ -70,7 +70,12 @@ about a past workout, or before a suggested workout, to steer the coach.
   contracts live in `apps/api/src/llm/promptRules.ts`; the build, update,
   activity-review and manual-TSS prompts compose them so TSS, FTP, weather,
   bike-workout, body-metric and week-outline behaviour stays consistent across
-  prompts.
+  prompts. Every prompt that answers the athlete — a reply to a comment, a weekly
+  note, a manual activity or a review, an answer to a coach question, and a
+  one-off coaching question — carries the same athlete and training context as
+  the plan prompts, built from the last synced activity feed and the stored
+  coaching inputs, with the forecast stored on the plan; see
+  `docs/specs/coach-reply-context.md`.
 - The four-level plan is stored per user in `coach_plans`; generation progress
   is in `plan_generations`. After 18:00 the stored plan also carries tomorrow's
   session and, when tomorrow has crossed a week or block boundary, the next week

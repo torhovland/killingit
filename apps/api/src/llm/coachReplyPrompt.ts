@@ -1,10 +1,11 @@
-import type { CoachPlan } from "@killingit/shared";
-import type { AthleteAnswerContext } from "./planContext.js";
+import type { CoachPlan, DailyWeather } from "@killingit/shared";
 import {
-  formatAthleteProfile,
   formatDayPlan,
+  formatPlanContext,
   formatPlanLevels,
   formatPlannedSession,
+  formatWeatherForecast,
+  type PlanContextInput,
 } from "./planContext.js";
 import {
   GLOBAL_PROMPT_RULES,
@@ -32,15 +33,19 @@ export type CoachReplyTarget =
   | { kind: "coach_question"; question: string; answer: string };
 
 export interface CoachReplyPromptInput {
-  today: string;
   plan: CoachPlan;
-  athleteAnswers: readonly AthleteAnswerContext[];
+  /**
+   * The athlete's training context, rendered exactly as the plan prompts render
+   * it, so a reply is written from the same picture as the plan.
+   */
+  context: PlanContextInput;
   request: CoachReplyTarget;
 }
 
 const COACH_REPLY_SYSTEM_PROMPT = promptSections(
   GLOBAL_PROMPT_RULES,
   "The athlete has just shared something about their training: a comment on a workout, a completed week or block, a note for the week, or a manual activity.",
+  "Use the athlete profile, the current plan, and the recent training with its coach analyses to judge what the input means for the athlete.",
   "Reply briefly in 1-2 sentences of plain text. Acknowledge the input in your own words, explain how it affects the plan, and state what you will adjust. Be specific to the athlete's goal and current block. Do not restate the whole plan or ask questions.",
   PLAIN_TEXT_RULES,
 );
@@ -48,7 +53,8 @@ const COACH_REPLY_SYSTEM_PROMPT = promptSections(
 const QUICK_QUESTION_SYSTEM_PROMPT = promptSections(
   GLOBAL_PROMPT_RULES,
   "The athlete is asking a one-off question about their training.",
-  "Answer it directly and briefly in 1-3 sentences of plain text, using their goal, current plan, and athlete profile. This is a conversation only: it does not change the training plan and nothing from it is stored. Do not ask follow-up questions.",
+  "Answer it directly and briefly in 1-3 sentences of plain text, using their goal, current plan, athlete profile, and recent training with its coach analyses. Refer to what they have actually done rather than to what the plan alone would suggest.",
+  "This is a conversation only: it does not change the training plan and nothing from it is stored. Do not ask follow-up questions.",
   PLAIN_TEXT_RULES,
 );
 
@@ -72,6 +78,7 @@ export function buildCoachReplyMessages(input: CoachReplyPromptInput): {
 /** Exposed for tests and for inspecting exactly what is sent to the model. */
 export function buildCoachReplyPrompt(input: CoachReplyPromptInput): string {
   const { plan, request } = input;
+  const today = input.context.today;
   const targetDate =
     request.kind === "weekly_note" ||
     request.kind === "quick_question" ||
@@ -86,9 +93,7 @@ export function buildCoachReplyPrompt(input: CoachReplyPromptInput): string {
       : plan.week.sessions.find((session) => session.date === targetDate);
 
   const lines = [
-    `Today's date: ${input.today}`,
-    "",
-    ...formatAthleteProfile(input.athleteAnswers),
+    ...formatPlanContext(input.context),
     "",
     ...formatPlanLevels(plan),
     "",
@@ -98,6 +103,10 @@ export function buildCoachReplyPrompt(input: CoachReplyPromptInput): string {
 
   if (plan.tomorrow !== null) {
     lines.push("", "Tomorrow's session:", formatDayPlan(plan.tomorrow));
+  }
+  const forecast = plannedForecast(plan);
+  if (forecast.length > 0) {
+    lines.push("", ...forecast);
   }
   if (targetSession) {
     lines.push(
@@ -119,7 +128,7 @@ export function buildCoachReplyPrompt(input: CoachReplyPromptInput): string {
     lines.push(
       "This question is a one-off conversation. It is not stored and does not change the plan, so answer it without proposing a plan revision.",
     );
-  } else if (request.kind !== "weekly_note" && targetDate === input.today) {
+  } else if (request.kind !== "weekly_note" && targetDate === today) {
     lines.push(
       "Today's session has already happened or is being reported, so it will not be changed. The rest of the week and tomorrow will be revised.",
     );
@@ -131,6 +140,23 @@ export function buildCoachReplyPrompt(input: CoachReplyPromptInput): string {
 
   lines.push("", "Write your brief reply to the athlete.");
   return lines.join("\n");
+}
+
+/**
+ * Today's and tomorrow's forecast as stored on the plan. A reply is answered
+ * without a new forecast fetch, so it uses what the plan already carries.
+ */
+function plannedForecast(plan: CoachPlan): string[] {
+  const days = [plan.today, plan.tomorrow]
+    .map((day) => (day === null ? null : (day.weather ?? null)))
+    .filter((day): day is DailyWeather => day !== null);
+  if (days.length === 0) {
+    return [];
+  }
+  return [
+    "Weather and daylight forecast stored with today's plan (local clock times):",
+    formatWeatherForecast(days),
+  ];
 }
 
 function requestDate(request: CoachReplyTarget): string {

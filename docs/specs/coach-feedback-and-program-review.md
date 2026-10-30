@@ -113,8 +113,12 @@ and the reply is null; the failure is logged.
   Versioned with `PROGRAM_ANALYSIS_PROMPT_VERSION`.
 - **Coach reply** (`coachReplyPrompt`): system prompt asks for a 1–2 sentence
   plain-text reply that acknowledges the input, explains the effect on the plan,
-  and states what the coach will adjust. The user prompt contains the current
-  plan and the specific input. No JSON and no markdown.
+  and states what the coach will adjust. The user prompt contains the shared
+  athlete and training context every plan prompt gets (profile, recent activities
+  with their analyses and comments, manual activities, the weekly note, completed
+  reviews, FTP and body histories), the current plan, the forecast stored on
+  today's and tomorrow's sessions, and the specific input. No JSON and no
+  markdown. See `docs/specs/coach-reply-context.md`.
 - **Plan generation** (`planContext`): each activity comment is rendered
   inline under the activity it references, together with an explicit rule that
   the comment describes that same activity and is never additional training.
