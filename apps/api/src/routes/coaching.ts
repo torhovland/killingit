@@ -249,6 +249,7 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
     ...(deps.loadFtpHistory !== undefined
       ? { loadFtpHistory: deps.loadFtpHistory }
       : {}),
+    loadAnsweredCoachQuestions: loadAnsweredQuestions,
   };
   const coachRunDeps: CoachRunDependencies = {
     ...triggerDeps,

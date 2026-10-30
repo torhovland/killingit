@@ -62,6 +62,8 @@ export interface PlanTriggerDependencies {
   loadBodyHistory?: typeof loadBodyHistoryForUser;
   /** Injectable for route tests; defaults to the coach reading the text. */
   syncAthleteMetrics?: typeof syncAthleteMetrics;
+  /** Injectable for route tests; defaults to answered coach questions. */
+  loadAnsweredCoachQuestions?: typeof loadAnsweredCoachQuestions;
   /** Injectable for route tests; defaults to the account's stored config. */
   loadLlm?: (userId: number) => Promise<LlmClient | null>;
   /** Injectable for route tests; defaults to the database-backed loader. */
@@ -168,7 +170,7 @@ export async function runPlanForUser(
           ? deps.loadCoachingInputs(userId, startOfWeek(today))
           : loadCoachingInputs(userId, startOfWeek(today)),
         deps.users.getById(userId),
-        loadAnsweredCoachQuestions(userId),
+        (deps.loadAnsweredCoachQuestions ?? loadAnsweredCoachQuestions)(userId),
       ]);
   } catch (err) {
     if (options.signal.aborted) {

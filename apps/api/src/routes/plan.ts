@@ -91,6 +91,10 @@ export interface PlanRouteDependencies {
   loadFtpHistory?: PlanTriggerDependencies["loadFtpHistory"];
   /** Injectable for route tests; defaults to the stored body metrics. */
   loadBodyHistory?: PlanTriggerDependencies["loadBodyHistory"];
+  /** Injectable for route tests; defaults to the coach reading the text. */
+  syncAthleteMetrics?: PlanTriggerDependencies["syncAthleteMetrics"];
+  /** Injectable for route tests; defaults to answered coach questions. */
+  loadAnsweredCoachQuestions?: PlanTriggerDependencies["loadAnsweredCoachQuestions"];
   /** Injectable for route tests; defaults to the account's stored config. */
   loadLlm?: (userId: number) => Promise<LlmClient | null>;
   /** Injectable for route tests; defaults to the database-backed loader. */
@@ -299,6 +303,14 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
               : {}),
             ...(deps.loadBodyHistory !== undefined
               ? { loadBodyHistory: deps.loadBodyHistory }
+              : {}),
+            ...(deps.syncAthleteMetrics !== undefined
+              ? { syncAthleteMetrics: deps.syncAthleteMetrics }
+              : {}),
+            ...(deps.loadAnsweredCoachQuestions !== undefined
+              ? {
+                  loadAnsweredCoachQuestions: deps.loadAnsweredCoachQuestions,
+                }
               : {}),
             ...(deps.loadLlm !== undefined ? { loadLlm: deps.loadLlm } : {}),
             ...(deps.loadCoachingInputs !== undefined

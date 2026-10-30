@@ -417,6 +417,9 @@ export function createApp(deps: AppDependencies = {}): Hono {
       ...(deps.syncAthleteMetrics !== undefined
         ? { syncAthleteMetrics: deps.syncAthleteMetrics }
         : {}),
+      ...(deps.loadAnsweredCoachQuestions !== undefined
+        ? { loadAnsweredCoachQuestions: deps.loadAnsweredCoachQuestions }
+        : {}),
       ...(deps.loadLlm !== undefined ? { loadLlm: deps.loadLlm } : {}),
       ...(deps.loadCoachingInputs !== undefined
         ? { loadCoachingInputs: deps.loadCoachingInputs }

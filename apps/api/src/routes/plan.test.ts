@@ -314,6 +314,7 @@ function makeApp(options: {
       }),
     loadBodyHistory: () => Promise.resolve({ weight: [], bodyFat: [] }),
     syncAthleteMetrics: () => Promise.resolve(null),
+    loadAnsweredCoachQuestions: () => Promise.resolve([]),
     loadLlm: () =>
       Promise.resolve({
         provider: {
