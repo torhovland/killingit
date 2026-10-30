@@ -113,7 +113,7 @@ export interface GeneratePlanInput {
   /**
    * Revise the week around a new input. Today's stored session is preserved
    * unless an activity was already recorded today, in which case today's plan
-   * is refreshed to describe the completed activity.
+   * is refreshed to add a short completion note to the planned workout.
    */
   keepToday?: boolean;
   /** Runs after a full build so recent activities can be reviewed against the
