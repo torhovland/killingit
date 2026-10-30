@@ -74,8 +74,13 @@ export const TODAY_IN_WEEK_RULE = `The today object must match today's date and 
  */
 export const PAST_SESSION_RULES = `For days before today, do not propose new workouts: describe what the athlete actually did using the recent activities and set each status to "completed", "partial", "missed", or "rest".`;
 
-/** How today's session mirrors an activity that was already recorded. */
-export const TODAY_SESSION_RULES = `If an activity has already been recorded for today, today's plan must describe that completed activity, using the athlete's latest comment to correct the summary, instead of proposing another workout. Give today's plan and today's week session the same status.`;
+/**
+ * How today's session mirrors an activity that was already recorded. The
+ * activity analysis and the coach's reply to the athlete's comment already say
+ * how the workout went, so today's plan keeps the planned prescription and
+ * rationale and adds only a short note on how much of it was completed.
+ */
+export const TODAY_SESSION_RULES = `If an activity has already been recorded for today, do not propose another workout. When today's plan already provides a workout, keep that planned workout's title, description and rationale rather than rewriting them, and add one or two sentences to the end of the description saying how much of it the athlete completed and how the activity differed (duration, intensity, terrain, or how they felt). If the supplied description already carries a completion note from an earlier refresh, replace only that note with an updated one. Do not summarise the activity again: its own analysis and the coach's reply to the athlete's comment already cover it. When today had no planned session, describe briefly what the athlete actually did instead of giving a full analysis. Give today's plan and today's week session the same status.`;
 
 /**
  * Completion is judged with reasonable slack so a near-miss is not reported as

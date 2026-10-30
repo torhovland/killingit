@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   COACH_RESPONSE_NOTES_RULES,
+  TODAY_SESSION_RULES,
   WEATHER_PLANNING_RULES,
 } from "./promptRules.js";
 
@@ -33,6 +34,32 @@ describe("COACH_RESPONSE_NOTES_RULES", () => {
     );
     expect(COACH_RESPONSE_NOTES_RULES).toContain(
       "a workout that could not be matched to a planned session",
+    );
+  });
+});
+
+describe("TODAY_SESSION_RULES", () => {
+  it("keeps the planned workout and adds a short completion note", () => {
+    expect(TODAY_SESSION_RULES).toContain(
+      "keep that planned workout's title, description and rationale",
+    );
+    expect(TODAY_SESSION_RULES).toContain(
+      "add one or two sentences to the end of the description",
+    );
+  });
+
+  it("does not repeat the activity analysis on today's plan", () => {
+    expect(TODAY_SESSION_RULES).toContain(
+      "Do not summarise the activity again",
+    );
+    expect(TODAY_SESSION_RULES).toContain(
+      "its own analysis and the coach's reply to the athlete's comment already cover it",
+    );
+  });
+
+  it("replaces an earlier completion note instead of adding another", () => {
+    expect(TODAY_SESSION_RULES).toContain(
+      "replace only that note with an updated one",
     );
   });
 });

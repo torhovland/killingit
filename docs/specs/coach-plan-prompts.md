@@ -71,7 +71,11 @@ covered by `docs/specs/coach-plan-lifecycle.md`.
    approximate duration and intensity, estimated TSS, their daily estimated
    FTP, and the week's single estimated FTP. See `docs/specs/week-outline.md`
    and `docs/specs/training-load.md`.
-8. `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`
+8. When an activity was already recorded today, today's plan keeps the planned
+   workout's title, description and rationale and adds only one or two
+   sentences on how much of it was completed. It does not repeat the activity
+   analysis or the coach's reply to the athlete's comment.
+9. `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`
    pass.
 
 ## Data-model / API impact
@@ -139,6 +143,10 @@ shapes (`StoredAthleteQuestion` and `AnalyzedActivity`) structurally and returns
   itself. The prompt rejects change-log phrasing such as "we adjusted" or "this
   replaces" and asks for the reason the current plan is right from this point
   forward.
+- A recorded activity does not replace today's prescription in the plan. The
+  completed-session rule keeps the planned workout's title, description and
+  rationale and appends a short completion note, so the plan does not restate
+  the activity analysis or the coach's reply to the athlete's comment.
 - A season update uses that same prompt: it receives the existing season and
   current block, keeps completed blocks and the season goal as reference, and
   re-plans the future from the athlete's latest input. A new season still uses
