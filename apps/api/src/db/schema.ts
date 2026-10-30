@@ -748,6 +748,8 @@ export const planGenerations = pgTable(
     stepExpectedMs: integer("step_expected_ms").notNull().default(0),
     error: text("error"),
     startedAt: timestamp("started_at", { withTimezone: true }),
+    /** Automatic retries used by the current run chain. A success resets it. */
+    autoRetries: integer("auto_retries").notNull().default(0),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

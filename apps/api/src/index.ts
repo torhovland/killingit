@@ -77,7 +77,7 @@ import { greet } from "./routes/greet.js";
 import { health } from "./routes/health.js";
 import { createLlmRoute } from "./routes/llm.js";
 import { createMeRoute } from "./routes/me.js";
-import { createPlanRoute } from "./routes/plan.js";
+import { createPlanRoute, type PlanRouteDependencies } from "./routes/plan.js";
 import { createQuestionsRoute } from "./routes/questions.js";
 import { createWeatherRoute } from "./routes/weather.js";
 import {
@@ -166,6 +166,8 @@ export interface AppDependencies {
   adminLlmCalls?: AdminLlmCallsDependencies;
   /** Prompt-log failure marker, injectable for DB-free plan route tests. */
   markPlanPromptsFailed?: PlanTriggerDependencies["markPlanPromptsFailed"];
+  /** Stale-run retry, injectable for DB-free plan route tests. */
+  retryGeneration?: PlanRouteDependencies["retryGeneration"];
 }
 
 // Authentication is opt-in per route. The provider is created lazily on the
@@ -414,6 +416,9 @@ export function createApp(deps: AppDependencies = {}): Hono {
         : {}),
       ...(deps.markPlanPromptsFailed !== undefined
         ? { markPlanPromptsFailed: deps.markPlanPromptsFailed }
+        : {}),
+      ...(deps.retryGeneration !== undefined
+        ? { retryGeneration: deps.retryGeneration }
         : {}),
     }),
   );

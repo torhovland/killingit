@@ -483,9 +483,9 @@ export async function runPlanGeneration(
   } catch (err) {
     const message =
       err instanceof Error ? err.message : "The plan could not be generated.";
-    const startedAt = await generations.fail(userId, message);
-    if (startedAt !== null) {
-      await input.markPromptsFailed?.(userId, startedAt, message);
+    const failed = await generations.fail(userId, message);
+    if (failed !== null) {
+      await input.markPromptsFailed?.(userId, failed.startedAt, message);
     }
     throw err;
   }

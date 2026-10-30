@@ -1,0 +1,1 @@
+ALTER TABLE "plan_generations" ADD COLUMN "auto_retries" integer DEFAULT 0 NOT NULL;

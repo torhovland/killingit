@@ -15,7 +15,7 @@ import type { ActivityFeed } from "../coaching/activities.js";
 import { markPlanPromptsFailed } from "../llm/callStore.js";
 import type { LlmClient } from "../llm/client.js";
 import { startOfWeek } from "../plans/dates.js";
-import { isStaleRunning } from "../plans/generation.js";
+import { isStaleRunning, MAX_AUTO_RETRIES } from "../plans/generation.js";
 import { loadCoachingInputs, type CoachingInputs } from "../plans/inputs.js";
 import { promoteNextPeriod, weekFor } from "../plans/periods.js";
 import {
@@ -25,6 +25,7 @@ import {
 } from "../plans/status.js";
 import type { PlanGenerationStore, PlanStore } from "../plans/store.js";
 import {
+  startClaimedPlanGeneration,
   triggerPlanGeneration,
   type PlanTriggerDependencies,
 } from "../plans/trigger.js";
@@ -79,6 +80,14 @@ function findExportableBikeWorkout(
   };
 }
 
+/** What a stale-run retry needs to restart for the same athlete and day. */
+export interface PlanRetryInput {
+  userId: number;
+  today: string;
+  timezone: string | null;
+  includeTomorrow: boolean;
+}
+
 export interface PlanRouteDependencies {
   users: UserStore;
   answers: QuestionAnswerStore;
@@ -90,6 +99,8 @@ export interface PlanRouteDependencies {
   loadFtpHistory?: PlanTriggerDependencies["loadFtpHistory"];
   /** Injectable for route tests; defaults to the stored body metrics. */
   loadBodyHistory?: PlanTriggerDependencies["loadBodyHistory"];
+  /** Injectable for route tests; defaults to the metrics reader. */
+  syncAthleteMetrics?: PlanTriggerDependencies["syncAthleteMetrics"];
   /** Injectable for route tests; defaults to the account's stored config. */
   loadLlm?: (userId: number) => Promise<LlmClient | null>;
   /** Injectable for route tests; defaults to the database-backed loader. */
@@ -101,6 +112,8 @@ export interface PlanRouteDependencies {
   loadForecast?: PlanTriggerDependencies["loadForecast"];
   /** Injectable for route tests; defaults to the prompt-log writer. */
   markPlanPromptsFailed?: PlanTriggerDependencies["markPlanPromptsFailed"];
+  /** Injectable for route tests; defaults to claiming a retry and starting it. */
+  retryGeneration?: (input: PlanRetryInput) => Promise<boolean>;
 }
 
 /**
@@ -109,6 +122,60 @@ export interface PlanRouteDependencies {
  * awaiting the response and polls GET for progress.
  */
 export function createPlanRoute(deps: PlanRouteDependencies): Hono {
+  /** The trigger dependencies shared by the POST and the automatic retry. */
+  function planTriggerDependencies(): PlanTriggerDependencies {
+    return {
+      users: deps.users,
+      answers: deps.answers,
+      plans: deps.plans,
+      generations: deps.generations,
+      ...(deps.loadActivities !== undefined
+        ? { loadActivities: deps.loadActivities }
+        : {}),
+      ...(deps.loadFtpHistory !== undefined
+        ? { loadFtpHistory: deps.loadFtpHistory }
+        : {}),
+      ...(deps.loadBodyHistory !== undefined
+        ? { loadBodyHistory: deps.loadBodyHistory }
+        : {}),
+      ...(deps.syncAthleteMetrics !== undefined
+        ? { syncAthleteMetrics: deps.syncAthleteMetrics }
+        : {}),
+      ...(deps.loadLlm !== undefined ? { loadLlm: deps.loadLlm } : {}),
+      ...(deps.loadCoachingInputs !== undefined
+        ? { loadCoachingInputs: deps.loadCoachingInputs }
+        : {}),
+      ...(deps.loadForecast !== undefined
+        ? { loadForecast: deps.loadForecast }
+        : {}),
+      ...(deps.markPlanPromptsFailed !== undefined
+        ? { markPlanPromptsFailed: deps.markPlanPromptsFailed }
+        : {}),
+    };
+  }
+
+  /**
+   * Claims the one automatic retry of a stale run, then loads its inputs in
+   * the background so the polling GET can answer immediately. Returns false
+   * when another request already started a run.
+   */
+  async function retryStaleGeneration(input: PlanRetryInput): Promise<boolean> {
+    if (!(await deps.generations.begin(input.userId, { retry: true }))) {
+      return false;
+    }
+    void startClaimedPlanGeneration(planTriggerDependencies(), {
+      userId: input.userId,
+      today: input.today,
+      ...(input.timezone !== null ? { timezone: input.timezone } : {}),
+      ...(input.includeTomorrow ? { includeTomorrow: true } : {}),
+    }).catch((err: unknown) => {
+      console.error("[plan] automatic retry failed to start:", err);
+    });
+    return true;
+  }
+
+  const retryGeneration = deps.retryGeneration ?? retryStaleGeneration;
+
   async function hasWeatherChanged(
     plan: CoachPlan,
     location: AthleteLocation,
@@ -153,17 +220,27 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
     let generation = loadedGeneration;
     if (isStaleRunning(generation)) {
       const message = "The coach stopped before finishing. Try again.";
-      const startedAt = await deps.generations.fail(
+      const failed = await deps.generations.fail(
         userId,
         message,
         generation.updatedAt,
       );
-      if (startedAt !== null) {
+      if (failed !== null) {
         await (deps.markPlanPromptsFailed ?? markPlanPromptsFailed)(
           userId,
-          startedAt,
+          failed.startedAt,
           message,
         );
+        // Hide a single process death behind a fresh run. A second stale run
+        // in the same chain keeps the error and lets the athlete decide.
+        if (failed.autoRetries < MAX_AUTO_RETRIES) {
+          await retryGeneration({
+            userId,
+            today,
+            timezone,
+            includeTomorrow,
+          });
+        }
       }
       generation = await deps.generations.load(userId);
     }
@@ -278,41 +355,14 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
         const { today, timezone, mode, force, includeTomorrow } =
           c.req.valid("json");
 
-        const started = await triggerPlanGeneration(
-          {
-            users: deps.users,
-            answers: deps.answers,
-            plans: deps.plans,
-            generations: deps.generations,
-            ...(deps.loadActivities !== undefined
-              ? { loadActivities: deps.loadActivities }
-              : {}),
-            ...(deps.loadFtpHistory !== undefined
-              ? { loadFtpHistory: deps.loadFtpHistory }
-              : {}),
-            ...(deps.loadBodyHistory !== undefined
-              ? { loadBodyHistory: deps.loadBodyHistory }
-              : {}),
-            ...(deps.loadLlm !== undefined ? { loadLlm: deps.loadLlm } : {}),
-            ...(deps.loadCoachingInputs !== undefined
-              ? { loadCoachingInputs: deps.loadCoachingInputs }
-              : {}),
-            ...(deps.loadForecast !== undefined
-              ? { loadForecast: deps.loadForecast }
-              : {}),
-            ...(deps.markPlanPromptsFailed !== undefined
-              ? { markPlanPromptsFailed: deps.markPlanPromptsFailed }
-              : {}),
-          },
-          {
-            userId: user.id,
-            today,
-            ...(timezone !== undefined ? { timezone } : {}),
-            mode,
-            force,
-            includeTomorrow,
-          },
-        );
+        const started = await triggerPlanGeneration(planTriggerDependencies(), {
+          userId: user.id,
+          today,
+          ...(timezone !== undefined ? { timezone } : {}),
+          mode,
+          force,
+          includeTomorrow,
+        });
 
         if (!started) {
           return c.json(

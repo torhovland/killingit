@@ -1,5 +1,5 @@
 import type { CoachPlan, PlanGenerationStatus } from "@killingit/shared";
-import { and, eq, lt, ne, or } from "drizzle-orm";
+import { and, eq, lt, ne, or, sql } from "drizzle-orm";
 import { db } from "../db/index.js";
 import {
   coachPlans,
@@ -37,25 +37,35 @@ export interface PlanStore {
   ): Promise<StoredPlan>;
 }
 
+/** The run released by `fail`, with the automatic retries it has used. */
+export interface PlanGenerationFailure {
+  startedAt: Date;
+  /** Automatic retries this run chain has already used. */
+  autoRetries: number;
+}
+
 export interface PlanGenerationStore {
   load(userId: number): Promise<PlanGenerationStatus>;
-  /** Marks a run as running. Returns false when one is already in progress. */
-  begin(userId: number): Promise<boolean>;
+  /**
+   * Marks a run as running. Returns false when one is already in progress.
+   * A normal start resets the automatic-retry allowance; `retry` spends one.
+   */
+  begin(userId: number, options?: { retry?: boolean }): Promise<boolean>;
   update(userId: number, step: PlanGenerationStep): Promise<void>;
   /** Refreshes a running run so a dead process can be detected. */
   heartbeat(userId: number): Promise<void>;
   finish(userId: number): Promise<void>;
   /**
-   * Marks a running generation as failed and returns the start of the run it
-   * cleared, or null when nothing was cleared. With `observedUpdatedAt`, only
-   * the run with that heartbeat is cleared, so a release that raced a live
-   * heartbeat (or a newer run) does not touch it.
+   * Marks a running generation as failed and returns the run it cleared, or
+   * null when nothing was cleared. With `observedUpdatedAt`, only the run with
+   * that heartbeat is cleared, so a release that raced a live heartbeat (or a
+   * newer run) does not touch it.
    */
   fail(
     userId: number,
     error: string,
     observedUpdatedAt?: string,
-  ): Promise<Date | null>;
+  ): Promise<PlanGenerationFailure | null>;
 }
 
 function toStoredPlan(row: CoachPlanRow): StoredPlan {
@@ -220,7 +230,7 @@ export const dbPlanGenerationStore: PlanGenerationStore = {
     return row ? toGenerationStatus(row, Date.now()) : idleGenerationStatus();
   },
 
-  async begin(userId) {
+  async begin(userId, options = {}) {
     // Create the row on first use; the unique user index makes this safe.
     await db
       .insert(planGenerations)
@@ -241,6 +251,10 @@ export const dbPlanGenerationStore: PlanGenerationStore = {
         stepStartedAt: now,
         stepExpectedMs: expectedMs,
         error: null,
+        // A manual or first run gets a fresh allowance. An automatic retry
+        // spends it so a repeatedly dying process cannot loop forever.
+        autoRetries:
+          options.retry === true ? sql`${planGenerations.autoRetries} + 1` : 0,
         startedAt: now,
         updatedAt: now,
       })
@@ -316,6 +330,7 @@ export const dbPlanGenerationStore: PlanGenerationStore = {
         stepStartedAt: null,
         stepExpectedMs: 0,
         error: null,
+        autoRetries: 0,
         updatedAt: now,
       })
       .where(eq(planGenerations.userId, userId));
@@ -354,13 +369,17 @@ export const dbPlanGenerationStore: PlanGenerationStore = {
             : [eq(planGenerations.updatedAt, observed)]),
         ),
       )
-      .returning({ startedAt: planGenerations.startedAt });
-    if (row === undefined) {
-      // A heartbeat or a newer run replaced the status after it was read.
+      .returning({
+        startedAt: planGenerations.startedAt,
+        autoRetries: planGenerations.autoRetries,
+      });
+    if (row === undefined || row.startedAt === null) {
+      // A heartbeat or a newer run replaced the status after it was read, or
+      // the row predates the run start timestamp.
       return null;
     }
     await learnDuration(previous, now);
-    return row.startedAt;
+    return { startedAt: row.startedAt, autoRetries: row.autoRetries };
   },
 };
 
