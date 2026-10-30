@@ -3,7 +3,13 @@ import { eq } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { activityFeedCache } from "../db/schema.js";
 
-/** Reads the last successfully synced feed, if one was stored. */
+/**
+ * How many of the newest activities one coach analysis or prompt reviews. The
+ * stored feed keeps every activity, so this only bounds the model's context.
+ */
+export const MAX_ANALYZED_ACTIVITIES = 20;
+
+/** Reads the stored feed: every activity ever synced for this account. */
 export async function loadCachedActivityFeed(
   userId: number,
 ): Promise<AnalyzedActivitiesResponse | null> {
@@ -15,7 +21,7 @@ export async function loadCachedActivityFeed(
   return rows[0]?.feed ?? null;
 }
 
-/** Stores the latest feed so the next page load can show it immediately. */
+/** Stores the feed so the next page load can show it immediately. */
 export async function saveCachedActivityFeed(
   userId: number,
   feed: AnalyzedActivitiesResponse,

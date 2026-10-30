@@ -23,20 +23,21 @@ import { Hono, type Context } from "hono";
 import { z } from "zod";
 import { getAthlete } from "../auth/middleware.js";
 import {
-  DEFAULT_ACTIVITIES,
   GarminCredentialsError,
   GarminNotConnectedError,
   LlmCredentialsError,
   loadAnalyzedActivities,
   loadUserActivityTrainingLoads,
-  MAX_ACTIVITIES,
   type ActivityFeed,
 } from "../coaching/activities.js";
 import {
   deleteImportedActivity,
   deleteManualActivity,
 } from "../coaching/deletions.js";
-import { loadCachedActivityFeed } from "../coaching/feedCache.js";
+import {
+  loadCachedActivityFeed,
+  MAX_ANALYZED_ACTIVITIES,
+} from "../coaching/feedCache.js";
 import type { ActivityLoads } from "../training/activityLoad.js";
 import {
   startCoachRun,
@@ -96,12 +97,6 @@ import type { QuestionAnswerStore } from "../questions/answers.js";
 import type { UserStore } from "../users/store.js";
 
 const querySchema = z.object({
-  limit: z.coerce
-    .number()
-    .int()
-    .min(1)
-    .max(MAX_ACTIVITIES)
-    .default(DEFAULT_ACTIVITIES),
   refresh: z
     .enum(["true", "false"])
     .default("false")
@@ -188,7 +183,9 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
     ((userId) =>
       loadAnalyzedActivities({
         userId,
-        limit: DEFAULT_ACTIVITIES,
+        // Analyse the newest activities the cap allows, but return every
+        // activity in the stored history.
+        limit: MAX_ANALYZED_ACTIVITIES,
         refresh: false,
       }));
   const loadCachedFeed = deps.loadCachedFeed ?? loadCachedActivityFeed;

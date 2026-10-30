@@ -1,8 +1,6 @@
 import type { ActivityFeed } from "../coaching/activities.js";
-import {
-  loadAnalyzedActivities,
-  MAX_ACTIVITIES,
-} from "../coaching/activities.js";
+import { loadAnalyzedActivities } from "../coaching/activities.js";
+import { MAX_ANALYZED_ACTIVITIES } from "../coaching/feedCache.js";
 import {
   buildAthleteMetricSource,
   syncAthleteMetrics,
@@ -160,9 +158,9 @@ export async function runPlanForUser(
           ? deps.loadActivities(userId)
           : loadAnalyzedActivities({
               userId,
-              // The sidecar syncs 42 days. Use the largest feed the analysis cap
-              // allows so ATL/CTL have as much history as possible.
-              limit: MAX_ACTIVITIES,
+              // The sidecar syncs 42 days. Analyse the newest activities the
+              // cap allows; the plan prompt reviews the same recent window.
+              limit: MAX_ANALYZED_ACTIVITIES,
               refresh: false,
             }),
         deps.loadLlm ? deps.loadLlm(userId) : loadLlmClient(userId),
@@ -181,6 +179,14 @@ export async function runPlanForUser(
     await deps.generations.fail(userId, message, options.runId);
     throw err;
   }
+
+  // The stored feed keeps every activity ever synced. Prompts and program
+  // reviews stay on the same recent window as the analysis cap so they do not
+  // grow with the athlete's entire history.
+  const recentActivities = activities.activities.slice(
+    0,
+    MAX_ANALYZED_ACTIVITIES,
+  );
 
   if (!llm) {
     const message = "OpenRouter is not configured. Add a key and model first.";
@@ -289,7 +295,7 @@ export async function runPlanForUser(
         model: llm.model,
         today,
         plan,
-        activities: activities.activities,
+        activities: recentActivities,
         activityComments: coachingInputs.activityComments,
         ftpHistory: ftp.points.filter((point) => point.date <= today),
         ftpTimeline: ftp.timeline,
@@ -300,7 +306,7 @@ export async function runPlanForUser(
     context: {
       answers,
       answersUpdatedAt: latestAnswerTimestamp(answers),
-      activities: activities.activities,
+      activities: recentActivities,
       manualActivities: coachingInputs.manualActivities,
       activityComments: coachingInputs.activityComments,
       weeklyNote: coachingInputs.weeklyNote,
@@ -311,9 +317,7 @@ export async function runPlanForUser(
       weekReviewUpdatedAt: coachingInputs.weekReviewUpdatedAt,
       blockReviewUpdatedAt: coachingInputs.blockReviewUpdatedAt,
       coachingInputsUpdatedAt: coachingInputs.updatedAt,
-      activitiesUpdatedAt: latestActivityAnalysisTimestamp(
-        activities.activities,
-      ),
+      activitiesUpdatedAt: latestActivityAnalysisTimestamp(recentActivities),
       location,
       forecast,
       weatherForecasts,

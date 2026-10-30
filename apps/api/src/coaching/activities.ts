@@ -52,12 +52,9 @@ import {
 } from "../training/activityLoad.js";
 import { loadTrainingContext } from "../training/context.js";
 import { ftpBaselineAt, type FtpTimeline } from "../training/ftp.js";
-import { saveCachedActivityFeed } from "./feedCache.js";
+import { loadCachedActivityFeed, saveCachedActivityFeed } from "./feedCache.js";
 import { routeFromSamples } from "./route.js";
 
-/** How many of the latest synced activities can be returned in one feed. */
-export const MAX_ACTIVITIES = 20;
-export const DEFAULT_ACTIVITIES = 10;
 /** Enough samples for a readable preview without bloating the cached feed. */
 export const MAX_PREVIEW_SAMPLES = 120;
 /** Bounded concurrency so a batch does not flood OpenRouter. */
@@ -130,19 +127,18 @@ export async function loadAnalyzedActivities(options: {
     .filter((activity) => !deletedIds.has(String(activity.id)))
     .sort((a, b) => Date.parse(b.startDate) - Date.parse(a.startDate));
   const latest = synced.slice(0, options.limit);
+  const previous = await loadPreviousActivities(options.userId);
+  const history = mergeActivityHistory(previous, synced, deletedIds);
 
-  // Store the synced activities before the (potentially slow) LLM analyses so
-  // a reload during analysis still shows the existing cards.
-  await persistFeed(options.userId, {
-    model: null,
-    activities: latest.map((activity) => withoutAnalysis(activity)),
-  });
+  // Store the full history before the (potentially slow) LLM analyses so a
+  // reload during analysis still shows every activity that was ever synced.
+  await persistFeed(options.userId, { model: null, activities: history });
 
   const [settings, feedback, storedPlan] = await Promise.all([
     loadLlmSettings(options.userId),
     loadActivityFeedback(
       options.userId,
-      latest.map((activity) => activity.id),
+      history.map((activity) => activity.id),
     ),
     dbPlanStore.load(options.userId),
   ]);
@@ -169,11 +165,7 @@ export async function loadAnalyzedActivities(options: {
     for (const [date, tss] of training.manualTssByDate) {
       tssByDate.set(date, tss);
     }
-    loads = buildActivityLoads(
-      synced.map((activity) => withoutAnalysis(activity)),
-      training.thresholdTimelines,
-      tssByDate,
-    );
+    loads = buildActivityLoads(history, training.thresholdTimelines, tssByDate);
   } catch (err) {
     // Load values are supplementary; the activity feed must still load.
     console.error("[training-load] could not score activities:", err);
@@ -181,11 +173,8 @@ export async function loadAnalyzedActivities(options: {
   if (!settings) {
     const feed: ActivityFeed = {
       model: null,
-      activities: latest.map((activity) =>
-        withActivityLoad(
-          withoutAnalysis(activity, feedback.get(String(activity.id))),
-          loads,
-        ),
+      activities: history.map((activity) =>
+        withActivityLoad(withFeedback(activity, feedback), loads),
       ),
     };
     await persistFeed(options.userId, feed);
@@ -351,12 +340,55 @@ export async function loadAnalyzedActivities(options: {
     }
   }
 
+  const analyzedById = new Map(
+    analysed.map((activity) => [String(activity.id), activity]),
+  );
   const feed: ActivityFeed = {
     model: settings.model,
-    activities: analysed.map((activity) => withActivityLoad(activity, loads)),
+    activities: history.map((activity) => {
+      const analyzed = analyzedById.get(String(activity.id));
+      return withActivityLoad(
+        analyzed ?? withFeedback(activity, feedback),
+        loads,
+      );
+    }),
   };
   await persistFeed(options.userId, feed);
   return feed;
+}
+
+/**
+ * Combines a fresh Garmin sync with the activities already stored for the
+ * athlete. New activities are added, synced ones get their latest summary and
+ * preview, and activities that have fallen outside Garmin's sync window keep
+ * their stored analysis and feedback. Locally deleted activities are omitted.
+ * Everything is returned newest first.
+ */
+export function mergeActivityHistory(
+  previous: readonly AnalyzedActivity[],
+  synced: readonly Activity[],
+  deletedIds: ReadonlySet<string> = new Set(),
+): AnalyzedActivity[] {
+  const byId = new Map(
+    previous
+      .filter((activity) => !deletedIds.has(String(activity.id)))
+      .map((activity) => [String(activity.id), activity]),
+  );
+  for (const activity of synced) {
+    if (deletedIds.has(String(activity.id))) {
+      continue;
+    }
+    const existing = byId.get(String(activity.id));
+    byId.set(
+      String(activity.id),
+      existing === undefined
+        ? withoutAnalysis(activity)
+        : refreshSyncedActivity(existing, activity),
+    );
+  }
+  return [...byId.values()].sort(
+    (a, b) => Date.parse(b.startDate) - Date.parse(a.startDate),
+  );
 }
 
 /**
@@ -395,6 +427,57 @@ async function syncBodyMetrics(
     const detail = err instanceof Error ? err.message : String(err);
     console.error(`[garmin] could not sync body metrics: ${detail}`);
   }
+}
+
+/** Reads the stored feed so a sync extends it instead of dropping older work. */
+async function loadPreviousActivities(
+  userId: number,
+): Promise<readonly AnalyzedActivity[]> {
+  try {
+    return (await loadCachedActivityFeed(userId))?.activities ?? [];
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    console.error(
+      `[coaching] could not read the stored activity feed: ${detail}`,
+    );
+    return [];
+  }
+}
+
+/**
+ * Updates a stored activity's summary from a fresh sync while keeping the
+ * coach analysis and athlete feedback already attached to it.
+ */
+function refreshSyncedActivity(
+  previous: AnalyzedActivity,
+  activity: Activity,
+): AnalyzedActivity {
+  return {
+    ...summarize(activity),
+    analysis: previous.analysis,
+    analysisError: previous.analysisError,
+    programAnalysis: previous.programAnalysis,
+    comment: previous.comment,
+    coachReply: previous.coachReply,
+    reviewed: previous.reviewed,
+  };
+}
+
+/** Applies the latest stored athlete feedback to an activity in the history. */
+function withFeedback(
+  activity: AnalyzedActivity,
+  feedback: ReadonlyMap<string, ActivityFeedback>,
+): AnalyzedActivity {
+  const entry = feedback.get(String(activity.id));
+  if (entry === undefined) {
+    return activity;
+  }
+  return {
+    ...activity,
+    comment: entry.comment,
+    coachReply: entry.reply ? toCoachAnalysis(entry.reply) : null,
+    reviewed: entry.reviewed,
+  };
 }
 
 /** Attaches the day's fitness snapshot and the activity's own TSS for the page. */

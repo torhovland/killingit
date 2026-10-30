@@ -311,9 +311,10 @@ export type ActivityAnalysis = typeof activityAnalyses.$inferSelect;
 export type NewActivityAnalysis = typeof activityAnalyses.$inferInsert;
 
 /**
- * The last successfully synced activity feed per user. It lets the dashboard
- * show existing activities immediately on load, while the live Garmin sync and
- * any new analyses run. Replaced after every successful sync.
+ * The activity feed per user: every activity ever synced, with its latest
+ * analysis and athlete feedback. It lets the dashboard show existing activities
+ * immediately on load, while the live Garmin sync and any new analyses run.
+ * Extended after every successful sync, never truncated to the sync window.
  */
 export const activityFeedCache = pgTable("activity_feed_cache", {
   userId: integer("user_id")

@@ -11,7 +11,10 @@ import {
 import { startOfWeek } from "../plans/dates.js";
 import { loadCoachingInputs, type CoachingInputs } from "../plans/inputs.js";
 import { ftpBaselineAt } from "../training/ftp.js";
-import { loadCachedActivityFeed } from "./feedCache.js";
+import {
+  loadCachedActivityFeed,
+  MAX_ANALYZED_ACTIVITIES,
+} from "./feedCache.js";
 
 /** The athlete and the day a reply is written for. */
 export interface ReplyContextInput {
@@ -89,7 +92,9 @@ export async function loadReplyContext(
 
   return {
     athleteAnswers: input.athleteAnswers,
-    recentActivities: (activities ?? []).map(toCoachPlanActivity),
+    recentActivities: (activities ?? [])
+      .slice(0, MAX_ANALYZED_ACTIVITIES)
+      .map(toCoachPlanActivity),
     today,
     manualActivities: coachingInputs?.manualActivities ?? [],
     activityComments: coachingInputs?.activityComments ?? [],

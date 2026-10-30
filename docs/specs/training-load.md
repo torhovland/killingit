@@ -131,10 +131,11 @@ For every day in the week:
 - `CTL = CTL_prev + (TSS − CTL_prev) / 42`
 - `TSB = CTL − ATL`
 
-The series starts 42 days before the week. Garmin now syncs the last 42 days,
-matching this window. Plan generation analyses the largest feed the activity
-cap allows (20 activities); the load seeding uses whatever activity history is
-available. Recorded activities are scored with measured power where possible;
+The series starts 42 days before the week. Garmin syncs the last 42 days, while
+the stored feed keeps every activity ever synced, so the load seeding uses the
+full available history. Plan generation analyses the newest activities the
+analysis cap allows (20); older activities keep their stored analyses.
+Recorded activities are scored with measured power where possible;
 the rest use a duration-based estimate purely for seeding (they are never shown
 as a workout's TSS). A day without activity or a planned session counts as
 rest.
