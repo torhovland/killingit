@@ -1,4 +1,5 @@
 import {
+  formatThresholdValue,
   FITNESS_RANGE_LABELS,
   FITNESS_RANGES,
   type FitnessHistoryResponse,
@@ -6,7 +7,7 @@ import {
 } from "@killingit/shared";
 import { BodyChart } from "./BodyChart";
 import { FitnessChart } from "./FitnessChart";
-import { FtpChart } from "./FtpChart";
+import { ThresholdChart } from "./ThresholdChart";
 import { TrainingLoadLine } from "./TrainingLoadLine";
 
 /**
@@ -32,8 +33,11 @@ export function FitnessView({
   error?: string | null;
 }) {
   const todayLoad = history?.days.find((day) => day.date === today) ?? null;
-  const todayFtp =
-    history?.ftp.find((point) => point.date === today)?.watts ?? null;
+  const todayThresholds =
+    history?.thresholds.flatMap((series) => {
+      const point = series.points.find((entry) => entry.date === today);
+      return point === undefined ? [] : [{ series, value: point.value }];
+    }) ?? [];
 
   return (
     <section className="flex w-full flex-col gap-4 text-left">
@@ -41,8 +45,8 @@ export function FitnessView({
         <h2 className="text-2xl font-semibold">Fitness</h2>
         <p className="text-base text-muted-foreground">
           How your training load has moved your fitness, fatigue, and form,
-          where the coach expects your FTP to be, and how your body weight and
-          body fat are trending.
+          where the coach expects your thresholds to be, and how your body
+          weight and body fat are trending.
         </p>
       </div>
 
@@ -52,7 +56,7 @@ export function FitnessView({
         !error && <p className="text-base text-muted-foreground">Loading…</p>
       ) : (
         <>
-          {(todayLoad !== null || todayFtp !== null) && (
+          {(todayLoad !== null || todayThresholds.length > 0) && (
             <div className="flex flex-col gap-1 rounded-lg border bg-card p-4">
               <span className="text-xl font-semibold">Today</span>
               {todayLoad !== null && (
@@ -62,15 +66,20 @@ export function FitnessView({
                   variant="described"
                 />
               )}
-              {todayFtp !== null && (
-                <p
-                  className="w-full text-lg text-muted-foreground tabular-nums"
-                  data-testid="fitness-today-ftp"
+              {todayThresholds.length > 0 && (
+                <ul
+                  className="flex flex-col gap-0.5 text-lg text-muted-foreground"
+                  data-testid="fitness-today-thresholds"
                 >
-                  <span className="font-medium text-foreground">
-                    Estimated FTP {todayFtp} W
-                  </span>
-                </p>
+                  {todayThresholds.map(({ series, value }) => (
+                    <li key={`${series.sport}:${series.measure}`}>
+                      <span className="font-medium text-foreground">
+                        {series.label} ({series.sport}){" "}
+                        {formatThresholdValue(value, series.unit, series.kind)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
               )}
             </div>
           )}
@@ -108,7 +117,11 @@ export function FitnessView({
             </p>
           )}
 
-          <FtpChart days={history.days} points={history.ftp} today={today} />
+          <ThresholdChart
+            days={history.days}
+            series={history.thresholds}
+            today={today}
+          />
 
           <BodyChart
             days={history.days}

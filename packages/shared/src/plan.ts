@@ -1,13 +1,12 @@
 import { z } from "zod";
 import { coachAnalysisSchema, coachResponseNotesSchema } from "./llm.js";
+import { planDateSchema } from "./date.js";
+import { thresholdSummarySchema } from "./metrics.js";
 import { trainingLoadSchema } from "./trainingLoad.js";
 import { dailyForecastsSchema, dailyWeatherSchema } from "./weather.js";
 import { bikeWorkoutSchema } from "./workout.js";
 
-/** A calendar date in `YYYY-MM-DD` form. */
-export const planDateSchema = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, "Expected a YYYY-MM-DD date");
+export { planDateSchema } from "./date.js";
 
 /**
  * One dated body-composition value the coach found in the athlete's input, such
@@ -389,6 +388,8 @@ export const coachPlanResponseSchema = z.object({
   generation: planGenerationStatusSchema,
   stale: z.boolean(),
   pending: planPendingSchema,
+  /** Every threshold measure currently known about the athlete. */
+  thresholds: z.array(thresholdSummarySchema).default([]),
 });
 
 export type CoachPlanResponse = z.infer<typeof coachPlanResponseSchema>;

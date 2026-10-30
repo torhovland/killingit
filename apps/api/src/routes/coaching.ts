@@ -249,6 +249,7 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
     ...(deps.loadFtpHistory !== undefined
       ? { loadFtpHistory: deps.loadFtpHistory }
       : {}),
+    loadAnsweredCoachQuestions: loadAnsweredQuestions,
   };
   const coachRunDeps: CoachRunDependencies = {
     ...triggerDeps,
@@ -281,6 +282,7 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
           startDate,
           details,
           ftpWatts: ftpBaselineAt(ftp.timeline, startDate)?.watts ?? null,
+          thresholds: ftp.summaries,
           userId,
         },
       );

@@ -99,6 +99,7 @@ export async function loadReplyContext(
     periodReviews: coachingInputs?.periodReviews ?? [],
     athleteFtpWatts: ftpBaselineAt(ftp?.timeline ?? null, today)?.watts ?? null,
     ftpHistory: (ftp?.points ?? []).filter((point) => point.date <= today),
+    thresholds: ftp?.summaries ?? [],
     ...(bodyHistory !== null ? { bodyHistory } : {}),
   };
 }

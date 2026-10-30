@@ -1,10 +1,12 @@
 import { useState, type ReactNode } from "react";
 import {
+  formatThresholdValue,
   hasExportableBikeWorkout,
   type BlockPlan,
   type CoachPlan,
   type DayPlan,
   type SeasonPlan,
+  type ThresholdSummary,
   type WeekPlan,
   type WeekSessionStatus,
 } from "@killingit/shared";
@@ -36,6 +38,7 @@ export function CoachPlanView({
   refreshingBlocks = {},
   onDownloadWorkout,
   downloadingWorkoutDate = null,
+  thresholds = [],
 }: {
   plan: CoachPlan;
   showTomorrow?: boolean;
@@ -50,6 +53,8 @@ export function CoachPlanView({
   onDownloadWorkout?: (date: string) => void;
   /** The date whose workout file is currently being prepared. */
   downloadingWorkoutDate?: string | null;
+  /** Every threshold measure currently known about the athlete. */
+  thresholds?: readonly ThresholdSummary[];
 }) {
   const [tab, setTab] = useState<PlanTab>(defaultTab);
 
@@ -84,6 +89,7 @@ export function CoachPlanView({
               refreshing={refreshingDays.today ?? false}
               onDownloadWorkout={onDownloadWorkout}
               downloading={downloadingWorkoutDate === plan.today.date}
+              thresholds={thresholds}
             />
             {showTomorrow && plan.tomorrow && (
               <DayCard
@@ -93,6 +99,7 @@ export function CoachPlanView({
                 refreshing={refreshingDays.tomorrow ?? false}
                 onDownloadWorkout={onDownloadWorkout}
                 downloading={downloadingWorkoutDate === plan.tomorrow.date}
+                thresholds={thresholds}
               />
             )}
           </div>
@@ -104,6 +111,7 @@ export function CoachPlanView({
               label="This week"
               testId="plan-week"
               refreshing={refreshingWeeks.week ?? false}
+              thresholds={thresholds}
             />
             {plan.nextWeek !== null && (
               <WeekSection
@@ -111,6 +119,7 @@ export function CoachPlanView({
                 label="Next week"
                 testId="plan-next-week"
                 refreshing={refreshingWeeks.nextWeek ?? false}
+                thresholds={thresholds}
               />
             )}
           </div>
@@ -122,6 +131,7 @@ export function CoachPlanView({
               label="Current block"
               testId="plan-block"
               refreshing={refreshingBlocks.block ?? false}
+              thresholds={thresholds}
             />
             {plan.nextBlock !== null && (
               <BlockSection
@@ -129,11 +139,14 @@ export function CoachPlanView({
                 label="Next block"
                 testId="plan-next-block"
                 refreshing={refreshingBlocks.nextBlock ?? false}
+                thresholds={thresholds}
               />
             )}
           </div>
         )}
-        {tab === "season" && <SeasonSection season={plan.season} />}
+        {tab === "season" && (
+          <SeasonSection season={plan.season} thresholds={thresholds} />
+        )}
       </div>
     </div>
   );
@@ -146,6 +159,7 @@ function DayCard({
   refreshing = false,
   onDownloadWorkout,
   downloading = false,
+  thresholds = [],
 }: {
   day: DayPlan;
   label: string;
@@ -153,6 +167,7 @@ function DayCard({
   refreshing?: boolean;
   onDownloadWorkout?: ((date: string) => void) | undefined;
   downloading?: boolean;
+  thresholds?: readonly ThresholdSummary[];
 }) {
   return (
     <article
@@ -201,10 +216,16 @@ function DayCard({
         <p className="whitespace-pre-line text-base text-muted-foreground">
           {day.description}
         </p>
+        {thresholds.length > 0 && (
+          <ThresholdsLine
+            thresholds={thresholds}
+            testId={`${testId}-thresholds`}
+          />
+        )}
         {day.type === "workout" && day.bikeWorkout != null && (
           <div className="flex flex-col gap-1" data-testid={`${testId}-ftp`}>
             <p className="text-base">
-              <span className="font-medium">Estimated FTP: </span>
+              <span className="font-medium">Workout FTP: </span>
               {day.bikeWorkout.ftpWatts} W
             </p>
             <p className="text-sm text-muted-foreground">
@@ -303,12 +324,15 @@ function WeekSection({
   label,
   testId,
   refreshing = false,
+  thresholds = [],
 }: {
   week: WeekPlan;
   label: string;
   testId?: string;
   refreshing?: boolean;
+  thresholds?: readonly ThresholdSummary[];
 }) {
+  const estimatedFtp = week.estimatedFtpWatts;
   return (
     <section
       className="relative rounded-lg border bg-inset p-4"
@@ -325,12 +349,20 @@ function WeekSection({
         </h3>
         <p className="text-base text-muted-foreground">
           Week starting {formatPlanDate(week.startDate)}
-          {week.estimatedFtpWatts != null && (
-            <span data-testid="week-ftp">
-              <Bullet />
-              Estimated FTP:{" "}
-              <span className="font-medium">{week.estimatedFtpWatts} W</span>
-            </span>
+          {thresholds.length > 0 ? (
+            <ThresholdsLine
+              thresholds={thresholds}
+              testId="week-thresholds"
+              inline
+            />
+          ) : (
+            estimatedFtp != null && (
+              <span data-testid="week-ftp">
+                <Bullet />
+                Estimated FTP:{" "}
+                <span className="font-medium">{estimatedFtp} W</span>
+              </span>
+            )
           )}
         </p>
         <p className="mt-2 text-base text-muted-foreground">{week.rationale}</p>
@@ -399,6 +431,35 @@ function WeekSection({
   );
 }
 
+/** The athlete's known threshold measures in a compact, inline list. */
+function ThresholdsLine({
+  thresholds,
+  testId,
+  inline = false,
+}: {
+  thresholds: readonly ThresholdSummary[];
+  testId: string;
+  /** True when the line sits inside an existing paragraph. */
+  inline?: boolean;
+}) {
+  const content = (
+    <span data-testid={testId}>
+      <Bullet />
+      <span className="font-medium">Thresholds: </span>
+      {thresholds.map((entry, index) => (
+        <span key={`${entry.sport}:${entry.measure}`}>
+          {index > 0 && <Bullet />}
+          {entry.sport} {entry.label}{" "}
+          <span className="font-medium">
+            {formatThresholdValue(entry.value, entry.unit, entry.kind)}
+          </span>
+        </span>
+      ))}
+    </span>
+  );
+  return inline ? content : <p className="text-base">{content}</p>;
+}
+
 function StatusBadge({ status }: { status: WeekSessionStatus }) {
   return (
     <span className="rounded border bg-muted px-2 py-0.5 text-sm capitalize">
@@ -412,12 +473,15 @@ function BlockSection({
   label,
   testId,
   refreshing = false,
+  thresholds = [],
 }: {
   block: BlockPlan;
   label: string;
   testId?: string;
   refreshing?: boolean;
+  thresholds?: readonly ThresholdSummary[];
 }) {
+  const estimatedFtp = block.estimatedFtpWatts;
   return (
     <section
       className="relative rounded-lg border bg-inset p-4"
@@ -434,12 +498,20 @@ function BlockSection({
         </h3>
         <p className="mt-2 text-base text-muted-foreground">
           {formatPlanDate(block.startDate)} → {formatPlanDate(block.endDate)}
-          {block.estimatedFtpWatts != null && (
-            <span data-testid="block-ftp">
-              <Bullet />
-              Estimated FTP:{" "}
-              <span className="font-medium">{block.estimatedFtpWatts} W</span>
-            </span>
+          {thresholds.length > 0 ? (
+            <ThresholdsLine
+              thresholds={thresholds}
+              testId="block-thresholds"
+              inline
+            />
+          ) : (
+            estimatedFtp != null && (
+              <span data-testid="block-ftp">
+                <Bullet />
+                Estimated FTP:{" "}
+                <span className="font-medium">{estimatedFtp} W</span>
+              </span>
+            )
           )}
         </p>
         <p className="mt-3 text-base text-muted-foreground">{block.focus}</p>
@@ -477,7 +549,14 @@ function BlockSection({
   );
 }
 
-function SeasonSection({ season }: { season: SeasonPlan }) {
+function SeasonSection({
+  season,
+  thresholds = [],
+}: {
+  season: SeasonPlan;
+  thresholds?: readonly ThresholdSummary[];
+}) {
+  const estimatedFtp = season.estimatedFtpWatts;
   return (
     <section className="rounded-lg border bg-inset p-4">
       <h3 className="text-xl font-semibold">
@@ -487,12 +566,20 @@ function SeasonSection({ season }: { season: SeasonPlan }) {
       </h3>
       <p className="mt-2 text-base text-muted-foreground">
         {formatPlanDate(season.startDate)} → {formatPlanDate(season.endDate)}
-        {season.estimatedFtpWatts != null && (
-          <span data-testid="season-ftp">
-            <Bullet />
-            Estimated FTP:{" "}
-            <span className="font-medium">{season.estimatedFtpWatts} W</span>
-          </span>
+        {thresholds.length > 0 ? (
+          <ThresholdsLine
+            thresholds={thresholds}
+            testId="season-thresholds"
+            inline
+          />
+        ) : (
+          estimatedFtp != null && (
+            <span data-testid="season-ftp">
+              <Bullet />
+              Estimated FTP:{" "}
+              <span className="font-medium">{estimatedFtp} W</span>
+            </span>
+          )
         )}
       </p>
       <p className="mt-3 text-base">

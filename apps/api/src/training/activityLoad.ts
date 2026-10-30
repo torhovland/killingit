@@ -1,4 +1,5 @@
 import {
+  activitySport,
   CTL_DAYS,
   dailyTrainingLoad,
   powerTrainingStressScore,
@@ -6,7 +7,7 @@ import {
   type TrainingLoad,
 } from "@killingit/shared";
 import { addDays } from "../plans/dates.js";
-import { ftpAt, type FtpTimeline } from "./ftp.js";
+import { thresholdForSport, type ThresholdTimeline } from "./thresholds.js";
 
 /** Groups activities by their local calendar date (`YYYY-MM-DD`). */
 export function groupActivitiesByDate(
@@ -26,41 +27,67 @@ export function groupActivitiesByDate(
 }
 
 /**
- * Power-scored TSS for one activity, or null when it has no usable power or the
- * timeline has no FTP anchor. Movement time is preferred, with elapsed time as
- * the fallback for activities whose source reports no moving time.
+ * Threshold-scored TSS for one activity, or null when the sport has no usable
+ * threshold or the recording lacks the channel that threshold needs. Power is
+ * preferred when recorded, then pace or speed for a distance activity, then
+ * heart rate. Movement time is preferred, with elapsed time as the fallback for
+ * activities whose source reports no moving time.
  */
 export function activityMeasuredTss(
   activity: AnalyzedActivity,
-  timeline: FtpTimeline,
+  timelines: readonly ThresholdTimeline[],
 ): number | null {
+  const sport = activitySport(activity.type);
+  const date = activity.startDate;
+  const durationSeconds = activityDurationSeconds(activity);
+
+  const power = thresholdForSport(timelines, sport, "power", date);
   const normalized = activity.normalizedPower;
-  if (normalized === null || normalized === undefined) {
-    return null;
+  if (power !== null && normalized !== null && normalized !== undefined) {
+    return powerTrainingStressScore({
+      durationSeconds,
+      normalizedPowerWatts: normalized,
+      ftpWatts: power.value,
+    });
   }
-  const ftpWatts = ftpAt(timeline, activity.startDate);
-  if (ftpWatts === null) {
-    return null;
+
+  const pace =
+    thresholdForSport(timelines, sport, "pace", date) ??
+    thresholdForSport(timelines, sport, "speed", date);
+  const actualSpeed = activitySpeedMps(activity, durationSeconds);
+  if (pace !== null && actualSpeed !== null) {
+    const thresholdSpeed =
+      pace.timeline.kind === "pace" ? 1000 / pace.value : pace.value / 3.6;
+    return intensityTrainingStressScore(
+      durationSeconds,
+      actualSpeed / thresholdSpeed,
+    );
   }
-  return powerTrainingStressScore({
-    durationSeconds: activityDurationSeconds(activity),
-    normalizedPowerWatts: normalized,
-    ftpWatts,
-  });
+
+  const heartRate = thresholdForSport(timelines, sport, "heart_rate", date);
+  const averageHeartRate = activityAverageHeartRate(activity);
+  if (heartRate !== null && averageHeartRate !== null && averageHeartRate > 0) {
+    return intensityTrainingStressScore(
+      durationSeconds,
+      averageHeartRate / heartRate.value,
+    );
+  }
+
+  return null;
 }
 
 /**
- * Sums the power-scored TSS of every activity on one day, when at least one
- * activity has measured power. Activities without power still contribute their
- * duration-based stress, so a day's total is the sum of its activities.
- * Returns null when nothing on the day can be measured.
+ * Sums the threshold-scored TSS of every activity on one day, when at least one
+ * activity can be measured. Activities without a usable threshold still
+ * contribute their duration-based stress, so a day's total is the sum of its
+ * activities. Returns null when nothing on the day can be measured.
  */
 export function measuredActivityTss(
   activities: readonly AnalyzedActivity[],
-  timeline: FtpTimeline,
+  timelines: readonly ThresholdTimeline[],
 ): number | null {
   const measured = activities.map((activity) =>
-    activityMeasuredTss(activity, timeline),
+    activityMeasuredTss(activity, timelines),
   );
   if (!measured.some((value) => value !== null)) {
     return null;
@@ -91,11 +118,11 @@ export interface ActivityDayTss {
  */
 export function resolveActivityDayTss(
   activities: readonly AnalyzedActivity[],
-  timeline: FtpTimeline,
+  timelines: readonly ThresholdTimeline[],
   estimatedTss?: number,
 ): ActivityDayTss {
   const measured = activities.map((activity) =>
-    activityMeasuredTss(activity, timeline),
+    activityMeasuredTss(activity, timelines),
   );
   if (measured.some((value) => value !== null)) {
     const byActivity = activities.map(
@@ -118,10 +145,10 @@ export function resolveActivityDayTss(
  */
 export function activityDayTss(
   activities: readonly AnalyzedActivity[],
-  timeline: FtpTimeline,
+  timelines: readonly ThresholdTimeline[],
   estimatedTss?: number,
 ): number {
-  return resolveActivityDayTss(activities, timeline, estimatedTss).total;
+  return resolveActivityDayTss(activities, timelines, estimatedTss).total;
 }
 
 /** Day snapshots plus the TSS credited to each individual activity. */
@@ -139,7 +166,7 @@ export interface ActivityLoads {
  */
 export function buildActivityLoads(
   activities: readonly AnalyzedActivity[],
-  timeline: FtpTimeline,
+  timelines: readonly ThresholdTimeline[],
   estimatedTssByDate: ReadonlyMap<string, number> = new Map(),
   extraDates: readonly string[] = [],
 ): ActivityLoads {
@@ -150,7 +177,7 @@ export function buildActivityLoads(
   for (const [date, entries] of byDate) {
     const resolved = resolveActivityDayTss(
       entries,
-      timeline,
+      timelines,
       estimatedTssByDate.get(date),
     );
     seriesInput.set(date, resolved.total);
@@ -193,16 +220,89 @@ export function buildActivityLoads(
  */
 export function buildActivityTrainingLoads(
   activities: readonly AnalyzedActivity[],
-  timeline: FtpTimeline,
+  timelines: readonly ThresholdTimeline[],
   estimatedTssByDate: ReadonlyMap<string, number> = new Map(),
   extraDates: readonly string[] = [],
 ): Map<string, TrainingLoad> {
   return buildActivityLoads(
     activities,
-    timeline,
+    timelines,
     estimatedTssByDate,
     extraDates,
   ).byDate;
+}
+
+/**
+ * The duration and intensity factor on the same scale as power TSS, where one
+ * hour at the threshold scores 100.
+ */
+function intensityTrainingStressScore(
+  durationSeconds: number,
+  intensityFactor: number,
+): number | null {
+  if (
+    !Number.isFinite(durationSeconds) ||
+    !Number.isFinite(intensityFactor) ||
+    durationSeconds <= 0 ||
+    intensityFactor <= 0
+  ) {
+    return null;
+  }
+  return Math.max(
+    0,
+    Math.round((durationSeconds / 3600) * intensityFactor ** 2 * 100),
+  );
+}
+
+/** Time-weighted mean heart rate from the recorded samples, when present. */
+export function activityAverageHeartRate(
+  activity: AnalyzedActivity,
+): number | null {
+  const samples = activity.samples
+    .filter(
+      (sample) =>
+        typeof sample.heartRate === "number" &&
+        Number.isFinite(sample.heartRate) &&
+        sample.heartRate > 0,
+    )
+    .map((sample) => ({
+      time: Date.parse(sample.timestamp) / 1000,
+      heartRate: sample.heartRate as number,
+    }))
+    .filter((sample) => Number.isFinite(sample.time))
+    .sort((a, b) => a.time - b.time);
+  if (samples.length === 0) {
+    return null;
+  }
+  let weighted = 0;
+  let seconds = 0;
+  for (let index = 0; index < samples.length; index += 1) {
+    const current = samples[index];
+    if (current === undefined) {
+      continue;
+    }
+    const next = samples[index + 1];
+    const duration =
+      next === undefined ? 1 : Math.max(0, next.time - current.time);
+    weighted += current.heartRate * duration;
+    seconds += duration;
+  }
+  return seconds > 0 ? weighted / seconds : null;
+}
+
+/** Mean speed for a distance activity in metres per second. */
+function activitySpeedMps(
+  activity: AnalyzedActivity,
+  durationSeconds: number,
+): number | null {
+  if (
+    !Number.isFinite(activity.distance) ||
+    activity.distance <= 0 ||
+    durationSeconds <= 0
+  ) {
+    return null;
+  }
+  return activity.distance / durationSeconds;
 }
 
 /**

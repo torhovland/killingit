@@ -1,5 +1,6 @@
 import {
   WEATHER_ICON_LABELS,
+  formatThresholdValue,
   type ActivitySummary,
   type BikeWorkout,
   type BlockPlan,
@@ -8,6 +9,7 @@ import {
   type DayPlan,
   type MetricPoint,
   type SeasonPlan,
+  type ThresholdSummary,
   type WeekPlan,
   type WeekSession,
 } from "@killingit/shared";
@@ -95,6 +97,8 @@ export interface PlanContextInput {
   athleteFtpWatts?: number | null;
   /** The stored FTP time series, oldest first, including coach estimates. */
   ftpHistory?: readonly Pick<MetricPoint, "date" | "value" | "source">[];
+  /** Every threshold measure in effect today, across all sports. */
+  thresholds?: readonly ThresholdSummary[];
   /** The stored body weight and body-fat series, oldest first. */
   bodyHistory?: BodyMetricHistory | undefined;
 }
@@ -159,6 +163,22 @@ export function formatFtpContext(
 }
 
 /**
+ * Renders every threshold measure currently in effect, one line per sport and
+ * measure, so a prompt sees cycling FTP and running threshold pace alike.
+ */
+export function formatThresholdContext(
+  thresholds: readonly ThresholdSummary[],
+): string[] {
+  return [
+    "Athlete thresholds in effect today:",
+    ...thresholds.map(
+      (entry) =>
+        `- ${entry.sport} / ${entry.label}: ${formatThresholdValue(entry.value, entry.unit, entry.kind)} (${entry.source}, ${entry.date})`,
+    ),
+  ];
+}
+
+/**
  * Renders recent training for a prompt, including each activity's coach
  * analysis and the athlete's comment when there is one. The empty case tells
  * the model to plan conservatively.
@@ -214,6 +234,9 @@ export function formatPlanContext(input: PlanContextInput): string[] {
   }
   if (input.ftpHistory !== undefined && input.ftpHistory.length > 0) {
     lines.push("", ...formatFtpContext(input.ftpHistory));
+  }
+  if (input.thresholds !== undefined && input.thresholds.length > 0) {
+    lines.push("", ...formatThresholdContext(input.thresholds));
   }
   if (input.bodyHistory !== undefined) {
     lines.push(...formatBodyHistory(input.bodyHistory));

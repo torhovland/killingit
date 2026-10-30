@@ -308,9 +308,13 @@ function makeApp(options: {
       Promise.resolve({
         points: [],
         timeline: { anchors: [], latest: null },
+        thresholds: [],
+        thresholdTimelines: [],
+        summaries: [],
       }),
     loadBodyHistory: () => Promise.resolve({ weight: [], bodyFat: [] }),
     syncAthleteMetrics: () => Promise.resolve(null),
+    loadAnsweredCoachQuestions: () => Promise.resolve([]),
     loadLlm: () =>
       Promise.resolve({
         provider: {

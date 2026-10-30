@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import type {
   AnalyzedActivitiesResponse,
+  AthleteThreshold,
   CoachPlan,
   FitnessHistoryResponse,
 } from "@killingit/shared";
@@ -8,12 +9,23 @@ import { createApp } from "../index.js";
 import type { PlanStore, StoredPlan } from "../plans/store.js";
 import type { QuestionAnswerStore } from "../questions/answers.js";
 import { buildFtpTimelineFromPoints } from "../training/ftp.js";
+import { buildThresholdTimelines } from "../training/thresholds.js";
 import { buildFitnessHistory } from "../training/history.js";
 import type { UserStore } from "../users/store.js";
 
-const timeline = buildFtpTimelineFromPoints([
-  { date: "2026-10-01", value: 250, source: "user" },
-]);
+const thresholdPoints: AthleteThreshold[] = [
+  {
+    date: "2026-10-01",
+    value: 250,
+    source: "user",
+    sport: "cycling",
+    measure: "ftp",
+    label: "FTP",
+    unit: "W",
+    kind: "power",
+  },
+];
+const timeline = buildFtpTimelineFromPoints(thresholdPoints);
 
 function makePlan(): CoachPlan {
   return {
@@ -163,6 +175,8 @@ function makeApp(options: { plan?: CoachPlan | null } = {}) {
           activities,
           plan: storedPlan,
           timeline,
+          thresholdPoints,
+          thresholdTimelines: buildThresholdTimelines(thresholdPoints),
           planTssByDate: new Map(
             (storedPlan?.week.sessions ?? []).map((session) => [
               session.date,
@@ -217,7 +231,10 @@ describe("fitness route", () => {
       type: "workout",
       durationMinutes: 60,
     });
-    expect(body.ftp.at(-1)).toEqual({ date: "2026-10-25", watts: 255 });
+    expect(body.thresholds[0]?.points.at(-1)).toEqual({
+      date: "2026-10-25",
+      value: 255,
+    });
   });
 
   it("answers for the wider ranges", async () => {
@@ -238,6 +255,9 @@ describe("fitness route", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as FitnessHistoryResponse;
     expect(body.days).toHaveLength(7);
-    expect(body.ftp.at(-1)).toEqual({ date: "2026-10-22", watts: 250 });
+    expect(body.thresholds[0]?.points.at(-1)).toEqual({
+      date: "2026-10-22",
+      value: 250,
+    });
   });
 });

@@ -85,6 +85,9 @@ describe("loadReplyContext", () => {
             ],
             "2026-10-21",
           ),
+          thresholds: [],
+          thresholdTimelines: [],
+          summaries: [],
         }),
       loadBodyHistory: () =>
         Promise.resolve({
@@ -134,6 +137,9 @@ describe("loadReplyContext", () => {
           timeline: buildFtpTimelineFromPoints([
             { date: "2026-10-01", value: 240, source: "user" as const },
           ]),
+          thresholds: [],
+          thresholdTimelines: [],
+          summaries: [],
         }),
       loadBodyHistory: () => Promise.reject(new Error("no body metrics")),
     });

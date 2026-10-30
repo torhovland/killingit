@@ -14,6 +14,7 @@ import { getAthlete } from "../auth/middleware.js";
 import type { ActivityFeed } from "../coaching/activities.js";
 import { markPlanPromptsFailed } from "../llm/callStore.js";
 import type { LlmClient } from "../llm/client.js";
+import { loadFtpHistoryForUser } from "../metrics/store.js";
 import { startOfWeek } from "../plans/dates.js";
 import { isStaleRunning } from "../plans/generation.js";
 import { loadCoachingInputs, type CoachingInputs } from "../plans/inputs.js";
@@ -90,6 +91,10 @@ export interface PlanRouteDependencies {
   loadFtpHistory?: PlanTriggerDependencies["loadFtpHistory"];
   /** Injectable for route tests; defaults to the stored body metrics. */
   loadBodyHistory?: PlanTriggerDependencies["loadBodyHistory"];
+  /** Injectable for route tests; defaults to the coach reading the text. */
+  syncAthleteMetrics?: PlanTriggerDependencies["syncAthleteMetrics"];
+  /** Injectable for route tests; defaults to answered coach questions. */
+  loadAnsweredCoachQuestions?: PlanTriggerDependencies["loadAnsweredCoachQuestions"];
   /** Injectable for route tests; defaults to the account's stored config. */
   loadLlm?: (userId: number) => Promise<LlmClient | null>;
   /** Injectable for route tests; defaults to the database-backed loader. */
@@ -137,7 +142,8 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
     today: string,
     includeTomorrow = false,
   ) {
-    const [storedPlan, loadedGeneration, answers, coachingInputs] =
+    const loadThresholds = deps.loadFtpHistory ?? loadFtpHistoryForUser;
+    const [storedPlan, loadedGeneration, answers, coachingInputs, thresholds] =
       await Promise.all([
         deps.plans.load(userId),
         deps.generations.load(userId),
@@ -145,6 +151,10 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
         deps.loadCoachingInputs
           ? deps.loadCoachingInputs(userId, startOfWeek(today))
           : loadCoachingInputs(userId, startOfWeek(today)),
+        loadThresholds(userId, today).catch((err: unknown) => {
+          console.error("[plan] could not load thresholds:", err);
+          return null;
+        }),
       ]);
     // A process that stopped mid-generation leaves the row `running`. Release
     // the claim so the client stops polling and can start a fresh run. Pass the
@@ -219,6 +229,7 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
         weatherChanged,
         weekReviewPending,
       ),
+      thresholds: thresholds?.summaries ?? [],
     });
   }
 
@@ -292,6 +303,14 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
               : {}),
             ...(deps.loadBodyHistory !== undefined
               ? { loadBodyHistory: deps.loadBodyHistory }
+              : {}),
+            ...(deps.syncAthleteMetrics !== undefined
+              ? { syncAthleteMetrics: deps.syncAthleteMetrics }
+              : {}),
+            ...(deps.loadAnsweredCoachQuestions !== undefined
+              ? {
+                  loadAnsweredCoachQuestions: deps.loadAnsweredCoachQuestions,
+                }
               : {}),
             ...(deps.loadLlm !== undefined ? { loadLlm: deps.loadLlm } : {}),
             ...(deps.loadCoachingInputs !== undefined

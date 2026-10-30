@@ -1,8 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import type { FitnessHistoryDay, FtpHistoryPoint } from "@killingit/shared";
+import type {
+  FitnessHistoryDay,
+  ThresholdHistorySeries,
+} from "@killingit/shared";
 import { FitnessChart } from "./FitnessChart";
-import { FtpChart } from "./FtpChart";
+import { ThresholdChart } from "./ThresholdChart";
 
 function day(date: string, overrides: Partial<FitnessHistoryDay> = {}) {
   return {
@@ -25,10 +28,30 @@ const days = [
   day("2026-10-24"),
 ];
 
-const points: FtpHistoryPoint[] = days.map((entry, index) => ({
-  date: entry.date,
-  watts: 250 + index,
-}));
+const thresholdSeries: ThresholdHistorySeries[] = [
+  {
+    sport: "cycling",
+    measure: "ftp",
+    label: "FTP",
+    unit: "W",
+    kind: "power",
+    points: days.map((entry, index) => ({
+      date: entry.date,
+      value: 250 + index,
+    })),
+  },
+  {
+    sport: "cycling",
+    measure: "threshold_heart_rate",
+    label: "Threshold heart rate",
+    unit: "bpm",
+    kind: "heart_rate",
+    points: days.map((entry, index) => ({
+      date: entry.date,
+      value: 160 + index,
+    })),
+  },
+];
 
 describe("FitnessChart", () => {
   it("draws the days after today as the plan's projection", () => {
@@ -50,12 +73,19 @@ describe("FitnessChart", () => {
   });
 });
 
-describe("FtpChart", () => {
-  it("draws the projected FTP as a dotted line", () => {
+describe("ThresholdChart", () => {
+  it("draws one line per threshold measure", () => {
     const html = renderToStaticMarkup(
-      <FtpChart days={days} points={points} today="2026-10-22" />,
+      <ThresholdChart
+        days={days}
+        series={thresholdSeries}
+        today="2026-10-22"
+      />,
     );
 
-    expect(html).toContain('data-series="ftp" data-future="true"');
+    expect(html).toContain("Estimated threshold");
+    expect(html).toContain('data-series="cycling:ftp"');
+    expect(html).toContain('data-series="cycling:threshold_heart_rate"');
+    expect(html).toContain('data-series="cycling:ftp" data-future="true"');
   });
 });

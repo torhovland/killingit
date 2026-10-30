@@ -4,6 +4,7 @@ import {
   formatActivityType,
   interpolateMetricSeries,
   type AnalyzedActivity,
+  type AthleteThreshold,
   type BlockWeekSummary,
   type CoachPlan,
   type FitnessDayActivity,
@@ -11,8 +12,8 @@ import {
   type FitnessHistoryDay,
   type FitnessHistoryResponse,
   type FitnessRange,
-  type FtpHistoryPoint,
   type MetricPoint,
+  type ThresholdHistorySeries,
   type WeekPlan,
 } from "@killingit/shared";
 import type { ManualActivityContext } from "../llm/planContext.js";
@@ -21,6 +22,7 @@ import { addDays, startOfWeek } from "../plans/dates.js";
 import { activityDayTss, groupActivitiesByDate } from "./activityLoad.js";
 import { loadTrainingContext } from "./context.js";
 import { buildFtpTimelineFromPoints, ftpAt, type FtpTimeline } from "./ftp.js";
+import { buildThresholdSeries, type ThresholdTimeline } from "./thresholds.js";
 
 /** How many days of history each fixed range covers, today included. */
 export const FITNESS_RANGE_DAYS: Record<
@@ -40,6 +42,8 @@ export interface FitnessHistoryInput {
   range: FitnessRange;
   activities: readonly AnalyzedActivity[];
   timeline: FtpTimeline;
+  /** Every stored threshold timeline, used to score each sport separately. */
+  thresholdTimelines?: readonly ThresholdTimeline[];
   plan?: CoachPlan | undefined;
   /** TSS the stored plan contributes for the days it covers. */
   planTssByDate: ReadonlyMap<string, number>;
@@ -52,6 +56,8 @@ export interface FitnessHistoryInput {
     weight: readonly MetricPoint[];
     bodyFat: readonly MetricPoint[];
   };
+  /** Every stored threshold point, used for one line per measure. */
+  thresholdPoints?: readonly AthleteThreshold[];
 }
 
 /**
@@ -81,7 +87,11 @@ export function buildFitnessHistory(
   for (const [date, activities] of groupActivitiesByDate(input.activities)) {
     tssByDate.set(
       date,
-      activityDayTss(activities, input.timeline, tssByDate.get(date)),
+      activityDayTss(
+        activities,
+        input.thresholdTimelines ?? [],
+        tssByDate.get(date),
+      ),
     );
   }
 
@@ -110,7 +120,13 @@ export function buildFitnessHistory(
 
   return {
     days,
-    ftp: ftpHistory(input.timeline, input.plan, days, input.today),
+    thresholds: thresholdHistory(
+      input.timeline,
+      input.thresholdPoints ?? [],
+      input.plan,
+      days,
+      input.today,
+    ),
     body: {
       weight: interpolateMetricSeries(
         input.bodyPoints?.weight ?? [],
@@ -214,6 +230,8 @@ export async function loadFitnessHistory(
     activities,
     plan,
     timeline: context.timeline,
+    thresholdTimelines: context.thresholdTimelines,
+    thresholdPoints: context.thresholdPoints,
     planTssByDate: context.planTssByDate,
     manualTssByDate: context.manualTssByDate,
     manualActivities: context.manualActivities,
@@ -251,28 +269,50 @@ export function fitnessWindow(input: {
 }
 
 /**
- * The estimated FTP for each day: the plan's projected estimate from today
- * onward and the athlete's interpolated timeline for recorded history. The
- * projection is a line through the plan's estimates rather than a step, so the
- * chart climbs from one week's estimate toward the next. Empty when the athlete
- * has never stated an FTP.
+ * One series per threshold measure: the athlete's interpolated measurements
+ * plus the plan's projected FTP from today onward. Every other measure keeps
+ * its measured trend, so the Fitness page can show cycling FTP and threshold
+ * heart rate side by side without inventing a projection for either.
  */
-function ftpHistory(
+function thresholdHistory(
   timeline: FtpTimeline,
+  points: readonly AthleteThreshold[],
   plan: CoachPlan | undefined,
   days: readonly { date: string }[],
   today: string,
-): FtpHistoryPoint[] {
+): ThresholdHistorySeries[] {
   const projection = planFtpProjection(plan, timeline, today);
-  const points: FtpHistoryPoint[] = [];
-  for (const { date } of days) {
-    const planned = date >= today ? ftpAt(projection, date) : null;
-    const watts = planned ?? ftpAt(timeline, date);
-    if (watts !== null) {
-      points.push({ date, watts });
-    }
+  const firstDate = days[0]?.date;
+  const lastDate = days[days.length - 1]?.date;
+  if (firstDate === undefined || lastDate === undefined) {
+    return [];
   }
-  return points;
+
+  return buildThresholdSeries(points).map((series) => {
+    const measured = new Map(
+      interpolateMetricSeries(series.points, firstDate, lastDate).map(
+        (point) => [point.date, point.value],
+      ),
+    );
+    const isProjectedFtp =
+      series.sport === "cycling" && series.measure === "ftp";
+    const seriesPoints = days.flatMap(({ date }) => {
+      const projected =
+        isProjectedFtp && date >= today && projection !== null
+          ? ftpAt(projection, date)
+          : null;
+      const value = projected ?? measured.get(date) ?? null;
+      return value === null ? [] : [{ date, value }];
+    });
+    return {
+      sport: series.sport,
+      measure: series.measure,
+      label: series.label,
+      unit: series.unit,
+      kind: series.kind,
+      points: seriesPoints,
+    };
+  });
 }
 
 /**

@@ -53,6 +53,8 @@ export {
   type WeatherIcon,
 } from "./weather.js";
 
+export { planDateSchema, type PlanDate } from "./date.js";
+
 export {
   garminConnectionStatusSchema,
   type GarminConnectionStatus,
@@ -151,7 +153,6 @@ export {
   manualActivityInputSchema,
   manualActivityRequestSchema,
   manualActivitySchema,
-  planDateSchema,
   planGenerateInputSchema,
   planGenerateModeSchema,
   planGenerationStatusSchema,
@@ -230,21 +231,32 @@ export {
 } from "./trainingLoad.js";
 
 export {
+  activitySport,
   athleteMetricSchema,
   athleteMetricStatementSchema,
   athleteMetricsResultSchema,
+  athleteThresholdSchema,
+  athleteThresholdStatementSchema,
   bestFitSlope,
   fitnessBodySchema,
   fitnessMetricPointSchema,
+  formatSport,
+  formatThresholdValue,
   garminBodyMetricSampleSchema,
   garminFtpSampleSchema,
   garminMetricsResponseSchema,
   interpolateMetricSeries,
   metricPointSchema,
   metricSourceSchema,
+  thresholdKindSchema,
+  thresholdSeriesPointSchema,
+  thresholdSeriesSchema,
+  thresholdSummarySchema,
   type AthleteMetric,
   type AthleteMetricStatement,
   type AthleteMetricsResult,
+  type AthleteThreshold,
+  type AthleteThresholdStatement,
   type FitnessBody,
   type FitnessMetricPoint,
   type GarminBodyMetricSample,
@@ -252,6 +264,10 @@ export {
   type GarminMetricsResponse,
   type MetricPoint,
   type MetricSource,
+  type ThresholdKind,
+  type ThresholdSeries,
+  type ThresholdSeriesPoint,
+  type ThresholdSummary,
 } from "./metrics.js";
 
 export {
@@ -263,13 +279,13 @@ export {
   fitnessHistoryDaySchema,
   fitnessHistoryResponseSchema,
   fitnessRangeSchema,
-  ftpHistoryPointSchema,
+  thresholdHistorySeriesSchema,
   type FitnessDayActivity,
   type FitnessDayPlan,
   type FitnessHistoryDay,
   type FitnessHistoryResponse,
   type FitnessRange,
-  type FtpHistoryPoint,
+  type ThresholdHistorySeries,
 } from "./fitness.js";
 
 export {

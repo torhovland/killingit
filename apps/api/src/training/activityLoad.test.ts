@@ -1,14 +1,22 @@
 import { describe, expect, it } from "bun:test";
-import type { AnalyzedActivity } from "@killingit/shared";
+import type { AnalyzedActivity, AthleteThreshold } from "@killingit/shared";
 import {
   buildActivityLoads,
   buildActivityTrainingLoads,
 } from "./activityLoad.js";
-import { buildFtpTimelineFromPoints } from "./ftp.js";
+import { buildThresholdTimelines } from "./thresholds.js";
 
-const timeline = buildFtpTimelineFromPoints([
-  { date: "2026-10-01", value: 250, source: "user" },
-]);
+const cyclingFtp: AthleteThreshold = {
+  date: "2026-10-01",
+  value: 250,
+  source: "user",
+  sport: "cycling",
+  measure: "ftp",
+  label: "FTP",
+  unit: "W",
+  kind: "power",
+};
+const timeline = buildThresholdTimelines([cyclingFtp]);
 
 function activity(overrides: Partial<AnalyzedActivity> = {}): AnalyzedActivity {
   return {
@@ -66,8 +74,18 @@ describe("buildActivityTrainingLoads", () => {
   });
 
   it("splits a day total from the TSS each activity contributed", () => {
-    const running = buildFtpTimelineFromPoints([
-      { date: "2026-10-01", value: 220, source: "user" },
+    const running = buildThresholdTimelines([
+      cyclingFtp,
+      {
+        date: "2026-10-01",
+        value: 220,
+        source: "user",
+        sport: "running",
+        measure: "critical_power",
+        label: "Critical power",
+        unit: "W",
+        kind: "power",
+      },
     ]);
     const loads = buildActivityLoads(
       [
@@ -111,5 +129,83 @@ describe("buildActivityTrainingLoads", () => {
     expect(loads.byDate.get("2026-10-20")?.tss).toBe(90);
     expect(loads.byActivityId.get(1)).toBe(60);
     expect(loads.byActivityId.get(2)).toBe(30);
+  });
+
+  it("scores a run from its sport's threshold pace", () => {
+    const running = buildThresholdTimelines([
+      {
+        date: "2026-10-01",
+        value: 300,
+        source: "user",
+        sport: "running",
+        measure: "threshold_pace",
+        label: "Threshold pace",
+        unit: "s/km",
+        kind: "pace",
+      },
+    ]);
+    const loads = buildActivityTrainingLoads(
+      [
+        activity({
+          type: "running",
+          distance: 10_000,
+          movingTime: 3600,
+          elapsedTime: 3600,
+        }),
+      ],
+      running,
+    );
+
+    // 10 km/h against a 12 km/h threshold is an intensity factor of 0.833.
+    expect(loads.get("2026-10-20")?.tss).toBe(69);
+  });
+
+  it("scores an unmeasured activity from its sport's threshold heart rate", () => {
+    const running = buildThresholdTimelines([
+      {
+        date: "2026-10-01",
+        value: 165,
+        source: "user",
+        sport: "running",
+        measure: "threshold_heart_rate",
+        label: "Threshold heart rate",
+        unit: "bpm",
+        kind: "heart_rate",
+      },
+    ]);
+    const loads = buildActivityTrainingLoads(
+      [
+        activity({
+          type: "running",
+          distance: 0,
+          movingTime: 3600,
+          elapsedTime: 3600,
+          samples: [
+            { timestamp: "2026-10-20T09:00:00Z", heartRate: 150 },
+            { timestamp: "2026-10-20T10:00:00Z", heartRate: 150 },
+          ],
+        }),
+      ],
+      running,
+    );
+
+    // One hour at 150 bpm against a 165 bpm threshold.
+    expect(loads.get("2026-10-20")?.tss).toBe(83);
+  });
+
+  it("falls back to a duration estimate with no threshold for the sport", () => {
+    const loads = buildActivityTrainingLoads(
+      [
+        activity({
+          type: "running",
+          distance: 0,
+          movingTime: 3600,
+          elapsedTime: 3600,
+        }),
+      ],
+      timeline,
+    );
+
+    expect(loads.get("2026-10-20")?.tss).toBe(65);
   });
 });

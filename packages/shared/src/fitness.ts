@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { fitnessBodySchema } from "./metrics.js";
+import { fitnessBodySchema, thresholdKindSchema } from "./metrics.js";
 import { planDateSchema } from "./plan.js";
 import { trainingLoadSchema } from "./trainingLoad.js";
 
@@ -71,23 +71,35 @@ export const fitnessHistoryDaySchema = trainingLoadSchema.extend({
 
 export type FitnessHistoryDay = z.infer<typeof fitnessHistoryDaySchema>;
 
-/** The estimated FTP in effect on one day of the fitness chart. */
-export const ftpHistoryPointSchema = z.object({
-  date: planDateSchema,
-  watts: z.number().int().nonnegative().max(2000),
+/** The estimated threshold series shown on one day of the fitness chart. */
+export const thresholdHistorySeriesSchema = z.object({
+  sport: z.string().min(1),
+  measure: z.string().min(1),
+  label: z.string().min(1),
+  unit: z.string().min(1),
+  kind: thresholdKindSchema,
+  /** One point per calendar day on the chart. */
+  points: z.array(
+    z.object({
+      date: planDateSchema,
+      value: z.number().finite(),
+    }),
+  ),
 });
 
-export type FtpHistoryPoint = z.infer<typeof ftpHistoryPointSchema>;
+export type ThresholdHistorySeries = z.infer<
+  typeof thresholdHistorySeriesSchema
+>;
 
 /**
  * The fitness history for a window: one entry per calendar day, ascending, and
- * the estimated FTP for the same days. `ftp` is empty when the athlete has not
- * stated an FTP. `body` carries the interpolated body-weight and body-fat
- * series, empty when the athlete has no such data.
+ * the estimated threshold measures for the same days. `thresholds` is empty
+ * when the athlete has stated no threshold. `body` carries the interpolated
+ * body-weight and body-fat series, empty when the athlete has no such data.
  */
 export const fitnessHistoryResponseSchema = z.object({
   days: z.array(fitnessHistoryDaySchema),
-  ftp: z.array(ftpHistoryPointSchema),
+  thresholds: z.array(thresholdHistorySeriesSchema).default([]),
   body: fitnessBodySchema.default({ weight: [], bodyFat: [] }),
 });
 

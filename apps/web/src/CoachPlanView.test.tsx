@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import type { CoachPlan } from "@killingit/shared";
+import type { CoachPlan, ThresholdSummary } from "@killingit/shared";
 import { CoachPlanView } from "./CoachPlanView";
 
 const BULLET = '<span class="mx-[0.75em]">·</span>';
@@ -730,7 +730,7 @@ describe("CoachPlanView", () => {
     expect(html).toContain('data-testid="plan-tomorrow-download"');
     expect(html).toContain('data-testid="plan-today-ftp"');
     expect(html).toContain('data-testid="plan-tomorrow-ftp"');
-    expect(html).toContain("Estimated FTP:");
+    expect(html).toContain("Workout FTP:");
     expect(html).toContain("250 W");
     expect(html).toContain("Set this FTP in Zwift or another trainer app");
     expect(html).toContain("Download workout file (.zwo)");
@@ -741,7 +741,7 @@ describe("CoachPlanView", () => {
     const html = renderToStaticMarkup(<CoachPlanView plan={plan} />);
 
     expect(html).not.toContain('data-testid="plan-today-ftp"');
-    expect(html).not.toContain("Estimated FTP:");
+    expect(html).not.toContain("Workout FTP:");
   });
 
   it("hides the download when the session is not an indoor power workout", () => {
@@ -912,5 +912,41 @@ describe("CoachPlanView", () => {
 
     expect(html).toContain("Preparing workout file…");
     expect(html).toContain("disabled");
+  });
+
+  it("shows every known threshold in place of the single FTP estimate", () => {
+    const thresholds: ThresholdSummary[] = [
+      {
+        sport: "cycling",
+        measure: "ftp",
+        label: "FTP",
+        unit: "W",
+        kind: "power",
+        source: "user",
+        date: "2026-10-20",
+        value: 250,
+      },
+      {
+        sport: "running",
+        measure: "threshold_pace",
+        label: "Threshold pace",
+        unit: "s/km",
+        kind: "pace",
+        source: "user",
+        date: "2026-10-20",
+        value: 270,
+      },
+    ];
+
+    const html = renderToStaticMarkup(
+      <CoachPlanView plan={plan} defaultTab="week" thresholds={thresholds} />,
+    );
+
+    expect(html).toContain('data-testid="week-thresholds"');
+    expect(html).toContain("cycling FTP");
+    expect(html).toContain("250 W");
+    expect(html).toContain("running Threshold pace");
+    expect(html).toContain("4:30 /km");
+    expect(html).not.toContain('data-testid="week-ftp"');
   });
 });

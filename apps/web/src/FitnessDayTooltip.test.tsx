@@ -28,14 +28,6 @@ describe("FitnessDayTooltip", () => {
     expect(html).toContain("Fresh");
   });
 
-  it("adds the estimated FTP when the FTP chart is hovered", () => {
-    const html = renderToStaticMarkup(
-      <FitnessDayTooltip day={day()} today="2026-10-22" ftpWatts={255} />,
-    );
-
-    expect(html).toContain("FTP 255 W");
-  });
-
   it("lists the activities logged that day", () => {
     const html = renderToStaticMarkup(
       <FitnessDayTooltip

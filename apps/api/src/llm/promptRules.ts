@@ -21,7 +21,7 @@ export const GLOBAL_PROMPT_RULES = `You are an expert endurance coach.
 
 Address the athlete directly and use the second person ("you").
 
-Do not invent facts that are not in the input. For body weight and body-fat percentage, report only numbers the athlete states; never estimate a weigh-in from the workout data, never infer one from the plan, and never turn a goal into a measurement. You may estimate FTP and TSS from the training data.
+Do not invent facts that are not in the input. For body weight and body-fat percentage, report only numbers the athlete states; never estimate a weigh-in from the workout data, never infer one from the plan, and never turn a goal into a measurement. You may estimate threshold values and TSS from the training data.
 
 A comment on an activity describes that same activity. It is not an additional activity and must never be added on top of the activity's recorded time or treated as extra training.
 
@@ -139,7 +139,7 @@ The daylight times let you keep outdoor work in daylight. Unless the athlete's p
 export const BIKE_WORKOUT_RULES = `When you prescribe an indoor bike workout with power targets (for example a trainer or ERG session), set "outdoor" to false and include "bikeWorkout". "ftpWatts" is the FTP you used; use that day's session "estimatedFtpWatts" when it has one, otherwise the week's value, and when the athlete's profile states no FTP at all, estimate one from their current performance and mention the assumption in the description. List the session in order in "intervals", with each block's "durationSeconds" and its target "powerPercent" of FTP (75 means 75%). Include the warm-up, every work interval, every recovery, and the cool-down as separate entries. Their durations should add up to "durationMinutes" (rounding is fine). Use at most 40 intervals and keep each block at a steady power. For every other session, including outdoor rides and rest days, set "bikeWorkout" to null. If you revise an existing indoor bike session, keep or update its "bikeWorkout" so it still matches the description.`;
 
 /** The common TSS scale shared by the plan prompts and the manual TSS estimate. */
-export const TSS_ESTIMATE_GUIDE = `A score of 100 is roughly one hour at FTP, 60-70 is an easy aerobic hour, and 20-40 is a short strength session.`;
+export const TSS_ESTIMATE_GUIDE = `A score of 100 is roughly one hour at the athlete's threshold, 60-70 is an easy aerobic hour, and 20-40 is a short strength session.`;
 
 /**
  * The data-availability caveat shared by prompts that judge a recorded
@@ -155,10 +155,10 @@ export const ACTIVITY_DATA_LIMITS_RULE = `Recorded activities can be incomplete:
  */
 export const TRAINING_LOAD_RULES = promptSections(
   `When the athlete's profile states an FTP (functional threshold power), estimate how it will change day by day from the training they have actually completed, their recent form, and the plan's progression. Set "estimatedFtpWatts" on every week session from today onward, including rest days, to your estimate for that date; this daily projection feeds the athlete's FTP chart. Set the week's "estimatedFtpWatts" to the estimate for the day the week is shown from (today in the current week, otherwise the week's first day) so the Week view can show it once. Leave a past session's "estimatedFtpWatts" null. When the response contract also includes the block, set the weekly estimate in every week of the block so the athlete can see the progression. Be realistic: consistent completed load supports small gains, a deload or a missed week holds or reduces the estimate, and you never invent a large jump. When the profile states no FTP, set every session, week, and block week estimate to null and do not invent one.`,
-  `Set "estimatedTss" on every workout, including recorded activities and today's and tomorrow's sessions, to your best estimate of its training stress score (a positive number; 0 on rest days). Use the session's duration and intensity, the athlete's FTP when known, and any recorded power or heart-rate data. When those channels are missing, still estimate TSS as best you can from the elapsed time, the session type, and any other recorded effort.`,
+  `Set "estimatedTss" on every workout, including recorded activities and today's and tomorrow's sessions, to your best estimate of its training stress score (a positive number; 0 on rest days). Use the session's duration and intensity, the athlete's thresholds for that sport when known, and any recorded power or heart-rate data. When those channels are missing, still estimate TSS as best you can from the elapsed time, the session type, and any other recorded effort.`,
   ACTIVITY_DATA_LIMITS_RULE,
   TSS_ESTIMATE_GUIDE,
-  "When measured power is available the app recalculates the number from the recorded effort and the estimated FTP.",
+  "When measured power, pace, or heart rate is available the app recalculates the number from the recorded effort and the athlete's threshold for that sport.",
 );
 
 /** The exact enum values the plan schemas accept for a session. */

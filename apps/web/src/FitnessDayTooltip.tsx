@@ -10,13 +10,10 @@ import { TrainingLoadLine } from "./TrainingLoadLine";
 export function FitnessDayTooltip({
   day,
   today,
-  ftpWatts,
 }: {
   day: FitnessHistoryDay;
   /** The athlete's current date; later days read as plans, not history. */
   today: string;
-  /** The estimated FTP on that day, when the FTP chart is the one hovered. */
-  ftpWatts?: number | null;
 }) {
   const planned = day.planned;
   const isRest = planned?.type === "rest";
@@ -24,15 +21,7 @@ export function FitnessDayTooltip({
 
   return (
     <div className="flex flex-col gap-1" data-testid="fitness-tooltip">
-      <p className="text-base font-medium">
-        {formatChartDate(day.date)}
-        {ftpWatts !== null && ftpWatts !== undefined && (
-          <span className="font-normal text-muted-foreground">
-            <Bullet />
-            FTP {ftpWatts} W
-          </span>
-        )}
-      </p>
+      <p className="text-base font-medium">{formatChartDate(day.date)}</p>
       <TrainingLoadLine load={day} />
       {day.activities.length === 0 && planned !== null ? (
         isRest && !isFuture ? (
