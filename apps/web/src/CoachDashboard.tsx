@@ -17,7 +17,11 @@ import {
   type ReviewKind,
 } from "@killingit/shared";
 import { ActivityCard } from "./ActivityCard";
-import { loadCachedActivities, saveCachedActivities } from "./activityCache";
+import {
+  loadCachedActivities,
+  mergeActivityFeeds,
+  saveCachedActivities,
+} from "./activityCache";
 import { useAppStatus, useBusyReporter } from "./AppStatus";
 import { useAuth } from "./auth";
 import { CoachPlanSection } from "./CoachPlanSection";
@@ -122,12 +126,9 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
       if (!parsed.success || parsed.data.activities.length === 0) {
         return;
       }
-      saveCachedActivities(authSub.current, parsed.data);
-      setData((current) =>
-        current === null || current.activities.length === 0
-          ? parsed.data
-          : current,
-      );
+      const merged = mergeActivityFeeds(data, parsed.data);
+      setData(merged);
+      saveCachedActivities(authSub.current, merged);
     } catch (err: unknown) {
       // The live sync is still running; a missing server cache is not an error.
       console.error("Failed to load cached activities:", err);
@@ -529,6 +530,28 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
       setData(cached);
     }
   }, [auth.sub, data]);
+
+  // The coach stores replies before it starts the slower plan refresh, so poll
+  // the cached feed while any comment is still waiting for its reply.
+  const awaitingReplies =
+    data?.activities.some(
+      (activity) => activity.comment !== null && activity.coachReply === null,
+    ) ?? false;
+  useEffect(() => {
+    if (!auth.isAuthenticated || !awaitingReplies) {
+      return;
+    }
+    let attempts = 0;
+    const timer = setInterval(() => {
+      attempts += 1;
+      if (attempts > 40) {
+        clearInterval(timer);
+        return;
+      }
+      void loadCachedFeed();
+    }, 1500);
+    return () => clearInterval(timer);
+  }, [auth.isAuthenticated, awaitingReplies]);
 
   if (!auth.isAuthenticated) {
     return null;

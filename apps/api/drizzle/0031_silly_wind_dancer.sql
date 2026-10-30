@@ -1,0 +1,1 @@
+ALTER TABLE "plan_generations" ADD COLUMN "run_id" text;

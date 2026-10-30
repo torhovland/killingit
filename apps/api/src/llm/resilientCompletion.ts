@@ -1,5 +1,6 @@
 import type { LlmPromptKind } from "@killingit/shared";
 import {
+  LlmAbortError,
   LlmProviderError,
   LlmTokenLimitError,
   type LlmMessage,
@@ -11,6 +12,8 @@ import { MAX_COMPLETION_TOKENS } from "./planBudget.js";
 export interface CompletionCredentials {
   apiKey: string;
   model: string;
+  /** Cancels the completion when a newer coach run starts. */
+  signal?: AbortSignal;
 }
 
 /** The coaching task and extra metadata recorded in the prompt log. */
@@ -68,6 +71,9 @@ export async function completeWithFallbacks(
 
   let lastError: unknown;
   for (const [index, attempt] of attempts.entries()) {
+    if (credentials.signal?.aborted === true) {
+      throw new LlmAbortError();
+    }
     try {
       return await provider.complete({
         apiKey: credentials.apiKey,
@@ -79,6 +85,9 @@ export async function completeWithFallbacks(
           ? { reasoning: attempt.reasoning }
           : {}),
         ...(options.kind !== undefined ? { kind: options.kind } : {}),
+        ...(credentials.signal !== undefined
+          ? { signal: credentials.signal }
+          : {}),
         metadata: {
           ...(options.metadata ?? {}),
           attempt: index + 1,
@@ -88,6 +97,10 @@ export async function completeWithFallbacks(
     } catch (err) {
       lastError = err;
 
+      // A cancelled run must not spend another completion attempt.
+      if (err instanceof LlmAbortError) {
+        throw err;
+      }
       // A larger budget or reduced reasoning may fit the same response.
       if (err instanceof LlmTokenLimitError) {
         continue;

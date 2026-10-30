@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import {
+  LlmAbortError,
   LlmAuthError,
   LlmProviderError,
   LlmTokenLimitError,
@@ -170,5 +171,40 @@ describe("completeWithFallbacks", () => {
 
     expect(failure).toBeInstanceOf(LlmTokenLimitError);
     expect(provider.requests).toHaveLength(5);
+  });
+
+  it("stops immediately when the run has already been aborted", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const provider = new FakeProvider(["unused"]);
+
+    let failure: unknown;
+    try {
+      await completeWithFallbacks(
+        provider,
+        { ...credentials, signal: controller.signal },
+        messages,
+        2048,
+      );
+    } catch (err) {
+      failure = err;
+    }
+
+    expect(failure).toBeInstanceOf(LlmAbortError);
+    expect(provider.requests).toHaveLength(0);
+  });
+
+  it("passes the run's abort signal to the provider", async () => {
+    const controller = new AbortController();
+    const provider = new FakeProvider(["Analysis."]);
+
+    await completeWithFallbacks(
+      provider,
+      { ...credentials, signal: controller.signal },
+      messages,
+      2048,
+    );
+
+    expect(provider.requests[0]?.signal).toBe(controller.signal);
   });
 });

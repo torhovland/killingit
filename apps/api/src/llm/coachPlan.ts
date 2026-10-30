@@ -9,6 +9,8 @@ import { completeWithFallbacks } from "./resilientCompletion.js";
 export interface CoachPlanCredentials {
   apiKey: string;
   model: string;
+  /** Cancels the completion when a newer coach run starts. */
+  signal?: AbortSignal;
 }
 
 /**

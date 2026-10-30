@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   createOpenRouterProvider,
+  LlmAbortError,
   LlmAuthError,
   LlmProviderError,
   LlmRateLimitError,
@@ -282,6 +283,28 @@ describe("complete", () => {
         maxTokens: 500,
       }),
       LlmProviderError,
+    );
+  });
+
+  it("maps an aborted request to LlmAbortError", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const provider = createOpenRouterProvider({
+      fetchImpl: stubFetch(() =>
+        Promise.reject(new DOMException("aborted", "AbortError")),
+      ),
+    });
+
+    await expectRejectsWith(
+      provider.complete({
+        apiKey: "sk-or-v1-test",
+        model: "openrouter/auto",
+        messages: [{ role: "user", content: "analyse" }],
+        temperature: 0.3,
+        maxTokens: 500,
+        signal: controller.signal,
+      }),
+      LlmAbortError,
     );
   });
 });

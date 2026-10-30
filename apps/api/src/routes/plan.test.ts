@@ -176,22 +176,28 @@ class MemoryGenerationStore implements PlanGenerationStore {
     return Promise.resolve(this.status);
   }
 
-  begin(): Promise<boolean> {
-    if (this.running) {
-      return Promise.resolve(false);
-    }
+  begin(_userId: number, runId: string): Promise<void> {
     this.running = true;
     this.status = {
       ...this.status,
       status: "running",
+      runId,
       step: "Preparing your plan",
       progress: 5,
       updatedAt: new Date().toISOString(),
     };
-    return Promise.resolve(true);
+    return Promise.resolve();
   }
 
-  update(_userId: number, step: PlanGenerationStep): Promise<void> {
+  isCurrent(_userId: number, runId: string): Promise<boolean> {
+    return Promise.resolve(this.running && this.status.runId === runId);
+  }
+
+  update(
+    _userId: number,
+    step: PlanGenerationStep,
+    _runId: string,
+  ): Promise<void> {
     this.status = {
       ...this.status,
       status: "running",
@@ -218,15 +224,9 @@ class MemoryGenerationStore implements PlanGenerationStore {
     return Promise.resolve();
   }
 
-  fail(
-    _userId: number,
-    error: string,
-    observedUpdatedAt?: string,
-  ): Promise<Date | null> {
-    if (
-      observedUpdatedAt !== undefined &&
-      observedUpdatedAt !== this.status.updatedAt
-    ) {
+  fail(userId: number, error: string, runId: string): Promise<Date | null> {
+    void userId;
+    if (this.status.runId !== runId) {
       return Promise.resolve(null);
     }
     this.running = false;
@@ -848,6 +848,7 @@ describe("coach plan route", () => {
     generationStore.status = {
       ...generationStore.status,
       status: "running",
+      runId: "stale-run",
       step: "Choosing tomorrow's session",
       progress: 90,
       updatedAt: new Date(
@@ -876,16 +877,16 @@ describe("coach plan route", () => {
     expect(marked[0]?.error).toContain("stopped before finishing");
   });
 
-  it("keeps a run that heartbeated after the stale status was read", async () => {
+  it("keeps a run that was replaced after the stale status was read", async () => {
     class HeartbeatOnFailStore extends MemoryGenerationStore {
       override fail(
         userId: number,
         error: string,
-        observedUpdatedAt?: string,
+        runId: string,
       ): Promise<Date | null> {
-        // A heartbeat lands between the GET's read and its release.
-        this.status = { ...this.status, updatedAt: new Date().toISOString() };
-        return super.fail(userId, error, observedUpdatedAt);
+        // A newer run claims the row between the GET's read and its release.
+        this.status = { ...this.status, runId: "newer-run" };
+        return super.fail(userId, error, runId);
       }
     }
 
@@ -894,6 +895,7 @@ describe("coach plan route", () => {
     generationStore.status = {
       ...generationStore.status,
       status: "running",
+      runId: "stale-run",
       step: "Choosing tomorrow's session",
       progress: 90,
       updatedAt: new Date(

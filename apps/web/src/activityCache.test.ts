@@ -3,6 +3,7 @@ import type { AnalyzedActivitiesResponse } from "@killingit/shared";
 import {
   activityCacheKey,
   loadCachedActivities,
+  mergeActivityFeeds,
   saveCachedActivities,
   type ActivityCacheStorage,
 } from "./activityCache";
@@ -102,5 +103,41 @@ describe("activityCache", () => {
   it("returns null when storage is unavailable", () => {
     expect(loadCachedActivities("user-1", null)).toBeNull();
     expect(() => saveCachedActivities("user-1", feed, null)).not.toThrow();
+  });
+
+  it("merges a fresh reply into the feed on screen", () => {
+    const replied: AnalyzedActivitiesResponse = {
+      ...feed,
+      activities: [
+        {
+          ...feed.activities[0]!,
+          comment: "Felt strong.",
+          coachReply: {
+            text: "Good work.",
+            model: "openrouter/auto",
+            generatedAt: "2026-10-01T08:00:00Z",
+          },
+        },
+      ],
+    };
+
+    const merged = mergeActivityFeeds(feed, replied);
+
+    expect(merged.activities).toHaveLength(1);
+    expect(merged.activities[0]?.coachReply?.text).toBe("Good work.");
+  });
+
+  it("keeps activities that only exist in the current feed", () => {
+    const current: AnalyzedActivitiesResponse = {
+      ...feed,
+      activities: [
+        ...feed.activities,
+        { ...feed.activities[0]!, id: 2, name: "Evening Ride" },
+      ],
+    };
+
+    const merged = mergeActivityFeeds(current, feed);
+
+    expect(merged.activities.map((activity) => activity.id)).toEqual([1, 2]);
   });
 });

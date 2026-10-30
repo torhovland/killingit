@@ -38,6 +38,10 @@ import type { LlmProvider } from "../llm/openrouter.js";
 import { applyTrainingLoad } from "../training/load.js";
 import { ftpBaselineAt, type FtpTimeline } from "../training/ftp.js";
 import { addDays, startOfWeek } from "./dates.js";
+import {
+  GenerationSupersededError,
+  isGenerationSuperseded,
+} from "./generation.js";
 import type { CoachQuestionSourceKind } from "./coachQuestions.js";
 import { outlineFutureSessions } from "./outline.js";
 import { blockFor, promoteNextPeriod, weekFor } from "./periods.js";
@@ -82,10 +86,16 @@ export interface PlanGenerationContext {
   provider: LlmProvider;
   apiKey: string;
   model: string;
+  /** Cancels this run's provider requests when a newer run starts. */
+  signal?: AbortSignal;
 }
 
 export interface GeneratePlanInput {
   userId: number;
+  /** The run that must still own the generation row before anything is saved. */
+  runId: string;
+  /** Cancels the run's provider requests when a newer run starts. */
+  signal?: AbortSignal;
   today: string;
   timezone?: string;
   /** How an explicit regeneration should treat the stored season. */
@@ -138,14 +148,23 @@ export interface GeneratePlanInput {
 export async function runPlanGeneration(
   input: GeneratePlanInput,
 ): Promise<StoredPlan | null> {
-  const { userId, today, plans, generations } = input;
+  const { userId, today, plans, generations, runId } = input;
   let context = input.context;
   const stored = input.plan?.plan ?? null;
   const stale =
     input.plan !== null &&
     planIsStale(input.plan.answersUpdatedAt, context.answersUpdatedAt);
+  const ensureCurrent = async (): Promise<void> => {
+    if (input.signal?.aborted === true) {
+      throw new GenerationSupersededError();
+    }
+    if (!(await generations.isCurrent(userId, runId))) {
+      throw new GenerationSupersededError();
+    }
+  };
 
   try {
+    await ensureCurrent();
     // Today may have moved into a week or block that was planned last night.
     // Promote it for this run; the raw stored plan is used below to capture the
     // ended period's review before it is dropped.
@@ -172,11 +191,13 @@ export async function runPlanGeneration(
         manualActivities: context.manualActivities,
         activityComments: context.activityComments,
         weeklyNote: context.weeklyNote,
+        ...(input.signal !== undefined ? { signal: input.signal } : {}),
       });
       if (captured !== undefined && captured.length > 0) {
         input.context = mergeCapturedPeriodReviews(input.context, captured);
         context = input.context;
       }
+      await ensureCurrent();
     }
 
     const inputsChanged =
@@ -241,8 +262,8 @@ export async function runPlanGeneration(
       planWeatherChanged(currentPlan, context.forecast, today);
 
     if (needsFullPlan) {
-      await generations.update(userId, PLAN_GENERATION_STEPS.review);
-      await generations.update(userId, PLAN_GENERATION_STEPS.season);
+      await generations.update(userId, PLAN_GENERATION_STEPS.review, runId);
+      await generations.update(userId, PLAN_GENERATION_STEPS.season, runId);
       const seasonUpdate = await generateSeasonPlan(
         context.provider,
         credentials(context),
@@ -255,7 +276,11 @@ export async function runPlanGeneration(
       );
       const season: SeasonPlan = seasonUpdate.season;
 
-      await generations.update(userId, PLAN_GENERATION_STEPS.initialBlock);
+      await generations.update(
+        userId,
+        PLAN_GENERATION_STEPS.initialBlock,
+        runId,
+      );
       const generatedBlock = await generateInitialBlock(
         context.provider,
         credentials(context),
@@ -272,7 +297,11 @@ export async function runPlanGeneration(
         generatedBlock.bodyMetrics,
       );
 
-      await generations.update(userId, PLAN_GENERATION_STEPS.initialWeek);
+      await generations.update(
+        userId,
+        PLAN_GENERATION_STEPS.initialWeek,
+        runId,
+      );
       const weekUpdate = await generateWeeklyUpdate(
         context.provider,
         credentials(context),
@@ -290,7 +319,7 @@ export async function runPlanGeneration(
         "weekly_update",
       );
 
-      await generations.update(userId, PLAN_GENERATION_STEPS.day);
+      await generations.update(userId, PLAN_GENERATION_STEPS.day, runId);
       const dayUpdate = await generateDailyUpdate(
         context.provider,
         credentials(context),
@@ -353,22 +382,32 @@ export async function runPlanGeneration(
         context,
       );
       assertPlanValid(generated, today, input.includeTomorrow === true);
-      await generations.update(userId, PLAN_GENERATION_STEPS.save);
+      await ensureCurrent();
+      await generations.update(userId, PLAN_GENERATION_STEPS.save, runId);
       const saved = await plans.save(
         userId,
         generated,
         context.answersUpdatedAt,
         context.coachingInputsUpdatedAt,
         context.activitiesUpdatedAt ?? null,
+        runId,
       );
+      if (saved === null) {
+        throw new GenerationSupersededError();
+      }
       if (input.reviewActivities) {
+        await ensureCurrent();
         await generations.update(
           userId,
           PLAN_GENERATION_STEPS.reviewActivities,
+          runId,
         );
         try {
           await input.reviewActivities(saved.plan);
         } catch (err) {
+          if (isGenerationSuperseded(err)) {
+            throw err;
+          }
           // The plan is saved; a supplementary review must not fail the build.
           console.error("[plan] activity review failed:", err);
         }
@@ -376,9 +415,10 @@ export async function runPlanGeneration(
       // The reviews can return an older FTP estimate for an activity date. Save
       // the plan's weekly estimates afterwards so its projection wins and is
       // not deleted by those older points.
+      await ensureCurrent();
       await persistFtpEstimates(input, generated);
       await persistBodyMetrics(input, generated);
-      await generations.finish(userId);
+      await generations.finish(userId, runId);
       return saved;
     }
 
@@ -401,29 +441,40 @@ export async function runPlanGeneration(
         true,
         weekReviewPending,
       );
-      await generations.update(userId, PLAN_GENERATION_STEPS.save);
+      await ensureCurrent();
+      await generations.update(userId, PLAN_GENERATION_STEPS.save, runId);
       const saved = await plans.save(
         userId,
         plan,
         context.answersUpdatedAt,
         context.coachingInputsUpdatedAt,
         context.activitiesUpdatedAt ?? null,
+        runId,
       );
+      if (saved === null) {
+        throw new GenerationSupersededError();
+      }
       if (input.reviewActivities) {
+        await ensureCurrent();
         await generations.update(
           userId,
           PLAN_GENERATION_STEPS.reviewActivities,
+          runId,
         );
         try {
           await input.reviewActivities(saved.plan);
         } catch (err) {
+          if (isGenerationSuperseded(err)) {
+            throw err;
+          }
           // The plan is saved; a supplementary review must not fail the build.
           console.error("[plan] activity review failed:", err);
         }
       }
+      await ensureCurrent();
       await persistFtpEstimates(input, plan);
       await persistBodyMetrics(input, plan);
-      await generations.finish(userId);
+      await generations.finish(userId, runId);
       return saved;
     }
 
@@ -446,17 +497,22 @@ export async function runPlanGeneration(
       if (promoted && input.plan !== null) {
         // Persist the promotion and keep the timestamps that describe what the
         // current plan actually includes.
+        await ensureCurrent();
         const saved = await plans.save(
           userId,
           withTrainingLoad(currentPlan, context),
           input.plan.answersUpdatedAt,
           input.plan.coachingInputsUpdatedAt,
           input.plan.activitiesUpdatedAt,
+          runId,
         );
-        await generations.finish(userId);
+        if (saved === null) {
+          throw new GenerationSupersededError();
+        }
+        await generations.finish(userId, runId);
         return saved;
       }
-      await generations.finish(userId);
+      await generations.finish(userId, runId);
       return input.plan;
     }
 
@@ -468,22 +524,33 @@ export async function runPlanGeneration(
       false,
       weekReviewPending,
     );
-    await generations.update(userId, PLAN_GENERATION_STEPS.save);
+    await ensureCurrent();
+    await generations.update(userId, PLAN_GENERATION_STEPS.save, runId);
     const saved = await plans.save(
       userId,
       plan,
       context.answersUpdatedAt,
       context.coachingInputsUpdatedAt,
       context.activitiesUpdatedAt ?? null,
+      runId,
     );
+    if (saved === null) {
+      throw new GenerationSupersededError();
+    }
+    await ensureCurrent();
     await persistFtpEstimates(input, plan);
     await persistBodyMetrics(input, plan);
-    await generations.finish(userId);
+    await generations.finish(userId, runId);
     return saved;
   } catch (err) {
+    // A superseded run unwinds silently: the newer run owns the status row,
+    // the prompt log, and every later write.
+    if (isGenerationSuperseded(err) || input.signal?.aborted === true) {
+      return null;
+    }
     const message =
       err instanceof Error ? err.message : "The plan could not be generated.";
-    const startedAt = await generations.fail(userId, message);
+    const startedAt = await generations.fail(userId, message, runId);
     if (startedAt !== null) {
       await input.markPromptsFailed?.(userId, startedAt, message);
     }
@@ -672,6 +739,7 @@ async function requestPlanUpdate(
     flags.season
       ? PLAN_GENERATION_STEPS.seasonRefresh
       : PLAN_GENERATION_STEPS.planUpdate,
+    input.runId,
   );
   const update = await generatePlanUpdate(
     context.provider,
@@ -1109,7 +1177,11 @@ function assertPlanValid(
 }
 
 function credentials(context: PlanGenerationContext) {
-  return { apiKey: context.apiKey, model: context.model };
+  return {
+    apiKey: context.apiKey,
+    model: context.model,
+    ...(context.signal !== undefined ? { signal: context.signal } : {}),
+  };
 }
 
 /** Stores the coach's weekly FTP estimates after a plan has been saved. */
@@ -1360,6 +1432,9 @@ async function recordCoachQuestions(
     questions.length === 0
   ) {
     return;
+  }
+  if (!(await input.generations.isCurrent(input.userId, input.runId))) {
+    throw new GenerationSupersededError();
   }
   try {
     await input.recordCoachQuestions({

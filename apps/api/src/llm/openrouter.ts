@@ -48,6 +48,25 @@ export class LlmTokenLimitError extends LlmProviderError {
   }
 }
 
+/** Raised when the caller aborts a completion because a newer run started. */
+export class LlmAbortError extends LlmProviderError {
+  constructor(
+    message = "the completion was cancelled",
+    options?: { cause?: unknown },
+  ) {
+    super(message, undefined, options);
+    this.name = "LlmAbortError";
+  }
+}
+
+/** True when an error came from an aborted provider request. */
+export function isLlmAbortError(err: unknown): err is LlmAbortError {
+  return (
+    err instanceof LlmAbortError ||
+    (err instanceof Error && err.name === "AbortError")
+  );
+}
+
 export interface LlmMessage {
   role: "system" | "user" | "assistant";
   content: string;
@@ -79,6 +98,8 @@ export interface LlmCompletionRequest {
    * Never sent to the provider.
    */
   metadata?: Record<string, unknown>;
+  /** Cancels this request; it is combined with the provider timeout. */
+  signal?: AbortSignal;
 }
 
 /** The normalised result of one completion, including provider diagnostics. */
@@ -150,7 +171,7 @@ export function createOpenRouterProvider(
             ? { reasoning: input.reasoning }
             : {}),
         }),
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        signal: requestSignal(input.signal, REQUEST_TIMEOUT_MS),
       },
       "could not reach OpenRouter for the completion",
     );
@@ -273,6 +294,19 @@ export function createOpenRouterProvider(
   };
 }
 
+/**
+ * Combines the caller's cancellation with the provider timeout. Aborting is
+ * best-effort: OpenRouter has no cancel endpoint, so the socket may close while
+ * the upstream model is still finishing.
+ */
+function requestSignal(
+  signal: AbortSignal | undefined,
+  timeoutMs: number,
+): AbortSignal {
+  const timeout = AbortSignal.timeout(timeoutMs);
+  return signal === undefined ? timeout : AbortSignal.any([signal, timeout]);
+}
+
 /** Performs a fetch, converting transport failures into provider errors. */
 async function request(
   fetchImpl: typeof fetch,
@@ -283,6 +317,9 @@ async function request(
   try {
     return await fetchImpl(url, init);
   } catch (cause) {
+    if (isLlmAbortError(cause) || init.signal?.aborted === true) {
+      throw new LlmAbortError("the provider request was cancelled", { cause });
+    }
     throw new LlmProviderError(unreachableMessage, undefined, { cause });
   }
 }

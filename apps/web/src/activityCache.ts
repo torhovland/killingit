@@ -69,6 +69,31 @@ function readFeed(
   }
 }
 
+/**
+ * Merges a freshly loaded feed into the one on screen. Server data wins for
+ * every activity it contains, while activities that only exist in the current
+ * feed (for example a live sync) are kept.
+ */
+export function mergeActivityFeeds(
+  current: AnalyzedActivitiesResponse | null,
+  next: AnalyzedActivitiesResponse,
+): AnalyzedActivitiesResponse {
+  if (current === null || current.activities.length === 0) {
+    return next;
+  }
+  const byId = new Map(
+    current.activities.map((activity) => [String(activity.id), activity]),
+  );
+  for (const activity of next.activities) {
+    byId.set(String(activity.id), activity);
+  }
+  return {
+    ...current,
+    model: next.model ?? current.model,
+    activities: [...byId.values()],
+  };
+}
+
 /** Saves the last successfully loaded activity feed for the next page load. */
 export function saveCachedActivities(
   sub: string | null | undefined,

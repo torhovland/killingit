@@ -39,6 +39,10 @@ import {
 import { loadCachedActivityFeed } from "../coaching/feedCache.js";
 import type { ActivityLoads } from "../training/activityLoad.js";
 import {
+  startCoachRun,
+  type CoachRunDependencies,
+} from "../coaching/coachRun.js";
+import {
   answerCoachingQuestion,
   replyToCoachQuestion,
   replyToCoachingInput,
@@ -161,6 +165,8 @@ export interface CoachingRouteDependencies {
   answerCoachingQuestion?: typeof answerCoachingQuestion;
   /** Injectable for route tests; defaults to the real plan generation trigger. */
   triggerPlanGeneration?: typeof triggerPlanGeneration;
+  /** Injectable for route tests; defaults to the combined reply-and-plan run. */
+  startCoachRun?: typeof startCoachRun;
   /** Injectable for route tests; defaults to Open-Meteo. */
   loadForecast?: PlanTriggerDependencies["loadForecast"];
 }
@@ -240,6 +246,11 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
       ? { loadFtpHistory: deps.loadFtpHistory }
       : {}),
   };
+  const coachRunDeps: CoachRunDependencies = {
+    ...triggerDeps,
+    loadLlm: llmLoader,
+  };
+  const startRun = deps.startCoachRun ?? startCoachRun;
 
   /**
    * Estimates TSS for a manual entry from its free text. The coach reads the
@@ -314,24 +325,21 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
       );
     }
 
-    const coachReply = await replyTo(user.id, today, {
-      kind: "activity_comment",
-      activityId,
-      activityDate,
-      comment,
-    });
-
-    await trigger(triggerDeps, {
+    // The run answers every unanswered comment and then refreshes the plan.
+    // Replies are stored before the plan phase, so the dashboard's reply poll
+    // shows them while the coach is still thinking about the plan.
+    await startRun(coachRunDeps, {
       userId: user.id,
       today,
       ...(timezone !== undefined ? { timezone } : {}),
       keepToday: activityDate === today,
+      reply: true,
     });
 
     return c.json(
       coachingInputSaveResponseSchema.parse({
         message: mode === "create" ? "Comment saved" : "Comment updated",
-        reply: coachReply,
+        reply: null,
       }),
     );
   }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { LlmCompletionRequest, LlmProvider } from "./openrouter.js";
-import { LlmTokenLimitError } from "./openrouter.js";
+import { LlmAbortError, LlmTokenLimitError } from "./openrouter.js";
 import { withPromptLogging } from "./callLog.js";
 import type { LlmCallResult, LlmCallSink, NewLlmCall } from "./callStore.js";
 import { completeWithFallbacks } from "./resilientCompletion.js";
@@ -185,6 +185,25 @@ describe("withPromptLogging", () => {
       response: null,
       error: "provider exploded",
       usage: null,
+    });
+  });
+
+  it("records a cancelled attempt without marking it failed", async () => {
+    const { calls, sink } = recordingSink();
+    const provider: LlmProvider = {
+      id: "stub",
+      listModels: () => Promise.resolve([]),
+      validateKey: () => Promise.resolve(),
+      complete: () => Promise.reject(new LlmAbortError()),
+    };
+    const wrapped = withPromptLogging(provider, { userId: 9, sink });
+
+    await wrapped.complete(request()).catch(() => undefined);
+
+    expect(calls[0]?.result).toMatchObject({
+      response: null,
+      error: null,
+      metadata: { cancelled: true },
     });
   });
 

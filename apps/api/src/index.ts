@@ -21,6 +21,7 @@ import type {
   replyToCoachingInput,
 } from "./coaching/replies.js";
 import type { saveActivityReview } from "./coaching/reviews.js";
+import type { startCoachRun } from "./coaching/coachRun.js";
 import type { LlmClient } from "./llm/client.js";
 import {
   createActivityComment,
@@ -158,6 +159,8 @@ export interface AppDependencies {
   answerCoachingQuestion?: typeof answerCoachingQuestion;
   /** Plan generation trigger, injectable for DB-free route tests. */
   triggerPlanGeneration?: typeof triggerPlanGeneration;
+  /** Combined reply-and-plan run, injectable for DB-free route tests. */
+  startCoachRun?: typeof startCoachRun;
   /** Address search, injectable for DB-free weather route tests. */
   searchLocations?: typeof searchLocations;
   /** Forecast loader, injectable for DB-free plan generation tests. */
@@ -340,6 +343,9 @@ export function createApp(deps: AppDependencies = {}): Hono {
         : {}),
       ...(deps.triggerPlanGeneration !== undefined
         ? { triggerPlanGeneration: deps.triggerPlanGeneration }
+        : {}),
+      ...(deps.startCoachRun !== undefined
+        ? { startCoachRun: deps.startCoachRun }
         : {}),
       ...(deps.loadForecast !== undefined
         ? { loadForecast: deps.loadForecast }

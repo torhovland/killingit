@@ -42,7 +42,7 @@ export interface CoachReplyPromptInput {
   request: CoachReplyTarget;
 }
 
-const COACH_REPLY_SYSTEM_PROMPT = promptSections(
+export const COACH_REPLY_SYSTEM_PROMPT = promptSections(
   GLOBAL_PROMPT_RULES,
   "The athlete has just shared something about their training: a comment on a workout, a completed week or block, a note for the week, or a manual activity.",
   "Use the athlete profile, the current plan, and the recent training with its coach analyses to judge what the input means for the athlete.",
@@ -122,7 +122,7 @@ export function buildCoachReplyPrompt(input: CoachReplyPromptInput): string {
     );
   }
 
-  lines.push("", "The athlete just shared:", formatRequest(request));
+  lines.push("", "The athlete just shared:", formatCoachReplyTarget(request));
 
   if (request.kind === "quick_question") {
     lines.push(
@@ -172,7 +172,7 @@ function requestDate(request: CoachReplyTarget): string {
     : request.startDate;
 }
 
-function formatRequest(request: CoachReplyTarget): string {
+export function formatCoachReplyTarget(request: CoachReplyTarget): string {
   switch (request.kind) {
     case "activity_comment":
       return `Comment on the activity on ${request.activityDate}: "${request.comment.trim()}"`;

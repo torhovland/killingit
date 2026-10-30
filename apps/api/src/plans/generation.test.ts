@@ -8,7 +8,14 @@ function status(
   state: PlanGenerationStatus["status"],
   updatedAt: string,
 ): PlanGenerationStatus {
-  return { status: state, step: null, progress: 0, error: null, updatedAt };
+  return {
+    status: state,
+    step: null,
+    progress: 0,
+    error: null,
+    runId: null,
+    updatedAt,
+  };
 }
 
 describe("isStaleRunning", () => {
