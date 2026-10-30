@@ -88,7 +88,7 @@ export function ActivitiesPage() {
     setError(null);
     try {
       const res = await fetchJsonAuthed<unknown>(
-        `${API_URL}/api/coaching/activities?limit=20${refresh ? "&refresh=true" : ""}`,
+        `${API_URL}/api/coaching/activities${refresh ? "?refresh=true" : ""}`,
         auth,
       );
       const parsed = analyzedActivitiesResponseSchema.safeParse(res);
@@ -505,7 +505,7 @@ export function ActivitiesPage() {
 
       {!syncing && data && data.activities.length === 0 && (
         <p className="text-base text-muted-foreground">
-          No activities in the last 42 days.
+          No synced activities yet.
         </p>
       )}
 

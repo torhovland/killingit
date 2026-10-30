@@ -210,6 +210,12 @@ one swappable corner, and normalizes Garmin activities into the shared
   an evenly spaced, bounded `samples` preview (`MAX_PREVIEW_SAMPLES`) to each
   `AnalyzedActivity`. The Activities page shows it in a collapsible table so the
   athlete can inspect what was recorded without a second Garmin request.
+- **Every synced activity is kept.** A sync extends the stored feed instead of
+  replacing it: activities still inside Garmin's 42-day window get their latest
+  summary and preview, and activities that have fallen outside it keep their
+  stored analysis and feedback. The analysis cap only limits how many of the
+  newest activities one run sends to the model; Calendar, Activities, and the
+  Fitness chart read the full history.
 - **Deleting an imported activity is local.** Garmin Connect remains the source
   of truth, so a deletion stores a per-user tombstone and filters the activity
   out of the feed and plan. See `docs/specs/activity-deletion.md`.

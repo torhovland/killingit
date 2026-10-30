@@ -216,11 +216,7 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
     setError(null);
     try {
       const { today } = getToday(timeZone);
-      const params = new URLSearchParams({
-        limit: "20",
-        today,
-        timezone: timeZone,
-      });
+      const params = new URLSearchParams({ today, timezone: timeZone });
       if (refresh) {
         params.set("refresh", "true");
       }
