@@ -248,6 +248,16 @@ describe("CoachPlanView", () => {
     expect(html.indexOf("45 min")).toBeLessThan(html.indexOf(">completed<"));
   });
 
+  it("lets the week session details wrap above the status box on narrow screens", () => {
+    const html = renderToStaticMarkup(
+      <CoachPlanView plan={plan} defaultTab="week" />,
+    );
+
+    expect(html).toContain(
+      'class="ml-auto flex flex-wrap items-center justify-end gap-x-3 gap-y-1 text-muted-foreground"',
+    );
+  });
+
   it("shows a rest day's status box without repeating a rest label", () => {
     const html = renderToStaticMarkup(
       <CoachPlanView plan={plan} defaultTab="week" />,
