@@ -255,25 +255,6 @@ export function linePath(
     .join(" ");
 }
 
-/** A step-after path: each value holds until the next day. */
-export function stepPath(
-  values: readonly number[],
-  scale: ChartScale,
-  start = 0,
-): string {
-  return values
-    .map((value, offset) => {
-      const index = start + offset;
-      const x = round(scale.x(index));
-      const y = round(scale.y(value));
-      if (offset === 0) {
-        return `M${x} ${y}`;
-      }
-      return `H${x} V${y}`;
-    })
-    .join(" ");
-}
-
 /** The range of a TSB zone in words, e.g. `+5 to +25`. */
 export function formatZoneRange(zone: FormZone): string {
   if (!Number.isFinite(zone.from)) {

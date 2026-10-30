@@ -20,7 +20,7 @@ import { loadMetricPoints } from "../metrics/store.js";
 import { addDays, startOfWeek } from "../plans/dates.js";
 import { activityDayTss, groupActivitiesByDate } from "./activityLoad.js";
 import { loadTrainingContext } from "./context.js";
-import { ftpAt, type FtpTimeline } from "./ftp.js";
+import { buildFtpTimelineFromPoints, ftpAt, type FtpTimeline } from "./ftp.js";
 
 /** How many days of history each fixed range covers, today included. */
 export const FITNESS_RANGE_DAYS: Record<
@@ -251,10 +251,11 @@ export function fitnessWindow(input: {
 }
 
 /**
- * The estimated FTP for each day: the coach's daily plan estimate from today
- * onward, the week's single estimate as a fallback, and the athlete's
- * interpolated timeline for recorded history. Empty when the athlete has never
- * stated an FTP.
+ * The estimated FTP for each day: the plan's projected estimate from today
+ * onward and the athlete's interpolated timeline for recorded history. The
+ * projection is a line through the plan's estimates rather than a step, so the
+ * chart climbs from one week's estimate toward the next. Empty when the athlete
+ * has never stated an FTP.
  */
 function ftpHistory(
   timeline: FtpTimeline,
@@ -262,20 +263,52 @@ function ftpHistory(
   days: readonly { date: string }[],
   today: string,
 ): FtpHistoryPoint[] {
-  const daily = dailyFtpEstimates(plan, today);
-  const weekly = weeklyFtpEstimates(plan);
+  const projection = planFtpProjection(plan, timeline, today);
   const points: FtpHistoryPoint[] = [];
   for (const { date } of days) {
-    const planned =
-      date >= today
-        ? (daily.get(date) ?? weekly.get(startOfWeek(date)))
-        : undefined;
+    const planned = date >= today ? ftpAt(projection, date) : null;
     const watts = planned ?? ftpAt(timeline, date);
     if (watts !== null) {
       points.push({ date, watts });
     }
   }
   return points;
+}
+
+/**
+ * The plan's projected FTP from today onward. The weekly estimates are anchors
+ * at their week's start and the daily session estimates are anchors at their
+ * own dates, so `ftpAt` interpolates between them. Today is anchored at the
+ * current estimate, which keeps the projection starting where the athlete is
+ * now instead of jumping at the next week's boundary.
+ */
+function planFtpProjection(
+  plan: CoachPlan | undefined,
+  timeline: FtpTimeline,
+  today: string,
+): FtpTimeline | null {
+  const weekly = weeklyFtpEstimates(plan);
+  const anchors = new Map(weekly);
+  for (const [date, watts] of dailyFtpEstimates(plan, today)) {
+    anchors.set(date, watts);
+  }
+  if (!anchors.has(today)) {
+    const current =
+      weekly.get(startOfWeek(today)) ?? ftpAt(timeline, today) ?? null;
+    if (current !== null) {
+      anchors.set(today, current);
+    }
+  }
+  if (anchors.size === 0) {
+    return null;
+  }
+  return buildFtpTimelineFromPoints(
+    [...anchors].map(([date, value]) => ({
+      date,
+      value,
+      source: "coach" as const,
+    })),
+  );
 }
 
 /** The coach's per-day estimates for the planned days from today onward. */

@@ -9,16 +9,16 @@ import {
   FUTURE_DASH,
   labelIndices,
   lastIndexOnOrBefore,
+  linePath,
   niceDomain,
-  stepPath,
 } from "./chartGeometry";
 import { FitnessDayTooltip } from "./FitnessDayTooltip";
 import { useChartHover } from "./useChartHover";
 
 /**
- * The estimated FTP over the same window. Steps, not a smooth line: the weekly
- * estimate holds for the whole week and changes at the next one. Hovering shows
- * the same day card as the fitness chart.
+ * The estimated FTP over the same window. A line through the interpolated
+ * daily estimates, so the week-by-week progression reads as a climb rather
+ * than a staircase. Hovering shows the same day card as the fitness chart.
  */
 export function FtpChart({
   days,
@@ -100,14 +100,14 @@ export function FtpChart({
               />
             )}
             <path
-              d={stepPath(watts.slice(0, split + 1), scale)}
+              d={linePath(watts.slice(0, split + 1), scale)}
               className="fill-none stroke-primary"
               strokeWidth={2}
               data-series="ftp"
             />
             {hasFuture && (
               <path
-                d={stepPath(watts.slice(futureStart), scale, futureStart)}
+                d={linePath(watts.slice(futureStart), scale, futureStart)}
                 className="fill-none stroke-primary"
                 strokeWidth={2}
                 strokeDasharray={FUTURE_DASH}

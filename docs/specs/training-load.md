@@ -66,10 +66,11 @@ numbers must agree across the Day, Week, and Block tabs.
 - With a stated FTP, the coach returns `estimatedFtpWatts` for the week, for
   every week of the block, and for every day from today onward, including rest
   days. The API clamps each estimate to 70–150% of the stated value so a model
-  error cannot produce an absurd number; a day without a value falls back to
-  the week's estimate. The Week, Block, and Season tabs show the week's single
-  estimate, while the daily values are stored as `coach` points so the Fitness
-  page charts the projection day by day.
+  error cannot produce an absurd number. The Week, Block, and Season tabs show
+  the week's single estimate, while the daily values are stored as `coach`
+  points. The Fitness page anchors the projection at today's estimate and
+  interpolates between the weekly estimates and any daily values, so the chart
+  climbs toward the next week instead of stepping at its boundary.
 - With no stated FTP, every `estimatedFtpWatts` is stored as `null`, and the
   UI hides it. The coach is told not to invent one.
 
