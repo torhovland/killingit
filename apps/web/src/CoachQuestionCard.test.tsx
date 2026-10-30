@@ -21,10 +21,10 @@ describe("CoachQuestionCard", () => {
       />,
     );
 
-    expect(html).toContain("Coach question");
+    expect(html).toContain("Question from the coach");
     expect(html).toContain("How many hours can you train on weekdays?");
     expect(html).toContain('data-testid="coach-question-form"');
-    expect(html).toContain("Answer coach");
+    expect(html).toContain("Send to coach");
   });
 
   it("renders an answered question with the coach reply", () => {

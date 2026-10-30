@@ -51,7 +51,7 @@ export function CoachQuestionCard({
       data-testid="coach-question-card"
     >
       <header className="flex flex-col gap-1">
-        <h3 className="text-xl font-semibold">Coach question</h3>
+        <h3 className="text-xl font-semibold">Question from the coach</h3>
       </header>
 
       <p className="whitespace-pre-line" data-testid="coach-question-text">
@@ -91,7 +91,7 @@ export function CoachQuestionCard({
             className="self-start rounded border border-transparent bg-primary px-3 py-1 text-base text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
             disabled={!answer.trim()}
           >
-            {submitting ? "Coach is thinking…" : "Answer coach"}
+            {submitting ? "Coach is thinking…" : "Send to coach"}
           </SubmitButton>
         </form>
       )}

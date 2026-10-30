@@ -160,7 +160,7 @@ export function SeasonReviewPage() {
           className="flex flex-col gap-3"
           data-testid="season-coach-questions"
         >
-          <h3 className="text-xl font-medium">Coach questions</h3>
+          <h3 className="text-xl font-medium">Questions from the coach</h3>
           {coachQuestions.map((question) => (
             <CoachQuestionCard key={question.id} question={question} />
           ))}
