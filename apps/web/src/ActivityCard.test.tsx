@@ -134,6 +134,28 @@ describe("ActivityCard", () => {
     expect(html).toContain("Felt strong on the hills.");
     expect(html).toContain('data-testid="activity-coach-reply"');
     expect(html).toContain("I will keep Thursday easy.");
+    expect(html).not.toContain('data-testid="activity-coach-reply-pending"');
+  });
+
+  it("shows a coach thinking placeholder while a comment awaits its reply", () => {
+    const html = renderToStaticMarkup(
+      <ActivityCard
+        activity={{ ...activity, comment: "Felt strong on the hills." }}
+        onSubmitComment={() => Promise.resolve(null)}
+      />,
+    );
+
+    expect(html).toContain("Felt strong on the hills.");
+    expect(html).toContain('data-testid="activity-coach-reply-pending"');
+    expect(html).toContain("Coach:");
+    expect(html).toContain("thinking…");
+    expect(html).not.toContain('data-testid="activity-coach-reply"');
+  });
+
+  it("does not show a coach thinking placeholder without a comment", () => {
+    const html = renderToStaticMarkup(<ActivityCard activity={activity} />);
+
+    expect(html).not.toContain('data-testid="activity-coach-reply-pending"');
   });
 
   it("uses elapsed time and omits zero distance and climb", () => {

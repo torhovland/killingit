@@ -121,6 +121,10 @@ export function ActivityCard({
 
   const shownComment = savedComment ?? activity.comment;
   const shownReply = coachReply ?? activity.coachReply?.text ?? null;
+  // Activity-comment replies are written by the background run, so the comment
+  // can be saved before the reply exists. Keep the coach's side of the
+  // conversation visible with a thinking placeholder until the reply arrives.
+  const awaitingReply = shownComment !== null && shownReply === null;
   // Plan fit is part of the coach summary, not its own section. The program
   // review (when present) is the plan-aware summary; otherwise use the general
   // analysis.
@@ -231,11 +235,19 @@ export function ActivityCard({
         </div>
       )}
 
-      {shownReply && (
+      {shownReply !== null ? (
         <p className="text-base" data-testid="activity-coach-reply">
           <span className="font-medium">Coach:</span> {shownReply}
         </p>
-      )}
+      ) : awaitingReply ? (
+        <p
+          className="text-base text-muted-foreground"
+          data-testid="activity-coach-reply-pending"
+          aria-live="polite"
+        >
+          <span className="font-medium text-foreground">Coach:</span> thinking…
+        </p>
+      ) : null}
 
       {onSubmitComment && (shownComment === null || editing) && (
         <form
