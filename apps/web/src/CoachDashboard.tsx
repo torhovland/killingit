@@ -707,7 +707,7 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
         data-testid="coaching-inputs"
       >
         <div className="flex flex-col gap-1">
-          <h2 className="text-2xl font-semibold">Coaching inputs</h2>
+          <h2 className="text-2xl font-semibold">Talk to the coach</h2>
           <p className="text-base text-muted-foreground">
             Share context with your coach. The weekly note shapes your plan; a
             by-the-way question is only a conversation.
