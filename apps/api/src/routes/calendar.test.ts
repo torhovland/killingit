@@ -262,6 +262,11 @@ describe("calendar route", () => {
     expect(body.season?.endDate).toBe("2026-12-31");
 
     const days = new Map(body.days.map((day) => [day.date, day]));
+    const weeks = new Map(body.weeks.map((week) => [week.startDate, week]));
+    expect(weeks.get("2026-09-28")?.blockName).toBe("Base");
+    expect(weeks.get("2026-10-19")?.focus).toBe("Aerobic");
+    expect(weeks.get("2026-10-19")?.targetLoad).toBe("Easy");
+    expect(weeks.get("2026-10-26")?.focus).toBe("Aerobic");
     expect(days.get("2026-10-01")?.blockStart?.name).toBe("Base");
     expect(days.get("2026-12-01")?.blockStart?.name).toBe("Build");
     expect(days.get("2026-12-31")?.seasonEnd).toBe(true);
