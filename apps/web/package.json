@@ -10,7 +10,7 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@auth0/auth0-react": "^2.29.0",
+    "@auth0/auth0-react": "^2.30.0",
     "@killingit/shared": "workspace:*",
     "@sentry/react": "^11.10.0",
     "@sentry/vite-plugin": "^11.10.0",
