@@ -81,6 +81,15 @@ const data: CalendarResponse = {
     ],
     rationale: "Build endurance.",
   },
+  weeks: [
+    {
+      startDate: "2026-10-05",
+      endDate: "2026-10-11",
+      focus: "Aerobic base",
+      targetLoad: "Easy",
+      blockName: "Base",
+    },
+  ],
   days: [
     {
       date: "2026-10-01",
@@ -159,6 +168,29 @@ describe("CalendarView", () => {
     expect(html).toContain("Tempo ride");
     expect(html).toContain("75 min");
     expect(html).toContain("Rest");
+  });
+
+  it("renders a plan overview box to the left of each week", () => {
+    const html = renderToStaticMarkup(
+      <CalendarView
+        data={data}
+        month="2026-10"
+        onMonthChange={() => {}}
+        today="2026-10-07"
+      />,
+    );
+
+    expect(html).toContain('data-testid="calendar-week-overview"');
+    expect(html).toContain('data-week-start="2026-10-05"');
+    expect(html).toContain("Base");
+    expect(html).toContain("Aerobic base");
+    expect(html).toContain("Target load: Easy");
+    expect(html).toContain("1 workout");
+    expect(html).toContain("1 h 15 min");
+    expect(html).toContain("~70 TSS");
+    expect(html.indexOf('data-week-start="2026-10-05"')).toBeLessThan(
+      html.indexOf('data-date="2026-10-05"'),
+    );
   });
 
   it("hides planned sessions in the past and on today once an activity is recorded", () => {

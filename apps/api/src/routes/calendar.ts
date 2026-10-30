@@ -6,6 +6,7 @@ import {
   type CalendarActivity,
   type CalendarDay,
   type CalendarResponse,
+  type CalendarWeek,
   type CoachPlan,
   type WeekSession,
 } from "@killingit/shared";
@@ -13,6 +14,7 @@ import { Hono } from "hono";
 import { getAthlete } from "../auth/middleware.js";
 import { loadCachedActivityFeed } from "../coaching/feedCache.js";
 import type { ManualActivityContext } from "../llm/planContext.js";
+import { addDays, startOfWeek } from "../plans/dates.js";
 import {
   loadManualActivityReplies,
   toCoachAnalysis,
@@ -57,6 +59,77 @@ function latest(dates: readonly string[], fallback: string): string {
 function plannedSessions(plan: CoachPlan): Map<string, WeekSession> {
   const sessions = [...plan.week.sessions, ...(plan.nextWeek?.sessions ?? [])];
   return new Map(sessions.map((session) => [session.date, session]));
+}
+
+/**
+ * One outline per Monday-start week the stored plan can describe. Season blocks
+ * supply a fallback focus for weeks the coach has not detailed yet; the active
+ * and next block's week plans then add the specific focus and target load, and
+ * the current and next week win where they overlap.
+ */
+function weekOutlines(
+  plan: CoachPlan,
+  earliestDate: string,
+  latestDate: string,
+): CalendarWeek[] {
+  const weeks = new Map<string, CalendarWeek>();
+  const setWeek = (
+    date: string,
+    fields: Pick<CalendarWeek, "focus" | "targetLoad" | "blockName">,
+  ): void => {
+    const startDate = startOfWeek(date);
+    const existing = weeks.get(startDate);
+    weeks.set(startDate, {
+      startDate,
+      endDate: addDays(startDate, 6),
+      focus: fields.focus ?? existing?.focus ?? null,
+      targetLoad: fields.targetLoad ?? existing?.targetLoad ?? null,
+      blockName: fields.blockName ?? existing?.blockName ?? null,
+    });
+  };
+
+  for (const block of plan.season.blocks) {
+    for (
+      let startDate = startOfWeek(block.startDate);
+      startDate <= block.endDate;
+      startDate = addDays(startDate, 7)
+    ) {
+      setWeek(startDate, {
+        focus: block.focus,
+        targetLoad: null,
+        blockName: block.name,
+      });
+    }
+  }
+
+  for (const block of [plan.block, plan.nextBlock]) {
+    if (block === null) {
+      continue;
+    }
+    for (const week of block.weeks) {
+      setWeek(week.startDate, {
+        focus: week.focus,
+        targetLoad: week.targetLoad,
+        blockName: block.name,
+      });
+    }
+  }
+
+  for (const week of [plan.week, plan.nextWeek]) {
+    if (week !== null) {
+      setWeek(week.startDate, {
+        focus: week.focus,
+        targetLoad: null,
+        blockName: null,
+      });
+    }
+  }
+
+  return [...weeks.values()]
+    .filter(
+      (week) => week.endDate >= earliestDate && week.startDate <= latestDate,
+    )
+    .sort((a, b) => a.startDate.localeCompare(b.startDate));
 }
 
 /**
@@ -154,6 +227,10 @@ export function buildCalendar(input: {
     earliestDate: boundedEarliest,
     latestDate,
     season: input.plan?.season ?? null,
+    weeks:
+      input.plan === null
+        ? []
+        : weekOutlines(input.plan, boundedEarliest, latestDate),
     days: [...days.values()]
       .filter(
         (entry) => entry.date >= boundedEarliest && entry.date <= latestDate,

@@ -82,11 +82,13 @@ export {
   calendarImportedActivitySchema,
   calendarManualActivitySchema,
   calendarResponseSchema,
+  calendarWeekSchema,
   type CalendarActivity,
   type CalendarDay,
   type CalendarImportedActivity,
   type CalendarManualActivity,
   type CalendarResponse,
+  type CalendarWeek,
 } from "./calendar.js";
 
 export {

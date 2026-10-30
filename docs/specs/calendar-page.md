@@ -24,8 +24,11 @@ comment, the coach's response, and the route map for outdoor activities.
 4. A month grid (Monday start, six weeks) showing imported and manual
    activities, planned workouts and rest days, block starts, and the season
    end.
-5. A detail dialog for activities and planned sessions.
-6. Shared Zod schemas for the response and its entry types.
+5. A week overview box to the left of each Monday row, summarising that week's
+   plan: its block, focus, target load, and planned workout count, duration,
+   and TSS.
+6. A detail dialog for activities and planned sessions.
+7. Shared Zod schemas for the response and its entry types.
 
 ### Out of scope (deferred)
 
@@ -70,6 +73,12 @@ comment, the coach's response, and the route map for outdoor activities.
 - The season's `endDate` gets a `Season ends` marker, and the page heading
   states the season goal.
 - Days with nothing to show are omitted by the API and render as empty cells.
+- One overview box sits to the left of each Monday row. It names the season
+  block covering the week and shows the week's focus and target load when the
+  block plan describes it. The focus falls back to the block's focus for weeks
+  the coach has not detailed yet. The box also totals the planned workouts,
+  their duration, and their estimated TSS. A week with no plan data shows
+  `No plan yet`.
 
 ### Detail dialog
 
@@ -87,12 +96,16 @@ Shared (`@killingit/shared`):
 
 - `calendar.ts`: `calendarImportedActivitySchema` (analysed activity plus
   `source: "garmin"`), `calendarManualActivitySchema`, their discriminated
-  union `calendarActivitySchema`, `calendarDaySchema`, and
-  `calendarResponseSchema` (`earliestDate`, `latestDate`, `season`, `days`).
+  union `calendarActivitySchema`, `calendarDaySchema`, `calendarWeekSchema`
+  (week start and end, focus, target load, block name), and
+  `calendarResponseSchema` (`earliestDate`, `latestDate`, `season`, `weeks`,
+  `days`).
 
 API:
 
-- `apps/api/src/routes/calendar.ts`: `buildCalendar` (pure) and the route.
+- `apps/api/src/routes/calendar.ts`: `buildCalendar` (pure), `weekOutlines`
+  (week summaries from the season blocks, active and next block week plans, and
+  current and next week), and the route.
 - Registered at `/api/calendar` behind `requireAuth`.
 - No database migration; the endpoint reads `coach_plans`,
   `activity_feed_cache`, `manual_activities`, and `coach_replies`.
@@ -114,17 +127,20 @@ API:
    season end (or today without a season).
 3. Imported and manual activities, planned workouts, rest days, block starts,
    and the season end appear on the correct days.
-4. Previous/next and the month picker cannot leave the available range.
-5. Clicking an activity or planned workout opens a dialog with its full
+4. Every Monday row has a week overview box to its left showing the week's
+   block, focus, target load, and planned totals, or `No plan yet`.
+5. Previous/next and the month picker cannot leave the available range.
+6. Clicking an activity or planned workout opens a dialog with its full
    details; a recorded outdoor activity includes the route map, comment, and
    coach response.
-6. The page is reachable from the account menu.
-7. Typecheck, lint, format, and tests pass.
+7. The page is reachable from the account menu.
+8. Typecheck, lint, format, and tests pass.
 
 ## Testing
 
 - Shared schema tests are covered through the API route and web render tests.
 - API route tests: auth, missing date, activity and manual entries, plan
-  sessions including a rest day, block starts, season end, and bounds.
+  sessions including a rest day, block starts, season end, week outlines, and
+  bounds.
 - Web unit tests for the month helpers and render tests for the month grid,
-  range controls, and both dialog variants.
+  range controls, week overview boxes, and both dialog variants.

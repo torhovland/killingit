@@ -4,6 +4,7 @@ import {
   type CalendarActivity,
   type CalendarDay,
   type CalendarResponse,
+  type CalendarWeek,
   type WeekSession,
   type WeekSessionStatus,
 } from "@killingit/shared";
@@ -73,6 +74,12 @@ export function CalendarView({
   const shownMonth = clampMonth(month, minMonth, maxMonth);
   const daysByDate = new Map(data.days.map((day) => [day.date, day]));
   const cells = buildMonthGrid(shownMonth);
+  const weeksByStart = new Map(
+    data.weeks.map((week) => [week.startDate, week]),
+  );
+  const rows = Array.from({ length: 6 }, (_, index) =>
+    cells.slice(index * 7, index * 7 + 7),
+  );
 
   function moveMonth(delta: number): void {
     onMonthChange(
@@ -150,24 +157,38 @@ export function CalendarView({
       </h3>
 
       <div className="overflow-x-auto">
-        <div className="min-w-[42rem]">
-          <div className="grid grid-cols-7 gap-1 pb-1 text-center text-sm font-medium text-muted-foreground">
+        <div className="min-w-[52rem]">
+          <div className="grid grid-cols-[minmax(7rem,9rem)_repeat(7,minmax(0,1fr))] gap-1 pb-1 text-center text-sm font-medium text-muted-foreground">
+            <span />
             {WEEKDAYS.map((weekday) => (
               <span key={weekday}>{weekday}</span>
             ))}
           </div>
-          <div className="grid grid-cols-7 gap-1">
-            {cells.map((cell) => (
-              <CalendarCell
-                key={cell.date}
-                date={cell.date}
-                inMonth={cell.inMonth}
-                isToday={cell.date === today}
-                today={today}
-                day={daysByDate.get(cell.date)}
-                onSelect={setSelection}
-              />
-            ))}
+          <div className="grid grid-cols-[minmax(7rem,9rem)_repeat(7,minmax(0,1fr))] gap-1">
+            {rows.map((row) => {
+              const weekStart = row[0]?.date ?? "";
+              const weekDays = row.map((cell) => daysByDate.get(cell.date));
+              return (
+                <div key={weekStart} className="contents">
+                  <WeekOverview
+                    weekStart={weekStart}
+                    week={weeksByStart.get(weekStart)}
+                    days={weekDays}
+                  />
+                  {row.map((cell, index) => (
+                    <CalendarCell
+                      key={cell.date}
+                      date={cell.date}
+                      inMonth={cell.inMonth}
+                      isToday={cell.date === today}
+                      today={today}
+                      day={weekDays[index]}
+                      onSelect={setSelection}
+                    />
+                  ))}
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -198,6 +219,83 @@ function CalendarHeading({ goal }: { goal?: string | null }) {
       )}
     </div>
   );
+}
+
+function WeekOverview({
+  weekStart,
+  week,
+  days,
+}: {
+  weekStart: string;
+  week: CalendarWeek | undefined;
+  days: Array<CalendarDay | undefined>;
+}) {
+  const sessions = days
+    .map((day) => day?.session)
+    .filter(
+      (session): session is WeekSession =>
+        session !== undefined && session !== null && session.type === "workout",
+    );
+  const plannedMinutes = sessions.reduce(
+    (total, session) => total + session.durationMinutes,
+    0,
+  );
+  const plannedTss = sessions.reduce(
+    (total, session) =>
+      total + (session.estimatedTss ?? session.trainingLoad?.tss ?? 0),
+    0,
+  );
+  const hasPlan = week !== undefined || sessions.length > 0;
+
+  return (
+    <div
+      className="flex flex-col gap-1 rounded border bg-muted/30 p-1.5 text-sm"
+      data-testid="calendar-week-overview"
+      data-week-start={weekStart}
+      aria-label={`Plan for the week of ${formatPlanDate(weekStart)}`}
+    >
+      {week !== undefined && week.blockName !== null && (
+        <span className="font-medium" data-testid="calendar-week-block">
+          {week.blockName}
+        </span>
+      )}
+      {week !== undefined && week.focus !== null && (
+        <span
+          className="line-clamp-3 text-muted-foreground"
+          data-testid="calendar-week-focus"
+        >
+          {week.focus}
+        </span>
+      )}
+      {week !== undefined && week.targetLoad !== null && (
+        <span className="text-xs text-muted-foreground">
+          Target load: {week.targetLoad}
+        </span>
+      )}
+      {sessions.length > 0 && (
+        <span className="text-xs text-muted-foreground">
+          {sessions.length} workout{sessions.length === 1 ? "" : "s"}
+          <Bullet />
+          {formatWeekDuration(plannedMinutes)}
+        </span>
+      )}
+      {plannedTss > 0 && (
+        <span className="text-xs text-muted-foreground">
+          ~{Math.round(plannedTss)} TSS
+        </span>
+      )}
+      {!hasPlan && <span className="text-muted-foreground">No plan yet</span>}
+    </div>
+  );
+}
+
+function formatWeekDuration(minutes: number): string {
+  const hours = Math.floor(minutes / 60);
+  const remainder = minutes % 60;
+  if (hours === 0) {
+    return `${remainder} min`;
+  }
+  return remainder === 0 ? `${hours} h` : `${hours} h ${remainder} min`;
 }
 
 function CalendarCell({
