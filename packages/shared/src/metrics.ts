@@ -1,10 +1,10 @@
 import { z } from "zod";
+import { planDateSchema } from "./date.js";
 import { coachResponseNotesSchema } from "./llm.js";
-import { planDateSchema } from "./plan.js";
 import { addDays } from "./trainingLoad.js";
 
-/** The athlete measurements the app stores as a daily time series. */
-export const athleteMetricSchema = z.enum(["ftp", "weight", "body_fat"]);
+/** The body measurements the app stores as a daily time series. */
+export const athleteMetricSchema = z.enum(["weight", "body_fat"]);
 
 export type AthleteMetric = z.infer<typeof athleteMetricSchema>;
 
@@ -17,6 +17,90 @@ export type AthleteMetric = z.infer<typeof athleteMetricSchema>;
 export const metricSourceSchema = z.enum(["user", "coach", "garmin"]);
 
 export type MetricSource = z.infer<typeof metricSourceSchema>;
+
+/**
+ * How a threshold value is measured, which decides how an activity is scored
+ * against it. `power` is in watts, `heart_rate` in beats per minute, `pace` in
+ * seconds per kilometre, and `speed` in kilometres per hour. `stress` is a score
+ * on the athlete's own stress scale. `stress` and `other` are displayed but not
+ * used for a threshold-based TSS.
+ */
+export const thresholdKindSchema = z.enum([
+  "power",
+  "heart_rate",
+  "pace",
+  "speed",
+  "stress",
+  "other",
+]);
+
+export type ThresholdKind = z.infer<typeof thresholdKindSchema>;
+
+/**
+ * One threshold measurement the athlete stated: a value for a specific sport,
+ * such as cycling FTP, running threshold heart rate, or threshold pace. The
+ * sport and measure are free text so a new sport or metric does not need a
+ * code change; `measure` is the stable key, while `label` is what the athlete
+ * sees.
+ */
+export const athleteThresholdStatementSchema = z.object({
+  date: planDateSchema,
+  /** The sport the threshold belongs to, or null when the athlete did not say. */
+  sport: z.string().trim().min(1).max(60).nullable().default(null),
+  /** Stable lower-case key, e.g. `ftp`, `threshold_heart_rate`, `threshold_pace`. */
+  measure: z.string().trim().min(1).max(80),
+  /** Short display name, e.g. `FTP`, `Threshold heart rate`. */
+  label: z.string().trim().min(1).max(80),
+  /** Display unit, e.g. `W`, `bpm`, `s/km`, `km/h`, `points`. */
+  unit: z.string().trim().min(1).max(20),
+  kind: thresholdKindSchema,
+  value: z.number().finite().positive().max(100_000),
+});
+
+export type AthleteThresholdStatement = z.infer<
+  typeof athleteThresholdStatementSchema
+>;
+
+/** One stored threshold value for a sport, measure, and calendar day. */
+export const athleteThresholdSchema = athleteThresholdStatementSchema
+  .omit({ sport: true })
+  .extend({
+    sport: z.string().trim().min(1).max(60),
+    source: metricSourceSchema,
+  });
+
+export type AthleteThreshold = z.infer<typeof athleteThresholdSchema>;
+
+/** A threshold value plotted on the Fitness page. */
+export const thresholdSeriesPointSchema = z.object({
+  date: planDateSchema,
+  value: z.number().finite(),
+});
+
+export type ThresholdSeriesPoint = z.infer<typeof thresholdSeriesPointSchema>;
+
+/**
+ * One threshold measure over time. A sport can have several series, for
+ * example cycling FTP and cycling threshold heart rate.
+ */
+export const thresholdSeriesSchema = athleteThresholdStatementSchema
+  .omit({ date: true, value: true })
+  .extend({
+    sport: z.string().trim().min(1).max(60),
+    points: z.array(thresholdSeriesPointSchema).default([]),
+  });
+
+export type ThresholdSeries = z.infer<typeof thresholdSeriesSchema>;
+
+/** The latest known value of one threshold measure. */
+export const thresholdSummarySchema = athleteThresholdStatementSchema
+  .omit({ sport: true })
+  .extend({
+    sport: z.string().trim().min(1).max(60),
+    source: metricSourceSchema,
+  });
+
+export type ThresholdSummary = z.infer<typeof thresholdSummarySchema>;
 
 /** One stored value for a metric on a calendar day. */
 export const metricPointSchema = z.object({
@@ -72,12 +156,14 @@ export type GarminBodyMetricSample = z.infer<
  */
 export const athleteMetricStatementSchema = z.object({
   date: planDateSchema,
-  /** FTP in watts. */
-  ftpWatts: z.number().int().min(50).max(2000).nullable().default(null),
   /** Body weight in kilograms. */
   weightKg: z.number().positive().max(500).nullable().default(null),
   /** Body fat as a percentage of body weight. */
   bodyFatPercent: z.number().positive().max(75).nullable().default(null),
+  /** Threshold measurements stated for this date, one entry per sport/measure. */
+  thresholds: z
+    .array(athleteThresholdStatementSchema.omit({ date: true }))
+    .default([]),
 });
 
 export type AthleteMetricStatement = z.infer<
@@ -108,6 +194,69 @@ export const garminMetricsResponseSchema = z.object({
 });
 
 export type GarminMetricsResponse = z.infer<typeof garminMetricsResponseSchema>;
+
+/**
+ * Turns an activity type into the sport a threshold is stored under. The
+ * mapping keeps Garmin's many activity names on one stable key per sport.
+ */
+export function activitySport(type: string): string {
+  const normalized = type.trim().toLowerCase();
+  if (/cycl|bik|bicycle/.test(normalized)) {
+    return "cycling";
+  }
+  if (/run|jog|trail/.test(normalized)) {
+    return "running";
+  }
+  if (/swim/.test(normalized)) {
+    return "swimming";
+  }
+  if (/row/.test(normalized)) {
+    return "rowing";
+  }
+  if (/ski/.test(normalized)) {
+    return "skiing";
+  }
+  if (/hik/.test(normalized)) {
+    return "hiking";
+  }
+  if (/walk/.test(normalized)) {
+    return "walking";
+  }
+  if (/strength|weight|gym/.test(normalized)) {
+    return "strength";
+  }
+  const words = normalized.replace(/[_-]+/g, " ").split(/\s+/);
+  return words[0] ?? "other";
+}
+
+/** A readable sport label for the athlete-facing UI. */
+export function formatSport(sport: string): string {
+  return activitySport(sport)
+    .split(" ")
+    .map((word, index) =>
+      index === 0 ? `${word.charAt(0).toUpperCase()}${word.slice(1)}` : word,
+    )
+    .join(" ");
+}
+
+/**
+ * Formats a threshold value with its unit. Pace values are seconds per
+ * kilometre and read as `4:30 /km`; every other unit is shown plainly.
+ */
+export function formatThresholdValue(
+  value: number,
+  unit: string,
+  kind: ThresholdKind,
+): string {
+  if (kind === "pace" || unit === "s/km") {
+    const total = Math.round(value);
+    const minutes = Math.floor(total / 60);
+    const seconds = String(total % 60).padStart(2, "0");
+    return `${minutes}:${seconds} /km`;
+  }
+  const rounded = Number.isInteger(value) ? value : Math.round(value * 10) / 10;
+  return `${rounded} ${unit}`;
+}
 
 /**
  * Interpolates a metric between known values and extrapolates after the last

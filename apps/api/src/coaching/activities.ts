@@ -8,6 +8,7 @@ import {
   type CoachPlan,
   type MetricPoint,
   type RoutePoint,
+  type ThresholdSummary,
 } from "@killingit/shared";
 import { decrypt } from "../crypto/credentials.js";
 import { syncGarminActivities, syncGarminMetrics } from "../garmin/client.js";
@@ -151,6 +152,7 @@ export async function loadAnalyzedActivities(options: {
   };
   let ftpHistory: MetricPoint[] = [];
   let ftpTimeline: FtpTimeline | null = null;
+  let trainingThresholds: ThresholdSummary[] = [];
   try {
     const training = await loadTrainingContext(
       options.userId,
@@ -162,13 +164,14 @@ export async function loadAnalyzedActivities(options: {
       (point) => point.date <= promptThroughDate,
     );
     ftpTimeline = training.timeline;
+    trainingThresholds = training.thresholds;
     const tssByDate = new Map(training.planTssByDate);
     for (const [date, tss] of training.manualTssByDate) {
       tssByDate.set(date, tss);
     }
     loads = buildActivityLoads(
       synced.map((activity) => withoutAnalysis(activity)),
-      training.timeline,
+      training.thresholdTimelines,
       tssByDate,
     );
   } catch (err) {
@@ -194,6 +197,7 @@ export async function loadAnalyzedActivities(options: {
         today: storedPlan.plan.today.date,
         week: storedPlan.plan.week,
         ftpHistory,
+        thresholds: trainingThresholds,
       }
     : undefined;
 
@@ -366,13 +370,13 @@ export async function loadUserActivityTrainingLoads(
   activities: readonly AnalyzedActivity[],
   plan: CoachPlan | undefined,
 ): Promise<ActivityLoads> {
-  const { timeline, planTssByDate, manualTssByDate } =
+  const { thresholdTimelines, planTssByDate, manualTssByDate } =
     await loadTrainingContext(userId, plan);
   const tssByDate = new Map(planTssByDate);
   for (const [date, tss] of manualTssByDate) {
     tssByDate.set(date, tss);
   }
-  return buildActivityLoads(activities, timeline, tssByDate);
+  return buildActivityLoads(activities, thresholdTimelines, tssByDate);
 }
 
 /**

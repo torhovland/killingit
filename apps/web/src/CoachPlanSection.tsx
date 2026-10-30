@@ -391,6 +391,7 @@ export function CoachPlanSection({
           }}
           onDownloadWorkout={(date) => void downloadWorkout(date)}
           downloadingWorkoutDate={downloadingWorkoutDate}
+          thresholds={data.thresholds}
         />
       ) : (
         !loading &&

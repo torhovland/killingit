@@ -30,7 +30,10 @@ import {
   type WeatherForecastSet,
 } from "../weather/forecast.js";
 import { startOfWeek } from "./dates.js";
-import { saveCoachQuestions } from "./coachQuestions.js";
+import {
+  loadAnsweredCoachQuestions,
+  saveCoachQuestions,
+} from "./coachQuestions.js";
 import {
   GENERATION_HEARTBEAT_MS,
   GenerationSupersededError,
@@ -144,26 +147,29 @@ export async function runPlanForUser(
   let llm: LlmClient | null;
   let coachingInputs: CoachingInputs;
   let user: Awaited<ReturnType<UserStore["getById"]>>;
+  let coachAnswers: Awaited<ReturnType<typeof loadAnsweredCoachQuestions>>;
 
   try {
-    [plan, answers, activities, llm, coachingInputs, user] = await Promise.all([
-      deps.plans.load(userId),
-      deps.answers.listForUser(userId),
-      deps.loadActivities
-        ? deps.loadActivities(userId)
-        : loadAnalyzedActivities({
-            userId,
-            // The sidecar syncs 42 days. Use the largest feed the analysis cap
-            // allows so ATL/CTL have as much history as possible.
-            limit: MAX_ACTIVITIES,
-            refresh: false,
-          }),
-      deps.loadLlm ? deps.loadLlm(userId) : loadLlmClient(userId),
-      deps.loadCoachingInputs
-        ? deps.loadCoachingInputs(userId, startOfWeek(today))
-        : loadCoachingInputs(userId, startOfWeek(today)),
-      deps.users.getById(userId),
-    ]);
+    [plan, answers, activities, llm, coachingInputs, user, coachAnswers] =
+      await Promise.all([
+        deps.plans.load(userId),
+        deps.answers.listForUser(userId),
+        deps.loadActivities
+          ? deps.loadActivities(userId)
+          : loadAnalyzedActivities({
+              userId,
+              // The sidecar syncs 42 days. Use the largest feed the analysis cap
+              // allows so ATL/CTL have as much history as possible.
+              limit: MAX_ACTIVITIES,
+              refresh: false,
+            }),
+        deps.loadLlm ? deps.loadLlm(userId) : loadLlmClient(userId),
+        deps.loadCoachingInputs
+          ? deps.loadCoachingInputs(userId, startOfWeek(today))
+          : loadCoachingInputs(userId, startOfWeek(today)),
+        deps.users.getById(userId),
+        loadAnsweredCoachQuestions(userId),
+      ]);
   } catch (err) {
     if (options.signal.aborted) {
       throw new GenerationSupersededError();
@@ -204,6 +210,11 @@ export async function runPlanForUser(
         weeklyNote: coachingInputs.weeklyNote,
         weeklyNoteUpdatedAt: coachingInputs.weeklyNoteUpdatedAt,
         periodReviews: coachingInputs.periodReviews,
+        coachQuestionAnswers: coachAnswers.map((answer) => ({
+          question: answer.question,
+          answer: answer.answer ?? "",
+          answeredAt: answer.answeredAt,
+        })),
       },
       today,
     ),
@@ -280,6 +291,7 @@ export async function runPlanForUser(
         activityComments: coachingInputs.activityComments,
         ftpHistory: ftp.points.filter((point) => point.date <= today),
         ftpTimeline: ftp.timeline,
+        thresholds: ftp.summaries,
         signal: options.signal,
       }),
     plan,
@@ -305,6 +317,8 @@ export async function runPlanForUser(
       weatherForecasts,
       ftpTimeline: ftp.timeline,
       ftpHistory: ftp.points.filter((point) => point.date <= today),
+      thresholds: ftp.summaries,
+      thresholdTimelines: ftp.thresholdTimelines,
       bodyHistory,
       provider: llm.provider,
       apiKey: llm.apiKey,

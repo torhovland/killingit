@@ -8,6 +8,7 @@ import type {
   MetricPoint,
   PlanGenerateMode,
   SeasonPlan,
+  ThresholdSummary,
   WeekPlan,
   DayPlan,
 } from "@killingit/shared";
@@ -37,6 +38,7 @@ import type {
 import type { LlmProvider } from "../llm/openrouter.js";
 import { applyTrainingLoad } from "../training/load.js";
 import { ftpBaselineAt, type FtpTimeline } from "../training/ftp.js";
+import type { ThresholdTimeline } from "../training/thresholds.js";
 import { addDays, startOfWeek } from "./dates.js";
 import {
   GenerationSupersededError,
@@ -81,6 +83,10 @@ export interface PlanGenerationContext {
   ftpTimeline?: FtpTimeline | undefined;
   /** Stored FTP points, including future coach estimates, for the prompt. */
   ftpHistory?: readonly MetricPoint[] | undefined;
+  /** Every threshold measure in effect today, across all sports. */
+  thresholds?: readonly ThresholdSummary[] | undefined;
+  /** One threshold timeline per sport and measure, for sport-aware TSS. */
+  thresholdTimelines?: readonly ThresholdTimeline[] | undefined;
   /** Stored body weight and body-fat points, for the prompt. */
   bodyHistory?: BodyMetricHistory | undefined;
   provider: LlmProvider;
@@ -1328,6 +1334,7 @@ function withTrainingLoad(
     activities: context.activities,
     manualActivities: context.manualActivities,
     ftpTimeline: context.ftpTimeline,
+    thresholdTimelines: context.thresholdTimelines,
   });
 }
 
@@ -1353,6 +1360,9 @@ function baseContext(input: GeneratePlanInput) {
     athleteFtpWatts: ftpBaseline(input.context, input.today)?.watts ?? null,
     ...(input.context.ftpHistory !== undefined
       ? { ftpHistory: input.context.ftpHistory }
+      : {}),
+    ...(input.context.thresholds !== undefined
+      ? { thresholds: input.context.thresholds }
       : {}),
     ...(input.context.bodyHistory !== undefined
       ? { bodyHistory: input.context.bodyHistory }

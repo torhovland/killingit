@@ -47,10 +47,31 @@ function history(
         planned: null,
       },
     ],
-    ftp: [
-      { date: "2026-10-20", watts: 250 },
-      { date: "2026-10-21", watts: 250 },
-      { date: "2026-10-22", watts: 255 },
+    thresholds: [
+      {
+        sport: "cycling",
+        measure: "ftp",
+        label: "FTP",
+        unit: "W",
+        kind: "power",
+        points: [
+          { date: "2026-10-20", value: 250 },
+          { date: "2026-10-21", value: 250 },
+          { date: "2026-10-22", value: 255 },
+        ],
+      },
+      {
+        sport: "running",
+        measure: "threshold_pace",
+        label: "Threshold pace",
+        unit: "s/km",
+        kind: "pace",
+        points: [
+          { date: "2026-10-20", value: 270 },
+          { date: "2026-10-21", value: 269 },
+          { date: "2026-10-22", value: 268 },
+        ],
+      },
     ],
     body: {
       weight: [
@@ -136,15 +157,17 @@ describe("FitnessView", () => {
     );
   });
 
-  it("shows today's estimated FTP in the Today panel", () => {
+  it("shows every known threshold in the Today panel", () => {
     const html = view();
 
     const todayPanel = html.slice(
       html.indexOf('data-testid="fitness-today-load"'),
       html.indexOf('data-testid="fitness-chart"'),
     );
-    expect(todayPanel).toContain("Estimated FTP 255 W");
-    expect(html).toContain('data-testid="ftp-chart"');
+    expect(todayPanel).toContain("FTP (cycling) 255 W");
+    expect(todayPanel).toContain("Threshold pace (running) 4:28 /km");
+    expect(html).toContain('data-testid="threshold-chart"');
+    expect(html).toContain("Estimated threshold");
   });
 
   it("shows body weight and body fat when the athlete has measurements", () => {
@@ -180,11 +203,12 @@ describe("FitnessView", () => {
     expect(html).not.toContain("Body fat (%)");
   });
 
-  it("hides the FTP chart and the estimate when the athlete has no FTP", () => {
-    const html = view({ history: history({ ftp: [] }) });
+  it("hides the threshold chart when the athlete has no threshold", () => {
+    const html = view({ history: history({ thresholds: [] }) });
 
-    expect(html).not.toContain('data-testid="ftp-chart"');
-    expect(html).not.toContain("Estimated FTP");
+    expect(html).not.toContain('data-testid="threshold-chart"');
+    expect(html).not.toContain("Estimated threshold");
+    expect(html).not.toContain('data-testid="fitness-today-thresholds"');
   });
 
   it("asks for training history when there is nothing to chart yet", () => {

@@ -3,6 +3,7 @@ import type {
   Activity,
   ActivitySample,
   MetricPoint,
+  ThresholdSummary,
   WeekPlan,
 } from "@killingit/shared";
 import { downsample } from "../lib/downsample.js";
@@ -11,6 +12,7 @@ import { formatDuration } from "./duration.js";
 import {
   formatActivitySummary,
   formatFtpContext,
+  formatThresholdContext,
   formatWeekPlan,
 } from "./planContext.js";
 import {
@@ -46,6 +48,8 @@ export interface ActivityAnalysisContext {
   ftpHistory?: readonly Pick<MetricPoint, "date" | "value" | "source">[];
   /** The FTP in effect on the activity date, when known. */
   currentFtpWatts?: number | null;
+  /** Every threshold measure in effect on the activity date. */
+  thresholds?: readonly ThresholdSummary[];
 }
 
 const ANALYSIS_SYSTEM_PROMPT = promptSections(
@@ -243,6 +247,9 @@ export function buildActivityAnalysisPrompt(
     }
     if (context.ftpHistory !== undefined && context.ftpHistory.length > 0) {
       lines.push(...formatFtpContext(context.ftpHistory), "");
+    }
+    if (context.thresholds !== undefined && context.thresholds.length > 0) {
+      lines.push(...formatThresholdContext(context.thresholds), "");
     }
   }
 

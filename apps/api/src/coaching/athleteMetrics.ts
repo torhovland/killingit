@@ -23,6 +23,12 @@ export interface AthleteMetricInputs {
   weeklyNote: string | null;
   weeklyNoteUpdatedAt: Date | null;
   periodReviews: readonly PeriodReviewContext[];
+  /** Answered clarification questions, including a threshold's missing sport. */
+  coachQuestionAnswers?: readonly {
+    question: string;
+    answer: string;
+    answeredAt: Date | string | null;
+  }[];
 }
 
 /** The day part of an ISO timestamp or date. */
@@ -86,6 +92,13 @@ export function buildAthleteMetricSource(
   for (const review of input.periodReviews) {
     add(review.updatedAt, `${review.kind} review comment`, review.comment);
   }
+  for (const answer of input.coachQuestionAnswers ?? []) {
+    add(
+      answer.answeredAt,
+      `answer to coach question "${answer.question}"`,
+      answer.answer,
+    );
+  }
 
   entries.sort((a, b) => b.date.localeCompare(a.date));
   return {
@@ -99,6 +112,7 @@ export function buildAthleteMetricSource(
 export interface AthleteMetricDependencies {
   extract?: typeof extractAthleteMetrics;
   save?: typeof recordAthleteMetricStatements;
+  saveQuestions?: typeof saveCoachQuestions;
 }
 
 /**
@@ -119,6 +133,7 @@ export async function syncAthleteMetrics(input: {
 }): Promise<AthleteMetricsResult | null> {
   const extract = input.dependencies?.extract ?? extractAthleteMetrics;
   const save = input.dependencies?.save ?? recordAthleteMetricStatements;
+  const saveQuestions = input.dependencies?.saveQuestions ?? saveCoachQuestions;
 
   let result: AthleteMetricsResult;
   try {
@@ -137,7 +152,7 @@ export async function syncAthleteMetrics(input: {
     result.coachQuestions.length > 0
   ) {
     try {
-      await saveCoachQuestions({
+      await saveQuestions({
         userId: input.userId,
         questions: result.coachQuestions,
         model: input.credentials.model,
@@ -148,8 +163,45 @@ export async function syncAthleteMetrics(input: {
     }
   }
 
-  const statements = newestPerDate(result.statements, input.today);
+  const unresolved = result.statements.flatMap((statement) =>
+    statement.thresholds
+      .filter((threshold) => threshold.sport === null)
+      .map((threshold) =>
+        thresholdQuestion(threshold.label, threshold.value, threshold.unit),
+      ),
+  );
+  if (unresolved.length > 0) {
+    try {
+      await saveQuestions({
+        userId: input.userId,
+        questions: unresolved,
+        model: input.credentials.model,
+        sourceKind: "athlete_metrics",
+      });
+    } catch (err) {
+      console.error("[metrics] could not ask for a threshold sport:", err);
+    }
+  }
+
+  const statements = newestPerDate(result.statements, input.today).map(
+    (statement) => ({
+      ...statement,
+      thresholds: statement.thresholds.filter(
+        (threshold) => threshold.sport !== null,
+      ),
+    }),
+  );
   if (statements.length === 0) {
+    return result;
+  }
+  if (
+    !statements.some(
+      (statement) =>
+        statement.weightKg !== null ||
+        statement.bodyFatPercent !== null ||
+        statement.thresholds.length > 0,
+    )
+  ) {
     return result;
   }
   try {
@@ -161,6 +213,12 @@ export async function syncAthleteMetrics(input: {
     );
   }
   return result;
+}
+
+/** Asks which sport an otherwise unambiguous threshold belongs to. */
+function thresholdQuestion(label: string, value: number, unit: string): string {
+  const shown = Number.isInteger(value) ? value : Math.round(value * 10) / 10;
+  return `You mentioned ${label} ${shown} ${unit}. Which sport is that threshold for?`;
 }
 
 /**
@@ -178,12 +236,24 @@ function newestPerDate(
       continue;
     }
     const previous = byDate.get(statement.date);
+    const thresholds = new Map(
+      (previous?.thresholds ?? []).map((threshold) => [
+        `${threshold.sport ?? "other"}\u0000${threshold.measure}`,
+        threshold,
+      ]),
+    );
+    for (const threshold of statement.thresholds) {
+      thresholds.set(
+        `${threshold.sport ?? "other"}\u0000${threshold.measure}`,
+        threshold,
+      );
+    }
     byDate.set(statement.date, {
       date: statement.date,
-      ftpWatts: statement.ftpWatts ?? previous?.ftpWatts ?? null,
       weightKg: statement.weightKg ?? previous?.weightKg ?? null,
       bodyFatPercent:
         statement.bodyFatPercent ?? previous?.bodyFatPercent ?? null,
+      thresholds: [...thresholds.values()],
     });
   }
   return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));

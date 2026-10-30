@@ -44,7 +44,9 @@ describe("athlete metric prompts", () => {
   it("names every field in the JSON contract", () => {
     expect(ATHLETE_METRICS_SYSTEM_PROMPT).toContain('"statements"');
     expect(ATHLETE_METRICS_SYSTEM_PROMPT).toContain('"date"');
-    expect(ATHLETE_METRICS_SYSTEM_PROMPT).toContain('"ftpWatts"');
+    expect(ATHLETE_METRICS_SYSTEM_PROMPT).toContain('"thresholds"');
+    expect(ATHLETE_METRICS_SYSTEM_PROMPT).toContain('"sport"');
+    expect(ATHLETE_METRICS_SYSTEM_PROMPT).toContain('"measure"');
     expect(ATHLETE_METRICS_SYSTEM_PROMPT).toContain('"weightKg"');
     expect(ATHLETE_METRICS_SYSTEM_PROMPT).toContain('"bodyFatPercent"');
   });

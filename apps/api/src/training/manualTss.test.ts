@@ -65,6 +65,36 @@ describe("estimateManualActivityTss", () => {
     );
   });
 
+  it("lists every threshold so the coach can score the sport in the text", async () => {
+    const provider = new FakeProvider(JSON.stringify({ tss: 50 }));
+
+    await estimateManualActivityTss(
+      provider,
+      { apiKey: "test-key", model: "test-model" },
+      {
+        startDate: "2026-10-21",
+        details: "45 minutes easy run",
+        ftpWatts: 250,
+        thresholds: [
+          {
+            sport: "running",
+            measure: "threshold_pace",
+            label: "Threshold pace",
+            unit: "s/km",
+            kind: "pace",
+            source: "user",
+            date: "2026-10-01",
+            value: 270,
+          },
+        ],
+      },
+    );
+
+    const prompt = provider.requests[0]?.messages[1]?.content ?? "";
+    expect(prompt).toContain("Athlete thresholds:");
+    expect(prompt).toContain("running Threshold pace: 4:30 /km");
+  });
+
   it("leaves the entry unscored when the coach cannot read it", async () => {
     const provider = new FakeProvider(new Error("model unavailable"));
 

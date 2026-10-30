@@ -1,4 +1,8 @@
-import { coachResponseNotesSchema } from "@killingit/shared";
+import {
+  coachResponseNotesSchema,
+  formatThresholdValue,
+  type ThresholdSummary,
+} from "@killingit/shared";
 import { z } from "zod";
 import { completePlanJson } from "../llm/planCompletion.js";
 import { saveCoachQuestions } from "../plans/coachQuestions.js";
@@ -23,7 +27,7 @@ const MANUAL_TSS_SYSTEM_PROMPT = promptSections(
   GLOBAL_PROMPT_RULES,
   "Estimate the training stress score (TSS) of an athlete's manually recorded activity.",
   TSS_ESTIMATE_GUIDE,
-  "Read the duration, activity type, intensity clues, heart rate, and power from the athlete's own wording, and use the athlete's FTP when it is provided. If the description gives little detail, make a conservative assumption and keep the estimate modest.",
+  "Read the duration, activity type, intensity clues, heart rate, and power from the athlete's own wording, and use the athlete's threshold for that sport when it is provided. If the description gives little detail, make a conservative assumption and keep the estimate modest.",
   `Return only a JSON object with exactly this shape: {"tss": 0, ${COACH_RESPONSE_NOTES_CONTRACT}}. "tss" is a whole number from 0 to 2000.`,
   COACH_RESPONSE_NOTES_RULES,
   JSON_ONLY_RULES,
@@ -44,11 +48,17 @@ export async function estimateManualActivityTss(
     startDate: string;
     details: string;
     ftpWatts: number | null;
+    /** Every threshold measure in effect on the activity date. */
+    thresholds?: readonly ThresholdSummary[];
     /** When set, clarification questions are stored for the athlete. */
     userId?: number;
   },
 ): Promise<number | null> {
   try {
+    const thresholdLines = (input.thresholds ?? []).map(
+      (entry) =>
+        `- ${entry.sport} ${entry.label}: ${formatThresholdValue(entry.value, entry.unit, entry.kind)}`,
+    );
     const result = await completePlanJson(
       manualTssSchema,
       provider,
@@ -60,6 +70,9 @@ export async function estimateManualActivityTss(
           content: [
             `Date: ${input.startDate}`,
             `Athlete FTP: ${input.ftpWatts === null ? "not stated" : `${input.ftpWatts} W`}`,
+            ...(thresholdLines.length > 0
+              ? ["Athlete thresholds:", ...thresholdLines]
+              : []),
             `Activity details: ${input.details.trim()}`,
           ].join("\n"),
         },

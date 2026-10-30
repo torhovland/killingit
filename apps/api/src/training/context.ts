@@ -1,15 +1,27 @@
-import type { CoachPlan, MetricPoint } from "@killingit/shared";
+import type {
+  AthleteThreshold,
+  CoachPlan,
+  MetricPoint,
+  ThresholdSummary,
+} from "@killingit/shared";
 import type { ManualActivityContext } from "../llm/planContext.js";
 import { loadFtpHistoryForUser } from "../metrics/store.js";
 import { startOfWeek } from "../plans/dates.js";
 import { loadCoachingInputs, type CoachingInputs } from "../plans/inputs.js";
 import { type FtpTimeline } from "./ftp.js";
+import type { ThresholdTimeline } from "./thresholds.js";
 
-/** Everything the load calculations share: FTP history and TSS by date. */
+/** Everything the load calculations share: thresholds and TSS by date. */
 export interface TrainingContext {
   timeline: FtpTimeline;
-  /** Every stored FTP point, including future coach estimates. */
+  /** Every stored threshold point, including future coach estimates. */
   ftpHistory: MetricPoint[];
+  /** Every stored threshold measure with its sport and unit. */
+  thresholds: ThresholdSummary[];
+  /** Every stored threshold point, for the Fitness page chart. */
+  thresholdPoints: AthleteThreshold[];
+  /** One timeline per sport and measure, for sport-aware TSS. */
+  thresholdTimelines: ThresholdTimeline[];
   /** The resolved or coach-estimated TSS for each day the stored plan covers. */
   planTssByDate: Map<string, number>;
   /** The summed manual estimate for each day that has manual entries. */
@@ -38,6 +50,9 @@ export async function loadTrainingContext(
   return {
     timeline: ftp.timeline,
     ftpHistory: ftp.points,
+    thresholds: ftp.summaries,
+    thresholdPoints: ftp.thresholds,
+    thresholdTimelines: ftp.thresholdTimelines,
     planTssByDate: planTssByDate(plan),
     manualTssByDate: manualTssByDate(coachingInputs),
     manualActivities: coachingInputs.manualActivities,

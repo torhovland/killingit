@@ -3,6 +3,7 @@ import type {
   BodyMetricEstimate,
   CoachPlan,
   MetricPoint,
+  ThresholdSummary,
 } from "@killingit/shared";
 import { analyzeActivityAgainstPlan } from "../llm/programAnalysis.js";
 import { PROGRAM_ANALYSIS_PROMPT_VERSION } from "../llm/programAnalysisPrompt.js";
@@ -30,6 +31,8 @@ export interface AnalyzeActivitiesAgainstPlanInput {
   ftpHistory?: readonly MetricPoint[];
   /** The FTP timeline used to colour the prompt's current value. */
   ftpTimeline?: FtpTimeline | null;
+  /** Every threshold measure in effect on the activity date. */
+  thresholds?: readonly ThresholdSummary[];
   /** Cancels the supplementary review when a newer run starts. */
   signal?: AbortSignal;
   /** Injectable for tests; defaults to the database-backed writer. */
@@ -82,6 +85,9 @@ export async function analyzeActivitiesAgainstPlan(
             comment: comments.get(String(activity.id)) ?? null,
             ...(input.ftpHistory !== undefined
               ? { ftpHistory: input.ftpHistory }
+              : {}),
+            ...(input.thresholds !== undefined
+              ? { thresholds: input.thresholds }
               : {}),
             currentFtpWatts,
           },

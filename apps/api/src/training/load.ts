@@ -18,6 +18,10 @@ import {
   measuredActivityTss,
 } from "./activityLoad.js";
 import { ftpAt, type FtpTimeline } from "./ftp.js";
+import {
+  thresholdTimelineFromFtp,
+  type ThresholdTimeline,
+} from "./thresholds.js";
 
 export interface TrainingLoadContext {
   activities: readonly AnalyzedActivity[];
@@ -27,6 +31,8 @@ export interface TrainingLoadContext {
    * and stored before this runs, so no free text is read here.
    */
   ftpTimeline?: FtpTimeline | null | undefined;
+  /** Every stored threshold measure, used to score each sport's activities. */
+  thresholdTimelines?: readonly ThresholdTimeline[] | undefined;
 }
 
 interface LoadedWeek {
@@ -51,6 +57,9 @@ export function applyTrainingLoad(
   context: TrainingLoadContext,
 ): CoachPlan {
   const timeline = context.ftpTimeline ?? { anchors: [], latest: null };
+  const thresholdTimelines =
+    context.thresholdTimelines ??
+    (timeline.anchors.length > 0 ? [thresholdTimelineFromFtp(timeline)] : []);
   const baseFtpWatts = timeline.latest?.watts ?? null;
   const floorAtBase = timeline.latest?.fromRevision ?? false;
   const activitiesByDate = groupActivitiesByDate(context.activities);
@@ -68,6 +77,7 @@ export function applyTrainingLoad(
     plan.week,
     plan.today.date,
     timeline,
+    thresholdTimelines,
     activitiesByDate,
     manualTssByDate,
     undefined,
@@ -81,6 +91,7 @@ export function applyTrainingLoad(
           plan.nextWeek,
           plan.today.date,
           timeline,
+          thresholdTimelines,
           activitiesByDate,
           manualTssByDate,
           current.tssByDate,
@@ -138,6 +149,7 @@ function applyWeekLoad(
   week: WeekPlan,
   today: string,
   timeline: FtpTimeline,
+  thresholdTimelines: readonly ThresholdTimeline[],
   activitiesByDate: ReadonlyMap<string, readonly AnalyzedActivity[]>,
   manualTssByDate: ReadonlyMap<string, number>,
   priorTssByDate?: ReadonlyMap<string, number>,
@@ -159,7 +171,7 @@ function applyWeekLoad(
       session.date,
       resolveSessionTss(
         session,
-        timeline,
+        thresholdTimelines,
         activitiesByDate.get(session.date) ?? [],
         manualTssByDate,
       ),
@@ -173,7 +185,7 @@ function applyWeekLoad(
   const seriesInput = new Map<string, number>();
   for (const [date, activities] of activitiesByDate) {
     if (date >= historyStartDate && date < week.startDate) {
-      seriesInput.set(date, activityDayTss(activities, timeline));
+      seriesInput.set(date, activityDayTss(activities, thresholdTimelines));
     }
   }
   // A previously planned week already resolved its own TSS, including the
@@ -349,7 +361,7 @@ function withDayLoad(
 /** The TSS for one session, preferring measured power over the coach's guess. */
 function resolveSessionTss(
   session: WeekSession,
-  timeline: FtpTimeline,
+  thresholdTimelines: readonly ThresholdTimeline[],
   activities: readonly AnalyzedActivity[],
   manualTssByDate: ReadonlyMap<string, number>,
 ): number {
@@ -357,7 +369,7 @@ function resolveSessionTss(
     return 0;
   }
 
-  const measured = measuredActivityTss(activities, timeline);
+  const measured = measuredActivityTss(activities, thresholdTimelines);
   if (measured !== null) {
     return measured;
   }

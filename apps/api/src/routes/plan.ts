@@ -14,6 +14,7 @@ import { getAthlete } from "../auth/middleware.js";
 import type { ActivityFeed } from "../coaching/activities.js";
 import { markPlanPromptsFailed } from "../llm/callStore.js";
 import type { LlmClient } from "../llm/client.js";
+import { loadFtpHistoryForUser } from "../metrics/store.js";
 import { startOfWeek } from "../plans/dates.js";
 import { isStaleRunning } from "../plans/generation.js";
 import { loadCoachingInputs, type CoachingInputs } from "../plans/inputs.js";
@@ -137,7 +138,8 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
     today: string,
     includeTomorrow = false,
   ) {
-    const [storedPlan, loadedGeneration, answers, coachingInputs] =
+    const loadThresholds = deps.loadFtpHistory ?? loadFtpHistoryForUser;
+    const [storedPlan, loadedGeneration, answers, coachingInputs, thresholds] =
       await Promise.all([
         deps.plans.load(userId),
         deps.generations.load(userId),
@@ -145,6 +147,10 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
         deps.loadCoachingInputs
           ? deps.loadCoachingInputs(userId, startOfWeek(today))
           : loadCoachingInputs(userId, startOfWeek(today)),
+        loadThresholds(userId, today).catch((err: unknown) => {
+          console.error("[plan] could not load thresholds:", err);
+          return null;
+        }),
       ]);
     // A process that stopped mid-generation leaves the row `running`. Release
     // the claim so the client stops polling and can start a fresh run. Pass the
@@ -219,6 +225,7 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
         weatherChanged,
         weekReviewPending,
       ),
+      thresholds: thresholds?.summaries ?? [],
     });
   }
 

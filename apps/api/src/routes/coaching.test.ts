@@ -250,6 +250,9 @@ function makeApp(options: {
         Promise.resolve({
           points: [],
           timeline: { anchors: [], latest: null },
+          thresholds: [],
+          thresholdTimelines: [],
+          summaries: [],
         })),
     syncAthleteMetrics: () => Promise.resolve(null),
     loadLlm: () =>

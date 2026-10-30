@@ -1,7 +1,13 @@
 import { describe, expect, it } from "bun:test";
-import type { AnalyzedActivity, CoachPlan } from "@killingit/shared";
+import type {
+  AnalyzedActivity,
+  AthleteThreshold,
+  CoachPlan,
+  ThresholdHistorySeries,
+} from "@killingit/shared";
 import { buildActivityTrainingLoads } from "./activityLoad.js";
 import { buildFtpTimelineFromPoints } from "./ftp.js";
+import { buildThresholdTimelines } from "./thresholds.js";
 import {
   buildFitnessHistory,
   earliestRecordedDate,
@@ -9,9 +15,20 @@ import {
   FITNESS_RANGE_DAYS,
 } from "./history.js";
 
-const timeline = buildFtpTimelineFromPoints([
-  { date: "2026-10-01", value: 250, source: "user" },
-]);
+const thresholdPoints: AthleteThreshold[] = [
+  {
+    date: "2026-10-01",
+    value: 250,
+    source: "user",
+    sport: "cycling",
+    measure: "ftp",
+    label: "FTP",
+    unit: "W",
+    kind: "power",
+  },
+];
+
+const timeline = buildFtpTimelineFromPoints(thresholdPoints);
 
 function activity(overrides: Partial<AnalyzedActivity> = {}): AnalyzedActivity {
   return {
@@ -106,6 +123,8 @@ const base = {
   range: "week" as const,
   activities: [] as readonly AnalyzedActivity[],
   timeline,
+  thresholdPoints,
+  thresholdTimelines: buildThresholdTimelines(thresholdPoints),
   plan: plan(),
   planTssByDate: new Map<string, number>(),
   manualTssByDate: new Map<string, number>(),
@@ -195,9 +214,10 @@ describe("buildFitnessHistory", () => {
   it("matches the activity load series for the same date", () => {
     const activities = [activity({ normalizedPower: 200 })];
     const history = buildFitnessHistory({ ...base, activities });
-    const expected = buildActivityTrainingLoads(activities, timeline).get(
-      "2026-10-20",
-    );
+    const expected = buildActivityTrainingLoads(
+      activities,
+      buildThresholdTimelines(thresholdPoints),
+    ).get("2026-10-20");
 
     const day = history.days.find((entry) => entry.date === "2026-10-20");
 
@@ -317,11 +337,11 @@ describe("buildFitnessHistory", () => {
   it("plots the coach's daily estimate from today and the stated FTP before it", () => {
     const history = buildFitnessHistory({ ...base, range: "month" });
 
-    expect(ftpOn(history.ftp, "2026-10-15")).toBe(250);
-    expect(ftpOn(history.ftp, "2026-10-21")).toBe(250);
-    expect(ftpOn(history.ftp, "2026-10-22")).toBe(255);
-    expect(ftpOn(history.ftp, "2026-10-23")).toBe(256);
-    expect(ftpOn(history.ftp, "2026-10-25")).toBe(258);
+    expect(ftpOn(history.thresholds, "2026-10-15")).toBe(250);
+    expect(ftpOn(history.thresholds, "2026-10-21")).toBe(250);
+    expect(ftpOn(history.thresholds, "2026-10-22")).toBe(255);
+    expect(ftpOn(history.thresholds, "2026-10-23")).toBe(256);
+    expect(ftpOn(history.thresholds, "2026-10-25")).toBe(258);
   });
 
   it("interpolates between the week estimates without daily values", () => {
@@ -344,9 +364,9 @@ describe("buildFitnessHistory", () => {
 
     // Today keeps the current week's estimate; the following days climb
     // towards the next week's 262 instead of holding 255 until it starts.
-    expect(ftpOn(history.ftp, "2026-10-22")).toBe(255);
-    expect(ftpOn(history.ftp, "2026-10-23")).toBe(257);
-    expect(ftpOn(history.ftp, "2026-10-25")).toBe(260);
+    expect(ftpOn(history.thresholds, "2026-10-22")).toBe(255);
+    expect(ftpOn(history.thresholds, "2026-10-23")).toBe(257);
+    expect(ftpOn(history.thresholds, "2026-10-25")).toBe(260);
   });
 
   it("interpolates towards the next week at the end of the week window", () => {
@@ -394,19 +414,21 @@ describe("buildFitnessHistory", () => {
 
     // The chart window ends on Sunday 1 November, but the line has already
     // moved towards the following week's 222 W.
-    expect(ftpOn(history.ftp, "2026-10-30")).toBe(220);
-    expect(ftpOn(history.ftp, "2026-10-31")).toBe(221);
-    expect(ftpOn(history.ftp, "2026-11-01")).toBe(221);
+    expect(ftpOn(history.thresholds, "2026-10-30")).toBe(220);
+    expect(ftpOn(history.thresholds, "2026-10-31")).toBe(221);
+    expect(ftpOn(history.thresholds, "2026-11-01")).toBe(221);
   });
 
   it("has no FTP points when the athlete has not stated one", () => {
     const history = buildFitnessHistory({
       ...base,
       timeline: buildFtpTimelineFromPoints([]),
+      thresholdPoints: [],
+      thresholdTimelines: [],
       plan: undefined,
     });
 
-    expect(history.ftp).toEqual([]);
+    expect(history.thresholds).toEqual([]);
   });
 
   it("interpolates body weight and body fat over the window", () => {
@@ -440,8 +462,11 @@ describe("buildFitnessHistory", () => {
 });
 
 function ftpOn(
-  points: readonly { date: string; watts: number }[],
+  series: readonly ThresholdHistorySeries[],
   date: string,
 ): number | undefined {
-  return points.find((point) => point.date === date)?.watts;
+  const ftp = series.find(
+    (entry) => entry.sport === "cycling" && entry.measure === "ftp",
+  );
+  return ftp?.points.find((point) => point.date === date)?.value;
 }

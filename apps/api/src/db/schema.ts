@@ -66,11 +66,12 @@ export type UserRow = typeof users.$inferSelect;
 export type NewUserRow = typeof users.$inferInsert;
 
 /**
- * One athlete metric value per day. FTP is stored alongside body weight and
- * body-fat percentage so the same time-series code can interpolate and
- * extrapolate all three. `source` records whether the athlete stated the value,
- * Garmin supplied it, or the coach estimated it; only coach estimates are
- * replaced when the LLM produces a newer one.
+ * One athlete metric value per day. Body weight and body-fat percentage share
+ * the same time-series code so it can interpolate and extrapolate both.
+ * `source` records whether the athlete stated the value, Garmin supplied it, or
+ * the coach estimated it; only coach estimates are replaced when the LLM
+ * produces a newer one. Thresholds live in `athlete_thresholds` because they
+ * also carry a sport and measure.
  */
 export const athleteMetrics = pgTable(
   "athlete_metrics",
@@ -110,6 +111,62 @@ export const athleteMetrics = pgTable(
 
 export type AthleteMetricRow = typeof athleteMetrics.$inferSelect;
 export type NewAthleteMetricRow = typeof athleteMetrics.$inferInsert;
+
+/**
+ * One threshold measurement per sport, measure, and day: cycling FTP, running
+ * threshold pace, threshold heart rate, and any other measure the athlete
+ * states. `measure` is a free lower-case key and `label` is what the athlete
+ * sees, so a new sport or measure needs no schema change.
+ */
+export const athleteThresholds = pgTable(
+  "athlete_thresholds",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    sport: text("sport").notNull(),
+    measure: text("measure").notNull(),
+    label: text("label").notNull(),
+    unit: text("unit").notNull(),
+    kind: text("kind", {
+      enum: ["power", "heart_rate", "pace", "speed", "stress", "other"],
+    }).notNull(),
+    source: text("source", { enum: ["user", "coach", "garmin"] }).notNull(),
+    date: text("date").notNull(),
+    value: doublePrecision("value").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("athlete_thresholds_user_sport_measure_date_idx").on(
+      table.userId,
+      table.sport,
+      table.measure,
+      table.date,
+    ),
+    index("athlete_thresholds_user_sport_measure_idx").on(
+      table.userId,
+      table.sport,
+      table.measure,
+    ),
+    check(
+      "athlete_thresholds_kind_check",
+      sql`${table.kind} in ('power', 'heart_rate', 'pace', 'speed', 'stress', 'other')`,
+    ),
+    check(
+      "athlete_thresholds_source_check",
+      sql`${table.source} in ('user', 'coach', 'garmin')`,
+    ),
+  ],
+);
+
+export type AthleteThresholdRow = typeof athleteThresholds.$inferSelect;
+export type NewAthleteThresholdRow = typeof athleteThresholds.$inferInsert;
 
 /**
  * One Garmin connection per account. Username and password are stored

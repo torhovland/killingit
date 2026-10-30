@@ -122,9 +122,18 @@ describe("syncAthleteMetrics", () => {
         statements: [
           {
             date: "2026-10-25",
-            ftpWatts: 220,
             weightKg: 89.5,
             bodyFatPercent: 24.5,
+            thresholds: [
+              {
+                sport: "cycling",
+                measure: "ftp",
+                label: "FTP",
+                unit: "W",
+                kind: "power",
+                value: 220,
+              },
+            ],
           },
         ],
       }),
@@ -156,9 +165,18 @@ describe("syncAthleteMetrics", () => {
         statements: [
           {
             date: "2026-10-25",
-            ftpWatts: 220,
             weightKg: 89.5,
             bodyFatPercent: 24.5,
+            thresholds: [
+              {
+                sport: "cycling",
+                measure: "ftp",
+                label: "FTP",
+                unit: "W",
+                kind: "power",
+                value: 220,
+              },
+            ],
           },
         ],
       },
@@ -195,12 +213,59 @@ describe("syncAthleteMetrics", () => {
       [
         {
           date: "2026-10-20",
-          ftpWatts: null,
           weightKg: 90,
           bodyFatPercent: 24,
+          thresholds: [],
         },
       ],
     ]);
+  });
+
+  it("asks which sport an unspecified threshold belongs to and does not store it", async () => {
+    const provider = new FakeProvider(
+      JSON.stringify({
+        statements: [
+          {
+            date: "2026-10-20",
+            thresholds: [
+              {
+                sport: null,
+                measure: "ftp",
+                label: "FTP",
+                unit: "W",
+                kind: "power",
+                value: 250,
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    const saved: AthleteMetricStatement[][] = [];
+    const questions: string[] = [];
+
+    await syncAthleteMetrics({
+      userId: 42,
+      today: "2026-10-28",
+      source: buildAthleteMetricSource(inputs(), "2026-10-28"),
+      provider,
+      credentials,
+      dependencies: {
+        save: (_userId, statements) => {
+          saved.push([...statements]);
+          return Promise.resolve();
+        },
+        saveQuestions: ({ questions: asked }) => {
+          questions.push(...asked);
+          return Promise.resolve();
+        },
+      },
+    });
+
+    expect(questions).toEqual([
+      "You mentioned FTP 250 W. Which sport is that threshold for?",
+    ]);
+    expect(saved).toEqual([]);
   });
 
   it("keeps the stored measurements when the model fails", async () => {

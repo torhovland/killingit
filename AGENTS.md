@@ -114,35 +114,44 @@ about a past workout, or before a suggested workout, to steer the coach.
   sessions and rest days. A significant change in the combined forecast marks
   the week pending and refreshes the week and day. See ADR 0008, ADR 0010, and
   `docs/specs/location-and-weather.md`.
-- FTP, body weight, and body-fat percentage are stored as daily time series in
-  `athlete_metrics`, with a source of `user`, `garmin`, or `coach`. The athlete's
-  stated or tested FTP, weight, and body fat are read by the coach, not by a
-  phrase list: a dedicated `athlete_metrics` call sends the profile and every
-  dated piece of athlete text — comments, manual activities, weekly notes, and
-  review comments — and returns dated statements that are stored as `user`
-  points. A profile number with no date of its own is dated by the profile's
-  last save. A successful read replaces the `user` points of the metrics it
-  reports, so a value edited out of a comment disappears, while Garmin values
-  and coach estimates are untouched. The reading runs before every plan
-  generation and fails open.
-  The coach's per-day `coach_plans` estimates and the structured FTP estimate in
-  each activity analysis are stored as `coach` points; a newer estimate deletes
-  later coach estimates but never an athlete measurement. The Week, Block, and
-  Season tabs show the week's single estimate, the Fitness page charts the
-  interpolated daily projection, and completed weeks before a revised test are
-  re-interpolated. Every plan and activity-analysis prompt receives the
-  FTP history. Every plan response also carries a dated `bodyMetrics` array and
+- Threshold measurements and body weight/body-fat percentage are stored as
+  daily time series, with a source of `user`, `garmin`, or `coach`. Thresholds
+  live in `athlete_thresholds`, keyed by sport, measure, and date, with a display
+  label, unit, and kind (`power`, `heart_rate`, `pace`, `speed`, `stress`, or
+  `other`). A sport can have several measures, such as cycling FTP and cycling
+  threshold heart rate. Body metrics stay in `athlete_metrics`.
+  The athlete's stated thresholds, weight, and body fat are read by the coach,
+  not by a phrase list: a dedicated `athlete_metrics` call sends the profile,
+  every dated piece of athlete text — comments, manual activities, weekly notes,
+  review comments, and answered coach questions — and returns dated statements.
+  A threshold statement with no sport is not stored; the app asks which sport
+  it belongs to first. A profile number with no date of its own is dated by the
+  profile's last save. A successful read replaces the `user` points of the
+  metrics it reports, so a value edited out of a comment disappears, while
+  Garmin values and coach estimates are untouched. The reading runs before every
+  plan generation and fails open.
+  The coach's per-day `coach_plans` FTP estimates and the structured FTP
+  estimate in each activity analysis are stored as `coach` threshold points; a
+  newer estimate deletes later coach estimates but never an athlete
+  measurement. Every plan and activity-analysis prompt receives the threshold
+  history. Activities are scored with the threshold for their sport: power
+  first, then pace or speed, then heart rate, with a duration-based fallback
+  when the sport has no usable threshold.
+  The Fitness page charts one **Estimated threshold** line per measure, grouped
+  by unit, and completed weeks before a revised FTP test are re-interpolated.
+  Every plan response also carries a dated `bodyMetrics` array and
   an activity analysis carries `weightKg`/`bodyFatPercent` for its date, filled
   only from numbers the athlete stated in the profile, a note, or a comment.
   They are stored as `coach` points (a `user` or `garmin` value for the day
   wins) so the Fitness page charts a body trend before Garmin is connected.
-  Sessions get a TSS from measured power or a structured indoor
-  bike workout when available, and from the coach's estimate otherwise; the API
-  then calculates ATL, CTL, and TSB day by day and shows them in the Today,
-  Tomorrow, and Week views and on the Activities page. Each recorded activity
-  on the Activities page shows its own TSS with the day's fitness snapshot, so
-  two workouts on one day do not repeat the day's total. TSB carries a coloured
-  form label (Risk, Productive, Maintaining, Fresh, Detraining).
+  Sessions get a TSS from the sport's measured threshold data or a structured
+  indoor bike workout when available, and from the coach's estimate otherwise;
+  the API then calculates ATL, CTL, and TSB day by day and shows them in the
+  Today, Tomorrow, and Week views and on the Activities page. Each recorded
+  activity on the Activities page shows its own TSS with the day's fitness
+  snapshot, so two workouts on one day do not repeat the day's total. TSB
+  carries a coloured form label (Risk, Productive, Maintaining, Fresh,
+  Detraining).
   Garmin syncs the last 42 days of activities, body composition, and historic
   cycling FTP, and power metrics are stored on activity summaries so the raw
   timeseries is not needed. Each activity in the feed also carries a bounded,
@@ -154,10 +163,11 @@ about a past workout, or before a suggested workout, to steer the coach.
   unscored. Any manual
   edit or Garmin import rebuilds the full daily series, so every later
   activity's load is recalculated. The Fitness page charts that series with the
-  TSB zone colours, the estimated FTP, and interpolated body weight/body fat
-  with a best-fit projection to the plan's last day (`GET /api/fitness`). See
+  TSB zone colours, the estimated thresholds, and interpolated body weight/body
+  fat with a best-fit projection to the plan's last day (`GET /api/fitness`). See
   `docs/specs/training-load.md`, `docs/specs/fitness-page.md`,
-  `docs/specs/body-metrics.md`, and ADR 0012.
+  `docs/specs/body-metrics.md`, `docs/specs/threshold-metrics.md`, ADR 0012, and
+  ADR 0015.
 - Completed weeks and blocks get a coach summary, athlete comment, and coach
   reply in `period_reviews` / `coach_replies`; the dashboard and season review
   page are documented in `docs/specs/period-reviews.md`.

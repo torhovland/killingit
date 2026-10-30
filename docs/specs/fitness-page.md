@@ -3,7 +3,12 @@
 - **Status:** Accepted (implemented)
 - **Date:** 2026-10-27
 - **Related:** `docs/specs/training-load.md`, ADR 0012,
-  `docs/specs/dashboard-layout.md`.
+  `docs/specs/dashboard-layout.md`, `docs/specs/threshold-metrics.md`.
+
+> Thresholds are now per sport and the FTP chart is the **Estimated threshold**
+> chart, with one line per measure. The FTP-specific projection below still
+> describes how the cycling FTP line is built; see
+> `docs/specs/threshold-metrics.md` and ADR 0015 for the generic model.
 
 ## Goal
 

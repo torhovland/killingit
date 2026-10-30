@@ -3,7 +3,14 @@
 - **Status:** Accepted (implemented)
 - **Date:** 2026-10-27
 - **Related:** ADR 0012, `docs/specs/coach-plan-lifecycle.md`,
-  `docs/specs/bike-workout-export.md`, `docs/specs/garmin-activity-integration.md`.
+  `docs/specs/bike-workout-export.md`, `docs/specs/garmin-activity-integration.md`,
+  `docs/specs/threshold-metrics.md`.
+
+> FTP is now one threshold measure among several. Thresholds are stored per
+> sport in `athlete_thresholds`, and activities are scored with the threshold
+> for their sport before any duration fallback. The FTP-specific plan
+> projection below still applies to cycling FTP; see
+> `docs/specs/threshold-metrics.md` and ADR 0015 for the generic model.
 
 ## Goal
 

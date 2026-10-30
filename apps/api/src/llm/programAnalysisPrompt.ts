@@ -2,12 +2,14 @@ import type {
   AnalyzedActivity,
   CoachPlan,
   MetricPoint,
+  ThresholdSummary,
 } from "@killingit/shared";
 import {
   formatActivitySummary,
   formatFtpContext,
   formatPlanLevels,
   formatPlannedSession,
+  formatThresholdContext,
 } from "./planContext.js";
 import {
   ACTIVITY_BODY_METRIC_RULES,
@@ -36,6 +38,8 @@ export interface ProgramAnalysisInput {
   ftpHistory?: readonly Pick<MetricPoint, "date" | "value" | "source">[];
   /** The FTP in effect on the activity date, when known. */
   currentFtpWatts?: number | null;
+  /** Every threshold measure in effect on the activity date. */
+  thresholds?: readonly ThresholdSummary[];
 }
 
 const PROGRAM_ANALYSIS_SYSTEM_PROMPT = promptSections(
@@ -87,6 +91,9 @@ export function buildProgramAnalysisPrompt(
   }
   if (input.ftpHistory !== undefined && input.ftpHistory.length > 0) {
     lines.push(...formatFtpContext(input.ftpHistory), "");
+  }
+  if (input.thresholds !== undefined && input.thresholds.length > 0) {
+    lines.push(...formatThresholdContext(input.thresholds), "");
   }
 
   lines.push(
