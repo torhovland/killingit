@@ -26,6 +26,7 @@ import {
   JSON_RULES,
   jsonTopLevelKeys,
   PAST_SESSION_RULES,
+  PERIOD_SUMMARY_RULES,
   GLOBAL_PROMPT_RULES,
   PLAN_PROMPT_RULES,
   promptSections,
@@ -108,7 +109,7 @@ export const DAILY_UPDATE_SYSTEM_PROMPT = promptSections(
   GLOBAL_PROMPT_RULES,
   PLAN_PROMPT_RULES,
   "Update today's session, the rest of the current week, and tomorrow's session for an amateur athlete.",
-  "Revise the remaining sessions so the week stays coherent with the block's focus and the athlete's current fatigue, keeping every day after tomorrow as a short outline. Include a rationale for today's session and for the week's overall structure.",
+  "Revise the remaining sessions so the week stays coherent with the block's focus and the athlete's current fatigue, keeping every week session, including today and tomorrow, as a short outline. Include a rationale for today's session and for the week's overall structure.",
   "Also provide a suggested workout or rest for tomorrow, consistent with the revised week and the block's focus.",
   WEEK_SHAPE_RULES,
   TODAY_IN_WEEK_RULE,
@@ -135,6 +136,7 @@ export const WEEKLY_UPDATE_SYSTEM_PROMPT = promptSections(
   "Create the week starting on the supplied week start date and revise the block plan for an amateur athlete.",
   "The new week must fit the block's focus and progression. Include a rationale for the week and for the revised block.",
   "Revise the block's weeks and target loads where the athlete's progress or recent training requires it. Keep the block's name, focus, and dates unless a change is clearly justified. Do not change the season plan.",
+  PERIOD_SUMMARY_RULES,
   WEEK_SHAPE_RULES,
   PAST_SESSION_RULES,
   COMPLETION_SLACK_RULES,
@@ -173,11 +175,12 @@ export const PLAN_UPDATE_SYSTEM_PROMPT = promptSections(
 - Keep the season, block, week, today, tomorrow, next week and next block exactly as supplied unless the request names them. Keep a level that is null and not requested as null.
 - When the current block is revised, return the revised block, a revised current week that fits it, and today's detailed session. Keep the current block's start date when the request says to keep it; otherwise start the new block on the supplied block start date. When a completed week review or its answer is supplied, use that feedback to adjust the block's progression. Update the season block summaries only when the revised block changes them.
 - When the season is refreshed, keep the blocks that ended before today exactly as supplied, keep the current block's existing start date, re-plan the rest of the season from the current block, and return the detailed current block. Later blocks must follow one another without gaps and cover the rest of the season.
-- When the current week is revised, change the remaining sessions so the week stays coherent with the block's focus and the athlete's current fatigue. Keep every day after tomorrow as a short outline. If only today's session is revised, update today's session in the week while keeping the rest of the week as supplied.
+- When the current week is revised, change the remaining sessions so the week stays coherent with the block's focus and the athlete's current fatigue. Keep every week session, including today and tomorrow, as a short outline, with the detailed prescription only in the "today" and "tomorrow" day objects. If only today's session is revised, update today's week outline while keeping the rest of the week as supplied.
 - If the current block is revised, or the current week is re-planned under a next block that starts tomorrow, keep today's session unchanged unless the request also revises today.
-- When tomorrow is requested, return it and make sure it is the matching session in the current week or, when it falls in the next week, in the next week. Respect every weather preference and daylight constraint.
+- When tomorrow is requested, return it and make sure its outline is the matching session in the current week or, when it falls in the next week, in the next week. Respect every weather preference and daylight constraint.
 - When the next week is requested, start it on the supplied next week start date and give it exactly seven sessions. When the next block is requested, start it on the supplied next block start date and put it in "nextBlock"; update "season" so its block summaries include it. If the block that starts tomorrow falls inside the current week, re-plan the remaining days of the current week under that next block and keep today's session.
 - Include a rationale for today's session and for the week's overall structure.`,
+  PERIOD_SUMMARY_RULES,
   WEEK_SHAPE_RULES,
   TODAY_IN_WEEK_RULE,
   COMPLETED_SESSION_RULES,
@@ -222,7 +225,7 @@ function revisionInstructions(input: PlanUpdateInput): string[] {
   );
   lines.push(
     input.revision.tomorrow
-      ? '- Return tomorrow\'s session in "tomorrow" and place it in the current week or the next week.'
+      ? '- Return tomorrow\'s session in "tomorrow" and place its outline in the current week or the next week.'
       : "- Keep tomorrow's session as supplied, or null when there is none.",
   );
   lines.push(
@@ -253,9 +256,6 @@ export function buildPlanUpdatePrompt(input: PlanUpdateInput): string {
   const weekEnd = addDays(weekStart, 6);
   const tomorrowDate = addDays(input.today, 1);
   const nextWeekStart = startOfWeek(tomorrowDate);
-  const detailedDates = input.revision.tomorrow
-    ? `${input.today} and ${tomorrowDate}`
-    : input.today;
   return [
     ...formatPlanContext(input),
     "",
@@ -281,7 +281,7 @@ export function buildPlanUpdatePrompt(input: PlanUpdateInput): string {
     "",
     `The current week must start on ${weekStart} and cover ${weekStart} through ${weekEnd}. Keep exactly seven sessions with those dates, and make sure one session has the date ${input.today}; the "today" object must use that same date and be one of the current week's sessions.`,
     `Tomorrow is ${tomorrowDate}.`,
-    `Fully detail the sessions dated ${detailedDates}. Keep every later session in the current week as a short outline.`,
+    `Fully detail the "today" day object${input.revision.tomorrow ? ` and the "tomorrow" day object` : ""}. Keep every session in the current week, including ${input.revision.tomorrow ? `${input.today} and ${tomorrowDate}` : input.today}, as a short outline.`,
     "",
     ...revisionInstructions(input),
     ...(input.revision.nextWeek
@@ -325,7 +325,7 @@ export function buildDailyUpdatePrompt(input: DailyUpdateInput): string {
     "",
     `The week must start on ${weekStart} and cover ${weekStart} through ${weekEnd}. Keep exactly seven sessions with those dates, and make sure one session has the date ${input.today}; the "today" object must use that same date.`,
     "",
-    `Fully detail the sessions dated ${input.today} through ${detailThrough}. Keep every later session in the week as a short outline.`,
+    `Fully detail the day object for each date from ${input.today} through ${detailThrough}. Keep every session in the week, including ${input.today} through ${detailThrough}, as a short outline.`,
     "",
     "Create today's session and revise this week's remaining sessions.",
     jsonTopLevelKeys(["today", "tomorrow", "week", "bodyMetrics"]),

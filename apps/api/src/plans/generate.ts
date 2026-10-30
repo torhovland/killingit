@@ -45,12 +45,12 @@ import {
   isGenerationSuperseded,
 } from "./generation.js";
 import type { CoachQuestionSourceKind } from "./coachQuestions.js";
-import { outlineFutureSessions } from "./outline.js";
+import { outlineWeekPlans } from "./outline.js";
 import { blockFor, promoteNextPeriod, weekFor } from "./periods.js";
 import { planIsStale, planPending } from "./status.js";
 import { PLAN_GENERATION_STEPS } from "./steps.js";
 import type { PlanGenerationStore, PlanStore, StoredPlan } from "./store.js";
-import { applyCompletedDays, completionStatus, mirrorDay } from "./week.js";
+import { applyCompletedDays, completionStatus } from "./week.js";
 
 export interface PlanGenerationContext {
   answers: readonly AthleteAnswerContext[];
@@ -380,7 +380,7 @@ export async function runPlanGeneration(
       const generated = withTrainingLoad(
         applyForecastToPlan(
           dropUnplacedTomorrow(
-            outlineFutureSessions(completed, today),
+            outlineWeekPlans(completed),
             input.includeTomorrow === true,
           ),
           forecastForStorage(context),
@@ -707,7 +707,7 @@ async function advancePlan(
   const finalPlan = withTrainingLoad(
     applyForecastToPlan(
       dropUnplacedTomorrow(
-        outlineFutureSessions(plan, today),
+        outlineWeekPlans(plan),
         input.includeTomorrow === true,
       ),
       forecastForStorage(context),
@@ -849,10 +849,22 @@ function applyPlanUpdate(
         "The coach returned tomorrow's session outside a planned week. Please regenerate the plan.",
       );
     }
-    if (week.startDate === plan.week.startDate) {
-      plan = { ...plan, week: mirrorDay(plan.week, plan.tomorrow) };
-    } else {
-      plan = { ...plan, nextWeek: mirrorDay(week, plan.tomorrow) };
+    // The coach's week holds tomorrow's overview even when the request only
+    // asked for tomorrow. Take that one outline so the Week view matches the
+    // revised day without copying the day plan's detailed prescription.
+    const source =
+      week.startDate === plan.week.startDate ? update.week : update.nextWeek;
+    if (source !== null) {
+      plan =
+        week.startDate === plan.week.startDate
+          ? {
+              ...plan,
+              week: withOutlineSession(plan.week, source, plan.tomorrow.date),
+            }
+          : {
+              ...plan,
+              nextWeek: withOutlineSession(week, source, plan.tomorrow.date),
+            };
     }
   }
 
@@ -867,6 +879,27 @@ function applyPlanUpdate(
   return {
     ...plan,
     bodyMetrics: mergeBodyMetrics(current.bodyMetrics, update.bodyMetrics),
+  };
+}
+
+/**
+ * Replaces one dated week session with the coach's returned outline. The week
+ * keeps its other sessions and its overview level; only the named day moves.
+ */
+function withOutlineSession(
+  week: WeekPlan,
+  source: WeekPlan,
+  date: string,
+): WeekPlan {
+  const session = source.sessions.find((entry) => entry.date === date);
+  if (session === undefined) {
+    return week;
+  }
+  return {
+    ...week,
+    sessions: week.sessions.map((entry) =>
+      entry.date === date ? session : entry,
+    ),
   };
 }
 

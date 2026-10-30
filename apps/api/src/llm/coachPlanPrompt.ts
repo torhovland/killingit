@@ -69,7 +69,7 @@ export const COACH_PLAN_SYSTEM_PROMPT = promptSections(
 3. week — the first week of that block, with one session for each day, a rationale, and per-session status.
 4. today — the concrete workout or rest for today, with a rationale and an optionality assessment.
 5. tomorrow — the suggested workout or rest for tomorrow, with a rationale and an optionality assessment.`,
-  "Fully detail today's and tomorrow's sessions; keep every later day in the week as a short outline.",
+  "Fully detail the today and tomorrow day objects; keep every session in the week, including today and tomorrow, as a short outline.",
   "The season starts on the supplied today date. The block is the first entry in season.blocks. The week is the first week in block.weeks, so block.weeks[0].startDate and week.startDate must match.",
   "Respect the athlete's available training days and hours, and include rest days where they are the best choice.",
   WEEK_SHAPE_RULES,

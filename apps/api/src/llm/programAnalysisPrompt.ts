@@ -6,6 +6,7 @@ import type {
 } from "@killingit/shared";
 import {
   formatActivitySummary,
+  formatDayPlan,
   formatFtpContext,
   formatPlanLevels,
   formatPlannedSession,
@@ -74,15 +75,23 @@ export function buildProgramAnalysisPrompt(
   const plannedSession = plan.week.sessions.find(
     (session) => session.date === activityDate,
   );
+  const detailedPlan =
+    plan.today.date === activityDate
+      ? plan.today
+      : plan.tomorrow?.date === activityDate
+        ? plan.tomorrow
+        : null;
 
   const lines = [
     `Today's date: ${input.today}`,
     "",
     ...formatPlanLevels(plan),
     "",
-    plannedSession
-      ? `Planned session for ${activityDate}: ${formatPlannedSession(plannedSession)}`
-      : `No session was planned for ${activityDate}. Match the activity to another session in this week if its data fits one.`,
+    detailedPlan
+      ? `Planned session for ${activityDate}:\n${formatDayPlan(detailedPlan)}`
+      : plannedSession
+        ? `Planned session for ${activityDate}: ${formatPlannedSession(plannedSession)}`
+        : `No session was planned for ${activityDate}. Match the activity to another session in this week if its data fits one.`,
     "",
   ];
 

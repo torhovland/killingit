@@ -1,7 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import {
   COACH_RESPONSE_NOTES_RULES,
+  PERIOD_SUMMARY_RULES,
   TODAY_SESSION_RULES,
+  WEEK_OUTLINE_RULES,
   WEATHER_PLANNING_RULES,
 } from "./promptRules.js";
 
@@ -60,6 +62,40 @@ describe("TODAY_SESSION_RULES", () => {
   it("replaces an earlier completion note instead of adding another", () => {
     expect(TODAY_SESSION_RULES).toContain(
       "replace only that note with an updated one",
+    );
+  });
+});
+
+describe("WEEK_OUTLINE_RULES", () => {
+  it("keeps the detailed prescription in the day objects", () => {
+    expect(WEEK_OUTLINE_RULES).toContain(
+      'Keep the detailed prescription, including alternatives, optionality, rationale and any "bikeWorkout", in the "today" and "tomorrow" day objects only',
+    );
+    expect(WEEK_OUTLINE_RULES).toContain(
+      'never put detailed intervals, repetitions, paces, power targets or a "bikeWorkout" in a week session, even when it is dated today or tomorrow',
+    );
+  });
+
+  it("adds only a completion sentence to a week outline for a day that arrived", () => {
+    expect(WEEK_OUTLINE_RULES).toContain(
+      "keep its week outline and add at most one short sentence to its description on how far the athlete completed it",
+    );
+  });
+});
+
+describe("PERIOD_SUMMARY_RULES", () => {
+  it("keeps block weeks and season blocks planned", () => {
+    expect(PERIOD_SUMMARY_RULES).toContain(
+      "keep them as planned rather than replacing them with an analysis of the training that was completed",
+    );
+  });
+
+  it("allows one completion sentence and points to the separate review", () => {
+    expect(PERIOD_SUMMARY_RULES).toContain(
+      "keep the planned focus and target load as supplied and add at most one short sentence on how far the athlete completed it",
+    );
+    expect(PERIOD_SUMMARY_RULES).toContain(
+      "Do not repeat the completed week or block review",
     );
   });
 });

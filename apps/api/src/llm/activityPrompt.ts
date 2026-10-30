@@ -2,6 +2,7 @@ import { cadenceUnit } from "@killingit/shared";
 import type {
   Activity,
   ActivitySample,
+  DayPlan,
   MetricPoint,
   ThresholdSummary,
   WeekPlan,
@@ -11,6 +12,7 @@ import { weekCovers, weekEnd } from "../plans/periods.js";
 import { formatDuration } from "./duration.js";
 import {
   formatActivitySummary,
+  formatDayPlan,
   formatFtpContext,
   formatThresholdContext,
   formatWeekPlan,
@@ -44,6 +46,10 @@ export const ANALYSIS_PROMPT_VERSION = 9;
 export interface ActivityAnalysisContext {
   today: string;
   week: WeekPlan;
+  /** The detailed plan for today, when the activity happened today. */
+  todayPlan?: DayPlan;
+  /** The detailed plan for tomorrow, when the activity happened tomorrow. */
+  tomorrowPlan?: DayPlan | null;
   /** The stored FTP time series, oldest first, including coach estimates. */
   ftpHistory?: readonly Pick<MetricPoint, "date" | "value" | "source">[];
   /** The FTP in effect on the activity date, when known. */
@@ -225,6 +231,12 @@ export function buildActivityAnalysisPrompt(
   const shown = downsampleSamples(activity.samples);
   const activityDate = activity.startDate.slice(0, 10);
   const inWeek = context ? weekCovers(context.week, activityDate) : false;
+  const detailedPlan =
+    context?.todayPlan?.date === activityDate
+      ? context.todayPlan
+      : context?.tomorrowPlan?.date === activityDate
+        ? context.tomorrowPlan
+        : null;
   const lines: string[] = [];
 
   if (context) {
@@ -234,6 +246,15 @@ export function buildActivityAnalysisPrompt(
       "Current week plan:",
       formatWeekPlan(context.week),
       "",
+    );
+    if (detailedPlan) {
+      lines.push(
+        `Detailed planned session for ${activityDate}:`,
+        formatDayPlan(detailedPlan),
+        "",
+      );
+    }
+    lines.push(
       inWeek
         ? `The workout happened on ${activityDate}, within the current week. Match it to the planned session for that date, or another session this week that fits the data.`
         : `The workout happened on ${activityDate}, outside the current week (${context.week.startDate} to ${weekEnd(context.week)}). Do not match it to a planned session in the current week or comment on how it fit the plan; it is an older activity that has not been analysed yet, so analyse it on its own merits.`,

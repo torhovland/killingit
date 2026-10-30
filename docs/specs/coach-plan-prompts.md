@@ -66,17 +66,19 @@ covered by `docs/specs/coach-plan-lifecycle.md`.
    skip today. A session the coach cannot justify must be revised out of the
    week instead of labelled optional. Rest days are exempt. See
    `docs/specs/session-purpose.md`.
-7. Week plans are outlines: only today's and tomorrow's sessions are fully
-   detailed, while later days keep the session type, a brief focus, an
-   approximate duration and intensity, estimated TSS, their daily estimated
-   FTP, and the week's single estimated FTP. See `docs/specs/week-outline.md`
-   and `docs/specs/training-load.md`.
+7. Week plans are outlines: every week session keeps the session type, a brief
+   focus, an approximate duration and intensity, estimated TSS, their daily
+   estimated FTP, and the week's single estimated FTP, while only the today and
+   tomorrow day objects carry the full prescription. See
+   `docs/specs/week-outline.md` and `docs/specs/training-load.md`.
 8. When an activity was already recorded today, today's plan keeps the planned
    workout's title, description and rationale and adds only one or two
    sentences on how much of it was completed. It does not repeat the activity
    analysis or the coach's reply to the athlete's comment.
-9. `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`
-   pass.
+9. Block weeks and season blocks keep their planned focus and target load, with
+   at most one short sentence on how far the athlete completed them.
+10. `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`
+    pass.
 
 ## Data-model / API impact
 
@@ -147,6 +149,10 @@ shapes (`StoredAthleteQuestion` and `AnalyzedActivity`) structurally and returns
   completed-session rule keeps the planned workout's title, description and
   rationale and appends a short completion note, so the plan does not restate
   the activity analysis or the coach's reply to the athlete's comment.
+- `PERIOD_SUMMARY_RULES` keeps a block week's and a season block's focus on what
+  the period is planned to build. A completed period may add one short
+  completion sentence, but the plan does not turn the summary into a second
+  period review.
 - A season update uses that same prompt: it receives the existing season and
   current block, keeps completed blocks and the season goal as reference, and
   re-plans the future from the athlete's latest input. A new season still uses

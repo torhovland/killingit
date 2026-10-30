@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import type { CoachPlan, WeekPlan } from "@killingit/shared";
 import { addDays } from "./dates.js";
-import { outlineFutureSessions } from "./outline.js";
+import { outlineWeekPlans } from "./outline.js";
 
 const bikeWorkout = {
   ftpWatts: 250,
@@ -57,6 +57,7 @@ function makePlan(): CoachPlan {
       rationale: "Aerobic work.",
       optional: false,
       status: "planned",
+      bikeWorkout,
     },
     tomorrow: null,
     nextWeek: makeWeek("2026-10-26"),
@@ -64,39 +65,31 @@ function makePlan(): CoachPlan {
   };
 }
 
-function bikeWorkoutDates(week: WeekPlan): string[] {
-  return week.sessions
-    .filter((session) => session.bikeWorkout != null)
-    .map((session) => session.date);
-}
+describe("outlineWeekPlans", () => {
+  it("clears every structured workout from the current week", () => {
+    const plan = outlineWeekPlans(makePlan());
 
-describe("outlineFutureSessions", () => {
-  it("keeps detail for today and tomorrow and clears later days", () => {
-    const plan = outlineFutureSessions(makePlan(), "2026-10-21");
-
-    expect(bikeWorkoutDates(plan.week)).toEqual([
-      "2026-10-19",
-      "2026-10-20",
-      "2026-10-21",
-      "2026-10-22",
-    ]);
     expect(
-      plan.week.sessions.find((s) => s.date === "2026-10-23")?.bikeWorkout,
-    ).toBeNull();
-    expect(
-      plan.week.sessions.find((s) => s.date === "2026-10-25")?.bikeWorkout,
-    ).toBeNull();
+      plan.week.sessions.every((session) => session.bikeWorkout == null),
+    ).toBe(true);
   });
 
-  it("keeps tomorrow and clears the rest of a next week", () => {
-    const plan = outlineFutureSessions(makePlan(), "2026-10-25");
+  it("clears every structured workout from the next week", () => {
+    const plan = outlineWeekPlans(makePlan());
 
-    expect(plan.nextWeek).not.toBeNull();
-    expect(bikeWorkoutDates(plan.nextWeek as WeekPlan)).toEqual(["2026-10-26"]);
+    expect(
+      plan.nextWeek?.sessions.every((session) => session.bikeWorkout == null),
+    ).toBe(true);
+  });
+
+  it("keeps the detailed workout on today's day plan", () => {
+    const plan = outlineWeekPlans(makePlan());
+
+    expect(plan.today.bikeWorkout).toEqual(bikeWorkout);
   });
 
   it("leaves estimated TSS on outline days", () => {
-    const plan = outlineFutureSessions(makePlan(), "2026-10-21");
+    const plan = outlineWeekPlans(makePlan());
 
     expect(
       plan.week.sessions.find((session) => session.date === "2026-10-25")
@@ -105,10 +98,7 @@ describe("outlineFutureSessions", () => {
   });
 
   it("leaves a plan without a next week alone", () => {
-    const plan = outlineFutureSessions(
-      { ...makePlan(), nextWeek: null },
-      "2026-10-21",
-    );
+    const plan = outlineWeekPlans({ ...makePlan(), nextWeek: null });
 
     expect(plan.nextWeek).toBeNull();
   });
