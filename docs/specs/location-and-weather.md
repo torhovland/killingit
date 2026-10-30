@@ -32,6 +32,10 @@ would be sensible to take it outside.
    times and:
    - respect explicit weather preferences in the athlete's survey answers, such
      as "no outdoor riding in rain" or "not below 10 °C";
+   - treat an explicit request for a specific day or activity as outranking the
+     forecast and the general weather preference, so an athlete who says they
+     will run outdoors on Saturday gets an outdoor run on Saturday even when
+     rain is forecast and they otherwise avoid outdoor workouts in the rain;
    - follow the athlete's stated daylight or darkness preference, defaulting to
      a preference for daylight when they have not said anything;
    - move long outdoor sessions to the weekend when the athlete can only train
@@ -101,6 +105,12 @@ would be sensible to take it outside.
   because the athlete may choose to move them outside. Sessions tied to indoor
   equipment or a venue use `canBeOutdoor: false` and show no forecast. Rest days
   show none either.
+- The coach respects the athlete's stated weather preferences, but an explicit
+  request for a specific day or activity outranks both the forecast and those
+  preferences: if the athlete says they will run outdoors on Saturday, the coach
+  plans an outdoor run on Saturday even when rain is forecast and the athlete
+  otherwise avoids outdoor workouts in rain. The general weather preference
+  applies only to days the athlete has not made a specific request about.
 - The coach places outdoor sessions in daylight by default. It follows any
   explicit darkness preference in the athlete's answers, weekly notes, or
   activity comments, and does not invent one. If the athlete can only train

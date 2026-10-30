@@ -276,6 +276,12 @@ Only the admin can manage athlete questions (see ADR 0006).
   statement the athlete makes about training in darkness and otherwise assumes
   a daylight preference. When a weekday window leaves only working-hour
   daylight, long outdoor sessions move to the weekend.
+- An explicit request from the athlete about a specific day or activity outranks
+  the forecast and their general weather preference: if they say they will run
+  outdoors on Saturday, an outdoor run is planned on Saturday even when rain is
+  forecast and they otherwise avoid outdoor workouts in rain. The general
+  weather preference applies to the days they have not made a specific request
+  about. See `docs/specs/location-and-weather.md`.
 
 ## Observability and agent access
 
