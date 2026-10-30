@@ -344,18 +344,29 @@ class MemoryGenerationStore implements PlanGenerationStore {
     return Promise.resolve(this.status);
   }
 
-  begin(): Promise<boolean> {
+  begin(_userId: number, runId: string): Promise<void> {
     this.status = {
       ...this.status,
       status: "running",
+      runId,
       step: "Preparing your plan",
       progress: 5,
       updatedAt: new Date().toISOString(),
     };
-    return Promise.resolve(true);
+    return Promise.resolve();
   }
 
-  update(_userId: number, step: PlanGenerationStep): Promise<void> {
+  isCurrent(_userId: number, runId: string): Promise<boolean> {
+    return Promise.resolve(
+      this.status.runId === runId || this.status.runId === null,
+    );
+  }
+
+  update(
+    _userId: number,
+    step: PlanGenerationStep,
+    _runId: string,
+  ): Promise<void> {
     this.steps.push(step.label);
     this.status = {
       ...this.status,
@@ -455,6 +466,7 @@ describe("runPlanGeneration", () => {
 
     const saved = await runPlanGeneration({
       userId: 1,
+      runId: "run-1",
       today: "2026-10-21",
       plan: null,
       context: makeContext(provider),
@@ -490,6 +502,7 @@ describe("runPlanGeneration", () => {
 
     const saved = await runPlanGeneration({
       userId: 1,
+      runId: "run-1",
       today,
       plan: null,
       context: makeContext(provider),
@@ -560,6 +573,7 @@ describe("runPlanGeneration", () => {
 
     const saved = await runPlanGeneration({
       userId: 1,
+      runId: "run-1",
       today: "2026-10-21",
       plan: null,
       context: makeContext(provider),
@@ -593,6 +607,7 @@ describe("runPlanGeneration", () => {
 
     const saved = await runPlanGeneration({
       userId: 1,
+      runId: "run-1",
       today: "2026-10-21",
       plan: null,
       context: makeContext(provider),
@@ -615,6 +630,7 @@ describe("runPlanGeneration", () => {
 
     await runPlanGeneration({
       userId: 1,
+      runId: "run-1",
       today: "2026-10-21",
       plan: existing,
       context: makeContext(provider, new Date("2026-10-21T10:00:00Z")),
@@ -636,6 +652,7 @@ describe("runPlanGeneration", () => {
 
     const saved = await runPlanGeneration({
       userId: 1,
+      runId: "run-1",
       today: "2026-10-21",
       plan: existing,
       context: makeContext(provider),
@@ -672,6 +689,7 @@ describe("runPlanGeneration", () => {
 
     const saved = await runPlanGeneration({
       userId: 1,
+      runId: "run-1",
       today: "2026-10-21",
       plan: existing,
       context: makeContext(provider),
@@ -711,6 +729,7 @@ describe("runPlanGeneration", () => {
 
     const saved = await runPlanGeneration({
       userId: 1,
+      runId: "run-1",
       today: "2026-10-21",
       plan: existing,
       context,
@@ -743,6 +762,7 @@ describe("runPlanGeneration", () => {
 
     const saved = await runPlanGeneration({
       userId: 1,
+      runId: "run-1",
       today: "2026-10-21",
       plan: existing,
       context: makeContext(
@@ -788,6 +808,7 @@ describe("runPlanGeneration", () => {
 
     const saved = await runPlanGeneration({
       userId: 1,
+      runId: "run-1",
       today: "2026-10-21",
       plan: existing,
       context: makeContext(
@@ -816,6 +837,7 @@ describe("runPlanGeneration", () => {
 
     await runPlanGeneration({
       userId: 1,
+      runId: "run-1",
       today: "2026-10-21",
       plan: existing,
       context,
@@ -841,6 +863,7 @@ describe("runPlanGeneration", () => {
 
     const saved = await runPlanGeneration({
       userId: 1,
+      runId: "run-1",
       today: "2026-10-21",
       plan: existing,
       context,
@@ -887,6 +910,7 @@ describe("runPlanGeneration", () => {
 
     const saved = await runPlanGeneration({
       userId: 1,
+      runId: "run-1",
       today: "2026-10-22",
       plan: existing,
       context,
@@ -921,6 +945,7 @@ describe("runPlanGeneration", () => {
 
     await runPlanGeneration({
       userId: 1,
+      runId: "run-1",
       today: "2026-10-21",
       plan: existing,
       context,
@@ -962,6 +987,7 @@ describe("runPlanGeneration", () => {
 
     const saved = await runPlanGeneration({
       userId: 1,
+      runId: "run-1",
       today: "2026-10-21",
       plan: existing,
       context,
@@ -1011,6 +1037,7 @@ describe("runPlanGeneration", () => {
 
     const saved = await runPlanGeneration({
       userId: 1,
+      runId: "run-1",
       today: "2026-10-21",
       plan: stored,
       context,
@@ -1057,6 +1084,7 @@ describe("runPlanGeneration", () => {
 
     const saved = await runPlanGeneration({
       userId: 1,
+      runId: "run-1",
       today: "2026-10-21",
       plan: existing,
       context,
@@ -1083,6 +1111,7 @@ describe("runPlanGeneration", () => {
 
     const saved = await runPlanGeneration({
       userId: 1,
+      runId: "run-1",
       today: "2026-10-26",
       plan: existing,
       context: makeContext(provider),
@@ -1110,6 +1139,7 @@ describe("runPlanGeneration", () => {
 
     const saved = await runPlanGeneration({
       userId: 1,
+      runId: "run-1",
       today: "2026-12-02",
       plan: existing,
       context: makeContext(provider),
@@ -1143,6 +1173,7 @@ describe("runPlanGeneration", () => {
     try {
       await runPlanGeneration({
         userId: 1,
+        runId: "run-1",
         today: "2026-10-21",
         plan: null,
         context: makeContext(provider),
@@ -1172,6 +1203,7 @@ describe("runPlanGeneration", () => {
 
     const saved = await runPlanGeneration({
       userId: 1,
+      runId: "run-1",
       today: "2026-10-21",
       plan: null,
       context: makeContext(provider),
@@ -1198,6 +1230,7 @@ describe("runPlanGeneration", () => {
 
     await runPlanGeneration({
       userId: 1,
+      runId: "run-1",
       today: "2026-10-21",
       plan: existing,
       context: makeContext(provider),
@@ -1245,6 +1278,7 @@ describe("runPlanGeneration", () => {
 
     const saved = await runPlanGeneration({
       userId: 1,
+      runId: "run-1",
       today: "2026-10-21",
       plan: stored,
       keepToday: true,
@@ -1332,6 +1366,7 @@ describe("runPlanGeneration", () => {
 
     const saved = await runPlanGeneration({
       userId: 1,
+      runId: "run-1",
       today: "2026-10-21",
       plan: stored,
       keepToday: true,
@@ -1364,6 +1399,7 @@ describe("runPlanGeneration", () => {
 
     const saved = await runPlanGeneration({
       userId: 1,
+      runId: "run-1",
       today: "2026-10-21",
       plan: null,
       context,
@@ -1389,6 +1425,7 @@ describe("runPlanGeneration", () => {
 
     const saved = await runPlanGeneration({
       userId: 1,
+      runId: "run-1",
       today: "2026-10-21",
       plan: existing,
       context,
@@ -1403,6 +1440,7 @@ describe("runPlanGeneration", () => {
     // start another generation for the same change.
     const again = await runPlanGeneration({
       userId: 1,
+      runId: "run-1",
       today: "2026-10-21",
       plan: saved,
       context,
@@ -1425,6 +1463,7 @@ describe("runPlanGeneration", () => {
 
     const saved = await runPlanGeneration({
       userId: 1,
+      runId: "run-1",
       today: "2026-10-21",
       plan: existing,
       context,
@@ -1445,6 +1484,7 @@ describe("runPlanGeneration", () => {
     try {
       await runPlanGeneration({
         userId: 1,
+        runId: "run-1",
         today: "2026-10-21",
         plan: null,
         context: makeContext(provider),
@@ -1483,6 +1523,7 @@ describe("runPlanGeneration", () => {
 
     const saved = await runPlanGeneration({
       userId: 1,
+      runId: "run-1",
       today,
       plan: stored,
       includeTomorrow: true,
@@ -1531,6 +1572,7 @@ describe("runPlanGeneration", () => {
 
     const saved = await runPlanGeneration({
       userId: 1,
+      runId: "run-1",
       today,
       plan: stored,
       includeTomorrow: true,
@@ -1571,6 +1613,7 @@ describe("runPlanGeneration", () => {
 
     const saved = await runPlanGeneration({
       userId: 1,
+      runId: "run-1",
       today,
       plan: stored,
       includeTomorrow: true,
@@ -1616,6 +1659,7 @@ describe("runPlanGeneration", () => {
 
     const saved = await runPlanGeneration({
       userId: 1,
+      runId: "run-1",
       today,
       plan: stored,
       context: makeContext(
@@ -1647,6 +1691,7 @@ describe("runPlanGeneration", () => {
 
     const saved = await runPlanGeneration({
       userId: 1,
+      runId: "run-1",
       today,
       plan: stored,
       includeTomorrow: true,
@@ -1686,6 +1731,7 @@ describe("runPlanGeneration", () => {
 
     const saved = await runPlanGeneration({
       userId: 1,
+      runId: "run-1",
       today,
       plan: stored,
       context: makeContext(provider, new Date("2026-10-25T10:00:00Z")),
@@ -1728,6 +1774,7 @@ describe("runPlanGeneration", () => {
 
     const saved = await runPlanGeneration({
       userId: 1,
+      runId: "run-1",
       today,
       mode: "newSeason",
       plan: existing,
@@ -1760,6 +1807,7 @@ describe("runPlanGeneration", () => {
 
     const saved = await runPlanGeneration({
       userId: 1,
+      runId: "run-1",
       today,
       mode: "updateSeason",
       plan: existing,
@@ -1795,6 +1843,7 @@ describe("runPlanGeneration", () => {
 
     await runPlanGeneration({
       userId: 1,
+      runId: "run-1",
       today,
       plan: existing,
       context: makeContext(provider),
@@ -1836,6 +1885,7 @@ describe("runPlanGeneration", () => {
 
     await runPlanGeneration({
       userId: 1,
+      runId: "run-1",
       today,
       plan: existing,
       context: makeContext(provider, new Date("2026-11-15T10:00:00Z")),
@@ -1853,6 +1903,7 @@ describe("runPlanGeneration", () => {
 
     await runPlanGeneration({
       userId: 1,
+      runId: "run-1",
       today: "2026-10-21",
       mode: "updateSeason",
       plan: null,
@@ -1883,6 +1934,7 @@ describe("runPlanGeneration", () => {
     try {
       await runPlanGeneration({
         userId: 1,
+        runId: "run-1",
         today,
         mode: "updateSeason",
         plan: existing,
@@ -1921,6 +1973,7 @@ describe("runPlanGeneration", () => {
     try {
       await runPlanGeneration({
         userId: 1,
+        runId: "run-1",
         today,
         plan: existing,
         context: makeContext(provider),
@@ -1934,5 +1987,27 @@ describe("runPlanGeneration", () => {
     expect((failure as Error).message).toContain("start date");
     expect(generations.status.status).toBe("error");
     expect(plans.saved).toBe(existing);
+  });
+
+  it("stops without saving or failing when a newer run took over", async () => {
+    const provider = new FakeProvider(buildResponses());
+    const plans = new MemoryPlanStore(null);
+    const generations = new MemoryGenerationStore();
+    generations.isCurrent = () => Promise.resolve(false);
+
+    const saved = await runPlanGeneration({
+      userId: 1,
+      runId: "superseded-run",
+      today: "2026-10-21",
+      plan: null,
+      context: makeContext(provider),
+      plans,
+      generations,
+    });
+
+    expect(saved).toBeNull();
+    expect(provider.calls).toEqual([]);
+    expect(plans.saved).toBeNull();
+    expect(generations.status.status).toBe("idle");
   });
 });

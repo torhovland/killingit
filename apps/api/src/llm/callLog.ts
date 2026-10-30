@@ -1,7 +1,8 @@
-import type {
-  LlmCompletionRequest,
-  LlmCompletionResult,
-  LlmProvider,
+import {
+  isLlmAbortError,
+  type LlmCompletionRequest,
+  type LlmCompletionResult,
+  type LlmProvider,
 } from "./openrouter.js";
 import {
   dbLlmCallSink,
@@ -84,12 +85,15 @@ export function withPromptLogging(
         }
         return result.text;
       } catch (err) {
+        const cancelled = isLlmAbortError(err);
         if (id !== null) {
           await finish(id, {
             response: null,
-            error: errorMessage(err),
+            // A superseded run is not a coaching failure; keep it out of the
+            // error count but record that the attempt was cancelled.
+            error: cancelled ? null : errorMessage(err),
             usage: null,
-            metadata: {},
+            metadata: cancelled ? { cancelled: true } : {},
             durationMs: elapsedMs(startedAt, clock()),
           });
         }

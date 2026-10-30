@@ -54,9 +54,11 @@ function inMemoryStores(initial: StoredPlan | null): InMemoryStores {
         step: null,
         progress: 0,
         error: null,
+        runId: null,
         updatedAt: new Date().toISOString(),
       }),
-    begin: () => Promise.resolve(true),
+    begin: () => Promise.resolve(),
+    isCurrent: () => Promise.resolve(true),
     update: () => Promise.resolve(),
     heartbeat: () => Promise.resolve(),
     finish: () => Promise.resolve(),
@@ -186,6 +188,7 @@ async function runGeneration(input: GenerationInput): Promise<BenchmarkRun> {
   try {
     const saved = await runPlanGeneration({
       userId: input.userId,
+      runId: "benchmark",
       today: input.today,
       force: input.force,
       includeTomorrow: false,

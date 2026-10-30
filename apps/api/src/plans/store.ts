@@ -1,5 +1,5 @@
 import type { CoachPlan, PlanGenerationStatus } from "@killingit/shared";
-import { and, eq, lt, ne, or } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { db } from "../db/index.js";
 import {
   coachPlans,
@@ -8,7 +8,6 @@ import {
   type CoachPlanRow,
   type PlanGenerationRow,
 } from "../db/schema.js";
-import { STALE_GENERATION_MS } from "./generation.js";
 import { progressAt, recordDuration } from "./progress.js";
 import {
   PLAN_GENERATION_START,
@@ -34,27 +33,37 @@ export interface PlanStore {
     answersUpdatedAt: Date | null,
     coachingInputsUpdatedAt: Date | null,
     activitiesUpdatedAt: Date | null,
-  ): Promise<StoredPlan>;
+    /** When supplied, the plan is written only while this run owns the row. */
+    runId?: string,
+  ): Promise<StoredPlan | null>;
 }
 
 export interface PlanGenerationStore {
   load(userId: number): Promise<PlanGenerationStatus>;
-  /** Marks a run as running. Returns false when one is already in progress. */
-  begin(userId: number): Promise<boolean>;
-  update(userId: number, step: PlanGenerationStep): Promise<void>;
+  /**
+   * Marks a new run as the owner of the row. Starting a run supersedes the
+   * previous one, so this always claims the row.
+   */
+  begin(userId: number, runId: string): Promise<void>;
+  /** True while `runId` still owns the generation row. */
+  isCurrent(userId: number, runId: string): Promise<boolean>;
+  update(
+    userId: number,
+    step: PlanGenerationStep,
+    runId: string,
+  ): Promise<void>;
   /** Refreshes a running run so a dead process can be detected. */
-  heartbeat(userId: number): Promise<void>;
-  finish(userId: number): Promise<void>;
+  heartbeat(userId: number, runId: string): Promise<void>;
+  /** Marks the run done, only when it still owns the row. */
+  finish(userId: number, runId: string): Promise<void>;
   /**
    * Marks a running generation as failed and returns the start of the run it
-   * cleared, or null when nothing was cleared. With `observedUpdatedAt`, only
-   * the run with that heartbeat is cleared, so a release that raced a live
-   * heartbeat (or a newer run) does not touch it.
+   * cleared, or null when it no longer owns the row.
    */
   fail(
     userId: number,
     error: string,
-    observedUpdatedAt?: string,
+    runId: string | null,
   ): Promise<Date | null>;
 }
 
@@ -103,6 +112,7 @@ function toGenerationStatus(
     step: row.step,
     progress: reportedProgress(row, now),
     error: row.error,
+    runId: row.runId,
     updatedAt: row.updatedAt.toISOString(),
   };
 }
@@ -125,6 +135,7 @@ export const dbPlanStore: PlanStore = {
     answersUpdatedAt,
     coachingInputsUpdatedAt,
     activitiesUpdatedAt,
+    runId,
   ) {
     const now = new Date();
     const planValues = {
@@ -148,18 +159,40 @@ export const dbPlanStore: PlanStore = {
       updatedAt: now,
     };
 
-    const [row] = await db
-      .insert(coachPlans)
-      .values({ userId, ...planValues })
-      .onConflictDoUpdate({
-        target: coachPlans.userId,
-        set: planValues,
-      })
-      .returning();
-    if (!row) {
-      throw new Error("failed to persist the coach plan");
+    type PlanWriter = Pick<typeof db, "insert">;
+    const write = async (executor: PlanWriter) => {
+      const [row] = await executor
+        .insert(coachPlans)
+        .values({ userId, ...planValues })
+        .onConflictDoUpdate({
+          target: coachPlans.userId,
+          set: planValues,
+        })
+        .returning();
+      if (!row) {
+        throw new Error("failed to persist the coach plan");
+      }
+      return toStoredPlan(row);
+    };
+
+    if (runId === undefined) {
+      return write(db);
     }
-    return toStoredPlan(row);
+
+    // Lock the generation row, then verify this run still owns it before
+    // writing. A superseded run can finish its provider call at any moment;
+    // this transaction makes the late result a no-op instead of a stale save.
+    return db.transaction(async (tx) => {
+      const rows = await tx
+        .select({ runId: planGenerations.runId })
+        .from(planGenerations)
+        .where(eq(planGenerations.userId, userId))
+        .for("update");
+      if (rows[0]?.runId !== runId) {
+        return null;
+      }
+      return write(tx);
+    });
   },
 };
 
@@ -220,7 +253,7 @@ export const dbPlanGenerationStore: PlanGenerationStore = {
     return row ? toGenerationStatus(row, Date.now()) : idleGenerationStatus();
   },
 
-  async begin(userId) {
+  async begin(userId, runId) {
     // Create the row on first use; the unique user index makes this safe.
     await db
       .insert(planGenerations)
@@ -228,12 +261,14 @@ export const dbPlanGenerationStore: PlanGenerationStore = {
       .onConflictDoNothing({ target: planGenerations.userId });
 
     const now = new Date();
-    const staleBefore = new Date(now.getTime() - STALE_GENERATION_MS);
     const expectedMs = await expectedDurationMs(PLAN_GENERATION_STEPS.prepare);
-    const [row] = await db
+    // The newest run always claims the row. The previous run notices the
+    // changed run id at its next fence and stops without writing.
+    await db
       .update(planGenerations)
       .set({
         status: "running",
+        runId,
         step: PLAN_GENERATION_STEPS.prepare.label,
         stepId: PLAN_GENERATION_STEPS.prepare.id,
         progress: PLAN_GENERATION_START,
@@ -244,21 +279,15 @@ export const dbPlanGenerationStore: PlanGenerationStore = {
         startedAt: now,
         updatedAt: now,
       })
-      .where(
-        and(
-          eq(planGenerations.userId, userId),
-          or(
-            ne(planGenerations.status, "running"),
-            lt(planGenerations.updatedAt, staleBefore),
-          ),
-        ),
-      )
-      .returning({ id: planGenerations.id });
-
-    return row !== undefined;
+      .where(eq(planGenerations.userId, userId));
   },
 
-  async update(userId, step) {
+  async isCurrent(userId, runId) {
+    const row = await loadGenerationRow(userId);
+    return row?.runId === runId && row.status === "running";
+  },
+
+  async update(userId, step, runId) {
     const now = new Date();
     const previous = await loadGenerationRow(userId);
     if (previous !== null) {
@@ -282,10 +311,15 @@ export const dbPlanGenerationStore: PlanGenerationStore = {
         stepExpectedMs: expectedMs,
         updatedAt: now,
       })
-      .where(eq(planGenerations.userId, userId));
+      .where(
+        and(
+          eq(planGenerations.userId, userId),
+          eq(planGenerations.runId, runId),
+        ),
+      );
   },
 
-  async heartbeat(userId) {
+  async heartbeat(userId, runId) {
     // Only the lease timestamp moves; the step clock stays put so progress
     // keeps reflecting how long the current step has actually been running.
     await db
@@ -294,12 +328,13 @@ export const dbPlanGenerationStore: PlanGenerationStore = {
       .where(
         and(
           eq(planGenerations.userId, userId),
+          eq(planGenerations.runId, runId),
           eq(planGenerations.status, "running"),
         ),
       );
   },
 
-  async finish(userId) {
+  async finish(userId, runId) {
     const now = new Date();
     const previous = await loadGenerationRow(userId);
     if (previous !== null) {
@@ -318,18 +353,21 @@ export const dbPlanGenerationStore: PlanGenerationStore = {
         error: null,
         updatedAt: now,
       })
-      .where(eq(planGenerations.userId, userId));
+      .where(
+        and(
+          eq(planGenerations.userId, userId),
+          eq(planGenerations.runId, runId),
+        ),
+      );
   },
 
-  async fail(userId, error, observedUpdatedAt) {
+  async fail(userId, error, runId) {
     const now = new Date();
     const previous = await loadGenerationRow(userId);
-    if (previous === null) {
+    if (previous === null || previous.runId !== runId) {
       return null;
     }
-    const observed =
-      observedUpdatedAt === undefined ? null : new Date(observedUpdatedAt);
-    if (observed !== null && Number.isNaN(observed.getTime())) {
+    if (runId === null && previous.status !== "running") {
       return null;
     }
     // Keep the percentage the athlete last saw instead of falling back to the
@@ -348,10 +386,10 @@ export const dbPlanGenerationStore: PlanGenerationStore = {
       .where(
         and(
           eq(planGenerations.userId, userId),
+          runId === null
+            ? isNull(planGenerations.runId)
+            : eq(planGenerations.runId, runId),
           eq(planGenerations.status, "running"),
-          ...(observed === null
-            ? []
-            : [eq(planGenerations.updatedAt, observed)]),
         ),
       )
       .returning({ startedAt: planGenerations.startedAt });
@@ -371,6 +409,7 @@ export function idleGenerationStatus(): PlanGenerationStatus {
     step: null,
     progress: 0,
     error: null,
+    runId: null,
     updatedAt: new Date().toISOString(),
   };
 }

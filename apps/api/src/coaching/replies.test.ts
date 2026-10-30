@@ -3,11 +3,13 @@ import type { CoachPlan } from "@killingit/shared";
 import type { LlmCompletionRequest, LlmProvider } from "../llm/openrouter.js";
 import type { PlanContextInput } from "../llm/planContext.js";
 import type { QuestionAnswerStore } from "../questions/answers.js";
+import { GenerationSupersededError } from "../plans/generation.js";
 import type { PlanStore, StoredPlan } from "../plans/store.js";
 import {
   answerCoachingQuestion,
   replyToCoachQuestion,
   replyToCoachingInput,
+  replyToUnansweredActivityComments,
   type CoachReplyDependencies,
 } from "./replies.js";
 
@@ -383,6 +385,88 @@ describe("replyToCoachingInput", () => {
     );
 
     expect(result).toBeNull();
+    expect(provider.requests).toHaveLength(0);
+  });
+});
+
+describe("replyToUnansweredActivityComments", () => {
+  it("answers every unanswered comment in one completion", async () => {
+    const provider = new FakeProvider(
+      JSON.stringify({
+        replies: [
+          { id: "1", reply: "Good hills session." },
+          { id: "2", reply: "Keep the next run easy." },
+        ],
+      }),
+    );
+    const saved: { target: string; reply: string }[] = [];
+
+    const result = await replyToUnansweredActivityComments(
+      deps(provider, {
+        loadUnansweredComments: () =>
+          Promise.resolve([
+            {
+              activityId: "1",
+              comment: "Felt strong on the hills.",
+            },
+            {
+              activityId: "2",
+              comment: "Legs were heavy afterwards.",
+            },
+          ]),
+        saveReply: (input) => {
+          saved.push({ target: input.target, reply: input.reply });
+          return Promise.resolve({
+            kind: input.kind,
+            target: input.target,
+            text: input.reply,
+            model: input.model,
+            generatedAt: new Date(),
+          });
+        },
+      }),
+      { userId: 42, today: "2026-10-21" },
+    );
+
+    expect(result).toHaveLength(2);
+    expect(saved).toEqual([
+      { target: "1", reply: "Good hills session." },
+      { target: "2", reply: "Keep the next run easy." },
+    ]);
+    expect(provider.requests).toHaveLength(1);
+    const prompt = provider.requests[0]?.messages[1]?.content ?? "";
+    expect(prompt).toContain("Felt strong on the hills.");
+    expect(prompt).toContain("Legs were heavy afterwards.");
+    expect(provider.requests[0]?.metadata?.batchSize).toBe(2);
+  });
+
+  it("stops without saving when the run is superseded", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const provider = new FakeProvider(
+      JSON.stringify({ replies: [{ id: "1", reply: "Good." }] }),
+    );
+    let saved = false;
+
+    let failure: unknown;
+    try {
+      await replyToUnansweredActivityComments(
+        deps(provider, {
+          loadUnansweredComments: () =>
+            Promise.resolve([{ activityId: "1", comment: "Felt strong." }]),
+          saveReply: () => {
+            saved = true;
+            return Promise.reject(new Error("should not save"));
+          },
+        }),
+        { userId: 42, today: "2026-10-21", signal: controller.signal },
+      );
+    } catch (err) {
+      failure = err;
+    }
+
+    expect(failure).toBeInstanceOf(GenerationSupersededError);
+    expect(saved).toBe(false);
     expect(provider.requests).toHaveLength(0);
   });
 });

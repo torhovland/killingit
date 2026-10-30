@@ -31,10 +31,15 @@ import {
 } from "../weather/forecast.js";
 import { startOfWeek } from "./dates.js";
 import { saveCoachQuestions } from "./coachQuestions.js";
-import { GENERATION_HEARTBEAT_MS } from "./generation.js";
+import {
+  GENERATION_HEARTBEAT_MS,
+  GenerationSupersededError,
+  isGenerationSuperseded,
+} from "./generation.js";
 import { runPlanGeneration } from "./generate.js";
 import { planFtpEstimates } from "./generate.js";
 import { loadCoachingInputs, type CoachingInputs } from "./inputs.js";
+import { claimRun, releaseRun } from "./runs.js";
 import {
   latestActivityAnalysisTimestamp,
   latestAnswerTimestamp,
@@ -70,39 +75,68 @@ export interface PlanTriggerDependencies {
   markPlanPromptsFailed?: typeof markPlanPromptsFailed;
 }
 
+/** Options shared by the plan-only trigger and a combined coach run. */
+export interface PlanRunOptions {
+  userId: number;
+  today: string;
+  timezone?: string;
+  mode?: PlanGenerateMode;
+  force?: boolean;
+  includeTomorrow?: boolean;
+  /** Keep today's stored session while revising around a new input. */
+  keepToday?: boolean;
+}
+
 /**
- * Starts a plan generation in the background. Called by the explicit generate
- * route and by the routes that edit activity comments, manual activities, and
- * weekly notes, so an edit behaves like a fresh visit to the app. Returns false
- * when a generation is already running.
+ * Starts a plan generation in the background. The newest request always owns
+ * the run: an older run is aborted and its writes are fenced by the run id.
  */
 export async function triggerPlanGeneration(
   deps: PlanTriggerDependencies,
-  options: {
-    userId: number;
-    today: string;
-    timezone?: string;
-    mode?: PlanGenerateMode;
-    force?: boolean;
-    includeTomorrow?: boolean;
-    /** Keep today's stored session while revising around a new input. */
-    keepToday?: boolean;
-  },
+  options: PlanRunOptions,
 ): Promise<boolean> {
-  const { userId, today, timezone, mode, force, includeTomorrow, keepToday } =
-    options;
-  if (!(await deps.generations.begin(userId))) {
-    return false;
-  }
+  const run = claimRun(options.userId);
+  await deps.generations.begin(options.userId, run.runId);
+  const heartbeat = startHeartbeat(deps, options.userId, run.runId);
+  void runPlanForUser(deps, { ...options, ...run })
+    .catch((err: unknown) => {
+      if (!isGenerationSuperseded(err)) {
+        console.error("[plan] background generation failed:", err);
+      }
+    })
+    .finally(() => {
+      clearInterval(heartbeat);
+      releaseRun(options.userId, run.runId);
+    });
+  return true;
+}
 
-  // Keep the running row fresh from the moment it is claimed. Loading the
-  // activities can itself take minutes, so it must not look like a dead run.
+/** Refreshes the running row so loading a large feed cannot look like a crash. */
+export function startHeartbeat(
+  deps: PlanTriggerDependencies,
+  userId: number,
+  runId: string,
+): ReturnType<typeof setInterval> {
   const heartbeat = setInterval(() => {
-    void deps.generations.heartbeat(userId).catch((err: unknown) => {
+    void deps.generations.heartbeat(userId, runId).catch((err: unknown) => {
       console.error("[plan] could not refresh generation status:", err);
     });
   }, GENERATION_HEARTBEAT_MS);
   heartbeat.unref();
+  return heartbeat;
+}
+
+/**
+ * Prepares one run and executes it. The caller has already claimed the
+ * generation row and owns the heartbeat, so this can run after an optional
+ * reply phase in the same run.
+ */
+export async function runPlanForUser(
+  deps: PlanTriggerDependencies,
+  options: PlanRunOptions & { runId: string; signal: AbortSignal },
+): Promise<void> {
+  const { userId, today, timezone, mode, force, includeTomorrow, keepToday } =
+    options;
 
   let plan: Awaited<ReturnType<PlanStore["load"]>>;
   let answers: Awaited<ReturnType<QuestionAnswerStore["listForUser"]>>;
@@ -131,18 +165,25 @@ export async function triggerPlanGeneration(
       deps.users.getById(userId),
     ]);
   } catch (err) {
-    clearInterval(heartbeat);
+    if (options.signal.aborted) {
+      throw new GenerationSupersededError();
+    }
     const message =
       err instanceof Error ? err.message : "The plan could not be generated.";
-    await deps.generations.fail(userId, message);
+    await deps.generations.fail(userId, message, options.runId);
     throw err;
   }
 
   if (!llm) {
-    clearInterval(heartbeat);
     const message = "OpenRouter is not configured. Add a key and model first.";
-    await deps.generations.fail(userId, message);
-    return true;
+    await deps.generations.fail(userId, message, options.runId);
+    return;
+  }
+  if (
+    options.signal.aborted ||
+    !(await deps.generations.isCurrent(userId, options.runId))
+  ) {
+    throw new GenerationSupersededError();
   }
 
   const location = user?.location ?? null;
@@ -167,8 +208,18 @@ export async function triggerPlanGeneration(
       today,
     ),
     provider: llm.provider,
-    credentials: { apiKey: llm.apiKey, model: llm.model },
+    credentials: {
+      apiKey: llm.apiKey,
+      model: llm.model,
+      signal: options.signal,
+    },
   });
+  if (
+    options.signal.aborted ||
+    !(await deps.generations.isCurrent(userId, options.runId))
+  ) {
+    throw new GenerationSupersededError();
+  }
 
   const ftp = await (deps.loadFtpHistory ?? loadFtpHistoryForUser)(
     userId,
@@ -197,10 +248,12 @@ export async function triggerPlanGeneration(
     }
   }
 
-  // Run the long cascade after responding so the request cannot hit the server
-  // idle timeout. The client polls GET for progress.
-  void runPlanGeneration({
+  // The caller owns the background task and heartbeat; the client polls GET
+  // for progress while this long cascade runs.
+  await runPlanGeneration({
     userId,
+    runId: options.runId,
+    signal: options.signal,
     today,
     ...(timezone !== undefined ? { timezone } : {}),
     ...(mode !== undefined ? { mode } : {}),
@@ -227,6 +280,7 @@ export async function triggerPlanGeneration(
         activityComments: coachingInputs.activityComments,
         ftpHistory: ftp.points.filter((point) => point.date <= today),
         ftpTimeline: ftp.timeline,
+        signal: options.signal,
       }),
     plan,
     context: {
@@ -255,14 +309,9 @@ export async function triggerPlanGeneration(
       provider: llm.provider,
       apiKey: llm.apiKey,
       model: llm.model,
+      signal: options.signal,
     },
     plans: deps.plans,
     generations: deps.generations,
-  })
-    .catch((err: unknown) => {
-      console.error("[plan] background generation failed:", err);
-    })
-    .finally(() => clearInterval(heartbeat));
-
-  return true;
+  });
 }

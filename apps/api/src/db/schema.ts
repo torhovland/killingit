@@ -736,6 +736,8 @@ export const planGenerations = pgTable(
     status: text("status", { enum: ["idle", "running", "done", "error"] })
       .notNull()
       .default("idle"),
+    /** Identifies the run that currently owns this row. */
+    runId: text("run_id"),
     step: text("step"),
     /** Stable step key used to learn how long this step takes. */
     stepId: text("step_id"),

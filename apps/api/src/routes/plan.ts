@@ -156,7 +156,7 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
       const startedAt = await deps.generations.fail(
         userId,
         message,
-        generation.updatedAt,
+        generation.runId,
       );
       if (startedAt !== null) {
         await (deps.markPlanPromptsFailed ?? markPlanPromptsFailed)(

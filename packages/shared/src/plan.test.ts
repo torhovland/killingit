@@ -254,6 +254,7 @@ describe("coachPlanResponseSchema", () => {
         step: null,
         progress: 0,
         error: null,
+        runId: null,
         updatedAt: "2026-10-21T08:00:00Z",
       },
       stale: false,

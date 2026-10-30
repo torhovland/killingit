@@ -8,6 +8,8 @@ import { completeWithFallbacks } from "./resilientCompletion.js";
 export interface CoachReplyCredentials {
   apiKey: string;
   model: string;
+  /** Cancels the completion when a newer coach run starts. */
+  signal?: AbortSignal;
 }
 
 /** Asks the provider for a short reply to an athlete input. */

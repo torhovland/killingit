@@ -27,6 +27,8 @@ export interface CapturePeriodReviewsInput {
   manualActivities: readonly ManualActivityContext[];
   activityComments: readonly ActivityCommentContext[];
   weeklyNote: string | null;
+  /** Cancels the review when a newer run starts. */
+  signal?: AbortSignal;
   /** Injectable for tests; defaults to the database-backed writer. */
   save?: typeof savePeriodReview;
   /** Injectable for tests; defaults to the database-backed reader. */
@@ -65,7 +67,11 @@ export async function captureCompletedPeriodReviews(
       if (existing === null) {
         const text = await generatePeriodReview(
           input.provider,
-          { apiKey: input.apiKey, model: input.model },
+          {
+            apiKey: input.apiKey,
+            model: input.model,
+            ...(input.signal !== undefined ? { signal: input.signal } : {}),
+          },
           {
             context,
             today: input.today,
@@ -119,7 +125,11 @@ export async function captureCompletedPeriodReviews(
       if (existing === null) {
         const text = await generatePeriodReview(
           input.provider,
-          { apiKey: input.apiKey, model: input.model },
+          {
+            apiKey: input.apiKey,
+            model: input.model,
+            ...(input.signal !== undefined ? { signal: input.signal } : {}),
+          },
           {
             context,
             today: input.today,

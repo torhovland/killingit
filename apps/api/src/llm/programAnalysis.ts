@@ -13,6 +13,8 @@ import { completeWithFallbacks } from "./resilientCompletion.js";
 export interface ProgramAnalysisCredentials {
   apiKey: string;
   model: string;
+  /** Cancels the completion when a newer coach run starts. */
+  signal?: AbortSignal;
 }
 
 /** Asks the provider to review one activity against the athlete's plan. */

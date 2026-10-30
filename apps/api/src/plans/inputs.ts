@@ -2,11 +2,12 @@ import type {
   ActivityCommentInput,
   ManualActivityInput,
 } from "@killingit/shared";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { db } from "../db/index.js";
 import {
   activityComments,
   activityDeletions,
+  coachReplies,
   manualActivities,
   weeklyNotes,
 } from "../db/schema.js";
@@ -175,6 +176,37 @@ export async function loadCoachingInputs(
         : [{ updatedAt: blockReviewUpdatedAt }]),
     ]),
   };
+}
+
+/**
+ * Activity comments the coach has not answered yet. One batched reply covers
+ * all of them, so two comments saved close together do not need two prompts.
+ */
+export async function loadUnansweredActivityComments(
+  userId: number,
+): Promise<ActivityCommentContext[]> {
+  const rows = await db
+    .select({
+      activityId: activityComments.activityId,
+      comment: activityComments.comment,
+      updatedAt: activityComments.updatedAt,
+    })
+    .from(activityComments)
+    .leftJoin(
+      coachReplies,
+      and(
+        eq(coachReplies.userId, activityComments.userId),
+        eq(coachReplies.kind, "activity_comment"),
+        eq(coachReplies.target, activityComments.activityId),
+      ),
+    )
+    .where(and(eq(activityComments.userId, userId), isNull(coachReplies.id)));
+
+  return rows.map((row) => ({
+    activityId: row.activityId,
+    comment: row.comment,
+    updatedAt: row.updatedAt.toISOString(),
+  }));
 }
 
 /** Loads all manual activities for a user. */

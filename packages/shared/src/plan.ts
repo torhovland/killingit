@@ -359,6 +359,8 @@ export const planGenerationStatusSchema = z.object({
   step: z.string().nullable(),
   progress: z.number().int().min(0).max(100),
   error: z.string().nullable(),
+  /** Identifies the run that owns this status; a newer run replaces it. */
+  runId: z.string().nullable(),
   updatedAt: z.string().datetime(),
 });
 

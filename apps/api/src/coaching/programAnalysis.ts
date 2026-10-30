@@ -30,6 +30,8 @@ export interface AnalyzeActivitiesAgainstPlanInput {
   ftpHistory?: readonly MetricPoint[];
   /** The FTP timeline used to colour the prompt's current value. */
   ftpTimeline?: FtpTimeline | null;
+  /** Cancels the supplementary review when a newer run starts. */
+  signal?: AbortSignal;
   /** Injectable for tests; defaults to the database-backed writer. */
   save?: typeof saveAnalysis;
   /** Injectable for tests; defaults to the database-backed writer. */
@@ -68,7 +70,11 @@ export async function analyzeActivitiesAgainstPlan(
             : (ftpBaselineAt(input.ftpTimeline, activityDate)?.watts ?? null);
         const result = await analyzeActivityAgainstPlan(
           input.provider,
-          { apiKey: input.apiKey, model: input.model },
+          {
+            apiKey: input.apiKey,
+            model: input.model,
+            ...(input.signal !== undefined ? { signal: input.signal } : {}),
+          },
           {
             today: input.today,
             plan: input.plan,
@@ -80,6 +86,9 @@ export async function analyzeActivitiesAgainstPlan(
             currentFtpWatts,
           },
         );
+        if (input.signal?.aborted === true) {
+          return;
+        }
         await save({
           userId: input.userId,
           activityId: activity.id,
@@ -113,6 +122,9 @@ export async function analyzeActivitiesAgainstPlan(
     },
   );
 
+  if (input.signal?.aborted === true) {
+    return;
+  }
   if (coachQuestions.length > 0) {
     try {
       await saveCoachQuestions({

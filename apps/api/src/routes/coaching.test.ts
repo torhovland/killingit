@@ -79,22 +79,24 @@ class MemoryGenerationStore implements PlanGenerationStore {
     return Promise.resolve(this.status);
   }
 
-  begin() {
-    if (this.running) {
-      return Promise.resolve(false);
-    }
+  begin(_userId: number, runId: string) {
     this.running = true;
     this.status = {
       ...this.status,
       status: "running",
+      runId,
       step: "Preparing your plan",
       progress: 5,
       updatedAt: new Date().toISOString(),
     };
-    return Promise.resolve(true);
+    return Promise.resolve();
   }
 
-  update(_userId: number, step: PlanGenerationStep) {
+  isCurrent(_userId: number, runId: string) {
+    return Promise.resolve(this.running && this.status.runId === runId);
+  }
+
+  update(_userId: number, step: PlanGenerationStep, _runId: string) {
     this.status = {
       ...this.status,
       status: "running",
@@ -186,6 +188,7 @@ function makeApp(options: {
   answerCoachQuestion?: AppDependencies["answerCoachQuestion"];
   replyToCoachQuestion?: AppDependencies["replyToCoachQuestion"];
   triggerPlanGeneration?: AppDependencies["triggerPlanGeneration"];
+  startCoachRun?: AppDependencies["startCoachRun"];
 }) {
   return createApp({
     authProvider: { verify: () => Promise.resolve({ sub: "athlete-1" }) },
@@ -324,6 +327,7 @@ function makeApp(options: {
     ...(options.triggerPlanGeneration !== undefined
       ? { triggerPlanGeneration: options.triggerPlanGeneration }
       : {}),
+    startCoachRun: options.startCoachRun ?? (() => Promise.resolve(true)),
   });
 }
 
@@ -528,27 +532,21 @@ describe("coaching activity analysis", () => {
 });
 
 describe("coaching activity comments", () => {
-  it("saves a comment, replies, and marks today's activity for a summary refresh", async () => {
+  it("saves a comment and starts the combined reply-and-plan run", async () => {
     const saved: {
       value: { userId: number; activityId: string; comment: string } | null;
     } = { value: null };
     let keepToday: boolean | undefined;
+    let askedForReplies: boolean | undefined;
 
     const app = makeApp({
       createActivityComment: (userId, input) => {
         saved.value = { userId, ...input };
         return Promise.resolve(true);
       },
-      replyToCoachingInput: () =>
-        Promise.resolve({
-          kind: "activity_comment",
-          target: "123",
-          text: "Good work; I will keep Thursday easy.",
-          model: "test-model",
-          generatedAt: new Date("2026-10-21T12:00:00Z"),
-        }),
-      triggerPlanGeneration: (_deps, options) => {
+      startCoachRun: (_deps, options) => {
         keepToday = options.keepToday;
+        askedForReplies = options.reply;
         return Promise.resolve(true);
       },
     });
@@ -572,15 +570,16 @@ describe("coaching activity comments", () => {
       comment: "Felt strong on the hills.",
     });
     expect(keepToday).toBe(true);
+    expect(askedForReplies).toBe(true);
     const body = (await res.json()) as { reply: { text: string } | null };
-    expect(body.reply?.text).toBe("Good work; I will keep Thursday easy.");
+    expect(body.reply).toBeNull();
   });
 
   it("does not keep today's session for an earlier activity", async () => {
     let keepToday: boolean | undefined;
     const app = makeApp({
       createActivityComment: () => Promise.resolve(true),
-      triggerPlanGeneration: (_deps, options) => {
+      startCoachRun: (_deps, options) => {
         keepToday = options.keepToday;
         return Promise.resolve(true);
       },
@@ -659,33 +658,19 @@ describe("coaching activity comments", () => {
     expect(triggered).toBe(false);
   });
 
-  it("edits the existing comment, refreshes the coach reply, and triggers a plan revision", async () => {
+  it("edits the existing comment and refreshes replies and the plan", async () => {
     const saved: {
       value: { userId: number; activityId: string; comment: string } | null;
     } = { value: null };
-    const repliedTo: { comment: string | null } = { comment: null };
-    let triggered = false;
+    let started = false;
 
     const app = makeApp({
       updateActivityComment: (userId, input) => {
         saved.value = { userId, ...input };
         return Promise.resolve(true);
       },
-      replyToCoachingInput: (_deps, options) => {
-        repliedTo.comment =
-          options.request.kind === "activity_comment"
-            ? options.request.comment
-            : null;
-        return Promise.resolve({
-          kind: "activity_comment",
-          target: "123",
-          text: "Updated reply.",
-          model: "test-model",
-          generatedAt: new Date("2026-10-21T12:00:00Z"),
-        });
-      },
-      triggerPlanGeneration: () => {
-        triggered = true;
+      startCoachRun: () => {
+        started = true;
         return Promise.resolve(true);
       },
     });
@@ -708,12 +693,9 @@ describe("coaching activity comments", () => {
       activityId: "123",
       comment: "On reflection, the hills felt harder than I said.",
     });
-    expect(repliedTo.comment).toBe(
-      "On reflection, the hills felt harder than I said.",
-    );
-    expect(triggered).toBe(true);
+    expect(started).toBe(true);
     const body = (await res.json()) as { reply: { text: string } | null };
-    expect(body.reply?.text).toBe("Updated reply.");
+    expect(body.reply).toBeNull();
   });
 
   it("returns 404 when editing an activity without a comment", async () => {

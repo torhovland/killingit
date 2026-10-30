@@ -77,12 +77,17 @@ about a past workout, or before a suggested workout, to steer the coach.
   coaching inputs, with the forecast stored on the plan; see
   `docs/specs/coach-reply-context.md`.
 - The four-level plan is stored per user in `coach_plans`; generation progress
-  is in `plan_generations`. After 18:00 the stored plan also carries tomorrow's
-  session and, when tomorrow has crossed a week or block boundary, the next week
-  and next block, so the Day, Week and Block tabs agree. The next period is
-  promoted when today reaches it. Explicit regeneration can start a new season
-  from today or update the remaining part of the stored season; stale answers
-  update an existing season by default. See
+  is in `plan_generations`. Coach work is latest-wins: a new save claims the
+  user's run id, aborts the previous in-process provider request, and every
+  status write and plan save is fenced by that run id. A run first answers every
+  unanswered activity comment in one batched completion, stores those replies,
+  and then refreshes the plan, so replies appear before the slower plan phase.
+  See `docs/specs/coach-run-cancellation.md` and ADR 0014. After 18:00 the stored
+  plan also carries tomorrow's session and, when tomorrow has crossed a week or
+  block boundary, the next week and next block, so the Day, Week and Block tabs
+  agree. The next period is promoted when today reaches it. Explicit
+  regeneration can start a new season from today or update the remaining part of
+  the stored season; stale answers update an existing season by default. See
   `docs/specs/season-regeneration.md` and ADR 0011. Every lazy update (a day,
   week, block or season refresh) sends all current levels to one prompt and
   applies the returned block, week, day, next week, next block and tomorrow that
