@@ -364,8 +364,14 @@ describe("ability selection", () => {
     expect(parseAbilityGrade("nope")).toBeNull();
   });
 
-  it("keeps only models at or above the minimum grade", () => {
-    const models = [{ id: "a" }, { id: "b" }, { id: "c" }, { id: "d" }];
+  it("keeps models at or above the minimum grade plus every ungraded model", () => {
+    const models = [
+      { id: "a" },
+      { id: "b" },
+      { id: "c" },
+      { id: "d" },
+      { id: "e" },
+    ];
     const grades = new Map([
       ["a", "A+" as const],
       ["b", "A" as const],
@@ -374,6 +380,6 @@ describe("ability selection", () => {
     ]);
     expect(
       filterByMinimumAbility(models, grades, "A").map((model) => model.id),
-    ).toEqual(["a", "b"]);
+    ).toEqual(["a", "b", "d", "e"]);
   });
 });

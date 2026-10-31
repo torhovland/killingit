@@ -45,9 +45,9 @@ prompt is added — use `RESCORE_MIN_ABILITY`:
 RESCORE_MIN_ABILITY=A RUN_ID=2026-11-01-rescore-a bun benchmarks/prompts/run.ts
 ```
 
-This keeps models graded A or A+ and drops everything else, including ungraded
-models. Add `DRY_RUN=1` to write `models.json` and exit without calling any
-model.
+This keeps models graded A or A+ plus every ungraded model; models graded below
+A (B to F) are dropped. Add `DRY_RUN=1` to write `models.json` and exit without
+calling any model.
 
 `sync-db.ts` refreshes the catalog, records the scores, and recomputes Ability,
 Speed, Cost and Discouraged. The commands need the same `DATABASE_URL` and

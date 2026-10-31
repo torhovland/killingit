@@ -331,9 +331,6 @@ async function main(): Promise<void> {
       const output = model.architecture?.output_modalities;
       return output === undefined || output.includes("text");
     })
-    .filter(
-      (model) => !model.id.endsWith(":batch") && !model.id.endsWith(":free"),
-    )
     .sort((a, b) => a.id.localeCompare(b.id));
 
   const catalog = await import("../../apps/api/src/llm/modelCatalog.js");
@@ -351,7 +348,7 @@ async function main(): Promise<void> {
     const grades = await catalog.benchmarkAbilityGrades();
     models = filterByMinimumAbility(models, grades, minimum);
     log(
-      `re-score filter: keeping ${models.length} models graded ${minimum} or better`,
+      `re-score filter: keeping ${models.length} models graded ${minimum} or better plus every ungraded model`,
     );
   }
   if (models.length === 0) {

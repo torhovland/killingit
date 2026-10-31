@@ -107,7 +107,8 @@ export function filterByMinimumAbility<T extends { id: string }>(
   const floor = GRADE_ORDER[minimum];
   return models.filter((model) => {
     const grade = grades.get(model.id);
-    return grade !== undefined && GRADE_ORDER[grade] >= floor;
+    if (grade === undefined || grade === "?") return true;
+    return GRADE_ORDER[grade] >= floor;
   });
 }
 

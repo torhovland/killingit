@@ -70,8 +70,9 @@ about a past workout, or before a suggested workout, to steer the coach.
   both the today prompt and a drastic season-revision prompt, sums their time
   and cost, and grades ability F when the revision omits Atlas, leaves block 1
   unchanged or moves block 1's start date. Grades are re-run for ungraded
-  models with `PENDING_ONLY=1`, or for models that already reached a grade with
-  `RESCORE_MIN_ABILITY`; see `docs/specs/llm-model-catalog.md` and ADR 0016.
+  models with `PENDING_ONLY=1`, or re-score models at or above a grade while
+  keeping every ungraded model with `RESCORE_MIN_ABILITY`; see
+  `docs/specs/llm-model-catalog.md` and ADR 0016.
 - Every completion attempt is stored in `llm_calls` with its full messages,
   response or error, model, usage, and request metadata. The admin settings
   page lists them under "LLM prompts" (`GET /api/admin/llm-calls`). Logging is

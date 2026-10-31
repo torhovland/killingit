@@ -136,8 +136,9 @@ picked up automatically.
 
 To re-score only models that already reached a grade, set
 `RESCORE_MIN_ABILITY` (for example `RESCORE_MIN_ABILITY=A`) on `run.ts`; models
-below that grade, including ungraded models, are left untouched. `DRY_RUN=1`
-writes the selection to `models.json` without calling any model.
+graded below that grade are left untouched, while every ungraded model is still
+included. `DRY_RUN=1` writes the selection to `models.json` without calling any
+model.
 
 ## Acceptance criteria
 
