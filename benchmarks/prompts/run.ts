@@ -331,6 +331,9 @@ async function main(): Promise<void> {
       const output = model.architecture?.output_modalities;
       return output === undefined || output.includes("text");
     })
+    // Batch-only variants are asynchronous and cannot be called through the
+    // synchronous chat-completions endpoint this benchmark uses.
+    .filter((model) => !model.id.endsWith(":batch"))
     .sort((a, b) => a.id.localeCompare(b.id));
 
   const catalog = await import("../../apps/api/src/llm/modelCatalog.js");
