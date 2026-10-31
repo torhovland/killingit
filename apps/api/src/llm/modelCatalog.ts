@@ -41,7 +41,11 @@ export const GRADE_ORDER: Record<LlmModelGrade, number> = {
   "?": -1,
 };
 
-/** Estimated benchmark cost for a model that has not been called yet. */
+/**
+ * Estimated benchmark cost for a model that has not been called yet. The
+ * benchmark runs two prompts (the today plan and a season revision), so the
+ * estimate covers both calls.
+ */
 export function estimateBenchmarkCost(
   promptPricePerMillion: number | null,
   completionPricePerMillion: number | null,
@@ -50,8 +54,8 @@ export function estimateBenchmarkCost(
     return null;
   }
   return (
-    ((promptPricePerMillion ?? 0) * 16_000) / 1_000_000 +
-    ((completionPricePerMillion ?? 0) * 1_200) / 1_000_000
+    ((promptPricePerMillion ?? 0) * 32_000) / 1_000_000 +
+    ((completionPricePerMillion ?? 0) * 2_400) / 1_000_000
   );
 }
 
@@ -529,6 +533,16 @@ async function targetChainTouchesPending(
   const target = rows[0]?.aliasTargetSlug ?? null;
   if (target === null) return false;
   return targetChainTouchesPending(target, pendingIds, seen);
+}
+
+/** Current stored ability grade for every catalog model, keyed by id. */
+export async function benchmarkAbilityGrades(): Promise<
+  Map<string, LlmModelGrade>
+> {
+  const rows = await db
+    .select({ id: llmModels.id, ability: llmModels.ability })
+    .from(llmModels);
+  return new Map(rows.map((row) => [row.id, row.ability]));
 }
 
 /**

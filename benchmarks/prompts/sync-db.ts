@@ -6,18 +6,12 @@ import {
   refreshModelCatalog,
 } from "../../apps/api/src/llm/modelCatalog.js";
 
-const RUN_ID = process.env.RUN_ID ?? "2026-10-30-all-models";
+const RUN_ID = process.env.RUN_ID ?? "2026-10-31-two-prompts";
 const RUN_DIR = resolve(import.meta.dir, "runs", RUN_ID);
-
-interface Attempt {
-  timeMs: number;
-  costUsd: number;
-}
 
 interface ModelResult {
   id: string;
   name: string;
-  attempts: Attempt[];
   ok: boolean;
   totalTimeMs: number;
   totalCostUsd: number;
@@ -27,6 +21,7 @@ interface JudgeScore {
   id: string;
   score: number;
   components: Record<string, number>;
+  failed: boolean;
   judge: { error: string | null };
 }
 
@@ -47,15 +42,16 @@ async function main(): Promise<void> {
   let graded = 0;
   for (const result of results) {
     const judged = judgeById.get(result.id);
-    const failed =
+    const invalid =
       !result.ok || judged === undefined || judged.judge.error !== null;
+    const failed = invalid || judged.failed;
     await recordBenchmarkGrade({
       id: result.id,
       name: result.name,
-      score: failed ? 0 : judged.score,
+      score: invalid ? 0 : judged.score,
       timeMs: result.totalTimeMs,
       costUsd: result.totalCostUsd,
-      categories: failed ? null : judged.components,
+      categories: invalid ? null : judged.components,
       failed,
     });
     graded += 1;

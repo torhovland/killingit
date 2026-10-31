@@ -1,13 +1,22 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import {
+  BENCHMARK_PROMPTS,
+  filterByMinimumAbility,
+  parseAbilityGrade,
+  validateReviseSeasonPlan,
+  validateTodayPlan,
+} from "../../apps/api/src/llm/promptBenchmark.js";
+import type {
+  BenchmarkPromptId,
+  BenchmarkPromptDefinition,
+} from "../../apps/api/src/llm/promptBenchmark.js";
 
-const PROMPT_PATH = resolve(import.meta.dir, "prompt.txt");
-const RUN_ID = process.env.RUN_ID ?? "2026-10-30-all-models";
+const RUN_ID = process.env.RUN_ID ?? "2026-10-31-two-prompts";
 const RUN_DIR = resolve(import.meta.dir, "runs", RUN_ID);
 const API_URL = "https://openrouter.ai/api/v1";
-const MAX_TOKENS = Number(process.env.MAX_TOKENS ?? 8192);
 const CONCURRENCY = Number(process.env.CONCURRENCY ?? 10);
-const TIMEOUT_MS = Number(process.env.TIMEOUT_MS ?? 240_000);
+const TIMEOUT_MS = Number(process.env.TIMEOUT_MS ?? 300_000);
 
 interface OpenRouterModel {
   id: string;
@@ -42,10 +51,8 @@ interface Attempt {
   error: string | null;
 }
 
-interface ModelResult {
-  id: string;
-  name: string;
-  requestedAt: string;
+interface PromptResult {
+  prompt: BenchmarkPromptId;
   attempts: Attempt[];
   retryNeeded: boolean;
   ok: boolean;
@@ -53,6 +60,16 @@ interface ModelResult {
   totalCostUsd: number;
   plan: unknown | null;
   validationErrors: string[];
+}
+
+interface ModelResult {
+  id: string;
+  name: string;
+  requestedAt: string;
+  prompts: Record<BenchmarkPromptId, PromptResult>;
+  ok: boolean;
+  totalTimeMs: number;
+  totalCostUsd: number;
 }
 
 function slug(id: string): string {
@@ -77,85 +94,28 @@ function extractJson(text: string): unknown {
   throw new Error("no parseable JSON object in response");
 }
 
-const todaySessionSchema = {
-  required: [
-    "date",
-    "status",
-    "title",
-    "type",
-    "intensity",
-    "durationMinutes",
-    "outdoor",
-    "canBeOutdoor",
-    "estimatedTss",
-    "estimatedFtpWatts",
-    "bikeWorkout",
-    "description",
-    "optional",
-    "optionalRationale",
-  ],
-  types: {
-    date: "string",
-    status: "string",
-    title: "string",
-    type: "string",
-    intensity: "string",
-    durationMinutes: "number",
-    outdoor: "boolean",
-    canBeOutdoor: "boolean",
-    estimatedTss: "number",
-    estimatedFtpWatts: "number",
-    bikeWorkout: "object",
-    description: "string",
-    optional: "boolean",
-    optionalRationale: "string",
-  },
-} as const;
+function validatePrompt(prompt: BenchmarkPromptId, plan: unknown): string[] {
+  return prompt === "today"
+    ? validateTodayPlan(plan)
+    : validateReviseSeasonPlan(plan);
+}
 
-function validate(plan: unknown): string[] {
-  const errors: string[] = [];
-  if (typeof plan !== "object" || plan === null) {
-    return ["response is not an object"];
-  }
-  const root = plan as Record<string, unknown>;
-  const extraKeys = Object.keys(root).filter((key) => key !== "today");
-  if (extraKeys.length > 0)
-    errors.push(`unexpected root keys: ${extraKeys.join(", ")}`);
-  const today = root.today;
-  if (typeof today !== "object" || today === null) {
-    return [...errors, "missing today object"];
-  }
-  const session = today as Record<string, unknown>;
-  for (const key of todaySessionSchema.required) {
-    if (!(key in session)) errors.push(`missing field: ${key}`);
-  }
-  for (const [key, type] of Object.entries(todaySessionSchema.types)) {
-    if (!(key in session)) continue;
-    const value = session[key];
-    if (key === "bikeWorkout") {
-      if (value !== null && typeof value !== "object") {
-        errors.push("bikeWorkout must be null or an object");
-      }
-      continue;
-    }
-    if (typeof value !== type) errors.push(`${key} must be a ${type}`);
-  }
-  if (session.date !== "2026-10-30") errors.push("date must be 2026-10-30");
-  if (session.type !== "workout" && session.type !== "rest") {
-    errors.push("type must be workout or rest");
-  }
-  if (
-    !["easy", "moderate", "hard", "rest"].includes(String(session.intensity))
-  ) {
-    errors.push("intensity must be easy, moderate, hard or rest");
-  }
-  return errors;
+function tokensFor(
+  definition: BenchmarkPromptDefinition,
+  attempt: number,
+): number {
+  const overrideKey =
+    definition.id === "today" ? "MAX_TOKENS" : "MAX_TOKENS_REVISE";
+  const override = Number(process.env[overrideKey]);
+  if (Number.isFinite(override) && override > 0) return override;
+  return attempt === 0 ? definition.maxTokens : definition.retryMaxTokens;
 }
 
 async function callModel(
   apiKey: string,
   model: string,
   prompt: string,
+  maxTokens: number,
 ): Promise<Attempt> {
   const started = performance.now();
   const startedAt = new Date().toISOString();
@@ -168,12 +128,12 @@ async function callModel(
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
         "HTTP-Referer": "https://killingit.local/benchmark",
-        "X-Title": "Killingit today-prompt benchmark",
+        "X-Title": "Killingit prompt benchmark",
       },
       body: JSON.stringify({
         model,
         messages: [{ role: "user", content: prompt }],
-        max_tokens: MAX_TOKENS,
+        max_tokens: maxTokens,
         temperature: 0.2,
       }),
       signal: controller.signal,
@@ -244,21 +204,26 @@ async function callModel(
   }
 }
 
-async function runModel(
+async function runPrompt(
   apiKey: string,
   model: OpenRouterModel,
+  definition: BenchmarkPromptDefinition,
   prompt: string,
-): Promise<ModelResult> {
-  const requestedAt = new Date().toISOString();
+): Promise<PromptResult> {
   const attempts: Attempt[] = [];
   let plan: unknown | null = null;
   let validationErrors: string[] = [];
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    const result = await callModel(apiKey, model.id, prompt);
+    const result = await callModel(
+      apiKey,
+      model.id,
+      prompt,
+      tokensFor(definition, attempt),
+    );
     attempts.push(result);
     if (result.parsed !== null) {
-      const errors = validate(result.parsed);
+      const errors = validatePrompt(definition.id, result.parsed);
       if (errors.length === 0) {
         plan = result.parsed;
         validationErrors = [];
@@ -268,35 +233,90 @@ async function runModel(
     }
   }
 
-  await writeFile(
-    resolve(RUN_DIR, "raw", `${slug(model.id)}.json`),
-    `${JSON.stringify(attempts, null, 2)}\n`,
-  );
-
-  const totalTimeMs = attempts.reduce((sum, a) => sum + a.timeMs, 0);
-  const totalCostUsd = attempts.reduce((sum, a) => sum + a.costUsd, 0);
   return {
-    id: model.id,
-    name: model.name,
-    requestedAt,
+    prompt: definition.id,
     attempts,
     retryNeeded: attempts.length > 1,
     ok: plan !== null,
-    totalTimeMs,
-    totalCostUsd,
+    totalTimeMs: attempts.reduce((sum, attempt) => sum + attempt.timeMs, 0),
+    totalCostUsd: attempts.reduce((sum, attempt) => sum + attempt.costUsd, 0),
     plan,
     validationErrors,
   };
 }
 
+async function runModel(
+  apiKey: string,
+  model: OpenRouterModel,
+  prompts: ReadonlyMap<BenchmarkPromptId, string>,
+): Promise<ModelResult> {
+  const requestedAt = new Date().toISOString();
+  const results = {} as Record<BenchmarkPromptId, PromptResult>;
+
+  for (const definition of BENCHMARK_PROMPTS) {
+    const prompt = prompts.get(definition.id);
+    if (prompt === undefined) {
+      throw new Error(`missing prompt text for ${definition.id}`);
+    }
+    results[definition.id] = await runPrompt(apiKey, model, definition, prompt);
+  }
+
+  await writeFile(
+    resolve(RUN_DIR, "raw", `${slug(model.id)}.json`),
+    `${JSON.stringify(
+      BENCHMARK_PROMPTS.map((definition) => ({
+        prompt: definition.id,
+        attempts: results[definition.id].attempts,
+      })),
+      null,
+      2,
+    )}\n`,
+  );
+
+  const promptResults = BENCHMARK_PROMPTS.map(
+    (definition) => results[definition.id],
+  );
+  return {
+    id: model.id,
+    name: model.name,
+    requestedAt,
+    prompts: results,
+    ok: promptResults.every((result) => result.ok),
+    totalTimeMs: promptResults.reduce(
+      (sum, result) => sum + result.totalTimeMs,
+      0,
+    ),
+    totalCostUsd: promptResults.reduce(
+      (sum, result) => sum + result.totalCostUsd,
+      0,
+    ),
+  };
+}
+
+function isCurrentResult(value: unknown): value is ModelResult {
+  if (typeof value !== "object" || value === null) return false;
+  const result = value as Partial<ModelResult>;
+  if (typeof result.prompts !== "object" || result.prompts === null)
+    return false;
+  return BENCHMARK_PROMPTS.every(
+    (definition) => result.prompts?.[definition.id] !== undefined,
+  );
+}
+
 function log(message: string): void {
-  console.log(`today-benchmark> ${message}`);
+  console.log(`prompt-benchmark> ${message}`);
 }
 
 async function main(): Promise<void> {
   const apiKey = process.env.OPENROUTER_API_KEY?.trim();
   if (!apiKey) throw new Error("OPENROUTER_API_KEY is not set");
-  const prompt = await readFile(PROMPT_PATH, "utf8");
+  const prompts = new Map<BenchmarkPromptId, string>();
+  for (const definition of BENCHMARK_PROMPTS) {
+    prompts.set(
+      definition.id,
+      await readFile(resolve(import.meta.dir, definition.file), "utf8"),
+    );
+  }
   await mkdir(resolve(RUN_DIR, "raw"), { recursive: true });
 
   const modelsResponse = await fetch(`${API_URL}/models`);
@@ -311,28 +331,49 @@ async function main(): Promise<void> {
       const output = model.architecture?.output_modalities;
       return output === undefined || output.includes("text");
     })
+    .filter(
+      (model) => !model.id.endsWith(":batch") && !model.id.endsWith(":free"),
+    )
     .sort((a, b) => a.id.localeCompare(b.id));
+
+  const catalog = await import("../../apps/api/src/llm/modelCatalog.js");
   if (process.env.PENDING_ONLY === "1") {
-    const { pendingBenchmarkModelIds } =
-      await import("../../apps/api/src/llm/modelCatalog.js");
-    const pending = new Set(await pendingBenchmarkModelIds());
+    const pending = new Set(await catalog.pendingBenchmarkModelIds());
     models = models.filter((model) => pending.has(model.id));
     log(`pending-only run: ${models.length} ungraded models`);
-    if (models.length === 0) {
-      log("nothing to do; every catalog model already has a score");
-      return;
+  }
+  const minimumRaw = process.env.RESCORE_MIN_ABILITY?.trim();
+  if (minimumRaw) {
+    const minimum = parseAbilityGrade(minimumRaw);
+    if (minimum === null) {
+      throw new Error(`RESCORE_MIN_ABILITY is not a grade: ${minimumRaw}`);
     }
+    const grades = await catalog.benchmarkAbilityGrades();
+    models = filterByMinimumAbility(models, grades, minimum);
+    log(
+      `re-score filter: keeping ${models.length} models graded ${minimum} or better`,
+    );
+  }
+  if (models.length === 0) {
+    log("nothing to do; no model matched the selection");
+    return;
   }
   await writeFile(
     resolve(RUN_DIR, "models.json"),
     `${JSON.stringify(models, null, 2)}\n`,
   );
-  log(`running ${models.length} models`);
+  log(`running ${models.length} models at ${BENCHMARK_PROMPTS.length} prompts`);
+
+  if (process.env.DRY_RUN === "1") {
+    log("dry run: selection written to models.json, no calls made");
+    return;
+  }
 
   const resultsPath = resolve(RUN_DIR, "results.json");
   let results: ModelResult[] = [];
   try {
-    results = JSON.parse(await readFile(resultsPath, "utf8")) as ModelResult[];
+    const parsed: unknown = JSON.parse(await readFile(resultsPath, "utf8"));
+    results = Array.isArray(parsed) ? parsed.filter(isCurrentResult) : [];
   } catch {
     results = [];
   }
@@ -349,20 +390,25 @@ async function main(): Promise<void> {
       cursor += 1;
       const model = pending[index];
       if (!model) return;
-      const result = await runModel(apiKey, model, prompt);
+      const result = await runModel(apiKey, model, prompts);
       results.push(result);
       completed += 1;
+      const detail = BENCHMARK_PROMPTS.map((definition) => {
+        const promptResult = result.prompts[definition.id];
+        return `${definition.id} ${promptResult.ok ? "ok" : "FAILED"} ${(promptResult.totalTimeMs / 1000).toFixed(1)}s $${promptResult.totalCostUsd.toFixed(4)}`;
+      }).join(" | ");
       log(
-        `[${completed}/${models.length}] ${model.id} ` +
-          `${result.ok ? "ok" : "FAILED"} ${(result.totalTimeMs / 1000).toFixed(1)}s ` +
-          `$${result.totalCostUsd.toFixed(4)}${result.retryNeeded ? " retry" : ""}`,
+        `[${completed}/${models.length}] ${model.id} ${detail} ` +
+          `total ${(result.totalTimeMs / 1000).toFixed(1)}s $${result.totalCostUsd.toFixed(4)}`,
       );
       await writeFile(resultsPath, `${JSON.stringify(results, null, 2)}\n`);
     }
   };
 
   await Promise.all(Array.from({ length: CONCURRENCY }, () => worker()));
-  log(`done: ${results.filter((r) => r.ok).length}/${models.length} valid`);
+  log(
+    `done: ${results.filter((result) => result.ok).length}/${models.length} valid on both prompts`,
+  );
 }
 
 await main();

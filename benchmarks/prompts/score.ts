@@ -1,7 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
-const RUN_ID = process.env.RUN_ID ?? "2026-10-30-all-models";
+const RUN_ID = process.env.RUN_ID ?? "2026-10-31-two-prompts";
 const RUN_DIR = resolve(import.meta.dir, "runs", RUN_ID);
 
 interface Attempt {
@@ -20,16 +20,21 @@ interface Attempt {
   } | null;
 }
 
-interface ModelResult {
-  id: string;
-  name: string;
+interface PromptResult {
   attempts: Attempt[];
   retryNeeded: boolean;
   ok: boolean;
-  totalTimeMs: number;
-  totalCostUsd: number;
   plan: { today?: Record<string, unknown> } | null;
   validationErrors: string[];
+}
+
+interface ModelResult {
+  id: string;
+  name: string;
+  prompts: Record<string, PromptResult>;
+  ok: boolean;
+  totalTimeMs: number;
+  totalCostUsd: number;
 }
 
 interface Score {
@@ -68,8 +73,9 @@ function stripCodeFence(raw: string): string {
 
 function scoreModel(result: ModelResult): Score {
   const flags: string[] = [];
-  const today = result.plan?.today ?? null;
-  const raw = result.attempts.at(-1)?.raw ?? "";
+  const todayResult = result.prompts.today;
+  const today = todayResult?.plan?.today ?? null;
+  const raw = todayResult?.attempts.at(-1)?.raw ?? "";
   const rawTrimmed = raw.trim();
   const fenced = /^```/.test(rawTrimmed) || rawTrimmed.includes("```");
   const hasProse =
@@ -79,11 +85,11 @@ function scoreModel(result: ModelResult): Score {
 
   // 1. Contract (2.0)
   let contract = 0;
-  if (result.ok && today !== null) {
+  if (todayResult?.ok === true && today !== null) {
     contract += 1.0;
     if (!hasProse) contract += 0.25;
     else flags.push("extra prose around the JSON");
-    if (Object.keys(result.plan ?? {}).length === 1) contract += 0.25;
+    if (Object.keys(todayResult?.plan ?? {}).length === 1) contract += 0.25;
     else flags.push("extra top-level keys");
     contract += 0.25;
     if (!fenced) contract += 0.25;
@@ -91,14 +97,14 @@ function scoreModel(result: ModelResult): Score {
   } else {
     flags.push("no valid JSON");
   }
-  if (result.retryNeeded) flags.push("needed a retry");
+  if (todayResult?.retryNeeded === true) flags.push("needed a retry");
 
   if (today === null) {
-    const last = result.attempts.at(-1);
+    const last = todayResult?.attempts.at(-1);
     const reason =
       last?.error ??
       last?.parseError ??
-      result.validationErrors.join("; ") ??
+      todayResult?.validationErrors.join("; ") ??
       "no response";
     return {
       id: result.id,
@@ -112,7 +118,7 @@ function scoreModel(result: ModelResult): Score {
         detail: 0,
       },
       flags,
-      note: `No valid JSON was returned after ${result.attempts.length} attempt(s): ${reason}.`,
+      note: `No valid JSON was returned after ${todayResult?.attempts.length ?? 0} attempt(s): ${reason}.`,
     };
   }
 
@@ -507,7 +513,7 @@ function scoreModel(result: ModelResult): Score {
 
   const strengths: string[] = [];
   const weaknesses: string[] = [];
-  if (result.ok) strengths.push("valid JSON");
+  if (todayResult?.ok === true) strengths.push("valid JSON");
   if (fidelity >= 1.8)
     strengths.push("faithful to the planned Friday gym session");
   if (design >= 2.0)
@@ -527,7 +533,7 @@ function scoreModel(result: ModelResult): Score {
   if (detail < 0.8) weaknesses.push("sparse workout description");
   if (inventedCompletion)
     weaknesses.push("hallucinated that today's session was already completed");
-  if (result.retryNeeded) weaknesses.push("needed a retry");
+  if (todayResult?.retryNeeded === true) weaknesses.push("needed a retry");
 
   const noteParts: string[] = [];
   if (strengths.length > 0) {

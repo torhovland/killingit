@@ -106,19 +106,23 @@ telling the athlete to open Settings and choose another one.
 
 ### Benchmark upkeep
 
-The today-prompt benchmark can run only the models that still have `?` in
-ability or speed:
+The prompts benchmark runs two prompts per model: the single-day plan
+(`today-prompt.txt`) and a drastic season revision (`revise-season-prompt.txt`).
+Ability is F when a model never mentions Atlas, leaves block 1 unchanged, or
+changes block 1's start date, and speed and cost are the sum of both prompt
+runs. The benchmark can run only the models that still have `?` in ability or
+speed:
 
 ```sh
 # 1. Run the pending models into a fresh run directory
 PENDING_ONLY=1 RUN_ID=2026-11-15-pending \
-  bun benchmarks/today-prompt/run.ts
+  bun benchmarks/prompts/run.ts
 
-# 2. Judge the returned JSON with Haiku
-RUN_ID=2026-11-15-pending bun benchmarks/today-prompt/judge.ts
+# 2. Judge both returned JSON documents with Haiku
+RUN_ID=2026-11-15-pending bun benchmarks/prompts/judge.ts
 
 # 3. Save the grades into llm_models
-RUN_ID=2026-11-15-pending bun benchmarks/today-prompt/sync-db.ts
+RUN_ID=2026-11-15-pending bun benchmarks/prompts/sync-db.ts
 ```
 
 `pendingBenchmarkModelIds()` resolves alias dependencies before returning the
@@ -129,6 +133,11 @@ target onto its waiting aliases, and recomputes ability, speed, cost and
 discouraged. It also clears `needs_rescore` for the models it graded. New
 models, price-changed models and aliases whose target could not be copied are
 picked up automatically.
+
+To re-score only models that already reached a grade, set
+`RESCORE_MIN_ABILITY` (for example `RESCORE_MIN_ABILITY=A`) on `run.ts`; models
+below that grade, including ungraded models, are left untouched. `DRY_RUN=1`
+writes the selection to `models.json` without calling any model.
 
 ## Acceptance criteria
 
@@ -141,3 +150,6 @@ picked up automatically.
    `daily_model`.
 5. A retired or discouraged selection is refused with a Settings-page message.
 6. The benchmark can run only ungraded models and write their grades back.
+7. The benchmark tests each model at the today prompt and the season-revision
+   prompt, sums their time and cost, and grades ability F when the revision
+   omits Atlas, leaves block 1 unchanged, or moves block 1's start date.
