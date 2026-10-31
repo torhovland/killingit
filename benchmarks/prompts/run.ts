@@ -445,7 +445,7 @@ async function main(): Promise<void> {
 
   await Promise.all(Array.from({ length: CONCURRENCY }, () => worker()));
   log(
-    `done: ${results.filter((result) => result.ok).length}/${models.length} valid on both prompts`,
+    `done: ${results.filter((result) => result.ok).length}/${results.length} models valid on both prompts`,
   );
 }
 
