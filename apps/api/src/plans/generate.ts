@@ -91,7 +91,12 @@ export interface PlanGenerationContext {
   bodyHistory?: BodyMetricHistory | undefined;
   provider: LlmProvider;
   apiKey: string;
+  /** Daily model, kept as the default for older callers and tests. */
   model: string;
+  /** Season/block model; falls back to `model`. */
+  seasonModel?: string;
+  /** Week/day model; falls back to `model`. */
+  dailyModel?: string;
   /** Cancels this run's provider requests when a newer run starts. */
   signal?: AbortSignal;
 }
@@ -191,7 +196,7 @@ export async function runPlanGeneration(
         plan: input.plan.plan,
         provider: context.provider,
         apiKey: context.apiKey,
-        model: context.model,
+        model: seasonModelFor(context),
         athleteAnswers: context.answers,
         activities: context.activities,
         manualActivities: context.manualActivities,
@@ -272,13 +277,14 @@ export async function runPlanGeneration(
       await generations.update(userId, PLAN_GENERATION_STEPS.season, runId);
       const seasonUpdate = await generateSeasonPlan(
         context.provider,
-        credentials(context),
+        credentials(context, seasonModelFor(context)),
         baseContext(input),
       );
       await recordCoachQuestions(
         input,
         seasonUpdate.coachQuestions,
         "season_plan",
+        seasonModelFor(context),
       );
       const season: SeasonPlan = seasonUpdate.season;
 
@@ -289,13 +295,14 @@ export async function runPlanGeneration(
       );
       const generatedBlock = await generateInitialBlock(
         context.provider,
-        credentials(context),
+        credentials(context, seasonModelFor(context)),
         { ...baseContext(input), season },
       );
       await recordCoachQuestions(
         input,
         generatedBlock.coachQuestions,
         "initial_block",
+        seasonModelFor(context),
       );
       const block: BlockPlan = generatedBlock.block;
       const foundBodyMetrics: readonly BodyMetricEstimate[] = mergeBodyMetrics(
@@ -310,7 +317,7 @@ export async function runPlanGeneration(
       );
       const weekUpdate = await generateWeeklyUpdate(
         context.provider,
-        credentials(context),
+        credentials(context, dailyModelFor(context)),
         {
           ...baseContext(input),
           ...weatherContext(input),
@@ -323,12 +330,13 @@ export async function runPlanGeneration(
         input,
         weekUpdate.coachQuestions,
         "weekly_update",
+        dailyModelFor(context),
       );
 
       await generations.update(userId, PLAN_GENERATION_STEPS.day, runId);
       const dayUpdate = await generateDailyUpdate(
         context.provider,
-        credentials(context),
+        credentials(context, dailyModelFor(context)),
         {
           ...baseContext(input),
           ...weatherContext(input),
@@ -341,6 +349,7 @@ export async function runPlanGeneration(
         input,
         dayUpdate.coachQuestions,
         "daily_update",
+        dailyModelFor(context),
       );
 
       const todayPlan = deriveTodayStatus(
@@ -749,7 +758,12 @@ async function requestPlanUpdate(
   );
   const update = await generatePlanUpdate(
     context.provider,
-    credentials(context),
+    credentials(
+      context,
+      flags.season || flags.block || flags.nextBlock
+        ? seasonModelFor(context)
+        : dailyModelFor(context),
+    ),
     {
       ...baseContext(input),
       ...weatherContext(input),
@@ -773,7 +787,14 @@ async function requestPlanUpdate(
         : {}),
     },
   );
-  await recordCoachQuestions(input, update.coachQuestions, "plan_update");
+  await recordCoachQuestions(
+    input,
+    update.coachQuestions,
+    "plan_update",
+    flags.season || flags.block || flags.nextBlock
+      ? seasonModelFor(context)
+      : dailyModelFor(context),
+  );
   return applyPlanUpdate(input, current, update, flags, options);
 }
 
@@ -1182,10 +1203,18 @@ function assertPlanValid(
   }
 }
 
-function credentials(context: PlanGenerationContext) {
+function seasonModelFor(context: PlanGenerationContext): string {
+  return context.seasonModel ?? context.model;
+}
+
+function dailyModelFor(context: PlanGenerationContext): string {
+  return context.dailyModel ?? context.model;
+}
+
+function credentials(context: PlanGenerationContext, model = context.model) {
   return {
     apiKey: context.apiKey,
-    model: context.model,
+    model,
     ...(context.signal !== undefined ? { signal: context.signal } : {}),
   };
 }
@@ -1434,6 +1463,7 @@ async function recordCoachQuestions(
   input: GeneratePlanInput,
   questions: readonly string[] | null | undefined,
   sourceKind: CoachQuestionSourceKind,
+  model: string,
 ): Promise<void> {
   if (
     input.recordCoachQuestions === undefined ||
@@ -1449,7 +1479,7 @@ async function recordCoachQuestions(
   try {
     await input.recordCoachQuestions({
       questions,
-      model: input.context.model,
+      model,
       sourceKind,
     });
   } catch (err) {

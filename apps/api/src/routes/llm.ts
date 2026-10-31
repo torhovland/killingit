@@ -1,4 +1,5 @@
 import {
+  llmCatalogResponseSchema,
   llmModelsResponseSchema,
   llmSettingsSchema,
   llmSettingsUpdateSchema,
@@ -15,6 +16,10 @@ import {
   LlmAuthError,
   LlmProviderError,
 } from "../llm/openrouter.js";
+import {
+  ensureModelCatalogFresh,
+  loadModelCatalog,
+} from "../llm/modelCatalog.js";
 import { loadLlmSettings, saveLlmSettings } from "../llm/store.js";
 import type { UserStore } from "../users/store.js";
 
@@ -23,17 +28,25 @@ export interface LlmRouteDependencies {
   /** Injectable for route tests; defaults to the database-backed store. */
   loadSettings?: typeof loadLlmSettings;
   saveSettings?: typeof saveLlmSettings;
+  /** Injectable for route tests; defaults to the graded catalog. */
+  loadCatalog?: typeof loadModelCatalog;
+  /** Injectable for route tests; defaults to the 24-hour refresh job. */
+  refreshCatalog?: typeof ensureModelCatalogFresh;
 }
 
 /** Reads the stored configuration without ever exposing the encrypted key. */
 function settingsFromStored(stored: {
   provider: string;
   model: string;
+  seasonModel?: string;
+  dailyModel?: string;
 }): LlmSettings {
   return {
     configured: true,
     provider: stored.provider,
     model: stored.model,
+    seasonModel: stored.seasonModel ?? stored.model,
+    dailyModel: stored.dailyModel ?? stored.model,
   };
 }
 
@@ -59,6 +72,8 @@ function respondProviderError(c: Context, err: unknown): Response {
 export function createLlmRoute(deps: LlmRouteDependencies): Hono {
   const loadSettings = deps.loadSettings ?? loadLlmSettings;
   const saveSettings = deps.saveSettings ?? saveLlmSettings;
+  const loadCatalog = deps.loadCatalog ?? loadModelCatalog;
+  const refreshCatalog = deps.refreshCatalog ?? ensureModelCatalogFresh;
 
   return new Hono()
     .get("/settings", async (c) => {
@@ -68,7 +83,13 @@ export function createLlmRoute(deps: LlmRouteDependencies): Hono {
         llmSettingsSchema.parse(
           stored
             ? settingsFromStored(stored)
-            : { configured: false, provider: "openrouter", model: null },
+            : {
+                configured: false,
+                provider: "openrouter",
+                model: null,
+                seasonModel: null,
+                dailyModel: null,
+              },
         ),
       );
     })
@@ -76,8 +97,16 @@ export function createLlmRoute(deps: LlmRouteDependencies): Hono {
       "/settings",
       zValidator("json", llmSettingsUpdateSchema),
       async (c) => {
-        const { apiKey, model } = c.req.valid("json");
+        const { apiKey, model, seasonModel, dailyModel } = c.req.valid("json");
         const user = await deps.users.ensureUser(getAthlete(c).sub);
+        const nextSeasonModel = seasonModel ?? model;
+        const nextDailyModel = dailyModel ?? model;
+        if (!nextSeasonModel || !nextDailyModel) {
+          return c.text(
+            "Choose both a season planning model and a day-to-day model",
+            400,
+          );
+        }
 
         let key: CryptoKey;
         try {
@@ -104,9 +133,19 @@ export function createLlmRoute(deps: LlmRouteDependencies): Hono {
 
         // Reject typos before they become silent per-activity failures later.
         try {
-          const models = await provider.listModels();
-          if (!models.some((candidate) => candidate.id === model)) {
-            return c.text(`Unknown OpenRouter model: ${model}`, 400);
+          const catalog = await loadCatalog();
+          const known =
+            catalog.length > 0
+              ? new Set(catalog.map((candidate) => candidate.id))
+              : new Set(
+                  (await provider.listModels()).map(
+                    (candidate) => candidate.id,
+                  ),
+                );
+          for (const chosen of [nextSeasonModel, nextDailyModel]) {
+            if (!known.has(chosen)) {
+              return c.text(`Unknown OpenRouter model: ${chosen}`, 400);
+            }
           }
         } catch (err) {
           return respondProviderError(c, err);
@@ -115,9 +154,18 @@ export function createLlmRoute(deps: LlmRouteDependencies): Hono {
         await saveSettings(user.id, {
           provider: provider.id,
           apiKeyEncrypted,
-          model,
+          model: nextDailyModel,
+          seasonModel: nextSeasonModel,
+          dailyModel: nextDailyModel,
         });
-        return c.json(settingsFromStored({ provider: provider.id, model }));
+        return c.json(
+          settingsFromStored({
+            provider: provider.id,
+            model: nextDailyModel,
+            seasonModel: nextSeasonModel,
+            dailyModel: nextDailyModel,
+          }),
+        );
       },
     )
     .get("/models", async (c) => {
@@ -128,5 +176,22 @@ export function createLlmRoute(deps: LlmRouteDependencies): Hono {
       } catch (err) {
         return respondProviderError(c, err);
       }
+    })
+    .get("/catalog", async (c) => {
+      try {
+        const models = await loadCatalog();
+        return c.json(llmCatalogResponseSchema.parse({ models }));
+      } catch (err) {
+        console.error("[llm] could not load the model catalog:", err);
+        return c.text("Service Unavailable", 503);
+      }
+    })
+    .post("/models/refresh", (c) => {
+      // Page visits fire this without waiting; the job itself is rate-limited
+      // to one OpenRouter catalog check every 24 hours.
+      void refreshCatalog().catch((err: unknown) => {
+        console.error("[llm] model catalog refresh failed:", err);
+      });
+      return c.json({ started: true }, 202);
     });
 }

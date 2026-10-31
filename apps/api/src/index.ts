@@ -22,7 +22,7 @@ import type {
 } from "./coaching/replies.js";
 import type { saveActivityReview } from "./coaching/reviews.js";
 import type { startCoachRun } from "./coaching/coachRun.js";
-import type { LlmClient } from "./llm/client.js";
+import { LlmModelChoiceError, type LlmClient } from "./llm/client.js";
 import {
   createActivityComment,
   loadManualActivities,
@@ -190,6 +190,14 @@ export function createApp(deps: AppDependencies = {}): Hono {
   const generationStore = deps.generationStore ?? dbPlanGenerationStore;
 
   const app = new Hono();
+
+  app.onError((err, c) => {
+    if (err instanceof LlmModelChoiceError) {
+      return c.json({ error: err.message, settingsUrl: "/settings" }, 409);
+    }
+    console.error("[api] unhandled error:", err);
+    return c.text("Internal Server Error", 500);
+  });
 
   // Initialize Sentry and enable distributed tracing + error capture first, so
   // every request below is traced and errors are captured. No-op without a DSN.

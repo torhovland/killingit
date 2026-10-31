@@ -1,4 +1,4 @@
-import type { LlmClient } from "../llm/client.js";
+import { LlmModelChoiceError, type LlmClient } from "../llm/client.js";
 import { generateCoachReplies } from "../llm/coachReplyBatch.js";
 import { generateCoachReply } from "../llm/coachReply.js";
 import type { CoachReplyTarget } from "../llm/coachReplyPrompt.js";
@@ -132,6 +132,7 @@ export async function replyToUnansweredActivityComments(
       (deps.loadUnansweredComments ?? loadUnansweredActivityComments)(userId),
     ]);
   } catch (err) {
+    if (err instanceof LlmModelChoiceError) throw err;
     console.error("[coach-reply] could not load unanswered comments:", err);
     return [];
   }
@@ -281,6 +282,7 @@ async function generateReply(
       deps.loadLlm(userId),
     ]);
   } catch (err) {
+    if (err instanceof LlmModelChoiceError) throw err;
     console.error(`[${options.label}] could not load the reply context:`, err);
     return null;
   }

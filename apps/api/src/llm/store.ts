@@ -5,7 +5,10 @@ import { llmSettings } from "../db/schema.js";
 export interface StoredLlmSettings {
   provider: string;
   apiKeyEncrypted: string;
+  /** Legacy single model, still returned for older callers. */
   model: string;
+  seasonModel?: string;
+  dailyModel?: string;
 }
 
 /**
@@ -23,6 +26,8 @@ export async function saveLlmSettings(
       provider: settings.provider,
       apiKeyEncrypted: settings.apiKeyEncrypted,
       model: settings.model,
+      seasonModel: settings.seasonModel ?? settings.model,
+      dailyModel: settings.dailyModel ?? settings.model,
     })
     .onConflictDoUpdate({
       target: llmSettings.userId,
@@ -30,6 +35,8 @@ export async function saveLlmSettings(
         provider: settings.provider,
         apiKeyEncrypted: settings.apiKeyEncrypted,
         model: settings.model,
+        seasonModel: settings.seasonModel ?? settings.model,
+        dailyModel: settings.dailyModel ?? settings.model,
         updatedAt: new Date(),
       },
     });
@@ -55,5 +62,7 @@ export async function loadLlmSettings(
     provider: row.provider,
     apiKeyEncrypted: row.apiKeyEncrypted,
     model: row.model,
+    seasonModel: row.seasonModel ?? row.model,
+    dailyModel: row.dailyModel ?? row.model,
   };
 }

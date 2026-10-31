@@ -62,6 +62,13 @@ about a past workout, or before a suggested workout, to steer the coach.
   (`apps/api/src/llm/openrouter.ts`). Each account's API key is encrypted at
   rest and its chosen model stored in `llm_settings`. Activity analyses are
   cached per account in `activity_analyses`. See ADR 0004.
+- The model picker is backed by a graded catalog in `llm_models`, refreshed in
+  the background at most once every 24 hours (`llm_model_sync`). The Settings
+  page selects a season/block model and a separate day-to-day model; both IDs
+  live in `llm_settings`. Retired or discouraged selections are refused with a
+  prompt to open Settings. Grades come from the today-prompt benchmark and are
+  re-run for ungraded models with `PENDING_ONLY=1`; see
+  `docs/specs/llm-model-catalog.md` and ADR 0016.
 - Every completion attempt is stored in `llm_calls` with its full messages,
   response or error, model, usage, and request metadata. The admin settings
   page lists them under "LLM prompts" (`GET /api/admin/llm-calls`). Logging is

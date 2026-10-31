@@ -13,6 +13,8 @@ import { trainingLoadSchema } from "./trainingLoad.js";
 export const llmModelSchema = z.object({
   id: z.string(),
   name: z.string(),
+  /** For alias ids such as `~provider/model-latest`, the concrete target. */
+  aliasTargetSlug: z.string().nullable().default(null),
   contextLength: z.number().nullable().default(null),
   promptPricePerMillion: z.number().nullable().default(null),
   completionPricePerMillion: z.number().nullable().default(null),
@@ -27,14 +29,53 @@ export const llmModelsResponseSchema = z.object({
 
 export type LlmModelsResponse = z.infer<typeof llmModelsResponseSchema>;
 
+/** Letter grade used by the model catalog. `?` means not benchmarked yet. */
+export const llmModelGradeSchema = z.enum([
+  "A+",
+  "A",
+  "B",
+  "C",
+  "D",
+  "E",
+  "F",
+  "?",
+]);
+
+export type LlmModelGrade = z.infer<typeof llmModelGradeSchema>;
+
+/** One graded model in the account's model picker. */
+export const llmCatalogModelSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  retired: z.boolean(),
+  discouraged: z.boolean(),
+  ability: llmModelGradeSchema,
+  speed: llmModelGradeSchema,
+  cost: llmModelGradeSchema,
+  benchmarkScore: z.number().nullable(),
+  benchmarkTimeMs: z.number().nullable(),
+  benchmarkCostUsd: z.number().nullable(),
+});
+
+export type LlmCatalogModel = z.infer<typeof llmCatalogModelSchema>;
+
+/** Response body of `GET /api/llm/catalog`. */
+export const llmCatalogResponseSchema = z.object({
+  models: z.array(llmCatalogModelSchema),
+});
+
+export type LlmCatalogResponse = z.infer<typeof llmCatalogResponseSchema>;
+
 /**
  * Provider configuration as exposed to the client. The API key is deliberately
- * absent — only whether a key is stored and which model is selected.
+ * absent — only whether a key is stored and which models are selected.
  */
 export const llmSettingsSchema = z.object({
   configured: z.boolean(),
   provider: z.string(),
   model: z.string().nullable(),
+  seasonModel: z.string().nullable().default(null),
+  dailyModel: z.string().nullable().default(null),
 });
 
 export type LlmSettings = z.infer<typeof llmSettingsSchema>;
@@ -43,10 +84,22 @@ export type LlmSettings = z.infer<typeof llmSettingsSchema>;
  * Request body for `PUT /api/llm/settings`. `apiKey` may be omitted when a key
  * is already stored (the client only sends it when rotating the key).
  */
-export const llmSettingsUpdateSchema = z.object({
-  apiKey: z.string().min(1).optional(),
-  model: z.string().min(1),
-});
+export const llmSettingsUpdateSchema = z
+  .object({
+    apiKey: z.string().min(1).optional(),
+    /** Legacy single-model field; used for both roles when supplied alone. */
+    model: z.string().min(1).optional(),
+    seasonModel: z.string().min(1).optional(),
+    dailyModel: z.string().min(1).optional(),
+  })
+  .refine(
+    (value) =>
+      value.model !== undefined ||
+      (value.seasonModel !== undefined && value.dailyModel !== undefined),
+    {
+      message: "Provide seasonModel and dailyModel, or the legacy model field",
+    },
+  );
 
 export type LlmSettingsUpdate = z.infer<typeof llmSettingsUpdateSchema>;
 

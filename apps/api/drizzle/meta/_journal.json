@@ -232,6 +232,27 @@
       "when": 1793377414951,
       "tag": "0032_slimy_warhawk",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1793445700347,
+      "tag": "0033_sloppy_rachel_grey",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1793448246243,
+      "tag": "0034_natural_shinko_yamashiro",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1793460904071,
+      "tag": "0035_yellow_tyrannus",
+      "breakpoints": true
     }
   ]
 }

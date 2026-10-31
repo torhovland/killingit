@@ -134,8 +134,8 @@ export function SettingsPage({
       <div className="flex flex-col gap-1">
         <h2 className="text-3xl font-semibold">Settings</h2>
         <p className="text-base text-muted-foreground">
-          Connect your training data, set your location, configure the coach's
-          model, and rebuild your plan.
+          Connect your training data, set your location, choose the coach's
+          season and day-to-day models, and rebuild your plan.
         </p>
       </div>
 

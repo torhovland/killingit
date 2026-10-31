@@ -163,7 +163,7 @@ export async function runPlanForUser(
               limit: MAX_ANALYZED_ACTIVITIES,
               refresh: false,
             }),
-        deps.loadLlm ? deps.loadLlm(userId) : loadLlmClient(userId),
+        deps.loadLlm ? deps.loadLlm(userId) : loadLlmClient(userId, "all"),
         deps.loadCoachingInputs
           ? deps.loadCoachingInputs(userId, startOfWeek(today))
           : loadCoachingInputs(userId, startOfWeek(today)),
@@ -329,6 +329,10 @@ export async function runPlanForUser(
       provider: llm.provider,
       apiKey: llm.apiKey,
       model: llm.model,
+      ...(llm.seasonModel !== undefined
+        ? { seasonModel: llm.seasonModel }
+        : {}),
+      ...(llm.dailyModel !== undefined ? { dailyModel: llm.dailyModel } : {}),
       signal: options.signal,
     },
     plans: deps.plans,
