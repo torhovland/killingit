@@ -11,9 +11,12 @@ also changes without notice.
 ## Decision
 
 Store every OpenRouter model in `llm_models` with retired/discouraged flags and
-ability, speed and cost grades derived from the today-prompt benchmark. Refresh
-the catalog in the background on a page visit, at most once every 24 hours, and
-mark models missing from OpenRouter as retired.
+ability, speed and cost grades derived from the prompts benchmark. The benchmark
+runs two prompts per model, a single-day plan and a drastic season revision, and
+sums their time and cost. Ability is F when the revision omits Atlas, leaves
+block 1 unchanged, or changes block 1's start date. Refresh the catalog in the
+background on a page visit, at most once every 24 hours, and mark models missing
+from OpenRouter as retired.
 
 Replace the free-text model field with one sortable, filterable table and two
 selections: a season model for season plans, season refreshes and block
