@@ -61,3 +61,26 @@ HTML report is generated with:
 ```sh
 SCORES_FILE=judge-scores.json USE_OVERRIDES=0 bun benchmarks/prompts/report.ts
 ```
+
+## Completing an interrupted run
+
+Provider credit limits, rate limits or a timeout can leave some prompts
+unfinished. The stages can resume without re-calling prompts that already have
+a valid answer:
+
+```sh
+# Retry only the prompts that are still unfinished, cheapest models first.
+RETRY_FAILED=1 CONCURRENCY=2 RUN_ID=... bun benchmarks/prompts/run.ts
+
+# Judge only models that finished both prompts; re-judge empty judge responses.
+ONLY_VALID=1 RETRY_FAILED_JUDGES=1 RUN_ID=... bun benchmarks/prompts/judge.ts
+
+# Record finished models only and leave the rest at their previous grade.
+SKIP_FAILED=1 SKIP_REFRESH=1 RUN_ID=... bun benchmarks/prompts/sync-db.ts
+```
+
+`RETRY_FAILED=1` merges the new attempt into the existing prompt result, so the
+recorded time and cost still cover every attempt. `RETRY_FAILED_JUDGES=1`
+replaces a judge entry whose Haiku call returned an empty or unusable response.
+`SKIP_FAILED=1` is deliberate: infrastructure failures must not turn a model
+into an F.

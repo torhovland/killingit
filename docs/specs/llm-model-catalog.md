@@ -141,6 +141,11 @@ included. `:batch` variants are excluded because they are asynchronous and
 cannot be called through the synchronous endpoint. `DRY_RUN=1` writes the
 selection to `models.json` without calling any model.
 
+If a run is interrupted by a provider limit, `RETRY_FAILED=1` re-runs only the
+unfinished prompts, `ONLY_VALID=1 RETRY_FAILED_JUDGES=1` judges the models that
+finished both prompts, and `SKIP_FAILED=1 SKIP_REFRESH=1` records only those
+models so an infrastructure failure is not written as a model failure.
+
 ## Acceptance criteria
 
 1. The catalog table contains every OpenRouter model with the grade columns.
