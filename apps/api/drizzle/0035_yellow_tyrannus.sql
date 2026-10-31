@@ -1,0 +1,1 @@
+ALTER TABLE "llm_models" ADD COLUMN "alias_target_slug" text;

@@ -368,6 +368,7 @@ function normalizeModel(raw: unknown): LlmModel | null {
     context_length?: unknown;
     pricing?: { prompt?: unknown; completion?: unknown };
     architecture?: { output_modalities?: unknown };
+    alias_target?: { slug?: unknown };
   };
   if (typeof entry.id !== "string" || entry.id === "") {
     return null;
@@ -386,6 +387,10 @@ function normalizeModel(raw: unknown): LlmModel | null {
       typeof entry.name === "string" && entry.name !== ""
         ? entry.name
         : entry.id,
+    aliasTargetSlug:
+      typeof entry.alias_target?.slug === "string"
+        ? entry.alias_target.slug
+        : null,
     contextLength:
       typeof entry.context_length === "number" ? entry.context_length : null,
     promptPricePerMillion: pricePerMillion(entry.pricing?.prompt),

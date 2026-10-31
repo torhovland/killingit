@@ -70,6 +70,12 @@ list in the background.
   recalculated from the new price and the model is marked `needsRescore` so the
   next pending benchmark run captures the real charged cost. The first pricing
   observation stores the price without treating it as a change.
+- Alias models such as `~deepseek/deepseek-flash-latest` store OpenRouter's
+  `alias_target.slug`. When that target changes, the alias is reset to
+  ungraded, then immediately inherits the target's ability, speed, score and
+  category data if the target is graded. Its cost grade still comes from the
+  alias's own list price. If the target has no grade, the alias waits for the
+  pending benchmark.
 - New models are inserted with `retired=false`, `discouraged=false`,
   `ability=?`, `speed=?`, and a cost grade estimated from the list price.
 - Models missing from OpenRouter are marked retired.

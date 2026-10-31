@@ -1,5 +1,5 @@
 import type { LlmModel, LlmModelGrade } from "@killingit/shared";
-import { and, eq, isNull, lt, notInArray, or } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, lt, notInArray, or } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { llmModels, llmModelSync } from "../db/schema.js";
 import { createOpenRouterProvider } from "./openrouter.js";
@@ -75,6 +75,14 @@ export function pricingChanged(
   );
 }
 
+/** True when a known alias points at a different concrete model. */
+export function aliasTargetChanged(
+  previous: string | null,
+  next: string | null,
+): boolean {
+  return previous !== null && next !== null && previous !== next;
+}
+
 export function costGrade(costUsd: number | null | undefined): LlmModelGrade {
   if (costUsd === null || costUsd === undefined) return "?";
   if (costUsd < COST_GRADE_LIMITS.aPlus) return "A+";
@@ -147,6 +155,10 @@ export interface CatalogRefreshResult {
   retired: number;
   /** Models whose list price changed and whose cost grade was refreshed. */
   rescored: number;
+  /** Alias models whose concrete target changed and now await a new score. */
+  reassigned: number;
+  /** Alias models that inherited their target's benchmark data. */
+  copied: number;
   error: string | null;
 }
 
@@ -168,6 +180,101 @@ async function claimCatalogCheck(): Promise<boolean> {
     )
     .returning({ id: llmModelSync.id });
   return claimed.length > 0;
+}
+
+interface BenchmarkCopy {
+  ability: LlmModelGrade;
+  speed: LlmModelGrade;
+  benchmarkScore: number | null;
+  benchmarkTimeMs: number | null;
+  benchmarkCategories: Record<string, number> | null;
+  benchmarkedAt: Date | null;
+  benchmarkCostUsd: number | null;
+}
+
+/** Follows alias targets until it finds a graded model, if one exists. */
+async function loadTargetBenchmark(
+  targetSlug: string,
+  seen: Set<string> = new Set(),
+): Promise<BenchmarkCopy | null> {
+  if (seen.has(targetSlug)) return null;
+  seen.add(targetSlug);
+  const rows = await db
+    .select({
+      ability: llmModels.ability,
+      speed: llmModels.speed,
+      benchmarkScore: llmModels.benchmarkScore,
+      benchmarkTimeMs: llmModels.benchmarkTimeMs,
+      benchmarkCategories: llmModels.benchmarkCategories,
+      benchmarkedAt: llmModels.benchmarkedAt,
+      benchmarkCostUsd: llmModels.benchmarkCostUsd,
+      aliasTargetSlug: llmModels.aliasTargetSlug,
+    })
+    .from(llmModels)
+    .where(eq(llmModels.id, targetSlug))
+    .limit(1);
+  const row = rows[0];
+  if (!row) return null;
+  if (row.ability !== "?" && row.benchmarkScore !== null) {
+    return {
+      ability: row.ability,
+      speed: row.speed,
+      benchmarkScore: row.benchmarkScore,
+      benchmarkTimeMs: row.benchmarkTimeMs,
+      benchmarkCategories: row.benchmarkCategories,
+      benchmarkedAt: row.benchmarkedAt,
+      benchmarkCostUsd: row.benchmarkCostUsd,
+    };
+  }
+  if (row.aliasTargetSlug !== null) {
+    return loadTargetBenchmark(row.aliasTargetSlug, seen);
+  }
+  return null;
+}
+
+/**
+ * Copies the concrete model's benchmark data onto an alias. The alias keeps
+ * its own cost estimate because OpenRouter can price an alias differently from
+ * its target.
+ */
+async function copyBenchmarkToAliases(): Promise<number> {
+  const aliases = await db
+    .select()
+    .from(llmModels)
+    .where(
+      and(
+        isNotNull(llmModels.aliasTargetSlug),
+        or(eq(llmModels.ability, "?"), eq(llmModels.needsRescore, true)),
+      ),
+    );
+  let copied = 0;
+  for (const alias of aliases) {
+    if (alias.aliasTargetSlug === null) continue;
+    const target = await loadTargetBenchmark(alias.aliasTargetSlug);
+    if (target === null) continue;
+    const estimatedCost =
+      estimateBenchmarkCost(
+        alias.promptPricePerMillion,
+        alias.completionPricePerMillion,
+      ) ?? target.benchmarkCostUsd;
+    await db
+      .update(llmModels)
+      .set({
+        ability: target.ability,
+        speed: target.speed,
+        benchmarkScore: target.benchmarkScore,
+        benchmarkTimeMs: target.benchmarkTimeMs,
+        benchmarkCategories: target.benchmarkCategories,
+        benchmarkedAt: target.benchmarkedAt,
+        benchmarkCostUsd: estimatedCost,
+        cost: costGrade(estimatedCost),
+        needsRescore: false,
+        updatedAt: new Date(),
+      })
+      .where(eq(llmModels.id, alias.id));
+    copied += 1;
+  }
+  return copied;
 }
 
 async function recomputeDiscouraged(): Promise<void> {
@@ -198,6 +305,8 @@ export async function refreshModelCatalog(
       added: 0,
       retired: 0,
       rescored: 0,
+      reassigned: 0,
+      copied: 0,
       error: null,
     };
   }
@@ -209,6 +318,7 @@ export async function refreshModelCatalog(
       .select({
         id: llmModels.id,
         ability: llmModels.ability,
+        aliasTargetSlug: llmModels.aliasTargetSlug,
         promptPricePerMillion: llmModels.promptPricePerMillion,
         completionPricePerMillion: llmModels.completionPricePerMillion,
       })
@@ -217,6 +327,7 @@ export async function refreshModelCatalog(
     const incomingIds = new Set(models.map((model) => model.id));
     let added = 0;
     let rescored = 0;
+    let reassigned = 0;
 
     for (const model of models) {
       const cost = estimateBenchmarkCost(
@@ -231,24 +342,43 @@ export async function refreshModelCatalog(
           model.promptPricePerMillion,
           model.completionPricePerMillion,
         );
+        const targetChanged = aliasTargetChanged(
+          prior.aliasTargetSlug,
+          model.aliasTargetSlug,
+        );
         if (priceChanged) rescored += 1;
+        if (targetChanged) reassigned += 1;
         await db
           .update(llmModels)
           .set({
             name: model.name,
+            aliasTargetSlug: model.aliasTargetSlug,
             retired: false,
             lastSeenAt: new Date(),
             updatedAt: new Date(),
             promptPricePerMillion: model.promptPricePerMillion,
             completionPricePerMillion: model.completionPricePerMillion,
-            // A graded model keeps its measured benchmark cost, but its cost
-            // grade follows the new list price and the benchmark is marked
-            // stale so the next pending run captures the real cost again.
-            ...(prior.ability === "?"
-              ? { cost: costGrade(cost), benchmarkCostUsd: cost }
-              : priceChanged
-                ? { cost: costGrade(cost), needsRescore: true }
-                : {}),
+            ...(targetChanged
+              ? {
+                  // The alias now resolves to a different model, so the old
+                  // ability/speed score no longer describes it. Treat it as
+                  // ungraded until the pending benchmark runs again.
+                  ability: "?",
+                  speed: "?",
+                  cost: costGrade(cost),
+                  discouraged: false,
+                  needsRescore: true,
+                  benchmarkScore: null,
+                  benchmarkTimeMs: null,
+                  benchmarkCostUsd: cost,
+                  benchmarkCategories: null,
+                  benchmarkedAt: null,
+                }
+              : prior.ability === "?"
+                ? { cost: costGrade(cost), benchmarkCostUsd: cost }
+                : priceChanged
+                  ? { cost: costGrade(cost), needsRescore: true }
+                  : {}),
           })
           .where(eq(llmModels.id, model.id));
       } else {
@@ -256,6 +386,7 @@ export async function refreshModelCatalog(
         await db.insert(llmModels).values({
           id: model.id,
           name: model.name,
+          aliasTargetSlug: model.aliasTargetSlug,
           retired: false,
           discouraged: false,
           ability: "?",
@@ -284,12 +415,21 @@ export async function refreshModelCatalog(
       retired = retiredRows.length;
     }
 
+    const copied = await copyBenchmarkToAliases();
     await recomputeDiscouraged();
     await db
       .update(llmModelSync)
       .set({ lastError: null, updatedAt: new Date() })
       .where(eq(llmModelSync.id, 1));
-    return { checked: true, added, retired, rescored, error: null };
+    return {
+      checked: true,
+      added,
+      retired,
+      rescored,
+      reassigned,
+      copied,
+      error: null,
+    };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     await db
@@ -301,6 +441,8 @@ export async function refreshModelCatalog(
       added: 0,
       retired: 0,
       rescored: 0,
+      reassigned: 0,
+      copied: 0,
       error: message,
     };
   }

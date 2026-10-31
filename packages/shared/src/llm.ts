@@ -13,6 +13,8 @@ import { trainingLoadSchema } from "./trainingLoad.js";
 export const llmModelSchema = z.object({
   id: z.string(),
   name: z.string(),
+  /** For alias ids such as `~provider/model-latest`, the concrete target. */
+  aliasTargetSlug: z.string().nullable().default(null),
   contextLength: z.number().nullable().default(null),
   promptPricePerMillion: z.number().nullable().default(null),
   completionPricePerMillion: z.number().nullable().default(null),

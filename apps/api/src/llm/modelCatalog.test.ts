@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   abilityGrade,
+  aliasTargetChanged,
   costGrade,
   isDiscouraged,
   pricingChanged,
@@ -94,5 +95,31 @@ describe("pricingChanged", () => {
   it("does not treat the first price observation as a change", () => {
     expect(pricingChanged(null, null, 1, 2)).toBe(false);
     expect(pricingChanged(1, 2, null, null)).toBe(false);
+  });
+});
+
+describe("aliasTargetChanged", () => {
+  it("detects when a known alias points at a different model", () => {
+    expect(
+      aliasTargetChanged(
+        "deepseek/deepseek-v4.1-flash-1017",
+        "deepseek/deepseek-v4.1-flash-1101",
+      ),
+    ).toBe(true);
+    expect(
+      aliasTargetChanged(
+        "deepseek/deepseek-v4.1-flash-1017",
+        "deepseek/deepseek-v4.1-flash-1017",
+      ),
+    ).toBe(false);
+  });
+
+  it("does not treat an unknown alias target as a change", () => {
+    expect(aliasTargetChanged(null, "deepseek/deepseek-v4.1-flash-1017")).toBe(
+      false,
+    );
+    expect(aliasTargetChanged("deepseek/deepseek-v4.1-flash-1017", null)).toBe(
+      false,
+    );
   });
 });

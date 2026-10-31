@@ -232,6 +232,8 @@ export const llmModels = pgTable(
   {
     id: text("id").primaryKey(),
     name: text("name").notNull(),
+    /** For alias ids, the concrete model the alias currently resolves to. */
+    aliasTargetSlug: text("alias_target_slug"),
     retired: boolean("retired").notNull().default(false),
     discouraged: boolean("discouraged").notNull().default(false),
     ability: text("ability", {
