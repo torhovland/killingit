@@ -55,6 +55,26 @@ export function estimateBenchmarkCost(
   );
 }
 
+/** True when both price points are known and either one has moved. */
+export function pricingChanged(
+  previousPrompt: number | null,
+  previousCompletion: number | null,
+  nextPrompt: number | null,
+  nextCompletion: number | null,
+): boolean {
+  // A null previous price means the column predates price tracking; it is not
+  // a change. A null next price means the provider omitted pricing.
+  if (previousPrompt === null && previousCompletion === null) return false;
+  if (nextPrompt === null && nextCompletion === null) return false;
+  const epsilon = 1e-9;
+  const differs = (a: number | null, b: number | null) =>
+    a === null || b === null ? a !== b : Math.abs(a - b) > epsilon;
+  return (
+    differs(previousPrompt, nextPrompt) ||
+    differs(previousCompletion, nextCompletion)
+  );
+}
+
 export function costGrade(costUsd: number | null | undefined): LlmModelGrade {
   if (costUsd === null || costUsd === undefined) return "?";
   if (costUsd < COST_GRADE_LIMITS.aPlus) return "A+";
@@ -125,6 +145,8 @@ export interface CatalogRefreshResult {
   checked: boolean;
   added: number;
   retired: number;
+  /** Models whose list price changed and whose cost grade was refreshed. */
+  rescored: number;
   error: string | null;
 }
 
@@ -171,7 +193,13 @@ export async function refreshModelCatalog(
   options: { force?: boolean; now?: Date } = {},
 ): Promise<CatalogRefreshResult> {
   if (options.force !== true && !(await claimCatalogCheck())) {
-    return { checked: false, added: 0, retired: 0, error: null };
+    return {
+      checked: false,
+      added: 0,
+      retired: 0,
+      rescored: 0,
+      error: null,
+    };
   }
 
   try {
@@ -181,11 +209,14 @@ export async function refreshModelCatalog(
       .select({
         id: llmModels.id,
         ability: llmModels.ability,
+        promptPricePerMillion: llmModels.promptPricePerMillion,
+        completionPricePerMillion: llmModels.completionPricePerMillion,
       })
       .from(llmModels);
     const existingById = new Map(existing.map((row) => [row.id, row]));
     const incomingIds = new Set(models.map((model) => model.id));
     let added = 0;
+    let rescored = 0;
 
     for (const model of models) {
       const cost = estimateBenchmarkCost(
@@ -194,6 +225,13 @@ export async function refreshModelCatalog(
       );
       const prior = existingById.get(model.id);
       if (prior !== undefined) {
+        const priceChanged = pricingChanged(
+          prior.promptPricePerMillion,
+          prior.completionPricePerMillion,
+          model.promptPricePerMillion,
+          model.completionPricePerMillion,
+        );
+        if (priceChanged) rescored += 1;
         await db
           .update(llmModels)
           .set({
@@ -201,11 +239,16 @@ export async function refreshModelCatalog(
             retired: false,
             lastSeenAt: new Date(),
             updatedAt: new Date(),
-            // An unbenchmarked model's cost estimate can follow list-price
-            // changes; a graded model's measured cost is never overwritten.
+            promptPricePerMillion: model.promptPricePerMillion,
+            completionPricePerMillion: model.completionPricePerMillion,
+            // A graded model keeps its measured benchmark cost, but its cost
+            // grade follows the new list price and the benchmark is marked
+            // stale so the next pending run captures the real cost again.
             ...(prior.ability === "?"
               ? { cost: costGrade(cost), benchmarkCostUsd: cost }
-              : {}),
+              : priceChanged
+                ? { cost: costGrade(cost), needsRescore: true }
+                : {}),
           })
           .where(eq(llmModels.id, model.id));
       } else {
@@ -219,6 +262,8 @@ export async function refreshModelCatalog(
           speed: "?",
           cost: costGrade(cost),
           benchmarkCostUsd: cost,
+          promptPricePerMillion: model.promptPricePerMillion,
+          completionPricePerMillion: model.completionPricePerMillion,
           lastSeenAt: new Date(),
         });
       }
@@ -244,14 +289,20 @@ export async function refreshModelCatalog(
       .update(llmModelSync)
       .set({ lastError: null, updatedAt: new Date() })
       .where(eq(llmModelSync.id, 1));
-    return { checked: true, added, retired, error: null };
+    return { checked: true, added, retired, rescored, error: null };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     await db
       .update(llmModelSync)
       .set({ lastError: message, updatedAt: new Date() })
       .where(eq(llmModelSync.id, 1));
-    return { checked: true, added: 0, retired: 0, error: message };
+    return {
+      checked: true,
+      added: 0,
+      retired: 0,
+      rescored: 0,
+      error: message,
+    };
   }
 }
 
@@ -328,6 +379,7 @@ export async function pendingBenchmarkModelIds(): Promise<string[]> {
         eq(llmModels.ability, "?"),
         eq(llmModels.speed, "?"),
         eq(llmModels.cost, "?"),
+        eq(llmModels.needsRescore, true),
         isNull(llmModels.benchmarkScore),
       ),
     );
@@ -387,6 +439,7 @@ export async function recordBenchmarkGrade(
         benchmarkCategories: input.categories,
         benchmarkedAt: new Date(),
         lastSeenAt: new Date(),
+        needsRescore: false,
         updatedAt: new Date(),
       },
     });

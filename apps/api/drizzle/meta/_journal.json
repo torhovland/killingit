@@ -239,6 +239,13 @@
       "when": 1793445700347,
       "tag": "0033_sloppy_rachel_grey",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1793448246243,
+      "tag": "0034_natural_shinko_yamashiro",
+      "breakpoints": true
     }
   ]
 }

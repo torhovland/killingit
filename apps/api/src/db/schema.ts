@@ -249,6 +249,10 @@ export const llmModels = pgTable(
     })
       .notNull()
       .default("?"),
+    promptPricePerMillion: doublePrecision("prompt_price_per_million"),
+    completionPricePerMillion: doublePrecision("completion_price_per_million"),
+    /** A list-price change after benchmarking makes the cost grade stale. */
+    needsRescore: boolean("needs_rescore").notNull().default(false),
     benchmarkScore: doublePrecision("benchmark_score"),
     benchmarkTimeMs: integer("benchmark_time_ms"),
     benchmarkCostUsd: doublePrecision("benchmark_cost_usd"),

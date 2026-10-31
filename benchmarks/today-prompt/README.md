@@ -14,9 +14,10 @@ RUN_ID=2026-11-15-pending bun benchmarks/today-prompt/judge.ts
 RUN_ID=2026-11-15-pending bun benchmarks/today-prompt/sync-db.ts
 ```
 
-`run.ts` reads `pendingBenchmarkModelIds()` from the database, so new and
-ungraded models are picked up automatically. `sync-db.ts` refreshes the catalog,
-records the scores, and recomputes Ability, Speed, Cost and Discouraged.
+`run.ts` reads `pendingBenchmarkModelIds()` from the database, so new,
+ungraded and price-changed models are picked up automatically. `sync-db.ts`
+refreshes the catalog, records the scores, and recomputes Ability, Speed, Cost
+and Discouraged.
 The commands need the same `DATABASE_URL` and `OPENROUTER_API_KEY` as the API.
 
 A full run is the same sequence without `PENDING_ONLY=1` and with a fresh

@@ -62,6 +62,7 @@ function makeApp(
       checked: boolean;
       added: number;
       retired: number;
+      rescored: number;
       error: string | null;
     }>;
   } = {},
@@ -177,6 +178,7 @@ describe("POST /llm/models/refresh", () => {
           checked: true,
           added: 0,
           retired: 0,
+          rescored: 0,
           error: null,
         });
       },

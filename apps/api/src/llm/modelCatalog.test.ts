@@ -3,6 +3,7 @@ import {
   abilityGrade,
   costGrade,
   isDiscouraged,
+  pricingChanged,
   speedGrade,
 } from "./modelCatalog.js";
 
@@ -80,5 +81,18 @@ describe("isDiscouraged", () => {
   it("never discourages an ungraded model", () => {
     expect(isDiscouraged("?", "?", "A")).toBe(false);
     expect(isDiscouraged("B", "?", "A")).toBe(false);
+  });
+});
+
+describe("pricingChanged", () => {
+  it("detects a change in either price", () => {
+    expect(pricingChanged(1, 2, 1, 2)).toBe(false);
+    expect(pricingChanged(1, 2, 1.5, 2)).toBe(true);
+    expect(pricingChanged(1, 2, 1, 3)).toBe(true);
+  });
+
+  it("does not treat the first price observation as a change", () => {
+    expect(pricingChanged(null, null, 1, 2)).toBe(false);
+    expect(pricingChanged(1, 2, null, null)).toBe(false);
   });
 });

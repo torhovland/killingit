@@ -40,7 +40,7 @@ async function main(): Promise<void> {
 
   const refreshed = await refreshModelCatalog({ force: true });
   console.log(
-    `catalog checked=${refreshed.checked} added=${refreshed.added} retired=${refreshed.retired} error=${refreshed.error ?? "none"}`,
+    `catalog checked=${refreshed.checked} added=${refreshed.added} retired=${refreshed.retired} rescored=${refreshed.rescored} error=${refreshed.error ?? "none"}`,
   );
 
   let graded = 0;

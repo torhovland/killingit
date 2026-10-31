@@ -65,7 +65,11 @@ On every signed-in page visit the web app calls
 when the last check is more than 24 hours old, then fetches OpenRouter's model
 list in the background.
 
-- Existing models get their name and `last_seen_at` refreshed.
+- Existing models get their name, list price and `last_seen_at` refreshed.
+- If a graded model's prompt or completion price changes, its cost grade is
+  recalculated from the new price and the model is marked `needsRescore` so the
+  next pending benchmark run captures the real charged cost. The first pricing
+  observation stores the price without treating it as a change.
 - New models are inserted with `retired=false`, `discouraged=false`,
   `ability=?`, `speed=?`, and a cost grade estimated from the list price.
 - Models missing from OpenRouter are marked retired.
@@ -112,8 +116,10 @@ RUN_ID=2026-11-15-pending bun benchmarks/today-prompt/sync-db.ts
 ```
 
 `sync-db.ts` refreshes the catalog first, records every result in the run, and
-recomputes ability, speed, cost and discouraged. New models are picked up
-automatically because `PENDING_ONLY=1` reads `pendingBenchmarkModelIds()`.
+recomputes ability, speed, cost and discouraged. It also clears
+`needs_rescore` for the models it graded. New models and models whose list
+price changed are picked up automatically because `PENDING_ONLY=1` reads
+`pendingBenchmarkModelIds()`.
 
 ## Acceptance criteria
 
