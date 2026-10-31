@@ -62,7 +62,26 @@ function daySession(date: string, day: string): Record<string, unknown> {
   };
 }
 
-function todaySession(date: string): Record<string, unknown> {
+function todayBenchmarkSession(date: string): Record<string, unknown> {
+  return {
+    date,
+    status: "planned",
+    title: "Easy ride",
+    type: "workout",
+    intensity: "easy",
+    durationMinutes: 60,
+    outdoor: false,
+    canBeOutdoor: true,
+    estimatedTss: 40,
+    estimatedFtpWatts: 220,
+    bikeWorkout: null,
+    description: "An easy aerobic ride.",
+    optional: false,
+    optionalRationale: "Skipping it delays the rebuild.",
+  };
+}
+
+function reviseTodaySession(date: string): Record<string, unknown> {
   return {
     date,
     type: "workout",
@@ -124,7 +143,7 @@ function validRevisePlan(): Record<string, unknown> {
         daySession(date, DAYS[index] ?? "Monday"),
       ),
     },
-    today: todaySession("2026-10-31"),
+    today: reviseTodaySession("2026-10-31"),
     tomorrow: null,
     nextWeek: null,
     nextBlock: null,
@@ -134,18 +153,27 @@ function validRevisePlan(): Record<string, unknown> {
 
 describe("validateTodayPlan", () => {
   it("accepts the single-day contract", () => {
-    expect(validateTodayPlan({ today: todaySession("2026-10-30") })).toEqual(
-      [],
-    );
+    expect(
+      validateTodayPlan({ today: todayBenchmarkSession("2026-10-30") }),
+    ).toEqual([]);
   });
 
   it("rejects a wrong date and extra root keys", () => {
     const errors = validateTodayPlan({
-      today: todaySession("2026-10-31"),
+      today: todayBenchmarkSession("2026-10-31"),
       week: {},
     });
     expect(errors).toContain("today date must be 2026-10-30");
     expect(errors).toContain("unexpected top-level keys: week");
+  });
+
+  it("allows the optional coach questions and model remarks keys", () => {
+    const errors = validateTodayPlan({
+      today: todayBenchmarkSession("2026-10-30"),
+      coachQuestions: ["How did it feel?"],
+      modelsRemarks: null,
+    });
+    expect(errors).toEqual([]);
   });
 });
 
@@ -154,16 +182,31 @@ describe("validateReviseSeasonPlan", () => {
     expect(validateReviseSeasonPlan(validRevisePlan())).toEqual([]);
   });
 
-  it("rejects a changed tomorrow and a broken week", () => {
+  it("accepts a filled tomorrow but rejects a broken week", () => {
     const plan = validRevisePlan();
-    plan.tomorrow = todaySession("2026-11-01");
+    plan.tomorrow = reviseTodaySession("2026-11-01");
     const week = plan.week as Record<string, unknown>;
     week.sessions = (week.sessions as unknown[]).slice(0, 6);
     const errors = validateReviseSeasonPlan(plan);
-    expect(errors).toContain("tomorrow must stay null as supplied");
+    expect(errors).not.toContain("tomorrow must stay null as supplied");
     expect(errors).toContain(
       "week: sessions must contain exactly seven sessions",
     );
+  });
+
+  it("allows a null FTP projection on a past week session", () => {
+    const plan = validRevisePlan();
+    const week = plan.week as Record<string, unknown>;
+    const sessions = week.sessions as Array<Record<string, unknown>>;
+    if (sessions[0]) sessions[0].estimatedFtpWatts = null;
+    expect(validateReviseSeasonPlan(plan)).toEqual([]);
+  });
+
+  it("allows the optional coach questions and model remarks keys", () => {
+    const plan = validRevisePlan();
+    plan.coachQuestions = ["How did the hike feel?"];
+    plan.modelsRemarks = null;
+    expect(validateReviseSeasonPlan(plan)).toEqual([]);
   });
 
   it("requires today to match the week's session on that date", () => {

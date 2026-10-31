@@ -154,55 +154,146 @@ function checkEnum(
   }
 }
 
-function checkSessionShape(
+function checkSessionFields(
   session: Record<string, unknown>,
+  fields: Array<[string, "string" | "number" | "boolean" | "object" | "array"]>,
   errors: string[],
   prefix: string,
-  withAlternatives: boolean,
 ): void {
-  const fields: Array<
-    [string, "string" | "number" | "boolean" | "object" | "array"]
-  > = [
-    ["date", "string"],
-    ["type", "string"],
-    ["title", "string"],
-    ["description", "string"],
-    ["durationMinutes", "number"],
-    ["intensity", "string"],
-    ["status", "string"],
-    ["estimatedTss", "number"],
-    ["outdoor", "boolean"],
-    ["canBeOutdoor", "boolean"],
-    ["bikeWorkout", "object"],
-  ];
-  if (withAlternatives) {
-    fields.push(["alternatives", "array"]);
-    fields.push(["rationale", "string"]);
-    fields.push(["optional", "boolean"]);
-    fields.push(["optionalRationale", "string"]);
-  } else {
-    fields.push(["day", "string"]);
-    fields.push(["estimatedFtpWatts", "number"]);
-  }
-  for (const [key, type] of fields)
+  for (const [key, type] of fields) {
     checkField(session, key, type, errors, prefix);
+  }
   checkEnum(session, "type", SESSION_TYPES, errors, prefix);
   checkEnum(session, "intensity", INTENSITIES, errors, prefix);
   checkEnum(session, "status", SESSION_STATUSES, errors, prefix);
 }
 
+function checkNullableNumber(
+  record: Record<string, unknown>,
+  key: string,
+  errors: string[],
+  prefix: string,
+): void {
+  if (!(key in record)) {
+    errors.push(`${prefix} missing field: ${key}`);
+    return;
+  }
+  const value = record[key];
+  if (value !== null && typeof value !== "number") {
+    errors.push(`${prefix} ${key} must be a number or null`);
+  }
+}
+
+/** The single-day prompt returns a smaller session object than a plan update. */
+function checkTodayBenchmarkSession(
+  session: Record<string, unknown>,
+  errors: string[],
+  prefix: string,
+): void {
+  checkSessionFields(
+    session,
+    [
+      ["date", "string"],
+      ["status", "string"],
+      ["title", "string"],
+      ["type", "string"],
+      ["intensity", "string"],
+      ["durationMinutes", "number"],
+      ["outdoor", "boolean"],
+      ["canBeOutdoor", "boolean"],
+      ["estimatedTss", "number"],
+      ["estimatedFtpWatts", "number"],
+      ["bikeWorkout", "object"],
+      ["description", "string"],
+      ["optional", "boolean"],
+      ["optionalRationale", "string"],
+    ],
+    errors,
+    prefix,
+  );
+}
+
+function checkReviseTodaySession(
+  session: Record<string, unknown>,
+  errors: string[],
+  prefix: string,
+): void {
+  checkSessionFields(
+    session,
+    [
+      ["date", "string"],
+      ["type", "string"],
+      ["title", "string"],
+      ["description", "string"],
+      ["durationMinutes", "number"],
+      ["intensity", "string"],
+      ["status", "string"],
+      ["alternatives", "array"],
+      ["rationale", "string"],
+      ["optional", "boolean"],
+      ["optionalRationale", "string"],
+      ["estimatedTss", "number"],
+      ["outdoor", "boolean"],
+      ["canBeOutdoor", "boolean"],
+      ["bikeWorkout", "object"],
+    ],
+    errors,
+    prefix,
+  );
+}
+
+function checkWeekSession(
+  session: Record<string, unknown>,
+  errors: string[],
+  prefix: string,
+): void {
+  checkSessionFields(
+    session,
+    [
+      ["date", "string"],
+      ["day", "string"],
+      ["type", "string"],
+      ["title", "string"],
+      ["description", "string"],
+      ["durationMinutes", "number"],
+      ["intensity", "string"],
+      ["status", "string"],
+      ["estimatedTss", "number"],
+      ["outdoor", "boolean"],
+      ["canBeOutdoor", "boolean"],
+      ["bikeWorkout", "object"],
+    ],
+    errors,
+    prefix,
+  );
+  // A past day legitimately has no forward FTP projection.
+  checkNullableNumber(session, "estimatedFtpWatts", errors, prefix);
+}
+
 function checkTopLevelKeys(
   root: Record<string, unknown>,
-  expected: readonly string[],
+  required: readonly string[],
+  optional: readonly string[],
   errors: string[],
 ): void {
-  const missing = expected.filter((key) => !(key in root));
+  const missing = required.filter((key) => !(key in root));
   if (missing.length > 0) {
     errors.push(`missing top-level keys: ${missing.join(", ")}`);
   }
-  const extra = Object.keys(root).filter((key) => !expected.includes(key));
+  const allowed = new Set([...required, ...optional]);
+  const extra = Object.keys(root).filter((key) => !allowed.has(key));
   if (extra.length > 0) {
     errors.push(`unexpected top-level keys: ${extra.join(", ")}`);
+  }
+  if ("coachQuestions" in root && !Array.isArray(root.coachQuestions)) {
+    errors.push("coachQuestions must be an array");
+  }
+  if (
+    "modelsRemarks" in root &&
+    root.modelsRemarks !== null &&
+    typeof root.modelsRemarks !== "string"
+  ) {
+    errors.push("modelsRemarks must be a string or null");
   }
 }
 
@@ -210,10 +301,15 @@ function checkTopLevelKeys(
 export function validateTodayPlan(plan: unknown): string[] {
   if (!isRecord(plan)) return ["response is not an object"];
   const errors: string[] = [];
-  checkTopLevelKeys(plan, ["today"], errors);
+  checkTopLevelKeys(
+    plan,
+    ["today"],
+    ["coachQuestions", "modelsRemarks"],
+    errors,
+  );
   const today = plan.today;
   if (!isRecord(today)) return [...errors, "missing today object"];
-  checkSessionShape(today, errors, "today:", true);
+  checkTodayBenchmarkSession(today, errors, "today:");
   if (today.date !== TODAY_BENCHMARK_DATE) {
     errors.push(`today date must be ${TODAY_BENCHMARK_DATE}`);
   }
@@ -224,7 +320,12 @@ export function validateTodayPlan(plan: unknown): string[] {
 export function validateReviseSeasonPlan(plan: unknown): string[] {
   if (!isRecord(plan)) return ["response is not an object"];
   const errors: string[] = [];
-  checkTopLevelKeys(plan, REVISE_SEASON_TOP_LEVEL_KEYS, errors);
+  checkTopLevelKeys(
+    plan,
+    REVISE_SEASON_TOP_LEVEL_KEYS,
+    ["coachQuestions", "modelsRemarks"],
+    errors,
+  );
 
   const season = plan.season;
   if (!isRecord(season)) {
@@ -304,10 +405,9 @@ export function validateReviseSeasonPlan(plan: unknown): string[] {
           errors,
           `block: week ${index + 1}:`,
         );
-        checkField(
+        checkNullableNumber(
           week,
           "estimatedFtpWatts",
-          "number",
           errors,
           `block: week ${index + 1}:`,
         );
@@ -327,7 +427,7 @@ export function validateReviseSeasonPlan(plan: unknown): string[] {
     for (const key of ["startDate", "focus", "rationale"]) {
       checkField(week, key, "string", errors, "week:");
     }
-    checkField(week, "estimatedFtpWatts", "number", errors, "week:");
+    checkNullableNumber(week, "estimatedFtpWatts", errors, "week:");
     if (week.startDate !== REVISE_WEEK_START) {
       errors.push(`week startDate must be ${REVISE_WEEK_START}`);
     }
@@ -347,12 +447,7 @@ export function validateReviseSeasonPlan(plan: unknown): string[] {
           errors.push(`week: session ${index + 1} is not an object`);
           continue;
         }
-        checkSessionShape(
-          session,
-          errors,
-          `week: session ${index + 1}:`,
-          false,
-        );
+        checkWeekSession(session, errors, `week: session ${index + 1}:`);
       }
     }
   }
@@ -361,7 +456,7 @@ export function validateReviseSeasonPlan(plan: unknown): string[] {
   if (!isRecord(today)) {
     errors.push("missing today object");
   } else {
-    checkSessionShape(today, errors, "today:", true);
+    checkReviseTodaySession(today, errors, "today:");
     if (today.date !== REVISE_SEASON_DATE) {
       errors.push(`today date must be ${REVISE_SEASON_DATE}`);
     }
@@ -391,9 +486,9 @@ export function validateReviseSeasonPlan(plan: unknown): string[] {
     }
   }
 
-  for (const key of ["tomorrow", "nextWeek", "nextBlock"] as const) {
-    if (plan[key] !== null) errors.push(`${key} must stay null as supplied`);
-  }
+  // Tomorrow, nextWeek and nextBlock were supplied as null. A model that fills
+  // them has broken the revision instruction, but the plan is still judgeable,
+  // so fidelity marks it down instead of the validator rejecting the answer.
   if (!Array.isArray(plan.bodyMetrics)) {
     errors.push("bodyMetrics must be an array");
   }

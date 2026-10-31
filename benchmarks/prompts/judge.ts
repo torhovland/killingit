@@ -17,7 +17,7 @@ const RUN_DIR = resolve(import.meta.dir, "runs", RUN_ID);
 const JUDGE_MODEL = process.env.JUDGE_MODEL ?? "anthropic/claude-haiku-5.5";
 const API_URL = "https://openrouter.ai/api/v1";
 const CONCURRENCY = Number(process.env.CONCURRENCY ?? 15);
-const MAX_TOKENS = Number(process.env.MAX_TOKENS ?? 1500);
+const MAX_TOKENS = Number(process.env.MAX_TOKENS ?? 4000);
 
 interface Attempt {
   timeMs: number;
@@ -396,10 +396,22 @@ async function main(): Promise<void> {
   } catch {
     scores = [];
   }
-  const done = new Set(scores.map((score) => score.id));
+  const retryFailedJudges = process.env.RETRY_FAILED_JUDGES === "1";
+  const done = new Set(
+    scores
+      .filter(
+        (score) =>
+          !retryFailedJudges ||
+          (score.prompts.today.judge.error === null &&
+            score.prompts.reviseSeason.judge.error === null),
+      )
+      .map((score) => score.id),
+  );
+  const onlyValid = process.env.ONLY_VALID === "1";
   const limit = Number(process.env.LIMIT ?? Number.POSITIVE_INFINITY);
   const pending = results
     .filter((result) => !done.has(result.id))
+    .filter((result) => !onlyValid || result.ok)
     .slice(0, limit);
   console.log(
     `judging ${pending.length} models with ${JUDGE_MODEL} at ${BENCHMARK_PROMPTS.length} prompts (${done.size} already done)`,
@@ -477,7 +489,9 @@ async function main(): Promise<void> {
           error: judgeError,
         },
       };
-      scores.push(entry);
+      const existingIndex = scores.findIndex((score) => score.id === entry.id);
+      if (existingIndex >= 0) scores[existingIndex] = entry;
+      else scores.push(entry);
       completed += 1;
       console.log(
         `[${completed}/${results.length}] ${result.id} ${entry.score.toFixed(1)} ` +

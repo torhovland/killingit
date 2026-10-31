@@ -249,6 +249,7 @@ async function runModel(
   apiKey: string,
   model: OpenRouterModel,
   prompts: ReadonlyMap<BenchmarkPromptId, string>,
+  existing?: ModelResult,
 ): Promise<ModelResult> {
   const requestedAt = new Date().toISOString();
   const results = {} as Record<BenchmarkPromptId, PromptResult>;
@@ -258,7 +259,21 @@ async function runModel(
     if (prompt === undefined) {
       throw new Error(`missing prompt text for ${definition.id}`);
     }
-    results[definition.id] = await runPrompt(apiKey, model, definition, prompt);
+    const prior = existing?.prompts[definition.id];
+    if (prior?.ok) {
+      results[definition.id] = prior;
+      continue;
+    }
+    const fresh = await runPrompt(apiKey, model, definition, prompt);
+    results[definition.id] = prior
+      ? {
+          ...fresh,
+          attempts: [...prior.attempts, ...fresh.attempts],
+          retryNeeded: true,
+          totalTimeMs: prior.totalTimeMs + fresh.totalTimeMs,
+          totalCostUsd: prior.totalCostUsd + fresh.totalCostUsd,
+        }
+      : fresh;
   }
 
   await writeFile(
@@ -336,6 +351,28 @@ async function main(): Promise<void> {
     .filter((model) => !model.id.endsWith(":batch"))
     .sort((a, b) => a.id.localeCompare(b.id));
 
+  const resultsPath = resolve(RUN_DIR, "results.json");
+  let results: ModelResult[] = [];
+  try {
+    const parsed: unknown = JSON.parse(await readFile(resultsPath, "utf8"));
+    results = Array.isArray(parsed) ? parsed.filter(isCurrentResult) : [];
+  } catch {
+    results = [];
+  }
+  const retryFailed = process.env.RETRY_FAILED === "1";
+  if (retryFailed) {
+    const failed = new Set(
+      results.filter((result) => !result.ok).map((result) => result.id),
+    );
+    models = models.filter((model) => failed.has(model.id));
+    const costOf = (id: string) =>
+      results.find((result) => result.id === id)?.totalCostUsd ?? 0;
+    models.sort((a, b) => costOf(a.id) - costOf(b.id));
+    log(
+      `retry mode: ${models.length} models with an unfinished prompt, cheapest first`,
+    );
+  }
+
   const catalog = await import("../../apps/api/src/llm/modelCatalog.js");
   if (process.env.PENDING_ONLY === "1") {
     const pending = new Set(await catalog.pendingBenchmarkModelIds());
@@ -369,16 +406,12 @@ async function main(): Promise<void> {
     return;
   }
 
-  const resultsPath = resolve(RUN_DIR, "results.json");
-  let results: ModelResult[] = [];
-  try {
-    const parsed: unknown = JSON.parse(await readFile(resultsPath, "utf8"));
-    results = Array.isArray(parsed) ? parsed.filter(isCurrentResult) : [];
-  } catch {
-    results = [];
-  }
-  const done = new Set(results.map((result) => result.id));
-  const pending = models.filter((model) => !done.has(model.id));
+  const done = retryFailed
+    ? new Set<string>()
+    : new Set(results.map((result) => result.id));
+  const pending = retryFailed
+    ? models
+    : models.filter((model) => !done.has(model.id));
   log(`running ${pending.length} models (${done.size} already complete)`);
 
   let cursor = 0;
@@ -390,8 +423,13 @@ async function main(): Promise<void> {
       cursor += 1;
       const model = pending[index];
       if (!model) return;
-      const result = await runModel(apiKey, model, prompts);
-      results.push(result);
+      const existing = retryFailed
+        ? results.find((entry) => entry.id === model.id)
+        : undefined;
+      const result = await runModel(apiKey, model, prompts, existing);
+      const resultIndex = results.findIndex((entry) => entry.id === result.id);
+      if (resultIndex >= 0) results[resultIndex] = result;
+      else results.push(result);
       completed += 1;
       const detail = BENCHMARK_PROMPTS.map((definition) => {
         const promptResult = result.prompts[definition.id];

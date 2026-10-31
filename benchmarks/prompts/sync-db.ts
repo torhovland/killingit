@@ -34,16 +34,26 @@ async function main(): Promise<void> {
   ) as JudgeScore[];
   const judgeById = new Map(judge.map((entry) => [entry.id, entry]));
 
-  const refreshed = await refreshModelCatalog({ force: true });
-  console.log(
-    `catalog checked=${refreshed.checked} added=${refreshed.added} retired=${refreshed.retired} rescored=${refreshed.rescored} reassigned=${refreshed.reassigned} copied=${refreshed.copied} error=${refreshed.error ?? "none"}`,
-  );
+  if (process.env.SKIP_REFRESH !== "1") {
+    const refreshed = await refreshModelCatalog({ force: true });
+    console.log(
+      `catalog checked=${refreshed.checked} added=${refreshed.added} retired=${refreshed.retired} rescored=${refreshed.rescored} reassigned=${refreshed.reassigned} copied=${refreshed.copied} error=${refreshed.error ?? "none"}`,
+    );
+  } else {
+    console.log("catalog refresh skipped");
+  }
 
+  const skipFailed = process.env.SKIP_FAILED === "1";
   let graded = 0;
+  let skipped = 0;
   for (const result of results) {
     const judged = judgeById.get(result.id);
     const invalid =
       !result.ok || judged === undefined || judged.judge.error !== null;
+    if (invalid && skipFailed) {
+      skipped += 1;
+      continue;
+    }
     const failed = invalid || judged.failed;
     await recordBenchmarkGrade({
       id: result.id,
@@ -58,7 +68,7 @@ async function main(): Promise<void> {
   }
   const copied = await copyBenchmarkToAliases();
   console.log(
-    `recorded ${graded} benchmark grades from ${RUN_ID}; copied ${copied} alias result(s)`,
+    `recorded ${graded} benchmark grades from ${RUN_ID}; skipped ${skipped} unfinished model(s); copied ${copied} alias result(s)`,
   );
 }
 
