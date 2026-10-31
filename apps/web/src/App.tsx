@@ -65,6 +65,17 @@ function AppShell() {
     return () => setStatus("app", null);
   }, [auth.isLoading, loadingQuestions, questions, setStatus]);
 
+  // A page visit asks the API to refresh OpenRouter's catalog. The API checks
+  // its own 24-hour timestamp, so this is cheap on every other visit.
+  useEffect(() => {
+    if (!auth.isAuthenticated) return;
+    void fetchJsonAuthed<unknown>(`${API_URL}/api/llm/models/refresh`, auth, {
+      method: "POST",
+    }).catch(() => {
+      // A catalog refresh must never block the page.
+    });
+  }, [auth.isAuthenticated]);
+
   // When authenticated, fetch the protected /api/me to prove the token flows.
   useEffect(() => {
     if (!auth.isAuthenticated) {

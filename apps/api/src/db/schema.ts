@@ -205,7 +205,12 @@ export const llmSettings = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
     provider: text("provider").notNull().default("openrouter"),
     apiKeyEncrypted: text("api_key_encrypted").notNull(),
+    /** Legacy single model; kept so existing rows and clients keep working. */
     model: text("model").notNull(),
+    /** Model used for season plans, season refreshes and block planning. */
+    seasonModel: text("season_model"),
+    /** Model used for week/day planning and every day-to-day prompt. */
+    dailyModel: text("daily_model"),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -215,6 +220,82 @@ export const llmSettings = pgTable(
 
 export type LlmSetting = typeof llmSettings.$inferSelect;
 export type NewLlmSetting = typeof llmSettings.$inferInsert;
+
+/**
+ * The provider's model catalog with the benchmark grades shown on the Settings
+ * page. New models start ungraded (`?`) and are graded by the next benchmark
+ * run. Retired models stay in the table so an athlete can see the model they
+ * were using, but they are hidden from the default picker.
+ */
+export const llmModels = pgTable(
+  "llm_models",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    retired: boolean("retired").notNull().default(false),
+    discouraged: boolean("discouraged").notNull().default(false),
+    ability: text("ability", {
+      enum: ["A+", "A", "B", "C", "D", "E", "F", "?"],
+    })
+      .notNull()
+      .default("?"),
+    speed: text("speed", {
+      enum: ["A+", "A", "B", "C", "D", "E", "F", "?"],
+    })
+      .notNull()
+      .default("?"),
+    cost: text("cost", {
+      enum: ["A+", "A", "B", "C", "D", "E", "F", "?"],
+    })
+      .notNull()
+      .default("?"),
+    benchmarkScore: doublePrecision("benchmark_score"),
+    benchmarkTimeMs: integer("benchmark_time_ms"),
+    benchmarkCostUsd: doublePrecision("benchmark_cost_usd"),
+    benchmarkCategories: jsonb("benchmark_categories").$type<
+      Record<string, number>
+    >(),
+    benchmarkedAt: timestamp("benchmarked_at", { withTimezone: true }),
+    firstSeenAt: timestamp("first_seen_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    check(
+      "llm_models_ability_check",
+      sql`${table.ability} in ('A+', 'A', 'B', 'C', 'D', 'E', 'F', '?')`,
+    ),
+    check(
+      "llm_models_speed_check",
+      sql`${table.speed} in ('A+', 'A', 'B', 'C', 'D', 'E', 'F', '?')`,
+    ),
+    check(
+      "llm_models_cost_check",
+      sql`${table.cost} in ('A+', 'A', 'B', 'C', 'D', 'E', 'F', '?')`,
+    ),
+  ],
+);
+
+export type LlmModelRow = typeof llmModels.$inferSelect;
+export type NewLlmModelRow = typeof llmModels.$inferInsert;
+
+/** One row tracks the last OpenRouter catalog check (at most once per day). */
+export const llmModelSync = pgTable("llm_model_sync", {
+  id: integer("id").primaryKey().default(1),
+  lastCheckedAt: timestamp("last_checked_at", { withTimezone: true }),
+  lastError: text("last_error"),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export type LlmModelSyncRow = typeof llmModelSync.$inferSelect;
 
 /**
  * One prompt sent to an LLM provider, with the response (or the error) and the

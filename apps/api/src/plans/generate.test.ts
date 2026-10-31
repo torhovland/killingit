@@ -407,6 +407,7 @@ class MemoryGenerationStore implements PlanGenerationStore {
 class FakeProvider implements LlmProvider {
   readonly id = "fake";
   calls: string[] = [];
+  models: string[] = [];
 
   constructor(
     private readonly responses: {
@@ -427,6 +428,7 @@ class FakeProvider implements LlmProvider {
   }
 
   complete(request: LlmCompletionRequest): Promise<string> {
+    this.models.push(request.model);
     const system = request.messages[0]?.content ?? "";
     if (system === SEASON_PLAN_SYSTEM_PROMPT) {
       this.calls.push("season");
@@ -480,6 +482,33 @@ describe("runPlanGeneration", () => {
     expect(generations.steps).toContain("Designing your season");
     expect(generations.steps).toContain("Designing your block");
     expect(generations.steps).toContain("Building your week");
+  });
+
+  it("uses the season model for season and block prompts and the daily model for week and day", async () => {
+    const provider = new FakeProvider(buildResponses());
+    const plans = new MemoryPlanStore(null);
+    const generations = new MemoryGenerationStore();
+
+    await runPlanGeneration({
+      userId: 1,
+      runId: "run-models",
+      today: "2026-10-21",
+      plan: null,
+      context: {
+        ...makeContext(provider),
+        seasonModel: "season-model",
+        dailyModel: "daily-model",
+      },
+      plans,
+      generations,
+    });
+
+    expect(provider.models).toEqual([
+      "season-model",
+      "season-model",
+      "daily-model",
+      "daily-model",
+    ]);
   });
 
   it("keeps detailed workouts only for today and tomorrow", async () => {

@@ -64,7 +64,7 @@ export default tseslint.config(
     ...tseslint.configs.disableTypeChecked,
   },
   {
-    files: ["scripts/**/*.{ts,tsx}"],
+    files: ["scripts/**/*.{ts,tsx}", "benchmarks/**/*.{ts,tsx}"],
     ...tseslint.configs.disableTypeChecked,
     languageOptions: {
       globals: globals.node,

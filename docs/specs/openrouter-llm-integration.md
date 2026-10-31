@@ -19,11 +19,14 @@ coach analysis on the main page.
 
 1. **Configuration UI** (behind Auth0 sign-in):
    - OpenRouter API key input (validated before saving).
-   - Model picker populated from OpenRouter's model catalog (with manual entry
-     as a fallback if the catalog cannot be loaded).
-   - A compact "OpenRouter connected · <model>" state with a change action.
+   - A graded model table populated from the app's `llm_models` catalog, with
+     separate season/block and day-to-day selections. See
+     `docs/specs/llm-model-catalog.md`.
+   - A retired or discouraged selection is refused with a prompt to open
+     Settings.
 2. **Encrypted storage** of each account's API key (AES-256-GCM, key from
-   `LLM_CREDENTIALS_KEY`) plus the selected model in `llm_settings`, one row per
+   `LLM_CREDENTIALS_KEY`) plus the selected season and daily models in
+   `llm_settings`, one row per
    account. The key is never returned by any endpoint.
 3. **Provider-agnostic LLM seam** (`LlmProvider`) implemented by OpenRouter:
    `listModels`, `validateKey`, `complete`.
@@ -80,7 +83,8 @@ Weather and daylight are included in the plan prompts; see
 ## Data-model / API impact
 
 - **New table `llm_settings`** (one row per account, unique `user_id`, replace
-  on save): `provider` (default `openrouter`), `api_key_encrypted`, `model`,
+  on save): `provider` (default `openrouter`), `api_key_encrypted`, legacy
+  `model`, and `season_model` / `daily_model`,
   `updated_at`.
 - **New table `activity_analyses`**: `user_id`, `activity_id` (`bigint` — Garmin
   ids exceed 32-bit integers), `kind`, `model`, `prompt_version`, `analysis`,
@@ -95,9 +99,12 @@ Weather and daylight are included in the plan prompts; see
 - **New env var** `LLM_CREDENTIALS_KEY` (encryption key) and optional
   `OPENROUTER_API_URL` (base-URL override).
 - **New routes** (all behind `requireAuth`):
-  - `GET  /api/llm/settings` — `{ configured, provider, model }`, no key.
-  - `PUT  /api/llm/settings` — `{ apiKey?, model }`; validates and stores.
-  - `GET  /api/llm/models` — normalized OpenRouter catalog.
+  - `GET  /api/llm/settings` — configured state and both model ids, no key.
+  - `PUT  /api/llm/settings` — `{ apiKey?, seasonModel, dailyModel }`;
+    validates and stores. The legacy `{ model }` form sets both roles.
+  - `GET  /api/llm/catalog` — graded model catalog.
+  - `GET  /api/llm/models` — raw normalized OpenRouter catalog.
+  - `POST /api/llm/models/refresh` — starts the 24-hour catalog check.
   - `GET  /api/coaching/activities`, `?limit=10&refresh=false` — sync Garmin,
     analyse the latest activities, return activities + analyses. Before
     OpenRouter is configured it returns the activities with `model: null` and no
@@ -138,8 +145,8 @@ Weather and daylight are included in the plan prompts; see
 
 ### Web (`apps/web/src/`)
 
-- `LlmSection.tsx` — key + model form; catalog loaded via
-  `GET /api/llm/models`, manual entry fallback.
+- `LlmSection.tsx` — key input plus the sortable, filterable graded model
+  table; catalog loaded via `GET /api/llm/catalog`.
 - `ActivityCard.tsx` — presentational activity summary + analysis.
 - `CoachDashboard.tsx` — loads Garmin/LLM status, then the latest analysed
   activities; offers "Sync & re-analyze".

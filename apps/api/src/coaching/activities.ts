@@ -44,6 +44,7 @@ import {
   LlmProviderError,
   type LlmProvider,
 } from "../llm/openrouter.js";
+import { assertModelUsable } from "../llm/client.js";
 import { loadLlmSettings } from "../llm/store.js";
 import { dbPlanStore } from "../plans/store.js";
 import {
@@ -181,6 +182,9 @@ export async function loadAnalyzedActivities(options: {
     return feed;
   }
 
+  const dailyModel = settings.dailyModel ?? settings.model;
+  await assertModelUsable(dailyModel, "daily");
+
   const analysisContext = storedPlan
     ? {
         today: storedPlan.plan.today.date,
@@ -208,13 +212,13 @@ export async function loadAnalyzedActivities(options: {
         loadAnalyses(
           options.userId,
           activityIds,
-          settings.model,
+          dailyModel,
           ANALYSIS_PROMPT_VERSION,
         ),
         loadAnalyses(
           options.userId,
           activityIds,
-          settings.model,
+          dailyModel,
           PROGRAM_ANALYSIS_PROMPT_VERSION,
           "program",
         ),
@@ -241,7 +245,7 @@ export async function loadAnalyzedActivities(options: {
             : (ftpBaselineAt(ftpTimeline, activityDate)?.watts ?? null);
         const result = await analyzeActivity(
           provider,
-          { apiKey, model: settings.model },
+          { apiKey, model: dailyModel },
           activity,
           analysisContext === undefined
             ? undefined
@@ -250,7 +254,7 @@ export async function loadAnalyzedActivities(options: {
         const saved = await saveAnalysis({
           userId: options.userId,
           activityId: activity.id,
-          model: settings.model,
+          model: dailyModel,
           promptVersion: ANALYSIS_PROMPT_VERSION,
           text: result.analysis,
         });
@@ -263,7 +267,7 @@ export async function loadAnalyzedActivities(options: {
             await saveCoachQuestions({
               userId: options.userId,
               questions: result.coachQuestions,
-              model: settings.model,
+              model: dailyModel,
               sourceKind: "activity_analysis",
             });
           } catch (err) {
@@ -344,7 +348,7 @@ export async function loadAnalyzedActivities(options: {
     analysed.map((activity) => [String(activity.id), activity]),
   );
   const feed: ActivityFeed = {
-    model: settings.model,
+    model: dailyModel,
     activities: history.map((activity) => {
       const analyzed = analyzedById.get(String(activity.id));
       return withActivityLoad(

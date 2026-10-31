@@ -1,0 +1,128 @@
+# Spec: Graded OpenRouter model catalog and two-model coach settings
+
+- **Status:** Accepted (implemented)
+- **Date:** 2026-10-31
+- **Related:** `docs/specs/openrouter-llm-integration.md`,
+  `docs/specs/llm-benchmark.md`, ADR 0004, ADR 0016.
+
+## Goal
+
+Stop asking athletes to paste model IDs. Keep a graded catalog of every
+OpenRouter model, let the athlete choose one model for season/block work and one
+for day-to-day prompts, and keep the catalog current without blocking a visit.
+
+## Scope
+
+### Catalog table
+
+`llm_models` stores one row per OpenRouter model:
+
+- `id`, `name`
+- `retired`, `discouraged`
+- `ability`, `speed`, `cost`
+- benchmark score, time, cost, category breakdown and timestamp
+- first/last seen timestamps
+
+`llm_model_sync` stores the single most recent catalog check, its error, and the
+24-hour gate.
+
+### Grades
+
+Ability:
+
+- `A+` score >= 11.1
+- `A` score >= 10.5
+- `B` score >= 9.0
+- `C` score >= 8.0 (below 9)
+- `D` score >= 7.5 (below 8)
+- `E` score > 0 (below 7.5)
+- `F` failed, unscoreable, or any benchmark category below half its maximum
+
+The category maxima are contract 1.5, fidelity 2, design 3, rationale 2,
+grounding 2 and detail 2. The half-category rule overrides the score band, so a
+model with a high total but a very weak category is still `F`.
+
+Speed:
+
+- `A+` < 10 s, `A` < 20 s, `B` < 30 s, `C` < 45 s, `D` < 90 s, `E` < 150 s,
+  `F` >= 150 s.
+
+Cost:
+
+- `A+` < $0.01, `A` < $0.05, `B` < $0.061, `C` < $0.077, `D` < $0.131,
+  `E` < $0.30, `F` >= $0.30.
+
+The B/C/D cost cuts are the 25th, 50th and 75th percentiles of the measured
+benchmark costs between $0.05 and $0.30, so those bands stay roughly equal.
+
+A model is `Discouraged` when ability is below `B`, speed is `F`, or cost is
+`F`. An ungraded model is never discouraged until it has been benchmarked.
+
+### Refresh
+
+On every signed-in page visit the web app calls
+`POST /api/llm/models/refresh`. The API claims a single `llm_model_sync` row only
+when the last check is more than 24 hours old, then fetches OpenRouter's model
+list in the background.
+
+- Existing models get their name and `last_seen_at` refreshed.
+- New models are inserted with `retired=false`, `discouraged=false`,
+  `ability=?`, `speed=?`, and a cost grade estimated from the list price.
+- Models missing from OpenRouter are marked retired.
+- Existing benchmark grades are never overwritten by a refresh.
+
+### Settings
+
+`llm_settings` gains `season_model` and `daily_model`; the legacy `model` column
+remains as the fallback. The Settings page shows one table of non-retired
+models, plus any currently selected retired model with `(retired)` appended to
+its name.
+
+Columns are model, discouraged, ability, speed, cost and the two selection
+radios. Every column is sortable. Filters default to:
+
+- Discouraged = false
+- Ability = B or above
+- Speed = D or above
+- Cost = E or above
+
+Sorting defaults to ability, then speed, then cost.
+
+The season model is used for season plans, season refreshes and block planning.
+The day model is used for week/day planning, coach questions, workout analysis,
+metric reading, replies and every other daily prompt. Before a prompt runs, the
+selected model is checked; a retired or discouraged model fails with a message
+telling the athlete to open Settings and choose another one.
+
+### Benchmark upkeep
+
+The today-prompt benchmark can run only the models that still have `?` in
+ability or speed:
+
+```sh
+# 1. Run the pending models into a fresh run directory
+PENDING_ONLY=1 RUN_ID=2026-11-15-pending \
+  bun benchmarks/today-prompt/run.ts
+
+# 2. Judge the returned JSON with Haiku
+RUN_ID=2026-11-15-pending bun benchmarks/today-prompt/judge.ts
+
+# 3. Save the grades into llm_models
+RUN_ID=2026-11-15-pending bun benchmarks/today-prompt/sync-db.ts
+```
+
+`sync-db.ts` refreshes the catalog first, records every result in the run, and
+recomputes ability, speed, cost and discouraged. New models are picked up
+automatically because `PENDING_ONLY=1` reads `pendingBenchmarkModelIds()`.
+
+## Acceptance criteria
+
+1. The catalog table contains every OpenRouter model with the grade columns.
+2. A catalog refresh runs at most once per 24 hours, inserts new models and
+   retires missing ones.
+3. The Settings page offers one sortable, filterable table and two radio
+   selections, with the documented defaults.
+4. Season/block prompts use `season_model`; week/day and day-to-day prompts use
+   `daily_model`.
+5. A retired or discouraged selection is refused with a Settings-page message.
+6. The benchmark can run only ungraded models and write their grades back.

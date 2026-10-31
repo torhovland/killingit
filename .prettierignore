@@ -11,3 +11,6 @@ services/**/__pycache__/
 apps/api/drizzle/meta/
 # Generated benchmark artifacts; the runner writes them directly.
 benchmarks/llm-coach/runs/
+# Today-prompt benchmark artifacts.
+benchmarks/today-prompt/runs/
+benchmarks/today-prompt/reports/
