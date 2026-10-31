@@ -15,7 +15,9 @@ RUN_ID=2026-11-15-pending bun benchmarks/today-prompt/sync-db.ts
 ```
 
 `run.ts` reads `pendingBenchmarkModelIds()` from the database, so new,
-ungraded, price-changed and alias-reassigned models are picked up automatically. `sync-db.ts`
+ungraded, price-changed and alias-reassigned models are picked up automatically.
+If an alias and its target both need grading, only the target is run; the alias
+is copied from the finished target afterwards. `sync-db.ts`
 refreshes the catalog, records the scores, and recomputes Ability, Speed, Cost
 and Discouraged.
 The commands need the same `DATABASE_URL` and `OPENROUTER_API_KEY` as the API.

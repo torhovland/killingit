@@ -121,11 +121,14 @@ RUN_ID=2026-11-15-pending bun benchmarks/today-prompt/judge.ts
 RUN_ID=2026-11-15-pending bun benchmarks/today-prompt/sync-db.ts
 ```
 
-`sync-db.ts` refreshes the catalog first, records every result in the run, and
-recomputes ability, speed, cost and discouraged. It also clears
-`needs_rescore` for the models it graded. New models and models whose list
-price changed are picked up automatically because `PENDING_ONLY=1` reads
-`pendingBenchmarkModelIds()`.
+`pendingBenchmarkModelIds()` resolves alias dependencies before returning the
+run list: if both an alias and the model it points at need grading, the alias is
+left out and the concrete target is graded first. `sync-db.ts` refreshes the
+catalog first, records every result in the run, copies the freshly graded
+target onto its waiting aliases, and recomputes ability, speed, cost and
+discouraged. It also clears `needs_rescore` for the models it graded. New
+models, price-changed models and aliases whose target could not be copied are
+picked up automatically.
 
 ## Acceptance criteria
 

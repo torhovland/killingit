@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import {
+  copyBenchmarkToAliases,
   recordBenchmarkGrade,
   refreshModelCatalog,
 } from "../../apps/api/src/llm/modelCatalog.js";
@@ -59,7 +60,10 @@ async function main(): Promise<void> {
     });
     graded += 1;
   }
-  console.log(`recorded ${graded} benchmark grades from ${RUN_ID}`);
+  const copied = await copyBenchmarkToAliases();
+  console.log(
+    `recorded ${graded} benchmark grades from ${RUN_ID}; copied ${copied} alias result(s)`,
+  );
 }
 
 await main();

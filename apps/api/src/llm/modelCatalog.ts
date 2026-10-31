@@ -208,6 +208,7 @@ async function loadTargetBenchmark(
       benchmarkCategories: llmModels.benchmarkCategories,
       benchmarkedAt: llmModels.benchmarkedAt,
       benchmarkCostUsd: llmModels.benchmarkCostUsd,
+      needsRescore: llmModels.needsRescore,
       aliasTargetSlug: llmModels.aliasTargetSlug,
     })
     .from(llmModels)
@@ -215,7 +216,7 @@ async function loadTargetBenchmark(
     .limit(1);
   const row = rows[0];
   if (!row) return null;
-  if (row.ability !== "?" && row.benchmarkScore !== null) {
+  if (row.ability !== "?" && row.benchmarkScore !== null && !row.needsRescore) {
     return {
       ability: row.ability,
       speed: row.speed,
@@ -237,7 +238,7 @@ async function loadTargetBenchmark(
  * its own cost estimate because OpenRouter can price an alias differently from
  * its target.
  */
-async function copyBenchmarkToAliases(): Promise<number> {
+export async function copyBenchmarkToAliases(): Promise<number> {
   const aliases = await db
     .select()
     .from(llmModels)
@@ -512,9 +513,34 @@ export async function modelIsUsable(modelId: string): Promise<{
   };
 }
 
-export async function pendingBenchmarkModelIds(): Promise<string[]> {
+async function targetChainTouchesPending(
+  targetSlug: string,
+  pendingIds: Set<string>,
+  seen: Set<string>,
+): Promise<boolean> {
+  if (seen.has(targetSlug)) return false;
+  seen.add(targetSlug);
+  if (pendingIds.has(targetSlug)) return true;
   const rows = await db
-    .select({ id: llmModels.id })
+    .select({ aliasTargetSlug: llmModels.aliasTargetSlug })
+    .from(llmModels)
+    .where(eq(llmModels.id, targetSlug))
+    .limit(1);
+  const target = rows[0]?.aliasTargetSlug ?? null;
+  if (target === null) return false;
+  return targetChainTouchesPending(target, pendingIds, seen);
+}
+
+/**
+ * Models the benchmark must call directly. Aliases whose target is also
+ * pending are deliberately left out: grade the concrete target first, then
+ * copy its result onto the alias.
+ */
+export async function pendingBenchmarkModelIds(): Promise<string[]> {
+  // Copy any alias whose target is already graded before deciding what to run.
+  await copyBenchmarkToAliases();
+  const rows = await db
+    .select({ id: llmModels.id, aliasTargetSlug: llmModels.aliasTargetSlug })
     .from(llmModels)
     .where(
       or(
@@ -525,7 +551,22 @@ export async function pendingBenchmarkModelIds(): Promise<string[]> {
         isNull(llmModels.benchmarkScore),
       ),
     );
-  return rows.map((row) => row.id);
+  const pendingIds = new Set(rows.map((row) => row.id));
+  const result: string[] = [];
+  for (const row of rows) {
+    if (
+      row.aliasTargetSlug !== null &&
+      (await targetChainTouchesPending(
+        row.aliasTargetSlug,
+        pendingIds,
+        new Set([row.id]),
+      ))
+    ) {
+      continue;
+    }
+    result.push(row.id);
+  }
+  return result;
 }
 
 export interface BenchmarkGradeInput {
