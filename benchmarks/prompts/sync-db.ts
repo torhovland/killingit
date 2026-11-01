@@ -37,7 +37,7 @@ async function main(): Promise<void> {
   if (process.env.SKIP_REFRESH !== "1") {
     const refreshed = await refreshModelCatalog({ force: true });
     console.log(
-      `catalog checked=${refreshed.checked} added=${refreshed.added} retired=${refreshed.retired} rescored=${refreshed.rescored} reassigned=${refreshed.reassigned} copied=${refreshed.copied} error=${refreshed.error ?? "none"}`,
+      `catalog checked=${refreshed.checked} added=${refreshed.added} retired=${refreshed.retired} rescored=${refreshed.rescored} reassigned=${refreshed.reassigned} copied=${refreshed.copied} removed=${refreshed.removed} error=${refreshed.error ?? "none"}`,
     );
   } else {
     console.log("catalog refresh skipped");

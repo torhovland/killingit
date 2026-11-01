@@ -60,6 +60,7 @@ describe("listModels", () => {
                 architecture: { output_modalities: ["image"] },
               },
               { id: "routed", name: "Routed", pricing: { prompt: "-1" } },
+              { id: "openai/gpt-5:batch", name: "Batch Only" },
             ],
           }),
         ),
@@ -69,6 +70,9 @@ describe("listModels", () => {
     const models = await provider.listModels();
     expect(models).toHaveLength(3);
     expect(models.some((model) => model.id === "image-only")).toBe(false);
+    expect(models.some((model) => model.id === "openai/gpt-5:batch")).toBe(
+      false,
+    );
     expect(
       models.find((model) => model.id === "openrouter/auto"),
     ).toMatchObject({

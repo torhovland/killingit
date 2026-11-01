@@ -257,10 +257,15 @@ export function createOpenRouterProvider(
         );
       }
 
-      return body.data
-        .map(normalizeModel)
-        .filter((model): model is LlmModel => model !== null)
-        .sort((a, b) => a.name.localeCompare(b.name));
+      return (
+        body.data
+          .map(normalizeModel)
+          .filter((model): model is LlmModel => model !== null)
+          // Batch-only routes are asynchronous and cannot serve normal chat
+          // requests, so they never belong in the model picker.
+          .filter((model) => !model.id.endsWith(":batch"))
+          .sort((a, b) => a.name.localeCompare(b.name))
+      );
     },
 
     async validateKey(apiKey) {

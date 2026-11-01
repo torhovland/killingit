@@ -99,6 +99,9 @@ list in the background.
 - New models are inserted with `retired=false`, `discouraged=false`,
   `ability=?`, `speed=?`, and the price grade from their list prices.
 - Models missing from OpenRouter are marked retired.
+- OpenRouter's batch-only `:batch` routes are never inserted, and any existing
+  `:batch` rows are deleted during the refresh. They are asynchronous and
+  cannot serve normal chat requests.
 - Existing benchmark grades are never overwritten by a refresh.
 
 ### Settings

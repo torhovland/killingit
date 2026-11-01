@@ -65,6 +65,7 @@ function makeApp(
       rescored: number;
       reassigned: number;
       copied: number;
+      removed: number;
       error: string | null;
     }>;
   } = {},
@@ -183,6 +184,7 @@ describe("POST /llm/models/refresh", () => {
           rescored: 0,
           reassigned: 0,
           copied: 0,
+          removed: 0,
           error: null,
         });
       },

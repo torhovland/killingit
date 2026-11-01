@@ -1,5 +1,14 @@
 import type { LlmModel, LlmModelGrade } from "@killingit/shared";
-import { and, eq, isNotNull, isNull, lt, notInArray, or } from "drizzle-orm";
+import {
+  and,
+  eq,
+  isNotNull,
+  isNull,
+  like,
+  lt,
+  notInArray,
+  or,
+} from "drizzle-orm";
 import { db } from "../db/index.js";
 import { llmModels, llmModelSync } from "../db/schema.js";
 import { createOpenRouterProvider } from "./openrouter.js";
@@ -236,6 +245,8 @@ export interface CatalogRefreshResult {
   reassigned: number;
   /** Alias models that inherited their target's benchmark data. */
   copied: number;
+  /** Batch-only catalog rows removed from the table. */
+  removed: number;
   error: string | null;
 }
 
@@ -388,6 +399,7 @@ export async function refreshModelCatalog(
       rescored: 0,
       reassigned: 0,
       copied: 0,
+      removed: 0,
       error: null,
     };
   }
@@ -395,6 +407,11 @@ export async function refreshModelCatalog(
   try {
     const provider = createOpenRouterProvider();
     const models = await provider.listModels();
+    const removedRows = await db
+      .delete(llmModels)
+      .where(like(llmModels.id, "%:batch"))
+      .returning({ id: llmModels.id });
+    const removed = removedRows.length;
     const existing = await db
       .select({
         id: llmModels.id,
@@ -513,6 +530,7 @@ export async function refreshModelCatalog(
       rescored,
       reassigned,
       copied,
+      removed,
       error: null,
     };
   } catch (err) {
@@ -528,6 +546,7 @@ export async function refreshModelCatalog(
       rescored: 0,
       reassigned: 0,
       copied: 0,
+      removed: 0,
       error: message,
     };
   }
