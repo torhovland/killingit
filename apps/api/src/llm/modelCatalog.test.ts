@@ -22,9 +22,12 @@ describe("abilityGrade", () => {
   it("maps score bands to letter grades", () => {
     expect(abilityGrade({ score: 11.1, categories })).toBe("A+");
     expect(abilityGrade({ score: 10.5, categories })).toBe("A");
-    expect(abilityGrade({ score: 9, categories })).toBe("B");
-    expect(abilityGrade({ score: 8, categories })).toBe("C");
-    expect(abilityGrade({ score: 7.5, categories })).toBe("D");
+    expect(abilityGrade({ score: 10.2, categories })).toBe("B");
+    expect(abilityGrade({ score: 10.1, categories })).toBe("C");
+    expect(abilityGrade({ score: 9.8, categories })).toBe("C");
+    expect(abilityGrade({ score: 9.7, categories })).toBe("D");
+    expect(abilityGrade({ score: 9.6, categories })).toBe("D");
+    expect(abilityGrade({ score: 9.5, categories })).toBe("E");
     expect(abilityGrade({ score: 7.4, categories })).toBe("E");
   });
 

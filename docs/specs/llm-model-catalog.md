@@ -34,10 +34,10 @@ Ability:
 
 - `A+` score >= 11.1
 - `A` score >= 10.5
-- `B` score >= 9.0
-- `C` score >= 8.0 (below 9)
-- `D` score >= 7.5 (below 8)
-- `E` score > 0 (below 7.5)
+- `B` score >= 10.2 (below 10.5)
+- `C` score >= 9.8 (below 10.2)
+- `D` score >= 9.6 (below 9.8)
+- `E` score > 0 (below 9.6)
 - `F` failed, unscoreable, or any benchmark category below half its maximum
 
 The category maxima are contract 1.5, fidelity 2, design 3, rationale 2,

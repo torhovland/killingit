@@ -205,7 +205,7 @@ export interface AbilityInput {
  * Ability is the benchmark score band, unless the run failed or any category
  * scored below half of its maximum. A category failure always grades F.
  *
- * Score bands: A+ >= 11.1, A >= 10.5, B >= 9.0, C >= 8.0, D >= 7.5,
+ * Score bands: A+ >= 11.1, A >= 10.5, B >= 10.2, C >= 9.8, D >= 9.6,
  * E > 0, F otherwise.
  */
 export function abilityGrade({
@@ -224,9 +224,9 @@ export function abilityGrade({
   }
   if (score >= 11.1) return "A+";
   if (score >= 10.5) return "A";
-  if (score >= 9.0) return "B";
-  if (score >= 8.0) return "C";
-  if (score >= 7.5) return "D";
+  if (score >= 10.2) return "B";
+  if (score >= 9.8) return "C";
+  if (score >= 9.6) return "D";
   return "E";
 }
 
