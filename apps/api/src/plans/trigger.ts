@@ -1,5 +1,6 @@
 import type { ActivityFeed } from "../coaching/activities.js";
 import { loadAnalyzedActivities } from "../coaching/activities.js";
+import { latestActivityAnalysisSince } from "../coaching/analysisRuns.js";
 import { MAX_ANALYZED_ACTIVITIES } from "../coaching/feedCache.js";
 import {
   buildAthleteMetricSource,
@@ -160,6 +161,7 @@ export async function runPlanForUser(
   >;
   const surveyAdjustmentStore =
     deps.coachingSurveyAdjustments ?? dbCoachingSurveyAdjustmentStore;
+  const activitiesSnapshotAt = Date.now();
 
   try {
     [
@@ -204,7 +206,7 @@ export async function runPlanForUser(
   // The stored feed keeps every activity ever synced. Prompts and program
   // reviews stay on the same recent window as the analysis cap so they do not
   // grow with the athlete's entire history.
-  const recentActivities = activities.activities.slice(
+  let recentActivities = activities.activities.slice(
     0,
     MAX_ANALYZED_ACTIVITIES,
   );
@@ -290,6 +292,22 @@ export async function runPlanForUser(
 
   // The caller owns the background task and heartbeat; the client polls GET
   // for progress while this long cascade runs.
+  //
+  // An analysis pass can begin after this run loaded its feed, for example
+  // while the athlete-metrics and forecast phases run. Wait for it and use its
+  // finished feed so the prompt never plans from an analysis that is about to
+  // be replaced.
+  const refreshedActivities = await latestActivityAnalysisSince(
+    userId,
+    activitiesSnapshotAt,
+  );
+  if (refreshedActivities !== null) {
+    recentActivities = refreshedActivities.activities.slice(
+      0,
+      MAX_ANALYZED_ACTIVITIES,
+    );
+  }
+
   await runPlanGeneration({
     userId,
     runId: options.runId,
