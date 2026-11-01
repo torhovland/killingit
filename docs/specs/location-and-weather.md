@@ -96,13 +96,16 @@ would be sensible to take it outside.
   athlete presses Save. Each suggestion is labelled with the street or place,
   city, county, and country so identically named streets are distinguishable.
 - Wheel and trackpad zoom keep the point under the pointer fixed; the plus and
-  minus buttons zoom about the map centre. The map's SVG overlay matches its
-  rendered size, so 256 px OpenStreetMap tiles are shown at native resolution
-  rather than stretched. Tiles are HTML images in two alternating layers:
-  panning only translates the current layer, and a zoom keeps the previous layer
-  underneath until the next zoom, so the map does not blank while a new zoom
-  level loads. A one-tile margin stays mounted around the viewport, and tile
-  requests send the page origin as the referrer that OpenStreetMap requires.
+  minus buttons zoom about the map centre, and a burst of wheel events is capped
+  to a controlled number of steps. The map matches its rendered size, so 256 px
+  OpenStreetMap tiles are shown at native resolution rather than stretched.
+  Tiles are HTML images in two alternating layers: panning only translates the
+  current layer by whole pixels, coalesced to one update per animation frame,
+  and a zoom keeps the previous layer underneath until the next zoom, so the map
+  does not blank while a new zoom level loads. The marker is an HTML element
+  over the tiles, not an SVG overlay. A one-tile margin stays mounted around the
+  viewport, and tile requests send the page origin as the referrer that
+  OpenStreetMap requires.
 - A map click clears any searched name and sets the marker to the clicked
   coordinates.
 - The location uses decimal degrees (WGS 84), matching activity GPS points.

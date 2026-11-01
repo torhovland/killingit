@@ -15,6 +15,10 @@ const DEFAULT_HEIGHT = 300;
 const MIN_ZOOM = 2;
 const MAX_ZOOM = 16;
 const WHEEL_ZOOM_THRESHOLD = 50;
+// A trackpad can emit wheel events at screen refresh rate. Limit a burst to a
+// controlled number of discrete zoom steps instead of swapping tile layers
+// dozens of times in one gesture.
+const WHEEL_ZOOM_COOLDOWN_MS = 250;
 // Keep a margin of tiles mounted around the viewport so small pans do not
 // unmount the edge tiles and leave visible gaps while the next row loads.
 const TILE_BUFFER = TILE_SIZE;
@@ -101,8 +105,8 @@ export function LocationPickerMap({
   const initialZoom = value === null ? 2 : 10;
   const [center, setCenter] = useState<MapPoint>(initialCenter);
   const [zoom, setZoom] = useState(initialZoom);
-  // Match the overlay to the rendered size so tiles and the marker share one
-  // coordinate space.
+  // Match the map coordinates to the rendered size so tiles and the marker
+  // share one coordinate space.
   const [size, setSize] = useState({
     width: DEFAULT_WIDTH,
     height: DEFAULT_HEIGHT,
@@ -112,10 +116,22 @@ export function LocationPickerMap({
     fallback: null,
   });
   const drag = useRef<DragState | null>(null);
-  const svg = useRef<SVGSVGElement | null>(null);
+  const map = useRef<HTMLDivElement | null>(null);
   const viewport = useRef({ center, zoom, size });
   const slotRef = useRef(slots);
   const wheelDelta = useRef(0);
+  const lastWheelZoom = useRef(0);
+  const pendingPan = useRef<MapPoint | null>(null);
+  const panFrame = useRef<number | null>(null);
+
+  useEffect(
+    () => () => {
+      if (panFrame.current !== null) {
+        cancelAnimationFrame(panFrame.current);
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     viewport.current = { center, zoom, size };
@@ -155,7 +171,7 @@ export function LocationPickerMap({
   );
 
   useEffect(() => {
-    const element = svg.current;
+    const element = map.current;
     if (element === null || typeof ResizeObserver === "undefined") {
       return;
     }
@@ -179,11 +195,11 @@ export function LocationPickerMap({
   // Wheel listeners must be non-passive so zooming the map does not scroll the
   // page. React attaches wheel events passively at the root, so use the DOM.
   useEffect(() => {
-    const element = svg.current;
+    const element = map.current;
     if (element === null) {
       return;
     }
-    const map = element;
+    const target = element;
     function handleWheel(event: WheelEvent): void {
       event.preventDefault();
       const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? 100 : 1;
@@ -191,14 +207,20 @@ export function LocationPickerMap({
       if (Math.abs(wheelDelta.current) < WHEEL_ZOOM_THRESHOLD) {
         return;
       }
+      const now = performance.now();
+      if (now - lastWheelZoom.current < WHEEL_ZOOM_COOLDOWN_MS) {
+        wheelDelta.current = 0;
+        return;
+      }
       const direction = wheelDelta.current < 0 ? 1 : -1;
       wheelDelta.current = 0;
+      lastWheelZoom.current = now;
       const current = viewport.current;
       const nextZoom = clampZoom(current.zoom + direction);
       if (nextZoom === current.zoom) {
         return;
       }
-      const rect = map.getBoundingClientRect();
+      const rect = target.getBoundingClientRect();
       const pointer = {
         x: ((event.clientX - rect.left) / rect.width) * current.size.width,
         y: ((event.clientY - rect.top) / rect.height) * current.size.height,
@@ -214,8 +236,8 @@ export function LocationPickerMap({
         nextZoom,
       );
     }
-    element.addEventListener("wheel", handleWheel, { passive: false });
-    return () => element.removeEventListener("wheel", handleWheel);
+    target.addEventListener("wheel", handleWheel, { passive: false });
+    return () => target.removeEventListener("wheel", handleWheel);
   }, [changeView]);
 
   // A search result or a saved location moves the map to that place. Clicking
@@ -243,14 +265,14 @@ export function LocationPickerMap({
   const marker = value === null ? null : projectPoint(value, zoom);
   const currentLayer = layerForView(center, zoom, size);
 
-  function pointFromEvent(event: React.PointerEvent<SVGSVGElement>): MapPoint {
+  function pointFromEvent(event: React.PointerEvent<HTMLDivElement>): MapPoint {
     const rect = event.currentTarget.getBoundingClientRect();
     const x = ((event.clientX - rect.left) / rect.width) * size.width;
     const y = ((event.clientY - rect.top) / rect.height) * size.height;
     return unprojectPoint({ x: topLeft.x + x, y: topLeft.y + y }, zoom);
   }
 
-  function handlePointerDown(event: React.PointerEvent<SVGSVGElement>) {
+  function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
     if (event.button !== 0) {
       return;
     }
@@ -264,7 +286,7 @@ export function LocationPickerMap({
     };
   }
 
-  function handlePointerMove(event: React.PointerEvent<SVGSVGElement>) {
+  function handlePointerMove(event: React.PointerEvent<HTMLDivElement>) {
     const state = drag.current;
     if (state === null || state.pointerId !== event.pointerId) {
       return;
@@ -284,10 +306,33 @@ export function LocationPickerMap({
       zoom,
     );
     viewport.current = { ...viewport.current, center: nextCenter };
-    setCenter(nextCenter);
+    pendingPan.current = nextCenter;
+    if (panFrame.current === null) {
+      panFrame.current = requestAnimationFrame(() => {
+        panFrame.current = null;
+        const pending = pendingPan.current;
+        if (pending !== null) {
+          pendingPan.current = null;
+          setCenter(pending);
+        }
+      });
+    }
   }
 
-  function handlePointerUp(event: React.PointerEvent<SVGSVGElement>) {
+  function flushPan(): void {
+    if (panFrame.current !== null) {
+      cancelAnimationFrame(panFrame.current);
+      panFrame.current = null;
+    }
+    const pending = pendingPan.current;
+    if (pending !== null) {
+      pendingPan.current = null;
+      setCenter(pending);
+    }
+  }
+
+  function handlePointerUp(event: React.PointerEvent<HTMLDivElement>) {
+    flushPan();
     const state = drag.current;
     drag.current = null;
     if (state === null || state.pointerId !== event.pointerId) {
@@ -305,7 +350,19 @@ export function LocationPickerMap({
 
   return (
     <div className="relative" data-testid="location-map">
-      <div className="relative aspect-[4/3] w-full overflow-hidden rounded border bg-muted">
+      <div
+        ref={map}
+        className="relative isolate aspect-[4/3] w-full touch-none overflow-hidden rounded border bg-muted select-none"
+        role="img"
+        aria-label="Location picker map. Click to set your location. Scroll to zoom."
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={() => {
+          flushPan();
+          drag.current = null;
+        }}
+      >
         {SLOT_NAMES.map((slotName) => {
           const layer =
             slots.current === slotName
@@ -320,11 +377,10 @@ export function LocationPickerMap({
           return (
             <div
               key={slotName}
-              className="pointer-events-none absolute top-0 left-0"
+              className="pointer-events-none absolute inset-0"
               style={{
-                transform: `translate3d(${-topLeft.x}px, ${-topLeft.y}px, 0) scale(${scale})`,
+                transform: `translate3d(${Math.round(-topLeft.x)}px, ${Math.round(-topLeft.y)}px, 0) scale(${scale})`,
                 transformOrigin: "0 0",
-                willChange: "transform",
                 zIndex: slots.current === slotName ? 2 : 1,
               }}
             >
@@ -334,7 +390,6 @@ export function LocationPickerMap({
                   src={tile.href}
                   alt=""
                   draggable={false}
-                  decoding="async"
                   referrerPolicy="origin"
                   className="absolute max-w-none select-none"
                   style={{
@@ -349,36 +404,17 @@ export function LocationPickerMap({
           );
         })}
 
-        <svg
-          ref={svg}
-          viewBox={`0 0 ${size.width} ${size.height}`}
-          className="absolute inset-0 z-10 h-full w-full cursor-crosshair touch-none"
-          role="img"
-          aria-label="Location picker map. Click to set your location. Scroll to zoom."
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerCancel={() => {
-            drag.current = null;
-          }}
-        >
-          {marker !== null && (
-            <g
-              transform={`translate(${marker.x - topLeft.x} ${marker.y - topLeft.y})`}
-            >
-              <circle
-                r="11"
-                className="fill-primary/20 stroke-primary"
-                strokeWidth="1.5"
-              />
-              <circle
-                r="5"
-                className="fill-primary stroke-card"
-                strokeWidth="2"
-              />
-            </g>
-          )}
-        </svg>
+        {marker !== null && (
+          <div
+            className="pointer-events-none absolute z-10 size-[22px] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-primary bg-primary/20"
+            style={{
+              left: marker.x - topLeft.x,
+              top: marker.y - topLeft.y,
+            }}
+          >
+            <div className="absolute inset-[5px] rounded-full border-2 border-card bg-primary" />
+          </div>
+        )}
 
         <div className="absolute top-2 right-2 z-20 flex flex-col gap-1">
           <button
