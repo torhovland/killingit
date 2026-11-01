@@ -97,15 +97,35 @@ export const questionAnswersInputSchema = z
 export type QuestionAnswersInput = z.infer<typeof questionAnswersInputSchema>;
 
 /**
+ * The athlete's response to an earlier version of a question. It lets the
+ * survey page show the wording they answered before and copy that answer into
+ * the current version.
+ */
+export const athleteQuestionPreviousResponseSchema = z.object({
+  versionId: z.number().int().positive(),
+  version: z.number().int().positive(),
+  prompt: z.string(),
+  answer: z.string().nullable(),
+  skipped: z.boolean(),
+  answeredAt: z.string().datetime(),
+});
+
+export type AthleteQuestionPreviousResponse = z.infer<
+  typeof athleteQuestionPreviousResponseSchema
+>;
+
+/**
  * An active question together with the signed-in athlete's response to its
  * current version. `answer` is null when the athlete has not answered this
  * version, and `skipped` is true when they explicitly left an optional question
- * blank.
+ * blank. `previous` is the newest earlier version the athlete responded to, so
+ * the survey can tell an updated question from a brand-new one.
  */
 export const athleteQuestionSchema = questionSchema.extend({
   answer: z.string().nullable(),
   skipped: z.boolean(),
   answeredAt: z.string().datetime().nullable(),
+  previous: athleteQuestionPreviousResponseSchema.nullable(),
 });
 
 export type AthleteQuestion = z.infer<typeof athleteQuestionSchema>;

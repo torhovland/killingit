@@ -97,6 +97,7 @@ const athleteQuestion = {
   answer: "A little tired, but the pace held.",
   skipped: false,
   answeredAt: "2026-10-21T08:00:00.000Z",
+  previous: null,
 };
 
 describe("questionAnswersInputSchema", () => {
@@ -172,6 +173,30 @@ describe("athlete question response", () => {
 
     expect(parsed.questions[0]?.answer).toBeNull();
     expect(parsed.questions[0]?.skipped).toBe(false);
+  });
+
+  it("parses the previous response to an earlier version", () => {
+    const parsed = athleteQuestionsResponseSchema.parse({
+      questions: [
+        {
+          ...athleteQuestion,
+          answer: null,
+          skipped: false,
+          answeredAt: null,
+          previous: {
+            versionId: 1,
+            version: 1,
+            prompt: "What is your goal?",
+            answer: "Finish a marathon.",
+            skipped: false,
+            answeredAt: "2026-10-20T08:00:00.000Z",
+          },
+        },
+      ],
+      complete: false,
+    });
+
+    expect(parsed.questions[0]?.previous?.answer).toBe("Finish a marathon.");
   });
 });
 

@@ -35,6 +35,14 @@ Give body weight in kilograms and body fat as a percentage of body weight; conve
 export const WEEKLY_NOTE_SCOPE_RULE = `A weekly note is normally scoped to the week it was written for. If it says the athlete cannot train on Thursday, assume that Thursday of that week only. If it says that on Thursdays they have a meetup that keeps them from training, assume it applies to every Thursday. Unless the athlete explicitly says otherwise, do not extend a week-specific constraint to other weeks.`;
 
 /**
+ * How a season refresh consumes survey answers the athlete changed since the
+ * plan was generated. The adjustments are newer than the plan, so they can
+ * require changes at every level; the clarification question stays a last
+ * resort.
+ */
+export const COACHING_SURVEY_ADJUSTMENT_RULES = `A season refresh may also include coaching survey adjustments: questions the athlete answered or edited after the plan was generated, shown with the earlier wording and answer where they changed. Treat these as the athlete's latest intent. Make any necessary adjustments to the season plan, and to the block, week, and day plans when they are affected, so the whole plan reflects the new answers. Use "coachQuestion" only when you are truly unsure about something in the adjustments; use it sparingly, not for ordinary ambiguity a conservative assumption can resolve.`;
+
+/**
  * The rules every plan prompt includes regardless of the level it builds or
  * updates: training-science guidance, how to read the supplied input, the
  * rationale rules and the body-metric rules. `GLOBAL_PROMPT_RULES` supplies the

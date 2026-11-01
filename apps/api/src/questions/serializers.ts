@@ -25,5 +25,16 @@ export function toAthleteQuestionResponse(
     answer: question.answer,
     skipped: question.skipped,
     answeredAt: question.answeredAt?.toISOString() ?? null,
+    previous:
+      question.previous === null
+        ? null
+        : {
+            versionId: question.previous.versionId,
+            version: question.previous.version,
+            prompt: question.previous.prompt,
+            answer: question.previous.answer,
+            skipped: question.previous.skipped,
+            answeredAt: question.previous.answeredAt.toISOString(),
+          },
   };
 }

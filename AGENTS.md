@@ -194,6 +194,12 @@ about a past workout, or before a suggested workout, to steer the coach.
   answered questions are kept for the season review, and recent non-null model
   remarks are listed in the admin settings page. See
   `docs/specs/coach-questions.md`.
+- The Coaching survey page shows updated, new, and answered questions, with
+  every answer editable in place and a copy-old-answer action for a revised
+  question. Any new or changed answer is appended to
+  `coaching_survey_adjustments`; the next season refresh receives those
+  adjustments in its prompt and clears them after a successful save. See
+  `docs/specs/coaching-survey-updates.md`.
 - A Calendar page shows a month of recorded activities, planned workouts and
   rest days, with block starts and the season end. Selecting an entry opens its
   full details, including the athlete comment, coach reply, and the route map

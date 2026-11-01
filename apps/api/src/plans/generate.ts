@@ -31,6 +31,7 @@ import type {
   ActivityCommentContext,
   AthleteAnswerContext,
   BodyMetricHistory,
+  CoachingSurveyAdjustmentContext,
   ManualActivityContext,
   PeriodReviewContext,
   RecentActivityContext,
@@ -71,6 +72,8 @@ export interface PlanGenerationContext {
   /** When the newest block review was generated or its comment answered. */
   blockReviewUpdatedAt?: Date | null;
   coachingInputsUpdatedAt: Date | null;
+  /** Survey answers changed after the stored plan was generated. */
+  coachingSurveyAdjustments?: readonly CoachingSurveyAdjustmentContext[];
   /** Newest general coach analysis among the recent activities, if any. */
   activitiesUpdatedAt?: Date | null;
   /** The athlete's home location, used to label the forecast in prompts. */
@@ -134,6 +137,8 @@ export interface GeneratePlanInput {
     model: string;
     sourceKind: CoachQuestionSourceKind;
   }) => Promise<void>;
+  /** Clears consumed survey adjustments after a successful season refresh. */
+  clearCoachingSurveyAdjustments?: () => Promise<void>;
   /** Injectable for tests; defaults to the database-backed period review writer. */
   capturePeriodReviews?: (
     input: Parameters<typeof captureCompletedPeriodReviews>[0],
@@ -410,6 +415,7 @@ export async function runPlanGeneration(
       if (saved === null) {
         throw new GenerationSupersededError();
       }
+      await clearSurveyAdjustments(input);
       if (input.reviewActivities) {
         await ensureCurrent();
         await generations.update(
@@ -469,6 +475,7 @@ export async function runPlanGeneration(
       if (saved === null) {
         throw new GenerationSupersededError();
       }
+      await clearSurveyAdjustments(input);
       if (input.reviewActivities) {
         await ensureCurrent();
         await generations.update(
@@ -775,6 +782,11 @@ async function requestPlanUpdate(
       nextWeek: current.nextWeek,
       nextBlock: current.nextBlock,
       revision,
+      ...(flags.season &&
+      context.coachingSurveyAdjustments !== undefined &&
+      context.coachingSurveyAdjustments.length > 0
+        ? { coachingSurveyAdjustments: context.coachingSurveyAdjustments }
+        : {}),
       ...(options.expectedBlockStartDate !== undefined
         ? { blockStartDate: options.expectedBlockStartDate }
         : {}),
@@ -1456,6 +1468,22 @@ function weatherContext(input: GeneratePlanInput) {
     forecast,
     ...(name !== undefined && name !== null ? { locationName: name } : {}),
   };
+}
+
+/** Clears consumed survey adjustments without letting a failure fail the plan. */
+async function clearSurveyAdjustments(input: GeneratePlanInput): Promise<void> {
+  if (
+    input.clearCoachingSurveyAdjustments === undefined ||
+    input.context.coachingSurveyAdjustments === undefined ||
+    input.context.coachingSurveyAdjustments.length === 0
+  ) {
+    return;
+  }
+  try {
+    await input.clearCoachingSurveyAdjustments();
+  } catch (err) {
+    console.error("[plan] could not clear survey adjustments:", err);
+  }
 }
 
 /** Stores a clarification question without letting a failure fail the plan. */

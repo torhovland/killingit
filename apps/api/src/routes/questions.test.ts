@@ -18,6 +18,7 @@ const storedQuestion: StoredAthleteQuestion = {
   answer: null,
   skipped: false,
   answeredAt: null,
+  previous: null,
 };
 
 function createTestApp(store: QuestionAnswerStore) {
@@ -96,6 +97,39 @@ describe("athlete questions route", () => {
     expect(body.questions[0]?.prompt).toBe("How did the long run feel?");
     expect(body.questions[0]?.answer).toBeNull();
     expect(body.complete).toBe(false);
+  });
+
+  it("includes the athlete's previous response to an earlier version", async () => {
+    const testApp = createTestApp({
+      listForUser: () =>
+        Promise.resolve([
+          {
+            ...storedQuestion,
+            previous: {
+              versionId: 10,
+              version: 1,
+              prompt: "How did the long run feel before?",
+              answer: "It felt hard.",
+              skipped: false,
+              answeredAt: new Date("2026-10-19T08:00:00.000Z"),
+            },
+          },
+        ]),
+      saveAnswers: () => Promise.resolve(true),
+    });
+
+    const res = await testApp.fetch(authenticatedRequest("/api/questions"));
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      questions: {
+        previous: { prompt: string; answer: string | null } | null;
+      }[];
+    };
+    expect(body.questions[0]?.previous?.prompt).toBe(
+      "How did the long run feel before?",
+    );
+    expect(body.questions[0]?.previous?.answer).toBe("It felt hard.");
   });
 
   it("rejects a submission with a blank answer", async () => {

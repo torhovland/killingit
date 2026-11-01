@@ -83,6 +83,8 @@ function findExportableBikeWorkout(
 export interface PlanRouteDependencies {
   users: UserStore;
   answers: QuestionAnswerStore;
+  /** Pending survey adjustments, injectable for DB-free route tests. */
+  coachingSurveyAdjustments?: PlanTriggerDependencies["coachingSurveyAdjustments"];
   plans: PlanStore;
   generations: PlanGenerationStore;
   /** Injectable for route tests; defaults to a Garmin sync. */
@@ -295,6 +297,9 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
             answers: deps.answers,
             plans: deps.plans,
             generations: deps.generations,
+            ...(deps.coachingSurveyAdjustments !== undefined
+              ? { coachingSurveyAdjustments: deps.coachingSurveyAdjustments }
+              : {}),
             ...(deps.loadActivities !== undefined
               ? { loadActivities: deps.loadActivities }
               : {}),

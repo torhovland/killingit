@@ -65,6 +65,10 @@ import {
   dbQuestionAnswerStore,
   type QuestionAnswerStore,
 } from "./questions/answers.js";
+import {
+  dbCoachingSurveyAdjustmentStore,
+  type CoachingSurveyAdjustmentStore,
+} from "./questions/adjustments.js";
 import { adminQuestionsRoute } from "./routes/adminQuestions.js";
 import {
   createAdminLlmCallsRoute,
@@ -113,6 +117,8 @@ export interface AppDependencies {
   userStore?: UserStore;
   /** Athlete answer storage, injectable for DB-free route tests. */
   answerStore?: QuestionAnswerStore;
+  /** Pending survey adjustments, injectable for DB-free plan route tests. */
+  coachingSurveyAdjustments?: CoachingSurveyAdjustmentStore;
   /** Stored coach plan and generation progress, injectable for route tests. */
   planStore?: PlanStore;
   generationStore?: PlanGenerationStore;
@@ -186,6 +192,8 @@ export function createApp(deps: AppDependencies = {}): Hono {
     deps.authProvider ?? (() => (cachedAuth ??= createAuthProvider()));
   const userStore = deps.userStore ?? dbUserStore;
   const answerStore = deps.answerStore ?? dbQuestionAnswerStore;
+  const coachingSurveyAdjustments =
+    deps.coachingSurveyAdjustments ?? dbCoachingSurveyAdjustmentStore;
   const planStore = deps.planStore ?? dbPlanStore;
   const generationStore = deps.generationStore ?? dbPlanGenerationStore;
 
@@ -259,6 +267,9 @@ export function createApp(deps: AppDependencies = {}): Hono {
     createCoachingRoute({
       users: userStore,
       answers: answerStore,
+      ...(coachingSurveyAdjustments !== undefined
+        ? { coachingSurveyAdjustments }
+        : {}),
       plans: planStore,
       generations: generationStore,
       ...(deps.loadActivities !== undefined
@@ -411,6 +422,9 @@ export function createApp(deps: AppDependencies = {}): Hono {
     createPlanRoute({
       users: userStore,
       answers: answerStore,
+      ...(coachingSurveyAdjustments !== undefined
+        ? { coachingSurveyAdjustments }
+        : {}),
       plans: planStore,
       generations: generationStore,
       ...(deps.loadActivities !== undefined

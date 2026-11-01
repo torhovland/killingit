@@ -510,6 +510,53 @@ export type QuestionAnswerRow = typeof questionAnswers.$inferSelect;
 export type NewQuestionAnswer = typeof questionAnswers.$inferInsert;
 
 /**
+ * Survey answers the coach has not seen yet. Each row snapshots the current
+ * question wording, the athlete's new answer (or skip), and the earlier wording
+ * and answer when the question was revised or edited. The next successful season
+ * refresh consumes these rows and clears them.
+ */
+export const coachingSurveyAdjustments = pgTable(
+  "coaching_survey_adjustments",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    question: text("question").notNull(),
+    previousQuestion: text("previous_question"),
+    // Null means the athlete explicitly skipped an optional question.
+    answer: text("answer"),
+    previousAnswer: text("previous_answer"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("coaching_survey_adjustments_user_id_created_at_idx").on(
+      table.userId,
+      table.createdAt,
+    ),
+    check(
+      "coaching_survey_adjustments_question_check",
+      sql`length(btrim(${table.question})) > 0`,
+    ),
+    check(
+      "coaching_survey_adjustments_answer_check",
+      sql`${table.answer} is null or length(btrim(${table.answer})) > 0`,
+    ),
+    check(
+      "coaching_survey_adjustments_previous_answer_check",
+      sql`${table.previousAnswer} is null or length(btrim(${table.previousAnswer})) > 0`,
+    ),
+  ],
+);
+
+export type CoachingSurveyAdjustmentRow =
+  typeof coachingSurveyAdjustments.$inferSelect;
+export type NewCoachingSurveyAdjustment =
+  typeof coachingSurveyAdjustments.$inferInsert;
+
+/**
  * An activity manually recorded by the athlete, e.g. a workout not captured by
  * Garmin. Kept intentionally simple: a date and free text.
  */

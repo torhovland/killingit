@@ -260,6 +260,13 @@
       "when": 1793528691666,
       "tag": "0036_seed_local_model_catalog",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1793530965576,
+      "tag": "0037_serious_silverclaw",
+      "breakpoints": true
     }
   ]
 }

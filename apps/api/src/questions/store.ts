@@ -20,6 +20,19 @@ export interface StoredQuestion {
   updatedAt: Date;
 }
 
+/** One immutable question version, used to resolve older answers. */
+export interface StoredQuestionVersion {
+  versionId: number;
+  version: number;
+  prompt: string;
+  required: boolean;
+}
+
+/** An active question with every one of its versions, newest last. */
+export interface StoredQuestionWithVersions extends StoredQuestion {
+  versions: readonly StoredQuestionVersion[];
+}
+
 /**
  * Pure mapping from a question row plus its current version. Kept separate so
  * the version-selection shape is unit-testable without a database.
@@ -42,11 +55,14 @@ export function toStoredQuestion(
 }
 
 /**
- * Lists active (non-archived) questions with their current version and total
- * version count. The admin set is small, so two queries and an in-memory join
- * keep this readable; archived versions are deliberately left untouched.
+ * Lists active (non-archived) questions with their current version, every
+ * version (so an athlete's earlier answer can be resolved), and total version
+ * count. The admin set is small, so two queries and an in-memory join keep this
+ * readable; archived versions are deliberately left untouched.
  */
-export async function listActiveQuestions(): Promise<StoredQuestion[]> {
+export async function listActiveQuestionsWithVersions(): Promise<
+  StoredQuestionWithVersions[]
+> {
   const activeQuestions = await db
     .select()
     .from(questions)
@@ -88,8 +104,27 @@ export async function listActiveQuestions(): Promise<StoredQuestion[]> {
         `question ${question.id} has no version ${question.currentVersion}`,
       );
     }
-    return toStoredQuestion(question, current, questionVersionRows.length);
+    return {
+      ...toStoredQuestion(question, current, questionVersionRows.length),
+      versions: questionVersionRows.map((version) => ({
+        versionId: version.id,
+        version: version.version,
+        prompt: version.prompt,
+        required: version.required,
+      })),
+    };
   });
+}
+
+/**
+ * Lists active questions with their current version and total version count.
+ * Callers that only need the current wording use this; the survey answer view
+ * uses `listActiveQuestionsWithVersions` to resolve earlier responses.
+ */
+export async function listActiveQuestions(): Promise<StoredQuestion[]> {
+  return (await listActiveQuestionsWithVersions()).map(
+    ({ versions: _versions, ...question }) => question,
+  );
 }
 
 /** Creates a new question and its first version atomically. */

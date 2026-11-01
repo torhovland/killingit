@@ -2,6 +2,9 @@
 
 - **Status:** Accepted (implemented)
 - **Date:** 2026-10-21
+- **Updated:** 2026-11-01 — the onboarding gate now opens the Coaching survey
+  page, whose updated, new, and answered sections replace the separate edit
+  mode. See `docs/specs/coaching-survey-updates.md`.
 - **Related:** ADR 0007 (athlete answers), ADR 0005 (versioned questions),
   `docs/specs/versioned-athlete-questions.md`.
 

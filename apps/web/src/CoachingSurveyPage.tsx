@@ -64,15 +64,17 @@ export function CoachingSurveyPage({
         />
       )}
 
-      <section className="flex flex-col gap-3 rounded-lg border bg-card p-4">
-        <h3 className="text-2xl font-semibold">Training plan</h3>
-        <p className="text-base text-muted-foreground">
-          After updating your answers, rebuild the plan so your coach can use
-          them. Updating an existing season keeps the blocks you have already
-          completed.
-        </p>
-        <PlanRegenerationButtons />
-      </section>
+      {questions !== null && questions.complete && (
+        <section className="flex flex-col gap-3 rounded-lg border bg-card p-4">
+          <h3 className="text-2xl font-semibold">Training plan</h3>
+          <p className="text-base text-muted-foreground">
+            After updating your answers, rebuild the plan so your coach can use
+            them. Updating an existing season keeps the blocks you have already
+            completed.
+          </p>
+          <PlanRegenerationButtons />
+        </section>
+      )}
     </section>
   );
 }
