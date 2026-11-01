@@ -1,9 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import {
   abilityGrade,
+  aliasBenchmarkCost,
   aliasTargetChanged,
   costGrade,
   isDiscouraged,
+  priceGrade,
   pricingChanged,
   speedGrade,
 } from "./modelCatalog.js";
@@ -42,6 +44,60 @@ describe("abilityGrade", () => {
 
   it("does not grade an unbenchmarked model", () => {
     expect(abilityGrade({ score: null, categories: null })).toBe("F");
+  });
+});
+
+describe("aliasBenchmarkCost", () => {
+  const target = {
+    promptPricePerMillion: 4,
+    completionPricePerMillion: 20,
+    benchmarkCostUsd: 0.826,
+    cost: "F" as const,
+  };
+
+  it("copies the measured cost when the alias has the same price", () => {
+    expect(
+      aliasBenchmarkCost(
+        { promptPricePerMillion: 4, completionPricePerMillion: 20 },
+        target,
+      ),
+    ).toEqual({ benchmarkCostUsd: 0.826, cost: "F" });
+  });
+
+  it("estimates from the alias price when the prices differ", () => {
+    const result = aliasBenchmarkCost(
+      { promptPricePerMillion: 0, completionPricePerMillion: 0 },
+      target,
+    );
+    expect(result.benchmarkCostUsd).toBe(0);
+    expect(result.cost).toBe("A+");
+  });
+});
+
+describe("priceGrade", () => {
+  it("leaves a routed model ungraded", () => {
+    expect(priceGrade(null, 10)).toBe("?");
+    expect(priceGrade(10, null)).toBe("?");
+    expect(priceGrade(-1, -1)).toBe("?");
+  });
+
+  it("grades free and very cheap models A+", () => {
+    expect(priceGrade(0, 0)).toBe("A+");
+    expect(priceGrade(0.09, 0.49)).toBe("A+");
+  });
+
+  it("applies the fixed F limits on either price", () => {
+    expect(priceGrade(20, 0.1)).toBe("F");
+    expect(priceGrade(0.1, 100)).toBe("F");
+    expect(priceGrade(19.99, 99.99)).toBe("E");
+  });
+
+  it("moves through the middle bands at their limits", () => {
+    expect(priceGrade(0.1, 0.5)).toBe("A");
+    expect(priceGrade(0.32, 1.6)).toBe("B");
+    expect(priceGrade(0.8, 4)).toBe("C");
+    expect(priceGrade(2, 10)).toBe("D");
+    expect(priceGrade(3, 15)).toBe("E");
   });
 });
 

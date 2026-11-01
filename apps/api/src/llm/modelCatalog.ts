@@ -30,6 +30,21 @@ export const COST_GRADE_LIMITS = {
   e: 0.3,
 } as const;
 
+/**
+ * List-price grade for a model that has no benchmark yet. A model must be at
+ * or below both the prompt and completion limit for a band. A+ and F are fixed
+ * by product; the A-E cuts are calibrated so those five bands are roughly
+ * equally populated across the measured catalog.
+ */
+export const PRICE_GRADE_LIMITS = {
+  aPlus: { prompt: 0.1, completion: 0.5 },
+  a: { prompt: 0.32, completion: 1.6 },
+  b: { prompt: 0.8, completion: 4 },
+  c: { prompt: 2, completion: 10 },
+  d: { prompt: 3, completion: 15 },
+  e: { prompt: 20, completion: 100 },
+} as const;
+
 export const GRADE_ORDER: Record<LlmModelGrade, number> = {
   "A+": 6,
   A: 5,
@@ -95,6 +110,96 @@ export function costGrade(costUsd: number | null | undefined): LlmModelGrade {
   if (costUsd < COST_GRADE_LIMITS.c) return "C";
   if (costUsd < COST_GRADE_LIMITS.d) return "D";
   if (costUsd < COST_GRADE_LIMITS.e) return "E";
+  return "F";
+}
+
+export interface AliasPrices {
+  promptPricePerMillion: number | null;
+  completionPricePerMillion: number | null;
+}
+
+export interface TargetBenchmarkCost extends AliasPrices {
+  benchmarkCostUsd: number | null;
+  cost: LlmModelGrade;
+}
+
+/**
+ * An alias priced exactly like its target shares the measured cost. A
+ * differently priced alias keeps its own estimate.
+ */
+export function aliasBenchmarkCost(
+  alias: AliasPrices,
+  target: TargetBenchmarkCost,
+): { benchmarkCostUsd: number | null; cost: LlmModelGrade } {
+  const samePrice =
+    alias.promptPricePerMillion === target.promptPricePerMillion &&
+    alias.completionPricePerMillion === target.completionPricePerMillion;
+  if (samePrice) {
+    return { benchmarkCostUsd: target.benchmarkCostUsd, cost: target.cost };
+  }
+  const benchmarkCostUsd =
+    estimateBenchmarkCost(
+      alias.promptPricePerMillion,
+      alias.completionPricePerMillion,
+    ) ?? target.benchmarkCostUsd;
+  return { benchmarkCostUsd, cost: costGrade(benchmarkCostUsd) };
+}
+
+/**
+ * Grades a model by its current list price. Used until a model has a measured
+ * benchmark cost; a routed model with no fixed price stays ungraded.
+ */
+export function priceGrade(
+  promptPricePerMillion: number | null | undefined,
+  completionPricePerMillion: number | null | undefined,
+): LlmModelGrade {
+  if (
+    promptPricePerMillion === null ||
+    promptPricePerMillion === undefined ||
+    completionPricePerMillion === null ||
+    completionPricePerMillion === undefined ||
+    promptPricePerMillion < 0 ||
+    completionPricePerMillion < 0
+  ) {
+    return "?";
+  }
+  const limits = PRICE_GRADE_LIMITS;
+  if (
+    promptPricePerMillion < limits.aPlus.prompt &&
+    completionPricePerMillion < limits.aPlus.completion
+  ) {
+    return "A+";
+  }
+  if (
+    promptPricePerMillion < limits.a.prompt &&
+    completionPricePerMillion < limits.a.completion
+  ) {
+    return "A";
+  }
+  if (
+    promptPricePerMillion < limits.b.prompt &&
+    completionPricePerMillion < limits.b.completion
+  ) {
+    return "B";
+  }
+  if (
+    promptPricePerMillion < limits.c.prompt &&
+    completionPricePerMillion < limits.c.completion
+  ) {
+    return "C";
+  }
+  if (
+    promptPricePerMillion < limits.d.prompt &&
+    completionPricePerMillion < limits.d.completion
+  ) {
+    return "D";
+  }
+  if (
+    promptPricePerMillion < limits.e.prompt &&
+    completionPricePerMillion < limits.e.completion
+  ) {
+    return "E";
+  }
   return "F";
 }
 
@@ -189,11 +294,14 @@ async function claimCatalogCheck(): Promise<boolean> {
 interface BenchmarkCopy {
   ability: LlmModelGrade;
   speed: LlmModelGrade;
+  cost: LlmModelGrade;
   benchmarkScore: number | null;
   benchmarkTimeMs: number | null;
   benchmarkCategories: Record<string, number> | null;
   benchmarkedAt: Date | null;
   benchmarkCostUsd: number | null;
+  promptPricePerMillion: number | null;
+  completionPricePerMillion: number | null;
 }
 
 /** Follows alias targets until it finds a graded model, if one exists. */
@@ -207,11 +315,14 @@ async function loadTargetBenchmark(
     .select({
       ability: llmModels.ability,
       speed: llmModels.speed,
+      cost: llmModels.cost,
       benchmarkScore: llmModels.benchmarkScore,
       benchmarkTimeMs: llmModels.benchmarkTimeMs,
       benchmarkCategories: llmModels.benchmarkCategories,
       benchmarkedAt: llmModels.benchmarkedAt,
       benchmarkCostUsd: llmModels.benchmarkCostUsd,
+      promptPricePerMillion: llmModels.promptPricePerMillion,
+      completionPricePerMillion: llmModels.completionPricePerMillion,
       needsRescore: llmModels.needsRescore,
       aliasTargetSlug: llmModels.aliasTargetSlug,
     })
@@ -224,11 +335,14 @@ async function loadTargetBenchmark(
     return {
       ability: row.ability,
       speed: row.speed,
+      cost: row.cost,
       benchmarkScore: row.benchmarkScore,
       benchmarkTimeMs: row.benchmarkTimeMs,
       benchmarkCategories: row.benchmarkCategories,
       benchmarkedAt: row.benchmarkedAt,
       benchmarkCostUsd: row.benchmarkCostUsd,
+      promptPricePerMillion: row.promptPricePerMillion,
+      completionPricePerMillion: row.completionPricePerMillion,
     };
   }
   if (row.aliasTargetSlug !== null) {
@@ -240,28 +354,29 @@ async function loadTargetBenchmark(
 /**
  * Copies the concrete model's benchmark data onto an alias. The alias keeps
  * its own cost estimate because OpenRouter can price an alias differently from
- * its target.
+ * its target. With `force`, every alias with a graded target is refreshed, so
+ * an alias that was benchmarked directly always ends up matching its target.
  */
-export async function copyBenchmarkToAliases(): Promise<number> {
+export async function copyBenchmarkToAliases(
+  options: { force?: boolean } = {},
+): Promise<number> {
   const aliases = await db
     .select()
     .from(llmModels)
     .where(
-      and(
-        isNotNull(llmModels.aliasTargetSlug),
-        or(eq(llmModels.ability, "?"), eq(llmModels.needsRescore, true)),
-      ),
+      options.force === true
+        ? isNotNull(llmModels.aliasTargetSlug)
+        : and(
+            isNotNull(llmModels.aliasTargetSlug),
+            or(eq(llmModels.ability, "?"), eq(llmModels.needsRescore, true)),
+          ),
     );
   let copied = 0;
   for (const alias of aliases) {
     if (alias.aliasTargetSlug === null) continue;
     const target = await loadTargetBenchmark(alias.aliasTargetSlug);
     if (target === null) continue;
-    const estimatedCost =
-      estimateBenchmarkCost(
-        alias.promptPricePerMillion,
-        alias.completionPricePerMillion,
-      ) ?? target.benchmarkCostUsd;
+    const aliasCost = aliasBenchmarkCost(alias, target);
     await db
       .update(llmModels)
       .set({
@@ -271,8 +386,8 @@ export async function copyBenchmarkToAliases(): Promise<number> {
         benchmarkTimeMs: target.benchmarkTimeMs,
         benchmarkCategories: target.benchmarkCategories,
         benchmarkedAt: target.benchmarkedAt,
-        benchmarkCostUsd: estimatedCost,
-        cost: costGrade(estimatedCost),
+        benchmarkCostUsd: aliasCost.benchmarkCostUsd,
+        cost: aliasCost.cost,
         needsRescore: false,
         updatedAt: new Date(),
       })
@@ -335,7 +450,11 @@ export async function refreshModelCatalog(
     let reassigned = 0;
 
     for (const model of models) {
-      const cost = estimateBenchmarkCost(
+      const estimatedCost = estimateBenchmarkCost(
+        model.promptPricePerMillion,
+        model.completionPricePerMillion,
+      );
+      const price = priceGrade(
         model.promptPricePerMillion,
         model.completionPricePerMillion,
       );
@@ -370,19 +489,19 @@ export async function refreshModelCatalog(
                   // ungraded until the pending benchmark runs again.
                   ability: "?",
                   speed: "?",
-                  cost: costGrade(cost),
+                  cost: price,
                   discouraged: false,
                   needsRescore: true,
                   benchmarkScore: null,
                   benchmarkTimeMs: null,
-                  benchmarkCostUsd: cost,
+                  benchmarkCostUsd: estimatedCost,
                   benchmarkCategories: null,
                   benchmarkedAt: null,
                 }
               : prior.ability === "?"
-                ? { cost: costGrade(cost), benchmarkCostUsd: cost }
+                ? { cost: price, benchmarkCostUsd: estimatedCost }
                 : priceChanged
-                  ? { cost: costGrade(cost), needsRescore: true }
+                  ? { cost: price, needsRescore: true }
                   : {}),
           })
           .where(eq(llmModels.id, model.id));
@@ -396,8 +515,8 @@ export async function refreshModelCatalog(
           discouraged: false,
           ability: "?",
           speed: "?",
-          cost: costGrade(cost),
-          benchmarkCostUsd: cost,
+          cost: price,
+          benchmarkCostUsd: estimatedCost,
           promptPricePerMillion: model.promptPricePerMillion,
           completionPricePerMillion: model.completionPricePerMillion,
           lastSeenAt: new Date(),

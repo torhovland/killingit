@@ -66,7 +66,7 @@ async function main(): Promise<void> {
     });
     graded += 1;
   }
-  const copied = await copyBenchmarkToAliases();
+  const copied = await copyBenchmarkToAliases({ force: true });
   console.log(
     `recorded ${graded} benchmark grades from ${RUN_ID}; skipped ${skipped} unfinished model(s); copied ${copied} alias result(s)`,
   );

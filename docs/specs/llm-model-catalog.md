@@ -20,6 +20,8 @@ for day-to-day prompts, and keep the catalog current without blocking a visit.
 - `id`, `name`
 - `retired`, `discouraged`
 - `ability`, `speed`, `cost`
+- `prompt_price_per_million`, `completion_price_per_million`, refreshed with
+  the model list at most once every 24 hours
 - benchmark score, time, cost, category breakdown and timestamp
 - first/last seen timestamps
 
@@ -55,6 +57,21 @@ Cost:
 The B/C/D cost cuts are the 25th, 50th and 75th percentiles of the measured
 benchmark costs between $0.05 and $0.30, so those bands stay roughly equal.
 
+Price grade (used before a model has been benchmarked):
+
+- `?` when either list price is missing, negative or variable (routed models)
+- `A+` prompt < $0.10/M and completion < $0.50/M
+- `A` prompt < $0.32/M and completion < $1.60/M
+- `B` prompt < $0.80/M and completion < $4.00/M
+- `C` prompt < $2.00/M and completion < $10.00/M
+- `D` prompt < $3.00/M and completion < $15.00/M
+- `E` prompt < $20.00/M and completion < $100.00/M
+- `F` prompt >= $20.00/M or completion >= $100.00/M
+
+A model must satisfy both the prompt and completion limit for a band. The A-E
+limits were chosen so those five bands are roughly equally populated across the
+measured catalog; A+ and F are fixed product limits.
+
 A model is `Discouraged` when ability is below `B`, speed is `F`, or cost is
 `F`. An ungraded model is never discouraged until it has been benchmarked.
 
@@ -66,10 +83,12 @@ when the last check is more than 24 hours old, then fetches OpenRouter's model
 list in the background.
 
 - Existing models get their name, list price and `last_seen_at` refreshed.
+- The prompt and completion prices are stored in USD per million tokens on
+  every refresh, so the Settings data and price grades use current list prices.
 - If a graded model's prompt or completion price changes, its cost grade is
-  recalculated from the new price and the model is marked `needsRescore` so the
-  next pending benchmark run captures the real charged cost. The first pricing
-  observation stores the price without treating it as a change.
+  recalculated with the price grade and the model is marked `needsRescore` so
+  the next pending benchmark run captures the real charged cost. The first
+  pricing observation stores the price without treating it as a change.
 - Alias models such as `~deepseek/deepseek-flash-latest` store OpenRouter's
   `alias_target.slug`. When that target changes, the alias is reset to
   ungraded, then immediately inherits the target's ability, speed, score and
@@ -77,7 +96,7 @@ list in the background.
   alias's own list price. If the target has no grade, the alias waits for the
   pending benchmark.
 - New models are inserted with `retired=false`, `discouraged=false`,
-  `ability=?`, `speed=?`, and a cost grade estimated from the list price.
+  `ability=?`, `speed=?`, and the price grade from their list prices.
 - Models missing from OpenRouter are marked retired.
 - Existing benchmark grades are never overwritten by a refresh.
 
@@ -160,3 +179,6 @@ models so an infrastructure failure is not written as a model failure.
 7. The benchmark tests each model at the today prompt and the season-revision
    prompt, sums their time and cost, and grades ability F when the revision
    omits Atlas, leaves block 1 unchanged, or moves block 1's start date.
+8. The catalog stores prompt and completion list prices, refreshes them no more
+   than once every 24 hours, and gives an unbenchmarked model a price grade
+   instead of `?` unless its price is variable.

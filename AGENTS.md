@@ -69,7 +69,10 @@ about a past workout, or before a suggested workout, to steer the coach.
   prompt to open Settings. Grades come from the prompts benchmark, which runs
   both the today prompt and a drastic season-revision prompt, sums their time
   and cost, and grades ability F when the revision omits Atlas, leaves block 1
-  unchanged or moves block 1's start date. Grades are re-run for ungraded
+  unchanged or moves block 1's start date. The catalog also stores each model's
+  prompt and completion list price in USD per million tokens, refreshed with the
+  model list, and an unbenchmarked model gets a price grade from those prices
+  (variable pricing stays `?`). Grades are re-run for ungraded
   models with `PENDING_ONLY=1`, or re-score models at or above a grade while
   keeping every ungraded model with `RESCORE_MIN_ABILITY`; see
   `docs/specs/llm-model-catalog.md` and ADR 0016.

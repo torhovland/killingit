@@ -24,6 +24,7 @@ interface OpenRouterModel {
   created?: number;
   context_length?: number;
   pricing?: { prompt?: string; completion?: string };
+  alias_target?: { slug?: string };
   architecture?: {
     input_modalities?: string[];
     output_modalities?: string[];
@@ -387,8 +388,13 @@ async function main(): Promise<void> {
     }
     const grades = await catalog.benchmarkAbilityGrades();
     models = filterByMinimumAbility(models, grades, minimum);
+    const beforeAliases = models.length;
+    // Aliases must never be benchmarked on their own: run the concrete target
+    // and copy its result afterwards, so an alias cannot diverge from it.
+    models = models.filter((model) => model.alias_target === undefined);
     log(
-      `re-score filter: keeping ${models.length} models graded ${minimum} or better plus every ungraded model`,
+      `re-score filter: keeping ${models.length} models graded ${minimum} or better plus every ungraded model; ` +
+        `skipped ${beforeAliases - models.length} alias(es)`,
     );
   }
   if (models.length === 0) {
