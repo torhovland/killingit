@@ -54,6 +54,7 @@ import {
 import { loadTrainingContext } from "../training/context.js";
 import { ftpBaselineAt, type FtpTimeline } from "../training/ftp.js";
 import { loadCachedActivityFeed, saveCachedActivityFeed } from "./feedCache.js";
+import { shareActivityAnalysis } from "./analysisRuns.js";
 import { routeFromSamples } from "./route.js";
 
 /** Enough samples for a readable preview without bloating the cached feed. */
@@ -93,17 +94,33 @@ export interface ActivityFeed {
   activities: AnalyzedActivity[];
 }
 
-/**
- * Syncs the latest Garmin activities and returns them with cached-or-fresh
- * coach analyses. Before an LLM is configured, activities are returned without
- * analyses so the Garmin sync remains useful.
- */
-export async function loadAnalyzedActivities(options: {
+interface AnalyzeActivitiesOptions {
   userId: number;
   limit: number;
   refresh: boolean;
   provider?: LlmProvider;
-}): Promise<ActivityFeed> {
+}
+
+/**
+ * Syncs the latest Garmin activities and returns them with cached-or-fresh
+ * coach analyses. Before an LLM is configured, activities are returned without
+ * analyses so the Garmin sync remains useful.
+ *
+ * Overlapping callers share one pass, so a plan run that starts while the
+ * dashboard is analysing activities waits for that pass and plans from the
+ * finished feed instead of an older analysis it would have to revise again.
+ */
+export function loadAnalyzedActivities(
+  options: AnalyzeActivitiesOptions,
+): Promise<ActivityFeed> {
+  return shareActivityAnalysis(options.userId, options.refresh, () =>
+    loadAnalyzedActivitiesOnce(options),
+  );
+}
+
+async function loadAnalyzedActivitiesOnce(
+  options: AnalyzeActivitiesOptions,
+): Promise<ActivityFeed> {
   const provider =
     options.provider ??
     withPromptLogging(createOpenRouterProvider(), { userId: options.userId });

@@ -119,7 +119,10 @@ answers change and as days, weeks, and blocks roll over.
     in place with its stored start date, and re-plans the blocks after it. A
     refreshed season that moves the current block's start date is rejected and
     the previous plan stays in place.
-13. All four quality gates pass.
+13. An activity-analysis pass that overlaps a plan run is shared with it, and
+    the plan waits for the pass before prompting, so it does not save an
+    analysis that a later write immediately replaces.
+14. All four quality gates pass.
 
 ## Data model
 
@@ -222,6 +225,16 @@ review.
 2. Load the stored plan, current answers, recent analysed activities, and the
    LLM client. Fail the generation with a readable error if Garmin or OpenRouter
    is not configured.
+
+   Activity analyses are coordinated per account. A dashboard reload and a plan
+   run that overlap share one Garmin sync and one LLM analysis pass instead of
+   analysing the same activities twice, and the plan run waits for that pass
+   before it builds its prompt. If an analysis pass starts later, while the
+   athlete-metrics and forecast phases are running, the plan waits for it too
+   and uses the finished feed. A plan therefore cannot save an older analysis
+   that an in-flight request is about to replace and immediately require
+   another plan update.
+
 3. If there is no plan, the request asks for a new season, or `force` is set,
    build a fresh season in four smaller completions: the season, the block
    containing today, the week containing today, then today. A new season has no
@@ -317,7 +330,8 @@ problems; the error names the offending fields if the repair also fails. See
 - API unit tests for pending/staleness, date helpers, JSON parsing, prompt
   contents, the full build and plan update with in-memory stores and a fake
   provider, new-season and season-update modes, next-week/next-block
-  generation, and promotion after the date moves on.
+  generation, promotion after the date moves on, and the shared
+  activity-analysis pass (overlap, refresh, failure recovery).
 - API route tests for auth, valid/invalid dates, the empty state, full
   generation, the already-running `202` case, and a normalised next period.
 - Web render tests for the four-level view (today, week, next week, block, next
