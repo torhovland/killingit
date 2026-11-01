@@ -115,6 +115,21 @@ describe("buildProgramAnalysisMessages", () => {
     expect(prompt).toContain("how well this activity fit its planned session");
   });
 
+  it("does not treat a near-target duration as short or long", () => {
+    const messages = buildProgramAnalysisMessages({
+      today: "2026-10-21",
+      plan: makePlan(),
+      activity,
+    });
+
+    expect(messages[0]?.content).toContain(
+      "a two-hour session recorded as 1:50 or 2:05 matched its plan",
+    );
+    expect(messages[0]?.content).toContain(
+      "build on it instead of inventing a correction",
+    );
+  });
+
   it("asks the coach to match against another session when the date has none", () => {
     const prompt = buildProgramAnalysisPrompt({
       today: "2026-10-30",

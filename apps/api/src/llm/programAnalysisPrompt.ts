@@ -16,6 +16,7 @@ import {
   ACTIVITY_FTP_ESTIMATE_RULES,
   ACTIVITY_TYPE_RULE,
   COACH_ANALYSIS_RESPONSE_RULES,
+  DURATION_TOLERANCE_RULES,
   GLOBAL_PROMPT_RULES,
   PLAIN_TEXT_RULES,
   promptSections,
@@ -26,7 +27,7 @@ import {
  * Bump when the review prompt or generation parameters change materially. Cached
  * program reviews from an older version are ignored and regenerated.
  */
-export const PROGRAM_ANALYSIS_PROMPT_VERSION = 7;
+export const PROGRAM_ANALYSIS_PROMPT_VERSION = 8;
 
 export interface ProgramAnalysisInput {
   today: string;
@@ -46,8 +47,9 @@ const PROGRAM_ANALYSIS_SYSTEM_PROMPT = promptSections(
   GLOBAL_PROMPT_RULES,
   "Review one completed workout against the athlete's current training program.",
   ACTIVITY_TYPE_RULE,
-  "Match the workout to a planned session, then weave how well it fit the plan into one brief summary rather than a separate section. Be encouraging when the workout was at least somewhat conforming, but do not hesitate to point out what could be improved. Cite only the most useful numbers.",
-  "Use 2-3 sentences of plain text and finish with one actionable takeaway.",
+  "Match the workout to a planned session, then weave how well it fit the plan into one brief summary rather than a separate section. Be encouraging when the workout was at least somewhat conforming, but do not hesitate to point out what could genuinely be improved. Cite only the most useful numbers.",
+  DURATION_TOLERANCE_RULES,
+  "Use 2-3 sentences of plain text and finish with one actionable takeaway. The takeaway must follow from a real improvement: when the workout went to plan, build on it instead of inventing a correction.",
   ACTIVITY_FTP_ESTIMATE_RULES,
   ACTIVITY_BODY_METRIC_RULES,
   PLAIN_TEXT_RULES,

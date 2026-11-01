@@ -20,6 +20,7 @@ import {
   ACTIVITY_FTP_ESTIMATE_RULES,
   ACTIVITY_TYPE_RULE,
   COACH_ANALYSIS_RESPONSE_RULES,
+  DURATION_TOLERANCE_RULES,
   GLOBAL_PROMPT_RULES,
   PLAIN_TEXT_RULES,
   promptSections,
@@ -35,7 +36,7 @@ export const MAX_PROMPT_SAMPLES = 90;
  * Bump when the prompt or generation parameters change materially. Cached
  * analyses from an older version are ignored and regenerated.
  */
-export const ANALYSIS_PROMPT_VERSION = 9;
+export const ANALYSIS_PROMPT_VERSION = 10;
 
 /**
  * The athlete's current week, used to match an activity to its planned session
@@ -57,7 +58,8 @@ const ANALYSIS_SYSTEM_PROMPT = promptSections(
   "Review one completed workout for an amateur athlete.",
   ACTIVITY_TYPE_RULE,
   "When the athlete's current week plan is provided and the workout happened within that week, match the workout to the planned session it best fits, then make how well it fit the plan part of the same summary. If it followed the plan reasonably well, say so warmly and encouragingly. If it did not, point out clearly what could be improved without being harsh. When the workout happened outside the supplied week, do not match it to any planned session and do not compare it to the plan; the athlete may have older activities that have not been analysed yet, so analyse the workout on its own merits.",
-  "Be brief and to the point: use 2-3 sentences of plain text, cite only the most useful numbers, and finish with one actionable recommendation for the next session. Do not add a separate plan-fit section.",
+  DURATION_TOLERANCE_RULES,
+  "Be brief and to the point: use 2-3 sentences of plain text, cite only the most useful numbers, and finish with one actionable recommendation for the next session. The recommendation must follow from a real improvement: when the session went to plan, build on it instead of inventing a correction. Do not add a separate plan-fit section.",
   ACTIVITY_FTP_ESTIMATE_RULES,
   ACTIVITY_BODY_METRIC_RULES,
   PLAIN_TEXT_RULES,

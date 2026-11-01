@@ -218,6 +218,16 @@ describe("buildActivityAnalysisPrompt", () => {
     expect(system).toContain(GLOBAL_PROMPT_RULES);
   });
 
+  it("does not treat a near-target duration as short or long", () => {
+    const system =
+      buildActivityAnalysisMessages(makeActivity())[0]?.content ?? "";
+
+    expect(system).toContain(
+      "a two-hour session recorded as 1:50 or 2:05 matched its plan",
+    );
+    expect(system).toContain("build on it instead of inventing a correction");
+  });
+
   it("does not trust the recorded activity type", () => {
     const messages = buildActivityAnalysisMessages(makeActivity());
 
