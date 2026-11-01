@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   currentUserSchema,
   garminConnectionStatusSchema,
@@ -15,6 +15,7 @@ import { LlmSection } from "./LlmSection";
 import { LocationSection } from "./LocationSection";
 import { PlanRegenerationButtons } from "./PlanRegenerationButtons";
 import { reportError } from "./reportError";
+import { TimeZoneSection } from "./TimeZoneSection";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
@@ -49,6 +50,7 @@ export function SettingsPage({
   const [selectedTimeZone, setSelectedTimeZone] = useState(timeZone ?? "");
   const [savingTimeZone, setSavingTimeZone] = useState(false);
   const [timeZoneError, setTimeZoneError] = useState<string | null>(null);
+  const timeZoneRequest = useRef(0);
   const timeZoneOptions = useMemo(() => {
     const zones = supportedTimeZones();
     return timeZone && !zones.includes(timeZone) ? [timeZone, ...zones] : zones;
@@ -58,7 +60,8 @@ export function SettingsPage({
     setSelectedTimeZone(timeZone ?? "");
   }, [timeZone]);
 
-  async function saveTimeZone(): Promise<void> {
+  async function saveTimeZone(nextTimeZone: string): Promise<void> {
+    const request = ++timeZoneRequest.current;
     setSavingTimeZone(true);
     setTimeZoneError(null);
     try {
@@ -69,7 +72,7 @@ export function SettingsPage({
           method: "PATCH",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
-            timezone: selectedTimeZone === "" ? null : selectedTimeZone,
+            timezone: nextTimeZone === "" ? null : nextTimeZone,
           }),
         },
       );
@@ -82,12 +85,23 @@ export function SettingsPage({
           },
         );
       }
-      onTimeZoneChanged(parsed.data.timezone);
+      if (request === timeZoneRequest.current) {
+        onTimeZoneChanged(parsed.data.timezone);
+      }
     } catch (err: unknown) {
-      setTimeZoneError(reportError(err));
+      if (request === timeZoneRequest.current) {
+        setTimeZoneError(reportError(err));
+      }
     } finally {
-      setSavingTimeZone(false);
+      if (request === timeZoneRequest.current) {
+        setSavingTimeZone(false);
+      }
     }
+  }
+
+  function changeTimeZone(nextTimeZone: string): void {
+    setSelectedTimeZone(nextTimeZone);
+    void saveTimeZone(nextTimeZone);
   }
 
   useEffect(() => {
@@ -155,40 +169,13 @@ export function SettingsPage({
         </button>
       ) : (
         <>
-          <section className="flex flex-col gap-3 rounded-lg border bg-card p-4">
-            <h3 className="text-2xl font-semibold">Time zone</h3>
-            <p className="text-base text-muted-foreground">
-              Activity times and generated timestamps use this zone. Leave it on
-              your device's zone to follow your current location.
-            </p>
-            <label className="flex max-w-md flex-col gap-1 text-base">
-              <span className="font-medium">Display time zone</span>
-              <select
-                className="rounded border bg-card px-2 py-1"
-                value={selectedTimeZone}
-                onChange={(event) => setSelectedTimeZone(event.target.value)}
-                disabled={savingTimeZone}
-              >
-                <option value="">Device time zone</option>
-                {timeZoneOptions.map((zone) => (
-                  <option key={zone} value={zone}>
-                    {zone}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {timeZoneError && (
-              <p className="text-destructive">{timeZoneError}</p>
-            )}
-            <button
-              type="button"
-              className="self-start rounded border border-transparent bg-primary px-3 py-1 text-base text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
-              onClick={() => void saveTimeZone()}
-              disabled={savingTimeZone || selectedTimeZone === (timeZone ?? "")}
-            >
-              {savingTimeZone ? "Saving…" : "Save time zone"}
-            </button>
-          </section>
+          <TimeZoneSection
+            selected={selectedTimeZone}
+            options={timeZoneOptions}
+            saving={savingTimeZone}
+            error={timeZoneError}
+            onChange={changeTimeZone}
+          />
 
           <section className="flex flex-col gap-3 rounded-lg border bg-card p-4">
             <h3 className="text-2xl font-semibold">Location</h3>
