@@ -1082,6 +1082,8 @@ function withCompletedSeasonBlocks(
  * A refreshed season must keep the current block in place while re-planning
  * from today. Without this check the model can replace a partially completed
  * block with one that starts today, losing the block's original start date.
+ * Whether the refreshed blocks tile the season is checked for every write in
+ * `assertSeasonBlocksContiguous`.
  */
 function assertRefreshedSeason(
   season: SeasonPlan,
@@ -1095,19 +1097,6 @@ function assertRefreshedSeason(
     throw new Error(
       "The coach returned a season refresh that moved the current block's start date. Please regenerate the plan.",
     );
-  }
-  for (let index = 1; index < remaining.length; index += 1) {
-    const previous = remaining[index - 1];
-    const current = remaining[index];
-    if (
-      previous !== undefined &&
-      current !== undefined &&
-      current.startDate !== addDays(previous.endDate, 1)
-    ) {
-      throw new Error(
-        "The coach returned a season refresh with a gap between blocks. Please regenerate the plan.",
-      );
-    }
   }
   const last = remaining[remaining.length - 1];
   if (last !== undefined && last.endDate !== season.endDate) {
@@ -1126,14 +1115,48 @@ function assertRefreshedSeason(
 }
 
 /**
+ * Season blocks tile the season: each block starts the day after the previous
+ * one ends. A shared day puts a date in two blocks and a skipped day leaves it
+ * in none, so both are rejected on every write — a build, a season refresh and
+ * a block, week or day update that returns the season alike. Without this a
+ * week or block update could store overlapping blocks that every later season
+ * refresh then reproduced. Blocks that ended before today are stored history
+ * the coach cannot change, so their boundaries are not re-checked.
+ */
+function assertSeasonBlocksContiguous(season: SeasonPlan, today: string): void {
+  const upcoming = season.blocks.filter((entry) => entry.endDate >= today);
+  for (let index = 1; index < upcoming.length; index += 1) {
+    const previous = upcoming[index - 1];
+    const next = upcoming[index];
+    if (previous === undefined || next === undefined) {
+      continue;
+    }
+    if (next.startDate <= previous.endDate) {
+      throw new Error(
+        `The coach returned overlapping season blocks: "${next.name}" starts on ${next.startDate}, the day "${previous.name}" ends. Please regenerate the plan.`,
+      );
+    }
+    const unplanned = addDays(previous.endDate, 1);
+    if (next.startDate !== unplanned) {
+      throw new Error(
+        `The coach returned a gap between season blocks: "${previous.name}" ends on ${previous.endDate} and "${next.name}" starts on ${next.startDate}, leaving ${unplanned} unplanned. Please regenerate the plan.`,
+      );
+    }
+  }
+}
+
+/**
  * Guards against a model that returns a plan for the wrong date. Without this
  * the pending check would immediately ask for another generation and loop.
+ * Every write path ends here, so the season's block boundaries are checked
+ * here too.
  */
 function assertPlanValid(
   plan: CoachPlan,
   today: string,
   includeTomorrow: boolean,
 ): void {
+  assertSeasonBlocksContiguous(plan.season, today);
   if (plan.today.date !== today) {
     throw new Error(
       "The coach returned today's session for the wrong date. Please regenerate the plan.",

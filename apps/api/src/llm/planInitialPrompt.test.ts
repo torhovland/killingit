@@ -9,6 +9,7 @@ import {
 import {
   GLOBAL_PROMPT_RULES,
   PLAN_PROMPT_RULES,
+  SEASON_BLOCK_RULES,
   TRAINING_LOAD_RULES,
 } from "./promptRules.js";
 
@@ -86,6 +87,10 @@ describe("season plan prompt", () => {
   it("uses the shared input, rationale and body-metric rules", () => {
     expect(SEASON_PLAN_SYSTEM_PROMPT).toContain(GLOBAL_PROMPT_RULES);
     expect(SEASON_PLAN_SYSTEM_PROMPT).toContain(PLAN_PROMPT_RULES);
+  });
+
+  it("tiles the season's blocks with the shared rule", () => {
+    expect(SEASON_PLAN_SYSTEM_PROMPT).toContain(SEASON_BLOCK_RULES);
   });
 });
 

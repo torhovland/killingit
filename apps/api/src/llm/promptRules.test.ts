@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
   COACH_RESPONSE_NOTES_CONTRACT,
   COACH_RESPONSE_NOTES_RULES,
+  SEASON_BLOCK_RULES,
   TODAY_SESSION_RULES,
   WEATHER_PLANNING_RULES,
 } from "./promptRules.js";
@@ -47,6 +48,32 @@ describe("COACH_RESPONSE_NOTES_RULES", () => {
     );
     expect(COACH_RESPONSE_NOTES_RULES).toContain(
       "a workout that could not be matched to a planned session",
+    );
+  });
+});
+
+describe("SEASON_BLOCK_RULES", () => {
+  it("tiles the season without a shared or skipped day", () => {
+    expect(SEASON_BLOCK_RULES).toContain(
+      "each block starts the day after the previous block ends",
+    );
+    expect(SEASON_BLOCK_RULES).toContain(
+      "no date belongs to two blocks and no date between blocks is left unplanned",
+    );
+  });
+
+  it("shows a block ending on 2026-11-23 followed by one starting on 2026-11-24", () => {
+    expect(SEASON_BLOCK_RULES).toContain(
+      "Never start a block on the day the previous one ends",
+    );
+    expect(SEASON_BLOCK_RULES).toContain(
+      "a block that ends on 2026-11-23 is followed by one that starts on 2026-11-24",
+    );
+  });
+
+  it("anchors the first and last block to the season's dates", () => {
+    expect(SEASON_BLOCK_RULES).toContain(
+      "The first block starts on the season's start date and the last block ends on the season's end date.",
     );
   });
 });

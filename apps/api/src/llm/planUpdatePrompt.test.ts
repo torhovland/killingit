@@ -8,6 +8,7 @@ import type {
 import {
   GLOBAL_PROMPT_RULES,
   PLAN_PROMPT_RULES,
+  SEASON_BLOCK_RULES,
   WEEK_OUTLINE_RULES,
   WEATHER_PLANNING_RULES,
 } from "./promptRules.js";
@@ -360,6 +361,10 @@ describe("unified plan update prompt", () => {
     expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain(
       "what the athlete loses toward that goal",
     );
+  });
+
+  it("tiles the season's blocks with the shared rule", () => {
+    expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain(SEASON_BLOCK_RULES);
   });
 
   it("asks for rationales about the revised plan, not the revision", () => {
