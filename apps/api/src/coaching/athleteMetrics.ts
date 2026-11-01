@@ -1,4 +1,8 @@
-import type { AthleteMetricsResult } from "@killingit/shared";
+import {
+  formatThresholdValue,
+  type AthleteMetricsResult,
+  type AthleteThresholdStatement,
+} from "@killingit/shared";
 import { extractAthleteMetrics } from "../llm/athleteMetrics.js";
 import type {
   AthleteMetricEntry,
@@ -163,7 +167,12 @@ export async function syncAthleteMetrics(input: {
     statement.thresholds
       .filter((threshold) => threshold.sport === null)
       .map((threshold) =>
-        thresholdQuestion(threshold.label, threshold.value, threshold.unit),
+        thresholdQuestion(
+          threshold.label,
+          threshold.value,
+          threshold.unit,
+          threshold.kind,
+        ),
       ),
   );
   if (unresolved.length > 0) {
@@ -211,10 +220,18 @@ export async function syncAthleteMetrics(input: {
   return result;
 }
 
-/** Asks which sport an otherwise unambiguous threshold belongs to. */
-function thresholdQuestion(label: string, value: number, unit: string): string {
-  const shown = Number.isInteger(value) ? value : Math.round(value * 10) / 10;
-  return `You mentioned ${label} ${shown} ${unit}. Which sport is that threshold for?`;
+/**
+ * Asks which sport an otherwise unambiguous threshold belongs to. The value is
+ * shown in its athlete-facing unit, so a pace stored in seconds per kilometre
+ * reads as `5:46 /km` rather than `346 s/km`.
+ */
+function thresholdQuestion(
+  label: string,
+  value: number,
+  unit: string,
+  kind: AthleteThresholdStatement["kind"],
+): string {
+  return `You mentioned ${label} ${formatThresholdValue(value, unit, kind)}. Which sport is that threshold for?`;
 }
 
 /**

@@ -39,6 +39,15 @@ describe("COACH_RESPONSE_NOTES_RULES", () => {
     expect(COACH_RESPONSE_NOTES_RULES).toContain("12 October endurance ride");
   });
 
+  it("keeps the athlete's units when a question mentions a measurement", () => {
+    expect(COACH_RESPONSE_NOTES_RULES).toContain(
+      "use the unit and wording the athlete used and never convert it",
+    );
+    expect(COACH_RESPONSE_NOTES_RULES).toContain(
+      'ask about "5:46 per km", not "346 seconds per kilometre"',
+    );
+  });
+
   it("does not treat normal missing input or an older activity as a problem", () => {
     expect(COACH_RESPONSE_NOTES_RULES).toContain(
       "Do not report a normal or expected outcome as a remark",
