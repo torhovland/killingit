@@ -2,7 +2,6 @@ import { describe, expect, it } from "bun:test";
 import type { LlmCatalogModel } from "@killingit/shared";
 import {
   compareModels,
-  formatGradesUpdatedAt,
   modelMatchesFilters,
   type LlmModelFilters,
 } from "./LlmSection";
@@ -19,7 +18,6 @@ function model(overrides: Partial<LlmCatalogModel> = {}): LlmCatalogModel {
     benchmarkScore: 11,
     benchmarkTimeMs: 10_000,
     benchmarkCostUsd: 0.01,
-    gradesUpdatedAt: "2026-10-31T15:40:52.865Z",
     ...overrides,
   };
 }
@@ -75,21 +73,6 @@ describe("modelMatchesFilters", () => {
   it("applies the grade minimums", () => {
     expect(modelMatchesFilters(model({ ability: "C" }), filters())).toBe(false);
     expect(modelMatchesFilters(model({ ability: "B" }), filters())).toBe(true);
-  });
-});
-
-describe("formatGradesUpdatedAt", () => {
-  it("shows a dash for a model that has never been benchmarked", () => {
-    expect(formatGradesUpdatedAt(null, "UTC")).toBe("—");
-  });
-
-  it("formats the benchmark time in the requested zone", () => {
-    const formatted = formatGradesUpdatedAt(
-      "2026-10-31T15:40:52.865Z",
-      "Europe/Oslo",
-    );
-    expect(formatted).toContain("2026");
-    expect(formatted).not.toBe("—");
   });
 });
 

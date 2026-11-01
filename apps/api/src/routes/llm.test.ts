@@ -56,7 +56,6 @@ function makeApp(
         benchmarkScore: number | null;
         benchmarkTimeMs: number | null;
         benchmarkCostUsd: number | null;
-        gradesUpdatedAt: string | null;
       }>
     >;
     refreshCatalog?: () => Promise<{
@@ -142,7 +141,6 @@ describe("GET /llm/catalog", () => {
             benchmarkScore: 10.8,
             benchmarkTimeMs: 12_000,
             benchmarkCostUsd: 0.002,
-            gradesUpdatedAt: "2026-10-31T15:40:52.865Z",
           },
         ]),
     });
@@ -167,7 +165,6 @@ describe("GET /llm/catalog", () => {
           benchmarkScore: 10.8,
           benchmarkTimeMs: 12_000,
           benchmarkCostUsd: 0.002,
-          gradesUpdatedAt: "2026-10-31T15:40:52.865Z",
         },
       ],
     });

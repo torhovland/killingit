@@ -3,7 +3,9 @@ import {
   checkReviseSeasonGates,
   combinePromptScores,
   filterByCostGrade,
+  filterByCostGrades,
   filterByMinimumAbility,
+  sortByPreviousTime,
   parseAbilityGrade,
   parseCurrentBlock,
   validateReviseSeasonPlan,
@@ -462,5 +464,41 @@ describe("benchmark selection", () => {
     expect(
       filterByCostGrade(models, grades, "A+").map((model) => model.id),
     ).toEqual(["a", "c"]);
+  });
+
+  it("keeps every model in a cost-grade set", () => {
+    const models = [
+      { id: "a" },
+      { id: "b" },
+      { id: "c" },
+      { id: "d" },
+      { id: "e" },
+    ];
+    const grades = new Map([
+      ["a", "A+" as const],
+      ["b", "A" as const],
+      ["c", "B" as const],
+      ["d", "C" as const],
+      ["e", "D" as const],
+    ]);
+    expect(
+      filterByCostGrades(models, grades, new Set(["A", "B", "C"])).map(
+        (model) => model.id,
+      ),
+    ).toEqual(["b", "c", "d"]);
+  });
+
+  it("orders models by previous time, slowest first, with unknown times last", () => {
+    const models = [{ id: "fast" }, { id: "unknown" }, { id: "slow" }];
+    const times = new Map<string, number | null>([
+      ["fast", 10_000],
+      ["unknown", null],
+      ["slow", 90_000],
+    ]);
+    expect(sortByPreviousTime(models, times).map((model) => model.id)).toEqual([
+      "slow",
+      "fast",
+      "unknown",
+    ]);
   });
 });

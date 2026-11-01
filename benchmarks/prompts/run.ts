@@ -1,10 +1,12 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import type { LlmModelGrade } from "@killingit/shared";
 import {
   BENCHMARK_PROMPTS,
-  filterByCostGrade,
+  filterByCostGrades,
   filterByMinimumAbility,
   parseAbilityGrade,
+  sortByPreviousTime,
   validateReviseSeasonPlan,
   validateTodayPlan,
 } from "../../apps/api/src/llm/promptBenchmark.js";
@@ -409,7 +411,36 @@ async function main(): Promise<void> {
   }
   const minimumRaw = process.env.RESCORE_MIN_ABILITY?.trim();
   const costRaw = process.env.RESCORE_COST_GRADE?.trim();
-  if (minimumRaw || costRaw) {
+  const costGradesRaw = process.env.INCLUDE_COST_GRADES?.trim();
+  const includeModelsRaw = process.env.INCLUDE_MODELS?.trim();
+  const allowedCostGrades = new Set<LlmModelGrade>();
+  if (costRaw) {
+    const grade = parseAbilityGrade(costRaw);
+    if (grade === null) {
+      throw new Error(`RESCORE_COST_GRADE is not a grade: ${costRaw}`);
+    }
+    allowedCostGrades.add(grade);
+  }
+  for (const raw of (costGradesRaw ?? "").split(",")) {
+    const value = raw.trim();
+    if (value === "") continue;
+    const grade = parseAbilityGrade(value);
+    if (grade === null) {
+      throw new Error(`INCLUDE_COST_GRADES is not a grade: ${value}`);
+    }
+    allowedCostGrades.add(grade);
+  }
+  const includedModelIds = new Set(
+    (includeModelsRaw ?? "")
+      .split(",")
+      .map((id) => id.trim())
+      .filter((id) => id !== ""),
+  );
+  const filtering =
+    minimumRaw !== undefined ||
+    allowedCostGrades.size > 0 ||
+    includedModelIds.size > 0;
+  if (filtering) {
     const filters: string[] = [];
     if (minimumRaw) {
       const minimum = parseAbilityGrade(minimumRaw);
@@ -420,23 +451,39 @@ async function main(): Promise<void> {
       models = filterByMinimumAbility(models, grades, minimum);
       filters.push(`ability ${minimum} or better plus every ungraded model`);
     }
-    if (costRaw) {
-      const grade = parseAbilityGrade(costRaw);
-      if (grade === null) {
-        throw new Error(`RESCORE_COST_GRADE is not a grade: ${costRaw}`);
-      }
+    if (allowedCostGrades.size > 0 || includedModelIds.size > 0) {
       const grades = await catalog.benchmarkCostGrades();
-      models = filterByCostGrade(models, grades, grade);
-      filters.push(`cost ${grade}`);
+      if (includedModelIds.size === 0) {
+        models = filterByCostGrades(models, grades, allowedCostGrades);
+      } else {
+        models = models.filter((model) => {
+          const grade = grades.get(model.id);
+          return (
+            (grade !== undefined && allowedCostGrades.has(grade)) ||
+            includedModelIds.has(model.id)
+          );
+        });
+      }
+      if (allowedCostGrades.size > 0) {
+        filters.push(`cost ${[...allowedCostGrades].join(", ")}`);
+      }
+      if (includedModelIds.size > 0) {
+        filters.push(`${includedModelIds.size} named model(s)`);
+      }
     }
     const beforeAliases = models.length;
     // Aliases must never be benchmarked on their own: run the concrete target
     // and copy its result afterwards, so an alias cannot diverge from it.
     models = models.filter((model) => model.alias_target === undefined);
     log(
-      `re-score filter: keeping ${models.length} models with ${filters.join(" and ")}; ` +
-        `skipped ${beforeAliases - models.length} alias(es)`,
+      `selection filter: keeping ${models.length} models with ${filters.join(" and ")}; ` +
+        `skipped ${beforeAliases - models.length} alias(es) for later copying`,
     );
+  }
+  if (process.env.SORT?.trim() === "slowest") {
+    const times = await catalog.benchmarkModelTimes();
+    models = sortByPreviousTime(models, times);
+    log("ordered slowest first by previous benchmark time");
   }
   if (models.length === 0) {
     log("nothing to do; no model matched the selection");

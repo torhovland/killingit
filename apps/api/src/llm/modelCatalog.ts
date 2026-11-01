@@ -578,7 +578,6 @@ export interface CatalogRow {
   benchmarkScore: number | null;
   benchmarkTimeMs: number | null;
   benchmarkCostUsd: number | null;
-  gradesUpdatedAt: string | null;
 }
 
 export async function loadModelCatalog(): Promise<CatalogRow[]> {
@@ -595,7 +594,6 @@ export async function loadModelCatalog(): Promise<CatalogRow[]> {
       benchmarkScore: row.benchmarkScore,
       benchmarkTimeMs: row.benchmarkTimeMs,
       benchmarkCostUsd: row.benchmarkCostUsd,
-      gradesUpdatedAt: row.benchmarkedAt?.toISOString() ?? null,
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -658,6 +656,16 @@ export async function benchmarkCostGrades(): Promise<
     .select({ id: llmModels.id, cost: llmModels.cost })
     .from(llmModels);
   return new Map(rows.map((row) => [row.id, row.cost]));
+}
+
+/** Stored benchmark time for every catalog model, keyed by id. */
+export async function benchmarkModelTimes(): Promise<
+  Map<string, number | null>
+> {
+  const rows = await db
+    .select({ id: llmModels.id, benchmarkTimeMs: llmModels.benchmarkTimeMs })
+    .from(llmModels);
+  return new Map(rows.map((row) => [row.id, row.benchmarkTimeMs]));
 }
 
 /**

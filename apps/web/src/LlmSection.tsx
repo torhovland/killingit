@@ -9,7 +9,6 @@ import {
 import { useAuth } from "./auth";
 import { fetchJsonAuthed } from "./fetchAuthed";
 import { reportError } from "./reportError";
-import { browserTimeZone, formatDateTime } from "./timeZone";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
@@ -71,13 +70,6 @@ function compareGrades(a: LlmModelGrade, b: LlmModelGrade): number {
   return GRADE_ORDER[a] - GRADE_ORDER[b];
 }
 
-export function formatGradesUpdatedAt(
-  value: string | null,
-  timeZone: string,
-): string {
-  return value === null ? "—" : formatDateTime(value, timeZone);
-}
-
 export function compareModels(
   a: LlmCatalogModel,
   b: LlmCatalogModel,
@@ -126,7 +118,6 @@ export function LlmSection({ settings, onSaved }: LlmSectionProps) {
   const [minCost, setMinCost] = useState<LlmModelGrade>("E");
   const [sortKey, setSortKey] = useState<SortKey>("ability");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
-  const timeZone = browserTimeZone();
 
   useEffect(() => {
     if (!auth.isAuthenticated) return;
@@ -412,7 +403,6 @@ export function LlmSection({ settings, onSaved }: LlmSectionProps) {
                 <th className="p-2">{gradeHeader("Ability", "ability")}</th>
                 <th className="p-2">{gradeHeader("Speed", "speed")}</th>
                 <th className="p-2">{gradeHeader("Cost", "cost")}</th>
-                <th className="p-2">Grades updated</th>
                 <th className="p-2">
                   {gradeHeader("Discouraged", "discouraged")}
                 </th>
@@ -435,9 +425,6 @@ export function LlmSection({ settings, onSaved }: LlmSectionProps) {
                   <td className="p-2">{model.ability}</td>
                   <td className="p-2">{model.speed}</td>
                   <td className="p-2">{model.cost}</td>
-                  <td className="whitespace-nowrap p-2">
-                    {formatGradesUpdatedAt(model.gradesUpdatedAt, timeZone)}
-                  </td>
                   <td className="p-2">{model.discouraged ? "Yes" : "No"}</td>
                   <td className="p-2">
                     <input

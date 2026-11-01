@@ -123,6 +123,34 @@ export function filterByCostGrade<T extends { id: string }>(
   return models.filter((model) => grades.get(model.id) === grade);
 }
 
+/** Keeps only models whose stored cost grade is in the requested set. */
+export function filterByCostGrades<T extends { id: string }>(
+  models: readonly T[],
+  grades: ReadonlyMap<string, LlmModelGrade>,
+  allowed: ReadonlySet<LlmModelGrade>,
+): T[] {
+  return models.filter((model) => {
+    const grade = grades.get(model.id);
+    return grade !== undefined && allowed.has(grade);
+  });
+}
+
+/** Orders models by their previous benchmark time, slowest first. */
+export function sortByPreviousTime<T extends { id: string }>(
+  models: readonly T[],
+  times: ReadonlyMap<string, number | null>,
+): T[] {
+  return [...models].sort((a, b) => {
+    const aTime = times.get(a.id) ?? null;
+    const bTime = times.get(b.id) ?? null;
+    if (aTime === null && bTime === null) return a.id.localeCompare(b.id);
+    if (aTime === null) return 1;
+    if (bTime === null) return -1;
+    if (aTime !== bTime) return bTime - aTime;
+    return a.id.localeCompare(b.id);
+  });
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }

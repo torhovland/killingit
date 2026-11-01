@@ -72,6 +72,23 @@ to write `models.json` and exit without calling any model. `:batch` variants
 are excluded because they are batch-only and cannot be called through the
 synchronous chat-completions endpoint; `:free` variants are included.
 
+To select several cost grades and force extra models into the run, combine
+`INCLUDE_COST_GRADES` and `INCLUDE_MODELS`:
+
+```sh
+RUN_ID=2026-11-01-above-a-plus \
+INCLUDE_COST_GRADES=A,B,C \
+INCLUDE_MODELS=elorian/glimpse,openai/gpt-5,perplexity/sonar-pro-search \
+SORT=slowest \
+bun benchmarks/prompts/run.ts
+```
+
+`INCLUDE_COST_GRADES` takes a comma-separated set of exact grades, and
+`INCLUDE_MODELS` adds named IDs even when their cost grade is outside that set.
+`SORT=slowest` orders the run by each model's previous benchmark time, slowest
+first; models with no previous time go last. Aliases are never benchmarked
+directly: `sync-db.ts` copies every alias from its target afterwards.
+
 `sync-db.ts` refreshes the catalog, records the scores, and recomputes Ability,
 Speed, Cost and Discouraged. The commands need the same `DATABASE_URL` as the
 API and a dedicated `BENCHMARK_OPENROUTER_API_KEY`, so benchmark spend stays
