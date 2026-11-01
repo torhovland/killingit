@@ -281,6 +281,13 @@
       "when": 1793553600000,
       "tag": "0039_benchmark_grades_2026_11_01_above_a_plus",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1793557200000,
+      "tag": "0040_regrade_ability_bands",
+      "breakpoints": true
     }
   ]
 }
