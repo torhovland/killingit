@@ -1,0 +1,19 @@
+# Cloudflare Pages cache policy (see docs/specs/web-cache-busting.md).
+#
+# The app shell is the only file that names the current bundle, so it must be
+# revalidated on every visit; otherwise a browser can keep running a frontend
+# from before the deploy. Cloudflare Pages serves deep links from index.html
+# through the SPA fallback, so the rule covers every path, not just "/".
+/*
+  Cache-Control: no-cache
+
+# Vite fingerprints everything under /assets with a content hash, so a new
+# build always gets new URLs. Those files never change under a given URL and
+# can be cached for a year: the new shell asks for new names, and a page still
+# open from a previous deploy keeps working from the browser cache instead of
+# requesting files the new deployment no longer has.
+# `! Cache-Control` drops the shell rule's value first; Pages joins the headers
+# of every matching rule.
+/assets/*
+  ! Cache-Control
+  Cache-Control: public, max-age=31536000, immutable
