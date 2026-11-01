@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import {
   BENCHMARK_PROMPTS,
+  filterByCostGrade,
   filterByMinimumAbility,
   parseAbilityGrade,
   validateReviseSeasonPlan,
@@ -324,8 +325,8 @@ function log(message: string): void {
 }
 
 async function main(): Promise<void> {
-  const apiKey = process.env.OPENROUTER_API_KEY?.trim();
-  if (!apiKey) throw new Error("OPENROUTER_API_KEY is not set");
+  const apiKey = process.env.BENCHMARK_OPENROUTER_API_KEY?.trim();
+  if (!apiKey) throw new Error("BENCHMARK_OPENROUTER_API_KEY is not set");
   const prompts = new Map<BenchmarkPromptId, string>();
   for (const definition of BENCHMARK_PROMPTS) {
     prompts.set(
@@ -381,19 +382,33 @@ async function main(): Promise<void> {
     log(`pending-only run: ${models.length} ungraded models`);
   }
   const minimumRaw = process.env.RESCORE_MIN_ABILITY?.trim();
-  if (minimumRaw) {
-    const minimum = parseAbilityGrade(minimumRaw);
-    if (minimum === null) {
-      throw new Error(`RESCORE_MIN_ABILITY is not a grade: ${minimumRaw}`);
+  const costRaw = process.env.RESCORE_COST_GRADE?.trim();
+  if (minimumRaw || costRaw) {
+    const filters: string[] = [];
+    if (minimumRaw) {
+      const minimum = parseAbilityGrade(minimumRaw);
+      if (minimum === null) {
+        throw new Error(`RESCORE_MIN_ABILITY is not a grade: ${minimumRaw}`);
+      }
+      const grades = await catalog.benchmarkAbilityGrades();
+      models = filterByMinimumAbility(models, grades, minimum);
+      filters.push(`ability ${minimum} or better plus every ungraded model`);
     }
-    const grades = await catalog.benchmarkAbilityGrades();
-    models = filterByMinimumAbility(models, grades, minimum);
+    if (costRaw) {
+      const grade = parseAbilityGrade(costRaw);
+      if (grade === null) {
+        throw new Error(`RESCORE_COST_GRADE is not a grade: ${costRaw}`);
+      }
+      const grades = await catalog.benchmarkCostGrades();
+      models = filterByCostGrade(models, grades, grade);
+      filters.push(`cost ${grade}`);
+    }
     const beforeAliases = models.length;
     // Aliases must never be benchmarked on their own: run the concrete target
     // and copy its result afterwards, so an alias cannot diverge from it.
     models = models.filter((model) => model.alias_target === undefined);
     log(
-      `re-score filter: keeping ${models.length} models graded ${minimum} or better plus every ungraded model; ` +
+      `re-score filter: keeping ${models.length} models with ${filters.join(" and ")}; ` +
         `skipped ${beforeAliases - models.length} alias(es)`,
     );
   }

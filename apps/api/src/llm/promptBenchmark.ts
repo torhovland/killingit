@@ -3,7 +3,7 @@ import { GRADE_ORDER } from "./modelCatalog.js";
 
 /** Dates used by the two benchmark prompts. */
 export const TODAY_BENCHMARK_DATE = "2026-10-30";
-export const REVISE_SEASON_DATE = "2026-10-31";
+export const REVISE_SEASON_DATE = "2026-11-01";
 export const REVISE_WEEK_START = "2026-10-26";
 
 /** The revision request returns exactly these top-level keys. */
@@ -110,6 +110,15 @@ export function filterByMinimumAbility<T extends { id: string }>(
     if (grade === undefined || grade === "?") return true;
     return GRADE_ORDER[grade] >= floor;
   });
+}
+
+/** Keeps only models whose stored grade equals the requested cost grade. */
+export function filterByCostGrade<T extends { id: string }>(
+  models: readonly T[],
+  grades: ReadonlyMap<string, LlmModelGrade>,
+  grade: LlmModelGrade,
+): T[] {
+  return models.filter((model) => grades.get(model.id) === grade);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

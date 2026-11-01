@@ -645,6 +645,16 @@ export async function benchmarkAbilityGrades(): Promise<
   return new Map(rows.map((row) => [row.id, row.ability]));
 }
 
+/** Current stored cost grade for every catalog model, keyed by id. */
+export async function benchmarkCostGrades(): Promise<
+  Map<string, LlmModelGrade>
+> {
+  const rows = await db
+    .select({ id: llmModels.id, cost: llmModels.cost })
+    .from(llmModels);
+  return new Map(rows.map((row) => [row.id, row.cost]));
+}
+
 /**
  * Models the benchmark must call directly. Aliases whose target is also
  * pending are deliberately left out: grade the concrete target first, then

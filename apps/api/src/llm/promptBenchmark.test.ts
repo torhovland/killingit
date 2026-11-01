@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
   checkReviseSeasonGates,
   combinePromptScores,
+  filterByCostGrade,
   filterByMinimumAbility,
   parseAbilityGrade,
   parseCurrentBlock,
@@ -143,7 +144,7 @@ function validRevisePlan(): Record<string, unknown> {
         daySession(date, DAYS[index] ?? "Monday"),
       ),
     },
-    today: reviseTodaySession("2026-10-31"),
+    today: reviseTodaySession("2026-11-01"),
     tomorrow: null,
     nextWeek: null,
     nextBlock: null,
@@ -192,7 +193,7 @@ describe("validateReviseSeasonPlan", () => {
 
   it("accepts a filled tomorrow but rejects a broken week", () => {
     const plan = validRevisePlan();
-    plan.tomorrow = reviseTodaySession("2026-11-01");
+    plan.tomorrow = reviseTodaySession("2026-11-02");
     const week = plan.week as Record<string, unknown>;
     week.sessions = (week.sessions as unknown[]).slice(0, 6);
     const errors = validateReviseSeasonPlan(plan);
@@ -221,7 +222,7 @@ describe("validateReviseSeasonPlan", () => {
     const plan = validRevisePlan();
     const week = plan.week as Record<string, unknown>;
     const sessions = week.sessions as Array<Record<string, unknown>>;
-    const matching = sessions.find((session) => session.date === "2026-10-31");
+    const matching = sessions.find((session) => session.date === "2026-11-01");
     if (matching) matching.title = "Different title";
     expect(validateReviseSeasonPlan(plan)).toContain(
       "today title must match the week's session on that date",
@@ -237,7 +238,7 @@ describe("validateReviseSeasonPlan", () => {
       "2026-10-28",
       "2026-10-29",
       "2026-10-30",
-      "2026-11-01",
+      "2026-10-31",
       "2026-10-26",
     ];
     week.sessions = withoutToday.map((date, index) =>
@@ -408,7 +409,7 @@ describe("combinePromptScores", () => {
   });
 });
 
-describe("ability selection", () => {
+describe("benchmark selection", () => {
   it("parses a minimum grade", () => {
     expect(parseAbilityGrade("a")).toBe("A");
     expect(parseAbilityGrade("A+")).toBe("A+");
@@ -432,5 +433,24 @@ describe("ability selection", () => {
     expect(
       filterByMinimumAbility(models, grades, "A").map((model) => model.id),
     ).toEqual(["a", "b", "d", "e"]);
+  });
+
+  it("keeps only models with the exact cost grade", () => {
+    const models = [
+      { id: "a" },
+      { id: "b" },
+      { id: "c" },
+      { id: "d" },
+      { id: "e" },
+    ];
+    const grades = new Map([
+      ["a", "A+" as const],
+      ["b", "A" as const],
+      ["c", "A+" as const],
+      ["d", "?" as const],
+    ]);
+    expect(
+      filterByCostGrade(models, grades, "A+").map((model) => model.id),
+    ).toEqual(["a", "c"]);
   });
 });

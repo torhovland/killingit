@@ -327,7 +327,7 @@ async function main(): Promise<void> {
         ? `<div class="gates">
             ${gateLine("Mentions Atlas", score.gates.atlasMentioned)}
             ${gateLine("Block 1 changed", score.gates.blockOneChanged)}
-            ${gateLine("Block 1 starts 2026-10-26", score.gates.blockOneStartDateKept)}
+            ${gateLine("Block 1 starts 2026-10-21", score.gates.blockOneStartDateKept)}
           </div>
           ${
             score.gates.failures.length > 0
@@ -472,7 +472,8 @@ async function main(): Promise<void> {
     <code>benchmarks/prompts/revise-season-prompt.txt</code> verbatim, in two
     separate calls. The today prompt asks for only the plan for 2026-10-30. The
     revision prompt asks for a refreshed season, current block, week and day
-    after the athlete added the Atlas Mountain Race on 25 December 2026. Both
+    after the athlete set the Atlas Mountain Race on 28 February 2027 as the
+    next goal. Both
     prompts contain the full athlete profile, recent activities and coach
     analyses, the current plan, the athlete's latest metrics, and the weather
     forecast. A model needed a retry when a response was not parseable or did
@@ -484,7 +485,7 @@ async function main(): Promise<void> {
   <div class="callout">
     <strong>Hard gates on the season revision.</strong> Ability is F for any
     model that does not mention Atlas anywhere in its output, leaves block 1
-    unchanged, or changes the start date of block 1 (2026-10-26). The gates are
+    unchanged, or changes the start date of block 1 (2026-10-21). The gates are
     checked mechanically against the supplied current block, not by the judge.
     ${gateFailures} models failed at least one gate.
   </div>

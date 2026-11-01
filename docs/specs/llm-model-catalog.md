@@ -168,9 +168,13 @@ picked up automatically.
 To re-score only models that already reached a grade, set
 `RESCORE_MIN_ABILITY` (for example `RESCORE_MIN_ABILITY=A`) on `run.ts`; models
 graded below that grade are left untouched, while every ungraded model is still
-included. `:batch` variants are excluded because they are asynchronous and
-cannot be called through the synchronous endpoint. `DRY_RUN=1` writes the
-selection to `models.json` without calling any model.
+included. Set `RESCORE_COST_GRADE` (for example `RESCORE_COST_GRADE=A+`) to keep
+only models whose stored cost grade is exactly that grade, so ungraded models
+are excluded; the two filters can be combined. `:batch` variants are excluded
+because they are asynchronous and cannot be called through the synchronous
+endpoint. `DRY_RUN=1` writes the selection to `models.json` without calling any
+model. The benchmark scripts use `BENCHMARK_OPENROUTER_API_KEY`, a dedicated
+key separate from the app's per-account key.
 
 If a run is interrupted by a provider limit, `RETRY_FAILED=1` re-runs only the
 unfinished prompts, `ONLY_VALID=1 RETRY_FAILED_JUDGES=1` judges the models that

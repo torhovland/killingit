@@ -73,9 +73,12 @@ about a past workout, or before a suggested workout, to steer the coach.
   prompt and completion list price in USD per million tokens, refreshed with the
   model list, and an unbenchmarked model gets a price grade from those prices
   (variable pricing stays `?`). Grades are re-run for ungraded
-  models with `PENDING_ONLY=1`, or re-score models at or above a grade while
-  keeping every ungraded model with `RESCORE_MIN_ABILITY`; see
-  `docs/specs/llm-model-catalog.md` and ADR 0016.
+  models with `PENDING_ONLY=1`, re-score models at or above a grade while
+  keeping every ungraded model with `RESCORE_MIN_ABILITY`, or re-score only
+  models with one exact cost grade with `RESCORE_COST_GRADE` (for example
+  `RESCORE_COST_GRADE=A+`); benchmark calls use the dedicated
+  `BENCHMARK_OPENROUTER_API_KEY`; see `docs/specs/llm-model-catalog.md` and
+  ADR 0016.
 - Every completion attempt is stored in `llm_calls` with its full messages,
   response or error, model, usage, and request metadata. The admin settings
   page lists them under "LLM prompts" (`GET /api/admin/llm-calls`). Logging is

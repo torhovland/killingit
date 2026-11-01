@@ -99,23 +99,23 @@ Return strict JSON. Inside the judgment string, do not use quotation marks of an
 
 const REVISE_SEASON_RUBRIC = `You are a strict, expert endurance-coaching judge. You evaluate another model's answer to a coaching prompt. Do not answer the coaching prompt yourself and do not produce a training plan. Only evaluate the candidate JSON.
 
-You will receive the exact original prompt given to the candidate and the candidate's JSON response. The original prompt asks the model to refresh an existing season plan after the athlete has added a drastic new goal: the Atlas Mountain Race on 25 December 2026, about eight weeks after the revision date. The revision request says the season and the current block must be refreshed in place, block 1 must start on 2026-10-26, blocks that ended before today must stay as supplied, the remainder of the season must be re-planned without gaps and cover the rest of the season, the current week and today must be revised coherently, and tomorrow, next week and next block must stay null because they were supplied as null.
+You will receive the exact original prompt given to the candidate and the candidate's JSON response. The original prompt asks the model to refresh an existing season plan after the athlete's stated goal changed: the next race is the Atlas Mountain Race on 28 February 2027, followed by Paris-Brest-Paris in August 2027, with a randonneur brevet series in between whose first event is a 200 km brevet in April 2027. The revision request says the season and the current block must be refreshed in place, block 1 must start on 2026-10-21, blocks that ended before today must stay as supplied, the remainder of the season must be re-planned as contiguous blocks that cover the season, the current week and today must be revised coherently, tomorrow, next week and next block must stay null because they were supplied as null, and the coaching survey adjustments must be applied.
 
-A correct answer must mention Atlas, must produce a genuinely changed block 1, and must keep block 1 starting on 2026-10-26. Those three requirements are also checked mechanically, so their absence is already a hard failure; do not let strong writing hide it, and do not award credit for content the athlete did not supply.
+A correct answer must mention Atlas, must produce a genuinely changed block 1, and must keep block 1 starting on 2026-10-21. Those three requirements are also checked mechanically, so their absence is already a hard failure; do not let strong writing hide it, and do not award credit for content the athlete did not supply.
 
 Score the candidate on these six components. Be strict but fair. Judge the coaching content, not writing style alone.
 
 1. contract (0-1.5): valid JSON with exactly the eight top-level keys, season, block, week and today objects using the contract's field names and types, seven week sessions, a matching today session, bodyMetrics array, and no prose or extra fields.
 
-2. fidelity (0-2.0): follows every instruction in the revision request. The season is refreshed in place, block 1 starts on 2026-10-26, earlier blocks are untouched, later blocks follow one another without gaps to the season end, the current block is detailed, the current week is coherent with it, today is revised, and tomorrow, nextWeek and nextBlock stay null. It keeps dates, athlete goals and stored facts consistent.
+2. fidelity (0-2.0): follows every instruction in the revision request. The season is refreshed in place, block 1 starts on 2026-10-21, earlier blocks are untouched, later blocks tile the season with no gaps or overlaps through the season end, the current block is detailed, the current week is coherent with it, today is revised, and tomorrow, nextWeek and nextBlock stay null. It keeps dates, athlete goals and stored facts consistent.
 
-3. design (0-3.0): the revised season makes sense as a response to a drastic change. Reward a credible roughly eight-week build to a late-December bikepacking race in Morocco, with a sane taper and recovery, while preserving Paris-Brest-Paris in August 2027, the spring brevet series including the April 200 km, the sub-23-minute 5K on 5 May 2027, the 10K on 5 September 2027, fat loss, hip and back strength and mobility, the Norwegian winter, the athlete's limited tolerance for more than about four months of strict disciplined training, and the available weekday and weekend time. Penalise plans that ignore Atlas, keep the old season shape, overload or detrain the athlete, invent races or numbers, or break the chronological season logic.
+3. design (0-3.0): the revised season makes sense as a response to the new goal. Reward a credible build to the Atlas Mountain Race on 28 February 2027, with a sane taper and recovery, while preserving Paris-Brest-Paris in August 2027, the April 200 km brevet and the intervening brevet series, respecting the athlete's admitted ceiling of about four months of disciplined training before needing a reset, the Norwegian winter, the two-hour weekday limit after work, longer weekend rides, cycling and strength training with skiing in winter and running otherwise, power targets on the bike and heart-rate targets elsewhere, and the 225 W FTP. Penalise plans that ignore Atlas, keep the old season shape, overload or detrain the athlete, invent races or numbers, or break the chronological season logic.
 
 4. rationale (2.0): specific, current, athlete-grounded reasons for the season shape, the block, its weeks and today. Each rationale explains the plan as it stands and why it fits the next races and the athlete's constraints. Penalise meta-commentary about adjusting, rewriting or replacing the old plan, and generic encouragement.
 
-5. grounding (2.0): uses the supplied athlete profile, thresholds, body metrics, activities, comments, weather and dates; invents no facts; keeps FTP, TSS and body metrics consistent with the input; respects the athlete's time, equipment, daylight and weather constraints.
+5. grounding (2.0): uses the supplied athlete profile, thresholds, activities, comments, weather and dates; invents no facts; reports bodyMetrics only for numbers the input states, so an empty array is correct here; keeps FTP and TSS consistent with the input; respects the athlete's time, equipment, daylight and weather constraints.
 
-6. detail (2.0): concrete week targets and progression, a specific block plan, a coherent current week and useful execution detail for today. Reward realistic load, recovery and back-safe progression. Do not reward padding or repetition.
+6. detail (2.0): concrete week targets and progression, a specific block plan, a coherent current week and useful execution detail for today. Reward realistic load, recovery and progression. Do not reward padding or repetition.
 
 Return ONLY a JSON object in this exact shape:
 {"contract": 0.0, "fidelity": 0.0, "design": 0.0, "rationale": 0.0, "grounding": 0.0, "detail": 0.0, "score": 0.0, "judgment": "2-4 specific sentences"}
@@ -364,8 +364,8 @@ function isCurrentScore(value: unknown): value is JudgeScore {
 }
 
 async function main(): Promise<void> {
-  const apiKey = process.env.OPENROUTER_API_KEY?.trim();
-  if (!apiKey) throw new Error("OPENROUTER_API_KEY is not set");
+  const apiKey = process.env.BENCHMARK_OPENROUTER_API_KEY?.trim();
+  if (!apiKey) throw new Error("BENCHMARK_OPENROUTER_API_KEY is not set");
   const promptTexts = new Map<BenchmarkPromptId, string>();
   for (const definition of BENCHMARK_PROMPTS) {
     promptTexts.set(
