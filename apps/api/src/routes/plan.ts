@@ -44,8 +44,8 @@ interface ExportableBikeWorkout {
 
 /**
  * Finds the indoor bike workout for a date. Today and tomorrow come from the
- * day plans so the download matches the Day tab; other dates fall back to the
- * stored week (including next week after 18:00).
+ * day plans so the download matches the Day tab. Other dates only carry week
+ * outlines, so the week fallback is kept for plans stored before week outlines.
  */
 function findExportableBikeWorkout(
   plan: CoachPlan,

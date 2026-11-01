@@ -138,9 +138,9 @@ and the reply is null; the failure is logged.
 3. `runPlanGeneration` rebuilds/reviews as before. In a plan update, when
    `keepToday` is set and the stored plan is for today, the stored `today` day
    plan and today's week session are preserved **unless an activity was recorded
-   today**. In that case the generated today plan describes the completed
-   activity from the latest comment. Everything else (week, tomorrow) comes from
-   the new completion.
+   today**. In that case the generated today plan keeps the planned prescription
+   and adds a short completion note from the latest comment. Everything else
+   (week, tomorrow) comes from the new completion.
 4. A full build calls an injected `reviewActivities(plan)` after saving the plan
    and before marking the generation done. The implementation runs the program
    reviews with bounded concurrency and saves them as `kind = "program"`. Review

@@ -8,16 +8,23 @@ import {
 } from "@killingit/shared";
 import type { ManualActivityContext } from "../llm/planContext.js";
 
+/** The minimum an activity needs to settle a planned session's completion. */
+type RecordedEffort = Pick<AnalyzedActivity, "type" | "elapsedTime">;
+
 /**
- * Replaces planned sessions on days up to and including `today` with what
- * actually happened: an activity becomes `completed` when it substantially
- * matched the planned session and `partial` when it did not. An unfulfilled
- * past workout becomes `missed`. Future days stay `planned` (or `rest`). Past
- * days never carry future suggestions. Manually recorded activities are treated
- * exactly like synced activities.
+ * Settles the week plan's past and present days from what actually happened.
+ * The week is always an outline: a recorded activity settles the session's
+ * status but does not replace its planned title, description, duration or
+ * intensity. An unfulfilled past workout keeps its outline and is marked
+ * `missed`. Future days stay `planned` (or `rest`). Manually recorded activities
+ * are treated exactly like synced activities.
  *
- * `todayPlan`, when supplied, is mirrored into today's week session so the day
- * and week views agree on the title, description, and completion status.
+ * The one exception is a planned rest day on which the athlete trained: there
+ * is no planned workout to keep, so the session shows a brief record of what
+ * was done instead.
+ *
+ * `todayPlan`, when supplied, supplies today's completion verdict because the
+ * detailed prescription lives in the day plan.
  */
 export function applyCompletedDays(
   week: WeekPlan,
@@ -47,16 +54,19 @@ export function applyCompletedDays(
     })),
   ];
 
-  const activityByDate = new Map<string, AnalyzedActivity>();
+  const activitiesByDate = new Map<string, AnalyzedActivity[]>();
   for (const activity of allActivities) {
     const date = activity.startDate.slice(0, 10);
-    if (!activityByDate.has(date)) {
-      activityByDate.set(date, activity);
+    const forDate = activitiesByDate.get(date);
+    if (forDate) {
+      forDate.push(activity);
+    } else {
+      activitiesByDate.set(date, [activity]);
     }
   }
 
   const sessions = week.sessions.map((session) => {
-    const activity = activityByDate.get(session.date);
+    const dayActivities = activitiesByDate.get(session.date) ?? [];
 
     if (session.date > today) {
       return {
@@ -66,50 +76,26 @@ export function applyCompletedDays(
     }
 
     if (session.date === today) {
-      if (!activity) {
-        // Keep a completed/partial day and its week session in agreement even
-        // when the activity itself is not in this generation's context.
-        if (
-          todayPlan?.status === "completed" ||
-          todayPlan?.status === "partial"
-        ) {
-          return mirrorToday(session, null, todayPlan);
-        }
-        return {
-          ...session,
-          status: session.type === "rest" ? "rest" : "planned",
-        } as const;
-      }
-      return mirrorToday(session, activity, todayPlan);
+      return settleTodaySession(session, dayActivities, todayPlan);
     }
 
-    if (activity) {
-      return {
-        ...session,
-        type: "workout",
-        title: activity.name,
-        description: describeActivity(activity),
-        // A manual entry has no measured duration; do not invent one.
-        durationMinutes: durationMinutesFor(activity),
-        // The coach has the full activity and comments, so keep its `partial`
-        // verdict. Without one, a recorded activity counts as completed.
-        status: session.status === "partial" ? "partial" : "completed",
-        // The recorded activity replaced the prescription, so its power targets
-        // no longer describe the day.
-        bikeWorkout: null,
-      } as const;
-    }
-
+    // A day that has already arrived keeps its outline. The activity's own
+    // analysis, the Activities page and the completed-period review describe
+    // what happened; the week only records whether the session was completed.
     if (session.type === "rest") {
-      return { ...session, status: "rest" } as const;
+      return dayActivities.length > 0
+        ? activityRecord(session, dayActivities, "completed")
+        : ({ ...session, status: "rest" } as const);
     }
 
     return {
       ...session,
-      title: "No activity recorded",
-      description: "The athlete did not record a workout for this day.",
-      durationMinutes: 0,
-      status: "missed",
+      status:
+        dayActivities.length > 0
+          ? session.status === "partial"
+            ? "partial"
+            : "completed"
+          : "missed",
     } as const;
   });
 
@@ -117,123 +103,105 @@ export function applyCompletedDays(
 }
 
 /**
- * Mirrors today's generated day plan into the week. The coach's `partial`
- * verdict is preserved; when it only says `planned`, fall back to comparing the
- * activity with the planned session.
+ * Settles today's completion status on the week's outline. The coach's
+ * `partial` verdict is preserved; when it only says `planned`, fall back to
+ * comparing the recorded activities with the planned session.
  */
-function mirrorToday(
+function settleTodaySession(
   session: WeekSession,
-  activity: AnalyzedActivity | null,
+  activities: readonly AnalyzedActivity[],
   todayPlan: DayPlan | undefined,
 ): WeekSession {
-  const status =
+  const status: WeekSessionStatus =
     todayPlan?.status === "completed" || todayPlan?.status === "partial"
       ? todayPlan.status
-      : activity
-        ? completionStatus(session, activity)
+      : activities.length > 0
+        ? completionStatus(session, activities)
         : session.type === "rest"
           ? "rest"
           : "planned";
 
-  if (!todayPlan) {
-    if (!activity) {
-      return { ...session, status };
-    }
-    return {
-      ...session,
-      type: "workout",
-      title: activity.name,
-      description: describeActivity(activity),
-      durationMinutes: durationMinutesFor(activity),
-      status,
-      bikeWorkout: null,
-    };
+  // A planned rest day keeps its outline unless the athlete trained anyway;
+  // then the week shows a brief record of what was done instead.
+  if (session.type === "rest" && activities.length > 0) {
+    return activityRecord(session, activities, status);
   }
+  return { ...session, status };
+}
 
+/** A brief record for a rest day on which the athlete trained anyway. */
+function activityRecord(
+  session: WeekSession,
+  activities: readonly AnalyzedActivity[],
+  status: WeekSessionStatus,
+): WeekSession {
   return {
     ...session,
-    type: todayPlan.type,
-    title: todayPlan.title,
-    description: todayPlan.description,
-    durationMinutes: todayPlan.durationMinutes,
-    intensity: todayPlan.intensity,
+    type: "workout",
+    title: activities.map((activity) => activity.name).join(" + "),
+    description: describeActivities(activities),
+    // A manual entry has no measured duration; do not invent one.
+    durationMinutes: totalMinutes(activities),
     status,
-    ...(todayPlan.outdoor !== undefined ? { outdoor: todayPlan.outdoor } : {}),
-    ...(todayPlan.canBeOutdoor !== undefined
-      ? { canBeOutdoor: todayPlan.canBeOutdoor }
-      : {}),
-    bikeWorkout: todayPlan.bikeWorkout ?? null,
+    // The recorded activity replaced the prescription, so its power targets
+    // no longer describe the day.
+    bikeWorkout: null,
   };
 }
 
 /**
- * Copies a generated day plan into its week session so the Day and Week views
- * cannot disagree about the session. Throws when the day does not belong to the
- * week, which would mean the coach returned inconsistent levels.
- */
-export function mirrorDay(week: WeekPlan, day: DayPlan): WeekPlan {
-  if (!week.sessions.some((session) => session.date === day.date)) {
-    throw new Error(
-      "The coach returned a session that is not in the planned week.",
-    );
-  }
-  return {
-    ...week,
-    sessions: week.sessions.map((session) =>
-      session.date === day.date
-        ? {
-            ...session,
-            type: day.type,
-            title: day.title,
-            description: day.description,
-            durationMinutes: day.durationMinutes,
-            intensity: day.intensity,
-            status: day.status,
-            ...(day.outdoor !== undefined ? { outdoor: day.outdoor } : {}),
-            ...(day.canBeOutdoor !== undefined
-              ? { canBeOutdoor: day.canBeOutdoor }
-              : {}),
-            bikeWorkout: day.bikeWorkout ?? null,
-          }
-        : session,
-    ),
-  };
-}
-
-/**
- * Judges a recorded activity against the planned session's duration. A little
- * slack is intentional: a 60-minute ride recorded as 50 minutes is still
+ * Judges recorded activities against the planned session's total duration. A
+ * little slack is intentional: a 60-minute ride recorded as 50 minutes is still
  * completed, and small power/pace-zone deviations do not make a session partial.
+ * Several activities on one day count together, because the day's session may
+ * prescribe more than one.
  */
 export function completionStatus(
   planned: Pick<WeekSession, "type" | "durationMinutes">,
-  activity: Pick<AnalyzedActivity, "type" | "elapsedTime">,
+  recorded: readonly RecordedEffort[],
 ): Extract<WeekSessionStatus, "completed" | "partial"> {
-  // A manual entry carries no measured duration, so it cannot be judged partial.
-  if (activity.type === "manual" || planned.type === "rest") {
+  // A rest day is completed by any activity; a manual entry carries no measured
+  // duration, so it cannot be judged partial.
+  if (planned.type === "rest") {
     return "completed";
   }
-  if (planned.durationMinutes <= 0) {
+  const measured = recorded.filter((activity) => activity.type !== "manual");
+  if (measured.length === 0 || planned.durationMinutes <= 0) {
     return "completed";
   }
-  const actual = Math.round(activity.elapsedTime / 60);
+  const actualMinutes =
+    measured.reduce((total, activity) => total + activity.elapsedTime, 0) / 60;
+  const actual = Math.round(actualMinutes);
   const slack = Math.max(10, Math.round(planned.durationMinutes * 0.15));
   return actual >= planned.durationMinutes - slack ? "completed" : "partial";
 }
 
-function durationMinutesFor(activity: AnalyzedActivity): number {
-  return activity.type === "manual"
-    ? 0
-    : Math.max(1, Math.round(activity.elapsedTime / 60));
+function totalMinutes(activities: readonly AnalyzedActivity[]): number {
+  const seconds = activities.reduce(
+    (total, activity) =>
+      total + (activity.type === "manual" ? 0 : activity.elapsedTime),
+    0,
+  );
+  return seconds > 0 ? Math.max(1, Math.round(seconds / 60)) : 0;
 }
 
-function describeActivity(activity: AnalyzedActivity): string {
-  if (activity.type === "manual") {
+function describeActivities(activities: readonly AnalyzedActivity[]): string {
+  if (activities.every((activity) => activity.type === "manual")) {
     // Manual entries only carry a date and free text; there is no duration or
     // distance to report.
     return "Completed: logged manually";
   }
 
+  return `Completed: ${activities
+    .map((activity) =>
+      activity.type === "manual"
+        ? activity.name
+        : describeMeasuredActivity(activity),
+    )
+    .join("; ")}`;
+}
+
+function describeMeasuredActivity(activity: AnalyzedActivity): string {
   const parts: string[] = [formatActivityType(activity.type)];
   if (activity.distance > 0) {
     parts.push(`${(activity.distance / 1000).toFixed(2)} km`);
@@ -242,5 +210,5 @@ function describeActivity(activity: AnalyzedActivity): string {
   if (activity.totalElevationGain > 0) {
     parts.push(`${Math.round(activity.totalElevationGain)} m climb`);
   }
-  return `Completed: ${parts.join(" · ")}`;
+  return parts.join(" · ");
 }

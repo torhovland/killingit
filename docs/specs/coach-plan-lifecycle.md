@@ -272,10 +272,10 @@ review.
      a revised season;
    - if tomorrow falls outside the current week, it returns that week as
      `next_week`;
-   - it returns tomorrow's day and the update mirrors it into the matching
-     session. The returned week replaces `next_week` (or, for a mid-week block
-     transition, the current week's remaining days). The current week and block
-     are left alone when tomorrow has left them.
+   - it returns tomorrow's day and the update takes tomorrow's outline from the
+     matching session. The returned week replaces `next_week` (or, for a
+     mid-week block transition, the current week's remaining days). The current
+     week and block are left alone when tomorrow has left them.
 6. Save the plan with the current answer timestamp. When today has entered a
    stored `next_week` or `next_block`, promote it to the current level first.
    After a full build, review recent activities against the finished plan (see
@@ -298,10 +298,12 @@ problems; the error names the offending fields if the repair also fails. See
   without auth or network. The Day tab shows today and, after 18:00, tomorrow.
   The Week tab shows today's week and, when one has been planned for tomorrow,
   the next week, with each session's description, planned duration, intensity,
-  and whether the coach set it indoors or outdoors. Days after tomorrow are
-  outlines with a short description, so the Week tab shows the week's shape
-  rather than a finished workout for every day; the plan update details today
-  and tomorrow (see `docs/specs/week-outline.md`). The Block tab does the same
+  and whether the coach set it indoors or outdoors. Every day is an outline
+  with a short description, including today and tomorrow, so the Week tab shows
+  the week's shape rather than a finished workout for every day; the detailed
+  prescription lives in the Day tab (see `docs/specs/week-outline.md`). A
+  completed or missed day keeps its outline and status instead of becoming an
+  activity summary. The Block tab does the same
   for blocks. If a stored
   plan has today's `completed`/`partial` result missing from today's week
   session, `pending.week` becomes true and the normal plan update
