@@ -15,10 +15,11 @@ import { useChartHover } from "./useChartHover";
 
 /**
  * Body weight and body-fat percentage over the same window as the fitness
- * charts. Weight uses the left axis in kilograms and body fat the right axis in
- * percent, so both trends can share one plot without one hiding the other.
- * Values between measurements are interpolated by the API; the part after
- * today is a best-fit projection and is drawn dotted.
+ * charts. Weight uses the left axis and body fat the right axis, so both trends
+ * can share one plot without one hiding the other; each axis shows plain
+ * numbers because the legend names its unit. Values between measurements are
+ * interpolated by the API; the part after today is a best-fit projection and is
+ * drawn dotted.
  */
 export function BodyChart({
   days,
@@ -197,9 +198,9 @@ export function BodyChart({
                 y={CHART_PADDING.top + weightScale.y(tick)}
                 textAnchor="end"
                 dominantBaseline="middle"
-                className="fill-muted-foreground text-xs"
+                className="fill-muted-foreground text-[10px]"
               >
-                {tick} kg
+                {tick}
               </text>
             ))}
           {fatDomain !== null &&
@@ -211,9 +212,9 @@ export function BodyChart({
                 y={CHART_PADDING.top + fatScale.y(tick)}
                 textAnchor="end"
                 dominantBaseline="middle"
-                className="fill-muted-foreground text-xs"
+                className="fill-muted-foreground text-[10px]"
               >
-                {tick}%
+                {tick}
               </text>
             ))}
           {xLabels.map((index) => {
@@ -233,7 +234,7 @@ export function BodyChart({
                       ? "end"
                       : "middle"
                 }
-                className="fill-muted-foreground text-xs"
+                className="fill-muted-foreground text-[10px]"
               >
                 {formatChartDate(day.date)}
               </text>

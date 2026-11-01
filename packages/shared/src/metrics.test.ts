@@ -1,5 +1,26 @@
 import { describe, expect, it } from "bun:test";
-import { bestFitSlope, interpolateMetricSeries } from "./metrics.js";
+import {
+  bestFitSlope,
+  formatThresholdNumber,
+  formatThresholdValue,
+  interpolateMetricSeries,
+} from "./metrics.js";
+
+describe("formatThresholdNumber", () => {
+  it("drops the unit and keeps a pace as minutes and seconds", () => {
+    expect(formatThresholdNumber(250, "W", "power")).toBe("250");
+    expect(formatThresholdNumber(18.44, "%", "other")).toBe("18.4");
+    expect(formatThresholdNumber(270, "s/km", "pace")).toBe("4:30");
+  });
+});
+
+describe("formatThresholdValue", () => {
+  it("puts the unit after the value", () => {
+    expect(formatThresholdValue(250, "W", "power")).toBe("250 W");
+    expect(formatThresholdValue(164, "bpm", "heart_rate")).toBe("164 bpm");
+    expect(formatThresholdValue(270, "s/km", "pace")).toBe("4:30 /km");
+  });
+});
 
 describe("interpolateMetricSeries", () => {
   it("interpolates linearly between known values and keeps exact points", () => {

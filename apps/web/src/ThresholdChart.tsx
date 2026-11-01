@@ -1,4 +1,5 @@
 import {
+  formatThresholdNumber,
   formatThresholdValue,
   type FitnessHistoryDay,
   type ThresholdHistorySeries,
@@ -39,7 +40,8 @@ interface ThresholdGroup {
  * The estimated threshold over the same window, with one line per measure. A
  * measure is grouped by its unit so watts and beats per minute keep honest
  * axes; a sport can have more than one line, such as cycling FTP and threshold
- * heart rate.
+ * heart rate. Each unit gets its own panel under the shared heading, and the
+ * y axis carries plain numbers because the legend names the unit.
  */
 export function ThresholdChart({
   days,
@@ -51,20 +53,53 @@ export function ThresholdChart({
   /** The last measured day; later days are the plan's projection. */
   today: string;
 }) {
-  const { hovered, onPointerMove, onPointerLeave } = useChartHover(
-    days.length,
-    (index) => days[index],
-  );
   if (series.length === 0 || days.length === 0) {
     return null;
   }
 
   const groups = groupByUnit(series);
+
+  return (
+    <section className="flex flex-col gap-2" data-testid="threshold-chart">
+      <h3 className="text-lg font-medium">Estimated threshold</h3>
+      <div className="flex flex-col gap-4">
+        {groups.map((group) => (
+          <ThresholdPanel
+            key={group.unit}
+            group={group}
+            days={days}
+            today={today}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ThresholdPanel({
+  group,
+  days,
+  today,
+}: {
+  group: ThresholdGroup;
+  days: readonly FitnessHistoryDay[];
+  today: string;
+}) {
+  const { hovered, onPointerMove, onPointerLeave } = useChartHover(
+    days.length,
+    (index) => days[index],
+  );
+  const values = group.series.flatMap((entry) =>
+    entry.points.map((point) => point.value),
+  );
+  const domain = niceDomain(values, domainOptions(group.kind));
+  const scale = chartScale(days.length, domain);
+  const xLabels = labelIndices(days.length);
   const hoverDate = hovered?.day.date ?? null;
   const hoveredValues =
     hoverDate === null
       ? []
-      : series.flatMap((entry) => {
+      : group.series.flatMap((entry) => {
           const value = entry.points.find((point) => point.date === hoverDate);
           return value === undefined
             ? []
@@ -81,87 +116,16 @@ export function ThresholdChart({
         });
 
   return (
-    <figure
+    <div
       className="relative flex flex-col gap-2 rounded-lg border bg-card p-4"
-      data-testid="threshold-chart"
+      data-testid="threshold-panel"
+      data-unit={group.unit}
     >
-      <figcaption className="text-lg font-medium">
-        Estimated threshold
-      </figcaption>
-      {groups.map((group) => (
-        <ThresholdPanel
-          key={group.unit}
-          group={group}
-          days={days}
-          today={today}
-          hovered={hovered}
-          onPointerMove={onPointerMove}
-          onPointerLeave={onPointerLeave}
-        />
-      ))}
-      {hovered !== null && (
-        <div
-          className="pointer-events-none absolute z-10 w-60 -translate-x-1/2 rounded border bg-card p-2 text-sm shadow-lg"
-          style={{
-            left: `${hovered.percent}%`,
-            top: "3rem",
-          }}
-          data-testid="threshold-tooltip"
-        >
-          <p className="text-base font-medium">
-            {formatChartDate(hovered.day.date)}
-          </p>
-          {hoveredValues.length === 0 ? (
-            <p className="text-muted-foreground">No threshold on this day</p>
-          ) : (
-            <ul className="text-muted-foreground">
-              {hoveredValues.map((entry) => (
-                <li key={entry.label}>
-                  <span className="font-medium text-foreground">
-                    {entry.label}
-                  </span>{" "}
-                  {entry.value}
-                </li>
-              ))}
-            </ul>
-          )}
-          <FitnessDayTooltip day={hovered.day} today={today} />
-        </div>
-      )}
-    </figure>
-  );
-}
-
-function ThresholdPanel({
-  group,
-  days,
-  today,
-  hovered,
-  onPointerMove,
-  onPointerLeave,
-}: {
-  group: ThresholdGroup;
-  days: readonly FitnessHistoryDay[];
-  today: string;
-  hovered: ReturnType<typeof useChartHover>["hovered"];
-  onPointerMove: ReturnType<typeof useChartHover>["onPointerMove"];
-  onPointerLeave: ReturnType<typeof useChartHover>["onPointerLeave"];
-}) {
-  const values = group.series.flatMap((entry) =>
-    entry.points.map((point) => point.value),
-  );
-  const domain = niceDomain(values, domainOptions(group.kind));
-  const scale = chartScale(days.length, domain);
-  const xLabels = labelIndices(days.length);
-
-  return (
-    <div className="relative flex flex-col gap-1">
       <svg
         viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
         className="h-auto w-full"
         role="img"
         aria-label={`Estimated threshold in ${group.unit}`}
-        data-unit={group.unit}
         onPointerMove={onPointerMove}
         onPointerDown={onPointerMove}
         onPointerLeave={onPointerLeave}
@@ -237,7 +201,7 @@ function ThresholdPanel({
             dominantBaseline="middle"
             className="fill-muted-foreground text-[10px]"
           >
-            {formatThresholdValue(tick, group.unit, group.kind)}
+            {formatThresholdNumber(tick, group.unit, group.kind)}
           </text>
         ))}
         {xLabels.map((index) => {
@@ -284,6 +248,32 @@ function ThresholdPanel({
           );
         })}
       </ul>
+      {hovered !== null && (
+        <div
+          className="pointer-events-none absolute top-2 z-10 w-60 -translate-x-1/2 rounded border bg-card p-2 text-sm shadow-lg"
+          style={{ left: `${hovered.percent}%` }}
+          data-testid="threshold-tooltip"
+        >
+          <p className="text-base font-medium">
+            {formatChartDate(hovered.day.date)}
+          </p>
+          {hoveredValues.length === 0 ? (
+            <p className="text-muted-foreground">No threshold on this day</p>
+          ) : (
+            <ul className="text-muted-foreground">
+              {hoveredValues.map((entry) => (
+                <li key={entry.label}>
+                  <span className="font-medium text-foreground">
+                    {entry.label}
+                  </span>{" "}
+                  {entry.value}
+                </li>
+              ))}
+            </ul>
+          )}
+          <FitnessDayTooltip day={hovered.day} today={today} />
+        </div>
+      )}
     </div>
   );
 }

@@ -65,8 +65,8 @@ cannot be measured.
 - `GET /api/fitness` returns `thresholds: ThresholdHistorySeries[]`, one series
   per sport and measure.
 - `GET /api/coaching/plan` returns the latest known threshold summaries.
-- The Fitness page renames the chart to **Estimated threshold** and groups
-  measures by unit so watts and beats per minute keep honest axes.
+- The Fitness page renames the chart to **Estimated threshold**, groups measures
+  by unit, and gives each unit its own panel under one heading.
 - Week, block, season, and day views show all known measures. The Day view
   still shows the absolute FTP used to build a downloadable bike workout.
 
