@@ -26,17 +26,17 @@ export const BENCHMARK_CATEGORY_MAXIMA = {
 } as const;
 
 /**
- * Cost bands for the middle grades. The B/C/D cuts sit at the 25th, 50th and
- * 75th percentiles of the measured benchmark costs between $0.05 and $0.30,
- * which keeps those three bands roughly equally populated.
+ * Cost bands for the two-prompt benchmark. The cuts are calibrated so the
+ * measured cost grades roughly match the list-price grades: about 60% exact
+ * and 93% within one grade on the latest run, with the same overall shape.
  */
 export const COST_GRADE_LIMITS = {
-  aPlus: 0.01,
-  a: 0.05,
-  b: 0.061,
-  c: 0.077,
-  d: 0.131,
-  e: 0.3,
+  aPlus: 0.015,
+  a: 0.04,
+  b: 0.1,
+  c: 0.15,
+  d: 0.35,
+  e: 2.5,
 } as const;
 
 /**
@@ -180,14 +180,15 @@ export function priceGrade(
   return "F";
 }
 
+/** Speed is the sum of both benchmark prompts, including retries. */
 export function speedGrade(timeMs: number | null | undefined): LlmModelGrade {
   if (timeMs === null || timeMs === undefined) return "?";
-  if (timeMs < 10_000) return "A+";
-  if (timeMs < 20_000) return "A";
-  if (timeMs < 30_000) return "B";
-  if (timeMs < 45_000) return "C";
-  if (timeMs < 90_000) return "D";
-  if (timeMs < 150_000) return "E";
+  if (timeMs < 45_000) return "A+";
+  if (timeMs < 90_000) return "A";
+  if (timeMs < 180_000) return "B";
+  if (timeMs < 300_000) return "C";
+  if (timeMs < 600_000) return "D";
+  if (timeMs < 1_200_000) return "E";
   return "F";
 }
 

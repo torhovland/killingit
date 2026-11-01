@@ -75,26 +75,27 @@ describe("priceGrade", () => {
 
 describe("speedGrade", () => {
   it("maps elapsed time to letter grades", () => {
-    expect(speedGrade(9_999)).toBe("A+");
-    expect(speedGrade(10_000)).toBe("A");
-    expect(speedGrade(20_000)).toBe("B");
-    expect(speedGrade(30_000)).toBe("C");
-    expect(speedGrade(45_000)).toBe("D");
-    expect(speedGrade(90_000)).toBe("E");
-    expect(speedGrade(150_000)).toBe("F");
+    expect(speedGrade(44_999)).toBe("A+");
+    expect(speedGrade(45_000)).toBe("A");
+    expect(speedGrade(90_000)).toBe("B");
+    expect(speedGrade(180_000)).toBe("C");
+    expect(speedGrade(300_000)).toBe("D");
+    expect(speedGrade(600_000)).toBe("E");
+    expect(speedGrade(1_200_000)).toBe("F");
     expect(speedGrade(null)).toBe("?");
   });
 });
 
 describe("costGrade", () => {
   it("maps cost bands to letter grades", () => {
-    expect(costGrade(0.009)).toBe("A+");
-    expect(costGrade(0.01)).toBe("A");
-    expect(costGrade(0.05)).toBe("B");
-    expect(costGrade(0.061)).toBe("C");
-    expect(costGrade(0.077)).toBe("D");
-    expect(costGrade(0.131)).toBe("E");
-    expect(costGrade(0.3)).toBe("F");
+    expect(costGrade(0.014)).toBe("A+");
+    expect(costGrade(0.015)).toBe("A");
+    expect(costGrade(0.04)).toBe("B");
+    expect(costGrade(0.1)).toBe("C");
+    expect(costGrade(0.15)).toBe("D");
+    expect(costGrade(0.35)).toBe("E");
+    expect(costGrade(2.49)).toBe("E");
+    expect(costGrade(2.5)).toBe("F");
     expect(costGrade(null)).toBe("?");
   });
 });

@@ -44,18 +44,19 @@ The category maxima are contract 1.5, fidelity 2, design 3, rationale 2,
 grounding 2 and detail 2. The half-category rule overrides the score band, so a
 model with a high total but a very weak category is still `F`.
 
-Speed:
+Speed (the sum of both benchmark prompts, including retries):
 
-- `A+` < 10 s, `A` < 20 s, `B` < 30 s, `C` < 45 s, `D` < 90 s, `E` < 150 s,
-  `F` >= 150 s.
+- `A+` < 45 s, `A` < 90 s, `B` < 180 s, `C` < 300 s, `D` < 600 s, `E` < 1200 s,
+  `F` >= 1200 s.
 
-Cost:
+Cost (the measured cost of both benchmark prompts):
 
-- `A+` < $0.01, `A` < $0.05, `B` < $0.061, `C` < $0.077, `D` < $0.131,
-  `E` < $0.30, `F` >= $0.30.
+- `A+` < $0.015, `A` < $0.04, `B` < $0.10, `C` < $0.15, `D` < $0.35,
+  `E` < $2.50, `F` >= $2.50.
 
-The B/C/D cost cuts are the 25th, 50th and 75th percentiles of the measured
-benchmark costs between $0.05 and $0.30, so those bands stay roughly equal.
+The cost cuts are calibrated so the measured cost grades roughly match the
+list-price grades: about 60% exact and 93% within one grade on the latest run,
+with the same overall distribution.
 
 Price grade (used before a model has been benchmarked):
 
