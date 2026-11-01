@@ -207,6 +207,14 @@ for the decision record. Summary:
 | Test        | `killingit-test.hovland.co` |
 | Production  | `killingit.hovland.co`      |
 
+### Web caching
+
+`apps/web/public/_headers` ships with every web deploy. The app shell and the
+SPA fallback are served with `Cache-Control: no-cache`, so a new deploy is
+picked up on the next visit, while Vite's content-hashed files under `/assets/*`
+are cached for a year as `immutable`. See
+[`docs/specs/web-cache-busting.md`](./docs/specs/web-cache-busting.md).
+
 ### Agent access
 
 The coding agent uses `scripts/agent.sh` to read Cloud Run logs and query the
