@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
   analyzedActivitiesResponseSchema,
   analyzedActivitySchema,
+  coachResponseNotesSchema,
   llmModelSchema,
   llmSettingsSchema,
   llmSettingsUpdateSchema,
@@ -18,6 +19,23 @@ const summary = {
   totalElevationGain: 55,
   sampleCount: 1,
 };
+
+describe("coachResponseNotesSchema", () => {
+  it("carries one nullable question, not an array", () => {
+    expect(
+      coachResponseNotesSchema.parse({ coachQuestion: "How did it feel?" })
+        .coachQuestion,
+    ).toBe("How did it feel?");
+    expect(
+      coachResponseNotesSchema.parse({ coachQuestion: null }).coachQuestion,
+    ).toBeNull();
+    expect(
+      coachResponseNotesSchema.safeParse({
+        coachQuestion: ["How did it feel?"],
+      }).success,
+    ).toBe(false);
+  });
+});
 
 describe("llmModelSchema", () => {
   it("defaults missing optional fields to null", () => {

@@ -285,8 +285,8 @@ export async function runPlanForUser(
       recordPlanFtpEstimates(userId, planFtpEstimates(generatedPlan)),
     recordBodyMetrics: (points) =>
       recordCoachBodyMetrics(userId, points, today),
-    recordCoachQuestions: ({ questions, model, sourceKind }) =>
-      saveCoachQuestions({ userId, questions, model, sourceKind }),
+    recordCoachQuestion: ({ question, model, sourceKind }) =>
+      saveCoachQuestions({ userId, questions: [question], model, sourceKind }),
     reviewActivities: (plan) =>
       analyzeActivitiesAgainstPlan({
         userId,

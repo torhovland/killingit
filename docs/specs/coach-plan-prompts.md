@@ -109,11 +109,11 @@ shapes (`StoredAthleteQuestion` and `AnalyzedActivity`) structurally and returns
   includes are merged into `PLAN_PROMPT_RULES`: the training-science
   requirement, the standard input guidance, the rationale rules and the
   body-metric output fields.
-- Every strictly JSON coach response also carries `coachQuestions` (important
-  clarification questions) and `modelsRemarks` (the model's own difficulties,
-  inconsistencies or objections, or null). The app shows the newest pending
-  question on the dashboard, stores answered questions for the season review,
-  and lists recent non-null model remarks on the admin page. See
+- Every strictly JSON coach response also carries `coachQuestion` (one important
+  clarification question, or null) and `modelsRemarks` (the model's own
+  difficulties, inconsistencies or objections, or null). The app shows the
+  newest pending question on the dashboard, stores answered questions for the
+  season review, and lists recent non-null model remarks on the admin page. See
   `docs/specs/coach-questions.md`.
 - `coachPlanPrompt.ts` exports `COACH_PLAN_PROMPT_VERSION`, the input interfaces,
   `buildCoachPlanPrompt(input)`, and `buildCoachPlanMessages(input)`. Its

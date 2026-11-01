@@ -259,14 +259,13 @@ export async function loadAnalyzedActivities(options: {
           text: result.analysis,
         });
         if (
-          result.coachQuestions !== undefined &&
-          result.coachQuestions !== null &&
-          result.coachQuestions.length > 0
+          result.coachQuestion !== undefined &&
+          result.coachQuestion !== null
         ) {
           try {
             await saveCoachQuestions({
               userId: options.userId,
-              questions: result.coachQuestions,
+              questions: [result.coachQuestion],
               model: dailyModel,
               sourceKind: "activity_analysis",
             });

@@ -285,8 +285,12 @@ function checkTopLevelKeys(
   if (extra.length > 0) {
     errors.push(`unexpected top-level keys: ${extra.join(", ")}`);
   }
-  if ("coachQuestions" in root && !Array.isArray(root.coachQuestions)) {
-    errors.push("coachQuestions must be an array");
+  if (
+    "coachQuestion" in root &&
+    root.coachQuestion !== null &&
+    typeof root.coachQuestion !== "string"
+  ) {
+    errors.push("coachQuestion must be a string or null");
   }
   if (
     "modelsRemarks" in root &&
@@ -304,7 +308,7 @@ export function validateTodayPlan(plan: unknown): string[] {
   checkTopLevelKeys(
     plan,
     ["today"],
-    ["coachQuestions", "modelsRemarks"],
+    ["coachQuestion", "modelsRemarks"],
     errors,
   );
   const today = plan.today;
@@ -323,7 +327,7 @@ export function validateReviseSeasonPlan(plan: unknown): string[] {
   checkTopLevelKeys(
     plan,
     REVISE_SEASON_TOP_LEVEL_KEYS,
-    ["coachQuestions", "modelsRemarks"],
+    ["coachQuestion", "modelsRemarks"],
     errors,
   );
 

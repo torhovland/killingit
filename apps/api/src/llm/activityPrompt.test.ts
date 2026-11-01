@@ -211,7 +211,7 @@ describe("buildActivityAnalysisPrompt", () => {
 
     expect(system).toContain('"weightKg"');
     expect(system).toContain('"bodyFatPercent"');
-    expect(system).toContain('"coachQuestions"');
+    expect(system).toContain('"coachQuestion"');
     expect(system).toContain('"modelsRemarks"');
     expect(system).toContain("second person");
     expect(system).toContain("never estimate a weigh-in from the workout data");

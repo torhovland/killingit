@@ -193,13 +193,14 @@ export const JSON_ONLY_RULES = `Do not add markdown fences, headings, explanatio
 export const PLAIN_TEXT_RULES = `Do not use headings, bullets, or markdown.`;
 
 /**
- * The two notes fields every structured coach response carries. Clarification
- * questions are shown to the athlete; model remarks are reviewed by the admin.
+ * The two notes fields every structured coach response carries. The
+ * clarification question is shown to the athlete; model remarks are reviewed
+ * by the admin.
  */
-export const COACH_RESPONSE_NOTES_CONTRACT = `"coachQuestions": ["string"],
+export const COACH_RESPONSE_NOTES_CONTRACT = `"coachQuestion": "string | null",
   "modelsRemarks": "string | null"`;
 
-export const COACH_RESPONSE_NOTES_RULES = `Use "coachQuestions" only for important clarification questions you need the athlete to answer, and keep the array empty when nothing is needed. Ask at most one question per response: never one question per activity, day, week, block or season level, and fold related uncertainties into that single question. Make the question specific and self-contained by naming the activity, date, week or metric it is about, for example "Was the power data in your 12 October endurance ride recorded with a cycling power meter?", so the athlete knows exactly what you are asking about. Use "modelsRemarks" only for genuine difficulties, inconsistencies, questions or objections you had with the task, and set it to null when there were none. Do not report a normal or expected outcome as a remark: an empty input, a measurement the athlete did not state, an activity outside the current week, or a workout that could not be matched to a planned session are the task working as intended, not problems.`;
+export const COACH_RESPONSE_NOTES_RULES = `Use "coachQuestion" only for an important clarification question you need the athlete to answer, and set it to null when nothing is needed. Ask at most one question per response: never one question per activity, day, week, block or season level, and fold related uncertainties into that single question. Make the question specific and self-contained by naming the activity, date, week or metric it is about, for example "Was the power data in your 12 October endurance ride recorded with a cycling power meter?", so the athlete knows exactly what you are asking about. Use "modelsRemarks" only for genuine difficulties, inconsistencies, questions or objections you had with the task, and set it to null when there were none. Do not report a normal or expected outcome as a remark: an empty input, a measurement the athlete did not state, an activity outside the current week, or a workout that could not be matched to a planned session are the task working as intended, not problems.`;
 
 /** The full JSON output rule for the plan prompts. */
 export const JSON_RULES = promptSections(

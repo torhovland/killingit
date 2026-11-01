@@ -82,14 +82,13 @@ export async function estimateManualActivityTss(
     );
     if (
       input.userId !== undefined &&
-      result.coachQuestions !== undefined &&
-      result.coachQuestions !== null &&
-      result.coachQuestions.length > 0
+      result.coachQuestion !== undefined &&
+      result.coachQuestion !== null
     ) {
       try {
         await saveCoachQuestions({
           userId: input.userId,
-          questions: result.coachQuestions,
+          questions: [result.coachQuestion],
           model: credentials.model,
           sourceKind: "manual_tss",
         });

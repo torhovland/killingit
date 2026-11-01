@@ -1,12 +1,25 @@
 import { describe, expect, it } from "bun:test";
 import {
+  COACH_RESPONSE_NOTES_CONTRACT,
   COACH_RESPONSE_NOTES_RULES,
   TODAY_SESSION_RULES,
   WEATHER_PLANNING_RULES,
 } from "./promptRules.js";
 
+describe("COACH_RESPONSE_NOTES_CONTRACT", () => {
+  it("carries a single nullable question, not an array", () => {
+    expect(COACH_RESPONSE_NOTES_CONTRACT).toContain(
+      '"coachQuestion": "string | null"',
+    );
+    expect(COACH_RESPONSE_NOTES_CONTRACT).not.toContain("coachQuestions");
+  });
+});
+
 describe("COACH_RESPONSE_NOTES_RULES", () => {
-  it("asks for at most one question per response", () => {
+  it("asks for a single question or null", () => {
+    expect(COACH_RESPONSE_NOTES_RULES).toContain(
+      "set it to null when nothing is needed",
+    );
     expect(COACH_RESPONSE_NOTES_RULES).toContain(
       "Ask at most one question per response",
     );
