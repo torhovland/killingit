@@ -122,7 +122,10 @@ answers change and as days, weeks, and blocks roll over.
 13. An activity-analysis pass that overlaps a plan run is shared with it, and
     the plan waits for the pass before prompting, so it does not save an
     analysis that a later write immediately replaces.
-14. All four quality gates pass.
+14. A server-triggered update after the athlete's local 18:00 plans tomorrow and
+    the next period in the same prompt, even when the caller omits
+    `includeTomorrow`.
+15. All four quality gates pass.
 
 ## Data model
 
@@ -198,7 +201,9 @@ Both routes are behind `requireAuth`.
   `{ today, timezone?, mode?, force?, includeTomorrow? }`
   → the same response body after generation completes; `202` if a generation is
   already running. `mode` is `auto` (default), `newSeason`, or `updateSeason`;
-  `force: true` behaves like `newSeason`.
+  `force: true` behaves like `newSeason`. When `includeTomorrow` is omitted, the
+  server derives it from the athlete's local hour, so a server-triggered update
+  after 18:00 plans tomorrow exactly like the dashboard does.
 
 `stale` is true when the newest answer or coaching input is newer than the
 timestamp the plan was saved with. `pending.day` is true when the stored day is
@@ -259,8 +264,10 @@ review.
    while today is still inside it. A generated block review or an answer to one
    refreshes the remaining season. Every returned rationale explains the plan
    as it stands after the revision, not why the plan was revised.
-5. After 18:00, ensure tomorrow is covered by a week and a block. The same
-   update response can carry the next period:
+5. After 18:00, ensure tomorrow is covered by a week and a block. Server-
+   triggered updates such as a new activity analysis or a saved comment use the
+   athlete's time zone to decide this, so they plan the same levels as the
+   dashboard. The same update response can carry the next period:
    - if tomorrow falls outside the current block, it returns `next_block` with
      a revised season;
    - if tomorrow falls outside the current week, it returns that week as
@@ -330,8 +337,9 @@ problems; the error names the offending fields if the repair also fails. See
 - API unit tests for pending/staleness, date helpers, JSON parsing, prompt
   contents, the full build and plan update with in-memory stores and a fake
   provider, new-season and season-update modes, next-week/next-block
-  generation, promotion after the date moves on, and the shared
-  activity-analysis pass (overlap, refresh, failure recovery).
+  generation, promotion after the date moves on, the local-18:00 tomorrow
+  cutoff, and the shared activity-analysis pass (overlap, refresh, failure
+  recovery).
 - API route tests for auth, valid/invalid dates, the empty state, full
   generation, the already-running `202` case, and a normalised next period.
 - Web render tests for the four-level view (today, week, next week, block, next
