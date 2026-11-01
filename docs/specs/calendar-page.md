@@ -25,8 +25,8 @@ comment, the coach's response, and the route map for outdoor activities.
    activities, planned workouts and rest days, block starts, and the season
    end.
 5. A week overview box to the left of each Monday row, summarising that week's
-   plan: its block, focus, target load, and planned workout count, duration,
-   and TSS.
+   plan: its block, week number, focus, target load, and planned workout count,
+   duration, and TSS.
 6. A detail dialog for activities and planned sessions.
 7. Shared Zod schemas for the response and its entry types.
 
@@ -75,10 +75,14 @@ comment, the coach's response, and the route map for outdoor activities.
 - Days with nothing to show are omitted by the API and render as empty cells.
 - One overview box sits to the left of each Monday row. It names the season
   block covering the week and shows the week's focus and target load when the
-  block plan describes it. The focus falls back to the block's focus for weeks
-  the coach has not detailed yet. The box also totals the planned workouts,
-  their duration, and their estimated TSS. A week with no plan data shows
+  block plan describes it. A week the coach has not detailed yet shows its
+  number inside the block instead (`Week n`), not the block's own focus, which
+  would repeat the block name. The box also totals the planned workouts, their
+  duration, and their estimated TSS. A week with no plan data shows
   `No plan yet`.
+- The week number comes from the season block covering the week, counted from
+  the block's first week, and from the block plan's week `number` when the coach
+  has detailed the week, so it matches the Block tab.
 
 ### Detail dialog
 
@@ -97,7 +101,7 @@ Shared (`@killingit/shared`):
 - `calendar.ts`: `calendarImportedActivitySchema` (analysed activity plus
   `source: "garmin"`), `calendarManualActivitySchema`, their discriminated
   union `calendarActivitySchema`, `calendarDaySchema`, `calendarWeekSchema`
-  (week start and end, focus, target load, block name), and
+  (week start and end, focus, target load, week number, block name), and
   `calendarResponseSchema` (`earliestDate`, `latestDate`, `season`, `weeks`,
   `days`).
 
@@ -117,6 +121,9 @@ API:
 - `CalendarView` is presentational: heading, navigation, month grid, legend
   note, and the dialog. `CalendarEntryDialog` is exported separately so it can
   be render-tested.
+- Today's cell carries a lime ring that is painted outside the cell, so the
+  grid inside its horizontal scroll container keeps padding; without it the
+  scroll clip hides the right side of the ring on a Sunday.
 - `calendarDates.ts` holds the pure UTC month helpers.
 
 ## Acceptance criteria
@@ -128,7 +135,8 @@ API:
 3. Imported and manual activities, planned workouts, rest days, block starts,
    and the season end appear on the correct days.
 4. Every Monday row has a week overview box to its left showing the week's
-   block, focus, target load, and planned totals, or `No plan yet`.
+   block, week number, focus, target load, and planned totals, or
+   `No plan yet`.
 5. Previous/next and the month picker cannot leave the available range.
 6. Clicking an activity or planned workout opens a dialog with its full
    details; a recorded outdoor activity includes the route map, comment, and
@@ -140,7 +148,8 @@ API:
 
 - Shared schema tests are covered through the API route and web render tests.
 - API route tests: auth, missing date, activity and manual entries, plan
-  sessions including a rest day, block starts, season end, week outlines, and
-  bounds.
+  sessions including a rest day, block starts, season end, week outlines with
+  their week numbers, and bounds.
 - Web unit tests for the month helpers and render tests for the month grid,
-  range controls, week overview boxes, and both dialog variants.
+  range controls, week overview boxes, the today ring's clearance inside the
+  scrolling grid, and both dialog variants.

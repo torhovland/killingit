@@ -87,6 +87,15 @@ const data: CalendarResponse = {
       endDate: "2026-10-11",
       focus: "Aerobic base",
       targetLoad: "Easy",
+      weekNumber: 2,
+      blockName: "Base",
+    },
+    {
+      startDate: "2026-10-12",
+      endDate: "2026-10-18",
+      focus: null,
+      targetLoad: null,
+      weekNumber: 3,
       blockName: "Base",
     },
   ],
@@ -145,6 +154,15 @@ const data: CalendarResponse = {
   ],
 };
 
+/** The opening tag of the element that carries `attribute`. */
+function openingTag(html: string, attribute: string): string {
+  const index = html.indexOf(attribute);
+  if (index === -1) {
+    throw new Error(`missing ${attribute}`);
+  }
+  return html.slice(html.lastIndexOf("<", index), html.indexOf(">", index) + 1);
+}
+
 describe("CalendarView", () => {
   it("renders a month of activities, workouts, rest days, and a block start", () => {
     const html = renderToStaticMarkup(
@@ -190,6 +208,44 @@ describe("CalendarView", () => {
     expect(html).toContain("~70 TSS");
     expect(html.indexOf('data-week-start="2026-10-05"')).toBeLessThan(
       html.indexOf('data-date="2026-10-05"'),
+    );
+  });
+
+  it("numbers a week the coach has not detailed yet", () => {
+    const html = renderToStaticMarkup(
+      <CalendarView
+        data={data}
+        month="2026-10"
+        onMonthChange={() => {}}
+        today="2026-10-07"
+      />,
+    );
+
+    const overview = html.slice(
+      html.indexOf('data-week-start="2026-10-12"'),
+      html.indexOf('data-week-start="2026-10-12"') + 300,
+    );
+    expect(overview).toContain("Base");
+    expect(overview).toContain("Week 3");
+    // The block's own focus no longer stands in for the week's description.
+    expect(overview).not.toContain("Aerobic");
+  });
+
+  it("keeps the today ring clear of the grid's scroll clip", () => {
+    const html = renderToStaticMarkup(
+      <CalendarView
+        data={data}
+        month="2026-10"
+        onMonthChange={() => {}}
+        today="2026-10-04"
+      />,
+    );
+
+    // The ring paints outside its cell, so the clipped scroll container needs
+    // inner padding for a Sunday's right side to stay visible.
+    expect(openingTag(html, 'data-testid="calendar-grid"')).toContain("p-1");
+    expect(openingTag(html, 'data-date="2026-10-04"')).toContain(
+      "ring-2 ring-ring",
     );
   });
 
