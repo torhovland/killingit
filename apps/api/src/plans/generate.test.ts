@@ -717,6 +717,97 @@ describe("runPlanGeneration", () => {
     expect(generations.status.status).toBe("done");
   });
 
+  it("clears pending coach questions before building a new season", async () => {
+    const provider = new FakeProvider(buildResponses());
+    let cleared = 0;
+
+    await runPlanGeneration({
+      userId: 1,
+      runId: "run-1",
+      today: "2026-10-21",
+      plan: null,
+      context: makeContext(provider),
+      plans: new MemoryPlanStore(null),
+      generations: new MemoryGenerationStore(),
+      clearCoachQuestions: () => {
+        cleared += 1;
+        return Promise.resolve();
+      },
+    });
+
+    expect(provider.calls).toEqual(["season", "block", "weekly", "daily"]);
+    expect(cleared).toBe(1);
+  });
+
+  it("clears pending coach questions before a season refresh", async () => {
+    const provider = new FakeProvider(buildResponses());
+    const existing = makeStoredPlan(
+      makePlan(),
+      new Date("2026-10-19T10:00:00Z"),
+    );
+    let cleared = 0;
+
+    await runPlanGeneration({
+      userId: 1,
+      runId: "run-1",
+      today: "2026-10-21",
+      plan: existing,
+      context: makeContext(provider, new Date("2026-10-21T10:00:00Z")),
+      plans: new MemoryPlanStore(existing),
+      generations: new MemoryGenerationStore(),
+      clearCoachQuestions: () => {
+        cleared += 1;
+        return Promise.resolve();
+      },
+    });
+
+    expect(provider.calls).toEqual(["plan-update"]);
+    expect(cleared).toBe(1);
+  });
+
+  it("keeps pending coach questions when only the day changes", async () => {
+    const provider = new FakeProvider({
+      planUpdate: makeUpdate("2026-10-21"),
+    });
+    const existing = makeStoredPlan(makePlan("2026-10-20"));
+    let cleared = 0;
+
+    await runPlanGeneration({
+      userId: 1,
+      runId: "run-1",
+      today: "2026-10-21",
+      plan: existing,
+      context: makeContext(provider),
+      plans: new MemoryPlanStore(existing),
+      generations: new MemoryGenerationStore(),
+      clearCoachQuestions: () => {
+        cleared += 1;
+        return Promise.resolve();
+      },
+    });
+
+    expect(provider.calls).toEqual(["plan-update"]);
+    expect(cleared).toBe(0);
+  });
+
+  it("still builds the season when pending questions cannot be cleared", async () => {
+    const provider = new FakeProvider(buildResponses());
+
+    const saved = await runPlanGeneration({
+      userId: 1,
+      runId: "run-1",
+      today: "2026-10-21",
+      plan: null,
+      context: makeContext(provider),
+      plans: new MemoryPlanStore(null),
+      generations: new MemoryGenerationStore(),
+      clearCoachQuestions: () => Promise.reject(new Error("database down")),
+    });
+
+    expect(provider.calls).toEqual(["season", "block", "weekly", "daily"]);
+    expect(saved?.plan.today.date).toBe("2026-10-21");
+  });
+
   it("clears survey adjustments after a successful stale season refresh", async () => {
     const provider = new FakeProvider(buildResponses());
     const existing = makeStoredPlan(

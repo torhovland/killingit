@@ -137,6 +137,8 @@ export interface GeneratePlanInput {
     model: string;
     sourceKind: CoachQuestionSourceKind;
   }) => Promise<void>;
+  /** Clears unanswered questions before a new season or season refresh. */
+  clearCoachQuestions?: () => Promise<void>;
   /** Clears consumed survey adjustments after a successful season refresh. */
   clearCoachingSurveyAdjustments?: () => Promise<void>;
   /** Injectable for tests; defaults to the database-backed period review writer. */
@@ -276,6 +278,10 @@ export async function runPlanGeneration(
       currentPlan !== null &&
       context.forecast != null &&
       planWeatherChanged(currentPlan, context.forecast, today);
+
+    if (needsFullPlan || refreshSeason) {
+      await clearPendingCoachQuestions(input);
+    }
 
     if (needsFullPlan) {
       await generations.update(userId, PLAN_GENERATION_STEPS.review, runId);
@@ -1506,6 +1512,27 @@ async function clearSurveyAdjustments(input: GeneratePlanInput): Promise<void> {
     await input.clearCoachingSurveyAdjustments();
   } catch (err) {
     console.error("[plan] could not clear survey adjustments:", err);
+  }
+}
+
+/**
+ * Drops unanswered questions before a new season or season refresh, without
+ * letting a failure stop the plan. A question the same run asks is stored after
+ * this clear, so only questions about the replaced plan disappear.
+ */
+async function clearPendingCoachQuestions(
+  input: GeneratePlanInput,
+): Promise<void> {
+  if (input.clearCoachQuestions === undefined) {
+    return;
+  }
+  if (!(await input.generations.isCurrent(input.userId, input.runId))) {
+    throw new GenerationSupersededError();
+  }
+  try {
+    await input.clearCoachQuestions();
+  } catch (err) {
+    console.error("[plan] could not clear coach questions:", err);
   }
 }
 

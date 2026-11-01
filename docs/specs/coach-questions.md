@@ -27,7 +27,10 @@ remarks about difficulties or objections, and show those remarks to the admin.
    current week that cannot be matched to a planned session — as a non-problem
    rather than a remark.
 2. Persist new clarification questions in `coach_questions`. Repeated pending
-   questions are skipped.
+   questions are skipped. A new season plan or season refresh clears every
+   unanswered question before generating, so a question about the replaced plan
+   does not linger on the dashboard; a question the new run asks is stored after
+   that clear and still appears.
 3. Show only the newest pending question at the top of the main dashboard, with
    an answer input, a coach reply, and a plan refresh after the answer. The
    answer and reply are stored with the question.
@@ -82,5 +85,7 @@ remarks about difficulties or objections, and show those remarks to the admin.
    answer and coach reply.
 6. The admin settings page shows a separate list of recent non-null model
    remarks.
-7. `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`
+7. A new season plan or season refresh removes every unanswered question before
+   the prompt runs; a day, week or block update leaves pending questions alone.
+8. `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`
    pass.

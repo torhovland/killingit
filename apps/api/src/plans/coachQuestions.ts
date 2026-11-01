@@ -66,6 +66,21 @@ export async function saveCoachQuestions(
   );
 }
 
+/**
+ * Removes every unanswered question. A new season or season refresh replaces
+ * the coaching context the coach asked about, so an old question would be
+ * stale by the time the athlete reads it.
+ */
+export async function clearPendingCoachQuestions(
+  userId: number,
+): Promise<void> {
+  await db
+    .delete(coachQuestions)
+    .where(
+      and(eq(coachQuestions.userId, userId), isNull(coachQuestions.answer)),
+    );
+}
+
 /** The newest unanswered question, or null when nothing is pending. */
 export async function loadPendingCoachQuestion(
   userId: number,
