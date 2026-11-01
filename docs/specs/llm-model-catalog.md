@@ -55,7 +55,7 @@ Cost (the measured cost of both benchmark prompts):
   `E` < $2.50, `F` >= $2.50.
 
 The cost cuts are calibrated so the measured cost grades roughly match the
-list-price grades: about 60% exact and 93% within one grade on the latest run,
+list-price grades: about 58% exact and 88% within one grade on the latest run,
 with the same overall distribution.
 
 Price grade (used before a model has been benchmarked):
