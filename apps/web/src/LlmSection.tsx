@@ -73,6 +73,27 @@ function compareGrades(a: LlmModelGrade, b: LlmModelGrade): number {
   return GRADE_ORDER[a] - GRADE_ORDER[b];
 }
 
+export function discouragedMessage(name: string): string {
+  return `${name} is discouraged. You should choose another model before running the coach.`;
+}
+
+function DangerIcon() {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      className="mt-0.5 size-4 shrink-0"
+      aria-hidden="true"
+    >
+      <path d="M10 3 2.5 16.5h15L10 3Z" strokeLinejoin="round" />
+      <path d="M10 7.5v4" strokeLinecap="round" />
+      <circle cx="10" cy="14" r="0.8" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
 export function compareModels(
   a: LlmCatalogModel,
   b: LlmCatalogModel,
@@ -128,7 +149,7 @@ export function LlmSection({ settings, onSaved, isAdmin }: LlmSectionProps) {
   const [showDiscouraged, setShowDiscouraged] = useState(false);
   const [minAbility, setMinAbility] = useState<LlmModelGrade>("B");
   const [minSpeed, setMinSpeed] = useState<LlmModelGrade>("D");
-  const [minCost, setMinCost] = useState<LlmModelGrade>("E");
+  const [minCost, setMinCost] = useState<LlmModelGrade>("D");
   const [sortKey, setSortKey] = useState<SortKey>("ability");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const timeZone = browserTimeZone();
@@ -202,10 +223,15 @@ export function LlmSection({ settings, onSaved, isAdmin }: LlmSectionProps) {
     );
     const retired = selected.find((model) => model.retired);
     if (retired) return `${retired.name} is retired`;
-    const discouraged = selected.find((model) => model.discouraged);
-    if (discouraged) return `${discouraged.name} is discouraged`;
     return null;
   }, [catalog, dailyModel, seasonModel]);
+
+  const selectedDiscouraged = useMemo(() => {
+    if (catalog === null) return [];
+    return catalog.filter(
+      (model) => selectedIds.has(model.id) && model.discouraged,
+    );
+  }, [catalog, selectedIds]);
 
   function toggleSort(key: SortKey): void {
     if (key === sortKey) {
@@ -481,6 +507,16 @@ export function LlmSection({ settings, onSaved, isAdmin }: LlmSectionProps) {
           )}
         </div>
       )}
+
+      {selectedDiscouraged.map((model) => (
+        <p
+          key={model.id}
+          className="flex items-start gap-2 rounded bg-accent/15 p-2 text-base text-destructive"
+        >
+          <DangerIcon />
+          <span>{discouragedMessage(model.name)}</span>
+        </p>
+      ))}
 
       {saving && (
         <p className="text-base text-muted-foreground">Saving model choices…</p>

@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import type { LlmCatalogModel } from "@killingit/shared";
 import {
   compareModels,
+  discouragedMessage,
   modelMatchesFilters,
   type LlmModelFilters,
 } from "./LlmSection";
@@ -29,7 +30,7 @@ function filters(overrides: Partial<LlmModelFilters> = {}): LlmModelFilters {
     showDiscouraged: false,
     minAbility: "B",
     minSpeed: "D",
-    minCost: "E",
+    minCost: "D",
     ...overrides,
   };
 }
@@ -74,6 +75,18 @@ describe("modelMatchesFilters", () => {
   it("applies the grade minimums", () => {
     expect(modelMatchesFilters(model({ ability: "C" }), filters())).toBe(false);
     expect(modelMatchesFilters(model({ ability: "B" }), filters())).toBe(true);
+  });
+});
+
+describe("discouragedMessage", () => {
+  it("names the model and tells the athlete to choose another", () => {
+    expect(
+      discouragedMessage(
+        "Google: Nano Banana Pro (Gemini 3 Pro Image Preview)",
+      ),
+    ).toBe(
+      "Google: Nano Banana Pro (Gemini 3 Pro Image Preview) is discouraged. You should choose another model before running the coach.",
+    );
   });
 });
 

@@ -235,8 +235,11 @@ export function isDiscouraged(
   speed: LlmModelGrade,
   cost: LlmModelGrade,
 ): boolean {
-  if (ability === "?" || speed === "?" || cost === "?") return false;
-  return GRADE_ORDER[ability] < GRADE_ORDER.B || speed === "F" || cost === "F";
+  // Any known disqualifying grade is enough. An ungraded (`?`) category is
+  // ignored rather than making the whole model safe.
+  const abilityDisqualified =
+    ability !== "?" && GRADE_ORDER[ability] < GRADE_ORDER.B;
+  return abilityDisqualified || speed === "F" || cost === "F";
 }
 
 export interface CatalogRefreshResult {
@@ -616,7 +619,8 @@ export async function modelIsUsable(modelId: string): Promise<{
   const row = rows[0];
   if (!row) return null;
   return {
-    usable: !row.retired && !row.discouraged,
+    // A discouraged model is still usable; Settings only warns about it.
+    usable: !row.retired,
     retired: row.retired,
     discouraged: row.discouraged,
   };

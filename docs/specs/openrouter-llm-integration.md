@@ -22,8 +22,8 @@ coach analysis on the main page.
    - A graded model table populated from the app's `llm_models` catalog, with
      separate season/block and day-to-day selections. See
      `docs/specs/llm-model-catalog.md`.
-   - A retired or discouraged selection is refused with a prompt to open
-     Settings.
+   - A retired selection is refused with a prompt to open Settings. A
+     discouraged selection is allowed and shows a warning below the table.
 2. **Encrypted storage** of each account's API key (AES-256-GCM, key from
    `LLM_CREDENTIALS_KEY`) plus the selected season and daily models in
    `llm_settings`, one row per

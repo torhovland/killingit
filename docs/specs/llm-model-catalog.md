@@ -74,7 +74,8 @@ limits were chosen so those five bands are roughly equally populated across the
 measured catalog; A+ and F are fixed product limits.
 
 A model is `Discouraged` when ability is below `B`, speed is `F`, or cost is
-`F`. An ungraded model is never discouraged until it has been benchmarked.
+`F`. Any known disqualifying grade is enough; an ungraded (`?`) category is
+ignored rather than making the model safe.
 
 ### Refresh
 
@@ -122,7 +123,7 @@ to:
 - Include discouraged = false
 - Ability = B or above
 - Speed = D or above
-- Cost = E or above
+- Cost = D or above
 
 The filter bar shows the three grade dropdowns first, then Include ungraded,
 then Include discouraged. Include ungraded only lets a `?` pass the grade it
@@ -134,8 +135,10 @@ Sorting defaults to ability, then speed, then cost.
 The season model is used for season plans, season refreshes and block planning.
 The day model is used for week/day planning, coach questions, workout analysis,
 metric reading, replies and every other daily prompt. Before a prompt runs, the
-selected model is checked; a retired or discouraged model fails with a message
-telling the athlete to open Settings and choose another one.
+selected model is checked; a retired model fails with a message telling the
+athlete to open Settings and choose another one. A discouraged model is still
+allowed to run; Settings shows a danger warning below the table saying the model
+is discouraged and that the athlete should choose another model first.
 
 ### Benchmark upkeep
 
@@ -206,7 +209,8 @@ models so an infrastructure failure is not written as a model failure.
    selections, with the documented defaults.
 4. Season/block prompts use `season_model`; week/day and day-to-day prompts use
    `daily_model`.
-5. A retired or discouraged selection is refused with a Settings-page message.
+5. A retired selection is refused with a Settings-page message. A discouraged
+   selection is allowed and shows a danger warning below the models table.
 6. The benchmark can run only ungraded models and write their grades back.
 7. The benchmark tests each model at the today prompt and the season-revision
    prompt, sums their time and cost, and grades ability F when the revision

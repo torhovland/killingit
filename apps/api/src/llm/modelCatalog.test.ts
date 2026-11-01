@@ -111,9 +111,16 @@ describe("isDiscouraged", () => {
     expect(isDiscouraged("B", "E", "E")).toBe(false);
   });
 
-  it("never discourages an ungraded model", () => {
+  it("discourages when a known grade disqualifies, even if another is ungraded", () => {
+    expect(isDiscouraged("C", "?", "A")).toBe(true);
+    expect(isDiscouraged("?", "F", "A")).toBe(true);
+    expect(isDiscouraged("?", "?", "F")).toBe(true);
+  });
+
+  it("does not discourage when no known grade disqualifies", () => {
     expect(isDiscouraged("?", "?", "A")).toBe(false);
     expect(isDiscouraged("B", "?", "A")).toBe(false);
+    expect(isDiscouraged("B", "E", "E")).toBe(false);
   });
 });
 

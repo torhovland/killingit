@@ -288,6 +288,13 @@
       "when": 1793557200000,
       "tag": "0040_regrade_ability_bands",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1793560800000,
+      "tag": "0041_recompute_discouraged",
+      "breakpoints": true
     }
   ]
 }

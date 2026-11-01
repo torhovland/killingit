@@ -7,7 +7,7 @@ import { loadLlmSettings } from "./store.js";
 
 export type LlmModelRole = "season" | "daily" | "all";
 
-/** Raised when a stored model is retired or discouraged in the catalog. */
+/** Raised when a stored model is retired in the catalog. */
 export class LlmModelChoiceError extends Error {
   constructor(message: string) {
     super(message);
@@ -30,9 +30,8 @@ export async function assertModelUsable(
 ) {
   const state = await modelIsUsable(model);
   if (state === null || state.usable) return;
-  const problem = state.retired ? "retired" : "discouraged";
   throw new LlmModelChoiceError(
-    `Your ${role === "season" ? "season planning" : "day-to-day"} model ${model} is ${problem}. Open Settings and choose another model.`,
+    `Your ${role === "season" ? "season planning" : "day-to-day"} model ${model} is retired. Open Settings and choose another model.`,
   );
 }
 
