@@ -295,6 +295,13 @@
       "when": 1793560800000,
       "tag": "0041_recompute_discouraged",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1793564400000,
+      "tag": "0042_benchmark_grades_2026_11_01_high_end",
+      "breakpoints": true
     }
   ]
 }
