@@ -32,7 +32,7 @@ import {
   fetchWeatherForecasts,
   type WeatherForecastSet,
 } from "../weather/forecast.js";
-import { startOfWeek } from "./dates.js";
+import { isAfterPlanTomorrowCutoff, startOfWeek } from "./dates.js";
 import {
   clearPendingCoachQuestions,
   loadAnsweredCoachQuestions,
@@ -146,8 +146,7 @@ export async function runPlanForUser(
   deps: PlanTriggerDependencies,
   options: PlanRunOptions & { runId: string; signal: AbortSignal },
 ): Promise<void> {
-  const { userId, today, timezone, mode, force, includeTomorrow, keepToday } =
-    options;
+  const { userId, today, timezone, mode, force, keepToday } = options;
 
   let plan: Awaited<ReturnType<PlanStore["load"]>>;
   let answers: Awaited<ReturnType<QuestionAnswerStore["listForUser"]>>;
@@ -202,6 +201,13 @@ export async function runPlanForUser(
     await deps.generations.fail(userId, message, options.runId);
     throw err;
   }
+
+  // A server-triggered update (a new analysis, a saved comment, a weekly note)
+  // must plan the same levels as the dashboard. After the athlete's local 18:00
+  // that includes tomorrow and, at a week boundary, the next week.
+  const includeTomorrow =
+    options.includeTomorrow ??
+    isAfterPlanTomorrowCutoff(timezone ?? user?.timezone ?? null);
 
   // The stored feed keeps every activity ever synced. Prompts and program
   // reviews stay on the same recent window as the analysis cap so they do not
