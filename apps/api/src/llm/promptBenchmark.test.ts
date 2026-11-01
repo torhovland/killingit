@@ -167,13 +167,21 @@ describe("validateTodayPlan", () => {
     expect(errors).toContain("unexpected top-level keys: week");
   });
 
-  it("allows the optional coach questions and model remarks keys", () => {
+  it("allows the optional coach question and model remarks keys", () => {
     const errors = validateTodayPlan({
       today: todayBenchmarkSession("2026-10-30"),
-      coachQuestions: ["How did it feel?"],
+      coachQuestion: "How did it feel?",
       modelsRemarks: null,
     });
     expect(errors).toEqual([]);
+  });
+
+  it("rejects an array where the single coach question belongs", () => {
+    const errors = validateTodayPlan({
+      today: todayBenchmarkSession("2026-10-30"),
+      coachQuestion: ["How did it feel?"],
+    });
+    expect(errors).toContain("coachQuestion must be a string or null");
   });
 });
 
@@ -202,9 +210,9 @@ describe("validateReviseSeasonPlan", () => {
     expect(validateReviseSeasonPlan(plan)).toEqual([]);
   });
 
-  it("allows the optional coach questions and model remarks keys", () => {
+  it("allows the optional coach question and model remarks keys", () => {
     const plan = validRevisePlan();
-    plan.coachQuestions = ["How did the hike feel?"];
+    plan.coachQuestion = "How did the hike feel?";
     plan.modelsRemarks = null;
     expect(validateReviseSeasonPlan(plan)).toEqual([]);
   });

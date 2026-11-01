@@ -307,7 +307,7 @@ describe("unified plan update prompt", () => {
     expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain('"estimatedTss"');
     expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain('"estimatedFtpWatts"');
     expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain('"bodyMetrics"');
-    expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain('"coachQuestions"');
+    expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain('"coachQuestion"');
     expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain('"modelsRemarks"');
     expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain(
       "what the athlete loses toward that goal",

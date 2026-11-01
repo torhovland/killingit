@@ -17,8 +17,8 @@ remarks about difficulties or objections, and show those remarks to the admin.
 
 ### In scope
 
-1. Every strictly JSON coach response may carry `coachQuestions` (an array of
-   question strings) and `modelsRemarks` (a string or null). The prompt asks for
+1. Every strictly JSON coach response may carry `coachQuestion` (one question
+   string, or null) and `modelsRemarks` (a string or null). The prompt asks for
    at most one question per response, never one per activity, day, week, block
    or season level, and requires the question to name the activity, date, week
    or metric it is about so the athlete knows the context. The prompt asks for
@@ -72,8 +72,8 @@ remarks about difficulties or objections, and show those remarks to the admin.
 ## Acceptance criteria
 
 1. Plan, activity-review, athlete-metric and manual-TSS JSON contracts include
-   `coachQuestions` and `modelsRemarks`.
-2. A fresh structured response saves its questions without making a logging
+   `coachQuestion` and `modelsRemarks`.
+2. A fresh structured response saves its question without making a logging
    failure break the plan or analysis.
 3. The dashboard shows at most one coach question (the newest pending one).
 4. Answering saves the answer, shows the coach reply, and triggers a plan

@@ -248,12 +248,12 @@ export const coachAnalysisSchema = z.object({
 });
 
 /**
- * Extra notes every structured coach response may carry. Clarification
- * questions are shown to the athlete; model remarks are reviewed by the admin.
+ * Extra notes every structured coach response may carry. The clarification
+ * question is shown to the athlete; model remarks are reviewed by the admin.
  */
 export const coachResponseNotesSchema = z.object({
-  /** Important clarification questions for the athlete, oldest first. */
-  coachQuestions: z.array(z.string().trim().min(1)).nullable().optional(),
+  /** One important clarification question for the athlete, or null. */
+  coachQuestion: z.string().trim().min(1).nullable().optional(),
   /** Problems, inconsistencies or objections the model hit, or null. */
   modelsRemarks: z.string().trim().min(1).nullable().optional(),
 });

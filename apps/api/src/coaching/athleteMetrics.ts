@@ -146,15 +146,11 @@ export async function syncAthleteMetrics(input: {
     return null;
   }
 
-  if (
-    result.coachQuestions !== undefined &&
-    result.coachQuestions !== null &&
-    result.coachQuestions.length > 0
-  ) {
+  if (result.coachQuestion !== undefined && result.coachQuestion !== null) {
     try {
       await saveQuestions({
         userId: input.userId,
-        questions: result.coachQuestions,
+        questions: [result.coachQuestion],
         model: input.credentials.model,
         sourceKind: "athlete_metrics",
       });

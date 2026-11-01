@@ -103,8 +103,11 @@ export async function analyzeActivitiesAgainstPlan(
           promptVersion: PROGRAM_ANALYSIS_PROMPT_VERSION,
           text: result.analysis,
         });
-        if (result.coachQuestions !== undefined) {
-          coachQuestions.push(...(result.coachQuestions ?? []));
+        if (
+          result.coachQuestion !== undefined &&
+          result.coachQuestion !== null
+        ) {
+          coachQuestions.push(result.coachQuestion);
         }
         if (result.estimatedFtpWatts !== null) {
           ftpEstimates.push({

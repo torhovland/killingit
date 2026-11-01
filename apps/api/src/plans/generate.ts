@@ -128,9 +128,9 @@ export interface GeneratePlanInput {
   recordFtpEstimates?: (plan: CoachPlan) => Promise<void>;
   /** Stores the body-composition points the coach found, when supplied. */
   recordBodyMetrics?: (points: readonly BodyMetricEstimate[]) => Promise<void>;
-  /** Stores clarification questions the coach asked, when supplied. */
-  recordCoachQuestions?: (input: {
-    questions: readonly string[];
+  /** Stores the clarification question the coach asked, when supplied. */
+  recordCoachQuestion?: (input: {
+    question: string;
     model: string;
     sourceKind: CoachQuestionSourceKind;
   }) => Promise<void>;
@@ -280,9 +280,9 @@ export async function runPlanGeneration(
         credentials(context, seasonModelFor(context)),
         baseContext(input),
       );
-      await recordCoachQuestions(
+      await recordCoachQuestion(
         input,
-        seasonUpdate.coachQuestions,
+        seasonUpdate.coachQuestion,
         "season_plan",
         seasonModelFor(context),
       );
@@ -298,9 +298,9 @@ export async function runPlanGeneration(
         credentials(context, seasonModelFor(context)),
         { ...baseContext(input), season },
       );
-      await recordCoachQuestions(
+      await recordCoachQuestion(
         input,
-        generatedBlock.coachQuestions,
+        generatedBlock.coachQuestion,
         "initial_block",
         seasonModelFor(context),
       );
@@ -326,9 +326,9 @@ export async function runPlanGeneration(
           weekStartDate: startOfWeek(today),
         },
       );
-      await recordCoachQuestions(
+      await recordCoachQuestion(
         input,
-        weekUpdate.coachQuestions,
+        weekUpdate.coachQuestion,
         "weekly_update",
         dailyModelFor(context),
       );
@@ -345,9 +345,9 @@ export async function runPlanGeneration(
           week: weekUpdate.week,
         },
       );
-      await recordCoachQuestions(
+      await recordCoachQuestion(
         input,
-        dayUpdate.coachQuestions,
+        dayUpdate.coachQuestion,
         "daily_update",
         dailyModelFor(context),
       );
@@ -787,9 +787,9 @@ async function requestPlanUpdate(
         : {}),
     },
   );
-  await recordCoachQuestions(
+  await recordCoachQuestion(
     input,
-    update.coachQuestions,
+    update.coachQuestion,
     "plan_update",
     flags.season || flags.block || flags.nextBlock
       ? seasonModelFor(context)
@@ -1458,18 +1458,17 @@ function weatherContext(input: GeneratePlanInput) {
   };
 }
 
-/** Stores clarification questions without letting a logging failure fail the plan. */
-async function recordCoachQuestions(
+/** Stores a clarification question without letting a failure fail the plan. */
+async function recordCoachQuestion(
   input: GeneratePlanInput,
-  questions: readonly string[] | null | undefined,
+  question: string | null | undefined,
   sourceKind: CoachQuestionSourceKind,
   model: string,
 ): Promise<void> {
   if (
-    input.recordCoachQuestions === undefined ||
-    questions === undefined ||
-    questions === null ||
-    questions.length === 0
+    input.recordCoachQuestion === undefined ||
+    question === undefined ||
+    question === null
   ) {
     return;
   }
@@ -1477,8 +1476,8 @@ async function recordCoachQuestions(
     throw new GenerationSupersededError();
   }
   try {
-    await input.recordCoachQuestions({
-      questions,
+    await input.recordCoachQuestion({
+      question,
       model,
       sourceKind,
     });
