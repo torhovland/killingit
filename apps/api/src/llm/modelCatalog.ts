@@ -65,6 +65,9 @@ export const GRADE_ORDER: Record<LlmModelGrade, number> = {
   "?": -1,
 };
 
+/** At or above this total time the speed grade is F. */
+export const SPEED_F_LIMIT_MS = 1_200_000;
+
 /**
  * Estimated benchmark cost for a model that has not been called yet. The
  * benchmark runs two prompts (the today plan and a season revision), so the
@@ -188,7 +191,7 @@ export function speedGrade(timeMs: number | null | undefined): LlmModelGrade {
   if (timeMs < 180_000) return "B";
   if (timeMs < 300_000) return "C";
   if (timeMs < 600_000) return "D";
-  if (timeMs < 1_200_000) return "E";
+  if (timeMs < SPEED_F_LIMIT_MS) return "E";
   return "F";
 }
 
@@ -575,6 +578,7 @@ export interface CatalogRow {
   benchmarkScore: number | null;
   benchmarkTimeMs: number | null;
   benchmarkCostUsd: number | null;
+  gradesUpdatedAt: string | null;
 }
 
 export async function loadModelCatalog(): Promise<CatalogRow[]> {
@@ -591,6 +595,7 @@ export async function loadModelCatalog(): Promise<CatalogRow[]> {
       benchmarkScore: row.benchmarkScore,
       benchmarkTimeMs: row.benchmarkTimeMs,
       benchmarkCostUsd: row.benchmarkCostUsd,
+      gradesUpdatedAt: row.benchmarkedAt?.toISOString() ?? null,
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -701,17 +706,21 @@ export interface BenchmarkGradeInput {
   costUsd: number | null;
   categories: Record<string, number> | null;
   failed: boolean;
+  /** Overrides the computed ability, for example "?" after a speed-limit stop. */
+  ability?: LlmModelGrade;
 }
 
 /** Saves one benchmark result and recomputes its derived grades. */
 export async function recordBenchmarkGrade(
   input: BenchmarkGradeInput,
 ): Promise<void> {
-  const ability = abilityGrade({
-    score: input.score,
-    categories: input.categories,
-    failed: input.failed,
-  });
+  const ability =
+    input.ability ??
+    abilityGrade({
+      score: input.score,
+      categories: input.categories,
+      failed: input.failed,
+    });
   const speed = speedGrade(input.timeMs);
   const cost = costGrade(input.costUsd);
   const discouraged = isDiscouraged(ability, speed, cost);

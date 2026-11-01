@@ -112,9 +112,11 @@ remains as the fallback. The Settings page shows one table of non-retired
 models, plus any currently selected retired model with `(retired)` appended to
 its name.
 
-Columns are model, ability, speed, cost, discouraged and the two selection
-radios, in that order; the season column is headed "Season plan". Every grade
-column is sortable. Filters default to:
+Columns are model, ability, speed, cost, grades updated, discouraged and the
+two selection radios, in that order; the season column is headed "Season plan".
+"Grades updated" shows `benchmarked_at` in the athlete's time zone, or a dash
+for a model that has never been benchmarked. Every grade column is sortable.
+Filters default to:
 
 - Include ungraded = true
 - Include discouraged = false
@@ -175,6 +177,14 @@ because they are asynchronous and cannot be called through the synchronous
 endpoint. `DRY_RUN=1` writes the selection to `models.json` without calling any
 model. The benchmark scripts use `BENCHMARK_OPENROUTER_API_KEY`, a dedicated
 key separate from the app's per-account key.
+
+A model that reaches the speed-F limit (`1_200_000` ms across both prompts) is
+stopped and recorded with ability `?` instead of F. It is skipped by the judge
+and remains ungraded, so a timeout never labels a model as an ability failure.
+The season-revision gate also accepts a `coachQuestion` about Atlas in place of
+a changed block 1; the judge still rewards the preferred full Atlas replan. A
+block plan whose name, focus or rationale never mentions Atlas is treated by
+the judge as a strong hint that the revision is weak.
 
 If a run is interrupted by a provider limit, `RETRY_FAILED=1` re-runs only the
 unfinished prompts, `ONLY_VALID=1 RETRY_FAILED_JUDGES=1` judges the models that

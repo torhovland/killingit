@@ -78,6 +78,8 @@ export interface ReviseSeasonGates {
   atlasMentioned: boolean;
   blockOneChanged: boolean;
   blockOneStartDateKept: boolean;
+  /** The model asked about Atlas instead of planning it into block 1. */
+  atlasQuestionAsked: boolean;
   failures: string[];
 }
 
@@ -600,6 +602,9 @@ export function checkReviseSeasonGates(
   const root = isRecord(plan) ? plan : {};
   const block = isRecord(root.block) ? root.block : null;
   const season = isRecord(root.season) ? root.season : null;
+  const atlasQuestionAsked =
+    typeof root.coachQuestion === "string" &&
+    root.coachQuestion.toLowerCase().includes("atlas");
   const seasonBlocks: unknown[] =
     season && Array.isArray(season.blocks) ? (season.blocks as unknown[]) : [];
   const firstSeasonBlock = seasonBlocks[0];
@@ -615,7 +620,9 @@ export function checkReviseSeasonGates(
 
   const failures: string[] = [];
   if (!atlasMentioned) failures.push("the response never mentions Atlas");
-  if (!blockOneChanged) failures.push("block 1 is unchanged");
+  if (!blockOneChanged && !atlasQuestionAsked) {
+    failures.push("block 1 is unchanged");
+  }
   if (!blockOneStartDateKept) {
     failures.push(`block 1 does not start on ${baseline.startDate}`);
   }
@@ -623,6 +630,7 @@ export function checkReviseSeasonGates(
     atlasMentioned,
     blockOneChanged,
     blockOneStartDateKept,
+    atlasQuestionAsked,
     failures,
   };
 }

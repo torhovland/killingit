@@ -41,6 +41,7 @@ interface ModelResult {
   name: string;
   prompts: Record<BenchmarkPromptId, PromptResult>;
   ok: boolean;
+  expired?: boolean;
 }
 
 interface PromptJudge {
@@ -103,13 +104,17 @@ You will receive the exact original prompt given to the candidate and the candid
 
 A correct answer must mention Atlas, must produce a genuinely changed block 1, and must keep block 1 starting on 2026-10-21. Those three requirements are also checked mechanically, so their absence is already a hard failure; do not let strong writing hide it, and do not award credit for content the athlete did not supply.
 
+An answer may instead ask a coachQuestion about Atlas rather than working Atlas into the plan. That is acceptable and must not be treated as a design, fidelity or grounding failure. It is better, however, if the revised plan itself includes Atlas preparation, the current (first) block has changed to accommodate Atlas, and there is no coachQuestion; reward that preferred outcome more highly than the question-only answer.
+
+If the block plan in the output does not mention Atlas in its name, focus, or rationale, treat that as a strong hint that the model is not producing a good revised plan. A revised block that never names Atlas is weak evidence of Atlas preparation even when the season text mentions Atlas.
+
 Score the candidate on these six components. Be strict but fair. Judge the coaching content, not writing style alone.
 
 1. contract (0-1.5): valid JSON with exactly the eight top-level keys, season, block, week and today objects using the contract's field names and types, seven week sessions, a matching today session, bodyMetrics array, and no prose or extra fields.
 
 2. fidelity (0-2.0): follows every instruction in the revision request. The season is refreshed in place, block 1 starts on 2026-10-21, earlier blocks are untouched, later blocks tile the season with no gaps or overlaps through the season end, the current block is detailed, the current week is coherent with it, today is revised, and tomorrow, nextWeek and nextBlock stay null. It keeps dates, athlete goals and stored facts consistent.
 
-3. design (0-3.0): the revised season makes sense as a response to the new goal. Reward a credible build to the Atlas Mountain Race on 28 February 2027, with a sane taper and recovery, while preserving Paris-Brest-Paris in August 2027, the April 200 km brevet and the intervening brevet series, respecting the athlete's admitted ceiling of about four months of disciplined training before needing a reset, the Norwegian winter, the two-hour weekday limit after work, longer weekend rides, cycling and strength training with skiing in winter and running otherwise, power targets on the bike and heart-rate targets elsewhere, and the 225 W FTP. Penalise plans that ignore Atlas, keep the old season shape, overload or detrain the athlete, invent races or numbers, or break the chronological season logic.
+3. design (0-3.0): the revised season makes sense as a response to the new goal. Reward a credible build to the Atlas Mountain Race on 28 February 2027, with a sane taper and recovery, while preserving Paris-Brest-Paris in August 2027, the April 200 km brevet and the intervening brevet series, respecting the athlete's admitted ceiling of about four months of disciplined training before needing a reset, the Norwegian winter, the two-hour weekday limit after work, longer weekend rides, cycling and strength training with skiing in winter and running otherwise, power targets on the bike and heart-rate targets elsewhere, and the 225 W FTP. Strongly prefer a block plan whose name, focus or rationale names Atlas. Penalise plans that ignore Atlas, keep the old season shape, overload or detrain the athlete, invent races or numbers, or break the chronological season logic.
 
 4. rationale (2.0): specific, current, athlete-grounded reasons for the season shape, the block, its weeks and today. Each rationale explains the plan as it stands and why it fits the next races and the athlete's constraints. Penalise meta-commentary about adjusting, rewriting or replacing the old plan, and generic encouragement.
 
@@ -409,12 +414,15 @@ async function main(): Promise<void> {
   );
   const onlyValid = process.env.ONLY_VALID === "1";
   const limit = Number(process.env.LIMIT ?? Number.POSITIVE_INFINITY);
+  const expired = results.filter((result) => result.expired === true);
   const pending = results
+    .filter((result) => result.expired !== true)
     .filter((result) => !done.has(result.id))
     .filter((result) => !onlyValid || result.ok)
     .slice(0, limit);
   console.log(
-    `judging ${pending.length} models with ${JUDGE_MODEL} at ${BENCHMARK_PROMPTS.length} prompts (${done.size} already done)`,
+    `judging ${pending.length} models with ${JUDGE_MODEL} at ${BENCHMARK_PROMPTS.length} prompts ` +
+      `(${done.size} already done, ${expired.length} left ungraded at the speed-F limit)`,
   );
 
   let cursor = 0;

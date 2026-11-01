@@ -77,8 +77,9 @@ about a past workout, or before a suggested workout, to steer the coach.
   keeping every ungraded model with `RESCORE_MIN_ABILITY`, or re-score only
   models with one exact cost grade with `RESCORE_COST_GRADE` (for example
   `RESCORE_COST_GRADE=A+`); benchmark calls use the dedicated
-  `BENCHMARK_OPENROUTER_API_KEY`; see `docs/specs/llm-model-catalog.md` and
-  ADR 0016.
+  `BENCHMARK_OPENROUTER_API_KEY`, and a model that reaches the speed-F limit is
+  recorded as ungraded (`?`) rather than F; see
+  `docs/specs/llm-model-catalog.md` and ADR 0016.
 - Every completion attempt is stored in `llm_calls` with its full messages,
   response or error, model, usage, and request metadata. The admin settings
   page lists them under "LLM prompts" (`GET /api/admin/llm-calls`). Logging is

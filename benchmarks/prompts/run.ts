@@ -12,6 +12,7 @@ import type {
   BenchmarkPromptId,
   BenchmarkPromptDefinition,
 } from "../../apps/api/src/llm/promptBenchmark.js";
+import { SPEED_F_LIMIT_MS } from "../../apps/api/src/llm/modelCatalog.js";
 
 const RUN_ID = process.env.RUN_ID ?? "2026-10-31-two-prompts";
 const RUN_DIR = resolve(import.meta.dir, "runs", RUN_ID);
@@ -70,6 +71,8 @@ interface ModelResult {
   requestedAt: string;
   prompts: Record<BenchmarkPromptId, PromptResult>;
   ok: boolean;
+  /** True when the model reached the speed-F limit and stays ungraded. */
+  expired?: boolean;
   totalTimeMs: number;
   totalCostUsd: number;
 }
@@ -118,11 +121,12 @@ async function callModel(
   model: string,
   prompt: string,
   maxTokens: number,
+  timeoutMs: number,
 ): Promise<Attempt> {
   const started = performance.now();
   const startedAt = new Date().toISOString();
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await fetch(`${API_URL}/chat/completions`, {
       method: "POST",
@@ -189,6 +193,11 @@ async function callModel(
       error,
     };
   } catch (err) {
+    const error = controller.signal.aborted
+      ? `timed out after ${Math.round(timeoutMs / 1000)}s`
+      : err instanceof Error
+        ? err.message
+        : String(err);
     return {
       startedAt,
       timeMs: performance.now() - started,
@@ -199,7 +208,7 @@ async function callModel(
       raw: "",
       parsed: null,
       parseError: null,
-      error: err instanceof Error ? err.message : String(err),
+      error,
     };
   } finally {
     clearTimeout(timer);
@@ -211,17 +220,21 @@ async function runPrompt(
   model: OpenRouterModel,
   definition: BenchmarkPromptDefinition,
   prompt: string,
+  deadline: number,
 ): Promise<PromptResult> {
   const attempts: Attempt[] = [];
   let plan: unknown | null = null;
   let validationErrors: string[] = [];
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
+    const remaining = deadline - performance.now();
+    if (remaining <= 0) break;
     const result = await callModel(
       apiKey,
       model.id,
       prompt,
       tokensFor(definition, attempt),
+      Math.min(TIMEOUT_MS, remaining),
     );
     attempts.push(result);
     if (result.parsed !== null) {
@@ -254,6 +267,8 @@ async function runModel(
   existing?: ModelResult,
 ): Promise<ModelResult> {
   const requestedAt = new Date().toISOString();
+  const started = performance.now();
+  const deadline = started + SPEED_F_LIMIT_MS;
   const results = {} as Record<BenchmarkPromptId, PromptResult>;
 
   for (const definition of BENCHMARK_PROMPTS) {
@@ -266,7 +281,7 @@ async function runModel(
       results[definition.id] = prior;
       continue;
     }
-    const fresh = await runPrompt(apiKey, model, definition, prompt);
+    const fresh = await runPrompt(apiKey, model, definition, prompt, deadline);
     results[definition.id] = prior
       ? {
           ...fresh,
@@ -293,16 +308,25 @@ async function runModel(
   const promptResults = BENCHMARK_PROMPTS.map(
     (definition) => results[definition.id],
   );
+  const promptTimeMs = promptResults.reduce(
+    (sum, result) => sum + result.totalTimeMs,
+    0,
+  );
+  // A model that would grade F on speed is left ungraded ("?") instead of
+  // waiting for it or recording a failed ability.
+  const expired =
+    promptTimeMs >= SPEED_F_LIMIT_MS ||
+    performance.now() - started >= SPEED_F_LIMIT_MS;
   return {
     id: model.id,
     name: model.name,
     requestedAt,
     prompts: results,
-    ok: promptResults.every((result) => result.ok),
-    totalTimeMs: promptResults.reduce(
-      (sum, result) => sum + result.totalTimeMs,
-      0,
-    ),
+    ok: !expired && promptResults.every((result) => result.ok),
+    expired,
+    totalTimeMs: expired
+      ? Math.max(promptTimeMs, SPEED_F_LIMIT_MS)
+      : promptTimeMs,
     totalCostUsd: promptResults.reduce(
       (sum, result) => sum + result.totalCostUsd,
       0,
@@ -364,7 +388,9 @@ async function main(): Promise<void> {
   const retryFailed = process.env.RETRY_FAILED === "1";
   if (retryFailed) {
     const failed = new Set(
-      results.filter((result) => !result.ok).map((result) => result.id),
+      results
+        .filter((result) => !result.ok && result.expired !== true)
+        .map((result) => result.id),
     );
     models = models.filter((model) => failed.has(model.id));
     const costOf = (id: string) =>
@@ -458,7 +484,8 @@ async function main(): Promise<void> {
       }).join(" | ");
       log(
         `[${completed}/${models.length}] ${model.id} ${detail} ` +
-          `total ${(result.totalTimeMs / 1000).toFixed(1)}s $${result.totalCostUsd.toFixed(4)}`,
+          `total ${(result.totalTimeMs / 1000).toFixed(1)}s $${result.totalCostUsd.toFixed(4)}` +
+          (result.expired === true ? " expired (ability stays ?)" : ""),
       );
       await writeFile(resultsPath, `${JSON.stringify(results, null, 2)}\n`);
     }

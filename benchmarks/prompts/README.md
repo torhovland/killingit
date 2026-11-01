@@ -15,13 +15,21 @@ runs, including retries.
 The season revision also has three hard gates. Ability is F when a model:
 
 1. never mentions `Atlas` anywhere in its output,
-2. leaves block 1 unchanged, or
+2. leaves block 1 unchanged without asking a `coachQuestion` about Atlas, or
 3. changes block 1's start date (it must stay `2026-10-21`).
 
-The gates are checked mechanically against the current block supplied in the
-prompt. The block comparison ignores the block name and rationale, and compares
-the focus, end date and each week's start date, focus, target load and FTP
-estimate.
+The judge is told that an Atlas `coachQuestion` instead of an Atlas plan is
+acceptable, but that it scores higher when the plan itself prepares for Atlas,
+the first block changes to accommodate it, and no question is asked. A block
+plan whose name, focus or rationale never mentions Atlas is a strong hint to the
+judge that the revision is weak. The gates
+are checked mechanically against the current block supplied in the prompt. The
+block comparison ignores the block name and rationale, and compares the focus,
+end date and each week's start date, focus, target load and FTP estimate.
+
+A model that reaches the speed-F limit (20 minutes across both prompts) is
+stopped, skipped by the judge, and recorded with ability `?` rather than F, so
+it stays ungraded instead of being labelled a failure.
 
 ## Re-running the benchmark
 
@@ -73,7 +81,19 @@ A full run is the same sequence without a filter and with a fresh `RUN_ID`. The
 HTML report is generated with:
 
 ```sh
-SCORES_FILE=judge-scores.json USE_OVERRIDES=0 bun benchmarks/prompts/report.ts
+RUN_ID=... SCORES_FILE=judge-scores.json USE_OVERRIDES=0 bun benchmarks/prompts/report.ts
+```
+
+The report shows each model's ability, speed and cost grades alongside its run
+time, measured cost and judged score. The HTML report is written to
+`benchmarks/prompts/reports/<RUN_ID>.html`. Convert it to the PDF with a headless
+browser:
+
+```sh
+/usr/bin/chromium-browser --headless --no-sandbox --disable-gpu \
+  --print-to-pdf=benchmarks/prompts/reports/<RUN_ID>.pdf \
+  --print-to-pdf-no-header \
+  "file://$PWD/benchmarks/prompts/reports/<RUN_ID>.html"
 ```
 
 ## Completing an interrupted run

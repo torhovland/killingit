@@ -346,7 +346,17 @@ describe("checkReviseSeasonGates", () => {
   it("fails when block 1 is unchanged", () => {
     const gates = checkReviseSeasonGates(candidateWithoutWeeks(), baseline);
     expect(gates.blockOneChanged).toBe(false);
+    expect(gates.atlasQuestionAsked).toBe(false);
     expect(gates.failures).toContain("block 1 is unchanged");
+  });
+
+  it("accepts an Atlas coach question instead of changing block 1", () => {
+    const plan = candidateWithoutWeeks();
+    plan.coachQuestion = "Should Atlas replace the April brevet as the goal?";
+    const gates = checkReviseSeasonGates(plan, baseline);
+    expect(gates.atlasQuestionAsked).toBe(true);
+    expect(gates.blockOneChanged).toBe(false);
+    expect(gates.failures).toEqual([]);
   });
 
   it("fails when the block start date changes", () => {
