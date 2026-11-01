@@ -13,6 +13,7 @@ interface ModelResult {
   id: string;
   name: string;
   ok: boolean;
+  expired?: boolean;
   totalTimeMs: number;
   totalCostUsd: number;
 }
@@ -46,7 +47,28 @@ async function main(): Promise<void> {
   const skipFailed = process.env.SKIP_FAILED === "1";
   let graded = 0;
   let skipped = 0;
+  let timedOut = 0;
   for (const result of results) {
+    if (result.expired === true) {
+      if (skipFailed) {
+        skipped += 1;
+        continue;
+      }
+      // A model that reached the speed-F limit is deliberately left ungraded
+      // rather than recorded as an ability failure.
+      await recordBenchmarkGrade({
+        id: result.id,
+        name: result.name,
+        score: null,
+        timeMs: result.totalTimeMs,
+        costUsd: null,
+        categories: null,
+        failed: false,
+        ability: "?",
+      });
+      timedOut += 1;
+      continue;
+    }
     const judged = judgeById.get(result.id);
     const invalid =
       !result.ok || judged === undefined || judged.judge.error !== null;
@@ -68,7 +90,8 @@ async function main(): Promise<void> {
   }
   const copied = await copyBenchmarkToAliases({ force: true });
   console.log(
-    `recorded ${graded} benchmark grades from ${RUN_ID}; skipped ${skipped} unfinished model(s); copied ${copied} alias result(s)`,
+    `recorded ${graded} benchmark grades and ${timedOut} speed-limit "?" grade(s) from ${RUN_ID}; ` +
+      `skipped ${skipped} unfinished model(s); copied ${copied} alias result(s)`,
   );
 }
 

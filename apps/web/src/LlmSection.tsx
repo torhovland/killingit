@@ -9,6 +9,7 @@ import {
 import { useAuth } from "./auth";
 import { fetchJsonAuthed } from "./fetchAuthed";
 import { reportError } from "./reportError";
+import { browserTimeZone, formatDateTime } from "./timeZone";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
@@ -23,11 +24,13 @@ const GRADE_ORDER: Record<LlmModelGrade, number> = {
   "?": -1,
 };
 
-type SortKey = "model" | "discouraged" | "ability" | "speed" | "cost";
+type SortKey =
+  "model" | "benchmarkedAt" | "discouraged" | "ability" | "speed" | "cost";
 
 interface LlmSectionProps {
   settings: LlmSettings;
   onSaved: (settings: LlmSettings) => void;
+  isAdmin: boolean;
 }
 
 function gradeAtLeast(grade: LlmModelGrade, minimum: LlmModelGrade): boolean {
@@ -70,6 +73,27 @@ function compareGrades(a: LlmModelGrade, b: LlmModelGrade): number {
   return GRADE_ORDER[a] - GRADE_ORDER[b];
 }
 
+export function discouragedMessage(name: string): string {
+  return `${name} is discouraged. You should choose another model before running the coach.`;
+}
+
+function DangerIcon() {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      className="mt-0.5 size-4 shrink-0"
+      aria-hidden="true"
+    >
+      <path d="M10 3 2.5 16.5h15L10 3Z" strokeLinejoin="round" />
+      <path d="M10 7.5v4" strokeLinecap="round" />
+      <circle cx="10" cy="14" r="0.8" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
 export function compareModels(
   a: LlmCatalogModel,
   b: LlmCatalogModel,
@@ -79,6 +103,16 @@ export function compareModels(
   if (key === "model") {
     const result = a.name.localeCompare(b.name);
     return direction === "asc" ? result : -result;
+  }
+  if (key === "benchmarkedAt") {
+    const aTime = a.benchmarkedAt === null ? null : Date.parse(a.benchmarkedAt);
+    const bTime = b.benchmarkedAt === null ? null : Date.parse(b.benchmarkedAt);
+    // Unscored models stay last in either direction.
+    if (aTime === null && bTime === null) return a.name.localeCompare(b.name);
+    if (aTime === null) return 1;
+    if (bTime === null) return -1;
+    const result = direction === "asc" ? aTime - bTime : bTime - aTime;
+    return result !== 0 ? result : a.name.localeCompare(b.name);
   }
   const primary =
     key === "discouraged"
@@ -95,7 +129,7 @@ export function compareModels(
  * saved together as soon as a radio button is clicked so a plan cannot mix an
  * old and a new selection. The key is saved when the input loses focus.
  */
-export function LlmSection({ settings, onSaved }: LlmSectionProps) {
+export function LlmSection({ settings, onSaved, isAdmin }: LlmSectionProps) {
   const auth = useAuth();
   const [catalog, setCatalog] = useState<LlmCatalogModel[] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -115,9 +149,10 @@ export function LlmSection({ settings, onSaved }: LlmSectionProps) {
   const [showDiscouraged, setShowDiscouraged] = useState(false);
   const [minAbility, setMinAbility] = useState<LlmModelGrade>("B");
   const [minSpeed, setMinSpeed] = useState<LlmModelGrade>("D");
-  const [minCost, setMinCost] = useState<LlmModelGrade>("E");
+  const [minCost, setMinCost] = useState<LlmModelGrade>("D");
   const [sortKey, setSortKey] = useState<SortKey>("ability");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const timeZone = browserTimeZone();
 
   useEffect(() => {
     if (!auth.isAuthenticated) return;
@@ -188,10 +223,15 @@ export function LlmSection({ settings, onSaved }: LlmSectionProps) {
     );
     const retired = selected.find((model) => model.retired);
     if (retired) return `${retired.name} is retired`;
-    const discouraged = selected.find((model) => model.discouraged);
-    if (discouraged) return `${discouraged.name} is discouraged`;
     return null;
   }, [catalog, dailyModel, seasonModel]);
+
+  const selectedDiscouraged = useMemo(() => {
+    if (catalog === null) return [];
+    return catalog.filter(
+      (model) => selectedIds.has(model.id) && model.discouraged,
+    );
+  }, [catalog, selectedIds]);
 
   function toggleSort(key: SortKey): void {
     if (key === sortKey) {
@@ -403,6 +443,11 @@ export function LlmSection({ settings, onSaved }: LlmSectionProps) {
                 <th className="p-2">{gradeHeader("Ability", "ability")}</th>
                 <th className="p-2">{gradeHeader("Speed", "speed")}</th>
                 <th className="p-2">{gradeHeader("Cost", "cost")}</th>
+                {isAdmin && (
+                  <th className="p-2">
+                    {gradeHeader("Last scored", "benchmarkedAt")}
+                  </th>
+                )}
                 <th className="p-2">
                   {gradeHeader("Discouraged", "discouraged")}
                 </th>
@@ -425,6 +470,13 @@ export function LlmSection({ settings, onSaved }: LlmSectionProps) {
                   <td className="p-2">{model.ability}</td>
                   <td className="p-2">{model.speed}</td>
                   <td className="p-2">{model.cost}</td>
+                  {isAdmin && (
+                    <td className="whitespace-nowrap p-2">
+                      {model.benchmarkedAt === null
+                        ? "—"
+                        : formatDateTime(model.benchmarkedAt, timeZone)}
+                    </td>
+                  )}
                   <td className="p-2">{model.discouraged ? "Yes" : "No"}</td>
                   <td className="p-2">
                     <input
@@ -455,6 +507,16 @@ export function LlmSection({ settings, onSaved }: LlmSectionProps) {
           )}
         </div>
       )}
+
+      {selectedDiscouraged.map((model) => (
+        <p
+          key={model.id}
+          className="flex items-start gap-2 rounded bg-accent/15 p-2 text-base text-destructive"
+        >
+          <DangerIcon />
+          <span>{discouragedMessage(model.name)}</span>
+        </p>
+      ))}
 
       {saving && (
         <p className="text-base text-muted-foreground">Saving model choices…</p>

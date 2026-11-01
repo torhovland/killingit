@@ -1,9 +1,12 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import type { LlmModelGrade } from "@killingit/shared";
 import {
   BENCHMARK_PROMPTS,
+  filterByCostGrades,
   filterByMinimumAbility,
   parseAbilityGrade,
+  sortByPreviousTime,
   validateReviseSeasonPlan,
   validateTodayPlan,
 } from "../../apps/api/src/llm/promptBenchmark.js";
@@ -11,6 +14,7 @@ import type {
   BenchmarkPromptId,
   BenchmarkPromptDefinition,
 } from "../../apps/api/src/llm/promptBenchmark.js";
+import { SPEED_F_LIMIT_MS } from "../../apps/api/src/llm/modelCatalog.js";
 
 const RUN_ID = process.env.RUN_ID ?? "2026-10-31-two-prompts";
 const RUN_DIR = resolve(import.meta.dir, "runs", RUN_ID);
@@ -69,6 +73,8 @@ interface ModelResult {
   requestedAt: string;
   prompts: Record<BenchmarkPromptId, PromptResult>;
   ok: boolean;
+  /** True when the model reached the speed-F limit and stays ungraded. */
+  expired?: boolean;
   totalTimeMs: number;
   totalCostUsd: number;
 }
@@ -117,11 +123,12 @@ async function callModel(
   model: string,
   prompt: string,
   maxTokens: number,
+  timeoutMs: number,
 ): Promise<Attempt> {
   const started = performance.now();
   const startedAt = new Date().toISOString();
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await fetch(`${API_URL}/chat/completions`, {
       method: "POST",
@@ -188,6 +195,11 @@ async function callModel(
       error,
     };
   } catch (err) {
+    const error = controller.signal.aborted
+      ? `timed out after ${Math.round(timeoutMs / 1000)}s`
+      : err instanceof Error
+        ? err.message
+        : String(err);
     return {
       startedAt,
       timeMs: performance.now() - started,
@@ -198,7 +210,7 @@ async function callModel(
       raw: "",
       parsed: null,
       parseError: null,
-      error: err instanceof Error ? err.message : String(err),
+      error,
     };
   } finally {
     clearTimeout(timer);
@@ -210,17 +222,21 @@ async function runPrompt(
   model: OpenRouterModel,
   definition: BenchmarkPromptDefinition,
   prompt: string,
+  deadline: number,
 ): Promise<PromptResult> {
   const attempts: Attempt[] = [];
   let plan: unknown | null = null;
   let validationErrors: string[] = [];
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
+    const remaining = deadline - performance.now();
+    if (remaining <= 0) break;
     const result = await callModel(
       apiKey,
       model.id,
       prompt,
       tokensFor(definition, attempt),
+      Math.min(TIMEOUT_MS, remaining),
     );
     attempts.push(result);
     if (result.parsed !== null) {
@@ -253,6 +269,8 @@ async function runModel(
   existing?: ModelResult,
 ): Promise<ModelResult> {
   const requestedAt = new Date().toISOString();
+  const started = performance.now();
+  const deadline = started + SPEED_F_LIMIT_MS;
   const results = {} as Record<BenchmarkPromptId, PromptResult>;
 
   for (const definition of BENCHMARK_PROMPTS) {
@@ -265,7 +283,7 @@ async function runModel(
       results[definition.id] = prior;
       continue;
     }
-    const fresh = await runPrompt(apiKey, model, definition, prompt);
+    const fresh = await runPrompt(apiKey, model, definition, prompt, deadline);
     results[definition.id] = prior
       ? {
           ...fresh,
@@ -292,16 +310,25 @@ async function runModel(
   const promptResults = BENCHMARK_PROMPTS.map(
     (definition) => results[definition.id],
   );
+  const promptTimeMs = promptResults.reduce(
+    (sum, result) => sum + result.totalTimeMs,
+    0,
+  );
+  // A model that would grade F on speed is left ungraded ("?") instead of
+  // waiting for it or recording a failed ability.
+  const expired =
+    promptTimeMs >= SPEED_F_LIMIT_MS ||
+    performance.now() - started >= SPEED_F_LIMIT_MS;
   return {
     id: model.id,
     name: model.name,
     requestedAt,
     prompts: results,
-    ok: promptResults.every((result) => result.ok),
-    totalTimeMs: promptResults.reduce(
-      (sum, result) => sum + result.totalTimeMs,
-      0,
-    ),
+    ok: !expired && promptResults.every((result) => result.ok),
+    expired,
+    totalTimeMs: expired
+      ? Math.max(promptTimeMs, SPEED_F_LIMIT_MS)
+      : promptTimeMs,
     totalCostUsd: promptResults.reduce(
       (sum, result) => sum + result.totalCostUsd,
       0,
@@ -324,8 +351,8 @@ function log(message: string): void {
 }
 
 async function main(): Promise<void> {
-  const apiKey = process.env.OPENROUTER_API_KEY?.trim();
-  if (!apiKey) throw new Error("OPENROUTER_API_KEY is not set");
+  const apiKey = process.env.BENCHMARK_OPENROUTER_API_KEY?.trim();
+  if (!apiKey) throw new Error("BENCHMARK_OPENROUTER_API_KEY is not set");
   const prompts = new Map<BenchmarkPromptId, string>();
   for (const definition of BENCHMARK_PROMPTS) {
     prompts.set(
@@ -363,7 +390,9 @@ async function main(): Promise<void> {
   const retryFailed = process.env.RETRY_FAILED === "1";
   if (retryFailed) {
     const failed = new Set(
-      results.filter((result) => !result.ok).map((result) => result.id),
+      results
+        .filter((result) => !result.ok && result.expired !== true)
+        .map((result) => result.id),
     );
     models = models.filter((model) => failed.has(model.id));
     const costOf = (id: string) =>
@@ -381,21 +410,114 @@ async function main(): Promise<void> {
     log(`pending-only run: ${models.length} ungraded models`);
   }
   const minimumRaw = process.env.RESCORE_MIN_ABILITY?.trim();
-  if (minimumRaw) {
-    const minimum = parseAbilityGrade(minimumRaw);
-    if (minimum === null) {
-      throw new Error(`RESCORE_MIN_ABILITY is not a grade: ${minimumRaw}`);
+  const costRaw = process.env.RESCORE_COST_GRADE?.trim();
+  const costGradesRaw = process.env.INCLUDE_COST_GRADES?.trim();
+  const includeModelsRaw = process.env.INCLUDE_MODELS?.trim();
+  const excludeAbilityRaw = process.env.EXCLUDE_ABILITY_GRADES?.trim();
+  const allowedCostGrades = new Set<LlmModelGrade>();
+  const excludedAbilityGrades = new Set<LlmModelGrade>();
+  if (costRaw) {
+    const grade = parseAbilityGrade(costRaw);
+    if (grade === null) {
+      throw new Error(`RESCORE_COST_GRADE is not a grade: ${costRaw}`);
     }
-    const grades = await catalog.benchmarkAbilityGrades();
-    models = filterByMinimumAbility(models, grades, minimum);
+    allowedCostGrades.add(grade);
+  }
+  for (const raw of (costGradesRaw ?? "").split(",")) {
+    const value = raw.trim();
+    if (value === "") continue;
+    const grade = parseAbilityGrade(value);
+    if (grade === null) {
+      throw new Error(`INCLUDE_COST_GRADES is not a grade: ${value}`);
+    }
+    allowedCostGrades.add(grade);
+  }
+  for (const raw of (excludeAbilityRaw ?? "").split(",")) {
+    const value = raw.trim();
+    if (value === "") continue;
+    const grade = parseAbilityGrade(value);
+    if (grade === null) {
+      throw new Error(`EXCLUDE_ABILITY_GRADES is not a grade: ${value}`);
+    }
+    excludedAbilityGrades.add(grade);
+  }
+  const includedModelIds = new Set(
+    (includeModelsRaw ?? "")
+      .split(",")
+      .map((id) => id.trim())
+      .filter((id) => id !== ""),
+  );
+  const filtering =
+    minimumRaw !== undefined ||
+    allowedCostGrades.size > 0 ||
+    includedModelIds.size > 0 ||
+    excludedAbilityGrades.size > 0;
+  if (filtering) {
+    const filters: string[] = [];
+    if (minimumRaw) {
+      const minimum = parseAbilityGrade(minimumRaw);
+      if (minimum === null) {
+        throw new Error(`RESCORE_MIN_ABILITY is not a grade: ${minimumRaw}`);
+      }
+      const grades = await catalog.benchmarkAbilityGrades();
+      models = filterByMinimumAbility(models, grades, minimum);
+      filters.push(`ability ${minimum} or better plus every ungraded model`);
+    }
+    if (allowedCostGrades.size > 0 || includedModelIds.size > 0) {
+      const grades = await catalog.benchmarkCostGrades();
+      if (includedModelIds.size === 0 && excludedAbilityGrades.size === 0) {
+        models = filterByCostGrades(models, grades, allowedCostGrades);
+      } else {
+        const abilityGrades =
+          excludedAbilityGrades.size > 0
+            ? await catalog.benchmarkAbilityGrades()
+            : null;
+        models = models.filter((model) => {
+          if (includedModelIds.has(model.id)) return true;
+          const grade = grades.get(model.id);
+          if (grade === undefined || !allowedCostGrades.has(grade)) {
+            return false;
+          }
+          if (
+            abilityGrades !== null &&
+            excludedAbilityGrades.has(abilityGrades.get(model.id) ?? "?")
+          ) {
+            return false;
+          }
+          return true;
+        });
+      }
+      if (allowedCostGrades.size > 0) {
+        filters.push(`cost ${[...allowedCostGrades].join(", ")}`);
+      }
+      if (includedModelIds.size > 0) {
+        filters.push(`${includedModelIds.size} named model(s)`);
+      }
+    } else if (excludedAbilityGrades.size > 0) {
+      const abilityGrades = await catalog.benchmarkAbilityGrades();
+      models = models.filter(
+        (model) =>
+          !excludedAbilityGrades.has(abilityGrades.get(model.id) ?? "?"),
+      );
+    }
+    if (excludedAbilityGrades.size > 0) {
+      filters.push(
+        `ability not ${[...excludedAbilityGrades].join(", ")} except named models`,
+      );
+    }
     const beforeAliases = models.length;
     // Aliases must never be benchmarked on their own: run the concrete target
     // and copy its result afterwards, so an alias cannot diverge from it.
     models = models.filter((model) => model.alias_target === undefined);
     log(
-      `re-score filter: keeping ${models.length} models graded ${minimum} or better plus every ungraded model; ` +
-        `skipped ${beforeAliases - models.length} alias(es)`,
+      `selection filter: keeping ${models.length} models with ${filters.join(" and ")}; ` +
+        `skipped ${beforeAliases - models.length} alias(es) for later copying`,
     );
+  }
+  if (process.env.SORT?.trim() === "slowest") {
+    const times = await catalog.benchmarkModelTimes();
+    models = sortByPreviousTime(models, times);
+    log("ordered slowest first by previous benchmark time");
   }
   if (models.length === 0) {
     log("nothing to do; no model matched the selection");
@@ -443,7 +565,8 @@ async function main(): Promise<void> {
       }).join(" | ");
       log(
         `[${completed}/${models.length}] ${model.id} ${detail} ` +
-          `total ${(result.totalTimeMs / 1000).toFixed(1)}s $${result.totalCostUsd.toFixed(4)}`,
+          `total ${(result.totalTimeMs / 1000).toFixed(1)}s $${result.totalCostUsd.toFixed(4)}` +
+          (result.expired === true ? " expired (ability stays ?)" : ""),
       );
       await writeFile(resultsPath, `${JSON.stringify(results, null, 2)}\n`);
     }

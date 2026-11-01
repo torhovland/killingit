@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import type { LlmCatalogModel } from "@killingit/shared";
 import {
   compareModels,
+  discouragedMessage,
   modelMatchesFilters,
   type LlmModelFilters,
 } from "./LlmSection";
@@ -18,6 +19,7 @@ function model(overrides: Partial<LlmCatalogModel> = {}): LlmCatalogModel {
     benchmarkScore: 11,
     benchmarkTimeMs: 10_000,
     benchmarkCostUsd: 0.01,
+    benchmarkedAt: "2026-10-31T15:40:52.865Z",
     ...overrides,
   };
 }
@@ -28,7 +30,7 @@ function filters(overrides: Partial<LlmModelFilters> = {}): LlmModelFilters {
     showDiscouraged: false,
     minAbility: "B",
     minSpeed: "D",
-    minCost: "E",
+    minCost: "D",
     ...overrides,
   };
 }
@@ -76,6 +78,18 @@ describe("modelMatchesFilters", () => {
   });
 });
 
+describe("discouragedMessage", () => {
+  it("names the model and tells the athlete to choose another", () => {
+    expect(
+      discouragedMessage(
+        "Google: Nano Banana Pro (Gemini 3 Pro Image Preview)",
+      ),
+    ).toBe(
+      "Google: Nano Banana Pro (Gemini 3 Pro Image Preview) is discouraged. You should choose another model before running the coach.",
+    );
+  });
+});
+
 describe("compareModels", () => {
   it("orders the primary key in the requested direction", () => {
     const a = model({ id: "a", ability: "A" });
@@ -83,6 +97,35 @@ describe("compareModels", () => {
 
     expect(compareModels(a, b, "ability", "desc")).toBeLessThan(0);
     expect(compareModels(a, b, "ability", "asc")).toBeGreaterThan(0);
+  });
+
+  it("sorts by last scored, keeping unscored models last", () => {
+    const older = model({
+      id: "older",
+      name: "Older",
+      benchmarkedAt: "2026-10-01T08:00:00.000Z",
+    });
+    const newer = model({
+      id: "newer",
+      name: "Newer",
+      benchmarkedAt: "2026-10-31T08:00:00.000Z",
+    });
+    const unscored = model({
+      id: "unscored",
+      name: "Unscored",
+      benchmarkedAt: null,
+    });
+
+    expect(
+      [older, unscored, newer]
+        .sort((a, b) => compareModels(a, b, "benchmarkedAt", "desc"))
+        .map((entry) => entry.name),
+    ).toEqual(["Newer", "Older", "Unscored"]);
+    expect(
+      [older, unscored, newer]
+        .sort((a, b) => compareModels(a, b, "benchmarkedAt", "asc"))
+        .map((entry) => entry.name),
+    ).toEqual(["Older", "Newer", "Unscored"]);
   });
 
   it("uses ascending model name for ties in both directions", () => {

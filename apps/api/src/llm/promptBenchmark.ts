@@ -3,7 +3,7 @@ import { GRADE_ORDER } from "./modelCatalog.js";
 
 /** Dates used by the two benchmark prompts. */
 export const TODAY_BENCHMARK_DATE = "2026-10-30";
-export const REVISE_SEASON_DATE = "2026-10-31";
+export const REVISE_SEASON_DATE = "2026-11-01";
 export const REVISE_WEEK_START = "2026-10-26";
 
 /** The revision request returns exactly these top-level keys. */
@@ -78,6 +78,8 @@ export interface ReviseSeasonGates {
   atlasMentioned: boolean;
   blockOneChanged: boolean;
   blockOneStartDateKept: boolean;
+  /** The model asked about Atlas instead of planning it into block 1. */
+  atlasQuestionAsked: boolean;
   failures: string[];
 }
 
@@ -109,6 +111,43 @@ export function filterByMinimumAbility<T extends { id: string }>(
     const grade = grades.get(model.id);
     if (grade === undefined || grade === "?") return true;
     return GRADE_ORDER[grade] >= floor;
+  });
+}
+
+/** Keeps only models whose stored grade equals the requested cost grade. */
+export function filterByCostGrade<T extends { id: string }>(
+  models: readonly T[],
+  grades: ReadonlyMap<string, LlmModelGrade>,
+  grade: LlmModelGrade,
+): T[] {
+  return models.filter((model) => grades.get(model.id) === grade);
+}
+
+/** Keeps only models whose stored cost grade is in the requested set. */
+export function filterByCostGrades<T extends { id: string }>(
+  models: readonly T[],
+  grades: ReadonlyMap<string, LlmModelGrade>,
+  allowed: ReadonlySet<LlmModelGrade>,
+): T[] {
+  return models.filter((model) => {
+    const grade = grades.get(model.id);
+    return grade !== undefined && allowed.has(grade);
+  });
+}
+
+/** Orders models by their previous benchmark time, slowest first. */
+export function sortByPreviousTime<T extends { id: string }>(
+  models: readonly T[],
+  times: ReadonlyMap<string, number | null>,
+): T[] {
+  return [...models].sort((a, b) => {
+    const aTime = times.get(a.id) ?? null;
+    const bTime = times.get(b.id) ?? null;
+    if (aTime === null && bTime === null) return a.id.localeCompare(b.id);
+    if (aTime === null) return 1;
+    if (bTime === null) return -1;
+    if (aTime !== bTime) return bTime - aTime;
+    return a.id.localeCompare(b.id);
   });
 }
 
@@ -591,6 +630,9 @@ export function checkReviseSeasonGates(
   const root = isRecord(plan) ? plan : {};
   const block = isRecord(root.block) ? root.block : null;
   const season = isRecord(root.season) ? root.season : null;
+  const atlasQuestionAsked =
+    typeof root.coachQuestion === "string" &&
+    root.coachQuestion.toLowerCase().includes("atlas");
   const seasonBlocks: unknown[] =
     season && Array.isArray(season.blocks) ? (season.blocks as unknown[]) : [];
   const firstSeasonBlock = seasonBlocks[0];
@@ -606,7 +648,9 @@ export function checkReviseSeasonGates(
 
   const failures: string[] = [];
   if (!atlasMentioned) failures.push("the response never mentions Atlas");
-  if (!blockOneChanged) failures.push("block 1 is unchanged");
+  if (!blockOneChanged && !atlasQuestionAsked) {
+    failures.push("block 1 is unchanged");
+  }
   if (!blockOneStartDateKept) {
     failures.push(`block 1 does not start on ${baseline.startDate}`);
   }
@@ -614,6 +658,7 @@ export function checkReviseSeasonGates(
     atlasMentioned,
     blockOneChanged,
     blockOneStartDateKept,
+    atlasQuestionAsked,
     failures,
   };
 }

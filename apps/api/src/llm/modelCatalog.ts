@@ -65,6 +65,9 @@ export const GRADE_ORDER: Record<LlmModelGrade, number> = {
   "?": -1,
 };
 
+/** At or above this total time the speed grade is F. */
+export const SPEED_F_LIMIT_MS = 1_200_000;
+
 /**
  * Estimated benchmark cost for a model that has not been called yet. The
  * benchmark runs two prompts (the today plan and a season revision), so the
@@ -188,7 +191,7 @@ export function speedGrade(timeMs: number | null | undefined): LlmModelGrade {
   if (timeMs < 180_000) return "B";
   if (timeMs < 300_000) return "C";
   if (timeMs < 600_000) return "D";
-  if (timeMs < 1_200_000) return "E";
+  if (timeMs < SPEED_F_LIMIT_MS) return "E";
   return "F";
 }
 
@@ -202,7 +205,7 @@ export interface AbilityInput {
  * Ability is the benchmark score band, unless the run failed or any category
  * scored below half of its maximum. A category failure always grades F.
  *
- * Score bands: A+ >= 11.1, A >= 10.5, B >= 9.0, C >= 8.0, D >= 7.5,
+ * Score bands: A+ >= 11.1, A >= 10.5, B >= 10.2, C >= 9.8, D >= 9.6,
  * E > 0, F otherwise.
  */
 export function abilityGrade({
@@ -221,9 +224,9 @@ export function abilityGrade({
   }
   if (score >= 11.1) return "A+";
   if (score >= 10.5) return "A";
-  if (score >= 9.0) return "B";
-  if (score >= 8.0) return "C";
-  if (score >= 7.5) return "D";
+  if (score >= 10.2) return "B";
+  if (score >= 9.8) return "C";
+  if (score >= 9.6) return "D";
   return "E";
 }
 
@@ -232,8 +235,11 @@ export function isDiscouraged(
   speed: LlmModelGrade,
   cost: LlmModelGrade,
 ): boolean {
-  if (ability === "?" || speed === "?" || cost === "?") return false;
-  return GRADE_ORDER[ability] < GRADE_ORDER.B || speed === "F" || cost === "F";
+  // Any known disqualifying grade is enough. An ungraded (`?`) category is
+  // ignored rather than making the whole model safe.
+  const abilityDisqualified =
+    ability !== "?" && GRADE_ORDER[ability] < GRADE_ORDER.B;
+  return abilityDisqualified || speed === "F" || cost === "F";
 }
 
 export interface CatalogRefreshResult {
@@ -575,6 +581,7 @@ export interface CatalogRow {
   benchmarkScore: number | null;
   benchmarkTimeMs: number | null;
   benchmarkCostUsd: number | null;
+  benchmarkedAt: string | null;
 }
 
 export async function loadModelCatalog(): Promise<CatalogRow[]> {
@@ -591,6 +598,7 @@ export async function loadModelCatalog(): Promise<CatalogRow[]> {
       benchmarkScore: row.benchmarkScore,
       benchmarkTimeMs: row.benchmarkTimeMs,
       benchmarkCostUsd: row.benchmarkCostUsd,
+      benchmarkedAt: row.benchmarkedAt?.toISOString() ?? null,
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -611,7 +619,8 @@ export async function modelIsUsable(modelId: string): Promise<{
   const row = rows[0];
   if (!row) return null;
   return {
-    usable: !row.retired && !row.discouraged,
+    // A discouraged model is still usable; Settings only warns about it.
+    usable: !row.retired,
     retired: row.retired,
     discouraged: row.discouraged,
   };
@@ -643,6 +652,26 @@ export async function benchmarkAbilityGrades(): Promise<
     .select({ id: llmModels.id, ability: llmModels.ability })
     .from(llmModels);
   return new Map(rows.map((row) => [row.id, row.ability]));
+}
+
+/** Current stored cost grade for every catalog model, keyed by id. */
+export async function benchmarkCostGrades(): Promise<
+  Map<string, LlmModelGrade>
+> {
+  const rows = await db
+    .select({ id: llmModels.id, cost: llmModels.cost })
+    .from(llmModels);
+  return new Map(rows.map((row) => [row.id, row.cost]));
+}
+
+/** Stored benchmark time for every catalog model, keyed by id. */
+export async function benchmarkModelTimes(): Promise<
+  Map<string, number | null>
+> {
+  const rows = await db
+    .select({ id: llmModels.id, benchmarkTimeMs: llmModels.benchmarkTimeMs })
+    .from(llmModels);
+  return new Map(rows.map((row) => [row.id, row.benchmarkTimeMs]));
 }
 
 /**
@@ -691,17 +720,21 @@ export interface BenchmarkGradeInput {
   costUsd: number | null;
   categories: Record<string, number> | null;
   failed: boolean;
+  /** Overrides the computed ability, for example "?" after a speed-limit stop. */
+  ability?: LlmModelGrade;
 }
 
 /** Saves one benchmark result and recomputes its derived grades. */
 export async function recordBenchmarkGrade(
   input: BenchmarkGradeInput,
 ): Promise<void> {
-  const ability = abilityGrade({
-    score: input.score,
-    categories: input.categories,
-    failed: input.failed,
-  });
+  const ability =
+    input.ability ??
+    abilityGrade({
+      score: input.score,
+      categories: input.categories,
+      failed: input.failed,
+    });
   const speed = speedGrade(input.timeMs);
   const cost = costGrade(input.costUsd);
   const discouraged = isDiscouraged(ability, speed, cost);

@@ -34,10 +34,10 @@ Ability:
 
 - `A+` score >= 11.1
 - `A` score >= 10.5
-- `B` score >= 9.0
-- `C` score >= 8.0 (below 9)
-- `D` score >= 7.5 (below 8)
-- `E` score > 0 (below 7.5)
+- `B` score >= 10.2 (below 10.5)
+- `C` score >= 9.8 (below 10.2)
+- `D` score >= 9.6 (below 9.8)
+- `E` score > 0 (below 9.6)
 - `F` failed, unscoreable, or any benchmark category below half its maximum
 
 The category maxima are contract 1.5, fidelity 2, design 3, rationale 2,
@@ -74,7 +74,8 @@ limits were chosen so those five bands are roughly equally populated across the
 measured catalog; A+ and F are fixed product limits.
 
 A model is `Discouraged` when ability is below `B`, speed is `F`, or cost is
-`F`. An ungraded model is never discouraged until it has been benchmarked.
+`F`. Any known disqualifying grade is enough; an ungraded (`?`) category is
+ignored rather than making the model safe.
 
 ### Refresh
 
@@ -113,14 +114,16 @@ models, plus any currently selected retired model with `(retired)` appended to
 its name.
 
 Columns are model, ability, speed, cost, discouraged and the two selection
-radios, in that order; the season column is headed "Season plan". Every grade
-column is sortable. Filters default to:
+radios, in that order; the season column is headed "Season plan". Admin
+accounts also see a "Last scored" column with each model's `benchmarked_at`
+time in their own time zone. Every grade column is sortable. Filters default
+to:
 
 - Include ungraded = true
 - Include discouraged = false
 - Ability = B or above
 - Speed = D or above
-- Cost = E or above
+- Cost = D or above
 
 The filter bar shows the three grade dropdowns first, then Include ungraded,
 then Include discouraged. Include ungraded only lets a `?` pass the grade it
@@ -132,8 +135,10 @@ Sorting defaults to ability, then speed, then cost.
 The season model is used for season plans, season refreshes and block planning.
 The day model is used for week/day planning, coach questions, workout analysis,
 metric reading, replies and every other daily prompt. Before a prompt runs, the
-selected model is checked; a retired or discouraged model fails with a message
-telling the athlete to open Settings and choose another one.
+selected model is checked; a retired model fails with a message telling the
+athlete to open Settings and choose another one. A discouraged model is still
+allowed to run; Settings shows a danger warning below the table saying the model
+is discouraged and that the athlete should choose another model first.
 
 ### Benchmark upkeep
 
@@ -168,9 +173,27 @@ picked up automatically.
 To re-score only models that already reached a grade, set
 `RESCORE_MIN_ABILITY` (for example `RESCORE_MIN_ABILITY=A`) on `run.ts`; models
 graded below that grade are left untouched, while every ungraded model is still
-included. `:batch` variants are excluded because they are asynchronous and
-cannot be called through the synchronous endpoint. `DRY_RUN=1` writes the
-selection to `models.json` without calling any model.
+included. Set `RESCORE_COST_GRADE` (for example `RESCORE_COST_GRADE=A+`) to keep
+only models whose stored cost grade is exactly that grade, so ungraded models
+are excluded; the two filters can be combined. `INCLUDE_COST_GRADES=A,B,C`
+selects several exact cost grades, `INCLUDE_MODELS=id1,id2` forces named models
+into the run even when their cost grade is excluded, `EXCLUDE_ABILITY_GRADES=F`
+drops models with that current ability grade (named models are kept), and
+`SORT=slowest` orders the run by previous benchmark time, slowest first.
+Aliases are always skipped and copied from their target by `sync-db.ts`.
+`:batch` variants are excluded
+because they are asynchronous and cannot be called through the synchronous
+endpoint. `DRY_RUN=1` writes the selection to `models.json` without calling any
+model. The benchmark scripts use `BENCHMARK_OPENROUTER_API_KEY`, a dedicated
+key separate from the app's per-account key.
+
+A model that reaches the speed-F limit (`1_200_000` ms across both prompts) is
+stopped and recorded with ability `?` instead of F. It is skipped by the judge
+and remains ungraded, so a timeout never labels a model as an ability failure.
+The season-revision gate also accepts a `coachQuestion` about Atlas in place of
+a changed block 1; the judge still rewards the preferred full Atlas replan. A
+block plan whose name, focus or rationale never mentions Atlas is treated by
+the judge as a strong hint that the revision is weak.
 
 If a run is interrupted by a provider limit, `RETRY_FAILED=1` re-runs only the
 unfinished prompts, `ONLY_VALID=1 RETRY_FAILED_JUDGES=1` judges the models that
@@ -186,7 +209,8 @@ models so an infrastructure failure is not written as a model failure.
    selections, with the documented defaults.
 4. Season/block prompts use `season_model`; week/day and day-to-day prompts use
    `daily_model`.
-5. A retired or discouraged selection is refused with a Settings-page message.
+5. A retired selection is refused with a Settings-page message. A discouraged
+   selection is allowed and shows a danger warning below the models table.
 6. The benchmark can run only ungraded models and write their grades back.
 7. The benchmark tests each model at the today prompt and the season-revision
    prompt, sums their time and cost, and grades ability F when the revision

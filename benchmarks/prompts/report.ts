@@ -1,5 +1,11 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import type { LlmModelGrade } from "@killingit/shared";
+import {
+  abilityGrade,
+  costGrade,
+  speedGrade,
+} from "../../apps/api/src/llm/modelCatalog.js";
 
 const RUN_ID = process.env.RUN_ID ?? "2026-10-31-two-prompts";
 const RUN_DIR = resolve(import.meta.dir, "runs", RUN_ID);
@@ -39,6 +45,7 @@ interface ModelResult {
   requestedAt: string;
   prompts: Record<string, PromptResult>;
   ok: boolean;
+  expired?: boolean;
   totalTimeMs: number;
   totalCostUsd: number;
 }
@@ -66,6 +73,7 @@ interface JudgeScore {
     atlasMentioned: boolean;
     blockOneChanged: boolean;
     blockOneStartDateKept: boolean;
+    atlasQuestionAsked?: boolean;
     failures: string[];
   } | null;
   prompts: Record<string, PromptJudge>;
@@ -91,6 +99,30 @@ const PROMPTS = [
     file: "revise-season-prompt.txt",
   },
 ];
+
+interface ModelGrades {
+  ability: LlmModelGrade;
+  speed: LlmModelGrade;
+  cost: LlmModelGrade;
+}
+
+function gradesFor(
+  result: ModelResult | undefined,
+  score: JudgeScore | undefined,
+): ModelGrades {
+  if (result?.expired === true) {
+    return { ability: "?", speed: "F", cost: "?" };
+  }
+  return {
+    ability: abilityGrade({
+      score: score?.score ?? null,
+      categories: score?.components ?? null,
+      failed: score?.failed ?? true,
+    }),
+    speed: speedGrade(result?.totalTimeMs ?? null),
+    cost: costGrade(result?.totalCostUsd ?? null),
+  };
+}
 
 function escapeHtml(value: string): string {
   return value
@@ -149,6 +181,19 @@ async function main(): Promise<void> {
   const results = JSON.parse(
     await readFile(resolve(RUN_DIR, "results.json"), "utf8"),
   ) as ModelResult[];
+  let sourceRuns: string[] = [];
+  try {
+    const sources = JSON.parse(
+      await readFile(resolve(RUN_DIR, "sources.json"), "utf8"),
+    ) as { runIds?: unknown };
+    if (Array.isArray(sources.runIds)) {
+      sourceRuns = sources.runIds.filter(
+        (id): id is string => typeof id === "string",
+      );
+    }
+  } catch {
+    sourceRuns = [];
+  }
   const scoresFile = process.env.SCORES_FILE ?? "judge-scores.json";
   const scores = JSON.parse(
     await readFile(resolve(RUN_DIR, scoresFile), "utf8"),
@@ -203,6 +248,7 @@ async function main(): Promise<void> {
     0,
   );
   const valid = results.filter((result) => result.ok).length;
+  const expired = results.filter((result) => result.expired === true).length;
   const retries = results.filter(
     (result) =>
       result.prompts.today?.retryNeeded === true ||
@@ -228,9 +274,13 @@ async function main(): Promise<void> {
     .map((score, index) => {
       const result = resultById.get(score.id);
       if (!result) return "";
+      const grades = gradesFor(result, score);
       return `<tr>
         <td class="num">${index + 1}</td>
         <td class="model">${escapeHtml(score.id)}</td>
+        <td class="num">${grades.ability}</td>
+        <td class="num">${grades.speed}</td>
+        <td class="num">${grades.cost}</td>
         <td class="num score ${scoreClass(score.score)}">${score.score.toFixed(1)}</td>
         <td class="num">${formatTime(result.totalTimeMs)}</td>
         <td class="num">${formatCost(result.totalCostUsd)}</td>
@@ -244,9 +294,13 @@ async function main(): Promise<void> {
     .map((score, index) => {
       const result = resultById.get(score.id);
       if (!result) return "";
+      const grades = gradesFor(result, score);
       return `<tr>
         <td class="num">${index + 1}</td>
         <td class="model">${escapeHtml(score.id)}</td>
+        <td class="num">${grades.ability}</td>
+        <td class="num">${grades.speed}</td>
+        <td class="num">${grades.cost}</td>
         <td class="num score ${scoreClass(score.score)}">${score.score.toFixed(1)}</td>
         <td class="num">${formatTime(result.totalTimeMs)}</td>
         <td class="num">${formatCost(result.totalCostUsd)}</td>
@@ -259,9 +313,13 @@ async function main(): Promise<void> {
     .map((score, index) => {
       const result = resultById.get(score.id);
       if (!result) return "";
+      const grades = gradesFor(result, score);
       return `<tr>
         <td class="num">${index + 1}</td>
         <td class="model">${escapeHtml(score.id)}</td>
+        <td class="num">${grades.ability}</td>
+        <td class="num">${grades.speed}</td>
+        <td class="num">${grades.cost}</td>
         <td class="num score ${scoreClass(score.score)}">${score.score.toFixed(1)}</td>
         <td class="num">${formatCost(result.totalCostUsd)}</td>
         <td class="num">${formatTime(result.totalTimeMs)}</td>
@@ -273,9 +331,13 @@ async function main(): Promise<void> {
     .map((score, index) => {
       const result = resultById.get(score.id);
       if (!result) return "";
+      const grades = gradesFor(result, score);
       return `<tr>
         <td class="num">${index + 1}</td>
         <td class="model">${escapeHtml(score.id)}</td>
+        <td class="num">${grades.ability}</td>
+        <td class="num">${grades.speed}</td>
+        <td class="num">${grades.cost}</td>
         <td class="num score ${scoreClass(score.score)}">${score.score.toFixed(1)}</td>
         <td class="num">${formatTime(result.totalTimeMs)}</td>
         <td class="num">${formatCost(result.totalCostUsd)}</td>
@@ -287,6 +349,7 @@ async function main(): Promise<void> {
     .map((score, index) => {
       const result = resultById.get(score.id);
       if (!result) return "";
+      const grades = gradesFor(result, score);
       const promptSections = PROMPTS.map((promptDefinition) => {
         const prompt = result.prompts[promptDefinition.id];
         const judged = score.prompts?.[promptDefinition.id];
@@ -326,8 +389,14 @@ async function main(): Promise<void> {
       const gateBlock = score.gates
         ? `<div class="gates">
             ${gateLine("Mentions Atlas", score.gates.atlasMentioned)}
-            ${gateLine("Block 1 changed", score.gates.blockOneChanged)}
-            ${gateLine("Block 1 starts 2026-10-26", score.gates.blockOneStartDateKept)}
+            ${gateLine(
+              score.gates.atlasQuestionAsked === true
+                ? "Block 1 changed or Atlas question asked"
+                : "Block 1 changed",
+              score.gates.blockOneChanged ||
+                score.gates.atlasQuestionAsked === true,
+            )}
+            ${gateLine("Block 1 starts 2026-10-21", score.gates.blockOneStartDateKept)}
           </div>
           ${
             score.gates.failures.length > 0
@@ -346,6 +415,9 @@ async function main(): Promise<void> {
           <div class="score-box ${scoreClass(score.score)}">${score.score.toFixed(1)}<span>/12.5</span></div>
         </div>
         <div class="meta-grid">
+          <div><span>Ability</span><strong>${grades.ability}</strong></div>
+          <div><span>Speed</span><strong>${grades.speed}</strong></div>
+          <div><span>Cost grade</span><strong>${grades.cost}</strong></div>
           <div><span>Total time</span><strong>${formatTime(result.totalTimeMs)}</strong></div>
           <div><span>Total cost</span><strong>${formatCost(result.totalCostUsd)}</strong></div>
           <div><span>Both valid</span><strong>${result.ok ? "yes" : "no"}</strong></div>
@@ -383,7 +455,7 @@ async function main(): Promise<void> {
   .cover { padding-top: 18mm; }
   .eyebrow { text-transform: uppercase; letter-spacing: 1.6pt; font-size: 8.5pt; color: #0b7285; font-weight: 700; }
   .subtitle { font-size: 13pt; color: #485460; margin: 0 0 24pt; max-width: 150mm; }
-  .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8pt; margin: 18pt 0 20pt; }
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(30mm, 1fr)); gap: 8pt; margin: 18pt 0 20pt; }
   .summary-card { border: 1px solid #d8dee6; border-radius: 8pt; padding: 10pt; background: #fbfcfd; }
   .summary-card span { display: block; font-size: 8pt; text-transform: uppercase; letter-spacing: 0.7pt; color: #74808f; margin-bottom: 3pt; }
   .summary-card strong { font-size: 16pt; }
@@ -457,34 +529,50 @@ async function main(): Promise<void> {
 <div class="cover">
   <div class="eyebrow">Killingit · LLM benchmark</div>
   <h1>Prompt Benchmark</h1>
-  <p class="subtitle">Two coaching tasks, all ${results.length} selected models on OpenRouter. Same athlete, two prompts: a single day on Friday 30 October 2026, and a drastic season revision on Saturday 31 October 2026 after the Atlas Mountain Race entered the calendar. Every valid response is scored by ${judgeModel ?? "the judge model"}.</p>
+  <p class="subtitle">Two coaching tasks, all ${results.length} selected models on OpenRouter. Same athlete, two prompts: a single day on Friday 30 October 2026, and a season revision on Sunday 1 November 2026 after the Atlas Mountain Race on 28 February 2027 became the next goal. Every valid response is scored by ${judgeModel ?? "the judge model"}.</p>
 
   <div class="summary-grid">
     <div class="summary-card"><span>Models</span><strong>${results.length}</strong></div>
     <div class="summary-card"><span>Valid on both</span><strong>${valid}</strong></div>
+    <div class="summary-card"><span>Ungraded (speed F)</span><strong>${expired}</strong></div>
     <div class="summary-card"><span>Hard-gate failures</span><strong>${gateFailures}</strong></div>
     <div class="summary-card"><span>Average score (valid)</span><strong>${avgScore.toFixed(1)}</strong></div>
   </div>
 
   <div class="callout">
-    <strong>What was tested.</strong> Each model received
+    <strong>What was tested.</strong>
+    ${
+      sourceRuns.length > 1
+        ? `This report combines ${sourceRuns
+            .map((id) => `<code>${escapeHtml(id)}</code>`)
+            .join(
+              " and ",
+            )}; a later run replaces an earlier result for the same model. `
+        : ""
+    }
+    Each model received
     <code>benchmarks/prompts/today-prompt.txt</code> and
     <code>benchmarks/prompts/revise-season-prompt.txt</code> verbatim, in two
     separate calls. The today prompt asks for only the plan for 2026-10-30. The
     revision prompt asks for a refreshed season, current block, week and day
-    after the athlete added the Atlas Mountain Race on 25 December 2026. Both
+    after the athlete set the Atlas Mountain Race on 28 February 2027 as the
+    next goal. Both
     prompts contain the full athlete profile, recent activities and coach
     analyses, the current plan, the athlete's latest metrics, and the weather
     forecast. A model needed a retry when a response was not parseable or did
     not match its contract. ${retries} models needed at least one retry.
     ${results.length - valid} models did not return valid JSON on both prompts;
-    they remain in the tables with a score of 0 and their provider error.
+    they remain in the tables with a score of 0 and their provider error, except
+    the ${expired} models that reached the 20-minute speed-F limit. Those were
+    stopped and recorded with ability <code>?</code> instead of F, and are
+    omitted from scoring.
   </div>
 
   <div class="callout">
     <strong>Hard gates on the season revision.</strong> Ability is F for any
     model that does not mention Atlas anywhere in its output, leaves block 1
-    unchanged, or changes the start date of block 1 (2026-10-26). The gates are
+    unchanged without asking an Atlas coach question, or changes the start date
+    of block 1 (2026-10-21). The gates are
     checked mechanically against the supplied current block, not by the judge.
     ${gateFailures} models failed at least one gate.
   </div>
@@ -499,6 +587,9 @@ async function main(): Promise<void> {
     the weaker of the two values, so a failing component in either prompt grades
     the model F. Time and cost are the sum of both prompt runs, including
     retries. Judge cost: ${judgeModel ? formatCost(judgeCost) : "—"}.
+    Ability, speed and cost grades use the same bands as the app catalog; a
+    model stopped at the 20-minute speed-F limit is shown as ability
+    <code>?</code>.
   </div>
 
   <div class="summary-grid">
@@ -515,7 +606,7 @@ async function main(): Promise<void> {
 <h1 class="section-title">All models</h1>
 <p class="section-intro">Ranked by combined judged quality, then by cost. Time and cost include both prompts and any retry.</p>
 <table>
-  <thead><tr><th class="num">Rank</th><th>Model</th><th class="num">Score /12.5</th><th class="num">Time</th><th class="num">Cost</th><th class="num">Both valid</th><th class="num">Gates</th></tr></thead>
+  <thead><tr><th class="num">Rank</th><th>Model</th><th class="num">Ability</th><th class="num">Speed</th><th class="num">Cost grade</th><th class="num">Score /12.5</th><th class="num">Time</th><th class="num">Run cost</th><th class="num">Both valid</th><th class="num">Gates</th></tr></thead>
   <tbody>${rows}</tbody>
 </table>
 
@@ -523,7 +614,7 @@ async function main(): Promise<void> {
 <h1 class="section-title">Models close to the best</h1>
 <p class="section-intro">Every model scoring within 0.3 points of the best (${best.toFixed(1)}), ranked by quality and then cost. This is the practical shortlist: the plans that are close to as good as the best one on both prompts.</p>
 <table>
-  <thead><tr><th class="num">Rank</th><th>Model</th><th class="num">Score /12.5</th><th class="num">Time</th><th class="num">Cost</th><th class="num">Gates</th></tr></thead>
+  <thead><tr><th class="num">Rank</th><th>Model</th><th class="num">Ability</th><th class="num">Speed</th><th class="num">Cost grade</th><th class="num">Score /12.5</th><th class="num">Time</th><th class="num">Run cost</th><th class="num">Gates</th></tr></thead>
   <tbody>${subsetRows}</tbody>
 </table>
 
@@ -532,7 +623,7 @@ async function main(): Promise<void> {
 <div class="keep">
   <h3>Top 10 cheapest</h3>
   <table>
-    <thead><tr><th class="num">#</th><th>Model</th><th class="num">Score /12.5</th><th class="num">Cost</th><th class="num">Time</th></tr></thead>
+    <thead><tr><th class="num">#</th><th>Model</th><th class="num">Ability</th><th class="num">Speed</th><th class="num">Cost grade</th><th class="num">Score /12.5</th><th class="num">Run cost</th><th class="num">Time</th></tr></thead>
     <tbody>${cheapestRows}</tbody>
   </table>
 </div>
@@ -540,7 +631,7 @@ async function main(): Promise<void> {
 <div class="keep">
   <h3>Top 10 fastest</h3>
   <table>
-    <thead><tr><th class="num">#</th><th>Model</th><th class="num">Score /12.5</th><th class="num">Time</th><th class="num">Cost</th></tr></thead>
+    <thead><tr><th class="num">#</th><th>Model</th><th class="num">Ability</th><th class="num">Speed</th><th class="num">Cost grade</th><th class="num">Score /12.5</th><th class="num">Time</th><th class="num">Run cost</th></tr></thead>
     <tbody>${fastestRows}</tbody>
   </table>
 </div>
