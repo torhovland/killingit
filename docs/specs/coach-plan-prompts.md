@@ -66,11 +66,12 @@ covered by `docs/specs/coach-plan-lifecycle.md`.
    skip today. A session the coach cannot justify must be revised out of the
    week instead of labelled optional. Rest days are exempt. See
    `docs/specs/session-purpose.md`.
-7. Week plans are outlines: only today's and tomorrow's sessions are fully
-   detailed, while later days keep the session type, a brief focus, an
-   approximate duration and intensity, estimated TSS, their daily estimated
-   FTP, and the week's single estimated FTP. See `docs/specs/week-outline.md`
-   and `docs/specs/training-load.md`.
+7. Week plans are outlines: every week session keeps the session type, a brief
+   focus, an approximate duration and intensity, estimated TSS, its daily
+   estimated FTP, and the week's single estimated FTP, while only the `today`
+   and `tomorrow` day objects carry the full prescription. A day that has
+   arrived keeps its outline and status instead of becoming an activity
+   summary. See `docs/specs/week-outline.md` and `docs/specs/training-load.md`.
 8. When an activity was already recorded today, today's plan keeps the planned
    workout's title, description and rationale and adds only one or two
    sentences on how much of it was completed. It does not repeat the activity
@@ -84,11 +85,12 @@ Adds `optional` (boolean, default `false`) and `optionalRationale` (optional
 string) to `dayPlanSchema` in `@killingit/shared`, so generated day plans can
 state whether skipping a session costs little today and why the session matters
 toward the plan's goal. It also adds an optional `bikeWorkout` (FTP plus ordered
-intervals) to day plans and week sessions for indoor bike sessions with power
-targets; see `docs/specs/bike-workout-export.md`. No database or route change;
-stored JSON without the new fields still parses. The builder consumes existing
-shapes (`StoredAthleteQuestion` and `AnalyzedActivity`) structurally and returns
-`LlmProvider` chat messages.
+intervals) to day plans for indoor bike sessions with power targets; the field
+stays optional on week sessions so stored plans still parse, but week outlines
+no longer set it. See `docs/specs/bike-workout-export.md`. No database or route
+change; stored JSON without the new fields still parses. The builder consumes
+existing shapes (`StoredAthleteQuestion` and `AnalyzedActivity`) structurally
+and returns `LlmProvider` chat messages.
 
 ## Technical approach
 
@@ -146,7 +148,8 @@ shapes (`StoredAthleteQuestion` and `AnalyzedActivity`) structurally and returns
 - A recorded activity does not replace today's prescription in the plan. The
   completed-session rule keeps the planned workout's title, description and
   rationale and appends a short completion note, so the plan does not restate
-  the activity analysis or the coach's reply to the athlete's comment.
+  the activity analysis or the coach's reply to the athlete's comment. A past
+  week session keeps its outline and records only its completion status.
 - A season update uses that same prompt: it receives the existing season and
   current block, keeps completed blocks and the season goal as reference, and
   re-plans the future from the athlete's latest input. A new season still uses

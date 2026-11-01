@@ -83,10 +83,10 @@ export const WEEK_SHAPE_RULES = `Keep the week's start date and exactly seven se
 export const TODAY_IN_WEEK_RULE = `The today object must match today's date and must be present as the matching session in week.sessions.`;
 
 /**
- * How the coach records what actually happened on past days: describe the
- * recorded activity rather than inventing a workout that was not done.
+ * How the coach records what actually happened on past days. The week keeps
+ * its planned outline; the status says whether the athlete completed it.
  */
-export const PAST_SESSION_RULES = `For days before today, do not propose new workouts: describe what the athlete actually did using the recent activities and set each status to "completed", "partial", "missed", or "rest".`;
+export const PAST_SESSION_RULES = `For days before today, do not propose new workouts: keep the planned week outline for each day and set its status to "completed", "partial", "missed", or "rest" from what the athlete actually did.`;
 
 /**
  * How today's session mirrors an activity that was already recorded. The
@@ -124,12 +124,12 @@ export const COMPLETED_SESSION_RULES = promptSections(
 );
 
 /**
- * Shared instruction for the level of detail in a week plan. A week is a
- * shape, not seven finished workouts: only today and tomorrow need a concrete
- * prescription, because the daily update will detail each later day when it
- * arrives.
+ * Shared instruction for the level of detail in a week plan. Every week is a
+ * shape, not seven finished workouts: the concrete prescription lives only in
+ * the today and tomorrow day objects, while the week keeps an overview of each
+ * day so the Week view shows the plan's shape.
  */
-export const WEEK_OUTLINE_RULES = `Treat the week as an outline, not seven finished workouts. Fully detail only the sessions the request says need detail: a concrete description, and for an indoor bike workout with power targets a "bikeWorkout". Keep every other future day as a short outline: the session type, a brief title naming the kind of session, a one-sentence description of its intent, an approximate duration and intensity, and an "estimatedTss". Do not prescribe detailed intervals, repetitions, paces, or power targets for outline days, and set "bikeWorkout" to null there; the daily update will turn an outline into a concrete workout when that day arrives. The outline must still show the week's shape: which days are long, hard, easy, or rest. Set the week's "estimatedFtpWatts" from the athlete's profile and the plan's progression, and estimate each outline day's "estimatedTss" against it.`;
+export const WEEK_OUTLINE_RULES = `Treat every week plan, the current week and the next week, as an outline, not seven finished workouts. Each week session is a short overview: the session type, a brief title naming the kind of session, a one-sentence description of its intent, an approximate duration and intensity, and an "estimatedTss". Keep the detailed prescription, including alternatives, optionality, rationale and any "bikeWorkout", in the "today" and "tomorrow" day objects only; never put detailed intervals, repetitions, paces, power targets or a "bikeWorkout" in a week session, even when it is dated today or tomorrow. Once a day has arrived, keep its week outline and add at most one short sentence to its description on how far the athlete completed it; do not replace the outline with an activity summary. The daily update turns a week outline into that day's concrete workout when the day arrives. The outlines must still show the week's shape: which days are long, hard, easy, or rest. Set the week's "estimatedFtpWatts" from the athlete's profile and the plan's progression, and estimate each outline day's "estimatedTss" against it.`;
 
 /**
  * Shared rule for the day the athlete is about to train. A session must earn
@@ -166,7 +166,7 @@ The daylight times let you keep outdoor work in daylight. Unless the athlete's p
  * these as a trainer workout file, so the intervals and power targets must be
  * machine-readable rather than only prose.
  */
-export const BIKE_WORKOUT_RULES = `When you prescribe an indoor bike workout with power targets (for example a trainer or ERG session), set "outdoor" to false and include "bikeWorkout". "ftpWatts" is the FTP you used; use that day's session "estimatedFtpWatts" when it has one, otherwise the week's value, and when the athlete's profile states no FTP at all, estimate one from their current performance and mention the assumption in the description. List the session in order in "intervals", with each block's "durationSeconds" and its target "powerPercent" of FTP (75 means 75%). Include the warm-up, every work interval, every recovery, and the cool-down as separate entries. Their durations should add up to "durationMinutes" (rounding is fine). Use at most 40 intervals and keep each block at a steady power. For every other session, including outdoor rides and rest days, set "bikeWorkout" to null. If you revise an existing indoor bike session, keep or update its "bikeWorkout" so it still matches the description.`;
+export const BIKE_WORKOUT_RULES = `When you prescribe an indoor bike workout with power targets in a day plan (for example a trainer or ERG session), set "outdoor" to false and include "bikeWorkout". "ftpWatts" is the FTP you used; use that day's session "estimatedFtpWatts" when it has one, otherwise the week's value, and when the athlete's profile states no FTP at all, estimate one from their current performance and mention the assumption in the description. List the session in order in "intervals", with each block's "durationSeconds" and its target "powerPercent" of FTP (75 means 75%). Include the warm-up, every work interval, every recovery, and the cool-down as separate entries. Their durations should add up to "durationMinutes" (rounding is fine). Use at most 40 intervals and keep each block at a steady power. For every other session, including outdoor rides, rest days and every week outline, set "bikeWorkout" to null. If you revise an existing indoor bike day plan, keep or update its "bikeWorkout" so it still matches the description.`;
 
 /** The common TSS scale shared by the plan prompts and the manual TSS estimate. */
 export const TSS_ESTIMATE_GUIDE = `A score of 100 is roughly one hour at the athlete's threshold, 60-70 is an easy aerobic hour, and 20-40 is a short strength session.`;

@@ -3,8 +3,10 @@ import {
   COACH_RESPONSE_NOTES_CONTRACT,
   COACH_RESPONSE_NOTES_RULES,
   DURATION_TOLERANCE_RULES,
+  PAST_SESSION_RULES,
   SEASON_BLOCK_RULES,
   TODAY_SESSION_RULES,
+  WEEK_OUTLINE_RULES,
   WEATHER_PLANNING_RULES,
 } from "./promptRules.js";
 
@@ -115,6 +117,40 @@ describe("TODAY_SESSION_RULES", () => {
   it("replaces an earlier completion note instead of adding another", () => {
     expect(TODAY_SESSION_RULES).toContain(
       "replace only that note with an updated one",
+    );
+  });
+});
+
+describe("PAST_SESSION_RULES", () => {
+  it("keeps the planned week outline and settles the status", () => {
+    expect(PAST_SESSION_RULES).toContain(
+      "keep the planned week outline for each day",
+    );
+    expect(PAST_SESSION_RULES).toContain(
+      'set its status to "completed", "partial", "missed", or "rest"',
+    );
+    expect(PAST_SESSION_RULES).not.toContain(
+      "describe what the athlete actually did",
+    );
+  });
+});
+
+describe("WEEK_OUTLINE_RULES", () => {
+  it("keeps the detailed prescription in the day objects", () => {
+    expect(WEEK_OUTLINE_RULES).toContain(
+      'Keep the detailed prescription, including alternatives, optionality, rationale and any "bikeWorkout", in the "today" and "tomorrow" day objects only',
+    );
+    expect(WEEK_OUTLINE_RULES).toContain(
+      'never put detailed intervals, repetitions, paces, power targets or a "bikeWorkout" in a week session, even when it is dated today or tomorrow',
+    );
+  });
+
+  it("adds only a completion sentence to a week outline for a day that arrived", () => {
+    expect(WEEK_OUTLINE_RULES).toContain(
+      "keep its week outline and add at most one short sentence to its description on how far the athlete completed it",
+    );
+    expect(WEEK_OUTLINE_RULES).toContain(
+      "do not replace the outline with an activity summary",
     );
   });
 });

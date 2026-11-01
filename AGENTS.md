@@ -117,12 +117,14 @@ about a past workout, or before a suggested workout, to steer the coach.
   no update can store blocks that later refreshes would reproduce; the shared
   `SEASON_BLOCK_RULES` prompt fragment states the rule. See
   `docs/specs/season-block-boundaries.md`. Week and next-week plans
-  are outlines: only today's and tomorrow's sessions are fully detailed, while
-  later days keep a brief session type, focus, approximate duration and
-  intensity, estimated TSS, and the week's estimated FTP until the daily update
-  details them. See `docs/specs/week-outline.md`. Indoor bike workouts with power targets
-  carry a structured `bikeWorkout` and can be downloaded as ZWO files from the
-  Day tab; see `docs/specs/coach-plan-lifecycle.md` and
+  are outlines: every session keeps a brief session type, focus, approximate
+  duration and intensity, estimated TSS, and the week's estimated FTP, while
+  only the `today` and `tomorrow` day objects are fully detailed. A completed or
+  missed day keeps its outline and status instead of being replaced by an
+  activity summary. See `docs/specs/week-outline.md`. Indoor bike workouts with
+  power targets carry a structured `bikeWorkout` on the day plan and can be
+  downloaded as ZWO files from the Day tab; see
+  `docs/specs/coach-plan-lifecycle.md` and
   `docs/specs/bike-workout-export.md`.
 - Plan completions use a 16,384-token output budget, with reasoning fallbacks up
   to 32,768, so reasoning models can think and still return the complete JSON.

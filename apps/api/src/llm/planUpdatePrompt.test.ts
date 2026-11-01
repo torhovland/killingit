@@ -291,7 +291,7 @@ describe("unified plan update prompt", () => {
     );
     expect(prompt).toContain("Tomorrow is 2026-10-26.");
     expect(prompt).toContain(
-      'Return tomorrow\'s session in "tomorrow" and place it in the current week or the next week.',
+      'Return tomorrow\'s session in "tomorrow" and place its outline in the current week or the next week.',
     );
   });
 
@@ -423,16 +423,13 @@ describe("daily update prompts", () => {
     );
   });
 
-  it("keeps days after tomorrow as outlines", () => {
+  it("keeps every week session as an outline", () => {
     expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain(WEEK_OUTLINE_RULES);
     expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain(
-      "Treat the week as an outline, not seven finished workouts",
+      "Treat every week plan, the current week and the next week, as an outline, not seven finished workouts",
     );
     expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain(
-      "Keep every other future day as a short outline",
-    );
-    expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain(
-      "Fully detail only the sessions",
+      'never put detailed intervals, repetitions, paces, power targets or a "bikeWorkout" in a week session, even when it is dated today or tomorrow',
     );
   });
 
@@ -511,10 +508,10 @@ describe("daily update prompts", () => {
     expect(prompt).toContain("one session has the date 2026-10-21");
     expect(prompt).toContain('the "today" object must use that same date');
     expect(prompt).toContain(
-      "Fully detail the sessions dated 2026-10-21 through 2026-10-22",
+      "Fully detail the day objects dated 2026-10-21 through 2026-10-22",
     );
     expect(prompt).toContain(
-      "Keep every later session in the week as a short outline.",
+      "Keep every session in the week, including 2026-10-21 through 2026-10-22, as a short outline.",
     );
   });
 
@@ -529,7 +526,7 @@ describe("daily update prompts", () => {
     });
 
     expect(prompt).toContain(
-      "Fully detail the sessions dated 2026-10-26 through 2026-10-26",
+      "Fully detail the day objects dated 2026-10-26 through 2026-10-26",
     );
   });
 
@@ -590,10 +587,10 @@ describe("weekly update prompts", () => {
   it("requires a week outline and leaves the detail to the daily update", () => {
     expect(WEEKLY_UPDATE_SYSTEM_PROMPT).toContain(WEEK_OUTLINE_RULES);
     expect(WEEKLY_UPDATE_SYSTEM_PROMPT).toContain(
-      "Treat the week as an outline, not seven finished workouts",
+      "Treat every week plan, the current week and the next week, as an outline, not seven finished workouts",
     );
     expect(WEEKLY_UPDATE_SYSTEM_PROMPT).toContain(
-      "the daily update will turn an outline into a concrete workout",
+      "The daily update turns a week outline into that day's concrete workout",
     );
     expect(
       buildWeeklyUpdatePrompt({

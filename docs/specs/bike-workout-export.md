@@ -16,14 +16,14 @@ details in the Today and Tomorrow views offer a file download.
 
 ### In scope
 
-1. A structured `bikeWorkout` on day plans and week sessions:
+1. A structured `bikeWorkout` on day plans:
    - `ftpWatts`: the FTP the coach used for the targets;
    - `intervals`: ordered blocks with `durationSeconds` and `powerPercent`.
 2. The coach prompt asks for `bikeWorkout` only on indoor bike workouts with
    power targets, sets `outdoor` to false for those sessions, and sets
-   `bikeWorkout` to null everywhere else.
-3. The existing week context given to a regeneration prompt includes the
-   structured targets, so a revised week keeps or updates them.
+   `bikeWorkout` to null everywhere else, including every week outline.
+3. The existing day context given to a regeneration prompt includes the
+   structured targets, so a revised day keeps or updates them.
 4. ZWO generation from a structured workout, with four-decimal power values, an
    `<ftpOverride>` set to the estimated FTP, an ASCII-only filename, and XML
    escaping.
@@ -76,8 +76,8 @@ plans stored before this feature remain valid.
 
 - Requires the same bearer auth as the rest of the coaching routes.
 - Today and tomorrow are read from the day plans so the file matches the Day
-  tab. Other dates fall back to the stored week, including next week after
-  18:00.
+  tab. Other dates only carry week outlines; the stored week is read as a
+  fallback for plans saved before week outlines.
 - `200` with `Content-Type: application/xml; charset=utf-8` and
   `Content-Disposition: attachment; filename="<date>-<slug>.zwo"`.
 - `400` for an invalid date.

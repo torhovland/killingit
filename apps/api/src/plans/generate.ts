@@ -46,12 +46,12 @@ import {
   isGenerationSuperseded,
 } from "./generation.js";
 import type { CoachQuestionSourceKind } from "./coachQuestions.js";
-import { outlineFutureSessions } from "./outline.js";
+import { outlineWeekPlans } from "./outline.js";
 import { blockFor, promoteNextPeriod, weekFor } from "./periods.js";
 import { planIsStale, planPending } from "./status.js";
 import { PLAN_GENERATION_STEPS } from "./steps.js";
 import type { PlanGenerationStore, PlanStore, StoredPlan } from "./store.js";
-import { applyCompletedDays, completionStatus, mirrorDay } from "./week.js";
+import { applyCompletedDays, completionStatus } from "./week.js";
 
 export interface PlanGenerationContext {
   answers: readonly AthleteAnswerContext[];
@@ -400,7 +400,7 @@ export async function runPlanGeneration(
       const generated = withTrainingLoad(
         applyForecastToPlan(
           dropUnplacedTomorrow(
-            outlineFutureSessions(completed, today),
+            outlineWeekPlans(completed),
             input.includeTomorrow === true,
           ),
           forecastForStorage(context),
@@ -729,7 +729,7 @@ async function advancePlan(
   const finalPlan = withTrainingLoad(
     applyForecastToPlan(
       dropUnplacedTomorrow(
-        outlineFutureSessions(plan, today),
+        outlineWeekPlans(plan),
         input.includeTomorrow === true,
       ),
       forecastForStorage(context),
@@ -889,9 +889,22 @@ function applyPlanUpdate(
       );
     }
     if (week.startDate === plan.week.startDate) {
-      plan = { ...plan, week: mirrorDay(plan.week, plan.tomorrow) };
+      plan = {
+        ...plan,
+        week: withOutlineSession(plan.week, update.week, plan.tomorrow.date),
+      };
     } else {
-      plan = { ...plan, nextWeek: mirrorDay(week, plan.tomorrow) };
+      const source = update.nextWeek;
+      if (source !== null) {
+        plan = {
+          ...plan,
+          nextWeek: withOutlineSession(
+            plan.nextWeek ?? source,
+            source,
+            plan.tomorrow.date,
+          ),
+        };
+      }
     }
   }
 
@@ -906,6 +919,27 @@ function applyPlanUpdate(
   return {
     ...plan,
     bodyMetrics: mergeBodyMetrics(current.bodyMetrics, update.bodyMetrics),
+  };
+}
+
+/**
+ * Replaces one dated week session with the coach's returned outline. The week
+ * keeps its other sessions and its overview level; only the named day moves.
+ */
+function withOutlineSession(
+  week: WeekPlan,
+  source: WeekPlan,
+  date: string,
+): WeekPlan {
+  const session = source.sessions.find((entry) => entry.date === date);
+  if (session === undefined) {
+    return week;
+  }
+  return {
+    ...week,
+    sessions: week.sessions.map((entry) =>
+      entry.date === date ? session : entry,
+    ),
   };
 }
 
@@ -961,7 +995,7 @@ function nextBlockStartDate(block: BlockPlan, today: string): string {
 
 /** True when a synced or manually recorded activity happened on `date`. */
 function hasActivityOn(context: PlanGenerationContext, date: string): boolean {
-  return activityOn(context, date) !== null;
+  return activitiesOn(context, date).length > 0;
 }
 
 interface CompletionActivity {
@@ -969,21 +1003,24 @@ interface CompletionActivity {
   elapsedTime: number;
 }
 
-/** The first synced or manually recorded activity on `date`, if any. */
-function activityOn(
+/**
+ * Every synced or manually recorded activity on `date`. A day can prescribe
+ * more than one session, so completion is judged against all of them together.
+ */
+function activitiesOn(
   context: PlanGenerationContext,
   date: string,
-): CompletionActivity | null {
-  const synced = context.activities.find(
-    (activity) => activity.startDate.slice(0, 10) === date,
-  );
-  if (synced) {
-    return { type: synced.type, elapsedTime: synced.elapsedTime };
-  }
-  const manual = context.manualActivities.find(
-    (activity) => activity.startDate.slice(0, 10) === date,
-  );
-  return manual ? { type: "manual", elapsedTime: 0 } : null;
+): CompletionActivity[] {
+  const synced = context.activities
+    .filter((activity) => activity.startDate.slice(0, 10) === date)
+    .map((activity) => ({
+      type: activity.type,
+      elapsedTime: activity.elapsedTime,
+    }));
+  const manual = context.manualActivities
+    .filter((activity) => activity.startDate.slice(0, 10) === date)
+    .map(() => ({ type: "manual", elapsedTime: 0 }));
+  return [...synced, ...manual];
 }
 
 /**
@@ -1001,8 +1038,8 @@ function deriveTodayStatus(
   if (plan.date !== today) {
     return plan;
   }
-  const activity = activityOn(context, today);
-  if (!activity) {
+  const activities = activitiesOn(context, today);
+  if (activities.length === 0) {
     return {
       ...plan,
       status: plan.type === "rest" ? "rest" : "planned",
@@ -1011,7 +1048,7 @@ function deriveTodayStatus(
   if (plan.status === "completed" || plan.status === "partial") {
     return plan;
   }
-  return { ...plan, status: completionStatus(planned, activity) };
+  return { ...plan, status: completionStatus(planned, activities) };
 }
 
 /**
