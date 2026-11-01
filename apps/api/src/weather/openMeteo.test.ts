@@ -2,8 +2,6 @@ import { describe, expect, it } from "bun:test";
 import {
   fetchWeatherForecast,
   parseForecastResponse,
-  parseGeocodeResponse,
-  searchLocations,
   weatherIconForCode,
 } from "./openMeteo.js";
 
@@ -151,69 +149,4 @@ describe("fetchWeatherForecast", () => {
         },
       ),
     ).rejects.toThrow("500"));
-});
-
-describe("geocoding", () => {
-  it("parses valid results and ignores malformed entries", () => {
-    expect(
-      parseGeocodeResponse({
-        results: [
-          {
-            name: "Oslo",
-            latitude: 59.91,
-            longitude: 10.75,
-            country: "Norway",
-            admin1: "Oslo",
-          },
-          { name: "Broken", latitude: 200, longitude: 10 },
-          null,
-        ],
-      }),
-    ).toEqual([
-      {
-        name: "Oslo",
-        latitude: 59.91,
-        longitude: 10.75,
-        country: "Norway",
-        admin1: "Oslo",
-      },
-    ]);
-  });
-
-  it("returns an empty list when the service finds nothing", () => {
-    expect(parseGeocodeResponse({})).toEqual([]);
-    expect(parseGeocodeResponse({ results: [] })).toEqual([]);
-  });
-
-  it("requests the geocoding API with the query", async () => {
-    let requestedUrl = "";
-    const results = await searchLocations("Bergen", (input) => {
-      requestedUrl = toUrl(input).toString();
-      return Promise.resolve(
-        new Response(
-          JSON.stringify({
-            results: [
-              {
-                name: "Bergen",
-                latitude: 60.39,
-                longitude: 5.32,
-                country: "Norway",
-              },
-            ],
-          }),
-          { status: 200 },
-        ),
-      );
-    });
-
-    expect(results[0]?.name).toBe("Bergen");
-    expect(requestedUrl).toContain("name=Bergen");
-  });
-
-  it("rejects a non-success response", () =>
-    expect(
-      searchLocations("Bergen", () =>
-        Promise.resolve(new Response("nope", { status: 502 })),
-      ),
-    ).rejects.toThrow("502"));
 });

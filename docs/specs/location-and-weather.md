@@ -4,7 +4,7 @@
 - **Date:** 2026-10-25
 - **Related:** `docs/specs/coach-plan-lifecycle.md`,
   `docs/specs/coach-plan-prompts.md`, ADR 0008 (Open-Meteo), ADR 0010
-  (Yr.no and the averaged forecast).
+  (Yr.no and the averaged forecast), ADR 0017 (street address search).
 
 ## Goal
 
@@ -22,8 +22,11 @@ would be sensible to take it outside.
    name. Stored on `users`.
 2. A settings-page location picker with:
    - an OpenStreetMap map that sets the location when clicked;
-   - address search (Open-Meteo geocoding) that recenters the map and selects a
-     result;
+   - address search (OpenStreetMap Nominatim geocoding) that finds streets and
+     house numbers, recenters the map, and selects a result;
+   - zooming with the plus and minus buttons and the mouse wheel or trackpad;
+     tiles are drawn at their native resolution instead of being stretched to
+     the rendered map size;
    - save and clear actions that persist the location through `PATCH /api/me`.
 3. When a location is set, the API fetches the daily forecast, including
    sunrise and sunset, from Open-Meteo and Yr.no whenever a week or day plan is
@@ -90,7 +93,13 @@ would be sensible to take it outside.
 - The combined forecast is the only forecast given to the coach for planning
   and weather-change checks. The provider rows are for the athlete to compare.
 - Address search results are suggestions only; nothing is saved until the
-  athlete presses Save.
+  athlete presses Save. Each suggestion is labelled with the street or place,
+  city, county, and country so identically named streets are distinguishable.
+- Wheel and trackpad zoom keep the point under the pointer fixed; the plus and
+  minus buttons zoom about the map centre. The map's SVG coordinate space
+  matches its rendered size, so 256 px OpenStreetMap tiles are shown at native
+  resolution rather than stretched. Tiles move as one layer and a one-tile
+  margin stays mounted around the viewport, so panning does not blank the edges.
 - A map click clears any searched name and sets the marker to the clicked
   coordinates.
 - The location uses decimal degrees (WGS 84), matching activity GPS points.
@@ -153,24 +162,26 @@ clears the location. `timezone` keeps its existing behaviour.
 
 ### `GET /api/weather/geocode?q=<address>`
 
-Behind `requireAuth`. Proxies Open-Meteo's geocoding API (no key) and returns:
+Behind `requireAuth`. Proxies OpenStreetMap's Nominatim search API (no key) and
+returns:
 
 ```json
 {
   "results": [
     {
-      "name": "Oslo",
-      "latitude": 59.91,
-      "longitude": 10.75,
+      "name": "Sigrid Undsets veg 10",
+      "latitude": 63.3906,
+      "longitude": 10.3553,
       "country": "Norway",
-      "admin1": "Oslo"
+      "admin1": "Trøndelag",
+      "city": "Trondheim"
     }
   ]
 }
 ```
 
-A blank query is a `400`; an upstream failure is a `502` with a readable
-message.
+`country`, `admin1`, and `city` are nullable. A blank query is a `400`; an
+upstream failure is a `502` with a readable message.
 
 ### Plan JSON
 
@@ -239,14 +250,14 @@ containing `snow` or `sleet` → snow, and a code containing `rain` → rain.
   times, and plan fields.
 - API unit tests for WMO and MET Norway symbol mapping, Open-Meteo and Yr.no
   response parsing (including local-day grouping, daylight and incomplete
-  values), the averaged forecast, provider failure fallback, geocoding,
-  forecast attachment, prompt rendering, and weather/daylight rules.
+  values), the averaged forecast, provider failure fallback, Nominatim
+  geocoding, forecast attachment, prompt rendering, and weather/daylight rules.
 - API route tests for location save/clear, geocode auth/validation/errors, and a
   plan generation that receives an injected forecast.
-- Web tests for map projection/click conversion, the weather and daylight
-  summary, and the Day/Week plan rendering (flexible workouts show the forecast;
-  indoor-only sessions and rest days do not), plus the Week view's session
-  descriptions and indoor/outdoor intent.
+- Web tests for map projection, wheel zoom anchoring, click conversion, the
+  weather and daylight summary, and the Day/Week plan rendering (flexible
+  workouts show the forecast; indoor-only sessions and rest days do not), plus
+  the Week view's session descriptions and indoor/outdoor intent.
 - API tests for significant/non-significant forecast comparisons, newly
   available daylight, current and next week coverage, the plan-read pending
   flag, and weather-service failure handling.

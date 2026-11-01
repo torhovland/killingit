@@ -320,8 +320,9 @@ Only the admin can manage athlete questions (see ADR 0006).
   (sunrise/sunset, from Open-Meteo) at the athlete's location. Treat these as
   providers behind a small interface so sources can be swapped. The app shows
   each source and an averaged combined forecast; the coach plans from the
-  combined values. Location (map click or address search) and weather-aware
-  planning use the same providers.
+  combined values. Address search uses OpenStreetMap's Nominatim geocoder,
+  which indexes streets and house numbers that Open-Meteo's place geocoder does
+  not; the map uses OpenStreetMap tiles. See ADR 0017.
 - The coach prefers daylight for outdoor sessions. It honours any explicit
   statement the athlete makes about training in darkness and otherwise assumes
   a daylight preference. When a weekday window leaves only working-hour

@@ -149,6 +149,7 @@ describe("geocodedLocationSchema", () => {
         longitude: 10.75,
         country: "Norway",
         admin1: "Oslo",
+        city: "Oslo",
       }),
     ).toEqual({
       name: "Oslo",
@@ -156,6 +157,7 @@ describe("geocodedLocationSchema", () => {
       longitude: 10.75,
       country: "Norway",
       admin1: "Oslo",
+      city: "Oslo",
     });
   });
 
@@ -172,6 +174,7 @@ describe("geocodedLocationSchema", () => {
       longitude: 10.75,
       country: null,
       admin1: null,
+      city: null,
     });
   });
 });

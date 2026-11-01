@@ -71,6 +71,7 @@ export const geocodedLocationSchema = z.object({
   longitude: z.number().min(-180).max(180),
   country: z.string().nullable().default(null),
   admin1: z.string().nullable().default(null),
+  city: z.string().nullable().default(null),
 });
 
 export type GeocodedLocation = z.infer<typeof geocodedLocationSchema>;

@@ -1,9 +1,9 @@
 import { geocodeResponseSchema } from "@killingit/shared";
 import { Hono } from "hono";
-import { searchLocations } from "../weather/openMeteo.js";
+import { searchLocations } from "../weather/geocode.js";
 
 export interface WeatherRouteDependencies {
-  /** Injectable for route tests; defaults to the Open-Meteo geocoder. */
+  /** Injectable for route tests; defaults to the OpenStreetMap geocoder. */
   searchLocations?: typeof searchLocations;
 }
 

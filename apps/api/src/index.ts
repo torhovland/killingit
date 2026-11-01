@@ -92,7 +92,7 @@ import {
 } from "./metrics/store.js";
 import { loadFitnessHistory } from "./training/history.js";
 import { dbUserStore, type UserStore } from "./users/store.js";
-import type { searchLocations } from "./weather/openMeteo.js";
+import type { searchLocations } from "./weather/geocode.js";
 
 // Load local environment for `bun run dev`. Bun does not auto-load dotenv
 // files (unlike Vite/Node --env-file). Anchor at the repo root (three levels

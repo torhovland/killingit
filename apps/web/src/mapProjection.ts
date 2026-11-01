@@ -48,6 +48,41 @@ export function unprojectPoint(point: WorldPoint, zoom: number): MapPoint {
 }
 
 /**
+ * The centre that keeps the geographic point under `pointer` in place when
+ * changing from `zoom` to `nextZoom`. `pointer` is measured in map pixels from
+ * the top-left corner of a viewport of `size`.
+ */
+export function zoomToward(
+  center: MapPoint,
+  zoom: number,
+  nextZoom: number,
+  pointer: WorldPoint,
+  size: { width: number; height: number },
+): MapPoint {
+  const centerWorld = projectPoint(center, zoom);
+  const topLeft = {
+    x: centerWorld.x - size.width / 2,
+    y: centerWorld.y - size.height / 2,
+  };
+  const anchor = unprojectPoint(
+    { x: topLeft.x + pointer.x, y: topLeft.y + pointer.y },
+    zoom,
+  );
+  const anchorWorld = projectPoint(anchor, nextZoom);
+  const nextTopLeft = {
+    x: anchorWorld.x - pointer.x,
+    y: anchorWorld.y - pointer.y,
+  };
+  return unprojectPoint(
+    {
+      x: nextTopLeft.x + size.width / 2,
+      y: nextTopLeft.y + size.height / 2,
+    },
+    nextZoom,
+  );
+}
+
+/**
  * The OpenStreetMap tiles that cover a viewport whose top-left corner is at
  * `topLeft`. X wraps around the antimeridian; rows outside the world are
  * skipped.

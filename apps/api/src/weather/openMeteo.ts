@@ -1,15 +1,12 @@
 import type {
   AthleteLocation,
   DailyWeather,
-  GeocodedLocation,
   WeatherIcon,
 } from "@killingit/shared";
 
 const FORECAST_URL = "https://api.open-meteo.com/v1/forecast";
-const GEOCODE_URL = "https://geocoding-api.open-meteo.com/v1/search";
 const REQUEST_TIMEOUT_MS = 8_000;
 const FORECAST_DAYS = 16;
-const GEOCODE_RESULTS = 5;
 
 /**
  * The part of `fetch` this module uses. Kept narrow so tests can supply a
@@ -252,66 +249,4 @@ export async function fetchWeatherForecast(
     throw new Error(`Weather service returned ${response.status}`);
   }
   return parseForecastResponse(await response.json());
-}
-
-function geocodedLocation(value: unknown): GeocodedLocation | null {
-  if (typeof value !== "object" || value === null) {
-    return null;
-  }
-  const entry = value as Record<string, unknown>;
-  if (
-    typeof entry.name !== "string" ||
-    entry.name.trim() === "" ||
-    typeof entry.latitude !== "number" ||
-    !Number.isFinite(entry.latitude) ||
-    entry.latitude < -90 ||
-    entry.latitude > 90 ||
-    typeof entry.longitude !== "number" ||
-    !Number.isFinite(entry.longitude) ||
-    entry.longitude < -180 ||
-    entry.longitude > 180
-  ) {
-    return null;
-  }
-  return {
-    name: entry.name,
-    latitude: entry.latitude,
-    longitude: entry.longitude,
-    country: typeof entry.country === "string" ? entry.country : null,
-    admin1: typeof entry.admin1 === "string" ? entry.admin1 : null,
-  };
-}
-
-/** Parses the geocoding response, ignoring malformed suggestions. */
-export function parseGeocodeResponse(body: unknown): GeocodedLocation[] {
-  const results =
-    typeof body === "object" && body !== null
-      ? (body as { results?: unknown }).results
-      : undefined;
-  if (!Array.isArray(results)) {
-    return [];
-  }
-  return results
-    .map(geocodedLocation)
-    .filter((entry): entry is GeocodedLocation => entry !== null);
-}
-
-/** Looks up addresses with the Open-Meteo geocoding service. */
-export async function searchLocations(
-  query: string,
-  fetcher: FetchLike = fetch,
-): Promise<GeocodedLocation[]> {
-  const url = new URL(GEOCODE_URL);
-  url.searchParams.set("name", query.trim());
-  url.searchParams.set("count", String(GEOCODE_RESULTS));
-  url.searchParams.set("language", "en");
-  url.searchParams.set("format", "json");
-
-  const response = await fetcher(url, {
-    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-  });
-  if (!response.ok) {
-    throw new Error(`Geocoding service returned ${response.status}`);
-  }
-  return parseGeocodeResponse(await response.json());
 }

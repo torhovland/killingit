@@ -4,6 +4,7 @@ import {
   projectPoint,
   TILE_SIZE,
   unprojectPoint,
+  zoomToward,
 } from "./mapProjection";
 
 describe("map projection", () => {
@@ -23,6 +24,40 @@ describe("map projection", () => {
     const point = projectPoint({ latitude: 89, longitude: 0 }, 4);
     const roundTripped = unprojectPoint(point, 4);
     expect(roundTripped.latitude).toBeLessThanOrEqual(85.051129);
+  });
+});
+
+describe("zoomToward", () => {
+  it("keeps the point under the pointer fixed while zooming", () => {
+    const center = { latitude: 59.91, longitude: 10.75 };
+    const size = { width: 640, height: 480 };
+    const pointer = { x: 500, y: 120 };
+    const zoom = 10;
+    const nextZoom = 12;
+
+    const beforeCenter = projectPoint(center, zoom);
+    const beforeTopLeft = {
+      x: beforeCenter.x - size.width / 2,
+      y: beforeCenter.y - size.height / 2,
+    };
+    const before = unprojectPoint(
+      { x: beforeTopLeft.x + pointer.x, y: beforeTopLeft.y + pointer.y },
+      zoom,
+    );
+
+    const nextCenter = zoomToward(center, zoom, nextZoom, pointer, size);
+    const nextCenterWorld = projectPoint(nextCenter, nextZoom);
+    const nextTopLeft = {
+      x: nextCenterWorld.x - size.width / 2,
+      y: nextCenterWorld.y - size.height / 2,
+    };
+    const after = unprojectPoint(
+      { x: nextTopLeft.x + pointer.x, y: nextTopLeft.y + pointer.y },
+      nextZoom,
+    );
+
+    expect(after.latitude).toBeCloseTo(before.latitude, 6);
+    expect(after.longitude).toBeCloseTo(before.longitude, 6);
   });
 });
 
