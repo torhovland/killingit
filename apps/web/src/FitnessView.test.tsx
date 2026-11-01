@@ -180,6 +180,23 @@ describe("FitnessView", () => {
     expect(html).toContain('data-series="body-fat"');
   });
 
+  it("keeps the body units in the legend and out of the axis", () => {
+    const html = view();
+    const body = html.slice(html.indexOf('data-testid="body-chart"'));
+
+    expect(body).not.toMatch(/>[\d.]+ ?(kg|%)</);
+    expect(body).toContain("Weight (kg)");
+    expect(body).toContain("Body fat (%)");
+  });
+
+  it("labels the body axis in the same size as the other charts", () => {
+    const html = view();
+    const body = html.slice(html.indexOf('data-testid="body-chart"'));
+
+    expect(body).toContain("text-[10px]");
+    expect(body).not.toContain("text-xs");
+  });
+
   it("hides the body chart without any measurements", () => {
     const html = view({
       history: history({ body: { weight: [], bodyFat: [] } }),

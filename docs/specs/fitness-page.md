@@ -163,12 +163,20 @@ API:
   activity views. The panel also shows the estimated FTP in effect today.
 - Below it, a fitness/form chart with CTL, ATL, and TSB lines over coloured TSB
   zone bands, a legend naming each zone with its threshold and colour, an
-  estimated-FTP line chart whose heading carries no value (the current estimate
-  is in the Today panel), and a body chart when body measurements exist.
-- The body chart draws weight on the left axis in kilograms and body fat on the
-  right axis in percent over the same date axis, with a legend for each
-  available line. The part after today is dotted, like the other projections.
-  Pointing at it shows the date and the available measurements.
+  estimated-threshold chart whose heading carries no value (the current
+  estimates are in the Today panel), and a body chart when body measurements
+  exist.
+- The estimated threshold is grouped by unit, and every unit gets its own
+  bordered panel below the shared `Estimated threshold` heading, which sits
+  outside the panels. The legend names each measure, its sport, and its latest
+  value with its unit.
+- Every y axis shows plain numbers: the unit is in the legend instead, so the
+  axis gutter has room for the values themselves.
+- The body chart draws weight on the left axis and body fat on the right axis
+  over the same date axis, with a legend for each available line carrying its
+  unit. The part after today is dotted, like the other projections. Pointing at
+  it shows the date and the available measurements. Its axis labels use the same
+  size as the other charts.
 - Only the fitness chart's plot is white, so the zone tints stay clean while the
   rest of that chart — and the whole FTP chart — keeps the card's surface. The bands are soft tints (62.5%) of the
   zone colours, and the TSB line is solid and coloured by the zone it is in

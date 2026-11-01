@@ -249,6 +249,7 @@ export {
   fitnessBodySchema,
   fitnessMetricPointSchema,
   formatSport,
+  formatThresholdNumber,
   formatThresholdValue,
   garminBodyMetricSampleSchema,
   garminFtpSampleSchema,

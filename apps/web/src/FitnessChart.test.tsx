@@ -88,4 +88,65 @@ describe("ThresholdChart", () => {
     expect(html).toContain('data-series="cycling:threshold_heart_rate"');
     expect(html).toContain('data-series="cycling:ftp" data-future="true"');
   });
+
+  it("puts one panel per unit below the heading", () => {
+    const html = renderToStaticMarkup(
+      <ThresholdChart
+        days={days}
+        series={thresholdSeries}
+        today="2026-10-22"
+      />,
+    );
+
+    expect(html.match(/data-testid="threshold-panel"/g)).toHaveLength(2);
+    expect(html).toContain('data-unit="W"');
+    expect(html).toContain('data-unit="bpm"');
+    // The heading is outside the panels, not a caption inside one of them.
+    expect(html.indexOf("Estimated threshold")).toBeLessThan(
+      html.indexOf('data-testid="threshold-panel"'),
+    );
+  });
+
+  it("keeps the unit in the legend instead of on the y axis", () => {
+    const html = renderToStaticMarkup(
+      <ThresholdChart
+        days={days}
+        series={thresholdSeries}
+        today="2026-10-22"
+      />,
+    );
+
+    // Axis labels are plain numbers; the legend names the latest value's unit.
+    expect(html).not.toMatch(/>\d+ (W|bpm)</);
+    expect(html).toContain("FTP");
+    expect(html).toContain("cycling · 254 W");
+    expect(html).toContain("Threshold heart rate");
+    expect(html).toContain("cycling · 164 bpm");
+  });
+
+  it("reads a pace axis as minutes and seconds without the unit", () => {
+    const html = renderToStaticMarkup(
+      <ThresholdChart
+        days={days}
+        series={[
+          {
+            sport: "running",
+            measure: "threshold_pace",
+            label: "Threshold pace",
+            unit: "s/km",
+            kind: "pace",
+            points: days.map((entry, index) => ({
+              date: entry.date,
+              value: 270 + index,
+            })),
+          },
+        ]}
+        today="2026-10-22"
+      />,
+    );
+
+    expect(html).toMatch(/>\d+:\d\d</);
+    expect(html).not.toContain(" /km</text>");
+    expect(html).toContain("running · 4:34 /km");
+  });
 });

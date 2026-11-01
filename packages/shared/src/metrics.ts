@@ -240,10 +240,11 @@ export function formatSport(sport: string): string {
 }
 
 /**
- * Formats a threshold value with its unit. Pace values are seconds per
- * kilometre and read as `4:30 /km`; every other unit is shown plainly.
+ * Formats a threshold value without its unit, for a chart axis whose legend
+ * already names the unit. Pace values are seconds per kilometre and still read
+ * as `4:30`; every other value is a plain number.
  */
-export function formatThresholdValue(
+export function formatThresholdNumber(
   value: number,
   unit: string,
   kind: ThresholdKind,
@@ -252,10 +253,24 @@ export function formatThresholdValue(
     const total = Math.round(value);
     const minutes = Math.floor(total / 60);
     const seconds = String(total % 60).padStart(2, "0");
-    return `${minutes}:${seconds} /km`;
+    return `${minutes}:${seconds}`;
   }
-  const rounded = Number.isInteger(value) ? value : Math.round(value * 10) / 10;
-  return `${rounded} ${unit}`;
+  return String(Number.isInteger(value) ? value : Math.round(value * 10) / 10);
+}
+
+/**
+ * Formats a threshold value with its unit. Pace values are seconds per
+ * kilometre and read as `4:30 /km`; every other unit is shown plainly.
+ */
+export function formatThresholdValue(
+  value: number,
+  unit: string,
+  kind: ThresholdKind,
+): string {
+  const number = formatThresholdNumber(value, unit, kind);
+  return kind === "pace" || unit === "s/km"
+    ? `${number} /km`
+    : `${number} ${unit}`;
 }
 
 /**
