@@ -181,6 +181,19 @@ async function main(): Promise<void> {
   const results = JSON.parse(
     await readFile(resolve(RUN_DIR, "results.json"), "utf8"),
   ) as ModelResult[];
+  let sourceRuns: string[] = [];
+  try {
+    const sources = JSON.parse(
+      await readFile(resolve(RUN_DIR, "sources.json"), "utf8"),
+    ) as { runIds?: unknown };
+    if (Array.isArray(sources.runIds)) {
+      sourceRuns = sources.runIds.filter(
+        (id): id is string => typeof id === "string",
+      );
+    }
+  } catch {
+    sourceRuns = [];
+  }
   const scoresFile = process.env.SCORES_FILE ?? "judge-scores.json";
   const scores = JSON.parse(
     await readFile(resolve(RUN_DIR, scoresFile), "utf8"),
@@ -527,7 +540,17 @@ async function main(): Promise<void> {
   </div>
 
   <div class="callout">
-    <strong>What was tested.</strong> Each model received
+    <strong>What was tested.</strong>
+    ${
+      sourceRuns.length > 1
+        ? `This report combines ${sourceRuns
+            .map((id) => `<code>${escapeHtml(id)}</code>`)
+            .join(
+              " and ",
+            )}; a later run replaces an earlier result for the same model. `
+        : ""
+    }
+    Each model received
     <code>benchmarks/prompts/today-prompt.txt</code> and
     <code>benchmarks/prompts/revise-season-prompt.txt</code> verbatim, in two
     separate calls. The today prompt asks for only the plan for 2026-10-30. The
