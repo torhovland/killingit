@@ -86,6 +86,35 @@ describe("compareModels", () => {
     expect(compareModels(a, b, "ability", "asc")).toBeGreaterThan(0);
   });
 
+  it("sorts by last scored, keeping unscored models last", () => {
+    const older = model({
+      id: "older",
+      name: "Older",
+      benchmarkedAt: "2026-10-01T08:00:00.000Z",
+    });
+    const newer = model({
+      id: "newer",
+      name: "Newer",
+      benchmarkedAt: "2026-10-31T08:00:00.000Z",
+    });
+    const unscored = model({
+      id: "unscored",
+      name: "Unscored",
+      benchmarkedAt: null,
+    });
+
+    expect(
+      [older, unscored, newer]
+        .sort((a, b) => compareModels(a, b, "benchmarkedAt", "desc"))
+        .map((entry) => entry.name),
+    ).toEqual(["Newer", "Older", "Unscored"]);
+    expect(
+      [older, unscored, newer]
+        .sort((a, b) => compareModels(a, b, "benchmarkedAt", "asc"))
+        .map((entry) => entry.name),
+    ).toEqual(["Older", "Newer", "Unscored"]);
+  });
+
   it("uses ascending model name for ties in both directions", () => {
     const a = model({ id: "a", name: "Alpha", ability: "A" });
     const b = model({ id: "b", name: "Beta", ability: "A" });

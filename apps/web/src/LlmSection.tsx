@@ -24,7 +24,8 @@ const GRADE_ORDER: Record<LlmModelGrade, number> = {
   "?": -1,
 };
 
-type SortKey = "model" | "discouraged" | "ability" | "speed" | "cost";
+type SortKey =
+  "model" | "benchmarkedAt" | "discouraged" | "ability" | "speed" | "cost";
 
 interface LlmSectionProps {
   settings: LlmSettings;
@@ -81,6 +82,16 @@ export function compareModels(
   if (key === "model") {
     const result = a.name.localeCompare(b.name);
     return direction === "asc" ? result : -result;
+  }
+  if (key === "benchmarkedAt") {
+    const aTime = a.benchmarkedAt === null ? null : Date.parse(a.benchmarkedAt);
+    const bTime = b.benchmarkedAt === null ? null : Date.parse(b.benchmarkedAt);
+    // Unscored models stay last in either direction.
+    if (aTime === null && bTime === null) return a.name.localeCompare(b.name);
+    if (aTime === null) return 1;
+    if (bTime === null) return -1;
+    const result = direction === "asc" ? aTime - bTime : bTime - aTime;
+    return result !== 0 ? result : a.name.localeCompare(b.name);
   }
   const primary =
     key === "discouraged"
@@ -406,7 +417,11 @@ export function LlmSection({ settings, onSaved, isAdmin }: LlmSectionProps) {
                 <th className="p-2">{gradeHeader("Ability", "ability")}</th>
                 <th className="p-2">{gradeHeader("Speed", "speed")}</th>
                 <th className="p-2">{gradeHeader("Cost", "cost")}</th>
-                {isAdmin && <th className="p-2">Last scored</th>}
+                {isAdmin && (
+                  <th className="p-2">
+                    {gradeHeader("Last scored", "benchmarkedAt")}
+                  </th>
+                )}
                 <th className="p-2">
                   {gradeHeader("Discouraged", "discouraged")}
                 </th>
