@@ -1,7 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import {
   abilityGrade,
-  aliasBenchmarkCost,
   aliasTargetChanged,
   costGrade,
   isDiscouraged,
@@ -44,33 +43,6 @@ describe("abilityGrade", () => {
 
   it("does not grade an unbenchmarked model", () => {
     expect(abilityGrade({ score: null, categories: null })).toBe("F");
-  });
-});
-
-describe("aliasBenchmarkCost", () => {
-  const target = {
-    promptPricePerMillion: 4,
-    completionPricePerMillion: 20,
-    benchmarkCostUsd: 0.826,
-    cost: "F" as const,
-  };
-
-  it("copies the measured cost when the alias has the same price", () => {
-    expect(
-      aliasBenchmarkCost(
-        { promptPricePerMillion: 4, completionPricePerMillion: 20 },
-        target,
-      ),
-    ).toEqual({ benchmarkCostUsd: 0.826, cost: "F" });
-  });
-
-  it("estimates from the alias price when the prices differ", () => {
-    const result = aliasBenchmarkCost(
-      { promptPricePerMillion: 0, completionPricePerMillion: 0 },
-      target,
-    );
-    expect(result.benchmarkCostUsd).toBe(0);
-    expect(result.cost).toBe("A+");
   });
 });
 

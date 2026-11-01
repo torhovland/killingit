@@ -91,10 +91,11 @@ list in the background.
   pricing observation stores the price without treating it as a change.
 - Alias models such as `~deepseek/deepseek-flash-latest` store OpenRouter's
   `alias_target.slug`. When that target changes, the alias is reset to
-  ungraded, then immediately inherits the target's ability, speed, score and
-  category data if the target is graded. Its cost grade still comes from the
-  alias's own list price. If the target has no grade, the alias waits for the
-  pending benchmark.
+  ungraded, then immediately inherits the target's full benchmark: ability,
+  speed, score, category data and measured cost grade. The alias keeps its own
+  list prices for the price-grade column. If the target has no grade, the alias
+  waits for the pending benchmark. Re-score runs never call an alias directly;
+  they call the concrete target and force-copy its result afterwards.
 - New models are inserted with `retired=false`, `discouraged=false`,
   `ability=?`, `speed=?`, and the price grade from their list prices.
 - Models missing from OpenRouter are marked retired.
@@ -107,13 +108,20 @@ remains as the fallback. The Settings page shows one table of non-retired
 models, plus any currently selected retired model with `(retired)` appended to
 its name.
 
-Columns are model, discouraged, ability, speed, cost and the two selection
-radios. Every column is sortable. Filters default to:
+Columns are model, ability, speed, cost, discouraged and the two selection
+radios, in that order; the season column is headed "Season plan". Every grade
+column is sortable. Filters default to:
 
-- Discouraged = false
+- Include ungraded = true
+- Include discouraged = false
 - Ability = B or above
 - Speed = D or above
 - Cost = E or above
+
+The filter bar shows the three grade dropdowns first, then Include ungraded,
+then Include discouraged. Include ungraded only lets a `?` pass the grade it
+belongs to; a model with a `?` ability but an E cost is still hidden when the
+cost filter is B or above.
 
 Sorting defaults to ability, then speed, then cost.
 

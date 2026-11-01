@@ -113,38 +113,6 @@ export function costGrade(costUsd: number | null | undefined): LlmModelGrade {
   return "F";
 }
 
-export interface AliasPrices {
-  promptPricePerMillion: number | null;
-  completionPricePerMillion: number | null;
-}
-
-export interface TargetBenchmarkCost extends AliasPrices {
-  benchmarkCostUsd: number | null;
-  cost: LlmModelGrade;
-}
-
-/**
- * An alias priced exactly like its target shares the measured cost. A
- * differently priced alias keeps its own estimate.
- */
-export function aliasBenchmarkCost(
-  alias: AliasPrices,
-  target: TargetBenchmarkCost,
-): { benchmarkCostUsd: number | null; cost: LlmModelGrade } {
-  const samePrice =
-    alias.promptPricePerMillion === target.promptPricePerMillion &&
-    alias.completionPricePerMillion === target.completionPricePerMillion;
-  if (samePrice) {
-    return { benchmarkCostUsd: target.benchmarkCostUsd, cost: target.cost };
-  }
-  const benchmarkCostUsd =
-    estimateBenchmarkCost(
-      alias.promptPricePerMillion,
-      alias.completionPricePerMillion,
-    ) ?? target.benchmarkCostUsd;
-  return { benchmarkCostUsd, cost: costGrade(benchmarkCostUsd) };
-}
-
 /**
  * Grades a model by its current list price. Used until a model has a measured
  * benchmark cost; a routed model with no fixed price stays ungraded.
@@ -300,8 +268,6 @@ interface BenchmarkCopy {
   benchmarkCategories: Record<string, number> | null;
   benchmarkedAt: Date | null;
   benchmarkCostUsd: number | null;
-  promptPricePerMillion: number | null;
-  completionPricePerMillion: number | null;
 }
 
 /** Follows alias targets until it finds a graded model, if one exists. */
@@ -321,8 +287,6 @@ async function loadTargetBenchmark(
       benchmarkCategories: llmModels.benchmarkCategories,
       benchmarkedAt: llmModels.benchmarkedAt,
       benchmarkCostUsd: llmModels.benchmarkCostUsd,
-      promptPricePerMillion: llmModels.promptPricePerMillion,
-      completionPricePerMillion: llmModels.completionPricePerMillion,
       needsRescore: llmModels.needsRescore,
       aliasTargetSlug: llmModels.aliasTargetSlug,
     })
@@ -341,8 +305,6 @@ async function loadTargetBenchmark(
       benchmarkCategories: row.benchmarkCategories,
       benchmarkedAt: row.benchmarkedAt,
       benchmarkCostUsd: row.benchmarkCostUsd,
-      promptPricePerMillion: row.promptPricePerMillion,
-      completionPricePerMillion: row.completionPricePerMillion,
     };
   }
   if (row.aliasTargetSlug !== null) {
@@ -352,10 +314,10 @@ async function loadTargetBenchmark(
 }
 
 /**
- * Copies the concrete model's benchmark data onto an alias. The alias keeps
- * its own cost estimate because OpenRouter can price an alias differently from
- * its target. With `force`, every alias with a graded target is refreshed, so
- * an alias that was benchmarked directly always ends up matching its target.
+ * Copies the concrete model's benchmark data, including its measured cost,
+ * onto an alias. With `force`, every alias with a graded target is refreshed,
+ * so an alias that was benchmarked directly always ends up matching its
+ * target. The alias keeps its own list prices for the price grade.
  */
 export async function copyBenchmarkToAliases(
   options: { force?: boolean } = {},
@@ -376,7 +338,6 @@ export async function copyBenchmarkToAliases(
     if (alias.aliasTargetSlug === null) continue;
     const target = await loadTargetBenchmark(alias.aliasTargetSlug);
     if (target === null) continue;
-    const aliasCost = aliasBenchmarkCost(alias, target);
     await db
       .update(llmModels)
       .set({
@@ -386,8 +347,8 @@ export async function copyBenchmarkToAliases(
         benchmarkTimeMs: target.benchmarkTimeMs,
         benchmarkCategories: target.benchmarkCategories,
         benchmarkedAt: target.benchmarkedAt,
-        benchmarkCostUsd: aliasCost.benchmarkCostUsd,
-        cost: aliasCost.cost,
+        benchmarkCostUsd: target.benchmarkCostUsd,
+        cost: target.cost,
         needsRescore: false,
         updatedAt: new Date(),
       })

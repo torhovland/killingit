@@ -34,6 +34,38 @@ function gradeAtLeast(grade: LlmModelGrade, minimum: LlmModelGrade): boolean {
   return grade !== "?" && GRADE_ORDER[grade] >= GRADE_ORDER[minimum];
 }
 
+export interface LlmModelFilters {
+  includeUngraded: boolean;
+  showDiscouraged: boolean;
+  minAbility: LlmModelGrade;
+  minSpeed: LlmModelGrade;
+  minCost: LlmModelGrade;
+}
+
+function gradePasses(
+  grade: LlmModelGrade,
+  minimum: LlmModelGrade,
+  includeUngraded: boolean,
+): boolean {
+  return grade === "?" ? includeUngraded : gradeAtLeast(grade, minimum);
+}
+
+/**
+ * Applies the catalog filters. "Include ungraded" only lets a "?" through the
+ * grade it belongs to; the other grade filters still apply.
+ */
+export function modelMatchesFilters(
+  model: LlmCatalogModel,
+  filters: LlmModelFilters,
+): boolean {
+  if (!filters.showDiscouraged && model.discouraged) return false;
+  return (
+    gradePasses(model.ability, filters.minAbility, filters.includeUngraded) &&
+    gradePasses(model.speed, filters.minSpeed, filters.includeUngraded) &&
+    gradePasses(model.cost, filters.minCost, filters.includeUngraded)
+  );
+}
+
 function compareGrades(a: LlmModelGrade, b: LlmModelGrade): number {
   return GRADE_ORDER[a] - GRADE_ORDER[b];
 }
@@ -78,6 +110,7 @@ export function LlmSection({ settings, onSaved }: LlmSectionProps) {
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [includeUngraded, setIncludeUngraded] = useState(true);
   const [showDiscouraged, setShowDiscouraged] = useState(false);
   const [minAbility, setMinAbility] = useState<LlmModelGrade>("B");
   const [minSpeed, setMinSpeed] = useState<LlmModelGrade>("D");
@@ -126,14 +159,18 @@ export function LlmSection({ settings, onSaved }: LlmSectionProps) {
       .filter(
         (model) =>
           selectedIds.has(model.id) ||
-          ((showDiscouraged || !model.discouraged) &&
-            gradeAtLeast(model.ability, minAbility) &&
-            gradeAtLeast(model.speed, minSpeed) &&
-            gradeAtLeast(model.cost, minCost)),
+          modelMatchesFilters(model, {
+            includeUngraded,
+            showDiscouraged,
+            minAbility,
+            minSpeed,
+            minCost,
+          }),
       )
       .sort((a, b) => compareModels(a, b, sortKey, sortDirection));
   }, [
     catalog,
+    includeUngraded,
     minAbility,
     minCost,
     minSpeed,
@@ -257,14 +294,6 @@ export function LlmSection({ settings, onSaved }: LlmSectionProps) {
       )}
 
       <div className="flex flex-wrap items-end gap-3 text-sm">
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={showDiscouraged}
-            onChange={(e) => setShowDiscouraged(e.target.checked)}
-          />
-          Include discouraged
-        </label>
         <label className="flex flex-col gap-1">
           <span className="font-medium">Ability at least</span>
           <select
@@ -307,6 +336,22 @@ export function LlmSection({ settings, onSaved }: LlmSectionProps) {
             ))}
           </select>
         </label>
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={includeUngraded}
+            onChange={(e) => setIncludeUngraded(e.target.checked)}
+          />
+          Include ungraded
+        </label>
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={showDiscouraged}
+            onChange={(e) => setShowDiscouraged(e.target.checked)}
+          />
+          Include discouraged
+        </label>
       </div>
 
       {loading ? (
@@ -317,13 +362,13 @@ export function LlmSection({ settings, onSaved }: LlmSectionProps) {
             <thead className="sticky top-0 bg-card">
               <tr className="border-b">
                 <th className="p-2">{gradeHeader("Model", "model")}</th>
-                <th className="p-2">
-                  {gradeHeader("Discouraged", "discouraged")}
-                </th>
                 <th className="p-2">{gradeHeader("Ability", "ability")}</th>
                 <th className="p-2">{gradeHeader("Speed", "speed")}</th>
                 <th className="p-2">{gradeHeader("Cost", "cost")}</th>
-                <th className="p-2">Season</th>
+                <th className="p-2">
+                  {gradeHeader("Discouraged", "discouraged")}
+                </th>
+                <th className="p-2">Season plan</th>
                 <th className="p-2">Day to day</th>
               </tr>
             </thead>
@@ -339,10 +384,10 @@ export function LlmSection({ settings, onSaved }: LlmSectionProps) {
                       {model.id}
                     </div>
                   </td>
-                  <td className="p-2">{model.discouraged ? "Yes" : "No"}</td>
                   <td className="p-2">{model.ability}</td>
                   <td className="p-2">{model.speed}</td>
                   <td className="p-2">{model.cost}</td>
+                  <td className="p-2">{model.discouraged ? "Yes" : "No"}</td>
                   <td className="p-2">
                     <input
                       type="radio"
