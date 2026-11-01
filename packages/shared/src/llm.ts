@@ -55,6 +55,8 @@ export const llmCatalogModelSchema = z.object({
   benchmarkScore: z.number().nullable(),
   benchmarkTimeMs: z.number().nullable(),
   benchmarkCostUsd: z.number().nullable(),
+  /** When the benchmark last scored this model, or null if ungraded. */
+  benchmarkedAt: z.string().datetime().nullable(),
 });
 
 export type LlmCatalogModel = z.infer<typeof llmCatalogModelSchema>;

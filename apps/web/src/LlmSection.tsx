@@ -9,6 +9,7 @@ import {
 import { useAuth } from "./auth";
 import { fetchJsonAuthed } from "./fetchAuthed";
 import { reportError } from "./reportError";
+import { browserTimeZone, formatDateTime } from "./timeZone";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
@@ -28,6 +29,7 @@ type SortKey = "model" | "discouraged" | "ability" | "speed" | "cost";
 interface LlmSectionProps {
   settings: LlmSettings;
   onSaved: (settings: LlmSettings) => void;
+  isAdmin: boolean;
 }
 
 function gradeAtLeast(grade: LlmModelGrade, minimum: LlmModelGrade): boolean {
@@ -95,7 +97,7 @@ export function compareModels(
  * saved together as soon as a radio button is clicked so a plan cannot mix an
  * old and a new selection. The key is saved when the input loses focus.
  */
-export function LlmSection({ settings, onSaved }: LlmSectionProps) {
+export function LlmSection({ settings, onSaved, isAdmin }: LlmSectionProps) {
   const auth = useAuth();
   const [catalog, setCatalog] = useState<LlmCatalogModel[] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -118,6 +120,7 @@ export function LlmSection({ settings, onSaved }: LlmSectionProps) {
   const [minCost, setMinCost] = useState<LlmModelGrade>("E");
   const [sortKey, setSortKey] = useState<SortKey>("ability");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const timeZone = browserTimeZone();
 
   useEffect(() => {
     if (!auth.isAuthenticated) return;
@@ -403,6 +406,7 @@ export function LlmSection({ settings, onSaved }: LlmSectionProps) {
                 <th className="p-2">{gradeHeader("Ability", "ability")}</th>
                 <th className="p-2">{gradeHeader("Speed", "speed")}</th>
                 <th className="p-2">{gradeHeader("Cost", "cost")}</th>
+                {isAdmin && <th className="p-2">Last scored</th>}
                 <th className="p-2">
                   {gradeHeader("Discouraged", "discouraged")}
                 </th>
@@ -425,6 +429,13 @@ export function LlmSection({ settings, onSaved }: LlmSectionProps) {
                   <td className="p-2">{model.ability}</td>
                   <td className="p-2">{model.speed}</td>
                   <td className="p-2">{model.cost}</td>
+                  {isAdmin && (
+                    <td className="whitespace-nowrap p-2">
+                      {model.benchmarkedAt === null
+                        ? "—"
+                        : formatDateTime(model.benchmarkedAt, timeZone)}
+                    </td>
+                  )}
                   <td className="p-2">{model.discouraged ? "Yes" : "No"}</td>
                   <td className="p-2">
                     <input

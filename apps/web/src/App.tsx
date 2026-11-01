@@ -230,6 +230,7 @@ function AppShell() {
                     current === null ? current : { ...current, location },
                   );
                 }}
+                isAdmin={isAdmin}
               />
             ) : page === "admin" && isAdmin ? (
               <AdminSettingsPage />

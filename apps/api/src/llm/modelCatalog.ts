@@ -578,6 +578,7 @@ export interface CatalogRow {
   benchmarkScore: number | null;
   benchmarkTimeMs: number | null;
   benchmarkCostUsd: number | null;
+  benchmarkedAt: string | null;
 }
 
 export async function loadModelCatalog(): Promise<CatalogRow[]> {
@@ -594,6 +595,7 @@ export async function loadModelCatalog(): Promise<CatalogRow[]> {
       benchmarkScore: row.benchmarkScore,
       benchmarkTimeMs: row.benchmarkTimeMs,
       benchmarkCostUsd: row.benchmarkCostUsd,
+      benchmarkedAt: row.benchmarkedAt?.toISOString() ?? null,
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }

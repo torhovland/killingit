@@ -85,9 +85,11 @@ bun benchmarks/prompts/run.ts
 
 `INCLUDE_COST_GRADES` takes a comma-separated set of exact grades, and
 `INCLUDE_MODELS` adds named IDs even when their cost grade is outside that set.
-`SORT=slowest` orders the run by each model's previous benchmark time, slowest
-first; models with no previous time go last. Aliases are never benchmarked
-directly: `sync-db.ts` copies every alias from its target afterwards.
+`EXCLUDE_ABILITY_GRADES` drops models with the listed current ability grades
+(named models are kept), `SORT=slowest` orders the run by each model's previous
+benchmark time, slowest first, and models with no previous time go last.
+Aliases are never benchmarked directly: `sync-db.ts` copies every alias from its
+target afterwards.
 
 `sync-db.ts` refreshes the catalog, records the scores, and recomputes Ability,
 Speed, Cost and Discouraged. The commands need the same `DATABASE_URL` as the

@@ -32,11 +32,13 @@ export function SettingsPage({
   onTimeZoneChanged,
   location,
   onLocationChanged,
+  isAdmin,
 }: {
   timeZone: string | null;
   onTimeZoneChanged: (timeZone: string | null) => void;
   location: AthleteLocation | null;
   onLocationChanged: (location: AthleteLocation | null) => void;
+  isAdmin: boolean;
 }) {
   const auth = useAuth();
   const { setStatus } = useAppStatus();
@@ -211,7 +213,7 @@ export function SettingsPage({
 
           <section className="flex flex-col gap-3 rounded-lg border bg-card p-4">
             <h3 className="text-2xl font-semibold">OpenRouter</h3>
-            <LlmSection settings={llm} onSaved={setLlm} />
+            <LlmSection settings={llm} onSaved={setLlm} isAdmin={isAdmin} />
           </section>
 
           <section className="flex flex-col gap-3 rounded-lg border bg-card p-4">

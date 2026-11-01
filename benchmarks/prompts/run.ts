@@ -413,7 +413,9 @@ async function main(): Promise<void> {
   const costRaw = process.env.RESCORE_COST_GRADE?.trim();
   const costGradesRaw = process.env.INCLUDE_COST_GRADES?.trim();
   const includeModelsRaw = process.env.INCLUDE_MODELS?.trim();
+  const excludeAbilityRaw = process.env.EXCLUDE_ABILITY_GRADES?.trim();
   const allowedCostGrades = new Set<LlmModelGrade>();
+  const excludedAbilityGrades = new Set<LlmModelGrade>();
   if (costRaw) {
     const grade = parseAbilityGrade(costRaw);
     if (grade === null) {
@@ -430,6 +432,15 @@ async function main(): Promise<void> {
     }
     allowedCostGrades.add(grade);
   }
+  for (const raw of (excludeAbilityRaw ?? "").split(",")) {
+    const value = raw.trim();
+    if (value === "") continue;
+    const grade = parseAbilityGrade(value);
+    if (grade === null) {
+      throw new Error(`EXCLUDE_ABILITY_GRADES is not a grade: ${value}`);
+    }
+    excludedAbilityGrades.add(grade);
+  }
   const includedModelIds = new Set(
     (includeModelsRaw ?? "")
       .split(",")
@@ -439,7 +450,8 @@ async function main(): Promise<void> {
   const filtering =
     minimumRaw !== undefined ||
     allowedCostGrades.size > 0 ||
-    includedModelIds.size > 0;
+    includedModelIds.size > 0 ||
+    excludedAbilityGrades.size > 0;
   if (filtering) {
     const filters: string[] = [];
     if (minimumRaw) {
@@ -453,15 +465,26 @@ async function main(): Promise<void> {
     }
     if (allowedCostGrades.size > 0 || includedModelIds.size > 0) {
       const grades = await catalog.benchmarkCostGrades();
-      if (includedModelIds.size === 0) {
+      if (includedModelIds.size === 0 && excludedAbilityGrades.size === 0) {
         models = filterByCostGrades(models, grades, allowedCostGrades);
       } else {
+        const abilityGrades =
+          excludedAbilityGrades.size > 0
+            ? await catalog.benchmarkAbilityGrades()
+            : null;
         models = models.filter((model) => {
+          if (includedModelIds.has(model.id)) return true;
           const grade = grades.get(model.id);
-          return (
-            (grade !== undefined && allowedCostGrades.has(grade)) ||
-            includedModelIds.has(model.id)
-          );
+          if (grade === undefined || !allowedCostGrades.has(grade)) {
+            return false;
+          }
+          if (
+            abilityGrades !== null &&
+            excludedAbilityGrades.has(abilityGrades.get(model.id) ?? "?")
+          ) {
+            return false;
+          }
+          return true;
         });
       }
       if (allowedCostGrades.size > 0) {
@@ -470,6 +493,17 @@ async function main(): Promise<void> {
       if (includedModelIds.size > 0) {
         filters.push(`${includedModelIds.size} named model(s)`);
       }
+    } else if (excludedAbilityGrades.size > 0) {
+      const abilityGrades = await catalog.benchmarkAbilityGrades();
+      models = models.filter(
+        (model) =>
+          !excludedAbilityGrades.has(abilityGrades.get(model.id) ?? "?"),
+      );
+    }
+    if (excludedAbilityGrades.size > 0) {
+      filters.push(
+        `ability not ${[...excludedAbilityGrades].join(", ")} except named models`,
+      );
     }
     const beforeAliases = models.length;
     // Aliases must never be benchmarked on their own: run the concrete target

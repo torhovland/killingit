@@ -113,8 +113,10 @@ models, plus any currently selected retired model with `(retired)` appended to
 its name.
 
 Columns are model, ability, speed, cost, discouraged and the two selection
-radios, in that order; the season column is headed "Season plan". Every grade
-column is sortable. Filters default to:
+radios, in that order; the season column is headed "Season plan". Admin
+accounts also see a "Last scored" column with each model's `benchmarked_at`
+time in their own time zone. Every grade column is sortable. Filters default
+to:
 
 - Include ungraded = true
 - Include discouraged = false
@@ -172,9 +174,11 @@ included. Set `RESCORE_COST_GRADE` (for example `RESCORE_COST_GRADE=A+`) to keep
 only models whose stored cost grade is exactly that grade, so ungraded models
 are excluded; the two filters can be combined. `INCLUDE_COST_GRADES=A,B,C`
 selects several exact cost grades, `INCLUDE_MODELS=id1,id2` forces named models
-into the run even when their cost grade is excluded, and `SORT=slowest` orders
-the run by previous benchmark time, slowest first. Aliases are always skipped
-and copied from their target by `sync-db.ts`. `:batch` variants are excluded
+into the run even when their cost grade is excluded, `EXCLUDE_ABILITY_GRADES=F`
+drops models with that current ability grade (named models are kept), and
+`SORT=slowest` orders the run by previous benchmark time, slowest first.
+Aliases are always skipped and copied from their target by `sync-db.ts`.
+`:batch` variants are excluded
 because they are asynchronous and cannot be called through the synchronous
 endpoint. `DRY_RUN=1` writes the selection to `models.json` without calling any
 model. The benchmark scripts use `BENCHMARK_OPENROUTER_API_KEY`, a dedicated

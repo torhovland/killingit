@@ -18,6 +18,7 @@ function model(overrides: Partial<LlmCatalogModel> = {}): LlmCatalogModel {
     benchmarkScore: 11,
     benchmarkTimeMs: 10_000,
     benchmarkCostUsd: 0.01,
+    benchmarkedAt: "2026-10-31T15:40:52.865Z",
     ...overrides,
   };
 }
