@@ -197,8 +197,9 @@ about a past workout, or before a suggested workout, to steer the coach.
   (`coachQuestion`) and report the model's own difficulties or objections
   (`modelsRemarks`). The newest pending question is shown on the dashboard,
   answered questions are kept for the season review, and recent non-null model
-  remarks are listed in the admin settings page. See
-  `docs/specs/coach-questions.md`.
+  remarks are listed in the admin settings page. A new season plan or season
+  refresh clears unanswered questions first, so no stale question survives the
+  plan it was about. See `docs/specs/coach-questions.md`.
 - The Coaching survey page shows updated, new, and answered questions, with
   every answer editable in place and a copy-old-answer action for a revised
   question. Any new or changed answer is appended to

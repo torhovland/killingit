@@ -33,6 +33,7 @@ import {
 } from "../weather/forecast.js";
 import { startOfWeek } from "./dates.js";
 import {
+  clearPendingCoachQuestions,
   loadAnsweredCoachQuestions,
   saveCoachQuestions,
 } from "./coachQuestions.js";
@@ -307,6 +308,7 @@ export async function runPlanForUser(
       recordCoachBodyMetrics(userId, points, today),
     recordCoachQuestion: ({ question, model, sourceKind }) =>
       saveCoachQuestions({ userId, questions: [question], model, sourceKind }),
+    clearCoachQuestions: () => clearPendingCoachQuestions(userId),
     reviewActivities: (plan) =>
       analyzeActivitiesAgainstPlan({
         userId,
