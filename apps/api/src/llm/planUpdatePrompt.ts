@@ -32,6 +32,7 @@ import {
   GLOBAL_PROMPT_RULES,
   PLAN_PROMPT_RULES,
   promptSections,
+  SEASON_BLOCK_RULES,
   SEASON_CONTRACT,
   SESSION_PURPOSE_RULES,
   TODAY_IN_WEEK_RULE,
@@ -177,12 +178,13 @@ export const PLAN_UPDATE_SYSTEM_PROMPT = promptSections(
   `The revision request lists the levels that need to change. Return every level in the contract, so the saved plan always has a coherent season, block, week and day:
 - Keep the season, block, week, today, tomorrow, next week and next block exactly as supplied unless the request names them. Keep a level that is null and not requested as null.
 - When the current block is revised, return the revised block, a revised current week that fits it, and today's detailed session. Keep the current block's start date when the request says to keep it; otherwise start the new block on the supplied block start date. When a completed week review or its answer is supplied, use that feedback to adjust the block's progression. Update the season block summaries only when the revised block changes them.
-- When the season is refreshed, keep the blocks that ended before today exactly as supplied, keep the current block's existing start date, re-plan the rest of the season from the current block, and return the detailed current block. Later blocks must follow one another without gaps and cover the rest of the season.
+- When the season is refreshed, keep the blocks that ended before today exactly as supplied, keep the current block's existing start date, re-plan the rest of the season from the current block, and return the detailed current block.
 - When the current week is revised, change the remaining sessions so the week stays coherent with the block's focus and the athlete's current fatigue. Keep every day after tomorrow as a short outline. If only today's session is revised, update today's session in the week while keeping the rest of the week as supplied.
 - If the current block is revised, or the current week is re-planned under a next block that starts tomorrow, keep today's session unchanged unless the request also revises today.
 - When tomorrow is requested, return it and make sure it is the matching session in the current week or, when it falls in the next week, in the next week. Respect every weather preference and daylight constraint.
 - When the next week is requested, start it on the supplied next week start date and give it exactly seven sessions. When the next block is requested, start it on the supplied next block start date and put it in "nextBlock"; update "season" so its block summaries include it. If the block that starts tomorrow falls inside the current week, re-plan the remaining days of the current week under that next block and keep today's session.
 - Include a rationale for today's session and for the week's overall structure.`,
+  SEASON_BLOCK_RULES,
   WEEK_SHAPE_RULES,
   TODAY_IN_WEEK_RULE,
   COMPLETED_SESSION_RULES,

@@ -65,6 +65,12 @@ Use the date the statement refers to. For a number in the profile that names no 
 The stored history tells you what is already known; do not repeat a value for the same date.`;
 
 /**
+ * How season blocks tile the season. Every prompt that returns season blocks
+ * uses this: the API rejects a season whose blocks share a day or skip one.
+ */
+export const SEASON_BLOCK_RULES = `Season blocks tile the season: each block starts the day after the previous block ends. Never start a block on the day the previous one ends — a block that ends on 2026-11-23 is followed by one that starts on 2026-11-24 — so no date belongs to two blocks and no date between blocks is left unplanned. The first block starts on the season's start date and the last block ends on the season's end date.`;
+
+/**
  * How a week hangs together: seven dated sessions starting on its start date.
  * Every prompt that returns a week uses this.
  */

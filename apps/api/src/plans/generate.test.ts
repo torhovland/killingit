@@ -241,6 +241,52 @@ function makeRefreshedSeason(startDate = "2026-10-21"): SeasonPlan {
   };
 }
 
+/** A season whose second block starts on the day the first block ends. */
+function makeOverlappingSeason(): SeasonPlan {
+  return {
+    ...makeSeason(),
+    blocks: [
+      {
+        name: "Base",
+        focus: "Aerobic endurance",
+        startDate: "2026-10-21",
+        endDate: "2026-12-01",
+        weekCount: 6,
+      },
+      {
+        name: "Build",
+        focus: "Threshold and race pace",
+        startDate: "2026-12-01",
+        endDate: "2027-04-01",
+        weekCount: 17,
+      },
+    ],
+  };
+}
+
+/** A refreshed season that leaves the day after the current block unplanned. */
+function makeGappedRefreshedSeason(startDate = "2026-11-01"): SeasonPlan {
+  return {
+    ...makeRefreshedSeason(startDate),
+    blocks: [
+      {
+        name: "Rebuild",
+        focus: "Aerobic endurance",
+        startDate,
+        endDate: "2026-12-31",
+        weekCount: 7,
+      },
+      {
+        name: "Peak",
+        focus: "Threshold and race pace",
+        startDate: "2027-01-02",
+        endDate: "2027-04-01",
+        weekCount: 13,
+      },
+    ],
+  };
+}
+
 /** A stored plan in the middle of a season with one completed block. */
 function makeMidSeasonPlan(today = "2026-11-15"): CoachPlan {
   const plan = makePlan(today);
@@ -2095,6 +2141,207 @@ describe("runPlanGeneration", () => {
     expect((failure as Error).message).toContain("start date");
     expect(generations.status.status).toBe("error");
     expect(plans.saved).toBe(existing);
+  });
+
+  it("rejects a new season whose blocks share a day", async () => {
+    const provider = new FakeProvider({
+      ...buildResponses(),
+      season: JSON.stringify({ season: makeOverlappingSeason() }),
+    });
+    const plans = new MemoryPlanStore(null);
+    const generations = new MemoryGenerationStore();
+
+    let failure: unknown;
+    try {
+      await runPlanGeneration({
+        userId: 1,
+        runId: "run-1",
+        today: "2026-10-21",
+        plan: null,
+        context: makeContext(provider),
+        plans,
+        generations,
+      });
+    } catch (err) {
+      failure = err;
+    }
+
+    expect((failure as Error).message).toBe(
+      'The coach returned overlapping season blocks: "Build" starts on 2026-12-01, the day "Base" ends. Please regenerate the plan.',
+    );
+    expect(generations.status.status).toBe("error");
+    expect(plans.saved).toBeNull();
+  });
+
+  it("rejects a block revision that returns overlapping season blocks", async () => {
+    const provider = new FakeProvider({
+      planUpdate: makeUpdate("2026-10-21", {
+        season: makeOverlappingSeason(),
+        block: makeBlock(),
+      }),
+    });
+    const existing = makeStoredPlan(
+      makePlan("2026-10-21"),
+      new Date("2026-10-20T10:00:00Z"),
+      new Date("2026-10-20T10:00:00Z"),
+    );
+    const context = makeContext(
+      provider,
+      new Date("2026-10-20T10:00:00Z"),
+      new Date("2026-10-21T10:00:00Z"),
+    );
+    context.weekReviewUpdatedAt = new Date("2026-10-21T10:00:00Z");
+    const plans = new MemoryPlanStore(existing);
+    const generations = new MemoryGenerationStore();
+
+    let failure: unknown;
+    try {
+      await runPlanGeneration({
+        userId: 1,
+        runId: "run-1",
+        today: "2026-10-21",
+        plan: existing,
+        context,
+        plans,
+        generations,
+      });
+    } catch (err) {
+      failure = err;
+    }
+
+    expect((failure as Error).message).toContain("overlapping season blocks");
+    expect(generations.status.status).toBe("error");
+    expect(plans.saved).toBe(existing);
+  });
+
+  it("rejects a season refresh that leaves a day unplanned between blocks", async () => {
+    const today = "2026-11-15";
+    const previous = makeMidSeasonPlan(today);
+    const provider = new FakeProvider({
+      planUpdate: makeUpdate(today, {
+        season: makeGappedRefreshedSeason("2026-11-01"),
+        block: makeBlock("2026-11-01", "2026-12-31"),
+        week: makeWeek(startOfWeek(today)),
+        today: makeDay(today),
+      }),
+    });
+    const existing = makeStoredPlan(previous);
+    const plans = new MemoryPlanStore(existing);
+    const generations = new MemoryGenerationStore();
+
+    let failure: unknown;
+    try {
+      await runPlanGeneration({
+        userId: 1,
+        runId: "run-1",
+        today,
+        mode: "updateSeason",
+        plan: existing,
+        context: makeContext(provider),
+        plans,
+        generations,
+      });
+    } catch (err) {
+      failure = err;
+    }
+
+    expect((failure as Error).message).toBe(
+      'The coach returned a gap between season blocks: "Rebuild" ends on 2026-12-31 and "Peak" starts on 2027-01-02, leaving 2027-01-01 unplanned. Please regenerate the plan.',
+    );
+    expect(generations.status.status).toBe("error");
+    expect(plans.saved).toBe(existing);
+  });
+
+  it("rejects a season refresh whose blocks share a day", async () => {
+    const today = "2026-11-15";
+    const previous = makeMidSeasonPlan(today);
+    const refreshed = makeRefreshedSeason("2026-11-01");
+    const provider = new FakeProvider({
+      planUpdate: makeUpdate(today, {
+        season: {
+          ...refreshed,
+          blocks: [
+            {
+              ...refreshed.blocks[0]!,
+              name: "Rebuild",
+              endDate: "2026-12-31",
+            },
+            { ...refreshed.blocks[1]!, name: "Peak", startDate: "2026-12-31" },
+          ],
+        },
+        block: makeBlock("2026-11-01", "2026-12-31"),
+        week: makeWeek(startOfWeek(today)),
+        today: makeDay(today),
+      }),
+    });
+    const existing = makeStoredPlan(previous);
+    const plans = new MemoryPlanStore(existing);
+    const generations = new MemoryGenerationStore();
+
+    let failure: unknown;
+    try {
+      await runPlanGeneration({
+        userId: 1,
+        runId: "run-1",
+        today,
+        mode: "updateSeason",
+        plan: existing,
+        context: makeContext(provider),
+        plans,
+        generations,
+      });
+    } catch (err) {
+      failure = err;
+    }
+
+    expect((failure as Error).message).toBe(
+      'The coach returned overlapping season blocks: "Peak" starts on 2026-12-31, the day "Rebuild" ends. Please regenerate the plan.',
+    );
+    expect(plans.saved).toBe(existing);
+  });
+
+  it("does not re-check boundaries between blocks that already ended", async () => {
+    const today = "2026-11-15";
+    const previous = makeMidSeasonPlan(today);
+    const ended: CoachPlan = {
+      ...previous,
+      season: {
+        ...previous.season,
+        blocks: [
+          previous.season.blocks[0]!,
+          {
+            ...previous.season.blocks[0]!,
+            name: "Repeat base",
+            startDate: "2026-10-20",
+          },
+          previous.season.blocks[1]!,
+        ],
+      },
+      today: makeDay("2026-11-14"),
+    };
+    const provider = new FakeProvider({
+      planUpdate: makeUpdate(today, {
+        week: makeWeek("2026-11-09"),
+        today: makeDay(today),
+      }),
+    });
+    const existing = makeStoredPlan(ended);
+    const plans = new MemoryPlanStore(existing);
+    const generations = new MemoryGenerationStore();
+
+    const saved = await runPlanGeneration({
+      userId: 1,
+      runId: "run-1",
+      today,
+      plan: existing,
+      context: makeContext(provider),
+      plans,
+      generations,
+    });
+
+    expect(provider.calls).toEqual(["plan-update"]);
+    expect(saved?.plan.today.date).toBe(today);
+    expect(saved?.plan.season.blocks).toHaveLength(3);
   });
 
   it("stops without saving or failing when a newer run took over", async () => {
