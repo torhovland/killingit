@@ -268,6 +268,48 @@ describe("syncAthleteMetrics", () => {
     expect(saved).toEqual([]);
   });
 
+  it("asks about a pace in the unit the athlete used, not in seconds", async () => {
+    const provider = new FakeProvider(
+      JSON.stringify({
+        statements: [
+          {
+            date: "2026-11-01",
+            thresholds: [
+              {
+                sport: null,
+                measure: "threshold_pace",
+                label: "Threshold pace",
+                unit: "s/km",
+                kind: "pace",
+                value: 346,
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    const questions: string[] = [];
+
+    await syncAthleteMetrics({
+      userId: 42,
+      today: "2026-11-01",
+      source: buildAthleteMetricSource(inputs(), "2026-11-01"),
+      provider,
+      credentials,
+      dependencies: {
+        save: () => Promise.resolve(),
+        saveQuestions: ({ questions: asked }) => {
+          questions.push(...asked);
+          return Promise.resolve();
+        },
+      },
+    });
+
+    expect(questions).toEqual([
+      "You mentioned Threshold pace 5:46 /km. Which sport is that threshold for?",
+    ]);
+  });
+
   it("keeps the stored measurements when the model fails", async () => {
     const provider = new FakeProvider(new Error("model unavailable"));
     const saved: AthleteMetricStatement[][] = [];

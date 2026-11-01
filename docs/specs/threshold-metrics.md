@@ -75,6 +75,7 @@ cannot be measured.
 - Two measures for one sport are stored and displayed independently.
 - A threshold for running does not score a cycling activity.
 - A threshold stated without a sport is not stored until the athlete answers
-  the question.
+  the question. The question shows the value in the athlete's unit, so a pace
+  of 5:46 per km is asked as `5:46 /km`, never as `346 s/km`.
 - An activity with no threshold for its sport still receives a best-effort TSS.
 - Existing cycling FTP points survive the migration.
