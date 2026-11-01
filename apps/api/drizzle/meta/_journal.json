@@ -253,6 +253,13 @@
       "when": 1793460904071,
       "tag": "0035_yellow_tyrannus",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1793528691666,
+      "tag": "0036_seed_local_model_catalog",
+      "breakpoints": true
     }
   ]
 }

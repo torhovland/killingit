@@ -1,7 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
-const RUN_ID = process.env.RUN_ID ?? "2026-10-30-all-models";
+const RUN_ID = process.env.RUN_ID ?? "2026-10-31-two-prompts";
 const RUN_DIR = resolve(import.meta.dir, "runs", RUN_ID);
 const OUTPUT_HTML = resolve(import.meta.dir, "reports", `${RUN_ID}.html`);
 
@@ -22,32 +22,53 @@ interface Attempt {
   } | null;
 }
 
-interface ModelResult {
-  id: string;
-  name: string;
-  requestedAt: string;
+interface PromptResult {
+  prompt: string;
   attempts: Attempt[];
   retryNeeded: boolean;
   ok: boolean;
   totalTimeMs: number;
   totalCostUsd: number;
-  plan: { today?: Record<string, unknown> } | null;
+  plan: unknown | null;
   validationErrors: string[];
 }
 
-interface Score {
+interface ModelResult {
+  id: string;
+  name: string;
+  requestedAt: string;
+  prompts: Record<string, PromptResult>;
+  ok: boolean;
+  totalTimeMs: number;
+  totalCostUsd: number;
+}
+
+interface PromptJudge {
+  score: number;
+  components: Record<string, number>;
+  note: string;
+  judge: {
+    model: string;
+    attempts: number;
+    timeMs: number;
+    costUsd: number;
+    error: string | null;
+  };
+}
+
+interface JudgeScore {
   id: string;
   score: number;
-  components: {
-    contract: number;
-    fidelity: number;
-    design: number;
-    rationale: number;
-    grounding: number;
-    detail: number;
-  };
-  flags?: string[];
+  components: Record<string, number>;
   note: string;
+  failed: boolean;
+  gates: {
+    atlasMentioned: boolean;
+    blockOneChanged: boolean;
+    blockOneStartDateKept: boolean;
+    failures: string[];
+  } | null;
+  prompts: Record<string, PromptJudge>;
   judge?: {
     model: string;
     attempts: number;
@@ -61,6 +82,15 @@ interface Override {
   score?: number;
   note?: string;
 }
+
+const PROMPTS = [
+  { id: "today", label: "Today plan", file: "today-prompt.txt" },
+  {
+    id: "reviseSeason",
+    label: "Season revision",
+    file: "revise-season-prompt.txt",
+  },
+];
 
 function escapeHtml(value: string): string {
   return value
@@ -97,14 +127,32 @@ function prettyJson(value: unknown): string {
   }
 }
 
+function promptPlanText(prompt: PromptResult | undefined): string {
+  if (prompt === undefined) return "This prompt is missing from the run.";
+  if (prompt.plan !== null) return prettyJson(prompt.plan);
+  return prompt.attempts
+    .map((attempt, attemptIndex) => {
+      const reason =
+        attempt.error ??
+        attempt.parseError ??
+        (attempt.raw ? "response did not match the contract" : "no content");
+      return `attempt ${attemptIndex + 1}: ${reason}`;
+    })
+    .join("\n");
+}
+
+function gateLine(label: string, passed: boolean): string {
+  return `<div class="gate ${passed ? "gate-pass" : "gate-fail"}"><span>${escapeHtml(label)}</span><strong>${passed ? "pass" : "FAIL"}</strong></div>`;
+}
+
 async function main(): Promise<void> {
   const results = JSON.parse(
     await readFile(resolve(RUN_DIR, "results.json"), "utf8"),
   ) as ModelResult[];
-  const scoresFile = process.env.SCORES_FILE ?? "scores.json";
+  const scoresFile = process.env.SCORES_FILE ?? "judge-scores.json";
   const scores = JSON.parse(
     await readFile(resolve(RUN_DIR, scoresFile), "utf8"),
-  ) as Score[];
+  ) as JudgeScore[];
   let overrides: Record<string, Override> = {};
   if (process.env.USE_OVERRIDES !== "0") {
     try {
@@ -155,7 +203,14 @@ async function main(): Promise<void> {
     0,
   );
   const valid = results.filter((result) => result.ok).length;
-  const retries = results.filter((result) => result.retryNeeded).length;
+  const retries = results.filter(
+    (result) =>
+      result.prompts.today?.retryNeeded === true ||
+      result.prompts.reviseSeason?.retryNeeded === true,
+  ).length;
+  const gateFailures = scores.filter(
+    (score) => (score.gates?.failures.length ?? 0) > 0,
+  ).length;
   const validScores = scores.filter(
     (score) => resultById.get(score.id)?.ok === true,
   );
@@ -179,7 +234,8 @@ async function main(): Promise<void> {
         <td class="num score ${scoreClass(score.score)}">${score.score.toFixed(1)}</td>
         <td class="num">${formatTime(result.totalTimeMs)}</td>
         <td class="num">${formatCost(result.totalCostUsd)}</td>
-        <td class="num">${result.retryNeeded ? "yes" : "no"}</td>
+        <td class="num">${result.prompts.today?.ok && result.prompts.reviseSeason?.ok ? "yes" : "no"}</td>
+        <td class="num">${(score.gates?.failures.length ?? 0) === 0 ? "pass" : "FAIL"}</td>
       </tr>`;
     })
     .join("\n");
@@ -194,7 +250,7 @@ async function main(): Promise<void> {
         <td class="num score ${scoreClass(score.score)}">${score.score.toFixed(1)}</td>
         <td class="num">${formatTime(result.totalTimeMs)}</td>
         <td class="num">${formatCost(result.totalCostUsd)}</td>
-        <td class="num">${result.retryNeeded ? "yes" : "no"}</td>
+        <td class="num">${(score.gates?.failures.length ?? 0) === 0 ? "pass" : "FAIL"}</td>
       </tr>`;
     })
     .join("\n");
@@ -231,24 +287,55 @@ async function main(): Promise<void> {
     .map((score, index) => {
       const result = resultById.get(score.id);
       if (!result) return "";
-      const lastAttempt = result.attempts.at(-1);
-      const plan = result.plan;
-      const jsonText = plan
-        ? prettyJson(plan)
-        : result.attempts
-            .map((attempt, attemptIndex) => {
-              const reason =
-                attempt.error ??
-                attempt.parseError ??
-                (attempt.raw
-                  ? "response did not match the contract"
-                  : "no content");
-              return `attempt ${attemptIndex + 1}: ${reason}`;
-            })
-            .join("\n");
-      const retryText = result.retryNeeded
-        ? `yes (${result.attempts.length} attempts)`
-        : "no";
+      const promptSections = PROMPTS.map((promptDefinition) => {
+        const prompt = result.prompts[promptDefinition.id];
+        const judged = score.prompts?.[promptDefinition.id];
+        const lastAttempt = prompt?.attempts.at(-1);
+        const retryText =
+          prompt?.retryNeeded === true
+            ? `yes (${prompt.attempts.length} attempts)`
+            : "no";
+        const componentText = judged
+          ? `Contract ${judged.components.contract.toFixed(1)}/1.5 · Fidelity ${judged.components.fidelity.toFixed(1)}/2 · Design ${judged.components.design.toFixed(1)}/3 · Rationale ${judged.components.rationale.toFixed(1)}/2 · Grounding ${judged.components.grounding.toFixed(1)}/2 · Detail ${judged.components.detail.toFixed(1)}/2`
+          : "no judged components";
+        const errorText =
+          prompt !== undefined && prompt.validationErrors.length > 0
+            ? `<div class="errors"><strong>Validation:</strong> ${escapeHtml(prompt.validationErrors.join("; "))}</div>`
+            : "";
+        return `<div class="prompt-section">
+          <div class="prompt-head">
+            <h3>${escapeHtml(promptDefinition.label)}</h3>
+            <div class="prompt-score ${scoreClass(judged?.score ?? 0)}">${(judged?.score ?? 0).toFixed(1)}<span>/12.5</span></div>
+          </div>
+          <div class="meta-grid prompt-meta">
+            <div><span>Time</span><strong>${formatTime(prompt?.totalTimeMs ?? 0)}</strong></div>
+            <div><span>Cost</span><strong>${formatCost(prompt?.totalCostUsd ?? 0)}</strong></div>
+            <div><span>Retry</span><strong>${retryText}</strong></div>
+            <div><span>Valid JSON</span><strong>${prompt?.ok ? "yes" : "no"}</strong></div>
+            <div><span>HTTP</span><strong>${lastAttempt?.httpStatus ?? "—"}</strong></div>
+            <div><span>Finish</span><strong>${escapeHtml(lastAttempt?.finishReason ?? "—")}</strong></div>
+          </div>
+          <div class="components">${componentText}</div>
+          <div class="judgment"><strong>Judgment:</strong> ${escapeHtml(judged?.note ?? "Not judged.")}</div>
+          ${errorText}
+          <h3>Returned JSON</h3>
+          <pre>${escapeHtml(promptPlanText(prompt))}</pre>
+        </div>`;
+      }).join("\n");
+
+      const gateBlock = score.gates
+        ? `<div class="gates">
+            ${gateLine("Mentions Atlas", score.gates.atlasMentioned)}
+            ${gateLine("Block 1 changed", score.gates.blockOneChanged)}
+            ${gateLine("Block 1 starts 2026-10-26", score.gates.blockOneStartDateKept)}
+          </div>
+          ${
+            score.gates.failures.length > 0
+              ? `<div class="errors"><strong>Hard gates:</strong> ${escapeHtml(score.gates.failures.join("; "))}</div>`
+              : ""
+          }`
+        : "";
+
       return `<section class="model-section">
         <div class="section-head">
           <div>
@@ -259,39 +346,17 @@ async function main(): Promise<void> {
           <div class="score-box ${scoreClass(score.score)}">${score.score.toFixed(1)}<span>/12.5</span></div>
         </div>
         <div class="meta-grid">
-          <div><span>Time</span><strong>${formatTime(result.totalTimeMs)}</strong></div>
-          <div><span>Cost</span><strong>${formatCost(result.totalCostUsd)}</strong></div>
-          <div><span>Retry</span><strong>${retryText}</strong></div>
-          <div><span>Valid JSON</span><strong>${result.ok ? "yes" : "no"}</strong></div>
-          <div><span>HTTP</span><strong>${lastAttempt?.httpStatus ?? "—"}</strong></div>
-          <div><span>Finish</span><strong>${escapeHtml(lastAttempt?.finishReason ?? "—")}</strong></div>
+          <div><span>Total time</span><strong>${formatTime(result.totalTimeMs)}</strong></div>
+          <div><span>Total cost</span><strong>${formatCost(result.totalCostUsd)}</strong></div>
+          <div><span>Both valid</span><strong>${result.ok ? "yes" : "no"}</strong></div>
+          <div><span>Hard gates</span><strong>${(score.gates?.failures.length ?? 0) === 0 ? "pass" : "FAIL"}</strong></div>
+          <div><span>Judge cost</span><strong>${formatCost(score.judge?.costUsd ?? 0)}</strong></div>
+          <div><span>Judged</span><strong>${escapeHtml(score.judge?.model ?? "—")}</strong></div>
         </div>
-        <div class="components">
-          Contract ${score.components.contract.toFixed(1)}/1.5 ·
-          Fidelity ${score.components.fidelity.toFixed(1)}/2 ·
-          Design ${score.components.design.toFixed(1)}/3 ·
-          Rationale ${score.components.rationale.toFixed(1)}/2 ·
-          Grounding ${score.components.grounding.toFixed(1)}/2 ·
-          Detail ${score.components.detail.toFixed(1)}/2
-        </div>
-        <div class="judgment"><strong>Judgment:</strong> ${escapeHtml(score.note)}</div>
-        <h3>Returned JSON</h3>
-        <pre>${escapeHtml(jsonText)}</pre>
-        ${
-          result.validationErrors.length > 0
-            ? `<div class="errors"><strong>Validation:</strong> ${escapeHtml(result.validationErrors.join("; "))}</div>`
-            : ""
-        }
-        ${
-          result.attempts.length > 1
-            ? `<div class="errors"><strong>Attempts:</strong> ${result.attempts
-                .map(
-                  (attempt, attemptIndex) =>
-                    `#${attemptIndex + 1} ${formatTime(attempt.timeMs)} ${formatCost(attempt.costUsd)}${attempt.error ? ` — ${escapeHtml(attempt.error)}` : attempt.parseError ? ` — ${escapeHtml(attempt.parseError)}` : ""}`,
-                )
-                .join(" · ")}</div>`
-            : ""
-        }
+        ${gateBlock}
+        <div class="components">Combined components (weaker of the two prompts): Contract ${score.components.contract.toFixed(1)}/1.5 · Fidelity ${score.components.fidelity.toFixed(1)}/2 · Design ${score.components.design.toFixed(1)}/3 · Rationale ${score.components.rationale.toFixed(1)}/2 · Grounding ${score.components.grounding.toFixed(1)}/2 · Detail ${score.components.detail.toFixed(1)}/2</div>
+        <div class="judgment"><strong>Combined judgment:</strong> ${escapeHtml(score.note)}</div>
+        ${promptSections}
       </section>`;
     })
     .join("\n");
@@ -300,7 +365,7 @@ async function main(): Promise<void> {
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Today Prompt Benchmark — All OpenRouter Models</title>
+<title>Prompt Benchmark — All OpenRouter Models</title>
 <style>
   @page { size: A4; margin: 16mm 14mm 18mm; }
   * { box-sizing: border-box; }
@@ -357,6 +422,12 @@ async function main(): Promise<void> {
   .meta-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6pt; margin-bottom: 8pt; }
   .meta-grid span { display: block; font-size: 7pt; text-transform: uppercase; letter-spacing: 0.5pt; color: #8391a1; }
   .meta-grid strong { font-size: 9pt; }
+  .prompt-section { border-top: 1px solid #e6eaef; margin-top: 10pt; padding-top: 2pt; }
+  .prompt-head { display: flex; justify-content: space-between; align-items: baseline; }
+  .prompt-head h3 { margin-top: 8pt; }
+  .prompt-score { font-size: 14pt; font-weight: 800; }
+  .prompt-score span { font-size: 8pt; font-weight: 500; color: #8391a1; }
+  .prompt-meta { margin-top: 4pt; }
   .components { font-size: 7.8pt; color: #576574; background: #f4f6f8; border-radius: 4pt; padding: 4pt 6pt; margin-bottom: 7pt; }
   .judgment { font-size: 9.2pt; margin-bottom: 6pt; }
   pre {
@@ -372,6 +443,10 @@ async function main(): Promise<void> {
     margin: 0;
   }
   .errors { font-size: 8pt; color: #b00020; margin-top: 6pt; }
+  .gates { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6pt; margin: 4pt 0 8pt; }
+  .gate { border-radius: 4pt; padding: 4pt 6pt; font-size: 8pt; display: flex; justify-content: space-between; gap: 6pt; }
+  .gate-pass { background: #e9f7ee; color: #0b6b3a; }
+  .gate-fail { background: #fdecef; color: #b00020; }
   .note { font-size: 8.5pt; color: #576574; }
   .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 18pt; }
   .toc-note { font-size: 9pt; color: #576574; margin-top: 10pt; }
@@ -381,46 +456,49 @@ async function main(): Promise<void> {
 <body>
 <div class="cover">
   <div class="eyebrow">Killingit · LLM benchmark</div>
-  <h1>Today Prompt Benchmark</h1>
-  <p class="subtitle">One coaching decision, all ${results.length} base models on OpenRouter. Same prompt, same athlete, same day: Friday 30 October 2026. Every valid response is scored by ${judgeModel ?? "the judge model"} with a dedicated extra-useful-detail category.</p>
+  <h1>Prompt Benchmark</h1>
+  <p class="subtitle">Two coaching tasks, all ${results.length} selected models on OpenRouter. Same athlete, two prompts: a single day on Friday 30 October 2026, and a drastic season revision on Saturday 31 October 2026 after the Atlas Mountain Race entered the calendar. Every valid response is scored by ${judgeModel ?? "the judge model"}.</p>
 
   <div class="summary-grid">
     <div class="summary-card"><span>Models</span><strong>${results.length}</strong></div>
-    <div class="summary-card"><span>Valid JSON</span><strong>${valid}</strong></div>
-    <div class="summary-card"><span>Needed retry</span><strong>${retries}</strong></div>
+    <div class="summary-card"><span>Valid on both</span><strong>${valid}</strong></div>
+    <div class="summary-card"><span>Hard-gate failures</span><strong>${gateFailures}</strong></div>
     <div class="summary-card"><span>Average score (valid)</span><strong>${avgScore.toFixed(1)}</strong></div>
   </div>
 
   <div class="callout">
-    <strong>What was tested.</strong> Each model received the prompt in
-    <code>benchmarks/today-prompt/prompt.txt</code> verbatim and was asked for
-    only the plan for today, 2026-10-30, as JSON. The prompt contains the full
-    athlete profile, recent activities and coach analyses, the current season,
-    block and week, the athlete's latest metrics, and the weather forecast.
-    The stored Friday session is a 45-minute moderate gym strength session
-    (Gym Strength B) in the Autumn Re-Entry block. A model needed a retry when
-    its first response was not parseable, did not match the contract, or the
-    request failed. The field is every standard (non-variant) text model listed
-    on OpenRouter; <code>:batch</code> and <code>:free</code> aliases are
-    excluded. ${results.length - valid} models returned no valid JSON after both
-    attempts; they remain in the tables with a score of 0 and their provider
-    error.
+    <strong>What was tested.</strong> Each model received
+    <code>benchmarks/prompts/today-prompt.txt</code> and
+    <code>benchmarks/prompts/revise-season-prompt.txt</code> verbatim, in two
+    separate calls. The today prompt asks for only the plan for 2026-10-30. The
+    revision prompt asks for a refreshed season, current block, week and day
+    after the athlete added the Atlas Mountain Race on 25 December 2026. Both
+    prompts contain the full athlete profile, recent activities and coach
+    analyses, the current plan, the athlete's latest metrics, and the weather
+    forecast. A model needed a retry when a response was not parseable or did
+    not match its contract. ${retries} models needed at least one retry.
+    ${results.length - valid} models did not return valid JSON on both prompts;
+    they remain in the tables with a score of 0 and their provider error.
+  </div>
+
+  <div class="callout">
+    <strong>Hard gates on the season revision.</strong> Ability is F for any
+    model that does not mention Atlas anywhere in its output, leaves block 1
+    unchanged, or changes the start date of block 1 (2026-10-26). The gates are
+    checked mechanically against the supplied current block, not by the judge.
+    ${gateFailures} models failed at least one gate.
   </div>
 
   <div class="callout">
     <strong>How quality was judged.</strong> Every valid JSON response was read
-    and scored by ${judgeModel ?? "the judge model"} (OpenRouter), not by a code
-    pattern matcher. The judge received only the original prompt and the
-    candidate response; it inferred the athlete, constraints and expected
-    session itself. The score is the sum of six components with a maximum of
-    12.5: contract compliance (1.5), fidelity to the original prompt and current
-    plan (2.0), session design (3.0), rationale (2.0), grounding (2.0), and
-    <em>extra, useful detail</em> in the workout description (2.0). Design rewards
-    a specific, safe, well-sequenced session without requiring any particular
-    exercise. Detail rewards execution help such as load progression, technique
-    cues, stop conditions, fallbacks, explicit assumptions and success criteria,
-    not padding. Models that returned no valid JSON after one retry score 0 and
-    were not sent to the judge. Judge cost: ${judgeModel ? formatCost(judgeCost) : "—"}.
+    and scored by ${judgeModel ?? "the judge model"} (OpenRouter) with a rubric
+    for its prompt, not by a code pattern matcher. Each prompt is scored out of
+    12.5 across contract compliance (1.5), fidelity (2.0), design (3.0),
+    rationale (2.0), grounding (2.0), and extra, useful detail (2.0). The
+    combined score is the mean of the two prompt scores; each component keeps
+    the weaker of the two values, so a failing component in either prompt grades
+    the model F. Time and cost are the sum of both prompt runs, including
+    retries. Judge cost: ${judgeModel ? formatCost(judgeCost) : "—"}.
   </div>
 
   <div class="summary-grid">
@@ -430,22 +508,22 @@ async function main(): Promise<void> {
     <div class="summary-card"><span>Within 0.3 of best</span><strong>${close.length}</strong></div>
   </div>
 
-  <p class="toc-note">Run <code>${RUN_ID}</code> · generated ${new Date().toISOString().slice(0, 10)} · model costs are OpenRouter-reported, including retries · times are wall-clock · judge: ${judgeModel ?? "—"}.</p>
+  <p class="toc-note">Run <code>${RUN_ID}</code> · generated ${new Date().toISOString().slice(0, 10)} · model costs are OpenRouter-reported, including retries · times are the sum of both prompts · judge: ${judgeModel ?? "—"}.</p>
 </div>
 
 <div class="page-break"></div>
 <h1 class="section-title">All models</h1>
-<p class="section-intro">Ranked by judged quality, then by cost. Time and cost include any retry.</p>
+<p class="section-intro">Ranked by combined judged quality, then by cost. Time and cost include both prompts and any retry.</p>
 <table>
-  <thead><tr><th class="num">Rank</th><th>Model</th><th class="num">Score /12.5</th><th class="num">Time</th><th class="num">Cost</th><th class="num">Retry</th></tr></thead>
+  <thead><tr><th class="num">Rank</th><th>Model</th><th class="num">Score /12.5</th><th class="num">Time</th><th class="num">Cost</th><th class="num">Both valid</th><th class="num">Gates</th></tr></thead>
   <tbody>${rows}</tbody>
 </table>
 
 <div class="page-break"></div>
 <h1 class="section-title">Models close to the best</h1>
-<p class="section-intro">Every model scoring within 0.3 points of the best (${best.toFixed(1)}), ranked by quality and then cost. This is the practical shortlist: the plans that are close to as good as the best one.</p>
+<p class="section-intro">Every model scoring within 0.3 points of the best (${best.toFixed(1)}), ranked by quality and then cost. This is the practical shortlist: the plans that are close to as good as the best one on both prompts.</p>
 <table>
-  <thead><tr><th class="num">Rank</th><th>Model</th><th class="num">Score /12.5</th><th class="num">Time</th><th class="num">Cost</th><th class="num">Retry</th></tr></thead>
+  <thead><tr><th class="num">Rank</th><th>Model</th><th class="num">Score /12.5</th><th class="num">Time</th><th class="num">Cost</th><th class="num">Gates</th></tr></thead>
   <tbody>${subsetRows}</tbody>
 </table>
 
@@ -470,7 +548,7 @@ async function main(): Promise<void> {
 
 <div class="page-break"></div>
 <h1 class="section-title">Model-by-model</h1>
-<p class="section-intro">One section per model in rank order. Each shows the measured time and cost, whether a retry was needed, the judged score and its components, a short judgment, and the JSON exactly as returned (pretty-printed).</p>
+<p class="section-intro">One section per model in rank order. Each shows the sum of both prompts, the hard gates, and then each prompt's score, judgment and JSON exactly as returned (pretty-printed).</p>
 
 ${sections}
 </body>

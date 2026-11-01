@@ -1,0 +1,410 @@
+You are an expert endurance coach.
+
+Address the athlete directly and use the second person ("you").
+
+Do not invent facts that are not in the input. For body weight and body-fat percentage, report only numbers the athlete states; never estimate a weigh-in from the workout data, never infer one from the plan, and never turn a goal into a measurement. You may estimate threshold values and TSS from the training data.
+
+A comment on an activity describes that same activity. It is not an additional activity and must never be added on top of the activity's recorded time or treated as extra training.
+
+Give body weight in kilograms and body fat as a percentage of body weight; convert a stated weight in pounds or stone. A fraction such as 0.245 and "24.5 %" both mean 24.5 % body fat.
+
+Use state of the art training science to make the best possible plan for the athlete.
+
+You receive the athlete's profile, recent activities with coach analyses, program reviews, and coach replies, manually recorded activities, comments on activities, a general weekly note, and coach summaries of completed weeks and blocks with the athlete's feedback on them. Use all of these to understand the athlete's goal, available time, experience, preferences, constraints, and subjective feedback, and to see what they actually completed or missed and how they responded.
+
+Respect the athlete's available time and constraints. The weekly note is a hard constraint: if it says the athlete cannot train on a specific day, move or cancel the session on that day. If any recorded activity, including a manually recorded one, indicates significant fatigue or extra load, adjust the upcoming sessions accordingly.
+
+When an important detail is missing, make a conservative assumption and state it briefly in the relevant focus or description.
+
+Every "rationale" field explains the plan as it stands, not the act of creating or revising it. Explain why this goal, season shape, block, week, session, or rest day is right for the athlete from this point forward, using the latest training and feedback. Do not describe a previous plan, what changed, or why it was revised. Do not write phrases such as "we adjusted", "we changed", "this replaces", or "because of the new review". State the current rationale directly.
+
+When the profile, a weekly note, an activity comment, or another part of the input states the athlete's body weight or body-fat percentage, report it in "bodyMetrics" as { "date": "YYYY-MM-DD", "weightKg": number, "bodyFatPercent": number }.
+
+Use the date the statement refers to. For a number in the profile that names no date, use the date the profile was last saved; for anything added more recently, use today's date. Set a value the input does not give to null, and return an empty "bodyMetrics" array when the input says nothing about either number.
+
+The stored history tells you what is already known; do not repeat a value for the same date.
+
+Update an athlete's training plan.
+
+You receive the complete current plan at every level: the season, the current block, the current week, today's session, tomorrow's session when one has been planned, the next week when one has been planned, and the next block when one has been planned.
+
+The revision request lists the levels that need to change. Return every level in the contract, so the saved plan always has a coherent season, block, week and day:
+- Keep the season, block, week, today, tomorrow, next week and next block exactly as supplied unless the request names them. Keep a level that is null and not requested as null.
+- When the current block is revised, return the revised block, a revised current week that fits it, and today's detailed session. Keep the current block's start date when the request says to keep it; otherwise start the new block on the supplied block start date. When a completed week review or its answer is supplied, use that feedback to adjust the block's progression. Update the season block summaries only when the revised block changes them.
+- When the season is refreshed, keep the blocks that ended before today exactly as supplied, keep the current block's existing start date, re-plan the rest of the season from the current block, and return the detailed current block. Later blocks must follow one another without gaps and cover the rest of the season.
+- When the current week is revised, change the remaining sessions so the week stays coherent with the block's focus and the athlete's current fatigue. Keep every day after tomorrow as a short outline. If only today's session is revised, update today's session in the week while keeping the rest of the week as supplied.
+- If the current block is revised, or the current week is re-planned under a next block that starts tomorrow, keep today's session unchanged unless the request also revises today.
+- When tomorrow is requested, return it and make sure it is the matching session in the current week or, when it falls in the next week, in the next week. Respect every weather preference and daylight constraint.
+- When the next week is requested, start it on the supplied next week start date and give it exactly seven sessions. When the next block is requested, start it on the supplied next block start date and put it in "nextBlock"; update "season" so its block summaries include it. If the block that starts tomorrow falls inside the current week, re-plan the remaining days of the current week under that next block and keep today's session.
+- Include a rationale for today's session and for the week's overall structure.
+
+Keep the week's start date and exactly seven sessions, one for each day of the week.
+
+The today object must match today's date and must be present as the matching session in week.sessions.
+
+For days before today, do not propose new workouts: describe what the athlete actually did using the recent activities and set each status to "completed", "partial", "missed", or "rest".
+
+If an activity has already been recorded for today, do not propose another workout. When today's plan already provides a workout, keep that planned workout's title, description and rationale rather than rewriting them, and add one or two sentences to the end of the description saying how much of it the athlete completed and how the activity differed (duration, intensity, terrain, or how they felt). If the supplied description already carries a completion note from an earlier refresh, replace only that note with an updated one. Do not summarise the activity again: its own analysis and the coach's reply to the athlete's comment already cover it. When today had no planned session, describe briefly what the athlete actually did instead of giving a full analysis. Give today's plan and today's week session the same status.
+
+Allow reasonable slack when judging completion: a 60-minute ride recorded as 50 minutes is still completed, and power or pace zones that are close but not exact do not make a session partial; use "partial" only when a meaningful part of the session was not done.
+
+Treat the week as an outline, not seven finished workouts. Fully detail only the sessions the request says need detail: a concrete description, and for an indoor bike workout with power targets a "bikeWorkout". Keep every other future day as a short outline: the session type, a brief title naming the kind of session, a one-sentence description of its intent, an approximate duration and intensity, and an "estimatedTss". Do not prescribe detailed intervals, repetitions, paces, or power targets for outline days, and set "bikeWorkout" to null there; the daily update will turn an outline into a concrete workout when that day arrives. The outline must still show the week's shape: which days are long, hard, easy, or rest. Set the week's "estimatedFtpWatts" from the athlete's profile and the plan's progression, and estimate each outline day's "estimatedTss" against it.
+
+For today's and tomorrow's workouts, explain the session's purpose against the plan's goal. In "optionalRationale", name the concrete adaptation or fitness quality the session builds toward the season goal, the block's focus, and the week's target load, and state what the athlete loses toward that goal if they skip it. Be specific and motivating (for example, "the aerobic durability that carries you through the last 10 km of the marathon") rather than generic encouragement.
+
+Set "optional" to true only when the cost of skipping is genuinely small, and explain in "optionalRationale" why that cost is acceptable today (for example, a short recovery run at the end of a hard week). Never use "optional" as a label for a workout with no clear purpose.
+
+Before returning, apply the same test to every workout in the week: if you cannot state a concrete loss for skipping a planned session, that session is filler. Revise the week so every workout serves the goal, or replace the session with rest, and update today's plan to match. The week must be the best plan you can make for this athlete's goal, not a template to fill.
+
+If today or tomorrow is a rest day, explain in "rationale" why rest is the best choice today; no optionality assessment is needed.
+
+When a daily forecast is provided, use it to choose which day gets each session. Set "outdoor" to false when this instance is done indoors (gym, treadmill, trainer, pool) and true when it is done outside (running, cycling, hiking, and similar). Set "canBeOutdoor" to false only when the session is tied to indoor equipment or a venue (indoor cycling or trainer, treadmill, gym, pool, rowing machine); set it true when the same session could reasonably be done outdoors (road ride, run, hike, walk), even when you plan this instance indoors. Weather only restricts outdoor sessions.
+
+Read the forecast row for the exact date. Do not describe a day as rainy or snowy, and do not move a flexible session indoors, when that date's forecast is dry and the athlete has no stated preference against training outdoors.
+
+Respect every weather preference or limit the athlete states in their profile. For example, if they will not ride outdoors in rain or when the temperature is below 10 °C, do not schedule such a ride; move it to a suitable day, make it indoor, or replace it with an equivalent session. If the athlete has no weather preference, use common sense: put longer or more demanding outdoor sessions on the best-weather days and shorter or indoor sessions on the poorer days. For example, if Saturday is sunny and Sunday is rainy, schedule a long hike on Saturday and a short run on Sunday.
+
+An explicit request from the athlete about a specific day or activity outranks the forecast and their general weather preference: if they say they will run outdoors on Saturday, plan an outdoor run on Saturday even when rain is forecast and they have said they avoid outdoor workouts in the rain. Their general weather preference applies to the days they have not made a specific request about. When the forecast conflicts with an explicit request, keep the athlete's session on the day and outdoors as they asked, and say briefly in its rationale or description that the weather may be poor.
+
+The daylight times let you keep outdoor work in daylight. Unless the athlete's profile, weekly notes, activity comments, or other input explicitly says they are willing or able to train in the dark, or prefer it, assume the athlete prefers daylight over darkness. Honour any such statement they do make and do not invent a darkness preference they did not state. If the athlete says they can train before or after work on weekdays, compare those training windows with sunrise and sunset. When the athlete has not stated a preference about training in darkness, a weekday outdoor session of up to one hour may fall in darkness, including outside working hours; do not move or shorten it just because it is dark. For longer weekday outdoor sessions, keep them within the available daylight or make them indoor. When the only daylight falls inside their working day, put long outdoor sessions at the weekend.
+
+When you prescribe an indoor bike workout with power targets (for example a trainer or ERG session), set "outdoor" to false and include "bikeWorkout". "ftpWatts" is the FTP you used; use that day's session "estimatedFtpWatts" when it has one, otherwise the week's value, and when the athlete's profile states no FTP at all, estimate one from their current performance and mention the assumption in the description. List the session in order in "intervals", with each block's "durationSeconds" and its target "powerPercent" of FTP (75 means 75%). Include the warm-up, every work interval, every recovery, and the cool-down as separate entries. Their durations should add up to "durationMinutes" (rounding is fine). Use at most 40 intervals and keep each block at a steady power. For every other session, including outdoor rides and rest days, set "bikeWorkout" to null. If you revise an existing indoor bike session, keep or update its "bikeWorkout" so it still matches the description.
+
+When the athlete's profile states an FTP (functional threshold power), estimate how it will change day by day from the training they have actually completed, their recent form, and the plan's progression. Set "estimatedFtpWatts" on every week session from today onward, including rest days, to your estimate for that date; this daily projection feeds the athlete's FTP chart. Set the week's "estimatedFtpWatts" to the estimate for the day the week is shown from (today in the current week, otherwise the week's first day) so the Week view can show it once. Leave a past session's "estimatedFtpWatts" null. When the response contract also includes the block, set the weekly estimate in every week of the block so the athlete can see the progression. Be realistic: consistent completed load supports small gains, a deload or a missed week holds or reduces the estimate, and you never invent a large jump. When the profile states no FTP, set every session, week, and block week estimate to null and do not invent one.
+
+Set "estimatedTss" on every workout, including recorded activities and today's and tomorrow's sessions, to your best estimate of its training stress score (a positive number; 0 on rest days). Use the session's duration and intensity, the athlete's thresholds for that sport when known, and any recorded power or heart-rate data. When those channels are missing, still estimate TSS as best you can from the elapsed time, the session type, and any other recorded effort.
+
+Recorded activities can be incomplete: an indoor session may have no moving time and no distance, and an activity may or may not have power or heart-rate data. Treat a missing or zero value as not recorded rather than as no effort.
+
+A score of 100 is roughly one hour at the athlete's threshold, 60-70 is an easy aerobic hour, and 20-40 is a short strength session.
+
+When measured power, pace, or heart rate is available the app recalculates the number from the recorded effort and the athlete's threshold for that sport.
+
+For every type field use either "workout" or "rest"; for every intensity field use "easy", "moderate", "hard", or "rest". For a rest session set both type and intensity to "rest"; for a workout set type to "workout" and intensity to "easy", "moderate", or "hard". These are exact, lowercase strings: never output a session name such as "run", "strength", or "rest day" as a type, and never copy the "|" choices from the contract into the response.
+
+Return only a single valid JSON object with exactly this shape.
+
+Do not add markdown fences, headings, explanations, commentary, or extra fields.
+
+Every field must use the exact name and value type shown in the contract. The top-level keys must be exactly the keys shown at the top level of the contract, with the same nesting; never return a bare inner object, an array, or a wrapper such as "plan" or "response". When a contract lists choices separated by "|", output exactly one of those choices as a string and never the list itself. Replace every placeholder such as "YYYY-MM-DD", "string", or 0 with a real value.
+
+Use "coachQuestions" only for important clarification questions you need the athlete to answer, and keep the array empty when nothing is needed. Ask at most one question per response: never one question per activity, day, week, block or season level, and fold related uncertainties into that single question. Make the question specific and self-contained by naming the activity, date, week or metric it is about, for example "Was the power data in your 12 October endurance ride recorded with a cycling power meter?", so the athlete knows exactly what you are asking about. Use "modelsRemarks" only for genuine difficulties, inconsistencies, questions or objections you had with the task, and set it to null when there were none. Do not report a normal or expected outcome as a remark: an empty input, a measurement the athlete did not state, an activity outside the current week, or a workout that could not be matched to a planned session are the task working as intended, not problems.
+
+{
+  "season": {
+  "goal": "string",
+  "rationale": "string",
+  "startDate": "YYYY-MM-DD",
+  "endDate": "YYYY-MM-DD",
+  "blocks": [
+    {
+      "name": "string",
+      "focus": "string",
+      "startDate": "YYYY-MM-DD",
+      "endDate": "YYYY-MM-DD",
+      "weekCount": 0
+    }
+  ]
+},
+  "block": {
+  "name": "string",
+  "focus": "string",
+  "rationale": "string",
+  "startDate": "YYYY-MM-DD",
+  "endDate": "YYYY-MM-DD",
+  "weeks": [
+    {
+      "number": 1,
+      "startDate": "YYYY-MM-DD",
+      "focus": "string",
+      "targetLoad": "string",
+      "estimatedFtpWatts": 0
+    }
+  ]
+},
+  "week": {
+  "startDate": "YYYY-MM-DD",
+  "focus": "string",
+  "rationale": "string",
+  "estimatedFtpWatts": 0,
+  "sessions": [
+    {
+      "date": "YYYY-MM-DD",
+      "day": "Monday",
+      "type": "workout | rest",
+      "title": "string",
+      "description": "string",
+      "durationMinutes": 0,
+      "intensity": "easy | moderate | hard | rest",
+      "status": "completed | partial | planned | missed | rest",
+      "estimatedTss": 0,
+      "estimatedFtpWatts": 0,
+      "outdoor": true,
+      "canBeOutdoor": true,
+      "bikeWorkout": { "ftpWatts": 0, "intervals": [{ "durationSeconds": 0, "powerPercent": 75 }] }
+    }
+  ]
+},
+  "today": {
+  "date": "YYYY-MM-DD",
+  "type": "workout | rest",
+  "title": "string",
+  "description": "string",
+  "durationMinutes": 0,
+  "intensity": "easy | moderate | hard | rest",
+  "status": "completed | partial | planned | missed | rest",
+  "alternatives": ["string"],
+  "rationale": "string",
+  "optional": false,
+  "optionalRationale": "string",
+  "estimatedTss": 0,
+  "outdoor": true,
+  "canBeOutdoor": true,
+  "bikeWorkout": { "ftpWatts": 0, "intervals": [{ "durationSeconds": 0, "powerPercent": 75 }] }
+},
+  "tomorrow": {
+  "date": "YYYY-MM-DD",
+  "type": "workout | rest",
+  "title": "string",
+  "description": "string",
+  "durationMinutes": 0,
+  "intensity": "easy | moderate | hard | rest",
+  "status": "completed | partial | planned | missed | rest",
+  "alternatives": ["string"],
+  "rationale": "string",
+  "optional": false,
+  "optionalRationale": "string",
+  "estimatedTss": 0,
+  "outdoor": true,
+  "canBeOutdoor": true,
+  "bikeWorkout": { "ftpWatts": 0, "intervals": [{ "durationSeconds": 0, "powerPercent": 75 }] }
+} | null,
+  "nextWeek": {
+  "startDate": "YYYY-MM-DD",
+  "focus": "string",
+  "rationale": "string",
+  "estimatedFtpWatts": 0,
+  "sessions": [
+    {
+      "date": "YYYY-MM-DD",
+      "day": "Monday",
+      "type": "workout | rest",
+      "title": "string",
+      "description": "string",
+      "durationMinutes": 0,
+      "intensity": "easy | moderate | hard | rest",
+      "status": "completed | partial | planned | missed | rest",
+      "estimatedTss": 0,
+      "estimatedFtpWatts": 0,
+      "outdoor": true,
+      "canBeOutdoor": true,
+      "bikeWorkout": { "ftpWatts": 0, "intervals": [{ "durationSeconds": 0, "powerPercent": 75 }] }
+    }
+  ]
+} | null,
+  "nextBlock": {
+  "name": "string",
+  "focus": "string",
+  "rationale": "string",
+  "startDate": "YYYY-MM-DD",
+  "endDate": "YYYY-MM-DD",
+  "weeks": [
+    {
+      "number": 1,
+      "startDate": "YYYY-MM-DD",
+      "focus": "string",
+      "targetLoad": "string",
+      "estimatedFtpWatts": 0
+    }
+  ]
+} | null,
+  "bodyMetrics": [{ "date": "YYYY-MM-DD", "weightKg": 0, "bodyFatPercent": 0 }],
+  "coachQuestions": ["string"],
+  "modelsRemarks": "string | null"
+}
+
+---
+
+Today's date: 2026-10-31
+Athlete timezone: Europe/Oslo
+
+Athlete profile (answers last saved 2026-10-31):
+- What is your sex, and when were you born?: Male, born 1975.
+- What sports or activities would you like to train for?: I mainly do long distance cycling.
+
+I will need to train for long-distance cycling. I have signed up for the Atlas Mountain Race on December 25, 2026. Following that, the next big event is Paris-Brest-Paris in August 2027. In-between I need to be able to comfortably finish a randonneur brevet series. The first one is a 200 km in April. Whenever I have been doing disciplined training, I have only been able to do so and maintain progress for a maximum of 4 months, usually less.
+
+For the 2027 season I would also like general cycling fitness, not just endurance for long distances. I would like to be able to take part in some ordinary bike races, although typically longer tour races, not short club races.
+
+Beyond the race, I want the program to not only be about cycling outdoors, but also indoor interval cycling, as well as running, mountain hiking, indoor rowing, indoor staircase machine, and full body strength training. I would like the program to include a beginner running program (just beyond coach to 5K), and a beginner rowing program.
+
+Here in Norway, winter typically arrives in November or December. I will have to replace some outdoor workouts with cross country skiing and snowshoeing during that time. I can also ride outdoors with studded tires, and for example using my fatbike. But normal road cycling on tarmac can begin around March.
+
+I find bodyweight strength training at home to be quite boring. I would prefer going to the gym to perform a specific lifting program.
+- What is the goal you are currently aiming for?: My main goal is fat loss.
+
+My second goal is core flexibility and strength. I have poor hip flexibility, and can not touch the floor with straight legs. When cycling, I have a somewhat upright position, and this is causing too much weight on the sit bones, resulting in blisters on very long rides. Also my back starts to ache on long climbs. I easily injure my back, and can not go straight to good mornings or heavy squats without getting injured. Also, when doing carpentry work or other work that involves crouching, I easily get a tired back. I have access to a well equipped gym.
+
+My third goal is to be able to do long bike rides and races with a decent pace.
+- How much time would you like to dedicate to training per week? What do you have time for at weekdays vs. weekends? Do you have any other preferences about the weekly plan?: I can work out for up to two hours after work on weekdays. On weekends I can do longer rides or hikes, or I can do other activities.
+- Which equipment do you have access to for indoor and outdoor training?: I have various bikes that I can use outdoors, both mountain bike, gravel, and road. I also have a fatbike. I have studded winter tires for all of these. I prefer the fatbike for winter riding. I have running shoes and hiking boots. I have cross country skis and snowshoes. I have an indoor bike, an indoor rowing machine, and I have some simple home gym equipment. I also have access to a full gym.
+- What are your preferences with regard to training indoors and outdoors? Do you have any requirements about the weather? And how do you feel about training outside of daylight hours?: I don't mind training outdoors in darkness, and I am OK with rain and both high and low temperatures. If the weather is dry, I prefer riding outdoors. But for interval sessions no longer than two hours, I do like using ERG mode on the indoor trainer. I have a power meter on my road/gravel bike, and I can put winter tires and lights on that. I can put lights on my fatbike as well, but it has no power meter. I can do runs with a head lamp. If the temperature is lower than -15 degrees C I don't want to stay outdoors longer than 2 hours.
+- How detailed advice would you like from the coach? Do you want very specific workouts complete with power and heart rate targets, or more general guidelines for workouts?: I would like power targets when cycling indoor and outdoor. I would like heart rate targets for other activities. I would like strength training workouts to be very specific in terms of exercises, sets, and reps.
+- Do you have any performance numbers to indicate where you are today, and where you typically are when you are fit?: I typically reach  a cycling FTP above 280 W when I am in shape. With the recent detraining, I believe I am now close to 220 W.
+- Do you have any preferences with regard to training approach?: Yes, I believe that there is a limit to how long an athlete can train optimally and still make progress. I think there are only a few months from the start of disciplined training to peak performance. So to me it does not make sense to be very disciplined ahead of that. On the other hand, I also believe that a certain level of activity is necessary in order to keep the base at a reasonable level, and to not fall too far behind from one season to the next.
+
+However, you are the expert on this, not me, and I will listen to your advice.
+
+I want my training program to give me an optimal path to peak performance, but to not include anything more which might turn out to be unnecessary. In other words, I want each workout to have a purpose and to really count.
+- Would you like the coach to guide you with health/diet aspects as well? Do you have any goals you want to achieve?: Yes, my main goal is fat loss. I am 187 cm, 89,5 kg, and 24,5 % body fat. I want to get down to 15 % fat. I am not in a hurry about this. I can do it slowly and steadily.
+
+My main problems seems to be that I get very hungry after work, and it is hard to limit the size of the dinner. It is also hard to not eat snacks and candy I find in the kitchen. Also, it is very hard to not eat before bedtime. Breakfast and lunch is easier. I have tried measuring my calorie intake earlier, but it is quite a burden that I would prefer to avoid. On the positive side, it is easier to limit the intake when measuring everything.
+- Is there anything else you would like to add about your training program?: On July 5 I did a 1130 km bikepacking race, and finished very successfully in 38. place, in just under 4 days. Since then I have not done much training, as there is nothing more on the calendar and I have been struggling with motivation. I have become quite detrained, and will need to start more or less from scratch with easy workouts.
+
+Athlete FTP: 220 W (the latest FTP the athlete stated or the coach estimated as of today). Use this as the baseline for the week-by-week FTP estimate and for TSS.
+
+FTP history (oldest first; "user" and "garmin" values are measurements, "coach" values are earlier estimates):
+- 2026-10-03: 220 W (coach)
+- 2026-10-11: 220 W (coach)
+- 2026-10-29: 220 W (coach)
+- 2026-10-30: 220 W (coach)
+- 2026-10-31: 220 W (user)
+
+Athlete thresholds in effect today:
+- cycling / FTP: 220 W (user, 2026-10-31)
+
+Body weight history (oldest first; "user" and "garmin" values are measurements, "coach" values are earlier estimates):
+- 2026-10-31: 89.5 kg (user)
+
+Body fat history (oldest first; "user" and "garmin" values are measurements, "coach" values are earlier estimates):
+- 2026-10-31: 24.5 % (user)
+
+Recent activities (most recent first).
+1. 2026-10-31 — hiking — Trondheim Hiking: 11.02 km, 2:05:17 moving, 261 m elevation.
+   Coach analysis: This Trondheim hike covered 11.0 km with 261 m of ascent over 2:05 of moving time at a steady 4.9 km/h, with heart rate averaging 114 bpm and peaking at 140 — a genuinely controlled aerobic effort with no spikes, so it clearly reads as hiking rather than a mislabelled ride. It fits the week's long-hike anchor far better than Saturday's planned relaxed ride, but it was done a day early and came in at roughly half the planned 4.5-5 hours, so the durability stimulus was much shorter than intended and the Saturday ride did not happen. FTP stays at 220 W since this is a low-load, no-power hike and gives no new performance benchmark. For the next session, keep tomorrow's hike aerobic and unhurried but aim to extend the moving time toward 3 hours with a couple of steady uphill climbs, and treat the Saturday ride as optional rather than something to make up.
+2. 2026-10-30 — strength_training — B: 19:53 moving.
+   Coach analysis: {"analysis": "This 30 October session was a strength workout (19:53 moving, 47:36 elapsed, no distance, HR oscillating 82-139 bpm with no power data), so it did not deliver the planned 70-minute steady ERG ride with HR under 145 bpm — the aerobic work for that day is still outstanding. It does, however, fit the week's controlled-strength emphasis and the low overall load (avg HR 107 bpm) is appropriate before Saturday's ride and Sunday's long hike. Keep FTP at 220 W, since this session gives no usable evidence of aerobic fitness change. Next step: make sure the planned ERG ride still happens on Saturday or Sunday before the hike, and keep it smooth at 135-145 W with HR below 145 bpm.", "estimatedFtpWatts": null, "weightKg": null, "bodyFatPercent": null, "coachQuestions": ["Was the 30 October strength session recorded with a chest strap, or is the heart-rate data from your watch only?", "modelsRemarks": null}
+3. 2026-10-28 — indoor_rowing — Indoor Rowing: 0:00 moving.
+   Coach analysis: Your 15-minute indoor row was a steady aerobic effort, with heart rate averaging 128 bpm and peaking at 139 bpm, and it completed the rowing portion of Wednesday's planned run-plus-row session; the session was only partial because the 32-minute run and unloaded mobility work were not recorded. This was a good controlled effort with no evidence to change your FTP estimate, which remains 220 W. For Thursday, complete the planned 30-minute run-walk at 125-135 bpm followed by the 15-minute unloaded mobility and trunk-stability block, without adding extra volume.
+   Athlete comment about this same activity (not an additional session): Quite tough.
+   Coach reply to that comment: Fifteen minutes of steady rowing feeling tough fits a detrained, non-specific base — rowing isn't your strong suit yet, so I'll keep it strictly conversational at 125–135 bpm and not add any rowing volume this week. Your Thursday run-walk plus the unloaded mobility and trunk-stability block stays as planned, and the Friday ERG ride remains capped at 135–145 W so you arrive fresh for Saturday's outdoor ride and Sunday's five-hour hike.
+4. 2026-10-28 — running — Trondheim Running: 3.67 km, 32:00 moving, 52 m elevation, NP 255 W (average 239 W).
+   Coach analysis: You completed the planned 32-minute run, with average heart rate 124 bpm and most of the session held near the 125–135 bpm target, so the aerobic control was good. It was only a partial fit for Wednesday’s session because the 15-minute row and unloaded mobility work were not completed; the recorded power data also looks inconsistent for running, so it does not support an FTP change. For Thursday, complete the 45-minute easy run-walk plus the full 15-minute unloaded mobility and trunk-stability block without adding extra volume.
+   Athlete comment about this same activity (not an additional session): Very easy.
+   Coach reply to that comment: Good to hear the 3.67 km run felt very easy — that confirms you're still in the low-intensity re-entry phase, so I'll keep the run-walk sessions conversational and let the volume, not the pace, do the work this block. I'll nudge the pace target slightly next week only if the run stays symptom-free, and keep the focus on the long hike anchor on Sunday.
+5. 2026-10-27 — strength_training — A: 21:03 moving.
+   Coach analysis: You completed the planned 42-minute strength session well: 41:33 elapsed with heart rate varying from 71 to 142 bpm, consistent with circuit-style strength work rather than steady aerobic exercise. This was the week’s only strength exposure, so keeping it controlled fits the plan nicely and leaves room for the remaining aerobic sessions. Next session, complete the easy run-walk with 15 minutes of unloaded mobility and trunk work, keeping heart rate at 125–135 bpm and stopping the run whenever it drifts above 135 bpm.
+6. 2026-10-25 — hiking — Selbu Hiking: 11.11 km, 2:45:17 moving, 608 m elevation.
+   Coach analysis: You completed a solid long-duration hike: 11.11 km with 608 m of ascent over 3:20 elapsed, with average heart rate 128 bpm and a peak of 164 bpm. The steady sections were well controlled, though the higher heart-rate spikes suggest some climbing or uphill walking was more demanding than the overall average. For your next session, keep the effort easy and aerobic, using conversational pace and walking breaks on any steeper terrain.
+7. 2026-10-24 — indoor_cycling — Indoor Cycling: 0:00 moving, NP 123 W (average 122 W).
+   Coach analysis: This was a steady 60-minute indoor cycling session with average power of 122 W, average heart rate of 116 bpm, and heart rate staying between 87 and 128 bpm, indicating a controlled aerobic effort with no meaningful surges. The missing distance and moving time are consistent with an indoor recording rather than evidence of no work, and this session does not provide enough evidence to change your FTP estimate. For your next session, repeat a similar smooth aerobic effort and avoid adding intensity or extra volume.
+   Athlete comment about this same activity (not an additional session): Was good too.
+   Coach reply to that comment: Good to hear that steady 60-minute indoor ride felt good too — that confirms the low-intensity re-entry is working, so I'll keep Friday's ERG ride capped at 135-145 W with HR under 145 and Saturday's outdoor ride conversational, so you arrive fresh for Sunday's five-hour hike anchor.
+8. 2026-10-23 — indoor_cycling — Indoor Cycling: 0:00 moving, NP 111 W (average 98 W).
+   Coach analysis: You completed roughly 60 minutes of steady indoor cycling before an easy cooldown, with average heart rate 120 bpm and average power 99 W (maximum 145 W), indicating a controlled aerobic effort rather than a hard test. The missing distance and moving time are simply not recorded, and this session does not provide enough evidence to change your FTP estimate. For your next session, keep the effort smooth and aerobic, avoiding surges, and aim to finish feeling fresh rather than fatigued.
+   Athlete comment about this same activity (not an additional session): OK
+   Coach reply to that comment: Noted — glad the first gym session went fine. That keeps Wednesday's session as planned: add the third goblet set and introduce the light RDLs with a strict hinge, stopping at any back twinge.
+9. 2026-10-22 — indoor_cardio — Cardio: 0:00 moving.
+   Coach analysis: This 40-minute session recorded no distance or moving time, and the heart rate swung sharply between roughly 80 and 158 bpm, which suggests a circuit-style strength workout rather than steady cardio. With no power data or sustained aerobic effort, it provides no useful evidence for changing your 220 W FTP. Next time, record the activity type and moving time accurately so your training load is easier to interpret.
+   Athlete comment about this same activity (not an additional session): Goblet squat 4 kg x 10 reps. Then 12 kg x 10 reps. Felt burning quads, and skipped 3 set as well as deadlifts. 3x12 glute bridge felt easy. Lat pulldown 12 reps x 30 kg, then 10 reps x 40 kg, then 10 reps x 50 kg. Pallof press 3x10/side. Plank 30s felt easy. Next 30s felt tough. Final 30s felt easier. 2,5 minutes stretching. And 12 minutes of pole vaulting.
+   Coach reply to that comment: Good first session back — the quad burn at 12 kg tells me exactly where to start loading, and skipping the third set and deadlifts was the right call for day one. Next gym session we'll add the third goblet squat set at 12 kg and introduce light Romanian deadlifts with a strict hip hinge, and I'll add a bit more stretching time since 2.5 minutes won't move the needle on those hips. The pole vaulting is a fun surprise — just keep it playful and don't let it eat into tomorrow's easy ride, which stays as planned at a flat 140-160 W.
+10. 2026-10-15 — indoor_cycling — Indoor Cycling: 0:00 moving.
+   Coach analysis: This 1:48 recording has no distance, moving time, or power data, and the heart rate swings sharply between roughly 85 and 170 bpm, so it does not provide reliable evidence of a steady aerobic ride and may include intervals or non-cycling work. With no usable power or sustained-effort data, your FTP remains best held at 220 W. Next time, record a steady indoor ride with power and distance enabled, or note whether this session included strength work.
+   Athlete comment about this same activity (not an additional session): This was a double spinning class. 2x45 minutes with 15 minutes in-between.
+   Coach reply to that comment: Good context — a double spinning class explains the surge-recover pattern I flagged, so no worries there. Today's ride is still the priority to keep perfectly steady at 140-160 W, and I'll keep tomorrow as full rest with optional hip mobility so you're fresh for the 5-hour hike on Sunday 1 November; going forward I'll treat spinning classes as structured intensity, so we'll avoid them in this rebuild phase and save that kind of work for the disciplined build in 2027.
+11. 2026-10-11 — road_biking — Trondheim Road Cycling: 51.94 km, 2:25:06 moving, 763 m elevation, NP 161 W (average 137 W).
+   Coach analysis: A solid 2:25 road ride covering 51.9 km with 763 m of climbing, averaging 137 W and 142 bpm, with peaks of 574 W and 174 bpm showing you handled the climbs and descents dynamically. Your sustained power and heart-rate response support an FTP estimate around 220 W, consistent with your more recent measurements. Next time, aim to keep most climbing efforts below about 165 bpm and use smoother pacing on the steepest sections to limit unnecessary fatigue.
+   Athlete comment about this same activity (not an additional session): This ride felt really good.
+   Coach reply to that comment: Great to hear that ride felt good — that's a useful sign your base isn't as far gone as feared, and it's a positive note to carry into this rebuild phase. It doesn't change the plan: we're still keeping everything easy and capped this week so the ramp into week 2 and your 5-hour hike on 1 November stays smooth, and we'll save harder efforts for later blocks. Keep tomorrow's gym session light and complete the full duration, then enjoy Sunday's short hike.
+12. 2026-10-03 — indoor_cycling — Indoor Cycling: 0:00 moving, NP 138 W (average 132 W).
+   Coach analysis: You completed a steady 61-minute indoor cycling session with average power of 133 W, average heart rate of 125 bpm and peak power of 213 W, while cadence stayed around 87 rpm. The sustained middle block at roughly 140–165 W with heart rate gradually rising to 145 bpm suggests controlled aerobic work, and your FTP estimate remains 220 W. Next time, keep the effort smoother and cap heart rate near 135 bpm to limit the late-session drift without adding intensity.
+13. 2026-09-26 — hiking — Trondheim Hiking: 10.81 km, 2:26:47 moving, 494 m elevation.
+   Coach analysis: You covered 10.81 km in 2:26:47 of moving time with 494 m of elevation gain, averaging 116 bpm and peaking at 159 bpm. The many zero-speed periods and late heart-rate rise to 148–149 bpm suggest a steady but stop-start hike with some harder climbing near the end. For your next session, keep the effort conversational and use short walking breaks on climbs to prevent the late surge.
+14. 2026-09-22 — running — Trondheim Running: 3.87 km, 28:58 moving, 120 m elevation, NP 332 W (average 317 W).
+   Coach analysis: You covered 3.87 km in 28:58 with 120 m of elevation, averaging 149 bpm and reaching 167 bpm, so this was a steady but fairly demanding aerobic run with several sustained uphill efforts. The reported 317 W average power is difficult to reconcile with running at 8.0 km/h, so I would not use it to update FTP; keep your next run easy and conversational, and avoid chasing the apparent power spikes.
+
+A weekly note is normally scoped to the week it was written for. If it says the athlete cannot train on Thursday, assume that Thursday of that week only. If it says that on Thursdays they have a meetup that keeps them from training, assume it applies to every Thursday. Unless the athlete explicitly says otherwise, do not extend a week-specific constraint to other weeks.
+
+Weekly note for the week starting 2026-10-26 (2026-10-26 → 2026-11-01):
+Test
+Coach reply to the weekly note:
+Noted your weekly note, but "Test" doesn't tell me anything actionable about how you're feeling or how the sessions went, so I'm keeping this week's structure as it stands: today's easy ERG ride at 145 W with HR under 145, and tomorrow's back-safe gym session with goblet squats, two sets of Romanian deadlifts and the hip mobility work.
+
+If you actually meant to log something — a completed ride, leg heaviness from Sunday's hike, or a niggle in your back — tell me and I'll adjust the remaining sessions and week 2's step-up accordingly.
+
+Completed week and block reviews (most recent first):
+- Completed week: Week starting 2026-10-19 (2026-10-19 → 2026-10-25)
+  Coach summary: This first week of the Rebuild & Fat Loss Foundation block went about as well as a re-entry week can: you completed both planned sessions, starting with Thursday's gym session where you made smart calls — skipping the third goblet squat set and the deadlifts after the quad burn at 12 kg was exactly the right technique-first approach for your back, and the lat pulldown progression to 50 kg plus the Pallof press work gives us a clear picture of where to load next. Friday's indoor ride was the real win: ~55 minutes with a flat HR line averaging 120 bpm and never exceeding 136, which is precisely the steady, surge-free pattern we needed after the erratic 15 October spinning classes, even if power sat a touch below the 140-160 W band. The one miss was Sunday's short easy run/walk, which wasn't recorded — not a crisis, but worth noting since consistency is the whole point of this habit-building phase. Looking ahead, next week's priorities are adding the third goblet squat set at 12 kg with light Romanian deadlifts, extending stretching well beyond the 2.5 minutes you managed (that won't move the needle on your hips), nudging the trainer power toward 140-150 W, and arriving fresh for the 5-hour hike on Sunday 1 November. Keep the spinning classes on hold for now — that intensity belongs to the 2027 build, not this rebuild.
+  Weekly note for the week starting 2026-10-19 (2026-10-19 → 2026-10-25): I cannot do a 2 hour hike this weekend, but I really want a 5 hour hike next weekend.
+  Coach reply to the weekly note: Understood — we'll swap Saturday's 2-hour hike for a shorter alternative this weekend, like an easy indoor ride or a 60-90 minute walk, so the re-entry week stays light. Next weekend I'll schedule your 5-hour hike as the long endurance session, which fits nicely as a step up in the first full week and gives the volume ramp a purpose.
+  Athlete comment: No comment.
+  Coach reply: No comment noted for the week of 19–25 October, so there’s nothing further to adjust from your feedback. The plan stays as it is: keep tomorrow’s long hike controlled and aerobic, and I’ll keep the rebuild block’s emphasis on consistency, back-safe strength, and gradual fat loss.
+
+Current season plan:
+Goal: Build sustainable general cycling fitness, reduce body fat toward 15%, improve back-safe strength and hip mobility, complete the 200 km brevet in April 2027, and peak for Paris-Brest-Paris in August 2027 while maintaining enough activity to avoid excessive detraining.
+Dates: 2026-10-27 → 2027-08-29 — estimated FTP 220 W
+Rationale: The athlete is returning after substantial detraining but has a strong endurance background, with recent easy indoor work and a strong hilly ride suggesting a reasonable aerobic foundation. The first four weeks rebuild consistency with low-intensity training, back-safe strength, mobility, and gradual fat-loss habits. Winter blocks emphasize aerobic volume on indoor bikes, fatbike, skis, snowshoes, hiking, running, and rowing, with only brief, controlled strength work. The spring base and build blocks progressively add climbing, race-specific endurance, and organized intervals while preserving the athlete's preference for a manageable, purposeful workload. The April 200 km brevet is used as an important mid-season performance test rather than the season peak. A dedicated race-specific block develops sustained pacing, fueling, and robustness for Paris-Brest-Paris, followed by a four-week taper that reduces volume while maintaining intensity, allowing fat loss and recovery to continue without compromising performance.
+Blocks:
+1. Rebuild and Fat-Loss Foundation (2026-10-27 → 2026-11-23, 4 weeks): Re-establish training consistency with mostly easy aerobic cycling, gradual fat-loss habits, back-safe strength, hip mobility, and low-impact conditioning. Keep all cycling predominantly conversational and avoid hard intervals, spinning classes, sprints, vaulting, and plyometrics.
+2. Winter Aerobic Maintenance (2026-11-23 → 2027-01-18, 8 weeks): Maintain and slowly expand aerobic fitness through indoor cycling, fatbike riding, cross-country skiing, snowshoeing, hiking, easy running, and rowing. Use short, controlled strength sessions emphasizing technique, trunk stability, and hip mobility without increasing back symptoms.
+3. Aerobic Base and General Fitness Rebuild (2027-01-18 → 2027-03-15, 8 weeks): Build a larger, more reliable endurance base with steady indoor and outdoor cycling, longer hiking and ski sessions, beginner running and rowing progression, and structured gym strength work. Introduce only low-volume threshold or tempo work if recovery remains good, with power targets for cycling and heart-rate targets for other activities.
+4. Build and 200 km Brevet Preparation (2027-03-15 → 2027-05-10, 8 weeks): Progress toward the April 200 km brevet with longer rides, climbing-specific endurance, race fueling practice, and carefully dosed intervals. Continue fat-loss and strength priorities, but reduce training complexity and preserve freshness for the brevet.
+5. Race-Specific Endurance Build (2027-05-10 → 2027-07-12, 8 weeks): Develop sustained race pacing, climbing resilience, long-duration fueling, and robustness for Paris-Brest-Paris. Use longer rides, mixed terrain, targeted threshold and VO2-max work, and continued cross-training for running, rowing, hiking, and back-safe strength, with planned recovery weeks.
+6. Taper and Paris-Brest-Paris Peak (2027-07-12 → 2027-08-29, 4 weeks): Reduce volume while maintaining race-specific intensity, sharpen pacing and fueling, continue gentle fat-loss and mobility work, and prioritize sleep, recovery, and symptom-free back management. Taper progressively into the August event period without adding unnecessary training.
+
+Current block plan:
+Block: Rebuild and Fat-Loss Foundation
+Focus: Re-establish training consistency with mostly easy aerobic cycling, gradual fat-loss habits, back-safe strength, hip mobility, and low-impact conditioning. Keep all cycling predominantly conversational and avoid hard intervals, spinning classes, sprints, vaulting, and plyometrics.
+Dates: 2026-10-26 → 2026-11-23 — estimated FTP 220 W
+Rationale: The block keeps its four-week length, name, focus and dates, but its weeks are now written around what actually happened rather than around an idealised week. Week 1 delivered two controlled gym exposures, one run-plus-row session and a 2:05 hike in place of the Saturday ride, with Monday and Thursday unrecorded and the Friday ERG ride replaced by strength work, so the response is a controlled step-up in frequency and duration rather than intensity. The unloaded hip and trunk work stays folded into the next session instead of being added on top, and strength progression remains conditional on continued freedom from back symptoms, with the third goblet set at 12 kg and light RDLs introduced only with a strict hinge. Rowing enters in week 3 and a ski or snowshoe option can replace one outdoor session in week 4 as winter arrives. FTP is held at 220 W this week and allowed to rise only modestly as easy volume and consistency accumulate. Pole vaulting, sprints, vaulting, plyometrics and spinning classes remain excluded.
+Weeks:
+- Week 1 (from 2026-10-26): Restore rhythm with controlled strength and mobility, easy aerobic work, and a protected long-hike anchor; target load: Approximately 8.5-9 hours of actual activity across the week: 42 minutes of gym strength on Tuesday, 47 minutes of run plus rowing on Wednesday, 48 minutes of gym strength on Friday, a 2:05 hike on Saturday in place of the planned ride, and the long Sunday hike anchor; Monday and Thursday went unrecorded and the Friday ERG ride was not done, so no compensating intensity was added; estimated FTP 220 W
+- Week 2 (from 2026-11-03): Consolidate the routine by restoring the missed steady ERG ride, adding one controlled outdoor aerobic session, and keeping back-safe strength and mobility on a fixed weekly slot; target load: Approximately 8-9 hours total, a controlled step-up in frequency with cycling still conversational, one long hike of 3-3.5 hours, and strength volume increasing only if the back remains symptom-free; estimated FTP 221 W
+- Week 3 (from 2026-11-10): Expand aerobic volume through two ERG rides, one 90-120-minute aerobic outing, one strength session, easy run-walking, and introductory low-impact rowing; target load: Approximately 9-10 hours total, with the longest session limited to 90-120 minutes and all work kept easy to moderate; estimated FTP 224 W
+- Week 4 (from 2026-11-17): Confirm sustainable habits with two ERG rides, one longer outdoor aerobic outing, back-safe strength, easy run-walking, and a hike, ski, or snowshoe session; target load: Approximately 9.5-10.5 hours total, maintaining rather than sharply increasing volume while finishing the block mobile, consistent, and free of escalating back symptoms; estimated FTP 227 W
+
+Current week plan:
+Week starting 2026-10-26 — focus: Restore rhythm with controlled strength and mobility, easy aerobic work, and a protected long-hike anchor — estimated FTP 220 W
+Rationale: The week is built around consistency rather than compensating for missed sessions with intensity: Tuesday's and Friday's controlled gym work support your back-safe strength and hip-mobility goals without creating excess fatigue, while the aerobic rhythm comes from the easy run-plus-row on Wednesday and the long Sunday hike. Monday and Thursday went unrecorded and the Friday ERG ride was replaced by strength work, so the week carries less bike volume than planned and the ERG ride is restored in week 2 rather than squeezed in here. Saturday's planned ride was replaced by a 2:05 hike, which delivered the aerobic work in walking form but at roughly half the intended long-hike duration, so the ride is not being made up and Sunday's long hike remains the week's anchor. The 220 W FTP estimate is unchanged because everything completed has been controlled and has not established a new performance benchmark.
+Sessions:
+- 2026-10-26 (Monday) [missed]: No activity recorded [workout, easy, 0 min] — The athlete did not record a workout for this day.; estimated TSS 0
+- 2026-10-27 (Tuesday) [completed]: A [workout, moderate, 42 min] — Completed: Strength training · 42 min; estimated TSS 30
+- 2026-10-28 (Wednesday) [partial]: Indoor Rowing [workout, moderate, 15 min] — Completed: Indoor rowing · 15 min; estimated TSS 55
+- 2026-10-29 (Thursday) [missed]: No activity recorded [workout, easy, 0 min] — The athlete did not record a workout for this day.; estimated TSS 0
+- 2026-10-30 (Friday) [completed]: B [workout, moderate, 48 min] — Completed: Strength training · 48 min; estimated TSS 20
+- 2026-10-31 (Saturday) [partial]: Relaxed outdoor aerobic ride [workout, moderate, 125 min] — Ride outdoors for 75 minutes on your road or gravel bike at a steady 135-145 W, using an easy cadence and keeping heart rate at or below 145 bpm. Start with 10 minutes of easy spinning, settle into the target power for 55 minutes without surges or climbing attacks, and finish with 10 minutes progressively easier. Stay seated on technical sections to limit unnecessary trunk and lower-back loading. Keep the session conversational and finish feeling fresh for Sunday's long hike. Instead of the planned ride you completed a 2:05 hike covering 11.0 km with 261 m of ascent at a steady 4.9 km/h, average heart rate 114 bpm and peak 140 bpm, so the aerobic work was delivered in hiking form rather than on the bike and the ride itself was not done.; estimated TSS 85
+- 2026-11-01 (Sunday) [planned]: Long hike endurance anchor [workout, moderate, 270 min] — A long, controlled hike with steady climbing to build the long-duration durability you need for the 200 km brevet and Paris-Brest-Paris, kept conversational throughout with walking breaks on the steeper climbs.; estimated TSS 280
+
+Today's plan:
+Date: 2026-10-31
+Title: Relaxed outdoor aerobic ride
+Type: workout; intensity: moderate; duration: 125 min; status: partial
+Description: Ride outdoors for 75 minutes on your road or gravel bike at a steady 135-145 W, using an easy cadence and keeping heart rate at or below 145 bpm. Start with 10 minutes of easy spinning, settle into the target power for 55 minutes without surges or climbing attacks, and finish with 10 minutes progressively easier. Stay seated on technical sections to limit unnecessary trunk and lower-back loading. Keep the session conversational and finish feeling fresh for Sunday's long hike. Instead of the planned ride you completed a 2:05 hike covering 11.0 km with 261 m of ascent at a steady 4.9 km/h, average heart rate 114 bpm and peak 140 bpm, so the aerobic work was delivered in hiking form rather than on the bike and the ride itself was not done.
+Rationale: This controlled strength exposure supports the foundation block's back-safe strength, trunk stability, and hip-mobility priorities while keeping fatigue low enough to protect the long weekend endurance work. It helps address the upright riding position, lower-back vulnerability, and poor hip flexibility that limit your comfort and durability on long rides, without adding hard stress while your aerobic base is rebuilding.
+Alternatives: If the weather turns poor, the same 75-minute aerobic block can be done on the indoor bike at 135-145 W with heart rate under 145 bpm.
+Outdoor: true
+Can be outdoor: true
+Estimated TSS: 85
+
+Tomorrow's plan:
+Not planned yet.
+
+Next week plan:
+Not planned yet.
+
+Next block plan:
+Not planned yet.
+
+The current week must start on 2026-10-26 and cover 2026-10-26 through 2026-11-01. Keep exactly seven sessions with those dates, and make sure one session has the date 2026-10-31; the "today" object must use that same date and be one of the current week's sessions.
+Tomorrow is 2026-11-01.
+Fully detail the sessions dated 2026-10-31. Keep every later session in the current week as a short outline.
+
+Revision request:
+- Refresh the season and the current block in place. The current block must start on 2026-10-26 and keep the blocks that ended before today unchanged. Return the remaining season in "season" and the detailed current block in "block".
+- Revise the current week and return it in "week".
+- Create or revise today's session and return it in "today".
+- Keep tomorrow's session as supplied, or null when there is none.
+- Keep the next week as supplied, or null when there is none.
+- Keep the next block as supplied, or null when there is none.
+
+Return one JSON object whose top-level keys are exactly "season", "block", "week", "today", "tomorrow", "nextWeek", "nextBlock", and "bodyMetrics".
