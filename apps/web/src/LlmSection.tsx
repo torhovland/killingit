@@ -70,25 +70,23 @@ function compareGrades(a: LlmModelGrade, b: LlmModelGrade): number {
   return GRADE_ORDER[a] - GRADE_ORDER[b];
 }
 
-function compareModels(
+export function compareModels(
   a: LlmCatalogModel,
   b: LlmCatalogModel,
   key: SortKey,
   direction: "asc" | "desc",
 ): number {
-  let result: number;
-  if (key === "model") result = a.name.localeCompare(b.name);
-  else if (key === "discouraged")
-    result = Number(a.discouraged) - Number(b.discouraged);
-  else result = compareGrades(a[key], b[key]);
-  if (result === 0) {
-    result =
-      compareGrades(a.ability, b.ability) ||
-      compareGrades(a.speed, b.speed) ||
-      compareGrades(a.cost, b.cost) ||
-      a.name.localeCompare(b.name);
+  if (key === "model") {
+    const result = a.name.localeCompare(b.name);
+    return direction === "asc" ? result : -result;
   }
-  return direction === "asc" ? result : -result;
+  const primary =
+    key === "discouraged"
+      ? Number(a.discouraged) - Number(b.discouraged)
+      : compareGrades(a[key], b[key]);
+  if (primary !== 0) return direction === "asc" ? primary : -primary;
+  // Ties always resolve by model name ascending, whatever the column order.
+  return a.name.localeCompare(b.name);
 }
 
 /**

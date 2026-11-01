@@ -1,6 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import type { LlmCatalogModel } from "@killingit/shared";
-import { modelMatchesFilters, type LlmModelFilters } from "./LlmSection";
+import {
+  compareModels,
+  modelMatchesFilters,
+  type LlmModelFilters,
+} from "./LlmSection";
 
 function model(overrides: Partial<LlmCatalogModel> = {}): LlmCatalogModel {
   return {
@@ -69,5 +73,31 @@ describe("modelMatchesFilters", () => {
   it("applies the grade minimums", () => {
     expect(modelMatchesFilters(model({ ability: "C" }), filters())).toBe(false);
     expect(modelMatchesFilters(model({ ability: "B" }), filters())).toBe(true);
+  });
+});
+
+describe("compareModels", () => {
+  it("orders the primary key in the requested direction", () => {
+    const a = model({ id: "a", ability: "A" });
+    const b = model({ id: "b", ability: "B" });
+
+    expect(compareModels(a, b, "ability", "desc")).toBeLessThan(0);
+    expect(compareModels(a, b, "ability", "asc")).toBeGreaterThan(0);
+  });
+
+  it("uses ascending model name for ties in both directions", () => {
+    const a = model({ id: "a", name: "Alpha", ability: "A" });
+    const b = model({ id: "b", name: "Beta", ability: "A" });
+
+    expect(compareModels(a, b, "ability", "desc")).toBeLessThan(0);
+    expect(compareModels(a, b, "ability", "asc")).toBeLessThan(0);
+  });
+
+  it("uses ascending model name for ties on discouraged", () => {
+    const a = model({ id: "a", name: "Alpha", discouraged: false });
+    const b = model({ id: "b", name: "Beta", discouraged: false });
+
+    expect(compareModels(a, b, "discouraged", "desc")).toBeLessThan(0);
+    expect(compareModels(b, a, "discouraged", "desc")).toBeGreaterThan(0);
   });
 });
