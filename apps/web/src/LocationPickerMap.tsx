@@ -336,7 +336,7 @@ export function LocationPickerMap({
                   draggable={false}
                   decoding="async"
                   referrerPolicy="origin"
-                  className="absolute select-none"
+                  className="absolute max-w-none select-none"
                   style={{
                     left: tile.x,
                     top: tile.y,
