@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   llmCatalogResponseSchema,
   llmSettingsSchema,
@@ -92,7 +92,8 @@ export function compareModels(
 /**
  * OpenRouter key entry and the graded model picker. The athlete chooses one
  * model for season/block work and one for day-to-day prompts; both choices are
- * saved together so a plan cannot mix an old and a new selection.
+ * saved together as soon as a radio button is clicked so a plan cannot mix an
+ * old and a new selection. The key is saved when the input loses focus.
  */
 export function LlmSection({ settings, onSaved }: LlmSectionProps) {
   const auth = useAuth();
@@ -108,6 +109,8 @@ export function LlmSection({ settings, onSaved }: LlmSectionProps) {
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const saveQueue = useRef<Promise<void>>(Promise.resolve());
+  const saveSequence = useRef(0);
   const [includeUngraded, setIncludeUngraded] = useState(true);
   const [showDiscouraged, setShowDiscouraged] = useState(false);
   const [minAbility, setMinAbility] = useState<LlmModelGrade>("B");
@@ -199,39 +202,72 @@ export function LlmSection({ settings, onSaved }: LlmSectionProps) {
     setSortDirection(key === "model" ? "asc" : "desc");
   }
 
-  async function save(): Promise<void> {
+  /**
+   * Persists the two model choices, optionally together with a new API key.
+   * Saves are queued so rapid radio clicks reach the server in click order, and
+   * only the newest attempt reports its result.
+   */
+  function persist(payload: {
+    seasonModel: string;
+    dailyModel: string;
+    apiKey?: string;
+  }): void {
+    const sequence = ++saveSequence.current;
     setSaving(true);
     setError(null);
-    try {
-      const response = await fetchJsonAuthed<unknown>(
-        `${API_URL}/api/llm/settings`,
-        auth,
-        {
-          method: "PUT",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            seasonModel,
-            dailyModel,
-            ...(apiKey === "" ? {} : { apiKey }),
-          }),
-        },
-      );
-      const parsed = llmSettingsSchema.safeParse(response);
-      if (!parsed.success) {
-        throw new Error(
-          "Saving model choices returned an unexpected response",
-          {
-            cause: parsed.error,
-          },
-        );
-      }
-      setApiKey("");
-      onSaved(parsed.data);
-    } catch (err: unknown) {
-      setError(reportError(err));
-    } finally {
-      setSaving(false);
-    }
+    saveQueue.current = saveQueue.current
+      .then(async () => {
+        try {
+          const response = await fetchJsonAuthed<unknown>(
+            `${API_URL}/api/llm/settings`,
+            auth,
+            {
+              method: "PUT",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify(payload),
+            },
+          );
+          const parsed = llmSettingsSchema.safeParse(response);
+          if (!parsed.success) {
+            throw new Error(
+              "Saving model choices returned an unexpected response",
+              {
+                cause: parsed.error,
+              },
+            );
+          }
+          if (sequence === saveSequence.current) {
+            if (payload.apiKey !== undefined) setApiKey("");
+            onSaved(parsed.data);
+          }
+        } catch (err: unknown) {
+          if (sequence === saveSequence.current) setError(reportError(err));
+        } finally {
+          if (sequence === saveSequence.current) setSaving(false);
+        }
+      })
+      .catch(() => {
+        // The queued save above handles its own errors; keep the chain alive.
+      });
+  }
+
+  function chooseModel(role: "season" | "daily", modelId: string): void {
+    const nextSeason = role === "season" ? modelId : seasonModel;
+    const nextDaily = role === "daily" ? modelId : dailyModel;
+    if (role === "season") setSeasonModel(modelId);
+    else setDailyModel(modelId);
+    if (nextSeason === "" || nextDaily === "") return;
+    persist({
+      seasonModel: nextSeason,
+      dailyModel: nextDaily,
+      // A key typed before the first save travels with the first model choice.
+      ...(!settings.configured && apiKey !== "" ? { apiKey } : {}),
+    });
+  }
+
+  function saveKey(): void {
+    if (apiKey === "" || seasonModel === "" || dailyModel === "") return;
+    persist({ seasonModel, dailyModel, apiKey });
   }
 
   function gradeHeader(label: string, key: SortKey): React.ReactNode {
@@ -274,6 +310,10 @@ export function LlmSection({ settings, onSaved }: LlmSectionProps) {
           }
           value={apiKey}
           onChange={(e) => setApiKey(e.target.value)}
+          onBlur={saveKey}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") e.currentTarget.blur();
+          }}
           className="rounded border bg-card px-3 py-1"
           autoComplete="off"
         />
@@ -391,7 +431,7 @@ export function LlmSection({ settings, onSaved }: LlmSectionProps) {
                       type="radio"
                       name="seasonModel"
                       checked={seasonModel === model.id}
-                      onChange={() => setSeasonModel(model.id)}
+                      onChange={() => chooseModel("season", model.id)}
                       aria-label={`Use ${model.name} for season planning`}
                     />
                   </td>
@@ -400,7 +440,7 @@ export function LlmSection({ settings, onSaved }: LlmSectionProps) {
                       type="radio"
                       name="dailyModel"
                       checked={dailyModel === model.id}
-                      onChange={() => setDailyModel(model.id)}
+                      onChange={() => chooseModel("daily", model.id)}
                       aria-label={`Use ${model.name} for day-to-day prompts`}
                     />
                   </td>
@@ -416,19 +456,9 @@ export function LlmSection({ settings, onSaved }: LlmSectionProps) {
         </div>
       )}
 
-      <button
-        type="button"
-        onClick={() => void save()}
-        className="self-start rounded border border-transparent bg-primary px-4 py-2 text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
-        disabled={
-          saving ||
-          seasonModel === "" ||
-          dailyModel === "" ||
-          (!settings.configured && apiKey === "")
-        }
-      >
-        {saving ? "Saving…" : "Save model choices"}
-      </button>
+      {saving && (
+        <p className="text-base text-muted-foreground">Saving model choices…</p>
+      )}
     </section>
   );
 }
