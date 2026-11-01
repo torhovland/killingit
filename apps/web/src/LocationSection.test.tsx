@@ -38,5 +38,7 @@ describe("LocationSection", () => {
     expect(html).toContain("59.9100, 10.7500");
     expect(html).toContain("Clear location");
     expect(html).toContain("© OpenStreetMap contributors");
+    expect(html).toContain("Open-Meteo");
+    expect(html).toContain("Yr.no");
   });
 });

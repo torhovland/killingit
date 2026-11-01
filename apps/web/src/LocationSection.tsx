@@ -14,7 +14,7 @@ import { reportError } from "./reportError";
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
 function placeLabel(place: GeocodedLocation): string {
-  return [...new Set([place.name, place.admin1, place.country])]
+  return [...new Set([place.name, place.city, place.admin1, place.country])]
     .filter((part): part is string => part !== null && part.trim() !== "")
     .join(", ");
 }
@@ -204,6 +204,15 @@ export function LocationSection({
           className="hover:underline"
         >
           Open-Meteo
+        </a>{" "}
+        and{" "}
+        <a
+          href="https://www.yr.no/"
+          target="_blank"
+          rel="noreferrer"
+          className="hover:underline"
+        >
+          Yr.no
         </a>
         .
       </p>

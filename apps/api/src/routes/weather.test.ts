@@ -23,6 +23,7 @@ function makeApp(
       longitude: number;
       country: string | null;
       admin1: string | null;
+      city: string | null;
     }>
   >,
 ) {
@@ -73,6 +74,7 @@ describe("GET /api/weather/geocode", () => {
           longitude: 10.75,
           country: "Norway",
           admin1: "Oslo",
+          city: "Oslo",
         },
       ]);
     });
@@ -87,6 +89,7 @@ describe("GET /api/weather/geocode", () => {
           longitude: 10.75,
           country: "Norway",
           admin1: "Oslo",
+          city: "Oslo",
         },
       ],
     });
