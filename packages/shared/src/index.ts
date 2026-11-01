@@ -310,6 +310,7 @@ export {
 } from "./review.js";
 
 export {
+  athleteQuestionPreviousResponseSchema,
   athleteQuestionSchema,
   athleteQuestionsResponseSchema,
   isQuestionnaireComplete,
@@ -322,6 +323,7 @@ export {
   questionSchema,
   questionsResponseSchema,
   type AthleteQuestion,
+  type AthleteQuestionPreviousResponse,
   type AthleteQuestionsResponse,
   type Question,
   type QuestionAnswerInput,

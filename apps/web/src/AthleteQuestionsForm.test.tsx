@@ -16,6 +16,7 @@ const questions: AthleteQuestion[] = [
     answer: "Strong until the last 3 km.",
     skipped: false,
     answeredAt: "2026-10-21T10:00:00.000Z",
+    previous: null,
   },
   {
     id: 8,
@@ -29,6 +30,7 @@ const questions: AthleteQuestion[] = [
     answer: null,
     skipped: false,
     answeredAt: null,
+    previous: null,
   },
 ];
 

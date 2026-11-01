@@ -223,6 +223,54 @@ describe("unified plan update prompt", () => {
     expect(prompt).toContain("must start on 2026-10-21");
   });
 
+  it("includes survey adjustments in a season refresh", () => {
+    const prompt = buildPlanUpdatePrompt(
+      updateInput({
+        revision: {
+          ...updateInput().revision,
+          season: true,
+          block: true,
+          week: true,
+          day: true,
+        },
+        coachingSurveyAdjustments: [
+          {
+            question: "How many hours can you train each week?",
+            previousQuestion: "How many hours do you train each week?",
+            previousAnswer: "About six.",
+            answer: "About nine.",
+          },
+        ],
+      }),
+    );
+
+    expect(prompt).toContain(
+      "Coaching survey adjustments since the plan was generated",
+    );
+    expect(prompt).toContain("How many hours can you train each week?");
+    expect(prompt).toContain("How many hours do you train each week?");
+    expect(prompt).toContain("Previous answer: About six.");
+    expect(prompt).toContain("New answer: About nine.");
+    expect(prompt).toContain("Apply these survey adjustments to the plan");
+  });
+
+  it("keeps survey adjustments out of updates that do not refresh the season", () => {
+    const prompt = buildPlanUpdatePrompt(
+      updateInput({
+        coachingSurveyAdjustments: [
+          {
+            question: "How many hours can you train each week?",
+            previousQuestion: null,
+            previousAnswer: null,
+            answer: "About nine.",
+          },
+        ],
+      }),
+    );
+
+    expect(prompt).not.toContain("Coaching survey adjustments");
+  });
+
   it("states the next week and tomorrow dates when they are requested", () => {
     const prompt = buildPlanUpdatePrompt(
       updateInput({

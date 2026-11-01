@@ -103,6 +103,7 @@ const answers: QuestionAnswerStore = {
         answer: "Marathon",
         skipped: false,
         answeredAt: new Date("2026-10-20T10:00:00Z"),
+        previous: null,
       },
     ]),
   saveAnswers: () => Promise.resolve(true),

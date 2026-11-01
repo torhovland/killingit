@@ -7,7 +7,6 @@ import { CalendarPage } from "./CalendarPage";
 import { CoachDashboard } from "./CoachDashboard";
 import { CoachingSurveyPage } from "./CoachingSurveyPage";
 import { useAuth } from "./auth";
-import { AthleteQuestionsForm } from "./AthleteQuestionsForm";
 import { fetchJsonAuthed } from "./fetchAuthed";
 import { FitnessPage } from "./FitnessPage";
 import { NavigationProvider, type Page } from "./navigation";
@@ -54,7 +53,6 @@ function AppShell() {
     loading: loadingQuestions,
     error: questionsError,
     load: loadQuestions,
-    saveAnswers,
   } = useAthleteQuestions();
 
   const isAdmin = me?.role === "admin";
@@ -64,6 +62,14 @@ function AppShell() {
     setStatus("app", loading ? "loading" : null);
     return () => setStatus("app", null);
   }, [auth.isLoading, loadingQuestions, questions, setStatus]);
+
+  // An added or revised question sends the athlete to the survey so they can
+  // see what changed and answer it.
+  useEffect(() => {
+    if (questions !== null && !questions.complete) {
+      setPage("survey");
+    }
+  }, [questions]);
 
   // A page visit asks the API to refresh OpenRouter's catalog. The API checks
   // its own 24-hour timestamp, so this is cheap on every other visit.
@@ -108,13 +114,6 @@ function AppShell() {
   function navigate(next: Page): void {
     setPage(next);
     setError(null);
-  }
-
-  async function handleAnswersSaved(
-    answers: Parameters<typeof saveAnswers>[0],
-  ): Promise<void> {
-    await saveAnswers(answers);
-    setPlanRefreshKey((key) => key + 1);
   }
 
   const signedIn = auth.isAuthenticated;
@@ -200,9 +199,11 @@ function AppShell() {
                 </button>
               </section>
             ) : !questions.complete ? (
-              <AthleteQuestionsForm
-                questions={questions.questions}
-                onSubmit={handleAnswersSaved}
+              <CoachingSurveyPage
+                onAnswersSaved={() => {
+                  setPlanRefreshKey((key) => key + 1);
+                  void loadQuestions();
+                }}
               />
             ) : page === "fitness" ? (
               <FitnessPage />

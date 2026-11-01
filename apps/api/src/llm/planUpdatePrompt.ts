@@ -7,11 +7,13 @@ import type {
 import { addDays, startOfWeek, weekDates } from "../plans/dates.js";
 import {
   formatBlockPlan,
+  formatCoachingSurveyAdjustments,
   formatDayPlan,
   formatPlanContext,
   formatPlanLevels,
   formatSeasonAndBlock,
   formatWeekPlan,
+  type CoachingSurveyAdjustmentContext,
   type PlanContextInput,
 } from "./planContext.js";
 import {
@@ -19,6 +21,7 @@ import {
   BODY_METRIC_POINT_CONTRACT,
   BLOCK_CONTRACT,
   COACH_RESPONSE_NOTES_CONTRACT,
+  COACHING_SURVEY_ADJUSTMENT_RULES,
   COMPLETED_SESSION_RULES,
   COMPLETION_SLACK_RULES,
   DAY_CONTRACT,
@@ -102,6 +105,8 @@ export interface PlanUpdateInput extends PlanContextInput {
   nextBlockStartDate?: string;
   /** The Monday the next week must start on. */
   nextWeekStartDate?: string;
+  /** Survey answers changed since the plan was generated. */
+  coachingSurveyAdjustments?: readonly CoachingSurveyAdjustmentContext[];
 }
 
 export const DAILY_UPDATE_SYSTEM_PROMPT = promptSections(
@@ -183,6 +188,7 @@ export const PLAN_UPDATE_SYSTEM_PROMPT = promptSections(
   COMPLETED_SESSION_RULES,
   WEEK_OUTLINE_RULES,
   SESSION_PURPOSE_RULES,
+  COACHING_SURVEY_ADJUSTMENT_RULES,
   WEATHER_PLANNING_RULES,
   BIKE_WORKOUT_RULES,
   TRAINING_LOAD_RULES,
@@ -284,6 +290,16 @@ export function buildPlanUpdatePrompt(input: PlanUpdateInput): string {
     `Fully detail the sessions dated ${detailedDates}. Keep every later session in the current week as a short outline.`,
     "",
     ...revisionInstructions(input),
+    ...(input.revision.season &&
+    input.coachingSurveyAdjustments !== undefined &&
+    input.coachingSurveyAdjustments.length > 0
+      ? [
+          "",
+          ...formatCoachingSurveyAdjustments(input.coachingSurveyAdjustments),
+          "",
+          "Apply these survey adjustments to the plan before returning it. Change the season where needed, and revise the block, week or day when an adjustment affects them.",
+        ]
+      : []),
     ...(input.revision.nextWeek
       ? [
           "",

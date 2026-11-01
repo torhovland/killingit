@@ -27,6 +27,14 @@ export interface AthleteAnswerContext {
   answeredAt?: Date | string | null;
 }
 
+/** One survey answer the coach has not incorporated into the plan yet. */
+export interface CoachingSurveyAdjustmentContext {
+  question: string;
+  previousQuestion: string | null;
+  answer: string | null;
+  previousAnswer: string | null;
+}
+
 /** A recent activity plus the coach analysis generated for it, if any. */
 export interface RecentActivityContext {
   summary: ActivitySummary;
@@ -147,6 +155,39 @@ export function formatAthleteAnswers(
     return "No interview answers were recorded.";
   }
   return entries.map(formatAthleteAnswer).join("\n");
+}
+
+/**
+ * Renders survey answers the athlete changed after the plan was generated,
+ * including the earlier wording and answer so the coach can see what changed.
+ */
+export function formatCoachingSurveyAdjustments(
+  adjustments: readonly CoachingSurveyAdjustmentContext[],
+): string[] {
+  if (adjustments.length === 0) {
+    return [];
+  }
+  return [
+    "Coaching survey adjustments since the plan was generated (most recent last):",
+    ...adjustments.flatMap((adjustment) => {
+      const lines = [`- Question: ${adjustment.question.trim()}`];
+      if (
+        adjustment.previousQuestion !== null &&
+        adjustment.previousQuestion.trim() !== adjustment.question.trim()
+      ) {
+        lines.push(
+          `  Previous question: ${adjustment.previousQuestion.trim()}`,
+        );
+      }
+      if (adjustment.previousQuestion !== null) {
+        lines.push(
+          `  Previous answer: ${formatAdjustmentAnswer(adjustment.previousAnswer)}`,
+        );
+      }
+      lines.push(`  New answer: ${formatAdjustmentAnswer(adjustment.answer)}`);
+      return lines;
+    }),
+  ];
 }
 
 /**
@@ -539,6 +580,10 @@ function formatAthleteAnswer(entry: AthleteAnswerContext): string {
     return `- ${label}: (skipped)`;
   }
   return `- ${label}: (not answered)`;
+}
+
+function formatAdjustmentAnswer(answer: string | null): string {
+  return answer !== null && answer.trim() !== "" ? answer.trim() : "(skipped)";
 }
 
 /** The most recent FTP points, oldest first, as a compact prompt table. */

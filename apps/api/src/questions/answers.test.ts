@@ -3,9 +3,10 @@ import type { QuestionAnswerInput } from "@killingit/shared";
 import type { QuestionAnswerRow } from "../db/schema.js";
 import {
   answersMatchCurrentQuestions,
+  buildCoachingSurveyAdjustments,
   toStoredAthleteQuestion,
 } from "./answers.js";
-import type { StoredQuestion } from "./store.js";
+import type { StoredQuestion, StoredQuestionWithVersions } from "./store.js";
 
 const createdAt = new Date("2026-10-20T09:00:00.000Z");
 const updatedAt = new Date("2026-10-21T09:00:00.000Z");
@@ -43,6 +44,7 @@ describe("toStoredAthleteQuestion", () => {
       answer: "Strong until the last 3 km.",
       skipped: false,
       answeredAt: updatedAt,
+      previous: null,
     });
   });
 
@@ -52,6 +54,7 @@ describe("toStoredAthleteQuestion", () => {
       answer: null,
       skipped: false,
       answeredAt: null,
+      previous: null,
     });
   });
 
@@ -66,6 +69,42 @@ describe("toStoredAthleteQuestion", () => {
       answer: null,
       skipped: true,
       answeredAt: updatedAt,
+      previous: null,
+    });
+  });
+
+  it("carries the newest earlier answer as the previous response", () => {
+    const previousAnswer: QuestionAnswerRow = {
+      ...answer,
+      id: 2,
+      questionVersionId: 10,
+      answer: "It felt hard.",
+      updatedAt: new Date("2026-10-19T08:00:00Z"),
+    };
+
+    expect(
+      toStoredAthleteQuestion(question, null, {
+        version: {
+          versionId: 10,
+          version: 1,
+          prompt: "How did the long run feel?",
+          required: true,
+        },
+        answer: previousAnswer,
+      }),
+    ).toEqual({
+      ...question,
+      answer: null,
+      skipped: false,
+      answeredAt: null,
+      previous: {
+        versionId: 10,
+        version: 1,
+        prompt: "How did the long run feel?",
+        answer: "It felt hard.",
+        skipped: false,
+        answeredAt: new Date("2026-10-19T08:00:00Z"),
+      },
     });
   });
 });
@@ -129,5 +168,87 @@ describe("answersMatchCurrentQuestions", () => {
         [{ ...submitted, answer: null }],
       ),
     ).toBe(true);
+  });
+});
+
+describe("buildCoachingSurveyAdjustments", () => {
+  const withVersions: StoredQuestionWithVersions = {
+    ...question,
+    prompt: "How did the long run feel this time?",
+    versions: [
+      {
+        versionId: 10,
+        version: 1,
+        prompt: "How did the long run feel?",
+        required: true,
+      },
+      {
+        versionId: 11,
+        version: 2,
+        prompt: "How did the long run feel this time?",
+        required: true,
+      },
+    ],
+  };
+
+  it("records a newly answered question", () => {
+    expect(
+      buildCoachingSurveyAdjustments(
+        [{ ...withVersions, versions: [withVersions.versions[1]!] }],
+        new Map(),
+        [submitted],
+      ),
+    ).toEqual([
+      {
+        question: "How did the long run feel this time?",
+        previousQuestion: null,
+        previousAnswer: null,
+        answer: "Strong until the last 3 km.",
+      },
+    ]);
+  });
+
+  it("records an answer to a revised question with the earlier wording and answer", () => {
+    expect(
+      buildCoachingSurveyAdjustments(
+        [withVersions],
+        new Map([[10, { answer: "It felt hard." }]]),
+        [submitted],
+      ),
+    ).toEqual([
+      {
+        question: "How did the long run feel this time?",
+        previousQuestion: "How did the long run feel?",
+        previousAnswer: "It felt hard.",
+        answer: "Strong until the last 3 km.",
+      },
+    ]);
+  });
+
+  it("records an edited answer to the same version", () => {
+    expect(
+      buildCoachingSurveyAdjustments(
+        [withVersions],
+        new Map([[11, { answer: "It felt hard." }]]),
+        [submitted],
+      ),
+    ).toEqual([
+      {
+        question: "How did the long run feel this time?",
+        previousQuestion: "How did the long run feel this time?",
+        previousAnswer: "It felt hard.",
+        answer: "Strong until the last 3 km.",
+      },
+    ]);
+  });
+
+  it("ignores an unchanged resubmission", () => {
+    expect(
+      buildCoachingSurveyAdjustments(
+        [withVersions],
+        new Map([[11, { answer: "Strong until the last 3 km." }]]),
+        [submitted],
+      ),
+    ).toEqual([]);
   });
 });

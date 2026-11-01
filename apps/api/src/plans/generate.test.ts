@@ -671,6 +671,85 @@ describe("runPlanGeneration", () => {
     expect(generations.status.status).toBe("done");
   });
 
+  it("clears survey adjustments after a successful stale season refresh", async () => {
+    const provider = new FakeProvider(buildResponses());
+    const existing = makeStoredPlan(
+      makePlan(),
+      new Date("2026-10-19T10:00:00Z"),
+    );
+    let cleared = 0;
+
+    await runPlanGeneration({
+      userId: 1,
+      runId: "run-1",
+      today: "2026-10-21",
+      plan: existing,
+      context: {
+        ...makeContext(provider, new Date("2026-10-21T10:00:00Z")),
+        coachingSurveyAdjustments: [
+          {
+            question: "How many hours can you train each week?",
+            previousQuestion: null,
+            previousAnswer: null,
+            answer: "About nine.",
+          },
+        ],
+      },
+      plans: new MemoryPlanStore(existing),
+      generations: new MemoryGenerationStore(),
+      clearCoachingSurveyAdjustments: () => {
+        cleared += 1;
+        return Promise.resolve();
+      },
+    });
+
+    expect(provider.calls).toEqual(["plan-update"]);
+    expect(cleared).toBe(1);
+  });
+
+  it("keeps survey adjustments when the season refresh fails", async () => {
+    const provider = new FakeProvider({});
+    const existing = makeStoredPlan(
+      makePlan(),
+      new Date("2026-10-19T10:00:00Z"),
+    );
+    let cleared = 0;
+
+    let failure: unknown;
+
+    try {
+      await runPlanGeneration({
+        userId: 1,
+        runId: "run-1",
+        today: "2026-10-21",
+        plan: existing,
+        context: {
+          ...makeContext(provider, new Date("2026-10-21T10:00:00Z")),
+          coachingSurveyAdjustments: [
+            {
+              question: "How many hours can you train each week?",
+              previousQuestion: null,
+              previousAnswer: null,
+              answer: "About nine.",
+            },
+          ],
+        },
+        plans: new MemoryPlanStore(existing),
+        generations: new MemoryGenerationStore(),
+        clearCoachingSurveyAdjustments: () => {
+          cleared += 1;
+          return Promise.resolve();
+        },
+      });
+    } catch (err: unknown) {
+      failure = err;
+    }
+
+    expect(failure).toBeInstanceOf(Error);
+    expect((failure as Error).message).toBe("no response configured");
+    expect(cleared).toBe(0);
+  });
+
   it("fills a missing day and revises the week", async () => {
     const provider = new FakeProvider({
       planUpdate: makeUpdate("2026-10-21"),

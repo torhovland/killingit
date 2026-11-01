@@ -22,6 +22,10 @@ import type {
   PlanGenerateMode,
 } from "@killingit/shared";
 import type { QuestionAnswerStore } from "../questions/answers.js";
+import {
+  dbCoachingSurveyAdjustmentStore,
+  type CoachingSurveyAdjustmentStore,
+} from "../questions/adjustments.js";
 import type { UserStore } from "../users/store.js";
 import {
   fetchWeatherForecasts,
@@ -52,6 +56,8 @@ export interface PlanTriggerDependencies {
   answers: QuestionAnswerStore;
   plans: PlanStore;
   generations: PlanGenerationStore;
+  /** Survey answers not yet incorporated into the plan. */
+  coachingSurveyAdjustments?: CoachingSurveyAdjustmentStore;
   /** Injectable for route tests; defaults to a Garmin sync. */
   loadActivities?: (userId: number) => Promise<ActivityFeed>;
   /** Injectable for route tests; defaults to the stored FTP time series. */
@@ -148,28 +154,42 @@ export async function runPlanForUser(
   let coachingInputs: CoachingInputs;
   let user: Awaited<ReturnType<UserStore["getById"]>>;
   let coachAnswers: Awaited<ReturnType<typeof loadAnsweredCoachQuestions>>;
+  let surveyAdjustments: Awaited<
+    ReturnType<CoachingSurveyAdjustmentStore["listForUser"]>
+  >;
+  const surveyAdjustmentStore =
+    deps.coachingSurveyAdjustments ?? dbCoachingSurveyAdjustmentStore;
 
   try {
-    [plan, answers, activities, llm, coachingInputs, user, coachAnswers] =
-      await Promise.all([
-        deps.plans.load(userId),
-        deps.answers.listForUser(userId),
-        deps.loadActivities
-          ? deps.loadActivities(userId)
-          : loadAnalyzedActivities({
-              userId,
-              // The sidecar syncs 42 days. Analyse the newest activities the
-              // cap allows; the plan prompt reviews the same recent window.
-              limit: MAX_ANALYZED_ACTIVITIES,
-              refresh: false,
-            }),
-        deps.loadLlm ? deps.loadLlm(userId) : loadLlmClient(userId, "all"),
-        deps.loadCoachingInputs
-          ? deps.loadCoachingInputs(userId, startOfWeek(today))
-          : loadCoachingInputs(userId, startOfWeek(today)),
-        deps.users.getById(userId),
-        (deps.loadAnsweredCoachQuestions ?? loadAnsweredCoachQuestions)(userId),
-      ]);
+    [
+      plan,
+      answers,
+      activities,
+      llm,
+      coachingInputs,
+      user,
+      coachAnswers,
+      surveyAdjustments,
+    ] = await Promise.all([
+      deps.plans.load(userId),
+      deps.answers.listForUser(userId),
+      deps.loadActivities
+        ? deps.loadActivities(userId)
+        : loadAnalyzedActivities({
+            userId,
+            // The sidecar syncs 42 days. Analyse the newest activities the
+            // cap allows; the plan prompt reviews the same recent window.
+            limit: MAX_ANALYZED_ACTIVITIES,
+            refresh: false,
+          }),
+      deps.loadLlm ? deps.loadLlm(userId) : loadLlmClient(userId, "all"),
+      deps.loadCoachingInputs
+        ? deps.loadCoachingInputs(userId, startOfWeek(today))
+        : loadCoachingInputs(userId, startOfWeek(today)),
+      deps.users.getById(userId),
+      (deps.loadAnsweredCoachQuestions ?? loadAnsweredCoachQuestions)(userId),
+      surveyAdjustmentStore.listForUser(userId),
+    ]);
   } catch (err) {
     if (options.signal.aborted) {
       throw new GenerationSupersededError();
@@ -317,6 +337,12 @@ export async function runPlanForUser(
       weekReviewUpdatedAt: coachingInputs.weekReviewUpdatedAt,
       blockReviewUpdatedAt: coachingInputs.blockReviewUpdatedAt,
       coachingInputsUpdatedAt: coachingInputs.updatedAt,
+      coachingSurveyAdjustments: surveyAdjustments.map((adjustment) => ({
+        question: adjustment.question,
+        previousQuestion: adjustment.previousQuestion,
+        answer: adjustment.answer,
+        previousAnswer: adjustment.previousAnswer,
+      })),
       activitiesUpdatedAt: latestActivityAnalysisTimestamp(recentActivities),
       location,
       forecast,
@@ -337,5 +363,7 @@ export async function runPlanForUser(
     },
     plans: deps.plans,
     generations: deps.generations,
+    clearCoachingSurveyAdjustments: () =>
+      surveyAdjustmentStore.clearForUser(userId),
   });
 }

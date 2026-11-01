@@ -19,6 +19,7 @@ import type {
   QuestionAnswerStore,
   StoredAthleteQuestion,
 } from "../questions/answers.js";
+import type { CoachingSurveyAdjustmentStore } from "../questions/adjustments.js";
 import { combineForecasts } from "../weather/combine.js";
 import type { WeatherForecastSet } from "../weather/forecast.js";
 
@@ -34,6 +35,12 @@ const storedQuestion: StoredAthleteQuestion = {
   answer: "Run a marathon.",
   skipped: false,
   answeredAt: new Date("2026-10-20T10:00:00Z"),
+  previous: null,
+};
+
+const emptySurveyAdjustments: CoachingSurveyAdjustmentStore = {
+  listForUser: () => Promise.resolve([]),
+  clearForUser: () => Promise.resolve(),
 };
 
 function makePlan(today = "2026-10-21"): CoachPlan {
@@ -300,6 +307,7 @@ function makeApp(options: {
         listForUser: () => Promise.resolve([storedQuestion]),
         saveAnswers: () => Promise.resolve(true),
       } satisfies QuestionAnswerStore),
+    coachingSurveyAdjustments: emptySurveyAdjustments,
     planStore: options.planStore ?? new MemoryPlanStore(null),
     generationStore: options.generationStore ?? new MemoryGenerationStore(),
     loadActivities: () =>

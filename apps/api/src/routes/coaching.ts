@@ -94,6 +94,7 @@ import {
   type PlanTriggerDependencies,
 } from "../plans/trigger.js";
 import type { QuestionAnswerStore } from "../questions/answers.js";
+import type { CoachingSurveyAdjustmentStore } from "../questions/adjustments.js";
 import type { UserStore } from "../users/store.js";
 
 const querySchema = z.object({
@@ -114,6 +115,8 @@ const deletionQuerySchema = z.object({
 export interface CoachingRouteDependencies {
   users: UserStore;
   answers: QuestionAnswerStore;
+  /** Pending survey adjustments, injectable for DB-free route tests. */
+  coachingSurveyAdjustments?: CoachingSurveyAdjustmentStore;
   plans: PlanStore;
   generations: PlanGenerationStore;
   loadActivities?: (userId: number) => Promise<ActivityFeed>;
@@ -233,6 +236,9 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
     answers: deps.answers,
     plans: deps.plans,
     generations: deps.generations,
+    ...(deps.coachingSurveyAdjustments !== undefined
+      ? { coachingSurveyAdjustments: deps.coachingSurveyAdjustments }
+      : {}),
     ...(deps.loadActivities !== undefined
       ? { loadActivities: deps.loadActivities }
       : {}),
