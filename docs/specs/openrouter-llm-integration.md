@@ -146,7 +146,9 @@ Weather and daylight are included in the plan prompts; see
 ### Web (`apps/web/src/`)
 
 - `LlmSection.tsx` — key input plus the sortable, filterable graded model
-  table; catalog loaded via `GET /api/llm/catalog`.
+  table; catalog loaded via `GET /api/llm/catalog`. Both model choices are saved
+  as soon as a radio button is clicked, and the key is saved when its input
+  loses focus.
 - `ActivityCard.tsx` — presentational activity summary + analysis.
 - `CoachDashboard.tsx` — loads Garmin/LLM status, then the latest analysed
   activities; offers "Sync & re-analyze".
