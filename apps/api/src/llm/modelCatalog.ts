@@ -27,8 +27,8 @@ export const BENCHMARK_CATEGORY_MAXIMA = {
 
 /**
  * Cost bands for the two-prompt benchmark. The cuts are calibrated so the
- * measured cost grades roughly match the list-price grades: about 60% exact
- * and 93% within one grade on the latest run, with the same overall shape.
+ * measured cost grades roughly match the list-price grades: about 58% exact
+ * and 88% within one grade on the latest run, with the same overall shape.
  */
 export const COST_GRADE_LIMITS = {
   aPlus: 0.015,
