@@ -97,10 +97,21 @@ export const PAST_SESSION_RULES = `For days before today, do not propose new wor
 export const TODAY_SESSION_RULES = `If an activity has already been recorded for today, do not propose another workout. When today's plan already provides a workout, keep that planned workout's title, description and rationale rather than rewriting them, and add one or two sentences to the end of the description saying how much of it the athlete completed and how the activity differed (duration, intensity, terrain, or how they felt). If the supplied description already carries a completion note from an earlier refresh, replace only that note with an updated one. Do not summarise the activity again: its own analysis and the coach's reply to the athlete's comment already cover it. When today had no planned session, describe briefly what the athlete actually did instead of giving a full analysis. Give today's plan and today's week session the same status.`;
 
 /**
+ * How close a recorded session has to be to its planned duration before the
+ * difference is worth mentioning. Both the plan prompts, which judge completion
+ * status, and the activity reviews, which comment on plan fit, use it so a
+ * near-target session is never reported as short or long.
+ */
+export const DURATION_TOLERANCE_RULES = `Judge duration against the plan with generous tolerance in both directions: a two-hour session recorded as 1:50 or 2:05 matched its plan. Do not describe such a session as short or long, and do not suggest changing the next session to make up for it; only a difference that clearly changes the session's purpose is worth mentioning.`;
+
+/**
  * Completion is judged with reasonable slack so a near-miss is not reported as
  * a partial session.
  */
-export const COMPLETION_SLACK_RULES = `Allow reasonable slack when judging completion: a 60-minute ride recorded as 50 minutes is still completed, and power or pace zones that are close but not exact do not make a session partial; use "partial" only when a meaningful part of the session was not done.`;
+export const COMPLETION_SLACK_RULES = promptSections(
+  `Allow reasonable slack when judging completion: a 60-minute ride recorded as 50 minutes is still completed, and power or pace zones that are close but not exact do not make a session partial; use "partial" only when a meaningful part of the session was not done.`,
+  DURATION_TOLERANCE_RULES,
+);
 
 /**
  * The full completed-session rule for prompts that return both a day plan and

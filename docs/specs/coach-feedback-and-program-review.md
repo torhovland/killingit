@@ -111,6 +111,11 @@ and the reply is null; the failure is logged.
   for the activity's date (or a fallback to another session), the activity
   summary, its general analysis, and the athlete's comment when present.
   Versioned with `PROGRAM_ANALYSIS_PROMPT_VERSION`.
+- **Duration tolerance** (`DURATION_TOLERANCE_RULES`): both activity reviews and
+  the plan prompts share one rule that a session within a few minutes of its
+  planned duration matched the plan, whether a little short or a little long, so
+  the coach does not criticise a two-hour hike recorded as 2:05 or suggest a
+  shorter route to make up for it.
 - **Coach reply** (`coachReplyPrompt`): system prompt asks for a 1–2 sentence
   plain-text reply that acknowledges the input, explains the effect on the plan,
   and states what the coach will adjust. The user prompt contains the shared

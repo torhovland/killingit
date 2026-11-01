@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
   COACH_RESPONSE_NOTES_CONTRACT,
   COACH_RESPONSE_NOTES_RULES,
+  DURATION_TOLERANCE_RULES,
   SEASON_BLOCK_RULES,
   TODAY_SESSION_RULES,
   WEATHER_PLANNING_RULES,
@@ -74,6 +75,20 @@ describe("SEASON_BLOCK_RULES", () => {
   it("anchors the first and last block to the season's dates", () => {
     expect(SEASON_BLOCK_RULES).toContain(
       "The first block starts on the season's start date and the last block ends on the season's end date.",
+    );
+  });
+});
+
+describe("DURATION_TOLERANCE_RULES", () => {
+  it("treats a near-target duration in either direction as on plan", () => {
+    expect(DURATION_TOLERANCE_RULES).toContain(
+      "a two-hour session recorded as 1:50 or 2:05 matched its plan",
+    );
+    expect(DURATION_TOLERANCE_RULES).toContain(
+      "Do not describe such a session as short or long",
+    );
+    expect(DURATION_TOLERANCE_RULES).toContain(
+      "do not suggest changing the next session to make up for it",
     );
   });
 });
