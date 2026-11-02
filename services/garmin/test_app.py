@@ -506,7 +506,11 @@ class _DailyFake:
         }
 
     def get_sleep_data(self, date):
+        # Mirrors the real Garmin payload: overnight HRV sits at the top level,
+        # while SpO2 is averageSpO2Value inside dailySleepDTO. The DTO-level
+        # avgSleepHRV/avgSpO2 keys are legacy fallbacks.
         return {
+            "avgOvernightHrv": 48,
             "dailySleepDTO": {
                 "sleepTimeSeconds": 25800,
                 "sleepScores": {"overall": {"value": 82}},
@@ -514,10 +518,9 @@ class _DailyFake:
                 "lightSleepSeconds": 14400,
                 "remSleepSeconds": 5400,
                 "awakeSleepSeconds": 600,
-                "avgSleepHRV": 48,
-                "avgSpO2": 96,
+                "averageSpO2Value": 96,
                 "averageRespirationValue": 14.2,
-            }
+            },
         }
 
     def get_training_readiness(self, date):
@@ -527,10 +530,13 @@ class _DailyFake:
         ]
 
     def get_max_metrics(self, date):
-        return {
-            "generic": {"vo2MaxPreciseValue": 48.5},
-            "cycling": {"vo2MaxValue": 43},
-        }
+        # Garmin's daily endpoint returns a list of records, not a bare dict.
+        return [
+            {
+                "generic": {"vo2MaxPreciseValue": 48.5},
+                "cycling": {"vo2MaxValue": 43},
+            }
+        ]
 
 
 def test_sync_daily_combines_bundle_sleep_readiness_and_vo2max(monkeypatch):
