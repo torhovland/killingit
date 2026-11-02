@@ -4,7 +4,7 @@ import {
   buildProgramAnalysisMessages,
   buildProgramAnalysisPrompt,
 } from "./programAnalysisPrompt.js";
-import { GLOBAL_PROMPT_RULES, PLAIN_TEXT_RULES } from "./promptRules.js";
+import { GLOBAL_PROMPT_RULES, TEXT_FORMATTING_RULES } from "./promptRules.js";
 
 function makePlan(): CoachPlan {
   return {
@@ -143,7 +143,7 @@ describe("buildProgramAnalysisMessages", () => {
     );
   });
 
-  it("uses a plain-text review system prompt", () => {
+  it("uses a formatted-text review system prompt", () => {
     const messages = buildProgramAnalysisMessages({
       today: "2026-10-21",
       plan: makePlan(),
@@ -154,7 +154,7 @@ describe("buildProgramAnalysisMessages", () => {
     expect(messages[0]?.content).toContain(
       "Review one completed workout against the athlete's current training program",
     );
-    expect(messages[0]?.content).toContain(PLAIN_TEXT_RULES);
+    expect(messages[0]?.content).toContain(TEXT_FORMATTING_RULES);
     expect(messages[0]?.content).toContain(GLOBAL_PROMPT_RULES);
     expect(messages[0]?.content).toContain("do not trust it");
     expect(messages[0]?.content).toContain("strength-training workout");

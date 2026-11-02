@@ -95,6 +95,12 @@ about a past workout, or before a suggested workout, to steer the coach.
   the plan prompts, built from the last synced activity feed and the stored
   coaching inputs, with the forecast stored on the plan; see
   `docs/specs/coach-reply-context.md`.
+- Long coach text — a workout's description, a plan's rationale, a review, an
+  activity analysis or a coach reply — uses a shared plain-text structure:
+  paragraphs separated by blank lines, `- ` bullets and `1. ` numbered items.
+  `TEXT_FORMATTING_RULES` owns the instruction in every plan, review and reply
+  prompt, and the web app's `FormattedText` component renders the structure as
+  HTML paragraphs and lists. See `docs/specs/llm-text-formatting.md`.
 - The four-level plan is stored per user in `coach_plans`; generation progress
   is in `plan_generations`. Coach work is latest-wins: a new save claims the
   user's run id, aborts the previous in-process provider request, and every

@@ -43,12 +43,20 @@ export const WEEKLY_NOTE_SCOPE_RULE = `A weekly note is normally scoped to the w
 export const COACHING_SURVEY_ADJUSTMENT_RULES = `A season refresh may also include coaching survey adjustments: questions the athlete answered or edited after the plan was generated, shown with the earlier wording and answer where they changed. Treat these as the athlete's latest intent. Make any necessary adjustments to the season plan, and to the block, week, and day plans when they are affected, so the whole plan reflects the new answers. Use "coachQuestion" only when you are truly unsure about something in the adjustments; use it sparingly, not for ordinary ambiguity a conservative assumption can resolve.`;
 
 /**
+ * How the coach structures long text for the athlete. The web app renders this
+ * plain-text format as HTML paragraphs and lists, so the model must use these
+ * markers and no other markdown. Shared by the plan, review and reply prompts.
+ */
+export const TEXT_FORMATTING_RULES = `Use short paragraphs and lists when a field is longer than a sentence or two: a workout's description, a plan's rationale, a review, an activity analysis, or a coach reply. Separate paragraphs with a blank line. Start each bullet on its own line with "- ". Start each numbered item on its own line with "1. ", "2. ", and so on. Use a bullet list for the main set, the steps, or two or more separate points, and a numbered list for steps in an order or a ranked set. Keep list items short, keep the list flat, and leave no blank line between list items. Do not use headings, bold, italics, links, tables or code blocks. Keep short fields — a session's title, a plan's focus and a block's name — as short plain phrases.`;
+
+/**
  * The rules every plan prompt includes regardless of the level it builds or
  * updates: training-science guidance, how to read the supplied input, the
  * rationale rules and the body-metric rules. `GLOBAL_PROMPT_RULES` supplies the
  * coach identity and the no-invention rule that every prompt shares.
  */
-export const PLAN_PROMPT_RULES = `Use state of the art training science to make the best possible plan for the athlete.
+export const PLAN_PROMPT_RULES = promptSections(
+  `Use state of the art training science to make the best possible plan for the athlete.
 
 You receive the athlete's profile, recent activities with coach analyses, program reviews, and coach replies, manually recorded activities, comments on activities, a general weekly note, and coach summaries of completed weeks and blocks with the athlete's feedback on them. Use all of these to understand the athlete's goal, available time, experience, preferences, constraints, and subjective feedback, and to see what they actually completed or missed and how they responded.
 
@@ -62,7 +70,9 @@ When the profile, a weekly note, an activity comment, or another part of the inp
 
 Use the date the statement refers to. For a number in the profile that names no date, use the date the profile was last saved; for anything added more recently, use today's date. Set a value the input does not give to null, and return an empty "bodyMetrics" array when the input says nothing about either number.
 
-The stored history tells you what is already known; do not repeat a value for the same date.`;
+The stored history tells you what is already known; do not repeat a value for the same date.`,
+  TEXT_FORMATTING_RULES,
+);
 
 /**
  * How season blocks tile the season. Every prompt that returns season blocks
@@ -211,11 +221,6 @@ export const ACTIVITY_BODY_METRIC_RULES = `When the athlete's comment on this ac
 
 /** The JSON-only output rule shared by every structured prompt. */
 export const JSON_ONLY_RULES = `Do not add markdown fences, headings, explanations, commentary, or extra fields.`;
-
-/**
- * The plain-text output rule shared by the coaching replies and reviews.
- */
-export const PLAIN_TEXT_RULES = `Do not use headings, bullets, or markdown.`;
 
 /**
  * The two notes fields every structured coach response carries. The

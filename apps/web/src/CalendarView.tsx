@@ -20,6 +20,7 @@ import {
 } from "./calendarDates";
 import { formatPlanDate } from "./CoachPlanView";
 import { formatDuration } from "./formatDuration";
+import { FormattedText } from "./FormattedText";
 import { SessionSetting } from "./SessionSetting";
 import { TrainingLoadLine } from "./TrainingLoadLine";
 import { useTimeZone } from "./TimeZoneContext";
@@ -556,10 +557,13 @@ function ActivityDetails({ activity }: { activity: CalendarActivity }) {
           />
         )}
         {activity.coachReply && (
-          <p className="text-base" data-testid="calendar-dialog-coach-reply">
-            <span className="font-medium">Coach:</span>{" "}
-            {activity.coachReply.text}
-          </p>
+          <div
+            className="flex flex-col gap-1 text-base"
+            data-testid="calendar-dialog-coach-reply"
+          >
+            <span className="font-medium">Coach:</span>
+            <FormattedText text={activity.coachReply.text} />
+          </div>
         )}
       </div>
     );
@@ -612,9 +616,13 @@ function ActivityDetails({ activity }: { activity: CalendarActivity }) {
         </p>
       )}
       {activity.coachReply && (
-        <p className="text-base" data-testid="calendar-dialog-coach-reply">
-          <span className="font-medium">Coach:</span> {activity.coachReply.text}
-        </p>
+        <div
+          className="flex flex-col gap-1 text-base"
+          data-testid="calendar-dialog-coach-reply"
+        >
+          <span className="font-medium">Coach:</span>
+          <FormattedText text={activity.coachReply.text} />
+        </div>
       )}
     </div>
   );
@@ -637,7 +645,7 @@ function ActivitySummaryDetails({
         />
       )}
       {summary ? (
-        <p className="whitespace-pre-line">{summary}</p>
+        <FormattedText text={summary} />
       ) : (
         <p className="rounded bg-accent/15 p-2 text-base">
           {activity.analysisError
@@ -682,9 +690,10 @@ function SessionDetails({ session }: { session: WeekSession }) {
             forecasts={session.forecasts}
           />
         )}
-      <p className="whitespace-pre-line text-base text-muted-foreground">
-        {session.description}
-      </p>
+      <FormattedText
+        text={session.description}
+        className="text-base text-muted-foreground"
+      />
       {session.type === "workout" &&
         session.trainingLoad == null &&
         session.estimatedTss != null && (

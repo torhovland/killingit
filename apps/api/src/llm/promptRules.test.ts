@@ -4,7 +4,9 @@ import {
   COACH_RESPONSE_NOTES_RULES,
   DURATION_TOLERANCE_RULES,
   PAST_SESSION_RULES,
+  PLAN_PROMPT_RULES,
   SEASON_BLOCK_RULES,
+  TEXT_FORMATTING_RULES,
   TODAY_SESSION_RULES,
   WEEK_OUTLINE_RULES,
   WEATHER_PLANNING_RULES,
@@ -61,6 +63,36 @@ describe("COACH_RESPONSE_NOTES_RULES", () => {
     expect(COACH_RESPONSE_NOTES_RULES).toContain(
       "a workout that could not be matched to a planned session",
     );
+  });
+});
+
+describe("TEXT_FORMATTING_RULES", () => {
+  it("asks for paragraphs, bullets and numbered items", () => {
+    expect(TEXT_FORMATTING_RULES).toContain(
+      "Separate paragraphs with a blank line",
+    );
+    expect(TEXT_FORMATTING_RULES).toContain(
+      'Start each bullet on its own line with "- "',
+    );
+    expect(TEXT_FORMATTING_RULES).toContain(
+      'Start each numbered item on its own line with "1. ", "2. ", and so on',
+    );
+  });
+
+  it("asks for structure in long coach text and bans other markdown", () => {
+    expect(TEXT_FORMATTING_RULES).toContain(
+      "a workout's description, a plan's rationale, a review, an activity analysis, or a coach reply",
+    );
+    expect(TEXT_FORMATTING_RULES).toContain(
+      "Do not use headings, bold, italics, links, tables or code blocks",
+    );
+    expect(TEXT_FORMATTING_RULES).toContain(
+      "Keep short fields — a session's title, a plan's focus and a block's name — as short plain phrases",
+    );
+  });
+
+  it("reaches every plan prompt through the shared plan rules", () => {
+    expect(PLAN_PROMPT_RULES).toContain(TEXT_FORMATTING_RULES);
   });
 });
 

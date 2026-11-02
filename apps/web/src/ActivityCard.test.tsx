@@ -40,6 +40,33 @@ describe("ActivityCard", () => {
     expect(html).not.toContain("openrouter/auto");
   });
 
+  it("renders lists in the analysis and coach reply as HTML lists", () => {
+    const html = renderToStaticMarkup(
+      <ActivityCard
+        activity={{
+          ...activity,
+          analysis: {
+            text: "A solid session.\n\n- Held a steady pace\n- Stayed relaxed",
+            model: "openrouter/auto",
+            generatedAt: "2026-10-01T07:00:00Z",
+          },
+          comment: "Felt good.",
+          coachReply: {
+            text: "Good work.\n\n1. Keep Thursday easy\n2. Long run on Sunday",
+            model: "openrouter/auto",
+            generatedAt: "2026-10-01T07:06:00Z",
+          },
+        }}
+      />,
+    );
+
+    expect(html).toContain("<ul");
+    expect(html).toContain("<li>Held a steady pace</li>");
+    expect(html).toContain("<ol");
+    expect(html).toContain("<li>Keep Thursday easy</li>");
+    expect(html).toContain("<li>Long run on Sunday</li>");
+  });
+
   it("shows the day's training load when it is available", () => {
     const html = renderToStaticMarkup(
       <ActivityCard

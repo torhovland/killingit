@@ -8,7 +8,7 @@ import {
   formatDuration,
   MAX_PROMPT_SAMPLES,
 } from "./activityPrompt.js";
-import { GLOBAL_PROMPT_RULES } from "./promptRules.js";
+import { GLOBAL_PROMPT_RULES, TEXT_FORMATTING_RULES } from "./promptRules.js";
 
 function makeActivity(overrides: Partial<Activity> = {}): Activity {
   return {
@@ -241,6 +241,13 @@ describe("buildActivityAnalysisPrompt", () => {
       "a two-hour session recorded as 1:50 or 2:05 matched its plan",
     );
     expect(system).toContain("build on it instead of inventing a correction");
+  });
+
+  it("asks for paragraphs and lists in the review", () => {
+    const system =
+      buildActivityAnalysisMessages(makeActivity())[0]?.content ?? "";
+
+    expect(system).toContain(TEXT_FORMATTING_RULES);
   });
 
   it("does not trust the recorded activity type", () => {

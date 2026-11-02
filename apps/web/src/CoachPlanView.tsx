@@ -11,6 +11,7 @@ import {
   type WeekSessionStatus,
 } from "@killingit/shared";
 import { Bullet } from "./Bullet";
+import { FormattedText } from "./FormattedText";
 import { SessionSetting } from "./SessionSetting";
 import { TrainingLoadLine } from "./TrainingLoadLine";
 import { WeatherSummary } from "./WeatherSummary";
@@ -213,9 +214,11 @@ function DayCard({
           (day.weather != null || day.forecasts != null) && (
             <WeatherSummary weather={day.weather} forecasts={day.forecasts} />
           )}
-        <p className="whitespace-pre-line text-base text-muted-foreground">
-          {day.description}
-        </p>
+        <FormattedText
+          text={day.description}
+          className="text-base text-muted-foreground"
+          testId={`${testId}-description`}
+        />
         {thresholds.length > 0 && (
           <ThresholdsLine
             thresholds={thresholds}
@@ -262,10 +265,14 @@ function DayCard({
             </ul>
           </div>
         )}
-        <p className="text-base">
-          <span className="font-medium">Coach's rationale: </span>
-          <span className="text-muted-foreground">{day.rationale}</span>
-        </p>
+        <div className="flex flex-col gap-1 text-base">
+          <p className="font-medium">Coach's rationale</p>
+          <FormattedText
+            text={day.rationale}
+            className="text-muted-foreground"
+            testId={`${testId}-rationale`}
+          />
+        </div>
         {day.type === "workout" && day.optionalRationale && (
           <div
             className="rounded border bg-muted p-3 text-base"
@@ -277,9 +284,11 @@ function DayCard({
                 {day.optional ? "Optional session" : "Do not skip this session"}
               </span>
             </div>
-            <p className="mt-1 text-muted-foreground">
-              {day.optionalRationale}
-            </p>
+            <FormattedText
+              text={day.optionalRationale}
+              className="mt-1 text-muted-foreground"
+              testId={`${testId}-optional-rationale`}
+            />
           </div>
         )}
       </div>
@@ -365,7 +374,11 @@ function WeekSection({
             )
           )}
         </p>
-        <p className="mt-2 text-base text-muted-foreground">{week.rationale}</p>
+        <FormattedText
+          text={week.rationale}
+          className="mt-2 text-base text-muted-foreground"
+          testId="week-rationale"
+        />
         <ul className="mt-3 flex flex-col gap-2">
           {week.sessions.map((session) => (
             <li
@@ -413,9 +426,11 @@ function WeekSection({
                   </div>
                 )}
               {session.description.trim() !== "" && (
-                <p className="w-full text-sm text-muted-foreground">
-                  {session.description}
-                </p>
+                <FormattedText
+                  text={session.description}
+                  className="w-full text-sm text-muted-foreground"
+                  testId="week-session-description"
+                />
               )}
             </li>
           ))}
@@ -514,11 +529,19 @@ function BlockSection({
             )
           )}
         </p>
-        <p className="mt-3 text-base text-muted-foreground">{block.focus}</p>
-        <p className="mt-3 text-base">
-          <span className="font-medium">Coach's rationale: </span>
-          <span className="text-muted-foreground">{block.rationale}</span>
-        </p>
+        <FormattedText
+          text={block.focus}
+          className="mt-3 text-base text-muted-foreground"
+          testId="block-focus"
+        />
+        <div className="mt-3 flex flex-col gap-1 text-base">
+          <p className="font-medium">Coach's rationale</p>
+          <FormattedText
+            text={block.rationale}
+            className="text-muted-foreground"
+            testId="block-rationale"
+          />
+        </div>
         <PlanList>
           {block.weeks.map((week) => (
             <PlanListItem key={`${week.number}-${week.startDate}`}>
@@ -534,7 +557,10 @@ function BlockSection({
                   Estimated FTP: {week.estimatedFtpWatts} W
                 </p>
               )}
-              <p className="text-muted-foreground">{week.focus}</p>
+              <FormattedText
+                text={week.focus}
+                className="text-muted-foreground"
+              />
             </PlanListItem>
           ))}
         </PlanList>
@@ -582,10 +608,14 @@ function SeasonSection({
           )
         )}
       </p>
-      <p className="mt-3 text-base">
-        <span className="font-medium">Coach's rationale: </span>
-        <span className="text-muted-foreground">{season.rationale}</span>
-      </p>
+      <div className="mt-3 flex flex-col gap-1 text-base">
+        <p className="font-medium">Coach's rationale</p>
+        <FormattedText
+          text={season.rationale}
+          className="text-muted-foreground"
+          testId="season-rationale"
+        />
+      </div>
       <PlanList>
         {season.blocks.map((block, index) => (
           <PlanListItem key={`${block.name}-${block.startDate}`}>
@@ -598,7 +628,10 @@ function SeasonSection({
               <Bullet />
               {block.weekCount} {block.weekCount === 1 ? "week" : "weeks"}
             </p>
-            <p className="text-muted-foreground">{block.focus}</p>
+            <FormattedText
+              text={block.focus}
+              className="text-muted-foreground"
+            />
           </PlanListItem>
         ))}
       </PlanList>

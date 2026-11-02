@@ -113,6 +113,29 @@ describe("CoachPlanView", () => {
     expect(html).toContain("Easy aerobic work supports recovery.");
   });
 
+  it("renders lists in the daily description and rationale as HTML lists", () => {
+    const html = renderToStaticMarkup(
+      <CoachPlanView
+        plan={{
+          ...plan,
+          today: {
+            ...plan.today,
+            description: "Main set:\n- 10 minutes easy\n- 4 x 5 minutes hard",
+            rationale: "Why this works:\n1. Builds the base\n2. Sharpens speed",
+          },
+        }}
+      />,
+    );
+
+    expect(html).toContain("<ul");
+    expect(html).toContain("<li>10 minutes easy</li>");
+    expect(html).toContain("<li>4 x 5 minutes hard</li>");
+    expect(html).toContain("<ol");
+    expect(html).toContain("<li>Builds the base</li>");
+    expect(html).toContain("<li>Sharpens speed</li>");
+    expect(html).not.toContain("- 10 minutes easy");
+  });
+
   it("shows the four plan tabs with Day selected by default", () => {
     const html = renderToStaticMarkup(<CoachPlanView plan={plan} />);
 

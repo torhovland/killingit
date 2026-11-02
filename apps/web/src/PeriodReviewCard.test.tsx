@@ -35,6 +35,31 @@ describe("PeriodReviewCard", () => {
     expect(html).toContain("Send to coach");
   });
 
+  it("renders lists in the summary and coach reply as HTML lists", () => {
+    const html = renderToStaticMarkup(
+      <PeriodReviewCard
+        review={{
+          ...review,
+          summary: {
+            ...review.summary,
+            text: "A strong week.\n\n- Five of six sessions\n- Good consistency",
+          },
+          coachReply: {
+            text: "Keep going:\n1. Repeat this load\n2. Add one long run",
+            model: "test-model",
+            generatedAt: "2026-10-20T10:00:00.000Z",
+          },
+        }}
+        onSubmitComment={() => Promise.resolve(null)}
+      />,
+    );
+
+    expect(html).toContain("<ul");
+    expect(html).toContain("<li>Five of six sessions</li>");
+    expect(html).toContain("<ol");
+    expect(html).toContain("<li>Repeat this load</li>");
+  });
+
   it("renders the athlete comment and coach reply", () => {
     const html = renderToStaticMarkup(
       <PeriodReviewCard

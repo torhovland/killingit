@@ -6,6 +6,7 @@ import {
 } from "@killingit/shared";
 import { useAuth } from "./auth";
 import { fetchJsonAuthed } from "./fetchAuthed";
+import { FormattedText } from "./FormattedText";
 import { reportError } from "./reportError";
 import { browserTimeZone, formatDateTime } from "./timeZone";
 
@@ -116,7 +117,7 @@ export function AdminModelRemarksSection() {
                 </span>
                 <span>Prompt #{remark.callId}</span>
               </div>
-              <p className="whitespace-pre-line">{remark.remarks}</p>
+              <FormattedText text={remark.remarks} />
             </li>
           ))}
         </ul>

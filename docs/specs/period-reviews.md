@@ -102,14 +102,17 @@ new comment and the review summaries, so the plan revision is built on them.
 
 ## Prompts
 
-- **Period review** (`periodReviewPrompt`): a plain-text 3–5 sentence summary of
-  the completed week or block, including consistency, fit with the plan, what
-  worked, and what should change. Versioned with
-  `PERIOD_REVIEW_PROMPT_VERSION`.
+- **Period review** (`periodReviewPrompt`): a 3–5 sentence summary of the
+  completed week or block, including consistency, fit with the plan, what
+  worked, and what should change. The shared `TEXT_FORMATTING_RULES` fragment
+  lets the coach use paragraphs and bullet or numbered lists where they make
+  the review easier to scan. Versioned with `PERIOD_REVIEW_PROMPT_VERSION`.
 - **Coach reply** (`coachReplyPrompt`): the `week_review` and `block_review`
   targets include the stored summary and the athlete's comment, on top of the
   shared athlete and training context (see
-  `docs/specs/coach-reply-context.md`). Replies stay 1–2 sentences of plain text.
+  `docs/specs/coach-reply-context.md`). Replies stay 1–2 sentences and use the
+  same formatting rule when they need structure. See
+  `docs/specs/llm-text-formatting.md`.
 - **Weekly notes**: every week note is rendered with its week start and end.
   The shared rule says a note is scoped to that week unless the athlete states a
   recurring pattern; "I cannot train on Thursday" means that Thursday, while

@@ -16,6 +16,7 @@ import { TrainingLoadLine } from "./TrainingLoadLine";
 import { useAppStatus, useBusyReporter } from "./AppStatus";
 import { useAuth } from "./auth";
 import { fetchJsonAuthed } from "./fetchAuthed";
+import { FormattedText } from "./FormattedText";
 import { useNavigate } from "./navigation";
 import { reportError } from "./reportError";
 import { SubmitButton } from "./SubmitButton";
@@ -457,12 +458,12 @@ export function ActivitiesPage() {
                     {activity.details}
                   </span>
                   {activity.coachReply && (
-                    <span className="text-muted-foreground">
+                    <div className="flex flex-col gap-1 text-muted-foreground">
                       <span className="font-medium text-foreground">
                         Coach:
-                      </span>{" "}
-                      {activity.coachReply.text}
-                    </span>
+                      </span>
+                      <FormattedText text={activity.coachReply.text} />
+                    </div>
                   )}
                   {activity.trainingLoad !== null &&
                     activity.trainingLoad !== undefined && (
