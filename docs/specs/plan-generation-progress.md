@@ -82,7 +82,11 @@ at the cost of a few runs. A step with no sample uses `defaultMs`.
   because heartbeats refresh that column.
 - `step_expected_ms` — the expected duration used for this step, default 0.
 
-`begin` starts the prepare step at 5%. Each `update` records the finished
+`begin` starts the prepare step at 5%. A plan run that loads Garmin itself
+switches to `syncActivities` (`Syncing Garmin activities`) before loading the
+activity feed, then back to `prepare` once the feed is ready. A caller that
+already holds the analysed feed, such as the refresh after a dashboard sync,
+skips the sync step. Each `update` records the finished
 step's duration, carries the current estimate forward as the new floor, and
 starts the new step. `finish` records the last step and reports 100%. `fail`
 settles at the current estimate so the bar does not jump backwards on error.

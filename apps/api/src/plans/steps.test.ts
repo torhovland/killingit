@@ -3,6 +3,7 @@ import { PLAN_GENERATION_START, PLAN_GENERATION_STEPS } from "./steps.js";
 
 /** The full build path, in the order the generation runs its steps. */
 const FULL_BUILD = [
+  PLAN_GENERATION_STEPS.syncActivities,
   PLAN_GENERATION_STEPS.prepare,
   PLAN_GENERATION_STEPS.review,
   PLAN_GENERATION_STEPS.season,
@@ -16,6 +17,7 @@ const FULL_BUILD = [
 
 /** A cascade that starts at the block, without the full-build prefix. */
 const CASCADE = [
+  PLAN_GENERATION_STEPS.syncActivities,
   PLAN_GENERATION_STEPS.prepare,
   PLAN_GENERATION_STEPS.planUpdate,
   PLAN_GENERATION_STEPS.save,
@@ -23,6 +25,15 @@ const CASCADE = [
 ];
 
 describe("plan generation steps", () => {
+  it("names the Garmin sync before plan preparation", () => {
+    expect(PLAN_GENERATION_STEPS.syncActivities.label).toBe(
+      "Syncing Garmin activities",
+    );
+    expect(PLAN_GENERATION_STEPS.syncActivities.target).toBeLessThan(
+      PLAN_GENERATION_STEPS.prepare.target,
+    );
+  });
+
   it("never moves the bar backwards along the full build", () => {
     let previous = PLAN_GENERATION_START;
     for (const step of FULL_BUILD) {

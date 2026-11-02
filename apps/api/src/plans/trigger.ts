@@ -49,6 +49,7 @@ import { runPlanGeneration } from "./generate.js";
 import { planFtpEstimates } from "./generate.js";
 import { loadCoachingInputs, type CoachingInputs } from "./inputs.js";
 import { claimRun, releaseRun } from "./runs.js";
+import { PLAN_GENERATION_STEPS } from "./steps.js";
 import {
   latestActivityAnalysisTimestamp,
   latestAnswerTimestamp,
@@ -165,12 +166,40 @@ export async function runPlanForUser(
   const surveyAdjustmentStore =
     deps.coachingSurveyAdjustments ?? dbCoachingSurveyAdjustmentStore;
   const activitiesSnapshotAt = Date.now();
+  const preloadedActivities = deps.loadActivities;
 
   try {
+    // A real plan run owns the Garmin sync, so name that phase separately from
+    // the fast database reads that follow. A caller that already holds the
+    // analysed feed has nothing to sync and goes straight to preparation.
+    if (preloadedActivities === undefined) {
+      await deps.generations.update(
+        userId,
+        PLAN_GENERATION_STEPS.syncActivities,
+        options.runId,
+      );
+    }
+    activities =
+      preloadedActivities !== undefined
+        ? await preloadedActivities(userId)
+        : await loadAnalyzedActivities({
+            userId,
+            // The sidecar syncs 42 days. Analyse the newest activities the
+            // cap allows; the plan prompt reviews the same recent window.
+            limit: MAX_ANALYZED_ACTIVITIES,
+            refresh: false,
+          });
+    if (preloadedActivities === undefined) {
+      await deps.generations.update(
+        userId,
+        PLAN_GENERATION_STEPS.prepare,
+        options.runId,
+      );
+    }
+
     [
       plan,
       answers,
-      activities,
       llm,
       coachingInputs,
       user,
@@ -179,15 +208,6 @@ export async function runPlanForUser(
     ] = await Promise.all([
       deps.plans.load(userId),
       deps.answers.listForUser(userId),
-      deps.loadActivities
-        ? deps.loadActivities(userId)
-        : loadAnalyzedActivities({
-            userId,
-            // The sidecar syncs 42 days. Analyse the newest activities the
-            // cap allows; the plan prompt reviews the same recent window.
-            limit: MAX_ANALYZED_ACTIVITIES,
-            refresh: false,
-          }),
       deps.loadLlm ? deps.loadLlm(userId) : loadLlmClient(userId, "all"),
       deps.loadCoachingInputs
         ? deps.loadCoachingInputs(userId, startOfWeek(today))
