@@ -1,6 +1,7 @@
 import {
   DAILY_HEALTH_METRIC_KEYS,
   DAILY_HEALTH_METRICS,
+  formatDailyHealthValue,
   type DailyHealthMetricKey,
   type DailyHealthPoint,
 } from "@killingit/shared";
@@ -8,26 +9,6 @@ import { addDays } from "../plans/dates.js";
 
 /** How much recovery history the coach sees in a prompt. */
 export const HEALTH_CONTEXT_DAYS = 14;
-
-/** Formats a stored minute count as hours and minutes. */
-function formatMinutes(minutes: number): string {
-  const whole = Math.max(0, Math.round(minutes));
-  const hours = Math.floor(whole / 60);
-  const rest = whole % 60;
-  if (hours === 0) {
-    return `${rest} min`;
-  }
-  return rest === 0 ? `${hours} h` : `${hours} h ${rest} min`;
-}
-
-function formatValue(metric: DailyHealthMetricKey, value: number): string {
-  const definition = DAILY_HEALTH_METRICS[metric];
-  if (definition.duration === true) {
-    return formatMinutes(value);
-  }
-  const rounded = value.toFixed(definition.decimals);
-  return definition.unit === "" ? rounded : `${rounded} ${definition.unit}`;
-}
 
 function average(values: readonly number[]): number | null {
   if (values.length === 0) {
@@ -48,7 +29,7 @@ function trendText(
     return "unchanged from the previous week";
   }
   const direction = difference > 0 ? "up" : "down";
-  return `${direction} ${formatValue(metric, Math.abs(difference))} from the previous week`;
+  return `${direction} ${formatDailyHealthValue(metric, Math.abs(difference))} from the previous week`;
 }
 
 /**
@@ -107,9 +88,13 @@ export function formatDailyHealthContext(
 
     const currentAverage = average(current);
     const previousAverage = average(previous);
-    const parts = [`latest ${formatValue(metric, latest)} on ${latestDate}`];
+    const parts = [
+      `latest ${formatDailyHealthValue(metric, latest)} on ${latestDate}`,
+    ];
     if (currentAverage !== null && current.length >= 2) {
-      parts.push(`7-day average ${formatValue(metric, currentAverage)}`);
+      parts.push(
+        `7-day average ${formatDailyHealthValue(metric, currentAverage)}`,
+      );
     }
     if (currentAverage !== null && previousAverage !== null) {
       parts.push(trendText(metric, currentAverage, previousAverage));

@@ -204,7 +204,9 @@ about a past workout, or before a suggested workout, to steer the coach.
   steps, calories and intensity minutes) are backfilled one day at a time after
   the activity sync, with a per-day watermark that lets a rate-limited backfill
   resume. A curated 14-day summary is given to the plan, reply, review and
-  activity-analysis prompts; see `docs/specs/garmin-daily-health-metrics.md`.
+  activity-analysis prompts, and the Fitness page's Today panel lists the
+  newest Garmin value for each measure; see
+  `docs/specs/garmin-daily-health-metrics.md`.
   Manual activities get a coach-estimated TSS read from their free text, stored
   in `manual_activities.estimated_tss`; without a model the entry stays
   unscored. Any manual

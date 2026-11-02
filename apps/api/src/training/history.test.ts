@@ -459,6 +459,70 @@ describe("buildFitnessHistory", () => {
 
     expect(history.body).toEqual({ weight: [], bodyFat: [] });
   });
+
+  it("returns the newest Garmin daily, body and FTP readings", () => {
+    const garminFtp: AthleteThreshold = {
+      date: "2026-10-02",
+      value: 255,
+      source: "garmin",
+      sport: "cycling",
+      measure: "ftp",
+      label: "FTP",
+      unit: "W",
+      kind: "power",
+    };
+    const coachFtp: AthleteThreshold = {
+      ...garminFtp,
+      date: "2026-10-03",
+      value: 260,
+      source: "coach",
+    };
+    const history = buildFitnessHistory({
+      ...base,
+      bodyPoints: {
+        weight: [
+          { date: "2026-10-18", value: 78.5, source: "garmin" },
+          { date: "2026-10-19", value: 78.4, source: "garmin" },
+          { date: "2026-10-20", value: 78.0, source: "user" },
+        ],
+        bodyFat: [{ date: "2026-10-18", value: 24.5, source: "garmin" }],
+      },
+      thresholdPoints: [...thresholdPoints, garminFtp, coachFtp],
+      latestDailyHealth: [
+        { metric: "sleep_duration", date: "2026-10-20", value: 400 },
+        { metric: "sleep_duration", date: "2026-10-21", value: 430 },
+        { metric: "hrv", date: "2026-10-21", value: 48 },
+      ],
+    });
+
+    expect(history.latestGarmin.dailyHealth).toEqual([
+      { metric: "sleep_duration", date: "2026-10-21", value: 430 },
+      { metric: "hrv", date: "2026-10-21", value: 48 },
+    ]);
+    expect(history.latestGarmin.weight).toEqual({
+      date: "2026-10-19",
+      value: 78.4,
+    });
+    expect(history.latestGarmin.bodyFat).toEqual({
+      date: "2026-10-18",
+      value: 24.5,
+    });
+    expect(history.latestGarmin.ftp).toEqual({
+      date: "2026-10-02",
+      value: 255,
+    });
+  });
+
+  it("leaves absent Garmin readings empty", () => {
+    const history = buildFitnessHistory(base);
+
+    expect(history.latestGarmin).toEqual({
+      dailyHealth: [],
+      weight: null,
+      bodyFat: null,
+      ftp: null,
+    });
+  });
 });
 
 function ftpOn(

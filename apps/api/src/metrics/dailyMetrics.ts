@@ -91,6 +91,48 @@ export async function loadGarminDailySyncDates(
   return new Set(rows.map((row) => row.date));
 }
 
+/**
+ * Loads the newest stored value for each daily health metric, up to
+ * `throughDate`. Used by the Fitness page's latest-Garmin panel.
+ */
+export async function loadLatestDailyHealthForUser(
+  userId: number,
+  throughDate: string,
+): Promise<DailyHealthPoint[]> {
+  const rows = await db
+    .select({
+      metric: athleteDailyMetrics.metric,
+      date: athleteDailyMetrics.date,
+      value: athleteDailyMetrics.value,
+    })
+    .from(athleteDailyMetrics)
+    .where(
+      and(
+        eq(athleteDailyMetrics.userId, userId),
+        lte(athleteDailyMetrics.date, throughDate),
+      ),
+    );
+
+  const latest = new Map<DailyHealthMetricKey, DailyHealthPoint>();
+  for (const row of rows) {
+    if (!isDailyHealthMetric(row.metric)) {
+      continue;
+    }
+    const current = latest.get(row.metric);
+    if (current === undefined || row.date > current.date) {
+      latest.set(row.metric, {
+        metric: row.metric,
+        date: row.date,
+        value: row.value,
+      });
+    }
+  }
+  return DAILY_HEALTH_METRIC_KEYS.flatMap((metric) => {
+    const point = latest.get(metric);
+    return point === undefined ? [] : [point];
+  });
+}
+
 /** Loads the stored daily health series, oldest first. */
 export async function loadDailyHealthForUser(
   userId: number,

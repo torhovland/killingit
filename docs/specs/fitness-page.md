@@ -30,6 +30,8 @@ colours must match the ones already shown on the plan and activity views.
 4. A hover card on either load chart showing the pointed-at day's numbers, the
    activities logged that day, or the planned workout when none was logged.
 5. A range picker (Week, Month, Quarter, Year, All time) above the charts.
+6. The Today panel's latest-Garmin list: the newest value of every stored daily
+   health metric plus the newest Garmin weight, body-fat and FTP measurement.
 
 ### Out of scope (deferred)
 
@@ -133,8 +135,10 @@ Shared (`@killingit/shared`):
   existing `trainingLoadSchema`, `activities`, and `planned`),
   `ftpHistoryPointSchema` (`date`, `watts`),
   `fitnessMetricPointSchema` (`date`, `value`), `fitnessBodySchema`
-  (`weight`, `bodyFat`), and `fitnessHistoryResponseSchema` (`days`, `ftp`,
-  `body`). `metrics.ts` also holds the interpolation and best-fit helpers.
+  (`weight`, `bodyFat`), `latestGarminSchema` (`dailyHealth`, `weight`,
+  `bodyFat`, `ftp`), and `fitnessHistoryResponseSchema` (`days`, `thresholds`,
+  `body`, `latestGarmin`). `metrics.ts` also holds the interpolation and
+  best-fit helpers.
 - `trainingLoad.ts`: `FORM_ZONES`, the TSB bands (`from` inclusive, `to`
   exclusive) used to shade the chart. The band colours stay in the web theme
   (`--form-*`), so they cannot drift from the interpretation text.
@@ -161,6 +165,10 @@ API:
   with each acronym beside the spelled-out name and the interpretation in its
   zone colour, one size larger than the compact line used on the plan and
   activity views. The panel also shows the estimated FTP in effect today.
+  Below the thresholds it lists the latest Garmin reading for every stored
+  daily health metric, then the newest Garmin weight, body-fat and FTP
+  measurement; each row carries its measurement date, and a value measured
+  today says "today". Metrics without a stored value are omitted.
 - Below it, a fitness/form chart with CTL, ATL, and TSB lines over coloured TSB
   zone bands, a legend naming each zone with its threshold and colour, an
   estimated-threshold chart whose heading carries no value (the current
@@ -231,7 +239,9 @@ API:
     with a best-fit trend after the last measurement, through the plan's last
     day. The chart is hidden without measurements, and a metric without data
     does not draw a line.
-12. Typecheck, lint, format, and tests pass.
+12. The Today panel lists the newest Garmin daily health metric per measure and
+    the newest Garmin weight, body-fat and FTP measurement, each with its date.
+13. Typecheck, lint, format, and tests pass.
 
 ## Testing
 
@@ -239,9 +249,10 @@ API:
   `FORM_ZONES` is exercised through the web chart tests.
 - API unit tests for `buildFitnessHistory`: continuous days, TSS precedence,
   manual entries, plan TSS, daily plan estimate vs. interpolated week estimate
-  vs. timeline, no FTP, the activities listed per day, and the interpolated body
-  series.
+  vs. timeline, no FTP, the activities listed per day, the interpolated body
+  series, and the latest Garmin readings.
 - API route tests: auth, missing date, day clamping, and the happy path.
 - Web unit tests for the chart scale helpers, a render test for the page view
   (load line, zone legend, both charts, hidden FTP chart, body chart and its
-  hidden states), and a render test for the hover card.
+  hidden states, and the latest-Garmin list), and a render test for the hover
+  card.

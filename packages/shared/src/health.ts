@@ -33,6 +33,17 @@ export type DailyHealthMetricKey = (typeof DAILY_HEALTH_METRIC_KEYS)[number];
 
 export const dailyHealthMetricKeySchema = z.enum(DAILY_HEALTH_METRIC_KEYS);
 
+/** Formats a stored minute count as hours and minutes. */
+function formatMinutes(minutes: number): string {
+  const whole = Math.max(0, Math.round(minutes));
+  const hours = Math.floor(whole / 60);
+  const rest = whole % 60;
+  if (hours === 0) {
+    return `${rest} min`;
+  }
+  return rest === 0 ? `${hours} h` : `${hours} h ${rest} min`;
+}
+
 export interface DailyHealthMetricDefinition {
   label: string;
   unit: string;
@@ -114,3 +125,16 @@ export const garminDailyResponseSchema = z.object({
 });
 
 export type GarminDailyResponse = z.infer<typeof garminDailyResponseSchema>;
+
+/** Formats one stored daily health value with its display unit. */
+export function formatDailyHealthValue(
+  metric: DailyHealthMetricKey,
+  value: number,
+): string {
+  const definition = DAILY_HEALTH_METRICS[metric];
+  if (definition.duration === true) {
+    return formatMinutes(value);
+  }
+  const rounded = value.toFixed(definition.decimals);
+  return definition.unit === "" ? rounded : `${rounded} ${definition.unit}`;
+}
