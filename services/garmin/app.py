@@ -266,6 +266,7 @@ def _add_stats_metrics(metrics: dict[str, float], stats: dict) -> None:
     )
     _put_metric(metrics, "steps", stats.get("totalSteps"), 0, 200_000)
     _put_metric(metrics, "active_calories", stats.get("activeKilocalories"), 0, 20_000)
+    _put_metric(metrics, "spo2", stats.get("averageSpo2"), 50, 100)
 
     moderate = _finite_or_none(stats.get("moderateIntensityMinutes"))
     vigorous = _finite_or_none(stats.get("vigorousIntensityMinutes"))
@@ -327,14 +328,17 @@ def _add_sleep_metrics(metrics: dict[str, float], sleep: dict) -> None:
     _put_metric(
         metrics,
         "hrv",
-        _first_value(dto, "avgSleepHRV", "avgOvernightHrv"),
+        # Garmin returns overnight HRV at the top level of the sleep response;
+        # older payloads carried it inside dailySleepDTO, so keep that fallback.
+        _first_value(sleep, "avgOvernightHrv")
+        or _first_value(dto, "avgSleepHRV", "avgOvernightHrv"),
         0,
         500,
     )
     _put_metric(
         metrics,
         "spo2",
-        _first_value(dto, "avgSpO2", "averageSpO2"),
+        _first_value(dto, "averageSpO2Value", "avgSpO2", "averageSpO2"),
         50,
         100,
     )
@@ -377,7 +381,24 @@ def _latest_readiness_snapshot(readiness):
 
 
 def _add_vo2max_metrics(metrics: dict[str, float], payload) -> None:
-    """Normalize VO2max from Garmin's max-metrics response."""
+    """Normalize VO2max from Garmin's max-metrics response.
+
+    Garmin's daily endpoint returns a list of records, while older responses and
+    some stubs return a single dict. Both shapes are accepted; when a list holds
+    several records, the one with the latest calendar date wins.
+    """
+    if isinstance(payload, list):
+        records = [entry for entry in payload if isinstance(entry, dict)]
+        if not records:
+            return
+        payload = max(
+            records,
+            key=lambda entry: str(
+                (entry.get("generic") or {}).get("calendarDate")
+                or (entry.get("cycling") or {}).get("calendarDate")
+                or ""
+            ),
+        )
     if not isinstance(payload, dict):
         return
     generic = payload.get("generic")
