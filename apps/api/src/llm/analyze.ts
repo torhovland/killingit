@@ -29,11 +29,12 @@ export async function analyzeActivity(
   input: AnalysisInput,
   activity: Activity,
   context?: ActivityAnalysisContext,
+  comment?: string | null,
 ): Promise<CoachAnalysisResult> {
   const text = await completeWithFallbacks(
     provider,
     input,
-    buildActivityAnalysisMessages(activity, context),
+    buildActivityAnalysisMessages(activity, context, comment),
     // Reasoning models count their reasoning tokens against this budget, so a
     // low cap truncates the visible analysis mid-sentence. 2048 leaves room for
     // reasoning plus a complete 3-5 sentence analysis; the fallbacks retry with

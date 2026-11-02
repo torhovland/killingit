@@ -1,6 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import type { Activity, AnalyzedActivity } from "@killingit/shared";
-import { mergeActivityHistory } from "./activities.js";
+import {
+  commentIsNewerThanAnalysis,
+  mergeActivityHistory,
+} from "./activities.js";
 
 function synced(id: number, startDate: string, name: string): Activity {
   return {
@@ -31,6 +34,33 @@ function stored(id: number, startDate: string): AnalyzedActivity {
     coachReply: null,
   };
 }
+
+describe("commentIsNewerThanAnalysis", () => {
+  const generatedAt = new Date("2026-10-22T09:00:00Z");
+
+  it("regenerates an analysis older than the comment", () => {
+    expect(
+      commentIsNewerThanAnalysis(
+        { generatedAt },
+        new Date("2026-10-22T10:00:00Z"),
+      ),
+    ).toBe(true);
+  });
+
+  it("keeps an analysis produced after the comment", () => {
+    expect(
+      commentIsNewerThanAnalysis(
+        { generatedAt },
+        new Date("2026-10-22T08:00:00Z"),
+      ),
+    ).toBe(false);
+  });
+
+  it("keeps an analysis when there is no comment", () => {
+    expect(commentIsNewerThanAnalysis({ generatedAt }, null)).toBe(false);
+    expect(commentIsNewerThanAnalysis(undefined, new Date())).toBe(false);
+  });
+});
 
 describe("mergeActivityHistory", () => {
   it("keeps activities that fell outside the latest sync window", () => {

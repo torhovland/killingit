@@ -817,6 +817,8 @@ export const coachQuestions = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     question: text("question").notNull(),
+    /** The activity id the question is about, when the prompt names one. */
+    target: text("target"),
     /** The prompt kind that produced the question, for admin diagnostics. */
     sourceKind: text("source_kind").notNull(),
     model: text("model").notNull(),

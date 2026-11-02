@@ -101,6 +101,15 @@ and the reply is null; the failure is logged.
 
 ## Prompts
 
+- **General activity analysis** (`activityPrompt`): the prompt contains the
+  activity summary, its time series, and the athlete's comment when present,
+  under the shared rule that a comment describes that same activity rather than
+  extra training. The coach treats the comment as authoritative when it explains
+  what the session actually was, so it does not ask the athlete to describe an
+  activity again. A comment saved after the cached analysis makes that analysis
+  stale; it is regenerated with the comment, and any pending question the old
+  analysis asked about the activity is cleared. Versioned with
+  `ANALYSIS_PROMPT_VERSION`.
 - **Program review** (`programAnalysisPrompt`): system prompt asks for 3–5
   sentences on fit with the program and what could have been done better, citing
   the activity data. It first matches the activity to the session planned for

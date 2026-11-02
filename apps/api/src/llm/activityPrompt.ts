@@ -36,7 +36,7 @@ export const MAX_PROMPT_SAMPLES = 90;
  * Bump when the prompt or generation parameters change materially. Cached
  * analyses from an older version are ignored and regenerated.
  */
-export const ANALYSIS_PROMPT_VERSION = 10;
+export const ANALYSIS_PROMPT_VERSION = 11;
 
 /**
  * The athlete's current week, used to match an activity to its planned session
@@ -202,20 +202,24 @@ export function channelStats(
 
 /**
  * Builds the chat messages that ask the coach to analyse one activity. The
- * prompt includes the current week plan when available, the summary, aggregate
- * channel stats, and a downsampled time-series table so the model can inspect
- * how the workout unfolded.
+ * prompt includes the current week plan when available, the athlete's comment,
+ * the summary, aggregate channel stats, and a downsampled time-series table so
+ * the model can inspect how the workout unfolded.
  */
 export function buildActivityAnalysisMessages(
   activity: Activity,
   context?: ActivityAnalysisContext,
+  comment?: string | null,
 ): {
   role: "system" | "user";
   content: string;
 }[] {
   return [
     { role: "system", content: ANALYSIS_SYSTEM_PROMPT },
-    { role: "user", content: buildActivityAnalysisPrompt(activity, context) },
+    {
+      role: "user",
+      content: buildActivityAnalysisPrompt(activity, context, comment),
+    },
   ];
 }
 
@@ -223,6 +227,7 @@ export function buildActivityAnalysisMessages(
 export function buildActivityAnalysisPrompt(
   activity: Activity,
   context?: ActivityAnalysisContext,
+  comment?: string | null,
 ): string {
   const shown = downsampleSamples(activity.samples);
   const activityDate = activity.startDate.slice(0, 10);
@@ -259,6 +264,14 @@ export function buildActivityAnalysisPrompt(
     "Activity summary:",
     ...formatActivitySummary(activity, activity.samples.length),
   );
+
+  if (comment !== undefined && comment !== null && comment.trim() !== "") {
+    lines.push(
+      "",
+      "Athlete comment on this activity (it describes this same activity, not an additional session):",
+      comment.trim(),
+    );
+  }
 
   const statsLines: string[] = [];
   for (const channel of CHANNELS) {

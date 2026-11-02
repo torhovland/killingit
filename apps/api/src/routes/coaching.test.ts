@@ -491,6 +491,7 @@ describe("coaching activity feed", () => {
               "7",
               {
                 comment: "Felt strong on the climbs.",
+                commentUpdatedAt: new Date("2026-10-21T08:00:00Z"),
                 reply: {
                   kind: "activity_comment" as const,
                   target: "7",
