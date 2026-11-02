@@ -4,10 +4,12 @@ import {
   formatThresholdValue,
   FITNESS_RANGE_LABELS,
   FITNESS_RANGES,
+  type DailyHealthMetricKey,
   type FitnessHistoryResponse,
   type FitnessRange,
 } from "@killingit/shared";
 import { BodyChart } from "./BodyChart";
+import { DailyHealthCharts } from "./DailyHealthCharts";
 import { FitnessChart } from "./FitnessChart";
 import { ThresholdChart } from "./ThresholdChart";
 import { TrainingLoadLine } from "./TrainingLoadLine";
@@ -19,48 +21,84 @@ interface LatestGarminRow {
   date: string;
 }
 
-/** The newest Garmin reading per measure, ready for the Today panel. */
-function latestGarminRows(
+/** The left-hand list in the Today panel, in display order. */
+const LEFT_HEALTH_METRICS: readonly DailyHealthMetricKey[] = [
+  "resting_heart_rate",
+  "hrv",
+  "body_battery_high",
+  "body_battery_low",
+  "stress",
+  "steps",
+  "intensity_minutes",
+  "active_calories",
+  "respiration",
+  "spo2",
+  "training_readiness",
+  "recovery_time",
+  "vo2max",
+  "vo2max_cycling",
+];
+
+/** The right-hand Sleep list in the Today panel, in display order. */
+const SLEEP_HEALTH_METRICS: readonly DailyHealthMetricKey[] = [
+  "sleep_score",
+  "sleep_duration",
+  "deep_sleep",
+  "rem_sleep",
+  "light_sleep",
+  "awake_sleep",
+];
+
+/** The newest reading for each requested measure, ready for the Today panel. */
+function latestHealthRows(
+  history: FitnessHistoryResponse,
+  metrics: readonly DailyHealthMetricKey[],
+  today: string,
+): LatestGarminRow[] {
+  const latest = new Map(
+    history.latestGarmin.dailyHealth.map((point) => [point.metric, point]),
+  );
+  return metrics.flatMap((metric) => {
+    const point = latest.get(metric);
+    if (point === undefined) {
+      return [];
+    }
+    return [
+      {
+        key: metric,
+        label: DAILY_HEALTH_METRICS[metric].label,
+        value: formatDailyHealthValue(metric, point.value),
+        date: point.date === today ? "today" : point.date,
+      },
+    ];
+  });
+}
+
+/** The newest Garmin weight, body-fat and FTP measurement, for the Today panel. */
+function latestBodyRows(
   history: FitnessHistoryResponse,
   today: string,
 ): LatestGarminRow[] {
-  const rows: LatestGarminRow[] = history.latestGarmin.dailyHealth.map(
-    (point) => ({
-      key: point.metric,
-      label: DAILY_HEALTH_METRICS[point.metric].label,
-      value: formatDailyHealthValue(point.metric, point.value),
-      date: point.date,
-    }),
-  );
+  const rows: LatestGarminRow[] = [];
   const { weight, bodyFat, ftp } = history.latestGarmin;
+  const add = (
+    key: string,
+    label: string,
+    value: string,
+    date: string,
+  ): void => {
+    rows.push({ key, label, value, date: date === today ? "today" : date });
+  };
   if (weight !== null) {
-    rows.push({
-      key: "weight",
-      label: "Weight",
-      value: `${weight.value.toFixed(1)} kg`,
-      date: weight.date,
-    });
+    add("weight", "Weight", `${weight.value.toFixed(1)} kg`, weight.date);
   }
   if (bodyFat !== null) {
-    rows.push({
-      key: "body_fat",
-      label: "Body fat",
-      value: `${bodyFat.value.toFixed(1)} %`,
-      date: bodyFat.date,
-    });
+    add("body_fat", "Body fat", `${bodyFat.value.toFixed(1)} %`, bodyFat.date);
   }
   if (ftp !== null) {
-    rows.push({
-      key: "ftp",
-      label: "FTP measurement",
-      value: `${Math.round(ftp.value)} W`,
-      date: ftp.date,
-    });
+    add("ftp", "FTP measurement", `${Math.round(ftp.value)} W`, ftp.date);
   }
-  return rows.map((row) => ({
-    ...row,
-    date: row.date === today ? "today" : row.date,
-  }));
+  return rows;
 }
 
 /**
@@ -91,7 +129,17 @@ export function FitnessView({
       const point = series.points.find((entry) => entry.date === today);
       return point === undefined ? [] : [{ series, value: point.value }];
     }) ?? [];
-  const garminRows = history === null ? [] : latestGarminRows(history, today);
+  const leftRows =
+    history === null
+      ? []
+      : [
+          ...latestHealthRows(history, LEFT_HEALTH_METRICS, today),
+          ...latestBodyRows(history, today),
+        ];
+  const sleepRows =
+    history === null
+      ? []
+      : latestHealthRows(history, SLEEP_HEALTH_METRICS, today);
 
   return (
     <section className="flex w-full flex-col gap-4 text-left">
@@ -112,7 +160,8 @@ export function FitnessView({
         <>
           {(todayLoad !== null ||
             todayThresholds.length > 0 ||
-            garminRows.length > 0) && (
+            leftRows.length > 0 ||
+            sleepRows.length > 0) && (
             <div className="flex flex-col gap-1 rounded-lg border bg-card p-4">
               <span className="text-xl font-semibold">Today</span>
               {todayLoad !== null && (
@@ -137,16 +186,13 @@ export function FitnessView({
                   ))}
                 </ul>
               )}
-              {garminRows.length > 0 && (
-                <div className="flex flex-col gap-1 border-t pt-2">
-                  <span className="text-lg font-medium">
-                    Latest Garmin data
-                  </span>
+              {(leftRows.length > 0 || sleepRows.length > 0) && (
+                <div className="grid gap-4 border-t pt-2 sm:grid-cols-2">
                   <ul
-                    className="grid gap-x-4 gap-y-1 text-base text-muted-foreground sm:grid-cols-2"
-                    data-testid="fitness-today-garmin"
+                    className="flex flex-col gap-0.5 text-base text-muted-foreground"
+                    data-testid="fitness-today-garmin-left"
                   >
-                    {garminRows.map((row) => (
+                    {leftRows.map((row) => (
                       <li key={row.key}>
                         <span>{row.label}</span>{" "}
                         <span className="font-medium text-foreground">
@@ -156,6 +202,25 @@ export function FitnessView({
                       </li>
                     ))}
                   </ul>
+                  {sleepRows.length > 0 && (
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-lg font-medium">Sleep</span>
+                      <ul
+                        className="flex flex-col gap-0.5 text-base text-muted-foreground"
+                        data-testid="fitness-today-garmin-sleep"
+                      >
+                        {sleepRows.map((row) => (
+                          <li key={row.key}>
+                            <span>{row.label}</span>{" "}
+                            <span className="font-medium text-foreground">
+                              {row.value}
+                            </span>{" "}
+                            <span className="text-sm">({row.date})</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -206,6 +271,8 @@ export function FitnessView({
             bodyFat={history.body.bodyFat}
             today={today}
           />
+
+          <DailyHealthCharts days={history.days} points={history.dailyHealth} />
         </>
       )}
     </section>

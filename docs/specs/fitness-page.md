@@ -25,13 +25,14 @@ colours must match the ones already shown on the plan and activity views.
    a window, using the same TSS resolution as the Activities page.
 2. A new day-by-day estimated-FTP series for the same window.
 3. A `Fitness` page with a fitness/form chart, a coloured TSB zone legend using
-   the existing interpretation colours, an estimated-FTP chart, and a body
-   weight/body-fat chart when measurements exist.
+   the existing interpretation colours, an estimated-FTP chart, a body
+   weight/body-fat chart when measurements exist, and recovery/sleep charts
+   when Garmin has recorded those measures.
 4. A hover card on either load chart showing the pointed-at day's numbers, the
    activities logged that day, or the planned workout when none was logged.
 5. A range picker (Week, Month, Quarter, Year, All time) above the charts.
-6. The Today panel's latest-Garmin list: the newest value of every stored daily
-   health metric plus the newest Garmin weight, body-fat and FTP measurement.
+6. The Today panel's newest-Garmin readings in two columns: a general column
+   and a Sleep column, with recovery and sleep charts below the body chart.
 
 ### Out of scope (deferred)
 
@@ -137,8 +138,8 @@ Shared (`@killingit/shared`):
   `fitnessMetricPointSchema` (`date`, `value`), `fitnessBodySchema`
   (`weight`, `bodyFat`), `latestGarminSchema` (`dailyHealth`, `weight`,
   `bodyFat`, `ftp`), and `fitnessHistoryResponseSchema` (`days`, `thresholds`,
-  `body`, `latestGarmin`). `metrics.ts` also holds the interpolation and
-  best-fit helpers.
+  `body`, `latestGarmin`, `dailyHealth`). `metrics.ts` also holds the
+  interpolation and best-fit helpers.
 - `trainingLoad.ts`: `FORM_ZONES`, the TSB bands (`from` inclusive, `to`
   exclusive) used to shade the chart. The band colours stay in the web theme
   (`--form-*`), so they cannot drift from the interpretation text.
@@ -164,11 +165,15 @@ API:
 - The page shows a Today panel: `Training stress · Fatigue · Fitness · Form`
   with each acronym beside the spelled-out name and the interpretation in its
   zone colour, one size larger than the compact line used on the plan and
-  activity views. The panel also shows the estimated FTP in effect today.
-  Below the thresholds it lists the latest Garmin reading for every stored
-  daily health metric, then the newest Garmin weight, body-fat and FTP
-  measurement; each row carries its measurement date, and a value measured
-  today says "today". Metrics without a stored value are omitted.
+  activity views. The panel also shows the estimated FTP in effect today. It
+  also shows the newest Garmin readings in two columns. The
+  left column lists resting heart rate, HRV, Body Battery high, Body Battery
+  low, stress, steps, intensity minutes, active calories, respiration, SpO2,
+  training readiness, recovery time, VO2max and cycling VO2max, as well as the
+  newest Garmin weight, body-fat and FTP measurement. The right column is headed
+  `Sleep` and lists sleep score, sleep duration, deep sleep, REM sleep, light
+  sleep and awake time. Each row carries its measurement date, and a value
+  measured today says "today". Metrics without a stored value are omitted.
 - Below it, a fitness/form chart with CTL, ATL, and TSB lines over coloured TSB
   zone bands, a legend naming each zone with its threshold and colour, an
   estimated-threshold chart whose heading carries no value (the current
@@ -185,6 +190,12 @@ API:
   unit. The part after today is dotted, like the other projections. Pointing at
   it shows the date and the available measurements. Its axis labels use the same
   size as the other charts.
+- Below the body chart, a `Recovery and sleep` section draws a resting heart
+  rate chart, a score chart with Body Battery high, sleep score and stress, and
+  a stacked sleep-stage chart whose deep, light and REM areas add up to sleep
+  duration. The sleep legend shows the latest value of each stage and the
+  hovered day's awake time. Each chart hides itself when Garmin has not
+  recorded its measures.
 - Only the fitness chart's plot is white, so the zone tints stay clean while the
   rest of that chart — and the whole FTP chart — keeps the card's surface. The bands are soft tints (62.5%) of the
   zone colours, and the TSB line is solid and coloured by the zone it is in
@@ -239,8 +250,12 @@ API:
     with a best-fit trend after the last measurement, through the plan's last
     day. The chart is hidden without measurements, and a metric without data
     does not draw a line.
-12. The Today panel lists the newest Garmin daily health metric per measure and
-    the newest Garmin weight, body-fat and FTP measurement, each with its date.
+12. The Today panel lists the newest Garmin daily health metric per measure in
+    two columns: a general column and a `Sleep` column. The general column
+    includes Body Battery low and the newest Garmin weight, body-fat and FTP
+    measurement. Recovery and sleep charts draw resting heart rate, Body Battery
+    high, sleep score, stress and the stacked sleep stages, each with a hover
+    card.
 13. Typecheck, lint, format, and tests pass.
 
 ## Testing
@@ -254,5 +269,5 @@ API:
 - API route tests: auth, missing date, day clamping, and the happy path.
 - Web unit tests for the chart scale helpers, a render test for the page view
   (load line, zone legend, both charts, hidden FTP chart, body chart and its
-  hidden states, and the latest-Garmin list), and a render test for the hover
-  card.
+  hidden states, the Garmin Today columns and the recovery/sleep charts), and a
+  render test for the hover card.

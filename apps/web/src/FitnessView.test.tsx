@@ -83,13 +83,60 @@ function history(
     },
     latestGarmin: {
       dailyHealth: [
-        { metric: "sleep_duration", date: "2026-10-22", value: 430 },
+        { metric: "resting_heart_rate", date: "2026-10-22", value: 52 },
         { metric: "hrv", date: "2026-10-22", value: 48 },
+        { metric: "body_battery_high", date: "2026-10-22", value: 75 },
+        { metric: "body_battery_low", date: "2026-10-22", value: 20 },
+        { metric: "stress", date: "2026-10-22", value: 26 },
+        { metric: "steps", date: "2026-10-22", value: 8200 },
+        { metric: "intensity_minutes", date: "2026-10-22", value: 30 },
+        { metric: "active_calories", date: "2026-10-22", value: 640 },
+        { metric: "respiration", date: "2026-10-22", value: 14.2 },
+        { metric: "spo2", date: "2026-10-22", value: 96 },
+        { metric: "training_readiness", date: "2026-10-22", value: 78 },
+        { metric: "recovery_time", date: "2026-10-22", value: 600 },
+        { metric: "vo2max", date: "2026-10-22", value: 48.5 },
+        { metric: "vo2max_cycling", date: "2026-10-22", value: 43 },
+        { metric: "sleep_score", date: "2026-10-22", value: 84 },
+        { metric: "sleep_duration", date: "2026-10-22", value: 430 },
+        { metric: "deep_sleep", date: "2026-10-22", value: 80 },
+        { metric: "rem_sleep", date: "2026-10-22", value: 100 },
+        { metric: "light_sleep", date: "2026-10-22", value: 220 },
+        { metric: "awake_sleep", date: "2026-10-22", value: 8 },
       ],
       weight: { date: "2026-10-21", value: 78.2 },
       bodyFat: null,
       ftp: { date: "2026-10-01", value: 250 },
     },
+    dailyHealth: [
+      { metric: "resting_heart_rate", date: "2026-10-20", value: 54 },
+      { metric: "resting_heart_rate", date: "2026-10-21", value: 53 },
+      { metric: "resting_heart_rate", date: "2026-10-22", value: 52 },
+      { metric: "body_battery_high", date: "2026-10-20", value: 65 },
+      { metric: "body_battery_high", date: "2026-10-21", value: 70 },
+      { metric: "body_battery_high", date: "2026-10-22", value: 75 },
+      { metric: "sleep_score", date: "2026-10-20", value: 80 },
+      { metric: "sleep_score", date: "2026-10-21", value: 82 },
+      { metric: "sleep_score", date: "2026-10-22", value: 84 },
+      { metric: "stress", date: "2026-10-20", value: 30 },
+      { metric: "stress", date: "2026-10-21", value: 28 },
+      { metric: "stress", date: "2026-10-22", value: 26 },
+      { metric: "deep_sleep", date: "2026-10-20", value: 70 },
+      { metric: "deep_sleep", date: "2026-10-21", value: 75 },
+      { metric: "deep_sleep", date: "2026-10-22", value: 80 },
+      { metric: "light_sleep", date: "2026-10-20", value: 200 },
+      { metric: "light_sleep", date: "2026-10-21", value: 210 },
+      { metric: "light_sleep", date: "2026-10-22", value: 220 },
+      { metric: "rem_sleep", date: "2026-10-20", value: 90 },
+      { metric: "rem_sleep", date: "2026-10-21", value: 95 },
+      { metric: "rem_sleep", date: "2026-10-22", value: 100 },
+      { metric: "awake_sleep", date: "2026-10-20", value: 10 },
+      { metric: "awake_sleep", date: "2026-10-21", value: 12 },
+      { metric: "awake_sleep", date: "2026-10-22", value: 8 },
+      { metric: "sleep_duration", date: "2026-10-20", value: 360 },
+      { metric: "sleep_duration", date: "2026-10-21", value: 380 },
+      { metric: "sleep_duration", date: "2026-10-22", value: 400 },
+    ],
     ...overrides,
   };
 }
@@ -124,20 +171,107 @@ describe("FitnessView", () => {
     expect(html).toContain("Fresh");
   });
 
-  it("shows the latest Garmin readings in the Today panel", () => {
+  it("splits the latest Garmin readings into a general and Sleep column", () => {
+    const html = view();
+    const leftStart = html.indexOf('data-testid="fitness-today-garmin-left"');
+    const sleepStart = html.indexOf('data-testid="fitness-today-garmin-sleep"');
+
+    expect(html).not.toContain("Latest Garmin data");
+    expect(leftStart).toBeGreaterThan(-1);
+    expect(sleepStart).toBeGreaterThan(leftStart);
+
+    const left = html.slice(leftStart, sleepStart);
+    for (const expected of [
+      "Resting heart rate",
+      "52 bpm",
+      "Overnight HRV",
+      "48 ms",
+      "Body Battery high",
+      "75",
+      "Body Battery low",
+      "20",
+      "Stress",
+      "26",
+      "Steps",
+      "8200",
+      "Intensity minutes",
+      "30 min",
+      "Active calories",
+      "640 kcal",
+      "Respiration",
+      "14.2 breaths/min",
+      "SpO2",
+      "96 %",
+      "Training readiness",
+      "78",
+      "Recovery time",
+      "10 h",
+      "VO2max",
+      "48.5 ml/kg/min",
+      "Cycling VO2max",
+      "43.0 ml/kg/min",
+      "Weight",
+      "78.2 kg",
+      "FTP measurement",
+      "250 W",
+    ]) {
+      expect(left).toContain(expected);
+    }
+
+    const sleep = html.slice(sleepStart);
+    expect(sleep).toContain("Sleep");
+    for (const expected of [
+      "Sleep score",
+      "84",
+      "Sleep duration",
+      "7 h 10 min",
+      "Deep sleep",
+      "1 h 20 min",
+      "REM sleep",
+      "1 h 40 min",
+      "Light sleep",
+      "3 h 40 min",
+      "Awake during sleep",
+      "8 min",
+    ]) {
+      expect(sleep).toContain(expected);
+    }
+  });
+
+  it("draws the recovery, score and stacked sleep charts", () => {
     const html = view();
 
-    expect(html).toContain("Latest Garmin data");
-    expect(html).toContain("Sleep duration");
-    expect(html).toContain("7 h 10 min");
-    expect(html).toContain("Overnight HRV");
-    expect(html).toContain("48 ms");
-    expect(html).toContain("Weight");
-    expect(html).toContain("78.2 kg");
-    expect(html).toContain("FTP");
-    expect(html).toContain("250 W");
-    expect(html).toContain("(2026-10-21)");
-    expect(html).toContain("(today)");
+    expect(html).toContain('data-testid="daily-health-charts"');
+    expect(html).toContain("Recovery and sleep");
+    expect(html).toContain("Resting heart rate");
+    expect(html).toContain('data-series="resting_heart_rate"');
+    expect(html).toContain("Score");
+    expect(html).toContain('data-series="body_battery_high"');
+    expect(html).toContain('data-series="sleep_score"');
+    expect(html).toContain('data-series="stress"');
+    expect(html).toContain('data-testid="sleep-chart"');
+    expect(html).toContain('data-series="deep_sleep"');
+    expect(html).toContain('data-series="light_sleep"');
+    expect(html).toContain('data-series="rem_sleep"');
+    expect(html).toContain("Stacked stages add up to sleep duration.");
+  });
+
+  it("hides the Garmin panels and charts without daily health data", () => {
+    const html = view({
+      history: history({
+        latestGarmin: {
+          dailyHealth: [],
+          weight: null,
+          bodyFat: null,
+          ftp: null,
+        },
+        dailyHealth: [],
+      }),
+    });
+
+    expect(html).not.toContain('data-testid="fitness-today-garmin-left"');
+    expect(html).not.toContain('data-testid="fitness-today-garmin-sleep"');
+    expect(html).not.toContain('data-testid="daily-health-charts"');
   });
 
   it("offers every range in the picker above the charts", () => {
@@ -168,7 +302,7 @@ describe("FitnessView", () => {
     }
     expect(html).toContain("fill-form-productive/[62.5%]");
     expect(html).toContain("Productive");
-    expect(html).toContain("above +25");
+    expect(html).not.toContain("above +25");
   });
 
   it("draws the TSB line in the zone colours and lists the zones first", () => {

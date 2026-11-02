@@ -16,7 +16,6 @@ import {
   CHART_WIDTH,
   chartScale,
   formatChartDate,
-  formatZoneRange,
   FUTURE_DASH,
   labelIndices,
   lastIndexOnOrBefore,
@@ -240,9 +239,6 @@ export function FitnessChart({
             />
             <span className={FORM_TEXT_CLASSES[zone.interpretation]}>
               {FORM_INTERPRETATION_LABELS[zone.interpretation]}
-            </span>
-            <span className="text-muted-foreground tabular-nums">
-              {formatZoneRange(zone)}
             </span>
           </li>
         ))}
