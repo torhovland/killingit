@@ -6,7 +6,7 @@ import {
   type CoachReplyPromptInput,
 } from "./coachReplyPrompt.js";
 import type { PlanContextInput } from "./planContext.js";
-import { GLOBAL_PROMPT_RULES, PLAIN_TEXT_RULES } from "./promptRules.js";
+import { GLOBAL_PROMPT_RULES, TEXT_FORMATTING_RULES } from "./promptRules.js";
 
 function makePlan(): CoachPlan {
   return {
@@ -209,7 +209,7 @@ describe("buildCoachReplyMessages", () => {
 
     expect(messages[0]?.role).toBe("system");
     expect(messages[0]?.content).toContain("Reply briefly in 1-2 sentences");
-    expect(messages[0]?.content).toContain(PLAIN_TEXT_RULES);
+    expect(messages[0]?.content).toContain(TEXT_FORMATTING_RULES);
     expect(messages[0]?.content).toContain(GLOBAL_PROMPT_RULES);
   });
 });

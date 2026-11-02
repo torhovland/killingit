@@ -97,7 +97,7 @@ and returns `LlmProvider` chat messages.
 - `promptRules.ts` owns every rule and JSON contract shared by more than one
   prompt: the coach persona and training-science requirement, the standard input
   guidance, week-shape and completed-session rules, the outline, session-purpose,
-  rationale, weather, bike-workout, training-load, enum, JSON and plain-text
+  rationale, weather, bike-workout, training-load, enum, JSON and text-formatting
   rules, the season/block/week/day contracts and their nested bike-workout
   contract, the response-key sentence, and the activity-review rules. Each prompt
   composes those constants instead of restating them, so a change reaches the

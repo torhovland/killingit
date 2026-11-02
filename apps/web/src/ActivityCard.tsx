@@ -4,6 +4,7 @@ import { ActivityMap } from "./ActivityMap";
 import { ActivitySamples } from "./ActivitySamples";
 import { Bullet, Bullets } from "./Bullet";
 import { formatDuration } from "./formatDuration";
+import { FormattedText } from "./FormattedText";
 import { SubmitButton } from "./SubmitButton";
 import { TrainingLoadLine } from "./TrainingLoadLine";
 import { useTimeZone } from "./TimeZoneContext";
@@ -192,9 +193,7 @@ export function ActivityCard({
             )}
 
           {summary ? (
-            <p className="whitespace-pre-line" data-testid="activity-analysis">
-              {summary}
-            </p>
+            <FormattedText text={summary} testId="activity-analysis" />
           ) : (
             <p
               className="rounded bg-accent/15 p-2 text-base"
@@ -236,9 +235,13 @@ export function ActivityCard({
       )}
 
       {shownReply !== null ? (
-        <p className="text-base" data-testid="activity-coach-reply">
-          <span className="font-medium">Coach:</span> {shownReply}
-        </p>
+        <div
+          className="flex flex-col gap-1 text-base"
+          data-testid="activity-coach-reply"
+        >
+          <span className="font-medium">Coach:</span>
+          <FormattedText text={shownReply} />
+        </div>
       ) : awaitingReply ? (
         <p
           className="text-base text-muted-foreground"

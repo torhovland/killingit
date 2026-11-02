@@ -22,8 +22,8 @@ import {
   COACH_ANALYSIS_RESPONSE_RULES,
   DURATION_TOLERANCE_RULES,
   GLOBAL_PROMPT_RULES,
-  PLAIN_TEXT_RULES,
   promptSections,
+  TEXT_FORMATTING_RULES,
   RETURN_JSON_FROM_SYSTEM_PROMPT,
 } from "./promptRules.js";
 
@@ -36,7 +36,7 @@ export const MAX_PROMPT_SAMPLES = 90;
  * Bump when the prompt or generation parameters change materially. Cached
  * analyses from an older version are ignored and regenerated.
  */
-export const ANALYSIS_PROMPT_VERSION = 11;
+export const ANALYSIS_PROMPT_VERSION = 12;
 
 /**
  * The athlete's current week, used to match an activity to its planned session
@@ -59,10 +59,10 @@ const ANALYSIS_SYSTEM_PROMPT = promptSections(
   ACTIVITY_TYPE_RULE,
   "When the athlete's current week plan is provided and the workout happened within that week, match the workout to the planned session it best fits, then make how well it fit the plan part of the same summary. If it followed the plan reasonably well, say so warmly and encouragingly. If it did not, point out clearly what could be improved without being harsh. When the workout happened outside the supplied week, do not match it to any planned session and do not compare it to the plan; the athlete may have older activities that have not been analysed yet, so analyse the workout on its own merits.",
   DURATION_TOLERANCE_RULES,
-  "Be brief and to the point: use 2-3 sentences of plain text, cite only the most useful numbers, and finish with one actionable recommendation for the next session. The recommendation must follow from a real improvement: when the session went to plan, build on it instead of inventing a correction. Do not add a separate plan-fit section.",
+  "Be brief and to the point: use 2-3 sentences for the assessment, cite only the most useful numbers, and finish with one actionable recommendation for the next session. Use a short bullet list when the session has several points worth noting. The recommendation must follow from a real improvement: when the session went to plan, build on it instead of inventing a correction. Do not add a separate plan-fit section.",
   ACTIVITY_FTP_ESTIMATE_RULES,
   ACTIVITY_BODY_METRIC_RULES,
-  PLAIN_TEXT_RULES,
+  TEXT_FORMATTING_RULES,
   COACH_ANALYSIS_RESPONSE_RULES,
 );
 

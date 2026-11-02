@@ -6,7 +6,7 @@ import {
   PERIOD_REVIEW_PROMPT_VERSION,
 } from "./periodReviewPrompt.js";
 import type { PlanContextInput } from "./planContext.js";
-import { GLOBAL_PROMPT_RULES } from "./promptRules.js";
+import { GLOBAL_PROMPT_RULES, TEXT_FORMATTING_RULES } from "./promptRules.js";
 
 const week: WeekPlan = {
   startDate: "2026-10-13",
@@ -137,9 +137,10 @@ describe("buildPeriodReviewPrompt", () => {
     });
 
     expect(messages[0]?.content).toContain(GLOBAL_PROMPT_RULES);
+    expect(messages[0]?.content).toContain(TEXT_FORMATTING_RULES);
   });
 
   it("has a stable prompt version", () => {
-    expect(PERIOD_REVIEW_PROMPT_VERSION).toBe(1);
+    expect(PERIOD_REVIEW_PROMPT_VERSION).toBe(2);
   });
 });

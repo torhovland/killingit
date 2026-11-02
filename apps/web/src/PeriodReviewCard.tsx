@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { PeriodReview, ReviewKind } from "@killingit/shared";
 import { Bullet } from "./Bullet";
+import { FormattedText } from "./FormattedText";
 import { SubmitButton } from "./SubmitButton";
 
 const KIND_LABELS: Record<ReviewKind, string> = {
@@ -112,9 +113,10 @@ export function PeriodReviewCard({
         </p>
       </header>
 
-      <p className="whitespace-pre-line" data-testid="period-review-summary">
-        {review.summary.text}
-      </p>
+      <FormattedText
+        text={review.summary.text}
+        testId="period-review-summary"
+      />
 
       {showWeeklyNote && review.weeklyNote && (
         <div
@@ -126,13 +128,13 @@ export function PeriodReviewCard({
             {review.weeklyNote.note}
           </p>
           {review.weeklyNote.coachReply && (
-            <p
-              className="whitespace-pre-line"
+            <div
+              className="flex flex-col gap-1"
               data-testid="period-review-weekly-note-reply"
             >
-              <span className="font-medium">Coach:</span>{" "}
-              {review.weeklyNote.coachReply.text}
-            </p>
+              <span className="font-medium">Coach:</span>
+              <FormattedText text={review.weeklyNote.coachReply.text} />
+            </div>
           )}
         </div>
       )}
@@ -156,9 +158,13 @@ export function PeriodReviewCard({
       )}
 
       {shownReply && (
-        <p className="text-base" data-testid="period-review-coach-reply">
-          <span className="font-medium">Coach:</span> {shownReply}
-        </p>
+        <div
+          className="flex flex-col gap-1 text-base"
+          data-testid="period-review-coach-reply"
+        >
+          <span className="font-medium">Coach:</span>
+          <FormattedText text={shownReply} />
+        </div>
       )}
 
       {onSubmitComment && (shownComment === null || editing) && (

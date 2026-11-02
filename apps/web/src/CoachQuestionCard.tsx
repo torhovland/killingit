@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { CoachQuestion } from "@killingit/shared";
+import { FormattedText } from "./FormattedText";
 import { SubmitButton } from "./SubmitButton";
 
 /**
@@ -54,9 +55,7 @@ export function CoachQuestionCard({
         <h3 className="text-xl font-semibold">Question from the coach</h3>
       </header>
 
-      <p className="whitespace-pre-line" data-testid="coach-question-text">
-        {question.question}
-      </p>
+      <FormattedText text={question.question} testId="coach-question-text" />
 
       {shownAnswer !== null && (
         <p className="text-base" data-testid="coach-question-answer">
@@ -65,9 +64,13 @@ export function CoachQuestionCard({
       )}
 
       {shownReply !== null && (
-        <p className="text-base" data-testid="coach-question-reply">
-          <span className="font-medium">Coach:</span> {shownReply}
-        </p>
+        <div
+          className="flex flex-col gap-1 text-base"
+          data-testid="coach-question-reply"
+        >
+          <span className="font-medium">Coach:</span>
+          <FormattedText text={shownReply} />
+        </div>
       )}
 
       {pending && onSubmitAnswer && (

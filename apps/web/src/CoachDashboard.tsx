@@ -27,6 +27,7 @@ import { useAuth } from "./auth";
 import { CoachPlanSection } from "./CoachPlanSection";
 import { CoachQuestionCard } from "./CoachQuestionCard";
 import { fetchJsonAuthed } from "./fetchAuthed";
+import { FormattedText } from "./FormattedText";
 import { selectPendingActivities } from "./pendingActivities";
 import { PeriodReviewCard } from "./PeriodReviewCard";
 import { reviewKey, selectPendingReviews } from "./pendingReviews";
@@ -746,12 +747,13 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
             {savingWeeklyNote ? "Coach is thinking…" : "Send to coach"}
           </SubmitButton>
           {weeklyNoteReply && (
-            <p
-              className="rounded border bg-inset p-2 text-base"
+            <div
+              className="flex flex-col gap-1 rounded border bg-inset p-2 text-base"
               data-testid="weekly-note-reply"
             >
-              <span className="font-medium">Coach:</span> {weeklyNoteReply.text}
-            </p>
+              <span className="font-medium">Coach:</span>
+              <FormattedText text={weeklyNoteReply.text} />
+            </div>
           )}
         </form>
 
@@ -783,12 +785,13 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
             {asking ? "Coach is thinking…" : "Ask the coach"}
           </SubmitButton>
           {questionReply && (
-            <p
-              className="rounded border bg-inset p-2 text-base"
+            <div
+              className="flex flex-col gap-1 rounded border bg-inset p-2 text-base"
               data-testid="by-the-way-reply"
             >
-              <span className="font-medium">Coach:</span> {questionReply}
-            </p>
+              <span className="font-medium">Coach:</span>
+              <FormattedText text={questionReply} />
+            </div>
           )}
         </form>
       </section>
