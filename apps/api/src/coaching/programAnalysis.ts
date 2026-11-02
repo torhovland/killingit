@@ -2,6 +2,7 @@ import type {
   AnalyzedActivity,
   BodyMetricEstimate,
   CoachPlan,
+  DailyHealthPoint,
   MetricPoint,
   ThresholdSummary,
 } from "@killingit/shared";
@@ -33,6 +34,8 @@ export interface AnalyzeActivitiesAgainstPlanInput {
   ftpTimeline?: FtpTimeline | null;
   /** Every threshold measure in effect on the activity date. */
   thresholds?: readonly ThresholdSummary[];
+  /** Stored daily health and recovery values for the prompt. */
+  dailyHealth?: readonly DailyHealthPoint[];
   /** Cancels the supplementary review when a newer run starts. */
   signal?: AbortSignal;
   /** Injectable for tests; defaults to the database-backed writer. */
@@ -88,6 +91,9 @@ export async function analyzeActivitiesAgainstPlan(
               : {}),
             ...(input.thresholds !== undefined
               ? { thresholds: input.thresholds }
+              : {}),
+            ...(input.dailyHealth !== undefined
+              ? { dailyHealth: input.dailyHealth }
               : {}),
             currentFtpWatts,
           },

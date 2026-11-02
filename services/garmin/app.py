@@ -8,6 +8,7 @@ Endpoints:
   POST /authenticate   { "username", "password" } -> 204 (or 401/403/429/502)
   POST /sync           { "username", "password" } -> { "activities": [...] }
   POST /metrics        { "username", "password" } -> { "metrics": [...] }
+  POST /daily          { "username", "password", "date" } -> { "date", "metrics": {...} }
   GET  /health         -> {"status": "ok"}
 
 Garmin rate-limits repeated SSO logins aggressively (429), so the sidecar
@@ -50,6 +51,10 @@ app = FastAPI(title="killingit-garmin-sidecar")
 # matches the chronic-training-load window used by the plan's ATL/CTL numbers.
 SYNC_WINDOW_DAYS = 42
 
+# A strength session is normally a few dozen sets. The cap keeps an unusual
+# payload from bloating the sync response and the prompt.
+MAX_STRENGTH_SETS = 200
+
 # Where the library caches Garmin session tokens between calls. Configurable so
 # deployments can point it at a persistent volume; defaults to a private temp
 # dir (created 0700). Tokens are single-operator, so one store per username.
@@ -62,6 +67,10 @@ TOKENSTORE_ROOT = Path(
 class Credentials(BaseModel):
     username: str
     password: str
+
+
+class DailyRequest(Credentials):
+    date: str
 
 
 class _LoginError(Exception):
@@ -138,17 +147,18 @@ def _sync(credentials: Credentials) -> list[dict]:
         raise _UpstreamError("Garmin activity fetch failed") from exc
 
     try:
-        return [
-            _to_activity(
-                raw,
-                _samples_for(
-                    garmin,
-                    raw.get("activityId"),
-                    normalize_type(raw.get("activityType")),
-                ),
+        activities = []
+        for raw in raw_activities or []:
+            activity_id = raw.get("activityId")
+            activity_type = normalize_type(raw.get("activityType"))
+            activities.append(
+                _to_activity(
+                    raw,
+                    _samples_for(garmin, activity_id, activity_type),
+                    _strength_sets_for(garmin, activity_id, activity_type),
+                )
             )
-            for raw in raw_activities or []
-        ]
+        return activities
     except GarminConnectTooManyRequestsError as exc:
         raise _RateLimitedError(
             "Garmin is rate limiting requests. Wait a few minutes and try again."
@@ -181,6 +191,245 @@ def _sync_metrics(credentials: Credentials) -> dict:
         "metrics": _to_body_metrics(payload or {}),
         "ftp": _sync_ftp_history(garmin, startdate, enddate),
     }
+
+
+def _sync_daily(credentials: Credentials, date: str) -> dict:
+    """Fetch one day's Garmin stats, sleep, readiness and VO2max.
+
+    The daily stats bundle is the base. Sleep, training readiness and max
+    metrics fill the recovery data the bundle does not contain. A failure in one
+    source omits only its values; a Garmin rate limit aborts the whole day so
+    the caller can stop the backfill and retry later.
+    """
+    garmin = _login(credentials)
+    metrics: dict[str, float] = {}
+    fetched_any = False
+
+    stats = _optional_daily_call(garmin.get_stats, date, "daily stats")
+    if stats is not None:
+        fetched_any = True
+        _add_stats_metrics(metrics, stats)
+
+    sleep = _optional_daily_call(garmin.get_sleep_data, date, "sleep")
+    if sleep is not None:
+        fetched_any = True
+        _add_sleep_metrics(metrics, sleep)
+
+    readiness = _optional_daily_call(
+        garmin.get_training_readiness, date, "training readiness"
+    )
+    if readiness is not None:
+        fetched_any = True
+        _add_readiness_metrics(metrics, readiness)
+
+    max_metrics = _optional_daily_call(garmin.get_max_metrics, date, "max metrics")
+    if max_metrics is not None:
+        fetched_any = True
+        _add_vo2max_metrics(metrics, max_metrics)
+
+    if not fetched_any:
+        raise _UpstreamError("Garmin daily data unavailable")
+    return {"date": date, "metrics": metrics}
+
+
+def _optional_daily_call(call, date: str, label: str):
+    """Call one daily Garmin source, keeping rate limits but tolerating outages."""
+    try:
+        return call(date)
+    except GarminConnectTooManyRequestsError as exc:
+        raise _RateLimitedError(
+            "Garmin is rate limiting requests. Wait a few minutes and try again."
+        ) from exc
+    except Exception:  # noqa: BLE001 - one source must not lose the day
+        logger.exception("Garmin %s fetch failed for %s", label, date)
+        return None
+
+
+def _add_stats_metrics(metrics: dict[str, float], stats: dict) -> None:
+    """Normalize the fields of Garmin's daily stats bundle."""
+    if not isinstance(stats, dict):
+        return
+    _put_metric(metrics, "resting_heart_rate", stats.get("restingHeartRate"), 20, 250)
+    _put_metric(
+        metrics,
+        "sleep_duration",
+        _seconds_to_minutes(stats.get("sleepingSeconds")),
+        0,
+        24 * 60,
+    )
+    _put_metric(metrics, "stress", stats.get("averageStressLevel"), 0, 100)
+    _put_metric(
+        metrics, "body_battery_high", stats.get("bodyBatteryHighestValue"), 0, 100
+    )
+    _put_metric(
+        metrics, "body_battery_low", stats.get("bodyBatteryLowestValue"), 0, 100
+    )
+    _put_metric(metrics, "steps", stats.get("totalSteps"), 0, 200_000)
+    _put_metric(metrics, "active_calories", stats.get("activeKilocalories"), 0, 20_000)
+
+    moderate = _finite_or_none(stats.get("moderateIntensityMinutes"))
+    vigorous = _finite_or_none(stats.get("vigorousIntensityMinutes"))
+    if moderate is not None or vigorous is not None:
+        # Garmin counts a vigorous minute as two intensity minutes.
+        total = (moderate or 0) + 2 * (vigorous or 0)
+        _put_metric(metrics, "intensity_minutes", total, 0, 24 * 60 * 2)
+
+
+def _add_sleep_metrics(metrics: dict[str, float], sleep: dict) -> None:
+    """Normalize sleep duration, score, stages and overnight vitals."""
+    if not isinstance(sleep, dict):
+        return
+    dto = sleep.get("dailySleepDTO")
+    if not isinstance(dto, dict):
+        return
+
+    _put_metric(
+        metrics,
+        "sleep_duration",
+        _seconds_to_minutes(dto.get("sleepTimeSeconds")),
+        0,
+        24 * 60,
+    )
+    scores = dto.get("sleepScores")
+    if isinstance(scores, dict):
+        overall = scores.get("overall")
+        if isinstance(overall, dict):
+            _put_metric(metrics, "sleep_score", overall.get("value"), 0, 100)
+
+    _put_metric(
+        metrics,
+        "deep_sleep",
+        _seconds_to_minutes(dto.get("deepSleepSeconds")),
+        0,
+        24 * 60,
+    )
+    _put_metric(
+        metrics,
+        "light_sleep",
+        _seconds_to_minutes(dto.get("lightSleepSeconds")),
+        0,
+        24 * 60,
+    )
+    _put_metric(
+        metrics,
+        "rem_sleep",
+        _seconds_to_minutes(dto.get("remSleepSeconds")),
+        0,
+        24 * 60,
+    )
+    _put_metric(
+        metrics,
+        "awake_sleep",
+        _seconds_to_minutes(dto.get("awakeSleepSeconds")),
+        0,
+        24 * 60,
+    )
+    _put_metric(
+        metrics,
+        "hrv",
+        _first_value(dto, "avgSleepHRV", "avgOvernightHrv"),
+        0,
+        500,
+    )
+    _put_metric(
+        metrics,
+        "spo2",
+        _first_value(dto, "avgSpO2", "averageSpO2"),
+        50,
+        100,
+    )
+    _put_metric(
+        metrics,
+        "respiration",
+        _first_value(dto, "averageRespirationValue", "avgRespirationValue"),
+        0,
+        60,
+        decimals=1,
+    )
+
+
+def _add_readiness_metrics(metrics: dict[str, float], readiness) -> None:
+    """Normalize the latest training-readiness snapshot for the day."""
+    snapshot = _latest_readiness_snapshot(readiness)
+    if snapshot is None:
+        return
+    _put_metric(metrics, "training_readiness", snapshot.get("score"), 0, 100)
+    _put_metric(metrics, "recovery_time", snapshot.get("recoveryTime"), 0, 10_080)
+    # Readiness also carries the sleep score; keep it as a fallback when the
+    # sleep endpoint had no score for this day.
+    if "sleep_score" not in metrics:
+        _put_metric(metrics, "sleep_score", snapshot.get("sleepScore"), 0, 100)
+
+
+def _latest_readiness_snapshot(readiness):
+    """Pick the most recent readiness snapshot from Garmin's list."""
+    if isinstance(readiness, dict):
+        return readiness
+    if not isinstance(readiness, list):
+        return None
+    snapshots = [entry for entry in readiness if isinstance(entry, dict)]
+    if not snapshots:
+        return None
+    return max(
+        snapshots,
+        key=lambda entry: str(entry.get("timestamp") or entry.get("timestampLocal") or ""),
+    )
+
+
+def _add_vo2max_metrics(metrics: dict[str, float], payload) -> None:
+    """Normalize VO2max from Garmin's max-metrics response."""
+    if not isinstance(payload, dict):
+        return
+    generic = payload.get("generic")
+    if isinstance(generic, dict):
+        _put_metric(
+            metrics,
+            "vo2max",
+            _first_value(generic, "vo2MaxPreciseValue", "vo2MaxValue"),
+            10,
+            100,
+            decimals=1,
+        )
+    cycling = payload.get("cycling")
+    if isinstance(cycling, dict):
+        _put_metric(
+            metrics,
+            "vo2max_cycling",
+            _first_value(cycling, "vo2MaxPreciseValue", "vo2MaxValue"),
+            10,
+            100,
+            decimals=1,
+        )
+
+
+def _put_metric(
+    metrics: dict[str, float],
+    key: str,
+    value,
+    minimum: float,
+    maximum: float,
+    decimals: int = 0,
+) -> None:
+    """Store a finite value inside its plausible range, rounded for display."""
+    number = _finite_or_none(value)
+    if number is None or not minimum <= number <= maximum:
+        return
+    metrics[key] = round(number, decimals)
+
+
+def _seconds_to_minutes(value):
+    seconds = _finite_or_none(value)
+    if seconds is None:
+        return None
+    return seconds / 60
+
+
+def _first_value(payload: dict, *keys: str):
+    for key in keys:
+        value = payload.get(key)
+        if value is not None:
+            return value
+    return None
 
 
 def _sync_ftp_history(garmin, startdate: str, enddate: str) -> list[dict]:
@@ -361,7 +610,117 @@ def _samples_for(garmin, activity_id, activity_type: str = "") -> list[dict]:
     return _to_samples(details or {}, activity_type)
 
 
-def _to_activity(raw: dict, samples: list[dict] | None = None) -> dict:
+def _strength_sets_for(garmin, activity_id, activity_type: str) -> list[dict]:
+    """Fetch and normalize a strength activity's recorded sets.
+
+    Only strength activities have exercise sets, so other activities skip the
+    extra Garmin request. The same fail-open/rate-limit split as the timeseries
+    fetch applies: one bad set fetch leaves the activity with no sets.
+    """
+    if activity_id is None or not _is_strength(activity_type):
+        return []
+    try:
+        payload = garmin.get_activity_exercise_sets(str(activity_id))
+    except GarminConnectTooManyRequestsError:
+        raise
+    except Exception:  # noqa: BLE001 - any library/network failure
+        logger.exception(
+            "Garmin exercise-sets fetch failed for %s", activity_id
+        )
+        return []
+    return _to_strength_sets(payload or {})
+
+
+def _is_strength(activity_type: str) -> bool:
+    """Whether a normalized Garmin type is a strength-training activity."""
+    normalized = activity_type.lower()
+    return "strength" in normalized or "weight" in normalized or "gym" in normalized
+
+
+def _to_strength_sets(payload: dict) -> list[dict]:
+    """Normalize Garmin's exerciseSets response into stable set objects."""
+    raw_sets = payload.get("exerciseSets") if isinstance(payload, dict) else None
+    sets: list[dict] = []
+    for raw in raw_sets or []:
+        if not isinstance(raw, dict):
+            continue
+        item = _strength_set(raw)
+        if item is not None:
+            sets.append(item)
+        if len(sets) >= MAX_STRENGTH_SETS:
+            break
+    return sets
+
+
+def _strength_set(raw: dict) -> dict | None:
+    """Map one Garmin exercise set, omitting channels it did not record."""
+    exercises = []
+    for exercise in raw.get("exercises") or []:
+        if not isinstance(exercise, dict):
+            continue
+        category = exercise.get("category")
+        if not isinstance(category, str) or category.strip() == "":
+            continue
+        name = exercise.get("name")
+        exercises.append(
+            {
+                "category": category.strip(),
+                "name": name.strip()
+                if isinstance(name, str) and name.strip() != ""
+                else None,
+            }
+        )
+
+    item: dict = {}
+    set_type = raw.get("setType")
+    if isinstance(set_type, str) and set_type.strip() != "":
+        item["setType"] = set_type.strip().lower()
+
+    for key, field in (
+        ("startTime", "startTime"),
+        ("startTimeGMT", "startTime"),
+    ):
+        value = raw.get(key)
+        if value is not None:
+            item["startTime"] = _iso(value)
+            break
+
+    duration = _finite_or_none(raw.get("duration"))
+    if duration is not None and duration >= 0:
+        item["durationSeconds"] = duration
+
+    repetitions = _finite_or_none(raw.get("repetitionCount"))
+    if repetitions is not None and repetitions >= 0:
+        item["repetitions"] = int(repetitions)
+
+    weight = _exercise_weight_kg(raw.get("weight"))
+    if weight is not None:
+        item["weightKg"] = weight
+
+    if exercises:
+        item["exercises"] = exercises
+
+    # A set with no exercise and no recorded work tells the coach nothing.
+    if not exercises and all(
+        key not in item for key in ("repetitions", "weightKg", "durationSeconds")
+    ):
+        return None
+    return item
+
+
+def _exercise_weight_kg(value) -> float | None:
+    """Convert Garmin's gram-based exercise weight to kilograms."""
+    grams = _finite_or_none(value)
+    if grams is None or grams <= 0:
+        return None
+    return round(grams / 1000, 2)
+
+
+def _to_activity(
+    raw: dict,
+    samples: list[dict] | None = None,
+    strength_sets: list[dict] | None = None,
+) -> dict:
     """Map a Garmin activity to the shared normalized shape."""
 
     def _num(value, default: float = 0.0) -> float:
@@ -374,7 +733,7 @@ def _to_activity(raw: dict, samples: list[dict] | None = None) -> dict:
     # zone offset, so treating it as UTC makes every activity shift when the
     # athlete changes their display time zone.
     start = raw.get("startTimeGMT") or raw.get("startTimeLocal")
-    return {
+    activity = {
         "id": int(raw.get("activityId") or 0),
         "name": raw.get("activityName") or "",
         "type": normalize_type(raw.get("activityType") or "unknown"),
@@ -385,6 +744,9 @@ def _to_activity(raw: dict, samples: list[dict] | None = None) -> dict:
         "totalElevationGain": _num(raw.get("elevationGain")),
         "samples": samples or [],
     }
+    if strength_sets:
+        activity["strengthSets"] = strength_sets
+    return activity
 
 
 # Garmin detail metric keys -> normalized sample fields, in priority order.
@@ -558,6 +920,18 @@ def sync(credentials: Credentials) -> dict:
 def metrics(credentials: Credentials) -> dict:
     try:
         return {"metrics": _sync_metrics(credentials)}
+    except HTTPException:
+        raise
+    except Exception as exc:  # noqa: BLE001 - translated to HTTP below
+        raise _http_error(exc) from exc
+
+
+@app.post("/daily")
+def daily(request: DailyRequest) -> dict:
+    if not _is_plain_date(request.date):
+        raise HTTPException(status_code=400, detail="date must be YYYY-MM-DD")
+    try:
+        return _sync_daily(request, request.date)
     except HTTPException:
         raise
     except Exception as exc:  # noqa: BLE001 - translated to HTTP below

@@ -17,8 +17,10 @@ import {
   recordCoachBodyMetrics,
   recordPlanFtpEstimates,
 } from "../metrics/store.js";
+import { loadDailyHealthForUser } from "../metrics/dailyMetrics.js";
 import type {
   AthleteLocation,
+  DailyHealthPoint,
   DailyWeather,
   PlanGenerateMode,
 } from "@killingit/shared";
@@ -32,7 +34,7 @@ import {
   fetchWeatherForecasts,
   type WeatherForecastSet,
 } from "../weather/forecast.js";
-import { isAfterPlanTomorrowCutoff, startOfWeek } from "./dates.js";
+import { addDays, isAfterPlanTomorrowCutoff, startOfWeek } from "./dates.js";
 import {
   clearPendingCoachQuestions,
   loadAnsweredCoachQuestions,
@@ -66,6 +68,8 @@ export interface PlanTriggerDependencies {
   loadFtpHistory?: typeof loadFtpHistoryForUser;
   /** Injectable for route tests; defaults to the stored body metrics. */
   loadBodyHistory?: typeof loadBodyHistoryForUser;
+  /** Injectable for route tests; defaults to the stored daily health series. */
+  loadDailyHealth?: typeof loadDailyHealthForUser;
   /** Injectable for route tests; defaults to the coach reading the text. */
   syncAthleteMetrics?: typeof syncAthleteMetrics;
   /** Injectable for route tests; defaults to answered coach questions. */
@@ -276,6 +280,18 @@ export async function runPlanForUser(
   const bodyHistory = await (deps.loadBodyHistory ?? loadBodyHistoryForUser)(
     userId,
   );
+  let dailyHealth: DailyHealthPoint[] | undefined;
+  try {
+    dailyHealth = await (deps.loadDailyHealth ?? loadDailyHealthForUser)(
+      userId,
+      addDays(today, -42),
+      today,
+    );
+  } catch (err) {
+    // Recovery data is advisory; the plan must still generate without it.
+    console.error("[garmin] could not read daily health metrics:", err);
+    dailyHealth = undefined;
+  }
   let weatherForecasts: WeatherForecastSet | null = null;
   let forecast: DailyWeather[] | null = null;
   if (location !== null) {
@@ -346,6 +362,7 @@ export async function runPlanForUser(
         ftpHistory: ftp.points.filter((point) => point.date <= today),
         ftpTimeline: ftp.timeline,
         thresholds: ftp.summaries,
+        ...(dailyHealth !== undefined ? { dailyHealth } : {}),
         signal: options.signal,
       }),
     plan,
@@ -378,6 +395,7 @@ export async function runPlanForUser(
       thresholds: ftp.summaries,
       thresholdTimelines: ftp.thresholdTimelines,
       bodyHistory,
+      ...(dailyHealth !== undefined ? { dailyHealth } : {}),
       provider: llm.provider,
       apiKey: llm.apiKey,
       model: llm.model,

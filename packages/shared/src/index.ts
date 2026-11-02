@@ -69,12 +69,28 @@ export {
   formatActivityType,
   isRunningActivity,
   routePointSchema,
+  strengthExerciseSchema,
+  strengthSetSchema,
   type ActivitiesResponse,
   type Activity,
   type ActivitySample,
   type ActivitySummary,
   type RoutePoint,
+  type StrengthExercise,
+  type StrengthSet,
 } from "./activity.js";
+
+export {
+  DAILY_HEALTH_METRIC_KEYS,
+  DAILY_HEALTH_METRICS,
+  dailyHealthMetricKeySchema,
+  dailyHealthPointSchema,
+  garminDailyResponseSchema,
+  type DailyHealthMetricDefinition,
+  type DailyHealthMetricKey,
+  type DailyHealthPoint,
+  type GarminDailyResponse,
+} from "./health.js";
 
 export {
   calendarActivitySchema,

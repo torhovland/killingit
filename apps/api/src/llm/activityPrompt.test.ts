@@ -124,6 +124,53 @@ describe("buildActivityAnalysisPrompt", () => {
     expect(prompt).not.toContain("cadence rpm");
   });
 
+  it("renders the recorded strength sets instead of inventing them", () => {
+    const squat = {
+      setType: "active",
+      repetitions: 10,
+      weightKg: 12,
+      exercises: [{ category: "SQUAT", name: "GOBLET_SQUAT" }],
+    };
+    const prompt = buildActivityAnalysisPrompt(
+      makeActivity({
+        type: "strength_training",
+        samples: [],
+        strengthSets: [
+          squat,
+          squat,
+          squat,
+          {
+            setType: "rest",
+            durationSeconds: 60,
+            exercises: [],
+          },
+        ],
+      }),
+    );
+
+    expect(prompt).toContain("Recorded strength sets:");
+    expect(prompt).toContain("Goblet squat: 3 × 10 reps at 12 kg");
+    expect(prompt).toContain("Rest between sets: 60 s");
+
+    const system =
+      buildActivityAnalysisMessages(makeActivity())[0]?.content ?? "";
+    expect(system).toContain("do not assume a strength workout was performed");
+  });
+
+  it("includes the recovery context up to the activity date", () => {
+    const prompt = buildActivityAnalysisPrompt(makeActivity(), {
+      today: "2026-10-01",
+      dailyHealth: [
+        { metric: "sleep_duration", date: "2026-09-30", value: 420 },
+        { metric: "sleep_duration", date: "2026-10-02", value: 300 },
+      ],
+    });
+
+    expect(prompt).toContain("Daily health and recovery");
+    expect(prompt).toContain("latest 7 h on 2026-09-30");
+    expect(prompt).not.toContain("5 h on 2026-10-02");
+  });
+
   it("explains incomplete recordings and refuses an FTP guess without data", () => {
     const system =
       buildActivityAnalysisMessages(makeActivity())[0]?.content ?? "";

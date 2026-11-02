@@ -38,12 +38,13 @@ the API invokes them with an OIDC identity token (see the root README).
 
 ## Endpoints
 
-| Method | Path            | Body                   | Response                         |
-| ------ | --------------- | ---------------------- | -------------------------------- |
-| `POST` | `/authenticate` | `{username, password}` | 204 (or 401/403/429/502)         |
-| `POST` | `/sync`         | `{username, password}` | `{ activities: [...] }`          |
-| `POST` | `/metrics`      | `{username, password}` | `{ metrics: [...], ftp: [...] }` |
-| `GET`  | `/health`       | —                      | `{status: "ok"}`                 |
+| Method | Path            | Body                         | Response                         |
+| ------ | --------------- | ---------------------------- | -------------------------------- |
+| `POST` | `/authenticate` | `{username, password}`       | 204 (or 401/403/429/502)         |
+| `POST` | `/sync`         | `{username, password}`       | `{ activities: [...] }`          |
+| `POST` | `/metrics`      | `{username, password}`       | `{ metrics: [...], ftp: [...] }` |
+| `POST` | `/daily`        | `{username, password, date}` | `{ date, metrics: {...} }`       |
+| `GET`  | `/health`       | —                            | `{status: "ok"}`                 |
 
 The Bun API talks to this service via `GARMIN_SIDECAR_URL` (default
 `http://localhost:8000`).
@@ -76,6 +77,14 @@ pytest
   `longitude`, `heartRate` (bpm), `power` (W), `temperature` (°C), `speed`
   (m/s), `distance` (m, cumulative), `elevation` (m), and `cadence`. Absent
   channels are omitted per sample.
+- Strength activities also carry `strengthSets`: the exercises, repetitions,
+  weight (converted from grams to kilograms) and rest intervals recorded with
+  the activity. Non-strength activities have no `strengthSets` field. A failed
+  set fetch leaves the activity without sets; a `429` still fails the sync.
+- `/daily` combines Garmin's daily stats bundle with sleep, training readiness
+  and max metrics. It returns only the values that were recorded, using the
+  stable metric keys in `packages/shared/src/health.ts`. Body composition stays
+  on `/metrics` so no weigh-in is fetched twice.
 - Cadence matches what Garmin Connect shows: runs use total steps per minute
   (`directDoubleCadence`, or twice the per-leg `directCadence`), and rides use
   pedalling rpm (`directBikeCadence`, falling back to `directCadence`).

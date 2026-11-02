@@ -1,4 +1,8 @@
-import type { AnalyzedActivity, CoachPlan } from "@killingit/shared";
+import type {
+  AnalyzedActivity,
+  CoachPlan,
+  DailyHealthPoint,
+} from "@killingit/shared";
 import { toCoachPlanActivity } from "../llm/coachPlanPrompt.js";
 import type {
   ActivityCommentContext,
@@ -27,6 +31,8 @@ export interface CapturePeriodReviewsInput {
   manualActivities: readonly ManualActivityContext[];
   activityComments: readonly ActivityCommentContext[];
   weeklyNote: string | null;
+  /** Stored daily health and recovery values for the prompt. */
+  dailyHealth?: readonly DailyHealthPoint[];
   /** Cancels the review when a newer run starts. */
   signal?: AbortSignal;
   /** Injectable for tests; defaults to the database-backed writer. */
@@ -54,6 +60,9 @@ export async function captureCompletedPeriodReviews(
     manualActivities: input.manualActivities,
     activityComments: input.activityComments,
     weeklyNote: input.weeklyNote,
+    ...(input.dailyHealth !== undefined
+      ? { dailyHealth: input.dailyHealth }
+      : {}),
   };
 
   const weekEnd = addDays(input.plan.week.startDate, 6);

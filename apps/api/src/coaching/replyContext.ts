@@ -8,7 +8,8 @@ import {
   loadBodyHistoryForUser,
   loadFtpHistoryForUser,
 } from "../metrics/store.js";
-import { startOfWeek } from "../plans/dates.js";
+import { loadDailyHealthForUser } from "../metrics/dailyMetrics.js";
+import { addDays, startOfWeek } from "../plans/dates.js";
 import { loadCoachingInputs, type CoachingInputs } from "../plans/inputs.js";
 import { ftpBaselineAt } from "../training/ftp.js";
 import {
@@ -36,6 +37,7 @@ export interface ReplyContextDependencies {
   ) => Promise<CoachingInputs>;
   loadFtpHistory?: typeof loadFtpHistoryForUser;
   loadBodyHistory?: typeof loadBodyHistoryForUser;
+  loadDailyHealth?: typeof loadDailyHealthForUser;
 }
 
 /**
@@ -72,23 +74,31 @@ export async function loadReplyContext(
   deps: ReplyContextDependencies = {},
 ): Promise<PlanContextInput> {
   const { userId, today } = input;
-  const [activities, coachingInputs, ftp, bodyHistory] = await Promise.all([
-    attempt("cached activity feed", () =>
-      (deps.loadActivities ?? cachedActivities)(userId),
-    ),
-    attempt("coaching inputs", () =>
-      (deps.loadCoachingInputs ?? loadCoachingInputs)(
-        userId,
-        startOfWeek(today),
+  const [activities, coachingInputs, ftp, bodyHistory, dailyHealth] =
+    await Promise.all([
+      attempt("cached activity feed", () =>
+        (deps.loadActivities ?? cachedActivities)(userId),
       ),
-    ),
-    attempt("FTP history", () =>
-      (deps.loadFtpHistory ?? loadFtpHistoryForUser)(userId, today),
-    ),
-    attempt("body metrics", () =>
-      (deps.loadBodyHistory ?? loadBodyHistoryForUser)(userId),
-    ),
-  ]);
+      attempt("coaching inputs", () =>
+        (deps.loadCoachingInputs ?? loadCoachingInputs)(
+          userId,
+          startOfWeek(today),
+        ),
+      ),
+      attempt("FTP history", () =>
+        (deps.loadFtpHistory ?? loadFtpHistoryForUser)(userId, today),
+      ),
+      attempt("body metrics", () =>
+        (deps.loadBodyHistory ?? loadBodyHistoryForUser)(userId),
+      ),
+      attempt("daily health metrics", () =>
+        (deps.loadDailyHealth ?? loadDailyHealthForUser)(
+          userId,
+          addDays(today, -42),
+          today,
+        ),
+      ),
+    ]);
 
   return {
     athleteAnswers: input.athleteAnswers,
@@ -106,5 +116,6 @@ export async function loadReplyContext(
     ftpHistory: (ftp?.points ?? []).filter((point) => point.date <= today),
     thresholds: ftp?.summaries ?? [],
     ...(bodyHistory !== null ? { bodyHistory } : {}),
+    ...(dailyHealth !== null ? { dailyHealth } : {}),
   };
 }

@@ -16,6 +16,7 @@ import {
 import { loadDecryptedGarminCredentials } from "../garmin/credentials.js";
 import { encrypt, garminCredentialsKeyFromEnv } from "../garmin/crypto.js";
 import { loadCredentials, saveCredentials } from "../garmin/store.js";
+import { syncGarminDailyHistory } from "../garmin/dailySync.js";
 import { recordGarminBodyMetrics, recordGarminFtp } from "../metrics/store.js";
 import type { UserStore } from "../users/store.js";
 
@@ -34,6 +35,8 @@ export interface GarminRouteDependencies {
   authenticate?: typeof authenticateGarmin;
   syncActivities?: typeof syncGarminActivities;
   syncMetrics?: typeof syncGarminMetrics;
+  /** Injectable for tests; defaults to the daily health backfill. */
+  syncDaily?: typeof syncGarminDailyHistory;
   /** Injectable for tests; defaults to the database-backed writer. */
   saveMetrics?: typeof recordGarminBodyMetrics;
   /** Injectable for tests; defaults to the database-backed writer. */
@@ -53,6 +56,7 @@ export function createGarminRoute(deps: GarminRouteDependencies): Hono {
   const authenticate = deps.authenticate ?? authenticateGarmin;
   const sync = deps.syncActivities ?? syncGarminActivities;
   const syncMetrics = deps.syncMetrics ?? syncGarminMetrics;
+  const syncDaily = deps.syncDaily ?? syncGarminDailyHistory;
   const saveMetrics = deps.saveMetrics ?? recordGarminBodyMetrics;
   const saveFtp = deps.saveFtp ?? recordGarminFtp;
 
@@ -127,6 +131,16 @@ export function createGarminRoute(deps: GarminRouteDependencies): Hono {
         } catch (err) {
           // Body composition is supplementary; the activity sync still counts.
           console.error("[garmin] body metrics failure:", err);
+        }
+        try {
+          await syncDaily({
+            userId: user.id,
+            credentials,
+            today: new Date().toISOString().slice(0, 10),
+          });
+        } catch (err) {
+          // Daily health is supplementary too; never fail the activity sync.
+          console.error("[garmin] daily health failure:", err);
         }
         return c.json({ activities });
       } catch (err) {

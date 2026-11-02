@@ -2,6 +2,7 @@ import { cadenceUnit } from "@killingit/shared";
 import type {
   Activity,
   ActivitySample,
+  DailyHealthPoint,
   MetricPoint,
   ThresholdSummary,
   WeekPlan,
@@ -9,6 +10,7 @@ import type {
 import { downsample } from "../lib/downsample.js";
 import { weekCovers, weekEnd } from "../plans/periods.js";
 import { formatDuration } from "./duration.js";
+import { formatDailyHealthContext } from "./healthContext.js";
 import {
   formatActivitySummary,
   formatFtpContext,
@@ -20,9 +22,11 @@ import {
   ACTIVITY_FTP_ESTIMATE_RULES,
   ACTIVITY_TYPE_RULE,
   COACH_ANALYSIS_RESPONSE_RULES,
+  DAILY_HEALTH_RULES,
   DURATION_TOLERANCE_RULES,
   GLOBAL_PROMPT_RULES,
   promptSections,
+  STRENGTH_SET_RULES,
   TEXT_FORMATTING_RULES,
   RETURN_JSON_FROM_SYSTEM_PROMPT,
 } from "./promptRules.js";
@@ -36,7 +40,7 @@ export const MAX_PROMPT_SAMPLES = 90;
  * Bump when the prompt or generation parameters change materially. Cached
  * analyses from an older version are ignored and regenerated.
  */
-export const ANALYSIS_PROMPT_VERSION = 12;
+export const ANALYSIS_PROMPT_VERSION = 13;
 
 /**
  * The athlete's current week, used to match an activity to its planned session
@@ -44,13 +48,16 @@ export const ANALYSIS_PROMPT_VERSION = 12;
  */
 export interface ActivityAnalysisContext {
   today: string;
-  week: WeekPlan;
+  /** The athlete's current week, when one is stored. */
+  week?: WeekPlan;
   /** The stored FTP time series, oldest first, including coach estimates. */
   ftpHistory?: readonly Pick<MetricPoint, "date" | "value" | "source">[];
   /** The FTP in effect on the activity date, when known. */
   currentFtpWatts?: number | null;
   /** Every threshold measure in effect on the activity date. */
   thresholds?: readonly ThresholdSummary[];
+  /** Daily health and recovery values, filtered through the activity date. */
+  dailyHealth?: readonly DailyHealthPoint[];
 }
 
 const ANALYSIS_SYSTEM_PROMPT = promptSections(
@@ -60,6 +67,8 @@ const ANALYSIS_SYSTEM_PROMPT = promptSections(
   "When the athlete's current week plan is provided and the workout happened within that week, match the workout to the planned session it best fits, then make how well it fit the plan part of the same summary. If it followed the plan reasonably well, say so warmly and encouragingly. If it did not, point out clearly what could be improved without being harsh. When the workout happened outside the supplied week, do not match it to any planned session and do not compare it to the plan; the athlete may have older activities that have not been analysed yet, so analyse the workout on its own merits.",
   DURATION_TOLERANCE_RULES,
   "Be brief and to the point: use 2-3 sentences for the assessment, cite only the most useful numbers, and finish with one actionable recommendation for the next session. Use a short bullet list when the session has several points worth noting. The recommendation must follow from a real improvement: when the session went to plan, build on it instead of inventing a correction. Do not add a separate plan-fit section.",
+  STRENGTH_SET_RULES,
+  DAILY_HEALTH_RULES,
   ACTIVITY_FTP_ESTIMATE_RULES,
   ACTIVITY_BODY_METRIC_RULES,
   TEXT_FORMATTING_RULES,
@@ -231,21 +240,30 @@ export function buildActivityAnalysisPrompt(
 ): string {
   const shown = downsampleSamples(activity.samples);
   const activityDate = activity.startDate.slice(0, 10);
-  const inWeek = context ? weekCovers(context.week, activityDate) : false;
+  const inWeek =
+    context?.week !== undefined
+      ? weekCovers(context.week, activityDate)
+      : false;
   const lines: string[] = [];
 
   if (context) {
-    lines.push(
-      `Today's date: ${context.today}`,
-      "",
-      "Current week plan:",
-      formatWeekPlan(context.week),
-      "",
-      inWeek
-        ? `The workout happened on ${activityDate}, within the current week. Match it to the planned session for that date, or another session this week that fits the data.`
-        : `The workout happened on ${activityDate}, outside the current week (${context.week.startDate} to ${weekEnd(context.week)}). Do not match it to a planned session in the current week or comment on how it fit the plan; it is an older activity that has not been analysed yet, so analyse it on its own merits.`,
-      "",
-    );
+    lines.push(`Today's date: ${context.today}`, "");
+    if (context.week !== undefined) {
+      lines.push(
+        "Current week plan:",
+        formatWeekPlan(context.week),
+        "",
+        inWeek
+          ? `The workout happened on ${activityDate}, within the current week. Match it to the planned session for that date, or another session this week that fits the data.`
+          : `The workout happened on ${activityDate}, outside the current week (${context.week.startDate} to ${weekEnd(context.week)}). Do not match it to a planned session in the current week or comment on how it fit the plan; it is an older activity that has not been analysed yet, so analyse it on its own merits.`,
+        "",
+      );
+    } else {
+      lines.push(
+        "No current week plan is available. Analyse the workout on its own merits and do not compare it to a planned session.",
+        "",
+      );
+    }
     if (
       context.currentFtpWatts !== undefined &&
       context.currentFtpWatts !== null
@@ -257,6 +275,12 @@ export function buildActivityAnalysisPrompt(
     }
     if (context.thresholds !== undefined && context.thresholds.length > 0) {
       lines.push(...formatThresholdContext(context.thresholds), "");
+    }
+    if (context.dailyHealth !== undefined) {
+      lines.push(
+        ...formatDailyHealthContext(context.dailyHealth, activityDate),
+        "",
+      );
     }
   }
 
@@ -321,7 +345,7 @@ export function buildActivityAnalysisPrompt(
 
   lines.push(
     "",
-    context
+    context?.week !== undefined
       ? inWeek
         ? "Write the brief coach summary. Include how well the workout fit its planned session and cite only the most useful evidence."
         : "Write the brief coach summary. Do not compare the workout to the current week plan; cite only the most useful evidence."

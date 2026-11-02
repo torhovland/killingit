@@ -192,7 +192,16 @@ about a past workout, or before a suggested workout, to steer the coach.
   the full history. Each activity in the feed also carries a bounded,
   downsampled sample preview, shown as a collapsible table on the Activities
   page. Running cadence is normalized to total steps per minute and cycling
-  cadence to rpm, matching Garmin Connect.
+  cadence to rpm, matching Garmin Connect. Strength activities also carry their
+  recorded exercise sets, repetitions, weights and rest intervals, and both the
+  activity analysis and the program review use them; see
+  `docs/specs/garmin-strength-exercise-sets.md`.
+  Daily health and recovery values (sleep, HRV, resting heart rate, stress,
+  Body Battery, training readiness, recovery time, VO2max, SpO2, respiration,
+  steps, calories and intensity minutes) are backfilled one day at a time after
+  the activity sync, with a per-day watermark that lets a rate-limited backfill
+  resume. A curated 14-day summary is given to the plan, reply, review and
+  activity-analysis prompts; see `docs/specs/garmin-daily-health-metrics.md`.
   Manual activities get a coach-estimated TSS read from their free text, stored
   in `manual_activities.estimated_tss`; without a model the entry stays
   unscored. Any manual

@@ -21,11 +21,13 @@ question without knowing what the athlete has recently done.
 
 1. The reply and coaching-question prompts render the shared athlete and
    training context (`formatPlanContext`): today's date, the athlete profile
-   with its save date, FTP and body-metric histories, recent activities with
+   with its save date, FTP and body-metric histories, the stored daily health
+   and recovery summary, recent activities with
    their coach analyses and the athlete's comments, manual activities, this
    week's note and its reply, and completed week and block reviews.
 2. A reply context loader assembles that context from the last synced activity
-   feed and the stored coaching inputs, FTP history, and body history. It does
+   feed and the stored coaching inputs, FTP history, body history, and daily
+   health metrics. It does
    not sync Garmin; a reply must stay quick, and the plan revision that follows
    every reply already syncs.
 3. The reply prompt also shows the forecast stored on today's and tomorrow's

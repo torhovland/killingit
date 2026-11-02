@@ -52,6 +52,13 @@ one swappable corner, and normalizes Garmin activities into the shared
 6. **Workout timeseries** — per-activity detail metrics from Garmin are
    normalized per sample into timestamp + location, heart rate, power,
    temperature, speed, distance, elevation, and cadence where recorded.
+7. **Strength exercise sets** — strength activities also carry the recorded
+   exercises, repetitions, weight and rest intervals. See
+   `docs/specs/garmin-strength-exercise-sets.md`.
+8. **Daily health metrics** — a per-day backfill of sleep, HRV, resting heart
+   rate, stress, Body Battery, training readiness, VO2max and related values,
+   stored as dated metrics with per-day watermarks. See
+   `docs/specs/garmin-daily-health-metrics.md`.
 
 ### Out of scope (explicitly deferred)
 
@@ -101,6 +108,7 @@ one swappable corner, and normalizes Garmin activities into the shared
     existing cards while the live sync runs.
 - **New sidecar** `services/garmin/` — `POST /sync` (credentials → normalized
   activities, each with a normalized `samples` timeseries),
+  `POST /daily` (credentials + a date → one day's normalized health metrics),
   `POST /authenticate` (validate credentials).
 - **Shared type** — `Activity` extends `ActivitySummary` with
   `samples: ActivitySample[]`; no database change.
