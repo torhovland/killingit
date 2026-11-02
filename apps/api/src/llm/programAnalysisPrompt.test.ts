@@ -115,6 +115,24 @@ describe("buildProgramAnalysisMessages", () => {
     expect(prompt).toContain("how well this activity fit its planned session");
   });
 
+  it("includes stored weigh-ins with their sources", () => {
+    const prompt = buildProgramAnalysisPrompt({
+      today: "2026-10-21",
+      plan: makePlan(),
+      activity,
+      bodyHistory: {
+        weight: [
+          { date: "2026-10-18", value: 78.5, source: "garmin" },
+          { date: "2026-10-20", value: 78, source: "user" },
+        ],
+        bodyFat: [],
+      },
+    });
+
+    expect(prompt).toContain("- 2026-10-18: 78.5 kg (garmin)");
+    expect(prompt).not.toContain("- 2026-10-20: 78.0 kg (user)");
+  });
+
   it("does not treat a near-target duration as short or long", () => {
     const messages = buildProgramAnalysisMessages({
       today: "2026-10-21",

@@ -1,4 +1,6 @@
 import {
+  DAILY_HEALTH_METRICS,
+  formatDailyHealthValue,
   formatThresholdValue,
   FITNESS_RANGE_LABELS,
   FITNESS_RANGES,
@@ -9,6 +11,57 @@ import { BodyChart } from "./BodyChart";
 import { FitnessChart } from "./FitnessChart";
 import { ThresholdChart } from "./ThresholdChart";
 import { TrainingLoadLine } from "./TrainingLoadLine";
+
+interface LatestGarminRow {
+  key: string;
+  label: string;
+  value: string;
+  date: string;
+}
+
+/** The newest Garmin reading per measure, ready for the Today panel. */
+function latestGarminRows(
+  history: FitnessHistoryResponse,
+  today: string,
+): LatestGarminRow[] {
+  const rows: LatestGarminRow[] = history.latestGarmin.dailyHealth.map(
+    (point) => ({
+      key: point.metric,
+      label: DAILY_HEALTH_METRICS[point.metric].label,
+      value: formatDailyHealthValue(point.metric, point.value),
+      date: point.date,
+    }),
+  );
+  const { weight, bodyFat, ftp } = history.latestGarmin;
+  if (weight !== null) {
+    rows.push({
+      key: "weight",
+      label: "Weight",
+      value: `${weight.value.toFixed(1)} kg`,
+      date: weight.date,
+    });
+  }
+  if (bodyFat !== null) {
+    rows.push({
+      key: "body_fat",
+      label: "Body fat",
+      value: `${bodyFat.value.toFixed(1)} %`,
+      date: bodyFat.date,
+    });
+  }
+  if (ftp !== null) {
+    rows.push({
+      key: "ftp",
+      label: "FTP measurement",
+      value: `${Math.round(ftp.value)} W`,
+      date: ftp.date,
+    });
+  }
+  return rows.map((row) => ({
+    ...row,
+    date: row.date === today ? "today" : row.date,
+  }));
+}
 
 /**
  * The Fitness page content: today's load line with the current FTP estimate,
@@ -38,6 +91,7 @@ export function FitnessView({
       const point = series.points.find((entry) => entry.date === today);
       return point === undefined ? [] : [{ series, value: point.value }];
     }) ?? [];
+  const garminRows = history === null ? [] : latestGarminRows(history, today);
 
   return (
     <section className="flex w-full flex-col gap-4 text-left">
@@ -56,7 +110,9 @@ export function FitnessView({
         !error && <p className="text-base text-muted-foreground">Loading…</p>
       ) : (
         <>
-          {(todayLoad !== null || todayThresholds.length > 0) && (
+          {(todayLoad !== null ||
+            todayThresholds.length > 0 ||
+            garminRows.length > 0) && (
             <div className="flex flex-col gap-1 rounded-lg border bg-card p-4">
               <span className="text-xl font-semibold">Today</span>
               {todayLoad !== null && (
@@ -80,6 +136,27 @@ export function FitnessView({
                     </li>
                   ))}
                 </ul>
+              )}
+              {garminRows.length > 0 && (
+                <div className="flex flex-col gap-1 border-t pt-2">
+                  <span className="text-lg font-medium">
+                    Latest Garmin data
+                  </span>
+                  <ul
+                    className="grid gap-x-4 gap-y-1 text-base text-muted-foreground sm:grid-cols-2"
+                    data-testid="fitness-today-garmin"
+                  >
+                    {garminRows.map((row) => (
+                      <li key={row.key}>
+                        <span>{row.label}</span>{" "}
+                        <span className="font-medium text-foreground">
+                          {row.value}
+                        </span>{" "}
+                        <span className="text-sm">({row.date})</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
             </div>
           )}

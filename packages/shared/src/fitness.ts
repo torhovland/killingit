@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { dailyHealthPointSchema } from "./health.js";
 import { fitnessBodySchema, thresholdKindSchema } from "./metrics.js";
 import { planDateSchema } from "./plan.js";
 import { trainingLoadSchema } from "./trainingLoad.js";
@@ -91,6 +92,30 @@ export type ThresholdHistorySeries = z.infer<
   typeof thresholdHistorySeriesSchema
 >;
 
+/** One value and the date it was measured. */
+export const latestGarminMeasurementSchema = z.object({
+  date: planDateSchema,
+  value: z.number().finite(),
+});
+
+export type LatestGarminMeasurement = z.infer<
+  typeof latestGarminMeasurementSchema
+>;
+
+/**
+ * The newest Garmin reading for each stored measure. `dailyHealth` carries one
+ * entry per metric that has data; weight, body fat and FTP stay null when the
+ * athlete has never had a Garmin measurement for them.
+ */
+export const latestGarminSchema = z.object({
+  dailyHealth: z.array(dailyHealthPointSchema).default([]),
+  weight: latestGarminMeasurementSchema.nullable().default(null),
+  bodyFat: latestGarminMeasurementSchema.nullable().default(null),
+  ftp: latestGarminMeasurementSchema.nullable().default(null),
+});
+
+export type LatestGarmin = z.infer<typeof latestGarminSchema>;
+
 /**
  * The fitness history for a window: one entry per calendar day, ascending, and
  * the estimated threshold measures for the same days. `thresholds` is empty
@@ -101,6 +126,12 @@ export const fitnessHistoryResponseSchema = z.object({
   days: z.array(fitnessHistoryDaySchema),
   thresholds: z.array(thresholdHistorySeriesSchema).default([]),
   body: fitnessBodySchema.default({ weight: [], bodyFat: [] }),
+  latestGarmin: latestGarminSchema.default({
+    dailyHealth: [],
+    weight: null,
+    bodyFat: null,
+    ftp: null,
+  }),
 });
 
 export type FitnessHistoryResponse = z.infer<

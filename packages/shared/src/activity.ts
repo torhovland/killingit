@@ -1,5 +1,34 @@
 import { z } from "zod";
 
+/** One exercise recorded inside a Garmin strength set. */
+export const strengthExerciseSchema = z.object({
+  /** Garmin FIT category, for example `SQUAT` or `BENCH_PRESS`. */
+  category: z.string().trim().min(1),
+  /** Garmin FIT sub-category, when the device recorded one. */
+  name: z.string().trim().min(1).nullable().optional(),
+});
+
+export type StrengthExercise = z.infer<typeof strengthExerciseSchema>;
+
+/**
+ * One set performed in a strength-training activity. Garmin records active and
+ * rest sets separately; absent channels are omitted rather than zeroed, because
+ * a bodyweight set legitimately has no weight.
+ */
+export const strengthSetSchema = z.object({
+  /** `active` or `rest` as reported by Garmin. */
+  setType: z.string().trim().min(1).optional(),
+  /** ISO-8601 UTC start of the set. */
+  startTime: z.string().datetime().optional(),
+  durationSeconds: z.number().nonnegative().optional(),
+  repetitions: z.number().int().nonnegative().optional(),
+  /** The recorded load in kilograms. */
+  weightKg: z.number().nonnegative().optional(),
+  exercises: z.array(strengthExerciseSchema).default([]),
+});
+
+export type StrengthSet = z.infer<typeof strengthSetSchema>;
+
 /**
  * A normalized, minimal summary of an activity from any data source (currently
  * Garmin; a future source maps into the same shape). Only the fields the
@@ -23,6 +52,11 @@ export const activitySummarySchema = z.object({
   averagePower: z.number().nonnegative().nullable().optional(),
   /** Normalized power from the recorded samples, in watts. */
   normalizedPower: z.number().nonnegative().nullable().optional(),
+  /**
+   * Recorded strength-training sets. Only strength activities that carry
+   * exercise data have this field; absent means none were recorded.
+   */
+  strengthSets: z.array(strengthSetSchema).optional(),
 });
 
 export type ActivitySummary = z.infer<typeof activitySummarySchema>;

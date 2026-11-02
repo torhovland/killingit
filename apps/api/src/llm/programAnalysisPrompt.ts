@@ -1,24 +1,30 @@
 import type {
   AnalyzedActivity,
   CoachPlan,
+  DailyHealthPoint,
   MetricPoint,
   ThresholdSummary,
 } from "@killingit/shared";
+import { formatDailyHealthContext } from "./healthContext.js";
 import {
   formatActivitySummary,
+  formatBodyHistory,
   formatFtpContext,
   formatPlanLevels,
   formatPlannedSession,
   formatThresholdContext,
+  type BodyMetricHistory,
 } from "./planContext.js";
 import {
   ACTIVITY_BODY_METRIC_RULES,
   ACTIVITY_FTP_ESTIMATE_RULES,
   ACTIVITY_TYPE_RULE,
   COACH_ANALYSIS_RESPONSE_RULES,
+  DAILY_HEALTH_RULES,
   DURATION_TOLERANCE_RULES,
   GLOBAL_PROMPT_RULES,
   promptSections,
+  STRENGTH_SET_RULES,
   TEXT_FORMATTING_RULES,
   RETURN_JSON_FROM_SYSTEM_PROMPT,
 } from "./promptRules.js";
@@ -27,7 +33,7 @@ import {
  * Bump when the review prompt or generation parameters change materially. Cached
  * program reviews from an older version are ignored and regenerated.
  */
-export const PROGRAM_ANALYSIS_PROMPT_VERSION = 10;
+export const PROGRAM_ANALYSIS_PROMPT_VERSION = 12;
 
 export interface ProgramAnalysisInput {
   today: string;
@@ -41,6 +47,10 @@ export interface ProgramAnalysisInput {
   currentFtpWatts?: number | null;
   /** Every threshold measure in effect on the activity date. */
   thresholds?: readonly ThresholdSummary[];
+  /** Daily health and recovery values, filtered through the activity date. */
+  dailyHealth?: readonly DailyHealthPoint[];
+  /** Stored body weight and body-fat history, including Garmin weigh-ins. */
+  bodyHistory?: BodyMetricHistory;
 }
 
 const PROGRAM_ANALYSIS_SYSTEM_PROMPT = promptSections(
@@ -50,6 +60,8 @@ const PROGRAM_ANALYSIS_SYSTEM_PROMPT = promptSections(
   "Match the workout to a planned session, then weave how well it fit the plan into one brief summary rather than a separate section. Be encouraging when the workout was at least somewhat conforming, but do not hesitate to point out what could genuinely be improved. Cite only the most useful numbers.",
   DURATION_TOLERANCE_RULES,
   "Use 2-3 sentences and finish with one actionable takeaway. Use a short bullet list when the workout has several points worth noting. The takeaway must follow from a real improvement: when the workout went to plan, build on it instead of inventing a correction.",
+  STRENGTH_SET_RULES,
+  DAILY_HEALTH_RULES,
   ACTIVITY_FTP_ESTIMATE_RULES,
   ACTIVITY_BODY_METRIC_RULES,
   TEXT_FORMATTING_RULES,
@@ -96,6 +108,15 @@ export function buildProgramAnalysisPrompt(
   }
   if (input.thresholds !== undefined && input.thresholds.length > 0) {
     lines.push(...formatThresholdContext(input.thresholds), "");
+  }
+  if (input.bodyHistory !== undefined) {
+    lines.push(...formatBodyHistory(input.bodyHistory, activityDate));
+  }
+  if (input.dailyHealth !== undefined) {
+    lines.push(
+      ...formatDailyHealthContext(input.dailyHealth, activityDate),
+      "",
+    );
   }
 
   lines.push(

@@ -119,7 +119,7 @@ export interface CoachingRouteDependencies {
   coachingSurveyAdjustments?: CoachingSurveyAdjustmentStore;
   plans: PlanStore;
   generations: PlanGenerationStore;
-  loadActivities?: (userId: number) => Promise<ActivityFeed>;
+  loadActivities?: (userId: number, today?: string) => Promise<ActivityFeed>;
   /** Injectable for route tests; defaults to the stored feed reader. */
   loadCachedFeed?: typeof loadCachedActivityFeed;
   /** Injectable for route tests; defaults to the stored activity feedback. */
@@ -183,13 +183,14 @@ export interface CoachingRouteDependencies {
 export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
   const loadActivities =
     deps.loadActivities ??
-    ((userId) =>
+    ((userId, today) =>
       loadAnalyzedActivities({
         userId,
         // Analyse the newest activities the cap allows, but return every
         // activity in the stored history.
         limit: MAX_ANALYZED_ACTIVITIES,
         refresh: false,
+        ...(today !== undefined ? { today } : {}),
       }));
   const loadCachedFeed = deps.loadCachedFeed ?? loadCachedActivityFeed;
   const loadFeedback = deps.loadActivityFeedback ?? loadActivityFeedback;
@@ -520,7 +521,7 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
 
       try {
         const user = await deps.users.ensureUser(getAthlete(c).sub);
-        const feed = await loadActivities(user.id);
+        const feed = await loadActivities(user.id, query.data.today);
         await refreshPlanAfterAnalysis(
           user.id,
           feed,

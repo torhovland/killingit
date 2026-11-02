@@ -1,6 +1,8 @@
 import {
+  garminDailyResponseSchema,
   garminMetricsResponseSchema,
   type Activity,
+  type GarminDailyResponse,
   type GarminMetricsResponse,
 } from "@killingit/shared";
 
@@ -41,6 +43,12 @@ export type SyncTransport = (
 export type SyncMetricsTransport = (
   credentials: GarminCredentials,
 ) => Promise<GarminMetricsResponse>;
+
+/** Injectable transport for one day's health and recovery metrics. */
+export type SyncDailyTransport = (
+  credentials: GarminCredentials,
+  date: string,
+) => Promise<GarminDailyResponse>;
 
 /** Base URL of the sidecar, from env (defaults to the local dev address). */
 export function garminSidecarUrl(): string {
@@ -174,6 +182,33 @@ async function postMetrics(
   return parsed.data;
 }
 
+/**
+ * Fetches one day of health and recovery metrics from the sidecar. The
+ * transport is injectable so tests stub the network.
+ */
+export async function syncGarminDailyMetrics(
+  credentials: GarminCredentials,
+  date: string,
+  transport: SyncDailyTransport = postDaily,
+): Promise<GarminDailyResponse> {
+  return transport(credentials, date);
+}
+
+/** Default transport: POSTs credentials and a date to the sidecar's `/daily`. */
+async function postDaily(
+  credentials: GarminCredentials,
+  date: string,
+): Promise<GarminDailyResponse> {
+  const res = await sidecarPost("/daily", credentials, { date });
+  const parsed = garminDailyResponseSchema.safeParse(await res.json());
+  if (!parsed.success) {
+    throw new GarminSidecarError(
+      "sidecar returned a malformed daily-metrics payload",
+    );
+  }
+  return parsed.data;
+}
+
 /** Default transport: POSTs credentials to the sidecar's `/authenticate`. */
 async function postAuthenticate(credentials: GarminCredentials): Promise<void> {
   const res = await sidecarPost("/authenticate", credentials);
@@ -184,6 +219,7 @@ async function postAuthenticate(credentials: GarminCredentials): Promise<void> {
 async function sidecarPost(
   path: string,
   credentials: GarminCredentials,
+  extra: Record<string, unknown> = {},
 ): Promise<Response> {
   const authHeaders = await sidecarAuthHeaders();
 
@@ -195,6 +231,7 @@ async function sidecarPost(
       body: JSON.stringify({
         username: credentials.username,
         password: credentials.password,
+        ...extra,
       }),
     });
   } catch (cause) {

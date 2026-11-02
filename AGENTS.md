@@ -166,7 +166,10 @@ about a past workout, or before a suggested workout, to steer the coach.
   estimate in each activity analysis are stored as `coach` threshold points; a
   newer estimate deletes later coach estimates but never an athlete
   measurement. Every plan and activity-analysis prompt receives the threshold
-  history. Activities are scored with the threshold for their sport: power
+  and body-measurement history. Garmin weigh-ins and FTP supplement the
+  athlete's values; on a conflict for the same date the athlete's own value
+  wins, then Garmin, then a coach estimate. Activities are scored with the
+  threshold for their sport: power
   first, then pace or speed, then heart rate, with a duration-based fallback
   when the sport has no usable threshold.
   The Fitness page charts one **Estimated threshold** line per measure, grouped
@@ -192,7 +195,18 @@ about a past workout, or before a suggested workout, to steer the coach.
   the full history. Each activity in the feed also carries a bounded,
   downsampled sample preview, shown as a collapsible table on the Activities
   page. Running cadence is normalized to total steps per minute and cycling
-  cadence to rpm, matching Garmin Connect.
+  cadence to rpm, matching Garmin Connect. Strength activities also carry their
+  recorded exercise sets, repetitions, weights and rest intervals, and both the
+  activity analysis and the program review use them; see
+  `docs/specs/garmin-strength-exercise-sets.md`.
+  Daily health and recovery values (sleep, HRV, resting heart rate, stress,
+  Body Battery, training readiness, recovery time, VO2max, SpO2, respiration,
+  steps, calories and intensity minutes) are backfilled one day at a time after
+  the activity sync, with a per-day watermark that lets a rate-limited backfill
+  resume. A curated 14-day summary is given to the plan, reply, review and
+  activity-analysis prompts, and the Fitness page's Today panel lists the
+  newest Garmin value for each measure; see
+  `docs/specs/garmin-daily-health-metrics.md`.
   Manual activities get a coach-estimated TSS read from their free text, stored
   in `manual_activities.estimated_tss`; without a model the entry stays
   unscored. Any manual

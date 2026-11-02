@@ -25,6 +25,12 @@ const LLM_STEP_MS = 45_000;
  * durations are pooled.
  */
 export const PLAN_GENERATION_STEPS = {
+  syncActivities: {
+    id: "syncActivities",
+    label: "Syncing Garmin activities",
+    target: 8,
+    defaultMs: 30_000,
+  },
   prepare: {
     id: "prepare",
     label: "Preparing your plan",

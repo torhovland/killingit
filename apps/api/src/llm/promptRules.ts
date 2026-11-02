@@ -25,6 +25,8 @@ Do not invent facts that are not in the input. For body weight and body-fat perc
 
 A comment on an activity describes that same activity. It is not an additional activity and must never be added on top of the activity's recorded time or treated as extra training.
 
+Garmin weigh-ins and FTP measurements supplement what the athlete states. When both provide a value for the same measure or date, the athlete's own statement wins. Treat Garmin as a fallback measurement, and never replace a value the athlete stated with a Garmin one.
+
 Give body weight in kilograms and body fat as a percentage of body weight; convert a stated weight in pounds or stone. A fraction such as 0.245 and "24.5 %" both mean 24.5 % body fat.`;
 
 /**
@@ -33,6 +35,13 @@ Give body weight in kilograms and body fat as a percentage of body weight; conve
  * such as "on Thursdays I have a meetup" applies every week.
  */
 export const WEEKLY_NOTE_SCOPE_RULE = `A weekly note is normally scoped to the week it was written for. If it says the athlete cannot train on Thursday, assume that Thursday of that week only. If it says that on Thursdays they have a meetup that keeps them from training, assume it applies to every Thursday. Unless the athlete explicitly says otherwise, do not extend a week-specific constraint to other weeks.`;
+
+/**
+ * How the coach reads the daily health and recovery series. Shared by the plan
+ * prompts and the activity reviews so both treat sleep, HRV and readiness as
+ * recovery context rather than as extra training.
+ */
+export const DAILY_HEALTH_RULES = `Daily health and recovery values come from the athlete's Garmin device. They describe sleep, HRV, resting heart rate, stress, Body Battery, training readiness, recovery time, VO2max, SpO2, respiration, steps, calories and intensity minutes for the period shown. They are measurements of recovery, not training sessions: never count them as additional training load. Use poor sleep, low HRV, high stress, low Body Battery or low training readiness to justify an easier session, and good recovery to support the planned load. Mention them only when they change the advice.`;
 
 /**
  * How a season refresh consumes survey answers the athlete changed since the
@@ -71,6 +80,7 @@ When the profile, a weekly note, an activity comment, or another part of the inp
 Use the date the statement refers to. For a number in the profile that names no date, use the date the profile was last saved; for anything added more recently, use today's date. Set a value the input does not give to null, and return an empty "bodyMetrics" array when the input says nothing about either number.
 
 The stored history tells you what is already known; do not repeat a value for the same date.`,
+  DAILY_HEALTH_RULES,
   TEXT_FORMATTING_RULES,
 );
 
@@ -209,6 +219,12 @@ export const ENUM_RULES = `For every type field use either "workout" or "rest"; 
  * is not evidence of what the session actually was.
  */
 export const ACTIVITY_TYPE_RULE = `The activity type recorded by the device is only a label and may be wrong: do not trust it. If the heart-rate data looks erratic — sudden spikes or drops that do not fit the steady effort the summary suggests — this may be a strength-training workout even when the device labelled it as running, cycling, or another endurance activity. When the athlete's comment on this activity explains what the session actually was, treat the comment as authoritative over the device label and do not ask them to describe it again.`;
+
+/**
+ * How the coach uses recorded strength sets. Shared by the general activity
+ * analysis and the program review so neither invents exercises or loads.
+ */
+export const STRENGTH_SET_RULES = `When a completed strength session includes recorded sets, those sets are what the athlete actually performed: use the exercise, repetitions, weight and rest intervals to judge the session. Do not invent exercises, sets, repetitions or loads that are not listed, and do not assume a strength workout was performed when no sets are given.`;
 
 /** The FTP estimate every activity review reports when the effort supports one. */
 export const ACTIVITY_FTP_ESTIMATE_RULES = `${ACTIVITY_DATA_LIMITS_RULE} Also estimate the athlete's FTP after this workout when the recorded effort supports it. Use the supplied FTP history as the baseline, respect its trend, and never invent a large jump. Set "estimatedFtpWatts" to null when the activity gives no useful evidence (for example a rest day, a strength session, a workout with no power or hard aerobic effort, or an activity with neither power nor usable heart-rate data); do not guess an FTP change from incomplete recordings.`;

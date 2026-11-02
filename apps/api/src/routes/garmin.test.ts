@@ -83,6 +83,8 @@ function makeApp(authenticate?: () => Promise<boolean>) {
       syncMetrics: () => Promise.resolve({ metrics: [], ftp: [] }),
       saveMetrics: () => Promise.resolve(),
       saveFtp: () => Promise.resolve(),
+      syncDaily: () =>
+        Promise.resolve({ fetched: [], rateLimited: false, failedDate: null }),
     }),
   );
 

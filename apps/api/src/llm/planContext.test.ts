@@ -139,6 +139,49 @@ describe("formatPlanContext", () => {
     expect(text).not.toContain("Body fat history");
   });
 
+  it("includes the stored daily health and recovery summary", () => {
+    const text = formatPlanContext(
+      input({
+        dailyHealth: [
+          { metric: "resting_heart_rate", date: "2026-10-21", value: 54 },
+          { metric: "resting_heart_rate", date: "2026-10-22", value: 52 },
+          { metric: "hrv", date: "2026-10-22", value: 48 },
+        ],
+      }),
+    ).join("\n");
+
+    expect(text).toContain(
+      "Daily health and recovery (from Garmin, 14 days through 2026-10-22):",
+    );
+    expect(text).toContain("Resting heart rate: latest 52 bpm on 2026-10-22");
+    expect(text).toContain("Overnight HRV: latest 48 ms on 2026-10-22");
+  });
+
+  it("renders recorded strength sets in a recent activity", () => {
+    const text = formatPlanContext(
+      input({
+        recentActivities: [
+          {
+            ...activity,
+            summary: {
+              ...activity.summary,
+              strengthSets: [
+                {
+                  setType: "active",
+                  repetitions: 10,
+                  weightKg: 12,
+                  exercises: [{ category: "SQUAT", name: "GOBLET_SQUAT" }],
+                },
+              ],
+            },
+          },
+        ],
+      }),
+    ).join("\n");
+
+    expect(text).toContain("Strength sets: Goblet squat: 1 × 10 reps at 12 kg");
+  });
+
   it("includes the activity program review and the coach's reply", () => {
     const text = formatPlanContext(
       input({

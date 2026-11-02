@@ -17,10 +17,12 @@ from app import (
     _date_window,
     _iso,
     _metric_date,
+    _sync_daily,
     _to_activity,
     _to_body_metrics,
     _to_ftp_history,
     _to_samples,
+    _to_strength_sets,
     _weight_kg,
     normalize_type,
 )
@@ -442,3 +444,149 @@ def test_to_ftp_history_handles_lists_and_nested_records():
     assert _to_ftp_history(
         {"functionalThresholdPower": [{"calendarDate": "2026-10-01", "value": 260}]}
     ) == [{"date": "2026-10-01", "watts": 260}]
+
+def test_to_strength_sets_maps_exercises_reps_and_grams():
+    payload = {
+        "exerciseSets": [
+            {
+                "setType": "ACTIVE",
+                "startTime": "2026-10-27T17:05:00+02:00",
+                "duration": 45.0,
+                "repetitionCount": 10,
+                "weight": 12000,
+                "exercises": [{"category": "SQUAT", "name": "GOBLET_SQUAT"}],
+            },
+            {
+                "setType": "REST",
+                "duration": 60.0,
+                "exercises": [],
+            },
+        ]
+    }
+
+    assert _to_strength_sets(payload) == [
+        {
+            "setType": "active",
+            "startTime": "2026-10-27T15:05:00Z",
+            "durationSeconds": 45.0,
+            "repetitions": 10,
+            "weightKg": 12.0,
+            "exercises": [{"category": "SQUAT", "name": "GOBLET_SQUAT"}],
+        },
+        {"setType": "rest", "durationSeconds": 60.0},
+    ]
+
+
+def test_to_strength_sets_drops_empty_sets_and_caps_length():
+    payload = {
+        "exerciseSets": [
+            {"setType": "ACTIVE", "exercises": []},
+            *[
+                {"setType": "ACTIVE", "repetitionCount": 1, "exercises": []}
+                for _ in range(sidecar.MAX_STRENGTH_SETS + 5)
+            ],
+        ]
+    }
+
+    assert len(_to_strength_sets(payload)) == sidecar.MAX_STRENGTH_SETS
+
+
+class _DailyFake:
+    def get_stats(self, date):
+        return {
+            "restingHeartRate": 52,
+            "sleepingSeconds": 25200,
+            "averageStressLevel": 31,
+            "bodyBatteryHighestValue": 88,
+            "bodyBatteryLowestValue": 24,
+            "totalSteps": 8200,
+            "activeKilocalories": 640,
+            "moderateIntensityMinutes": 20,
+            "vigorousIntensityMinutes": 5,
+        }
+
+    def get_sleep_data(self, date):
+        return {
+            "dailySleepDTO": {
+                "sleepTimeSeconds": 25800,
+                "sleepScores": {"overall": {"value": 82}},
+                "deepSleepSeconds": 4200,
+                "lightSleepSeconds": 14400,
+                "remSleepSeconds": 5400,
+                "awakeSleepSeconds": 600,
+                "avgSleepHRV": 48,
+                "avgSpO2": 96,
+                "averageRespirationValue": 14.2,
+            }
+        }
+
+    def get_training_readiness(self, date):
+        return [
+            {"timestamp": "2026-11-02T06:00:00", "score": 74, "recoveryTime": 720},
+            {"timestamp": "2026-11-02T08:00:00", "score": 78, "recoveryTime": 600},
+        ]
+
+    def get_max_metrics(self, date):
+        return {
+            "generic": {"vo2MaxPreciseValue": 48.5},
+            "cycling": {"vo2MaxValue": 43},
+        }
+
+
+def test_sync_daily_combines_bundle_sleep_readiness_and_vo2max(monkeypatch):
+    monkeypatch.setattr(sidecar, "_login", lambda credentials: _DailyFake())
+
+    assert _sync_daily(Credentials(username="u", password="p"), "2026-11-02") == {
+        "date": "2026-11-02",
+        "metrics": {
+            "resting_heart_rate": 52,
+            "sleep_duration": 430.0,
+            "stress": 31,
+            "body_battery_high": 88,
+            "body_battery_low": 24,
+            "steps": 8200,
+            "active_calories": 640,
+            "intensity_minutes": 30,
+            "sleep_score": 82,
+            "deep_sleep": 70.0,
+            "light_sleep": 240.0,
+            "rem_sleep": 90.0,
+            "awake_sleep": 10.0,
+            "hrv": 48,
+            "spo2": 96,
+            "respiration": 14.2,
+            "training_readiness": 78,
+            "recovery_time": 600,
+            "vo2max": 48.5,
+            "vo2max_cycling": 43,
+        },
+    }
+
+
+def test_sync_daily_tolerates_one_failed_source(monkeypatch):
+    class _PartlyBroken(_DailyFake):
+        def get_sleep_data(self, date):
+            raise RuntimeError("sleep unavailable")
+
+        def get_training_readiness(self, date):
+            raise RuntimeError("readiness unavailable")
+
+        def get_max_metrics(self, date):
+            raise RuntimeError("max metrics unavailable")
+
+    monkeypatch.setattr(sidecar, "_login", lambda credentials: _PartlyBroken())
+
+    result = _sync_daily(Credentials(username="u", password="p"), "2026-11-02")
+    assert result["metrics"]["resting_heart_rate"] == 52
+    assert "sleep_score" not in result["metrics"]
+
+
+def test_sync_daily_propagates_rate_limit(monkeypatch):
+    class _RateLimited(_DailyFake):
+        def get_sleep_data(self, date):
+            raise GarminConnectTooManyRequestsError("429")
+
+    monkeypatch.setattr(sidecar, "_login", lambda credentials: _RateLimited())
+
+    with pytest.raises(sidecar._RateLimitedError):
+        _sync_daily(Credentials(username="u", password="p"), "2026-11-02")

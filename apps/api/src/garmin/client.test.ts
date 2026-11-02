@@ -5,6 +5,7 @@ import {
   GarminSidecarError,
   sidecarAuthHeaders,
   syncGarminActivities,
+  syncGarminDailyMetrics,
   syncGarminMetrics,
 } from "./client.js";
 
@@ -82,6 +83,35 @@ describe("syncGarminMetrics", () => {
   it("propagates a transport rejection", async () => {
     const promise = syncGarminMetrics({ username: "u", password: "p" }, () =>
       Promise.reject(new GarminSidecarError("boom")),
+    );
+    await expectRejectsWith(promise, GarminSidecarError);
+  });
+});
+
+describe("syncGarminDailyMetrics", () => {
+  it("returns one day's normalized metrics from the transport", async () => {
+    const day = {
+      date: "2026-11-02",
+      metrics: {
+        resting_heart_rate: 52,
+        sleep_duration: 430,
+        hrv: 48,
+      },
+    };
+    const result = await syncGarminDailyMetrics(
+      { username: "u", password: "p" },
+      "2026-11-02",
+      (_credentials, date) => Promise.resolve({ ...day, date }),
+    );
+
+    expect(result).toEqual(day);
+  });
+
+  it("propagates a transport rejection", async () => {
+    const promise = syncGarminDailyMetrics(
+      { username: "u", password: "p" },
+      "2026-11-02",
+      () => Promise.reject(new GarminSidecarError("rate limit", 429)),
     );
     await expectRejectsWith(promise, GarminSidecarError);
   });

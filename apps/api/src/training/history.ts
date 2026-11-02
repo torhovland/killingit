@@ -1,5 +1,6 @@
 import {
   CTL_DAYS,
+  DAILY_HEALTH_METRIC_KEYS,
   dailyTrainingLoad,
   formatActivityType,
   interpolateMetricSeries,
@@ -7,16 +8,19 @@ import {
   type AthleteThreshold,
   type BlockWeekSummary,
   type CoachPlan,
+  type DailyHealthPoint,
   type FitnessDayActivity,
   type FitnessDayPlan,
   type FitnessHistoryDay,
   type FitnessHistoryResponse,
   type FitnessRange,
+  type LatestGarmin,
   type MetricPoint,
   type ThresholdHistorySeries,
   type WeekPlan,
 } from "@killingit/shared";
 import type { ManualActivityContext } from "../llm/planContext.js";
+import { loadLatestDailyHealthForUser } from "../metrics/dailyMetrics.js";
 import { loadMetricPoints } from "../metrics/store.js";
 import { addDays, startOfWeek } from "../plans/dates.js";
 import { activityDayTss, groupActivitiesByDate } from "./activityLoad.js";
@@ -58,6 +62,8 @@ export interface FitnessHistoryInput {
   };
   /** Every stored threshold point, used for one line per measure. */
   thresholdPoints?: readonly AthleteThreshold[];
+  /** The newest stored daily health reading per metric. */
+  latestDailyHealth?: readonly DailyHealthPoint[];
 }
 
 /**
@@ -139,7 +145,70 @@ export function buildFitnessHistory(
         endDate,
       ),
     },
+    latestGarmin: {
+      dailyHealth: latestDailyHealthPoints(input.latestDailyHealth ?? []),
+      weight: latestGarminMetric(input.bodyPoints?.weight ?? [], input.today),
+      bodyFat: latestGarminMetric(input.bodyPoints?.bodyFat ?? [], input.today),
+      ftp: latestGarminFtp(input.thresholdPoints ?? [], input.today),
+    },
   };
+}
+
+/** Keeps the newest reading for each daily health metric, in catalog order. */
+function latestDailyHealthPoints(
+  points: readonly DailyHealthPoint[],
+): DailyHealthPoint[] {
+  const latest = new Map<string, DailyHealthPoint>();
+  for (const point of points) {
+    const current = latest.get(point.metric);
+    if (current === undefined || point.date > current.date) {
+      latest.set(point.metric, point);
+    }
+  }
+  return DAILY_HEALTH_METRIC_KEYS.flatMap((metric) => {
+    const point = latest.get(metric);
+    return point === undefined ? [] : [point];
+  });
+}
+
+/** The newest Garmin measurement in a body-metric series. */
+function latestGarminMetric(
+  points: readonly MetricPoint[],
+  throughDate: string,
+): LatestGarmin["weight"] {
+  let latest: LatestGarmin["weight"] = null;
+  for (const point of points) {
+    if (
+      point.source !== "garmin" ||
+      point.date > throughDate ||
+      (latest !== null && point.date <= latest.date)
+    ) {
+      continue;
+    }
+    latest = { date: point.date, value: point.value };
+  }
+  return latest;
+}
+
+/** The newest Garmin cycling FTP measurement, ignoring coach projections. */
+function latestGarminFtp(
+  points: readonly AthleteThreshold[],
+  throughDate: string,
+): LatestGarmin["ftp"] {
+  let latest: LatestGarmin["ftp"] = null;
+  for (const point of points) {
+    if (
+      point.source !== "garmin" ||
+      point.sport !== "cycling" ||
+      point.measure !== "ftp" ||
+      point.date > throughDate ||
+      (latest !== null && point.date <= latest.date)
+    ) {
+      continue;
+    }
+    latest = { date: point.date, value: point.value };
+  }
+  return latest;
 }
 
 /** The stored plan's session for each day it covers. */
@@ -219,10 +288,11 @@ export async function loadFitnessHistory(
   today: string,
   range: FitnessRange,
 ): Promise<FitnessHistoryResponse> {
-  const [context, weight, bodyFat] = await Promise.all([
+  const [context, weight, bodyFat, latestDailyHealth] = await Promise.all([
     loadTrainingContext(userId, plan),
     loadMetricPoints(userId, "weight"),
     loadMetricPoints(userId, "body_fat"),
+    loadLatestDailyHealthForUser(userId, today),
   ]);
   return buildFitnessHistory({
     today,
@@ -236,6 +306,7 @@ export async function loadFitnessHistory(
     manualTssByDate: context.manualTssByDate,
     manualActivities: context.manualActivities,
     bodyPoints: { weight, bodyFat },
+    latestDailyHealth,
   });
 }
 

@@ -6,22 +6,30 @@ import {
   type AnalyzedActivity,
   type BodyMetricEstimate,
   type CoachPlan,
+  type DailyHealthPoint,
   type MetricPoint,
   type RoutePoint,
   type ThresholdSummary,
 } from "@killingit/shared";
 import { decrypt } from "../crypto/credentials.js";
 import { syncGarminActivities, syncGarminMetrics } from "../garmin/client.js";
+import {
+  GARMIN_DAILY_SYNC_WINDOW_DAYS,
+  syncGarminDailyHistory,
+} from "../garmin/dailySync.js";
 import { loadDeletedActivityIds } from "./deletions.js";
 import { loadDecryptedGarminCredentials } from "../garmin/credentials.js";
 import {
+  loadBodyHistoryForUser,
   recordCoachBodyMetrics,
   recordCoachFtp,
   recordGarminBodyMetrics,
   recordGarminFtp,
 } from "../metrics/store.js";
+import { loadDailyHealthForUser } from "../metrics/dailyMetrics.js";
 import { downsample } from "../lib/downsample.js";
 import { mapWithConcurrency } from "../lib/mapWithConcurrency.js";
+import { addDays } from "../plans/dates.js";
 import { ANALYSIS_PROMPT_VERSION } from "../llm/activityPrompt.js";
 import { analyzeActivity } from "../llm/analyze.js";
 import {
@@ -118,6 +126,8 @@ interface AnalyzeActivitiesOptions {
   userId: number;
   limit: number;
   refresh: boolean;
+  /** The athlete's local date; defaults to the server's UTC date. */
+  today?: string;
   provider?: LlmProvider;
 }
 
@@ -160,6 +170,8 @@ async function loadAnalyzedActivitiesOnce(
 
   const activities = await syncGarminActivities(garminCredentials);
   await syncBodyMetrics(options.userId, garminCredentials);
+  const today = options.today ?? new Date().toISOString().slice(0, 10);
+  await syncDailyHealth(options.userId, garminCredentials, today);
   const deletedIds = await loadDeletedActivityIds(options.userId, "garmin");
   const synced = [...activities]
     .filter((activity) => !deletedIds.has(String(activity.id)))
@@ -172,14 +184,17 @@ async function loadAnalyzedActivitiesOnce(
   // reload during analysis still shows every activity that was ever synced.
   await persistFeed(options.userId, { model: null, activities: history });
 
-  const [settings, feedback, storedPlan] = await Promise.all([
-    loadLlmSettings(options.userId),
-    loadActivityFeedback(
-      options.userId,
-      history.map((activity) => activity.id),
-    ),
-    dbPlanStore.load(options.userId),
-  ]);
+  const [settings, feedback, storedPlan, dailyHealth, bodyHistory] =
+    await Promise.all([
+      loadLlmSettings(options.userId),
+      loadActivityFeedback(
+        options.userId,
+        history.map((activity) => activity.id),
+      ),
+      dbPlanStore.load(options.userId),
+      loadDailyHealthSafely(options.userId, today),
+      loadBodyHistorySafely(options.userId),
+    ]);
   let loads: ActivityLoads = {
     byDate: new Map(),
     byActivityId: new Map(),
@@ -222,14 +237,14 @@ async function loadAnalyzedActivitiesOnce(
   const dailyModel = settings.dailyModel ?? settings.model;
   await assertModelUsable(dailyModel, "daily");
 
-  const analysisContext = storedPlan
-    ? {
-        today: storedPlan.plan.today.date,
-        week: storedPlan.plan.week,
-        ftpHistory,
-        thresholds: trainingThresholds,
-      }
-    : undefined;
+  const analysisContext = {
+    today: storedPlan?.plan.today.date ?? today,
+    ...(storedPlan !== null ? { week: storedPlan.plan.week } : {}),
+    ftpHistory,
+    thresholds: trainingThresholds,
+    ...(dailyHealth !== undefined ? { dailyHealth } : {}),
+    ...(bodyHistory !== undefined ? { bodyHistory } : {}),
+  };
 
   let apiKey: string;
   try {
@@ -292,9 +307,7 @@ async function loadAnalyzedActivitiesOnce(
           provider,
           { apiKey, model: dailyModel },
           activity,
-          analysisContext === undefined
-            ? undefined
-            : { ...analysisContext, currentFtpWatts },
+          { ...analysisContext, currentFtpWatts },
           activityFeedback?.comment ?? null,
         );
         const saved = await saveAnalysis({
@@ -489,6 +502,51 @@ async function syncBodyMetrics(
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err);
     console.error(`[garmin] could not sync body metrics: ${detail}`);
+  }
+}
+
+/**
+ * Pulls daily health and recovery metrics after the activities. The pass is
+ * fail-open: its own function already stops on a rate limit, and a failure here
+ * must not hide the synced activities.
+ */
+async function syncDailyHealth(
+  userId: number,
+  credentials: { username: string; password: string },
+  today: string,
+): Promise<void> {
+  try {
+    await syncGarminDailyHistory({ userId, credentials, today });
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    console.error(`[garmin] could not sync daily health metrics: ${detail}`);
+  }
+}
+
+/** Loads the daily health series for prompts, omitting it on a read failure. */
+async function loadDailyHealthSafely(
+  userId: number,
+  today: string,
+): Promise<DailyHealthPoint[] | undefined> {
+  try {
+    return await loadDailyHealthForUser(
+      userId,
+      addDays(today, -GARMIN_DAILY_SYNC_WINDOW_DAYS),
+      today,
+    );
+  } catch (err) {
+    console.error("[garmin] could not read daily health metrics:", err);
+    return undefined;
+  }
+}
+
+/** Loads body weight/body-fat history for prompts, omitting it on a failure. */
+async function loadBodyHistorySafely(userId: number) {
+  try {
+    return await loadBodyHistoryForUser(userId);
+  } catch (err) {
+    console.error("[garmin] could not read body metrics:", err);
+    return undefined;
   }
 }
 

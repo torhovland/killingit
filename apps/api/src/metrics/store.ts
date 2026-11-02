@@ -293,6 +293,19 @@ export async function recordCoachBodyMetrics(
 }
 
 /**
+ * Whether an incoming measurement may replace the value already stored for a
+ * day. A source listed in `keepSources` is a stronger measurement and wins, so
+ * an athlete-stated value is never overwritten by a Garmin sync or a coach
+ * estimate.
+ */
+export function shouldRecordSource(
+  current: MetricSource | undefined,
+  keepSources: readonly MetricSource[],
+): boolean {
+  return current === undefined || !keepSources.includes(current);
+}
+
+/**
  * Writes one metric value unless a stronger source already holds that day. A
  * stronger value (`keepSources`) is never replaced by this one.
  */
@@ -316,7 +329,7 @@ async function recordMeasuredMetric(input: {
     )
     .limit(1);
   const current = existing[0];
-  if (current !== undefined && input.keepSources.includes(current.source)) {
+  if (!shouldRecordSource(current?.source, input.keepSources)) {
     return;
   }
   await db
@@ -371,7 +384,7 @@ async function recordThreshold(input: {
     )
     .limit(1);
   const current = existing[0];
-  if (current !== undefined && input.keepSources.includes(current.source)) {
+  if (!shouldRecordSource(current?.source, input.keepSources)) {
     return;
   }
   await db

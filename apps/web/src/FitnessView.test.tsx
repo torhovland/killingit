@@ -81,6 +81,15 @@ function history(
       ],
       bodyFat: [{ date: "2026-10-20", value: 18.4 }],
     },
+    latestGarmin: {
+      dailyHealth: [
+        { metric: "sleep_duration", date: "2026-10-22", value: 430 },
+        { metric: "hrv", date: "2026-10-22", value: 48 },
+      ],
+      weight: { date: "2026-10-21", value: 78.2 },
+      bodyFat: null,
+      ftp: { date: "2026-10-01", value: 250 },
+    },
     ...overrides,
   };
 }
@@ -113,6 +122,22 @@ describe("FitnessView", () => {
       expect(html).toContain(`(${acronym})`);
     }
     expect(html).toContain("Fresh");
+  });
+
+  it("shows the latest Garmin readings in the Today panel", () => {
+    const html = view();
+
+    expect(html).toContain("Latest Garmin data");
+    expect(html).toContain("Sleep duration");
+    expect(html).toContain("7 h 10 min");
+    expect(html).toContain("Overnight HRV");
+    expect(html).toContain("48 ms");
+    expect(html).toContain("Weight");
+    expect(html).toContain("78.2 kg");
+    expect(html).toContain("FTP");
+    expect(html).toContain("250 W");
+    expect(html).toContain("(2026-10-21)");
+    expect(html).toContain("(today)");
   });
 
   it("offers every range in the picker above the charts", () => {

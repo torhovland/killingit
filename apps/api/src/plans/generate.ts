@@ -4,6 +4,7 @@ import type {
   BlockPlan,
   BodyMetricEstimate,
   CoachPlan,
+  DailyHealthPoint,
   DailyWeather,
   MetricPoint,
   PlanGenerateMode,
@@ -92,6 +93,8 @@ export interface PlanGenerationContext {
   thresholdTimelines?: readonly ThresholdTimeline[] | undefined;
   /** Stored body weight and body-fat points, for the prompt. */
   bodyHistory?: BodyMetricHistory | undefined;
+  /** Stored daily sleep, HRV, readiness and related values for the prompt. */
+  dailyHealth?: readonly DailyHealthPoint[] | undefined;
   provider: LlmProvider;
   apiKey: string;
   /** Daily model, kept as the default for older callers and tests. */
@@ -209,6 +212,9 @@ export async function runPlanGeneration(
         manualActivities: context.manualActivities,
         activityComments: context.activityComments,
         weeklyNote: context.weeklyNote,
+        ...(context.dailyHealth !== undefined
+          ? { dailyHealth: context.dailyHealth }
+          : {}),
         ...(input.signal !== undefined ? { signal: input.signal } : {}),
       });
       if (captured !== undefined && captured.length > 0) {
@@ -1473,6 +1479,9 @@ function baseContext(input: GeneratePlanInput) {
       : {}),
     ...(input.context.bodyHistory !== undefined
       ? { bodyHistory: input.context.bodyHistory }
+      : {}),
+    ...(input.context.dailyHealth !== undefined
+      ? { dailyHealth: input.context.dailyHealth }
       : {}),
     today: input.today,
     ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),

@@ -8,7 +8,7 @@ import type {
   SeasonPlan,
   WeekPlan,
 } from "@killingit/shared";
-import { LLM_PROMPT_KINDS } from "@killingit/shared";
+import { DAILY_HEALTH_METRIC_KEYS, LLM_PROMPT_KINDS } from "@killingit/shared";
 import { sql } from "drizzle-orm";
 import {
   bigint,
@@ -19,6 +19,7 @@ import {
   integer,
   jsonb,
   pgTable,
+  primaryKey,
   serial,
   text,
   timestamp,
@@ -111,6 +112,82 @@ export const athleteMetrics = pgTable(
 
 export type AthleteMetricRow = typeof athleteMetrics.$inferSelect;
 export type NewAthleteMetricRow = typeof athleteMetrics.$inferInsert;
+
+/** SQL list of the stored daily health keys, kept in step with the shared catalog. */
+const DAILY_HEALTH_METRIC_SQL_LIST = DAILY_HEALTH_METRIC_KEYS.map(
+  (metric) => `'${metric}'`,
+).join(", ");
+
+/**
+ * One daily health or recovery value from a connected device. Values are stored
+ * as a dated series rather than on the activity feed, so sleep and readiness can
+ * be compared across days and shown to the coach.
+ */
+export const athleteDailyMetrics = pgTable(
+  "athlete_daily_metrics",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    metric: text("metric").notNull(),
+    date: text("date").notNull(),
+    value: doublePrecision("value").notNull(),
+    source: text("source", { enum: ["garmin"] })
+      .notNull()
+      .default("garmin"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("athlete_daily_metrics_user_id_metric_date_idx").on(
+      table.userId,
+      table.metric,
+      table.date,
+    ),
+    index("athlete_daily_metrics_user_id_date_idx").on(
+      table.userId,
+      table.date,
+    ),
+    check(
+      "athlete_daily_metrics_metric_check",
+      sql`${table.metric} in (${sql.raw(DAILY_HEALTH_METRIC_SQL_LIST)})`,
+    ),
+    check(
+      "athlete_daily_metrics_source_check",
+      sql`${table.source} in ('garmin')`,
+    ),
+  ],
+);
+
+export type AthleteDailyMetricRow = typeof athleteDailyMetrics.$inferSelect;
+export type NewAthleteDailyMetricRow = typeof athleteDailyMetrics.$inferInsert;
+
+/**
+ * Per-day watermark for the Garmin daily health sync. A row is written only
+ * after that day's values are stored, so a rate-limited backfill resumes on the
+ * next visit instead of restarting.
+ */
+export const garminDailySync = pgTable(
+  "garmin_daily_sync",
+  {
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    date: text("date").notNull(),
+    syncedAt: timestamp("synced_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.date] })],
+);
+
+export type GarminDailySyncRow = typeof garminDailySync.$inferSelect;
+export type NewGarminDailySyncRow = typeof garminDailySync.$inferInsert;
 
 /**
  * One threshold measurement per sport, measure, and day: cycling FTP, running
