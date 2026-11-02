@@ -157,7 +157,10 @@ export function CalendarView({
       </h3>
 
       <div className="overflow-x-auto">
-        <div className="min-w-[52rem]">
+        {/* The today ring is painted outside its cell, so the grid keeps
+            padding; the scroll container would otherwise clip it, hiding the
+            ring's right side on Sunday. */}
+        <div className="min-w-[52rem] p-1" data-testid="calendar-grid">
           <div className="grid grid-cols-[minmax(7rem,9rem)_repeat(7,minmax(0,1fr))] gap-1 pb-1 text-center text-sm font-medium text-muted-foreground">
             <span />
             {WEEKDAYS.map((weekday) => (
@@ -267,6 +270,16 @@ function WeekOverview({
           {week.focus}
         </span>
       )}
+      {week !== undefined &&
+        week.focus === null &&
+        week.weekNumber !== null && (
+          <span
+            className="text-muted-foreground"
+            data-testid="calendar-week-number"
+          >
+            Week {week.weekNumber}
+          </span>
+        )}
       {week !== undefined && week.targetLoad !== null && (
         <span className="text-xs text-muted-foreground">
           Target load: {week.targetLoad}

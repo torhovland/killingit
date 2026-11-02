@@ -63,9 +63,10 @@ function plannedSessions(plan: CoachPlan): Map<string, WeekSession> {
 
 /**
  * One outline per Monday-start week the stored plan can describe. Season blocks
- * supply a fallback focus for weeks the coach has not detailed yet; the active
- * and next block's week plans then add the specific focus and target load, and
- * the current and next week win where they overlap.
+ * name the block and number its weeks, so a week the coach has not detailed yet
+ * still says where it falls; the active and next block's week plans then add the
+ * specific focus, target load and week number, and the current and next week win
+ * where they overlap.
  */
 function weekOutlines(
   plan: CoachPlan,
@@ -75,7 +76,10 @@ function weekOutlines(
   const weeks = new Map<string, CalendarWeek>();
   const setWeek = (
     date: string,
-    fields: Pick<CalendarWeek, "focus" | "targetLoad" | "blockName">,
+    fields: Pick<
+      CalendarWeek,
+      "focus" | "targetLoad" | "weekNumber" | "blockName"
+    >,
   ): void => {
     const startDate = startOfWeek(date);
     const existing = weeks.get(startDate);
@@ -84,21 +88,25 @@ function weekOutlines(
       endDate: addDays(startDate, 6),
       focus: fields.focus ?? existing?.focus ?? null,
       targetLoad: fields.targetLoad ?? existing?.targetLoad ?? null,
+      weekNumber: fields.weekNumber ?? existing?.weekNumber ?? null,
       blockName: fields.blockName ?? existing?.blockName ?? null,
     });
   };
 
   for (const block of plan.season.blocks) {
+    let weekNumber = 1;
     for (
       let startDate = startOfWeek(block.startDate);
       startDate <= block.endDate;
       startDate = addDays(startDate, 7)
     ) {
       setWeek(startDate, {
-        focus: block.focus,
+        focus: null,
         targetLoad: null,
+        weekNumber,
         blockName: block.name,
       });
+      weekNumber += 1;
     }
   }
 
@@ -110,6 +118,9 @@ function weekOutlines(
       setWeek(week.startDate, {
         focus: week.focus,
         targetLoad: week.targetLoad,
+        // The block plan's number is what the Block tab shows, so it wins over
+        // the number derived from the block's start date.
+        weekNumber: week.number,
         blockName: block.name,
       });
     }
@@ -120,6 +131,7 @@ function weekOutlines(
       setWeek(week.startDate, {
         focus: week.focus,
         targetLoad: null,
+        weekNumber: null,
         blockName: null,
       });
     }

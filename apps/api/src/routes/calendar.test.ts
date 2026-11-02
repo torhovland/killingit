@@ -292,4 +292,24 @@ describe("calendar route", () => {
     expect(days.get("2026-10-25")?.session?.type).toBe("rest");
     expect(days.get("2026-10-27")?.session?.title).toBe("Next ride 2");
   });
+
+  it("numbers each week inside its season block", async () => {
+    const res = await makeApp().fetch(
+      authenticatedRequest("/api/calendar?today=2026-10-22"),
+    );
+
+    const body = (await res.json()) as CalendarResponse;
+    const weeks = new Map(body.weeks.map((week) => [week.startDate, week]));
+    // The season block numbers every week it covers, so a week the coach has not
+    // detailed yet still says where it falls and carries no other description.
+    expect(weeks.get("2026-10-12")?.weekNumber).toBe(3);
+    expect(weeks.get("2026-11-02")?.blockName).toBe("Base");
+    expect(weeks.get("2026-11-02")?.weekNumber).toBe(6);
+    expect(weeks.get("2026-11-02")?.focus).toBeNull();
+    // The block plan's number is the one the Block tab shows, so it wins.
+    expect(weeks.get("2026-10-19")?.weekNumber).toBe(1);
+    // A later block starts its numbering again.
+    expect(weeks.get("2026-12-07")?.blockName).toBe("Build");
+    expect(weeks.get("2026-12-07")?.weekNumber).toBe(2);
+  });
 });

@@ -71,16 +71,18 @@ export type CalendarDay = z.infer<typeof calendarDaySchema>;
 /**
  * The coach's outline for one Monday-start week, shown beside the week's row.
  * Focus and target load come from the block plan when it describes the week;
- * otherwise the focus falls back to the block's own focus so later weeks of the
- * season still get a useful summary.
+ * the week number places it inside its season block, so weeks the coach has not
+ * detailed yet still say where they fall.
  */
 export const calendarWeekSchema = z.object({
   startDate: planDateSchema,
   endDate: planDateSchema,
-  /** The week's focus, or its block's focus when no week plan exists yet. */
+  /** The week's focus from the block or week plan, when one describes it. */
   focus: z.string().nullable().default(null),
   /** The week's target load from the block plan, when it is known. */
   targetLoad: z.string().nullable().default(null),
+  /** The week's position in its season block, counting from 1. */
+  weekNumber: z.number().int().positive().nullable().default(null),
   /** The season block that contains this week. */
   blockName: z.string().nullable().default(null),
 });
