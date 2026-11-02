@@ -9,6 +9,7 @@ import { CoachPlanView } from "./CoachPlanView";
 import { saveBlob } from "./download";
 import { fetchFileAuthed, fetchJsonAuthed } from "./fetchAuthed";
 import { useNavigate } from "./navigation";
+import { PlanProgress } from "./PlanProgress";
 import { reportError } from "./reportError";
 import { SubmitButton } from "./SubmitButton";
 import { useTimeZone } from "./TimeZoneContext";
@@ -41,7 +42,7 @@ export function CoachPlanSection({
   onGenerated,
 }: CoachPlanSectionProps) {
   const auth = useAuth();
-  const { setStatus } = useAppStatus();
+  const { status, setStatus } = useAppStatus();
   const navigate = useNavigate();
   const timeZone = useTimeZone();
   const { today, isAfter18 } = getToday(timeZone);
@@ -250,10 +251,13 @@ export function CoachPlanSection({
 
   // While a new run is starting, the stored status is still the previous run's
   // `done` (often 100%). Show a neutral starting state until the first poll.
-  const progress =
-    generating && data?.generation.status !== "running"
+  // Only a running generation has a determinate percentage; other busy actions
+  // show the indeterminate bar.
+  const progress = running
+    ? generating && data?.generation.status !== "running"
       ? { step: "Waking the coach…", progress: 0 }
-      : data?.generation;
+      : (data?.generation ?? null)
+    : null;
   const setupError =
     data?.generation.status === "error" ? data.generation.error : null;
 
@@ -323,46 +327,10 @@ export function CoachPlanSection({
         </div>
       )}
 
-      {running && (
-        <div
-          className="flex flex-col gap-2 rounded border bg-inset p-3"
-          data-testid="plan-progress"
-        >
-          <div className="flex flex-wrap items-center justify-between gap-2 text-base">
-            <span className="font-medium">
-              {progress?.step ?? "The coach is thinking…"}
-            </span>
-            <span className="text-muted-foreground">
-              {progress?.progress ?? 0}%
-            </span>
-          </div>
-          <div className="h-2 w-full overflow-hidden rounded bg-card">
-            <div
-              // Match the poll interval so each small increase blends into a
-              // continuous move instead of a visible step.
-              className="h-full rounded bg-primary transition-[width] duration-[1500ms] ease-linear"
-              // Dynamic width is the one value that must be inline.
-              style={{ width: `${progress?.progress ?? 0}%` }}
-            />
-          </div>
-        </div>
-      )}
-
-      {data?.stale && ready && (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded border bg-inset p-3 text-base">
-          <span>
-            Your coaching inputs changed, so your plan is out of date.
-          </span>
-          <SubmitButton
-            type="button"
-            busy={running}
-            className="rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted disabled:opacity-50"
-            onClick={() => void generate(false)}
-          >
-            {running ? "Coach is thinking…" : "Update plan"}
-          </SubmitButton>
-        </div>
-      )}
+      <PlanProgress
+        progress={progress}
+        status={running ? "thinking" : status}
+      />
 
       {loading && data === null && (
         <p

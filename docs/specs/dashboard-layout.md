@@ -15,6 +15,10 @@ header, outstanding activities, the plan, and the inputs that shape it.
 - The menu links to the coaching dashboard, fitness, activities, season review,
   coaching survey, settings, admin settings (admins only), and sign out.
 - The spinner reports `loading`, `syncing`, or `thinking` across any page.
+- On the main coaching page, the plan progress panel is visible whenever the
+  header spinner is. A running plan generation shows its step and a determinate
+  bar; any other busy action shows an indeterminate bar under that state's
+  label.
 - Saving a comment, a weekly note, or a by-the-way question shows the header
   spinner and a spinner inside the submit button until the request settles.
 

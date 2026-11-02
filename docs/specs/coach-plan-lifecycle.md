@@ -56,7 +56,7 @@ answers change and as days, weeks, and blocks roll over.
    - the current week and, after 18:00 when it is planned, the next week;
    - the current block and, after 18:00 when it is planned, the next block;
    - the season;
-   - a stale-plan banner and retry/error states;
+   - retry/error states;
    - a setup message until Garmin and OpenRouter are configured.
 9. Shared Zod schemas for the plan, generation status, pending flags, and
    generation request.
@@ -85,8 +85,7 @@ answers change and as days, weeks, and blocks roll over.
    the season and keeps completed blocks. The survey and settings pages offer
    "Plan a new season" (a fresh season from today) and "Update season plan"
    (refresh the existing season); the update action appears only when a season
-   containing today exists. The dashboard offers only "Update plan" on the
-   stale banner.
+   containing today exists.
 4. On a new day, the first visit updates today's session and the rest of the
    week around what the athlete actually did in one prompt. While that
    generation runs, the out-of-date Today and Tomorrow cards are dimmed behind a
@@ -321,12 +320,12 @@ problems; the error names the offending fields if the repair also fails. See
   label while it runs: the plan generation actions ("Generate my plan", "Update
   plan"), "Sync & re-analyze" (when a model is configured), and saving a manual
   activity, a comment, a weekly note, or a by-the-way question.
+- The progress panel is shown whenever the header spinner is visible. A running
+  plan generation shows its step and a determinate bar; any other busy action
+  (loading, syncing or thinking) shows an indeterminate bar under that state's
+  label.
 - The plan section is rendered before the profile/integrations so the plan is
   the main surface on each visit.
-- The stale banner's "Update plan" is a fallback: the plan section already
-  starts an automatic generation when it sees stale answers or a pending level,
-  refreshing an existing season. The banner stays available if that automatic
-  run failed or the plan is still stale after it finishes.
 - A failed generation is surfaced with its error and a "Try again" button. The
   section deliberately does not retry on every page load, so a persistent
   failure cannot turn into an endless run.
