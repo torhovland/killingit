@@ -610,20 +610,31 @@ function formatFtpHistory(
  * The stored body weight and body-fat series, oldest first. Both lists share
  * the FTP history's source meaning; coach values are only earlier estimates.
  */
-export function formatBodyHistory(history: BodyMetricHistory): string[] {
+export function formatBodyHistory(
+  history: BodyMetricHistory,
+  throughDate?: string,
+): string[] {
+  const weight =
+    throughDate === undefined
+      ? history.weight
+      : history.weight.filter((point) => point.date <= throughDate);
+  const bodyFat =
+    throughDate === undefined
+      ? history.bodyFat
+      : history.bodyFat.filter((point) => point.date <= throughDate);
   const lines: string[] = [];
-  if (history.weight.length > 0) {
+  if (weight.length > 0) {
     lines.push(
       "",
       'Body weight history (oldest first; "user" and "garmin" values are measurements, "coach" values are earlier estimates):',
-      ...recentMetricLines(history.weight, (value) => `${value.toFixed(1)} kg`),
+      ...recentMetricLines(weight, (value) => `${value.toFixed(1)} kg`),
     );
   }
-  if (history.bodyFat.length > 0) {
+  if (bodyFat.length > 0) {
     lines.push(
       "",
       'Body fat history (oldest first; "user" and "garmin" values are measurements, "coach" values are earlier estimates):',
-      ...recentMetricLines(history.bodyFat, (value) => `${value.toFixed(1)} %`),
+      ...recentMetricLines(bodyFat, (value) => `${value.toFixed(1)} %`),
     );
   }
   return lines;

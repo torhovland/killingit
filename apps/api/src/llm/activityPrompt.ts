@@ -13,9 +13,11 @@ import { formatDuration } from "./duration.js";
 import { formatDailyHealthContext } from "./healthContext.js";
 import {
   formatActivitySummary,
+  formatBodyHistory,
   formatFtpContext,
   formatThresholdContext,
   formatWeekPlan,
+  type BodyMetricHistory,
 } from "./planContext.js";
 import {
   ACTIVITY_BODY_METRIC_RULES,
@@ -40,7 +42,7 @@ export const MAX_PROMPT_SAMPLES = 90;
  * Bump when the prompt or generation parameters change materially. Cached
  * analyses from an older version are ignored and regenerated.
  */
-export const ANALYSIS_PROMPT_VERSION = 13;
+export const ANALYSIS_PROMPT_VERSION = 14;
 
 /**
  * The athlete's current week, used to match an activity to its planned session
@@ -58,6 +60,8 @@ export interface ActivityAnalysisContext {
   thresholds?: readonly ThresholdSummary[];
   /** Daily health and recovery values, filtered through the activity date. */
   dailyHealth?: readonly DailyHealthPoint[];
+  /** Stored body weight and body-fat history, including Garmin weigh-ins. */
+  bodyHistory?: BodyMetricHistory;
 }
 
 const ANALYSIS_SYSTEM_PROMPT = promptSections(
@@ -275,6 +279,9 @@ export function buildActivityAnalysisPrompt(
     }
     if (context.thresholds !== undefined && context.thresholds.length > 0) {
       lines.push(...formatThresholdContext(context.thresholds), "");
+    }
+    if (context.bodyHistory !== undefined) {
+      lines.push(...formatBodyHistory(context.bodyHistory, activityDate));
     }
     if (context.dailyHealth !== undefined) {
       lines.push(

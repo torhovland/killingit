@@ -166,7 +166,10 @@ about a past workout, or before a suggested workout, to steer the coach.
   estimate in each activity analysis are stored as `coach` threshold points; a
   newer estimate deletes later coach estimates but never an athlete
   measurement. Every plan and activity-analysis prompt receives the threshold
-  history. Activities are scored with the threshold for their sport: power
+  and body-measurement history. Garmin weigh-ins and FTP supplement the
+  athlete's values; on a conflict for the same date the athlete's own value
+  wins, then Garmin, then a coach estimate. Activities are scored with the
+  threshold for their sport: power
   first, then pace or speed, then heart rate, with a duration-based fallback
   when the sport has no usable threshold.
   The Fitness page charts one **Estimated threshold** line per measure, grouped

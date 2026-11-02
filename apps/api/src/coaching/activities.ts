@@ -20,6 +20,7 @@ import {
 import { loadDeletedActivityIds } from "./deletions.js";
 import { loadDecryptedGarminCredentials } from "../garmin/credentials.js";
 import {
+  loadBodyHistoryForUser,
   recordCoachBodyMetrics,
   recordCoachFtp,
   recordGarminBodyMetrics,
@@ -183,15 +184,17 @@ async function loadAnalyzedActivitiesOnce(
   // reload during analysis still shows every activity that was ever synced.
   await persistFeed(options.userId, { model: null, activities: history });
 
-  const [settings, feedback, storedPlan, dailyHealth] = await Promise.all([
-    loadLlmSettings(options.userId),
-    loadActivityFeedback(
-      options.userId,
-      history.map((activity) => activity.id),
-    ),
-    dbPlanStore.load(options.userId),
-    loadDailyHealthSafely(options.userId, today),
-  ]);
+  const [settings, feedback, storedPlan, dailyHealth, bodyHistory] =
+    await Promise.all([
+      loadLlmSettings(options.userId),
+      loadActivityFeedback(
+        options.userId,
+        history.map((activity) => activity.id),
+      ),
+      dbPlanStore.load(options.userId),
+      loadDailyHealthSafely(options.userId, today),
+      loadBodyHistorySafely(options.userId),
+    ]);
   let loads: ActivityLoads = {
     byDate: new Map(),
     byActivityId: new Map(),
@@ -240,6 +243,7 @@ async function loadAnalyzedActivitiesOnce(
     ftpHistory,
     thresholds: trainingThresholds,
     ...(dailyHealth !== undefined ? { dailyHealth } : {}),
+    ...(bodyHistory !== undefined ? { bodyHistory } : {}),
   };
 
   let apiKey: string;
@@ -532,6 +536,16 @@ async function loadDailyHealthSafely(
     );
   } catch (err) {
     console.error("[garmin] could not read daily health metrics:", err);
+    return undefined;
+  }
+}
+
+/** Loads body weight/body-fat history for prompts, omitting it on a failure. */
+async function loadBodyHistorySafely(userId: number) {
+  try {
+    return await loadBodyHistoryForUser(userId);
+  } catch (err) {
+    console.error("[garmin] could not read body metrics:", err);
     return undefined;
   }
 }

@@ -99,6 +99,26 @@ Primary key `(user_id, date)`.
 The shared catalog also carries the display label, unit and decimal precision,
 so the prompt formatter and any future UI agree.
 
+## Weigh-ins and FTP
+
+Weigh-ins and FTP are not duplicated in `athlete_daily_metrics`. They already
+have the right typed stores from the earlier Garmin integration:
+
+- Garmin weigh-ins and body-fat readings go to `athlete_metrics` through the
+  existing `/metrics` range sync.
+- Garmin's historic cycling FTP goes to `athlete_thresholds` as a `garmin`
+  cycling power measurement.
+
+Both supplement what the athlete provides. A `user` value for the same metric
+and date wins, a Garmin measurement replaces a coach estimate, and a newer coach
+estimate never replaces either a `user` or a Garmin measurement. The same
+precedence helper backs the metric and threshold writes (`shouldRecordSource`).
+
+The activity analysis and program review now receive the stored body history as
+well as the FTP history, so a workout review sees a Garmin weigh-in exactly as
+it sees an athlete-stated one. The shared prompt rule states that the athlete's
+own value wins when the two conflict.
+
 ## Sync algorithm
 
 1. Sync activities and their analyses first. A failed activity sync stops the

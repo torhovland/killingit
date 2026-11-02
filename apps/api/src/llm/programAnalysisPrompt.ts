@@ -8,10 +8,12 @@ import type {
 import { formatDailyHealthContext } from "./healthContext.js";
 import {
   formatActivitySummary,
+  formatBodyHistory,
   formatFtpContext,
   formatPlanLevels,
   formatPlannedSession,
   formatThresholdContext,
+  type BodyMetricHistory,
 } from "./planContext.js";
 import {
   ACTIVITY_BODY_METRIC_RULES,
@@ -31,7 +33,7 @@ import {
  * Bump when the review prompt or generation parameters change materially. Cached
  * program reviews from an older version are ignored and regenerated.
  */
-export const PROGRAM_ANALYSIS_PROMPT_VERSION = 11;
+export const PROGRAM_ANALYSIS_PROMPT_VERSION = 12;
 
 export interface ProgramAnalysisInput {
   today: string;
@@ -47,6 +49,8 @@ export interface ProgramAnalysisInput {
   thresholds?: readonly ThresholdSummary[];
   /** Daily health and recovery values, filtered through the activity date. */
   dailyHealth?: readonly DailyHealthPoint[];
+  /** Stored body weight and body-fat history, including Garmin weigh-ins. */
+  bodyHistory?: BodyMetricHistory;
 }
 
 const PROGRAM_ANALYSIS_SYSTEM_PROMPT = promptSections(
@@ -104,6 +108,9 @@ export function buildProgramAnalysisPrompt(
   }
   if (input.thresholds !== undefined && input.thresholds.length > 0) {
     lines.push(...formatThresholdContext(input.thresholds), "");
+  }
+  if (input.bodyHistory !== undefined) {
+    lines.push(...formatBodyHistory(input.bodyHistory, activityDate));
   }
   if (input.dailyHealth !== undefined) {
     lines.push(

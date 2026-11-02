@@ -8,7 +8,10 @@ import type {
 } from "@killingit/shared";
 import { analyzeActivityAgainstPlan } from "../llm/programAnalysis.js";
 import { PROGRAM_ANALYSIS_PROMPT_VERSION } from "../llm/programAnalysisPrompt.js";
-import type { ActivityCommentContext } from "../llm/planContext.js";
+import type {
+  ActivityCommentContext,
+  BodyMetricHistory,
+} from "../llm/planContext.js";
 import { saveAnalysis } from "../llm/analysisStore.js";
 import { saveCoachQuestions } from "../plans/coachQuestions.js";
 import { recordCoachBodyMetrics, recordCoachFtp } from "../metrics/store.js";
@@ -36,6 +39,8 @@ export interface AnalyzeActivitiesAgainstPlanInput {
   thresholds?: readonly ThresholdSummary[];
   /** Stored daily health and recovery values for the prompt. */
   dailyHealth?: readonly DailyHealthPoint[];
+  /** Stored body weight and body-fat history, including Garmin weigh-ins. */
+  bodyHistory?: BodyMetricHistory;
   /** Cancels the supplementary review when a newer run starts. */
   signal?: AbortSignal;
   /** Injectable for tests; defaults to the database-backed writer. */
@@ -94,6 +99,9 @@ export async function analyzeActivitiesAgainstPlan(
               : {}),
             ...(input.dailyHealth !== undefined
               ? { dailyHealth: input.dailyHealth }
+              : {}),
+            ...(input.bodyHistory !== undefined
+              ? { bodyHistory: input.bodyHistory }
               : {}),
             currentFtpWatts,
           },

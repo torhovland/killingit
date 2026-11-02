@@ -25,6 +25,8 @@ Do not invent facts that are not in the input. For body weight and body-fat perc
 
 A comment on an activity describes that same activity. It is not an additional activity and must never be added on top of the activity's recorded time or treated as extra training.
 
+Garmin weigh-ins and FTP measurements supplement what the athlete states. When both provide a value for the same measure or date, the athlete's own statement wins. Treat Garmin as a fallback measurement, and never replace a value the athlete stated with a Garmin one.
+
 Give body weight in kilograms and body fat as a percentage of body weight; convert a stated weight in pounds or stone. A fraction such as 0.245 and "24.5 %" both mean 24.5 % body fat.`;
 
 /**

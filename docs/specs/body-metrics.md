@@ -131,7 +131,9 @@ The coach reads them from the athlete's own words:
   finds in context. These are stored as `coach` points and never replace a
   `user` or `garmin` value.
 - A plan prompt receives the stored weight and body-fat history, so the coach
-  does not repeat a value it has already reported.
+  does not repeat a value it has already reported. The activity analysis and
+  program review prompts receive the same history, including Garmin weigh-ins,
+  so a workout review can use the athlete's current body measurements.
 - Unlike FTP estimates, a newer body point does not delete later ones: body
   measurements are not a projection that a fresher estimate supersedes.
 - Storing is fail-open: a failed read or write is logged and never fails the

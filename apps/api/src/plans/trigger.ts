@@ -362,6 +362,7 @@ export async function runPlanForUser(
         ftpHistory: ftp.points.filter((point) => point.date <= today),
         ftpTimeline: ftp.timeline,
         thresholds: ftp.summaries,
+        bodyHistory,
         ...(dailyHealth !== undefined ? { dailyHealth } : {}),
         signal: options.signal,
       }),

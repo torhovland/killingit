@@ -157,6 +157,29 @@ describe("buildActivityAnalysisPrompt", () => {
     expect(system).toContain("do not assume a strength workout was performed");
   });
 
+  it("includes stored weigh-ins with their sources and the precedence rule", () => {
+    const prompt = buildActivityAnalysisPrompt(makeActivity(), {
+      today: "2026-10-01",
+      bodyHistory: {
+        weight: [
+          { date: "2026-09-30", value: 78.5, source: "garmin" },
+          { date: "2026-10-01", value: 78, source: "user" },
+          { date: "2026-10-02", value: 77.9, source: "garmin" },
+        ],
+        bodyFat: [{ date: "2026-09-30", value: 24.4, source: "garmin" }],
+      },
+    });
+
+    expect(prompt).toContain("- 2026-09-30: 78.5 kg (garmin)");
+    expect(prompt).toContain("- 2026-10-01: 78.0 kg (user)");
+    expect(prompt).toContain("- 2026-09-30: 24.4 % (garmin)");
+    expect(prompt).not.toContain("77.9 kg");
+
+    const system =
+      buildActivityAnalysisMessages(makeActivity())[0]?.content ?? "";
+    expect(system).toContain("the athlete's own statement wins");
+  });
+
   it("includes the recovery context up to the activity date", () => {
     const prompt = buildActivityAnalysisPrompt(makeActivity(), {
       today: "2026-10-01",
