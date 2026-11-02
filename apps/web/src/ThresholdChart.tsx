@@ -15,6 +15,7 @@ import {
   labelIndices,
   lastIndexOnOrBefore,
   niceDomain,
+  nullAwarePath,
 } from "./chartGeometry";
 import { FitnessDayTooltip } from "./FitnessDayTooltip";
 import { useChartHover } from "./useChartHover";
@@ -230,7 +231,6 @@ function ThresholdPanel({
       </svg>
       <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
         {group.series.map((entry, index) => {
-          const latest = entry.points[entry.points.length - 1];
           return (
             <li key={`${entry.sport}:${entry.measure}`} className="flex gap-1">
               <span
@@ -239,10 +239,7 @@ function ThresholdPanel({
               />
               <span className="font-medium">{entry.label}</span>
               <span className="text-muted-foreground">
-                {entry.sport}
-                {latest === undefined
-                  ? ""
-                  : ` · ${formatThresholdValue(latest.value, entry.unit, entry.kind)}`}
+                {entry.sport} · {entry.unit}
               </span>
             </li>
           );
@@ -310,29 +307,5 @@ function domainOptions(kind: ThresholdHistorySeries["kind"]): {
 }
 
 /** A path that breaks wherever a series has no value on a day. */
-function nullAwarePath(
-  values: readonly (number | null)[],
-  scale: ReturnType<typeof chartScale>,
-  start: number,
-  end: number,
-): string {
-  let path = "";
-  let open = false;
-  for (let index = start; index <= end; index += 1) {
-    const value = values[index];
-    if (value === null || value === undefined) {
-      open = false;
-      continue;
-    }
-    path += `${open ? "L" : "M"}${round(scale.x(index))} ${round(scale.y(value))} `;
-    open = true;
-  }
-  return path.trim();
-}
-
-function round(value: number): number {
-  return Math.round(value * 100) / 100;
-}
-
 /** Kept for code that imported the old FTP-specific chart name. */
 export { ThresholdChart as FtpChart };

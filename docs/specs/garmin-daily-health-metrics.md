@@ -52,12 +52,13 @@ menstrual data.
 6. The summary is filtered to the date being discussed: an activity analysis
    only sees recovery data up to that activity's date.
 7. The Fitness page's Today panel lists the newest value of every stored daily
-   metric plus the newest Garmin weight, body-fat and FTP measurement.
+   metric in two columns: a general column and a `Sleep` column. Below the body
+   chart, a `Recovery and sleep` section charts resting heart rate, Body
+   Battery high, sleep score and stress, and a stacked sleep-stage chart whose
+   deep, light and REM areas add up to sleep duration.
 
 ### Out of scope
 
-- Charting the daily health series over time. The Fitness page shows only the
-  latest reading per measure.
 - Syncing the omitted metrics listed above.
 - Deriving Garmin's proprietary training status; the app keeps its own load
   model.

@@ -132,6 +132,8 @@ export const fitnessHistoryResponseSchema = z.object({
     bodyFat: null,
     ftp: null,
   }),
+  /** Every stored daily health point, oldest first, for the health charts. */
+  dailyHealth: z.array(dailyHealthPointSchema).default([]),
 });
 
 export type FitnessHistoryResponse = z.infer<

@@ -129,7 +129,7 @@ export function BodyChart({
                 x2={hovered.x}
                 y1={0}
                 y2={yScale.plotHeight}
-                className="stroke-chart-ink/40"
+                className="stroke-foreground/40"
                 strokeWidth={1}
                 strokeDasharray="2 2"
               />

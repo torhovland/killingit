@@ -219,6 +219,27 @@ export function zoneBlocks(
   })).filter((block) => block.to > block.from);
 }
 
+/** A path that breaks wherever a series has no value on a day. */
+export function nullAwarePath(
+  values: readonly (number | null)[],
+  scale: ChartScale,
+  start: number,
+  end: number,
+): string {
+  let path = "";
+  let open = false;
+  for (let index = start; index <= end; index += 1) {
+    const value = values[index];
+    if (value === null || value === undefined) {
+      open = false;
+      continue;
+    }
+    path += `${open ? "L" : "M"}${round(scale.x(index))} ${round(scale.y(value))} `;
+    open = true;
+  }
+  return path.trim();
+}
+
 /**
  * The last day index that is on or before `date`. Used to split each line into
  * what was measured (solid) and what the stored plan projects (dotted).

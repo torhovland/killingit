@@ -116,12 +116,12 @@ describe("ThresholdChart", () => {
       />,
     );
 
-    // Axis labels are plain numbers; the legend names the latest value's unit.
+    // Axis labels are plain numbers; the legend names the unit.
     expect(html).not.toMatch(/>\d+ (W|bpm)</);
     expect(html).toContain("FTP");
-    expect(html).toContain("cycling · 254 W");
+    expect(html).toContain("cycling · W");
     expect(html).toContain("Threshold heart rate");
-    expect(html).toContain("cycling · 164 bpm");
+    expect(html).toContain("cycling · bpm");
   });
 
   it("reads a pace axis as minutes and seconds without the unit", () => {
@@ -147,6 +147,6 @@ describe("ThresholdChart", () => {
 
     expect(html).toMatch(/>\d+:\d\d</);
     expect(html).not.toContain(" /km</text>");
-    expect(html).toContain("running · 4:34 /km");
+    expect(html).toContain("running · s/km");
   });
 });

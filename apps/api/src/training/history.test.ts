@@ -488,7 +488,7 @@ describe("buildFitnessHistory", () => {
         bodyFat: [{ date: "2026-10-18", value: 24.5, source: "garmin" }],
       },
       thresholdPoints: [...thresholdPoints, garminFtp, coachFtp],
-      latestDailyHealth: [
+      dailyHealthPoints: [
         { metric: "sleep_duration", date: "2026-10-20", value: 400 },
         { metric: "sleep_duration", date: "2026-10-21", value: 430 },
         { metric: "hrv", date: "2026-10-21", value: 48 },
@@ -511,6 +511,7 @@ describe("buildFitnessHistory", () => {
       date: "2026-10-02",
       value: 255,
     });
+    expect(history.dailyHealth).toHaveLength(3);
   });
 
   it("leaves absent Garmin readings empty", () => {

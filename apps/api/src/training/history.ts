@@ -20,7 +20,7 @@ import {
   type WeekPlan,
 } from "@killingit/shared";
 import type { ManualActivityContext } from "../llm/planContext.js";
-import { loadLatestDailyHealthForUser } from "../metrics/dailyMetrics.js";
+import { loadDailyHealthHistoryForUser } from "../metrics/dailyMetrics.js";
 import { loadMetricPoints } from "../metrics/store.js";
 import { addDays, startOfWeek } from "../plans/dates.js";
 import { activityDayTss, groupActivitiesByDate } from "./activityLoad.js";
@@ -62,8 +62,8 @@ export interface FitnessHistoryInput {
   };
   /** Every stored threshold point, used for one line per measure. */
   thresholdPoints?: readonly AthleteThreshold[];
-  /** The newest stored daily health reading per metric. */
-  latestDailyHealth?: readonly DailyHealthPoint[];
+  /** The stored daily health points, used for the latest panel and charts. */
+  dailyHealthPoints?: readonly DailyHealthPoint[];
 }
 
 /**
@@ -146,11 +146,12 @@ export function buildFitnessHistory(
       ),
     },
     latestGarmin: {
-      dailyHealth: latestDailyHealthPoints(input.latestDailyHealth ?? []),
+      dailyHealth: latestDailyHealthPoints(input.dailyHealthPoints ?? []),
       weight: latestGarminMetric(input.bodyPoints?.weight ?? [], input.today),
       bodyFat: latestGarminMetric(input.bodyPoints?.bodyFat ?? [], input.today),
       ftp: latestGarminFtp(input.thresholdPoints ?? [], input.today),
     },
+    dailyHealth: [...(input.dailyHealthPoints ?? [])],
   };
 }
 
@@ -288,11 +289,11 @@ export async function loadFitnessHistory(
   today: string,
   range: FitnessRange,
 ): Promise<FitnessHistoryResponse> {
-  const [context, weight, bodyFat, latestDailyHealth] = await Promise.all([
+  const [context, weight, bodyFat, dailyHealthPoints] = await Promise.all([
     loadTrainingContext(userId, plan),
     loadMetricPoints(userId, "weight"),
     loadMetricPoints(userId, "body_fat"),
-    loadLatestDailyHealthForUser(userId, today),
+    loadDailyHealthHistoryForUser(userId, today),
   ]);
   return buildFitnessHistory({
     today,
@@ -306,7 +307,7 @@ export async function loadFitnessHistory(
     manualTssByDate: context.manualTssByDate,
     manualActivities: context.manualActivities,
     bodyPoints: { weight, bodyFat },
-    latestDailyHealth,
+    dailyHealthPoints,
   });
 }
 
