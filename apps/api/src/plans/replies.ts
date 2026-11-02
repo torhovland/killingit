@@ -28,6 +28,8 @@ export interface StoredCoachReply {
 /** The athlete's comment and the coach's reply for one activity. */
 export interface ActivityFeedback {
   comment: string | null;
+  /** When the comment was last saved; a newer comment invalidates its analysis. */
+  commentUpdatedAt: Date | null;
   reply: StoredCoachReply | null;
   /** The athlete dismissed the activity with "No comment". */
   reviewed: boolean;
@@ -188,6 +190,7 @@ export async function loadActivityFeedback(
     }
     const created: ActivityFeedback = {
       comment: null,
+      commentUpdatedAt: null,
       reply: null,
       reviewed: false,
     };
@@ -196,7 +199,9 @@ export async function loadActivityFeedback(
   };
 
   for (const row of commentRows) {
-    entry(row.activityId).comment = row.comment;
+    const comment = entry(row.activityId);
+    comment.comment = row.comment;
+    comment.commentUpdatedAt = row.updatedAt;
   }
   for (const row of replyRows) {
     entry(row.target).reply = toStoredReply(row);

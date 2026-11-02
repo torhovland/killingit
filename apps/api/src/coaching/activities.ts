@@ -35,7 +35,10 @@ import {
   toCoachAnalysis,
   type ActivityFeedback,
 } from "../plans/replies.js";
-import { saveCoachQuestions } from "../plans/coachQuestions.js";
+import {
+  clearPendingActivityQuestion,
+  saveCoachQuestions,
+} from "../plans/coachQuestions.js";
 import { llmCredentialsKeyFromEnv } from "../llm/credentials.js";
 import { withPromptLogging } from "../llm/callLog.js";
 import {
@@ -61,6 +64,23 @@ import { routeFromSamples } from "./route.js";
 export const MAX_PREVIEW_SAMPLES = 120;
 /** Bounded concurrency so a batch does not flood OpenRouter. */
 const ANALYSIS_CONCURRENCY = 3;
+
+/**
+ * A cached analysis is stale once the athlete's comment is newer, because the
+ * comment is evidence the analysis must read and any question it asked may now
+ * be answered by that comment.
+ */
+export function commentIsNewerThanAnalysis(
+  analysis: Pick<StoredAnalysis, "generatedAt"> | undefined,
+  commentUpdatedAt: Date | null | undefined,
+): boolean {
+  return (
+    analysis !== undefined &&
+    commentUpdatedAt !== null &&
+    commentUpdatedAt !== undefined &&
+    commentUpdatedAt > analysis.generatedAt
+  );
+}
 
 /** The account has not connected Garmin yet. */
 export class GarminNotConnectedError extends Error {
@@ -248,8 +268,16 @@ async function loadAnalyzedActivitiesOnce(
     ANALYSIS_CONCURRENCY,
     async (activity): Promise<AnalyzedActivity> => {
       const activityFeedback = feedback.get(String(activity.id));
-      const hit = cached.get(activity.id);
+      const cachedAnalysis = cached.get(activity.id);
       const program = cachedProgram.get(activity.id) ?? null;
+      // A comment saved after the analysis carries information the last
+      // analysis could not see, so regenerate instead of reusing it.
+      const hit = commentIsNewerThanAnalysis(
+        cachedAnalysis,
+        activityFeedback?.commentUpdatedAt,
+      )
+        ? undefined
+        : cachedAnalysis;
       if (hit) {
         return withStoredAnalysis(activity, hit, program, activityFeedback);
       }
@@ -267,6 +295,7 @@ async function loadAnalyzedActivitiesOnce(
           analysisContext === undefined
             ? undefined
             : { ...analysisContext, currentFtpWatts },
+          activityFeedback?.comment ?? null,
         );
         const saved = await saveAnalysis({
           userId: options.userId,
@@ -275,6 +304,19 @@ async function loadAnalyzedActivitiesOnce(
           promptVersion: ANALYSIS_PROMPT_VERSION,
           text: result.analysis,
         });
+        // A regenerated analysis supersedes any question the previous one asked
+        // about this activity; the new result may still ask a fresh question.
+        try {
+          await clearPendingActivityQuestion(
+            options.userId,
+            String(activity.id),
+          );
+        } catch (err) {
+          console.error(
+            "[coaching] could not clear stale coach questions:",
+            err,
+          );
+        }
         if (
           result.coachQuestion !== undefined &&
           result.coachQuestion !== null
@@ -283,6 +325,7 @@ async function loadAnalyzedActivitiesOnce(
             await saveCoachQuestions({
               userId: options.userId,
               questions: [result.coachQuestion],
+              target: String(activity.id),
               model: dailyModel,
               sourceKind: "activity_analysis",
             });

@@ -27,7 +27,7 @@ import {
  * Bump when the review prompt or generation parameters change materially. Cached
  * program reviews from an older version are ignored and regenerated.
  */
-export const PROGRAM_ANALYSIS_PROMPT_VERSION = 8;
+export const PROGRAM_ANALYSIS_PROMPT_VERSION = 9;
 
 export interface ProgramAnalysisInput {
   today: string;

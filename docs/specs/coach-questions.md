@@ -30,7 +30,9 @@ remarks about difficulties or objections, and show those remarks to the admin.
    questions are skipped. A new season plan or season refresh clears every
    unanswered question before generating, so a question about the replaced plan
    does not linger on the dashboard; a question the new run asks is stored after
-   that clear and still appears.
+   that clear and still appears. A regenerated activity analysis clears a
+   pending question about that activity, because the older analysis may have
+   asked for information the athlete has since supplied in a comment.
 3. Show only the newest pending question at the top of the main dashboard, with
    an answer input, a coach reply, and a plan refresh after the answer. The
    answer and reply are stored with the question.
@@ -53,6 +55,7 @@ remarks about difficulties or objections, and show those remarks to the admin.
 - `id` serial primary key
 - `user_id` integer not null references `users.id` on delete cascade
 - `question` text not null, non-blank
+- `target` text nullable (the activity id when the question is about one)
 - `source_kind` text not null (the prompt kind that produced it)
 - `model` text not null
 - `answer` text nullable, non-blank when present

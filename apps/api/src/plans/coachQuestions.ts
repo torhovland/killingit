@@ -1,5 +1,5 @@
 import type { CoachQuestion } from "@killingit/shared";
-import { and, desc, eq, isNotNull, isNull } from "drizzle-orm";
+import { and, desc, eq, isNotNull, isNull, or } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { coachQuestions, type CoachQuestionRow } from "../db/schema.js";
 
@@ -19,6 +19,8 @@ export type CoachQuestionSourceKind =
 export interface SaveCoachQuestionsInput {
   userId: number;
   questions: readonly string[];
+  /** The activity id the question is about, when the prompt names one. */
+  target?: string;
   model: string;
   sourceKind: CoachQuestionSourceKind;
 }
@@ -60,6 +62,7 @@ export async function saveCoachQuestions(
     fresh.map((question) => ({
       userId: input.userId,
       question,
+      target: input.target ?? null,
       sourceKind: input.sourceKind,
       model: input.model,
     })),
@@ -78,6 +81,32 @@ export async function clearPendingCoachQuestions(
     .delete(coachQuestions)
     .where(
       and(eq(coachQuestions.userId, userId), isNull(coachQuestions.answer)),
+    );
+}
+
+/**
+ * Removes a pending question about one activity once a newer comment makes it
+ * stale. Questions saved before the target column existed have no activity id,
+ * so a re-analysis also clears those legacy activity-analysis questions.
+ */
+export async function clearPendingActivityQuestion(
+  userId: number,
+  activityId: string,
+): Promise<void> {
+  await db
+    .delete(coachQuestions)
+    .where(
+      and(
+        eq(coachQuestions.userId, userId),
+        isNull(coachQuestions.answer),
+        or(
+          eq(coachQuestions.target, activityId),
+          and(
+            isNull(coachQuestions.target),
+            eq(coachQuestions.sourceKind, "activity_analysis"),
+          ),
+        ),
+      ),
     );
 }
 

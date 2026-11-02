@@ -205,6 +205,21 @@ describe("buildActivityAnalysisPrompt", () => {
     );
   });
 
+  it("includes the athlete's comment and trusts it over the device label", () => {
+    const messages = buildActivityAnalysisMessages(
+      makeActivity(),
+      undefined,
+      "This was a double spinning class. 2x45 minutes with 15 minutes break in-between.",
+    );
+
+    expect(messages[1]?.content).toContain("Athlete comment on this activity");
+    expect(messages[1]?.content).toContain("double spinning class");
+    expect(messages[1]?.content).toContain("not an additional session");
+    expect(messages[0]?.content).toContain(
+      "treat the comment as authoritative over the device label",
+    );
+  });
+
   it("asks for body weight and body fat from the athlete's own words", () => {
     const system =
       buildActivityAnalysisMessages(makeActivity())[0]?.content ?? "";

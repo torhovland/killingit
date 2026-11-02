@@ -1,0 +1,1 @@
+ALTER TABLE "coach_questions" ADD COLUMN "target" text;
