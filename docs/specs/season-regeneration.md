@@ -108,6 +108,11 @@ and means the same as `newSeason`.
   explanation of the difference.
 - Button availability is read from `GET /api/coaching/plan`; the update action
   appears only when the returned plan has a season containing today.
+- Pressing **Plan a new season** while Garmin is disconnected or no OpenRouter
+  key is stored sends the athlete to the Settings page and names the missing
+  integration. The check reads `GET /api/garmin/status` and
+  `GET /api/llm/settings`; if either status cannot be loaded the action still
+  reaches the API, which refuses to plan without both integrations.
 - "Update season plan" is the primary button whenever it is shown, since it is
   the safer action. "Plan a new season" is primary only when it is the only
   action offered; alongside the update action it is the secondary button.
