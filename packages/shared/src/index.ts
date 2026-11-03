@@ -274,6 +274,7 @@ export {
   interpolateMetricSeries,
   metricPointSchema,
   metricSourceSchema,
+  sessionSports,
   thresholdKindSchema,
   thresholdSeriesPointSchema,
   thresholdSeriesSchema,

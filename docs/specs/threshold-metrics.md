@@ -67,7 +67,8 @@ cannot be measured.
 - `GET /api/coaching/plan` returns the latest known threshold summaries.
 - The Fitness page renames the chart to **Estimated threshold**, groups measures
   by unit, and gives each unit its own panel under one heading.
-- Week, block, season, and day views show all known measures. The Day view
+- Week, block, and season views show all known measures. The Day view shows only
+  the measures for the session's own sport and none on a rest day. The Day view
   still shows the absolute FTP used to build a downloadable bike workout.
 
 ## Acceptance criteria
@@ -78,4 +79,5 @@ cannot be measured.
   the question. The question shows the value in the athlete's unit, so a pace
   of 5:46 per km is asked as `5:46 /km`, never as `346 s/km`.
 - An activity with no threshold for its sport still receives a best-effort TSS.
+- The Day view lists only thresholds for that day's sport and none on a rest day.
 - Existing cycling FTP points survive the migration.

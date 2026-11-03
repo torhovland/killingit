@@ -1,7 +1,9 @@
 import { useState, type ReactNode } from "react";
 import {
+  activitySport,
   formatThresholdValue,
   hasExportableBikeWorkout,
+  sessionSports,
   type BlockPlan,
   type CoachPlan,
   type DayPlan,
@@ -153,6 +155,25 @@ export function CoachPlanView({
   );
 }
 
+/**
+ * The threshold measures that belong to the day's own sport. A rest day has no
+ * sport, so it shows none; a session that names several sports shows each of
+ * their measures.
+ */
+function dayThresholds(
+  day: DayPlan,
+  thresholds: readonly ThresholdSummary[],
+): ThresholdSummary[] {
+  if (day.type === "rest") {
+    return [];
+  }
+  const sports = new Set(sessionSports(day.title));
+  if (day.bikeWorkout != null) {
+    sports.add("cycling");
+  }
+  return thresholds.filter((entry) => sports.has(activitySport(entry.sport)));
+}
+
 function DayCard({
   day,
   label,
@@ -170,6 +191,7 @@ function DayCard({
   downloading?: boolean;
   thresholds?: readonly ThresholdSummary[];
 }) {
+  const relevantThresholds = dayThresholds(day, thresholds);
   return (
     <article
       className="relative flex flex-col gap-2 rounded-lg border bg-inset p-4"
@@ -219,9 +241,9 @@ function DayCard({
           className="text-base text-muted-foreground"
           testId={`${testId}-description`}
         />
-        {thresholds.length > 0 && (
+        {relevantThresholds.length > 0 && (
           <ThresholdsLine
-            thresholds={thresholds}
+            thresholds={relevantThresholds}
             testId={`${testId}-thresholds`}
           />
         )}
@@ -459,11 +481,11 @@ function ThresholdsLine({
 }) {
   const content = (
     <span data-testid={testId}>
-      <Bullet />
-      <span className="font-medium">Thresholds: </span>
-      {thresholds.map((entry, index) => (
+      {inline && <Bullet />}
+      <span className="font-medium">Thresholds</span>
+      {thresholds.map((entry) => (
         <span key={`${entry.sport}:${entry.measure}`}>
-          {index > 0 && <Bullet />}
+          <Bullet />
           {entry.sport} {entry.label}{" "}
           <span className="font-medium">
             {formatThresholdValue(entry.value, entry.unit, entry.kind)}
