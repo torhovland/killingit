@@ -1,6 +1,9 @@
 import { describe, expect, it } from "bun:test";
+import type { LlmCatalogModel } from "@killingit/shared";
 import { Hono } from "hono";
 import { requireAuth } from "../auth/middleware.js";
+import { keyFromRaw } from "../crypto/credentials.js";
+import { LlmAuthError, type LlmProvider } from "../llm/openrouter.js";
 import type { StoredLlmSettings } from "../llm/store.js";
 import type { UserStore } from "../users/store.js";
 import { createLlmRoute } from "./llm.js";
@@ -42,24 +45,36 @@ const stored: StoredLlmSettings = {
   model: "test-model",
 };
 
+const fakeProvider: LlmProvider = {
+  id: "openrouter",
+  listModels: () => Promise.resolve([]),
+  validateKey: (apiKey) =>
+    apiKey === "valid-key"
+      ? Promise.resolve()
+      : Promise.reject(new LlmAuthError("invalid OpenRouter API key")),
+  complete: () => Promise.resolve(""),
+};
+
+function catalogModel(id: string): LlmCatalogModel {
+  return {
+    id,
+    name: id,
+    retired: false,
+    discouraged: false,
+    ability: "A",
+    speed: "A",
+    cost: "A",
+    benchmarkScore: 10,
+    benchmarkTimeMs: 10_000,
+    benchmarkCostUsd: 0.01,
+    benchmarkedAt: "2026-10-31T15:40:52.865Z",
+  };
+}
+
 function makeApp(
   loadSettings: (userId: number) => Promise<StoredLlmSettings | null>,
   extras: {
-    loadCatalog?: () => Promise<
-      Array<{
-        id: string;
-        name: string;
-        retired: boolean;
-        discouraged: boolean;
-        ability: "A+" | "A" | "B" | "C" | "D" | "E" | "F" | "?";
-        speed: "A+" | "A" | "B" | "C" | "D" | "E" | "F" | "?";
-        cost: "A+" | "A" | "B" | "C" | "D" | "E" | "F" | "?";
-        benchmarkScore: number | null;
-        benchmarkTimeMs: number | null;
-        benchmarkCostUsd: number | null;
-        benchmarkedAt: string | null;
-      }>
-    >;
+    loadCatalog?: () => Promise<LlmCatalogModel[]>;
     refreshCatalog?: () => Promise<{
       checked: boolean;
       added: number;
@@ -70,6 +85,12 @@ function makeApp(
       removed: number;
       error: string | null;
     }>;
+    saveSettings?: (
+      userId: number,
+      settings: StoredLlmSettings,
+    ) => Promise<void>;
+    provider?: LlmProvider;
+    credentialsKey?: () => Promise<CryptoKey>;
   } = {},
 ) {
   const app = new Hono();
@@ -87,6 +108,17 @@ function makeApp(
 function settingsRequest(): Request {
   return new Request("http://localhost/llm/settings", {
     headers: { authorization: "Bearer anything" },
+  });
+}
+
+function putSettingsRequest(body: unknown): Request {
+  return new Request("http://localhost/llm/settings", {
+    method: "PUT",
+    headers: {
+      authorization: "Bearer anything",
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(body),
   });
 }
 
@@ -124,6 +156,103 @@ describe("GET /llm/settings", () => {
       seasonModel: null,
       dailyModel: null,
     });
+  });
+});
+
+describe("PUT /llm/settings", () => {
+  function appWithSaved(
+    existing: StoredLlmSettings | null,
+    saved: StoredLlmSettings[],
+  ) {
+    return makeApp(() => Promise.resolve(existing), {
+      loadCatalog: () =>
+        Promise.resolve([
+          catalogModel("test-model"),
+          catalogModel("new-model"),
+        ]),
+      saveSettings: (_userId, settings) => {
+        saved.push(settings);
+        return Promise.resolve();
+      },
+      provider: fakeProvider,
+      credentialsKey: () => keyFromRaw("test-secret"),
+    });
+  }
+
+  it("rotates only the key and keeps the stored models", async () => {
+    const saved: StoredLlmSettings[] = [];
+    const app = appWithSaved(stored, saved);
+
+    const res = await app.fetch(putSettingsRequest({ apiKey: "valid-key" }));
+
+    expect(res.status).toBe(200);
+    expect(saved).toHaveLength(1);
+    expect(saved[0]?.model).toBe("test-model");
+    expect(saved[0]?.seasonModel).toBe("test-model");
+    expect(saved[0]?.dailyModel).toBe("test-model");
+    expect(saved[0]?.apiKeyEncrypted).not.toBe("valid-key");
+    expect(await res.json()).toEqual({
+      configured: true,
+      provider: "openrouter",
+      model: "test-model",
+      seasonModel: "test-model",
+      dailyModel: "test-model",
+    });
+  });
+
+  it("stores the key and both models on the first save", async () => {
+    const saved: StoredLlmSettings[] = [];
+    const app = appWithSaved(null, saved);
+
+    const res = await app.fetch(
+      putSettingsRequest({
+        apiKey: "valid-key",
+        seasonModel: "test-model",
+        dailyModel: "new-model",
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(saved).toHaveLength(1);
+    expect(saved[0]?.seasonModel).toBe("test-model");
+    expect(saved[0]?.dailyModel).toBe("new-model");
+  });
+
+  it("rejects a key-only save before any models are stored", async () => {
+    const saved: StoredLlmSettings[] = [];
+    const app = appWithSaved(null, saved);
+
+    const res = await app.fetch(putSettingsRequest({ apiKey: "valid-key" }));
+
+    expect(res.status).toBe(400);
+    expect(await res.text()).toContain("Choose both");
+    expect(saved).toHaveLength(0);
+  });
+
+  it("rejects a model-only save before a key is stored", async () => {
+    const saved: StoredLlmSettings[] = [];
+    const app = appWithSaved(null, saved);
+
+    const res = await app.fetch(
+      putSettingsRequest({
+        seasonModel: "test-model",
+        dailyModel: "new-model",
+      }),
+    );
+
+    expect(res.status).toBe(400);
+    expect(await res.text()).toContain("An OpenRouter API key is required");
+    expect(saved).toHaveLength(0);
+  });
+
+  it("rejects an invalid key", async () => {
+    const saved: StoredLlmSettings[] = [];
+    const app = appWithSaved(stored, saved);
+
+    const res = await app.fetch(putSettingsRequest({ apiKey: "bad-key" }));
+
+    expect(res.status).toBe(401);
+    expect(saved).toHaveLength(0);
   });
 });
 

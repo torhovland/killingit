@@ -67,6 +67,24 @@ describe("llmSettingsUpdateSchema", () => {
     expect(parsed.apiKey).toBeUndefined();
   });
 
+  it("allows a key-only update when the models are already stored", () => {
+    const parsed = llmSettingsUpdateSchema.parse({
+      apiKey: "sk-or-v1-x",
+    });
+    expect(parsed.apiKey).toBe("sk-or-v1-x");
+    expect(parsed.seasonModel).toBeUndefined();
+    expect(parsed.dailyModel).toBeUndefined();
+  });
+
+  it("rejects a single model role without the other", () => {
+    expect(() =>
+      llmSettingsUpdateSchema.parse({
+        apiKey: "sk-or-v1-x",
+        seasonModel: "openrouter/auto",
+      }),
+    ).toThrow();
+  });
+
   it("rejects an empty model", () => {
     expect(() =>
       llmSettingsUpdateSchema.parse({ model: "", apiKey: "sk-or-v1-x" }),

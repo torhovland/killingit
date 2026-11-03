@@ -15,6 +15,7 @@ import {
   createOpenRouterProvider,
   LlmAuthError,
   LlmProviderError,
+  type LlmProvider,
 } from "../llm/openrouter.js";
 import {
   ensureModelCatalogFresh,
@@ -32,6 +33,10 @@ export interface LlmRouteDependencies {
   loadCatalog?: typeof loadModelCatalog;
   /** Injectable for route tests; defaults to the 24-hour refresh job. */
   refreshCatalog?: typeof ensureModelCatalogFresh;
+  /** Injectable for route tests; defaults to the OpenRouter provider. */
+  provider?: LlmProvider;
+  /** Injectable for route tests; defaults to `LLM_CREDENTIALS_KEY`. */
+  credentialsKey?: () => Promise<CryptoKey>;
 }
 
 /** Reads the stored configuration without ever exposing the encrypted key. */
@@ -74,6 +79,8 @@ export function createLlmRoute(deps: LlmRouteDependencies): Hono {
   const saveSettings = deps.saveSettings ?? saveLlmSettings;
   const loadCatalog = deps.loadCatalog ?? loadModelCatalog;
   const refreshCatalog = deps.refreshCatalog ?? ensureModelCatalogFresh;
+  const provider = deps.provider ?? createOpenRouterProvider();
+  const credentialsKey = deps.credentialsKey ?? llmCredentialsKeyFromEnv;
 
   return new Hono()
     .get("/settings", async (c) => {
@@ -99,8 +106,13 @@ export function createLlmRoute(deps: LlmRouteDependencies): Hono {
       async (c) => {
         const { apiKey, model, seasonModel, dailyModel } = c.req.valid("json");
         const user = await deps.users.ensureUser(getAthlete(c).sub);
-        const nextSeasonModel = seasonModel ?? model;
-        const nextDailyModel = dailyModel ?? model;
+        const existing = await loadSettings(user.id);
+        // A key-only update keeps the stored models, so rotating a key never
+        // races a model change made in the table below the key form.
+        const nextSeasonModel =
+          seasonModel ?? model ?? existing?.seasonModel ?? existing?.model;
+        const nextDailyModel =
+          dailyModel ?? model ?? existing?.dailyModel ?? existing?.model;
         if (!nextSeasonModel || !nextDailyModel) {
           return c.text(
             "Choose both a season planning model and a day-to-day model",
@@ -110,13 +122,11 @@ export function createLlmRoute(deps: LlmRouteDependencies): Hono {
 
         let key: CryptoKey;
         try {
-          key = await llmCredentialsKeyFromEnv();
+          key = await credentialsKey();
         } catch (err) {
           return c.text((err as Error).message, 503);
         }
 
-        const existing = await loadSettings(user.id);
-        const provider = createOpenRouterProvider();
         let apiKeyEncrypted = existing?.apiKeyEncrypted;
 
         if (apiKey !== undefined) {
@@ -169,7 +179,6 @@ export function createLlmRoute(deps: LlmRouteDependencies): Hono {
       },
     )
     .get("/models", async (c) => {
-      const provider = createOpenRouterProvider();
       try {
         const models = await provider.listModels();
         return c.json(llmModelsResponseSchema.parse({ models }));
