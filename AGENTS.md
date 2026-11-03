@@ -198,7 +198,9 @@ about a past workout, or before a suggested workout, to steer the coach.
   cadence to rpm, matching Garmin Connect. Strength activities also carry their
   recorded exercise sets, repetitions, weights and rest intervals, and both the
   activity analysis and the program review use them; see
-  `docs/specs/garmin-strength-exercise-sets.md`.
+  `docs/specs/garmin-strength-exercise-sets.md`. Further sport-specific Garmin
+  metrics and their proposed data model are assessed in
+  `docs/specs/garmin-activity-metrics.md`.
   Daily health and recovery values (sleep, HRV, resting heart rate, stress,
   Body Battery, training readiness, recovery time, VO2max, SpO2, respiration,
   steps, calories and intensity minutes) are backfilled one day at a time after
