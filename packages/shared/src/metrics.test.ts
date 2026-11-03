@@ -1,10 +1,41 @@
 import { describe, expect, it } from "bun:test";
 import {
+  activitySport,
   bestFitSlope,
   formatThresholdNumber,
   formatThresholdValue,
   interpolateMetricSeries,
+  sessionSports,
 } from "./metrics.js";
+
+describe("activitySport", () => {
+  it("maps session words for cycling to the cycling key", () => {
+    expect(activitySport("Easy indoor ride")).toBe("cycling");
+    expect(activitySport("Indoor ERG steady endurance ride")).toBe("cycling");
+    expect(activitySport("Easy trainer ride")).toBe("cycling");
+    expect(activitySport("Easy indoor spin")).toBe("cycling");
+  });
+});
+
+describe("sessionSports", () => {
+  it("finds every sport a session names", () => {
+    expect(sessionSports("Run/walk 3.5 min jogs + Z2 ride")).toEqual([
+      "running",
+      "cycling",
+    ]);
+    expect(sessionSports("Gym strength and beginner rowing")).toEqual([
+      "strength",
+      "rowing",
+    ]);
+  });
+
+  it("returns an unmatched word when the session names no sport", () => {
+    expect(sessionSports("Vault technique & plyo intro")).toEqual([
+      "vault",
+      "plyo",
+    ]);
+  });
+});
 
 describe("formatThresholdNumber", () => {
   it("drops the unit and keeps a pace as minutes and seconds", () => {

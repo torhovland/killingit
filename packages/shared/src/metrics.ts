@@ -196,12 +196,17 @@ export const garminMetricsResponseSchema = z.object({
 export type GarminMetricsResponse = z.infer<typeof garminMetricsResponseSchema>;
 
 /**
- * Turns an activity type into the sport a threshold is stored under. The
- * mapping keeps Garmin's many activity names on one stable key per sport.
+ * Turns an activity type or a session description into the sport a threshold is
+ * stored under. The mapping keeps Garmin's many activity names and the coach's
+ * free-text session titles on one stable key per sport.
  */
 export function activitySport(type: string): string {
   const normalized = type.trim().toLowerCase();
-  if (/cycl|bik|bicycle/.test(normalized)) {
+  if (
+    /cycl|bik|bicycle|\bride\b|\briding\b|\bspin\b|\bspinning\b|\btrainer\b/.test(
+      normalized,
+    )
+  ) {
     return "cycling";
   }
   if (/run|jog|trail/.test(normalized)) {
@@ -237,6 +242,22 @@ export function formatSport(sport: string): string {
       index === 0 ? `${word.charAt(0).toUpperCase()}${word.slice(1)}` : word,
     )
     .join(" ");
+}
+
+/**
+ * The sports named in a session title or description, using the same keys
+ * thresholds are stored under. A session can name more than one sport, such as
+ * "run/walk" or "strength and rowing"; a part that names no known sport maps to
+ * its first word and matches no threshold.
+ */
+export function sessionSports(text: string): string[] {
+  const sports = new Set<string>();
+  for (const part of text.split(/\s*(?:\/|,|&|\+|\band\b|\bor\b)\s*/i)) {
+    if (part.trim() !== "") {
+      sports.add(activitySport(part));
+    }
+  }
+  return [...sports];
 }
 
 /**
