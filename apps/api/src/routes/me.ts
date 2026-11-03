@@ -34,5 +34,12 @@ export function createMeRoute(users: UserStore): Hono {
         ...(location !== undefined ? { location } : {}),
       });
       return c.json(toCurrentUser(identity.sub, user));
+    })
+    .delete("/", async (c) => {
+      const identity = getAthlete(c);
+      await users.deleteUser(identity.sub);
+      // The client signs out after this, so the identity cannot provision the
+      // account again on the next request.
+      return c.json({ deleted: true });
     });
 }

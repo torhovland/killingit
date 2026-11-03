@@ -48,6 +48,7 @@ describe("admin questions route", () => {
             createdAt: new Date(0),
           }),
         getById: () => Promise.resolve(null),
+        deleteUser: () => Promise.resolve(),
         updateSettings: (sub, update) =>
           Promise.resolve({
             id: 2,

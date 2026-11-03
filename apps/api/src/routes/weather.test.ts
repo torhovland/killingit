@@ -12,6 +12,7 @@ const userStore = {
       createdAt: new Date(0),
     }),
   getById: () => Promise.resolve(null),
+  deleteUser: () => Promise.resolve(),
   updateSettings: () => Promise.reject(new Error("not used")),
 };
 

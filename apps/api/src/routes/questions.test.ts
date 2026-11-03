@@ -35,6 +35,7 @@ function createTestApp(store: QuestionAnswerStore) {
           createdAt: new Date(0),
         }),
       getById: () => Promise.resolve(null),
+      deleteUser: () => Promise.resolve(),
       updateSettings: (sub, settings) =>
         Promise.resolve({
           id: 42,

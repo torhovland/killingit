@@ -195,6 +195,7 @@ const userStore: UserStore = {
       location: null,
       createdAt: new Date(0),
     }),
+  deleteUser: () => Promise.resolve(),
   updateSettings: (sub, settings) =>
     Promise.resolve({
       id: 42,

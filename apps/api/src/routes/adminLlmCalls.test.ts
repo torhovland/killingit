@@ -54,6 +54,7 @@ function userStore(user: StoredUser | null): UserStore {
       return Promise.resolve({ ...user, sub });
     },
     getById: () => Promise.resolve(user),
+    deleteUser: () => Promise.resolve(),
     updateSettings: (sub, update) =>
       Promise.resolve({
         ...(user ?? admin),

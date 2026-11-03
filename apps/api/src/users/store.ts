@@ -32,6 +32,11 @@ export interface UserStore {
   getById(id: number): Promise<StoredUser | null>;
   /** Stores the supplied time zone and/or location; null clears a setting. */
   updateSettings(sub: string, update: UserSettingsPatch): Promise<StoredUser>;
+  /**
+   * Deletes the account and, through the schema's cascades, every row that
+   * belongs to it. Deleting an unknown subject is a no-op.
+   */
+  deleteUser(sub: string): Promise<void>;
 }
 
 export interface ProvisioningPlan {
@@ -171,6 +176,12 @@ export const dbUserStore: UserStore = {
       throw new Error("failed to update the user's settings");
     }
     return toStoredUser(updated);
+  },
+
+  async deleteUser(sub) {
+    // Every user-owned table references `users.id` with ON DELETE CASCADE, so
+    // this one statement removes the account and all of its training data.
+    await db.delete(users).where(eq(users.authSubject, sub));
   },
 };
 
