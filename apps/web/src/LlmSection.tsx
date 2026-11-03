@@ -9,6 +9,7 @@ import {
 import { useAuth } from "./auth";
 import { DangerIcon } from "./DangerIcon";
 import { fetchJsonAuthed } from "./fetchAuthed";
+import { OpenRouterKeySection } from "./OpenRouterKeySection";
 import { reportError } from "./reportError";
 import { browserTimeZone, formatDateTime } from "./timeZone";
 
@@ -109,16 +110,16 @@ export function compareModels(
 
 /**
  * OpenRouter key entry and the graded model picker. The athlete chooses one
- * model for season/block work and one for day-to-day prompts; both choices are
- * saved together as soon as a radio button is clicked so a plan cannot mix an
- * old and a new selection. The key is saved when the input loses focus.
+ * model for season/block work and one for day-to-day prompts; once a key is
+ * stored, both choices are saved together as soon as a radio button is clicked
+ * so a plan cannot mix an old and a new selection. Before the first key save the
+ * choices stay local and travel with the key.
  */
 export function LlmSection({ settings, onSaved, isAdmin }: LlmSectionProps) {
   const auth = useAuth();
   const [catalog, setCatalog] = useState<LlmCatalogModel[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [catalogError, setCatalogError] = useState<string | null>(null);
-  const [apiKey, setApiKey] = useState("");
   const [seasonModel, setSeasonModel] = useState(
     settings.seasonModel ?? settings.model ?? "",
   );
@@ -227,15 +228,12 @@ export function LlmSection({ settings, onSaved, isAdmin }: LlmSectionProps) {
   }
 
   /**
-   * Persists the two model choices, optionally together with a new API key.
-   * Saves are queued so rapid radio clicks reach the server in click order, and
-   * only the newest attempt reports its result.
+   * Persists the two model choices. Saves are queued so rapid radio clicks
+   * reach the server in click order, and only the newest attempt reports its
+   * result. Before the first key save there is nothing to persist: the choices
+   * travel with the key from the key section.
    */
-  function persist(payload: {
-    seasonModel: string;
-    dailyModel: string;
-    apiKey?: string;
-  }): void {
+  function persist(payload: { seasonModel: string; dailyModel: string }): void {
     const sequence = ++saveSequence.current;
     setSaving(true);
     setError(null);
@@ -261,7 +259,6 @@ export function LlmSection({ settings, onSaved, isAdmin }: LlmSectionProps) {
             );
           }
           if (sequence === saveSequence.current) {
-            if (payload.apiKey !== undefined) setApiKey("");
             onSaved(parsed.data);
           }
         } catch (err: unknown) {
@@ -280,18 +277,9 @@ export function LlmSection({ settings, onSaved, isAdmin }: LlmSectionProps) {
     const nextDaily = role === "daily" ? modelId : dailyModel;
     if (role === "season") setSeasonModel(modelId);
     else setDailyModel(modelId);
+    if (!settings.configured) return;
     if (nextSeason === "" || nextDaily === "") return;
-    persist({
-      seasonModel: nextSeason,
-      dailyModel: nextDaily,
-      // A key typed before the first save travels with the first model choice.
-      ...(!settings.configured && apiKey !== "" ? { apiKey } : {}),
-    });
-  }
-
-  function saveKey(): void {
-    if (apiKey === "" || seasonModel === "" || dailyModel === "") return;
-    persist({ seasonModel, dailyModel, apiKey });
+    persist({ seasonModel: nextSeason, dailyModel: nextDaily });
   }
 
   function gradeHeader(label: string, key: SortKey): React.ReactNode {
@@ -313,6 +301,13 @@ export function LlmSection({ settings, onSaved, isAdmin }: LlmSectionProps) {
 
   return (
     <section className="flex flex-col gap-4" data-testid="llm-settings-form">
+      <OpenRouterKeySection
+        configured={settings.configured}
+        seasonModel={seasonModel}
+        dailyModel={dailyModel}
+        onSaved={onSaved}
+      />
+
       <p className="text-base text-muted-foreground">
         Choose a <strong>season planning</strong> model for season plans, season
         refreshes and block planning. Choose a <strong>day-to-day</strong> model
@@ -321,27 +316,6 @@ export function LlmSection({ settings, onSaved, isAdmin }: LlmSectionProps) {
         usually benefits from stronger reasoning; the day-to-day model is used
         far more often.
       </p>
-
-      <label className="flex max-w-md flex-col gap-1 text-base">
-        <span className="font-medium">OpenRouter API key</span>
-        <input
-          type="password"
-          name="apiKey"
-          placeholder={
-            settings.configured
-              ? "Leave blank to keep the current key"
-              : "OpenRouter API key (sk-or-v1-…)"
-          }
-          value={apiKey}
-          onChange={(e) => setApiKey(e.target.value)}
-          onBlur={saveKey}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") e.currentTarget.blur();
-          }}
-          className="rounded border bg-card px-3 py-1"
-          autoComplete="off"
-        />
-      </label>
 
       {error && <p className="text-destructive">{error}</p>}
       {selectedProblem && (

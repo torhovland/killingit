@@ -1,7 +1,10 @@
 import { describe, expect, it, mock } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 
+const { SessionExpiredError } = await import("./auth/session");
+
 await mock.module("./auth", () => ({
+  SessionExpiredError,
   useAuth: () => ({
     isAuthenticated: true,
     isLoading: false,

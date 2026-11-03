@@ -89,48 +89,52 @@ export function GarminSection({ connected, onConnected }: GarminSectionProps) {
       )}
       <form
         onSubmit={(e) => void submitCredentials(e)}
-        className="flex flex-col gap-2 sm:flex-row"
+        className="flex flex-col gap-2"
         data-testid="garmin-credentials-form"
       >
-        <input
-          type="text"
-          name="username"
-          placeholder="Garmin email"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          className="rounded border bg-card px-3 py-1"
-          autoComplete="username"
-        />
-        <input
-          type="password"
-          name="password"
-          placeholder="Garmin password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="rounded border bg-card px-3 py-1"
-          autoComplete="current-password"
-        />
-        <button
-          type="submit"
-          className="rounded border border-transparent bg-primary px-4 py-2 text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
-          disabled={saving || !username || !password}
-        >
-          {saving ? "Saving…" : connected ? "Update Garmin" : "Connect Garmin"}
-        </button>
-        {connected && (
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <input
+            type="text"
+            name="username"
+            placeholder="Garmin email"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            className="rounded border bg-card px-3 py-1"
+            autoComplete="username"
+          />
+          <input
+            type="password"
+            name="password"
+            placeholder="Garmin password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="rounded border bg-card px-3 py-1"
+            autoComplete="current-password"
+          />
+        </div>
+        <div className="flex flex-wrap gap-2">
           <button
-            type="button"
-            className="rounded border bg-card px-4 py-2 enabled:hover:bg-muted"
-            onClick={() => {
-              setUsername("");
-              setPassword("");
-              setError(null);
-              setEditing(false);
-            }}
+            type="submit"
+            className="rounded border border-transparent bg-primary px-4 py-2 text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
+            disabled={saving || !username || !password}
           >
-            Cancel
+            {saving ? "Saving…" : "Save"}
           </button>
-        )}
+          {connected && (
+            <button
+              type="button"
+              className="rounded border bg-card px-4 py-2 enabled:hover:bg-muted"
+              onClick={() => {
+                setUsername("");
+                setPassword("");
+                setError(null);
+                setEditing(false);
+              }}
+            >
+              Cancel
+            </button>
+          )}
+        </div>
       </form>
     </section>
   );

@@ -84,7 +84,9 @@ export type LlmSettings = z.infer<typeof llmSettingsSchema>;
 
 /**
  * Request body for `PUT /api/llm/settings`. `apiKey` may be omitted when a key
- * is already stored (the client only sends it when rotating the key).
+ * is already stored (the client only sends it when rotating the key), and the
+ * model fields may be omitted when both are already stored. A key-only update
+ * is what the Settings key section sends when rotating a key.
  */
 export const llmSettingsUpdateSchema = z
   .object({
@@ -96,10 +98,19 @@ export const llmSettingsUpdateSchema = z
   })
   .refine(
     (value) =>
+      value.apiKey !== undefined ||
       value.model !== undefined ||
       (value.seasonModel !== undefined && value.dailyModel !== undefined),
     {
-      message: "Provide seasonModel and dailyModel, or the legacy model field",
+      message:
+        "Provide an apiKey, seasonModel and dailyModel, or the legacy model field",
+    },
+  )
+  .refine(
+    (value) =>
+      (value.seasonModel === undefined) === (value.dailyModel === undefined),
+    {
+      message: "Provide both seasonModel and dailyModel, or neither",
     },
   );
 

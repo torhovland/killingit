@@ -1,7 +1,10 @@
 import { describe, expect, it, mock } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 
+const { SessionExpiredError } = await import("./auth/session");
+
 await mock.module("./auth", () => ({
+  SessionExpiredError,
   useAuth: () => ({
     isAuthenticated: true,
     isLoading: false,
@@ -21,6 +24,7 @@ describe("GarminSection", () => {
 
     expect(html).toContain("Connect Garmin");
     expect(html).toContain('data-testid="garmin-credentials-form"');
+    expect(html).toContain("Save");
   });
 
   it("offers an update action when Garmin is already connected", () => {

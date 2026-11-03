@@ -18,7 +18,10 @@ coach analysis on the main page.
 ### In scope
 
 1. **Configuration UI** (behind Auth0 sign-in):
-   - OpenRouter API key input (validated before saving).
+   - OpenRouter API key entry with an explicit Save button (validated before
+     saving). Once a key is stored, the form is replaced by a green
+     "OpenRouter connected" status and an "Update OpenRouter API key" action,
+     matching the Garmin credential section.
    - A graded model table populated from the app's `llm_models` catalog, with
      separate season/block and day-to-day selections. See
      `docs/specs/llm-model-catalog.md`.
@@ -100,8 +103,10 @@ Weather and daylight are included in the plan prompts; see
   `OPENROUTER_API_URL` (base-URL override).
 - **New routes** (all behind `requireAuth`):
   - `GET  /api/llm/settings` — configured state and both model ids, no key.
-  - `PUT  /api/llm/settings` — `{ apiKey?, seasonModel, dailyModel }`;
-    validates and stores. The legacy `{ model }` form sets both roles.
+  - `PUT  /api/llm/settings` — `{ apiKey?, seasonModel?, dailyModel? }`;
+    validates and stores. A key-only update keeps the stored models (that is
+    what the Settings key section sends when rotating a key), while the first
+    save must include both models. The legacy `{ model }` form sets both roles.
   - `GET  /api/llm/catalog` — graded model catalog.
   - `GET  /api/llm/models` — raw normalized OpenRouter catalog.
   - `POST /api/llm/models/refresh` — starts the 24-hour catalog check.
@@ -145,10 +150,12 @@ Weather and daylight are included in the plan prompts; see
 
 ### Web (`apps/web/src/`)
 
-- `LlmSection.tsx` — key input plus the sortable, filterable graded model
-  table; catalog loaded via `GET /api/llm/catalog`. Both model choices are saved
-  as soon as a radio button is clicked, and the key is saved when its input
-  loses focus.
+- `OpenRouterKeySection.tsx` — key entry with an explicit Save button, a green
+  connected status, and an update action, mirroring `GarminSection.tsx`.
+- `LlmSection.tsx` — the sortable, filterable graded model table; catalog loaded
+  via `GET /api/llm/catalog`. Once a key is stored, both model choices are saved
+  as soon as a radio button is clicked. Before the first key save the choices
+  stay local and are sent with the key.
 - `ActivityCard.tsx` — presentational activity summary + analysis.
 - `CoachDashboard.tsx` — loads Garmin/LLM status, then the latest analysed
   activities; offers "Sync & re-analyze".
