@@ -17,8 +17,9 @@ setting to see the right local time.
 
 1. A nullable `users.timezone` column holding an IANA zone name.
 2. `GET /api/me` includes `timezone`; `PATCH /api/me` saves or clears it.
-3. A time-zone selector in the athlete settings page, listing the runtime's
-   supported IANA zones plus a "Device time zone" option.
+3. A time-zone selector in the athlete settings page. Two dropdowns replace the
+   single zone list: a continent and a city, assembled into an IANA zone such
+   as `Europe/Oslo`. A "Device time zone" option clears the stored zone.
 4. Activity timestamps and the plan's "Generated at" timestamp are formatted in
    the selected zone, without appending a zone identifier such as `CEST`.
 5. The effective "today" date and the after-18:00 check use the selected zone.
@@ -37,6 +38,9 @@ setting to see the right local time.
 - `timezone` is `string | null`; null means the device zone.
 - The API rejects values that `Intl.DateTimeFormat` cannot resolve with `400`.
 - The web app falls back to the device zone if a stored value is unknown.
+- The user picks a continent first, then a city within it; the two halves are
+  joined into the zone that is saved. Choosing a different continent that does
+  not contain the current city waits for a city choice before saving.
 - The setting applies immediately after saving; the app keeps the returned
   `CurrentUser` in state.
 
