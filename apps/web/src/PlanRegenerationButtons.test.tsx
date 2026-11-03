@@ -1,13 +1,18 @@
 import { describe, expect, it } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { PlanRegenerationButtonsView } from "./PlanRegenerationButtons";
+import {
+  PlanRegenerationButtonsView,
+  seasonSetupNotice,
+} from "./PlanRegenerationButtons";
 
 function render({
   hasSeason,
   running = null,
+  setupNotice = null,
 }: {
   hasSeason: boolean;
   running?: "newSeason" | "updateSeason" | null;
+  setupNotice?: string | null;
 }): string {
   return renderToStaticMarkup(
     <PlanRegenerationButtonsView
@@ -15,6 +20,7 @@ function render({
       running={running}
       done={false}
       error={null}
+      setupNotice={setupNotice}
       onNewSeason={() => undefined}
       onUpdateSeason={() => undefined}
     />,
@@ -70,5 +76,45 @@ describe("PlanRegenerationButtonsView", () => {
       'data-testid="spinner"',
     );
     expect(html).not.toContain("Plan a new season");
+  });
+
+  it("shows which integrations are missing before a season can start", () => {
+    const html = render({
+      hasSeason: false,
+      setupNotice:
+        "Set up Garmin and an OpenRouter API key in Settings before planning a new season.",
+    });
+
+    expect(html).toContain("Set up Garmin and an OpenRouter API key");
+  });
+});
+
+describe("seasonSetupNotice", () => {
+  it("asks for both integrations when neither is set up", () => {
+    expect(
+      seasonSetupNotice({ garminConnected: false, llmConfigured: false }),
+    ).toBe(
+      "Set up Garmin and an OpenRouter API key in Settings before planning a new season.",
+    );
+  });
+
+  it("asks only for Garmin when OpenRouter is configured", () => {
+    expect(
+      seasonSetupNotice({ garminConnected: false, llmConfigured: true }),
+    ).toBe("Set up Garmin in Settings before planning a new season.");
+  });
+
+  it("asks only for OpenRouter when Garmin is connected", () => {
+    expect(
+      seasonSetupNotice({ garminConnected: true, llmConfigured: false }),
+    ).toBe(
+      "Set up an OpenRouter API key in Settings before planning a new season.",
+    );
+  });
+
+  it("returns null when both integrations are ready", () => {
+    expect(
+      seasonSetupNotice({ garminConnected: true, llmConfigured: true }),
+    ).toBeNull();
   });
 });

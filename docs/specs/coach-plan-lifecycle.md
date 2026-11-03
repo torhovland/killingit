@@ -315,7 +315,9 @@ problems; the error names the offending fields if the repair also fails. See
   availability from `GET /api/coaching/plan`, then offers "Plan a new season"
   and, when a season contains today, "Update season plan". The update action is
   primary whenever it is shown; "Plan a new season" is primary only when it is
-  the sole action. The running action shows a spinner and "Coach is thinking…".
+  the sole action. Pressing "Plan a new season" without Garmin connected or an
+  OpenRouter key stored opens Settings and names what is missing. The running
+  action shows a spinner and "Coach is thinking…".
 - Every button that asks the coach for work shows the same spinner and coach
   label while it runs: the plan generation actions ("Generate my plan", "Update
   plan"), "Sync & re-analyze" (when a model is configured), and saving a manual

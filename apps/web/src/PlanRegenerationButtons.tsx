@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import {
   coachPlanResponseSchema,
+  garminConnectionStatusSchema,
+  llmSettingsSchema,
   type PlanGenerateMode,
 } from "@killingit/shared";
 import { useAppStatus } from "./AppStatus";
 import { useAuth } from "./auth";
 import { fetchJsonAuthed } from "./fetchAuthed";
+import { useNavigate } from "./navigation";
 import { reportError } from "./reportError";
 import { SubmitButton } from "./SubmitButton";
 import { useTimeZone } from "./TimeZoneContext";
@@ -22,6 +25,31 @@ const SECONDARY_BUTTON =
 
 type PlanAction = Extract<PlanGenerateMode, "newSeason" | "updateSeason">;
 
+interface IntegrationSetup {
+  garminConnected: boolean;
+  llmConfigured: boolean;
+}
+
+/**
+ * The setup the athlete still needs before a new season can be planned, or
+ * `null` when Garmin and OpenRouter are both ready.
+ */
+export function seasonSetupNotice({
+  garminConnected,
+  llmConfigured,
+}: IntegrationSetup): string | null {
+  if (garminConnected && llmConfigured) {
+    return null;
+  }
+  const missing = [
+    ...(garminConnected ? [] : ["Garmin"]),
+    ...(llmConfigured ? [] : ["an OpenRouter API key"]),
+  ];
+  const joined =
+    missing.length === 2 ? `${missing[0]} and ${missing[1]}` : missing[0];
+  return `Set up ${joined} in Settings before planning a new season.`;
+}
+
 /**
  * Explicit plan regeneration actions. "Plan a new season" starts over from
  * today; "Update season plan" keeps the completed part of the stored season and
@@ -31,11 +59,14 @@ type PlanAction = Extract<PlanGenerateMode, "newSeason" | "updateSeason">;
 export function PlanRegenerationButtons() {
   const auth = useAuth();
   const { setStatus } = useAppStatus();
+  const navigate = useNavigate();
   const timeZone = useTimeZone();
   const [hasSeason, setHasSeason] = useState(false);
+  const [setup, setSetup] = useState<IntegrationSetup | null>(null);
   const [running, setRunning] = useState<PlanAction | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const setupNotice = setup === null ? null : seasonSetupNotice(setup);
 
   useEffect(() => {
     if (!auth.isAuthenticated) {
@@ -72,6 +103,40 @@ export function PlanRegenerationButtons() {
       cancelled = true;
     };
   }, [auth.isAuthenticated, timeZone]);
+
+  useEffect(() => {
+    if (!auth.isAuthenticated) {
+      return;
+    }
+    let cancelled = false;
+
+    async function loadSetup(): Promise<void> {
+      try {
+        const [garminRes, llmRes] = await Promise.all([
+          fetchJsonAuthed<unknown>(`${API_URL}/api/garmin/status`, auth),
+          fetchJsonAuthed<unknown>(`${API_URL}/api/llm/settings`, auth),
+        ]);
+        const garminParsed = garminConnectionStatusSchema.safeParse(garminRes);
+        const llmParsed = llmSettingsSchema.safeParse(llmRes);
+        if (cancelled || !garminParsed.success || !llmParsed.success) {
+          return;
+        }
+        setSetup({
+          garminConnected: garminParsed.data.connected,
+          llmConfigured: llmParsed.data.configured,
+        });
+      } catch (err: unknown) {
+        // Without the setup status we cannot gate the action; the server still
+        // refuses to plan without both integrations.
+        console.error("Failed to check Garmin and OpenRouter setup:", err);
+      }
+    }
+
+    void loadSetup();
+    return () => {
+      cancelled = true;
+    };
+  }, [auth.isAuthenticated]);
 
   useEffect(() => {
     if (running === null) {
@@ -152,13 +217,23 @@ export function PlanRegenerationButtons() {
     }
   }
 
+  /** Starting a new season needs both integrations; send the athlete to set up. */
+  function startNewSeason(): void {
+    if (setupNotice !== null) {
+      navigate("settings");
+      return;
+    }
+    void regenerate("newSeason");
+  }
+
   return (
     <PlanRegenerationButtonsView
       hasSeason={hasSeason}
       running={running}
       done={done}
       error={error}
-      onNewSeason={() => void regenerate("newSeason")}
+      setupNotice={setupNotice}
+      onNewSeason={startNewSeason}
       onUpdateSeason={() => void regenerate("updateSeason")}
     />
   );
@@ -169,6 +244,7 @@ interface PlanRegenerationButtonsViewProps {
   running: PlanAction | null;
   done: boolean;
   error: string | null;
+  setupNotice?: string | null;
   onNewSeason: () => void;
   onUpdateSeason: () => void;
 }
@@ -179,6 +255,7 @@ export function PlanRegenerationButtonsView({
   running,
   done,
   error,
+  setupNotice = null,
   onNewSeason,
   onUpdateSeason,
 }: PlanRegenerationButtonsViewProps) {
@@ -230,6 +307,11 @@ export function PlanRegenerationButtonsView({
           ? "Updating keeps completed blocks and re-plans the rest of this season. A new season starts today."
           : "A new season starts today."}
       </p>
+      {setupNotice && (
+        <p className="text-base text-muted-foreground" role="status">
+          {setupNotice}
+        </p>
+      )}
       {done && (
         <p className="text-base text-success" role="status">
           Your plan is up to date.
