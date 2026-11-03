@@ -100,10 +100,10 @@ export function OpenRouterKeySection({
       )}
       <form
         onSubmit={(e) => void submitKey(e)}
-        className="flex flex-col gap-2 sm:flex-row sm:items-end"
+        className="flex w-full flex-col gap-2"
         data-testid="openrouter-key-form"
       >
-        <label className="flex max-w-md flex-col gap-1 text-base">
+        <label className="flex w-full flex-col gap-1 text-base">
           <span className="font-medium">OpenRouter API key</span>
           <input
             type="password"
@@ -111,30 +111,32 @@ export function OpenRouterKeySection({
             placeholder="OpenRouter API key (sk-or-v1-…)"
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
-            className="rounded border bg-card px-3 py-1"
+            className="w-full rounded border bg-card px-3 py-1"
             autoComplete="off"
           />
         </label>
-        <button
-          type="submit"
-          className="rounded border border-transparent bg-primary px-4 py-2 text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
-          disabled={saving || !canSave}
-        >
-          {saving ? "Saving…" : "Save"}
-        </button>
-        {configured && (
+        <div className="flex flex-wrap gap-2">
           <button
-            type="button"
-            className="rounded border bg-card px-4 py-2 enabled:hover:bg-muted"
-            onClick={() => {
-              setApiKey("");
-              setError(null);
-              setEditing(false);
-            }}
+            type="submit"
+            className="rounded border border-transparent bg-primary px-4 py-2 text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
+            disabled={saving || !canSave}
           >
-            Cancel
+            {saving ? "Saving…" : "Save"}
           </button>
-        )}
+          {configured && (
+            <button
+              type="button"
+              className="rounded border bg-card px-4 py-2 enabled:hover:bg-muted"
+              onClick={() => {
+                setApiKey("");
+                setError(null);
+                setEditing(false);
+              }}
+            >
+              Cancel
+            </button>
+          )}
+        </div>
       </form>
       {!configured && !modelsChosen && (
         <p className="text-base text-muted-foreground">
