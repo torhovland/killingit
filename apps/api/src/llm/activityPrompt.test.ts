@@ -124,6 +124,30 @@ describe("buildActivityAnalysisPrompt", () => {
     expect(prompt).not.toContain("cadence rpm");
   });
 
+  it("shows pace instead of speed for pace-based activities", () => {
+    const running = buildActivityAnalysisPrompt(
+      makeActivity({ type: "running" }),
+    );
+    expect(running).toContain("pace /km");
+    expect(running).toContain("Average pace: 2:00 /km");
+    expect(running).toContain("pace: avg 2:02 /km");
+    expect(running).not.toContain("speed km/h");
+
+    const rowing = buildActivityAnalysisPrompt(
+      makeActivity({ type: "indoor_rowing" }),
+    );
+    expect(rowing).toContain("pace /500m");
+    expect(rowing).toContain("Average pace: 1:00 /500m");
+  });
+
+  it("keeps speed for rides and other speed-based activities", () => {
+    const prompt = buildActivityAnalysisPrompt(makeActivity());
+
+    expect(prompt).toContain("speed km/h");
+    expect(prompt).toContain("Average speed: 30.0 km/h");
+    expect(prompt).not.toContain("pace /km");
+  });
+
   it("renders the recorded strength sets instead of inventing them", () => {
     const squat = {
       setType: "active",

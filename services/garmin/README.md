@@ -66,7 +66,9 @@ pytest
 - MFA-required Garmin accounts are **not supported** and return 403.
 - The `/sync` activities are normalized to the shared `Activity` shape
   (`id`, `name`, `type`, `startDate` ISO-8601 UTC, `distance` m, `movingTime` s,
-  `elapsedTime` s, `totalElevationGain` m) plus a `samples` timeseries.
+  `elapsedTime` s, `totalElevationGain` m, `averageSpeed` and `maxSpeed` m/s)
+  plus a `samples` timeseries. When Garmin leaves the summary speed at zero but
+  records distance and duration, `averageSpeed` is derived from them.
 - The `/metrics` response contains one `{ date, weightKg?, bodyFatPercent? }`
   entry per weigh-in in the same 42-day window, plus a `ftp` list of
   `{ date, watts }` samples from Garmin's historic cycling FTP. Weight is always

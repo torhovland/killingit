@@ -1,5 +1,8 @@
 import {
   WEATHER_ICON_LABELS,
+  activityAverageSpeed,
+  activityUsesPace,
+  formatActivityPaceOrSpeed,
   formatThresholdValue,
   type ActivitySummary,
   type BikeWorkout,
@@ -752,6 +755,16 @@ export function formatStrengthSets(sets: readonly StrengthSet[]): string[] {
   ];
 }
 
+/** The label for an activity's mean speed, using pace for pace-based sports. */
+function averageSpeedLabel(type: string): string {
+  return activityUsesPace(type) ? "Average pace" : "Average speed";
+}
+
+/** The label for an activity's fastest speed, using pace for pace-based sports. */
+function fastestSpeedLabel(type: string): string {
+  return activityUsesPace(type) ? "Fastest pace" : "Maximum speed";
+}
+
 /**
  * Renders the recorded activity summary shared by the activity review and the
  * program review, so both prompts describe the same numbers the same way.
@@ -766,6 +779,8 @@ export function formatActivitySummary(
     | "movingTime"
     | "elapsedTime"
     | "totalElevationGain"
+    | "averageSpeed"
+    | "maxSpeed"
     | "strengthSets"
   >,
   sampleCount: number,
@@ -777,8 +792,24 @@ export function formatActivitySummary(
     `- Distance: ${(activity.distance / 1000).toFixed(2)} km`,
     `- Moving time: ${formatDuration(activity.movingTime)}, elapsed time: ${formatDuration(activity.elapsedTime)}`,
     `- Elevation gain: ${Math.round(activity.totalElevationGain)} m`,
-    `- Recorded samples: ${sampleCount}`,
   ];
+  const averageSpeed = activityAverageSpeed(activity);
+  if (averageSpeed !== null) {
+    const formatted = formatActivityPaceOrSpeed(activity.type, averageSpeed);
+    if (formatted !== null) {
+      lines.push(`- ${averageSpeedLabel(activity.type)}: ${formatted}`);
+    }
+  }
+  if (activity.maxSpeed !== null && activity.maxSpeed !== undefined) {
+    const formatted = formatActivityPaceOrSpeed(
+      activity.type,
+      activity.maxSpeed,
+    );
+    if (formatted !== null) {
+      lines.push(`- ${fastestSpeedLabel(activity.type)}: ${formatted}`);
+    }
+  }
+  lines.push(`- Recorded samples: ${sampleCount}`);
   if (activity.strengthSets !== undefined) {
     lines.push(...formatStrengthSets(activity.strengthSets));
   }
@@ -794,6 +825,13 @@ function formatActivity(
   const details: string[] = [];
   if (summary.distance > 0) {
     details.push(`${(summary.distance / 1000).toFixed(2)} km`);
+  }
+  const averageSpeed = activityAverageSpeed(summary);
+  if (averageSpeed !== null) {
+    const paceOrSpeed = formatActivityPaceOrSpeed(summary.type, averageSpeed);
+    if (paceOrSpeed !== null) {
+      details.push(paceOrSpeed);
+    }
   }
   details.push(`${formatDuration(summary.movingTime)} moving`);
   if (summary.totalElevationGain > 0) {

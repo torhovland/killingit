@@ -1,12 +1,19 @@
 import { describe, expect, it } from "bun:test";
 import {
   activitiesResponseSchema,
+  activityAverageSpeed,
   activitySchema,
+  activityUsesPace,
   cadenceUnit,
+  formatActivityPaceOrSpeed,
   formatActivityType,
+  formatPace,
+  formatSpeed,
   isRunningActivity,
   greetingSchema,
   healthSchema,
+  paceUnitLabel,
+  paceUnitMetres,
 } from "./index";
 
 describe("healthSchema", () => {
@@ -75,6 +82,16 @@ describe("activitySchema", () => {
   it("defaults missing samples to an empty list", () => {
     expect(activitySchema.parse(summary).samples).toEqual([]);
   });
+
+  it("carries the recorded average and maximum speed", () => {
+    const parsed = activitySchema.parse({
+      ...summary,
+      averageSpeed: 3.2,
+      maxSpeed: 4.1,
+    });
+    expect(parsed.averageSpeed).toBe(3.2);
+    expect(parsed.maxSpeed).toBe(4.1);
+  });
 });
 
 describe("cadence unit", () => {
@@ -83,6 +100,64 @@ describe("cadence unit", () => {
     expect(cadenceUnit("running")).toBe("spm");
     expect(isRunningActivity("indoor_cycling")).toBe(false);
     expect(cadenceUnit("indoor_cycling")).toBe("rpm");
+  });
+});
+
+describe("pace and speed", () => {
+  it("reads pace for runs, walks, hikes, swims and rows", () => {
+    expect(activityUsesPace("running")).toBe(true);
+    expect(activityUsesPace("trail_running")).toBe(true);
+    expect(activityUsesPace("hiking")).toBe(true);
+    expect(activityUsesPace("indoor_rowing")).toBe(true);
+    expect(activityUsesPace("indoor_cycling")).toBe(false);
+    expect(activityUsesPace("strength_training")).toBe(false);
+  });
+
+  it("uses the pace unit the sport normally shows", () => {
+    expect(paceUnitMetres("running")).toBe(1000);
+    expect(paceUnitLabel("running")).toBe("/km");
+    expect(paceUnitMetres("swimming")).toBe(100);
+    expect(paceUnitLabel("swimming")).toBe("/100m");
+    expect(paceUnitMetres("indoor_rowing")).toBe(500);
+    expect(paceUnitLabel("indoor_rowing")).toBe("/500m");
+  });
+
+  it("formats pace and speed", () => {
+    expect(formatPace(312)).toBe("5:12");
+    expect(formatPace(0)).toBe("–");
+    expect(formatSpeed(3.3333)).toBe("12.0 km/h");
+    expect(formatActivityPaceOrSpeed("running", 1000 / 312)).toBe("5:12 /km");
+    expect(formatActivityPaceOrSpeed("indoor_cycling", 1000 / 312)).toBe(
+      "11.5 km/h",
+    );
+    expect(formatActivityPaceOrSpeed("indoor_rowing", 500 / 120)).toBe(
+      "2:00 /500m",
+    );
+  });
+
+  it("derives the average speed from distance and moving time", () => {
+    expect(
+      activityAverageSpeed({
+        distance: 5000,
+        movingTime: 1500,
+        elapsedTime: 1600,
+      }),
+    ).toBeCloseTo(3.3333);
+    expect(
+      activityAverageSpeed({
+        distance: 5000,
+        movingTime: 1500,
+        elapsedTime: 1600,
+        averageSpeed: 3,
+      }),
+    ).toBe(3);
+    expect(
+      activityAverageSpeed({
+        distance: 0,
+        movingTime: 0,
+        elapsedTime: 600,
+      }),
+    ).toBeNull();
   });
 });
 

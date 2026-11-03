@@ -754,17 +754,35 @@ def _to_activity(
     # zone offset, so treating it as UTC makes every activity shift when the
     # athlete changes their display time zone.
     start = raw.get("startTimeGMT") or raw.get("startTimeLocal")
+    distance = _num(raw.get("distance"))
+    moving_time = _num(raw.get("movingDuration"))
+    elapsed_time = _num(raw.get("duration"))
+    average_speed = _first_positive(
+        raw.get("averageSpeed"), raw.get("averageMovingSpeed"), raw.get("avgSpeed")
+    )
+    if average_speed is None:
+        # Some sports (for example indoor rowing) record distance but leave the
+        # summary speed at zero. Derive the mean so the athlete still sees pace.
+        duration = moving_time if moving_time > 0 else elapsed_time
+        if distance > 0 and duration > 0:
+            average_speed = distance / duration
+    max_speed = _first_positive(raw.get("maxSpeed"))
+
     activity = {
         "id": int(raw.get("activityId") or 0),
         "name": raw.get("activityName") or "",
         "type": normalize_type(raw.get("activityType") or "unknown"),
         "startDate": _iso(start) if start else "",
-        "distance": _num(raw.get("distance")),
-        "movingTime": _num(raw.get("movingDuration")),
-        "elapsedTime": _num(raw.get("duration")),
+        "distance": distance,
+        "movingTime": moving_time,
+        "elapsedTime": elapsed_time,
         "totalElevationGain": _num(raw.get("elevationGain")),
         "samples": samples or [],
     }
+    if average_speed is not None:
+        activity["averageSpeed"] = average_speed
+    if max_speed is not None:
+        activity["maxSpeed"] = max_speed
     if strength_sets:
         activity["strengthSets"] = strength_sets
     return activity
@@ -782,6 +800,7 @@ _SAMPLE_METRICS = (
     ("directAirTemperature", "temperature"),
     ("directTemperature", "temperature"),
     ("directSpeed", "speed"),
+    ("directEnhancedSpeed", "speed"),
     ("directCorrectedElevation", "elevation"),
     ("directElevation", "elevation"),
     ("directUncorrectedElevation", "elevation"),
@@ -859,6 +878,15 @@ def _finite_or_none(value) -> float | None:
     except (TypeError, ValueError):
         return None
     return number if math.isfinite(number) else None
+
+
+def _first_positive(*values) -> float | None:
+    """Return the first finite value above zero, or None when none is usable."""
+    for value in values:
+        number = _finite_or_none(value)
+        if number is not None and number > 0:
+            return number
+    return None
 
 
 def _epoch_iso(value) -> str | None:

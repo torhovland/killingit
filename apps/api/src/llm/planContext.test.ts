@@ -91,6 +91,38 @@ describe("formatPlanContext", () => {
     expect(text).toContain("NP 200 W (average 195 W)");
   });
 
+  it("includes average pace or speed in recent workouts", () => {
+    const run = {
+      ...activity,
+      summary: {
+        ...activity.summary,
+        type: "running",
+        distance: 5000,
+        movingTime: 1500,
+        elapsedTime: 1600,
+      },
+    };
+    const runText = formatPlanContext(input({ recentActivities: [run] })).join(
+      "\n",
+    );
+    expect(runText).toContain("5.00 km, 5:00 /km, 25:00 moving");
+
+    const ride = {
+      ...activity,
+      summary: {
+        ...activity.summary,
+        type: "road_biking",
+        distance: 20000,
+        movingTime: 2400,
+        elapsedTime: 2600,
+      },
+    };
+    const rideText = formatPlanContext(
+      input({ recentActivities: [ride] }),
+    ).join("\n");
+    expect(rideText).toContain("20.00 km, 30.0 km/h, 40:00 moving");
+  });
+
   it("dates the profile so an undated weight is not read as today's", () => {
     const text = formatPlanContext(
       input({

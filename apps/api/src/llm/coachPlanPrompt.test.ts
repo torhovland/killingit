@@ -211,7 +211,7 @@ describe("coach plan prompts", () => {
     const prompt = buildCoachPlanPrompt(makeInput());
 
     expect(prompt).toContain(
-      "1. 2026-10-20 — running — Morning Run: 10.20 km, 45:00 moving, 120 m elevation.",
+      "1. 2026-10-20 — running — Morning Run: 10.20 km, 4:25 /km, 45:00 moving, 120 m elevation.",
     );
     expect(prompt).toContain(
       "Coach analysis: Steady aerobic effort with a slight heart-rate drift.",

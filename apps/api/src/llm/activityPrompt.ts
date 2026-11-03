@@ -1,4 +1,10 @@
-import { cadenceUnit } from "@killingit/shared";
+import {
+  activityUsesPace,
+  cadenceUnit,
+  formatPace,
+  paceUnitLabel,
+  paceUnitMetres,
+} from "@killingit/shared";
 import type {
   Activity,
   ActivitySample,
@@ -42,7 +48,7 @@ export const MAX_PROMPT_SAMPLES = 90;
  * Bump when the prompt or generation parameters change materially. Cached
  * analyses from an older version are ignored and regenerated.
  */
-export const ANALYSIS_PROMPT_VERSION = 14;
+export const ANALYSIS_PROMPT_VERSION = 15;
 
 /**
  * The athlete's current week, used to match an activity to its planned session
@@ -88,8 +94,8 @@ type NumericChannel =
   | "elevation"
   | "cadence";
 
-interface ChannelDefinition {
-  key: NumericChannel;
+/** One channel's labels and value renderers. */
+interface ChannelFormat {
   /** Label used in the aggregate statistics. */
   name: string;
   /** Label (with unit) used in the time-series table header. */
@@ -98,6 +104,12 @@ interface ChannelDefinition {
   display: (value: number) => string;
   /** Renders the value in the aggregate statistics. */
   stat: (value: number) => string;
+}
+
+interface ChannelDefinition extends ChannelFormat {
+  key: NumericChannel;
+  /** How to read the channel for a sport that normally uses pace. */
+  pace?: (activityType: string) => ChannelFormat;
 }
 
 const CHANNELS: ChannelDefinition[] = [
@@ -128,6 +140,16 @@ const CHANNELS: ChannelDefinition[] = [
     label: "speed km/h",
     display: (v) => (v * 3.6).toFixed(1),
     stat: (v) => `${(v * 3.6).toFixed(1)} km/h`,
+    pace: (activityType) => {
+      const unit = paceUnitLabel(activityType);
+      const metres = paceUnitMetres(activityType);
+      return {
+        name: "pace",
+        label: `pace ${unit}`,
+        display: (v) => formatPace(metres / v),
+        stat: (v) => `${formatPace(metres / v)} ${unit}`,
+      };
+    },
   },
   {
     key: "cadence",
@@ -159,14 +181,46 @@ export interface ChannelStats {
   count: number;
 }
 
+/** The pace rendering of a channel for a pace-based activity, when it has one. */
+function paceFormat(
+  channel: ChannelDefinition,
+  activityType: string,
+): ChannelFormat | null {
+  return channel.key === "speed" &&
+    activityUsesPace(activityType) &&
+    channel.pace !== undefined
+    ? channel.pace(activityType)
+    : null;
+}
+
+/** The aggregate-statistics label for a channel and activity type. */
+function channelName(channel: ChannelDefinition, activityType: string): string {
+  return paceFormat(channel, activityType)?.name ?? channel.name;
+}
+
 /** The time-series column label, including the unit for the activity type. */
 function channelLabel(
   channel: ChannelDefinition,
   activityType: string,
 ): string {
+  const pace = paceFormat(channel, activityType);
+  if (pace !== null) {
+    return pace.label;
+  }
   return channel.key === "cadence"
     ? `cadence ${cadenceUnit(activityType)}`
     : channel.label;
+}
+
+/** Renders a time-series value, using pace for pace-based activities. */
+function channelDisplay(
+  channel: ChannelDefinition,
+  value: number,
+  activityType: string,
+): string {
+  return (
+    paceFormat(channel, activityType)?.display(value) ?? channel.display(value)
+  );
 }
 
 /** An aggregate value with its unit, matching the activity's cadence unit. */
@@ -175,6 +229,10 @@ function channelStat(
   value: number,
   activityType: string,
 ): string {
+  const pace = paceFormat(channel, activityType);
+  if (pace !== null) {
+    return pace.stat(value);
+  }
   return channel.key === "cadence"
     ? `${Math.round(value)} ${cadenceUnit(activityType)}`
     : channel.stat(value);
@@ -309,7 +367,7 @@ export function buildActivityAnalysisPrompt(
     const stats = channelStats(activity.samples, channel.key);
     if (stats) {
       statsLines.push(
-        `- ${channel.name}: avg ${channelStat(channel, stats.avg, activity.type)}, min ${channelStat(channel, stats.min, activity.type)}, max ${channelStat(channel, stats.max, activity.type)}`,
+        `- ${channelName(channel, activity.type)}: avg ${channelStat(channel, stats.avg, activity.type)}, min ${channelStat(channel, stats.min, activity.type)}, max ${channelStat(channel, stats.max, activity.type)}`,
       );
     }
   }
@@ -338,7 +396,9 @@ export function buildActivityAnalysisPrompt(
       );
       const values = present.map((channel) => {
         const value = sample[channel.key];
-        return Number.isFinite(value) ? channel.display(value as number) : "–";
+        return Number.isFinite(value)
+          ? channelDisplay(channel, value as number, activity.type)
+          : "–";
       });
       lines.push([formatDuration(elapsed), ...values].join(" | "));
     }

@@ -51,7 +51,10 @@ one swappable corner, and normalizes Garmin activities into the shared
    (shared `Activity` type).
 6. **Workout timeseries** — per-activity detail metrics from Garmin are
    normalized per sample into timestamp + location, heart rate, power,
-   temperature, speed, distance, elevation, and cadence where recorded.
+   temperature, speed, distance, elevation, and cadence where recorded. Each
+   activity also stores its recorded average and maximum speed. The app shows
+   pace for running, walking, hiking, swimming and rowing, and speed for
+   cycling and other sports.
 7. **Strength exercise sets** — strength activities also carry the recorded
    exercises, repetitions, weight and rest intervals. See
    `docs/specs/garmin-strength-exercise-sets.md`.
@@ -86,7 +89,9 @@ one swappable corner, and normalizes Garmin activities into the shared
    activity details, with absent channels omitted per sample and one bad detail
    fetch not failing the whole sync. The stored summary also carries average and
    normalized power when the activity recorded power, so training-load scoring
-   does not need the raw timeseries.
+   does not need the raw timeseries. It carries the recorded average and maximum
+   speed when Garmin supplies them, and derives the average from distance and
+   duration when Garmin leaves it at zero.
 6. `startDate` is the activity's UTC start (`startTimeGMT`), not the naive
    wall-clock `startTimeLocal`, so the UI can render it in the athlete's chosen
    time zone.
@@ -214,6 +219,14 @@ one swappable corner, and normalizes Garmin activities into the shared
   fractional channel alone made running imports report 0 or 1. The sidecar now
   prefers the running total, otherwise doubles the per-leg value for runs, and
   keeps pedalling rpm for rides.
+- **Speed is canonical; pace is the display unit.** Garmin records speed in
+  m/s, even for sports where Connect shows pace. The summary keeps
+  `averageSpeed`/`maxSpeed` in m/s, and the UI and prompts convert to pace for
+  runs, walks, hikes, swims and rows. Swimming uses a 100 m interval and rowing
+  a 500 m split; other pace sports use a kilometre. When Garmin's summary leaves
+  `averageSpeed` at zero (indoor rowing is an example), the sidecar derives it
+  from distance and moving time. A missing summary speed is also derived at
+  read time, so activities stored before this change still show pace.
 - **Sample preview.** The feed keeps the full timeseries server-side and adds
   an evenly spaced, bounded `samples` preview (`MAX_PREVIEW_SAMPLES`) to each
   `AnalyzedActivity`. The Activities page shows it in a collapsible table so the
@@ -234,6 +247,32 @@ one swappable corner, and normalizes Garmin activities into the shared
   non-numeric channels omitted). `sumDistance` is preferred over
   `directDistance` for cumulative distance. A failed detail fetch yields
   `samples: []` for that activity rather than failing the sync.
+
+## Other sport-specific fields worth considering
+
+Garmin's activity summary exposes more than the current normalized shape. The
+following are the highest-value additions, roughly in priority order:
+
+- **All sports:** average and maximum heart rate, time in heart-rate and power
+  zones, aerobic/anaerobic training effect, Garmin's activity training load,
+  respiration rate, calories, and min/max temperature and elevation.
+- **Running:** grade-adjusted speed/pace (`avgGradeAdjustedSpeed`), stride
+  length, ground contact time and balance, vertical oscillation and ratio,
+  fastest 1 km/1 mile splits, and running power.
+- **Cycling:** Garmin's normalized power, average/max power, intensity factor
+  and training stress score, maximum 20-minute power, and the power-curve bests
+  (`maxAvgPower_*`). The app already computes power from samples, so these are
+  mainly cross-checks and a fallback when the raw samples are missing.
+- **Swimming:** stroke cadence, SWOLF, stroke distance, active lengths, pool
+  length, and stroke count.
+- **Rowing:** stroke cadence, total strokes, distance per stroke, and the
+  500 m split pace.
+- **Strength:** summary total/active sets and total reps. The app already reads
+  the detailed exercise sets.
+
+The coach can act on recovery and intensity fields (heart rate, training
+effect, load, running dynamics) more directly than on device-specific extras,
+so those should come before niche fields such as diving or snow-sport metrics.
 
 ## Definition of done
 

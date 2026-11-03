@@ -40,6 +40,24 @@ describe("ActivityCard", () => {
     expect(html).not.toContain("openrouter/auto");
   });
 
+  it("shows pace for runs and speed for rides", () => {
+    const run = renderToStaticMarkup(
+      <ActivityCard
+        activity={{
+          ...activity,
+          type: "running",
+          distance: 5000,
+          movingTime: 1500,
+          elapsedTime: 1600,
+        }}
+      />,
+    );
+    expect(run).toContain("5:00 /km");
+
+    const ride = renderToStaticMarkup(<ActivityCard activity={activity} />);
+    expect(ride).toContain("12.0 km/h");
+  });
+
   it("renders lists in the analysis and coach reply as HTML lists", () => {
     const html = renderToStaticMarkup(
       <ActivityCard

@@ -73,8 +73,42 @@ def test_to_activity_maps_known_fields():
         "movingTime": 1500.0,
         "elapsedTime": 1600.0,
         "totalElevationGain": 55.0,
+        "averageSpeed": 5000.0 / 1500.0,
         "samples": samples,
     }
+
+
+def test_to_activity_keeps_recorded_average_and_max_speed():
+    raw = {
+        "activityId": 42,
+        "activityName": "Morning Run",
+        "activityType": {"typeKey": "RUNNING"},
+        "startTimeGMT": datetime(2026, 10, 1, 4, 30, 0),
+        "distance": 5000,
+        "movingDuration": 1500,
+        "duration": 1600,
+        "averageSpeed": 3.2,
+        "maxSpeed": 4.1,
+    }
+    activity = _to_activity(raw)
+    assert activity["averageSpeed"] == 3.2
+    assert activity["maxSpeed"] == 4.1
+
+
+def test_to_activity_derives_average_speed_when_the_source_leaves_it_zero():
+    # Indoor rowing records distance in some payloads but leaves averageSpeed
+    # at zero, so the mean is derived from distance and moving time.
+    raw = {
+        "activityId": 42,
+        "activityName": "Indoor Rowing",
+        "activityType": {"typeKey": "INDOOR_ROWING"},
+        "startTimeGMT": datetime(2026, 10, 1, 4, 30, 0),
+        "distance": 2000,
+        "movingDuration": 480,
+        "duration": 500,
+        "averageSpeed": 0.0,
+    }
+    assert _to_activity(raw)["averageSpeed"] == 2000 / 480
 
 
 def test_to_activity_defaults_to_empty_samples():
@@ -158,6 +192,19 @@ def test_to_samples_maps_known_metrics():
             "distance": 1000.0,
             "elevation": 20.0,
             "cadence": 80.0,
+        }
+    ]
+
+
+def test_to_samples_falls_back_to_enhanced_speed():
+    details = _details(
+        [1790836200000, 4.2],
+        descriptors=[(0, "directTimestamp"), (1, "directEnhancedSpeed")],
+    )
+    assert _to_samples(details) == [
+        {
+            "timestamp": "2026-10-01T06:30:00Z",
+            "speed": 4.2,
         }
     ]
 

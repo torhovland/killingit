@@ -39,11 +39,35 @@ describe("ActivitySamples", () => {
     expect(html).toContain("HR bpm");
     expect(html).toContain("Power W");
     expect(html).toContain("Cadence spm");
-    expect(html).toContain("Speed km/h");
+    expect(html).toContain("Pace /km");
     expect(html).toContain("Distance km");
     expect(html).toContain("Elevation m");
     expect(html).toContain("10:00");
-    expect(html).toContain("27.0");
+    expect(html).toContain("2:13");
+    expect(html).toContain("1:51");
+  });
+
+  it("shows speed for rides and a sport-specific pace for rows", () => {
+    const ride = renderToStaticMarkup(
+      <ActivitySamples
+        samples={samples}
+        sampleCount={2}
+        activityType="indoor_cycling"
+      />,
+    );
+    expect(ride).toContain("Speed km/h");
+    expect(ride).toContain("27.0");
+
+    const row = renderToStaticMarkup(
+      <ActivitySamples
+        samples={samples}
+        sampleCount={2}
+        activityType="indoor_rowing"
+      />,
+    );
+    expect(row).toContain("Pace /500m");
+    expect(row).toContain("1:07");
+    expect(row).toContain("0:56");
   });
 
   it("uses rpm for cadence on rides", () => {
