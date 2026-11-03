@@ -430,6 +430,16 @@ def test_sync_metrics_uses_body_composition(monkeypatch):
     }
 
 
+def test_metrics_route_returns_the_flat_response_the_api_expects(monkeypatch):
+    snapshot = {
+        "metrics": [{"date": "2026-10-01", "weightKg": 78.0}],
+        "ftp": [{"date": "2026-10-01", "watts": 255}],
+    }
+    monkeypatch.setattr(sidecar, "_sync_metrics", lambda credentials: snapshot)
+
+    assert sidecar.metrics(Credentials(username="u", password="p")) == snapshot
+
+
 def test_to_ftp_history_handles_lists_and_nested_records():
     assert _to_ftp_history(
         [

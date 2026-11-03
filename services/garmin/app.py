@@ -940,7 +940,7 @@ def sync(credentials: Credentials) -> dict:
 @app.post("/metrics")
 def metrics(credentials: Credentials) -> dict:
     try:
-        return {"metrics": _sync_metrics(credentials)}
+        return _sync_metrics(credentials)
     except HTTPException:
         raise
     except Exception as exc:  # noqa: BLE001 - translated to HTTP below
