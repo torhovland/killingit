@@ -285,6 +285,7 @@ function makeApp(options: {
           location,
           createdAt: new Date(0),
         }),
+      deleteUser: () => Promise.resolve(),
       updateSettings: (sub, settings) =>
         Promise.resolve({
           id: 42,

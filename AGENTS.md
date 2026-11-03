@@ -237,6 +237,11 @@ about a past workout, or before a suggested workout, to steer the coach.
   rest days, with block starts and the season end. Selecting an entry opens its
   full details, including the athlete comment, coach reply, and the route map
   for outdoor activities. See `docs/specs/calendar-page.md`.
+- The Settings page ends with a Delete account section. After a warning modal is
+  confirmed, `DELETE /api/me` deletes the account row, and the schema's cascades
+  remove every plan, activity, connection, and coach message owned by it. The
+  app then signs out so the still-valid token cannot recreate the account. See
+  `docs/specs/account-deletion.md`.
 
 ## Stack
 

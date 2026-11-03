@@ -42,6 +42,7 @@ const users: UserStore = {
       location: null,
       createdAt: new Date(0),
     }),
+  deleteUser: () => Promise.resolve(),
   updateSettings: (sub, settings) =>
     Promise.resolve({
       id: sub === "athlete-1" ? 1 : 2,

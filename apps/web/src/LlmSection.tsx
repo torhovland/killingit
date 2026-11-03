@@ -7,6 +7,7 @@ import {
   type LlmSettings,
 } from "@killingit/shared";
 import { useAuth } from "./auth";
+import { DangerIcon } from "./DangerIcon";
 import { fetchJsonAuthed } from "./fetchAuthed";
 import { reportError } from "./reportError";
 import { browserTimeZone, formatDateTime } from "./timeZone";
@@ -75,23 +76,6 @@ function compareGrades(a: LlmModelGrade, b: LlmModelGrade): number {
 
 export function discouragedMessage(name: string): string {
   return `${name} is discouraged. You should choose another model before running the coach.`;
-}
-
-function DangerIcon() {
-  return (
-    <svg
-      viewBox="0 0 20 20"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.8}
-      className="mt-0.5 size-4 shrink-0"
-      aria-hidden="true"
-    >
-      <path d="M10 3 2.5 16.5h15L10 3Z" strokeLinejoin="round" />
-      <path d="M10 7.5v4" strokeLinecap="round" />
-      <circle cx="10" cy="14" r="0.8" fill="currentColor" stroke="none" />
-    </svg>
-  );
 }
 
 export function compareModels(
@@ -513,7 +497,7 @@ export function LlmSection({ settings, onSaved, isAdmin }: LlmSectionProps) {
           key={model.id}
           className="flex items-start gap-2 rounded bg-accent/15 p-2 text-base text-destructive"
         >
-          <DangerIcon />
+          <DangerIcon className="mt-0.5" />
           <span>{discouragedMessage(model.name)}</span>
         </p>
       ))}

@@ -13,6 +13,7 @@ const AUDIENCE = "https://api.killingit.hovland.co";
 let validToken: string;
 let app: ReturnType<typeof createApp>;
 let signedInSub = "";
+const deleted = { sub: null as string | null };
 
 const userStore: UserStore = {
   ensureUser: (sub) =>
@@ -42,6 +43,10 @@ const userStore: UserStore = {
       location: settings.location !== undefined ? settings.location : null,
       createdAt: new Date(0),
     }),
+  deleteUser: (sub) => {
+    deleted.sub = sub;
+    return Promise.resolve();
+  },
 };
 
 beforeAll(async () => {
@@ -218,5 +223,27 @@ describe("GET /api/me", () => {
       );
       expect(response.status).toBe(400);
     }
+  });
+});
+
+describe("DELETE /api/me", () => {
+  it("returns 401 without an Authorization header", async () => {
+    const res = await app.fetch(
+      new Request("http://localhost/api/me", { method: "DELETE" }),
+    );
+    expect(res.status).toBe(401);
+  });
+
+  it("deletes the signed-in account", async () => {
+    const res = await app.fetch(
+      new Request("http://localhost/api/me", {
+        method: "DELETE",
+        headers: { authorization: `Bearer ${validToken}` },
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ deleted: true });
+    expect(deleted.sub).toBe(signedInSub);
   });
 });

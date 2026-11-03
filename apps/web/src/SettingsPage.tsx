@@ -9,6 +9,7 @@ import {
 } from "@killingit/shared";
 import { useAppStatus } from "./AppStatus";
 import { useAuth } from "./auth";
+import { DeleteAccountSection } from "./DeleteAccountSection";
 import { fetchJsonAuthed } from "./fetchAuthed";
 import { GarminSection } from "./GarminSection";
 import { LlmSection } from "./LlmSection";
@@ -213,6 +214,8 @@ export function SettingsPage({
           </section>
         </>
       )}
+
+      <DeleteAccountSection />
     </section>
   );
 }

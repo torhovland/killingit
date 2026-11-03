@@ -75,6 +75,7 @@ function storeWithRole(role: UserRole): UserStore {
         location: null,
         createdAt: new Date(0),
       }),
+    deleteUser: () => Promise.resolve(),
     updateSettings: (sub, settings) =>
       Promise.resolve({
         id: 1,
@@ -122,6 +123,7 @@ describe("requireAdmin", () => {
     const store: UserStore = {
       ensureUser: () => Promise.reject(new Error("database down")),
       getById: () => Promise.reject(new Error("database down")),
+      deleteUser: () => Promise.reject(new Error("database down")),
       updateSettings: () => Promise.reject(new Error("database down")),
     };
     const res = await appWithAdmin(store).fetch(authedRequest());
