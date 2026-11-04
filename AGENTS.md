@@ -260,6 +260,11 @@ The stack below is proposed and should be treated as the starting point. See
 ### Frontend
 
 - **React** with **TypeScript**.
+- The web app is an installable **PWA**. A build-time service worker precaches
+  the static app shell, serves the last shell offline, and leaves `/api/*`
+  uncached because API responses are per-account. A waiting update is offered
+  as a reload banner. The manifest, icons, offline page, and install state live
+  with the web app; see `docs/specs/pwa.md` and ADR 0018.
 - We build up our own **component library** under a `components/` directory.
 - **shadcn/ui** + **Tailwind CSS** are the styling foundation. shadcn/ui copies
   source into the repo (rather than installing an opaque npm dependency), so

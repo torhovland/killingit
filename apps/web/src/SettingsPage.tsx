@@ -15,6 +15,8 @@ import { GarminSection } from "./GarminSection";
 import { LlmSection } from "./LlmSection";
 import { LocationSection } from "./LocationSection";
 import { PlanRegenerationButtons } from "./PlanRegenerationButtons";
+import { usePwa } from "./PwaContext";
+import { PwaInstallSection } from "./PwaInstall";
 import { reportError } from "./reportError";
 import { TimeZoneSection } from "./TimeZoneSection";
 
@@ -43,6 +45,7 @@ export function SettingsPage({
   isAdmin: boolean;
 }) {
   const auth = useAuth();
+  const pwa = usePwa();
   const { setStatus } = useAppStatus();
   const [garmin, setGarmin] = useState<GarminConnectionStatus | null>(null);
   const [llm, setLlm] = useState<LlmSettings | null>(null);
@@ -214,6 +217,12 @@ export function SettingsPage({
           </section>
         </>
       )}
+
+      <PwaInstallSection
+        installed={pwa.installed}
+        installable={pwa.installable}
+        onInstall={() => void pwa.install()}
+      />
 
       <DeleteAccountSection />
     </section>

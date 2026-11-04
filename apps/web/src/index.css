@@ -191,6 +191,12 @@
     background-attachment: fixed;
     color: var(--foreground);
     font-family: var(--font-sans);
+    /* Keep the shell clear of a notch, rounded corners, or home indicator when
+     * launched standalone. A normal browser reports zero insets. */
+    padding-top: env(safe-area-inset-top);
+    padding-right: env(safe-area-inset-right);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
   }
 
   ::selection {

@@ -10,6 +10,9 @@ import { useAuth } from "./auth";
 import { fetchJsonAuthed } from "./fetchAuthed";
 import { FitnessPage } from "./FitnessPage";
 import { NavigationProvider, type Page } from "./navigation";
+import { PwaBanners } from "./PwaBanners";
+import { usePwa } from "./PwaContext";
+import { InstallAppButton } from "./PwaInstall";
 import { reportError } from "./reportError";
 import { SeasonReviewPage } from "./SeasonReviewPage";
 import { SettingsPage } from "./SettingsPage";
@@ -41,6 +44,7 @@ export function App() {
 
 function AppShell() {
   const auth = useAuth();
+  const pwa = usePwa();
   const { status, setStatus } = useAppStatus();
   const [me, setMe] = useState<CurrentUser | null>(null);
   const [timeZone, setTimeZone] = useState<string | null>(null);
@@ -152,6 +156,10 @@ function AppShell() {
             </div>
 
             <div className="ml-auto flex items-center gap-2">
+              <InstallAppButton
+                installable={pwa.installable}
+                onInstall={() => void pwa.install()}
+              />
               {signedIn ? (
                 <UserMenu
                   firstName={auth.firstName}
@@ -166,6 +174,12 @@ function AppShell() {
               ) : null}
             </div>
           </header>
+
+          <PwaBanners
+            offline={pwa.offline}
+            updateReady={pwa.updateReady}
+            onReload={() => pwa.reloadForUpdate()}
+          />
 
           <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-0 py-4 sm:px-4 sm:py-6">
             {error && <p className="text-destructive">Error: {error}</p>}

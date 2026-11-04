@@ -86,5 +86,16 @@ export default tseslint.config(
       globals: globals.browser,
     },
   },
+  {
+    // The service worker template is plain JavaScript outside the TypeScript
+    // project. `__PRECACHE_URLS__` is a build placeholder, not a real global.
+    files: ["apps/web/pwa/**/*.js"],
+    languageOptions: {
+      globals: {
+        ...globals.serviceworker,
+        __PRECACHE_URLS__: "readonly",
+      },
+    },
+  },
   prettier,
 );

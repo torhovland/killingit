@@ -9,7 +9,8 @@ workouts.
 ## Stack
 
 - **Monorepo:** Bun workspaces
-- **Web:** React + TypeScript + Vite + Tailwind CSS
+- **Web:** React + TypeScript + Vite + Tailwind CSS, installable as a PWA with
+  an offline app shell (see `docs/specs/pwa.md`)
 - **API:** Hono + TypeScript
 - **Shared:** Zod schemas + shared types (workspace package)
 - **DB:** PostgreSQL + Drizzle ORM
@@ -95,6 +96,21 @@ explicitly. Only Development and Test allow the override.
 | `bun run db:down`       | Stop Postgres                                |
 | `bun run db:generate`   | Generate a Drizzle migration                 |
 | `bun run db:migrate`    | Apply Drizzle migrations                     |
+
+## PWA
+
+The web app is installable and keeps its app shell available offline. The Vite
+build generates `apps/web/dist/sw.js` from `apps/web/pwa/service-worker.js` and
+precaches the complete static build. Registration is production-only, so use a
+production build and preview instead of the dev server to exercise it:
+
+```sh
+bun run build
+bun run --filter @killingit/web preview
+```
+
+Service worker updates are offered as a reload banner; the worker never caches
+`/api/*` responses. See `docs/specs/pwa.md` and ADR 0018.
 
 ## Benchmarks
 
