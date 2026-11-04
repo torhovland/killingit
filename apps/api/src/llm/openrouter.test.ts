@@ -166,6 +166,7 @@ describe("complete", () => {
               prompt_tokens: 120,
               completion_tokens: 30,
               total_tokens: 150,
+              cost: 0.0012,
             },
             choices: [
               { message: { content: "Plan ready." }, finish_reason: "stop" },
@@ -189,7 +190,12 @@ describe("complete", () => {
       text: "Plan ready.",
       model: "anthropic/claude-test",
       finishReason: "stop",
-      usage: { promptTokens: 120, completionTokens: 30, totalTokens: 150 },
+      usage: {
+        promptTokens: 120,
+        completionTokens: 30,
+        totalTokens: 150,
+        costUsd: 0.0012,
+      },
     });
   });
 

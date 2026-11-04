@@ -1,5 +1,6 @@
 import {
   llmCatalogResponseSchema,
+  llmCostsResponseSchema,
   llmModelsResponseSchema,
   llmSettingsSchema,
   llmSettingsUpdateSchema,
@@ -10,6 +11,7 @@ import type { Context } from "hono";
 import { Hono } from "hono";
 import { getAthlete } from "../auth/middleware.js";
 import { encrypt } from "../crypto/credentials.js";
+import { loadLlmCosts } from "../llm/costStore.js";
 import { llmCredentialsKeyFromEnv } from "../llm/credentials.js";
 import {
   createOpenRouterProvider,
@@ -29,6 +31,8 @@ export interface LlmRouteDependencies {
   /** Injectable for route tests; defaults to the database-backed store. */
   loadSettings?: typeof loadLlmSettings;
   saveSettings?: typeof saveLlmSettings;
+  /** Injectable for route tests; defaults to the database-backed cost history. */
+  loadCosts?: typeof loadLlmCosts;
   /** Injectable for route tests; defaults to the graded catalog. */
   loadCatalog?: typeof loadModelCatalog;
   /** Injectable for route tests; defaults to the 24-hour refresh job. */
@@ -77,6 +81,7 @@ function respondProviderError(c: Context, err: unknown): Response {
 export function createLlmRoute(deps: LlmRouteDependencies): Hono {
   const loadSettings = deps.loadSettings ?? loadLlmSettings;
   const saveSettings = deps.saveSettings ?? saveLlmSettings;
+  const loadCosts = deps.loadCosts ?? loadLlmCosts;
   const loadCatalog = deps.loadCatalog ?? loadModelCatalog;
   const refreshCatalog = deps.refreshCatalog ?? ensureModelCatalogFresh;
   const provider = deps.provider ?? createOpenRouterProvider();
@@ -178,6 +183,16 @@ export function createLlmRoute(deps: LlmRouteDependencies): Hono {
         );
       },
     )
+    .get("/costs", async (c) => {
+      const user = await deps.users.ensureUser(getAthlete(c).sub);
+      try {
+        const costs = await loadCosts(user.id);
+        return c.json(llmCostsResponseSchema.parse(costs));
+      } catch (err) {
+        console.error("[llm] could not load the cost history:", err);
+        return c.text("Service Unavailable", 503);
+      }
+    })
     .get("/models", async (c) => {
       try {
         const models = await provider.listModels();

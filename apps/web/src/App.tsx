@@ -6,6 +6,7 @@ import { AppStatusProvider, useAppStatus } from "./AppStatus";
 import { CalendarPage } from "./CalendarPage";
 import { CoachDashboard } from "./CoachDashboard";
 import { CoachingSurveyPage } from "./CoachingSurveyPage";
+import { CostsPage } from "./CostsPage";
 import { useAuth } from "./auth";
 import { fetchJsonAuthed } from "./fetchAuthed";
 import { FitnessPage } from "./FitnessPage";
@@ -31,6 +32,7 @@ const PAGE_LABELS: Record<Page, string> = {
   activities: "Activities",
   seasonReview: "Season review",
   survey: "Coaching survey",
+  costs: "AI costs",
   settings: "Settings",
   admin: "Admin settings",
 };
@@ -227,6 +229,8 @@ function AppShell() {
               <CoachingSurveyPage
                 onAnswersSaved={() => setPlanRefreshKey((key) => key + 1)}
               />
+            ) : page === "costs" ? (
+              <CostsPage />
             ) : page === "settings" ? (
               <SettingsPage
                 timeZone={timeZone}
@@ -347,6 +351,7 @@ function UserMenu({
             "activities",
             "seasonReview",
             "survey",
+            "costs",
             "settings",
           ] as const
         ).map((entry) => (

@@ -7,6 +7,7 @@ export type Page =
   | "activities"
   | "seasonReview"
   | "survey"
+  | "costs"
   | "settings"
   | "admin";
 

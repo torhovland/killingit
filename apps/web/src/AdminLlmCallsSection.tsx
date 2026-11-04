@@ -8,6 +8,7 @@ import {
 } from "@killingit/shared";
 import { useAuth } from "./auth";
 import { Bullet } from "./Bullet";
+import { formatCostUsd } from "./costChart";
 import { fetchJsonAuthed } from "./fetchAuthed";
 import { reportError } from "./reportError";
 import { browserTimeZone, formatDateTime } from "./timeZone";
@@ -301,6 +302,9 @@ export function LlmCallDetailView({ call }: { call: LlmCallDetail }) {
           value={call.usage?.completionTokens ?? "—"}
         />
         <Metadata label="Total tokens" value={call.usage?.totalTokens ?? "—"} />
+        {call.usage?.costUsd !== null && call.usage?.costUsd !== undefined && (
+          <Metadata label="Cost" value={formatCostUsd(call.usage.costUsd)} />
+        )}
       </dl>
 
       {Object.keys(call.metadata).length > 0 && (

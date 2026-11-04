@@ -85,8 +85,13 @@ about a past workout, or before a suggested workout, to steer the coach.
   response or error, model, usage, and request metadata. The admin settings
   page lists them under "LLM prompts" (`GET /api/admin/llm-calls`). Logging is
   admin-only and fail-open, so a log write can never break coaching. See
-  `docs/specs/llm-call-log.md`. All reusable prompt fragments and JSON
-  contracts live in `apps/api/src/llm/promptRules.ts`; the build, update,
+  `docs/specs/llm-call-log.md`. OpenRouter's reported `usage.cost` is stored
+  per call, and the **AI costs** page (above Settings in the menu,
+  `GET /api/llm/costs`) charts monthly and daily spend stacked by model for the
+  account; calls written before cost capture are estimated from token usage and
+  the catalog's current list prices. See `docs/specs/ai-costs.md`. All reusable
+  prompt fragments and JSON contracts live in
+  `apps/api/src/llm/promptRules.ts`; the build, update,
   activity-review and manual-TSS prompts compose them so TSS, FTP, weather,
   bike-workout, body-metric and week-outline behaviour stays consistent across
   prompts. Every prompt that answers the athlete — a reply to a comment, a weekly

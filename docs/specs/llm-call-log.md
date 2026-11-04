@@ -43,8 +43,9 @@ generation, replies, reviews, program analysis, manual TSS) and in the default
 activity-analysis provider. Each `complete` call writes a row in two steps:
 
 - before sending: the full prompt and request metadata;
-- after the provider settles: the response text or error message, usage, routed
-  model, finish reason, and duration.
+- after the provider settles: the response text or error message, usage
+  (including OpenRouter's reported USD cost when present), routed model, finish
+  reason, and duration.
 
 The row therefore exists while the request is in flight. A process that stops
 while waiting for the provider (for example a Cloud Run restart) leaves a
@@ -106,8 +107,8 @@ Both routes sit behind the existing `/api/admin/*` auth and admin-role guard.
 The Admin settings page gains an "LLM prompts" section. Each row is a button
 showing the prompt type, model, datetime, user auth subject, duration, and
 succeeded/failed status. Selecting a row fetches the full call and shows the
-metadata, each message by role, and the response or error. A refresh button
-reloads the newest 50.
+metadata, token usage (with the reported cost when available), each message by
+role, and the response or error. A refresh button reloads the newest 50.
 
 On wide screens the log is a list/detail split: the list keeps its own scroll
 area in a left column and the selected call is rendered beside it, so reading a

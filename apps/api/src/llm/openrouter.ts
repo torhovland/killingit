@@ -207,6 +207,7 @@ export function createOpenRouterProvider(
         prompt_tokens?: unknown;
         completion_tokens?: unknown;
         total_tokens?: unknown;
+        cost?: unknown;
       };
       choices?: Array<{
         message?: { content?: unknown };
@@ -336,6 +337,7 @@ function normalizeUsage(
         prompt_tokens?: unknown;
         completion_tokens?: unknown;
         total_tokens?: unknown;
+        cost?: unknown;
       }
     | undefined,
 ): LlmCallUsage | null {
@@ -345,14 +347,23 @@ function normalizeUsage(
   const promptTokens = tokenCount(raw.prompt_tokens);
   const completionTokens = tokenCount(raw.completion_tokens);
   const totalTokens = tokenCount(raw.total_tokens);
+  const costUsd = dollarAmount(raw.cost);
   if (
     promptTokens === null &&
     completionTokens === null &&
-    totalTokens === null
+    totalTokens === null &&
+    costUsd === null
   ) {
     return null;
   }
-  return { promptTokens, completionTokens, totalTokens };
+  return { promptTokens, completionTokens, totalTokens, costUsd };
+}
+
+/** Reads a non-negative USD amount, or null when the value is unusable. */
+function dollarAmount(raw: unknown): number | null {
+  return typeof raw === "number" && Number.isFinite(raw) && raw >= 0
+    ? raw
+    : null;
 }
 
 /** Reads a non-negative token count, or null when the value is unusable. */
