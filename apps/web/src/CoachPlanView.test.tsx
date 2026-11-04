@@ -103,6 +103,54 @@ const plan: CoachPlan = {
 };
 
 describe("CoachPlanView", () => {
+  it("shows a dated goal or event on the Day tab", () => {
+    const html = renderToStaticMarkup(
+      <CoachPlanView
+        plan={plan}
+        events={[
+          {
+            startDate: "2026-10-21",
+            endDate: null,
+            title: "Oslo Marathon",
+            kind: "race",
+          },
+        ]}
+      />,
+    );
+
+    expect(html).toContain('data-testid="plan-today-events"');
+    expect(html).toContain("Oslo Marathon");
+    expect(html).toContain("Race");
+  });
+
+  it("shows an event that falls inside the week on the Week tab", () => {
+    const html = renderToStaticMarkup(
+      <CoachPlanView
+        plan={plan}
+        defaultTab="week"
+        events={[
+          {
+            startDate: "2026-10-23",
+            endDate: "2026-10-25",
+            title: "Training camp",
+            kind: "trip",
+          },
+          {
+            startDate: "2026-11-10",
+            endDate: null,
+            title: "Later race",
+            kind: "race",
+          },
+        ]}
+      />,
+    );
+
+    expect(html).toContain('data-testid="plan-week-events"');
+    expect(html).toContain("Training camp");
+    expect(html).toContain("23–25 Oct 2026");
+    expect(html).not.toContain("Later race");
+  });
+
   it("renders today's session, alternatives, and rationale", () => {
     const html = renderToStaticMarkup(<CoachPlanView plan={plan} />);
 

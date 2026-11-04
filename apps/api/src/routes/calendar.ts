@@ -1,18 +1,23 @@
 import {
   calendarResponseSchema,
   coachPlanSchema,
+  EMPTY_WEEK_STATS,
+  eventEndDate,
   planDateSchema,
   type AnalyzedActivitiesResponse,
+  type AthleteEvent,
   type CalendarActivity,
   type CalendarDay,
   type CalendarResponse,
   type CalendarWeek,
+  type CalendarWeekStats,
   type CoachPlan,
   type WeekSession,
 } from "@killingit/shared";
 import { Hono } from "hono";
 import { getAthlete } from "../auth/middleware.js";
 import { loadCachedActivityFeed } from "../coaching/feedCache.js";
+import { loadAthleteEvents } from "../events/store.js";
 import type { ManualActivityContext } from "../llm/planContext.js";
 import { addDays, startOfWeek } from "../plans/dates.js";
 import {
@@ -22,6 +27,10 @@ import {
 import { loadManualActivities } from "../plans/inputs.js";
 import { promoteNextPeriod } from "../plans/periods.js";
 import type { PlanStore } from "../plans/store.js";
+import {
+  loadPlanWeekTotals,
+  type WeekPlanTotals,
+} from "../plans/weekTotals.js";
 import type { UserStore } from "../users/store.js";
 
 export interface CalendarRouteDependencies {
@@ -34,6 +43,10 @@ export interface CalendarRouteDependencies {
   /** Injectable for route tests; defaults to the database-backed loader. */
   loadManualActivities?: (userId: number) => Promise<ManualActivityContext[]>;
   loadManualActivityReplies?: typeof loadManualActivityReplies;
+  /** Injectable for route tests; defaults to the stored goals and events. */
+  loadEvents?: typeof loadAthleteEvents;
+  /** Injectable for route tests; defaults to the stored weekly plan totals. */
+  loadWeekTotals?: typeof loadPlanWeekTotals;
 }
 
 /** A `YYYY-MM-DD` date, from an activity timestamp or a plan date. */
@@ -90,6 +103,7 @@ function weekOutlines(
       targetLoad: fields.targetLoad ?? existing?.targetLoad ?? null,
       weekNumber: fields.weekNumber ?? existing?.weekNumber ?? null,
       blockName: fields.blockName ?? existing?.blockName ?? null,
+      stats: existing?.stats ?? EMPTY_WEEK_STATS,
     });
   };
 
@@ -145,8 +159,97 @@ function weekOutlines(
 }
 
 /**
- * Builds the calendar from the stored activity feed, manual entries, and plan.
- * Days are sparse: only days with something to show are returned.
+ * The time and training stress a week's plan asked for and the athlete actually
+ * recorded. Planned totals come from the workout sessions; completed time is the
+ * recorded elapsed time, and completed TSS is each imported activity's own score
+ * plus a manual entry's estimate. On an older cached payload without per-activity
+ * scores, the day's fitness snapshot is counted once.
+ */
+function weekStats(
+  startDate: string,
+  endDate: string,
+  days: ReadonlyMap<string, CalendarDay>,
+  plan: CoachPlan | null,
+  stored: WeekPlanTotals | undefined,
+): CalendarWeekStats {
+  const coveredByPlan =
+    plan !== null &&
+    (plan.week.startDate === startDate ||
+      plan.nextWeek?.startDate === startDate);
+  const sessions =
+    plan === null
+      ? []
+      : [...plan.week.sessions, ...(plan.nextWeek?.sessions ?? [])].filter(
+          (session) =>
+            session.type === "workout" &&
+            session.date >= startDate &&
+            session.date <= endDate,
+        );
+  // Once a week leaves the stored plan, the record written when it was saved
+  // keeps its planned totals instead of showing zero for the work that was done.
+  const plannedMinutes = coveredByPlan
+    ? sessions.reduce((total, session) => total + session.durationMinutes, 0)
+    : (stored?.plannedMinutes ?? 0);
+  const plannedTss = coveredByPlan
+    ? Math.round(
+        sessions.reduce(
+          (total, session) =>
+            total + (session.estimatedTss ?? session.trainingLoad?.tss ?? 0),
+          0,
+        ),
+      )
+    : (stored?.plannedTss ?? 0);
+
+  let completedSeconds = 0;
+  let completedTss = 0;
+  for (let date = startDate; date <= endDate; date = addDays(date, 1)) {
+    const day = days.get(date);
+    if (day === undefined) {
+      continue;
+    }
+    let measured = false;
+    for (const activity of day.activities) {
+      if (activity.source === "manual") {
+        if (activity.estimatedTss != null) {
+          completedTss += activity.estimatedTss;
+          measured = true;
+        }
+        continue;
+      }
+      completedSeconds += activity.elapsedTime;
+      if (activity.activityTss != null) {
+        completedTss += activity.activityTss;
+        measured = true;
+      }
+    }
+    if (!measured) {
+      // Older payloads carry only the day's snapshot. Count it once for the day
+      // rather than repeating it for every activity recorded that day.
+      const garmin = day.activities.find(
+        (activity) => activity.source === "garmin" && activity.trainingLoad,
+      );
+      if (
+        garmin !== undefined &&
+        garmin.source === "garmin" &&
+        garmin.trainingLoad != null
+      ) {
+        completedTss += garmin.trainingLoad.tss;
+      }
+    }
+  }
+
+  return {
+    plannedMinutes,
+    completedMinutes: Math.round(completedSeconds / 60),
+    plannedTss: Math.round(plannedTss),
+    completedTss: Math.round(completedTss),
+  };
+}
+
+/**
+ * Builds the calendar from the stored activity feed, manual entries, plan, and
+ * the athlete's dated goals and events. Days are sparse: only days with
+ * something to show are returned.
  */
 export function buildCalendar(input: {
   today: string;
@@ -157,7 +260,11 @@ export function buildCalendar(input: {
     number,
     { text: string; model: string; generatedAt: Date }
   >;
+  events?: readonly AthleteEvent[];
+  /** Stored planned totals for weeks that have left the live plan. */
+  weekTotals?: ReadonlyMap<string, WeekPlanTotals>;
 }): CalendarResponse {
+  const events = input.events ?? [];
   const activityDates = (input.feed?.activities ?? []).map((activity) =>
     dateOf(activity.startDate),
   );
@@ -168,13 +275,18 @@ export function buildCalendar(input: {
     input.plan === null
       ? []
       : [input.plan.season.startDate, input.plan.season.endDate];
+  const eventDates = events.flatMap((event) => [
+    event.startDate,
+    eventEndDate(event),
+  ]);
   const earliestDate = earliest(
-    [...activityDates, ...manualDates, ...seasonDates],
+    [...activityDates, ...manualDates, ...seasonDates, ...eventDates],
     input.today,
   );
   const latestDate = latest(
     [
       ...seasonDates,
+      ...eventDates,
       ...(input.plan === null ? [] : [...plannedSessions(input.plan).keys()]),
     ],
     input.today,
@@ -196,6 +308,7 @@ export function buildCalendar(input: {
       session: null,
       blockStart: null,
       seasonEnd: false,
+      events: [],
     };
     days.set(date, created);
     return created;
@@ -225,6 +338,21 @@ export function buildCalendar(input: {
     day(date).activities.push(activity);
   }
 
+  // A multi-day event is shown on every day it covers, so a trip is visible
+  // across the calendar. The bound keeps a mistyped far-future end date from
+  // creating thousands of cells.
+  for (const event of events) {
+    const endDate = eventEndDate(event);
+    let date =
+      event.startDate < boundedEarliest ? boundedEarliest : event.startDate;
+    for (let index = 0; index < 60 && date <= endDate; index += 1) {
+      if (date <= latestDate) {
+        day(date).events.push(event);
+      }
+      date = addDays(date, 1);
+    }
+  }
+
   if (input.plan !== null) {
     for (const session of plannedSessions(input.plan).values()) {
       day(session.date).session = session;
@@ -235,14 +363,46 @@ export function buildCalendar(input: {
     day(input.plan.season.endDate).seasonEnd = true;
   }
 
+  // Every Monday row gets a box, so a week outside the season still shows the
+  // work the athlete recorded. The plan-derived outline supplies the block,
+  // number, focus and target load where they exist.
+  const weeks = new Map<string, CalendarWeek>(
+    (input.plan === null
+      ? []
+      : weekOutlines(input.plan, boundedEarliest, latestDate)
+    ).map((week) => [week.startDate, week]),
+  );
+  for (
+    let startDate = startOfWeek(boundedEarliest);
+    startDate <= latestDate;
+    startDate = addDays(startDate, 7)
+  ) {
+    const endDate = addDays(startDate, 6);
+    const existing = weeks.get(startDate);
+    weeks.set(startDate, {
+      startDate,
+      endDate,
+      focus: existing?.focus ?? null,
+      targetLoad: existing?.targetLoad ?? null,
+      weekNumber: existing?.weekNumber ?? null,
+      blockName: existing?.blockName ?? null,
+      stats: weekStats(
+        startDate,
+        endDate,
+        days,
+        input.plan,
+        input.weekTotals?.get(startDate),
+      ),
+    });
+  }
+
   return calendarResponseSchema.parse({
     earliestDate: boundedEarliest,
     latestDate,
     season: input.plan?.season ?? null,
-    weeks:
-      input.plan === null
-        ? []
-        : weekOutlines(input.plan, boundedEarliest, latestDate),
+    weeks: [...weeks.values()]
+      .filter((week) => week.startDate <= latestDate)
+      .sort((a, b) => a.startDate.localeCompare(b.startDate)),
     days: [...days.values()]
       .filter(
         (entry) => entry.date >= boundedEarliest && entry.date <= latestDate,
@@ -253,13 +413,16 @@ export function buildCalendar(input: {
 
 /**
  * The calendar page's data: activities, manual entries, planned sessions, block
- * starts, and the season end over the range the athlete has data for.
+ * starts, the season end, and the athlete's dated goals and events over the
+ * range the athlete has data for.
  */
 export function createCalendarRoute(deps: CalendarRouteDependencies): Hono {
   const loadFeed = deps.loadCachedFeed ?? loadCachedActivityFeed;
   const loadManual = deps.loadManualActivities ?? loadManualActivities;
   const loadReplies =
     deps.loadManualActivityReplies ?? loadManualActivityReplies;
+  const loadEvents = deps.loadEvents ?? loadAthleteEvents;
+  const loadWeekTotals = deps.loadWeekTotals ?? loadPlanWeekTotals;
 
   return new Hono().get("/", async (c) => {
     const today = planDateSchema.safeParse(c.req.query("today"));
@@ -269,14 +432,33 @@ export function createCalendarRoute(deps: CalendarRouteDependencies): Hono {
 
     try {
       const user = await deps.users.ensureUser(getAthlete(c).sub);
-      const [feed, manualActivities, manualReplies, stored] = await Promise.all(
-        [
-          loadFeed(user.id),
-          loadManual(user.id),
-          loadReplies(user.id),
-          deps.plans.load(user.id),
-        ],
-      );
+      const [
+        feed,
+        manualActivities,
+        manualReplies,
+        stored,
+        events,
+        weekTotals,
+      ] = await Promise.all([
+        loadFeed(user.id),
+        loadManual(user.id),
+        loadReplies(user.id),
+        deps.plans.load(user.id),
+        loadEvents(user.id).catch((err: unknown) => {
+          // Events are advisory. A read failure must not empty the calendar.
+          console.error("[calendar] could not load the athlete's events:", err);
+          return [];
+        }),
+        loadWeekTotals(user.id).catch((err: unknown) => {
+          // The planned record is advisory. A read failure still shows the
+          // live plan's weeks and the completed work.
+          console.error(
+            "[calendar] could not load the stored week totals:",
+            err,
+          );
+          return new Map<string, WeekPlanTotals>();
+        }),
+      ]);
       const parsedPlan =
         stored === null ? null : coachPlanSchema.safeParse(stored.plan);
       const plan =
@@ -291,6 +473,8 @@ export function createCalendarRoute(deps: CalendarRouteDependencies): Hono {
           feed,
           manualActivities,
           manualReplies,
+          events,
+          weekTotals,
         }),
       );
     } catch (err) {

@@ -253,10 +253,25 @@ about a past workout, or before a suggested workout, to steer the coach.
   `coaching_survey_adjustments`; the next season refresh receives those
   adjustments in its prompt and clears them after a successful save. See
   `docs/specs/coaching-survey-updates.md`.
+- Dated goals and events the athlete states — a race, a sportive, a trip, or a
+  dated target — are read from the same athlete text by a dedicated
+  `athlete_events` call and stored in `athlete_events`. A successful read
+  replaces the stored list, so an event edited out of a comment disappears, and
+  a failed read keeps the previous list. The calendar shows a multi-day event on
+  every day it covers, the Week and Day tabs list the events inside their
+  period, and every plan prompt receives the list so the coach plans a taper, a
+  race, or a trip around it. See `docs/specs/athlete-events.md`.
 - A Calendar page shows a month of recorded activities, planned workouts and
-  rest days, with block starts and the season end. Selecting an entry opens its
-  full details, including the athlete comment, coach reply, and the route map
-  for outdoor activities. See `docs/specs/calendar-page.md`.
+  rest days, with block starts, the season end, and the athlete's dated goals
+  and events. The page uses a wider content panel than the other pages so the
+  month grid fits without a horizontal scroll on desktop. The box to the left
+  of each Monday row gives the week's block, number, focus and target load plus
+  its planned and completed time and TSS; the planned totals are recorded per
+  week in `plan_week_totals` when a plan is saved, so a completed week keeps its
+  planned record after the coach moves on, and a future week with nothing
+  planned hides its statistics. Selecting an entry opens its full details,
+  including the athlete comment, coach reply, and the route map for outdoor
+  activities. See `docs/specs/calendar-page.md`.
 - The Settings page ends with a Delete account section. After a warning modal is
   confirmed, `DELETE /api/me` deletes the account row, and the schema's cascades
   remove every plan, activity, connection, and coach message owned by it. The

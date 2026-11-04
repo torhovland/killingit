@@ -39,6 +39,12 @@ export interface CoachingInputs {
   /** Coach summaries of completed weeks and blocks, with athlete feedback. */
   periodReviews: PeriodReviewContext[];
   /**
+   * Every stored weekly note, so the coach reading dated events still sees a
+   * race named in an earlier week's note. Optional because test fixtures that
+   * only describe the current week do not need it.
+   */
+  weeklyNotes?: StoredWeeklyNote[];
+  /**
    * The newest week review event: when a week review was generated or when its
    * comment was answered. A newer week review makes the block pending so the
    * coach can respond to the completed week's feedback.
@@ -89,16 +95,7 @@ export async function loadCoachingInputs(
       .select()
       .from(activityComments)
       .where(eq(activityComments.userId, userId)),
-    db
-      .select()
-      .from(weeklyNotes)
-      .where(
-        and(
-          eq(weeklyNotes.userId, userId),
-          eq(weeklyNotes.weekStartDate, weekStartDate),
-        ),
-      )
-      .limit(1),
+    db.select().from(weeklyNotes).where(eq(weeklyNotes.userId, userId)),
     db
       .select()
       .from(activityDeletions)
@@ -120,6 +117,8 @@ export async function loadCoachingInputs(
     );
   const weekReviewUpdatedAt = reviewEventAt("week");
   const blockReviewUpdatedAt = reviewEventAt("block");
+  const currentNote =
+    noteRows.find((row) => row.weekStartDate === weekStartDate) ?? null;
 
   return {
     manualActivities: manualRows.map((row) => ({
@@ -134,10 +133,15 @@ export async function loadCoachingInputs(
       comment: row.comment,
       updatedAt: row.updatedAt.toISOString(),
     })),
-    weeklyNote: noteRows[0]?.note ?? null,
-    weeklyNoteWeekStartDate: noteRows[0] === undefined ? null : weekStartDate,
+    weeklyNote: currentNote?.note ?? null,
+    weeklyNoteWeekStartDate: currentNote === null ? null : weekStartDate,
     weeklyNoteReply: noteReply?.text ?? null,
-    weeklyNoteUpdatedAt: noteRows[0]?.updatedAt ?? null,
+    weeklyNoteUpdatedAt: currentNote?.updatedAt ?? null,
+    weeklyNotes: noteRows.map((row) => ({
+      weekStartDate: row.weekStartDate,
+      note: row.note,
+      updatedAt: row.updatedAt,
+    })),
     periodReviews: reviewEntries.map(({ review, reply, weeklyNote }) => ({
       kind: review.kind,
       title: review.title,
@@ -345,6 +349,13 @@ export async function loadWeeklyNote(
     )
     .limit(1);
   return rows[0]?.note ?? null;
+}
+
+/** One stored weekly note with the date it was written. */
+export interface StoredWeeklyNote {
+  weekStartDate: string;
+  note: string;
+  updatedAt: Date;
 }
 
 /** The plan's stored input timestamp stays unchanged so the next read regenerates. */

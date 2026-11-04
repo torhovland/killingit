@@ -14,6 +14,7 @@ export type CoachQuestionSourceKind =
   | "activity_analysis"
   | "program_analysis"
   | "athlete_metrics"
+  | "athlete_events"
   | "manual_tss";
 
 export interface SaveCoachQuestionsInput {

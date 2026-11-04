@@ -12,6 +12,7 @@ import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { getAthlete } from "../auth/middleware.js";
 import type { ActivityFeed } from "../coaching/activities.js";
+import { loadAthleteEvents } from "../events/store.js";
 import { markPlanPromptsFailed } from "../llm/callStore.js";
 import type { LlmClient } from "../llm/client.js";
 import { loadFtpHistoryForUser } from "../metrics/store.js";
@@ -93,8 +94,12 @@ export interface PlanRouteDependencies {
   loadFtpHistory?: PlanTriggerDependencies["loadFtpHistory"];
   /** Injectable for route tests; defaults to the stored body metrics. */
   loadBodyHistory?: PlanTriggerDependencies["loadBodyHistory"];
-  /** Injectable for route tests; defaults to the coach reading the text. */
+  /** Injectable for the coach reading the text. */
   syncAthleteMetrics?: PlanTriggerDependencies["syncAthleteMetrics"];
+  /** Injectable for the coach reading the text. */
+  syncAthleteEvents?: PlanTriggerDependencies["syncAthleteEvents"];
+  /** Injectable for the stored events. */
+  loadEvents?: PlanTriggerDependencies["loadEvents"];
   /** Injectable for route tests; defaults to answered coach questions. */
   loadAnsweredCoachQuestions?: PlanTriggerDependencies["loadAnsweredCoachQuestions"];
   /** Injectable for route tests; defaults to the account's stored config. */
@@ -145,19 +150,29 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
     includeTomorrow = false,
   ) {
     const loadThresholds = deps.loadFtpHistory ?? loadFtpHistoryForUser;
-    const [storedPlan, loadedGeneration, answers, coachingInputs, thresholds] =
-      await Promise.all([
-        deps.plans.load(userId),
-        deps.generations.load(userId),
-        deps.answers.listForUser(userId),
-        deps.loadCoachingInputs
-          ? deps.loadCoachingInputs(userId, startOfWeek(today))
-          : loadCoachingInputs(userId, startOfWeek(today)),
-        loadThresholds(userId, today).catch((err: unknown) => {
-          console.error("[plan] could not load thresholds:", err);
-          return null;
-        }),
-      ]);
+    const [
+      storedPlan,
+      loadedGeneration,
+      answers,
+      coachingInputs,
+      thresholds,
+      events,
+    ] = await Promise.all([
+      deps.plans.load(userId),
+      deps.generations.load(userId),
+      deps.answers.listForUser(userId),
+      deps.loadCoachingInputs
+        ? deps.loadCoachingInputs(userId, startOfWeek(today))
+        : loadCoachingInputs(userId, startOfWeek(today)),
+      loadThresholds(userId, today).catch((err: unknown) => {
+        console.error("[plan] could not load thresholds:", err);
+        return null;
+      }),
+      (deps.loadEvents ?? loadAthleteEvents)(userId).catch((err: unknown) => {
+        console.error("[plan] could not load the athlete's events:", err);
+        return [];
+      }),
+    ]);
     // A process that stopped mid-generation leaves the row `running`. Release
     // the claim so the client stops polling and can start a fresh run. Pass the
     // heartbeat we observed: a run that refreshed itself after this read, or
@@ -232,6 +247,7 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
         weekReviewPending,
       ),
       thresholds: thresholds?.summaries ?? [],
+      events,
     });
   }
 
@@ -311,6 +327,12 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
               : {}),
             ...(deps.syncAthleteMetrics !== undefined
               ? { syncAthleteMetrics: deps.syncAthleteMetrics }
+              : {}),
+            ...(deps.syncAthleteEvents !== undefined
+              ? { syncAthleteEvents: deps.syncAthleteEvents }
+              : {}),
+            ...(deps.loadEvents !== undefined
+              ? { loadEvents: deps.loadEvents }
               : {}),
             ...(deps.loadAnsweredCoachQuestions !== undefined
               ? {

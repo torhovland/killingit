@@ -1,9 +1,10 @@
-import type { AnalyzedActivity } from "@killingit/shared";
+import type { AnalyzedActivity, AthleteEvent } from "@killingit/shared";
 import { toCoachPlanActivity } from "../llm/coachPlanPrompt.js";
 import type {
   AthleteAnswerContext,
   PlanContextInput,
 } from "../llm/planContext.js";
+import { loadAthleteEvents } from "../events/store.js";
 import {
   loadBodyHistoryForUser,
   loadFtpHistoryForUser,
@@ -39,6 +40,7 @@ export interface ReplyContextDependencies {
   loadFtpHistory?: typeof loadFtpHistoryForUser;
   loadBodyHistory?: typeof loadBodyHistoryForUser;
   loadDailyHealth?: typeof loadDailyHealthForUser;
+  loadEvents?: (userId: number) => Promise<readonly AthleteEvent[]>;
 }
 
 /**
@@ -75,7 +77,7 @@ export async function loadReplyContext(
   deps: ReplyContextDependencies = {},
 ): Promise<PlanContextInput> {
   const { userId, today } = input;
-  const [activities, coachingInputs, ftp, bodyHistory, dailyHealth] =
+  const [activities, coachingInputs, ftp, bodyHistory, dailyHealth, events] =
     await Promise.all([
       attempt("cached activity feed", () =>
         (deps.loadActivities ?? cachedActivities)(userId),
@@ -98,6 +100,9 @@ export async function loadReplyContext(
           addDays(today, -42),
           today,
         ),
+      ),
+      attempt("athlete events", () =>
+        (deps.loadEvents ?? loadAthleteEvents)(userId),
       ),
     ]);
 
@@ -128,5 +133,6 @@ export async function loadReplyContext(
     thresholds: ftp?.summaries ?? [],
     ...(bodyHistory !== null ? { bodyHistory } : {}),
     ...(dailyHealth !== null ? { dailyHealth } : {}),
+    ...(events !== null && events.length > 0 ? { events } : {}),
   };
 }

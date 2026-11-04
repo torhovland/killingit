@@ -25,10 +25,12 @@ comment, the coach's response, and the route map for outdoor activities.
    activities, planned workouts and rest days, block starts, and the season
    end.
 5. A week overview box to the left of each Monday row, summarising that week's
-   plan: its block, week number, focus, target load, and planned workout count,
-   duration, and TSS.
+   plan: its block, week number, focus, target load, workout count, and its
+   completed and planned time and TSS.
 6. A detail dialog for activities and planned sessions.
-7. Shared Zod schemas for the response and its entry types.
+7. Dated goals and events the athlete stated, shown on the days they cover. See
+   `docs/specs/athlete-events.md`.
+8. Shared Zod schemas for the response and its entry types.
 
 ### Out of scope (deferred)
 
@@ -73,13 +75,25 @@ comment, the coach's response, and the route map for outdoor activities.
 - The season's `endDate` gets a `Season ends` marker, and the page heading
   states the season goal.
 - Days with nothing to show are omitted by the API and render as empty cells.
+- A dated goal or event is shown on every day it covers. A month the athlete
+  mentioned extends the calendar's range, so an event after the season end is
+  still reachable.
 - One overview box sits to the left of each Monday row. It names the season
   block covering the week and shows the week's focus and target load when the
   block plan describes it. A week the coach has not detailed yet shows its
   number inside the block instead (`Week n`), not the block's own focus, which
-  would repeat the block name. The box also totals the planned workouts, their
-  duration, and their estimated TSS. A week with no plan data shows
-  `No plan yet`.
+  would repeat the block name. The box also totals the planned workouts and
+  gives the week's completed and planned time and TSS. A week with no plan data
+  and no recorded work shows `No plan yet`.
+- Planned time and TSS come from the stored plan's workout sessions, and are
+  recorded per week when a plan covering it is saved, so a previous week keeps
+  the plan it was measured against after the coach moves on. Completed time is
+  the recorded elapsed time of imported activities. Completed TSS is each
+  imported activity's own score plus a manual entry's estimate; an older cached
+  payload without per-activity scores counts the day's snapshot once. A manual
+  entry has no duration, so it adds no time.
+- A future week with nothing planned and nothing recorded hides its statistics;
+  the box still shows the week's block, number, focus and target load.
 - The week number comes from the season block covering the week, counted from
   the block's first week, and from the block plan's week `number` when the coach
   has detailed the week, so it matches the Block tab.
@@ -100,19 +114,24 @@ Shared (`@killingit/shared`):
 
 - `calendar.ts`: `calendarImportedActivitySchema` (analysed activity plus
   `source: "garmin"`), `calendarManualActivitySchema`, their discriminated
-  union `calendarActivitySchema`, `calendarDaySchema`, `calendarWeekSchema`
-  (week start and end, focus, target load, week number, block name), and
+  union `calendarActivitySchema`, `calendarDaySchema` (now with `events`),
+  `calendarWeekStatsSchema` and `calendarWeekSchema` (week start and end, focus,
+  target load, week number, block name, and `stats`), and
   `calendarResponseSchema` (`earliestDate`, `latestDate`, `season`, `weeks`,
   `days`).
+- `event.ts`: `athleteEventSchema` and the shared event helpers.
 
 API:
 
 - `apps/api/src/routes/calendar.ts`: `buildCalendar` (pure), `weekOutlines`
   (week summaries from the season blocks, active and next block week plans, and
-  current and next week), and the route.
+  current and next week), `weekStats`, and the route.
+- `apps/api/src/plans/weekTotals.ts`: the planned totals of the weeks a plan
+  details, written with every plan save and read by the calendar.
 - Registered at `/api/calendar` behind `requireAuth`.
-- No database migration; the endpoint reads `coach_plans`,
-  `activity_feed_cache`, `manual_activities`, and `coach_replies`.
+- The endpoint reads `coach_plans`, `activity_feed_cache`, `manual_activities`,
+  `coach_replies`, `athlete_events`, and `plan_week_totals`. Migration `0045`
+  creates `athlete_events`; migration `0046` creates `plan_week_totals`.
 
 ## UI
 
@@ -125,6 +144,10 @@ API:
   grid inside its horizontal scroll container keeps padding; without it the
   scroll clip hides the right side of the ring on a Sunday.
 - `calendarDates.ts` holds the pure UTC month helpers.
+- The calendar uses a wider content panel than the other pages so the wide week
+  box and the seven day columns fit without a horizontal scroll on a desktop
+  viewport. A narrow viewport still scrolls the month grid.
+- The month arrows are fixed-size chevron icons in square, flex-centred buttons.
 
 ## Acceptance criteria
 
@@ -133,10 +156,11 @@ API:
 2. The response bounds start at the earliest data we have and end at the
    season end (or today without a season).
 3. Imported and manual activities, planned workouts, rest days, block starts,
-   and the season end appear on the correct days.
+   the season end, and the athlete's dated goals and events appear on the correct
+   days.
 4. Every Monday row has a week overview box to its left showing the week's
-   block, week number, focus, target load, and planned totals, or
-   `No plan yet`.
+   block, week number, focus, target load, and completed and planned time and
+   TSS, or `No plan yet`.
 5. Previous/next and the month picker cannot leave the available range.
 6. Clicking an activity or planned workout opens a dialog with its full
    details; a recorded outdoor activity includes the route map, comment, and

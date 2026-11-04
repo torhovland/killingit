@@ -1,5 +1,6 @@
 import type {
   AnalyzedActivity,
+  AthleteEvent,
   CoachPlan,
   DailyHealthPoint,
 } from "@killingit/shared";
@@ -33,6 +34,8 @@ export interface CapturePeriodReviewsInput {
   weeklyNote: string | null;
   /** Stored daily health and recovery values for the prompt. */
   dailyHealth?: readonly DailyHealthPoint[];
+  /** Dated goals and events the athlete stated. */
+  events?: readonly AthleteEvent[];
   /** Cancels the review when a newer run starts. */
   signal?: AbortSignal;
   /** Injectable for tests; defaults to the database-backed writer. */
@@ -63,6 +66,7 @@ export async function captureCompletedPeriodReviews(
     ...(input.dailyHealth !== undefined
       ? { dailyHealth: input.dailyHealth }
       : {}),
+    ...(input.events !== undefined ? { events: input.events } : {}),
   };
 
   const weekEnd = addDays(input.plan.week.startDate, 6);

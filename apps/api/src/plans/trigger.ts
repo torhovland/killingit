@@ -6,6 +6,11 @@ import {
   buildAthleteMetricSource,
   syncAthleteMetrics,
 } from "../coaching/athleteMetrics.js";
+import {
+  buildAthleteEventSource,
+  syncAthleteEvents,
+} from "../coaching/athleteEvents.js";
+import { loadAthleteEvents } from "../events/store.js";
 import { captureCompletedPeriodReviews } from "../coaching/periodReviews.js";
 import { analyzeActivitiesAgainstPlan } from "../coaching/programAnalysis.js";
 import { markPlanPromptsFailed } from "../llm/callStore.js";
@@ -73,6 +78,10 @@ export interface PlanTriggerDependencies {
   loadDailyHealth?: typeof loadDailyHealthForUser;
   /** Injectable for route tests; defaults to the coach reading the text. */
   syncAthleteMetrics?: typeof syncAthleteMetrics;
+  /** Injectable for route tests; defaults to the coach reading the text. */
+  syncAthleteEvents?: typeof syncAthleteEvents;
+  /** Injectable for route tests; defaults to the stored events. */
+  loadEvents?: typeof loadAthleteEvents;
   /** Injectable for route tests; defaults to answered coach questions. */
   loadAnsweredCoachQuestions?: typeof loadAnsweredCoachQuestions;
   /** Injectable for route tests; defaults to the account's stored config. */
@@ -293,6 +302,50 @@ export async function runPlanForUser(
     throw new GenerationSupersededError();
   }
 
+  // The coach also reads the athlete's own words for dated goals and events: a
+  // race, a trip, or a dated target. The calendar and the Week and Day tabs
+  // show them, and every plan prompt plans around them. The reading replaces
+  // the stored list, and a failure leaves the previous list in place.
+  await (deps.syncAthleteEvents ?? syncAthleteEvents)({
+    userId,
+    today,
+    source: buildAthleteEventSource(
+      {
+        answers,
+        activityComments: coachingInputs.activityComments,
+        manualActivities: coachingInputs.manualActivities,
+        weeklyNotes: coachingInputs.weeklyNotes ?? [],
+        periodReviews: coachingInputs.periodReviews,
+        coachQuestionAnswers: coachAnswers.map((answer) => ({
+          question: answer.question,
+          answer: answer.answer ?? "",
+          answeredAt: answer.answeredAt,
+        })),
+      },
+      today,
+    ),
+    provider: llm.provider,
+    credentials: {
+      apiKey: llm.apiKey,
+      model: llm.model,
+      signal: options.signal,
+    },
+  });
+  if (
+    options.signal.aborted ||
+    !(await deps.generations.isCurrent(userId, options.runId))
+  ) {
+    throw new GenerationSupersededError();
+  }
+  let events: Awaited<ReturnType<typeof loadAthleteEvents>>;
+  try {
+    events = await (deps.loadEvents ?? loadAthleteEvents)(userId);
+  } catch (err) {
+    // Events are advisory. A read failure must not stop the plan.
+    console.error("[events] could not load the athlete's events:", err);
+    events = [];
+  }
+
   const ftp = await (deps.loadFtpHistory ?? loadFtpHistoryForUser)(
     userId,
     today,
@@ -417,6 +470,7 @@ export async function runPlanForUser(
       thresholdTimelines: ftp.thresholdTimelines,
       bodyHistory,
       ...(dailyHealth !== undefined ? { dailyHealth } : {}),
+      events,
       provider: llm.provider,
       apiKey: llm.apiKey,
       model: llm.model,

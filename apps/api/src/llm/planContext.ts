@@ -4,12 +4,14 @@ import {
   activityAverageSpeed,
   activityUsesPace,
   cadenceUnit,
+  eventEndDate,
   formatActivityPaceOrSpeed,
   formatThresholdValue,
   hasLapStructure,
   interpretTrainingStressBalance,
   type ActivityLap,
   type ActivitySummary,
+  type AthleteEvent,
   type BikeWorkout,
   type BlockPlan,
   type CoachPlan,
@@ -128,6 +130,11 @@ export interface PlanContextInput {
   dailyHealth?: readonly DailyHealthPoint[];
   /** The athlete's fitness snapshot for today, when one has been calculated. */
   currentForm?: TrainingLoad | null;
+  /**
+   * Dated goals and events the athlete stated, so the coach plans around a race,
+   * a trip or a dated target instead of treating the week as empty.
+   */
+  events?: readonly AthleteEvent[];
 }
 
 /** The stored body-composition series handed to a prompt. */
@@ -210,6 +217,26 @@ export function formatCoachingSurveyAdjustments(
 }
 
 /**
+ * Renders the dated goals and events the athlete stated. The coach plans around
+ * these dates, so the list sits with the profile at the top of the context.
+ */
+export function formatAthleteEvents(events: readonly AthleteEvent[]): string[] {
+  if (events.length === 0) {
+    return [];
+  }
+  return [
+    "Dated goals and events the athlete stated:",
+    ...events.map((event) => {
+      const dates =
+        event.endDate === null || event.endDate === event.startDate
+          ? event.startDate
+          : `${event.startDate} → ${event.endDate}`;
+      return `- ${dates} (${event.kind}): ${event.title}`;
+    }),
+  ];
+}
+
+/**
  * Renders the stored FTP time series and its source meaning for any prompt
  * that estimates or compares power.
  */
@@ -286,6 +313,12 @@ export function formatPlanContext(input: PlanContextInput): string[] {
   // weight in the survey answers) on the day it was actually given.
   const profileDate = latestAnswerDate(input.athleteAnswers);
   lines.push("", ...formatAthleteProfile(input.athleteAnswers, profileDate));
+  const upcomingEvents = (input.events ?? []).filter(
+    (event) => eventEndDate(event) >= input.today,
+  );
+  if (upcomingEvents.length > 0) {
+    lines.push("", ...formatAthleteEvents(upcomingEvents));
+  }
   if (input.athleteFtpWatts !== undefined && input.athleteFtpWatts !== null) {
     lines.push(
       "",

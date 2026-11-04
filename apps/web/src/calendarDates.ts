@@ -26,7 +26,7 @@ export function clampMonth(month: string, min: string, max: string): string {
 }
 
 /** Adds days (which may be negative) to a `YYYY-MM-DD` date. */
-function addDays(date: string, days: number): string {
+export function addDays(date: string, days: number): string {
   const parsed = new Date(`${date}T00:00:00Z`);
   parsed.setUTCDate(parsed.getUTCDate() + days);
   return parsed.toISOString().slice(0, 10);

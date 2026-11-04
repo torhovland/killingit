@@ -264,6 +264,8 @@ function makeApp(options: {
           summaries: [],
         })),
     syncAthleteMetrics: () => Promise.resolve(null),
+    syncAthleteEvents: () => Promise.resolve(null),
+    loadEvents: () => Promise.resolve([]),
     loadLlm: () =>
       Promise.resolve({
         provider: {

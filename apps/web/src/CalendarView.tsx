@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
 import {
+  ATHLETE_EVENT_KIND_LABELS,
+  EMPTY_WEEK_STATS,
   activityAverageSpeed,
   formatActivityPaceOrSpeed,
   formatActivityType,
+  formatEventDates,
   type CalendarActivity,
   type CalendarDay,
   type CalendarResponse,
@@ -100,25 +103,25 @@ export function CalendarView({
         <div className="flex items-center gap-1">
           <button
             type="button"
-            className="rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted disabled:opacity-40"
+            className="inline-flex size-9 items-center justify-center rounded border bg-card enabled:hover:bg-muted disabled:opacity-40"
             onClick={() => moveMonth(-1)}
             disabled={shownMonth <= minMonth}
             aria-label="Previous month"
           >
-            ←
+            <MonthArrow direction="previous" />
           </button>
           <button
             type="button"
-            className="rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted disabled:opacity-40"
+            className="inline-flex size-9 items-center justify-center rounded border bg-card enabled:hover:bg-muted disabled:opacity-40"
             onClick={() => moveMonth(1)}
             disabled={shownMonth >= maxMonth}
             aria-label="Next month"
           >
-            →
+            <MonthArrow direction="next" />
           </button>
           <button
             type="button"
-            className="rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted"
+            className="inline-flex h-9 items-center justify-center rounded border bg-card px-3 text-base leading-none enabled:hover:bg-muted"
             onClick={() =>
               onMonthChange(clampMonth(monthOf(today), minMonth, maxMonth))
             }
@@ -163,14 +166,14 @@ export function CalendarView({
         {/* The today ring is painted outside its cell, so the grid keeps
             padding; the scroll container would otherwise clip it, hiding the
             ring's right side on Sunday. */}
-        <div className="min-w-[52rem] p-1" data-testid="calendar-grid">
-          <div className="grid grid-cols-[minmax(7rem,9rem)_repeat(7,minmax(0,1fr))] gap-1 pb-1 text-center text-sm font-medium text-muted-foreground">
+        <div className="min-w-[66rem] p-1" data-testid="calendar-grid">
+          <div className="grid grid-cols-[minmax(14rem,18rem)_repeat(7,minmax(0,1fr))] gap-1 pb-1 text-center text-sm font-medium text-muted-foreground">
             <span />
             {WEEKDAYS.map((weekday) => (
               <span key={weekday}>{weekday}</span>
             ))}
           </div>
-          <div className="grid grid-cols-[minmax(7rem,9rem)_repeat(7,minmax(0,1fr))] gap-1">
+          <div className="grid grid-cols-[minmax(14rem,18rem)_repeat(7,minmax(0,1fr))] gap-1">
             {rows.map((row) => {
               const weekStart = row[0]?.date ?? "";
               const weekDays = row.map((cell) => daysByDate.get(cell.date));
@@ -180,6 +183,7 @@ export function CalendarView({
                     weekStart={weekStart}
                     week={weeksByStart.get(weekStart)}
                     days={weekDays}
+                    today={today}
                   />
                   {row.map((cell, index) => (
                     <CalendarCell
@@ -227,14 +231,36 @@ function CalendarHeading({ goal }: { goal?: string | null }) {
   );
 }
 
+/** A crisp chevron for the month navigation, centred in its button. */
+function MonthArrow({ direction }: { direction: "previous" | "next" }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className="size-5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path
+        d={direction === "previous" ? "M15 18l-6-6 6-6" : "M9 18l6-6-6-6"}
+      />
+    </svg>
+  );
+}
+
 function WeekOverview({
   weekStart,
   week,
   days,
+  today,
 }: {
   weekStart: string;
   week: CalendarWeek | undefined;
   days: Array<CalendarDay | undefined>;
+  today: string;
 }) {
   const sessions = days
     .map((day) => day?.session)
@@ -242,16 +268,22 @@ function WeekOverview({
       (session): session is WeekSession =>
         session !== undefined && session !== null && session.type === "workout",
     );
-  const plannedMinutes = sessions.reduce(
-    (total, session) => total + session.durationMinutes,
-    0,
-  );
-  const plannedTss = sessions.reduce(
-    (total, session) =>
-      total + (session.estimatedTss ?? session.trainingLoad?.tss ?? 0),
-    0,
-  );
-  const hasPlan = week !== undefined || sessions.length > 0;
+  const stats = week?.stats ?? EMPTY_WEEK_STATS;
+  const hasPlan =
+    sessions.length > 0 ||
+    (week !== undefined &&
+      (week.blockName !== null ||
+        week.focus !== null ||
+        week.weekNumber !== null ||
+        stats.plannedMinutes > 0));
+  const hasStats =
+    stats.plannedMinutes > 0 ||
+    stats.completedMinutes > 0 ||
+    stats.plannedTss > 0 ||
+    stats.completedTss > 0;
+  // A future week with nothing planned yet has no statistics to report. Past and
+  // current weeks keep their record even when the numbers are zero.
+  const showStats = hasStats || weekStart <= today;
 
   return (
     <div
@@ -291,16 +323,32 @@ function WeekOverview({
       {sessions.length > 0 && (
         <span className="text-xs text-muted-foreground">
           {sessions.length} workout{sessions.length === 1 ? "" : "s"}
-          <Bullet />
-          {formatWeekDuration(plannedMinutes)}
         </span>
       )}
-      {plannedTss > 0 && (
-        <span className="text-xs text-muted-foreground">
-          ~{Math.round(plannedTss)} TSS
-        </span>
+      {showStats && (
+        <div
+          className="flex flex-col gap-0.5 text-xs text-muted-foreground"
+          data-testid="calendar-week-stats"
+        >
+          <span data-testid="calendar-week-time">
+            Time:{" "}
+            <span className="font-medium text-foreground">
+              {formatWeekDuration(stats.completedMinutes)}
+            </span>{" "}
+            done · {formatWeekDuration(stats.plannedMinutes)} planned
+          </span>
+          <span data-testid="calendar-week-tss">
+            TSS:{" "}
+            <span className="font-medium text-foreground">
+              {Math.round(stats.completedTss)}
+            </span>{" "}
+            done · {Math.round(stats.plannedTss)} planned
+          </span>
+        </div>
       )}
-      {!hasPlan && <span className="text-muted-foreground">No plan yet</span>}
+      {!hasPlan && !hasStats && (
+        <span className="text-muted-foreground">No plan yet</span>
+      )}
     </div>
   );
 }
@@ -371,6 +419,17 @@ function CalendarCell({
           Season ends
         </span>
       )}
+
+      {day?.events.map((event, index) => (
+        <span
+          key={`${event.startDate}-${event.title}-${index}`}
+          className="rounded bg-accent px-1 py-0.5 font-medium text-accent-foreground"
+          data-testid="calendar-event"
+          title={formatEventDates(event)}
+        >
+          {ATHLETE_EVENT_KIND_LABELS[event.kind]}: {event.title}
+        </span>
+      ))}
 
       {showSession && session !== null && (
         <SessionChip
