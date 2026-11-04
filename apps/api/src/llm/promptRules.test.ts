@@ -3,11 +3,13 @@ import {
   COACH_RESPONSE_NOTES_CONTRACT,
   COACH_RESPONSE_NOTES_RULES,
   DURATION_TOLERANCE_RULES,
+  FORM_TARGET_RULES,
   PAST_SESSION_RULES,
   PLAN_PROMPT_RULES,
   SEASON_BLOCK_RULES,
   TEXT_FORMATTING_RULES,
   TODAY_SESSION_RULES,
+  TRAINING_LOAD_RULES,
   WEEK_OUTLINE_RULES,
   WEATHER_PLANNING_RULES,
 } from "./promptRules.js";
@@ -193,6 +195,33 @@ describe("WEEK_OUTLINE_RULES", () => {
     expect(WEEK_OUTLINE_RULES).toContain(
       "do not replace the outline with an activity summary",
     );
+  });
+});
+
+describe("FORM_TARGET_RULES", () => {
+  it("names the TSB bands and makes Productive the default target", () => {
+    expect(FORM_TARGET_RULES).toContain(
+      "TSB between -30 and -10 is Productive",
+    );
+    expect(FORM_TARGET_RULES).toContain(
+      "Keep the planned week's projected TSB inside Productive by default",
+    );
+  });
+
+  it("allows a justified recovery, taper or overload to leave Productive", () => {
+    expect(FORM_TARGET_RULES).toContain(
+      "A recovery or taper week may move TSB into Fresh",
+    );
+    expect(FORM_TARGET_RULES).toContain(
+      "a deliberate overload may briefly enter Risk",
+    );
+    expect(FORM_TARGET_RULES).toContain(
+      "state that reason in the week's rationale",
+    );
+  });
+
+  it("reaches every plan prompt through the shared training-load rules", () => {
+    expect(TRAINING_LOAD_RULES).toContain(FORM_TARGET_RULES);
   });
 });
 

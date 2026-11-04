@@ -12,6 +12,7 @@ import { loadDailyHealthForUser } from "../metrics/dailyMetrics.js";
 import { addDays, startOfWeek } from "../plans/dates.js";
 import { loadCoachingInputs, type CoachingInputs } from "../plans/inputs.js";
 import { ftpBaselineAt } from "../training/ftp.js";
+import { currentTrainingLoad } from "../training/load.js";
 import {
   loadCachedActivityFeed,
   MAX_ANALYZED_ACTIVITIES,
@@ -100,12 +101,22 @@ export async function loadReplyContext(
       ),
     ]);
 
+  const currentForm = currentTrainingLoad(
+    {
+      activities: activities ?? [],
+      manualActivities: coachingInputs?.manualActivities ?? [],
+      thresholdTimelines: ftp?.thresholdTimelines ?? [],
+    },
+    today,
+  );
+
   return {
     athleteAnswers: input.athleteAnswers,
     recentActivities: (activities ?? [])
       .slice(0, MAX_ANALYZED_ACTIVITIES)
       .map(toCoachPlanActivity),
     today,
+    ...(currentForm !== null ? { currentForm } : {}),
     manualActivities: coachingInputs?.manualActivities ?? [],
     activityComments: coachingInputs?.activityComments ?? [],
     weeklyNote: coachingInputs?.weeklyNote ?? null,

@@ -4,7 +4,8 @@
 - **Date:** 2026-10-21
 - **Related:** ADR 0004 (OpenRouter), `docs/specs/openrouter-llm-integration.md`,
   `docs/specs/athlete-question-answers.md`,
-  `docs/specs/coach-plan-lifecycle.md`.
+  `docs/specs/coach-plan-lifecycle.md`,
+  `docs/specs/coach-form-awareness.md`.
 
 ## Goal
 
@@ -78,6 +79,11 @@ covered by `docs/specs/coach-plan-lifecycle.md`.
    analysis or the coach's reply to the athlete's comment.
 9. `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`
    pass.
+10. The prompt carries today's current form and the projected `ATL`, `CTL`,
+    `TSB`, and form label of each supplied day, and the shared
+    `FORM_TARGET_RULES` asks the coach to keep the planned week in Productive
+    unless the rationale justifies leaving it. See
+    `docs/specs/coach-form-awareness.md`.
 
 ## Data-model / API impact
 
@@ -140,7 +146,10 @@ and returns `LlmProvider` chat messages.
   season and block prompts also ask for a rationale and the training-load
   estimates, and the combined plan prompt asks for weather-aware,
   bike-workout-capable sessions, so a plan looks the same whichever completion
-  built it.
+  built it. `formatWeekPlan` and `formatDayPlan` include each supplied day's
+  projected `ATL`, `CTL`, `TSB` and form label, and `formatPlanContext` includes
+  today's current form, so the coach can keep the week inside the Productive
+  band. See `docs/specs/coach-form-awareness.md`.
 - Every update rationale explains the plan as it stands, not the revision
   itself. The prompt rejects change-log phrasing such as "we adjusted" or "this
   replaces" and asks for the reason the current plan is right from this point

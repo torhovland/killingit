@@ -38,7 +38,7 @@ import type {
   RecentActivityContext,
 } from "../llm/planContext.js";
 import type { LlmProvider } from "../llm/openrouter.js";
-import { applyTrainingLoad } from "../training/load.js";
+import { applyTrainingLoad, currentTrainingLoad } from "../training/load.js";
 import { ftpBaselineAt, type FtpTimeline } from "../training/ftp.js";
 import type { ThresholdTimeline } from "../training/thresholds.js";
 import { addDays, startOfWeek } from "./dates.js";
@@ -1466,10 +1466,27 @@ function ftpBaseline(context: PlanGenerationContext, today: string) {
 function baseContext(input: GeneratePlanInput) {
   const recentActivities: RecentActivityContext[] =
     input.context.activities.map(toCoachPlanActivity);
+  // Prefer the stored plan's snapshot because it includes today's planned
+  // session; fall back to the recorded history for a plan that has none yet.
+  const storedForm =
+    input.plan?.plan.today.date === input.today
+      ? (input.plan.plan.today.trainingLoad ?? null)
+      : null;
+  const currentForm =
+    storedForm ??
+    currentTrainingLoad(
+      {
+        activities: input.context.activities,
+        manualActivities: input.context.manualActivities,
+        thresholdTimelines: input.context.thresholdTimelines,
+      },
+      input.today,
+    );
 
   return {
     athleteAnswers: input.context.answers,
     recentActivities,
+    ...(currentForm !== null ? { currentForm } : {}),
     athleteFtpWatts: ftpBaseline(input.context, input.today)?.watts ?? null,
     ...(input.context.ftpHistory !== undefined
       ? { ftpHistory: input.context.ftpHistory }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import {
+  formatDayPlan,
   formatPlanContext,
   formatWeekPlan,
   type PlanContextInput,
@@ -377,5 +378,88 @@ describe("formatPlanContext", () => {
       "power targets at FTP 220 W: 600s at 55% FTP, 480s at 90% FTP",
     );
     expect(text).toContain("Indoor trainer ride.");
+  });
+
+  it("renders each week session's projected form", () => {
+    const text = formatWeekPlan({
+      startDate: "2026-10-19",
+      focus: "Build",
+      rationale: "Build load.",
+      sessions: Array.from({ length: 7 }, (_, index) => ({
+        date: `2026-10-${19 + index}`,
+        day: "Monday",
+        type: "workout" as const,
+        title: `Session ${index + 1}`,
+        description: "Endurance work.",
+        durationMinutes: 60,
+        intensity: "moderate" as const,
+        status: "planned" as const,
+        estimatedTss: 60,
+        ...(index === 0
+          ? { trainingLoad: { tss: 60, atl: 20, ctl: 45, tsb: -25 } }
+          : {}),
+      })),
+    });
+
+    expect(text).toContain("ATL 20 · CTL 45 · TSB -25 · Productive");
+  });
+
+  it("carries the current form into the shared plan context", () => {
+    const text = formatPlanContext(
+      input({
+        currentForm: { tss: 60, atl: 65, ctl: 45, tsb: -20 },
+      }),
+    ).join("\n");
+
+    expect(text).toContain(
+      "Current form (2026-10-22): ATL 65 · CTL 45 · TSB -20 · Productive.",
+    );
+  });
+
+  it("omits the current form when no snapshot is available", () => {
+    const text = formatPlanContext(input()).join("\n");
+
+    expect(text).not.toContain("Current form (");
+  });
+});
+
+describe("formatDayPlan", () => {
+  it("renders the day's projected training load and form", () => {
+    const text = formatDayPlan({
+      date: "2026-10-22",
+      type: "workout",
+      title: "Endurance ride",
+      description: "Steady aerobic work.",
+      durationMinutes: 90,
+      intensity: "moderate",
+      alternatives: [],
+      rationale: "Aerobic base.",
+      optional: false,
+      status: "planned",
+      estimatedTss: 64,
+      trainingLoad: { tss: 64, atl: 18, ctl: 40, tsb: -22 },
+    });
+
+    expect(text).toContain("Estimated TSS: 64");
+    expect(text).toContain(
+      "Projected load: ATL 18 · CTL 40 · TSB -22 · Productive",
+    );
+  });
+
+  it("omits the projected load when the day has no snapshot", () => {
+    const text = formatDayPlan({
+      date: "2026-10-22",
+      type: "rest",
+      title: "Rest",
+      description: "Rest day.",
+      durationMinutes: 0,
+      intensity: "rest",
+      alternatives: [],
+      rationale: "Recovery.",
+      optional: false,
+      status: "rest",
+    });
+
+    expect(text).not.toContain("Projected load:");
   });
 });

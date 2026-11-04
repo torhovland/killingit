@@ -1,9 +1,11 @@
 import {
+  FORM_INTERPRETATION_LABELS,
   WEATHER_ICON_LABELS,
   activityAverageSpeed,
   activityUsesPace,
   formatActivityPaceOrSpeed,
   formatThresholdValue,
+  interpretTrainingStressBalance,
   type ActivitySummary,
   type BikeWorkout,
   type BlockPlan,
@@ -15,6 +17,7 @@ import {
   type SeasonPlan,
   type StrengthSet,
   type ThresholdSummary,
+  type TrainingLoad,
   type WeekPlan,
   type WeekSession,
 } from "@killingit/shared";
@@ -117,6 +120,8 @@ export interface PlanContextInput {
   bodyHistory?: BodyMetricHistory | undefined;
   /** Stored daily sleep, HRV, readiness and related values for the prompt. */
   dailyHealth?: readonly DailyHealthPoint[];
+  /** The athlete's fitness snapshot for today, when one has been calculated. */
+  currentForm?: TrainingLoad | null;
 }
 
 /** The stored body-composition series handed to a prompt. */
@@ -292,6 +297,12 @@ export function formatPlanContext(input: PlanContextInput): string[] {
   }
   if (input.dailyHealth !== undefined) {
     lines.push("", ...formatDailyHealthContext(input.dailyHealth, input.today));
+  }
+  if (input.currentForm !== undefined && input.currentForm !== null) {
+    lines.push(
+      "",
+      `Current form (${input.today}): ${formatTrainingLoad(input.currentForm)}.`,
+    );
   }
   lines.push(
     "",
@@ -475,6 +486,16 @@ export function formatBlockPlan(plan: BlockPlan): string {
   ].join("\n");
 }
 
+/**
+ * One compact training-load snapshot. It uses the same labels as the app's
+ * views, so the prompt and the UI cannot describe the same TSB differently.
+ */
+function formatTrainingLoad(load: TrainingLoad): string {
+  const label =
+    FORM_INTERPRETATION_LABELS[interpretTrainingStressBalance(load.tsb)];
+  return `ATL ${load.atl} · CTL ${load.ctl} · TSB ${load.tsb} · ${label}`;
+}
+
 /** Renders the current week's seven sessions. */
 export function formatWeekPlan(plan: WeekPlan): string {
   return [
@@ -486,7 +507,11 @@ export function formatWeekPlan(plan: WeekPlan): string {
         session.estimatedTss !== undefined
           ? `; estimated TSS ${session.estimatedTss}`
           : "";
-      return `- ${session.date} (${session.day}) [${session.status}]: ${formatPlannedSession(session)}${tss}`;
+      const load =
+        session.trainingLoad != null
+          ? `; ${formatTrainingLoad(session.trainingLoad)}`
+          : "";
+      return `- ${session.date} (${session.day}) [${session.status}]: ${formatPlannedSession(session)}${tss}${load}`;
     }),
   ].join("\n");
 }
@@ -523,6 +548,9 @@ export function formatDayPlan(plan: DayPlan): string {
   }
   if (plan.estimatedTss !== undefined) {
     lines.push(`Estimated TSS: ${plan.estimatedTss}`);
+  }
+  if (plan.trainingLoad !== undefined && plan.trainingLoad !== null) {
+    lines.push(`Projected load: ${formatTrainingLoad(plan.trainingLoad)}`);
   }
   return lines.join("\n");
 }

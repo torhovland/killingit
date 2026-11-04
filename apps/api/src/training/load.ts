@@ -7,6 +7,7 @@ import {
   type BlockPlan,
   type CoachPlan,
   type DayPlan,
+  type TrainingLoad,
   type WeekPlan,
   type WeekSession,
 } from "@killingit/shared";
@@ -139,6 +140,42 @@ export function applyTrainingLoad(
     tomorrow:
       plan.tomorrow === null ? null : withDayLoad(plan.tomorrow, sessions),
   };
+}
+
+/**
+ * The athlete's fitness snapshot on `today`, calculated from recorded
+ * activities and manual entries. Prompts use it when no stored plan carries a
+ * load series, so a new plan or a reply starts from the athlete's actual form.
+ * Returns null when the recent history holds no load at all.
+ */
+export function currentTrainingLoad(
+  context: Pick<
+    TrainingLoadContext,
+    "activities" | "manualActivities" | "thresholdTimelines"
+  >,
+  today: string,
+): TrainingLoad | null {
+  const thresholdTimelines = context.thresholdTimelines ?? [];
+  const tssByDate = new Map<string, number>();
+  for (const [date, activities] of groupActivitiesByDate(context.activities)) {
+    tssByDate.set(date, activityDayTss(activities, thresholdTimelines));
+  }
+  for (const manual of context.manualActivities ?? []) {
+    if (manual.estimatedTss == null || tssByDate.has(manual.startDate)) {
+      continue;
+    }
+    tssByDate.set(manual.startDate, manual.estimatedTss);
+  }
+
+  const startDate = addDays(today, -CTL_DAYS);
+  const hasLoad = [...tssByDate.keys()].some((date) => date >= startDate);
+  if (!hasLoad) {
+    return null;
+  }
+  return (
+    dailyTrainingLoad({ startDate, endDate: today, tssByDate }).get(today) ??
+    null
+  );
 }
 
 /**
