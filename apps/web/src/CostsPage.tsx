@@ -89,9 +89,7 @@ export function CostsPage() {
         <h2 className="text-2xl font-semibold">AI costs</h2>
         <p className="text-base text-muted-foreground">
           What your coach&apos;s OpenRouter prompts cost, split by the model
-          that answered. OpenRouter&apos;s reported charge is used for each
-          call; calls made before cost reporting are estimated from their token
-          usage and the model&apos;s current list price.
+          that answered.
         </p>
       </div>
 
