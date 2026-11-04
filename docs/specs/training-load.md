@@ -166,6 +166,23 @@ For example: `TSS 20 · ATL 18 · CTL 16 · TSB -8 · Maintaining` or
 from TSB in the shared schema module and rendered with the app's theme tokens
 (`--form-risk`, `--form-productive`, and so on), so it follows the dark palette.
 
+### Form in the coach prompts
+
+The coach sees the same numbers the app shows. `formatWeekPlan` appends each
+session's `ATL`, `CTL`, `TSB`, and form label, and `formatDayPlan` adds a
+`Projected load:` line. `formatPlanContext` renders today's current form, taken
+from the stored plan's `today.trainingLoad` when it exists, otherwise from
+`currentTrainingLoad()` over recorded activities and manual TSS. A plan prompt
+that has no projected days yet (a new season, or a new week created by the
+weekly update) therefore still starts from the athlete's actual form.
+
+`TRAINING_LOAD_RULES` includes `FORM_TARGET_RULES`: TSB from −30 to −10 is
+Productive, and the coach keeps the planned week there by default. A recovery or
+taper week may move into Fresh, and a deliberate overload may briefly enter Risk,
+but the week's rationale must say why. Otherwise the coach adjusts the sessions'
+estimated TSS or their placement before returning the plan.
+See `docs/specs/coach-form-awareness.md`.
+
 ## Data model / API impact
 
 Shared (`@killingit/shared`):

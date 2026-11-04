@@ -192,6 +192,13 @@ export const BIKE_WORKOUT_RULES = `When you prescribe an indoor bike workout wit
 export const TSS_ESTIMATE_GUIDE = `A score of 100 is roughly one hour at the athlete's threshold, 60-70 is an easy aerobic hour, and 20-40 is a short strength session.`;
 
 /**
+ * The form target the coach plans against. The API calculates TSB, so this rule
+ * only explains how to read the supplied projections and when leaving the
+ * Productive band is justified.
+ */
+export const FORM_TARGET_RULES = `Each projected training load shows ATL, CTL, TSB and the TSB form label. TSB between -30 and -10 is Productive, -10 to +5 Maintaining, +5 to +25 Fresh, above +25 Detraining, and below -30 Risk. Keep the planned week's projected TSB inside Productive by default, building load gradually rather than spiking it. A recovery or taper week may move TSB into Fresh, and a deliberate overload may briefly enter Risk, but only when the athlete's goal, a race, travel, illness, or their stated feedback gives a clear reason; state that reason in the week's rationale. When the projected week sits outside Productive without such a reason, adjust the sessions' estimated TSS or their placement before returning the plan. When the plan has no projected days yet, use today's current form as the starting point.`;
+
+/**
  * The data-availability caveat shared by prompts that judge a recorded
  * activity: a missing channel means nothing was recorded, not that nothing
  * happened.
@@ -208,6 +215,7 @@ export const TRAINING_LOAD_RULES = promptSections(
   `Set "estimatedTss" on every workout, including recorded activities and today's and tomorrow's sessions, to your best estimate of its training stress score (a positive number; 0 on rest days). Use the session's duration and intensity, the athlete's thresholds for that sport when known, and any recorded power or heart-rate data. When those channels are missing, still estimate TSS as best you can from the elapsed time, the session type, and any other recorded effort.`,
   ACTIVITY_DATA_LIMITS_RULE,
   TSS_ESTIMATE_GUIDE,
+  FORM_TARGET_RULES,
   "When measured power, pace, or heart rate is available the app recalculates the number from the recorded effort and the athlete's threshold for that sport.",
 );
 

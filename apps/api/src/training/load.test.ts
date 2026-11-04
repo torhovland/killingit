@@ -6,7 +6,7 @@ import type {
   WeekPlan,
   WeekSession,
 } from "@killingit/shared";
-import { applyTrainingLoad } from "./load.js";
+import { applyTrainingLoad, currentTrainingLoad } from "./load.js";
 import { buildFtpTimelineFromPoints } from "./ftp.js";
 
 /** The athlete's stated FTP, as the coach read it and the API stored it. */
@@ -432,5 +432,49 @@ describe("applyTrainingLoad", () => {
       { ftpTimeline: statedFtp, activities: [] },
     );
     expect(loaded.week.estimatedFtpWatts).toBe(375);
+  });
+});
+
+describe("currentTrainingLoad", () => {
+  it("returns today's form from recorded activities", () => {
+    const load = currentTrainingLoad(
+      { activities: [activity({ startDate: "2026-10-20T09:00:00Z" })] },
+      "2026-10-20",
+    );
+
+    expect(load?.tss).toBeGreaterThan(0);
+    expect(
+      Math.abs((load?.tsb ?? 0) - ((load?.ctl ?? 0) - (load?.atl ?? 0))),
+    ).toBeLessThan(0.11);
+  });
+
+  it("counts a manual entry on a day with no recorded activity", () => {
+    const load = currentTrainingLoad(
+      {
+        activities: [],
+        manualActivities: [
+          {
+            id: 1,
+            startDate: "2026-10-20",
+            details: "Gym session",
+            estimatedTss: 40,
+          },
+        ],
+      },
+      "2026-10-20",
+    );
+
+    expect(load?.tss).toBe(40);
+  });
+
+  it("returns null when the recent history holds no load", () => {
+    expect(
+      currentTrainingLoad(
+        {
+          activities: [activity({ startDate: "2026-08-01T09:00:00Z" })],
+        },
+        "2026-10-20",
+      ),
+    ).toBeNull();
   });
 });

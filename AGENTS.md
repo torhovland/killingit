@@ -186,7 +186,11 @@ about a past workout, or before a suggested workout, to steer the coach.
   activity on the Activities page shows its own TSS with the day's fitness
   snapshot, so two workouts on one day do not repeat the day's total. TSB
   carries a coloured form label (Risk, Productive, Maintaining, Fresh,
-  Detraining).
+  Detraining). Every plan prompt receives today's current form and each
+  projected session's ATL, CTL, TSB, and form label, and a shared rule asks the
+  coach to keep the planned week in Productive unless a recovery, taper, or
+  deliberate overload is explained in the week's rationale; see
+  `docs/specs/coach-form-awareness.md`.
   Garmin syncs the last 42 days of activities, body composition, and historic
   cycling FTP, and power metrics are stored on activity summaries so the raw
   timeseries is not needed. Activity summaries also store average and maximum
