@@ -127,6 +127,13 @@ export type ActivitiesResponse = z.infer<typeof activitiesResponseSchema>;
 const PACE_ACTIVITY_PATTERN = /run|jog|walk|hik|swim|row|ski/;
 
 /**
+ * Sports whose cadence is counted in steps or strokes per minute rather than
+ * pedal revolutions. Garmin's running and hiking channels are already totals,
+ * and rowing and swimming report strokes per minute.
+ */
+const STEP_CADENCE_PATTERN = /run|jog|walk|hik|row|swim/;
+
+/**
  * Whether a normalized activity type is a run. Running cadence is measured in
  * total steps per minute, while cycling cadence is the pedalling rate in rpm.
  */
@@ -136,7 +143,7 @@ export function isRunningActivity(type: string): boolean {
 
 /** The unit an activity's recorded cadence is expressed in. */
 export function cadenceUnit(type: string): "spm" | "rpm" {
-  return isRunningActivity(type) ? "spm" : "rpm";
+  return STEP_CADENCE_PATTERN.test(type.trim().toLowerCase()) ? "spm" : "rpm";
 }
 
 /** Whether an activity's speed should be shown and described as pace. */

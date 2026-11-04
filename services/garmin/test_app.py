@@ -305,6 +305,18 @@ def test_to_samples_keeps_pedalling_cadence_for_cycling():
     assert _to_samples(details, "indoor_cycling")[0]["cadence"] == 90.5
 
 
+def test_to_samples_keeps_stroke_cadence_for_rowing():
+    details = _details(
+        [1790836200000, 19.0, 0.5],
+        descriptors=[
+            (0, "directTimestamp"),
+            (1, "directStrokeCadence"),
+            (2, "directFractionalCadence"),
+        ],
+    )
+    assert _to_samples(details, "indoor_rowing")[0]["cadence"] == 19.0
+
+
 def test_to_samples_prefers_primary_metric_aliases():
     details = _details(
         [1790836200000, 20, 18, 12.5, 11.0, 80, 82],

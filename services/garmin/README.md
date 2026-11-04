@@ -87,9 +87,10 @@ pytest
   and max metrics. It returns only the values that were recorded, using the
   stable metric keys in `packages/shared/src/health.ts`. Body composition stays
   on `/metrics` so no weigh-in is fetched twice.
-- Cadence matches what Garmin Connect shows: runs use total steps per minute
-  (`directDoubleCadence`, or twice the per-leg `directCadence`), and rides use
-  pedalling rpm (`directBikeCadence`, falling back to `directCadence`).
+- Cadence matches what Garmin Connect shows: runs and hikes use total steps per
+  minute (`directDoubleCadence`, or twice the per-leg `directCadence`), rides
+  use pedalling rpm (`directBikeCadence`, falling back to `directCadence`), and
+  rows and swims use the stroke rate from `directStrokeCadence`.
   `directFractionalCadence` is only the sub-unit remainder and is never read as
   a cadence on its own.
 - Activity-detail calls add one Garmin request per activity. If a detail fetch

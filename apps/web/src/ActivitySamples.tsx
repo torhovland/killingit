@@ -69,8 +69,23 @@ export function ActivitySamples({
     { key: "temperature", label: "Temp °C", format: (v) => v.toFixed(1) },
   ];
   const channels = allChannels.filter((channel) =>
-    samples.some((sample) => Number.isFinite(sample[channel.key])),
+    samples.some((sample) => {
+      const value = sample[channel.key];
+      if (!Number.isFinite(value)) {
+        return false;
+      }
+      // Garmin reports a zero distance when it did not record distance at all,
+      // so a zero-only column is noise rather than data.
+      return channel.key === "distance" ? (value as number) > 0 : true;
+    }),
   );
+  const hasSpeed = samples.some((sample) => Number.isFinite(sample.speed));
+  const hasDistance = samples.some(
+    (sample) =>
+      Number.isFinite(sample.distance) && (sample.distance as number) > 0,
+  );
+  const paceUnavailable =
+    activityUsesPace(activityType) && !hasSpeed && !hasDistance;
 
   const start = Date.parse(samples[0]?.timestamp ?? "");
   const total = Math.max(sampleCount, samples.length);
@@ -86,6 +101,15 @@ export function ActivitySamples({
       >
         Recorded samples ({samples.length} of {total} shown)
       </summary>
+      {paceUnavailable && (
+        <p
+          className="px-2 py-1 text-muted-foreground"
+          data-testid="activity-pace-unavailable"
+        >
+          Garmin recorded no distance or speed for this activity, so pace is
+          unavailable.
+        </p>
+      )}
       <div className="max-h-64 overflow-auto">
         <table className="w-full text-left text-sm">
           <thead className="sticky top-0 bg-inset">
