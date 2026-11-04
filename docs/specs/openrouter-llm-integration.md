@@ -57,7 +57,8 @@ coach analysis on the main page.
 
 - Multiple providers per account (ADR 0004 follow-up).
 - Streaming responses / live "thinking" progress.
-- Cost/token accounting and budgets.
+- Budget alerts and spend limits. Token and cost accounting is now shown on the
+  AI costs page; see `docs/specs/ai-costs.md`.
 - Persisting full Garmin activities; the page still re-syncs from Garmin.
 - Chat-style coaching and pre-workout steering.
 

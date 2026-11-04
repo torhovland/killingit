@@ -99,7 +99,7 @@ export function axisTicks(domain: Domain, count = 4): number[] {
 }
 
 /** The round step closest to `span / count` at or above it. */
-function tickStep(span: number, count: number): number {
+export function tickStep(span: number, count: number): number {
   const raw = span / Math.max(1, count);
   if (!(raw > 0)) {
     return 1;

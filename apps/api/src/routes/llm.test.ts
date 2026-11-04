@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { LlmCatalogModel } from "@killingit/shared";
+import type { LlmCatalogModel, LlmCostsResponse } from "@killingit/shared";
 import { Hono } from "hono";
 import { requireAuth } from "../auth/middleware.js";
 import { keyFromRaw } from "../crypto/credentials.js";
@@ -91,6 +91,7 @@ function makeApp(
     ) => Promise<void>;
     provider?: LlmProvider;
     credentialsKey?: () => Promise<CryptoKey>;
+    loadCosts?: (userId: number) => Promise<LlmCostsResponse>;
   } = {},
 ) {
   const app = new Hono();
@@ -301,6 +302,62 @@ describe("GET /llm/catalog", () => {
         },
       ],
     });
+  });
+});
+
+describe("GET /llm/costs", () => {
+  it("returns the signed-in account's cost buckets", async () => {
+    const userIds: number[] = [];
+    const costs: LlmCostsResponse = {
+      monthly: [
+        {
+          bucket: "2026-11",
+          model: "openai/gpt",
+          label: "GPT",
+          costUsd: 0.42,
+          calls: 3,
+        },
+      ],
+      daily: [
+        {
+          bucket: "2026-11-04",
+          model: "openai/gpt",
+          label: "GPT",
+          costUsd: 0.12,
+          calls: 1,
+        },
+      ],
+    };
+    const app = makeApp(() => Promise.resolve(stored), {
+      loadCosts: (userId) => {
+        userIds.push(userId);
+        return Promise.resolve(costs);
+      },
+    });
+
+    const res = await app.fetch(
+      new Request("http://localhost/llm/costs", {
+        headers: { authorization: "Bearer anything" },
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(userIds).toEqual([42]);
+    expect(await res.json()).toEqual(costs);
+  });
+
+  it("returns 503 when the cost history cannot be loaded", async () => {
+    const app = makeApp(() => Promise.resolve(stored), {
+      loadCosts: () => Promise.reject(new Error("database down")),
+    });
+
+    const res = await app.fetch(
+      new Request("http://localhost/llm/costs", {
+        headers: { authorization: "Bearer anything" },
+      }),
+    );
+
+    expect(res.status).toBe(503);
   });
 });
 

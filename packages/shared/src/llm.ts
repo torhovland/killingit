@@ -178,6 +178,11 @@ export const llmCallUsageSchema = z.object({
   promptTokens: z.number().int().nonnegative().nullable(),
   completionTokens: z.number().int().nonnegative().nullable(),
   totalTokens: z.number().int().nonnegative().nullable(),
+  /**
+   * The amount OpenRouter charged for the request, in USD. Older call rows
+   * predate cost capture and have no value here.
+   */
+  costUsd: z.number().nonnegative().nullable().optional(),
 });
 
 export type LlmCallUsage = z.infer<typeof llmCallUsageSchema>;
@@ -216,6 +221,30 @@ export const llmCallsResponseSchema = z.object({
 });
 
 export type LlmCallsResponse = z.infer<typeof llmCallsResponseSchema>;
+
+/**
+ * The cost of one model's calls in one period. Monthly buckets use
+ * `YYYY-MM` and daily buckets use `YYYY-MM-DD`, both in UTC.
+ */
+export const llmCostBucketSchema = z.object({
+  bucket: z.string().min(1),
+  /** The routed model id, used as the stack's stable key. */
+  model: z.string().min(1),
+  /** The catalog's display name, or the model id when it is not in the catalog. */
+  label: z.string().min(1),
+  costUsd: z.number().nonnegative(),
+  calls: z.number().int().nonnegative(),
+});
+
+export type LlmCostBucket = z.infer<typeof llmCostBucketSchema>;
+
+/** Response body of `GET /api/llm/costs`, aggregated per month and per day. */
+export const llmCostsResponseSchema = z.object({
+  monthly: z.array(llmCostBucketSchema),
+  daily: z.array(llmCostBucketSchema),
+});
+
+export type LlmCostsResponse = z.infer<typeof llmCostsResponseSchema>;
 
 /** One non-null `modelsRemarks` value from a recent prompt log entry. */
 export const llmModelRemarkSchema = z.object({
