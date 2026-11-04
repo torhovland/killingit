@@ -205,7 +205,12 @@ about a past workout, or before a suggested workout, to steer the coach.
   cadence to rpm, matching Garmin Connect. Strength activities also carry their
   recorded exercise sets, repetitions, weights and rest intervals, and both the
   activity analysis and the program review use them; see
-  `docs/specs/garmin-strength-exercise-sets.md`. Further sport-specific Garmin
+  `docs/specs/garmin-strength-exercise-sets.md`. Activities also carry their
+  recorded laps with per-lap duration, distance, average and maximum power,
+  average and maximum heart rate, average speed, cadence and elevation, shown
+  as a collapsible table and given to the activity analysis, program review and
+  plan prompts so the coach can judge interval structure; see
+  `docs/specs/garmin-activity-laps.md`. Further sport-specific Garmin
   metrics and their proposed data model are assessed in
   `docs/specs/garmin-activity-metrics.md`.
   Daily health and recovery values (sleep, HRV, resting heart rate, stress,

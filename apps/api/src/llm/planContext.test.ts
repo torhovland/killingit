@@ -1,8 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import {
+  formatActivitySummary,
   formatDayPlan,
+  formatLaps,
   formatPlanContext,
   formatWeekPlan,
+  summarizeLaps,
   type PlanContextInput,
   type RecentActivityContext,
 } from "./planContext.js";
@@ -122,6 +125,66 @@ describe("formatPlanContext", () => {
       input({ recentActivities: [ride] }),
     ).join("\n");
     expect(rideText).toContain("20.00 km, 30.0 km/h, 40:00 moving");
+  });
+
+  const laps = [
+    {
+      index: 1,
+      type: "active",
+      movingTime: 600,
+      distance: 3050,
+      averagePower: 180,
+      maxPower: 240,
+      averageSpeed: 7.5,
+      averageHeartRate: 135,
+      maxHeartRate: 142,
+      averageCadence: 88,
+      totalElevationGain: 12,
+    },
+    { index: 2, type: "rest", movingTime: 120, averageHeartRate: 110 },
+  ];
+
+  it("lists each recorded lap with its averages", () => {
+    const lines = formatActivitySummary(
+      {
+        ...activity.summary,
+        type: "road_biking",
+        laps,
+      },
+      100,
+    );
+
+    expect(lines).toContain(
+      "- Lap 1 (active): 10:00, 3.05 km, avg 180 W, max 240 W, 27.0 km/h, avg 135 bpm, max 142 bpm, 88 rpm, 12 m climb",
+    );
+    expect(lines).toContain("- Lap 2 (rest): 2:00, avg 110 bpm");
+  });
+
+  it("summarises laps compactly in the plan context", () => {
+    const ride = {
+      ...activity,
+      summary: { ...activity.summary, type: "road_biking", laps },
+    };
+    const text = formatPlanContext(input({ recentActivities: [ride] })).join(
+      "\n",
+    );
+
+    expect(text).toContain(
+      "Laps: 2 recorded, lap avg power 180 W, lap avg HR 110–135 bpm",
+    );
+  });
+
+  it("bounds the lap table and reports how many were recorded", () => {
+    const many = Array.from({ length: 45 }, (_, index) => ({
+      index: index + 1,
+      movingTime: 60,
+    }));
+
+    const lines = formatLaps(many, "cycling");
+
+    expect(lines.filter((line) => line.startsWith("- Lap "))).toHaveLength(40);
+    expect(lines).toContain("(40 of 45 recorded laps shown.)");
+    expect(summarizeLaps(many)).toBe("45 recorded");
   });
 
   it("dates the profile so an undated weight is not read as today's", () => {

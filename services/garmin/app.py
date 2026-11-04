@@ -20,7 +20,8 @@ The /sync response activities are normalized to the same shape the web app and
 shared types expect: id, name, type, startDate (ISO 8601 UTC), distance (m),
 movingTime (s), elapsedTime (s), totalElevationGain (m), plus a `samples`
 timeseries normalized from Garmin's activity details (timestamp, location,
-heart rate, power, temperature, speed, distance, elevation, cadence).
+heart rate, power, temperature, speed, distance, elevation, cadence) and,
+when the device recorded them, `laps` with their averages.
 """
 
 from __future__ import annotations
@@ -54,6 +55,10 @@ SYNC_WINDOW_DAYS = 42
 # A strength session is normally a few dozen sets. The cap keeps an unusual
 # payload from bloating the sync response and the prompt.
 MAX_STRENGTH_SETS = 200
+
+# A long ride can record dozens of auto-laps. The cap bounds the stored feed
+# and the prompt without dropping the interval structure of a normal session.
+MAX_LAPS = 100
 
 # Where the library caches Garmin session tokens between calls. Configurable so
 # deployments can point it at a persistent volume; defaults to a private temp
@@ -156,6 +161,7 @@ def _sync(credentials: Credentials) -> list[dict]:
                     raw,
                     _samples_for(garmin, activity_id, activity_type),
                     _strength_sets_for(garmin, activity_id, activity_type),
+                    _laps_for(garmin, activity_id),
                 )
             )
         return activities
@@ -658,6 +664,25 @@ def _is_strength(activity_type: str) -> bool:
     return "strength" in normalized or "weight" in normalized or "gym" in normalized
 
 
+def _laps_for(garmin, activity_id) -> list[dict]:
+    """Fetch and normalize one activity's recorded laps.
+
+    The same fail-open/rate-limit split as the timeseries fetch applies: one bad
+    splits request leaves the activity with no laps rather than failing the
+    sync, while a rate limit is re-raised so the caller can surface `429`.
+    """
+    if activity_id is None:
+        return []
+    try:
+        payload = garmin.get_activity_splits(str(activity_id))
+    except GarminConnectTooManyRequestsError:
+        raise
+    except Exception:  # noqa: BLE001 - any library/network failure
+        logger.exception("Garmin activity splits fetch failed for %s", activity_id)
+        return []
+    return _to_laps(payload or {})
+
+
 def _to_strength_sets(payload: dict) -> list[dict]:
     """Normalize Garmin's exerciseSets response into stable set objects."""
     raw_sets = payload.get("exerciseSets") if isinstance(payload, dict) else None
@@ -737,10 +762,83 @@ def _exercise_weight_kg(value) -> float | None:
     return round(grams / 1000, 2)
 
 
+def _to_laps(payload: dict) -> list[dict]:
+    """Normalize Garmin's activity splits into stable lap objects.
+
+    Field names vary by device and sport, so each channel is read through its
+    documented aliases and omitted when absent. A lap that carries nothing but
+    its number tells the coach nothing and is dropped; the list is capped so an
+    unusual auto-lap payload cannot bloat the feed or the prompt.
+    """
+    raw_laps = payload.get("lapDTOs") if isinstance(payload, dict) else None
+    laps: list[dict] = []
+    for position, raw in enumerate(raw_laps or [], start=1):
+        if not isinstance(raw, dict):
+            continue
+        lap = _lap(raw, position)
+        if lap is not None:
+            laps.append(lap)
+        if len(laps) >= MAX_LAPS:
+            break
+    return laps
+
+
+def _lap(raw: dict, position: int) -> dict | None:
+    """Map one Garmin lap, or return None when it has no recorded values."""
+    index = _first_nonnegative(raw.get("lapIndex"), raw.get("lap"))
+    lap: dict = {"index": int(index) if index is not None else position}
+
+    intensity = raw.get("intensityType") or raw.get("lapType")
+    if isinstance(intensity, str) and intensity.strip() != "":
+        lap["type"] = intensity.strip().lower()
+
+    for key in ("startTimeGMT", "startTimeLocal"):
+        value = raw.get(key)
+        if value is not None:
+            lap["startTime"] = _iso(value)
+            break
+
+    for field, keys in (
+        ("distance", ("distance",)),
+        ("movingTime", ("movingDuration",)),
+        ("elapsedTime", ("duration",)),
+        ("averageHeartRate", ("averageHR", "avgHR")),
+        ("maxHeartRate", ("maxHR",)),
+        ("averagePower", ("averagePower", "avgPower")),
+        ("maxPower", ("maxPower",)),
+        ("averageSpeed", ("averageSpeed", "averageMovingSpeed", "avgSpeed")),
+        ("averageCadence", (
+            "averageBikeCadence",
+            "averageRunCadence",
+            "avgCadence",
+        )),
+    ):
+        value = _first_nonnegative(*(raw.get(key) for key in keys))
+        if value is not None:
+            lap[field] = value
+
+    elevation = _finite_or_none(raw.get("elevationGain"))
+    if elevation is not None:
+        lap["totalElevationGain"] = elevation
+
+    # The index alone is not recorded work.
+    return lap if len(lap) > 1 else None
+
+
+def _first_nonnegative(*values) -> float | None:
+    """Return the first finite value at or above zero, or None."""
+    for value in values:
+        number = _finite_or_none(value)
+        if number is not None and number >= 0:
+            return number
+    return None
+
+
 def _to_activity(
     raw: dict,
     samples: list[dict] | None = None,
     strength_sets: list[dict] | None = None,
+    laps: list[dict] | None = None,
 ) -> dict:
     """Map a Garmin activity to the shared normalized shape."""
 
@@ -785,6 +883,8 @@ def _to_activity(
         activity["maxSpeed"] = max_speed
     if strength_sets:
         activity["strengthSets"] = strength_sets
+    if laps:
+        activity["laps"] = laps
     return activity
 
 

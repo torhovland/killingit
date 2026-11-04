@@ -11,6 +11,7 @@ from garminconnect import GarminConnectTooManyRequestsError
 
 import app as sidecar
 from app import (
+    MAX_LAPS,
     SYNC_WINDOW_DAYS,
     Credentials,
     _body_fat_percent,
@@ -21,6 +22,7 @@ from app import (
     _to_activity,
     _to_body_metrics,
     _to_ftp_history,
+    _to_laps,
     _to_samples,
     _to_strength_sets,
     _weight_kg,
@@ -354,13 +356,129 @@ def test_to_samples_prefers_sum_distance_and_falls_back_to_direct_distance():
     ]["distance"] == 1100.0
 
 
-class _FakeGarmin:
-    """Stubs the two library calls used by _sync."""
+def test_to_laps_maps_a_real_shaped_lap_payload():
+    # Representative Garmin `get_activity_splits` payload: an interval workout
+    # whose lap field names match what Connect returns.
+    payload = {
+        "activityId": 42,
+        "lapDTOs": [
+            {
+                "lapIndex": 1,
+                "intensityType": "ACTIVE",
+                "startTimeGMT": "2026-10-01T06:30:00.0",
+                "duration": 600.0,
+                "movingDuration": 590.0,
+                "distance": 3000.0,
+                "averageHR": 135.0,
+                "maxHR": 142.0,
+                "averagePower": 180.0,
+                "maxPower": 260.0,
+                "averageSpeed": 5.0,
+                "averageBikeCadence": 88.0,
+                "elevationGain": 12.0,
+            },
+            {
+                "lapIndex": 2,
+                "intensityType": "ACTIVE",
+                "duration": 240.0,
+                "movingDuration": 240.0,
+                "distance": 1200.0,
+                "averageHR": 168.0,
+                "maxHR": 175.0,
+                "averagePower": 350.0,
+                "maxPower": 420.0,
+                "averageSpeed": 5.0,
+            },
+        ],
+    }
 
-    def __init__(self, details, failing_ids=()):
+    assert _to_laps(payload) == [
+        {
+            "index": 1,
+            "type": "active",
+            "startTime": "2026-10-01T06:30:00Z",
+            "distance": 3000.0,
+            "movingTime": 590.0,
+            "elapsedTime": 600.0,
+            "averageHeartRate": 135.0,
+            "maxHeartRate": 142.0,
+            "averagePower": 180.0,
+            "maxPower": 260.0,
+            "averageSpeed": 5.0,
+            "averageCadence": 88.0,
+            "totalElevationGain": 12.0,
+        },
+        {
+            "index": 2,
+            "type": "active",
+            "distance": 1200.0,
+            "movingTime": 240.0,
+            "elapsedTime": 240.0,
+            "averageHeartRate": 168.0,
+            "maxHeartRate": 175.0,
+            "averagePower": 350.0,
+            "maxPower": 420.0,
+            "averageSpeed": 5.0,
+        },
+    ]
+
+
+def test_to_laps_reads_alternate_keys_and_omits_absent_channels():
+    payload = {
+        "lapDTOs": [
+            {
+                "lap": 7,
+                "lapType": "INTERVAL",
+                "avgHR": 150,
+                "avgPower": 300,
+                "avgSpeed": 4.2,
+                "avgCadence": 90,
+            }
+        ]
+    }
+
+    assert _to_laps(payload) == [
+        {
+            "index": 7,
+            "type": "interval",
+            "averageHeartRate": 150.0,
+            "averagePower": 300.0,
+            "averageSpeed": 4.2,
+            "averageCadence": 90.0,
+        }
+    ]
+
+
+def test_to_laps_drops_a_lap_with_no_recorded_values():
+    assert _to_laps({"lapDTOs": [{"lapIndex": 1}, {"lapIndex": 2, "distance": 0}]}) == [
+        {"index": 2, "distance": 0.0}
+    ]
+
+
+def test_to_laps_falls_back_to_position_and_caps_the_list():
+    payload = {"lapDTOs": [{"distance": 1000}] * (MAX_LAPS + 5)}
+    laps = _to_laps(payload)
+    assert len(laps) == MAX_LAPS
+    assert laps[0]["index"] == 1
+    assert laps[-1]["index"] == MAX_LAPS
+
+
+def test_to_laps_tolerates_a_malformed_payload():
+    assert _to_laps({}) == []
+    assert _to_laps({"lapDTOs": None}) == []
+    assert _to_laps({"lapDTOs": ["not a lap"]}) == []
+
+
+class _FakeGarmin:
+    """Stubs the library calls used by _sync."""
+
+    def __init__(self, details, failing_ids=(), splits=None, failing_split_ids=()):
         self.details = details
         self.failing_ids = set(failing_ids)
+        self.splits = splits or {}
+        self.failing_split_ids = set(failing_split_ids)
         self.requested_ids = []
+        self.requested_split_ids = []
 
     def get_activities_by_date(self, startdate, enddate):
         return [
@@ -384,6 +502,12 @@ class _FakeGarmin:
             raise RuntimeError("details unavailable")
         return self.details
 
+    def get_activity_splits(self, activity_id):
+        self.requested_split_ids.append(activity_id)
+        if activity_id in self.failing_split_ids:
+            raise RuntimeError("splits unavailable")
+        return self.splits.get(activity_id, {})
+
 
 def test_sync_attaches_samples_and_survives_a_failed_detail_fetch(monkeypatch):
     fake = _FakeGarmin(
@@ -402,6 +526,39 @@ def test_sync_attaches_samples_and_survives_a_failed_detail_fetch(monkeypatch):
         {"timestamp": "2026-10-01T06:30:00Z", "heartRate": 140.0}
     ]
     assert activities[1]["samples"] == []
+
+
+def test_sync_attaches_laps_and_survives_a_failed_splits_fetch(monkeypatch):
+    fake = _FakeGarmin(
+        details=_details(
+            [1790836200000, 140],
+            descriptors=[(0, "directTimestamp"), (1, "directHeartRate")],
+        ),
+        splits={"1": {"lapDTOs": [{"lapIndex": 1, "distance": 5000, "averagePower": 250}]}},
+        failing_split_ids={"2"},
+    )
+    monkeypatch.setattr(sidecar, "_login", lambda credentials: fake)
+
+    activities = sidecar._sync(Credentials(username="u", password="p"))
+
+    assert fake.requested_split_ids == ["1", "2"]
+    assert activities[0]["laps"] == [
+        {"index": 1, "distance": 5000.0, "averagePower": 250.0}
+    ]
+    assert "laps" not in activities[1]
+
+
+def test_sync_maps_a_splits_rate_limit_to_rate_limited(monkeypatch):
+    class _RateLimitedFake(_FakeGarmin):
+        def get_activity_splits(self, activity_id):
+            raise GarminConnectTooManyRequestsError("429")
+
+    monkeypatch.setattr(
+        sidecar, "_login", lambda credentials: _RateLimitedFake(details={})
+    )
+
+    with pytest.raises(sidecar._RateLimitedError):
+        sidecar._sync(Credentials(username="u", password="p"))
 
 
 def test_sync_maps_a_detail_rate_limit_to_rate_limited(monkeypatch):

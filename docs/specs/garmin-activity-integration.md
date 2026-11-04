@@ -251,6 +251,17 @@ one swappable corner, and normalizes Garmin activities into the shared
   non-numeric channels omitted). `sumDistance` is preferred over
   `directDistance` for cumulative distance. A failed detail fetch yields
   `samples: []` for that activity rather than failing the sync.
+- **Laps from activity splits.** Each activity also triggers
+  `get_activity_splits()`, whose `lapDTOs` are mapped to a normalized `laps`
+  list with each lap's index, type, start time, distance, moving and elapsed
+  time, average and maximum power, average and maximum heart rate, average
+  speed, cadence and elevation gain. Channel names vary by device, so each is
+  read through documented aliases and omitted when absent; a lap with nothing
+  but its index is dropped, and the list is capped at 100 laps. A failed splits
+  fetch yields no `laps` for that activity rather than failing the sync. The
+  activity analysis and program review list every lap; the plan and reply
+  prompts get a compact power/HR range. The Activities page shows the laps in a
+  collapsible table. See `docs/specs/garmin-activity-laps.md`.
 
 ## Other sport-specific fields worth considering
 

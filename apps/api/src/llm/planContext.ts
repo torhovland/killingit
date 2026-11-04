@@ -3,9 +3,11 @@ import {
   WEATHER_ICON_LABELS,
   activityAverageSpeed,
   activityUsesPace,
+  cadenceUnit,
   formatActivityPaceOrSpeed,
   formatThresholdValue,
   interpretTrainingStressBalance,
+  type ActivityLap,
   type ActivitySummary,
   type BikeWorkout,
   type BlockPlan,
@@ -25,6 +27,9 @@ import { addDays, startOfWeek } from "../plans/dates.js";
 import { formatDuration } from "./duration.js";
 import { formatDailyHealthContext } from "./healthContext.js";
 import { WEEKLY_NOTE_SCOPE_RULE } from "./promptRules.js";
+
+/** Most laps listed individually; the rest are reported as a count. */
+const MAX_PROMPT_LAPS = 40;
 
 /** One interview question with the athlete's answer or explicit skip. */
 export interface AthleteAnswerContext {
@@ -794,6 +799,117 @@ function fastestSpeedLabel(type: string): string {
 }
 
 /**
+ * Renders one recorded lap's averages for a prompt. Only recorded values are
+ * listed, so a lap without power or heart rate does not claim a zero.
+ */
+function formatLap(lap: ActivityLap, activityType: string): string | null {
+  const parts: string[] = [];
+  const duration = lap.movingTime ?? lap.elapsedTime;
+  if (duration !== undefined) {
+    parts.push(formatDuration(duration));
+  }
+  if (lap.distance !== undefined && lap.distance > 0) {
+    parts.push(`${(lap.distance / 1000).toFixed(2)} km`);
+  }
+  if (lap.averagePower !== undefined) {
+    parts.push(`avg ${Math.round(lap.averagePower)} W`);
+  }
+  if (lap.maxPower !== undefined) {
+    parts.push(`max ${Math.round(lap.maxPower)} W`);
+  }
+  if (lap.averageSpeed !== undefined && lap.averageSpeed > 0) {
+    const paceOrSpeed = formatActivityPaceOrSpeed(
+      activityType,
+      lap.averageSpeed,
+    );
+    if (paceOrSpeed !== null) {
+      parts.push(paceOrSpeed);
+    }
+  }
+  if (lap.averageHeartRate !== undefined) {
+    parts.push(`avg ${Math.round(lap.averageHeartRate)} bpm`);
+  }
+  if (lap.maxHeartRate !== undefined) {
+    parts.push(`max ${Math.round(lap.maxHeartRate)} bpm`);
+  }
+  if (lap.averageCadence !== undefined) {
+    parts.push(
+      `${Math.round(lap.averageCadence)} ${cadenceUnit(activityType)}`,
+    );
+  }
+  if (lap.totalElevationGain !== undefined && lap.totalElevationGain > 0) {
+    parts.push(`${Math.round(lap.totalElevationGain)} m climb`);
+  }
+  if (parts.length === 0) {
+    return null;
+  }
+  const label = lap.type === undefined ? "" : ` (${lap.type})`;
+  return `- Lap ${lap.index}${label}: ${parts.join(", ")}`;
+}
+
+/**
+ * Renders the recorded laps with their averages, so the coach can judge
+ * whether an interval or tempo session was executed as prescribed. Bounded so
+ * a long auto-lap ride cannot dominate the prompt.
+ */
+export function formatLaps(
+  laps: readonly ActivityLap[],
+  activityType: string,
+): string[] {
+  const shown = laps.slice(0, MAX_PROMPT_LAPS);
+  const lines = shown
+    .map((lap) => formatLap(lap, activityType))
+    .filter((line): line is string => line !== null);
+  if (lines.length === 0) {
+    return [];
+  }
+  if (laps.length > shown.length) {
+    lines.push(`(${shown.length} of ${laps.length} recorded laps shown.)`);
+  }
+  return ["Recorded laps:", ...lines];
+}
+
+/** The min–max range of a lap channel with one unit, or null when unrecorded. */
+function lapRange(
+  values: readonly (number | undefined)[],
+  unit: string,
+): string | null {
+  const recorded = values.filter(
+    (value): value is number => value !== undefined && Number.isFinite(value),
+  );
+  if (recorded.length === 0) {
+    return null;
+  }
+  const min = Math.round(Math.min(...recorded));
+  const max = Math.round(Math.max(...recorded));
+  return min === max ? `${min} ${unit}` : `${min}–${max} ${unit}`;
+}
+
+/**
+ * A compact one-line lap summary for the plan and reply prompts. The activity
+ * analysis gets the full table; every other prompt only needs to know that the
+ * session had interval structure and how hard the laps were.
+ */
+export function summarizeLaps(laps: readonly ActivityLap[]): string {
+  const parts = [`${laps.length} recorded`];
+  const power = lapRange(
+    laps.map((lap) => lap.averagePower),
+    "W",
+  );
+  if (power !== null) {
+    parts.push(`lap avg power ${power}`);
+  }
+  const heartRate = lapRange(
+    laps.map((lap) => lap.averageHeartRate),
+    "bpm",
+  );
+  if (heartRate !== null) {
+    parts.push(`lap avg HR ${heartRate}`);
+  }
+  return parts.join(", ");
+}
+
+/**
  * Renders the recorded activity summary shared by the activity review and the
  * program review, so both prompts describe the same numbers the same way.
  */
@@ -810,6 +926,7 @@ export function formatActivitySummary(
     | "averageSpeed"
     | "maxSpeed"
     | "strengthSets"
+    | "laps"
   >,
   sampleCount: number,
 ): string[] {
@@ -840,6 +957,9 @@ export function formatActivitySummary(
   lines.push(`- Recorded samples: ${sampleCount}`);
   if (activity.strengthSets !== undefined) {
     lines.push(...formatStrengthSets(activity.strengthSets));
+  }
+  if (activity.laps !== undefined) {
+    lines.push(...formatLaps(activity.laps, activity.type));
   }
   return lines;
 }
@@ -878,6 +998,9 @@ function formatActivity(
     lines.push(
       `   Strength sets: ${summarizeStrengthSets(summary.strengthSets)}`,
     );
+  }
+  if (summary.laps !== undefined && summary.laps.length > 0) {
+    lines.push(`   Laps: ${summarizeLaps(summary.laps)}`);
   }
   if (analysis !== null && analysis.trim() !== "") {
     lines.push(`   Coach analysis: ${analysis.trim()}`);
