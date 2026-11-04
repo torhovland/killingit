@@ -15,6 +15,10 @@ header, outstanding activities, the plan, and the inputs that shape it.
 - The menu links to the coaching dashboard, fitness, activities, season review,
   coaching survey, settings, admin settings (admins only), and sign out.
 - The spinner reports `loading`, `syncing`, or `thinking` across any page.
+- While the browser offers installation, an `Install app` action sits next to
+  the account menu. A full-width notice under the header reports an offline
+  connection, and a second notice offers a reload when a new PWA version is
+  waiting.
 - On the main coaching page, the plan progress panel is visible whenever the
   header spinner is. A running plan generation shows its step and a determinate
   bar; any other busy action shows an indeterminate bar under that state's
@@ -66,8 +70,9 @@ estimated FTP over the same window. The data comes from `GET /api/fitness`; see
 ## Settings page
 
 Configures the display time zone, Garmin credentials, OpenRouter (API key and
-model), and the plan regeneration actions (start a new season or update the
-existing one). The time zone is an IANA zone stored on
+model), the plan regeneration actions (start a new season or update the
+existing one), and an install section that explains the PWA install state and
+the browser action when no prompt is available. The time zone is an IANA zone stored on
 the account; leaving it unset follows the device's zone. Activity timestamps and
 plan generation times are displayed in that local zone, and outgoing coaching
 requests send it to the API.

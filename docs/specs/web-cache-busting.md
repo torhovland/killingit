@@ -27,6 +27,8 @@ deployment no longer has.
    forever without ever being confused with a new file.
 4. `apps/web/src/webCacheHeaders.test.ts` asserts the policy so a later edit
    cannot quietly start caching the shell or stop fingerprinting the bundle.
+5. `_headers` names `/sw.js` and `/manifest.webmanifest` explicitly with
+   `no-cache`, because neither URL is fingerprinted.
 
 ### Out of scope
 
@@ -35,7 +37,9 @@ deployment no longer has.
   bundle it booted with until it reloads.
 - Cache headers for API responses; the API is served by Cloud Run, not Cloudflare
   Pages, and its responses are per-account.
-- Service workers or offline caching. The app has none.
+- Service worker cache contents and lifecycle. The PWA worker precaches the
+  static build and revalidates the shell network-first; this spec still governs
+  the HTTP cache policy for the files it fetches. See `docs/specs/pwa.md`.
 
 ## Why this policy
 

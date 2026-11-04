@@ -7,6 +7,19 @@
 /*
   Cache-Control: no-cache
 
+# The service worker is not fingerprinted: its URL stays /sw.js while its
+# content changes. Browsers already bypass long-lived HTTP caching for update
+# checks, and this explicit rule keeps the first request honest too.
+/sw.js
+  ! Cache-Control
+  Cache-Control: no-cache
+
+# The manifest changes only when branding or launch behaviour changes, but it
+# must not outlive a deploy in the browser HTTP cache.
+/manifest.webmanifest
+  ! Cache-Control
+  Cache-Control: no-cache
+
 # Vite fingerprints everything under /assets with a content hash, so a new
 # build always gets new URLs. Those files never change under a given URL and
 # can be cached for a year: the new shell asks for new names, and a page still
