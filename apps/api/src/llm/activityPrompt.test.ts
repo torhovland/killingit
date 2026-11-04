@@ -114,6 +114,43 @@ describe("buildActivityAnalysisPrompt", () => {
     expect(prompt).toContain("10:00 | 5.00 | 150 | 240");
   });
 
+  it("includes recorded laps with their averages", () => {
+    const prompt = buildActivityAnalysisPrompt(
+      makeActivity({
+        laps: [
+          {
+            index: 1,
+            type: "active",
+            movingTime: 600,
+            distance: 3050,
+            averagePower: 180,
+            maxPower: 240,
+            averageSpeed: 7.5,
+            averageHeartRate: 135,
+            maxHeartRate: 142,
+            averageCadence: 88,
+            totalElevationGain: 12,
+          },
+          { index: 2, type: "rest", movingTime: 120, averageHeartRate: 110 },
+        ],
+      }),
+    );
+
+    expect(prompt).toContain("Recorded laps:");
+    expect(prompt).toContain(
+      "- Lap 1 (active): 10:00, 3.05 km, avg 180 W, max 240 W, 27.0 km/h, avg 135 bpm, max 142 bpm, 88 rpm, 12 m climb",
+    );
+    expect(prompt).toContain("- Lap 2 (rest): 2:00, avg 110 bpm");
+  });
+
+  it("omits a single recorded lap", () => {
+    const prompt = buildActivityAnalysisPrompt(
+      makeActivity({ laps: [{ index: 1, movingTime: 2400 }] }),
+    );
+
+    expect(prompt).not.toContain("Recorded laps:");
+  });
+
   it("labels running cadence in steps per minute", () => {
     const prompt = buildActivityAnalysisPrompt(
       makeActivity({ type: "running" }),

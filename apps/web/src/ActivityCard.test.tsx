@@ -58,6 +58,28 @@ describe("ActivityCard", () => {
     expect(ride).toContain("12.0 km/h");
   });
 
+  it("shows the lap table only when a session has more than one lap", () => {
+    const multi = renderToStaticMarkup(
+      <ActivityCard
+        activity={{
+          ...activity,
+          laps: [
+            { index: 1, movingTime: 300, distance: 1000 },
+            { index: 2, movingTime: 300, distance: 1000 },
+          ],
+        }}
+      />,
+    );
+    expect(multi).toContain('data-testid="activity-laps"');
+
+    const single = renderToStaticMarkup(
+      <ActivityCard
+        activity={{ ...activity, laps: [{ index: 1, movingTime: 600 }] }}
+      />,
+    );
+    expect(single).not.toContain('data-testid="activity-laps"');
+  });
+
   it("renders lists in the analysis and coach reply as HTML lists", () => {
     const html = renderToStaticMarkup(
       <ActivityCard

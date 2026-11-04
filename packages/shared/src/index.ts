@@ -63,6 +63,7 @@ export {
 export {
   activitiesResponseSchema,
   activityAverageSpeed,
+  activityLapSchema,
   activitySampleSchema,
   activitySchema,
   activitySummarySchema,
@@ -72,6 +73,7 @@ export {
   formatActivityType,
   formatPace,
   formatSpeed,
+  hasLapStructure,
   isRunningActivity,
   paceUnitLabel,
   paceUnitMetres,
@@ -80,6 +82,7 @@ export {
   strengthSetSchema,
   type ActivitiesResponse,
   type Activity,
+  type ActivityLap,
   type ActivitySample,
   type ActivitySummary,
   type RoutePoint,

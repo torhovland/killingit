@@ -83,6 +83,13 @@ pytest
   weight (converted from grams to kilograms) and rest intervals recorded with
   the activity. Non-strength activities have no `strengthSets` field. A failed
   set fetch leaves the activity without sets; a `429` still fails the sync.
+- Activities also carry `laps`, from `get_activity_splits()`: each lap's index,
+  type, start time, distance, moving/elapsed time, average and maximum power,
+  average and maximum heart rate, average speed, cadence and elevation gain.
+  Unrecorded channels are omitted and the list is capped at 100 laps. A
+  single-lap result is treated as no laps, because it only restates the whole
+  activity. A failed splits fetch leaves the activity without laps; a `429`
+  still fails the sync.
 - `/daily` combines Garmin's daily stats bundle with sleep, training readiness
   and max metrics. It returns only the values that were recorded, using the
   stable metric keys in `packages/shared/src/health.ts`. Body composition stays

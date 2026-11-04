@@ -30,6 +30,37 @@ export const strengthSetSchema = z.object({
 export type StrengthSet = z.infer<typeof strengthSetSchema>;
 
 /**
+ * One recorded lap (or auto-lap/interval split) of an activity. Garmin records
+ * active and rest laps separately; absent channels are omitted rather than
+ * zeroed, so a lap without power does not claim `0 W`. Times are seconds,
+ * distance and elevation are metres, and speed is metres per second.
+ */
+export const activityLapSchema = z.object({
+  /** 1-based lap number as the device recorded it. */
+  index: z.number().int().nonnegative(),
+  /** `active`, `rest` or an interval label, as the source reports it. */
+  type: z.string().trim().min(1).optional(),
+  /** ISO-8601 UTC start of the lap. */
+  startTime: z.string().datetime().optional(),
+  distance: z.number().nonnegative().optional(),
+  /** Moving time when the source reports it, otherwise omitted. */
+  movingTime: z.number().nonnegative().optional(),
+  /** Elapsed time of the lap. */
+  elapsedTime: z.number().nonnegative().optional(),
+  averageHeartRate: z.number().nonnegative().optional(),
+  maxHeartRate: z.number().nonnegative().optional(),
+  averagePower: z.number().nonnegative().optional(),
+  maxPower: z.number().nonnegative().optional(),
+  /** Mean speed in metres per second; render as pace for pace-based sports. */
+  averageSpeed: z.number().nonnegative().optional(),
+  /** Mean cadence in the sport's unit (rpm for cycling, steps/min for runs). */
+  averageCadence: z.number().nonnegative().optional(),
+  totalElevationGain: z.number().optional(),
+});
+
+export type ActivityLap = z.infer<typeof activityLapSchema>;
+
+/**
  * A normalized, minimal summary of an activity from any data source (currently
  * Garmin; a future source maps into the same shape). Only the fields the
  * coaching features will need — kept intentionally small (ADR 0003
@@ -65,6 +96,11 @@ export const activitySummarySchema = z.object({
    * exercise data have this field; absent means none were recorded.
    */
   strengthSets: z.array(strengthSetSchema).optional(),
+  /**
+   * Recorded laps (auto-laps or interval splits) with their averages. Absent
+   * when the source recorded none, which is different from an empty list.
+   */
+  laps: z.array(activityLapSchema).optional(),
 });
 
 export type ActivitySummary = z.infer<typeof activitySummarySchema>;
@@ -132,6 +168,16 @@ const PACE_ACTIVITY_PATTERN = /run|jog|walk|hik|swim|row|ski/;
  * and rowing and swimming report strokes per minute.
  */
 const STEP_CADENCE_PATTERN = /run|jog|walk|hik|row|swim/;
+
+/**
+ * Whether an activity's recorded laps carry interval structure. A single lap
+ * only restates the whole activity, so it is treated as no laps at all.
+ */
+export function hasLapStructure(
+  laps: readonly ActivityLap[] | undefined,
+): laps is readonly ActivityLap[] {
+  return laps !== undefined && laps.length > 1;
+}
 
 /**
  * Whether a normalized activity type is a run. Running cadence is measured in

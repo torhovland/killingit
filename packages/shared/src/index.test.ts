@@ -9,6 +9,7 @@ import {
   formatActivityType,
   formatPace,
   formatSpeed,
+  hasLapStructure,
   isRunningActivity,
   greetingSchema,
   healthSchema,
@@ -91,6 +92,37 @@ describe("activitySchema", () => {
     });
     expect(parsed.averageSpeed).toBe(3.2);
     expect(parsed.maxSpeed).toBe(4.1);
+  });
+
+  it("carries recorded laps with their averages", () => {
+    const lap = {
+      index: 2,
+      type: "active",
+      distance: 1200,
+      movingTime: 240,
+      averageHeartRate: 168,
+      maxHeartRate: 175,
+      averagePower: 350,
+      maxPower: 420,
+      averageSpeed: 5,
+      averageCadence: 90,
+      totalElevationGain: 8,
+    };
+    const parsed = activitySchema.parse({ ...summary, laps: [lap] });
+
+    expect(parsed.laps).toEqual([lap]);
+  });
+
+  it("leaves laps absent when none were recorded", () => {
+    expect(activitySchema.parse(summary).laps).toBeUndefined();
+  });
+});
+
+describe("hasLapStructure", () => {
+  it("counts only two or more laps as interval structure", () => {
+    expect(hasLapStructure(undefined)).toBe(false);
+    expect(hasLapStructure([{ index: 1 }])).toBe(false);
+    expect(hasLapStructure([{ index: 1 }, { index: 2 }])).toBe(true);
   });
 });
 

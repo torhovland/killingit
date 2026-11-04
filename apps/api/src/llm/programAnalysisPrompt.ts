@@ -24,6 +24,7 @@ import {
   DURATION_TOLERANCE_RULES,
   GLOBAL_PROMPT_RULES,
   promptSections,
+  LAP_STRUCTURE_RULES,
   STRENGTH_SET_RULES,
   TEXT_FORMATTING_RULES,
   RETURN_JSON_FROM_SYSTEM_PROMPT,
@@ -33,7 +34,7 @@ import {
  * Bump when the review prompt or generation parameters change materially. Cached
  * program reviews from an older version are ignored and regenerated.
  */
-export const PROGRAM_ANALYSIS_PROMPT_VERSION = 12;
+export const PROGRAM_ANALYSIS_PROMPT_VERSION = 13;
 
 export interface ProgramAnalysisInput {
   today: string;
@@ -61,6 +62,7 @@ const PROGRAM_ANALYSIS_SYSTEM_PROMPT = promptSections(
   DURATION_TOLERANCE_RULES,
   "Use 2-3 sentences and finish with one actionable takeaway. Use a short bullet list when the workout has several points worth noting. The takeaway must follow from a real improvement: when the workout went to plan, build on it instead of inventing a correction.",
   STRENGTH_SET_RULES,
+  LAP_STRUCTURE_RULES,
   DAILY_HEALTH_RULES,
   ACTIVITY_FTP_ESTIMATE_RULES,
   ACTIVITY_BODY_METRIC_RULES,

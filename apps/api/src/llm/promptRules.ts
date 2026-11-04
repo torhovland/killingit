@@ -234,6 +234,13 @@ export const ACTIVITY_TYPE_RULE = `The activity type recorded by the device is o
  */
 export const STRENGTH_SET_RULES = `When a completed strength session includes recorded sets, those sets are what the athlete actually performed: use the exercise, repetitions, weight and rest intervals to judge the session. Do not invent exercises, sets, repetitions or loads that are not listed, and do not assume a strength workout was performed when no sets are given.`;
 
+/**
+ * How the coach uses recorded laps. Shared by the general activity analysis
+ * and the program review so both read interval structure from the same data
+ * instead of guessing it from the summary alone.
+ */
+export const LAP_STRUCTURE_RULES = `When recorded laps are provided, treat them as the athlete's actual interval structure: compare the work laps with each other and with any prescribed intervals, and call out a lap that faded, was cut short, or was clearly off the prescribed intensity. Judge each lap from its own averages rather than the whole-activity average. When no laps are provided, do not claim to know the interval structure.`;
+
 /** The FTP estimate every activity review reports when the effort supports one. */
 export const ACTIVITY_FTP_ESTIMATE_RULES = `${ACTIVITY_DATA_LIMITS_RULE} Also estimate the athlete's FTP after this workout when the recorded effort supports it. Use the supplied FTP history as the baseline, respect its trend, and never invent a large jump. Set "estimatedFtpWatts" to null when the activity gives no useful evidence (for example a rest day, a strength session, a workout with no power or hard aerobic effort, or an activity with neither power nor usable heart-rate data); do not guess an FTP change from incomplete recordings.`;
 

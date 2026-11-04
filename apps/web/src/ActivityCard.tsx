@@ -3,9 +3,11 @@ import {
   activityAverageSpeed,
   formatActivityPaceOrSpeed,
   formatActivityType,
+  hasLapStructure,
   type AnalyzedActivity,
 } from "@killingit/shared";
 import { ActivityMap } from "./ActivityMap";
+import { ActivityLaps } from "./ActivityLaps";
 import { ActivitySamples } from "./ActivitySamples";
 import { Bullet, Bullets } from "./Bullet";
 import { formatDuration } from "./formatDuration";
@@ -226,6 +228,10 @@ export function ActivityCard({
           sampleCount={activity.sampleCount}
           activityType={activity.type}
         />
+      )}
+
+      {hasLapStructure(activity.laps) && (
+        <ActivityLaps laps={activity.laps} activityType={activity.type} />
       )}
 
       {shownComment && (

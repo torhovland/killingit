@@ -34,6 +34,7 @@ import {
   DURATION_TOLERANCE_RULES,
   GLOBAL_PROMPT_RULES,
   promptSections,
+  LAP_STRUCTURE_RULES,
   STRENGTH_SET_RULES,
   TEXT_FORMATTING_RULES,
   RETURN_JSON_FROM_SYSTEM_PROMPT,
@@ -48,7 +49,7 @@ export const MAX_PROMPT_SAMPLES = 90;
  * Bump when the prompt or generation parameters change materially. Cached
  * analyses from an older version are ignored and regenerated.
  */
-export const ANALYSIS_PROMPT_VERSION = 15;
+export const ANALYSIS_PROMPT_VERSION = 16;
 
 /**
  * The athlete's current week, used to match an activity to its planned session
@@ -78,6 +79,7 @@ const ANALYSIS_SYSTEM_PROMPT = promptSections(
   DURATION_TOLERANCE_RULES,
   "Be brief and to the point: use 2-3 sentences for the assessment, cite only the most useful numbers, and finish with one actionable recommendation for the next session. Use a short bullet list when the session has several points worth noting. The recommendation must follow from a real improvement: when the session went to plan, build on it instead of inventing a correction. Do not add a separate plan-fit section.",
   STRENGTH_SET_RULES,
+  LAP_STRUCTURE_RULES,
   DAILY_HEALTH_RULES,
   ACTIVITY_FTP_ESTIMATE_RULES,
   ACTIVITY_BODY_METRIC_RULES,
