@@ -349,6 +349,10 @@ Application roles live in the `users` table, not in provider tokens. The first
 account provisioned in an environment is the admin; later accounts are members.
 Only the admin can manage athlete questions (see ADR 0006).
 
+A visitor who is not signed in sees the landing page in
+`apps/web/src/SignInPage.tsx`: a short explanation of the coach, what it covers,
+and a single sign-in action. See `docs/specs/signed-out-landing.md`.
+
 ### Error monitoring
 
 - **Sentry.io has a free plan** ("Developer"): 5,000 errors/month, 5M spans,

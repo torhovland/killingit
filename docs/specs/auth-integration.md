@@ -43,9 +43,9 @@ my profile" feature that follows.
    athlete's `sub`.
 3. A request with an **invalid** token (bad signature, wrong `aud`, wrong
    `iss`, expired) returns **401**, never **500**.
-4. In the web app, an unauthenticated user sees a sign-in button; after signing
-   in, they see a sign-out button and the app attaches the access token to
-   protected API calls.
+4. In the web app, an unauthenticated user sees a sign-in landing page that
+   explains what the app does; after signing in, they see a sign-out button and
+   the app attaches the access token to protected API calls.
 5. The API's auth logic depends only on a `AuthProvider` interface; the Auth0
    specifics live in one adapter module.
 6. Unit tests cover token verification (valid + each rejection reason); an
