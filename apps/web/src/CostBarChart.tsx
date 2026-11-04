@@ -109,7 +109,7 @@ export function CostBarChart({
               y={0}
               width={PLOT_WIDTH}
               height={PLOT_HEIGHT}
-              className="fill-chart-plot"
+              className="fill-card"
             />
             {axis.ticks.map((tick) => {
               const y = PLOT_HEIGHT - (tick / axis.max) * PLOT_HEIGHT;
@@ -120,7 +120,7 @@ export function CostBarChart({
                     x2={PLOT_WIDTH}
                     y1={y}
                     y2={y}
-                    className="stroke-chart-ink-muted/20"
+                    className="stroke-border"
                     strokeWidth={1}
                   />
                   <text
@@ -141,7 +141,7 @@ export function CostBarChart({
                 y={0}
                 width={slot}
                 height={PLOT_HEIGHT}
-                className="fill-chart-ink/5"
+                className="fill-foreground/10"
               />
             )}
             {data.buckets.map((bucket, index) => (

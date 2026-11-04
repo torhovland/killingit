@@ -46,6 +46,9 @@ describe("CostBarChart", () => {
     expect(html).toContain("GPT");
     expect(html).toContain("Claude");
     expect(html).toContain("$2.75 in this period");
+    // The plot matches the Fitness page, with light-blue REM-style bars.
+    expect(html).toContain('class="fill-card"');
+    expect(html).toContain("fill-form-fresh");
   });
 
   it("shows the empty message when the period has no spend", () => {

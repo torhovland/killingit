@@ -1,23 +1,27 @@
-/** Fills for the stacked cost bars, in the chart's model order. */
+/**
+ * Fills for the stacked cost bars. Every model uses the light blue of the
+ * Fitness page's REM-sleep band, with descending opacity so the stack stays
+ * readable when more than one model contributed to a period.
+ */
 export const COST_SERIES_FILL = [
-  "fill-chart-series-1",
-  "fill-chart-series-2",
-  "fill-chart-series-3",
-  "fill-chart-series-4",
-  "fill-chart-series-5",
-  "fill-chart-series-6",
-  "fill-chart-series-7",
-  "fill-chart-series-8",
+  "fill-form-fresh",
+  "fill-form-fresh/70",
+  "fill-form-fresh/50",
+  "fill-form-fresh/35",
+  "fill-form-fresh/25",
+  "fill-form-fresh/18",
+  "fill-form-fresh/12",
+  "fill-form-fresh/8",
 ] as const;
 
-/** Swatches for the cost chart legend, in the chart's model order. */
+/** Swatches for the cost chart legend, matching the bar fills. */
 export const COST_SERIES_SWATCH = [
-  "bg-chart-series-1",
-  "bg-chart-series-2",
-  "bg-chart-series-3",
-  "bg-chart-series-4",
-  "bg-chart-series-5",
-  "bg-chart-series-6",
-  "bg-chart-series-7",
-  "bg-chart-series-8",
+  "bg-form-fresh",
+  "bg-form-fresh/70",
+  "bg-form-fresh/50",
+  "bg-form-fresh/35",
+  "bg-form-fresh/25",
+  "bg-form-fresh/18",
+  "bg-form-fresh/12",
+  "bg-form-fresh/8",
 ] as const;

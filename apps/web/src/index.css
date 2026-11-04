@@ -127,16 +127,6 @@
   --chart-plot: #ffffff;
   --chart-ink: var(--palette-navy);
   --chart-ink-muted: var(--palette-steel);
-  /* Stacked cost bars, ordered by the chart. Dark inks keep each segment
-   * readable on the white plot and distinct from its neighbours. */
-  --chart-series-1: var(--palette-navy);
-  --chart-series-2: var(--palette-steel);
-  --chart-series-3: color-mix(in srgb, var(--palette-periwinkle) 55%, #000);
-  --chart-series-4: var(--form-productive-line);
-  --chart-series-5: var(--form-detraining-line);
-  --chart-series-6: var(--form-fresh-line);
-  --chart-series-7: var(--form-risk-line);
-  --chart-series-8: color-mix(in srgb, var(--palette-lime) 52%, #000);
 
   color-scheme: dark;
 }
@@ -170,14 +160,6 @@
   --color-chart-plot: var(--chart-plot);
   --color-chart-ink: var(--chart-ink);
   --color-chart-ink-muted: var(--chart-ink-muted);
-  --color-chart-series-1: var(--chart-series-1);
-  --color-chart-series-2: var(--chart-series-2);
-  --color-chart-series-3: var(--chart-series-3);
-  --color-chart-series-4: var(--chart-series-4);
-  --color-chart-series-5: var(--chart-series-5);
-  --color-chart-series-6: var(--chart-series-6);
-  --color-chart-series-7: var(--chart-series-7);
-  --color-chart-series-8: var(--chart-series-8);
 }
 
 @layer base {
