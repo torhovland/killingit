@@ -1041,6 +1041,43 @@ export type CoachPlanRow = typeof coachPlans.$inferSelect;
 export type NewCoachPlan = typeof coachPlans.$inferInsert;
 
 /**
+ * The planned time and training stress for one Monday-start week, kept after
+ * the week leaves the stored plan. The plan only carries the current and next
+ * week, so without this record a completed week would lose the plan it was
+ * measured against. The row is rewritten whenever a plan covering the week is
+ * saved.
+ */
+export const planWeekTotals = pgTable(
+  "plan_week_totals",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    weekStartDate: text("week_start_date").notNull(),
+    plannedMinutes: integer("planned_minutes").notNull(),
+    plannedTss: integer("planned_tss").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("plan_week_totals_user_id_week_start_date_idx").on(
+      table.userId,
+      table.weekStartDate,
+    ),
+    check("plan_week_totals_minutes_check", sql`${table.plannedMinutes} >= 0`),
+    check("plan_week_totals_tss_check", sql`${table.plannedTss} >= 0`),
+  ],
+);
+
+export type PlanWeekTotalsRow = typeof planWeekTotals.$inferSelect;
+export type NewPlanWeekTotals = typeof planWeekTotals.$inferInsert;
+
+/**
  * Per-user generation status used by the UI to show progress while the coach is
  * thinking. A single row is upserted; `begin` refuses to start a second run
  * while the status is `running`.

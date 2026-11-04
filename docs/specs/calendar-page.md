@@ -85,11 +85,15 @@ comment, the coach's response, and the route map for outdoor activities.
   would repeat the block name. The box also totals the planned workouts and
   gives the week's completed and planned time and TSS. A week with no plan data
   and no recorded work shows `No plan yet`.
-- Planned time and TSS come from the stored plan's workout sessions. Completed
-  time is the recorded elapsed time of imported activities. Completed TSS is
-  each imported activity's own score plus a manual entry's estimate; an older
-  cached payload without per-activity scores counts the day's snapshot once.
-  A manual entry has no duration, so it adds no time.
+- Planned time and TSS come from the stored plan's workout sessions, and are
+  recorded per week when a plan covering it is saved, so a previous week keeps
+  the plan it was measured against after the coach moves on. Completed time is
+  the recorded elapsed time of imported activities. Completed TSS is each
+  imported activity's own score plus a manual entry's estimate; an older cached
+  payload without per-activity scores counts the day's snapshot once. A manual
+  entry has no duration, so it adds no time.
+- A future week with nothing planned and nothing recorded hides its statistics;
+  the box still shows the week's block, number, focus and target load.
 - The week number comes from the season block covering the week, counted from
   the block's first week, and from the block plan's week `number` when the coach
   has detailed the week, so it matches the Block tab.
@@ -122,9 +126,12 @@ API:
 - `apps/api/src/routes/calendar.ts`: `buildCalendar` (pure), `weekOutlines`
   (week summaries from the season blocks, active and next block week plans, and
   current and next week), `weekStats`, and the route.
+- `apps/api/src/plans/weekTotals.ts`: the planned totals of the weeks a plan
+  details, written with every plan save and read by the calendar.
 - Registered at `/api/calendar` behind `requireAuth`.
 - The endpoint reads `coach_plans`, `activity_feed_cache`, `manual_activities`,
-  `coach_replies`, and `athlete_events`.
+  `coach_replies`, `athlete_events`, and `plan_week_totals`. Migration `0045`
+  creates `athlete_events`; migration `0046` creates `plan_week_totals`.
 
 ## UI
 
@@ -137,6 +144,10 @@ API:
   grid inside its horizontal scroll container keeps padding; without it the
   scroll clip hides the right side of the ring on a Sunday.
 - `calendarDates.ts` holds the pure UTC month helpers.
+- The calendar uses a wider content panel than the other pages so the wide week
+  box and the seven day columns fit without a horizontal scroll on a desktop
+  viewport. A narrow viewport still scrolls the month grid.
+- The month arrows are fixed-size chevron icons in square, flex-centred buttons.
 
 ## Acceptance criteria
 

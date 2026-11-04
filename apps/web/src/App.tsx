@@ -124,6 +124,10 @@ function AppShell() {
   }
 
   const signedIn = auth.isAuthenticated;
+  // The month grid needs room for a wide week box plus seven day columns, so
+  // the calendar gets a wider content panel than the other pages.
+  const contentWidth =
+    signedIn && page === "calendar" ? "max-w-7xl" : "max-w-5xl";
 
   return (
     <TimeZoneProvider timeZone={timeZone}>
@@ -184,7 +188,9 @@ function AppShell() {
             onReload={() => pwa.reloadForUpdate()}
           />
 
-          <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-0 py-4 sm:px-4 sm:py-6">
+          <div
+            className={`mx-auto flex w-full ${contentWidth} flex-col gap-4 px-0 py-4 sm:px-4 sm:py-6`}
+          >
             {error && <p className="text-destructive">Error: {error}</p>}
 
             {!signedIn ? (

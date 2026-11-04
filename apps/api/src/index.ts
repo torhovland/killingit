@@ -93,6 +93,7 @@ import {
   loadFtpHistoryForUser,
 } from "./metrics/store.js";
 import { loadFitnessHistory } from "./training/history.js";
+import { loadPlanWeekTotals } from "./plans/weekTotals.js";
 import { dbUserStore, type UserStore } from "./users/store.js";
 import type { searchLocations } from "./weather/geocode.js";
 
@@ -134,6 +135,8 @@ export interface AppDependencies {
   syncAthleteEvents?: typeof syncAthleteEvents;
   /** Stored dated goals and events, injectable for DB-free route tests. */
   loadEvents?: typeof loadAthleteEvents;
+  /** Stored weekly plan totals, injectable for DB-free route tests. */
+  loadWeekTotals?: typeof loadPlanWeekTotals;
   loadCachedFeed?: typeof loadCachedActivityFeed;
   /** Injectable for route tests; defaults to the stored activity feedback. */
   loadActivityFeedback?: typeof loadActivityFeedback;
@@ -419,6 +422,9 @@ export function createApp(deps: AppDependencies = {}): Hono {
         ? { loadManualActivityReplies: deps.loadManualActivityReplies }
         : {}),
       ...(deps.loadEvents !== undefined ? { loadEvents: deps.loadEvents } : {}),
+      ...(deps.loadWeekTotals !== undefined
+        ? { loadWeekTotals: deps.loadWeekTotals }
+        : {}),
     }),
   );
 

@@ -183,6 +183,7 @@ export function CalendarView({
                     weekStart={weekStart}
                     week={weeksByStart.get(weekStart)}
                     days={weekDays}
+                    today={today}
                   />
                   {row.map((cell, index) => (
                     <CalendarCell
@@ -254,10 +255,12 @@ function WeekOverview({
   weekStart,
   week,
   days,
+  today,
 }: {
   weekStart: string;
   week: CalendarWeek | undefined;
   days: Array<CalendarDay | undefined>;
+  today: string;
 }) {
   const sessions = days
     .map((day) => day?.session)
@@ -273,7 +276,14 @@ function WeekOverview({
         week.focus !== null ||
         week.weekNumber !== null ||
         stats.plannedMinutes > 0));
-  const hasRecorded = stats.completedMinutes > 0 || stats.completedTss > 0;
+  const hasStats =
+    stats.plannedMinutes > 0 ||
+    stats.completedMinutes > 0 ||
+    stats.plannedTss > 0 ||
+    stats.completedTss > 0;
+  // A future week with nothing planned yet has no statistics to report. Past and
+  // current weeks keep their record even when the numbers are zero.
+  const showStats = hasStats || weekStart <= today;
 
   return (
     <div
@@ -315,7 +325,7 @@ function WeekOverview({
           {sessions.length} workout{sessions.length === 1 ? "" : "s"}
         </span>
       )}
-      {(hasPlan || hasRecorded) && (
+      {showStats && (
         <div
           className="flex flex-col gap-0.5 text-xs text-muted-foreground"
           data-testid="calendar-week-stats"
@@ -336,7 +346,7 @@ function WeekOverview({
           </span>
         </div>
       )}
-      {!hasPlan && !hasRecorded && (
+      {!hasPlan && !hasStats && (
         <span className="text-muted-foreground">No plan yet</span>
       )}
     </div>

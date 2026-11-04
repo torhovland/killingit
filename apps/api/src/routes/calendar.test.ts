@@ -9,6 +9,7 @@ import { createApp } from "../index.js";
 import type { ManualActivityContext } from "../llm/planContext.js";
 import type { StoredCoachReply } from "../plans/replies.js";
 import type { PlanStore, StoredPlan } from "../plans/store.js";
+import type { WeekPlanTotals } from "../plans/weekTotals.js";
 import type { QuestionAnswerStore } from "../questions/answers.js";
 import type { UserStore } from "../users/store.js";
 import { buildCalendar } from "./calendar.js";
@@ -229,7 +230,9 @@ const answers: QuestionAnswerStore = {
   saveAnswers: () => Promise.resolve(true),
 };
 
-function makeApp(): ReturnType<typeof createApp> {
+function makeApp(
+  options: { weekTotals?: Map<string, WeekPlanTotals> } = {},
+): ReturnType<typeof createApp> {
   return createApp({
     authProvider: { verify: () => Promise.resolve({ sub: "athlete-1" }) },
     userStore,
@@ -245,6 +248,7 @@ function makeApp(): ReturnType<typeof createApp> {
     loadManualActivities: () => Promise.resolve(manualActivities),
     loadManualActivityReplies: () => Promise.resolve(manualReplies),
     loadEvents: () => Promise.resolve(events),
+    loadWeekTotals: () => Promise.resolve(options.weekTotals ?? new Map()),
   });
 }
 
@@ -347,6 +351,23 @@ describe("calendar route", () => {
     const manual = weeks.get("2026-10-05");
     expect(manual?.stats.completedMinutes).toBe(0);
     expect(manual?.stats.completedTss).toBe(80);
+  });
+
+  it("keeps a previous week's planned totals after the plan moved on", async () => {
+    const res = await makeApp({
+      weekTotals: new Map([
+        ["2026-10-12", { plannedMinutes: 300, plannedTss: 280 }],
+        // A stale stored value must not override the live plan's week.
+        ["2026-10-19", { plannedMinutes: 1, plannedTss: 1 }],
+      ]),
+    }).fetch(authenticatedRequest("/api/calendar?today=2026-10-22"));
+
+    const body = (await res.json()) as CalendarResponse;
+    const weeks = new Map(body.weeks.map((week) => [week.startDate, week]));
+    expect(weeks.get("2026-10-12")?.stats.plannedMinutes).toBe(300);
+    expect(weeks.get("2026-10-12")?.stats.plannedTss).toBe(280);
+    expect(weeks.get("2026-10-19")?.stats.plannedMinutes).toBe(360);
+    expect(weeks.get("2026-10-19")?.stats.plannedTss).toBe(330);
   });
 
   it("extends the calendar range to a date the athlete mentioned", () => {

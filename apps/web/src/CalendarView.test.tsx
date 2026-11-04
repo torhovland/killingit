@@ -187,6 +187,17 @@ function openingTag(html: string, attribute: string): string {
   return html.slice(html.lastIndexOf("<", index), html.indexOf(">", index) + 1);
 }
 
+/** The markup for one week row, from its overview to the next row. */
+function weekBlock(
+  html: string,
+  weekStart: string,
+  nextWeekStart: string,
+): string {
+  const start = html.indexOf(`data-week-start="${weekStart}"`);
+  const end = html.indexOf(`data-week-start="${nextWeekStart}"`, start);
+  return html.slice(start, end === -1 ? html.length : end);
+}
+
 describe("CalendarView", () => {
   it("renders a month of activities, workouts, rest days, and a block start", () => {
     const html = renderToStaticMarkup(
@@ -237,6 +248,23 @@ describe("CalendarView", () => {
     expect(html.indexOf('data-week-start="2026-10-05"')).toBeLessThan(
       html.indexOf('data-date="2026-10-05"'),
     );
+  });
+
+  it("hides statistics for a future week with nothing planned", () => {
+    const html = renderToStaticMarkup(
+      <CalendarView
+        data={data}
+        month="2026-10"
+        onMonthChange={() => {}}
+        today="2026-10-07"
+      />,
+    );
+
+    const current = weekBlock(html, "2026-10-05", "2026-10-12");
+    const future = weekBlock(html, "2026-10-12", "2026-10-19");
+    expect(current).toContain('data-testid="calendar-week-stats"');
+    expect(future).toContain("Week 3");
+    expect(future).not.toContain('data-testid="calendar-week-stats"');
   });
 
   it("shows a dated goal or event on its day", () => {

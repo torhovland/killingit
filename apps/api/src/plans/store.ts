@@ -9,6 +9,7 @@ import {
   type PlanGenerationRow,
 } from "../db/schema.js";
 import { progressAt, recordDuration } from "./progress.js";
+import { recordPlanWeekTotals } from "./weekTotals.js";
 import {
   PLAN_GENERATION_START,
   PLAN_GENERATION_STEPS,
@@ -176,7 +177,9 @@ export const dbPlanStore: PlanStore = {
     };
 
     if (runId === undefined) {
-      return write(db);
+      const saved = await write(db);
+      await recordPlanWeekTotals(userId, plan, db);
+      return saved;
     }
 
     // Lock the generation row, then verify this run still owns it before
@@ -191,7 +194,9 @@ export const dbPlanStore: PlanStore = {
       if (rows[0]?.runId !== runId) {
         return null;
       }
-      return write(tx);
+      const saved = await write(tx);
+      await recordPlanWeekTotals(userId, plan, tx);
+      return saved;
     });
   },
 };

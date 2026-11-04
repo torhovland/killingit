@@ -27,6 +27,10 @@ import {
 import { loadManualActivities } from "../plans/inputs.js";
 import { promoteNextPeriod } from "../plans/periods.js";
 import type { PlanStore } from "../plans/store.js";
+import {
+  loadPlanWeekTotals,
+  type WeekPlanTotals,
+} from "../plans/weekTotals.js";
 import type { UserStore } from "../users/store.js";
 
 export interface CalendarRouteDependencies {
@@ -41,6 +45,8 @@ export interface CalendarRouteDependencies {
   loadManualActivityReplies?: typeof loadManualActivityReplies;
   /** Injectable for route tests; defaults to the stored goals and events. */
   loadEvents?: typeof loadAthleteEvents;
+  /** Injectable for route tests; defaults to the stored weekly plan totals. */
+  loadWeekTotals?: typeof loadPlanWeekTotals;
 }
 
 /** A `YYYY-MM-DD` date, from an activity timestamp or a plan date. */
@@ -164,7 +170,12 @@ function weekStats(
   endDate: string,
   days: ReadonlyMap<string, CalendarDay>,
   plan: CoachPlan | null,
+  stored: WeekPlanTotals | undefined,
 ): CalendarWeekStats {
+  const coveredByPlan =
+    plan !== null &&
+    (plan.week.startDate === startDate ||
+      plan.nextWeek?.startDate === startDate);
   const sessions =
     plan === null
       ? []
@@ -174,15 +185,20 @@ function weekStats(
             session.date >= startDate &&
             session.date <= endDate,
         );
-  const plannedMinutes = sessions.reduce(
-    (total, session) => total + session.durationMinutes,
-    0,
-  );
-  const plannedTss = sessions.reduce(
-    (total, session) =>
-      total + (session.estimatedTss ?? session.trainingLoad?.tss ?? 0),
-    0,
-  );
+  // Once a week leaves the stored plan, the record written when it was saved
+  // keeps its planned totals instead of showing zero for the work that was done.
+  const plannedMinutes = coveredByPlan
+    ? sessions.reduce((total, session) => total + session.durationMinutes, 0)
+    : (stored?.plannedMinutes ?? 0);
+  const plannedTss = coveredByPlan
+    ? Math.round(
+        sessions.reduce(
+          (total, session) =>
+            total + (session.estimatedTss ?? session.trainingLoad?.tss ?? 0),
+          0,
+        ),
+      )
+    : (stored?.plannedTss ?? 0);
 
   let completedSeconds = 0;
   let completedTss = 0;
@@ -245,6 +261,8 @@ export function buildCalendar(input: {
     { text: string; model: string; generatedAt: Date }
   >;
   events?: readonly AthleteEvent[];
+  /** Stored planned totals for weeks that have left the live plan. */
+  weekTotals?: ReadonlyMap<string, WeekPlanTotals>;
 }): CalendarResponse {
   const events = input.events ?? [];
   const activityDates = (input.feed?.activities ?? []).map((activity) =>
@@ -368,7 +386,13 @@ export function buildCalendar(input: {
       targetLoad: existing?.targetLoad ?? null,
       weekNumber: existing?.weekNumber ?? null,
       blockName: existing?.blockName ?? null,
-      stats: weekStats(startDate, endDate, days, input.plan),
+      stats: weekStats(
+        startDate,
+        endDate,
+        days,
+        input.plan,
+        input.weekTotals?.get(startDate),
+      ),
     });
   }
 
@@ -398,6 +422,7 @@ export function createCalendarRoute(deps: CalendarRouteDependencies): Hono {
   const loadReplies =
     deps.loadManualActivityReplies ?? loadManualActivityReplies;
   const loadEvents = deps.loadEvents ?? loadAthleteEvents;
+  const loadWeekTotals = deps.loadWeekTotals ?? loadPlanWeekTotals;
 
   return new Hono().get("/", async (c) => {
     const today = planDateSchema.safeParse(c.req.query("today"));
@@ -407,21 +432,33 @@ export function createCalendarRoute(deps: CalendarRouteDependencies): Hono {
 
     try {
       const user = await deps.users.ensureUser(getAthlete(c).sub);
-      const [feed, manualActivities, manualReplies, stored, events] =
-        await Promise.all([
-          loadFeed(user.id),
-          loadManual(user.id),
-          loadReplies(user.id),
-          deps.plans.load(user.id),
-          loadEvents(user.id).catch((err: unknown) => {
-            // Events are advisory. A read failure must not empty the calendar.
-            console.error(
-              "[calendar] could not load the athlete's events:",
-              err,
-            );
-            return [];
-          }),
-        ]);
+      const [
+        feed,
+        manualActivities,
+        manualReplies,
+        stored,
+        events,
+        weekTotals,
+      ] = await Promise.all([
+        loadFeed(user.id),
+        loadManual(user.id),
+        loadReplies(user.id),
+        deps.plans.load(user.id),
+        loadEvents(user.id).catch((err: unknown) => {
+          // Events are advisory. A read failure must not empty the calendar.
+          console.error("[calendar] could not load the athlete's events:", err);
+          return [];
+        }),
+        loadWeekTotals(user.id).catch((err: unknown) => {
+          // The planned record is advisory. A read failure still shows the
+          // live plan's weeks and the completed work.
+          console.error(
+            "[calendar] could not load the stored week totals:",
+            err,
+          );
+          return new Map<string, WeekPlanTotals>();
+        }),
+      ]);
       const parsedPlan =
         stored === null ? null : coachPlanSchema.safeParse(stored.plan);
       const plan =
@@ -437,6 +474,7 @@ export function createCalendarRoute(deps: CalendarRouteDependencies): Hono {
           manualActivities,
           manualReplies,
           events,
+          weekTotals,
         }),
       );
     } catch (err) {
