@@ -16,6 +16,7 @@ import { InstallAppButton } from "./PwaInstall";
 import { reportError } from "./reportError";
 import { SeasonReviewPage } from "./SeasonReviewPage";
 import { SettingsPage } from "./SettingsPage";
+import { SignInPage } from "./SignInPage";
 import { TimeZoneProvider } from "./TimeZoneContext";
 import { useAthleteQuestions } from "./useAthleteQuestions";
 
@@ -188,12 +189,7 @@ function AppShell() {
               auth.isLoading ? (
                 <p className="text-base text-muted-foreground">Loading…</p>
               ) : (
-                <button
-                  className="self-start rounded border border-transparent bg-primary px-4 py-2 text-primary-foreground enabled:hover:bg-primary-hover"
-                  onClick={() => void auth.login()}
-                >
-                  Sign in
-                </button>
+                <SignInPage onSignIn={() => void auth.login()} />
               )
             ) : loadingQuestions && questions === null ? (
               <p className="text-base text-muted-foreground">
