@@ -1,4 +1,6 @@
 import {
+  activityAverageSpeed,
+  formatActivityPaceOrSpeed,
   formatActivityType,
   type AnalyzedActivity,
   type DayPlan,
@@ -205,6 +207,13 @@ function describeMeasuredActivity(activity: AnalyzedActivity): string {
   const parts: string[] = [formatActivityType(activity.type)];
   if (activity.distance > 0) {
     parts.push(`${(activity.distance / 1000).toFixed(2)} km`);
+  }
+  const averageSpeed = activityAverageSpeed(activity);
+  if (averageSpeed !== null) {
+    const paceOrSpeed = formatActivityPaceOrSpeed(activity.type, averageSpeed);
+    if (paceOrSpeed !== null) {
+      parts.push(paceOrSpeed);
+    }
   }
   parts.push(`${Math.round(activity.elapsedTime / 60)} min`);
   if (activity.totalElevationGain > 0) {

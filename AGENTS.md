@@ -189,7 +189,10 @@ about a past workout, or before a suggested workout, to steer the coach.
   Detraining).
   Garmin syncs the last 42 days of activities, body composition, and historic
   cycling FTP, and power metrics are stored on activity summaries so the raw
-  timeseries is not needed. The stored feed keeps every activity ever synced by
+  timeseries is not needed. Activity summaries also store average and maximum
+  speed; the UI and prompts show pace for running, walking, hiking, swimming
+  and rowing (per 100 m for swims and per 500 m for rows) and speed for cycling.
+  The stored feed keeps every activity ever synced by
   extending its history on each sync rather than replacing it, while only the
   newest 20 are analysed; the Calendar, Activities page, and Fitness chart read
   the full history. Each activity in the feed also carries a bounded,

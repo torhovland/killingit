@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import {
+  activityAverageSpeed,
+  formatActivityPaceOrSpeed,
   formatActivityType,
   type CalendarActivity,
   type CalendarDay,
@@ -577,6 +579,13 @@ function ActivityDetails({ activity }: { activity: CalendarActivity }) {
   ];
   if (activity.distance > 0) {
     metadata.push(`${(activity.distance / 1000).toFixed(2)} km`);
+  }
+  const averageSpeed = activityAverageSpeed(activity);
+  if (averageSpeed !== null) {
+    const paceOrSpeed = formatActivityPaceOrSpeed(activity.type, averageSpeed);
+    if (paceOrSpeed !== null) {
+      metadata.push(paceOrSpeed);
+    }
   }
   metadata.push(formatDuration(activity.elapsedTime));
   if (activity.totalElevationGain > 0) {

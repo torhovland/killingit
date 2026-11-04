@@ -53,6 +53,14 @@ export const activitySummarySchema = z.object({
   /** Normalized power from the recorded samples, in watts. */
   normalizedPower: z.number().nonnegative().nullable().optional(),
   /**
+   * Mean speed in metres per second, as recorded by the source or derived from
+   * distance and moving time. Sports whose source records pace rather than
+   * speed are normalized into this field, so speed and pace never disagree.
+   */
+  averageSpeed: z.number().nonnegative().nullable().optional(),
+  /** Maximum recorded speed in metres per second. */
+  maxSpeed: z.number().nonnegative().nullable().optional(),
+  /**
    * Recorded strength-training sets. Only strength activities that carry
    * exercise data have this field; absent means none were recorded.
    */
@@ -112,6 +120,13 @@ export const activitiesResponseSchema = z.object({
 export type ActivitiesResponse = z.infer<typeof activitiesResponseSchema>;
 
 /**
+ * Sports whose progress is normally read as pace rather than speed. Garmin
+ * records speed for these too, but displays pace in Connect, so the app follows
+ * the athlete's unit.
+ */
+const PACE_ACTIVITY_PATTERN = /run|jog|walk|hik|swim|row|ski/;
+
+/**
  * Whether a normalized activity type is a run. Running cadence is measured in
  * total steps per minute, while cycling cadence is the pedalling rate in rpm.
  */
@@ -122,6 +137,90 @@ export function isRunningActivity(type: string): boolean {
 /** The unit an activity's recorded cadence is expressed in. */
 export function cadenceUnit(type: string): "spm" | "rpm" {
   return isRunningActivity(type) ? "spm" : "rpm";
+}
+
+/** Whether an activity's speed should be shown and described as pace. */
+export function activityUsesPace(type: string): boolean {
+  return PACE_ACTIVITY_PATTERN.test(type.trim().toLowerCase());
+}
+
+/**
+ * The distance one pace interval covers for an activity, in metres. Running and
+ * most other pace sports use a kilometre, swimming uses 100 m, and rowing uses
+ * the 500 m split Garmin Connect shows.
+ */
+export function paceUnitMetres(type: string): number {
+  const normalized = type.trim().toLowerCase();
+  if (/swim/.test(normalized)) {
+    return 100;
+  }
+  if (/row/.test(normalized)) {
+    return 500;
+  }
+  return 1000;
+}
+
+/** The unit suffix for an activity's pace, such as `/km` or `/500m`. */
+export function paceUnitLabel(type: string): string {
+  const metres = paceUnitMetres(type);
+  return metres === 1000 ? "/km" : `/${metres}m`;
+}
+
+/** Formats a duration in seconds as `m:ss`, the usual pace notation. */
+export function formatPace(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds <= 0) {
+    return "–";
+  }
+  const total = Math.round(seconds);
+  const minutes = Math.floor(total / 60);
+  const remainder = total % 60;
+  return `${minutes}:${String(remainder).padStart(2, "0")}`;
+}
+
+/** Formats a speed in metres per second as kilometres per hour. */
+export function formatSpeed(speedMps: number): string {
+  return `${(speedMps * 3.6).toFixed(1)} km/h`;
+}
+
+/**
+ * Formats a speed the way the activity's sport is normally read: pace for runs,
+ * walks, hikes, swims, rows and skis, and speed for rides and other sports.
+ */
+export function formatActivityPaceOrSpeed(
+  type: string,
+  speedMps: number,
+): string | null {
+  if (!Number.isFinite(speedMps) || speedMps <= 0) {
+    return null;
+  }
+  if (!activityUsesPace(type)) {
+    return formatSpeed(speedMps);
+  }
+  return `${formatPace(paceUnitMetres(type) / speedMps)} ${paceUnitLabel(type)}`;
+}
+
+/**
+ * The activity's mean speed in metres per second. Uses the source's recorded
+ * average when it has one, otherwise derives it from distance and moving time
+ * (falling back to elapsed time), so older stored activities and sources that
+ * record only distance still show a pace.
+ */
+export function activityAverageSpeed(
+  activity: Pick<
+    ActivitySummary,
+    "distance" | "movingTime" | "elapsedTime" | "averageSpeed"
+  >,
+): number | null {
+  const recorded = activity.averageSpeed;
+  if (recorded !== null && recorded !== undefined && recorded > 0) {
+    return recorded;
+  }
+  const duration =
+    activity.movingTime > 0 ? activity.movingTime : activity.elapsedTime;
+  if (activity.distance > 0 && duration > 0) {
+    return activity.distance / duration;
+  }
+  return null;
 }
 
 /**

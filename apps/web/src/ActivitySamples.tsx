@@ -1,4 +1,11 @@
-import { cadenceUnit, type ActivitySample } from "@killingit/shared";
+import {
+  activityUsesPace,
+  cadenceUnit,
+  formatPace,
+  paceUnitLabel,
+  paceUnitMetres,
+  type ActivitySample,
+} from "@killingit/shared";
 import { formatDuration } from "./formatDuration";
 
 type NumericChannel =
@@ -38,7 +45,17 @@ export function ActivitySamples({
       label: `Cadence ${cadenceUnit(activityType)}`,
       format: (v) => `${Math.round(v)}`,
     },
-    { key: "speed", label: "Speed km/h", format: (v) => (v * 3.6).toFixed(1) },
+    activityUsesPace(activityType)
+      ? {
+          key: "speed",
+          label: `Pace ${paceUnitLabel(activityType)}`,
+          format: (v) => formatPace(paceUnitMetres(activityType) / v),
+        }
+      : {
+          key: "speed",
+          label: "Speed km/h",
+          format: (v) => (v * 3.6).toFixed(1),
+        },
     {
       key: "distance",
       label: "Distance km",
