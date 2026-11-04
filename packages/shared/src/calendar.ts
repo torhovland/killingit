@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { athleteEventSchema } from "./event.js";
 import { analyzedActivitySchema, coachAnalysisSchema } from "./llm.js";
 import {
   planDateSchema,
@@ -64,9 +65,33 @@ export const calendarDaySchema = z.object({
   blockStart: seasonBlockSummarySchema.nullable().default(null),
   /** Whether the season plan ends on this day. */
   seasonEnd: z.boolean().default(false),
+  /** Dated goals and events the athlete stated that cover this day. */
+  events: z.array(athleteEventSchema).default([]),
 });
 
 export type CalendarDay = z.infer<typeof calendarDaySchema>;
+
+/**
+ * The time and training stress a week's plan asked for and the athlete actually
+ * recorded. Completed time is recorded elapsed time; completed TSS is each
+ * imported activity's own score plus any manual entry's estimate.
+ */
+export const calendarWeekStatsSchema = z.object({
+  plannedMinutes: z.number().int().nonnegative().default(0),
+  completedMinutes: z.number().int().nonnegative().default(0),
+  plannedTss: z.number().nonnegative().default(0),
+  completedTss: z.number().nonnegative().default(0),
+});
+
+export type CalendarWeekStats = z.infer<typeof calendarWeekStatsSchema>;
+
+/** Zeroed stats, used when a week has neither a plan nor a recorded activity. */
+export const EMPTY_WEEK_STATS: CalendarWeekStats = {
+  plannedMinutes: 0,
+  completedMinutes: 0,
+  plannedTss: 0,
+  completedTss: 0,
+};
 
 /**
  * The coach's outline for one Monday-start week, shown beside the week's row.
@@ -85,6 +110,8 @@ export const calendarWeekSchema = z.object({
   weekNumber: z.number().int().positive().nullable().default(null),
   /** The season block that contains this week. */
   blockName: z.string().nullable().default(null),
+  /** Planned and completed time and TSS for the week. */
+  stats: calendarWeekStatsSchema.default(EMPTY_WEEK_STATS),
 });
 
 export type CalendarWeek = z.infer<typeof calendarWeekSchema>;

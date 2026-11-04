@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import type {
   AnalyzedActivitiesResponse,
+  AthleteEvent,
   CalendarResponse,
   CoachPlan,
 } from "@killingit/shared";
@@ -10,6 +11,7 @@ import type { StoredCoachReply } from "../plans/replies.js";
 import type { PlanStore, StoredPlan } from "../plans/store.js";
 import type { QuestionAnswerStore } from "../questions/answers.js";
 import type { UserStore } from "../users/store.js";
+import { buildCalendar } from "./calendar.js";
 
 function makePlan(): CoachPlan {
   return {
@@ -164,6 +166,21 @@ const manualReplies = new Map<number, StoredCoachReply>([
   ],
 ]);
 
+const events: AthleteEvent[] = [
+  {
+    startDate: "2026-10-20",
+    endDate: null,
+    title: "City half marathon",
+    kind: "race",
+  },
+  {
+    startDate: "2026-10-30",
+    endDate: "2026-11-02",
+    title: "Training camp",
+    kind: "trip",
+  },
+];
+
 class MemoryPlanStore implements PlanStore {
   constructor(public stored: StoredPlan | null) {}
 
@@ -227,6 +244,7 @@ function makeApp(): ReturnType<typeof createApp> {
     loadCachedFeed: () => Promise.resolve(feed),
     loadManualActivities: () => Promise.resolve(manualActivities),
     loadManualActivityReplies: () => Promise.resolve(manualReplies),
+    loadEvents: () => Promise.resolve(events),
   });
 }
 
@@ -292,6 +310,65 @@ describe("calendar route", () => {
 
     expect(days.get("2026-10-25")?.session?.type).toBe("rest");
     expect(days.get("2026-10-27")?.session?.title).toBe("Next ride 2");
+  });
+
+  it("shows a dated goal or event on every day it covers", async () => {
+    const res = await makeApp().fetch(
+      authenticatedRequest("/api/calendar?today=2026-10-22"),
+    );
+
+    const body = (await res.json()) as CalendarResponse;
+    const days = new Map(body.days.map((day) => [day.date, day]));
+    expect(
+      days.get("2026-10-20")?.events.map((event) => event.title),
+    ).toContain("City half marathon");
+    expect(
+      days.get("2026-10-30")?.events.map((event) => event.title),
+    ).toContain("Training camp");
+    expect(
+      days.get("2026-11-01")?.events.map((event) => event.title),
+    ).toContain("Training camp");
+    expect(days.get("2026-11-03")?.events ?? []).toHaveLength(0);
+  });
+
+  it("totals planned and completed time and TSS for each week", async () => {
+    const res = await makeApp().fetch(
+      authenticatedRequest("/api/calendar?today=2026-10-22"),
+    );
+
+    const body = (await res.json()) as CalendarResponse;
+    const weeks = new Map(body.weeks.map((week) => [week.startDate, week]));
+    const planned = weeks.get("2026-10-19");
+    expect(planned?.stats.plannedMinutes).toBe(360);
+    expect(planned?.stats.plannedTss).toBe(330);
+    expect(planned?.stats.completedMinutes).toBe(65);
+    expect(planned?.stats.completedTss).toBe(50);
+    // A manual entry has an estimated TSS but no duration.
+    const manual = weeks.get("2026-10-05");
+    expect(manual?.stats.completedMinutes).toBe(0);
+    expect(manual?.stats.completedTss).toBe(80);
+  });
+
+  it("extends the calendar range to a date the athlete mentioned", () => {
+    const body = buildCalendar({
+      today: "2026-10-22",
+      plan: makePlan(),
+      feed,
+      manualActivities: [],
+      manualReplies: new Map(),
+      events: [
+        {
+          startDate: "2027-02-14",
+          endDate: null,
+          title: "Spring marathon",
+          kind: "race",
+        },
+      ],
+    });
+
+    expect(body.latestDate).toBe("2027-02-14");
+    const day = body.days.find((entry) => entry.date === "2027-02-14");
+    expect(day?.events[0]?.title).toBe("Spring marathon");
   });
 
   it("numbers each week inside its season block", async () => {

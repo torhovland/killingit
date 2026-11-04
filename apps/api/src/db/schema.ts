@@ -634,6 +634,54 @@ export type NewCoachingSurveyAdjustment =
   typeof coachingSurveyAdjustments.$inferInsert;
 
 /**
+ * One dated goal or event the athlete stated in their own words, such as a
+ * race, a sportive, a trip, or a dated target. The coach reads the athlete's
+ * text and replaces the whole list on each successful reading, so an event the
+ * athlete edits out of a comment disappears. The calendar, the Week and Day
+ * tabs, and the plan prompts all read this table.
+ */
+export const athleteEvents = pgTable(
+  "athlete_events",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    startDate: text("start_date").notNull(),
+    /** The last day of a multi-day event; null for a one-day event. */
+    endDate: text("end_date"),
+    /** A short name the athlete would recognise, such as "Oslo Marathon". */
+    title: text("title").notNull(),
+    /** `race`, `event`, `trip`, or `goal`. */
+    kind: text("kind").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("athlete_events_user_id_start_date_idx").on(
+      table.userId,
+      table.startDate,
+    ),
+    check("athlete_events_title_check", sql`length(btrim(${table.title})) > 0`),
+    check(
+      "athlete_events_kind_check",
+      sql`${table.kind} in ('race', 'event', 'trip', 'goal')`,
+    ),
+    check(
+      "athlete_events_date_check",
+      sql`${table.endDate} is null or ${table.endDate} >= ${table.startDate}`,
+    ),
+  ],
+);
+
+export type AthleteEventRow = typeof athleteEvents.$inferSelect;
+export type NewAthleteEvent = typeof athleteEvents.$inferInsert;
+
+/**
  * An activity manually recorded by the athlete, e.g. a workout not captured by
  * Garmin. Kept intentionally simple: a date and free text.
  */

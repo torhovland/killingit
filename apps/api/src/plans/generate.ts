@@ -1,5 +1,6 @@
 import type {
   AnalyzedActivity,
+  AthleteEvent,
   AthleteLocation,
   BlockPlan,
   BodyMetricEstimate,
@@ -95,6 +96,8 @@ export interface PlanGenerationContext {
   bodyHistory?: BodyMetricHistory | undefined;
   /** Stored daily sleep, HRV, readiness and related values for the prompt. */
   dailyHealth?: readonly DailyHealthPoint[] | undefined;
+  /** Dated goals and events the athlete stated, for every plan prompt. */
+  events?: readonly AthleteEvent[] | undefined;
   provider: LlmProvider;
   apiKey: string;
   /** Daily model, kept as the default for older callers and tests. */
@@ -215,6 +218,7 @@ export async function runPlanGeneration(
         ...(context.dailyHealth !== undefined
           ? { dailyHealth: context.dailyHealth }
           : {}),
+        ...(context.events !== undefined ? { events: context.events } : {}),
         ...(input.signal !== undefined ? { signal: input.signal } : {}),
       });
       if (captured !== undefined && captured.length > 0) {
@@ -1499,6 +1503,9 @@ function baseContext(input: GeneratePlanInput) {
       : {}),
     ...(input.context.dailyHealth !== undefined
       ? { dailyHealth: input.context.dailyHealth }
+      : {}),
+    ...(input.context.events !== undefined && input.context.events.length > 0
+      ? { events: input.context.events }
       : {}),
     today: input.today,
     ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),

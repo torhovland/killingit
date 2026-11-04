@@ -76,6 +76,8 @@ import {
 } from "./routes/adminLlmCalls.js";
 import { createCalendarRoute } from "./routes/calendar.js";
 import { syncAthleteMetrics } from "./coaching/athleteMetrics.js";
+import { syncAthleteEvents } from "./coaching/athleteEvents.js";
+import { loadAthleteEvents } from "./events/store.js";
 import { createCoachingRoute } from "./routes/coaching.js";
 import { createFitnessRoute } from "./routes/fitness.js";
 import { createGarminRoute } from "./routes/garmin.js";
@@ -128,6 +130,10 @@ export interface AppDependencies {
   loadBodyHistory?: typeof loadBodyHistoryForUser;
   /** Injectable for route tests; defaults to the coach reading the text. */
   syncAthleteMetrics?: typeof syncAthleteMetrics;
+  /** Injectable for route tests; defaults to the coach reading the text. */
+  syncAthleteEvents?: typeof syncAthleteEvents;
+  /** Stored dated goals and events, injectable for DB-free route tests. */
+  loadEvents?: typeof loadAthleteEvents;
   loadCachedFeed?: typeof loadCachedActivityFeed;
   /** Injectable for route tests; defaults to the stored activity feedback. */
   loadActivityFeedback?: typeof loadActivityFeedback;
@@ -412,6 +418,7 @@ export function createApp(deps: AppDependencies = {}): Hono {
       ...(deps.loadManualActivityReplies !== undefined
         ? { loadManualActivityReplies: deps.loadManualActivityReplies }
         : {}),
+      ...(deps.loadEvents !== undefined ? { loadEvents: deps.loadEvents } : {}),
     }),
   );
 
@@ -439,6 +446,10 @@ export function createApp(deps: AppDependencies = {}): Hono {
       ...(deps.syncAthleteMetrics !== undefined
         ? { syncAthleteMetrics: deps.syncAthleteMetrics }
         : {}),
+      ...(deps.syncAthleteEvents !== undefined
+        ? { syncAthleteEvents: deps.syncAthleteEvents }
+        : {}),
+      ...(deps.loadEvents !== undefined ? { loadEvents: deps.loadEvents } : {}),
       ...(deps.loadAnsweredCoachQuestions !== undefined
         ? { loadAnsweredCoachQuestions: deps.loadAnsweredCoachQuestions }
         : {}),

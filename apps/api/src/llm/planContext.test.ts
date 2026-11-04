@@ -34,6 +34,38 @@ function input(overrides: Partial<PlanContextInput> = {}): PlanContextInput {
 }
 
 describe("formatPlanContext", () => {
+  it("lists the athlete's upcoming goals and events", () => {
+    const text = formatPlanContext(
+      input({
+        events: [
+          {
+            startDate: "2026-10-20",
+            endDate: null,
+            title: "Past race",
+            kind: "race",
+          },
+          {
+            startDate: "2027-03-14",
+            endDate: null,
+            title: "Oslo Marathon",
+            kind: "race",
+          },
+          {
+            startDate: "2026-10-23",
+            endDate: "2026-10-25",
+            title: "Camp",
+            kind: "trip",
+          },
+        ],
+      }),
+    ).join("\n");
+
+    expect(text).toContain("Dated goals and events the athlete stated:");
+    expect(text).toContain("- 2027-03-14 (race): Oslo Marathon");
+    expect(text).toContain("- 2026-10-23 → 2026-10-25 (trip): Camp");
+    expect(text).not.toContain("Past race");
+  });
+
   it("attaches a comment to the activity it describes", () => {
     const lines = formatPlanContext(
       input({

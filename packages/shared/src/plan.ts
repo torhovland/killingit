@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { coachAnalysisSchema, coachResponseNotesSchema } from "./llm.js";
+import { athleteEventSchema } from "./event.js";
 import { planDateSchema } from "./date.js";
 import { thresholdSummarySchema } from "./metrics.js";
 import { trainingLoadSchema } from "./trainingLoad.js";
@@ -390,6 +391,8 @@ export const coachPlanResponseSchema = z.object({
   pending: planPendingSchema,
   /** Every threshold measure currently known about the athlete. */
   thresholds: z.array(thresholdSummarySchema).default([]),
+  /** Dated goals and events the athlete stated, for the Day and Week tabs. */
+  events: z.array(athleteEventSchema).default([]),
 });
 
 export type CoachPlanResponse = z.infer<typeof coachPlanResponseSchema>;

@@ -89,6 +89,12 @@ const data: CalendarResponse = {
       targetLoad: "Easy",
       weekNumber: 2,
       blockName: "Base",
+      stats: {
+        plannedMinutes: 75,
+        completedMinutes: 65,
+        plannedTss: 70,
+        completedTss: 50,
+      },
     },
     {
       startDate: "2026-10-12",
@@ -97,6 +103,12 @@ const data: CalendarResponse = {
       targetLoad: null,
       weekNumber: 3,
       blockName: "Base",
+      stats: {
+        plannedMinutes: 0,
+        completedMinutes: 0,
+        plannedTss: 0,
+        completedTss: 0,
+      },
     },
   ],
   days: [
@@ -112,6 +124,7 @@ const data: CalendarResponse = {
         weekCount: 8,
       },
       seasonEnd: false,
+      events: [],
     },
     {
       date: "2026-10-05",
@@ -129,6 +142,7 @@ const data: CalendarResponse = {
       session: null,
       blockStart: null,
       seasonEnd: false,
+      events: [],
     },
     {
       date: "2026-10-06",
@@ -136,6 +150,7 @@ const data: CalendarResponse = {
       session: null,
       blockStart: null,
       seasonEnd: false,
+      events: [],
     },
     {
       date: "2026-10-07",
@@ -143,6 +158,7 @@ const data: CalendarResponse = {
       session: rest,
       blockStart: null,
       seasonEnd: false,
+      events: [],
     },
     {
       date: "2026-10-08",
@@ -150,6 +166,14 @@ const data: CalendarResponse = {
       session: workout,
       blockStart: null,
       seasonEnd: false,
+      events: [
+        {
+          startDate: "2026-10-08",
+          endDate: "2026-10-10",
+          title: "Oslo Marathon",
+          kind: "race",
+        },
+      ],
     },
   ],
 };
@@ -204,11 +228,48 @@ describe("CalendarView", () => {
     expect(html).toContain("Aerobic base");
     expect(html).toContain("Target load: Easy");
     expect(html).toContain("1 workout");
-    expect(html).toContain("1 h 15 min");
-    expect(html).toContain("~70 TSS");
+    expect(html).toContain("1 h 5 min");
+    expect(html).toContain("1 h 15 min planned");
+    expect(html).toContain("50");
+    expect(html).toContain("70 planned");
+    expect(html).toContain('data-testid="calendar-week-time"');
+    expect(html).toContain('data-testid="calendar-week-tss"');
     expect(html.indexOf('data-week-start="2026-10-05"')).toBeLessThan(
       html.indexOf('data-date="2026-10-05"'),
     );
+  });
+
+  it("shows a dated goal or event on its day", () => {
+    const html = renderToStaticMarkup(
+      <CalendarView
+        data={data}
+        month="2026-10"
+        onMonthChange={() => {}}
+        today="2026-10-07"
+      />,
+    );
+
+    expect(html).toContain('data-testid="calendar-event"');
+    expect(html).toContain("Race: Oslo Marathon");
+  });
+
+  it("centers the month arrows in a full-size button", () => {
+    const html = renderToStaticMarkup(
+      <CalendarView
+        data={data}
+        month="2026-10"
+        onMonthChange={() => {}}
+        today="2026-10-07"
+      />,
+    );
+
+    const previous = openingTag(html, 'aria-label="Previous month"');
+    expect(previous).toContain("size-9");
+    expect(previous).toContain("items-center");
+    expect(previous).toContain("justify-center");
+    // The chevron is a fixed-size icon, so it cannot render tiny or off-centre.
+    expect(html).toContain('class="size-5"');
+    expect(html).toContain('viewBox="0 0 24 24"');
   });
 
   it("numbers a week the coach has not detailed yet", () => {

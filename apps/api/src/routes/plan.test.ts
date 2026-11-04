@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type {
+  AthleteEvent,
   AthleteLocation,
   CoachPlan,
   DailyWeather,
@@ -262,6 +263,7 @@ function makeApp(options: {
     since: Date,
     error: string,
   ) => Promise<void>;
+  events?: AthleteEvent[];
 }) {
   const location = options.location ?? null;
   return createApp({
@@ -323,6 +325,8 @@ function makeApp(options: {
       }),
     loadBodyHistory: () => Promise.resolve({ weight: [], bodyFat: [] }),
     syncAthleteMetrics: () => Promise.resolve(null),
+    syncAthleteEvents: () => Promise.resolve(null),
+    loadEvents: () => Promise.resolve(options.events ?? []),
     loadAnsweredCoachQuestions: () => Promise.resolve([]),
     loadLlm: () =>
       Promise.resolve({
@@ -392,6 +396,30 @@ describe("coach plan route", () => {
     expect(body.plan).toBeNull();
     expect(body.pending.initial).toBe(true);
     expect(body.generation.status).toBe("idle");
+  });
+
+  it("returns the athlete's dated goals and events", async () => {
+    const res = await makeApp({
+      events: [
+        {
+          startDate: "2027-03-14",
+          endDate: null,
+          title: "Oslo Marathon",
+          kind: "race",
+        },
+      ],
+    }).fetch(authenticatedRequest("/api/coaching/plan?today=2026-10-21"));
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { events: AthleteEvent[] };
+    expect(body.events).toEqual([
+      {
+        startDate: "2027-03-14",
+        endDate: null,
+        title: "Oslo Marathon",
+        kind: "race",
+      },
+    ]);
   });
 
   it("rejects a missing today date", async () => {

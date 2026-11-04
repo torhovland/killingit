@@ -110,13 +110,31 @@ export {
   calendarManualActivitySchema,
   calendarResponseSchema,
   calendarWeekSchema,
+  calendarWeekStatsSchema,
+  EMPTY_WEEK_STATS,
   type CalendarActivity,
   type CalendarDay,
   type CalendarImportedActivity,
   type CalendarManualActivity,
   type CalendarResponse,
   type CalendarWeek,
+  type CalendarWeekStats,
 } from "./calendar.js";
+
+export {
+  ATHLETE_EVENT_KIND_LABELS,
+  ATHLETE_EVENT_KINDS,
+  athleteEventKindSchema,
+  athleteEventSchema,
+  athleteEventsResultSchema,
+  eventCoversDate,
+  eventEndDate,
+  eventOverlapsRange,
+  formatEventDates,
+  type AthleteEvent,
+  type AthleteEventKind,
+  type AthleteEventsResult,
+} from "./event.js";
 
 export {
   coachQuestionAnswerRequestSchema,

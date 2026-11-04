@@ -59,6 +59,13 @@ export const COACHING_SURVEY_ADJUSTMENT_RULES = `A season refresh may also inclu
 export const TEXT_FORMATTING_RULES = `Use short paragraphs and lists when a field is longer than a sentence or two: a workout's description, a plan's rationale, a review, an activity analysis, or a coach reply. Separate paragraphs with a blank line. Start each bullet on its own line with "- ". Start each numbered item on its own line with "1. ", "2. ", and so on. Use a bullet list for the main set, the steps, or two or more separate points, and a numbered list for steps in an order or a ranked set. Keep list items short, keep the list flat, and leave no blank line between list items. Do not use headings, bold, italics, links, tables or code blocks. Keep short fields — a session's title, a plan's focus and a block's name — as short plain phrases.`;
 
 /**
+ * How the coach uses the dated goals and events the athlete stated. Shared by
+ * every plan prompt so a race, a trip, or a dated target is planned around at
+ * every level and no prompt invents one.
+ */
+export const ATHLETE_EVENT_RULES = `The athlete's dated goals and events are dates the athlete told you about, such as a race, a sportive, a trip, or a dated target. Plan around them. A race or target event anchors the week and block that contain it: keep the days before it easy or tapering, and do not schedule a hard session on the day before it. A trip or appointment removes the days it covers from training. When an event changes the plan, name it in the relevant week focus, session description, or rationale. Never add an event the athlete did not state, and never move a date they gave.`;
+
+/**
  * The rules every plan prompt includes regardless of the level it builds or
  * updates: training-science guidance, how to read the supplied input, the
  * rationale rules and the body-metric rules. `GLOBAL_PROMPT_RULES` supplies the
@@ -80,6 +87,7 @@ When the profile, a weekly note, an activity comment, or another part of the inp
 Use the date the statement refers to. For a number in the profile that names no date, use the date the profile was last saved; for anything added more recently, use today's date. Set a value the input does not give to null, and return an empty "bodyMetrics" array when the input says nothing about either number.
 
 The stored history tells you what is already known; do not repeat a value for the same date.`,
+  ATHLETE_EVENT_RULES,
   DAILY_HEALTH_RULES,
   TEXT_FORMATTING_RULES,
 );

@@ -1,9 +1,14 @@
 import { useState, type ReactNode } from "react";
 import {
+  ATHLETE_EVENT_KIND_LABELS,
   activitySport,
+  eventCoversDate,
+  eventOverlapsRange,
+  formatEventDates,
   formatThresholdValue,
   hasExportableBikeWorkout,
   sessionSports,
+  type AthleteEvent,
   type BlockPlan,
   type CoachPlan,
   type DayPlan,
@@ -13,6 +18,7 @@ import {
   type WeekSessionStatus,
 } from "@killingit/shared";
 import { Bullet } from "./Bullet";
+import { addDays } from "./calendarDates";
 import { FormattedText } from "./FormattedText";
 import { SessionSetting } from "./SessionSetting";
 import { TrainingLoadLine } from "./TrainingLoadLine";
@@ -42,6 +48,7 @@ export function CoachPlanView({
   onDownloadWorkout,
   downloadingWorkoutDate = null,
   thresholds = [],
+  events = [],
 }: {
   plan: CoachPlan;
   showTomorrow?: boolean;
@@ -58,6 +65,8 @@ export function CoachPlanView({
   downloadingWorkoutDate?: string | null;
   /** Every threshold measure currently known about the athlete. */
   thresholds?: readonly ThresholdSummary[];
+  /** Dated goals and events the athlete stated, shown on the Day and Week tabs. */
+  events?: readonly AthleteEvent[];
 }) {
   const [tab, setTab] = useState<PlanTab>(defaultTab);
 
@@ -85,6 +94,10 @@ export function CoachPlanView({
       <div role="tabpanel">
         {tab === "day" && (
           <div className="flex flex-col gap-4">
+            <AthleteEventList
+              events={eventsOn(events, plan.today.date)}
+              testId="plan-today-events"
+            />
             <DayCard
               day={plan.today}
               label="Today"
@@ -95,20 +108,30 @@ export function CoachPlanView({
               thresholds={thresholds}
             />
             {showTomorrow && plan.tomorrow && (
-              <DayCard
-                day={plan.tomorrow}
-                label="Tomorrow"
-                testId="plan-tomorrow"
-                refreshing={refreshingDays.tomorrow ?? false}
-                onDownloadWorkout={onDownloadWorkout}
-                downloading={downloadingWorkoutDate === plan.tomorrow.date}
-                thresholds={thresholds}
-              />
+              <>
+                <AthleteEventList
+                  events={eventsOn(events, plan.tomorrow.date)}
+                  testId="plan-tomorrow-events"
+                />
+                <DayCard
+                  day={plan.tomorrow}
+                  label="Tomorrow"
+                  testId="plan-tomorrow"
+                  refreshing={refreshingDays.tomorrow ?? false}
+                  onDownloadWorkout={onDownloadWorkout}
+                  downloading={downloadingWorkoutDate === plan.tomorrow.date}
+                  thresholds={thresholds}
+                />
+              </>
             )}
           </div>
         )}
         {tab === "week" && (
           <div className="flex flex-col gap-4">
+            <AthleteEventList
+              events={eventsInWeek(events, plan.week.startDate)}
+              testId="plan-week-events"
+            />
             <WeekSection
               week={plan.week}
               label="This week"
@@ -117,13 +140,19 @@ export function CoachPlanView({
               thresholds={thresholds}
             />
             {plan.nextWeek !== null && (
-              <WeekSection
-                week={plan.nextWeek}
-                label="Next week"
-                testId="plan-next-week"
-                refreshing={refreshingWeeks.nextWeek ?? false}
-                thresholds={thresholds}
-              />
+              <>
+                <AthleteEventList
+                  events={eventsInWeek(events, plan.nextWeek.startDate)}
+                  testId="plan-next-week-events"
+                />
+                <WeekSection
+                  week={plan.nextWeek}
+                  label="Next week"
+                  testId="plan-next-week"
+                  refreshing={refreshingWeeks.nextWeek ?? false}
+                  thresholds={thresholds}
+                />
+              </>
             )}
           </div>
         )}
@@ -152,6 +181,60 @@ export function CoachPlanView({
         )}
       </div>
     </div>
+  );
+}
+
+/** Events that cover a single day. */
+function eventsOn(
+  events: readonly AthleteEvent[],
+  date: string,
+): AthleteEvent[] {
+  return events.filter((event) => eventCoversDate(event, date));
+}
+
+/** Events that overlap the seven days of a week. */
+function eventsInWeek(
+  events: readonly AthleteEvent[],
+  startDate: string,
+): AthleteEvent[] {
+  return events.filter((event) =>
+    eventOverlapsRange(event, startDate, addDays(startDate, 6)),
+  );
+}
+
+/**
+ * The athlete's dated goals and events for the period a tab shows. A race or a
+ * trip changes what the plan for that day or week should be, so the list sits
+ * above the planned sessions instead of inside one of them.
+ */
+function AthleteEventList({
+  events,
+  testId,
+}: {
+  events: readonly AthleteEvent[];
+  testId: string;
+}) {
+  if (events.length === 0) {
+    return null;
+  }
+  return (
+    <section
+      className="rounded-lg border bg-accent/15 p-3 text-base"
+      data-testid={testId}
+    >
+      <p className="font-medium">Goals and events</p>
+      <ul className="mt-1 flex flex-col gap-1">
+        {events.map((event) => (
+          <li key={`${event.startDate}-${event.title}`}>
+            <span className="font-medium">{event.title}</span>
+            <Bullet />
+            {ATHLETE_EVENT_KIND_LABELS[event.kind]}
+            <Bullet />
+            {formatEventDates(event)}
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
