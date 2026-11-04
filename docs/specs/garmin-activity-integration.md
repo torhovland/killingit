@@ -215,10 +215,11 @@ one swappable corner, and normalizes Garmin activities into the shared
   through React 19's `onCaughtError` hook.
 - **Cadence is resolved per activity type.** Garmin exposes
   `directFractionalCadence` (a 0..1 remainder), the per-leg `directCadence`,
-  the running total `directDoubleCadence`, and `directBikeCadence`. Reading the
-  fractional channel alone made running imports report 0 or 1. The sidecar now
-  prefers the running total, otherwise doubles the per-leg value for runs, and
-  keeps pedalling rpm for rides.
+  the running total `directDoubleCadence`, `directBikeCadence`, and
+  `directStrokeCadence`. Reading the fractional channel alone made running
+  imports report 0 or 1. The sidecar now prefers the running total, otherwise
+  doubles the per-leg value for runs, keeps pedalling rpm for rides, and keeps
+  the stroke rate for rows and swims.
 - **Speed is canonical; pace is the display unit.** Garmin records speed in
   m/s, even for sports where Connect shows pace. The summary keeps
   `averageSpeed`/`maxSpeed` in m/s, and the UI and prompts convert to pace for
@@ -226,7 +227,10 @@ one swappable corner, and normalizes Garmin activities into the shared
   a 500 m split; other pace sports use a kilometre. When Garmin's summary leaves
   `averageSpeed` at zero (indoor rowing is an example), the sidecar derives it
   from distance and moving time. A missing summary speed is also derived at
-  read time, so activities stored before this change still show pace.
+  read time, so activities stored before this change still show pace. When
+  Garmin recorded neither distance nor speed, the recorded-samples view says so
+  instead of showing a zero-only distance column; pace cannot be derived from
+  heart rate or stroke rate alone.
 - **Sample preview.** The feed keeps the full timeseries server-side and adds
   an evenly spaced, bounded `samples` preview (`MAX_PREVIEW_SAMPLES`) to each
   `AnalyzedActivity`. The Activities page shows it in a collapsible table so the

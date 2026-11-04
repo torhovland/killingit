@@ -70,6 +70,37 @@ describe("ActivitySamples", () => {
     expect(row).toContain("0:56");
   });
 
+  it("explains a missing pace when Garmin recorded no distance or speed", () => {
+    const html = renderToStaticMarkup(
+      <ActivitySamples
+        samples={[
+          {
+            timestamp: "2026-10-28T17:58:16Z",
+            heartRate: 91,
+            cadence: 0,
+            distance: 0,
+          },
+          {
+            timestamp: "2026-10-28T18:13:18Z",
+            heartRate: 130,
+            cadence: 19,
+            distance: 0,
+          },
+        ]}
+        sampleCount={403}
+        activityType="indoor_rowing"
+      />,
+    );
+
+    expect(html).toContain('data-testid="activity-pace-unavailable"');
+    expect(html).toContain(
+      "Garmin recorded no distance or speed for this activity, so pace is unavailable.",
+    );
+    expect(html).toContain("Cadence spm");
+    expect(html).not.toContain("Pace /500m");
+    expect(html).not.toContain("Distance km");
+  });
+
   it("uses rpm for cadence on rides", () => {
     const html = renderToStaticMarkup(
       <ActivitySamples

@@ -851,6 +851,8 @@ def _cadence(raw: dict, activity_type: str) -> float | None:
     `directDoubleCadence` already holds that, while `directCadence` is the
     per-leg half and is doubled for runs. Cycling cadence is the pedalling rate
     in rpm, reported by `directBikeCadence` (or `directCadence` as a fallback).
+    Rowing and swimming report strokes per minute through
+    `directStrokeCadence`, which is already the displayed rate.
     `directFractionalCadence` is only the sub-unit remainder of `directCadence`,
     never a cadence on its own, so reading it alone yields 0 or 1.
     """
@@ -861,6 +863,10 @@ def _cadence(raw: dict, activity_type: str) -> float | None:
     bike = _finite_or_none(raw.get("directBikeCadence"))
     if bike is not None:
         return bike
+
+    stroke = _finite_or_none(raw.get("directStrokeCadence"))
+    if stroke is not None:
+        return stroke
 
     cadence = _finite_or_none(raw.get("directCadence"))
     if cadence is None:
