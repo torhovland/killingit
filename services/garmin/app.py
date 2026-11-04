@@ -883,7 +883,9 @@ def _to_activity(
         activity["maxSpeed"] = max_speed
     if strength_sets:
         activity["strengthSets"] = strength_sets
-    if laps:
+    # A single lap only restates the whole activity, so it carries no interval
+    # structure and is treated as no laps at all.
+    if laps and len(laps) > 1:
         activity["laps"] = laps
     return activity
 

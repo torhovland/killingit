@@ -9,6 +9,7 @@ import {
   formatActivityType,
   formatPace,
   formatSpeed,
+  hasLapStructure,
   isRunningActivity,
   greetingSchema,
   healthSchema,
@@ -114,6 +115,14 @@ describe("activitySchema", () => {
 
   it("leaves laps absent when none were recorded", () => {
     expect(activitySchema.parse(summary).laps).toBeUndefined();
+  });
+});
+
+describe("hasLapStructure", () => {
+  it("counts only two or more laps as interval structure", () => {
+    expect(hasLapStructure(undefined)).toBe(false);
+    expect(hasLapStructure([{ index: 1 }])).toBe(false);
+    expect(hasLapStructure([{ index: 1 }, { index: 2 }])).toBe(true);
   });
 });
 

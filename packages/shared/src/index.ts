@@ -73,6 +73,7 @@ export {
   formatActivityType,
   formatPace,
   formatSpeed,
+  hasLapStructure,
   isRunningActivity,
   paceUnitLabel,
   paceUnitMetres,

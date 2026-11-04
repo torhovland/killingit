@@ -174,6 +174,32 @@ describe("formatPlanContext", () => {
     );
   });
 
+  it("ignores a single lap as if no laps were recorded", () => {
+    const single = [
+      {
+        index: 1,
+        movingTime: 2400,
+        distance: 20000,
+        averagePower: 200,
+        averageHeartRate: 140,
+      },
+    ];
+    const lines = formatActivitySummary(
+      { ...activity.summary, type: "road_biking", laps: single },
+      0,
+    );
+    expect(lines.join("\n")).not.toContain("Recorded laps");
+
+    const ride = {
+      ...activity,
+      summary: { ...activity.summary, type: "road_biking", laps: single },
+    };
+    const text = formatPlanContext(input({ recentActivities: [ride] })).join(
+      "\n",
+    );
+    expect(text).not.toContain("Laps:");
+  });
+
   it("bounds the lap table and reports how many were recorded", () => {
     const many = Array.from({ length: 45 }, (_, index) => ({
       index: index + 1,

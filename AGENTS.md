@@ -209,7 +209,8 @@ about a past workout, or before a suggested workout, to steer the coach.
   recorded laps with per-lap duration, distance, average and maximum power,
   average and maximum heart rate, average speed, cadence and elevation, shown
   as a collapsible table and given to the activity analysis, program review and
-  plan prompts so the coach can judge interval structure; see
+  plan prompts so the coach can judge interval structure. A single lap is
+  treated as no laps, since it only restates the whole activity; see
   `docs/specs/garmin-activity-laps.md`. Further sport-specific Garmin
   metrics and their proposed data model are assessed in
   `docs/specs/garmin-activity-metrics.md`.

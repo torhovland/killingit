@@ -3,6 +3,7 @@ import {
   activityAverageSpeed,
   formatActivityPaceOrSpeed,
   formatActivityType,
+  hasLapStructure,
   type AnalyzedActivity,
 } from "@killingit/shared";
 import { ActivityMap } from "./ActivityMap";
@@ -229,7 +230,7 @@ export function ActivityCard({
         />
       )}
 
-      {activity.laps !== undefined && activity.laps.length > 0 && (
+      {hasLapStructure(activity.laps) && (
         <ActivityLaps laps={activity.laps} activityType={activity.type} />
       )}
 

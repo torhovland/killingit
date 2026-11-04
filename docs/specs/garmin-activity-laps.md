@@ -50,7 +50,9 @@ export const activityLapSchema = z.object({
 ```
 
 `activitySummarySchema` gains `laps: z.array(activityLapSchema).optional()`.
-Absent means "no laps recorded", which is different from an empty list.
+Absent means "no laps recorded", which is different from an empty list. A single
+lap only restates the whole activity, so it carries no interval structure: the
+sidecar normalizes it away and consumers ignore a one-element list.
 
 ## Sidecar mapping
 
@@ -74,10 +76,12 @@ sport:
 | `averageCadence`     | `averageBikeCadence`, `averageRunCadence`, `avgCadence` |
 | `totalElevationGain` | `elevationGain`                                         |
 
-A lap with none of these values beyond its index is dropped. The list is capped
-at `MAX_LAPS = 100` to bound the stored feed and the prompt. A failed splits
-fetch leaves the activity without laps (the same fail-open path as the
-timeseries), while a rate limit is re-raised.
+A lap with none of these values beyond its index is dropped, and the list is
+only attached when at least two laps remain: a single lap is the whole activity
+restated, not interval structure. The list is capped at `MAX_LAPS = 100` to
+bound the stored feed and the prompt. A failed splits fetch leaves the activity
+without laps (the same fail-open path as the timeseries), while a rate limit is
+re-raised.
 
 ## Prompt rendering
 
@@ -91,14 +95,17 @@ Recorded laps:
 
 Only recorded values are listed; speed is rendered as pace for pace sports, and
 cadence uses the sport's unit. At most 40 laps are shown, with a count line when
-more were recorded. The block is part of `formatActivitySummary`, so the
-activity analysis and program review both receive it, and `formatActivity`
-adds a compact one-line lap summary to the plan and reply context.
+more were recorded. A single lap is ignored everywhere, so a session without
+real lap structure reads exactly like an activity with no laps. The block is
+part of `formatActivitySummary`, so the activity analysis and program review
+both receive it, and `formatActivity` adds a compact one-line lap summary to the
+plan and reply context.
 
 ## Acceptance criteria
 
 1. A real-shaped `lapDTOs` payload maps to normalized laps, including aliases,
-   missing channels being omitted, and the 100-lap cap.
+   missing channels being omitted, and the 100-lap cap. A single-lap result is
+   treated as no laps.
 2. A failed splits request yields `laps` absent and does not fail the sync; a
    rate limit is surfaced as 429.
 3. The activity analysis prompt contains the lap table; the plan context

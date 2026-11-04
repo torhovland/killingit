@@ -6,6 +6,7 @@ import {
   cadenceUnit,
   formatActivityPaceOrSpeed,
   formatThresholdValue,
+  hasLapStructure,
   interpretTrainingStressBalance,
   type ActivityLap,
   type ActivitySummary,
@@ -958,7 +959,7 @@ export function formatActivitySummary(
   if (activity.strengthSets !== undefined) {
     lines.push(...formatStrengthSets(activity.strengthSets));
   }
-  if (activity.laps !== undefined) {
+  if (hasLapStructure(activity.laps)) {
     lines.push(...formatLaps(activity.laps, activity.type));
   }
   return lines;
@@ -999,7 +1000,7 @@ function formatActivity(
       `   Strength sets: ${summarizeStrengthSets(summary.strengthSets)}`,
     );
   }
-  if (summary.laps !== undefined && summary.laps.length > 0) {
+  if (hasLapStructure(summary.laps)) {
     lines.push(`   Laps: ${summarizeLaps(summary.laps)}`);
   }
   if (analysis !== null && analysis.trim() !== "") {

@@ -534,7 +534,14 @@ def test_sync_attaches_laps_and_survives_a_failed_splits_fetch(monkeypatch):
             [1790836200000, 140],
             descriptors=[(0, "directTimestamp"), (1, "directHeartRate")],
         ),
-        splits={"1": {"lapDTOs": [{"lapIndex": 1, "distance": 5000, "averagePower": 250}]}},
+        splits={
+            "1": {
+                "lapDTOs": [
+                    {"lapIndex": 1, "distance": 2500, "averagePower": 250},
+                    {"lapIndex": 2, "distance": 2500, "averagePower": 260},
+                ]
+            }
+        },
         failing_split_ids={"2"},
     )
     monkeypatch.setattr(sidecar, "_login", lambda credentials: fake)
@@ -543,9 +550,21 @@ def test_sync_attaches_laps_and_survives_a_failed_splits_fetch(monkeypatch):
 
     assert fake.requested_split_ids == ["1", "2"]
     assert activities[0]["laps"] == [
-        {"index": 1, "distance": 5000.0, "averagePower": 250.0}
+        {"index": 1, "distance": 2500.0, "averagePower": 250.0},
+        {"index": 2, "distance": 2500.0, "averagePower": 260.0},
     ]
     assert "laps" not in activities[1]
+
+
+def test_to_activity_ignores_a_single_lap():
+    raw = {"activityId": 1, "activityType": {"typeKey": "RUNNING"}}
+    one_lap = [{"index": 1, "distance": 5000.0}]
+
+    # A single lap is the whole activity restated, not interval structure.
+    assert "laps" not in _to_activity(raw, laps=one_lap)
+    assert _to_activity(raw, laps=one_lap + [{"index": 2, "distance": 1000.0}])[
+        "laps"
+    ] == one_lap + [{"index": 2, "distance": 1000.0}]
 
 
 def test_sync_maps_a_splits_rate_limit_to_rate_limited(monkeypatch):

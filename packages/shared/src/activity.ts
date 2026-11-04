@@ -170,6 +170,16 @@ const PACE_ACTIVITY_PATTERN = /run|jog|walk|hik|swim|row|ski/;
 const STEP_CADENCE_PATTERN = /run|jog|walk|hik|row|swim/;
 
 /**
+ * Whether an activity's recorded laps carry interval structure. A single lap
+ * only restates the whole activity, so it is treated as no laps at all.
+ */
+export function hasLapStructure(
+  laps: readonly ActivityLap[] | undefined,
+): laps is readonly ActivityLap[] {
+  return laps !== undefined && laps.length > 1;
+}
+
+/**
  * Whether a normalized activity type is a run. Running cadence is measured in
  * total steps per minute, while cycling cadence is the pedalling rate in rpm.
  */
