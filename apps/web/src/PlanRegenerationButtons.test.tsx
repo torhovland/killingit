@@ -8,16 +8,19 @@ import {
 function render({
   hasSeason,
   running = null,
+  busy = running !== null,
   setupNotice = null,
 }: {
   hasSeason: boolean;
   running?: "newSeason" | "updateSeason" | null;
+  busy?: boolean;
   setupNotice?: string | null;
 }): string {
   return renderToStaticMarkup(
     <PlanRegenerationButtonsView
       hasSeason={hasSeason}
       running={running}
+      busy={busy}
       done={false}
       error={null}
       setupNotice={setupNotice}
@@ -76,6 +79,15 @@ describe("PlanRegenerationButtonsView", () => {
       'data-testid="spinner"',
     );
     expect(html).not.toContain("Plan a new season");
+  });
+
+  it("disables every action while another generation is running", () => {
+    const html = render({ hasSeason: true, busy: true });
+
+    expect(buttonFor(html, "Update season plan")).toContain("disabled");
+    expect(buttonFor(html, "Plan a new season")).toContain("disabled");
+    // The run was started elsewhere, so no button claims to be the one running.
+    expect(html).not.toContain("Coach is thinking…");
   });
 
   it("shows which integrations are missing before a season can start", () => {
