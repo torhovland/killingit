@@ -26,17 +26,16 @@ remarks about difficulties or objections, and show those remarks to the admin.
    outcome — an athlete who stated no measurements, or an activity outside the
    current week that cannot be matched to a planned session — as a non-problem
    rather than a remark.
-2. Persist new clarification questions in `coach_questions`. Repeated pending
-   questions are skipped, including a repeated model response that words the
-   same question slightly differently. Answering a question also removes any
-   other pending question that asks the same thing, so two overlapping runs
-   cannot leave an older duplicate behind to resurface after the answer. A new
-   season plan or season refresh clears every unanswered question before
-   generating, so a question about the replaced plan does not linger on the
-   dashboard; a question the new run asks is stored after that clear and still
-   appears. A regenerated activity analysis clears a pending question about that
-   activity, because the older analysis may have asked for information the
-   athlete has since supplied in a comment.
+2. Persist new clarification questions in `coach_questions`. An account never
+   has a queue of questions: the table holds at most one pending question, and
+   a new question replaces the pending one. Two overlapping runs therefore
+   leave only the most recent question. Answering the pending question leaves
+   none behind. A new season plan or season refresh clears every unanswered
+   question before generating, so a question about the replaced plan does not
+   linger on the dashboard; a question the new run asks is stored after that
+   clear and still appears. A regenerated activity analysis clears a pending
+   question about that activity, because the older analysis may have asked for
+   information the athlete has since supplied in a comment.
 3. Show only the newest pending question at the top of the main dashboard, with
    an answer input, a coach reply, and a plan refresh after the answer. The
    answer and reply are stored with the question.

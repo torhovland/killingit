@@ -245,9 +245,11 @@ about a past workout, or before a suggested workout, to steer the coach.
   page are documented in `docs/specs/period-reviews.md`.
 - Structured coach responses may ask the athlete one clarification question
   (`coachQuestion`) and report the model's own difficulties or objections
-  (`modelsRemarks`). The newest pending question is shown on the dashboard,
-  answered questions are kept for the season review, and recent non-null model
-  remarks are listed in the admin settings page. A new season plan or season
+  (`modelsRemarks`). There is at most one pending question per account: a new
+  question replaces it, and answering it leaves none behind. The pending
+  question is shown on the dashboard, answered questions are kept for the
+  season review, and recent non-null model remarks are listed in the admin
+  settings page. A new season plan or season
   refresh clears unanswered questions first, so no stale question survives the
   plan it was about. See `docs/specs/coach-questions.md`.
 - The Coaching survey page shows updated, new, and answered questions, with
