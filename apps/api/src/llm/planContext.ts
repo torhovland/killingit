@@ -335,7 +335,12 @@ export function formatPlanContext(input: PlanContextInput): string[] {
     lines.push(...formatBodyHistory(input.bodyHistory));
   }
   if (input.dailyHealth !== undefined) {
-    lines.push("", ...formatDailyHealthContext(input.dailyHealth, input.today));
+    lines.push(
+      "",
+      ...formatDailyHealthContext(input.dailyHealth, input.today, {
+        today: input.today,
+      }),
+    );
   }
   if (input.currentForm !== undefined && input.currentForm !== null) {
     lines.push(

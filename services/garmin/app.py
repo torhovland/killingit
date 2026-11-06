@@ -256,11 +256,13 @@ def _add_stats_metrics(metrics: dict[str, float], stats: dict) -> None:
     if not isinstance(stats, dict):
         return
     _put_metric(metrics, "resting_heart_rate", stats.get("restingHeartRate"), 20, 250)
+    # A zero is a day whose sleep has not been processed yet, not a zero-length
+    # night. Skipping it keeps the last completed night in the series.
     _put_metric(
         metrics,
         "sleep_duration",
         _seconds_to_minutes(stats.get("sleepingSeconds")),
-        0,
+        1,
         24 * 60,
     )
     _put_metric(metrics, "stress", stats.get("averageStressLevel"), 0, 100)
@@ -289,39 +291,44 @@ def _add_sleep_metrics(metrics: dict[str, float], sleep: dict) -> None:
     dto = sleep.get("dailySleepDTO")
     if not isinstance(dto, dict):
         return
+    # Garmin marks a night as confirmed only once its processing is complete.
+    # Until then the DTO can be empty or still zero, which must not replace the
+    # last completed night with a false zero.
+    if dto.get("sleepWindowConfirmed") is False:
+        return
 
     _put_metric(
         metrics,
         "sleep_duration",
         _seconds_to_minutes(dto.get("sleepTimeSeconds")),
-        0,
+        1,
         24 * 60,
     )
     scores = dto.get("sleepScores")
     if isinstance(scores, dict):
         overall = scores.get("overall")
         if isinstance(overall, dict):
-            _put_metric(metrics, "sleep_score", overall.get("value"), 0, 100)
+            _put_metric(metrics, "sleep_score", overall.get("value"), 1, 100)
 
     _put_metric(
         metrics,
         "deep_sleep",
         _seconds_to_minutes(dto.get("deepSleepSeconds")),
-        0,
+        1,
         24 * 60,
     )
     _put_metric(
         metrics,
         "light_sleep",
         _seconds_to_minutes(dto.get("lightSleepSeconds")),
-        0,
+        1,
         24 * 60,
     )
     _put_metric(
         metrics,
         "rem_sleep",
         _seconds_to_minutes(dto.get("remSleepSeconds")),
-        0,
+        1,
         24 * 60,
     )
     _put_metric(
@@ -368,7 +375,7 @@ def _add_readiness_metrics(metrics: dict[str, float], readiness) -> None:
     # Readiness also carries the sleep score; keep it as a fallback when the
     # sleep endpoint had no score for this day.
     if "sleep_score" not in metrics:
-        _put_metric(metrics, "sleep_score", snapshot.get("sleepScore"), 0, 100)
+        _put_metric(metrics, "sleep_score", snapshot.get("sleepScore"), 1, 100)
 
 
 def _latest_readiness_snapshot(readiness):

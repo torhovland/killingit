@@ -1,7 +1,98 @@
 import type { CoachQuestion } from "@killingit/shared";
-import { and, desc, eq, isNotNull, isNull, or } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, isNull, ne, or } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { coachQuestions, type CoachQuestionRow } from "../db/schema.js";
+
+/** Filler words that do not change what a question is asking for. */
+const QUESTION_STOP_WORDS = new Set([
+  "a",
+  "an",
+  "and",
+  "are",
+  "as",
+  "at",
+  "be",
+  "by",
+  "can",
+  "could",
+  "did",
+  "do",
+  "does",
+  "for",
+  "from",
+  "how",
+  "i",
+  "in",
+  "is",
+  "it",
+  "me",
+  "my",
+  "of",
+  "on",
+  "or",
+  "please",
+  "the",
+  "to",
+  "was",
+  "were",
+  "what",
+  "when",
+  "where",
+  "which",
+  "who",
+  "why",
+  "will",
+  "with",
+  "would",
+  "you",
+  "your",
+]);
+
+/**
+ * How much of two questions' meaningful words must overlap before they count
+ * as the same question. Two runs can word the same question slightly
+ * differently, and only one of them should be shown to the athlete.
+ */
+const QUESTION_SIMILARITY_THRESHOLD = 0.8;
+
+/** The meaningful words of a question, lowercased and without punctuation. */
+export function normalizeCoachQuestion(question: string): string {
+  return question
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .split(/\s+/)
+    .filter((word) => word !== "" && !QUESTION_STOP_WORDS.has(word))
+    .join(" ");
+}
+
+/**
+ * True when two questions ask the same thing after ignoring filler words and
+ * wording differences. Used to keep a repeated model response from creating a
+ * second pending question the athlete would see after answering the first.
+ */
+export function isSameCoachQuestion(left: string, right: string): boolean {
+  const leftWords = new Set(
+    normalizeCoachQuestion(left)
+      .split(" ")
+      .filter((word) => word !== ""),
+  );
+  const rightWords = new Set(
+    normalizeCoachQuestion(right)
+      .split(" ")
+      .filter((word) => word !== ""),
+  );
+  if (leftWords.size === 0 || rightWords.size === 0) {
+    return normalizeCoachQuestion(left) === normalizeCoachQuestion(right);
+  }
+  let shared = 0;
+  for (const word of leftWords) {
+    if (rightWords.has(word)) {
+      shared += 1;
+    }
+  }
+  const union = new Set([...leftWords, ...rightWords]).size;
+  return shared / union >= QUESTION_SIMILARITY_THRESHOLD;
+}
 
 /** The prompt family that produced a clarification question. */
 export type CoachQuestionSourceKind =
@@ -53,8 +144,19 @@ export async function saveCoachQuestions(
         isNull(coachQuestions.answer),
       ),
     );
-  const known = new Set(pending.map((row) => row.question));
-  const fresh = unique.filter((question) => !known.has(question));
+  const known = pending.map((row) => row.question);
+  const fresh: string[] = [];
+  for (const question of unique) {
+    const repeatsPending = known.some((existing) =>
+      isSameCoachQuestion(existing, question),
+    );
+    const repeatsFresh = fresh.some((existing) =>
+      isSameCoachQuestion(existing, question),
+    );
+    if (!repeatsPending && !repeatsFresh) {
+      fresh.push(question);
+    }
+  }
   if (fresh.length === 0) {
     return;
   }
@@ -162,6 +264,50 @@ export interface AnswerCoachQuestionInput {
 }
 
 /**
+ * Removes other pending questions that ask the same thing as the one just
+ * answered. Two overlapping runs can save near-identical wordings; without
+ * this, answering the newer one would reveal the older duplicate later.
+ */
+async function clearDuplicatePendingQuestions(
+  userId: number,
+  question: string,
+  keepId: number,
+): Promise<void> {
+  try {
+    const pending = await db
+      .select({ id: coachQuestions.id, question: coachQuestions.question })
+      .from(coachQuestions)
+      .where(
+        and(
+          eq(coachQuestions.userId, userId),
+          isNull(coachQuestions.answer),
+          ne(coachQuestions.id, keepId),
+        ),
+      );
+    const duplicateIds = pending
+      .filter((row) => isSameCoachQuestion(row.question, question))
+      .map((row) => row.id);
+    if (duplicateIds.length === 0) {
+      return;
+    }
+    await db
+      .delete(coachQuestions)
+      .where(
+        and(
+          eq(coachQuestions.userId, userId),
+          inArray(coachQuestions.id, duplicateIds),
+        ),
+      );
+  } catch (err) {
+    // Clearing a duplicate must not fail the answer the athlete just gave.
+    console.error(
+      "[coach-questions] could not clear duplicate pending questions:",
+      err,
+    );
+  }
+}
+
+/**
  * Saves the athlete's answer and the coach's reply. Returns null when the
  * question does not exist, belongs to another account, or was already answered.
  */
@@ -186,7 +332,11 @@ export async function answerCoachQuestion(
       ),
     )
     .returning();
-  return row === undefined ? null : toCoachQuestion(row);
+  if (row === undefined) {
+    return null;
+  }
+  await clearDuplicatePendingQuestions(input.userId, row.question, row.id);
+  return toCoachQuestion(row);
 }
 
 function toCoachQuestion(row: CoachQuestionRow): CoachQuestion {

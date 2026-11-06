@@ -57,6 +57,34 @@ describe("formatDailyHealthContext", () => {
     expect(text).not.toContain("40 bpm");
   });
 
+  it("uses the last completed day for Body Battery while today is in progress", () => {
+    const points: DailyHealthPoint[] = [
+      { metric: "body_battery_high", date: "2026-10-25", value: 81 },
+      { metric: "body_battery_high", date: "2026-10-26", value: 30 },
+      { metric: "sleep_duration", date: "2026-10-26", value: 420 },
+    ];
+
+    const text = formatDailyHealthContext(points, "2026-10-26", {
+      today: "2026-10-26",
+    }).join("\n");
+
+    expect(text).toContain("Body Battery high: latest 81 on 2026-10-25");
+    expect(text).not.toContain("Body Battery high: latest 30");
+    expect(text).toContain("Sleep duration: latest 7 h on 2026-10-26");
+  });
+
+  it("keeps a past day's Body Battery value when that day is complete", () => {
+    const points: DailyHealthPoint[] = [
+      { metric: "body_battery_high", date: "2026-10-26", value: 30 },
+    ];
+
+    const text = formatDailyHealthContext(points, "2026-10-26", {
+      today: "2026-10-27",
+    }).join("\n");
+
+    expect(text).toContain("Body Battery high: latest 30 on 2026-10-26");
+  });
+
   it("says when no values were synced", () => {
     expect(formatDailyHealthContext([], "2026-10-26")).toEqual([
       `Daily health and recovery (from Garmin, ${HEALTH_CONTEXT_DAYS} days through 2026-10-26):`,

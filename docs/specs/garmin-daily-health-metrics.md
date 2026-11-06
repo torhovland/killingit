@@ -161,6 +161,12 @@ own value wins when the two conflict.
   defensively and validated before it is stored; an unknown shape stores
   nothing rather than a wrong number.
 - Sleep and readiness for "today" may be incomplete early in the day. Today and
-  yesterday are refreshed on every pass.
+  yesterday are refreshed on every pass. A sleep window Garmin has not confirmed
+  yet, or one whose total is still zero, is not stored, so the last completed
+  night stays in the series.
+- Body Battery high and low are running values for the current day, not final
+  daily summaries. The coach prompt and the Fitness page therefore use the last
+  completed day's values until the current day is over; the stored current-day
+  values become visible the next day.
 - The app has no existing health-metrics UI. This spec deliberately stops at
   storage and prompt context.

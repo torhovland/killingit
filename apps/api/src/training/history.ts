@@ -18,6 +18,7 @@ import {
   type MetricPoint,
   type ThresholdHistorySeries,
   type WeekPlan,
+  withoutInProgressDailyHealth,
 } from "@killingit/shared";
 import type { ManualActivityContext } from "../llm/planContext.js";
 import { loadDailyHealthHistoryForUser } from "../metrics/dailyMetrics.js";
@@ -124,6 +125,13 @@ export function buildFitnessHistory(
     }
   }
 
+  // Today's Body Battery high and low are still running values, so the chart
+  // and the Today panel use the last completed day until today is over.
+  const dailyHealth = withoutInProgressDailyHealth(
+    input.dailyHealthPoints ?? [],
+    input.today,
+  );
+
   return {
     days,
     thresholds: thresholdHistory(
@@ -146,12 +154,12 @@ export function buildFitnessHistory(
       ),
     },
     latestGarmin: {
-      dailyHealth: latestDailyHealthPoints(input.dailyHealthPoints ?? []),
+      dailyHealth: latestDailyHealthPoints(dailyHealth),
       weight: latestGarminMetric(input.bodyPoints?.weight ?? [], input.today),
       bodyFat: latestGarminMetric(input.bodyPoints?.bodyFat ?? [], input.today),
       ftp: latestGarminFtp(input.thresholdPoints ?? [], input.today),
     },
-    dailyHealth: [...(input.dailyHealthPoints ?? [])],
+    dailyHealth,
   };
 }
 

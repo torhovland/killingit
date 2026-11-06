@@ -2,6 +2,7 @@ import {
   DAILY_HEALTH_METRIC_KEYS,
   DAILY_HEALTH_METRICS,
   formatDailyHealthValue,
+  withoutInProgressDailyHealth,
   type DailyHealthMetricKey,
   type DailyHealthPoint,
 } from "@killingit/shared";
@@ -9,6 +10,17 @@ import { addDays } from "../plans/dates.js";
 
 /** How much recovery history the coach sees in a prompt. */
 export const HEALTH_CONTEXT_DAYS = 14;
+
+/** Options for the daily health prompt summary. */
+export interface DailyHealthContextOptions {
+  /** How many days of history to include. */
+  days?: number;
+  /**
+   * The real current date. The current day's running values (Body Battery high
+   * and low) are still in progress, so the summary uses the last completed day.
+   */
+  today?: string;
+}
 
 function average(values: readonly number[]): number | null {
   if (values.length === 0) {
@@ -40,11 +52,16 @@ function trendText(
 export function formatDailyHealthContext(
   points: readonly DailyHealthPoint[],
   throughDate: string,
-  days: number = HEALTH_CONTEXT_DAYS,
+  options: DailyHealthContextOptions = {},
 ): string[] {
+  const days = options.days ?? HEALTH_CONTEXT_DAYS;
   const fromDate = addDays(throughDate, -(days - 1));
+  const source =
+    options.today === undefined
+      ? points
+      : withoutInProgressDailyHealth(points, options.today);
   const byMetric = new Map<DailyHealthMetricKey, Map<string, number>>();
-  for (const point of points) {
+  for (const point of source) {
     if (point.date < fromDate || point.date > throughDate) {
       continue;
     }

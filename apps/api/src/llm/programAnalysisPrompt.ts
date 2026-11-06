@@ -116,7 +116,9 @@ export function buildProgramAnalysisPrompt(
   }
   if (input.dailyHealth !== undefined) {
     lines.push(
-      ...formatDailyHealthContext(input.dailyHealth, activityDate),
+      ...formatDailyHealthContext(input.dailyHealth, activityDate, {
+        today: input.today,
+      }),
       "",
     );
   }

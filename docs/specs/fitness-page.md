@@ -173,7 +173,9 @@ API:
   newest Garmin weight, body-fat and FTP measurement. The right column is headed
   `Sleep` and lists sleep score, sleep duration, deep sleep, REM sleep, light
   sleep and awake time. Each row carries its measurement date, and a value
-  measured today says "today". Metrics without a stored value are omitted.
+  measured today says "today". Body Battery high and low are running values for
+  today, so those rows use the last completed day until today is over. Metrics
+  without a stored value are omitted.
 - Below it, a fitness/form chart with CTL, ATL, and TSB lines over coloured TSB
   zone bands, a legend naming each zone with its threshold and colour, an
   estimated-threshold chart whose heading carries no value (the current
