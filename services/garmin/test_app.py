@@ -814,6 +814,65 @@ def test_sync_daily_combines_bundle_sleep_readiness_and_vo2max(monkeypatch):
     }
 
 
+def test_sync_daily_omits_sleep_until_the_night_is_confirmed(monkeypatch):
+    class _UnconfirmedSleep(_DailyFake):
+        def get_stats(self, date):
+            stats = super().get_stats(date)
+            stats["sleepingSeconds"] = 0
+            return stats
+
+        def get_sleep_data(self, date):
+            return {
+                "dailySleepDTO": {
+                    "sleepWindowConfirmed": False,
+                    "sleepTimeSeconds": 0,
+                    "sleepScores": {"overall": {"value": 0}},
+                    "deepSleepSeconds": 0,
+                    "lightSleepSeconds": 0,
+                    "remSleepSeconds": 0,
+                    "awakeSleepSeconds": 0,
+                    "averageSpO2Value": 0,
+                    "averageRespirationValue": 0,
+                },
+            }
+
+    monkeypatch.setattr(sidecar, "_login", lambda credentials: _UnconfirmedSleep())
+
+    result = _sync_daily(Credentials(username="u", password="p"), "2026-11-02")
+
+    assert "sleep_duration" not in result["metrics"]
+    assert "sleep_score" not in result["metrics"]
+    assert "deep_sleep" not in result["metrics"]
+    assert result["metrics"]["resting_heart_rate"] == 52
+
+
+def test_sync_daily_omits_a_zero_sleep_without_a_confirmation_flag(monkeypatch):
+    class _EmptySleep(_DailyFake):
+        def get_stats(self, date):
+            stats = super().get_stats(date)
+            stats["sleepingSeconds"] = 0
+            return stats
+
+        def get_sleep_data(self, date):
+            return {
+                "dailySleepDTO": {
+                    "sleepTimeSeconds": 0,
+                    "sleepScores": {"overall": {"value": 0}},
+                    "deepSleepSeconds": 0,
+                    "lightSleepSeconds": 0,
+                    "remSleepSeconds": 0,
+                    "awakeSleepSeconds": 0,
+                },
+            }
+
+    monkeypatch.setattr(sidecar, "_login", lambda credentials: _EmptySleep())
+
+    result = _sync_daily(Credentials(username="u", password="p"), "2026-11-02")
+
+    assert "sleep_duration" not in result["metrics"]
+    assert "sleep_score" not in result["metrics"]
+
+
 def test_sync_daily_tolerates_one_failed_source(monkeypatch):
     class _PartlyBroken(_DailyFake):
         def get_sleep_data(self, date):

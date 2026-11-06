@@ -345,7 +345,9 @@ export function buildActivityAnalysisPrompt(
     }
     if (context.dailyHealth !== undefined) {
       lines.push(
-        ...formatDailyHealthContext(context.dailyHealth, activityDate),
+        ...formatDailyHealthContext(context.dailyHealth, activityDate, {
+          today: context.today,
+        }),
         "",
       );
     }

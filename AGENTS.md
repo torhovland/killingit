@@ -223,10 +223,13 @@ about a past workout, or before a suggested workout, to steer the coach.
   Body Battery, training readiness, recovery time, VO2max, SpO2, respiration,
   steps, calories and intensity minutes) are backfilled one day at a time after
   the activity sync, with a per-day watermark that lets a rate-limited backfill
-  resume. A curated 14-day summary is given to the plan, reply, review and
-  activity-analysis prompts, and the Fitness page's Today panel lists the
-  newest Garmin value for each measure; see
-  `docs/specs/garmin-daily-health-metrics.md`.
+  resume. A sleep window Garmin has not confirmed, or one whose total is still
+  zero, is skipped so the last completed night stays in the series. Today's
+  Body Battery high and low are running values, so the prompts and the Fitness
+  page's Today panel use the last completed day until today is over. A curated
+  14-day summary is given to the plan, reply, review and activity-analysis
+  prompts, and the Fitness page's Today panel lists the newest Garmin value for
+  each measure; see `docs/specs/garmin-daily-health-metrics.md`.
   Manual activities get a coach-estimated TSS read from their free text, stored
   in `manual_activities.estimated_tss`; without a model the entry stays
   unscored. Any manual
@@ -242,9 +245,11 @@ about a past workout, or before a suggested workout, to steer the coach.
   page are documented in `docs/specs/period-reviews.md`.
 - Structured coach responses may ask the athlete one clarification question
   (`coachQuestion`) and report the model's own difficulties or objections
-  (`modelsRemarks`). The newest pending question is shown on the dashboard,
-  answered questions are kept for the season review, and recent non-null model
-  remarks are listed in the admin settings page. A new season plan or season
+  (`modelsRemarks`). There is at most one pending question per account: a new
+  question replaces it, and answering it leaves none behind. The pending
+  question is shown on the dashboard, answered questions are kept for the
+  season review, and recent non-null model remarks are listed in the admin
+  settings page. A new season plan or season
   refresh clears unanswered questions first, so no stale question survives the
   plan it was about. See `docs/specs/coach-questions.md`.
 - The Coaching survey page shows updated, new, and answered questions, with

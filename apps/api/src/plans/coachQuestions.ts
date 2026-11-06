@@ -1,7 +1,21 @@
 import type { CoachQuestion } from "@killingit/shared";
-import { and, desc, eq, isNotNull, isNull, or } from "drizzle-orm";
+import { and, desc, eq, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { coachQuestions, type CoachQuestionRow } from "../db/schema.js";
+
+/**
+ * The newest non-blank question in a response. A response may carry several
+ * questions, but the athlete only ever sees the most recent one.
+ */
+export function newestCoachQuestion(
+  questions: readonly string[],
+): string | null {
+  const newest = questions
+    .map((question) => question.trim())
+    .filter((question) => question !== "")
+    .at(-1);
+  return newest ?? null;
+}
 
 /** The prompt family that produced a clarification question. */
 export type CoachQuestionSourceKind =
@@ -27,47 +41,66 @@ export interface SaveCoachQuestionsInput {
 }
 
 /**
- * Stores new clarification questions, skipping blanks and questions that are
- * already pending so a repeated model response does not create duplicates.
+ * Stores the newest clarification question, replacing any question that is
+ * still pending. An account never has a queue of coach questions: the athlete
+ * sees only the most recent one, and answering it leaves none behind.
  */
 export async function saveCoachQuestions(
   input: SaveCoachQuestionsInput,
 ): Promise<void> {
-  const unique = [
-    ...new Set(
-      input.questions
-        .map((question) => question.trim())
-        .filter((question) => question !== ""),
-    ),
-  ];
-  if (unique.length === 0) {
+  const newest = newestCoachQuestion(input.questions);
+  if (newest === null) {
     return;
   }
 
-  const pending = await db
-    .select({ question: coachQuestions.question })
-    .from(coachQuestions)
-    .where(
-      and(
-        eq(coachQuestions.userId, input.userId),
-        isNull(coachQuestions.answer),
-      ),
+  await db.transaction(async (tx) => {
+    // Serialize question writes per account so two overlapping runs cannot
+    // each leave a pending question behind.
+    await tx.execute(
+      sql`select id from users where id = ${input.userId} for update`,
     );
-  const known = new Set(pending.map((row) => row.question));
-  const fresh = unique.filter((question) => !known.has(question));
-  if (fresh.length === 0) {
-    return;
-  }
+    const [pending] = await tx
+      .select({ id: coachQuestions.id })
+      .from(coachQuestions)
+      .where(
+        and(
+          eq(coachQuestions.userId, input.userId),
+          isNull(coachQuestions.answer),
+        ),
+      )
+      .orderBy(desc(coachQuestions.createdAt), desc(coachQuestions.id))
+      .limit(1);
+    if (pending !== undefined) {
+      await tx
+        .update(coachQuestions)
+        .set({
+          question: newest,
+          target: input.target ?? null,
+          sourceKind: input.sourceKind,
+          model: input.model,
+          updatedAt: new Date(),
+        })
+        .where(eq(coachQuestions.id, pending.id));
+      await tx
+        .delete(coachQuestions)
+        .where(
+          and(
+            eq(coachQuestions.userId, input.userId),
+            isNull(coachQuestions.answer),
+            ne(coachQuestions.id, pending.id),
+          ),
+        );
+      return;
+    }
 
-  await db.insert(coachQuestions).values(
-    fresh.map((question) => ({
+    await tx.insert(coachQuestions).values({
       userId: input.userId,
-      question,
+      question: newest,
       target: input.target ?? null,
       sourceKind: input.sourceKind,
       model: input.model,
-    })),
-  );
+    });
+  });
 }
 
 /**
@@ -164,29 +197,50 @@ export interface AnswerCoachQuestionInput {
 /**
  * Saves the athlete's answer and the coach's reply. Returns null when the
  * question does not exist, belongs to another account, or was already answered.
+ * Answering the pending question also clears every other pending question, so
+ * no older question can surface after this one.
  */
 export async function answerCoachQuestion(
   input: AnswerCoachQuestionInput,
 ): Promise<CoachQuestion | null> {
   const now = new Date();
-  const [row] = await db
-    .update(coachQuestions)
-    .set({
-      answer: input.answer,
-      reply: input.reply,
-      replyModel: input.replyModel,
-      answeredAt: now,
-      updatedAt: now,
-    })
-    .where(
-      and(
-        eq(coachQuestions.userId, input.userId),
-        eq(coachQuestions.id, input.id),
-        isNull(coachQuestions.answer),
-      ),
-    )
-    .returning();
-  return row === undefined ? null : toCoachQuestion(row);
+  return db.transaction(async (tx) => {
+    // Serialize with saveCoachQuestions so a concurrent run cannot slip a new
+    // pending question in between the answer and the cleanup.
+    await tx.execute(
+      sql`select id from users where id = ${input.userId} for update`,
+    );
+    const [row] = await tx
+      .update(coachQuestions)
+      .set({
+        answer: input.answer,
+        reply: input.reply,
+        replyModel: input.replyModel,
+        answeredAt: now,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(coachQuestions.userId, input.userId),
+          eq(coachQuestions.id, input.id),
+          isNull(coachQuestions.answer),
+        ),
+      )
+      .returning();
+    if (row === undefined) {
+      return null;
+    }
+    await tx
+      .delete(coachQuestions)
+      .where(
+        and(
+          eq(coachQuestions.userId, input.userId),
+          isNull(coachQuestions.answer),
+          ne(coachQuestions.id, row.id),
+        ),
+      );
+    return toCoachQuestion(row);
+  });
 }
 
 function toCoachQuestion(row: CoachQuestionRow): CoachQuestion {

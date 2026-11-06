@@ -514,6 +514,30 @@ describe("buildFitnessHistory", () => {
     expect(history.dailyHealth).toHaveLength(3);
   });
 
+  it("uses the last completed day for today's running Body Battery values", () => {
+    const history = buildFitnessHistory({
+      ...base,
+      dailyHealthPoints: [
+        { metric: "body_battery_high", date: "2026-10-21", value: 81 },
+        { metric: "body_battery_high", date: "2026-10-22", value: 30 },
+        { metric: "body_battery_low", date: "2026-10-21", value: 24 },
+        { metric: "body_battery_low", date: "2026-10-22", value: 12 },
+        { metric: "sleep_duration", date: "2026-10-22", value: 420 },
+      ],
+    });
+
+    expect(history.latestGarmin.dailyHealth).toEqual([
+      { metric: "sleep_duration", date: "2026-10-22", value: 420 },
+      { metric: "body_battery_high", date: "2026-10-21", value: 81 },
+      { metric: "body_battery_low", date: "2026-10-21", value: 24 },
+    ]);
+    expect(history.dailyHealth).toEqual([
+      { metric: "body_battery_high", date: "2026-10-21", value: 81 },
+      { metric: "body_battery_low", date: "2026-10-21", value: 24 },
+      { metric: "sleep_duration", date: "2026-10-22", value: 420 },
+    ]);
+  });
+
   it("leaves absent Garmin readings empty", () => {
     const history = buildFitnessHistory(base);
 

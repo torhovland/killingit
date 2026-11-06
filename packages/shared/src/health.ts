@@ -104,6 +104,14 @@ export const DAILY_HEALTH_METRICS: Record<
   },
 };
 
+/**
+ * Metrics that are running values for the current day rather than a completed
+ * daily summary. A morning value is only the high or low so far, so the coach
+ * and the Fitness page use the last completed day until this day is over.
+ */
+export const IN_PROGRESS_DAILY_HEALTH_METRICS: readonly DailyHealthMetricKey[] =
+  ["body_battery_high", "body_battery_low"];
+
 /** One stored daily health value. */
 export const dailyHealthPointSchema = z.object({
   metric: dailyHealthMetricKeySchema,
@@ -125,6 +133,27 @@ export const garminDailyResponseSchema = z.object({
 });
 
 export type GarminDailyResponse = z.infer<typeof garminDailyResponseSchema>;
+
+/** True when a metric is a running value for the current day. */
+export function isInProgressDailyHealthMetric(
+  metric: DailyHealthMetricKey,
+): boolean {
+  return IN_PROGRESS_DAILY_HEALTH_METRICS.includes(metric);
+}
+
+/**
+ * Drops the current day's still-in-progress values from a daily health series,
+ * so a reader shows the last completed day instead of a partial morning value.
+ */
+export function withoutInProgressDailyHealth(
+  points: readonly DailyHealthPoint[],
+  today: string,
+): DailyHealthPoint[] {
+  return points.filter(
+    (point) =>
+      point.date !== today || !isInProgressDailyHealthMetric(point.metric),
+  );
+}
 
 /** Formats one stored daily health value with its display unit. */
 export function formatDailyHealthValue(
