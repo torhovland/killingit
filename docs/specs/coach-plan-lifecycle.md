@@ -291,8 +291,16 @@ problems; the error names the offending fields if the repair also fails. See
 
 ## UI
 
-- `CoachPlanSection` owns fetching, generation, polling, and the progress
-  panel. It polls every 1.5s for up to 10 minutes.
+- `PlanGenerationProvider` owns starting a generation, polling its server
+  status, and publishing its progress and latest plan response for the whole
+  signed-in app. Because it sits above the pages, the header spinner keeps
+  reporting a run (`thinking`) on every page after the athlete navigates away
+  from the page that started it. `CoachPlanSection` and
+  `PlanRegenerationButtons` start and observe the provider; leaving a page no
+  longer cancels the progress indication.
+- `CoachPlanSection` loads the stored plan and fills in anything missing. It
+  observes the provider for progress and its latest response, so the Day, Week,
+  and Block tabs update while a run is tracked.
 - `CoachPlanView` is the pure presentation of the plan, so it can be tested
   without auth or network. The Day tab shows today and, after 18:00, tomorrow.
   The Week tab shows today's week and, when one has been planned for tomorrow,
@@ -347,6 +355,9 @@ problems; the error names the offending fields if the repair also fails. See
   generation, the already-running `202` case, and a normalised next period.
 - Web render tests for the four-level view (today, week, next week, block, next
   block, season, alternatives, and the goal-linked skip guidance on workouts).
+- Web unit tests for the generation poll helper: progress updates, the
+  previous-run `done` guard, stored errors, failed status requests, and
+  timeouts.
 - Run `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`.
 
 ## Risks / open questions

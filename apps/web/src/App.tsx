@@ -11,6 +11,7 @@ import { useAuth } from "./auth";
 import { fetchJsonAuthed } from "./fetchAuthed";
 import { FitnessPage } from "./FitnessPage";
 import { NavigationProvider, type Page } from "./navigation";
+import { PlanGenerationProvider } from "./PlanGenerationProvider";
 import { PwaBanners } from "./PwaBanners";
 import { usePwa } from "./PwaContext";
 import { InstallAppButton } from "./PwaInstall";
@@ -191,72 +192,74 @@ function AppShell() {
           <div
             className={`mx-auto flex w-full ${contentWidth} flex-col gap-4 px-0 py-4 sm:px-4 sm:py-6`}
           >
-            {error && <p className="text-destructive">Error: {error}</p>}
+            <PlanGenerationProvider>
+              {error && <p className="text-destructive">Error: {error}</p>}
 
-            {!signedIn ? (
-              auth.isLoading ? (
-                <p className="text-base text-muted-foreground">Loading…</p>
+              {!signedIn ? (
+                auth.isLoading ? (
+                  <p className="text-base text-muted-foreground">Loading…</p>
+                ) : (
+                  <SignInPage onSignIn={() => void auth.login()} />
+                )
+              ) : loadingQuestions && questions === null ? (
+                <p className="text-base text-muted-foreground">
+                  Loading your profile…
+                </p>
+              ) : questions === null ? (
+                <section className="flex flex-col items-start gap-2">
+                  {questionsError && (
+                    <p className="text-destructive">Error: {questionsError}</p>
+                  )}
+                  <button
+                    type="button"
+                    className="rounded border bg-card px-4 py-2 enabled:hover:bg-muted"
+                    onClick={() => void loadQuestions()}
+                  >
+                    Retry
+                  </button>
+                </section>
+              ) : !questions.complete ? (
+                <CoachingSurveyPage
+                  onAnswersSaved={() => {
+                    setPlanRefreshKey((key) => key + 1);
+                    void loadQuestions();
+                  }}
+                />
+              ) : page === "fitness" ? (
+                <FitnessPage />
+              ) : page === "calendar" ? (
+                <CalendarPage />
+              ) : page === "activities" ? (
+                <ActivitiesPage />
+              ) : page === "seasonReview" ? (
+                <SeasonReviewPage />
+              ) : page === "survey" ? (
+                <CoachingSurveyPage
+                  onAnswersSaved={() => setPlanRefreshKey((key) => key + 1)}
+                />
+              ) : page === "costs" ? (
+                <CostsPage />
+              ) : page === "settings" ? (
+                <SettingsPage
+                  timeZone={timeZone}
+                  onTimeZoneChanged={(timezone) => {
+                    timeZoneTouched.current = true;
+                    setTimeZone(timezone);
+                  }}
+                  location={me?.location ?? null}
+                  onLocationChanged={(location) => {
+                    setMe((current) =>
+                      current === null ? current : { ...current, location },
+                    );
+                  }}
+                  isAdmin={isAdmin}
+                />
+              ) : page === "admin" && isAdmin ? (
+                <AdminSettingsPage />
               ) : (
-                <SignInPage onSignIn={() => void auth.login()} />
-              )
-            ) : loadingQuestions && questions === null ? (
-              <p className="text-base text-muted-foreground">
-                Loading your profile…
-              </p>
-            ) : questions === null ? (
-              <section className="flex flex-col items-start gap-2">
-                {questionsError && (
-                  <p className="text-destructive">Error: {questionsError}</p>
-                )}
-                <button
-                  type="button"
-                  className="rounded border bg-card px-4 py-2 enabled:hover:bg-muted"
-                  onClick={() => void loadQuestions()}
-                >
-                  Retry
-                </button>
-              </section>
-            ) : !questions.complete ? (
-              <CoachingSurveyPage
-                onAnswersSaved={() => {
-                  setPlanRefreshKey((key) => key + 1);
-                  void loadQuestions();
-                }}
-              />
-            ) : page === "fitness" ? (
-              <FitnessPage />
-            ) : page === "calendar" ? (
-              <CalendarPage />
-            ) : page === "activities" ? (
-              <ActivitiesPage />
-            ) : page === "seasonReview" ? (
-              <SeasonReviewPage />
-            ) : page === "survey" ? (
-              <CoachingSurveyPage
-                onAnswersSaved={() => setPlanRefreshKey((key) => key + 1)}
-              />
-            ) : page === "costs" ? (
-              <CostsPage />
-            ) : page === "settings" ? (
-              <SettingsPage
-                timeZone={timeZone}
-                onTimeZoneChanged={(timezone) => {
-                  timeZoneTouched.current = true;
-                  setTimeZone(timezone);
-                }}
-                location={me?.location ?? null}
-                onLocationChanged={(location) => {
-                  setMe((current) =>
-                    current === null ? current : { ...current, location },
-                  );
-                }}
-                isAdmin={isAdmin}
-              />
-            ) : page === "admin" && isAdmin ? (
-              <AdminSettingsPage />
-            ) : (
-              <CoachDashboard planRefreshKey={planRefreshKey} />
-            )}
+                <CoachDashboard planRefreshKey={planRefreshKey} />
+              )}
+            </PlanGenerationProvider>
           </div>
         </div>
       </NavigationProvider>

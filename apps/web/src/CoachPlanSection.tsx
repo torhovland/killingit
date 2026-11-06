@@ -9,6 +9,7 @@ import { CoachPlanView } from "./CoachPlanView";
 import { saveBlob } from "./download";
 import { fetchFileAuthed, fetchJsonAuthed } from "./fetchAuthed";
 import { useNavigate } from "./navigation";
+import { usePlanGeneration } from "./PlanGenerationProvider";
 import { PlanProgress } from "./PlanProgress";
 import { reportError } from "./reportError";
 import { SubmitButton } from "./SubmitButton";
@@ -17,8 +18,6 @@ import { formatDateTime } from "./timeZone";
 import { getToday } from "./useToday";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
-const POLL_INTERVAL_MS = 1500;
-const POLL_TIMEOUT_MS = 10 * 60 * 1000;
 
 interface CoachPlanSectionProps {
   /** Increment after answers are saved so the section regenerates the plan. */
@@ -30,11 +29,11 @@ interface CoachPlanSectionProps {
 }
 
 /**
- * The four-level coach plan. Loads the stored plan, fills in anything missing
- * for today, and polls while the coach is thinking so the user sees progress.
- * The old plan stays visible during a regeneration, except on the Day, Week,
- * and Block tabs where a superseded level is greyed out until its replacement
- * arrives.
+ * The four-level coach plan. Loads the stored plan and fills in anything
+ * missing for today. Generation and polling live in `PlanGenerationProvider`,
+ * so the header spinner keeps reporting the run on every page. The old plan
+ * stays visible during a regeneration, except on the Day, Week, and Block tabs
+ * where a superseded level is greyed out until its replacement arrives.
  */
 export function CoachPlanSection({
   refreshKey,
@@ -42,19 +41,25 @@ export function CoachPlanSection({
   onGenerated,
 }: CoachPlanSectionProps) {
   const auth = useAuth();
-  const { status, setStatus } = useAppStatus();
+  const { status } = useAppStatus();
   const navigate = useNavigate();
   const timeZone = useTimeZone();
+  const {
+    running,
+    progress,
+    latest,
+    revision,
+    error: generationError,
+    start,
+    track,
+  } = usePlanGeneration();
   const { today, isAfter18 } = getToday(timeZone);
   const [data, setData] = useState<CoachPlanResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [generating, setGenerating] = useState(false);
   const [downloadingWorkoutDate, setDownloadingWorkoutDate] = useState<
     string | null
   >(null);
-  const inFlight = useRef(false);
-  const pendingRefresh = useRef(false);
 
   async function fetchPlan(
     today: string,
@@ -88,95 +93,6 @@ export function CoachPlanSection({
     }
   }
 
-  async function pollUntilDone(
-    today: string,
-    request: Promise<unknown> | null,
-    includeTomorrow = false,
-  ): Promise<CoachPlanResponse | null> {
-    let requestDone = request === null;
-    if (request !== null) {
-      void request
-        .finally(() => {
-          requestDone = true;
-        })
-        .catch(() => {
-          // The status endpoint carries the error; polling shows it.
-        });
-    }
-
-    const deadline = Date.now() + POLL_TIMEOUT_MS;
-    while (Date.now() < deadline) {
-      await sleep(POLL_INTERVAL_MS);
-      let result: CoachPlanResponse;
-      try {
-        result = await fetchPlan(today, includeTomorrow);
-      } catch (err: unknown) {
-        setError(reportError(err));
-        return null;
-      }
-      setData(result);
-
-      if (result.generation.status === "running") {
-        continue;
-      }
-      if (result.generation.status === "error") {
-        return result;
-      }
-      // A `done` status from the previous run must not stop us before the new
-      // request has even started; wait for the request to settle.
-      if (result.generation.status === "done" && requestDone) {
-        return result;
-      }
-    }
-
-    setError(
-      "The coach is taking longer than expected. Refresh to check again.",
-    );
-    return null;
-  }
-
-  async function generate(force: boolean): Promise<void> {
-    if (inFlight.current) {
-      // Answers may have changed while a run was already in flight. Queue one
-      // more pass so the saved answers are not missed.
-      pendingRefresh.current = true;
-      return;
-    }
-    inFlight.current = true;
-    setGenerating(true);
-    setError(null);
-
-    const includeTomorrow = isAfter18;
-    const request = fetchJsonAuthed<unknown>(
-      `${API_URL}/api/coaching/plan/generate`,
-      auth,
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          today,
-          timezone: timeZone,
-          force,
-          includeTomorrow,
-        }),
-      },
-    );
-
-    try {
-      const result = await pollUntilDone(today, request, includeTomorrow);
-      if (result?.generation.status === "done") {
-        onGenerated?.();
-      }
-    } finally {
-      setGenerating(false);
-      inFlight.current = false;
-      if (pendingRefresh.current) {
-        pendingRefresh.current = false;
-        void generate(false);
-      }
-    }
-  }
-
   async function downloadWorkout(date: string): Promise<void> {
     setDownloadingWorkoutDate(date);
     setError(null);
@@ -193,10 +109,32 @@ export function CoachPlanSection({
     }
   }
 
+  // Every status poll gives the provider a fresher plan than the section has,
+  // so keep the view in step with it.
+  useEffect(() => {
+    if (latest !== null) {
+      setData(latest);
+    }
+  }, [latest]);
+
+  // A generation that finished after this section mounted may have refreshed
+  // the activity analyses and reviews too.
+  const previousRevision = useRef(revision);
+  useEffect(() => {
+    if (revision === previousRevision.current) {
+      return;
+    }
+    previousRevision.current = revision;
+    onGenerated?.();
+  }, [revision, onGenerated]);
+
+  const lastRefreshKey = useRef(refreshKey);
   useEffect(() => {
     if (!auth.isAuthenticated) {
       return;
     }
+    const refreshChanged = refreshKey !== lastRefreshKey.current;
+    lastRefreshKey.current = refreshKey;
     let cancelled = false;
 
     async function run(): Promise<void> {
@@ -205,9 +143,11 @@ export function CoachPlanSection({
         return;
       }
       if (result.generation.status === "running") {
-        const final = await pollUntilDone(today, null);
-        if (final?.generation.status === "done") {
-          onGenerated?.();
+        track();
+        // Answers changed while a run was in flight: run once more after it,
+        // so the saved answers are not missed.
+        if (refreshChanged) {
+          void start("auto");
         }
         return;
       }
@@ -226,7 +166,7 @@ export function CoachPlanSection({
         result.pending.nextWeek ||
         result.pending.nextBlock;
       if (needsUpdate && ready) {
-        await generate(false);
+        void start("auto");
       }
     }
 
@@ -234,32 +174,18 @@ export function CoachPlanSection({
     return () => {
       cancelled = true;
     };
-    // Re-run when sign-in, integration readiness, or the answers change.
-  }, [auth.isAuthenticated, ready, refreshKey]);
+  }, [auth.isAuthenticated, ready, refreshKey, start, track]);
 
-  const running =
-    generating || (data?.generation.status === "running" && error === null);
-
-  useEffect(() => {
-    setStatus("coach-plan", running ? "thinking" : null);
-    return () => setStatus("coach-plan", null);
-  }, [running, setStatus]);
+  // The stored generation error is shown in its own block with a retry action;
+  // a provider error is only surfaced when the stored plan does not carry it.
+  const planError =
+    error ?? (data?.generation.status === "error" ? null : generationError);
+  const setupError =
+    data?.generation.status === "error" ? data.generation.error : null;
 
   if (!auth.isAuthenticated) {
     return null;
   }
-
-  // While a new run is starting, the stored status is still the previous run's
-  // `done` (often 100%). Show a neutral starting state until the first poll.
-  // Only a running generation has a determinate percentage; other busy actions
-  // show the indeterminate bar.
-  const progress = running
-    ? generating && data?.generation.status !== "running"
-      ? { step: "Waking the coach…", progress: 0 }
-      : (data?.generation ?? null)
-    : null;
-  const setupError =
-    data?.generation.status === "error" ? data.generation.error : null;
 
   return (
     <section
@@ -292,16 +218,16 @@ export function CoachPlanSection({
         </div>
       )}
 
-      {error && (
+      {planError && (
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-destructive" data-testid="plan-error">
-            Error: {error}
+            Error: {planError}
           </p>
-          {!generating && (
+          {!running && (
             <button
               type="button"
               className="rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted"
-              onClick={() => void generate(false)}
+              onClick={() => void start("auto")}
             >
               Try again
             </button>
@@ -309,7 +235,7 @@ export function CoachPlanSection({
         </div>
       )}
 
-      {setupError && !generating && (
+      {setupError && !running && (
         <div
           className="flex flex-wrap items-center justify-between gap-2 rounded border bg-inset p-3 text-base"
           data-testid="plan-generation-error"
@@ -320,7 +246,7 @@ export function CoachPlanSection({
           <button
             type="button"
             className="rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted"
-            onClick={() => void generate(false)}
+            onClick={() => void start("auto")}
           >
             Try again
           </button>
@@ -374,7 +300,7 @@ export function CoachPlanSection({
               type="button"
               busy={running}
               className="rounded border border-transparent bg-primary px-3 py-1 text-base text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
-              onClick={() => void generate(false)}
+              onClick={() => void start("auto")}
             >
               {running ? "Coach is thinking…" : "Generate my plan"}
             </SubmitButton>
@@ -383,8 +309,4 @@ export function CoachPlanSection({
       )}
     </section>
   );
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }

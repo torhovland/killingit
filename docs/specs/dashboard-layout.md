@@ -14,7 +14,10 @@ header, outstanding activities, the plan, and the inputs that shape it.
   the hamburger icon, not inside the menu.
 - The menu links to the coaching dashboard, fitness, activities, season review,
   coaching survey, settings, admin settings (admins only), and sign out.
-- The spinner reports `loading`, `syncing`, or `thinking` across any page.
+- The spinner reports `loading`, `syncing`, or `thinking` across any page. A
+  plan generation keeps the spinner — and its coach label — on every page after
+  the athlete navigates away from the page that started it; the run belongs to
+  the whole signed-in app, not to the page's lifetime.
 - While the browser offers installation, an `Install app` action sits next to
   the account menu. A full-width notice under the header reports an offline
   connection, and a second notice offers a reload when a new PWA version is

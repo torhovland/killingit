@@ -5,18 +5,15 @@ import {
   llmSettingsSchema,
   type PlanGenerateMode,
 } from "@killingit/shared";
-import { useAppStatus } from "./AppStatus";
 import { useAuth } from "./auth";
 import { fetchJsonAuthed } from "./fetchAuthed";
 import { useNavigate } from "./navigation";
-import { reportError } from "./reportError";
+import { usePlanGeneration } from "./PlanGenerationProvider";
 import { SubmitButton } from "./SubmitButton";
 import { useTimeZone } from "./TimeZoneContext";
 import { getToday } from "./useToday";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
-const POLL_INTERVAL_MS = 1500;
-const POLL_TIMEOUT_MS = 10 * 60 * 1000;
 
 const PRIMARY_BUTTON =
   "rounded border border-transparent bg-primary px-3 py-1 text-base text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50";
@@ -55,18 +52,22 @@ export function seasonSetupNotice({
  * today; "Update season plan" keeps the completed part of the stored season and
  * re-plans the rest. The second action is only offered when there is a season
  * containing today.
+ *
+ * The generation itself runs in `PlanGenerationProvider`, so the header
+ * spinner keeps showing it after the athlete leaves this page.
  */
 export function PlanRegenerationButtons() {
   const auth = useAuth();
-  const { setStatus } = useAppStatus();
   const navigate = useNavigate();
   const timeZone = useTimeZone();
+  const { running, mode, start } = usePlanGeneration();
   const [hasSeason, setHasSeason] = useState(false);
   const [setup, setSetup] = useState<IntegrationSetup | null>(null);
-  const [running, setRunning] = useState<PlanAction | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const setupNotice = setup === null ? null : seasonSetupNotice(setup);
+  const runningAction: PlanAction | null =
+    running && (mode === "newSeason" || mode === "updateSeason") ? mode : null;
 
   useEffect(() => {
     if (!auth.isAuthenticated) {
@@ -138,83 +139,17 @@ export function PlanRegenerationButtons() {
     };
   }, [auth.isAuthenticated]);
 
-  useEffect(() => {
-    if (running === null) {
-      setStatus("regenerate-plan", null);
-      return;
-    }
-    setStatus("regenerate-plan", "thinking");
-    return () => setStatus("regenerate-plan", null);
-  }, [running, setStatus]);
-
   async function regenerate(action: PlanAction): Promise<void> {
-    setRunning(action);
     setError(null);
     setDone(false);
-    const { today, isAfter18 } = getToday(timeZone);
-    try {
-      const request = fetchJsonAuthed<unknown>(
-        `${API_URL}/api/coaching/plan/generate`,
-        auth,
-        {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            today,
-            timezone: timeZone,
-            mode: action,
-            includeTomorrow: isAfter18,
-          }),
-        },
-      );
-      let requestDone = false;
-      void request
-        .finally(() => {
-          requestDone = true;
-        })
-        .catch(() => {
-          // The status endpoint carries the error; polling shows it.
-        });
-
-      const deadline = Date.now() + POLL_TIMEOUT_MS;
-      while (Date.now() < deadline) {
-        await sleep(POLL_INTERVAL_MS);
-        const response = await fetchJsonAuthed<unknown>(
-          `${API_URL}/api/coaching/plan?today=${today}&includeTomorrow=${isAfter18}`,
-          auth,
-        );
-        const parsed = coachPlanResponseSchema.safeParse(response);
-        if (!parsed.success) {
-          throw new Error(
-            "Checking the plan status returned an unexpected response",
-            { cause: parsed.error },
-          );
-        }
-        if (parsed.data.generation.status === "running") {
-          continue;
-        }
-        if (parsed.data.generation.status === "error") {
-          throw new Error(
-            parsed.data.generation.error ?? "The coach could not finish.",
-          );
-        }
-        // A `done` status from the previous run must not finish us before the
-        // new request has started.
-        if (requestDone) {
-          setDone(true);
-          // Both actions leave a season that contains today.
-          setHasSeason(true);
-          return;
-        }
-      }
-      throw new Error(
-        "The coach is taking longer than expected. Check the plan on the main page.",
-      );
-    } catch (err: unknown) {
-      setError(reportError(err));
-    } finally {
-      setRunning(null);
+    const outcome = await start(action);
+    if (outcome.status === "done") {
+      setDone(true);
+      // Both actions leave a season that contains today.
+      setHasSeason(true);
+      return;
     }
+    setError(outcome.error);
   }
 
   /** Starting a new season needs both integrations; send the athlete to set up. */
@@ -229,7 +164,8 @@ export function PlanRegenerationButtons() {
   return (
     <PlanRegenerationButtonsView
       hasSeason={hasSeason}
-      running={running}
+      running={runningAction}
+      busy={running}
       done={done}
       error={error}
       setupNotice={setupNotice}
@@ -242,6 +178,8 @@ export function PlanRegenerationButtons() {
 interface PlanRegenerationButtonsViewProps {
   hasSeason: boolean;
   running: PlanAction | null;
+  /** Whether any generation is running, including one started elsewhere. */
+  busy?: boolean;
   done: boolean;
   error: string | null;
   setupNotice?: string | null;
@@ -253,13 +191,13 @@ interface PlanRegenerationButtonsViewProps {
 export function PlanRegenerationButtonsView({
   hasSeason,
   running,
+  busy = running !== null,
   done,
   error,
   setupNotice = null,
   onNewSeason,
   onUpdateSeason,
 }: PlanRegenerationButtonsViewProps) {
-  const busy = running !== null;
   // Updating a season is the safer default whenever there is one: it keeps the
   // completed blocks. Starting over is only primary when it is the sole action.
   const actions: Array<{
@@ -320,8 +258,4 @@ export function PlanRegenerationButtonsView({
       {error && <p className="text-base text-destructive">{error}</p>}
     </div>
   );
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
