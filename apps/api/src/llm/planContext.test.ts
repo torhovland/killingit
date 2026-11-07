@@ -303,6 +303,7 @@ describe("formatPlanContext", () => {
           goalWeightKg: 80,
           goalBodyFatPercent: 15,
           goalDate: "2027-03-01",
+          goalMissReason: "The brevet build needs full fuelling.",
           assessment: "The trend is on target.",
         },
         calorieHistory: [
@@ -315,6 +316,9 @@ describe("formatPlanContext", () => {
     expect(text).toContain("Diet goal: Lose 3 kg by March");
     expect(text).toContain(
       "Diet goal target: 80.0 kg, 15.0 % body fat, by 2027-03-01.",
+    );
+    expect(text).toContain(
+      "Diet goal trade-off: The brevet build needs full fuelling.",
     );
     expect(text).toContain("Diet assessment: The trend is on target.");
     expect(text).toContain("Earlier daily calorie targets");

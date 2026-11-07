@@ -285,6 +285,7 @@ describe("DIET_PLANNING_RULES", () => {
     expect(DIET_CONTRACT).toContain('"goalBodyFatPercent": 0');
     expect(DIET_CONTRACT).toContain('"goalWeightKg": 0');
     expect(DIET_CONTRACT).toContain('"goalDate": "YYYY-MM-DD"');
+    expect(DIET_CONTRACT).toContain('"goalMissReason": "string"');
   });
 });
 
@@ -311,12 +312,22 @@ describe("DIET_PROGRESS_RULES", () => {
     );
   });
 
-  it("makes the season target the destination and front-loads the loss", () => {
+  it("checks a mid-season goal at its own date and allows a deliberate miss", () => {
     expect(DIET_PROGRESS_RULES).toContain(
-      "The season target is the destination for the athlete's stated goal",
+      "The target at the goal date is the destination",
     );
     expect(DIET_PROGRESS_RULES).toContain(
-      "A season target that stops well above the goal is not a plan to reach it",
+      "The season-end target may then be above a mid-season goal",
+    );
+    expect(DIET_PROGRESS_RULES).toContain(
+      "A goal date after the season ends is not due in this season",
+    );
+    expect(DIET_PROGRESS_RULES).toContain(
+      "A plan that misses the goal is not automatically wrong",
+    );
+    expect(DIET_PROGRESS_RULES).toContain('"diet.goalMissReason"');
+    expect(DIET_PROGRESS_RULES).toContain(
+      "Do not use a miss reason as a blanket excuse to avoid loss",
     );
     expect(DIET_PROGRESS_RULES).toContain("Front-load the change");
     expect(DIET_PROGRESS_RULES).toContain(

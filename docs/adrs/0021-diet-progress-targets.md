@@ -42,14 +42,21 @@ target to the period's training focus, to allow a non-linear path, and to
 re-plan the levels it returns when the latest weigh-in is ahead of or behind the
 earlier target. The app only stores and displays the numbers.
 
-A stated numeric target is the season's destination. The diet plan also carries
-`goalWeightKg`, `goalBodyFatPercent` and `goalDate`, read from the athlete's own
-words. The season-end target must reach that goal by the season end unless the
-athlete gave a date after the season ends. The API rejects a season target that
-stops above the goal, so an ambitious but reachable target cannot quietly become
-a maintenance plan. The prompt also tells the coach to front-load the loss into
-the early and off-season blocks: a later block being busy is not by itself a
-reason to hold weight at a high body-fat percentage for most of the season.
+A stated numeric target is the destination for its goal date. The diet plan also
+carries `goalWeightKg`, `goalBodyFatPercent` and `goalDate`, read from the
+athlete's own words. The goal date may be mid-season; the target at that date—the
+first week or block end on or after it—must reach the goal. Without a date, the
+season end is the date. A goal date after the season ends is not due this season.
+After a mid-season goal, a muscle-building block, a race, or a deliberate
+maintenance phase may hold or gain, so the season-end target can be above the
+mid-season goal.
+
+A plan that misses an unrealistic or conflicting goal is not automatically
+wrong. The coach can set `goalMissReason` with the specific conflict and what it
+protects; a non-empty reason accepts the miss, and the reason is shown with the
+goal. The prompt also tells the coach to front-load the loss into the early and
+off-season blocks: a later block being busy is not by itself a reason to hold
+weight at a high body-fat percentage for most of the season.
 
 The target is planned only when diet advice is enabled and the athlete stated a
 goal. With the default maintenance fallback the targets stay null, and the Diet

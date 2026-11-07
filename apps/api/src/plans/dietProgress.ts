@@ -2,52 +2,72 @@ import {
   isDefaultDietGoal,
   type BlockPlan,
   type CoachPlan,
-  type DietPlan,
+  type FitnessDietTarget,
   type WeekPlan,
 } from "@killingit/shared";
 import { addDays } from "../plans/dates.js";
+import { planDietTargets } from "../training/dietTargets.js";
 
-/** How far a season target may miss a stated goal and still count as reaching it. */
+/** How far a target may miss a stated goal and still count as reaching it. */
 const GOAL_TOLERANCE = 0.5;
 
 /**
- * True when the season target does not reach a numeric goal the athlete stated
- * by the season end. A goal with a date after the season end is not due yet, so
- * the season target only has to move toward it; the coach reports the expected
- * date in the note and assessment.
+ * True when the target at the athlete's goal date does not reach a stated
+ * numeric goal. The goal date may be mid-season; the first week or block end on
+ * or after it is the checkpoint, and the season-end target may legitimately be
+ * above a mid-season goal when a later build or race justifies that. A goal
+ * date after the season ends is not due this season, and an explicit
+ * `goalMissReason` accepts a deliberate miss.
  */
-export function dietGoalProblems(plan: {
-  season: CoachPlan["season"];
-  diet?: DietPlan | null | undefined;
-}): string[] {
+export function dietGoalProblems(plan: CoachPlan, today: string): string[] {
   const diet = plan.diet;
   if (diet == null) {
+    return [];
+  }
+  if (diet.goalMissReason != null && diet.goalMissReason.trim() !== "") {
     return [];
   }
   if (diet.goalDate != null && diet.goalDate > plan.season.endDate) {
     return [];
   }
+  const goalDate = diet.goalDate ?? plan.season.endDate;
+  const checkpoint = goalCheckpoint(plan, today, goalDate);
   const problems: string[] = [];
-  const progress = plan.season.dietProgress;
   const goalBodyFatPercent =
     diet.goalBodyFatPercent ?? impliedGoalBodyFatPercent(diet.goal);
   if (goalBodyFatPercent !== null) {
-    const target = progress?.targetBodyFatPercent ?? null;
+    const target = checkpoint?.bodyFatPercent ?? null;
     if (target === null || target > goalBodyFatPercent + GOAL_TOLERANCE) {
       problems.push(
-        `The season target of ${target === null ? "no body-fat target" : `${target} % body fat`} does not reach the athlete's goal of ${goalBodyFatPercent} % body fat by ${plan.season.endDate}. Plan the block targets so the season target reaches the goal.`,
+        `The target at ${checkpoint?.date ?? goalDate} ${
+          target === null ? "has no body-fat target" : `is ${target} % body fat`
+        }, so it does not reach the athlete's goal of ${goalBodyFatPercent} % body fat by ${goalDate}. Plan the target at that date to reach the goal, or set "diet.goalMissReason" with the specific conflict.`,
       );
     }
   }
   if (diet.goalWeightKg != null) {
-    const target = progress?.targetWeightKg ?? null;
+    const target = checkpoint?.weightKg ?? null;
     if (target === null || target > diet.goalWeightKg + GOAL_TOLERANCE) {
       problems.push(
-        `The season target of ${target === null ? "no weight target" : `${target} kg`} does not reach the athlete's goal of ${diet.goalWeightKg} kg by ${plan.season.endDate}. Plan the block targets so the season target reaches the goal.`,
+        `The target at ${checkpoint?.date ?? goalDate} ${
+          target === null ? "has no weight target" : `is ${target} kg`
+        }, so it does not reach the athlete's goal of ${diet.goalWeightKg} kg by ${goalDate}. Plan the target at that date to reach the goal, or set "diet.goalMissReason" with the specific conflict.`,
       );
     }
   }
   return problems;
+}
+
+/** The first progress target on or after the goal date. */
+function goalCheckpoint(
+  plan: CoachPlan,
+  today: string,
+  goalDate: string,
+): FitnessDietTarget | null {
+  const targets = planDietTargets(plan, today).filter(
+    (target) => target.date >= goalDate,
+  );
+  return targets[0] ?? null;
 }
 
 /**
@@ -76,41 +96,83 @@ export function impliedGoalBodyFatPercent(goal: string): number | null {
 }
 
 /**
- * The last season block ends on the season's last day, so its target and the
- * season-end target are the same target. A disagreement means the Season view
- * and the Block view would show two different destinations for the same day.
+ * The last season block ends on the season's last day, and the last week of
+ * each detailed block ends on the block's last day, so each pair is the same
+ * target. A disagreement means two views would show different destinations for
+ * the same day.
  */
 export function dietProgressConsistencyProblems(plan: CoachPlan): string[] {
+  const problems: string[] = [];
   const lastBlock = plan.season.blocks[plan.season.blocks.length - 1];
   if (
-    lastBlock === undefined ||
-    lastBlock.endDate !== plan.season.endDate ||
-    lastBlock.dietProgress == null ||
-    plan.season.dietProgress == null
+    lastBlock !== undefined &&
+    lastBlock.endDate === plan.season.endDate &&
+    lastBlock.dietProgress != null &&
+    plan.season.dietProgress != null
+  ) {
+    problems.push(
+      ...targetMismatchProblems(
+        "last block",
+        lastBlock.dietProgress,
+        "season end",
+        plan.season.dietProgress,
+      ),
+    );
+  }
+  for (const block of [plan.block, plan.nextBlock]) {
+    if (block !== null) {
+      problems.push(...blockWeekProblems(block));
+    }
+  }
+  return problems;
+}
+
+/** The last week ends on the block's last day, so its target must match. */
+function blockWeekProblems(block: BlockPlan): string[] {
+  const lastWeek = block.weeks[block.weeks.length - 1];
+  if (
+    lastWeek === undefined ||
+    addDays(lastWeek.startDate, 6) !== block.endDate ||
+    lastWeek.dietProgress == null ||
+    block.dietProgress == null
   ) {
     return [];
   }
+  return targetMismatchProblems(
+    "last week",
+    lastWeek.dietProgress,
+    "block end",
+    block.dietProgress,
+  );
+}
+
+function targetMismatchProblems(
+  firstName: string,
+  first: { targetWeightKg: number | null; targetBodyFatPercent: number | null },
+  secondName: string,
+  second: {
+    targetWeightKg: number | null;
+    targetBodyFatPercent: number | null;
+  },
+): string[] {
   const problems: string[] = [];
-  const seasonWeight = plan.season.dietProgress.targetWeightKg;
-  const blockWeight = lastBlock.dietProgress.targetWeightKg;
   if (
-    seasonWeight !== null &&
-    blockWeight !== null &&
-    Math.abs(seasonWeight - blockWeight) > GOAL_TOLERANCE
+    first.targetWeightKg !== null &&
+    second.targetWeightKg !== null &&
+    Math.abs(first.targetWeightKg - second.targetWeightKg) > GOAL_TOLERANCE
   ) {
     problems.push(
-      `The last block target (${blockWeight} kg) does not match the season-end target (${seasonWeight} kg). They are the same day, so use one target.`,
+      `The ${firstName} target (${first.targetWeightKg} kg) does not match the ${secondName} target (${second.targetWeightKg} kg). They are the same day, so use one target.`,
     );
   }
-  const seasonFat = plan.season.dietProgress.targetBodyFatPercent;
-  const blockFat = lastBlock.dietProgress.targetBodyFatPercent;
   if (
-    seasonFat !== null &&
-    blockFat !== null &&
-    Math.abs(seasonFat - blockFat) > GOAL_TOLERANCE
+    first.targetBodyFatPercent !== null &&
+    second.targetBodyFatPercent !== null &&
+    Math.abs(first.targetBodyFatPercent - second.targetBodyFatPercent) >
+      GOAL_TOLERANCE
   ) {
     problems.push(
-      `The last block target (${blockFat} % body fat) does not match the season-end target (${seasonFat} % body fat). They are the same day, so use one target.`,
+      `The ${firstName} target (${first.targetBodyFatPercent} % body fat) does not match the ${secondName} target (${second.targetBodyFatPercent} % body fat). They are the same day, so use one target.`,
     );
   }
   return problems;
@@ -190,7 +252,7 @@ export function dietProgressPending(
   }
   return (
     missingDietProgressTargets(plan, today).length > 0 ||
-    dietGoalProblems(plan).length > 0 ||
+    dietGoalProblems(plan, today).length > 0 ||
     dietProgressConsistencyProblems(plan).length > 0
   );
 }

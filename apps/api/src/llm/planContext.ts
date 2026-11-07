@@ -374,6 +374,14 @@ export function formatPlanContext(input: PlanContextInput): string[] {
     if (goalTarget !== null) {
       lines.push(`Diet goal target: ${goalTarget}.`);
     }
+    if (
+      input.dietGoal.goalMissReason != null &&
+      input.dietGoal.goalMissReason.trim() !== ""
+    ) {
+      lines.push(
+        `Diet goal trade-off: ${input.dietGoal.goalMissReason.trim()}`,
+      );
+    }
     lines.push(`Diet assessment: ${input.dietGoal.assessment}`);
   }
   if (input.dietAdvice !== undefined) {

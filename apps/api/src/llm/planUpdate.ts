@@ -121,10 +121,10 @@ function withRequiredDietProgress<T extends CoachPlan>(
         message: `Missing the diet progress target for ${label}. Return a "dietProgress" object with "targetWeightKg", "targetBodyFatPercent" and "note".`,
       });
     }
-    for (const problem of dietGoalProblems({
-      season: value.season,
-      diet: goal,
-    })) {
+    for (const problem of dietGoalProblems(
+      { ...value, diet: goal },
+      input.today,
+    )) {
       ctx.addIssue({ code: "custom", message: problem });
     }
   });
@@ -161,6 +161,10 @@ function effectiveDietGoal(
         : stored.goalBodyFatPercent,
     goalDate:
       response.goalDate !== undefined ? response.goalDate : stored.goalDate,
+    goalMissReason:
+      response.goalMissReason !== undefined
+        ? response.goalMissReason
+        : stored.goalMissReason,
   };
 }
 

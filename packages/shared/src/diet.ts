@@ -39,6 +39,12 @@ export const dietPlanSchema = z.object({
   goalBodyFatPercent: z.number().positive().max(75).nullable().optional(),
   /** The date the athlete expects to reach the goal, when they stated one. */
   goalDate: planDateSchema.nullable().optional(),
+  /**
+   * Why the plan deliberately does not reach a stated numeric goal, when the
+   * goal is unrealistic or conflicts with another season goal. Null or absent
+   * when the plan reaches the goal.
+   */
+  goalMissReason: z.string().trim().min(1).max(1000).nullable().optional(),
   /** The coach's judgement of whether the goal is on track. */
   assessment: z.string().trim().min(1).max(4000),
 });

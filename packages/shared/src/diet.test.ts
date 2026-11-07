@@ -71,12 +71,14 @@ describe("dietPlanSchema", () => {
       goalWeightKg: null,
       goalBodyFatPercent: 15,
       goalDate: "2027-03-01",
+      goalMissReason: "The brevet build needs full fuelling.",
       assessment: "On target.",
     });
 
     expect(parsed.goalBodyFatPercent).toBe(15);
     expect(parsed.goalDate).toBe("2027-03-01");
     expect(parsed.goalWeightKg).toBeNull();
+    expect(parsed.goalMissReason).toContain("brevet");
   });
 
   it("leaves the numeric goal absent on an older plan", () => {
