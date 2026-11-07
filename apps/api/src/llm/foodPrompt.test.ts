@@ -39,6 +39,20 @@ describe("buildFoodAnalysisMessages", () => {
     expect(user).toContain("No photo was attached.");
   });
 
+  it("asks the coach to identify a photo-only meal", () => {
+    const messages = buildFoodAnalysisMessages(
+      input({
+        description: null,
+        photoDataUrl: photo,
+      }),
+    );
+    const user = messages[1]?.content;
+    expect(Array.isArray(user)).toBe(true);
+    expect(JSON.stringify(user)).toContain(
+      "The athlete gave no description; identify the meal from the photo.",
+    );
+  });
+
   it("attaches the photo as an image part", () => {
     const messages = buildFoodAnalysisMessages(input({ photoDataUrl: photo }));
     const user = messages[1]?.content;

@@ -6,15 +6,26 @@ import { timeZoneSchema } from "./user.js";
 export const FOOD_DESCRIPTION_MAX_LENGTH = 2000;
 
 /**
- * A photo must be a base64 data URL of a format the browser produced and every
- * supported model can read. The browser downsizes and re-encodes the image
- * before upload, so this bound is generous.
+ * The analysis photo is sent to the model at its full resolution, so it can be
+ * much larger than the thumbnail kept for the food log. The source file is
+ * capped at 15 MB in the browser, which leaves room for base64 overhead.
  */
-export const FOOD_PHOTO_DATA_URL_MAX_LENGTH = 8_000_000;
+export const FOOD_PHOTO_DATA_URL_MAX_LENGTH = 30_000_000;
+
+/** The stored thumbnail is small; this bound only guards against abuse. */
+export const FOOD_THUMBNAIL_DATA_URL_MAX_LENGTH = 2_000_000;
 
 export const foodPhotoDataUrlSchema = z
   .string()
   .max(FOOD_PHOTO_DATA_URL_MAX_LENGTH)
+  .regex(
+    /^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/,
+    "Expected a base64 JPEG, PNG or WebP data URL",
+  );
+
+export const foodThumbnailDataUrlSchema = z
+  .string()
+  .max(FOOD_THUMBNAIL_DATA_URL_MAX_LENGTH)
   .regex(
     /^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/,
     "Expected a base64 JPEG, PNG or WebP data URL",
@@ -46,8 +57,9 @@ export const foodEntrySchema = z.object({
   id: z.number().int().positive(),
   /** The meal instant as an ISO timestamp. */
   eatenAt: z.string().datetime(),
-  description: z.string(),
-  /** Whether a photo can be fetched from the entry's photo endpoint. */
+  /** The athlete's own description; null when the meal was logged by photo. */
+  description: z.string().nullable(),
+  /** Whether a thumbnail can be fetched from the entry's photo endpoint. */
   hasPhoto: z.boolean(),
   analysis: foodAnalysisSchema.nullable(),
   /** Why the coach could not analyse this meal, when it could not. */
@@ -68,13 +80,48 @@ export type FoodEntriesResponse = z.infer<typeof foodEntriesResponseSchema>;
  * ISO form; the server derives the athlete's local date and clock time from it
  * and `timezone`. `today` mirrors the client's effective day so the analysis
  * uses the same date as the rest of the app.
+ *
+ * `photoDataUrl` is the full-resolution image sent to the coach and never
+ * stored. `thumbnailDataUrl` is the small image kept for the food log. A meal
+ * may be a photo alone, so a description is optional when a photo is present.
  */
-export const foodEntryRequestSchema = z.object({
-  eatenAt: z.string().datetime(),
-  timezone: timeZoneSchema.optional(),
-  today: planDateSchema.optional(),
-  description: z.string().trim().min(1).max(FOOD_DESCRIPTION_MAX_LENGTH),
-  photoDataUrl: foodPhotoDataUrlSchema.nullable().optional(),
-});
+export const foodEntryRequestSchema = z
+  .object({
+    eatenAt: z.string().datetime(),
+    timezone: timeZoneSchema.optional(),
+    today: planDateSchema.optional(),
+    description: z
+      .string()
+      .trim()
+      .max(FOOD_DESCRIPTION_MAX_LENGTH)
+      .nullable()
+      .optional(),
+    photoDataUrl: foodPhotoDataUrlSchema.nullable().optional(),
+    thumbnailDataUrl: foodThumbnailDataUrlSchema.nullable().optional(),
+  })
+  .superRefine((value, ctx) => {
+    const description = value.description?.trim() ?? "";
+    const hasPhoto =
+      value.photoDataUrl !== undefined &&
+      value.photoDataUrl !== null &&
+      value.photoDataUrl !== "";
+    if (description === "" && !hasPhoto) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Describe the meal or add a photo",
+        path: ["description"],
+      });
+    }
+    if (
+      (value.photoDataUrl === undefined || value.photoDataUrl === null) !==
+      (value.thumbnailDataUrl === undefined || value.thumbnailDataUrl === null)
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message: "The analysis photo and its thumbnail must be sent together",
+        path: ["thumbnailDataUrl"],
+      });
+    }
+  });
 
 export type FoodEntryRequest = z.infer<typeof foodEntryRequestSchema>;

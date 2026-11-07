@@ -47,7 +47,7 @@ function toFoodEntry(entry: StoredFoodEntry): FoodEntry {
     id: entry.id,
     eatenAt: entry.eatenAt.toISOString(),
     description: entry.description,
-    hasPhoto: entry.photoDataUrl !== null,
+    hasPhoto: entry.thumbnailDataUrl !== null,
     analysis: entry.analysis,
     analysisError: entry.analysisError,
   });
@@ -110,8 +110,11 @@ export function createDietRoute(deps: DietRouteDependencies): Hono {
       const local = localDateTimeInZone(eatenAt, timezone);
       const today =
         input.today ?? localDateTimeInZone(new Date(), timezone).date;
-      const description = input.description.trim();
+      const description = input.description?.trim() || null;
+      // The full-resolution image is sent to the coach for analysis and never
+      // stored; only the thumbnail reaches the food log.
       const photoDataUrl = input.photoDataUrl ?? null;
+      const thumbnailDataUrl = input.thumbnailDataUrl ?? null;
 
       let analysis: FoodAnalysis | null = null;
       let model: string | null = null;
@@ -154,7 +157,7 @@ export function createDietRoute(deps: DietRouteDependencies): Hono {
         eatenDate: local.date,
         eatenTime: local.time,
         description,
-        photoDataUrl,
+        thumbnailDataUrl,
         analysis,
         model,
         analysisError,

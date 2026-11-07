@@ -9,8 +9,8 @@ export interface StoredFoodEntry {
   eatenAt: Date;
   eatenDate: string;
   eatenTime: string;
-  description: string;
-  photoDataUrl: string | null;
+  description: string | null;
+  thumbnailDataUrl: string | null;
   analysis: FoodAnalysis | null;
   model: string | null;
   analysisError: string | null;
@@ -22,8 +22,8 @@ export interface NewFoodEntry {
   eatenAt: Date;
   eatenDate: string;
   eatenTime: string;
-  description: string;
-  photoDataUrl: string | null;
+  description: string | null;
+  thumbnailDataUrl: string | null;
   analysis: FoodAnalysis | null;
   model: string | null;
   analysisError: string | null;
@@ -39,7 +39,7 @@ export interface FoodEntryStore {
   listForUser(userId: number): Promise<StoredFoodEntry[]>;
   /** Meals on or after a local date, oldest first, for prompt summaries. */
   listSince(userId: number, sinceDate: string): Promise<StoredFoodEntry[]>;
-  /** The stored photo data URL for one meal, or null. */
+  /** The stored thumbnail data URL for one meal, or null. */
   photo(userId: number, id: number): Promise<string | null>;
 }
 
@@ -50,7 +50,7 @@ function toStoredEntry(row: typeof foodEntries.$inferSelect): StoredFoodEntry {
     eatenDate: row.eatenDate,
     eatenTime: row.eatenTime,
     description: row.description,
-    photoDataUrl: row.photoDataUrl,
+    thumbnailDataUrl: row.thumbnailDataUrl,
     analysis: row.analysis,
     model: row.model,
     analysisError: row.analysisError,
@@ -68,7 +68,7 @@ export const dbFoodEntryStore: FoodEntryStore = {
         eatenDate: entry.eatenDate,
         eatenTime: entry.eatenTime,
         description: entry.description,
-        photoDataUrl: entry.photoDataUrl,
+        thumbnailDataUrl: entry.thumbnailDataUrl,
         analysis: entry.analysis,
         model: entry.model,
         analysisError: entry.analysisError,
@@ -107,10 +107,10 @@ export const dbFoodEntryStore: FoodEntryStore = {
 
   async photo(userId, id) {
     const [row] = await db
-      .select({ photoDataUrl: foodEntries.photoDataUrl })
+      .select({ thumbnailDataUrl: foodEntries.thumbnailDataUrl })
       .from(foodEntries)
       .where(and(eq(foodEntries.userId, userId), eq(foodEntries.id, id)))
       .limit(1);
-    return row?.photoDataUrl ?? null;
+    return row?.thumbnailDataUrl ?? null;
   },
 };

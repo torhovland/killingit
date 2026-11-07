@@ -13,8 +13,9 @@ export interface FoodAnalysisInput {
   context: PlanContextInput;
   eatenDate: string;
   eatenTime: string;
-  description: string;
-  /** A compressed image data URL, when the athlete attached a photo. */
+  /** The athlete's description, or null when the meal is a photo alone. */
+  description: string | null;
+  /** The full-resolution image data URL used for the analysis, when attached. */
   photoDataUrl?: string | null;
 }
 
@@ -67,12 +68,19 @@ export function buildFoodAnalysisPrompt(
     input.photoDataUrl !== null &&
     input.photoDataUrl !== "";
 
+  const description =
+    input.description === null || input.description.trim() === ""
+      ? null
+      : input.description.trim().replace(/\s+/g, " ");
+
   return [
     ...formatPlanContext(input.context),
     "",
     "The athlete just logged this meal:",
     `- Local date and time: ${input.eatenDate} ${input.eatenTime}`,
-    `- Athlete's description: "${input.description.trim().replace(/\s+/g, " ")}"`,
+    description === null
+      ? "- The athlete gave no description; identify the meal from the photo."
+      : `- Athlete's description: "${description}"`,
     hasPhoto
       ? "- A photo of the meal is attached."
       : "- No photo was attached.",

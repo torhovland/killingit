@@ -4,7 +4,7 @@ import { useBusyReporter } from "./AppStatus";
 import { useAuth } from "./auth";
 import { fetchJsonAuthed } from "./fetchAuthed";
 import { FoodEntryCard } from "./FoodEntryCard";
-import { prepareMealPhoto } from "./imageUpload";
+import { prepareMealPhoto, type PreparedMealPhoto } from "./imageUpload";
 import { reportError } from "./reportError";
 import { SubmitButton } from "./SubmitButton";
 import { useTimeZone } from "./TimeZoneContext";
@@ -29,7 +29,7 @@ export function FoodLogSection({ enabled }: { enabled: boolean }) {
     toWallClockValue(new Date(), timeZone),
   );
   const [description, setDescription] = useState("");
-  const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null);
+  const [photo, setPhoto] = useState<PreparedMealPhoto | null>(null);
   const [photoName, setPhotoName] = useState<string | null>(null);
   const [preparingPhoto, setPreparingPhoto] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -47,7 +47,7 @@ export function FoodLogSection({ enabled }: { enabled: boolean }) {
     setPreparingPhoto(true);
     setError(null);
     try {
-      setPhotoDataUrl(await prepareMealPhoto(file));
+      setPhoto(await prepareMealPhoto(file));
       setPhotoName(file.name);
     } catch (err: unknown) {
       setError(reportError(err));
@@ -58,7 +58,11 @@ export function FoodLogSection({ enabled }: { enabled: boolean }) {
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!description.trim() || submitting || preparingPhoto) {
+    if (
+      (!description.trim() && photo === null) ||
+      submitting ||
+      preparingPhoto
+    ) {
       return;
     }
     setSubmitting(true);
@@ -77,8 +81,9 @@ export function FoodLogSection({ enabled }: { enabled: boolean }) {
             eatenAt: wallClockToIso(eatenAt, timeZone),
             timezone: timeZone,
             today,
-            description: description.trim(),
-            photoDataUrl,
+            description: description.trim() || null,
+            photoDataUrl: photo?.photoDataUrl ?? null,
+            thumbnailDataUrl: photo?.thumbnailDataUrl ?? null,
           }),
         },
       );
@@ -90,7 +95,7 @@ export function FoodLogSection({ enabled }: { enabled: boolean }) {
       }
       setResult(parsed.data);
       setDescription("");
-      setPhotoDataUrl(null);
+      setPhoto(null);
       setPhotoName(null);
       setEatenAt(toWallClockValue(new Date(), timeZone));
     } catch (err: unknown) {
@@ -109,8 +114,8 @@ export function FoodLogSection({ enabled }: { enabled: boolean }) {
       <div className="flex flex-col gap-1">
         <h2 className="text-2xl font-semibold">Log a meal</h2>
         <p className="text-base text-muted-foreground">
-          Describe what you ate and your coach will estimate the carbs and
-          macros and tell you how it fits your diet.
+          Describe what you ate, or just add a photo, and your coach will
+          estimate the carbs and macros and tell you how it fits your diet.
         </p>
       </div>
 
@@ -119,7 +124,7 @@ export function FoodLogSection({ enabled }: { enabled: boolean }) {
         onSubmit={(event) => void submit(event)}
       >
         <label className="flex flex-col gap-1 text-base font-medium">
-          What did you eat?
+          What did you eat? (optional with a photo)
           <textarea
             className="w-full rounded border bg-card p-2 text-base font-normal"
             rows={2}
@@ -193,10 +198,10 @@ export function FoodLogSection({ enabled }: { enabled: boolean }) {
           >
             Upload image
           </button>
-          {photoDataUrl !== null && (
+          {photo !== null && (
             <>
               <img
-                src={photoDataUrl}
+                src={photo.thumbnailDataUrl}
                 alt="The meal photo you attached"
                 className="h-16 w-16 rounded object-cover"
               />
@@ -204,7 +209,7 @@ export function FoodLogSection({ enabled }: { enabled: boolean }) {
                 type="button"
                 className="rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted"
                 onClick={() => {
-                  setPhotoDataUrl(null);
+                  setPhoto(null);
                   setPhotoName(null);
                 }}
               >
@@ -217,7 +222,7 @@ export function FoodLogSection({ enabled }: { enabled: boolean }) {
               Preparing photo…
             </span>
           )}
-          {photoName !== null && photoDataUrl !== null && (
+          {photoName !== null && photo !== null && (
             <span className="max-w-48 truncate text-sm text-muted-foreground">
               {photoName}
             </span>
@@ -227,7 +232,7 @@ export function FoodLogSection({ enabled }: { enabled: boolean }) {
         <SubmitButton
           busy={submitting}
           className="self-start rounded border border-transparent bg-primary px-3 py-1 text-base text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
-          disabled={!description.trim() || preparingPhoto}
+          disabled={(!description.trim() && photo === null) || preparingPhoto}
         >
           {submitting ? "Coach is thinking…" : "Log meal"}
         </SubmitButton>

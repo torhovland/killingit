@@ -14,7 +14,8 @@ export const MAX_DIET_WEEK_SUMMARIES = 52;
 export interface DietMealContext {
   eatenDate: string;
   eatenTime: string;
-  description: string;
+  /** Null when the athlete logged the meal by photo alone. */
+  description: string | null;
   analysis: FoodAnalysis | null;
   analysisError: string | null;
 }
@@ -42,7 +43,7 @@ export interface DietPromptContext {
 export interface DietSourceEntry {
   eatenDate: string;
   eatenTime: string;
-  description: string;
+  description: string | null;
   analysis: FoodAnalysis | null;
   analysisError: string | null;
 }

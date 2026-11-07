@@ -337,6 +337,13 @@
       "when": 1794052659376,
       "tag": "0047_broken_reptil",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1794060705255,
+      "tag": "0048_omniscient_angel",
+      "breakpoints": true
     }
   ]
 }

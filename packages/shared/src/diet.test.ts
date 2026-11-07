@@ -38,18 +38,58 @@ describe("foodEntryRequestSchema", () => {
     eatenAt: "2026-11-07T12:30:00.000Z",
     description: "A cheese sandwich",
   };
+  const photoDataUrl = "data:image/jpeg;base64,QUJD";
+  const thumbnailDataUrl = "data:image/jpeg;base64,AQID";
 
-  it("accepts a meal without a photo", () => {
+  it("accepts a described meal without a photo", () => {
     expect(foodEntryRequestSchema.safeParse(base).success).toBe(true);
   });
 
-  it("accepts a JPEG data URL", () => {
+  it("accepts a photo alone, with no description", () => {
+    expect(
+      foodEntryRequestSchema.safeParse({
+        eatenAt: base.eatenAt,
+        photoDataUrl,
+        thumbnailDataUrl,
+      }).success,
+    ).toBe(true);
+  });
+
+  it("accepts a blank description when a photo is present", () => {
     expect(
       foodEntryRequestSchema.safeParse({
         ...base,
-        photoDataUrl: "data:image/jpeg;base64,/9j/4AAQSkZJRg==",
+        description: "   ",
+        photoDataUrl,
+        thumbnailDataUrl,
       }).success,
     ).toBe(true);
+  });
+
+  it("requires the full analysis photo and its thumbnail together", () => {
+    expect(
+      foodEntryRequestSchema.safeParse({
+        eatenAt: base.eatenAt,
+        photoDataUrl,
+      }).success,
+    ).toBe(false);
+    expect(
+      foodEntryRequestSchema.safeParse({
+        eatenAt: base.eatenAt,
+        thumbnailDataUrl,
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects a meal with neither a description nor a photo", () => {
+    expect(
+      foodEntryRequestSchema.safeParse({
+        eatenAt: base.eatenAt,
+      }).success,
+    ).toBe(false);
+    expect(
+      foodEntryRequestSchema.safeParse({ ...base, description: "   " }).success,
+    ).toBe(false);
   });
 
   it("rejects a photo that is not a supported base64 data URL", () => {
@@ -59,15 +99,13 @@ describe("foodEntryRequestSchema", () => {
       "data:image/jpeg;base64,not base64!",
     ]) {
       expect(
-        foodEntryRequestSchema.safeParse({ ...base, photoDataUrl }).success,
+        foodEntryRequestSchema.safeParse({
+          ...base,
+          photoDataUrl,
+          thumbnailDataUrl,
+        }).success,
       ).toBe(false);
     }
-  });
-
-  it("rejects a blank description", () => {
-    expect(
-      foodEntryRequestSchema.safeParse({ ...base, description: "   " }).success,
-    ).toBe(false);
   });
 });
 
@@ -83,5 +121,18 @@ describe("foodEntrySchema", () => {
     });
     expect(parsed.analysis).toBeNull();
     expect(parsed.analysisError).toBe("No model configured.");
+  });
+
+  it("accepts a photo-only meal with no description", () => {
+    const parsed = foodEntrySchema.parse({
+      id: 2,
+      eatenAt: "2026-11-07T12:30:00.000Z",
+      description: null,
+      hasPhoto: true,
+      analysis: null,
+      analysisError: null,
+    });
+    expect(parsed.description).toBeNull();
+    expect(parsed.hasPhoto).toBe(true);
   });
 });

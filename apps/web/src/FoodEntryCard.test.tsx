@@ -58,6 +58,14 @@ describe("FoodEntryCard", () => {
     expect(html).not.toContain("Carbs");
   });
 
+  it("handles a meal logged from a photo with no description", () => {
+    const html = render({ ...entry, description: null, hasPhoto: true });
+
+    expect(html).toContain("Logged from a photo.");
+    expect(html).not.toContain("null");
+    expect(html).toContain("A bowl of porridge with a handful of berries");
+  });
+
   it("does not render an image element for a meal without a photo", () => {
     expect(render(entry)).not.toContain("<img");
   });

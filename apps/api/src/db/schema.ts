@@ -73,8 +73,9 @@ export type NewUserRow = typeof users.$inferInsert;
 /**
  * One meal the athlete logged, with the coach's structured analysis. The local
  * date and time are stored alongside the instant so weekly summaries and
- * prompts do not depend on the server's time zone. The photo is a compressed
- * data URL, served separately so list responses stay small.
+ * prompts do not depend on the server's time zone. Only a small thumbnail is
+ * kept; the full photo is sent to the coach and never stored, and the thumbnail
+ * is served separately so list responses stay small.
  */
 export const foodEntries = pgTable(
   "food_entries",
@@ -88,8 +89,14 @@ export const foodEntries = pgTable(
     eatenDate: text("eaten_date").notNull(),
     /** The athlete's local clock time, `HH:MM`. */
     eatenTime: text("eaten_time").notNull(),
-    description: text("description").notNull(),
-    photoDataUrl: text("photo_data_url"),
+    /** The athlete's own description; null when the meal is a photo alone. */
+    description: text("description"),
+    /**
+     * The small preview kept for the food log; the full-resolution photo is
+     * sent to the coach and never stored. The column keeps its original name so
+     * existing rows need no rename.
+     */
+    thumbnailDataUrl: text("photo_data_url"),
     analysis: jsonb("analysis").$type<FoodAnalysis>(),
     model: text("model"),
     analysisError: text("analysis_error"),
@@ -105,10 +112,6 @@ export const foodEntries = pgTable(
     index("food_entries_user_id_eaten_date_idx").on(
       table.userId,
       table.eatenDate,
-    ),
-    check(
-      "food_entries_description_check",
-      sql`length(btrim(${table.description})) > 0`,
     ),
     check(
       "food_entries_eaten_date_check",

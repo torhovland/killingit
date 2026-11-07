@@ -37,7 +37,13 @@ export function FoodEntryCard({
             {formatDateTime(entry.eatenAt, timeZone)}
           </time>
         </div>
-        <p className="text-base">{entry.description}</p>
+        {entry.description !== null && entry.description.trim() !== "" ? (
+          <p className="text-base">{entry.description}</p>
+        ) : (
+          <p className="text-base text-muted-foreground">
+            Logged from a photo.
+          </p>
+        )}
 
         {analysis !== null ? (
           <>

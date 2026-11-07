@@ -21,24 +21,28 @@ lives.
 ### Opt in with an account setting
 
 Add `users.diet_advice`, a boolean defaulting to false and controlled from
-Settings. The dashboard food form and the food log prompt context are enabled
-only while it is true. Free-text survey answers are not parsed for intent: an
-explicit switch is predictable, reversible, and visible to the athlete.
+Settings. It is the single switch for every diet feature: the dashboard food
+form, the Diet page, meal logging, and the food log in prompts. A survey
+question may still capture diet goals and a current measurement, which reaches
+the coach as ordinary profile context, but it never enables the diet features.
+An explicit switch is predictable, reversible, and visible to the athlete.
 
-### Store photos as a compressed data URL
+### Send the full photo, store a thumbnail
 
-The browser downscales the image to at most 1,280 px on its long edge and
-re-encodes it as a JPEG data URL before upload. The server validates the
-`data:image/(jpeg|png|webp);base64,...` form and stores it in
-`food_entries.photo_data_url`. A separate authenticated endpoint
-(`GET /api/diet/entries/:id/photo`) decodes the data URL and serves the bytes.
+The browser sends two data URLs. `photoDataUrl` is the full-size analysis image,
+re-encoded at up to 8192 px on its long edge so normal phone photos keep their
+detail and EXIF metadata is stripped. `thumbnailDataUrl` is a 320 px JPEG
+preview. The server sends the full image to the vision model and stores only the
+thumbnail in the existing `food_entries.photo_data_url` column. A separate
+authenticated endpoint
+(`GET /api/diet/entries/:id/photo`) decodes the thumbnail and serves the bytes.
 The list response only says whether a photo exists, and the web app fetches the
-image with its bearer token into an object URL.
+thumbnail with its bearer token into an object URL.
 
-This keeps the server free of an image-processing dependency, keeps image bytes
-out of list responses, and keeps photos as private as the rest of the account
-data. The cost is base64 overhead in Postgres, which is acceptable for a
-personal meal log after client-side compression.
+This gives the model the detail it needs without keeping large photos in the
+database. It keeps the server free of an image-processing dependency, keeps
+image bytes out of list responses, and keeps the thumbnail as private as the
+rest of the account data.
 
 ## Consequences
 
