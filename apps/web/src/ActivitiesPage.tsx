@@ -1,26 +1,21 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
-  analyzedActivitiesResponseSchema,
-  coachingInputSaveResponseSchema,
-  garminConnectionStatusSchema,
-  llmSettingsSchema,
   manualActivitiesResponseSchema,
-  type AnalyzedActivitiesResponse,
-  type GarminConnectionStatus,
-  type LlmSettings,
   type ManualActivity,
 } from "@killingit/shared";
 import { ActivityCard } from "./ActivityCard";
-import { loadCachedActivities, saveCachedActivities } from "./activityCache";
 import { TrainingLoadLine } from "./TrainingLoadLine";
-import { useAppStatus, useBusyReporter } from "./AppStatus";
+import { useAppStatus } from "./AppStatus";
 import { useAuth } from "./auth";
+import { parseCoachingSaveResponse } from "./coachingSave";
 import { fetchJsonAuthed } from "./fetchAuthed";
 import { FormattedText } from "./FormattedText";
 import { useNavigate } from "./navigation";
 import { reportError } from "./reportError";
 import { SubmitButton } from "./SubmitButton";
 import { useTimeZone } from "./TimeZoneContext";
+import { coachingDateQuery, useActivityFeed } from "./useActivityFeed";
+import { useStatuses } from "./useStatuses";
 import { getToday } from "./useToday";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
@@ -32,21 +27,13 @@ const API_URL = import.meta.env.VITE_API_URL ?? "";
 export function ActivitiesPage() {
   const auth = useAuth();
   const { setStatus } = useAppStatus();
-  const reportCommentSave = useBusyReporter("comment-save");
   const navigate = useNavigate();
   const timeZone = useTimeZone();
-  const authSub = useRef(auth.sub);
-  authSub.current = auth.sub;
-  const [garmin, setGarmin] = useState<GarminConnectionStatus | null>(null);
-  const [llm, setLlm] = useState<LlmSettings | null>(null);
-  const [data, setData] = useState<AnalyzedActivitiesResponse | null>(() =>
-    loadCachedActivities(auth.sub),
-  );
+  const statuses = useStatuses(auth);
+  const feed = useActivityFeed(auth, timeZone);
   const [manualActivities, setManualActivities] = useState<ManualActivity[]>(
     [],
   );
-  const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editingActivityId, setEditingActivityId] = useState<number | null>(
     null,
@@ -58,78 +45,9 @@ export function ActivitiesPage() {
   const [savingManual, setSavingManual] = useState(false);
 
   useEffect(() => {
-    setStatus("activities-page", syncing ? "syncing" : null);
+    setStatus("activities-page", feed.syncing ? "syncing" : null);
     return () => setStatus("activities-page", null);
-  }, [syncing, setStatus]);
-
-  async function loadStatuses(): Promise<void> {
-    setLoading(true);
-    setError(null);
-    try {
-      const [garminRes, llmRes] = await Promise.all([
-        fetchJsonAuthed<unknown>(`${API_URL}/api/garmin/status`, auth),
-        fetchJsonAuthed<unknown>(`${API_URL}/api/llm/settings`, auth),
-      ]);
-      const garminParsed = garminConnectionStatusSchema.safeParse(garminRes);
-      const llmParsed = llmSettingsSchema.safeParse(llmRes);
-      if (!garminParsed.success || !llmParsed.success) {
-        throw new Error("Status endpoints returned an unexpected response");
-      }
-      setGarmin(garminParsed.data);
-      setLlm(llmParsed.data);
-    } catch (err: unknown) {
-      setError(reportError(err));
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function loadAnalyses(refresh = false): Promise<void> {
-    setSyncing(true);
-    setError(null);
-    try {
-      const res = await fetchJsonAuthed<unknown>(
-        `${API_URL}/api/coaching/activities${refresh ? "?refresh=true" : ""}`,
-        auth,
-      );
-      const parsed = analyzedActivitiesResponseSchema.safeParse(res);
-      if (!parsed.success) {
-        throw new Error("Coaching endpoint returned an unexpected response", {
-          cause: parsed.error,
-        });
-      }
-      setData(parsed.data);
-      saveCachedActivities(authSub.current, parsed.data);
-    } catch (err: unknown) {
-      setError(reportError(err));
-    } finally {
-      setSyncing(false);
-    }
-  }
-
-  /**
-   * Refreshes the displayed activity loads from the cache without syncing
-   * Garmin. The API recalculates every activity's ATL/CTL/TSB from the current
-   * manual entries and plan.
-   */
-  async function loadCachedAnalyses(): Promise<void> {
-    try {
-      const res = await fetchJsonAuthed<unknown>(
-        `${API_URL}/api/coaching/activities/cached`,
-        auth,
-      );
-      const parsed = analyzedActivitiesResponseSchema.safeParse(res);
-      if (!parsed.success) {
-        throw new Error("Cached activities returned an unexpected response", {
-          cause: parsed.error,
-        });
-      }
-      setData(parsed.data);
-      saveCachedActivities(authSub.current, parsed.data);
-    } catch (err: unknown) {
-      setError(reportError(err));
-    }
-  }
+  }, [feed.syncing, setStatus]);
 
   async function loadManualActivities(): Promise<void> {
     try {
@@ -148,95 +66,6 @@ export function ActivitiesPage() {
     } catch (err: unknown) {
       setError(reportError(err));
     }
-  }
-
-  function coachingDateQuery(): string {
-    return new URLSearchParams({
-      today: getToday(timeZone).today,
-      timezone: timeZone,
-    }).toString();
-  }
-
-  async function deleteActivity(activityId: string): Promise<void> {
-    const response = await fetchJsonAuthed<unknown>(
-      `${API_URL}/api/coaching/activities/${activityId}?${coachingDateQuery()}`,
-      auth,
-      { method: "DELETE" },
-    );
-    parseSaveResponse(response);
-    const next = data
-      ? {
-          ...data,
-          activities: data.activities.filter(
-            (activity) => String(activity.id) !== activityId,
-          ),
-        }
-      : null;
-    setData(next);
-    if (next) {
-      saveCachedActivities(authSub.current, next);
-    }
-    // Removing a day changes every later snapshot, so rebuild the feed.
-    await loadAnalyses();
-  }
-
-  async function submitComment(
-    activityId: string,
-    comment: string,
-    mode: "create" | "edit",
-  ): Promise<string | null> {
-    reportCommentSave(true);
-    try {
-      const { today } = getToday(timeZone);
-      const response = await fetchJsonAuthed<unknown>(
-        `${API_URL}/api/coaching/activities/${activityId}/comments`,
-        auth,
-        {
-          method: mode === "edit" ? "PUT" : "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            today,
-            timezone: timeZone,
-            activityDate: activityStartDate(activityId),
-            comment,
-          }),
-        },
-      );
-      const parsed = coachingInputSaveResponseSchema.safeParse(response);
-      if (!parsed.success) {
-        throw new Error("Saving your comment returned an unexpected response", {
-          cause: parsed.error,
-        });
-      }
-      const next = data
-        ? {
-            ...data,
-            activities: data.activities.map((activity) =>
-              String(activity.id) === activityId
-                ? {
-                    ...activity,
-                    comment,
-                    coachReply: parsed.data.reply ?? activity.coachReply,
-                  }
-                : activity,
-            ),
-          }
-        : null;
-      setData(next);
-      if (next) {
-        saveCachedActivities(authSub.current, next);
-      }
-      return parsed.data.reply?.text ?? null;
-    } finally {
-      reportCommentSave(false);
-    }
-  }
-
-  function activityStartDate(activityId: string): string {
-    const activity = data?.activities.find(
-      (entry) => String(entry.id) === activityId,
-    );
-    return (activity?.startDate ?? getToday(timeZone).today).slice(0, 10);
   }
 
   async function handleManualActivitySubmit(
@@ -263,11 +92,11 @@ export function ActivitiesPage() {
           details: manualDetails,
         }),
       });
-      parseSaveResponse(response);
+      parseCoachingSaveResponse(response);
       setEditingActivityId(null);
       setManualStartDate(getToday(timeZone).today);
       setManualDetails("");
-      await Promise.all([loadManualActivities(), loadCachedAnalyses()]);
+      await Promise.all([loadManualActivities(), feed.loadCached()]);
     } catch (err: unknown) {
       setError(reportError(err));
     } finally {
@@ -297,26 +126,17 @@ export function ActivitiesPage() {
     }
     try {
       const response = await fetchJsonAuthed<unknown>(
-        `${API_URL}/api/coaching/activities/manual/${activity.id}?${coachingDateQuery()}`,
+        `${API_URL}/api/coaching/activities/manual/${activity.id}?${coachingDateQuery(timeZone)}`,
         auth,
         { method: "DELETE" },
       );
-      parseSaveResponse(response);
+      parseCoachingSaveResponse(response);
       if (editingActivityId === activity.id) {
         handleCancelEdit();
       }
-      await Promise.all([loadManualActivities(), loadCachedAnalyses()]);
+      await Promise.all([loadManualActivities(), feed.loadCached()]);
     } catch (err: unknown) {
       setError(reportError(err));
-    }
-  }
-
-  function parseSaveResponse(response: unknown): void {
-    const parsed = coachingInputSaveResponseSchema.safeParse(response);
-    if (!parsed.success) {
-      throw new Error("Saving the activity returned an unexpected response", {
-        cause: parsed.error,
-      });
     }
   }
 
@@ -324,43 +144,45 @@ export function ActivitiesPage() {
     if (!auth.isAuthenticated) {
       return;
     }
-    void loadStatuses();
     void loadManualActivities();
     // Only re-run when sign-in state flips; `auth` is consumed inside.
   }, [auth.isAuthenticated]);
 
   useEffect(() => {
-    if (!garmin?.connected) {
+    if (!statuses.garmin?.connected) {
       return;
     }
-    void loadAnalyses();
+    void feed.loadAnalyses();
     // Re-run when Garmin connects, not every render.
-  }, [garmin?.connected]);
+  }, [statuses.garmin?.connected]);
 
   if (!auth.isAuthenticated) {
     return null;
   }
 
   // A sync only asks the coach to analyse the workouts when a model is set up.
-  const syncLabel = syncing
-    ? llm?.configured
+  const syncLabel = feed.syncing
+    ? statuses.llm?.configured
       ? "Coach is thinking…"
       : "Syncing…"
-    : llm?.configured
+    : statuses.llm?.configured
       ? "Sync & re-analyze"
       : "Sync activities";
   // A manual entry is saved with the coach's TSS estimate and reply.
   const manualLabel = savingManual
-    ? llm?.configured
+    ? statuses.llm?.configured
       ? "Coach is thinking…"
       : "Saving…"
     : editingActivityId !== null
       ? "Update activity"
       : "Add manual activity";
+  const errorMessage = error ?? feed.error ?? statuses.error;
 
   return (
     <section className="flex w-full flex-col gap-4 text-left">
-      {error && <p className="text-destructive">Error: {error}</p>}
+      {errorMessage && (
+        <p className="text-destructive">Error: {errorMessage}</p>
+      )}
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-col gap-1">
@@ -371,31 +193,34 @@ export function ActivitiesPage() {
         </div>
         <SubmitButton
           type="button"
-          busy={syncing}
+          busy={feed.syncing}
           className="rounded border border-transparent bg-primary px-3 py-1 text-base text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
-          onClick={() => void loadAnalyses(llm?.configured ?? false)}
-          disabled={!garmin?.connected}
+          onClick={() =>
+            void feed.loadAnalyses(statuses.llm?.configured ?? false)
+          }
+          disabled={!statuses.garmin?.connected}
         >
           {syncLabel}
         </SubmitButton>
       </div>
 
-      {!loading && (!garmin?.connected || !llm?.configured) && (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded border bg-muted p-3 text-base">
-          <span className="text-muted-foreground">
-            {!garmin?.connected
-              ? "Connect Garmin in Settings to import activities."
-              : "Add an OpenRouter key in Settings to get coach analyses."}
-          </span>
-          <button
-            type="button"
-            className="rounded border bg-card px-3 py-1 enabled:hover:bg-muted"
-            onClick={() => navigate("settings")}
-          >
-            Open settings
-          </button>
-        </div>
-      )}
+      {!statuses.loading &&
+        (!statuses.garmin?.connected || !statuses.llm?.configured) && (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded border bg-muted p-3 text-base">
+            <span className="text-muted-foreground">
+              {!statuses.garmin?.connected
+                ? "Connect Garmin in Settings to import activities."
+                : "Add an OpenRouter key in Settings to get coach analyses."}
+            </span>
+            <button
+              type="button"
+              className="rounded border bg-card px-3 py-1 enabled:hover:bg-muted"
+              onClick={() => navigate("settings")}
+            >
+              Open settings
+            </button>
+          </div>
+        )}
 
       <form
         className="flex flex-col gap-2 rounded-lg border bg-card p-4"
@@ -496,26 +321,26 @@ export function ActivitiesPage() {
         </div>
       )}
 
-      {syncing && (
+      {feed.syncing && (
         <p className="text-base text-muted-foreground" aria-live="polite">
-          {llm?.configured
+          {statuses.llm?.configured
             ? "Syncing Garmin and asking the coach to analyse your workouts…"
             : "Syncing Garmin activities…"}
         </p>
       )}
 
-      {!syncing && data && data.activities.length === 0 && (
+      {!feed.syncing && feed.data && feed.data.activities.length === 0 && (
         <p className="text-base text-muted-foreground">
           No synced activities yet.
         </p>
       )}
 
-      {data?.activities.map((activity) => (
+      {feed.data?.activities.map((activity) => (
         <ActivityCard
           key={activity.id}
           activity={activity}
-          onSubmitComment={submitComment}
-          onDelete={deleteActivity}
+          onSubmitComment={feed.submitComment}
+          onDelete={feed.deleteActivity}
         />
       ))}
     </section>

@@ -3,8 +3,11 @@ import type { AnalyzedActivitiesResponse } from "@killingit/shared";
 import {
   activityCacheKey,
   loadCachedActivities,
+  markActivityReviewed,
   mergeActivityFeeds,
+  removeActivity,
   saveCachedActivities,
+  updateActivityComment,
   type ActivityCacheStorage,
 } from "./activityCache";
 
@@ -139,5 +142,43 @@ describe("activityCache", () => {
     const merged = mergeActivityFeeds(current, feed);
 
     expect(merged.activities.map((activity) => activity.id)).toEqual([1, 2]);
+  });
+
+  it("stores a saved comment and the coach reply on that activity", () => {
+    const reply = {
+      text: "Good work.",
+      model: "openrouter/auto",
+      generatedAt: "2026-10-01T08:00:00Z",
+    };
+    const second = { ...feed.activities[0]!, id: 2, comment: null };
+
+    const next = updateActivityComment(
+      { ...feed, activities: [...feed.activities, second] },
+      "1",
+      "Felt strong.",
+      reply,
+    );
+
+    expect(next.activities[0]?.comment).toBe("Felt strong.");
+    expect(next.activities[0]?.coachReply).toEqual(reply);
+    expect(next.activities[1]?.comment).toBeNull();
+  });
+
+  it("marks an activity as acknowledged without a comment", () => {
+    const next = markActivityReviewed(feed, "1");
+
+    expect(next.activities[0]?.reviewed).toBe(true);
+    expect(next.model).toBe(feed.model);
+  });
+
+  it("removes only the deleted activity", () => {
+    const second = { ...feed.activities[0]!, id: 2, name: "Evening Ride" };
+
+    const next = removeActivity(
+      { ...feed, activities: [...feed.activities, second] },
+      "1",
+    );
+
+    expect(next.activities.map((activity) => activity.id)).toEqual([2]);
   });
 });

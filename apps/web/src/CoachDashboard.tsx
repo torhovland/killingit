@@ -1,31 +1,21 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  analyzedActivitiesResponseSchema,
   coachQuestionsResponseSchema,
   coachingInputSaveResponseSchema,
-  garminConnectionStatusSchema,
-  llmSettingsSchema,
   periodReviewsResponseSchema,
   quickQuestionResponseSchema,
   weeklyNoteResponseSchema,
-  type AnalyzedActivitiesResponse,
   type CoachAnalysis,
   type CoachQuestion,
-  type GarminConnectionStatus,
-  type LlmSettings,
   type PeriodReview,
   type ReviewKind,
 } from "@killingit/shared";
 import { ActivityCard } from "./ActivityCard";
-import {
-  loadCachedActivities,
-  mergeActivityFeeds,
-  saveCachedActivities,
-} from "./activityCache";
 import { useAppStatus, useBusyReporter } from "./AppStatus";
 import { useAuth } from "./auth";
 import { CoachPlanSection } from "./CoachPlanSection";
 import { CoachQuestionCard } from "./CoachQuestionCard";
+import { parseCoachingSaveResponse } from "./coachingSave";
 import { fetchJsonAuthed } from "./fetchAuthed";
 import { FoodLogSection } from "./FoodLogSection";
 import { FormattedText } from "./FormattedText";
@@ -35,6 +25,8 @@ import { reviewKey, selectPendingReviews } from "./pendingReviews";
 import { reportError } from "./reportError";
 import { SubmitButton } from "./SubmitButton";
 import { useTimeZone } from "./TimeZoneContext";
+import { useActivityFeed } from "./useActivityFeed";
+import { useStatuses } from "./useStatuses";
 import { getToday } from "./useToday";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
@@ -56,24 +48,14 @@ export function CoachDashboard({
 }: CoachDashboardProps) {
   const auth = useAuth();
   const { setStatus } = useAppStatus();
-  const reportCommentSave = useBusyReporter("comment-save");
+  const reportReviewCommentSave = useBusyReporter("review-comment-save");
   const reportWeeklyNoteSave = useBusyReporter("weekly-note-save");
   const reportQuestion = useBusyReporter("by-the-way");
   const timeZone = useTimeZone();
-  // `loadAnalyses` is started by an effect that does not depend on the auth
-  // object; keep the latest account id in a ref so a cache write after the
-  // request settles uses the real `sub` rather than an early `null`.
-  const authSub = useRef(auth.sub);
-  authSub.current = auth.sub;
-  const [garmin, setGarmin] = useState<GarminConnectionStatus | null>(null);
-  const [llm, setLlm] = useState<LlmSettings | null>(null);
-  const [data, setData] = useState<AnalyzedActivitiesResponse | null>(() =>
-    loadCachedActivities(auth.sub),
-  );
-  // The reply poll runs on an interval that outlives a single render; read the
-  // newest feed from a ref so a poll merges into what is actually on screen.
-  const dataRef = useRef<AnalyzedActivitiesResponse | null>(null);
-  dataRef.current = data;
+  const statuses = useStatuses(auth);
+  // Commented-on activities stay on the page for this visit. The server feed
+  // omits them once they have been answered; a reload clears the kept set.
+  const feed = useActivityFeed(auth, timeZone, { keepAnswered: true });
   const [weeklyNote, setWeeklyNote] = useState<string>("");
   const [weeklyNoteReply, setWeeklyNoteReply] = useState<CoachAnalysis | null>(
     null,
@@ -82,69 +64,24 @@ export function CoachDashboard({
   const [questionReply, setQuestionReply] = useState<string | null>(null);
   const [asking, setAsking] = useState(false);
   const [savingWeeklyNote, setSavingWeeklyNote] = useState(false);
-  const [loadingStatuses, setLoadingStatuses] = useState(true);
-  const [loadingAnalyses, setLoadingAnalyses] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [localPlanRefresh, setLocalPlanRefresh] = useState(0);
   const [reviews, setReviews] = useState<PeriodReview[]>([]);
   const [coachQuestion, setCoachQuestion] = useState<CoachQuestion | null>(
     null,
   );
-  // Commented-on activities and reviews stay on the page for this visit. The
-  // server feed omits them once they have been answered; a reload clears this.
-  const keptActivityIds = useRef<Set<string>>(new Set());
+  // Commented-on reviews stay on the page for this visit.
   const keptReviewKeys = useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    setStatus("dashboard-status", loadingStatuses ? "loading" : null);
+    setStatus("dashboard-status", statuses.loading ? "loading" : null);
     return () => setStatus("dashboard-status", null);
-  }, [loadingStatuses, setStatus]);
+  }, [statuses.loading, setStatus]);
 
   useEffect(() => {
-    setStatus("dashboard-activities", loadingAnalyses ? "syncing" : null);
+    setStatus("dashboard-activities", feed.syncing ? "syncing" : null);
     return () => setStatus("dashboard-activities", null);
-  }, [loadingAnalyses, setStatus]);
-
-  async function loadStatuses(): Promise<void> {
-    setLoadingStatuses(true);
-    setError(null);
-    try {
-      const [garminRes, llmRes] = await Promise.all([
-        fetchJsonAuthed<unknown>(`${API_URL}/api/garmin/status`, auth),
-        fetchJsonAuthed<unknown>(`${API_URL}/api/llm/settings`, auth),
-      ]);
-      const garminParsed = garminConnectionStatusSchema.safeParse(garminRes);
-      const llmParsed = llmSettingsSchema.safeParse(llmRes);
-      if (!garminParsed.success || !llmParsed.success) {
-        throw new Error("Status endpoints returned an unexpected response");
-      }
-      setGarmin(garminParsed.data);
-      setLlm(llmParsed.data);
-    } catch (err: unknown) {
-      setError(reportError(err));
-    } finally {
-      setLoadingStatuses(false);
-    }
-  }
-
-  async function loadCachedFeed(): Promise<void> {
-    try {
-      const res = await fetchJsonAuthed<unknown>(
-        `${API_URL}/api/coaching/activities/cached`,
-        auth,
-      );
-      const parsed = analyzedActivitiesResponseSchema.safeParse(res);
-      if (!parsed.success || parsed.data.activities.length === 0) {
-        return;
-      }
-      const merged = mergeActivityFeeds(dataRef.current, parsed.data);
-      setData(merged);
-      saveCachedActivities(authSub.current, merged);
-    } catch (err: unknown) {
-      // The live sync is still running; a missing server cache is not an error.
-      console.error("Failed to load cached activities:", err);
-    }
-  }
+  }, [feed.syncing, setStatus]);
 
   async function loadReviews(): Promise<void> {
     try {
@@ -218,36 +155,6 @@ export function CoachDashboard({
     return parsed.data.reply?.text ?? null;
   }
 
-  async function loadAnalyses(refresh = false): Promise<void> {
-    setLoadingAnalyses(true);
-    setError(null);
-    try {
-      const { today } = getToday(timeZone);
-      const params = new URLSearchParams({ today, timezone: timeZone });
-      if (refresh) {
-        params.set("refresh", "true");
-      }
-      const res = await fetchJsonAuthed<unknown>(
-        `${API_URL}/api/coaching/activities?${params.toString()}`,
-        auth,
-      );
-      const parsed = analyzedActivitiesResponseSchema.safeParse(res);
-      if (!parsed.success) {
-        throw new Error("Coaching endpoint returned an unexpected response", {
-          cause: parsed.error,
-        });
-      }
-      setData(parsed.data);
-      saveCachedActivities(authSub.current, parsed.data);
-      // A new analysis may have started a background plan revision.
-      setLocalPlanRefresh((key) => key + 1);
-    } catch (err: unknown) {
-      setError(reportError(err));
-    } finally {
-      setLoadingAnalyses(false);
-    }
-  }
-
   async function fetchWeeklyNote(): Promise<void> {
     try {
       const { today } = getToday(timeZone);
@@ -270,119 +177,13 @@ export function CoachDashboard({
     }
   }
 
-  function coachingDateQuery(): string {
-    return new URLSearchParams({
-      today: getToday(timeZone).today,
-      timezone: timeZone,
-    }).toString();
-  }
-
-  async function deleteActivity(activityId: string): Promise<void> {
-    const response = await fetchJsonAuthed<unknown>(
-      `${API_URL}/api/coaching/activities/${activityId}?${coachingDateQuery()}`,
-      auth,
-      { method: "DELETE" },
-    );
-    parseSaveResponse(response);
-    const next = data
-      ? {
-          ...data,
-          activities: data.activities.filter(
-            (activity) => String(activity.id) !== activityId,
-          ),
-        }
-      : null;
-    setData(next);
-    if (next) {
-      saveCachedActivities(authSub.current, next);
-    }
-    setLocalPlanRefresh((key) => key + 1);
-  }
-
-  async function submitComment(
-    activityId: string,
-    comment: string,
-    mode: "create" | "edit",
-  ): Promise<string | null> {
-    reportCommentSave(true);
-    try {
-      const { today } = getToday(timeZone);
-      const response = await fetchJsonAuthed<unknown>(
-        `${API_URL}/api/coaching/activities/${activityId}/comments`,
-        auth,
-        {
-          method: mode === "edit" ? "PUT" : "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            today,
-            timezone: timeZone,
-            activityDate: activityStartDate(activityId),
-            comment,
-          }),
-        },
-      );
-      const parsed = coachingInputSaveResponseSchema.safeParse(response);
-      if (!parsed.success) {
-        throw new Error("Saving your comment returned an unexpected response", {
-          cause: parsed.error,
-        });
-      }
-      // Leave the activity in place for this visit. A reload only shows
-      // activities without a response, so the commented activity drops off then.
-      keptActivityIds.current.add(activityId);
-      // Reflect the saved comment here as well, so the reply poll starts while
-      // the coach is still working and the card keeps its conversation.
-      const next = data
-        ? {
-            ...data,
-            activities: data.activities.map((activity) =>
-              String(activity.id) === activityId
-                ? { ...activity, comment, coachReply: null }
-                : activity,
-            ),
-          }
-        : null;
-      if (next !== null) {
-        setData(next);
-        saveCachedActivities(authSub.current, next);
-      }
-      setLocalPlanRefresh((key) => key + 1);
-      return parsed.data.reply?.text ?? null;
-    } finally {
-      reportCommentSave(false);
-    }
-  }
-
-  async function markNoComment(activityId: string): Promise<void> {
-    const response = await fetchJsonAuthed<unknown>(
-      `${API_URL}/api/coaching/activities/${activityId}/reviewed`,
-      auth,
-      { method: "POST" },
-    );
-    parseSaveResponse(response);
-    const next = data
-      ? {
-          ...data,
-          activities: data.activities.map((activity) =>
-            String(activity.id) === activityId
-              ? { ...activity, reviewed: true }
-              : activity,
-          ),
-        }
-      : null;
-    setData(next);
-    if (next) {
-      saveCachedActivities(authSub.current, next);
-    }
-  }
-
   async function submitReviewComment(
     kind: ReviewKind,
     startDate: string,
     comment: string,
     mode: "create" | "edit",
   ): Promise<string | null> {
-    reportCommentSave(true);
+    reportReviewCommentSave(true);
     try {
       const { today } = getToday(timeZone);
       const response = await fetchJsonAuthed<unknown>(
@@ -410,7 +211,7 @@ export function CoachDashboard({
       setLocalPlanRefresh((key) => key + 1);
       return parsed.data.reply?.text ?? null;
     } finally {
-      reportCommentSave(false);
+      reportReviewCommentSave(false);
     }
   }
 
@@ -423,7 +224,7 @@ export function CoachDashboard({
       auth,
       { method: "POST" },
     );
-    parseSaveResponse(response);
+    parseCoachingSaveResponse(response);
     keptReviewKeys.current.add(reviewKey({ kind, startDate }));
     setReviews((current) =>
       current.map((review) =>
@@ -432,13 +233,6 @@ export function CoachDashboard({
           : review,
       ),
     );
-  }
-
-  function activityStartDate(activityId: string): string {
-    const activity = data?.activities.find(
-      (entry) => String(entry.id) === activityId,
-    );
-    return (activity?.startDate ?? getToday(timeZone).today).slice(0, 10);
   }
 
   async function submitWeeklyNote(note: string): Promise<void> {
@@ -512,20 +306,10 @@ export function CoachDashboard({
     }
   }
 
-  function parseSaveResponse(response: unknown): void {
-    const parsed = coachingInputSaveResponseSchema.safeParse(response);
-    if (!parsed.success) {
-      throw new Error("Saving the activity returned an unexpected response", {
-        cause: parsed.error,
-      });
-    }
-  }
-
   useEffect(() => {
     if (!auth.isAuthenticated) {
       return;
     }
-    void loadStatuses();
     void fetchWeeklyNote();
     void loadReviews();
     void loadCoachQuestions();
@@ -533,35 +317,20 @@ export function CoachDashboard({
   }, [auth.isAuthenticated]);
 
   useEffect(() => {
-    if (!garmin?.connected) {
+    if (!statuses.garmin?.connected) {
       return;
     }
-    if (data === null || data.activities.length === 0) {
-      void loadCachedFeed();
+    if (feed.data === null || feed.data.activities.length === 0) {
+      void feed.loadCached();
     }
-    void loadAnalyses();
+    void feed.loadAnalyses();
     // Re-run when Garmin connects or the LLM setup changes, not every render.
-  }, [garmin?.connected, llm?.configured]);
-
-  // Auth0 can report an authenticated session before it exposes `user.sub`.
-  useEffect(() => {
-    if (data !== null) {
-      return;
-    }
-    const cached = loadCachedActivities(auth.sub);
-    if (cached !== null) {
-      setData(cached);
-    }
-  }, [auth.sub, data]);
+  }, [statuses.garmin?.connected, statuses.llm?.configured]);
 
   // The coach stores replies before it starts the slower plan refresh, so poll
   // the cached feed while any comment is still waiting for its reply.
-  const awaitingReplies =
-    data?.activities.some(
-      (activity) => activity.comment !== null && activity.coachReply === null,
-    ) ?? false;
   useEffect(() => {
-    if (!auth.isAuthenticated || !awaitingReplies) {
+    if (!auth.isAuthenticated || !feed.awaitingReplies) {
       return;
     }
     let attempts = 0;
@@ -571,16 +340,18 @@ export function CoachDashboard({
         clearInterval(timer);
         return;
       }
-      void loadCachedFeed();
+      void feed.loadCached();
     }, 1500);
     return () => clearInterval(timer);
-  }, [auth.isAuthenticated, awaitingReplies]);
+  }, [auth.isAuthenticated, feed.awaitingReplies, feed.loadCached]);
 
   if (!auth.isAuthenticated) {
     return null;
   }
 
-  if (loadingStatuses && (garmin === null || llm === null)) {
+  const errorMessage = error ?? feed.error ?? statuses.error;
+
+  if (statuses.loading && (statuses.garmin === null || statuses.llm === null)) {
     return (
       <p
         className="text-base text-muted-foreground"
@@ -591,14 +362,16 @@ export function CoachDashboard({
     );
   }
 
-  if (garmin === null || llm === null) {
+  if (statuses.garmin === null || statuses.llm === null) {
     return (
       <section className="flex flex-col items-center gap-2">
-        {error && <p className="text-destructive">Error: {error}</p>}
+        {errorMessage && (
+          <p className="text-destructive">Error: {errorMessage}</p>
+        )}
         <button
           type="button"
           className="rounded border bg-card px-4 py-2 enabled:hover:bg-muted"
-          onClick={() => void loadStatuses()}
+          onClick={() => void statuses.reload()}
         >
           Retry
         </button>
@@ -606,8 +379,8 @@ export function CoachDashboard({
     );
   }
 
-  const pendingActivities = data
-    ? selectPendingActivities(data.activities, keptActivityIds.current)
+  const pendingActivities = feed.data
+    ? selectPendingActivities(feed.data.activities, feed.keptActivityIds)
     : [];
   const pendingReviews = selectPendingReviews(reviews, keptReviewKeys.current);
   const pendingWeeks = pendingReviews.filter(
@@ -616,13 +389,13 @@ export function CoachDashboard({
   const pendingBlocks = pendingReviews.filter(
     (review) => review.kind === "block",
   );
-  const ready = garmin.connected && llm.configured;
+  const ready = statuses.garmin.connected && statuses.llm.configured;
 
   return (
     <section className="flex w-full flex-col gap-4 text-left">
-      {error && (
+      {errorMessage && (
         <p className="text-destructive" data-testid="coach-error">
-          Error: {error}
+          Error: {errorMessage}
         </p>
       )}
 
@@ -640,7 +413,7 @@ export function CoachDashboard({
         </section>
       )}
 
-      {garmin.connected && pendingActivities.length > 0 && (
+      {statuses.garmin.connected && pendingActivities.length > 0 && (
         <section
           className="flex flex-col gap-3"
           data-testid="pending-activities"
@@ -655,9 +428,9 @@ export function CoachDashboard({
             <ActivityCard
               key={activity.id}
               activity={activity}
-              onSubmitComment={submitComment}
-              onNoComment={markNoComment}
-              onDelete={deleteActivity}
+              onSubmitComment={feed.submitComment}
+              onNoComment={feed.markNoComment}
+              onDelete={feed.deleteActivity}
             />
           ))}
         </section>
@@ -701,11 +474,11 @@ export function CoachDashboard({
       )}
 
       <CoachPlanSection
-        refreshKey={planRefreshKey + localPlanRefresh}
+        refreshKey={planRefreshKey + localPlanRefresh + feed.revision}
         ready={ready}
         dietAdvice={dietAdvice}
         onGenerated={() => {
-          void loadAnalyses();
+          void feed.loadAnalyses();
           void loadReviews();
           void loadCoachQuestions();
         }}
@@ -808,7 +581,7 @@ export function CoachDashboard({
         </form>
       </section>
 
-      {!garmin.connected && (
+      {!statuses.garmin.connected && (
         <p className="text-base text-muted-foreground">
           Connect Garmin in Settings to see your recent activities.
         </p>
