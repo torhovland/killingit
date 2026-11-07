@@ -2,6 +2,7 @@ import type {
   AnalyzedActivitiesResponse,
   BlockPlan,
   DayPlan,
+  FoodAnalysis,
   LlmCallMessage,
   LlmCallUsage,
   LlmPromptKind,
@@ -47,6 +48,9 @@ export const users = pgTable(
     latitude: doublePrecision("latitude"),
     longitude: doublePrecision("longitude"),
     locationName: text("location_name"),
+    // The athlete asked for diet advice: the dashboard shows the food log and
+    // every coach prompt receives the meal context.
+    dietAdvice: boolean("diet_advice").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -65,6 +69,61 @@ export const users = pgTable(
 
 export type UserRow = typeof users.$inferSelect;
 export type NewUserRow = typeof users.$inferInsert;
+
+/**
+ * One meal the athlete logged, with the coach's structured analysis. The local
+ * date and time are stored alongside the instant so weekly summaries and
+ * prompts do not depend on the server's time zone. The photo is a compressed
+ * data URL, served separately so list responses stay small.
+ */
+export const foodEntries = pgTable(
+  "food_entries",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    eatenAt: timestamp("eaten_at", { withTimezone: true }).notNull(),
+    /** The athlete's local calendar date, `YYYY-MM-DD`. */
+    eatenDate: text("eaten_date").notNull(),
+    /** The athlete's local clock time, `HH:MM`. */
+    eatenTime: text("eaten_time").notNull(),
+    description: text("description").notNull(),
+    photoDataUrl: text("photo_data_url"),
+    analysis: jsonb("analysis").$type<FoodAnalysis>(),
+    model: text("model"),
+    analysisError: text("analysis_error"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("food_entries_user_id_eaten_at_idx").on(table.userId, table.eatenAt),
+    index("food_entries_user_id_eaten_date_idx").on(
+      table.userId,
+      table.eatenDate,
+    ),
+    check(
+      "food_entries_description_check",
+      sql`length(btrim(${table.description})) > 0`,
+    ),
+    check(
+      "food_entries_eaten_date_check",
+      sql`length(${table.eatenDate}) = 10`,
+    ),
+    check("food_entries_eaten_time_check", sql`length(${table.eatenTime}) = 5`),
+    check(
+      "food_entries_analysis_error_check",
+      sql`${table.analysisError} is null or length(btrim(${table.analysisError})) > 0`,
+    ),
+  ],
+);
+
+export type FoodEntryRow = typeof foodEntries.$inferSelect;
+export type NewFoodEntryRow = typeof foodEntries.$inferInsert;
 
 /**
  * One athlete metric value per day. Body weight and body-fat percentage share

@@ -114,6 +114,7 @@ const userStore: UserStore = {
       role: "member",
       timezone: null,
       location: null,
+      dietAdvice: false,
       createdAt: new Date(0),
     }),
   getById: (id) =>
@@ -123,6 +124,7 @@ const userStore: UserStore = {
       role: "member",
       timezone: null,
       location: null,
+      dietAdvice: false,
       createdAt: new Date(0),
     }),
   deleteUser: () => Promise.resolve(),
@@ -133,6 +135,7 @@ const userStore: UserStore = {
       role: "member",
       timezone: settings.timezone ?? null,
       location: settings.location ?? null,
+      dietAdvice: false,
       createdAt: new Date(0),
     }),
 };

@@ -5,10 +5,12 @@ import type {
   MetricPoint,
   ThresholdSummary,
 } from "@killingit/shared";
+import type { DietPromptContext } from "../diet/summary.js";
 import { formatDailyHealthContext } from "./healthContext.js";
 import {
   formatActivitySummary,
   formatBodyHistory,
+  formatDietContext,
   formatFtpContext,
   formatPlanLevels,
   formatPlannedSession,
@@ -21,6 +23,7 @@ import {
   ACTIVITY_TYPE_RULE,
   COACH_ANALYSIS_RESPONSE_RULES,
   DAILY_HEALTH_RULES,
+  DIET_RULES,
   DURATION_TOLERANCE_RULES,
   GLOBAL_PROMPT_RULES,
   promptSections,
@@ -34,7 +37,7 @@ import {
  * Bump when the review prompt or generation parameters change materially. Cached
  * program reviews from an older version are ignored and regenerated.
  */
-export const PROGRAM_ANALYSIS_PROMPT_VERSION = 13;
+export const PROGRAM_ANALYSIS_PROMPT_VERSION = 14;
 
 export interface ProgramAnalysisInput {
   today: string;
@@ -52,6 +55,8 @@ export interface ProgramAnalysisInput {
   dailyHealth?: readonly DailyHealthPoint[];
   /** Stored body weight and body-fat history, including Garmin weigh-ins. */
   bodyHistory?: BodyMetricHistory;
+  /** Meals from the last seven days and completed-week summaries. */
+  diet?: DietPromptContext;
 }
 
 const PROGRAM_ANALYSIS_SYSTEM_PROMPT = promptSections(
@@ -64,6 +69,7 @@ const PROGRAM_ANALYSIS_SYSTEM_PROMPT = promptSections(
   STRENGTH_SET_RULES,
   LAP_STRUCTURE_RULES,
   DAILY_HEALTH_RULES,
+  DIET_RULES,
   ACTIVITY_FTP_ESTIMATE_RULES,
   ACTIVITY_BODY_METRIC_RULES,
   TEXT_FORMATTING_RULES,
@@ -121,6 +127,9 @@ export function buildProgramAnalysisPrompt(
       }),
       "",
     );
+  }
+  if (input.diet !== undefined) {
+    lines.push(...formatDietContext(input.diet, input.today), "");
   }
 
   lines.push(

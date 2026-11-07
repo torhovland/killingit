@@ -23,6 +23,7 @@ const userStore: UserStore = {
       role: "admin",
       timezone: null,
       location: null,
+      dietAdvice: false,
       createdAt: new Date(0),
     }),
   getById: (id) =>
@@ -32,6 +33,7 @@ const userStore: UserStore = {
       role: "admin",
       timezone: null,
       location: null,
+      dietAdvice: false,
       createdAt: new Date(0),
     }),
   updateSettings: (sub, settings) =>
@@ -41,6 +43,8 @@ const userStore: UserStore = {
       role: "admin",
       timezone: settings.timezone !== undefined ? settings.timezone : null,
       location: settings.location !== undefined ? settings.location : null,
+      dietAdvice:
+        settings.dietAdvice !== undefined ? settings.dietAdvice : false,
       createdAt: new Date(0),
     }),
   deleteUser: (sub) => {
@@ -203,6 +207,23 @@ describe("GET /api/me", () => {
       location: unknown;
     };
     expect(clearedBody.location).toBeNull();
+  });
+
+  it("saves the diet advice opt-in", async () => {
+    const res = await app.fetch(
+      new Request("http://localhost/api/me", {
+        method: "PATCH",
+        headers: {
+          authorization: `Bearer ${validToken}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ dietAdvice: true }),
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { dietAdvice: boolean };
+    expect(body.dietAdvice).toBe(true);
   });
 
   it("rejects out-of-range coordinates and an empty patch", async () => {

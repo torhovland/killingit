@@ -1,4 +1,5 @@
 import type { AnalyzedActivity, AthleteEvent } from "@killingit/shared";
+import { loadDietContext } from "../diet/context.js";
 import { toCoachPlanActivity } from "../llm/coachPlanPrompt.js";
 import type {
   AthleteAnswerContext,
@@ -41,6 +42,7 @@ export interface ReplyContextDependencies {
   loadBodyHistory?: typeof loadBodyHistoryForUser;
   loadDailyHealth?: typeof loadDailyHealthForUser;
   loadEvents?: (userId: number) => Promise<readonly AthleteEvent[]>;
+  loadDiet?: typeof loadDietContext;
 }
 
 /**
@@ -77,34 +79,44 @@ export async function loadReplyContext(
   deps: ReplyContextDependencies = {},
 ): Promise<PlanContextInput> {
   const { userId, today } = input;
-  const [activities, coachingInputs, ftp, bodyHistory, dailyHealth, events] =
-    await Promise.all([
-      attempt("cached activity feed", () =>
-        (deps.loadActivities ?? cachedActivities)(userId),
+  const [
+    activities,
+    coachingInputs,
+    ftp,
+    bodyHistory,
+    dailyHealth,
+    events,
+    diet,
+  ] = await Promise.all([
+    attempt("cached activity feed", () =>
+      (deps.loadActivities ?? cachedActivities)(userId),
+    ),
+    attempt("coaching inputs", () =>
+      (deps.loadCoachingInputs ?? loadCoachingInputs)(
+        userId,
+        startOfWeek(today),
       ),
-      attempt("coaching inputs", () =>
-        (deps.loadCoachingInputs ?? loadCoachingInputs)(
-          userId,
-          startOfWeek(today),
-        ),
+    ),
+    attempt("FTP history", () =>
+      (deps.loadFtpHistory ?? loadFtpHistoryForUser)(userId, today),
+    ),
+    attempt("body metrics", () =>
+      (deps.loadBodyHistory ?? loadBodyHistoryForUser)(userId),
+    ),
+    attempt("daily health metrics", () =>
+      (deps.loadDailyHealth ?? loadDailyHealthForUser)(
+        userId,
+        addDays(today, -42),
+        today,
       ),
-      attempt("FTP history", () =>
-        (deps.loadFtpHistory ?? loadFtpHistoryForUser)(userId, today),
-      ),
-      attempt("body metrics", () =>
-        (deps.loadBodyHistory ?? loadBodyHistoryForUser)(userId),
-      ),
-      attempt("daily health metrics", () =>
-        (deps.loadDailyHealth ?? loadDailyHealthForUser)(
-          userId,
-          addDays(today, -42),
-          today,
-        ),
-      ),
-      attempt("athlete events", () =>
-        (deps.loadEvents ?? loadAthleteEvents)(userId),
-      ),
-    ]);
+    ),
+    attempt("athlete events", () =>
+      (deps.loadEvents ?? loadAthleteEvents)(userId),
+    ),
+    attempt("food log", () =>
+      (deps.loadDiet ?? loadDietContext)(userId, today),
+    ),
+  ]);
 
   const currentForm = currentTrainingLoad(
     {
@@ -134,5 +146,6 @@ export async function loadReplyContext(
     ...(bodyHistory !== null ? { bodyHistory } : {}),
     ...(dailyHealth !== null ? { dailyHealth } : {}),
     ...(events !== null && events.length > 0 ? { events } : {}),
+    ...(diet !== null ? { diet } : {}),
   };
 }

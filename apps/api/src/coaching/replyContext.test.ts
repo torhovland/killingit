@@ -94,6 +94,7 @@ describe("loadReplyContext", () => {
           weight: [{ date: "2026-10-01", value: 80, source: "user" as const }],
           bodyFat: [],
         }),
+      loadDiet: () => Promise.resolve(null),
     });
 
     expect(context.today).toBe("2026-10-21");
@@ -142,6 +143,7 @@ describe("loadReplyContext", () => {
           summaries: [],
         }),
       loadBodyHistory: () => Promise.reject(new Error("no body metrics")),
+      loadDiet: () => Promise.resolve(null),
     });
 
     expect(context.recentActivities).toEqual([]);
@@ -155,6 +157,7 @@ describe("loadReplyContext", () => {
       loadCoachingInputs: () => Promise.reject(new Error("no inputs")),
       loadFtpHistory: () => Promise.reject(new Error("no metrics")),
       loadBodyHistory: () => Promise.reject(new Error("no metrics")),
+      loadDiet: () => Promise.resolve(null),
     });
 
     expect(context).toMatchObject({

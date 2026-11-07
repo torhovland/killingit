@@ -4,6 +4,7 @@ import type {
   CoachPlan,
   DailyHealthPoint,
 } from "@killingit/shared";
+import type { DietPromptContext } from "../diet/summary.js";
 import { toCoachPlanActivity } from "../llm/coachPlanPrompt.js";
 import type {
   ActivityCommentContext,
@@ -36,6 +37,8 @@ export interface CapturePeriodReviewsInput {
   dailyHealth?: readonly DailyHealthPoint[];
   /** Dated goals and events the athlete stated. */
   events?: readonly AthleteEvent[];
+  /** Meals and weekly nutrition summaries from the food log. */
+  diet?: DietPromptContext;
   /** Cancels the review when a newer run starts. */
   signal?: AbortSignal;
   /** Injectable for tests; defaults to the database-backed writer. */
@@ -67,6 +70,7 @@ export async function captureCompletedPeriodReviews(
       ? { dailyHealth: input.dailyHealth }
       : {}),
     ...(input.events !== undefined ? { events: input.events } : {}),
+    ...(input.diet !== undefined ? { diet: input.diet } : {}),
   };
 
   const weekEnd = addDays(input.plan.week.startDate, 6);

@@ -170,6 +170,8 @@ export interface CoachingRouteDependencies {
   startCoachRun?: typeof startCoachRun;
   /** Injectable for route tests; defaults to Open-Meteo. */
   loadForecast?: PlanTriggerDependencies["loadForecast"];
+  /** Injectable for route tests; defaults to the stored food log. */
+  loadDiet?: PlanTriggerDependencies["loadDiet"];
 }
 
 /**
@@ -253,6 +255,7 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
     ...(deps.loadFtpHistory !== undefined
       ? { loadFtpHistory: deps.loadFtpHistory }
       : {}),
+    ...(deps.loadDiet !== undefined ? { loadDiet: deps.loadDiet } : {}),
     loadAnsweredCoachQuestions: loadAnsweredQuestions,
   };
   const coachRunDeps: CoachRunDependencies = {

@@ -27,6 +27,7 @@ import { useAuth } from "./auth";
 import { CoachPlanSection } from "./CoachPlanSection";
 import { CoachQuestionCard } from "./CoachQuestionCard";
 import { fetchJsonAuthed } from "./fetchAuthed";
+import { FoodLogSection } from "./FoodLogSection";
 import { FormattedText } from "./FormattedText";
 import { selectPendingActivities } from "./pendingActivities";
 import { PeriodReviewCard } from "./PeriodReviewCard";
@@ -41,13 +42,18 @@ const API_URL = import.meta.env.VITE_API_URL ?? "";
 interface CoachDashboardProps {
   /** Increment when athlete answers change so the plan refreshes. */
   planRefreshKey: number;
+  /** Whether the athlete wants the food log and diet advice. */
+  dietAdvice: boolean;
 }
 
 /**
  * The main coaching page: activities that still need the athlete's attention,
  * the tabbed plan, and the coaching inputs that shape it.
  */
-export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
+export function CoachDashboard({
+  planRefreshKey,
+  dietAdvice,
+}: CoachDashboardProps) {
   const auth = useAuth();
   const { setStatus } = useAppStatus();
   const reportCommentSave = useBusyReporter("comment-save");
@@ -619,6 +625,8 @@ export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
           Error: {error}
         </p>
       )}
+
+      <FoodLogSection enabled={dietAdvice} />
 
       {coachQuestion !== null && (
         <section className="flex flex-col gap-3" data-testid="coach-question">

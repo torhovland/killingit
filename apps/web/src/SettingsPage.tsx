@@ -10,6 +10,7 @@ import {
 import { useAppStatus } from "./AppStatus";
 import { useAuth } from "./auth";
 import { DeleteAccountSection } from "./DeleteAccountSection";
+import { DietSection } from "./DietSection";
 import { fetchJsonAuthed } from "./fetchAuthed";
 import { GarminSection } from "./GarminSection";
 import { LlmSection } from "./LlmSection";
@@ -36,12 +37,16 @@ export function SettingsPage({
   onTimeZoneChanged,
   location,
   onLocationChanged,
+  dietAdvice,
+  onDietAdviceChanged,
   isAdmin,
 }: {
   timeZone: string | null;
   onTimeZoneChanged: (timeZone: string | null) => void;
   location: AthleteLocation | null;
   onLocationChanged: (location: AthleteLocation | null) => void;
+  dietAdvice: boolean;
+  onDietAdviceChanged: (enabled: boolean) => void;
   isAdmin: boolean;
 }) {
   const auth = useAuth();
@@ -155,7 +160,8 @@ export function SettingsPage({
         <h2 className="text-3xl font-semibold">Settings</h2>
         <p className="text-base text-muted-foreground">
           Connect your training data, set your location, choose the coach's
-          season and day-to-day models, and rebuild your plan.
+          season and day-to-day models, enable diet advice, and rebuild your
+          plan.
         </p>
       </div>
 
@@ -192,6 +198,11 @@ export function SettingsPage({
               location={location}
               onChanged={onLocationChanged}
             />
+          </section>
+
+          <section className="flex flex-col gap-3 rounded-lg border bg-card p-4">
+            <h3 className="text-2xl font-semibold">Diet</h3>
+            <DietSection enabled={dietAdvice} onChanged={onDietAdviceChanged} />
           </section>
 
           <section className="flex flex-col gap-3 rounded-lg border bg-card p-4">

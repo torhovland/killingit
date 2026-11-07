@@ -111,6 +111,8 @@ export interface PlanRouteDependencies {
   ) => Promise<CoachingInputs>;
   /** Injectable for route tests; defaults to Open-Meteo and Yr. */
   loadForecast?: PlanTriggerDependencies["loadForecast"];
+  /** Injectable for route tests; defaults to the stored food log. */
+  loadDiet?: PlanTriggerDependencies["loadDiet"];
   /** Injectable for route tests; defaults to the prompt-log writer. */
   markPlanPromptsFailed?: PlanTriggerDependencies["markPlanPromptsFailed"];
 }
@@ -346,6 +348,7 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
             ...(deps.loadForecast !== undefined
               ? { loadForecast: deps.loadForecast }
               : {}),
+            ...(deps.loadDiet !== undefined ? { loadDiet: deps.loadDiet } : {}),
             ...(deps.markPlanPromptsFailed !== undefined
               ? { markPlanPromptsFailed: deps.markPlanPromptsFailed }
               : {}),

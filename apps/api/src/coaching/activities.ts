@@ -12,6 +12,7 @@ import {
   type ThresholdSummary,
 } from "@killingit/shared";
 import { decrypt } from "../crypto/credentials.js";
+import { loadDietContext } from "../diet/context.js";
 import { syncGarminActivities, syncGarminMetrics } from "../garmin/client.js";
 import {
   GARMIN_DAILY_SYNC_WINDOW_DAYS,
@@ -184,7 +185,7 @@ async function loadAnalyzedActivitiesOnce(
   // reload during analysis still shows every activity that was ever synced.
   await persistFeed(options.userId, { model: null, activities: history });
 
-  const [settings, feedback, storedPlan, dailyHealth, bodyHistory] =
+  const [settings, feedback, storedPlan, dailyHealth, bodyHistory, diet] =
     await Promise.all([
       loadLlmSettings(options.userId),
       loadActivityFeedback(
@@ -194,6 +195,7 @@ async function loadAnalyzedActivitiesOnce(
       dbPlanStore.load(options.userId),
       loadDailyHealthSafely(options.userId, today),
       loadBodyHistorySafely(options.userId),
+      loadDietContext(options.userId, today),
     ]);
   let loads: ActivityLoads = {
     byDate: new Map(),
@@ -244,6 +246,7 @@ async function loadAnalyzedActivitiesOnce(
     thresholds: trainingThresholds,
     ...(dailyHealth !== undefined ? { dailyHealth } : {}),
     ...(bodyHistory !== undefined ? { bodyHistory } : {}),
+    ...(diet !== null ? { diet } : {}),
   };
 
   let apiKey: string;

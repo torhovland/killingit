@@ -26,6 +26,11 @@ import {
   type WeekPlan,
   type WeekSession,
 } from "@killingit/shared";
+import type {
+  DietMealContext,
+  DietPromptContext,
+  DietWeekSummary,
+} from "../diet/summary.js";
 import { addDays, startOfWeek } from "../plans/dates.js";
 import { formatDuration } from "./duration.js";
 import { formatDailyHealthContext } from "./healthContext.js";
@@ -135,6 +140,11 @@ export interface PlanContextInput {
    * a trip or a dated target instead of treating the week as empty.
    */
   events?: readonly AthleteEvent[];
+  /**
+   * The meals from the last seven days and the completed-week nutrition
+   * summaries, when the athlete wants diet advice and has logged food.
+   */
+  diet?: DietPromptContext;
 }
 
 /** The stored body-composition series handed to a prompt. */
@@ -348,6 +358,9 @@ export function formatPlanContext(input: PlanContextInput): string[] {
       `Current form (${input.today}): ${formatTrainingLoad(input.currentForm)}.`,
     );
   }
+  if (input.diet !== undefined) {
+    lines.push(...formatDietContext(input.diet, input.today));
+  }
   lines.push(
     "",
     "Recent activities (most recent first).",
@@ -426,6 +439,65 @@ export function formatPlanContext(input: PlanContextInput): string[] {
   }
 
   return lines;
+}
+
+/**
+ * Renders the food log for a prompt: the individually listed meals of the last
+ * seven days and the aggregate of each completed week. Empty when the athlete
+ * has logged nothing, and omitted entirely when diet advice is off.
+ */
+export function formatDietContext(
+  diet: DietPromptContext,
+  today: string,
+): string[] {
+  if (diet.meals.length === 0 && diet.weeks.length === 0) {
+    return [];
+  }
+  const lines = [
+    "",
+    `Food log (times are the athlete's local clock; nutrition numbers are your earlier estimates, not measurements):`,
+  ];
+  if (diet.meals.length === 0) {
+    lines.push("No meals were logged in the last 7 days.");
+  } else {
+    lines.push(
+      "Recent meals (last 7 days, most recent first):",
+      ...diet.meals.map(formatDietMeal),
+    );
+  }
+  if (diet.weeks.length > 0) {
+    lines.push(
+      `Weekly nutrition summary for completed weeks (most recent first, up to one year from ${today}):`,
+      ...diet.weeks.map(formatDietWeek),
+    );
+  }
+  return lines;
+}
+
+function formatDietMeal(meal: DietMealContext): string {
+  const athlete = `Athlete: "${oneLine(meal.description)}"`;
+  if (meal.analysis === null) {
+    const why =
+      meal.analysisError !== null && meal.analysisError.trim() !== ""
+        ? ` (${oneLine(meal.analysisError)})`
+        : "";
+    return `- ${meal.eatenDate} ${meal.eatenTime} — ${athlete} — Coach analysis unavailable${why}.`;
+  }
+  const analysis = meal.analysis;
+  return `- ${meal.eatenDate} ${meal.eatenTime} — ${athlete} — Coach: ${oneLine(analysis.meal)} — ${Math.round(analysis.carbsGrams)} g carbs, ${Math.round(analysis.proteinGrams)} g protein, ${Math.round(analysis.fatGrams)} g fat, ${Math.round(analysis.caloriesKcal)} kcal. Diet fit: ${oneLine(analysis.dietFit)}`;
+}
+
+/** Collapses a possibly multi-line field to one prompt line. */
+function oneLine(text: string): string {
+  return text.trim().replace(/\s+/g, " ");
+}
+
+function formatDietWeek(week: DietWeekSummary): string {
+  const head = `- Week starting ${week.weekStart}: ${week.meals} ${week.meals === 1 ? "meal" : "meals"} over ${week.daysLogged} ${week.daysLogged === 1 ? "day" : "days"}`;
+  if (week.nutritionDays === 0) {
+    return `${head}; no estimated nutrition available.`;
+  }
+  return `${head}; averaged over ${week.nutritionDays} logged ${week.nutritionDays === 1 ? "day" : "days"}: ${week.carbsGramsPerDay ?? 0} g carbs, ${week.proteinGramsPerDay ?? 0} g protein, ${week.fatGramsPerDay ?? 0} g fat, ${week.caloriesKcalPerDay ?? 0} kcal per day.`;
 }
 
 /** Renders completed-period summaries and the athlete's feedback on them. */

@@ -64,6 +64,7 @@ function storeWithRole(role: UserRole): UserStore {
         role,
         timezone: null,
         location: null,
+        dietAdvice: false,
         createdAt: new Date(0),
       }),
     getById: (id) =>
@@ -73,6 +74,7 @@ function storeWithRole(role: UserRole): UserStore {
         role,
         timezone: null,
         location: null,
+        dietAdvice: false,
         createdAt: new Date(0),
       }),
     deleteUser: () => Promise.resolve(),
@@ -83,6 +85,7 @@ function storeWithRole(role: UserRole): UserStore {
         role,
         timezone: settings.timezone ?? null,
         location: settings.location ?? null,
+        dietAdvice: false,
         createdAt: new Date(0),
       }),
   };

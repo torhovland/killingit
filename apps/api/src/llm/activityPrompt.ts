@@ -13,6 +13,7 @@ import type {
   ThresholdSummary,
   WeekPlan,
 } from "@killingit/shared";
+import type { DietPromptContext } from "../diet/summary.js";
 import { downsample } from "../lib/downsample.js";
 import { weekCovers, weekEnd } from "../plans/periods.js";
 import { formatDuration } from "./duration.js";
@@ -20,6 +21,7 @@ import { formatDailyHealthContext } from "./healthContext.js";
 import {
   formatActivitySummary,
   formatBodyHistory,
+  formatDietContext,
   formatFtpContext,
   formatThresholdContext,
   formatWeekPlan,
@@ -31,6 +33,7 @@ import {
   ACTIVITY_TYPE_RULE,
   COACH_ANALYSIS_RESPONSE_RULES,
   DAILY_HEALTH_RULES,
+  DIET_RULES,
   DURATION_TOLERANCE_RULES,
   GLOBAL_PROMPT_RULES,
   promptSections,
@@ -49,7 +52,7 @@ export const MAX_PROMPT_SAMPLES = 90;
  * Bump when the prompt or generation parameters change materially. Cached
  * analyses from an older version are ignored and regenerated.
  */
-export const ANALYSIS_PROMPT_VERSION = 16;
+export const ANALYSIS_PROMPT_VERSION = 17;
 
 /**
  * The athlete's current week, used to match an activity to its planned session
@@ -69,6 +72,8 @@ export interface ActivityAnalysisContext {
   dailyHealth?: readonly DailyHealthPoint[];
   /** Stored body weight and body-fat history, including Garmin weigh-ins. */
   bodyHistory?: BodyMetricHistory;
+  /** Meals from the last seven days and completed-week summaries. */
+  diet?: DietPromptContext;
 }
 
 const ANALYSIS_SYSTEM_PROMPT = promptSections(
@@ -81,6 +86,7 @@ const ANALYSIS_SYSTEM_PROMPT = promptSections(
   STRENGTH_SET_RULES,
   LAP_STRUCTURE_RULES,
   DAILY_HEALTH_RULES,
+  DIET_RULES,
   ACTIVITY_FTP_ESTIMATE_RULES,
   ACTIVITY_BODY_METRIC_RULES,
   TEXT_FORMATTING_RULES,
@@ -350,6 +356,9 @@ export function buildActivityAnalysisPrompt(
         }),
         "",
       );
+    }
+    if (context.diet !== undefined) {
+      lines.push(...formatDietContext(context.diet, context.today), "");
     }
   }
 

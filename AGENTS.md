@@ -277,6 +277,17 @@ about a past workout, or before a suggested workout, to steer the coach.
   planned hides its statistics. Selecting an entry opens its full details,
   including the athlete comment, coach reply, and the route map for outdoor
   activities. See `docs/specs/calendar-page.md`.
+- The athlete can opt in to diet advice in Settings (`users.diet_advice`). The
+  dashboard then starts with a food log form: a description, an optional camera
+  or gallery photo compressed in the browser, and a meal time that defaults to
+  now. `POST /api/diet/entries` asks the coach to describe the meal, estimate
+  carbs, protein, fat and calories, and comment on how it fits the diet, storing
+  the result in `food_entries`. A failed analysis keeps the meal with an
+  `analysisError`. Photos live as compressed data URLs and are served from the
+  authenticated `GET /api/diet/entries/:id/photo` endpoint; the Diet page lists
+  every meal with a thumbnail and the coach response. Every coach prompt sees
+  the meals from the last seven days and a weekly nutrition summary for each
+  completed week up to one year back. See `docs/specs/diet-log.md` and ADR 0019.
 - The Settings page ends with a Delete account section. After a warning modal is
   confirmed, `DELETE /api/me` deletes the account row, and the schema's cascades
   remove every plan, activity, connection, and coach message owned by it. The

@@ -542,6 +542,81 @@ describe("formatPlanContext", () => {
 
     expect(text).not.toContain("Current form (");
   });
+
+  it("renders the recent meals and completed-week summaries", () => {
+    const text = formatPlanContext(
+      input({
+        diet: {
+          meals: [
+            {
+              eatenDate: "2026-10-22",
+              eatenTime: "08:15",
+              description: "Porridge with berries",
+              analysis: {
+                meal: "A bowl of porridge with berries",
+                carbsGrams: 62,
+                proteinGrams: 18,
+                fatGrams: 9,
+                caloriesKcal: 410,
+                dietFit: "Good fuelling before a long ride.",
+              },
+              analysisError: null,
+            },
+          ],
+          weeks: [
+            {
+              weekStart: "2026-10-12",
+              meals: 16,
+              daysLogged: 6,
+              nutritionDays: 6,
+              carbsGramsPerDay: 210,
+              proteinGramsPerDay: 120,
+              fatGramsPerDay: 70,
+              caloriesKcalPerDay: 2400,
+            },
+          ],
+        },
+      }),
+    ).join("\n");
+
+    expect(text).toContain("Recent meals (last 7 days, most recent first):");
+    expect(text).toContain(
+      '2026-10-22 08:15 — Athlete: "Porridge with berries"',
+    );
+    expect(text).toContain("62 g carbs, 18 g protein, 9 g fat, 410 kcal");
+    expect(text).toContain("Good fuelling before a long ride.");
+    expect(text).toContain(
+      "Week starting 2026-10-12: 16 meals over 6 days; averaged over 6 logged days: 210 g carbs, 120 g protein, 70 g fat, 2400 kcal per day.",
+    );
+  });
+
+  it("marks a meal the coach could not analyse", () => {
+    const text = formatPlanContext(
+      input({
+        diet: {
+          meals: [
+            {
+              eatenDate: "2026-10-22",
+              eatenTime: "08:15",
+              description: "Toast",
+              analysis: null,
+              analysisError: "No model configured.",
+            },
+          ],
+          weeks: [],
+        },
+      }),
+    ).join("\n");
+
+    expect(text).toContain("Coach analysis unavailable (No model configured.)");
+  });
+
+  it("omits the food log when diet advice is off or nothing is logged", () => {
+    expect(formatPlanContext(input()).join("\n")).not.toContain("Food log");
+    expect(
+      formatPlanContext(input({ diet: { meals: [], weeks: [] } })).join("\n"),
+    ).not.toContain("Food log");
+  });
 });
 
 describe("formatDayPlan", () => {

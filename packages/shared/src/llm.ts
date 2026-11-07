@@ -138,6 +138,7 @@ export const LLM_PROMPT_KINDS = [
   "coaching_question",
   "period_review",
   "manual_tss",
+  "food_analysis",
   "other",
 ] as const;
 
@@ -164,6 +165,7 @@ export const LLM_PROMPT_KIND_LABELS: Record<LlmPromptKind, string> = {
   coaching_question: "Coaching question",
   period_review: "Period review",
   manual_tss: "Manual activity TSS",
+  food_analysis: "Food analysis",
   other: "Other",
 };
 

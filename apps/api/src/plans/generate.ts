@@ -29,6 +29,7 @@ import {
 } from "../llm/planUpdate.js";
 import type { PlanUpdateRevision } from "../llm/planUpdatePrompt.js";
 import { captureCompletedPeriodReviews } from "../coaching/periodReviews.js";
+import type { DietPromptContext } from "../diet/summary.js";
 import type {
   ActivityCommentContext,
   AthleteAnswerContext,
@@ -98,6 +99,8 @@ export interface PlanGenerationContext {
   dailyHealth?: readonly DailyHealthPoint[] | undefined;
   /** Dated goals and events the athlete stated, for every plan prompt. */
   events?: readonly AthleteEvent[] | undefined;
+  /** Meals from the last seven days and completed-week summaries. */
+  diet?: DietPromptContext | undefined;
   provider: LlmProvider;
   apiKey: string;
   /** Daily model, kept as the default for older callers and tests. */
@@ -219,6 +222,7 @@ export async function runPlanGeneration(
           ? { dailyHealth: context.dailyHealth }
           : {}),
         ...(context.events !== undefined ? { events: context.events } : {}),
+        ...(context.diet !== undefined ? { diet: context.diet } : {}),
         ...(input.signal !== undefined ? { signal: input.signal } : {}),
       });
       if (captured !== undefined && captured.length > 0) {
@@ -1507,6 +1511,7 @@ function baseContext(input: GeneratePlanInput) {
     ...(input.context.events !== undefined && input.context.events.length > 0
       ? { events: input.context.events }
       : {}),
+    ...(input.context.diet !== undefined ? { diet: input.context.diet } : {}),
     today: input.today,
     ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),
     ...(input.context.manualActivities.length > 0

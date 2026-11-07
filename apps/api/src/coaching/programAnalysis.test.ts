@@ -1,6 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import type { AnalyzedActivity, CoachPlan } from "@killingit/shared";
-import type { LlmCompletionRequest, LlmProvider } from "../llm/openrouter.js";
+import {
+  llmMessageText,
+  type LlmCompletionRequest,
+  type LlmProvider,
+} from "../llm/openrouter.js";
 import { PROGRAM_ANALYSIS_PROMPT_VERSION } from "../llm/programAnalysisPrompt.js";
 import { analyzeActivitiesAgainstPlan } from "./programAnalysis.js";
 
@@ -105,7 +109,10 @@ class FakeProvider implements LlmProvider {
 
   complete(request: LlmCompletionRequest): Promise<string> {
     this.requests.push(request);
-    const content = request.messages[1]?.content ?? "";
+    const content =
+      request.messages[1] === undefined
+        ? ""
+        : llmMessageText(request.messages[1].content);
     if (this.failOn !== undefined && content.includes(this.failOn)) {
       return Promise.reject(new Error("review failed"));
     }

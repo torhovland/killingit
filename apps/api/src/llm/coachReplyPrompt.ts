@@ -8,6 +8,7 @@ import {
   type PlanContextInput,
 } from "./planContext.js";
 import {
+  DIET_RULES,
   GLOBAL_PROMPT_RULES,
   promptSections,
   TEXT_FORMATTING_RULES,
@@ -47,6 +48,7 @@ export const COACH_REPLY_SYSTEM_PROMPT = promptSections(
   "The athlete has just shared something about their training: a comment on a workout, a completed week or block, a note for the week, or a manual activity.",
   "Use the athlete profile, the current plan, and the recent training with its coach analyses to judge what the input means for the athlete.",
   "Reply briefly in 1-2 sentences. Acknowledge the input in your own words, explain how it affects the plan, and state what you will adjust. Be specific to the athlete's goal and current block. Do not restate the whole plan or ask questions.",
+  DIET_RULES,
   TEXT_FORMATTING_RULES,
 );
 
@@ -55,6 +57,7 @@ const QUICK_QUESTION_SYSTEM_PROMPT = promptSections(
   "The athlete is asking a one-off question about their training.",
   "Answer it directly and briefly in 1-3 sentences, using their goal, current plan, athlete profile, and recent training with its coach analyses. Refer to what they have actually done rather than to what the plan alone would suggest.",
   "This is a conversation only: it does not change the training plan and nothing from it is stored. Do not ask follow-up questions.",
+  DIET_RULES,
   TEXT_FORMATTING_RULES,
 );
 

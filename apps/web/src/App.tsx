@@ -7,6 +7,7 @@ import { CalendarPage } from "./CalendarPage";
 import { CoachDashboard } from "./CoachDashboard";
 import { CoachingSurveyPage } from "./CoachingSurveyPage";
 import { CostsPage } from "./CostsPage";
+import { DietPage } from "./DietPage";
 import { useAuth } from "./auth";
 import { fetchJsonAuthed } from "./fetchAuthed";
 import { FitnessPage } from "./FitnessPage";
@@ -28,6 +29,7 @@ const API_URL = import.meta.env.VITE_API_URL ?? "";
 
 const PAGE_LABELS: Record<Page, string> = {
   coach: "Coach",
+  diet: "Diet",
   fitness: "Fitness",
   calendar: "Calendar",
   activities: "Activities",
@@ -225,6 +227,8 @@ function AppShell() {
                     void loadQuestions();
                   }}
                 />
+              ) : page === "diet" ? (
+                <DietPage dietAdvice={me?.dietAdvice ?? false} />
               ) : page === "fitness" ? (
                 <FitnessPage />
               ) : page === "calendar" ? (
@@ -252,12 +256,21 @@ function AppShell() {
                       current === null ? current : { ...current, location },
                     );
                   }}
+                  dietAdvice={me?.dietAdvice ?? false}
+                  onDietAdviceChanged={(dietAdvice) => {
+                    setMe((current) =>
+                      current === null ? current : { ...current, dietAdvice },
+                    );
+                  }}
                   isAdmin={isAdmin}
                 />
               ) : page === "admin" && isAdmin ? (
                 <AdminSettingsPage />
               ) : (
-                <CoachDashboard planRefreshKey={planRefreshKey} />
+                <CoachDashboard
+                  planRefreshKey={planRefreshKey}
+                  dietAdvice={me?.dietAdvice ?? false}
+                />
               )}
             </PlanGenerationProvider>
           </div>
@@ -355,6 +368,7 @@ function UserMenu({
         {(
           [
             "coach",
+            "diet",
             "fitness",
             "calendar",
             "activities",
