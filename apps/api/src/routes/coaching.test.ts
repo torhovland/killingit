@@ -208,6 +208,7 @@ function makeApp(options: {
           role: "member",
           timezone: null,
           location: null,
+          dietAdvice: false,
           createdAt: new Date(0),
         }),
       getById: (id) =>
@@ -217,6 +218,7 @@ function makeApp(options: {
           role: "member",
           timezone: null,
           location: null,
+          dietAdvice: false,
           createdAt: new Date(0),
         }),
       deleteUser: () => Promise.resolve(),
@@ -227,6 +229,7 @@ function makeApp(options: {
           role: "member",
           timezone: settings.timezone ?? null,
           location: settings.location ?? null,
+          dietAdvice: false,
           createdAt: new Date(0),
         }),
     },
@@ -266,6 +269,7 @@ function makeApp(options: {
     syncAthleteMetrics: () => Promise.resolve(null),
     syncAthleteEvents: () => Promise.resolve(null),
     loadEvents: () => Promise.resolve([]),
+    loadDiet: () => Promise.resolve(null),
     loadLlm: () =>
       Promise.resolve({
         provider: {

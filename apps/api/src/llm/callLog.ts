@@ -1,7 +1,9 @@
+import type { LlmCallMessage } from "@killingit/shared";
 import {
   isLlmAbortError,
   type LlmCompletionRequest,
   type LlmCompletionResult,
+  type LlmMessage,
   type LlmProvider,
 } from "./openrouter.js";
 import {
@@ -66,7 +68,7 @@ export function withPromptLogging(
         kind: request.kind ?? "other",
         provider: provider.id,
         model: request.model,
-        messages: request.messages,
+        messages: toLogMessages(request.messages),
         metadata: requestMetadata(request),
       });
       try {
@@ -101,6 +103,25 @@ export function withPromptLogging(
       }
     },
   };
+}
+
+/**
+ * Flattens a multimodal message for the prompt log. An attached image is
+ * recorded as a marker rather than embedding its base64 payload, so the admin
+ * view stays readable and one photo cannot fill the log with megabytes.
+ */
+function toLogMessages(messages: readonly LlmMessage[]): LlmCallMessage[] {
+  return messages.map((message) => ({
+    role: message.role,
+    content:
+      typeof message.content === "string"
+        ? message.content
+        : message.content
+            .map((part) =>
+              part.type === "text" ? part.text : "[image attached]",
+            )
+            .join("\n"),
+  }));
 }
 
 /** Uses the provider's rich completion when available. */

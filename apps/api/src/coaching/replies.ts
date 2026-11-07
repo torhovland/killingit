@@ -314,7 +314,8 @@ async function generateReply(
   }
 }
 
-function toAnswerContext(entry: {
+/** Maps a stored answer to the prompt context every coach prompt shares. */
+export function toAnswerContext(entry: {
   prompt: string;
   answer: string | null;
   skipped: boolean;

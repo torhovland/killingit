@@ -66,6 +66,13 @@ export const TEXT_FORMATTING_RULES = `Use short paragraphs and lists when a fiel
 export const ATHLETE_EVENT_RULES = `The athlete's dated goals and events are dates the athlete told you about, such as a race, a sportive, a trip, or a dated target. Plan around them. A race or target event anchors the week and block that contain it: keep the days before it easy or tapering, and do not schedule a hard session on the day before it. A trip or appointment removes the days it covers from training. When an event changes the plan, name it in the relevant week focus, session description, or rationale. Never add an event the athlete did not state, and never move a date they gave.`;
 
 /**
+ * How the coach reads the athlete's food log. Shared by every prompt that can
+ * receive meals so a meal is never counted as training and the estimates are
+ * never presented as exact measurements.
+ */
+export const DIET_RULES = `When a food log is provided, it lists meals the athlete logged with a description, your earlier meal description, estimated carbs, protein, fat and calories, and a note on how the meal fits the athlete's goal. Treat meals as nutrition context only: never count a meal as training, add it to training load, or turn it into a workout. The numbers are estimates from a description and an optional photo, so call them estimates and do not present them as measured values. Use recent meals and weekly summaries to judge fuelling, recovery and whether the diet supports the plan, and mention a meal only when it changes your advice.`;
+
+/**
  * The rules every plan prompt includes regardless of the level it builds or
  * updates: training-science guidance, how to read the supplied input, the
  * rationale rules and the body-metric rules. `GLOBAL_PROMPT_RULES` supplies the
@@ -89,6 +96,7 @@ Use the date the statement refers to. For a number in the profile that names no 
 The stored history tells you what is already known; do not repeat a value for the same date.`,
   ATHLETE_EVENT_RULES,
   DAILY_HEALTH_RULES,
+  DIET_RULES,
   TEXT_FORMATTING_RULES,
 );
 
@@ -376,6 +384,22 @@ export const COACH_ANALYSIS_RESPONSE_RULES = promptSections(
 }`,
   `Replace "estimatedFtpWatts" with the integer estimate in watts, or null when there is no useful evidence. Set "weightKg" to the athlete's body weight in kilograms and "bodyFatPercent" to their body fat as a percentage only when the input for this activity states them, and to null otherwise. Put the whole coach summary in "analysis".`,
   COACH_RESPONSE_NOTES_RULES,
+  JSON_ONLY_RULES,
+);
+
+/** The JSON contract for one logged meal. */
+export const FOOD_ANALYSIS_RESPONSE_RULES = promptSections(
+  `Return only one JSON object with exactly this shape:
+{
+  "meal": "string",
+  "carbsGrams": 0,
+  "proteinGrams": 0,
+  "fatGrams": 0,
+  "caloriesKcal": 0,
+  "dietFit": "string"
+}`,
+  `Replace "meal" with one short paragraph describing what you understand the athlete ate. Replace the four numbers with your best estimate for the whole meal, in grams for the macronutrients and kilocalories for energy. Send whole numbers, never ranges or text. When the description or photo does not give a quantity, assume an ordinary portion and say so in "meal". Put your comment on how the meal fits the athlete's goal, training and recent food log in "dietFit".`,
+  DIET_RULES,
   JSON_ONLY_RULES,
 );
 

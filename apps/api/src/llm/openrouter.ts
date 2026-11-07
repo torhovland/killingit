@@ -67,9 +67,27 @@ export function isLlmAbortError(err: unknown): err is LlmAbortError {
   );
 }
 
+/** One part of a multimodal message. Text-only prompts use a plain string. */
+export type LlmContentPart =
+  | { type: "text"; text: string }
+  | { type: "image_url"; image_url: { url: string } };
+
 export interface LlmMessage {
   role: "system" | "user" | "assistant";
-  content: string;
+  content: string | LlmContentPart[];
+}
+
+/** The text of a message, ignoring any attached images. */
+export function llmMessageText(content: string | LlmContentPart[]): string {
+  return typeof content === "string"
+    ? content
+    : content
+        .filter(
+          (part): part is { type: "text"; text: string } =>
+            part.type === "text",
+        )
+        .map((part) => part.text)
+        .join("\n");
 }
 
 /**

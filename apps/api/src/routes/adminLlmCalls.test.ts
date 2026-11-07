@@ -13,6 +13,7 @@ const admin: StoredUser = {
   role: "admin",
   timezone: null,
   location: null,
+  dietAdvice: false,
   createdAt: new Date(0),
 };
 

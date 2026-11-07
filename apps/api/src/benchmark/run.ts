@@ -1,6 +1,7 @@
 import type { AnalyzedActivity, CoachPlan, LlmModel } from "@killingit/shared";
 import {
   createOpenRouterProvider,
+  llmMessageText,
   type LlmMessage,
   type LlmProvider,
 } from "../llm/openrouter.js";
@@ -68,8 +69,11 @@ function inMemoryStores(initial: StoredPlan | null): InMemoryStores {
 }
 
 function stepFor(messages: LlmMessage[]): BenchmarkStep {
+  const systemMessage = messages.find(
+    (message) => message.role === "system",
+  )?.content;
   const system =
-    messages.find((message) => message.role === "system")?.content ?? "";
+    systemMessage === undefined ? "" : llmMessageText(systemMessage);
   if (system.includes("Create a season plan")) return "season";
   if (
     system.includes("Create the first block") ||

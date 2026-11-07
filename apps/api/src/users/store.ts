@@ -12,6 +12,8 @@ export interface StoredUser {
   timezone: string | null;
   /** Home location for weather forecasts; null means weather is not used. */
   location: AthleteLocation | null;
+  /** Whether the athlete wants a food log and diet advice. */
+  dietAdvice: boolean;
   createdAt: Date;
 }
 
@@ -19,6 +21,7 @@ export interface StoredUser {
 export interface UserSettingsPatch {
   timezone?: string | null;
   location?: AthleteLocation | null;
+  dietAdvice?: boolean;
 }
 
 /**
@@ -66,6 +69,7 @@ function toStoredUser(row: UserRow): StoredUser {
             name: row.locationName,
           }
         : null,
+    dietAdvice: row.dietAdvice,
     createdAt: row.createdAt,
   };
 }
@@ -167,6 +171,9 @@ export const dbUserStore: UserStore = {
         ...(update.timezone !== undefined ? { timezone: update.timezone } : {}),
         ...(update.location !== undefined
           ? locationColumns(update.location)
+          : {}),
+        ...(update.dietAdvice !== undefined
+          ? { dietAdvice: update.dietAdvice }
           : {}),
         updatedAt: new Date(),
       })

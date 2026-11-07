@@ -6,6 +6,7 @@ import type {
   MetricPoint,
   ThresholdSummary,
 } from "@killingit/shared";
+import type { DietPromptContext } from "../diet/summary.js";
 import { analyzeActivityAgainstPlan } from "../llm/programAnalysis.js";
 import { PROGRAM_ANALYSIS_PROMPT_VERSION } from "../llm/programAnalysisPrompt.js";
 import type {
@@ -41,6 +42,8 @@ export interface AnalyzeActivitiesAgainstPlanInput {
   dailyHealth?: readonly DailyHealthPoint[];
   /** Stored body weight and body-fat history, including Garmin weigh-ins. */
   bodyHistory?: BodyMetricHistory;
+  /** Meals from the last seven days and completed-week summaries. */
+  diet?: DietPromptContext;
   /** Cancels the supplementary review when a newer run starts. */
   signal?: AbortSignal;
   /** Injectable for tests; defaults to the database-backed writer. */
@@ -103,6 +106,7 @@ export async function analyzeActivitiesAgainstPlan(
             ...(input.bodyHistory !== undefined
               ? { bodyHistory: input.bodyHistory }
               : {}),
+            ...(input.diet !== undefined ? { diet: input.diet } : {}),
             currentFtpWatts,
           },
         );

@@ -75,6 +75,7 @@ import {
   type AdminLlmCallsDependencies,
 } from "./routes/adminLlmCalls.js";
 import { createCalendarRoute } from "./routes/calendar.js";
+import { createDietRoute } from "./routes/diet.js";
 import { syncAthleteMetrics } from "./coaching/athleteMetrics.js";
 import { syncAthleteEvents } from "./coaching/athleteEvents.js";
 import { loadAthleteEvents } from "./events/store.js";
@@ -88,6 +89,11 @@ import { createMeRoute } from "./routes/me.js";
 import { createPlanRoute } from "./routes/plan.js";
 import { createQuestionsRoute } from "./routes/questions.js";
 import { createWeatherRoute } from "./routes/weather.js";
+import { analyzeFood } from "./llm/foodAnalysis.js";
+import { loadDietContext } from "./diet/context.js";
+import type { ReplyContextInput } from "./coaching/replyContext.js";
+import type { FoodEntryStore } from "./diet/store.js";
+import type { PlanContextInput } from "./llm/planContext.js";
 import {
   loadBodyHistoryForUser,
   loadFtpHistoryForUser,
@@ -137,6 +143,8 @@ export interface AppDependencies {
   loadEvents?: typeof loadAthleteEvents;
   /** Stored weekly plan totals, injectable for DB-free route tests. */
   loadWeekTotals?: typeof loadPlanWeekTotals;
+  /** Stored food log for the coaching and plan prompts. */
+  loadDiet?: typeof loadDietContext;
   loadCachedFeed?: typeof loadCachedActivityFeed;
   /** Injectable for route tests; defaults to the stored activity feedback. */
   loadActivityFeedback?: typeof loadActivityFeedback;
@@ -144,6 +152,12 @@ export interface AppDependencies {
   loadFitnessHistory?: typeof loadFitnessHistory;
   estimateManualTss?: typeof estimateManualActivityTss;
   loadLlm?: (userId: number) => Promise<LlmClient | null>;
+  /** Stored meals, injectable for DB-free diet route tests. */
+  dietEntries?: FoodEntryStore;
+  /** Food-analysis prompt context, injectable for DB-free diet route tests. */
+  loadFoodContext?: (input: ReplyContextInput) => Promise<PlanContextInput>;
+  /** Food-analysis generator, injectable for DB-free diet route tests. */
+  analyzeFood?: typeof analyzeFood;
   /** Coaching-input loader, injectable for DB-free route tests. */
   loadCoachingInputs?: (
     userId: number,
@@ -384,6 +398,7 @@ export function createApp(deps: AppDependencies = {}): Hono {
       ...(deps.loadForecast !== undefined
         ? { loadForecast: deps.loadForecast }
         : {}),
+      ...(deps.loadDiet !== undefined ? { loadDiet: deps.loadDiet } : {}),
     }),
   );
 
@@ -428,6 +443,23 @@ export function createApp(deps: AppDependencies = {}): Hono {
     }),
   );
 
+  // The diet log: meals the athlete opted in to logging, with the coach's
+  // structured analysis and an authenticated photo endpoint.
+  api.use("/diet/*", requireAuth(authProvider));
+  api.route(
+    "/diet",
+    createDietRoute({
+      users: userStore,
+      answers: answerStore,
+      ...(deps.dietEntries !== undefined ? { entries: deps.dietEntries } : {}),
+      ...(deps.loadLlm !== undefined ? { loadLlm: deps.loadLlm } : {}),
+      ...(deps.loadFoodContext !== undefined
+        ? { loadContext: deps.loadFoodContext }
+        : {}),
+      ...(deps.analyzeFood !== undefined ? { analyze: deps.analyzeFood } : {}),
+    }),
+  );
+
   // The four-level coach plan and its generation progress. The plan is stored
   // per user and advanced by the daily/weekly/block cascade.
   api.route(
@@ -466,6 +498,7 @@ export function createApp(deps: AppDependencies = {}): Hono {
       ...(deps.loadForecast !== undefined
         ? { loadForecast: deps.loadForecast }
         : {}),
+      ...(deps.loadDiet !== undefined ? { loadDiet: deps.loadDiet } : {}),
       ...(deps.markPlanPromptsFailed !== undefined
         ? { markPlanPromptsFailed: deps.markPlanPromptsFailed }
         : {}),

@@ -58,3 +58,56 @@ function localHour(timeZone: string | null | undefined, now: Date): number {
 export function weekDates(startDate: string): string[] {
   return Array.from({ length: 7 }, (_, index) => addDays(startDate, index));
 }
+
+/**
+ * One instant as the athlete's local calendar date and clock time. Falls back
+ * to UTC when no zone is set or the zone is unknown, so a bad setting can never
+ * stop a write.
+ */
+export function localDateTimeInZone(
+  instant: Date,
+  timeZone: string | null | undefined,
+): { date: string; time: string } {
+  const parts = zoneParts(instant, timeZone);
+  if (parts !== null) {
+    return { date: parts.date, time: `${parts.hour}:${parts.minute}` };
+  }
+  return {
+    date: instant.toISOString().slice(0, 10),
+    time: instant.toISOString().slice(11, 16),
+  };
+}
+
+/** The wall-clock parts of an instant in a zone, or null when unavailable. */
+function zoneParts(
+  instant: Date,
+  timeZone: string | null | undefined,
+): { date: string; hour: string; minute: string } | null {
+  if (timeZone === null || timeZone === undefined || timeZone.trim() === "") {
+    return null;
+  }
+  try {
+    const parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(instant);
+    const value = (type: Intl.DateTimeFormatPartTypes): string =>
+      parts.find((part) => part.type === type)?.value ?? "";
+    const year = value("year");
+    const month = value("month");
+    const day = value("day");
+    const hour = value("hour");
+    const minute = value("minute");
+    if ([year, month, day, hour, minute].some((part) => part === "")) {
+      return null;
+    }
+    return { date: `${year}-${month}-${day}`, hour, minute };
+  } catch {
+    return null;
+  }
+}

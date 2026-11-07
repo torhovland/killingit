@@ -368,6 +368,22 @@ export {
 } from "./review.js";
 
 export {
+  FOOD_DESCRIPTION_MAX_LENGTH,
+  FOOD_PHOTO_DATA_URL_MAX_LENGTH,
+  foodAnalysisResultSchema,
+  foodAnalysisSchema,
+  foodEntriesResponseSchema,
+  foodEntryRequestSchema,
+  foodEntrySchema,
+  foodPhotoDataUrlSchema,
+  type FoodAnalysis,
+  type FoodAnalysisResult,
+  type FoodEntriesResponse,
+  type FoodEntry,
+  type FoodEntryRequest,
+} from "./diet.js";
+
+export {
   athleteQuestionPreviousResponseSchema,
   athleteQuestionSchema,
   athleteQuestionsResponseSchema,

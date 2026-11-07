@@ -43,9 +43,14 @@ export const userSettingsUpdateSchema = z
   .object({
     timezone: timeZoneSchema.nullable().optional(),
     location: athleteLocationSchema.nullable().optional(),
+    /** The athlete wants diet advice and a food log on the dashboard. */
+    dietAdvice: z.boolean().optional(),
   })
   .refine(
-    (value) => value.timezone !== undefined || value.location !== undefined,
+    (value) =>
+      value.timezone !== undefined ||
+      value.location !== undefined ||
+      value.dietAdvice !== undefined,
     {
       message: "Provide at least one setting",
       path: ["timezone"],
@@ -58,13 +63,15 @@ export type UserSettingsUpdate = z.infer<typeof userSettingsUpdateSchema>;
  * The signed-in user as resolved by the API. `sub` is the auth provider's
  * subject; `role` is the application's own authorisation role (never taken
  * from a token claim); `timezone` is the athlete's preferred display zone;
- * `location` is the home location used for weather-aware planning.
+ * `location` is the home location used for weather-aware planning;
+ * `dietAdvice` enables the food log and its coaching context.
  */
 export const currentUserSchema = z.object({
   sub: z.string(),
   role: userRoleSchema,
   timezone: z.string().nullable().default(null),
   location: athleteLocationSchema.nullable().default(null),
+  dietAdvice: z.boolean().default(false),
 });
 
 export type CurrentUser = z.infer<typeof currentUserSchema>;

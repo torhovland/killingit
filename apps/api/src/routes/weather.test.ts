@@ -9,6 +9,7 @@ const userStore = {
       role: "member" as const,
       timezone: null,
       location: null,
+      dietAdvice: false,
       createdAt: new Date(0),
     }),
   getById: () => Promise.resolve(null),

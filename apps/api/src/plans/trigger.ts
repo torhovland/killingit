@@ -11,6 +11,7 @@ import {
   syncAthleteEvents,
 } from "../coaching/athleteEvents.js";
 import { loadAthleteEvents } from "../events/store.js";
+import { loadDietContext } from "../diet/context.js";
 import { captureCompletedPeriodReviews } from "../coaching/periodReviews.js";
 import { analyzeActivitiesAgainstPlan } from "../coaching/programAnalysis.js";
 import { markPlanPromptsFailed } from "../llm/callStore.js";
@@ -82,6 +83,8 @@ export interface PlanTriggerDependencies {
   syncAthleteEvents?: typeof syncAthleteEvents;
   /** Injectable for route tests; defaults to the stored events. */
   loadEvents?: typeof loadAthleteEvents;
+  /** Injectable for route tests; defaults to the stored food log. */
+  loadDiet?: typeof loadDietContext;
   /** Injectable for route tests; defaults to answered coach questions. */
   loadAnsweredCoachQuestions?: typeof loadAnsweredCoachQuestions;
   /** Injectable for route tests; defaults to the account's stored config. */
@@ -346,6 +349,8 @@ export async function runPlanForUser(
     events = [];
   }
 
+  const diet = await (deps.loadDiet ?? loadDietContext)(userId, today);
+
   const ftp = await (deps.loadFtpHistory ?? loadFtpHistoryForUser)(
     userId,
     today,
@@ -437,6 +442,7 @@ export async function runPlanForUser(
         thresholds: ftp.summaries,
         bodyHistory,
         ...(dailyHealth !== undefined ? { dailyHealth } : {}),
+        ...(diet !== null ? { diet } : {}),
         signal: options.signal,
       }),
     plan,
@@ -471,6 +477,7 @@ export async function runPlanForUser(
       bodyHistory,
       ...(dailyHealth !== undefined ? { dailyHealth } : {}),
       events,
+      ...(diet !== null ? { diet } : {}),
       provider: llm.provider,
       apiKey: llm.apiKey,
       model: llm.model,
