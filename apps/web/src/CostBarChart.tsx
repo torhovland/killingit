@@ -10,6 +10,7 @@ import {
   type CostChartData,
   type CostSeriesTotal,
 } from "./costChart";
+import { CostTooltip } from "./CostTooltip";
 
 const CHART_HEIGHT = 280;
 const PLOT_WIDTH = CHART_WIDTH - CHART_PADDING.left - CHART_PADDING.right;
@@ -18,7 +19,8 @@ const PLOT_HEIGHT = CHART_HEIGHT - CHART_PADDING.top - CHART_PADDING.bottom;
 /**
  * A bar chart of LLM spend where each bar is split into one segment per series:
  * a model or a prompt type. The white plot matches the other charts, and
- * pointing at a bar shows its total, the series split, and the call count.
+ * pointing at a bar shows its total and call count, then each series' spend and
+ * call count.
  */
 export function CostBarChart({
   title,
@@ -257,57 +259,5 @@ function Bar({
         );
       })}
     </g>
-  );
-}
-
-function CostTooltip({
-  bucket,
-  series: totals,
-  left,
-}: {
-  bucket: CostBucket;
-  series: readonly CostSeriesTotal[];
-  left: string;
-}) {
-  const parts = [...bucket.parts]
-    .filter((part) => part.costUsd > 0)
-    .sort((a, b) => b.costUsd - a.costUsd);
-  const calls = bucket.parts.reduce((sum, part) => sum + part.calls, 0);
-  return (
-    <div
-      className="pointer-events-none absolute top-2 z-10 w-60 -translate-x-1/2 rounded border bg-card p-2 text-sm shadow-lg"
-      style={{ left }}
-      data-testid="cost-tooltip"
-    >
-      <p className="font-medium">{bucket.title}</p>
-      <p className="text-muted-foreground">
-        {formatCostUsd(bucket.totalUsd)}
-        {calls > 0 && ` · ${calls} call${calls === 1 ? "" : "s"}`}
-      </p>
-      <ul className="mt-1 flex flex-col gap-0.5">
-        {parts.map((part) => {
-          const entry = totals.find((item) => item.series === part.series);
-          const index = entry === undefined ? -1 : totals.indexOf(entry);
-          return (
-            <li
-              key={part.series}
-              className="flex items-center justify-between gap-3"
-            >
-              <span className="flex min-w-0 items-center gap-1.5">
-                <span
-                  className={`inline-block size-2.5 shrink-0 rounded-sm ${
-                    COST_SERIES_SWATCH[
-                      Math.max(0, index) % COST_SERIES_SWATCH.length
-                    ]
-                  }`}
-                />
-                <span className="truncate">{entry?.label ?? part.series}</span>
-              </span>
-              <span className="shrink-0">{formatCostUsd(part.costUsd)}</span>
-            </li>
-          );
-        })}
-      </ul>
-    </div>
   );
 }
