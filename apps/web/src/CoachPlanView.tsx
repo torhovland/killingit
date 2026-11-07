@@ -310,7 +310,7 @@ function DayCard({
             <Bullet />
             {formatPlanDate(day.date)}
           </h3>
-          <span className="flex items-center gap-2">
+          <span className="flex min-w-0 flex-wrap items-center gap-2">
             {(day.status === "completed" || day.status === "partial") && (
               <StatusBadge status={day.status} />
             )}
