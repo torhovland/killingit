@@ -4,7 +4,7 @@ import { useBusyReporter } from "./AppStatus";
 import { useAuth } from "./auth";
 import { fetchJsonAuthed } from "./fetchAuthed";
 import { FoodEntryCard } from "./FoodEntryCard";
-import { prepareMealPhoto, type PreparedMealPhoto } from "./imageUpload";
+import { prepareMealPhoto } from "./imageUpload";
 import { reportError } from "./reportError";
 import { SubmitButton } from "./SubmitButton";
 import { useTimeZone } from "./TimeZoneContext";
@@ -29,7 +29,7 @@ export function FoodLogSection({ enabled }: { enabled: boolean }) {
     toWallClockValue(new Date(), timeZone),
   );
   const [description, setDescription] = useState("");
-  const [photo, setPhoto] = useState<PreparedMealPhoto | null>(null);
+  const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null);
   const [photoName, setPhotoName] = useState<string | null>(null);
   const [preparingPhoto, setPreparingPhoto] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -47,7 +47,7 @@ export function FoodLogSection({ enabled }: { enabled: boolean }) {
     setPreparingPhoto(true);
     setError(null);
     try {
-      setPhoto(await prepareMealPhoto(file));
+      setPhotoDataUrl(await prepareMealPhoto(file));
       setPhotoName(file.name);
     } catch (err: unknown) {
       setError(reportError(err));
@@ -59,7 +59,7 @@ export function FoodLogSection({ enabled }: { enabled: boolean }) {
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (
-      (!description.trim() && photo === null) ||
+      (!description.trim() && photoDataUrl === null) ||
       submitting ||
       preparingPhoto
     ) {
@@ -82,8 +82,7 @@ export function FoodLogSection({ enabled }: { enabled: boolean }) {
             timezone: timeZone,
             today,
             description: description.trim() || null,
-            photoDataUrl: photo?.photoDataUrl ?? null,
-            thumbnailDataUrl: photo?.thumbnailDataUrl ?? null,
+            photoDataUrl,
           }),
         },
       );
@@ -95,7 +94,7 @@ export function FoodLogSection({ enabled }: { enabled: boolean }) {
       }
       setResult(parsed.data);
       setDescription("");
-      setPhoto(null);
+      setPhotoDataUrl(null);
       setPhotoName(null);
       setEatenAt(toWallClockValue(new Date(), timeZone));
     } catch (err: unknown) {
@@ -198,10 +197,10 @@ export function FoodLogSection({ enabled }: { enabled: boolean }) {
           >
             Upload image
           </button>
-          {photo !== null && (
+          {photoDataUrl !== null && (
             <>
               <img
-                src={photo.thumbnailDataUrl}
+                src={photoDataUrl}
                 alt="The meal photo you attached"
                 className="h-16 w-16 rounded object-cover"
               />
@@ -209,7 +208,7 @@ export function FoodLogSection({ enabled }: { enabled: boolean }) {
                 type="button"
                 className="rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted"
                 onClick={() => {
-                  setPhoto(null);
+                  setPhotoDataUrl(null);
                   setPhotoName(null);
                 }}
               >
@@ -222,7 +221,7 @@ export function FoodLogSection({ enabled }: { enabled: boolean }) {
               Preparing photo…
             </span>
           )}
-          {photoName !== null && photo !== null && (
+          {photoName !== null && photoDataUrl !== null && (
             <span className="max-w-48 truncate text-sm text-muted-foreground">
               {photoName}
             </span>
@@ -232,7 +231,9 @@ export function FoodLogSection({ enabled }: { enabled: boolean }) {
         <SubmitButton
           busy={submitting}
           className="self-start rounded border border-transparent bg-primary px-3 py-1 text-base text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
-          disabled={(!description.trim() && photo === null) || preparingPhoto}
+          disabled={
+            (!description.trim() && photoDataUrl === null) || preparingPhoto
+          }
         >
           {submitting ? "Coach is thinking…" : "Log meal"}
         </SubmitButton>

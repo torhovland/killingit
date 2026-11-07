@@ -12,20 +12,9 @@ export const FOOD_DESCRIPTION_MAX_LENGTH = 2000;
  */
 export const FOOD_PHOTO_DATA_URL_MAX_LENGTH = 30_000_000;
 
-/** The stored thumbnail is small; this bound only guards against abuse. */
-export const FOOD_THUMBNAIL_DATA_URL_MAX_LENGTH = 2_000_000;
-
 export const foodPhotoDataUrlSchema = z
   .string()
   .max(FOOD_PHOTO_DATA_URL_MAX_LENGTH)
-  .regex(
-    /^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/,
-    "Expected a base64 JPEG, PNG or WebP data URL",
-  );
-
-export const foodThumbnailDataUrlSchema = z
-  .string()
-  .max(FOOD_THUMBNAIL_DATA_URL_MAX_LENGTH)
   .regex(
     /^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/,
     "Expected a base64 JPEG, PNG or WebP data URL",
@@ -81,9 +70,9 @@ export type FoodEntriesResponse = z.infer<typeof foodEntriesResponseSchema>;
  * and `timezone`. `today` mirrors the client's effective day so the analysis
  * uses the same date as the rest of the app.
  *
- * `photoDataUrl` is the full-resolution image sent to the coach and never
- * stored. `thumbnailDataUrl` is the small image kept for the food log. A meal
- * may be a photo alone, so a description is optional when a photo is present.
+ * `photoDataUrl` is the full-resolution image the API sends to the coach and
+ * turns into the stored thumbnail. A meal may be a photo alone, so a
+ * description is optional when a photo is present.
  */
 export const foodEntryRequestSchema = z
   .object({
@@ -97,7 +86,6 @@ export const foodEntryRequestSchema = z
       .nullable()
       .optional(),
     photoDataUrl: foodPhotoDataUrlSchema.nullable().optional(),
-    thumbnailDataUrl: foodThumbnailDataUrlSchema.nullable().optional(),
   })
   .superRefine((value, ctx) => {
     const description = value.description?.trim() ?? "";
@@ -110,16 +98,6 @@ export const foodEntryRequestSchema = z
         code: "custom",
         message: "Describe the meal or add a photo",
         path: ["description"],
-      });
-    }
-    if (
-      (value.photoDataUrl === undefined || value.photoDataUrl === null) !==
-      (value.thumbnailDataUrl === undefined || value.thumbnailDataUrl === null)
-    ) {
-      ctx.addIssue({
-        code: "custom",
-        message: "The analysis photo and its thumbnail must be sent together",
-        path: ["thumbnailDataUrl"],
       });
     }
   });

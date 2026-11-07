@@ -39,7 +39,6 @@ describe("foodEntryRequestSchema", () => {
     description: "A cheese sandwich",
   };
   const photoDataUrl = "data:image/jpeg;base64,QUJD";
-  const thumbnailDataUrl = "data:image/jpeg;base64,AQID";
 
   it("accepts a described meal without a photo", () => {
     expect(foodEntryRequestSchema.safeParse(base).success).toBe(true);
@@ -50,7 +49,6 @@ describe("foodEntryRequestSchema", () => {
       foodEntryRequestSchema.safeParse({
         eatenAt: base.eatenAt,
         photoDataUrl,
-        thumbnailDataUrl,
       }).success,
     ).toBe(true);
   });
@@ -61,24 +59,8 @@ describe("foodEntryRequestSchema", () => {
         ...base,
         description: "   ",
         photoDataUrl,
-        thumbnailDataUrl,
       }).success,
     ).toBe(true);
-  });
-
-  it("requires the full analysis photo and its thumbnail together", () => {
-    expect(
-      foodEntryRequestSchema.safeParse({
-        eatenAt: base.eatenAt,
-        photoDataUrl,
-      }).success,
-    ).toBe(false);
-    expect(
-      foodEntryRequestSchema.safeParse({
-        eatenAt: base.eatenAt,
-        thumbnailDataUrl,
-      }).success,
-    ).toBe(false);
   });
 
   it("rejects a meal with neither a description nor a photo", () => {
@@ -102,7 +84,6 @@ describe("foodEntryRequestSchema", () => {
         foodEntryRequestSchema.safeParse({
           ...base,
           photoDataUrl,
-          thumbnailDataUrl,
         }).success,
       ).toBe(false);
     }

@@ -106,12 +106,13 @@ food log.
   No survey answer or other athlete input enables them. A survey question may
   still capture diet goals and a current measurement; that answer is coaching
   context like any other survey answer, not a switch.
-- The full-size photo is re-encoded in the browser (up to 8192 px on the long
+- The full-size photo is re-encoded in the browser (up to 4096 px on the long
   edge, which keeps normal phone photos intact and strips EXIF metadata) and
-  sent to the coach for analysis. It is never stored. Only the small thumbnail
-  is persisted and served, with the bearer token, from a separate endpoint, so
-  the list response never carries image bytes and the thumbnail is not publicly
-  readable.
+  sent to the API. The API sends that image to the coach and uses Jimp, a pure
+  JavaScript decoder, to derive the stored 320 px thumbnail from the same bytes.
+  The full photo is never stored. The thumbnail is served, with the bearer token, from a separate
+  endpoint, so the list response never carries image bytes and the thumbnail is
+  not publicly readable.
 - A model without vision support is retried once without the photo, so a text
   description still gets an analysis. A photo-only meal whose model cannot read
   images keeps the meal and records the analysis error.

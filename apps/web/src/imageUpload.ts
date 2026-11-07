@@ -1,37 +1,24 @@
-/** The thumbnail edge kept for the food log. */
-export const MEAL_THUMBNAIL_MAX_DIMENSION = 320;
-
 /**
- * The edge cap for the analysis image. Phone photos are normally well under
- * this, so the coach sees the full image. Re-encoding also strips EXIF data
- * such as the photo's location before it leaves the browser.
+ * The edge cap for the analysis image. A normal phone photo (around 4032 px)
+ * keeps its full size; the cap only bounds very large images so the pure-JS
+ * thumbnail decoder stays within the API's memory. Re-encoding also strips EXIF
+ * data such as the photo's location before it leaves the browser.
  */
-export const MEAL_PHOTO_RECODE_MAX_DIMENSION = 8192;
+export const MEAL_PHOTO_RECODE_MAX_DIMENSION = 4096;
 
-/** The JPEG quality of a re-encoded full-size analysis image. */
+/** The JPEG quality of the full-size analysis image. */
 const MEAL_PHOTO_QUALITY = 0.92;
-
-/** The JPEG quality of the stored thumbnail. */
-const MEAL_THUMBNAIL_QUALITY = 0.75;
 
 /** The largest source photo accepted before preparation. */
 const MAX_SOURCE_BYTES = 15 * 1024 * 1024;
 
-/** The full photo for the coach and the small preview stored with the meal. */
-export interface PreparedMealPhoto {
-  /** Full-resolution image sent to the coach; never stored. */
-  photoDataUrl: string;
-  /** Small preview kept for the Diet page food log. */
-  thumbnailDataUrl: string;
-}
-
 /**
- * Prepares a camera or gallery image for a meal log. The coach receives a
- * full-size re-encode (which also strips EXIF metadata), while only a small
- * thumbnail is stored. Runs entirely in the browser, so the server needs no
- * image-processing dependency.
+ * Prepares a camera or gallery image for a meal log. The browser sends one
+ * full-size image to the API; the API sends it to the coach and derives the
+ * stored thumbnail from it. Runs entirely in the browser so the upload is a
+ * normal, readable JPEG even when the source is HEIC.
  */
-export async function prepareMealPhoto(file: File): Promise<PreparedMealPhoto> {
+export async function prepareMealPhoto(file: File): Promise<string> {
   if (!file.type.startsWith("image/")) {
     throw new Error("Choose an image file.");
   }
@@ -41,28 +28,14 @@ export async function prepareMealPhoto(file: File): Promise<PreparedMealPhoto> {
 
   const image = await loadImage(file);
   try {
-    const photoDataUrl = analysisImage(image);
-    const thumbnailDataUrl = renderImage(
+    return renderImage(
       image,
-      MEAL_THUMBNAIL_MAX_DIMENSION,
-      MEAL_THUMBNAIL_QUALITY,
+      MEAL_PHOTO_RECODE_MAX_DIMENSION,
+      MEAL_PHOTO_QUALITY,
     );
-    return { photoDataUrl, thumbnailDataUrl };
   } finally {
     URL.revokeObjectURL(image.src);
   }
-}
-
-/**
- * The full-resolution analysis image. Re-encoding at the image's own size
- * keeps the detail the coach needs while stripping EXIF metadata.
- */
-function analysisImage(image: HTMLImageElement): string {
-  return renderImage(
-    image,
-    MEAL_PHOTO_RECODE_MAX_DIMENSION,
-    MEAL_PHOTO_QUALITY,
-  );
 }
 
 function renderImage(

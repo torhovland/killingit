@@ -281,11 +281,11 @@ about a past workout, or before a suggested workout, to steer the coach.
   that checkbox is the single switch for every diet feature. The dashboard then
   starts with a food log form: an optional description, an optional camera or
   gallery photo, and a meal time that defaults to now; a photo alone is enough.
-  `POST /api/diet/entries` sends the full-resolution photo to the coach, stores
-  only a small thumbnail, and asks the coach to describe the meal, estimate
-  carbs, protein, fat and calories, and comment on how it fits the diet. The
-  result lives in `food_entries`, and a failed analysis keeps the meal with an
-  `analysisError`. Thumbnails are served from the authenticated
+  `POST /api/diet/entries` sends the full-resolution photo to the coach, derives
+  the stored thumbnail from it with Jimp, and asks the coach to describe the
+  meal, estimate carbs, protein, fat and calories, and comment on how it fits
+  the diet. The result lives in `food_entries`, and a failed analysis keeps the
+  meal with an `analysisError`. Thumbnails are served from the authenticated
   `GET /api/diet/entries/:id/photo` endpoint; the Diet page lists every meal
   with the thumbnail and the coach response. Every coach prompt sees the meals
   from the last seven days and a weekly nutrition summary for each completed

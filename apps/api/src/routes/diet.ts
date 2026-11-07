@@ -24,6 +24,7 @@ import {
   type FoodEntryStore,
   type StoredFoodEntry,
 } from "../diet/store.js";
+import { createMealThumbnail } from "../diet/thumbnail.js";
 
 /** The reported reason when no provider is configured. */
 const NO_LLM_ERROR =
@@ -39,6 +40,8 @@ export interface DietRouteDependencies {
   loadContext?: (input: ReplyContextInput) => Promise<PlanContextInput>;
   /** Injectable for route tests; defaults to the real food analysis. */
   analyze?: typeof analyzeFood;
+  /** Injectable for route tests; defaults to the Jimp thumbnail generator. */
+  createThumbnail?: typeof createMealThumbnail;
 }
 
 /** The public shape of one logged meal. */
@@ -84,6 +87,7 @@ export function createDietRoute(deps: DietRouteDependencies): Hono {
   const llmLoader = deps.loadLlm ?? loadLlmClient;
   const loadContext = deps.loadContext ?? loadReplyContext;
   const analyze = deps.analyze ?? analyzeFood;
+  const createThumbnail = deps.createThumbnail ?? createMealThumbnail;
 
   return new Hono()
     .get("/entries", async (c) => {
@@ -112,9 +116,18 @@ export function createDietRoute(deps: DietRouteDependencies): Hono {
         input.today ?? localDateTimeInZone(new Date(), timezone).date;
       const description = input.description?.trim() || null;
       // The full-resolution image is sent to the coach for analysis and never
-      // stored; only the thumbnail reaches the food log.
+      // stored; the thumbnail is generated here from the same bytes the coach
+      // sees, so the two can never disagree.
       const photoDataUrl = input.photoDataUrl ?? null;
-      const thumbnailDataUrl = input.thumbnailDataUrl ?? null;
+      let thumbnailDataUrl: string | null = null;
+      if (photoDataUrl !== null) {
+        try {
+          thumbnailDataUrl = await createThumbnail(photoDataUrl);
+        } catch (err) {
+          console.error("[diet] could not create the meal thumbnail:", err);
+          return c.text("The photo could not be read. Try another photo.", 400);
+        }
+      }
 
       let analysis: FoodAnalysis | null = null;
       let model: string | null = null;

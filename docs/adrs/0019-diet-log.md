@@ -27,22 +27,25 @@ question may still capture diet goals and a current measurement, which reaches
 the coach as ordinary profile context, but it never enables the diet features.
 An explicit switch is predictable, reversible, and visible to the athlete.
 
-### Send the full photo, store a thumbnail
+### Send the full photo, derive the thumbnail on the API
 
-The browser sends two data URLs. `photoDataUrl` is the full-size analysis image,
-re-encoded at up to 8192 px on its long edge so normal phone photos keep their
-detail and EXIF metadata is stripped. `thumbnailDataUrl` is a 320 px JPEG
-preview. The server sends the full image to the vision model and stores only the
-thumbnail in the existing `food_entries.photo_data_url` column. A separate
-authenticated endpoint
-(`GET /api/diet/entries/:id/photo`) decodes the thumbnail and serves the bytes.
-The list response only says whether a photo exists, and the web app fetches the
-thumbnail with its bearer token into an object URL.
+The browser sends one `photoDataUrl`: the full-size analysis image, re-encoded
+at up to 4096 px on its long edge so normal phone photos keep their detail and
+EXIF metadata is stripped. The API sends that image to the vision model and uses
+Jimp to derive a 320 px JPEG thumbnail from the same bytes. Only the thumbnail
+is stored, in the existing `food_entries.photo_data_url` column. A
+separate authenticated endpoint (`GET /api/diet/entries/:id/photo`) decodes the
+thumbnail and serves the bytes. The list response only says whether a photo
+exists, and the web app fetches the thumbnail with its bearer token into an
+object URL.
 
 This gives the model the detail it needs without keeping large photos in the
-database. It keeps the server free of an image-processing dependency, keeps
-image bytes out of list responses, and keeps the thumbnail as private as the
-rest of the account data.
+database, and it makes the API the source of truth for the stored image: the
+thumbnail is always derived from the photo the coach saw, and the API enforces
+the thumbnail size itself. Jimp is pure JavaScript, so the API keeps its
+single-file Bun bundle and needs no native image binary. It keeps image bytes
+out of list responses and keeps the thumbnail as private as the rest of the
+account data.
 
 ## Consequences
 

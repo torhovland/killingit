@@ -91,6 +91,7 @@ import { createQuestionsRoute } from "./routes/questions.js";
 import { createWeatherRoute } from "./routes/weather.js";
 import { analyzeFood } from "./llm/foodAnalysis.js";
 import { loadDietContext } from "./diet/context.js";
+import { createMealThumbnail } from "./diet/thumbnail.js";
 import type { ReplyContextInput } from "./coaching/replyContext.js";
 import type { FoodEntryStore } from "./diet/store.js";
 import type { PlanContextInput } from "./llm/planContext.js";
@@ -158,6 +159,8 @@ export interface AppDependencies {
   loadFoodContext?: (input: ReplyContextInput) => Promise<PlanContextInput>;
   /** Food-analysis generator, injectable for DB-free diet route tests. */
   analyzeFood?: typeof analyzeFood;
+  /** Meal-thumbnail generator, injectable for DB-free diet route tests. */
+  createMealThumbnail?: typeof createMealThumbnail;
   /** Coaching-input loader, injectable for DB-free route tests. */
   loadCoachingInputs?: (
     userId: number,
@@ -457,6 +460,9 @@ export function createApp(deps: AppDependencies = {}): Hono {
         ? { loadContext: deps.loadFoodContext }
         : {}),
       ...(deps.analyzeFood !== undefined ? { analyze: deps.analyzeFood } : {}),
+      ...(deps.createMealThumbnail !== undefined
+        ? { createThumbnail: deps.createMealThumbnail }
+        : {}),
     }),
   );
 
