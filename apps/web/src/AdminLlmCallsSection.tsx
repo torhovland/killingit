@@ -178,53 +178,56 @@ export function LlmCallsView({
 
           {calls !== null && calls.length > 0 && (
             <ul className="max-h-[60vh] divide-y overflow-y-auto rounded border bg-card lg:max-h-[70vh]">
-              {calls.map((call) => (
-                <li key={call.id}>
-                  <button
-                    type="button"
-                    className={`flex w-full flex-col gap-1 px-3 py-2 text-left hover:bg-muted ${
-                      call.id === selectedId ? "bg-accent" : ""
-                    }`}
-                    onClick={() => onSelect(call.id)}
-                    aria-current={call.id === selectedId ? "true" : undefined}
-                  >
-                    <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <span className="font-medium">
-                        {LLM_PROMPT_KIND_LABELS[call.kind]}
+              {calls.map((call) => {
+                const selected = call.id === selectedId;
+                return (
+                  <li key={call.id}>
+                    <button
+                      type="button"
+                      className={`flex w-full flex-col gap-1 px-3 py-2 text-left hover:bg-muted ${
+                        selected ? "bg-inset ring-1 ring-accent ring-inset" : ""
+                      }`}
+                      onClick={() => onSelect(call.id)}
+                      aria-current={selected ? "true" : undefined}
+                    >
+                      <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <span className="font-medium">
+                          {LLM_PROMPT_KIND_LABELS[call.kind]}
+                        </span>
+                        <CallBadges call={call} />
+                        <span
+                          className="truncate text-sm text-muted-foreground"
+                          title={call.model}
+                        >
+                          {call.model}
+                        </span>
+                        <span className="ml-auto">
+                          <CallStatus
+                            failed={call.failed}
+                            pending={call.pending}
+                          />
+                        </span>
                       </span>
-                      <CallBadges call={call} />
-                      <span
-                        className="truncate text-sm text-muted-foreground"
-                        title={call.model}
-                      >
-                        {call.model}
+                      <span className="flex flex-wrap gap-x-3 text-sm text-muted-foreground">
+                        <span>
+                          {formatDateTime(call.createdAt, browserTimeZone())}
+                        </span>
+                        <span className="truncate" title={call.userLabel}>
+                          {call.userLabel}
+                        </span>
+                        {!call.pending && <span>{call.durationMs} ms</span>}
+                        {call.ofAttempts !== null &&
+                          call.attempt !== null &&
+                          call.ofAttempts > 1 && (
+                            <span data-testid="llm-call-attempt">
+                              Attempt {call.attempt}/{call.ofAttempts}
+                            </span>
+                          )}
                       </span>
-                      <span className="ml-auto">
-                        <CallStatus
-                          failed={call.failed}
-                          pending={call.pending}
-                        />
-                      </span>
-                    </span>
-                    <span className="flex flex-wrap gap-x-3 text-sm text-muted-foreground">
-                      <span>
-                        {formatDateTime(call.createdAt, browserTimeZone())}
-                      </span>
-                      <span className="truncate" title={call.userLabel}>
-                        {call.userLabel}
-                      </span>
-                      {!call.pending && <span>{call.durationMs} ms</span>}
-                      {call.ofAttempts !== null &&
-                        call.attempt !== null &&
-                        call.ofAttempts > 1 && (
-                          <span data-testid="llm-call-attempt">
-                            Attempt {call.attempt}/{call.ofAttempts}
-                          </span>
-                        )}
-                    </span>
-                  </button>
-                </li>
-              ))}
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>
