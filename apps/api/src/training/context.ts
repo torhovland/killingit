@@ -1,25 +1,18 @@
 import type {
   AthleteThreshold,
   CoachPlan,
-  MetricPoint,
   ThresholdSummary,
 } from "@killingit/shared";
 import type { ManualActivityContext } from "../llm/planContext.js";
 import { loadThresholdHistoryForUser } from "../metrics/store.js";
 import { startOfWeek } from "../plans/dates.js";
 import { loadCoachingInputs, type CoachingInputs } from "../plans/inputs.js";
-import {
-  ftpHistoryPoints,
-  ftpTimeline,
-  type ThresholdTimeline,
-} from "./thresholds.js";
+import { ftpTimeline, type ThresholdTimeline } from "./thresholds.js";
 
 /** Everything the load calculations share: thresholds and TSS by date. */
 export interface TrainingContext {
   /** The cycling FTP timeline selected from the stored thresholds. */
   ftpTimeline: ThresholdTimeline | null;
-  /** The stored cycling FTP history for prompts, oldest first. */
-  ftpHistory: MetricPoint[];
   /** Every stored threshold measure with its sport and unit. */
   thresholds: ThresholdSummary[];
   /** Every stored threshold point, for the Fitness page chart. */
@@ -53,7 +46,6 @@ export async function loadTrainingContext(
   ]);
   return {
     ftpTimeline: ftpTimeline(history.timelines),
-    ftpHistory: ftpHistoryPoints(history.timelines),
     thresholds: history.summaries,
     thresholdPoints: history.points,
     thresholdTimelines: history.timelines,
