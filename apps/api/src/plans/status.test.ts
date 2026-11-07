@@ -293,6 +293,67 @@ describe("planPending", () => {
     ).toBe(true);
   });
 
+  it("marks diet progress pending when the season target misses the stated goal", () => {
+    const progress = {
+      targetWeightKg: 84,
+      targetBodyFatPercent: 20,
+      note: "On target.",
+    };
+    const plan = makePlan();
+    plan.diet = {
+      goal: "Lose fat gradually toward 15% body fat",
+      goalProvided: true,
+      goalWeightKg: null,
+      goalBodyFatPercent: 15,
+      goalDate: null,
+      assessment: "On target.",
+    };
+    plan.season = { ...plan.season, dietProgress: progress };
+    plan.season.blocks = plan.season.blocks.map((block) => ({
+      ...block,
+      dietProgress: progress,
+    }));
+    plan.block = { ...plan.block, dietProgress: progress };
+    plan.block.weeks = plan.block.weeks.map((week) => ({
+      ...week,
+      dietProgress: progress,
+    }));
+    plan.week = { ...plan.week, dietProgress: progress };
+
+    expect(
+      planPending(plan, "2026-10-21", false, false, false, true).dietProgress,
+    ).toBe(true);
+  });
+
+  it("reads a legacy goal text when deciding whether to refresh progress", () => {
+    const progress = {
+      targetWeightKg: 84,
+      targetBodyFatPercent: 23.7,
+      note: "On target.",
+    };
+    const plan = makePlan();
+    plan.diet = {
+      goal: "Lose fat gradually toward 15% body fat",
+      goalProvided: true,
+      assessment: "On target.",
+    };
+    plan.season = { ...plan.season, dietProgress: progress };
+    plan.season.blocks = plan.season.blocks.map((block) => ({
+      ...block,
+      dietProgress: progress,
+    }));
+    plan.block = { ...plan.block, dietProgress: progress };
+    plan.block.weeks = plan.block.weeks.map((week) => ({
+      ...week,
+      dietProgress: progress,
+    }));
+    plan.week = { ...plan.week, dietProgress: progress };
+
+    expect(
+      planPending(plan, "2026-10-21", false, false, false, true).dietProgress,
+    ).toBe(true);
+  });
+
   it("ignores diet progress without diet advice or a stated goal", () => {
     const plan = makePlan();
     plan.diet = {

@@ -276,6 +276,17 @@ describe("DIET_PLANNING_RULES", () => {
     );
     expect(DIET_CONTRACT).toContain('"goalProvided": false');
   });
+
+  it("reads the numeric goal and date without inventing one", () => {
+    expect(DIET_PLANNING_RULES).toContain('"diet.goalWeightKg"');
+    expect(DIET_PLANNING_RULES).toContain('"diet.goalBodyFatPercent"');
+    expect(DIET_PLANNING_RULES).toContain('"diet.goalDate"');
+    expect(DIET_PLANNING_RULES).toContain("Never invent a target or a date");
+    expect(DIET_CONTRACT).toContain('"goalBodyFatPercent": 0');
+    expect(DIET_CONTRACT).toContain('"goalWeightKg": 0');
+    expect(DIET_CONTRACT).toContain('"goalDate": "YYYY-MM-DD"');
+    expect(DIET_CONTRACT).toContain('"goalMissReason": "string"');
+  });
 });
 
 describe("DIET_PROGRESS_RULES", () => {
@@ -298,6 +309,33 @@ describe("DIET_PROGRESS_RULES", () => {
     expect(DIET_PROGRESS_RULES).toContain("may hold weight or gain slightly");
     expect(DIET_PROGRESS_RULES).toContain(
       "match every target to the block's focus and the training load",
+    );
+  });
+
+  it("checks a mid-season goal at its own date and allows a deliberate miss", () => {
+    expect(DIET_PROGRESS_RULES).toContain(
+      "The target at the goal date is the destination",
+    );
+    expect(DIET_PROGRESS_RULES).toContain(
+      "The season-end target may then be above a mid-season goal",
+    );
+    expect(DIET_PROGRESS_RULES).toContain(
+      "A goal date after the season ends is not due in this season",
+    );
+    expect(DIET_PROGRESS_RULES).toContain(
+      "A plan that misses the goal is not automatically wrong",
+    );
+    expect(DIET_PROGRESS_RULES).toContain('"diet.goalMissReason"');
+    expect(DIET_PROGRESS_RULES).toContain(
+      "Do not use a miss reason as a blanket excuse to avoid loss",
+    );
+    expect(DIET_PROGRESS_RULES).toContain("Front-load the change");
+    expect(DIET_PROGRESS_RULES).toContain(
+      "Holding weight at a high body-fat percentage for most of the season is not a plan to lose fat",
+    );
+    expect(DIET_PROGRESS_RULES).toContain("stays near 24%");
+    expect(DIET_PROGRESS_RULES).toContain(
+      "do not repeat the previous block's target for block after block",
     );
   });
 

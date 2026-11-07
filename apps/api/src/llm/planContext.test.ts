@@ -300,6 +300,10 @@ describe("formatPlanContext", () => {
       input({
         dietGoal: {
           goal: "Lose 3 kg by March",
+          goalWeightKg: 80,
+          goalBodyFatPercent: 15,
+          goalDate: "2027-03-01",
+          goalMissReason: "The brevet build needs full fuelling.",
           assessment: "The trend is on target.",
         },
         calorieHistory: [
@@ -310,9 +314,28 @@ describe("formatPlanContext", () => {
     ).join("\n");
 
     expect(text).toContain("Diet goal: Lose 3 kg by March");
+    expect(text).toContain(
+      "Diet goal target: 80.0 kg, 15.0 % body fat, by 2027-03-01.",
+    );
+    expect(text).toContain(
+      "Diet goal trade-off: The brevet build needs full fuelling.",
+    );
     expect(text).toContain("Diet assessment: The trend is on target.");
     expect(text).toContain("Earlier daily calorie targets");
     expect(text).toContain("- 2026-10-22: 2400 kcal");
+  });
+
+  it("shows a legacy body-fat goal in the prompt target line", () => {
+    const text = formatPlanContext(
+      input({
+        dietGoal: {
+          goal: "Lose fat gradually toward 15% body fat",
+          assessment: "On target.",
+        },
+      }),
+    ).join("\n");
+
+    expect(text).toContain("Diet goal target: 15.0 % body fat.");
   });
 
   it("says whether the diet goal was stated and whether diet advice is on", () => {

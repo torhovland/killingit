@@ -5,11 +5,16 @@ import {
   weeklyPlanUpdateSchema,
   type CoachPlan,
   type DailyPlanUpdate,
+  type DietPlan,
   type WeeklyPlanUpdate,
 } from "@killingit/shared";
 import type { z } from "zod";
 import { addDays, startOfWeek, weekDates } from "../plans/dates.js";
-import { missingDietProgressTargets } from "../plans/dietProgress.js";
+import {
+  dietGoalProblems,
+  dietProgressConsistencyProblems,
+  missingDietProgressTargets,
+} from "../plans/dietProgress.js";
 import type { LlmProvider } from "./openrouter.js";
 import { completePlanJson } from "./planCompletion.js";
 import { PLAN_MAX_TOKENS } from "./planBudget.js";
@@ -91,6 +96,9 @@ function withRequiredDietProgress<T extends CoachPlan>(
     if (input.dietAdvice !== true) {
       return;
     }
+    for (const problem of dietProgressConsistencyProblems(value)) {
+      ctx.addIssue({ code: "custom", message: problem });
+    }
     if (input.dietGoal == null && value.diet == null) {
       ctx.addIssue({
         code: "custom",
@@ -100,12 +108,10 @@ function withRequiredDietProgress<T extends CoachPlan>(
       });
       return;
     }
+    const goal = effectiveDietGoal(input, value);
     const goalProvided =
-      value.diet?.goalProvided ??
-      (input.dietGoal == null
-        ? undefined
-        : (input.dietGoal.goalProvided ??
-          !isDefaultDietGoal(input.dietGoal.goal)));
+      goal?.goalProvided ??
+      (goal == null ? false : !isDefaultDietGoal(goal.goal));
     if (goalProvided !== true) {
       return;
     }
@@ -115,7 +121,51 @@ function withRequiredDietProgress<T extends CoachPlan>(
         message: `Missing the diet progress target for ${label}. Return a "dietProgress" object with "targetWeightKg", "targetBodyFatPercent" and "note".`,
       });
     }
+    for (const problem of dietGoalProblems(
+      { ...value, diet: goal },
+      input.today,
+    )) {
+      ctx.addIssue({ code: "custom", message: problem });
+    }
   });
+}
+
+/**
+ * The goal in a response, falling back to the stored goal for a numeric field
+ * the response omitted. A response that sets a field to null clears it; only an
+ * omitted field keeps the stored value, so a progress refresh cannot skip the
+ * goal check by leaving the target out.
+ */
+function effectiveDietGoal(
+  input: PlanUpdateInput,
+  value: CoachPlan,
+): DietPlan | null {
+  const response = value.diet;
+  const stored = input.dietGoal;
+  if (response == null) {
+    return stored ?? null;
+  }
+  if (stored == null) {
+    return response;
+  }
+  return {
+    ...stored,
+    ...response,
+    goalWeightKg:
+      response.goalWeightKg !== undefined
+        ? response.goalWeightKg
+        : stored.goalWeightKg,
+    goalBodyFatPercent:
+      response.goalBodyFatPercent !== undefined
+        ? response.goalBodyFatPercent
+        : stored.goalBodyFatPercent,
+    goalDate:
+      response.goalDate !== undefined ? response.goalDate : stored.goalDate,
+    goalMissReason:
+      response.goalMissReason !== undefined
+        ? response.goalMissReason
+        : stored.goalMissReason,
+  };
 }
 
 /**

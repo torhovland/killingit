@@ -1,6 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import type { CoachPlan } from "@killingit/shared";
 import {
+  dietGoalProblems,
+  dietProgressConsistencyProblems,
+  impliedGoalBodyFatPercent,
   mergeDietProgressTargets,
   syncDietProgressTargets,
 } from "./dietProgress.js";
@@ -9,6 +12,15 @@ const progress = (targetWeightKg: number) => ({
   targetWeightKg,
   targetBodyFatPercent: null,
   note: "Expected progress.",
+});
+
+const target = (
+  targetWeightKg: number | null,
+  targetBodyFatPercent: number | null,
+) => ({
+  targetWeightKg,
+  targetBodyFatPercent,
+  note: "Expected target.",
 });
 
 function plan(overrides: Partial<CoachPlan> = {}): CoachPlan {
@@ -215,5 +227,187 @@ describe("syncDietProgressTargets", () => {
 
     expect(synced.season.blocks[1]?.dietProgress?.targetWeightKg).toBe(77);
     expect(synced.nextBlock?.weeks[0]?.dietProgress?.targetWeightKg).toBe(76.5);
+  });
+
+  it("flags a season target that does not reach the stated goal", () => {
+    const base = plan();
+    base.season = {
+      ...base.season,
+      dietProgress: target(84, 20),
+    };
+    base.diet = {
+      goal: "Lose fat gradually toward 15% body fat",
+      goalWeightKg: 80,
+      goalBodyFatPercent: 15,
+      goalDate: null,
+      assessment: "On target.",
+    };
+
+    const problems = dietGoalProblems(base, "2026-10-22");
+
+    expect(problems).toHaveLength(2);
+    expect(problems[0]).toContain("does not reach");
+    expect(problems[0]).toContain("15 % body fat");
+  });
+
+  it("accepts a season target that reaches the goal", () => {
+    const base = plan();
+    base.season = {
+      ...base.season,
+      dietProgress: target(80, 15),
+    };
+    base.diet = {
+      goal: "Lose fat gradually toward 15% body fat",
+      goalWeightKg: 80,
+      goalBodyFatPercent: 15,
+      goalDate: null,
+      assessment: "On target.",
+    };
+
+    expect(dietGoalProblems(base, "2026-10-22")).toEqual([]);
+  });
+
+  it("checks a mid-season goal at its own date, not the season end", () => {
+    const base = plan();
+    base.season = {
+      ...base.season,
+      dietProgress: target(82, 18),
+      blocks: base.season.blocks.map((block) => ({
+        ...block,
+        dietProgress: target(80, 15),
+      })),
+    };
+    base.diet = {
+      goal: "Reach 15% body fat by the spring event",
+      goalBodyFatPercent: 15,
+      goalDate: "2026-11-29",
+      assessment: "On target.",
+    };
+
+    expect(dietGoalProblems(base, "2026-10-22")).toEqual([]);
+  });
+
+  it("accepts a deliberate miss with a specific reason", () => {
+    const base = plan();
+    base.season = {
+      ...base.season,
+      dietProgress: target(82, 18),
+      blocks: base.season.blocks.map((block) => ({
+        ...block,
+        dietProgress: target(82, 18),
+      })),
+    };
+    base.diet = {
+      goal: "Reach 15% body fat by the spring event",
+      goalBodyFatPercent: 15,
+      goalDate: "2026-11-29",
+      goalMissReason:
+        "The brevet build and the spring race need full fuelling; the closest realistic target is 18% now and 15% after the event.",
+      assessment: "On target.",
+    };
+
+    expect(dietGoalProblems(base, "2026-10-22")).toEqual([]);
+  });
+
+  it("does not require the goal before a stated future date", () => {
+    const base = plan();
+    base.season = {
+      ...base.season,
+      dietProgress: target(84, 20),
+    };
+    base.diet = {
+      goal: "Reach 15% body fat next year",
+      goalBodyFatPercent: 15,
+      goalDate: "2027-12-01",
+      assessment: "On target.",
+    };
+
+    expect(dietGoalProblems(base, "2026-10-22")).toEqual([]);
+  });
+
+  it("ignores a goal with no numeric target", () => {
+    const base = plan();
+    base.diet = {
+      goal: "Eat more vegetables",
+      assessment: "On target.",
+    };
+
+    expect(dietGoalProblems(base, "2026-10-22")).toEqual([]);
+  });
+
+  it("reads a body-fat goal from a legacy goal text", () => {
+    expect(
+      impliedGoalBodyFatPercent("Lose fat gradually toward 15% body fat"),
+    ).toBe(15);
+    expect(impliedGoalBodyFatPercent("Body fat to 18 %")).toBe(18);
+    expect(impliedGoalBodyFatPercent("Lose 5% of body weight")).toBeNull();
+    expect(impliedGoalBodyFatPercent("Get leaner")).toBeNull();
+
+    const base = plan();
+    base.season = { ...base.season, dietProgress: target(84, 20) };
+    base.diet = {
+      goal: "Lose fat gradually toward 15% body fat",
+      assessment: "On target.",
+    };
+
+    expect(dietGoalProblems(base, "2026-10-22")[0]).toContain("15 % body fat");
+  });
+
+  it("flags a last block target that differs from the season-end target", () => {
+    const base = plan();
+    base.season = {
+      ...base.season,
+      endDate: "2026-11-29",
+      blocks: [
+        {
+          ...base.season.blocks[0]!,
+          endDate: "2026-11-29",
+          dietProgress: target(82, 18),
+        },
+      ],
+      dietProgress: target(82, 20),
+    };
+
+    const problems = dietProgressConsistencyProblems(base);
+
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain("does not match");
+  });
+
+  it("flags a last week target that differs from the block-end target", () => {
+    const base = plan();
+    base.block = {
+      ...base.block,
+      endDate: "2026-10-25",
+      dietProgress: target(82, 18),
+      weeks: base.block.weeks.map((week) => ({
+        ...week,
+        dietProgress: target(82, 20),
+      })),
+    };
+
+    const problems = dietProgressConsistencyProblems(base);
+
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain("last week");
+    expect(problems[0]).toContain("does not match");
+  });
+
+  it("accepts matching last block and season-end targets", () => {
+    const base = plan();
+    base.season = {
+      ...base.season,
+      endDate: "2026-11-29",
+      blocks: [
+        {
+          ...base.season.blocks[0]!,
+          endDate: "2026-11-29",
+          dietProgress: target(82, 18),
+        },
+      ],
+      dietProgress: target(82, 18),
+    };
+
+    expect(dietProgressConsistencyProblems(base)).toEqual([]);
   });
 });

@@ -35,6 +35,7 @@ import type {
   DietWeekSummary,
 } from "../diet/summary.js";
 import { addDays, startOfWeek } from "../plans/dates.js";
+import { impliedGoalBodyFatPercent } from "../plans/dietProgress.js";
 import { formatDuration } from "./duration.js";
 import { formatDailyHealthContext } from "./healthContext.js";
 import { WEEKLY_NOTE_SCOPE_RULE } from "./promptRules.js";
@@ -368,8 +369,20 @@ export function formatPlanContext(input: PlanContextInput): string[] {
           ? "stated by the athlete"
           : "default because the athlete stated none"
       }.`,
-      `Diet assessment: ${input.dietGoal.assessment}`,
     );
+    const goalTarget = formatDietGoalTarget(input.dietGoal);
+    if (goalTarget !== null) {
+      lines.push(`Diet goal target: ${goalTarget}.`);
+    }
+    if (
+      input.dietGoal.goalMissReason != null &&
+      input.dietGoal.goalMissReason.trim() !== ""
+    ) {
+      lines.push(
+        `Diet goal trade-off: ${input.dietGoal.goalMissReason.trim()}`,
+      );
+    }
+    lines.push(`Diet assessment: ${input.dietGoal.assessment}`);
   }
   if (input.dietAdvice !== undefined) {
     lines.push(
@@ -682,6 +695,23 @@ function formatDietProgress(progress: DietProgress): string {
   const targetText =
     targets.length > 0 ? targets.join(" and ") : "no numeric target";
   return `${targetText}. ${progress.note.trim()}`;
+}
+
+/** The numeric goal the athlete stated, in one prompt line. */
+function formatDietGoalTarget(diet: DietPlan): string | null {
+  const parts: string[] = [];
+  if (diet.goalWeightKg != null) {
+    parts.push(`${diet.goalWeightKg.toFixed(1)} kg`);
+  }
+  const goalBodyFatPercent =
+    diet.goalBodyFatPercent ?? impliedGoalBodyFatPercent(diet.goal);
+  if (goalBodyFatPercent !== null) {
+    parts.push(`${goalBodyFatPercent.toFixed(1)} % body fat`);
+  }
+  if (diet.goalDate != null) {
+    parts.push(`by ${diet.goalDate}`);
+  }
+  return parts.length > 0 ? parts.join(", ") : null;
 }
 
 /**
