@@ -1,6 +1,7 @@
 import {
   analyzedActivitiesResponseSchema,
   type AnalyzedActivitiesResponse,
+  type AnalyzedActivity,
 } from "@killingit/shared";
 
 const CACHE_KEY_PREFIX = "killingit.activities.v1";
@@ -91,6 +92,51 @@ export function mergeActivityFeeds(
     ...current,
     model: next.model ?? current.model,
     activities: [...byId.values()],
+  };
+}
+
+/** Applies a saved comment and its coach reply to one activity. */
+export function updateActivityComment(
+  feed: AnalyzedActivitiesResponse,
+  activityId: string,
+  comment: string,
+  reply: AnalyzedActivity["coachReply"],
+): AnalyzedActivitiesResponse {
+  return {
+    ...feed,
+    activities: feed.activities.map((activity) =>
+      String(activity.id) === activityId
+        ? { ...activity, comment, coachReply: reply }
+        : activity,
+    ),
+  };
+}
+
+/** Marks one activity as acknowledged without a comment. */
+export function markActivityReviewed(
+  feed: AnalyzedActivitiesResponse,
+  activityId: string,
+): AnalyzedActivitiesResponse {
+  return {
+    ...feed,
+    activities: feed.activities.map((activity) =>
+      String(activity.id) === activityId
+        ? { ...activity, reviewed: true }
+        : activity,
+    ),
+  };
+}
+
+/** Removes one activity from the feed. */
+export function removeActivity(
+  feed: AnalyzedActivitiesResponse,
+  activityId: string,
+): AnalyzedActivitiesResponse {
+  return {
+    ...feed,
+    activities: feed.activities.filter(
+      (activity) => String(activity.id) !== activityId,
+    ),
   };
 }
 
