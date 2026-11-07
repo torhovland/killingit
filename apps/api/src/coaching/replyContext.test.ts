@@ -1,7 +1,29 @@
 import { describe, expect, it } from "bun:test";
-import type { AnalyzedActivity } from "@killingit/shared";
-import { buildFtpTimelineFromPoints } from "../training/ftp.js";
+import type { AnalyzedActivity, AthleteThreshold } from "@killingit/shared";
+import {
+  buildThresholdTimelines,
+  FTP_THRESHOLD,
+} from "../training/thresholds.js";
 import { loadReplyContext, type ReplyContextInput } from "./replyContext.js";
+
+function ftpHistory(
+  points: readonly {
+    date: string;
+    value: number;
+    source: "user" | "coach" | "garmin";
+  }[],
+  throughDate?: string,
+) {
+  const thresholds: AthleteThreshold[] = points.map((point) => ({
+    ...FTP_THRESHOLD,
+    ...point,
+  }));
+  return {
+    points: thresholds,
+    timelines: buildThresholdTimelines(thresholds, throughDate),
+    summaries: [],
+  };
+}
 
 const input: ReplyContextInput = {
   userId: 42,
@@ -70,14 +92,9 @@ describe("loadReplyContext", () => {
           blockReviewUpdatedAt: null,
           updatedAt: null,
         }),
-      loadFtpHistory: () =>
-        Promise.resolve({
-          points: [
-            { date: "2026-10-01", value: 240, source: "user" as const },
-            { date: "2026-10-20", value: 250, source: "coach" as const },
-            { date: "2026-11-15", value: 270, source: "coach" as const },
-          ],
-          timeline: buildFtpTimelineFromPoints(
+      loadThresholdHistory: () =>
+        Promise.resolve(
+          ftpHistory(
             [
               { date: "2026-10-01", value: 240, source: "user" as const },
               { date: "2026-10-20", value: 250, source: "coach" as const },
@@ -85,10 +102,7 @@ describe("loadReplyContext", () => {
             ],
             "2026-10-21",
           ),
-          thresholds: [],
-          thresholdTimelines: [],
-          summaries: [],
-        }),
+        ),
       loadBodyHistory: () =>
         Promise.resolve({
           weight: [{ date: "2026-10-01", value: 80, source: "user" as const }],
@@ -132,16 +146,12 @@ describe("loadReplyContext", () => {
           blockReviewUpdatedAt: null,
           updatedAt: null,
         }),
-      loadFtpHistory: () =>
-        Promise.resolve({
-          points: [{ date: "2026-10-01", value: 240, source: "user" as const }],
-          timeline: buildFtpTimelineFromPoints([
+      loadThresholdHistory: () =>
+        Promise.resolve(
+          ftpHistory([
             { date: "2026-10-01", value: 240, source: "user" as const },
           ]),
-          thresholds: [],
-          thresholdTimelines: [],
-          summaries: [],
-        }),
+        ),
       loadBodyHistory: () => Promise.reject(new Error("no body metrics")),
       loadDiet: () => Promise.resolve(null),
     });
@@ -155,7 +165,7 @@ describe("loadReplyContext", () => {
     const context = await loadReplyContext(input, {
       loadActivities: () => Promise.reject(new Error("no feed")),
       loadCoachingInputs: () => Promise.reject(new Error("no inputs")),
-      loadFtpHistory: () => Promise.reject(new Error("no metrics")),
+      loadThresholdHistory: () => Promise.reject(new Error("no metrics")),
       loadBodyHistory: () => Promise.reject(new Error("no metrics")),
       loadDiet: () => Promise.resolve(null),
     });

@@ -151,7 +151,7 @@ function makeApp(options: {
   loadActivityFeedback?: AppDependencies["loadActivityFeedback"];
   loadActivityTrainingLoads?: AppDependencies["loadActivityTrainingLoads"];
   estimateManualTss?: AppDependencies["estimateManualTss"];
-  loadFtpHistory?: AppDependencies["loadFtpHistory"];
+  loadThresholdHistory?: AppDependencies["loadThresholdHistory"];
   loadCoachingInputs?: (
     userId: number,
     weekStartDate: string,
@@ -256,14 +256,12 @@ function makeApp(options: {
           byActivityId: new Map(),
         })),
     estimateManualTss: options.estimateManualTss ?? (() => Promise.resolve(0)),
-    loadFtpHistory:
-      options.loadFtpHistory ??
+    loadThresholdHistory:
+      options.loadThresholdHistory ??
       (() =>
         Promise.resolve({
           points: [],
-          timeline: { anchors: [], latest: null },
-          thresholds: [],
-          thresholdTimelines: [],
+          timelines: [],
           summaries: [],
         })),
     syncAthleteMetrics: () => Promise.resolve(null),

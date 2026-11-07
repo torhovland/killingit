@@ -43,8 +43,11 @@ import type {
 } from "../llm/planContext.js";
 import type { LlmProvider } from "../llm/openrouter.js";
 import { applyTrainingLoad, currentTrainingLoad } from "../training/load.js";
-import { ftpBaselineAt, type FtpTimeline } from "../training/ftp.js";
-import type { ThresholdTimeline } from "../training/thresholds.js";
+import {
+  ftpBaselineAt,
+  ftpTimeline,
+  type ThresholdTimeline,
+} from "../training/thresholds.js";
 import { addDays, startOfWeek } from "./dates.js";
 import {
   dietProgressPending,
@@ -93,9 +96,7 @@ export interface PlanGenerationContext {
   forecast?: readonly DailyWeather[] | null;
   /** Both provider forecasts and their combined average, stored on sessions. */
   weatherForecasts?: WeatherForecastSet | null;
-  /** The stored FTP time series as of today, shared by load and prompts. */
-  ftpTimeline?: FtpTimeline | undefined;
-  /** Stored FTP points, including future coach estimates, for the prompt. */
+  /** Stored FTP history for the prompt, oldest first. */
   ftpHistory?: readonly MetricPoint[] | undefined;
   /** Every threshold measure in effect today, across all sports. */
   thresholds?: readonly ThresholdSummary[] | undefined;
@@ -1537,7 +1538,6 @@ function withTrainingLoad(
   return applyTrainingLoad(plan, {
     activities: context.activities,
     manualActivities: context.manualActivities,
-    ftpTimeline: context.ftpTimeline,
     thresholdTimelines: context.thresholdTimelines,
   });
 }
@@ -1548,10 +1548,7 @@ function withTrainingLoad(
  * free text is parsed here.
  */
 function ftpBaseline(context: PlanGenerationContext, today: string) {
-  if (context.ftpTimeline === undefined) {
-    return null;
-  }
-  return ftpBaselineAt(context.ftpTimeline, today);
+  return ftpBaselineAt(ftpTimeline(context.thresholdTimelines ?? []), today);
 }
 
 function baseContext(input: GeneratePlanInput) {

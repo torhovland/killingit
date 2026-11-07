@@ -18,9 +18,9 @@ import {
   groupActivitiesByDate,
   measuredActivityTss,
 } from "./activityLoad.js";
-import { ftpAt, type FtpTimeline } from "./ftp.js";
 import {
-  thresholdTimelineFromFtp,
+  ftpTimeline,
+  ftpWattsAt,
   type ThresholdTimeline,
 } from "./thresholds.js";
 
@@ -28,11 +28,11 @@ export interface TrainingLoadContext {
   activities: readonly AnalyzedActivity[];
   manualActivities?: readonly ManualActivityContext[] | undefined;
   /**
-   * The stored FTP time series. The athlete's stated FTP is read by the coach
-   * and stored before this runs, so no free text is read here.
+   * Every stored threshold measure, used to score each sport's activities and
+   * to select the cycling FTP the plan projects. The athlete's stated FTP is
+   * read by the coach and stored before this runs, so no free text is read
+   * here.
    */
-  ftpTimeline?: FtpTimeline | null | undefined;
-  /** Every stored threshold measure, used to score each sport's activities. */
   thresholdTimelines?: readonly ThresholdTimeline[] | undefined;
 }
 
@@ -57,12 +57,11 @@ export function applyTrainingLoad(
   plan: CoachPlan,
   context: TrainingLoadContext,
 ): CoachPlan {
-  const timeline = context.ftpTimeline ?? { anchors: [], latest: null };
-  const thresholdTimelines =
-    context.thresholdTimelines ??
-    (timeline.anchors.length > 0 ? [thresholdTimelineFromFtp(timeline)] : []);
-  const baseFtpWatts = timeline.latest?.watts ?? null;
-  const floorAtBase = timeline.latest?.fromRevision ?? false;
+  const thresholdTimelines = context.thresholdTimelines ?? [];
+  const ftp = ftpTimeline(thresholdTimelines);
+  const latest = ftp?.anchors[ftp.anchors.length - 1] ?? null;
+  const baseFtpWatts = latest?.value ?? null;
+  const floorAtBase = latest !== null && latest.source !== "coach";
   const activitiesByDate = groupActivitiesByDate(context.activities);
   const manualTssByDate = new Map<string, number>();
   for (const activity of context.manualActivities ?? []) {
@@ -77,7 +76,7 @@ export function applyTrainingLoad(
   const current = applyWeekLoad(
     plan.week,
     plan.today.date,
-    timeline,
+    ftp,
     thresholdTimelines,
     activitiesByDate,
     manualTssByDate,
@@ -91,7 +90,7 @@ export function applyTrainingLoad(
       : applyWeekLoad(
           plan.nextWeek,
           plan.today.date,
-          timeline,
+          ftp,
           thresholdTimelines,
           activitiesByDate,
           manualTssByDate,
@@ -117,7 +116,7 @@ export function applyTrainingLoad(
     season: { ...plan.season, estimatedFtpWatts: currentFtp },
     block: withEstimatedFtp(
       plan.block,
-      timeline,
+      ftp,
       baseFtpWatts,
       current.week.startDate,
       currentFtp,
@@ -128,7 +127,7 @@ export function applyTrainingLoad(
         ? null
         : withEstimatedFtp(
             plan.nextBlock,
-            timeline,
+            ftp,
             baseFtpWatts,
             null,
             next?.week.estimatedFtpWatts ?? currentFtp,
@@ -185,7 +184,7 @@ export function currentTrainingLoad(
 function applyWeekLoad(
   week: WeekPlan,
   today: string,
-  timeline: FtpTimeline,
+  ftp: ThresholdTimeline | null,
   thresholdTimelines: readonly ThresholdTimeline[],
   activitiesByDate: ReadonlyMap<string, readonly AnalyzedActivity[]>,
   manualTssByDate: ReadonlyMap<string, number>,
@@ -193,14 +192,14 @@ function applyWeekLoad(
   blockEstimate?: number | null,
   floorAtBase = false,
 ): LoadedWeek {
-  const baseFtpWatts = timeline.latest?.watts ?? null;
+  const baseFtpWatts = ftp?.anchors[ftp.anchors.length - 1]?.value ?? null;
   const estimate = week.estimatedFtpWatts ?? blockEstimate;
   const ftpWatts =
     estimate !== null && estimate !== undefined && estimate > 0
       ? resolveFtpWatts(estimate, baseFtpWatts, floorAtBase)
       : floorAtBase
         ? baseFtpWatts
-        : (ftpAt(timeline, week.startDate) ?? baseFtpWatts);
+        : (ftpWattsAt(ftp, week.startDate) ?? baseFtpWatts);
   const tssByDate = new Map<string, number>();
 
   for (const session of week.sessions) {
@@ -247,7 +246,7 @@ function applyWeekLoad(
       session,
       today,
       estimate,
-      timeline,
+      ftp,
       baseFtpWatts,
       floorAtBase,
     );
@@ -281,7 +280,7 @@ function resolveDayFtp(
   session: WeekSession,
   today: string,
   weekEstimate: number | null | undefined,
-  timeline: FtpTimeline,
+  ftp: ThresholdTimeline | null,
   baseFtpWatts: number | null,
   floorAtBase: boolean,
 ): number | null | undefined {
@@ -294,7 +293,7 @@ function resolveDayFtp(
   }
   return floorAtBase
     ? baseFtpWatts
-    : (ftpAt(timeline, session.date) ?? baseFtpWatts);
+    : (ftpWattsAt(ftp, session.date) ?? baseFtpWatts);
 }
 
 /**
@@ -338,13 +337,13 @@ function weekFtpFromBlock(
  */
 function withEstimatedFtp(
   block: BlockPlan,
-  timeline: FtpTimeline,
+  ftp: ThresholdTimeline | null,
   baseFtpWatts: number | null,
   currentWeekStartDate: string | null,
   currentWeekEstimate: number | null,
   floorAtBase = false,
 ): BlockPlan {
-  const latestAt = timeline.anchors[timeline.anchors.length - 1]?.at ?? null;
+  const latestAt = ftp?.anchors[ftp.anchors.length - 1]?.at ?? null;
   return {
     ...block,
     estimatedFtpWatts: currentWeekEstimate,
@@ -360,7 +359,7 @@ function withEstimatedFtp(
       // Only completed weeks before the new test are re-interpolated. The
       // week that contains the test is refreshed to the new value instead.
       const weekEnd = Date.parse(`${addDays(week.startDate, 6)}T00:00:00Z`);
-      const interpolated = ftpAt(timeline, week.startDate);
+      const interpolated = ftpWattsAt(ftp, week.startDate);
       if (latestAt !== null && Number.isFinite(weekEnd) && weekEnd < latestAt) {
         return { ...week, estimatedFtpWatts: interpolated };
       }

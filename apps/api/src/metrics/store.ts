@@ -16,26 +16,11 @@ import { db } from "../db/index.js";
 import { athleteMetrics, athleteThresholds } from "../db/schema.js";
 import type { BodyMetricHistory } from "../llm/planContext.js";
 import {
-  buildFtpTimelineFromPoints,
-  type FtpTimeline,
-} from "../training/ftp.js";
-import {
   buildThresholdTimelines,
   currentThresholdSummaries,
+  FTP_THRESHOLD,
   type ThresholdTimeline,
 } from "../training/thresholds.js";
-
-/** The sport and measure Garmin reports for historic cycling FTP. */
-const GARMIN_FTP: Pick<
-  AthleteThreshold,
-  "sport" | "measure" | "label" | "unit" | "kind"
-> = {
-  sport: "cycling",
-  measure: "ftp",
-  label: "FTP",
-  unit: "W",
-  kind: "power",
-};
 
 /** Loads one body metric's stored points, oldest first. */
 export async function loadMetricPoints(
@@ -173,7 +158,7 @@ export async function recordCoachFtp(input: {
 }): Promise<void> {
   await recordCoachThreshold({
     userId: input.userId,
-    ...GARMIN_FTP,
+    ...FTP_THRESHOLD,
     date: input.date,
     value: input.watts,
   });
@@ -229,7 +214,7 @@ export async function recordGarminFtp(
   for (const sample of samples) {
     await recordThreshold({
       userId,
-      ...GARMIN_FTP,
+      ...FTP_THRESHOLD,
       date: sample.date,
       value: sample.watts,
       source: "garmin",
@@ -539,41 +524,6 @@ export async function loadThresholdHistoryForUser(
   return {
     points,
     timelines: buildThresholdTimelines(points, throughDate),
-    summaries: currentThresholdSummaries(points, throughDate),
-  };
-}
-
-/** True when `points` contains a cycling FTP measurement or estimate. */
-export function isFtpPoint(point: AthleteThreshold): boolean {
-  return point.sport === "cycling" && point.measure === "ftp";
-}
-
-/**
- * Returns the stored cycling FTP points as a bandwidth timeline. The athlete's
- * stated FTP is read by the coach and stored as a threshold, so this no longer
- * scans free text.
- */
-export async function loadFtpHistoryForUser(
-  userId: number,
-  throughDate: string,
-): Promise<{
-  points: MetricPoint[];
-  timeline: FtpTimeline;
-  thresholds: AthleteThreshold[];
-  thresholdTimelines: ThresholdTimeline[];
-  summaries: ThresholdSummary[];
-}> {
-  const points = await loadThresholdPoints(userId);
-  const ftpPoints = points.filter(isFtpPoint);
-  return {
-    points: ftpPoints.map((point) => ({
-      date: point.date,
-      value: point.value,
-      source: point.source,
-    })),
-    timeline: buildFtpTimelineFromPoints(ftpPoints, throughDate),
-    thresholds: points,
-    thresholdTimelines: buildThresholdTimelines(points, throughDate),
     summaries: currentThresholdSummaries(points, throughDate),
   };
 }

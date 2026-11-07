@@ -1,5 +1,6 @@
 import {
   type AthleteThreshold,
+  type MetricPoint,
   type MetricSource,
   type ThresholdSeries,
   type ThresholdSummary,
@@ -20,6 +21,108 @@ export interface ThresholdTimeline {
   unit: string;
   kind: AthleteThreshold["kind"];
   anchors: ThresholdAnchor[];
+}
+
+/** The sport and measure that store the athlete's cycling FTP. */
+export const FTP_THRESHOLD: Pick<
+  AthleteThreshold,
+  "sport" | "measure" | "label" | "unit" | "kind"
+> = {
+  sport: "cycling",
+  measure: "ftp",
+  label: "FTP",
+  unit: "W",
+  kind: "power",
+};
+
+/** Whether a stored threshold is the cycling FTP measure. */
+export function isFtpThreshold(
+  point: Pick<AthleteThreshold, "sport" | "measure">,
+): boolean {
+  return (
+    point.sport === FTP_THRESHOLD.sport &&
+    point.measure === FTP_THRESHOLD.measure
+  );
+}
+
+/** The cycling FTP timeline, if the athlete has one. */
+export function ftpTimeline(
+  timelines: readonly ThresholdTimeline[],
+): ThresholdTimeline | null {
+  return timelines.find(isFtpThreshold) ?? null;
+}
+
+/**
+ * The anchor in effect on a date: the last one dated on or before it. Before
+ * the first anchor the earliest value applies, matching `thresholdAt`.
+ */
+export function thresholdBaselineAt(
+  timeline: ThresholdTimeline | null,
+  date: string | Date,
+): ThresholdAnchor | null {
+  if (timeline === null || timeline.anchors.length === 0) {
+    return null;
+  }
+  const at = dateToTimestamp(date);
+  if (!Number.isFinite(at)) {
+    return null;
+  }
+  let result = timeline.anchors[0] ?? null;
+  for (const anchor of timeline.anchors) {
+    if (anchor.at > at) {
+      break;
+    }
+    result = anchor;
+  }
+  return result;
+}
+
+/** The FTP in effect on a date and whether the athlete measured it. */
+export function ftpBaselineAt(
+  timeline: ThresholdTimeline | null,
+  date: string | Date,
+): { watts: number; fromRevision: boolean } | null {
+  const anchor = thresholdBaselineAt(timeline, date);
+  return anchor === null
+    ? null
+    : { watts: anchor.value, fromRevision: anchor.source !== "coach" };
+}
+
+/** The FTP in effect on a date, interpolated between anchors in whole watts. */
+export function ftpWattsAt(
+  timeline: ThresholdTimeline | null,
+  date: string | Date,
+): number | null {
+  const value = thresholdAt(timeline, date);
+  return value === null ? null : Math.round(value);
+}
+
+/** The cycling FTP history as flat prompt points, oldest first. */
+export function ftpHistoryPoints(
+  timelines: readonly ThresholdTimeline[],
+  throughDate?: string | null,
+): MetricPoint[] {
+  const timeline = ftpTimeline(timelines);
+  if (timeline === null) {
+    return [];
+  }
+  return timeline.anchors.flatMap((anchor) => {
+    const date = new Date(anchor.at).toISOString().slice(0, 10);
+    if (
+      throughDate !== undefined &&
+      throughDate !== null &&
+      date > throughDate
+    ) {
+      return [];
+    }
+    return [{ date, value: anchor.value, source: anchor.source }];
+  });
+}
+
+function dateToTimestamp(date: string | Date): number {
+  return date instanceof Date
+    ? date.getTime()
+    : Date.parse(/^\d{4}-\d{2}-\d{2}$/.test(date) ? `${date}T00:00:00Z` : date);
 }
 
 function anchorFromPoint(point: AthleteThreshold): ThresholdAnchor {
@@ -101,12 +204,7 @@ export function thresholdAt(
   if (timeline === null || timeline.anchors.length === 0) {
     return null;
   }
-  const at =
-    date instanceof Date
-      ? date.getTime()
-      : Date.parse(
-          /^\d{4}-\d{2}-\d{2}$/.test(date) ? `${date}T00:00:00Z` : date,
-        );
+  const at = dateToTimestamp(date);
   if (!Number.isFinite(at)) {
     return null;
   }
@@ -157,32 +255,6 @@ export function thresholdForSport(
     }
   }
   return null;
-}
-
-/**
- * Treats the legacy FTP timeline as a cycling power threshold. Kept so callers
- * that only have an FTP series (older tests and stored call sites) still score
- * cycling power correctly.
- */
-export function thresholdTimelineFromFtp(timeline: {
-  anchors: readonly {
-    at: number;
-    watts: number;
-    source: "measurement" | "coach";
-  }[];
-}): ThresholdTimeline {
-  return {
-    sport: "cycling",
-    measure: "ftp",
-    label: "FTP",
-    unit: "W",
-    kind: "power",
-    anchors: timeline.anchors.map((anchor) => ({
-      at: anchor.at,
-      value: anchor.watts,
-      source: anchor.source === "coach" ? "coach" : "user",
-    })),
-  };
 }
 
 /** Every threshold measure the athlete has stored, including future points. */

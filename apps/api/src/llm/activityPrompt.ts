@@ -62,7 +62,7 @@ export interface ActivityAnalysisContext {
   today: string;
   /** The athlete's current week, when one is stored. */
   week?: WeekPlan;
-  /** The stored FTP time series, oldest first, including coach estimates. */
+  /** The stored FTP threshold history, oldest first, including coach estimates. */
   ftpHistory?: readonly Pick<MetricPoint, "date" | "value" | "source">[];
   /** The FTP in effect on the activity date, when known. */
   currentFtpWatts?: number | null;

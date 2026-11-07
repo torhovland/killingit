@@ -44,6 +44,19 @@ with a null sport is not stored; instead the coach asks which sport it is for.
 Answered coach questions are included in later extraction input, so the value
 is stored once the athlete answers.
 
+## One timeline model
+
+FTP is the cycling `ftp` power threshold, not a parallel data model. Every
+caller loads and passes `ThresholdTimeline[]` built by `buildThresholdTimelines`;
+the `ftpTimeline` selector returns the cycling FTP timeline and the small
+`ftpBaselineAt` / `ftpWattsAt` / `ftpHistoryPoints` helpers read it. The plan's
+FTP projection is itself a threshold timeline, so load, prompts, the Fitness
+page, and activity analyses all read one representation.
+
+`metrics/store.ts` exposes the stored threshold points and timelines through
+`loadThresholdHistoryForUser`. There is no FTP-only load, no adapter that turns
+an FTP timeline into a threshold timeline, and no `training/ftp.ts`.
+
 ## TSS
 
 For an activity, the API derives its sport from the activity type and picks the
@@ -81,3 +94,5 @@ cannot be measured.
 - An activity with no threshold for its sport still receives a best-effort TSS.
 - The Day view lists only thresholds for that day's sport and none on a rest day.
 - Existing cycling FTP points survive the migration.
+- The stored threshold timelines are the single model passed to load, prompts,
+  the Fitness page, and activity analyses; FTP is selected from them.

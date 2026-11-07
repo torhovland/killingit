@@ -64,7 +64,11 @@ import {
   type ActivityLoads,
 } from "../training/activityLoad.js";
 import { loadTrainingContext } from "../training/context.js";
-import { ftpBaselineAt, type FtpTimeline } from "../training/ftp.js";
+import {
+  ftpBaselineAt,
+  ftpHistoryPoints,
+  type ThresholdTimeline,
+} from "../training/thresholds.js";
 import { loadCachedActivityFeed, saveCachedActivityFeed } from "./feedCache.js";
 import { shareActivityAnalysis } from "./analysisRuns.js";
 import { routeFromSamples } from "./route.js";
@@ -202,19 +206,15 @@ async function loadAnalyzedActivitiesOnce(
     byActivityId: new Map(),
   };
   let ftpHistory: MetricPoint[] = [];
-  let ftpTimeline: FtpTimeline | null = null;
+  let ftp: ThresholdTimeline | null = null;
   let trainingThresholds: ThresholdSummary[] = [];
   try {
     const training = await loadTrainingContext(
       options.userId,
       storedPlan?.plan,
     );
-    const promptThroughDate =
-      storedPlan?.plan.today.date ?? new Date().toISOString().slice(0, 10);
-    ftpHistory = training.ftpHistory.filter(
-      (point) => point.date <= promptThroughDate,
-    );
-    ftpTimeline = training.timeline;
+    ftpHistory = ftpHistoryPoints(training.thresholdTimelines);
+    ftp = training.ftpTimeline;
     trainingThresholds = training.thresholds;
     const tssByDate = new Map(training.planTssByDate);
     for (const [date, tss] of training.manualTssByDate) {
@@ -303,9 +303,9 @@ async function loadAnalyzedActivitiesOnce(
       try {
         const activityDate = activity.startDate.slice(0, 10);
         const currentFtpWatts =
-          ftpTimeline === null
+          ftp === null
             ? null
-            : (ftpBaselineAt(ftpTimeline, activityDate)?.watts ?? null);
+            : (ftpBaselineAt(ftp, activityDate)?.watts ?? null);
         const result = await analyzeActivity(
           provider,
           { apiKey, model: dailyModel },

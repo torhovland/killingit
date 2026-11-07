@@ -8,12 +8,16 @@ import type {
 import { loadAthleteEvents } from "../events/store.js";
 import {
   loadBodyHistoryForUser,
-  loadFtpHistoryForUser,
+  loadThresholdHistoryForUser,
 } from "../metrics/store.js";
 import { loadDailyHealthForUser } from "../metrics/dailyMetrics.js";
 import { addDays, startOfWeek } from "../plans/dates.js";
 import { loadCoachingInputs, type CoachingInputs } from "../plans/inputs.js";
-import { ftpBaselineAt } from "../training/ftp.js";
+import {
+  ftpBaselineAt,
+  ftpHistoryPoints,
+  ftpTimeline,
+} from "../training/thresholds.js";
 import { currentTrainingLoad } from "../training/load.js";
 import {
   loadCachedActivityFeed,
@@ -38,7 +42,7 @@ export interface ReplyContextDependencies {
     userId: number,
     weekStartDate: string,
   ) => Promise<CoachingInputs>;
-  loadFtpHistory?: typeof loadFtpHistoryForUser;
+  loadThresholdHistory?: typeof loadThresholdHistoryForUser;
   loadBodyHistory?: typeof loadBodyHistoryForUser;
   loadDailyHealth?: typeof loadDailyHealthForUser;
   loadEvents?: (userId: number) => Promise<readonly AthleteEvent[]>;
@@ -82,7 +86,7 @@ export async function loadReplyContext(
   const [
     activities,
     coachingInputs,
-    ftp,
+    history,
     bodyHistory,
     dailyHealth,
     events,
@@ -97,8 +101,8 @@ export async function loadReplyContext(
         startOfWeek(today),
       ),
     ),
-    attempt("FTP history", () =>
-      (deps.loadFtpHistory ?? loadFtpHistoryForUser)(userId, today),
+    attempt("threshold history", () =>
+      (deps.loadThresholdHistory ?? loadThresholdHistoryForUser)(userId, today),
     ),
     attempt("body metrics", () =>
       (deps.loadBodyHistory ?? loadBodyHistoryForUser)(userId),
@@ -122,7 +126,7 @@ export async function loadReplyContext(
     {
       activities: activities ?? [],
       manualActivities: coachingInputs?.manualActivities ?? [],
-      thresholdTimelines: ftp?.thresholdTimelines ?? [],
+      thresholdTimelines: history?.timelines ?? [],
     },
     today,
   );
@@ -140,9 +144,11 @@ export async function loadReplyContext(
     weeklyNoteWeekStartDate: coachingInputs?.weeklyNoteWeekStartDate ?? null,
     weeklyNoteReply: coachingInputs?.weeklyNoteReply ?? null,
     periodReviews: coachingInputs?.periodReviews ?? [],
-    athleteFtpWatts: ftpBaselineAt(ftp?.timeline ?? null, today)?.watts ?? null,
-    ftpHistory: (ftp?.points ?? []).filter((point) => point.date <= today),
-    thresholds: ftp?.summaries ?? [],
+    athleteFtpWatts:
+      ftpBaselineAt(ftpTimeline(history?.timelines ?? []), today)?.watts ??
+      null,
+    ftpHistory: ftpHistoryPoints(history?.timelines ?? []),
+    thresholds: history?.summaries ?? [],
     ...(bodyHistory !== null ? { bodyHistory } : {}),
     ...(dailyHealth !== null ? { dailyHealth } : {}),
     ...(events !== null && events.length > 0 ? { events } : {}),

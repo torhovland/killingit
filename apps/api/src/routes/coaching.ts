@@ -53,9 +53,9 @@ import { saveActivityReview } from "../coaching/reviews.js";
 import { GarminAuthError, GarminSidecarError } from "../garmin/client.js";
 import { loadLlmClient, type LlmClient } from "../llm/client.js";
 import { LlmAuthError, LlmProviderError } from "../llm/openrouter.js";
-import { loadFtpHistoryForUser } from "../metrics/store.js";
+import { loadThresholdHistoryForUser } from "../metrics/store.js";
 import { estimateManualActivityTss } from "../training/manualTss.js";
-import { ftpBaselineAt } from "../training/ftp.js";
+import { ftpBaselineAt, ftpTimeline } from "../training/thresholds.js";
 import { startOfWeek } from "../plans/dates.js";
 import { latestActivityAnalysisTimestamp } from "../plans/status.js";
 import {
@@ -128,8 +128,8 @@ export interface CoachingRouteDependencies {
   loadActivityTrainingLoads?: typeof loadUserActivityTrainingLoads;
   /** Injectable for route tests; defaults to the LLM TSS estimator. */
   estimateManualTss?: typeof estimateManualActivityTss;
-  /** Injectable for route tests; defaults to the stored FTP time series. */
-  loadFtpHistory?: typeof loadFtpHistoryForUser;
+  /** Injectable for route tests; defaults to the stored threshold timelines. */
+  loadThresholdHistory?: typeof loadThresholdHistoryForUser;
   loadLlm?: (userId: number) => Promise<LlmClient | null>;
   /** Injectable for route tests; defaults to the database-backed loader. */
   loadCoachingInputs?: (
@@ -232,7 +232,8 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
     deps.answerCoachQuestion ?? answerCoachQuestion;
   const trigger = deps.triggerPlanGeneration ?? triggerPlanGeneration;
   const llmLoader = deps.loadLlm ?? loadLlmClient;
-  const loadFtp = deps.loadFtpHistory ?? loadFtpHistoryForUser;
+  const loadThresholds =
+    deps.loadThresholdHistory ?? loadThresholdHistoryForUser;
 
   const triggerDeps: PlanTriggerDependencies = {
     users: deps.users,
@@ -252,8 +253,8 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
     ...(deps.loadForecast !== undefined
       ? { loadForecast: deps.loadForecast }
       : {}),
-    ...(deps.loadFtpHistory !== undefined
-      ? { loadFtpHistory: deps.loadFtpHistory }
+    ...(deps.loadThresholdHistory !== undefined
+      ? { loadThresholdHistory: deps.loadThresholdHistory }
       : {}),
     ...(deps.loadDiet !== undefined ? { loadDiet: deps.loadDiet } : {}),
     loadAnsweredCoachQuestions: loadAnsweredQuestions,
@@ -281,15 +282,17 @@ export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
       if (llm === null) {
         return null;
       }
-      const ftp = await loadFtp(userId, startDate);
+      const history = await loadThresholds(userId, startDate);
       return await estimateTss(
         llm.provider,
         { apiKey: llm.apiKey, model: llm.model },
         {
           startDate,
           details,
-          ftpWatts: ftpBaselineAt(ftp.timeline, startDate)?.watts ?? null,
-          thresholds: ftp.summaries,
+          ftpWatts:
+            ftpBaselineAt(ftpTimeline(history.timelines), startDate)?.watts ??
+            null,
+          thresholds: history.summaries,
           userId,
         },
       );

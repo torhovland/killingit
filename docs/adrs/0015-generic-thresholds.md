@@ -19,9 +19,9 @@ normalisation, so a new sport or measure does not require a schema change.
 The coach reads threshold statements from the athlete's own words. A threshold
 with no stated sport is not guessed: the app asks the athlete which sport it is
 for and includes the answer in the next reading. Cycling FTP from Garmin and
-existing stored FTP points migrate into the new table, and the legacy FTP
-helpers remain as a compatibility layer for the plan's power-specific estimate
-and downloadable bike workouts.
+existing stored FTP points migrate into the new table. The plan's power-specific
+estimate and downloadable bike workouts select cycling FTP from the same
+threshold timelines; no separate FTP model remains.
 
 The Fitness page returns one series per measure and draws them grouped by unit.
 Plan views show every known measure instead of the single FTP value. Activity

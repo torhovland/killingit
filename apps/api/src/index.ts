@@ -97,7 +97,7 @@ import type { FoodEntryStore } from "./diet/store.js";
 import type { PlanContextInput } from "./llm/planContext.js";
 import {
   loadBodyHistoryForUser,
-  loadFtpHistoryForUser,
+  loadThresholdHistoryForUser,
 } from "./metrics/store.js";
 import { loadFitnessHistory } from "./training/history.js";
 import { loadPlanWeekTotals } from "./plans/weekTotals.js";
@@ -135,7 +135,7 @@ export interface AppDependencies {
   generationStore?: PlanGenerationStore;
   /** Activity/LLM loaders, injectable for DB-free plan route tests. */
   loadActivities?: (userId: number) => Promise<ActivityFeed>;
-  loadFtpHistory?: typeof loadFtpHistoryForUser;
+  loadThresholdHistory?: typeof loadThresholdHistoryForUser;
   loadBodyHistory?: typeof loadBodyHistoryForUser;
   /** Injectable for route tests; defaults to the coach reading the text. */
   syncAthleteMetrics?: typeof syncAthleteMetrics;
@@ -316,8 +316,8 @@ export function createApp(deps: AppDependencies = {}): Hono {
       ...(deps.estimateManualTss !== undefined
         ? { estimateManualTss: deps.estimateManualTss }
         : {}),
-      ...(deps.loadFtpHistory !== undefined
-        ? { loadFtpHistory: deps.loadFtpHistory }
+      ...(deps.loadThresholdHistory !== undefined
+        ? { loadThresholdHistory: deps.loadThresholdHistory }
         : {}),
       ...(deps.loadLlm !== undefined ? { loadLlm: deps.loadLlm } : {}),
       ...(deps.loadCoachingInputs !== undefined
@@ -488,8 +488,8 @@ export function createApp(deps: AppDependencies = {}): Hono {
       ...(deps.loadActivities !== undefined
         ? { loadActivities: deps.loadActivities }
         : {}),
-      ...(deps.loadFtpHistory !== undefined
-        ? { loadFtpHistory: deps.loadFtpHistory }
+      ...(deps.loadThresholdHistory !== undefined
+        ? { loadThresholdHistory: deps.loadThresholdHistory }
         : {}),
       ...(deps.loadBodyHistory !== undefined
         ? { loadBodyHistory: deps.loadBodyHistory }
