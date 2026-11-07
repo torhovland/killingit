@@ -52,6 +52,14 @@ Once you have signed, later pull requests only need the sign-off. The assignment
 transfers ownership to the maintainer; it does not change what everyone else may
 do with your work, which stays under `LICENSE.md`.
 
+CI checks the trailer: `bun run check:signoff` fails a pull request whose
+commits lack their own sign-off. Your commits are exempt only if you are the
+copyright holder, whose own certification would be meaningless.
+
+When a first contribution is merged, the maintainer adds the contributor to
+[`CONTRIBUTORS.md`](./CONTRIBUTORS.md) with the merge date and the pull request
+link, which is how the chain of title stays auditable.
+
 If you contribute as part of your job, your employer may own the copyright. Get
 their written permission before opening the pull request, and say so in the
 description — the statement above must be true when you sign it.

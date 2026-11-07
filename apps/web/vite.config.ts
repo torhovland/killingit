@@ -3,6 +3,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { pwaPlugin } from "./pwa/buildServiceWorker.ts";
+import { thirdPartyNoticesPlugin } from "./notices/third-party-notices.ts";
 
 const authToken = process.env.SENTRY_AUTH_TOKEN;
 const sentryOrg = process.env.SENTRY_ORG;
@@ -40,7 +41,13 @@ export default defineConfig(({ command }) => {
     command === "serve" ? "Development" : "Production";
 
   return {
-    plugins: [react(), tailwindcss(), pwaPlugin(), ...sentryPlugins],
+    plugins: [
+      react(),
+      tailwindcss(),
+      pwaPlugin(),
+      thirdPartyNoticesPlugin(),
+      ...sentryPlugins,
+    ],
     build: {
       sourcemap: true,
     },

@@ -25,7 +25,9 @@ Required Notice: Copyright (c) 2026 Tor Hovland
 See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for the full attribution rules and
 the contribution terms, and
 [ADR 0022](./docs/adrs/0022-source-available-noncommercial-license.md) for why
-this licence was chosen.
+this licence was chosen. The web build emits
+`dist/third-party-licenses.txt` with the notices of every package it bundles
+(see `docs/specs/third-party-notices.md`).
 
 ## Stack
 

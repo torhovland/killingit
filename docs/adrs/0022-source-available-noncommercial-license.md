@@ -95,9 +95,13 @@ is left as an optional product nicety.
   project inherits that, which is worth disclosing in any sale.
 - Contributions require an assignment. Without one, relicensing and assignment
   become impossible, so external pull requests must not be merged until the
-  statement in `CONTRIBUTING.md` is in place.
+  statement in `CONTRIBUTING.md` is in place. A CI job checks the `Signed-off-by`
+  trailer that goes with it, exempting the copyright holder's own commits.
 - Third-party dependencies keep their own licences and cannot be relicensed;
-  their notices must keep shipping with the build.
+  their notices must keep shipping with the build. The web build now emits
+  `third-party-licenses.txt` at the site root from the packages it actually
+  loads, so the notices travel with the deployed app. See
+  `docs/specs/third-party-notices.md`.
 - No trademark rights are granted, so the project name and logo stay reserved.
 - Enforcement is a cost, not a given. The licence is a speed bump that has to be
   defended to mean anything.

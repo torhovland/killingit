@@ -46,6 +46,18 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run test
 
+  signoff:
+    name: Sign-off
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+      - run: git fetch --no-tags origin ${{ github.base_ref }}
+      - run: bun run check:signoff origin/${{ github.base_ref }}
+
   outdated:
     name: Dependencies up to date
     runs-on: ubuntu-latest

@@ -235,6 +235,20 @@ export function SettingsPage({
         onInstall={() => void pwa.install()}
       />
 
+      <section className="flex flex-col gap-3 rounded-lg border bg-card p-4">
+        <h3 className="text-2xl font-semibold">Licence</h3>
+        <p className="text-base text-muted-foreground">
+          Killing It is source-available under the PolyForm Noncommercial
+          License 1.0.0. Commercial use is not permitted.
+        </p>
+        <a
+          className="text-base text-muted-foreground hover:underline"
+          href="/third-party-licenses.txt"
+        >
+          Third-party licences
+        </a>
+      </section>
+
       <DeleteAccountSection />
     </section>
   );
