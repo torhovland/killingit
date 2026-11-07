@@ -6,7 +6,9 @@ import {
   CHART_WIDTH,
   chartScale,
   formatChartDate,
+  FUTURE_DASH,
   labelIndices,
+  lastIndexOnOrBefore,
   nullAwarePath,
   niceDomain,
 } from "./chartGeometry";
@@ -43,6 +45,14 @@ export function NutritionChart({
     (scale.plotWidth / Math.max(days.length, 1)) * 0.6,
   );
   const xLabels = labelIndices(days.length);
+  // The coach's targets after today are the plan's projection, so that part of
+  // the line is dotted like the other charts.
+  const split = lastIndexOnOrBefore(
+    days.map((day) => day.date),
+    today,
+  );
+  const futureStart = Math.max(split, 0);
+  const hasFuture = split < days.length - 1;
 
   return (
     <figure className="flex flex-col gap-2 rounded-lg border bg-card p-4">
@@ -95,11 +105,21 @@ export function NutritionChart({
               );
             })}
             <path
-              d={nullAwarePath(needed, scale, 0, days.length - 1)}
+              d={nullAwarePath(needed, scale, 0, split)}
               className="fill-none stroke-chart-ink"
               strokeWidth={2}
               data-series="needed"
             />
+            {hasFuture && (
+              <path
+                d={nullAwarePath(needed, scale, futureStart, days.length - 1)}
+                className="fill-none stroke-chart-ink"
+                strokeWidth={2}
+                strokeDasharray={FUTURE_DASH}
+                data-series="needed"
+                data-future="true"
+              />
+            )}
           </g>
           {axisTicks({ min: 0, max: domain.max }).map((tick) => (
             <text
