@@ -74,6 +74,7 @@ export function DietPage({ dietAdvice }: { dietAdvice: boolean }) {
       onRetry={() => void loadSummary()}
       onOpenSettings={() => navigate("settings")}
       onOpenSurvey={() => navigate("survey")}
+      onEntryUpdated={() => void loadSummary()}
     />
   );
 }

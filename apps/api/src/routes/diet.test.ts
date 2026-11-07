@@ -33,6 +33,7 @@ class MemoryFoodStore implements FoodEntryStore {
       id: this.nextId,
       ...entry,
       createdAt: new Date("2026-11-07T12:00:00Z"),
+      updatedAt: new Date("2026-11-07T12:00:00Z"),
     };
     this.nextId += 1;
     this.rows.push({ userId, entry: stored });
@@ -63,6 +64,33 @@ class MemoryFoodStore implements FoodEntryStore {
       this.rows.find((row) => row.userId === userId && row.entry.id === id)
         ?.entry.thumbnailDataUrl ?? null,
     );
+  }
+
+  findForUser(userId: number, id: number): Promise<StoredFoodEntry | null> {
+    return Promise.resolve(
+      this.rows.find((row) => row.userId === userId && row.entry.id === id)
+        ?.entry ?? null,
+    );
+  }
+
+  update(
+    userId: number,
+    id: number,
+    entry: NewFoodEntry,
+  ): Promise<StoredFoodEntry | null> {
+    const row = this.rows.find(
+      (candidate) => candidate.userId === userId && candidate.entry.id === id,
+    );
+    if (row === undefined) {
+      return Promise.resolve(null);
+    }
+    row.entry = {
+      id,
+      ...entry,
+      createdAt: row.entry.createdAt,
+      updatedAt: new Date("2026-11-07T13:00:00Z"),
+    };
+    return Promise.resolve(row.entry);
   }
 }
 
@@ -299,6 +327,219 @@ describe("POST /api/diet/entries", () => {
   });
 });
 
+describe("PATCH /api/diet/entries/:id", () => {
+  async function createMeal(
+    app: ReturnType<typeof createApp>,
+    extra: Record<string, unknown> = {},
+  ): Promise<{ id: number }> {
+    const created = await request(app, "/api/diet/entries", {
+      method: "POST",
+      body: JSON.stringify({ ...body, ...extra }),
+    });
+    return (await created.json()) as { id: number };
+  }
+
+  it("edits the meal and re-assesses it with the new description", async () => {
+    const seen: FoodAnalysisInput[] = [];
+    const { app, store } = makeApp({
+      analyze: (_provider, _credentials, input) => {
+        seen.push(input);
+        return Promise.resolve({ analysis, model: "test/model" });
+      },
+    });
+    const created = await createMeal(app);
+
+    const res = await request(app, `/api/diet/entries/${created.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ description: "A cheese sandwich and an apple" }),
+    });
+
+    expect(res.status).toBe(200);
+    const updated = (await res.json()) as {
+      description: string;
+      analysis: FoodAnalysis;
+      updatedAt: string;
+    };
+    expect(updated.description).toBe("A cheese sandwich and an apple");
+    expect(updated.analysis.carbsGrams).toBe(55);
+    expect(seen).toHaveLength(2);
+    expect(seen[1]?.description).toBe("A cheese sandwich and an apple");
+    // The coach sees the meal it assessed before, so it can adjust that
+    // assessment instead of starting from scratch.
+    expect(seen[1]?.previous).toEqual({
+      description: "A cheese sandwich",
+      analysis,
+    });
+    expect(store.rows[0]?.entry.description).toBe(
+      "A cheese sandwich and an apple",
+    );
+  });
+
+  it("re-assesses an unchanged meal when the body is empty", async () => {
+    let calls = 0;
+    const { app } = makeApp({
+      analyze: () => {
+        calls += 1;
+        return Promise.resolve({ analysis, model: "test/model" });
+      },
+    });
+    const created = await createMeal(app);
+
+    const res = await request(app, `/api/diet/entries/${created.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({}),
+    });
+
+    expect(res.status).toBe(200);
+    expect(calls).toBe(2);
+  });
+
+  it("moves a meal to a different local day and time", async () => {
+    const { app, store } = makeApp();
+    const created = await createMeal(app);
+
+    const res = await request(app, `/api/diet/entries/${created.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        eatenAt: "2026-11-08T07:15:00.000Z",
+        timezone: "Europe/Oslo",
+      }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(store.rows[0]?.entry).toMatchObject({
+      eatenDate: "2026-11-08",
+      eatenTime: "08:15",
+    });
+  });
+
+  it("re-analyses the stored thumbnail when no new photo is sent", async () => {
+    const seen: FoodAnalysisInput[] = [];
+    const { app } = makeApp({
+      analyze: (_provider, _credentials, input) => {
+        seen.push(input);
+        return Promise.resolve({ analysis, model: "test/model" });
+      },
+    });
+    const created = await createMeal(app, { photoDataUrl: fullPhoto });
+
+    const res = await request(app, `/api/diet/entries/${created.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ description: "The sandwich, with an apple" }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(seen[1]?.photoDataUrl).toBe(generatedThumbnail);
+  });
+
+  it("replaces the photo and stores its new thumbnail", async () => {
+    const newPhoto = "data:image/png;base64,REVG";
+    const storedPhotos: string[] = [];
+    const { app, store } = makeApp({
+      createThumbnail: (dataUrl) => {
+        storedPhotos.push(dataUrl);
+        return Promise.resolve(
+          dataUrl === fullPhoto
+            ? generatedThumbnail
+            : "data:image/jpeg;base64,BAUG",
+        );
+      },
+    });
+    const created = await createMeal(app, { photoDataUrl: fullPhoto });
+
+    const res = await request(app, `/api/diet/entries/${created.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ photoDataUrl: newPhoto }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(storedPhotos).toEqual([fullPhoto, newPhoto]);
+    expect(store.rows[0]?.entry.thumbnailDataUrl).toBe(
+      "data:image/jpeg;base64,BAUG",
+    );
+  });
+
+  it("removes a photo from a meal that still has a description", async () => {
+    const { app, store } = makeApp();
+    const created = await createMeal(app, { photoDataUrl: fullPhoto });
+
+    const res = await request(app, `/api/diet/entries/${created.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ removePhoto: true }),
+    });
+
+    expect(res.status).toBe(200);
+    const updated = (await res.json()) as { hasPhoto: boolean };
+    expect(updated.hasPhoto).toBe(false);
+    expect(store.rows[0]?.entry.thumbnailDataUrl).toBeNull();
+  });
+
+  it("refuses an edit that leaves neither a description nor a photo", async () => {
+    const { app, store } = makeApp();
+    // The stored meal is a photo alone, so clearing the photo would leave
+    // nothing to analyse.
+    const created = await createMeal(app, {
+      photoDataUrl: fullPhoto,
+      description: null,
+    });
+
+    const res = await request(app, `/api/diet/entries/${created.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ removePhoto: true }),
+    });
+
+    expect(res.status).toBe(400);
+    expect(store.rows[0]?.entry.thumbnailDataUrl).toBe(generatedThumbnail);
+  });
+
+  it("keeps the edited meal when the coach cannot analyse it", async () => {
+    let calls = 0;
+    const { app, store } = makeApp({
+      analyze: () => {
+        calls += 1;
+        return calls === 1
+          ? Promise.resolve({ analysis, model: "test/model" })
+          : Promise.reject(new Error("model unavailable"));
+      },
+    });
+    const created = await createMeal(app);
+
+    const res = await request(app, `/api/diet/entries/${created.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ description: "A larger sandwich" }),
+    });
+
+    expect(res.status).toBe(200);
+    const updated = (await res.json()) as {
+      description: string;
+      analysis: unknown;
+      analysisError: string | null;
+    };
+    expect(updated.description).toBe("A larger sandwich");
+    expect(updated.analysis).toBeNull();
+    expect(updated.analysisError).toBe("model unavailable");
+    expect(store.rows[0]?.entry.description).toBe("A larger sandwich");
+  });
+
+  it("returns 404 for a meal that does not exist", async () => {
+    const { app } = makeApp();
+    const res = await request(app, "/api/diet/entries/9999", {
+      method: "PATCH",
+      body: JSON.stringify({ description: "A sandwich" }),
+    });
+    expect(res.status).toBe(404);
+  });
+
+  it("refuses to edit a meal when diet advice is off", async () => {
+    const { app } = makeApp({ dietAdvice: false });
+    const res = await request(app, "/api/diet/entries/1", {
+      method: "PATCH",
+      body: JSON.stringify({ description: "A sandwich" }),
+    });
+    expect(res.status).toBe(409);
+  });
+});
+
 describe("GET /api/diet/entries", () => {
   it("lists every meal without photo bytes", async () => {
     const { app } = makeApp();
@@ -353,6 +594,7 @@ describe("GET /api/diet/summary", () => {
         model: "test/model",
         analysisError: null,
         createdAt: new Date("2026-11-07T12:00:00Z"),
+        updatedAt: new Date("2026-11-07T12:00:00Z"),
       },
     });
     const app = makeApp({

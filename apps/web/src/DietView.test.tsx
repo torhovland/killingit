@@ -30,6 +30,7 @@ const summary: DietSummaryResponse = {
             dietFit: "Fits the goal.",
           },
           analysisError: null,
+          updatedAt: "2026-11-07T12:00:00.000Z",
         },
       ],
     },
@@ -54,6 +55,7 @@ function render(overrides: Partial<Parameters<typeof DietView>[0]> = {}) {
       onRetry={() => undefined}
       onOpenSettings={() => undefined}
       onOpenSurvey={() => undefined}
+      onEntryUpdated={() => undefined}
       {...overrides}
     />,
   );
@@ -82,6 +84,10 @@ describe("DietView", () => {
     expect(html).toContain("900 kcal deficit");
     expect(html).toContain("200 kcal surplus");
     expect(html).toContain("Porridge");
+  });
+
+  it("lets the athlete edit a logged meal", () => {
+    expect(render()).toContain(">Edit</button>");
   });
 
   it("falls back to maintenance when no goal has been set", () => {

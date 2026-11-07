@@ -6,7 +6,9 @@ Let an athlete who wants diet advice log a meal by describing it in their own
 words, by attaching a photo, or both, and get a coach response that describes
 the meal, estimates its carbohydrate and macronutrient content, and comments on
 how the meal fits the athlete's diet and training goals. The athlete can also
-give the meal time; by default it is the current local date and time.
+give the meal time; by default it is the current local date and time. A logged
+meal can be edited from the Diet page, and saving the edit asks the coach to
+assess the meal again.
 
 Every coach prompt sees the meals from the last seven days and a weekly
 nutrition summary of completed weeks going back at most one year.
@@ -19,7 +21,7 @@ nutrition summary of completed weeks going back at most one year.
 - The main dashboard shows a food log form at the top, but only when the athlete
   has enabled diet advice in Settings.
 - A new **Diet** page lists every logged meal with its coach response and a
-  thumbnail of the photo when one was provided.
+  thumbnail of the photo when one was provided. Each meal has an Edit action.
 - The plan, reply, review, activity-analysis and program-analysis prompts
   receive the food log context.
 - Every prompt that receives the food log also receives the shared diet rule so
@@ -30,7 +32,7 @@ nutrition summary of completed weeks going back at most one year.
 - A separate diet plan or macro targets. The coach comments against the
   athlete's stated goals and training, not a prescription. Per-day calorie
   requirements are now part of the plan; see `docs/specs/diet-coaching.md`.
-- Editing a logged meal. Logging is append-only in this change.
+- Deleting a logged meal. Editing corrects a meal; it does not remove history.
 - Nutrition data from Garmin or another provider.
 - Photo storage outside the account's database row.
 
@@ -77,6 +79,41 @@ display zone can change later.
 
 The analysis runs synchronously when the meal is saved. A failed analysis is
 kept as `analysisError` and the meal is still logged.
+
+## Editing and re-assessment
+
+`PATCH /api/diet/entries/:id` updates one meal owned by the athlete and always
+runs the analysis again with the saved values. The request body is optional
+throughout:
+
+- `description`, `eatenAt`, `timezone` and `today` follow the create request;
+  an omitted field keeps its stored value and `description: null` clears it.
+- `photoDataUrl` replaces the photo with a new full-resolution image, whose
+  thumbnail is stored as on create.
+- `removePhoto: true` clears the photo. It cannot be combined with a new photo.
+- Omitting every field re-assesses the meal unchanged, which is how the meal
+  card offers a retry after a failed analysis.
+
+The resulting meal must still have a description or a photo; otherwise the API
+returns 400. The endpoint returns 404 for a meal the athlete does not own and
+409 when diet advice is off. A failed re-assessment keeps the edited meal and
+records `analysisError`, clearing the earlier analysis because its numbers no
+longer describe the saved description.
+
+The re-assessment prompt carries the meal as it was stored before the edit: the
+previous description and the previous structured analysis, including its meal
+description, macros and diet-fit note. A system rule tells the coach that the
+edit is authoritative, to change what no longer matches, keep what still
+applies, and not mention the earlier version unless the change matters. A meal
+whose earlier analysis failed is shown with no previous assessment, so the
+coach still knows whether the description changed.
+
+The full-resolution original is never stored, so an edit without a new photo
+re-analyses the stored thumbnail. The Diet page's edit form sends a replacement
+photo when the athlete attaches one, and warns that saving asks the coach to
+analyse the meal again. The photo endpoint sends `cache-control: private,
+no-cache` and the client appends the meal's `updatedAt` to the URL, so a
+replaced thumbnail is not served from the browser cache.
 
 ## Prompt context
 

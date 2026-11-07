@@ -13,10 +13,13 @@ export function FoodPhoto({
   entryId,
   alt,
   className,
+  version,
 }: {
   entryId: number;
   alt: string;
   className?: string;
+  /** The meal's updatedAt, so a replaced photo is fetched again. */
+  version?: string;
 }) {
   const auth = useAuth();
   const [url, setUrl] = useState<string | null>(null);
@@ -25,9 +28,13 @@ export function FoodPhoto({
     let active = true;
     let objectUrl: string | null = null;
     const controller = new AbortController();
-    void fetchFileAuthed(`${API_URL}/api/diet/entries/${entryId}/photo`, auth, {
-      signal: controller.signal,
-    })
+    const query =
+      version === undefined ? "" : `?v=${encodeURIComponent(version)}`;
+    void fetchFileAuthed(
+      `${API_URL}/api/diet/entries/${entryId}/photo${query}`,
+      auth,
+      { signal: controller.signal },
+    )
       .then((file) => {
         if (!active) {
           return;
@@ -45,9 +52,9 @@ export function FoodPhoto({
         URL.revokeObjectURL(objectUrl);
       }
     };
-    // Only the entry and sign-in state select the photo; `auth` is consumed
-    // inside and is not a stable dependency.
-  }, [entryId, auth.isAuthenticated]);
+    // Only the entry, its version and sign-in state select the photo; `auth` is
+    // consumed inside and is not a stable dependency.
+  }, [entryId, version, auth.isAuthenticated]);
 
   if (url === null) {
     return null;

@@ -119,6 +119,11 @@ export const foodEntrySchema = z.object({
   analysis: foodAnalysisSchema.nullable(),
   /** Why the coach could not analyse this meal, when it could not. */
   analysisError: z.string().nullable(),
+  /**
+   * When the meal was last saved, as an ISO timestamp. The photo endpoint adds
+   * it to the URL so an edited photo is not served from the browser cache.
+   */
+  updatedAt: z.string().datetime(),
 });
 
 export type FoodEntry = z.infer<typeof foodEntrySchema>;
@@ -206,6 +211,45 @@ export const foodEntryRequestSchema = z
   });
 
 export type FoodEntryRequest = z.infer<typeof foodEntryRequestSchema>;
+
+/**
+ * Body of `PATCH /api/diet/entries/:id`. Every field is optional: an omitted
+ * field keeps its stored value, `description: null` clears the description, and
+ * omitting both photo fields keeps the current thumbnail. `photoDataUrl`
+ * replaces the photo, while `removePhoto` clears it. Saving always asks the
+ * coach to analyse the meal again, so an empty body re-assesses it unchanged.
+ */
+export const foodEntryUpdateRequestSchema = z
+  .object({
+    eatenAt: z.string().datetime().optional(),
+    timezone: timeZoneSchema.optional(),
+    today: planDateSchema.optional(),
+    description: z
+      .string()
+      .trim()
+      .max(FOOD_DESCRIPTION_MAX_LENGTH)
+      .nullable()
+      .optional(),
+    photoDataUrl: foodPhotoDataUrlSchema.nullable().optional(),
+    removePhoto: z.boolean().optional(),
+  })
+  .superRefine((value, ctx) => {
+    const hasNewPhoto =
+      value.photoDataUrl !== undefined &&
+      value.photoDataUrl !== null &&
+      value.photoDataUrl !== "";
+    if (value.removePhoto === true && hasNewPhoto) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Send a new photo or remove the old one, not both",
+        path: ["removePhoto"],
+      });
+    }
+  });
+
+export type FoodEntryUpdateRequest = z.infer<
+  typeof foodEntryUpdateRequestSchema
+>;
 
 /**
  * A calorie estimate when it is plausible for a whole day, otherwise null. A

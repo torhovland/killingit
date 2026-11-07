@@ -15,6 +15,7 @@ export interface StoredFoodEntry {
   model: string | null;
   analysisError: string | null;
   createdAt: Date;
+  updatedAt: Date;
 }
 
 /** The fields written when a meal is logged. */
@@ -41,6 +42,14 @@ export interface FoodEntryStore {
   listSince(userId: number, sinceDate: string): Promise<StoredFoodEntry[]>;
   /** The stored thumbnail data URL for one meal, or null. */
   photo(userId: number, id: number): Promise<string | null>;
+  /** One meal owned by the user, or null when it does not exist. */
+  findForUser(userId: number, id: number): Promise<StoredFoodEntry | null>;
+  /** Replaces a meal's saved fields, or returns null when it does not exist. */
+  update(
+    userId: number,
+    id: number,
+    entry: NewFoodEntry,
+  ): Promise<StoredFoodEntry | null>;
 }
 
 function toStoredEntry(row: typeof foodEntries.$inferSelect): StoredFoodEntry {
@@ -55,6 +64,7 @@ function toStoredEntry(row: typeof foodEntries.$inferSelect): StoredFoodEntry {
     model: row.model,
     analysisError: row.analysisError,
     createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
   };
 }
 
@@ -112,5 +122,33 @@ export const dbFoodEntryStore: FoodEntryStore = {
       .where(and(eq(foodEntries.userId, userId), eq(foodEntries.id, id)))
       .limit(1);
     return row?.thumbnailDataUrl ?? null;
+  },
+
+  async findForUser(userId, id) {
+    const [row] = await db
+      .select()
+      .from(foodEntries)
+      .where(and(eq(foodEntries.userId, userId), eq(foodEntries.id, id)))
+      .limit(1);
+    return row === undefined ? null : toStoredEntry(row);
+  },
+
+  async update(userId, id, entry) {
+    const [row] = await db
+      .update(foodEntries)
+      .set({
+        eatenAt: entry.eatenAt,
+        eatenDate: entry.eatenDate,
+        eatenTime: entry.eatenTime,
+        description: entry.description,
+        thumbnailDataUrl: entry.thumbnailDataUrl,
+        analysis: entry.analysis,
+        model: entry.model,
+        analysisError: entry.analysisError,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(foodEntries.userId, userId), eq(foodEntries.id, id)))
+      .returning();
+    return row === undefined ? null : toStoredEntry(row);
   },
 };

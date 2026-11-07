@@ -77,4 +77,52 @@ describe("buildFoodAnalysisMessages", () => {
     expect(typeof messages[1]?.content).toBe("string");
     expect(messages[1]?.content).toContain("No photo was attached.");
   });
+
+  it("shows the previous description and assessment for a re-assessment", () => {
+    const messages = buildFoodAnalysisMessages(
+      input({
+        description: "Toast with peanut butter and a banana",
+        previous: {
+          description: "Two slices of toast",
+          analysis: {
+            meal: "Two slices of toast with butter",
+            carbsGrams: 40,
+            proteinGrams: 8,
+            fatGrams: 12,
+            caloriesKcal: 300,
+            dietFit: "Fine as a snack before an easy run.",
+          },
+        },
+      }),
+    );
+    const system = messages[0]?.content;
+    const user = messages[1]?.content;
+
+    expect(typeof system).toBe("string");
+    expect(system).toContain("This is a re-assessment");
+    expect(typeof user).toBe("string");
+    expect(user).toContain('Previous description: "Two slices of toast"');
+    expect(user).toContain("Meal: Two slices of toast with butter");
+    expect(user).toContain(
+      "Carbs: 40 g; protein: 8 g; fat: 12 g; energy: 300 kcal",
+    );
+    expect(user).toContain("Diet fit: Fine as a snack before an easy run.");
+    expect(user).toContain("The meal now reads:");
+    expect(user).toContain('"Toast with peanut butter and a banana"');
+    expect(user).toContain("Compare the two versions");
+  });
+
+  it("still re-assesses a meal that was never analysed", () => {
+    const messages = buildFoodAnalysisMessages(
+      input({
+        previous: { description: "Two slices of toast", analysis: null },
+      }),
+    );
+    const user = messages[1]?.content;
+    expect(typeof user).toBe("string");
+    expect(user).toContain('Previous description: "Two slices of toast"');
+    expect(user).toContain(
+      "Previous assessment: none; this meal has not been analysed.",
+    );
+  });
 });

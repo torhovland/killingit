@@ -288,7 +288,12 @@ about a past workout, or before a suggested workout, to steer the coach.
   the diet. The result lives in `food_entries`, and a failed analysis keeps the
   meal with an `analysisError`. Thumbnails are served from the authenticated
   `GET /api/diet/entries/:id/photo` endpoint; the Diet page lists every meal
-  with the thumbnail and the coach response. Every coach prompt sees the meals
+  with the thumbnail and the coach response, and lets the athlete edit a meal.
+  Saving an edit (`PATCH /api/diet/entries/:id`) re-runs the analysis with the
+  saved description, time and photo, or with the stored thumbnail when no new
+  photo is attached; the prompt also carries the stored description and
+  previous analysis so the coach adjusts that assessment rather than starting
+  over. Every coach prompt sees the meals
   from the last seven days and a weekly nutrition summary for each completed
   week up to one year back. The plan carries the athlete's diet goal and the
   coach's weight-trend assessment in `coach_plans.diet`, and every week session
