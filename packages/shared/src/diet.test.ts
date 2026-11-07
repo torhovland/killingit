@@ -1,5 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
+  dietPlanSchema,
+  dietSummaryResponseSchema,
   foodAnalysisSchema,
   foodEntryRequestSchema,
   foodEntrySchema,
@@ -30,6 +32,35 @@ describe("foodAnalysisSchema", () => {
         dietFit: "Fine.",
       }).success,
     ).toBe(false);
+  });
+});
+
+describe("dietPlanSchema", () => {
+  it("accepts a goal and the coach's assessment", () => {
+    const parsed = dietPlanSchema.parse({
+      goal: "Lose 3 kg by March",
+      assessment: "The weight trend is on target.",
+    });
+    expect(parsed.goal).toContain("Lose");
+  });
+});
+
+describe("dietSummaryResponseSchema", () => {
+  it("keeps the day's balance and entries", () => {
+    const parsed = dietSummaryResponseSchema.parse({
+      goal: "Maintain current weight",
+      assessment: "Hold the current intake.",
+      days: [
+        {
+          date: "2026-11-07",
+          neededCaloriesKcal: 2400,
+          consumedCaloriesKcal: 2100,
+          balanceKcal: -300,
+          entries: [],
+        },
+      ],
+    });
+    expect(parsed.days[0]?.balanceKcal).toBe(-300);
   });
 });
 
@@ -95,6 +126,7 @@ describe("foodEntrySchema", () => {
     const parsed = foodEntrySchema.parse({
       id: 1,
       eatenAt: "2026-11-07T12:30:00.000Z",
+      eatenDate: "2026-11-07",
       description: "A cheese sandwich",
       hasPhoto: false,
       analysis: null,
@@ -108,6 +140,7 @@ describe("foodEntrySchema", () => {
     const parsed = foodEntrySchema.parse({
       id: 2,
       eatenAt: "2026-11-07T12:30:00.000Z",
+      eatenDate: "2026-11-07",
       description: null,
       hasPhoto: true,
       analysis: null,

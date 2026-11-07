@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import {
   coachPlanResponseSchema,
+  dietSummaryResponseSchema,
   type CoachPlanResponse,
+  type DietDaySummary,
 } from "@killingit/shared";
 import { useAppStatus } from "./AppStatus";
 import { useAuth } from "./auth";
@@ -24,6 +26,8 @@ interface CoachPlanSectionProps {
   refreshKey: number;
   /** Garmin and OpenRouter must both be configured to generate a plan. */
   ready: boolean;
+  /** Whether the athlete wants the food log and its calorie panel. */
+  dietAdvice?: boolean;
   /** Called when a generation finishes, so activity analyses can be reloaded. */
   onGenerated?: () => void;
 }
@@ -38,6 +42,7 @@ interface CoachPlanSectionProps {
 export function CoachPlanSection({
   refreshKey,
   ready,
+  dietAdvice = false,
   onGenerated,
 }: CoachPlanSectionProps) {
   const auth = useAuth();
@@ -55,6 +60,7 @@ export function CoachPlanSection({
   } = usePlanGeneration();
   const { today, isAfter18 } = getToday(timeZone);
   const [data, setData] = useState<CoachPlanResponse | null>(null);
+  const [dietToday, setDietToday] = useState<DietDaySummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [downloadingWorkoutDate, setDownloadingWorkoutDate] = useState<
@@ -78,12 +84,38 @@ export function CoachPlanSection({
     return parsed.data;
   }
 
+  async function fetchDietToday(): Promise<DietDaySummary | null> {
+    if (!dietAdvice) {
+      return null;
+    }
+    try {
+      const query = new URLSearchParams({ today }).toString();
+      const response = await fetchJsonAuthed<unknown>(
+        `${API_URL}/api/diet/summary?${query}`,
+        auth,
+      );
+      const parsed = dietSummaryResponseSchema.safeParse(response);
+      if (!parsed.success) {
+        return null;
+      }
+      return parsed.data.days.find((day) => day.date === today) ?? null;
+    } catch (err: unknown) {
+      // The plan must still render when the diet summary cannot be read.
+      console.error("Failed to load today's calories:", err);
+      return null;
+    }
+  }
+
   async function load(): Promise<CoachPlanResponse | null> {
     setLoading(true);
     setError(null);
     try {
-      const result = await fetchPlan(today, isAfter18);
+      const [result, diet] = await Promise.all([
+        fetchPlan(today, isAfter18),
+        fetchDietToday(),
+      ]);
       setData(result);
+      setDietToday(diet);
       return result;
     } catch (err: unknown) {
       setError(reportError(err));
@@ -174,7 +206,7 @@ export function CoachPlanSection({
     return () => {
       cancelled = true;
     };
-  }, [auth.isAuthenticated, ready, refreshKey, start, track]);
+  }, [auth.isAuthenticated, ready, refreshKey, start, track, dietAdvice]);
 
   // The stored generation error is shown in its own block with a retry action;
   // a provider error is only surfaced when the stored plan does not carry it.
@@ -287,6 +319,8 @@ export function CoachPlanSection({
           downloadingWorkoutDate={downloadingWorkoutDate}
           thresholds={data.thresholds}
           events={data.events}
+          {...(dietAdvice ? { dietToday } : {})}
+          showCalories={dietAdvice}
         />
       ) : (
         !loading &&

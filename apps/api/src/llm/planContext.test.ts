@@ -293,6 +293,26 @@ describe("formatPlanContext", () => {
     expect(text).not.toContain("Body fat history");
   });
 
+  it("includes the diet goal and earlier calorie targets", () => {
+    const text = formatPlanContext(
+      input({
+        dietGoal: {
+          goal: "Lose 3 kg by March",
+          assessment: "The trend is on target.",
+        },
+        calorieHistory: [
+          { date: "2026-10-22", caloriesKcal: 2400 },
+          { date: "2026-10-21", caloriesKcal: 2350 },
+        ],
+      }),
+    ).join("\n");
+
+    expect(text).toContain("Diet goal: Lose 3 kg by March");
+    expect(text).toContain("Diet assessment: The trend is on target.");
+    expect(text).toContain("Earlier daily calorie targets");
+    expect(text).toContain("- 2026-10-22: 2400 kcal");
+  });
+
   it("includes the stored daily health and recovery summary", () => {
     const text = formatPlanContext(
       input({

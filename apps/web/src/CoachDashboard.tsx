@@ -626,7 +626,10 @@ export function CoachDashboard({
         </p>
       )}
 
-      <FoodLogSection enabled={dietAdvice} />
+      <FoodLogSection
+        enabled={dietAdvice}
+        onLogged={() => setLocalPlanRefresh((value) => value + 1)}
+      />
 
       {coachQuestion !== null && (
         <section className="flex flex-col gap-3" data-testid="coach-question">
@@ -700,6 +703,7 @@ export function CoachDashboard({
       <CoachPlanSection
         refreshKey={planRefreshKey + localPlanRefresh}
         ready={ready}
+        dietAdvice={dietAdvice}
         onGenerated={() => {
           void loadAnalyses();
           void loadReviews();

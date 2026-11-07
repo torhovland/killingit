@@ -198,6 +198,11 @@ API:
   duration. The sleep legend shows the latest value of each stage and the
   hovered day's awake time. Each chart hides itself when Garmin has not
   recorded its measures.
+- Between the body chart and the recovery charts, a `Calories` chart draws the
+  calories logged per day as bars and the coach's estimated daily requirement as
+  a line. It is hidden when there is no logged meal or stored target in the
+  window. A day without an analysed meal has no bar, and a day without a target
+  breaks the line; see `docs/specs/diet-coaching.md`.
 - Only the fitness chart's plot is white, so the zone tints stay clean while the
   rest of that chart — and the whole FTP chart — keeps the card's surface. The bands are soft tints (62.5%) of the
   zone colours, and the TSB line is solid and coloured by the zone it is in
@@ -259,6 +264,9 @@ API:
     high, sleep score, stress and the stacked sleep stages, each with a hover
     card.
 13. Typecheck, lint, format, and tests pass.
+14. The calorie chart sits below the body chart, draws a bar for each day's
+    analysed meals and a line for the coach's required calories, and is hidden
+    when neither exists. See `docs/specs/diet-coaching.md`.
 
 ## Testing
 

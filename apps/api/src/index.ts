@@ -101,6 +101,7 @@ import {
 } from "./metrics/store.js";
 import { loadFitnessHistory } from "./training/history.js";
 import { loadPlanWeekTotals } from "./plans/weekTotals.js";
+import { loadPlanDayCalories } from "./plans/dayCalories.js";
 import { dbUserStore, type UserStore } from "./users/store.js";
 import type { searchLocations } from "./weather/geocode.js";
 
@@ -144,6 +145,8 @@ export interface AppDependencies {
   loadEvents?: typeof loadAthleteEvents;
   /** Stored weekly plan totals, injectable for DB-free route tests. */
   loadWeekTotals?: typeof loadPlanWeekTotals;
+  /** Stored daily calorie targets, injectable for DB-free route tests. */
+  loadDayCalories?: typeof loadPlanDayCalories;
   /** Stored food log for the coaching and plan prompts. */
   loadDiet?: typeof loadDietContext;
   loadCachedFeed?: typeof loadCachedActivityFeed;
@@ -454,7 +457,11 @@ export function createApp(deps: AppDependencies = {}): Hono {
     createDietRoute({
       users: userStore,
       answers: answerStore,
+      plans: planStore,
       ...(deps.dietEntries !== undefined ? { entries: deps.dietEntries } : {}),
+      ...(deps.loadDayCalories !== undefined
+        ? { loadTargets: deps.loadDayCalories }
+        : {}),
       ...(deps.loadLlm !== undefined ? { loadLlm: deps.loadLlm } : {}),
       ...(deps.loadFoodContext !== undefined
         ? { loadContext: deps.loadFoodContext }

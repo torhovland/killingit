@@ -7,6 +7,7 @@ import { TimeZoneProvider } from "./TimeZoneContext";
 const entry: FoodEntry = {
   id: 7,
   eatenAt: "2026-11-07T11:30:00Z",
+  eatenDate: "2026-11-07",
   description: "Porridge with berries",
   hasPhoto: false,
   analysis: {

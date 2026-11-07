@@ -27,8 +27,9 @@ nutrition summary of completed weeks going back at most one year.
 
 ## Out of scope
 
-- A separate diet plan, calorie targets, or macro targets. The coach comments
-  against the athlete's stated goals and training, not a prescription.
+- A separate diet plan or macro targets. The coach comments against the
+  athlete's stated goals and training, not a prescription. Per-day calorie
+  requirements are now part of the plan; see `docs/specs/diet-coaching.md`.
 - Editing a logged meal. Logging is append-only in this change.
 - Nutrition data from Garmin or another provider.
 - Photo storage outside the account's database row.

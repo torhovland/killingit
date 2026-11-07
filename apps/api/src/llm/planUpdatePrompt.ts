@@ -25,6 +25,8 @@ import {
   COMPLETED_SESSION_RULES,
   COMPLETION_SLACK_RULES,
   DAY_CONTRACT,
+  DIET_CONTRACT,
+  DIET_PLANNING_RULES,
   ENUM_RULES,
   JSON_RULES,
   jsonTopLevelKeys,
@@ -123,6 +125,7 @@ export const DAILY_UPDATE_SYSTEM_PROMPT = promptSections(
   SESSION_PURPOSE_RULES,
   WEATHER_PLANNING_RULES,
   BIKE_WORKOUT_RULES,
+  DIET_PLANNING_RULES,
   TRAINING_LOAD_RULES,
   ENUM_RULES,
   JSON_RULES,
@@ -130,6 +133,7 @@ export const DAILY_UPDATE_SYSTEM_PROMPT = promptSections(
   "today": ${DAY_CONTRACT},
   "tomorrow": ${DAY_CONTRACT},
   "week": ${WEEK_CONTRACT},
+  "diet": ${DIET_CONTRACT},
   "bodyMetrics": [${BODY_METRIC_POINT_CONTRACT}],
   ${COACH_RESPONSE_NOTES_CONTRACT}
 }`,
@@ -147,6 +151,7 @@ export const WEEKLY_UPDATE_SYSTEM_PROMPT = promptSections(
   WEEK_OUTLINE_RULES,
   WEATHER_PLANNING_RULES,
   BIKE_WORKOUT_RULES,
+  DIET_PLANNING_RULES,
   TRAINING_LOAD_RULES,
   ENUM_RULES,
   JSON_RULES,
@@ -166,6 +171,7 @@ const PLAN_UPDATE_CONTRACT = `{
   "tomorrow": ${DAY_CONTRACT} | null,
   "nextWeek": ${WEEK_CONTRACT} | null,
   "nextBlock": ${BLOCK_CONTRACT} | null,
+  "diet": ${DIET_CONTRACT},
   "bodyMetrics": [${BODY_METRIC_POINT_CONTRACT}],
   ${COACH_RESPONSE_NOTES_CONTRACT}
 }`;
@@ -193,6 +199,7 @@ export const PLAN_UPDATE_SYSTEM_PROMPT = promptSections(
   COACHING_SURVEY_ADJUSTMENT_RULES,
   WEATHER_PLANNING_RULES,
   BIKE_WORKOUT_RULES,
+  DIET_PLANNING_RULES,
   TRAINING_LOAD_RULES,
   ENUM_RULES,
   JSON_RULES,
@@ -317,6 +324,7 @@ export function buildPlanUpdatePrompt(input: PlanUpdateInput): string {
       "tomorrow",
       "nextWeek",
       "nextBlock",
+      "diet",
       "bodyMetrics",
     ]),
   ].join("\n");
@@ -346,7 +354,7 @@ export function buildDailyUpdatePrompt(input: DailyUpdateInput): string {
     `Fully detail the day objects dated ${input.today} through ${detailThrough}. Keep every session in the week, including ${input.today} through ${detailThrough}, as a short outline.`,
     "",
     "Create today's session and revise this week's remaining sessions.",
-    jsonTopLevelKeys(["today", "tomorrow", "week", "bodyMetrics"]),
+    jsonTopLevelKeys(["today", "tomorrow", "week", "diet", "bodyMetrics"]),
   ].join("\n");
 }
 

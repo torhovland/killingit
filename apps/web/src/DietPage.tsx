@@ -1,23 +1,27 @@
 import { useEffect, useState } from "react";
-import { foodEntriesResponseSchema, type FoodEntry } from "@killingit/shared";
+import {
+  dietSummaryResponseSchema,
+  type DietSummaryResponse,
+} from "@killingit/shared";
 import { useAppStatus } from "./AppStatus";
 import { useAuth } from "./auth";
-import { FoodEntryCard } from "./FoodEntryCard";
+import { DietView } from "./DietView";
 import { fetchJsonAuthed } from "./fetchAuthed";
 import { useNavigate } from "./navigation";
 import { reportError } from "./reportError";
+import { useTimeZone } from "./TimeZoneContext";
+import { getToday } from "./useToday";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
-/**
- * Every meal the athlete has logged, newest first, with the coach's analysis and
- * a thumbnail when a photo was attached.
- */
+/** Loads the diet goal and the daily food log for the Diet page. */
 export function DietPage({ dietAdvice }: { dietAdvice: boolean }) {
   const auth = useAuth();
   const navigate = useNavigate();
   const { setStatus } = useAppStatus();
-  const [entries, setEntries] = useState<FoodEntry[] | null>(null);
+  const timeZone = useTimeZone();
+  const today = getToday(timeZone).today;
+  const [summary, setSummary] = useState<DietSummaryResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,21 +30,25 @@ export function DietPage({ dietAdvice }: { dietAdvice: boolean }) {
     return () => setStatus("diet-page", null);
   }, [loading, setStatus]);
 
-  async function loadEntries(): Promise<void> {
+  async function loadSummary(): Promise<void> {
     setLoading(true);
     setError(null);
     try {
+      const query = new URLSearchParams({ today }).toString();
       const response = await fetchJsonAuthed<unknown>(
-        `${API_URL}/api/diet/entries`,
+        `${API_URL}/api/diet/summary?${query}`,
         auth,
       );
-      const parsed = foodEntriesResponseSchema.safeParse(response);
+      const parsed = dietSummaryResponseSchema.safeParse(response);
       if (!parsed.success) {
-        throw new Error("Loading your meals returned an unexpected response", {
-          cause: parsed.error,
-        });
+        throw new Error(
+          "Loading your diet log returned an unexpected response",
+          {
+            cause: parsed.error,
+          },
+        );
       }
-      setEntries(parsed.data.entries);
+      setSummary(parsed.data);
     } catch (err: unknown) {
       setError(reportError(err));
     } finally {
@@ -50,58 +58,21 @@ export function DietPage({ dietAdvice }: { dietAdvice: boolean }) {
 
   useEffect(() => {
     if (auth.isAuthenticated) {
-      void loadEntries();
+      void loadSummary();
     }
-    // Only re-run when sign-in flips; `auth` is consumed inside.
-  }, [auth.isAuthenticated]);
+    // Only re-run when sign-in flips or the day changes; `auth` is consumed
+    // inside and is not guaranteed to be referentially stable.
+  }, [auth.isAuthenticated, today]);
 
   return (
-    <section className="flex flex-col gap-4 text-left" data-testid="diet-page">
-      <div className="flex flex-col gap-1">
-        <h2 className="text-3xl font-semibold">Diet</h2>
-        <p className="text-base text-muted-foreground">
-          Every meal you have logged and your coach's reading of it.
-        </p>
-      </div>
-
-      {!dietAdvice && (
-        <p className="rounded border bg-inset p-3 text-base">
-          Diet advice is off. Turn it on in Settings to log meals and see them
-          here.{" "}
-          <button
-            type="button"
-            className="underline hover:no-underline"
-            onClick={() => navigate("settings")}
-          >
-            Open Settings
-          </button>
-        </p>
-      )}
-
-      {error && <p className="text-destructive">Error: {error}</p>}
-
-      {error !== null && entries === null && !loading ? (
-        <button
-          type="button"
-          className="self-start rounded border bg-card px-4 py-2 enabled:hover:bg-muted"
-          onClick={() => void loadEntries()}
-        >
-          Retry
-        </button>
-      ) : loading && entries === null ? (
-        <p className="text-base text-muted-foreground">Loading your meals…</p>
-      ) : entries !== null && entries.length === 0 ? (
-        <p className="text-base text-muted-foreground">
-          No meals have been logged yet. Use the food log on the Coach page to
-          add one.
-        </p>
-      ) : (
-        <div className="flex flex-col gap-3">
-          {entries?.map((entry) => (
-            <FoodEntryCard key={entry.id} entry={entry} />
-          ))}
-        </div>
-      )}
-    </section>
+    <DietView
+      dietAdvice={dietAdvice}
+      summary={summary}
+      today={today}
+      loading={loading}
+      error={error}
+      onRetry={() => void loadSummary()}
+      onOpenSettings={() => navigate("settings")}
+    />
   );
 }

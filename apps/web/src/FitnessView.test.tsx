@@ -137,6 +137,7 @@ function history(
       { metric: "sleep_duration", date: "2026-10-21", value: 380 },
       { metric: "sleep_duration", date: "2026-10-22", value: 400 },
     ],
+    nutrition: [],
     ...overrides,
   };
 }

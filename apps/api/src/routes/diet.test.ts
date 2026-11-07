@@ -6,6 +6,8 @@ import type { createMealThumbnail } from "../diet/thumbnail.js";
 import type { LlmClient } from "../llm/client.js";
 import type { PlanContextInput } from "../llm/planContext.js";
 import type { LlmProvider } from "../llm/openrouter.js";
+import type { PlanStore, StoredPlan } from "../plans/store.js";
+import type { loadPlanDayCalories } from "../plans/dayCalories.js";
 import type {
   FoodEntryStore,
   NewFoodEntry,
@@ -102,6 +104,8 @@ function makeApp(
     llm?: LlmClient | null;
     analyze?: NonNullable<Parameters<typeof createApp>[0]>["analyzeFood"];
     createThumbnail?: typeof createMealThumbnail;
+    planStore?: PlanStore;
+    loadDayCalories?: typeof loadPlanDayCalories;
   } = {},
 ) {
   const store = options.store ?? new MemoryFoodStore();
@@ -120,6 +124,12 @@ function makeApp(
       saveAnswers: () => Promise.resolve(true),
     },
     dietEntries: store,
+    ...(options.planStore !== undefined
+      ? { planStore: options.planStore }
+      : {}),
+    ...(options.loadDayCalories !== undefined
+      ? { loadDayCalories: options.loadDayCalories }
+      : {}),
     loadLlm: () => Promise.resolve(llm),
     loadFoodContext: () => Promise.resolve(context),
     analyzeFood,
@@ -308,6 +318,85 @@ describe("GET /api/diet/entries", () => {
     expect(parsed.entries).toHaveLength(1);
     expect(parsed.entries[0]?.hasPhoto).toBe(true);
     expect(JSON.stringify(parsed)).not.toContain("base64");
+  });
+});
+
+describe("GET /api/diet/summary", () => {
+  function planStoreWith(
+    diet: {
+      goal: string;
+      assessment: string;
+    } | null,
+  ): PlanStore {
+    return {
+      load: () =>
+        Promise.resolve({
+          plan: { diet },
+        } as unknown as StoredPlan),
+      save: () => Promise.resolve(null),
+    };
+  }
+
+  it("returns the coach's goal, assessment, and per-day calories", async () => {
+    const store = new MemoryFoodStore();
+    store.rows.push({
+      userId: 42,
+      entry: {
+        id: 1,
+        eatenAt: new Date("2026-11-07T12:00:00Z"),
+        eatenDate: "2026-11-07",
+        eatenTime: "12:00",
+        description: "A cheese sandwich",
+        thumbnailDataUrl: null,
+        analysis,
+        model: "test/model",
+        analysisError: null,
+        createdAt: new Date("2026-11-07T12:00:00Z"),
+      },
+    });
+    const app = makeApp({
+      store,
+      planStore: planStoreWith({
+        goal: "Lose 3 kg by March",
+        assessment: "The trend is on target for the goal.",
+      }),
+      loadDayCalories: () => Promise.resolve(new Map([["2026-11-07", 2400]])),
+    }).app;
+
+    const res = await request(app, "/api/diet/summary?today=2026-11-07");
+    expect(res.status).toBe(200);
+    const parsed = (await res.json()) as {
+      goal: string;
+      assessment: string;
+      days: {
+        date: string;
+        neededCaloriesKcal: number;
+        consumedCaloriesKcal: number;
+        balanceKcal: number;
+        entries: unknown[];
+      }[];
+    };
+    expect(parsed.goal).toBe("Lose 3 kg by March");
+    expect(parsed.assessment).toContain("on target");
+    expect(parsed.days[0]).toMatchObject({
+      date: "2026-11-07",
+      neededCaloriesKcal: 2400,
+      consumedCaloriesKcal: 420,
+      balanceKcal: -1980,
+    });
+    expect(parsed.days[0]?.entries).toHaveLength(1);
+  });
+
+  it("returns an empty summary when diet advice is off", async () => {
+    const app = makeApp({ dietAdvice: false }).app;
+    const res = await request(app, "/api/diet/summary?today=2026-11-07");
+    expect(res.status).toBe(200);
+    const parsed = (await res.json()) as {
+      goal: null;
+      days: unknown[];
+    };
+    expect(parsed.goal).toBeNull();
+    expect(parsed.days).toHaveLength(0);
   });
 });
 

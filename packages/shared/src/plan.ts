@@ -2,6 +2,7 @@ import { z } from "zod";
 import { coachAnalysisSchema, coachResponseNotesSchema } from "./llm.js";
 import { athleteEventSchema } from "./event.js";
 import { planDateSchema } from "./date.js";
+import { dietPlanSchema } from "./diet.js";
 import { thresholdSummarySchema } from "./metrics.js";
 import { trainingLoadSchema } from "./trainingLoad.js";
 import { dailyForecastsSchema, dailyWeatherSchema } from "./weather.js";
@@ -157,6 +158,11 @@ export const weekSessionSchema = z.object({
    */
   estimatedTss: z.number().nonnegative().max(2000).optional(),
   /**
+   * The coach's estimate of the calories this day needs to keep the athlete on
+   * track for their diet goal. Missing on plans stored before diet coaching.
+   */
+  estimatedCaloriesKcal: z.number().int().nonnegative().max(20000).optional(),
+  /**
    * The coach's estimate of the athlete's FTP on this day, used for the daily
    * projection on the Fitness page. The Week view still shows only the week's
    * single estimate. Null or missing for days before today.
@@ -253,6 +259,11 @@ export const dayPlanSchema = z.object({
    */
   estimatedTss: z.number().nonnegative().max(2000).optional(),
   /**
+   * The coach's estimate of the calories this day needs to keep the athlete on
+   * track for their diet goal. Missing on plans stored before diet coaching.
+   */
+  estimatedCaloriesKcal: z.number().int().nonnegative().max(20000).optional(),
+  /**
    * Resolved training stress for the day plus the fitness and fatigue snapshot.
    * Mirrored from the matching week session so Day and Week always agree.
    */
@@ -288,6 +299,11 @@ export const coachPlanSchema = z
      * date. Stored in the athlete metric series as coach estimates.
      */
     bodyMetrics: z.array(bodyMetricEstimateSchema).optional(),
+    /**
+     * The athlete's diet goal and the coach's judgement of the tracked weight
+     * trend. Missing on plans stored before diet coaching.
+     */
+    diet: dietPlanSchema.nullable().optional(),
   })
   .extend(coachResponseNotesSchema.shape);
 
@@ -325,6 +341,7 @@ export const dailyPlanUpdateSchema = z
     today: dayPlanSchema,
     tomorrow: dayPlanSchema.nullable().default(null),
     week: weekPlanSchema,
+    diet: dietPlanSchema.optional(),
     bodyMetrics: z.array(bodyMetricEstimateSchema).default([]),
   })
   .extend(coachResponseNotesSchema.shape)

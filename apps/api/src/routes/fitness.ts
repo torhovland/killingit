@@ -61,6 +61,7 @@ export function createFitnessRoute(deps: FitnessRouteDependencies): Hono {
         parsedPlan?.success ? parsedPlan.data : undefined,
         today.data,
         range.data,
+        user.dietAdvice,
       );
       return c.json(fitnessHistoryResponseSchema.parse(history));
     } catch (err) {

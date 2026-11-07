@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
   COACH_RESPONSE_NOTES_CONTRACT,
   COACH_RESPONSE_NOTES_RULES,
+  DIET_PLANNING_RULES,
   DURATION_TOLERANCE_RULES,
   FORM_TARGET_RULES,
   PAST_SESSION_RULES,
@@ -239,5 +240,29 @@ describe("WEATHER_PLANNING_RULES", () => {
     expect(WEATHER_PLANNING_RULES).toContain(
       "Their general weather preference applies to the days they have not made a specific request about",
     );
+  });
+});
+
+describe("DIET_PLANNING_RULES", () => {
+  it("assumes maintenance when the athlete states no diet goal", () => {
+    expect(DIET_PLANNING_RULES).toContain(
+      "assume the goal is to maintain their current weight",
+    );
+    expect(DIET_PLANNING_RULES).toContain("Maintain current weight");
+  });
+
+  it("has the coach judge the weight trend instead of the app computing it", () => {
+    expect(DIET_PLANNING_RULES).toContain(
+      "judge from the tracked weight history",
+    );
+    expect(DIET_PLANNING_RULES).toContain("rather than from a fixed formula");
+  });
+
+  it("asks for a per-day calorie estimate on every week and day plan", () => {
+    expect(DIET_PLANNING_RULES).toContain("estimatedCaloriesKcal");
+    expect(DIET_PLANNING_RULES).toContain(
+      "every week session and on the today and tomorrow day objects",
+    );
+    expect(DIET_PLANNING_RULES).toContain("Never return 0");
   });
 });

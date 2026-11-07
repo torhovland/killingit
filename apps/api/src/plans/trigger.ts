@@ -53,6 +53,7 @@ import {
 } from "./generation.js";
 import { runPlanGeneration } from "./generate.js";
 import { planFtpEstimates } from "./generate.js";
+import { loadPlanDayCalories } from "./dayCalories.js";
 import { loadCoachingInputs, type CoachingInputs } from "./inputs.js";
 import { claimRun, releaseRun } from "./runs.js";
 import { PLAN_GENERATION_STEPS } from "./steps.js";
@@ -351,6 +352,23 @@ export async function runPlanForUser(
 
   const diet = await (deps.loadDiet ?? loadDietContext)(userId, today);
 
+  let calorieHistory: { date: string; caloriesKcal: number }[] | undefined;
+  try {
+    const targets = await loadPlanDayCalories(
+      userId,
+      addDays(today, -28),
+      today,
+    );
+    calorieHistory = [...targets]
+      .map(([date, caloriesKcal]) => ({ date, caloriesKcal }))
+      .sort((a, b) => b.date.localeCompare(a.date));
+  } catch (err) {
+    // The earlier targets only help the coach judge the trend; the plan must
+    // still generate when they cannot be read.
+    console.error("[diet] could not read the calorie targets:", err);
+    calorieHistory = undefined;
+  }
+
   const ftp = await (deps.loadFtpHistory ?? loadFtpHistoryForUser)(
     userId,
     today,
@@ -478,6 +496,8 @@ export async function runPlanForUser(
       ...(dailyHealth !== undefined ? { dailyHealth } : {}),
       events,
       ...(diet !== null ? { diet } : {}),
+      dietGoal: plan?.plan.diet ?? null,
+      ...(calorieHistory !== undefined ? { calorieHistory } : {}),
       provider: llm.provider,
       apiKey: llm.apiKey,
       model: llm.model,
