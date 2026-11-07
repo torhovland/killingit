@@ -277,6 +277,67 @@ describe("generatePlanUpdate", () => {
     expect(result.week.dietProgress?.targetWeightKg).toBe(80);
   });
 
+  it("repairs a season target that does not reach the stated goal", async () => {
+    const target = (fatPercent: number) => ({
+      targetWeightKg: null,
+      targetBodyFatPercent: fatPercent,
+      note: "On target.",
+    });
+    const withGoal = (fatPercent: number) =>
+      planUpdateResponse({
+        season: {
+          ...season,
+          dietProgress: target(fatPercent),
+          blocks: season.blocks.map((entry) => ({
+            ...entry,
+            dietProgress: target(fatPercent),
+          })),
+        },
+        block: {
+          ...block,
+          dietProgress: target(fatPercent),
+          weeks: block.weeks.map((entry) => ({
+            ...entry,
+            dietProgress: target(fatPercent),
+          })),
+        },
+        week: { ...input().week, dietProgress: target(fatPercent) },
+        diet: {
+          goal: "Lose fat gradually toward 15% body fat",
+          goalProvided: true,
+          goalWeightKg: null,
+          goalBodyFatPercent: 15,
+          goalDate: null,
+          assessment: "On target.",
+        },
+      });
+    const provider = new FakeProvider([withGoal(20), withGoal(15)]);
+
+    const result = await generatePlanUpdate(
+      provider,
+      { apiKey: "key", model: "model" },
+      {
+        ...planUpdateInput(),
+        dietAdvice: true,
+        dietGoal: {
+          goal: "Lose fat gradually toward 15% body fat",
+          goalProvided: true,
+          goalWeightKg: null,
+          goalBodyFatPercent: 15,
+          goalDate: null,
+          assessment: "On target.",
+        },
+      },
+    );
+
+    expect(provider.requests).toHaveLength(2);
+    expect(provider.requests[1]?.metadata).toMatchObject({ repair: true });
+    expect(provider.requests[1]?.messages.at(-1)?.content).toContain(
+      "does not reach the athlete's goal of 15 % body fat",
+    );
+    expect(result.season.dietProgress?.targetBodyFatPercent).toBe(15);
+  });
+
   it("repairs a next week that does not start on Monday", async () => {
     const provider = new FakeProvider([
       planUpdateResponse({

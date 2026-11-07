@@ -42,11 +42,22 @@ target to the period's training focus, to allow a non-linear path, and to
 re-plan the levels it returns when the latest weigh-in is ahead of or behind the
 earlier target. The app only stores and displays the numbers.
 
+A stated numeric target is the season's destination. The diet plan also carries
+`goalWeightKg`, `goalBodyFatPercent` and `goalDate`, read from the athlete's own
+words. The season-end target must reach that goal by the season end unless the
+athlete gave a date after the season ends. The API rejects a season target that
+stops above the goal, so an ambitious but reachable target cannot quietly become
+a maintenance plan. The prompt also tells the coach to front-load the loss into
+the early and off-season blocks: a later block being busy is not by itself a
+reason to hold weight at a high body-fat percentage for most of the season.
+
 The target is planned only when diet advice is enabled and the athlete stated a
 goal. With the default maintenance fallback the targets stay null, and the Diet
 page asks the athlete to provide a goal on the Coaching Survey. This keeps the
 feature honest: a goal the athlete never chose does not produce a body
-projection.
+projection. For a plan stored before the structured goal fields existed, the app
+also reads a clear body-fat percentage from the goal text so the plan can refresh
+itself; that check never writes a target.
 
 ### The Body chart gets a season view from the same targets
 

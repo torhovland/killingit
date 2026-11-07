@@ -63,6 +63,32 @@ describe("dietPlanSchema", () => {
       }).goalProvided,
     ).toBeUndefined();
   });
+
+  it("carries the numeric goal and date the athlete stated", () => {
+    const parsed = dietPlanSchema.parse({
+      goal: "Lose fat gradually toward 15% body fat by March",
+      goalProvided: true,
+      goalWeightKg: null,
+      goalBodyFatPercent: 15,
+      goalDate: "2027-03-01",
+      assessment: "On target.",
+    });
+
+    expect(parsed.goalBodyFatPercent).toBe(15);
+    expect(parsed.goalDate).toBe("2027-03-01");
+    expect(parsed.goalWeightKg).toBeNull();
+  });
+
+  it("leaves the numeric goal absent on an older plan", () => {
+    const parsed = dietPlanSchema.parse({
+      goal: "Lose 3 kg by March",
+      assessment: "On target.",
+    });
+
+    expect(parsed.goalWeightKg).toBeUndefined();
+    expect(parsed.goalBodyFatPercent).toBeUndefined();
+    expect(parsed.goalDate).toBeUndefined();
+  });
 });
 
 describe("isDefaultDietGoal", () => {

@@ -2,9 +2,119 @@ import {
   isDefaultDietGoal,
   type BlockPlan,
   type CoachPlan,
+  type DietPlan,
   type WeekPlan,
 } from "@killingit/shared";
 import { addDays } from "../plans/dates.js";
+
+/** How far a season target may miss a stated goal and still count as reaching it. */
+const GOAL_TOLERANCE = 0.5;
+
+/**
+ * True when the season target does not reach a numeric goal the athlete stated
+ * by the season end. A goal with a date after the season end is not due yet, so
+ * the season target only has to move toward it; the coach reports the expected
+ * date in the note and assessment.
+ */
+export function dietGoalProblems(plan: {
+  season: CoachPlan["season"];
+  diet?: DietPlan | null | undefined;
+}): string[] {
+  const diet = plan.diet;
+  if (diet == null) {
+    return [];
+  }
+  if (diet.goalDate != null && diet.goalDate > plan.season.endDate) {
+    return [];
+  }
+  const problems: string[] = [];
+  const progress = plan.season.dietProgress;
+  const goalBodyFatPercent =
+    diet.goalBodyFatPercent ?? impliedGoalBodyFatPercent(diet.goal);
+  if (goalBodyFatPercent !== null) {
+    const target = progress?.targetBodyFatPercent ?? null;
+    if (target === null || target > goalBodyFatPercent + GOAL_TOLERANCE) {
+      problems.push(
+        `The season target of ${target === null ? "no body-fat target" : `${target} % body fat`} does not reach the athlete's goal of ${goalBodyFatPercent} % body fat by ${plan.season.endDate}. Plan the block targets so the season target reaches the goal.`,
+      );
+    }
+  }
+  if (diet.goalWeightKg != null) {
+    const target = progress?.targetWeightKg ?? null;
+    if (target === null || target > diet.goalWeightKg + GOAL_TOLERANCE) {
+      problems.push(
+        `The season target of ${target === null ? "no weight target" : `${target} kg`} does not reach the athlete's goal of ${diet.goalWeightKg} kg by ${plan.season.endDate}. Plan the block targets so the season target reaches the goal.`,
+      );
+    }
+  }
+  return problems;
+}
+
+/**
+ * A body-fat percentage in the goal text, used as a safety net for a plan stored
+ * before the structured goal fields existed. The coach still records the value
+ * in `diet.goalBodyFatPercent`; this only lets a legacy goal be checked so the
+ * plan can refresh itself. Only a percentage next to "body fat" or "bf" counts.
+ */
+export function impliedGoalBodyFatPercent(goal: string): number | null {
+  const patterns = [
+    /(\d{1,2}(?:\.\d+)?)\s*%\s*(?:body\s*fat|bf)\b/i,
+    /\b(?:body\s*fat|bf)\s*(?:to|toward|of|at|around|about)?\s*(\d{1,2}(?:\.\d+)?)\s*%/i,
+  ];
+  for (const pattern of patterns) {
+    const match = pattern.exec(goal);
+    const raw = match?.[1];
+    if (raw === undefined) {
+      continue;
+    }
+    const value = Number(raw);
+    if (value > 0 && value <= 75) {
+      return value;
+    }
+  }
+  return null;
+}
+
+/**
+ * The last season block ends on the season's last day, so its target and the
+ * season-end target are the same target. A disagreement means the Season view
+ * and the Block view would show two different destinations for the same day.
+ */
+export function dietProgressConsistencyProblems(plan: CoachPlan): string[] {
+  const lastBlock = plan.season.blocks[plan.season.blocks.length - 1];
+  if (
+    lastBlock === undefined ||
+    lastBlock.endDate !== plan.season.endDate ||
+    lastBlock.dietProgress == null ||
+    plan.season.dietProgress == null
+  ) {
+    return [];
+  }
+  const problems: string[] = [];
+  const seasonWeight = plan.season.dietProgress.targetWeightKg;
+  const blockWeight = lastBlock.dietProgress.targetWeightKg;
+  if (
+    seasonWeight !== null &&
+    blockWeight !== null &&
+    Math.abs(seasonWeight - blockWeight) > GOAL_TOLERANCE
+  ) {
+    problems.push(
+      `The last block target (${blockWeight} kg) does not match the season-end target (${seasonWeight} kg). They are the same day, so use one target.`,
+    );
+  }
+  const seasonFat = plan.season.dietProgress.targetBodyFatPercent;
+  const blockFat = lastBlock.dietProgress.targetBodyFatPercent;
+  if (
+    seasonFat !== null &&
+    blockFat !== null &&
+    Math.abs(seasonFat - blockFat) > GOAL_TOLERANCE
+  ) {
+    problems.push(
+      `The last block target (${blockFat} % body fat) does not match the season-end target (${seasonFat} % body fat). They are the same day, so use one target.`,
+    );
+  }
+  return problems;
+}
 
 /**
  * The current and future periods whose `dietProgress` target is missing. The
@@ -78,7 +188,11 @@ export function dietProgressPending(
     // record whether the athlete stated one and fill the targets if they did.
     return true;
   }
-  return missingDietProgressTargets(plan, today).length > 0;
+  return (
+    missingDietProgressTargets(plan, today).length > 0 ||
+    dietGoalProblems(plan).length > 0 ||
+    dietProgressConsistencyProblems(plan).length > 0
+  );
 }
 
 /** True when any level already carries a target, even a partial plan. */

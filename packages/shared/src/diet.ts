@@ -33,6 +33,12 @@ export const dietPlanSchema = z.object({
    * targets, so readers fall back to the exact default wording.
    */
   goalProvided: z.boolean().optional(),
+  /** The body weight the athlete named as their goal, when they named one. */
+  goalWeightKg: z.number().positive().max(500).nullable().optional(),
+  /** The body-fat percentage the athlete named as their goal, when they did. */
+  goalBodyFatPercent: z.number().positive().max(75).nullable().optional(),
+  /** The date the athlete expects to reach the goal, when they stated one. */
+  goalDate: planDateSchema.nullable().optional(),
   /** The coach's judgement of whether the goal is on track. */
   assessment: z.string().trim().min(1).max(4000),
 });

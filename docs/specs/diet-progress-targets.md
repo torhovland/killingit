@@ -67,6 +67,14 @@ the block, each block week summary, and each week:
 - `dietPlanSchema.goalProvided` records whether the athlete stated the goal.
   Older plans omit it; the API infers the default from the exact
   `DEFAULT_DIET_GOAL` wording.
+- `dietPlanSchema.goalWeightKg`, `goalBodyFatPercent` and `goalDate` record the
+  numeric target and date the athlete stated, or are absent/null when they
+  stated none. They are the coach's reading of the athlete's words, not a new
+  target, and older plans parse without them. For a legacy plan whose goal text
+  clearly names a body-fat percentage (for example "toward 15% body fat"), the
+  app also reads that percentage when deciding whether the stored season target
+  still reaches the goal. The check never writes a target; it only makes an old
+  plan refresh itself.
 
 ## Prompt
 
@@ -76,9 +84,17 @@ it: the season, first block, week, day, and unified update prompts.
 - The coach plans progress only when diet advice is enabled and the athlete has
   stated a goal. With diet advice off, or with only the default maintenance
   fallback, every `dietProgress` is null.
+- The coach reads a stated numeric weight, body-fat percentage and date into
+  `diet.goalWeightKg`, `diet.goalBodyFatPercent` and `diet.goalDate`; it never
+  invents a target or a date. The season-end target must reach a stated numeric
+  goal by the season end unless the athlete stated a goal date after the season
+  ends. The app rejects a season target that stops above the goal, so an
+  ambitious but reachable goal cannot quietly become a maintenance plan.
 - The target at each level reflects that period's training focus. The rule
   explicitly allows a muscle-building block, a taper, or a race week to hold
-  weight or gain slightly, and a later block to lose more.
+  weight or gain slightly, but the early and off-season blocks must carry most
+  of the loss. Holding at a high body-fat percentage for most of the season is
+  not a plan to reach a fat-loss goal.
 - The coach bases the targets on the tracked weight and body-fat history and the
   athlete's stated goal, and re-plans the requested levels when a new measurement
   is ahead of or behind the earlier target.
@@ -140,28 +156,35 @@ it: the season, first block, week, day, and unified update prompts.
    either number may be null.
 3. The coach leaves every target null when diet advice is off or the goal is the
    default maintenance fallback.
-4. A season refresh, weekly update, or daily update re-plans the targets it can
+4. The coach reports the athlete's stated numeric goal and date, and the season
+   target reaches a stated numeric goal by the season end unless the goal date
+   is after the season end.
+5. The block targets front-load the loss into the earlier and off-season blocks
+   and do not hold at a high body-fat percentage for most of the season.
+6. A season refresh, weekly update, or daily update re-plans the targets it can
    return from the latest weight and body-fat history.
-5. The Season, Block, and Week tabs show the targets when diet advice is on.
-6. The Diet page shows the default-goal note and a Coaching Survey action when
+7. The Season, Block, and Week tabs show the targets when diet advice is on.
+8. The Diet page shows the default-goal note and a Coaching Survey action when
    the goal was not provided by the athlete.
-7. The Body chart offers the season view only when targets exist; selecting it
+9. The Body chart offers the season view only when targets exist; selecting it
    extends the chart to the season end and draws the dotted target line.
-8. Old plans without `dietProgress` or `goalProvided` parse and render
-   unchanged.
-9. Typecheck, lint, format, and tests pass.
+10. Old plans without `dietProgress`, `goalProvided`, or the numeric goal fields
+    parse and render unchanged.
+11. Typecheck, lint, format, and tests pass.
 
 ## Testing
 
 - Shared schemas: diet progress targets on every plan level, the nullable
   numbers, `goalProvided`, and the summary flag.
 - Prompt tests: the progress rule's focus-aware, non-linear planning, the
-  default/diet-advice guard, and the contracts on every level.
-- Plan context tests: stored targets and goal status appear in the season,
-  block, and week renders.
+  front-loaded path to a stated numeric goal, the default/diet-advice guard, and
+  the contracts on every level.
+- Plan context tests: stored targets, the numeric goal and date, and goal status
+  appear in the season, block, and week renders.
 - API tests: the diet summary flag and fallback inference; the fitness targets
   flattened from season, block, and week progress, merged per date, and omitted
-  when diet advice is off.
+  when diet advice is off; a season target that misses a stated numeric goal is
+  rejected and repaired.
 - Web tests: targets on the Season, Block, and Week tabs; the default-goal note
   and survey action; the Body chart checkbox and dotted target path; the
   projection helper's start point, future filtering, and interpolation.

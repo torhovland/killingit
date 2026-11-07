@@ -304,12 +304,15 @@ about a past workout, or before a suggested workout, to steer the coach.
   states a goal, the plan also carries the coach's `dietProgress` target on the
   season, each block, the block, each week, and the week: a weight, a body-fat
   percentage, or both, plus a short note, and it follows the training focus
-  rather than a linear weekly change. The coach re-plans the targets it returns
-  on a plan refresh from the latest weigh-ins; a stated goal with a missing
-  current or future target marks the plan pending and makes a progress-only
-  refresh that changes only the targets. The Body chart can extend to the season
-  end and draws those targets as a dotted line. A default goal makes the Diet
-  page point the athlete to the Coaching Survey. See `docs/specs/diet-log.md`,
+  rather than a linear weekly change. A stated numeric weight or body-fat goal
+  is the season's destination: the season target must reach it, and the early
+  and off-season blocks carry most of the loss instead of holding at a high
+  body-fat percentage. The coach re-plans the targets it returns on a plan
+  refresh from the latest weigh-ins; a stated goal with a missing current or
+  future target marks the plan pending and makes a progress-only refresh that
+  changes only the targets. The Body chart can extend to the season end and
+  draws those targets as a dotted line. A default goal makes the Diet page point
+  the athlete to the Coaching Survey. See `docs/specs/diet-log.md`,
   `docs/specs/diet-coaching.md`, `docs/specs/diet-progress-targets.md`, and ADR
   0019/0020/0021.
 - The Settings page ends with a Delete account section. After a warning modal is

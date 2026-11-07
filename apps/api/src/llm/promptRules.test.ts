@@ -276,6 +276,16 @@ describe("DIET_PLANNING_RULES", () => {
     );
     expect(DIET_CONTRACT).toContain('"goalProvided": false');
   });
+
+  it("reads the numeric goal and date without inventing one", () => {
+    expect(DIET_PLANNING_RULES).toContain('"diet.goalWeightKg"');
+    expect(DIET_PLANNING_RULES).toContain('"diet.goalBodyFatPercent"');
+    expect(DIET_PLANNING_RULES).toContain('"diet.goalDate"');
+    expect(DIET_PLANNING_RULES).toContain("Never invent a target or a date");
+    expect(DIET_CONTRACT).toContain('"goalBodyFatPercent": 0');
+    expect(DIET_CONTRACT).toContain('"goalWeightKg": 0');
+    expect(DIET_CONTRACT).toContain('"goalDate": "YYYY-MM-DD"');
+  });
 });
 
 describe("DIET_PROGRESS_RULES", () => {
@@ -298,6 +308,23 @@ describe("DIET_PROGRESS_RULES", () => {
     expect(DIET_PROGRESS_RULES).toContain("may hold weight or gain slightly");
     expect(DIET_PROGRESS_RULES).toContain(
       "match every target to the block's focus and the training load",
+    );
+  });
+
+  it("makes the season target the destination and front-loads the loss", () => {
+    expect(DIET_PROGRESS_RULES).toContain(
+      "The season target is the destination for the athlete's stated goal",
+    );
+    expect(DIET_PROGRESS_RULES).toContain(
+      "A season target that stops well above the goal is not a plan to reach it",
+    );
+    expect(DIET_PROGRESS_RULES).toContain("Front-load the change");
+    expect(DIET_PROGRESS_RULES).toContain(
+      "Holding weight at a high body-fat percentage for most of the season is not a plan to lose fat",
+    );
+    expect(DIET_PROGRESS_RULES).toContain("stays near 24%");
+    expect(DIET_PROGRESS_RULES).toContain(
+      "do not repeat the previous block's target for block after block",
     );
   });
 

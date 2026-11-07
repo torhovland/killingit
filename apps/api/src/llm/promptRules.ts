@@ -79,7 +79,7 @@ export const DIET_RULES = `When a food log is provided, it lists meals the athle
  * a daily calorie requirement. The judgement of the weight trend and of the
  * deficit is the coach's, never a formula in the app.
  */
-export const DIET_PLANNING_RULES = `Nutrition is part of the plan. The athlete's diet goal is whatever they state in their profile, notes, or comments; when they state none, assume the goal is to maintain their current weight. Report the goal in "diet.goal" as a short statement in their own terms, or "${DEFAULT_DIET_GOAL}" when they gave none. Set "diet.goalProvided" to true only when the athlete stated the goal themselves, and to false when you fell back to "${DEFAULT_DIET_GOAL}".
+export const DIET_PLANNING_RULES = `Nutrition is part of the plan. The athlete's diet goal is whatever they state in their profile, notes, or comments; when they state none, assume the goal is to maintain their current weight. Report the goal in "diet.goal" as a short statement in their own terms, or "${DEFAULT_DIET_GOAL}" when they gave none. Set "diet.goalProvided" to true only when the athlete stated the goal themselves, and to false when you fell back to "${DEFAULT_DIET_GOAL}". When the athlete names a body weight, a body-fat percentage, or a date for the goal, report it in "diet.goalWeightKg", "diet.goalBodyFatPercent" and "diet.goalDate"; set a value they did not state to null. Never invent a target or a date.
 
 In "diet.assessment", judge from the tracked weight history and the logged calories against your earlier calorie targets whether the athlete is on track for that goal. Say whether the calorie deficit or surplus is right, too large, or too small, and what you changed. Judge the weight trend from the measurements themselves rather than from a fixed formula. When there is no weight history yet, say what you will judge the trend by and set a sensible starting target.
 
@@ -92,7 +92,11 @@ Estimate the athlete's total calorie intake for each day you return, and set "es
  */
 export const DIET_PROGRESS_RULES = `Diet progress is part of the plan. When diet advice is enabled and the athlete has stated a diet goal, plan how their body should move toward that goal by the end of every period you return. Set "dietProgress" on the season, on each season block, on the block, on each block week, and on the week. A "dietProgress" object holds the target body weight in kilograms in "targetWeightKg", the target body-fat percentage in "targetBodyFatPercent", and a short "note" in your own words. The target is the value you expect on the last day of that period; set a value you cannot estimate to null. Put the expected change and its reason in "note", for example "Hold weight through the build block; the added training load makes fat loss counterproductive, then lose 2 kg in the base block."
 
-Progress is not a linear week-by-week formula. A block that builds muscle, a taper, and a race week may hold weight or gain slightly, and a later block can lose more, so match every target to the block's focus and the training load rather than spreading the total change evenly. A block's target in the season plan and the block plan is the same target, and a week's target in the block and in the week plan is the same target, so keep them consistent.
+Progress is not a linear week-by-week formula. A block that builds muscle, a taper, and a race week may hold weight or gain slightly, so match every target to the block's focus and the training load rather than spreading the total change evenly. A block's target in the season plan and the block plan is the same target, and a week's target in the block and in the week plan is the same target, so keep them consistent.
+
+The season target is the destination for the athlete's stated goal. When "diet.goalBodyFatPercent" or "diet.goalWeightKg" is set, the season-end target must reach it by the season end unless the athlete gave a "diet.goalDate" after the season ends. If the goal is beyond the season, the season target must still move toward it. A season target that stops well above the goal is not a plan to reach it. For example, an athlete who wants to go from about 25% to 15% body fat over a season ending next August needs the block targets to descend toward 15%; a target that stays near 24% for most of the season does not reach the goal.
+
+Front-load the change. The early and off-season blocks, when training load is lower and no race or taper is near, should carry most of the loss. Holding weight at a high body-fat percentage for most of the season is not a plan to lose fat. A hold or a small gain is justified for a muscle-building block, a taper, a race week, or a deliberate maintenance phase, and the "note" must say what the hold protects and when the loss resumes. A block being later in the season is not by itself a reason to stop losing; use the winter and base blocks before the race-specific work begins. The block targets should form a path from the latest measurement to the season target; do not repeat the previous block's target for block after block without a stated reason.
 
 Base the targets on the tracked weight and body-fat history and the athlete's stated goal. When the latest measurements are ahead of or behind an earlier target, re-plan the targets for the levels you return from the latest measurement instead of keeping a target the new trend has made unrealistic. A plan update always refreshes the targets on every level it returns, even when the revision request keeps that level's training unchanged; on those levels only the "dietProgress" objects change. You are the only one who plans these numbers: the app never calculates a deficit, a rate of change, or a target.
 
@@ -369,8 +373,8 @@ export const WEEK_CONTRACT = `{
   ]
 }`;
 
-/** The diet goal, whether the athlete stated it, and the weight-trend judgement. */
-export const DIET_CONTRACT = `{ "goal": "string", "goalProvided": false, "assessment": "string" }`;
+/** The diet goal, its target, whether the athlete stated it, and the trend judgement. */
+export const DIET_CONTRACT = `{ "goal": "string", "goalProvided": false, "goalWeightKg": 0, "goalBodyFatPercent": 0, "goalDate": "YYYY-MM-DD", "assessment": "string" }`;
 
 export const BLOCK_CONTRACT = `{
   "name": "string",
