@@ -94,7 +94,7 @@ export const DIET_PROGRESS_RULES = `Diet progress is part of the plan. When diet
 
 Progress is not a linear week-by-week formula. A block that builds muscle, a taper, and a race week may hold weight or gain slightly, and a later block can lose more, so match every target to the block's focus and the training load rather than spreading the total change evenly. A block's target in the season plan and the block plan is the same target, and a week's target in the block and in the week plan is the same target, so keep them consistent.
 
-Base the targets on the tracked weight and body-fat history and the athlete's stated goal. When the latest measurements are ahead of or behind an earlier target, re-plan the targets for the levels you return from the latest measurement instead of keeping a target the new trend has made unrealistic. You are the only one who plans these numbers: the app never calculates a deficit, a rate of change, or a target.
+Base the targets on the tracked weight and body-fat history and the athlete's stated goal. When the latest measurements are ahead of or behind an earlier target, re-plan the targets for the levels you return from the latest measurement instead of keeping a target the new trend has made unrealistic. A plan update always refreshes the targets on every level it returns, even when the revision request keeps that level's training unchanged; on those levels only the "dietProgress" objects change. You are the only one who plans these numbers: the app never calculates a deficit, a rate of change, or a target.
 
 When diet advice is disabled, or when the athlete has stated no diet goal and you fall back to "${DEFAULT_DIET_GOAL}", set every "dietProgress" to null.`;
 

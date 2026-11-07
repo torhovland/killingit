@@ -88,6 +88,8 @@ export interface PlanUpdateRevision {
   nextWeek: boolean;
   /** Create the block that contains tomorrow. */
   nextBlock: boolean;
+  /** Refresh the diet progress target on every level, changing nothing else. */
+  progress: boolean;
 }
 
 /** Input for the single prompt that updates any level of the plan. */
@@ -182,7 +184,7 @@ export const PLAN_UPDATE_SYSTEM_PROMPT = promptSections(
   "Update an athlete's training plan.",
   "You receive the complete current plan at every level: the season, the current block, the current week, today's session, tomorrow's session when one has been planned, the next week when one has been planned, and the next block when one has been planned.",
   `The revision request lists the levels that need to change. Return every level in the contract, so the saved plan always has a coherent season, block, week and day:
-- Keep the season, block, week, today, tomorrow, next week and next block exactly as supplied unless the request names them. Keep a level that is null and not requested as null.
+- Keep the season, block, week, today, tomorrow, next week and next block exactly as supplied unless the request names them, except for "dietProgress": always refresh the diet progress target on every level you return from the latest measurements. Only the "dietProgress" objects change when the request refreshes progress without revising the training. Keep a level that is null and not requested as null.
 - When the current block is revised, return the revised block, a revised current week that fits it, and today's detailed session. Keep the current block's start date when the request says to keep it; otherwise start the new block on the supplied block start date. When a completed week review or its answer is supplied, use that feedback to adjust the block's progression. Update the season block summaries only when the revised block changes them.
 - When the season is refreshed, keep the blocks that ended before today exactly as supplied, keep the current block's existing start date, re-plan the rest of the season from the current block, and return the detailed current block.
 - When the current week is revised, change the remaining sessions so the week stays coherent with the block's focus and the athlete's current fatigue. Keep every week session, including today and tomorrow, as a short outline, with the detailed prescription only in the "today" and "tomorrow" day objects. If only today's session is revised, update today's week outline while keeping the rest of the week as supplied.
@@ -222,13 +224,13 @@ function revisionInstructions(input: PlanUpdateInput): string[] {
     );
   } else {
     lines.push(
-      "- Keep the current block and the season block summaries unchanged.",
+      '- Keep the current block and the season block summaries\' training content unchanged, apart from refreshing their "dietProgress" targets.',
     );
   }
   lines.push(
     input.revision.week
       ? '- Revise the current week and return it in "week".'
-      : "- Keep the current week unchanged, apart from today's session if it is revised.",
+      : "- Keep the current week's training content unchanged, apart from today's session if it is revised and its \"dietProgress\" target.",
   );
   lines.push(
     input.revision.day
@@ -243,13 +245,18 @@ function revisionInstructions(input: PlanUpdateInput): string[] {
   lines.push(
     input.revision.nextWeek
       ? `- Create the next week starting on ${input.nextWeekStartDate ?? startOfWeek(addDays(input.today, 1))} and return it in "nextWeek".`
-      : "- Keep the next week as supplied, or null when there is none.",
+      : '- Keep the next week\'s training content as supplied, apart from its "dietProgress" target, or null when there is none.',
   );
   lines.push(
     input.revision.nextBlock
       ? `- Create the next block starting on ${input.nextBlockStartDate ?? input.block.endDate} and return it in "nextBlock".`
-      : "- Keep the next block as supplied, or null when there is none.",
+      : '- Keep the next block\'s training content as supplied, apart from its "dietProgress" target, or null when there is none.',
   );
+  if (input.revision.progress) {
+    lines.push(
+      '- Refresh the diet progress target on every level you return from the latest measurements. Change only the "dietProgress" objects; keep the dates, sessions, names, focus, rationale and every other field of a level the revision does not otherwise change.',
+    );
+  }
   return lines;
 }
 

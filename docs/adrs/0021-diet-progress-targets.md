@@ -67,7 +67,10 @@ distinct because it has a different dash pattern, markers, and a legend entry.
 - A target can go stale between a weight measurement and the next refresh of a
   level. The daily update re-plans the week, the weekly update re-plans the
   block, and a season refresh re-plans the season; the latest weight is in every
-  plan prompt.
+  plan prompt. A plan with a stated goal but a missing current or future target
+  is reported as `pending.dietProgress`, and the next visit makes a progress-only
+  update that changes only the targets. A full build makes the same progress-only
+  update when its finished draft is incomplete.
 - The Diet page's default-goal note is driven by `goalProvided`, with an exact
   default-wording fallback for plans stored before the flag existed.
 - The Body chart's season view is client-side, so other charts keep their

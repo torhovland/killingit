@@ -1,6 +1,7 @@
 import {
   coachPlanSchema,
   dailyPlanUpdateSchema,
+  isDefaultDietGoal,
   weeklyPlanUpdateSchema,
   type CoachPlan,
   type DailyPlanUpdate,
@@ -8,6 +9,7 @@ import {
 } from "@killingit/shared";
 import type { z } from "zod";
 import { addDays, startOfWeek, weekDates } from "../plans/dates.js";
+import { missingDietProgressTargets } from "../plans/dietProgress.js";
 import type { LlmProvider } from "./openrouter.js";
 import { completePlanJson } from "./planCompletion.js";
 import { PLAN_MAX_TOKENS } from "./planBudget.js";
@@ -75,6 +77,87 @@ function withPlausibleCalories<T extends CalorieBearingPlan>(
   );
 }
 
+/**
+ * Rejects a plan that has a stated diet goal but leaves a current or future
+ * period without a progress target. The repair turn asks for the missing
+ * `dietProgress` objects instead of letting the coach store a plan whose
+ * Season, Block or Week view silently has no target.
+ */
+function withRequiredDietProgress<T extends CoachPlan>(
+  schema: z.ZodType<T>,
+  input: PlanUpdateInput,
+): z.ZodType<T> {
+  return schema.superRefine((value, ctx) => {
+    if (input.dietAdvice !== true) {
+      return;
+    }
+    if (input.dietGoal == null && value.diet == null) {
+      ctx.addIssue({
+        code: "custom",
+        message:
+          'Missing the diet goal. Return "diet" with "goal", "goalProvided" and "assessment".',
+        path: ["diet"],
+      });
+      return;
+    }
+    const goalProvided =
+      value.diet?.goalProvided ??
+      (input.dietGoal == null
+        ? undefined
+        : (input.dietGoal.goalProvided ??
+          !isDefaultDietGoal(input.dietGoal.goal)));
+    if (goalProvided !== true) {
+      return;
+    }
+    for (const label of missingDietProgressTargets(value, input.today)) {
+      ctx.addIssue({
+        code: "custom",
+        message: `Missing the diet progress target for ${label}. Return a "dietProgress" object with "targetWeightKg", "targetBodyFatPercent" and "note".`,
+      });
+    }
+  });
+}
+
+/**
+ * Rejects a daily update that has a stated diet goal but no target for the
+ * week it returns. The weekly target is the day-level plan's only progress
+ * field, so the repair turn can fill it before the block and season targets are
+ * refreshed.
+ */
+function withRequiredWeekDietProgress<T extends DailyPlanUpdate>(
+  schema: z.ZodType<T>,
+  input: DailyUpdateInput,
+): z.ZodType<T> {
+  return schema.superRefine((value, ctx) => {
+    if (input.dietAdvice !== true) {
+      return;
+    }
+    if (value.diet == null) {
+      ctx.addIssue({
+        code: "custom",
+        message:
+          'Missing the diet goal. Return "diet" with "goal", "goalProvided" and "assessment".',
+        path: ["diet"],
+      });
+      return;
+    }
+    const goalProvided =
+      value.diet.goalProvided ??
+      (input.dietGoal == null
+        ? undefined
+        : (input.dietGoal.goalProvided ??
+          !isDefaultDietGoal(input.dietGoal.goal)));
+    if (goalProvided === true && value.week.dietProgress == null) {
+      ctx.addIssue({
+        code: "custom",
+        message:
+          'Missing the diet progress target for the current week. Return a "dietProgress" object with "targetWeightKg", "targetBodyFatPercent" and "note".',
+        path: ["week", "dietProgress"],
+      });
+    }
+  });
+}
+
 function weekDateHint(startDate: string): string {
   const dates = weekDates(startDate);
   return `The week must start on ${startDate} and contain exactly seven sessions dated ${dates.join(", ")} (${dates[0]} through ${dates[6]}).`;
@@ -99,38 +182,38 @@ export async function generatePlanUpdate(
   const nextWeekStart = input.revision.nextWeek
     ? startOfWeek(addDays(input.today, 1))
     : null;
-  const schema = withWeekDates(
-    withPlausibleCalories(coachPlanSchema),
-    weekStart,
-  )
-    .refine(
-      (value) =>
-        nextWeekStart === null ||
-        value.nextWeek === null ||
-        hasWeekDates(value.nextWeek, nextWeekStart),
-      {
-        message:
-          nextWeekStart === null
-            ? "The next week must start on a Monday"
-            : `The next week must start on ${nextWeekStart} and contain exactly seven sessions dated ${weekDates(nextWeekStart).join(", ")}`,
-        path: ["nextWeek", "sessions"],
-      },
-    )
-    .refine(
-      (value) =>
-        value.tomorrow === null ||
-        value.week.sessions.some(
-          (session) => session.date === value.tomorrow?.date,
-        ) ||
-        value.nextWeek?.sessions.some(
-          (session) => session.date === value.tomorrow?.date,
-        ) === true,
-      {
-        message:
-          "Tomorrow's session must be one of the current week's or the next week's sessions",
-        path: ["tomorrow", "date"],
-      },
-    );
+  const schema = withRequiredDietProgress(
+    withWeekDates(withPlausibleCalories(coachPlanSchema), weekStart)
+      .refine(
+        (value) =>
+          nextWeekStart === null ||
+          value.nextWeek === null ||
+          hasWeekDates(value.nextWeek, nextWeekStart),
+        {
+          message:
+            nextWeekStart === null
+              ? "The next week must start on a Monday"
+              : `The next week must start on ${nextWeekStart} and contain exactly seven sessions dated ${weekDates(nextWeekStart).join(", ")}`,
+          path: ["nextWeek", "sessions"],
+        },
+      )
+      .refine(
+        (value) =>
+          value.tomorrow === null ||
+          value.week.sessions.some(
+            (session) => session.date === value.tomorrow?.date,
+          ) ||
+          value.nextWeek?.sessions.some(
+            (session) => session.date === value.tomorrow?.date,
+          ) === true,
+        {
+          message:
+            "Tomorrow's session must be one of the current week's or the next week's sessions",
+          path: ["tomorrow", "date"],
+        },
+      ),
+    input,
+  );
   return completePlanJson(
     schema,
     provider,
@@ -138,7 +221,7 @@ export async function generatePlanUpdate(
     buildPlanUpdateMessages(input),
     PLAN_MAX_TOKENS,
     {
-      repairHint: `${dailyDateHint(input.today, weekStart)} Tomorrow is ${addDays(input.today, 1)}; tomorrow's session must be in the current week or the next week${nextWeekStart === null ? "." : `, and the next week must start on ${nextWeekStart}.`}`,
+      repairHint: `${dailyDateHint(input.today, weekStart)} Tomorrow is ${addDays(input.today, 1)}; tomorrow's session must be in the current week or the next week${nextWeekStart === null ? "." : `, and the next week must start on ${nextWeekStart}.`} When diet advice is on and no stored goal exists, return "diet" with "goal", "goalProvided" and "assessment". When the athlete stated a diet goal, every current and future period must carry a "dietProgress" object with "targetWeightKg", "targetBodyFatPercent" and "note".`,
       kind: "plan_update",
     },
   );
@@ -152,13 +235,19 @@ export async function generateDailyUpdate(
 ): Promise<DailyPlanUpdate> {
   const weekStartDate = startOfWeek(input.today);
   return completePlanJson(
-    withWeekDates(withPlausibleCalories(dailyPlanUpdateSchema), weekStartDate),
+    withRequiredWeekDietProgress(
+      withWeekDates(
+        withPlausibleCalories(dailyPlanUpdateSchema),
+        weekStartDate,
+      ),
+      input,
+    ),
     provider,
     credentials,
     buildDailyUpdateMessages(input),
     PLAN_MAX_TOKENS,
     {
-      repairHint: dailyDateHint(input.today, weekStartDate),
+      repairHint: `${dailyDateHint(input.today, weekStartDate)} When diet advice is on, return "diet" with "goal", "goalProvided" and "assessment". When the athlete stated a diet goal, the week must carry a "dietProgress" object with "targetWeightKg", "targetBodyFatPercent" and "note".`,
       kind: "daily_update",
     },
   );

@@ -332,6 +332,7 @@ describe("coachPlanResponseSchema", () => {
         tomorrow: true,
         nextWeek: true,
         nextBlock: true,
+        dietProgress: false,
       },
     });
     expect(parsed.plan).toBeNull();

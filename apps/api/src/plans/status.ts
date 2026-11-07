@@ -1,6 +1,7 @@
 import type { CoachPlan, PlanPending } from "@killingit/shared";
 import { calorieEstimateProblems } from "./calorieEstimates.js";
 import { addDays } from "./dates.js";
+import { dietProgressPending } from "./dietProgress.js";
 import { blockFor, weekFor } from "./periods.js";
 
 /**
@@ -19,6 +20,7 @@ export function planPending(
   includeTomorrow = false,
   weatherChanged = false,
   weekReviewPending = false,
+  dietAdvice = false,
 ): PlanPending {
   if (!plan) {
     return {
@@ -29,6 +31,7 @@ export function planPending(
       tomorrow: true,
       nextWeek: true,
       nextBlock: true,
+      dietProgress: false,
     };
   }
 
@@ -70,6 +73,7 @@ export function planPending(
         )),
     nextWeek: includeTomorrow && tomorrowWeek === null,
     nextBlock: includeTomorrow && tomorrowBlock === null,
+    dietProgress: dietProgressPending(plan, dietAdvice, today),
   };
 }
 

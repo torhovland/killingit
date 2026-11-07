@@ -165,6 +165,7 @@ function updateInput(
       tomorrow: false,
       nextWeek: false,
       nextBlock: false,
+      progress: false,
     },
     ...overrides,
   };
@@ -477,6 +478,23 @@ describe("daily update prompts", () => {
     expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain("long outdoor sessions");
     expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain("weekend");
     expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain("dry");
+  });
+
+  it("refreshes diet progress without changing the training", () => {
+    const prompt = buildPlanUpdatePrompt(
+      updateInput({
+        revision: { ...updateInput().revision, progress: true },
+      }),
+    );
+
+    expect(prompt).toContain(
+      "Refresh the diet progress target on every level you return from the latest measurements.",
+    );
+    expect(prompt).toContain('Change only the "dietProgress" objects');
+    expect(prompt).toContain(
+      'apart from refreshing their "dietProgress" targets',
+    );
+    expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain('except for "dietProgress"');
   });
 
   it("asks every update prompt for diet progress targets", () => {

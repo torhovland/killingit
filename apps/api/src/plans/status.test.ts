@@ -85,6 +85,7 @@ describe("planPending", () => {
       tomorrow: true,
       nextWeek: true,
       nextBlock: true,
+      dietProgress: false,
     });
   });
 
@@ -97,6 +98,7 @@ describe("planPending", () => {
       tomorrow: false,
       nextWeek: false,
       nextBlock: false,
+      dietProgress: false,
     });
   });
 
@@ -119,6 +121,7 @@ describe("planPending", () => {
       tomorrow: false,
       nextWeek: false,
       nextBlock: false,
+      dietProgress: false,
     });
   });
 
@@ -131,6 +134,7 @@ describe("planPending", () => {
       tomorrow: true,
       nextWeek: false,
       nextBlock: false,
+      dietProgress: false,
     });
   });
 
@@ -162,6 +166,7 @@ describe("planPending", () => {
       tomorrow: false,
       nextWeek: false,
       nextBlock: false,
+      dietProgress: false,
     });
     expect(planPending(makePlan(), "2026-10-26")).toEqual({
       initial: false,
@@ -171,6 +176,7 @@ describe("planPending", () => {
       tomorrow: false,
       nextWeek: false,
       nextBlock: false,
+      dietProgress: false,
     });
   });
 
@@ -209,6 +215,7 @@ describe("planPending", () => {
       tomorrow: false,
       nextWeek: false,
       nextBlock: false,
+      dietProgress: false,
     });
   });
 
@@ -225,7 +232,81 @@ describe("planPending", () => {
       tomorrow: true,
       nextWeek: true,
       nextBlock: true,
+      dietProgress: false,
     });
+  });
+
+  it("marks diet progress pending when a future period is missing a target", () => {
+    const plan = makePlan();
+    plan.diet = {
+      goal: "Lose 3 kg by March",
+      goalProvided: true,
+      assessment: "On target.",
+    };
+    plan.week = {
+      ...plan.week,
+      dietProgress: {
+        targetWeightKg: 80,
+        targetBodyFatPercent: 20,
+        note: "Hold this week.",
+      },
+    };
+
+    expect(
+      planPending(plan, "2026-10-21", false, false, false, true).dietProgress,
+    ).toBe(true);
+  });
+
+  it("does not mark diet progress pending when every future period has a target", () => {
+    const progress = {
+      targetWeightKg: 80,
+      targetBodyFatPercent: 20,
+      note: "On target.",
+    };
+    const plan = makePlan();
+    plan.diet = {
+      goal: "Lose 3 kg by March",
+      goalProvided: true,
+      assessment: "On target.",
+    };
+    plan.season = { ...plan.season, dietProgress: progress };
+    plan.season.blocks = plan.season.blocks.map((block) => ({
+      ...block,
+      dietProgress: progress,
+    }));
+    plan.block = { ...plan.block, dietProgress: progress };
+    plan.block.weeks = plan.block.weeks.map((week) => ({
+      ...week,
+      dietProgress: progress,
+    }));
+    plan.week = { ...plan.week, dietProgress: progress };
+
+    expect(
+      planPending(plan, "2026-10-21", false, false, false, true).dietProgress,
+    ).toBe(false);
+  });
+
+  it("requests one progress refresh for an older plan with no stored goal", () => {
+    expect(
+      planPending(makePlan(), "2026-10-21", false, false, false, true)
+        .dietProgress,
+    ).toBe(true);
+  });
+
+  it("ignores diet progress without diet advice or a stated goal", () => {
+    const plan = makePlan();
+    plan.diet = {
+      goal: "Maintain current weight",
+      goalProvided: false,
+      assessment: "Holding.",
+    };
+
+    expect(
+      planPending(plan, "2026-10-21", false, false, false, true).dietProgress,
+    ).toBe(false);
+    expect(
+      planPending(plan, "2026-10-21", false, false, false, false).dietProgress,
+    ).toBe(false);
   });
 
   it("does not mark next periods when they already cover tomorrow", () => {
@@ -266,6 +347,7 @@ describe("planPending", () => {
       tomorrow: false,
       nextWeek: false,
       nextBlock: false,
+      dietProgress: false,
     });
   });
 });

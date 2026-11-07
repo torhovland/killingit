@@ -82,6 +82,14 @@ it: the season, first block, week, day, and unified update prompts.
 - The coach bases the targets on the tracked weight and body-fat history and the
   athlete's stated goal, and re-plans the requested levels when a new measurement
   is ahead of or behind the earlier target.
+- A plan update always refreshes the targets on every level it returns, even
+  when the revision keeps that level's training unchanged. The API merges only
+  the `dietProgress` fields, so sessions, dates, focus and rationale stay as
+  supplied.
+- When a stated goal has a current or future period without a target,
+  `GET /api/coaching/plan` reports `pending.dietProgress`. The client then makes
+  a progress-only update, and a full build makes one after the daily step when
+  the finished draft is incomplete.
 - The plan context renders the stored targets in the season, block, and week
   summaries, so a later prompt can revise or keep them rather than inventing a
   competing plan.

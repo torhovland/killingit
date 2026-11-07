@@ -309,6 +309,9 @@ describe("DIET_PROGRESS_RULES", () => {
       "ahead of or behind an earlier target",
     );
     expect(DIET_PROGRESS_RULES).toContain(
+      "A plan update always refreshes the targets on every level it returns",
+    );
+    expect(DIET_PROGRESS_RULES).toContain(
       "the app never calculates a deficit, a rate of change, or a target",
     );
   });
