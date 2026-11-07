@@ -22,6 +22,7 @@ describe("aggregateLlmCosts", () => {
       [
         {
           createdAt: new Date("2026-11-01T10:00:00Z"),
+          kind: "season_plan",
           model: "~openai/alias",
           usage: {
             promptTokens: 100,
@@ -33,6 +34,7 @@ describe("aggregateLlmCosts", () => {
         },
         {
           createdAt: new Date("2026-11-01T18:00:00Z"),
+          kind: "daily_update",
           model: "openai/gpt",
           usage: {
             promptTokens: 50,
@@ -44,6 +46,7 @@ describe("aggregateLlmCosts", () => {
         },
         {
           createdAt: new Date("2026-10-31T23:59:00Z"),
+          kind: "season_plan",
           model: "anthropic/claude",
           usage: {
             promptTokens: 10,
@@ -62,6 +65,7 @@ describe("aggregateLlmCosts", () => {
         bucket: "2026-10",
         model: "anthropic/claude",
         label: "Claude",
+        kind: "season_plan",
         costUsd: 0.05,
         calls: 1,
       },
@@ -69,8 +73,17 @@ describe("aggregateLlmCosts", () => {
         bucket: "2026-11",
         model: "openai/gpt",
         label: "GPT",
-        costUsd: 0.35,
-        calls: 2,
+        kind: "daily_update",
+        costUsd: 0.1,
+        calls: 1,
+      },
+      {
+        bucket: "2026-11",
+        model: "openai/gpt",
+        label: "GPT",
+        kind: "season_plan",
+        costUsd: 0.25,
+        calls: 1,
       },
     ]);
     expect(costs.daily).toEqual([
@@ -78,6 +91,7 @@ describe("aggregateLlmCosts", () => {
         bucket: "2026-10-31",
         model: "anthropic/claude",
         label: "Claude",
+        kind: "season_plan",
         costUsd: 0.05,
         calls: 1,
       },
@@ -85,8 +99,17 @@ describe("aggregateLlmCosts", () => {
         bucket: "2026-11-01",
         model: "openai/gpt",
         label: "GPT",
-        costUsd: 0.35,
-        calls: 2,
+        kind: "daily_update",
+        costUsd: 0.1,
+        calls: 1,
+      },
+      {
+        bucket: "2026-11-01",
+        model: "openai/gpt",
+        label: "GPT",
+        kind: "season_plan",
+        costUsd: 0.25,
+        calls: 1,
       },
     ]);
   });
@@ -96,6 +119,7 @@ describe("aggregateLlmCosts", () => {
       [
         {
           createdAt: new Date("2026-11-02T08:00:00Z"),
+          kind: "activity_analysis",
           model: "openai/gpt",
           usage: {
             promptTokens: 1_000_000,
@@ -117,12 +141,14 @@ describe("aggregateLlmCosts", () => {
       [
         {
           createdAt: new Date("2026-11-02T08:00:00Z"),
+          kind: "coach_reply",
           model: "anthropic/claude",
           usage: null,
           metadata: {},
         },
         {
           createdAt: new Date("2026-11-02T09:00:00Z"),
+          kind: "food_analysis",
           model: "removed/gone",
           usage: {
             promptTokens: 1_000,
@@ -140,6 +166,7 @@ describe("aggregateLlmCosts", () => {
         bucket: "2026-11",
         model: "anthropic/claude",
         label: "Claude",
+        kind: "coach_reply",
         costUsd: 0,
         calls: 1,
       },
@@ -147,6 +174,7 @@ describe("aggregateLlmCosts", () => {
         bucket: "2026-11",
         model: "removed/from-catalog",
         label: "removed/from-catalog",
+        kind: "food_analysis",
         costUsd: 0,
         calls: 1,
       },
