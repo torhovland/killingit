@@ -30,6 +30,8 @@ export async function analyzeFood(
     input.photoDataUrl !== undefined &&
     input.photoDataUrl !== null &&
     input.photoDataUrl !== "";
+  const hasDescription =
+    input.description !== null && input.description.trim() !== "";
 
   let text: string;
   try {
@@ -42,7 +44,10 @@ export async function analyzeFood(
       { kind: "food_analysis", metadata: { withPhoto: hasPhoto } },
     );
   } catch (err) {
-    if (!hasPhoto || isLlmAbortError(err)) {
+    // Retrying without the photo only helps when there is text to analyse. A
+    // photo-only meal has nothing left to describe, and asking the model to
+    // guess would invent a meal.
+    if (!hasPhoto || !hasDescription || isLlmAbortError(err)) {
       throw err;
     }
     // Some models or routes reject image content. The athlete's description is

@@ -475,7 +475,10 @@ export function formatDietContext(
 }
 
 function formatDietMeal(meal: DietMealContext): string {
-  const athlete = `Athlete: "${oneLine(meal.description)}"`;
+  const athlete =
+    meal.description === null || meal.description.trim() === ""
+      ? "Athlete: (no description; photo only)"
+      : `Athlete: "${oneLine(meal.description)}"`;
   if (meal.analysis === null) {
     const why =
       meal.analysisError !== null && meal.analysisError.trim() !== ""

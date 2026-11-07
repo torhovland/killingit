@@ -1,6 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import type { FoodAnalysis } from "@killingit/shared";
 import { createApp } from "../index.js";
+import type { FoodAnalysisInput } from "../llm/foodPrompt.js";
+import type { createMealThumbnail } from "../diet/thumbnail.js";
 import type { LlmClient } from "../llm/client.js";
 import type { PlanContextInput } from "../llm/planContext.js";
 import type { LlmProvider } from "../llm/openrouter.js";
@@ -57,7 +59,7 @@ class MemoryFoodStore implements FoodEntryStore {
   photo(userId: number, id: number): Promise<string | null> {
     return Promise.resolve(
       this.rows.find((row) => row.userId === userId && row.entry.id === id)
-        ?.entry.photoDataUrl ?? null,
+        ?.entry.thumbnailDataUrl ?? null,
     );
   }
 }
@@ -99,6 +101,7 @@ function makeApp(
     store?: MemoryFoodStore;
     llm?: LlmClient | null;
     analyze?: NonNullable<Parameters<typeof createApp>[0]>["analyzeFood"];
+    createThumbnail?: typeof createMealThumbnail;
   } = {},
 ) {
   const store = options.store ?? new MemoryFoodStore();
@@ -120,6 +123,8 @@ function makeApp(
     loadLlm: () => Promise.resolve(llm),
     loadFoodContext: () => Promise.resolve(context),
     analyzeFood,
+    createMealThumbnail:
+      options.createThumbnail ?? (() => Promise.resolve(generatedThumbnail)),
   });
   return { app, store };
 }
@@ -152,6 +157,11 @@ const body = {
   description: "A cheese sandwich",
 };
 
+// Different bytes so a test can prove which image was stored and served.
+const fullPhoto = "data:image/jpeg;base64,QUJD";
+// What the injected thumbnail generator returns. Its bytes are [1, 2, 3].
+const generatedThumbnail = "data:image/jpeg;base64,AQID";
+
 describe("POST /api/diet/entries", () => {
   it("refuses to log a meal when diet advice is off", async () => {
     const { app } = makeApp({ dietAdvice: false });
@@ -182,6 +192,69 @@ describe("POST /api/diet/entries", () => {
       eatenDate: "2026-11-07",
       eatenTime: "23:30",
     });
+  });
+
+  it("logs a photo alone and sends the full image to the coach", async () => {
+    const seen: FoodAnalysisInput[] = [];
+    const { app, store } = makeApp({
+      analyze: (_provider, _credentials, input) => {
+        seen.push(input);
+        return Promise.resolve({ analysis, model: "test/model" });
+      },
+    });
+
+    const res = await request(app, "/api/diet/entries", {
+      method: "POST",
+      body: JSON.stringify({
+        eatenAt: body.eatenAt,
+        timezone: body.timezone,
+        today: body.today,
+        photoDataUrl: fullPhoto,
+      }),
+    });
+
+    expect(res.status).toBe(201);
+    const entry = (await res.json()) as {
+      description: string | null;
+      hasPhoto: boolean;
+    };
+    expect(entry.description).toBeNull();
+    expect(entry.hasPhoto).toBe(true);
+    expect(seen[0]?.description).toBeNull();
+    // The coach sees the full photo; the API stores its own thumbnail.
+    expect(seen[0]?.photoDataUrl).toBe(fullPhoto);
+    expect(store.rows[0]?.entry.thumbnailDataUrl).toBe(generatedThumbnail);
+  });
+
+  it("keeps the meal out of the log when the photo cannot be read", async () => {
+    const { app, store } = makeApp({
+      createThumbnail: () => Promise.reject(new Error("unsupported image")),
+    });
+    const res = await request(app, "/api/diet/entries", {
+      method: "POST",
+      body: JSON.stringify({
+        eatenAt: body.eatenAt,
+        timezone: body.timezone,
+        description: "A cheese sandwich",
+        photoDataUrl: fullPhoto,
+      }),
+    });
+
+    expect(res.status).toBe(400);
+    expect(store.rows).toHaveLength(0);
+  });
+
+  it("rejects a meal with neither a description nor a photo", async () => {
+    const { app } = makeApp();
+    const res = await request(app, "/api/diet/entries", {
+      method: "POST",
+      body: JSON.stringify({
+        eatenAt: body.eatenAt,
+        timezone: body.timezone,
+      }),
+    });
+
+    expect(res.status).toBe(400);
   });
 
   it("keeps the meal when the coach cannot analyse it", async () => {
@@ -223,7 +296,7 @@ describe("GET /api/diet/entries", () => {
       method: "POST",
       body: JSON.stringify({
         ...body,
-        photoDataUrl: "data:image/jpeg;base64,AQID",
+        photoDataUrl: fullPhoto,
       }),
     });
 
@@ -239,13 +312,13 @@ describe("GET /api/diet/entries", () => {
 });
 
 describe("GET /api/diet/entries/:id/photo", () => {
-  it("serves the stored photo to its owner", async () => {
+  it("serves the API-generated thumbnail to its owner", async () => {
     const { app } = makeApp();
     const created = await request(app, "/api/diet/entries", {
       method: "POST",
       body: JSON.stringify({
         ...body,
-        photoDataUrl: "data:image/jpeg;base64,AQID",
+        photoDataUrl: fullPhoto,
       }),
     });
     const entry = (await created.json()) as { id: number };
@@ -253,6 +326,7 @@ describe("GET /api/diet/entries/:id/photo", () => {
     const res = await request(app, `/api/diet/entries/${entry.id}/photo`);
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("image/jpeg");
+    // The thumbnail's bytes, not the full photo's "ABC".
     expect([...new Uint8Array(await res.arrayBuffer())]).toEqual([1, 2, 3]);
   });
 

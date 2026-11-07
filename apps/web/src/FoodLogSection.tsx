@@ -58,7 +58,11 @@ export function FoodLogSection({ enabled }: { enabled: boolean }) {
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!description.trim() || submitting || preparingPhoto) {
+    if (
+      (!description.trim() && photoDataUrl === null) ||
+      submitting ||
+      preparingPhoto
+    ) {
       return;
     }
     setSubmitting(true);
@@ -77,7 +81,7 @@ export function FoodLogSection({ enabled }: { enabled: boolean }) {
             eatenAt: wallClockToIso(eatenAt, timeZone),
             timezone: timeZone,
             today,
-            description: description.trim(),
+            description: description.trim() || null,
             photoDataUrl,
           }),
         },
@@ -109,8 +113,8 @@ export function FoodLogSection({ enabled }: { enabled: boolean }) {
       <div className="flex flex-col gap-1">
         <h2 className="text-2xl font-semibold">Log a meal</h2>
         <p className="text-base text-muted-foreground">
-          Describe what you ate and your coach will estimate the carbs and
-          macros and tell you how it fits your diet.
+          Describe what you ate, or just add a photo, and your coach will
+          estimate the carbs and macros and tell you how it fits your diet.
         </p>
       </div>
 
@@ -119,7 +123,7 @@ export function FoodLogSection({ enabled }: { enabled: boolean }) {
         onSubmit={(event) => void submit(event)}
       >
         <label className="flex flex-col gap-1 text-base font-medium">
-          What did you eat?
+          What did you eat? (optional with a photo)
           <textarea
             className="w-full rounded border bg-card p-2 text-base font-normal"
             rows={2}
@@ -227,7 +231,9 @@ export function FoodLogSection({ enabled }: { enabled: boolean }) {
         <SubmitButton
           busy={submitting}
           className="self-start rounded border border-transparent bg-primary px-3 py-1 text-base text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
-          disabled={!description.trim() || preparingPhoto}
+          disabled={
+            (!description.trim() && photoDataUrl === null) || preparingPhoto
+          }
         >
           {submitting ? "Coach is thinking…" : "Log meal"}
         </SubmitButton>

@@ -3,10 +3,10 @@
 ## Goal
 
 Let an athlete who wants diet advice log a meal by describing it in their own
-words, optionally attaching a photo, and get a coach response that describes the
-meal, estimates its carbohydrate and macronutrient content, and comments on how
-the meal fits the athlete's diet and training goals. The athlete can also give
-the meal time; by default it is the current local date and time.
+words, by attaching a photo, or both, and get a coach response that describes
+the meal, estimates its carbohydrate and macronutrient content, and comments on
+how the meal fits the athlete's diet and training goals. The athlete can also
+give the meal time; by default it is the current local date and time.
 
 Every coach prompt sees the meals from the last seven days and a weekly
 nutrition summary of completed weeks going back at most one year.
@@ -14,8 +14,8 @@ nutrition summary of completed weeks going back at most one year.
 ## Scope
 
 - A new `food_entries` table stores one logged meal per row: the athlete's
-  description, the meal instant in the athlete's local day and clock time, the
-  optional photo, and the coach's structured analysis.
+  optional description, the meal instant in the athlete's local day and clock
+  time, the stored photo thumbnail, and the coach's structured analysis.
 - The main dashboard shows a food log form at the top, but only when the athlete
   has enabled diet advice in Settings.
 - A new **Diet** page lists every logged meal with its coach response and a
@@ -37,19 +37,19 @@ nutrition summary of completed weeks going back at most one year.
 
 `food_entries`:
 
-| Column                     | Notes                                               |
-| -------------------------- | --------------------------------------------------- |
-| `id`                       | Primary key.                                        |
-| `user_id`                  | Account owner, cascades on account deletion.        |
-| `eaten_at`                 | The meal instant, `timestamptz`.                    |
-| `eaten_date`               | The athlete's local calendar date, `YYYY-MM-DD`.    |
-| `eaten_time`               | The athlete's local clock time, `HH:MM`.            |
-| `description`              | The athlete's own description (1–2,000 characters). |
-| `photo_data_url`           | Optional JPEG/PNG/WebP data URL.                    |
-| `analysis`                 | The coach's structured analysis, or null.           |
-| `model`                    | The model that produced the analysis.               |
-| `analysis_error`           | Why the analysis could not be produced, or null.    |
-| `created_at`, `updated_at` | Timestamps.                                         |
+| Column                     | Notes                                                                           |
+| -------------------------- | ------------------------------------------------------------------------------- |
+| `id`                       | Primary key.                                                                    |
+| `user_id`                  | Account owner, cascades on account deletion.                                    |
+| `eaten_at`                 | The meal instant, `timestamptz`.                                                |
+| `eaten_date`               | The athlete's local calendar date, `YYYY-MM-DD`.                                |
+| `eaten_time`               | The athlete's local clock time, `HH:MM`.                                        |
+| `description`              | The athlete's description (up to 2,000 characters); null for a photo-only meal. |
+| `photo_data_url`           | The optional JPEG/PNG/WebP thumbnail shown in the food log.                     |
+| `analysis`                 | The coach's structured analysis, or null.                                       |
+| `model`                    | The model that produced the analysis.                                           |
+| `analysis_error`           | Why the analysis could not be produced, or null.                                |
+| `created_at`, `updated_at` | Timestamps.                                                                     |
 
 The local date and time are stored at write time so prompt summaries and the
 review page do not depend on the server's time zone, and because the athlete's
@@ -101,10 +101,18 @@ food log.
 
 ## Notes
 
-- The opt-in is the `users.diet_advice` setting, saved from Settings. It is the
-  only reliable signal; free-text survey answers are not parsed for intent.
-- Photos are compressed in the browser before upload and fetched with the
-  bearer token from a separate endpoint, so the list response never carries
-  image bytes and the images are not publicly readable.
+- The `users.diet_advice` checkbox is the only switch for every diet feature:
+  the dashboard form, the Diet page, meal logging, and the food log in prompts.
+  No survey answer or other athlete input enables them. A survey question may
+  still capture diet goals and a current measurement; that answer is coaching
+  context like any other survey answer, not a switch.
+- The full-size photo is re-encoded in the browser (up to 4096 px on the long
+  edge, which keeps normal phone photos intact and strips EXIF metadata) and
+  sent to the API. The API sends that image to the coach and uses Jimp, a pure
+  JavaScript decoder, to derive the stored 320 px thumbnail from the same bytes.
+  The full photo is never stored. The thumbnail is served, with the bearer token, from a separate
+  endpoint, so the list response never carries image bytes and the thumbnail is
+  not publicly readable.
 - A model without vision support is retried once without the photo, so a text
-  description still gets an analysis.
+  description still gets an analysis. A photo-only meal whose model cannot read
+  images keeps the meal and records the analysis error.
