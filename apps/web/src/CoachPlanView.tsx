@@ -7,6 +7,7 @@ import {
   formatEventDates,
   formatThresholdValue,
   hasExportableBikeWorkout,
+  plausibleCaloriesKcal,
   sessionSports,
   type AthleteEvent,
   type BlockPlan,
@@ -293,6 +294,8 @@ function DayCard({
   showCalories?: boolean;
 }) {
   const relevantThresholds = dayThresholds(day, thresholds);
+  const dayCalories = plausibleCaloriesKcal(day.estimatedCaloriesKcal);
+  const neededCalories = dietToday?.neededCaloriesKcal ?? dayCalories;
   return (
     <article
       className="relative flex flex-col gap-2 rounded-lg border bg-inset p-4"
@@ -331,17 +334,15 @@ function DayCard({
         <p className="text-lg font-medium">{day.title}</p>
         {showCalories && dietToday !== undefined ? (
           <CalorieBalancePanel
-            neededKcal={
-              dietToday?.neededCaloriesKcal ?? day.estimatedCaloriesKcal ?? null
-            }
+            neededKcal={neededCalories}
             consumedKcal={dietToday?.consumedCaloriesKcal ?? null}
             title="Calories today"
             testId={`${testId}-calories`}
           />
-        ) : showCalories && day.estimatedCaloriesKcal !== undefined ? (
+        ) : showCalories && dayCalories !== null ? (
           <p className="text-base" data-testid={`${testId}-calories`}>
             <span className="font-medium">Estimated calories: </span>
-            {day.estimatedCaloriesKcal} kcal
+            {dayCalories} kcal
           </p>
         ) : null}
         {day.trainingLoad !== null && day.trainingLoad !== undefined && (
@@ -548,9 +549,11 @@ function WeekSection({
                 )}
                 <StatusBadge status={session.status} />
                 {showCalories &&
-                  session.estimatedCaloriesKcal !== undefined && (
+                  plausibleCaloriesKcal(session.estimatedCaloriesKcal) !==
+                    null && (
                     <span data-testid="week-session-calories">
-                      {session.estimatedCaloriesKcal} kcal needed
+                      {plausibleCaloriesKcal(session.estimatedCaloriesKcal)}{" "}
+                      kcal needed
                     </span>
                   )}
               </span>

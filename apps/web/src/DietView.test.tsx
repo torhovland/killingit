@@ -61,6 +61,7 @@ describe("DietView", () => {
   it("puts the coach's goal and assessment at the top", () => {
     const html = render();
     expect(html).toContain('data-testid="diet-goal"');
+    expect(html).toContain("Goal:");
     expect(html).toContain("Lose 3 kg by March");
     expect(html).toContain("The tracked weight is coming down steadily");
   });

@@ -71,8 +71,12 @@ balanceKcal, entries }] }`. `balanceKcal` is consumed minus needed, so a
   logged calories against its earlier targets. The app never computes a deficit
   or a rate of loss.
 - The coach sets `estimatedCaloriesKcal` on every week session and on the today
-  and tomorrow day objects. A hard training day is higher than a rest day, and
-  the number is an estimate rather than a measurement.
+  and tomorrow day objects. The value is the whole day's total intake — food and
+  drink — never a deficit, a surplus, or the calories burned in training. A hard
+  training day is higher than a rest day, and the coach sanity-checks the number
+  against body weight. The app rejects a generated value below
+  `MIN_PLAUSIBLE_CALORIES_KCAL` (1,200 kcal) with a repair request, and hides a
+  stored value below that floor instead of showing a deficit as a requirement.
 - The plan context includes the athlete's earlier calorie targets for the last
   28 days, so the assessment can compare the intake with the requirement.
 
@@ -81,24 +85,26 @@ balanceKcal, entries }] }`. `balanceKcal` is consumed minus needed, so a
 1. A generated plan carries `diet.goal` and `diet.assessment`, and every week
    session and day plan carries `estimatedCaloriesKcal`.
 2. With no stated diet goal the coach reports `Maintain current weight`.
-3. The Week tab shows every day's estimate, and the Day tab shows today's and
+3. A generated calorie target below 1,200 kcal is rejected and repaired; a stored
+   value below that floor is hidden rather than shown as the day's requirement.
+4. The Week tab shows every day's estimate, and the Day tab shows today's and
    tomorrow's.
-4. The Today card shows needed, logged and remaining calories and updates after
+5. The Today card shows needed, logged and remaining calories and updates after
    a meal is logged.
-5. The Diet page shows the goal and assessment at the top, today's calorie
+6. The Diet page shows the goal and assessment at the top, today's calorie
    panel, and each day's logged and needed calories with its deficit or surplus,
    with the meals under that day.
-6. The Fitness page shows a calories bar chart with a needed-calories line under
+7. The Fitness page shows a calories bar chart with a needed-calories line under
    the body chart.
-7. Saving a plan records each day's target in `plan_day_calories`, and the
+8. Saving a plan records each day's target in `plan_day_calories`, and the
    target survives the week leaving the stored plan.
-8. Typecheck, lint, format, and tests pass.
+9. Typecheck, lint, format, and tests pass.
 
 ## Testing
 
 - Shared schemas: the diet plan and summary shapes, and `FoodEntry.eatenDate`.
-- API unit tests: `dayCaloriesForPlan`, `consumedCaloriesByDate`, and
-  `buildDietSummary` including target-only days and unanalysed meals.
+- API unit tests: `dayCaloriesForPlan`, `consumedCaloriesByDate`,
+  `buildDietSummary`, and the implausible-calorie guard.
 - API route tests: the summary's goal, assessment, per-day balance and entries,
   and the empty summary when diet advice is off.
 - Fitness history tests: logged and needed calories for each day.

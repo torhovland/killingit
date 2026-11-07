@@ -1167,4 +1167,20 @@ describe("CoachPlanView", () => {
     expect(html).toContain("2200 kcal needed");
     expect(html).toContain("2800 kcal needed");
   });
+
+  it("does not show an implausibly low calorie target", () => {
+    const html = renderToStaticMarkup(
+      <CoachPlanView
+        plan={{
+          ...plan,
+          today: { ...plan.today, estimatedCaloriesKcal: 480 },
+        }}
+        showCalories
+        dietToday={null}
+      />,
+    );
+
+    expect(html).not.toContain("480 kcal");
+    expect(html).not.toContain('data-testid="plan-today-calories"');
+  });
 });

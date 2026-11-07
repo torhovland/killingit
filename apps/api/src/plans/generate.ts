@@ -55,6 +55,7 @@ import { outlineWeekPlans } from "./outline.js";
 import { blockFor, promoteNextPeriod, weekFor } from "./periods.js";
 import { planIsStale, planPending } from "./status.js";
 import { PLAN_GENERATION_STEPS } from "./steps.js";
+import { calorieEstimateProblems } from "./calorieEstimates.js";
 import type { PlanGenerationStore, PlanStore, StoredPlan } from "./store.js";
 import { applyCompletedDays, completionStatus } from "./week.js";
 
@@ -1221,6 +1222,10 @@ function assertPlanValid(
   today: string,
   includeTomorrow: boolean,
 ): void {
+  const calorieProblem = calorieEstimateProblems(plan)[0];
+  if (calorieProblem !== undefined) {
+    throw new Error(`${calorieProblem.message} Please regenerate the plan.`);
+  }
   assertSeasonBlocksContiguous(plan.season, today);
   if (plan.today.date !== today) {
     throw new Error(

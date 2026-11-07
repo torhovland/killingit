@@ -63,7 +63,7 @@ export function DietView({
             data-testid="diet-goal"
           >
             <div className="flex flex-wrap items-baseline gap-2">
-              <h3 className="text-xl font-semibold">Goal</h3>
+              <h3 className="text-xl font-semibold">Goal:</h3>
               <p className="text-lg font-medium" data-testid="diet-goal-text">
                 {goal}
               </p>

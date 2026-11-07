@@ -382,6 +382,8 @@ export {
   foodEntryRequestSchema,
   foodEntrySchema,
   foodPhotoDataUrlSchema,
+  MIN_PLAUSIBLE_CALORIES_KCAL,
+  plausibleCaloriesKcal,
   type DietDaySummary,
   type DietPlan,
   type DietSummaryResponse,

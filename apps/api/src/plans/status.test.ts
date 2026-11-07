@@ -100,6 +100,16 @@ describe("planPending", () => {
     });
   });
 
+  it("marks the day and week pending when a calorie target is implausibly low", () => {
+    const plan = makePlan();
+    plan.today = { ...plan.today, estimatedCaloriesKcal: 480 };
+    expect(planPending(plan, "2026-10-21")).toMatchObject({
+      day: true,
+      week: true,
+      block: false,
+    });
+  });
+
   it("marks the block pending when a new week review has arrived", () => {
     expect(planPending(makePlan(), "2026-10-21", false, false, true)).toEqual({
       initial: false,

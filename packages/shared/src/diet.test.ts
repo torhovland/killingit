@@ -5,6 +5,8 @@ import {
   foodAnalysisSchema,
   foodEntryRequestSchema,
   foodEntrySchema,
+  MIN_PLAUSIBLE_CALORIES_KCAL,
+  plausibleCaloriesKcal,
 } from "./diet.js";
 
 describe("foodAnalysisSchema", () => {
@@ -61,6 +63,22 @@ describe("dietSummaryResponseSchema", () => {
       ],
     });
     expect(parsed.days[0]?.balanceKcal).toBe(-300);
+  });
+});
+
+describe("plausibleCaloriesKcal", () => {
+  it("hides a value that could be a deficit or burned calories", () => {
+    expect(plausibleCaloriesKcal(480)).toBeNull();
+    expect(plausibleCaloriesKcal(MIN_PLAUSIBLE_CALORIES_KCAL - 1)).toBeNull();
+  });
+
+  it("keeps a whole-day total", () => {
+    expect(plausibleCaloriesKcal(MIN_PLAUSIBLE_CALORIES_KCAL)).toBe(
+      MIN_PLAUSIBLE_CALORIES_KCAL,
+    );
+    expect(plausibleCaloriesKcal(2400)).toBe(2400);
+    expect(plausibleCaloriesKcal(null)).toBeNull();
+    expect(plausibleCaloriesKcal(undefined)).toBeNull();
   });
 });
 

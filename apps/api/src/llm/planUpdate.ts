@@ -19,6 +19,10 @@ import {
   type PlanUpdateInput,
   type WeeklyUpdateInput,
 } from "./planUpdatePrompt.js";
+import {
+  addCalorieEstimateIssues,
+  type CalorieBearingPlan,
+} from "../plans/calorieEstimates.js";
 
 export interface PlanUpdateCredentials {
   apiKey: string;
@@ -58,6 +62,19 @@ function withWeekDates<T extends { week: DatedWeek }>(
   });
 }
 
+/**
+ * Rejects a plan whose daily calorie estimate is too low to be a whole day's
+ * intake, so the repair turn can ask the model for the real total instead of
+ * storing a deficit or burned calories as the requirement.
+ */
+function withPlausibleCalories<T extends CalorieBearingPlan>(
+  schema: z.ZodType<T>,
+): z.ZodType<T> {
+  return schema.superRefine((value, ctx) =>
+    addCalorieEstimateIssues(value, ctx),
+  );
+}
+
 function weekDateHint(startDate: string): string {
   const dates = weekDates(startDate);
   return `The week must start on ${startDate} and contain exactly seven sessions dated ${dates.join(", ")} (${dates[0]} through ${dates[6]}).`;
@@ -82,7 +99,10 @@ export async function generatePlanUpdate(
   const nextWeekStart = input.revision.nextWeek
     ? startOfWeek(addDays(input.today, 1))
     : null;
-  const schema = withWeekDates(coachPlanSchema, weekStart)
+  const schema = withWeekDates(
+    withPlausibleCalories(coachPlanSchema),
+    weekStart,
+  )
     .refine(
       (value) =>
         nextWeekStart === null ||
@@ -132,7 +152,7 @@ export async function generateDailyUpdate(
 ): Promise<DailyPlanUpdate> {
   const weekStartDate = startOfWeek(input.today);
   return completePlanJson(
-    withWeekDates(dailyPlanUpdateSchema, weekStartDate),
+    withWeekDates(withPlausibleCalories(dailyPlanUpdateSchema), weekStartDate),
     provider,
     credentials,
     buildDailyUpdateMessages(input),
@@ -151,7 +171,10 @@ export async function generateWeeklyUpdate(
   input: WeeklyUpdateInput,
 ): Promise<WeeklyPlanUpdate> {
   return completePlanJson(
-    withWeekDates(weeklyPlanUpdateSchema, input.weekStartDate),
+    withWeekDates(
+      withPlausibleCalories(weeklyPlanUpdateSchema),
+      input.weekStartDate,
+    ),
     provider,
     credentials,
     buildWeeklyUpdateMessages(input),

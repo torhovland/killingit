@@ -1,4 +1,10 @@
-import type { CoachPlan, DayPlan, WeekPlan } from "@killingit/shared";
+import {
+  MIN_PLAUSIBLE_CALORIES_KCAL,
+  plausibleCaloriesKcal,
+  type CoachPlan,
+  type DayPlan,
+  type WeekPlan,
+} from "@killingit/shared";
 import { and, eq, gte, lte } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { planDayCalories } from "../db/schema.js";
@@ -13,8 +19,8 @@ function addDay(
   target: Map<string, number>,
   day: Pick<DayPlan, "date" | "estimatedCaloriesKcal">,
 ): void {
-  const calories = day.estimatedCaloriesKcal;
-  if (calories === undefined || calories <= 0) {
+  const calories = plausibleCaloriesKcal(day.estimatedCaloriesKcal);
+  if (calories === null) {
     return;
   }
   target.set(day.date, Math.round(calories));
@@ -90,6 +96,7 @@ export async function loadPlanDayCalories(
         eq(planDayCalories.userId, userId),
         gte(planDayCalories.date, fromDate),
         lte(planDayCalories.date, toDate),
+        gte(planDayCalories.caloriesKcal, MIN_PLAUSIBLE_CALORIES_KCAL),
       ),
     );
   return new Map(rows.map((row) => [row.date, row.caloriesKcal]));

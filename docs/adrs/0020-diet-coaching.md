@@ -56,3 +56,7 @@ same nutrition series for the chart.
 - The coach sees the last 28 days of targets in its plan context, so the
   assessment can compare intake with the requirement rather than judging weight
   in isolation.
+- The prompt states that the field is the whole day's total intake, not a
+  deficit or burned calories. A generated value below the 1,200 kcal safety floor
+  is rejected for repair, and a stored value below it is hidden, because a number
+  that low is almost always a field confusion rather than a target.
