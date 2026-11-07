@@ -12,9 +12,11 @@ first.
 
 ### 1. Check the working tree
 
-Run `git status --short`. If there are changes or untracked files unrelated to
-the issue, ask whether to stash or commit them first. Never fold unrelated work
-into the fix.
+Run `git status --short` and note anything unrelated to the issue. Leave those
+files exactly as they are: do not modify, stash, delete, or commit them. Never
+fold unrelated work into the fix. If the unrelated changes would block the fix
+(for example a file the issue must edit already has conflicting local edits),
+comment on the issue with the situation and stop.
 
 ### 2. Pick the issue
 
@@ -25,8 +27,8 @@ into the fix.
   ordered backlog, `--label LABEL` to stay within one kind of work, and
   `--json` for machine-readable output.
 
-Show the chosen issue (number, priority, title) and confirm with the user before
-starting, unless they already asked you to proceed without confirming.
+Do not ask for confirmation. Once the issue is identified by this ordering,
+start working on it.
 
 ### 3. Read the issue fully
 
@@ -84,11 +86,16 @@ open source or touch the licence notice.
 ### 9. Commit and open the pull request
 
 ```sh
-git add -A
+git add <only the files you changed>
 git commit -m "<focused message>"
 git push -u origin fix/<number>-<short-slug>
 gh pr create --fill
 ```
+
+Stage files explicitly. Never use `git add -A` or `git commit -a`: unrelated
+files that were already in the working tree must stay uncommitted and out of
+the PR. Before committing, re-run `git status --short` and confirm every staged
+file belongs to the fix.
 
 Edit the PR body to include `Closes #<number>`, a short summary of the fix, and
 the checks you ran. Then watch CI and fix anything it reports:
@@ -108,6 +115,8 @@ the checks you ran, and the PR URL.
 
 - One issue per branch and PR. If you find an unrelated bug, open a new issue
   with `gh issue create` and leave it out of this PR.
+- Unrelated changes already in the working tree are not yours to touch. Leave
+  them uncommitted and out of the PR; never revert or clean them.
 - If the fix is much larger than the issue implies, stop and comment on the
   issue with the plan and scope before spending a large effort.
 - Follow `AGENTS.md` throughout: strict TypeScript, no duplicated prompt
