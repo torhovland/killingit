@@ -1,4 +1,5 @@
 import type { CoachPlan, PlanPending } from "@killingit/shared";
+import { calorieEstimateProblems } from "./calorieEstimates.js";
 import { addDays } from "./dates.js";
 import { blockFor, weekFor } from "./periods.js";
 
@@ -37,14 +38,20 @@ export function planPending(
   const tomorrowDate = addDays(today, 1);
   const tomorrowWeek = includeTomorrow ? weekFor(plan, tomorrowDate) : null;
   const tomorrowBlock = includeTomorrow ? blockFor(plan, tomorrowDate) : null;
+  // A stored plan can carry a calorie target so low that it is clearly a
+  // deficit or burned calories rather than the day's intake. Treat it as
+  // pending once so the corrected prompt regenerates it; a failed generation
+  // stops the automatic retry until the athlete asks again.
+  const calorieTargetInvalid = calorieEstimateProblems(plan).length > 0;
   return {
     initial: false,
-    day: plan.today.date !== today,
+    day: plan.today.date !== today || calorieTargetInvalid,
     // A recorded result belongs on both today and the week. Treat a mismatch
     // as pending so the regular cascade refreshes the week instead of leaving
     // the two views disagreeing.
     week:
       weatherChanged ||
+      calorieTargetInvalid ||
       todaySession === undefined ||
       (plan.today.date === today &&
         (plan.today.status === "completed" ||

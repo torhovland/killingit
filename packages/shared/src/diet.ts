@@ -12,6 +12,14 @@ export const FOOD_DESCRIPTION_MAX_LENGTH = 2000;
 export const DEFAULT_DIET_GOAL = "Maintain current weight";
 
 /**
+ * The lowest total daily intake the app treats as a plausible coaching target.
+ * It is a safety floor, not a recommended intake: a number below it almost
+ * always means the coach returned a deficit or burned calories instead of the
+ * day's total.
+ */
+export const MIN_PLAUSIBLE_CALORIES_KCAL = 1200;
+
+/**
  * The coach's diet goal for the athlete and its judgement of the weight trend.
  * `assessment` is the coach's own reading of the tracked weights against the
  * logged calories and its earlier targets; the app never computes it.
@@ -157,3 +165,19 @@ export const foodEntryRequestSchema = z
   });
 
 export type FoodEntryRequest = z.infer<typeof foodEntryRequestSchema>;
+
+/**
+ * A calorie estimate when it is plausible for a whole day, otherwise null. A
+ * stored plan from before the prompt clarified the field can carry a deficit in
+ * this slot, so every reader hides an implausible number rather than showing it
+ * as the day's requirement.
+ */
+export function plausibleCaloriesKcal(
+  value: number | null | undefined,
+): number | null {
+  return value !== null &&
+    value !== undefined &&
+    value >= MIN_PLAUSIBLE_CALORIES_KCAL
+    ? value
+    : null;
+}

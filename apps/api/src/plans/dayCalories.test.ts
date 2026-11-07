@@ -93,4 +93,13 @@ describe("dayCaloriesForPlan", () => {
     );
     expect(calories.has("2026-11-03")).toBe(false);
   });
+
+  it("omits a value below the whole-day safety minimum", () => {
+    const calories = dayCaloriesForPlan(
+      plan({
+        week: week("2026-11-02", [2400, 480, 2600, 2700, 2800, 2900, 3000]),
+      }),
+    );
+    expect(calories.has("2026-11-03")).toBe(false);
+  });
 });
