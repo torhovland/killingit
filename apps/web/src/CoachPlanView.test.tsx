@@ -329,6 +329,17 @@ describe("CoachPlanView", () => {
     );
   });
 
+  it("lets today's status and session details wrap on narrow screens", () => {
+    const completedPlan: CoachPlan = {
+      ...plan,
+      today: { ...plan.today, status: "completed", outdoor: true },
+    };
+    const html = renderToStaticMarkup(<CoachPlanView plan={completedPlan} />);
+
+    expect(html).toContain('class="flex min-w-0 flex-wrap items-center gap-2"');
+    expect(html).toContain(">completed<");
+  });
+
   it("shows a rest day's status box without repeating a rest label", () => {
     const html = renderToStaticMarkup(
       <CoachPlanView plan={plan} defaultTab="week" />,
