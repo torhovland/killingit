@@ -79,11 +79,24 @@ export const DIET_RULES = `When a food log is provided, it lists meals the athle
  * a daily calorie requirement. The judgement of the weight trend and of the
  * deficit is the coach's, never a formula in the app.
  */
-export const DIET_PLANNING_RULES = `Nutrition is part of the plan. The athlete's diet goal is whatever they state in their profile, notes, or comments; when they state none, assume the goal is to maintain their current weight. Report the goal in "diet.goal" as a short statement in their own terms, or "${DEFAULT_DIET_GOAL}" when they gave none.
+export const DIET_PLANNING_RULES = `Nutrition is part of the plan. The athlete's diet goal is whatever they state in their profile, notes, or comments; when they state none, assume the goal is to maintain their current weight. Report the goal in "diet.goal" as a short statement in their own terms, or "${DEFAULT_DIET_GOAL}" when they gave none. Set "diet.goalProvided" to true only when the athlete stated the goal themselves, and to false when you fell back to "${DEFAULT_DIET_GOAL}".
 
 In "diet.assessment", judge from the tracked weight history and the logged calories against your earlier calorie targets whether the athlete is on track for that goal. Say whether the calorie deficit or surplus is right, too large, or too small, and what you changed. Judge the weight trend from the measurements themselves rather than from a fixed formula. When there is no weight history yet, say what you will judge the trend by and set a sensible starting target.
 
 Estimate the athlete's total calorie intake for each day you return, and set "estimatedCaloriesKcal" on every week session and on the today and tomorrow day objects. This is the whole day's food and drink: not a deficit, a surplus, the calories burned in training, or the amount left after a meal. If you decide on a deficit, subtract it from the maintenance total and return the resulting total intake. Base the number on their body weight, the training planned for that day, and recent recovery, so a hard training day needs more than a rest day. Sanity-check it against body weight: an adult's total daily intake is normally at least 20 kcal per kg, and often 30-35 kcal per kg on a hard training day. A number far below that is a mistake, not a target. Never return 0.`;
+
+/**
+ * How the coach turns the diet goal into expected body-composition progress at
+ * each plan level. The plan is not a linear weekly change, and the app never
+ * calculates it; the coach re-plans it from the latest weigh-ins.
+ */
+export const DIET_PROGRESS_RULES = `Diet progress is part of the plan. When diet advice is enabled and the athlete has stated a diet goal, plan how their body should move toward that goal by the end of every period you return. Set "dietProgress" on the season, on each season block, on the block, on each block week, and on the week. A "dietProgress" object holds the target body weight in kilograms in "targetWeightKg", the target body-fat percentage in "targetBodyFatPercent", and a short "note" in your own words. The target is the value you expect on the last day of that period; set a value you cannot estimate to null. Put the expected change and its reason in "note", for example "Hold weight through the build block; the added training load makes fat loss counterproductive, then lose 2 kg in the base block."
+
+Progress is not a linear week-by-week formula. A block that builds muscle, a taper, and a race week may hold weight or gain slightly, and a later block can lose more, so match every target to the block's focus and the training load rather than spreading the total change evenly. A block's target in the season plan and the block plan is the same target, and a week's target in the block and in the week plan is the same target, so keep them consistent.
+
+Base the targets on the tracked weight and body-fat history and the athlete's stated goal. When the latest measurements are ahead of or behind an earlier target, re-plan the targets for the levels you return from the latest measurement instead of keeping a target the new trend has made unrealistic. You are the only one who plans these numbers: the app never calculates a deficit, a rate of change, or a target.
+
+When diet advice is disabled, or when the athlete has stated no diet goal and you fall back to "${DEFAULT_DIET_GOAL}", set every "dietProgress" to null.`;
 
 /**
  * The rules every plan prompt includes regardless of the level it builds or
@@ -110,6 +123,7 @@ The stored history tells you what is already known; do not repeat a value for th
   ATHLETE_EVENT_RULES,
   DAILY_HEALTH_RULES,
   DIET_RULES,
+  DIET_PROGRESS_RULES,
   TEXT_FORMATTING_RULES,
 );
 
@@ -307,6 +321,9 @@ export const RETURN_JSON_FROM_SYSTEM_PROMPT =
 /** The structured power targets shared by the day and week session contracts. */
 export const BIKE_WORKOUT_CONTRACT = `{ "ftpWatts": 0, "intervals": [{ "durationSeconds": 0, "powerPercent": 75 }] }`;
 
+/** The coach's expected body composition at the end of a plan period. */
+export const DIET_PROGRESS_CONTRACT = `{ "targetWeightKg": 0, "targetBodyFatPercent": 0, "note": "string" }`;
+
 export const DAY_CONTRACT = `{
   "date": "YYYY-MM-DD",
   "type": "workout | rest",
@@ -331,6 +348,7 @@ export const WEEK_CONTRACT = `{
   "focus": "string",
   "rationale": "string",
   "estimatedFtpWatts": 0,
+  "dietProgress": ${DIET_PROGRESS_CONTRACT} | null,
   "sessions": [
     {
       "date": "YYYY-MM-DD",
@@ -351,8 +369,8 @@ export const WEEK_CONTRACT = `{
   ]
 }`;
 
-/** The diet goal and the coach's judgement of the weight trend. */
-export const DIET_CONTRACT = `{ "goal": "string", "assessment": "string" }`;
+/** The diet goal, whether the athlete stated it, and the weight-trend judgement. */
+export const DIET_CONTRACT = `{ "goal": "string", "goalProvided": false, "assessment": "string" }`;
 
 export const BLOCK_CONTRACT = `{
   "name": "string",
@@ -360,13 +378,15 @@ export const BLOCK_CONTRACT = `{
   "rationale": "string",
   "startDate": "YYYY-MM-DD",
   "endDate": "YYYY-MM-DD",
+  "dietProgress": ${DIET_PROGRESS_CONTRACT} | null,
   "weeks": [
     {
       "number": 1,
       "startDate": "YYYY-MM-DD",
       "focus": "string",
       "targetLoad": "string",
-      "estimatedFtpWatts": 0
+      "estimatedFtpWatts": 0,
+      "dietProgress": ${DIET_PROGRESS_CONTRACT} | null
     }
   ]
 }`;
@@ -376,13 +396,15 @@ export const SEASON_CONTRACT = `{
   "rationale": "string",
   "startDate": "YYYY-MM-DD",
   "endDate": "YYYY-MM-DD",
+  "dietProgress": ${DIET_PROGRESS_CONTRACT} | null,
   "blocks": [
     {
       "name": "string",
       "focus": "string",
       "startDate": "YYYY-MM-DD",
       "endDate": "YYYY-MM-DD",
-      "weekCount": 0
+      "weekCount": 0,
+      "dietProgress": ${DIET_PROGRESS_CONTRACT} | null
     }
   ]
 }`;

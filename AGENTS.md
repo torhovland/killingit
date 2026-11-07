@@ -300,8 +300,16 @@ about a past workout, or before a suggested workout, to steer the coach.
   logged calories against the needed line. Saving a plan records each day's
   target in `plan_day_calories`, so the requirement survives the week leaving
   the stored plan. The coach judges the weight trend from the tracked weights
-  and its earlier targets; the app never computes the deficit. See
-  `docs/specs/diet-log.md`, `docs/specs/diet-coaching.md`, and ADR 0019/0020.
+  and its earlier targets; the app never computes the deficit. When the athlete
+  states a goal, the plan also carries the coach's `dietProgress` target on the
+  season, each block, the block, each week, and the week: a weight, a body-fat
+  percentage, or both, plus a short note, and it follows the training focus
+  rather than a linear weekly change. The coach re-plans the targets it returns on a plan
+  refresh from the latest weigh-ins. The Body chart can extend to the season end
+  and draws those targets as a dotted line. A default goal makes the Diet page
+  point the athlete to the Coaching Survey. See `docs/specs/diet-log.md`,
+  `docs/specs/diet-coaching.md`, `docs/specs/diet-progress-targets.md`, and ADR
+  0019/0020/0021.
 - The Settings page ends with a Delete account section. After a warning modal is
   confirmed, `DELETE /api/me` deletes the account row, and the schema's cascades
   remove every plan, activity, connection, and coach message owned by it. The

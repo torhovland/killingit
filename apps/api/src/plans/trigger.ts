@@ -497,6 +497,7 @@ export async function runPlanForUser(
       events,
       ...(diet !== null ? { diet } : {}),
       dietGoal: plan?.plan.diet ?? null,
+      dietAdvice: user?.dietAdvice ?? false,
       ...(calorieHistory !== undefined ? { calorieHistory } : {}),
       provider: llm.provider,
       apiKey: llm.apiKey,

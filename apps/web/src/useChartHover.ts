@@ -3,8 +3,10 @@ import type { FitnessHistoryDay } from "@killingit/shared";
 import { CHART_PADDING, CHART_WIDTH, indexAt } from "./chartGeometry";
 
 /** The day under the pointer, and where to draw its marker and hover card. */
-export interface HoveredChartDay {
-  day: FitnessHistoryDay;
+export interface HoveredChartDay<
+  T extends { date: string } = FitnessHistoryDay,
+> {
+  day: T;
   /** X in plot coordinates. */
   x: number;
   /** The hover card's offset, as a share of the chart's width. */
@@ -19,15 +21,15 @@ const PLOT_WIDTH = CHART_WIDTH - CHART_PADDING.left - CHART_PADDING.right;
  * point index to the athlete's day, which lets the FTP chart snap by its own
  * points while still describing the day.
  */
-export function useChartHover(
+export function useChartHover<T extends { date: string }>(
   count: number,
-  dayAt: (index: number) => FitnessHistoryDay | undefined,
+  dayAt: (index: number) => T | undefined,
 ): {
-  hovered: HoveredChartDay | null;
+  hovered: HoveredChartDay<T> | null;
   onPointerMove: (event: PointerEvent<SVGSVGElement>) => void;
   onPointerLeave: () => void;
 } {
-  const [hovered, setHovered] = useState<HoveredChartDay | null>(null);
+  const [hovered, setHovered] = useState<HoveredChartDay<T> | null>(null);
 
   function onPointerMove(event: PointerEvent<SVGSVGElement>): void {
     const bounds = event.currentTarget.getBoundingClientRect();

@@ -17,6 +17,9 @@ be higher or lower.
 
 - The coach returns a diet goal and a weight-trend assessment with the plan.
   When the athlete states no goal, the goal is maintenance of current weight.
+  The plan also carries the coach's expected progress toward a stated goal at
+  the end of the season, each block, and each week; see
+  `docs/specs/diet-progress-targets.md`.
 - Every week session and every day plan carries `estimatedCaloriesKcal`, the
   coach's estimate of the calories that day needs to keep the athlete on target.
 - The Week tab shows each day's estimate. The Day tab shows it for today and
@@ -32,7 +35,8 @@ be higher or lower.
 
 Plan JSON:
 
-- `coach_plans.diet` is `{ "goal": string, "assessment": string } | null`.
+- `coach_plans.diet` is `{ "goal": string, "goalProvided": boolean, "assessment": string } | null`.
+  `goalProvided` is missing on plans stored before it existed.
 - `week.sessions[].estimatedCaloriesKcal` and
   `today`/`tomorrow.estimatedCaloriesKcal` are optional non-negative integers.
   They are missing on plans stored before diet coaching, so every view hides

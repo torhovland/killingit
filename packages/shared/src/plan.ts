@@ -2,7 +2,7 @@ import { z } from "zod";
 import { coachAnalysisSchema, coachResponseNotesSchema } from "./llm.js";
 import { athleteEventSchema } from "./event.js";
 import { planDateSchema } from "./date.js";
-import { dietPlanSchema } from "./diet.js";
+import { dietPlanSchema, dietProgressSchema } from "./diet.js";
 import { thresholdSummarySchema } from "./metrics.js";
 import { trainingLoadSchema } from "./trainingLoad.js";
 import { dailyForecastsSchema, dailyWeatherSchema } from "./weather.js";
@@ -36,6 +36,12 @@ export const seasonBlockSummarySchema = z.object({
   startDate: planDateSchema,
   endDate: planDateSchema,
   weekCount: z.number().int().positive(),
+  /**
+   * The coach's expected weight and body fat at the end of this block. Null or
+   * missing when diet advice is off, no goal was stated, or the plan predates
+   * diet progress targets.
+   */
+  dietProgress: dietProgressSchema.nullable().optional(),
 });
 
 export type SeasonBlockSummary = z.infer<typeof seasonBlockSummarySchema>;
@@ -56,6 +62,12 @@ export const seasonPlanSchema = z.object({
     .max(2000)
     .nullable()
     .optional(),
+  /**
+   * The coach's expected weight and body fat at the end of the season. Null or
+   * missing when diet advice is off, no goal was stated, or the plan predates
+   * diet progress targets.
+   */
+  dietProgress: dietProgressSchema.nullable().optional(),
 });
 
 export type SeasonPlan = z.infer<typeof seasonPlanSchema>;
@@ -78,6 +90,12 @@ export const blockWeekSummarySchema = z.object({
     .max(2000)
     .nullable()
     .optional(),
+  /**
+   * The coach's expected weight and body fat at the end of this week. Null or
+   * missing when diet advice is off, no goal was stated, or the plan predates
+   * diet progress targets.
+   */
+  dietProgress: dietProgressSchema.nullable().optional(),
 });
 
 export type BlockWeekSummary = z.infer<typeof blockWeekSummarySchema>;
@@ -99,6 +117,12 @@ export const blockPlanSchema = z.object({
     .max(2000)
     .nullable()
     .optional(),
+  /**
+   * The coach's expected weight and body fat at the end of the block. Null or
+   * missing when diet advice is off, no goal was stated, or the plan predates
+   * diet progress targets.
+   */
+  dietProgress: dietProgressSchema.nullable().optional(),
 });
 
 export type BlockPlan = z.infer<typeof blockPlanSchema>;
@@ -202,6 +226,12 @@ export const weekPlanSchema = z.object({
     .max(2000)
     .nullable()
     .optional(),
+  /**
+   * The coach's expected weight and body fat at the end of this week. Null or
+   * missing when diet advice is off, no goal was stated, or the plan predates
+   * diet progress targets.
+   */
+  dietProgress: dietProgressSchema.nullable().optional(),
 });
 
 export type WeekPlan = z.infer<typeof weekPlanSchema>;

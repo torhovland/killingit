@@ -34,6 +34,8 @@ export function buildDietSummary(input: {
   entries: readonly StoredFoodEntry[];
   targets: ReadonlyMap<string, number>;
   goal: string | null;
+  /** Whether the athlete stated the goal rather than using the default. */
+  goalProvided: boolean;
   assessment: string | null;
   /** Today's local date, so its target shows before the first meal. */
   today: string;
@@ -85,6 +87,7 @@ export function buildDietSummary(input: {
 
   return {
     goal: input.goal,
+    goalProvided: input.goalProvided,
     assessment: input.assessment,
     days,
   };

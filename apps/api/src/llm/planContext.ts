@@ -9,6 +9,7 @@ import {
   formatThresholdValue,
   hasLapStructure,
   interpretTrainingStressBalance,
+  isDefaultDietGoal,
   type ActivityLap,
   type ActivitySummary,
   type AthleteEvent,
@@ -19,6 +20,7 @@ import {
   type DailyWeather,
   type DayPlan,
   type DietPlan,
+  type DietProgress,
   type MetricPoint,
   type SeasonPlan,
   type StrengthSet,
@@ -136,6 +138,8 @@ export interface PlanContextInput {
   dailyHealth?: readonly DailyHealthPoint[];
   /** The coach's current diet goal and weight-trend assessment. */
   dietGoal?: DietPlan | null;
+  /** Whether the athlete has enabled diet advice. */
+  dietAdvice?: boolean;
   /** The coach's earlier calorie targets for recent days, newest first. */
   calorieHistory?: readonly CalorieTargetPoint[];
   /** The athlete's fitness snapshot for today, when one has been calculated. */
@@ -359,7 +363,18 @@ export function formatPlanContext(input: PlanContextInput): string[] {
     lines.push(
       "",
       `Diet goal: ${input.dietGoal.goal}`,
+      `Diet goal status: ${
+        (input.dietGoal.goalProvided ?? !isDefaultDietGoal(input.dietGoal.goal))
+          ? "stated by the athlete"
+          : "default because the athlete stated none"
+      }.`,
       `Diet assessment: ${input.dietGoal.assessment}`,
+    );
+  }
+  if (input.dietAdvice !== undefined) {
+    lines.push(
+      "",
+      `Diet advice: ${input.dietAdvice ? "enabled" : "disabled"}.`,
     );
   }
   if (input.calorieHistory !== undefined && input.calorieHistory.length > 0) {
@@ -605,31 +620,68 @@ export function formatActivityComments(
 
 /** Renders the season plan as an ordered block overview. */
 export function formatSeasonPlan(plan: SeasonPlan): string {
-  return [
+  const lines = [
     `Goal: ${plan.goal}`,
     `Dates: ${plan.startDate} → ${plan.endDate}${plan.estimatedFtpWatts != null ? ` — estimated FTP ${plan.estimatedFtpWatts} W` : ""}`,
+  ];
+  if (plan.dietProgress != null) {
+    lines.push(
+      `Diet progress by the end of the season: ${formatDietProgress(plan.dietProgress)}`,
+    );
+  }
+  lines.push(
     `Rationale: ${plan.rationale}`,
     "Blocks:",
-    ...plan.blocks.map(
-      (block, index) =>
-        `${index + 1}. ${block.name} (${block.startDate} → ${block.endDate}, ${block.weekCount} weeks): ${block.focus}`,
-    ),
-  ].join("\n");
+    ...plan.blocks.flatMap((block, index) => [
+      `${index + 1}. ${block.name} (${block.startDate} → ${block.endDate}, ${block.weekCount} weeks): ${block.focus}`,
+      ...(block.dietProgress != null
+        ? [
+            `   Diet progress by the end of this block: ${formatDietProgress(block.dietProgress)}`,
+          ]
+        : []),
+    ]),
+  );
+  return lines.join("\n");
 }
 
 /** Renders the detailed block plan and its weekly progression. */
 export function formatBlockPlan(plan: BlockPlan): string {
-  return [
+  const lines = [
     `Block: ${plan.name}`,
     `Focus: ${plan.focus}`,
     `Dates: ${plan.startDate} → ${plan.endDate}${plan.estimatedFtpWatts != null ? ` — estimated FTP ${plan.estimatedFtpWatts} W` : ""}`,
+  ];
+  if (plan.dietProgress != null) {
+    lines.push(
+      `Diet progress by the end of the block: ${formatDietProgress(plan.dietProgress)}`,
+    );
+  }
+  lines.push(
     `Rationale: ${plan.rationale}`,
     "Weeks:",
-    ...plan.weeks.map(
-      (week) =>
-        `- Week ${week.number} (from ${week.startDate}): ${week.focus}; target load: ${week.targetLoad}${week.estimatedFtpWatts != null ? `; estimated FTP ${week.estimatedFtpWatts} W` : ""}`,
-    ),
-  ].join("\n");
+    ...plan.weeks.map((week) => {
+      const progress =
+        week.dietProgress != null
+          ? `; diet progress by the end of the week: ${formatDietProgress(week.dietProgress)}`
+          : "";
+      return `- Week ${week.number} (from ${week.startDate}): ${week.focus}; target load: ${week.targetLoad}${week.estimatedFtpWatts != null ? `; estimated FTP ${week.estimatedFtpWatts} W` : ""}${progress}`;
+    }),
+  );
+  return lines.join("\n");
+}
+
+/** One target line for a plan period. Assumes the progress object exists. */
+function formatDietProgress(progress: DietProgress): string {
+  const targets: string[] = [];
+  if (progress.targetWeightKg !== null) {
+    targets.push(`${progress.targetWeightKg.toFixed(1)} kg`);
+  }
+  if (progress.targetBodyFatPercent !== null) {
+    targets.push(`${progress.targetBodyFatPercent.toFixed(1)} % body fat`);
+  }
+  const targetText =
+    targets.length > 0 ? targets.join(" and ") : "no numeric target";
+  return `${targetText}. ${progress.note.trim()}`;
 }
 
 /**
@@ -644,8 +696,15 @@ function formatTrainingLoad(load: TrainingLoad): string {
 
 /** Renders the current week's seven sessions. */
 export function formatWeekPlan(plan: WeekPlan): string {
-  return [
+  const lines = [
     `Week starting ${plan.startDate} — focus: ${plan.focus}${plan.estimatedFtpWatts != null ? ` — estimated FTP ${plan.estimatedFtpWatts} W` : ""}`,
+  ];
+  if (plan.dietProgress != null) {
+    lines.push(
+      `Diet progress by the end of the week: ${formatDietProgress(plan.dietProgress)}`,
+    );
+  }
+  lines.push(
     `Rationale: ${plan.rationale}`,
     "Sessions:",
     ...plan.sessions.map((session) => {
@@ -659,7 +718,8 @@ export function formatWeekPlan(plan: WeekPlan): string {
           : "";
       return `- ${session.date} (${session.day}) [${session.status}]: ${formatPlannedSession(session)}${tss}${load}`;
     }),
-  ].join("\n");
+  );
+  return lines.join("\n");
 }
 
 /**

@@ -479,6 +479,19 @@ describe("daily update prompts", () => {
     expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain("dry");
   });
 
+  it("asks every update prompt for diet progress targets", () => {
+    for (const prompt of [
+      DAILY_UPDATE_SYSTEM_PROMPT,
+      WEEKLY_UPDATE_SYSTEM_PROMPT,
+      PLAN_UPDATE_SYSTEM_PROMPT,
+    ]) {
+      expect(prompt).toContain('"dietProgress"');
+      expect(prompt).toContain('"targetWeightKg"');
+      expect(prompt).toContain('"targetBodyFatPercent"');
+    }
+    expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain('"goalProvided": false');
+  });
+
   it("requires the exact enum values from the schema", () => {
     expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain(
       'never output a session name such as "run", "strength", or "rest day" as a type',

@@ -46,6 +46,7 @@ import { applyTrainingLoad, currentTrainingLoad } from "../training/load.js";
 import { ftpBaselineAt, type FtpTimeline } from "../training/ftp.js";
 import type { ThresholdTimeline } from "../training/thresholds.js";
 import { addDays, startOfWeek } from "./dates.js";
+import { syncDietProgressTargets } from "./dietProgress.js";
 import {
   GenerationSupersededError,
   isGenerationSuperseded,
@@ -102,6 +103,8 @@ export interface PlanGenerationContext {
   dailyHealth?: readonly DailyHealthPoint[] | undefined;
   /** The coach's current diet goal and weight-trend assessment. */
   dietGoal?: DietPlan | null;
+  /** Whether the athlete has enabled diet advice. */
+  dietAdvice?: boolean;
   /** The coach's earlier calorie targets for recent days, newest first. */
   calorieHistory?: readonly CalorieTargetPoint[] | undefined;
   /** Dated goals and events the athlete stated, for every plan prompt. */
@@ -422,7 +425,7 @@ export async function runPlanGeneration(
       const generated = withTrainingLoad(
         applyForecastToPlan(
           dropUnplacedTomorrow(
-            outlineWeekPlans(completed),
+            outlineWeekPlans(syncDietProgressTargets(completed)),
             input.includeTomorrow === true,
           ),
           forecastForStorage(context),
@@ -748,15 +751,17 @@ async function advancePlan(
       plan.today,
     ),
   };
-  const finalPlan = withTrainingLoad(
-    applyForecastToPlan(
-      dropUnplacedTomorrow(
-        outlineWeekPlans(plan),
-        input.includeTomorrow === true,
+  const finalPlan = syncDietProgressTargets(
+    withTrainingLoad(
+      applyForecastToPlan(
+        dropUnplacedTomorrow(
+          outlineWeekPlans(plan),
+          input.includeTomorrow === true,
+        ),
+        forecastForStorage(context),
       ),
-      forecastForStorage(context),
+      context,
     ),
-    context,
   );
   assertPlanValid(finalPlan, today, input.includeTomorrow === true);
   if (input.includeTomorrow === true && finalPlan.tomorrow === null) {
@@ -1527,6 +1532,9 @@ function baseContext(input: GeneratePlanInput) {
     ...(input.context.diet !== undefined ? { diet: input.context.diet } : {}),
     ...(input.context.dietGoal !== undefined
       ? { dietGoal: input.context.dietGoal }
+      : {}),
+    ...(input.context.dietAdvice !== undefined
+      ? { dietAdvice: input.context.dietAdvice }
       : {}),
     ...(input.context.calorieHistory !== undefined &&
     input.context.calorieHistory.length > 0

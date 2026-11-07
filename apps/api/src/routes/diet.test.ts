@@ -325,6 +325,7 @@ describe("GET /api/diet/summary", () => {
   function planStoreWith(
     diet: {
       goal: string;
+      goalProvided?: boolean;
       assessment: string;
     } | null,
   ): PlanStore {
@@ -358,6 +359,7 @@ describe("GET /api/diet/summary", () => {
       store,
       planStore: planStoreWith({
         goal: "Lose 3 kg by March",
+        goalProvided: true,
         assessment: "The trend is on target for the goal.",
       }),
       loadDayCalories: () => Promise.resolve(new Map([["2026-11-07", 2400]])),
@@ -367,6 +369,7 @@ describe("GET /api/diet/summary", () => {
     expect(res.status).toBe(200);
     const parsed = (await res.json()) as {
       goal: string;
+      goalProvided: boolean;
       assessment: string;
       days: {
         date: string;
@@ -377,6 +380,7 @@ describe("GET /api/diet/summary", () => {
       }[];
     };
     expect(parsed.goal).toBe("Lose 3 kg by March");
+    expect(parsed.goalProvided).toBe(true);
     expect(parsed.assessment).toContain("on target");
     expect(parsed.days[0]).toMatchObject({
       date: "2026-11-07",
@@ -385,6 +389,38 @@ describe("GET /api/diet/summary", () => {
       balanceKcal: -1980,
     });
     expect(parsed.days[0]?.entries).toHaveLength(1);
+  });
+
+  it("infers whether an older plan's goal was the default", async () => {
+    const fallback = makeApp({
+      planStore: planStoreWith({
+        goal: "Maintain current weight",
+        assessment: "Holding.",
+      }),
+      loadDayCalories: () => Promise.resolve(new Map()),
+    }).app;
+    const fallbackRes = await request(
+      fallback,
+      "/api/diet/summary?today=2026-11-07",
+    );
+    expect(
+      ((await fallbackRes.json()) as { goalProvided: boolean }).goalProvided,
+    ).toBe(false);
+
+    const custom = makeApp({
+      planStore: planStoreWith({
+        goal: "Lose 3 kg by March",
+        assessment: "On target.",
+      }),
+      loadDayCalories: () => Promise.resolve(new Map()),
+    }).app;
+    const customRes = await request(
+      custom,
+      "/api/diet/summary?today=2026-11-07",
+    );
+    expect(
+      ((await customRes.json()) as { goalProvided: boolean }).goalProvided,
+    ).toBe(true);
   });
 
   it("returns an empty summary when diet advice is off", async () => {

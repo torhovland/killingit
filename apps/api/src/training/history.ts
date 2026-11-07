@@ -29,6 +29,7 @@ import { addDays, startOfWeek } from "../plans/dates.js";
 import { loadPlanDayCalories } from "../plans/dayCalories.js";
 import { activityDayTss, groupActivitiesByDate } from "./activityLoad.js";
 import { loadTrainingContext } from "./context.js";
+import { planDietTargets } from "./dietTargets.js";
 import { buildFtpTimelineFromPoints, ftpAt, type FtpTimeline } from "./ftp.js";
 import { buildThresholdSeries, type ThresholdTimeline } from "./thresholds.js";
 
@@ -76,6 +77,8 @@ export interface FitnessHistoryInput {
     consumed: ReadonlyMap<string, number>;
     needed: ReadonlyMap<string, number>;
   };
+  /** Whether the athlete wants diet advice, so the body chart may show targets. */
+  dietAdvice?: boolean;
 }
 
 /**
@@ -176,6 +179,9 @@ export function buildFitnessHistory(
       consumedKcal: input.nutrition?.consumed.get(day.date) ?? null,
       neededKcal: input.nutrition?.needed.get(day.date) ?? null,
     })),
+    seasonEndDate: input.plan?.season.endDate ?? null,
+    dietTargets:
+      input.dietAdvice === true ? planDietTargets(input.plan, input.today) : [],
   };
 }
 
@@ -336,6 +342,7 @@ export async function loadFitnessHistory(
     bodyPoints: { weight, bodyFat },
     dailyHealthPoints,
     ...(nutrition != null ? { nutrition } : {}),
+    dietAdvice,
   });
 }
 

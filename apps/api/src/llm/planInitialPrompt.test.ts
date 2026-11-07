@@ -69,6 +69,8 @@ describe("season plan prompt", () => {
     expect(SEASON_PLAN_SYSTEM_PROMPT).toContain('"season"');
     expect(SEASON_PLAN_SYSTEM_PROMPT).toContain('"weekCount"');
     expect(SEASON_PLAN_SYSTEM_PROMPT).toContain("rationale");
+    expect(SEASON_PLAN_SYSTEM_PROMPT).toContain('"dietProgress"');
+    expect(SEASON_PLAN_SYSTEM_PROMPT).toContain('"targetWeightKg"');
   });
 
   it("includes the athlete context and today's date", () => {
@@ -104,6 +106,8 @@ describe("initial block prompt", () => {
     expect(INITIAL_BLOCK_SYSTEM_PROMPT).toContain('"block"');
     expect(INITIAL_BLOCK_SYSTEM_PROMPT).toContain('"targetLoad"');
     expect(INITIAL_BLOCK_SYSTEM_PROMPT).toContain("rationale");
+    expect(INITIAL_BLOCK_SYSTEM_PROMPT).toContain('"dietProgress"');
+    expect(INITIAL_BLOCK_SYSTEM_PROMPT).toContain('"targetBodyFatPercent"');
     expect(INITIAL_BLOCK_SYSTEM_PROMPT).toContain(PLAN_PROMPT_RULES);
     expect(INITIAL_BLOCK_SYSTEM_PROMPT).toContain(GLOBAL_PROMPT_RULES);
     expect(INITIAL_BLOCK_SYSTEM_PROMPT).toContain(TRAINING_LOAD_RULES);
