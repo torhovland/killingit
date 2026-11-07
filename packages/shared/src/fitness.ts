@@ -72,6 +72,19 @@ export const fitnessHistoryDaySchema = trainingLoadSchema.extend({
 
 export type FitnessHistoryDay = z.infer<typeof fitnessHistoryDaySchema>;
 
+/**
+ * One day's nutrition on the fitness chart: the calories the athlete logged and
+ * the coach's estimated requirement for the same day. Either side is null when
+ * there is no analysed meal or no stored calorie target.
+ */
+export const fitnessNutritionDaySchema = z.object({
+  date: planDateSchema,
+  consumedKcal: z.number().int().nonnegative().nullable().default(null),
+  neededKcal: z.number().int().nonnegative().nullable().default(null),
+});
+
+export type FitnessNutritionDay = z.infer<typeof fitnessNutritionDaySchema>;
+
 /** The estimated threshold series shown on one day of the fitness chart. */
 export const thresholdHistorySeriesSchema = z.object({
   sport: z.string().min(1),
@@ -134,6 +147,8 @@ export const fitnessHistoryResponseSchema = z.object({
   }),
   /** Every stored daily health point, oldest first, for the health charts. */
   dailyHealth: z.array(dailyHealthPointSchema).default([]),
+  /** Logged and needed calories for the same days, for the nutrition chart. */
+  nutrition: z.array(fitnessNutritionDaySchema).default([]),
 });
 
 export type FitnessHistoryResponse = z.infer<

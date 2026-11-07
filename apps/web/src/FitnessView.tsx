@@ -11,6 +11,7 @@ import {
 import { BodyChart } from "./BodyChart";
 import { DailyHealthCharts } from "./DailyHealthCharts";
 import { FitnessChart } from "./FitnessChart";
+import { NutritionChart } from "./NutritionChart";
 import { ThresholdChart } from "./ThresholdChart";
 import { TrainingLoadLine } from "./TrainingLoadLine";
 
@@ -271,6 +272,8 @@ export function FitnessView({
             bodyFat={history.body.bodyFat}
             today={today}
           />
+
+          <NutritionChart days={history.nutrition} today={today} />
 
           <DailyHealthCharts days={history.days} points={history.dailyHealth} />
         </>

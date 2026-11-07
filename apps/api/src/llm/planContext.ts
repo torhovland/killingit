@@ -18,6 +18,7 @@ import {
   type DailyHealthPoint,
   type DailyWeather,
   type DayPlan,
+  type DietPlan,
   type MetricPoint,
   type SeasonPlan,
   type StrengthSet,
@@ -133,6 +134,10 @@ export interface PlanContextInput {
   bodyHistory?: BodyMetricHistory | undefined;
   /** Stored daily sleep, HRV, readiness and related values for the prompt. */
   dailyHealth?: readonly DailyHealthPoint[];
+  /** The coach's current diet goal and weight-trend assessment. */
+  dietGoal?: DietPlan | null;
+  /** The coach's earlier calorie targets for recent days, newest first. */
+  calorieHistory?: readonly CalorieTargetPoint[];
   /** The athlete's fitness snapshot for today, when one has been calculated. */
   currentForm?: TrainingLoad | null;
   /**
@@ -151,6 +156,12 @@ export interface PlanContextInput {
 export interface BodyMetricHistory {
   weight: readonly Pick<MetricPoint, "date" | "value" | "source">[];
   bodyFat: readonly Pick<MetricPoint, "date" | "value" | "source">[];
+}
+
+/** One earlier calorie requirement the coach set for a day. */
+export interface CalorieTargetPoint {
+  date: string;
+  caloriesKcal: number;
 }
 
 /** The most recent answer date, or null when no answer carries one. */
@@ -343,6 +354,22 @@ export function formatPlanContext(input: PlanContextInput): string[] {
   }
   if (input.bodyHistory !== undefined) {
     lines.push(...formatBodyHistory(input.bodyHistory));
+  }
+  if (input.dietGoal !== undefined && input.dietGoal !== null) {
+    lines.push(
+      "",
+      `Diet goal: ${input.dietGoal.goal}`,
+      `Diet assessment: ${input.dietGoal.assessment}`,
+    );
+  }
+  if (input.calorieHistory !== undefined && input.calorieHistory.length > 0) {
+    lines.push(
+      "",
+      "Earlier daily calorie targets (newest first; your own estimates, shown so you can judge the weight trend):",
+      ...input.calorieHistory.map(
+        (point) => `- ${point.date}: ${Math.round(point.caloriesKcal)} kcal`,
+      ),
+    );
   }
   if (input.dailyHealth !== undefined) {
     lines.push(

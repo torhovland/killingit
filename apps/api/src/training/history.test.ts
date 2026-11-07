@@ -211,6 +211,29 @@ describe("buildFitnessHistory", () => {
     expect(history.days.at(-1)?.date).toBe("2026-10-22");
   });
 
+  it("reports logged and needed calories for each day", () => {
+    const history = buildFitnessHistory({
+      ...base,
+      plan: undefined,
+      nutrition: {
+        consumed: new Map([["2026-10-22", 2100]]),
+        needed: new Map([["2026-10-22", 2400]]),
+      },
+    });
+
+    expect(history.nutrition).toHaveLength(7);
+    expect(history.nutrition.at(-1)).toEqual({
+      date: "2026-10-22",
+      consumedKcal: 2100,
+      neededKcal: 2400,
+    });
+    expect(history.nutrition[0]).toEqual({
+      date: "2026-10-16",
+      consumedKcal: null,
+      neededKcal: null,
+    });
+  });
+
   it("matches the activity load series for the same date", () => {
     const activities = [activity({ normalizedPower: 200 })];
     const history = buildFitnessHistory({ ...base, activities });

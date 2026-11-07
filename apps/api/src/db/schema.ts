@@ -2,6 +2,7 @@ import type {
   AnalyzedActivitiesResponse,
   BlockPlan,
   DayPlan,
+  DietPlan,
   FoodAnalysis,
   LlmCallMessage,
   LlmCallUsage,
@@ -1068,6 +1069,11 @@ export const coachPlans = pgTable(
     nextWeek: jsonb("next_week").$type<WeekPlan | null>(),
     /** The block containing tomorrow once it has crossed the current block. */
     nextBlock: jsonb("next_block").$type<BlockPlan | null>(),
+    /**
+     * The athlete's diet goal and the coach's judgement of the weight trend.
+     * Null on plans stored before diet coaching.
+     */
+    diet: jsonb("diet").$type<DietPlan | null>(),
     dayDate: text("day_date").notNull(),
     weekStartDate: text("week_start_date").notNull(),
     blockStartDate: text("block_start_date").notNull(),
@@ -1138,6 +1144,46 @@ export const planWeekTotals = pgTable(
 
 export type PlanWeekTotalsRow = typeof planWeekTotals.$inferSelect;
 export type NewPlanWeekTotals = typeof planWeekTotals.$inferInsert;
+
+/**
+ * The coach's estimated calorie requirement for one day, kept after the day
+ * leaves the stored plan. The plan only carries the current and next week, so
+ * without this record the Diet and Fitness pages could not show the target the
+ * athlete was following earlier. The row is rewritten whenever a plan covering
+ * the day is saved.
+ */
+export const planDayCalories = pgTable(
+  "plan_day_calories",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    date: text("date").notNull(),
+    caloriesKcal: integer("calories_kcal").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("plan_day_calories_user_id_date_idx").on(
+      table.userId,
+      table.date,
+    ),
+    index("plan_day_calories_user_id_date_order_idx").on(
+      table.userId,
+      table.date,
+    ),
+    check("plan_day_calories_date_check", sql`length(${table.date}) = 10`),
+    check("plan_day_calories_kcal_check", sql`${table.caloriesKcal} >= 0`),
+  ],
+);
+
+export type PlanDayCaloriesRow = typeof planDayCalories.$inferSelect;
+export type NewPlanDayCalories = typeof planDayCalories.$inferInsert;
 
 /**
  * Per-user generation status used by the UI to show progress while the coach is

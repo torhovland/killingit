@@ -9,6 +9,7 @@ import {
   type PlanGenerationRow,
 } from "../db/schema.js";
 import { progressAt, recordDuration } from "./progress.js";
+import { recordPlanDayCalories } from "./dayCalories.js";
 import { recordPlanWeekTotals } from "./weekTotals.js";
 import {
   PLAN_GENERATION_START,
@@ -78,6 +79,7 @@ function toStoredPlan(row: CoachPlanRow): StoredPlan {
       tomorrow: row.tomorrow,
       nextWeek: row.nextWeek,
       nextBlock: row.nextBlock,
+      diet: row.diet,
     },
     answersUpdatedAt: row.answersUpdatedAt,
     coachingInputsUpdatedAt: row.coachingInputsUpdatedAt,
@@ -147,6 +149,7 @@ export const dbPlanStore: PlanStore = {
       tomorrow: plan.tomorrow,
       nextWeek: plan.nextWeek,
       nextBlock: plan.nextBlock,
+      diet: plan.diet,
       dayDate: plan.today.date,
       weekStartDate: plan.week.startDate,
       blockStartDate: plan.block.startDate,
@@ -179,6 +182,7 @@ export const dbPlanStore: PlanStore = {
     if (runId === undefined) {
       const saved = await write(db);
       await recordPlanWeekTotals(userId, plan, db);
+      await recordPlanDayCalories(userId, plan, db);
       return saved;
     }
 
@@ -196,6 +200,7 @@ export const dbPlanStore: PlanStore = {
       }
       const saved = await write(tx);
       await recordPlanWeekTotals(userId, plan, tx);
+      await recordPlanDayCalories(userId, plan, tx);
       return saved;
     });
   },

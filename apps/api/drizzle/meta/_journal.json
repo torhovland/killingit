@@ -344,6 +344,13 @@
       "when": 1794060705255,
       "tag": "0048_omniscient_angel",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1794063131824,
+      "tag": "0049_lowly_satana",
+      "breakpoints": true
     }
   ]
 }

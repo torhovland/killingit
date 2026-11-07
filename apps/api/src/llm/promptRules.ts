@@ -12,6 +12,8 @@
  * stays consistent no matter which completion produced it.
  */
 
+import { DEFAULT_DIET_GOAL } from "@killingit/shared";
+
 /**
  * The rules every prompt includes: the coach identity, direct second-person
  * address, the no-invention rule, body-measurement limits, the activity-comment
@@ -71,6 +73,17 @@ export const ATHLETE_EVENT_RULES = `The athlete's dated goals and events are dat
  * never presented as exact measurements.
  */
 export const DIET_RULES = `When a food log is provided, it lists meals the athlete logged with a description, your earlier meal description, estimated carbs, protein, fat and calories, and a note on how the meal fits the athlete's goal. Treat meals as nutrition context only: never count a meal as training, add it to training load, or turn it into a workout. The numbers are estimates from a description and an optional photo, so call them estimates and do not present them as measured values. Use recent meals and weekly summaries to judge fuelling, recovery and whether the diet supports the plan, and mention a meal only when it changes your advice.`;
+
+/**
+ * How the coach turns the athlete's diet goal, tracked weight and food log into
+ * a daily calorie requirement. The judgement of the weight trend and of the
+ * deficit is the coach's, never a formula in the app.
+ */
+export const DIET_PLANNING_RULES = `Nutrition is part of the plan. The athlete's diet goal is whatever they state in their profile, notes, or comments; when they state none, assume the goal is to maintain their current weight. Report the goal in "diet.goal" as a short statement in their own terms, or "${DEFAULT_DIET_GOAL}" when they gave none.
+
+In "diet.assessment", judge from the tracked weight history and the logged calories against your earlier calorie targets whether the athlete is on track for that goal. Say whether the calorie deficit or surplus is right, too large, or too small, and what you changed. Judge the weight trend from the measurements themselves rather than from a fixed formula. When there is no weight history yet, say what you will judge the trend by and set a sensible starting target.
+
+Estimate the calories the athlete needs on each day you return, and set "estimatedCaloriesKcal" on every week session and on the today and tomorrow day objects. The number must keep the athlete on track for the goal: base it on their body weight, the training planned for that day, and recent recovery, so a hard training day needs more calories than a rest day. It is an estimate, not a measured requirement, and it changes with the day's training. Never return 0.`;
 
 /**
  * The rules every plan prompt includes regardless of the level it builds or
@@ -307,6 +320,7 @@ export const DAY_CONTRACT = `{
   "optional": false,
   "optionalRationale": "string",
   "estimatedTss": 0,
+  "estimatedCaloriesKcal": 0,
   "outdoor": true,
   "canBeOutdoor": true,
   "bikeWorkout": ${BIKE_WORKOUT_CONTRACT}
@@ -328,6 +342,7 @@ export const WEEK_CONTRACT = `{
       "intensity": "easy | moderate | hard | rest",
       "status": "completed | partial | planned | missed | rest",
       "estimatedTss": 0,
+      "estimatedCaloriesKcal": 0,
       "estimatedFtpWatts": 0,
       "outdoor": true,
       "canBeOutdoor": true,
@@ -335,6 +350,9 @@ export const WEEK_CONTRACT = `{
     }
   ]
 }`;
+
+/** The diet goal and the coach's judgement of the weight trend. */
+export const DIET_CONTRACT = `{ "goal": "string", "assessment": "string" }`;
 
 export const BLOCK_CONTRACT = `{
   "name": "string",

@@ -11,6 +11,8 @@ import {
   COACH_RESPONSE_NOTES_CONTRACT,
   COMPLETED_SESSION_RULES,
   DAY_CONTRACT,
+  DIET_CONTRACT,
+  DIET_PLANNING_RULES,
   ENUM_RULES,
   JSON_RULES,
   jsonTopLevelKeys,
@@ -32,7 +34,7 @@ import {
  * callers can invalidate cached plans the same way activity analyses are
  * versioned.
  */
-export const COACH_PLAN_PROMPT_VERSION = 11;
+export const COACH_PLAN_PROMPT_VERSION = 12;
 
 export type CoachPlanActivity = RecentActivityContext;
 
@@ -53,6 +55,7 @@ const COACH_PLAN_RESPONSE_CONTRACT = `{
   "week": ${WEEK_CONTRACT},
   "today": ${DAY_CONTRACT},
   "tomorrow": ${DAY_CONTRACT},
+  "diet": ${DIET_CONTRACT},
   "bodyMetrics": [${BODY_METRIC_POINT_CONTRACT}],
   ${COACH_RESPONSE_NOTES_CONTRACT}
 }`;
@@ -79,6 +82,7 @@ export const COACH_PLAN_SYSTEM_PROMPT = promptSections(
   SESSION_PURPOSE_RULES,
   WEATHER_PLANNING_RULES,
   BIKE_WORKOUT_RULES,
+  DIET_PLANNING_RULES,
   TRAINING_LOAD_RULES,
   ENUM_RULES,
   JSON_RULES,
@@ -120,6 +124,7 @@ export function buildCoachPlanPrompt(input: CoachPlanInput): string {
       "week",
       "today",
       "tomorrow",
+      "diet",
       "bodyMetrics",
     ]),
   ].join("\n");

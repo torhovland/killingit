@@ -12,6 +12,7 @@ import {
   type BlockPlan,
   type CoachPlan,
   type DayPlan,
+  type DietDaySummary,
   type SeasonPlan,
   type ThresholdSummary,
   type WeekPlan,
@@ -19,6 +20,7 @@ import {
 } from "@killingit/shared";
 import { Bullet } from "./Bullet";
 import { addDays } from "./calendarDates";
+import { CalorieBalancePanel } from "./CalorieBalancePanel";
 import { FormattedText } from "./FormattedText";
 import { SessionSetting } from "./SessionSetting";
 import { TrainingLoadLine } from "./TrainingLoadLine";
@@ -49,6 +51,8 @@ export function CoachPlanView({
   downloadingWorkoutDate = null,
   thresholds = [],
   events = [],
+  dietToday = null,
+  showCalories = false,
 }: {
   plan: CoachPlan;
   showTomorrow?: boolean;
@@ -67,6 +71,10 @@ export function CoachPlanView({
   thresholds?: readonly ThresholdSummary[];
   /** Dated goals and events the athlete stated, shown on the Day and Week tabs. */
   events?: readonly AthleteEvent[];
+  /** Today's logged and needed calories, when diet advice is on. */
+  dietToday?: DietDaySummary | null;
+  /** Whether the athlete has opted in to diet advice, so calories are shown. */
+  showCalories?: boolean;
 }) {
   const [tab, setTab] = useState<PlanTab>(defaultTab);
 
@@ -106,6 +114,8 @@ export function CoachPlanView({
               onDownloadWorkout={onDownloadWorkout}
               downloading={downloadingWorkoutDate === plan.today.date}
               thresholds={thresholds}
+              dietToday={dietToday}
+              showCalories={showCalories}
             />
             {showTomorrow && plan.tomorrow && (
               <>
@@ -121,6 +131,7 @@ export function CoachPlanView({
                   onDownloadWorkout={onDownloadWorkout}
                   downloading={downloadingWorkoutDate === plan.tomorrow.date}
                   thresholds={thresholds}
+                  showCalories={showCalories}
                 />
               </>
             )}
@@ -138,6 +149,7 @@ export function CoachPlanView({
               testId="plan-week"
               refreshing={refreshingWeeks.week ?? false}
               thresholds={thresholds}
+              showCalories={showCalories}
             />
             {plan.nextWeek !== null && (
               <>
@@ -151,6 +163,7 @@ export function CoachPlanView({
                   testId="plan-next-week"
                   refreshing={refreshingWeeks.nextWeek ?? false}
                   thresholds={thresholds}
+                  showCalories={showCalories}
                 />
               </>
             )}
@@ -265,6 +278,8 @@ function DayCard({
   onDownloadWorkout,
   downloading = false,
   thresholds = [],
+  dietToday,
+  showCalories = false,
 }: {
   day: DayPlan;
   label: string;
@@ -273,6 +288,9 @@ function DayCard({
   onDownloadWorkout?: ((date: string) => void) | undefined;
   downloading?: boolean;
   thresholds?: readonly ThresholdSummary[];
+  /** Today's logged and needed calories; omitted on days without the panel. */
+  dietToday?: DietDaySummary | null;
+  showCalories?: boolean;
 }) {
   const relevantThresholds = dayThresholds(day, thresholds);
   return (
@@ -311,6 +329,21 @@ function DayCard({
           </span>
         </div>
         <p className="text-lg font-medium">{day.title}</p>
+        {showCalories && dietToday !== undefined ? (
+          <CalorieBalancePanel
+            neededKcal={
+              dietToday?.neededCaloriesKcal ?? day.estimatedCaloriesKcal ?? null
+            }
+            consumedKcal={dietToday?.consumedCaloriesKcal ?? null}
+            title="Calories today"
+            testId={`${testId}-calories`}
+          />
+        ) : showCalories && day.estimatedCaloriesKcal !== undefined ? (
+          <p className="text-base" data-testid={`${testId}-calories`}>
+            <span className="font-medium">Estimated calories: </span>
+            {day.estimatedCaloriesKcal} kcal
+          </p>
+        ) : null}
         {day.trainingLoad !== null && day.trainingLoad !== undefined && (
           <TrainingLoadLine load={day.trainingLoad} testId={`${testId}-load`} />
         )}
@@ -439,12 +472,14 @@ function WeekSection({
   testId,
   refreshing = false,
   thresholds = [],
+  showCalories = false,
 }: {
   week: WeekPlan;
   label: string;
   testId?: string;
   refreshing?: boolean;
   thresholds?: readonly ThresholdSummary[];
+  showCalories?: boolean;
 }) {
   const estimatedFtp = week.estimatedFtpWatts;
   return (
@@ -512,6 +547,12 @@ function WeekSection({
                   </span>
                 )}
                 <StatusBadge status={session.status} />
+                {showCalories &&
+                  session.estimatedCaloriesKcal !== undefined && (
+                    <span data-testid="week-session-calories">
+                      {session.estimatedCaloriesKcal} kcal needed
+                    </span>
+                  )}
               </span>
               {session.trainingLoad !== null &&
                 session.trainingLoad !== undefined && (

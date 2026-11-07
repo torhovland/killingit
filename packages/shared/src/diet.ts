@@ -6,6 +6,26 @@ import { timeZoneSchema } from "./user.js";
 export const FOOD_DESCRIPTION_MAX_LENGTH = 2000;
 
 /**
+ * The diet goal shown when the athlete has not stated one. The coach assumes
+ * maintenance so the calorie estimate always has a target to work toward.
+ */
+export const DEFAULT_DIET_GOAL = "Maintain current weight";
+
+/**
+ * The coach's diet goal for the athlete and its judgement of the weight trend.
+ * `assessment` is the coach's own reading of the tracked weights against the
+ * logged calories and its earlier targets; the app never computes it.
+ */
+export const dietPlanSchema = z.object({
+  /** The athlete's goal in their own terms, or maintenance when unstated. */
+  goal: z.string().trim().min(1).max(500),
+  /** The coach's judgement of whether the goal is on track. */
+  assessment: z.string().trim().min(1).max(4000),
+});
+
+export type DietPlan = z.infer<typeof dietPlanSchema>;
+
+/**
  * The analysis photo is sent to the model at its full resolution, so it can be
  * much larger than the thumbnail kept for the food log. The source file is
  * capped at 15 MB in the browser, which leaves room for base64 overhead.
@@ -46,6 +66,8 @@ export const foodEntrySchema = z.object({
   id: z.number().int().positive(),
   /** The meal instant as an ISO timestamp. */
   eatenAt: z.string().datetime(),
+  /** The athlete's local calendar date, `YYYY-MM-DD`. */
+  eatenDate: planDateSchema,
   /** The athlete's own description; null when the meal was logged by photo. */
   description: z.string().nullable(),
   /** Whether a thumbnail can be fetched from the entry's photo endpoint. */
@@ -56,6 +78,38 @@ export const foodEntrySchema = z.object({
 });
 
 export type FoodEntry = z.infer<typeof foodEntrySchema>;
+
+/**
+ * One day of the diet log: the coach's calorie requirement, the calories the
+ * athlete logged, and the resulting balance. `balanceKcal` is consumed minus
+ * needed, so a negative number is a deficit and a positive one a surplus. It is
+ * null when either side is unknown.
+ */
+export const dietDaySummarySchema = z.object({
+  date: planDateSchema,
+  /** The coach's estimated requirement for the day, when the plan covers it. */
+  neededCaloriesKcal: z.number().int().nonnegative().nullable().default(null),
+  /** Calories from analysed meals logged that day; null when none were logged. */
+  consumedCaloriesKcal: z.number().int().nonnegative().nullable().default(null),
+  /** Consumed minus needed; negative is a deficit, positive a surplus. */
+  balanceKcal: z.number().int().nullable().default(null),
+  /** The meals logged that day, newest first. */
+  entries: z.array(foodEntrySchema).default([]),
+});
+
+export type DietDaySummary = z.infer<typeof dietDaySummarySchema>;
+
+/** Response body of `GET /api/diet/summary`. */
+export const dietSummaryResponseSchema = z.object({
+  /** The coach's diet goal, or null when no plan has been generated. */
+  goal: z.string().nullable().default(null),
+  /** The coach's judgement of the weight trend, or null without a plan. */
+  assessment: z.string().nullable().default(null),
+  /** Every day with a logged meal or a calorie target, newest first. */
+  days: z.array(dietDaySummarySchema).default([]),
+});
+
+export type DietSummaryResponse = z.infer<typeof dietSummaryResponseSchema>;
 
 /** Response body of `GET /api/diet/entries`. */
 export const foodEntriesResponseSchema = z.object({

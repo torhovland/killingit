@@ -1,9 +1,10 @@
 import {
+  dietSummaryResponseSchema,
   foodEntriesResponseSchema,
   foodEntryRequestSchema,
   foodEntrySchema,
+  planDateSchema,
   type FoodAnalysis,
-  type FoodEntry,
 } from "@killingit/shared";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
@@ -16,24 +17,30 @@ import {
 import type { PlanContextInput } from "../llm/planContext.js";
 import { loadLlmClient, type LlmClient } from "../llm/client.js";
 import { analyzeFood } from "../llm/foodAnalysis.js";
-import { localDateTimeInZone } from "../plans/dates.js";
+import { localDateTimeInZone, addDays } from "../plans/dates.js";
+import { loadPlanDayCalories } from "../plans/dayCalories.js";
+import type { PlanStore } from "../plans/store.js";
 import type { QuestionAnswerStore } from "../questions/answers.js";
-import type { UserStore } from "../users/store.js";
-import {
-  dbFoodEntryStore,
-  type FoodEntryStore,
-  type StoredFoodEntry,
-} from "../diet/store.js";
+import { type UserStore } from "../users/store.js";
+import { buildDietSummary } from "../diet/days.js";
+import { toFoodEntry } from "../diet/presenter.js";
+import { dbFoodEntryStore, type FoodEntryStore } from "../diet/store.js";
 import { createMealThumbnail } from "../diet/thumbnail.js";
 
 /** The reported reason when no provider is configured. */
 const NO_LLM_ERROR =
   "The coach needs an OpenRouter key and model. Add them in Settings, then log the meal again.";
 
+/** How far back the summary looks when the athlete has logged nothing. */
+const EMPTY_SUMMARY_DAYS = 30;
+
 export interface DietRouteDependencies {
   users: UserStore;
   answers: QuestionAnswerStore;
   entries?: FoodEntryStore;
+  plans?: PlanStore;
+  /** Injectable for route tests; defaults to the stored plan's calorie targets. */
+  loadTargets?: typeof loadPlanDayCalories;
   /** Injectable for route tests; defaults to the account's stored config. */
   loadLlm?: (userId: number) => Promise<LlmClient | null>;
   /** Injectable for route tests; defaults to the stored reply context. */
@@ -42,18 +49,6 @@ export interface DietRouteDependencies {
   analyze?: typeof analyzeFood;
   /** Injectable for route tests; defaults to the Jimp thumbnail generator. */
   createThumbnail?: typeof createMealThumbnail;
-}
-
-/** The public shape of one logged meal. */
-function toFoodEntry(entry: StoredFoodEntry): FoodEntry {
-  return foodEntrySchema.parse({
-    id: entry.id,
-    eatenAt: entry.eatenAt.toISOString(),
-    description: entry.description,
-    hasPhoto: entry.thumbnailDataUrl !== null,
-    analysis: entry.analysis,
-    analysisError: entry.analysisError,
-  });
 }
 
 /** Decodes a stored image data URL into its MIME type and bytes. */
@@ -84,12 +79,52 @@ function decodePhoto(dataUrl: string): {
  */
 export function createDietRoute(deps: DietRouteDependencies): Hono {
   const entries = deps.entries ?? dbFoodEntryStore;
+  const loadTargets = deps.loadTargets ?? loadPlanDayCalories;
   const llmLoader = deps.loadLlm ?? loadLlmClient;
   const loadContext = deps.loadContext ?? loadReplyContext;
   const analyze = deps.analyze ?? analyzeFood;
   const createThumbnail = deps.createThumbnail ?? createMealThumbnail;
 
   return new Hono()
+    .get("/summary", async (c) => {
+      const today = planDateSchema.safeParse(c.req.query("today"));
+      if (!today.success) {
+        return c.text("A valid today date (YYYY-MM-DD) is required", 400);
+      }
+      const user = await deps.users.ensureUser(getAthlete(c).sub);
+      if (!user.dietAdvice) {
+        return c.json(
+          dietSummaryResponseSchema.parse({
+            goal: null,
+            assessment: null,
+            days: [],
+          }),
+        );
+      }
+
+      const stored = await entries.listForUser(user.id);
+      const earliest =
+        stored.map((entry) => entry.eatenDate).sort()[0] ??
+        addDays(today.data, -EMPTY_SUMMARY_DAYS);
+      const [targets, plan] = await Promise.all([
+        loadTargets(user.id, earliest, today.data),
+        deps.plans === undefined
+          ? Promise.resolve(null)
+          : deps.plans.load(user.id),
+      ]);
+      const diet = plan?.plan.diet ?? null;
+      return c.json(
+        dietSummaryResponseSchema.parse(
+          buildDietSummary({
+            entries: stored,
+            targets,
+            goal: diet?.goal ?? null,
+            assessment: diet?.assessment ?? null,
+            today: today.data,
+          }),
+        ),
+      );
+    })
     .get("/entries", async (c) => {
       const user = await deps.users.ensureUser(getAthlete(c).sub);
       const stored = await entries.listForUser(user.id);

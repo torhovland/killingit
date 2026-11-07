@@ -106,7 +106,7 @@ function makeAnalyzedActivity(
 
 describe("coach plan prompts", () => {
   it("exposes a prompt version for cache invalidation", () => {
-    expect(COACH_PLAN_PROMPT_VERSION).toBe(11);
+    expect(COACH_PLAN_PROMPT_VERSION).toBe(12);
   });
 
   it("builds a system and a user message", () => {
@@ -257,7 +257,7 @@ describe("coach plan prompts", () => {
 
     expect(COACH_PLAN_SYSTEM_PROMPT).toContain(PLAN_PROMPT_RULES);
     expect(prompt).toContain(
-      'top-level keys are exactly "season", "block", "week", "today", "tomorrow", and "bodyMetrics"',
+      'top-level keys are exactly "season", "block", "week", "today", "tomorrow", "diet", and "bodyMetrics"',
     );
   });
 });

@@ -7,6 +7,7 @@ import type {
   CoachPlan,
   DailyHealthPoint,
   DailyWeather,
+  DietPlan,
   MetricPoint,
   PlanGenerateMode,
   SeasonPlan,
@@ -35,6 +36,7 @@ import type {
   AthleteAnswerContext,
   BodyMetricHistory,
   CoachingSurveyAdjustmentContext,
+  CalorieTargetPoint,
   ManualActivityContext,
   PeriodReviewContext,
   RecentActivityContext,
@@ -97,6 +99,10 @@ export interface PlanGenerationContext {
   bodyHistory?: BodyMetricHistory | undefined;
   /** Stored daily sleep, HRV, readiness and related values for the prompt. */
   dailyHealth?: readonly DailyHealthPoint[] | undefined;
+  /** The coach's current diet goal and weight-trend assessment. */
+  dietGoal?: DietPlan | null;
+  /** The coach's earlier calorie targets for recent days, newest first. */
+  calorieHistory?: readonly CalorieTargetPoint[] | undefined;
   /** Dated goals and events the athlete stated, for every plan prompt. */
   events?: readonly AthleteEvent[] | undefined;
   /** Meals from the last seven days and completed-week summaries. */
@@ -391,6 +397,7 @@ export async function runPlanGeneration(
         tomorrow: dayUpdate.tomorrow,
         nextWeek: null,
         nextBlock: null,
+        diet: dayUpdate.diet ?? null,
         bodyMetrics: mergeBodyMetrics(
           foundBodyMetrics,
           weekUpdate.bodyMetrics,
@@ -932,6 +939,7 @@ function applyPlanUpdate(
 
   return {
     ...plan,
+    diet: update.diet ?? plan.diet,
     bodyMetrics: mergeBodyMetrics(current.bodyMetrics, update.bodyMetrics),
   };
 }
@@ -1512,6 +1520,13 @@ function baseContext(input: GeneratePlanInput) {
       ? { events: input.context.events }
       : {}),
     ...(input.context.diet !== undefined ? { diet: input.context.diet } : {}),
+    ...(input.context.dietGoal !== undefined
+      ? { dietGoal: input.context.dietGoal }
+      : {}),
+    ...(input.context.calorieHistory !== undefined &&
+    input.context.calorieHistory.length > 0
+      ? { calorieHistory: input.context.calorieHistory }
+      : {}),
     today: input.today,
     ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),
     ...(input.context.manualActivities.length > 0

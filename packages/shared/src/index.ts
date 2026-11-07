@@ -340,6 +340,7 @@ export {
   fitnessDayPlanSchema,
   fitnessHistoryDaySchema,
   fitnessHistoryResponseSchema,
+  fitnessNutritionDaySchema,
   fitnessRangeSchema,
   latestGarminMeasurementSchema,
   latestGarminSchema,
@@ -348,6 +349,7 @@ export {
   type FitnessDayPlan,
   type FitnessHistoryDay,
   type FitnessHistoryResponse,
+  type FitnessNutritionDay,
   type FitnessRange,
   type LatestGarmin,
   type LatestGarminMeasurement,
@@ -368,6 +370,10 @@ export {
 } from "./review.js";
 
 export {
+  DEFAULT_DIET_GOAL,
+  dietDaySummarySchema,
+  dietPlanSchema,
+  dietSummaryResponseSchema,
   FOOD_DESCRIPTION_MAX_LENGTH,
   FOOD_PHOTO_DATA_URL_MAX_LENGTH,
   foodAnalysisResultSchema,
@@ -376,6 +382,9 @@ export {
   foodEntryRequestSchema,
   foodEntrySchema,
   foodPhotoDataUrlSchema,
+  type DietDaySummary,
+  type DietPlan,
+  type DietSummaryResponse,
   type FoodAnalysis,
   type FoodAnalysisResult,
   type FoodEntriesResponse,

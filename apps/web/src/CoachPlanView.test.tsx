@@ -1108,4 +1108,52 @@ describe("CoachPlanView", () => {
       `<span data-testid="plan-today-thresholds"><span class="font-medium">Thresholds</span><span>${BULLET}running Threshold pace`,
     );
   });
+
+  it("shows today's needed, logged and remaining calories", () => {
+    const html = renderToStaticMarkup(
+      <CoachPlanView
+        plan={{
+          ...plan,
+          today: { ...plan.today, estimatedCaloriesKcal: 2400 },
+        }}
+        showCalories
+        dietToday={{
+          date: "2026-10-21",
+          neededCaloriesKcal: 2400,
+          consumedCaloriesKcal: 1500,
+          balanceKcal: -900,
+          entries: [],
+        }}
+      />,
+    );
+
+    expect(html).toContain('data-testid="plan-today-calories"');
+    expect(html).toContain("Needed");
+    expect(html).toContain("2400 kcal");
+    expect(html).toContain("1500 kcal");
+    expect(html).toContain("900 kcal");
+  });
+
+  it("shows the estimated calorie requirement on each week session", () => {
+    const html = renderToStaticMarkup(
+      <CoachPlanView
+        plan={{
+          ...plan,
+          week: {
+            ...plan.week,
+            sessions: plan.week.sessions.map((session, index) => ({
+              ...session,
+              estimatedCaloriesKcal: 2200 + index * 100,
+            })),
+          },
+        }}
+        defaultTab="week"
+        showCalories
+      />,
+    );
+
+    expect(html).toContain('data-testid="week-session-calories"');
+    expect(html).toContain("2200 kcal needed");
+    expect(html).toContain("2800 kcal needed");
+  });
 });

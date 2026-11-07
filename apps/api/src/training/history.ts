@@ -21,9 +21,12 @@ import {
   withoutInProgressDailyHealth,
 } from "@killingit/shared";
 import type { ManualActivityContext } from "../llm/planContext.js";
+import { consumedCaloriesByDate } from "../diet/days.js";
+import { dbFoodEntryStore } from "../diet/store.js";
 import { loadDailyHealthHistoryForUser } from "../metrics/dailyMetrics.js";
 import { loadMetricPoints } from "../metrics/store.js";
 import { addDays, startOfWeek } from "../plans/dates.js";
+import { loadPlanDayCalories } from "../plans/dayCalories.js";
 import { activityDayTss, groupActivitiesByDate } from "./activityLoad.js";
 import { loadTrainingContext } from "./context.js";
 import { buildFtpTimelineFromPoints, ftpAt, type FtpTimeline } from "./ftp.js";
@@ -39,6 +42,9 @@ export const FITNESS_RANGE_DAYS: Record<
   quarter: 90,
   year: 365,
 };
+
+/** How far back the nutrition chart reads meals and calorie targets. */
+const DIET_CHART_LOOKBACK_DAYS = 365;
 
 export interface FitnessHistoryInput {
   /** The athlete's current date; the window ends here unless the plan runs on. */
@@ -65,6 +71,11 @@ export interface FitnessHistoryInput {
   thresholdPoints?: readonly AthleteThreshold[];
   /** The stored daily health points, used for the latest panel and charts. */
   dailyHealthPoints?: readonly DailyHealthPoint[];
+  /** Logged and needed calories by date, used for the nutrition chart. */
+  nutrition?: {
+    consumed: ReadonlyMap<string, number>;
+    needed: ReadonlyMap<string, number>;
+  };
 }
 
 /**
@@ -160,6 +171,11 @@ export function buildFitnessHistory(
       ftp: latestGarminFtp(input.thresholdPoints ?? [], input.today),
     },
     dailyHealth,
+    nutrition: days.map((day) => ({
+      date: day.date,
+      consumedKcal: input.nutrition?.consumed.get(day.date) ?? null,
+      neededKcal: input.nutrition?.needed.get(day.date) ?? null,
+    })),
   };
 }
 
@@ -296,13 +312,16 @@ export async function loadFitnessHistory(
   plan: CoachPlan | undefined,
   today: string,
   range: FitnessRange,
+  dietAdvice = false,
 ): Promise<FitnessHistoryResponse> {
-  const [context, weight, bodyFat, dailyHealthPoints] = await Promise.all([
-    loadTrainingContext(userId, plan),
-    loadMetricPoints(userId, "weight"),
-    loadMetricPoints(userId, "body_fat"),
-    loadDailyHealthHistoryForUser(userId, today),
-  ]);
+  const [context, weight, bodyFat, dailyHealthPoints, nutrition] =
+    await Promise.all([
+      loadTrainingContext(userId, plan),
+      loadMetricPoints(userId, "weight"),
+      loadMetricPoints(userId, "body_fat"),
+      loadDailyHealthHistoryForUser(userId, today),
+      loadNutrition(userId, plan, today, dietAdvice),
+    ]);
   return buildFitnessHistory({
     today,
     range,
@@ -316,7 +335,32 @@ export async function loadFitnessHistory(
     manualActivities: context.manualActivities,
     bodyPoints: { weight, bodyFat },
     dailyHealthPoints,
+    ...(nutrition != null ? { nutrition } : {}),
   });
+}
+
+/** The food and calorie-target data behind the fitness chart. */
+async function loadNutrition(
+  userId: number,
+  plan: CoachPlan | undefined,
+  today: string,
+  dietAdvice: boolean,
+): Promise<Parameters<typeof buildFitnessHistory>[0]["nutrition"] | null> {
+  if (!dietAdvice) {
+    return null;
+  }
+  try {
+    const from = addDays(today, -DIET_CHART_LOOKBACK_DAYS);
+    const to = plannedEndDate(plan) ?? today;
+    const [entries, needed] = await Promise.all([
+      dbFoodEntryStore.listSince(userId, from),
+      loadPlanDayCalories(userId, from, to),
+    ]);
+    return { consumed: consumedCaloriesByDate(entries), needed };
+  } catch (err) {
+    console.error("[fitness] could not read the nutrition history:", err);
+    return null;
+  }
 }
 
 /**

@@ -18,7 +18,14 @@ const API_URL = import.meta.env.VITE_API_URL ?? "";
  * athlete has enabled diet advice in Settings, so the opt-in gates both the
  * form and the prompt context.
  */
-export function FoodLogSection({ enabled }: { enabled: boolean }) {
+export function FoodLogSection({
+  enabled,
+  onLogged,
+}: {
+  enabled: boolean;
+  /** Called after a meal is saved, so the caller can refresh its summaries. */
+  onLogged?: (entry: FoodEntry) => void;
+}) {
   const auth = useAuth();
   const timeZone = useTimeZone();
   const reportSave = useBusyReporter("food-log");
@@ -93,6 +100,7 @@ export function FoodLogSection({ enabled }: { enabled: boolean }) {
         });
       }
       setResult(parsed.data);
+      onLogged?.(parsed.data);
       setDescription("");
       setPhotoDataUrl(null);
       setPhotoName(null);

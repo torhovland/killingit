@@ -194,7 +194,7 @@ describe("unified plan update prompt", () => {
     expect(prompt).toContain("Next block plan:");
     expect(prompt).toContain("Revision request:");
     expect(prompt).toContain(
-      'top-level keys are exactly "season", "block", "week", "today", "tomorrow", "nextWeek", "nextBlock", and "bodyMetrics"',
+      'top-level keys are exactly "season", "block", "week", "today", "tomorrow", "nextWeek", "nextBlock", "diet", and "bodyMetrics"',
     );
     expect(prompt).toContain("Create the current block starting on 2026-10-21");
     expect(prompt).toContain("Revise the current week");
@@ -459,7 +459,7 @@ describe("daily update prompts", () => {
     expect(prompt).toContain("Week starting 2026-10-19");
     expect(prompt).toContain("Easy run");
     expect(prompt).toContain(
-      'top-level keys are exactly "today", "tomorrow", "week", and "bodyMetrics"',
+      'top-level keys are exactly "today", "tomorrow", "week", "diet", and "bodyMetrics"',
     );
   });
 

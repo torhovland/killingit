@@ -289,7 +289,18 @@ about a past workout, or before a suggested workout, to steer the coach.
   `GET /api/diet/entries/:id/photo` endpoint; the Diet page lists every meal
   with the thumbnail and the coach response. Every coach prompt sees the meals
   from the last seven days and a weekly nutrition summary for each completed
-  week up to one year back. See `docs/specs/diet-log.md` and ADR 0019.
+  week up to one year back. The plan carries the athlete's diet goal and the
+  coach's weight-trend assessment in `coach_plans.diet`, and every week session
+  and day plan carries the coach's per-day `estimatedCaloriesKcal`. The goal
+  defaults to maintenance when the athlete states none. `GET /api/diet/summary`
+  groups meals under their local day and joins them to the stored target, and
+  the Diet page shows the goal and assessment at the top, today's needed/logged/
+  remaining calories, and each day's deficit or surplus. The Fitness page charts
+  logged calories against the needed line. Saving a plan records each day's
+  target in `plan_day_calories`, so the requirement survives the week leaving
+  the stored plan. The coach judges the weight trend from the tracked weights
+  and its earlier targets; the app never computes the deficit. See
+  `docs/specs/diet-log.md`, `docs/specs/diet-coaching.md`, and ADR 0019/0020.
 - The Settings page ends with a Delete account section. After a warning modal is
   confirmed, `DELETE /api/me` deletes the account row, and the schema's cascades
   remove every plan, activity, connection, and coach message owned by it. The
