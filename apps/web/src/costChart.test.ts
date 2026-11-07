@@ -5,6 +5,7 @@ import {
   costAxis,
   costSeries,
   dailyCostChart,
+  formatCallCount,
   formatCostAxis,
   formatCostUsd,
   monthlyCostChart,
@@ -177,5 +178,11 @@ describe("cost chart geometry", () => {
     expect(formatCostUsd(1.2)).toBe("$1.20");
     expect(formatCostAxis(0)).toBe("$0");
     expect(formatCostAxis(0.2)).toBe("$0.20");
+  });
+
+  it("pluralizes a count of calls", () => {
+    expect(formatCallCount(0)).toBe("0 calls");
+    expect(formatCallCount(1)).toBe("1 call");
+    expect(formatCallCount(4)).toBe("4 calls");
   });
 });

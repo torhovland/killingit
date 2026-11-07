@@ -193,6 +193,11 @@ export function formatCostUsd(value: number): string {
   return MONEY.format(value);
 }
 
+/** A number of calls as `1 call` or `3 calls`. */
+export function formatCallCount(value: number): string {
+  return `${value} call${value === 1 ? "" : "s"}`;
+}
+
 /** A compact cost for an axis tick. */
 export function formatCostAxis(value: number): string {
   if (value === 0) {
