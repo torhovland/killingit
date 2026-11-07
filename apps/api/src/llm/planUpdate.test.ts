@@ -110,6 +110,7 @@ function planUpdateInput(): PlanUpdateInput {
       tomorrow: false,
       nextWeek: false,
       nextBlock: false,
+      progress: false,
     },
   };
 }
@@ -208,6 +209,72 @@ describe("generatePlanUpdate", () => {
     expect(result.today.date).toBe("2026-10-21");
     expect(provider.requests).toHaveLength(1);
     expect(provider.requests[0]?.kind).toBe("plan_update");
+  });
+
+  it("repairs a plan that is missing a stated diet goal's progress targets", async () => {
+    const progress = {
+      targetWeightKg: 80,
+      targetBodyFatPercent: 20,
+      note: "On target.",
+    };
+    const corrected = planUpdateResponse({
+      season: {
+        ...season,
+        dietProgress: progress,
+        blocks: season.blocks.map((entry) => ({
+          ...entry,
+          dietProgress: progress,
+        })),
+      },
+      block: {
+        ...block,
+        dietProgress: progress,
+        weeks: block.weeks.map((entry) => ({
+          ...entry,
+          dietProgress: progress,
+        })),
+      },
+      week: { ...input().week, dietProgress: progress },
+      diet: {
+        goal: "Lose 3 kg by March",
+        goalProvided: true,
+        assessment: "On target.",
+      },
+    });
+    const provider = new FakeProvider([
+      planUpdateResponse({
+        diet: {
+          goal: "Lose 3 kg by March",
+          goalProvided: true,
+          assessment: "On target.",
+        },
+      }),
+      corrected,
+    ]);
+
+    const updateInput: PlanUpdateInput = {
+      ...planUpdateInput(),
+      dietAdvice: true,
+      dietGoal: {
+        goal: "Lose 3 kg by March",
+        goalProvided: true,
+        assessment: "On target.",
+      },
+    };
+    const result = await generatePlanUpdate(
+      provider,
+      { apiKey: "key", model: "model" },
+      updateInput,
+    );
+
+    expect(provider.requests).toHaveLength(2);
+    expect(provider.requests[1]?.metadata).toMatchObject({ repair: true });
+    expect(provider.requests[1]?.messages.at(-1)?.content).toContain(
+      "Missing the diet progress target for the season",
+    );
+    expect(result.season.dietProgress?.targetWeightKg).toBe(80);
+    expect(result.block.weeks[0]?.dietProgress?.targetWeightKg).toBe(80);
+    expect(result.week.dietProgress?.targetWeightKg).toBe(80);
   });
 
   it("repairs a next week that does not start on Monday", async () => {

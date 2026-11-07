@@ -196,7 +196,8 @@ export function CoachPlanSection({
         result.pending.block ||
         result.pending.tomorrow ||
         result.pending.nextWeek ||
-        result.pending.nextBlock;
+        result.pending.nextBlock ||
+        result.pending.dietProgress;
       if (needsUpdate && ready) {
         void start("auto");
       }

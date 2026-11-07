@@ -29,6 +29,7 @@ function response(
       tomorrow: false,
       nextWeek: false,
       nextBlock: false,
+      dietProgress: false,
     },
     thresholds: [],
     events: [],

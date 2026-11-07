@@ -150,6 +150,7 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
     timezone: string | null,
     today: string,
     includeTomorrow = false,
+    dietAdvice = false,
   ) {
     const loadThresholds = deps.loadFtpHistory ?? loadFtpHistoryForUser;
     const [
@@ -247,6 +248,7 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
         includeTomorrow,
         weatherChanged,
         weekReviewPending,
+        dietAdvice,
       ),
       thresholds: thresholds?.summaries ?? [],
       events,
@@ -268,6 +270,7 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
           user.timezone,
           today.data,
           includeTomorrow,
+          user.dietAdvice,
         ),
       );
     })
@@ -365,7 +368,14 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
 
         if (!started) {
           return c.json(
-            await buildResponse(user.id, user.location, user.timezone, today),
+            await buildResponse(
+              user.id,
+              user.location,
+              user.timezone,
+              today,
+              false,
+              user.dietAdvice,
+            ),
             202,
           );
         }
@@ -377,6 +387,7 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
             user.timezone,
             today,
             includeTomorrow,
+            user.dietAdvice,
           ),
           202,
         );

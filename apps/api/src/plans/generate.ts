@@ -46,7 +46,11 @@ import { applyTrainingLoad, currentTrainingLoad } from "../training/load.js";
 import { ftpBaselineAt, type FtpTimeline } from "../training/ftp.js";
 import type { ThresholdTimeline } from "../training/thresholds.js";
 import { addDays, startOfWeek } from "./dates.js";
-import { syncDietProgressTargets } from "./dietProgress.js";
+import {
+  dietProgressPending,
+  mergeDietProgressTargets,
+  syncDietProgressTargets,
+} from "./dietProgress.js";
 import {
   GenerationSupersededError,
   isGenerationSuperseded,
@@ -422,10 +426,11 @@ export async function runPlanGeneration(
           withNextPeriod.today,
         ),
       };
+      const withProgress = await ensureDietProgress(input, completed);
       const generated = withTrainingLoad(
         applyForecastToPlan(
           dropUnplacedTomorrow(
-            outlineWeekPlans(syncDietProgressTargets(completed)),
+            outlineWeekPlans(syncDietProgressTargets(withProgress)),
             input.includeTomorrow === true,
           ),
           forecastForStorage(context),
@@ -484,6 +489,7 @@ export async function runPlanGeneration(
         input.includeTomorrow,
         weatherChanged,
         weekReviewPending,
+        context.dietAdvice === true,
       );
       const plan = await advancePlan(
         input,
@@ -537,6 +543,7 @@ export async function runPlanGeneration(
       input.includeTomorrow,
       weatherChanged,
       weekReviewPending,
+      context.dietAdvice === true,
     );
     if (
       !pending.block &&
@@ -545,6 +552,7 @@ export async function runPlanGeneration(
       !pending.tomorrow &&
       !pending.nextWeek &&
       !pending.nextBlock &&
+      !pending.dietProgress &&
       !revisionNeeded
     ) {
       if (promoted && input.plan !== null) {
@@ -621,6 +629,8 @@ interface PlanUpdateFlags {
   nextBlock: boolean;
   /** A full week or block revision makes the stored next period stale. */
   clearNextPeriod: boolean;
+  /** Refresh the diet progress targets on every level. */
+  progress: boolean;
 }
 
 interface PlanUpdateOptions {
@@ -701,6 +711,7 @@ async function advancePlan(
       revisionNeeded ||
       pending.week ||
       nextBlockRevision,
+    progress: true,
   };
   const options: PlanUpdateOptions = {
     ...(seasonRefresh || blockInPlace
@@ -788,6 +799,7 @@ async function requestPlanUpdate(
     tomorrow: flags.tomorrow,
     nextWeek: flags.nextWeek,
     nextBlock: flags.nextBlock,
+    progress: flags.progress,
   };
   await generations.update(
     userId,
@@ -943,6 +955,8 @@ function applyPlanUpdate(
     };
   }
 
+  plan = mergeDietProgressTargets(plan, update);
+
   return {
     ...plan,
     diet: update.diet ?? plan.diet,
@@ -972,6 +986,49 @@ function withOutlineSession(
 }
 
 /**
+ * A full build generates the season and block before the daily update knows
+ * whether the athlete stated a diet goal. When the finished draft has a stated
+ * goal and a current or future period without a target, make one progress-only
+ * update so the saved plan is complete on the first visit. A failure leaves the
+ * draft in place; the next plan visit sees the missing target as pending.
+ */
+async function ensureDietProgress(
+  input: GeneratePlanInput,
+  plan: CoachPlan,
+): Promise<CoachPlan> {
+  if (
+    input.context.dietAdvice !== true ||
+    !dietProgressPending(plan, true, input.today)
+  ) {
+    return plan;
+  }
+  try {
+    return await requestPlanUpdate(
+      input,
+      plan,
+      {
+        season: false,
+        block: false,
+        week: false,
+        day: false,
+        tomorrow: false,
+        nextWeek: false,
+        nextBlock: false,
+        clearNextPeriod: false,
+        progress: true,
+      },
+      {},
+    );
+  } catch (err) {
+    if (isGenerationSuperseded(err) || input.signal?.aborted === true) {
+      throw err;
+    }
+    console.error("[plan] could not refresh diet progress:", err);
+    return plan;
+  }
+}
+
+/**
  * Makes sure tomorrow is covered by a week and a block during a full build.
  * The next period is generated with the same single update prompt, so it sees
  * the current week and block as well.
@@ -983,7 +1040,14 @@ async function planNextPeriod(
   if (input.includeTomorrow !== true) {
     return plan;
   }
-  const pending = planPending(plan, input.today, true);
+  const pending = planPending(
+    plan,
+    input.today,
+    true,
+    false,
+    false,
+    input.context.dietAdvice === true,
+  );
   if (!pending.tomorrow && !pending.nextWeek && !pending.nextBlock) {
     return plan;
   }
@@ -1003,6 +1067,7 @@ async function planNextPeriod(
       nextWeek: pending.nextWeek,
       nextBlock: pending.nextBlock,
       clearNextPeriod: pending.nextBlock,
+      progress: true,
     },
     {
       ...(pending.nextBlock

@@ -1,6 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import type { CoachPlan } from "@killingit/shared";
-import { syncDietProgressTargets } from "./dietProgress.js";
+import {
+  mergeDietProgressTargets,
+  syncDietProgressTargets,
+} from "./dietProgress.js";
 
 const progress = (targetWeightKg: number) => ({
   targetWeightKg,
@@ -115,6 +118,58 @@ describe("syncDietProgressTargets", () => {
     });
 
     expect(synced.season.dietProgress?.targetWeightKg).toBe(79);
+  });
+
+  it("merges progress from an update without replacing training content", () => {
+    const base = plan();
+    const merged = mergeDietProgressTargets(base, {
+      ...base,
+      season: {
+        ...base.season,
+        dietProgress: progress(77),
+        blocks: base.season.blocks.map((block) => ({
+          ...block,
+          dietProgress: progress(77),
+        })),
+      },
+      block: {
+        ...base.block,
+        focus: "A changed focus that must be ignored",
+        dietProgress: progress(76),
+        weeks: base.block.weeks.map((week) => ({
+          ...week,
+          dietProgress: progress(76),
+        })),
+      },
+      week: { ...base.week, dietProgress: progress(76.5) },
+    });
+
+    expect(merged.season.dietProgress?.targetWeightKg).toBe(77);
+    expect(merged.season.blocks[0]?.dietProgress?.targetWeightKg).toBe(77);
+    expect(merged.block.dietProgress?.targetWeightKg).toBe(76);
+    expect(merged.block.focus).toBe(base.block.focus);
+    expect(merged.block.weeks[0]?.dietProgress?.targetWeightKg).toBe(76);
+    expect(merged.week.dietProgress?.targetWeightKg).toBe(76.5);
+  });
+
+  it("ignores an omitted progress field but copies an explicit null", () => {
+    const base = plan();
+    base.season = { ...base.season, dietProgress: progress(80.2) };
+    const omitted = mergeDietProgressTargets(base, {
+      ...base,
+      season: { ...base.season, dietProgress: undefined },
+      block: { ...base.block, dietProgress: undefined },
+      week: { ...base.week, dietProgress: undefined },
+    });
+    expect(omitted.season.dietProgress?.targetWeightKg).toBe(80.2);
+    expect(omitted.block.dietProgress?.targetWeightKg).toBe(79);
+    expect(omitted.week.dietProgress?.targetWeightKg).toBe(80.5);
+
+    const cleared = mergeDietProgressTargets(base, {
+      ...base,
+      week: { ...base.week, dietProgress: null },
+    });
+    expect(cleared.week.dietProgress).toBeNull();
   });
 
   it("syncs the next block and next week too", () => {

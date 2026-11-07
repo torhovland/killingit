@@ -425,6 +425,11 @@ export const planPendingSchema = z.object({
   nextWeek: z.boolean(),
   /** After 18:00, tomorrow has crossed into a block that is not planned yet. */
   nextBlock: z.boolean(),
+  /**
+   * The athlete stated a diet goal but a current or future period is missing its
+   * diet progress target.
+   */
+  dietProgress: z.boolean(),
 });
 
 export type PlanPending = z.infer<typeof planPendingSchema>;

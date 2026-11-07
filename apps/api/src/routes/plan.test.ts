@@ -457,6 +457,7 @@ describe("coach plan route", () => {
         tomorrow: boolean;
         nextWeek: boolean;
         nextBlock: boolean;
+        dietProgress: boolean;
       };
       stale: boolean;
     };
@@ -468,6 +469,7 @@ describe("coach plan route", () => {
       tomorrow: false,
       nextWeek: false,
       nextBlock: false,
+      dietProgress: false,
     });
     expect(body.stale).toBe(false);
   });
