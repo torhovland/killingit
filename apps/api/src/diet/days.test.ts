@@ -59,11 +59,13 @@ describe("buildDietSummary", () => {
         ["2026-11-04", 2200],
       ]),
       goal: "Lose 3 kg",
+      goalProvided: true,
       assessment: "On track.",
       today: "2026-11-04",
     });
 
     expect(summary.goal).toBe("Lose 3 kg");
+    expect(summary.goalProvided).toBe(true);
     expect(summary.assessment).toBe("On track.");
     expect(summary.days.map((day) => day.date)).toEqual([
       "2026-11-07",

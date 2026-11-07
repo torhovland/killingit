@@ -1,4 +1,9 @@
-import type { FitnessHistoryDay, FitnessMetricPoint } from "@killingit/shared";
+import { useState } from "react";
+import type {
+  FitnessDietTarget,
+  FitnessHistoryDay,
+  FitnessMetricPoint,
+} from "@killingit/shared";
 import {
   axisTicks,
   CHART_HEIGHT,
@@ -11,7 +16,34 @@ import {
   lastIndexOnOrBefore,
   niceDomain,
 } from "./chartGeometry";
+import {
+  datesAfter,
+  dietTargetSeries,
+  dietTargetValueAt,
+  lastPointOnOrBefore,
+  type BodyTargetPoint,
+} from "./bodyProjection";
 import { useChartHover } from "./useChartHover";
+
+/** The dotted dash of the coach's target line, longer than the best-fit one. */
+const TARGET_DASH = "5 4";
+
+/** The Body chart's inputs, shared by the pure chart and its toggle wrapper. */
+export interface BodyChartProps {
+  days: readonly Pick<FitnessHistoryDay, "date">[];
+  weight: readonly FitnessMetricPoint[];
+  bodyFat: readonly FitnessMetricPoint[];
+  /** The last measured day; later days are a projection. */
+  today: string;
+  /** The stored season's last day, when a season plan exists. */
+  seasonEndDate?: string | null;
+  /** The coach's future body-composition targets. */
+  dietTargets?: readonly FitnessDietTarget[];
+  /** Whether to extend the x-axis to the season end. */
+  showFuture?: boolean;
+  /** Selects the season view. */
+  onShowFutureChange?: (show: boolean) => void;
+}
 
 /**
  * Body weight and body-fat percentage over the same window as the fitness
@@ -19,54 +51,84 @@ import { useChartHover } from "./useChartHover";
  * can share one plot without one hiding the other; each axis shows plain
  * numbers because the legend names its unit. Values between measurements are
  * interpolated by the API; the part after today is a best-fit projection and is
- * drawn dotted.
+ * drawn dotted. When the athlete chooses the season view, the coach's diet
+ * targets are drawn as a second dotted line with markers.
  */
 export function BodyChart({
   days,
   weight,
   bodyFat,
   today,
-}: {
-  days: readonly FitnessHistoryDay[];
-  weight: readonly FitnessMetricPoint[];
-  bodyFat: readonly FitnessMetricPoint[];
-  /** The last measured day; later days are a projection. */
-  today: string;
-}) {
+  seasonEndDate = null,
+  dietTargets = [],
+  showFuture = false,
+  onShowFutureChange,
+}: BodyChartProps) {
+  const canShowFuture =
+    seasonEndDate !== null &&
+    seasonEndDate > today &&
+    dietTargets.some(
+      (target) =>
+        target.date > today &&
+        (target.weightKg !== null || target.bodyFatPercent !== null),
+    );
+  const futureEnd = showFuture && canShowFuture ? seasonEndDate : null;
+  const lastDay = days[days.length - 1]?.date ?? today;
+  const chartDays =
+    futureEnd !== null && futureEnd > lastDay
+      ? [...days, ...datesAfter(lastDay, futureEnd)]
+      : days;
   const { hovered, onPointerMove, onPointerLeave } = useChartHover(
-    days.length,
-    (index) => days[index],
+    chartDays.length,
+    (index) => chartDays[index],
   );
   if (weight.length === 0 && bodyFat.length === 0) {
     return null;
   }
 
+  const weightStart = valueOnDay(weight, today);
+  const fatStart = valueOnDay(bodyFat, today);
+  const weightTargets =
+    futureEnd === null
+      ? []
+      : dietTargetSeries(dietTargets, "weightKg", weightStart, futureEnd);
+  const fatTargets =
+    futureEnd === null
+      ? []
+      : dietTargetSeries(dietTargets, "bodyFatPercent", fatStart, futureEnd);
+
   const weightDomain =
     weight.length > 0
       ? niceDomain(
-          weight.map((point) => point.value),
+          [
+            ...weight.map((point) => point.value),
+            ...weightTargets.map((point) => point.value),
+          ],
           { minSpan: 2 },
         )
       : null;
   const fatDomain =
     bodyFat.length > 0
       ? niceDomain(
-          bodyFat.map((point) => point.value),
+          [
+            ...bodyFat.map((point) => point.value),
+            ...fatTargets.map((point) => point.value),
+          ],
           { minSpan: 2 },
         )
       : null;
   const weightScale = weightDomain
-    ? chartScale(days.length, weightDomain)
+    ? chartScale(chartDays.length, weightDomain)
     : null;
-  const fatScale = fatDomain ? chartScale(days.length, fatDomain) : null;
+  const fatScale = fatDomain ? chartScale(chartDays.length, fatDomain) : null;
   const yScale = weightScale ?? fatScale;
   if (yScale === null) {
     return null;
   }
-  const dayIndex = new Map(days.map((day, index) => [day.date, index]));
-  const xLabels = labelIndices(days.length);
+  const dayIndex = new Map(chartDays.map((day, index) => [day.date, index]));
+  const xLabels = labelIndices(chartDays.length);
   const split = lastIndexOnOrBefore(
-    days.map((day) => day.date),
+    chartDays.map((day) => day.date),
     today,
   );
   const hoveredWeight =
@@ -79,10 +141,29 @@ export function BodyChart({
       ? null
       : (bodyFat.find((point) => point.date === hovered.day.date)?.value ??
         null);
+  const hoveredTargetWeight =
+    hovered === null
+      ? null
+      : dietTargetValueAt(weightTargets, hovered.day.date);
+  const hoveredTargetFat =
+    hovered === null ? null : dietTargetValueAt(fatTargets, hovered.day.date);
 
   return (
     <figure className="flex flex-col gap-2 rounded-lg border bg-card p-4">
-      <figcaption className="text-lg font-medium">Body</figcaption>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <figcaption className="text-lg font-medium">Body</figcaption>
+        {canShowFuture && onShowFutureChange !== undefined && (
+          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={showFuture}
+              onChange={(event) => onShowFutureChange(event.target.checked)}
+              data-testid="body-chart-future-toggle"
+            />
+            Include future dates to the end of the season
+          </label>
+        )}
+      </div>
       <div className="relative">
         <svg
           viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
@@ -94,7 +175,7 @@ export function BodyChart({
           onPointerDown={onPointerMove}
           onPointerLeave={onPointerLeave}
         >
-          <title>{`Body weight and body fat over the last ${days.length} days`}</title>
+          <title>{`Body weight and body fat over ${chartDays.length} days`}</title>
           <g
             transform={`translate(${CHART_PADDING.left} ${CHART_PADDING.top})`}
           >
@@ -170,6 +251,48 @@ export function BodyChart({
                 />
               </>
             )}
+            {weightScale !== null && weightTargets.length > 0 && (
+              <>
+                <path
+                  d={targetPath(weightTargets, dayIndex, weightScale)}
+                  className="fill-none stroke-chart-ink"
+                  strokeWidth={2}
+                  strokeDasharray={TARGET_DASH}
+                  data-series="diet-target-weight"
+                />
+                {weightTargets.slice(1).map((point) => (
+                  <circle
+                    key={`weight-target-${point.date}`}
+                    cx={weightScale.x(dayIndex.get(point.date) ?? 0)}
+                    cy={weightScale.y(point.value)}
+                    r={2.5}
+                    className="fill-chart-ink"
+                    data-target-date={point.date}
+                  />
+                ))}
+              </>
+            )}
+            {fatScale !== null && fatTargets.length > 0 && (
+              <>
+                <path
+                  d={targetPath(fatTargets, dayIndex, fatScale)}
+                  className="fill-none stroke-chart-ink-muted"
+                  strokeWidth={1.5}
+                  strokeDasharray={TARGET_DASH}
+                  data-series="diet-target-body-fat"
+                />
+                {fatTargets.slice(1).map((point) => (
+                  <circle
+                    key={`fat-target-${point.date}`}
+                    cx={fatScale.x(dayIndex.get(point.date) ?? 0)}
+                    cy={fatScale.y(point.value)}
+                    r={2.5}
+                    className="fill-chart-ink-muted"
+                    data-target-date={point.date}
+                  />
+                ))}
+              </>
+            )}
             {hovered !== null &&
               hoveredWeight !== null &&
               weightScale !== null && (
@@ -218,7 +341,7 @@ export function BodyChart({
               </text>
             ))}
           {xLabels.map((index) => {
-            const day = days[index];
+            const day = chartDays[index];
             if (day === undefined) {
               return null;
             }
@@ -230,7 +353,7 @@ export function BodyChart({
                 textAnchor={
                   index === 0
                     ? "start"
-                    : index === days.length - 1
+                    : index === chartDays.length - 1
                       ? "end"
                       : "middle"
                 }
@@ -248,10 +371,19 @@ export function BodyChart({
           >
             <p className="font-medium">{formatChartDate(hovered.day.date)}</p>
             {hoveredWeight !== null && <p>Weight {hoveredWeight} kg</p>}
-            {hoveredFat !== null && <p>Body fat {hoveredFat}%</p>}
-            {hoveredWeight === null && hoveredFat === null && (
-              <p className="text-muted-foreground">No measurement</p>
+            {hoveredTargetWeight !== null && (
+              <p>Target weight {round(hoveredTargetWeight)} kg</p>
             )}
+            {hoveredFat !== null && <p>Body fat {hoveredFat}%</p>}
+            {hoveredTargetFat !== null && (
+              <p>Target body fat {round(hoveredTargetFat)}%</p>
+            )}
+            {hoveredWeight === null &&
+              hoveredFat === null &&
+              hoveredTargetWeight === null &&
+              hoveredTargetFat === null && (
+                <p className="text-muted-foreground">No measurement</p>
+              )}
           </div>
         )}
       </div>
@@ -268,9 +400,70 @@ export function BodyChart({
             Body fat (%)
           </li>
         )}
+        {(weightTargets.length > 0 || fatTargets.length > 0) && (
+          <li className="flex items-center gap-1.5">
+            <span className="block w-4 border-t-2 border-dashed border-chart-ink" />
+            Estimated diet progress
+          </li>
+        )}
       </ul>
     </figure>
   );
+}
+
+/**
+ * The Body chart with its season-view toggle. Kept separate so the chart itself
+ * stays controlled and easy to render in tests.
+ */
+export function BodyChartSection(
+  props: Omit<BodyChartProps, "showFuture" | "onShowFutureChange">,
+) {
+  const [showFuture, setShowFuture] = useState(false);
+  return (
+    <BodyChart
+      {...props}
+      showFuture={showFuture}
+      onShowFutureChange={setShowFuture}
+    />
+  );
+}
+
+/**
+ * The chart value on `date`: the series' own point, or the latest point before
+ * it when the API's interpolation has not reached that date.
+ */
+function valueOnDay(
+  points: readonly FitnessMetricPoint[],
+  date: string,
+): BodyTargetPoint | null {
+  const point =
+    points.find((entry) => entry.date === date) ??
+    lastPointOnOrBefore(points, date);
+  return point ? { date, value: point.value } : null;
+}
+
+/**
+ * A path through the target points, which all fall on or after today. The
+ * points may be sparse, so the segments between periods are straight.
+ */
+function targetPath(
+  points: readonly BodyTargetPoint[],
+  dayIndex: ReadonlyMap<string, number>,
+  scale: ReturnType<typeof chartScale>,
+): string {
+  const commands: string[] = [];
+  for (const point of points) {
+    const index = dayIndex.get(point.date);
+    if (index === undefined) {
+      continue;
+    }
+    commands.push(
+      `${commands.length === 0 ? "M" : "L"}${round(scale.x(index))} ${round(
+        scale.y(point.value),
+      )}`,
+    );
+  }
+  return commands.join(" ");
 }
 
 /**

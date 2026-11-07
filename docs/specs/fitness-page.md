@@ -125,6 +125,13 @@ The response carries `body.weight` and `body.bodyFat`, each a daily
 4. A metric with no measurements produces an empty series. The page hides the
    whole body chart when both are empty, and draws only the available line when
    one is empty.
+5. The response also carries `seasonEndDate` and `dietTargets`, the coach's
+   expected body composition at each plan period end. The body chart offers a
+   season view that extends its own x-axis from the window's last day to the
+   season end and draws those targets as a dotted line with markers. The line
+   starts at today's chart value and joins every future target; it is hidden
+   unless the athlete selects the view. See
+   `docs/specs/diet-progress-targets.md`.
 
 ## Data model / API impact
 
@@ -137,9 +144,11 @@ Shared (`@killingit/shared`):
   `ftpHistoryPointSchema` (`date`, `watts`),
   `fitnessMetricPointSchema` (`date`, `value`), `fitnessBodySchema`
   (`weight`, `bodyFat`), `latestGarminSchema` (`dailyHealth`, `weight`,
-  `bodyFat`, `ftp`), and `fitnessHistoryResponseSchema` (`days`, `thresholds`,
-  `body`, `latestGarmin`, `dailyHealth`). `metrics.ts` also holds the
-  interpolation and best-fit helpers.
+  `bodyFat`, `ftp`), `fitnessDietTargetSchema` (`date`, `weightKg`,
+  `bodyFatPercent`), and `fitnessHistoryResponseSchema` (`days`, `thresholds`,
+  `body`, `latestGarmin`, `dailyHealth`, `nutrition`, `seasonEndDate`,
+  `dietTargets`). `metrics.ts` also holds the interpolation and best-fit
+  helpers.
 - `trainingLoad.ts`: `FORM_ZONES`, the TSB bands (`from` inclusive, `to`
   exclusive) used to shade the chart. The band colours stay in the web theme
   (`--form-*`), so they cannot drift from the interpretation text.
@@ -191,7 +200,10 @@ API:
   over the same date axis, with a legend for each available line carrying its
   unit. The part after today is dotted, like the other projections. Pointing at
   it shows the date and the available measurements. Its axis labels use the same
-  size as the other charts.
+  size as the other charts. A checkbox extends the chart to the season end and
+  draws the coach's diet progress targets as a dotted line with markers and a
+  legend entry, when diet advice is on and a goal was stated; see
+  `docs/specs/diet-progress-targets.md`.
 - Below the body chart, a `Recovery and sleep` section draws a resting heart
   rate chart, a score chart with Body Battery high, sleep score and stress, and
   a stacked sleep-stage chart whose deep, light and REM areas add up to sleep

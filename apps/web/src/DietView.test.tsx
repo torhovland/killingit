@@ -5,6 +5,7 @@ import { DietView } from "./DietView";
 
 const summary: DietSummaryResponse = {
   goal: "Lose 3 kg by March",
+  goalProvided: true,
   assessment:
     "The tracked weight is coming down steadily; the deficit is right.",
   days: [
@@ -52,6 +53,7 @@ function render(overrides: Partial<Parameters<typeof DietView>[0]> = {}) {
       error={null}
       onRetry={() => undefined}
       onOpenSettings={() => undefined}
+      onOpenSurvey={() => undefined}
       {...overrides}
     />,
   );
@@ -84,8 +86,26 @@ describe("DietView", () => {
 
   it("falls back to maintenance when no goal has been set", () => {
     const html = render({
-      summary: { goal: null, assessment: null, days: [] },
+      summary: { goal: null, goalProvided: false, assessment: null, days: [] },
     });
     expect(html).toContain("Maintain current weight");
+  });
+
+  it("points a default goal to the Coaching Survey", () => {
+    const html = render({
+      summary: {
+        goal: "Maintain current weight",
+        goalProvided: false,
+        assessment: null,
+        days: [],
+      },
+    });
+    expect(html).toContain('data-testid="diet-default-goal-note"');
+    expect(html).toContain("provide your own diet goal on the Coaching Survey");
+    expect(html).toContain("Open the Coaching Survey");
+  });
+
+  it("does not point a stated goal to the survey", () => {
+    expect(render()).not.toContain('data-testid="diet-default-goal-note"');
   });
 });

@@ -1,10 +1,12 @@
 import { describe, expect, it } from "bun:test";
 import {
   dietPlanSchema,
+  dietProgressSchema,
   dietSummaryResponseSchema,
   foodAnalysisSchema,
   foodEntryRequestSchema,
   foodEntrySchema,
+  isDefaultDietGoal,
   MIN_PLAUSIBLE_CALORIES_KCAL,
   plausibleCaloriesKcal,
 } from "./diet.js";
@@ -45,12 +47,87 @@ describe("dietPlanSchema", () => {
     });
     expect(parsed.goal).toContain("Lose");
   });
+
+  it("records whether the athlete stated the goal", () => {
+    expect(
+      dietPlanSchema.parse({
+        goal: "Lose 3 kg by March",
+        goalProvided: true,
+        assessment: "On target.",
+      }).goalProvided,
+    ).toBe(true);
+    expect(
+      dietPlanSchema.parse({
+        goal: "Maintain current weight",
+        assessment: "Holding.",
+      }).goalProvided,
+    ).toBeUndefined();
+  });
+});
+
+describe("isDefaultDietGoal", () => {
+  it("recognises the default wording, including punctuation", () => {
+    expect(isDefaultDietGoal("Maintain current weight")).toBe(true);
+    expect(isDefaultDietGoal(" maintain current weight. ")).toBe(true);
+    expect(isDefaultDietGoal(null)).toBe(true);
+    expect(isDefaultDietGoal(undefined)).toBe(true);
+  });
+
+  it("treats a stated goal as custom", () => {
+    expect(isDefaultDietGoal("Lose 3 kg by March")).toBe(false);
+    expect(isDefaultDietGoal("Hold 78 kg while building strength")).toBe(false);
+  });
+});
+
+describe("dietProgressSchema", () => {
+  it("accepts weight, body fat, or neither with a note", () => {
+    expect(
+      dietProgressSchema.parse({
+        targetWeightKg: 81.5,
+        targetBodyFatPercent: 19,
+        note: "Lose 3 kg across the base block.",
+      }),
+    ).toEqual({
+      targetWeightKg: 81.5,
+      targetBodyFatPercent: 19,
+      note: "Lose 3 kg across the base block.",
+    });
+    expect(
+      dietProgressSchema.parse({
+        targetWeightKg: null,
+        targetBodyFatPercent: null,
+        note: "Hold weight through the build block.",
+      }),
+    ).toEqual({
+      targetWeightKg: null,
+      targetBodyFatPercent: null,
+      note: "Hold weight through the build block.",
+    });
+  });
+
+  it("rejects an empty note or a non-positive target", () => {
+    expect(
+      dietProgressSchema.safeParse({
+        targetWeightKg: 80,
+        targetBodyFatPercent: null,
+        note: "  ",
+      }).success,
+    ).toBe(false);
+    expect(
+      dietProgressSchema.safeParse({
+        targetWeightKg: 0,
+        targetBodyFatPercent: null,
+        note: "Lose weight.",
+      }).success,
+    ).toBe(false);
+  });
 });
 
 describe("dietSummaryResponseSchema", () => {
   it("keeps the day's balance and entries", () => {
     const parsed = dietSummaryResponseSchema.parse({
       goal: "Maintain current weight",
+      goalProvided: false,
       assessment: "Hold the current intake.",
       days: [
         {
@@ -62,7 +139,15 @@ describe("dietSummaryResponseSchema", () => {
         },
       ],
     });
+    expect(parsed.goalProvided).toBe(false);
     expect(parsed.days[0]?.balanceKcal).toBe(-300);
+  });
+
+  it("defaults the goal-provided flag for older responses", () => {
+    expect(
+      dietSummaryResponseSchema.parse({ goal: null, assessment: null })
+        .goalProvided,
+    ).toBe(false);
   });
 });
 

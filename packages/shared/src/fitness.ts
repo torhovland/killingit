@@ -85,6 +85,18 @@ export const fitnessNutritionDaySchema = z.object({
 
 export type FitnessNutritionDay = z.infer<typeof fitnessNutritionDaySchema>;
 
+/**
+ * The coach's expected body composition at the end of a plan period, flattened
+ * from the season, block, and week progress targets. Either value may be null.
+ */
+export const fitnessDietTargetSchema = z.object({
+  date: planDateSchema,
+  weightKg: z.number().positive().max(500).nullable().default(null),
+  bodyFatPercent: z.number().positive().max(75).nullable().default(null),
+});
+
+export type FitnessDietTarget = z.infer<typeof fitnessDietTargetSchema>;
+
 /** The estimated threshold series shown on one day of the fitness chart. */
 export const thresholdHistorySeriesSchema = z.object({
   sport: z.string().min(1),
@@ -149,6 +161,13 @@ export const fitnessHistoryResponseSchema = z.object({
   dailyHealth: z.array(dailyHealthPointSchema).default([]),
   /** Logged and needed calories for the same days, for the nutrition chart. */
   nutrition: z.array(fitnessNutritionDaySchema).default([]),
+  /** The stored season's last day, for the Body chart's season view. */
+  seasonEndDate: planDateSchema.nullable().default(null),
+  /**
+   * The coach's future diet progress targets, ascending, for the Body chart's
+   * dotted line. Empty when diet advice is off or the plan has no target.
+   */
+  dietTargets: z.array(fitnessDietTargetSchema).default([]),
 });
 
 export type FitnessHistoryResponse = z.infer<

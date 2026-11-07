@@ -27,11 +27,35 @@ export const MIN_PLAUSIBLE_CALORIES_KCAL = 1200;
 export const dietPlanSchema = z.object({
   /** The athlete's goal in their own terms, or maintenance when unstated. */
   goal: z.string().trim().min(1).max(500),
+  /**
+   * True when the athlete stated the goal themselves. False when the coach fell
+   * back to `DEFAULT_DIET_GOAL`. Missing on plans stored before diet progress
+   * targets, so readers fall back to the exact default wording.
+   */
+  goalProvided: z.boolean().optional(),
   /** The coach's judgement of whether the goal is on track. */
   assessment: z.string().trim().min(1).max(4000),
 });
 
 export type DietPlan = z.infer<typeof dietPlanSchema>;
+
+/**
+ * The coach's expected progress toward the diet goal at the end of a plan
+ * period. The target belongs to the period's last day; either number may be
+ * null when the coach cannot estimate it, and `note` always carries the
+ * expected change in the coach's own words. The app never calculates these
+ * values.
+ */
+export const dietProgressSchema = z.object({
+  /** Expected body weight in kilograms at the end of the period. */
+  targetWeightKg: z.number().positive().max(500).nullable().default(null),
+  /** Expected body fat as a percentage at the end of the period. */
+  targetBodyFatPercent: z.number().positive().max(75).nullable().default(null),
+  /** The expected progress and why the period moves or holds the goal. */
+  note: z.string().trim().min(1).max(1000),
+});
+
+export type DietProgress = z.infer<typeof dietProgressSchema>;
 
 /**
  * The analysis photo is sent to the model at its full resolution, so it can be
@@ -111,6 +135,11 @@ export type DietDaySummary = z.infer<typeof dietDaySummarySchema>;
 export const dietSummaryResponseSchema = z.object({
   /** The coach's diet goal, or null when no plan has been generated. */
   goal: z.string().nullable().default(null),
+  /**
+   * Whether the athlete stated the goal. False when the plan shows the default
+   * maintenance goal, so the Diet page can ask for a real goal.
+   */
+  goalProvided: z.boolean().default(false),
   /** The coach's judgement of the weight trend, or null without a plan. */
   assessment: z.string().nullable().default(null),
   /** Every day with a logged meal or a calorie target, newest first. */
@@ -180,4 +209,20 @@ export function plausibleCaloriesKcal(
     value >= MIN_PLAUSIBLE_CALORIES_KCAL
     ? value
     : null;
+}
+
+/**
+ * True when a goal is the default maintenance fallback rather than a goal the
+ * athlete stated. Old plans do not carry `goalProvided`, so an exact default
+ * wording identifies them; trailing punctuation is ignored.
+ */
+export function isDefaultDietGoal(goal: string | null | undefined): boolean {
+  if (goal === null || goal === undefined) {
+    return true;
+  }
+  const normalised = goal
+    .trim()
+    .toLowerCase()
+    .replace(/[.!]+$/, "");
+  return normalised === DEFAULT_DIET_GOAL.toLowerCase();
 }

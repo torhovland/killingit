@@ -2,7 +2,10 @@ import { describe, expect, it } from "bun:test";
 import {
   COACH_RESPONSE_NOTES_CONTRACT,
   COACH_RESPONSE_NOTES_RULES,
+  DIET_CONTRACT,
   DIET_PLANNING_RULES,
+  DIET_PROGRESS_CONTRACT,
+  DIET_PROGRESS_RULES,
   DURATION_TOLERANCE_RULES,
   FORM_TARGET_RULES,
   PAST_SESSION_RULES,
@@ -264,5 +267,66 @@ describe("DIET_PLANNING_RULES", () => {
       "every week session and on the today and tomorrow day objects",
     );
     expect(DIET_PLANNING_RULES).toContain("Never return 0");
+  });
+
+  it("records whether the athlete stated the goal", () => {
+    expect(DIET_PLANNING_RULES).toContain('"diet.goalProvided"');
+    expect(DIET_PLANNING_RULES).toContain(
+      "true only when the athlete stated the goal themselves",
+    );
+    expect(DIET_CONTRACT).toContain('"goalProvided": false');
+  });
+});
+
+describe("DIET_PROGRESS_RULES", () => {
+  it("plans a target at every period end", () => {
+    expect(DIET_PROGRESS_RULES).toContain('"dietProgress"');
+    expect(DIET_PROGRESS_RULES).toContain("on the season");
+    expect(DIET_PROGRESS_RULES).toContain("on each season block");
+    expect(DIET_PROGRESS_RULES).toContain("on the block");
+    expect(DIET_PROGRESS_RULES).toContain("on each block week");
+    expect(DIET_PROGRESS_RULES).toContain("on the week");
+    expect(DIET_PROGRESS_RULES).toContain('"targetWeightKg"');
+    expect(DIET_PROGRESS_RULES).toContain('"targetBodyFatPercent"');
+  });
+
+  it("does not force a linear weekly change", () => {
+    expect(DIET_PROGRESS_RULES).toContain(
+      "Progress is not a linear week-by-week formula",
+    );
+    expect(DIET_PROGRESS_RULES).toContain("block that builds muscle");
+    expect(DIET_PROGRESS_RULES).toContain("may hold weight or gain slightly");
+    expect(DIET_PROGRESS_RULES).toContain(
+      "match every target to the block's focus and the training load",
+    );
+  });
+
+  it("re-plans from the latest measurements instead of an old target", () => {
+    expect(DIET_PROGRESS_RULES).toContain(
+      "re-plan the targets for the levels you return from the latest measurement",
+    );
+    expect(DIET_PROGRESS_RULES).toContain(
+      "ahead of or behind an earlier target",
+    );
+    expect(DIET_PROGRESS_RULES).toContain(
+      "the app never calculates a deficit, a rate of change, or a target",
+    );
+  });
+
+  it("leaves every target null without diet advice or a stated goal", () => {
+    expect(DIET_PROGRESS_RULES).toContain(
+      "When diet advice is disabled, or when the athlete has stated no diet goal",
+    );
+    expect(DIET_PROGRESS_RULES).toContain('set every "dietProgress" to null');
+  });
+
+  it("reaches every plan prompt through the shared plan rules", () => {
+    expect(PLAN_PROMPT_RULES).toContain(DIET_PROGRESS_RULES);
+  });
+
+  it("describes the target in the shared contract", () => {
+    expect(DIET_PROGRESS_CONTRACT).toContain('"targetWeightKg": 0');
+    expect(DIET_PROGRESS_CONTRACT).toContain('"targetBodyFatPercent": 0');
+    expect(DIET_PROGRESS_CONTRACT).toContain('"note": "string"');
   });
 });

@@ -332,6 +332,70 @@ describe("buildFitnessHistory", () => {
     ).toBeNull();
   });
 
+  it("carries the season end and diet targets when diet advice is on", () => {
+    const withTargets = plan({
+      season: {
+        ...plan().season,
+        dietProgress: {
+          targetWeightKg: 78,
+          targetBodyFatPercent: 15,
+          note: "Reach race weight.",
+        },
+        blocks: [
+          {
+            name: "Base",
+            focus: "Aerobic",
+            startDate: "2026-10-19",
+            endDate: "2026-11-29",
+            weekCount: 6,
+            dietProgress: {
+              targetWeightKg: 82,
+              targetBodyFatPercent: null,
+              note: "Hold weight.",
+            },
+          },
+        ],
+      },
+      block: {
+        ...plan().block,
+        dietProgress: {
+          targetWeightKg: 81,
+          targetBodyFatPercent: null,
+          note: "Hold weight.",
+        },
+      },
+      week: {
+        ...plan().week,
+        dietProgress: {
+          targetWeightKg: 82.5,
+          targetBodyFatPercent: null,
+          note: "Hold weight.",
+        },
+      },
+    });
+    const history = buildFitnessHistory({
+      ...base,
+      plan: withTargets,
+      dietAdvice: true,
+    });
+
+    expect(history.seasonEndDate).toBe("2027-04-01");
+    expect(history.dietTargets[0]).toEqual({
+      date: "2026-10-25",
+      weightKg: 82.5,
+      bodyFatPercent: null,
+    });
+    expect(history.dietTargets.at(-1)).toEqual({
+      date: "2027-04-01",
+      weightKg: 78,
+      bodyFatPercent: 15,
+    });
+
+    const withoutDiet = buildFitnessHistory({ ...base, plan: withTargets });
+    expect(withoutDiet.dietTargets).toEqual([]);
+    expect(withoutDiet.seasonEndDate).toBe("2027-04-01");
+  });
+
   it("carries a planned rest day too", () => {
     const restPlan: CoachPlan = {
       ...plan(),

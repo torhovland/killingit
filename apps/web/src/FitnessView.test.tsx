@@ -138,6 +138,8 @@ function history(
       { metric: "sleep_duration", date: "2026-10-22", value: 400 },
     ],
     nutrition: [],
+    seasonEndDate: null,
+    dietTargets: [],
     ...overrides,
   };
 }
@@ -355,6 +357,20 @@ describe("FitnessView", () => {
 
     expect(body).toContain("text-[10px]");
     expect(body).not.toContain("text-xs");
+  });
+
+  it("offers the body chart's season view when diet targets exist", () => {
+    const html = view({
+      history: history({
+        seasonEndDate: "2026-12-31",
+        dietTargets: [
+          { date: "2026-11-01", weightKg: 77, bodyFatPercent: null },
+        ],
+      }),
+    });
+
+    expect(html).toContain('data-testid="body-chart-future-toggle"');
+    expect(html).toContain("Include future dates to the end of the season");
   });
 
   it("hides the body chart without any measurements", () => {

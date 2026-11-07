@@ -3,6 +3,7 @@ import {
   foodEntriesResponseSchema,
   foodEntryRequestSchema,
   foodEntrySchema,
+  isDefaultDietGoal,
   planDateSchema,
   type FoodAnalysis,
 } from "@killingit/shared";
@@ -96,6 +97,7 @@ export function createDietRoute(deps: DietRouteDependencies): Hono {
         return c.json(
           dietSummaryResponseSchema.parse({
             goal: null,
+            goalProvided: false,
             assessment: null,
             days: [],
           }),
@@ -113,12 +115,17 @@ export function createDietRoute(deps: DietRouteDependencies): Hono {
           : deps.plans.load(user.id),
       ]);
       const diet = plan?.plan.diet ?? null;
+      const goalProvided =
+        diet === null
+          ? false
+          : (diet.goalProvided ?? !isDefaultDietGoal(diet.goal));
       return c.json(
         dietSummaryResponseSchema.parse(
           buildDietSummary({
             entries: stored,
             targets,
             goal: diet?.goal ?? null,
+            goalProvided,
             assessment: diet?.assessment ?? null,
             today: today.data,
           }),

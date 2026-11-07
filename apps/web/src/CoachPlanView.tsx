@@ -14,6 +14,7 @@ import {
   type CoachPlan,
   type DayPlan,
   type DietDaySummary,
+  type DietProgress,
   type SeasonPlan,
   type ThresholdSummary,
   type WeekPlan,
@@ -74,7 +75,7 @@ export function CoachPlanView({
   events?: readonly AthleteEvent[];
   /** Today's logged and needed calories, when diet advice is on. */
   dietToday?: DietDaySummary | null;
-  /** Whether the athlete has opted in to diet advice, so calories are shown. */
+  /** Whether the athlete has opted in to diet advice, so diet content is shown. */
   showCalories?: boolean;
 }) {
   const [tab, setTab] = useState<PlanTab>(defaultTab);
@@ -178,6 +179,7 @@ export function CoachPlanView({
               testId="plan-block"
               refreshing={refreshingBlocks.block ?? false}
               thresholds={thresholds}
+              showDiet={showCalories}
             />
             {plan.nextBlock !== null && (
               <BlockSection
@@ -186,12 +188,17 @@ export function CoachPlanView({
                 testId="plan-next-block"
                 refreshing={refreshingBlocks.nextBlock ?? false}
                 thresholds={thresholds}
+                showDiet={showCalories}
               />
             )}
           </div>
         )}
         {tab === "season" && (
-          <SeasonSection season={plan.season} thresholds={thresholds} />
+          <SeasonSection
+            season={plan.season}
+            thresholds={thresholds}
+            showDiet={showCalories}
+          />
         )}
       </div>
     </div>
@@ -520,6 +527,13 @@ function WeekSection({
           className="mt-2 text-base text-muted-foreground"
           testId="week-rationale"
         />
+        {showCalories && week.dietProgress != null && (
+          <DietProgressLine
+            progress={week.dietProgress}
+            period="the week"
+            testId="week-diet-progress"
+          />
+        )}
         <ul className="mt-3 flex flex-col gap-2">
           {week.sessions.map((session) => (
             <li
@@ -638,12 +652,14 @@ function BlockSection({
   testId,
   refreshing = false,
   thresholds = [],
+  showDiet = false,
 }: {
   block: BlockPlan;
   label: string;
   testId?: string;
   refreshing?: boolean;
   thresholds?: readonly ThresholdSummary[];
+  showDiet?: boolean;
 }) {
   const estimatedFtp = block.estimatedFtpWatts;
   return (
@@ -691,6 +707,13 @@ function BlockSection({
             testId="block-rationale"
           />
         </div>
+        {showDiet && block.dietProgress != null && (
+          <DietProgressLine
+            progress={block.dietProgress}
+            period="the block"
+            testId="block-diet-progress"
+          />
+        )}
         <PlanList>
           {block.weeks.map((week) => (
             <PlanListItem key={`${week.number}-${week.startDate}`}>
@@ -705,6 +728,13 @@ function BlockSection({
                 <p className="text-muted-foreground">
                   Estimated FTP: {week.estimatedFtpWatts} W
                 </p>
+              )}
+              {showDiet && week.dietProgress != null && (
+                <DietProgressLine
+                  progress={week.dietProgress}
+                  period="the week"
+                  testId="block-week-diet-progress"
+                />
               )}
               <FormattedText
                 text={week.focus}
@@ -727,9 +757,11 @@ function BlockSection({
 function SeasonSection({
   season,
   thresholds = [],
+  showDiet = false,
 }: {
   season: SeasonPlan;
   thresholds?: readonly ThresholdSummary[];
+  showDiet?: boolean;
 }) {
   const estimatedFtp = season.estimatedFtpWatts;
   return (
@@ -765,6 +797,13 @@ function SeasonSection({
           testId="season-rationale"
         />
       </div>
+      {showDiet && season.dietProgress != null && (
+        <DietProgressLine
+          progress={season.dietProgress}
+          period="the season"
+          testId="season-diet-progress"
+        />
+      )}
       <PlanList>
         {season.blocks.map((block, index) => (
           <PlanListItem key={`${block.name}-${block.startDate}`}>
@@ -777,6 +816,13 @@ function SeasonSection({
               <Bullet />
               {block.weekCount} {block.weekCount === 1 ? "week" : "weeks"}
             </p>
+            {showDiet && block.dietProgress != null && (
+              <DietProgressLine
+                progress={block.dietProgress}
+                period="the block"
+                testId="season-block-diet-progress"
+              />
+            )}
             <FormattedText
               text={block.focus}
               className="text-muted-foreground"
@@ -785,6 +831,44 @@ function SeasonSection({
         ))}
       </PlanList>
     </section>
+  );
+}
+
+/** The coach's body-composition target for the end of a plan period. */
+function DietProgressLine({
+  progress,
+  period,
+  testId,
+}: {
+  progress: DietProgress;
+  /** The period named in the label, such as `the block`. */
+  period: string;
+  testId: string;
+}) {
+  const targets: string[] = [];
+  if (progress.targetWeightKg !== null) {
+    targets.push(`${progress.targetWeightKg.toFixed(1)} kg`);
+  }
+  if (progress.targetBodyFatPercent !== null) {
+    targets.push(`${progress.targetBodyFatPercent.toFixed(1)} % body fat`);
+  }
+  return (
+    <div
+      className="mt-3 flex flex-col gap-1 rounded border bg-card p-3 text-base"
+      data-testid={testId}
+    >
+      <p>
+        <span className="font-medium">
+          Diet target by the end of {period}:{" "}
+        </span>
+        {targets.length > 0 ? targets.join(" and ") : "no numeric target"}
+      </p>
+      <FormattedText
+        text={progress.note}
+        className="text-muted-foreground"
+        testId={`${testId}-note`}
+      />
+    </div>
   );
 }
 

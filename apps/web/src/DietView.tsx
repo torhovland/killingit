@@ -20,6 +20,7 @@ export function DietView({
   error,
   onRetry,
   onOpenSettings,
+  onOpenSurvey,
 }: {
   dietAdvice: boolean;
   /** Null while the summary is loading for the first time. */
@@ -29,9 +30,11 @@ export function DietView({
   error: string | null;
   onRetry: () => void;
   onOpenSettings: () => void;
+  onOpenSurvey: () => void;
 }) {
   const todayEntry = summary?.days.find((day) => day.date === today) ?? null;
   const goal = summary?.goal ?? DEFAULT_DIET_GOAL;
+  const goalIsDefault = summary !== null && !summary.goalProvided;
 
   return (
     <section className="flex flex-col gap-4 text-left" data-testid="diet-page">
@@ -68,6 +71,22 @@ export function DietView({
                 {goal}
               </p>
             </div>
+            {goalIsDefault && (
+              <p
+                className="rounded border bg-inset p-3 text-base text-muted-foreground"
+                data-testid="diet-default-goal-note"
+              >
+                This is the default goal. You can provide your own diet goal on
+                the Coaching Survey.{" "}
+                <button
+                  type="button"
+                  className="underline hover:no-underline"
+                  onClick={onOpenSurvey}
+                >
+                  Open the Coaching Survey
+                </button>
+              </p>
+            )}
             {summary?.assessment != null && (
               <div className="flex flex-col gap-1 text-base">
                 <p className="font-medium">Coach's assessment</p>

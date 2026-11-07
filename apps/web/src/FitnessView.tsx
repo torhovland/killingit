@@ -8,7 +8,7 @@ import {
   type FitnessHistoryResponse,
   type FitnessRange,
 } from "@killingit/shared";
-import { BodyChart } from "./BodyChart";
+import { BodyChartSection } from "./BodyChart";
 import { DailyHealthCharts } from "./DailyHealthCharts";
 import { FitnessChart } from "./FitnessChart";
 import { NutritionChart } from "./NutritionChart";
@@ -266,11 +266,13 @@ export function FitnessView({
             today={today}
           />
 
-          <BodyChart
+          <BodyChartSection
             days={history.days}
             weight={history.body.weight}
             bodyFat={history.body.bodyFat}
             today={today}
+            seasonEndDate={history.seasonEndDate}
+            dietTargets={history.dietTargets}
           />
 
           <NutritionChart days={history.nutrition} today={today} />

@@ -204,6 +204,72 @@ describe("coachPlanSchema", () => {
     expect(parsed.nextWeek).toBeNull();
     expect(parsed.nextBlock).toBeNull();
   });
+
+  it("carries diet progress targets at every plan level", () => {
+    const plan = makePlan();
+    const progress = {
+      targetWeightKg: 79,
+      targetBodyFatPercent: 17,
+      note: "Lose 2 kg across the block.",
+    };
+    const parsed = coachPlanSchema.parse({
+      ...plan,
+      season: {
+        ...plan.season,
+        dietProgress: progress,
+        blocks: plan.season.blocks.map((block) => ({
+          ...block,
+          dietProgress: { ...progress, targetWeightKg: 80 },
+        })),
+      },
+      block: {
+        ...plan.block,
+        dietProgress: progress,
+        weeks: plan.block.weeks.map((week) => ({
+          ...week,
+          dietProgress: { ...progress, targetWeightKg: 80.5 },
+        })),
+      },
+      week: {
+        ...plan.week,
+        dietProgress: { ...progress, targetWeightKg: 81 },
+      },
+      diet: {
+        goal: "Lose 3 kg by March",
+        goalProvided: true,
+        assessment: "On target.",
+      },
+    });
+
+    expect(parsed.season.dietProgress?.targetWeightKg).toBe(79);
+    expect(parsed.season.blocks[0]?.dietProgress?.targetWeightKg).toBe(80);
+    expect(parsed.block.weeks[0]?.dietProgress?.targetWeightKg).toBe(80.5);
+    expect(parsed.week.dietProgress?.targetWeightKg).toBe(81);
+    expect(parsed.diet?.goalProvided).toBe(true);
+  });
+
+  it("accepts a note-only target and leaves old plans without one", () => {
+    const parsed = coachPlanSchema.parse({
+      ...makePlan(),
+      week: {
+        ...makeWeek(),
+        dietProgress: {
+          targetWeightKg: null,
+          targetBodyFatPercent: null,
+          note: "Hold weight through the taper.",
+        },
+      },
+    });
+
+    expect(parsed.week.dietProgress).toEqual({
+      targetWeightKg: null,
+      targetBodyFatPercent: null,
+      note: "Hold weight through the taper.",
+    });
+    expect(
+      coachPlanSchema.parse(makePlan()).season.dietProgress,
+    ).toBeUndefined();
+  });
 });
 
 describe("split build schemas", () => {

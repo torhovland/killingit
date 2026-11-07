@@ -1,9 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import {
   formatActivitySummary,
+  formatBlockPlan,
   formatDayPlan,
   formatLaps,
   formatPlanContext,
+  formatSeasonPlan,
   formatWeekPlan,
   summarizeLaps,
   type PlanContextInput,
@@ -313,6 +315,35 @@ describe("formatPlanContext", () => {
     expect(text).toContain("- 2026-10-22: 2400 kcal");
   });
 
+  it("says whether the diet goal was stated and whether diet advice is on", () => {
+    const stated = formatPlanContext(
+      input({
+        dietAdvice: true,
+        dietGoal: {
+          goal: "Lose 3 kg by March",
+          goalProvided: true,
+          assessment: "On target.",
+        },
+      }),
+    ).join("\n");
+    expect(stated).toContain("Diet goal status: stated by the athlete.");
+    expect(stated).toContain("Diet advice: enabled.");
+
+    const fallback = formatPlanContext(
+      input({
+        dietAdvice: false,
+        dietGoal: {
+          goal: "Maintain current weight",
+          assessment: "Holding.",
+        },
+      }),
+    ).join("\n");
+    expect(fallback).toContain(
+      "Diet goal status: default because the athlete stated none.",
+    );
+    expect(fallback).toContain("Diet advice: disabled.");
+  });
+
   it("includes the stored daily health and recovery summary", () => {
     const text = formatPlanContext(
       input({
@@ -483,6 +514,96 @@ describe("formatPlanContext", () => {
       "Each comment describes the activity with the matching ID. It is not a separate activity or extra training.",
     );
     expect(text).toContain("- Activity 99: An older session.");
+  });
+
+  it("renders stored diet progress at every plan level", () => {
+    const season = formatSeasonPlan({
+      goal: "Ride a century",
+      startDate: "2026-10-19",
+      endDate: "2027-04-01",
+      rationale: "Build endurance.",
+      dietProgress: {
+        targetWeightKg: 78,
+        targetBodyFatPercent: 15,
+        note: "Reach race weight by the season end.",
+      },
+      blocks: [
+        {
+          name: "Base",
+          focus: "Aerobic",
+          startDate: "2026-10-19",
+          endDate: "2026-11-29",
+          weekCount: 6,
+          dietProgress: {
+            targetWeightKg: 80,
+            targetBodyFatPercent: null,
+            note: "Hold weight while building volume.",
+          },
+        },
+      ],
+    });
+    expect(season).toContain(
+      "Diet progress by the end of the season: 78.0 kg and 15.0 % body fat. Reach race weight by the season end.",
+    );
+    expect(season).toContain(
+      "Diet progress by the end of this block: 80.0 kg. Hold weight while building volume.",
+    );
+
+    const block = formatBlockPlan({
+      name: "Base",
+      focus: "Aerobic",
+      startDate: "2026-10-19",
+      endDate: "2026-11-29",
+      rationale: "Build endurance.",
+      dietProgress: {
+        targetWeightKg: 80,
+        targetBodyFatPercent: null,
+        note: "Hold weight while building volume.",
+      },
+      weeks: [
+        {
+          number: 1,
+          startDate: "2026-10-19",
+          focus: "Easy aerobic",
+          targetLoad: "Easy",
+          dietProgress: {
+            targetWeightKg: null,
+            targetBodyFatPercent: null,
+            note: "Hold weight through the week.",
+          },
+        },
+      ],
+    });
+    expect(block).toContain(
+      "Diet progress by the end of the block: 80.0 kg. Hold weight while building volume.",
+    );
+    expect(block).toContain(
+      "diet progress by the end of the week: no numeric target. Hold weight through the week.",
+    );
+
+    const week = formatWeekPlan({
+      startDate: "2026-10-19",
+      focus: "Aerobic",
+      rationale: "Keep it easy.",
+      dietProgress: {
+        targetWeightKg: 80.5,
+        targetBodyFatPercent: null,
+        note: "Hold weight through the week.",
+      },
+      sessions: Array.from({ length: 7 }, (_, index) => ({
+        date: `2026-10-${19 + index}`,
+        day: "Monday",
+        type: "workout" as const,
+        title: `Session ${index + 1}`,
+        description: "Easy aerobic work.",
+        durationMinutes: 45,
+        intensity: "easy" as const,
+        status: "planned" as const,
+      })),
+    });
+    expect(week).toContain(
+      "Diet progress by the end of the week: 80.5 kg. Hold weight through the week.",
+    );
   });
 
   it("renders the power targets of a structured bike workout", () => {
