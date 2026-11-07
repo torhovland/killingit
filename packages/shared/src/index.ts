@@ -384,6 +384,7 @@ export {
   foodEntriesResponseSchema,
   foodEntryRequestSchema,
   foodEntrySchema,
+  foodEntryUpdateRequestSchema,
   foodPhotoDataUrlSchema,
   isDefaultDietGoal,
   MIN_PLAUSIBLE_CALORIES_KCAL,
@@ -397,6 +398,7 @@ export {
   type FoodEntriesResponse,
   type FoodEntry,
   type FoodEntryRequest,
+  type FoodEntryUpdateRequest,
 } from "./diet.js";
 
 export {

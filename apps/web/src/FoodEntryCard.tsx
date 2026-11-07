@@ -8,10 +8,13 @@ import { formatDateTime } from "./timeZone";
 export function FoodEntryCard({
   entry,
   compact = false,
+  onEdit,
 }: {
   entry: FoodEntry;
   /** Tighter spacing for the dashboard's inline confirmation. */
   compact?: boolean;
+  /** Opens the edit form. Omitted where the meal is read-only. */
+  onEdit?: (() => void) | undefined;
 }) {
   const timeZone = useTimeZone();
   const analysis = entry.analysis;
@@ -26,6 +29,7 @@ export function FoodEntryCard({
       {entry.hasPhoto && (
         <FoodPhoto
           entryId={entry.id}
+          version={entry.updatedAt}
           alt="Photo of the meal"
           className="h-24 w-24 shrink-0 rounded object-cover"
         />
@@ -33,9 +37,20 @@ export function FoodEntryCard({
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h3 className="text-lg font-semibold">Meal</h3>
-          <time className="text-sm text-muted-foreground">
-            {formatDateTime(entry.eatenAt, timeZone)}
-          </time>
+          <div className="flex flex-wrap items-center gap-2">
+            <time className="text-sm text-muted-foreground">
+              {formatDateTime(entry.eatenAt, timeZone)}
+            </time>
+            {onEdit && (
+              <button
+                type="button"
+                className="rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted"
+                onClick={onEdit}
+              >
+                Edit
+              </button>
+            )}
+          </div>
         </div>
         {entry.description !== null && entry.description.trim() !== "" ? (
           <p className="text-base">{entry.description}</p>

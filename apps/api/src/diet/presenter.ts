@@ -11,5 +11,6 @@ export function toFoodEntry(entry: StoredFoodEntry): FoodEntry {
     hasPhoto: entry.thumbnailDataUrl !== null,
     analysis: entry.analysis,
     analysisError: entry.analysisError,
+    updatedAt: entry.updatedAt.toISOString(),
   });
 }

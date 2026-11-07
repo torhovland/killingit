@@ -20,6 +20,7 @@ const entry: FoodEntry = {
       "Good fuelling before a long ride.\n\n- Plenty of carbs\n- Add a little protein",
   },
   analysisError: null,
+  updatedAt: "2026-11-07T11:30:00Z",
 };
 
 function render(value: FoodEntry): string {
@@ -69,5 +70,15 @@ describe("FoodEntryCard", () => {
 
   it("does not render an image element for a meal without a photo", () => {
     expect(render(entry)).not.toContain("<img");
+  });
+
+  it("offers an edit action only where editing is allowed", () => {
+    const html = renderToStaticMarkup(
+      <TimeZoneProvider timeZone="Europe/Oslo">
+        <FoodEntryCard entry={entry} onEdit={() => undefined} />
+      </TimeZoneProvider>,
+    );
+    expect(html).toContain(">Edit</button>");
+    expect(render(entry)).not.toContain(">Edit</button>");
   });
 });

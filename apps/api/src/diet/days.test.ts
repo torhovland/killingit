@@ -28,6 +28,7 @@ function entry(
     model: "test/model",
     analysisError: caloriesKcal === null ? "No model." : null,
     createdAt: new Date(`${eatenDate}T12:00:00Z`),
+    updatedAt: new Date(`${eatenDate}T12:00:00Z`),
   };
 }
 

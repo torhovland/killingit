@@ -2,9 +2,10 @@ import {
   DEFAULT_DIET_GOAL,
   type DietDaySummary,
   type DietSummaryResponse,
+  type FoodEntry,
 } from "@killingit/shared";
 import { CalorieBalancePanel } from "./CalorieBalancePanel";
-import { FoodEntryCard } from "./FoodEntryCard";
+import { EditableFoodEntryCard } from "./EditableFoodEntryCard";
 import { FormattedText } from "./FormattedText";
 
 /**
@@ -21,6 +22,7 @@ export function DietView({
   onRetry,
   onOpenSettings,
   onOpenSurvey,
+  onEntryUpdated,
 }: {
   dietAdvice: boolean;
   /** Null while the summary is loading for the first time. */
@@ -31,6 +33,8 @@ export function DietView({
   onRetry: () => void;
   onOpenSettings: () => void;
   onOpenSurvey: () => void;
+  /** Called after a meal is edited, so the page reloads its totals. */
+  onEntryUpdated: (entry: FoodEntry) => void;
 }) {
   const todayEntry = summary?.days.find((day) => day.date === today) ?? null;
   const goal = summary?.goal ?? DEFAULT_DIET_GOAL;
@@ -130,7 +134,12 @@ export function DietView({
           ) : (
             <div className="flex flex-col gap-3" data-testid="diet-days">
               {summary?.days.map((day) => (
-                <DietDayCard key={day.date} day={day} today={today} />
+                <DietDayCard
+                  key={day.date}
+                  day={day}
+                  today={today}
+                  onEntryUpdated={onEntryUpdated}
+                />
               ))}
             </div>
           )}
@@ -141,7 +150,15 @@ export function DietView({
 }
 
 /** One day's totals and the meals logged that day. */
-function DietDayCard({ day, today }: { day: DietDaySummary; today: string }) {
+function DietDayCard({
+  day,
+  today,
+  onEntryUpdated,
+}: {
+  day: DietDaySummary;
+  today: string;
+  onEntryUpdated: (entry: FoodEntry) => void;
+}) {
   return (
     <article
       className="flex flex-col gap-3 rounded-lg border bg-card p-4"
@@ -177,7 +194,11 @@ function DietDayCard({ day, today }: { day: DietDaySummary; today: string }) {
       {day.entries.length > 0 ? (
         <div className="flex flex-col gap-3">
           {day.entries.map((entry) => (
-            <FoodEntryCard key={entry.id} entry={entry} compact />
+            <EditableFoodEntryCard
+              key={entry.id}
+              entry={entry}
+              onUpdated={onEntryUpdated}
+            />
           ))}
         </div>
       ) : (

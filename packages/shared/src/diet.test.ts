@@ -6,6 +6,7 @@ import {
   foodAnalysisSchema,
   foodEntryRequestSchema,
   foodEntrySchema,
+  foodEntryUpdateRequestSchema,
   isDefaultDietGoal,
   MIN_PLAUSIBLE_CALORIES_KCAL,
   plausibleCaloriesKcal,
@@ -262,6 +263,7 @@ describe("foodEntrySchema", () => {
       hasPhoto: false,
       analysis: null,
       analysisError: "No model configured.",
+      updatedAt: "2026-11-07T12:30:00.000Z",
     });
     expect(parsed.analysis).toBeNull();
     expect(parsed.analysisError).toBe("No model configured.");
@@ -276,8 +278,33 @@ describe("foodEntrySchema", () => {
       hasPhoto: true,
       analysis: null,
       analysisError: null,
+      updatedAt: "2026-11-07T12:30:00.000Z",
     });
     expect(parsed.description).toBeNull();
     expect(parsed.hasPhoto).toBe(true);
+  });
+});
+
+describe("foodEntryUpdateRequestSchema", () => {
+  it("accepts an empty edit, which re-assesses the meal unchanged", () => {
+    expect(foodEntryUpdateRequestSchema.parse({})).toEqual({});
+  });
+
+  it("accepts a cleared description and a removed photo", () => {
+    const parsed = foodEntryUpdateRequestSchema.parse({
+      description: null,
+      removePhoto: true,
+    });
+    expect(parsed.description).toBeNull();
+    expect(parsed.removePhoto).toBe(true);
+  });
+
+  it("rejects a new photo combined with removing the photo", () => {
+    expect(
+      foodEntryUpdateRequestSchema.safeParse({
+        photoDataUrl: "data:image/jpeg;base64,QUJD",
+        removePhoto: true,
+      }).success,
+    ).toBe(false);
   });
 });
