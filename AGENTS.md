@@ -512,6 +512,23 @@ through a disciplined process:
     implement something, finish by opening a pull request with the completed
     change. Do not stop at a local edit or an unpushed branch.
 
+## Licensing
+
+- The repository is **source-available, not open source**: PolyForm
+  Noncommercial 1.0.0. Commercial use is forbidden, personal, hobby, study and
+  non-commercial-organization use is allowed, and the licence is non-exclusive
+  so the commercial licence, relicensing and assignment stay available. See
+  `docs/adrs/0022-source-available-noncommercial-license.md`.
+- Never describe the project as open source, and never add a second licence, an
+  `SPDX-License-Identifier` header with other terms, or a permissive notice to
+  new files. `LICENSE.md` covers every file in the repository.
+- Keep the `Required Notice: Copyright (c) 2026 Tor Hovland` line intact. It is
+  the attribution duty the licence enforces, and it must travel with every
+  distribution.
+- Contributions require the copyright assignment described in
+  `CONTRIBUTING.md` before they are merged; without it the project can no
+  longer be relicensed or sold.
+
 ## Working side effects
 
 - **Verify CI before pushing.** When asked to push changes, first run
