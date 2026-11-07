@@ -65,6 +65,22 @@ describe("LlmCallsView", () => {
     expect(html).toContain("1200 ms");
   });
 
+  it("keeps the selected call readable instead of putting light text on accent", () => {
+    const html = view();
+    const marker = html.indexOf('aria-current="true"');
+    const row = html.slice(
+      html.lastIndexOf("<button", marker),
+      html.indexOf("</button>", marker),
+    );
+
+    // Selection is a dark inset surface with an accent ring; the accent colour
+    // itself is too light to carry the off-white and ice text reliably.
+    expect(row).toContain("bg-inset");
+    expect(row).toContain("ring-accent");
+    expect(row).not.toContain("bg-accent");
+    expect(row).toContain("text-muted-foreground");
+  });
+
   it("marks a JSON repair as a retry and a failed plan", () => {
     const html = view({
       calls: [
