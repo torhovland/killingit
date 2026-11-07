@@ -364,6 +364,12 @@ describe("PATCH /api/diet/entries/:id", () => {
     expect(updated.analysis.carbsGrams).toBe(55);
     expect(seen).toHaveLength(2);
     expect(seen[1]?.description).toBe("A cheese sandwich and an apple");
+    // The coach sees the meal it assessed before, so it can adjust that
+    // assessment instead of starting from scratch.
+    expect(seen[1]?.previous).toEqual({
+      description: "A cheese sandwich",
+      analysis,
+    });
     expect(store.rows[0]?.entry.description).toBe(
       "A cheese sandwich and an apple",
     );

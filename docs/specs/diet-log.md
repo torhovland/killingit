@@ -100,6 +100,14 @@ returns 400. The endpoint returns 404 for a meal the athlete does not own and
 records `analysisError`, clearing the earlier analysis because its numbers no
 longer describe the saved description.
 
+The re-assessment prompt carries the meal as it was stored before the edit: the
+previous description and the previous structured analysis, including its meal
+description, macros and diet-fit note. A system rule tells the coach that the
+edit is authoritative, to change what no longer matches, keep what still
+applies, and not mention the earlier version unless the change matters. A meal
+whose earlier analysis failed is shown with no previous assessment, so the
+coach still knows whether the description changed.
+
 The full-resolution original is never stored, so an edit without a new photo
 re-analyses the stored thumbnail. The Diet page's edit form sends a replacement
 photo when the athlete attaches one, and warns that saving asks the coach to

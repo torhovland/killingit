@@ -19,6 +19,7 @@ import {
 import type { PlanContextInput } from "../llm/planContext.js";
 import { loadLlmClient, type LlmClient } from "../llm/client.js";
 import { analyzeFood } from "../llm/foodAnalysis.js";
+import type { PreviousFoodAnalysis } from "../llm/foodPrompt.js";
 import { localDateTimeInZone, addDays } from "../plans/dates.js";
 import { loadPlanDayCalories } from "../plans/dayCalories.js";
 import type { PlanStore } from "../plans/store.js";
@@ -82,6 +83,8 @@ interface MealAnalysisRequest {
   eatenTime: string;
   description: string | null;
   photoDataUrl: string | null;
+  /** The stored meal before an edit, so the coach can adjust its assessment. */
+  previous?: PreviousFoodAnalysis;
 }
 
 /**
@@ -122,6 +125,9 @@ async function analyseMeal(
         eatenTime: request.eatenTime,
         description: request.description,
         photoDataUrl: request.photoDataUrl,
+        ...(request.previous !== undefined
+          ? { previous: request.previous }
+          : {}),
       },
     );
     return {
@@ -338,6 +344,10 @@ export function createDietRoute(deps: DietRouteDependencies): Hono {
             eatenTime: local.time,
             description,
             photoDataUrl,
+            previous: {
+              description: existing.description,
+              analysis: existing.analysis,
+            },
           },
           {
             answers: deps.answers,
