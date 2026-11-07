@@ -2,6 +2,7 @@ import type {
   LlmCallUsage,
   LlmCostBucket,
   LlmCostsResponse,
+  LlmPromptKind,
 } from "@killingit/shared";
 import { eq } from "drizzle-orm";
 import { db } from "../db/index.js";
@@ -10,6 +11,8 @@ import { llmCalls, llmModels } from "../db/schema.js";
 /** One stored call, reduced to the fields the cost aggregation needs. */
 export interface LlmCostCallRow {
   createdAt: Date;
+  /** The coaching task the prompt belongs to. */
+  kind: LlmPromptKind;
   /** The model the app asked for; it may be an alias. */
   model: string;
   usage: LlmCallUsage | null;
@@ -27,16 +30,17 @@ export interface LlmCostModelRow {
 interface BucketAccumulator {
   model: string;
   label: string;
+  kind: LlmPromptKind;
   costUsd: number;
   calls: number;
 }
 
 /**
  * Groups the account's prompt log into monthly and daily cost buckets per
- * routed model. OpenRouter reports the charged USD amount on each response and
- * that value is used when present. Calls made before cost capture have to be
- * estimated from their token usage and the catalog's current list price; a
- * model with no known price contributes zero rather than a guess.
+ * routed model and prompt kind. OpenRouter reports the charged USD amount on
+ * each response and that value is used when present. Calls made before cost
+ * capture have to be estimated from their token usage and the catalog's current
+ * list price; a model with no known price contributes zero rather than a guess.
  */
 export function aggregateLlmCosts(
   calls: readonly LlmCostCallRow[],
@@ -53,8 +57,15 @@ export function aggregateLlmCosts(
     const label = catalogEntry?.name ?? routed;
     const costUsd = callCostUsd(call.usage, catalogEntry);
 
-    addCost(monthly, monthKey(call.createdAt), model, label, costUsd);
-    addCost(daily, dayKey(call.createdAt), model, label, costUsd);
+    addCost(
+      monthly,
+      monthKey(call.createdAt),
+      model,
+      label,
+      call.kind,
+      costUsd,
+    );
+    addCost(daily, dayKey(call.createdAt), model, label, call.kind, costUsd);
   }
 
   return {
@@ -69,6 +80,7 @@ export async function loadLlmCosts(userId: number): Promise<LlmCostsResponse> {
     db
       .select({
         createdAt: llmCalls.createdAt,
+        kind: llmCalls.kind,
         model: llmCalls.model,
         usage: llmCalls.usage,
         metadata: llmCalls.metadata,
@@ -125,14 +137,24 @@ function addCost(
   bucket: string,
   model: string,
   label: string,
+  kind: LlmPromptKind,
   costUsd: number,
 ): void {
-  const byModel = buckets.get(bucket) ?? new Map<string, BucketAccumulator>();
-  const entry = byModel.get(model) ?? { model, label, costUsd: 0, calls: 0 };
+  const bySeries = buckets.get(bucket) ?? new Map<string, BucketAccumulator>();
+  // One row per model and prompt kind, so the client can stack the same
+  // buckets either by which model answered or by what the prompt was for.
+  const key = `${model}\u0000${kind}`;
+  const entry = bySeries.get(key) ?? {
+    model,
+    label,
+    kind,
+    costUsd: 0,
+    calls: 0,
+  };
   entry.costUsd += costUsd;
   entry.calls += 1;
-  byModel.set(model, entry);
-  buckets.set(bucket, byModel);
+  bySeries.set(key, entry);
+  buckets.set(bucket, bySeries);
 }
 
 /** Turns the nested map into flat, period-sorted rows. */
@@ -143,11 +165,16 @@ function flatten(
     .sort(([left], [right]) => left.localeCompare(right))
     .flatMap(([bucket, byModel]) =>
       [...byModel.values()]
-        .sort((left, right) => left.model.localeCompare(right.model))
+        .sort(
+          (left, right) =>
+            left.model.localeCompare(right.model) ||
+            left.kind.localeCompare(right.kind),
+        )
         .map((entry) => ({
           bucket,
           model: entry.model,
           label: entry.label,
+          kind: entry.kind,
           costUsd: roundCost(entry.costUsd),
           calls: entry.calls,
         })),

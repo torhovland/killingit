@@ -1,7 +1,7 @@
 /**
- * Fills for the stacked cost bars. Every model uses the light blue of the
+ * Fills for the stacked cost bars. Every series uses the light blue of the
  * Fitness page's REM-sleep band, with descending opacity so the stack stays
- * readable when more than one model contributed to a period.
+ * readable when several models or prompt types contributed to a period.
  */
 export const COST_SERIES_FILL = [
   "fill-form-fresh",

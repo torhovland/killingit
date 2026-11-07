@@ -1,4 +1,8 @@
-import type { LlmCostBucket } from "@killingit/shared";
+import {
+  LLM_PROMPT_KIND_LABELS,
+  type LlmCostBucket,
+  type LlmPromptKind,
+} from "@killingit/shared";
 import { tickStep } from "./chartGeometry";
 
 /** How far back the monthly cost chart looks. */
@@ -23,21 +27,31 @@ export const DAILY_COST_RANGE_LABELS: Record<DailyCostRange, string> = {
   all: "All time",
 };
 
-/** One model's total, used to order the stacks and colour the legend. */
-export interface CostModelTotal {
-  model: string;
+/** The cost charts can stack by which model answered or what the prompt was for. */
+export const COST_STACK_DIMENSIONS = ["model", "kind"] as const;
+
+export type CostStackDimension = (typeof COST_STACK_DIMENSIONS)[number];
+
+export const COST_STACK_DIMENSION_LABELS: Record<CostStackDimension, string> = {
+  model: "Model",
+  kind: "Prompt type",
+};
+
+/** One stack series' total, used to order the stacks and colour the legend. */
+export interface CostSeriesTotal {
+  series: string;
   label: string;
   totalUsd: number;
 }
 
-/** One model's share of a period. */
+/** One series' share of a period. */
 export interface CostBucketPart {
-  model: string;
+  series: string;
   costUsd: number;
   calls: number;
 }
 
-/** One bar in the cost chart: a month or a day, split by model. */
+/** One bar in the cost chart: a month or a day, split into series. */
 export interface CostBucket {
   /** `YYYY-MM` for monthly charts and `YYYY-MM-DD` for daily charts. */
   key: string;
@@ -52,7 +66,7 @@ export interface CostBucket {
 /** The values behind one cost bar chart. */
 export interface CostChartData {
   buckets: CostBucket[];
-  models: CostModelTotal[];
+  series: CostSeriesTotal[];
   totalUsd: number;
 }
 
@@ -63,20 +77,20 @@ interface Period {
 }
 
 /**
- * One entry per model, ordered by total cost so the stacks and the legend use
- * the same order. Shared by both charts so a model keeps its colour when the
+ * One entry per series, ordered by total cost so the stacks and the legend use
+ * the same order. Shared by both charts so a series keeps its colour when the
  * athlete changes a range.
  */
-export function costModels(rows: readonly LlmCostBucket[]): CostModelTotal[] {
-  const totals = new Map<string, CostModelTotal>();
+export function costSeries(
+  rows: readonly LlmCostBucket[],
+  dimension: CostStackDimension,
+): CostSeriesTotal[] {
+  const totals = new Map<string, CostSeriesTotal>();
   for (const row of rows) {
-    const entry = totals.get(row.model) ?? {
-      model: row.model,
-      label: row.label,
-      totalUsd: 0,
-    };
+    const { series, label } = seriesOf(row, dimension);
+    const entry = totals.get(series) ?? { series, label, totalUsd: 0 };
     entry.totalUsd += row.costUsd;
-    totals.set(row.model, entry);
+    totals.set(series, entry);
   }
   return [...totals.values()]
     .map((entry) => ({ ...entry, totalUsd: roundCost(entry.totalUsd) }))
@@ -91,6 +105,7 @@ export function monthlyCostChart(
   rows: readonly LlmCostBucket[],
   range: MonthlyCostRange,
   today: string,
+  dimension: CostStackDimension,
 ): CostChartData {
   const end = today.slice(0, 7);
   const rowsByBucket = rows.filter(
@@ -104,7 +119,7 @@ export function monthlyCostChart(
     label: monthLabel(key, range === "all"),
     title: monthTitle(key),
   }));
-  return buildCostChart(rowsByBucket, periods, rows);
+  return buildCostChart(rowsByBucket, periods, rows, dimension);
 }
 
 /** The continuous daily buckets for one range, empty days included. */
@@ -112,6 +127,7 @@ export function dailyCostChart(
   rows: readonly LlmCostBucket[],
   range: DailyCostRange,
   today: string,
+  dimension: CostStackDimension,
 ): CostChartData {
   const end = today.slice(0, 10);
   const rowsByBucket = rows.filter(
@@ -132,7 +148,7 @@ export function dailyCostChart(
     label: formatDay(key),
     title: formatDayTitle(key),
   }));
-  return buildCostChart(rowsByBucket, periods, rows);
+  return buildCostChart(rowsByBucket, periods, rows, dimension);
 }
 
 /** A bar's index for a pointer position, given as a share of the plot width. */
@@ -205,6 +221,7 @@ function buildCostChart(
   rows: readonly LlmCostBucket[],
   periods: readonly Period[],
   allRows: readonly LlmCostBucket[],
+  dimension: CostStackDimension,
 ): CostChartData {
   const wanted = new Set(periods.map((period) => period.key));
   const buckets = new Map<string, Map<string, CostBucketPart>>();
@@ -212,24 +229,25 @@ function buildCostChart(
     if (!wanted.has(row.bucket)) {
       continue;
     }
-    const byModel =
+    const { series } = seriesOf(row, dimension);
+    const bySeries =
       buckets.get(row.bucket) ?? new Map<string, CostBucketPart>();
-    const part = byModel.get(row.model) ?? {
-      model: row.model,
+    const part = bySeries.get(series) ?? {
+      series,
       costUsd: 0,
       calls: 0,
     };
     part.costUsd += row.costUsd;
     part.calls += row.calls;
-    byModel.set(row.model, part);
-    buckets.set(row.bucket, byModel);
+    bySeries.set(series, part);
+    buckets.set(row.bucket, bySeries);
   }
 
   let totalUsd = 0;
   const built = periods.map((period) => {
     const parts = [...(buckets.get(period.key)?.values() ?? [])]
       .map((part) => ({ ...part, costUsd: roundCost(part.costUsd) }))
-      .sort((left, right) => left.model.localeCompare(right.model));
+      .sort((left, right) => left.series.localeCompare(right.series));
     const bucketTotal = roundCost(
       parts.reduce((sum, part) => sum + part.costUsd, 0),
     );
@@ -239,9 +257,24 @@ function buildCostChart(
 
   return {
     buckets: built,
-    models: costModels(allRows),
+    series: costSeries(allRows, dimension),
     totalUsd: roundCost(totalUsd),
   };
+}
+
+/** The series key and legend label for one cost row. */
+function seriesOf(
+  row: LlmCostBucket,
+  dimension: CostStackDimension,
+): { series: string; label: string } {
+  if (dimension === "kind") {
+    return { series: row.kind, label: promptKindLabel(row.kind) };
+  }
+  return { series: row.model, label: row.label };
+}
+
+function promptKindLabel(kind: LlmPromptKind): string {
+  return LLM_PROMPT_KIND_LABELS[kind];
 }
 
 const MONTH_NAMES = [

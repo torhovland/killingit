@@ -9,6 +9,7 @@ const rows: LlmCostBucket[] = [
     bucket: "2026-10",
     model: "openai/gpt",
     label: "GPT",
+    kind: "season_plan",
     costUsd: 2,
     calls: 3,
   },
@@ -16,6 +17,7 @@ const rows: LlmCostBucket[] = [
     bucket: "2026-10",
     model: "anthropic/claude",
     label: "Claude",
+    kind: "activity_analysis",
     costUsd: 0.5,
     calls: 1,
   },
@@ -23,6 +25,7 @@ const rows: LlmCostBucket[] = [
     bucket: "2026-11",
     model: "anthropic/claude",
     label: "Claude",
+    kind: "activity_analysis",
     costUsd: 0.25,
     calls: 2,
   },
@@ -34,15 +37,15 @@ describe("CostBarChart", () => {
       <CostBarChart
         title="Monthly cost"
         description="One bar per month."
-        data={monthlyCostChart(rows, "12m", "2026-11-04")}
+        data={monthlyCostChart(rows, "12m", "2026-11-04", "model")}
         emptyMessage="No calls."
         testId="monthly-cost-chart"
       />,
     );
 
     expect(html.match(/data-testid="cost-bar"/g)).toHaveLength(12);
-    expect(html.match(/data-model="openai\/gpt"/g)).toHaveLength(1);
-    expect(html.match(/data-model="anthropic\/claude"/g)).toHaveLength(2);
+    expect(html.match(/data-series="openai\/gpt"/g)).toHaveLength(1);
+    expect(html.match(/data-series="anthropic\/claude"/g)).toHaveLength(2);
     expect(html).toContain("GPT");
     expect(html).toContain("Claude");
     expect(html).toContain("$2.75 in this period");
@@ -51,12 +54,30 @@ describe("CostBarChart", () => {
     expect(html).toContain("fill-form-fresh");
   });
 
+  it("stacks one segment per prompt type for the same spend", () => {
+    const html = renderToStaticMarkup(
+      <CostBarChart
+        title="Monthly cost"
+        description="One bar per month."
+        data={monthlyCostChart(rows, "12m", "2026-11-04", "kind")}
+        emptyMessage="No calls."
+        testId="monthly-cost-chart"
+      />,
+    );
+
+    expect(html.match(/data-series="season_plan"/g)).toHaveLength(1);
+    expect(html.match(/data-series="activity_analysis"/g)).toHaveLength(2);
+    expect(html).toContain("Season plan");
+    expect(html).toContain("Activity analysis");
+    expect(html).toContain("$2.75 in this period");
+  });
+
   it("shows the empty message when the period has no spend", () => {
     const html = renderToStaticMarkup(
       <CostBarChart
         title="Daily cost"
         description="One bar per day."
-        data={dailyCostChart([], "7d", "2026-11-04")}
+        data={dailyCostChart([], "7d", "2026-11-04", "model")}
         emptyMessage="No calls in this period."
         testId="daily-cost-chart"
       />,
@@ -66,12 +87,13 @@ describe("CostBarChart", () => {
     expect(html).not.toContain('data-testid="daily-cost-chart-svg"');
   });
 
-  it("hides a model that has no spend in the selected range", () => {
+  it("hides a series that has no spend in the selected range", () => {
     const dailyRows: LlmCostBucket[] = [
       {
         bucket: "2026-10-01",
         model: "openai/gpt",
         label: "GPT",
+        kind: "season_plan",
         costUsd: 1,
         calls: 1,
       },
@@ -79,6 +101,7 @@ describe("CostBarChart", () => {
         bucket: "2026-11-04",
         model: "anthropic/claude",
         label: "Claude",
+        kind: "activity_analysis",
         costUsd: 0.2,
         calls: 1,
       },
@@ -87,7 +110,7 @@ describe("CostBarChart", () => {
       <CostBarChart
         title="Daily cost"
         description="One bar per day."
-        data={dailyCostChart(dailyRows, "7d", "2026-11-04")}
+        data={dailyCostChart(dailyRows, "7d", "2026-11-04", "model")}
         emptyMessage="No calls."
         testId="daily-cost-chart"
       />,

@@ -8,7 +8,7 @@ import {
   formatCostUsd,
   type CostBucket,
   type CostChartData,
-  type CostModelTotal,
+  type CostSeriesTotal,
 } from "./costChart";
 
 const CHART_HEIGHT = 280;
@@ -16,9 +16,9 @@ const PLOT_WIDTH = CHART_WIDTH - CHART_PADDING.left - CHART_PADDING.right;
 const PLOT_HEIGHT = CHART_HEIGHT - CHART_PADDING.top - CHART_PADDING.bottom;
 
 /**
- * A bar chart of LLM spend where each bar is split into one segment per model.
- * The white plot matches the other charts, and pointing at a bar shows its
- * total, the model split, and the number of calls behind it.
+ * A bar chart of LLM spend where each bar is split into one segment per series:
+ * a model or a prompt type. The white plot matches the other charts, and
+ * pointing at a bar shows its total, the series split, and the call count.
  */
 export function CostBarChart({
   title,
@@ -40,10 +40,10 @@ export function CostBarChart({
   const slot = PLOT_WIDTH / Math.max(1, data.buckets.length);
   const barWidth = Math.min(56, Math.max(1, slot * 0.68));
   const xLabels = labelIndices(data.buckets.length, 6);
-  const visibleModels = data.models.filter((model) =>
+  const visibleSeries = data.series.filter((series) =>
     data.buckets.some((bucket) =>
       bucket.parts.some(
-        (part) => part.model === model.model && part.costUsd > 0,
+        (part) => part.series === series.series && part.costUsd > 0,
       ),
     ),
   );
@@ -94,7 +94,7 @@ export function CostBarChart({
           viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
           className="h-auto w-full"
           role="img"
-          aria-label={`${title}, one bar per period, stacked by model`}
+          aria-label={`${title}. ${description}`}
           data-testid={`${testId}-svg`}
           onPointerMove={onPointerMove}
           onPointerDown={onPointerMove}
@@ -152,7 +152,7 @@ export function CostBarChart({
                 slot={slot}
                 barWidth={barWidth}
                 axisMax={axis.max}
-                models={data.models}
+                series={data.series}
               />
             ))}
             {xLabels.map((index) => {
@@ -183,12 +183,12 @@ export function CostBarChart({
         {hoveredBucket !== null && (
           <CostTooltip
             bucket={hoveredBucket}
-            models={data.models}
+            series={data.series}
             left={`${((CHART_PADDING.left + slot * (hovered ?? 0) + slot / 2) / CHART_WIDTH) * 100}%`}
           />
         )}
       </div>
-      {visibleModels.length > 0 && (
+      {visibleSeries.length > 0 && (
         <ul
           className="flex flex-wrap gap-x-4 gap-y-1 text-sm"
           style={{
@@ -196,16 +196,16 @@ export function CostBarChart({
           }}
           data-testid={`${testId}-legend`}
         >
-          {visibleModels.map((model) => (
-            <li key={model.model} className="flex items-center gap-1.5">
+          {visibleSeries.map((series) => (
+            <li key={series.series} className="flex items-center gap-1.5">
               <span
                 className={`inline-block size-2.5 rounded-sm ${
                   COST_SERIES_SWATCH[
-                    data.models.indexOf(model) % COST_SERIES_SWATCH.length
+                    data.series.indexOf(series) % COST_SERIES_SWATCH.length
                   ]
                 }`}
               />
-              <span>{model.label}</span>
+              <span>{series.label}</span>
             </li>
           ))}
         </ul>
@@ -220,20 +220,20 @@ function Bar({
   slot,
   barWidth,
   axisMax,
-  models,
+  series,
 }: {
   bucket: CostBucket;
   index: number;
   slot: number;
   barWidth: number;
   axisMax: number;
-  models: readonly CostModelTotal[];
+  series: readonly CostSeriesTotal[];
 }) {
   let cumulative = 0;
   return (
     <g data-bucket={bucket.key} data-testid="cost-bar">
-      {models.map((model) => {
-        const part = bucket.parts.find((entry) => entry.model === model.model);
+      {series.map((entry) => {
+        const part = bucket.parts.find((item) => item.series === entry.series);
         if (part === undefined || part.costUsd <= 0) {
           return null;
         }
@@ -242,17 +242,17 @@ function Bar({
         cumulative += height;
         return (
           <rect
-            key={model.model}
+            key={entry.series}
             x={slot * index + (slot - barWidth) / 2}
             y={y}
             width={barWidth}
             height={height}
             className={
-              COST_SERIES_FILL[models.indexOf(model) % COST_SERIES_FILL.length]
+              COST_SERIES_FILL[series.indexOf(entry) % COST_SERIES_FILL.length]
             }
-            data-model={model.model}
+            data-series={entry.series}
           >
-            <title>{`${model.label}: ${formatCostUsd(part.costUsd)}`}</title>
+            <title>{`${entry.label}: ${formatCostUsd(part.costUsd)}`}</title>
           </rect>
         );
       })}
@@ -262,11 +262,11 @@ function Bar({
 
 function CostTooltip({
   bucket,
-  models,
+  series: totals,
   left,
 }: {
   bucket: CostBucket;
-  models: readonly CostModelTotal[];
+  series: readonly CostSeriesTotal[];
   left: string;
 }) {
   const parts = [...bucket.parts]
@@ -286,11 +286,11 @@ function CostTooltip({
       </p>
       <ul className="mt-1 flex flex-col gap-0.5">
         {parts.map((part) => {
-          const model = models.find((entry) => entry.model === part.model);
-          const index = model === undefined ? -1 : models.indexOf(model);
+          const entry = totals.find((item) => item.series === part.series);
+          const index = entry === undefined ? -1 : totals.indexOf(entry);
           return (
             <li
-              key={part.model}
+              key={part.series}
               className="flex items-center justify-between gap-3"
             >
               <span className="flex min-w-0 items-center gap-1.5">
@@ -301,7 +301,7 @@ function CostTooltip({
                     ]
                   }`}
                 />
-                <span className="truncate">{model?.label ?? part.model}</span>
+                <span className="truncate">{entry?.label ?? part.series}</span>
               </span>
               <span className="shrink-0">{formatCostUsd(part.costUsd)}</span>
             </li>

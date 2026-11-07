@@ -13,6 +13,9 @@ import {
   monthlyCostChart,
   MONTHLY_COST_RANGES,
   MONTHLY_COST_RANGE_LABELS,
+  COST_STACK_DIMENSIONS,
+  COST_STACK_DIMENSION_LABELS,
+  type CostStackDimension,
   type DailyCostRange,
   type MonthlyCostRange,
 } from "./costChart";
@@ -25,7 +28,7 @@ const API_URL = import.meta.env.VITE_API_URL ?? "";
 
 /**
  * The AI costs page: what the athlete's coach prompts cost on OpenRouter, per
- * month and per day, stacked by the model that answered.
+ * month and per day, stacked by the model that answered or by prompt type.
  */
 export function CostsPage() {
   const auth = useAuth();
@@ -35,8 +38,10 @@ export function CostsPage() {
   const [costs, setCosts] = useState<LlmCostsResponse | null>(null);
   const [monthlyRange, setMonthlyRange] = useState<MonthlyCostRange>("12m");
   const [dailyRange, setDailyRange] = useState<DailyCostRange>("31d");
+  const [stackBy, setStackBy] = useState<CostStackDimension>("model");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const stackLabel = stackBy === "model" ? "model" : "prompt type";
 
   useEffect(() => {
     setStatus("costs-page", loading ? "loading" : null);
@@ -89,7 +94,7 @@ export function CostsPage() {
         <h2 className="text-2xl font-semibold">AI costs</h2>
         <p className="text-base text-muted-foreground">
           What your coach&apos;s OpenRouter prompts cost, split by the model
-          that answered.
+          that answered or the type of prompt.
         </p>
       </div>
 
@@ -99,12 +104,32 @@ export function CostsPage() {
         !error && <p className="text-base text-muted-foreground">Loading…</p>
       ) : (
         <>
-          <div className="flex items-center justify-end gap-2 text-base">
+          <div className="flex flex-wrap items-center justify-end gap-4 text-base">
             {loading && (
               <span className="text-muted-foreground" aria-live="polite">
                 Updating…
               </span>
             )}
+            <label className="flex items-center gap-2">
+              <span className="text-muted-foreground">Stack by</span>
+              <select
+                className="rounded border bg-card px-2 py-1"
+                value={stackBy}
+                aria-label="Stack cost bars by"
+                onChange={(event) =>
+                  setStackBy(event.target.value as CostStackDimension)
+                }
+              >
+                {COST_STACK_DIMENSIONS.map((dimension) => (
+                  <option key={dimension} value={dimension}>
+                    {COST_STACK_DIMENSION_LABELS[dimension]}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <div className="flex items-center justify-end gap-2 text-base">
             <label className="flex items-center gap-2">
               <span className="text-muted-foreground">Show</span>
               <select
@@ -126,8 +151,8 @@ export function CostsPage() {
 
           <CostBarChart
             title="Monthly cost"
-            description="One bar per month, stacked by model."
-            data={monthlyCostChart(costs.monthly, monthlyRange, today)}
+            description={`One bar per month, stacked by ${stackLabel}.`}
+            data={monthlyCostChart(costs.monthly, monthlyRange, today, stackBy)}
             emptyMessage="No OpenRouter calls have been recorded in this period."
             testId="monthly-cost-chart"
           />
@@ -154,8 +179,8 @@ export function CostsPage() {
 
           <CostBarChart
             title="Daily cost"
-            description="One bar per day, stacked by model."
-            data={dailyCostChart(costs.daily, dailyRange, today)}
+            description={`One bar per day, stacked by ${stackLabel}.`}
+            data={dailyCostChart(costs.daily, dailyRange, today, stackBy)}
             emptyMessage="No OpenRouter calls have been recorded in this period."
             testId="daily-cost-chart"
           />

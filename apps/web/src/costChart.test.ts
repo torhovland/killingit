@@ -3,7 +3,7 @@ import type { LlmCostBucket } from "@killingit/shared";
 import {
   costBarIndex,
   costAxis,
-  costModels,
+  costSeries,
   dailyCostChart,
   formatCostAxis,
   formatCostUsd,
@@ -15,6 +15,7 @@ const rows: LlmCostBucket[] = [
     bucket: "2025-11",
     model: "openai/gpt",
     label: "GPT",
+    kind: "season_plan",
     costUsd: 1,
     calls: 4,
   },
@@ -22,6 +23,7 @@ const rows: LlmCostBucket[] = [
     bucket: "2026-10",
     model: "openai/gpt",
     label: "GPT",
+    kind: "season_plan",
     costUsd: 2,
     calls: 3,
   },
@@ -29,6 +31,7 @@ const rows: LlmCostBucket[] = [
     bucket: "2026-10",
     model: "anthropic/claude",
     label: "Claude",
+    kind: "activity_analysis",
     costUsd: 0.5,
     calls: 1,
   },
@@ -36,23 +39,35 @@ const rows: LlmCostBucket[] = [
     bucket: "2026-11",
     model: "anthropic/claude",
     label: "Claude",
+    kind: "activity_analysis",
     costUsd: 0.25,
     calls: 2,
   },
 ];
 
-describe("costModels", () => {
+describe("costSeries", () => {
   it("orders models by all-time spend", () => {
-    expect(costModels(rows)).toEqual([
-      { model: "openai/gpt", label: "GPT", totalUsd: 3 },
-      { model: "anthropic/claude", label: "Claude", totalUsd: 0.75 },
+    expect(costSeries(rows, "model")).toEqual([
+      { series: "openai/gpt", label: "GPT", totalUsd: 3 },
+      { series: "anthropic/claude", label: "Claude", totalUsd: 0.75 },
+    ]);
+  });
+
+  it("orders prompt types by all-time spend", () => {
+    expect(costSeries(rows, "kind")).toEqual([
+      { series: "season_plan", label: "Season plan", totalUsd: 3 },
+      {
+        series: "activity_analysis",
+        label: "Activity analysis",
+        totalUsd: 0.75,
+      },
     ]);
   });
 });
 
 describe("monthlyCostChart", () => {
   it("shows the last twelve months including empty months", () => {
-    const chart = monthlyCostChart(rows, "12m", "2026-11-04");
+    const chart = monthlyCostChart(rows, "12m", "2026-11-04", "model");
 
     expect(chart.buckets).toHaveLength(12);
     expect(chart.buckets[0]?.key).toBe("2025-12");
@@ -62,17 +77,33 @@ describe("monthlyCostChart", () => {
     );
     expect(chart.totalUsd).toBe(2.75);
     expect(chart.buckets.at(-1)?.parts).toEqual([
-      { model: "anthropic/claude", costUsd: 0.25, calls: 2 },
+      { series: "anthropic/claude", costUsd: 0.25, calls: 2 },
     ]);
   });
 
   it("starts all time at the first recorded month", () => {
-    const chart = monthlyCostChart(rows, "all", "2026-11-04");
+    const chart = monthlyCostChart(rows, "all", "2026-11-04", "model");
 
     expect(chart.buckets[0]?.key).toBe("2025-11");
     expect(chart.buckets.at(-1)?.key).toBe("2026-11");
     expect(chart.totalUsd).toBe(3.75);
     expect(chart.buckets[0]?.label).toBe("Nov 25");
+  });
+
+  it("stacks the same month by prompt type", () => {
+    const chart = monthlyCostChart(rows, "all", "2026-11-04", "kind");
+
+    expect(chart.totalUsd).toBe(3.75);
+    expect(
+      chart.buckets.find((bucket) => bucket.key === "2026-10")?.parts,
+    ).toEqual([
+      { series: "activity_analysis", costUsd: 0.5, calls: 1 },
+      { series: "season_plan", costUsd: 2, calls: 3 },
+    ]);
+    expect(chart.series.map((series) => series.label)).toEqual([
+      "Season plan",
+      "Activity analysis",
+    ]);
   });
 });
 
@@ -82,6 +113,7 @@ describe("dailyCostChart", () => {
       bucket: "2026-10-01",
       model: "openai/gpt",
       label: "GPT",
+      kind: "season_plan",
       costUsd: 0.1,
       calls: 1,
     },
@@ -89,30 +121,37 @@ describe("dailyCostChart", () => {
       bucket: "2026-11-04",
       model: "anthropic/claude",
       label: "Claude",
+      kind: "activity_analysis",
       costUsd: 0.2,
       calls: 2,
     },
   ];
 
   it("keeps the chosen number of days including today", () => {
-    expect(dailyCostChart(dailyRows, "7d", "2026-11-04").buckets).toHaveLength(
-      7,
-    );
-    expect(dailyCostChart(dailyRows, "31d", "2026-11-04").buckets).toHaveLength(
-      31,
-    );
     expect(
-      dailyCostChart(dailyRows, "365d", "2026-11-04").buckets,
+      dailyCostChart(dailyRows, "7d", "2026-11-04", "model").buckets,
+    ).toHaveLength(7);
+    expect(
+      dailyCostChart(dailyRows, "31d", "2026-11-04", "model").buckets,
+    ).toHaveLength(31);
+    expect(
+      dailyCostChart(dailyRows, "365d", "2026-11-04", "model").buckets,
     ).toHaveLength(365);
-    expect(dailyCostChart(dailyRows, "all", "2026-11-04").buckets).toHaveLength(
-      35,
-    );
+    expect(
+      dailyCostChart(dailyRows, "all", "2026-11-04", "model").buckets,
+    ).toHaveLength(35);
   });
 
   it("only counts rows inside the daily window", () => {
-    expect(dailyCostChart(dailyRows, "7d", "2026-11-04").totalUsd).toBe(0.2);
-    expect(dailyCostChart(dailyRows, "365d", "2026-11-04").totalUsd).toBe(0.3);
-    expect(dailyCostChart(dailyRows, "all", "2026-11-04").totalUsd).toBe(0.3);
+    expect(
+      dailyCostChart(dailyRows, "7d", "2026-11-04", "model").totalUsd,
+    ).toBe(0.2);
+    expect(
+      dailyCostChart(dailyRows, "365d", "2026-11-04", "model").totalUsd,
+    ).toBe(0.3);
+    expect(
+      dailyCostChart(dailyRows, "all", "2026-11-04", "model").totalUsd,
+    ).toBe(0.3);
   });
 });
 

@@ -236,6 +236,8 @@ export const llmCostBucketSchema = z.object({
   model: z.string().min(1),
   /** The catalog's display name, or the model id when it is not in the catalog. */
   label: z.string().min(1),
+  /** The coaching task the prompt belonged to, such as a season plan or a review. */
+  kind: llmPromptKindSchema,
   costUsd: z.number().nonnegative(),
   calls: z.number().int().nonnegative(),
 });
