@@ -7,8 +7,8 @@ import {
 } from "./costChart";
 
 /**
- * The hover card for one cost bar: the period's total spend and call count,
- * then each series' spend and call count.
+ * The hover card for one cost bar: the period's call count and total spend,
+ * then each series' call count and spend.
  */
 export function CostTooltip({
   bucket,
@@ -31,8 +31,8 @@ export function CostTooltip({
     >
       <p className="font-medium">{bucket.title}</p>
       <p className="text-muted-foreground">
+        {calls > 0 && `${formatCallCount(calls)} · `}
         {formatCostUsd(bucket.totalUsd)}
-        {calls > 0 && ` · ${formatCallCount(calls)}`}
       </p>
       <ul className="mt-1 flex flex-col gap-0.5">
         {parts.map((part) => {
@@ -54,10 +54,10 @@ export function CostTooltip({
                 <span className="truncate">{entry?.label ?? part.series}</span>
               </span>
               <span className="shrink-0" data-testid="cost-tooltip-series">
-                {formatCostUsd(part.costUsd)}
                 <span className="text-muted-foreground">
-                  {` · ${formatCallCount(part.calls)}`}
+                  {`${formatCallCount(part.calls)} · `}
                 </span>
+                {formatCostUsd(part.costUsd)}
               </span>
             </li>
           );

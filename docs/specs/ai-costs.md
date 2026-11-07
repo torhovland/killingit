@@ -78,7 +78,7 @@ before cost capture have no value.
 - Each chart shows its total for the selected range and a legend of the series
   that contribute to it.
 - Hovering a bar shows its period, total, per-series split, and call count,
-  including each series' own call count.
+  with each series' own call count shown before its cost.
 - An empty range shows a clear message instead of an empty plot.
 - The API route is authenticated and scoped to the account.
 - Unit tests cover the aggregation, the range bucketing, both stack dimensions,

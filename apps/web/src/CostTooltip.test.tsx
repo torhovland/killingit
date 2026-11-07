@@ -26,24 +26,24 @@ describe("CostTooltip", () => {
     );
 
     expect(html).toContain("November 2026");
-    expect(html).toContain("$2.75 · 4 calls");
+    expect(html).toContain("4 calls · $2.75");
   });
 
-  it("shows each series' cost with its call count", () => {
+  it("shows each series' call count before its cost", () => {
     const html = renderToStaticMarkup(
       <CostTooltip bucket={bucket} series={series} left="50%" />,
     );
 
     expect(html.match(/data-testid="cost-tooltip-series"/g)).toHaveLength(2);
-    // The larger series is listed first, each cost followed by its own calls.
+    // The larger series is listed first, each with its calls before its cost.
+    const gptCalls = html.indexOf("3 calls");
     const gptCost = html.indexOf("$2.00");
-    const gptCalls = html.indexOf(" · 3 calls");
+    const claudeCalls = html.indexOf("1 call");
     const claudeCost = html.indexOf("$0.75");
-    const claudeCalls = html.indexOf(" · 1 call");
-    expect(gptCost).toBeGreaterThan(-1);
-    expect(gptCalls).toBeGreaterThan(gptCost);
-    expect(claudeCost).toBeGreaterThan(gptCalls);
-    expect(claudeCalls).toBeGreaterThan(claudeCost);
+    expect(gptCalls).toBeGreaterThan(-1);
+    expect(gptCost).toBeGreaterThan(gptCalls);
+    expect(claudeCalls).toBeGreaterThan(gptCost);
+    expect(claudeCost).toBeGreaterThan(claudeCalls);
   });
 
   it("leaves out the call count when no calls were recorded", () => {
