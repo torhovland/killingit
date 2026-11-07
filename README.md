@@ -6,6 +6,29 @@ workouts.
 > Early-stage boilerplate. See [`AGENTS.md`](./AGENTS.md) for the product vision
 > and development methodology.
 
+## Licence
+
+This project is **source-available, not open source**. It is licensed under the
+[PolyForm Noncommercial License 1.0.0](./LICENSE.md): you may read it, run it,
+modify it, and use it for personal, hobby, study, and non-commercial
+organization purposes, but not for commercial use — including running it as a
+paid service or using it inside a for-profit business. Commercial licences are
+available on request.
+
+Attribution is required. Anyone who redistributes the software or a modified
+version must pass on the licence (or its URL) together with this line:
+
+```text
+Required Notice: Copyright (c) 2026 Tor Hovland
+```
+
+See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for the full attribution rules and
+the contribution terms, and
+[ADR 0022](./docs/adrs/0022-source-available-noncommercial-license.md) for why
+this licence was chosen. The web build emits
+`dist/third-party-licenses.txt` with the notices of every package it bundles
+(see `docs/specs/third-party-notices.md`).
+
 ## Stack
 
 - **Monorepo:** Bun workspaces

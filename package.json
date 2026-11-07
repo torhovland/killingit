@@ -2,6 +2,7 @@
   "name": "killingit",
   "private": true,
   "version": "0.1.0",
+  "license": "PolyForm-Noncommercial-1.0.0",
   "type": "module",
   "workspaces": [
     "apps/*",
@@ -18,7 +19,8 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --check .",
     "format:fix": "prettier --write .",
-    "test": "bun run --filter '*' test",
+    "test": "bun test scripts && bun run --filter '*' test",
+    "check:signoff": "bun run scripts/check-signoff.ts",
     "outdated": "bun run scripts/check-outdated.ts",
     "db:up": "docker compose up -d db",
     "db:down": "docker compose down",

@@ -1,6 +1,7 @@
 {
   "name": "@killingit/shared",
   "version": "0.1.0",
+  "license": "PolyForm-Noncommercial-1.0.0",
   "type": "module",
   "main": "src/index.ts",
   "types": "src/index.ts",
