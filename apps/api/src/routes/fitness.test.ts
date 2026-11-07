@@ -8,7 +8,6 @@ import type {
 import { createApp } from "../index.js";
 import type { PlanStore, StoredPlan } from "../plans/store.js";
 import type { QuestionAnswerStore } from "../questions/answers.js";
-import { buildFtpTimelineFromPoints } from "../training/ftp.js";
 import { buildThresholdTimelines } from "../training/thresholds.js";
 import { buildFitnessHistory } from "../training/history.js";
 import type { UserStore } from "../users/store.js";
@@ -25,7 +24,6 @@ const thresholdPoints: AthleteThreshold[] = [
     kind: "power",
   },
 ];
-const timeline = buildFtpTimelineFromPoints(thresholdPoints);
 
 function makePlan(): CoachPlan {
   return {
@@ -178,7 +176,6 @@ function makeApp(options: { plan?: CoachPlan | null } = {}) {
           range,
           activities,
           plan: storedPlan,
-          timeline,
           thresholdPoints,
           thresholdTimelines: buildThresholdTimelines(thresholdPoints),
           planTssByDate: new Map(

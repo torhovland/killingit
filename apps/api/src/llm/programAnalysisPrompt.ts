@@ -45,7 +45,7 @@ export interface ProgramAnalysisInput {
   activity: AnalyzedActivity;
   /** The athlete's comment on this activity, when there is one. */
   comment?: string | null;
-  /** The stored FTP time series, oldest first, including coach estimates. */
+  /** The stored FTP threshold history, oldest first, including coach estimates. */
   ftpHistory?: readonly Pick<MetricPoint, "date" | "value" | "source">[];
   /** The FTP in effect on the activity date, when known. */
   currentFtpWatts?: number | null;

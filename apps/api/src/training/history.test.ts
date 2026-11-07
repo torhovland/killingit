@@ -6,8 +6,7 @@ import type {
   ThresholdHistorySeries,
 } from "@killingit/shared";
 import { buildActivityTrainingLoads } from "./activityLoad.js";
-import { buildFtpTimelineFromPoints } from "./ftp.js";
-import { buildThresholdTimelines } from "./thresholds.js";
+import { buildThresholdTimelines, FTP_THRESHOLD } from "./thresholds.js";
 import {
   buildFitnessHistory,
   earliestRecordedDate,
@@ -27,8 +26,6 @@ const thresholdPoints: AthleteThreshold[] = [
     kind: "power",
   },
 ];
-
-const timeline = buildFtpTimelineFromPoints(thresholdPoints);
 
 function activity(overrides: Partial<AnalyzedActivity> = {}): AnalyzedActivity {
   return {
@@ -122,7 +119,6 @@ const base = {
   today: "2026-10-22",
   range: "week" as const,
   activities: [] as readonly AnalyzedActivity[],
-  timeline,
   thresholdPoints,
   thresholdTimelines: buildThresholdTimelines(thresholdPoints),
   plan: plan(),
@@ -494,8 +490,8 @@ describe("buildFitnessHistory", () => {
       ...base,
       today: "2026-10-30",
       plan: weeklyPlan,
-      timeline: buildFtpTimelineFromPoints([
-        { date: "2026-10-01", value: 220, source: "user" },
+      thresholdTimelines: buildThresholdTimelines([
+        { ...FTP_THRESHOLD, date: "2026-10-01", value: 220, source: "user" },
       ]),
     });
 
@@ -509,7 +505,6 @@ describe("buildFitnessHistory", () => {
   it("has no FTP points when the athlete has not stated one", () => {
     const history = buildFitnessHistory({
       ...base,
-      timeline: buildFtpTimelineFromPoints([]),
       thresholdPoints: [],
       thresholdTimelines: [],
       plan: undefined,

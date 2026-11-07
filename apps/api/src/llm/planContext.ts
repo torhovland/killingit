@@ -129,7 +129,7 @@ export interface PlanContextInput {
   locationName?: string | null;
   /** The FTP stated in the athlete's profile, when they gave one. */
   athleteFtpWatts?: number | null;
-  /** The stored FTP time series, oldest first, including coach estimates. */
+  /** The stored FTP threshold history, oldest first, including coach estimates. */
   ftpHistory?: readonly Pick<MetricPoint, "date" | "value" | "source">[];
   /** Every threshold measure in effect today, across all sports. */
   thresholds?: readonly ThresholdSummary[];
@@ -263,7 +263,7 @@ export function formatAthleteEvents(events: readonly AthleteEvent[]): string[] {
 }
 
 /**
- * Renders the stored FTP time series and its source meaning for any prompt
+ * Renders the stored FTP threshold history and its source meaning for any prompt
  * that estimates or compares power.
  */
 export function formatFtpContext(

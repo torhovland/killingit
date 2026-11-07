@@ -30,8 +30,14 @@ import { loadPlanDayCalories } from "../plans/dayCalories.js";
 import { activityDayTss, groupActivitiesByDate } from "./activityLoad.js";
 import { loadTrainingContext } from "./context.js";
 import { planDietTargets } from "./dietTargets.js";
-import { buildFtpTimelineFromPoints, ftpAt, type FtpTimeline } from "./ftp.js";
-import { buildThresholdSeries, type ThresholdTimeline } from "./thresholds.js";
+import {
+  buildThresholdSeries,
+  buildThresholdTimelines,
+  FTP_THRESHOLD,
+  ftpTimeline,
+  ftpWattsAt,
+  type ThresholdTimeline,
+} from "./thresholds.js";
 
 /** How many days of history each fixed range covers, today included. */
 export const FITNESS_RANGE_DAYS: Record<
@@ -53,7 +59,6 @@ export interface FitnessHistoryInput {
   /** How far back to look. `all` starts at the first recorded activity. */
   range: FitnessRange;
   activities: readonly AnalyzedActivity[];
-  timeline: FtpTimeline;
   /** Every stored threshold timeline, used to score each sport separately. */
   thresholdTimelines?: readonly ThresholdTimeline[];
   plan?: CoachPlan | undefined;
@@ -149,7 +154,7 @@ export function buildFitnessHistory(
   return {
     days,
     thresholds: thresholdHistory(
-      input.timeline,
+      input.thresholdTimelines ?? [],
       input.thresholdPoints ?? [],
       input.plan,
       days,
@@ -333,7 +338,6 @@ export async function loadFitnessHistory(
     range,
     activities,
     plan,
-    timeline: context.timeline,
     thresholdTimelines: context.thresholdTimelines,
     thresholdPoints: context.thresholdPoints,
     planTssByDate: context.planTssByDate,
@@ -406,13 +410,13 @@ export function fitnessWindow(input: {
  * heart rate side by side without inventing a projection for either.
  */
 function thresholdHistory(
-  timeline: FtpTimeline,
+  timelines: readonly ThresholdTimeline[],
   points: readonly AthleteThreshold[],
   plan: CoachPlan | undefined,
   days: readonly { date: string }[],
   today: string,
 ): ThresholdHistorySeries[] {
-  const projection = planFtpProjection(plan, timeline, today);
+  const projection = planFtpProjection(plan, ftpTimeline(timelines), today);
   const firstDate = days[0]?.date;
   const lastDate = days[days.length - 1]?.date;
   if (firstDate === undefined || lastDate === undefined) {
@@ -430,7 +434,7 @@ function thresholdHistory(
     const seriesPoints = days.flatMap(({ date }) => {
       const projected =
         isProjectedFtp && date >= today && projection !== null
-          ? ftpAt(projection, date)
+          ? ftpWattsAt(projection, date)
           : null;
       const value = projected ?? measured.get(date) ?? null;
       return value === null ? [] : [{ date, value }];
@@ -449,23 +453,22 @@ function thresholdHistory(
 /**
  * The plan's projected FTP from today onward. The weekly estimates are anchors
  * at their week's start and the daily session estimates are anchors at their
- * own dates, so `ftpAt` interpolates between them. Today is anchored at the
+ * own dates, so `ftpWattsAt` interpolates between them. Today is anchored at the
  * current estimate, which keeps the projection starting where the athlete is
  * now instead of jumping at the next week's boundary.
  */
 function planFtpProjection(
   plan: CoachPlan | undefined,
-  timeline: FtpTimeline,
+  ftp: ThresholdTimeline | null,
   today: string,
-): FtpTimeline | null {
+): ThresholdTimeline | null {
   const weekly = weeklyFtpEstimates(plan);
   const anchors = new Map(weekly);
   for (const [date, watts] of dailyFtpEstimates(plan, today)) {
     anchors.set(date, watts);
   }
   if (!anchors.has(today)) {
-    const current =
-      weekly.get(startOfWeek(today)) ?? ftpAt(timeline, today) ?? null;
+    const current = weekly.get(startOfWeek(today)) ?? ftpWattsAt(ftp, today);
     if (current !== null) {
       anchors.set(today, current);
     }
@@ -473,12 +476,15 @@ function planFtpProjection(
   if (anchors.size === 0) {
     return null;
   }
-  return buildFtpTimelineFromPoints(
-    [...anchors].map(([date, value]) => ({
-      date,
-      value,
-      source: "coach" as const,
-    })),
+  return (
+    buildThresholdTimelines(
+      [...anchors].map(([date, value]) => ({
+        ...FTP_THRESHOLD,
+        date,
+        value,
+        source: "coach" as const,
+      })),
+    )[0] ?? null
   );
 }
 

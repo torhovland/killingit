@@ -1,21 +1,18 @@
 import type {
   AthleteThreshold,
   CoachPlan,
-  MetricPoint,
   ThresholdSummary,
 } from "@killingit/shared";
 import type { ManualActivityContext } from "../llm/planContext.js";
-import { loadFtpHistoryForUser } from "../metrics/store.js";
+import { loadThresholdHistoryForUser } from "../metrics/store.js";
 import { startOfWeek } from "../plans/dates.js";
 import { loadCoachingInputs, type CoachingInputs } from "../plans/inputs.js";
-import { type FtpTimeline } from "./ftp.js";
-import type { ThresholdTimeline } from "./thresholds.js";
+import { ftpTimeline, type ThresholdTimeline } from "./thresholds.js";
 
 /** Everything the load calculations share: thresholds and TSS by date. */
 export interface TrainingContext {
-  timeline: FtpTimeline;
-  /** Every stored threshold point, including future coach estimates. */
-  ftpHistory: MetricPoint[];
+  /** The cycling FTP timeline selected from the stored thresholds. */
+  ftpTimeline: ThresholdTimeline | null;
   /** Every stored threshold measure with its sport and unit. */
   thresholds: ThresholdSummary[];
   /** Every stored threshold point, for the Fitness page chart. */
@@ -43,16 +40,15 @@ export async function loadTrainingContext(
   plan: CoachPlan | undefined,
 ): Promise<TrainingContext> {
   const planDate = plan?.today.date ?? new Date().toISOString().slice(0, 10);
-  const [ftp, coachingInputs] = await Promise.all([
-    loadFtpHistoryForUser(userId, planDate),
+  const [history, coachingInputs] = await Promise.all([
+    loadThresholdHistoryForUser(userId, planDate),
     loadCoachingInputs(userId, startOfWeek(planDate)),
   ]);
   return {
-    timeline: ftp.timeline,
-    ftpHistory: ftp.points,
-    thresholds: ftp.summaries,
-    thresholdPoints: ftp.thresholds,
-    thresholdTimelines: ftp.thresholdTimelines,
+    ftpTimeline: ftpTimeline(history.timelines),
+    thresholds: history.summaries,
+    thresholdPoints: history.points,
+    thresholdTimelines: history.timelines,
     planTssByDate: planTssByDate(plan),
     manualTssByDate: manualTssByDate(coachingInputs),
     manualActivities: coachingInputs.manualActivities,

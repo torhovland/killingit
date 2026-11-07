@@ -17,7 +17,11 @@ import { saveAnalysis } from "../llm/analysisStore.js";
 import { saveCoachQuestions } from "../plans/coachQuestions.js";
 import { recordCoachBodyMetrics, recordCoachFtp } from "../metrics/store.js";
 import { mapWithConcurrency } from "../lib/mapWithConcurrency.js";
-import { ftpBaselineAt, type FtpTimeline } from "../training/ftp.js";
+import {
+  ftpBaselineAt,
+  ftpTimeline,
+  type ThresholdTimeline,
+} from "../training/thresholds.js";
 import type { LlmProvider } from "../llm/openrouter.js";
 
 /** Bounded concurrency so a review batch does not flood OpenRouter. */
@@ -32,10 +36,10 @@ export interface AnalyzeActivitiesAgainstPlanInput {
   plan: CoachPlan;
   activities: readonly AnalyzedActivity[];
   activityComments: readonly ActivityCommentContext[];
-  /** The stored FTP time series, oldest first. */
+  /** The stored FTP history, oldest first. */
   ftpHistory?: readonly MetricPoint[];
-  /** The FTP timeline used to colour the prompt's current value. */
-  ftpTimeline?: FtpTimeline | null;
+  /** The stored threshold timelines, used to colour the prompt's current FTP. */
+  thresholdTimelines?: readonly ThresholdTimeline[];
   /** Every threshold measure in effect on the activity date. */
   thresholds?: readonly ThresholdSummary[];
   /** Stored daily health and recovery values for the prompt. */
@@ -79,9 +83,10 @@ export async function analyzeActivitiesAgainstPlan(
       try {
         const activityDate = activity.startDate.slice(0, 10);
         const currentFtpWatts =
-          input.ftpTimeline === null || input.ftpTimeline === undefined
-            ? null
-            : (ftpBaselineAt(input.ftpTimeline, activityDate)?.watts ?? null);
+          ftpBaselineAt(
+            ftpTimeline(input.thresholdTimelines ?? []),
+            activityDate,
+          )?.watts ?? null;
         const result = await analyzeActivityAgainstPlan(
           input.provider,
           {

@@ -15,7 +15,7 @@ import type { ActivityFeed } from "../coaching/activities.js";
 import { loadAthleteEvents } from "../events/store.js";
 import { markPlanPromptsFailed } from "../llm/callStore.js";
 import type { LlmClient } from "../llm/client.js";
-import { loadFtpHistoryForUser } from "../metrics/store.js";
+import { loadThresholdHistoryForUser } from "../metrics/store.js";
 import { startOfWeek } from "../plans/dates.js";
 import { isStaleRunning } from "../plans/generation.js";
 import { loadCoachingInputs, type CoachingInputs } from "../plans/inputs.js";
@@ -90,8 +90,8 @@ export interface PlanRouteDependencies {
   generations: PlanGenerationStore;
   /** Injectable for route tests; defaults to a Garmin sync. */
   loadActivities?: (userId: number) => Promise<ActivityFeed>;
-  /** Injectable for route tests; defaults to the stored FTP time series. */
-  loadFtpHistory?: PlanTriggerDependencies["loadFtpHistory"];
+  /** Injectable for route tests; defaults to the stored threshold timelines. */
+  loadThresholdHistory?: PlanTriggerDependencies["loadThresholdHistory"];
   /** Injectable for route tests; defaults to the stored body metrics. */
   loadBodyHistory?: PlanTriggerDependencies["loadBodyHistory"];
   /** Injectable for the coach reading the text. */
@@ -152,7 +152,8 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
     includeTomorrow = false,
     dietAdvice = false,
   ) {
-    const loadThresholds = deps.loadFtpHistory ?? loadFtpHistoryForUser;
+    const loadThresholds =
+      deps.loadThresholdHistory ?? loadThresholdHistoryForUser;
     const [
       storedPlan,
       loadedGeneration,
@@ -324,8 +325,8 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
             ...(deps.loadActivities !== undefined
               ? { loadActivities: deps.loadActivities }
               : {}),
-            ...(deps.loadFtpHistory !== undefined
-              ? { loadFtpHistory: deps.loadFtpHistory }
+            ...(deps.loadThresholdHistory !== undefined
+              ? { loadThresholdHistory: deps.loadThresholdHistory }
               : {}),
             ...(deps.loadBodyHistory !== undefined
               ? { loadBodyHistory: deps.loadBodyHistory }

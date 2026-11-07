@@ -204,8 +204,9 @@ API:
   `apps/api/src/coaching/athleteMetrics.ts` read the FTP, body weight, and
   body-fat values the athlete states in their own words and store them as
   `user` metric points. No free text is pattern-matched.
-- `apps/api/src/training/ftp.ts` builds the timeline from the stored metric
-  points and resolves the current FTP.
+- `apps/api/src/training/thresholds.ts` builds the single threshold timeline
+  model; its `ftpTimeline`, `ftpBaselineAt`, and `ftpWattsAt` selectors read
+  cycling FTP from it. There is no separate FTP timeline.
 - `apps/api/src/training/load.ts` resolves TSS and attaches the load series
   after every generation path, including promotion-only saves.
 - `apps/api/src/coaching/activities.ts` stores power metrics and activity loads

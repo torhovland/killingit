@@ -3,14 +3,23 @@ import type {
   AnalyzedActivity,
   CoachPlan,
   DayPlan,
+  MetricSource,
   WeekPlan,
   WeekSession,
 } from "@killingit/shared";
 import { applyTrainingLoad, currentTrainingLoad } from "./load.js";
-import { buildFtpTimelineFromPoints } from "./ftp.js";
+import { buildThresholdTimelines, FTP_THRESHOLD } from "./thresholds.js";
+
+function ftpTimelines(
+  points: readonly { date: string; value: number; source: MetricSource }[],
+) {
+  return buildThresholdTimelines(
+    points.map((point) => ({ ...FTP_THRESHOLD, ...point })),
+  );
+}
 
 /** The athlete's stated FTP, as the coach read it and the API stored it. */
-const statedFtp = buildFtpTimelineFromPoints([
+const statedFtp = ftpTimelines([
   { date: "2026-10-01", value: 250, source: "user" },
 ]);
 
@@ -155,7 +164,7 @@ const plan: CoachPlan = {
 describe("applyTrainingLoad", () => {
   it("scores measured power before the coach's estimate", () => {
     const loaded = applyTrainingLoad(plan, {
-      ftpTimeline: statedFtp,
+      thresholdTimelines: statedFtp,
       activities: [activity()],
     });
     const tuesday = loaded.week.sessions.find(
@@ -171,7 +180,7 @@ describe("applyTrainingLoad", () => {
 
   it("adds an unpowered activity's fallback to the day's measured TSS", () => {
     const loaded = applyTrainingLoad(plan, {
-      ftpTimeline: statedFtp,
+      thresholdTimelines: statedFtp,
       activities: [
         activity(),
         activity({
@@ -195,7 +204,7 @@ describe("applyTrainingLoad", () => {
 
   it("scores planned bike workouts from their intervals", () => {
     const loaded = applyTrainingLoad(plan, {
-      ftpTimeline: statedFtp,
+      thresholdTimelines: statedFtp,
       activities: [activity()],
     });
     const wednesday = loaded.week.sessions.find(
@@ -223,7 +232,7 @@ describe("applyTrainingLoad", () => {
           })),
         },
       },
-      { ftpTimeline: statedFtp, activities: [] },
+      { thresholdTimelines: statedFtp, activities: [] },
     );
 
     expect(loaded.week.estimatedFtpWatts).toBe(250);
@@ -260,7 +269,7 @@ describe("applyTrainingLoad", () => {
         },
       },
       {
-        ftpTimeline: statedFtp,
+        thresholdTimelines: statedFtp,
         activities: [],
         manualActivities: [
           {
@@ -281,7 +290,7 @@ describe("applyTrainingLoad", () => {
 
   it("uses the coach's estimate and a duration fallback for other sessions", () => {
     const loaded = applyTrainingLoad(plan, {
-      ftpTimeline: statedFtp,
+      thresholdTimelines: statedFtp,
       activities: [activity()],
     });
     const thursday = loaded.week.sessions.find(
@@ -307,7 +316,7 @@ describe("applyTrainingLoad", () => {
           ),
         },
       },
-      { ftpTimeline: statedFtp, activities: [activity()] },
+      { thresholdTimelines: statedFtp, activities: [activity()] },
     );
     const friday = loaded.week.sessions.find(
       (entry) => entry.date === "2026-10-23",
@@ -317,7 +326,7 @@ describe("applyTrainingLoad", () => {
 
   it("mirrors the week's load into today and tomorrow", () => {
     const loaded = applyTrainingLoad(plan, {
-      ftpTimeline: statedFtp,
+      thresholdTimelines: statedFtp,
       activities: [activity()],
     });
     expect(loaded.today.trainingLoad?.tss).toBe(64);
@@ -341,7 +350,7 @@ describe("applyTrainingLoad", () => {
         nextWeek,
         tomorrow: day("2026-10-28"),
       },
-      { ftpTimeline: statedFtp, activities: [activity()] },
+      { thresholdTimelines: statedFtp, activities: [activity()] },
     );
 
     expect(loaded.nextWeek?.estimatedFtpWatts).toBe(260);
@@ -351,7 +360,7 @@ describe("applyTrainingLoad", () => {
 
   it("keeps the block's week-by-week FTP anchored to the stated FTP", () => {
     const loaded = applyTrainingLoad(plan, {
-      ftpTimeline: statedFtp,
+      thresholdTimelines: statedFtp,
       activities: [activity()],
     });
     expect(loaded.block.weeks[0]?.estimatedFtpWatts).toBe(250);
@@ -380,7 +389,7 @@ describe("applyTrainingLoad", () => {
         },
       },
       {
-        ftpTimeline: buildFtpTimelineFromPoints([
+        thresholdTimelines: ftpTimelines([
           { date: "2026-10-01", value: 200, source: "user" },
           { date: "2026-10-26", value: 260, source: "user" },
         ]),
@@ -402,7 +411,7 @@ describe("applyTrainingLoad", () => {
 
   it("updates the estimate when a later comment reports a new FTP test", () => {
     const loaded = applyTrainingLoad(plan, {
-      ftpTimeline: buildFtpTimelineFromPoints([
+      thresholdTimelines: ftpTimelines([
         { date: "2026-10-01", value: 240, source: "user" },
         { date: "2026-10-20", value: 260, source: "user" },
       ]),
@@ -429,7 +438,7 @@ describe("applyTrainingLoad", () => {
         ...plan,
         week: { ...week, estimatedFtpWatts: 900 },
       },
-      { ftpTimeline: statedFtp, activities: [] },
+      { thresholdTimelines: statedFtp, activities: [] },
     );
     expect(loaded.week.estimatedFtpWatts).toBe(375);
   });

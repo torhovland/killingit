@@ -318,12 +318,10 @@ function makeApp(options: {
     generationStore: options.generationStore ?? new MemoryGenerationStore(),
     loadActivities: () =>
       Promise.resolve({ model: "test-model", activities: [] }),
-    loadFtpHistory: () =>
+    loadThresholdHistory: () =>
       Promise.resolve({
         points: [],
-        timeline: { anchors: [], latest: null },
-        thresholds: [],
-        thresholdTimelines: [],
+        timelines: [],
         summaries: [],
       }),
     loadBodyHistory: () => Promise.resolve({ weight: [], bodyFat: [] }),

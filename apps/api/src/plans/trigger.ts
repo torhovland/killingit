@@ -19,7 +19,7 @@ import type { LlmClient } from "../llm/client.js";
 import { loadLlmClient } from "../llm/client.js";
 import {
   loadBodyHistoryForUser,
-  loadFtpHistoryForUser,
+  loadThresholdHistoryForUser,
   recordCoachBodyMetrics,
   recordPlanFtpEstimates,
 } from "../metrics/store.js";
@@ -40,6 +40,7 @@ import {
   fetchWeatherForecasts,
   type WeatherForecastSet,
 } from "../weather/forecast.js";
+import { ftpHistoryPoints } from "../training/thresholds.js";
 import { addDays, isAfterPlanTomorrowCutoff, startOfWeek } from "./dates.js";
 import {
   clearPendingCoachQuestions,
@@ -72,8 +73,8 @@ export interface PlanTriggerDependencies {
   coachingSurveyAdjustments?: CoachingSurveyAdjustmentStore;
   /** Injectable for route tests; defaults to a Garmin sync. */
   loadActivities?: (userId: number) => Promise<ActivityFeed>;
-  /** Injectable for route tests; defaults to the stored FTP time series. */
-  loadFtpHistory?: typeof loadFtpHistoryForUser;
+  /** Injectable for route tests; defaults to the stored threshold timelines. */
+  loadThresholdHistory?: typeof loadThresholdHistoryForUser;
   /** Injectable for route tests; defaults to the stored body metrics. */
   loadBodyHistory?: typeof loadBodyHistoryForUser;
   /** Injectable for route tests; defaults to the stored daily health series. */
@@ -369,10 +370,9 @@ export async function runPlanForUser(
     calorieHistory = undefined;
   }
 
-  const ftp = await (deps.loadFtpHistory ?? loadFtpHistoryForUser)(
-    userId,
-    today,
-  );
+  const thresholdHistory = await (
+    deps.loadThresholdHistory ?? loadThresholdHistoryForUser
+  )(userId, today);
   const bodyHistory = await (deps.loadBodyHistory ?? loadBodyHistoryForUser)(
     userId,
   );
@@ -455,9 +455,9 @@ export async function runPlanForUser(
         plan,
         activities: recentActivities,
         activityComments: coachingInputs.activityComments,
-        ftpHistory: ftp.points.filter((point) => point.date <= today),
-        ftpTimeline: ftp.timeline,
-        thresholds: ftp.summaries,
+        ftpHistory: ftpHistoryPoints(thresholdHistory.timelines),
+        thresholdTimelines: thresholdHistory.timelines,
+        thresholds: thresholdHistory.summaries,
         bodyHistory,
         ...(dailyHealth !== undefined ? { dailyHealth } : {}),
         ...(diet !== null ? { diet } : {}),
@@ -488,10 +488,9 @@ export async function runPlanForUser(
       location,
       forecast,
       weatherForecasts,
-      ftpTimeline: ftp.timeline,
-      ftpHistory: ftp.points.filter((point) => point.date <= today),
-      thresholds: ftp.summaries,
-      thresholdTimelines: ftp.thresholdTimelines,
+      ftpHistory: ftpHistoryPoints(thresholdHistory.timelines),
+      thresholds: thresholdHistory.summaries,
+      thresholdTimelines: thresholdHistory.timelines,
       bodyHistory,
       ...(dailyHealth !== undefined ? { dailyHealth } : {}),
       events,
