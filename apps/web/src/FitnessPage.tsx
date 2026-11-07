@@ -7,7 +7,7 @@ import {
 } from "@killingit/shared";
 import { useAppStatus } from "./AppStatus";
 import { useAuth } from "./auth";
-import { fetchJsonAuthed } from "./fetchAuthed";
+import { requestParsed } from "./fetchAuthed";
 import { FitnessView } from "./FitnessView";
 import { reportError } from "./reportError";
 import { useTimeZone } from "./TimeZoneContext";
@@ -39,19 +39,15 @@ export function FitnessPage() {
     setLoading(true);
     setError(null);
     const query = new URLSearchParams({ today, range }).toString();
-    fetchJsonAuthed<unknown>(`${API_URL}/api/fitness?${query}`, auth)
-      .then((response) => {
-        const parsed = fitnessHistoryResponseSchema.safeParse(response);
-        if (!parsed.success) {
-          throw new Error(
-            "The fitness history returned an unexpected response",
-            {
-              cause: parsed.error,
-            },
-          );
-        }
+    requestParsed(
+      `${API_URL}/api/fitness?${query}`,
+      auth,
+      fitnessHistoryResponseSchema,
+      "Loading the fitness history",
+    )
+      .then((history) => {
         if (!cancelled) {
-          setHistory(parsed.data);
+          setHistory(history);
         }
       })
       .catch((err: unknown) => {

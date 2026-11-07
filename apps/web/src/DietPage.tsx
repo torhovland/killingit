@@ -6,7 +6,7 @@ import {
 import { useAppStatus } from "./AppStatus";
 import { useAuth } from "./auth";
 import { DietView } from "./DietView";
-import { fetchJsonAuthed } from "./fetchAuthed";
+import { requestParsed } from "./fetchAuthed";
 import { useNavigate } from "./navigation";
 import { reportError } from "./reportError";
 import { useTimeZone } from "./TimeZoneContext";
@@ -35,20 +35,13 @@ export function DietPage({ dietAdvice }: { dietAdvice: boolean }) {
     setError(null);
     try {
       const query = new URLSearchParams({ today }).toString();
-      const response = await fetchJsonAuthed<unknown>(
+      const response = await requestParsed(
         `${API_URL}/api/diet/summary?${query}`,
         auth,
+        dietSummaryResponseSchema,
+        "Loading your diet log",
       );
-      const parsed = dietSummaryResponseSchema.safeParse(response);
-      if (!parsed.success) {
-        throw new Error(
-          "Loading your diet log returned an unexpected response",
-          {
-            cause: parsed.error,
-          },
-        );
-      }
-      setSummary(parsed.data);
+      setSummary(response);
     } catch (err: unknown) {
       setError(reportError(err));
     } finally {

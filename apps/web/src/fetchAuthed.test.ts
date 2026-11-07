@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, it } from "bun:test";
+import { greetingSchema } from "@killingit/shared";
 import type { AuthState } from "./auth/auth0";
-import { fetchFileAuthed, fetchJsonAuthed } from "./fetchAuthed";
+import {
+  fetchFileAuthed,
+  fetchJsonAuthed,
+  requestParsed,
+  ResponseValidationError,
+} from "./fetchAuthed";
 import { ApiError } from "./fetchJson";
 
 function fakeAuth(getToken: AuthState["getToken"]): AuthState {
@@ -118,6 +124,86 @@ describe("fetchJsonAuthed", () => {
 
     expect(caught).toBeInstanceOf(ApiError);
     expect(captured).toHaveLength(1);
+  });
+});
+
+describe("requestParsed", () => {
+  let originalFetch: typeof fetch;
+  let captured: RequestInit[] = [];
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    captured = [];
+  });
+
+  function stubFetch(...responses: Response[]): void {
+    originalFetch = globalThis.fetch;
+    globalThis.fetch = ((_url: string | URL | Request, init?: RequestInit) => {
+      captured.push(init ?? {});
+      const response = responses.shift() ?? jsonResponse({ message: "hi" });
+      return Promise.resolve(response);
+    }) as unknown as typeof fetch;
+  }
+
+  function jsonResponse(body: unknown): Response {
+    return new Response(JSON.stringify(body), {
+      headers: { "content-type": "application/json" },
+    });
+  }
+
+  it("returns the typed body when the response matches the schema", async () => {
+    stubFetch();
+    const auth = fakeAuth(() => Promise.resolve("test-token"));
+
+    const result = await requestParsed(
+      "http://api/greeting",
+      auth,
+      greetingSchema,
+      "Loading the greeting",
+    );
+
+    expect(result.message).toBe("hi");
+    expect((captured[0]?.headers as Headers).get("authorization")).toBe(
+      "Bearer test-token",
+    );
+  });
+
+  it("throws a ResponseValidationError with the label and the schema cause", async () => {
+    stubFetch(jsonResponse({ message: 42 }));
+    const auth = fakeAuth(() => Promise.resolve("test-token"));
+
+    let caught: unknown;
+    try {
+      await requestParsed(
+        "http://api/greeting",
+        auth,
+        greetingSchema,
+        "Loading the greeting",
+      );
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(ResponseValidationError);
+    expect((caught as Error).message).toBe(
+      "Loading the greeting returned an unexpected response",
+    );
+    expect((caught as Error).cause).toBeDefined();
+  });
+
+  it("passes the request init through to the fetch", async () => {
+    stubFetch();
+    const auth = fakeAuth(() => Promise.resolve("test-token"));
+
+    await requestParsed(
+      "http://api/greeting",
+      auth,
+      greetingSchema,
+      "Saving the greeting",
+      { method: "POST" },
+    );
+
+    expect(captured[0]?.method).toBe("POST");
   });
 });
 

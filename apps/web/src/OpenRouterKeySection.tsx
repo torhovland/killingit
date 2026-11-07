@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { llmSettingsSchema, type LlmSettings } from "@killingit/shared";
 import { useAuth } from "./auth";
-import { fetchJsonAuthed } from "./fetchAuthed";
+import { requestParsed } from "./fetchAuthed";
 import { reportError } from "./reportError";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
@@ -40,9 +40,11 @@ export function OpenRouterKeySection({
     setSaving(true);
     setError(null);
     try {
-      const res = await fetchJsonAuthed<unknown>(
+      const parsed = await requestParsed(
         `${API_URL}/api/llm/settings`,
         auth,
+        llmSettingsSchema,
+        "Saving the OpenRouter key",
         {
           method: "PUT",
           headers: { "content-type": "application/json" },
@@ -51,16 +53,9 @@ export function OpenRouterKeySection({
           ),
         },
       );
-      const parsed = llmSettingsSchema.safeParse(res);
-      if (!parsed.success) {
-        throw new Error(
-          "Saving the OpenRouter key returned an unexpected response",
-          { cause: parsed.error },
-        );
-      }
       setApiKey("");
       setEditing(false);
-      onSaved(parsed.data);
+      onSaved(parsed);
     } catch (err: unknown) {
       setError(reportError(err));
     } finally {

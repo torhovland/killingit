@@ -9,7 +9,7 @@ import { CoachingSurveyPage } from "./CoachingSurveyPage";
 import { CostsPage } from "./CostsPage";
 import { DietPage } from "./DietPage";
 import { useAuth } from "./auth";
-import { fetchJsonAuthed } from "./fetchAuthed";
+import { fetchJsonAuthed, requestParsed } from "./fetchAuthed";
 import { FitnessPage } from "./FitnessPage";
 import { NavigationProvider, type Page } from "./navigation";
 import { PlanGenerationProvider } from "./PlanGenerationProvider";
@@ -100,18 +100,16 @@ function AppShell() {
       timeZoneTouched.current = false;
       return;
     }
-    fetchJsonAuthed<unknown>(`${API_URL}/api/me`, auth)
-      .then((response) => {
-        const parsed = currentUserSchema.safeParse(response);
-        if (!parsed.success) {
-          throw new Error(
-            "Loading the current user returned an unexpected response",
-            { cause: parsed.error },
-          );
-        }
-        setMe(parsed.data);
+    requestParsed(
+      `${API_URL}/api/me`,
+      auth,
+      currentUserSchema,
+      "Loading the current user",
+    )
+      .then((user) => {
+        setMe(user);
         if (!timeZoneTouched.current) {
-          setTimeZone(parsed.data.timezone);
+          setTimeZone(user.timezone);
         }
       })
       .catch((e: unknown) => {

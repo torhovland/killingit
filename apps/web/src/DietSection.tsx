@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { currentUserSchema } from "@killingit/shared";
 import { useAuth } from "./auth";
-import { fetchJsonAuthed } from "./fetchAuthed";
+import { requestParsed } from "./fetchAuthed";
 import { reportError } from "./reportError";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
@@ -25,23 +25,18 @@ export function DietSection({
     setSaving(true);
     setError(null);
     try {
-      const response = await fetchJsonAuthed<unknown>(
+      const parsed = await requestParsed(
         `${API_URL}/api/me`,
         auth,
+        currentUserSchema,
+        "Saving the diet advice setting",
         {
           method: "PATCH",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ dietAdvice: next }),
         },
       );
-      const parsed = currentUserSchema.safeParse(response);
-      if (!parsed.success) {
-        throw new Error(
-          "Saving the diet advice setting returned an unexpected response",
-          { cause: parsed.error },
-        );
-      }
-      onChanged(parsed.data.dietAdvice);
+      onChanged(parsed.dietAdvice);
     } catch (err: unknown) {
       setError(reportError(err));
     } finally {

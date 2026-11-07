@@ -7,23 +7,12 @@ import {
   type QuestionInput,
 } from "@killingit/shared";
 import { useAuth } from "./auth";
-import { fetchJsonAuthed } from "./fetchAuthed";
+import { requestParsed } from "./fetchAuthed";
 import { QuestionForm } from "./QuestionForm";
 import { QuestionRow } from "./QuestionRow";
 import { reportError } from "./reportError";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
-
-/** Parses a single-question response, throwing a descriptive error if invalid. */
-function parseQuestion(response: unknown, action: string): Question {
-  const parsed = questionSchema.safeParse(response);
-  if (!parsed.success) {
-    throw new Error(`${action} returned an unexpected response`, {
-      cause: parsed.error,
-    });
-  }
-  return parsed.data;
-}
 
 /**
  * Admin surface for the versioned athlete question set (ADR 0005). Creating a
@@ -44,16 +33,15 @@ export function AdminQuestionsSection() {
 
     let cancelled = false;
     setLoading(true);
-    fetchJsonAuthed<unknown>(`${API_URL}/api/admin/questions`, auth)
+    requestParsed(
+      `${API_URL}/api/admin/questions`,
+      auth,
+      questionsResponseSchema,
+      "Loading questions",
+    )
       .then((response) => {
-        const parsed = questionsResponseSchema.safeParse(response);
-        if (!parsed.success) {
-          throw new Error("Loading questions returned an unexpected response", {
-            cause: parsed.error,
-          });
-        }
         if (!cancelled) {
-          setQuestions(parsed.data.questions);
+          setQuestions(response.questions);
           setError(null);
         }
       })
@@ -75,32 +63,34 @@ export function AdminQuestionsSection() {
   }, [auth.isAuthenticated]);
 
   async function createQuestion(input: QuestionInput): Promise<void> {
-    const response = await fetchJsonAuthed<unknown>(
+    const created = await requestParsed(
       `${API_URL}/api/admin/questions`,
       auth,
+      questionSchema,
+      "Creating the question",
       {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(input),
       },
     );
-    const created = parseQuestion(response, "Creating the question");
     setQuestions((previous) => [...(previous ?? []), created]);
     setAdding(false);
     setError(null);
   }
 
   async function saveQuestion(id: number, input: QuestionInput): Promise<void> {
-    const response = await fetchJsonAuthed<unknown>(
+    const updated = await requestParsed(
       `${API_URL}/api/admin/questions/${id}/versions`,
       auth,
+      questionSchema,
+      "Saving the question",
       {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(input),
       },
     );
-    const updated = parseQuestion(response, "Saving the question");
     setQuestions(
       (previous) =>
         previous?.map((question) =>
@@ -127,43 +117,32 @@ export function AdminQuestionsSection() {
     }
     next.splice(target, 0, moved);
 
-    const response = await fetchJsonAuthed<unknown>(
+    const response = await requestParsed(
       `${API_URL}/api/admin/questions/order`,
       auth,
+      questionsResponseSchema,
+      "Reordering questions",
       {
         method: "PUT",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ ids: next.map((question) => question.id) }),
       },
     );
-    const parsed = questionsResponseSchema.safeParse(response);
-    if (!parsed.success) {
-      throw new Error("Reordering questions returned an unexpected response", {
-        cause: parsed.error,
-      });
-    }
-    setQuestions(parsed.data.questions);
+    setQuestions(response.questions);
     setError(null);
   }
 
   async function deleteQuestion(id: number): Promise<void> {
-    const response = await fetchJsonAuthed<unknown>(
+    const response = await requestParsed(
       `${API_URL}/api/admin/questions/${id}`,
       auth,
+      questionArchivedResponseSchema,
+      "Archiving the question",
       { method: "DELETE" },
     );
-    const parsed = questionArchivedResponseSchema.safeParse(response);
-    if (!parsed.success) {
-      throw new Error(
-        "Archiving the question returned an unexpected response",
-        {
-          cause: parsed.error,
-        },
-      );
-    }
     setQuestions(
       (previous) =>
-        previous?.filter((question) => question.id !== parsed.data.id) ?? [],
+        previous?.filter((question) => question.id !== response.id) ?? [],
     );
     setError(null);
   }

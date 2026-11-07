@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {
+  coachingInputSaveResponseSchema,
   manualActivitiesResponseSchema,
   type ManualActivity,
 } from "@killingit/shared";
@@ -7,8 +8,7 @@ import { ActivityCard } from "./ActivityCard";
 import { TrainingLoadLine } from "./TrainingLoadLine";
 import { useAppStatus } from "./AppStatus";
 import { useAuth } from "./auth";
-import { parseCoachingSaveResponse } from "./coachingSave";
-import { fetchJsonAuthed } from "./fetchAuthed";
+import { requestParsed } from "./fetchAuthed";
 import { FormattedText } from "./FormattedText";
 import { useNavigate } from "./navigation";
 import { reportError } from "./reportError";
@@ -51,18 +51,13 @@ export function ActivitiesPage() {
 
   async function loadManualActivities(): Promise<void> {
     try {
-      const response = await fetchJsonAuthed<unknown>(
+      const response = await requestParsed(
         `${API_URL}/api/coaching/activities/manual`,
         auth,
+        manualActivitiesResponseSchema,
+        "Loading manual activities",
       );
-      const parsed = manualActivitiesResponseSchema.safeParse(response);
-      if (!parsed.success) {
-        throw new Error(
-          "Loading manual activities returned an unexpected response",
-          { cause: parsed.error },
-        );
-      }
-      setManualActivities(parsed.data.manualActivities);
+      setManualActivities(response.manualActivities);
     } catch (err: unknown) {
       setError(reportError(err));
     }
@@ -82,17 +77,24 @@ export function ActivitiesPage() {
         editingActivityId === null
           ? `${API_URL}/api/coaching/activities/manual`
           : `${API_URL}/api/coaching/activities/manual/${editingActivityId}`;
-      const response = await fetchJsonAuthed<unknown>(path, auth, {
-        method: editingActivityId === null ? "POST" : "PUT",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          today,
-          timezone: timeZone,
-          startDate: manualStartDate,
-          details: manualDetails,
-        }),
-      });
-      parseCoachingSaveResponse(response);
+      await requestParsed(
+        path,
+        auth,
+        coachingInputSaveResponseSchema,
+        editingActivityId === null
+          ? "Saving the manual activity"
+          : "Updating the manual activity",
+        {
+          method: editingActivityId === null ? "POST" : "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            today,
+            timezone: timeZone,
+            startDate: manualStartDate,
+            details: manualDetails,
+          }),
+        },
+      );
       setEditingActivityId(null);
       setManualStartDate(getToday(timeZone).today);
       setManualDetails("");
@@ -125,12 +127,13 @@ export function ActivitiesPage() {
       return;
     }
     try {
-      const response = await fetchJsonAuthed<unknown>(
+      await requestParsed(
         `${API_URL}/api/coaching/activities/manual/${activity.id}?${coachingDateQuery(timeZone)}`,
         auth,
+        coachingInputSaveResponseSchema,
+        "Deleting the manual activity",
         { method: "DELETE" },
       );
-      parseCoachingSaveResponse(response);
       if (editingActivityId === activity.id) {
         handleCancelEdit();
       }

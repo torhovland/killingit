@@ -15,7 +15,7 @@ import {
 } from "@killingit/shared";
 import { useAppStatus } from "./AppStatus";
 import { useAuth } from "./auth";
-import { fetchJsonAuthed } from "./fetchAuthed";
+import { fetchJsonAuthed, requestParsed } from "./fetchAuthed";
 import type { PlanProgressState } from "./PlanProgress";
 import {
   pollPlanGeneration,
@@ -113,19 +113,13 @@ export function PlanGenerationProvider({ children }: { children: ReactNode }) {
   }, [account]);
 
   const fetchPlan = useCallback(
-    async (today: string, includeTomorrow: boolean) => {
-      const response = await fetchJsonAuthed<unknown>(
+    (today: string, includeTomorrow: boolean) =>
+      requestParsed(
         `${API_URL}/api/coaching/plan?today=${today}&includeTomorrow=${includeTomorrow}`,
         authRef.current,
-      );
-      const parsed = coachPlanResponseSchema.safeParse(response);
-      if (!parsed.success) {
-        throw new Error("Loading your plan returned an unexpected response", {
-          cause: parsed.error,
-        });
-      }
-      return parsed.data;
-    },
+        coachPlanResponseSchema,
+        "Loading your plan",
+      ),
     [],
   );
 

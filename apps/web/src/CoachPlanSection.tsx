@@ -9,7 +9,7 @@ import { useAppStatus } from "./AppStatus";
 import { useAuth } from "./auth";
 import { CoachPlanView } from "./CoachPlanView";
 import { saveBlob } from "./download";
-import { fetchFileAuthed, fetchJsonAuthed } from "./fetchAuthed";
+import { fetchFileAuthed, requestParsed } from "./fetchAuthed";
 import { useNavigate } from "./navigation";
 import { usePlanGeneration } from "./PlanGenerationProvider";
 import { PlanProgress } from "./PlanProgress";
@@ -71,17 +71,12 @@ export function CoachPlanSection({
     today: string,
     includeTomorrow: boolean,
   ): Promise<CoachPlanResponse> {
-    const response = await fetchJsonAuthed<unknown>(
+    return requestParsed(
       `${API_URL}/api/coaching/plan?today=${today}&includeTomorrow=${includeTomorrow}`,
       auth,
+      coachPlanResponseSchema,
+      "Loading your plan",
     );
-    const parsed = coachPlanResponseSchema.safeParse(response);
-    if (!parsed.success) {
-      throw new Error("Loading your plan returned an unexpected response", {
-        cause: parsed.error,
-      });
-    }
-    return parsed.data;
   }
 
   async function fetchDietToday(): Promise<DietDaySummary | null> {
@@ -90,15 +85,13 @@ export function CoachPlanSection({
     }
     try {
       const query = new URLSearchParams({ today }).toString();
-      const response = await fetchJsonAuthed<unknown>(
+      const summary = await requestParsed(
         `${API_URL}/api/diet/summary?${query}`,
         auth,
+        dietSummaryResponseSchema,
+        "Loading today's diet summary",
       );
-      const parsed = dietSummaryResponseSchema.safeParse(response);
-      if (!parsed.success) {
-        return null;
-      }
-      return parsed.data.days.find((day) => day.date === today) ?? null;
+      return summary.days.find((day) => day.date === today) ?? null;
     } catch (err: unknown) {
       // The plan must still render when the diet summary cannot be read.
       console.error("Failed to load today's calories:", err);

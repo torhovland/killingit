@@ -8,7 +8,7 @@ import {
 } from "@killingit/shared";
 import { useAuth } from "./auth";
 import { DangerIcon } from "./DangerIcon";
-import { fetchJsonAuthed } from "./fetchAuthed";
+import { requestParsed } from "./fetchAuthed";
 import { OpenRouterKeySection } from "./OpenRouterKeySection";
 import { reportError } from "./reportError";
 import { browserTimeZone, formatDateTime } from "./timeZone";
@@ -143,16 +143,15 @@ export function LlmSection({ settings, onSaved, isAdmin }: LlmSectionProps) {
     if (!auth.isAuthenticated) return;
     let cancelled = false;
     setLoading(true);
-    fetchJsonAuthed<unknown>(`${API_URL}/api/llm/catalog`, auth)
+    requestParsed(
+      `${API_URL}/api/llm/catalog`,
+      auth,
+      llmCatalogResponseSchema,
+      "Loading the model catalog",
+    )
       .then((response) => {
-        const parsed = llmCatalogResponseSchema.safeParse(response);
-        if (!parsed.success) {
-          throw new Error("The model catalog returned an unexpected response", {
-            cause: parsed.error,
-          });
-        }
         if (!cancelled) {
-          setCatalog(parsed.data.models);
+          setCatalog(response.models);
           setCatalogError(null);
         }
       })
@@ -240,26 +239,19 @@ export function LlmSection({ settings, onSaved, isAdmin }: LlmSectionProps) {
     saveQueue.current = saveQueue.current
       .then(async () => {
         try {
-          const response = await fetchJsonAuthed<unknown>(
+          const response = await requestParsed(
             `${API_URL}/api/llm/settings`,
             auth,
+            llmSettingsSchema,
+            "Saving model choices",
             {
               method: "PUT",
               headers: { "content-type": "application/json" },
               body: JSON.stringify(payload),
             },
           );
-          const parsed = llmSettingsSchema.safeParse(response);
-          if (!parsed.success) {
-            throw new Error(
-              "Saving model choices returned an unexpected response",
-              {
-                cause: parsed.error,
-              },
-            );
-          }
           if (sequence === saveSequence.current) {
-            onSaved(parsed.data);
+            onSaved(response);
           }
         } catch (err: unknown) {
           if (sequence === saveSequence.current) setError(reportError(err));

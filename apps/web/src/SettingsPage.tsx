@@ -11,7 +11,7 @@ import { useAppStatus } from "./AppStatus";
 import { useAuth } from "./auth";
 import { DeleteAccountSection } from "./DeleteAccountSection";
 import { DietSection } from "./DietSection";
-import { fetchJsonAuthed } from "./fetchAuthed";
+import { requestParsed } from "./fetchAuthed";
 import { GarminSection } from "./GarminSection";
 import { LlmSection } from "./LlmSection";
 import { LocationSection } from "./LocationSection";
@@ -74,9 +74,11 @@ export function SettingsPage({
     setSavingTimeZone(true);
     setTimeZoneError(null);
     try {
-      const response = await fetchJsonAuthed<unknown>(
+      const response = await requestParsed(
         `${API_URL}/api/me`,
         auth,
+        currentUserSchema,
+        "Saving the time zone",
         {
           method: "PATCH",
           headers: { "content-type": "application/json" },
@@ -85,17 +87,8 @@ export function SettingsPage({
           }),
         },
       );
-      const parsed = currentUserSchema.safeParse(response);
-      if (!parsed.success) {
-        throw new Error(
-          "Saving the time zone returned an unexpected response",
-          {
-            cause: parsed.error,
-          },
-        );
-      }
       if (request === timeZoneRequest.current) {
-        onTimeZoneChanged(parsed.data.timezone);
+        onTimeZoneChanged(response.timezone);
       }
     } catch (err: unknown) {
       if (request === timeZoneRequest.current) {
@@ -122,17 +115,22 @@ export function SettingsPage({
     setLoading(true);
     setError(null);
     try {
-      const [garminRes, llmRes] = await Promise.all([
-        fetchJsonAuthed<unknown>(`${API_URL}/api/garmin/status`, auth),
-        fetchJsonAuthed<unknown>(`${API_URL}/api/llm/settings`, auth),
+      const [garmin, llm] = await Promise.all([
+        requestParsed(
+          `${API_URL}/api/garmin/status`,
+          auth,
+          garminConnectionStatusSchema,
+          "Loading the Garmin status",
+        ),
+        requestParsed(
+          `${API_URL}/api/llm/settings`,
+          auth,
+          llmSettingsSchema,
+          "Loading the LLM settings",
+        ),
       ]);
-      const garminParsed = garminConnectionStatusSchema.safeParse(garminRes);
-      const llmParsed = llmSettingsSchema.safeParse(llmRes);
-      if (!garminParsed.success || !llmParsed.success) {
-        throw new Error("Status endpoints returned an unexpected response");
-      }
-      setGarmin(garminParsed.data);
-      setLlm(llmParsed.data);
+      setGarmin(garmin);
+      setLlm(llm);
     } catch (err: unknown) {
       setError(reportError(err));
     } finally {

@@ -5,7 +5,7 @@ import {
   type LlmModelRemark,
 } from "@killingit/shared";
 import { useAuth } from "./auth";
-import { fetchJsonAuthed } from "./fetchAuthed";
+import { requestParsed } from "./fetchAuthed";
 import { FormattedText } from "./FormattedText";
 import { reportError } from "./reportError";
 import { browserTimeZone, formatDateTime } from "./timeZone";
@@ -31,20 +31,15 @@ export function AdminModelRemarksSection() {
     }
     let cancelled = false;
     setLoading(true);
-    fetchJsonAuthed<unknown>(
+    requestParsed(
       `${API_URL}/api/admin/llm-calls/remarks?limit=${LIMIT}`,
       auth,
+      llmModelRemarksResponseSchema,
+      "Loading model remarks",
     )
       .then((response) => {
-        const parsed = llmModelRemarksResponseSchema.safeParse(response);
-        if (!parsed.success) {
-          throw new Error(
-            "Loading model remarks returned an unexpected response",
-            { cause: parsed.error },
-          );
-        }
         if (!cancelled) {
-          setRemarks(parsed.data.remarks);
+          setRemarks(response.remarks);
           setError(null);
         }
       })

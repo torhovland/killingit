@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { foodEntrySchema, type FoodEntry } from "@killingit/shared";
 import { useBusyReporter } from "./AppStatus";
 import { useAuth } from "./auth";
-import { fetchJsonAuthed } from "./fetchAuthed";
+import { requestParsed } from "./fetchAuthed";
 import { FoodEntryCard } from "./FoodEntryCard";
 import { prepareMealPhoto } from "./imageUpload";
 import { reportError } from "./reportError";
@@ -78,9 +78,11 @@ export function FoodLogSection({
     reportSave(true);
     try {
       const { today } = getToday(timeZone);
-      const response = await fetchJsonAuthed<unknown>(
+      const parsed = await requestParsed(
         `${API_URL}/api/diet/entries`,
         auth,
+        foodEntrySchema,
+        "Logging the meal",
         {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -93,14 +95,8 @@ export function FoodLogSection({
           }),
         },
       );
-      const parsed = foodEntrySchema.safeParse(response);
-      if (!parsed.success) {
-        throw new Error("Logging the meal returned an unexpected response", {
-          cause: parsed.error,
-        });
-      }
-      setResult(parsed.data);
-      onLogged?.(parsed.data);
+      setResult(parsed);
+      onLogged?.(parsed);
       setDescription("");
       setPhotoDataUrl(null);
       setPhotoName(null);
