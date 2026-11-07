@@ -4,7 +4,7 @@ import {
   type GarminConnectionStatus,
 } from "@killingit/shared";
 import { useAuth } from "./auth";
-import { fetchJsonAuthed } from "./fetchAuthed";
+import { requestParsed } from "./fetchAuthed";
 import { reportError } from "./reportError";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
@@ -32,24 +32,20 @@ export function GarminSection({ connected, onConnected }: GarminSectionProps) {
     setSaving(true);
     setError(null);
     try {
-      const res = await fetchJsonAuthed<unknown>(
+      const parsed = await requestParsed(
         `${API_URL}/api/garmin/credentials`,
         auth,
+        garminConnectionStatusSchema,
+        "Connecting to Garmin",
         {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ username, password }),
         },
       );
-      const parsed = garminConnectionStatusSchema.safeParse(res);
-      if (!parsed.success) {
-        throw new Error("Garmin connect returned an unexpected response", {
-          cause: parsed.error,
-        });
-      }
       setPassword("");
       setEditing(false);
-      onConnected(parsed.data);
+      onConnected(parsed);
     } catch (err: unknown) {
       setError(reportError(err));
     } finally {

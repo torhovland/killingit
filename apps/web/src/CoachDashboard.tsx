@@ -15,8 +15,7 @@ import { useAppStatus, useBusyReporter } from "./AppStatus";
 import { useAuth } from "./auth";
 import { CoachPlanSection } from "./CoachPlanSection";
 import { CoachQuestionCard } from "./CoachQuestionCard";
-import { parseCoachingSaveResponse } from "./coachingSave";
-import { fetchJsonAuthed } from "./fetchAuthed";
+import { requestParsed } from "./fetchAuthed";
 import { FoodLogSection } from "./FoodLogSection";
 import { FormattedText } from "./FormattedText";
 import { selectPendingActivities } from "./pendingActivities";
@@ -85,18 +84,13 @@ export function CoachDashboard({
 
   async function loadReviews(): Promise<void> {
     try {
-      const response = await fetchJsonAuthed<unknown>(
+      const response = await requestParsed(
         `${API_URL}/api/coaching/reviews`,
         auth,
+        periodReviewsResponseSchema,
+        "Loading your week and block reviews",
       );
-      const parsed = periodReviewsResponseSchema.safeParse(response);
-      if (!parsed.success) {
-        throw new Error(
-          "Loading your week and block reviews returned an unexpected response",
-          { cause: parsed.error },
-        );
-      }
-      setReviews(parsed.data.reviews);
+      setReviews(response.reviews);
     } catch (err: unknown) {
       setError(reportError(err));
     }
@@ -104,18 +98,13 @@ export function CoachDashboard({
 
   async function loadCoachQuestions(): Promise<void> {
     try {
-      const response = await fetchJsonAuthed<unknown>(
+      const response = await requestParsed(
         `${API_URL}/api/coaching/coach-questions`,
         auth,
+        coachQuestionsResponseSchema,
+        "Loading the coach's questions",
       );
-      const parsed = coachQuestionsResponseSchema.safeParse(response);
-      if (!parsed.success) {
-        throw new Error(
-          "Loading the coach's questions returned an unexpected response",
-          { cause: parsed.error },
-        );
-      }
-      setCoachQuestion(parsed.data.pending);
+      setCoachQuestion(response.pending);
     } catch (err: unknown) {
       setError(reportError(err));
     }
@@ -126,51 +115,42 @@ export function CoachDashboard({
     answer: string,
   ): Promise<string | null> {
     const { today } = getToday(timeZone);
-    const res = await fetchJsonAuthed<unknown>(
+    const parsed = await requestParsed(
       `${API_URL}/api/coaching/coach-questions/${id}/answer`,
       auth,
+      coachingInputSaveResponseSchema,
+      "Saving your answer",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ today, timezone: timeZone, answer }),
       },
     );
-    const parsed = coachingInputSaveResponseSchema.safeParse(res);
-    if (!parsed.success) {
-      throw new Error("Saving your answer returned an unexpected response", {
-        cause: parsed.error,
-      });
-    }
     setCoachQuestion((current) =>
       current === null || current.id !== id
         ? current
         : {
             ...current,
             answer,
-            coachReply: parsed.data.reply,
+            coachReply: parsed.reply,
             answeredAt: new Date().toISOString(),
           },
     );
     setLocalPlanRefresh((value) => value + 1);
-    return parsed.data.reply?.text ?? null;
+    return parsed.reply?.text ?? null;
   }
 
   async function fetchWeeklyNote(): Promise<void> {
     try {
       const { today } = getToday(timeZone);
-      const response = await fetchJsonAuthed<unknown>(
+      const response = await requestParsed(
         `${API_URL}/api/coaching/weekly/notes?today=${today}`,
         auth,
+        weeklyNoteResponseSchema,
+        "Loading the weekly note",
       );
-      const parsed = weeklyNoteResponseSchema.safeParse(response);
-      if (!parsed.success) {
-        throw new Error(
-          "Loading the weekly note returned an unexpected response",
-          { cause: parsed.error },
-        );
-      }
-      setWeeklyNote(parsed.data.note ?? "");
-      setWeeklyNoteReply(parsed.data.reply);
+      setWeeklyNote(response.note ?? "");
+      setWeeklyNoteReply(response.reply);
     } catch (err: unknown) {
       // Don't block the dashboard if the note fails to load.
       console.error("Failed to load weekly note:", err);
@@ -186,9 +166,11 @@ export function CoachDashboard({
     reportReviewCommentSave(true);
     try {
       const { today } = getToday(timeZone);
-      const response = await fetchJsonAuthed<unknown>(
+      const response = await requestParsed(
         `${API_URL}/api/coaching/reviews/${kind}/${startDate}/comments`,
         auth,
+        coachingInputSaveResponseSchema,
+        "Saving your comment",
         {
           method: mode === "edit" ? "PUT" : "POST",
           headers: { "content-type": "application/json" },
@@ -199,17 +181,11 @@ export function CoachDashboard({
           }),
         },
       );
-      const parsed = coachingInputSaveResponseSchema.safeParse(response);
-      if (!parsed.success) {
-        throw new Error("Saving your comment returned an unexpected response", {
-          cause: parsed.error,
-        });
-      }
       // Leave the review in place for this visit; the next page load only shows
       // reviews without a response.
       keptReviewKeys.current.add(reviewKey({ kind, startDate }));
       setLocalPlanRefresh((key) => key + 1);
-      return parsed.data.reply?.text ?? null;
+      return response.reply?.text ?? null;
     } finally {
       reportReviewCommentSave(false);
     }
@@ -219,12 +195,13 @@ export function CoachDashboard({
     kind: ReviewKind,
     startDate: string,
   ): Promise<void> {
-    const response = await fetchJsonAuthed<unknown>(
+    await requestParsed(
       `${API_URL}/api/coaching/reviews/${kind}/${startDate}/reviewed`,
       auth,
+      coachingInputSaveResponseSchema,
+      "Marking the review as reviewed",
       { method: "POST" },
     );
-    parseCoachingSaveResponse(response);
     keptReviewKeys.current.add(reviewKey({ kind, startDate }));
     setReviews((current) =>
       current.map((review) =>
@@ -240,9 +217,11 @@ export function CoachDashboard({
     reportWeeklyNoteSave(true);
     try {
       const { today } = getToday(timeZone);
-      const response = await fetchJsonAuthed<unknown>(
+      const response = await requestParsed(
         `${API_URL}/api/coaching/weekly/notes`,
         auth,
+        coachingInputSaveResponseSchema,
+        "Saving your note",
         {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -253,13 +232,7 @@ export function CoachDashboard({
           }),
         },
       );
-      const parsed = coachingInputSaveResponseSchema.safeParse(response);
-      if (!parsed.success) {
-        throw new Error("Saving your note returned an unexpected response", {
-          cause: parsed.error,
-        });
-      }
-      setWeeklyNoteReply(parsed.data.reply);
+      setWeeklyNoteReply(response.reply);
       setLocalPlanRefresh((key) => key + 1);
     } finally {
       setSavingWeeklyNote(false);
@@ -279,23 +252,19 @@ export function CoachDashboard({
     reportQuestion(true);
     try {
       const { today } = getToday(timeZone);
-      const response = await fetchJsonAuthed<unknown>(
+      const response = await requestParsed(
         `${API_URL}/api/coaching/questions`,
         auth,
+        quickQuestionResponseSchema,
+        "Asking the coach",
         {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ today, question: question.trim() }),
         },
       );
-      const parsed = quickQuestionResponseSchema.safeParse(response);
-      if (!parsed.success) {
-        throw new Error("Asking the coach returned an unexpected response", {
-          cause: parsed.error,
-        });
-      }
       setQuestionReply(
-        parsed.data.reply?.text ??
+        response.reply?.text ??
           "The coach could not answer right now. Try again later.",
       );
     } catch (err: unknown) {

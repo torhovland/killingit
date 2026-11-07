@@ -5,7 +5,7 @@ import {
   type QuestionAnswerInput,
 } from "@killingit/shared";
 import { useAuth } from "./auth";
-import { fetchJsonAuthed } from "./fetchAuthed";
+import { requestParsed } from "./fetchAuthed";
 import { reportError } from "./reportError";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
@@ -23,18 +23,13 @@ export function useAthleteQuestions() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetchJsonAuthed<unknown>(
+      const response = await requestParsed(
         `${API_URL}/api/questions`,
         auth,
+        athleteQuestionsResponseSchema,
+        "Loading your questions",
       );
-      const parsed = athleteQuestionsResponseSchema.safeParse(response);
-      if (!parsed.success) {
-        throw new Error(
-          "Loading your questions returned an unexpected response",
-          { cause: parsed.error },
-        );
-      }
-      setQuestions(parsed.data);
+      setQuestions(response);
     } catch (err: unknown) {
       setError(reportError(err));
     } finally {
@@ -44,22 +39,18 @@ export function useAthleteQuestions() {
 
   const saveAnswers = useCallback(
     async (answers: QuestionAnswerInput[]): Promise<void> => {
-      const response = await fetchJsonAuthed<unknown>(
+      const response = await requestParsed(
         `${API_URL}/api/questions/answers`,
         auth,
+        athleteQuestionsResponseSchema,
+        "Saving your answers",
         {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ answers }),
         },
       );
-      const parsed = athleteQuestionsResponseSchema.safeParse(response);
-      if (!parsed.success) {
-        throw new Error("Saving your answers returned an unexpected response", {
-          cause: parsed.error,
-        });
-      }
-      setQuestions(parsed.data);
+      setQuestions(response);
     },
     [auth],
   );

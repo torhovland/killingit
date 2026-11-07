@@ -9,7 +9,7 @@ import {
 } from "@killingit/shared";
 import { useAuth } from "./auth";
 import { CoachQuestionCard } from "./CoachQuestionCard";
-import { fetchJsonAuthed } from "./fetchAuthed";
+import { requestParsed } from "./fetchAuthed";
 import { useAppStatus, useBusyReporter } from "./AppStatus";
 import { PeriodReviewCard } from "./PeriodReviewCard";
 import { reportError } from "./reportError";
@@ -42,30 +42,22 @@ export function SeasonReviewPage() {
     setLoading(true);
     setError(null);
     try {
-      const [response, questionsResponse] = await Promise.all([
-        fetchJsonAuthed<unknown>(`${API_URL}/api/coaching/reviews`, auth),
-        fetchJsonAuthed<unknown>(
+      const [response, questions] = await Promise.all([
+        requestParsed(
+          `${API_URL}/api/coaching/reviews`,
+          auth,
+          periodReviewsResponseSchema,
+          "Loading the season review",
+        ),
+        requestParsed(
           `${API_URL}/api/coaching/coach-questions`,
           auth,
+          coachQuestionsResponseSchema,
+          "Loading the coach's questions",
         ),
       ]);
-      const parsed = periodReviewsResponseSchema.safeParse(response);
-      if (!parsed.success) {
-        throw new Error(
-          "Loading the season review returned an unexpected response",
-          { cause: parsed.error },
-        );
-      }
-      const questions =
-        coachQuestionsResponseSchema.safeParse(questionsResponse);
-      if (!questions.success) {
-        throw new Error(
-          "Loading the coach's questions returned an unexpected response",
-          { cause: questions.error },
-        );
-      }
-      setReviews(parsed.data.reviews);
-      setCoachQuestions(questions.data.answered);
+      setReviews(response.reviews);
+      setCoachQuestions(questions.answered);
     } catch (err: unknown) {
       setError(reportError(err));
     } finally {
@@ -82,9 +74,11 @@ export function SeasonReviewPage() {
     reportCommentSave(true);
     try {
       const { today } = getToday(timeZone);
-      const response = await fetchJsonAuthed<unknown>(
+      const response = await requestParsed(
         `${API_URL}/api/coaching/reviews/${kind}/${startDate}/comments`,
         auth,
+        coachingInputSaveResponseSchema,
+        "Saving your comment",
         {
           method: mode === "edit" ? "PUT" : "POST",
           headers: { "content-type": "application/json" },
@@ -95,24 +89,18 @@ export function SeasonReviewPage() {
           }),
         },
       );
-      const parsed = coachingInputSaveResponseSchema.safeParse(response);
-      if (!parsed.success) {
-        throw new Error("Saving your comment returned an unexpected response", {
-          cause: parsed.error,
-        });
-      }
       setReviews((current) =>
         current.map((review) =>
           review.kind === kind && review.startDate === startDate
             ? {
                 ...review,
                 comment,
-                coachReply: parsed.data.reply ?? review.coachReply,
+                coachReply: response.reply ?? review.coachReply,
               }
             : review,
         ),
       );
-      return parsed.data.reply?.text ?? null;
+      return response.reply?.text ?? null;
     } finally {
       reportCommentSave(false);
     }

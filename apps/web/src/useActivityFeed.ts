@@ -14,8 +14,7 @@ import {
 } from "./activityCache";
 import { useBusyReporter } from "./AppStatus";
 import type { AuthState } from "./auth";
-import { parseCoachingSaveResponse } from "./coachingSave";
-import { fetchJsonAuthed } from "./fetchAuthed";
+import { requestParsed } from "./fetchAuthed";
 import { reportError } from "./reportError";
 import { getToday } from "./useToday";
 
@@ -93,15 +92,16 @@ export function useActivityFeed(
 
   const loadCached = useCallback(async (): Promise<void> => {
     try {
-      const res = await fetchJsonAuthed<unknown>(
+      const parsed = await requestParsed(
         `${API_URL}/api/coaching/activities/cached`,
         auth,
+        analyzedActivitiesResponseSchema,
+        "Loading the cached activities",
       );
-      const parsed = analyzedActivitiesResponseSchema.safeParse(res);
-      if (!parsed.success || parsed.data.activities.length === 0) {
+      if (parsed.activities.length === 0) {
         return;
       }
-      applyFeed(mergeActivityFeeds(dataRef.current, parsed.data));
+      applyFeed(mergeActivityFeeds(dataRef.current, parsed));
     } catch (err: unknown) {
       // The live sync is still running; a missing server cache is not an error.
       console.error("Failed to load cached activities:", err);
@@ -118,17 +118,13 @@ export function useActivityFeed(
         if (refresh) {
           params.set("refresh", "true");
         }
-        const res = await fetchJsonAuthed<unknown>(
+        const res = await requestParsed(
           `${API_URL}/api/coaching/activities?${params.toString()}`,
           auth,
+          analyzedActivitiesResponseSchema,
+          "Loading the coaching activities",
         );
-        const parsed = analyzedActivitiesResponseSchema.safeParse(res);
-        if (!parsed.success) {
-          throw new Error("Coaching endpoint returned an unexpected response", {
-            cause: parsed.error,
-          });
-        }
-        applyFeed(parsed.data);
+        applyFeed(res);
         setRevision((value) => value + 1);
       } catch (err: unknown) {
         setError(reportError(err));
@@ -141,12 +137,13 @@ export function useActivityFeed(
 
   const deleteActivity = useCallback(
     async (activityId: string): Promise<void> => {
-      const response = await fetchJsonAuthed<unknown>(
+      await requestParsed(
         `${API_URL}/api/coaching/activities/${activityId}?${coachingDateQuery(timeZone)}`,
         auth,
+        coachingInputSaveResponseSchema,
+        "Deleting the activity",
         { method: "DELETE" },
       );
-      parseCoachingSaveResponse(response);
       const current = dataRef.current;
       if (current !== null) {
         applyFeed(removeActivity(current, activityId));
@@ -166,9 +163,11 @@ export function useActivityFeed(
       reportCommentSave(true);
       try {
         const { today } = getToday(timeZone);
-        const response = await fetchJsonAuthed<unknown>(
+        const response = await requestParsed(
           `${API_URL}/api/coaching/activities/${activityId}/comments`,
           auth,
+          coachingInputSaveResponseSchema,
+          "Saving your comment",
           {
             method: mode === "edit" ? "PUT" : "POST",
             headers: { "content-type": "application/json" },
@@ -184,13 +183,6 @@ export function useActivityFeed(
             }),
           },
         );
-        const parsed = coachingInputSaveResponseSchema.safeParse(response);
-        if (!parsed.success) {
-          throw new Error(
-            "Saving your comment returned an unexpected response",
-            { cause: parsed.error },
-          );
-        }
         // Leave the activity in place for this visit. A reload only shows
         // activities without a response, so the commented activity drops off
         // then.
@@ -200,16 +192,11 @@ export function useActivityFeed(
         const current = dataRef.current;
         if (current !== null) {
           applyFeed(
-            updateActivityComment(
-              current,
-              activityId,
-              comment,
-              parsed.data.reply,
-            ),
+            updateActivityComment(current, activityId, comment, response.reply),
           );
         }
         setRevision((value) => value + 1);
-        return parsed.data.reply?.text ?? null;
+        return response.reply?.text ?? null;
       } finally {
         reportCommentSave(false);
       }
@@ -219,12 +206,13 @@ export function useActivityFeed(
 
   const markNoComment = useCallback(
     async (activityId: string): Promise<void> => {
-      const response = await fetchJsonAuthed<unknown>(
+      await requestParsed(
         `${API_URL}/api/coaching/activities/${activityId}/reviewed`,
         auth,
+        coachingInputSaveResponseSchema,
+        "Marking the activity as reviewed",
         { method: "POST" },
       );
-      parseCoachingSaveResponse(response);
       const current = dataRef.current;
       if (current !== null) {
         applyFeed(markActivityReviewed(current, activityId));

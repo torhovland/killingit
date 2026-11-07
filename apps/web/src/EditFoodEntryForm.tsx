@@ -6,7 +6,7 @@ import {
 } from "@killingit/shared";
 import { useBusyReporter } from "./AppStatus";
 import { useAuth } from "./auth";
-import { fetchJsonAuthed } from "./fetchAuthed";
+import { requestParsed } from "./fetchAuthed";
 import { FoodPhoto } from "./FoodPhoto";
 import { prepareMealPhoto } from "./imageUpload";
 import { reportError } from "./reportError";
@@ -93,22 +93,18 @@ export function EditFoodEntryForm({
             ? { removePhoto: true }
             : {}),
       };
-      const response = await fetchJsonAuthed<unknown>(
+      const parsed = await requestParsed(
         `${API_URL}/api/diet/entries/${entry.id}`,
         auth,
+        foodEntrySchema,
+        "Editing the meal",
         {
           method: "PATCH",
           headers: { "content-type": "application/json" },
           body: JSON.stringify(body),
         },
       );
-      const parsed = foodEntrySchema.safeParse(response);
-      if (!parsed.success) {
-        throw new Error("Editing the meal returned an unexpected response", {
-          cause: parsed.error,
-        });
-      }
-      onSaved(parsed.data);
+      onSaved(parsed);
     } catch (err: unknown) {
       setError(reportError(err));
     } finally {

@@ -19,7 +19,7 @@ import {
   type DailyCostRange,
   type MonthlyCostRange,
 } from "./costChart";
-import { fetchJsonAuthed } from "./fetchAuthed";
+import { requestParsed } from "./fetchAuthed";
 import { reportError } from "./reportError";
 import { useTimeZone } from "./TimeZoneContext";
 import { getToday } from "./useToday";
@@ -55,16 +55,15 @@ export function CostsPage() {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    fetchJsonAuthed<unknown>(`${API_URL}/api/llm/costs`, auth)
-      .then((response) => {
-        const parsed = llmCostsResponseSchema.safeParse(response);
-        if (!parsed.success) {
-          throw new Error("The cost history returned an unexpected response", {
-            cause: parsed.error,
-          });
-        }
+    requestParsed(
+      `${API_URL}/api/llm/costs`,
+      auth,
+      llmCostsResponseSchema,
+      "Loading the cost history",
+    )
+      .then((costs) => {
         if (!cancelled) {
-          setCosts(parsed.data);
+          setCosts(costs);
         }
       })
       .catch((err: unknown) => {

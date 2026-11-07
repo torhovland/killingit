@@ -7,7 +7,7 @@ import {
 } from "@killingit/shared";
 import { useAuth } from "./auth";
 import { Bullet } from "./Bullet";
-import { fetchJsonAuthed } from "./fetchAuthed";
+import { requestParsed } from "./fetchAuthed";
 import { LocationPickerMap } from "./LocationPickerMap";
 import { reportError } from "./reportError";
 
@@ -65,17 +65,13 @@ export function LocationSection({
     setSearching(true);
     setError(null);
     try {
-      const response = await fetchJsonAuthed<unknown>(
+      const response = await requestParsed(
         `${API_URL}/api/weather/geocode?q=${encodeURIComponent(trimmed)}`,
         auth,
+        geocodeResponseSchema,
+        "Searching for the address",
       );
-      const parsed = geocodeResponseSchema.safeParse(response);
-      if (!parsed.success) {
-        throw new Error("Address search returned an unexpected response", {
-          cause: parsed.error,
-        });
-      }
-      setResults(parsed.data.results);
+      setResults(response.results);
     } catch (err: unknown) {
       setError(reportError(err));
     } finally {
@@ -96,23 +92,19 @@ export function LocationSection({
     setSaving(true);
     setError(null);
     try {
-      const response = await fetchJsonAuthed<unknown>(
+      const response = await requestParsed(
         `${API_URL}/api/me`,
         auth,
+        currentUserSchema,
+        "Saving the location",
         {
           method: "PATCH",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ location: next }),
         },
       );
-      const parsed = currentUserSchema.safeParse(response);
-      if (!parsed.success) {
-        throw new Error("Saving the location returned an unexpected response", {
-          cause: parsed.error,
-        });
-      }
-      setDraft(parsed.data.location);
-      onChanged(parsed.data.location);
+      setDraft(response.location);
+      onChanged(response.location);
     } catch (err: unknown) {
       setError(reportError(err));
     } finally {

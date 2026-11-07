@@ -6,7 +6,7 @@ import {
   type LlmSettings,
 } from "@killingit/shared";
 import type { AuthState } from "./auth";
-import { fetchJsonAuthed } from "./fetchAuthed";
+import { requestParsed } from "./fetchAuthed";
 import { reportError } from "./reportError";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
@@ -34,17 +34,22 @@ export function useStatuses(auth: AuthState): IntegrationStatuses {
     setLoading(true);
     setError(null);
     try {
-      const [garminRes, llmRes] = await Promise.all([
-        fetchJsonAuthed<unknown>(`${API_URL}/api/garmin/status`, auth),
-        fetchJsonAuthed<unknown>(`${API_URL}/api/llm/settings`, auth),
+      const [garmin, llm] = await Promise.all([
+        requestParsed(
+          `${API_URL}/api/garmin/status`,
+          auth,
+          garminConnectionStatusSchema,
+          "Loading the Garmin status",
+        ),
+        requestParsed(
+          `${API_URL}/api/llm/settings`,
+          auth,
+          llmSettingsSchema,
+          "Loading the LLM settings",
+        ),
       ]);
-      const garminParsed = garminConnectionStatusSchema.safeParse(garminRes);
-      const llmParsed = llmSettingsSchema.safeParse(llmRes);
-      if (!garminParsed.success || !llmParsed.success) {
-        throw new Error("Status endpoints returned an unexpected response");
-      }
-      setGarmin(garminParsed.data);
-      setLlm(llmParsed.data);
+      setGarmin(garmin);
+      setLlm(llm);
     } catch (err: unknown) {
       setError(reportError(err));
     } finally {

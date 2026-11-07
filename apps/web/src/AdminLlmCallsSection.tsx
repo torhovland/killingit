@@ -9,7 +9,7 @@ import {
 import { useAuth } from "./auth";
 import { Bullet } from "./Bullet";
 import { formatCostUsd } from "./costChart";
-import { fetchJsonAuthed } from "./fetchAuthed";
+import { requestParsed } from "./fetchAuthed";
 import { reportError } from "./reportError";
 import { browserTimeZone, formatDateTime } from "./timeZone";
 
@@ -38,19 +38,15 @@ export function AdminLlmCallsSection() {
     }
     let cancelled = false;
     setLoading(true);
-    fetchJsonAuthed<unknown>(
+    requestParsed(
       `${API_URL}/api/admin/llm-calls?limit=${PAGE_SIZE}`,
       auth,
+      llmCallsResponseSchema,
+      "Loading LLM calls",
     )
       .then((response) => {
-        const parsed = llmCallsResponseSchema.safeParse(response);
-        if (!parsed.success) {
-          throw new Error("Loading LLM calls returned an unexpected response", {
-            cause: parsed.error,
-          });
-        }
         if (!cancelled) {
-          setCalls(parsed.data.calls);
+          setCalls(response.calls);
           setError(null);
         }
       })
@@ -79,20 +75,13 @@ export function AdminLlmCallsSection() {
     setDetailLoading(true);
     setError(null);
     try {
-      const response = await fetchJsonAuthed<unknown>(
+      const selected = await requestParsed(
         `${API_URL}/api/admin/llm-calls/${id}`,
         auth,
+        llmCallDetailSchema,
+        "Loading the LLM call",
       );
-      const parsed = llmCallDetailSchema.safeParse(response);
-      if (!parsed.success) {
-        throw new Error(
-          "Loading the LLM call returned an unexpected response",
-          {
-            cause: parsed.error,
-          },
-        );
-      }
-      setSelected(parsed.data);
+      setSelected(selected);
     } catch (err: unknown) {
       setError(reportError(err));
       setSelectedId(null);

@@ -41,6 +41,49 @@ function requestJson<T>(
   return fetchJson<T>(url, { ...init, headers });
 }
 
+/**
+ * A successful response body that did not match the shared schema it was
+ * validated against. Carries the schema's issues as the cause.
+ */
+export class ResponseValidationError extends Error {
+  constructor(label: string, options?: { cause?: unknown }) {
+    super(`${label} returned an unexpected response`, options);
+    this.name = "ResponseValidationError";
+  }
+}
+
+/**
+ * The schema shape `requestParsed` needs: any validator that can report a
+ * typed success or a failure. A structural type keeps the web app from taking
+ * a direct dependency on zod while still accepting the shared zod schemas.
+ */
+export interface ResponseSchema<T> {
+  safeParse(
+    value: unknown,
+  ): { success: true; data: T } | { success: false; error: unknown };
+}
+
+/**
+ * Fetch JSON with {@link fetchJsonAuthed} and validate the body against
+ * `schema`. A response that does not match throws one uniform
+ * {@link ResponseValidationError} naming the action, so callers never write
+ * their own parse-and-throw sequence.
+ */
+export async function requestParsed<T>(
+  url: string,
+  auth: AuthState,
+  schema: ResponseSchema<T>,
+  label: string,
+  init?: RequestInit,
+): Promise<T> {
+  const response = await fetchJsonAuthed<unknown>(url, auth, init);
+  const parsed = schema.safeParse(response);
+  if (!parsed.success) {
+    throw new ResponseValidationError(label, { cause: parsed.error });
+  }
+  return parsed.data;
+}
+
 /** A downloaded file and the filename the server suggested for it. */
 export interface DownloadedFile {
   blob: Blob;

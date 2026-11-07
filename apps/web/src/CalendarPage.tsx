@@ -7,7 +7,7 @@ import { useAppStatus } from "./AppStatus";
 import { useAuth } from "./auth";
 import { monthOf } from "./calendarDates";
 import { CalendarView } from "./CalendarView";
-import { fetchJsonAuthed } from "./fetchAuthed";
+import { requestParsed } from "./fetchAuthed";
 import { reportError } from "./reportError";
 import { useTimeZone } from "./TimeZoneContext";
 import { getToday } from "./useToday";
@@ -38,16 +38,15 @@ export function CalendarPage() {
     setLoading(true);
     setError(null);
     const query = new URLSearchParams({ today }).toString();
-    fetchJsonAuthed<unknown>(`${API_URL}/api/calendar?${query}`, auth)
-      .then((response) => {
-        const parsed = calendarResponseSchema.safeParse(response);
-        if (!parsed.success) {
-          throw new Error("The calendar returned an unexpected response", {
-            cause: parsed.error,
-          });
-        }
+    requestParsed(
+      `${API_URL}/api/calendar?${query}`,
+      auth,
+      calendarResponseSchema,
+      "Loading the calendar",
+    )
+      .then((data) => {
         if (!cancelled) {
-          setData(parsed.data);
+          setData(data);
         }
       })
       .catch((err: unknown) => {

@@ -6,7 +6,7 @@ import {
   type PlanGenerateMode,
 } from "@killingit/shared";
 import { useAuth } from "./auth";
-import { fetchJsonAuthed } from "./fetchAuthed";
+import { requestParsed } from "./fetchAuthed";
 import { useNavigate } from "./navigation";
 import { usePlanGeneration } from "./PlanGenerationProvider";
 import { SubmitButton } from "./SubmitButton";
@@ -78,15 +78,16 @@ export function PlanRegenerationButtons() {
     async function loadAvailability(): Promise<void> {
       try {
         const { today } = getToday(timeZone);
-        const response = await fetchJsonAuthed<unknown>(
+        const response = await requestParsed(
           `${API_URL}/api/coaching/plan?today=${today}`,
           auth,
+          coachPlanResponseSchema,
+          "Loading your plan",
         );
-        const parsed = coachPlanResponseSchema.safeParse(response);
-        if (cancelled || !parsed.success) {
+        if (cancelled) {
           return;
         }
-        const season = parsed.data.plan?.season;
+        const season = response.plan?.season;
         setHasSeason(
           season !== undefined &&
             today >= season.startDate &&
@@ -113,18 +114,26 @@ export function PlanRegenerationButtons() {
 
     async function loadSetup(): Promise<void> {
       try {
-        const [garminRes, llmRes] = await Promise.all([
-          fetchJsonAuthed<unknown>(`${API_URL}/api/garmin/status`, auth),
-          fetchJsonAuthed<unknown>(`${API_URL}/api/llm/settings`, auth),
+        const [garmin, llm] = await Promise.all([
+          requestParsed(
+            `${API_URL}/api/garmin/status`,
+            auth,
+            garminConnectionStatusSchema,
+            "Loading the Garmin status",
+          ),
+          requestParsed(
+            `${API_URL}/api/llm/settings`,
+            auth,
+            llmSettingsSchema,
+            "Loading the LLM settings",
+          ),
         ]);
-        const garminParsed = garminConnectionStatusSchema.safeParse(garminRes);
-        const llmParsed = llmSettingsSchema.safeParse(llmRes);
-        if (cancelled || !garminParsed.success || !llmParsed.success) {
+        if (cancelled) {
           return;
         }
         setSetup({
-          garminConnected: garminParsed.data.connected,
-          llmConfigured: llmParsed.data.configured,
+          garminConnected: garmin.connected,
+          llmConfigured: llm.configured,
         });
       } catch (err: unknown) {
         // Without the setup status we cannot gate the action; the server still
