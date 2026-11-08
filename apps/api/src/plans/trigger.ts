@@ -70,39 +70,40 @@ export interface PlanTriggerDependencies {
   plans: PlanStore;
   generations: PlanGenerationStore;
   /** Survey answers not yet incorporated into the plan. */
-  coachingSurveyAdjustments?: CoachingSurveyAdjustmentStore;
+  coachingSurveyAdjustments?: CoachingSurveyAdjustmentStore | undefined;
   /** Injectable for route tests; defaults to a Garmin sync. */
-  loadActivities?: (userId: number) => Promise<ActivityFeed>;
+  loadActivities?: ((userId: number) => Promise<ActivityFeed>) | undefined;
   /** Injectable for route tests; defaults to the stored threshold timelines. */
-  loadThresholdHistory?: typeof loadThresholdHistoryForUser;
+  loadThresholdHistory?: typeof loadThresholdHistoryForUser | undefined;
   /** Injectable for route tests; defaults to the stored body metrics. */
-  loadBodyHistory?: typeof loadBodyHistoryForUser;
+  loadBodyHistory?: typeof loadBodyHistoryForUser | undefined;
   /** Injectable for route tests; defaults to the stored daily health series. */
-  loadDailyHealth?: typeof loadDailyHealthForUser;
+  loadDailyHealth?: typeof loadDailyHealthForUser | undefined;
   /** Injectable for route tests; defaults to the coach reading the text. */
-  syncAthleteMetrics?: typeof syncAthleteMetrics;
+  syncAthleteMetrics?: typeof syncAthleteMetrics | undefined;
   /** Injectable for route tests; defaults to the coach reading the text. */
-  syncAthleteEvents?: typeof syncAthleteEvents;
+  syncAthleteEvents?: typeof syncAthleteEvents | undefined;
   /** Injectable for route tests; defaults to the stored events. */
-  loadEvents?: typeof loadAthleteEvents;
+  loadEvents?: typeof loadAthleteEvents | undefined;
   /** Injectable for route tests; defaults to the stored food log. */
-  loadDiet?: typeof loadDietContext;
+  loadDiet?: typeof loadDietContext | undefined;
   /** Injectable for route tests; defaults to answered coach questions. */
-  loadAnsweredCoachQuestions?: typeof loadAnsweredCoachQuestions;
+  loadAnsweredCoachQuestions?: typeof loadAnsweredCoachQuestions | undefined;
   /** Injectable for route tests; defaults to the account's stored config. */
-  loadLlm?: (userId: number) => Promise<LlmClient | null>;
+  loadLlm?: ((userId: number) => Promise<LlmClient | null>) | undefined;
   /** Injectable for route tests; defaults to the database-backed loader. */
-  loadCoachingInputs?: (
-    userId: number,
-    weekStartDate: string,
-  ) => Promise<CoachingInputs>;
+  loadCoachingInputs?:
+    | ((userId: number, weekStartDate: string) => Promise<CoachingInputs>)
+    | undefined;
   /** Injectable for tests; defaults to Open-Meteo and Yr.no. */
-  loadForecast?: (
-    location: AthleteLocation,
-    timezone: string | null,
-  ) => Promise<WeatherForecastSet>;
+  loadForecast?:
+    | ((
+        location: AthleteLocation,
+        timezone: string | null,
+      ) => Promise<WeatherForecastSet>)
+    | undefined;
   /** Injectable for tests; defaults to the prompt-log writer. */
-  markPlanPromptsFailed?: typeof markPlanPromptsFailed;
+  markPlanPromptsFailed?: typeof markPlanPromptsFailed | undefined;
 }
 
 /** Options shared by the plan-only trigger and a combined coach run. */

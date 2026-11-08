@@ -8,18 +8,14 @@ import {
 } from "@killingit/shared";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
+import type { ResolvedAppDependencies } from "../../dependencies.js";
 import { createCoachQuestionHandlers } from "./coachQuestions.js";
 import { createCommentHandlers } from "./comments.js";
-import {
-  resolveCoachingDependencies,
-  type CoachingRouteDependencies,
-} from "./dependencies.js";
+import { resolveCoachingDependencies } from "./dependencies.js";
 import { createFeedHandlers } from "./feed.js";
 import { createManualActivityHandlers } from "./manualActivities.js";
 import { createReviewHandlers } from "./reviews.js";
 import { createWeeklyNoteHandlers } from "./weeklyNotes.js";
-
-export type { CoachingRouteDependencies } from "./dependencies.js";
 
 /**
  * Coaching routes (ADR 0004). Syncs the signed-in athlete's Garmin activities,
@@ -28,7 +24,7 @@ export type { CoachingRouteDependencies } from "./dependencies.js";
  * manual activity logs, replies to them briefly, and triggers a plan revision
  * when the plan is already established.
  */
-export function createCoachingRoute(deps: CoachingRouteDependencies): Hono {
+export function createCoachingRoute(deps: ResolvedAppDependencies): Hono {
   const resolved = resolveCoachingDependencies(deps);
   const feed = createFeedHandlers(resolved);
   const comments = createCommentHandlers(resolved);

@@ -22,6 +22,10 @@ import {
   type CoachingReplyRequest,
 } from "../../coaching/replies.js";
 import { saveActivityReview } from "../../coaching/reviews.js";
+import {
+  planTriggerDependencies,
+  type ResolvedAppDependencies,
+} from "../../dependencies.js";
 import { loadLlmClient, type LlmClient } from "../../llm/client.js";
 import { loadThresholdHistoryForUser } from "../../metrics/store.js";
 import { estimateManualActivityTss } from "../../training/manualTss.js";
@@ -33,7 +37,6 @@ import {
   saveWeeklyNote,
   updateActivityComment,
   updateManualActivity,
-  type CoachingInputs,
 } from "../../plans/inputs.js";
 import {
   createPeriodReviewComment,
@@ -60,71 +63,8 @@ import {
   type PlanTriggerDependencies,
 } from "../../plans/trigger.js";
 import type { QuestionAnswerStore } from "../../questions/answers.js";
-import type { CoachingSurveyAdjustmentStore } from "../../questions/adjustments.js";
 import type { UserStore } from "../../users/store.js";
 import type { CoachAnalysis } from "@killingit/shared";
-
-export interface CoachingRouteDependencies {
-  users: UserStore;
-  answers: QuestionAnswerStore;
-  /** Pending survey adjustments, injectable for DB-free route tests. */
-  coachingSurveyAdjustments?: CoachingSurveyAdjustmentStore;
-  plans: PlanStore;
-  generations: PlanGenerationStore;
-  loadActivities?: (userId: number, today?: string) => Promise<ActivityFeed>;
-  /** Injectable for route tests; defaults to the stored feed reader. */
-  loadCachedFeed?: typeof loadCachedActivityFeed;
-  /** Injectable for route tests; defaults to the stored activity feedback. */
-  loadActivityFeedback?: typeof loadActivityFeedback;
-  /** Injectable for route tests; defaults to the training-load builder. */
-  loadActivityTrainingLoads?: typeof loadUserActivityTrainingLoads;
-  /** Injectable for route tests; defaults to the LLM TSS estimator. */
-  estimateManualTss?: typeof estimateManualActivityTss;
-  /** Injectable for route tests; defaults to the stored threshold timelines. */
-  loadThresholdHistory?: typeof loadThresholdHistoryForUser;
-  loadLlm?: (userId: number) => Promise<LlmClient | null>;
-  /** Injectable for route tests; defaults to the database-backed loader. */
-  loadCoachingInputs?: (
-    userId: number,
-    weekStartDate: string,
-  ) => Promise<CoachingInputs>;
-  /** Injectable for route tests; default to the database-backed writers. */
-  loadWeeklyNote?: typeof loadWeeklyNote;
-  loadManualActivities?: typeof loadManualActivities;
-  loadManualActivityReplies?: typeof loadManualActivityReplies;
-  loadWeeklyNoteReply?: typeof loadWeeklyNoteReply;
-  createActivityComment?: typeof createActivityComment;
-  updateActivityComment?: typeof updateActivityComment;
-  saveActivityReview?: typeof saveActivityReview;
-  loadPeriodReviews?: typeof loadPeriodReviews;
-  loadPeriodReview?: typeof loadPeriodReview;
-  createPeriodReviewComment?: typeof createPeriodReviewComment;
-  updatePeriodReviewComment?: typeof updatePeriodReviewComment;
-  markPeriodReviewReviewed?: typeof markPeriodReviewReviewed;
-  loadPendingCoachQuestion?: typeof loadPendingCoachQuestion;
-  loadAnsweredCoachQuestions?: typeof loadAnsweredCoachQuestions;
-  loadCoachQuestion?: typeof loadCoachQuestion;
-  answerCoachQuestion?: typeof answerCoachQuestion;
-  saveManualActivity?: typeof saveManualActivity;
-  saveWeeklyNote?: typeof saveWeeklyNote;
-  updateManualActivity?: typeof updateManualActivity;
-  deleteImportedActivity?: typeof deleteImportedActivity;
-  deleteManualActivity?: typeof deleteManualActivity;
-  /** Injectable for route tests; defaults to the real coach reply generator. */
-  replyToCoachingInput?: typeof replyToCoachingInput;
-  /** Injectable for route tests; defaults to the real coach-question reply. */
-  replyToCoachQuestion?: typeof replyToCoachQuestion;
-  /** Injectable for route tests; defaults to the real one-off question answer. */
-  answerCoachingQuestion?: typeof answerCoachingQuestion;
-  /** Injectable for route tests; defaults to the real plan generation trigger. */
-  triggerPlanGeneration?: typeof triggerPlanGeneration;
-  /** Injectable for route tests; defaults to the combined reply-and-plan run. */
-  startCoachRun?: typeof startCoachRun;
-  /** Injectable for route tests; defaults to Open-Meteo. */
-  loadForecast?: PlanTriggerDependencies["loadForecast"];
-  /** Injectable for route tests; defaults to the stored food log. */
-  loadDiet?: PlanTriggerDependencies["loadDiet"];
-}
 
 /**
  * The stores and injectable functions every coaching handler shares. Missing
@@ -175,11 +115,11 @@ export interface ResolvedCoachingDependencies {
 
 /** Fills every optional dependency with the production implementation. */
 export function resolveCoachingDependencies(
-  deps: CoachingRouteDependencies,
+  deps: ResolvedAppDependencies,
 ): ResolvedCoachingDependencies {
   const loadActivities =
     deps.loadActivities ??
-    ((userId, today) =>
+    ((userId: number, today?: string) =>
       loadAnalyzedActivities({
         userId,
         // Analyse the newest activities the cap allows, but return every
@@ -193,27 +133,7 @@ export function resolveCoachingDependencies(
     deps.loadAnsweredCoachQuestions ?? loadAnsweredCoachQuestions;
 
   const triggerDeps: PlanTriggerDependencies = {
-    users: deps.users,
-    answers: deps.answers,
-    plans: deps.plans,
-    generations: deps.generations,
-    ...(deps.coachingSurveyAdjustments !== undefined
-      ? { coachingSurveyAdjustments: deps.coachingSurveyAdjustments }
-      : {}),
-    ...(deps.loadActivities !== undefined
-      ? { loadActivities: deps.loadActivities }
-      : {}),
-    ...(deps.loadLlm !== undefined ? { loadLlm: deps.loadLlm } : {}),
-    ...(deps.loadCoachingInputs !== undefined
-      ? { loadCoachingInputs: deps.loadCoachingInputs }
-      : {}),
-    ...(deps.loadForecast !== undefined
-      ? { loadForecast: deps.loadForecast }
-      : {}),
-    ...(deps.loadThresholdHistory !== undefined
-      ? { loadThresholdHistory: deps.loadThresholdHistory }
-      : {}),
-    ...(deps.loadDiet !== undefined ? { loadDiet: deps.loadDiet } : {}),
+    ...planTriggerDependencies(deps),
     loadAnsweredCoachQuestions: loadAnsweredQuestions,
   };
   const coachRunDeps: CoachRunDependencies = {
@@ -222,10 +142,10 @@ export function resolveCoachingDependencies(
   };
 
   return {
-    users: deps.users,
-    answers: deps.answers,
-    plans: deps.plans,
-    generations: deps.generations,
+    users: deps.userStore,
+    answers: deps.answerStore,
+    plans: deps.planStore,
+    generations: deps.generationStore,
     loadActivities,
     loadCachedFeed: deps.loadCachedFeed ?? loadCachedActivityFeed,
     loadFeedback: deps.loadActivityFeedback ?? loadActivityFeedback,

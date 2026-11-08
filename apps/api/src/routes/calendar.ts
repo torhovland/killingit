@@ -26,28 +26,11 @@ import {
 } from "../plans/replies.js";
 import { loadManualActivities } from "../plans/inputs.js";
 import { promoteNextPeriod } from "../plans/periods.js";
-import type { PlanStore } from "../plans/store.js";
+import type { ResolvedAppDependencies } from "../dependencies.js";
 import {
   loadPlanWeekTotals,
   type WeekPlanTotals,
 } from "../plans/weekTotals.js";
-import type { UserStore } from "../users/store.js";
-
-export interface CalendarRouteDependencies {
-  users: UserStore;
-  plans: PlanStore;
-  /** Injectable for route tests; defaults to the stored activity feed. */
-  loadCachedFeed?: (
-    userId: number,
-  ) => Promise<AnalyzedActivitiesResponse | null>;
-  /** Injectable for route tests; defaults to the database-backed loader. */
-  loadManualActivities?: (userId: number) => Promise<ManualActivityContext[]>;
-  loadManualActivityReplies?: typeof loadManualActivityReplies;
-  /** Injectable for route tests; defaults to the stored goals and events. */
-  loadEvents?: typeof loadAthleteEvents;
-  /** Injectable for route tests; defaults to the stored weekly plan totals. */
-  loadWeekTotals?: typeof loadPlanWeekTotals;
-}
 
 /** A `YYYY-MM-DD` date, from an activity timestamp or a plan date. */
 function dateOf(value: string): string {
@@ -416,7 +399,7 @@ export function buildCalendar(input: {
  * starts, the season end, and the athlete's dated goals and events over the
  * range the athlete has data for.
  */
-export function createCalendarRoute(deps: CalendarRouteDependencies): Hono {
+export function createCalendarRoute(deps: ResolvedAppDependencies): Hono {
   const loadFeed = deps.loadCachedFeed ?? loadCachedActivityFeed;
   const loadManual = deps.loadManualActivities ?? loadManualActivities;
   const loadReplies =
@@ -431,7 +414,7 @@ export function createCalendarRoute(deps: CalendarRouteDependencies): Hono {
     }
 
     try {
-      const user = await deps.users.ensureUser(getAthlete(c).sub);
+      const user = await deps.userStore.ensureUser(getAthlete(c).sub);
       const [
         feed,
         manualActivities,
@@ -443,7 +426,7 @@ export function createCalendarRoute(deps: CalendarRouteDependencies): Hono {
         loadFeed(user.id),
         loadManual(user.id),
         loadReplies(user.id),
-        deps.plans.load(user.id),
+        deps.planStore.load(user.id),
         loadEvents(user.id).catch((err: unknown) => {
           // Events are advisory. A read failure must not empty the calendar.
           console.error("[calendar] could not load the athlete's events:", err);

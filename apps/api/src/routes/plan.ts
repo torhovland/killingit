@@ -11,27 +11,23 @@ import {
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { getAthlete } from "../auth/middleware.js";
-import type { ActivityFeed } from "../coaching/activities.js";
+import {
+  planTriggerDependencies,
+  type ResolvedAppDependencies,
+} from "../dependencies.js";
 import { loadAthleteEvents } from "../events/store.js";
 import { markPlanPromptsFailed } from "../llm/callStore.js";
-import type { LlmClient } from "../llm/client.js";
 import { loadThresholdHistoryForUser } from "../metrics/store.js";
 import { startOfWeek } from "../plans/dates.js";
 import { isStaleRunning } from "../plans/generation.js";
-import { loadCoachingInputs, type CoachingInputs } from "../plans/inputs.js";
+import { loadCoachingInputs } from "../plans/inputs.js";
 import { promoteNextPeriod, weekFor } from "../plans/periods.js";
 import {
   latestAnswerTimestamp,
   planIsStale,
   planPending,
 } from "../plans/status.js";
-import type { PlanGenerationStore, PlanStore } from "../plans/store.js";
-import {
-  triggerPlanGeneration,
-  type PlanTriggerDependencies,
-} from "../plans/trigger.js";
-import type { QuestionAnswerStore } from "../questions/answers.js";
-import type { UserStore } from "../users/store.js";
+import { triggerPlanGeneration } from "../plans/trigger.js";
 import { planWeatherChanged } from "../weather/changes.js";
 import { fetchWeatherForecasts } from "../weather/forecast.js";
 import { buildZwoWorkout, zwoFilename } from "../workouts/zwo.js";
@@ -81,48 +77,12 @@ function findExportableBikeWorkout(
   };
 }
 
-export interface PlanRouteDependencies {
-  users: UserStore;
-  answers: QuestionAnswerStore;
-  /** Pending survey adjustments, injectable for DB-free route tests. */
-  coachingSurveyAdjustments?: PlanTriggerDependencies["coachingSurveyAdjustments"];
-  plans: PlanStore;
-  generations: PlanGenerationStore;
-  /** Injectable for route tests; defaults to a Garmin sync. */
-  loadActivities?: (userId: number) => Promise<ActivityFeed>;
-  /** Injectable for route tests; defaults to the stored threshold timelines. */
-  loadThresholdHistory?: PlanTriggerDependencies["loadThresholdHistory"];
-  /** Injectable for route tests; defaults to the stored body metrics. */
-  loadBodyHistory?: PlanTriggerDependencies["loadBodyHistory"];
-  /** Injectable for the coach reading the text. */
-  syncAthleteMetrics?: PlanTriggerDependencies["syncAthleteMetrics"];
-  /** Injectable for the coach reading the text. */
-  syncAthleteEvents?: PlanTriggerDependencies["syncAthleteEvents"];
-  /** Injectable for the stored events. */
-  loadEvents?: PlanTriggerDependencies["loadEvents"];
-  /** Injectable for route tests; defaults to answered coach questions. */
-  loadAnsweredCoachQuestions?: PlanTriggerDependencies["loadAnsweredCoachQuestions"];
-  /** Injectable for route tests; defaults to the account's stored config. */
-  loadLlm?: (userId: number) => Promise<LlmClient | null>;
-  /** Injectable for route tests; defaults to the database-backed loader. */
-  loadCoachingInputs?: (
-    userId: number,
-    weekStartDate: string,
-  ) => Promise<CoachingInputs>;
-  /** Injectable for route tests; defaults to Open-Meteo and Yr. */
-  loadForecast?: PlanTriggerDependencies["loadForecast"];
-  /** Injectable for route tests; defaults to the stored food log. */
-  loadDiet?: PlanTriggerDependencies["loadDiet"];
-  /** Injectable for route tests; defaults to the prompt-log writer. */
-  markPlanPromptsFailed?: PlanTriggerDependencies["markPlanPromptsFailed"];
-}
-
 /**
  * Coach plan routes. GET reads the stored plan and reports what is missing for
  * the supplied date. POST runs the generation cascade; the UI calls it without
  * awaiting the response and polls GET for progress.
  */
-export function createPlanRoute(deps: PlanRouteDependencies): Hono {
+export function createPlanRoute(deps: ResolvedAppDependencies): Hono {
   async function hasWeatherChanged(
     plan: CoachPlan,
     location: AthleteLocation,
@@ -162,9 +122,9 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
       thresholds,
       events,
     ] = await Promise.all([
-      deps.plans.load(userId),
-      deps.generations.load(userId),
-      deps.answers.listForUser(userId),
+      deps.planStore.load(userId),
+      deps.generationStore.load(userId),
+      deps.answerStore.listForUser(userId),
       deps.loadCoachingInputs
         ? deps.loadCoachingInputs(userId, startOfWeek(today))
         : loadCoachingInputs(userId, startOfWeek(today)),
@@ -184,7 +144,7 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
     let generation = loadedGeneration;
     if (isStaleRunning(generation)) {
       const message = "The coach stopped before finishing. Try again.";
-      const startedAt = await deps.generations.fail(
+      const startedAt = await deps.generationStore.fail(
         userId,
         message,
         generation.runId,
@@ -196,7 +156,7 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
           message,
         );
       }
-      generation = await deps.generations.load(userId);
+      generation = await deps.generationStore.load(userId);
     }
     const answersUpdatedAt = latestAnswerTimestamp(answers);
 
@@ -258,7 +218,7 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
 
   return new Hono()
     .get("/", async (c) => {
-      const user = await deps.users.ensureUser(getAthlete(c).sub);
+      const user = await deps.userStore.ensureUser(getAthlete(c).sub);
       const today = planDateSchema.safeParse(c.req.query("today"));
       if (!today.success) {
         return c.text("A valid today date (YYYY-MM-DD) is required", 400);
@@ -280,8 +240,8 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
       if (!date.success) {
         return c.text("A valid date (YYYY-MM-DD) is required", 400);
       }
-      const user = await deps.users.ensureUser(getAthlete(c).sub);
-      const stored = await deps.plans.load(user.id);
+      const user = await deps.userStore.ensureUser(getAthlete(c).sub);
+      const stored = await deps.planStore.load(user.id);
       const parsed =
         stored === null ? null : coachPlanSchema.safeParse(stored.plan);
       if (parsed === null || !parsed.success) {
@@ -309,54 +269,12 @@ export function createPlanRoute(deps: PlanRouteDependencies): Hono {
       "/generate",
       zValidator("json", planGenerateInputSchema),
       async (c) => {
-        const user = await deps.users.ensureUser(getAthlete(c).sub);
+        const user = await deps.userStore.ensureUser(getAthlete(c).sub);
         const { today, timezone, mode, force, includeTomorrow } =
           c.req.valid("json");
 
         const started = await triggerPlanGeneration(
-          {
-            users: deps.users,
-            answers: deps.answers,
-            plans: deps.plans,
-            generations: deps.generations,
-            ...(deps.coachingSurveyAdjustments !== undefined
-              ? { coachingSurveyAdjustments: deps.coachingSurveyAdjustments }
-              : {}),
-            ...(deps.loadActivities !== undefined
-              ? { loadActivities: deps.loadActivities }
-              : {}),
-            ...(deps.loadThresholdHistory !== undefined
-              ? { loadThresholdHistory: deps.loadThresholdHistory }
-              : {}),
-            ...(deps.loadBodyHistory !== undefined
-              ? { loadBodyHistory: deps.loadBodyHistory }
-              : {}),
-            ...(deps.syncAthleteMetrics !== undefined
-              ? { syncAthleteMetrics: deps.syncAthleteMetrics }
-              : {}),
-            ...(deps.syncAthleteEvents !== undefined
-              ? { syncAthleteEvents: deps.syncAthleteEvents }
-              : {}),
-            ...(deps.loadEvents !== undefined
-              ? { loadEvents: deps.loadEvents }
-              : {}),
-            ...(deps.loadAnsweredCoachQuestions !== undefined
-              ? {
-                  loadAnsweredCoachQuestions: deps.loadAnsweredCoachQuestions,
-                }
-              : {}),
-            ...(deps.loadLlm !== undefined ? { loadLlm: deps.loadLlm } : {}),
-            ...(deps.loadCoachingInputs !== undefined
-              ? { loadCoachingInputs: deps.loadCoachingInputs }
-              : {}),
-            ...(deps.loadForecast !== undefined
-              ? { loadForecast: deps.loadForecast }
-              : {}),
-            ...(deps.loadDiet !== undefined ? { loadDiet: deps.loadDiet } : {}),
-            ...(deps.markPlanPromptsFailed !== undefined
-              ? { markPlanPromptsFailed: deps.markPlanPromptsFailed }
-              : {}),
-          },
+          planTriggerDependencies(deps),
           {
             userId: user.id,
             today,

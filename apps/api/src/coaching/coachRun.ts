@@ -18,9 +18,10 @@ import {
 
 /** The plan dependencies plus the reply hooks used by the fast phase. */
 export interface CoachRunDependencies extends PlanTriggerDependencies {
-  loadContext?: CoachReplyDependencies["loadContext"];
-  saveReply?: CoachReplyDependencies["saveReply"];
-  loadUnansweredComments?: CoachReplyDependencies["loadUnansweredComments"];
+  loadContext?: CoachReplyDependencies["loadContext"] | undefined;
+  saveReply?: CoachReplyDependencies["saveReply"] | undefined;
+  loadUnansweredComments?:
+    CoachReplyDependencies["loadUnansweredComments"] | undefined;
 }
 
 export interface CoachRunOptions extends PlanRunOptions {
@@ -74,15 +75,9 @@ async function runCoachTurn(
           plans: deps.plans,
           answers: deps.answers,
           loadLlm: deps.loadLlm ?? loadLlmClient,
-          ...(deps.loadContext !== undefined
-            ? { loadContext: deps.loadContext }
-            : {}),
-          ...(deps.saveReply !== undefined
-            ? { saveReply: deps.saveReply }
-            : {}),
-          ...(deps.loadUnansweredComments !== undefined
-            ? { loadUnansweredComments: deps.loadUnansweredComments }
-            : {}),
+          loadContext: deps.loadContext,
+          saveReply: deps.saveReply,
+          loadUnansweredComments: deps.loadUnansweredComments,
           isCurrent: () => deps.generations.isCurrent(userId, runId),
         },
         { userId, today, signal },

@@ -4,82 +4,20 @@ import { logger } from "hono/logger";
 import { createAuthProvider } from "./auth/index.js";
 import { requireAdmin, requireAuth } from "./auth/middleware.js";
 import type { AuthProvider } from "./auth/provider.js";
+import type {
+  AppDependencies,
+  ResolvedAppDependencies,
+} from "./dependencies.js";
 import { withSentry } from "./instrumentation/sentry.js";
-import {
-  loadUserActivityTrainingLoads,
-  type ActivityFeed,
-} from "./coaching/activities.js";
-import { estimateManualActivityTss } from "./training/manualTss.js";
-import type { loadCachedActivityFeed } from "./coaching/feedCache.js";
-import type {
-  deleteImportedActivity,
-  deleteManualActivity,
-} from "./coaching/deletions.js";
-import type {
-  answerCoachingQuestion,
-  replyToCoachQuestion,
-  replyToCoachingInput,
-} from "./coaching/replies.js";
-import type { saveActivityReview } from "./coaching/reviews.js";
-import type { startCoachRun } from "./coaching/coachRun.js";
-import { LlmModelChoiceError, type LlmClient } from "./llm/client.js";
-import {
-  createActivityComment,
-  loadManualActivities,
-  loadWeeklyNote,
-  saveManualActivity,
-  saveWeeklyNote,
-  updateActivityComment,
-  updateManualActivity,
-  type CoachingInputs,
-} from "./plans/inputs.js";
-import type {
-  createPeriodReviewComment,
-  loadPeriodReview,
-  loadPeriodReviews,
-  markPeriodReviewReviewed,
-  updatePeriodReviewComment,
-} from "./plans/periodReviews.js";
-import type {
-  answerCoachQuestion,
-  loadAnsweredCoachQuestions,
-  loadCoachQuestion,
-  loadPendingCoachQuestion,
-} from "./plans/coachQuestions.js";
-import type {
-  loadActivityFeedback,
-  loadManualActivityReplies,
-  loadWeeklyNoteReply,
-} from "./plans/replies.js";
-import type {
-  PlanTriggerDependencies,
-  triggerPlanGeneration,
-} from "./plans/trigger.js";
-import {
-  dbPlanGenerationStore,
-  dbPlanStore,
-  type PlanGenerationStore,
-  type PlanStore,
-} from "./plans/store.js";
-import {
-  dbQuestionAnswerStore,
-  type QuestionAnswerStore,
-} from "./questions/answers.js";
-import {
-  dbCoachingSurveyAdjustmentStore,
-  type CoachingSurveyAdjustmentStore,
-} from "./questions/adjustments.js";
+import { LlmModelChoiceError } from "./llm/client.js";
+import { dbPlanGenerationStore, dbPlanStore } from "./plans/store.js";
+import { dbQuestionAnswerStore } from "./questions/answers.js";
+import { dbCoachingSurveyAdjustmentStore } from "./questions/adjustments.js";
 import { adminQuestionsRoute } from "./routes/adminQuestions.js";
-import {
-  createAdminLlmCallsRoute,
-  type AdminLlmCallsDependencies,
-} from "./routes/adminLlmCalls.js";
+import { createAdminLlmCallsRoute } from "./routes/adminLlmCalls.js";
 import { createCalendarRoute } from "./routes/calendar.js";
-import { createDietRoute } from "./routes/diet.js";
-import { syncAthleteMetrics } from "./coaching/athleteMetrics.js";
-import { syncAthleteEvents } from "./coaching/athleteEvents.js";
-import { loadAthleteEvents } from "./events/store.js";
 import { createCoachingRoute } from "./routes/coaching/index.js";
+import { createDietRoute } from "./routes/diet.js";
 import { createFitnessRoute } from "./routes/fitness.js";
 import { createGarminRoute } from "./routes/garmin.js";
 import { greet } from "./routes/greet.js";
@@ -89,21 +27,9 @@ import { createMeRoute } from "./routes/me.js";
 import { createPlanRoute } from "./routes/plan.js";
 import { createQuestionsRoute } from "./routes/questions.js";
 import { createWeatherRoute } from "./routes/weather.js";
-import { analyzeFood } from "./llm/foodAnalysis.js";
-import { loadDietContext } from "./diet/context.js";
-import { createMealThumbnail } from "./diet/thumbnail.js";
-import type { ReplyContextInput } from "./coaching/replyContext.js";
-import type { FoodEntryStore } from "./diet/store.js";
-import type { PlanContextInput } from "./llm/planContext.js";
-import {
-  loadBodyHistoryForUser,
-  loadThresholdHistoryForUser,
-} from "./metrics/store.js";
-import { loadFitnessHistory } from "./training/history.js";
-import { loadPlanWeekTotals } from "./plans/weekTotals.js";
-import { loadPlanDayCalories } from "./plans/dayCalories.js";
-import { dbUserStore, type UserStore } from "./users/store.js";
-import type { searchLocations } from "./weather/geocode.js";
+import { dbUserStore } from "./users/store.js";
+
+export type { AppDependencies } from "./dependencies.js";
 
 // Load local environment for `bun run dev`. Bun does not auto-load dotenv
 // files (unlike Vite/Node --env-file). Anchor at the repo root (three levels
@@ -121,94 +47,6 @@ try {
   }
 }
 
-export interface AppDependencies {
-  /** Auth provider, or a lazy getter resolved per request. */
-  authProvider?: AuthProvider | (() => AuthProvider);
-  /** Account store used for role checks and first-user provisioning. */
-  userStore?: UserStore;
-  /** Athlete answer storage, injectable for DB-free route tests. */
-  answerStore?: QuestionAnswerStore;
-  /** Pending survey adjustments, injectable for DB-free plan route tests. */
-  coachingSurveyAdjustments?: CoachingSurveyAdjustmentStore;
-  /** Stored coach plan and generation progress, injectable for route tests. */
-  planStore?: PlanStore;
-  generationStore?: PlanGenerationStore;
-  /** Activity/LLM loaders, injectable for DB-free plan route tests. */
-  loadActivities?: (userId: number) => Promise<ActivityFeed>;
-  loadThresholdHistory?: typeof loadThresholdHistoryForUser;
-  loadBodyHistory?: typeof loadBodyHistoryForUser;
-  /** Injectable for route tests; defaults to the coach reading the text. */
-  syncAthleteMetrics?: typeof syncAthleteMetrics;
-  /** Injectable for route tests; defaults to the coach reading the text. */
-  syncAthleteEvents?: typeof syncAthleteEvents;
-  /** Stored dated goals and events, injectable for DB-free route tests. */
-  loadEvents?: typeof loadAthleteEvents;
-  /** Stored weekly plan totals, injectable for DB-free route tests. */
-  loadWeekTotals?: typeof loadPlanWeekTotals;
-  /** Stored daily calorie targets, injectable for DB-free route tests. */
-  loadDayCalories?: typeof loadPlanDayCalories;
-  /** Stored food log for the coaching and plan prompts. */
-  loadDiet?: typeof loadDietContext;
-  loadCachedFeed?: typeof loadCachedActivityFeed;
-  /** Injectable for route tests; defaults to the stored activity feedback. */
-  loadActivityFeedback?: typeof loadActivityFeedback;
-  loadActivityTrainingLoads?: typeof loadUserActivityTrainingLoads;
-  loadFitnessHistory?: typeof loadFitnessHistory;
-  estimateManualTss?: typeof estimateManualActivityTss;
-  loadLlm?: (userId: number) => Promise<LlmClient | null>;
-  /** Stored meals, injectable for DB-free diet route tests. */
-  dietEntries?: FoodEntryStore;
-  /** Food-analysis prompt context, injectable for DB-free diet route tests. */
-  loadFoodContext?: (input: ReplyContextInput) => Promise<PlanContextInput>;
-  /** Food-analysis generator, injectable for DB-free diet route tests. */
-  analyzeFood?: typeof analyzeFood;
-  /** Meal-thumbnail generator, injectable for DB-free diet route tests. */
-  createMealThumbnail?: typeof createMealThumbnail;
-  /** Coaching-input loader, injectable for DB-free route tests. */
-  loadCoachingInputs?: (
-    userId: number,
-    weekStartDate: string,
-  ) => Promise<CoachingInputs>;
-  /** Coaching-input readers and writers, injectable for DB-free route tests. */
-  loadManualActivities?: typeof loadManualActivities;
-  loadWeeklyNote?: typeof loadWeeklyNote;
-  createActivityComment?: typeof createActivityComment;
-  updateActivityComment?: typeof updateActivityComment;
-  saveActivityReview?: typeof saveActivityReview;
-  loadPeriodReviews?: typeof loadPeriodReviews;
-  loadPeriodReview?: typeof loadPeriodReview;
-  createPeriodReviewComment?: typeof createPeriodReviewComment;
-  updatePeriodReviewComment?: typeof updatePeriodReviewComment;
-  markPeriodReviewReviewed?: typeof markPeriodReviewReviewed;
-  loadPendingCoachQuestion?: typeof loadPendingCoachQuestion;
-  loadAnsweredCoachQuestions?: typeof loadAnsweredCoachQuestions;
-  loadCoachQuestion?: typeof loadCoachQuestion;
-  answerCoachQuestion?: typeof answerCoachQuestion;
-  saveManualActivity?: typeof saveManualActivity;
-  saveWeeklyNote?: typeof saveWeeklyNote;
-  updateManualActivity?: typeof updateManualActivity;
-  deleteImportedActivity?: typeof deleteImportedActivity;
-  deleteManualActivity?: typeof deleteManualActivity;
-  /** Coach replies and their loaders, injectable for DB-free route tests. */
-  loadManualActivityReplies?: typeof loadManualActivityReplies;
-  loadWeeklyNoteReply?: typeof loadWeeklyNoteReply;
-  replyToCoachingInput?: typeof replyToCoachingInput;
-  replyToCoachQuestion?: typeof replyToCoachQuestion;
-  answerCoachingQuestion?: typeof answerCoachingQuestion;
-  /** Plan generation trigger, injectable for DB-free route tests. */
-  triggerPlanGeneration?: typeof triggerPlanGeneration;
-  /** Combined reply-and-plan run, injectable for DB-free route tests. */
-  startCoachRun?: typeof startCoachRun;
-  /** Address search, injectable for DB-free weather route tests. */
-  searchLocations?: typeof searchLocations;
-  /** Forecast loader, injectable for DB-free plan generation tests. */
-  loadForecast?: PlanTriggerDependencies["loadForecast"];
-  /** Prompt log readers, injectable for DB-free admin route tests. */
-  adminLlmCalls?: AdminLlmCallsDependencies;
-  /** Prompt-log failure marker, injectable for DB-free plan route tests. */
-  markPlanPromptsFailed?: PlanTriggerDependencies["markPlanPromptsFailed"];
-}
-
 // Authentication is opt-in per route. The provider is created lazily on the
 // first protected request so module import stays side-effect-free (mirroring
 // how Sentry is a no-op without a DSN). When AUTH0_* env vars are absent,
@@ -216,15 +54,21 @@ export interface AppDependencies {
 let cachedAuth: AuthProvider | null = null;
 
 /** Builds the Hono app. Dependencies are injectable so tests stay DB-free. */
-export function createApp(deps: AppDependencies = {}): Hono {
+export function createApp(options: AppDependencies = {}): Hono {
   const authProvider =
-    deps.authProvider ?? (() => (cachedAuth ??= createAuthProvider()));
-  const userStore = deps.userStore ?? dbUserStore;
-  const answerStore = deps.answerStore ?? dbQuestionAnswerStore;
-  const coachingSurveyAdjustments =
-    deps.coachingSurveyAdjustments ?? dbCoachingSurveyAdjustmentStore;
-  const planStore = deps.planStore ?? dbPlanStore;
-  const generationStore = deps.generationStore ?? dbPlanGenerationStore;
+    options.authProvider ?? (() => (cachedAuth ??= createAuthProvider()));
+  // Resolve the account stores once. Everything else stays optional so each
+  // route can keep its own production default; the shared context is forwarded
+  // whole, which keeps the wiring below a plain list.
+  const deps: ResolvedAppDependencies = {
+    ...options,
+    userStore: options.userStore ?? dbUserStore,
+    answerStore: options.answerStore ?? dbQuestionAnswerStore,
+    coachingSurveyAdjustments:
+      options.coachingSurveyAdjustments ?? dbCoachingSurveyAdjustmentStore,
+    planStore: options.planStore ?? dbPlanStore,
+    generationStore: options.generationStore ?? dbPlanGenerationStore,
+  };
 
   const app = new Hono();
 
@@ -255,272 +99,62 @@ export function createApp(deps: AppDependencies = {}): Hono {
 
   // /api/me also provisions the account on first sign-in and returns its role.
   api.use("/me/*", requireAuth(authProvider));
-  api.route("/me", createMeRoute(userStore));
+  api.route("/me", createMeRoute(deps.userStore));
 
   // Athlete-facing questionnaire. Answers are scoped to the signed-in account
   // and gate the coaching dashboard until every active question is resolved.
   api.use("/questions/*", requireAuth(authProvider));
   api.route(
     "/questions",
-    createQuestionsRoute({ users: userStore, answers: answerStore }),
+    createQuestionsRoute({
+      users: deps.userStore,
+      answers: deps.answerStore,
+    }),
   );
 
   // Garmin integration is authenticated and per-user. Credentials are never
   // serialized in responses.
   api.use("/garmin/*", requireAuth(authProvider));
-  api.route("/garmin", createGarminRoute({ users: userStore }));
+  api.route("/garmin", createGarminRoute({ users: deps.userStore }));
 
   // LLM provider configuration (API key + model) and model discovery, per
   // account. The key is validated, encrypted at rest, and never serialized back
   // to the client.
   api.use("/llm/*", requireAuth(authProvider));
-  api.route("/llm", createLlmRoute({ users: userStore }));
+  api.route("/llm", createLlmRoute({ users: deps.userStore }));
 
   // Address search for the athlete's home location. The actual forecast is
   // fetched during plan generation, not exposed as a public route.
   api.use("/weather/*", requireAuth(authProvider));
-  api.route(
-    "/weather",
-    createWeatherRoute(
-      deps.searchLocations !== undefined
-        ? { searchLocations: deps.searchLocations }
-        : {},
-    ),
-  );
+  api.route("/weather", createWeatherRoute(deps));
 
   // Coaching reads synced Garmin activities, analyses them with the configured
   // LLM, and returns activity data with cached-or-fresh coach analysis.
   api.use("/coaching/*", requireAuth(authProvider));
-  api.route(
-    "/coaching",
-    createCoachingRoute({
-      users: userStore,
-      answers: answerStore,
-      ...(coachingSurveyAdjustments !== undefined
-        ? { coachingSurveyAdjustments }
-        : {}),
-      plans: planStore,
-      generations: generationStore,
-      ...(deps.loadActivities !== undefined
-        ? { loadActivities: deps.loadActivities }
-        : {}),
-      ...(deps.loadCachedFeed !== undefined
-        ? { loadCachedFeed: deps.loadCachedFeed }
-        : {}),
-      ...(deps.loadActivityFeedback !== undefined
-        ? { loadActivityFeedback: deps.loadActivityFeedback }
-        : {}),
-      ...(deps.loadActivityTrainingLoads !== undefined
-        ? { loadActivityTrainingLoads: deps.loadActivityTrainingLoads }
-        : {}),
-      ...(deps.estimateManualTss !== undefined
-        ? { estimateManualTss: deps.estimateManualTss }
-        : {}),
-      ...(deps.loadThresholdHistory !== undefined
-        ? { loadThresholdHistory: deps.loadThresholdHistory }
-        : {}),
-      ...(deps.loadLlm !== undefined ? { loadLlm: deps.loadLlm } : {}),
-      ...(deps.loadCoachingInputs !== undefined
-        ? { loadCoachingInputs: deps.loadCoachingInputs }
-        : {}),
-      ...(deps.loadManualActivities !== undefined
-        ? { loadManualActivities: deps.loadManualActivities }
-        : {}),
-      ...(deps.loadWeeklyNote !== undefined
-        ? { loadWeeklyNote: deps.loadWeeklyNote }
-        : {}),
-      ...(deps.createActivityComment !== undefined
-        ? { createActivityComment: deps.createActivityComment }
-        : {}),
-      ...(deps.updateActivityComment !== undefined
-        ? { updateActivityComment: deps.updateActivityComment }
-        : {}),
-      ...(deps.saveActivityReview !== undefined
-        ? { saveActivityReview: deps.saveActivityReview }
-        : {}),
-      ...(deps.loadPeriodReviews !== undefined
-        ? { loadPeriodReviews: deps.loadPeriodReviews }
-        : {}),
-      ...(deps.loadPeriodReview !== undefined
-        ? { loadPeriodReview: deps.loadPeriodReview }
-        : {}),
-      ...(deps.createPeriodReviewComment !== undefined
-        ? { createPeriodReviewComment: deps.createPeriodReviewComment }
-        : {}),
-      ...(deps.updatePeriodReviewComment !== undefined
-        ? { updatePeriodReviewComment: deps.updatePeriodReviewComment }
-        : {}),
-      ...(deps.markPeriodReviewReviewed !== undefined
-        ? { markPeriodReviewReviewed: deps.markPeriodReviewReviewed }
-        : {}),
-      ...(deps.loadPendingCoachQuestion !== undefined
-        ? { loadPendingCoachQuestion: deps.loadPendingCoachQuestion }
-        : {}),
-      ...(deps.loadAnsweredCoachQuestions !== undefined
-        ? { loadAnsweredCoachQuestions: deps.loadAnsweredCoachQuestions }
-        : {}),
-      ...(deps.loadCoachQuestion !== undefined
-        ? { loadCoachQuestion: deps.loadCoachQuestion }
-        : {}),
-      ...(deps.answerCoachQuestion !== undefined
-        ? { answerCoachQuestion: deps.answerCoachQuestion }
-        : {}),
-      ...(deps.saveManualActivity !== undefined
-        ? { saveManualActivity: deps.saveManualActivity }
-        : {}),
-      ...(deps.saveWeeklyNote !== undefined
-        ? { saveWeeklyNote: deps.saveWeeklyNote }
-        : {}),
-      ...(deps.updateManualActivity !== undefined
-        ? { updateManualActivity: deps.updateManualActivity }
-        : {}),
-      ...(deps.deleteImportedActivity !== undefined
-        ? { deleteImportedActivity: deps.deleteImportedActivity }
-        : {}),
-      ...(deps.deleteManualActivity !== undefined
-        ? { deleteManualActivity: deps.deleteManualActivity }
-        : {}),
-      ...(deps.loadManualActivityReplies !== undefined
-        ? { loadManualActivityReplies: deps.loadManualActivityReplies }
-        : {}),
-      ...(deps.loadWeeklyNoteReply !== undefined
-        ? { loadWeeklyNoteReply: deps.loadWeeklyNoteReply }
-        : {}),
-      ...(deps.replyToCoachingInput !== undefined
-        ? { replyToCoachingInput: deps.replyToCoachingInput }
-        : {}),
-      ...(deps.replyToCoachQuestion !== undefined
-        ? { replyToCoachQuestion: deps.replyToCoachQuestion }
-        : {}),
-      ...(deps.answerCoachingQuestion !== undefined
-        ? { answerCoachingQuestion: deps.answerCoachingQuestion }
-        : {}),
-      ...(deps.triggerPlanGeneration !== undefined
-        ? { triggerPlanGeneration: deps.triggerPlanGeneration }
-        : {}),
-      ...(deps.startCoachRun !== undefined
-        ? { startCoachRun: deps.startCoachRun }
-        : {}),
-      ...(deps.loadForecast !== undefined
-        ? { loadForecast: deps.loadForecast }
-        : {}),
-      ...(deps.loadDiet !== undefined ? { loadDiet: deps.loadDiet } : {}),
-    }),
-  );
+  api.route("/coaching", createCoachingRoute(deps));
 
   // The fitness history behind the Fitness page: daily load and the estimated
   // FTP over a window. Read-only; derived from the cached feed and the plan.
   api.use("/fitness/*", requireAuth(authProvider));
-  api.route(
-    "/fitness",
-    createFitnessRoute({
-      users: userStore,
-      plans: planStore,
-      ...(deps.loadCachedFeed !== undefined
-        ? { loadCachedFeed: deps.loadCachedFeed }
-        : {}),
-      ...(deps.loadFitnessHistory !== undefined
-        ? { loadHistory: deps.loadFitnessHistory }
-        : {}),
-    }),
-  );
+  api.route("/fitness", createFitnessRoute(deps));
 
   // The calendar page: activities, manual entries, planned sessions, block
   // starts, and the season end over the range the athlete has data for.
   api.use("/calendar/*", requireAuth(authProvider));
-  api.route(
-    "/calendar",
-    createCalendarRoute({
-      users: userStore,
-      plans: planStore,
-      ...(deps.loadCachedFeed !== undefined
-        ? { loadCachedFeed: deps.loadCachedFeed }
-        : {}),
-      ...(deps.loadManualActivities !== undefined
-        ? { loadManualActivities: deps.loadManualActivities }
-        : {}),
-      ...(deps.loadManualActivityReplies !== undefined
-        ? { loadManualActivityReplies: deps.loadManualActivityReplies }
-        : {}),
-      ...(deps.loadEvents !== undefined ? { loadEvents: deps.loadEvents } : {}),
-      ...(deps.loadWeekTotals !== undefined
-        ? { loadWeekTotals: deps.loadWeekTotals }
-        : {}),
-    }),
-  );
+  api.route("/calendar", createCalendarRoute(deps));
 
   // The diet log: meals the athlete opted in to logging, with the coach's
   // structured analysis and an authenticated photo endpoint.
   api.use("/diet/*", requireAuth(authProvider));
-  api.route(
-    "/diet",
-    createDietRoute({
-      users: userStore,
-      answers: answerStore,
-      plans: planStore,
-      ...(deps.dietEntries !== undefined ? { entries: deps.dietEntries } : {}),
-      ...(deps.loadDayCalories !== undefined
-        ? { loadTargets: deps.loadDayCalories }
-        : {}),
-      ...(deps.loadLlm !== undefined ? { loadLlm: deps.loadLlm } : {}),
-      ...(deps.loadFoodContext !== undefined
-        ? { loadContext: deps.loadFoodContext }
-        : {}),
-      ...(deps.analyzeFood !== undefined ? { analyze: deps.analyzeFood } : {}),
-      ...(deps.createMealThumbnail !== undefined
-        ? { createThumbnail: deps.createMealThumbnail }
-        : {}),
-    }),
-  );
+  api.route("/diet", createDietRoute(deps));
 
   // The four-level coach plan and its generation progress. The plan is stored
   // per user and advanced by the daily/weekly/block cascade.
-  api.route(
-    "/coaching/plan",
-    createPlanRoute({
-      users: userStore,
-      answers: answerStore,
-      ...(coachingSurveyAdjustments !== undefined
-        ? { coachingSurveyAdjustments }
-        : {}),
-      plans: planStore,
-      generations: generationStore,
-      ...(deps.loadActivities !== undefined
-        ? { loadActivities: deps.loadActivities }
-        : {}),
-      ...(deps.loadThresholdHistory !== undefined
-        ? { loadThresholdHistory: deps.loadThresholdHistory }
-        : {}),
-      ...(deps.loadBodyHistory !== undefined
-        ? { loadBodyHistory: deps.loadBodyHistory }
-        : {}),
-      ...(deps.syncAthleteMetrics !== undefined
-        ? { syncAthleteMetrics: deps.syncAthleteMetrics }
-        : {}),
-      ...(deps.syncAthleteEvents !== undefined
-        ? { syncAthleteEvents: deps.syncAthleteEvents }
-        : {}),
-      ...(deps.loadEvents !== undefined ? { loadEvents: deps.loadEvents } : {}),
-      ...(deps.loadAnsweredCoachQuestions !== undefined
-        ? { loadAnsweredCoachQuestions: deps.loadAnsweredCoachQuestions }
-        : {}),
-      ...(deps.loadLlm !== undefined ? { loadLlm: deps.loadLlm } : {}),
-      ...(deps.loadCoachingInputs !== undefined
-        ? { loadCoachingInputs: deps.loadCoachingInputs }
-        : {}),
-      ...(deps.loadForecast !== undefined
-        ? { loadForecast: deps.loadForecast }
-        : {}),
-      ...(deps.loadDiet !== undefined ? { loadDiet: deps.loadDiet } : {}),
-      ...(deps.markPlanPromptsFailed !== undefined
-        ? { markPlanPromptsFailed: deps.markPlanPromptsFailed }
-        : {}),
-    }),
-  );
+  api.route("/coaching/plan", createPlanRoute(deps));
 
   // Admin-only configuration. Only the admin (the first account in the
   // environment) may manage the versioned athlete question set (ADR 0006).
-  api.use("/admin/*", requireAuth(authProvider), requireAdmin(userStore));
+  api.use("/admin/*", requireAuth(authProvider), requireAdmin(deps.userStore));
   api.route("/admin/questions", adminQuestionsRoute);
   api.route("/admin/llm-calls", createAdminLlmCallsRoute(deps.adminLlmCalls));
 
