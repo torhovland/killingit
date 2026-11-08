@@ -32,8 +32,9 @@ simply well executed, so the coach does not only celebrate the exceptional days.
    (`activityPrompt.ts`) and the program review (`programAnalysisPrompt.ts`).
    Each prompt build draws independently.
 5. The prompt versions are bumped (`ANALYSIS_PROMPT_VERSION`,
-   `PROGRAM_ANALYSIS_PROMPT_VERSION`) so cached analyses and reviews are
-   regenerated with the new instruction.
+   `PROGRAM_ANALYSIS_PROMPT_VERSION`) so each stored analysis records the
+   instruction that produced it. Existing cached analyses are reused; newly
+   generated ones use the new rule.
 
 ### Out of scope
 

@@ -500,7 +500,8 @@ export type NewLlmCallRow = typeof llmCalls.$inferInsert;
  * Cached coach analysis for one athlete activity, keyed by the account, source
  * activity id, and analysis kind. `general` reviews the workout on its own;
  * `program` reviews it against the athlete's training plan after a full plan
- * build. Reused across page visits; regenerated when the selected model changes.
+ * build. Reused across page visits, model changes and prompt-version changes;
+ * only a newer athlete comment regenerates it.
  */
 export const activityAnalyses = pgTable(
   "activity_analyses",

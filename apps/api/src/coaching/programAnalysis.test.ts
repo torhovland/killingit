@@ -161,6 +161,7 @@ describe("analyzeActivitiesAgainstPlan", () => {
         makeActivity(2, "Evening Run"),
       ],
       activityComments: [{ activityId: "1", comment: "Felt strong." }],
+      loadReviews: () => Promise.resolve(new Map()),
       save: (input) => {
         saved.push({ ...input, kind: input.kind ?? "general" });
         return Promise.resolve({
@@ -179,6 +180,100 @@ describe("analyzeActivitiesAgainstPlan", () => {
     expect(saved[0]?.kind).toBe("program");
     expect(saved[0]?.model).toBe("test-model");
     expect(saved[0]?.promptVersion).toBe(PROGRAM_ANALYSIS_PROMPT_VERSION);
+  });
+
+  it("reuses a stored review instead of reviewing the activity again", async () => {
+    const provider = new FakeProvider();
+    const saved: number[] = [];
+
+    await analyzeActivitiesAgainstPlan({
+      userId: 42,
+      provider,
+      apiKey: "test-key",
+      model: "test-model",
+      today: "2026-10-21",
+      plan: makePlan(),
+      activities: [makeActivity(1, "Morning Run")],
+      activityComments: [],
+      loadReviews: () =>
+        Promise.resolve(
+          new Map([
+            [
+              1,
+              {
+                activityId: 1,
+                kind: "program" as const,
+                model: "older-model",
+                text: "Already reviewed against an older plan.",
+                generatedAt: new Date("2026-10-20T09:00:00Z"),
+              },
+            ],
+          ]),
+        ),
+      save: (input) => {
+        saved.push(input.activityId);
+        return Promise.resolve({
+          activityId: input.activityId,
+          kind: input.kind ?? "general",
+          model: input.model,
+          text: input.text,
+          generatedAt: new Date(),
+        });
+      },
+    });
+
+    expect(provider.requests).toHaveLength(0);
+    expect(saved).toHaveLength(0);
+  });
+
+  it("reviews a stored review again when a newer comment has arrived", async () => {
+    const provider = new FakeProvider();
+    const saved: number[] = [];
+
+    await analyzeActivitiesAgainstPlan({
+      userId: 42,
+      provider,
+      apiKey: "test-key",
+      model: "test-model",
+      today: "2026-10-21",
+      plan: makePlan(),
+      activities: [makeActivity(1, "Morning Run")],
+      activityComments: [
+        {
+          activityId: "1",
+          comment: "Felt strong today.",
+          updatedAt: "2026-10-21T09:00:00Z",
+        },
+      ],
+      loadReviews: () =>
+        Promise.resolve(
+          new Map([
+            [
+              1,
+              {
+                activityId: 1,
+                kind: "program" as const,
+                model: "older-model",
+                text: "Already reviewed.",
+                generatedAt: new Date("2026-10-20T09:00:00Z"),
+              },
+            ],
+          ]),
+        ),
+      save: (input) => {
+        saved.push(input.activityId);
+        return Promise.resolve({
+          activityId: input.activityId,
+          kind: input.kind ?? "general",
+          model: input.model,
+          text: input.text,
+          generatedAt: new Date(),
+        });
+      },
+    });
+
+    expect(provider.requests).toHaveLength(1);
+    expect(saved).toEqual([1]);
   });
 
   it("stores the body weight the athlete stated for the activity", async () => {
@@ -200,6 +295,7 @@ describe("analyzeActivitiesAgainstPlan", () => {
       activityComments: [
         { activityId: "1", comment: "Weighed 88.4 kg at 22 % this morning." },
       ],
+      loadReviews: () => Promise.resolve(new Map()),
       save: (input) =>
         Promise.resolve({
           activityId: input.activityId,
@@ -237,6 +333,7 @@ describe("analyzeActivitiesAgainstPlan", () => {
         makeActivity(2, "Evening Run"),
       ],
       activityComments: [],
+      loadReviews: () => Promise.resolve(new Map()),
       save: (input) => {
         saved.push(input.activityId);
         return Promise.resolve({

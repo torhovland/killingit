@@ -52,8 +52,9 @@ export { formatDuration } from "./duration.js";
 export const MAX_PROMPT_SAMPLES = 90;
 
 /**
- * Bump when the prompt or generation parameters change materially. Cached
- * analyses from an older version are ignored and regenerated.
+ * Recorded with each stored analysis for provenance. Changing it does not
+ * invalidate a cached analysis: only a newer athlete comment makes an analysis
+ * stale, so a prompt edit or a model change does not re-bill the athlete.
  */
 export const ANALYSIS_PROMPT_VERSION = 19;
 

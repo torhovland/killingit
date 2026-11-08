@@ -37,8 +37,9 @@ import {
 } from "./promptRules.js";
 
 /**
- * Bump when the review prompt or generation parameters change materially. Cached
- * program reviews from an older version are ignored and regenerated.
+ * Recorded with each stored program review for provenance. Changing it does not
+ * invalidate a stored review: only a newer athlete comment makes one stale, so
+ * a plan refresh or prompt edit does not re-bill the athlete.
  */
 export const PROGRAM_ANALYSIS_PROMPT_VERSION = 16;
 

@@ -254,8 +254,9 @@ power-curve bests live in `metrics`.
   rate, training effect, Garmin load, and the sport's headline metric. This
   keeps the planning prompt readable while still giving the coach the new
   signal.
-- The activity-analysis prompt version must be bumped when these fields are
-  added so cached analyses regenerate.
+- The activity-analysis prompt version is bumped when these fields are added so
+  new analyses record the new prompt. Existing cached analyses are reused, and
+  only a newer athlete comment regenerates one.
 
 ## UI impact
 

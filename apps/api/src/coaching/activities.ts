@@ -18,6 +18,7 @@ import {
   GARMIN_DAILY_SYNC_WINDOW_DAYS,
   syncGarminDailyHistory,
 } from "../garmin/dailySync.js";
+import { commentIsNewerThanAnalysis } from "./analysisFreshness.js";
 import { loadDeletedActivityIds } from "./deletions.js";
 import { loadDecryptedGarminCredentials } from "../garmin/credentials.js";
 import {
@@ -38,7 +39,6 @@ import {
   saveAnalysis,
   type StoredAnalysis,
 } from "../llm/analysisStore.js";
-import { PROGRAM_ANALYSIS_PROMPT_VERSION } from "../llm/programAnalysisPrompt.js";
 import {
   loadActivityFeedback,
   toCoachAnalysis,
@@ -78,22 +78,7 @@ export const MAX_PREVIEW_SAMPLES = 120;
 /** Bounded concurrency so a batch does not flood OpenRouter. */
 const ANALYSIS_CONCURRENCY = 3;
 
-/**
- * A cached analysis is stale once the athlete's comment is newer, because the
- * comment is evidence the analysis must read and any question it asked may now
- * be answered by that comment.
- */
-export function commentIsNewerThanAnalysis(
-  analysis: Pick<StoredAnalysis, "generatedAt"> | undefined,
-  commentUpdatedAt: Date | null | undefined,
-): boolean {
-  return (
-    analysis !== undefined &&
-    commentUpdatedAt !== null &&
-    commentUpdatedAt !== undefined &&
-    commentUpdatedAt > analysis.generatedAt
-  );
-}
+export { commentIsNewerThanAnalysis };
 
 /** The account has not connected Garmin yet. */
 export class GarminNotConnectedError extends Error {
@@ -264,19 +249,8 @@ async function loadAnalyzedActivitiesOnce(
   const [cached, cachedProgram] = options.refresh
     ? [new Map<number, StoredAnalysis>(), new Map<number, StoredAnalysis>()]
     : await Promise.all([
-        loadAnalyses(
-          options.userId,
-          activityIds,
-          dailyModel,
-          ANALYSIS_PROMPT_VERSION,
-        ),
-        loadAnalyses(
-          options.userId,
-          activityIds,
-          dailyModel,
-          PROGRAM_ANALYSIS_PROMPT_VERSION,
-          "program",
-        ),
+        loadAnalyses(options.userId, activityIds),
+        loadAnalyses(options.userId, activityIds, "program"),
       ]);
 
   const ftpEstimates: { date: string; watts: number }[] = [];

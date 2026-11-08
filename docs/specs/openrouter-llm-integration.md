@@ -45,9 +45,10 @@ coach analysis on the main page.
      strength session).
    - Return activity data with the analysis (or a per-activity error) for the
      main page.
-5. **Analysis cache** in `activity_analyses` keyed by account and activity id,
-   invalidated when the account's selected model changes, with
-   `?refresh=true` to force regeneration.
+5. **Analysis cache** in `activity_analyses` keyed by account, activity id and
+   kind. A stored analysis is reused across model and prompt-version changes, so
+   changing either does not re-bill the athlete; `?refresh=true` forces
+   regeneration.
 6. **Main page** showing the latest activities with their analysis, model, and
    generation time; "Sync & re-analyze" forces a fresh pass. The last
    successful feed is cached per account in browser storage so existing cards
@@ -78,8 +79,8 @@ Weather and daylight are included in the plan prompts; see
    without analyses.
 4. The prompt includes recorded timeseries data, and the analysis references
    concrete values from it.
-5. Cached analyses are reused on revisit; changing the model or forcing a
-   refresh regenerates them.
+5. Cached analyses are reused on revisit and across model or prompt-version
+   changes; only a newer athlete comment or forcing a refresh regenerates them.
 6. A single failed analysis does not blank the page; the card shows the error.
 7. Unit tests cover the prompt/timeseries compression, the OpenRouter client,
    the shared schemas, and the activity card; all four quality gates pass.
@@ -93,8 +94,8 @@ Weather and daylight are included in the plan prompts; see
 - **New table `activity_analyses`**: `user_id`, `activity_id` (`bigint` — Garmin
   ids exceed 32-bit integers), `kind`, `model`, `prompt_version`, `analysis`,
   `created_at`, `updated_at`; unique `(user_id, activity_id, kind)`. A cached
-  analysis is reused only when the account, model, prompt version, and kind all
-  match.
+  analysis is keyed by the account, activity and kind; the model and prompt
+  version are recorded for provenance and do not invalidate it.
 - **New table `activity_feed_cache`**: one row per user with the last
   successfully synced `{ model, activities }` feed. It is replaced after every
   successful sync and lets the dashboard show existing cards on page load

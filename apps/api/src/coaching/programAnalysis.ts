@@ -13,10 +13,11 @@ import type {
   ActivityCommentContext,
   BodyMetricHistory,
 } from "../llm/planContext.js";
-import { saveAnalysis } from "../llm/analysisStore.js";
+import { loadAnalyses, saveAnalysis } from "../llm/analysisStore.js";
 import { saveCoachQuestions } from "../plans/coachQuestions.js";
 import { recordCoachBodyMetrics, recordCoachFtp } from "../metrics/store.js";
 import { mapWithConcurrency } from "../lib/mapWithConcurrency.js";
+import { commentIsNewerThanAnalysis } from "./analysisFreshness.js";
 import {
   ftpBaselineAt,
   ftpTimeline,
@@ -50,6 +51,8 @@ export interface AnalyzeActivitiesAgainstPlanInput {
   diet?: DietPromptContext;
   /** Cancels the supplementary review when a newer run starts. */
   signal?: AbortSignal;
+  /** Injectable for tests; defaults to the database-backed reader. */
+  loadReviews?: typeof loadAnalyses;
   /** Injectable for tests; defaults to the database-backed writer. */
   save?: typeof saveAnalysis;
   /** Injectable for tests; defaults to the database-backed writer. */
@@ -66,11 +69,24 @@ export interface AnalyzeActivitiesAgainstPlanInput {
 export async function analyzeActivitiesAgainstPlan(
   input: AnalyzeActivitiesAgainstPlanInput,
 ): Promise<void> {
+  const loadReviews = input.loadReviews ?? loadAnalyses;
   const save = input.save ?? saveAnalysis;
   const saveFtp = input.saveFtp ?? recordCoachFtp;
   const saveBodyMetrics = input.saveBodyMetrics ?? recordCoachBodyMetrics;
+  const storedReviews = await loadReviews(
+    input.userId,
+    input.activities.map((activity) => activity.id),
+    "program",
+  );
   const comments = new Map(
-    input.activityComments.map((entry) => [entry.activityId, entry.comment]),
+    input.activityComments.map((entry) => [
+      entry.activityId,
+      {
+        text: entry.comment,
+        updatedAt:
+          entry.updatedAt === undefined ? null : new Date(entry.updatedAt),
+      },
+    ]),
   );
   const ftpEstimates: { date: string; watts: number }[] = [];
   const bodyMetrics: BodyMetricEstimate[] = [];
@@ -80,6 +96,18 @@ export async function analyzeActivitiesAgainstPlan(
     input.activities,
     PROGRAM_REVIEW_CONCURRENCY,
     async (activity) => {
+      const comment = comments.get(String(activity.id));
+      const stored = storedReviews.get(activity.id);
+      // A review is a snapshot of the plan in force when it was written, so a
+      // later plan refresh must not re-bill the athlete for the same review.
+      // Only a newer comment carries evidence the stored review has not seen.
+      if (
+        stored !== undefined &&
+        !commentIsNewerThanAnalysis(stored, comment?.updatedAt ?? null)
+      ) {
+        return;
+      }
+
       try {
         const activityDate = activity.startDate.slice(0, 10);
         const currentFtpWatts =
@@ -98,7 +126,7 @@ export async function analyzeActivitiesAgainstPlan(
             today: input.today,
             plan: input.plan,
             activity,
-            comment: comments.get(String(activity.id)) ?? null,
+            comment: comment?.text ?? null,
             ...(input.ftpHistory !== undefined
               ? { ftpHistory: input.ftpHistory }
               : {}),

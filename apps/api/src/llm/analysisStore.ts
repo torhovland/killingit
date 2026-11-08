@@ -14,16 +14,15 @@ export interface StoredAnalysis {
 }
 
 /**
- * Loads one account's cached analyses for the given activities, limited to the
- * requested kind, the currently selected model, and prompt version. An analysis
- * produced by a different model or prompt version is stale and is regenerated
- * by the caller.
+ * Loads one account's cached analyses for the given activities and kind. The
+ * stored text is reused regardless of which model or prompt version produced
+ * it: changing either must not re-bill the athlete for an analysis they
+ * already have. A newer athlete comment is the only thing that makes an
+ * analysis stale, and the caller checks that.
  */
 export async function loadAnalyses(
   userId: number,
   activityIds: number[],
-  model: string,
-  promptVersion: number,
   kind: AnalysisKind = "general",
 ): Promise<Map<number, StoredAnalysis>> {
   if (activityIds.length === 0) {
@@ -38,8 +37,6 @@ export async function loadAnalyses(
         eq(activityAnalyses.userId, userId),
         inArray(activityAnalyses.activityId, activityIds),
         eq(activityAnalyses.kind, kind),
-        eq(activityAnalyses.model, model),
-        eq(activityAnalyses.promptVersion, promptVersion),
       ),
     );
 

@@ -99,8 +99,9 @@ so a season refresh cannot silently drop the greeting.
    sentence.
 6. The Season tab shows the stored introduction above the season rationale.
 7. Activity, program, period, reply and food prompts inherit the personality
-   through `GLOBAL_PROMPT_RULES`; their prompt versions are bumped so cached
-   analyses and reviews are regenerated in the new voice.
+   through `GLOBAL_PROMPT_RULES`; their prompt versions are bumped so each
+   stored analysis records the prompt that produced it. Existing cached
+   analyses are reused; newly generated ones use the new voice.
 8. `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`
    pass.
 

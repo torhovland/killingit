@@ -38,8 +38,9 @@ real HTML paragraphs and lists, not as literal `-` or `1.` text.
    - period review summaries and coach replies,
    - coach questions and their replies,
    - weekly-note, by-the-way and calendar coach replies.
-5. Bump the cached prompt versions whose prompts change, so older reviews are
-   regenerated.
+5. Bump the cached prompt versions whose prompts change, so each stored review
+   records the prompt that produced it. Existing cached reviews are reused;
+   newly generated ones use the new formatting.
 
 ### Out of scope
 

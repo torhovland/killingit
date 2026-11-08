@@ -7,6 +7,7 @@ import {
   buildProgramAnalysisMessages,
   type ProgramAnalysisInput,
 } from "./programAnalysisPrompt.js";
+import { ANALYSIS_MAX_TOKENS } from "./planBudget.js";
 import { parsePlanJson, PlanJsonError } from "./planJson.js";
 import { completeWithFallbacks } from "./resilientCompletion.js";
 
@@ -27,8 +28,9 @@ export async function analyzeActivityAgainstPlan(
     provider,
     credentials,
     buildProgramAnalysisMessages(input),
-    // Leave room for reasoning tokens plus a complete 3-5 sentence review.
-    2048,
+    // A generous ceiling lets a reasoning model finish in one attempt rather
+    // than truncating the review and paying for fallback attempts.
+    ANALYSIS_MAX_TOKENS,
     0.3,
     { kind: "program_analysis" },
   );

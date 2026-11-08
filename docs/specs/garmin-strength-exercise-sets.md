@@ -82,7 +82,8 @@ sets to bound the sync payload and prompt size.
    sets, reps, weight), and the system prompt tells the model not to invent
    missing sets.
 4. The program review prompt contains the same recorded sets.
-5. Cached analyses are invalidated by the prompt-version bump.
+5. New analyses record the bumped prompt version; existing cached analyses are
+   reused.
 6. Unit tests cover normalization, prompt rendering, and the fail-open/`429`
    split. Quality gates pass.
 

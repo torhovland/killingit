@@ -8,6 +8,7 @@ import {
   type ActivityAnalysisContext,
 } from "./activityPrompt.js";
 import type { LlmProvider } from "./openrouter.js";
+import { ANALYSIS_MAX_TOKENS } from "./planBudget.js";
 import { parsePlanJson, PlanJsonError } from "./planJson.js";
 import { completeWithFallbacks } from "./resilientCompletion.js";
 
@@ -35,11 +36,9 @@ export async function analyzeActivity(
     provider,
     input,
     buildActivityAnalysisMessages(activity, context, comment),
-    // Reasoning models count their reasoning tokens against this budget, so a
-    // low cap truncates the visible analysis mid-sentence. 2048 leaves room for
-    // reasoning plus a complete 3-5 sentence analysis; the fallbacks retry with
-    // reasoning disabled or a larger budget if that still is not enough.
-    2048,
+    // A generous ceiling lets a reasoning model finish in one attempt rather
+    // than truncating the visible analysis and paying for fallback attempts.
+    ANALYSIS_MAX_TOKENS,
     0.3,
     { kind: "activity_analysis" },
   );

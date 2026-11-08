@@ -20,3 +20,14 @@ export const PLAN_MAX_TOKENS = 16_384;
  * size none of the supported models can serve.
  */
 export const MAX_COMPLETION_TOKENS = 32_768;
+
+/**
+ * Output budget for a short coach analysis or program review.
+ *
+ * `max_tokens` is a ceiling, not a charge, so a generous budget costs nothing
+ * when the model stops early. It leaves room for reasoning tokens, which count
+ * against the budget, so a reasoning model can finish in one attempt instead
+ * of exhausting a small budget and forcing the fallback chain to repeat the
+ * same review.
+ */
+export const ANALYSIS_MAX_TOKENS = 16_384;

@@ -61,7 +61,12 @@ about a past workout, or before a suggested workout, to steer the coach.
 - The current implementation lives behind `LlmProvider`
   (`apps/api/src/llm/openrouter.ts`). Each account's API key is encrypted at
   rest and its chosen model stored in `llm_settings`. Activity analyses are
-  cached per account in `activity_analyses`. See ADR 0004.
+  cached per account in `activity_analyses`. A stored general or program
+  analysis is reused regardless of the selected model or prompt version, and a
+  plan build only fills reviews that are missing, so neither a model change nor
+  a prompt edit re-bills the athlete. Only a newer athlete comment makes a
+  stored analysis stale; see `docs/specs/coach-feedback-and-program-review.md`.
+  See ADR 0004.
 - The model picker is backed by a graded catalog in `llm_models`, refreshed in
   the background at most once every 24 hours (`llm_model_sync`). The Settings
   page selects a season/block model and a separate day-to-day model; both IDs
