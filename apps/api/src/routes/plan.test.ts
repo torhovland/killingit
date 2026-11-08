@@ -724,6 +724,45 @@ describe("coach plan route", () => {
     expect(body.stale).toBe(true);
   });
 
+  it("does not mark the block pending when there is no week review", async () => {
+    const plan = makePlan();
+    // The athlete has coaching inputs, but the stored plan already includes
+    // them and no week review has been generated. A missing review must not
+    // look like a newer review, or the dashboard regenerates forever.
+    const coachingInputsUpdatedAt = new Date("2026-10-20T10:00:00Z");
+    const planStore = new MemoryPlanStore({
+      plan,
+      answersUpdatedAt: new Date("2026-10-20T10:00:00Z"),
+      coachingInputsUpdatedAt,
+      activitiesUpdatedAt: null,
+      generatedAt: new Date("2026-10-20T10:00:00Z"),
+    });
+
+    const res = await makeApp({
+      planStore,
+      coachingInputs: {
+        manualActivities: [],
+        activityComments: [],
+        weeklyNote: "I cannot train on Friday this week.",
+        weeklyNoteWeekStartDate: "2026-10-19",
+        weeklyNoteReply: "Understood; Friday is a rest day.",
+        weeklyNoteUpdatedAt: new Date("2026-10-20T10:00:00Z"),
+        periodReviews: [],
+        weekReviewUpdatedAt: null,
+        blockReviewUpdatedAt: null,
+        updatedAt: coachingInputsUpdatedAt,
+      },
+    }).fetch(authenticatedRequest("/api/coaching/plan?today=2026-10-21"));
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      stale: boolean;
+      pending: { block: boolean };
+    };
+    expect(body.stale).toBe(false);
+    expect(body.pending.block).toBe(false);
+  });
+
   it("treats an invalid stored plan as absent instead of failing", async () => {
     const invalidPlan = makePlan();
     // Simulate a plan saved under an older schema that predates `rationale`.
