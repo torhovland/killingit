@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { planDateSchema } from "./date.js";
 import { coachResponseNotesSchema } from "./llm.js";
+import { athleteMetricStatementSchema } from "./metrics.js";
 
 /**
  * What a dated athlete statement is. A race is a competition with a start and a
@@ -45,6 +46,19 @@ export const athleteEventsResultSchema = z
   .extend(coachResponseNotesSchema.shape);
 
 export type AthleteEventsResult = z.infer<typeof athleteEventsResultSchema>;
+
+/**
+ * One reading of the athlete's own words: the measurements and the dated goals
+ * or events they state, returned together so the text is sent only once.
+ */
+export const athleteReadingResultSchema = z
+  .object({
+    statements: z.array(athleteMetricStatementSchema).default([]),
+    events: z.array(athleteEventSchema).default([]),
+  })
+  .extend(coachResponseNotesSchema.shape);
+
+export type AthleteReadingResult = z.infer<typeof athleteReadingResultSchema>;
 
 /** The last day an event covers, which is its start day when it has no end. */
 export function eventEndDate(

@@ -410,13 +410,12 @@ describe("formatPlanContext", () => {
     expect(text).toContain("Strength sets: Goblet squat: 1 × 10 reps at 12 kg");
   });
 
-  it("includes the activity program review and the coach's reply", () => {
+  it("includes the coach's reply to an activity comment", () => {
     const text = formatPlanContext(
       input({
         recentActivities: [
           {
             ...activity,
-            programAnalysis: "The session matched the planned easy day.",
             coachReply: "Keep the next run just as relaxed.",
           },
         ],
@@ -426,9 +425,6 @@ describe("formatPlanContext", () => {
       }),
     ).join("\n");
 
-    expect(text).toContain(
-      "Coach review against the plan: The session matched the planned easy day.",
-    );
     expect(text).toContain(
       "Coach reply to that comment: Keep the next run just as relaxed.",
     );

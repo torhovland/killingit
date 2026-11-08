@@ -130,6 +130,7 @@ export {
   athleteEventKindSchema,
   athleteEventSchema,
   athleteEventsResultSchema,
+  athleteReadingResultSchema,
   eventCoversDate,
   eventEndDate,
   eventOverlapsRange,
@@ -137,6 +138,7 @@ export {
   type AthleteEvent,
   type AthleteEventKind,
   type AthleteEventsResult,
+  type AthleteReadingResult,
 } from "./event.js";
 
 export {

@@ -65,8 +65,6 @@ export interface CoachingSurveyAdjustmentContext {
 export interface RecentActivityContext {
   summary: ActivitySummary;
   analysis: string | null;
-  /** How the activity fit the plan, generated after a full plan build. */
-  programAnalysis?: string | null;
   /** The coach's latest reply to the athlete's comment on the activity. */
   coachReply?: string | null;
 }
@@ -1237,15 +1235,6 @@ function formatActivity(
     lines.push(`   Coach analysis: ${analysis.trim()}`);
   } else {
     lines.push("   Coach analysis: not available.");
-  }
-  if (
-    entry.programAnalysis !== undefined &&
-    entry.programAnalysis !== null &&
-    entry.programAnalysis.trim() !== ""
-  ) {
-    lines.push(
-      `   Coach review against the plan: ${entry.programAnalysis.trim()}`,
-    );
   }
   if (comment !== null && comment.trim() !== "") {
     lines.push(

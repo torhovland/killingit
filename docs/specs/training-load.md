@@ -45,11 +45,11 @@ numbers must agree across the Day, Week, and Block tabs.
 ### FTP
 
 - The coach reads the athlete's free-text input; nothing is pattern-matched.
-  A dedicated prompt (`kind: athlete_metrics`) sends the profile and every dated
+  A dedicated prompt (`kind: athlete_reading`) sends the profile and every dated
   piece of athlete text — activity comments, manual activities, weekly notes,
   and week/block review comments — and asks for the FTP, body weight, and
   body-fat percentage the athlete states about themselves, one statement per
-  date. The model understands "FTP around 220 W", "280 W when fit but I am now
+  date, together with their dated goals and events. The model understands "FTP around 220 W", "280 W when fit but I am now
   close to 220 W", "74 kg", "down to 12 %", and refuses to turn a goal into a
   measurement.
 - A number in the profile with no date of its own is dated by the profile's last
@@ -200,10 +200,11 @@ Shared (`@killingit/shared`):
 
 API:
 
-- `apps/api/src/llm/athleteMetricsPrompt.ts` and
-  `apps/api/src/coaching/athleteMetrics.ts` read the FTP, body weight, and
+- `apps/api/src/llm/athleteReadingPrompt.ts` and
+  `apps/api/src/coaching/athleteReading.ts` read the FTP, body weight, and
   body-fat values the athlete states in their own words and store them as
-  `user` metric points. No free text is pattern-matched.
+  `user` metric points, together with their dated goals and events. No free text
+  is pattern-matched.
 - `apps/api/src/training/thresholds.ts` builds the single threshold timeline
   model; its `ftpTimeline`, `ftpBaselineAt`, and `ftpWattsAt` selectors read
   cycling FTP from it. There is no separate FTP timeline.

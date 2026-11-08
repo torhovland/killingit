@@ -104,12 +104,13 @@ athlete measurements are never deleted.
 Body weight and body fat are never pattern-matched out of the athlete's text.
 The coach reads them from the athlete's own words:
 
-- A dedicated call (`kind: athlete_metrics`) sends the profile and every dated
+- A dedicated call (`kind: athlete_reading`) sends the profile and every dated
   piece of athlete text — comments, manual activities, weekly notes, and review
   comments — and returns one dated statement per page of text with
-  `ftpWatts`, `weightKg`, and `bodyFatPercent` (null when not stated). It runs
-  before every plan generation, which the app only starts when a level is
-  missing or an input changed.
+  `ftpWatts`, `weightKg`, and `bodyFatPercent` (null when not stated), together
+  with the athlete's dated goals and events. It runs before every plan
+  generation, which the app only starts when a level is missing or an input
+  changed.
 - The coach reports only numbers the athlete states about themselves; a goal
   ("down to 15 %") is not a measurement. Weight is kilograms (pounds are
   converted) and body fat is a percentage of body weight (a fraction such as
@@ -163,11 +164,11 @@ The coach reads them from the athlete's own words:
   `coachPlanSchema` carries it as an optional array. `coachAnalysisResultSchema`
   gains `weightKg` and `bodyFatPercent` (nullable, default `null`).
 - `athleteMetricStatementSchema` (shared) describes one dated statement with
-  `ftpWatts`, `weightKg`, and `bodyFatPercent`; `athleteMetricsResultSchema`
-  wraps the list.
+  `ftpWatts`, `weightKg`, and `bodyFatPercent`; `athleteReadingResultSchema`
+  wraps the list together with the dated events.
 - The plan and activity-analysis prompts ask for those fields and receive the
-  stored body history; the prompt versions are bumped. The dedicated
-  `athlete_metrics` prompt has its own version.
+  stored body history; the prompt versions are bumped. The combined
+  `athlete_reading` prompt has its own version.
 - No public route changes.
 
 ## Acceptance criteria
@@ -196,7 +197,7 @@ The coach reads them from the athlete's own words:
 - Shared unit tests for interpolation, best-fit slope, and projection.
 - API unit tests for the timeline built from stored points, reference-date
   filtering, and user-over-coach precedence.
-- Prompt tests for the `athlete_metrics` contract and the dated text it sends.
+- Prompt tests for the `athlete_reading` contract and the dated text it sends.
 - Reading tests for the storage, one-value-per-date merge, future-date filtering,
   and the fail-open paths.
 - History tests for interpolated body series and the empty case.

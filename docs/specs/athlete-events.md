@@ -16,9 +16,10 @@ and Day plan tabs, and give the coach the same list when it plans.
 
 ### In scope
 
-1. A dedicated coach reading of every dated goal or event in the athlete's
-   survey answers, activity comments, manual activities, weekly notes, period
-   review comments, and answered coach questions.
+1. One coach reading returns every dated goal or event in the athlete's survey
+   answers, activity comments, manual activities, weekly notes, period review
+   comments, and answered coach questions, together with the stated
+   measurements from the same text.
 2. A stored `athlete_events` list per account, replaced by each successful
    reading, newest first, so an event edited out of a comment disappears.
 3. The stored events are added to the plan prompts, so the coach plans around a
@@ -100,10 +101,10 @@ Shared (`@killingit/shared`):
 API:
 
 - `apps/api/src/db/schema.ts`: `athlete_events`.
-- `apps/api/src/llm/athleteEventsPrompt.ts` and `athleteEvents.ts`: the reading
-  and its prompt.
-- `apps/api/src/coaching/athleteEvents.ts`: the source builder and the fail-open
-  sync.
+- `apps/api/src/llm/athleteReadingPrompt.ts` and `athleteReading.ts`: the
+  combined reading and its prompt.
+- `apps/api/src/coaching/athleteReading.ts`: the source builder, the shared
+  metric/event sync, and the fail-open paths.
 - `apps/api/src/events/store.ts`: `loadAthleteEvents` and
   `replaceAthleteEvents`.
 - `apps/api/src/plans/trigger.ts`: runs the reading and passes the stored events
@@ -114,8 +115,9 @@ API:
   `PLAN_PROMPT_RULES`.
 - `apps/api/src/routes/calendar.ts`: events per day, week stats, and bounds.
 - `apps/api/src/routes/plan.ts`: events in the plan response.
-- One Drizzle migration for `athlete_events` and the new `athlete_events` prompt
-  kind.
+- One Drizzle migration for `athlete_events`. The reading uses the
+  `athlete_reading` prompt kind; the older `athlete_metrics` and `athlete_events`
+  kinds remain for historical prompt-log rows.
 
 ## Acceptance criteria
 

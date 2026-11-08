@@ -88,8 +88,8 @@ throughout:
 
 - `description`, `eatenAt`, `timezone` and `today` follow the create request;
   an omitted field keeps its stored value and `description: null` clears it.
-- `photoDataUrl` replaces the photo with a new full-resolution image, whose
-  thumbnail is stored as on create.
+- `photoDataUrl` replaces the photo with a new image; the API derives a bounded
+  analysis copy and the stored thumbnail as on create.
 - `removePhoto: true` clears the photo. It cannot be combined with a new photo.
 - Omitting every field re-assesses the meal unchanged, which is how the meal
   card offers a retry after a failed analysis.
@@ -108,10 +108,10 @@ applies, and not mention the earlier version unless the change matters. A meal
 whose earlier analysis failed is shown with no previous assessment, so the
 coach still knows whether the description changed.
 
-The full-resolution original is never stored, so an edit without a new photo
-re-analyses the stored thumbnail. The Diet page's edit form sends a replacement
-photo when the athlete attaches one, and warns that saving asks the coach to
-analyse the meal again. The photo endpoint sends `cache-control: private,
+The original is never stored, and neither is the bounded analysis copy, so an
+edit without a new photo re-analyses the stored thumbnail. The Diet page's edit
+form sends a replacement photo when the athlete attaches one, and warns that
+saving asks the coach to analyse the meal again. The photo endpoint sends `cache-control: private,
 no-cache` and the client appends the meal's `updatedAt` to the URL, so a
 replaced thumbnail is not served from the browser cache.
 
@@ -144,13 +144,13 @@ food log.
   No survey answer or other athlete input enables them. A survey question may
   still capture diet goals and a current measurement; that answer is coaching
   context like any other survey answer, not a switch.
-- The full-size photo is re-encoded in the browser (up to 4096 px on the long
-  edge, which keeps normal phone photos intact and strips EXIF metadata) and
-  sent to the API. The API sends that image to the coach and uses Jimp, a pure
-  JavaScript decoder, to derive the stored 320 px thumbnail from the same bytes.
-  The full photo is never stored. The thumbnail is served, with the bearer token, from a separate
-  endpoint, so the list response never carries image bytes and the thumbnail is
-  not publicly readable.
+- The photo is re-encoded in the browser (up to 4096 px on the long edge, which
+  keeps normal phone photos intact and strips EXIF metadata) and sent to the
+  API. The API uses Jimp, a pure JavaScript decoder, to derive a 1024 px JPEG
+  for the coach and a 320 px thumbnail for the food log from the same decode.
+  The original and the analysis copy are never stored. The thumbnail is served,
+  with the bearer token, from a separate endpoint, so the list response never
+  carries image bytes and the thumbnail is not publicly readable.
 - A model without vision support is retried once without the photo, so a text
   description still gets an analysis. A photo-only meal whose model cannot read
   images keeps the meal and records the analysis error.

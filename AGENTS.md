@@ -182,9 +182,11 @@ about a past workout, or before a suggested workout, to steer the coach.
   `other`). A sport can have several measures, such as cycling FTP and cycling
   threshold heart rate. Body metrics stay in `athlete_metrics`.
   The athlete's stated thresholds, weight, and body fat are read by the coach,
-  not by a phrase list: a dedicated `athlete_metrics` call sends the profile,
+  not by a phrase list: one dedicated `athlete_reading` call sends the profile,
   every dated piece of athlete text — comments, manual activities, weekly notes,
-  review comments, and answered coach questions — and returns dated statements.
+  review comments, and answered coach questions — and returns both dated
+  statements and the dated goals and events described below. Sending the text
+  once covers both readings.
   A threshold statement with no sport is not stored; the app asks which sport
   it belongs to first. A profile number with no date of its own is dated by the
   profile's last save. A successful read replaces the `user` points of the
@@ -283,8 +285,8 @@ about a past workout, or before a suggested workout, to steer the coach.
   adjustments in its prompt and clears them after a successful save. See
   `docs/specs/coaching-survey-updates.md`.
 - Dated goals and events the athlete states — a race, a sportive, a trip, or a
-  dated target — are read from the same athlete text by a dedicated
-  `athlete_events` call and stored in `athlete_events`. A successful read
+  dated target — are read from the same athlete text by the same
+  `athlete_reading` call and stored in `athlete_events`. A successful read
   replaces the stored list, so an event edited out of a comment disappears, and
   a failed read keeps the previous list. The calendar shows a multi-day event on
   every day it covers, the Week and Day tabs list the events inside their

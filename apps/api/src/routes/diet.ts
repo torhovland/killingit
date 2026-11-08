@@ -27,7 +27,7 @@ import type { QuestionAnswerStore } from "../questions/answers.js";
 import { buildDietSummary } from "../diet/days.js";
 import { toFoodEntry } from "../diet/presenter.js";
 import { dbFoodEntryStore } from "../diet/store.js";
-import { createMealThumbnail } from "../diet/thumbnail.js";
+import { createMealPhotos } from "../diet/thumbnail.js";
 
 /** The reported reason when no provider is configured. */
 const NO_LLM_ERROR =
@@ -142,7 +142,7 @@ export function createDietRoute(deps: ResolvedAppDependencies): Hono {
   const llmLoader = deps.loadLlm ?? loadLlmClient;
   const loadContext = deps.loadFoodContext ?? loadReplyContext;
   const analyze = deps.analyzeFood ?? analyzeFood;
-  const createThumbnail = deps.createMealThumbnail ?? createMealThumbnail;
+  const createPhotos = deps.createMealPhotos ?? createMealPhotos;
 
   return new Hono()
     .get("/summary", async (c) => {
@@ -213,16 +213,19 @@ export function createDietRoute(deps: ResolvedAppDependencies): Hono {
       const today =
         input.today ?? localDateTimeInZone(new Date(), timezone).date;
       const description = input.description?.trim() || null;
-      // The full-resolution image is sent to the coach for analysis and never
-      // stored; the thumbnail is generated here from the same bytes the coach
-      // sees, so the two can never disagree.
+      // The bounded analysis copy and the thumbnail are generated from the same
+      // bytes, so the coach and the stored image can never disagree. Neither the
+      // original nor the analysis copy is stored.
       const photoDataUrl = input.photoDataUrl ?? null;
+      let analysisPhotoDataUrl: string | null = null;
       let thumbnailDataUrl: string | null = null;
       if (photoDataUrl !== null) {
         try {
-          thumbnailDataUrl = await createThumbnail(photoDataUrl);
+          const photos = await createPhotos(photoDataUrl);
+          analysisPhotoDataUrl = photos.analysisDataUrl;
+          thumbnailDataUrl = photos.thumbnailDataUrl;
         } catch (err) {
-          console.error("[diet] could not create the meal thumbnail:", err);
+          console.error("[diet] could not read the meal photo:", err);
           return c.text("The photo could not be read. Try another photo.", 400);
         }
       }
@@ -234,7 +237,7 @@ export function createDietRoute(deps: ResolvedAppDependencies): Hono {
           eatenDate: local.date,
           eatenTime: local.time,
           description,
-          photoDataUrl,
+          photoDataUrl: analysisPhotoDataUrl,
         },
         {
           answers: deps.answerStore,
@@ -291,22 +294,23 @@ export function createDietRoute(deps: ResolvedAppDependencies): Hono {
             : input.description?.trim() || null;
 
         // An edit without a new photo re-analyses the stored thumbnail, because
-        // the full-resolution original is never kept. Removing the photo sends
-        // no image at all.
+        // the full-resolution original and the analysis copy are never kept.
+        // Removing the photo sends no image at all.
         let thumbnailDataUrl = existing.thumbnailDataUrl;
         let photoDataUrl = existing.thumbnailDataUrl;
         const newPhoto = input.photoDataUrl ?? null;
         if (newPhoto !== null) {
           try {
-            thumbnailDataUrl = await createThumbnail(newPhoto);
+            const photos = await createPhotos(newPhoto);
+            thumbnailDataUrl = photos.thumbnailDataUrl;
+            photoDataUrl = photos.analysisDataUrl;
           } catch (err) {
-            console.error("[diet] could not create the meal thumbnail:", err);
+            console.error("[diet] could not read the meal photo:", err);
             return c.text(
               "The photo could not be read. Try another photo.",
               400,
             );
           }
-          photoDataUrl = newPhoto;
         } else if (input.removePhoto === true) {
           thumbnailDataUrl = null;
           photoDataUrl = null;
