@@ -40,7 +40,7 @@ export function QuickQuestionCard({
         name="question"
         className="w-full rounded border bg-card p-2 text-base"
         placeholder="e.g. Should I do my long run on Saturday or Sunday?"
-        rows={2}
+        rows={4}
         value={question}
         onChange={(event) => onQuestionChange(event.target.value)}
       />

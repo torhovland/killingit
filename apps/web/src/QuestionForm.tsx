@@ -54,7 +54,7 @@ export function QuestionForm({
         Question prompt
         <textarea
           name="prompt"
-          rows={2}
+          rows={4}
           maxLength={2000}
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}

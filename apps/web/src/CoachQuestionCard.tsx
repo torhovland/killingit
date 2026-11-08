@@ -86,7 +86,7 @@ export function CoachQuestionCard({
             value={answer}
             onChange={(event) => setAnswer(event.target.value)}
             disabled={submitting}
-            rows={2}
+            rows={4}
           />
           {error && <p className="text-sm text-destructive">{error}</p>}
           <SubmitButton

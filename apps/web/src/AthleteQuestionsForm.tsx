@@ -134,7 +134,7 @@ export function AthleteQuestionsForm({
             <textarea
               id={`athlete-question-${question.id}`}
               name={`question-${question.id}`}
-              rows={3}
+              rows={6}
               maxLength={QUESTION_ANSWER_MAX_LENGTH}
               required={question.required}
               value={answers[question.id] ?? ""}

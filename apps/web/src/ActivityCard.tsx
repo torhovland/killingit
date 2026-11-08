@@ -284,7 +284,7 @@ export function ActivityCard({
             value={comment}
             onChange={(event) => setComment(event.target.value)}
             disabled={submitting}
-            rows={2}
+            rows={4}
           />
           {error && <p className="text-sm text-destructive">{error}</p>}
           <div className="flex flex-wrap gap-2">
