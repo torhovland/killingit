@@ -296,7 +296,7 @@ describe("ACTIVITY_PRAISE_RULES", () => {
       "tell them plainly that they are killing it",
     );
     expect(ACTIVITY_PRAISE_RULES).toContain(
-      "never say it after an ordinary session the athlete merely completed",
+      'Use the words "killing it" exactly',
     );
   });
 

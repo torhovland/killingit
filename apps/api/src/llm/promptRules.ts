@@ -351,14 +351,14 @@ export const ACTIVITY_BODY_METRIC_RULES = `When the athlete's comment on this ac
  * praise. The occasional review also applies it to any well-executed workout
  * through `ACTIVITY_EXTRA_PRAISE_RULES`.
  */
-export const ACTIVITY_PRAISE_RULES = `When the workout was a race, or an effort far above the athlete's ordinary training, and they performed well, tell them plainly that they are killing it. Use the words "killing it" or a close variant, in your own voice, and let your pride show without gushing. Reserve this praise for a workout that genuinely earns it: never say it after an ordinary session the athlete merely completed.`;
+export const ACTIVITY_PRAISE_RULES = `When the workout was a race, or an effort far above the athlete's ordinary training, and they performed well, tell them plainly that they are killing it. Use the words "killing it" exactly, in your own voice, and let your pride show without gushing.`;
 
 /**
  * The occasional extra instruction that extends the praise to any well-executed
  * workout, even one that was not a race or out of the ordinary. Included in
  * roughly one review in fifteen.
  */
-export const ACTIVITY_EXTRA_PRAISE_RULES = `This review is one of the occasional ones where the same praise applies even to an ordinary workout: if this session was well executed, tell the athlete they are killing it, even though it was not a race or an effort far above their ordinary training. Use the words "killing it" or a close variant, in your own voice, and let your pride show without gushing. Do not force it when the session went poorly.`;
+export const ACTIVITY_EXTRA_PRAISE_RULES = `This review is one of the occasional ones where the same praise applies even to an ordinary workout: if this session was well executed, tell the athlete they are killing it, even though it was not a race or an effort far above their ordinary training. Use the words "killing it" exactly, in your own voice, and let your pride show without gushing. Do not force it when the session went poorly.`;
 
 /** The range of the extra-praise draw: 0 up to and including 14. */
 export const EXTRA_PRAISE_DRAW_RANGE = 15;

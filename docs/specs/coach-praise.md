@@ -20,8 +20,7 @@ simply well executed, so the coach does not only celebrate the exceptional days.
 1. A shared `ACTIVITY_PRAISE_RULES` fragment in
    `apps/api/src/llm/promptRules.ts`. It is included in every workout review. It
    tells the coach to say that the athlete is killing it after a well-performed
-   race or an effort far above the athlete's ordinary training, and never after
-   an ordinary session the athlete merely completed.
+   race or an effort far above the athlete's ordinary training.
 2. A shared `ACTIVITY_EXTRA_PRAISE_RULES` fragment. When included, it extends the
    same praise to any well-executed workout, even one that was not a race or out
    of the ordinary, and tells the coach not to force it after a poor session.
@@ -50,8 +49,7 @@ simply well executed, so the coach does not only celebrate the exceptional days.
 
 - `ACTIVITY_PRAISE_RULES` is part of the system prompt of both workout reviews.
   It names the conditions (a race or an effort far above the ordinary, performed
-  well), asks for the words "killing it" or a close variant in the coach's own
-  voice, and forbids the praise after a session that was merely completed.
+  well) and asks for the exact words "killing it" in the coach's own voice.
 - `ACTIVITY_EXTRA_PRAISE_RULES` is added to the user prompt when the draw is 0.
   It repeats the praise for a well-executed ordinary workout and says not to
   force it after a poor session.
