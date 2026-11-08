@@ -432,6 +432,12 @@ Application roles live in the `users` table, not in provider tokens. The first
 account provisioned in an environment is the admin; later accounts are members.
 Only the admin can manage athlete questions (see ADR 0006).
 
+Authentication is default-on for `/api/*`: `createApp` runs `requireAuth` once
+on the whole namespace and allows only the exact paths in `PUBLIC_API_PATHS`
+(`/api/health`, `/api/greet`) through unauthenticated. A new route is therefore
+protected without its own middleware, and making one public is a deliberate
+allowlist entry. See ADR 0024.
+
 A visitor who is not signed in sees the landing page in
 `apps/web/src/SignInPage.tsx`: a short explanation of the coach, what it covers,
 and a single sign-in action. See `docs/specs/signed-out-landing.md`.
