@@ -5,6 +5,7 @@
 - **Related:** `docs/specs/coach-plan-prompts.md`,
   `docs/specs/coach-judgement.md`,
   `docs/specs/coach-feedback-and-program-review.md`,
+  `docs/specs/coach-praise.md`,
   `docs/specs/period-reviews.md`.
 
 ## Goal
@@ -46,8 +47,10 @@ personality colours how it is said, not what is prescribed.
 
 - A named coach persona, a fixed biography, or a cast of characters.
 - Changing the app's marketing copy on the signed-out landing page.
-- App-side sentiment analysis or automatic celebration. The coach still decides
-  how to react from the training data and the athlete's input.
+- App-side sentiment analysis or automatic celebration written without the
+  coach. The coach still decides how to react from the training data and the
+  athlete's input. The one random extra-praise instruction is described in
+  `docs/specs/coach-praise.md`.
 
 ## Prompt rules
 

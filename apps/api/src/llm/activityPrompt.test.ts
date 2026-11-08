@@ -8,7 +8,12 @@ import {
   formatDuration,
   MAX_PROMPT_SAMPLES,
 } from "./activityPrompt.js";
-import { GLOBAL_PROMPT_RULES, TEXT_FORMATTING_RULES } from "./promptRules.js";
+import {
+  ACTIVITY_EXTRA_PRAISE_RULES,
+  ACTIVITY_PRAISE_RULES,
+  GLOBAL_PROMPT_RULES,
+  TEXT_FORMATTING_RULES,
+} from "./promptRules.js";
 
 function makeActivity(overrides: Partial<Activity> = {}): Activity {
   return {
@@ -379,6 +384,39 @@ describe("buildActivityAnalysisPrompt", () => {
       buildActivityAnalysisMessages(makeActivity())[0]?.content ?? "";
 
     expect(system).toContain(TEXT_FORMATTING_RULES);
+  });
+
+  it("praises a well-performed race or extraordinary effort", () => {
+    const system =
+      buildActivityAnalysisMessages(makeActivity())[0]?.content ?? "";
+
+    expect(system).toContain(ACTIVITY_PRAISE_RULES);
+    expect(system).toContain("tell them plainly that they are killing it");
+  });
+
+  it("adds the extra praise when the draw is 0", () => {
+    const messages = buildActivityAnalysisMessages(
+      makeActivity(),
+      undefined,
+      null,
+      () => 0,
+    );
+
+    expect(messages[1]?.content).toContain(ACTIVITY_EXTRA_PRAISE_RULES);
+    expect(messages[1]?.content).toContain(
+      "even though it was not a race or an effort far above their ordinary training",
+    );
+  });
+
+  it("leaves out the extra praise for any other draw", () => {
+    const prompt = buildActivityAnalysisPrompt(
+      makeActivity(),
+      undefined,
+      null,
+      () => 1 / 15,
+    );
+
+    expect(prompt).not.toContain(ACTIVITY_EXTRA_PRAISE_RULES);
   });
 
   it("does not trust the recorded activity type", () => {

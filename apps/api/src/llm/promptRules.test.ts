@@ -1,5 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
+  ACTIVITY_EXTRA_PRAISE_RULES,
+  ACTIVITY_PRAISE_RULES,
   ATHLETE_INPUT_RULES,
   COACH_AMBITION_RULES,
   COACH_PERSONALITY_RULES,
@@ -11,10 +13,12 @@ import {
   DIET_PROGRESS_CONTRACT,
   DIET_PROGRESS_RULES,
   DURATION_TOLERANCE_RULES,
+  EXTRA_PRAISE_DRAW_RANGE,
   FORM_TARGET_RULES,
   GLOBAL_PROMPT_RULES,
   PAST_SESSION_RULES,
   PLAN_PROMPT_RULES,
+  rollExtraPraise,
   SEASON_BLOCK_RULES,
   SEASON_CONTRACT,
   SEASON_INTRODUCTION_RULES,
@@ -280,6 +284,42 @@ describe("DURATION_TOLERANCE_RULES", () => {
     expect(DURATION_TOLERANCE_RULES).toContain(
       "do not suggest changing the next session to make up for it",
     );
+  });
+});
+
+describe("ACTIVITY_PRAISE_RULES", () => {
+  it("praises a well-performed race or extraordinary effort", () => {
+    expect(ACTIVITY_PRAISE_RULES).toContain(
+      "When the workout was a race, or an effort far above the athlete's ordinary training",
+    );
+    expect(ACTIVITY_PRAISE_RULES).toContain(
+      "tell them plainly that they are killing it",
+    );
+    expect(ACTIVITY_PRAISE_RULES).toContain(
+      "never say it after an ordinary session the athlete merely completed",
+    );
+  });
+
+  it("extends the praise to any well-executed workout only in the occasional review", () => {
+    expect(ACTIVITY_EXTRA_PRAISE_RULES).toContain(
+      "even though it was not a race or an effort far above their ordinary training",
+    );
+    expect(ACTIVITY_EXTRA_PRAISE_RULES).toContain(
+      "if this session was well executed, tell the athlete they are killing it",
+    );
+    expect(ACTIVITY_EXTRA_PRAISE_RULES).toContain(
+      "Do not force it when the session went poorly",
+    );
+  });
+});
+
+describe("rollExtraPraise", () => {
+  it("includes the extra praise only for a draw of 0", () => {
+    expect(EXTRA_PRAISE_DRAW_RANGE).toBe(15);
+    expect(rollExtraPraise(() => 0)).toBe(true);
+    expect(rollExtraPraise(() => 1 / EXTRA_PRAISE_DRAW_RANGE)).toBe(false);
+    expect(rollExtraPraise(() => 14 / EXTRA_PRAISE_DRAW_RANGE)).toBe(false);
+    expect(rollExtraPraise(() => 0.999999)).toBe(false);
   });
 });
 

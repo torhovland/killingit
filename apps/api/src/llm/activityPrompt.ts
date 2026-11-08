@@ -29,7 +29,9 @@ import {
 } from "./planContext.js";
 import {
   ACTIVITY_BODY_METRIC_RULES,
+  ACTIVITY_EXTRA_PRAISE_RULES,
   ACTIVITY_FTP_ESTIMATE_RULES,
+  ACTIVITY_PRAISE_RULES,
   ACTIVITY_TYPE_RULE,
   COACH_ANALYSIS_RESPONSE_RULES,
   DAILY_HEALTH_RULES,
@@ -38,6 +40,7 @@ import {
   GLOBAL_PROMPT_RULES,
   promptSections,
   LAP_STRUCTURE_RULES,
+  rollExtraPraise,
   STRENGTH_SET_RULES,
   TEXT_FORMATTING_RULES,
   RETURN_JSON_FROM_SYSTEM_PROMPT,
@@ -52,7 +55,7 @@ export const MAX_PROMPT_SAMPLES = 90;
  * Bump when the prompt or generation parameters change materially. Cached
  * analyses from an older version are ignored and regenerated.
  */
-export const ANALYSIS_PROMPT_VERSION = 18;
+export const ANALYSIS_PROMPT_VERSION = 19;
 
 /**
  * The athlete's current week, used to match an activity to its planned session
@@ -83,6 +86,7 @@ const ANALYSIS_SYSTEM_PROMPT = promptSections(
   "When the athlete's current week plan is provided and the workout happened within that week, match the workout to the planned session it best fits, then make how well it fit the plan part of the same summary. If it followed the plan reasonably well, say so warmly and encouragingly. If it did not, point out clearly what could be improved without being harsh. When the workout happened outside the supplied week, do not match it to any planned session and do not compare it to the plan; the athlete may have older activities that have not been analysed yet, so analyse the workout on its own merits.",
   DURATION_TOLERANCE_RULES,
   "Be brief and to the point: use 2-3 sentences for the assessment, cite only the most useful numbers, and finish with one actionable recommendation for the next session. Use a short bullet list when the session has several points worth noting. The recommendation must follow from a real improvement: when the session went to plan, build on it instead of inventing a correction. Do not add a separate plan-fit section.",
+  ACTIVITY_PRAISE_RULES,
   STRENGTH_SET_RULES,
   LAP_STRUCTURE_RULES,
   DAILY_HEALTH_RULES,
@@ -289,6 +293,7 @@ export function buildActivityAnalysisMessages(
   activity: Activity,
   context?: ActivityAnalysisContext,
   comment?: string | null,
+  random: () => number = Math.random,
 ): {
   role: "system" | "user";
   content: string;
@@ -297,7 +302,7 @@ export function buildActivityAnalysisMessages(
     { role: "system", content: ANALYSIS_SYSTEM_PROMPT },
     {
       role: "user",
-      content: buildActivityAnalysisPrompt(activity, context, comment),
+      content: buildActivityAnalysisPrompt(activity, context, comment, random),
     },
   ];
 }
@@ -307,6 +312,7 @@ export function buildActivityAnalysisPrompt(
   activity: Activity,
   context?: ActivityAnalysisContext,
   comment?: string | null,
+  random: () => number = Math.random,
 ): string {
   const shown = downsampleSamples(activity.samples);
   const activityDate = activity.startDate.slice(0, 10);
@@ -425,6 +431,7 @@ export function buildActivityAnalysisPrompt(
 
   lines.push(
     "",
+    ...(rollExtraPraise(random) ? [ACTIVITY_EXTRA_PRAISE_RULES, ""] : []),
     context?.week !== undefined
       ? inWeek
         ? "Write the brief coach summary. Include how well the workout fit its planned session and cite only the most useful evidence."

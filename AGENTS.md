@@ -99,7 +99,10 @@ about a past workout, or before a suggested workout, to steer the coach.
   comment the voice of a human coach who is tough but warm, relaxed and
   good-humoured, uses humour sparingly, never calls itself an AI, may use the
   athlete's provided first name when it is a real name, and may show pride or a
-  trace of disappointment without overdoing it. A new season also
+  trace of disappointment without overdoing it. A race or an effort far above
+  the athlete's ordinary training that is performed well earns an explicit
+  "you are killing it", and one workout review in fifteen extends that praise to
+  any well-executed workout; see `docs/specs/coach-praise.md`. A new season also
   carries the coach's `introduction`, a short greeting that is shown on the
   Season tab and preserved by later refreshes; see
   `docs/specs/coach-personality.md`. A shared judgement rule keeps the coach

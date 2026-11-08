@@ -4,7 +4,12 @@ import {
   buildProgramAnalysisMessages,
   buildProgramAnalysisPrompt,
 } from "./programAnalysisPrompt.js";
-import { GLOBAL_PROMPT_RULES, TEXT_FORMATTING_RULES } from "./promptRules.js";
+import {
+  ACTIVITY_EXTRA_PRAISE_RULES,
+  ACTIVITY_PRAISE_RULES,
+  GLOBAL_PROMPT_RULES,
+  TEXT_FORMATTING_RULES,
+} from "./promptRules.js";
 
 function makePlan(): CoachPlan {
   return {
@@ -159,6 +164,45 @@ describe("buildProgramAnalysisMessages", () => {
     expect(prompt).toContain(
       "Match the activity to another session in this week if its data fits one.",
     );
+  });
+
+  it("praises a well-performed race or extraordinary effort", () => {
+    const messages = buildProgramAnalysisMessages({
+      today: "2026-10-21",
+      plan: makePlan(),
+      activity,
+    });
+
+    expect(messages[0]?.content).toContain(ACTIVITY_PRAISE_RULES);
+    expect(messages[0]?.content).toContain(
+      "tell them plainly that they are killing it",
+    );
+  });
+
+  it("adds the extra praise when the draw is 0", () => {
+    const messages = buildProgramAnalysisMessages(
+      {
+        today: "2026-10-21",
+        plan: makePlan(),
+        activity,
+      },
+      () => 0,
+    );
+
+    expect(messages[1]?.content).toContain(ACTIVITY_EXTRA_PRAISE_RULES);
+  });
+
+  it("leaves out the extra praise for any other draw", () => {
+    const prompt = buildProgramAnalysisPrompt(
+      {
+        today: "2026-10-21",
+        plan: makePlan(),
+        activity,
+      },
+      () => 14 / 15,
+    );
+
+    expect(prompt).not.toContain(ACTIVITY_EXTRA_PRAISE_RULES);
   });
 
   it("uses a formatted-text review system prompt", () => {

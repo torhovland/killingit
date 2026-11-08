@@ -19,7 +19,9 @@ import {
 } from "./planContext.js";
 import {
   ACTIVITY_BODY_METRIC_RULES,
+  ACTIVITY_EXTRA_PRAISE_RULES,
   ACTIVITY_FTP_ESTIMATE_RULES,
+  ACTIVITY_PRAISE_RULES,
   ACTIVITY_TYPE_RULE,
   COACH_ANALYSIS_RESPONSE_RULES,
   DAILY_HEALTH_RULES,
@@ -28,6 +30,7 @@ import {
   GLOBAL_PROMPT_RULES,
   promptSections,
   LAP_STRUCTURE_RULES,
+  rollExtraPraise,
   STRENGTH_SET_RULES,
   TEXT_FORMATTING_RULES,
   RETURN_JSON_FROM_SYSTEM_PROMPT,
@@ -37,7 +40,7 @@ import {
  * Bump when the review prompt or generation parameters change materially. Cached
  * program reviews from an older version are ignored and regenerated.
  */
-export const PROGRAM_ANALYSIS_PROMPT_VERSION = 15;
+export const PROGRAM_ANALYSIS_PROMPT_VERSION = 16;
 
 export interface ProgramAnalysisInput {
   today: string;
@@ -66,6 +69,7 @@ const PROGRAM_ANALYSIS_SYSTEM_PROMPT = promptSections(
   "Match the workout to a planned session, then weave how well it fit the plan into one brief summary rather than a separate section. Be encouraging when the workout was at least somewhat conforming, but do not hesitate to point out what could genuinely be improved. Cite only the most useful numbers.",
   DURATION_TOLERANCE_RULES,
   "Use 2-3 sentences and finish with one actionable takeaway. Use a short bullet list when the workout has several points worth noting. The takeaway must follow from a real improvement: when the workout went to plan, build on it instead of inventing a correction.",
+  ACTIVITY_PRAISE_RULES,
   STRENGTH_SET_RULES,
   LAP_STRUCTURE_RULES,
   DAILY_HEALTH_RULES,
@@ -77,19 +81,26 @@ const PROGRAM_ANALYSIS_SYSTEM_PROMPT = promptSections(
 );
 
 /** Builds the chat messages for a program-aware activity review. */
-export function buildProgramAnalysisMessages(input: ProgramAnalysisInput): {
+export function buildProgramAnalysisMessages(
+  input: ProgramAnalysisInput,
+  random: () => number = Math.random,
+): {
   role: "system" | "user";
   content: string;
 }[] {
   return [
     { role: "system", content: PROGRAM_ANALYSIS_SYSTEM_PROMPT },
-    { role: "user", content: buildProgramAnalysisPrompt(input) },
+    {
+      role: "user",
+      content: buildProgramAnalysisPrompt(input, random),
+    },
   ];
 }
 
 /** Exposed for tests and for inspecting exactly what is sent to the model. */
 export function buildProgramAnalysisPrompt(
   input: ProgramAnalysisInput,
+  random: () => number = Math.random,
 ): string {
   const { plan, activity } = input;
   const activityDate = activity.startDate.slice(0, 10);
@@ -146,6 +157,7 @@ export function buildProgramAnalysisPrompt(
 
   lines.push(
     "",
+    ...(rollExtraPraise(random) ? [ACTIVITY_EXTRA_PRAISE_RULES, ""] : []),
     "Write a brief summary that includes how well this activity fit its planned session and what could be done better.",
     RETURN_JSON_FROM_SYSTEM_PROMPT,
   );
