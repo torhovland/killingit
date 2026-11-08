@@ -29,11 +29,17 @@ personality colours how it is said, not what is prescribed.
 4. The coach may show a trace of disappointment when the athlete falls short of
    what was expected, and is encouraged to show pride and happiness when the
    athlete does particularly well. Both reactions stay brief and proportionate.
-5. A new season opens with an introduction. The season plan gains an
-   `introduction` field: a short greeting from the coach that introduces them,
-   greets the athlete, and says how much they look forward to working together.
-   The introduction is shown on the Season tab.
-6. The introduction belongs to the season. A later season refresh keeps the
+5. When the input provides a first name that plainly looks like a real first
+   name, the coach uses it naturally now and then, including in the season
+   greeting. It never addresses the athlete with an email address, username,
+   handle, account id, or another string that clearly is not a name, and it
+   speaks without a name when no real first name is available.
+6. A new season opens with an introduction. The season plan gains an
+   `introduction` field: a short greeting from the coach that introduces them
+   and welcomes the athlete. Saying that the coach looks forward to working
+   together is one example, not a required line. The introduction is shown on
+   the Season tab.
+7. The introduction belongs to the season. A later season refresh keeps the
    stored greeting instead of reintroducing the coach.
 
 ### Out of scope
@@ -49,12 +55,16 @@ personality colours how it is said, not what is prescribed.
 
 - `COACH_PERSONALITY_RULES` defines the human voice: tough but warm, relaxed,
   good-humoured, focused on the coaching, sparing with humour, never an AI, and
-  willing to show pride or a trace of disappointment. It is part of
-  `GLOBAL_PROMPT_RULES`, so the season, block, week, day, combined, update,
-  activity review, program review, period review, coach reply and meal prompts
-  all use it.
+  willing to show pride or a trace of disappointment. It also says to use a
+  provided first name naturally when it looks like a real name, and never to
+  address the athlete with an email address, username, handle, account id, URL
+  or other non-name string. It is part of `GLOBAL_PROMPT_RULES`, so the season,
+  block, week, day, combined, update, activity review, program review, period
+  review, coach reply and meal prompts all use it.
 - `SEASON_INTRODUCTION_RULES` asks a new season for a short greeting in
-  `introduction`, separate from the plan rationale.
+  `introduction`, separate from the plan rationale. It uses the first name when
+  one looks real, greets the athlete without a name otherwise, and treats "I
+  look forward to working with you" as an example rather than a required line.
 
 The `introduction` field is added to `SEASON_CONTRACT` as `"string | null"`. The
 initial season prompt requires it; the plan-update prompt keeps the stored value.
@@ -79,10 +89,12 @@ so a season refresh cannot silently drop the greeting.
    professional coaching output the focus.
 3. The fragment forbids describing the coach as an AI coach or similar, and
    allows a brief trace of disappointment and genuine pride.
-4. The season plan prompt asks for an introduction and the initial season
-   response requires a non-empty one.
-5. The Season tab shows the stored introduction above the season rationale.
-6. A season refresh keeps the stored introduction.
+4. The personality and introduction rules use a provided real first name, never
+   a non-name identifier, and allow the greeting to omit a name.
+5. The season plan prompt asks for an introduction and the initial season
+   response requires a non-empty one, without requiring any particular
+   sentence.
+6. The Season tab shows the stored introduction above the season rationale.
 7. Activity, program, period, reply and food prompts inherit the personality
    through `GLOBAL_PROMPT_RULES`; their prompt versions are bumped so cached
    analyses and reviews are regenerated in the new voice.
@@ -92,8 +104,8 @@ so a season refresh cannot silently drop the greeting.
 ## Testing
 
 - `promptRules.test.ts` asserts the personality wording, the AI prohibition, the
-  humour limits, the pride/disappointment permission, and that `GLOBAL_PROMPT_RULES`
-  and `PLAN_PROMPT_RULES` carry it.
+  humour limits, the pride/disappointment permission, the real-first-name rule,
+  the non-name guard, and that `GLOBAL_PROMPT_RULES` carries it.
 - `planInitialPrompt.test.ts` asserts the season prompt asks for the
   introduction.
 - `planUpdatePrompt.test.ts` asserts the update prompt keeps the introduction.

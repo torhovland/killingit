@@ -115,6 +115,18 @@ describe("COACH_PERSONALITY_RULES", () => {
     expect(COACH_PERSONALITY_RULES).toContain("with no gushing and no sulking");
   });
 
+  it("uses a real first name but never a non-name identifier", () => {
+    expect(COACH_PERSONALITY_RULES).toContain(
+      "plainly looks like a real first name, use it naturally now and then",
+    );
+    expect(COACH_PERSONALITY_RULES).toContain(
+      "Never address the athlete with an email address, username, handle, account id, URL",
+    );
+    expect(COACH_PERSONALITY_RULES).toContain(
+      "When no real first name is available, speak to them without one",
+    );
+  });
+
   it("reaches every prompt through the global rules", () => {
     expect(GLOBAL_PROMPT_RULES).toContain(COACH_PERSONALITY_RULES);
   });
@@ -123,10 +135,16 @@ describe("COACH_PERSONALITY_RULES", () => {
 describe("SEASON_INTRODUCTION_RULES", () => {
   it("asks a new season to introduce the coach and welcome the athlete", () => {
     expect(SEASON_INTRODUCTION_RULES).toContain(
+      "greet the athlete by first name when the input gives a name that clearly looks like a real first name",
+    );
+    expect(SEASON_INTRODUCTION_RULES).toContain(
       "introduce yourself as the coach who will guide their season",
     );
     expect(SEASON_INTRODUCTION_RULES).toContain(
-      "say how much you look forward to working with them",
+      "that is only one option, not a required line",
+    );
+    expect(SEASON_INTRODUCTION_RULES).toContain(
+      "When no real first name is available, greet them without a name",
     );
     expect(SEASON_INTRODUCTION_RULES).toContain(
       "This greeting is not the season rationale",

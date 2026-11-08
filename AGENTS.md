@@ -97,8 +97,9 @@ about a past workout, or before a suggested workout, to steer the coach.
   bike-workout, body-metric and week-outline behaviour stays consistent across
   prompts. A shared personality rule gives every plan, review, reply and meal
   comment the voice of a human coach who is tough but warm, relaxed and
-  good-humoured, uses humour sparingly, never calls itself an AI, and may show
-  pride or a trace of disappointment without overdoing it. A new season also
+  good-humoured, uses humour sparingly, never calls itself an AI, may use the
+  athlete's provided first name when it is a real name, and may show pride or a
+  trace of disappointment without overdoing it. A new season also
   carries the coach's `introduction`, a short greeting that is shown on the
   Season tab and preserved by later refreshes; see
   `docs/specs/coach-personality.md`. A shared judgement rule keeps the coach
