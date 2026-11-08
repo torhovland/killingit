@@ -301,7 +301,9 @@ about a past workout, or before a suggested workout, to steer the coach.
   `calorieBreakdown` of base metabolism, workout requirement and diet deficit
   whose sum is the allocated intake; the Today card and the Diet page show that
   breakdown and say the parts start rough until meals and weigh-ins refine them
-  (`docs/specs/calorie-breakdown.md`). The goal defaults to maintenance when the
+  (`docs/specs/calorie-breakdown.md`). A stated fat-loss goal keeps a
+  best-effort deficit even when data is thin; only an explained taper, race,
+  recovery or build hold may use 0. The goal defaults to maintenance when the
   athlete states none. `GET /api/diet/summary` groups meals under their local
   day and joins them to the stored target, and the Diet page shows the goal and
   assessment at the top, today's breakdown/logged/remaining calories, and each

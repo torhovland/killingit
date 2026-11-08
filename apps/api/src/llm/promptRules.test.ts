@@ -283,6 +283,23 @@ describe("DIET_PLANNING_RULES", () => {
     expect(WEEK_CONTRACT).toContain('"calorieBreakdown"');
   });
 
+  it("keeps a deficit in a fat-loss plan even with little data", () => {
+    expect(DIET_PLANNING_RULES).toContain("always calls for a calorie deficit");
+    expect(DIET_PLANNING_RULES).toContain(
+      "never a reason to allocate maintenance calories",
+    );
+    expect(DIET_PLANNING_RULES).toContain("200-500 kcal per day");
+    expect(DIET_PLANNING_RULES).toContain(
+      "A body-fat goal does not need a separate weight target",
+    );
+    expect(DIET_PLANNING_RULES).toContain(
+      "race preparation changes the size and timing of the deficit",
+    );
+    expect(DIET_PLANNING_RULES).toContain(
+      "it stays above 0 on the days you allocate",
+    );
+  });
+
   it("records whether the athlete stated the goal", () => {
     expect(DIET_PLANNING_RULES).toContain('"diet.goalProvided"');
     expect(DIET_PLANNING_RULES).toContain(

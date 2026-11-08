@@ -69,7 +69,15 @@ requirement.
 - say in `diet.assessment` when the parts are rough because the food log and
   weight history are thin, name the observation that will refine them, and
   adjust the parts to the observed weight trend as meals and weigh-ins
-  accumulate.
+  accumulate;
+- keep a real deficit when the athlete states a weight-loss or body-fat-loss
+  goal. Missing food-log or weight data changes the size and confidence of the
+  starting deficit, never its direction: the prompt asks for a conservative
+  best-effort deficit (usually 200-500 kcal per day) instead of maintenance
+  calories. A body-fat goal needs no separate weight target. A hard block or race
+  preparation changes the size and timing of the deficit; only a taper, race day,
+  recovery week or muscle-building block may hold it at 0, and the coach must
+  explain that hold in `diet.assessment` and the period's `dietProgress` note.
 
 A generated plan that carries a calorie total but no breakdown is rejected with
 a repair request. A stored plan without one is not marked pending, so the app
@@ -112,7 +120,10 @@ Week tab keep their single `N kcal needed` line.
    allocated total.
 8. The prompt tells the coach to refine the parts from the observed weight trend
    and logged intake, and to say when the numbers are still rough.
-9. Typecheck, lint, format, and tests pass.
+9. A stated weight-loss or body-fat-loss goal keeps a non-zero deficit even with
+   little food-log and weight history; only a deliberately explained hold may
+   use 0.
+10. Typecheck, lint, format, and tests pass.
 
 ## Testing
 

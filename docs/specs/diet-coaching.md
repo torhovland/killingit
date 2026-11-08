@@ -100,6 +100,13 @@ consumedCaloriesKcal, balanceKcal, entries }] }`. `balanceKcal` is consumed
   The prompt asks the coach to say so in `diet.assessment`, name the observation
   that will refine them, and adjust base metabolism, workout burn and deficit to
   the observed weight trend as meals and weigh-ins accumulate.
+- Missing food-log or weight data never turns a stated weight-loss or
+  body-fat-loss goal into maintenance. The coach plans a conservative best-effort
+  deficit (usually 200-500 kcal per day) from the stated goal and current
+  measurements, and widens only the uncertainty as data accumulates. A hard
+  block or race preparation changes the size and timing of the deficit; only a
+  taper, race day, recovery week or muscle-building block may hold at 0, with the
+  reason in `diet.assessment` and the period's `dietProgress` note.
 - The plan context includes the athlete's earlier calorie targets for the last
   28 days, so the assessment can compare the intake with the requirement.
 
@@ -121,7 +128,9 @@ consumedCaloriesKcal, balanceKcal, entries }] }`. `balanceKcal` is consumed
    the body chart.
 8. Saving a plan records each day's target in `plan_day_calories`, and the
    target survives the week leaving the stored plan.
-9. Typecheck, lint, format, and tests pass.
+9. A stated weight-loss or body-fat-loss goal keeps a non-zero deficit even when
+   the food log and weight history are thin; only an explained hold may use 0.
+10. Typecheck, lint, format, and tests pass.
 
 ## Testing
 
