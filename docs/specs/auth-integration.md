@@ -2,7 +2,8 @@
 
 - **Status:** Accepted (implemented)
 - **Date:** 2026-10-17
-- **Related:** ADR 0002 (Auth0 Free plan decision)
+- **Related:** ADR 0002 (Auth0 Free plan decision), ADR 0024 (default-on API
+  authentication)
 
 ## Goal
 
@@ -138,6 +139,13 @@ only replaces that module.
   keeps the expected outcome out of Sentry. `useRefreshTokensFallback` stays
   on so a session cached before refresh tokens existed is renewed silently via
   the iframe instead of failing.
+- **Authentication is default-on for `/api/*`.** `createApp` registers
+  `requireAuth` once on `/api/*` before the sub-app routes, and only the exact
+  paths in `PUBLIC_API_PATHS` (`/api/health`, `/api/greet`) pass without a
+  token. The plan route is protected by this central rule rather than by the
+  `/coaching/*` prefix it happens to live under (issue #161). The API tests
+  sample one route from every protected family plus an unregistered `/api`
+  path and assert 401. See ADR 0024.
 - **A 401 refreshes once before it surfaces.** If the API rejects a bearer
   token, `fetchJsonAuthed` calls `getToken({ forceRefresh: true })`, which
   bypasses the Auth0 token cache (`cacheMode: "off"`), and retries the request
