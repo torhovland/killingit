@@ -345,6 +345,24 @@ export const ACTIVITY_FTP_ESTIMATE_RULES = `${ACTIVITY_DATA_LIMITS_RULE} Also es
  */
 export const ACTIVITY_BODY_METRIC_RULES = `When the athlete's comment on this activity states their body weight or body-fat percentage, report it in "weightKg" and "bodyFatPercent".`;
 
+/**
+ * When the coach tells the athlete they are killing it. A race, or an effort far
+ * above the athlete's ordinary training, that is performed well earns the
+ * praise. The occasional review also applies it to any well-executed workout
+ * through `ACTIVITY_EXTRA_PRAISE_RULES`.
+ */
+export const ACTIVITY_PRAISE_RULES = `When the workout was a race, or an effort far above the athlete's ordinary training, and they performed well, tell them plainly that they are killing it. Use the words "killing it" exactly, in your own voice, and let your pride show without gushing.`;
+
+/**
+ * The occasional extra instruction that extends the praise to any well-executed
+ * workout, even one that was not a race or out of the ordinary. Included in
+ * roughly one review in fifteen.
+ */
+export const ACTIVITY_EXTRA_PRAISE_RULES = `This review is one of the occasional ones where the same praise applies even to an ordinary workout: if this session was well executed, tell the athlete they are killing it, even though it was not a race or an effort far above their ordinary training. Use the words "killing it" exactly, in your own voice, and let your pride show without gushing. Do not force it when the session went poorly.`;
+
+/** The range of the extra-praise draw: 0 up to and including 14. */
+export const EXTRA_PRAISE_DRAW_RANGE = 15;
+
 /** The JSON-only output rule shared by every structured prompt. */
 export const JSON_ONLY_RULES = `Do not add markdown fences, headings, explanations, commentary, or extra fields.`;
 
@@ -500,6 +518,15 @@ export const FOOD_ANALYSIS_RESPONSE_RULES = promptSections(
   DIET_RULES,
   JSON_ONLY_RULES,
 );
+
+/**
+ * Draws whether this workout review should also praise a well-executed ordinary
+ * workout. The draw is 0 up to and including 14, and only 0 includes the extra
+ * instruction.
+ */
+export function rollExtraPraise(random: () => number = Math.random): boolean {
+  return Math.floor(random() * EXTRA_PRAISE_DRAW_RANGE) === 0;
+}
 
 /**
  * Joins prompt sections with a blank line, dropping empty sections. Shared
