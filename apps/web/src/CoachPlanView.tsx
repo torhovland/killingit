@@ -792,6 +792,14 @@ function SeasonSection({
           )
         )}
       </p>
+      {season.introduction != null && season.introduction.trim() !== "" && (
+        <div
+          className="mt-3 rounded border bg-background p-3 text-base"
+          data-testid="season-introduction"
+        >
+          <FormattedText text={season.introduction} />
+        </div>
+      )}
       <div className="mt-3 flex flex-col gap-1 text-base">
         <p className="font-medium">Coach's rationale</p>
         <FormattedText

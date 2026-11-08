@@ -106,7 +106,7 @@ function makeAnalyzedActivity(
 
 describe("coach plan prompts", () => {
   it("exposes a prompt version for cache invalidation", () => {
-    expect(COACH_PLAN_PROMPT_VERSION).toBe(14);
+    expect(COACH_PLAN_PROMPT_VERSION).toBe(15);
   });
 
   it("builds a system and a user message", () => {
@@ -137,6 +137,7 @@ describe("coach plan prompts", () => {
 
     expect(prompt).toContain("Return only a single valid JSON object");
     expect(prompt).toContain('"season"');
+    expect(prompt).toContain('"introduction"');
     expect(prompt).toContain('"block"');
     expect(prompt).toContain('"week"');
     expect(prompt).toContain('"today"');

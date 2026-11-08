@@ -868,17 +868,23 @@ function applyPlanUpdate(
   let plan: CoachPlan = { ...current };
 
   if (revision.season) {
-    const season = withCompletedSeasonBlocks(
-      update.season,
+    const season = withStoredIntroduction(
+      withCompletedSeasonBlocks(update.season, current.season, today),
       current.season,
-      today,
     );
     assertRefreshedSeason(season, update.block, today, current.block.startDate);
     plan = { ...plan, season, block: update.block };
   } else if (revision.block) {
-    plan = { ...plan, season: update.season, block: update.block };
+    plan = {
+      ...plan,
+      season: withStoredIntroduction(update.season, current.season),
+      block: update.block,
+    };
   } else if (revision.nextBlock) {
-    plan = { ...plan, season: update.season };
+    plan = {
+      ...plan,
+      season: withStoredIntroduction(update.season, current.season),
+    };
   }
 
   if (
@@ -1194,6 +1200,21 @@ function dropUnplacedTomorrow(
 /** True when `today` falls inside the season's dates. */
 function seasonCovers(season: SeasonPlan, today: string): boolean {
   return today >= season.startDate && today <= season.endDate;
+}
+
+/**
+ * Keeps the greeting from the season the coach first planned. A refresh or a
+ * block update returns the season without needing to repeat the introduction,
+ * and an omitted greeting must not make the coach introduce themselves again.
+ */
+function withStoredIntroduction(
+  season: SeasonPlan,
+  previous: SeasonPlan,
+): SeasonPlan {
+  return {
+    ...season,
+    introduction: season.introduction ?? previous.introduction ?? null,
+  };
 }
 
 /**

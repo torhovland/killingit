@@ -36,6 +36,8 @@ import {
 function makeSeason(): SeasonPlan {
   return {
     goal: "Sub-4-hour marathon",
+    introduction:
+      "Hello, I'm your coach. I'm looking forward to working with you.",
     startDate: "2026-10-21",
     endDate: "2027-04-01",
     rationale: "Build aerobic base before marathon-specific work.",
@@ -2038,7 +2040,13 @@ describe("runPlanGeneration", () => {
   it("builds a fresh season from today when asked for a new season", async () => {
     const today = "2026-11-15";
     const provider = new FakeProvider({
-      season: JSON.stringify({ season: makeRefreshedSeason(today) }),
+      season: JSON.stringify({
+        season: {
+          ...makeRefreshedSeason(today),
+          introduction:
+            "Hello, I am your coach and I look forward to working with you.",
+        },
+      }),
       block: JSON.stringify({ block: makeBlock(today, "2026-12-31") }),
       weekly: JSON.stringify({
         week: makeWeek(startOfWeek(today)),
@@ -2105,6 +2113,41 @@ describe("runPlanGeneration", () => {
     expect(saved?.plan.block.startDate).toBe("2026-11-01");
     expect(saved?.plan.today.date).toBe(today);
     expect(generations.steps).toContain("Refreshing your season");
+  });
+
+  it("keeps the stored introduction when the season is refreshed", async () => {
+    const today = "2026-11-15";
+    const base = makeMidSeasonPlan(today);
+    const introduction =
+      "Hello Alex, I'm your coach. I'm looking forward to working with you.";
+    const previous: CoachPlan = {
+      ...base,
+      season: { ...base.season, introduction },
+    };
+    const provider = new FakeProvider({
+      planUpdate: makeUpdate(today, {
+        season: makeRefreshedSeason("2026-11-01"),
+        block: makeBlock("2026-11-01", "2026-12-31"),
+        week: makeWeek(startOfWeek(today)),
+        today: makeDay(today),
+      }),
+    });
+    const existing = makeStoredPlan(previous);
+    const plans = new MemoryPlanStore(existing);
+    const generations = new MemoryGenerationStore();
+
+    const saved = await runPlanGeneration({
+      userId: 1,
+      runId: "run-1",
+      today,
+      mode: "updateSeason",
+      plan: existing,
+      context: makeContext(provider),
+      plans,
+      generations,
+    });
+
+    expect(saved?.plan.season.introduction).toBe(introduction);
   });
 
   it("refreshes the season when a block review is generated", async () => {
