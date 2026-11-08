@@ -7,7 +7,7 @@ import type { LlmClient } from "../llm/client.js";
 import type { PlanContextInput } from "../llm/planContext.js";
 import type { LlmProvider } from "../llm/openrouter.js";
 import type { PlanStore, StoredPlan } from "../plans/store.js";
-import type { loadPlanDayCalories } from "../plans/dayCalories.js";
+import type { loadPlanDayCalorieTargets } from "../plans/dayCalories.js";
 import type {
   FoodEntryStore,
   NewFoodEntry,
@@ -133,7 +133,7 @@ function makeApp(
     analyze?: NonNullable<Parameters<typeof createApp>[0]>["analyzeFood"];
     createThumbnail?: typeof createMealThumbnail;
     planStore?: PlanStore;
-    loadDayCalories?: typeof loadPlanDayCalories;
+    loadDayCalorieTargets?: typeof loadPlanDayCalorieTargets;
   } = {},
 ) {
   const store = options.store ?? new MemoryFoodStore();
@@ -155,8 +155,8 @@ function makeApp(
     ...(options.planStore !== undefined
       ? { planStore: options.planStore }
       : {}),
-    ...(options.loadDayCalories !== undefined
-      ? { loadDayCalories: options.loadDayCalories }
+    ...(options.loadDayCalorieTargets !== undefined
+      ? { loadDayCalorieTargets: options.loadDayCalorieTargets }
       : {}),
     loadLlm: () => Promise.resolve(llm),
     loadFoodContext: () => Promise.resolve(context),
@@ -604,7 +604,22 @@ describe("GET /api/diet/summary", () => {
         goalProvided: true,
         assessment: "The trend is on target for the goal.",
       }),
-      loadDayCalories: () => Promise.resolve(new Map([["2026-11-07", 2400]])),
+      loadDayCalorieTargets: () =>
+        Promise.resolve(
+          new Map([
+            [
+              "2026-11-07",
+              {
+                caloriesKcal: 2400,
+                calorieBreakdown: {
+                  basalMetabolismKcal: 1900,
+                  workoutCaloriesKcal: 500,
+                  dietDeficitKcal: 0,
+                },
+              },
+            ],
+          ]),
+        ),
     }).app;
 
     const res = await request(app, "/api/diet/summary?today=2026-11-07");
@@ -616,6 +631,11 @@ describe("GET /api/diet/summary", () => {
       days: {
         date: string;
         neededCaloriesKcal: number;
+        calorieBreakdown: {
+          basalMetabolismKcal: number;
+          workoutCaloriesKcal: number;
+          dietDeficitKcal: number;
+        } | null;
         consumedCaloriesKcal: number;
         balanceKcal: number;
         entries: unknown[];
@@ -627,6 +647,11 @@ describe("GET /api/diet/summary", () => {
     expect(parsed.days[0]).toMatchObject({
       date: "2026-11-07",
       neededCaloriesKcal: 2400,
+      calorieBreakdown: {
+        basalMetabolismKcal: 1900,
+        workoutCaloriesKcal: 500,
+        dietDeficitKcal: 0,
+      },
       consumedCaloriesKcal: 420,
       balanceKcal: -1980,
     });
@@ -639,7 +664,7 @@ describe("GET /api/diet/summary", () => {
         goal: "Maintain current weight",
         assessment: "Holding.",
       }),
-      loadDayCalories: () => Promise.resolve(new Map()),
+      loadDayCalorieTargets: () => Promise.resolve(new Map()),
     }).app;
     const fallbackRes = await request(
       fallback,
@@ -654,7 +679,7 @@ describe("GET /api/diet/summary", () => {
         goal: "Lose 3 kg by March",
         assessment: "On target.",
       }),
-      loadDayCalories: () => Promise.resolve(new Map()),
+      loadDayCalorieTargets: () => Promise.resolve(new Map()),
     }).app;
     const customRes = await request(
       custom,

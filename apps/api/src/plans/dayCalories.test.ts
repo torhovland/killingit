@@ -1,8 +1,17 @@
 import { describe, expect, it } from "bun:test";
-import type { CoachPlan, DayPlan, WeekPlan } from "@killingit/shared";
+import type {
+  CalorieBreakdown,
+  CoachPlan,
+  DayPlan,
+  WeekPlan,
+} from "@killingit/shared";
 import { dayCaloriesForPlan } from "./dayCalories.js";
 
-function day(date: string, calories?: number): DayPlan {
+function day(
+  date: string,
+  calories?: number,
+  breakdown?: CalorieBreakdown,
+): DayPlan {
   return {
     date,
     type: "workout",
@@ -15,6 +24,7 @@ function day(date: string, calories?: number): DayPlan {
     optional: false,
     status: "planned",
     ...(calories === undefined ? {} : { estimatedCaloriesKcal: calories }),
+    ...(breakdown === undefined ? {} : { calorieBreakdown: breakdown }),
   };
 }
 
@@ -80,9 +90,29 @@ function plan(overrides: Partial<CoachPlan> = {}): CoachPlan {
 describe("dayCaloriesForPlan", () => {
   it("collects the current and next week and lets the day plan win", () => {
     const calories = dayCaloriesForPlan(plan());
-    expect(calories.get("2026-11-02")).toBe(2450);
-    expect(calories.get("2026-11-03")).toBe(2500);
-    expect(calories.get("2026-11-09")).toBe(2410);
+    expect(calories.get("2026-11-02")?.caloriesKcal).toBe(2450);
+    expect(calories.get("2026-11-03")?.caloriesKcal).toBe(2500);
+    expect(calories.get("2026-11-09")?.caloriesKcal).toBe(2410);
+  });
+
+  it("stores the breakdown and uses its sum as the allocated target", () => {
+    const calories = dayCaloriesForPlan(
+      plan({
+        today: day("2026-11-02", 9999, {
+          basalMetabolismKcal: 1800,
+          workoutCaloriesKcal: 400,
+          dietDeficitKcal: 300,
+        }),
+      }),
+    );
+    expect(calories.get("2026-11-02")).toEqual({
+      caloriesKcal: 1900,
+      calorieBreakdown: {
+        basalMetabolismKcal: 1800,
+        workoutCaloriesKcal: 400,
+        dietDeficitKcal: 300,
+      },
+    });
   });
 
   it("omits days without an estimate", () => {

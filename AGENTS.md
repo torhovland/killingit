@@ -297,11 +297,15 @@ about a past workout, or before a suggested workout, to steer the coach.
   from the last seven days and a weekly nutrition summary for each completed
   week up to one year back. The plan carries the athlete's diet goal and the
   coach's weight-trend assessment in `coach_plans.diet`, and every week session
-  and day plan carries the coach's per-day `estimatedCaloriesKcal`. The goal
-  defaults to maintenance when the athlete states none. `GET /api/diet/summary`
-  groups meals under their local day and joins them to the stored target, and
-  the Diet page shows the goal and assessment at the top, today's needed/logged/
-  remaining calories, and each day's deficit or surplus. The Fitness page charts
+  and day plan carries the coach's per-day `estimatedCaloriesKcal` and a
+  `calorieBreakdown` of base metabolism, workout requirement and diet deficit
+  whose sum is the allocated intake; the Today card and the Diet page show that
+  breakdown and say the parts start rough until meals and weigh-ins refine them
+  (`docs/specs/calorie-breakdown.md`). The goal defaults to maintenance when the
+  athlete states none. `GET /api/diet/summary` groups meals under their local
+  day and joins them to the stored target, and the Diet page shows the goal and
+  assessment at the top, today's breakdown/logged/remaining calories, and each
+  day's deficit or surplus. The Fitness page charts
   logged calories against the needed line. Saving a plan records each day's
   target in `plan_day_calories`, so the requirement survives the week leaving
   the stored plan. The coach judges the weight trend from the tracked weights

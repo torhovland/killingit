@@ -1161,6 +1161,12 @@ export const planDayCalories = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
     date: text("date").notNull(),
     caloriesKcal: integer("calories_kcal").notNull(),
+    /** The coach's base-metabolism estimate for the day, when it supplied one. */
+    basalMetabolismKcal: integer("basal_metabolism_kcal"),
+    /** The extra calories the planned session burns, when known. */
+    workoutCaloriesKcal: integer("workout_calories_kcal"),
+    /** The planned deficit; negative for a planned surplus. */
+    dietDeficitKcal: integer("diet_deficit_kcal"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -1179,6 +1185,14 @@ export const planDayCalories = pgTable(
     ),
     check("plan_day_calories_date_check", sql`length(${table.date}) = 10`),
     check("plan_day_calories_kcal_check", sql`${table.caloriesKcal} >= 0`),
+    check(
+      "plan_day_calories_basal_check",
+      sql`${table.basalMetabolismKcal} IS NULL OR ${table.basalMetabolismKcal} >= 0`,
+    ),
+    check(
+      "plan_day_calories_workout_check",
+      sql`${table.workoutCaloriesKcal} IS NULL OR ${table.workoutCaloriesKcal} >= 0`,
+    ),
   ],
 );
 

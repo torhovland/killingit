@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
   COACH_RESPONSE_NOTES_CONTRACT,
   COACH_RESPONSE_NOTES_RULES,
+  DAY_CONTRACT,
   DIET_CONTRACT,
   DIET_PLANNING_RULES,
   DIET_PROGRESS_CONTRACT,
@@ -14,6 +15,7 @@ import {
   TEXT_FORMATTING_RULES,
   TODAY_SESSION_RULES,
   TRAINING_LOAD_RULES,
+  WEEK_CONTRACT,
   WEEK_OUTLINE_RULES,
   WEATHER_PLANNING_RULES,
 } from "./promptRules.js";
@@ -267,6 +269,18 @@ describe("DIET_PLANNING_RULES", () => {
       "every week session and on the today and tomorrow day objects",
     );
     expect(DIET_PLANNING_RULES).toContain("Never return 0");
+  });
+
+  it("asks for the breakdown and says the parts start rough", () => {
+    expect(DIET_PLANNING_RULES).toContain('"calorieBreakdown"');
+    expect(DIET_PLANNING_RULES).toContain('"basalMetabolismKcal"');
+    expect(DIET_PLANNING_RULES).toContain('"workoutCaloriesKcal"');
+    expect(DIET_PLANNING_RULES).toContain('"dietDeficitKcal"');
+    expect(DIET_PLANNING_RULES).toContain("plus the workout requirement minus");
+    expect(DIET_PLANNING_RULES).toContain("rough when you know little");
+    expect(DIET_PLANNING_RULES).toContain("As meals and weigh-ins accumulate");
+    expect(DAY_CONTRACT).toContain('"calorieBreakdown"');
+    expect(WEEK_CONTRACT).toContain('"calorieBreakdown"');
   });
 
   it("records whether the athlete stated the goal", () => {

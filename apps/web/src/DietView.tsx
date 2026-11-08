@@ -106,6 +106,7 @@ export function DietView({
           {todayEntry !== null && (
             <CalorieBalancePanel
               neededKcal={todayEntry.neededCaloriesKcal}
+              breakdown={todayEntry.calorieBreakdown}
               consumedKcal={todayEntry.consumedCaloriesKcal}
               title="Today"
               testId="diet-today-calories"

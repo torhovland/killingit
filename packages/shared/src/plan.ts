@@ -2,7 +2,11 @@ import { z } from "zod";
 import { coachAnalysisSchema, coachResponseNotesSchema } from "./llm.js";
 import { athleteEventSchema } from "./event.js";
 import { planDateSchema } from "./date.js";
-import { dietPlanSchema, dietProgressSchema } from "./diet.js";
+import {
+  calorieBreakdownSchema,
+  dietPlanSchema,
+  dietProgressSchema,
+} from "./diet.js";
 import { thresholdSummarySchema } from "./metrics.js";
 import { trainingLoadSchema } from "./trainingLoad.js";
 import { dailyForecastsSchema, dailyWeatherSchema } from "./weather.js";
@@ -184,8 +188,16 @@ export const weekSessionSchema = z.object({
   /**
    * The coach's estimate of the calories this day needs to keep the athlete on
    * track for their diet goal. Missing on plans stored before diet coaching.
+   * When a `calorieBreakdown` is present its sum is the authoritative allocated
+   * intake, so this field is kept for older plans and as the coach's own total.
    */
   estimatedCaloriesKcal: z.number().int().nonnegative().max(20000).optional(),
+  /**
+   * The coach's breakdown of the day's calorie allocation: base metabolism plus
+   * the workout requirement minus the diet deficit. Missing on plans stored
+   * before the breakdown existed.
+   */
+  calorieBreakdown: calorieBreakdownSchema.nullable().optional(),
   /**
    * The coach's estimate of the athlete's FTP on this day, used for the daily
    * projection on the Fitness page. The Week view still shows only the week's
@@ -291,8 +303,16 @@ export const dayPlanSchema = z.object({
   /**
    * The coach's estimate of the calories this day needs to keep the athlete on
    * track for their diet goal. Missing on plans stored before diet coaching.
+   * When a `calorieBreakdown` is present its sum is the authoritative allocated
+   * intake, so this field is kept for older plans and as the coach's own total.
    */
   estimatedCaloriesKcal: z.number().int().nonnegative().max(20000).optional(),
+  /**
+   * The coach's breakdown of the day's calorie allocation: base metabolism plus
+   * the workout requirement minus the diet deficit. Missing on plans stored
+   * before the breakdown existed.
+   */
+  calorieBreakdown: calorieBreakdownSchema.nullable().optional(),
   /**
    * Resolved training stress for the day plus the fitness and fatigue snapshot.
    * Mirrored from the matching week session so Day and Week always agree.

@@ -83,7 +83,9 @@ export const DIET_PLANNING_RULES = `Nutrition is part of the plan. The athlete's
 
 In "diet.assessment", judge from the tracked weight history and the logged calories against your earlier calorie targets whether the athlete is on track for that goal. Say whether the calorie deficit or surplus is right, too large, or too small, and what you changed. Judge the weight trend from the measurements themselves rather than from a fixed formula. When there is no weight history yet, say what you will judge the trend by and set a sensible starting target.
 
-Estimate the athlete's total calorie intake for each day you return, and set "estimatedCaloriesKcal" on every week session and on the today and tomorrow day objects. This is the whole day's food and drink: not a deficit, a surplus, the calories burned in training, or the amount left after a meal. If you decide on a deficit, subtract it from the maintenance total and return the resulting total intake. Base the number on their body weight, the training planned for that day, and recent recovery, so a hard training day needs more than a rest day. Sanity-check it against body weight: an adult's total daily intake is normally at least 20 kcal per kg, and often 30-35 kcal per kg on a hard training day. A number far below that is a mistake, not a target. Never return 0.`;
+Break down each day's calorie allocation instead of returning one unexplained number. Set "calorieBreakdown" on every week session and on the today and tomorrow day objects, with "basalMetabolismKcal" (the athlete's base energy use for the day: resting metabolism plus ordinary daily activity, before the planned workout), "workoutCaloriesKcal" (the extra energy the planned session burns, 0 on a rest day) and "dietDeficitKcal" (the deficit you are planning, 0 for maintenance and negative for a planned surplus). Set "estimatedCaloriesKcal" to the allocated total: base metabolism plus the workout requirement minus the diet deficit. The allocated total is the whole day's food and drink, not a deficit, a surplus, the calories burned in training, or the amount left after a meal. Base the parts on their body weight, the training planned for that day, and recent recovery, so a hard training day allocates more than a rest day. Sanity-check the allocated total against body weight: an adult's total daily intake is normally at least 20 kcal per kg, and often 30-35 kcal per kg on a hard training day. A number far below that is a mistake, not a target. Never return 0.
+
+The parts are estimates, and they are rough when you know little about the athlete's food log and tracked weight. Say so plainly in "diet.assessment" when that is the case, and name the observation that will refine them, such as the weight trend over the next two weeks or how the logged intake matches the allocated total. As meals and weigh-ins accumulate, adjust the base metabolism, workout burn and deficit to fit the observed trend instead of repeating your first numbers.`;
 
 /**
  * How the coach turns the diet goal into expected body-composition progress at
@@ -330,6 +332,9 @@ export const BIKE_WORKOUT_CONTRACT = `{ "ftpWatts": 0, "intervals": [{ "duration
 /** The coach's expected body composition at the end of a plan period. */
 export const DIET_PROGRESS_CONTRACT = `{ "targetWeightKg": 0, "targetBodyFatPercent": 0, "note": "string" }`;
 
+/** The coach's breakdown of one day's calorie allocation. */
+export const CALORIE_BREAKDOWN_CONTRACT = `{ "basalMetabolismKcal": 0, "workoutCaloriesKcal": 0, "dietDeficitKcal": 0 }`;
+
 export const DAY_CONTRACT = `{
   "date": "YYYY-MM-DD",
   "type": "workout | rest",
@@ -344,6 +349,7 @@ export const DAY_CONTRACT = `{
   "optionalRationale": "string",
   "estimatedTss": 0,
   "estimatedCaloriesKcal": 0,
+  "calorieBreakdown": ${CALORIE_BREAKDOWN_CONTRACT},
   "outdoor": true,
   "canBeOutdoor": true,
   "bikeWorkout": ${BIKE_WORKOUT_CONTRACT}
@@ -367,6 +373,7 @@ export const WEEK_CONTRACT = `{
       "status": "completed | partial | planned | missed | rest",
       "estimatedTss": 0,
       "estimatedCaloriesKcal": 0,
+      "calorieBreakdown": ${CALORIE_BREAKDOWN_CONTRACT},
       "estimatedFtpWatts": 0,
       "outdoor": true,
       "canBeOutdoor": true,

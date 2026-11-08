@@ -46,7 +46,7 @@ import type {
   loadCoachQuestion,
   loadPendingCoachQuestion,
 } from "./plans/coachQuestions.js";
-import type { loadPlanDayCalories } from "./plans/dayCalories.js";
+import type { loadPlanDayCalorieTargets } from "./plans/dayCalories.js";
 import type {
   createPeriodReviewComment,
   loadPeriodReview,
@@ -109,8 +109,8 @@ export interface AppDependencies {
   loadEvents?: typeof loadAthleteEvents | undefined;
   /** Stored weekly plan totals, injectable for DB-free route tests. */
   loadWeekTotals?: typeof loadPlanWeekTotals | undefined;
-  /** Stored daily calorie targets, injectable for DB-free route tests. */
-  loadDayCalories?: typeof loadPlanDayCalories | undefined;
+  /** Stored daily calorie targets and their breakdown, injectable for tests. */
+  loadDayCalorieTargets?: typeof loadPlanDayCalorieTargets | undefined;
   /** Stored food log for the coaching and plan prompts. */
   loadDiet?: typeof loadDietContext | undefined;
   loadCachedFeed?: typeof loadCachedActivityFeed | undefined;
