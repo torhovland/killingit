@@ -78,7 +78,7 @@ function withPlausibleCalories<T extends CalorieBearingPlan>(
   schema: z.ZodType<T>,
 ): z.ZodType<T> {
   return schema.superRefine((value, ctx) =>
-    addCalorieEstimateIssues(value, ctx),
+    addCalorieEstimateIssues(value, ctx, { requireBreakdown: true }),
   );
 }
 

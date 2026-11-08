@@ -55,9 +55,19 @@ describe("buildDietSummary", () => {
         entry(4, "2026-11-05", null),
       ],
       targets: new Map([
-        ["2026-11-07", 2400],
-        ["2026-11-05", 2300],
-        ["2026-11-04", 2200],
+        [
+          "2026-11-07",
+          {
+            caloriesKcal: 2400,
+            calorieBreakdown: {
+              basalMetabolismKcal: 1900,
+              workoutCaloriesKcal: 500,
+              dietDeficitKcal: 0,
+            },
+          },
+        ],
+        ["2026-11-05", { caloriesKcal: 2300, calorieBreakdown: null }],
+        ["2026-11-04", { caloriesKcal: 2200, calorieBreakdown: null }],
       ]),
       goal: "Lose 3 kg",
       goalProvided: true,
@@ -77,6 +87,11 @@ describe("buildDietSummary", () => {
     expect(summary.days[0]).toMatchObject({
       date: "2026-11-07",
       neededCaloriesKcal: 2400,
+      calorieBreakdown: {
+        basalMetabolismKcal: 1900,
+        workoutCaloriesKcal: 500,
+        dietDeficitKcal: 0,
+      },
       consumedCaloriesKcal: 710,
       balanceKcal: -1690,
     });

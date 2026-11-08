@@ -351,6 +351,13 @@
       "when": 1794063131824,
       "tag": "0049_lowly_satana",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1794135341980,
+      "tag": "0050_dashing_naoko",
+      "breakpoints": true
     }
   ]
 }

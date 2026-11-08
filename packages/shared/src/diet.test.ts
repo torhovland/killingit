@@ -1,5 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
+  allocatedCaloriesKcal,
+  calorieBreakdownSchema,
   dietPlanSchema,
   dietProgressSchema,
   dietSummaryResponseSchema,
@@ -9,6 +11,7 @@ import {
   foodEntryUpdateRequestSchema,
   isDefaultDietGoal,
   MIN_PLAUSIBLE_CALORIES_KCAL,
+  plannedCaloriesKcal,
   plausibleCaloriesKcal,
 } from "./diet.js";
 
@@ -162,6 +165,11 @@ describe("dietSummaryResponseSchema", () => {
         {
           date: "2026-11-07",
           neededCaloriesKcal: 2400,
+          calorieBreakdown: {
+            basalMetabolismKcal: 1900,
+            workoutCaloriesKcal: 500,
+            dietDeficitKcal: 0,
+          },
           consumedCaloriesKcal: 2100,
           balanceKcal: -300,
           entries: [],
@@ -170,6 +178,24 @@ describe("dietSummaryResponseSchema", () => {
     });
     expect(parsed.goalProvided).toBe(false);
     expect(parsed.days[0]?.balanceKcal).toBe(-300);
+    expect(parsed.days[0]?.calorieBreakdown?.basalMetabolismKcal).toBe(1900);
+  });
+
+  it("leaves the breakdown null for an older day", () => {
+    const parsed = dietSummaryResponseSchema.parse({
+      goal: null,
+      assessment: null,
+      days: [
+        {
+          date: "2026-11-07",
+          neededCaloriesKcal: 2400,
+          consumedCaloriesKcal: 2100,
+          balanceKcal: -300,
+          entries: [],
+        },
+      ],
+    });
+    expect(parsed.days[0]?.calorieBreakdown).toBeNull();
   });
 
   it("defaults the goal-provided flag for older responses", () => {
@@ -177,6 +203,57 @@ describe("dietSummaryResponseSchema", () => {
       dietSummaryResponseSchema.parse({ goal: null, assessment: null })
         .goalProvided,
     ).toBe(false);
+  });
+});
+
+describe("calorie breakdown", () => {
+  it("adds base metabolism and the workout requirement, minus the deficit", () => {
+    const breakdown = calorieBreakdownSchema.parse({
+      basalMetabolismKcal: 1800,
+      workoutCaloriesKcal: 400,
+      dietDeficitKcal: 300,
+    });
+    expect(allocatedCaloriesKcal(breakdown)).toBe(1900);
+  });
+
+  it("treats a negative deficit as a surplus", () => {
+    expect(
+      allocatedCaloriesKcal({
+        basalMetabolismKcal: 1800,
+        workoutCaloriesKcal: 400,
+        dietDeficitKcal: -200,
+      }),
+    ).toBe(2400);
+  });
+
+  it("prefers the breakdown's sum to an older total", () => {
+    expect(
+      plannedCaloriesKcal({
+        estimatedCaloriesKcal: 2200,
+        calorieBreakdown: {
+          basalMetabolismKcal: 1800,
+          workoutCaloriesKcal: 400,
+          dietDeficitKcal: 300,
+        },
+      }),
+    ).toBe(1900);
+  });
+
+  it("falls back to the older total when there is no breakdown", () => {
+    expect(plannedCaloriesKcal({ estimatedCaloriesKcal: 2400 })).toBe(2400);
+    expect(plannedCaloriesKcal({})).toBeNull();
+  });
+
+  it("hides a breakdown that allocates an implausible total", () => {
+    expect(
+      plannedCaloriesKcal({
+        calorieBreakdown: {
+          basalMetabolismKcal: 900,
+          workoutCaloriesKcal: 100,
+          dietDeficitKcal: 0,
+        },
+      }),
+    ).toBeNull();
   });
 });
 

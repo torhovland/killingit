@@ -20,6 +20,28 @@ export const DEFAULT_DIET_GOAL = "Maintain current weight";
 export const MIN_PLAUSIBLE_CALORIES_KCAL = 1200;
 
 /**
+ * The coach's breakdown of a day's calorie allocation. Base metabolism is the
+ * athlete's resting energy use, the workout requirement is the extra energy the
+ * planned session burns, and the diet deficit is the amount subtracted to reach
+ * the goal. A negative deficit is a planned surplus. The allocated intake is
+ * base metabolism plus the workout requirement minus the deficit.
+ */
+export const calorieBreakdownSchema = z.object({
+  basalMetabolismKcal: z.number().int().nonnegative().max(20000),
+  workoutCaloriesKcal: z.number().int().nonnegative().max(20000),
+  dietDeficitKcal: z.number().int().min(-20000).max(20000),
+});
+
+export type CalorieBreakdown = z.infer<typeof calorieBreakdownSchema>;
+
+/** A plan value that can carry a calorie target, new shape or old. */
+export interface PlannedCalories {
+  /** The older whole-day total, still the fallback when no breakdown exists. */
+  estimatedCaloriesKcal?: number | null | undefined;
+  calorieBreakdown?: CalorieBreakdown | null | undefined;
+}
+
+/**
  * The coach's diet goal for the athlete and its judgement of the weight trend.
  * `assessment` is the coach's own reading of the tracked weights against the
  * logged calories and its earlier targets; the app never computes it.
@@ -138,6 +160,11 @@ export const dietDaySummarySchema = z.object({
   date: planDateSchema,
   /** The coach's estimated requirement for the day, when the plan covers it. */
   neededCaloriesKcal: z.number().int().nonnegative().nullable().default(null),
+  /**
+   * The coach's breakdown of the requirement, when the plan stored one. The
+   * breakdown's sum is the allocated intake; older targets have none.
+   */
+  calorieBreakdown: calorieBreakdownSchema.nullable().default(null),
   /** Calories from analysed meals logged that day; null when none were logged. */
   consumedCaloriesKcal: z.number().int().nonnegative().nullable().default(null),
   /** Consumed minus needed; negative is a deficit, positive a surplus. */
@@ -265,6 +292,32 @@ export function plausibleCaloriesKcal(
     value >= MIN_PLAUSIBLE_CALORIES_KCAL
     ? value
     : null;
+}
+
+/**
+ * The calories the breakdown allocates for the day: base metabolism plus the
+ * workout requirement minus the diet deficit. The parts are the coach's
+ * estimates, so this is the number every reader shows rather than trusting a
+ * separate total that may not add up.
+ */
+export function allocatedCaloriesKcal(breakdown: CalorieBreakdown): number {
+  return (
+    breakdown.basalMetabolismKcal +
+    breakdown.workoutCaloriesKcal -
+    breakdown.dietDeficitKcal
+  );
+}
+
+/**
+ * The day's allocated calorie intake: the breakdown's sum when the coach
+ * supplied one, otherwise the older `estimatedCaloriesKcal`. Null when the
+ * result is missing or below the whole-day safety floor.
+ */
+export function plannedCaloriesKcal(value: PlannedCalories): number | null {
+  if (value.calorieBreakdown !== null && value.calorieBreakdown !== undefined) {
+    return plausibleCaloriesKcal(allocatedCaloriesKcal(value.calorieBreakdown));
+  }
+  return plausibleCaloriesKcal(value.estimatedCaloriesKcal);
 }
 
 /**

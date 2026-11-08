@@ -1,4 +1,5 @@
 import type { DietDaySummary, DietSummaryResponse } from "@killingit/shared";
+import type { PlanDayCalorieTarget } from "../plans/dayCalories.js";
 import { toFoodEntry } from "./presenter.js";
 import type { StoredFoodEntry } from "./store.js";
 
@@ -27,12 +28,12 @@ export function consumedCaloriesByDate(
 
 /**
  * Groups the food log into days and pairs each day with the coach's calorie
- * requirement. Every day with a meal or a target is returned, newest first, so
- * the Diet page can show logged against needed for each day.
+ * requirement and its breakdown. Every day with a meal or a target is returned,
+ * newest first, so the Diet page can show logged against needed for each day.
  */
 export function buildDietSummary(input: {
   entries: readonly StoredFoodEntry[];
-  targets: ReadonlyMap<string, number>;
+  targets: ReadonlyMap<string, PlanDayCalorieTarget>;
   goal: string | null;
   /** Whether the athlete stated the goal rather than using the default. */
   goalProvided: boolean;
@@ -72,10 +73,12 @@ export function buildDietSummary(input: {
                 0,
               ),
             );
-      const neededCaloriesKcal = input.targets.get(date) ?? null;
+      const target = input.targets.get(date) ?? null;
+      const neededCaloriesKcal = target?.caloriesKcal ?? null;
       return {
         date,
         neededCaloriesKcal,
+        calorieBreakdown: target?.calorieBreakdown ?? null,
         consumedCaloriesKcal,
         balanceKcal:
           consumedCaloriesKcal === null || neededCaloriesKcal === null

@@ -1,8 +1,17 @@
 import { describe, expect, it } from "bun:test";
-import type { CoachPlan, DayPlan, WeekPlan } from "@killingit/shared";
+import type {
+  CalorieBreakdown,
+  CoachPlan,
+  DayPlan,
+  WeekPlan,
+} from "@killingit/shared";
 import { calorieEstimateProblems } from "./calorieEstimates.js";
 
-function day(date: string, calories?: number): DayPlan {
+function day(
+  date: string,
+  calories?: number,
+  breakdown?: CalorieBreakdown,
+): DayPlan {
   return {
     date,
     type: "workout",
@@ -15,6 +24,16 @@ function day(date: string, calories?: number): DayPlan {
     optional: false,
     status: "planned",
     ...(calories === undefined ? {} : { estimatedCaloriesKcal: calories }),
+    ...(breakdown === undefined ? {} : { calorieBreakdown: breakdown }),
+  };
+}
+
+/** A breakdown that adds up to `calories` with a 3,000 kcal baseline. */
+function breakdown(calories: number, workout = 500): CalorieBreakdown {
+  return {
+    basalMetabolismKcal: calories - workout,
+    workoutCaloriesKcal: workout,
+    dietDeficitKcal: 0,
   };
 }
 
@@ -84,7 +103,7 @@ describe("calorieEstimateProblems", () => {
     expect(problems).toHaveLength(1);
     expect(problems[0]?.path).toEqual(["today", "estimatedCaloriesKcal"]);
     expect(problems[0]?.message).toContain("480 kcal");
-    expect(problems[0]?.message).toContain("total daily calorie target");
+    expect(problems[0]?.message).toContain("allocated calorie target");
   });
 
   it("checks every week session and the next week", () => {
@@ -107,5 +126,31 @@ describe("calorieEstimateProblems", () => {
       6,
       "estimatedCaloriesKcal",
     ]);
+  });
+
+  it("accepts a breakdown whose sum is the allocated intake", () => {
+    const problems = calorieEstimateProblems(
+      { today: day("2026-11-02", 2450, breakdown(2450)) },
+      { requireBreakdown: true },
+    );
+    expect(problems).toEqual([]);
+  });
+
+  it("rejects a generated estimate without a breakdown", () => {
+    const problems = calorieEstimateProblems(
+      { today: day("2026-11-02", 2450) },
+      { requireBreakdown: true },
+    );
+    expect(problems[0]?.path).toEqual(["today", "calorieBreakdown"]);
+    expect(problems[0]?.message).toContain("has no breakdown");
+  });
+
+  it("checks the breakdown's sum rather than a mismatched total", () => {
+    const problems = calorieEstimateProblems({
+      today: day("2026-11-02", 2400, breakdown(900, 100)),
+    });
+    expect(problems).toHaveLength(1);
+    expect(problems[0]?.path).toEqual(["today", "calorieBreakdown"]);
+    expect(problems[0]?.message).toContain("900 kcal");
   });
 });

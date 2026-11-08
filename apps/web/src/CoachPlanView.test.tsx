@@ -1221,6 +1221,11 @@ describe("CoachPlanView", () => {
         dietToday={{
           date: "2026-10-21",
           neededCaloriesKcal: 2400,
+          calorieBreakdown: {
+            basalMetabolismKcal: 1900,
+            workoutCaloriesKcal: 500,
+            dietDeficitKcal: 0,
+          },
           consumedCaloriesKcal: 1500,
           balanceKcal: -900,
           entries: [],
@@ -1228,8 +1233,10 @@ describe("CoachPlanView", () => {
       />,
     );
 
-    expect(html).toContain('data-testid="plan-today-calories"');
-    expect(html).toContain("Needed");
+    expect(html).toContain('data-testid="plan-today-calories-breakdown"');
+    expect(html).toContain("Base metabolism");
+    expect(html).toContain("Workout requirement");
+    expect(html).toContain("Allocated today");
     expect(html).toContain("2400 kcal");
     expect(html).toContain("1500 kcal");
     expect(html).toContain("900 kcal");

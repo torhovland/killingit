@@ -22,7 +22,7 @@ import { loadLlmClient, type LlmClient } from "../llm/client.js";
 import { analyzeFood } from "../llm/foodAnalysis.js";
 import type { PreviousFoodAnalysis } from "../llm/foodPrompt.js";
 import { localDateTimeInZone, addDays } from "../plans/dates.js";
-import { loadPlanDayCalories } from "../plans/dayCalories.js";
+import { loadPlanDayCalorieTargets } from "../plans/dayCalories.js";
 import type { QuestionAnswerStore } from "../questions/answers.js";
 import { buildDietSummary } from "../diet/days.js";
 import { toFoodEntry } from "../diet/presenter.js";
@@ -138,7 +138,7 @@ async function analyseMeal(
  */
 export function createDietRoute(deps: ResolvedAppDependencies): Hono {
   const entries = deps.dietEntries ?? dbFoodEntryStore;
-  const loadTargets = deps.loadDayCalories ?? loadPlanDayCalories;
+  const loadTargets = deps.loadDayCalorieTargets ?? loadPlanDayCalorieTargets;
   const llmLoader = deps.loadLlm ?? loadLlmClient;
   const loadContext = deps.loadFoodContext ?? loadReplyContext;
   const analyze = deps.analyzeFood ?? analyzeFood;

@@ -7,7 +7,7 @@ import {
   formatEventDates,
   formatThresholdValue,
   hasExportableBikeWorkout,
-  plausibleCaloriesKcal,
+  plannedCaloriesKcal,
   sessionSports,
   type AthleteEvent,
   type BlockPlan,
@@ -301,8 +301,10 @@ function DayCard({
   showCalories?: boolean;
 }) {
   const relevantThresholds = dayThresholds(day, thresholds);
-  const dayCalories = plausibleCaloriesKcal(day.estimatedCaloriesKcal);
+  const dayCalories = plannedCaloriesKcal(day);
   const neededCalories = dietToday?.neededCaloriesKcal ?? dayCalories;
+  const calorieBreakdown =
+    dietToday?.calorieBreakdown ?? day.calorieBreakdown ?? null;
   return (
     <article
       className="relative flex flex-col gap-2 rounded-lg border bg-inset p-4"
@@ -342,6 +344,7 @@ function DayCard({
         {showCalories && dietToday !== undefined ? (
           <CalorieBalancePanel
             neededKcal={neededCalories}
+            breakdown={calorieBreakdown}
             consumedKcal={dietToday?.consumedCaloriesKcal ?? null}
             title="Calories today"
             testId={`${testId}-calories`}
@@ -535,68 +538,68 @@ function WeekSection({
           />
         )}
         <ul className="mt-3 flex flex-col gap-2">
-          {week.sessions.map((session) => (
-            <li
-              key={session.date}
-              className="flex flex-wrap items-baseline justify-between gap-2 border-b pb-2 text-base last:border-b-0 last:pb-0"
-            >
-              <span className="font-medium">
-                {formatPlanDate(session.date)}
-                <Bullet />
-                {session.title}
-              </span>
-              <span className="ml-auto flex flex-wrap items-center justify-end gap-x-3 gap-y-1 text-muted-foreground">
-                {session.type !== "rest" && (
-                  <span>
-                    {session.status === "completed" &&
-                    session.durationMinutes === 0 ? (
-                      "Logged manually"
-                    ) : (
-                      <>
-                        {session.durationMinutes} min
-                        <Bullet />
-                        {session.intensity}
-                        <SessionSetting outdoor={session.outdoor} />
-                      </>
-                    )}
-                  </span>
-                )}
-                <StatusBadge status={session.status} />
-                {showCalories &&
-                  plausibleCaloriesKcal(session.estimatedCaloriesKcal) !==
-                    null && (
-                    <span data-testid="week-session-calories">
-                      {plausibleCaloriesKcal(session.estimatedCaloriesKcal)}{" "}
-                      kcal needed
+          {week.sessions.map((session) => {
+            const calories = plannedCaloriesKcal(session);
+            return (
+              <li
+                key={session.date}
+                className="flex flex-wrap items-baseline justify-between gap-2 border-b pb-2 text-base last:border-b-0 last:pb-0"
+              >
+                <span className="font-medium">
+                  {formatPlanDate(session.date)}
+                  <Bullet />
+                  {session.title}
+                </span>
+                <span className="ml-auto flex flex-wrap items-center justify-end gap-x-3 gap-y-1 text-muted-foreground">
+                  {session.type !== "rest" && (
+                    <span>
+                      {session.status === "completed" &&
+                      session.durationMinutes === 0 ? (
+                        "Logged manually"
+                      ) : (
+                        <>
+                          {session.durationMinutes} min
+                          <Bullet />
+                          {session.intensity}
+                          <SessionSetting outdoor={session.outdoor} />
+                        </>
+                      )}
                     </span>
                   )}
-              </span>
-              {session.trainingLoad !== null &&
-                session.trainingLoad !== undefined && (
-                  <TrainingLoadLine
-                    load={session.trainingLoad}
-                    testId="session-load"
+                  <StatusBadge status={session.status} />
+                  {showCalories && calories !== null && (
+                    <span data-testid="week-session-calories">
+                      {calories} kcal needed
+                    </span>
+                  )}
+                </span>
+                {session.trainingLoad !== null &&
+                  session.trainingLoad !== undefined && (
+                    <TrainingLoadLine
+                      load={session.trainingLoad}
+                      testId="session-load"
+                    />
+                  )}
+                {session.type === "workout" &&
+                  session.canBeOutdoor !== false &&
+                  (session.weather != null || session.forecasts != null) && (
+                    <div className="w-full" data-testid="week-weather">
+                      <WeatherSummary
+                        weather={session.weather}
+                        forecasts={session.forecasts}
+                      />
+                    </div>
+                  )}
+                {session.description.trim() !== "" && (
+                  <FormattedText
+                    text={session.description}
+                    className="w-full text-sm text-muted-foreground"
+                    testId="week-session-description"
                   />
                 )}
-              {session.type === "workout" &&
-                session.canBeOutdoor !== false &&
-                (session.weather != null || session.forecasts != null) && (
-                  <div className="w-full" data-testid="week-weather">
-                    <WeatherSummary
-                      weather={session.weather}
-                      forecasts={session.forecasts}
-                    />
-                  </div>
-                )}
-              {session.description.trim() !== "" && (
-                <FormattedText
-                  text={session.description}
-                  className="w-full text-sm text-muted-foreground"
-                  testId="week-session-description"
-                />
-              )}
-            </li>
-          ))}
+              </li>
+            );
+          })}
         </ul>
       </div>
       {refreshing && (

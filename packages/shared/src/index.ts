@@ -372,6 +372,8 @@ export {
 } from "./review.js";
 
 export {
+  allocatedCaloriesKcal,
+  calorieBreakdownSchema,
   DEFAULT_DIET_GOAL,
   dietDaySummarySchema,
   dietPlanSchema,
@@ -388,7 +390,9 @@ export {
   foodPhotoDataUrlSchema,
   isDefaultDietGoal,
   MIN_PLAUSIBLE_CALORIES_KCAL,
+  plannedCaloriesKcal,
   plausibleCaloriesKcal,
+  type CalorieBreakdown,
   type DietDaySummary,
   type DietPlan,
   type DietProgress,

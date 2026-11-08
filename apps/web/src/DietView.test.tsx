@@ -12,6 +12,11 @@ const summary: DietSummaryResponse = {
     {
       date: "2026-11-07",
       neededCaloriesKcal: 2400,
+      calorieBreakdown: {
+        basalMetabolismKcal: 1900,
+        workoutCaloriesKcal: 500,
+        dietDeficitKcal: 0,
+      },
       consumedCaloriesKcal: 1500,
       balanceKcal: -900,
       entries: [
@@ -37,6 +42,7 @@ const summary: DietSummaryResponse = {
     {
       date: "2026-11-06",
       neededCaloriesKcal: 2500,
+      calorieBreakdown: null,
       consumedCaloriesKcal: 2700,
       balanceKcal: 200,
       entries: [],
@@ -76,6 +82,18 @@ describe("DietView", () => {
     expect(html).toContain("2400 kcal");
     expect(html).toContain("1500 kcal");
     expect(html).toContain("900 kcal");
+  });
+
+  it("shows today's calorie requirement as a breakdown", () => {
+    const html = render();
+    expect(html).toContain('data-testid="diet-today-calories-breakdown"');
+    expect(html).toContain("Base metabolism");
+    expect(html).toContain("Workout requirement");
+    expect(html).toContain("Diet deficit");
+    expect(html).toContain("Allocated today");
+    expect(html).toContain("1900 kcal");
+    expect(html).toContain("+500 kcal");
+    expect(html).toContain("These are estimates");
   });
 
   it("groups the food log under each day with its deficit or surplus", () => {

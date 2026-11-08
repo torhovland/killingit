@@ -21,10 +21,13 @@ be higher or lower.
   the end of the season, each block, and each week; see
   `docs/specs/diet-progress-targets.md`.
 - Every week session and every day plan carries `estimatedCaloriesKcal`, the
-  coach's estimate of the calories that day needs to keep the athlete on target.
+  coach's estimate of the calories that day needs to keep the athlete on target,
+  and a `calorieBreakdown` of base metabolism, workout requirement and diet
+  deficit whose sum is the requirement. See
+  `docs/specs/calorie-breakdown.md`.
 - The Week tab shows each day's estimate. The Day tab shows it for today and
-  tomorrow; the Today card also shows the calories logged so far and what is
-  remaining.
+  tomorrow; the Today card also shows the breakdown, the calories logged so far
+  and what is remaining.
 - The Diet page puts the goal and assessment at the top, shows today's needed,
   logged and remaining calories below it, and groups the food log under each day
   with logged calories, the coach's requirement, and the deficit or surplus.
@@ -41,24 +44,33 @@ Plan JSON:
   `today`/`tomorrow.estimatedCaloriesKcal` are optional non-negative integers.
   They are missing on plans stored before diet coaching, so every view hides
   the number when it is absent.
+- `week.sessions[].calorieBreakdown` and
+  `today`/`tomorrow.calorieBreakdown` are optional `{ basalMetabolismKcal,
+workoutCaloriesKcal, dietDeficitKcal }` objects. The allocated intake is their
+  sum (base plus workout minus deficit); a negative deficit is a surplus. They
+  are missing on plans stored before the breakdown, which keep using the single
+  total.
 
 Persistent daily targets:
 
-- `plan_day_calories` stores `user_id`, `date`, `calories_kcal`, and timestamps,
-  unique per user and date. It is written from the current and next week
-  whenever a plan is saved, so the Diet and Fitness pages keep the target the
-  athlete was following after the coach moves on to the next week.
+- `plan_day_calories` stores `user_id`, `date`, `calories_kcal`, the optional
+  `basal_metabolism_kcal`, `workout_calories_kcal` and `diet_deficit_kcal`, and
+  timestamps, unique per user and date. It is written from the current and next
+  week whenever a plan is saved, so the Diet and Fitness pages keep the target
+  the athlete was following after the coach moves on to the next week.
 - The table is rewritten for a date whenever a plan covering that date is saved;
-  an older date's row stays after it leaves the stored plan.
+  an older date's row stays after it leaves the stored plan. A row written
+  before the breakdown columns existed has null parts.
 
 ## API
 
 - `GET /api/diet/summary?today=YYYY-MM-DD` returns
-  `{ goal, assessment, days: [{ date, neededCaloriesKcal, consumedCaloriesKcal,
-balanceKcal, entries }] }`. `balanceKcal` is consumed minus needed, so a
-  negative number is a deficit. Every day with a meal is included, plus today's
-  target before the first meal is logged, newest first. It returns an empty
-  summary when diet advice is off.
+  `{ goal, assessment, days: [{ date, neededCaloriesKcal, calorieBreakdown,
+consumedCaloriesKcal, balanceKcal, entries }] }`. `balanceKcal` is consumed
+  minus needed, so a negative number is a deficit. `calorieBreakdown` is null
+  for a target stored without one. Every day with a meal is included, plus
+  today's target before the first meal is logged, newest first. It returns an
+  empty summary when diet advice is off.
 - `GET /api/fitness` adds `nutrition: [{ date, consumedKcal, neededKcal }]` for
   the same window as the other charts. `consumedKcal` is null when no meal on
   that day was analysed; `neededKcal` is null when no target is stored.
@@ -74,27 +86,41 @@ balanceKcal, entries }] }`. `balanceKcal` is consumed minus needed, so a
 - The coach judges the weight trend from the tracked weight history and the
   logged calories against its earlier targets. The app never computes a deficit
   or a rate of loss.
-- The coach sets `estimatedCaloriesKcal` on every week session and on the today
-  and tomorrow day objects. The value is the whole day's total intake — food and
-  drink — never a deficit, a surplus, or the calories burned in training. A hard
-  training day is higher than a rest day, and the coach sanity-checks the number
-  against body weight. The app rejects a generated value below
-  `MIN_PLAUSIBLE_CALORIES_KCAL` (1,200 kcal) with a repair request, and hides a
-  stored value below that floor instead of showing a deficit as a requirement.
+- The coach sets `estimatedCaloriesKcal` and a `calorieBreakdown` on every week
+  session and on the today and tomorrow day objects. The allocated intake is
+  the whole day's total — food and drink — never a deficit, a surplus, or the
+  calories burned in training. A hard training day is higher than a rest day,
+  and the coach sanity-checks the allocated total against body weight. The app
+  rejects a generated value below `MIN_PLAUSIBLE_CALORIES_KCAL` (1,200 kcal)
+  with a repair request, and hides a stored value below that floor instead of
+  showing a deficit as a requirement. A generated plan that carries a calorie
+  total without the breakdown is also rejected for repair; a stored plan without
+  one is left alone.
+- The breakdown's parts are rough when little food and weight history exists.
+  The prompt asks the coach to say so in `diet.assessment`, name the observation
+  that will refine them, and adjust base metabolism, workout burn and deficit to
+  the observed weight trend as meals and weigh-ins accumulate.
+- Missing food-log or weight data never turns a stated weight-loss or
+  body-fat-loss goal into maintenance. The coach plans a conservative best-effort
+  deficit (usually 200-500 kcal per day) from the stated goal and current
+  measurements, and widens only the uncertainty as data accumulates. A hard
+  block or race preparation changes the size and timing of the deficit; only a
+  taper, race day, recovery week or muscle-building block may hold at 0, with the
+  reason in `diet.assessment` and the period's `dietProgress` note.
 - The plan context includes the athlete's earlier calorie targets for the last
   28 days, so the assessment can compare the intake with the requirement.
 
 ## Acceptance criteria
 
 1. A generated plan carries `diet.goal` and `diet.assessment`, and every week
-   session and day plan carries `estimatedCaloriesKcal`.
+   session and day plan carries `estimatedCaloriesKcal` and its breakdown.
 2. With no stated diet goal the coach reports `Maintain current weight`.
 3. A generated calorie target below 1,200 kcal is rejected and repaired; a stored
    value below that floor is hidden rather than shown as the day's requirement.
 4. The Week tab shows every day's estimate, and the Day tab shows today's and
    tomorrow's.
-5. The Today card shows needed, logged and remaining calories and updates after
-   a meal is logged.
+5. The Today card shows the breakdown, logged calories and remaining calories,
+   and updates after a meal is logged.
 6. The Diet page shows the goal and assessment at the top, today's calorie
    panel, and each day's logged and needed calories with its deficit or surplus,
    with the meals under that day.
@@ -102,13 +128,15 @@ balanceKcal, entries }] }`. `balanceKcal` is consumed minus needed, so a
    the body chart.
 8. Saving a plan records each day's target in `plan_day_calories`, and the
    target survives the week leaving the stored plan.
-9. Typecheck, lint, format, and tests pass.
+9. A stated weight-loss or body-fat-loss goal keeps a non-zero deficit even when
+   the food log and weight history are thin; only an explained hold may use 0.
+10. Typecheck, lint, format, and tests pass.
 
 ## Testing
 
 - Shared schemas: the diet plan and summary shapes, and `FoodEntry.eatenDate`.
 - API unit tests: `dayCaloriesForPlan`, `consumedCaloriesByDate`,
-  `buildDietSummary`, and the implausible-calorie guard.
+  `buildDietSummary`, and the implausible-calorie and missing-breakdown guards.
 - API route tests: the summary's goal, assessment, per-day balance and entries,
   and the empty summary when diet advice is off.
 - Fitness history tests: logged and needed calories for each day.
