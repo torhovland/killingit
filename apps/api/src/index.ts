@@ -79,7 +79,7 @@ import { createDietRoute } from "./routes/diet.js";
 import { syncAthleteMetrics } from "./coaching/athleteMetrics.js";
 import { syncAthleteEvents } from "./coaching/athleteEvents.js";
 import { loadAthleteEvents } from "./events/store.js";
-import { createCoachingRoute } from "./routes/coaching.js";
+import { createCoachingRoute } from "./routes/coaching/index.js";
 import { createFitnessRoute } from "./routes/fitness.js";
 import { createGarminRoute } from "./routes/garmin.js";
 import { greet } from "./routes/greet.js";
