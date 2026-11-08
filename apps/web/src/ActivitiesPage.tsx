@@ -1,24 +1,15 @@
-import { useEffect, useState } from "react";
-import {
-  coachingInputSaveResponseSchema,
-  manualActivitiesResponseSchema,
-  type ManualActivity,
-} from "@killingit/shared";
-import { ActivityCard } from "./ActivityCard";
-import { TrainingLoadLine } from "./TrainingLoadLine";
+import { useEffect } from "react";
+import { ActivityList } from "./ActivityList";
 import { useAppStatus } from "./AppStatus";
 import { useAuth } from "./auth";
-import { requestParsed } from "./fetchAuthed";
-import { FormattedText } from "./FormattedText";
+import { ManualActivityForm } from "./ManualActivityForm";
+import { ManualActivityList } from "./ManualActivityList";
 import { useNavigate } from "./navigation";
-import { reportError } from "./reportError";
 import { SubmitButton } from "./SubmitButton";
 import { useTimeZone } from "./TimeZoneContext";
-import { coachingDateQuery, useActivityFeed } from "./useActivityFeed";
+import { useActivityFeed } from "./useActivityFeed";
+import { useManualActivities } from "./useManualActivities";
 import { useStatuses } from "./useStatuses";
-import { getToday } from "./useToday";
-
-const API_URL = import.meta.env.VITE_API_URL ?? "";
 
 /**
  * The activities page: every imported activity, the manual activity log, and
@@ -31,125 +22,12 @@ export function ActivitiesPage() {
   const timeZone = useTimeZone();
   const statuses = useStatuses(auth);
   const feed = useActivityFeed(auth, timeZone);
-  const [manualActivities, setManualActivities] = useState<ManualActivity[]>(
-    [],
-  );
-  const [error, setError] = useState<string | null>(null);
-  const [editingActivityId, setEditingActivityId] = useState<number | null>(
-    null,
-  );
-  const [manualStartDate, setManualStartDate] = useState(
-    () => getToday(timeZone).today,
-  );
-  const [manualDetails, setManualDetails] = useState("");
-  const [savingManual, setSavingManual] = useState(false);
+  const manual = useManualActivities(auth, timeZone, feed.loadCached);
 
   useEffect(() => {
     setStatus("activities-page", feed.syncing ? "syncing" : null);
     return () => setStatus("activities-page", null);
   }, [feed.syncing, setStatus]);
-
-  async function loadManualActivities(): Promise<void> {
-    try {
-      const response = await requestParsed(
-        `${API_URL}/api/coaching/activities/manual`,
-        auth,
-        manualActivitiesResponseSchema,
-        "Loading manual activities",
-      );
-      setManualActivities(response.manualActivities);
-    } catch (err: unknown) {
-      setError(reportError(err));
-    }
-  }
-
-  async function handleManualActivitySubmit(
-    event: React.FormEvent<HTMLFormElement>,
-  ): Promise<void> {
-    event.preventDefault();
-    if (!manualStartDate || !manualDetails.trim() || savingManual) {
-      return;
-    }
-    setSavingManual(true);
-    try {
-      const { today } = getToday(timeZone);
-      const path =
-        editingActivityId === null
-          ? `${API_URL}/api/coaching/activities/manual`
-          : `${API_URL}/api/coaching/activities/manual/${editingActivityId}`;
-      await requestParsed(
-        path,
-        auth,
-        coachingInputSaveResponseSchema,
-        editingActivityId === null
-          ? "Saving the manual activity"
-          : "Updating the manual activity",
-        {
-          method: editingActivityId === null ? "POST" : "PUT",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            today,
-            timezone: timeZone,
-            startDate: manualStartDate,
-            details: manualDetails,
-          }),
-        },
-      );
-      setEditingActivityId(null);
-      setManualStartDate(getToday(timeZone).today);
-      setManualDetails("");
-      await Promise.all([loadManualActivities(), feed.loadCached()]);
-    } catch (err: unknown) {
-      setError(reportError(err));
-    } finally {
-      setSavingManual(false);
-    }
-  }
-
-  function handleEditActivity(activity: ManualActivity): void {
-    setEditingActivityId(activity.id);
-    setManualStartDate(activity.startDate);
-    setManualDetails(activity.details);
-  }
-
-  function handleCancelEdit(): void {
-    setEditingActivityId(null);
-    setManualStartDate(getToday(timeZone).today);
-    setManualDetails("");
-  }
-
-  async function handleDeleteManualActivity(
-    activity: ManualActivity,
-  ): Promise<void> {
-    if (
-      !window.confirm(`Delete the manual activity from ${activity.startDate}?`)
-    ) {
-      return;
-    }
-    try {
-      await requestParsed(
-        `${API_URL}/api/coaching/activities/manual/${activity.id}?${coachingDateQuery(timeZone)}`,
-        auth,
-        coachingInputSaveResponseSchema,
-        "Deleting the manual activity",
-        { method: "DELETE" },
-      );
-      if (editingActivityId === activity.id) {
-        handleCancelEdit();
-      }
-      await Promise.all([loadManualActivities(), feed.loadCached()]);
-    } catch (err: unknown) {
-      setError(reportError(err));
-    }
-  }
-
-  useEffect(() => {
-    if (!auth.isAuthenticated) {
-      return;
-    }
-    void loadManualActivities();
-    // Only re-run when sign-in state flips; `auth` is consumed inside.
-  }, [auth.isAuthenticated]);
 
   useEffect(() => {
     if (!statuses.garmin?.connected) {
@@ -171,15 +49,7 @@ export function ActivitiesPage() {
     : statuses.llm?.configured
       ? "Sync & re-analyze"
       : "Sync activities";
-  // A manual entry is saved with the coach's TSS estimate and reply.
-  const manualLabel = savingManual
-    ? statuses.llm?.configured
-      ? "Coach is thinking…"
-      : "Saving…"
-    : editingActivityId !== null
-      ? "Update activity"
-      : "Add manual activity";
-  const errorMessage = error ?? feed.error ?? statuses.error;
+  const errorMessage = manual.error ?? feed.error ?? statuses.error;
 
   return (
     <section className="flex w-full flex-col gap-4 text-left">
@@ -225,104 +95,23 @@ export function ActivitiesPage() {
           </div>
         )}
 
-      <form
-        className="flex flex-col gap-2 rounded-lg border bg-card p-4"
-        onSubmit={(event) => void handleManualActivitySubmit(event)}
-      >
-        <label className="text-base font-medium" htmlFor="manual-start-date">
-          {editingActivityId ? "Edit manual activity" : "Manual activity"}
-        </label>
-        <input
-          id="manual-start-date"
-          name="startDate"
-          type="date"
-          className="w-fit rounded border bg-card px-2 py-1 text-base"
-          value={manualStartDate}
-          onChange={(event) => setManualStartDate(event.target.value)}
-          disabled={savingManual}
-        />
-        <textarea
-          name="details"
-          placeholder="Describe your activity"
-          className="w-full rounded border bg-card p-2 text-base"
-          rows={2}
-          value={manualDetails}
-          onChange={(event) => setManualDetails(event.target.value)}
-          disabled={savingManual}
-        />
-        <div className="flex gap-2">
-          <SubmitButton
-            busy={savingManual}
-            className="self-start rounded border border-transparent bg-primary px-3 py-1 text-base text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
-            disabled={!manualStartDate || !manualDetails.trim()}
-          >
-            {manualLabel}
-          </SubmitButton>
-          {editingActivityId && (
-            <button
-              type="button"
-              className="self-start rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted disabled:opacity-50"
-              onClick={handleCancelEdit}
-              disabled={savingManual}
-            >
-              Cancel
-            </button>
-          )}
-        </div>
-      </form>
+      <ManualActivityForm
+        editing={manual.editing !== null}
+        startDate={manual.startDate}
+        details={manual.details}
+        saving={manual.saving}
+        llmConfigured={statuses.llm?.configured ?? false}
+        onStartDateChange={manual.setStartDate}
+        onDetailsChange={manual.setDetails}
+        onSubmit={(event) => void manual.submit(event)}
+        onCancel={manual.cancelEdit}
+      />
 
-      {manualActivities.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <h3 className="text-base font-medium">Saved manual activities</h3>
-          <ul className="flex flex-col gap-1">
-            {manualActivities.map((activity) => (
-              <li
-                key={activity.id}
-                className="flex items-start justify-between gap-2 rounded border bg-card p-2 text-base"
-              >
-                <div className="flex flex-col gap-1">
-                  <span>
-                    <span className="font-medium">{activity.startDate}</span> —{" "}
-                    {activity.details}
-                  </span>
-                  {activity.coachReply && (
-                    <div className="flex flex-col gap-1 text-muted-foreground">
-                      <span className="font-medium text-foreground">
-                        Coach:
-                      </span>
-                      <FormattedText text={activity.coachReply.text} />
-                    </div>
-                  )}
-                  {activity.trainingLoad !== null &&
-                    activity.trainingLoad !== undefined && (
-                      <TrainingLoadLine
-                        load={activity.trainingLoad}
-                        tss={activity.estimatedTss ?? undefined}
-                        testId="manual-activity-load"
-                      />
-                    )}
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    className="text-sm text-muted-foreground hover:underline"
-                    onClick={() => handleEditActivity(activity)}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    className="text-sm text-destructive hover:underline"
-                    onClick={() => void handleDeleteManualActivity(activity)}
-                  >
-                    Delete
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      <ManualActivityList
+        activities={manual.activities}
+        onEdit={manual.edit}
+        onDelete={manual.remove}
+      />
 
       {feed.syncing && (
         <p className="text-base text-muted-foreground" aria-live="polite">
@@ -332,20 +121,14 @@ export function ActivitiesPage() {
         </p>
       )}
 
-      {!feed.syncing && feed.data && feed.data.activities.length === 0 && (
-        <p className="text-base text-muted-foreground">
-          No synced activities yet.
-        </p>
-      )}
-
-      {feed.data?.activities.map((activity) => (
-        <ActivityCard
-          key={activity.id}
-          activity={activity}
-          onSubmitComment={feed.submitComment}
-          onDelete={feed.deleteActivity}
-        />
-      ))}
+      <ActivityList
+        activities={feed.data?.activities ?? []}
+        emptyMessage={
+          !feed.syncing && feed.data ? "No synced activities yet." : undefined
+        }
+        onSubmitComment={feed.submitComment}
+        onDelete={feed.deleteActivity}
+      />
     </section>
   );
 }

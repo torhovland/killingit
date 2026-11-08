@@ -123,8 +123,9 @@ new comment and the review summaries, so the plan revision is built on them.
 - `PeriodReviewCard` renders one summary, its comment and reply, and the comment
   form / edit and "No comment" actions. On the season review page a week review
   also shows the weekly note saved for that week and the coach's reply to it.
-- `CoachDashboard` loads reviews, filters with `selectPendingReviews`, and keeps
-  answered reviews visible for the visit.
+- `useCoachReviews` loads reviews, filters with `selectPendingReviews`, and
+  keeps answered reviews visible for the visit; `PendingReviewsList` renders the
+  block and week groups on the dashboard.
 - `SeasonReviewPage` lists every review and offers the edit action. It is
   reachable from the account menu as **Season review**.
 - The dashboard no longer has a regeneration button. The new-season and

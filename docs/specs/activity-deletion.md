@@ -90,9 +90,10 @@ and slicing the feed. Plan generation uses the same filtered feed.
 - `ActivityCard` gets an optional `onDelete` handler and renders a Delete button
   only when it is supplied. The card confirms, shows a busy state, and surfaces
   an error if the request fails.
-- `CoachDashboard` removes a deleted imported activity from local state, reloads
-  manual activities after a manual deletion, and bumps the plan refresh key in
-  both cases.
+- `useActivityFeed` removes a deleted imported activity from local state.
+- `useManualActivities` deletes a manual entry, clears it from the form when it
+  was being edited, and asks the page to reload the activity feed so the day's
+  training load is rebuilt.
 - Saved manual activities show Edit and Delete actions side by side.
 
 ## Acceptance criteria
