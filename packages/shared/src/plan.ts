@@ -53,6 +53,12 @@ export type SeasonBlockSummary = z.infer<typeof seasonBlockSummarySchema>;
 /** The high-level season: goal, dates, and the ordered blocks that build to it. */
 export const seasonPlanSchema = z.object({
   goal: z.string().min(1),
+  /**
+   * The coach's greeting when the season is first planned: who they are and how
+   * much they look forward to working with the athlete. Missing on plans stored
+   * before the introduction existed.
+   */
+  introduction: z.string().min(1).nullable().optional(),
   startDate: planDateSchema,
   endDate: planDateSchema,
   blocks: z.array(seasonBlockSummarySchema).min(1),
@@ -368,7 +374,17 @@ export const seasonPlanUpdateSchema = z
     season: seasonPlanSchema,
     bodyMetrics: z.array(bodyMetricEstimateSchema).default([]),
   })
-  .extend(coachResponseNotesSchema.shape);
+  .extend(coachResponseNotesSchema.shape)
+  .refine(
+    (value) =>
+      typeof value.season.introduction === "string" &&
+      value.season.introduction.trim() !== "",
+    {
+      message:
+        'The season must open with an "introduction": a short greeting that introduces the coach and welcomes the athlete.',
+      path: ["season", "introduction"],
+    },
+  );
 
 export type SeasonPlanUpdate = z.infer<typeof seasonPlanUpdateSchema>;
 

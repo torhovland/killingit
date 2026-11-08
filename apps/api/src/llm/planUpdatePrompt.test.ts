@@ -364,6 +364,12 @@ describe("unified plan update prompt", () => {
     );
   });
 
+  it("keeps the season's introduction from the first plan", () => {
+    expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain(
+      'Keep the season\'s "introduction" exactly as supplied',
+    );
+  });
+
   it("tiles the season's blocks with the shared rule", () => {
     expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain(SEASON_BLOCK_RULES);
   });

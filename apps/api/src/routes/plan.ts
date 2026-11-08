@@ -183,8 +183,14 @@ export function createPlanRoute(deps: ResolvedAppDependencies): Hono {
         : false;
     // A generated week review or an answer to one revises the block, even while
     // today is still inside the stored block's dates.
+    // No week review is not a week review event. `planIsStale` treats a missing
+    // current timestamp as stale, which is right for answers but not here: it
+    // would report the block pending forever while the generator, which checks
+    // that a review exists, has nothing to revise.
     const weekReviewPending =
-      storedPlan && parsed?.success
+      storedPlan &&
+      parsed?.success &&
+      coachingInputs.weekReviewUpdatedAt !== null
         ? planIsStale(
             storedPlan.coachingInputsUpdatedAt,
             coachingInputs.weekReviewUpdatedAt,

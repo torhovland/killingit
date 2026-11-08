@@ -220,6 +220,27 @@ describe("CoachPlanView", () => {
     );
   });
 
+  it("shows the coach's introduction on the Season tab", () => {
+    const season = renderToStaticMarkup(
+      <CoachPlanView
+        plan={{
+          ...plan,
+          season: {
+            ...plan.season,
+            introduction:
+              "Hello Alex. I am your coach and I look forward to working with you.",
+          },
+        }}
+        defaultTab="season"
+      />,
+    );
+
+    expect(season).toContain('data-testid="season-introduction"');
+    expect(season).toContain(
+      "Hello Alex. I am your coach and I look forward to working with you.",
+    );
+  });
+
   it("lists block weeks like season blocks, with muted details and rules", () => {
     const block = renderToStaticMarkup(
       <CoachPlanView plan={plan} defaultTab="block" />,

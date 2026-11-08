@@ -20,6 +20,7 @@ import {
   PLAN_PROMPT_RULES,
   promptSections,
   SEASON_CONTRACT,
+  SEASON_INTRODUCTION_RULES,
   SESSION_PURPOSE_RULES,
   TODAY_IN_WEEK_RULE,
   TRAINING_LOAD_RULES,
@@ -34,7 +35,7 @@ import {
  * callers can invalidate cached plans the same way activity analyses are
  * versioned.
  */
-export const COACH_PLAN_PROMPT_VERSION = 14;
+export const COACH_PLAN_PROMPT_VERSION = 15;
 
 export type CoachPlanActivity = RecentActivityContext;
 
@@ -74,6 +75,7 @@ export const COACH_PLAN_SYSTEM_PROMPT = promptSections(
 5. tomorrow — the suggested workout or rest for tomorrow, with a rationale and an optionality assessment.`,
   "Fully detail the today and tomorrow day objects; keep every session in the week, including today and tomorrow, as a short outline.",
   "The season starts on the supplied today date. The block is the first entry in season.blocks. The week is the first week in block.weeks, so block.weeks[0].startDate and week.startDate must match.",
+  SEASON_INTRODUCTION_RULES,
   "Respect the athlete's available training days and hours, and include rest days where they are the best choice.",
   WEEK_SHAPE_RULES,
   TODAY_IN_WEEK_RULE,

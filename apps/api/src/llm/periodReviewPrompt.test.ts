@@ -141,6 +141,6 @@ describe("buildPeriodReviewPrompt", () => {
   });
 
   it("has a stable prompt version", () => {
-    expect(PERIOD_REVIEW_PROMPT_VERSION).toBe(3);
+    expect(PERIOD_REVIEW_PROMPT_VERSION).toBe(4);
   });
 });

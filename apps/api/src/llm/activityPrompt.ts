@@ -52,7 +52,7 @@ export const MAX_PROMPT_SAMPLES = 90;
  * Bump when the prompt or generation parameters change materially. Cached
  * analyses from an older version are ignored and regenerated.
  */
-export const ANALYSIS_PROMPT_VERSION = 17;
+export const ANALYSIS_PROMPT_VERSION = 18;
 
 /**
  * The athlete's current week, used to match an activity to its planned session

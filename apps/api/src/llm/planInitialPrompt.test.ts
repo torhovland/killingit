@@ -10,6 +10,7 @@ import {
   GLOBAL_PROMPT_RULES,
   PLAN_PROMPT_RULES,
   SEASON_BLOCK_RULES,
+  SEASON_INTRODUCTION_RULES,
   TRAINING_LOAD_RULES,
 } from "./promptRules.js";
 
@@ -71,6 +72,11 @@ describe("season plan prompt", () => {
     expect(SEASON_PLAN_SYSTEM_PROMPT).toContain("rationale");
     expect(SEASON_PLAN_SYSTEM_PROMPT).toContain('"dietProgress"');
     expect(SEASON_PLAN_SYSTEM_PROMPT).toContain('"targetWeightKg"');
+  });
+
+  it("opens the season with a greeting from the coach", () => {
+    expect(SEASON_PLAN_SYSTEM_PROMPT).toContain(SEASON_INTRODUCTION_RULES);
+    expect(SEASON_PLAN_SYSTEM_PROMPT).toContain('"introduction"');
   });
 
   it("includes the athlete context and today's date", () => {

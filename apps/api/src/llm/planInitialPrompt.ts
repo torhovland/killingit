@@ -15,6 +15,7 @@ import {
   promptSections,
   SEASON_BLOCK_RULES,
   SEASON_CONTRACT,
+  SEASON_INTRODUCTION_RULES,
   TRAINING_LOAD_RULES,
 } from "./promptRules.js";
 
@@ -30,6 +31,7 @@ export const SEASON_PLAN_SYSTEM_PROMPT = promptSections(
   "Create a season plan for an amateur athlete.",
   "Use the recent activities to judge the athlete's current fitness, fatigue, and consistency.",
   "The season starts on today's date and ends when the athlete's goals and any additional recovery have passed. Divide the season into ordered blocks (for example base, build, specialization, taper, or whatever best fits the athlete). Each block needs a name, focus, start and end dates, and a week count. Include a concise rationale explaining the season's shape and the training-science reasoning behind the block order.",
+  SEASON_INTRODUCTION_RULES,
   SEASON_BLOCK_RULES,
   JSON_RULES,
   `{

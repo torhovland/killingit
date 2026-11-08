@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
   ATHLETE_INPUT_RULES,
   COACH_AMBITION_RULES,
+  COACH_PERSONALITY_RULES,
   COACH_RESPONSE_NOTES_CONTRACT,
   COACH_RESPONSE_NOTES_RULES,
   DAY_CONTRACT,
@@ -11,9 +12,12 @@ import {
   DIET_PROGRESS_RULES,
   DURATION_TOLERANCE_RULES,
   FORM_TARGET_RULES,
+  GLOBAL_PROMPT_RULES,
   PAST_SESSION_RULES,
   PLAN_PROMPT_RULES,
   SEASON_BLOCK_RULES,
+  SEASON_CONTRACT,
+  SEASON_INTRODUCTION_RULES,
   TEXT_FORMATTING_RULES,
   TODAY_SESSION_RULES,
   TRAINING_LOAD_RULES,
@@ -73,6 +77,82 @@ describe("COACH_RESPONSE_NOTES_RULES", () => {
     expect(COACH_RESPONSE_NOTES_RULES).toContain(
       "a workout that could not be matched to a planned session",
     );
+  });
+});
+
+describe("COACH_PERSONALITY_RULES", () => {
+  it("describes a tough but warm, relaxed and good-humoured coach", () => {
+    expect(COACH_PERSONALITY_RULES).toContain(
+      "tough but warm, relaxed, and good-humoured",
+    );
+    expect(COACH_PERSONALITY_RULES).toContain(
+      "the training advice is always the point",
+    );
+  });
+
+  it("keeps humour sparing and discreet", () => {
+    expect(COACH_PERSONALITY_RULES).toContain(
+      "use it sparingly and discreetly",
+    );
+    expect(COACH_PERSONALITY_RULES).toContain(
+      "never let a joke replace the information or make the athlete feel small",
+    );
+  });
+
+  it("never lets the coach call itself an AI", () => {
+    expect(COACH_PERSONALITY_RULES).toContain(
+      "Never describe yourself as an AI, an AI coach, a chatbot, a language model, an algorithm, or an app",
+    );
+  });
+
+  it("allows pride and a trace of disappointment without overdoing it", () => {
+    expect(COACH_PERSONALITY_RULES).toContain(
+      "say so plainly and let your pride show",
+    );
+    expect(COACH_PERSONALITY_RULES).toContain(
+      "a trace of disappointment is allowed",
+    );
+    expect(COACH_PERSONALITY_RULES).toContain("with no gushing and no sulking");
+  });
+
+  it("uses a real first name but never a non-name identifier", () => {
+    expect(COACH_PERSONALITY_RULES).toContain(
+      "plainly looks like a real first name, use it naturally now and then",
+    );
+    expect(COACH_PERSONALITY_RULES).toContain(
+      "Never address the athlete with an email address, username, handle, account id, URL",
+    );
+    expect(COACH_PERSONALITY_RULES).toContain(
+      "When no real first name is available, speak to them without one",
+    );
+  });
+
+  it("reaches every prompt through the global rules", () => {
+    expect(GLOBAL_PROMPT_RULES).toContain(COACH_PERSONALITY_RULES);
+  });
+});
+
+describe("SEASON_INTRODUCTION_RULES", () => {
+  it("asks a new season to introduce the coach and welcome the athlete", () => {
+    expect(SEASON_INTRODUCTION_RULES).toContain(
+      "greet the athlete by first name when the input gives a name that clearly looks like a real first name",
+    );
+    expect(SEASON_INTRODUCTION_RULES).toContain(
+      "introduce yourself as the coach who will guide their season",
+    );
+    expect(SEASON_INTRODUCTION_RULES).toContain(
+      "that is only one option, not a required line",
+    );
+    expect(SEASON_INTRODUCTION_RULES).toContain(
+      "When no real first name is available, greet them without a name",
+    );
+    expect(SEASON_INTRODUCTION_RULES).toContain(
+      "This greeting is not the season rationale",
+    );
+  });
+
+  it("carries the greeting as a nullable field in the season contract", () => {
+    expect(SEASON_CONTRACT).toContain('"introduction": "string | null"');
   });
 });
 

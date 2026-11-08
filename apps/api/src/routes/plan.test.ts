@@ -48,6 +48,8 @@ function makePlan(today = "2026-10-21"): CoachPlan {
   return {
     season: {
       goal: "Run a marathon.",
+      introduction:
+        "Hello, I am your coach and I look forward to working with you.",
       startDate: "2026-10-21",
       endDate: "2027-04-01",
       rationale: "Build a base.",
@@ -365,9 +367,13 @@ function authenticatedRequest(path: string, init?: RequestInit): Request {
   return new Request(`http://localhost${path}`, { ...init, headers });
 }
 
-/** Waits for the background generation to settle in the in-memory store. */
+/**
+ * Waits for the background generation to settle in the in-memory store. The
+ * allowance is generous because a run reads some data from the test database,
+ * which is remote in some environments.
+ */
 async function waitForGeneration(store: MemoryGenerationStore): Promise<void> {
-  for (let attempt = 0; attempt < 200; attempt += 1) {
+  for (let attempt = 0; attempt < 2000; attempt += 1) {
     if (store.status.status === "done" || store.status.status === "error") {
       return;
     }
@@ -716,6 +722,45 @@ describe("coach plan route", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as { stale: boolean };
     expect(body.stale).toBe(true);
+  });
+
+  it("does not mark the block pending when there is no week review", async () => {
+    const plan = makePlan();
+    // The athlete has coaching inputs, but the stored plan already includes
+    // them and no week review has been generated. A missing review must not
+    // look like a newer review, or the dashboard regenerates forever.
+    const coachingInputsUpdatedAt = new Date("2026-10-20T10:00:00Z");
+    const planStore = new MemoryPlanStore({
+      plan,
+      answersUpdatedAt: new Date("2026-10-20T10:00:00Z"),
+      coachingInputsUpdatedAt,
+      activitiesUpdatedAt: null,
+      generatedAt: new Date("2026-10-20T10:00:00Z"),
+    });
+
+    const res = await makeApp({
+      planStore,
+      coachingInputs: {
+        manualActivities: [],
+        activityComments: [],
+        weeklyNote: "I cannot train on Friday this week.",
+        weeklyNoteWeekStartDate: "2026-10-19",
+        weeklyNoteReply: "Understood; Friday is a rest day.",
+        weeklyNoteUpdatedAt: new Date("2026-10-20T10:00:00Z"),
+        periodReviews: [],
+        weekReviewUpdatedAt: null,
+        blockReviewUpdatedAt: null,
+        updatedAt: coachingInputsUpdatedAt,
+      },
+    }).fetch(authenticatedRequest("/api/coaching/plan?today=2026-10-21"));
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      stale: boolean;
+      pending: { block: boolean };
+    };
+    expect(body.stale).toBe(false);
+    expect(body.pending.block).toBe(false);
   });
 
   it("treats an invalid stored plan as absent instead of failing", async () => {

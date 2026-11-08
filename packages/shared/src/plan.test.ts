@@ -37,6 +37,8 @@ function makePlan() {
   return {
     season: {
       goal: "Sub-4-hour marathon",
+      introduction:
+        "Hello Alex, I'm your coach. I'm looking forward to working with you.",
       startDate: "2026-10-21",
       endDate: "2027-04-01",
       rationale: "Build a strong aerobic base.",
@@ -307,6 +309,33 @@ describe("split build schemas", () => {
     });
 
     expect(parsed.bodyMetrics[0]?.bodyFatPercent).toBeNull();
+  });
+
+  it("keeps the coach's introduction with the season", () => {
+    const plan = makePlan();
+    const parsed = seasonPlanUpdateSchema.parse({ season: plan.season });
+
+    expect(parsed.season.introduction).toBe(
+      "Hello Alex, I'm your coach. I'm looking forward to working with you.",
+    );
+  });
+
+  it("requires the introduction when the season is first planned", () => {
+    const { introduction, ...season } = makePlan().season;
+    void introduction;
+
+    expect(() => seasonPlanUpdateSchema.parse({ season })).toThrow(
+      "The season must open with",
+    );
+  });
+
+  it("still parses a season stored before the introduction existed", () => {
+    const { introduction, ...season } = makePlan().season;
+    void introduction;
+
+    expect(
+      coachPlanSchema.parse({ ...makePlan(), season }).season.introduction,
+    ).toBeUndefined();
   });
 });
 
