@@ -16,18 +16,17 @@ import {
   loadReplyContext,
   type ReplyContextInput,
 } from "../coaching/replyContext.js";
+import type { ResolvedAppDependencies } from "../dependencies.js";
 import type { PlanContextInput } from "../llm/planContext.js";
 import { loadLlmClient, type LlmClient } from "../llm/client.js";
 import { analyzeFood } from "../llm/foodAnalysis.js";
 import type { PreviousFoodAnalysis } from "../llm/foodPrompt.js";
 import { localDateTimeInZone, addDays } from "../plans/dates.js";
 import { loadPlanDayCalories } from "../plans/dayCalories.js";
-import type { PlanStore } from "../plans/store.js";
 import type { QuestionAnswerStore } from "../questions/answers.js";
-import { type UserStore } from "../users/store.js";
 import { buildDietSummary } from "../diet/days.js";
 import { toFoodEntry } from "../diet/presenter.js";
-import { dbFoodEntryStore, type FoodEntryStore } from "../diet/store.js";
+import { dbFoodEntryStore } from "../diet/store.js";
 import { createMealThumbnail } from "../diet/thumbnail.js";
 
 /** The reported reason when no provider is configured. */
@@ -36,23 +35,6 @@ const NO_LLM_ERROR =
 
 /** How far back the summary looks when the athlete has logged nothing. */
 const EMPTY_SUMMARY_DAYS = 30;
-
-export interface DietRouteDependencies {
-  users: UserStore;
-  answers: QuestionAnswerStore;
-  entries?: FoodEntryStore;
-  plans?: PlanStore;
-  /** Injectable for route tests; defaults to the stored plan's calorie targets. */
-  loadTargets?: typeof loadPlanDayCalories;
-  /** Injectable for route tests; defaults to the account's stored config. */
-  loadLlm?: (userId: number) => Promise<LlmClient | null>;
-  /** Injectable for route tests; defaults to the stored reply context. */
-  loadContext?: (input: ReplyContextInput) => Promise<PlanContextInput>;
-  /** Injectable for route tests; defaults to the real food analysis. */
-  analyze?: typeof analyzeFood;
-  /** Injectable for route tests; defaults to the Jimp thumbnail generator. */
-  createThumbnail?: typeof createMealThumbnail;
-}
 
 /** Decodes a stored image data URL into its MIME type and bytes. */
 function decodePhoto(dataUrl: string): {
@@ -154,13 +136,13 @@ async function analyseMeal(
  * typed is lost. Editing a meal re-runs the analysis with the new fields.
  * Photos are served from their own authenticated endpoint.
  */
-export function createDietRoute(deps: DietRouteDependencies): Hono {
-  const entries = deps.entries ?? dbFoodEntryStore;
-  const loadTargets = deps.loadTargets ?? loadPlanDayCalories;
+export function createDietRoute(deps: ResolvedAppDependencies): Hono {
+  const entries = deps.dietEntries ?? dbFoodEntryStore;
+  const loadTargets = deps.loadDayCalories ?? loadPlanDayCalories;
   const llmLoader = deps.loadLlm ?? loadLlmClient;
-  const loadContext = deps.loadContext ?? loadReplyContext;
-  const analyze = deps.analyze ?? analyzeFood;
-  const createThumbnail = deps.createThumbnail ?? createMealThumbnail;
+  const loadContext = deps.loadFoodContext ?? loadReplyContext;
+  const analyze = deps.analyzeFood ?? analyzeFood;
+  const createThumbnail = deps.createMealThumbnail ?? createMealThumbnail;
 
   return new Hono()
     .get("/summary", async (c) => {
@@ -168,7 +150,7 @@ export function createDietRoute(deps: DietRouteDependencies): Hono {
       if (!today.success) {
         return c.text("A valid today date (YYYY-MM-DD) is required", 400);
       }
-      const user = await deps.users.ensureUser(getAthlete(c).sub);
+      const user = await deps.userStore.ensureUser(getAthlete(c).sub);
       if (!user.dietAdvice) {
         return c.json(
           dietSummaryResponseSchema.parse({
@@ -186,9 +168,7 @@ export function createDietRoute(deps: DietRouteDependencies): Hono {
         addDays(today.data, -EMPTY_SUMMARY_DAYS);
       const [targets, plan] = await Promise.all([
         loadTargets(user.id, earliest, today.data),
-        deps.plans === undefined
-          ? Promise.resolve(null)
-          : deps.plans.load(user.id),
+        deps.planStore.load(user.id),
       ]);
       const diet = plan?.plan.diet ?? null;
       const goalProvided =
@@ -209,7 +189,7 @@ export function createDietRoute(deps: DietRouteDependencies): Hono {
       );
     })
     .get("/entries", async (c) => {
-      const user = await deps.users.ensureUser(getAthlete(c).sub);
+      const user = await deps.userStore.ensureUser(getAthlete(c).sub);
       const stored = await entries.listForUser(user.id);
       return c.json(
         foodEntriesResponseSchema.parse({
@@ -218,7 +198,7 @@ export function createDietRoute(deps: DietRouteDependencies): Hono {
       );
     })
     .post("/entries", zValidator("json", foodEntryRequestSchema), async (c) => {
-      const user = await deps.users.ensureUser(getAthlete(c).sub);
+      const user = await deps.userStore.ensureUser(getAthlete(c).sub);
       if (!user.dietAdvice) {
         return c.text(
           "Diet advice is not enabled. Turn it on in Settings first.",
@@ -257,7 +237,7 @@ export function createDietRoute(deps: DietRouteDependencies): Hono {
           photoDataUrl,
         },
         {
-          answers: deps.answers,
+          answers: deps.answerStore,
           loadLlm: llmLoader,
           loadContext,
           analyze,
@@ -284,7 +264,7 @@ export function createDietRoute(deps: DietRouteDependencies): Hono {
         if (!Number.isInteger(id) || id <= 0) {
           return c.text("Invalid meal", 400);
         }
-        const user = await deps.users.ensureUser(getAthlete(c).sub);
+        const user = await deps.userStore.ensureUser(getAthlete(c).sub);
         if (!user.dietAdvice) {
           return c.text(
             "Diet advice is not enabled. Turn it on in Settings first.",
@@ -350,7 +330,7 @@ export function createDietRoute(deps: DietRouteDependencies): Hono {
             },
           },
           {
-            answers: deps.answers,
+            answers: deps.answerStore,
             loadLlm: llmLoader,
             loadContext,
             analyze,
@@ -378,7 +358,7 @@ export function createDietRoute(deps: DietRouteDependencies): Hono {
       if (!Number.isInteger(id) || id <= 0) {
         return c.text("Invalid meal", 400);
       }
-      const user = await deps.users.ensureUser(getAthlete(c).sub);
+      const user = await deps.userStore.ensureUser(getAthlete(c).sub);
       const dataUrl = await entries.photo(user.id, id);
       if (dataUrl === null) {
         return c.text("Photo not found", 404);

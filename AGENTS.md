@@ -558,6 +558,13 @@ through a disciplined process:
   merged into `PLAN_PROMPT_RULES`. Before writing prompt text, check that
   module and extend it instead of adding a second copy. A duplicated fragment
   is a bug waiting to diverge.
+- **Wire API dependencies through the shared context.** The injectable surface
+  for the plan, coaching, activity, fitness, calendar, diet and weather routes
+  lives in `apps/api/src/dependencies.ts`; `createApp` resolves the account
+  stores once and passes `ResolvedAppDependencies` to those factories, which
+  apply their own `??` production default. Do not conditionally spread a
+  dependency field — type it `T | undefined` and forward it. See
+  `docs/specs/api-dependency-wiring.md` and ADR 0023.
 - **Keep exported constants above exported functions.** Top-level `export const`
   declarations come before `export function` declarations in a module. The
   `local/consts-before-functions` ESLint rule enforces it, while preserving the

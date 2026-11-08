@@ -54,15 +54,18 @@ export interface CoachReplyDependencies {
   answers: QuestionAnswerStore;
   loadLlm: (userId: number) => Promise<LlmClient | null>;
   /** Injectable for tests; defaults to the stored reply context. */
-  loadContext?: (input: ReplyContextInput) => Promise<PlanContextInput>;
+  loadContext?:
+    ((input: ReplyContextInput) => Promise<PlanContextInput>) | undefined;
   /** Injectable for tests; defaults to the database-backed writer. */
-  saveReply?: typeof saveCoachReply;
+  saveReply?: typeof saveCoachReply | undefined;
   /** Injectable for tests; defaults to the stored unanswered comments. */
-  loadUnansweredComments?: (
-    userId: number,
-  ) => Promise<Awaited<ReturnType<typeof loadUnansweredActivityComments>>>;
+  loadUnansweredComments?:
+    | ((
+        userId: number,
+      ) => Promise<Awaited<ReturnType<typeof loadUnansweredActivityComments>>>)
+    | undefined;
   /** True while the run asking for replies still owns the generation row. */
-  isCurrent?: () => Promise<boolean>;
+  isCurrent?: (() => Promise<boolean>) | undefined;
 }
 
 /** One reply to generate, and the prompt kind it is logged under. */

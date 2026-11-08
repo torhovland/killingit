@@ -1,17 +1,13 @@
 import { geocodeResponseSchema } from "@killingit/shared";
 import { Hono } from "hono";
+import type { ResolvedAppDependencies } from "../dependencies.js";
 import { searchLocations } from "../weather/geocode.js";
-
-export interface WeatherRouteDependencies {
-  /** Injectable for route tests; defaults to the OpenStreetMap geocoder. */
-  searchLocations?: typeof searchLocations;
-}
 
 /**
  * Address search for the settings location picker. Proxied through the API so
  * the browser talks to one origin and upstream errors stay out of the UI.
  */
-export function createWeatherRoute(deps: WeatherRouteDependencies = {}): Hono {
+export function createWeatherRoute(deps: ResolvedAppDependencies): Hono {
   const search = deps.searchLocations ?? searchLocations;
   return new Hono().get("/geocode", async (c) => {
     const query = (c.req.query("q") ?? "").trim();

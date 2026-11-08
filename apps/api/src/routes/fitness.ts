@@ -4,33 +4,20 @@ import {
   fitnessHistoryResponseSchema,
   fitnessRangeSchema,
   planDateSchema,
-  type AnalyzedActivitiesResponse,
 } from "@killingit/shared";
 import { Hono } from "hono";
 import { getAthlete } from "../auth/middleware.js";
 import { loadCachedActivityFeed } from "../coaching/feedCache.js";
-import type { PlanStore } from "../plans/store.js";
+import type { ResolvedAppDependencies } from "../dependencies.js";
 import { loadFitnessHistory } from "../training/history.js";
-import type { UserStore } from "../users/store.js";
-
-export interface FitnessRouteDependencies {
-  users: UserStore;
-  plans: PlanStore;
-  /** Injectable for route tests; defaults to the stored activity feed. */
-  loadCachedFeed?: (
-    userId: number,
-  ) => Promise<AnalyzedActivitiesResponse | null>;
-  /** Injectable for route tests; defaults to the database-backed loader. */
-  loadHistory?: typeof loadFitnessHistory;
-}
 
 /**
  * The fitness history behind the Fitness page: the day-by-day training load
  * and estimated FTP for a window ending today.
  */
-export function createFitnessRoute(deps: FitnessRouteDependencies): Hono {
+export function createFitnessRoute(deps: ResolvedAppDependencies): Hono {
   const loadFeed = deps.loadCachedFeed ?? loadCachedActivityFeed;
-  const loadHistory = deps.loadHistory ?? loadFitnessHistory;
+  const loadHistory = deps.loadFitnessHistory ?? loadFitnessHistory;
 
   return new Hono().get("/", async (c) => {
     const today = planDateSchema.safeParse(c.req.query("today"));
@@ -48,10 +35,10 @@ export function createFitnessRoute(deps: FitnessRouteDependencies): Hono {
     }
 
     try {
-      const user = await deps.users.ensureUser(getAthlete(c).sub);
+      const user = await deps.userStore.ensureUser(getAthlete(c).sub);
       const [feed, stored] = await Promise.all([
         loadFeed(user.id),
-        deps.plans.load(user.id),
+        deps.planStore.load(user.id),
       ]);
       const parsedPlan =
         stored === null ? null : coachPlanSchema.safeParse(stored.plan);
