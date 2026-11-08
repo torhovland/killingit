@@ -61,12 +61,15 @@ about a past workout, or before a suggested workout, to steer the coach.
 - The current implementation lives behind `LlmProvider`
   (`apps/api/src/llm/openrouter.ts`). Each account's API key is encrypted at
   rest and its chosen model stored in `llm_settings`. Activity analyses are
-  cached per account in `activity_analyses`. A stored general or program
-  analysis is reused regardless of the selected model or prompt version, and a
-  plan build only fills reviews that are missing, so neither a model change nor
-  a prompt edit re-bills the athlete. Only a newer athlete comment makes a
-  stored analysis stale; see `docs/specs/coach-feedback-and-program-review.md`.
-  See ADR 0004.
+  cached per account in `activity_analyses`. The general analysis is the single
+  plan-aware review: it includes plan fit when the activity is in the current
+  week and otherwise reviews the workout on its own merits with the block focus
+  as context. A stored analysis is reused regardless of the selected model or
+  prompt version, so neither a model change nor a prompt edit re-bills the
+  athlete, and a plan build does not add a second program-only review. Only a
+  newer athlete comment makes a stored analysis stale; legacy `program` rows
+  remain a display fallback. See
+  `docs/specs/coach-feedback-and-program-review.md`. See ADR 0004.
 - The model picker is backed by a graded catalog in `llm_models`, refreshed in
   the background at most once every 24 hours (`llm_model_sync`). The Settings
   page selects a season/block model and a separate day-to-day model; both IDs
@@ -229,13 +232,13 @@ about a past workout, or before a suggested workout, to steer the coach.
   downsampled sample preview, shown as a collapsible table on the Activities
   page. Running cadence is normalized to total steps per minute and cycling
   cadence to rpm, matching Garmin Connect. Strength activities also carry their
-  recorded exercise sets, repetitions, weights and rest intervals, and both the
-  activity analysis and the program review use them; see
+  recorded exercise sets, repetitions, weights and rest intervals, and the
+  activity analysis uses them; see
   `docs/specs/garmin-strength-exercise-sets.md`. Activities also carry their
   recorded laps with per-lap duration, distance, average and maximum power,
   average and maximum heart rate, average speed, cadence and elevation, shown
-  as a collapsible table and given to the activity analysis, program review and
-  plan prompts so the coach can judge interval structure. A single lap is
+  as a collapsible table and given to the activity analysis and plan prompts so
+  the coach can judge interval structure. A single lap is
   treated as no laps, since it only restates the whole activity; see
   `docs/specs/garmin-activity-laps.md`. Further sport-specific Garmin
   metrics and their proposed data model are assessed in

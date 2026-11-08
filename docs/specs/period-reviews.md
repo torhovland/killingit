@@ -98,7 +98,7 @@ new comment and the review summaries, so the plan revision is built on them.
    with its summary, athlete comment, coach reply, and for a week review the
    week's saved note and the coach's reply to it. The current week's note and
    its coach reply are always included. Recent activities also carry their
-   program review and coach reply.
+   analysis and coach reply.
 
 ## Prompts
 

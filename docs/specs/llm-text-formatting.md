@@ -26,7 +26,7 @@ real HTML paragraphs and lists, not as literal `-` or `1.` text.
    - avoid headings, bold, italics, links, tables and code blocks, and
    - keep titles, focuses and names as short plain phrases.
 2. Add the fragment to every plan prompt (through `PLAN_PROMPT_RULES`) and to
-   the activity review, program review, period review and coach reply prompts.
+   the activity review, period review and coach reply prompts.
 3. A presentational `FormattedText` component in `apps/web` that parses the
    agreed plain-text structure into React paragraphs, `<ul>` lists and `<ol>`
    lists. Inline `**bold**` is rendered as `<strong>` as a safety net.
@@ -53,7 +53,7 @@ real HTML paragraphs and lists, not as literal `-` or `1.` text.
 ## Acceptance criteria
 
 1. Every plan prompt contains `TEXT_FORMATTING_RULES`; the activity review,
-   program review, period review and coach reply system prompts contain it too.
+   period review and coach reply system prompts contain it too.
 2. The rule asks for paragraphs separated by a blank line, `- ` bullets and
    `1. ` numbered items, and explicitly forbids other markdown.
 3. `FormattedText` renders:

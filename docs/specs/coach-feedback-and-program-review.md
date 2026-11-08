@@ -1,4 +1,4 @@
-# Spec: Coach feedback on athlete input and program-aware activity reviews
+# Spec: Coach feedback on athlete input and plan-aware activity reviews
 
 - **Status:** Accepted (implemented)
 - **Date:** 2026-10-22
@@ -7,25 +7,28 @@
 
 ## Goal
 
-Make the coach feel like it is listening. After a full plan is built, review
-recent activities against the plan. After the athlete comments on an activity,
-writes a weekly note, or records/edits a manual activity, reply briefly and
-refresh the week around the new input without replacing a workout that has
-already happened with a new suggestion, while keeping today's completed summary
-in sync with the athlete's latest comment.
+Make the coach feel like it is listening. Each activity gets one plan-aware
+review: when the activity falls inside the current week, the review includes how
+well it fit the planned session; otherwise it reviews the workout on its own
+merits and may relate it to the current block's focus. After the athlete
+comments on an activity, writes a weekly note, or records/edits a manual
+activity, reply briefly and refresh the week around the new input without
+replacing a workout that has already happened with a new suggestion, while
+keeping today's completed summary in sync with the athlete's latest comment.
 
 ## Scope
 
 ### In scope
 
-1. **Program review after a full plan build.** When the plan is created,
-   regenerated because answers changed, or rebuilt with `force`, review each
-   recent synced activity that does not already have a stored program review.
-   The review says how well the activity fit the plan (intent, load, timing,
-   progression) and what could have been done better. It is stored separately
-   from the general activity analysis and shown in the activity card. A stored
-   review is reused across later plan builds, model changes, and prompt-version
-   changes; only a newer athlete comment makes it stale.
+1. **One activity review.** The general activity analysis is the single review.
+   It sees the current season, block and week. When the activity date has a
+   session in the current week, it matches the workout to that session and says
+   how well it fit the plan (intent, load, timing, progression). Outside the
+   current week it reviews the workout on its own merits and may relate it to
+   the current block's focus, without pretending a past session was planned.
+   There is no separate program-review call, so an activity is never reviewed
+   twice. Stored legacy `program` reviews from before this change remain a
+   display fallback when an activity has no general analysis.
 2. **Coach reply to coaching inputs.** Saving an activity comment, a weekly note,
    or a manual activity (create or edit) generates a short coach reply. The
    reply is persisted and returned from the save endpoint so the UI can show it
@@ -48,12 +51,12 @@ in sync with the athlete's latest comment.
 ### Out of scope
 
 - A chat thread. There is one latest coach reply per input.
-- Program reviews for manual activities (they have no synced timeseries).
+- A second, program-only review of the same activity. Plan fit belongs to the
+  single review.
 - Background workers for replies. Replies are generated synchronously; plan
   generation stays in the background.
-- Re-running a stored program review. A plan build only fills reviews that are
-  missing; a later model or prompt change does not invalidate them, and only a
-  newer athlete comment makes one stale.
+- Re-running a stored analysis because the model or prompt version changed, or
+  because a plan was rebuilt. Only a newer athlete comment makes it stale.
 
 ## Data model
 
@@ -65,9 +68,10 @@ already exists is rejected; editing updates the existing row and its
 
 ### `activity_analyses`
 
-Add `kind` (`general | program`, default `general`). The unique constraint is
-`(user_id, activity_id, kind)` so both analyses can coexist for one account
-without sharing rows across accounts.
+`kind` (`general | program`, default `general`). The unique constraint is
+`(user_id, activity_id, kind)`. New reviews use `general`; `program` remains only
+for rows written before the single-review change so the UI can still show them
+as a fallback.
 
 ### `coach_replies`
 
@@ -81,7 +85,9 @@ One latest reply per athlete input:
 ## API
 
 - `GET /api/coaching/activities` now includes, per activity:
-  - `programAnalysis` (or null until the next full plan build),
+  - `analysis` (the single plan-aware review),
+  - `programAnalysis` (a legacy review, or null; shown only when `analysis` is
+    missing),
   - `comment` (the athlete's saved comment, or null),
   - `coachReply` (the latest coach reply, or null).
 - `POST /api/coaching/activities/:id/comments` accepts `activityDate` and returns
@@ -105,25 +111,18 @@ and the reply is null; the failure is logged.
 
 ## Prompts
 
-- **General activity analysis** (`activityPrompt`): the prompt contains the
-  activity summary, its time series, and the athlete's comment when present,
-  under the shared rule that a comment describes that same activity rather than
-  extra training. The coach treats the comment as authoritative when it explains
-  what the session actually was, so it does not ask the athlete to describe an
-  activity again. A comment saved after the cached analysis makes that analysis
-  stale; it is regenerated with the comment, and any pending question the old
-  analysis asked about the activity is cleared. Versioned with
-  `ANALYSIS_PROMPT_VERSION`.
-- **Program review** (`programAnalysisPrompt`): system prompt asks for 3–5
-  sentences on fit with the program and what could have been done better, citing
-  the activity data. It first matches the activity to the session planned for
-  its date, today's session, or another session that week, and treats the
-  device's activity type as unreliable (erratic heart rate may indicate a
-  planned strength session). The user prompt contains the season goal and
-  rationale, the block focus, the week focus and sessions, the session planned
-  for the activity's date (or a fallback to another session), the activity
-  summary, its general analysis, and the athlete's comment when present.
-  Versioned with `PROGRAM_ANALYSIS_PROMPT_VERSION`.
+- **Activity analysis** (`activityPrompt`): the prompt contains the activity
+  summary, its time series, the athlete's comment when present, and the current
+  season, block and week. Within the current week it matches the workout to the
+  session planned for its date (or another session that week if the data fits)
+  and includes how well it fit. Outside the current week it says no planned
+  session is available and asks for a review on the workout's own merits,
+  optionally related to the current block's focus. The coach treats the comment
+  as authoritative when it explains what the session actually was, so it does
+  not ask the athlete to describe an activity again. A comment saved after the
+  cached analysis makes that analysis stale; it is regenerated with the comment,
+  and any pending question the old analysis asked about the activity is cleared.
+  Versioned with `ANALYSIS_PROMPT_VERSION`.
 - **Duration tolerance** (`DURATION_TOLERANCE_RULES`): both activity reviews and
   the plan prompts share one rule that a session within a few minutes of its
   planned duration matched the plan, whether a little short or a little long, so
@@ -150,22 +149,20 @@ and the reply is null; the failure is logged.
 1. A coaching-input route saves the input and generates the reply.
 2. It then starts the normal plan trigger. `keepToday` is true when the input is
    about today.
-3. `runPlanGeneration` rebuilds/reviews as before. In a plan update, when
-   `keepToday` is set and the stored plan is for today, the stored `today` day
-   plan and today's week session are preserved **unless an activity was recorded
-   today**. In that case the generated today plan keeps the planned prescription
-   and adds a short completion note from the latest comment. Everything else
-   (week, tomorrow) comes from the new completion.
-4. A full build calls an injected `reviewActivities(plan)` after saving the plan
-   and before marking the generation done. The implementation runs program
-   reviews for activities that have no stored review, or whose comment is newer
-   than the stored review, with bounded concurrency, and saves them as
-   `kind = "program"`. Review failures are logged and do not fail the plan.
+3. `runPlanGeneration` rebuilds as before. In a plan update, when `keepToday` is
+   set and the stored plan is for today, the stored `today` day plan and today's
+   week session are preserved **unless an activity was recorded today**. In that
+   case the generated today plan keeps the planned prescription and adds a short
+   completion note from the latest comment. Everything else (week, tomorrow)
+   comes from the new completion.
+4. A full build does not run a second activity review. The activity analyses
+   already contain the plan-aware summary.
 
 ## UI
 
-- `ActivityCard` shows the program review (when present), the athlete's saved
-  comment, and the coach reply. Saving a comment renders the returned reply
+- `ActivityCard` shows the general analysis, falling back to a legacy program
+  review only when the general analysis is missing. It also shows the athlete's
+  saved comment and the coach reply. Saving a comment renders the returned reply
   immediately. An activity without a comment shows the comment form; once a
   comment exists the form is replaced by an `Edit comment` action that opens it
   prefilled. Editing regenerates the coach reply and refreshes the plan.
@@ -181,11 +178,12 @@ and the reply is null; the failure is logged.
 
 ## Acceptance criteria
 
-1. A full plan build (initial, new season, season update, or stale answers)
-   produces a program review for recent activities that have none; a day/week
-   update alone does not. A stored review is not regenerated by a later plan
-   build, model change, or prompt-version change, and is regenerated only when
-   the activity's comment is newer than the review.
+1. Each recent activity has at most one active review. The general analysis
+   includes plan fit when the activity is in the current week, and reviews the
+   workout on its own merits otherwise. A plan build, model change or
+   prompt-version change does not regenerate a stored review; only a newer
+   athlete comment does. A legacy program review is shown only when the general
+   analysis is missing.
 2. Commenting on or editing an activity returns and persists a brief coach
    reply and triggers a week/day/tomorrow revision. When the commented activity
    is today's, today's completed summary is refreshed from the latest comment and
@@ -195,7 +193,7 @@ and the reply is null; the failure is logged.
 4. Creating or editing a manual activity returns and persists a reply; when its
    date is today, today's completed summary reflects the manual activity while
    week and tomorrow change.
-5. Replies and program reviews survive a page reload.
+5. Replies and stored analyses survive a page reload.
 6. An activity has at most one comment. A second add is rejected, and editing
    the comment replaces the coach's existing reply and refreshes the plan.
 7. A newly analysed activity revises the remaining week and block even when no

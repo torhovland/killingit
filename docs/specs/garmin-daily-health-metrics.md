@@ -117,10 +117,10 @@ and date wins, a Garmin measurement replaces a coach estimate, and a newer coach
 estimate never replaces either a `user` or a Garmin measurement. The same
 precedence helper backs the metric and threshold writes (`shouldRecordSource`).
 
-The activity analysis and program review now receive the stored body history as
-well as the FTP history, so a workout review sees a Garmin weigh-in exactly as
-it sees an athlete-stated one. The shared prompt rule states that the athlete's
-own value wins when the two conflict.
+The activity analysis now receives the stored body history as well as the FTP
+history, so a workout review sees a Garmin weigh-in exactly as it sees an
+athlete-stated one. The shared prompt rule states that the athlete's own value
+wins when the two conflict.
 
 ## Sync algorithm
 

@@ -277,8 +277,9 @@ review.
      week and block are left alone when tomorrow has left them.
 6. Save the plan with the current answer timestamp. When today has entered a
    stored `next_week` or `next_block`, promote it to the current level first.
-   After a full build, review recent activities against the finished plan (see
-   `docs/specs/coach-feedback-and-program-review.md`), then mark the status
+   A full build does not run a second activity review; the activity analyses
+   already carry the plan-aware summary (see
+   `docs/specs/coach-feedback-and-program-review.md`). Then mark the status
    `done` and return the refreshed response.
 7. On any failure, mark the status `error` and leave the previous plan in place.
 

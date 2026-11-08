@@ -8,8 +8,10 @@ import {
 import type {
   Activity,
   ActivitySample,
+  BlockPlan,
   DailyHealthPoint,
   MetricPoint,
+  SeasonPlan,
   ThresholdSummary,
   WeekPlan,
 } from "@killingit/shared";
@@ -20,9 +22,12 @@ import { formatDuration } from "./duration.js";
 import { formatDailyHealthContext } from "./healthContext.js";
 import {
   formatActivitySummary,
+  formatBlockPlan,
   formatBodyHistory,
   formatDietContext,
   formatFtpContext,
+  formatPlannedSession,
+  formatSeasonPlan,
   formatThresholdContext,
   formatWeekPlan,
   type BodyMetricHistory,
@@ -64,6 +69,10 @@ export const ANALYSIS_PROMPT_VERSION = 19;
  */
 export interface ActivityAnalysisContext {
   today: string;
+  /** The current season, shown so the coach can relate the workout to its focus. */
+  season?: SeasonPlan;
+  /** The current block, shown so the coach can relate the workout to its focus. */
+  block?: BlockPlan;
   /** The athlete's current week, when one is stored. */
   week?: WeekPlan;
   /** The stored FTP threshold history, oldest first, including coach estimates. */
@@ -84,7 +93,7 @@ const ANALYSIS_SYSTEM_PROMPT = promptSections(
   GLOBAL_PROMPT_RULES,
   "Review one completed workout for an amateur athlete.",
   ACTIVITY_TYPE_RULE,
-  "When the athlete's current week plan is provided and the workout happened within that week, match the workout to the planned session it best fits, then make how well it fit the plan part of the same summary. If it followed the plan reasonably well, say so warmly and encouragingly. If it did not, point out clearly what could be improved without being harsh. When the workout happened outside the supplied week, do not match it to any planned session and do not compare it to the plan; the athlete may have older activities that have not been analysed yet, so analyse the workout on its own merits.",
+  "When the athlete's current week plan is provided and the workout happened within that week, match the workout to the planned session for its date, or another session that week if the data fits one, then make how well it fit the plan part of the same summary. If it followed the plan reasonably well, say so warmly and encouragingly. If it did not, point out clearly what could be improved without being harsh. When the workout happened outside the supplied week, do not match it to a session in the current week and do not claim it did or did not follow a prescription; the athlete may have older activities that have not been analysed yet, so analyse the workout on its own merits, though you may relate it to the current block's focus.",
   DURATION_TOLERANCE_RULES,
   "Be brief and to the point: use 2-3 sentences for the assessment, cite only the most useful numbers, and finish with one actionable recommendation for the next session. Use a short bullet list when the session has several points worth noting. The recommendation must follow from a real improvement: when the session went to plan, build on it instead of inventing a correction. Do not add a separate plan-fit section.",
   ACTIVITY_PRAISE_RULES,
@@ -321,20 +330,39 @@ export function buildActivityAnalysisPrompt(
     context?.week !== undefined
       ? weekCovers(context.week, activityDate)
       : false;
+  const plannedSession =
+    inWeek && context?.week !== undefined
+      ? context.week.sessions.find((session) => session.date === activityDate)
+      : undefined;
   const lines: string[] = [];
 
   if (context) {
     lines.push(`Today's date: ${context.today}`, "");
-    if (context.week !== undefined) {
+    if (context.season !== undefined && context.block !== undefined) {
       lines.push(
-        "Current week plan:",
-        formatWeekPlan(context.week),
+        "Current season plan:",
+        formatSeasonPlan(context.season),
         "",
-        inWeek
-          ? `The workout happened on ${activityDate}, within the current week. Match it to the planned session for that date, or another session this week that fits the data.`
-          : `The workout happened on ${activityDate}, outside the current week (${context.week.startDate} to ${weekEnd(context.week)}). Do not match it to a planned session in the current week or comment on how it fit the plan; it is an older activity that has not been analysed yet, so analyse it on its own merits.`,
+        "Current block plan:",
+        formatBlockPlan(context.block),
         "",
       );
+    }
+    if (context.week !== undefined) {
+      if (inWeek) {
+        lines.push("Current week plan:", formatWeekPlan(context.week), "");
+        lines.push(
+          plannedSession !== undefined
+            ? `Planned session for ${activityDate}: ${formatPlannedSession(plannedSession)}. Match the workout to it.`
+            : `The workout happened on ${activityDate}, within the current week, but no session was planned for that date. Match it to another session this week if its data fits one.`,
+          "",
+        );
+      } else {
+        lines.push(
+          `The workout happened on ${activityDate}, outside the current week (${context.week.startDate} to ${weekEnd(context.week)}). No planned session is available for that date. Do not match it to a session in the current week and do not claim it did or did not follow a prescription; review the workout on its own merits, though you may relate it to the current block's focus.`,
+          "",
+        );
+      }
     } else {
       lines.push(
         "No current week plan is available. Analyse the workout on its own merits and do not compare it to a planned session.",

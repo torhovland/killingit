@@ -226,7 +226,13 @@ async function loadAnalyzedActivitiesOnce(
 
   const analysisContext = {
     today: storedPlan?.plan.today.date ?? today,
-    ...(storedPlan !== null ? { week: storedPlan.plan.week } : {}),
+    ...(storedPlan !== null
+      ? {
+          season: storedPlan.plan.season,
+          block: storedPlan.plan.block,
+          week: storedPlan.plan.week,
+        }
+      : {}),
     ftpHistory,
     thresholds: trainingThresholds,
     ...(dailyHealth !== undefined ? { dailyHealth } : {}),

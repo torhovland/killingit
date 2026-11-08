@@ -88,12 +88,12 @@ athlete measurements are never deleted.
   and they are stored as `user` points before plan generation. A profile value
   with no date is dated by the profile's last save.
 - The plan's weekly `estimatedFtpWatts` values are stored as `coach` points on
-  the week's start date after the plan is saved. Activity and program analyses
-  return `{ "analysis": string, "estimatedFtpWatts": number | null }`; a non-null
+  the week's start date after the plan is saved. Activity analyses return
+  `{ "analysis": string, "estimatedFtpWatts": number | null }`; a non-null
   estimate is stored as a `coach` point on the activity's date.
 - Estimates are applied oldest first, so a slow older LLM response cannot
-  delete a newer estimate. Plan estimates are applied after program reviews for
-  the same reason.
+  delete a newer estimate. Plan estimates are applied after activity analyses
+  for the same reason.
 - Training load and plan prompts use the timeline through today; future coach
   projections are not treated as the current baseline.
 - Prompts receive the most recent 60 FTP points, oldest first, with their
@@ -131,9 +131,9 @@ The coach reads them from the athlete's own words:
   finds in context. These are stored as `coach` points and never replace a
   `user` or `garmin` value.
 - A plan prompt receives the stored weight and body-fat history, so the coach
-  does not repeat a value it has already reported. The activity analysis and
-  program review prompts receive the same history, including Garmin weigh-ins,
-  so a workout review can use the athlete's current body measurements.
+  does not repeat a value it has already reported. The activity-analysis prompt
+  receives the same history, including Garmin weigh-ins, so a workout review can
+  use the athlete's current body measurements.
 - Unlike FTP estimates, a newer body point does not delete later ones: body
   measurements are not a projection that a fresher estimate supersedes.
 - Storing is fail-open: a failed read or write is logged and never fails the
@@ -178,8 +178,7 @@ The coach reads them from the athlete's own words:
    on the Fitness page.
 3. A coach FTP estimate at date D removes coach estimates after D but keeps
    every `user` and `garmin` value.
-4. The plan prompt, activity-analysis prompt, and program-review prompt include
-   FTP history.
+4. The plan prompt and activity-analysis prompt include FTP history.
 5. Body weight and body fat are interpolated between known dates and projected
    with a best-fit trend after the last known date, through the plan end.
 6. The body chart is hidden without measurements and omits a line whose metric

@@ -28,11 +28,9 @@ simply well executed, so the coach does not only celebrate the exceptional days.
    draws a number from 0 up to and including 14; only a draw of 0 includes
    `ACTIVITY_EXTRA_PRAISE_RULES`. `rollExtraPraise(random)` in `promptRules.ts`
    owns the draw so the range is defined once.
-4. Both workout reviews use the rule: the general activity analysis
-   (`activityPrompt.ts`) and the program review (`programAnalysisPrompt.ts`).
-   Each prompt build draws independently.
-5. The prompt versions are bumped (`ANALYSIS_PROMPT_VERSION`,
-   `PROGRAM_ANALYSIS_PROMPT_VERSION`) so each stored analysis records the
+4. The activity analysis (`activityPrompt.ts`) uses the rule. Each prompt build
+   draws independently.
+5. `ANALYSIS_PROMPT_VERSION` is bumped so each stored analysis records the
    instruction that produced it. Existing cached analyses are reused; newly
    generated ones use the new rule.
 
@@ -59,8 +57,7 @@ simply well executed, so the coach does not only celebrate the exceptional days.
 
 ## Acceptance criteria
 
-1. Every general activity-analysis and program-review prompt contains
-   `ACTIVITY_PRAISE_RULES`.
+1. Every activity-analysis prompt contains `ACTIVITY_PRAISE_RULES`.
 2. A prompt built with a draw of 0 contains `ACTIVITY_EXTRA_PRAISE_RULES`; a
    prompt built with any other draw does not.
 3. The draw covers 0 up to and including 14 and includes the extra rule only for 0.
@@ -73,4 +70,3 @@ simply well executed, so the coach does not only celebrate the exceptional days.
 - `promptRules.test.ts` asserts both fragments and the draw boundaries.
 - `activityPrompt.test.ts` asserts the always-on rule in the system prompt, the
   extra rule at draw 0, and its absence at another draw.
-- `programAnalysisPrompt.test.ts` asserts the same for the program review.

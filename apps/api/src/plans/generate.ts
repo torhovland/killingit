@@ -148,9 +148,6 @@ export interface GeneratePlanInput {
    * is refreshed to add a short completion note to the planned workout.
    */
   keepToday?: boolean;
-  /** Runs after a full build so recent activities can be reviewed against the
-   * finished plan. Never runs on a day/week cascade. */
-  reviewActivities?: (plan: CoachPlan) => Promise<void>;
   /** Stores the coach's FTP estimates from a generated plan, when supplied. */
   recordFtpEstimates?: (plan: CoachPlan) => Promise<void>;
   /** Stores the body-composition points the coach found, when supplied. */
@@ -453,26 +450,6 @@ export async function runPlanGeneration(
         throw new GenerationSupersededError();
       }
       await clearSurveyAdjustments(input);
-      if (input.reviewActivities) {
-        await ensureCurrent();
-        await generations.update(
-          userId,
-          PLAN_GENERATION_STEPS.reviewActivities,
-          runId,
-        );
-        try {
-          await input.reviewActivities(saved.plan);
-        } catch (err) {
-          if (isGenerationSuperseded(err)) {
-            throw err;
-          }
-          // The plan is saved; a supplementary review must not fail the build.
-          console.error("[plan] activity review failed:", err);
-        }
-      }
-      // The reviews can return an older FTP estimate for an activity date. Save
-      // the plan's weekly estimates afterwards so its projection wins and is
-      // not deleted by those older points.
       await ensureCurrent();
       await persistFtpEstimates(input, generated);
       await persistBodyMetrics(input, generated);
@@ -514,23 +491,6 @@ export async function runPlanGeneration(
         throw new GenerationSupersededError();
       }
       await clearSurveyAdjustments(input);
-      if (input.reviewActivities) {
-        await ensureCurrent();
-        await generations.update(
-          userId,
-          PLAN_GENERATION_STEPS.reviewActivities,
-          runId,
-        );
-        try {
-          await input.reviewActivities(saved.plan);
-        } catch (err) {
-          if (isGenerationSuperseded(err)) {
-            throw err;
-          }
-          // The plan is saved; a supplementary review must not fail the build.
-          console.error("[plan] activity review failed:", err);
-        }
-      }
       await ensureCurrent();
       await persistFtpEstimates(input, plan);
       await persistBodyMetrics(input, plan);

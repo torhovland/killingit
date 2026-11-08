@@ -88,13 +88,7 @@ export const PLAN_GENERATION_STEPS = {
   save: {
     id: "save",
     label: "Saving your plan",
-    target: 98,
-    defaultMs: 2_000,
-  },
-  reviewActivities: {
-    id: "reviewActivities",
-    label: "Reviewing your recent training against your plan",
     target: 99,
-    defaultMs: LLM_STEP_MS,
+    defaultMs: 2_000,
   },
 } as const satisfies Record<string, PlanGenerationStep>;

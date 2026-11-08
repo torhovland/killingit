@@ -175,10 +175,10 @@ and returns `LlmProvider` chat messages.
   same budget. Reasoning tokens count against it; `completeWithFallbacks`
   retries with a larger budget (up to 32,768) when a model is truncated.
 - `formatDuration` is reused from `activityPrompt.ts` so durations read the same
-  way across coaching prompts. The activity review and program review share
+  way across coaching prompts. The activity review shares
   `formatActivitySummary`, `formatFtpContext`, `formatPlanLevels` and
-  `formatPlannedSession` from `planContext.ts`, so both describe the same
-  activity and planned session the same way.
+  `formatPlannedSession` from `planContext.ts` with the plan prompts, so both
+  describe the same activity and planned session the same way.
 
 ## Testing
 

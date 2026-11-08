@@ -825,7 +825,7 @@ export function formatPlanLevels(
 
 /**
  * Renders the one-line session summary shared by the coach reply and the
- * program review, including a bike workout's power targets when it has one.
+ * activity review, including a bike workout's power targets when it has one.
  */
 export function formatPlannedSession(session: WeekSession): string {
   const bikeWorkout =
@@ -1141,8 +1141,8 @@ export function summarizeLaps(laps: readonly ActivityLap[]): string {
 }
 
 /**
- * Renders the recorded activity summary shared by the activity review and the
- * program review, so both prompts describe the same numbers the same way.
+ * Renders the recorded activity summary used by the activity review, the plan
+ * and reply prompts, so they describe the same numbers the same way.
  */
 export function formatActivitySummary(
   activity: Pick<

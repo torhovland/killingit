@@ -238,9 +238,9 @@ power-curve bests live in `metrics`.
 
 ## Prompt impact
 
-- `formatActivitySummary()` (activity analysis and program review) gains a
-  compact "Recorded metrics" block. It should print only fields that exist, one
-  line per group, for example:
+- `formatActivitySummary()` (used by the activity analysis) gains a compact
+  "Recorded metrics" block. It should print only fields that exist, one line per
+  group, for example:
   - `Heart rate: average 143 bpm, maximum 174 bpm`
   - `Training effect: aerobic 3.2, anaerobic 0.4; Garmin load 135`
   - `Heart-rate zones: Z1 59:00, Z2 58:44, Z3 19:49, Z4 10:08, Z5 0:17`

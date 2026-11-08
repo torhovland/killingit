@@ -35,8 +35,9 @@ the activity as completed training.
 ### Out of scope
 
 - Deleting the activity in Garmin Connect.
-- Deleting a cached general/program analysis. Analyses are a shared cache keyed
-  by activity id and are harmless once the activity is hidden.
+- Deleting a cached general analysis, or a legacy program analysis. Analyses are
+  a shared cache keyed by activity id and are harmless once the activity is
+  hidden.
 - Undo/restore. The tombstone is deliberately one-way for now.
 - Background deletion jobs; deletion is synchronous with the request.
 

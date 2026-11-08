@@ -62,8 +62,8 @@ personality colours how it is said, not what is prescribed.
   provided first name naturally when it looks like a real name, and never to
   address the athlete with an email address, username, handle, account id, URL
   or other non-name string. It is part of `GLOBAL_PROMPT_RULES`, so the season,
-  block, week, day, combined, update, activity review, program review, period
-  review, coach reply and meal prompts all use it.
+  block, week, day, combined, update, activity review, period review, coach
+  reply and meal prompts all use it.
 - `SEASON_INTRODUCTION_RULES` asks a new season for a short greeting in
   `introduction`, separate from the plan rationale. It uses the first name when
   one looks real, greets the athlete without a name otherwise, and treats "I

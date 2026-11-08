@@ -13,7 +13,6 @@ import {
 import { loadAthleteEvents } from "../events/store.js";
 import { loadDietContext } from "../diet/context.js";
 import { captureCompletedPeriodReviews } from "../coaching/periodReviews.js";
-import { analyzeActivitiesAgainstPlan } from "../coaching/programAnalysis.js";
 import { markPlanPromptsFailed } from "../llm/callStore.js";
 import type { LlmClient } from "../llm/client.js";
 import { loadLlmClient } from "../llm/client.js";
@@ -58,6 +57,7 @@ import { loadPlanDayCalories } from "./dayCalories.js";
 import { loadCoachingInputs, type CoachingInputs } from "./inputs.js";
 import { claimRun, releaseRun } from "./runs.js";
 import { PLAN_GENERATION_STEPS } from "./steps.js";
+import { athleteTextChanged } from "./athleteText.js";
 import {
   latestActivityAnalysisTimestamp,
   latestAnswerTimestamp,
@@ -248,9 +248,9 @@ export async function runPlanForUser(
     options.includeTomorrow ??
     isAfterPlanTomorrowCutoff(timezone ?? user?.timezone ?? null);
 
-  // The stored feed keeps every activity ever synced. Prompts and program
-  // reviews stay on the same recent window as the analysis cap so they do not
-  // grow with the athlete's entire history.
+  // The stored feed keeps every activity ever synced. Prompts stay on the same
+  // recent window as the analysis cap so they do not grow with the athlete's
+  // entire history.
   let recentActivities = activities.activities.slice(
     0,
     MAX_ANALYZED_ACTIVITIES,
@@ -270,78 +270,92 @@ export async function runPlanForUser(
 
   const location = user?.location ?? null;
 
-  // The coach reads the athlete's own words for a stated FTP, weight, and body
-  // fat before the plan is generated, so every prompt and the TSS maths use the
-  // newest numbers. Reading is a model task, not a phrase list. A generation is
-  // only requested when a level is missing or an input changed, so this costs
-  // one small call per real generation.
-  await (deps.syncAthleteMetrics ?? syncAthleteMetrics)({
-    userId,
-    today,
-    source: buildAthleteMetricSource(
-      {
-        answers,
-        activityComments: coachingInputs.activityComments,
-        manualActivities: coachingInputs.manualActivities,
-        weeklyNote: coachingInputs.weeklyNote,
-        weeklyNoteUpdatedAt: coachingInputs.weeklyNoteUpdatedAt,
-        periodReviews: coachingInputs.periodReviews,
-        coachQuestionAnswers: coachAnswers.map((answer) => ({
-          question: answer.question,
-          answer: answer.answer ?? "",
-          answeredAt: answer.answeredAt,
-        })),
-      },
-      today,
-    ),
-    provider: llm.provider,
-    credentials: {
-      apiKey: llm.apiKey,
-      model: llm.model,
-      signal: options.signal,
-    },
+  // The two readings below see the same athlete-authored text. Only a plan run
+  // with new text needs them: a new day, a forecast change, or a new activity
+  // does not change the athlete's words. The stored plan's timestamps describe
+  // the inputs its last build already read, and an answered coach question can
+  // be newer than the plan without touching the coaching-input timestamp.
+  const shouldReadAthleteText = athleteTextChanged({
+    planGeneratedAt: plan?.generatedAt ?? null,
+    planAnswersUpdatedAt: plan?.answersUpdatedAt ?? null,
+    planCoachingInputsUpdatedAt: plan?.coachingInputsUpdatedAt ?? null,
+    answers,
+    coachingInputsUpdatedAt: coachingInputs.updatedAt,
+    coachAnswers,
   });
-  if (
-    options.signal.aborted ||
-    !(await deps.generations.isCurrent(userId, options.runId))
-  ) {
-    throw new GenerationSupersededError();
-  }
 
-  // The coach also reads the athlete's own words for dated goals and events: a
-  // race, a trip, or a dated target. The calendar and the Week and Day tabs
-  // show them, and every plan prompt plans around them. The reading replaces
-  // the stored list, and a failure leaves the previous list in place.
-  await (deps.syncAthleteEvents ?? syncAthleteEvents)({
-    userId,
-    today,
-    source: buildAthleteEventSource(
-      {
-        answers,
-        activityComments: coachingInputs.activityComments,
-        manualActivities: coachingInputs.manualActivities,
-        weeklyNotes: coachingInputs.weeklyNotes ?? [],
-        periodReviews: coachingInputs.periodReviews,
-        coachQuestionAnswers: coachAnswers.map((answer) => ({
-          question: answer.question,
-          answer: answer.answer ?? "",
-          answeredAt: answer.answeredAt,
-        })),
-      },
+  if (shouldReadAthleteText) {
+    // The coach reads the athlete's own words for a stated FTP, weight, and
+    // body fat before the plan is generated, so every prompt and the TSS maths
+    // use the newest numbers. Reading is a model task, not a phrase list.
+    await (deps.syncAthleteMetrics ?? syncAthleteMetrics)({
+      userId,
       today,
-    ),
-    provider: llm.provider,
-    credentials: {
-      apiKey: llm.apiKey,
-      model: llm.model,
-      signal: options.signal,
-    },
-  });
-  if (
-    options.signal.aborted ||
-    !(await deps.generations.isCurrent(userId, options.runId))
-  ) {
-    throw new GenerationSupersededError();
+      source: buildAthleteMetricSource(
+        {
+          answers,
+          activityComments: coachingInputs.activityComments,
+          manualActivities: coachingInputs.manualActivities,
+          weeklyNote: coachingInputs.weeklyNote,
+          weeklyNoteUpdatedAt: coachingInputs.weeklyNoteUpdatedAt,
+          periodReviews: coachingInputs.periodReviews,
+          coachQuestionAnswers: coachAnswers.map((answer) => ({
+            question: answer.question,
+            answer: answer.answer ?? "",
+            answeredAt: answer.answeredAt,
+          })),
+        },
+        today,
+      ),
+      provider: llm.provider,
+      credentials: {
+        apiKey: llm.apiKey,
+        model: llm.model,
+        signal: options.signal,
+      },
+    });
+    if (
+      options.signal.aborted ||
+      !(await deps.generations.isCurrent(userId, options.runId))
+    ) {
+      throw new GenerationSupersededError();
+    }
+
+    // The coach also reads the athlete's own words for dated goals and events:
+    // a race, a trip, or a dated target. The calendar and the Week and Day tabs
+    // show them, and every plan prompt plans around them. The reading replaces
+    // the stored list, and a failure leaves the previous list in place.
+    await (deps.syncAthleteEvents ?? syncAthleteEvents)({
+      userId,
+      today,
+      source: buildAthleteEventSource(
+        {
+          answers,
+          activityComments: coachingInputs.activityComments,
+          manualActivities: coachingInputs.manualActivities,
+          weeklyNotes: coachingInputs.weeklyNotes ?? [],
+          periodReviews: coachingInputs.periodReviews,
+          coachQuestionAnswers: coachAnswers.map((answer) => ({
+            question: answer.question,
+            answer: answer.answer ?? "",
+            answeredAt: answer.answeredAt,
+          })),
+        },
+        today,
+      ),
+      provider: llm.provider,
+      credentials: {
+        apiKey: llm.apiKey,
+        model: llm.model,
+        signal: options.signal,
+      },
+    });
+    if (
+      options.signal.aborted ||
+      !(await deps.generations.isCurrent(userId, options.runId))
+    ) {
+      throw new GenerationSupersededError();
+    }
   }
   let events: Awaited<ReturnType<typeof loadAthleteEvents>>;
   try {
@@ -446,24 +460,6 @@ export async function runPlanForUser(
     recordCoachQuestion: ({ question, model, sourceKind }) =>
       saveCoachQuestions({ userId, questions: [question], model, sourceKind }),
     clearCoachQuestions: () => clearPendingCoachQuestions(userId),
-    reviewActivities: (plan) =>
-      analyzeActivitiesAgainstPlan({
-        userId,
-        provider: llm.provider,
-        apiKey: llm.apiKey,
-        model: llm.model,
-        today,
-        plan,
-        activities: recentActivities,
-        activityComments: coachingInputs.activityComments,
-        ftpHistory: ftpHistoryPoints(thresholdHistory.timelines),
-        thresholdTimelines: thresholdHistory.timelines,
-        thresholds: thresholdHistory.summaries,
-        bodyHistory,
-        ...(dailyHealth !== undefined ? { dailyHealth } : {}),
-        ...(diet !== null ? { diet } : {}),
-        signal: options.signal,
-      }),
     plan,
     context: {
       answers,
