@@ -34,7 +34,7 @@ import {
  * callers can invalidate cached plans the same way activity analyses are
  * versioned.
  */
-export const COACH_PLAN_PROMPT_VERSION = 13;
+export const COACH_PLAN_PROMPT_VERSION = 14;
 
 export type CoachPlanActivity = RecentActivityContext;
 

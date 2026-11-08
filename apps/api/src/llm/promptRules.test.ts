@@ -1,5 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
+  ATHLETE_INPUT_RULES,
+  COACH_AMBITION_RULES,
   COACH_RESPONSE_NOTES_CONTRACT,
   COACH_RESPONSE_NOTES_RULES,
   DAY_CONTRACT,
@@ -71,6 +73,63 @@ describe("COACH_RESPONSE_NOTES_RULES", () => {
     expect(COACH_RESPONSE_NOTES_RULES).toContain(
       "a workout that could not be matched to a planned session",
     );
+  });
+});
+
+describe("COACH_AMBITION_RULES", () => {
+  it("asks for the most progress the athlete can absorb, not the safest plan", () => {
+    expect(COACH_AMBITION_RULES).toContain(
+      "Plan the most progress the athlete can absorb, not the safest plan you can defend",
+    );
+    expect(COACH_AMBITION_RULES).toContain("avoiding illness and injury");
+    expect(COACH_AMBITION_RULES).toContain(
+      "Do not make the plan timid to avoid every risk",
+    );
+    expect(COACH_AMBITION_RULES).toContain(
+      "do not take risks the data does not support",
+    );
+  });
+});
+
+describe("ATHLETE_INPUT_RULES", () => {
+  it("accommodates a workout the athlete says they will do", () => {
+    expect(ATHLETE_INPUT_RULES).toContain(
+      "such as a three-hour group ride on Sunday",
+    );
+    expect(ATHLETE_INPUT_RULES).toContain(
+      "plan around that commitment and keep it in the plan",
+    );
+    expect(ATHLETE_INPUT_RULES).toContain(
+      "say so briefly in that day's description instead of silently replacing it",
+    );
+  });
+
+  it("treats feedback about how the athlete feels as information, not an instruction", () => {
+    expect(ATHLETE_INPUT_RULES).toContain(
+      "a niggle, a pain, a poor night's sleep",
+    );
+    expect(ATHLETE_INPUT_RULES).toContain(
+      "not as an instruction to change the plan",
+    );
+    expect(ATHLETE_INPUT_RULES).toContain(
+      "may justify an easier session, extra rest, or no change at all",
+    );
+    expect(ATHLETE_INPUT_RULES).toContain(
+      "never change the plan only because the athlete mentioned a discomfort",
+    );
+  });
+
+  it("leaves the decision with the coach", () => {
+    expect(ATHLETE_INPUT_RULES).toContain("You are the expert");
+    expect(ATHLETE_INPUT_RULES).toContain(
+      "read it together with the training data, the recovery values and the plan",
+    );
+    expect(ATHLETE_INPUT_RULES).toContain("Never ignore a warning sign");
+  });
+
+  it("reaches every plan prompt through the shared plan rules", () => {
+    expect(PLAN_PROMPT_RULES).toContain(COACH_AMBITION_RULES);
+    expect(PLAN_PROMPT_RULES).toContain(ATHLETE_INPUT_RULES);
   });
 });
 

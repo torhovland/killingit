@@ -84,6 +84,11 @@ covered by `docs/specs/coach-plan-lifecycle.md`.
     `FORM_TARGET_RULES` asks the coach to keep the planned week in Productive
     unless the rationale justifies leaving it. See
     `docs/specs/coach-form-awareness.md`.
+11. Every plan prompt carries the shared ambition and athlete-input rules: the
+    plan drives the best progress the athlete can absorb without being
+    over-cautious, a workout the athlete has committed to is kept, and feedback
+    about how they feel is evidence for the coach's decision rather than an
+    instruction to change the plan. See `docs/specs/coach-judgement.md`.
 
 ## Data-model / API impact
 
