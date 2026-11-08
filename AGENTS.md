@@ -95,7 +95,11 @@ about a past workout, or before a suggested workout, to steer the coach.
   `apps/api/src/llm/promptRules.ts`; the build, update,
   activity-review and manual-TSS prompts compose them so TSS, FTP, weather,
   bike-workout, body-metric and week-outline behaviour stays consistent across
-  prompts. Every prompt that answers the athlete — a reply to a comment, a weekly
+  prompts. A shared judgement rule keeps the coach ambitious rather than
+  over-cautious, accommodates a workout the athlete has committed to, and treats
+  feedback about how they feel as evidence for the coach's decision rather than
+  an instruction to change the plan; see `docs/specs/coach-judgement.md`. Every
+  prompt that answers the athlete — a reply to a comment, a weekly
   note, a manual activity or a review, an answer to a coach question, and a
   one-off coaching question — carries the same athlete and training context as
   the plan prompts, built from the last synced activity feed and the stored
