@@ -55,7 +55,7 @@ export function ManualActivityForm({
         name="details"
         placeholder="Describe your activity"
         className="w-full rounded border bg-card p-2 text-base"
-        rows={2}
+        rows={4}
         value={details}
         onChange={(event) => onDetailsChange(event.target.value)}
         disabled={saving}

@@ -130,7 +130,7 @@ export function FoodLogSection({
           What did you eat? (optional with a photo)
           <textarea
             className="w-full rounded border bg-card p-2 text-base font-normal"
-            rows={2}
+            rows={4}
             value={description}
             placeholder="e.g. Two slices of wholegrain toast with peanut butter and a banana"
             onChange={(event) => setDescription(event.target.value)}

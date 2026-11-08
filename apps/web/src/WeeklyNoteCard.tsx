@@ -41,7 +41,7 @@ export function WeeklyNoteCard({
         name="note"
         className="w-full rounded border bg-card p-2 text-base"
         placeholder="e.g. I won't have time to train on Thursday this week."
-        rows={2}
+        rows={4}
         value={note}
         onChange={(event) => onNoteChange(event.target.value)}
       />

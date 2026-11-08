@@ -165,7 +165,7 @@ function AnswerEditor({
         <textarea
           id={`survey-question-${question.versionId}`}
           name={`question-${question.id}`}
-          rows={3}
+          rows={6}
           maxLength={QUESTION_ANSWER_MAX_LENGTH}
           value={value}
           onChange={(event) => {
