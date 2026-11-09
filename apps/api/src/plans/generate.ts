@@ -10,6 +10,7 @@ import type {
   DietPlan,
   MetricPoint,
   PlanGenerateMode,
+  PlanPending,
   SeasonPlan,
   ThresholdSummary,
   WeekPlan,
@@ -187,383 +188,60 @@ export interface GeneratePlanInput {
 export async function runPlanGeneration(
   input: GeneratePlanInput,
 ): Promise<StoredPlan | null> {
-  const { userId, today, plans, generations, runId } = input;
-  let context = input.context;
-  const stored = input.plan?.plan ?? null;
-  const stale =
-    input.plan !== null &&
-    planIsStale(input.plan.answersUpdatedAt, context.answersUpdatedAt);
-  const ensureCurrent = async (): Promise<void> => {
-    if (input.signal?.aborted === true) {
-      throw new GenerationSupersededError();
-    }
-    if (!(await generations.isCurrent(userId, runId))) {
-      throw new GenerationSupersededError();
-    }
-  };
+  const { today } = input;
 
   try {
-    await ensureCurrent();
-    // Today may have moved into a week or block that was planned last night.
-    // Promote it for this run; the raw stored plan is used below to capture the
-    // ended period's review before it is dropped.
+    // 1. Refuse to work for a run that a newer one has replaced.
+    await ensureGenerationCurrent(input);
+
+    // 2. Today may have moved into a week or block that was planned last
+    // night. Promote it for this run; the raw stored plan is used below to
+    // capture the ended period's review before it is dropped.
+    const stored = input.plan?.plan ?? null;
     const currentPlan =
       stored === null ? null : promoteNextPeriod(stored, today);
     const promoted = currentPlan !== null && currentPlan !== stored;
-    const mode = input.mode ?? "auto";
 
-    // The cascade is about to replace the current week/block. Summarise them
-    // first when they have ended, so the athlete keeps a review of the work.
-    // The new review is added to this run's context, so the block update can
-    // use it immediately and the block becomes pending in the same visit.
-    if (input.plan !== null && input.capturePeriodReviews) {
-      const captured = await input.capturePeriodReviews({
-        userId,
-        today,
-        ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),
-        plan: input.plan.plan,
-        provider: context.provider,
-        apiKey: context.apiKey,
-        model: seasonModelFor(context),
-        athleteAnswers: context.answers,
-        activities: context.activities,
-        manualActivities: context.manualActivities,
-        activityComments: context.activityComments,
-        weeklyNote: context.weeklyNote,
-        ...(context.dailyHealth !== undefined
-          ? { dailyHealth: context.dailyHealth }
-          : {}),
-        ...(context.events !== undefined ? { events: context.events } : {}),
-        ...(context.diet !== undefined ? { diet: context.diet } : {}),
-        ...(input.signal !== undefined ? { signal: input.signal } : {}),
-      });
-      if (captured !== undefined && captured.length > 0) {
-        input.context = mergeCapturedPeriodReviews(input.context, captured);
-        context = input.context;
-      }
-      await ensureCurrent();
-    }
+    // 3. The cascade is about to replace the current week/block. Summarise
+    // them first when they have ended, so the athlete keeps a review.
+    await captureEndedPeriodReviews(input, today);
 
-    const inputsChanged =
-      input.plan !== null &&
-      context.coachingInputsUpdatedAt !== null &&
-      (input.plan.coachingInputsUpdatedAt === null ||
-        context.coachingInputsUpdatedAt.getTime() >
-          input.plan.coachingInputsUpdatedAt.getTime());
-    // Compare against the analyses included in the plan, not when the plan was
-    // saved: an import can finish while a generation is running, so the plan
-    // may be newer than its save time yet still not contain the activity.
-    const activitiesChanged =
-      input.plan !== null &&
-      context.activitiesUpdatedAt != null &&
-      (input.plan.activitiesUpdatedAt === null ||
-        context.activitiesUpdatedAt.getTime() >
-          input.plan.activitiesUpdatedAt.getTime());
-    // A newly generated week review, or an answer to one, makes the block
-    // pending. The block is revised in place when today is still inside it.
-    const weekReviewPending =
-      input.plan !== null &&
-      context.weekReviewUpdatedAt != null &&
-      (input.plan.coachingInputsUpdatedAt === null ||
-        context.weekReviewUpdatedAt.getTime() >
-          input.plan.coachingInputsUpdatedAt.getTime());
-    // A newly generated block review, or an answer to one, refreshes the
-    // remaining season around what the completed block achieved.
-    const blockReviewPending =
-      input.plan !== null &&
-      context.blockReviewUpdatedAt != null &&
-      (input.plan.coachingInputsUpdatedAt === null ||
-        context.blockReviewUpdatedAt.getTime() >
-          input.plan.coachingInputsUpdatedAt.getTime());
-    const revisionNeeded =
-      inputsChanged || activitiesChanged || weekReviewPending;
-    // An explicit update, a saved answer, or a completed block's review
-    // refreshes the existing season instead of silently starting a new one.
-    // Without a season that covers today there is nothing to refresh.
-    const refreshRequested =
-      mode === "updateSeason" ||
-      (mode === "auto" && (stale || blockReviewPending));
-    const refreshSeason =
-      input.force !== true &&
-      mode !== "newSeason" &&
-      refreshRequested &&
-      currentPlan !== null &&
-      seasonCovers(currentPlan.season, today);
-    // A missing plan, a deliberate fresh start, or an update with no usable
-    // season builds a new season. A refresh of an existing season uses the
-    // single plan-update prompt so the season, block, week and day agree.
-    const needsFullPlan =
-      currentPlan === null ||
-      input.force === true ||
-      mode === "newSeason" ||
-      (refreshRequested && !refreshSeason);
-    // The forecast can move enough to make the stored week's weather advice
-    // wrong even when every level is present. Treat that like any other week
-    // revision so the coach can move sessions to the better days.
-    const weatherChanged =
-      currentPlan !== null &&
-      context.forecast != null &&
-      planWeatherChanged(currentPlan, context.forecast, today);
+    // 4. Work out which levels this run has to build or revise.
+    const decision = decideRevisionPlan(input, currentPlan);
 
-    if (needsFullPlan || refreshSeason) {
+    // 5. A new season or a season refresh replaces unanswered questions.
+    if (decision.needsFullPlan || decision.refreshSeason) {
       await clearPendingCoachQuestions(input);
     }
 
-    if (needsFullPlan) {
-      await generations.update(userId, PLAN_GENERATION_STEPS.review, runId);
-      await generations.update(userId, PLAN_GENERATION_STEPS.season, runId);
-      const seasonUpdate = await generateSeasonPlan(
-        context.provider,
-        credentials(context, seasonModelFor(context)),
-        baseContext(input),
-      );
-      await recordCoachQuestion(
-        input,
-        seasonUpdate.coachQuestion,
-        "season_plan",
-        seasonModelFor(context),
-      );
-      const season: SeasonPlan = seasonUpdate.season;
-
-      await generations.update(
-        userId,
-        PLAN_GENERATION_STEPS.initialBlock,
-        runId,
-      );
-      const generatedBlock = await generateInitialBlock(
-        context.provider,
-        credentials(context, seasonModelFor(context)),
-        { ...baseContext(input), season },
-      );
-      await recordCoachQuestion(
-        input,
-        generatedBlock.coachQuestion,
-        "initial_block",
-        seasonModelFor(context),
-      );
-      const block: BlockPlan = generatedBlock.block;
-      const foundBodyMetrics: readonly BodyMetricEstimate[] = mergeBodyMetrics(
-        seasonUpdate.bodyMetrics,
-        generatedBlock.bodyMetrics,
-      );
-
-      await generations.update(
-        userId,
-        PLAN_GENERATION_STEPS.initialWeek,
-        runId,
-      );
-      const weekUpdate = await generateWeeklyUpdate(
-        context.provider,
-        credentials(context, dailyModelFor(context)),
-        {
-          ...baseContext(input),
-          ...weatherContext(input),
-          season,
-          block,
-          weekStartDate: startOfWeek(today),
-        },
-      );
-      await recordCoachQuestion(
-        input,
-        weekUpdate.coachQuestion,
-        "weekly_update",
-        dailyModelFor(context),
-      );
-
-      await generations.update(userId, PLAN_GENERATION_STEPS.day, runId);
-      const dayUpdate = await generateDailyUpdate(
-        context.provider,
-        credentials(context, dailyModelFor(context)),
-        {
-          ...baseContext(input),
-          ...weatherContext(input),
-          season,
-          block: weekUpdate.block,
-          week: weekUpdate.week,
-        },
-      );
-      await recordCoachQuestion(
-        input,
-        dayUpdate.coachQuestion,
-        "daily_update",
-        dailyModelFor(context),
-      );
-
-      const todayPlan = deriveTodayStatus(
-        context,
-        today,
-        dayUpdate.today,
-        dayUpdate.today,
-      );
-      const draft: CoachPlan = {
-        season,
-        block: weekUpdate.block,
-        week: dayUpdate.week,
-        today: todayPlan,
-        tomorrow: dayUpdate.tomorrow,
-        nextWeek: null,
-        nextBlock: null,
-        diet: dayUpdate.diet ?? null,
-        bodyMetrics: mergeBodyMetrics(
-          foundBodyMetrics,
-          weekUpdate.bodyMetrics,
-          dayUpdate.bodyMetrics,
-        ),
-      };
-      const withNextPeriod =
-        input.includeTomorrow === true
-          ? await planNextPeriod(input, draft)
-          : draft;
-      const completed: CoachPlan = {
-        ...withNextPeriod,
-        week: applyCompletedDays(
-          withNextPeriod.week,
-          context.activities,
-          today,
-          context.manualActivities,
-          withNextPeriod.today,
-        ),
-      };
-      const withProgress = await ensureDietProgress(input, completed);
-      const generated = withTrainingLoad(
-        applyForecastToPlan(
-          dropUnplacedTomorrow(
-            outlineWeekPlans(syncDietProgressTargets(withProgress)),
-            input.includeTomorrow === true,
-          ),
-          forecastForStorage(context),
-        ),
-        context,
-      );
-      assertPlanValid(generated, today, input.includeTomorrow === true);
-      await ensureCurrent();
-      await generations.update(userId, PLAN_GENERATION_STEPS.save, runId);
-      const saved = await plans.save(
-        userId,
-        generated,
-        context.answersUpdatedAt,
-        context.coachingInputsUpdatedAt,
-        context.activitiesUpdatedAt ?? null,
-        runId,
-      );
-      if (saved === null) {
-        throw new GenerationSupersededError();
-      }
-      await clearSurveyAdjustments(input);
-      await ensureCurrent();
-      await persistFtpEstimates(input, generated);
-      await persistBodyMetrics(input, generated);
-      await generations.finish(userId, runId);
-      return saved;
+    // 6. Build every level when there is no plan to advance.
+    if (decision.needsFullPlan) {
+      const generated = await generateFreshPlan(input);
+      return await saveGeneratedPlan(input, generated, {
+        clearSurveyAdjustments: true,
+      });
     }
 
-    if (refreshSeason && currentPlan !== null) {
-      // A season refresh is an update like any other: one completion receives
-      // every level and returns the revised season, block, week and day (plus
-      // tomorrow and the next period when they are wanted).
-      const pending = planPending(
-        currentPlan,
-        today,
-        input.includeTomorrow,
-        weatherChanged,
-        weekReviewPending,
-        context.dietAdvice === true,
-      );
-      const plan = await advancePlan(
-        input,
-        currentPlan,
-        pending,
-        revisionNeeded,
-        true,
-        weekReviewPending,
-      );
-      await ensureCurrent();
-      await generations.update(userId, PLAN_GENERATION_STEPS.save, runId);
-      const saved = await plans.save(
-        userId,
-        plan,
-        context.answersUpdatedAt,
-        context.coachingInputsUpdatedAt,
-        context.activitiesUpdatedAt ?? null,
-        runId,
-      );
-      if (saved === null) {
-        throw new GenerationSupersededError();
-      }
-      await clearSurveyAdjustments(input);
-      await ensureCurrent();
-      await persistFtpEstimates(input, plan);
-      await persistBodyMetrics(input, plan);
-      await generations.finish(userId, runId);
-      return saved;
+    const activePlan = requireCurrentPlan(currentPlan);
+
+    // 7. A refresh revises the stored season in place.
+    if (decision.refreshSeason) {
+      const plan = await refreshStoredSeason(input, activePlan, decision);
+      return await saveGeneratedPlan(input, plan, {
+        clearSurveyAdjustments: true,
+      });
     }
 
-    const pending = planPending(
-      currentPlan,
-      today,
-      input.includeTomorrow,
-      weatherChanged,
-      weekReviewPending,
-      context.dietAdvice === true,
-    );
-    if (
-      !pending.block &&
-      !pending.week &&
-      !pending.day &&
-      !pending.tomorrow &&
-      !pending.nextWeek &&
-      !pending.nextBlock &&
-      !pending.dietProgress &&
-      !revisionNeeded
-    ) {
-      if (promoted && input.plan !== null) {
-        // Persist the promotion and keep the timestamps that describe what the
-        // current plan actually includes.
-        await ensureCurrent();
-        const saved = await plans.save(
-          userId,
-          withTrainingLoad(currentPlan, context),
-          input.plan.answersUpdatedAt,
-          input.plan.coachingInputsUpdatedAt,
-          input.plan.activitiesUpdatedAt,
-          runId,
-        );
-        if (saved === null) {
-          throw new GenerationSupersededError();
-        }
-        await generations.finish(userId, runId);
-        return saved;
-      }
-      await generations.finish(userId, runId);
-      return input.plan;
+    // 8. Nothing is due: keep the plan, persisting a promotion if one happened.
+    if (planIsIdle(decision.pending, decision.revisionNeeded)) {
+      return await finishUnchangedPlan(input, activePlan, promoted);
     }
 
-    const plan = await advancePlan(
-      input,
-      currentPlan,
-      pending,
-      revisionNeeded,
-      false,
-      weekReviewPending,
-    );
-    await ensureCurrent();
-    await generations.update(userId, PLAN_GENERATION_STEPS.save, runId);
-    const saved = await plans.save(
-      userId,
-      plan,
-      context.answersUpdatedAt,
-      context.coachingInputsUpdatedAt,
-      context.activitiesUpdatedAt ?? null,
-      runId,
-    );
-    if (saved === null) {
-      throw new GenerationSupersededError();
-    }
-    await ensureCurrent();
-    await persistFtpEstimates(input, plan);
-    await persistBodyMetrics(input, plan);
-    await generations.finish(userId, runId);
-    return saved;
+    // 9. Advance the levels that are pending.
+    const plan = await advancePendingPlan(input, activePlan, decision);
+    return await saveGeneratedPlan(input, plan, {
+      clearSurveyAdjustments: false,
+    });
   } catch (err) {
     // A superseded run unwinds silently: the newer run owns the status row,
     // the prompt log, and every later write.
@@ -572,11 +250,420 @@ export async function runPlanGeneration(
     }
     const message =
       err instanceof Error ? err.message : "The plan could not be generated.";
-    const startedAt = await generations.fail(userId, message, runId);
+    const startedAt = await input.generations.fail(
+      input.userId,
+      message,
+      input.runId,
+    );
     if (startedAt !== null) {
-      await input.markPromptsFailed?.(userId, startedAt, message);
+      await input.markPromptsFailed?.(input.userId, startedAt, message);
     }
     throw err;
+  }
+}
+
+interface RevisionDecision {
+  /** A missing, forced or deliberately new plan builds all four levels. */
+  needsFullPlan: boolean;
+  /** The stored season is revised in place instead of rebuilt. */
+  refreshSeason: boolean;
+  /** New coaching input, activities or a week review must reach the plan. */
+  revisionNeeded: boolean;
+  /** The levels the stored plan is missing or must revise. */
+  pending: PlanPending;
+  /** A week review arrived after the stored plan was saved. */
+  weekReviewPending: boolean;
+}
+
+/**
+ * Decides how this run must treat the stored plan. A missing, forced or
+ * deliberately new season is rebuilt; a changed input, a completed block's
+ * review or an explicit update refreshes the stored season in place; anything
+ * else only advances the levels that are missing.
+ */
+function decideRevisionPlan(
+  input: GeneratePlanInput,
+  currentPlan: CoachPlan | null,
+): RevisionDecision {
+  const { context, plan, today } = input;
+  const mode = input.mode ?? "auto";
+  const stale =
+    plan !== null &&
+    planIsStale(plan.answersUpdatedAt, context.answersUpdatedAt);
+  const inputsChanged =
+    plan !== null &&
+    context.coachingInputsUpdatedAt !== null &&
+    (plan.coachingInputsUpdatedAt === null ||
+      context.coachingInputsUpdatedAt.getTime() >
+        plan.coachingInputsUpdatedAt.getTime());
+  // Compare against the analyses included in the plan, not when the plan was
+  // saved: an import can finish while a generation is running, so the plan
+  // may be newer than its save time yet still not contain the activity.
+  const activitiesChanged =
+    plan !== null &&
+    context.activitiesUpdatedAt != null &&
+    (plan.activitiesUpdatedAt === null ||
+      context.activitiesUpdatedAt.getTime() >
+        plan.activitiesUpdatedAt.getTime());
+  // A newly generated week review, or an answer to one, makes the block
+  // pending. The block is revised in place when today is still inside it.
+  const weekReviewPending =
+    plan !== null &&
+    context.weekReviewUpdatedAt != null &&
+    (plan.coachingInputsUpdatedAt === null ||
+      context.weekReviewUpdatedAt.getTime() >
+        plan.coachingInputsUpdatedAt.getTime());
+  // A newly generated block review, or an answer to one, refreshes the
+  // remaining season around what the completed block achieved.
+  const blockReviewPending =
+    plan !== null &&
+    context.blockReviewUpdatedAt != null &&
+    (plan.coachingInputsUpdatedAt === null ||
+      context.blockReviewUpdatedAt.getTime() >
+        plan.coachingInputsUpdatedAt.getTime());
+  const revisionNeeded =
+    inputsChanged || activitiesChanged || weekReviewPending;
+  // An explicit update, a saved answer, or a completed block's review
+  // refreshes the existing season instead of silently starting a new one.
+  // Without a season that covers today there is nothing to refresh.
+  const refreshRequested =
+    mode === "updateSeason" ||
+    (mode === "auto" && (stale || blockReviewPending));
+  const refreshSeason =
+    input.force !== true &&
+    mode !== "newSeason" &&
+    refreshRequested &&
+    currentPlan !== null &&
+    seasonCovers(currentPlan.season, today);
+  // A missing plan, a deliberate fresh start, or an update with no usable
+  // season builds a new season. A refresh of an existing season uses the
+  // single plan-update prompt so the season, block, week and day agree.
+  const needsFullPlan =
+    currentPlan === null ||
+    input.force === true ||
+    mode === "newSeason" ||
+    (refreshRequested && !refreshSeason);
+  // The forecast can move enough to make the stored week's weather advice
+  // wrong even when every level is present. Treat that like any other week
+  // revision so the coach can move sessions to the better days.
+  const weatherChanged =
+    currentPlan !== null &&
+    context.forecast != null &&
+    planWeatherChanged(currentPlan, context.forecast, today);
+  return {
+    needsFullPlan,
+    refreshSeason,
+    revisionNeeded,
+    pending: planPending(
+      currentPlan,
+      today,
+      input.includeTomorrow,
+      weatherChanged,
+      weekReviewPending,
+      context.dietAdvice === true,
+    ),
+    weekReviewPending,
+  };
+}
+
+/** True when no level is missing and no new input has to reach the plan. */
+function planIsIdle(pending: PlanPending, revisionNeeded: boolean): boolean {
+  return (
+    !pending.block &&
+    !pending.week &&
+    !pending.day &&
+    !pending.tomorrow &&
+    !pending.nextWeek &&
+    !pending.nextBlock &&
+    !pending.dietProgress &&
+    !revisionNeeded
+  );
+}
+
+/**
+ * Builds a new plan: season, block, week, then day, with tomorrow and the next
+ * period when they are wanted. Completed days, diet targets, the forecast and
+ * the training load are attached before the plan is validated.
+ */
+async function generateFreshPlan(input: GeneratePlanInput): Promise<CoachPlan> {
+  const { context, generations, runId, today, userId } = input;
+
+  await generations.update(userId, PLAN_GENERATION_STEPS.review, runId);
+  await generations.update(userId, PLAN_GENERATION_STEPS.season, runId);
+  const seasonUpdate = await generateSeasonPlan(
+    context.provider,
+    credentials(context, seasonModelFor(context)),
+    baseContext(input),
+  );
+  await recordCoachQuestion(
+    input,
+    seasonUpdate.coachQuestion,
+    "season_plan",
+    seasonModelFor(context),
+  );
+  const season: SeasonPlan = seasonUpdate.season;
+
+  await generations.update(userId, PLAN_GENERATION_STEPS.initialBlock, runId);
+  const generatedBlock = await generateInitialBlock(
+    context.provider,
+    credentials(context, seasonModelFor(context)),
+    { ...baseContext(input), season },
+  );
+  await recordCoachQuestion(
+    input,
+    generatedBlock.coachQuestion,
+    "initial_block",
+    seasonModelFor(context),
+  );
+  const block: BlockPlan = generatedBlock.block;
+  const foundBodyMetrics: readonly BodyMetricEstimate[] = mergeBodyMetrics(
+    seasonUpdate.bodyMetrics,
+    generatedBlock.bodyMetrics,
+  );
+
+  await generations.update(userId, PLAN_GENERATION_STEPS.initialWeek, runId);
+  const weekUpdate = await generateWeeklyUpdate(
+    context.provider,
+    credentials(context, dailyModelFor(context)),
+    {
+      ...baseContext(input),
+      ...weatherContext(input),
+      season,
+      block,
+      weekStartDate: startOfWeek(today),
+    },
+  );
+  await recordCoachQuestion(
+    input,
+    weekUpdate.coachQuestion,
+    "weekly_update",
+    dailyModelFor(context),
+  );
+
+  await generations.update(userId, PLAN_GENERATION_STEPS.day, runId);
+  const dayUpdate = await generateDailyUpdate(
+    context.provider,
+    credentials(context, dailyModelFor(context)),
+    {
+      ...baseContext(input),
+      ...weatherContext(input),
+      season,
+      block: weekUpdate.block,
+      week: weekUpdate.week,
+    },
+  );
+  await recordCoachQuestion(
+    input,
+    dayUpdate.coachQuestion,
+    "daily_update",
+    dailyModelFor(context),
+  );
+
+  const todayPlan = deriveTodayStatus(
+    context,
+    today,
+    dayUpdate.today,
+    dayUpdate.today,
+  );
+  const draft: CoachPlan = {
+    season,
+    block: weekUpdate.block,
+    week: dayUpdate.week,
+    today: todayPlan,
+    tomorrow: dayUpdate.tomorrow,
+    nextWeek: null,
+    nextBlock: null,
+    diet: dayUpdate.diet ?? null,
+    bodyMetrics: mergeBodyMetrics(
+      foundBodyMetrics,
+      weekUpdate.bodyMetrics,
+      dayUpdate.bodyMetrics,
+    ),
+  };
+  const withNextPeriod =
+    input.includeTomorrow === true ? await planNextPeriod(input, draft) : draft;
+  const completed: CoachPlan = {
+    ...withNextPeriod,
+    week: applyCompletedDays(
+      withNextPeriod.week,
+      context.activities,
+      today,
+      context.manualActivities,
+      withNextPeriod.today,
+    ),
+  };
+  const withProgress = await ensureDietProgress(input, completed);
+  const generated = withTrainingLoad(
+    applyForecastToPlan(
+      dropUnplacedTomorrow(
+        outlineWeekPlans(syncDietProgressTargets(withProgress)),
+        input.includeTomorrow === true,
+      ),
+      forecastForStorage(context),
+    ),
+    context,
+  );
+  assertPlanValid(generated, today, input.includeTomorrow === true);
+  return generated;
+}
+
+/**
+ * Revises the stored season in place. A season refresh is an update like any
+ * other: one completion receives every level and returns the revised season,
+ * block, week and day, plus tomorrow and the next period when they are wanted.
+ */
+async function refreshStoredSeason(
+  input: GeneratePlanInput,
+  currentPlan: CoachPlan,
+  decision: RevisionDecision,
+): Promise<CoachPlan> {
+  return advancePlan(
+    input,
+    currentPlan,
+    decision.pending,
+    decision.revisionNeeded,
+    true,
+    decision.weekReviewPending,
+  );
+}
+
+/** Advances the levels the pending check, or new coaching input, asks for. */
+async function advancePendingPlan(
+  input: GeneratePlanInput,
+  currentPlan: CoachPlan,
+  decision: RevisionDecision,
+): Promise<CoachPlan> {
+  return advancePlan(
+    input,
+    currentPlan,
+    decision.pending,
+    decision.revisionNeeded,
+    false,
+    decision.weekReviewPending,
+  );
+}
+
+/**
+ * Persists a generated plan and finishes the run. A season build or refresh
+ * consumes the survey adjustments that shaped it; an incremental update leaves
+ * them for the next refresh.
+ */
+async function saveGeneratedPlan(
+  input: GeneratePlanInput,
+  plan: CoachPlan,
+  options: { clearSurveyAdjustments: boolean },
+): Promise<StoredPlan | null> {
+  const { userId, runId } = input;
+  await ensureGenerationCurrent(input);
+  await input.generations.update(userId, PLAN_GENERATION_STEPS.save, runId);
+  const saved = await input.plans.save(
+    userId,
+    plan,
+    input.context.answersUpdatedAt,
+    input.context.coachingInputsUpdatedAt,
+    input.context.activitiesUpdatedAt ?? null,
+    runId,
+  );
+  if (saved === null) {
+    throw new GenerationSupersededError();
+  }
+  if (options.clearSurveyAdjustments) {
+    await clearSurveyAdjustments(input);
+  }
+  await ensureGenerationCurrent(input);
+  await persistFtpEstimates(input, plan);
+  await persistBodyMetrics(input, plan);
+  await input.generations.finish(userId, runId);
+  return saved;
+}
+
+/**
+ * Ends a run that has nothing to revise. A promoted period is persisted with
+ * the stored timestamps, because they describe what the plan actually
+ * includes.
+ */
+async function finishUnchangedPlan(
+  input: GeneratePlanInput,
+  currentPlan: CoachPlan,
+  promoted: boolean,
+): Promise<StoredPlan | null> {
+  const { userId, runId } = input;
+  if (!promoted || input.plan === null) {
+    await input.generations.finish(userId, runId);
+    return input.plan;
+  }
+  await ensureGenerationCurrent(input);
+  const saved = await input.plans.save(
+    userId,
+    withTrainingLoad(currentPlan, input.context),
+    input.plan.answersUpdatedAt,
+    input.plan.coachingInputsUpdatedAt,
+    input.plan.activitiesUpdatedAt,
+    runId,
+  );
+  if (saved === null) {
+    throw new GenerationSupersededError();
+  }
+  await input.generations.finish(userId, runId);
+  return saved;
+}
+
+/**
+ * Captures a review for every completed period this run is about to replace.
+ * The new reviews join this run's context, so the block update can use them
+ * immediately and the block becomes pending in the same visit.
+ */
+async function captureEndedPeriodReviews(
+  input: GeneratePlanInput,
+  today: string,
+): Promise<void> {
+  if (input.plan === null || input.capturePeriodReviews === undefined) {
+    return;
+  }
+  const context = input.context;
+  const captured = await input.capturePeriodReviews({
+    userId: input.userId,
+    today,
+    ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),
+    plan: input.plan.plan,
+    provider: context.provider,
+    apiKey: context.apiKey,
+    model: seasonModelFor(context),
+    athleteAnswers: context.answers,
+    activities: context.activities,
+    manualActivities: context.manualActivities,
+    activityComments: context.activityComments,
+    weeklyNote: context.weeklyNote,
+    ...(context.dailyHealth !== undefined
+      ? { dailyHealth: context.dailyHealth }
+      : {}),
+    ...(context.events !== undefined ? { events: context.events } : {}),
+    ...(context.diet !== undefined ? { diet: context.diet } : {}),
+    ...(input.signal !== undefined ? { signal: input.signal } : {}),
+  });
+  if (captured !== undefined && captured.length > 0) {
+    input.context = mergeCapturedPeriodReviews(input.context, captured);
+  }
+  await ensureGenerationCurrent(input);
+}
+
+/** The stored plan an advancing run revises; a full build always has none. */
+function requireCurrentPlan(plan: CoachPlan | null): CoachPlan {
+  if (plan === null) {
+    throw new Error("A stored plan is required to advance the plan.");
+  }
+  return plan;
+}
+
+/** Throws when a newer run has claimed the account's generation row. */
+async function ensureGenerationCurrent(
+  input: GeneratePlanInput,
+): Promise<void> {
+  if (input.signal?.aborted === true) {
+    throw new GenerationSupersededError();
+  }
+  if (!(await input.generations.isCurrent(input.userId, input.runId))) {
+    throw new GenerationSupersededError();
   }
 }
 
