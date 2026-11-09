@@ -260,9 +260,9 @@ one swappable corner, and normalizes Garmin activities into the shared
   but its index is dropped, a single-lap result is treated as no laps, and the
   list is capped at 100 laps. A failed splits
   fetch yields no `laps` for that activity rather than failing the sync. The
-  activity analysis and program review list every lap; the plan and reply
-  prompts get a compact power/HR range. The Activities page shows the laps in a
-  collapsible table. See `docs/specs/garmin-activity-laps.md`.
+  activity analysis lists every lap; the plan and reply prompts get a compact
+  power/HR range. The Activities page shows the laps in a collapsible table. See
+  `docs/specs/garmin-activity-laps.md`.
 
 ## Other sport-specific fields worth considering
 

@@ -17,7 +17,7 @@ engineers it from raw samples, and Garmin's own lap averages are never used.
 - Fetch Garmin's activity splits (laps) in the sidecar and normalize them into
   a bounded `laps` array on the shared activity summary.
 - Feed lap averages to every prompt that answers the athlete about a recorded
-  workout: activity analysis, program review, and the plan/reply context.
+  workout: activity analysis and the plan/reply context.
 - Show a collapsible per-lap table on the Activity card, next to the recorded
   samples table.
 - No database migration: activities are stored as JSON, so the new optional
@@ -97,9 +97,9 @@ Only recorded values are listed; speed is rendered as pace for pace sports, and
 cadence uses the sport's unit. At most 40 laps are shown, with a count line when
 more were recorded. A single lap is ignored everywhere, so a session without
 real lap structure reads exactly like an activity with no laps. The block is
-part of `formatActivitySummary`, so the activity analysis and program review
-both receive it, and `formatActivity` adds a compact one-line lap summary to the
-plan and reply context.
+part of `formatActivitySummary`, so the activity analysis receives it, and
+`formatActivity` adds a compact one-line lap summary to the plan and reply
+context.
 
 ## Acceptance criteria
 

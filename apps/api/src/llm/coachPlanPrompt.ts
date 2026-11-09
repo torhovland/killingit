@@ -98,7 +98,6 @@ export function toCoachPlanActivity(
   return {
     summary: activity,
     analysis: activity.analysis?.text ?? null,
-    programAnalysis: activity.programAnalysis?.text ?? null,
     coachReply: activity.coachReply?.text ?? null,
   };
 }

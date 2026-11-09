@@ -657,8 +657,8 @@ function ActivityDetails({ activity }: { activity: CalendarActivity }) {
     metadata.push(`${Math.round(activity.normalizedPower)} W normalized`);
   }
   const summary =
-    activity.programAnalysis?.text.trim() ||
     activity.analysis?.text.trim() ||
+    activity.programAnalysis?.text.trim() ||
     "";
 
   return (

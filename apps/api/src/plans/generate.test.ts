@@ -1430,56 +1430,6 @@ describe("runPlanGeneration", () => {
     expect(marked[0]?.error).toContain("wrong date");
   });
 
-  it("reviews recent activities after a full plan build", async () => {
-    const provider = new FakeProvider(buildResponses());
-    const plans = new MemoryPlanStore(null);
-    const generations = new MemoryGenerationStore();
-    const reviewed: { plan: CoachPlan | null } = { plan: null };
-
-    const saved = await runPlanGeneration({
-      userId: 1,
-      runId: "run-1",
-      today: "2026-10-21",
-      plan: null,
-      context: makeContext(provider),
-      plans,
-      generations,
-      reviewActivities: (plan) => {
-        reviewed.plan = plan;
-        return Promise.resolve();
-      },
-    });
-
-    expect(reviewed.plan).toEqual(saved?.plan ?? null);
-    expect(generations.status.status).toBe("done");
-  });
-
-  it("does not review activities on a day-only cascade", async () => {
-    const provider = new FakeProvider({
-      planUpdate: makeUpdate("2026-10-21"),
-    });
-    const existing = makeStoredPlan(makePlan("2026-10-20"));
-    const plans = new MemoryPlanStore(existing);
-    const generations = new MemoryGenerationStore();
-    let reviews = 0;
-
-    await runPlanGeneration({
-      userId: 1,
-      runId: "run-1",
-      today: "2026-10-21",
-      plan: existing,
-      context: makeContext(provider),
-      plans,
-      generations,
-      reviewActivities: () => {
-        reviews += 1;
-        return Promise.resolve();
-      },
-    });
-
-    expect(reviews).toBe(0);
-  });
-
   it("keeps today's workout while revising the week and tomorrow", async () => {
     const current = makePlan("2026-10-21");
     const storedToday = {

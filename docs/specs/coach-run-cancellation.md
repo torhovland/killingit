@@ -16,7 +16,12 @@ short completion before it starts the slower plan refresh.
    HTTP response returns immediately with no reply; the dashboard marks the
    comment in its local feed and polls for the reply while the run works.
 2. The run claims the user's generation row with a new `runId`. Starting a run
-   aborts the previous run's provider requests in the same process.
+   aborts the previous run's provider requests in the same process. Auto
+   triggers that arrive within 1.5 s of the previous one are coalesced: the
+   newest trigger still claims the row, but the plan work waits for the short
+   window to close, so a burst of saved inputs starts one run instead of several
+   aborted ones. The first trigger starts immediately, and explicit new-season,
+   update-season and forced runs are never delayed.
 3. The first phase asks the coach to answer every activity comment that has no
    stored reply in one completion. The replies are stored as soon as that
    completion succeeds, before the plan phase starts.

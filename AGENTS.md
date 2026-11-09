@@ -61,7 +61,15 @@ about a past workout, or before a suggested workout, to steer the coach.
 - The current implementation lives behind `LlmProvider`
   (`apps/api/src/llm/openrouter.ts`). Each account's API key is encrypted at
   rest and its chosen model stored in `llm_settings`. Activity analyses are
-  cached per account in `activity_analyses`. See ADR 0004.
+  cached per account in `activity_analyses`. The general analysis is the single
+  plan-aware review: it includes plan fit when the activity is in the current
+  week and otherwise reviews the workout on its own merits with the block focus
+  as context. A stored analysis is reused regardless of the selected model or
+  prompt version, so neither a model change nor a prompt edit re-bills the
+  athlete, and a plan build does not add a second program-only review. Only a
+  newer athlete comment makes a stored analysis stale; legacy `program` rows
+  remain a display fallback. See
+  `docs/specs/coach-feedback-and-program-review.md`. See ADR 0004.
 - The model picker is backed by a graded catalog in `llm_models`, refreshed in
   the background at most once every 24 hours (`llm_model_sync`). The Settings
   page selects a season/block model and a separate day-to-day model; both IDs
@@ -174,9 +182,11 @@ about a past workout, or before a suggested workout, to steer the coach.
   `other`). A sport can have several measures, such as cycling FTP and cycling
   threshold heart rate. Body metrics stay in `athlete_metrics`.
   The athlete's stated thresholds, weight, and body fat are read by the coach,
-  not by a phrase list: a dedicated `athlete_metrics` call sends the profile,
+  not by a phrase list: one dedicated `athlete_reading` call sends the profile,
   every dated piece of athlete text — comments, manual activities, weekly notes,
-  review comments, and answered coach questions — and returns dated statements.
+  review comments, and answered coach questions — and returns both dated
+  statements and the dated goals and events described below. Sending the text
+  once covers both readings.
   A threshold statement with no sport is not stored; the app asks which sport
   it belongs to first. A profile number with no date of its own is dated by the
   profile's last save. A successful read replaces the `user` points of the
@@ -224,13 +234,13 @@ about a past workout, or before a suggested workout, to steer the coach.
   downsampled sample preview, shown as a collapsible table on the Activities
   page. Running cadence is normalized to total steps per minute and cycling
   cadence to rpm, matching Garmin Connect. Strength activities also carry their
-  recorded exercise sets, repetitions, weights and rest intervals, and both the
-  activity analysis and the program review use them; see
+  recorded exercise sets, repetitions, weights and rest intervals, and the
+  activity analysis uses them; see
   `docs/specs/garmin-strength-exercise-sets.md`. Activities also carry their
   recorded laps with per-lap duration, distance, average and maximum power,
   average and maximum heart rate, average speed, cadence and elevation, shown
-  as a collapsible table and given to the activity analysis, program review and
-  plan prompts so the coach can judge interval structure. A single lap is
+  as a collapsible table and given to the activity analysis and plan prompts so
+  the coach can judge interval structure. A single lap is
   treated as no laps, since it only restates the whole activity; see
   `docs/specs/garmin-activity-laps.md`. Further sport-specific Garmin
   metrics and their proposed data model are assessed in
@@ -275,8 +285,8 @@ about a past workout, or before a suggested workout, to steer the coach.
   adjustments in its prompt and clears them after a successful save. See
   `docs/specs/coaching-survey-updates.md`.
 - Dated goals and events the athlete states — a race, a sportive, a trip, or a
-  dated target — are read from the same athlete text by a dedicated
-  `athlete_events` call and stored in `athlete_events`. A successful read
+  dated target — are read from the same athlete text by the same
+  `athlete_reading` call and stored in `athlete_events`. A successful read
   replaces the stored list, so an event edited out of a comment disappears, and
   a failed read keeps the previous list. The calendar shows a multi-day event on
   every day it covers, the Week and Day tabs list the events inside their

@@ -31,9 +31,8 @@ the sidecar already calls for every activity.
    training, maps them into a stable shape, and includes them on the synced
    activity as `strengthSets`.
 2. The shared `Activity` type carries the optional `strengthSets` array; the
-   analyzed activity feed keeps it so a program review can use it too.
-3. Both the general activity analysis and the post-plan program review render
-   the recorded sets into the prompt.
+   analyzed activity feed keeps it so the activity analysis can use it.
+3. The activity analysis renders the recorded sets into the prompt.
 4. A recorded set list is authoritative: the coach must not invent exercises,
    reps or loads when the list is empty, and must use the recorded values when
    it is present.
@@ -81,9 +80,9 @@ sets to bound the sync payload and prompt size.
 3. The general activity analysis prompt contains the recorded sets (exercise,
    sets, reps, weight), and the system prompt tells the model not to invent
    missing sets.
-4. The program review prompt contains the same recorded sets.
-5. Cached analyses are invalidated by the prompt-version bump.
-6. Unit tests cover normalization, prompt rendering, and the fail-open/`429`
+4. New analyses record the bumped prompt version; existing cached analyses are
+   reused.
+5. Unit tests cover normalization, prompt rendering, and the fail-open/`429`
    split. Quality gates pass.
 
 ## Data-model / API impact
@@ -93,9 +92,7 @@ sets to bound the sync payload and prompt size.
   `AnalyzedActivity` carry it.
 - `services/garmin/app.py`: fetch and normalize sets in `_sync`; add
   `_exercise_sets_for` and `_to_strength_sets`.
-- `apps/api/src/llm/activityPrompt.ts` and
-  `apps/api/src/llm/programAnalysisPrompt.ts`: render sets and include the
-  shared rule.
+- `apps/api/src/llm/activityPrompt.ts`: render sets and include the shared rule.
 - `apps/api/src/llm/planContext.ts`: render a compact set list in the shared
   activity summary used by the reviews.
 - No database schema change.

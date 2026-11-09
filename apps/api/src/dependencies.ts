@@ -3,8 +3,7 @@ import type {
   ActivityFeed,
   loadUserActivityTrainingLoads,
 } from "./coaching/activities.js";
-import type { syncAthleteEvents } from "./coaching/athleteEvents.js";
-import type { syncAthleteMetrics } from "./coaching/athleteMetrics.js";
+import type { syncAthleteReading } from "./coaching/athleteReading.js";
 import type {
   deleteImportedActivity,
   deleteManualActivity,
@@ -20,7 +19,7 @@ import type { saveActivityReview } from "./coaching/reviews.js";
 import type { startCoachRun } from "./coaching/coachRun.js";
 import type { loadDietContext } from "./diet/context.js";
 import type { FoodEntryStore } from "./diet/store.js";
-import type { createMealThumbnail } from "./diet/thumbnail.js";
+import type { createMealPhotos } from "./diet/thumbnail.js";
 import type { loadAthleteEvents } from "./events/store.js";
 import type { analyzeFood } from "./llm/foodAnalysis.js";
 import type { LlmClient } from "./llm/client.js";
@@ -102,9 +101,7 @@ export interface AppDependencies {
   /** Injectable for route tests; defaults to the stored daily health series. */
   loadDailyHealth?: typeof loadDailyHealthForUser | undefined;
   /** Injectable for route tests; defaults to the coach reading the text. */
-  syncAthleteMetrics?: typeof syncAthleteMetrics | undefined;
-  /** Injectable for route tests; defaults to the coach reading the text. */
-  syncAthleteEvents?: typeof syncAthleteEvents | undefined;
+  syncAthleteReading?: typeof syncAthleteReading | undefined;
   /** Stored dated goals and events, injectable for DB-free route tests. */
   loadEvents?: typeof loadAthleteEvents | undefined;
   /** Stored weekly plan totals, injectable for DB-free route tests. */
@@ -127,8 +124,8 @@ export interface AppDependencies {
     ((input: ReplyContextInput) => Promise<PlanContextInput>) | undefined;
   /** Food-analysis generator, injectable for DB-free diet route tests. */
   analyzeFood?: typeof analyzeFood | undefined;
-  /** Meal-thumbnail generator, injectable for DB-free diet route tests. */
-  createMealThumbnail?: typeof createMealThumbnail | undefined;
+  /** Meal-photo generator, injectable for DB-free diet route tests. */
+  createMealPhotos?: typeof createMealPhotos | undefined;
   /** Coaching-input loader, injectable for DB-free route tests. */
   loadCoachingInputs?:
     | ((userId: number, weekStartDate: string) => Promise<CoachingInputs>)
@@ -172,6 +169,8 @@ export interface AppDependencies {
   /** Prompt-log failure marker, injectable for DB-free plan route tests. */
   markPlanPromptsFailed?:
     PlanTriggerDependencies["markPlanPromptsFailed"] | undefined;
+  /** Plan-trigger debounce, injectable for fast route tests. */
+  planTriggerDebounceMs?: number | undefined;
 }
 
 /**
@@ -204,8 +203,7 @@ export function planTriggerDependencies(
     loadThresholdHistory: deps.loadThresholdHistory,
     loadBodyHistory: deps.loadBodyHistory,
     loadDailyHealth: deps.loadDailyHealth,
-    syncAthleteMetrics: deps.syncAthleteMetrics,
-    syncAthleteEvents: deps.syncAthleteEvents,
+    syncAthleteReading: deps.syncAthleteReading,
     loadEvents: deps.loadEvents,
     loadDiet: deps.loadDiet,
     loadAnsweredCoachQuestions: deps.loadAnsweredCoachQuestions,
@@ -213,5 +211,6 @@ export function planTriggerDependencies(
     loadCoachingInputs: deps.loadCoachingInputs,
     loadForecast: deps.loadForecast,
     markPlanPromptsFailed: deps.markPlanPromptsFailed,
+    planTriggerDebounceMs: deps.planTriggerDebounceMs,
   };
 }

@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import type { FoodAnalysis } from "@killingit/shared";
 import { createApp } from "../index.js";
 import type { FoodAnalysisInput } from "../llm/foodPrompt.js";
-import type { createMealThumbnail } from "../diet/thumbnail.js";
+import type { createMealPhotos } from "../diet/thumbnail.js";
 import type { LlmClient } from "../llm/client.js";
 import type { PlanContextInput } from "../llm/planContext.js";
 import type { LlmProvider } from "../llm/openrouter.js";
@@ -131,7 +131,7 @@ function makeApp(
     store?: MemoryFoodStore;
     llm?: LlmClient | null;
     analyze?: NonNullable<Parameters<typeof createApp>[0]>["analyzeFood"];
-    createThumbnail?: typeof createMealThumbnail;
+    createPhotos?: typeof createMealPhotos;
     planStore?: PlanStore;
     loadDayCalorieTargets?: typeof loadPlanDayCalorieTargets;
   } = {},
@@ -161,8 +161,13 @@ function makeApp(
     loadLlm: () => Promise.resolve(llm),
     loadFoodContext: () => Promise.resolve(context),
     analyzeFood,
-    createMealThumbnail:
-      options.createThumbnail ?? (() => Promise.resolve(generatedThumbnail)),
+    createMealPhotos:
+      options.createPhotos ??
+      (() =>
+        Promise.resolve({
+          analysisDataUrl: generatedAnalysisPhoto,
+          thumbnailDataUrl: generatedThumbnail,
+        })),
   });
   return { app, store };
 }
@@ -197,7 +202,9 @@ const body = {
 
 // Different bytes so a test can prove which image was stored and served.
 const fullPhoto = "data:image/jpeg;base64,QUJD";
-// What the injected thumbnail generator returns. Its bytes are [1, 2, 3].
+// What the injected photo generator returns for the coach and the thumbnail.
+// Their bytes are [4, 5, 6] and [1, 2, 3].
+const generatedAnalysisPhoto = "data:image/jpeg;base64,BAUG";
 const generatedThumbnail = "data:image/jpeg;base64,AQID";
 
 describe("POST /api/diet/entries", () => {
@@ -259,14 +266,14 @@ describe("POST /api/diet/entries", () => {
     expect(entry.description).toBeNull();
     expect(entry.hasPhoto).toBe(true);
     expect(seen[0]?.description).toBeNull();
-    // The coach sees the full photo; the API stores its own thumbnail.
-    expect(seen[0]?.photoDataUrl).toBe(fullPhoto);
+    // The coach sees the bounded analysis copy; the API stores its own thumbnail.
+    expect(seen[0]?.photoDataUrl).toBe(generatedAnalysisPhoto);
     expect(store.rows[0]?.entry.thumbnailDataUrl).toBe(generatedThumbnail);
   });
 
   it("keeps the meal out of the log when the photo cannot be read", async () => {
     const { app, store } = makeApp({
-      createThumbnail: () => Promise.reject(new Error("unsupported image")),
+      createPhotos: () => Promise.reject(new Error("unsupported image")),
     });
     const res = await request(app, "/api/diet/entries", {
       method: "POST",
@@ -434,15 +441,28 @@ describe("PATCH /api/diet/entries/:id", () => {
 
   it("replaces the photo and stores its new thumbnail", async () => {
     const newPhoto = "data:image/png;base64,REVG";
+    const newAnalysisPhoto = "data:image/jpeg;base64,BwgJ";
+    const newThumbnail = "data:image/jpeg;base64,BAUG";
     const storedPhotos: string[] = [];
+    const seen: FoodAnalysisInput[] = [];
     const { app, store } = makeApp({
-      createThumbnail: (dataUrl) => {
+      createPhotos: (dataUrl) => {
         storedPhotos.push(dataUrl);
         return Promise.resolve(
           dataUrl === fullPhoto
-            ? generatedThumbnail
-            : "data:image/jpeg;base64,BAUG",
+            ? {
+                analysisDataUrl: generatedAnalysisPhoto,
+                thumbnailDataUrl: generatedThumbnail,
+              }
+            : {
+                analysisDataUrl: newAnalysisPhoto,
+                thumbnailDataUrl: newThumbnail,
+              },
         );
+      },
+      analyze: (_provider, _credentials, input) => {
+        seen.push(input);
+        return Promise.resolve({ analysis, model: "test/model" });
       },
     });
     const created = await createMeal(app, { photoDataUrl: fullPhoto });
@@ -454,9 +474,8 @@ describe("PATCH /api/diet/entries/:id", () => {
 
     expect(res.status).toBe(200);
     expect(storedPhotos).toEqual([fullPhoto, newPhoto]);
-    expect(store.rows[0]?.entry.thumbnailDataUrl).toBe(
-      "data:image/jpeg;base64,BAUG",
-    );
+    expect(seen[1]?.photoDataUrl).toBe(newAnalysisPhoto);
+    expect(store.rows[0]?.entry.thumbnailDataUrl).toBe(newThumbnail);
   });
 
   it("removes a photo from a meal that still has a description", async () => {

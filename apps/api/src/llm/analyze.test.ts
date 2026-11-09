@@ -6,6 +6,7 @@ import {
   type LlmCompletionRequest,
   type LlmProvider,
 } from "./openrouter.js";
+import { ANALYSIS_MAX_TOKENS } from "./planBudget.js";
 
 const activity: Activity = {
   id: 1,
@@ -67,7 +68,7 @@ describe("analyzeActivity", () => {
     });
     expect(captured?.model).toBe("test/model");
     expect(captured?.apiKey).toBe("test-key");
-    expect(captured?.maxTokens).toBe(2048);
+    expect(captured?.maxTokens).toBe(ANALYSIS_MAX_TOKENS);
     expect(captured?.kind).toBe("activity_analysis");
     expect(captured?.messages).toHaveLength(2);
     expect(captured?.messages[1]?.content).toContain("Time series:");

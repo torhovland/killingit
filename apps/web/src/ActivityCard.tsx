@@ -133,11 +133,11 @@ export function ActivityCard({
   // can be saved before the reply exists. Keep the coach's side of the
   // conversation visible with a thinking placeholder until the reply arrives.
   const awaitingReply = shownComment !== null && shownReply === null;
-  // Plan fit is part of the coach summary, not its own section. The program
-  // review (when present) is the plan-aware summary; otherwise use the general
-  // analysis.
+  // Plan fit is part of the coach summary, not its own section. The general
+  // analysis is the current review; an older stored program review is only a
+  // fallback for activities that predate the single-review prompt.
   const summary =
-    activity.programAnalysis?.text.trim() || activity.analysis?.text.trim();
+    activity.analysis?.text.trim() || activity.programAnalysis?.text.trim();
   const route = activity.route ?? [];
   const hasMap = route.length >= 2;
   const metadata = [

@@ -39,7 +39,7 @@ output rather than from a reproduction.
 ### Recording
 
 `withPromptLogging` decorates the account's provider in `loadLlmClient` (plan
-generation, replies, reviews, program analysis, manual TSS) and in the default
+generation, replies, activity analysis, manual TSS) and in the default
 activity-analysis provider. Each `complete` call writes a row in two steps:
 
 - before sending: the full prompt and request metadata;

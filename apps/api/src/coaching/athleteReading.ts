@@ -1,13 +1,17 @@
 import {
+  eventEndDate,
   formatThresholdValue,
-  type AthleteMetricsResult,
+  type AthleteEvent,
+  type AthleteMetricStatement,
+  type AthleteReadingResult,
   type AthleteThresholdStatement,
 } from "@killingit/shared";
-import { extractAthleteMetrics } from "../llm/athleteMetrics.js";
+import { replaceAthleteEvents } from "../events/store.js";
+import { extractAthleteReading } from "../llm/athleteReading.js";
 import type {
-  AthleteMetricEntry,
-  AthleteMetricSource,
-} from "../llm/athleteMetricsPrompt.js";
+  AthleteReadingEntry,
+  AthleteReadingSource,
+} from "../llm/athleteReadingPrompt.js";
 import type { LlmProvider } from "../llm/openrouter.js";
 import type { PlanCompletionCredentials } from "../llm/planCompletion.js";
 import type {
@@ -18,14 +22,15 @@ import type {
 } from "../llm/planContext.js";
 import { recordAthleteMetricStatements } from "../metrics/store.js";
 import { saveCoachQuestions } from "../plans/coachQuestions.js";
+import type { StoredWeeklyNote } from "../plans/inputs.js";
 
-/** The athlete-authored text the coach reads for stated measurements. */
-export interface AthleteMetricInputs {
+/** The athlete-authored text the coach reads for measurements and events. */
+export interface AthleteReadingInputs {
   answers: readonly AthleteAnswerContext[];
   activityComments: readonly ActivityCommentContext[];
   manualActivities: readonly ManualActivityContext[];
-  weeklyNote: string | null;
-  weeklyNoteUpdatedAt: Date | null;
+  /** Every stored weekly note, so an earlier week's event is still found. */
+  weeklyNotes: readonly StoredWeeklyNote[];
   periodReviews: readonly PeriodReviewContext[];
   /** Answered clarification questions, including a threshold's missing sport. */
   coachQuestionAnswers?: readonly {
@@ -57,16 +62,15 @@ function profileSavedAt(
 }
 
 /**
- * Builds the dated text the coach reads. The profile is passed separately so
- * the coach can date an undated weight by the day the profile was saved; every
- * other statement carries its own date. Newest first, so the newest value for a
- * date is the one the coach reports.
+ * Builds the dated text the coach reads. Newest first, so the newest wording of
+ * a measurement or event wins. The profile is passed separately so the coach
+ * can date an undated profile value by the day the profile was saved.
  */
-export function buildAthleteMetricSource(
-  input: AthleteMetricInputs,
+export function buildAthleteReadingSource(
+  input: AthleteReadingInputs,
   today: string,
-): AthleteMetricSource {
-  const entries: AthleteMetricEntry[] = [];
+): AthleteReadingSource {
+  const entries: AthleteReadingEntry[] = [];
   const add = (
     date: Date | string | null | undefined,
     label: string,
@@ -92,7 +96,9 @@ export function buildAthleteMetricSource(
       activity.details,
     );
   }
-  add(input.weeklyNoteUpdatedAt, "weekly note", input.weeklyNote);
+  for (const note of input.weeklyNotes) {
+    add(note.weekStartDate, "weekly note", note.note);
+  }
   for (const review of input.periodReviews) {
     add(review.updatedAt, `${review.kind} review comment`, review.comment);
   }
@@ -109,42 +115,47 @@ export function buildAthleteMetricSource(
     profile: input.answers,
     profileSavedAt: profileSavedAt(input.answers),
     entries,
+    today,
   };
 }
 
 /** Injectable seams so a test can read the prompt without calling a model. */
-export interface AthleteMetricDependencies {
-  extract?: typeof extractAthleteMetrics;
-  save?: typeof recordAthleteMetricStatements;
+export interface AthleteReadingDependencies {
+  extract?: typeof extractAthleteReading;
+  saveMetrics?: typeof recordAthleteMetricStatements;
+  saveEvents?: typeof replaceAthleteEvents;
   saveQuestions?: typeof saveCoachQuestions;
 }
 
 /**
- * Reads the FTP, body weight, and body-fat values the athlete states in their
- * own words and stores them as `user` metric points. Reading is the coach's job
- * so no phrase list decides what "around 240 W" or "down to 12 %" means.
+ * Reads the measurements, goals and events the athlete states in their own
+ * words and stores them. One model call covers both readings, so the athlete's
+ * text is sent once.
  *
- * A model failure is fail-open: the existing metric series stays usable and the
- * caller carries on. The returned result is null when nothing was read.
+ * A model failure is fail-open: the existing metric series and events stay
+ * usable and the caller carries on. The returned result is null when the
+ * reading failed.
  */
-export async function syncAthleteMetrics(input: {
+export async function syncAthleteReading(input: {
   userId: number;
   today: string;
-  source: AthleteMetricSource;
+  source: AthleteReadingSource;
   provider: LlmProvider;
   credentials: PlanCompletionCredentials;
-  dependencies?: AthleteMetricDependencies;
-}): Promise<AthleteMetricsResult | null> {
-  const extract = input.dependencies?.extract ?? extractAthleteMetrics;
-  const save = input.dependencies?.save ?? recordAthleteMetricStatements;
+  dependencies?: AthleteReadingDependencies;
+}): Promise<AthleteReadingResult | null> {
+  const extract = input.dependencies?.extract ?? extractAthleteReading;
+  const saveMetrics =
+    input.dependencies?.saveMetrics ?? recordAthleteMetricStatements;
+  const saveEvents = input.dependencies?.saveEvents ?? replaceAthleteEvents;
   const saveQuestions = input.dependencies?.saveQuestions ?? saveCoachQuestions;
 
-  let result: AthleteMetricsResult;
+  let result: AthleteReadingResult;
   try {
     result = await extract(input.provider, input.credentials, input.source);
   } catch (err) {
     console.error(
-      "[metrics] could not read the athlete's stated metrics:",
+      "[athlete-reading] could not read the athlete's own words:",
       err,
     );
     return null;
@@ -156,10 +167,10 @@ export async function syncAthleteMetrics(input: {
         userId: input.userId,
         questions: [result.coachQuestion],
         model: input.credentials.model,
-        sourceKind: "athlete_metrics",
+        sourceKind: "athlete_reading",
       });
     } catch (err) {
-      console.error("[metrics] could not store coach questions:", err);
+      console.error("[athlete-reading] could not store a coach question:", err);
     }
   }
 
@@ -181,10 +192,13 @@ export async function syncAthleteMetrics(input: {
         userId: input.userId,
         questions: unresolved,
         model: input.credentials.model,
-        sourceKind: "athlete_metrics",
+        sourceKind: "athlete_reading",
       });
     } catch (err) {
-      console.error("[metrics] could not ask for a threshold sport:", err);
+      console.error(
+        "[athlete-reading] could not ask for a threshold sport:",
+        err,
+      );
     }
   }
 
@@ -196,42 +210,33 @@ export async function syncAthleteMetrics(input: {
       ),
     }),
   );
-  if (statements.length === 0) {
-    return result;
-  }
   if (
-    !statements.some(
+    statements.some(
       (statement) =>
         statement.weightKg !== null ||
         statement.bodyFatPercent !== null ||
         statement.thresholds.length > 0,
     )
   ) {
-    return result;
+    try {
+      await saveMetrics(input.userId, statements, input.today);
+    } catch (err) {
+      console.error(
+        "[athlete-reading] could not store the athlete's measurements:",
+        err,
+      );
+    }
   }
+
   try {
-    await save(input.userId, statements, input.today);
+    await saveEvents(input.userId, normalizeEvents(result.events, input.today));
   } catch (err) {
     console.error(
-      "[metrics] could not store the athlete's stated metrics:",
+      "[athlete-reading] could not store the athlete's events:",
       err,
     );
   }
   return result;
-}
-
-/**
- * Asks which sport an otherwise unambiguous threshold belongs to. The value is
- * shown in its athlete-facing unit, so a pace stored in seconds per kilometre
- * reads as `5:46 /km` rather than `346 s/km`.
- */
-function thresholdQuestion(
-  label: string,
-  value: number,
-  unit: string,
-  kind: AthleteThresholdStatement["kind"],
-): string {
-  return `You mentioned ${label} ${formatThresholdValue(value, unit, kind)}. Which sport is that threshold for?`;
 }
 
 /**
@@ -240,10 +245,10 @@ function thresholdQuestion(
  * inside the single write loop.
  */
 function newestPerDate(
-  statements: AthleteMetricsResult["statements"],
+  statements: readonly AthleteMetricStatement[],
   today: string,
-): AthleteMetricsResult["statements"] {
-  const byDate = new Map<string, AthleteMetricsResult["statements"][number]>();
+): AthleteMetricStatement[] {
+  const byDate = new Map<string, AthleteMetricStatement>();
   for (const statement of statements) {
     if (statement.date > today) {
       continue;
@@ -270,4 +275,56 @@ function newestPerDate(
     });
   }
   return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/**
+ * Asks which sport an otherwise unambiguous threshold belongs to. The value is
+ * shown in its athlete-facing unit, so a pace stored in seconds per kilometre
+ * reads as `5:46 /km` rather than `346 s/km`.
+ */
+function thresholdQuestion(
+  label: string,
+  value: number,
+  unit: string,
+  kind: AthleteThresholdStatement["kind"],
+): string {
+  return `You mentioned ${label} ${formatThresholdValue(value, unit, kind)}. Which sport is that threshold for?`;
+}
+
+/**
+ * Keeps only events that are still relevant, with a sane date range. An event
+ * that ended before today is dropped; an event that started earlier but is
+ * still running is kept. A malformed end date falls back to a one-day event.
+ */
+export function normalizeEvents(
+  events: readonly AthleteEvent[],
+  today: string,
+): AthleteEvent[] {
+  const byKey = new Map<string, AthleteEvent>();
+  for (const event of events) {
+    const title = event.title.trim();
+    if (title === "") {
+      continue;
+    }
+    const endDate =
+      event.endDate !== null && event.endDate >= event.startDate
+        ? event.endDate
+        : null;
+    const normalized: AthleteEvent = {
+      startDate: event.startDate,
+      endDate,
+      title,
+      kind: event.kind,
+    };
+    if (eventEndDate(normalized) < today) {
+      continue;
+    }
+    byKey.set(
+      `${normalized.startDate}\u0000${normalized.endDate ?? ""}\u0000${title}`,
+      normalized,
+    );
+  }
+  return [...byKey.values()].sort((a, b) =>
+    a.startDate.localeCompare(b.startDate),
+  );
 }

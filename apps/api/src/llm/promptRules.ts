@@ -153,7 +153,7 @@ export const PLAN_PROMPT_RULES = promptSections(
   ATHLETE_INPUT_RULES,
   `Use state of the art training science to make the best possible plan for the athlete.
 
-You receive the athlete's profile, recent activities with coach analyses, program reviews, and coach replies, manually recorded activities, comments on activities, a general weekly note, and coach summaries of completed weeks and blocks with the athlete's feedback on them. Use all of these to understand the athlete's goal, available time, experience, preferences, constraints, and subjective feedback, and to see what they actually completed or missed and how they responded.
+You receive the athlete's profile, recent activities with their coach analyses and coach replies, manually recorded activities, comments on activities, a general weekly note, and coach summaries of completed weeks and blocks with the athlete's feedback on them. Use all of these to understand the athlete's goal, available time, experience, preferences, constraints, and subjective feedback, and to see what they actually completed or missed and how they responded.
 
 Respect the athlete's available time and constraints. The weekly note is a hard constraint: if it says the athlete cannot train on a specific day, move or cancel the session on that day. If a recorded activity, including a manually recorded one, indicates significant fatigue or extra load, weigh that against the rest of the picture and adjust the upcoming sessions when the athlete cannot absorb the planned load.
 
@@ -324,15 +324,15 @@ export const ENUM_RULES = `For every type field use either "workout" or "rest"; 
 export const ACTIVITY_TYPE_RULE = `The activity type recorded by the device is only a label and may be wrong: do not trust it. If the heart-rate data looks erratic — sudden spikes or drops that do not fit the steady effort the summary suggests — this may be a strength-training workout even when the device labelled it as running, cycling, or another endurance activity. When the athlete's comment on this activity explains what the session actually was, treat the comment as authoritative over the device label and do not ask them to describe it again.`;
 
 /**
- * How the coach uses recorded strength sets. Shared by the general activity
- * analysis and the program review so neither invents exercises or loads.
+ * How the coach uses recorded strength sets in the activity analysis, so it
+ * does not invent exercises or loads.
  */
 export const STRENGTH_SET_RULES = `When a completed strength session includes recorded sets, those sets are what the athlete actually performed: use the exercise, repetitions, weight and rest intervals to judge the session. Do not invent exercises, sets, repetitions or loads that are not listed, and do not assume a strength workout was performed when no sets are given.`;
 
 /**
- * How the coach uses recorded laps. Shared by the general activity analysis
- * and the program review so both read interval structure from the same data
- * instead of guessing it from the summary alone.
+ * How the coach uses recorded laps in the activity analysis, so it reads the
+ * interval structure from the same data instead of guessing it from the
+ * summary alone.
  */
 export const LAP_STRUCTURE_RULES = `When recorded laps are provided, treat them as the athlete's actual interval structure: compare the work laps with each other and with any prescribed intervals, and call out a lap that faded, was cut short, or was clearly off the prescribed intensity. Judge each lap from its own averages rather than the whole-activity average. When no laps are provided, do not claim to know the interval structure.`;
 
@@ -488,7 +488,7 @@ export const SEASON_CONTRACT = `{
 /** One dated body-composition point in a plan response. */
 export const BODY_METRIC_POINT_CONTRACT = `{ "date": "YYYY-MM-DD", "weightKg": 0, "bodyFatPercent": 0 }`;
 
-/** The JSON contract shared by the activity and program reviews. */
+/** The JSON contract for an activity review. */
 export const COACH_ANALYSIS_RESPONSE_RULES = promptSections(
   `Return only one JSON object with exactly this shape:
 {

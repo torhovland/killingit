@@ -62,8 +62,8 @@ comment, the coach's response, and the route map for outdoor activities.
 ### Entries
 
 - Imported activities use the cached analysed feed, so the dialog shows the
-  same analysis, program review, comment, coach reply, training load, and GPS
-  route as the Activities page.
+  same analysis (or legacy program review), comment, coach reply, training load,
+  and GPS route as the Activities page.
 - Manual activities show their description, the coach's reply, and the
   coach's TSS estimate when one exists.
 - Planned sessions come from the stored plan's current and next week. A rest

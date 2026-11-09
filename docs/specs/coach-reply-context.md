@@ -42,10 +42,9 @@ question without knowing what the athlete has recently done.
 - Fetching a fresh Open-Meteo/Yr.no forecast for a reply. The plan revision that
   follows a reply refreshes the forecast.
 - A Garmin sync for a reply; the cached feed is used.
-- New context for the activity analysis and program review prompts. They run
-  once per activity and already carry the activity itself, the plan and the FTP
-  history; adding the whole feed to each call would multiply the cost of a
-  batch for little gain.
+- New context for the activity-analysis prompt. It runs once per activity and
+  already carries the activity itself, the plan and the FTP history; adding the
+  whole feed to each call would multiply the cost of a batch for little gain.
 - The athlete-metrics reading prompt, which deliberately reads only the
   athlete's own words (it reports statements, not training).
 

@@ -12,7 +12,6 @@ const FULL_BUILD = [
   PLAN_GENERATION_STEPS.day,
   PLAN_GENERATION_STEPS.planUpdate,
   PLAN_GENERATION_STEPS.save,
-  PLAN_GENERATION_STEPS.reviewActivities,
 ];
 
 /** A cascade that starts at the block, without the full-build prefix. */
@@ -21,7 +20,6 @@ const CASCADE = [
   PLAN_GENERATION_STEPS.prepare,
   PLAN_GENERATION_STEPS.planUpdate,
   PLAN_GENERATION_STEPS.save,
-  PLAN_GENERATION_STEPS.reviewActivities,
 ];
 
 describe("plan generation steps", () => {

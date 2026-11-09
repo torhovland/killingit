@@ -32,10 +32,10 @@ key.
   timeseries (up to 90 rows, first and last points preserved) so the model can
   reason about how the workout unfolded. Each analysis is 3–5 plain-text
   sentences ending in one actionable recommendation.
-- **Cache analyses in Postgres** (`activity_analyses`), keyed by account and
-  source activity id, so revisiting the page does not re-bill tokens. An
-  analysis is regenerated when the selected model changes; `?refresh=true`
-  forces a fresh pass.
+- **Cache analyses in Postgres** (`activity_analyses`), keyed by account,
+  source activity id and kind, so revisiting the page does not re-bill tokens.
+  An analysis is reused across model and prompt-version changes; only a newer
+  athlete comment or `?refresh=true` regenerates it.
 - **Fail per activity, not per batch**: one provider error yields an
   `analysisError` on that card while the rest still render. An invalid/revoked
   key (401) fails the whole request so the operator sees the real problem.

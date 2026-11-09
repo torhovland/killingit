@@ -295,8 +295,9 @@ describe("buildActivityAnalysisPrompt", () => {
     expect(prompt).toContain("Current week plan:");
     expect(prompt).toContain("2026-10-01 (Monday) [planned]: Easy ride");
     expect(prompt).toContain(
-      "The workout happened on 2026-10-01, within the current week. Match it to the planned session for that date, or another session this week that fits the data.",
+      "Planned session for 2026-10-01: Easy ride [workout, easy, 60 min]",
     );
+    expect(prompt).toContain("Match the workout to it.");
     expect(prompt).toContain(
       "Include how well the workout fit its planned session",
     );
@@ -321,15 +322,55 @@ describe("buildActivityAnalysisPrompt", () => {
 
     const messages = buildActivityAnalysisMessages(
       makeActivity({ type: "running" }),
-      { today: "2026-10-26", week },
+      {
+        today: "2026-10-26",
+        season: {
+          goal: "Run a marathon",
+          startDate: "2026-10-05",
+          endDate: "2027-04-01",
+          rationale: "Build a base.",
+          blocks: [
+            {
+              name: "Base",
+              focus: "Aerobic",
+              startDate: "2026-10-05",
+              endDate: "2026-12-01",
+              weekCount: 6,
+            },
+          ],
+        },
+        block: {
+          name: "Base",
+          focus: "Aerobic",
+          rationale: "Consistent volume.",
+          startDate: "2026-10-05",
+          endDate: "2026-12-01",
+          weeks: [
+            {
+              number: 1,
+              startDate: "2026-10-05",
+              focus: "Aerobic",
+              targetLoad: "Easy",
+            },
+          ],
+        },
+        week,
+      },
     );
     const prompt = messages[1]?.content ?? "";
 
+    expect(prompt).toContain("Current season plan:");
+    expect(prompt).toContain("Current block plan:");
     expect(prompt).toContain(
       "The workout happened on 2026-10-01, outside the current week (2026-10-05 to 2026-10-11).",
     );
-    expect(prompt).toContain("Do not match it to a planned session");
-    expect(prompt).toContain("analyse it on its own merits");
+    expect(prompt).toContain("No planned session is available for that date.");
+    expect(prompt).toContain(
+      "Do not match it to a session in the current week",
+    );
+    expect(prompt).toContain("review the workout on its own merits");
+    expect(prompt).toContain("relate it to the current block's focus");
+    expect(prompt).not.toContain("Current week plan:");
     expect(prompt).not.toContain(
       "Match it to the planned session for that date",
     );

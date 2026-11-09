@@ -65,8 +65,6 @@ export interface CoachingSurveyAdjustmentContext {
 export interface RecentActivityContext {
   summary: ActivitySummary;
   analysis: string | null;
-  /** How the activity fit the plan, generated after a full plan build. */
-  programAnalysis?: string | null;
   /** The coach's latest reply to the athlete's comment on the activity. */
   coachReply?: string | null;
 }
@@ -825,7 +823,7 @@ export function formatPlanLevels(
 
 /**
  * Renders the one-line session summary shared by the coach reply and the
- * program review, including a bike workout's power targets when it has one.
+ * activity review, including a bike workout's power targets when it has one.
  */
 export function formatPlannedSession(session: WeekSession): string {
   const bikeWorkout =
@@ -1141,8 +1139,8 @@ export function summarizeLaps(laps: readonly ActivityLap[]): string {
 }
 
 /**
- * Renders the recorded activity summary shared by the activity review and the
- * program review, so both prompts describe the same numbers the same way.
+ * Renders the recorded activity summary used by the activity review, the plan
+ * and reply prompts, so they describe the same numbers the same way.
  */
 export function formatActivitySummary(
   activity: Pick<
@@ -1237,15 +1235,6 @@ function formatActivity(
     lines.push(`   Coach analysis: ${analysis.trim()}`);
   } else {
     lines.push("   Coach analysis: not available.");
-  }
-  if (
-    entry.programAnalysis !== undefined &&
-    entry.programAnalysis !== null &&
-    entry.programAnalysis.trim() !== ""
-  ) {
-    lines.push(
-      `   Coach review against the plan: ${entry.programAnalysis.trim()}`,
-    );
   }
   if (comment !== null && comment.trim() !== "") {
     lines.push(

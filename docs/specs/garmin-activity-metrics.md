@@ -238,9 +238,9 @@ power-curve bests live in `metrics`.
 
 ## Prompt impact
 
-- `formatActivitySummary()` (activity analysis and program review) gains a
-  compact "Recorded metrics" block. It should print only fields that exist, one
-  line per group, for example:
+- `formatActivitySummary()` (used by the activity analysis) gains a compact
+  "Recorded metrics" block. It should print only fields that exist, one line per
+  group, for example:
   - `Heart rate: average 143 bpm, maximum 174 bpm`
   - `Training effect: aerobic 3.2, anaerobic 0.4; Garmin load 135`
   - `Heart-rate zones: Z1 59:00, Z2 58:44, Z3 19:49, Z4 10:08, Z5 0:17`
@@ -254,8 +254,9 @@ power-curve bests live in `metrics`.
   rate, training effect, Garmin load, and the sport's headline metric. This
   keeps the planning prompt readable while still giving the coach the new
   signal.
-- The activity-analysis prompt version must be bumped when these fields are
-  added so cached analyses regenerate.
+- The activity-analysis prompt version is bumped when these fields are added so
+  new analyses record the new prompt. Existing cached analyses are reused, and
+  only a newer athlete comment regenerates one.
 
 ## UI impact
 

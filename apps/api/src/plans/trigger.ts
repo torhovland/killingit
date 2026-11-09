@@ -3,17 +3,12 @@ import { loadAnalyzedActivities } from "../coaching/activities.js";
 import { latestActivityAnalysisSince } from "../coaching/analysisRuns.js";
 import { MAX_ANALYZED_ACTIVITIES } from "../coaching/feedCache.js";
 import {
-  buildAthleteMetricSource,
-  syncAthleteMetrics,
-} from "../coaching/athleteMetrics.js";
-import {
-  buildAthleteEventSource,
-  syncAthleteEvents,
-} from "../coaching/athleteEvents.js";
+  buildAthleteReadingSource,
+  syncAthleteReading,
+} from "../coaching/athleteReading.js";
 import { loadAthleteEvents } from "../events/store.js";
 import { loadDietContext } from "../diet/context.js";
 import { captureCompletedPeriodReviews } from "../coaching/periodReviews.js";
-import { analyzeActivitiesAgainstPlan } from "../coaching/programAnalysis.js";
 import { markPlanPromptsFailed } from "../llm/callStore.js";
 import type { LlmClient } from "../llm/client.js";
 import { loadLlmClient } from "../llm/client.js";
@@ -58,6 +53,7 @@ import { loadPlanDayCalories } from "./dayCalories.js";
 import { loadCoachingInputs, type CoachingInputs } from "./inputs.js";
 import { claimRun, releaseRun } from "./runs.js";
 import { PLAN_GENERATION_STEPS } from "./steps.js";
+import { athleteTextChanged } from "./athleteText.js";
 import {
   latestActivityAnalysisTimestamp,
   latestAnswerTimestamp,
@@ -80,9 +76,7 @@ export interface PlanTriggerDependencies {
   /** Injectable for route tests; defaults to the stored daily health series. */
   loadDailyHealth?: typeof loadDailyHealthForUser | undefined;
   /** Injectable for route tests; defaults to the coach reading the text. */
-  syncAthleteMetrics?: typeof syncAthleteMetrics | undefined;
-  /** Injectable for route tests; defaults to the coach reading the text. */
-  syncAthleteEvents?: typeof syncAthleteEvents | undefined;
+  syncAthleteReading?: typeof syncAthleteReading | undefined;
   /** Injectable for route tests; defaults to the stored events. */
   loadEvents?: typeof loadAthleteEvents | undefined;
   /** Injectable for route tests; defaults to the stored food log. */
@@ -104,6 +98,8 @@ export interface PlanTriggerDependencies {
     | undefined;
   /** Injectable for tests; defaults to the prompt-log writer. */
   markPlanPromptsFailed?: typeof markPlanPromptsFailed | undefined;
+  /** Injectable for tests; defaults to {@link PLAN_TRIGGER_DEBOUNCE_MS}. */
+  planTriggerDebounceMs?: number | undefined;
 }
 
 /** Options shared by the plan-only trigger and a combined coach run. */
@@ -119,6 +115,24 @@ export interface PlanRunOptions {
 }
 
 /**
+ * Rapid auto triggers are coalesced for this long. A first trigger starts
+ * immediately; a second one inside the window replaces it and starts when the
+ * window closes, so saving several inputs in a row does not pay for several
+ * aborted plan completions.
+ */
+export const PLAN_TRIGGER_DEBOUNCE_MS = 1_500;
+
+interface PendingPlanStart {
+  timer: ReturnType<typeof setTimeout>;
+  run: { runId: string; signal: AbortSignal };
+  deps: PlanTriggerDependencies;
+  options: PlanRunOptions;
+}
+
+const pendingStarts = new Map<number, PendingPlanStart>();
+const lastTriggerAt = new Map<number, number>();
+
+/**
  * Starts a plan generation in the background. The newest request always owns
  * the run: an older run is aborted and its writes are fenced by the run id.
  */
@@ -128,6 +142,47 @@ export async function triggerPlanGeneration(
 ): Promise<boolean> {
   const run = claimRun(options.userId);
   await deps.generations.begin(options.userId, run.runId);
+
+  const pending = pendingStarts.get(options.userId);
+  if (pending !== undefined) {
+    clearTimeout(pending.timer);
+    pendingStarts.delete(options.userId);
+  }
+
+  const now = Date.now();
+  const previousAt = lastTriggerAt.get(options.userId) ?? null;
+  lastTriggerAt.set(options.userId, now);
+  const explicit =
+    options.mode === "newSeason" ||
+    options.mode === "updateSeason" ||
+    options.force === true;
+  const debounceMs = deps.planTriggerDebounceMs ?? PLAN_TRIGGER_DEBOUNCE_MS;
+  const waitMs =
+    explicit || previousAt === null
+      ? 0
+      : Math.max(0, debounceMs - (now - previousAt));
+
+  if (waitMs === 0) {
+    startBackgroundPlan(deps, options, run);
+    return true;
+  }
+
+  const timer = setTimeout(() => {
+    pendingStarts.delete(options.userId);
+    if (!run.signal.aborted) {
+      startBackgroundPlan(deps, options, run);
+    }
+  }, waitMs);
+  timer.unref();
+  pendingStarts.set(options.userId, { timer, run, deps, options });
+  return true;
+}
+
+function startBackgroundPlan(
+  deps: PlanTriggerDependencies,
+  options: PlanRunOptions,
+  run: { runId: string; signal: AbortSignal },
+): void {
   const heartbeat = startHeartbeat(deps, options.userId, run.runId);
   void runPlanForUser(deps, { ...options, ...run })
     .catch((err: unknown) => {
@@ -139,7 +194,6 @@ export async function triggerPlanGeneration(
       clearInterval(heartbeat);
       releaseRun(options.userId, run.runId);
     });
-  return true;
 }
 
 /** Refreshes the running row so loading a large feed cannot look like a crash. */
@@ -248,9 +302,9 @@ export async function runPlanForUser(
     options.includeTomorrow ??
     isAfterPlanTomorrowCutoff(timezone ?? user?.timezone ?? null);
 
-  // The stored feed keeps every activity ever synced. Prompts and program
-  // reviews stay on the same recent window as the analysis cap so they do not
-  // grow with the athlete's entire history.
+  // The stored feed keeps every activity ever synced. Prompts stay on the same
+  // recent window as the analysis cap so they do not grow with the athlete's
+  // entire history.
   let recentActivities = activities.activities.slice(
     0,
     MAX_ANALYZED_ACTIVITIES,
@@ -270,78 +324,54 @@ export async function runPlanForUser(
 
   const location = user?.location ?? null;
 
-  // The coach reads the athlete's own words for a stated FTP, weight, and body
-  // fat before the plan is generated, so every prompt and the TSS maths use the
-  // newest numbers. Reading is a model task, not a phrase list. A generation is
-  // only requested when a level is missing or an input changed, so this costs
-  // one small call per real generation.
-  await (deps.syncAthleteMetrics ?? syncAthleteMetrics)({
-    userId,
-    today,
-    source: buildAthleteMetricSource(
-      {
-        answers,
-        activityComments: coachingInputs.activityComments,
-        manualActivities: coachingInputs.manualActivities,
-        weeklyNote: coachingInputs.weeklyNote,
-        weeklyNoteUpdatedAt: coachingInputs.weeklyNoteUpdatedAt,
-        periodReviews: coachingInputs.periodReviews,
-        coachQuestionAnswers: coachAnswers.map((answer) => ({
-          question: answer.question,
-          answer: answer.answer ?? "",
-          answeredAt: answer.answeredAt,
-        })),
-      },
-      today,
-    ),
-    provider: llm.provider,
-    credentials: {
-      apiKey: llm.apiKey,
-      model: llm.model,
-      signal: options.signal,
-    },
+  // The reading below sees the athlete-authored text. Only a plan run with new
+  // text needs it: a new day, a forecast change, or a new activity does not
+  // change the athlete's words. The stored plan's timestamps describe the
+  // inputs its last build already read, and an answered coach question can be
+  // newer than the plan without touching the coaching-input timestamp.
+  const shouldReadAthleteText = athleteTextChanged({
+    planGeneratedAt: plan?.generatedAt ?? null,
+    planAnswersUpdatedAt: plan?.answersUpdatedAt ?? null,
+    planCoachingInputsUpdatedAt: plan?.coachingInputsUpdatedAt ?? null,
+    answers,
+    coachingInputsUpdatedAt: coachingInputs.updatedAt,
+    coachAnswers,
   });
-  if (
-    options.signal.aborted ||
-    !(await deps.generations.isCurrent(userId, options.runId))
-  ) {
-    throw new GenerationSupersededError();
-  }
 
-  // The coach also reads the athlete's own words for dated goals and events: a
-  // race, a trip, or a dated target. The calendar and the Week and Day tabs
-  // show them, and every plan prompt plans around them. The reading replaces
-  // the stored list, and a failure leaves the previous list in place.
-  await (deps.syncAthleteEvents ?? syncAthleteEvents)({
-    userId,
-    today,
-    source: buildAthleteEventSource(
-      {
-        answers,
-        activityComments: coachingInputs.activityComments,
-        manualActivities: coachingInputs.manualActivities,
-        weeklyNotes: coachingInputs.weeklyNotes ?? [],
-        periodReviews: coachingInputs.periodReviews,
-        coachQuestionAnswers: coachAnswers.map((answer) => ({
-          question: answer.question,
-          answer: answer.answer ?? "",
-          answeredAt: answer.answeredAt,
-        })),
-      },
+  if (shouldReadAthleteText) {
+    // One reading covers the measurements, goals and events the athlete states
+    // in their own words. Reading is a model task, not a phrase list.
+    await (deps.syncAthleteReading ?? syncAthleteReading)({
+      userId,
       today,
-    ),
-    provider: llm.provider,
-    credentials: {
-      apiKey: llm.apiKey,
-      model: llm.model,
-      signal: options.signal,
-    },
-  });
-  if (
-    options.signal.aborted ||
-    !(await deps.generations.isCurrent(userId, options.runId))
-  ) {
-    throw new GenerationSupersededError();
+      source: buildAthleteReadingSource(
+        {
+          answers,
+          activityComments: coachingInputs.activityComments,
+          manualActivities: coachingInputs.manualActivities,
+          weeklyNotes: coachingInputs.weeklyNotes ?? [],
+          periodReviews: coachingInputs.periodReviews,
+          coachQuestionAnswers: coachAnswers.map((answer) => ({
+            question: answer.question,
+            answer: answer.answer ?? "",
+            answeredAt: answer.answeredAt,
+          })),
+        },
+        today,
+      ),
+      provider: llm.provider,
+      credentials: {
+        apiKey: llm.apiKey,
+        model: llm.model,
+        signal: options.signal,
+      },
+    });
+    if (
+      options.signal.aborted ||
+      !(await deps.generations.isCurrent(userId, options.runId))
+    ) {
+      throw new GenerationSupersededError();
+    }
   }
   let events: Awaited<ReturnType<typeof loadAthleteEvents>>;
   try {
@@ -446,24 +476,6 @@ export async function runPlanForUser(
     recordCoachQuestion: ({ question, model, sourceKind }) =>
       saveCoachQuestions({ userId, questions: [question], model, sourceKind }),
     clearCoachQuestions: () => clearPendingCoachQuestions(userId),
-    reviewActivities: (plan) =>
-      analyzeActivitiesAgainstPlan({
-        userId,
-        provider: llm.provider,
-        apiKey: llm.apiKey,
-        model: llm.model,
-        today,
-        plan,
-        activities: recentActivities,
-        activityComments: coachingInputs.activityComments,
-        ftpHistory: ftpHistoryPoints(thresholdHistory.timelines),
-        thresholdTimelines: thresholdHistory.timelines,
-        thresholds: thresholdHistory.summaries,
-        bodyHistory,
-        ...(dailyHealth !== undefined ? { dailyHealth } : {}),
-        ...(diet !== null ? { diet } : {}),
-        signal: options.signal,
-      }),
     plan,
     context: {
       answers,

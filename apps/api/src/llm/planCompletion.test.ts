@@ -102,7 +102,7 @@ describe("completePlanJson", () => {
     );
   });
 
-  it("does not retry more than once", async () => {
+  it("does not retry more than once without a system contract", async () => {
     const provider = new FakeProvider(['{"title":""}', '{"title":""}']);
 
     let failure: unknown;
@@ -120,6 +120,60 @@ describe("completePlanJson", () => {
 
     expect(failure).toBeInstanceOf(PlanJsonError);
     expect(provider.requests).toHaveLength(2);
+  });
+
+  it("keeps only the system contract in the compact repair", async () => {
+    const system = { role: "system" as const, content: "contract" };
+    const user = { role: "user" as const, content: "a large plan context" };
+    const provider = new FakeProvider(['{"title":""}', '{"title":"Easy run"}']);
+
+    const result = await completePlanJson(
+      resultSchema,
+      provider,
+      credentials,
+      [system, user],
+      4096,
+    );
+
+    expect(result).toEqual({ title: "Easy run" });
+    const repair = provider.requests[1]?.messages ?? [];
+    expect(repair).toHaveLength(3);
+    expect(repair[0]).toEqual(system);
+    expect(repair[1]).toEqual({ role: "assistant", content: '{"title":""}' });
+    expect(repair[2]?.role).toBe("user");
+    expect(repair[2]?.content).toContain("corrected JSON object");
+    expect(repair).not.toContainEqual(user);
+    expect(provider.requests[1]?.metadata).toMatchObject({
+      repair: true,
+      repairContext: "compact",
+    });
+  });
+
+  it("falls back to the full context when the compact repair fails", async () => {
+    const system = { role: "system" as const, content: "contract" };
+    const user = { role: "user" as const, content: "a large plan context" };
+    const provider = new FakeProvider([
+      '{"title":""}',
+      '{"title":""}',
+      '{"title":"Easy run"}',
+    ]);
+
+    const result = await completePlanJson(
+      resultSchema,
+      provider,
+      credentials,
+      [system, user],
+      4096,
+    );
+
+    expect(result).toEqual({ title: "Easy run" });
+    expect(provider.requests).toHaveLength(3);
+    expect(provider.requests[2]?.messages).toContainEqual(user);
+    expect(provider.requests[2]?.metadata).toMatchObject({
+      repair: true,
+      repairContext: "full",
+      repairAttempt: 2,
+    });
   });
 });
 

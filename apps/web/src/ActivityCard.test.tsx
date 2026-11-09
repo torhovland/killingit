@@ -175,7 +175,7 @@ describe("ActivityCard", () => {
     expect(html).toContain("No coach analysis available yet.");
   });
 
-  it("keeps the plan fit inside the summary and shows the comment and reply", () => {
+  it("prefers the general analysis when both reviews exist", () => {
     const html = renderToStaticMarkup(
       <ActivityCard
         activity={{
@@ -197,11 +197,31 @@ describe("ActivityCard", () => {
 
     expect(html).not.toContain('data-testid="activity-program-analysis"');
     expect(html).not.toContain("How it fit your plan");
-    expect(html).toContain("The effort fit the base block");
+    expect(html).toContain("You held a steady aerobic effort.");
+    expect(html).not.toContain("The effort fit the base block");
     expect(html).toContain("Felt strong on the hills.");
     expect(html).toContain('data-testid="activity-coach-reply"');
     expect(html).toContain("I will keep Thursday easy.");
     expect(html).not.toContain('data-testid="activity-coach-reply-pending"');
+  });
+
+  it("falls back to a stored program review when there is no general analysis", () => {
+    const html = renderToStaticMarkup(
+      <ActivityCard
+        activity={{
+          ...activity,
+          analysis: null,
+          programAnalysis: {
+            text: "The effort fit the base block, but the finish was too hard.",
+            model: "openrouter/auto",
+            generatedAt: "2026-10-01T07:05:00Z",
+          },
+        }}
+      />,
+    );
+
+    expect(html).toContain("The effort fit the base block");
+    expect(html).not.toContain("You held a steady aerobic effort.");
   });
 
   it("shows a coach thinking placeholder while a comment awaits its reply", () => {
