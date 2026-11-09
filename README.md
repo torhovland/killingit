@@ -105,20 +105,25 @@ explicitly. Only Development and Test allow the override.
 
 ## Scripts
 
-| Command                 | Description                                  |
-| ----------------------- | -------------------------------------------- |
-| `bun run dev`           | Migrate, then run web + api + Garmin sidecar |
-| `bun run dev:web`       | Run web dev server only                      |
-| `bun run dev:api`       | Run api dev server only                      |
-| `bun run dev:garmin`    | Run Garmin sidecar only                      |
-| `bun run build`         | Build all packages                           |
-| `bun run typecheck`     | Typecheck all packages                       |
-| `bun run test`          | Run all tests                                |
-| `bun run benchmark:llm` | Compare OpenRouter models (see below)        |
-| `bun run db:up`         | Start Postgres (docker compose)              |
-| `bun run db:down`       | Stop Postgres                                |
-| `bun run db:generate`   | Generate a Drizzle migration                 |
-| `bun run db:migrate`    | Apply Drizzle migrations                     |
+| Command                    | Description                                  |
+| -------------------------- | -------------------------------------------- |
+| `bun run dev`              | Migrate, then run web + api + Garmin sidecar |
+| `bun run dev:web`          | Run web dev server only                      |
+| `bun run dev:api`          | Run api dev server only                      |
+| `bun run dev:garmin`       | Run Garmin sidecar only                      |
+| `bun run build`            | Build all packages                           |
+| `bun run typecheck`        | Typecheck all packages                       |
+| `bun run test`             | Run all tests                                |
+| `bun run test:integration` | Run database integration tests               |
+| `bun run benchmark:llm`    | Compare OpenRouter models (see below)        |
+| `bun run db:up`            | Start Postgres (docker compose)              |
+| `bun run db:down`          | Stop Postgres                                |
+| `bun run db:generate`      | Generate a Drizzle migration                 |
+| `bun run db:migrate`       | Apply Drizzle migrations                     |
+
+The integration suite needs `bun run db:up`. It uses a separate
+`killingit_test` database that is rebuilt from the migrations on every run; see
+`docs/specs/database-integration-tests.md`.
 
 ## PWA
 

@@ -46,6 +46,31 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run test
 
+  integration:
+    name: Integration tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: killingit
+          POSTGRES_PASSWORD: killingit
+          POSTGRES_DB: killingit
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U killingit"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      INTEGRATION_DATABASE_URL: postgres://killingit:killingit@localhost:5432/killingit_test
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run test:integration
+
   signoff:
     name: Sign-off
     runs-on: ubuntu-latest

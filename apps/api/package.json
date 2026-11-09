@@ -8,7 +8,8 @@
     "start": "bun run src/index.ts",
     "build": "bun run typecheck",
     "typecheck": "tsc --noEmit",
-    "test": "bun test",
+    "test": "bun test src",
+    "test:integration": "bun test integration",
     "benchmark:llm": "bun run src/benchmark/cli.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate"
