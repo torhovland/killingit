@@ -123,8 +123,9 @@ re-exported from the package index.
   unauthenticated (`401`) and member (`403`) callers.
 - **Web:** covered by typecheck plus existing component tests; the page shell is
   thin and its access is enforced by the API.
-- DB-backed integration tests remain deferred until CI provisions Postgres (same
-  policy as the rest of the repository).
+- DB-backed coverage of the question stores, plan lifecycle, and account
+  cascades now runs in `apps/api/integration`; see
+  `docs/specs/database-integration-tests.md`.
 
 ## Risks / open questions
 

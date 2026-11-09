@@ -527,12 +527,19 @@ through a disciplined process:
 6. **Full test coverage on every feature**, across three layers:
    - **Unit tests** (Vitest) for pure logic and components.
    - **Integration tests** against the API and a test database.
+     Database-backed tests live in `apps/api/integration` and run with
+     `bun run test:integration` against the docker-compose PostgreSQL. They
+     apply every migration to an empty test database, truncate between tests,
+     and cover the stores, constraints, run fencing, and account-deletion
+     cascades. CI runs them in a separate `integration` job. See
+     `docs/specs/database-integration-tests.md`.
    - **End-to-end tests** (Playwright) for critical user journeys.
      Enforce coverage thresholds in CI (test pyramid: many unit, fewer
      integration, a focused e2e set).
 7. **CI pipeline** (GitHub Actions, `.github/workflows/ci.yml`): typecheck +
-   lint + format + unit tests + a dependency-outdated check must pass before
-   merge. Integration and e2e checks follow the same rule as they are added.
+   lint + format + unit tests + database integration tests + a
+   dependency-outdated check must pass before merge. E2e checks follow the same
+   rule as they are added.
 8. **Dependencies stay current.** CI fails the build when any dependency is
    outdated (`bun run outdated`). When that happens, update the outdated
    dependencies with `bun update`, verify typecheck/lint/format/tests still

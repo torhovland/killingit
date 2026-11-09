@@ -150,5 +150,6 @@ versions are retained.
 - **Web unit tests:** the form renders prompts, required/optional state,
   prefilled answers, the activity-gate explanation, the onboarding and edit
   variants, and the profile summary with its edit action.
-- DB-backed route integration tests remain deferred until CI has a Postgres
-  service, matching the existing repository pattern.
+- DB-backed integration coverage for answer upserts, replacement, and
+  previous-response resolution runs in `apps/api/integration`; see
+  `docs/specs/database-integration-tests.md`.

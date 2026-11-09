@@ -140,9 +140,10 @@ current `versionId`), `questionOrderInputSchema` (`ids`),
   a token, 403 for a member), which also proves the route is mounted.
 - **Web unit tests:** static rendering of a question row (prompt, version,
   required, actions) and the shared form.
-- DB-backed route integration tests are deferred until CI has a Postgres
-  service; the existing repository tests follow the same pattern and CI has no
-  database today.
+- DB-backed integration coverage for the question stores and version
+  allocation runs in `apps/api/integration`; see
+  `docs/specs/database-integration-tests.md`. Route behaviour is covered with
+  injected stores.
 
 ## Risks / open questions
 

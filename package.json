@@ -20,6 +20,7 @@
     "format": "prettier --check .",
     "format:fix": "prettier --write .",
     "test": "bun test scripts && bun run --filter '*' test",
+    "test:integration": "bun run --filter @killingit/api test:integration",
     "check:signoff": "bun run scripts/check-signoff.ts",
     "outdated": "bun run scripts/check-outdated.ts",
     "db:up": "docker compose up -d db",
