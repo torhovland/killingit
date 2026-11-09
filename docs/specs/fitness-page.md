@@ -233,6 +233,12 @@ API:
   day's estimated FTP. The charts are tall enough
   for the card to sit over the top of the plot without hiding the lines below
   it.
+- Every fitness chart shares `ChartFrame` (`apps/web/src/ChartFrame.tsx`): it
+  owns the card, the accessible SVG, the y and x axes, the hovered-day guide and
+  the hover card's placement. A chart supplies its scale, ticks, legend and a
+  render-prop that draws its series inside the plot, so the line charts, the
+  stacked sleep chart and the calorie bars use the same frame. A chart can add a
+  footer, and the body chart adds a right axis.
 - The charts are static SVG (no new dependency), scale with the page width, and
   carry an accessible title.
 - Loading, error, and (when there is no planned or recorded training) empty
@@ -289,7 +295,8 @@ API:
   vs. timeline, no FTP, the activities listed per day, the interpolated body
   series, and the latest Garmin readings.
 - API route tests: auth, missing date, day clamping, and the happy path.
-- Web unit tests for the chart scale helpers, a render test for the page view
-  (load line, zone legend, both charts, hidden FTP chart, body chart and its
-  hidden states, the Garmin Today columns and the recovery/sleep charts), and a
-  render test for the hover card.
+- Web unit tests for the chart scale helpers and the shared chart frame
+  (caption, left and right axes, date labels, render-prop series, legend and
+  footer), a render test for the page view (load line, zone legend, both charts,
+  hidden FTP chart, body chart and its hidden states, the Garmin Today columns
+  and the recovery/sleep charts), and a render test for the hover card.

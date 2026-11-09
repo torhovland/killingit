@@ -7,18 +7,14 @@ import {
 } from "@killingit/shared";
 import {
   axisTicks,
-  CHART_HEIGHT,
-  CHART_PADDING,
-  CHART_WIDTH,
   chartScale,
   formatChartDate,
-  labelIndices,
   niceDomain,
   nullAwarePath,
   type ChartScale,
   type Domain,
 } from "./chartGeometry";
-import { useChartHover } from "./useChartHover";
+import { ChartFrame } from "./ChartFrame";
 
 interface HealthSeries {
   key: DailyHealthMetricKey;
@@ -123,135 +119,62 @@ function HealthLineChart({
   domain: Domain;
   formatTick: (value: number) => string;
 }) {
-  const { hovered, onPointerMove, onPointerLeave } = useChartHover(
-    days.length,
-    (index) => days[index],
-  );
   if (!hasValues(series)) {
     return null;
   }
   const scale = chartScale(days.length, domain);
-  const xLabels = labelIndices(days.length);
-  const hoveredIndex =
-    hovered === null
-      ? -1
-      : days.findIndex((day) => day.date === hovered.day.date);
-
   return (
-    <figure className="relative flex flex-col gap-2 rounded-lg border bg-card p-4">
-      <figcaption className="flex flex-col">
-        <span className="text-lg font-medium">{title}</span>
-        {subtitle !== undefined && (
-          <span className="text-sm text-muted-foreground">{subtitle}</span>
-        )}
-      </figcaption>
-      <svg
-        viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-        className="h-auto w-full"
-        role="img"
-        aria-label={`${title} chart`}
-        onPointerMove={onPointerMove}
-        onPointerDown={onPointerMove}
-        onPointerLeave={onPointerLeave}
-      >
-        <title>{title}</title>
-        <g transform={`translate(${CHART_PADDING.left} ${CHART_PADDING.top})`}>
-          {axisTicks(domain).map((tick) => (
-            <line
-              key={tick}
-              x1={0}
-              x2={scale.plotWidth}
-              y1={scale.y(tick)}
-              y2={scale.y(tick)}
-              className="stroke-border"
-              strokeWidth={1}
+    <ChartFrame
+      title={title}
+      subtitle={subtitle}
+      label={`${title} chart`}
+      svgTitle={title}
+      days={days}
+      scale={scale}
+      ticks={axisTicks(domain)}
+      formatTick={formatTick}
+      tooltipTestId="health-chart-tooltip"
+      tooltip={(hovered) => {
+        const index = days.findIndex((day) => day.date === hovered.day.date);
+        return (
+          <>
+            <p className="text-base font-medium">
+              {formatChartDate(hovered.day.date)}
+            </p>
+            <HealthTooltip
+              series={series}
+              index={index}
+              date={hovered.day.date}
             />
-          ))}
-          {hovered !== null && (
-            <line
-              x1={hovered.x}
-              x2={hovered.x}
-              y1={0}
-              y2={scale.plotHeight}
-              className="stroke-foreground/40"
-              strokeWidth={1}
-              strokeDasharray="2 2"
-            />
-          )}
+          </>
+        );
+      }}
+      legend={
+        <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
           {series.map((entry) => (
-            <path
-              key={entry.key}
-              d={nullAwarePath(entry.values, scale, 0, days.length - 1)}
-              className={`fill-none ${entry.stroke}`}
-              strokeWidth={2}
-              data-series={entry.key}
-            />
+            <li key={entry.key} className="flex items-center gap-1.5">
+              <span
+                className={`inline-block h-0.5 w-4 ${entry.swatch}`}
+                aria-hidden="true"
+              />
+              <span className="font-medium">{entry.label}</span>
+            </li>
           ))}
-        </g>
-        {axisTicks(domain).map((tick) => (
-          <text
-            key={tick}
-            x={CHART_PADDING.left - 6}
-            y={CHART_PADDING.top + scale.y(tick)}
-            textAnchor="end"
-            dominantBaseline="middle"
-            className="fill-muted-foreground text-[10px]"
-          >
-            {formatTick(tick)}
-          </text>
-        ))}
-        {xLabels.map((index) => {
-          const day = days[index];
-          if (day === undefined) {
-            return null;
-          }
-          return (
-            <text
-              key={day.date}
-              x={CHART_PADDING.left + scale.x(index)}
-              y={CHART_PADDING.top + scale.plotHeight + 14}
-              textAnchor={
-                index === 0
-                  ? "start"
-                  : index === days.length - 1
-                    ? "end"
-                    : "middle"
-              }
-              className="fill-muted-foreground text-[10px]"
-            >
-              {formatChartDate(day.date)}
-            </text>
-          );
-        })}
-      </svg>
-      <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-        {series.map((entry) => (
-          <li key={entry.key} className="flex items-center gap-1.5">
-            <span
-              className={`inline-block h-0.5 w-4 ${entry.swatch}`}
-              aria-hidden="true"
-            />
-            <span className="font-medium">{entry.label}</span>
-          </li>
-        ))}
-      </ul>
-      {hovered !== null && (
-        <div
-          className="pointer-events-none absolute top-2 z-10 w-60 -translate-x-1/2 rounded border bg-card p-2 text-sm shadow-lg"
-          style={{ left: `${hovered.percent}%` }}
-          data-testid="health-chart-tooltip"
-        >
-          <p className="text-base font-medium">
-            {formatChartDate(hovered.day.date)}
-          </p>
-          <HealthTooltip
-            series={series}
-            index={hoveredIndex}
-            date={hovered.day.date}
+        </ul>
+      }
+    >
+      {() =>
+        series.map((entry) => (
+          <path
+            key={entry.key}
+            d={nullAwarePath(entry.values, scale, 0, days.length - 1)}
+            className={`fill-none ${entry.stroke}`}
+            strokeWidth={2}
+            data-series={entry.key}
           />
-        </div>
-      )}
-    </figure>
+        ))
+      }
+    </ChartFrame>
   );
 }
 
@@ -364,17 +287,29 @@ function ScoreChart({
   );
 }
 
-function SleepChart({
-  days,
-  byDate,
-}: {
-  days: readonly FitnessHistoryDay[];
-  byDate: HealthByDate;
-}) {
-  const { hovered, onPointerMove, onPointerLeave } = useChartHover(
-    days.length,
-    (index) => days[index],
-  );
+interface SleepLayer {
+  key: DailyHealthMetricKey;
+  className: string;
+  top: (number | null)[];
+  bottom: (number | null)[];
+}
+
+interface SleepChartData {
+  series: HealthSeries[];
+  layers: SleepLayer[];
+  awake: (number | null)[];
+  total: (number | null)[];
+  domain: Domain;
+}
+
+/**
+ * The stacked sleep-stage series. A missing stage counts as zero inside a night
+ * that has other stages, while a night with no sleep at all stays blank.
+ */
+function sleepData(
+  days: readonly FitnessHistoryDay[],
+  byDate: HealthByDate,
+): SleepChartData | null {
   const deep = metricValues(days, byDate, "deep_sleep");
   const light = metricValues(days, byDate, "light_sleep");
   const rem = metricValues(days, byDate, "rem_sleep");
@@ -396,218 +331,166 @@ function SleepChart({
     min: 0,
     max: Math.max(60, niceDomain(totalValues, { minSpan: 120 }).max),
   };
-  const scale = chartScale(days.length, domain);
-  const xLabels = labelIndices(days.length);
-  const hoveredIndex =
-    hovered === null
-      ? -1
-      : days.findIndex((day) => day.date === hovered.day.date);
-
-  const deepValues = deep.map((value, index) =>
-    total[index] === null ? null : (value ?? 0),
-  );
-  const lightValues = light.map((value, index) =>
-    total[index] === null ? null : (value ?? 0),
-  );
-  const remValues = rem.map((value, index) =>
-    total[index] === null ? null : (value ?? 0),
-  );
-  const deepTop = deepValues;
+  const zeroFilled = (values: readonly (number | null)[]) =>
+    values.map((value, index) => (total[index] === null ? null : (value ?? 0)));
+  const deepValues = zeroFilled(deep);
+  const lightValues = zeroFilled(light);
+  const remValues = zeroFilled(rem);
   const lightTop = deepValues.map((value, index) =>
     value === null ? null : value + (lightValues[index] ?? 0),
   );
   const remTop = lightTop.map((value, index) =>
     value === null ? null : value + (remValues[index] ?? 0),
   );
+  return {
+    domain,
+    awake,
+    total,
+    series: [
+      {
+        key: "deep_sleep",
+        label: DAILY_HEALTH_METRICS.deep_sleep.label,
+        values: deep,
+        format: (value) => formatDailyHealthValue("deep_sleep", value),
+        stroke: "stroke-primary",
+        swatch: "bg-primary",
+      },
+      {
+        key: "light_sleep",
+        label: DAILY_HEALTH_METRICS.light_sleep.label,
+        values: light,
+        format: (value) => formatDailyHealthValue("light_sleep", value),
+        stroke: "stroke-chart-ink-muted",
+        swatch: "bg-chart-ink-muted",
+      },
+      {
+        key: "rem_sleep",
+        label: DAILY_HEALTH_METRICS.rem_sleep.label,
+        values: rem,
+        format: (value) => formatDailyHealthValue("rem_sleep", value),
+        stroke: "stroke-form-fresh-line",
+        swatch: "bg-form-fresh-line",
+      },
+    ],
+    layers: [
+      {
+        key: "deep_sleep",
+        className: "fill-primary/25 stroke-primary",
+        top: deepValues,
+        bottom: total.map(() => 0),
+      },
+      {
+        key: "light_sleep",
+        className: "fill-chart-ink-muted/20 stroke-chart-ink-muted",
+        top: lightTop,
+        bottom: deepValues,
+      },
+      {
+        key: "rem_sleep",
+        className: "fill-form-fresh/20 stroke-form-fresh-line",
+        top: remTop,
+        bottom: lightTop,
+      },
+    ],
+  };
+}
 
-  const series: HealthSeries[] = [
-    {
-      key: "deep_sleep",
-      label: DAILY_HEALTH_METRICS.deep_sleep.label,
-      values: deep,
-      format: (value) => formatDailyHealthValue("deep_sleep", value),
-      stroke: "stroke-primary",
-      swatch: "bg-primary",
-    },
-    {
-      key: "light_sleep",
-      label: DAILY_HEALTH_METRICS.light_sleep.label,
-      values: light,
-      format: (value) => formatDailyHealthValue("light_sleep", value),
-      stroke: "stroke-chart-ink-muted",
-      swatch: "bg-chart-ink-muted",
-    },
-    {
-      key: "rem_sleep",
-      label: DAILY_HEALTH_METRICS.rem_sleep.label,
-      values: rem,
-      format: (value) => formatDailyHealthValue("rem_sleep", value),
-      stroke: "stroke-form-fresh-line",
-      swatch: "bg-form-fresh-line",
-    },
-  ];
-
+function SleepChart({
+  days,
+  byDate,
+}: {
+  days: readonly FitnessHistoryDay[];
+  byDate: HealthByDate;
+}) {
+  const data = sleepData(days, byDate);
+  if (data === null) {
+    return null;
+  }
+  const scale = chartScale(days.length, data.domain);
   return (
-    <figure className="relative flex flex-col gap-2 rounded-lg border bg-card p-4">
-      <figcaption className="flex flex-col">
-        <span className="text-lg font-medium">Sleep</span>
-        <span className="text-sm text-muted-foreground">
-          Stacked stages add up to sleep duration.
-        </span>
-      </figcaption>
-      <svg
-        viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-        className="h-auto w-full"
-        role="img"
-        aria-label="Sleep stages chart"
-        data-testid="sleep-chart"
-        onPointerMove={onPointerMove}
-        onPointerDown={onPointerMove}
-        onPointerLeave={onPointerLeave}
-      >
-        <title>Sleep stages</title>
-        <g transform={`translate(${CHART_PADDING.left} ${CHART_PADDING.top})`}>
-          {axisTicks(domain).map((tick) => (
-            <line
-              key={tick}
-              x1={0}
-              x2={scale.plotWidth}
-              y1={scale.y(tick)}
-              y2={scale.y(tick)}
-              className="stroke-border"
-              strokeWidth={1}
-            />
-          ))}
-          <path
-            d={stackedAreaPath(
-              deepTop,
-              total.map(() => 0),
-              scale,
-            )}
-            className="fill-primary/25 stroke-primary"
-            strokeWidth={1}
-            data-series="deep_sleep"
-          />
-          <path
-            d={stackedAreaPath(lightTop, deepTop, scale)}
-            className="fill-chart-ink-muted/20 stroke-chart-ink-muted"
-            strokeWidth={1}
-            data-series="light_sleep"
-          />
-          <path
-            d={stackedAreaPath(remTop, lightTop, scale)}
-            className="fill-form-fresh/20 stroke-form-fresh-line"
-            strokeWidth={1}
-            data-series="rem_sleep"
-          />
-          {hovered !== null && (
-            <line
-              x1={hovered.x}
-              x2={hovered.x}
-              y1={0}
-              y2={scale.plotHeight}
-              className="stroke-foreground/40"
-              strokeWidth={1}
-              strokeDasharray="2 2"
-            />
-          )}
-        </g>
-        {axisTicks(domain).map((tick) => (
-          <text
-            key={tick}
-            x={CHART_PADDING.left - 6}
-            y={CHART_PADDING.top + scale.y(tick)}
-            textAnchor="end"
-            dominantBaseline="middle"
-            className="fill-muted-foreground text-[10px]"
-          >
-            {formatSleepAxis(tick)}
-          </text>
-        ))}
-        {xLabels.map((index) => {
-          const day = days[index];
-          if (day === undefined) {
-            return null;
-          }
-          return (
-            <text
-              key={day.date}
-              x={CHART_PADDING.left + scale.x(index)}
-              y={CHART_PADDING.top + scale.plotHeight + 14}
-              textAnchor={
-                index === 0
-                  ? "start"
-                  : index === days.length - 1
-                    ? "end"
-                    : "middle"
-              }
-              className="fill-muted-foreground text-[10px]"
-            >
-              {formatChartDate(day.date)}
-            </text>
-          );
-        })}
-      </svg>
-      <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-        {series.map((entry) => (
-          <li key={entry.key} className="flex items-center gap-1.5">
-            <span
-              className={`inline-block h-3 w-4 ${entry.swatch}`}
-              aria-hidden="true"
-            />
-            <span className="font-medium">{entry.label}</span>
-          </li>
-        ))}
-        <li className="flex items-center gap-1.5">
-          <span className="font-medium">Awake</span>
-        </li>
-      </ul>
-      {hovered !== null && (
-        <div
-          className="pointer-events-none absolute top-2 z-10 w-60 -translate-x-1/2 rounded border bg-card p-2 text-sm shadow-lg"
-          style={{ left: `${hovered.percent}%` }}
-          data-testid="sleep-chart-tooltip"
-        >
-          <p className="text-base font-medium">
-            {formatChartDate(hovered.day.date)}
-          </p>
-          <ul className="text-muted-foreground">
-            {series.map((entry) => {
-              const value =
-                hoveredIndex < 0 ? null : entry.values[hoveredIndex];
-              return value === null || value === undefined ? null : (
-                <li key={entry.key}>
-                  <span className="font-medium text-foreground">
-                    {entry.label}
-                  </span>{" "}
-                  {entry.format(value)}
+    <ChartFrame
+      title="Sleep"
+      subtitle="Stacked stages add up to sleep duration."
+      label="Sleep stages chart"
+      svgTitle="Sleep stages"
+      svgTestId="sleep-chart"
+      days={days}
+      scale={scale}
+      ticks={axisTicks(data.domain)}
+      formatTick={formatSleepAxis}
+      tooltipTestId="sleep-chart-tooltip"
+      tooltip={(hovered) => {
+        const index = days.findIndex((day) => day.date === hovered.day.date);
+        return (
+          <>
+            <p className="text-base font-medium">
+              {formatChartDate(hovered.day.date)}
+            </p>
+            <ul className="text-muted-foreground">
+              {data.series.map((entry) => {
+                const value = index < 0 ? null : entry.values[index];
+                return value === null || value === undefined ? null : (
+                  <li key={entry.key}>
+                    <span className="font-medium text-foreground">
+                      {entry.label}
+                    </span>{" "}
+                    {entry.format(value)}
+                  </li>
+                );
+              })}
+              {index >= 0 && data.awake[index] != null && (
+                <li>
+                  <span className="font-medium text-foreground">Awake</span>{" "}
+                  {formatDailyHealthValue(
+                    "awake_sleep",
+                    data.awake[index] ?? 0,
+                  )}
                 </li>
-              );
-            })}
-            {hoveredIndex >= 0 && awake[hoveredIndex] != null && (
-              <li>
-                <span className="font-medium text-foreground">Awake</span>{" "}
-                {formatDailyHealthValue(
-                  "awake_sleep",
-                  awake[hoveredIndex] ?? 0,
-                )}
-              </li>
-            )}
-            {total[hoveredIndex] != null && (
-              <li>
-                <span className="font-medium text-foreground">
-                  Sleep duration
-                </span>{" "}
-                {formatDailyHealthValue(
-                  "sleep_duration",
-                  total[hoveredIndex] ?? 0,
-                )}
-              </li>
-            )}
-          </ul>
-        </div>
-      )}
-    </figure>
+              )}
+              {data.total[index] != null && (
+                <li>
+                  <span className="font-medium text-foreground">
+                    Sleep duration
+                  </span>{" "}
+                  {formatDailyHealthValue(
+                    "sleep_duration",
+                    data.total[index] ?? 0,
+                  )}
+                </li>
+              )}
+            </ul>
+          </>
+        );
+      }}
+      legend={
+        <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+          {data.series.map((entry) => (
+            <li key={entry.key} className="flex items-center gap-1.5">
+              <span
+                className={`inline-block h-3 w-4 ${entry.swatch}`}
+                aria-hidden="true"
+              />
+              <span className="font-medium">{entry.label}</span>
+            </li>
+          ))}
+          <li className="flex items-center gap-1.5">
+            <span className="font-medium">Awake</span>
+          </li>
+        </ul>
+      }
+    >
+      {() =>
+        data.layers.map((layer) => (
+          <path
+            key={layer.key}
+            d={stackedAreaPath(layer.top, layer.bottom, scale)}
+            className={layer.className}
+            strokeWidth={1}
+            data-series={layer.key}
+          />
+        ))
+      }
+    </ChartFrame>
   );
 }
 
