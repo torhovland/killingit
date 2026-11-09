@@ -6,13 +6,9 @@ import type {
 } from "@killingit/shared";
 import {
   axisTicks,
-  CHART_HEIGHT,
-  CHART_PADDING,
-  CHART_WIDTH,
   chartScale,
   formatChartDate,
   FUTURE_DASH,
-  labelIndices,
   lastIndexOnOrBefore,
   niceDomain,
 } from "./chartGeometry";
@@ -23,7 +19,7 @@ import {
   lastPointOnOrBefore,
   type BodyTargetPoint,
 } from "./bodyProjection";
-import { useChartHover } from "./useChartHover";
+import { ChartFrame } from "./ChartFrame";
 
 /** The dotted dash of the coach's target line, longer than the best-fit one. */
 const TARGET_DASH = "5 4";
@@ -78,10 +74,6 @@ export function BodyChart({
     futureEnd !== null && futureEnd > lastDay
       ? [...days, ...datesAfter(lastDay, futureEnd)]
       : days;
-  const { hovered, onPointerMove, onPointerLeave } = useChartHover(
-    chartDays.length,
-    (index) => chartDays[index],
-  );
   if (weight.length === 0 && bodyFat.length === 0) {
     return null;
   }
@@ -126,33 +118,45 @@ export function BodyChart({
     return null;
   }
   const dayIndex = new Map(chartDays.map((day, index) => [day.date, index]));
-  const xLabels = labelIndices(chartDays.length);
   const split = lastIndexOnOrBefore(
     chartDays.map((day) => day.date),
     today,
   );
-  const hoveredWeight =
-    hovered === null
-      ? null
-      : (weight.find((point) => point.date === hovered.day.date)?.value ??
-        null);
-  const hoveredFat =
-    hovered === null
-      ? null
-      : (bodyFat.find((point) => point.date === hovered.day.date)?.value ??
-        null);
-  const hoveredTargetWeight =
-    hovered === null
-      ? null
-      : dietTargetValueAt(weightTargets, hovered.day.date);
-  const hoveredTargetFat =
-    hovered === null ? null : dietTargetValueAt(fatTargets, hovered.day.date);
+  const hoveredValues = (date: string | null) => ({
+    weight:
+      date === null
+        ? null
+        : (weight.find((point) => point.date === date)?.value ?? null),
+    fat:
+      date === null
+        ? null
+        : (bodyFat.find((point) => point.date === date)?.value ?? null),
+    targetWeight: date === null ? null : dietTargetValueAt(weightTargets, date),
+    targetFat: date === null ? null : dietTargetValueAt(fatTargets, date),
+  });
 
   return (
-    <figure className="flex flex-col gap-2 rounded-lg border bg-card p-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <figcaption className="text-lg font-medium">Body</figcaption>
-        {canShowFuture && onShowFutureChange !== undefined && (
+    <ChartFrame
+      title="Body"
+      label="Body weight and body-fat percentage chart"
+      svgTitle={`Body weight and body fat over ${chartDays.length} days`}
+      svgTestId="body-chart"
+      days={chartDays}
+      scale={yScale}
+      ticks={weightDomain === null ? [] : axisTicks(weightDomain)}
+      gridTicks={
+        weightDomain !== null
+          ? axisTicks(weightDomain)
+          : fatDomain === null
+            ? []
+            : axisTicks(fatDomain)
+      }
+      gridClassName="stroke-chart-ink-muted/20"
+      rightTicks={fatDomain === null ? undefined : axisTicks(fatDomain)}
+      rightScale={fatScale ?? undefined}
+      tooltipClassName="w-44"
+      headerAction={
+        canShowFuture && onShowFutureChange !== undefined ? (
           <label className="flex items-center gap-2 text-sm text-muted-foreground">
             <input
               type="checkbox"
@@ -162,59 +166,57 @@ export function BodyChart({
             />
             Include future dates to the end of the season
           </label>
-        )}
-      </div>
-      <div className="relative">
-        <svg
-          viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-          className="h-auto w-full"
-          role="img"
-          aria-label="Body weight and body-fat percentage chart"
-          data-testid="body-chart"
-          onPointerMove={onPointerMove}
-          onPointerDown={onPointerMove}
-          onPointerLeave={onPointerLeave}
-        >
-          <title>{`Body weight and body fat over ${chartDays.length} days`}</title>
-          <g
-            transform={`translate(${CHART_PADDING.left} ${CHART_PADDING.top})`}
-          >
-            {weightDomain !== null &&
-              axisTicks(weightDomain).map((tick) => (
-                <line
-                  key={`weight-${tick}`}
-                  x1={0}
-                  x2={yScale.plotWidth}
-                  y1={yScale.y(tick)}
-                  y2={yScale.y(tick)}
-                  className="stroke-chart-ink-muted/20"
-                  strokeWidth={1}
-                />
-              ))}
-            {weightDomain === null &&
-              fatDomain !== null &&
-              axisTicks(fatDomain).map((tick) => (
-                <line
-                  key={`fat-grid-${tick}`}
-                  x1={0}
-                  x2={yScale.plotWidth}
-                  y1={yScale.y(tick)}
-                  y2={yScale.y(tick)}
-                  className="stroke-chart-ink-muted/20"
-                  strokeWidth={1}
-                />
-              ))}
-            {hovered !== null && (
-              <line
-                x1={hovered.x}
-                x2={hovered.x}
-                y1={0}
-                y2={yScale.plotHeight}
-                className="stroke-foreground/40"
-                strokeWidth={1}
-                strokeDasharray="2 2"
-              />
+        ) : undefined
+      }
+      tooltip={(hovered) => {
+        const values = hoveredValues(hovered.day.date);
+        return (
+          <>
+            <p className="font-medium">{formatChartDate(hovered.day.date)}</p>
+            {values.weight !== null && <p>Weight {values.weight} kg</p>}
+            {values.targetWeight !== null && (
+              <p>Target weight {round(values.targetWeight)} kg</p>
             )}
+            {values.fat !== null && <p>Body fat {values.fat}%</p>}
+            {values.targetFat !== null && (
+              <p>Target body fat {round(values.targetFat)}%</p>
+            )}
+            {values.weight === null &&
+              values.fat === null &&
+              values.targetWeight === null &&
+              values.targetFat === null && (
+                <p className="text-muted-foreground">No measurement</p>
+              )}
+          </>
+        );
+      }}
+      legend={
+        <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+          {weight.length > 0 && (
+            <li className="flex items-center gap-1.5">
+              <span className="block h-0.5 w-4 bg-primary" />
+              Weight (kg)
+            </li>
+          )}
+          {bodyFat.length > 0 && (
+            <li className="flex items-center gap-1.5">
+              <span className="block h-0.5 w-4 bg-chart-ink-muted" />
+              Body fat (%)
+            </li>
+          )}
+          {(weightTargets.length > 0 || fatTargets.length > 0) && (
+            <li className="flex items-center gap-1.5">
+              <span className="block w-4 border-t-2 border-dashed border-chart-ink" />
+              Estimated diet progress
+            </li>
+          )}
+        </ul>
+      }
+    >
+      {(hovered) => {
+        const values = hoveredValues(hovered?.day.date ?? null);
+        return (
+          <>
             {weightScale !== null && (
               <>
                 <path
@@ -294,120 +296,27 @@ export function BodyChart({
               </>
             )}
             {hovered !== null &&
-              hoveredWeight !== null &&
+              values.weight !== null &&
               weightScale !== null && (
                 <circle
                   cx={hovered.x}
-                  cy={weightScale.y(hoveredWeight)}
+                  cy={weightScale.y(values.weight)}
                   r={3.5}
                   className="fill-primary"
                 />
               )}
-            {hovered !== null && hoveredFat !== null && fatScale !== null && (
+            {hovered !== null && values.fat !== null && fatScale !== null && (
               <circle
                 cx={hovered.x}
-                cy={fatScale.y(hoveredFat)}
+                cy={fatScale.y(values.fat)}
                 r={3.5}
                 className="fill-chart-ink-muted"
               />
             )}
-          </g>
-          {weightDomain !== null &&
-            weightScale !== null &&
-            axisTicks(weightDomain).map((tick) => (
-              <text
-                key={`weight-${tick}`}
-                x={CHART_PADDING.left - 6}
-                y={CHART_PADDING.top + weightScale.y(tick)}
-                textAnchor="end"
-                dominantBaseline="middle"
-                className="fill-muted-foreground text-[10px]"
-              >
-                {tick}
-              </text>
-            ))}
-          {fatDomain !== null &&
-            fatScale !== null &&
-            axisTicks(fatDomain).map((tick) => (
-              <text
-                key={`fat-${tick}`}
-                x={CHART_PADDING.left + fatScale.plotWidth - 2}
-                y={CHART_PADDING.top + fatScale.y(tick)}
-                textAnchor="end"
-                dominantBaseline="middle"
-                className="fill-muted-foreground text-[10px]"
-              >
-                {tick}
-              </text>
-            ))}
-          {xLabels.map((index) => {
-            const day = chartDays[index];
-            if (day === undefined) {
-              return null;
-            }
-            return (
-              <text
-                key={day.date}
-                x={CHART_PADDING.left + yScale.x(index)}
-                y={CHART_PADDING.top + yScale.plotHeight + 14}
-                textAnchor={
-                  index === 0
-                    ? "start"
-                    : index === chartDays.length - 1
-                      ? "end"
-                      : "middle"
-                }
-                className="fill-muted-foreground text-[10px]"
-              >
-                {formatChartDate(day.date)}
-              </text>
-            );
-          })}
-        </svg>
-        {hovered !== null && (
-          <div
-            className="pointer-events-none absolute top-2 z-10 w-44 -translate-x-1/2 rounded border bg-card p-2 text-sm shadow-lg"
-            style={{ left: `${hovered.percent}%` }}
-          >
-            <p className="font-medium">{formatChartDate(hovered.day.date)}</p>
-            {hoveredWeight !== null && <p>Weight {hoveredWeight} kg</p>}
-            {hoveredTargetWeight !== null && (
-              <p>Target weight {round(hoveredTargetWeight)} kg</p>
-            )}
-            {hoveredFat !== null && <p>Body fat {hoveredFat}%</p>}
-            {hoveredTargetFat !== null && (
-              <p>Target body fat {round(hoveredTargetFat)}%</p>
-            )}
-            {hoveredWeight === null &&
-              hoveredFat === null &&
-              hoveredTargetWeight === null &&
-              hoveredTargetFat === null && (
-                <p className="text-muted-foreground">No measurement</p>
-              )}
-          </div>
-        )}
-      </div>
-      <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-        {weight.length > 0 && (
-          <li className="flex items-center gap-1.5">
-            <span className="block h-0.5 w-4 bg-primary" />
-            Weight (kg)
-          </li>
-        )}
-        {bodyFat.length > 0 && (
-          <li className="flex items-center gap-1.5">
-            <span className="block h-0.5 w-4 bg-chart-ink-muted" />
-            Body fat (%)
-          </li>
-        )}
-        {(weightTargets.length > 0 || fatTargets.length > 0) && (
-          <li className="flex items-center gap-1.5">
-            <span className="block w-4 border-t-2 border-dashed border-chart-ink" />
-            Estimated diet progress
-          </li>
-        )}
-      </ul>
-    </figure>
+          </>
+        );
+      }}
+    </ChartFrame>
   );
 }
 
