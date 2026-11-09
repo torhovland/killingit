@@ -24,8 +24,9 @@ factory needed under `exactOptionalPropertyTypes`.
 - Those route factories accept `ResolvedAppDependencies` and apply their own
   production default with `?? ` when they consume an optional injectable.
 - The Garmin and LLM routes keep their local hook interfaces because their
-  tests drive the factories directly with a transport stub; they take only the
-  user store from the shared context and have no conditional spreads.
+  tests drive the factories directly with a transport stub; neither needs a
+  shared-context field, because the account comes from the auth middleware and
+  `getUser(c)`.
 - The coaching route still resolves its short handler names and the plan-run
   bundle in `routes/coaching/dependencies.ts`, but it does so from the shared
   context instead of a second dependency interface.
@@ -41,6 +42,9 @@ factory needed under `exactOptionalPropertyTypes`.
 - Keep an injectable optional where absence has meaning. A plan run treats an
   absent `loadActivities` as "sync first" and an absent `loadLlm` as "use the
   season model", so those are not resolved centrally.
+- Route handlers read the signed-in account with `getUser(c)`. They never take
+  a `UserStore` to provision it; the auth middleware resolves it once. See
+  `docs/specs/authenticated-user-middleware.md`.
 - Tests keep injecting through `createApp`; they must not need changes for a
   wiring refactor.
 

@@ -2,7 +2,12 @@ import type { UserRole } from "@killingit/shared";
 import { describe, expect, it } from "bun:test";
 import { Hono } from "hono";
 import type { UserStore } from "../users/store.js";
-import { requireAdmin, requireAuth } from "./middleware.js";
+import {
+  getUser,
+  requireAdmin,
+  requireAuth,
+  requireUser,
+} from "./middleware.js";
 import type { AuthProvider } from "./provider.js";
 import { AuthVerificationError } from "./provider.js";
 
@@ -91,13 +96,35 @@ function storeWithRole(role: UserRole): UserStore {
   };
 }
 
+function failingStore(): UserStore {
+  const fail = () => Promise.reject(new Error("database down"));
+  return {
+    ensureUser: fail,
+    getById: fail,
+    deleteUser: fail,
+    updateSettings: fail,
+  };
+}
+
+function appWithUser(store: UserStore) {
+  const app = new Hono();
+  app.use(
+    "*",
+    requireAuth(() => validProvider),
+  );
+  app.use("*", requireUser(store));
+  app.get("/", (c) => c.json({ id: getUser(c).id, role: getUser(c).role }));
+  return app;
+}
+
 function appWithAdmin(store: UserStore) {
   const app = new Hono();
   app.use(
     "*",
     requireAuth(() => validProvider),
   );
-  app.use("*", requireAdmin(store));
+  app.use("*", requireUser(store));
+  app.use("*", requireAdmin());
   app.get("/", (c) => c.json({ ok: true }));
   return app;
 }
@@ -106,6 +133,21 @@ const authedRequest = () =>
   new Request("http://localhost/", {
     headers: { authorization: "Bearer anything" },
   });
+
+describe("requireUser", () => {
+  it("stores the signed-in account on the context", async () => {
+    const res = await appWithUser(storeWithRole("member")).fetch(
+      authedRequest(),
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ id: 1, role: "member" });
+  });
+
+  it("returns 503 when the account cannot be resolved", async () => {
+    const res = await appWithUser(failingStore()).fetch(authedRequest());
+    expect(res.status).toBe(503);
+  });
+});
 
 describe("requireAdmin", () => {
   it("allows an admin", async () => {
@@ -123,13 +165,7 @@ describe("requireAdmin", () => {
   });
 
   it("returns 503 when the account cannot be resolved", async () => {
-    const store: UserStore = {
-      ensureUser: () => Promise.reject(new Error("database down")),
-      getById: () => Promise.reject(new Error("database down")),
-      deleteUser: () => Promise.reject(new Error("database down")),
-      updateSettings: () => Promise.reject(new Error("database down")),
-    };
-    const res = await appWithAdmin(store).fetch(authedRequest());
+    const res = await appWithAdmin(failingStore()).fetch(authedRequest());
     expect(res.status).toBe(503);
   });
 });

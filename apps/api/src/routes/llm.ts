@@ -9,7 +9,7 @@ import {
 import { zValidator } from "@hono/zod-validator";
 import type { Context } from "hono";
 import { Hono } from "hono";
-import { getAthlete } from "../auth/middleware.js";
+import { getUser } from "../auth/middleware.js";
 import { encrypt } from "../crypto/credentials.js";
 import { loadLlmCosts } from "../llm/costStore.js";
 import { llmCredentialsKeyFromEnv } from "../llm/credentials.js";
@@ -24,10 +24,8 @@ import {
   loadModelCatalog,
 } from "../llm/modelCatalog.js";
 import { loadLlmSettings, saveLlmSettings } from "../llm/store.js";
-import type { UserStore } from "../users/store.js";
 
 export interface LlmRouteDependencies {
-  users: UserStore;
   /** Injectable for route tests; defaults to the database-backed store. */
   loadSettings?: typeof loadLlmSettings;
   saveSettings?: typeof saveLlmSettings;
@@ -78,7 +76,7 @@ function respondProviderError(c: Context, err: unknown): Response {
  * OpenRouter before being stored encrypted, and is never serialized back to the
  * client.
  */
-export function createLlmRoute(deps: LlmRouteDependencies): Hono {
+export function createLlmRoute(deps: LlmRouteDependencies = {}): Hono {
   const loadSettings = deps.loadSettings ?? loadLlmSettings;
   const saveSettings = deps.saveSettings ?? saveLlmSettings;
   const loadCosts = deps.loadCosts ?? loadLlmCosts;
@@ -89,7 +87,7 @@ export function createLlmRoute(deps: LlmRouteDependencies): Hono {
 
   return new Hono()
     .get("/settings", async (c) => {
-      const user = await deps.users.ensureUser(getAthlete(c).sub);
+      const user = getUser(c);
       const stored = await loadSettings(user.id);
       return c.json(
         llmSettingsSchema.parse(
@@ -110,7 +108,7 @@ export function createLlmRoute(deps: LlmRouteDependencies): Hono {
       zValidator("json", llmSettingsUpdateSchema),
       async (c) => {
         const { apiKey, model, seasonModel, dailyModel } = c.req.valid("json");
-        const user = await deps.users.ensureUser(getAthlete(c).sub);
+        const user = getUser(c);
         const existing = await loadSettings(user.id);
         // A key-only update keeps the stored models, so rotating a key never
         // races a model change made in the table below the key form.
@@ -184,7 +182,7 @@ export function createLlmRoute(deps: LlmRouteDependencies): Hono {
       },
     )
     .get("/costs", async (c) => {
-      const user = await deps.users.ensureUser(getAthlete(c).sub);
+      const user = getUser(c);
       try {
         const costs = await loadCosts(user.id);
         return c.json(llmCostsResponseSchema.parse(costs));

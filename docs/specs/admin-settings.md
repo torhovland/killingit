@@ -96,8 +96,9 @@ re-exported from the package index.
   rule), and `dbUserStore.ensureUser` (fast indexed lookup, then a transaction
   with a `pg_advisory_xact_lock` for first-time provisioning and the
   promote-earliest repair).
-- `auth/middleware.ts` — `requireAdmin(store)` resolves and stores the account,
-  returns `403` for members and `503` on infrastructure failure.
+- `auth/middleware.ts` — `requireUser(store)` provisions and stores the account,
+  and `requireAdmin()` reads it, returning `403` for members; a provisioning
+  failure is `503`.
 - `routes/me.ts` — `createMeRoute(store)` returns the validated current user.
 - `index.ts` — `createApp({ authProvider, userStore })` injects dependencies for
   DB-free tests and mounts `/api/admin/*` behind `requireAuth` +
@@ -117,10 +118,11 @@ re-exported from the package index.
 ## Testing
 
 - **Shared unit tests:** role enum and current-user schema parsing.
-- **API unit tests:** the bootstrap role rule; `requireAdmin` allows admins,
-  denies members with `403`, and surfaces `503` when the store fails; `/api/me`
-  returns `sub` + `role` against a fake store; admin questions reject
-  unauthenticated (`401`) and member (`403`) callers.
+- **API unit tests:** the bootstrap role rule; `requireUser` stores the account
+  and surfaces `503` when the store fails; `requireAdmin` allows admins and
+  denies members with `403`; `/api/me` returns `sub` + `role` against a fake
+  store; admin questions reject unauthenticated (`401`) and member (`403`)
+  callers.
 - **Web:** covered by typecheck plus existing component tests; the page shell is
   thin and its access is enforced by the API.
 - DB-backed coverage of the question stores, plan lifecycle, and account

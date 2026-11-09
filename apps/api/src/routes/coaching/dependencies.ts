@@ -63,7 +63,6 @@ import {
   type PlanTriggerDependencies,
 } from "../../plans/trigger.js";
 import type { QuestionAnswerStore } from "../../questions/answers.js";
-import type { UserStore } from "../../users/store.js";
 import type { CoachAnalysis } from "@killingit/shared";
 
 /**
@@ -72,7 +71,6 @@ import type { CoachAnalysis } from "@killingit/shared";
  * route is created.
  */
 export interface ResolvedCoachingDependencies {
-  users: UserStore;
   answers: QuestionAnswerStore;
   plans: PlanStore;
   generations: PlanGenerationStore;
@@ -142,7 +140,6 @@ export function resolveCoachingDependencies(
   };
 
   return {
-    users: deps.userStore,
     answers: deps.answerStore,
     plans: deps.planStore,
     generations: deps.generationStore,

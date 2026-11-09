@@ -5,7 +5,7 @@ import {
   planDateSchema,
 } from "@killingit/shared";
 import { Hono } from "hono";
-import { getAthlete } from "../auth/middleware.js";
+import { getUser } from "../auth/middleware.js";
 import { loadCachedActivityFeed } from "../coaching/feedCache.js";
 import type { ResolvedAppDependencies } from "../dependencies.js";
 import { loadValidatedPlan } from "../plans/store.js";
@@ -35,7 +35,7 @@ export function createFitnessRoute(deps: ResolvedAppDependencies): Hono {
     }
 
     try {
-      const user = await deps.userStore.ensureUser(getAthlete(c).sub);
+      const user = getUser(c);
       const [feed, stored] = await Promise.all([
         loadFeed(user.id),
         loadValidatedPlan(deps.planStore, user.id),

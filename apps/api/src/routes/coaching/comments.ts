@@ -3,7 +3,7 @@ import {
   type ActivityCommentRequest,
 } from "@killingit/shared";
 import type { Context } from "hono";
-import { getAthlete } from "../../auth/middleware.js";
+import { getUser } from "../../auth/middleware.js";
 import type { ResolvedCoachingDependencies } from "./dependencies.js";
 
 /** The athlete's comment on one recorded activity. */
@@ -19,7 +19,7 @@ export function createCommentHandlers(deps: ResolvedCoachingDependencies) {
     activityId: string,
     input: ActivityCommentRequest,
   ) {
-    const user = await deps.users.ensureUser(getAthlete(c).sub);
+    const user = getUser(c);
     const { today, timezone, activityDate, comment } = input;
 
     const saved =
@@ -55,7 +55,7 @@ export function createCommentHandlers(deps: ResolvedCoachingDependencies) {
   }
 
   async function reviewed(c: Context, activityId: string) {
-    const user = await deps.users.ensureUser(getAthlete(c).sub);
+    const user = getUser(c);
     await deps.saveReview(user.id, activityId);
     return c.json(
       coachingInputSaveResponseSchema.parse({

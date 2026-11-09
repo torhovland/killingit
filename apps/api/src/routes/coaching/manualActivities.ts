@@ -4,7 +4,7 @@ import {
   type ManualActivityRequest,
 } from "@killingit/shared";
 import type { Context } from "hono";
-import { getAthlete } from "../../auth/middleware.js";
+import { getUser } from "../../auth/middleware.js";
 import type { ActivityLoads } from "../../training/activityLoad.js";
 import { toCoachAnalysis } from "../../plans/replies.js";
 import { ftpBaselineAt, ftpTimeline } from "../../training/thresholds.js";
@@ -59,7 +59,7 @@ export function createManualActivityHandlers(
     idParam: string | undefined,
     input: ManualActivityRequest,
   ) {
-    const user = await deps.users.ensureUser(getAthlete(c).sub);
+    const user = getUser(c);
     const id = mode === "create" ? undefined : Number(idParam);
     if (mode === "edit" && Number.isNaN(id)) {
       return c.text("Invalid manual activity id", 400);
@@ -120,7 +120,7 @@ export function createManualActivityHandlers(
       return c.text("A valid today date (YYYY-MM-DD) is required", 400);
     }
 
-    const user = await deps.users.ensureUser(getAthlete(c).sub);
+    const user = getUser(c);
     const id = Number(idParam);
     if (Number.isNaN(id)) {
       return c.text("Invalid manual activity id", 400);
@@ -147,7 +147,7 @@ export function createManualActivityHandlers(
 
   return {
     async list(c: Context) {
-      const user = await deps.users.ensureUser(getAthlete(c).sub);
+      const user = getUser(c);
       const [activities, replies, cached, storedPlan] = await Promise.all([
         deps.loadManual(user.id),
         deps.loadManualReplies(user.id),

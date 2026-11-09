@@ -5,7 +5,7 @@ import {
 } from "@killingit/shared";
 import type { Context } from "hono";
 import { z } from "zod";
-import { getAthlete } from "../../auth/middleware.js";
+import { getUser } from "../../auth/middleware.js";
 import {
   GarminCredentialsError,
   GarminNotConnectedError,
@@ -75,7 +75,7 @@ export function createFeedHandlers(deps: ResolvedCoachingDependencies) {
   return {
     async cached(c: Context) {
       try {
-        const user = await deps.users.ensureUser(getAthlete(c).sub);
+        const user = getUser(c);
         const [feed, storedPlan] = await Promise.all([
           deps.loadCachedFeed(user.id),
           deps.plans.load(user.id),
@@ -145,7 +145,7 @@ export function createFeedHandlers(deps: ResolvedCoachingDependencies) {
       }
 
       try {
-        const user = await deps.users.ensureUser(getAthlete(c).sub);
+        const user = getUser(c);
         const feed = await deps.loadActivities(user.id, query.data.today);
         await refreshPlanAfterAnalysis(
           user.id,
@@ -189,7 +189,7 @@ export function createFeedHandlers(deps: ResolvedCoachingDependencies) {
         return c.text("A valid today date (YYYY-MM-DD) is required", 400);
       }
 
-      const user = await deps.users.ensureUser(getAthlete(c).sub);
+      const user = getUser(c);
       const { today, timezone } = query.data;
 
       await deps.deleteImported(user.id, activityId);

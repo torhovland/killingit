@@ -1,14 +1,16 @@
 import type { AthleteIdentity } from "@killingit/shared";
 import type { Context, MiddlewareHandler } from "hono";
-import type { UserStore } from "../users/store.js";
+import type { StoredUser, UserStore } from "../users/store.js";
 import { AuthVerificationError } from "./provider.js";
 import type { AuthProvider } from "./provider.js";
 
 export const ATHLETE_CONTEXT_KEY = "athlete";
+export const USER_CONTEXT_KEY = "user";
 
 declare module "hono" {
   interface ContextVariableMap {
     [ATHLETE_CONTEXT_KEY]: AthleteIdentity;
+    [USER_CONTEXT_KEY]: StoredUser;
   }
 }
 
@@ -64,26 +66,44 @@ export function getAthlete(c: Context): AthleteIdentity {
 }
 
 /**
- * Resolves the account behind the authenticated subject and rejects non-admins
- * with 403. Must run after {@link requireAuth}, which is where the subject comes
- * from. The account is provisioned on first sight, so the first user in an
- * environment becomes the admin (ADR 0006).
+ * Resolves the account behind the authenticated subject and stores it on the
+ * context, where handlers read it with {@link getUser}. Must run after
+ * {@link requireAuth}, which is where the subject comes from.
+ *
+ * Provisioning happens here, once per request, so no handler creates the
+ * account itself. The first account in an environment becomes the admin
+ * (ADR 0006).
  *
  * A database failure while resolving the account is an infrastructure failure,
  * not a denial: log it and return 503.
  */
-export function requireAdmin(store: UserStore): MiddlewareHandler {
+export function requireUser(store: UserStore): MiddlewareHandler {
   return async (c, next) => {
-    const { sub } = getAthlete(c);
-
     try {
-      const user = await store.ensureUser(sub);
-      if (user.role !== "admin") {
-        return c.text("Forbidden", 403);
-      }
+      const user = await store.ensureUser(getAthlete(c).sub);
+      c.set(USER_CONTEXT_KEY, user);
     } catch (err) {
       console.error("[auth] failed to resolve the current user:", err);
       return c.text("Service Unavailable", 503);
+    }
+
+    await next();
+  };
+}
+
+/** Read the account resolved by {@link requireUser}. */
+export function getUser(c: Context): StoredUser {
+  return c.var[USER_CONTEXT_KEY];
+}
+
+/**
+ * Rejects non-admins with 403. Must run after {@link requireUser}, which is
+ * where the account comes from.
+ */
+export function requireAdmin(): MiddlewareHandler {
+  return async (c, next) => {
+    if (getUser(c).role !== "admin") {
+      return c.text("Forbidden", 403);
     }
 
     await next();

@@ -7,7 +7,7 @@ import {
 } from "@killingit/shared";
 import type { Context } from "hono";
 import { z } from "zod";
-import { getAthlete } from "../../auth/middleware.js";
+import { getUser } from "../../auth/middleware.js";
 import { toCoachAnalysis } from "../../plans/replies.js";
 import { replyTo, type ResolvedCoachingDependencies } from "./dependencies.js";
 
@@ -17,7 +17,7 @@ type WeeklyNoteInput = z.infer<typeof weeklyNoteRequestSchema>;
 export function createWeeklyNoteHandlers(deps: ResolvedCoachingDependencies) {
   return {
     async show(c: Context) {
-      const user = await deps.users.ensureUser(getAthlete(c).sub);
+      const user = getUser(c);
       const today = planDateSchema.safeParse(c.req.query("today"));
       if (!today.success) {
         return c.text("A valid today date (YYYY-MM-DD) is required", 400);
@@ -36,7 +36,7 @@ export function createWeeklyNoteHandlers(deps: ResolvedCoachingDependencies) {
     },
 
     async save(c: Context, input: WeeklyNoteInput) {
-      const user = await deps.users.ensureUser(getAthlete(c).sub);
+      const user = getUser(c);
       const { today, timezone, note } = input;
 
       await deps.saveWeekly(user.id, today, note);

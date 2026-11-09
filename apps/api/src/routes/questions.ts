@@ -5,16 +5,14 @@ import {
 } from "@killingit/shared";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
-import { getAthlete } from "../auth/middleware.js";
+import { getUser } from "../auth/middleware.js";
 import {
   type QuestionAnswerStore,
   type StoredAthleteQuestion,
 } from "../questions/answers.js";
 import { toAthleteQuestionResponse } from "../questions/serializers.js";
-import type { UserStore } from "../users/store.js";
 
 export interface QuestionsRouteDependencies {
-  users: UserStore;
   answers: QuestionAnswerStore;
 }
 
@@ -31,19 +29,18 @@ function toQuestionsResponse(questions: StoredAthleteQuestion[]) {
  * admin edit re-asks the question instead of applying old wording (ADR 0007).
  */
 export function createQuestionsRoute({
-  users,
   answers,
 }: QuestionsRouteDependencies): Hono {
   return new Hono()
     .get("/", async (c) => {
-      const user = await users.ensureUser(getAthlete(c).sub);
+      const user = getUser(c);
       return c.json(toQuestionsResponse(await answers.listForUser(user.id)));
     })
     .post(
       "/answers",
       zValidator("json", questionAnswersInputSchema),
       async (c) => {
-        const user = await users.ensureUser(getAthlete(c).sub);
+        const user = getUser(c);
         const { answers: submitted } = c.req.valid("json");
 
         if (!(await answers.saveAnswers(user.id, submitted))) {

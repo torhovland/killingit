@@ -58,8 +58,8 @@ my profile" feature that follows.
 - **Accounts table.** The provider `sub` is linked to an application account in
   `users` (ADR 0006), which owns the `admin`/`member` role.
 - **New API route** `GET /api/me` — protected; returns the verified `sub` and
-  the account's application role (and later the athlete profile). It also
-  provisions the account on first sight.
+  the account's application role (and later the athlete profile). The account
+  is provisioned by the shared auth middleware on first sight.
 - **Shared types** — `AthleteIdentity` (`{ sub: string }`) and `CurrentUser`
   (`{ sub, role }`) live in `packages/shared` so web and API share the shapes.
 
@@ -77,8 +77,10 @@ my profile" feature that follows.
   - No network in tests: JWKS fetch is injected/mocked.
 - Hono middleware `requireAuth` that reads `Authorization: Bearer …`, calls the
   provider, and sets `c.set("athlete", identity)` or returns 401.
-- `GET /api/me` uses `requireAuth`, then resolves/provisions the account and
-  returns `{ sub, role }`.
+- Hono middleware `requireUser(store)` that runs after `requireAuth`, provisions
+  the account with `ensureUser(sub)`, and sets `c.set("user", user)`; handlers
+  read it with `getUser(c)`.
+- `GET /api/me` returns the context user and its role.
 - Deps: add `jose` (JWKS + JWT verify), already a transitive standard.
 
 ### Web (`apps/web`)
@@ -146,6 +148,13 @@ only replaces that module.
   `/coaching/*` prefix it happens to live under (issue #161). The API tests
   sample one route from every protected family plus an unregistered `/api`
   path and assert 401. See ADR 0024.
+- **The account is resolved in middleware, not in handlers.** `createApp` runs
+  `requireUser(deps.userStore)` immediately after `requireAuth` on the same
+  paths; it provisions the account on first sight, stores it under `user`, and
+  returns 503 when the store fails. `requireAdmin()` reads that context user
+  and returns 403 for a member. Handlers call `getUser(c)` and never
+  `ensureUser`, and the Garmin, LLM and question factories no longer take a
+  `UserStore`. See `docs/specs/authenticated-user-middleware.md` and ADR 0026.
 - **A 401 refreshes once before it surfaces.** If the API rejects a bearer
   token, `fetchJsonAuthed` calls `getToken({ forceRefresh: true })`, which
   bypasses the Auth0 token cache (`cacheMode: "off"`), and retries the request
