@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { CoachPlan, DailyWeather } from "@killingit/shared";
-import { addDays } from "../plans/dates.js";
+import { addDays } from "@killingit/shared";
 import { applyForecastToPlan } from "./apply.js";
 import { combineForecasts } from "./combine.js";
 import type { WeatherForecastSet } from "./forecast.js";

@@ -1,26 +1,12 @@
 /**
- * Calendar helpers for plan dates. All dates are `YYYY-MM-DD` strings and the
- * arithmetic is done in UTC so it is independent of the server's timezone.
+ * Time-zone helpers for plan dates. All dates are `YYYY-MM-DD` strings and the
+ * arithmetic is done in UTC so it is independent of the server's timezone. The
+ * generic date arithmetic (`addDays`, `startOfWeek`, `weekDates`) lives in
+ * `@killingit/shared`.
  */
 
 /** The local hour from which the next day's session is planned. */
 const TOMORROW_CUTOFF_HOUR = 18;
-
-/** Returns the Monday of the week containing `date`. */
-export function startOfWeek(date: string): string {
-  const parsed = new Date(`${date}T00:00:00Z`);
-  const weekday = parsed.getUTCDay(); // 0 = Sunday, 1 = Monday, …
-  const offset = weekday === 0 ? -6 : 1 - weekday;
-  parsed.setUTCDate(parsed.getUTCDate() + offset);
-  return parsed.toISOString().slice(0, 10);
-}
-
-/** Adds `days` (which may be negative) to a `YYYY-MM-DD` date. */
-export function addDays(date: string, days: number): string {
-  const parsed = new Date(`${date}T00:00:00Z`);
-  parsed.setUTCDate(parsed.getUTCDate() + days);
-  return parsed.toISOString().slice(0, 10);
-}
 
 /**
  * True when the athlete's local clock has reached the point where tomorrow's
@@ -52,11 +38,6 @@ function localHour(timeZone: string | null | undefined, now: Date): number {
     }
   }
   return now.getUTCHours();
-}
-
-/** The seven calendar dates in the week starting on `startDate`. */
-export function weekDates(startDate: string): string[] {
-  return Array.from({ length: 7 }, (_, index) => addDays(startDate, index));
 }
 
 /**

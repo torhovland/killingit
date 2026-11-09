@@ -16,7 +16,7 @@ import type {
 import { generatePeriodReview } from "../llm/periodReview.js";
 import { PERIOD_REVIEW_PROMPT_VERSION } from "../llm/periodReviewPrompt.js";
 import type { LlmProvider } from "../llm/openrouter.js";
-import { addDays } from "../plans/dates.js";
+import { addDays } from "@killingit/shared";
 import { loadPeriodReview, savePeriodReview } from "../plans/periodReviews.js";
 import { applyCompletedDays } from "../plans/week.js";
 

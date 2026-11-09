@@ -5,7 +5,7 @@ import {
   type FitnessDietTarget,
   type WeekPlan,
 } from "@killingit/shared";
-import { addDays } from "../plans/dates.js";
+import { addDays } from "@killingit/shared";
 import { planDietTargets } from "../training/dietTargets.js";
 
 /** How far a target may miss a stated goal and still count as reaching it. */

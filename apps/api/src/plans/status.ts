@@ -1,6 +1,6 @@
 import type { CoachPlan, PlanPending } from "@killingit/shared";
 import { calorieEstimateProblems } from "./calorieEstimates.js";
-import { addDays } from "./dates.js";
+import { addDays } from "@killingit/shared";
 import { dietProgressPending } from "./dietProgress.js";
 import { blockFor, weekFor } from "./periods.js";
 

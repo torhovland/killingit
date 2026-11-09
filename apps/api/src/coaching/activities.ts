@@ -31,7 +31,7 @@ import {
 import { loadDailyHealthForUser } from "../metrics/dailyMetrics.js";
 import { downsample } from "../lib/downsample.js";
 import { mapWithConcurrency } from "../lib/mapWithConcurrency.js";
-import { addDays } from "../plans/dates.js";
+import { addDays } from "@killingit/shared";
 import { ANALYSIS_PROMPT_VERSION } from "../llm/activityPrompt.js";
 import { analyzeActivity } from "../llm/analyze.js";
 import {

@@ -1,13 +1,13 @@
 import {
   coachingInputSaveResponseSchema,
   planDateSchema,
+  startOfWeek,
   weeklyNoteRequestSchema,
   weeklyNoteResponseSchema,
 } from "@killingit/shared";
 import type { Context } from "hono";
 import { z } from "zod";
 import { getAthlete } from "../../auth/middleware.js";
-import { startOfWeek } from "../../plans/dates.js";
 import { toCoachAnalysis } from "../../plans/replies.js";
 import { replyTo, type ResolvedCoachingDependencies } from "./dependencies.js";
 

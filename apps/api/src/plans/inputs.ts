@@ -16,7 +16,7 @@ import type {
   ManualActivityContext,
   PeriodReviewContext,
 } from "../llm/planContext.js";
-import { startOfWeek } from "./dates.js";
+import { startOfWeek } from "@killingit/shared";
 import { loadPeriodReviews } from "./periodReviews.js";
 import { loadWeeklyNoteReply } from "./replies.js";
 

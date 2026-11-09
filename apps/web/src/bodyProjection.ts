@@ -1,5 +1,4 @@
-import type { FitnessDietTarget } from "@killingit/shared";
-import { addDays } from "./calendarDates";
+import { addDays, type FitnessDietTarget } from "@killingit/shared";
 
 /** One point on the dotted diet-target line. */
 export interface BodyTargetPoint {

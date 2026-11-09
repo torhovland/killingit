@@ -4,7 +4,7 @@ import type {
   SeasonPlan,
   WeekPlan,
 } from "@killingit/shared";
-import { addDays, startOfWeek, weekDates } from "../plans/dates.js";
+import { addDays, startOfWeek, weekDates } from "@killingit/shared";
 import {
   formatBlockPlan,
   formatCoachingSurveyAdjustments,

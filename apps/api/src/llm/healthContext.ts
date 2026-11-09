@@ -6,7 +6,7 @@ import {
   type DailyHealthMetricKey,
   type DailyHealthPoint,
 } from "@killingit/shared";
-import { addDays } from "../plans/dates.js";
+import { addDays } from "@killingit/shared";
 
 /** How much recovery history the coach sees in a prompt. */
 export const HEALTH_CONTEXT_DAYS = 14;

@@ -19,7 +19,7 @@ import { getAthlete } from "../auth/middleware.js";
 import { loadCachedActivityFeed } from "../coaching/feedCache.js";
 import { loadAthleteEvents } from "../events/store.js";
 import type { ManualActivityContext } from "../llm/planContext.js";
-import { addDays, startOfWeek } from "../plans/dates.js";
+import { addDays, startOfWeek } from "@killingit/shared";
 import {
   loadManualActivityReplies,
   toCoachAnalysis,

@@ -1,4 +1,5 @@
 import {
+  addDays,
   dietSummaryResponseSchema,
   foodEntriesResponseSchema,
   foodEntryRequestSchema,
@@ -21,7 +22,7 @@ import type { PlanContextInput } from "../llm/planContext.js";
 import { loadLlmClient, type LlmClient } from "../llm/client.js";
 import { analyzeFood } from "../llm/foodAnalysis.js";
 import type { PreviousFoodAnalysis } from "../llm/foodPrompt.js";
-import { localDateTimeInZone, addDays } from "../plans/dates.js";
+import { localDateTimeInZone } from "../plans/dates.js";
 import { loadPlanDayCalorieTargets } from "../plans/dayCalories.js";
 import type { QuestionAnswerStore } from "../questions/answers.js";
 import { buildDietSummary } from "../diet/days.js";

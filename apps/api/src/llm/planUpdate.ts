@@ -9,7 +9,7 @@ import {
   type WeeklyPlanUpdate,
 } from "@killingit/shared";
 import type { z } from "zod";
-import { addDays, startOfWeek, weekDates } from "../plans/dates.js";
+import { addDays, startOfWeek, weekDates } from "@killingit/shared";
 import {
   dietGoalProblems,
   dietProgressConsistencyProblems,

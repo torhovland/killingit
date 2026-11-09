@@ -5,7 +5,7 @@ import type {
   FitnessDietTarget,
   WeekPlan,
 } from "@killingit/shared";
-import { addDays } from "../plans/dates.js";
+import { addDays } from "@killingit/shared";
 
 /**
  * Flattens the coach's diet progress targets to one point per period end, from

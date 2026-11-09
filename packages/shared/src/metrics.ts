@@ -1,7 +1,6 @@
 import { z } from "zod";
-import { planDateSchema } from "./date.js";
+import { addDays, planDateSchema } from "./date.js";
 import { coachResponseNotesSchema } from "./llm.js";
-import { addDays } from "./trainingLoad.js";
 
 /** The body measurements the app stores as a daily time series. */
 export const athleteMetricSchema = z.enum(["weight", "body_fat"]);

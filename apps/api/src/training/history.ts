@@ -25,7 +25,7 @@ import { consumedCaloriesByDate } from "../diet/days.js";
 import { dbFoodEntryStore } from "../diet/store.js";
 import { loadDailyHealthHistoryForUser } from "../metrics/dailyMetrics.js";
 import { loadMetricPoints } from "../metrics/store.js";
-import { addDays, startOfWeek } from "../plans/dates.js";
+import { addDays, startOfWeek } from "@killingit/shared";
 import { loadPlanDayCalories } from "../plans/dayCalories.js";
 import { activityDayTss, groupActivitiesByDate } from "./activityLoad.js";
 import { loadTrainingContext } from "./context.js";

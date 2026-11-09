@@ -12,7 +12,7 @@ import {
   type WeekSession,
 } from "@killingit/shared";
 import type { ManualActivityContext } from "../llm/planContext.js";
-import { addDays } from "../plans/dates.js";
+import { addDays } from "@killingit/shared";
 import {
   activityDayTss,
   groupActivitiesByDate,

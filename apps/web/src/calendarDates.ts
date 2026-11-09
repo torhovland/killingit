@@ -3,6 +3,8 @@
  * arithmetic is done in UTC, matching the rest of the app's plan dates.
  */
 
+import { addDays, startOfWeek } from "@killingit/shared";
+
 /** The `YYYY-MM` month containing a `YYYY-MM-DD` date. */
 export function monthOf(date: string): string {
   return date.slice(0, 7);
@@ -25,13 +27,6 @@ export function clampMonth(month: string, min: string, max: string): string {
   return month > max ? max : month;
 }
 
-/** Adds days (which may be negative) to a `YYYY-MM-DD` date. */
-export function addDays(date: string, days: number): string {
-  const parsed = new Date(`${date}T00:00:00Z`);
-  parsed.setUTCDate(parsed.getUTCDate() + days);
-  return parsed.toISOString().slice(0, 10);
-}
-
 /** One cell in the month grid, including the leading and trailing days. */
 export interface MonthCell {
   date: string;
@@ -43,11 +38,7 @@ export interface MonthCell {
  * height and the first weekday line never jumps between months.
  */
 export function buildMonthGrid(month: string): MonthCell[] {
-  const first = `${month}-01`;
-  const parsed = new Date(`${first}T00:00:00Z`);
-  const weekday = parsed.getUTCDay(); // 0 = Sunday, 1 = Monday, …
-  const offset = weekday === 0 ? -6 : 1 - weekday;
-  const start = addDays(first, offset);
+  const start = startOfWeek(`${month}-01`);
   return Array.from({ length: 42 }, (_, index) => {
     const date = addDays(start, index);
     return { date, inMonth: monthOf(date) === month };

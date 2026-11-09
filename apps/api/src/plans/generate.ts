@@ -48,7 +48,7 @@ import {
   ftpTimeline,
   type ThresholdTimeline,
 } from "../training/thresholds.js";
-import { addDays, startOfWeek } from "./dates.js";
+import { addDays, startOfWeek } from "@killingit/shared";
 import {
   dietProgressPending,
   mergeDietProgressTargets,

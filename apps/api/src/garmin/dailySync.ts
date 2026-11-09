@@ -1,5 +1,5 @@
 import type { GarminDailyResponse } from "@killingit/shared";
-import { addDays } from "../plans/dates.js";
+import { addDays } from "@killingit/shared";
 import {
   loadGarminDailySyncDates,
   markGarminDailySynced,

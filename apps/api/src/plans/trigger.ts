@@ -19,11 +19,13 @@ import {
   recordPlanFtpEstimates,
 } from "../metrics/store.js";
 import { loadDailyHealthForUser } from "../metrics/dailyMetrics.js";
-import type {
-  AthleteLocation,
-  DailyHealthPoint,
-  DailyWeather,
-  PlanGenerateMode,
+import {
+  addDays,
+  startOfWeek,
+  type AthleteLocation,
+  type DailyHealthPoint,
+  type DailyWeather,
+  type PlanGenerateMode,
 } from "@killingit/shared";
 import type { QuestionAnswerStore } from "../questions/answers.js";
 import {
@@ -36,7 +38,7 @@ import {
   type WeatherForecastSet,
 } from "../weather/forecast.js";
 import { ftpHistoryPoints } from "../training/thresholds.js";
-import { addDays, isAfterPlanTomorrowCutoff, startOfWeek } from "./dates.js";
+import { isAfterPlanTomorrowCutoff } from "./dates.js";
 import {
   clearPendingCoachQuestions,
   loadAnsweredCoachQuestions,

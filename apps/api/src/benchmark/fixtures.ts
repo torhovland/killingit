@@ -6,7 +6,7 @@ import { activityFeedCache, llmSettings, users } from "../db/schema.js";
 import { llmCredentialsKeyFromEnv } from "../llm/credentials.js";
 import type { CoachingInputs } from "../plans/inputs.js";
 import { loadCoachingInputs } from "../plans/inputs.js";
-import { startOfWeek } from "../plans/dates.js";
+import { startOfWeek } from "@killingit/shared";
 import {
   latestActivityAnalysisTimestamp,
   latestAnswerTimestamp,

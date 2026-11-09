@@ -18,7 +18,7 @@ import {
   PLAN_UPDATE_SYSTEM_PROMPT,
   WEEKLY_UPDATE_SYSTEM_PROMPT,
 } from "../llm/planUpdatePrompt.js";
-import { addDays, startOfWeek } from "./dates.js";
+import { addDays, startOfWeek } from "@killingit/shared";
 import {
   planFtpEstimates,
   runPlanGeneration,
