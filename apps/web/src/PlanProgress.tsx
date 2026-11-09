@@ -12,6 +12,20 @@ const BUSY_LABELS: Record<AppBusyState, string> = {
   thinking: "The coach is thinking…",
 };
 
+/** The step shown while a fresh prompt is on its way to the coach. */
+export const WAKING_STEP_LABEL = "Waking the coach…";
+
+/**
+ * The progress to show when a run begins. Only a run that sends its own prompt
+ * shows the waking step; a run that tracks a generation already started on the
+ * server waits for that generation to report a step instead.
+ */
+export function initialPlanProgress(
+  request: Promise<unknown> | null,
+): PlanProgressState | null {
+  return request === null ? null : { step: WAKING_STEP_LABEL, progress: 0 };
+}
+
 /**
  * The plan progress panel shown while the header spinner is visible. A running
  * generation shows its step and a determinate bar; any other busy state shows

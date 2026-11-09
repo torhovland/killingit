@@ -16,7 +16,7 @@ import {
 import { useAppStatus } from "./AppStatus";
 import { useAuth } from "./auth";
 import { fetchJsonAuthed, requestParsed } from "./fetchAuthed";
-import type { PlanProgressState } from "./PlanProgress";
+import { initialPlanProgress, type PlanProgressState } from "./PlanProgress";
 import {
   pollPlanGeneration,
   type PlanGenerationOutcome,
@@ -145,7 +145,7 @@ export function PlanGenerationProvider({ children }: { children: ReactNode }) {
       const token = (runToken.current += 1);
       setRunning(true);
       setMode(generationMode);
-      setProgress({ step: "Waking the coach…", progress: 0 });
+      setProgress(initialPlanProgress(request));
       setError(null);
 
       const promise = pollPlanGeneration({

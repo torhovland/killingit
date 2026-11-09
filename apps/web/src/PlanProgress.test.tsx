@@ -1,9 +1,14 @@
 import { describe, expect, it } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { PlanProgress } from "./PlanProgress";
+import {
+  initialPlanProgress,
+  PlanProgress,
+  WAKING_STEP_LABEL,
+  type PlanProgressState,
+} from "./PlanProgress";
 
 function render(
-  progress: { step: string; progress: number } | null,
+  progress: PlanProgressState | null,
   status: "idle" | "loading" | "syncing" | "thinking",
 ): string {
   return renderToStaticMarkup(
@@ -34,5 +39,19 @@ describe("PlanProgress", () => {
     expect(html).toContain("Syncing…");
     expect(html).toContain("animate-pulse");
     expect(html).not.toContain("%");
+  });
+
+  it("shows the waking step only while a fresh prompt is on its way", () => {
+    expect(initialPlanProgress(Promise.resolve())).toEqual({
+      step: WAKING_STEP_LABEL,
+      progress: 0,
+    });
+  });
+
+  it("shows no step when tracking a generation already running on the server", () => {
+    expect(initialPlanProgress(null)).toBeNull();
+    expect(render(initialPlanProgress(null), "thinking")).toContain(
+      "The coach is thinking…",
+    );
   });
 });

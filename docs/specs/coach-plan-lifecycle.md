@@ -336,7 +336,9 @@ problems; the error names the offending fields if the repair also fails. See
 - The progress panel is shown whenever the header spinner is visible. A running
   plan generation shows its step and a determinate bar; any other busy action
   (loading, syncing or thinking) shows an indeterminate bar under that state's
-  label.
+  label. The waking step appears only while a fresh generation request is on its
+  way; a run that only tracks a generation already under way shows the
+  indeterminate bar until the server reports its step.
 - The plan section is rendered before the profile/integrations so the plan is
   the main surface on each visit.
 - A failed generation is surfaced with its error and a "Try again" button. The
