@@ -96,6 +96,44 @@ describe("threshold timelines", () => {
   });
 });
 
+describe("threshold interpolation edge cases", () => {
+  it("holds the earliest value before the first anchor", () => {
+    const [cycling] = buildThresholdTimelines(points);
+
+    expect(thresholdAt(cycling ?? null, "2026-09-01")).toBe(250);
+  });
+
+  it("returns null without a timeline or anchors", () => {
+    const empty = {
+      sport: "cycling",
+      measure: "ftp",
+      label: "FTP",
+      unit: "W",
+      kind: "power" as const,
+      anchors: [],
+    };
+
+    expect(thresholdAt(null, "2026-10-01")).toBeNull();
+    expect(thresholdAt(empty, "2026-10-01")).toBeNull();
+  });
+
+  it("returns null for an unreadable date", () => {
+    const [cycling] = buildThresholdTimelines(points);
+
+    expect(thresholdAt(cycling ?? null, "not-a-date")).toBeNull();
+  });
+
+  it("keeps the last anchor for a duplicate timestamp", () => {
+    const [cycling] = buildThresholdTimelines([
+      point({ date: "2026-10-01", value: 240 }),
+      point({ date: "2026-10-01", value: 250 }),
+    ]);
+
+    expect(cycling?.anchors).toHaveLength(1);
+    expect(thresholdAt(cycling ?? null, "2026-10-01")).toBe(250);
+  });
+});
+
 describe("FTP from the threshold timelines", () => {
   it("selects the cycling FTP timeline from every measure", () => {
     const timelines = buildThresholdTimelines(points);
