@@ -43,6 +43,15 @@ describe("isStaleRunning", () => {
     ).toBe(true);
   });
 
+  it("keeps a run alive through a slow provider call", () => {
+    expect(
+      isStaleRunning(
+        status("running", new Date(NOW - 3 * 60 * 1000).toISOString()),
+        NOW,
+      ),
+    ).toBe(false);
+  });
+
   it("only considers running runs", () => {
     const old = new Date(NOW - STALE_GENERATION_MS * 2).toISOString();
     expect(isStaleRunning(status("done", old), NOW)).toBe(false);

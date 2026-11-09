@@ -184,6 +184,31 @@ describe("dayPlanSchema", () => {
       "Skip it if your legs are tired.",
     );
   });
+
+  it("treats a blank optional rationale as absent", () => {
+    const base = {
+      date: "2026-10-21",
+      type: "rest",
+      title: "Rest",
+      description: "Take the day off.",
+      durationMinutes: 0,
+      intensity: "rest",
+      rationale: "Recovery is part of the plan.",
+    };
+    expect(
+      dayPlanSchema.parse({ ...base, optionalRationale: "" }).optionalRationale,
+    ).toBeUndefined();
+    expect(
+      dayPlanSchema.parse({ ...base, optionalRationale: "   " })
+        .optionalRationale,
+    ).toBeUndefined();
+    expect(
+      dayPlanSchema.parse({
+        ...base,
+        optionalRationale: "Skip it if your legs are tired.",
+      }).optionalRationale,
+    ).toBe("Skip it if your legs are tired.");
+  });
 });
 
 describe("coachPlanSchema", () => {

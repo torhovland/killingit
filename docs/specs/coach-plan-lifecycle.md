@@ -178,9 +178,11 @@ checkpoint. See `docs/specs/plan-generation-progress.md`.
 `begin` inserts the row if needed and flips it to `running` only when it is not
 already `running`, so concurrent requests cannot start two generations. A live
 generation refreshes `updated_at` every 15 seconds. A `running` row that has not
-been refreshed for two minutes is considered abandoned (for example by a server
+been refreshed for five minutes is considered abandoned (for example by a server
 restart); `GET` records it as an error so the client stops polling and offers
-`Try again`, and `begin` may take over the stale claim.
+`Try again`, and `begin` may take over the stale claim. The lease outlasts the
+provider's four-minute request timeout, so a slow model call is not mistaken for
+a dead run.
 
 Releasing a stale run is a compare-and-set: the `GET` passes the `updated_at` it
 observed, and `fail` only changes a `running` row that still has that exact
