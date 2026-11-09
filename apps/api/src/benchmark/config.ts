@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { planDateSchema } from "@killingit/shared";
-import { addDays, startOfWeek } from "../plans/dates.js";
+import { addDays, startOfWeek } from "@killingit/shared";
 
 const REPO_ROOT = resolve(import.meta.dir, "../../../..");
 const DEFAULT_OUTPUT = resolve(REPO_ROOT, "benchmarks/llm-coach/runs");

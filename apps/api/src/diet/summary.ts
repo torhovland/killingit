@@ -1,5 +1,5 @@
 import type { FoodAnalysis } from "@killingit/shared";
-import { addDays, startOfWeek } from "../plans/dates.js";
+import { addDays, startOfWeek } from "@killingit/shared";
 
 /** The window of individually listed meals shown to the coach. */
 export const DIET_RECENT_DAYS = 7;

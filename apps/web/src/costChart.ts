@@ -1,5 +1,6 @@
 import {
   LLM_PROMPT_KIND_LABELS,
+  addDays,
   type LlmCostBucket,
   type LlmPromptKind,
 } from "@killingit/shared";
@@ -355,12 +356,6 @@ function monthsBetween(start: string, end: string): string[] {
     current = addMonths(current, 1);
   }
   return months.length === 0 ? [end] : months;
-}
-
-function addDays(day: string, delta: number): string {
-  const date = new Date(`${day}T00:00:00Z`);
-  date.setUTCDate(date.getUTCDate() + delta);
-  return date.toISOString().slice(0, 10);
 }
 
 function daysBetween(start: string, end: string): string[] {

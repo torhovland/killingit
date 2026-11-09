@@ -11,7 +11,7 @@ import {
   loadThresholdHistoryForUser,
 } from "../metrics/store.js";
 import { loadDailyHealthForUser } from "../metrics/dailyMetrics.js";
-import { addDays, startOfWeek } from "../plans/dates.js";
+import { addDays, startOfWeek } from "@killingit/shared";
 import { loadCoachingInputs, type CoachingInputs } from "../plans/inputs.js";
 import {
   ftpBaselineAt,

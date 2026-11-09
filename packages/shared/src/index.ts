@@ -53,7 +53,13 @@ export {
   type WeatherIcon,
 } from "./weather.js";
 
-export { planDateSchema, type PlanDate } from "./date.js";
+export {
+  addDays,
+  planDateSchema,
+  startOfWeek,
+  weekDates,
+  type PlanDate,
+} from "./date.js";
 
 export {
   garminConnectionStatusSchema,

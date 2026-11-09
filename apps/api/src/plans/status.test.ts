@@ -1,6 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { CoachPlan } from "@killingit/shared";
-import { addDays } from "./dates";
+import { addDays, type CoachPlan } from "@killingit/shared";
 import {
   latestActivityAnalysisTimestamp,
   latestAnswerTimestamp,

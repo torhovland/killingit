@@ -6,7 +6,7 @@ import {
   type AnalyzedActivity,
   type TrainingLoad,
 } from "@killingit/shared";
-import { addDays } from "../plans/dates.js";
+import { addDays } from "@killingit/shared";
 import { thresholdForSport, type ThresholdTimeline } from "./thresholds.js";
 
 /** Groups activities by their local calendar date (`YYYY-MM-DD`). */

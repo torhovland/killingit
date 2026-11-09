@@ -34,7 +34,7 @@ import type {
   DietPromptContext,
   DietWeekSummary,
 } from "../diet/summary.js";
-import { addDays, startOfWeek } from "../plans/dates.js";
+import { addDays, startOfWeek } from "@killingit/shared";
 import { impliedGoalBodyFatPercent } from "../plans/dietProgress.js";
 import { formatDuration } from "./duration.js";
 import { formatDailyHealthContext } from "./healthContext.js";

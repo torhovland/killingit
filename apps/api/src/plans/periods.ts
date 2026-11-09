@@ -1,5 +1,5 @@
 import type { BlockPlan, CoachPlan, WeekPlan } from "@killingit/shared";
-import { addDays } from "./dates.js";
+import { addDays } from "@killingit/shared";
 
 /** The last day (Sunday) of a Monday-based week plan. */
 export function weekEnd(week: WeekPlan): string {

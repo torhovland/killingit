@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { ActivitySample } from "./activity.js";
+import { addDays } from "./date.js";
 import type { BikeWorkout } from "./workout.js";
 
 /** Training load for one day: stress plus the fitness/fatigue snapshot. */
@@ -313,13 +314,6 @@ export function estimatedTssFromSession(session: {
         ? 60
         : 40;
   return roundStress((session.durationMinutes / 60) * perHour);
-}
-
-/** Adds a whole number of days to a `YYYY-MM-DD` date. */
-export function addDays(date: string, days: number): string {
-  const parsed = new Date(`${date}T00:00:00Z`);
-  parsed.setUTCDate(parsed.getUTCDate() + days);
-  return parsed.toISOString().slice(0, 10);
 }
 
 function roundStress(value: number): number {

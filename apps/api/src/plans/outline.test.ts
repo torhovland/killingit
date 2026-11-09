@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { CoachPlan, WeekPlan } from "@killingit/shared";
-import { addDays } from "./dates.js";
+import { addDays } from "@killingit/shared";
 import { outlineWeekPlans } from "./outline.js";
 
 const bikeWorkout = {

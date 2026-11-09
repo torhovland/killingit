@@ -18,7 +18,7 @@ import {
 import { loadAthleteEvents } from "../events/store.js";
 import { markPlanPromptsFailed } from "../llm/callStore.js";
 import { loadThresholdHistoryForUser } from "../metrics/store.js";
-import { startOfWeek } from "../plans/dates.js";
+import { startOfWeek } from "@killingit/shared";
 import { isStaleRunning } from "../plans/generation.js";
 import { loadCoachingInputs } from "../plans/inputs.js";
 import { promoteNextPeriod, weekFor } from "../plans/periods.js";

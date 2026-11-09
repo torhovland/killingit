@@ -5,7 +5,7 @@ import type {
   DayPlan,
   WeekPlan,
 } from "@killingit/shared";
-import { addDays } from "./dates.js";
+import { addDays } from "@killingit/shared";
 import {
   blockFor,
   promoteNextPeriod,

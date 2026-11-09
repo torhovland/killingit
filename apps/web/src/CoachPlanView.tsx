@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import {
   ATHLETE_EVENT_KIND_LABELS,
   activitySport,
+  addDays,
   eventCoversDate,
   eventOverlapsRange,
   formatEventDates,
@@ -21,7 +22,6 @@ import {
   type WeekSessionStatus,
 } from "@killingit/shared";
 import { Bullet } from "./Bullet";
-import { addDays } from "./calendarDates";
 import { CalorieBalancePanel } from "./CalorieBalancePanel";
 import { FormattedText } from "./FormattedText";
 import { SessionSetting } from "./SessionSetting";

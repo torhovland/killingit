@@ -5,7 +5,7 @@ import type {
 } from "@killingit/shared";
 import type { ManualActivityContext } from "../llm/planContext.js";
 import { loadThresholdHistoryForUser } from "../metrics/store.js";
-import { startOfWeek } from "../plans/dates.js";
+import { startOfWeek } from "@killingit/shared";
 import { loadCoachingInputs, type CoachingInputs } from "../plans/inputs.js";
 import { ftpTimeline, type ThresholdTimeline } from "./thresholds.js";
 
