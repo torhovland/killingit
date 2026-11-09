@@ -1,8 +1,8 @@
-import { useState } from "react";
 import type { PeriodReview, ReviewKind } from "@killingit/shared";
 import { Bullet } from "./Bullet";
+import { CommentSection } from "./CommentSection";
 import { FormattedText } from "./FormattedText";
-import { SubmitButton } from "./SubmitButton";
+import { useCommentForm } from "./useCommentForm";
 
 const KIND_LABELS: Record<ReviewKind, string> = {
   week: "Week review",
@@ -31,73 +31,20 @@ export function PeriodReviewCard({
   /** Show the week's saved note and the coach's reply for reference. */
   showWeeklyNote?: boolean;
 }) {
-  const [comment, setComment] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [dismissing, setDismissing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [savedComment, setSavedComment] = useState<string | null>(null);
-  const [coachReply, setCoachReply] = useState<string | null>(null);
-  const [editing, setEditing] = useState(false);
-
-  async function handleSubmit(
-    event: React.FormEvent<HTMLFormElement>,
-  ): Promise<void> {
-    event.preventDefault();
-    if (!onSubmitComment || !comment.trim()) {
-      return;
-    }
-    const submitted = comment.trim();
-    setSubmitting(true);
-    setError(null);
-    try {
-      const reply = await onSubmitComment(
-        review.kind,
-        review.startDate,
-        submitted,
-        shownComment === null ? "create" : "edit",
-      );
-      setSavedComment(submitted);
-      setCoachReply(reply);
-      setComment("");
-      setEditing(false);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Could not save comment");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  function handleEditComment(): void {
-    setComment(shownComment ?? "");
-    setError(null);
-    setEditing(true);
-  }
-
-  function handleCancelEdit(): void {
-    setEditing(false);
-    setComment("");
-    setError(null);
-  }
-
-  async function handleNoComment(): Promise<void> {
-    if (!onNoComment || dismissing) {
-      return;
-    }
-    setDismissing(true);
-    setError(null);
-    try {
-      await onNoComment(review.kind, review.startDate);
-    } catch (err: unknown) {
-      setError(
-        err instanceof Error ? err.message : "Could not mark the review",
-      );
-    } finally {
-      setDismissing(false);
-    }
-  }
-
-  const shownComment = savedComment ?? review.comment;
-  const shownReply = coachReply ?? review.coachReply?.text ?? null;
+  const commentForm = useCommentForm({
+    storedComment: review.comment,
+    storedReply: review.coachReply?.text ?? null,
+    onSubmit:
+      onSubmitComment === undefined
+        ? undefined
+        : (comment, mode) =>
+            onSubmitComment(review.kind, review.startDate, comment, mode),
+    onDismiss:
+      onNoComment === undefined
+        ? undefined
+        : () => onNoComment(review.kind, review.startDate),
+    dismissErrorMessage: "Could not mark the review",
+  });
 
   return (
     <article
@@ -139,82 +86,23 @@ export function PeriodReviewCard({
         </div>
       )}
 
-      {shownComment && (
-        <div className="flex flex-wrap items-baseline gap-2 text-base">
-          <p data-testid="period-review-comment">
-            <span className="font-medium">You:</span> {shownComment}
-          </p>
-          {onSubmitComment && !editing && (
-            <button
-              type="button"
-              className="text-sm text-muted-foreground hover:underline"
-              onClick={handleEditComment}
-              data-testid="period-review-comment-edit"
-            >
-              Edit comment
-            </button>
-          )}
-        </div>
-      )}
-
-      {shownReply && (
-        <div
-          className="flex flex-col gap-1 text-base"
-          data-testid="period-review-coach-reply"
-        >
-          <span className="font-medium">Coach:</span>
-          <FormattedText text={shownReply} />
-        </div>
-      )}
-
-      {onSubmitComment && (shownComment === null || editing) && (
-        <form
-          className="flex flex-col gap-2"
-          onSubmit={(event) => void handleSubmit(event)}
-          data-testid="period-review-comment-form"
-        >
-          <textarea
-            aria-label={`Comment about this ${review.kind}`}
-            className="w-full rounded border bg-card p-2 text-base"
-            placeholder="How did the week or block feel? Anything the coach should know?"
-            value={comment}
-            onChange={(event) => setComment(event.target.value)}
-            disabled={submitting}
-            rows={4}
-          />
-          {error && <p className="text-sm text-destructive">{error}</p>}
-          <div className="flex flex-wrap gap-2">
-            <SubmitButton
-              busy={submitting}
-              className="self-start rounded border border-transparent bg-primary px-3 py-1 text-base text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
-              disabled={!comment.trim()}
-            >
-              {submitting ? "Coach is thinking…" : "Send to coach"}
-            </SubmitButton>
-            {shownComment !== null && (
-              <button
-                type="button"
-                className="self-start rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted disabled:opacity-50"
-                onClick={handleCancelEdit}
-                disabled={submitting}
-              >
-                Cancel
-              </button>
-            )}
-            {onNoComment && shownComment === null && (
-              <button
-                type="button"
-                className="self-start rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted disabled:opacity-50"
-                onClick={() => void handleNoComment()}
-                disabled={dismissing || submitting}
-                data-testid="period-review-no-comment"
-              >
-                {dismissing ? "Saving…" : "No comment"}
-              </button>
-            )}
+      <CommentSection
+        form={commentForm}
+        editable={onSubmitComment !== undefined}
+        testIdPrefix="period-review"
+        ariaLabel={`Comment about this ${review.kind}`}
+        placeholder="How did the week or block feel? Anything the coach should know?"
+      >
+        {commentForm.shownReply && (
+          <div
+            className="flex flex-col gap-1 text-base"
+            data-testid="period-review-coach-reply"
+          >
+            <span className="font-medium">Coach:</span>
+            <FormattedText text={commentForm.shownReply} />
           </div>
-        </form>
-      )}
+        )}
+      </CommentSection>
     </article>
   );
 }
