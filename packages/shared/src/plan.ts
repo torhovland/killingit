@@ -273,9 +273,15 @@ export const dayPlanSchema = z.object({
   optional: z.boolean().default(false),
   /**
    * What the session builds toward the plan's goal and what skipping it would
-   * cost; for an optional session, why that cost is acceptable today.
+   * cost; for an optional session, why that cost is acceptable today. A blank
+   * value means the coach had nothing to add, which is common on a rest day and
+   * must not reject the whole plan.
    */
-  optionalRationale: z.string().min(1).optional(),
+  optionalRationale: z.preprocess(
+    (value) =>
+      typeof value === "string" && value.trim() === "" ? undefined : value,
+    z.string().min(1).optional(),
+  ),
   /**
    * What happened on this day. Today is `completed` or `partial` when an
    * activity was recorded; otherwise it stays `planned`, or `rest` on rest days.

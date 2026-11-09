@@ -57,6 +57,7 @@ No change to `coachPlans` or the API. The meaning of the existing
 
 `optionalRationale` stays optional in the schema so plans stored before this
 change still parse; new generations are prompted to provide it for workouts.
+A blank value is read as absent, so a rest day with no skip note still parses.
 
 ## Technical approach
 

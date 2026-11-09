@@ -7,8 +7,12 @@ export const GENERATION_HEARTBEAT_MS = 15_000;
  * A running generation that has not refreshed its status for this long is
  * assumed to belong to a process that stopped (for example a restart or a
  * crashed instance). It must not block the athlete from trying again.
+ *
+ * This lease must outlast the longest provider request: OpenRouter calls time
+ * out after four minutes, and a Cloud Run instance can stop refreshing the
+ * heartbeat while it waits on one.
  */
-export const STALE_GENERATION_MS = 2 * 60 * 1000;
+export const STALE_GENERATION_MS = 5 * 60 * 1000;
 
 /**
  * Raised when a newer run has taken ownership of the generation row. The old
