@@ -225,6 +225,13 @@ computed from the stored plan, so the first visit after a rollover still starts
 a generation that persists the promotion and captures the ended period's
 review.
 
+Every route reads the stored plan through one loader (`loadValidatedPlan`) that
+checks the stored JSON against the current `coachPlanSchema`. A row written by
+an older schema or by a partial write is treated as absent so the client can
+regenerate it. The first read of that save logs the plan id, date, generation
+time and failing paths — never the plan body — so a corrupt row is visible in
+logs and Sentry without flooding them while the plan endpoint is polled.
+
 ## Generation flow
 
 1. `POST` calls `plan_generations.begin`. If already running, return `202`.

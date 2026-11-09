@@ -1,4 +1,8 @@
-import type { CoachPlan, PlanGenerationStatus } from "@killingit/shared";
+import {
+  coachPlanSchema,
+  type CoachPlan,
+  type PlanGenerationStatus,
+} from "@killingit/shared";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "../db/index.js";
 import {
@@ -19,6 +23,8 @@ import {
 
 /** A persisted plan plus the answer timestamp it was generated from. */
 export interface StoredPlan {
+  /** The row id. Absent in the database-free test stores. */
+  id?: number;
   plan: CoachPlan;
   answersUpdatedAt: Date | null;
   coachingInputsUpdatedAt: Date | null;
@@ -71,6 +77,7 @@ export interface PlanGenerationStore {
 
 function toStoredPlan(row: CoachPlanRow): StoredPlan {
   return {
+    id: row.id,
     plan: {
       season: row.season,
       block: row.block,
@@ -411,6 +418,61 @@ export const dbPlanGenerationStore: PlanGenerationStore = {
     return row.startedAt;
   },
 };
+
+/**
+ * Plans already reported as invalid, keyed by user and save time. The plan
+ * endpoints are polled while a generation runs, so a corrupt row must not log on
+ * every read. A later save gets a new generation time and is reported again.
+ */
+const reportedInvalidPlans = new Set<string>();
+
+/** Reads the plan date from an unvalidated body without trusting its shape. */
+function storedPlanDate(plan: unknown): string | null {
+  if (typeof plan !== "object" || plan === null) {
+    return null;
+  }
+  const today: unknown = (plan as { today?: unknown }).today;
+  if (typeof today !== "object" || today === null) {
+    return null;
+  }
+  const date: unknown = (today as { date?: unknown }).date;
+  return typeof date === "string" ? date : null;
+}
+
+/**
+ * Loads the stored plan and checks its JSON against the current schema. A row
+ * written under an older schema or by a partial write is treated as absent so
+ * the client can regenerate it, and the failure is logged once with the plan's
+ * id, date, and generation time but never its body.
+ */
+export async function loadValidatedPlan(
+  store: PlanStore,
+  userId: number,
+): Promise<StoredPlan | null> {
+  const stored = await store.load(userId);
+  if (stored === null) {
+    return null;
+  }
+  const parsed = coachPlanSchema.safeParse(stored.plan);
+  if (parsed.success) {
+    return { ...stored, plan: parsed.data };
+  }
+
+  const key = `${userId}:${stored.generatedAt.getTime()}`;
+  if (!reportedInvalidPlans.has(key)) {
+    reportedInvalidPlans.add(key);
+    console.error("[plan] stored plan failed schema validation:", {
+      planId: stored.id ?? null,
+      planDate: storedPlanDate(stored.plan),
+      generatedAt: stored.generatedAt.toISOString(),
+      issues: parsed.error.issues.map((issue) => ({
+        path: issue.path.join("."),
+        code: issue.code,
+      })),
+    });
+  }
+  return null;
+}
 
 /** The status returned before the first generation has ever run. */
 export function idleGenerationStatus(): PlanGenerationStatus {

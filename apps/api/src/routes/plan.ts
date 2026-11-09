@@ -1,6 +1,5 @@
 import {
   coachPlanResponseSchema,
-  coachPlanSchema,
   hasExportableBikeWorkout,
   planDateSchema,
   planGenerateInputSchema,
@@ -27,6 +26,7 @@ import {
   planIsStale,
   planPending,
 } from "../plans/status.js";
+import { loadValidatedPlan } from "../plans/store.js";
 import { triggerPlanGeneration } from "../plans/trigger.js";
 import { planWeatherChanged } from "../weather/changes.js";
 import { fetchWeatherForecasts } from "../weather/forecast.js";
@@ -122,7 +122,7 @@ export function createPlanRoute(deps: ResolvedAppDependencies): Hono {
       thresholds,
       events,
     ] = await Promise.all([
-      deps.planStore.load(userId),
+      loadValidatedPlan(deps.planStore, userId),
       deps.generationStore.load(userId),
       deps.answerStore.listForUser(userId),
       deps.loadCoachingInputs
@@ -160,27 +160,20 @@ export function createPlanRoute(deps: ResolvedAppDependencies): Hono {
     }
     const answersUpdatedAt = latestAnswerTimestamp(answers);
 
-    // A plan saved under an older schema (or a partial write) must not crash
-    // the endpoint. Treat it as absent so the client can regenerate it.
-    const parsed = storedPlan
-      ? coachPlanSchema.safeParse(storedPlan.plan)
-      : null;
-    const stored = parsed?.success ? parsed.data : null;
     // Show a next week or block as current once today has reached it, even
     // before the background promotion has been persisted.
-    const plan = stored === null ? null : promoteNextPeriod(stored, today);
+    const plan =
+      storedPlan === null ? null : promoteNextPeriod(storedPlan.plan, today);
     const generatedAt =
-      storedPlan && parsed?.success
-        ? storedPlan.generatedAt.toISOString()
-        : null;
+      storedPlan === null ? null : storedPlan.generatedAt.toISOString();
     const stale =
-      storedPlan && parsed?.success
-        ? planIsStale(storedPlan.answersUpdatedAt, answersUpdatedAt) ||
+      storedPlan === null
+        ? false
+        : planIsStale(storedPlan.answersUpdatedAt, answersUpdatedAt) ||
           planIsStale(
             storedPlan.coachingInputsUpdatedAt,
             coachingInputs.updatedAt,
-          )
-        : false;
+          );
     // A generated week review or an answer to one revises the block, even while
     // today is still inside the stored block's dates.
     // No week review is not a week review event. `planIsStale` treats a missing
@@ -188,9 +181,7 @@ export function createPlanRoute(deps: ResolvedAppDependencies): Hono {
     // would report the block pending forever while the generator, which checks
     // that a review exists, has nothing to revise.
     const weekReviewPending =
-      storedPlan &&
-      parsed?.success &&
-      coachingInputs.weekReviewUpdatedAt !== null
+      storedPlan !== null && coachingInputs.weekReviewUpdatedAt !== null
         ? planIsStale(
             storedPlan.coachingInputsUpdatedAt,
             coachingInputs.weekReviewUpdatedAt,
@@ -210,7 +201,7 @@ export function createPlanRoute(deps: ResolvedAppDependencies): Hono {
       generation,
       stale,
       pending: planPending(
-        stored,
+        storedPlan === null ? null : storedPlan.plan,
         today,
         includeTomorrow,
         weatherChanged,
@@ -247,13 +238,11 @@ export function createPlanRoute(deps: ResolvedAppDependencies): Hono {
         return c.text("A valid date (YYYY-MM-DD) is required", 400);
       }
       const user = await deps.userStore.ensureUser(getAthlete(c).sub);
-      const stored = await deps.planStore.load(user.id);
-      const parsed =
-        stored === null ? null : coachPlanSchema.safeParse(stored.plan);
-      if (parsed === null || !parsed.success) {
+      const stored = await loadValidatedPlan(deps.planStore, user.id);
+      if (stored === null) {
         return c.text("No coach plan is available", 404);
       }
-      const workout = findExportableBikeWorkout(parsed.data, date.data);
+      const workout = findExportableBikeWorkout(stored.plan, date.data);
       if (workout === null) {
         return c.text("No downloadable bike workout for that date", 404);
       }
