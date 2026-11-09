@@ -1,6 +1,5 @@
 import {
   calendarResponseSchema,
-  coachPlanSchema,
   EMPTY_WEEK_STATS,
   eventEndDate,
   planDateSchema,
@@ -26,6 +25,7 @@ import {
 } from "../plans/replies.js";
 import { loadManualActivities } from "../plans/inputs.js";
 import { promoteNextPeriod } from "../plans/periods.js";
+import { loadValidatedPlan } from "../plans/store.js";
 import type { ResolvedAppDependencies } from "../dependencies.js";
 import {
   loadPlanWeekTotals,
@@ -426,7 +426,7 @@ export function createCalendarRoute(deps: ResolvedAppDependencies): Hono {
         loadFeed(user.id),
         loadManual(user.id),
         loadReplies(user.id),
-        deps.planStore.load(user.id),
+        loadValidatedPlan(deps.planStore, user.id),
         loadEvents(user.id).catch((err: unknown) => {
           // Events are advisory. A read failure must not empty the calendar.
           console.error("[calendar] could not load the athlete's events:", err);
@@ -442,12 +442,8 @@ export function createCalendarRoute(deps: ResolvedAppDependencies): Hono {
           return new Map<string, WeekPlanTotals>();
         }),
       ]);
-      const parsedPlan =
-        stored === null ? null : coachPlanSchema.safeParse(stored.plan);
       const plan =
-        parsedPlan !== null && parsedPlan.success
-          ? promoteNextPeriod(parsedPlan.data, today.data)
-          : null;
+        stored === null ? null : promoteNextPeriod(stored.plan, today.data);
 
       return c.json(
         buildCalendar({

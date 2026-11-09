@@ -1,5 +1,4 @@
 import {
-  coachPlanSchema,
   DEFAULT_FITNESS_RANGE,
   fitnessHistoryResponseSchema,
   fitnessRangeSchema,
@@ -9,6 +8,7 @@ import { Hono } from "hono";
 import { getAthlete } from "../auth/middleware.js";
 import { loadCachedActivityFeed } from "../coaching/feedCache.js";
 import type { ResolvedAppDependencies } from "../dependencies.js";
+import { loadValidatedPlan } from "../plans/store.js";
 import { loadFitnessHistory } from "../training/history.js";
 
 /**
@@ -38,14 +38,12 @@ export function createFitnessRoute(deps: ResolvedAppDependencies): Hono {
       const user = await deps.userStore.ensureUser(getAthlete(c).sub);
       const [feed, stored] = await Promise.all([
         loadFeed(user.id),
-        deps.planStore.load(user.id),
+        loadValidatedPlan(deps.planStore, user.id),
       ]);
-      const parsedPlan =
-        stored === null ? null : coachPlanSchema.safeParse(stored.plan);
       const history = await loadHistory(
         user.id,
         feed?.activities ?? [],
-        parsedPlan?.success ? parsedPlan.data : undefined,
+        stored?.plan,
         today.data,
         range.data,
         user.dietAdvice,
