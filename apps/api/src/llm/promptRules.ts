@@ -514,7 +514,7 @@ export const FOOD_ANALYSIS_RESPONSE_RULES = promptSections(
   "caloriesKcal": 0,
   "dietFit": "string"
 }`,
-  `Replace "meal" with one short paragraph describing what you understand the athlete ate. Replace the four numbers with your best estimate for the whole meal, in grams for the macronutrients and kilocalories for energy. Send whole numbers, never ranges or text. When the description or photo does not give a quantity, assume an ordinary portion and say so in "meal". Put your comment on how the meal fits the athlete's goal, training and recent food log in "dietFit".`,
+  `Replace "meal" with one short paragraph that adds to the athlete's own description rather than repeating it. Say what the photo confirms or shows beyond the description, and state any assumption you make, such as whether a weight is cooked or raw or how a mixed portion splits. Never describe the meal back to the athlete or restate the ingredients, weights or wording they already gave; their description is shown separately. When there is no description, identify and describe the meal from the photo. Replace the four numbers with your best estimate for the whole meal, in grams for the macronutrients and kilocalories for energy. Send whole numbers, never ranges or text. When the description or photo does not give a quantity, assume an ordinary portion and say so in "meal". Put your comment on how the meal fits the athlete's goal, training and recent food log in "dietFit".`,
   DIET_RULES,
   JSON_ONLY_RULES,
 );
