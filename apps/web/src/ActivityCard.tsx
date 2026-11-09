@@ -10,10 +10,11 @@ import { ActivityMap } from "./ActivityMap";
 import { ActivityLaps } from "./ActivityLaps";
 import { ActivitySamples } from "./ActivitySamples";
 import { Bullet, Bullets } from "./Bullet";
+import { CommentSection } from "./CommentSection";
 import { formatDuration } from "./formatDuration";
 import { FormattedText } from "./FormattedText";
-import { SubmitButton } from "./SubmitButton";
 import { TrainingLoadLine } from "./TrainingLoadLine";
+import { useCommentForm } from "./useCommentForm";
 import { useTimeZone } from "./TimeZoneContext";
 import { formatDateTime } from "./timeZone";
 
@@ -41,15 +42,22 @@ export function ActivityCard({
   onDelete?: (activityId: string) => Promise<void>;
 }) {
   const timeZone = useTimeZone();
-  const [comment, setComment] = useState("");
-  const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [savedComment, setSavedComment] = useState<string | null>(null);
-  const [coachReply, setCoachReply] = useState<string | null>(null);
-  const [editing, setEditing] = useState(false);
-  const [dismissing, setDismissing] = useState(false);
+  const commentForm = useCommentForm({
+    storedComment: activity.comment,
+    storedReply: activity.coachReply?.text ?? null,
+    onSubmit:
+      onSubmitComment === undefined
+        ? undefined
+        : (comment, mode) =>
+            onSubmitComment(String(activity.id), comment, mode),
+    onDismiss:
+      onNoComment === undefined
+        ? undefined
+        : () => onNoComment(String(activity.id)),
+    dismissErrorMessage: "Could not mark the activity",
+  });
 
   async function handleDelete(): Promise<void> {
     if (!onDelete || deleting) {
@@ -71,68 +79,11 @@ export function ActivityCard({
     }
   }
 
-  async function handleSubmit(
-    event: React.FormEvent<HTMLFormElement>,
-  ): Promise<void> {
-    event.preventDefault();
-    if (!onSubmitComment || !comment.trim()) {
-      return;
-    }
-    const submitted = comment.trim();
-    setSubmitting(true);
-    setError(null);
-    try {
-      const reply = await onSubmitComment(
-        String(activity.id),
-        submitted,
-        shownComment === null ? "create" : "edit",
-      );
-      setSavedComment(submitted);
-      setCoachReply(reply);
-      setComment("");
-      setEditing(false);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Could not save comment");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  function handleEditComment(): void {
-    setComment(shownComment ?? "");
-    setError(null);
-    setEditing(true);
-  }
-
-  function handleCancelEdit(): void {
-    setEditing(false);
-    setComment("");
-    setError(null);
-  }
-
-  async function handleNoComment(): Promise<void> {
-    if (!onNoComment || dismissing) {
-      return;
-    }
-    setDismissing(true);
-    setError(null);
-    try {
-      await onNoComment(String(activity.id));
-    } catch (err: unknown) {
-      setError(
-        err instanceof Error ? err.message : "Could not mark the activity",
-      );
-    } finally {
-      setDismissing(false);
-    }
-  }
-
-  const shownComment = savedComment ?? activity.comment;
-  const shownReply = coachReply ?? activity.coachReply?.text ?? null;
   // Activity-comment replies are written by the background run, so the comment
   // can be saved before the reply exists. Keep the coach's side of the
   // conversation visible with a thinking placeholder until the reply arrives.
-  const awaitingReply = shownComment !== null && shownReply === null;
+  const awaitingReply =
+    commentForm.shownComment !== null && commentForm.shownReply === null;
   // Plan fit is part of the coach summary, not its own section. The general
   // analysis is the current review; an older stored program review is only a
   // fallback for activities that predate the single-review prompt.
@@ -234,91 +185,33 @@ export function ActivityCard({
         <ActivityLaps laps={activity.laps} activityType={activity.type} />
       )}
 
-      {shownComment && (
-        <div className="flex flex-wrap items-baseline gap-2 text-base">
-          <p data-testid="activity-comment">
-            <span className="font-medium">You:</span> {shownComment}
-          </p>
-          {onSubmitComment && !editing && (
-            <button
-              type="button"
-              className="text-sm text-muted-foreground hover:underline"
-              onClick={handleEditComment}
-              data-testid="activity-comment-edit"
-            >
-              Edit comment
-            </button>
-          )}
-        </div>
-      )}
-
-      {shownReply !== null ? (
-        <div
-          className="flex flex-col gap-1 text-base"
-          data-testid="activity-coach-reply"
-        >
-          <span className="font-medium">Coach:</span>
-          <FormattedText text={shownReply} />
-        </div>
-      ) : awaitingReply ? (
-        <p
-          className="text-base text-muted-foreground"
-          data-testid="activity-coach-reply-pending"
-          aria-live="polite"
-        >
-          <span className="font-medium text-foreground">Coach:</span> thinking…
-        </p>
-      ) : null}
-
-      {onSubmitComment && (shownComment === null || editing) && (
-        <form
-          className="flex flex-col gap-2"
-          onSubmit={(event) => void handleSubmit(event)}
-          data-testid="activity-comment-form"
-        >
-          <textarea
-            id={`activity-comment-${activity.id}`}
-            aria-label="Comment about this activity"
-            className="w-full rounded border bg-card p-2 text-base"
-            placeholder="How did it feel? Anything the coach should know?"
-            value={comment}
-            onChange={(event) => setComment(event.target.value)}
-            disabled={submitting}
-            rows={4}
-          />
-          {error && <p className="text-sm text-destructive">{error}</p>}
-          <div className="flex flex-wrap gap-2">
-            <SubmitButton
-              busy={submitting}
-              className="self-start rounded border border-transparent bg-primary px-3 py-1 text-base text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
-              disabled={!comment.trim()}
-            >
-              {submitting ? "Coach is thinking…" : "Send to coach"}
-            </SubmitButton>
-            {shownComment !== null && (
-              <button
-                type="button"
-                className="self-start rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted disabled:opacity-50"
-                onClick={handleCancelEdit}
-                disabled={submitting}
-              >
-                Cancel
-              </button>
-            )}
-            {onNoComment && shownComment === null && (
-              <button
-                type="button"
-                className="self-start rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted disabled:opacity-50"
-                onClick={() => void handleNoComment()}
-                disabled={dismissing || submitting}
-                data-testid="activity-no-comment"
-              >
-                {dismissing ? "Saving…" : "No comment"}
-              </button>
-            )}
+      <CommentSection
+        form={commentForm}
+        editable={onSubmitComment !== undefined}
+        testIdPrefix="activity"
+        textareaId={`activity-comment-${activity.id}`}
+        ariaLabel="Comment about this activity"
+        placeholder="How did it feel? Anything the coach should know?"
+      >
+        {commentForm.shownReply !== null ? (
+          <div
+            className="flex flex-col gap-1 text-base"
+            data-testid="activity-coach-reply"
+          >
+            <span className="font-medium">Coach:</span>
+            <FormattedText text={commentForm.shownReply} />
           </div>
-        </form>
-      )}
+        ) : awaitingReply ? (
+          <p
+            className="text-base text-muted-foreground"
+            data-testid="activity-coach-reply-pending"
+            aria-live="polite"
+          >
+            <span className="font-medium text-foreground">Coach:</span>{" "}
+            thinking…
+          </p>
+        ) : null}
+      </CommentSection>
     </article>
   );
 }
