@@ -1,7 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import { Hono } from "hono";
-import app from "./index";
+import app, { createApp } from "./index";
 import { withSentry } from "./instrumentation/sentry.js";
+import type { UserStore } from "./users/store.js";
 
 /**
  * One sample route from every protected family. Authentication is applied to
@@ -62,6 +63,37 @@ describe("api", () => {
       new Request("http://localhost/api/not-a-registered-route"),
     );
     expect(res.status).toBe(401);
+  });
+});
+
+describe("authenticated account resolution", () => {
+  const failingUserStore: UserStore = {
+    ensureUser: () => Promise.reject(new Error("database down")),
+    getById: () => Promise.reject(new Error("database down")),
+    deleteUser: () => Promise.reject(new Error("database down")),
+    updateSettings: () => Promise.reject(new Error("database down")),
+  };
+
+  const appWith = (userStore: UserStore) =>
+    createApp({
+      authProvider: { verify: () => Promise.resolve({ sub: "athlete-1" }) },
+      userStore,
+    });
+
+  it("returns 503 when the signed-in account cannot be resolved", async () => {
+    const res = await appWith(failingUserStore).fetch(
+      new Request("http://localhost/api/questions", {
+        headers: { authorization: "Bearer anything" },
+      }),
+    );
+    expect(res.status).toBe(503);
+  });
+
+  it("leaves the public paths working when the account store is down", async () => {
+    const res = await appWith(failingUserStore).fetch(
+      new Request("http://localhost/api/health"),
+    );
+    expect(res.status).toBe(200);
   });
 });
 

@@ -9,7 +9,7 @@ import {
 } from "@killingit/shared";
 import { z } from "zod";
 import type { Context } from "hono";
-import { getAthlete } from "../../auth/middleware.js";
+import { getUser } from "../../auth/middleware.js";
 import { toPeriodReview } from "../../plans/periodReviews.js";
 import { replyTo, type ResolvedCoachingDependencies } from "./dependencies.js";
 
@@ -50,7 +50,7 @@ export function createReviewHandlers(deps: ResolvedCoachingDependencies) {
       return c.text("Invalid review", 400);
     }
 
-    const user = await deps.users.ensureUser(getAthlete(c).sub);
+    const user = getUser(c);
     const stored = await deps.loadReview(
       user.id,
       review.kind,
@@ -115,7 +115,7 @@ export function createReviewHandlers(deps: ResolvedCoachingDependencies) {
       return c.text("Invalid review", 400);
     }
 
-    const user = await deps.users.ensureUser(getAthlete(c).sub);
+    const user = getUser(c);
     const updated = await deps.markReviewReviewed(
       user.id,
       review.kind,
@@ -133,7 +133,7 @@ export function createReviewHandlers(deps: ResolvedCoachingDependencies) {
 
   return {
     async list(c: Context) {
-      const user = await deps.users.ensureUser(getAthlete(c).sub);
+      const user = getUser(c);
       const entries = await deps.loadReviews(user.id);
       const reviews: PeriodReview[] = entries
         .map(toPeriodReview)

@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { Hono } from "hono";
-import { requireAuth } from "../auth/middleware.js";
+import { requireAuth, requireUser } from "../auth/middleware.js";
 import type { Activity } from "@killingit/shared";
 import type { GarminCredentials } from "../garmin/client.js";
 import { GarminAuthError, type SyncTransport } from "../garmin/client.js";
@@ -67,10 +67,10 @@ function makeApp(authenticate?: () => Promise<boolean>) {
     "/garmin/*",
     requireAuth({ verify: (token) => Promise.resolve({ sub: token }) }),
   );
+  app.use("/garmin/*", requireUser(users));
   app.route(
     "/garmin",
     createGarminRoute({
-      users,
       loadStoredCredentials: (userId) =>
         Promise.resolve(stored.get(userId) ?? null),
       saveStoredCredentials: (userId, credentials) => {

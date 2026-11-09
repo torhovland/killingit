@@ -5,7 +5,7 @@ import {
 import { Hono } from "hono";
 import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
-import { getAthlete } from "../auth/middleware.js";
+import { getUser } from "../auth/middleware.js";
 import {
   authenticateGarmin,
   GarminAuthError,
@@ -18,7 +18,6 @@ import { encrypt, garminCredentialsKeyFromEnv } from "../garmin/crypto.js";
 import { loadCredentials, saveCredentials } from "../garmin/store.js";
 import { syncGarminDailyHistory } from "../garmin/dailySync.js";
 import { recordGarminBodyMetrics, recordGarminFtp } from "../metrics/store.js";
-import type { UserStore } from "../users/store.js";
 
 /** Request body for POST /credentials — raw (soon-to-be-encrypted) values. */
 const credentialsSchema = z.object({
@@ -27,7 +26,6 @@ const credentialsSchema = z.object({
 });
 
 export interface GarminRouteDependencies {
-  users: UserStore;
   /** Injectable for tests; default to the database-backed store. */
   loadStoredCredentials?: typeof loadCredentials;
   saveStoredCredentials?: typeof saveCredentials;
@@ -48,7 +46,7 @@ export interface GarminRouteDependencies {
  * scope credentials to the signed-in account. Credentials/ciphertext are never
  * serialized back to the client.
  */
-export function createGarminRoute(deps: GarminRouteDependencies): Hono {
+export function createGarminRoute(deps: GarminRouteDependencies = {}): Hono {
   const loadStored = deps.loadStoredCredentials ?? loadCredentials;
   const saveStored = deps.saveStoredCredentials ?? saveCredentials;
   const loadDecrypted =
@@ -62,7 +60,7 @@ export function createGarminRoute(deps: GarminRouteDependencies): Hono {
 
   return new Hono()
     .post("/credentials", zValidator("json", credentialsSchema), async (c) => {
-      const user = await deps.users.ensureUser(getAthlete(c).sub);
+      const user = getUser(c);
       const { username, password } = c.req.valid("json");
 
       let key;
@@ -98,7 +96,7 @@ export function createGarminRoute(deps: GarminRouteDependencies): Hono {
       return c.json(garminConnectionStatusSchema.parse({ connected: true }));
     })
     .get("/status", async (c) => {
-      const user = await deps.users.ensureUser(getAthlete(c).sub);
+      const user = getUser(c);
       const stored = await loadStored(user.id);
       const status: GarminConnectionStatus = {
         connected: stored !== null,
@@ -106,7 +104,7 @@ export function createGarminRoute(deps: GarminRouteDependencies): Hono {
       return c.json(garminConnectionStatusSchema.parse(status));
     })
     .get("/activities", async (c) => {
-      const user = await deps.users.ensureUser(getAthlete(c).sub);
+      const user = getUser(c);
 
       let credentials;
       try {

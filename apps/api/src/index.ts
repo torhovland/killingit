@@ -3,7 +3,7 @@ import type { MiddlewareHandler } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { createAuthProvider } from "./auth/index.js";
-import { requireAdmin, requireAuth } from "./auth/middleware.js";
+import { requireAdmin, requireAuth, requireUser } from "./auth/middleware.js";
 import type { AuthProvider } from "./auth/provider.js";
 import type {
   AppDependencies,
@@ -64,6 +64,12 @@ const PUBLIC_API_PATHS: ReadonlySet<string> = new Set([
 // than crashing at startup.
 let cachedAuth: AuthProvider | null = null;
 
+/** Runs `handler` unless the request is one of the allowlisted public paths. */
+function unlessPublic(handler: MiddlewareHandler): MiddlewareHandler {
+  return async (c, next) =>
+    PUBLIC_API_PATHS.has(c.req.path) ? next() : handler(c, next);
+}
+
 /** Builds the Hono app. Dependencies are injectable so tests stay DB-free. */
 export function createApp(options: AppDependencies = {}): Hono {
   const authProvider =
@@ -108,39 +114,32 @@ export function createApp(options: AppDependencies = {}): Hono {
 
   const api = new Hono().route("/health", health).route("/greet", greet);
 
-  // Authenticate the whole API by default and allow only the listed paths
-  // through. This runs before the sub-app routes, so a handler below is never
-  // reached without an athlete on the context, whatever its prefix is.
-  const authenticate = requireAuth(authProvider);
-  const authenticateApi: MiddlewareHandler = async (c, next) => {
-    if (PUBLIC_API_PATHS.has(c.req.path)) {
-      return next();
-    }
-    return authenticate(c, next);
-  };
-  app.use("/api/*", authenticateApi);
+  // Authenticate the whole API by default, then resolve the account behind the
+  // token, and allow only the listed paths through without either. This runs
+  // before the sub-app routes, so a handler below always has an athlete and a
+  // user on the context, whatever its prefix is.
+  app.use(
+    "/api/*",
+    unlessPublic(requireAuth(authProvider)),
+    unlessPublic(requireUser(deps.userStore)),
+  );
 
-  // /api/me also provisions the account on first sign-in and returns its role.
+  // /api/me returns the account already resolved by the middleware and owns
+  // its own settings updates and deletion.
   api.route("/me", createMeRoute(deps.userStore));
 
   // Athlete-facing questionnaire. Answers are scoped to the signed-in account
   // and gate the coaching dashboard until every active question is resolved.
-  api.route(
-    "/questions",
-    createQuestionsRoute({
-      users: deps.userStore,
-      answers: deps.answerStore,
-    }),
-  );
+  api.route("/questions", createQuestionsRoute({ answers: deps.answerStore }));
 
   // Garmin integration is authenticated and per-user. Credentials are never
   // serialized in responses.
-  api.route("/garmin", createGarminRoute({ users: deps.userStore }));
+  api.route("/garmin", createGarminRoute());
 
   // LLM provider configuration (API key + model) and model discovery, per
   // account. The key is validated, encrypted at rest, and never serialized back
   // to the client.
-  api.route("/llm", createLlmRoute({ users: deps.userStore }));
+  api.route("/llm", createLlmRoute());
 
   // Address search for the athlete's home location. The actual forecast is
   // fetched during plan generation, not exposed as a public route.
@@ -168,7 +167,7 @@ export function createApp(options: AppDependencies = {}): Hono {
 
   // Admin-only configuration. Only the admin (the first account in the
   // environment) may manage the versioned athlete question set (ADR 0006).
-  api.use("/admin/*", requireAdmin(deps.userStore));
+  api.use("/admin/*", requireAdmin());
   api.route("/admin/questions", adminQuestionsRoute);
   api.route("/admin/llm-calls", createAdminLlmCallsRoute(deps.adminLlmCalls));
 

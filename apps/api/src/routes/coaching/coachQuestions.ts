@@ -7,7 +7,7 @@ import {
 } from "@killingit/shared";
 import type { Context } from "hono";
 import { z } from "zod";
-import { getAthlete } from "../../auth/middleware.js";
+import { getUser } from "../../auth/middleware.js";
 import { toCoachAnalysis } from "../../plans/replies.js";
 import type { ResolvedCoachingDependencies } from "./dependencies.js";
 
@@ -20,7 +20,7 @@ export function createCoachQuestionHandlers(
 ) {
   return {
     async list(c: Context) {
-      const user = await deps.users.ensureUser(getAthlete(c).sub);
+      const user = getUser(c);
       const [pending, answered] = await Promise.all([
         deps.loadPendingQuestion(user.id),
         deps.loadAnsweredQuestions(user.id),
@@ -29,7 +29,7 @@ export function createCoachQuestionHandlers(
     },
 
     async answer(c: Context, idParam: string, input: CoachQuestionAnswer) {
-      const user = await deps.users.ensureUser(getAthlete(c).sub);
+      const user = getUser(c);
       const id = Number(idParam);
       if (!Number.isInteger(id) || id <= 0) {
         return c.json({ message: "Invalid question" }, 400);
@@ -89,7 +89,7 @@ export function createCoachQuestionHandlers(
     },
 
     async ask(c: Context, input: QuickQuestion) {
-      const user = await deps.users.ensureUser(getAthlete(c).sub);
+      const user = getUser(c);
       const { today, question } = input;
 
       const answer = await deps.answerQuestion(

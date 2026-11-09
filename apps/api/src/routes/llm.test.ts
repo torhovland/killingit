@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import type { LlmCatalogModel, LlmCostsResponse } from "@killingit/shared";
 import { Hono } from "hono";
-import { requireAuth } from "../auth/middleware.js";
+import { requireAuth, requireUser } from "../auth/middleware.js";
 import { keyFromRaw } from "../crypto/credentials.js";
 import { LlmAuthError, type LlmProvider } from "../llm/openrouter.js";
 import type { StoredLlmSettings } from "../llm/store.js";
@@ -102,10 +102,8 @@ function makeApp(
     "*",
     requireAuth({ verify: () => Promise.resolve({ sub: "athlete-1" }) }),
   );
-  app.route(
-    "/llm",
-    createLlmRoute({ users: userStore, loadSettings, ...extras }),
-  );
+  app.use("*", requireUser(userStore));
+  app.route("/llm", createLlmRoute({ loadSettings, ...extras }));
   return app;
 }
 

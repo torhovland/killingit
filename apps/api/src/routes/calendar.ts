@@ -14,7 +14,7 @@ import {
   type WeekSession,
 } from "@killingit/shared";
 import { Hono } from "hono";
-import { getAthlete } from "../auth/middleware.js";
+import { getUser } from "../auth/middleware.js";
 import { loadCachedActivityFeed } from "../coaching/feedCache.js";
 import { loadAthleteEvents } from "../events/store.js";
 import type { ManualActivityContext } from "../llm/planContext.js";
@@ -414,7 +414,7 @@ export function createCalendarRoute(deps: ResolvedAppDependencies): Hono {
     }
 
     try {
-      const user = await deps.userStore.ensureUser(getAthlete(c).sub);
+      const user = getUser(c);
       const [
         feed,
         manualActivities,

@@ -467,7 +467,11 @@ Authentication is default-on for `/api/*`: `createApp` runs `requireAuth` once
 on the whole namespace and allows only the exact paths in `PUBLIC_API_PATHS`
 (`/api/health`, `/api/greet`) through unauthenticated. A new route is therefore
 protected without its own middleware, and making one public is a deliberate
-allowlist entry. See ADR 0024.
+allowlist entry. The same chain runs `requireUser`, which provisions the account
+on first sight and stores it on the context; handlers read it with `getUser(c)`
+and never call `ensureUser` themselves. `requireAdmin()` checks that account and
+returns 403 for a member, while a failure to resolve the account is 503. See
+`docs/specs/authenticated-user-middleware.md`, ADR 0024 and ADR 0026.
 
 A visitor who is not signed in sees the landing page in
 `apps/web/src/SignInPage.tsx`: a short explanation of the coach, what it covers,

@@ -9,7 +9,7 @@ import {
 } from "@killingit/shared";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
-import { getAthlete } from "../auth/middleware.js";
+import { getUser } from "../auth/middleware.js";
 import {
   planTriggerDependencies,
   type ResolvedAppDependencies,
@@ -215,7 +215,7 @@ export function createPlanRoute(deps: ResolvedAppDependencies): Hono {
 
   return new Hono()
     .get("/", async (c) => {
-      const user = await deps.userStore.ensureUser(getAthlete(c).sub);
+      const user = getUser(c);
       const today = planDateSchema.safeParse(c.req.query("today"));
       if (!today.success) {
         return c.text("A valid today date (YYYY-MM-DD) is required", 400);
@@ -237,7 +237,7 @@ export function createPlanRoute(deps: ResolvedAppDependencies): Hono {
       if (!date.success) {
         return c.text("A valid date (YYYY-MM-DD) is required", 400);
       }
-      const user = await deps.userStore.ensureUser(getAthlete(c).sub);
+      const user = getUser(c);
       const stored = await loadValidatedPlan(deps.planStore, user.id);
       if (stored === null) {
         return c.text("No coach plan is available", 404);
@@ -264,7 +264,7 @@ export function createPlanRoute(deps: ResolvedAppDependencies): Hono {
       "/generate",
       zValidator("json", planGenerateInputSchema),
       async (c) => {
-        const user = await deps.userStore.ensureUser(getAthlete(c).sub);
+        const user = getUser(c);
         const { today, timezone, mode, force, includeTomorrow } =
           c.req.valid("json");
 

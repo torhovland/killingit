@@ -11,7 +11,7 @@ import {
 } from "@killingit/shared";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
-import { getAthlete } from "../auth/middleware.js";
+import { getUser } from "../auth/middleware.js";
 import { toAnswerContext } from "../coaching/replies.js";
 import {
   loadReplyContext,
@@ -151,7 +151,7 @@ export function createDietRoute(deps: ResolvedAppDependencies): Hono {
       if (!today.success) {
         return c.text("A valid today date (YYYY-MM-DD) is required", 400);
       }
-      const user = await deps.userStore.ensureUser(getAthlete(c).sub);
+      const user = getUser(c);
       if (!user.dietAdvice) {
         return c.json(
           dietSummaryResponseSchema.parse({
@@ -190,7 +190,7 @@ export function createDietRoute(deps: ResolvedAppDependencies): Hono {
       );
     })
     .get("/entries", async (c) => {
-      const user = await deps.userStore.ensureUser(getAthlete(c).sub);
+      const user = getUser(c);
       const stored = await entries.listForUser(user.id);
       return c.json(
         foodEntriesResponseSchema.parse({
@@ -199,7 +199,7 @@ export function createDietRoute(deps: ResolvedAppDependencies): Hono {
       );
     })
     .post("/entries", zValidator("json", foodEntryRequestSchema), async (c) => {
-      const user = await deps.userStore.ensureUser(getAthlete(c).sub);
+      const user = getUser(c);
       if (!user.dietAdvice) {
         return c.text(
           "Diet advice is not enabled. Turn it on in Settings first.",
@@ -268,7 +268,7 @@ export function createDietRoute(deps: ResolvedAppDependencies): Hono {
         if (!Number.isInteger(id) || id <= 0) {
           return c.text("Invalid meal", 400);
         }
-        const user = await deps.userStore.ensureUser(getAthlete(c).sub);
+        const user = getUser(c);
         if (!user.dietAdvice) {
           return c.text(
             "Diet advice is not enabled. Turn it on in Settings first.",
@@ -363,7 +363,7 @@ export function createDietRoute(deps: ResolvedAppDependencies): Hono {
       if (!Number.isInteger(id) || id <= 0) {
         return c.text("Invalid meal", 400);
       }
-      const user = await deps.userStore.ensureUser(getAthlete(c).sub);
+      const user = getUser(c);
       const dataUrl = await entries.photo(user.id, id);
       if (dataUrl === null) {
         return c.text("Photo not found", 404);
