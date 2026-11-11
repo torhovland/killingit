@@ -5,13 +5,13 @@ import type {
   DailyHealthPoint,
 } from "@killingit/shared";
 import type { DietPromptContext } from "../diet/summary.js";
-import { toCoachPlanActivity } from "../llm/coachPlanPrompt.js";
-import type {
-  ActivityCommentContext,
-  AthleteAnswerContext,
-  ManualActivityContext,
-  PeriodReviewContext,
-  PlanContextInput,
+import {
+  toCoachPlanActivity,
+  type ActivityCommentContext,
+  type AthleteAnswerContext,
+  type ManualActivityContext,
+  type PeriodReviewContext,
+  type PlanContextInput,
 } from "../llm/planContext.js";
 import { generatePeriodReview } from "../llm/periodReview.js";
 import { PERIOD_REVIEW_PROMPT_VERSION } from "../llm/periodReviewPrompt.js";

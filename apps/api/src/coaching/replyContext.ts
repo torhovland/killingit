@@ -1,9 +1,9 @@
 import type { AnalyzedActivity, AthleteEvent } from "@killingit/shared";
 import { loadDietContext } from "../diet/context.js";
-import { toCoachPlanActivity } from "../llm/coachPlanPrompt.js";
-import type {
-  AthleteAnswerContext,
-  PlanContextInput,
+import {
+  toCoachPlanActivity,
+  type AthleteAnswerContext,
+  type PlanContextInput,
 } from "../llm/planContext.js";
 import { loadAthleteEvents } from "../events/store.js";
 import {

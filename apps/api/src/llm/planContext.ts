@@ -12,6 +12,7 @@ import {
   isDefaultDietGoal,
   type ActivityLap,
   type ActivitySummary,
+  type AnalyzedActivity,
   type AthleteEvent,
   type BikeWorkout,
   type BlockPlan,
@@ -67,6 +68,17 @@ export interface RecentActivityContext {
   analysis: string | null;
   /** The coach's latest reply to the athlete's comment on the activity. */
   coachReply?: string | null;
+}
+
+/** Adapts an analyzed activity for a plan prompt. */
+export function toCoachPlanActivity(
+  activity: AnalyzedActivity,
+): RecentActivityContext {
+  return {
+    summary: activity,
+    analysis: activity.analysis?.text ?? null,
+    coachReply: activity.coachReply?.text ?? null,
+  };
 }
 
 /** A coach review of a completed week or block, with athlete feedback. */

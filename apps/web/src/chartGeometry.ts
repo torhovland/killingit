@@ -276,17 +276,6 @@ export function linePath(
     .join(" ");
 }
 
-/** The range of a TSB zone in words, e.g. `+5 to +25`. */
-export function formatZoneRange(zone: FormZone): string {
-  if (!Number.isFinite(zone.from)) {
-    return `below ${formatSigned(zone.to)}`;
-  }
-  if (!Number.isFinite(zone.to)) {
-    return `above ${formatSigned(zone.from)}`;
-  }
-  return `${formatSigned(zone.from)} to ${formatSigned(zone.to)}`;
-}
-
 /** A short axis label for a `YYYY-MM-DD` date, e.g. `12 Oct`. */
 export function formatChartDate(date: string): string {
   const [, month, day] = date.split("-");
@@ -311,10 +300,6 @@ const MONTHS = [
   "Nov",
   "Dec",
 ] as const;
-
-function formatSigned(value: number): string {
-  return value > 0 ? `+${value}` : `−${Math.abs(value)}`;
-}
 
 function round(value: number): number {
   return Math.round(value * 10) / 10;

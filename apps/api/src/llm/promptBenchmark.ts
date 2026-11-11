@@ -114,16 +114,6 @@ export function filterByMinimumAbility<T extends { id: string }>(
   });
 }
 
-/** Keeps only models whose stored grade equals the requested cost grade. */
-export function filterByCostGrade<T extends { id: string }>(
-  models: readonly T[],
-  grades: ReadonlyMap<string, LlmModelGrade>,
-  grade: LlmModelGrade,
-): T[] {
-  return models.filter((model) => grades.get(model.id) === grade);
-}
-
-/** Keeps only models whose stored cost grade is in the requested set. */
 export function filterByCostGrades<T extends { id: string }>(
   models: readonly T[],
   grades: ReadonlyMap<string, LlmModelGrade>,

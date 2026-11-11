@@ -214,25 +214,6 @@ export function buildActivityLoads(
 }
 
 /**
- * Builds the day snapshots over a range that covers every supplied date, and
- * returns the snapshot for each date. Dates without an activity or estimate
- * count as rest.
- */
-export function buildActivityTrainingLoads(
-  activities: readonly AnalyzedActivity[],
-  timelines: readonly ThresholdTimeline[],
-  estimatedTssByDate: ReadonlyMap<string, number> = new Map(),
-  extraDates: readonly string[] = [],
-): Map<string, TrainingLoad> {
-  return buildActivityLoads(
-    activities,
-    timelines,
-    estimatedTssByDate,
-    extraDates,
-  ).byDate;
-}
-
-/**
  * The duration and intensity factor on the same scale as power TSS, where one
  * hour at the threshold scores 100.
  */

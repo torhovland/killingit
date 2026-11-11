@@ -56,18 +56,6 @@ export class Auth0Provider implements AuthProvider {
   }
 }
 
-/**
- * Auth0's "invalid token" error. Extends the provider-agnostic
- * {@link AuthVerificationError} so middleware can map it to 401 without
- * importing this module.
- */
-export class Auth0VerificationError extends AuthVerificationError {
-  constructor(message: string, options?: { cause?: unknown }) {
-    super(message, options);
-    this.name = "Auth0VerificationError";
-  }
-}
-
 /** Auth0's JWKS endpoint for a given issuer. */
 export function jwksUrl(issuer: string): string {
   return `${issuer.replace(/\/$/, "")}/.well-known/jwks.json`;

@@ -5,7 +5,7 @@ import type {
   CoachPlan,
   ThresholdHistorySeries,
 } from "@killingit/shared";
-import { buildActivityTrainingLoads } from "./activityLoad.js";
+import { buildActivityLoads } from "./activityLoad.js";
 import { buildThresholdTimelines, FTP_THRESHOLD } from "./thresholds.js";
 import {
   buildFitnessHistory,
@@ -233,10 +233,10 @@ describe("buildFitnessHistory", () => {
   it("matches the activity load series for the same date", () => {
     const activities = [activity({ normalizedPower: 200 })];
     const history = buildFitnessHistory({ ...base, activities });
-    const expected = buildActivityTrainingLoads(
+    const expected = buildActivityLoads(
       activities,
       buildThresholdTimelines(thresholdPoints),
-    ).get("2026-10-20");
+    ).byDate.get("2026-10-20");
 
     const day = history.days.find((entry) => entry.date === "2026-10-20");
 

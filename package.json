@@ -25,6 +25,7 @@
     "test:e2e": "playwright test --config apps/web/playwright.config.ts",
     "check:garmin": "scripts/check-garmin.sh",
     "check:signoff": "bun run scripts/check-signoff.ts",
+    "check:unused": "knip --production --include files,exports --no-progress",
     "outdated": "bun run scripts/check-outdated.ts",
     "db:up": "docker compose up -d db",
     "db:down": "docker compose down",
@@ -39,6 +40,7 @@
     "eslint": "^10.14.0",
     "eslint-config-prettier": "^10.1.8",
     "globals": "^17.14.0",
+    "knip": "^6.45.1",
     "prettier": "^3.10.0",
     "typescript-eslint": "^8.72.2"
   }

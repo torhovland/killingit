@@ -128,18 +128,17 @@ versions are retained.
 
 ### Web (`apps/web/src/`)
 
-- `AthleteQuestionsForm.tsx` renders all active questions, pre-filled with
-  existing answers, marks optional questions, blocks submission until required
-  fields are non-blank, posts blank optional answers as skips, and shows request
-  errors inline. An edit variant changes the heading, submit label, and cancel
-  action.
-- `AthleteAnswersSection.tsx` shows the saved prompt/answer summary and toggles
-  the edit variant of the form; saving reuses the parent's answer handler so the
-  gate state and summary update from the same response.
-- `CoachDashboard.tsx` first loads `/api/questions`. It renders the form while
-  the response is incomplete and otherwise renders the existing coaching
-  surface, so statuses and activities are only fetched after the gate opens. It
-  passes the questions and save handler to the profile section.
+- `AthleteAnswersSection.tsx` is the single athlete-question form. It splits the
+  active questions into updated, new, and answered groups, pre-fills every
+  answer, marks optional questions, blocks submission until required fields are
+  non-blank, posts blank optional answers as skips, and shows request errors
+  inline. Every answer stays editable in place, and a revised question offers
+  the earlier answer as a starting point.
+- `CoachingSurveyPage.tsx` hosts `AthleteAnswersSection.tsx` and the plan
+  regeneration action. `App.tsx` loads `/api/questions` first; while the active
+  set is incomplete it shows the Coaching survey page instead of the coaching
+  surface, and the page replaces the gate after a successful save without a
+  page reload.
 
 ## Testing
 
@@ -148,8 +147,8 @@ versions are retained.
 - **API unit tests:** stored-question mapping, current-version and required-skip
   validation, and route authorization/validation/success with injected stores.
 - **Web unit tests:** the form renders prompts, required/optional state,
-  prefilled answers, the activity-gate explanation, the onboarding and edit
-  variants, and the profile summary with its edit action.
+  prefilled answers, updated/new/answered groups, and the copy-old-answer
+  action.
 - DB-backed integration coverage for answer upserts, replacement, and
   previous-response resolution runs in `apps/api/integration`; see
   `docs/specs/database-integration-tests.md`.

@@ -7,7 +7,6 @@ import {
   CHART_WIDTH,
   chartScale,
   formatChartDate,
-  formatZoneRange,
   indexAt,
   labelIndices,
   lastIndexOnOrBefore,
@@ -165,20 +164,6 @@ describe("tsbSegments", () => {
 
     expect(segments).toHaveLength(1);
     expect(segments[0]?.interpretation).toBe("maintaining");
-  });
-});
-
-describe("formatZoneRange", () => {
-  it("describes open-ended zones in words", () => {
-    expect(
-      formatZoneRange({ interpretation: "detraining", from: 25, to: Infinity }),
-    ).toBe("above +25");
-    expect(
-      formatZoneRange({ interpretation: "risk", from: -Infinity, to: -30 }),
-    ).toBe("below −30");
-    expect(formatZoneRange({ interpretation: "fresh", from: 5, to: 25 })).toBe(
-      "+5 to +25",
-    );
   });
 });
 

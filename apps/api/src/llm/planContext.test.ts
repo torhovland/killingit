@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import type { AnalyzedActivity } from "@killingit/shared";
 import {
   formatActivitySummary,
   formatBlockPlan,
@@ -8,6 +9,7 @@ import {
   formatSeasonPlan,
   formatWeekPlan,
   summarizeLaps,
+  toCoachPlanActivity,
   type PlanContextInput,
   type RecentActivityContext,
 } from "./planContext.js";
@@ -817,5 +819,50 @@ describe("formatDayPlan", () => {
     });
 
     expect(text).not.toContain("Projected load:");
+  });
+});
+
+function analyzedActivity(
+  overrides: Partial<AnalyzedActivity> = {},
+): AnalyzedActivity {
+  return {
+    id: 1,
+    name: "Morning Run",
+    type: "running",
+    startDate: "2026-10-20T06:30:00Z",
+    distance: 10200,
+    movingTime: 2700,
+    elapsedTime: 2800,
+    totalElevationGain: 120,
+    sampleCount: 500,
+    samples: [],
+    analysis: {
+      text: "Steady aerobic effort with a slight heart-rate drift.",
+      model: "openrouter/model",
+      generatedAt: "2026-10-20T08:00:00Z",
+    },
+    analysisError: null,
+    programAnalysis: null,
+    comment: null,
+    coachReply: null,
+    ...overrides,
+  };
+}
+
+describe("toCoachPlanActivity", () => {
+  it("maps an analyzed activity to its summary and analysis text", () => {
+    const activity = analyzedActivity();
+    const mapped = toCoachPlanActivity(activity);
+
+    expect(mapped.summary).toBe(activity);
+    expect(mapped.analysis).toBe(
+      "Steady aerobic effort with a slight heart-rate drift.",
+    );
+  });
+
+  it("maps a missing analysis to null", () => {
+    const mapped = toCoachPlanActivity(analyzedActivity({ analysis: null }));
+
+    expect(mapped.analysis).toBeNull();
   });
 });

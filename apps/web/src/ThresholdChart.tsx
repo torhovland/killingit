@@ -232,7 +232,3 @@ function domainOptions(kind: ThresholdHistorySeries["kind"]): {
   }
   return { minSpan: 10 };
 }
-
-/** A path that breaks wherever a series has no value on a day. */
-/** Kept for code that imported the old FTP-specific chart name. */
-export { ThresholdChart as FtpChart };

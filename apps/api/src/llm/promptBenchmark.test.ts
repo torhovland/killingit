@@ -2,7 +2,6 @@ import { describe, expect, it } from "bun:test";
 import {
   checkReviseSeasonGates,
   combinePromptScores,
-  filterByCostGrade,
   filterByCostGrades,
   filterByMinimumAbility,
   sortByPreviousTime,
@@ -445,25 +444,6 @@ describe("benchmark selection", () => {
     expect(
       filterByMinimumAbility(models, grades, "A").map((model) => model.id),
     ).toEqual(["a", "b", "d", "e"]);
-  });
-
-  it("keeps only models with the exact cost grade", () => {
-    const models = [
-      { id: "a" },
-      { id: "b" },
-      { id: "c" },
-      { id: "d" },
-      { id: "e" },
-    ];
-    const grades = new Map([
-      ["a", "A+" as const],
-      ["b", "A" as const],
-      ["c", "A+" as const],
-      ["d", "?" as const],
-    ]);
-    expect(
-      filterByCostGrade(models, grades, "A+").map((model) => model.id),
-    ).toEqual(["a", "c"]);
   });
 
   it("keeps every model in a cost-grade set", () => {

@@ -41,12 +41,6 @@ export interface AthleteReadingSource {
   }[];
 }
 
-/**
- * Bump when the extraction prompt or its generation parameters change
- * materially, so a cached reading can be recognized as outdated.
- */
-export const ATHLETE_READING_PROMPT_VERSION = 1;
-
 export const ATHLETE_READING_SYSTEM_PROMPT = promptSections(
   GLOBAL_PROMPT_RULES,
   "Read an amateur athlete's own words and report two things: the measurements they state about themselves (threshold values per sport, body weight, and body-fat percentage), and every dated goal or event they state (a race or competition, a sportive or group event, a trip or holiday, an appointment or commitment, or a dated target such as covering 100 km by a given day).",

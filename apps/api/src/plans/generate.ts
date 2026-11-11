@@ -16,7 +16,6 @@ import type {
   WeekPlan,
   DayPlan,
 } from "@killingit/shared";
-import { toCoachPlanActivity } from "../llm/coachPlanPrompt.js";
 import { applyForecastToPlan } from "../weather/apply.js";
 import { planWeatherChanged } from "../weather/changes.js";
 import type { WeatherForecastSet } from "../weather/forecast.js";
@@ -32,15 +31,16 @@ import {
 import type { PlanUpdateRevision } from "../llm/planUpdatePrompt.js";
 import { captureCompletedPeriodReviews } from "../coaching/periodReviews.js";
 import type { DietPromptContext } from "../diet/summary.js";
-import type {
-  ActivityCommentContext,
-  AthleteAnswerContext,
-  BodyMetricHistory,
-  CoachingSurveyAdjustmentContext,
-  CalorieTargetPoint,
-  ManualActivityContext,
-  PeriodReviewContext,
-  RecentActivityContext,
+import {
+  toCoachPlanActivity,
+  type ActivityCommentContext,
+  type AthleteAnswerContext,
+  type BodyMetricHistory,
+  type CoachingSurveyAdjustmentContext,
+  type CalorieTargetPoint,
+  type ManualActivityContext,
+  type PeriodReviewContext,
+  type RecentActivityContext,
 } from "../llm/planContext.js";
 import type { LlmProvider } from "../llm/openrouter.js";
 import { applyTrainingLoad, currentTrainingLoad } from "../training/load.js";
