@@ -56,6 +56,20 @@ cached session.
 
 ## Test
 
+From the repository root:
+
+```sh
+bun run check:garmin
+```
+
+That creates `services/garmin/.venv` if needed, installs
+`requirements-dev.txt` (the runtime requirements plus pinned `pytest`, `ruff`
+and `mypy`), and runs the same four gates CI runs: `pytest`,
+`ruff check`, `ruff format --check` and `mypy`. Their configuration lives in
+`pyproject.toml`.
+
+To run the suite inside an existing virtualenv instead:
+
 ```sh
 pip install -r requirements-dev.txt
 pytest

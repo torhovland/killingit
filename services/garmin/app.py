@@ -8,7 +8,7 @@ Endpoints:
   POST /authenticate   { "username", "password" } -> 204 (or 401/403/429/502)
   POST /sync           { "username", "password" } -> { "activities": [...] }
   POST /metrics        { "username", "password" } -> { "metrics": [...] }
-  POST /daily          { "username", "password", "date" } -> { "date", "metrics": {...} }
+  POST /daily          { "username", "password", "date" } -> metrics + date
   GET  /health         -> {"status": "ok"}
 
 Garmin rate-limits repeated SSO logins aggressively (429), so the sidecar
@@ -33,6 +33,7 @@ import os
 import tempfile
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from garminconnect import (
@@ -121,7 +122,7 @@ def _login(credentials: Credentials) -> Garmin:
         raise _LoginError("invalid Garmin credentials") from exc
     except GarminConnectConnectionError as exc:
         raise _UpstreamError("could not reach Garmin Connect") from exc
-    except Exception as exc:  # noqa: BLE001 - library raises several types
+    except Exception as exc:  # the library raises several types
         logger.exception("unexpected Garmin login failure")
         raise _UpstreamError("unexpected Garmin login failure") from exc
     return garmin
@@ -147,7 +148,7 @@ def _sync(credentials: Credentials) -> list[dict]:
         raise _RateLimitedError(
             "Garmin is rate limiting requests. Wait a few minutes and try again."
         ) from exc
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.exception("Garmin activity fetch failed")
         raise _UpstreamError("Garmin activity fetch failed") from exc
 
@@ -189,7 +190,7 @@ def _sync_metrics(credentials: Credentials) -> dict:
         raise _RateLimitedError(
             "Garmin is rate limiting requests. Wait a few minutes and try again."
         ) from exc
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.exception("Garmin body composition fetch failed")
         raise _UpstreamError("Garmin body composition fetch failed") from exc
 
@@ -246,7 +247,7 @@ def _optional_daily_call(call, date: str, label: str):
         raise _RateLimitedError(
             "Garmin is rate limiting requests. Wait a few minutes and try again."
         ) from exc
-    except Exception:  # noqa: BLE001 - one source must not lose the day
+    except Exception:  # one source must not lose the day
         logger.exception("Garmin %s fetch failed for %s", label, date)
         return None
 
@@ -389,7 +390,9 @@ def _latest_readiness_snapshot(readiness):
         return None
     return max(
         snapshots,
-        key=lambda entry: str(entry.get("timestamp") or entry.get("timestampLocal") or ""),
+        key=lambda entry: str(
+            entry.get("timestamp") or entry.get("timestampLocal") or ""
+        ),
     )
 
 
@@ -475,7 +478,7 @@ def _sync_ftp_history(garmin, startdate: str, enddate: str) -> list[dict]:
             sport="CYCLING",
             aggregation="daily",
         )
-    except Exception:  # noqa: BLE001 - supplementary data
+    except Exception:  # supplementary data must not lose the body metrics
         logger.exception("Garmin FTP history fetch failed")
         return []
     return _to_ftp_history(payload)
@@ -550,7 +553,7 @@ def _to_body_metrics(payload: dict) -> list[dict]:
         body_fat = _body_fat_percent(raw)
         if weight is None and body_fat is None:
             continue
-        sample = {"date": date}
+        sample: dict[str, Any] = {"date": date}
         if weight is not None:
             sample["weightKg"] = weight
         if body_fat is not None:
@@ -577,7 +580,11 @@ def _metric_date(raw: dict) -> str | None:
         milliseconds = _finite_or_none(value)
         if milliseconds is not None:
             try:
-                return datetime.fromtimestamp(milliseconds / 1000, tz=UTC).date().isoformat()
+                return (
+                    datetime.fromtimestamp(milliseconds / 1000, tz=UTC)
+                    .date()
+                    .isoformat()
+                )
             except (OverflowError, OSError, ValueError):
                 continue
     return None
@@ -638,7 +645,7 @@ def _samples_for(garmin, activity_id, activity_type: str = "") -> list[dict]:
         details = garmin.get_activity_details(str(activity_id))
     except GarminConnectTooManyRequestsError:
         raise
-    except Exception:  # noqa: BLE001 - any library/network failure
+    except Exception:  # any library/network failure
         logger.exception("Garmin activity details fetch failed for %s", activity_id)
         return []
     return _to_samples(details or {}, activity_type)
@@ -657,10 +664,8 @@ def _strength_sets_for(garmin, activity_id, activity_type: str) -> list[dict]:
         payload = garmin.get_activity_exercise_sets(str(activity_id))
     except GarminConnectTooManyRequestsError:
         raise
-    except Exception:  # noqa: BLE001 - any library/network failure
-        logger.exception(
-            "Garmin exercise-sets fetch failed for %s", activity_id
-        )
+    except Exception:  # any library/network failure
+        logger.exception("Garmin exercise-sets fetch failed for %s", activity_id)
         return []
     return _to_strength_sets(payload or {})
 
@@ -684,7 +689,7 @@ def _laps_for(garmin, activity_id) -> list[dict]:
         payload = garmin.get_activity_splits(str(activity_id))
     except GarminConnectTooManyRequestsError:
         raise
-    except Exception:  # noqa: BLE001 - any library/network failure
+    except Exception:  # any library/network failure
         logger.exception("Garmin activity splits fetch failed for %s", activity_id)
         return []
     return _to_laps(payload or {})
@@ -729,10 +734,7 @@ def _strength_set(raw: dict) -> dict | None:
     if isinstance(set_type, str) and set_type.strip() != "":
         item["setType"] = set_type.strip().lower()
 
-    for key, field in (
-        ("startTime", "startTime"),
-        ("startTimeGMT", "startTime"),
-    ):
+    for key in ("startTime", "startTimeGMT"):
         value = raw.get(key)
         if value is not None:
             item["startTime"] = _iso(value)
@@ -814,11 +816,14 @@ def _lap(raw: dict, position: int) -> dict | None:
         ("averagePower", ("averagePower", "avgPower")),
         ("maxPower", ("maxPower",)),
         ("averageSpeed", ("averageSpeed", "averageMovingSpeed", "avgSpeed")),
-        ("averageCadence", (
-            "averageBikeCadence",
-            "averageRunCadence",
-            "avgCadence",
-        )),
+        (
+            "averageCadence",
+            (
+                "averageBikeCadence",
+                "averageRunCadence",
+                "avgCadence",
+            ),
+        ),
     ):
         value = _first_nonnegative(*(raw.get(key) for key in keys))
         if value is not None:
@@ -924,7 +929,7 @@ def _to_samples(details: dict, activity_type: str = "") -> list[dict]:
         if timestamp is None:
             continue
 
-        sample = {"timestamp": timestamp}
+        sample: dict[str, Any] = {"timestamp": timestamp}
         for source_key, field in _SAMPLE_METRICS:
             if field in sample:
                 continue
@@ -1065,7 +1070,7 @@ def health() -> dict:
 def authenticate(credentials: Credentials):
     try:
         _login(credentials)
-    except Exception as exc:  # noqa: BLE001 - translated to HTTP below
+    except Exception as exc:  # translated to HTTP below
         raise _http_error(exc) from exc
     return None
 
@@ -1076,7 +1081,7 @@ def sync(credentials: Credentials) -> dict:
         return {"activities": _sync(credentials)}
     except HTTPException:
         raise
-    except Exception as exc:  # noqa: BLE001 - translated to HTTP below
+    except Exception as exc:  # translated to HTTP below
         raise _http_error(exc) from exc
 
 
@@ -1086,7 +1091,7 @@ def metrics(credentials: Credentials) -> dict:
         return _sync_metrics(credentials)
     except HTTPException:
         raise
-    except Exception as exc:  # noqa: BLE001 - translated to HTTP below
+    except Exception as exc:  # translated to HTTP below
         raise _http_error(exc) from exc
 
 
@@ -1098,7 +1103,7 @@ def daily(request: DailyRequest) -> dict:
         return _sync_daily(request, request.date)
     except HTTPException:
         raise
-    except Exception as exc:  # noqa: BLE001 - translated to HTTP below
+    except Exception as exc:  # translated to HTTP below
         raise _http_error(exc) from exc
 
 

@@ -23,6 +23,7 @@
     "test:coverage": "bun run scripts/coverage.ts",
     "test:integration": "bun run --filter @killingit/api test:integration",
     "test:e2e": "playwright test --config apps/web/playwright.config.ts",
+    "check:garmin": "scripts/check-garmin.sh",
     "check:signoff": "bun run scripts/check-signoff.ts",
     "outdated": "bun run scripts/check-outdated.ts",
     "db:up": "docker compose up -d db",

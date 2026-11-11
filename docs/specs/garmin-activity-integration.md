@@ -166,7 +166,7 @@ one swappable corner, and normalizes Garmin activities into the shared
 - **Unit (Python):** activity and sample normalization + 42-day filtering with
   a stubbed Garmin client (no live network).
 - Run `bun run typecheck`, `bun run lint`, `bun run format`, `bun run test` and
-  the sidecar's own test suite.
+  `bun run check:garmin` (the sidecar's pytest, ruff and mypy gates).
 
 ## Risks / open questions
 

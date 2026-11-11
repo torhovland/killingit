@@ -1,1 +1,7 @@
+# Tools for the Garmin sidecar's own test suite and quality gates. This file is
+# installed by `bun run check:garmin` (scripts/check-garmin.sh), which CI runs.
+-r requirements.txt
+
 pytest==8.3.4
+ruff==0.17.4
+mypy==2.4.1

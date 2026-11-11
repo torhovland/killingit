@@ -59,7 +59,8 @@ services/
 - [Bun](https://bun.sh) ≥ 1.4
 - Docker (for the local Postgres database)
 - Python 3 (for the Garmin sidecar; `bun run dev` creates its virtualenv on
-  first run)
+  first run, and `bun run check:garmin` installs the sidecar's test and lint
+  tools)
 
 ## Getting started
 
@@ -117,6 +118,7 @@ explicitly. Only Development and Test allow the override.
 | `bun run test:coverage`    | Run tests with coverage and check the baseline |
 | `bun run test:integration` | Run database integration tests                 |
 | `bun run test:e2e`         | Run the Playwright end-to-end suite            |
+| `bun run check:garmin`     | Test and lint the Python Garmin sidecar        |
 | `bun run benchmark:llm`    | Compare OpenRouter models (see below)          |
 | `bun run db:up`            | Start Postgres (docker compose)                |
 | `bun run db:down`          | Stop Postgres                                  |

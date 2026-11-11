@@ -143,7 +143,9 @@ def test_date_window_returns_plain_dates():
     start, end = _date_window(now)
     assert end == "2026-10-20"
     assert start == "2026-09-08"
-    assert (datetime.fromisoformat(end).date() - datetime.fromisoformat(start).date()).days == SYNC_WINDOW_DAYS
+    assert (
+        datetime.fromisoformat(end).date() - datetime.fromisoformat(start).date()
+    ).days == SYNC_WINDOW_DAYS
 
 
 def test_date_window_defaults_to_now():
@@ -179,9 +181,7 @@ def _details(*samples, descriptors=None):
 
 
 def test_to_samples_maps_known_metrics():
-    details = _details(
-        [1790836200000, 59.91, 10.75, 140, 250, 12.5, 3.2, 1000, 20, 80]
-    )
+    details = _details([1790836200000, 59.91, 10.75, 140, 250, 12.5, 3.2, 1000, 20, 80])
     assert _to_samples(details) == [
         {
             "timestamp": "2026-10-01T06:30:00Z",
@@ -263,9 +263,7 @@ def test_to_samples_never_reads_fractional_cadence_as_cadence():
         [1790836200000, 0.0],
         descriptors=[(0, "directTimestamp"), (1, "directFractionalCadence")],
     )
-    assert _to_samples(details, "running") == [
-        {"timestamp": "2026-10-01T06:30:00Z"}
-    ]
+    assert _to_samples(details, "running") == [{"timestamp": "2026-10-01T06:30:00Z"}]
 
 
 def test_to_samples_uses_double_cadence_for_running():
@@ -348,12 +346,18 @@ def test_to_samples_prefers_sum_distance_and_falls_back_to_direct_distance():
         (1, "sumDistance"),
         (2, "directDistance"),
     ]
-    assert _to_samples(_details([1790836200000, 1200, 1100], descriptors=descriptors))[
-        0
-    ]["distance"] == 1200.0
-    assert _to_samples(_details([1790836200000, None, 1100], descriptors=descriptors))[
-        0
-    ]["distance"] == 1100.0
+    assert (
+        _to_samples(_details([1790836200000, 1200, 1100], descriptors=descriptors))[0][
+            "distance"
+        ]
+        == 1200.0
+    )
+    assert (
+        _to_samples(_details([1790836200000, None, 1100], descriptors=descriptors))[0][
+            "distance"
+        ]
+        == 1100.0
+    )
 
 
 def test_to_laps_maps_a_real_shaped_lap_payload():
@@ -559,12 +563,11 @@ def test_sync_attaches_laps_and_survives_a_failed_splits_fetch(monkeypatch):
 def test_to_activity_ignores_a_single_lap():
     raw = {"activityId": 1, "activityType": {"typeKey": "RUNNING"}}
     one_lap = [{"index": 1, "distance": 5000.0}]
+    two_laps = [*one_lap, dict(index=2, distance=1000.0)]
 
     # A single lap is the whole activity restated, not interval structure.
     assert "laps" not in _to_activity(raw, laps=one_lap)
-    assert _to_activity(raw, laps=one_lap + [{"index": 2, "distance": 1000.0}])[
-        "laps"
-    ] == one_lap + [{"index": 2, "distance": 1000.0}]
+    assert _to_activity(raw, laps=two_laps)["laps"] == two_laps
 
 
 def test_sync_maps_a_splits_rate_limit_to_rate_limited(monkeypatch):
@@ -641,11 +644,7 @@ def test_metric_date_reads_calendar_date_and_epoch():
 def test_sync_metrics_uses_body_composition(monkeypatch):
     class _MetricsFake:
         def get_body_composition(self, startdate, enddate):
-            return {
-                "dateWeightList": [
-                    {"calendarDate": "2026-10-01", "weight": 78000}
-                ]
-            }
+            return {"dateWeightList": [{"calendarDate": "2026-10-01", "weight": 78000}]}
 
         def get_functional_threshold_power_range(
             self, startdate, enddate, *, sport, aggregation
@@ -689,6 +688,7 @@ def test_to_ftp_history_handles_lists_and_nested_records():
     assert _to_ftp_history(
         {"functionalThresholdPower": [{"calendarDate": "2026-10-01", "value": 260}]}
     ) == [{"date": "2026-10-01", "watts": 260}]
+
 
 def test_to_strength_sets_maps_exercises_reps_and_grams():
     payload = {
