@@ -2,12 +2,18 @@ import { createHash } from "node:crypto";
 import { readFile, readdir, writeFile } from "node:fs/promises";
 import { join, relative, resolve, sep } from "node:path";
 import type { Plugin } from "vite";
+import { APP_BUILD_META_NAME, APP_BUILD_PLACEHOLDER } from "./buildId";
 
 /** Source template, kept outside `public/` so Vite does not copy it as-is. */
 export const SERVICE_WORKER_SOURCE = "pwa/service-worker.js";
 
 /** The generated worker lands at the site root so its scope is the whole app. */
 export const SERVICE_WORKER_OUTPUT = "sw.js";
+
+/** The meta tag the build stamps with the cache version it also gives the worker. */
+const APP_BUILD_META = new RegExp(
+  `<meta\\s+name="${APP_BUILD_META_NAME}"\\s+content="[^"]*"\\s*\\/?>`,
+);
 
 /** Cloudflare Pages host files are not app assets and are not precached. */
 const HOST_FILES = new Set(["_headers", "_redirects"]);
@@ -54,7 +60,9 @@ export function isPrecachedFile(file: string): boolean {
 /**
  * Reads the finished build, creates a content-addressed cache version, and
  * writes the generated worker. The template's source is part of the hash, so a
- * worker logic change also retires the previous cache.
+ * worker logic change also retires the previous cache. The same version is
+ * stamped into `index.html` as the page's build id, which lets the app tell a
+ * waiting worker for its own build from a genuine update.
  */
 export async function buildServiceWorker(
   options: BuildServiceWorkerOptions,
@@ -74,10 +82,24 @@ export async function buildServiceWorker(
   ) {
     throw new Error("Service worker template has no injection placeholders");
   }
+  const indexHtml = await readFile(join(options.distDir, "index.html"), "utf8");
+  if (!APP_BUILD_META.test(indexHtml)) {
+    throw new Error(`dist/index.html has no ${APP_BUILD_META_NAME} meta tag`);
+  }
+  // Hash the shell as it looks before the build id is stamped in, so an
+  // identical rebuild keeps the same version instead of hashing its own output.
+  const hashedIndexHtml = indexHtml.replace(
+    APP_BUILD_META,
+    buildMetaTag(APP_BUILD_PLACEHOLDER),
+  );
   const hash = createHash("sha256").update(source);
   for (const file of files.filter(isPrecachedFile)) {
     hash.update(toPosixPath(file));
-    hash.update(await readFile(join(options.distDir, file)));
+    hash.update(
+      toPosixPath(file) === "index.html"
+        ? hashedIndexHtml
+        : await readFile(join(options.distDir, file)),
+    );
   }
   const cacheVersion = hash.digest("hex").slice(0, 16);
   const precacheUrls = toPrecacheUrls(files);
@@ -87,6 +109,10 @@ export async function buildServiceWorker(
     .replace("__PRECACHE_URLS__", JSON.stringify(precacheUrls, null, 2));
 
   await writeFile(join(options.distDir, SERVICE_WORKER_OUTPUT), generated);
+  await writeFile(
+    join(options.distDir, "index.html"),
+    indexHtml.replace(APP_BUILD_META, buildMetaTag(cacheVersion)),
+  );
   return { cacheVersion, precacheUrls };
 }
 
@@ -136,4 +162,8 @@ export function pwaPlugin(): Plugin {
 
 function toPosixPath(file: string): string {
   return file.split(sep).join("/").replace(/^\.\//, "");
+}
+
+function buildMetaTag(buildId: string): string {
+  return `<meta name="${APP_BUILD_META_NAME}" content="${buildId}" />`;
 }

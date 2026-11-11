@@ -371,9 +371,17 @@ The stack below is proposed and should be treated as the starting point. See
 - **React** with **TypeScript**.
 - The web app is an installable **PWA**. A build-time service worker precaches
   the static app shell, serves the last shell offline, and leaves `/api/*`
-  uncached because API responses are per-account. A waiting update is offered
-  as a reload banner. The manifest, icons, offline page, and install state live
-  with the web app; see `docs/specs/pwa.md` and ADR 0018.
+  uncached because API responses are per-account. The build stamps one
+  content-hash build id into `index.html` and the worker, so a worker for the
+  shell a visit already loaded activates silently and only a genuinely stale
+  page shows the reload banner. The manifest, icons, offline page, and install
+  state live with the web app; see `docs/specs/pwa.md` and ADR 0018.
+- Every API request carries the shared contract version
+  (`x-killingit-api-version`). The API refuses an unsupported build with `426`,
+  and the web reloads once and then shows an update notice instead of failing
+  with a schema error on whichever request came first. Deploy the API before the
+  web and keep the previous version supported for one release; see
+  `docs/specs/api-versioning.md` and ADR 0028.
 - Authenticated API reads go through `requestParsed` in
   `apps/web/src/fetchAuthed.ts`: it fetches with `fetchJsonAuthed`, validates the
   body against the shared schema, and throws one `ResponseValidationError`

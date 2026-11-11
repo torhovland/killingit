@@ -51,6 +51,13 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("message", (event) => {
   if (event.data?.type === "SKIP_WAITING") {
     self.skipWaiting();
+    return;
+  }
+  // The page compares this with the build it booted. An identical build means
+  // the update arrived after the page already loaded it, so the waiting worker
+  // can activate without a reload or an update banner.
+  if (event.data?.type === "GET_BUILD_ID") {
+    event.ports[0]?.postMessage({ type: "BUILD_ID", buildId: CACHE_VERSION });
   }
 });
 

@@ -34,11 +34,19 @@ content-hash cache version, injects the exact precache URL list, and writes
   (other same-origin GETs);
 - ignores `/api/*` and cross-origin requests;
 - waits on update, so the athlete gets an update banner before the shell
-  changes.
+  changes, unless the waiting worker is for the build the page already loaded.
 
 Registration, install prompting, update prompting, and online/offline state
 live in a React provider (`apps/web/src/PwaContext.tsx`). Registration is
 production-only, so the Vite dev server is never cached.
+
+Every production build stamps one content hash into both `index.html` (as the
+`app-build` meta tag) and the worker (as `CACHE_VERSION`). Because navigations
+are network-first, a visit after a deploy already loads the new shell, and the
+update check it triggers finds a worker for that same build. Comparing the two
+ids lets that worker activate silently instead of asking for a reload. Only a
+worker for a different build — an app left open across a deploy — shows the
+banner.
 
 ## Why not Workbox
 
@@ -55,6 +63,9 @@ manifests, push), revisiting Workbox is reasonable.
 - The app can be installed and launched standalone.
 - Static assets and the shell survive a network failure; API-backed coaching
   still needs a connection.
+- A visit after a deploy activates the new worker without an update banner,
+  because the page and the worker share a build id. The banner now means the
+  page itself is stale, which is the case it was meant for.
 - Deploy branding changes require no dependency upgrade, only the manifest,
   icons, or worker source.
 - The service worker is plain JavaScript outside the TypeScript project. Its
