@@ -8,6 +8,13 @@ import type {
 import { createApp } from "../index.js";
 import type { PlanStore, StoredPlan } from "../plans/store.js";
 import type { QuestionAnswerStore } from "../questions/answers.js";
+import {
+  makeBlock,
+  makeDay,
+  makePlan as makeFixturePlan,
+  makeSeason,
+  makeWeek,
+} from "../testFixtures/plan.js";
 import { buildThresholdTimelines } from "../training/thresholds.js";
 import { buildFitnessHistory } from "../training/history.js";
 import type { UserStore } from "../users/store.js";
@@ -26,11 +33,12 @@ const thresholdPoints: AthleteThreshold[] = [
 ];
 
 function makePlan(): CoachPlan {
-  return {
-    season: {
+  const week = makeWeek("2026-10-19");
+  return makeFixturePlan({
+    season: makeSeason({
       goal: "Ride a century.",
       startDate: "2026-10-19",
-      endDate: "2027-04-01",
+      rationale: "Build endurance.",
       blocks: [
         {
           name: "Base",
@@ -40,11 +48,8 @@ function makePlan(): CoachPlan {
           weekCount: 6,
         },
       ],
-      rationale: "Build endurance.",
-    },
-    block: {
-      name: "Base",
-      focus: "Aerobic",
+    }),
+    block: makeBlock({
       startDate: "2026-10-19",
       endDate: "2026-11-29",
       rationale: "Build the base.",
@@ -57,39 +62,25 @@ function makePlan(): CoachPlan {
           estimatedFtpWatts: 255,
         },
       ],
-    },
+    }),
     week: {
-      startDate: "2026-10-19",
+      ...week,
       focus: "Aerobic",
       rationale: "Keep it easy.",
-      sessions: Array.from({ length: 7 }, (_, index) => ({
-        date: `2026-10-${String(19 + index)}`,
-        day: "Monday",
-        type: "workout",
+      sessions: week.sessions.map((session) => ({
+        ...session,
         title: "Ride",
         description: "Easy spin.",
         durationMinutes: 60,
-        intensity: "easy",
-        status: "planned",
         estimatedTss: 55,
       })),
     },
-    today: {
-      date: "2026-10-22",
-      type: "workout",
+    today: makeDay("2026-10-22", {
       title: "Ride",
       description: "Easy spin.",
       durationMinutes: 60,
-      intensity: "easy",
-      alternatives: [],
-      rationale: "Easy aerobic work.",
-      optional: false,
-      status: "planned",
-    },
-    tomorrow: null,
-    nextWeek: null,
-    nextBlock: null,
-  };
+    }),
+  });
 }
 
 class MemoryPlanStore implements PlanStore {

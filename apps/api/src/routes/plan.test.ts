@@ -21,6 +21,7 @@ import type {
   StoredAthleteQuestion,
 } from "../questions/answers.js";
 import type { CoachingSurveyAdjustmentStore } from "../questions/adjustments.js";
+import { makeDay, makePlan as makeFixturePlan } from "../testFixtures/plan.js";
 import { combineForecasts } from "../weather/combine.js";
 import type { WeatherForecastSet } from "../weather/forecast.js";
 
@@ -45,72 +46,7 @@ const emptySurveyAdjustments: CoachingSurveyAdjustmentStore = {
 };
 
 function makePlan(today = "2026-10-21"): CoachPlan {
-  return {
-    season: {
-      goal: "Run a marathon.",
-      introduction:
-        "Hello, I am your coach and I look forward to working with you.",
-      startDate: "2026-10-21",
-      endDate: "2027-04-01",
-      rationale: "Build a base.",
-      blocks: [
-        {
-          name: "Base",
-          focus: "Aerobic",
-          startDate: "2026-10-21",
-          endDate: "2026-12-01",
-          weekCount: 6,
-        },
-      ],
-    },
-    block: {
-      name: "Base",
-      focus: "Aerobic",
-      rationale: "Establish consistent volume.",
-      startDate: "2026-10-21",
-      endDate: "2026-12-01",
-      weeks: [
-        {
-          number: 1,
-          startDate: "2026-10-19",
-          focus: "Aerobic",
-          targetLoad: "Easy",
-        },
-      ],
-    },
-    week: {
-      startDate: "2026-10-19",
-      focus: "Aerobic",
-      rationale: "Keep the week easy.",
-      sessions: Array.from({ length: 7 }, (_, index) => ({
-        date: `2026-10-${String(19 + index)}`,
-        day: "Monday",
-        type: "workout",
-        title: `Session ${index + 1}`,
-        description: "Easy.",
-        durationMinutes: 45,
-        intensity: "easy",
-        status: "planned",
-      })),
-    },
-    today: {
-      date: today,
-      type: "workout",
-      title: "Easy run",
-      description: "Easy.",
-      durationMinutes: 45,
-      intensity: "easy",
-      alternatives: [],
-      rationale: "Easy aerobic work.",
-      optional: false,
-      optionalRationale:
-        "This easy run keeps the week consistent; skip it only if you feel unusually tired.",
-      status: "planned",
-    },
-    tomorrow: null,
-    nextWeek: null,
-    nextBlock: null,
-  };
+  return makeFixturePlan({ today: makeDay(today) });
 }
 
 function weekForecast(icon: DailyWeather["icon"]): DailyWeather[] {

@@ -1,5 +1,10 @@
 import { describe, expect, it, spyOn } from "bun:test";
 import type { CoachPlan } from "@killingit/shared";
+import {
+  makeDay,
+  makePlan as makeFixturePlan,
+  makeWeek,
+} from "../testFixtures/plan.js";
 import { loadValidatedPlan, type PlanStore, type StoredPlan } from "./store.js";
 
 // A separate user id and generation time keep the loader's once-per-plan
@@ -8,72 +13,12 @@ const USER_ID = 9_001;
 const GENERATED_AT = new Date("2026-11-09T08:00:00Z");
 
 function makePlan(): CoachPlan {
-  return {
-    season: {
-      goal: "Run a marathon.",
-      introduction:
-        "Hello, I am your coach and I look forward to working with you.",
-      startDate: "2026-11-09",
-      endDate: "2027-04-01",
-      rationale: "Build a base.",
-      blocks: [
-        {
-          name: "Base",
-          focus: "Aerobic",
-          startDate: "2026-11-09",
-          endDate: "2026-12-01",
-          weekCount: 6,
-        },
-      ],
-    },
-    block: {
-      name: "Base",
-      focus: "Aerobic",
-      rationale: "Establish consistent volume.",
-      startDate: "2026-11-09",
-      endDate: "2026-12-01",
-      weeks: [
-        {
-          number: 1,
-          startDate: "2026-11-09",
-          focus: "Aerobic",
-          targetLoad: "Easy",
-        },
-      ],
-    },
-    week: {
-      startDate: "2026-11-09",
-      focus: "Aerobic",
-      rationale: "Keep the week easy.",
-      sessions: Array.from({ length: 7 }, (_, index) => ({
-        date: `2026-11-${String(9 + index).padStart(2, "0")}`,
-        day: "Monday",
-        type: "workout",
-        title: `Session ${index + 1}`,
-        description: "Easy.",
-        durationMinutes: 45,
-        intensity: "easy",
-        status: "planned",
-      })),
-    },
-    today: {
-      date: "2026-11-09",
-      type: "workout",
-      title: "Easy run",
+  return makeFixturePlan({
+    today: makeDay("2026-11-09", {
       description: "This plan body must not reach the logs.",
-      durationMinutes: 45,
-      intensity: "easy",
-      alternatives: [],
-      rationale: "Easy aerobic work.",
-      optional: false,
-      optionalRationale:
-        "This easy run keeps the week consistent; skip it only if you feel unusually tired.",
-      status: "planned",
-    },
-    tomorrow: null,
-    nextWeek: null,
-    nextBlock: null,
-  };
+    }),
+    week: makeWeek("2026-11-09"),
+  });
 }
 
 function makeStored(plan: CoachPlan): StoredPlan {

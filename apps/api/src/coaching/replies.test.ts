@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import type { CoachPlan } from "@killingit/shared";
 import type { LlmCompletionRequest, LlmProvider } from "../llm/openrouter.js";
 import type { PlanContextInput } from "../llm/planContext.js";
 import type { QuestionAnswerStore } from "../questions/answers.js";
 import { GenerationSupersededError } from "../plans/generation.js";
 import type { PlanStore, StoredPlan } from "../plans/store.js";
+import { makePlan } from "../testFixtures/plan.js";
 import {
   answerCoachingQuestion,
   replyToCoachQuestion,
@@ -12,71 +12,6 @@ import {
   replyToUnansweredActivityComments,
   type CoachReplyDependencies,
 } from "./replies.js";
-
-function makePlan(): CoachPlan {
-  return {
-    season: {
-      goal: "Run a marathon",
-      startDate: "2026-10-19",
-      endDate: "2027-04-01",
-      rationale: "Build a base.",
-      blocks: [
-        {
-          name: "Base",
-          focus: "Aerobic",
-          startDate: "2026-10-19",
-          endDate: "2026-12-01",
-          weekCount: 6,
-        },
-      ],
-    },
-    block: {
-      name: "Base",
-      focus: "Aerobic",
-      rationale: "Consistent volume.",
-      startDate: "2026-10-19",
-      endDate: "2026-12-01",
-      weeks: [
-        {
-          number: 1,
-          startDate: "2026-10-19",
-          focus: "Aerobic",
-          targetLoad: "Easy",
-        },
-      ],
-    },
-    week: {
-      startDate: "2026-10-19",
-      focus: "Aerobic",
-      rationale: "Keep it easy.",
-      sessions: Array.from({ length: 7 }, (_, index) => ({
-        date: `2026-10-${String(19 + index)}`,
-        day: "Monday",
-        type: "workout" as const,
-        title: "Easy run",
-        description: "45 minutes easy.",
-        durationMinutes: 45,
-        intensity: "easy" as const,
-        status: "planned" as const,
-      })),
-    },
-    today: {
-      date: "2026-10-21",
-      type: "workout",
-      title: "Easy run",
-      description: "45 minutes easy.",
-      durationMinutes: 45,
-      intensity: "easy",
-      alternatives: [],
-      rationale: "Easy aerobic work.",
-      optional: false,
-      status: "planned",
-    },
-    tomorrow: null,
-    nextWeek: null,
-    nextBlock: null,
-  };
-}
 
 function storedPlan(): StoredPlan {
   return {

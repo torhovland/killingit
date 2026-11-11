@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { AnalyzedActivity, AthleteThreshold } from "@killingit/shared";
+import { makeAnalyzedActivity } from "../testFixtures/plan.js";
 import {
   buildThresholdTimelines,
   FTP_THRESHOLD,
@@ -34,28 +35,15 @@ const input: ReplyContextInput = {
 function makeActivity(
   overrides: Partial<AnalyzedActivity> = {},
 ): AnalyzedActivity {
-  return {
-    id: 1,
-    name: "Morning ride",
-    type: "cycling",
-    startDate: "2026-10-20T07:10:00Z",
-    distance: 42000,
-    movingTime: 5400,
-    elapsedTime: 6000,
-    totalElevationGain: 320,
+  return makeAnalyzedActivity({
     sampleCount: 500,
-    samples: [],
     analysis: {
       text: "Steady aerobic ride.",
       model: "test-model",
       generatedAt: "2026-10-20T09:00:00Z",
     },
-    analysisError: null,
-    programAnalysis: null,
-    comment: null,
-    coachReply: null,
     ...overrides,
-  };
+  });
 }
 
 describe("loadReplyContext", () => {

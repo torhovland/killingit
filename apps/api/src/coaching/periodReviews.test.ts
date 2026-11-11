@@ -1,15 +1,18 @@
 import { describe, expect, it } from "bun:test";
-import type { CoachPlan } from "@killingit/shared";
 import type { LlmCompletionRequest, LlmProvider } from "../llm/openrouter.js";
+import {
+  makeBlock,
+  makeDay,
+  makePlan as makeFixturePlan,
+  makeSeason,
+  makeWeek,
+} from "../testFixtures/plan.js";
 import { captureCompletedPeriodReviews } from "./periodReviews.js";
 
-function makePlan(): CoachPlan {
-  return {
-    season: {
-      goal: "Run a marathon",
+function makePlan() {
+  return makeFixturePlan({
+    season: makeSeason({
       startDate: "2026-09-01",
-      endDate: "2027-04-01",
-      rationale: "Build a base.",
       blocks: [
         {
           name: "Base",
@@ -19,13 +22,11 @@ function makePlan(): CoachPlan {
           weekCount: 4,
         },
       ],
-    },
-    block: {
-      name: "Base",
-      focus: "Aerobic",
-      rationale: "Consistent volume.",
+    }),
+    block: makeBlock({
       startDate: "2026-09-01",
       endDate: "2026-10-01",
+      rationale: "Consistent volume.",
       weeks: [
         {
           number: 1,
@@ -34,38 +35,13 @@ function makePlan(): CoachPlan {
           targetLoad: "Easy",
         },
       ],
-    },
-    week: {
-      startDate: "2026-09-07",
+    }),
+    week: makeWeek("2026-09-07", {
       focus: "Aerobic",
       rationale: "Keep it easy.",
-      sessions: Array.from({ length: 7 }, (_, index) => ({
-        date: `2026-09-${String(7 + index).padStart(2, "0")}`,
-        day: "Monday",
-        type: "workout" as const,
-        title: "Easy run",
-        description: "45 minutes easy.",
-        durationMinutes: 45,
-        intensity: "easy" as const,
-        status: "planned" as const,
-      })),
-    },
-    today: {
-      date: "2026-10-02",
-      type: "workout",
-      title: "Easy run",
-      description: "45 minutes easy.",
-      durationMinutes: 45,
-      intensity: "easy",
-      alternatives: [],
-      rationale: "Easy aerobic work.",
-      optional: false,
-      status: "planned",
-    },
-    tomorrow: null,
-    nextWeek: null,
-    nextBlock: null,
-  };
+    }),
+    today: makeDay("2026-10-02", { title: "Easy run" }),
+  });
 }
 
 class FakeProvider implements LlmProvider {

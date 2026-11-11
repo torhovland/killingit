@@ -3,7 +3,6 @@ import type {
   BlockPlan,
   CoachPlan,
   DailyWeather,
-  DayPlan,
   PlanGenerationStatus,
   SeasonPlan,
   WeekPlan,
@@ -18,7 +17,14 @@ import {
   PLAN_UPDATE_SYSTEM_PROMPT,
   WEEKLY_UPDATE_SYSTEM_PROMPT,
 } from "../llm/planUpdatePrompt.js";
-import { addDays, startOfWeek } from "@killingit/shared";
+import { startOfWeek } from "@killingit/shared";
+import {
+  makeBlock as makeFixtureBlock,
+  makeDay,
+  makePlan as makeFixturePlan,
+  makeSeason,
+  makeWeek,
+} from "../testFixtures/plan.js";
 import {
   planFtpEstimates,
   runPlanGeneration,
@@ -33,63 +39,17 @@ import {
   type StoredPlan,
 } from "./store.js";
 
-function makeSeason(): SeasonPlan {
-  return {
-    goal: "Sub-4-hour marathon",
-    introduction:
-      "Hello, I'm your coach. I'm looking forward to working with you.",
-    startDate: "2026-10-21",
-    endDate: "2027-04-01",
-    rationale: "Build aerobic base before marathon-specific work.",
-    blocks: [
-      {
-        name: "Base",
-        focus: "Aerobic endurance",
-        startDate: "2026-10-21",
-        endDate: "2026-12-01",
-        weekCount: 6,
-      },
-    ],
-  };
+/** The fixture plan with a specific concrete day. */
+function makePlan(today = "2026-10-21"): CoachPlan {
+  return makeFixturePlan({ today: makeDay(today) });
 }
 
+/** The fixture block with the legacy positional date arguments. */
 function makeBlock(
   startDate = "2026-10-21",
   endDate = "2026-12-01",
 ): BlockPlan {
-  return {
-    name: "Base",
-    focus: "Aerobic endurance",
-    rationale: "Establish consistent aerobic volume.",
-    startDate,
-    endDate,
-    weeks: [
-      {
-        number: 1,
-        startDate,
-        focus: "Aerobic base",
-        targetLoad: "Easy",
-      },
-    ],
-  };
-}
-
-function makeWeek(startDate: string): WeekPlan {
-  return {
-    startDate,
-    focus: "Aerobic base",
-    rationale: "Keep the week easy and consistent.",
-    sessions: Array.from({ length: 7 }, (_, index) => ({
-      date: addDays(startDate, index),
-      day: "Monday",
-      type: "workout",
-      title: `Session ${index + 1}`,
-      description: "Easy aerobic work.",
-      durationMinutes: 45,
-      intensity: "easy",
-      status: "planned",
-    })),
-  };
+  return makeFixtureBlock({ startDate, endDate });
 }
 
 /** The same week with a structured workout on every day. */
@@ -118,35 +78,6 @@ function makeEndedWeek(startDate: string, today: string): WeekPlan {
     sessions: week.sessions.map((session) =>
       session.date < today ? { ...session, status: "missed" } : session,
     ),
-  };
-}
-
-function makeDay(date: string): DayPlan {
-  return {
-    date,
-    type: "workout",
-    title: "Easy run",
-    description: "45 minutes easy.",
-    durationMinutes: 45,
-    intensity: "easy",
-    alternatives: [],
-    rationale: "Easy aerobic work supports recovery.",
-    optional: false,
-    optionalRationale:
-      "This easy run keeps the week consistent; skip it only if you feel unusually tired.",
-    status: "planned",
-  };
-}
-
-function makePlan(today = "2026-10-21"): CoachPlan {
-  return {
-    season: makeSeason(),
-    block: makeBlock(),
-    week: makeWeek("2026-10-19"),
-    today: makeDay(today),
-    tomorrow: null,
-    nextWeek: null,
-    nextBlock: null,
   };
 }
 
