@@ -537,8 +537,13 @@ through a disciplined process:
    strictness flags in `tsconfig.base.json`), ESLint, and Prettier are all
    checked in CI (`bun run typecheck`, `bun run lint`, `bun run format`) and
    must pass.
-6. **Full test coverage on every feature**, across three layers:
+6. **Full test coverage on every feature**, across every layer:
    - **Unit tests** (Vitest) for pure logic and components.
+   - **Python sidecar tests** for `services/garmin`: `bun run check:garmin` runs
+     `pytest` plus `ruff check`, `ruff format --check` and `mypy`, with the
+     tools pinned in `services/garmin/requirements-dev.txt` and configured in
+     its `pyproject.toml`. CI runs the same script in the `garmin` job; see
+     `docs/specs/garmin-sidecar-checks.md`.
    - **Integration tests** against the API and a test database.
      Database-backed tests live in `apps/api/integration` and run with
      `bun run test:integration` against the docker-compose PostgreSQL. They
@@ -558,8 +563,9 @@ through a disciplined process:
      holds each package to its recorded line and function baseline in CI; see
      `docs/specs/test-coverage.md`.
 7. **CI pipeline** (GitHub Actions, `.github/workflows/ci.yml`): typecheck +
-   lint + format + unit tests + database integration tests + the e2e suite + a
-   dependency-outdated check must pass before merge.
+   lint + format + unit tests + database integration tests + the e2e suite + the
+   Garmin sidecar's Python checks + a dependency-outdated check must pass before
+   merge.
 8. **Dependencies stay current.** CI fails the build when any dependency is
    outdated (`bun run outdated`). When that happens, update the outdated
    dependencies with `bun update`, verify typecheck/lint/format/tests still
@@ -571,7 +577,8 @@ through a disciplined process:
 10. **Documents stay current.** Keep AGENTS.md accurate and write ADRs (a
     decision log) for significant architectural choices.
 11. **Definition of done.** A change is done only when tests, types, and lint
-    pass.
+    pass, including `bun run check:garmin` when the sidecar or its tooling
+    changes.
 12. **Clean, readable code first.** Readable, maintainable, clean code is as
     important as working features. If a small feature requires a lot of new
     lines, it is likely not worth it.
@@ -602,9 +609,9 @@ through a disciplined process:
 ## Working side effects
 
 - **Verify CI before pushing.** When asked to push changes, first run
-  `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`
-  locally (or verify the equivalent CI checks pass), and confirm they all
-  succeed before pushing.
+  `bun run typecheck`, `bun run lint`, `bun run format`, `bun run test` and
+  `bun run check:garmin` locally (or verify the equivalent CI checks pass), and
+  confirm they all succeed before pushing.
 - **Make sure CI passes on PRs.** When asked to create or update a PR, make
   sure CI passes.
 
