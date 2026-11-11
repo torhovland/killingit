@@ -71,7 +71,11 @@ display zone can change later.
 }
 ```
 
-- `meal` describes what the coach understands the athlete ate.
+- `meal` adds to the athlete's own description instead of repeating it. It says
+  what the photo confirms or shows beyond the description and states any
+  assumption the coach makes, such as a cooked or raw weight or how a mixed
+  portion splits; the athlete's description is shown separately. For a
+  photo-only meal it identifies and describes the meal from the photo.
 - The four numbers are totals for the whole meal. Estimates are approximate and
   the prompt says so.
 - `dietFit` is one short paragraph on how the meal fits the athlete's goal,

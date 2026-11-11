@@ -36,7 +36,7 @@ export interface FoodAnalysisInput {
 export const FOOD_ANALYSIS_SYSTEM_PROMPT = promptSections(
   GLOBAL_PROMPT_RULES,
   "The athlete has logged one meal and wants your reading of it.",
-  "Describe the meal in your own words, estimate its carbohydrate, protein, fat and energy content for the whole meal, and comment on how it fits the athlete's goal, current training and recent food log.",
+  "Give your reading of the meal, estimate its carbohydrate, protein, fat and energy content for the whole meal, and comment on how it fits the athlete's goal, current training and recent food log.",
   "Estimate from the athlete's description and, when one is attached, the photo. When the description is vague, assume an ordinary portion and say so in the meal description. Never invent ingredients that neither the description nor the photo shows.",
   TEXT_FORMATTING_RULES,
   FOOD_ANALYSIS_RESPONSE_RULES,
@@ -125,7 +125,7 @@ export function buildFoodAnalysisPrompt(
           "Compare the two versions. Update the meal description, the macro estimates and the diet-fit note to match what the athlete changed, and keep the parts that still apply.",
         ]),
     "",
-    "Describe the meal, estimate its nutrition, and say how it fits the athlete's diet and training.",
+    "Describe what you add to the athlete's description, estimate the meal's nutrition, and say how it fits the athlete's diet and training.",
     "Return the JSON object described in the system prompt.",
   ].join("\n");
 }
