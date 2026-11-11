@@ -1,6 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import type { CoachPlan, WeekPlan } from "@killingit/shared";
-import { addDays } from "@killingit/shared";
+import {
+  makeDay,
+  makePlan as makeFixturePlan,
+  makeWeek as makeFixtureWeek,
+} from "../testFixtures/plan.js";
 import { outlineWeekPlans } from "./outline.js";
 
 const bikeWorkout = {
@@ -9,19 +13,11 @@ const bikeWorkout = {
 };
 
 function makeWeek(startDate: string): WeekPlan {
+  const week = makeFixtureWeek(startDate);
   return {
-    startDate,
-    focus: "Aerobic base",
-    rationale: "Keep the week easy.",
-    sessions: Array.from({ length: 7 }, (_, index) => ({
-      date: addDays(startDate, index),
-      day: "Monday",
-      type: "workout" as const,
-      title: `Session ${index + 1}`,
-      description: "Easy aerobic work.",
-      durationMinutes: 45,
-      intensity: "easy" as const,
-      status: "planned" as const,
+    ...week,
+    sessions: week.sessions.map((session) => ({
+      ...session,
       estimatedTss: 40,
       bikeWorkout,
     })),
@@ -29,40 +25,11 @@ function makeWeek(startDate: string): WeekPlan {
 }
 
 function makePlan(): CoachPlan {
-  return {
-    season: {
-      goal: "Sub-4-hour marathon",
-      startDate: "2026-10-01",
-      endDate: "2027-04-01",
-      rationale: "Build aerobic base.",
-      blocks: [],
-    },
-    block: {
-      name: "Base",
-      focus: "Aerobic endurance",
-      rationale: "Establish volume.",
-      startDate: "2026-10-19",
-      endDate: "2026-12-01",
-      weeks: [],
-    },
+  return makeFixturePlan({
     week: makeWeek("2026-10-19"),
-    today: {
-      date: "2026-10-21",
-      type: "workout",
-      title: "Easy run",
-      description: "45 minutes easy.",
-      durationMinutes: 45,
-      intensity: "easy",
-      alternatives: [],
-      rationale: "Aerobic work.",
-      optional: false,
-      status: "planned",
-      bikeWorkout,
-    },
-    tomorrow: null,
+    today: makeDay("2026-10-21", { bikeWorkout }),
     nextWeek: makeWeek("2026-10-26"),
-    nextBlock: null,
-  };
+  });
 }
 
 describe("outlineWeekPlans", () => {

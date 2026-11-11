@@ -11,15 +11,25 @@ import type { StoredCoachReply } from "../plans/replies.js";
 import type { PlanStore, StoredPlan } from "../plans/store.js";
 import type { WeekPlanTotals } from "../plans/weekTotals.js";
 import type { QuestionAnswerStore } from "../questions/answers.js";
+import {
+  makeBlock,
+  makeDay,
+  makePlan as makeFixturePlan,
+  makeSeason,
+  makeWeek,
+} from "../testFixtures/plan.js";
 import type { UserStore } from "../users/store.js";
 import { buildCalendar } from "./calendar.js";
 
 function makePlan(): CoachPlan {
-  return {
-    season: {
+  const week = makeWeek("2026-10-19");
+  const nextWeek = makeWeek("2026-10-26");
+  return makeFixturePlan({
+    season: makeSeason({
       goal: "Ride a century.",
       startDate: "2026-10-01",
       endDate: "2026-12-31",
+      rationale: "Build endurance.",
       blocks: [
         {
           name: "Base",
@@ -36,13 +46,9 @@ function makePlan(): CoachPlan {
           weekCount: 4,
         },
       ],
-      rationale: "Build endurance.",
-    },
-    block: {
-      name: "Base",
-      focus: "Aerobic",
+    }),
+    block: makeBlock({
       startDate: "2026-10-01",
-      endDate: "2026-12-01",
       rationale: "Build the base.",
       weeks: [
         {
@@ -52,54 +58,40 @@ function makePlan(): CoachPlan {
           targetLoad: "Easy",
         },
       ],
-    },
+    }),
     week: {
-      startDate: "2026-10-19",
+      ...week,
       focus: "Aerobic",
       rationale: "Keep it easy.",
-      sessions: Array.from({ length: 7 }, (_, index) => ({
-        date: `2026-10-${String(19 + index)}`,
-        day: "Monday",
+      sessions: week.sessions.map((session, index) => ({
+        ...session,
         type: index === 6 ? ("rest" as const) : ("workout" as const),
         title: index === 6 ? "Rest" : `Ride ${index + 1}`,
         description: index === 6 ? "Take the day off." : "Easy spin.",
         durationMinutes: index === 6 ? 0 : 60,
         intensity: index === 6 ? ("rest" as const) : ("easy" as const),
         status: index === 1 ? ("completed" as const) : ("planned" as const),
-        estimatedTss: index === 6 ? undefined : 55,
+        ...(index === 6 ? {} : { estimatedTss: 55 }),
       })),
     },
-    today: {
-      date: "2026-10-22",
-      type: "workout",
+    today: makeDay("2026-10-22", {
       title: "Ride",
       description: "Easy spin.",
       durationMinutes: 60,
-      intensity: "easy",
-      alternatives: [],
-      rationale: "Easy aerobic work.",
-      optional: false,
-      status: "planned",
-    },
-    tomorrow: null,
+    }),
     nextWeek: {
-      startDate: "2026-10-26",
+      ...nextWeek,
       focus: "Aerobic",
       rationale: "Keep it easy.",
-      sessions: Array.from({ length: 7 }, (_, index) => ({
-        date: `2026-10-${String(26 + index)}`,
-        day: "Monday",
-        type: "workout" as const,
+      sessions: nextWeek.sessions.map((session, index) => ({
+        ...session,
         title: `Next ride ${index + 1}`,
         description: "Easy spin.",
         durationMinutes: 60,
-        intensity: "easy" as const,
-        status: "planned" as const,
         estimatedTss: 55,
       })),
     },
-    nextBlock: null,
-  };
+  });
 }
 
 const activity = {

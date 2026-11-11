@@ -1,78 +1,12 @@
 import { describe, expect, it } from "bun:test";
-import { addDays, type CoachPlan } from "@killingit/shared";
+import { addDays } from "@killingit/shared";
+import { makePlan } from "../testFixtures/plan.js";
 import {
   latestActivityAnalysisTimestamp,
   latestAnswerTimestamp,
   planIsStale,
   planPending,
 } from "./status.js";
-
-function makePlan(): CoachPlan {
-  return {
-    season: {
-      goal: "Marathon",
-      startDate: "2026-10-21",
-      endDate: "2027-04-01",
-      rationale: "Build aerobic base.",
-      blocks: [
-        {
-          name: "Base",
-          focus: "Aerobic",
-          startDate: "2026-10-21",
-          endDate: "2026-12-01",
-          weekCount: 6,
-        },
-      ],
-    },
-    block: {
-      name: "Base",
-      focus: "Aerobic",
-      rationale: "Establish consistent volume.",
-      startDate: "2026-10-21",
-      endDate: "2026-12-01",
-      weeks: [
-        {
-          number: 1,
-          startDate: "2026-10-19",
-          focus: "Aerobic",
-          targetLoad: "Easy",
-        },
-      ],
-    },
-    week: {
-      startDate: "2026-10-19",
-      focus: "Aerobic",
-      rationale: "Keep the week easy.",
-      sessions: Array.from({ length: 7 }, (_, index) => ({
-        date: `2026-10-${String(19 + index)}`,
-        day: "Monday",
-        type: "workout" as const,
-        title: `Session ${index + 1}`,
-        description: "Easy.",
-        durationMinutes: 45,
-        intensity: "easy" as const,
-        status: "planned" as const,
-      })),
-    },
-    today: {
-      date: "2026-10-21",
-      type: "workout",
-      title: "Easy run",
-      description: "Easy.",
-      durationMinutes: 45,
-      intensity: "easy",
-      alternatives: [],
-      rationale: "Easy aerobic work.",
-      optional: false,
-      optionalRationale:
-        "This easy run keeps the week consistent; skip it only if you feel unusually tired.",
-      status: "planned",
-    },
-    tomorrow: null,
-    nextWeek: null,
-    nextBlock: null,
-  };
-}
 
 describe("planPending", () => {
   it("marks every level when there is no plan", () => {

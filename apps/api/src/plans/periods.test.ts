@@ -1,11 +1,12 @@
 import { describe, expect, it } from "bun:test";
-import type {
-  BlockPlan,
-  CoachPlan,
-  DayPlan,
-  WeekPlan,
-} from "@killingit/shared";
-import { addDays } from "@killingit/shared";
+import type { CoachPlan } from "@killingit/shared";
+import {
+  makeBlock,
+  makeDay,
+  makePlan as makeFixturePlan,
+  makeSeason,
+  makeWeek,
+} from "../testFixtures/plan.js";
 import {
   blockFor,
   promoteNextPeriod,
@@ -14,64 +15,10 @@ import {
   weekFor,
 } from "./periods.js";
 
-function makeWeek(startDate: string): WeekPlan {
-  return {
-    startDate,
-    focus: "Aerobic base",
-    rationale: "Keep the week easy.",
-    sessions: Array.from({ length: 7 }, (_, index) => ({
-      date: addDays(startDate, index),
-      day: "Monday",
-      type: "workout",
-      title: `Session ${index + 1}`,
-      description: "Easy aerobic work.",
-      durationMinutes: 45,
-      intensity: "easy",
-      status: "planned",
-    })),
-  };
-}
-
-function makeBlock(startDate: string, endDate: string): BlockPlan {
-  return {
-    name: "Base",
-    focus: "Aerobic endurance",
-    rationale: "Establish consistent volume.",
-    startDate,
-    endDate,
-    weeks: [
-      {
-        number: 1,
-        startDate,
-        focus: "Aerobic base",
-        targetLoad: "Easy",
-      },
-    ],
-  };
-}
-
-function makeDay(date: string, title = "Easy run"): DayPlan {
-  return {
-    date,
-    type: "workout",
-    title,
-    description: "45 minutes easy.",
-    durationMinutes: 45,
-    intensity: "easy",
-    alternatives: [],
-    rationale: "Easy aerobic work.",
-    optional: false,
-    status: "planned",
-  };
-}
-
 function makePlan(): CoachPlan {
-  return {
-    season: {
-      goal: "Marathon",
+  return makeFixturePlan({
+    season: makeSeason({
       startDate: "2026-10-01",
-      endDate: "2027-04-01",
-      rationale: "Build a base.",
       blocks: [
         {
           name: "Base",
@@ -81,14 +28,11 @@ function makePlan(): CoachPlan {
           weekCount: 4,
         },
       ],
-    },
-    block: makeBlock("2026-10-01", "2026-10-25"),
+    }),
+    block: makeBlock({ startDate: "2026-10-01", endDate: "2026-10-25" }),
     week: makeWeek("2026-10-19"),
     today: makeDay("2026-10-25"),
-    tomorrow: null,
-    nextWeek: null,
-    nextBlock: null,
-  };
+  });
 }
 
 describe("weekEnd", () => {
@@ -112,7 +56,7 @@ describe("weekFor and blockFor", () => {
     const plan: CoachPlan = {
       ...makePlan(),
       nextWeek: makeWeek("2026-10-26"),
-      nextBlock: makeBlock("2026-10-26", "2026-12-06"),
+      nextBlock: makeBlock({ startDate: "2026-10-26", endDate: "2026-12-06" }),
     };
 
     expect(weekFor(plan, "2026-10-25")?.startDate).toBe("2026-10-19");
@@ -129,7 +73,7 @@ describe("promoteNextPeriod", () => {
     const plan: CoachPlan = {
       ...makePlan(),
       nextWeek: makeWeek("2026-10-26"),
-      nextBlock: makeBlock("2026-10-26", "2026-12-06"),
+      nextBlock: makeBlock({ startDate: "2026-10-26", endDate: "2026-12-06" }),
     };
 
     expect(promoteNextPeriod(plan, "2026-10-25")).toBe(plan);
@@ -138,9 +82,9 @@ describe("promoteNextPeriod", () => {
   it("promotes both periods and takes today's session from tomorrow", () => {
     const plan: CoachPlan = {
       ...makePlan(),
-      tomorrow: makeDay("2026-10-26", "Monday easy run"),
+      tomorrow: makeDay("2026-10-26", { title: "Monday easy run" }),
       nextWeek: makeWeek("2026-10-26"),
-      nextBlock: makeBlock("2026-10-26", "2026-12-06"),
+      nextBlock: makeBlock({ startDate: "2026-10-26", endDate: "2026-12-06" }),
     };
 
     const promoted = promoteNextPeriod(plan, "2026-10-26");
@@ -168,7 +112,7 @@ describe("promoteNextPeriod", () => {
     const plan: CoachPlan = {
       ...makePlan(),
       nextWeek: makeWeek("2026-10-26"),
-      nextBlock: makeBlock("2026-10-26", "2026-11-01"),
+      nextBlock: makeBlock({ startDate: "2026-10-26", endDate: "2026-11-01" }),
     };
 
     const promoted = promoteNextPeriod(plan, "2026-11-05");

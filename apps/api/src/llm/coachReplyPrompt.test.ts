@@ -1,5 +1,12 @@
 import { describe, expect, it } from "bun:test";
-import type { ActivitySummary, CoachPlan } from "@killingit/shared";
+import {
+  makeActivitySummary,
+  makeDay,
+  makePlan,
+  makeWeek,
+  PLAN_TODAY,
+  PLAN_WEEK_START,
+} from "../testFixtures/plan.js";
 import {
   buildCoachReplyMessages,
   buildCoachReplyPrompt,
@@ -13,94 +20,26 @@ import {
   TEXT_FORMATTING_RULES,
 } from "./promptRules.js";
 
-function makePlan(): CoachPlan {
-  return {
-    season: {
-      goal: "Sub-4-hour marathon",
-      startDate: "2026-10-19",
-      endDate: "2027-04-01",
-      rationale: "Build aerobic base.",
-      blocks: [
-        {
-          name: "Base",
-          focus: "Aerobic endurance",
-          startDate: "2026-10-19",
-          endDate: "2026-12-01",
-          weekCount: 6,
-        },
-      ],
+const plan = makePlan({
+  week: makeWeek(PLAN_WEEK_START, {
+    sessions: makeWeek(PLAN_WEEK_START).sessions.map((session, index) =>
+      index === 3 ? { ...session, title: "Threshold intervals" } : session,
+    ),
+  }),
+  today: makeDay(PLAN_TODAY, {
+    weather: {
+      date: PLAN_TODAY,
+      icon: "partly_cloudy",
+      temperatureMinC: 8,
+      temperatureMaxC: 14,
+      windMaxMs: 4,
+      gustMaxMs: 7,
+      precipitationMm: 0.2,
+      sunrise: "07:42",
+      sunset: "17:55",
     },
-    block: {
-      name: "Base",
-      focus: "Aerobic endurance",
-      rationale: "Establish consistent volume.",
-      startDate: "2026-10-19",
-      endDate: "2026-12-01",
-      weeks: [
-        {
-          number: 1,
-          startDate: "2026-10-19",
-          focus: "Aerobic base",
-          targetLoad: "Easy",
-        },
-      ],
-    },
-    week: {
-      startDate: "2026-10-19",
-      focus: "Aerobic base",
-      rationale: "Keep the week easy.",
-      sessions: Array.from({ length: 7 }, (_, index) => ({
-        date: `2026-10-${String(19 + index)}`,
-        day: "Monday",
-        type: "workout" as const,
-        title: index === 3 ? "Threshold intervals" : "Easy run",
-        description: "Aerobic work.",
-        durationMinutes: 45,
-        intensity: "easy" as const,
-        status: "planned" as const,
-      })),
-    },
-    today: {
-      date: "2026-10-21",
-      type: "workout",
-      title: "Easy run",
-      description: "45 minutes easy.",
-      durationMinutes: 45,
-      intensity: "easy",
-      alternatives: [],
-      rationale: "Easy aerobic work.",
-      optional: false,
-      status: "planned",
-      weather: {
-        date: "2026-10-21",
-        icon: "partly_cloudy",
-        temperatureMinC: 8,
-        temperatureMaxC: 14,
-        windMaxMs: 4,
-        gustMaxMs: 7,
-        precipitationMm: 0.2,
-        sunrise: "07:42",
-        sunset: "17:55",
-      },
-    },
-    tomorrow: null,
-    nextWeek: null,
-    nextBlock: null,
-  };
-}
-
-function makeActivity(): ActivitySummary {
-  return {
-    id: 1,
-    name: "Morning ride",
-    type: "cycling",
-    startDate: "2026-10-20T07:10:00Z",
-    distance: 42000,
-    movingTime: 5400,
-    elapsedTime: 6000,
-    totalElevationGain: 320,
-  };
-}
+  }),
+});
 
 function makeContext(
   overrides: Partial<PlanContextInput> = {},
@@ -123,7 +62,7 @@ function makeInput(
   overrides: Partial<CoachReplyPromptInput> = {},
 ): CoachReplyPromptInput {
   return {
-    plan: makePlan(),
+    plan,
     context: makeContext(),
     request: { kind: "quick_question", question: "Should I ride today?" },
     ...overrides,
@@ -228,11 +167,11 @@ describe("buildCoachReplyPrompt training context", () => {
         context: makeContext({
           recentActivities: [
             {
-              summary: makeActivity(),
+              summary: makeActivitySummary(),
               analysis: "Steady aerobic ride at a comfortable effort.",
             },
             {
-              summary: { ...makeActivity(), id: 2, name: "Easy run" },
+              summary: { ...makeActivitySummary(), id: 2, name: "Easy run" },
               analysis: "Easy shakeout, good form.",
               coachReply: "Nice work, keep this easy.",
             },

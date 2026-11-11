@@ -1,30 +1,27 @@
 import { describe, expect, it } from "bun:test";
 import type { AnalyzedActivity, WeekPlan } from "@killingit/shared";
+import {
+  makeAnalyzedActivity,
+  makeWeek as makeFixtureWeek,
+} from "../testFixtures/plan.js";
 import { applyCompletedDays } from "./week.js";
 
 function makeWeek(): WeekPlan {
+  const week = makeFixtureWeek();
   return {
-    startDate: "2026-10-19",
-    focus: "Aerobic base",
-    rationale: "Keep the week easy.",
-    sessions: Array.from({ length: 7 }, (_, index) => ({
-      date: `2026-10-${String(19 + index)}`,
-      day: "Monday",
-      type: index === 6 ? "rest" : "workout",
-      title: `Session ${index + 1}`,
-      description: "Easy aerobic work.",
-      durationMinutes: 45,
-      intensity: index === 6 ? "rest" : "easy",
-      status: index === 6 ? "rest" : "planned",
-    })),
+    ...week,
+    sessions: week.sessions.map((session, index) =>
+      index === 6
+        ? { ...session, type: "rest", intensity: "rest", status: "rest" }
+        : session,
+    ),
   };
 }
 
 function makeActivity(
   overrides: Partial<AnalyzedActivity> = {},
 ): AnalyzedActivity {
-  return {
-    id: 1,
+  return makeAnalyzedActivity({
     name: "Morning Run",
     type: "running",
     startDate: "2026-10-19T06:30:00Z",
@@ -33,14 +30,8 @@ function makeActivity(
     elapsedTime: 2800,
     totalElevationGain: 80,
     sampleCount: 100,
-    samples: [],
-    analysis: null,
-    analysisError: null,
-    programAnalysis: null,
-    comment: null,
-    coachReply: null,
     ...overrides,
-  };
+  });
 }
 
 describe("applyCompletedDays", () => {

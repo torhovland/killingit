@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { Activity, WeekPlan } from "@killingit/shared";
+import type { Activity, ActivitySample, WeekPlan } from "@killingit/shared";
+import { makeActivity as makeFixtureActivity } from "../testFixtures/plan.js";
 import {
   buildActivityAnalysisMessages,
   buildActivityAnalysisPrompt,
@@ -15,50 +16,50 @@ import {
   TEXT_FORMATTING_RULES,
 } from "./promptRules.js";
 
+const samples: ActivitySample[] = [
+  {
+    timestamp: "2026-10-01T06:30:00Z",
+    heartRate: 120,
+    power: 180,
+    speed: 7.5,
+    distance: 0,
+    elevation: 40,
+    cadence: 85,
+    temperature: 12,
+  },
+  {
+    timestamp: "2026-10-01T06:40:00Z",
+    heartRate: 150,
+    power: 240,
+    speed: 9,
+    distance: 5000,
+    elevation: 80,
+    cadence: 90,
+    temperature: 13,
+  },
+  {
+    timestamp: "2026-10-01T06:50:00Z",
+    heartRate: 165,
+    power: 210,
+    speed: 8,
+    distance: 10000,
+    elevation: 60,
+    cadence: 88,
+    temperature: 14,
+  },
+];
+
 function makeActivity(overrides: Partial<Activity> = {}): Activity {
-  return {
-    id: 1,
+  return makeFixtureActivity({
     name: "Morning Ride",
-    type: "cycling",
     startDate: "2026-10-01T06:30:00Z",
     distance: 20000,
     movingTime: 2400,
     elapsedTime: 2600,
     totalElevationGain: 240,
-    samples: [
-      {
-        timestamp: "2026-10-01T06:30:00Z",
-        heartRate: 120,
-        power: 180,
-        speed: 7.5,
-        distance: 0,
-        elevation: 40,
-        cadence: 85,
-        temperature: 12,
-      },
-      {
-        timestamp: "2026-10-01T06:40:00Z",
-        heartRate: 150,
-        power: 240,
-        speed: 9,
-        distance: 5000,
-        elevation: 80,
-        cadence: 90,
-        temperature: 13,
-      },
-      {
-        timestamp: "2026-10-01T06:50:00Z",
-        heartRate: 165,
-        power: 210,
-        speed: 8,
-        distance: 10000,
-        elevation: 60,
-        cadence: 88,
-        temperature: 14,
-      },
-    ],
+    samples,
     ...overrides,
-  };
+  });
 }
 
 describe("downsampleSamples", () => {
