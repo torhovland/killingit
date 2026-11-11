@@ -554,8 +554,9 @@ through a disciplined process:
      and a stub LLM, and the e2e Vite config replaces only the Auth0 adapter
      with a browser-local session. Run it with `bun run test:e2e` against the
      docker-compose PostgreSQL; see `docs/specs/e2e-tests.md`.
-     Enforce coverage thresholds in CI (test pyramid: many unit, fewer
-     integration, a focused e2e set).
+     Unit coverage is measured and enforced by `bun run test:coverage`, which
+     holds each package to its recorded line and function baseline in CI; see
+     `docs/specs/test-coverage.md`.
 7. **CI pipeline** (GitHub Actions, `.github/workflows/ci.yml`): typecheck +
    lint + format + unit tests + database integration tests + the e2e suite + a
    dependency-outdated check must pass before merge.
