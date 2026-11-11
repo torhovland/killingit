@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import type { QuestionAnswerInput } from "@killingit/shared";
 import app, { createApp } from "../index.js";
+import { apiRequest } from "../testFixtures/request.js";
 import type {
   QuestionAnswerStore,
   StoredAthleteQuestion,
@@ -55,19 +56,19 @@ function createTestApp(store: QuestionAnswerStore) {
 function authenticatedRequest(path: string, init?: RequestInit): Request {
   const headers = new Headers(init?.headers);
   headers.set("authorization", "Bearer anything");
-  return new Request(`http://localhost${path}`, { ...init, headers });
+  return apiRequest(`http://localhost${path}`, { ...init, headers });
 }
 
 describe("athlete questions route", () => {
   it("requires a bearer token to list questions", async () => {
-    const res = await app.fetch(new Request("http://localhost/api/questions"));
+    const res = await app.fetch(apiRequest("http://localhost/api/questions"));
 
     expect(res.status).toBe(401);
   });
 
   it("requires a bearer token to submit answers", async () => {
     const res = await app.fetch(
-      new Request("http://localhost/api/questions/answers", {
+      apiRequest("http://localhost/api/questions/answers", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({

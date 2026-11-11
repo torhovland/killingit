@@ -14,6 +14,7 @@ import type {
   StoredFoodEntry,
 } from "../diet/store.js";
 import type { UserStore } from "../users/store.js";
+import { apiRequest } from "../testFixtures/request.js";
 
 const analysis: FoodAnalysis = {
   meal: "A cheese sandwich and an apple",
@@ -179,7 +180,7 @@ function request(
 ): Promise<Response> {
   return Promise.resolve(
     app.fetch(
-      new Request(`http://localhost${path}`, {
+      apiRequest(`http://localhost${path}`, {
         ...init,
         headers: {
           authorization: "Bearer test",

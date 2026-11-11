@@ -6,6 +6,7 @@ import type {
 } from "@killingit/shared";
 import { createApp } from "../index.js";
 import type { UserStore, StoredUser } from "../users/store.js";
+import { apiRequest } from "../testFixtures/request.js";
 
 const admin: StoredUser = {
   id: 1,
@@ -100,7 +101,7 @@ function app(options: {
 }
 
 function request(path: string): Request {
-  return new Request(`http://localhost${path}`, {
+  return apiRequest(`http://localhost${path}`, {
     headers: { authorization: "Bearer anything" },
   });
 }
@@ -108,7 +109,7 @@ function request(path: string): Request {
 describe("admin LLM calls route", () => {
   it("requires a bearer token", async () => {
     const res = await createApp().fetch(
-      new Request("http://localhost/api/admin/llm-calls"),
+      apiRequest("http://localhost/api/admin/llm-calls"),
     );
 
     expect(res.status).toBe(401);

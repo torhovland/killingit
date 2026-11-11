@@ -1,4 +1,5 @@
 import * as Sentry from "@sentry/react";
+import { reportApiOutdated, withApiVersion } from "./apiVersion";
 import { fetchJson, ApiError } from "./fetchJson";
 import type { AuthState } from "./auth";
 
@@ -6,7 +7,9 @@ import type { AuthState } from "./auth";
  * Fetch JSON, attaching a bearer token when authenticated. Uses the same
  * Sentry-breadcrumb-emitting `fetchJson` underneath. A 401 can mean the cached
  * access token expired between renewals, so renew once with the provider's
- * cache bypassed and retry the request before surfacing the failure.
+ * cache bypassed and retry the request before surfacing the failure. A 426
+ * means the API no longer answers this app build's contract version, which the
+ * app shows as an update notice.
  */
 export async function fetchJsonAuthed<T>(
   url: string,
@@ -38,7 +41,7 @@ function requestJson<T>(
     headers.set("authorization", `Bearer ${token}`);
   }
 
-  return fetchJson<T>(url, { ...init, headers });
+  return fetchJson<T>(url, { ...init, headers: withApiVersion(headers) });
 }
 
 /**
@@ -126,7 +129,10 @@ async function requestFile(
   }
 
   const method = init?.method ?? "GET";
-  const response = await fetch(url, { ...init, headers });
+  const response = await fetch(url, {
+    ...init,
+    headers: withApiVersion(headers),
+  });
   const contentType = response.headers.get("content-type") ?? "unknown";
 
   Sentry.addBreadcrumb({
@@ -137,6 +143,9 @@ async function requestFile(
   });
 
   if (!response.ok) {
+    if (response.status === 426) {
+      reportApiOutdated();
+    }
     const detail = (await response.text()).trim();
     throw new ApiError(
       `${method} ${url} failed: ${response.status} (${contentType})${detail ? `: ${detail.slice(0, 300)}` : ""}`,

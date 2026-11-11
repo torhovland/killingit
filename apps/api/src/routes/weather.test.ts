@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { createApp } from "../index.js";
+import { apiRequest } from "../testFixtures/request.js";
 
 const userStore = {
   ensureUser: (sub: string) =>
@@ -41,7 +42,7 @@ function request(path: string, authenticated = true): Request {
   if (authenticated) {
     headers.set("authorization", "Bearer anything");
   }
-  return new Request(`http://localhost${path}`, { headers });
+  return apiRequest(`http://localhost${path}`, { headers });
 }
 
 describe("GET /api/weather/geocode", () => {

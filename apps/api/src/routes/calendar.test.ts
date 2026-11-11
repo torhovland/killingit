@@ -20,6 +20,7 @@ import {
 } from "../testFixtures/plan.js";
 import type { UserStore } from "../users/store.js";
 import { buildCalendar } from "./calendar.js";
+import { apiRequest } from "../testFixtures/request.js";
 
 function makePlan(): CoachPlan {
   const week = makeWeek("2026-10-19");
@@ -248,7 +249,7 @@ function makeApp(
 }
 
 function authenticatedRequest(path: string): Request {
-  return new Request(`http://localhost${path}`, {
+  return apiRequest(`http://localhost${path}`, {
     headers: { authorization: "Bearer anything" },
   });
 }
@@ -256,7 +257,7 @@ function authenticatedRequest(path: string): Request {
 describe("calendar route", () => {
   it("requires a bearer token", async () => {
     const res = await makeApp().fetch(
-      new Request("http://localhost/api/calendar?today=2026-10-22"),
+      apiRequest("http://localhost/api/calendar?today=2026-10-22"),
     );
     expect(res.status).toBe(401);
   });

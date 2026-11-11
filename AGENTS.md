@@ -378,7 +378,7 @@ The stack below is proposed and should be treated as the starting point. See
   state live with the web app; see `docs/specs/pwa.md` and ADR 0018.
 - Every API request carries the shared contract version
   (`x-killingit-api-version`). The API refuses an unsupported build with `426`,
-  and the web reloads once and then shows an update notice instead of failing
+  and the web reloads once and then shows its update banner instead of failing
   with a schema error on whichever request came first. Deploy the API before the
   web and keep the previous version supported for one release; see
   `docs/specs/api-versioning.md` and ADR 0028.

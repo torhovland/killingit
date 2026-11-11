@@ -1,10 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import app, { createApp } from "../index";
+import { apiRequest } from "../testFixtures/request.js";
 
 describe("admin questions route", () => {
   it("requires a bearer token to list questions", async () => {
     const res = await app.fetch(
-      new Request("http://localhost/api/admin/questions"),
+      apiRequest("http://localhost/api/admin/questions"),
     );
 
     expect(res.status).toBe(401);
@@ -12,7 +13,7 @@ describe("admin questions route", () => {
 
   it("requires a bearer token to create a question", async () => {
     const res = await app.fetch(
-      new Request("http://localhost/api/admin/questions", {
+      apiRequest("http://localhost/api/admin/questions", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ prompt: "How did it go?" }),
@@ -24,7 +25,7 @@ describe("admin questions route", () => {
 
   it("requires a bearer token to reorder questions", async () => {
     const res = await app.fetch(
-      new Request("http://localhost/api/admin/questions/order", {
+      apiRequest("http://localhost/api/admin/questions/order", {
         method: "PUT",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ ids: [1, 2] }),
@@ -64,7 +65,7 @@ describe("admin questions route", () => {
     });
 
     const res = await nonAdminApp.fetch(
-      new Request("http://localhost/api/admin/questions", {
+      apiRequest("http://localhost/api/admin/questions", {
         headers: { authorization: "Bearer anything" },
       }),
     );

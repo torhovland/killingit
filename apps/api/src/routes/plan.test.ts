@@ -24,6 +24,7 @@ import type { CoachingSurveyAdjustmentStore } from "../questions/adjustments.js"
 import { makeDay, makePlan as makeFixturePlan } from "../testFixtures/plan.js";
 import { combineForecasts } from "../weather/combine.js";
 import type { WeatherForecastSet } from "../weather/forecast.js";
+import { apiRequest } from "../testFixtures/request.js";
 
 const storedQuestion: StoredAthleteQuestion = {
   id: 1,
@@ -300,7 +301,7 @@ function makeApp(options: {
 function authenticatedRequest(path: string, init?: RequestInit): Request {
   const headers = new Headers(init?.headers);
   headers.set("authorization", "Bearer anything");
-  return new Request(`http://localhost${path}`, { ...init, headers });
+  return apiRequest(`http://localhost${path}`, { ...init, headers });
 }
 
 /**
@@ -321,7 +322,7 @@ async function waitForGeneration(store: MemoryGenerationStore): Promise<void> {
 describe("coach plan route", () => {
   it("requires a bearer token", async () => {
     const res = await makeApp({}).fetch(
-      new Request("http://localhost/api/coaching/plan?today=2026-10-21"),
+      apiRequest("http://localhost/api/coaching/plan?today=2026-10-21"),
     );
     expect(res.status).toBe(401);
   });

@@ -11,6 +11,7 @@ import {
 } from "react";
 
 import { isSameBuild, readPageBuildId, requestWorkerBuildId } from "./pwaBuild";
+import { claimOutdatedReload, subscribeApiOutdated } from "./apiVersion";
 
 const SERVICE_WORKER_URL = "/sw.js";
 const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
@@ -27,7 +28,7 @@ export interface PwaState {
   installed: boolean;
   /** The browser reports no network connection. */
   offline: boolean;
-  /** A new service worker is waiting for the athlete to reload. */
+  /** A new service worker, or a build the API refuses, needs a reload. */
   updateReady: boolean;
 }
 
@@ -52,6 +53,34 @@ export function PwaProvider({ children }: { children: ReactNode }) {
   const [updateReady, setUpdateReady] = useState(false);
   const registration = useRef<ServiceWorkerRegistration | null>(null);
   const reloading = useRef(false);
+
+  const reloadForUpdate = useCallback(() => {
+    const waiting = registration.current?.waiting ?? null;
+    if (waiting === null) {
+      window.location.reload();
+      return;
+    }
+    reloading.current = true;
+    waiting.postMessage({ type: "SKIP_WAITING" });
+    // A browser that does not emit `controllerchange` should still leave the
+    // old shell rather than trapping the athlete on a stale version.
+    window.setTimeout(() => window.location.reload(), 3000);
+  }, []);
+
+  // The API refuses a build whose contract it no longer answers. The remedy is
+  // the same as a stale shell: activate any waiting worker and reload, once.
+  // A mismatch a reload cannot fix keeps the update banner up for the athlete.
+  useEffect(
+    () =>
+      subscribeApiOutdated(() => {
+        if (claimOutdatedReload(window.sessionStorage)) {
+          reloadForUpdate();
+          return;
+        }
+        setUpdateReady(true);
+      }),
+    [reloadForUpdate],
+  );
 
   useEffect(() => {
     function offerInstall(event: Event): void {
@@ -205,19 +234,6 @@ export function PwaProvider({ children }: { children: ReactNode }) {
       setInstallPrompt(null);
     }
   }, [installPrompt]);
-
-  const reloadForUpdate = useCallback(() => {
-    const waiting = registration.current?.waiting ?? null;
-    if (waiting === null) {
-      window.location.reload();
-      return;
-    }
-    reloading.current = true;
-    waiting.postMessage({ type: "SKIP_WAITING" });
-    // A browser that does not emit `controllerchange` should still leave the
-    // old shell rather than trapping the athlete on a stale version.
-    window.setTimeout(() => window.location.reload(), 3000);
-  }, []);
 
   const value = useMemo<PwaContextValue>(
     () => ({
