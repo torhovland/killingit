@@ -9,6 +9,8 @@ import { requestParsed } from "./fetchAuthed";
 import { FormattedText } from "./FormattedText";
 import { reportError } from "./reportError";
 import { browserTimeZone, formatDateTime } from "./timeZone";
+import { Button } from "./components/Button";
+import { Card } from "./components/Card";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 const LIMIT = 20;
@@ -59,8 +61,9 @@ export function AdminModelRemarksSection() {
   }, [auth, reloadKey]);
 
   return (
-    <section
-      className="flex flex-col gap-3 rounded-lg border bg-card p-4 text-left"
+    <Card
+      as="section"
+      className="flex flex-col gap-3 text-left"
       data-testid="admin-model-remarks"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -71,9 +74,10 @@ export function AdminModelRemarksSection() {
             prompts.
           </p>
         </div>
-        <button
+        <Button
           type="button"
-          className="rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted"
+          variant="secondary"
+          size="md"
           onClick={() => {
             setRemarks(null);
             setReloadKey((value) => value + 1);
@@ -81,7 +85,7 @@ export function AdminModelRemarksSection() {
           disabled={loading}
         >
           Refresh
-        </button>
+        </Button>
       </div>
 
       {error && <p className="text-base text-destructive">{error}</p>}
@@ -117,6 +121,6 @@ export function AdminModelRemarksSection() {
           ))}
         </ul>
       )}
-    </section>
+    </Card>
   );
 }

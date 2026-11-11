@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import { SubmitButton } from "./SubmitButton";
 import type { CommentFormState } from "./useCommentForm";
+import { Button } from "./components/Button";
+import { Textarea } from "./components/Textarea";
 
 /**
  * The athlete's comment, the coach's reply and the form that edits the
@@ -37,14 +39,15 @@ export function CommentSection({
             <span className="font-medium">You:</span> {form.shownComment}
           </p>
           {editable && !form.editing && (
-            <button
+            <Button
               type="button"
-              className="text-sm text-muted-foreground hover:underline"
+              variant="link"
+              size="none"
               onClick={form.edit}
               data-testid={`${testIdPrefix}-comment-edit`}
             >
               Edit comment
-            </button>
+            </Button>
           )}
         </div>
       )}
@@ -57,10 +60,9 @@ export function CommentSection({
           onSubmit={(event) => void form.submit(event)}
           data-testid={`${testIdPrefix}-comment-form`}
         >
-          <textarea
+          <Textarea
             id={textareaId}
             aria-label={ariaLabel}
-            className="w-full rounded border bg-card p-2 text-base"
             placeholder={placeholder}
             value={form.comment}
             onChange={(event) => form.setComment(event.target.value)}
@@ -73,31 +75,37 @@ export function CommentSection({
           <div className="flex flex-wrap gap-2">
             <SubmitButton
               busy={form.submitting}
-              className="self-start rounded border border-transparent bg-primary px-3 py-1 text-base text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
+              variant="primary"
+              size="md"
+              className="self-start"
               disabled={!form.comment.trim()}
             >
               {form.submitting ? "Coach is thinking…" : "Send to coach"}
             </SubmitButton>
             {form.shownComment !== null && (
-              <button
+              <Button
                 type="button"
-                className="self-start rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted disabled:opacity-50"
+                variant="secondary"
+                size="md"
+                className="self-start"
                 onClick={form.cancelEdit}
                 disabled={form.submitting}
               >
                 Cancel
-              </button>
+              </Button>
             )}
             {form.canDismiss && form.shownComment === null && (
-              <button
+              <Button
                 type="button"
-                className="self-start rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted disabled:opacity-50"
+                variant="secondary"
+                size="md"
+                className="self-start"
                 onClick={() => void form.dismiss()}
                 disabled={form.dismissing || form.submitting}
                 data-testid={`${testIdPrefix}-no-comment`}
               >
                 {form.dismissing ? "Saving…" : "No comment"}
-              </button>
+              </Button>
             )}
           </div>
         </form>

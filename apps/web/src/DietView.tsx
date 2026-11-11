@@ -7,6 +7,8 @@ import {
 import { CalorieBalancePanel } from "./CalorieBalancePanel";
 import { EditableFoodEntryCard } from "./EditableFoodEntryCard";
 import { FormattedText } from "./FormattedText";
+import { Button } from "./components/Button";
+import { Card } from "./components/Card";
 
 /**
  * The presentational Diet page: the coach's goal and weight-trend judgement,
@@ -53,20 +55,22 @@ export function DietView({
         <p className="rounded border bg-inset p-3 text-base">
           Diet advice is off. Turn it on in Settings to log meals and see them
           here.{" "}
-          <button
+          <Button
             type="button"
-            className="underline hover:no-underline"
+            variant="linkStrong"
+            size="none"
             onClick={onOpenSettings}
           >
             Open Settings
-          </button>
+          </Button>
         </p>
       )}
 
       {dietAdvice && (
         <>
-          <section
-            className="flex flex-col gap-2 rounded-lg border bg-card p-4"
+          <Card
+            as="section"
+            className="flex flex-col gap-2"
             data-testid="diet-goal"
           >
             <div className="flex flex-wrap items-baseline gap-2">
@@ -82,13 +86,14 @@ export function DietView({
               >
                 This is the default goal. You can provide your own diet goal on
                 the Coaching Survey.{" "}
-                <button
+                <Button
                   type="button"
-                  className="underline hover:no-underline"
+                  variant="linkStrong"
+                  size="none"
                   onClick={onOpenSurvey}
                 >
                   Open the Coaching Survey
-                </button>
+                </Button>
               </p>
             )}
             {summary?.assessment != null && (
@@ -101,7 +106,7 @@ export function DietView({
                 />
               </div>
             )}
-          </section>
+          </Card>
 
           {todayEntry !== null && (
             <CalorieBalancePanel
@@ -116,13 +121,15 @@ export function DietView({
           {error && <p className="text-destructive">Error: {error}</p>}
 
           {error !== null && summary === null && !loading ? (
-            <button
+            <Button
               type="button"
-              className="self-start rounded border bg-card px-4 py-2 enabled:hover:bg-muted"
+              variant="secondary"
+              size="lg"
+              className="self-start"
               onClick={onRetry}
             >
               Retry
-            </button>
+            </Button>
           ) : loading && summary === null ? (
             <p className="text-base text-muted-foreground">
               Loading your meals…
@@ -161,10 +168,7 @@ function DietDayCard({
   onEntryUpdated: (entry: FoodEntry) => void;
 }) {
   return (
-    <article
-      className="flex flex-col gap-3 rounded-lg border bg-card p-4"
-      data-testid="diet-day"
-    >
+    <Card as="article" className="flex flex-col gap-3" data-testid="diet-day">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="text-lg font-semibold">{formatDietDate(day.date)}</h3>
         {day.date === today && (
@@ -207,7 +211,7 @@ function DietDayCard({
           No meals logged this day.
         </p>
       )}
-    </article>
+    </Card>
   );
 }
 

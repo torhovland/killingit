@@ -20,6 +20,8 @@ import { usePwa } from "./PwaContext";
 import { PwaInstallSection } from "./PwaInstall";
 import { reportError } from "./reportError";
 import { TimeZoneSection } from "./TimeZoneSection";
+import { Button } from "./components/Button";
+import { Card } from "./components/Card";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
@@ -168,13 +170,15 @@ export function SettingsPage({
       {loading && (garmin === null || llm === null) ? (
         <p className="text-base text-muted-foreground">Loading settings…</p>
       ) : garmin === null || llm === null ? (
-        <button
+        <Button
           type="button"
-          className="self-start rounded border bg-card px-4 py-2 enabled:hover:bg-muted"
+          variant="secondary"
+          size="lg"
+          className="self-start"
           onClick={() => void loadStatuses()}
         >
           Retry
-        </button>
+        </Button>
       ) : (
         <>
           <TimeZoneSection
@@ -185,7 +189,7 @@ export function SettingsPage({
             onChange={changeTimeZone}
           />
 
-          <section className="flex flex-col gap-3 rounded-lg border bg-card p-4">
+          <Card as="section" className="flex flex-col gap-3">
             <h3 className="text-2xl font-semibold">Location</h3>
             <p className="text-base text-muted-foreground">
               Choose the place the coach should use for weather and daylight.
@@ -196,34 +200,34 @@ export function SettingsPage({
               location={location}
               onChanged={onLocationChanged}
             />
-          </section>
+          </Card>
 
-          <section className="flex flex-col gap-3 rounded-lg border bg-card p-4">
+          <Card as="section" className="flex flex-col gap-3">
             <h3 className="text-2xl font-semibold">Diet</h3>
             <DietSection enabled={dietAdvice} onChanged={onDietAdviceChanged} />
-          </section>
+          </Card>
 
-          <section className="flex flex-col gap-3 rounded-lg border bg-card p-4">
+          <Card as="section" className="flex flex-col gap-3">
             <h3 className="text-2xl font-semibold">Garmin</h3>
             <GarminSection
               connected={garmin.connected}
               onConnected={setGarmin}
             />
-          </section>
+          </Card>
 
-          <section className="flex flex-col gap-3 rounded-lg border bg-card p-4">
+          <Card as="section" className="flex flex-col gap-3">
             <h3 className="text-2xl font-semibold">OpenRouter</h3>
             <LlmSection settings={llm} onSaved={setLlm} isAdmin={isAdmin} />
-          </section>
+          </Card>
 
-          <section className="flex flex-col gap-3 rounded-lg border bg-card p-4">
+          <Card as="section" className="flex flex-col gap-3">
             <h3 className="text-2xl font-semibold">Training plan</h3>
             <p className="text-base text-muted-foreground">
               Start a new season from today, or keep the completed part of the
               current season and re-plan the rest.
             </p>
             <PlanRegenerationButtons />
-          </section>
+          </Card>
         </>
       )}
 
@@ -233,7 +237,7 @@ export function SettingsPage({
         onInstall={() => void pwa.install()}
       />
 
-      <section className="flex flex-col gap-3 rounded-lg border bg-card p-4">
+      <Card as="section" className="flex flex-col gap-3">
         <h3 className="text-2xl font-semibold">Licence</h3>
         <p className="text-base text-muted-foreground">
           Killing It is source-available under the PolyForm Noncommercial
@@ -245,7 +249,7 @@ export function SettingsPage({
         >
           Third-party licences
         </a>
-      </section>
+      </Card>
 
       <DeleteAccountSection />
     </section>

@@ -3,6 +3,7 @@ import { Bullet } from "./Bullet";
 import { CommentSection } from "./CommentSection";
 import { FormattedText } from "./FormattedText";
 import { useCommentForm } from "./useCommentForm";
+import { Card } from "./components/Card";
 
 const KIND_LABELS: Record<ReviewKind, string> = {
   week: "Week review",
@@ -47,8 +48,9 @@ export function PeriodReviewCard({
   });
 
   return (
-    <article
-      className="flex flex-col gap-2 rounded-lg border bg-card p-4 text-left"
+    <Card
+      as="article"
+      className="flex flex-col gap-2 text-left"
       data-testid="period-review-card"
     >
       <header className="flex flex-col gap-1">
@@ -66,8 +68,9 @@ export function PeriodReviewCard({
       />
 
       {showWeeklyNote && review.weeklyNote && (
-        <div
-          className="flex flex-col gap-1 rounded border bg-inset p-2 text-base"
+        <Card
+          variant="inset"
+          className="flex flex-col gap-1 rounded p-2 text-base"
           data-testid="period-review-weekly-note"
         >
           <p className="whitespace-pre-line">
@@ -83,7 +86,7 @@ export function PeriodReviewCard({
               <FormattedText text={review.weeklyNote.coachReply.text} />
             </div>
           )}
-        </div>
+        </Card>
       )}
 
       <CommentSection
@@ -103,6 +106,6 @@ export function PeriodReviewCard({
           </div>
         )}
       </CommentSection>
-    </article>
+    </Card>
   );
 }

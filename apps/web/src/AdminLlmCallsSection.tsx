@@ -12,6 +12,9 @@ import { formatCostUsd } from "./costChart";
 import { requestParsed } from "./fetchAuthed";
 import { reportError } from "./reportError";
 import { browserTimeZone, formatDateTime } from "./timeZone";
+import { Button } from "./components/Button";
+import { cn } from "./components/cn";
+import { Card } from "./components/Card";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 const PAGE_SIZE = 50;
@@ -128,14 +131,15 @@ export function LlmCallsView({
     <section className="flex flex-col gap-3" data-testid="admin-llm-calls">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-2xl font-semibold">LLM prompts</h2>
-        <button
+        <Button
           type="button"
-          className="rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted disabled:opacity-50"
+          variant="secondary"
+          size="md"
           onClick={onRefresh}
           disabled={loading}
         >
           Refresh
-        </button>
+        </Button>
       </div>
       <p className="text-base text-muted-foreground">
         Every prompt sent to the coach, with its response and request metadata.
@@ -171,11 +175,13 @@ export function LlmCallsView({
                 const selected = call.id === selectedId;
                 return (
                   <li key={call.id}>
-                    <button
-                      type="button"
-                      className={`flex w-full flex-col gap-1 px-3 py-2 text-left hover:bg-muted ${
-                        selected ? "bg-inset ring-1 ring-accent ring-inset" : ""
-                      }`}
+                    <Button
+                      variant="ghost"
+                      size="none"
+                      className={cn(
+                        "flex w-full flex-col gap-1 px-3 py-2 text-left",
+                        selected && "bg-inset ring-1 ring-accent ring-inset",
+                      )}
                       onClick={() => onSelect(call.id)}
                       aria-current={selected ? "true" : undefined}
                     >
@@ -213,7 +219,7 @@ export function LlmCallsView({
                             </span>
                           )}
                       </span>
-                    </button>
+                    </Button>
                   </li>
                 );
               })}
@@ -245,8 +251,9 @@ export function LlmCallsView({
 /** The full prompt, response, and metadata for one logged call. */
 export function LlmCallDetailView({ call }: { call: LlmCallDetail }) {
   return (
-    <article
-      className="flex flex-col gap-4 rounded border bg-card p-4"
+    <Card
+      as="article"
+      className="flex flex-col gap-4 rounded"
       data-testid="llm-call-detail"
     >
       <header className="flex flex-wrap items-start justify-between gap-2">
@@ -344,7 +351,7 @@ export function LlmCallDetailView({ call }: { call: LlmCallDetail }) {
           </pre>
         )}
       </section>
-    </article>
+    </Card>
   );
 }
 

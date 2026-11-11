@@ -1,4 +1,7 @@
 import { SubmitButton } from "./SubmitButton";
+import { Button } from "./components/Button";
+import { Input } from "./components/Input";
+import { Textarea } from "./components/Textarea";
 
 /**
  * The add/edit form for a manually logged activity. The page owns the values so
@@ -42,19 +45,19 @@ export function ManualActivityForm({
       <label className="text-base font-medium" htmlFor="manual-start-date">
         {editing ? "Edit manual activity" : "Manual activity"}
       </label>
-      <input
+      <Input
         id="manual-start-date"
         name="startDate"
         type="date"
-        className="w-fit rounded border bg-card px-2 py-1 text-base"
+        size="sm"
+        className="w-fit"
         value={startDate}
         onChange={(event) => onStartDateChange(event.target.value)}
         disabled={saving}
       />
-      <textarea
+      <Textarea
         name="details"
         placeholder="Describe your activity"
-        className="w-full rounded border bg-card p-2 text-base"
         rows={4}
         value={details}
         onChange={(event) => onDetailsChange(event.target.value)}
@@ -63,20 +66,24 @@ export function ManualActivityForm({
       <div className="flex gap-2">
         <SubmitButton
           busy={saving}
-          className="self-start rounded border border-transparent bg-primary px-3 py-1 text-base text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
+          variant="primary"
+          size="md"
+          className="self-start"
           disabled={!startDate || !details.trim()}
         >
           {submitLabel}
         </SubmitButton>
         {editing && (
-          <button
+          <Button
             type="button"
-            className="self-start rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted disabled:opacity-50"
+            variant="secondary"
+            size="md"
+            className="self-start"
             onClick={onCancel}
             disabled={saving}
           >
             Cancel
-          </button>
+          </Button>
         )}
       </div>
     </form>

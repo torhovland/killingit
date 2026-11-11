@@ -3,6 +3,8 @@ import { llmSettingsSchema, type LlmSettings } from "@killingit/shared";
 import { useAuth } from "./auth";
 import { requestParsed } from "./fetchAuthed";
 import { reportError } from "./reportError";
+import { Button } from "./components/Button";
+import { Input } from "./components/Input";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
@@ -71,14 +73,16 @@ export function OpenRouterKeySection({
     return (
       <section className="flex flex-col gap-1" data-testid="openrouter-status">
         <p className="text-base text-success">OpenRouter connected</p>
-        <button
+        <Button
           type="button"
-          className="self-start rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted"
+          variant="secondary"
+          size="md"
+          className="self-start"
           onClick={() => setEditing(true)}
           data-testid="openrouter-edit-key"
         >
           Update OpenRouter API key
-        </button>
+        </Button>
       </section>
     );
   }
@@ -100,28 +104,31 @@ export function OpenRouterKeySection({
       >
         <label className="flex w-full flex-col gap-1 text-base">
           <span className="font-medium">OpenRouter API key</span>
-          <input
+          <Input
             type="password"
             name="apiKey"
             placeholder="OpenRouter API key (sk-or-v1-…)"
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
-            className="w-full rounded border bg-card px-3 py-1"
+            size="line"
+            className="w-full"
             autoComplete="off"
           />
         </label>
         <div className="flex flex-wrap gap-2">
-          <button
+          <Button
             type="submit"
-            className="rounded border border-transparent bg-primary px-4 py-2 text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
+            variant="primary"
+            size="lg"
             disabled={saving || !canSave}
           >
             {saving ? "Saving…" : "Save"}
-          </button>
+          </Button>
           {configured && (
-            <button
+            <Button
               type="button"
-              className="rounded border bg-card px-4 py-2 enabled:hover:bg-muted"
+              variant="secondary"
+              size="lg"
               onClick={() => {
                 setApiKey("");
                 setError(null);
@@ -129,7 +136,7 @@ export function OpenRouterKeySection({
               }}
             >
               Cancel
-            </button>
+            </Button>
           )}
         </div>
       </form>

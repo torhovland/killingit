@@ -3,6 +3,8 @@ import { FoodPhoto } from "./FoodPhoto";
 import { FormattedText } from "./FormattedText";
 import { useTimeZone } from "./TimeZoneContext";
 import { formatDateTime } from "./timeZone";
+import { Button } from "./components/Button";
+import { Card } from "./components/Card";
 
 /** One logged meal with the coach's reading of it. */
 export function FoodEntryCard({
@@ -42,13 +44,15 @@ export function FoodEntryCard({
               {formatDateTime(entry.eatenAt, timeZone)}
             </time>
             {onEdit && (
-              <button
+              <Button
                 type="button"
-                className="rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted"
+                variant="secondary"
+                size="md"
+                className="text-sm"
                 onClick={onEdit}
               >
                 Edit
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -78,13 +82,14 @@ export function FoodEntryCard({
                 value={`${Math.round(analysis.caloriesKcal)} kcal`}
               />
             </dl>
-            <div
-              className="flex flex-col gap-1 rounded border bg-inset p-2 text-base"
+            <Card
+              variant="inset"
+              className="flex flex-col gap-1 rounded p-2 text-base"
               data-testid="food-diet-fit"
             >
               <span className="font-medium">Coach:</span>
               <FormattedText text={analysis.dietFit} />
-            </div>
+            </Card>
           </>
         ) : (
           <p className="text-base text-muted-foreground">

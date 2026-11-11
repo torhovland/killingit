@@ -1,6 +1,8 @@
 import { useState } from "react";
 import type { QuestionInput } from "@killingit/shared";
 import { reportError } from "./reportError";
+import { Button } from "./components/Button";
+import { Textarea } from "./components/Textarea";
 
 interface QuestionFormProps {
   initialPrompt?: string;
@@ -52,13 +54,13 @@ export function QuestionForm({
     >
       <label className="flex flex-col gap-1 text-base">
         Question prompt
-        <textarea
+        <Textarea
           name="prompt"
           rows={4}
           maxLength={2000}
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          className="rounded border bg-card px-3 py-1"
+          size="line"
           placeholder="What should the athlete answer?"
         />
       </label>
@@ -77,22 +79,26 @@ export function QuestionForm({
         </p>
       )}
       <div className="flex gap-2">
-        <button
+        <Button
           type="submit"
-          className="self-start rounded border border-transparent bg-primary px-4 py-2 text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
+          variant="primary"
+          size="lg"
+          className="self-start"
           disabled={disabled}
         >
           {submitting ? "Saving…" : submitLabel}
-        </button>
+        </Button>
         {onCancel && (
-          <button
+          <Button
             type="button"
-            className="self-start rounded border bg-card px-4 py-2 enabled:hover:bg-muted disabled:opacity-50"
+            variant="secondary"
+            size="lg"
+            className="self-start"
             onClick={onCancel}
             disabled={submitting}
           >
             Cancel
-          </button>
+          </Button>
         )}
       </div>
     </form>

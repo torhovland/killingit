@@ -15,8 +15,10 @@
     "@killingit/shared": "workspace:*",
     "@sentry/react": "^11.12.0",
     "@sentry/vite-plugin": "^11.12.0",
+    "clsx": "^2.1.1",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "tailwind-merge": "^3.7.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.5",

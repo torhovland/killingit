@@ -1,3 +1,5 @@
+import { Button } from "./components/Button";
+import { Card } from "./components/Card";
 interface InstallAppButtonProps {
   installable: boolean;
   onInstall: () => void;
@@ -13,14 +15,16 @@ export function InstallAppButton({
   }
 
   return (
-    <button
+    <Button
       type="button"
-      className="rounded border bg-card px-2 py-1.5 text-base hover:bg-muted"
+      variant="secondary"
+      size="sm"
+      className="py-1.5"
       onClick={onInstall}
       data-testid="install-app-button"
     >
       Install app
-    </button>
+    </Button>
   );
 }
 
@@ -37,8 +41,9 @@ export function PwaInstallSection({
   onInstall,
 }: PwaInstallSectionProps) {
   return (
-    <section
-      className="flex flex-col gap-3 rounded-lg border bg-card p-4"
+    <Card
+      as="section"
+      className="flex flex-col gap-3"
       data-testid="pwa-install-section"
     >
       <h3 className="text-2xl font-semibold">Install app</h3>
@@ -52,20 +57,22 @@ export function PwaInstallSection({
           Killing It is installed on this device.
         </p>
       ) : installable ? (
-        <button
+        <Button
           type="button"
-          className="self-start rounded border border-transparent bg-primary px-4 py-2 text-primary-foreground enabled:hover:bg-primary-hover"
+          variant="primary"
+          size="lg"
+          className="self-start"
           onClick={onInstall}
           data-testid="install-app-section-button"
         >
           Install Killing It
-        </button>
+        </Button>
       ) : (
         <p className="text-base text-muted-foreground">
           Open the app in Chrome, Edge, or Safari and use the browser's Install
           action. On iPhone and iPad, tap Share and then Add to Home Screen.
         </p>
       )}
-    </section>
+    </Card>
   );
 }

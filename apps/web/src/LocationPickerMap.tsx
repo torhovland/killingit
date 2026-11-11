@@ -9,6 +9,7 @@ import {
   zoomToward,
   type MapPoint,
 } from "./mapProjection";
+import { Button } from "./components/Button";
 
 const DEFAULT_WIDTH = 400;
 const DEFAULT_HEIGHT = 300;
@@ -417,24 +418,28 @@ export function LocationPickerMap({
         )}
 
         <div className="absolute top-2 right-2 z-20 flex flex-col gap-1">
-          <button
+          <Button
             type="button"
-            className="flex size-8 items-center justify-center rounded border bg-card text-xl leading-none hover:bg-muted disabled:opacity-50"
+            variant="secondary"
+            size="icon"
+            className="flex size-8 text-xl leading-none"
             aria-label="Zoom in"
             onClick={() => zoomBy(1)}
             disabled={zoom >= MAX_ZOOM}
           >
             +
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className="flex size-8 items-center justify-center rounded border bg-card text-xl leading-none hover:bg-muted disabled:opacity-50"
+            variant="secondary"
+            size="icon"
+            className="flex size-8 text-xl leading-none"
             aria-label="Zoom out"
             onClick={() => zoomBy(-1)}
             disabled={zoom <= MIN_ZOOM}
           >
             −
-          </button>
+          </Button>
         </div>
       </div>
 

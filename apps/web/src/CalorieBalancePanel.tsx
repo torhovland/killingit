@@ -2,6 +2,7 @@ import {
   allocatedCaloriesKcal,
   type CalorieBreakdown,
 } from "@killingit/shared";
+import { Card } from "./components/Card";
 
 /**
  * The day's calorie requirement, intake and remaining allowance. Shared by the
@@ -36,8 +37,9 @@ export function CalorieBalancePanel({
       : null;
 
   return (
-    <div
-      className="flex flex-col gap-2 rounded border bg-inset p-3"
+    <Card
+      variant="inset"
+      className="flex flex-col gap-2 rounded p-3"
       data-testid={testId}
     >
       <p className="text-base font-medium">{title}</p>
@@ -94,7 +96,7 @@ export function CalorieBalancePanel({
           weight.
         </p>
       )}
-    </div>
+    </Card>
   );
 }
 

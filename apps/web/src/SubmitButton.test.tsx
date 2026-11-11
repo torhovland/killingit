@@ -10,7 +10,7 @@ describe("SubmitButton", () => {
 
     expect(html).toContain('data-testid="spinner"');
     expect(html).toContain("animate-spin");
-    expect(html).toContain("disabled");
+    expect(html).toMatch(/<button[^>]*\sdisabled/);
     expect(html).toContain("Send to coach");
   });
 
@@ -21,7 +21,7 @@ describe("SubmitButton", () => {
 
     expect(html).not.toContain('data-testid="spinner"');
     expect(html).not.toContain("animate-spin");
-    expect(html).not.toContain("disabled");
+    expect(html).not.toMatch(/<button[^>]*\sdisabled/);
     expect(html).toContain("Send to coach");
   });
 });

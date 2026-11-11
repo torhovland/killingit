@@ -1,3 +1,4 @@
+import { Button } from "./components/Button";
 interface SignInPageProps {
   onSignIn: () => void;
 }
@@ -44,12 +45,9 @@ export function SignInPage({ onSignIn }: SignInPageProps) {
           change. You get one clear session to do next — and a coach who can
           explain why.
         </p>
-        <button
-          className="rounded border border-transparent bg-primary px-6 py-2.5 text-lg font-medium text-primary-foreground enabled:hover:bg-primary-hover"
-          onClick={onSignIn}
-        >
+        <Button variant="primary" size="hero" onClick={onSignIn}>
           Sign in
-        </button>
+        </Button>
         <p className="max-w-xl text-sm text-muted-foreground">
           Sign in, connect your training data, and add your own OpenRouter API
           key. Your coach takes it from there.

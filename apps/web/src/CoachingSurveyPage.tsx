@@ -3,6 +3,8 @@ import { AthleteAnswersSection } from "./AthleteAnswersSection";
 import { useAppStatus } from "./AppStatus";
 import { PlanRegenerationButtons } from "./PlanRegenerationButtons";
 import { useAthleteQuestions } from "./useAthleteQuestions";
+import { Button } from "./components/Button";
+import { Card } from "./components/Card";
 
 interface CoachingSurveyPageProps {
   /** Called after answers are saved so the main plan can refresh. */
@@ -50,13 +52,15 @@ export function CoachingSurveyPage({
       {loading && questions === null ? (
         <p className="text-base text-muted-foreground">Loading your answers…</p>
       ) : questions === null ? (
-        <button
+        <Button
           type="button"
-          className="self-start rounded border bg-card px-4 py-2 enabled:hover:bg-muted"
+          variant="secondary"
+          size="lg"
+          className="self-start"
           onClick={() => void load()}
         >
           Retry
-        </button>
+        </Button>
       ) : (
         <AthleteAnswersSection
           questions={questions.questions}
@@ -65,7 +69,7 @@ export function CoachingSurveyPage({
       )}
 
       {questions !== null && questions.complete && (
-        <section className="flex flex-col gap-3 rounded-lg border bg-card p-4">
+        <Card as="section" className="flex flex-col gap-3">
           <h3 className="text-2xl font-semibold">Training plan</h3>
           <p className="text-base text-muted-foreground">
             After updating your answers, rebuild the plan so your coach can use
@@ -73,7 +77,7 @@ export function CoachingSurveyPage({
             completed.
           </p>
           <PlanRegenerationButtons />
-        </section>
+        </Card>
       )}
     </section>
   );

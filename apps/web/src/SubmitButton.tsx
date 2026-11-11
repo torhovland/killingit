@@ -1,4 +1,6 @@
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import type { ReactNode } from "react";
+import { Button, type ButtonProps } from "./components/Button";
+import { cn } from "./components/cn";
 import { Spinner } from "./Spinner";
 
 /**
@@ -8,23 +10,23 @@ import { Spinner } from "./Spinner";
 export function SubmitButton({
   busy,
   children,
-  className = "",
+  className,
   disabled = false,
   type = "submit",
   ...rest
-}: ButtonHTMLAttributes<HTMLButtonElement> & {
+}: ButtonProps & {
   busy: boolean;
   children: ReactNode;
 }) {
   return (
-    <button
+    <Button
       {...rest}
       type={type}
-      className={`inline-flex items-center gap-2 ${className}`}
+      className={cn("inline-flex items-center gap-2", className)}
       disabled={busy || disabled}
     >
       {busy && <Spinner />}
       {children}
-    </button>
+    </Button>
   );
 }

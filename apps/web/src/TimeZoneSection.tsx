@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { Card } from "./components/Card";
+import { Select } from "./components/Select";
 
 /** Split an IANA zone such as `Europe/Oslo` into its continent and city. A
  * zone without a slash, such as `UTC`, belongs to a continent of its own. */
@@ -85,7 +87,7 @@ export function TimeZoneSection({
   }
 
   return (
-    <section className="flex flex-col gap-3 rounded-lg border bg-card p-4">
+    <Card as="section" className="flex flex-col gap-3">
       <h3 className="text-2xl font-semibold">Time zone</h3>
       <p className="text-base text-muted-foreground">
         Activity times and generated timestamps use this zone. Leave it on your
@@ -94,8 +96,7 @@ export function TimeZoneSection({
       <div className="flex flex-wrap gap-3 text-base">
         <label className="flex min-w-48 flex-1 flex-col gap-1">
           <span className="font-medium">Continent</span>
-          <select
-            className="rounded border bg-card px-2 py-1"
+          <Select
             value={region}
             onChange={(event) => changeRegion(event.target.value)}
           >
@@ -105,12 +106,11 @@ export function TimeZoneSection({
                 {group}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <label className="flex min-w-48 flex-1 flex-col gap-1">
           <span className="font-medium">City</span>
-          <select
-            className="rounded border bg-card px-2 py-1 disabled:opacity-50"
+          <Select
             value={city}
             disabled={region === ""}
             onChange={(event) => changeCity(event.target.value)}
@@ -127,13 +127,13 @@ export function TimeZoneSection({
                 {option}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
       </div>
       {error && <p className="text-destructive">{error}</p>}
       {saving && (
         <p className="text-base text-muted-foreground">Saving time zone…</p>
       )}
-    </section>
+    </Card>
   );
 }

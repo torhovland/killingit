@@ -1,6 +1,8 @@
 import type { ChangeEvent } from "react";
 import { useTimeZone } from "./TimeZoneContext";
 import { getToday, isDateOverrideAllowed, setTodayOverride } from "./useToday";
+import { Card } from "./components/Card";
+import { Input } from "./components/Input";
 
 /**
  * Date picker for development and test environments. Selecting a date stores it
@@ -30,8 +32,9 @@ export function DevDatePicker() {
   };
 
   return (
-    <section
-      className="flex flex-col gap-2 rounded-lg border bg-card p-4 text-base"
+    <Card
+      as="section"
+      className="flex flex-col gap-2 text-base"
       data-testid="dev-date-picker"
     >
       <h3 className="text-2xl font-semibold">Development</h3>
@@ -41,9 +44,10 @@ export function DevDatePicker() {
       </p>
       <label className="flex flex-col gap-1">
         <span className="font-medium">Override today</span>
-        <input
+        <Input
           type="date"
-          className="rounded border bg-background px-2 py-1"
+          size="sm"
+          className="bg-background"
           value={today}
           onChange={handleChange}
         />
@@ -62,6 +66,6 @@ export function DevDatePicker() {
           ? "Simulating a visit on the selected date."
           : "Using the real date."}
       </p>
-    </section>
+    </Card>
   );
 }

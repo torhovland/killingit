@@ -14,6 +14,10 @@ import { SubmitButton } from "./SubmitButton";
 import { useTimeZone } from "./TimeZoneContext";
 import { toWallClockValue, wallClockToIso } from "./timeZone";
 import { getToday } from "./useToday";
+import { Button } from "./components/Button";
+import { Card } from "./components/Card";
+import { Input } from "./components/Input";
+import { Textarea } from "./components/Textarea";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
@@ -114,8 +118,9 @@ export function EditFoodEntryForm({
   }
 
   return (
-    <section
-      className="flex flex-col gap-3 rounded-lg border bg-card p-4 text-left"
+    <Card
+      as="section"
+      className="flex flex-col gap-3 text-left"
       data-testid="edit-food-entry"
     >
       <div className="flex flex-col gap-1">
@@ -131,8 +136,8 @@ export function EditFoodEntryForm({
       >
         <label className="flex flex-col gap-1 text-base font-medium">
           What did you eat? (optional with a photo)
-          <textarea
-            className="w-full rounded border bg-card p-2 text-base font-normal"
+          <Textarea
+            className="font-normal"
             rows={4}
             value={description}
             placeholder="e.g. Two slices of wholegrain toast with peanut butter and a banana"
@@ -144,10 +149,10 @@ export function EditFoodEntryForm({
           <label className="text-base font-medium" htmlFor="edit-meal-eaten-at">
             When did you eat it?
           </label>
-          <input
+          <Input
             id="edit-meal-eaten-at"
             type="datetime-local"
-            className="rounded border bg-card p-2 text-base"
+            size="inline"
             value={eatenAt}
             onChange={(event) => setEatenAt(event.target.value)}
           />
@@ -186,16 +191,18 @@ export function EditFoodEntryForm({
                 alt="The replacement meal photo"
                 className="h-16 w-16 rounded object-cover"
               />
-              <button
+              <Button
                 type="button"
-                className="rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted"
+                variant="secondary"
+                size="md"
+                className="text-sm"
                 onClick={() => {
                   setPhotoDataUrl(null);
                   setPhotoName(null);
                 }}
               >
                 Remove new photo
-              </button>
+              </Button>
             </>
           ) : entry.hasPhoto && !removePhoto ? (
             <>
@@ -205,35 +212,39 @@ export function EditFoodEntryForm({
                 alt="The meal photo you attached"
                 className="h-16 w-16 rounded object-cover"
               />
-              <button
+              <Button
                 type="button"
-                className="rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted"
+                variant="secondary"
+                size="md"
+                className="text-sm"
                 onClick={() => setRemovePhoto(true)}
               >
                 Remove photo
-              </button>
+              </Button>
             </>
           ) : (
             <span className="text-sm text-muted-foreground">
               No photo attached.
             </span>
           )}
-          <button
+          <Button
             type="button"
-            className="rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted disabled:opacity-50"
+            variant="secondary"
+            size="md"
             disabled={preparingPhoto}
             onClick={() => cameraInput.current?.click()}
           >
             Take photo
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className="rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted disabled:opacity-50"
+            variant="secondary"
+            size="md"
             disabled={preparingPhoto}
             onClick={() => uploadInput.current?.click()}
           >
             Upload image
-          </button>
+          </Button>
           {preparingPhoto && (
             <span className="text-sm text-muted-foreground">
               Preparing photo…
@@ -255,19 +266,21 @@ export function EditFoodEntryForm({
         <div className="flex flex-wrap gap-2">
           <SubmitButton
             busy={submitting}
-            className="rounded border border-transparent bg-primary px-3 py-1 text-base text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
+            variant="primary"
+            size="md"
             disabled={!canSubmit}
           >
             {submitting ? "Coach is thinking…" : "Save and re-assess"}
           </SubmitButton>
-          <button
+          <Button
             type="button"
-            className="rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted disabled:opacity-50"
+            variant="secondary"
+            size="md"
             disabled={submitting}
             onClick={onCancel}
           >
             Cancel
-          </button>
+          </Button>
         </div>
       </form>
 
@@ -276,6 +289,6 @@ export function EditFoodEntryForm({
           Error: {error}
         </p>
       )}
-    </section>
+    </Card>
   );
 }

@@ -1,3 +1,4 @@
+import { Button } from "./components/Button";
 interface ErrorPageProps {
   error: Error;
   onRetry: () => void;
@@ -25,18 +26,16 @@ export function ErrorPage({ error, onRetry }: ErrorPageProps) {
         {error.message}
       </p>
       <div className="flex gap-2">
-        <button
-          className="rounded border border-transparent bg-primary px-4 py-2 text-primary-foreground enabled:hover:bg-primary-hover"
-          onClick={onRetry}
-        >
+        <Button variant="primary" size="lg" onClick={onRetry}>
           Try again
-        </button>
-        <button
-          className="rounded border bg-card px-4 py-2 enabled:hover:bg-muted"
+        </Button>
+        <Button
+          variant="secondary"
+          size="lg"
           onClick={() => window.location.reload()}
         >
           Reload page
-        </button>
+        </Button>
       </div>
     </main>
   );

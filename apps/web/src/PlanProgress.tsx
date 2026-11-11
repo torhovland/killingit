@@ -1,4 +1,5 @@
 import type { AppBusyState } from "./AppStatus";
+import { Card } from "./components/Card";
 
 /** The step and percentage of a running plan generation. */
 export interface PlanProgressState {
@@ -48,8 +49,9 @@ export function PlanProgress({
     progress?.step ?? (status === "idle" ? "" : BUSY_LABELS[status]);
 
   return (
-    <div
-      className="flex flex-col gap-2 rounded border bg-inset p-3"
+    <Card
+      variant="inset"
+      className="flex flex-col gap-2 rounded p-3"
       data-testid="plan-progress"
     >
       <div className="flex flex-wrap items-center justify-between gap-2 text-base">
@@ -74,6 +76,6 @@ export function PlanProgress({
           />
         )}
       </div>
-    </div>
+    </Card>
   );
 }

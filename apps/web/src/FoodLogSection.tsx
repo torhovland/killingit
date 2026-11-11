@@ -10,6 +10,10 @@ import { SubmitButton } from "./SubmitButton";
 import { useTimeZone } from "./TimeZoneContext";
 import { toWallClockValue, wallClockToIso } from "./timeZone";
 import { getToday } from "./useToday";
+import { Button } from "./components/Button";
+import { Card } from "./components/Card";
+import { Input } from "./components/Input";
+import { Textarea } from "./components/Textarea";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
@@ -110,8 +114,9 @@ export function FoodLogSection({
   }
 
   return (
-    <section
-      className="flex flex-col gap-3 rounded-lg border bg-card p-4 text-left"
+    <Card
+      as="section"
+      className="flex flex-col gap-3 text-left"
       data-testid="food-log"
     >
       <div className="flex flex-col gap-1">
@@ -128,8 +133,8 @@ export function FoodLogSection({
       >
         <label className="flex flex-col gap-1 text-base font-medium">
           What did you eat? (optional with a photo)
-          <textarea
-            className="w-full rounded border bg-card p-2 text-base font-normal"
+          <Textarea
+            className="font-normal"
             rows={4}
             value={description}
             placeholder="e.g. Two slices of wholegrain toast with peanut butter and a banana"
@@ -142,20 +147,22 @@ export function FoodLogSection({
             When did you eat it?
           </label>
           <div className="flex flex-wrap items-center gap-2">
-            <input
+            <Input
               id="meal-eaten-at"
               type="datetime-local"
-              className="rounded border bg-card p-2 text-base"
+              size="inline"
               value={eatenAt}
               onChange={(event) => setEatenAt(event.target.value)}
             />
-            <button
+            <Button
               type="button"
-              className="rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted"
+              variant="secondary"
+              size="md"
+              className="text-sm"
               onClick={() => setEatenAt(toWallClockValue(new Date(), timeZone))}
             >
               Now
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -185,22 +192,24 @@ export function FoodLogSection({
               void choosePhoto(file);
             }}
           />
-          <button
+          <Button
             type="button"
-            className="rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted disabled:opacity-50"
+            variant="secondary"
+            size="md"
             disabled={preparingPhoto}
             onClick={() => cameraInput.current?.click()}
           >
             Take photo
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className="rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted disabled:opacity-50"
+            variant="secondary"
+            size="md"
             disabled={preparingPhoto}
             onClick={() => uploadInput.current?.click()}
           >
             Upload image
-          </button>
+          </Button>
           {photoDataUrl !== null && (
             <>
               <img
@@ -208,16 +217,18 @@ export function FoodLogSection({
                 alt="The meal photo you attached"
                 className="h-16 w-16 rounded object-cover"
               />
-              <button
+              <Button
                 type="button"
-                className="rounded border bg-card px-3 py-1 text-sm enabled:hover:bg-muted"
+                variant="secondary"
+                size="md"
+                className="text-sm"
                 onClick={() => {
                   setPhotoDataUrl(null);
                   setPhotoName(null);
                 }}
               >
                 Remove photo
-              </button>
+              </Button>
             </>
           )}
           {preparingPhoto && (
@@ -234,7 +245,9 @@ export function FoodLogSection({
 
         <SubmitButton
           busy={submitting}
-          className="self-start rounded border border-transparent bg-primary px-3 py-1 text-base text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
+          variant="primary"
+          size="md"
+          className="self-start"
           disabled={
             (!description.trim() && photoDataUrl === null) || preparingPhoto
           }
@@ -255,6 +268,6 @@ export function FoodLogSection({
           <FoodEntryCard entry={result} compact />
         </div>
       )}
-    </section>
+    </Card>
   );
 }

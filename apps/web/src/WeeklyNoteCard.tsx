@@ -1,6 +1,8 @@
 import type { CoachAnalysis } from "@killingit/shared";
 import { FormattedText } from "./FormattedText";
 import { SubmitButton } from "./SubmitButton";
+import { Textarea } from "./components/Textarea";
+import { Card } from "./components/Card";
 
 /**
  * The weekly note form and the coach's reply. Saving a note asks the coach to
@@ -36,10 +38,9 @@ export function WeeklyNoteCard({
         Requests and additional information that should influence your training
         plan. Saving it refreshes the affected plan.
       </p>
-      <textarea
+      <Textarea
         id="weekly-note"
         name="note"
-        className="w-full rounded border bg-card p-2 text-base"
         placeholder="e.g. I won't have time to train on Thursday this week."
         rows={4}
         value={note}
@@ -47,20 +48,23 @@ export function WeeklyNoteCard({
       />
       <SubmitButton
         busy={saving}
-        className="self-start rounded border border-transparent bg-primary px-3 py-1 text-base text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
+        variant="primary"
+        size="md"
+        className="self-start"
         disabled={!note.trim()}
       >
         {saving ? "Coach is thinking…" : "Send to coach"}
       </SubmitButton>
       {error && <p className="text-sm text-destructive">{error}</p>}
       {reply && (
-        <div
-          className="flex flex-col gap-1 rounded border bg-inset p-2 text-base"
+        <Card
+          variant="inset"
+          className="flex flex-col gap-1 rounded p-2 text-base"
           data-testid="weekly-note-reply"
         >
           <span className="font-medium">Coach:</span>
           <FormattedText text={reply.text} />
-        </div>
+        </Card>
       )}
     </form>
   );

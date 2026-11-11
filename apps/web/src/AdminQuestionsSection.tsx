@@ -11,6 +11,7 @@ import { requestParsed } from "./fetchAuthed";
 import { QuestionForm } from "./QuestionForm";
 import { QuestionRow } from "./QuestionRow";
 import { reportError } from "./reportError";
+import { Button } from "./components/Button";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
@@ -156,14 +157,15 @@ export function AdminQuestionsSection() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-2xl font-semibold">Athlete questions</h2>
         {!adding && (
-          <button
+          <Button
             type="button"
-            className="rounded border border-transparent bg-primary px-3 py-1 text-base text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
+            variant="primary"
+            size="md"
             onClick={() => setAdding(true)}
             disabled={loading}
           >
             Add question
-          </button>
+          </Button>
         )}
       </div>
       <p className="text-base text-muted-foreground">

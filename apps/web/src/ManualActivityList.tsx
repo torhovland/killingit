@@ -1,6 +1,7 @@
 import type { ManualActivity } from "@killingit/shared";
 import { FormattedText } from "./FormattedText";
 import { TrainingLoadLine } from "./TrainingLoadLine";
+import { Button } from "./components/Button";
 
 /** Saved manual activities with their coach reply and edit/delete actions. */
 export function ManualActivityList({
@@ -46,20 +47,23 @@ export function ManualActivityList({
                 )}
             </div>
             <div className="flex gap-2">
-              <button
+              <Button
                 type="button"
-                className="text-sm text-muted-foreground hover:underline"
+                variant="link"
+                size="none"
                 onClick={() => onEdit(activity)}
               >
                 Edit
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
-                className="text-sm text-destructive hover:underline"
+                variant="link"
+                size="none"
+                className="text-destructive"
                 onClick={() => void onDelete(activity)}
               >
                 Delete
-              </button>
+              </Button>
             </div>
           </li>
         ))}

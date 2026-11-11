@@ -10,6 +10,8 @@ import { Bullet } from "./Bullet";
 import { requestParsed } from "./fetchAuthed";
 import { LocationPickerMap } from "./LocationPickerMap";
 import { reportError } from "./reportError";
+import { Button } from "./components/Button";
+import { Input } from "./components/Input";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
@@ -122,22 +124,23 @@ export function LocationSection({
       >
         <label className="flex min-w-64 flex-1 flex-col gap-1 text-base">
           <span className="font-medium">Find an address</span>
-          <input
+          <Input
             type="search"
-            className="rounded border bg-card px-2 py-1"
+            size="sm"
             placeholder="City, address, or place"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             disabled={searching}
           />
         </label>
-        <button
+        <Button
           type="submit"
-          className="rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted disabled:opacity-50"
+          variant="secondary"
+          size="md"
           disabled={searching || query.trim() === ""}
         >
           {searching ? "Searching…" : "Search"}
-        </button>
+        </Button>
       </form>
 
       {results.length > 0 && (
@@ -147,13 +150,15 @@ export function LocationSection({
         >
           {results.map((place) => (
             <li key={`${place.latitude},${place.longitude},${place.name}`}>
-              <button
+              <Button
                 type="button"
-                className="w-full rounded px-2 py-1 text-left hover:bg-muted"
+                variant="ghost"
+                size="menuSm"
+                className="w-full"
                 onClick={() => chooseResult(place)}
               >
                 {placeLabel(place)}
-              </button>
+              </Button>
             </li>
           ))}
         </ul>
@@ -210,23 +215,25 @@ export function LocationSection({
       </p>
 
       <div className="flex flex-wrap gap-2">
-        <button
+        <Button
           type="button"
-          className="rounded border border-transparent bg-primary px-3 py-1 text-base text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
+          variant="primary"
+          size="md"
           onClick={() => void persist(draft)}
           disabled={saving || draft === null || sameLocation(draft, location)}
         >
           {saving ? "Saving…" : "Save location"}
-        </button>
+        </Button>
         {location !== null && (
-          <button
+          <Button
             type="button"
-            className="rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted disabled:opacity-50"
+            variant="secondary"
+            size="md"
             onClick={() => void persist(null)}
             disabled={saving}
           >
             Clear location
-          </button>
+          </Button>
         )}
       </div>
     </div>

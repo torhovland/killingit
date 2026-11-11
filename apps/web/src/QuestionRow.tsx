@@ -3,6 +3,7 @@ import type { Question, QuestionInput } from "@killingit/shared";
 import { Bullet } from "./Bullet";
 import { QuestionForm } from "./QuestionForm";
 import { reportError } from "./reportError";
+import { Button } from "./components/Button";
 
 interface QuestionRowProps {
   question: Question;
@@ -98,44 +99,48 @@ export function QuestionRow({
       )}
       <div className="flex flex-wrap gap-2">
         {onMoveUp && (
-          <button
+          <Button
             type="button"
-            className="rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted disabled:opacity-50"
+            variant="secondary"
+            size="md"
             onClick={() => void move("up")}
             disabled={moving !== null || deleting}
             aria-label={`Move "${question.prompt}" up`}
             data-testid="question-move-up"
           >
             ↑
-          </button>
+          </Button>
         )}
         {onMoveDown && (
-          <button
+          <Button
             type="button"
-            className="rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted disabled:opacity-50"
+            variant="secondary"
+            size="md"
             onClick={() => void move("down")}
             disabled={moving !== null || deleting}
             aria-label={`Move "${question.prompt}" down`}
             data-testid="question-move-down"
           >
             ↓
-          </button>
+          </Button>
         )}
-        <button
+        <Button
           type="button"
-          className="rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted"
+          variant="secondary"
+          size="md"
           onClick={() => setEditing(true)}
         >
           Edit
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
-          className="rounded border border-destructive/40 px-3 py-1 text-base text-destructive enabled:hover:bg-destructive/10 disabled:opacity-50"
+          variant="danger"
+          size="md"
           onClick={() => void remove()}
           disabled={deleting}
         >
           {deleting ? "Archiving…" : "Delete"}
-        </button>
+        </Button>
       </div>
     </li>
   );

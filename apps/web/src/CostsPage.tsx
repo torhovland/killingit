@@ -23,6 +23,7 @@ import { requestParsed } from "./fetchAuthed";
 import { reportError } from "./reportError";
 import { useTimeZone } from "./TimeZoneContext";
 import { getToday } from "./useToday";
+import { Select } from "./components/Select";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
@@ -111,8 +112,7 @@ export function CostsPage() {
             )}
             <label className="flex items-center gap-2">
               <span className="text-muted-foreground">Stack by</span>
-              <select
-                className="rounded border bg-card px-2 py-1"
+              <Select
                 value={stackBy}
                 aria-label="Stack cost bars by"
                 onChange={(event) =>
@@ -124,15 +124,14 @@ export function CostsPage() {
                     {COST_STACK_DIMENSION_LABELS[dimension]}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
           </div>
 
           <div className="flex items-center justify-end gap-2 text-base">
             <label className="flex items-center gap-2">
               <span className="text-muted-foreground">Show</span>
-              <select
-                className="rounded border bg-card px-2 py-1"
+              <Select
                 value={monthlyRange}
                 aria-label="Monthly cost range"
                 onChange={(event) =>
@@ -144,7 +143,7 @@ export function CostsPage() {
                     {MONTHLY_COST_RANGE_LABELS[range]}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
           </div>
 
@@ -159,8 +158,7 @@ export function CostsPage() {
           <div className="flex items-center justify-end gap-2 text-base">
             <label className="flex items-center gap-2">
               <span className="text-muted-foreground">Show</span>
-              <select
-                className="rounded border bg-card px-2 py-1"
+              <Select
                 value={dailyRange}
                 aria-label="Daily cost range"
                 onChange={(event) =>
@@ -172,7 +170,7 @@ export function CostsPage() {
                     {DAILY_COST_RANGE_LABELS[range]}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
           </div>
 

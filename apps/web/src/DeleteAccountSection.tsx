@@ -1,17 +1,12 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "./auth";
+import { Button } from "./components/Button";
+import { Card } from "./components/Card";
 import { DangerIcon } from "./DangerIcon";
 import { fetchJsonAuthed } from "./fetchAuthed";
 import { reportError } from "./reportError";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
-
-const DANGER_BUTTON =
-  "inline-flex items-center gap-2 rounded border border-destructive px-4 py-2 text-base text-destructive enabled:hover:bg-destructive/10 disabled:opacity-50";
-const CONFIRM_BUTTON =
-  "rounded border border-destructive bg-destructive/15 px-4 py-2 text-base font-medium text-destructive enabled:hover:bg-destructive/25 disabled:opacity-50";
-const SECONDARY_BUTTON =
-  "rounded border bg-card px-4 py-2 text-base enabled:hover:bg-muted disabled:opacity-50";
 
 /**
  * Permanent account deletion. The API removes the account row and, through the
@@ -92,8 +87,9 @@ export function DeleteAccountSectionView({
 
   return (
     <>
-      <section
-        className="flex flex-col gap-3 rounded-lg border border-destructive/40 bg-card p-4"
+      <Card
+        as="section"
+        className="flex flex-col gap-3 border-destructive/40"
         data-testid="delete-account-section"
       >
         <h3 className="text-2xl font-semibold">Delete account</h3>
@@ -101,19 +97,20 @@ export function DeleteAccountSectionView({
           Permanently delete your account and all of your coaching data. This
           cannot be undone.
         </p>
-        <button
-          type="button"
-          className={`self-start ${DANGER_BUTTON}`}
+        <Button
+          variant="danger"
+          size="lg"
+          className="inline-flex items-center gap-2 self-start border-destructive"
           onClick={onOpen}
           data-testid="delete-account-button"
         >
           <DangerIcon />
           Delete account
-        </button>
+        </Button>
         {error && !confirming && (
           <p className="text-base text-destructive">Error: {error}</p>
         )}
-      </section>
+      </Card>
 
       {confirming && (
         <div
@@ -145,24 +142,25 @@ export function DeleteAccountSectionView({
               <p className="mt-2 text-base text-destructive">Error: {error}</p>
             )}
             <div className="mt-4 flex flex-wrap justify-end gap-2">
-              <button
-                type="button"
-                className={SECONDARY_BUTTON}
+              <Button
+                variant="secondary"
+                size="lg"
                 onClick={onCancel}
                 disabled={deleting}
                 autoFocus
               >
                 Cancel
-              </button>
-              <button
-                type="button"
-                className={CONFIRM_BUTTON}
+              </Button>
+              <Button
+                variant="dangerStrong"
+                size="lg"
+                className="font-medium"
                 onClick={onConfirm}
                 disabled={deleting}
                 data-testid="delete-account-confirm"
               >
                 {deleting ? "Deleting…" : "Delete everything"}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
