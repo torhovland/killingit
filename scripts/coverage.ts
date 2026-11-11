@@ -9,7 +9,7 @@
 // coverage improves. See `docs/specs/test-coverage.md`.
 //
 // Usage: `bun run test:coverage`. CI runs the same command, writes the table
-// to the job summary and uploads `coverage/lcov.info` to Codecov.
+// to the job summary and attaches `coverage/lcov.info` as a build artifact.
 
 import {
   appendFileSync,
@@ -223,7 +223,7 @@ export function formatCoverageReport(
   ].join("\n");
 }
 
-/** Rewrites each suite's LCOV paths and concatenates them for Codecov. */
+/** Rewrites each suite's LCOV paths and concatenates them into one report. */
 export function mergeLcov(
   sources: readonly CoverageSource[],
   repoRoot: string,

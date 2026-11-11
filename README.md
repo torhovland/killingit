@@ -129,7 +129,7 @@ The integration suite needs `bun run db:up`. It uses a separate
 
 The coverage check runs the unit suites with Bun's LCOV reporter, enforces the
 per-package baselines, and leaves a merged report at `coverage/lcov.info`. CI
-publishes the table in the test job summary and uploads the report to Codecov;
+publishes the table in the test job summary and attaches the report to the run;
 see `docs/specs/test-coverage.md`.
 
 The e2e suite also needs `bun run db:up` and the Playwright browser

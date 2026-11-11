@@ -20,9 +20,9 @@ they are set from the measured baseline and are raised as coverage improves.
    reporter, without changing what the suites test.
 2. A per-package threshold for line and function coverage, enforced from the
    merged report.
-3. A merged `coverage/lcov.info` for upload, and a markdown table in the CI job
+3. A merged `coverage/lcov.info` report, and a markdown table in the CI job
    summary.
-4. A best-effort Codecov upload on every run.
+4. A build artifact carrying the merged report on every run.
 
 ### Out of scope
 
@@ -89,11 +89,10 @@ below its threshold. The script appends the coverage table to
 `$GITHUB_STEP_SUMMARY`, so the result is visible on every pull request without
 another service.
 
-The job then uploads `coverage/lcov.info` with `codecov/codecov-action`. The
-action authenticates with a short-lived GitHub OIDC token (`id-token: write`),
-so the repository needs no Codecov secret. The upload is fail-open
-(`fail_ci_if_error: false`): Codecov is a convenience view, while the job
-summary and the threshold check are the required result.
+The job then attaches `coverage/lcov.info` as the `coverage-lcov` build
+artifact, so the raw report is available to download from the run. If the
+repository is later activated on Codecov, an upload step can consume the same
+file without changing the baseline or the summary.
 
 ## Data-model and API impact
 
