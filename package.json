@@ -21,6 +21,7 @@
     "format:fix": "prettier --write .",
     "test": "bun test scripts && bun run --filter '*' test",
     "test:integration": "bun run --filter @killingit/api test:integration",
+    "test:e2e": "playwright test --config apps/web/playwright.config.ts",
     "check:signoff": "bun run scripts/check-signoff.ts",
     "outdated": "bun run scripts/check-outdated.ts",
     "db:up": "docker compose up -d db",
@@ -30,8 +31,9 @@
     "benchmark:llm": "bun run --filter @killingit/api benchmark:llm"
   },
   "devDependencies": {
-    "@types/bun": "^1.4.4",
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.65.0",
+    "@types/bun": "^1.4.4",
     "eslint": "^10.14.0",
     "eslint-config-prettier": "^10.1.8",
     "globals": "^17.14.0",

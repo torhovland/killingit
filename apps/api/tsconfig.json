@@ -4,5 +4,5 @@
     "noEmit": true,
     "types": ["bun"]
   },
-  "include": ["src", "integration", "drizzle.config.ts"]
+  "include": ["src", "integration", "e2e", "testDatabase", "drizzle.config.ts"]
 }

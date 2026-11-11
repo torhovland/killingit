@@ -37,6 +37,9 @@ Thumbs.db
 # Testing / coverage
 coverage/
 .nyc_output/
+# Playwright output from the end-to-end suite.
+test-results/
+playwright-report/
 
 # Local tooling
 # Ignore local OpenCode config, but share project skills with the team.

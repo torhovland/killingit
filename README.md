@@ -115,6 +115,7 @@ explicitly. Only Development and Test allow the override.
 | `bun run typecheck`        | Typecheck all packages                       |
 | `bun run test`             | Run all tests                                |
 | `bun run test:integration` | Run database integration tests               |
+| `bun run test:e2e`         | Run the Playwright end-to-end suite          |
 | `bun run benchmark:llm`    | Compare OpenRouter models (see below)        |
 | `bun run db:up`            | Start Postgres (docker compose)              |
 | `bun run db:down`          | Stop Postgres                                |
@@ -124,6 +125,11 @@ explicitly. Only Development and Test allow the override.
 The integration suite needs `bun run db:up`. It uses a separate
 `killingit_test` database that is rebuilt from the migrations on every run; see
 `docs/specs/database-integration-tests.md`.
+
+The e2e suite also needs `bun run db:up` and the Playwright browser
+(`bunx playwright install chromium`). It starts the API and web dev servers
+itself and uses a separate `killingit_e2e_test` database; see
+`docs/specs/e2e-tests.md`.
 
 ## PWA
 

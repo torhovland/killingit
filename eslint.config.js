@@ -87,6 +87,14 @@ export default tseslint.config(
     },
   },
   {
+    // The Playwright runner and its config run in Node; the specs also use
+    // browser APIs through the Playwright page objects.
+    files: ["apps/web/playwright.config.ts", "apps/web/e2e/**/*.{ts,tsx}"],
+    languageOptions: {
+      globals: { ...globals.browser, ...globals.node },
+    },
+  },
+  {
     // The service worker template is plain JavaScript outside the TypeScript
     // project. `__PRECACHE_URLS__` is a build placeholder, not a real global.
     files: ["apps/web/pwa/**/*.js"],

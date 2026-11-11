@@ -48,6 +48,9 @@ or the plan-save transaction cannot pass CI while being broken at runtime.
 - It creates the test database if it is missing, then drops the `public` and
   `drizzle` schemas and runs every migration from `apps/api/drizzle`. This is
   the assertion that all migrations apply to an empty database.
+- The migration, truncation and row-count helpers live in
+  `apps/api/testDatabase` and are shared with the end-to-end suite, so both
+  test databases are built the same way.
 - Before each test, every `public` table is truncated with
   `RESTART IDENTITY CASCADE`, so tests are isolated and repeatable.
 - Unit tests stay in `bun test src`; the integration suite lives outside `src`
