@@ -43,8 +43,19 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: oven-sh/setup-bun@v2
+        with:
+          # Coverage line counts change between Bun releases. Keep the
+          # baseline in scripts/coverage.ts tied to this version.
+          bun-version: 1.4.4
       - run: bun install --frozen-lockfile
-      - run: bun run test
+      - run: bun run test:coverage
+      - name: Upload coverage report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-lcov
+          path: coverage/lcov.info
+          if-no-files-found: ignore
 
   integration:
     name: Integration tests
@@ -74,6 +85,11 @@ jobs:
   e2e:
     name: End-to-end tests
     runs-on: ubuntu-latest
+    # The official Playwright image ships Chromium and every system library it
+    # needs, so CI never installs packages from the Ubuntu archives. Keep the
+    # tag in step with the @playwright/test version in bun.lock.
+    container:
+      image: mcr.microsoft.com/playwright:v1.65.0-noble
     services:
       postgres:
         image: postgres:16-alpine
@@ -89,12 +105,21 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      E2E_DATABASE_URL: postgres://killingit:killingit@localhost:5432/killingit_e2e_test
+      # A job container reaches service containers by their service label.
+      # sslmode=disable keeps the local service from being treated as a hosted
+      # database that needs TLS.
+      E2E_DATABASE_URL: postgres://killingit:killingit@postgres:5432/killingit_e2e_test?sslmode=disable
     steps:
       - uses: actions/checkout@v5
-      - uses: oven-sh/setup-bun@v2
+      - name: Install Bun
+        # setup-bun needs unzip, which the Playwright image omits. The image
+        # has Python, so extract the pinned Bun release without apt.
+        run: |
+          curl -fsSL -o /tmp/bun.zip \
+            https://github.com/oven-sh/bun/releases/download/bun-v1.4.4/bun-linux-x64.zip
+          python3 -m zipfile -e /tmp/bun.zip /tmp/bun
+          install /tmp/bun/bun-linux-x64/bun /usr/local/bin/bun
       - run: bun install --frozen-lockfile
-      - run: bunx playwright install --with-deps chromium
       - run: bun run test:e2e
 
   signoff:
