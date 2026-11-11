@@ -61,10 +61,9 @@ A blank value is read as absent, so a rest day with no skip note still parses.
 
 ## Technical approach
 
-- A shared `SESSION_PURPOSE_RULES` constant in `planContext.ts` is used by both
-  `COACH_PLAN_SYSTEM_PROMPT` and `DAILY_UPDATE_SYSTEM_PROMPT`, so the wording
-  cannot drift between the reference contract and the live plan update.
-- `COACH_PLAN_PROMPT_VERSION` is bumped because the prompt changed materially.
+- A shared `SESSION_PURPOSE_RULES` constant in `promptRules.ts` is used by the
+  daily, weekly and full plan update prompts, so the wording cannot drift
+  between them.
 - `CoachPlanView` keeps the existing `optional` flag to choose the badge but
   frames the block around the session's purpose.
 

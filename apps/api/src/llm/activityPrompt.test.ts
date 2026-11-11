@@ -6,9 +6,9 @@ import {
   buildActivityAnalysisPrompt,
   channelStats,
   downsampleSamples,
-  formatDuration,
   MAX_PROMPT_SAMPLES,
 } from "./activityPrompt.js";
+import { formatDuration } from "./duration.js";
 import {
   ACTIVITY_EXTRA_PRAISE_RULES,
   ACTIVITY_PRAISE_RULES,

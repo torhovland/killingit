@@ -2,6 +2,9 @@
 
 - **Status:** Accepted (implemented)
 - **Date:** 2026-10-21
+- **Updated:** 2026-11-11 — the unused combined four-level prompt and its
+  `generateCoachPlan` wrapper were removed. The shared plan context and the
+  activity adapter now live in `planContext.ts`.
 - **Related:** ADR 0004 (OpenRouter), `docs/specs/openrouter-llm-integration.md`,
   `docs/specs/athlete-question-answers.md`,
   `docs/specs/coach-plan-lifecycle.md`,
@@ -25,16 +28,15 @@ training science.
 
 ### In scope
 
-1. A pure prompt builder in `apps/api/src/llm/coachPlanPrompt.ts` that accepts
-   the athlete's answers, the recent activities with their coach analyses, and
-   today's date (plus an optional timezone).
-2. A system prompt that defines the coach role, the training-science
-   requirements, the relationship between the four plan levels, and the exact
-   JSON response contract.
+1. A shared `PlanContextInput` and `formatPlanContext(input)` in
+   `apps/api/src/llm/planContext.ts` that accept the athlete's answers, the
+   recent activities with their coach analyses, and today's date (plus an
+   optional timezone).
+2. Prompt builders for the split season/block/week/day build and the
+   plan-update call, each composing the shared system rules and the exact JSON
+   response contract.
 3. A user prompt that renders the athlete profile and recent-training context.
-4. A thin `generateCoachPlan` wrapper that sends the messages through the
-   existing provider-agnostic `LlmProvider`.
-5. Unit tests for the prompt contents and edge cases.
+4. Unit tests for the prompt contents and edge cases.
 
 ### Out of scope (deferred)
 
@@ -128,18 +130,18 @@ and returns `LlmProvider` chat messages.
   newest pending question on the dashboard, stores answered questions for the
   season review, and lists recent non-null model remarks on the admin page. See
   `docs/specs/coach-questions.md`.
-- `coachPlanPrompt.ts` exports `COACH_PLAN_PROMPT_VERSION`, the input interfaces,
-  `buildCoachPlanPrompt(input)`, and `buildCoachPlanMessages(input)`. Its
-  response contract is assembled from the same level contracts as the update
-  prompt, including `optional`, `optionalRationale`, `status`, the
-  indoor/outdoor fields, `bikeWorkout`, `estimatedTss`, the daily
-  `estimatedFtpWatts` and the dated `bodyMetrics` array that carries the body
-  weight and body-fat values the coach found in the athlete's input (see
-  `docs/specs/body-metrics.md`).
-- The combined prompt describes a coherent full plan in one JSON object. The
-  lifecycle build now splits the initial plan into four smaller calls (season,
-  block, week, day) so every response fits the model's output budget; the
-  combined prompt remains the reference contract and a full-plan fallback.
+- `planContext.ts` exports `PlanContextInput`, `formatPlanContext`, the level
+  formatters, and `toCoachPlanActivity`, which adapts a stored analysed
+  activity for a plan prompt. The split and update prompts assemble their
+  response contracts from the same level contracts, including `optional`,
+  `optionalRationale`, `status`, the indoor/outdoor fields, `bikeWorkout`,
+  `estimatedTss`, the daily `estimatedFtpWatts` and the dated `bodyMetrics`
+  array that carries the body weight and body-fat values the coach found in the
+  athlete's input (see `docs/specs/body-metrics.md`).
+- The lifecycle build splits the initial plan into four smaller calls (season,
+  block, week, day) so every response fits the model's output budget. There is
+  no combined full-plan prompt: the split build and the update prompt are the
+  only paths that call the model for a plan.
 - `planUpdatePrompt.ts` also exports `PLAN_UPDATE_SYSTEM_PROMPT`,
   `buildPlanUpdateMessages(input)` and `PlanUpdateInput` for the single update
   prompt. It receives every current level (season, block, week, today,
@@ -149,12 +151,11 @@ and returns `LlmProvider` chat messages.
 - Every plan prompt uses the same rationale, outline, weather, bike-workout,
   training-load, body-metric, session-purpose and enum rules. The initial
   season and block prompts also ask for a rationale and the training-load
-  estimates, and the combined plan prompt asks for weather-aware,
-  bike-workout-capable sessions, so a plan looks the same whichever completion
-  built it. `formatWeekPlan` and `formatDayPlan` include each supplied day's
-  projected `ATL`, `CTL`, `TSB` and form label, and `formatPlanContext` includes
-  today's current form, so the coach can keep the week inside the Productive
-  band. See `docs/specs/coach-form-awareness.md`.
+  estimates, so a plan looks the same whichever completion built it.
+  `formatWeekPlan` and `formatDayPlan` include each supplied day's projected
+  `ATL`, `CTL`, `TSB` and form label, and `formatPlanContext` includes today's
+  current form, so the coach can keep the week inside the Productive band. See
+  `docs/specs/coach-form-awareness.md`.
 - Every update rationale explains the plan as it stands, not the revision
   itself. The prompt rejects change-log phrasing such as "we adjusted" or "this
   replaces" and asks for the reason the current plan is right from this point
@@ -169,13 +170,11 @@ and returns `LlmProvider` chat messages.
   re-plans the future from the athlete's latest input. A new season still uses
   the split build because there is no stored plan to update. See
   `docs/specs/season-regeneration.md`.
-- `coachPlan.ts` exports `generateCoachPlan(provider, credentials, input)`, which
-  sends the combined prompt (temperature 0.4, `PLAN_MAX_TOKENS` output tokens).
-  The split season/block/week/day plan calls and the plan-update call use the
-  same budget. Reasoning tokens count against it; `completeWithFallbacks`
+- The split season/block/week/day plan calls and the plan-update call share
+  `PLAN_MAX_TOKENS`. Reasoning tokens count against it; `completeWithFallbacks`
   retries with a larger budget (up to 32,768) when a model is truncated.
-- `formatDuration` is reused from `activityPrompt.ts` so durations read the same
-  way across coaching prompts. The activity review shares
+- `formatDuration` comes from `duration.ts` so durations read the same way
+  across coaching prompts. The activity review shares
   `formatActivitySummary`, `formatFtpContext`, `formatPlanLevels` and
   `formatPlannedSession` from `planContext.ts` with the plan prompts, so both
   describe the same activity and planned session the same way.
@@ -185,5 +184,6 @@ and returns `LlmProvider` chat messages.
 - Unit tests assert the system-prompt requirements, the JSON contract, the
   optionality fields for today and tomorrow, the athlete profile rendering
   (answered, skipped, unanswered), the activity rendering (with and without
-  analysis), the empty-activity fallback, and the date/timezone context.
+  analysis), the empty-activity fallback, the date/timezone context, and the
+  analysed-activity adapter.
 - Run `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`.

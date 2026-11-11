@@ -51,8 +51,6 @@ import {
   RETURN_JSON_FROM_SYSTEM_PROMPT,
 } from "./promptRules.js";
 
-export { formatDuration } from "./duration.js";
-
 /** Upper bound on time-series rows sent to the model (keeps prompts small). */
 export const MAX_PROMPT_SAMPLES = 90;
 

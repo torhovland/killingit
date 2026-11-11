@@ -534,9 +534,9 @@ through a disciplined process:
 4. **Human review gate.** The agent proposes; a human verifies before the
    change is merged.
 5. **Static quality enforced everywhere.** TypeScript `strict` (plus the extra
-   strictness flags in `tsconfig.base.json`), ESLint, and Prettier are all
-   checked in CI (`bun run typecheck`, `bun run lint`, `bun run format`) and
-   must pass.
+   strictness flags in `tsconfig.base.json`), ESLint, Prettier, and the
+   unused-export scan are all checked in CI (`bun run typecheck`,
+   `bun run lint`, `bun run format`, `bun run check:unused`) and must pass.
 6. **Full test coverage on every feature**, across every layer:
    - **Unit tests** (Vitest) for pure logic and components.
    - **Python sidecar tests** for `services/garmin`: `bun run check:garmin` runs
@@ -562,10 +562,10 @@ through a disciplined process:
      Unit coverage is measured and enforced by `bun run test:coverage`, which
      holds each package to its recorded line and function baseline in CI; see
      `docs/specs/test-coverage.md`.
-7. **CI pipeline** (GitHub Actions, `.github/workflows/ci.yml`): typecheck +
-   lint + format + unit tests + database integration tests + the e2e suite + the
-   Garmin sidecar's Python checks + a dependency-outdated check must pass before
-   merge.
+7. **CI pipeline** (GitHub Actions, `.github/workflows/ci.yml`): these checks
+   must pass before merge: typecheck, lint, format, unused exports, unit tests,
+   database integration tests, the e2e suite, the Garmin sidecar's Python
+   checks, and the dependency-outdated check.
 8. **Dependencies stay current.** CI fails the build when any dependency is
    outdated (`bun run outdated`). When that happens, update the outdated
    dependencies with `bun update`, verify typecheck/lint/format/tests still
@@ -576,9 +576,9 @@ through a disciplined process:
    extract real duplication.
 10. **Documents stay current.** Keep AGENTS.md accurate and write ADRs (a
     decision log) for significant architectural choices.
-11. **Definition of done.** A change is done only when tests, types, and lint
-    pass, including `bun run check:garmin` when the sidecar or its tooling
-    changes.
+11. **Definition of done.** A change is done only when tests, types, lint and
+    the unused-export check pass, including `bun run check:garmin` when the
+    sidecar or its tooling changes.
 12. **Clean, readable code first.** Readable, maintainable, clean code is as
     important as working features. If a small feature requires a lot of new
     lines, it is likely not worth it.
@@ -609,9 +609,9 @@ through a disciplined process:
 ## Working side effects
 
 - **Verify CI before pushing.** When asked to push changes, first run
-  `bun run typecheck`, `bun run lint`, `bun run format`, `bun run test` and
-  `bun run check:garmin` locally (or verify the equivalent CI checks pass), and
-  confirm they all succeed before pushing.
+  `bun run typecheck`, `bun run lint`, `bun run format`, `bun run check:unused`,
+  `bun run test` and `bun run check:garmin` locally (or verify the equivalent
+  CI checks pass), and confirm they all succeed before pushing.
 - **Make sure CI passes on PRs.** When asked to create or update a PR, make
   sure CI passes.
 
@@ -629,6 +629,12 @@ through a disciplined process:
   merged into `PLAN_PROMPT_RULES`. Before writing prompt text, check that
   module and extend it instead of adding a second copy. A duplicated fragment
   is a bug waiting to diverge.
+- **Never leave production exports alive only for their tests.** Delete dead
+  code, or wire it to a real caller. `bun run check:unused` runs Knip in
+  production mode and fails on an export that only a test imports or on an
+  unreachable production file. Put intentional public API that has no in-repo
+  consumer in `knip.json` with a comment. See
+  `docs/specs/unused-exports.md`.
 - **Wire API dependencies through the shared context.** The injectable surface
   for the plan, coaching, activity, fitness, calendar, diet and weather routes
   lives in `apps/api/src/dependencies.ts`; `createApp` resolves the account

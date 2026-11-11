@@ -1,4 +1,4 @@
-import type { LlmModel, LlmModelGrade } from "@killingit/shared";
+import type { LlmModelGrade } from "@killingit/shared";
 import {
   and,
   eq,
@@ -773,13 +773,4 @@ export async function recordBenchmarkGrade(
         updatedAt: new Date(),
       },
     });
-}
-
-/** Models the benchmark still needs to grade. */
-export async function benchmarkModelsToRun(
-  allModels: readonly LlmModel[],
-): Promise<LlmModel[]> {
-  const pending = new Set(await pendingBenchmarkModelIds());
-  if (pending.size === 0) return [];
-  return allModels.filter((model) => pending.has(model.id));
 }

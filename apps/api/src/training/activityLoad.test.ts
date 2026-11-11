@@ -1,9 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { AnalyzedActivity, AthleteThreshold } from "@killingit/shared";
-import {
-  buildActivityLoads,
-  buildActivityTrainingLoads,
-} from "./activityLoad.js";
+import { buildActivityLoads } from "./activityLoad.js";
 import { buildThresholdTimelines } from "./thresholds.js";
 
 const cyclingFtp: AthleteThreshold = {
@@ -39,12 +36,12 @@ function activity(overrides: Partial<AnalyzedActivity> = {}): AnalyzedActivity {
   };
 }
 
-describe("buildActivityTrainingLoads", () => {
+describe("buildActivityLoads", () => {
   it("scores a powered activity and gives its day a fitness snapshot", () => {
-    const loads = buildActivityTrainingLoads(
+    const loads = buildActivityLoads(
       [activity({ normalizedPower: 200 })],
       timeline,
-    );
+    ).byDate;
     const day = loads.get("2026-10-20");
 
     expect(day?.tss).toBe(64);
@@ -54,21 +51,21 @@ describe("buildActivityTrainingLoads", () => {
   });
 
   it("uses the coach's estimate for an activity without power", () => {
-    const loads = buildActivityTrainingLoads(
+    const loads = buildActivityLoads(
       [activity()],
       timeline,
       new Map([["2026-10-20", 80]]),
-    );
+    ).byDate;
     expect(loads.get("2026-10-20")?.tss).toBe(80);
   });
 
   it("keeps extra dates (for manual entries) in the series", () => {
-    const loads = buildActivityTrainingLoads(
+    const loads = buildActivityLoads(
       [activity({ normalizedPower: 200 })],
       timeline,
       new Map(),
       ["2026-10-22"],
-    );
+    ).byDate;
     expect(loads.get("2026-10-22")?.tss).toBe(0);
     expect(loads.get("2026-10-22")?.ctl).toBeGreaterThan(0);
   });
@@ -144,7 +141,7 @@ describe("buildActivityTrainingLoads", () => {
         kind: "pace",
       },
     ]);
-    const loads = buildActivityTrainingLoads(
+    const loads = buildActivityLoads(
       [
         activity({
           type: "running",
@@ -154,7 +151,7 @@ describe("buildActivityTrainingLoads", () => {
         }),
       ],
       running,
-    );
+    ).byDate;
 
     // 10 km/h against a 12 km/h threshold is an intensity factor of 0.833.
     expect(loads.get("2026-10-20")?.tss).toBe(69);
@@ -173,7 +170,7 @@ describe("buildActivityTrainingLoads", () => {
         kind: "heart_rate",
       },
     ]);
-    const loads = buildActivityTrainingLoads(
+    const loads = buildActivityLoads(
       [
         activity({
           type: "running",
@@ -187,14 +184,14 @@ describe("buildActivityTrainingLoads", () => {
         }),
       ],
       running,
-    );
+    ).byDate;
 
     // One hour at 150 bpm against a 165 bpm threshold.
     expect(loads.get("2026-10-20")?.tss).toBe(83);
   });
 
   it("falls back to a duration estimate with no threshold for the sport", () => {
-    const loads = buildActivityTrainingLoads(
+    const loads = buildActivityLoads(
       [
         activity({
           type: "running",
@@ -204,7 +201,7 @@ describe("buildActivityTrainingLoads", () => {
         }),
       ],
       timeline,
-    );
+    ).byDate;
 
     expect(loads.get("2026-10-20")?.tss).toBe(65);
   });

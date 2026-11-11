@@ -1,0 +1,37 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "ignoreExportsUsedInFile": true,
+  "workspaces": {
+    ".": {
+      "entry": ["scripts/*.ts!", "benchmarks/prompts/*.ts!"],
+      "project": ["scripts/**/*.ts!", "benchmarks/prompts/**/*.ts!"]
+    },
+    "apps/api": {
+      "entry": ["src/index.ts!", "src/benchmark/cli.ts!", "drizzle.config.ts!"],
+      "project": ["src/**/*.ts!", "!src/**/*.test.ts!", "!src/testFixtures/**!"]
+    },
+    "apps/web": {
+      "entry": [
+        "src/main.tsx!",
+        "vite.config.ts!",
+        "vite.e2e.config.ts!",
+        "playwright.config.ts!",
+        "pwa/**/*.ts!",
+        "notices/**/*.ts!"
+      ],
+      "project": [
+        "src/**/*.{ts,tsx}!",
+        "!src/**/*.test.{ts,tsx}!",
+        "pwa/**/*.ts!",
+        "notices/**/*.ts!",
+        "vite.config.ts!",
+        "vite.e2e.config.ts!",
+        "playwright.config.ts!"
+      ]
+    },
+    "packages/shared": {
+      "entry": ["src/index.ts!"],
+      "project": ["src/**/*.ts!", "!src/**/*.test.ts!"]
+    }
+  }
+}

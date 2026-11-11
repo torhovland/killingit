@@ -3,9 +3,9 @@ import {
   CredentialCryptoError,
   decrypt,
   encrypt,
-  garminCredentialsKeyFromEnv,
   keyFromRaw,
-} from "./crypto.js";
+} from "../crypto/credentials.js";
+import { garminCredentialsKeyFromEnv } from "./crypto.js";
 
 /** Asserts a promise rejects with a CredentialCryptoError. */
 async function expectRejectsWithCryptoError(
