@@ -109,7 +109,14 @@ jobs:
       E2E_DATABASE_URL: postgres://killingit:killingit@postgres:5432/killingit_e2e_test
     steps:
       - uses: actions/checkout@v5
-      - uses: oven-sh/setup-bun@v2
+      - name: Install Bun
+        # setup-bun needs unzip, which the Playwright image omits. The image
+        # has Python, so extract the pinned Bun release without apt.
+        run: |
+          curl -fsSL -o /tmp/bun.zip \
+            https://github.com/oven-sh/bun/releases/download/bun-v1.4.4/bun-linux-x64.zip
+          python3 -m zipfile -e /tmp/bun.zip /tmp/bun
+          install /tmp/bun/bun-linux-x64/bun /usr/local/bin/bun
       - run: bun install --frozen-lockfile
       - run: bun run test:e2e
 

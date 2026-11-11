@@ -84,8 +84,10 @@ service and runs `bun run test:e2e` inside the official Playwright container
 image (`mcr.microsoft.com/playwright:v<version>-noble`). The image carries
 Chromium and its system libraries, so the job never installs packages from the
 Ubuntu archives; the tag must match the `@playwright/test` version in
-`bun.lock`. Playwright starts the API and web dev servers through its
-`webServer` config, and reaches PostgreSQL by the service label `postgres`.
+`bun.lock`. The image does not include Bun or `unzip`, so the job downloads the
+pinned Bun release and extracts it with Python. Playwright starts the API and
+web dev servers through its `webServer` config, and reaches PostgreSQL by the
+service label `postgres`.
 
 ## Data-model and API impact
 
