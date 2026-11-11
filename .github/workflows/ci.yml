@@ -85,6 +85,11 @@ jobs:
   e2e:
     name: End-to-end tests
     runs-on: ubuntu-latest
+    # The official Playwright image ships Chromium and every system library it
+    # needs, so CI never installs packages from the Ubuntu archives. Keep the
+    # tag in step with the @playwright/test version in bun.lock.
+    container:
+      image: mcr.microsoft.com/playwright:v1.65.0-noble
     services:
       postgres:
         image: postgres:16-alpine
@@ -100,12 +105,12 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      E2E_DATABASE_URL: postgres://killingit:killingit@localhost:5432/killingit_e2e_test
+      # A job container reaches service containers by their service label.
+      E2E_DATABASE_URL: postgres://killingit:killingit@postgres:5432/killingit_e2e_test
     steps:
       - uses: actions/checkout@v5
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
-      - run: bunx playwright install --with-deps chromium
       - run: bun run test:e2e
 
   signoff:
