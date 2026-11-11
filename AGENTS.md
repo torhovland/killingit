@@ -547,12 +547,18 @@ through a disciplined process:
      cascades. CI runs them in a separate `integration` job. See
      `docs/specs/database-integration-tests.md`.
    - **End-to-end tests** (Playwright) for critical user journeys.
+     A focused suite in `apps/web/e2e` runs the real web app, API, database
+     migrations and seeds in Chromium: sign-in from the landing page, the
+     coaching survey gate, a weekly note and coach reply, a meal photo with its
+     analysis, and account deletion. The API process uses a fixed test identity
+     and a stub LLM, and the e2e Vite config replaces only the Auth0 adapter
+     with a browser-local session. Run it with `bun run test:e2e` against the
+     docker-compose PostgreSQL; see `docs/specs/e2e-tests.md`.
      Enforce coverage thresholds in CI (test pyramid: many unit, fewer
      integration, a focused e2e set).
 7. **CI pipeline** (GitHub Actions, `.github/workflows/ci.yml`): typecheck +
-   lint + format + unit tests + database integration tests + a
-   dependency-outdated check must pass before merge. E2e checks follow the same
-   rule as they are added.
+   lint + format + unit tests + database integration tests + the e2e suite + a
+   dependency-outdated check must pass before merge.
 8. **Dependencies stay current.** CI fails the build when any dependency is
    outdated (`bun run outdated`). When that happens, update the outdated
    dependencies with `bun update`, verify typecheck/lint/format/tests still

@@ -5,10 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:e2e": "vite --config vite.e2e.config.ts",
     "build": "bun run typecheck && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "test": "bun test"
+    "test": "bun test src pwa notices"
   },
   "dependencies": {
     "@auth0/auth0-react": "^2.30.0",
