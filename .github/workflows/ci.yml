@@ -106,7 +106,9 @@ jobs:
           --health-retries 5
     env:
       # A job container reaches service containers by their service label.
-      E2E_DATABASE_URL: postgres://killingit:killingit@postgres:5432/killingit_e2e_test
+      # sslmode=disable keeps the local service from being treated as a hosted
+      # database that needs TLS.
+      E2E_DATABASE_URL: postgres://killingit:killingit@postgres:5432/killingit_e2e_test?sslmode=disable
     steps:
       - uses: actions/checkout@v5
       - name: Install Bun

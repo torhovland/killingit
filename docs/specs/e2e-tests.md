@@ -87,7 +87,8 @@ Ubuntu archives; the tag must match the `@playwright/test` version in
 `bun.lock`. The image does not include Bun or `unzip`, so the job downloads the
 pinned Bun release and extracts it with Python. Playwright starts the API and
 web dev servers through its `webServer` config, and reaches PostgreSQL by the
-service label `postgres`.
+service label `postgres` with `sslmode=disable` so the local service is not
+mistaken for a hosted database that needs TLS.
 
 ## Data-model and API impact
 
