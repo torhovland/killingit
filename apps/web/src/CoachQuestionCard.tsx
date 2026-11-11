@@ -2,6 +2,8 @@ import { useState } from "react";
 import type { CoachQuestion } from "@killingit/shared";
 import { FormattedText } from "./FormattedText";
 import { SubmitButton } from "./SubmitButton";
+import { Card } from "./components/Card";
+import { Textarea } from "./components/Textarea";
 
 /**
  * One clarification question from the coach. Pending questions get an answer
@@ -47,8 +49,9 @@ export function CoachQuestionCard({
   const pending = shownAnswer === null;
 
   return (
-    <article
-      className="flex flex-col gap-2 rounded-lg border bg-card p-4 text-left"
+    <Card
+      as="article"
+      className="flex flex-col gap-2 text-left"
       data-testid="coach-question-card"
     >
       <header className="flex flex-col gap-1">
@@ -79,9 +82,8 @@ export function CoachQuestionCard({
           onSubmit={(event) => void handleSubmit(event)}
           data-testid="coach-question-form"
         >
-          <textarea
+          <Textarea
             aria-label="Answer the coach's question"
-            className="w-full rounded border bg-card p-2 text-base"
             placeholder="Answer the coach so the plan can be adjusted."
             value={answer}
             onChange={(event) => setAnswer(event.target.value)}
@@ -91,13 +93,15 @@ export function CoachQuestionCard({
           {error && <p className="text-sm text-destructive">{error}</p>}
           <SubmitButton
             busy={submitting}
-            className="self-start rounded border border-transparent bg-primary px-3 py-1 text-base text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
+            variant="primary"
+            size="md"
+            className="self-start"
             disabled={!answer.trim()}
           >
             {submitting ? "Coach is thinking…" : "Send to coach"}
           </SubmitButton>
         </form>
       )}
-    </article>
+    </Card>
   );
 }

@@ -31,6 +31,8 @@ import { TrainingLoadLine } from "./TrainingLoadLine";
 import { useTimeZone } from "./TimeZoneContext";
 import { formatDateTime } from "./timeZone";
 import { WeatherSummary } from "./WeatherSummary";
+import { Button } from "./components/Button";
+import { Input } from "./components/Input";
 
 export type CalendarSelection =
   | { kind: "activity"; activity: CalendarActivity }
@@ -101,33 +103,39 @@ export function CalendarView({
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-1">
-          <button
+          <Button
             type="button"
-            className="inline-flex size-9 items-center justify-center rounded border bg-card enabled:hover:bg-muted disabled:opacity-40"
+            variant="secondary"
+            size="icon"
+            className="disabled:opacity-40"
             onClick={() => moveMonth(-1)}
             disabled={shownMonth <= minMonth}
             aria-label="Previous month"
           >
             <MonthArrow direction="previous" />
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className="inline-flex size-9 items-center justify-center rounded border bg-card enabled:hover:bg-muted disabled:opacity-40"
+            variant="secondary"
+            size="icon"
+            className="disabled:opacity-40"
             onClick={() => moveMonth(1)}
             disabled={shownMonth >= maxMonth}
             aria-label="Next month"
           >
             <MonthArrow direction="next" />
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className="inline-flex h-9 items-center justify-center rounded border bg-card px-3 text-base leading-none enabled:hover:bg-muted"
+            variant="secondary"
+            size="md"
+            className="inline-flex h-9 items-center justify-center py-0 leading-none"
             onClick={() =>
               onMonthChange(clampMonth(monthOf(today), minMonth, maxMonth))
             }
           >
             Today
-          </button>
+          </Button>
         </div>
         <div className="flex items-center gap-2">
           {loading && (
@@ -140,9 +148,9 @@ export function CalendarView({
           )}
           <label className="flex items-center gap-2 text-base">
             <span className="text-muted-foreground">Month</span>
-            <input
+            <Input
               type="month"
-              className="rounded border bg-card px-2 py-1 text-base"
+              size="sm"
               value={shownMonth}
               min={minMonth}
               max={maxMonth}
@@ -573,14 +581,15 @@ export function CalendarEntryDialog({
               </>
             )}
           </h3>
-          <button
+          <Button
             type="button"
-            className="rounded border bg-card px-2 py-0.5 text-base enabled:hover:bg-muted"
+            variant="secondary"
+            size="xs"
             onClick={onClose}
             autoFocus
           >
             Close
-          </button>
+          </Button>
         </div>
 
         {selection.kind === "activity" ? (

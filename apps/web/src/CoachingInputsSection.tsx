@@ -4,6 +4,7 @@ import { useQuickQuestion } from "./useQuickQuestion";
 import { useTimeZone } from "./TimeZoneContext";
 import { useWeeklyNote } from "./useWeeklyNote";
 import { WeeklyNoteCard } from "./WeeklyNoteCard";
+import { Card } from "./components/Card";
 
 /**
  * The two ways the athlete talks to the coach: a weekly note that shapes the
@@ -21,8 +22,9 @@ export function CoachingInputsSection({
   const quickQuestion = useQuickQuestion(auth, timeZone);
 
   return (
-    <section
-      className="flex flex-col gap-4 rounded-lg border bg-card p-4 text-left"
+    <Card
+      as="section"
+      className="flex flex-col gap-4 text-left"
       data-testid="coaching-inputs"
     >
       <div className="flex flex-col gap-1">
@@ -50,6 +52,6 @@ export function CoachingInputsSection({
         onQuestionChange={quickQuestion.setQuestion}
         onAsk={() => void quickQuestion.ask()}
       />
-    </section>
+    </Card>
   );
 }

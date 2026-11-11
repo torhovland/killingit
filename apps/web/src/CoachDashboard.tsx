@@ -13,6 +13,7 @@ import { useActivityFeed } from "./useActivityFeed";
 import { useCoachQuestion } from "./useCoachQuestion";
 import { useCoachReviews } from "./useCoachReviews";
 import { useStatuses } from "./useStatuses";
+import { Button } from "./components/Button";
 
 interface CoachDashboardProps {
   /** Increment when athlete answers change so the plan refreshes. */
@@ -107,13 +108,14 @@ export function CoachDashboard({
         {errorMessage && (
           <p className="text-destructive">Error: {errorMessage}</p>
         )}
-        <button
+        <Button
           type="button"
-          className="rounded border bg-card px-4 py-2 enabled:hover:bg-muted"
+          variant="secondary"
+          size="lg"
           onClick={() => void statuses.reload()}
         >
           Retry
-        </button>
+        </Button>
       </section>
     );
   }

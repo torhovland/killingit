@@ -12,6 +12,7 @@ import { requestParsed } from "./fetchAuthed";
 import { OpenRouterKeySection } from "./OpenRouterKeySection";
 import { reportError } from "./reportError";
 import { browserTimeZone, formatDateTime } from "./timeZone";
+import { Select } from "./components/Select";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
@@ -324,8 +325,7 @@ export function LlmSection({ settings, onSaved, isAdmin }: LlmSectionProps) {
       <div className="flex flex-wrap items-end gap-3 text-sm">
         <label className="flex flex-col gap-1">
           <span className="font-medium">Ability at least</span>
-          <select
-            className="rounded border bg-card px-2 py-1"
+          <Select
             value={minAbility}
             onChange={(e) => setMinAbility(e.target.value as LlmModelGrade)}
           >
@@ -334,12 +334,11 @@ export function LlmSection({ settings, onSaved, isAdmin }: LlmSectionProps) {
                 {grade}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <label className="flex flex-col gap-1">
           <span className="font-medium">Speed at least</span>
-          <select
-            className="rounded border bg-card px-2 py-1"
+          <Select
             value={minSpeed}
             onChange={(e) => setMinSpeed(e.target.value as LlmModelGrade)}
           >
@@ -348,12 +347,11 @@ export function LlmSection({ settings, onSaved, isAdmin }: LlmSectionProps) {
                 {grade}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <label className="flex flex-col gap-1">
           <span className="font-medium">Cost at least</span>
-          <select
-            className="rounded border bg-card px-2 py-1"
+          <Select
             value={minCost}
             onChange={(e) => setMinCost(e.target.value as LlmModelGrade)}
           >
@@ -362,7 +360,7 @@ export function LlmSection({ settings, onSaved, isAdmin }: LlmSectionProps) {
                 {grade}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <label className="flex items-center gap-2">
           <input

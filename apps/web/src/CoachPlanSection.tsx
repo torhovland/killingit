@@ -18,6 +18,8 @@ import { SubmitButton } from "./SubmitButton";
 import { useTimeZone } from "./TimeZoneContext";
 import { formatDateTime } from "./timeZone";
 import { getToday } from "./useToday";
+import { Button } from "./components/Button";
+import { Card } from "./components/Card";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
@@ -214,8 +216,9 @@ export function CoachPlanSection({
   }
 
   return (
-    <section
-      className="flex w-full flex-col gap-4 rounded-lg border bg-card p-4 text-left"
+    <Card
+      as="section"
+      className="flex w-full flex-col gap-4 text-left"
       data-testid="coach-plan"
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -230,18 +233,22 @@ export function CoachPlanSection({
       </div>
 
       {!ready && (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded border bg-inset p-3 text-base">
+        <Card
+          variant="inset"
+          className="flex flex-wrap items-center justify-between gap-2 rounded p-3 text-base"
+        >
           <span className="text-muted-foreground">
             Connect Garmin and OpenRouter to generate your training plan.
           </span>
-          <button
+          <Button
             type="button"
-            className="rounded border bg-card px-3 py-1 enabled:hover:bg-muted"
+            variant="secondary"
+            size="md"
             onClick={() => navigate("settings")}
           >
             Open settings
-          </button>
-        </div>
+          </Button>
+        </Card>
       )}
 
       {planError && (
@@ -250,33 +257,36 @@ export function CoachPlanSection({
             Error: {planError}
           </p>
           {!running && (
-            <button
+            <Button
               type="button"
-              className="rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted"
+              variant="secondary"
+              size="md"
               onClick={() => void start("auto")}
             >
               Try again
-            </button>
+            </Button>
           )}
         </div>
       )}
 
       {setupError && !running && (
-        <div
-          className="flex flex-wrap items-center justify-between gap-2 rounded border bg-inset p-3 text-base"
+        <Card
+          variant="inset"
+          className="flex flex-wrap items-center justify-between gap-2 rounded p-3 text-base"
           data-testid="plan-generation-error"
         >
           <p className="text-destructive">
             The coach could not finish your plan: {setupError}
           </p>
-          <button
+          <Button
             type="button"
-            className="rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted"
+            variant="secondary"
+            size="md"
             onClick={() => void start("auto")}
           >
             Try again
-          </button>
-        </div>
+          </Button>
+        </Card>
       )}
 
       <PlanProgress
@@ -327,7 +337,8 @@ export function CoachPlanSection({
             <SubmitButton
               type="button"
               busy={running}
-              className="rounded border border-transparent bg-primary px-3 py-1 text-base text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
+              variant="primary"
+              size="md"
               onClick={() => void start("auto")}
             >
               {running ? "Coach is thinking…" : "Generate my plan"}
@@ -335,6 +346,6 @@ export function CoachPlanSection({
           </div>
         )
       )}
-    </section>
+    </Card>
   );
 }

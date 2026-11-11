@@ -22,6 +22,7 @@ import { SettingsPage } from "./SettingsPage";
 import { SignInPage } from "./SignInPage";
 import { TimeZoneProvider } from "./TimeZoneContext";
 import { useAthleteQuestions } from "./useAthleteQuestions";
+import { Button } from "./components/Button";
 
 // Absolute API origin for deployed environments (e.g. the Cloud Run URL).
 // Empty string keeps relative "/api" for the local Vite dev proxy.
@@ -210,13 +211,14 @@ function AppShell() {
                   {questionsError && (
                     <p className="text-destructive">Error: {questionsError}</p>
                   )}
-                  <button
+                  <Button
                     type="button"
-                    className="rounded border bg-card px-4 py-2 enabled:hover:bg-muted"
+                    variant="secondary"
+                    size="lg"
                     onClick={() => void loadQuestions()}
                   >
                     Retry
-                  </button>
+                  </Button>
                 </section>
               ) : !questions.complete ? (
                 <CoachingSurveyPage
@@ -376,31 +378,35 @@ function UserMenu({
             "settings",
           ] as const
         ).map((entry) => (
-          <button
+          <Button
             key={entry}
             type="button"
-            className="rounded px-3 py-1.5 text-left hover:bg-muted"
+            variant="ghost"
+            size="menu"
             onClick={(event) => choose(entry, event)}
           >
             {PAGE_LABELS[entry]}
-          </button>
+          </Button>
         ))}
         {isAdmin && (
-          <button
+          <Button
             type="button"
-            className="rounded px-3 py-1.5 text-left hover:bg-muted"
+            variant="ghost"
+            size="menu"
             onClick={(event) => choose("admin", event)}
           >
             {PAGE_LABELS.admin}
-          </button>
+          </Button>
         )}
-        <button
+        <Button
           type="button"
-          className="rounded px-3 py-1.5 text-left text-destructive hover:bg-muted"
+          variant="ghost"
+          size="menu"
+          className="text-destructive"
           onClick={signOut}
         >
           Sign out
-        </button>
+        </Button>
       </nav>
     </details>
   );

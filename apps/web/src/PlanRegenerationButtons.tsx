@@ -15,11 +15,6 @@ import { getToday } from "./useToday";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
-const PRIMARY_BUTTON =
-  "rounded border border-transparent bg-primary px-3 py-1 text-base text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50";
-const SECONDARY_BUTTON =
-  "rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted disabled:opacity-50";
-
 type PlanAction = Extract<PlanGenerateMode, "newSeason" | "updateSeason">;
 
 interface IntegrationSetup {
@@ -241,7 +236,8 @@ export function PlanRegenerationButtonsView({
             key={entry.action}
             type="button"
             busy={running === entry.action}
-            className={entry.primary ? PRIMARY_BUTTON : SECONDARY_BUTTON}
+            variant={entry.primary ? "primary" : "secondary"}
+            size="md"
             disabled={busy}
             onClick={entry.onClick}
           >

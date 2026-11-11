@@ -27,6 +27,8 @@ import { FormattedText } from "./FormattedText";
 import { SessionSetting } from "./SessionSetting";
 import { TrainingLoadLine } from "./TrainingLoadLine";
 import { WeatherSummary } from "./WeatherSummary";
+import { Button } from "./components/Button";
+import { Card } from "./components/Card";
 
 export type PlanTab = "day" | "week" | "block" | "season";
 
@@ -306,8 +308,10 @@ function DayCard({
   const calorieBreakdown =
     dietToday?.calorieBreakdown ?? day.calorieBreakdown ?? null;
   return (
-    <article
-      className="relative flex flex-col gap-2 rounded-lg border bg-inset p-4"
+    <Card
+      as="article"
+      variant="inset"
+      className="relative flex flex-col gap-2"
       data-testid={testId}
       aria-busy={refreshing || undefined}
     >
@@ -388,9 +392,11 @@ function DayCard({
         )}
         {onDownloadWorkout !== undefined && hasExportableBikeWorkout(day) && (
           <div className="flex flex-wrap items-center gap-2">
-            <button
+            <Button
               type="button"
-              className="rounded border bg-card px-3 py-1 text-base enabled:hover:bg-muted disabled:opacity-60"
+              variant="secondary"
+              size="md"
+              className="disabled:opacity-60"
               onClick={() => onDownloadWorkout?.(day.date)}
               disabled={downloading}
               data-testid={`${testId}-download`}
@@ -398,7 +404,7 @@ function DayCard({
               {downloading
                 ? "Preparing workout file…"
                 : "Download workout file (.zwo)"}
-            </button>
+            </Button>
             <span className="text-sm text-muted-foreground">
               For Zwift or another trainer app.
             </span>
@@ -447,7 +453,7 @@ function DayCard({
           testId={`${testId}-refreshing`}
         />
       )}
-    </article>
+    </Card>
   );
 }
 
@@ -494,8 +500,10 @@ function WeekSection({
 }) {
   const estimatedFtp = week.estimatedFtpWatts;
   return (
-    <section
-      className="relative rounded-lg border bg-inset p-4"
+    <Card
+      as="section"
+      variant="inset"
+      className="relative"
       data-testid={testId}
       aria-busy={refreshing || undefined}
     >
@@ -608,7 +616,7 @@ function WeekSection({
           testId={`${testId ?? "plan-week"}-refreshing`}
         />
       )}
-    </section>
+    </Card>
   );
 }
 
@@ -666,8 +674,10 @@ function BlockSection({
 }) {
   const estimatedFtp = block.estimatedFtpWatts;
   return (
-    <section
-      className="relative rounded-lg border bg-inset p-4"
+    <Card
+      as="section"
+      variant="inset"
+      className="relative"
       data-testid={testId}
       aria-busy={refreshing || undefined}
     >
@@ -753,7 +763,7 @@ function BlockSection({
           testId={`${testId ?? "plan-block"}-refreshing`}
         />
       )}
-    </section>
+    </Card>
   );
 }
 
@@ -768,7 +778,7 @@ function SeasonSection({
 }) {
   const estimatedFtp = season.estimatedFtpWatts;
   return (
-    <section className="rounded-lg border bg-inset p-4">
+    <Card as="section" variant="inset">
       <h3 className="text-xl font-semibold">
         Season
         <Bullet />
@@ -841,7 +851,7 @@ function SeasonSection({
           </PlanListItem>
         ))}
       </PlanList>
-    </section>
+    </Card>
   );
 }
 
@@ -864,8 +874,8 @@ function DietProgressLine({
     targets.push(`${progress.targetBodyFatPercent.toFixed(1)} % body fat`);
   }
   return (
-    <div
-      className="mt-3 flex flex-col gap-1 rounded border bg-card p-3 text-base"
+    <Card
+      className="mt-3 flex flex-col gap-1 rounded p-3 text-base"
       data-testid={testId}
     >
       <p>
@@ -879,7 +889,7 @@ function DietProgressLine({
         className="text-muted-foreground"
         testId={`${testId}-note`}
       />
-    </div>
+    </Card>
   );
 }
 

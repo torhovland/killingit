@@ -6,6 +6,9 @@ import {
   type QuestionAnswerInput,
 } from "@killingit/shared";
 import { reportError } from "./reportError";
+import { Button } from "./components/Button";
+import { Textarea } from "./components/Textarea";
+import { Card } from "./components/Card";
 
 interface AthleteAnswersSectionProps {
   questions: AthleteQuestion[];
@@ -97,13 +100,13 @@ function QuestionGroup({
   children: React.ReactNode;
 }) {
   return (
-    <section className="flex flex-col gap-3 rounded border bg-card p-4">
+    <Card as="section" className="flex flex-col gap-3 rounded">
       <div className="flex flex-col gap-1">
         <h2 className="text-2xl font-semibold">{title}</h2>
         <p className="text-base text-muted-foreground">{description}</p>
       </div>
       {children}
-    </section>
+    </Card>
   );
 }
 
@@ -148,7 +151,7 @@ function AnswerEditor({
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded border bg-inset p-3 text-base">
+    <Card variant="inset" className="flex flex-col gap-3 rounded p-3 text-base">
       <form
         className="flex flex-col gap-2"
         onSubmit={(event) => void submit(event)}
@@ -162,7 +165,7 @@ function AnswerEditor({
             {question.required ? "Required" : "Optional"}
           </span>
         </label>
-        <textarea
+        <Textarea
           id={`survey-question-${question.versionId}`}
           name={`question-${question.id}`}
           rows={6}
@@ -172,28 +175,30 @@ function AnswerEditor({
             setValue(event.target.value);
             setSaved(false);
           }}
-          className="rounded border bg-card px-3 py-1"
+          size="line"
           placeholder="Your answer"
         />
         <div className="flex flex-wrap items-center gap-2">
-          <button
+          <Button
             type="submit"
-            className="rounded border border-transparent bg-primary px-3 py-1 text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
+            variant="primary"
+            size="md"
             disabled={saving || missingRequired}
           >
             {saving ? "Saving…" : "Save answer"}
-          </button>
+          </Button>
           {previous?.answer != null && previous.answer.trim() !== "" && (
-            <button
+            <Button
               type="button"
-              className="rounded border bg-card px-3 py-1 enabled:hover:bg-muted"
+              variant="secondary"
+              size="md"
               onClick={() => {
                 setValue(previous.answer ?? "");
                 setSaved(false);
               }}
             >
               Copy old answer
-            </button>
+            </Button>
           )}
           {saved && (
             <span className="text-muted-foreground" role="status">
@@ -226,7 +231,7 @@ function AnswerEditor({
           </p>
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 

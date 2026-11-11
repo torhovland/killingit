@@ -5,6 +5,8 @@ import {
   type QuestionAnswerInput,
 } from "@killingit/shared";
 import { reportError } from "./reportError";
+import { Button } from "./components/Button";
+import { Textarea } from "./components/Textarea";
 
 export type AthleteQuestionsFormVariant = "onboarding" | "edit";
 
@@ -131,7 +133,7 @@ export function AthleteQuestionsForm({
                 {question.required ? "Required" : "Optional"}
               </span>
             </span>
-            <textarea
+            <Textarea
               id={`athlete-question-${question.id}`}
               name={`question-${question.id}`}
               rows={6}
@@ -144,7 +146,7 @@ export function AthleteQuestionsForm({
                   [question.id]: event.target.value,
                 }))
               }
-              className="rounded border bg-card px-3 py-1"
+              size="line"
               placeholder="Your answer"
             />
           </label>
@@ -163,22 +165,24 @@ export function AthleteQuestionsForm({
         )}
 
         <div className="flex gap-2">
-          <button
+          <Button
             type="submit"
-            className="rounded border border-transparent bg-primary px-4 py-2 text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
+            variant="primary"
+            size="lg"
             disabled={submitting || missingRequired}
           >
             {submitting ? "Saving…" : copy.submitLabel}
-          </button>
+          </Button>
           {onCancel && (
-            <button
+            <Button
               type="button"
-              className="rounded border bg-card px-4 py-2 enabled:hover:bg-muted disabled:opacity-50"
+              variant="secondary"
+              size="lg"
               onClick={onCancel}
               disabled={submitting}
             >
               Cancel
-            </button>
+            </Button>
           )}
         </div>
       </form>

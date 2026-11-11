@@ -14,6 +14,8 @@ import { FitnessChart } from "./FitnessChart";
 import { NutritionChart } from "./NutritionChart";
 import { ThresholdChart } from "./ThresholdChart";
 import { TrainingLoadLine } from "./TrainingLoadLine";
+import { Card } from "./components/Card";
+import { Select } from "./components/Select";
 
 interface LatestGarminRow {
   key: string;
@@ -163,7 +165,7 @@ export function FitnessView({
             todayThresholds.length > 0 ||
             leftRows.length > 0 ||
             sleepRows.length > 0) && (
-            <div className="flex flex-col gap-1 rounded-lg border bg-card p-4">
+            <Card className="flex flex-col gap-1">
               <span className="text-xl font-semibold">Today</span>
               {todayLoad !== null && (
                 <TrainingLoadLine
@@ -224,7 +226,7 @@ export function FitnessView({
                   )}
                 </div>
               )}
-            </div>
+            </Card>
           )}
 
           <div className="flex items-center justify-end gap-2 text-base">
@@ -235,8 +237,7 @@ export function FitnessView({
             )}
             <label className="flex items-center gap-2">
               <span className="text-muted-foreground">Show</span>
-              <select
-                className="rounded border bg-card px-2 py-1"
+              <Select
                 value={range}
                 onChange={(event) =>
                   onRangeChange(event.target.value as FitnessRange)
@@ -247,7 +248,7 @@ export function FitnessView({
                     {FITNESS_RANGE_LABELS[entry]}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
           </div>
 

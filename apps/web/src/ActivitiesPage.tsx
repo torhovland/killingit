@@ -10,6 +10,7 @@ import { useTimeZone } from "./TimeZoneContext";
 import { useActivityFeed } from "./useActivityFeed";
 import { useManualActivities } from "./useManualActivities";
 import { useStatuses } from "./useStatuses";
+import { Button } from "./components/Button";
 
 /**
  * The activities page: every imported activity, the manual activity log, and
@@ -67,7 +68,8 @@ export function ActivitiesPage() {
         <SubmitButton
           type="button"
           busy={feed.syncing}
-          className="rounded border border-transparent bg-primary px-3 py-1 text-base text-primary-foreground enabled:hover:bg-primary-hover disabled:opacity-50"
+          variant="primary"
+          size="md"
           onClick={() =>
             void feed.loadAnalyses(statuses.llm?.configured ?? false)
           }
@@ -85,13 +87,14 @@ export function ActivitiesPage() {
                 ? "Connect Garmin in Settings to import activities."
                 : "Add an OpenRouter key in Settings to get coach analyses."}
             </span>
-            <button
+            <Button
               type="button"
-              className="rounded border bg-card px-3 py-1 enabled:hover:bg-muted"
+              variant="secondary"
+              size="md"
               onClick={() => navigate("settings")}
             >
               Open settings
-            </button>
+            </Button>
           </div>
         )}
 

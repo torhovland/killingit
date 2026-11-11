@@ -17,6 +17,8 @@ import { TrainingLoadLine } from "./TrainingLoadLine";
 import { useCommentForm } from "./useCommentForm";
 import { useTimeZone } from "./TimeZoneContext";
 import { formatDateTime } from "./timeZone";
+import { Button } from "./components/Button";
+import { Card } from "./components/Card";
 
 /**
  * One synced activity with its coach analysis and program review.
@@ -111,8 +113,9 @@ export function ActivityCard({
   }
 
   return (
-    <article
-      className="flex flex-col gap-2 rounded-lg border bg-card p-4 text-left"
+    <Card
+      as="article"
+      className="flex flex-col gap-2 text-left"
       data-testid="activity-card"
     >
       <div
@@ -130,15 +133,17 @@ export function ActivityCard({
               {onDelete && (
                 <>
                   <Bullet />
-                  <button
+                  <Button
                     type="button"
-                    className="text-destructive enabled:hover:underline disabled:opacity-50"
+                    variant="link"
+                    size="none"
+                    className="text-destructive"
                     onClick={() => void handleDelete()}
                     disabled={deleting}
                     data-testid="activity-delete"
                   >
                     {deleting ? "Deleting…" : "Delete"}
-                  </button>
+                  </Button>
                 </>
               )}
             </p>
@@ -212,6 +217,6 @@ export function ActivityCard({
           </p>
         ) : null}
       </CommentSection>
-    </article>
+    </Card>
   );
 }
