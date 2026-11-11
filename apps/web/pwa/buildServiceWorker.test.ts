@@ -17,7 +17,10 @@ async function makeDist(): Promise<string> {
   tempDirs.push(dir);
   await mkdir(join(dir, "assets"), { recursive: true });
   await mkdir(join(dir, "fonts"), { recursive: true });
-  await writeFile(join(dir, "index.html"), "<!doctype html><title>App</title>");
+  await writeFile(
+    join(dir, "index.html"),
+    '<!doctype html><meta name="app-build" content="__APP_BUILD__" /><title>App</title>',
+  );
   await writeFile(
     join(dir, "offline.html"),
     "<!doctype html><title>Offline</title>",
@@ -80,8 +83,40 @@ describe("buildServiceWorker", () => {
     expect(generated).not.toContain("__PRECACHE_URLS__");
     expect(generated).not.toContain("__CACHE_VERSION__");
     expect(generated).toContain('event.data?.type === "SKIP_WAITING"');
+    expect(generated).toContain('event.data?.type === "GET_BUILD_ID"');
+    expect(generated).toContain(
+      'postMessage({ type: "BUILD_ID", buildId: CACHE_VERSION })',
+    );
     expect(generated).toContain('url.pathname.startsWith("/api/")');
     expect(generated).toContain('contentType.includes("text/html")');
+  });
+
+  it("stamps the page with the same build id as the worker", async () => {
+    const distDir = await makeDist();
+
+    const { cacheVersion } = await buildServiceWorker({ distDir, sourceFile });
+    const stamped = await readFile(join(distDir, "index.html"), "utf8");
+
+    expect(stamped).toContain(`name="app-build" content="${cacheVersion}"`);
+    expect(stamped).not.toContain("__APP_BUILD__");
+  });
+
+  it("refuses a shell without the build id meta tag", async () => {
+    const distDir = await makeDist();
+    await writeFile(
+      join(distDir, "index.html"),
+      "<!doctype html><title>App</title>",
+    );
+
+    let failure: unknown;
+    try {
+      await buildServiceWorker({ distDir, sourceFile });
+    } catch (error: unknown) {
+      failure = error;
+    }
+
+    expect(failure).toBeInstanceOf(Error);
+    expect((failure as Error).message).toContain("app-build");
   });
 
   it("changes the cache version when a precached file changes", async () => {

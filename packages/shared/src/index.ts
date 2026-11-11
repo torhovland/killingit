@@ -18,6 +18,12 @@ export const greetingSchema = z.object({
 export type Greeting = z.infer<typeof greetingSchema>;
 
 export {
+  API_CONTRACT_VERSION,
+  API_MIN_SUPPORTED_VERSION,
+  API_VERSION_HEADER,
+} from "./apiVersion.js";
+
+export {
   athleteIdentitySchema,
   type AthleteIdentity,
 } from "./athleteIdentity.js";

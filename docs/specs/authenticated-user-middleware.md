@@ -18,7 +18,8 @@ the account itself.
 - `createApp` mounts the authentication and user-resolution middleware
   together on `/api/*`, so the allowlisted `PUBLIC_API_PATHS` skip both, and
   every other route, including an unknown one, has a resolved account before a
-  handler runs.
+  handler runs. The same chain first checks the API contract version, which is
+  also skipped for the public paths; see `docs/specs/api-versioning.md`.
 - The Garmin, LLM and question route factories drop their now-unused `users`
   dependency; the coaching dependency bundle drops it too. `UserStore` stays on
   the shared context for the middleware, `/api/me`, admin checks and plan

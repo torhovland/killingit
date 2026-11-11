@@ -79,6 +79,10 @@ describe("PWA shell metadata", () => {
     expect(indexHtml).toContain('name="application-name" content="Killing It"');
   });
 
+  it("leaves a build id placeholder for the production build to stamp", () => {
+    expect(indexHtml).toContain('name="app-build" content="__APP_BUILD__"');
+  });
+
   it("includes a static offline page", () => {
     const offline = readFileSync(join(publicDir, "offline.html"), "utf8");
     expect(offline).toContain("You're offline");

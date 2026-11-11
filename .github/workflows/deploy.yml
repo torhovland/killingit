@@ -88,6 +88,7 @@ jobs:
           tags: ${{ steps.meta.outputs.image }}
 
   deploy-web-test:
+    needs: [deploy-api-test]
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
@@ -197,6 +198,7 @@ jobs:
             --set-env-vars "LLM_CREDENTIALS_KEY=${{ secrets.TEST_LLM_CREDENTIALS_KEY }}"
 
   deploy-web-production:
+    needs: [deploy-api-production]
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: production

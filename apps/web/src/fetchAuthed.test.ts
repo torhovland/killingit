@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { greetingSchema } from "@killingit/shared";
+import {
+  API_CONTRACT_VERSION,
+  API_VERSION_HEADER,
+  greetingSchema,
+} from "@killingit/shared";
 import type { AuthState } from "./auth/auth0";
 import {
   fetchFileAuthed,
@@ -56,6 +60,7 @@ describe("fetchJsonAuthed", () => {
     expect(result).toEqual({ ok: true });
     const headers = captured[0]?.headers as Headers;
     expect(headers.get("authorization")).toBe("Bearer test-token");
+    expect(headers.get(API_VERSION_HEADER)).toBe(String(API_CONTRACT_VERSION));
   });
 
   it("does not attach a token when getToken returns undefined", async () => {
@@ -246,6 +251,9 @@ describe("fetchFileAuthed", () => {
     expect(await result.blob.text()).toBe("<workout_file/>");
     expect((captured[0]?.headers as Headers).get("authorization")).toBe(
       "Bearer test-token",
+    );
+    expect((captured[0]?.headers as Headers).get(API_VERSION_HEADER)).toBe(
+      String(API_CONTRACT_VERSION),
     );
   });
 

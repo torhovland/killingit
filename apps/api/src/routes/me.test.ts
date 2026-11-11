@@ -3,6 +3,7 @@ import { exportJWK, generateKeyPair, SignJWT } from "jose";
 import { Auth0Provider } from "../auth/auth0.js";
 import { createApp } from "../index.js";
 import type { UserStore } from "../users/store.js";
+import { apiRequest } from "../testFixtures/request.js";
 
 const ISSUER = "https://dev-5qhhcjppmcpsomq0.us.auth0.com/";
 const AUDIENCE = "https://api.killingit.hovland.co";
@@ -85,13 +86,13 @@ beforeAll(async () => {
 
 describe("GET /api/me", () => {
   it("returns 401 without an Authorization header", async () => {
-    const res = await app.fetch(new Request("http://localhost/api/me"));
+    const res = await app.fetch(apiRequest("http://localhost/api/me"));
     expect(res.status).toBe(401);
   });
 
   it("returns 401 with a malformed bearer token", async () => {
     const res = await app.fetch(
-      new Request("http://localhost/api/me", {
+      apiRequest("http://localhost/api/me", {
         headers: { authorization: "Bearer not-a-jwt" },
       }),
     );
@@ -109,7 +110,7 @@ describe("GET /api/me", () => {
       .sign(other.privateKey);
 
     const res = await app.fetch(
-      new Request("http://localhost/api/me", {
+      apiRequest("http://localhost/api/me", {
         headers: { authorization: `Bearer ${bad}` },
       }),
     );
@@ -118,7 +119,7 @@ describe("GET /api/me", () => {
 
   it("returns the identity sub and role with a valid token", async () => {
     const res = await app.fetch(
-      new Request("http://localhost/api/me", {
+      apiRequest("http://localhost/api/me", {
         headers: { authorization: `Bearer ${validToken}` },
       }),
     );
@@ -135,7 +136,7 @@ describe("GET /api/me", () => {
 
   it("saves the athlete's time zone", async () => {
     const res = await app.fetch(
-      new Request("http://localhost/api/me", {
+      apiRequest("http://localhost/api/me", {
         method: "PATCH",
         headers: {
           authorization: `Bearer ${validToken}`,
@@ -152,7 +153,7 @@ describe("GET /api/me", () => {
 
   it("rejects an unknown time zone", async () => {
     const res = await app.fetch(
-      new Request("http://localhost/api/me", {
+      apiRequest("http://localhost/api/me", {
         method: "PATCH",
         headers: {
           authorization: `Bearer ${validToken}`,
@@ -167,7 +168,7 @@ describe("GET /api/me", () => {
 
   it("saves and clears the athlete's location", async () => {
     const saved = await app.fetch(
-      new Request("http://localhost/api/me", {
+      apiRequest("http://localhost/api/me", {
         method: "PATCH",
         headers: {
           authorization: `Bearer ${validToken}`,
@@ -193,7 +194,7 @@ describe("GET /api/me", () => {
     });
 
     const cleared = await app.fetch(
-      new Request("http://localhost/api/me", {
+      apiRequest("http://localhost/api/me", {
         method: "PATCH",
         headers: {
           authorization: `Bearer ${validToken}`,
@@ -211,7 +212,7 @@ describe("GET /api/me", () => {
 
   it("saves the diet advice opt-in", async () => {
     const res = await app.fetch(
-      new Request("http://localhost/api/me", {
+      apiRequest("http://localhost/api/me", {
         method: "PATCH",
         headers: {
           authorization: `Bearer ${validToken}`,
@@ -233,7 +234,7 @@ describe("GET /api/me", () => {
       {},
     ]) {
       const response = await app.fetch(
-        new Request("http://localhost/api/me", {
+        apiRequest("http://localhost/api/me", {
           method: "PATCH",
           headers: {
             authorization: `Bearer ${validToken}`,
@@ -250,14 +251,14 @@ describe("GET /api/me", () => {
 describe("DELETE /api/me", () => {
   it("returns 401 without an Authorization header", async () => {
     const res = await app.fetch(
-      new Request("http://localhost/api/me", { method: "DELETE" }),
+      apiRequest("http://localhost/api/me", { method: "DELETE" }),
     );
     expect(res.status).toBe(401);
   });
 
   it("deletes the signed-in account", async () => {
     const res = await app.fetch(
-      new Request("http://localhost/api/me", {
+      apiRequest("http://localhost/api/me", {
         method: "DELETE",
         headers: { authorization: `Bearer ${validToken}` },
       }),

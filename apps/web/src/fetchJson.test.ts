@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, spyOn } from "bun:test";
 import type { Mock } from "bun:test";
 import * as Sentry from "@sentry/react";
+import { subscribeApiOutdated } from "./apiVersion";
 import { ApiError, fetchJson } from "./fetchJson";
 
 type AddBreadcrumb = typeof Sentry.addBreadcrumb;
@@ -75,5 +76,30 @@ describe("fetchJson", () => {
     expect((thrown as ApiError).status).toBe(500);
     expect((thrown as Error).message).toMatch(/failed: 500/);
     expect((thrown as Error).message).toContain("nope");
+  });
+
+  it("reports a refused contract version before throwing", async () => {
+    stubFetch(
+      new Response('{"error":"api_version_mismatch"}', {
+        status: 426,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    let mismatches = 0;
+    const unsubscribe = subscribeApiOutdated(() => {
+      mismatches += 1;
+    });
+
+    let thrown: unknown;
+    try {
+      await fetchJson<unknown>("http://api/me");
+    } catch (e) {
+      thrown = e;
+    } finally {
+      unsubscribe();
+    }
+
+    expect((thrown as ApiError).status).toBe(426);
+    expect(mismatches).toBe(1);
   });
 });

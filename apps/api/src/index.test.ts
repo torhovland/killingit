@@ -1,4 +1,9 @@
 import { describe, expect, it } from "bun:test";
+import {
+  API_CONTRACT_VERSION,
+  API_MIN_SUPPORTED_VERSION,
+  API_VERSION_HEADER,
+} from "@killingit/shared";
 import { Hono } from "hono";
 import app, { createApp } from "./index";
 import { withSentry } from "./instrumentation/sentry.js";
@@ -27,6 +32,11 @@ const PROTECTED_ROUTES = [
   { method: "GET", path: "/api/admin/questions" },
 ] as const;
 
+/** Every protected request carries the contract version the web app sends. */
+const API_VERSION_HEADERS = {
+  [API_VERSION_HEADER]: String(API_CONTRACT_VERSION),
+};
+
 describe("api", () => {
   it("responds ok on /api/health", async () => {
     const res = await app.fetch(new Request("http://localhost/api/health"));
@@ -49,7 +59,10 @@ describe("api", () => {
     "rejects $method $path without a bearer token",
     async ({ method, path }) => {
       const res = await app.fetch(
-        new Request(`http://localhost${path}`, { method }),
+        new Request(`http://localhost${path}`, {
+          method,
+          headers: API_VERSION_HEADERS,
+        }),
       );
       expect(res.status).toBe(401);
     },
@@ -60,8 +73,54 @@ describe("api", () => {
     // rejected before routing, so a newly added route can never be public by
     // accident.
     const res = await app.fetch(
-      new Request("http://localhost/api/not-a-registered-route"),
+      new Request("http://localhost/api/not-a-registered-route", {
+        headers: API_VERSION_HEADERS,
+      }),
     );
+    expect(res.status).toBe(401);
+  });
+
+  it("keeps the public health check reachable without a contract version", async () => {
+    const res = await app.fetch(new Request("http://localhost/api/health"));
+    expect(res.status).toBe(200);
+  });
+});
+
+describe("api contract versions", () => {
+  const versioned = (version: string) =>
+    new Request("http://localhost/api/me", {
+      headers: { [API_VERSION_HEADER]: version },
+    });
+
+  it("rejects an app build older than the supported contract", async () => {
+    const res = await app.fetch(
+      versioned(String(API_MIN_SUPPORTED_VERSION - 1)),
+    );
+
+    expect(res.status).toBe(426);
+    expect(await res.json()).toEqual({
+      error: "api_version_mismatch",
+      requiredVersion: API_CONTRACT_VERSION,
+      receivedVersion: String(API_MIN_SUPPORTED_VERSION - 1),
+    });
+  });
+
+  it("rejects an app build newer than the API", async () => {
+    const res = await app.fetch(versioned(String(API_CONTRACT_VERSION + 1)));
+
+    expect(res.status).toBe(426);
+  });
+
+  it("rejects a request that declares no version at all", async () => {
+    // A build from before the handshake still has to reload once.
+    const res = await app.fetch(new Request("http://localhost/api/me"));
+
+    expect(res.status).toBe(426);
+  });
+
+  it("lets a supported version through to authentication", async () => {
+    const res = await app.fetch(versioned(String(API_CONTRACT_VERSION)));
+
     expect(res.status).toBe(401);
   });
 });
@@ -83,7 +142,10 @@ describe("authenticated account resolution", () => {
   it("returns 503 when the signed-in account cannot be resolved", async () => {
     const res = await appWith(failingUserStore).fetch(
       new Request("http://localhost/api/questions", {
-        headers: { authorization: "Bearer anything" },
+        headers: {
+          authorization: "Bearer anything",
+          ...API_VERSION_HEADERS,
+        },
       }),
     );
     expect(res.status).toBe(503);

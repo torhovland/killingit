@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { MiddlewareHandler } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
+import { enforceApiVersion } from "./apiVersion.js";
 import { createAuthProvider } from "./auth/index.js";
 import { requireAdmin, requireAuth, requireUser } from "./auth/middleware.js";
 import type { AuthProvider } from "./auth/provider.js";
@@ -120,6 +121,7 @@ export function createApp(options: AppDependencies = {}): Hono {
   // user on the context, whatever its prefix is.
   app.use(
     "/api/*",
+    unlessPublic(enforceApiVersion),
     unlessPublic(requireAuth(authProvider)),
     unlessPublic(requireUser(deps.userStore)),
   );

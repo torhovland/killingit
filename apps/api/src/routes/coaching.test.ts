@@ -19,6 +19,7 @@ import type {
   StoredAthleteQuestion,
 } from "../questions/answers.js";
 import type { CoachingSurveyAdjustmentStore } from "../questions/adjustments.js";
+import { apiRequest } from "../testFixtures/request.js";
 
 const storedQuestion: StoredAthleteQuestion = {
   id: 1,
@@ -353,7 +354,7 @@ function makeApp(options: {
 function authenticatedRequest(path: string, init?: RequestInit): Request {
   const headers = new Headers(init?.headers);
   headers.set("authorization", "Bearer anything");
-  return new Request(`http://localhost${path}`, { ...init, headers });
+  return apiRequest(`http://localhost${path}`, { ...init, headers });
 }
 
 function makePeriodReview(

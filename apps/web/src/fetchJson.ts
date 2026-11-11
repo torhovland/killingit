@@ -1,4 +1,5 @@
 import * as Sentry from "@sentry/react";
+import { reportApiOutdated } from "./apiVersion";
 
 /**
  * A non-2xx API response. Callers (and `reportError`) can tell expected client
@@ -40,6 +41,9 @@ export async function fetchJson<T>(
   const text = await res.text();
 
   if (!res.ok) {
+    if (status === 426) {
+      reportApiOutdated();
+    }
     // Surface the server's short text detail (e.g. "invalid OpenRouter API
     // key") so configuration forms can show a useful message instead of only
     // the status code.

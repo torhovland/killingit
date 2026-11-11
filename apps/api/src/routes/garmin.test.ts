@@ -7,6 +7,7 @@ import { GarminAuthError, type SyncTransport } from "../garmin/client.js";
 import type { EncryptedCredentials } from "../garmin/store.js";
 import type { UserStore } from "../users/store.js";
 import { createGarminRoute } from "./garmin.js";
+import { apiRequest } from "../testFixtures/request.js";
 
 const ORIGINAL_KEY = process.env.GARMIN_CREDENTIALS_KEY;
 
@@ -98,7 +99,7 @@ function makeApp(authenticate?: () => Promise<boolean>) {
 function request(path: string, subject: string, init?: RequestInit): Request {
   const headers = new Headers(init?.headers);
   headers.set("authorization", `Bearer ${subject}`);
-  return new Request(`http://localhost${path}`, { ...init, headers });
+  return apiRequest(`http://localhost${path}`, { ...init, headers });
 }
 
 describe("per-user Garmin credentials", () => {

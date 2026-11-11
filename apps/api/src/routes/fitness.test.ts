@@ -18,6 +18,7 @@ import {
 import { buildThresholdTimelines } from "../training/thresholds.js";
 import { buildFitnessHistory } from "../training/history.js";
 import type { UserStore } from "../users/store.js";
+import { apiRequest } from "../testFixtures/request.js";
 
 const thresholdPoints: AthleteThreshold[] = [
   {
@@ -182,7 +183,7 @@ function makeApp(options: { plan?: CoachPlan | null } = {}) {
 }
 
 function authenticatedRequest(path: string): Request {
-  return new Request(`http://localhost${path}`, {
+  return apiRequest(`http://localhost${path}`, {
     headers: { authorization: "Bearer anything" },
   });
 }
@@ -190,7 +191,7 @@ function authenticatedRequest(path: string): Request {
 describe("fitness route", () => {
   it("requires a bearer token", async () => {
     const res = await makeApp().fetch(
-      new Request("http://localhost/api/fitness?today=2026-10-22"),
+      apiRequest("http://localhost/api/fitness?today=2026-10-22"),
     );
     expect(res.status).toBe(401);
   });
