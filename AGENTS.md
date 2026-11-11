@@ -381,10 +381,11 @@ The stack below is proposed and should be treated as the starting point. See
   sites must not hand-write `safeParse` plus their own throw; see
   `docs/specs/web-api-request-parsing.md`.
 - We build our own **component library** under `apps/web/src/components/`.
-  `Button`, `Input`, `Textarea`, `Select` and `Card` are the primitives; page
-  components stay flat in `apps/web/src/` beside their tests. Add a primitive
-  when markup and styling are genuinely shared instead of repeating a class
-  string in a page. See `docs/specs/web-component-library.md` and ADR 0027.
+  `Button`, `Input`, `Textarea`, `Select`, `Card` and `HiddenFileInput` are the
+  primitives; page components stay flat in `apps/web/src/` beside their tests.
+  Add a primitive when markup and styling are genuinely shared instead of
+  repeating a class string in a page. See
+  `docs/specs/web-component-library.md` and ADR 0027.
 - **Tailwind CSS** (v4, through `@tailwindcss/vite`) is the styling foundation.
   The primitives compose utility classes through `cn()`, which combines `clsx`
   and `tailwind-merge` so a caller's `className` overrides a default. The

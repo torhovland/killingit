@@ -16,6 +16,7 @@ import { toWallClockValue, wallClockToIso } from "./timeZone";
 import { getToday } from "./useToday";
 import { Button } from "./components/Button";
 import { Card } from "./components/Card";
+import { HiddenFileInput } from "./components/HiddenFileInput";
 import { Input } from "./components/Input";
 import { Textarea } from "./components/Textarea";
 
@@ -159,12 +160,10 @@ export function EditFoodEntryForm({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <input
+          <HiddenFileInput
             ref={cameraInput}
-            type="file"
             accept="image/*"
             capture="environment"
-            className="sr-only"
             data-testid="edit-meal-photo-camera"
             onChange={(event) => {
               const file = event.currentTarget.files?.[0];
@@ -172,11 +171,9 @@ export function EditFoodEntryForm({
               void choosePhoto(file);
             }}
           />
-          <input
+          <HiddenFileInput
             ref={uploadInput}
-            type="file"
             accept="image/*"
-            className="sr-only"
             data-testid="edit-meal-photo-upload"
             onChange={(event) => {
               const file = event.currentTarget.files?.[0];

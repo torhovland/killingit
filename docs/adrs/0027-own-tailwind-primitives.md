@@ -22,7 +22,8 @@ built on Radix, no light theme, and no third-party component dependency.
 - Add `clsx` and `tailwind-merge` behind one `cn()` helper, so a caller's
   `className` overrides a primitive's default predictably.
 - Own the primitives in `apps/web/src/components/`: `Button`, `Input`,
-  `Textarea`, `Select` and `Card`, plus `SubmitButton` on top of `Button`.
+  `Textarea`, `Select`, `Card` and `HiddenFileInput`, plus `SubmitButton` on top
+  of `Button`.
 - Express the looks as `variant` and `size` props with the app's existing
   tokens; keep `className` for layout and deliberate overrides.
 - Keep page components flat in `apps/web/src/` and move only shared primitives

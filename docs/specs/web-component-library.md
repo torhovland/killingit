@@ -17,6 +17,8 @@ The primitives live in `apps/web/src/components/`:
 - `Input`, `Textarea` and `Select` — the standard field surface with a `size`
   that carries width, padding and text size. `Input` and `Textarea` default to
   the full-width form field; `Textarea` also has a compact `line` size.
+- `HiddenFileInput` — the visually hidden file input behind a camera or upload
+  button.
 - `Card` — `rounded-lg border p-4` on the card surface, with `as` to keep
   `section`, `article` or `aside` semantics and an `inset` variant for panels
   inside another card.
