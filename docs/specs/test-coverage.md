@@ -54,15 +54,17 @@ owned by the package, and merges the result into `coverage/lcov.info`.
 
 ### Baseline
 
-Measured on 2026-11-11. The threshold is the measured value floored to a whole
-percent, leaving a small margin for harmless variation. Both lines and
-functions are checked.
+Measured on 2026-11-11 with Bun 1.4.4, the version pinned in the CI test job.
+Bun changes how many executable lines and functions it counts between releases,
+so moving the pin also means re-measuring the baseline. The threshold is the
+measured value floored to a whole percent, leaving a small margin for harmless
+variation. Both lines and functions are checked.
 
 | Package | Lines measured | Line threshold | Functions measured | Function threshold |
 | ------- | -------------- | -------------- | ------------------ | ------------------ |
-| api     | 74.62%         | 74.0%          | 80.66%             | 80.0%              |
-| web     | 77.97%         | 77.0%          | 72.88%             | 72.0%              |
-| shared  | 96.24%         | 96.0%          | 87.78%             | 87.0%              |
+| api     | 73.40%         | 73.0%          | 78.65%             | 78.0%              |
+| web     | 77.92%         | 77.0%          | 72.70%             | 72.0%              |
+| shared  | 95.79%         | 95.0%          | 86.75%             | 86.0%              |
 
 The baseline lives in `COVERAGE_GROUPS` in `scripts/coverage.ts`. When coverage
 improves, raise the matching threshold in the same pull request. Lowering a
@@ -81,10 +83,11 @@ files are already excluded by Bun's `coverageSkipTestFiles` default.
 
 ### CI
 
-The `test` job runs `bun run test:coverage` instead of `bun run test`. The same
-tests run, and the job fails when any package is below its threshold. The
-script appends the coverage table to `$GITHUB_STEP_SUMMARY`, so the result is
-visible on every pull request without another service.
+The `test` job pins Bun to the version the baseline was measured with, runs
+`bun run test:coverage` instead of `bun run test`, and fails when any package is
+below its threshold. The script appends the coverage table to
+`$GITHUB_STEP_SUMMARY`, so the result is visible on every pull request without
+another service.
 
 The job then uploads `coverage/lcov.info` with `codecov/codecov-action`. The
 action authenticates with a short-lived GitHub OIDC token (`id-token: write`),

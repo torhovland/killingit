@@ -4,9 +4,9 @@
 //
 // Bun only reports coverage for files a test actually loads, so this is a
 // floor on the code the suites touch rather than a measure of every source
-// file. The thresholds are the baseline measured when the check was added,
-// floored to a whole percent; raise them as coverage improves. See
-// `docs/specs/test-coverage.md`.
+// file. The thresholds are the baseline measured when the check was added
+// with the Bun version pinned in CI, floored to a whole percent; raise them as
+// coverage improves. See `docs/specs/test-coverage.md`.
 //
 // Usage: `bun run test:coverage`. CI runs the same command, writes the table
 // to the job summary and uploads `coverage/lcov.info` to Codecov.
@@ -79,7 +79,9 @@ export const COVERAGE_EXCLUDES = [
 ] as const;
 
 /**
- * The baseline measured on 2026-11-11, floored to a whole percent. Raise a
+ * The baseline measured on 2026-11-11 with Bun 1.4.4, the version pinned in
+ * the CI test job, and floored to a whole percent. Line and function counts
+ * change between Bun releases, so re-measure when the pin moves. Raise a
  * threshold when coverage improves; never lower one without a good reason.
  */
 export const COVERAGE_GROUPS: readonly CoverageGroup[] = [
@@ -87,7 +89,7 @@ export const COVERAGE_GROUPS: readonly CoverageGroup[] = [
     name: "api",
     root: "apps/api",
     testArgs: ["src"],
-    threshold: { lines: 0.74, functions: 0.8 },
+    threshold: { lines: 0.73, functions: 0.78 },
   },
   {
     name: "web",
@@ -99,7 +101,7 @@ export const COVERAGE_GROUPS: readonly CoverageGroup[] = [
     name: "shared",
     root: "packages/shared",
     testArgs: [],
-    threshold: { lines: 0.96, functions: 0.87 },
+    threshold: { lines: 0.95, functions: 0.86 },
   },
 ];
 
@@ -317,7 +319,7 @@ function main(): void {
 
 function runTests(name: string, cwd: string, args: string[]): void {
   console.log(`\n> ${name}: bun test ${args.join(" ")}`);
-  const result = Bun.spawnSync(["bun", "test", ...args], {
+  const result = Bun.spawnSync([process.execPath, "test", ...args], {
     cwd,
     stdout: "inherit",
     stderr: "inherit",
