@@ -206,6 +206,12 @@ one swappable corner, and normalizes Garmin activities into the shared
   previously produced a stringified dict; it now yields `"unknown"`.
 - **Sidecar tooling is excluded from JS lint/format** (`services/**/.venv`,
   `__pycache__`).
+- **Sidecar responses are validated and bounded.** Every sidecar request
+  carries an `AbortSignal.timeout` (kept under the API's 255-second idle
+  timeout), so a hung sidecar fails with a typed `GarminSidecarError` instead
+  of holding the API request open. The `/sync` activities are parsed with the
+  shared `activitySchema` array, and a malformed payload raises
+  `GarminSidecarError` before anything reaches the stored feed.
 - **Malformed sync payloads cannot blank the page.** The web validates the
   `{ activities }` response against the shared `activitiesResponseSchema`
   before rendering; a shape error becomes an inline Garmin error. `samples`
