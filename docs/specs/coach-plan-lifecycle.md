@@ -326,7 +326,10 @@ problems; the error names the offending fields if the repair also fails. See
   observes the provider for progress and its latest response, so the Day, Week,
   and Block tabs update while a run is tracked.
 - `CoachPlanView` is the pure presentation of the plan, so it can be tested
-  without auth or network. The Day tab shows today and, after 18:00, tomorrow.
+  without auth or network. It is the tab shell: each tab's section lives in
+  `apps/web/src/plan/` (`DayCard`, `WeekSection`, `BlockSection`,
+  `SeasonSection`, plus the shared `sections.tsx`, `AthleteEventList` and
+  `formatPlanDate`). The Day tab shows today and, after 18:00, tomorrow.
   The Week tab shows today's week and, when one has been planned for tomorrow,
   the next week, with each session's description, planned duration, intensity,
   and whether the coach set it indoors or outdoors. Every day is an outline

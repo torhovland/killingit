@@ -23,8 +23,8 @@ import {
   monthOf,
   shiftMonth,
 } from "./calendarDates";
-import { formatPlanDate } from "./CoachPlanView";
 import { FormattedText } from "./FormattedText";
+import { formatPlanDate } from "./plan/formatPlanDate";
 import { SessionSetting } from "./SessionSetting";
 import { TrainingLoadLine } from "./TrainingLoadLine";
 import { useTimeZone } from "./TimeZoneContext";

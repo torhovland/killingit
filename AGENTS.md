@@ -425,10 +425,11 @@ accepted ones.
 - We build our own **component library** under `apps/web/src/components/`.
   `Button`, `Input`, `Textarea`, `Select`, `Card`, `HiddenFileInput`,
   `StatusBadge` and `Modal` are the primitives; page components stay flat in
-  `apps/web/src/` beside their tests. `Modal` owns the backdrop, focus trap,
-  Escape close and focus restore for every dialog. Add a primitive when markup
-  and styling are genuinely shared instead of repeating a class string in a
-  page. See
+  `apps/web/src/` beside their tests, while a page's own sections may move into
+  a named directory (`plan/` holds the coach plan's tab sections). `Modal` owns
+  the backdrop, focus trap, Escape close and focus restore for every dialog.
+  Add a primitive when markup and styling are genuinely shared instead of
+  repeating a class string in a page. See
   `docs/specs/web-component-library.md`, `docs/specs/modal-dialog.md` and
   ADR 0027.
 - **Tailwind CSS** (v4, through `@tailwindcss/vite`) is the styling foundation.
