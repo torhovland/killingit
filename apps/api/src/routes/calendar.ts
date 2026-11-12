@@ -15,6 +15,7 @@ import {
 } from "@killingit/shared";
 import { Hono } from "hono";
 import { getUser } from "../auth/middleware.js";
+import { serviceUnavailable, validationFailed } from "../http/errors.js";
 import { loadCachedActivityFeed } from "../coaching/feedCache.js";
 import { loadAthleteEvents } from "../events/store.js";
 import type { ManualActivityContext } from "../llm/activityContext.js";
@@ -410,7 +411,11 @@ export function createCalendarRoute(deps: ResolvedAppDependencies): Hono {
   return new Hono().get("/", async (c) => {
     const today = planDateSchema.safeParse(c.req.query("today"));
     if (!today.success) {
-      return c.text("A valid today date (YYYY-MM-DD) is required", 400);
+      return validationFailed(
+        c,
+        today.error,
+        "A valid today date (YYYY-MM-DD) is required",
+      );
     }
 
     try {
@@ -458,7 +463,7 @@ export function createCalendarRoute(deps: ResolvedAppDependencies): Hono {
       );
     } catch (err) {
       console.error("[calendar] could not build the calendar:", err);
-      return c.text("Service Unavailable", 503);
+      return serviceUnavailable(c);
     }
   });
 }

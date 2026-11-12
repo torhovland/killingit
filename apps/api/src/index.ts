@@ -11,6 +11,7 @@ import type {
   ResolvedAppDependencies,
 } from "./dependencies.js";
 import { withSentry } from "./instrumentation/sentry.js";
+import { apiError } from "./http/errors.js";
 import { LlmModelChoiceError } from "./llm/client.js";
 import { dbPlanGenerationStore, dbPlanStore } from "./plans/store.js";
 import { dbQuestionAnswerStore } from "./questions/answers.js";
@@ -74,7 +75,9 @@ export function createApp(options: AppDependencies = {}): Hono {
 
   app.onError((err, c) => {
     if (err instanceof LlmModelChoiceError) {
-      return c.json({ error: err.message, settingsUrl: "/settings" }, 409);
+      return apiError(c, 409, err.message, {
+        details: { settingsUrl: "/settings" },
+      });
     }
     console.error("[api] unhandled error:", err);
     return c.text("Internal Server Error", 500);

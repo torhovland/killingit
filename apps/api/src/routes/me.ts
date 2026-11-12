@@ -1,5 +1,5 @@
 import { currentUserSchema, userSettingsUpdateSchema } from "@killingit/shared";
-import { zValidator } from "@hono/zod-validator";
+import { zValidator } from "../http/validation.js";
 import { Hono } from "hono";
 import { getAthlete, getUser } from "../auth/middleware.js";
 import type { StoredUser, UserStore } from "../users/store.js";

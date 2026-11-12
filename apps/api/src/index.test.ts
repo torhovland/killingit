@@ -101,9 +101,14 @@ describe("api contract versions", () => {
 
     expect(res.status).toBe(426);
     expect(await res.json()).toEqual({
-      error: "api_version_mismatch",
-      requiredVersion: API_CONTRACT_VERSION,
-      receivedVersion: String(API_MIN_SUPPORTED_VERSION - 1),
+      error: {
+        code: "api_version_mismatch",
+        message: "This app version is out of date. Reload to update.",
+        details: {
+          requiredVersion: API_CONTRACT_VERSION,
+          receivedVersion: String(API_MIN_SUPPORTED_VERSION - 1),
+        },
+      },
     });
   });
 

@@ -5,6 +5,7 @@ import {
 } from "@killingit/shared";
 import type { Context } from "hono";
 import { getUser } from "../../auth/middleware.js";
+import { badRequest, notFound, validationFailed } from "../../http/errors.js";
 import type { ActivityLoads } from "../../training/activityLoad.js";
 import { toCoachAnalysis } from "../../plans/replies.js";
 import { ftpBaselineAt, ftpTimeline } from "../../training/thresholds.js";
@@ -62,7 +63,7 @@ export function createManualActivityHandlers(
     const user = getUser(c);
     const id = mode === "create" ? undefined : Number(idParam);
     if (mode === "edit" && Number.isNaN(id)) {
-      return c.text("Invalid manual activity id", 400);
+      return badRequest(c, "Invalid manual activity id");
     }
 
     const { today, timezone, ...activity } = input;
@@ -84,7 +85,7 @@ export function createManualActivityHandlers(
         estimatedTss,
       });
       if (!updated) {
-        return c.text("Manual activity not found", 404);
+        return notFound(c, "Manual activity not found");
       }
       activityId = id;
     }
@@ -119,19 +120,23 @@ export function createManualActivityHandlers(
   async function remove(c: Context, idParam: string) {
     const query = deletionQuerySchema.safeParse(c.req.query());
     if (!query.success) {
-      return c.text("A valid today date (YYYY-MM-DD) is required", 400);
+      return validationFailed(
+        c,
+        query.error,
+        "A valid today date (YYYY-MM-DD) is required",
+      );
     }
 
     const user = getUser(c);
     const id = Number(idParam);
     if (Number.isNaN(id)) {
-      return c.text("Invalid manual activity id", 400);
+      return badRequest(c, "Invalid manual activity id");
     }
     const { today, timezone } = query.data;
 
     const deleted = await deps.deleteManual(user.id, id);
     if (!deleted) {
-      return c.text("Manual activity not found", 404);
+      return notFound(c, "Manual activity not found");
     }
 
     await deps.trigger(deps.triggerDeps, {

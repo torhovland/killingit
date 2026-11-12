@@ -4,6 +4,7 @@ import {
   API_VERSION_HEADER,
 } from "@killingit/shared";
 import type { MiddlewareHandler } from "hono";
+import { apiError } from "./http/errors.js";
 
 /** Status for an app build whose contract the API no longer answers. */
 const CLIENT_OUTDATED = 426;
@@ -28,12 +29,15 @@ export const enforceApiVersion: MiddlewareHandler = async (c, next) => {
     return;
   }
 
-  return c.json(
-    {
-      error: "api_version_mismatch",
-      requiredVersion: API_CONTRACT_VERSION,
-      receivedVersion: received ?? null,
-    },
+  return apiError(
+    c,
     CLIENT_OUTDATED,
+    "This app version is out of date. Reload to update.",
+    {
+      details: {
+        requiredVersion: API_CONTRACT_VERSION,
+        receivedVersion: received ?? null,
+      },
+    },
   );
 };

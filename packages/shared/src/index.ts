@@ -25,6 +25,7 @@ export const greetingSchema = z.object({
 export type Greeting = z.infer<typeof greetingSchema>;
 
 export * from "./activity.js";
+export * from "./apiError.js";
 export * from "./apiVersion.js";
 export * from "./athleteIdentity.js";
 export * from "./calendar.js";

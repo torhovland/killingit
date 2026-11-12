@@ -6,9 +6,10 @@ import {
   type LlmCallSummary,
   type LlmModelRemark,
 } from "@killingit/shared";
-import { zValidator } from "@hono/zod-validator";
+import { zValidator } from "../http/validation.js";
 import { Hono } from "hono";
 import { z } from "zod";
+import { notFound } from "../http/errors.js";
 import {
   getLlmCall,
   listLlmCalls,
@@ -63,7 +64,7 @@ export function createAdminLlmCallsRoute(
       const { id } = c.req.valid("param");
       const call = await get(id);
       if (call === null) {
-        return c.text("LLM call not found", 404);
+        return notFound(c, "LLM call not found");
       }
       return c.json(llmCallDetailSchema.parse(call));
     });

@@ -26,10 +26,22 @@ the background — across several API deploys.
 3. The API enforces a supported range in
    `apps/api/src/apiVersion.ts`, mounted on `/api/*` before authentication and
    skipped for the public allowlist (`/api/health`, `/api/greet`).
-4. A refused build gets `426` with
-   `{ "error": "api_version_mismatch", "requiredVersion", "receivedVersion" }`.
+4. A refused build gets `426` with the standard error contract
+   (`docs/specs/api-errors.md`):
+
+   ```json
+   {
+     "error": {
+       "code": "api_version_mismatch",
+       "message": "This app version is out of date. Reload to update.",
+       "details": { "requiredVersion": 1, "receivedVersion": "0" }
+     }
+   }
+   ```
+
    A missing header is refused too, so a build from before the handshake
    updates once.
+
 5. The web reacts to a `426` by reloading once (through the PWA update path, so
    a waiting worker is activated first). A repeated mismatch inside a
    minute-long cooldown sets the existing update banner instead of reloading in

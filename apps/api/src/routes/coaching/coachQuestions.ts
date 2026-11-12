@@ -8,6 +8,7 @@ import {
 import type { Context } from "hono";
 import { z } from "zod";
 import { getUser } from "../../auth/middleware.js";
+import { badRequest, conflict, notFound } from "../../http/errors.js";
 import { toCoachAnalysis } from "../../plans/replies.js";
 import type { ResolvedCoachingDependencies } from "./dependencies.js";
 
@@ -32,15 +33,15 @@ export function createCoachQuestionHandlers(
       const user = getUser(c);
       const id = Number(idParam);
       if (!Number.isInteger(id) || id <= 0) {
-        return c.json({ message: "Invalid question" }, 400);
+        return badRequest(c, "Invalid question");
       }
 
       const question = await deps.loadQuestion(user.id, id);
       if (question === null) {
-        return c.json({ message: "Question not found" }, 404);
+        return notFound(c, "Question not found");
       }
       if (question.answer !== null) {
-        return c.json({ message: "Question already answered" }, 409);
+        return conflict(c, "Question already answered");
       }
 
       const reply = await deps.replyToQuestion(
@@ -60,7 +61,7 @@ export function createCoachQuestionHandlers(
         replyModel: reply?.model ?? null,
       });
       if (saved === null) {
-        return c.json({ message: "Question already answered" }, 409);
+        return conflict(c, "Question already answered");
       }
 
       // Saving an answer is a new coach input, so it supersedes any in-flight

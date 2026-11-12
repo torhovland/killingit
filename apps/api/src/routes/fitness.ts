@@ -6,6 +6,7 @@ import {
 } from "@killingit/shared";
 import { Hono } from "hono";
 import { getUser } from "../auth/middleware.js";
+import { serviceUnavailable, validationFailed } from "../http/errors.js";
 import { loadCachedActivityFeed } from "../coaching/feedCache.js";
 import type { ResolvedAppDependencies } from "../dependencies.js";
 import { loadValidatedPlan } from "../plans/store.js";
@@ -22,15 +23,20 @@ export function createFitnessRoute(deps: ResolvedAppDependencies): Hono {
   return new Hono().get("/", async (c) => {
     const today = planDateSchema.safeParse(c.req.query("today"));
     if (!today.success) {
-      return c.text("A valid today date (YYYY-MM-DD) is required", 400);
+      return validationFailed(
+        c,
+        today.error,
+        "A valid today date (YYYY-MM-DD) is required",
+      );
     }
     const range = fitnessRangeSchema.safeParse(
       c.req.query("range") ?? DEFAULT_FITNESS_RANGE,
     );
     if (!range.success) {
-      return c.text(
+      return validationFailed(
+        c,
+        range.error,
         "A valid range (week, month, quarter, year, all) is required",
-        400,
       );
     }
 
@@ -51,7 +57,7 @@ export function createFitnessRoute(deps: ResolvedAppDependencies): Hono {
       return c.json(fitnessHistoryResponseSchema.parse(history));
     } catch (err) {
       console.error("[fitness] history failure:", err);
-      return c.text("Service Unavailable", 503);
+      return serviceUnavailable(c);
     }
   });
 }

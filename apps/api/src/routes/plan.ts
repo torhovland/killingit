@@ -7,9 +7,10 @@ import {
   type BikeWorkout,
   type CoachPlan,
 } from "@killingit/shared";
-import { zValidator } from "@hono/zod-validator";
+import { zValidator } from "../http/validation.js";
 import { Hono } from "hono";
 import { getUser } from "../auth/middleware.js";
+import { notFound, validationFailed } from "../http/errors.js";
 import {
   planTriggerDependencies,
   type ResolvedAppDependencies,
@@ -222,7 +223,11 @@ export function createPlanRoute(deps: ResolvedAppDependencies): Hono {
       const user = getUser(c);
       const today = planDateSchema.safeParse(c.req.query("today"));
       if (!today.success) {
-        return c.text("A valid today date (YYYY-MM-DD) is required", 400);
+        return validationFailed(
+          c,
+          today.error,
+          "A valid today date (YYYY-MM-DD) is required",
+        );
       }
       const includeTomorrow = c.req.query("includeTomorrow") === "true";
       return c.json(
@@ -239,16 +244,20 @@ export function createPlanRoute(deps: ResolvedAppDependencies): Hono {
     .get("/workouts/:date", async (c) => {
       const date = planDateSchema.safeParse(c.req.param("date"));
       if (!date.success) {
-        return c.text("A valid date (YYYY-MM-DD) is required", 400);
+        return validationFailed(
+          c,
+          date.error,
+          "A valid date (YYYY-MM-DD) is required",
+        );
       }
       const user = getUser(c);
       const stored = await loadValidatedPlan(deps.planStore, user.id);
       if (stored === null) {
-        return c.text("No coach plan is available", 404);
+        return notFound(c, "No coach plan is available");
       }
       const workout = findExportableBikeWorkout(stored.plan, date.data);
       if (workout === null) {
-        return c.text("No downloadable bike workout for that date", 404);
+        return notFound(c, "No downloadable bike workout for that date");
       }
       return c.body(
         buildZwoWorkout({

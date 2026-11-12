@@ -8,6 +8,7 @@ import {
 import type { Context } from "hono";
 import { z } from "zod";
 import { getUser } from "../../auth/middleware.js";
+import { validationFailed } from "../../http/errors.js";
 import { toCoachAnalysis } from "../../plans/replies.js";
 import { replyTo, type ResolvedCoachingDependencies } from "./dependencies.js";
 
@@ -20,7 +21,11 @@ export function createWeeklyNoteHandlers(deps: ResolvedCoachingDependencies) {
       const user = getUser(c);
       const today = planDateSchema.safeParse(c.req.query("today"));
       if (!today.success) {
-        return c.text("A valid today date (YYYY-MM-DD) is required", 400);
+        return validationFailed(
+          c,
+          today.error,
+          "A valid today date (YYYY-MM-DD) is required",
+        );
       }
       const weekStartDate = startOfWeek(today.data);
       const [note, storedReply] = await Promise.all([

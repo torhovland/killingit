@@ -4,6 +4,7 @@ import {
 } from "@killingit/shared";
 import type { Context } from "hono";
 import { getUser } from "../../auth/middleware.js";
+import { conflict, notFound } from "../../http/errors.js";
 import type { ResolvedCoachingDependencies } from "./dependencies.js";
 
 /** The athlete's comment on one recorded activity. */
@@ -27,12 +28,9 @@ export function createCommentHandlers(deps: ResolvedCoachingDependencies) {
         ? await deps.createComment(user.id, { activityId, comment })
         : await deps.updateComment(user.id, { activityId, comment });
     if (!saved) {
-      return c.text(
-        mode === "create"
-          ? "This activity already has a comment; edit it instead"
-          : "This activity has no comment to edit",
-        mode === "create" ? 409 : 404,
-      );
+      return mode === "create"
+        ? conflict(c, "This activity already has a comment; edit it instead")
+        : notFound(c, "This activity has no comment to edit");
     }
 
     // The run answers every unanswered comment and then refreshes the plan.
