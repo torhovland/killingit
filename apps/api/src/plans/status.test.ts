@@ -4,6 +4,7 @@ import { makePlan } from "../testFixtures/plan.js";
 import {
   latestActivityAnalysisTimestamp,
   latestAnswerTimestamp,
+  latestPlanChangingAnalysisTimestamp,
   planIsStale,
   planPending,
 } from "./status.js";
@@ -381,6 +382,49 @@ describe("latestActivityAnalysisTimestamp", () => {
   it("returns null without an analysis", () => {
     expect(latestActivityAnalysisTimestamp([])).toBeNull();
     expect(latestActivityAnalysisTimestamp([{ analysis: null }])).toBeNull();
+  });
+});
+
+describe("latestPlanChangingAnalysisTimestamp", () => {
+  it("counts only analyses that judged the plan needs a change", () => {
+    expect(
+      latestPlanChangingAnalysisTimestamp([
+        {
+          analysis: {
+            generatedAt: "2026-10-22T10:00:00Z",
+            planChangeNeeded: false,
+          },
+        },
+        {
+          analysis: {
+            generatedAt: "2026-10-20T10:00:00Z",
+            planChangeNeeded: true,
+          },
+        },
+      ]),
+    ).toEqual(new Date("2026-10-20T10:00:00Z"));
+  });
+
+  it("treats a missing flag as a request, so an unparsed answer refreshes", () => {
+    expect(
+      latestPlanChangingAnalysisTimestamp([
+        { analysis: { generatedAt: "2026-10-21T10:00:00Z" } },
+      ]),
+    ).toEqual(new Date("2026-10-21T10:00:00Z"));
+  });
+
+  it("returns null when no analysis asks for a change", () => {
+    expect(
+      latestPlanChangingAnalysisTimestamp([
+        {
+          analysis: {
+            generatedAt: "2026-10-21T10:00:00Z",
+            planChangeNeeded: false,
+          },
+        },
+        { analysis: null },
+      ]),
+    ).toBeNull();
   });
 });
 

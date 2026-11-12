@@ -19,6 +19,7 @@ import {
 } from "../llm/planUpdatePrompt.js";
 import { startOfWeek } from "@killingit/shared";
 import {
+  makeAnalyzedActivity,
   makeBlock as makeFixtureBlock,
   makeDay,
   makePlan as makeFixturePlan,
@@ -1037,6 +1038,211 @@ describe("runPlanGeneration", () => {
 
     expect(provider.calls).toEqual([]);
     expect(saved).toBe(existing);
+  });
+
+  it("records a new analysis that judged the plan unchanged without revising it", async () => {
+    const provider = new FakeProvider({});
+    const existing = makeStoredPlan(
+      makePlan("2026-10-21"),
+      new Date("2026-10-20T10:00:00Z"),
+      null,
+      new Date("2026-10-20T09:00:00Z"),
+    );
+    const plans = new MemoryPlanStore(existing);
+    const generations = new MemoryGenerationStore();
+    const context = makeContext(provider);
+    context.activitiesUpdatedAt = new Date("2026-10-21T09:00:00Z");
+    context.activitiesRefreshUpdatedAt = null;
+
+    const saved = await runPlanGeneration({
+      userId: 1,
+      runId: "run-1",
+      today: "2026-10-21",
+      plan: existing,
+      context,
+      plans,
+      generations,
+    });
+
+    expect(provider.calls).toEqual([]);
+    // The plan keeps its training content but records the analysis it read.
+    expect(saved).not.toBe(existing);
+    expect(saved?.activitiesUpdatedAt).toEqual(
+      new Date("2026-10-21T09:00:00Z"),
+    );
+  });
+
+  it("settles today's completion for an analysis that needs no plan change", async () => {
+    const provider = new FakeProvider({});
+    const existing = makeStoredPlan(
+      makePlan("2026-10-21"),
+      new Date("2026-10-20T10:00:00Z"),
+      null,
+      new Date("2026-10-20T09:00:00Z"),
+    );
+    const plans = new MemoryPlanStore(existing);
+    const generations = new MemoryGenerationStore();
+    const context = makeContext(provider);
+    context.activities = [
+      makeAnalyzedActivity({
+        startDate: "2026-10-21T07:00:00Z",
+        elapsedTime: 2700,
+        analysis: {
+          text: "The planned easy run, done.",
+          model: "test-model",
+          generatedAt: "2026-10-21T09:00:00Z",
+          planChangeNeeded: false,
+        },
+      }),
+    ];
+    context.activitiesUpdatedAt = new Date("2026-10-21T09:00:00Z");
+    context.activitiesRefreshUpdatedAt = null;
+
+    const saved = await runPlanGeneration({
+      userId: 1,
+      runId: "run-1",
+      today: "2026-10-21",
+      plan: existing,
+      context,
+      plans,
+      generations,
+    });
+
+    expect(provider.calls).toEqual([]);
+    expect(saved?.plan.today.status).toBe("completed");
+    expect(
+      saved?.plan.week.sessions.find((session) => session.date === "2026-10-21")
+        ?.status,
+    ).toBe("completed");
+    expect(saved?.activitiesUpdatedAt).toEqual(
+      new Date("2026-10-21T09:00:00Z"),
+    );
+  });
+
+  it("revises when a new analysis judged the plan changed", async () => {
+    const provider = new FakeProvider({
+      planUpdate: makeUpdate("2026-10-21"),
+    });
+    const existing = makeStoredPlan(
+      makePlan("2026-10-21"),
+      new Date("2026-10-20T10:00:00Z"),
+      null,
+      new Date("2026-10-20T09:00:00Z"),
+    );
+    const plans = new MemoryPlanStore(existing);
+    const generations = new MemoryGenerationStore();
+    const context = makeContext(provider);
+    context.activitiesUpdatedAt = new Date("2026-10-21T09:00:00Z");
+    context.activitiesRefreshUpdatedAt = new Date("2026-10-21T09:00:00Z");
+
+    await runPlanGeneration({
+      userId: 1,
+      runId: "run-1",
+      today: "2026-10-21",
+      plan: existing,
+      context,
+      plans,
+      generations,
+    });
+
+    expect(provider.calls).toEqual(["plan-update"]);
+  });
+
+  it("records a coaching input that judged the plan unchanged without revising it", async () => {
+    const provider = new FakeProvider({});
+    const existing = makeStoredPlan(
+      makePlan("2026-10-21"),
+      new Date("2026-10-20T10:00:00Z"),
+      new Date("2026-10-20T10:00:00Z"),
+    );
+    const plans = new MemoryPlanStore(existing);
+    const generations = new MemoryGenerationStore();
+    const context = makeContext(
+      provider,
+      new Date("2026-10-20T10:00:00Z"),
+      new Date("2026-10-21T10:00:00Z"),
+    );
+    context.coachingInputsRefreshUpdatedAt = null;
+
+    const saved = await runPlanGeneration({
+      userId: 1,
+      runId: "run-1",
+      today: "2026-10-21",
+      plan: existing,
+      context,
+      plans,
+      generations,
+    });
+
+    expect(provider.calls).toEqual([]);
+    expect(saved).not.toBe(existing);
+    expect(saved?.coachingInputsUpdatedAt).toEqual(
+      new Date("2026-10-21T10:00:00Z"),
+    );
+  });
+
+  it("does not revise for a week review that judged the block unchanged", async () => {
+    const provider = new FakeProvider({});
+    const existing = makeStoredPlan(
+      makePlan("2026-10-21"),
+      new Date("2026-10-20T10:00:00Z"),
+      new Date("2026-10-20T10:00:00Z"),
+    );
+    const plans = new MemoryPlanStore(existing);
+    const generations = new MemoryGenerationStore();
+    const context = makeContext(
+      provider,
+      new Date("2026-10-20T10:00:00Z"),
+      new Date("2026-10-21T10:00:00Z"),
+    );
+    context.coachingInputsRefreshUpdatedAt = null;
+    context.weekReviewUpdatedAt = new Date("2026-10-21T10:00:00Z");
+    context.weekReviewNeedsRefresh = false;
+
+    await runPlanGeneration({
+      userId: 1,
+      runId: "run-1",
+      today: "2026-10-21",
+      plan: existing,
+      context,
+      plans,
+      generations,
+    });
+
+    expect(provider.calls).toEqual([]);
+  });
+
+  it("revises the block in place for a week review that asks for a change", async () => {
+    const provider = new FakeProvider({
+      planUpdate: makeUpdate("2026-10-21"),
+    });
+    const existing = makeStoredPlan(
+      makePlan("2026-10-21"),
+      new Date("2026-10-20T10:00:00Z"),
+      new Date("2026-10-20T10:00:00Z"),
+    );
+    const plans = new MemoryPlanStore(existing);
+    const generations = new MemoryGenerationStore();
+    const context = makeContext(
+      provider,
+      new Date("2026-10-20T10:00:00Z"),
+      new Date("2026-10-21T10:00:00Z"),
+    );
+    context.coachingInputsRefreshUpdatedAt = new Date("2026-10-21T10:00:00Z");
+    context.weekReviewUpdatedAt = new Date("2026-10-21T10:00:00Z");
+    context.weekReviewNeedsRefresh = true;
+
+    await runPlanGeneration({
+      userId: 1,
+      runId: "run-1",
+      today: "2026-10-21",
+      plan: existing,
+      context,
+      plans,
+      generations,
+    });
+
+    expect(provider.calls).toEqual(["plan-update"]);
   });
 
   it("marks a late-imported past activity on the week", async () => {

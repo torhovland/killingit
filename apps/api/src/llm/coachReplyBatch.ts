@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { CoachReplyOutcome } from "./coachReply.js";
 import type { LlmProvider } from "./openrouter.js";
 import {
   buildCoachReplyBatchMessages,
@@ -19,6 +20,8 @@ const replyBatchSchema = z.object({
     z.object({
       id: z.string().min(1),
       reply: z.string().min(1),
+      /** Fails open: a missing or malformed flag still asks for a plan refresh. */
+      planChangeNeeded: z.boolean().catch(true),
     }),
   ),
 });
@@ -28,7 +31,7 @@ export async function generateCoachReplies(
   provider: LlmProvider,
   credentials: CoachReplyBatchCredentials,
   input: CoachReplyBatchPromptInput,
-): Promise<Map<string, string>> {
+): Promise<Map<string, CoachReplyOutcome>> {
   const text = await completeWithFallbacks(
     provider,
     credentials,
@@ -39,9 +42,12 @@ export async function generateCoachReplies(
     { kind: "coach_reply", metadata: { batchSize: input.items.length } },
   );
   const parsed = parsePlanJson(replyBatchSchema, text);
-  const replies = new Map<string, string>();
+  const replies = new Map<string, CoachReplyOutcome>();
   for (const entry of parsed.replies) {
-    replies.set(entry.id, entry.reply.trim());
+    replies.set(entry.id, {
+      text: entry.reply.trim(),
+      planChangeNeeded: entry.planChangeNeeded,
+    });
   }
   return replies;
 }

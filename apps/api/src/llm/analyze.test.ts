@@ -65,6 +65,8 @@ describe("analyzeActivity", () => {
       estimatedFtpWatts: 255,
       weightKg: null,
       bodyFatPercent: null,
+      // The response omits the flag, so it fails open.
+      planChangeNeeded: true,
     });
     expect(captured?.model).toBe("test/model");
     expect(captured?.apiKey).toBe("test-key");
@@ -108,6 +110,42 @@ describe("analyzeActivity", () => {
       estimatedFtpWatts: null,
       weightKg: null,
       bodyFatPercent: null,
+      planChangeNeeded: true,
     });
+  });
+
+  it("carries the coach's judgement that the workout needs no plan change", async () => {
+    const provider = new FakeProvider([
+      JSON.stringify({
+        analysis: "An easy recovery spin that went as planned.",
+        planChangeNeeded: false,
+      }),
+    ]);
+
+    const result = await analyzeActivity(
+      provider,
+      { apiKey: "test-key", model: "test/model" },
+      activity,
+    );
+
+    expect(result.planChangeNeeded).toBe(false);
+  });
+
+  it("keeps the analysis when the flag is malformed and fails open", async () => {
+    const provider = new FakeProvider([
+      JSON.stringify({
+        analysis: "Solid aerobic effort.",
+        planChangeNeeded: "no",
+      }),
+    ]);
+
+    const result = await analyzeActivity(
+      provider,
+      { apiKey: "test-key", model: "test/model" },
+      activity,
+    );
+
+    expect(result.analysis).toBe("Solid aerobic effort.");
+    expect(result.planChangeNeeded).toBe(true);
   });
 });

@@ -116,6 +116,7 @@ export async function loadPeriodReviews(
       text: row.reply,
       model: row.model,
       generatedAt: row.updatedAt,
+      planChangeNeeded: row.planChangeNeeded,
     });
   }
 
@@ -132,6 +133,7 @@ export async function loadPeriodReviews(
       text: row.reply,
       model: row.model,
       generatedAt: row.updatedAt,
+      planChangeNeeded: row.planChangeNeeded,
     });
   }
 

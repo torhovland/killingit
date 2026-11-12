@@ -291,8 +291,11 @@ function makeApp(options: {
           weeklyNoteUpdatedAt: null,
           periodReviews: [],
           weekReviewUpdatedAt: null,
+          weekReviewNeedsRefresh: false,
           blockReviewUpdatedAt: null,
+          blockReviewNeedsRefresh: false,
           updatedAt: null,
+          refreshUpdatedAt: null,
         },
       ),
   });
@@ -651,14 +654,51 @@ describe("coach plan route", () => {
         weeklyNoteUpdatedAt: new Date("2026-10-21T08:00:00Z"),
         periodReviews: [],
         weekReviewUpdatedAt: null,
+        weekReviewNeedsRefresh: false,
         blockReviewUpdatedAt: null,
+        blockReviewNeedsRefresh: false,
         updatedAt: new Date("2026-10-21T08:00:00Z"),
+        refreshUpdatedAt: new Date("2026-10-21T08:00:00Z"),
       },
     }).fetch(authenticatedRequest("/api/coaching/plan?today=2026-10-21"));
 
     expect(res.status).toBe(200);
     const body = (await res.json()) as { stale: boolean };
     expect(body.stale).toBe(true);
+  });
+
+  it("does not mark the plan stale for a newer input that needs no change", async () => {
+    const plan = makePlan();
+    const planStore = new MemoryPlanStore({
+      plan,
+      answersUpdatedAt: new Date("2026-10-20T10:00:00Z"),
+      coachingInputsUpdatedAt: new Date("2026-10-20T10:00:00Z"),
+      activitiesUpdatedAt: null,
+      generatedAt: new Date("2026-10-20T10:00:00Z"),
+    });
+
+    const res = await makeApp({
+      planStore,
+      coachingInputs: {
+        manualActivities: [],
+        activityComments: [],
+        weeklyNote: "Thanks, the week felt good.",
+        weeklyNoteWeekStartDate: "2026-10-19",
+        weeklyNoteReply: "Good week; nothing to change.",
+        weeklyNoteUpdatedAt: new Date("2026-10-21T08:00:00Z"),
+        periodReviews: [],
+        weekReviewUpdatedAt: null,
+        weekReviewNeedsRefresh: false,
+        blockReviewUpdatedAt: null,
+        blockReviewNeedsRefresh: false,
+        updatedAt: new Date("2026-10-21T08:00:00Z"),
+        refreshUpdatedAt: new Date("2026-10-20T10:00:00Z"),
+      },
+    }).fetch(authenticatedRequest("/api/coaching/plan?today=2026-10-21"));
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { stale: boolean };
+    expect(body.stale).toBe(false);
   });
 
   it("does not mark the block pending when there is no week review", async () => {
@@ -686,8 +726,51 @@ describe("coach plan route", () => {
         weeklyNoteUpdatedAt: new Date("2026-10-20T10:00:00Z"),
         periodReviews: [],
         weekReviewUpdatedAt: null,
+        weekReviewNeedsRefresh: false,
         blockReviewUpdatedAt: null,
+        blockReviewNeedsRefresh: false,
         updatedAt: coachingInputsUpdatedAt,
+        refreshUpdatedAt: coachingInputsUpdatedAt,
+      },
+    }).fetch(authenticatedRequest("/api/coaching/plan?today=2026-10-21"));
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      stale: boolean;
+      pending: { block: boolean };
+    };
+    expect(body.stale).toBe(false);
+    expect(body.pending.block).toBe(false);
+  });
+
+  it("does not mark the block pending for a review comment that needs no change", async () => {
+    const plan = makePlan();
+    const storedAt = new Date("2026-10-20T10:00:00Z");
+    const reviewedAt = new Date("2026-10-21T08:00:00Z");
+    const planStore = new MemoryPlanStore({
+      plan,
+      answersUpdatedAt: storedAt,
+      coachingInputsUpdatedAt: storedAt,
+      activitiesUpdatedAt: null,
+      generatedAt: storedAt,
+    });
+
+    const res = await makeApp({
+      planStore,
+      coachingInputs: {
+        manualActivities: [],
+        activityComments: [],
+        weeklyNote: null,
+        weeklyNoteWeekStartDate: null,
+        weeklyNoteReply: null,
+        weeklyNoteUpdatedAt: null,
+        periodReviews: [],
+        weekReviewUpdatedAt: reviewedAt,
+        weekReviewNeedsRefresh: false,
+        blockReviewUpdatedAt: null,
+        blockReviewNeedsRefresh: false,
+        updatedAt: reviewedAt,
+        refreshUpdatedAt: storedAt,
       },
     }).fetch(authenticatedRequest("/api/coaching/plan?today=2026-10-21"));
 

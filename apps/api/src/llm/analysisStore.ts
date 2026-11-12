@@ -11,6 +11,8 @@ export interface StoredAnalysis {
   model: string;
   text: string;
   generatedAt: Date;
+  /** The coach judged that this workout changes the plan. */
+  planChangeNeeded: boolean;
 }
 
 /**
@@ -49,6 +51,7 @@ export async function loadAnalyses(
         model: row.model,
         text: row.analysis,
         generatedAt: row.updatedAt,
+        planChangeNeeded: row.planChangeNeeded,
       },
     ]),
   );
@@ -62,6 +65,7 @@ export async function saveAnalysis(input: {
   model: string;
   promptVersion: number;
   text: string;
+  planChangeNeeded: boolean;
 }): Promise<StoredAnalysis> {
   const kind = input.kind ?? "general";
   const now = new Date();
@@ -74,6 +78,7 @@ export async function saveAnalysis(input: {
       model: input.model,
       promptVersion: input.promptVersion,
       analysis: input.text,
+      planChangeNeeded: input.planChangeNeeded,
       updatedAt: now,
     })
     .onConflictDoUpdate({
@@ -86,6 +91,7 @@ export async function saveAnalysis(input: {
         model: input.model,
         promptVersion: input.promptVersion,
         analysis: input.text,
+        planChangeNeeded: input.planChangeNeeded,
         updatedAt: now,
       },
     })
@@ -100,5 +106,6 @@ export async function saveAnalysis(input: {
     model: row.model,
     text: row.analysis,
     generatedAt: row.updatedAt,
+    planChangeNeeded: row.planChangeNeeded,
   };
 }

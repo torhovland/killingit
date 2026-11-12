@@ -46,6 +46,8 @@ export function createWeeklyNoteHandlers(deps: ResolvedCoachingDependencies) {
         note,
       });
 
+      // The run still reads the athlete's text and settles the plan's inputs;
+      // the reply's flag decides whether it also pays for a plan completion.
       await deps.trigger(deps.triggerDeps, {
         userId: user.id,
         today,

@@ -4,9 +4,14 @@ import {
   ACTIVITY_PRAISE_RULES,
   ATHLETE_INPUT_RULES,
   COACH_AMBITION_RULES,
+  COACH_ANALYSIS_CONTRACT,
+  COACH_ANALYSIS_RESPONSE_RULES,
   COACH_PERSONALITY_RULES,
+  COACH_REPLY_CONTRACT,
+  COACH_REPLY_RESPONSE_RULES,
   COACH_RESPONSE_NOTES_CONTRACT,
   COACH_RESPONSE_NOTES_RULES,
+  PLAN_CHANGE_FLAG_RULES,
   DAY_CONTRACT,
   DIET_CONTRACT,
   DIET_PLANNING_RULES,
@@ -29,6 +34,33 @@ import {
   WEEK_OUTLINE_RULES,
   WEATHER_PLANNING_RULES,
 } from "./promptRules.js";
+
+describe("PLAN_CHANGE_FLAG_RULES", () => {
+  it("makes an input context only unless it changes what is prescribed", () => {
+    expect(PLAN_CHANGE_FLAG_RULES).toContain(
+      "changes what you would prescribe in the remaining season",
+    );
+    expect(PLAN_CHANGE_FLAG_RULES).toContain(
+      "a workout that matched its prescription, praise or thanks",
+    );
+    expect(PLAN_CHANGE_FLAG_RULES).toContain(
+      "a new constraint or commitment, an illness or injury",
+    );
+  });
+
+  it("asks the coach to decide rather than follow a request", () => {
+    expect(PLAN_CHANGE_FLAG_RULES).toContain(
+      "The flag is a decision for you to make, not a report of whether the athlete asked for a change",
+    );
+  });
+
+  it("appears in both contracts that carry the flag", () => {
+    expect(COACH_ANALYSIS_RESPONSE_RULES).toContain(PLAN_CHANGE_FLAG_RULES);
+    expect(COACH_REPLY_RESPONSE_RULES).toContain(PLAN_CHANGE_FLAG_RULES);
+    expect(COACH_ANALYSIS_CONTRACT).toContain('"planChangeNeeded": false');
+    expect(COACH_REPLY_CONTRACT).toContain('"planChangeNeeded": false');
+  });
+});
 
 describe("COACH_RESPONSE_NOTES_CONTRACT", () => {
   it("carries a single nullable question, not an array", () => {

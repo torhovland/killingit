@@ -50,8 +50,11 @@ const emptyInputs: CoachingInputs = {
   weeklyNoteUpdatedAt: null,
   periodReviews: [],
   weekReviewUpdatedAt: null,
+  weekReviewNeedsRefresh: false,
   blockReviewUpdatedAt: null,
+  blockReviewNeedsRefresh: false,
   updatedAt: null,
+  refreshUpdatedAt: null,
 };
 
 class MemoryPlanStore implements PlanStore {
@@ -504,6 +507,7 @@ describe("coaching activity feed", () => {
                   text: "Good pacing; keep the climbs easy next time.",
                   model: "test-model",
                   generatedAt: new Date("2026-10-21T09:00:00Z"),
+                  planChangeNeeded: true,
                 },
                 reviewed: false,
               },
@@ -834,6 +838,7 @@ describe("coaching manual activities", () => {
           text: "Noted; I will count the swim as today's session.",
           model: "test-model",
           generatedAt: new Date("2026-10-21T12:00:00Z"),
+          planChangeNeeded: true,
         });
       },
       triggerPlanGeneration: (_deps, options) => {
@@ -924,6 +929,7 @@ describe("coaching manual activities", () => {
                 text: "Nice session.",
                 model: "test-model",
                 generatedAt: new Date("2026-10-21T12:00:00Z"),
+                planChangeNeeded: true,
               },
             ],
           ]),
@@ -1056,6 +1062,7 @@ describe("coaching weekly notes", () => {
           text: "Understood; Thursday will be a rest day.",
           model: "test-model",
           generatedAt: new Date("2026-10-21T12:00:00Z"),
+          planChangeNeeded: true,
         }),
       triggerPlanGeneration: () => {
         triggered = true;
@@ -1091,6 +1098,7 @@ describe("coaching weekly notes", () => {
           text: "Understood; Thursday will be a rest day.",
           model: "test-model",
           generatedAt: new Date("2026-10-21T12:00:00Z"),
+          planChangeNeeded: true,
         }),
     });
 
@@ -1167,6 +1175,7 @@ describe("coaching by-the-way questions", () => {
           text: "Run it on Saturday.",
           model: "test-model",
           generatedAt: new Date("2026-10-21T12:00:00Z"),
+          planChangeNeeded: false,
         });
       },
       triggerPlanGeneration: () => {
@@ -1218,6 +1227,7 @@ describe("coaching week and block reviews", () => {
       text: "Good consistency; keep the next week easy.",
       model: "test-model",
       generatedAt: new Date("2026-10-20T10:00:00Z"),
+      planChangeNeeded: true,
     };
     const app = makeApp({
       loadPeriodReviews: () => Promise.resolve([entry]),
@@ -1251,6 +1261,7 @@ describe("coaching week and block reviews", () => {
         text: "I kept the week light while you travel.",
         model: "test-model",
         generatedAt: new Date("2026-10-14T10:00:00Z"),
+        planChangeNeeded: true,
       },
     };
     const app = makeApp({
@@ -1297,6 +1308,7 @@ describe("coaching week and block reviews", () => {
           text: "Nice week; recover before the next build.",
           model: "test-model",
           generatedAt: new Date("2026-10-21T09:00:00Z"),
+          planChangeNeeded: true,
         });
       },
       triggerPlanGeneration: () => {
@@ -1442,6 +1454,7 @@ describe("coach questions", () => {
           text: "Six hours is enough for a steady base.",
           model: "test-model",
           generatedAt: new Date("2026-10-20T10:00:00Z"),
+          planChangeNeeded: true,
         }),
       answerCoachQuestion: (input) => {
         saved.value = { answer: input.answer, reply: input.reply };

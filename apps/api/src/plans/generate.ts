@@ -87,10 +87,25 @@ export interface PlanGenerationContext {
   /** When the newest block review was generated or its comment answered. */
   blockReviewUpdatedAt?: Date | null;
   coachingInputsUpdatedAt: Date | null;
+  /**
+   * Newest coaching input whose coach reply asked for a plan change. A missing
+   * value falls back to `coachingInputsUpdatedAt`, so older callers keep the
+   * previous always-refresh behaviour.
+   */
+  coachingInputsRefreshUpdatedAt?: Date | null;
   /** Survey answers changed after the stored plan was generated. */
   coachingSurveyAdjustments?: readonly CoachingSurveyAdjustmentContext[];
   /** Newest general coach analysis among the recent activities, if any. */
   activitiesUpdatedAt?: Date | null;
+  /**
+   * Newest analysis that judged the workout changes the plan. A missing value
+   * falls back to `activitiesUpdatedAt`.
+   */
+  activitiesRefreshUpdatedAt?: Date | null;
+  /** Whether the newest week review event asks for a plan refresh. */
+  weekReviewNeedsRefresh?: boolean;
+  /** Whether the newest block review event asks for a plan refresh. */
+  blockReviewNeedsRefresh?: boolean;
   /** The athlete's home location, used to label the forecast in prompts. */
   location?: AthleteLocation | null;
   /** The combined forecast, used by prompts and weather-change checks. */
@@ -232,9 +247,15 @@ export async function runPlanGeneration(
       });
     }
 
-    // 8. Nothing is due: keep the plan, persisting a promotion if one happened.
+    // 8. Nothing is due: keep the plan, persisting a promotion or the inputs
+    // that arrived since the last save.
     if (planIsIdle(decision.pending, decision.revisionNeeded)) {
-      return await finishUnchangedPlan(input, activePlan, promoted);
+      return await finishUnchangedPlan(
+        input,
+        activePlan,
+        promoted,
+        decision.acknowledgementNeeded,
+      );
     }
 
     // 9. Advance the levels that are pending.
@@ -273,13 +294,20 @@ interface RevisionDecision {
   pending: PlanPending;
   /** A week review arrived after the stored plan was saved. */
   weekReviewPending: boolean;
+  /**
+   * Inputs or analyses arrived after the plan but none asks for a plan change.
+   * The run keeps the plan and records their timestamps so they are not read
+   * again, applying the local completion and training-load updates.
+   */
+  acknowledgementNeeded: boolean;
 }
 
 /**
  * Decides how this run must treat the stored plan. A missing, forced or
  * deliberately new season is rebuilt; a changed input, a completed block's
  * review or an explicit update refreshes the stored season in place; anything
- * else only advances the levels that are missing.
+ * else only advances the levels that are missing. An input whose coach reply
+ * judged it context only is acknowledged without a plan completion.
  */
 function decideRevisionPlan(
   input: GeneratePlanInput,
@@ -290,39 +318,67 @@ function decideRevisionPlan(
   const stale =
     plan !== null &&
     planIsStale(plan.answersUpdatedAt, context.answersUpdatedAt);
+  const inputsRefreshUpdatedAt =
+    context.coachingInputsRefreshUpdatedAt !== undefined
+      ? context.coachingInputsRefreshUpdatedAt
+      : context.coachingInputsUpdatedAt;
   const inputsChanged =
     plan !== null &&
-    context.coachingInputsUpdatedAt !== null &&
+    inputsRefreshUpdatedAt !== null &&
     (plan.coachingInputsUpdatedAt === null ||
-      context.coachingInputsUpdatedAt.getTime() >
+      inputsRefreshUpdatedAt.getTime() >
         plan.coachingInputsUpdatedAt.getTime());
   // Compare against the analyses included in the plan, not when the plan was
   // saved: an import can finish while a generation is running, so the plan
   // may be newer than its save time yet still not contain the activity.
+  const activitiesRefreshUpdatedAt =
+    context.activitiesRefreshUpdatedAt !== undefined
+      ? context.activitiesRefreshUpdatedAt
+      : context.activitiesUpdatedAt;
   const activitiesChanged =
     plan !== null &&
-    context.activitiesUpdatedAt != null &&
+    activitiesRefreshUpdatedAt != null &&
     (plan.activitiesUpdatedAt === null ||
-      context.activitiesUpdatedAt.getTime() >
+      activitiesRefreshUpdatedAt.getTime() >
         plan.activitiesUpdatedAt.getTime());
-  // A newly generated week review, or an answer to one, makes the block
-  // pending. The block is revised in place when today is still inside it.
+  // A newly generated week review, or an answer to one that asked for a plan
+  // change, makes the block pending. The block is revised in place when today
+  // is still inside it.
   const weekReviewPending =
     plan !== null &&
     context.weekReviewUpdatedAt != null &&
+    context.weekReviewNeedsRefresh !== false &&
     (plan.coachingInputsUpdatedAt === null ||
       context.weekReviewUpdatedAt.getTime() >
         plan.coachingInputsUpdatedAt.getTime());
-  // A newly generated block review, or an answer to one, refreshes the
-  // remaining season around what the completed block achieved.
+  // A newly generated block review, or an answer that asked for a change,
+  // refreshes the remaining season around what the completed block achieved.
   const blockReviewPending =
     plan !== null &&
     context.blockReviewUpdatedAt != null &&
+    context.blockReviewNeedsRefresh !== false &&
     (plan.coachingInputsUpdatedAt === null ||
       context.blockReviewUpdatedAt.getTime() >
         plan.coachingInputsUpdatedAt.getTime());
   const revisionNeeded =
     inputsChanged || activitiesChanged || weekReviewPending;
+  // The plan still stores the newest input and analysis of any kind, so a
+  // context-only input is recorded once and never triggers another run.
+  const unreviewedInputs =
+    plan !== null &&
+    context.coachingInputsUpdatedAt !== null &&
+    (plan.coachingInputsUpdatedAt === null ||
+      context.coachingInputsUpdatedAt.getTime() >
+        plan.coachingInputsUpdatedAt.getTime());
+  const unreviewedActivities =
+    plan !== null &&
+    context.activitiesUpdatedAt != null &&
+    (plan.activitiesUpdatedAt === null ||
+      context.activitiesUpdatedAt.getTime() >
+        plan.activitiesUpdatedAt.getTime());
+  const acknowledgementNeeded =
+    (unreviewedInputs && !inputsChanged) ||
+    (unreviewedActivities && !activitiesChanged);
   // An explicit update, a saved answer, or a completed block's review
   // refreshes the existing season instead of silently starting a new one.
   // Without a season that covers today there is nothing to refresh.
@@ -363,6 +419,7 @@ function decideRevisionPlan(
       context.dietAdvice === true,
     ),
     weekReviewPending,
+    acknowledgementNeeded,
   };
 }
 
@@ -578,27 +635,29 @@ async function saveGeneratedPlan(
 }
 
 /**
- * Ends a run that has nothing to revise. A promoted period is persisted with
- * the stored timestamps, because they describe what the plan actually
- * includes.
+ * Ends a run that has nothing to revise. A promotion or new inputs since the
+ * last save are persisted first: the plan keeps its training content, but today's
+ * completion, the completed days and the training load are settled so the Today
+ * tab and the fitness numbers stay correct without a plan completion.
  */
 async function finishUnchangedPlan(
   input: GeneratePlanInput,
   currentPlan: CoachPlan,
   promoted: boolean,
+  acknowledgeInputs: boolean,
 ): Promise<StoredPlan | null> {
   const { userId, runId } = input;
-  if (!promoted || input.plan === null) {
+  if ((!promoted && !acknowledgeInputs) || input.plan === null) {
     await input.generations.finish(userId, runId);
     return input.plan;
   }
   await ensureGenerationCurrent(input);
   const saved = await input.plans.save(
     userId,
-    withTrainingLoad(currentPlan, input.context),
+    reconcileStoredPlan(input, currentPlan),
     input.plan.answersUpdatedAt,
-    input.plan.coachingInputsUpdatedAt,
-    input.plan.activitiesUpdatedAt,
+    input.context.coachingInputsUpdatedAt,
+    input.context.activitiesUpdatedAt ?? null,
     runId,
   );
   if (saved === null) {
@@ -606,6 +665,38 @@ async function finishUnchangedPlan(
   }
   await input.generations.finish(userId, runId);
   return saved;
+}
+
+/**
+ * Applies the parts of a refresh that need no coach completion. The stored
+ * training content is kept; only the completion status and the load snapshot
+ * move.
+ */
+function reconcileStoredPlan(
+  input: GeneratePlanInput,
+  currentPlan: CoachPlan,
+): CoachPlan {
+  const { today, context } = input;
+  const todayPlan = deriveTodayStatus(
+    context,
+    today,
+    currentPlan.today,
+    currentPlan.today,
+  );
+  const week = applyCompletedDays(
+    currentPlan.week,
+    context.activities,
+    today,
+    context.manualActivities,
+    todayPlan,
+  );
+  return withTrainingLoad(
+    dropUnplacedTomorrow(
+      { ...currentPlan, today: todayPlan, week },
+      input.includeTomorrow === true,
+    ),
+    context,
+  );
 }
 
 /**

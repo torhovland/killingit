@@ -519,6 +519,10 @@ export const activityAnalyses = pgTable(
     model: text("model").notNull(),
     promptVersion: integer("prompt_version").notNull().default(1),
     analysis: text("analysis").notNull(),
+    // The coach's judgement that this workout changes the plan. A newer
+    // analysis with the flag set is what triggers a plan refresh; the others
+    // stay context only.
+    planChangeNeeded: boolean("plan_change_needed").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -923,6 +927,10 @@ export const coachReplies = pgTable(
     target: text("target").notNull(),
     reply: text("reply").notNull(),
     model: text("model").notNull(),
+    // The coach's judgement that this input changes the plan. The reply routes
+    // use it to skip a plan run, and the plan loader uses it to tell a refresh
+    // from context only.
+    planChangeNeeded: boolean("plan_change_needed").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

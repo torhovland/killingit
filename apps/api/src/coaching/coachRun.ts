@@ -87,6 +87,9 @@ async function runCoachTurn(
     if (signal.aborted || !(await deps.generations.isCurrent(userId, runId))) {
       throw new GenerationSupersededError();
     }
+    // The plan phase still runs, so the athlete reading and today's completion
+    // stay current; the replies' stored flags decide whether it pays for a plan
+    // completion.
     await runPlanForUser(deps, { ...options, runId, signal });
   } catch (err) {
     if (isGenerationSuperseded(err) || signal.aborted) {

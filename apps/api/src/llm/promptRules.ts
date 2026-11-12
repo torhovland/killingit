@@ -367,6 +367,14 @@ export const EXTRA_PRAISE_DRAW_RANGE = 15;
 export const JSON_ONLY_RULES = `Do not add markdown fences, headings, explanations, commentary, or extra fields.`;
 
 /**
+ * How the coach decides whether the input it just read changes the plan. The
+ * analysis or reply that already read the workout, comment or note carries the
+ * decision, so a refresh never needs a second completion. An input is context
+ * unless it gives the coach a reason to change what is prescribed.
+ */
+export const PLAN_CHANGE_FLAG_RULES = `Also decide whether this changes the training plan, and set "planChangeNeeded" accordingly. Set it to false when the plan already covers what you read: a workout that matched its prescription, praise or thanks, a question, context about a past session, or a feeling the plan already accounts for. Set it to true only when what you read changes what you would prescribe in the remaining season, block, week, today or tomorrow, for example a new constraint or commitment, an illness or injury, a recovery signal that should ease the load, a performance result that resets the targets, or a newly stated goal or event. The flag is a decision for you to make, not a report of whether the athlete asked for a change.`;
+
+/**
  * The two notes fields every structured coach response carries. The
  * clarification question is shown to the athlete; model remarks are reviewed
  * by the admin.
@@ -489,17 +497,36 @@ export const SEASON_CONTRACT = `{
 export const BODY_METRIC_POINT_CONTRACT = `{ "date": "YYYY-MM-DD", "weightKg": 0, "bodyFatPercent": 0 }`;
 
 /** The JSON contract for an activity review. */
-export const COACH_ANALYSIS_RESPONSE_RULES = promptSections(
-  `Return only one JSON object with exactly this shape:
-{
+export const COACH_ANALYSIS_CONTRACT = `{
   "analysis": "string",
   "estimatedFtpWatts": 0,
   "weightKg": 0,
   "bodyFatPercent": 0,
+  "planChangeNeeded": false,
   ${COACH_RESPONSE_NOTES_CONTRACT}
-}`,
+}`;
+
+export const COACH_ANALYSIS_RESPONSE_RULES = promptSections(
+  `Return only one JSON object with exactly this shape:
+${COACH_ANALYSIS_CONTRACT}`,
   `Replace "estimatedFtpWatts" with the integer estimate in watts, or null when there is no useful evidence. Set "weightKg" to the athlete's body weight in kilograms and "bodyFatPercent" to their body fat as a percentage only when the input for this activity states them, and to null otherwise. Put the whole coach summary in "analysis".`,
+  PLAN_CHANGE_FLAG_RULES,
   COACH_RESPONSE_NOTES_RULES,
+  JSON_ONLY_RULES,
+);
+
+/** The fields of a coach reply, shared by the single and batched contracts. */
+export const COACH_REPLY_FIELDS_CONTRACT = `"reply": "string",
+  "planChangeNeeded": false`;
+
+/** The JSON contract for one coach reply. */
+export const COACH_REPLY_CONTRACT = `{ ${COACH_REPLY_FIELDS_CONTRACT} }`;
+
+export const COACH_REPLY_RESPONSE_RULES = promptSections(
+  `Return only one JSON object with exactly this shape:
+${COACH_REPLY_CONTRACT}`,
+  `Put the whole reply in "reply".`,
+  PLAN_CHANGE_FLAG_RULES,
   JSON_ONLY_RULES,
 );
 

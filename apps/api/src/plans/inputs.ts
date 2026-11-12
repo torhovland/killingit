@@ -18,6 +18,10 @@ import type {
 } from "../llm/planContext.js";
 import { startOfWeek } from "@killingit/shared";
 import { loadPeriodReviews } from "./periodReviews.js";
+import {
+  summarizeCoachingInputChanges,
+  summarizeReviewChanges,
+} from "./inputChanges.js";
 import { loadWeeklyNoteReply } from "./replies.js";
 
 /** A manual entry plus the coach's TSS estimate, when one has been made. */
@@ -50,30 +54,30 @@ export interface CoachingInputs {
    * coach can respond to the completed week's feedback.
    */
   weekReviewUpdatedAt: Date | null;
+  /** The newest week review event asks for a plan refresh. */
+  weekReviewNeedsRefresh: boolean;
   /**
    * The newest block review event: when a block review was generated or when
    * its comment was answered. A newer block review makes the season pending.
    */
   blockReviewUpdatedAt: Date | null;
+  /** The newest block review event asks for a plan refresh. */
+  blockReviewNeedsRefresh: boolean;
   /** The newest `updatedAt` across all coaching inputs. */
   updatedAt: Date | null;
-}
-
-function newest(rows: readonly { updatedAt: Date }[]): Date | null {
-  let latest: Date | null = null;
-  for (const row of rows) {
-    if (latest === null || row.updatedAt.getTime() > latest.getTime()) {
-      latest = row.updatedAt;
-    }
-  }
-  return latest;
+  /**
+   * The newest input whose coach reply asked for a plan change. A missing reply
+   * counts as a request, so a failed reply never drops a needed refresh.
+   */
+  refreshUpdatedAt: Date | null;
 }
 
 /**
  * Loads the coaching inputs that sit alongside the synced activities: manually
  * recorded activities, activity comments, the note for `weekStartDate`, and
- * completed week/block reviews. The returned `updatedAt` is the newest
- * athlete-input timestamp and drives the plan's automatic revision.
+ * completed week/block reviews. `updatedAt` is the newest athlete input of any
+ * kind; `refreshUpdatedAt` is the newest one whose coach reply asked for a plan
+ * change, which is what makes the plan stale.
  */
 export async function loadCoachingInputs(
   userId: number,
@@ -86,6 +90,7 @@ export async function loadCoachingInputs(
     deletionRows,
     reviewEntries,
     noteReply,
+    replyRows,
   ] = await Promise.all([
     db
       .select()
@@ -102,21 +107,49 @@ export async function loadCoachingInputs(
       .where(eq(activityDeletions.userId, userId)),
     loadPeriodReviews(userId),
     loadWeeklyNoteReply(userId, weekStartDate),
+    db.select().from(coachReplies).where(eq(coachReplies.userId, userId)),
   ]);
 
-  const reviewEventAt = (kind: "week" | "block"): Date | null =>
-    newest(
-      reviewEntries
-        .filter(({ review }) => review.kind === kind)
-        .map(({ review }) => ({
-          // A generated summary matters even before anyone comments. Once the
-          // athlete answers it, the comment's timestamp is the newer event.
-          updatedAt:
-            review.comment !== null ? review.updatedAt : review.generatedAt,
-        })),
-    );
-  const weekReviewUpdatedAt = reviewEventAt("week");
-  const blockReviewUpdatedAt = reviewEventAt("block");
+  // The coach's flag for each input. A missing reply is unknown, not false.
+  const replyFlags = new Map<string, boolean>();
+  for (const row of replyRows) {
+    replyFlags.set(`${row.kind}:${row.target}`, row.planChangeNeeded);
+  }
+  const replyFlag = (kind: string, target: string | number): boolean =>
+    replyFlags.get(`${kind}:${target}`) ?? true;
+
+  const reviewChanges = reviewEntries.map(({ review, reply }) => ({
+    kind: review.kind,
+    // A generated summary matters even before anyone comments. Once the
+    // athlete answers it, the comment's timestamp is the newer event.
+    updatedAt: review.comment !== null ? review.updatedAt : review.generatedAt,
+    planChangeNeeded:
+      review.comment === null ? true : (reply?.planChangeNeeded ?? true),
+  }));
+  const reviews = summarizeReviewChanges(reviewChanges);
+
+  const inputs = summarizeCoachingInputChanges([
+    ...manualRows.map((row) => ({
+      updatedAt: row.updatedAt,
+      planChangeNeeded: replyFlag("manual_activity", row.id),
+    })),
+    ...commentRows.map((row) => ({
+      updatedAt: row.updatedAt,
+      planChangeNeeded: replyFlag("activity_comment", row.activityId),
+    })),
+    ...noteRows.map((row) => ({
+      updatedAt: row.updatedAt,
+      planChangeNeeded: replyFlag("weekly_note", row.weekStartDate),
+    })),
+    // Deleting an activity removes training data, which always changes the
+    // plan's load picture.
+    ...deletionRows.map((row) => ({
+      updatedAt: row.updatedAt,
+      planChangeNeeded: true,
+    })),
+    ...reviewChanges,
+  ]);
+
   const currentNote =
     noteRows.find((row) => row.weekStartDate === weekStartDate) ?? null;
 
@@ -159,26 +192,12 @@ export async function loadCoachingInputs(
             },
       updatedAt: review.updatedAt.toISOString(),
     })),
-    weekReviewUpdatedAt,
-    blockReviewUpdatedAt,
-    updatedAt: newest([
-      ...manualRows,
-      ...commentRows,
-      ...noteRows,
-      ...deletionRows,
-      // A completed week's review and its answer are inputs to the next block;
-      // a completed block's review and its answer are inputs to the next
-      // season. A dismissal alone is not.
-      ...reviewEntries
-        .filter(({ review }) => review.comment !== null)
-        .map(({ review }) => review),
-      ...(weekReviewUpdatedAt === null
-        ? []
-        : [{ updatedAt: weekReviewUpdatedAt }]),
-      ...(blockReviewUpdatedAt === null
-        ? []
-        : [{ updatedAt: blockReviewUpdatedAt }]),
-    ]),
+    weekReviewUpdatedAt: reviews.weekUpdatedAt,
+    weekReviewNeedsRefresh: reviews.weekNeedsRefresh,
+    blockReviewUpdatedAt: reviews.blockUpdatedAt,
+    blockReviewNeedsRefresh: reviews.blockNeedsRefresh,
+    updatedAt: inputs.updatedAt,
+    refreshUpdatedAt: inputs.refreshUpdatedAt,
   };
 }
 

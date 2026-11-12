@@ -59,6 +59,7 @@ import { athleteTextChanged } from "./athleteText.js";
 import {
   latestActivityAnalysisTimestamp,
   latestAnswerTimestamp,
+  latestPlanChangingAnalysisTimestamp,
 } from "./status.js";
 import type { PlanGenerationStore, PlanStore } from "./store.js";
 
@@ -493,6 +494,9 @@ export async function runPlanForUser(
       weekReviewUpdatedAt: coachingInputs.weekReviewUpdatedAt,
       blockReviewUpdatedAt: coachingInputs.blockReviewUpdatedAt,
       coachingInputsUpdatedAt: coachingInputs.updatedAt,
+      coachingInputsRefreshUpdatedAt: coachingInputs.refreshUpdatedAt,
+      weekReviewNeedsRefresh: coachingInputs.weekReviewNeedsRefresh,
+      blockReviewNeedsRefresh: coachingInputs.blockReviewNeedsRefresh,
       coachingSurveyAdjustments: surveyAdjustments.map((adjustment) => ({
         question: adjustment.question,
         previousQuestion: adjustment.previousQuestion,
@@ -500,6 +504,8 @@ export async function runPlanForUser(
         previousAnswer: adjustment.previousAnswer,
       })),
       activitiesUpdatedAt: latestActivityAnalysisTimestamp(recentActivities),
+      activitiesRefreshUpdatedAt:
+        latestPlanChangingAnalysisTimestamp(recentActivities),
       location,
       forecast,
       weatherForecasts,

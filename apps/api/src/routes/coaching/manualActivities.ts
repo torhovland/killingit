@@ -96,6 +96,8 @@ export function createManualActivityHandlers(
       details: activity.details,
     });
 
+    // The run reads the entry and settles today's plan; the reply's flag
+    // decides whether it also pays for a plan completion.
     await deps.trigger(deps.triggerDeps, {
       userId: user.id,
       today,

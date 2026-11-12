@@ -1,6 +1,9 @@
 import { LlmModelChoiceError, type LlmClient } from "../llm/client.js";
 import { generateCoachReplies } from "../llm/coachReplyBatch.js";
-import { generateCoachReply } from "../llm/coachReply.js";
+import {
+  generateCoachReply,
+  type CoachReplyOutcome,
+} from "../llm/coachReply.js";
 import type { CoachReplyTarget } from "../llm/coachReplyPrompt.js";
 import type {
   AthleteAnswerContext,
@@ -47,6 +50,8 @@ export interface CoachingQuestionAnswer {
   text: string;
   model: string;
   generatedAt: Date;
+  /** Whether the answer asked for a plan refresh. */
+  planChangeNeeded: boolean;
 }
 
 export interface CoachReplyDependencies {
@@ -106,6 +111,7 @@ export async function replyToCoachingInput(
       target: replyTarget(request),
       reply: reply.text,
       model: reply.model,
+      planChangeNeeded: reply.planChangeNeeded,
     });
   } catch (err) {
     console.error("[coach-reply] could not store the reply:", err);
@@ -174,7 +180,7 @@ export async function replyToUnansweredActivityComments(
     },
   }));
 
-  let replies: Map<string, string>;
+  let replies: Map<string, CoachReplyOutcome>;
   try {
     replies = await generateCoachReplies(
       llm.provider,
@@ -195,8 +201,9 @@ export async function replyToUnansweredActivityComments(
 
   const stored: StoredCoachReply[] = [];
   for (const item of items) {
-    const text = replies.get(item.id)?.trim();
-    if (text === undefined || text === "") {
+    const reply = replies.get(item.id);
+    const text = reply?.text.trim();
+    if (reply === undefined || text === undefined || text === "") {
       continue;
     }
     if (deps.isCurrent !== undefined && !(await deps.isCurrent())) {
@@ -210,6 +217,7 @@ export async function replyToUnansweredActivityComments(
           target: item.id,
           reply: text,
           model: llm.model,
+          planChangeNeeded: reply.planChangeNeeded,
         }),
       );
     } catch (err) {
@@ -242,7 +250,12 @@ export async function replyToCoachQuestion(
   });
   return reply === null
     ? null
-    : { text: reply.text, model: reply.model, generatedAt: new Date() };
+    : {
+        text: reply.text,
+        model: reply.model,
+        generatedAt: new Date(),
+        planChangeNeeded: reply.planChangeNeeded,
+      };
 }
 
 /**
@@ -263,8 +276,16 @@ export async function answerCoachingQuestion(
   });
   return reply === null
     ? null
-    : { text: reply.text, model: reply.model, generatedAt: new Date() };
+    : {
+        text: reply.text,
+        model: reply.model,
+        generatedAt: new Date(),
+        planChangeNeeded: false,
+      };
 }
+
+/** A reply generated for one input, with the model that wrote it. */
+type GeneratedReply = CoachReplyOutcome & { model: string };
 
 /**
  * Loads the plan, the profile and the athlete's training context, then asks for
@@ -273,7 +294,7 @@ export async function answerCoachingQuestion(
 async function generateReply(
   deps: CoachReplyDependencies,
   options: ReplyGeneration,
-): Promise<{ text: string; model: string } | null> {
+): Promise<GeneratedReply | null> {
   const { userId, today } = options;
   let plan: Awaited<ReturnType<PlanStore["load"]>>;
   let answers: Awaited<ReturnType<QuestionAnswerStore["listForUser"]>>;
@@ -295,7 +316,7 @@ async function generateReply(
   }
 
   try {
-    const text = await generateCoachReply(
+    const outcome = await generateCoachReply(
       llm.provider,
       { apiKey: llm.apiKey, model: llm.model },
       {
@@ -309,8 +330,14 @@ async function generateReply(
       },
       options.kind,
     );
-    const reply = text.trim();
-    return reply === "" ? null : { text: reply, model: llm.model };
+    const reply = outcome.text.trim();
+    return reply === ""
+      ? null
+      : {
+          text: reply,
+          planChangeNeeded: outcome.planChangeNeeded,
+          model: llm.model,
+        };
   } catch (err) {
     console.error(`[${options.label}] could not generate a reply:`, err);
     return null;
