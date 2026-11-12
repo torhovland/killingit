@@ -2,9 +2,10 @@
 
 - **Status:** Accepted (implemented)
 - **Date:** 2026-10-21
-- **Updated:** 2026-11-11 — the unused combined four-level prompt and its
-  `generateCoachPlan` wrapper were removed. The shared plan context and the
-  activity adapter now live in `planContext.ts`.
+- **Updated:** 2026-11-11 — a parity test now compares each JSON contract with
+  the Zod schema that parses the coach's answer. The unused combined four-level
+  prompt and its `generateCoachPlan` wrapper were removed. The shared plan
+  context and the activity adapter now live in `planContext.ts`.
 - **Related:** ADR 0004 (OpenRouter), `docs/specs/openrouter-llm-integration.md`,
   `docs/specs/athlete-question-answers.md`,
   `docs/specs/coach-plan-lifecycle.md`,
@@ -186,4 +187,11 @@ and returns `LlmProvider` chat messages.
   (answered, skipped, unanswered), the activity rendering (with and without
   analysis), the empty-activity fallback, the date/timezone context, and the
   analysed-activity adapter.
+- `apps/api/src/llm/promptContracts.test.ts` holds each contract to the Zod
+  schema that parses the coach's answer: it parses both sides into the same key
+  tree and fails with the contract, the path and the key when a field exists on
+  one side only. The schema keys the API attaches after the coach responds
+  (`forecasts`, `weather`, `trainingLoad`, and the season and block
+  `estimatedFtpWatts`) are listed in the test, so they stay out of the contracts
+  it asks the model to fill.
 - Run `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`.

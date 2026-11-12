@@ -103,7 +103,10 @@ about a past workout, or before a suggested workout, to steer the coach.
   `apps/api/src/llm/promptRules.ts`; the build, update,
   activity-review and manual-TSS prompts compose them so TSS, FTP, weather,
   bike-workout, body-metric and week-outline behaviour stays consistent across
-  prompts. A shared personality rule gives every plan, review, reply and meal
+  prompts. A parity test (`apps/api/src/llm/promptContracts.test.ts`) compares
+  every contract with the Zod schema that parses the coach's answer, so a field
+  that exists on one side only fails CI instead of leaving the model and the
+  schema out of step. A shared personality rule gives every plan, review, reply and meal
   comment the voice of a human coach who is tough but warm, relaxed and
   good-humoured, uses humour sparingly, never calls itself an AI, may use the
   athlete's provided first name when it is a real name, and may show pride or a
