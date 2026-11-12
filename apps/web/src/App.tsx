@@ -1,24 +1,25 @@
 import { useEffect, useRef, useState } from "react";
 import { currentUserSchema, type CurrentUser } from "@killingit/shared";
-import { ActivitiesPage } from "./ActivitiesPage";
-import { AdminSettingsPage } from "./AdminSettingsPage";
 import { AppStatusProvider, useAppStatus } from "./AppStatus";
-import { CalendarPage } from "./CalendarPage";
-import { CoachDashboard } from "./CoachDashboard";
 import { CoachingSurveyPage } from "./CoachingSurveyPage";
-import { CostsPage } from "./CostsPage";
-import { DietPage } from "./DietPage";
 import { useAuth } from "./auth";
 import { fetchJsonAuthed, requestParsed } from "./fetchAuthed";
-import { FitnessPage } from "./FitnessPage";
-import { NavigationProvider, type Page } from "./navigation";
+import {
+  NavigationProvider,
+  PAGES,
+  navigateToPage,
+  pageForPath,
+  pageLabel,
+  pageWidthClass,
+  useLocationPath,
+  type Page,
+} from "./navigation";
+import { PageOutlet } from "./PageOutlet";
 import { PlanGenerationProvider } from "./PlanGenerationProvider";
 import { PwaBanners } from "./PwaBanners";
 import { usePwa } from "./PwaContext";
 import { InstallAppButton } from "./PwaInstall";
 import { reportError } from "./reportError";
-import { SeasonReviewPage } from "./SeasonReviewPage";
-import { SettingsPage } from "./SettingsPage";
 import { SignInPage } from "./SignInPage";
 import { TimeZoneProvider } from "./TimeZoneContext";
 import { useAthleteQuestions } from "./useAthleteQuestions";
@@ -27,19 +28,6 @@ import { Button } from "./components/Button";
 // Absolute API origin for deployed environments (e.g. the Cloud Run URL).
 // Empty string keeps relative "/api" for the local Vite dev proxy.
 const API_URL = import.meta.env.VITE_API_URL ?? "";
-
-const PAGE_LABELS: Record<Page, string> = {
-  coach: "Coach",
-  diet: "Diet",
-  fitness: "Fitness",
-  calendar: "Calendar",
-  activities: "Activities",
-  seasonReview: "Season review",
-  survey: "Coaching survey",
-  costs: "AI costs",
-  settings: "Settings",
-  admin: "Admin settings",
-};
 
 export function App() {
   return (
@@ -56,7 +44,11 @@ function AppShell() {
   const [me, setMe] = useState<CurrentUser | null>(null);
   const [timeZone, setTimeZone] = useState<string | null>(null);
   const timeZoneTouched = useRef(false);
-  const [page, setPage] = useState<Page>("coach");
+  const pathname = useLocationPath();
+  const matchedPage = pageForPath(pathname);
+  // An unknown path renders the coach page while the redirect below replaces
+  // the URL.
+  const page = matchedPage ?? "coach";
   const [planRefreshKey, setPlanRefreshKey] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const {
@@ -66,6 +58,7 @@ function AppShell() {
     load: loadQuestions,
   } = useAthleteQuestions();
 
+  const signedIn = auth.isAuthenticated;
   const isAdmin = me?.role === "admin";
 
   useEffect(() => {
@@ -74,13 +67,29 @@ function AppShell() {
     return () => setStatus("app", null);
   }, [auth.isLoading, loadingQuestions, questions, setStatus]);
 
+  // Every page has a canonical URL. "/" and any unknown path resolve to the
+  // coach page, replacing the entry so the back button stays useful.
+  useEffect(() => {
+    if (matchedPage === null) {
+      navigateToPage("coach", { replace: true });
+    }
+  }, [matchedPage]);
+
   // An added or revised question sends the athlete to the survey so they can
   // see what changed and answer it.
   useEffect(() => {
-    if (questions !== null && !questions.complete) {
-      setPage("survey");
+    if (questions !== null && !questions.complete && page !== "survey") {
+      navigateToPage("survey", { replace: true });
     }
-  }, [questions]);
+  }, [page, questions]);
+
+  // Admin settings belong to the admin. A member who opens the URL is sent
+  // back to the coach page once their role is known.
+  useEffect(() => {
+    if (signedIn && me !== null && page === "admin" && !isAdmin) {
+      navigateToPage("coach", { replace: true });
+    }
+  }, [signedIn, me, page, isAdmin]);
 
   // A page visit asks the API to refresh OpenRouter's catalog. The API checks
   // its own 24-hour timestamp, so this is cheap on every other visit.
@@ -121,15 +130,18 @@ function AppShell() {
   }, [auth.isAuthenticated]);
 
   function navigate(next: Page): void {
-    setPage(next);
+    navigateToPage(next);
     setError(null);
   }
 
-  const signedIn = auth.isAuthenticated;
+  function handleAnswersSaved(): void {
+    setPlanRefreshKey((key) => key + 1);
+    void loadQuestions();
+  }
+
   // The month grid needs room for a wide week box plus seven day columns, so
   // the calendar gets a wider content panel than the other pages.
-  const contentWidth =
-    signedIn && page === "calendar" ? "max-w-7xl" : "max-w-5xl";
+  const contentWidth = signedIn ? pageWidthClass(page) : "max-w-5xl";
 
   return (
     <TimeZoneProvider timeZone={timeZone}>
@@ -138,7 +150,7 @@ function AppShell() {
           <header className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 sm:px-4">
             <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
               <a
-                href="/"
+                href="/coach"
                 className="flex items-center gap-2 text-2xl font-bold tracking-tight no-underline hover:no-underline"
                 onClick={(event) => {
                   event.preventDefault();
@@ -221,55 +233,30 @@ function AppShell() {
                   </Button>
                 </section>
               ) : !questions.complete ? (
-                <CoachingSurveyPage
-                  onAnswersSaved={() => {
-                    setPlanRefreshKey((key) => key + 1);
-                    void loadQuestions();
-                  }}
-                />
-              ) : page === "diet" ? (
-                <DietPage dietAdvice={me?.dietAdvice ?? false} />
-              ) : page === "fitness" ? (
-                <FitnessPage />
-              ) : page === "calendar" ? (
-                <CalendarPage />
-              ) : page === "activities" ? (
-                <ActivitiesPage />
-              ) : page === "seasonReview" ? (
-                <SeasonReviewPage />
-              ) : page === "survey" ? (
-                <CoachingSurveyPage
-                  onAnswersSaved={() => setPlanRefreshKey((key) => key + 1)}
-                />
-              ) : page === "costs" ? (
-                <CostsPage />
-              ) : page === "settings" ? (
-                <SettingsPage
+                <CoachingSurveyPage onAnswersSaved={handleAnswersSaved} />
+              ) : (
+                <PageOutlet
+                  page={page === "admin" && !isAdmin ? "coach" : page}
+                  planRefreshKey={planRefreshKey}
+                  dietAdvice={me?.dietAdvice ?? false}
+                  isAdmin={isAdmin}
                   timeZone={timeZone}
+                  user={me}
+                  onSurveyAnswersSaved={handleAnswersSaved}
                   onTimeZoneChanged={(timezone) => {
                     timeZoneTouched.current = true;
                     setTimeZone(timezone);
                   }}
-                  location={me?.location ?? null}
                   onLocationChanged={(location) => {
                     setMe((current) =>
                       current === null ? current : { ...current, location },
                     );
                   }}
-                  dietAdvice={me?.dietAdvice ?? false}
                   onDietAdviceChanged={(dietAdvice) => {
                     setMe((current) =>
                       current === null ? current : { ...current, dietAdvice },
                     );
                   }}
-                  isAdmin={isAdmin}
-                />
-              ) : page === "admin" && isAdmin ? (
-                <AdminSettingsPage />
-              ) : (
-                <CoachDashboard
-                  planRefreshKey={planRefreshKey}
-                  dietAdvice={me?.dietAdvice ?? false}
                 />
               )}
             </PlanGenerationProvider>
@@ -365,19 +352,7 @@ function UserMenu({
         className="absolute right-0 z-10 mt-1 flex min-w-48 flex-col rounded border bg-card p-1 text-base shadow-lg"
         aria-label="Account"
       >
-        {(
-          [
-            "coach",
-            "diet",
-            "fitness",
-            "calendar",
-            "activities",
-            "seasonReview",
-            "survey",
-            "costs",
-            "settings",
-          ] as const
-        ).map((entry) => (
+        {PAGES.filter((entry) => entry !== "admin" || isAdmin).map((entry) => (
           <Button
             key={entry}
             type="button"
@@ -385,19 +360,9 @@ function UserMenu({
             size="menu"
             onClick={(event) => choose(entry, event)}
           >
-            {PAGE_LABELS[entry]}
+            {pageLabel(entry)}
           </Button>
         ))}
-        {isAdmin && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="menu"
-            onClick={(event) => choose("admin", event)}
-          >
-            {PAGE_LABELS.admin}
-          </Button>
-        )}
         <Button
           type="button"
           variant="ghost"

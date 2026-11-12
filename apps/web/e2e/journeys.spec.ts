@@ -26,12 +26,16 @@ async function seed(page: Page, options: SeedOptions): Promise<string> {
 }
 
 /** Seeds the requested state, opens the app and signs in through the landing page. */
-async function signIn(page: Page, options: SeedOptions): Promise<void> {
+async function signIn(
+  page: Page,
+  options: SeedOptions,
+  path = "/",
+): Promise<void> {
   const today = await seed(page, options);
   await page.addInitScript((date) => {
     localStorage.setItem("killingit.dev.today-override", date);
   }, today);
-  await page.goto("/");
+  await page.goto(path);
   await expect(page.getByTestId("sign-in-page")).toBeVisible();
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page.getByTestId("user-menu")).toBeVisible();
@@ -47,8 +51,45 @@ test("a visitor signs in from the landing page and lands on the dashboard", asyn
 }) => {
   await signIn(page, { questions: "answered" });
 
+  await expect(page).toHaveURL(/\/coach$/);
   await expect(page.getByTestId("coaching-inputs")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Your plan" })).toBeVisible();
+});
+
+test("a page keeps its URL across reload and the history buttons", async ({
+  page,
+}) => {
+  await signIn(page, { questions: "answered", plan: true });
+
+  await openPage(page, "Calendar");
+  await expect(page).toHaveURL(/\/calendar$/);
+  await expect(page.getByTestId("calendar-grid")).toBeVisible();
+
+  await page.reload();
+  await expect(page).toHaveURL(/\/calendar$/);
+  await expect(page.getByTestId("calendar-grid")).toBeVisible();
+
+  await page.goBack();
+  await expect(page).toHaveURL(/\/coach$/);
+  await expect(page.getByTestId("coaching-inputs")).toBeVisible();
+
+  await page.goForward();
+  await expect(page).toHaveURL(/\/calendar$/);
+  await expect(page.getByTestId("calendar-grid")).toBeVisible();
+});
+
+test("a deep link opens its page after signing in", async ({ page }) => {
+  await signIn(page, { questions: "answered" }, "/calendar");
+
+  await expect(page).toHaveURL(/\/calendar$/);
+  await expect(page.getByTestId("calendar-grid")).toBeVisible();
+});
+
+test("an unknown path lands on the coach page", async ({ page }) => {
+  await signIn(page, { questions: "answered" }, "/no-such-page");
+
+  await expect(page).toHaveURL(/\/coach$/);
+  await expect(page.getByTestId("coaching-inputs")).toBeVisible();
 });
 
 test("an athlete answers the survey and sees today's session", async ({
@@ -56,6 +97,7 @@ test("an athlete answers the survey and sees today's session", async ({
 }) => {
   await signIn(page, { questions: "unanswered", plan: true });
 
+  await expect(page).toHaveURL(/\/survey$/);
   await expect(page.getByTestId("coaching-survey-page")).toBeVisible();
   await page
     .getByTestId("athlete-profile")
@@ -67,8 +109,14 @@ test("an athlete answers the survey and sees today's session", async ({
     "Answered questions",
   );
 
-  // A reload lands on the dashboard now that every question is answered.
+  // The survey is its own URL, so a reload keeps it. Opening the coach page
+  // then shows today's session now that every question is answered.
   await page.reload();
+  await expect(page).toHaveURL(/\/survey$/);
+  await expect(page.getByTestId("coaching-survey-page")).toBeVisible();
+
+  await openPage(page, "Coach");
+  await expect(page).toHaveURL(/\/coach$/);
   await expect(page.getByTestId("plan-today")).toContainText("Today's session");
 });
 

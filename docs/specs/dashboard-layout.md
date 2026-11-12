@@ -1,5 +1,15 @@
 # Dashboard layout and navigation
 
+## Page URLs
+
+Every top-level page has a canonical URL: `/coach`, `/diet`, `/fitness`,
+`/calendar`, `/activities`, `/season-review`, `/survey`, `/costs`, `/settings`
+and `/admin`. A refresh, bookmark, shared link, and the browser's back and
+forward buttons keep the intended page. `/` and any unknown path go to
+`/coach`, an incomplete coaching survey goes to `/survey`, and a member who
+opens `/admin` goes to `/coach`. These redirects replace the history entry
+instead of adding one. See `docs/specs/web-routing.md` and ADR 0031.
+
 ## Goal
 
 Keep the signed-in experience compact and task-focused: a slim horizontal
