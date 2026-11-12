@@ -8,10 +8,10 @@
 ## Goal
 
 Give an environment a single trusted administrator and put admin-only
-configuration behind an admin settings page. The first account in an
-environment is the admin; later accounts are members. Only the admin can manage
-the versioned athlete question set. Databases that already contain accounts are
-repaired so the earliest account is always an admin.
+configuration behind an admin settings page. The administrator is named
+explicitly by the `ADMIN_AUTH_SUBJECT` environment variable; every other account
+is a member. Only the admin can manage the versioned athlete question set and
+read the LLM call log. No account is ever promoted implicitly.
 
 ## Scope
 
@@ -19,12 +19,13 @@ repaired so the earliest account is always an admin.
 
 1. **Account table + roles.** Persist users keyed by the auth provider's subject
    with an `admin`/`member` role.
-2. **First-user bootstrap.** Provision accounts on the first authenticated
-   request; the first account becomes admin. Serialise concurrent first
-   sign-ins so only one account wins.
-3. **Upgrade existing environments.** If accounts already exist without an
-   admin, promote the earliest one — in the migration and on the next
-   provisioning.
+2. **Explicit admin provisioning.** Provision accounts on the first
+   authenticated request; the account whose auth subject matches
+   `ADMIN_AUTH_SUBJECT` becomes admin, and every other account is a member.
+   Serialise concurrent first sign-ins so the same account is not inserted
+   twice. An existing member is promoted only when its subject is configured.
+3. **No implicit promotion.** Never promote the earliest account, the first
+   account in an empty environment, or any account because no admin exists.
 4. **Expose the role.** `GET /api/me` returns `{ sub, role }`.
 5. **Admin-only API.** Every route under `/api/admin/*` requires an admin and
    returns `403` for members.
@@ -44,22 +45,25 @@ repaired so the earliest account is always an admin.
 
 1. The `users` table exists with a unique `auth_subject`, a constrained `role`
    (`admin`/`member`), and timestamps.
-2. The first account provisioned against an empty database has role `admin`;
-   the next account has role `member` and does not change the first.
-3. If a database has accounts but no admin, the earliest account is promoted
-   (migration backfill and provisioning-time repair are idempotent).
-4. Concurrent first sign-ins result in exactly one admin.
-5. `GET /api/me` requires auth and returns the caller's `sub` and `role`.
-6. `GET|POST|DELETE /api/admin/questions...` returns `401` unauthenticated,
+2. Every account provisioned without `ADMIN_AUTH_SUBJECT` has role `member`,
+   including the first account in an empty database.
+3. The account whose auth subject matches `ADMIN_AUTH_SUBJECT` is provisioned
+   as `admin`, and an existing member with that subject is promoted on its next
+   request.
+4. Deleting the admin leaves the environment without an admin: the earliest
+   remaining member and any later sign-in stay members.
+5. Concurrent first sign-ins of one subject provision exactly one account.
+6. `GET /api/me` requires auth and returns the caller's `sub` and `role`.
+7. `GET|POST|DELETE /api/admin/questions...` returns `401` unauthenticated,
    `403` for a member, and works for an admin.
-7. The web app shows the admin nav entry and admin settings page only for
+8. The web app shows the admin nav entry and admin settings page only for
    `role: "admin"`; the questions section is no longer on the coach dashboard.
-8. In development and test environments, the date override lives on the admin
+9. In development and test environments, the date override lives on the admin
    settings page rather than floating over every page, and it renders nothing
    in production.
-9. Athlete questions can be reordered from the admin page; the chosen order is
-   used for onboarding and coach prompts.
-10. `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`
+10. Athlete questions can be reordered from the admin page; the chosen order is
+    used for onboarding and coach prompts.
+11. `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`
     pass.
 
 ## Data-model / API impact
@@ -71,9 +75,16 @@ repaired so the earliest account is always an admin.
 - `role` text not null default `'member'`, check `role in ('admin', 'member')`
 - `created_at`, `updated_at` timestamptz not null default now()
 
-Invariants: at most one bootstrap admin is created by first sign-in; accounts
-are never deleted implicitly; the earliest account is promoted if no admin
-exists.
+Invariants: the admin role comes only from `ADMIN_AUTH_SUBJECT`; a missing
+admin is never repaired by promoting an account; accounts are never deleted
+implicitly.
+
+### Environment
+
+- `ADMIN_AUTH_SUBJECT` (API runtime, optional) — the auth subject allowed to be
+  admin. Empty or unset means the environment has no administrator. Read at
+  request time, so setting it and reloading promotes the matching account on its
+  next request.
 
 ### Routes
 
@@ -92,10 +103,13 @@ re-exported from the package index.
 ### API
 
 - `db/schema.ts` — `users` table and inferred row types.
-- `users/store.ts` — `UserStore` interface, `roleForNewUser` (pure bootstrap
-  rule), and `dbUserStore.ensureUser` (fast indexed lookup, then a transaction
-  with a `pg_advisory_xact_lock` for first-time provisioning and the
-  promote-earliest repair).
+- `users/adminSubject.ts` — `configuredAdminSubject`, which reads and trims
+  `ADMIN_AUTH_SUBJECT` and treats an empty value as no administrator.
+- `users/store.ts` — `UserStore` interface, `planUserProvisioning` (pure
+  bootstrap rule: admin only for the configured subject), and
+  `dbUserStore.ensureUser` (fast indexed lookup, then a transaction with a
+  `pg_advisory_xact_lock` for first-time provisioning; an existing member is
+  promoted only when the plan grants admin).
 - `auth/middleware.ts` — `requireUser(store)` provisions and stores the account,
   and `requireAdmin()` reads it, returning `403` for members; a provisioning
   failure is `503`.
@@ -103,8 +117,9 @@ re-exported from the package index.
 - `index.ts` — `createApp({ authProvider, userStore })` injects dependencies for
   DB-free tests and mounts `/api/admin/*` behind `requireAuth` +
   `requireAdmin`.
-- `drizzle/0006_*.sql` — creates `users` and promotes the earliest account when
-  no admin exists.
+- `drizzle/0006_*.sql` — creates `users`. Its one-time backfill promoted the
+  earliest account when the role column was introduced; provisioning no longer
+  performs that repair.
 
 ### Web
 
@@ -118,32 +133,36 @@ re-exported from the package index.
 ## Testing
 
 - **Shared unit tests:** role enum and current-user schema parsing.
-- **API unit tests:** the bootstrap role rule; `requireUser` stores the account
-  and surfaces `503` when the store fails; `requireAdmin` allows admins and
-  denies members with `403`; `/api/me` returns `sub` + `role` against a fake
-  store; admin questions reject unauthenticated (`401`) and member (`403`)
-  callers.
+- **API unit tests:** `configuredAdminSubject` (set, blank, whitespace) and the
+  bootstrap role rule; `requireUser` stores the account and surfaces `503` when
+  the store fails; `requireAdmin` allows admins and denies members with `403`;
+  `/api/me` returns `sub` + `role` against a fake store; admin questions reject
+  unauthenticated (`401`) and member (`403`) callers.
 - **Web:** covered by typecheck plus existing component tests; the page shell is
   thin and its access is enforced by the API.
-- DB-backed coverage of the question stores, plan lifecycle, and account
-  cascades now runs in `apps/api/integration`; see
+- DB-backed coverage in `apps/api/integration` provisions a member-only
+  environment, provisions and promotes the configured subject, and checks that
+  deleting the admin leaves every later sign-in a member; see
   `docs/specs/database-integration-tests.md`.
 
 ## Risks / open questions
 
-- **Bootstrap timing.** "First account" means the first account the API
-  provisions — the web app does this via `/api/me` immediately after sign-in —
-  not the first account created in Auth0. A user who signs up but never opens
-  the app does not consume the admin slot.
-- **No admin recovery UI.** If the admin is lost, promote another account
-  directly in the database.
+- **Config timing.** The account can sign in before `ADMIN_AUTH_SUBJECT` is set;
+  it is created as a member and promoted on its next request once the variable
+  names its subject. The web app provisions via `/api/me` immediately after
+  sign-in.
+- **No admin until configured.** An environment with no `ADMIN_AUTH_SUBJECT` has
+  no administrator, so the admin settings page and API are unreachable. This is
+  deliberate: a missing configuration must not hand the role to a stranger.
+- **No admin recovery UI.** If the admin is lost, set `ADMIN_AUTH_SUBJECT` to the
+  intended account's subject or update the role directly in the database.
 - **Role changes need a new request.** The UI reads the role from `/api/me` at
   sign-in; promoting a signed-in member takes effect on their next reload.
 
 ## Definition of done
 
-- Migration creates `users` and backfills the first admin when applicable.
-- First sign-in is admin; later sign-ins are members; admin routes are `403` for
-  members.
+- No account is promoted implicitly, including when the admin is deleted.
+- The configured subject is admin; every other account is a member; admin
+  routes are `403` for members.
 - Admin settings page exposes question management to admins only.
 - All four quality gates pass.

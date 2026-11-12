@@ -181,11 +181,16 @@ See ADR 0003, ADR 0004, ADR 0005, ADR 0006, and the specs in `docs/specs/`.
 
 ### Admin accounts
 
-The first account provisioned against an environment's database becomes the
-admin; every later account is a member. If a database already has accounts but
-no admin, the earliest account is promoted. Only the admin sees the admin
-settings page and can manage athlete questions; the API enforces the role
-(`403` for members). See ADR 0006.
+The administrator is provisioned explicitly. Set the API's
+`ADMIN_AUTH_SUBJECT` to the Auth0 subject of the account that should administer
+the environment; the account becomes an admin when it signs in, and every other
+account is a member. An existing member with that subject is promoted on its
+next request, so an operator can configure the variable after the account has
+signed in once. No account is ever promoted implicitly: with the variable unset
+the environment has no admin, and deleting the admin leaves it without one until
+the configured subject signs in again. Only the admin sees the admin settings
+page and can manage athlete questions; the API enforces the role (`403` for
+members). See ADR 0006 and `docs/specs/admin-settings.md`.
 
 ## Error monitoring (Sentry)
 
@@ -357,6 +362,8 @@ the `DATABASE_URL_UNPOOLED` values go to `TEST_DATABASE_URL_UNPOOLED` /
 | `PROD_DATABASE_URL_UNPOOLED`     | secret | Neon production branch direct (`DATABASE_URL_UNPOOLED`)                                     |
 | `TEST_SENTRY_DSN`                | secret | Sentry DSN for the test API (`killingit-api`)                                               |
 | `PROD_SENTRY_DSN`                | secret | Sentry DSN for the production API (`killingit-api`)                                         |
+| `TEST_ADMIN_AUTH_SUBJECT`        | secret | Auth0 subject of the test environment's admin (optional; unset means no admin)              |
+| `PROD_ADMIN_AUTH_SUBJECT`        | secret | Auth0 subject of the production environment's admin (optional; unset means no admin)        |
 | `TEST_GARMIN_CREDENTIALS_KEY`    | secret | Passphrase for encrypting Garmin credentials at rest (test)                                 |
 | `PROD_GARMIN_CREDENTIALS_KEY`    | secret | Passphrase for encrypting Garmin credentials at rest (production)                           |
 | `TEST_LLM_CREDENTIALS_KEY`       | secret | Passphrase for encrypting the OpenRouter API key at rest (test)                             |

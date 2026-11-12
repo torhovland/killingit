@@ -36,8 +36,8 @@ make the admin view awkward.
   submission can pin the exact wording the athlete saw even if an admin edits the
   question concurrently.
 - **Admin-only management.** Question management requires the `admin` role
-  (ADR 0006). The first account in an environment becomes admin; other accounts
-  are members and receive `403` from the admin routes.
+  (ADR 0006). The account whose auth subject matches `ADMIN_AUTH_SUBJECT` is
+  admin; other accounts are members and receive `403` from the admin routes.
 
 ## Consequences
 
