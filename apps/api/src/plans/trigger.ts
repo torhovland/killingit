@@ -188,9 +188,20 @@ function startBackgroundPlan(
 ): void {
   const heartbeat = startHeartbeat(deps, options.userId, run.runId);
   void runPlanForUser(deps, { ...options, ...run })
-    .catch((err: unknown) => {
-      if (!isGenerationSuperseded(err)) {
-        console.error("[plan] background generation failed:", err);
+    .catch(async (err: unknown) => {
+      if (isGenerationSuperseded(err)) {
+        return;
+      }
+      console.error("[plan] background generation failed:", err);
+      // The loading phase fails the row itself and rethrows. A later phase
+      // throws without doing so, so this catch covers the whole run. Failing
+      // an already-failed row is a no-op.
+      const message =
+        err instanceof Error ? err.message : "The plan could not be generated.";
+      try {
+        await deps.generations.fail(options.userId, message, run.runId);
+      } catch (failure: unknown) {
+        console.error("[plan] could not mark generation failed:", failure);
       }
     })
     .finally(() => {
