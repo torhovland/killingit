@@ -281,10 +281,51 @@ async function syncFeed(params: {
   const synced = [...activities]
     .filter((activity) => !deletedIds.has(String(activity.id)))
     .sort((a, b) => Date.parse(b.startDate) - Date.parse(a.startDate));
-  const previous = await loadPreviousActivities(params.userId);
-  const history = mergeActivityHistory(previous, synced, deletedIds);
-  await persistFeed(params.userId, { model: null, activities: history });
+  const history = await extendStoredFeed({
+    userId: params.userId,
+    synced,
+    deletedIds,
+  });
   return { latest: synced.slice(0, params.limit), history };
+}
+
+/** The feed cache reads and writes, injectable so a test can fail the read. */
+interface FeedCache {
+  load: typeof loadCachedActivityFeed;
+  save: typeof saveCachedActivityFeed;
+}
+
+const FEED_CACHE: FeedCache = {
+  load: loadCachedActivityFeed,
+  save: saveCachedActivityFeed,
+};
+
+/**
+ * Merges the synced activities with the stored history and stores the result.
+ * The stored feed is read before anything is written, and a failed read aborts
+ * the sync: merging the sync window with an empty history would overwrite every
+ * older activity, including its analysis, comment and reply.
+ */
+export async function extendStoredFeed(
+  params: {
+    userId: number;
+    synced: readonly Activity[];
+    deletedIds: ReadonlySet<string>;
+  },
+  cache: FeedCache = FEED_CACHE,
+): Promise<AnalyzedActivity[]> {
+  const previous = await loadPreviousActivities(params.userId, cache.load);
+  const history = mergeActivityHistory(
+    previous,
+    params.synced,
+    params.deletedIds,
+  );
+  await persistFeed(
+    params.userId,
+    { model: null, activities: history },
+    cache.save,
+  );
+  return history;
 }
 
 /** Everything the analysis pass and the final feed need besides the history. */
@@ -808,18 +849,26 @@ async function loadBodyHistorySafely(userId: number) {
   }
 }
 
-/** Reads the stored feed so a sync extends it instead of dropping older work. */
+/**
+ * Reads the stored feed so a sync extends it instead of dropping older work.
+ * A failed read throws rather than returning an empty history, because merging
+ * the sync window with nothing would erase every activity older than that
+ * window and its coach analysis, comment and reply.
+ */
 async function loadPreviousActivities(
   userId: number,
+  load: FeedCache["load"] = loadCachedActivityFeed,
 ): Promise<readonly AnalyzedActivity[]> {
   try {
-    return (await loadCachedActivityFeed(userId))?.activities ?? [];
+    return (await load(userId))?.activities ?? [];
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err);
     console.error(
       `[coaching] could not read the stored activity feed: ${detail}`,
     );
-    return [];
+    throw new Error("The stored activity feed could not be read", {
+      cause: err,
+    });
   }
 }
 
@@ -873,9 +922,13 @@ function withActivityLoad(
 }
 
 /** Stores the feed for a fast first paint; a cache failure must not fail sync. */
-async function persistFeed(userId: number, feed: ActivityFeed): Promise<void> {
+async function persistFeed(
+  userId: number,
+  feed: ActivityFeed,
+  save: FeedCache["save"] = saveCachedActivityFeed,
+): Promise<void> {
   try {
-    await saveCachedActivityFeed(userId, feed);
+    await save(userId, feed);
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err);
     console.error(`[coaching] could not cache the activity feed: ${detail}`);

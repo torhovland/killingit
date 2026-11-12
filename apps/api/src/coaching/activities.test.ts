@@ -1,9 +1,12 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, mock } from "bun:test";
 import type { Activity, AnalyzedActivity } from "@killingit/shared";
 import {
   commentIsNewerThanAnalysis,
+  extendStoredFeed,
   mergeActivityHistory,
 } from "./activities.js";
+
+type FeedCache = NonNullable<Parameters<typeof extendStoredFeed>[1]>;
 
 function synced(id: number, startDate: string, name: string): Activity {
   return {
@@ -95,5 +98,59 @@ describe("mergeActivityHistory", () => {
     expect(merged[0]?.name).toBe("Renamed ride");
     expect(merged[0]?.analysis?.text).toBe("Analysis 1");
     expect(merged[0]?.comment).toBe("Comment 1");
+  });
+});
+
+describe("extendStoredFeed", () => {
+  it("does not store a sync when the stored feed cannot be read", async () => {
+    const cache: FeedCache = {
+      load: () => Promise.reject(new Error("connection reset")),
+      save: mock(() => Promise.resolve()),
+    };
+
+    let caught: unknown;
+    try {
+      await extendStoredFeed(
+        {
+          userId: 1,
+          synced: [synced(2, "2026-10-11T06:30:00Z", "New ride")],
+          deletedIds: new Set(),
+        },
+        cache,
+      );
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(Error);
+    expect(caught instanceof Error ? caught.message : "").toBe(
+      "The stored activity feed could not be read",
+    );
+    expect(cache.save).not.toHaveBeenCalled();
+  });
+
+  it("stores the merged history when the stored feed can be read", async () => {
+    const cache: FeedCache = {
+      load: () =>
+        Promise.resolve({
+          model: null,
+          activities: [stored(1, "2026-10-03T06:30:00Z")],
+        }),
+      save: mock(() => Promise.resolve()),
+    };
+
+    const history = await extendStoredFeed(
+      {
+        userId: 1,
+        synced: [synced(2, "2026-10-11T06:30:00Z", "New ride")],
+        deletedIds: new Set(),
+      },
+      cache,
+    );
+
+    expect(history.map((activity) => activity.id)).toEqual([2, 1]);
+    expect(cache.save).toHaveBeenCalledWith(1, {
+      model: null,
+      activities: history,
+    });
   });
 });
