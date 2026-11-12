@@ -9,9 +9,10 @@
 
 Keep `loadAnalyzedActivitiesOnce` readable as a sequence of named phases so the
 happy path reads top to bottom and each failure path sits with the phase that
-can fail. This is a behaviour-preserving refactor: syncing, analysis caching,
-coach-question handling, estimate storage, training-load fallbacks and feed
-persistence are unchanged.
+can fail. Syncing, analysis caching, coach-question handling, estimate storage,
+training-load fallbacks and feed persistence are unchanged. The one exception
+is a failed read of the stored feed: the sync aborts instead of merging the
+sync window with an empty history and overwriting every older activity.
 
 ## Scope
 
@@ -19,7 +20,9 @@ persistence are unchanged.
 
 - `syncFeed` — syncs Garmin activities, body metrics and daily health; drops
   locally deleted activities; merges the stored history; and persists the full
-  history before analysis.
+  history before analysis. The stored feed is read before anything is written,
+  and a failed read aborts the sync: merging the sync window with an empty
+  history would erase every older activity and its coach work.
 - `loadAnalysisInputs` — loads LLM settings, athlete feedback, the stored plan,
   daily health, body history and diet in parallel, then the training context.
   A training-context failure falls back to empty loads instead of failing the
@@ -47,9 +50,11 @@ used by `loadDietContext`.
 - Every phase is a named function under roughly 80 lines.
 - `loadAnalyzedActivitiesOnce` reads as provider → credentials → sync → inputs →
   analyse → assemble.
-- The response shape, cache writes, question handling, metric writes, log
-  messages and error types are unchanged.
+- The response shape, cache writes, question handling, metric writes and log
+  messages are unchanged.
 - Existing tests pass unchanged, and new tests cover the orchestrator's branches.
+- A failed read of the stored feed aborts the sync, so the history is never
+  written when it could not be read first.
 
 ## Data-model and API impact
 
