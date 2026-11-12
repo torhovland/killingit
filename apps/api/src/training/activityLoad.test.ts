@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { AnalyzedActivity, AthleteThreshold } from "@killingit/shared";
-import { buildActivityLoads } from "./activityLoad.js";
+import { buildActivityLoads, manualTssByDate } from "./activityLoad.js";
 import { buildThresholdTimelines } from "./thresholds.js";
 
 const cyclingFtp: AthleteThreshold = {
@@ -35,6 +35,23 @@ function activity(overrides: Partial<AnalyzedActivity> = {}): AnalyzedActivity {
     ...overrides,
   };
 }
+
+describe("manualTssByDate", () => {
+  it("sums each day's manual entries and skips an unscored one", () => {
+    const byDate = manualTssByDate([
+      { id: 1, startDate: "2026-10-20", details: "Gym", estimatedTss: 40 },
+      { id: 2, startDate: "2026-10-20", details: "Swim", estimatedTss: 25 },
+      { id: 3, startDate: "2026-10-20", details: "Walk", estimatedTss: null },
+      { id: 4, startDate: "2026-10-21", details: "Yoga" },
+      { id: 5, startDate: "2026-10-22", details: "Ride", estimatedTss: 90 },
+    ]);
+
+    expect([...byDate]).toEqual([
+      ["2026-10-20", 65],
+      ["2026-10-22", 90],
+    ]);
+  });
+});
 
 describe("buildActivityLoads", () => {
   it("scores a powered activity and gives its day a fitness snapshot", () => {

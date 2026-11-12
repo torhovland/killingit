@@ -121,7 +121,11 @@ not by a keyword list. If no model is configured or the call fails, the entry
 is left unscored (`estimated_tss` stays null) rather than guessed; the athlete
 can edit the entry to retry. The estimate is stored in
 `manual_activities.estimated_tss`, so it is stable across visits and available
-to the plan, the Activities page, and ATL/CTL calculations.
+to the plan, the Activities page, and ATL/CTL calculations. Several entries on
+one day add up, and an entry with no estimate is skipped rather than counted as
+zero. `manualTssByDate` (`apps/api/src/training/activityLoad.ts`) owns that
+aggregation, and the plan load, the Fitness series and the no-plan form snapshot
+all read the map it returns.
 
 ### ATL, CTL, and TSB
 
@@ -285,3 +289,6 @@ API:
   mirroring.
 - Prompt tests for the new contract fields and rules.
 - Web render tests for the FTP line and the load numbers in all three views.
+- A unit test for the manual-TSS aggregation: several entries on one day sum
+  and an unscored entry is skipped, in both the plan load and the no-plan
+  form snapshot.

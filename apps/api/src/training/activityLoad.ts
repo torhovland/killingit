@@ -7,6 +7,7 @@ import {
   type TrainingLoad,
 } from "@killingit/shared";
 import { addDays } from "@killingit/shared";
+import type { ManualActivityContext } from "../llm/planContext.js";
 import { thresholdForSport, type ThresholdTimeline } from "./thresholds.js";
 
 /** Groups activities by their local calendar date (`YYYY-MM-DD`). */
@@ -24,6 +25,27 @@ export function groupActivitiesByDate(
     }
   }
   return grouped;
+}
+
+/**
+ * The summed coach-estimated TSS for each day that has manual entries. An
+ * entry with no estimate is skipped, and several entries on one day add up,
+ * because each one is real training the plan's estimate does not cover.
+ */
+export function manualTssByDate(
+  manualActivities: readonly ManualActivityContext[],
+): Map<string, number> {
+  const result = new Map<string, number>();
+  for (const manual of manualActivities) {
+    if (manual.estimatedTss === null || manual.estimatedTss === undefined) {
+      continue;
+    }
+    result.set(
+      manual.startDate,
+      (result.get(manual.startDate) ?? 0) + manual.estimatedTss,
+    );
+  }
+  return result;
 }
 
 /**

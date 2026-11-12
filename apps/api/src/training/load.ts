@@ -16,6 +16,7 @@ import { addDays } from "@killingit/shared";
 import {
   activityDayTss,
   groupActivitiesByDate,
+  manualTssByDate,
   measuredActivityTss,
 } from "./activityLoad.js";
 import {
@@ -63,23 +64,14 @@ export function applyTrainingLoad(
   const baseFtpWatts = latest?.value ?? null;
   const floorAtBase = latest !== null && latest.source !== "coach";
   const activitiesByDate = groupActivitiesByDate(context.activities);
-  const manualTssByDate = new Map<string, number>();
-  for (const activity of context.manualActivities ?? []) {
-    if (activity.estimatedTss === null || activity.estimatedTss === undefined) {
-      continue;
-    }
-    manualTssByDate.set(
-      activity.startDate,
-      (manualTssByDate.get(activity.startDate) ?? 0) + activity.estimatedTss,
-    );
-  }
+  const manualByDate = manualTssByDate(context.manualActivities ?? []);
   const current = applyWeekLoad(
     plan.week,
     plan.today.date,
     ftp,
     thresholdTimelines,
     activitiesByDate,
-    manualTssByDate,
+    manualByDate,
     undefined,
     weekFtpFromBlock(plan.block, plan.week.startDate),
     floorAtBase,
@@ -93,7 +85,7 @@ export function applyTrainingLoad(
           ftp,
           thresholdTimelines,
           activitiesByDate,
-          manualTssByDate,
+          manualByDate,
           current.tssByDate,
           weekFtpFromBlock(
             plan.nextBlock ?? plan.block,
@@ -159,11 +151,10 @@ export function currentTrainingLoad(
   for (const [date, activities] of groupActivitiesByDate(context.activities)) {
     tssByDate.set(date, activityDayTss(activities, thresholdTimelines));
   }
-  for (const manual of context.manualActivities ?? []) {
-    if (manual.estimatedTss == null || tssByDate.has(manual.startDate)) {
-      continue;
+  for (const [date, tss] of manualTssByDate(context.manualActivities ?? [])) {
+    if (!tssByDate.has(date)) {
+      tssByDate.set(date, tss);
     }
-    tssByDate.set(manual.startDate, manual.estimatedTss);
   }
 
   const startDate = addDays(today, -CTL_DAYS);

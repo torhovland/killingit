@@ -288,6 +288,37 @@ describe("applyTrainingLoad", () => {
     expect(loaded.today.trainingLoad?.tss).toBe(120);
   });
 
+  it("sums a day's manual entries and skips an unscored one", () => {
+    const loaded = applyTrainingLoad(plan, {
+      thresholdTimelines: statedFtp,
+      activities: [],
+      manualActivities: [
+        {
+          id: 1,
+          startDate: "2026-10-20",
+          details: "Gym session",
+          estimatedTss: 40,
+        },
+        {
+          id: 2,
+          startDate: "2026-10-20",
+          details: "Evening swim",
+          estimatedTss: 25,
+        },
+        {
+          id: 3,
+          startDate: "2026-10-20",
+          details: "Walk with the dog",
+          estimatedTss: null,
+        },
+      ],
+    });
+    const tuesday = loaded.week.sessions.find(
+      (entry) => entry.date === "2026-10-20",
+    );
+    expect(tuesday?.trainingLoad?.tss).toBe(65);
+  });
+
   it("uses the coach's estimate and a duration fallback for other sessions", () => {
     const loaded = applyTrainingLoad(plan, {
       thresholdTimelines: statedFtp,
@@ -474,6 +505,37 @@ describe("currentTrainingLoad", () => {
     );
 
     expect(load?.tss).toBe(40);
+  });
+
+  it("sums a day's manual entries and skips an unscored one", () => {
+    const load = currentTrainingLoad(
+      {
+        activities: [],
+        manualActivities: [
+          {
+            id: 1,
+            startDate: "2026-10-20",
+            details: "Gym session",
+            estimatedTss: 40,
+          },
+          {
+            id: 2,
+            startDate: "2026-10-20",
+            details: "Evening swim",
+            estimatedTss: 25,
+          },
+          {
+            id: 3,
+            startDate: "2026-10-20",
+            details: "Walk with the dog",
+            estimatedTss: null,
+          },
+        ],
+      },
+      "2026-10-20",
+    );
+
+    expect(load?.tss).toBe(65);
   });
 
   it("returns null when the recent history holds no load", () => {
