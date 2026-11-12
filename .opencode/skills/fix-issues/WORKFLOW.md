@@ -58,7 +58,11 @@ commented-out code behind.
 
 ## 7. Verify the change
 
-Run all of these and fix any failure:
+CI is strict, and a check that only fails after the push has already cost the
+batch a round trip. Run the checks yourself, including every static check this
+particular issue makes relevant, and make them all pass before committing.
+
+Always run:
 
 ```sh
 bun run typecheck
@@ -67,10 +71,30 @@ bun run format
 bun run test
 ```
 
+Then add the gate the change itself attracts, mirroring CI:
+
+| The change touches                             | Also run                   |
+| ---------------------------------------------- | -------------------------- |
+| an export, a module, or the dependency graph   | `bun run check:unused`     |
+| `services/garmin` or its tooling               | `bun run check:garmin`     |
+| migrations, stores, constraints, cascades      | `bun run test:integration` |
+| a user journey, a route, or a page             | `bun run test:e2e`         |
+| coverage baselines or a package's exported API | `bun run test:coverage`    |
+| dependencies                                   | `bun run outdated`         |
+
 Use `bun run lint:fix` and `bun run format:fix` to apply mechanical fixes, then
 re-run the checks. If you changed dependencies, follow AGENTS.md: update with
 `bun update`, commit `bun.lock` separately, and make sure `bun run outdated`
 passes.
+
+Never make a check pass by weakening it. Do not add a new `eslint-disable`,
+`@ts-expect-error`, or `as any` to silence a report, do not skip or delete a
+failing test, and do not relax a tsconfig, ESLint rule, coverage baseline, or
+CI job. Fix the cause. When a rule genuinely has to change, say so in the pull
+request and follow `AGENTS.md`.
+
+List the checks you ran, including the issue-specific ones, in the pull request
+body so the reviewer can see the gate the fix passed.
 
 ## 8. Keep the documents current
 
@@ -93,7 +117,8 @@ the pull request. Before committing, re-run `git status --short` and confirm
 every staged file belongs to the fix.
 
 Edit the pull request body to include `Closes #<number>`, a short summary of the
-fix, and the checks you ran. Then watch CI and fix anything it reports:
+fix, and the checks you ran, naming the issue-specific static checks as well as
+the default four. Then watch CI and fix anything it reports:
 
 ```sh
 gh pr checks --watch
@@ -104,5 +129,6 @@ Do not close the issue by hand; merging the pull request closes it.
 ## 10. Report back
 
 Reply with the issue number and title, the branch, a one-line summary of the
-change, the checks you ran, and the pull request URL. If you stopped without a
-pull request, say exactly where you stopped and why.
+change, the checks you ran (including the issue-specific static checks), and the
+pull request URL. If you stopped without a pull request, say exactly where you
+stopped and why.

@@ -84,9 +84,11 @@ For each issue:
    > Read `.opencode/skills/fix-issues/WORKFLOW.md` and follow it exactly to fix
    > GitHub issue #<number> in this repository. The issue is one of a batch of
    > independent fixes: do not touch another issue's files and do not work on
-   > another issue. Start from a clean tree and from `origin/main`. Open a pull
-   > request when the change is verified, then reply with the issue number, the
-   > branch, a one-line summary, the checks you ran, and the pull request URL.
+   > another issue. Start from a clean tree and from `origin/main`. Run every
+   > static check the issue makes relevant, not only the default ones, and make
+   > them all pass. Open a pull request when the change is verified, then reply
+   > with the issue number, the branch, a one-line summary, the checks you ran,
+   > and the pull request URL.
 
 3. Wait for the sub-session to finish and read its report.
 4. Confirm it left the working tree clean and that its branch contains only
@@ -106,7 +108,9 @@ looks comments on the issue and reports back instead of guessing.
 ### 6. Report back
 
 Give one row per issue in the batch with the issue number and title, the pull
-request URL, or the reason it was skipped, plus the checks that ran.
+request URL, or the reason it was skipped, plus the checks that ran. Each row
+must list the issue-specific static checks, not only `typecheck`, `lint`,
+`format`, and `test`, so a thin gate is visible before review.
 
 Do not close issues by hand; merging each pull request closes its own.
 
@@ -114,6 +118,9 @@ Do not close issues by hand; merging each pull request closes its own.
 
 - One issue per branch and pull request. Never combine two issues into one
   branch to save work, and never let one sub-session fix two issues.
+- Quality is not negotiable per issue: the sub-session runs every lint, type,
+  coverage and other static check the fix attracts and makes them pass, without
+  weakening a rule or skipping a test to get green.
 - Unrelated changes already in the working tree are not yours to touch. Leave
   them uncommitted and out of every pull request; never revert or clean them.
 - If an issue turns out to be much larger than it looked in the batch, skip it
