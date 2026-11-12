@@ -74,7 +74,11 @@ export interface ResolvedCoachingDependencies {
   answers: QuestionAnswerStore;
   plans: PlanStore;
   generations: PlanGenerationStore;
-  loadActivities: (userId: number, today?: string) => Promise<ActivityFeed>;
+  loadActivities: (
+    userId: number,
+    today?: string,
+    timezone?: string,
+  ) => Promise<ActivityFeed>;
   loadCachedFeed: typeof loadCachedActivityFeed;
   loadFeedback: typeof loadActivityFeedback;
   loadActivityTrainingLoads: typeof loadUserActivityTrainingLoads;
@@ -117,7 +121,7 @@ export function resolveCoachingDependencies(
 ): ResolvedCoachingDependencies {
   const loadActivities =
     deps.loadActivities ??
-    ((userId: number, today?: string) =>
+    ((userId: number, today?: string, timezone?: string) =>
       loadAnalyzedActivities({
         userId,
         // Analyse the newest activities the cap allows, but return every
@@ -125,6 +129,7 @@ export function resolveCoachingDependencies(
         limit: MAX_ANALYZED_ACTIVITIES,
         refresh: false,
         ...(today !== undefined ? { today } : {}),
+        ...(timezone !== undefined ? { timezone } : {}),
       }));
   const llmLoader = deps.loadLlm ?? loadLlmClient;
   const loadAnsweredQuestions =
@@ -196,11 +201,12 @@ export async function replyTo(
   deps: ResolvedCoachingDependencies,
   userId: number,
   today: string,
+  timezone: string | undefined,
   request: CoachingReplyRequest,
 ): Promise<CoachAnalysis | null> {
   const stored = await deps.reply(
     { plans: deps.plans, answers: deps.answers, loadLlm: deps.llmLoader },
-    { userId, today, request },
+    { userId, today, ...(timezone !== undefined ? { timezone } : {}), request },
   );
   return stored === null ? null : toCoachAnalysis(stored);
 }

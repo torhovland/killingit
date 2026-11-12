@@ -67,6 +67,9 @@ export function createManualActivityHandlers(
     }
 
     const { today, timezone, ...activity } = input;
+    // The request's zone (the device zone when the athlete has not stored one)
+    // wins; the stored setting is the fallback for another client.
+    const timeZone = timezone ?? user.timezone ?? undefined;
     const estimatedTss = await estimateManualTss(
       user.id,
       activity.startDate,
@@ -90,7 +93,7 @@ export function createManualActivityHandlers(
       activityId = id;
     }
 
-    const coachReply = await replyTo(deps, user.id, today, {
+    const coachReply = await replyTo(deps, user.id, today, timeZone, {
       kind: "manual_activity",
       manualActivityId: activityId,
       startDate: activity.startDate,
@@ -102,7 +105,7 @@ export function createManualActivityHandlers(
     await deps.trigger(deps.triggerDeps, {
       userId: user.id,
       today,
-      ...(timezone !== undefined ? { timezone } : {}),
+      ...(timeZone !== undefined ? { timezone: timeZone } : {}),
       keepToday: activity.startDate === today,
     });
 
@@ -170,6 +173,7 @@ export function createManualActivityHandlers(
           user.id,
           cached?.activities ?? [],
           storedPlan?.plan,
+          user.timezone,
         );
       } catch (err) {
         console.error(

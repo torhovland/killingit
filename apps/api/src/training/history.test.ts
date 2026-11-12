@@ -118,6 +118,7 @@ function plan(overrides: Partial<CoachPlan> = {}): CoachPlan {
 const base = {
   today: "2026-10-22",
   range: "week" as const,
+  timeZone: null as string | null,
   activities: [] as readonly AnalyzedActivity[],
   thresholdPoints,
   thresholdTimelines: buildThresholdTimelines(thresholdPoints),
@@ -192,9 +193,20 @@ describe("earliestRecordedDate", () => {
           { id: 1, startDate: "2026-09-02", details: "Old gym session" },
           { id: 2, startDate: "2026-10-01", details: "Newer" },
         ],
+        null,
       ),
     ).toBe("2026-09-02");
-    expect(earliestRecordedDate([], [])).toBeNull();
+    expect(earliestRecordedDate([], [], null)).toBeNull();
+  });
+
+  it("reads an imported activity's date in the athlete's zone", () => {
+    // 06:30 UTC on 20 October is 23:30 on 19 October in Los Angeles.
+    const evening = activity({ startDate: "2026-10-20T06:30:00Z" });
+
+    expect(earliestRecordedDate([evening], [], "America/Los_Angeles")).toBe(
+      "2026-10-19",
+    );
+    expect(earliestRecordedDate([evening], [], "UTC")).toBe("2026-10-20");
   });
 });
 
@@ -236,6 +248,7 @@ describe("buildFitnessHistory", () => {
     const expected = buildActivityLoads(
       activities,
       buildThresholdTimelines(thresholdPoints),
+      null,
     ).byDate.get("2026-10-20");
 
     const day = history.days.find((entry) => entry.date === "2026-10-20");
@@ -301,6 +314,39 @@ describe("buildFitnessHistory", () => {
     expect(
       history.days.find((day) => day.date === "2026-10-21")?.activities,
     ).toEqual([]);
+  });
+
+  it("charts an activity on the athlete's local day", () => {
+    // 06:30 UTC on 22 October is 23:30 on 21 October in Los Angeles.
+    const evening = activity({
+      id: 9,
+      name: "Evening ride",
+      startDate: "2026-10-22T06:30:00Z",
+    });
+
+    const local = buildFitnessHistory({
+      ...base,
+      timeZone: "America/Los_Angeles",
+      activities: [evening],
+    });
+    expect(
+      local.days.find((day) => day.date === "2026-10-21")?.activities,
+    ).toEqual([
+      {
+        id: "activity-9",
+        name: "Evening ride",
+        type: "cycling",
+        durationMinutes: 60,
+      },
+    ]);
+    expect(
+      local.days.find((day) => day.date === "2026-10-22")?.activities,
+    ).toEqual([]);
+    expect(local.days.find((day) => day.date === "2026-10-21")?.tss).toBe(55);
+
+    const utc = buildFitnessHistory({ ...base, activities: [evening] });
+    expect(utc.days.find((day) => day.date === "2026-10-22")?.tss).toBe(55);
+    expect(utc.days.find((day) => day.date === "2026-10-21")?.tss).toBe(0);
   });
 
   it("keeps TSB equal to CTL minus ATL on every day", () => {

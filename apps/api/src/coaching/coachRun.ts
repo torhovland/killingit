@@ -62,7 +62,7 @@ async function runCoachTurn(
   deps: CoachRunDependencies,
   options: CoachRunOptions & { runId: string; signal: AbortSignal },
 ): Promise<void> {
-  const { userId, today, runId, signal } = options;
+  const { userId, today, timezone, runId, signal } = options;
   try {
     if (options.reply === true) {
       await deps.generations.update(
@@ -80,7 +80,12 @@ async function runCoachTurn(
           loadUnansweredComments: deps.loadUnansweredComments,
           isCurrent: () => deps.generations.isCurrent(userId, runId),
         },
-        { userId, today, signal },
+        {
+          userId,
+          today,
+          ...(timezone !== undefined ? { timezone } : {}),
+          signal,
+        },
       );
     }
 

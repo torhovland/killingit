@@ -298,12 +298,16 @@ export async function runPlanForUser(
     throw err;
   }
 
+  // The request's zone (the athlete's selected or device zone) wins over the
+  // stored setting; an account with neither reads as UTC. Every day derived
+  // from an activity in this run uses the same zone.
+  const timeZone = timezone ?? user?.timezone ?? null;
+
   // A server-triggered update (a new analysis, a saved comment, a weekly note)
   // must plan the same levels as the dashboard. After the athlete's local 18:00
   // that includes tomorrow and, at a week boundary, the next week.
   const includeTomorrow =
-    options.includeTomorrow ??
-    isAfterPlanTomorrowCutoff(timezone ?? user?.timezone ?? null);
+    options.includeTomorrow ?? isAfterPlanTomorrowCutoff(timeZone);
 
   // The stored feed keeps every activity ever synced. Prompts stay on the same
   // recent window as the analysis cap so they do not grow with the athlete's
@@ -430,10 +434,7 @@ export async function runPlanForUser(
         deps.loadForecast ??
         ((entry: AthleteLocation, zone: string | null) =>
           fetchWeatherForecasts(entry, { timezone: zone }));
-      weatherForecasts = await loadForecast(
-        location,
-        timezone ?? user?.timezone ?? null,
-      );
+      weatherForecasts = await loadForecast(location, timeZone);
       forecast =
         weatherForecasts.combined.length > 0 ? weatherForecasts.combined : null;
     } catch (err) {
@@ -506,6 +507,7 @@ export async function runPlanForUser(
       activitiesUpdatedAt: latestActivityAnalysisTimestamp(recentActivities),
       activitiesRefreshUpdatedAt:
         latestPlanChangingAnalysisTimestamp(recentActivities),
+      timeZone,
       location,
       forecast,
       weatherForecasts,

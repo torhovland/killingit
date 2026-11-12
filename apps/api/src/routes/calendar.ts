@@ -1,4 +1,5 @@
 import {
+  activityLocalDate,
   calendarResponseSchema,
   EMPTY_WEEK_STATS,
   eventEndDate,
@@ -14,6 +15,7 @@ import {
   type WeekSession,
 } from "@killingit/shared";
 import { Hono } from "hono";
+import { z } from "zod";
 import { getUser } from "../auth/middleware.js";
 import { serviceUnavailable, validationFailed } from "../http/errors.js";
 import { loadCachedActivityFeed } from "../coaching/feedCache.js";
@@ -32,11 +34,6 @@ import {
   loadPlanWeekTotals,
   type WeekPlanTotals,
 } from "../plans/weekTotals.js";
-
-/** A `YYYY-MM-DD` date, from an activity timestamp or a plan date. */
-function dateOf(value: string): string {
-  return value.slice(0, 10);
-}
 
 function earliest(dates: readonly string[], fallback: string): string {
   return dates.reduce(
@@ -237,6 +234,11 @@ function weekStats(
  */
 export function buildCalendar(input: {
   today: string;
+  /**
+   * The athlete's IANA time zone, so a recorded activity appears on its local
+   * day. A missing zone reads as UTC; see `docs/specs/activity-local-date.md`.
+   */
+  timeZone: string | null | undefined;
   plan: CoachPlan | null;
   feed: AnalyzedActivitiesResponse | null;
   manualActivities: readonly ManualActivityContext[];
@@ -250,10 +252,11 @@ export function buildCalendar(input: {
 }): CalendarResponse {
   const events = input.events ?? [];
   const activityDates = (input.feed?.activities ?? []).map((activity) =>
-    dateOf(activity.startDate),
+    activityLocalDate(activity, input.timeZone),
   );
-  const manualDates = input.manualActivities.map((activity) =>
-    dateOf(activity.startDate),
+  // A manual entry already stores the date the athlete chose.
+  const manualDates = input.manualActivities.map(
+    (activity) => activity.startDate,
   );
   const seasonDates =
     input.plan === null
@@ -317,7 +320,7 @@ export function buildCalendar(input: {
   for (const activity of [...imported, ...manual]) {
     const date =
       activity.source === "garmin"
-        ? dateOf(activity.startDate)
+        ? activityLocalDate(activity, input.timeZone)
         : activity.startDate;
     day(date).activities.push(activity);
   }
@@ -395,6 +398,12 @@ export function buildCalendar(input: {
   });
 }
 
+/** The calendar's date and the athlete's zone for the day boundaries. */
+const calendarQuerySchema = z.object({
+  today: planDateSchema,
+  timezone: z.string().min(1).max(100).optional(),
+});
+
 /**
  * The calendar page's data: activities, manual entries, planned sessions, block
  * starts, the season end, and the athlete's dated goals and events over the
@@ -409,14 +418,18 @@ export function createCalendarRoute(deps: ResolvedAppDependencies): Hono {
   const loadWeekTotals = deps.loadWeekTotals ?? loadPlanWeekTotals;
 
   return new Hono().get("/", async (c) => {
-    const today = planDateSchema.safeParse(c.req.query("today"));
-    if (!today.success) {
+    const query = calendarQuerySchema.safeParse({
+      today: c.req.query("today"),
+      timezone: c.req.query("timezone"),
+    });
+    if (!query.success) {
       return validationFailed(
         c,
-        today.error,
+        query.error,
         "A valid today date (YYYY-MM-DD) is required",
       );
     }
+    const { today } = query.data;
 
     try {
       const user = getUser(c);
@@ -448,11 +461,12 @@ export function createCalendarRoute(deps: ResolvedAppDependencies): Hono {
         }),
       ]);
       const plan =
-        stored === null ? null : promoteNextPeriod(stored.plan, today.data);
+        stored === null ? null : promoteNextPeriod(stored.plan, today);
 
       return c.json(
         buildCalendar({
-          today: today.data,
+          today,
+          timeZone: query.data.timezone ?? user.timezone,
           plan,
           feed,
           manualActivities,

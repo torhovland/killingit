@@ -1,6 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import type { AnalyzedActivity, AthleteThreshold } from "@killingit/shared";
-import { buildActivityLoads, manualTssByDate } from "./activityLoad.js";
+import {
+  buildActivityLoads,
+  groupActivitiesByDate,
+  manualTssByDate,
+} from "./activityLoad.js";
 import { buildThresholdTimelines } from "./thresholds.js";
 
 const cyclingFtp: AthleteThreshold = {
@@ -58,6 +62,7 @@ describe("buildActivityLoads", () => {
     const loads = buildActivityLoads(
       [activity({ normalizedPower: 200 })],
       timeline,
+      null,
     ).byDate;
     const day = loads.get("2026-10-20");
 
@@ -71,6 +76,7 @@ describe("buildActivityLoads", () => {
     const loads = buildActivityLoads(
       [activity()],
       timeline,
+      null,
       new Map([["2026-10-20", 80]]),
     ).byDate;
     expect(loads.get("2026-10-20")?.tss).toBe(80);
@@ -80,6 +86,7 @@ describe("buildActivityLoads", () => {
     const loads = buildActivityLoads(
       [activity({ normalizedPower: 200 })],
       timeline,
+      null,
       new Map(),
       ["2026-10-22"],
     ).byDate;
@@ -121,6 +128,7 @@ describe("buildActivityLoads", () => {
         }),
       ],
       running,
+      null,
     );
 
     // The run is scored from its power; the rower falls back to elapsed time.
@@ -137,6 +145,7 @@ describe("buildActivityLoads", () => {
         activity({ id: 2, movingTime: 1800, elapsedTime: 1800 }),
       ],
       timeline,
+      null,
       new Map([["2026-10-20", 90]]),
     );
 
@@ -168,6 +177,7 @@ describe("buildActivityLoads", () => {
         }),
       ],
       running,
+      null,
     ).byDate;
 
     // 10 km/h against a 12 km/h threshold is an intensity factor of 0.833.
@@ -201,6 +211,7 @@ describe("buildActivityLoads", () => {
         }),
       ],
       running,
+      null,
     ).byDate;
 
     // One hour at 150 bpm against a 165 bpm threshold.
@@ -218,8 +229,56 @@ describe("buildActivityLoads", () => {
         }),
       ],
       timeline,
+      null,
     ).byDate;
 
     expect(loads.get("2026-10-20")?.tss).toBe(65);
+  });
+});
+
+describe("an activity's local day", () => {
+  it("dates a late evening ride in Los Angeles by the previous day", () => {
+    // 07:30 UTC is 23:30 on 11 November in Los Angeles (PST, UTC-8).
+    const evening = activity({ startDate: "2026-11-12T07:30:00Z" });
+
+    const loads = buildActivityLoads(
+      [evening],
+      timeline,
+      "America/Los_Angeles",
+    );
+
+    expect([...loads.byDate.keys()]).toEqual(["2026-11-11"]);
+    expect(loads.byDate.get("2026-11-11")?.tss).toBe(55);
+    expect(loads.byDate.has("2026-11-12")).toBe(false);
+  });
+
+  it("dates an early morning run in Tokyo by the next day", () => {
+    // 15:30 UTC on 11 November is 00:30 on 12 November in Tokyo (JST, UTC+9).
+    const early = activity({ startDate: "2026-11-11T15:30:00Z" });
+
+    const loads = buildActivityLoads([early], timeline, "Asia/Tokyo");
+
+    expect([...loads.byDate.keys()]).toEqual(["2026-11-12"]);
+    expect(loads.byDate.has("2026-11-11")).toBe(false);
+  });
+
+  it("keeps the UTC day when the athlete has no time zone", () => {
+    const grouped = groupActivitiesByDate(
+      [
+        activity({ id: 1, startDate: "2026-11-12T07:30:00Z" }),
+        activity({ id: 2, startDate: "2026-11-11T15:30:00Z" }),
+      ],
+      null,
+    );
+
+    expect([...grouped.keys()]).toEqual(["2026-11-12", "2026-11-11"]);
+  });
+
+  it("keeps a manual entry on the date the athlete entered", () => {
+    const byDate = manualTssByDate([
+      { id: 1, startDate: "2026-11-11", details: "Gym", estimatedTss: 40 },
+    ]);
+
+    expect([...byDate.keys()]).toEqual(["2026-11-11"]);
   });
 });

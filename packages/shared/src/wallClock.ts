@@ -67,3 +67,20 @@ export function zonedDateTime(
     second: instant.getUTCSeconds(),
   };
 }
+
+/**
+ * The athlete's calendar day for an activity. An activity's `startDate` is an
+ * ISO UTC instant, so its first ten characters are the UTC date and not the day
+ * the athlete actually trained; this reads the instant as the wall clock of
+ * `timeZone` and returns its date.
+ *
+ * A missing, empty or unknown zone falls back to UTC exactly like
+ * `zonedDateTime`, which is the documented behaviour for an account with no
+ * stored zone.
+ */
+export function activityLocalDate(
+  activity: { startDate: string },
+  timeZone?: string | null,
+): string {
+  return zonedDateTime(new Date(activity.startDate), timeZone).date;
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { zonedDateTime } from "./wallClock.js";
+import { activityLocalDate, zonedDateTime } from "./wallClock.js";
 
 describe("zonedDateTime", () => {
   it("reads an instant as the wall clock of an IANA zone", () => {
@@ -51,5 +51,34 @@ describe("zonedDateTime", () => {
     expect(zonedDateTime(instant, undefined)).toEqual(utc);
     expect(zonedDateTime(instant, "")).toEqual(utc);
     expect(zonedDateTime(instant, "Not/AZone")).toEqual(utc);
+  });
+});
+
+describe("activityLocalDate", () => {
+  it("dates a late evening activity by the athlete's local day", () => {
+    // 07:30 UTC is 23:30 on the previous day in Los Angeles (PST, UTC-8).
+    const activity = { startDate: "2026-11-12T07:30:00Z" };
+
+    expect(activityLocalDate(activity, "America/Los_Angeles")).toBe(
+      "2026-11-11",
+    );
+    expect(activityLocalDate(activity, "UTC")).toBe("2026-11-12");
+  });
+
+  it("dates an early morning activity by the athlete's local day", () => {
+    // 15:30 UTC on 11 November is 00:30 on 12 November in Tokyo (JST, UTC+9).
+    const activity = { startDate: "2026-11-11T15:30:00Z" };
+
+    expect(activityLocalDate(activity, "Asia/Tokyo")).toBe("2026-11-12");
+    expect(activityLocalDate(activity, "UTC")).toBe("2026-11-11");
+  });
+
+  it("reads a missing, empty or unknown zone as UTC", () => {
+    const activity = { startDate: "2026-11-12T07:30:00Z" };
+
+    expect(activityLocalDate(activity, null)).toBe("2026-11-12");
+    expect(activityLocalDate(activity, undefined)).toBe("2026-11-12");
+    expect(activityLocalDate(activity, "")).toBe("2026-11-12");
+    expect(activityLocalDate(activity, "Not/AZone")).toBe("2026-11-12");
   });
 });

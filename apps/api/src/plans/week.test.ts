@@ -36,7 +36,12 @@ function makeActivity(
 
 describe("applyCompletedDays", () => {
   it("keeps the planned outline on a completed past day", () => {
-    const week = applyCompletedDays(makeWeek(), [makeActivity()], "2026-10-21");
+    const week = applyCompletedDays(
+      makeWeek(),
+      [makeActivity()],
+      "2026-10-21",
+      null,
+    );
 
     expect(week.rationale).toBe("Keep the week easy.");
 
@@ -74,7 +79,12 @@ describe("applyCompletedDays", () => {
       }),
     ];
 
-    const applied = applyCompletedDays(makeWeek(), activities, "2026-10-21");
+    const applied = applyCompletedDays(
+      makeWeek(),
+      activities,
+      "2026-10-21",
+      null,
+    );
     const monday = applied.sessions[0];
     expect(monday?.status).toBe("completed");
     expect(monday?.title).toBe("Session 1");
@@ -82,7 +92,7 @@ describe("applyCompletedDays", () => {
   });
 
   it("keeps today and future days planned", () => {
-    const week = applyCompletedDays(makeWeek(), [], "2026-10-21");
+    const week = applyCompletedDays(makeWeek(), [], "2026-10-21", null);
 
     expect(week.sessions[2]?.status).toBe("planned");
     expect(week.sessions[2]?.title).toBe("Session 3");
@@ -91,7 +101,7 @@ describe("applyCompletedDays", () => {
   });
 
   it("keeps the outline for a manual activity", () => {
-    const week = applyCompletedDays(makeWeek(), [], "2026-10-21", [
+    const week = applyCompletedDays(makeWeek(), [], "2026-10-21", null, [
       {
         id: 5,
         startDate: "2026-10-19",
@@ -116,7 +126,7 @@ describe("applyCompletedDays", () => {
       name: "Lunch Ride",
     });
 
-    const applied = applyCompletedDays(week, [activity], "2026-10-21");
+    const applied = applyCompletedDays(week, [activity], "2026-10-21", null);
     const today = applied.sessions[2];
 
     expect(today?.status).toBe("completed");
@@ -132,7 +142,12 @@ describe("applyCompletedDays", () => {
       movingTime: 15 * 60,
     });
 
-    const applied = applyCompletedDays(makeWeek(), [activity], "2026-10-21");
+    const applied = applyCompletedDays(
+      makeWeek(),
+      [activity],
+      "2026-10-21",
+      null,
+    );
     expect(applied.sessions[2]?.status).toBe("partial");
   });
 
@@ -164,7 +179,7 @@ describe("applyCompletedDays", () => {
       }),
     ];
 
-    const applied = applyCompletedDays(planned, activities, "2026-10-21");
+    const applied = applyCompletedDays(planned, activities, "2026-10-21", null);
     expect(applied.sessions[2]?.status).toBe("completed");
     expect(applied.sessions[2]?.description).toBe("Easy aerobic work.");
   });
@@ -182,12 +197,13 @@ describe("applyCompletedDays", () => {
       partialWeek,
       [makeActivity()],
       "2026-10-21",
+      null,
     );
     expect(applied.sessions[0]?.status).toBe("partial");
   });
 
   it("settles an already completed today without the activity", () => {
-    const applied = applyCompletedDays(makeWeek(), [], "2026-10-21", [], {
+    const applied = applyCompletedDays(makeWeek(), [], "2026-10-21", null, [], {
       date: "2026-10-21",
       type: "workout",
       title: "Detailed completed ride",
@@ -224,6 +240,7 @@ describe("applyCompletedDays", () => {
         makeActivity({ id: 2, startDate: "2026-10-21T06:30:00Z" }),
       ],
       "2026-10-21",
+      null,
     );
 
     const past = applied.sessions[0];
@@ -248,7 +265,40 @@ describe("applyCompletedDays", () => {
       ),
     };
 
-    const applied = applyCompletedDays(restWeek, [], "2026-10-21");
+    const applied = applyCompletedDays(restWeek, [], "2026-10-21", null);
     expect(applied.sessions[0]?.status).toBe("rest");
+  });
+
+  it("settles a session on the athlete's local day, not the UTC day", () => {
+    // 06:30 UTC on 20 October is 23:30 on 19 October in Los Angeles (PDT).
+    const evening = makeActivity({ startDate: "2026-10-20T06:30:00Z" });
+
+    const local = applyCompletedDays(
+      makeWeek(),
+      [evening],
+      "2026-10-21",
+      "America/Los_Angeles",
+    );
+    expect(local.sessions[0]?.status).toBe("completed");
+    expect(local.sessions[1]?.status).toBe("missed");
+
+    const utc = applyCompletedDays(makeWeek(), [evening], "2026-10-21", "UTC");
+    expect(utc.sessions[0]?.status).toBe("missed");
+    expect(utc.sessions[1]?.status).toBe("completed");
+  });
+
+  it("settles an early morning session on the athlete's next local day", () => {
+    // 15:30 UTC on 19 October is 00:30 on 20 October in Tokyo (JST).
+    const early = makeActivity({ startDate: "2026-10-19T15:30:00Z" });
+
+    const applied = applyCompletedDays(
+      makeWeek(),
+      [early],
+      "2026-10-21",
+      "Asia/Tokyo",
+    );
+
+    expect(applied.sessions[0]?.status).toBe("missed");
+    expect(applied.sessions[1]?.status).toBe("completed");
   });
 });

@@ -244,10 +244,15 @@ about a past workout, or before a suggested workout, to steer the coach.
   The stored feed keeps every activity ever synced by
   extending its history on each sync rather than replacing it, while only the
   newest 20 are analysed; the Calendar, Activities page, and Fitness chart read
-  the full history. The feed loads in named phases — sync, inputs, analysis,
-  assembly — so each failure path stays with the phase that can fail; see
-  `docs/specs/activity-feed-loading.md`. Each activity in the feed also carries
-  a bounded,
+  the full history. An activity belongs to the athlete's local calendar day,
+  read from its UTC `startDate` in the effective time zone (the request's zone,
+  else `users.timezone`, else UTC), through the shared `activityLocalDate`
+  helper; today's status, completed and missed sessions, TSS/ATL/CTL, the
+  Fitness chart, the calendar and the coach prompts all use the same day. See
+  `docs/specs/activity-local-date.md`. The feed loads in named phases — sync,
+  inputs, analysis, assembly — so each failure path stays with the phase that
+  can fail; see `docs/specs/activity-feed-loading.md`. Each activity in the feed
+  also carries a bounded,
   downsampled sample preview, shown as a collapsible table on the Activities
   page. Running cadence is normalized to total steps per minute and cycling
   cadence to rpm, matching Garmin Connect. Strength activities also carry their

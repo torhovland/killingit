@@ -5,7 +5,7 @@ import type {
 } from "@killingit/shared";
 import type { ManualActivityContext } from "../llm/activityContext.js";
 import { loadThresholdHistoryForUser } from "../metrics/store.js";
-import { startOfWeek } from "@killingit/shared";
+import { startOfWeek, zonedDateTime } from "@killingit/shared";
 import { loadCoachingInputs } from "../plans/inputs.js";
 import { manualTssByDate } from "./activityLoad.js";
 import { ftpTimeline, type ThresholdTimeline } from "./thresholds.js";
@@ -39,8 +39,9 @@ export interface TrainingContext {
 export async function loadTrainingContext(
   userId: number,
   plan: CoachPlan | undefined,
+  timeZone?: string | null,
 ): Promise<TrainingContext> {
-  const planDate = plan?.today.date ?? new Date().toISOString().slice(0, 10);
+  const planDate = plan?.today.date ?? zonedDateTime(new Date(), timeZone).date;
   const [history, coachingInputs] = await Promise.all([
     loadThresholdHistoryForUser(userId, planDate),
     loadCoachingInputs(userId, startOfWeek(planDate)),

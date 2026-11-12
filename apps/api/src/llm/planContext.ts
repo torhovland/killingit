@@ -180,7 +180,7 @@ export function formatPlanContext(input: PlanContextInput): string[] {
   lines.push(
     "",
     "Recent activities (most recent first).",
-    formatRecentActivities(input.recentActivities, comments),
+    formatRecentActivities(input.recentActivities, comments, input.timezone),
   );
   if (input.manualActivities && input.manualActivities.length > 0) {
     lines.push(

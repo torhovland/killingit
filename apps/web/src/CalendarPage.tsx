@@ -37,7 +37,7 @@ export function CalendarPage() {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    const query = new URLSearchParams({ today }).toString();
+    const query = new URLSearchParams({ today, timezone: timeZone }).toString();
     requestParsed(
       `${API_URL}/api/calendar?${query}`,
       auth,

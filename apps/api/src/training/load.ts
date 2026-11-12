@@ -35,6 +35,11 @@ export interface TrainingLoadContext {
    * here.
    */
   thresholdTimelines?: readonly ThresholdTimeline[] | undefined;
+  /**
+   * The athlete's IANA time zone, so each activity is scored on its local day.
+   * A missing zone reads as UTC; see `docs/specs/activity-local-date.md`.
+   */
+  timeZone?: string | null | undefined;
 }
 
 interface LoadedWeek {
@@ -63,7 +68,10 @@ export function applyTrainingLoad(
   const latest = ftp?.anchors[ftp.anchors.length - 1] ?? null;
   const baseFtpWatts = latest?.value ?? null;
   const floorAtBase = latest !== null && latest.source !== "coach";
-  const activitiesByDate = groupActivitiesByDate(context.activities);
+  const activitiesByDate = groupActivitiesByDate(
+    context.activities,
+    context.timeZone,
+  );
   const manualByDate = manualTssByDate(context.manualActivities ?? []);
   const current = applyWeekLoad(
     plan.week,
@@ -142,13 +150,16 @@ export function applyTrainingLoad(
 export function currentTrainingLoad(
   context: Pick<
     TrainingLoadContext,
-    "activities" | "manualActivities" | "thresholdTimelines"
+    "activities" | "manualActivities" | "thresholdTimelines" | "timeZone"
   >,
   today: string,
 ): TrainingLoad | null {
   const thresholdTimelines = context.thresholdTimelines ?? [];
   const tssByDate = new Map<string, number>();
-  for (const [date, activities] of groupActivitiesByDate(context.activities)) {
+  for (const [date, activities] of groupActivitiesByDate(
+    context.activities,
+    context.timeZone,
+  )) {
     tssByDate.set(date, activityDayTss(activities, thresholdTimelines));
   }
   for (const [date, tss] of manualTssByDate(context.manualActivities ?? [])) {

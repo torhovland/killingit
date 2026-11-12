@@ -1,4 +1,5 @@
 import {
+  activityLocalDate,
   activityUsesPace,
   cadenceUnit,
   formatDuration,
@@ -69,6 +70,12 @@ export const ANALYSIS_PROMPT_VERSION = 20;
  */
 export interface ActivityAnalysisContext {
   today: string;
+  /**
+   * The athlete's IANA time zone, so the activity's planned-session match,
+   * health window and body history all use its local day. A missing zone reads
+   * as UTC.
+   */
+  timezone?: string;
   /** The current season, shown so the coach can relate the workout to its focus. */
   season?: SeasonPlan;
   /** The current block, shown so the coach can relate the workout to its focus. */
@@ -325,7 +332,7 @@ export function buildActivityAnalysisPrompt(
   random: () => number = Math.random,
 ): string {
   const shown = downsampleSamples(activity.samples);
-  const activityDate = activity.startDate.slice(0, 10);
+  const activityDate = activityLocalDate(activity, context?.timezone);
   const inWeek =
     context?.week !== undefined
       ? weekCovers(context.week, activityDate)

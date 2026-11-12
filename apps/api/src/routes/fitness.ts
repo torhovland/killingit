@@ -5,12 +5,16 @@ import {
   planDateSchema,
 } from "@killingit/shared";
 import { Hono } from "hono";
+import { z } from "zod";
 import { getUser } from "../auth/middleware.js";
 import { serviceUnavailable, validationFailed } from "../http/errors.js";
 import { loadCachedActivityFeed } from "../coaching/feedCache.js";
 import type { ResolvedAppDependencies } from "../dependencies.js";
 import { loadValidatedPlan } from "../plans/store.js";
 import { loadFitnessHistory } from "../training/history.js";
+
+/** The athlete's zone, so an activity is charted on its local day. */
+const timezoneSchema = z.string().min(1).max(100).optional();
 
 /**
  * The fitness history behind the Fitness page: the day-by-day training load
@@ -39,6 +43,10 @@ export function createFitnessRoute(deps: ResolvedAppDependencies): Hono {
         "A valid range (week, month, quarter, year, all) is required",
       );
     }
+    const timezone = timezoneSchema.safeParse(c.req.query("timezone"));
+    if (!timezone.success) {
+      return validationFailed(c, timezone.error, "Invalid query parameters");
+    }
 
     try {
       const user = getUser(c);
@@ -53,6 +61,7 @@ export function createFitnessRoute(deps: ResolvedAppDependencies): Hono {
         today.data,
         range.data,
         user.dietAdvice,
+        timezone.data ?? user.timezone,
       );
       return c.json(fitnessHistoryResponseSchema.parse(history));
     } catch (err) {

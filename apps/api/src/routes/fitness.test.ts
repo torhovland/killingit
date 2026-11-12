@@ -161,11 +161,14 @@ function makeApp(options: { plan?: CoachPlan | null } = {}) {
       storedPlan,
       today,
       range,
+      _dietAdvice,
+      timeZone,
     ): Promise<FitnessHistoryResponse> =>
       Promise.resolve(
         buildFitnessHistory({
           today,
           range,
+          timeZone,
           activities,
           plan: storedPlan,
           thresholdPoints,

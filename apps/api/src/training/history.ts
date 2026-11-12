@@ -1,4 +1,5 @@
 import {
+  activityLocalDate,
   CTL_DAYS,
   DAILY_HEALTH_METRIC_KEYS,
   dailyTrainingLoad,
@@ -56,6 +57,11 @@ const DIET_CHART_LOOKBACK_DAYS = 365;
 export interface FitnessHistoryInput {
   /** The athlete's current date; the window ends here unless the plan runs on. */
   today: string;
+  /**
+   * The athlete's IANA time zone, so an activity is charted on its local day.
+   * A missing zone reads as UTC; see `docs/specs/activity-local-date.md`.
+   */
+  timeZone: string | null | undefined;
   /** How far back to look. `all` starts at the first recorded activity. */
   range: FitnessRange;
   activities: readonly AnalyzedActivity[];
@@ -102,6 +108,7 @@ export function buildFitnessHistory(
     earliestDate: earliestRecordedDate(
       input.activities,
       input.manualActivities ?? [],
+      input.timeZone,
     ),
   });
   // Same precedence as the Activities page: a manual entry replaces the plan's
@@ -110,7 +117,10 @@ export function buildFitnessHistory(
   for (const [date, tss] of input.manualTssByDate) {
     tssByDate.set(date, tss);
   }
-  for (const [date, activities] of groupActivitiesByDate(input.activities)) {
+  for (const [date, activities] of groupActivitiesByDate(
+    input.activities,
+    input.timeZone,
+  )) {
     tssByDate.set(
       date,
       activityDayTss(
@@ -129,6 +139,7 @@ export function buildFitnessHistory(
   const activitiesByDate = activitiesPerDay(
     input.activities,
     input.manualActivities ?? [],
+    input.timeZone,
   );
   const plannedByDate = plannedSessions(input.plan);
   const days: FitnessHistoryDay[] = [];
@@ -270,9 +281,10 @@ function plannedSessions(
 export function earliestRecordedDate(
   activities: readonly AnalyzedActivity[],
   manualActivities: readonly ManualActivityContext[],
+  timeZone: string | null | undefined,
 ): string | null {
   const dates = [
-    ...activities.map((activity) => activity.startDate.slice(0, 10)),
+    ...activities.map((activity) => activityLocalDate(activity, timeZone)),
     ...manualActivities.map((manual) => manual.startDate),
   ].sort();
   return dates[0] ?? null;
@@ -285,6 +297,7 @@ export function earliestRecordedDate(
 function activitiesPerDay(
   activities: readonly AnalyzedActivity[],
   manualActivities: readonly ManualActivityContext[],
+  timeZone: string | null | undefined,
 ): Map<string, FitnessDayActivity[]> {
   const result = new Map<string, FitnessDayActivity[]>();
   const add = (date: string, entry: FitnessDayActivity): void => {
@@ -297,7 +310,7 @@ function activitiesPerDay(
   };
 
   for (const activity of activities) {
-    add(activity.startDate.slice(0, 10), {
+    add(activityLocalDate(activity, timeZone), {
       id: `activity-${activity.id}`,
       name: activity.name.trim() || formatActivityType(activity.type),
       type: activity.type,
@@ -324,10 +337,11 @@ export async function loadFitnessHistory(
   today: string,
   range: FitnessRange,
   dietAdvice = false,
+  timeZone?: string | null,
 ): Promise<FitnessHistoryResponse> {
   const [context, weight, bodyFat, dailyHealthPoints, nutrition] =
     await Promise.all([
-      loadTrainingContext(userId, plan),
+      loadTrainingContext(userId, plan, timeZone),
       loadMetricPoints(userId, "weight"),
       loadMetricPoints(userId, "body_fat"),
       loadDailyHealthHistoryForUser(userId, today),
@@ -336,6 +350,7 @@ export async function loadFitnessHistory(
   return buildFitnessHistory({
     today,
     range,
+    timeZone,
     activities,
     plan,
     thresholdTimelines: context.thresholdTimelines,

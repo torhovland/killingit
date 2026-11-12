@@ -296,6 +296,47 @@ describe("buildActivityAnalysisPrompt", () => {
     );
   });
 
+  it("dates the activity by the athlete's local day", () => {
+    const week: WeekPlan = {
+      startDate: "2026-09-28",
+      focus: "Aerobic base",
+      rationale: "Keep the week easy.",
+      sessions: [
+        "2026-09-28",
+        "2026-09-29",
+        "2026-09-30",
+        "2026-10-01",
+        "2026-10-02",
+        "2026-10-03",
+        "2026-10-04",
+      ].map((date, index) => ({
+        date,
+        day: "Monday",
+        type: "workout" as const,
+        title: `Session ${index + 1}`,
+        description: "Steady aerobic work.",
+        durationMinutes: 60,
+        intensity: "easy" as const,
+        status: "planned" as const,
+      })),
+    };
+
+    const local = buildActivityAnalysisPrompt(makeActivity(), {
+      today: "2026-10-01",
+      timezone: "America/Los_Angeles",
+      week,
+    });
+    // 06:30 UTC on 1 October is 23:30 on 30 September in Los Angeles.
+    expect(local).toContain("Planned session for 2026-09-30: Session 3");
+    expect(local).not.toContain("Planned session for 2026-10-01");
+
+    const utc = buildActivityAnalysisPrompt(makeActivity(), {
+      today: "2026-10-01",
+      week,
+    });
+    expect(utc).toContain("Planned session for 2026-10-01: Session 4");
+  });
+
   it("does not match an activity that happened outside the supplied week", () => {
     const week: WeekPlan = {
       startDate: "2026-10-05",
