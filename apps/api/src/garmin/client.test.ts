@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { afterEach, describe, expect, it } from "bun:test";
 import {
   authenticateGarmin,
   GarminAuthError,
@@ -8,6 +8,63 @@ import {
   syncGarminDailyMetrics,
   syncGarminMetrics,
 } from "./client.js";
+
+const originalFetch = globalThis.fetch;
+const originalSidecarUrl = process.env.GARMIN_SIDECAR_URL;
+const originalSidecarAudience = process.env.GARMIN_SIDECAR_AUDIENCE;
+
+afterEach(() => {
+  globalThis.fetch = originalFetch;
+  restoreEnv("GARMIN_SIDECAR_URL", originalSidecarUrl);
+  restoreEnv("GARMIN_SIDECAR_AUDIENCE", originalSidecarAudience);
+});
+
+/** Restores an environment variable to its value before the test. */
+function restoreEnv(name: string, value: string | undefined): void {
+  if (value === undefined) {
+    delete process.env[name];
+  } else {
+    process.env[name] = value;
+  }
+}
+
+/** The request a stubbed sidecar `fetch` recorded. */
+interface SidecarRequest {
+  url: string;
+  init: RequestInit | undefined;
+}
+
+/** Stubs the global `fetch` with one JSON response and records the request. */
+function stubSidecarResponse(body: unknown): SidecarRequest[] {
+  process.env.GARMIN_SIDECAR_URL = "http://sidecar.test";
+  delete process.env.GARMIN_SIDECAR_AUDIENCE;
+  const requests: SidecarRequest[] = [];
+  globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) => {
+    requests.push({
+      url: input instanceof Request ? input.url : input.toString(),
+      init,
+    });
+    return Promise.resolve(
+      new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+  }) as unknown as typeof fetch;
+  return requests;
+}
+
+/** The minimal activity payload the sidecar's `/sync` returns. */
+const sidecarActivity = {
+  id: 1,
+  name: "Morning Run",
+  type: "running",
+  startDate: "2026-10-01T06:30:00Z",
+  distance: 5000,
+  movingTime: 1500,
+  elapsedTime: 1600,
+  totalElevationGain: 55,
+};
 
 describe("syncGarminActivities", () => {
   it("returns activities from the transport", async () => {
@@ -46,6 +103,40 @@ describe("syncGarminActivities", () => {
       Promise.reject(new GarminSidecarError("boom")),
     );
     await expectRejectsWith(promise, GarminSidecarError);
+  });
+
+  it("validates the activities payload from the sidecar", async () => {
+    const requests = stubSidecarResponse({ activities: [sidecarActivity] });
+
+    const result = await syncGarminActivities({ username: "u", password: "p" });
+
+    expect(result).toEqual([{ ...sidecarActivity, samples: [] }]);
+    expect(requests).toHaveLength(1);
+    expect(requests[0]?.url).toBe("http://sidecar.test/sync");
+  });
+
+  it("rejects a malformed activities payload with a typed error", async () => {
+    stubSidecarResponse({
+      activities: [{ ...sidecarActivity, id: "not-a-number" }],
+    });
+
+    const promise = syncGarminActivities({ username: "u", password: "p" });
+    await expectRejectsWith(promise, GarminSidecarError);
+  });
+
+  it("rejects a non-array activities payload with a typed error", async () => {
+    stubSidecarResponse({ activities: "nope" });
+
+    const promise = syncGarminActivities({ username: "u", password: "p" });
+    await expectRejectsWith(promise, GarminSidecarError);
+  });
+
+  it("times out the sidecar request", async () => {
+    const requests = stubSidecarResponse({ activities: [] });
+
+    await syncGarminActivities({ username: "u", password: "p" });
+
+    expect(requests[0]?.init?.signal).toBeInstanceOf(AbortSignal);
   });
 });
 

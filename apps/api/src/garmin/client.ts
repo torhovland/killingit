@@ -1,4 +1,5 @@
 import {
+  activitySchema,
   garminDailyResponseSchema,
   garminMetricsResponseSchema,
   type Activity,
@@ -55,6 +56,16 @@ export function garminSidecarUrl(): string {
   return process.env.GARMIN_SIDECAR_URL?.trim() ?? "http://localhost:8000";
 }
 
+/**
+ * A Garmin sync or daily backfill can spend minutes talking to Garmin. Keep the
+ * wait under the API server's 255-second idle timeout so a hung sidecar fails
+ * with a typed error instead of holding the request open.
+ */
+const SIDECAR_REQUEST_TIMEOUT_MS = 240_000;
+
+/** The metadata token endpoint answers immediately; fail fast when it does not. */
+const METADATA_REQUEST_TIMEOUT_MS = 5_000;
+
 /** Cloud Run metadata endpoint that mints an OIDC identity token. */
 const METADATA_IDENTITY_URL =
   "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/identity";
@@ -94,7 +105,10 @@ export async function sidecarAuthHeaders(
   const url = `${METADATA_IDENTITY_URL}?audience=${encodeURIComponent(audience)}`;
   let res: Response;
   try {
-    res = await fetchFn(url, { headers: { "Metadata-Flavor": "Google" } });
+    res = await fetchFn(url, {
+      headers: { "Metadata-Flavor": "Google" },
+      signal: AbortSignal.timeout(METADATA_REQUEST_TIMEOUT_MS),
+    });
   } catch (cause) {
     throw new GarminSidecarError(
       "could not obtain an identity token for the Garmin sidecar",
@@ -148,13 +162,16 @@ export async function syncGarminActivities(
 /** Default transport: POSTs credentials to the sidecar's `/sync` endpoint. */
 async function postSync(credentials: GarminCredentials): Promise<Activity[]> {
   const res = await sidecarPost("/sync", credentials);
-  const body = (await res.json()) as { activities?: unknown };
-  if (!Array.isArray(body.activities)) {
+  const body = (await res.json()) as { activities?: unknown } | null;
+  const parsed = activitySchema.array().safeParse(body?.activities);
+  if (!parsed.success) {
     throw new GarminSidecarError(
       "sidecar returned a malformed activities payload",
+      undefined,
+      { cause: parsed.error },
     );
   }
-  return body.activities as Activity[];
+  return parsed.data;
 }
 
 /**
@@ -233,6 +250,7 @@ async function sidecarPost(
         password: credentials.password,
         ...extra,
       }),
+      signal: AbortSignal.timeout(SIDECAR_REQUEST_TIMEOUT_MS),
     });
   } catch (cause) {
     throw new GarminSidecarError("could not reach Garmin sidecar", undefined, {
