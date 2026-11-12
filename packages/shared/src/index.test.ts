@@ -4,18 +4,73 @@ import {
   activityAverageSpeed,
   activitySchema,
   activityUsesPace,
+  addDays,
+  API_CONTRACT_VERSION,
+  athleteEventSchema,
+  athleteIdentitySchema,
+  athleteThresholdSchema,
+  bikeWorkoutSchema,
   cadenceUnit,
+  calendarResponseSchema,
+  coachQuestionSchema,
+  currentUserSchema,
+  dailyHealthPointSchema,
+  dayPlanSchema,
+  dietSummaryResponseSchema,
+  fitnessHistoryResponseSchema,
   formatActivityPaceOrSpeed,
   formatActivityType,
+  formatDuration,
   formatPace,
   formatSpeed,
-  hasLapStructure,
-  isRunningActivity,
+  garminConnectionStatusSchema,
   greetingSchema,
+  hasLapStructure,
   healthSchema,
+  isRunningActivity,
+  llmSettingsSchema,
   paceUnitLabel,
   paceUnitMetres,
+  periodReviewSchema,
+  planDateSchema,
+  questionSchema,
+  trainingLoadSchema,
+  weatherIconSchema,
+  zonedDateTime,
 } from "./index";
+
+describe("package barrel", () => {
+  it("re-exports a symbol from every shared module", () => {
+    const surface = [
+      API_CONTRACT_VERSION,
+      addDays,
+      athleteEventSchema,
+      athleteIdentitySchema,
+      athleteThresholdSchema,
+      bikeWorkoutSchema,
+      calendarResponseSchema,
+      coachQuestionSchema,
+      currentUserSchema,
+      dailyHealthPointSchema,
+      dayPlanSchema,
+      dietSummaryResponseSchema,
+      fitnessHistoryResponseSchema,
+      formatDuration,
+      garminConnectionStatusSchema,
+      llmSettingsSchema,
+      periodReviewSchema,
+      planDateSchema,
+      questionSchema,
+      trainingLoadSchema,
+      weatherIconSchema,
+      zonedDateTime,
+    ];
+
+    for (const symbol of surface) {
+      expect(symbol).toBeDefined();
+    }
+  });
+});
 
 describe("healthSchema", () => {
   it("accepts a valid health payload", () => {

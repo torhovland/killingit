@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { coachAnalysisSchema } from "./llm.js";
-import { planDateSchema } from "./plan.js";
+import { planDateSchema } from "./date.js";
 
 /**
  * One clarification question the coach asked the athlete. The athlete answers

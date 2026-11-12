@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { coachAnalysisSchema } from "./llm.js";
-import { planDateSchema } from "./plan.js";
+import { planDateSchema } from "./date.js";
 
 /** A coach review of a completed week or block. */
 export const reviewKindSchema = z.enum(["week", "block"]);

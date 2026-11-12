@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { athleteEventSchema } from "./event.js";
 import { analyzedActivitySchema, coachAnalysisSchema } from "./llm.js";
+import { planDateSchema } from "./date.js";
 import {
-  planDateSchema,
   seasonBlockSummarySchema,
   seasonPlanSchema,
   weekSessionSchema,

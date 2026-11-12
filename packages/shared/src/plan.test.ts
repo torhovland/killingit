@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { planDateSchema } from "./date.js";
 import {
   activityCommentRequestSchema,
   coachPlanResponseSchema,
@@ -8,7 +9,6 @@ import {
   dayPlanSchema,
   initialBlockUpdateSchema,
   manualActivitySchema,
-  planDateSchema,
   planGenerateInputSchema,
   seasonPlanUpdateSchema,
   weekPlanSchema,
