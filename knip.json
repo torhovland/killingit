@@ -7,7 +7,11 @@
       "project": ["scripts/**/*.ts!", "benchmarks/prompts/**/*.ts!"]
     },
     "apps/api": {
-      "entry": ["src/index.ts!", "src/benchmark/cli.ts!", "drizzle.config.ts!"],
+      "entry": [
+        "src/server.ts!",
+        "src/benchmark/cli.ts!",
+        "drizzle.config.ts!"
+      ],
       "project": ["src/**/*.ts!", "!src/**/*.test.ts!", "!src/testFixtures/**!"]
     },
     "apps/web": {

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import app, { createApp } from "../index";
+import { createApp } from "../index.js";
 import { apiRequest } from "../testFixtures/request.js";
+
+const app = createApp();
 
 describe("admin questions route", () => {
   it("requires a bearer token to list questions", async () => {

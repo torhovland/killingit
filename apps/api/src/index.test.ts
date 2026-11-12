@@ -5,7 +5,7 @@ import {
   API_VERSION_HEADER,
 } from "@killingit/shared";
 import { Hono } from "hono";
-import app, { createApp } from "./index";
+import { createApp } from "./index.js";
 import { withSentry } from "./instrumentation/sentry.js";
 import type { UserStore } from "./users/store.js";
 
@@ -36,6 +36,8 @@ const PROTECTED_ROUTES = [
 const API_VERSION_HEADERS = {
   [API_VERSION_HEADER]: String(API_CONTRACT_VERSION),
 };
+
+const app = createApp();
 
 describe("api", () => {
   it("responds ok on /api/health", async () => {
@@ -171,5 +173,35 @@ describe("withSentry", () => {
 
     const res = await throwing.fetch(new Request("http://localhost/boom"));
     expect(res.status).toBe(500);
+  });
+});
+
+describe("app factory module", () => {
+  it("imports without loading an environment file", () => {
+    // Tests import `createApp`, so the module must not read a developer's
+    // `.env` (or any other environment file) as a side effect of the import.
+    const moduleUrl = new URL("./index.ts", import.meta.url).href;
+    const script = `
+      let envFileLoads = 0;
+      process.loadEnvFile = () => {
+        envFileLoads += 1;
+      };
+      const factory = await import(${JSON.stringify(moduleUrl)});
+      if (typeof factory.createApp !== "function") {
+        throw new Error("createApp is not exported");
+      }
+      if (envFileLoads !== 0) {
+        throw new Error("the app factory loaded an environment file on import");
+      }
+    `;
+    const result = Bun.spawnSync({
+      cmd: [process.execPath, "--eval", script],
+      cwd: import.meta.dir,
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+
+    expect(result.stderr.toString()).toBe("");
+    expect(result.exitCode).toBe(0);
   });
 });

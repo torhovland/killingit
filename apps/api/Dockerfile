@@ -24,7 +24,7 @@ COPY packages/shared packages/shared
 # Produce a standalone bundle with an external source map so Sentry can
 # un-minify production stack traces.
 WORKDIR /repo/apps/api
-RUN bun build ./src/index.ts --target bun --sourcemap=external --outdir ./dist
+RUN bun build ./src/server.ts --target bun --sourcemap=external --outdir ./dist
 
 # Install Sentry CLI for source-map debug-ID injection + upload.
 RUN bun add -g @sentry/cli
@@ -50,7 +50,7 @@ FROM oven/bun:1-slim
 
 WORKDIR /app
 
-COPY --from=build /repo/apps/api/dist/index.js ./index.js
+COPY --from=build /repo/apps/api/dist/server.js ./server.js
 
 ENV NODE_ENV=production
 ENV PORT=8080
@@ -63,4 +63,4 @@ ENV SENTRY_RELEASE=""
 
 EXPOSE 8080
 
-CMD ["bun", "./index.js"]
+CMD ["bun", "./server.js"]
