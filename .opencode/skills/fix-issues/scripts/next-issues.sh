@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Print the open GitHub issue that should be fixed next.
+# Print the open GitHub issues that should be fixed next, in priority order.
 set -euo pipefail
 
 mode="top"
@@ -8,16 +8,19 @@ limit="${ISSUE_LIMIT:-200}"
 
 usage() {
   cat <<'EOF'
-Usage: next-issue.sh [--list | --json] [--label LABEL] [--limit N]
+Usage: next-issues.sh [--list | --json] [--label LABEL] [--limit N]
 
-Prints the highest-priority open issue in this repository. Issues are ordered
-by priority label (high, medium, low, then unlabelled), then oldest first, so
-older work is finished before newer work of equal priority.
+Prints the open GitHub issues in this repository in priority order. Issues are
+ordered by priority label (high, medium, low, then unlabelled), then oldest
+first, so older work is finished before newer work of equal priority.
 
   --list           Print every open issue in priority order, tab separated.
   --json           Print the sorted issues as JSON.
   --label LABEL    Only consider issues with this label.
   --limit N        Fetch at most N issues (default: 200, or $ISSUE_LIMIT).
+
+Without options the most important issue is printed in full, ready to work on.
+Pipe `--list` through `head -n 10` to get the ten most important issues.
 
 Exit status is 0 even when the repository has no open issues.
 EOF
