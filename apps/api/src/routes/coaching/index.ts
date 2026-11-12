@@ -6,7 +6,7 @@ import {
   quickQuestionRequestSchema,
   weeklyNoteRequestSchema,
 } from "@killingit/shared";
-import { zValidator } from "@hono/zod-validator";
+import { zValidator } from "../../http/validation.js";
 import { Hono } from "hono";
 import type { ResolvedAppDependencies } from "../../dependencies.js";
 import { createCoachQuestionHandlers } from "./coachQuestions.js";

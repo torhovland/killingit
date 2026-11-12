@@ -9,9 +9,15 @@ import {
   planDateSchema,
   type FoodAnalysis,
 } from "@killingit/shared";
-import { zValidator } from "@hono/zod-validator";
+import { zValidator } from "../http/validation.js";
 import { Hono } from "hono";
 import { getUser } from "../auth/middleware.js";
+import {
+  badRequest,
+  conflict,
+  notFound,
+  validationFailed,
+} from "../http/errors.js";
 import { toAnswerContext } from "../coaching/replies.js";
 import {
   loadReplyContext,
@@ -149,7 +155,11 @@ export function createDietRoute(deps: ResolvedAppDependencies): Hono {
     .get("/summary", async (c) => {
       const today = planDateSchema.safeParse(c.req.query("today"));
       if (!today.success) {
-        return c.text("A valid today date (YYYY-MM-DD) is required", 400);
+        return validationFailed(
+          c,
+          today.error,
+          "A valid today date (YYYY-MM-DD) is required",
+        );
       }
       const user = getUser(c);
       if (!user.dietAdvice) {
@@ -201,9 +211,9 @@ export function createDietRoute(deps: ResolvedAppDependencies): Hono {
     .post("/entries", zValidator("json", foodEntryRequestSchema), async (c) => {
       const user = getUser(c);
       if (!user.dietAdvice) {
-        return c.text(
+        return conflict(
+          c,
           "Diet advice is not enabled. Turn it on in Settings first.",
-          409,
         );
       }
 
@@ -227,7 +237,10 @@ export function createDietRoute(deps: ResolvedAppDependencies): Hono {
           thumbnailDataUrl = photos.thumbnailDataUrl;
         } catch (err) {
           console.error("[diet] could not read the meal photo:", err);
-          return c.text("The photo could not be read. Try another photo.", 400);
+          return badRequest(
+            c,
+            "The photo could not be read. Try another photo.",
+          );
         }
       }
 
@@ -266,18 +279,18 @@ export function createDietRoute(deps: ResolvedAppDependencies): Hono {
       async (c) => {
         const id = Number(c.req.param("id"));
         if (!Number.isInteger(id) || id <= 0) {
-          return c.text("Invalid meal", 400);
+          return badRequest(c, "Invalid meal");
         }
         const user = getUser(c);
         if (!user.dietAdvice) {
-          return c.text(
+          return conflict(
+            c,
             "Diet advice is not enabled. Turn it on in Settings first.",
-            409,
           );
         }
         const existing = await entries.findForUser(user.id, id);
         if (existing === null) {
-          return c.text("Meal not found", 404);
+          return notFound(c, "Meal not found");
         }
 
         const input = c.req.valid("json");
@@ -307,9 +320,9 @@ export function createDietRoute(deps: ResolvedAppDependencies): Hono {
             photoDataUrl = photos.analysisDataUrl;
           } catch (err) {
             console.error("[diet] could not read the meal photo:", err);
-            return c.text(
+            return badRequest(
+              c,
               "The photo could not be read. Try another photo.",
-              400,
             );
           }
         } else if (input.removePhoto === true) {
@@ -318,7 +331,7 @@ export function createDietRoute(deps: ResolvedAppDependencies): Hono {
         }
 
         if (description === null && thumbnailDataUrl === null) {
-          return c.text("Describe the meal or keep a photo.", 400);
+          return badRequest(c, "Describe the meal or keep a photo.");
         }
 
         const result = await analyseMeal(
@@ -353,7 +366,7 @@ export function createDietRoute(deps: ResolvedAppDependencies): Hono {
           analysisError: result.analysisError,
         });
         if (stored === null) {
-          return c.text("Meal not found", 404);
+          return notFound(c, "Meal not found");
         }
         return c.json(foodEntrySchema.parse(toFoodEntry(stored)));
       },
@@ -361,16 +374,16 @@ export function createDietRoute(deps: ResolvedAppDependencies): Hono {
     .get("/entries/:id/photo", async (c) => {
       const id = Number(c.req.param("id"));
       if (!Number.isInteger(id) || id <= 0) {
-        return c.text("Invalid meal", 400);
+        return badRequest(c, "Invalid meal");
       }
       const user = getUser(c);
       const dataUrl = await entries.photo(user.id, id);
       if (dataUrl === null) {
-        return c.text("Photo not found", 404);
+        return notFound(c, "Photo not found");
       }
       const photo = decodePhoto(dataUrl);
       if (photo === null) {
-        return c.text("Photo not found", 404);
+        return notFound(c, "Photo not found");
       }
       return new Response(photo.bytes, {
         status: 200,

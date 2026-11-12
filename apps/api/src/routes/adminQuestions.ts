@@ -5,9 +5,10 @@ import {
   questionSchema,
   questionsResponseSchema,
 } from "@killingit/shared";
-import { zValidator } from "@hono/zod-validator";
+import { zValidator } from "../http/validation.js";
 import { Hono } from "hono";
 import { z } from "zod";
+import { badRequest, notFound } from "../http/errors.js";
 import { toQuestionResponse } from "../questions/serializers.js";
 import {
   addQuestionVersion,
@@ -38,9 +39,9 @@ export const adminQuestionsRoute = new Hono()
   .put("/order", zValidator("json", questionOrderInputSchema), async (c) => {
     const { ids } = c.req.valid("json");
     if (!(await reorderQuestions(ids))) {
-      return c.text(
+      return badRequest(
+        c,
         "Order must include every active question exactly once",
-        400,
       );
     }
     const questions = await listActiveQuestions();
@@ -62,7 +63,7 @@ export const adminQuestionsRoute = new Hono()
       const { id } = c.req.valid("param");
       const updated = await addQuestionVersion(id, c.req.valid("json"));
       if (!updated) {
-        return c.text("Question not found", 404);
+        return notFound(c, "Question not found");
       }
       return c.json(questionSchema.parse(toQuestionResponse(updated)));
     },
@@ -70,7 +71,7 @@ export const adminQuestionsRoute = new Hono()
   .delete("/:id", zValidator("param", questionIdParamSchema), async (c) => {
     const { id } = c.req.valid("param");
     if (!(await archiveQuestion(id))) {
-      return c.text("Question not found", 404);
+      return notFound(c, "Question not found");
     }
     return c.json(questionArchivedResponseSchema.parse({ id }));
   });

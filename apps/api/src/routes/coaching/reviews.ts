@@ -10,6 +10,7 @@ import {
 import { z } from "zod";
 import type { Context } from "hono";
 import { getUser } from "../../auth/middleware.js";
+import { badRequest, conflict, notFound } from "../../http/errors.js";
 import { toPeriodReview } from "../../plans/periodReviews.js";
 import { replyTo, type ResolvedCoachingDependencies } from "./dependencies.js";
 
@@ -47,7 +48,7 @@ export function createReviewHandlers(deps: ResolvedCoachingDependencies) {
   ) {
     const review = parseReview(kindParam, startDateParam);
     if (review === null) {
-      return c.text("Invalid review", 400);
+      return badRequest(c, "Invalid review");
     }
 
     const user = getUser(c);
@@ -57,7 +58,7 @@ export function createReviewHandlers(deps: ResolvedCoachingDependencies) {
       review.startDate,
     );
     if (stored === null) {
-      return c.text("Review not found", 404);
+      return notFound(c, "Review not found");
     }
 
     const saved =
@@ -75,12 +76,9 @@ export function createReviewHandlers(deps: ResolvedCoachingDependencies) {
             input.comment,
           );
     if (!saved) {
-      return c.text(
-        mode === "create"
-          ? "This review already has a comment; edit it instead"
-          : "This review has no comment to edit",
-        mode === "create" ? 409 : 404,
-      );
+      return mode === "create"
+        ? conflict(c, "This review already has a comment; edit it instead")
+        : notFound(c, "This review has no comment to edit");
     }
 
     const coachReply = await replyTo(deps, user.id, input.today, {
@@ -114,7 +112,7 @@ export function createReviewHandlers(deps: ResolvedCoachingDependencies) {
   ) {
     const review = parseReview(kindParam, startDateParam);
     if (review === null) {
-      return c.text("Invalid review", 400);
+      return badRequest(c, "Invalid review");
     }
 
     const user = getUser(c);
@@ -124,7 +122,7 @@ export function createReviewHandlers(deps: ResolvedCoachingDependencies) {
       review.startDate,
     );
     if (!updated) {
-      return c.text("Review not found", 404);
+      return notFound(c, "Review not found");
     }
     return c.json(
       coachingInputSaveResponseSchema.parse({

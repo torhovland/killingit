@@ -7,6 +7,12 @@ import type { Context } from "hono";
 import { z } from "zod";
 import { getUser } from "../../auth/middleware.js";
 import {
+  apiError,
+  serviceUnavailable,
+  unauthorized,
+  validationFailed,
+} from "../../http/errors.js";
+import {
   GarminCredentialsError,
   GarminNotConnectedError,
   LlmCredentialsError,
@@ -134,14 +140,14 @@ export function createFeedHandlers(deps: ResolvedCoachingDependencies) {
         );
       } catch (err) {
         console.error("[coaching] cached activity feed failure:", err);
-        return c.text("Service Unavailable", 503);
+        return serviceUnavailable(c);
       }
     },
 
     async activities(c: Context) {
       const query = activityFeedQuerySchema.safeParse(c.req.query());
       if (!query.success) {
-        return c.text("Invalid query parameters", 400);
+        return validationFailed(c, query.error, "Invalid query parameters");
       }
 
       try {
@@ -156,37 +162,40 @@ export function createFeedHandlers(deps: ResolvedCoachingDependencies) {
         return c.json(analyzedActivitiesResponseSchema.parse(feed));
       } catch (err) {
         if (err instanceof GarminNotConnectedError) {
-          return c.text(err.message, 401);
+          return unauthorized(c, err.message);
         }
         if (err instanceof GarminAuthError) {
-          return c.text(err.message, 401);
+          return unauthorized(c, err.message);
         }
         if (err instanceof GarminSidecarError && err.status) {
-          c.status(err.status as 401 | 403 | 429 | 502);
-          return c.text(err.message);
+          return apiError(c, err.status, err.message);
         }
         if (
           err instanceof GarminCredentialsError ||
           err instanceof LlmCredentialsError
         ) {
           console.error(`[coaching] ${err.message}`);
-          return c.text(err.message, 503);
+          return serviceUnavailable(c, err.message);
         }
         if (err instanceof LlmAuthError) {
-          return c.text(err.message, 401);
+          return unauthorized(c, err.message);
         }
         if (err instanceof LlmProviderError) {
-          return c.text(err.message, 503);
+          return serviceUnavailable(c, err.message);
         }
         console.error("[coaching] activity feed failure:", err);
-        return c.text("Service Unavailable", 503);
+        return serviceUnavailable(c);
       }
     },
 
     async remove(c: Context, activityId: string) {
       const query = deletionQuerySchema.safeParse(c.req.query());
       if (!query.success) {
-        return c.text("A valid today date (YYYY-MM-DD) is required", 400);
+        return validationFailed(
+          c,
+          query.error,
+          "A valid today date (YYYY-MM-DD) is required",
+        );
       }
 
       const user = getUser(c);

@@ -1,6 +1,6 @@
 import * as Sentry from "@sentry/react";
 import { reportApiOutdated, withApiVersion } from "./apiVersion";
-import { fetchJson, ApiError } from "./fetchJson";
+import { fetchJson, apiFailure, ApiError } from "./fetchJson";
 import type { AuthState } from "./auth";
 
 /**
@@ -146,11 +146,12 @@ async function requestFile(
     if (response.status === 426) {
       reportApiOutdated();
     }
-    const detail = (await response.text()).trim();
-    throw new ApiError(
-      `${method} ${url} failed: ${response.status} (${contentType})${detail ? `: ${detail.slice(0, 300)}` : ""}`,
-      response.status,
-    );
+    throw apiFailure(await response.text(), {
+      method,
+      url,
+      status: response.status,
+      contentType,
+    });
   }
 
   return {

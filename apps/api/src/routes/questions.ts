@@ -3,9 +3,10 @@ import {
   isQuestionnaireComplete,
   questionAnswersInputSchema,
 } from "@killingit/shared";
-import { zValidator } from "@hono/zod-validator";
+import { zValidator } from "../http/validation.js";
 import { Hono } from "hono";
 import { getUser } from "../auth/middleware.js";
+import { badRequest } from "../http/errors.js";
 import {
   type QuestionAnswerStore,
   type StoredAthleteQuestion,
@@ -44,9 +45,9 @@ export function createQuestionsRoute({
         const { answers: submitted } = c.req.valid("json");
 
         if (!(await answers.saveAnswers(user.id, submitted))) {
-          return c.text(
+          return badRequest(
+            c,
             "One or more answers are missing or no longer current. Please review and try again.",
-            400,
           );
         }
 

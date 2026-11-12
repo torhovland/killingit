@@ -6,10 +6,16 @@ import {
   llmSettingsUpdateSchema,
   type LlmSettings,
 } from "@killingit/shared";
-import { zValidator } from "@hono/zod-validator";
+import { zValidator } from "../http/validation.js";
 import type { Context } from "hono";
 import { Hono } from "hono";
 import { getUser } from "../auth/middleware.js";
+import {
+  apiError,
+  badRequest,
+  serviceUnavailable,
+  unauthorized,
+} from "../http/errors.js";
 import { encrypt } from "../crypto/credentials.js";
 import { loadLlmCosts } from "../llm/costStore.js";
 import { llmCredentialsKeyFromEnv } from "../llm/credentials.js";
@@ -60,14 +66,13 @@ function settingsFromStored(stored: {
 /** Maps provider failures to useful HTTP responses. */
 function respondProviderError(c: Context, err: unknown): Response {
   if (err instanceof LlmAuthError) {
-    return c.text(err.message, 401);
+    return unauthorized(c, err.message);
   }
   if (err instanceof LlmProviderError && err.status !== undefined) {
-    c.status(err.status as 400 | 401 | 402 | 429 | 502 | 503);
-    return c.text(err.message);
+    return apiError(c, err.status, err.message);
   }
   console.error("[llm] provider failure:", err);
-  return c.text("Service Unavailable", 503);
+  return serviceUnavailable(c);
 }
 
 /**
@@ -117,9 +122,9 @@ export function createLlmRoute(deps: LlmRouteDependencies = {}): Hono {
         const nextDailyModel =
           dailyModel ?? model ?? existing?.dailyModel ?? existing?.model;
         if (!nextSeasonModel || !nextDailyModel) {
-          return c.text(
+          return badRequest(
+            c,
             "Choose both a season planning model and a day-to-day model",
-            400,
           );
         }
 
@@ -127,7 +132,7 @@ export function createLlmRoute(deps: LlmRouteDependencies = {}): Hono {
         try {
           key = await credentialsKey();
         } catch (err) {
-          return c.text((err as Error).message, 503);
+          return serviceUnavailable(c, (err as Error).message);
         }
 
         let apiKeyEncrypted = existing?.apiKeyEncrypted;
@@ -141,7 +146,7 @@ export function createLlmRoute(deps: LlmRouteDependencies = {}): Hono {
           apiKeyEncrypted = await encrypt(apiKey, key);
         }
         if (apiKeyEncrypted === undefined) {
-          return c.text("An OpenRouter API key is required", 400);
+          return badRequest(c, "An OpenRouter API key is required");
         }
 
         // Reject typos before they become silent per-activity failures later.
@@ -157,7 +162,7 @@ export function createLlmRoute(deps: LlmRouteDependencies = {}): Hono {
                 );
           for (const chosen of [nextSeasonModel, nextDailyModel]) {
             if (!known.has(chosen)) {
-              return c.text(`Unknown OpenRouter model: ${chosen}`, 400);
+              return badRequest(c, `Unknown OpenRouter model: ${chosen}`);
             }
           }
         } catch (err) {
@@ -188,7 +193,7 @@ export function createLlmRoute(deps: LlmRouteDependencies = {}): Hono {
         return c.json(llmCostsResponseSchema.parse(costs));
       } catch (err) {
         console.error("[llm] could not load the cost history:", err);
-        return c.text("Service Unavailable", 503);
+        return serviceUnavailable(c);
       }
     })
     .get("/models", async (c) => {
@@ -205,7 +210,7 @@ export function createLlmRoute(deps: LlmRouteDependencies = {}): Hono {
         return c.json(llmCatalogResponseSchema.parse({ models }));
       } catch (err) {
         console.error("[llm] could not load the model catalog:", err);
-        return c.text("Service Unavailable", 503);
+        return serviceUnavailable(c);
       }
     })
     .post("/models/refresh", (c) => {

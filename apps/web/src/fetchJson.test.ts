@@ -78,6 +78,40 @@ describe("fetchJson", () => {
     expect((thrown as Error).message).toContain("nope");
   });
 
+  it("shows the server's message from the error contract", async () => {
+    stubFetch(
+      new Response(
+        JSON.stringify({
+          error: {
+            code: "validation_failed",
+            message: "The request is not valid",
+            details: { issues: [{ path: ["name"], message: "Required" }] },
+          },
+        }),
+        {
+          status: 400,
+          headers: { "content-type": "application/json" },
+        },
+      ),
+    );
+
+    let thrown: unknown;
+    try {
+      await fetchJson<unknown>("http://api/items");
+    } catch (e) {
+      thrown = e;
+    }
+
+    expect(thrown).toBeInstanceOf(ApiError);
+    const error = thrown as ApiError;
+    expect(error.message).toBe("The request is not valid");
+    expect(error.status).toBe(400);
+    expect(error.code).toBe("validation_failed");
+    expect(error.details).toEqual({
+      issues: [{ path: ["name"], message: "Required" }],
+    });
+  });
+
   it("reports a refused contract version before throwing", async () => {
     stubFetch(
       new Response('{"error":"api_version_mismatch"}', {

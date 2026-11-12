@@ -1,19 +1,72 @@
+import { apiErrorResponseSchema, type ApiErrorCode } from "@killingit/shared";
 import * as Sentry from "@sentry/react";
 import { reportApiOutdated } from "./apiVersion";
 
 /**
  * A non-2xx API response. Callers (and `reportError`) can tell expected client
  * failures (4xx: bad credentials, rate limiting, expired session) apart from
- * server-side faults (5xx).
+ * server-side faults (5xx). When the API answered with its error contract,
+ * `message` is the server's display message and `code`/`details` carry its
+ * structured context.
  */
 export class ApiError extends Error {
+  readonly code: ApiErrorCode | null;
+  readonly details: unknown;
+
   constructor(
     message: string,
     readonly status: number,
-    options?: { cause?: unknown },
+    options?: { cause?: unknown; code?: ApiErrorCode; details?: unknown },
   ) {
-    super(message, options);
+    super(
+      message,
+      options?.cause === undefined ? undefined : { cause: options.cause },
+    );
     this.name = "ApiError";
+    this.code = options?.code ?? null;
+    this.details = options?.details ?? null;
+  }
+}
+
+interface ApiFailureContext {
+  method: string;
+  url: string;
+  status: number;
+  contentType: string;
+}
+
+/**
+ * Turns a failed response body into an {@link ApiError}. A body matching the
+ * shared error contract supplies the display message and structured context;
+ * any other body keeps the diagnostic text so an unexpected proxy or crash
+ * page is still actionable.
+ */
+export function apiFailure(text: string, context: ApiFailureContext): ApiError {
+  const contract = parseErrorContract(text);
+  if (contract !== null) {
+    return new ApiError(contract.message, context.status, {
+      code: contract.code,
+      ...(contract.details === undefined ? {} : { details: contract.details }),
+    });
+  }
+
+  const detail = text.trim();
+  return new ApiError(
+    `${context.method} ${context.url} failed: ${context.status} (${context.contentType})${detail ? `: ${detail.slice(0, 300)}` : ""}`,
+    context.status,
+  );
+}
+
+function parseErrorContract(text: string): {
+  code: ApiErrorCode;
+  message: string;
+  details?: unknown;
+} | null {
+  try {
+    const parsed = apiErrorResponseSchema.safeParse(JSON.parse(text));
+    return parsed.success ? parsed.data.error : null;
+  } catch {
+    return null;
   }
 }
 
@@ -44,14 +97,7 @@ export async function fetchJson<T>(
     if (status === 426) {
       reportApiOutdated();
     }
-    // Surface the server's short text detail (e.g. "invalid OpenRouter API
-    // key") so configuration forms can show a useful message instead of only
-    // the status code.
-    const detail = text.trim();
-    throw new ApiError(
-      `${method} ${url} failed: ${status} (${contentType})${detail ? `: ${detail.slice(0, 300)}` : ""}`,
-      status,
-    );
+    throw apiFailure(text, { method, url, status, contentType });
   }
 
   try {

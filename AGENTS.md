@@ -406,6 +406,14 @@ The stack below is proposed and should be treated as the starting point. See
   with a schema error on whichever request came first. Deploy the API before the
   web and keep the previous version supported for one release; see
   `docs/specs/api-versioning.md` and ADR 0028.
+- Every failed API response uses the shared error contract
+  `{ error: { code, message, details? } }` from
+  `packages/shared/src/apiError.ts`, produced by the helpers in
+  `apps/api/src/http/errors.ts` and the validating `zValidator` wrapper in
+  `apps/api/src/http/validation.ts`. The web reads it in `fetchJson`, exposing
+  `ApiError.code` and `ApiError.details` and showing the server's `message` as
+  the error text. Only the last-resort `500` stays plain text; see
+  `docs/specs/api-errors.md`.
 - Authenticated API reads go through `requestParsed` in
   `apps/web/src/fetchAuthed.ts`: it fetches with `fetchJsonAuthed`, validates the
   body against the shared schema, and throws one `ResponseValidationError`

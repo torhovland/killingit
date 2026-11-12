@@ -1,5 +1,6 @@
 import type { AthleteIdentity } from "@killingit/shared";
 import type { Context, MiddlewareHandler } from "hono";
+import { forbidden, serviceUnavailable, unauthorized } from "../http/errors.js";
 import type { StoredUser, UserStore } from "../users/store.js";
 import { AuthVerificationError } from "./provider.js";
 import type { AuthProvider } from "./provider.js";
@@ -35,12 +36,12 @@ export function requireAuth(
   return async (c, next) => {
     const header = c.req.header("authorization");
     if (header === undefined || !header.startsWith("Bearer ")) {
-      return c.text("Unauthorized", 401);
+      return unauthorized(c);
     }
 
     const token = header.slice("Bearer ".length).trim();
     if (token === "") {
-      return c.text("Unauthorized", 401);
+      return unauthorized(c);
     }
 
     try {
@@ -48,12 +49,12 @@ export function requireAuth(
       c.set(ATHLETE_CONTEXT_KEY, identity);
     } catch (err) {
       if (err instanceof AuthVerificationError) {
-        return c.text("Unauthorized", 401);
+        return unauthorized(c);
       }
       // Infrastructure / configuration failure. Surface it (Sentry + logs)
       // rather than swallowing it as 401.
       console.error("[auth] verification infrastructure failure:", err);
-      return c.text("Service Unavailable", 503);
+      return serviceUnavailable(c);
     }
 
     await next();
@@ -84,7 +85,7 @@ export function requireUser(store: UserStore): MiddlewareHandler {
       c.set(USER_CONTEXT_KEY, user);
     } catch (err) {
       console.error("[auth] failed to resolve the current user:", err);
-      return c.text("Service Unavailable", 503);
+      return serviceUnavailable(c);
     }
 
     await next();
@@ -103,7 +104,7 @@ export function getUser(c: Context): StoredUser {
 export function requireAdmin(): MiddlewareHandler {
   return async (c, next) => {
     if (getUser(c).role !== "admin") {
-      return c.text("Forbidden", 403);
+      return forbidden(c);
     }
 
     await next();
