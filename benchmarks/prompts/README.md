@@ -3,9 +3,26 @@
 This benchmark sends two prompts to every selected OpenRouter model and judges
 both responses with `anthropic/claude-haiku-5.5`:
 
-- `today-prompt.txt` — the single-day plan prompt for 2026-10-30.
-- `revise-season-prompt.txt` — a season revision on 2026-11-01 after the
-  athlete set the Atlas Mountain Race on 28 February 2027 as the next goal.
+- the daily-update prompt for 2026-10-30, which asks for today's session,
+  tomorrow's session and the current week; and
+- the season-revision prompt for 2026-11-01 after the athlete set the Atlas
+  Mountain Race on 28 February 2027 as the next goal.
+
+Both prompts are built by the app's real prompt builders
+(`buildDailyUpdateMessages` and `buildPlanUpdateMessages`) from a fixture
+athlete, so every rule, contract and context change reaches the benchmark
+instead of leaving it on a frozen snapshot. The fixture lives in
+`tools/benchmark/src/promptBenchmarkFixture.ts` and the two prompt definitions
+in `tools/benchmark/src/promptBenchmarkInput.ts`. A snapshot test pins the built
+input, so a prompt change fails `bun run test` until the snapshot is deliberately
+updated:
+
+```sh
+bun run --filter @killingit/benchmark test --update-snapshots
+```
+
+Review the snapshot diff before committing it: it is the exact text every model
+receives.
 
 The prompts, validators, score gates and catalog queries these scripts use live
 in the `@killingit/benchmark` workspace (`tools/benchmark/src`); this directory
@@ -20,7 +37,7 @@ The season revision also has three hard gates. Ability is F when a model:
 
 1. never mentions `Atlas` anywhere in its output,
 2. leaves block 1 unchanged without asking a `coachQuestion` about Atlas, or
-3. changes block 1's start date (it must stay `2026-10-21`).
+3. changes block 1's start date (it must stay `2026-10-19`).
 
 The judge is told that an Atlas `coachQuestion` instead of an Atlas plan is
 acceptable, but that it scores higher when the plan itself prepares for Atlas,

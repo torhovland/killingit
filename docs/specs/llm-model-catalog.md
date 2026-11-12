@@ -142,12 +142,17 @@ is discouraged and that the athlete should choose another model first.
 
 ### Benchmark upkeep
 
-The prompts benchmark runs two prompts per model: the single-day plan
-(`today-prompt.txt`) and a drastic season revision (`revise-season-prompt.txt`).
+The prompts benchmark runs two prompts per model: the daily update for
+2026-10-30 and a drastic season revision on 2026-11-01. Both are built by the
+app's real prompt builders from a fixture athlete, so a rule, contract or
+context change reaches the benchmark; a snapshot test pins the built text, so a
+prompt change fails the test suite until the snapshot is deliberately updated.
 Ability is F when a model never mentions Atlas, leaves block 1 unchanged, or
-changes block 1's start date, and speed and cost are the sum of both prompt
-runs. The definition, scoring and the catalog queries and grade writes the
-benchmark needs live in the `@killingit/benchmark` workspace
+changes block 1's start date (2026-10-19), and speed and cost are the sum of
+both prompt runs. The definitions and the fixture live in
+`tools/benchmark/src/promptBenchmarkInput.ts` and
+`promptBenchmarkFixture.ts`; the scoring and the catalog queries and grade
+writes the benchmark needs live in the same workspace
 (`tools/benchmark/src/promptBenchmark.ts` and `catalogBenchmark.ts`); the
 runtime `modelCatalog.ts` keeps the refresh, the pure grading helpers and the
 catalog rows the API serves. See ADR 0032.
@@ -217,9 +222,12 @@ models so an infrastructure failure is not written as a model failure.
 5. A retired selection is refused with a Settings-page message. A discouraged
    selection is allowed and shows a danger warning below the models table.
 6. The benchmark can run only ungraded models and write their grades back.
-7. The benchmark tests each model at the today prompt and the season-revision
-   prompt, sums their time and cost, and grades ability F when the revision
-   omits Atlas, leaves block 1 unchanged, or moves block 1's start date.
+7. The benchmark tests each model at the daily-update prompt and the
+   season-revision prompt, sums their time and cost, and grades ability F when
+   the revision omits Atlas, leaves block 1 unchanged, or moves block 1's start
+   date. Both prompts are built by the app's prompt builders from a fixture
+   athlete and pinned by a snapshot test, so they cannot drift from the real
+   prompt.
 8. The catalog stores prompt and completion list prices, refreshes them no more
    than once every 24 hours, and gives an unbenchmarked model a price grade
    instead of `?` unless its price is variable.

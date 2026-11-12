@@ -111,7 +111,11 @@ Configuration:
 snapshots. The two-prompt benchmark's output is not: `benchmarks/prompts/runs/`
 and `benchmarks/prompts/reports/` are ignored by git, and the generated
 `<RUN_ID>.html`/`.pdf` reports are local previews to regenerate rather than
-commit. See `benchmarks/README.md`.
+commit. Its input is not a committed prompt file: both prompts are built by the
+app's prompt builders from the fixture athlete in
+`tools/benchmark/src/promptBenchmarkFixture.ts`, and a snapshot test pins the
+text so a prompt change is reviewed rather than silently ignored. See
+`benchmarks/README.md`.
 
 ## Data and privacy
 
