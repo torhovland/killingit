@@ -409,11 +409,12 @@ The stack below is proposed and should be treated as the starting point. See
   sites must not hand-write `safeParse` plus their own throw; see
   `docs/specs/web-api-request-parsing.md`.
 - We build our own **component library** under `apps/web/src/components/`.
-  `Button`, `Input`, `Textarea`, `Select`, `Card`, `HiddenFileInput` and
-  `Modal` are the primitives; page components stay flat in `apps/web/src/`
-  beside their tests. `Modal` owns the backdrop, focus trap, Escape close and
-  focus restore for every dialog. Add a primitive when markup and styling are
-  genuinely shared instead of repeating a class string in a page. See
+  `Button`, `Input`, `Textarea`, `Select`, `Card`, `HiddenFileInput`,
+  `StatusBadge` and `Modal` are the primitives; page components stay flat in
+  `apps/web/src/` beside their tests. `Modal` owns the backdrop, focus trap,
+  Escape close and focus restore for every dialog. Add a primitive when markup
+  and styling are genuinely shared instead of repeating a class string in a
+  page. See
   `docs/specs/web-component-library.md`, `docs/specs/modal-dialog.md` and
   ADR 0027.
 - **Tailwind CSS** (v4, through `@tailwindcss/vite`) is the styling foundation.

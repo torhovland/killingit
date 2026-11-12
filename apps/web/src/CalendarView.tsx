@@ -12,7 +12,6 @@ import {
   type CalendarResponse,
   type CalendarWeek,
   type WeekSession,
-  type WeekSessionStatus,
 } from "@killingit/shared";
 import { ActivityMap } from "./ActivityMap";
 import { Bullet, Bullets } from "./Bullet";
@@ -34,6 +33,7 @@ import { WeatherSummary } from "./WeatherSummary";
 import { Button } from "./components/Button";
 import { Input } from "./components/Input";
 import { Modal } from "./components/Modal";
+import { StatusBadge } from "./components/StatusBadge";
 
 export type CalendarSelection =
   | { kind: "activity"; activity: CalendarActivity }
@@ -749,13 +749,5 @@ function SessionDetails({ session }: { session: WeekSession }) {
           </p>
         )}
     </div>
-  );
-}
-
-function StatusBadge({ status }: { status: WeekSessionStatus }) {
-  return (
-    <span className="rounded border bg-muted px-2 py-0.5 text-sm capitalize">
-      {status}
-    </span>
   );
 }
