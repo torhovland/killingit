@@ -12,8 +12,6 @@ import { trainingLoadSchema } from "./trainingLoad.js";
 import { dailyForecastsSchema, dailyWeatherSchema } from "./weather.js";
 import { bikeWorkoutSchema } from "./workout.js";
 
-export { planDateSchema } from "./date.js";
-
 /**
  * One dated body-composition value the coach found in the athlete's input, such
  * as a weight or body-fat percentage stated in the profile or a comment. Either

@@ -69,7 +69,7 @@ export const CTL_DAYS = 42;
  * Window used to normalize power before scoring it. A 30-second window removes
  * short spikes while keeping the sustained effort that matters for TSS.
  */
-export const POWER_WINDOW_SECONDS = 30;
+const POWER_WINDOW_SECONDS = 30;
 
 /**
  * Reads the training stress balance as a plain-language form state:
@@ -241,7 +241,7 @@ function timedPowerSamples(
 }
 
 /** Time-weighted mean power of the supplied samples, rounded to whole watts. */
-export function averagePower(
+function averagePower(
   samples: readonly { time: number; power: number }[],
 ): number {
   let weighted = 0;

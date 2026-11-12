@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { dailyHealthPointSchema } from "./health.js";
 import { fitnessBodySchema, thresholdKindSchema } from "./metrics.js";
-import { planDateSchema } from "./plan.js";
+import { planDateSchema } from "./date.js";
 import { trainingLoadSchema } from "./trainingLoad.js";
 
 /**
