@@ -5,6 +5,7 @@ import {
   type ActivitySummary,
   type AnalyzedActivity,
   type BodyMetricEstimate,
+  type CoachAnalysisResult,
   type CoachPlan,
   type DailyHealthPoint,
   type MetricPoint,
@@ -13,7 +14,12 @@ import {
 } from "@killingit/shared";
 import { decrypt } from "../crypto/credentials.js";
 import { loadDietContext } from "../diet/context.js";
-import { syncGarminActivities, syncGarminMetrics } from "../garmin/client.js";
+import type { DietPromptContext } from "../diet/summary.js";
+import {
+  syncGarminActivities,
+  syncGarminMetrics,
+  type GarminCredentials,
+} from "../garmin/client.js";
 import {
   GARMIN_DAILY_SYNC_WINDOW_DAYS,
   syncGarminDailyHistory,
@@ -32,7 +38,10 @@ import { loadDailyHealthForUser } from "../metrics/dailyMetrics.js";
 import { downsample } from "../lib/downsample.js";
 import { mapWithConcurrency } from "../lib/mapWithConcurrency.js";
 import { addDays } from "@killingit/shared";
-import { ANALYSIS_PROMPT_VERSION } from "../llm/activityPrompt.js";
+import {
+  ANALYSIS_PROMPT_VERSION,
+  type ActivityAnalysisContext,
+} from "../llm/activityPrompt.js";
 import { analyzeActivity } from "../llm/analyze.js";
 import {
   loadAnalyses,
@@ -44,6 +53,7 @@ import {
   toCoachAnalysis,
   type ActivityFeedback,
 } from "../plans/replies.js";
+import type { BodyMetricHistory } from "../llm/planContext.js";
 import {
   clearPendingActivityQuestion,
   saveCoachQuestions,
@@ -57,8 +67,8 @@ import {
   type LlmProvider,
 } from "../llm/openrouter.js";
 import { assertModelUsable } from "../llm/client.js";
-import { loadLlmSettings } from "../llm/store.js";
-import { dbPlanStore } from "../plans/store.js";
+import { loadLlmSettings, type StoredLlmSettings } from "../llm/store.js";
+import { dbPlanStore, type StoredPlan } from "../plans/store.js";
 import {
   buildActivityLoads,
   type ActivityLoads,
@@ -144,276 +154,517 @@ async function loadAnalyzedActivitiesOnce(
   const provider =
     options.provider ??
     withPromptLogging(createOpenRouterProvider(), { userId: options.userId });
+  const credentials = await loadGarminCredentials(options.userId);
+  const today = options.today ?? new Date().toISOString().slice(0, 10);
 
-  let garminCredentials;
+  const synced = await syncFeed({
+    userId: options.userId,
+    credentials,
+    today,
+    limit: options.limit,
+  });
+  const inputs = await loadAnalysisInputs(
+    options.userId,
+    synced.history,
+    today,
+  );
+  if (inputs.settings === null) {
+    return assembleFeed({
+      userId: options.userId,
+      history: synced.history,
+      inputs,
+      model: null,
+      analyses: [],
+    });
+  }
+
+  const model = inputs.settings.dailyModel ?? inputs.settings.model;
+  await assertModelUsable(model, "daily");
+  const apiKey = await loadLlmApiKey(inputs.settings);
+  const outcomes = await analyzeMissing({
+    userId: options.userId,
+    provider,
+    apiKey,
+    model,
+    latest: synced.latest,
+    refresh: options.refresh,
+    inputs,
+    today,
+  });
+  return assembleFeed({
+    userId: options.userId,
+    history: synced.history,
+    inputs,
+    model,
+    analyses: outcomes.map((outcome) => outcome.activity),
+  });
+}
+
+/** The stored credentials, or a typed error the route can report. */
+async function loadGarminCredentials(
+  userId: number,
+): Promise<GarminCredentials> {
+  let credentials;
   try {
-    garminCredentials = await loadDecryptedGarminCredentials(options.userId);
+    credentials = await loadDecryptedGarminCredentials(userId);
   } catch (err) {
     throw new GarminCredentialsError(
       "Garmin credentials are unavailable (check GARMIN_CREDENTIALS_KEY)",
       { cause: err },
     );
   }
-  if (!garminCredentials) {
+  if (credentials === null) {
     throw new GarminNotConnectedError();
   }
+  return credentials;
+}
 
-  const activities = await syncGarminActivities(garminCredentials);
-  await syncBodyMetrics(options.userId, garminCredentials);
-  const today = options.today ?? new Date().toISOString().slice(0, 10);
-  await syncDailyHealth(options.userId, garminCredentials, today);
-  const deletedIds = await loadDeletedActivityIds(options.userId, "garmin");
-  const synced = [...activities]
-    .filter((activity) => !deletedIds.has(String(activity.id)))
-    .sort((a, b) => Date.parse(b.startDate) - Date.parse(a.startDate));
-  const latest = synced.slice(0, options.limit);
-  const previous = await loadPreviousActivities(options.userId);
-  const history = mergeActivityHistory(previous, synced, deletedIds);
-
-  // Store the full history before the (potentially slow) LLM analyses so a
-  // reload during analysis still shows every activity that was ever synced.
-  await persistFeed(options.userId, { model: null, activities: history });
-
-  const [settings, feedback, storedPlan, dailyHealth, bodyHistory, diet] =
-    await Promise.all([
-      loadLlmSettings(options.userId),
-      loadActivityFeedback(
-        options.userId,
-        history.map((activity) => activity.id),
-      ),
-      dbPlanStore.load(options.userId),
-      loadDailyHealthSafely(options.userId, today),
-      loadBodyHistorySafely(options.userId),
-      loadDietContext(options.userId, today),
-    ]);
-  let loads: ActivityLoads = {
-    byDate: new Map(),
-    byActivityId: new Map(),
-  };
-  let ftpHistory: MetricPoint[] = [];
-  let ftp: ThresholdTimeline | null = null;
-  let trainingThresholds: ThresholdSummary[] = [];
-  try {
-    const training = await loadTrainingContext(
-      options.userId,
-      storedPlan?.plan,
-    );
-    ftpHistory = ftpHistoryPoints(training.thresholdTimelines);
-    ftp = training.ftpTimeline;
-    trainingThresholds = training.thresholds;
-    const tssByDate = new Map(training.planTssByDate);
-    for (const [date, tss] of training.manualTssByDate) {
-      tssByDate.set(date, tss);
-    }
-    loads = buildActivityLoads(history, training.thresholdTimelines, tssByDate);
-  } catch (err) {
-    // Load values are supplementary; the activity feed must still load.
-    console.error("[training-load] could not score activities:", err);
-  }
-  if (!settings) {
-    const feed: ActivityFeed = {
-      model: null,
-      activities: history.map((activity) =>
-        withActivityLoad(withFeedback(activity, feedback), loads),
-      ),
-    };
-    await persistFeed(options.userId, feed);
-    return feed;
-  }
-
-  const dailyModel = settings.dailyModel ?? settings.model;
-  await assertModelUsable(dailyModel, "daily");
-
-  const analysisContext = {
-    today: storedPlan?.plan.today.date ?? today,
-    ...(storedPlan !== null
-      ? {
-          season: storedPlan.plan.season,
-          block: storedPlan.plan.block,
-          week: storedPlan.plan.week,
-        }
-      : {}),
-    ftpHistory,
-    thresholds: trainingThresholds,
-    ...(dailyHealth !== undefined ? { dailyHealth } : {}),
-    ...(bodyHistory !== undefined ? { bodyHistory } : {}),
-    ...(diet !== null ? { diet } : {}),
-  };
-
-  let apiKey: string;
+/** Loads and decrypts the account's LLM key, reporting a typed error. */
+async function loadLlmApiKey(settings: StoredLlmSettings): Promise<string> {
   try {
     const key = await llmCredentialsKeyFromEnv();
-    apiKey = await decrypt(settings.apiKeyEncrypted, key);
+    return await decrypt(settings.apiKeyEncrypted, key);
   } catch (err) {
     throw new LlmCredentialsError(
       "OpenRouter credentials are unavailable (check LLM_CREDENTIALS_KEY)",
       { cause: err },
     );
   }
+}
 
-  const activityIds = latest.map((activity) => activity.id);
-  const [cached, cachedProgram] = options.refresh
-    ? [new Map<number, StoredAnalysis>(), new Map<number, StoredAnalysis>()]
-    : await Promise.all([
-        loadAnalyses(options.userId, activityIds),
-        loadAnalyses(options.userId, activityIds, "program"),
-      ]);
+/** The newest activities to analyse and every activity ever synced. */
+interface SyncedFeed {
+  /** The synced activities within the analysis limit, newest first. */
+  latest: readonly Activity[];
+  /** Every synced activity merged with stored history, newest first. */
+  history: AnalyzedActivity[];
+}
 
-  const ftpEstimates: { date: string; watts: number }[] = [];
-  const bodyMetrics: BodyMetricEstimate[] = [];
-  const analysed = await mapWithConcurrency(
-    latest,
-    ANALYSIS_CONCURRENCY,
-    async (activity): Promise<AnalyzedActivity> => {
-      const activityFeedback = feedback.get(String(activity.id));
-      const cachedAnalysis = cached.get(activity.id);
-      const program = cachedProgram.get(activity.id) ?? null;
-      // A comment saved after the analysis carries information the last
-      // analysis could not see, so regenerate instead of reusing it.
-      const hit = commentIsNewerThanAnalysis(
-        cachedAnalysis,
-        activityFeedback?.commentUpdatedAt,
-      )
-        ? undefined
-        : cachedAnalysis;
-      if (hit) {
-        return withStoredAnalysis(activity, hit, program, activityFeedback);
-      }
+/**
+ * Syncs Garmin activities, body metrics and daily health, merges the result
+ * with the stored history, and stores the full history before the (potentially
+ * slow) LLM analyses so a reload during analysis still shows every activity.
+ */
+async function syncFeed(params: {
+  userId: number;
+  credentials: GarminCredentials;
+  today: string;
+  limit: number;
+}): Promise<SyncedFeed> {
+  const activities = await syncGarminActivities(params.credentials);
+  await syncBodyMetrics(params.userId, params.credentials);
+  await syncDailyHealth(params.userId, params.credentials, params.today);
+  const deletedIds = await loadDeletedActivityIds(params.userId, "garmin");
+  const synced = [...activities]
+    .filter((activity) => !deletedIds.has(String(activity.id)))
+    .sort((a, b) => Date.parse(b.startDate) - Date.parse(a.startDate));
+  const previous = await loadPreviousActivities(params.userId);
+  const history = mergeActivityHistory(previous, synced, deletedIds);
+  await persistFeed(params.userId, { model: null, activities: history });
+  return { latest: synced.slice(0, params.limit), history };
+}
 
-      try {
-        const activityDate = activity.startDate.slice(0, 10);
-        const currentFtpWatts =
-          ftp === null
-            ? null
-            : (ftpBaselineAt(ftp, activityDate)?.watts ?? null);
-        const result = await analyzeActivity(
-          provider,
-          { apiKey, model: dailyModel },
-          activity,
-          { ...analysisContext, currentFtpWatts },
-          activityFeedback?.comment ?? null,
-        );
-        const saved = await saveAnalysis({
-          userId: options.userId,
-          activityId: activity.id,
-          model: dailyModel,
-          promptVersion: ANALYSIS_PROMPT_VERSION,
-          text: result.analysis,
-          planChangeNeeded: result.planChangeNeeded,
-        });
-        // A regenerated analysis supersedes any question the previous one asked
-        // about this activity; the new result may still ask a fresh question.
-        try {
-          await clearPendingActivityQuestion(
-            options.userId,
-            String(activity.id),
-          );
-        } catch (err) {
-          console.error(
-            "[coaching] could not clear stale coach questions:",
-            err,
-          );
-        }
-        if (
-          result.coachQuestion !== undefined &&
-          result.coachQuestion !== null
-        ) {
-          try {
-            await saveCoachQuestions({
-              userId: options.userId,
-              questions: [result.coachQuestion],
-              target: String(activity.id),
-              model: dailyModel,
-              sourceKind: "activity_analysis",
-            });
-          } catch (err) {
-            console.error("[coaching] could not store coach questions:", err);
-          }
-        }
-        if (result.estimatedFtpWatts !== null) {
-          ftpEstimates.push({
-            date: activityDate,
-            watts: result.estimatedFtpWatts,
-          });
-        }
-        if (result.weightKg !== null || result.bodyFatPercent !== null) {
-          bodyMetrics.push({
-            date: activityDate,
-            weightKg: result.weightKg,
-            bodyFatPercent: result.bodyFatPercent,
-          });
-        }
-        return withStoredAnalysis(activity, saved, program, activityFeedback);
-      } catch (err) {
-        // A revoked/invalid key affects every activity; surface it instead of
-        // returning a list where every card says "analysis failed".
-        if (err instanceof LlmAuthError) {
-          throw err;
-        }
-        const detail =
-          err instanceof LlmProviderError
-            ? err.message
-            : err instanceof Error
-              ? err.name
-              : "unknown error";
-        console.error(
-          `[coaching] analysis failed for activity ${activity.id}: ${detail}`,
-        );
-        return {
-          ...summarize(activity),
-          analysis: null,
-          analysisError:
-            err instanceof LlmProviderError
-              ? err.message
-              : "The coach analysis could not be saved.",
-          programAnalysis: program ? toCoachAnalysis(program) : null,
-          comment: activityFeedback?.comment ?? null,
-          coachReply: activityFeedback?.reply
-            ? toCoachAnalysis(activityFeedback.reply)
-            : null,
-          reviewed: activityFeedback?.reviewed ?? false,
-        };
-      }
-    },
+/** Everything the analysis pass and the final feed need besides the history. */
+interface AnalysisInputs {
+  settings: StoredLlmSettings | null;
+  feedback: ReadonlyMap<string, ActivityFeedback>;
+  storedPlan: StoredPlan | null;
+  dailyHealth: DailyHealthPoint[] | undefined;
+  bodyHistory: BodyMetricHistory | undefined;
+  diet: DietPromptContext | null;
+  ftpHistory: MetricPoint[];
+  ftp: ThresholdTimeline | null;
+  thresholds: ThresholdSummary[];
+  loads: ActivityLoads;
+}
+
+/**
+ * Loads the per-account context in parallel, then the training context that
+ * depends on the stored plan. A training-context failure leaves the activity
+ * feed loadable, because load values are supplementary.
+ */
+async function loadAnalysisInputs(
+  userId: number,
+  history: readonly AnalyzedActivity[],
+  today: string,
+): Promise<AnalysisInputs> {
+  const [settings, feedback, storedPlan, dailyHealth, bodyHistory, diet] =
+    await Promise.all([
+      loadLlmSettings(userId),
+      loadActivityFeedback(
+        userId,
+        history.map((activity) => activity.id),
+      ),
+      dbPlanStore.load(userId),
+      loadDailyHealthSafely(userId, today),
+      loadBodyHistorySafely(userId),
+      loadDietContext(userId, today),
+    ]);
+  const training = await loadTrainingInputs(userId, history, storedPlan);
+  return {
+    settings,
+    feedback,
+    storedPlan,
+    dailyHealth,
+    bodyHistory,
+    diet,
+    ...training,
+  };
+}
+
+/** The threshold, load and FTP context for scoring and prompting. */
+interface TrainingInputs {
+  ftpHistory: MetricPoint[];
+  ftp: ThresholdTimeline | null;
+  thresholds: ThresholdSummary[];
+  loads: ActivityLoads;
+}
+
+async function loadTrainingInputs(
+  userId: number,
+  history: readonly AnalyzedActivity[],
+  storedPlan: StoredPlan | null,
+): Promise<TrainingInputs> {
+  try {
+    const training = await loadTrainingContext(userId, storedPlan?.plan);
+    const tssByDate = new Map(training.planTssByDate);
+    for (const [date, tss] of training.manualTssByDate) {
+      tssByDate.set(date, tss);
+    }
+    return {
+      ftpHistory: ftpHistoryPoints(training.thresholdTimelines),
+      ftp: training.ftpTimeline,
+      thresholds: training.thresholds,
+      loads: buildActivityLoads(
+        history,
+        training.thresholdTimelines,
+        tssByDate,
+      ),
+    };
+  } catch (err) {
+    console.error("[training-load] could not score activities:", err);
+    return {
+      ftpHistory: [],
+      ftp: null,
+      thresholds: [],
+      loads: { byDate: new Map(), byActivityId: new Map() },
+    };
+  }
+}
+
+/** Builds the prompt context from the stored plan and the loaded history. */
+function analysisContextFor(
+  inputs: AnalysisInputs,
+  today: string,
+): ActivityAnalysisContext {
+  const plan = inputs.storedPlan?.plan;
+  return {
+    today: plan?.today.date ?? today,
+    ...(plan !== undefined
+      ? { season: plan.season, block: plan.block, week: plan.week }
+      : {}),
+    ftpHistory: inputs.ftpHistory,
+    thresholds: inputs.thresholds,
+    ...(inputs.dailyHealth !== undefined
+      ? { dailyHealth: inputs.dailyHealth }
+      : {}),
+    ...(inputs.bodyHistory !== undefined
+      ? { bodyHistory: inputs.bodyHistory }
+      : {}),
+    ...(inputs.diet !== null ? { diet: inputs.diet } : {}),
+  };
+}
+
+/** One activity's updated feed entry plus any estimate the coach returned. */
+interface ActivityAnalysisOutcome {
+  activity: AnalyzedActivity;
+  ftpEstimate?: { date: string; watts: number };
+  bodyMetric?: BodyMetricEstimate;
+}
+
+interface AnalyzeMissingParams {
+  userId: number;
+  provider: LlmProvider;
+  apiKey: string;
+  model: string;
+  latest: readonly Activity[];
+  refresh: boolean;
+  inputs: AnalysisInputs;
+  today: string;
+}
+
+/**
+ * Reuses stored analyses unless the athlete commented after them, analyses the
+ * rest concurrently, and stores the FTP and body estimates they returned.
+ */
+async function analyzeMissing(
+  params: AnalyzeMissingParams,
+): Promise<ActivityAnalysisOutcome[]> {
+  const [cached, cachedProgram] = await loadAnalysisCache(
+    params.userId,
+    params.latest,
+    params.refresh,
   );
+  const context = analysisContextFor(params.inputs, params.today);
+  const outcomes = await mapWithConcurrency(
+    params.latest,
+    ANALYSIS_CONCURRENCY,
+    (activity) =>
+      analyzeOne({
+        userId: params.userId,
+        provider: params.provider,
+        apiKey: params.apiKey,
+        model: params.model,
+        activity,
+        feedback: params.inputs.feedback.get(String(activity.id)),
+        context,
+        ftp: params.inputs.ftp,
+        cached,
+        cachedProgram,
+      }),
+  );
+  await recordActivityEstimates(params.userId, outcomes);
+  return outcomes;
+}
 
+/** Loads both analysis kinds, or nothing when the caller asked to refresh. */
+async function loadAnalysisCache(
+  userId: number,
+  activities: readonly Activity[],
+  refresh: boolean,
+): Promise<[Map<number, StoredAnalysis>, Map<number, StoredAnalysis>]> {
+  if (refresh) {
+    return [new Map(), new Map()];
+  }
+  const activityIds = activities.map((activity) => activity.id);
+  return Promise.all([
+    loadAnalyses(userId, activityIds),
+    loadAnalyses(userId, activityIds, "program"),
+  ]);
+}
+
+interface AnalyzeOneParams {
+  userId: number;
+  provider: LlmProvider;
+  apiKey: string;
+  model: string;
+  activity: Activity;
+  feedback: ActivityFeedback | undefined;
+  context: ActivityAnalysisContext;
+  ftp: ThresholdTimeline | null;
+  cached: ReadonlyMap<number, StoredAnalysis>;
+  cachedProgram: ReadonlyMap<number, StoredAnalysis>;
+}
+
+/** Returns a stored or fresh analysis for one activity, never failing the feed. */
+async function analyzeOne(
+  params: AnalyzeOneParams,
+): Promise<ActivityAnalysisOutcome> {
+  const { activity, feedback } = params;
+  const cachedAnalysis = params.cached.get(activity.id);
+  const program = params.cachedProgram.get(activity.id) ?? null;
+  // A comment saved after the analysis carries information the last analysis
+  // could not see, so regenerate instead of reusing it.
+  if (
+    cachedAnalysis !== undefined &&
+    !commentIsNewerThanAnalysis(cachedAnalysis, feedback?.commentUpdatedAt)
+  ) {
+    return {
+      activity: withStoredAnalysis(activity, cachedAnalysis, program, feedback),
+    };
+  }
+
+  const activityDate = activity.startDate.slice(0, 10);
+  try {
+    const result = await analyzeActivity(
+      params.provider,
+      { apiKey: params.apiKey, model: params.model },
+      activity,
+      {
+        ...params.context,
+        currentFtpWatts: currentFtpAt(params.ftp, activityDate),
+      },
+      feedback?.comment ?? null,
+    );
+    const saved = await saveFreshAnalysis({
+      userId: params.userId,
+      activityId: activity.id,
+      model: params.model,
+      result,
+    });
+    return {
+      activity: withStoredAnalysis(activity, saved, program, feedback),
+      ...(result.estimatedFtpWatts !== null
+        ? {
+            ftpEstimate: {
+              date: activityDate,
+              watts: result.estimatedFtpWatts,
+            },
+          }
+        : {}),
+      ...(result.weightKg !== null || result.bodyFatPercent !== null
+        ? {
+            bodyMetric: {
+              date: activityDate,
+              weightKg: result.weightKg,
+              bodyFatPercent: result.bodyFatPercent,
+            },
+          }
+        : {}),
+    };
+  } catch (err) {
+    // A revoked/invalid key affects every activity; surface it instead of
+    // returning a list where every card says "analysis failed".
+    if (err instanceof LlmAuthError) {
+      throw err;
+    }
+    return { activity: failedAnalysis(activity, err, program, feedback) };
+  }
+}
+
+/** The FTP in effect on an activity date, when a timeline is known. */
+function currentFtpAt(
+  ftp: ThresholdTimeline | null,
+  date: string,
+): number | null {
+  return ftp === null ? null : (ftpBaselineAt(ftp, date)?.watts ?? null);
+}
+
+interface SaveFreshAnalysisParams {
+  userId: number;
+  activityId: number;
+  model: string;
+  result: CoachAnalysisResult;
+}
+
+/**
+ * Stores a regenerated analysis and replaces the question the previous one
+ * asked about this activity, keeping the new result's question if it has one.
+ */
+async function saveFreshAnalysis(
+  params: SaveFreshAnalysisParams,
+): Promise<StoredAnalysis> {
+  const { result } = params;
+  const saved = await saveAnalysis({
+    userId: params.userId,
+    activityId: params.activityId,
+    model: params.model,
+    promptVersion: ANALYSIS_PROMPT_VERSION,
+    text: result.analysis,
+    planChangeNeeded: result.planChangeNeeded,
+  });
+  try {
+    await clearPendingActivityQuestion(
+      params.userId,
+      String(params.activityId),
+    );
+  } catch (err) {
+    console.error("[coaching] could not clear stale coach questions:", err);
+  }
+  if (result.coachQuestion !== undefined && result.coachQuestion !== null) {
+    try {
+      await saveCoachQuestions({
+        userId: params.userId,
+        questions: [result.coachQuestion],
+        target: String(params.activityId),
+        model: params.model,
+        sourceKind: "activity_analysis",
+      });
+    } catch (err) {
+      console.error("[coaching] could not store coach questions:", err);
+    }
+  }
+  return saved;
+}
+
+/** Shows a failed analysis on the card without losing stored feedback. */
+function failedAnalysis(
+  activity: Activity,
+  err: unknown,
+  program: StoredAnalysis | null,
+  feedback: ActivityFeedback | undefined,
+): AnalyzedActivity {
+  const detail =
+    err instanceof LlmProviderError
+      ? err.message
+      : err instanceof Error
+        ? err.name
+        : "unknown error";
+  console.error(
+    `[coaching] analysis failed for activity ${activity.id}: ${detail}`,
+  );
+  return {
+    ...summarize(activity),
+    analysis: null,
+    analysisError:
+      err instanceof LlmProviderError
+        ? err.message
+        : "The coach analysis could not be saved.",
+    programAnalysis: program ? toCoachAnalysis(program) : null,
+    comment: feedback?.comment ?? null,
+    coachReply: feedback?.reply ? toCoachAnalysis(feedback.reply) : null,
+    reviewed: feedback?.reviewed ?? false,
+  };
+}
+
+/** Stores the coach's FTP and body estimates, oldest first. */
+async function recordActivityEstimates(
+  userId: number,
+  outcomes: readonly ActivityAnalysisOutcome[],
+): Promise<void> {
   // Apply estimates oldest first so a newer activity cannot be removed by an
   // older one that happened to finish its LLM call later.
-  for (const estimate of ftpEstimates.sort((a, b) =>
-    a.date.localeCompare(b.date),
-  )) {
+  const ftpEstimates = outcomes
+    .flatMap((outcome) => (outcome.ftpEstimate ? [outcome.ftpEstimate] : []))
+    .sort((a, b) => a.date.localeCompare(b.date));
+  for (const estimate of ftpEstimates) {
     try {
-      await recordCoachFtp({ userId: options.userId, ...estimate });
+      await recordCoachFtp({ userId, ...estimate });
     } catch (err) {
       console.error("[metrics] could not store an activity FTP estimate:", err);
     }
   }
 
-  if (bodyMetrics.length > 0) {
-    try {
-      await recordCoachBodyMetrics(
-        options.userId,
-        bodyMetrics.sort((a, b) => a.date.localeCompare(b.date)),
-      );
-    } catch (err) {
-      console.error("[metrics] could not store activity body metrics:", err);
-    }
+  const bodyMetrics = outcomes.flatMap((outcome) =>
+    outcome.bodyMetric ? [outcome.bodyMetric] : [],
+  );
+  if (bodyMetrics.length === 0) {
+    return;
   }
+  try {
+    await recordCoachBodyMetrics(
+      userId,
+      bodyMetrics.sort((a, b) => a.date.localeCompare(b.date)),
+    );
+  } catch (err) {
+    console.error("[metrics] could not store activity body metrics:", err);
+  }
+}
 
+interface AssembleFeedParams {
+  userId: number;
+  history: readonly AnalyzedActivity[];
+  inputs: AnalysisInputs;
+  model: string | null;
+  analyses: readonly AnalyzedActivity[];
+}
+
+/** Combines the analysed activities with the history and stores the feed. */
+async function assembleFeed(params: AssembleFeedParams): Promise<ActivityFeed> {
   const analyzedById = new Map(
-    analysed.map((activity) => [String(activity.id), activity]),
+    params.analyses.map((activity) => [String(activity.id), activity]),
   );
   const feed: ActivityFeed = {
-    model: dailyModel,
-    activities: history.map((activity) => {
+    model: params.model,
+    activities: params.history.map((activity) => {
       const analyzed = analyzedById.get(String(activity.id));
       return withActivityLoad(
-        analyzed ?? withFeedback(activity, feedback),
-        loads,
+        analyzed ?? withFeedback(activity, params.inputs.feedback),
+        params.inputs.loads,
       );
     }),
   };
-  await persistFeed(options.userId, feed);
+  await persistFeed(params.userId, feed);
   return feed;
 }
 

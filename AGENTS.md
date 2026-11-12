@@ -240,7 +240,10 @@ about a past workout, or before a suggested workout, to steer the coach.
   The stored feed keeps every activity ever synced by
   extending its history on each sync rather than replacing it, while only the
   newest 20 are analysed; the Calendar, Activities page, and Fitness chart read
-  the full history. Each activity in the feed also carries a bounded,
+  the full history. The feed loads in named phases — sync, inputs, analysis,
+  assembly — so each failure path stays with the phase that can fail; see
+  `docs/specs/activity-feed-loading.md`. Each activity in the feed also carries
+  a bounded,
   downsampled sample preview, shown as a collapsible table on the Activities
   page. Running cadence is normalized to total steps per minute and cycling
   cadence to rpm, matching Garmin Connect. Strength activities also carry their
