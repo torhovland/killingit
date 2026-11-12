@@ -57,9 +57,7 @@ export function useWeeklyNote(
       }
     }
     void load();
-    // Only re-run when sign-in state flips; `auth` and `timeZone` are consumed
-    // inside.
-  }, [auth.isAuthenticated]);
+  }, [auth, timeZone]);
 
   const submit = useCallback(async (): Promise<void> => {
     if (!note.trim() || saving) {

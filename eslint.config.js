@@ -1,5 +1,6 @@
 import js from "@eslint/js";
 import prettier from "eslint-config-prettier";
+import reactHooks from "eslint-plugin-react-hooks";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 import local from "./eslint-rules/index.js";
@@ -84,6 +85,16 @@ export default tseslint.config(
     files: ["apps/web/**/*.{ts,tsx}"],
     languageOptions: {
       globals: globals.browser,
+    },
+    plugins: { "react-hooks": reactHooks },
+    rules: {
+      // Hooks must run in the same order on every render; a conditional or
+      // looping hook is a runtime bug that TypeScript cannot catch.
+      "react-hooks/rules-of-hooks": "error",
+      // Every value an effect or callback reads belongs in its dependency
+      // list. The auth object is stable (see `apps/web/src/auth/index.ts`), so
+      // the rule's suggestions are always safe to apply here.
+      "react-hooks/exhaustive-deps": "error",
     },
   },
   {

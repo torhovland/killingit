@@ -67,9 +67,7 @@ export function FitnessPage() {
     return () => {
       cancelled = true;
     };
-    // `auth` is consumed inside and is not guaranteed to be referentially
-    // stable, so only the sign-in state, the date, and the range re-run it.
-  }, [auth.isAuthenticated, today, range]);
+  }, [auth, timeZone, today, range]);
 
   if (!auth.isAuthenticated) {
     return null;

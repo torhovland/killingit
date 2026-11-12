@@ -52,9 +52,7 @@ export function FoodPhoto({
         URL.revokeObjectURL(objectUrl);
       }
     };
-    // Only the entry, its version and sign-in state select the photo; `auth` is
-    // consumed inside and is not a stable dependency.
-  }, [entryId, version, auth.isAuthenticated]);
+  }, [entryId, version, auth]);
 
   if (url === null) {
     return null;

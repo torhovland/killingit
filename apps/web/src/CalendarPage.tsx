@@ -62,9 +62,7 @@ export function CalendarPage() {
     return () => {
       cancelled = true;
     };
-    // `auth` is consumed inside and is not guaranteed to be referentially
-    // stable, so only the sign-in state and the date re-run it.
-  }, [auth.isAuthenticated, today]);
+  }, [auth, timeZone, today]);
 
   if (!auth.isAuthenticated) {
     return null;

@@ -23,6 +23,9 @@ export function ActivitiesPage() {
   const timeZone = useTimeZone();
   const statuses = useStatuses(auth);
   const feed = useActivityFeed(auth, timeZone);
+  // Destructured so the effect below can depend on the callback itself; the
+  // feed object is rebuilt on every render.
+  const { loadAnalyses } = feed;
   const manual = useManualActivities(auth, timeZone, feed.loadCached);
 
   useEffect(() => {
@@ -34,9 +37,8 @@ export function ActivitiesPage() {
     if (!statuses.garmin?.connected) {
       return;
     }
-    void feed.loadAnalyses();
-    // Re-run when Garmin connects, not every render.
-  }, [statuses.garmin?.connected]);
+    void loadAnalyses();
+  }, [statuses.garmin?.connected, loadAnalyses]);
 
   if (!auth.isAuthenticated) {
     return null;

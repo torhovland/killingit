@@ -80,9 +80,7 @@ export function CostsPage() {
     return () => {
       cancelled = true;
     };
-    // `auth` is consumed inside and is not guaranteed to be referentially
-    // stable, so only the sign-in state re-runs the fetch.
-  }, [auth.isAuthenticated]);
+  }, [auth]);
 
   if (!auth.isAuthenticated) {
     return null;

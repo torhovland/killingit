@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   coachQuestionsResponseSchema,
   coachingInputSaveResponseSchema,
@@ -38,7 +38,7 @@ export function SeasonReviewPage() {
     return () => setStatus("season-review", null);
   }, [loading, setStatus]);
 
-  async function loadReviews(): Promise<void> {
+  const loadReviews = useCallback(async (): Promise<void> => {
     setLoading(true);
     setError(null);
     try {
@@ -63,7 +63,7 @@ export function SeasonReviewPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [auth]);
 
   async function submitComment(
     kind: ReviewKind,
@@ -111,8 +111,7 @@ export function SeasonReviewPage() {
       return;
     }
     void loadReviews();
-    // Only re-run when sign-in state flips; `auth` is consumed inside.
-  }, [auth.isAuthenticated]);
+  }, [auth, loadReviews]);
 
   if (!auth.isAuthenticated) {
     return null;

@@ -64,8 +64,7 @@ export function useManualActivities(
       return;
     }
     void load();
-    // Only re-run when sign-in state flips; `auth` is consumed inside.
-  }, [auth.isAuthenticated]);
+  }, [auth, load]);
 
   const submit = useCallback(
     async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {

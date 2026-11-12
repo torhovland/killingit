@@ -99,7 +99,7 @@ export function PlanRegenerationButtons() {
     return () => {
       cancelled = true;
     };
-  }, [auth.isAuthenticated, timeZone]);
+  }, [auth, timeZone]);
 
   useEffect(() => {
     if (!auth.isAuthenticated) {
@@ -141,7 +141,7 @@ export function PlanRegenerationButtons() {
     return () => {
       cancelled = true;
     };
-  }, [auth.isAuthenticated]);
+  }, [auth]);
 
   async function regenerate(action: PlanAction): Promise<void> {
     setError(null);

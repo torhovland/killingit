@@ -37,6 +37,9 @@ export function CoachDashboard({
   // Commented-on activities stay on the page for this visit. The server feed
   // omits them once they have been answered; a reload clears the kept set.
   const feed = useActivityFeed(auth, timeZone, { keepAnswered: true });
+  // Destructured so the effects below can depend on the callbacks themselves;
+  // the feed object is rebuilt on every render.
+  const { loadCached, loadAnalyses, awaitingReplies } = feed;
   const [localPlanRefresh, setLocalPlanRefresh] = useState(0);
   const bumpPlan = useCallback(
     () => setLocalPlanRefresh((value) => value + 1),
@@ -59,17 +62,19 @@ export function CoachDashboard({
     if (!statuses.garmin?.connected) {
       return;
     }
-    if (feed.data === null || feed.data.activities.length === 0) {
-      void feed.loadCached();
-    }
-    void feed.loadAnalyses();
-    // Re-run when Garmin connects or the LLM setup changes, not every render.
-  }, [statuses.garmin?.connected, statuses.llm?.configured]);
+    void loadCached();
+    void loadAnalyses();
+  }, [
+    statuses.garmin?.connected,
+    statuses.llm?.configured,
+    loadCached,
+    loadAnalyses,
+  ]);
 
   // The coach stores replies before it starts the slower plan refresh, so poll
   // the cached feed while any comment is still waiting for its reply.
   useEffect(() => {
-    if (!auth.isAuthenticated || !feed.awaitingReplies) {
+    if (!auth.isAuthenticated || !awaitingReplies) {
       return;
     }
     let attempts = 0;
@@ -79,10 +84,10 @@ export function CoachDashboard({
         clearInterval(timer);
         return;
       }
-      void feed.loadCached();
+      void loadCached();
     }, 1500);
     return () => clearInterval(timer);
-  }, [auth.isAuthenticated, feed.awaitingReplies, feed.loadCached]);
+  }, [auth, awaitingReplies, loadCached]);
 
   if (!auth.isAuthenticated) {
     return null;

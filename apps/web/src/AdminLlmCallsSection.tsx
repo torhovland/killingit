@@ -66,8 +66,7 @@ export function AdminLlmCallsSection() {
     return () => {
       cancelled = true;
     };
-    // Only re-run on sign-in or an explicit refresh; `auth` is consumed inside.
-  }, [auth.isAuthenticated, reloadKey]);
+  }, [auth, reloadKey]);
 
   async function selectCall(id: number): Promise<void> {
     if (id === selectedId) {

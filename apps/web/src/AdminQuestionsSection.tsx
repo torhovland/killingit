@@ -60,8 +60,7 @@ export function AdminQuestionsSection() {
     return () => {
       cancelled = true;
     };
-    // Only re-run when sign-in state flips; `auth` is consumed inside.
-  }, [auth.isAuthenticated]);
+  }, [auth]);
 
   async function createQuestion(input: QuestionInput): Promise<void> {
     const created = await requestParsed(

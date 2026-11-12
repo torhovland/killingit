@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   dietSummaryResponseSchema,
   type DietSummaryResponse,
@@ -30,7 +30,7 @@ export function DietPage({ dietAdvice }: { dietAdvice: boolean }) {
     return () => setStatus("diet-page", null);
   }, [loading, setStatus]);
 
-  async function loadSummary(): Promise<void> {
+  const loadSummary = useCallback(async (): Promise<void> => {
     setLoading(true);
     setError(null);
     try {
@@ -47,15 +47,13 @@ export function DietPage({ dietAdvice }: { dietAdvice: boolean }) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [auth, today]);
 
   useEffect(() => {
     if (auth.isAuthenticated) {
       void loadSummary();
     }
-    // Only re-run when sign-in flips or the day changes; `auth` is consumed
-    // inside and is not guaranteed to be referentially stable.
-  }, [auth.isAuthenticated, today]);
+  }, [auth, loadSummary]);
 
   return (
     <DietView

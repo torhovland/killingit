@@ -100,7 +100,7 @@ function AppShell() {
     }).catch(() => {
       // A catalog refresh must never block the page.
     });
-  }, [auth.isAuthenticated]);
+  }, [auth]);
 
   // When authenticated, fetch the protected /api/me to prove the token flows.
   useEffect(() => {
@@ -125,9 +125,7 @@ function AppShell() {
       .catch((e: unknown) => {
         setError(reportError(e));
       });
-    // Depend only on `auth.isAuthenticated`: `useAuth` memoizes `auth`, but the
-    // underlying SDK callbacks aren't guaranteed stable.
-  }, [auth.isAuthenticated]);
+  }, [auth]);
 
   function navigate(next: Page): void {
     navigateToPage(next);

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   currentUserSchema,
   garminConnectionStatusSchema,
@@ -113,7 +113,7 @@ export function SettingsPage({
     return () => setStatus("settings-page", null);
   }, [loading, setStatus]);
 
-  async function loadStatuses(): Promise<void> {
+  const loadStatuses = useCallback(async (): Promise<void> => {
     setLoading(true);
     setError(null);
     try {
@@ -138,14 +138,14 @@ export function SettingsPage({
     } finally {
       setLoading(false);
     }
-  }
+  }, [auth]);
 
   useEffect(() => {
     if (!auth.isAuthenticated) {
       return;
     }
     void loadStatuses();
-  }, [auth.isAuthenticated]);
+  }, [auth, loadStatuses]);
 
   if (!auth.isAuthenticated) {
     return null;
