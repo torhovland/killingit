@@ -382,6 +382,13 @@ The stack below is proposed and should be treated as the starting point. See
 ### Frontend
 
 - **React** with **TypeScript**.
+- Every top-level page has a canonical URL (`/coach`, `/diet`, `/fitness`,
+  `/calendar`, `/activities`, `/season-review`, `/survey`, `/costs`,
+  `/settings`, `/admin`). `apps/web/src/navigation.tsx` owns the page
+  definitions and a minimal `useSyncExternalStore` History binding, and
+  `apps/web/src/PageOutlet.tsx` maps each page to its component. `/` and
+  unknown paths replace to `/coach`; the survey gate and the admin guard
+  redirect with `replaceState`. See `docs/specs/web-routing.md` and ADR 0031.
 - The web app is an installable **PWA**. A build-time service worker precaches
   the static app shell, serves the last shell offline, and leaves `/api/*`
   uncached because API responses are per-account. The build stamps one

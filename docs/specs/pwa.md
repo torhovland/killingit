@@ -63,8 +63,8 @@ new deployment is ready.
   training data, so the service worker never stores them. The dashboard's
   existing account-scoped `localStorage` activity cache is unchanged.
 - Push notifications, periodic background sync, and native app packaging.
-- Manifest shortcuts and URL-based deep links. Pages are still selected in
-  memory, so every shortcut would land on the dashboard.
+- Manifest shortcuts. URL-based deep links are supported by the page router
+  (`docs/specs/web-routing.md`), but no shortcut is declared in the manifest.
 - Reloading a page automatically when a newer build really is waiting. The
   banner is the supported path; a normal reload also picks up the new shell.
   Automatic reloading would discard unsaved input and can interrupt a running
