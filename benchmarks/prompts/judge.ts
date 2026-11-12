@@ -1,16 +1,20 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import {
-  BENCHMARK_PROMPTS,
   checkReviseSeasonGates,
   combinePromptScores,
   parseCurrentBlock,
 } from "@killingit/benchmark/src/promptBenchmark.js";
+import {
+  BENCHMARK_PROMPTS,
+  buildBenchmarkPromptMessages,
+  formatBenchmarkPrompt,
+} from "@killingit/benchmark/src/promptBenchmarkInput.js";
 import type {
   BenchmarkPromptDefinition,
   BenchmarkPromptId,
-  ReviseSeasonGates,
-} from "@killingit/benchmark/src/promptBenchmark.js";
+} from "@killingit/benchmark/src/promptBenchmarkInput.js";
+import type { ReviseSeasonGates } from "@killingit/benchmark/src/promptBenchmark.js";
 
 const RUN_ID = process.env.RUN_ID ?? "2026-10-31-two-prompts";
 const RUN_DIR = resolve(import.meta.dir, "runs", RUN_ID);
@@ -79,13 +83,13 @@ You will receive the exact original prompt given to the candidate and the candid
 
 Score the candidate on these six components. Be strict but fair. Judge the coaching content, not writing style alone.
 
-1. contract (0-1.5): valid JSON, exactly the requested "today" object, required fields present with the right types and enum values, no extra root keys, no prose around the JSON, no code fence. Extra fields inside "today" are a minor issue, not a failure.
+1. contract (0-1.5): valid JSON with the top-level keys today, tomorrow, week, diet and bodyMetrics, and optionally coachQuestion and modelsRemarks. Today and tomorrow are complete day objects using the contract's field names and types; week has exactly seven dated sessions as short outlines; no prose around the JSON, no code fence. Extra fields inside an object are a minor issue, not a failure.
 
-2. fidelity (0-2.0): the candidate matches the date, status, session type, duration, intensity, indoor/outdoor flags, bikeWorkout, FTP, TSS and other constraints stated in the original prompt and the current plan. Marking today completed when no activity is recorded, inventing an activity, or replacing the planned session with an unrelated one loses points.
+2. fidelity (0-2.0): the candidate matches the dates, statuses, session types, durations, intensities, indoor/outdoor flags, bikeWorkout, FTP and TSS stated in the original prompt and the current plan. Today must be 2026-10-30 and one of the week's sessions, tomorrow must be 2026-10-31, and the week must run from 2026-10-26 to 2026-11-01. Past days keep what the athlete actually did. The weekday sessions stay inside the athlete's after-work window and out of the dark, as the weekly note says. Marking today completed when no activity is recorded, inventing an activity, or replacing a planned session with an unrelated one loses points.
 
-3. design (0-3.0): a specific, safe, well-sequenced session that fits the athlete's goals, experience, equipment, recent training and the current plan. Reward sensible exercise selection, sets and reps, rest, progression and safety. Penalize vague, generic or unsafe prescriptions. Do not require any particular exercise.
+3. design (0-3.0): a specific, safe, well-sequenced session and week that fit the athlete's goals, experience, equipment, recent training and the current plan. Reward sensible exercise selection, sets and reps, rest, progression and safety. Penalize vague, generic or unsafe prescriptions. Do not require any particular exercise.
 
-4. rationale (0-2.0): optionalRationale explains why this session is right for the athlete now and what is lost by skipping. Reward specific, grounded reasoning tied to the athlete's goals and current plan. Penalize empty, generic or purely motivational text.
+4. rationale (0-2.0): the day's rationale and optionalRationale explain why this session is right for the athlete now and what is lost by skipping. Reward specific, grounded reasoning tied to the athlete's goals and current plan. Penalize empty, generic or purely motivational text.
 
 5. grounding (0-2.0): uses the athlete's actual profile, recent activities, comments, constraints and current plan; makes no invented claims; does not hallucinate a completed activity; respects the athlete's time, equipment, weather and daylight limits.
 
@@ -100,9 +104,9 @@ Return strict JSON. Inside the judgment string, do not use quotation marks of an
 
 const REVISE_SEASON_RUBRIC = `You are a strict, expert endurance-coaching judge. You evaluate another model's answer to a coaching prompt. Do not answer the coaching prompt yourself and do not produce a training plan. Only evaluate the candidate JSON.
 
-You will receive the exact original prompt given to the candidate and the candidate's JSON response. The original prompt asks the model to refresh an existing season plan after the athlete's stated goal changed: the next race is the Atlas Mountain Race on 28 February 2027, followed by Paris-Brest-Paris in August 2027, with a randonneur brevet series in between whose first event is a 200 km brevet in April 2027. The revision request says the season and the current block must be refreshed in place, block 1 must start on 2026-10-21, blocks that ended before today must stay as supplied, the remainder of the season must be re-planned as contiguous blocks that cover the season, the current week and today must be revised coherently, tomorrow, next week and next block must stay null because they were supplied as null, and the coaching survey adjustments must be applied.
+You will receive the exact original prompt given to the candidate and the candidate's JSON response. The original prompt asks the model to refresh an existing season plan after the athlete's stated goal changed: the next race is the Atlas Mountain Race on 28 February 2027, followed by Paris-Brest-Paris in August 2027, with a randonneur brevet series in between whose first event is a 200 km brevet in April 2027. The revision request says the season and the current block must be refreshed in place, block 1 must start on 2026-10-19, blocks that ended before today must stay as supplied, the remainder of the season must be re-planned as contiguous blocks that cover the season, the current week and today must be revised coherently, tomorrow, next week and next block must stay null because they were supplied as null, and the coaching survey adjustments must be applied.
 
-A correct answer must mention Atlas, must produce a genuinely changed block 1, and must keep block 1 starting on 2026-10-21. Those three requirements are also checked mechanically, so their absence is already a hard failure; do not let strong writing hide it, and do not award credit for content the athlete did not supply.
+A correct answer must mention Atlas, must produce a genuinely changed block 1, and must keep block 1 starting on 2026-10-19. Those three requirements are also checked mechanically, so their absence is already a hard failure; do not let strong writing hide it, and do not award credit for content the athlete did not supply.
 
 An answer may instead ask a coachQuestion about Atlas rather than working Atlas into the plan. That is acceptable and must not be treated as a design, fidelity or grounding failure. It is better, however, if the revised plan itself includes Atlas preparation, the current (first) block has changed to accommodate Atlas, and there is no coachQuestion; reward that preferred outcome more highly than the question-only answer.
 
@@ -110,9 +114,9 @@ If the block plan in the output does not mention Atlas in its name, focus, or ra
 
 Score the candidate on these six components. Be strict but fair. Judge the coaching content, not writing style alone.
 
-1. contract (0-1.5): valid JSON with exactly the eight top-level keys, season, block, week and today objects using the contract's field names and types, seven week sessions, a matching today session, bodyMetrics array, and no prose or extra fields.
+1. contract (0-1.5): valid JSON with exactly the nine top-level keys, season, block, week, today, tomorrow, nextWeek, nextBlock, diet and bodyMetrics, using the contract's field names and types, seven week sessions, a matching today session, and no prose or extra fields.
 
-2. fidelity (0-2.0): follows every instruction in the revision request. The season is refreshed in place, block 1 starts on 2026-10-21, earlier blocks are untouched, later blocks tile the season with no gaps or overlaps through the season end, the current block is detailed, the current week is coherent with it, today is revised, and tomorrow, nextWeek and nextBlock stay null. It keeps dates, athlete goals and stored facts consistent.
+2. fidelity (0-2.0): follows every instruction in the revision request. The season is refreshed in place, block 1 starts on 2026-10-19, earlier blocks are untouched, later blocks tile the season with no gaps or overlaps through the season end, the current block is detailed, the current week is coherent with it, today is revised, and tomorrow, nextWeek and nextBlock stay null. It keeps dates, athlete goals and stored facts consistent.
 
 3. design (0-3.0): the revised season makes sense as a response to the new goal. Reward a credible build to the Atlas Mountain Race on 28 February 2027, with a sane taper and recovery, while preserving Paris-Brest-Paris in August 2027, the April 200 km brevet and the intervening brevet series, respecting the athlete's admitted ceiling of about four months of disciplined training before needing a reset, the Norwegian winter, the two-hour weekday limit after work, longer weekend rides, cycling and strength training with skiing in winter and running otherwise, power targets on the bike and heart-rate targets elsewhere, and the 225 W FTP. Strongly prefer a block plan whose name, focus or rationale names Atlas. Penalise plans that ignore Atlas, keep the old season shape, overload or detrain the athlete, invent races or numbers, or break the chronological season logic.
 
@@ -375,7 +379,7 @@ async function main(): Promise<void> {
   for (const definition of BENCHMARK_PROMPTS) {
     promptTexts.set(
       definition.id,
-      await readFile(resolve(import.meta.dir, definition.file), "utf8"),
+      formatBenchmarkPrompt(buildBenchmarkPromptMessages(definition.id)),
     );
   }
   const revisePrompt = promptTexts.get("reviseSeason");
@@ -385,7 +389,7 @@ async function main(): Promise<void> {
   const baseline = parseCurrentBlock(revisePrompt);
   if (baseline === null) {
     throw new Error(
-      "could not read the supplied current block from revise-season-prompt.txt",
+      "could not read the supplied current block from the season revision prompt",
     );
   }
 

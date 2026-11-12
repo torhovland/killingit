@@ -2,7 +2,6 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { LlmModelGrade } from "@killingit/shared";
 import {
-  BENCHMARK_PROMPTS,
   filterByCostGrades,
   filterByMinimumAbility,
   parseAbilityGrade,
@@ -10,10 +9,15 @@ import {
   validateReviseSeasonPlan,
   validateTodayPlan,
 } from "@killingit/benchmark/src/promptBenchmark.js";
+import {
+  BENCHMARK_PROMPTS,
+  buildBenchmarkPromptMessages,
+} from "@killingit/benchmark/src/promptBenchmarkInput.js";
 import type {
   BenchmarkPromptId,
   BenchmarkPromptDefinition,
-} from "@killingit/benchmark/src/promptBenchmark.js";
+  BenchmarkPromptMessage,
+} from "@killingit/benchmark/src/promptBenchmarkInput.js";
 import { SPEED_F_LIMIT_MS } from "../../apps/api/src/llm/modelCatalog.js";
 
 const RUN_ID = process.env.RUN_ID ?? "2026-10-31-two-prompts";
@@ -121,7 +125,7 @@ function tokensFor(
 async function callModel(
   apiKey: string,
   model: string,
-  prompt: string,
+  messages: readonly BenchmarkPromptMessage[],
   maxTokens: number,
   timeoutMs: number,
 ): Promise<Attempt> {
@@ -140,7 +144,7 @@ async function callModel(
       },
       body: JSON.stringify({
         model,
-        messages: [{ role: "user", content: prompt }],
+        messages,
         max_tokens: maxTokens,
         temperature: 0.2,
       }),
@@ -221,7 +225,7 @@ async function runPrompt(
   apiKey: string,
   model: OpenRouterModel,
   definition: BenchmarkPromptDefinition,
-  prompt: string,
+  messages: readonly BenchmarkPromptMessage[],
   deadline: number,
 ): Promise<PromptResult> {
   const attempts: Attempt[] = [];
@@ -234,7 +238,7 @@ async function runPrompt(
     const result = await callModel(
       apiKey,
       model.id,
-      prompt,
+      messages,
       tokensFor(definition, attempt),
       Math.min(TIMEOUT_MS, remaining),
     );
@@ -265,7 +269,7 @@ async function runPrompt(
 async function runModel(
   apiKey: string,
   model: OpenRouterModel,
-  prompts: ReadonlyMap<BenchmarkPromptId, string>,
+  prompts: ReadonlyMap<BenchmarkPromptId, readonly BenchmarkPromptMessage[]>,
   existing?: ModelResult,
 ): Promise<ModelResult> {
   const requestedAt = new Date().toISOString();
@@ -274,16 +278,22 @@ async function runModel(
   const results = {} as Record<BenchmarkPromptId, PromptResult>;
 
   for (const definition of BENCHMARK_PROMPTS) {
-    const prompt = prompts.get(definition.id);
-    if (prompt === undefined) {
-      throw new Error(`missing prompt text for ${definition.id}`);
+    const messages = prompts.get(definition.id);
+    if (messages === undefined) {
+      throw new Error(`missing prompt messages for ${definition.id}`);
     }
     const prior = existing?.prompts[definition.id];
     if (prior?.ok) {
       results[definition.id] = prior;
       continue;
     }
-    const fresh = await runPrompt(apiKey, model, definition, prompt, deadline);
+    const fresh = await runPrompt(
+      apiKey,
+      model,
+      definition,
+      messages,
+      deadline,
+    );
     results[definition.id] = prior
       ? {
           ...fresh,
@@ -353,12 +363,9 @@ function log(message: string): void {
 async function main(): Promise<void> {
   const apiKey = process.env.BENCHMARK_OPENROUTER_API_KEY?.trim();
   if (!apiKey) throw new Error("BENCHMARK_OPENROUTER_API_KEY is not set");
-  const prompts = new Map<BenchmarkPromptId, string>();
+  const prompts = new Map<BenchmarkPromptId, BenchmarkPromptMessage[]>();
   for (const definition of BENCHMARK_PROMPTS) {
-    prompts.set(
-      definition.id,
-      await readFile(resolve(import.meta.dir, definition.file), "utf8"),
-    );
+    prompts.set(definition.id, buildBenchmarkPromptMessages(definition.id));
   }
   await mkdir(resolve(RUN_DIR, "raw"), { recursive: true });
 

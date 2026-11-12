@@ -1,11 +1,11 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import {
-  BENCHMARK_PROMPTS,
   validateReviseSeasonPlan,
   validateTodayPlan,
 } from "@killingit/benchmark/src/promptBenchmark.js";
-import type { BenchmarkPromptId } from "@killingit/benchmark/src/promptBenchmark.js";
+import { BENCHMARK_PROMPTS } from "@killingit/benchmark/src/promptBenchmarkInput.js";
+import type { BenchmarkPromptId } from "@killingit/benchmark/src/promptBenchmarkInput.js";
 
 const RUN_ID = process.env.RUN_ID ?? "2026-10-31-two-prompts";
 const RUN_DIR = resolve(import.meta.dir, "runs", RUN_ID);

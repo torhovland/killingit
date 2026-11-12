@@ -183,9 +183,12 @@ about a past workout, or before a suggested workout, to steer the coach.
   athlete; the harness is the `@killingit/benchmark` workspace in
   `tools/benchmark`, and results and quality notes are kept under
   `benchmarks/llm-coach/`. The first model in a run is the benchmark. The
-  prompt benchmark's run directories and generated HTML/PDF reports are local
-  output and ignored by git; see `benchmarks/README.md`. See
-  `docs/specs/llm-benchmark.md` and ADR 0032.
+  prompt benchmark's two prompts are built by the app's own prompt builders
+  from the fixture athlete in `tools/benchmark/src/promptBenchmarkFixture.ts`,
+  and a snapshot test pins the built text, so a prompt change fails the suite
+  until the snapshot is deliberately updated. Its run directories and generated
+  HTML/PDF reports are local output and ignored by git; see
+  `benchmarks/README.md`. See `docs/specs/llm-benchmark.md` and ADR 0032.
 - The athlete's home location is stored on `users` and set in the settings
   location picker. When a week or day is planned, the API loads Open-Meteo and
   Yr.no forecasts, including sunrise and sunset, builds an averaged combined

@@ -93,11 +93,10 @@ interface Override {
 }
 
 const PROMPTS = [
-  { id: "today", label: "Today plan", file: "today-prompt.txt" },
+  { id: "today", label: "Today plan" },
   {
     id: "reviseSeason",
     label: "Season revision",
-    file: "revise-season-prompt.txt",
   },
 ];
 
@@ -551,13 +550,12 @@ async function main(): Promise<void> {
             )}; a later run replaces an earlier result for the same model. `
         : ""
     }
-    Each model received
-    <code>benchmarks/prompts/today-prompt.txt</code> and
-    <code>benchmarks/prompts/revise-season-prompt.txt</code> verbatim, in two
-    separate calls. The today prompt asks for only the plan for 2026-10-30. The
-    revision prompt asks for a refreshed season, current block, week and day
-    after the athlete set the Atlas Mountain Race on 28 February 2027 as the
-    next goal. Both
+    Each model received the daily-update prompt and the season-revision prompt
+    built by the app's own prompt builders from a fixture athlete, in two
+    separate calls. The today prompt asks for today's session, tomorrow's
+    session and the current week on 2026-10-30. The revision prompt asks for a
+    refreshed season, current block, week and day after the athlete set the
+    Atlas Mountain Race on 28 February 2027 as the next goal. Both
     prompts contain the full athlete profile, recent activities and coach
     analyses, the current plan, the athlete's latest metrics, and the weather
     forecast. A model needed a retry when a response was not parseable or did

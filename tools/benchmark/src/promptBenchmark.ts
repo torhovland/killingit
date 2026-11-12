@@ -1,49 +1,11 @@
-import type { LlmModelGrade } from "@killingit/shared";
+import { weekDates, type LlmModelGrade } from "@killingit/shared";
 import { GRADE_ORDER } from "../../../apps/api/src/llm/modelCatalog.js";
-
-/** Dates used by the two benchmark prompts. */
-export const TODAY_BENCHMARK_DATE = "2026-10-30";
-export const REVISE_SEASON_DATE = "2026-11-01";
-export const REVISE_WEEK_START = "2026-10-26";
-
-/** The revision request returns exactly these top-level keys. */
-export const REVISE_SEASON_TOP_LEVEL_KEYS = [
-  "season",
-  "block",
-  "week",
-  "today",
-  "tomorrow",
-  "nextWeek",
-  "nextBlock",
-  "bodyMetrics",
-] as const;
-
-export const BENCHMARK_PROMPTS = [
-  {
-    id: "today",
-    label: "Today plan",
-    file: "today-prompt.txt",
-    maxTokens: 8_192,
-    retryMaxTokens: 8_192,
-  },
-  {
-    id: "reviseSeason",
-    label: "Season revision",
-    file: "revise-season-prompt.txt",
-    maxTokens: 16_384,
-    retryMaxTokens: 32_768,
-  },
-] as const;
-
-export type BenchmarkPromptId = (typeof BENCHMARK_PROMPTS)[number]["id"];
-
-export interface BenchmarkPromptDefinition {
-  id: BenchmarkPromptId;
-  label: string;
-  file: string;
-  maxTokens: number;
-  retryMaxTokens: number;
-}
+import {
+  REVISE_SEASON_DATE,
+  REVISE_SEASON_TOP_LEVEL_KEYS,
+  REVISE_WEEK_START,
+  TODAY_BENCHMARK_DATE,
+} from "./promptBenchmarkInput.js";
 
 export const BENCHMARK_COMPONENT_KEYS = [
   "contract",
@@ -213,36 +175,8 @@ function checkNullableNumber(
   }
 }
 
-/** The single-day prompt returns a smaller session object than a plan update. */
-function checkTodayBenchmarkSession(
-  session: Record<string, unknown>,
-  errors: string[],
-  prefix: string,
-): void {
-  checkSessionFields(
-    session,
-    [
-      ["date", "string"],
-      ["status", "string"],
-      ["title", "string"],
-      ["type", "string"],
-      ["intensity", "string"],
-      ["durationMinutes", "number"],
-      ["outdoor", "boolean"],
-      ["canBeOutdoor", "boolean"],
-      ["estimatedTss", "number"],
-      ["estimatedFtpWatts", "number"],
-      ["bikeWorkout", "object"],
-      ["description", "string"],
-      ["optional", "boolean"],
-      ["optionalRationale", "string"],
-    ],
-    errors,
-    prefix,
-  );
-}
-
-function checkReviseTodaySession(
+/** The concrete workout or rest day the day contract requires. */
+function checkDaySession(
   session: Record<string, unknown>,
   errors: string[],
   prefix: string,
@@ -262,6 +196,8 @@ function checkReviseTodaySession(
       ["optional", "boolean"],
       ["optionalRationale", "string"],
       ["estimatedTss", "number"],
+      ["estimatedCaloriesKcal", "number"],
+      ["calorieBreakdown", "object"],
       ["outdoor", "boolean"],
       ["canBeOutdoor", "boolean"],
       ["bikeWorkout", "object"],
@@ -288,6 +224,8 @@ function checkWeekSession(
       ["intensity", "string"],
       ["status", "string"],
       ["estimatedTss", "number"],
+      ["estimatedCaloriesKcal", "number"],
+      ["calorieBreakdown", "object"],
       ["outdoor", "boolean"],
       ["canBeOutdoor", "boolean"],
       ["bikeWorkout", "object"],
@@ -297,6 +235,45 @@ function checkWeekSession(
   );
   // A past day legitimately has no forward FTP projection.
   checkNullableNumber(session, "estimatedFtpWatts", errors, prefix);
+}
+
+/** Checks a week plan: its dates, its rationale and its seven sessions. */
+function checkWeekPlan(
+  week: Record<string, unknown>,
+  startDate: string,
+  errors: string[],
+  prefix: string,
+): void {
+  for (const key of ["startDate", "focus", "rationale"]) {
+    checkField(week, key, "string", errors, prefix);
+  }
+  checkNullableNumber(week, "estimatedFtpWatts", errors, prefix);
+  if (week.startDate !== startDate) {
+    errors.push(`${prefix} startDate must be ${startDate}`);
+  }
+  if ("dietProgress" in week) {
+    checkField(week, "dietProgress", "object", errors, prefix);
+  }
+  if (!Array.isArray(week.sessions) || week.sessions.length !== 7) {
+    errors.push(`${prefix} sessions must contain exactly seven sessions`);
+    return;
+  }
+  const dates = week.sessions.map((session) =>
+    isRecord(session) ? String(session.date) : "",
+  );
+  const expected = weekDates(startDate);
+  if (dates.join(",") !== expected.join(",")) {
+    errors.push(
+      `${prefix} sessions must cover ${expected[0]} through ${expected[expected.length - 1]}`,
+    );
+  }
+  for (const [index, session] of week.sessions.entries()) {
+    if (!isRecord(session)) {
+      errors.push(`${prefix} session ${index + 1} is not an object`);
+      continue;
+    }
+    checkWeekSession(session, errors, `${prefix} session ${index + 1}:`);
+  }
 }
 
 function checkTopLevelKeys(
@@ -330,23 +307,64 @@ function checkTopLevelKeys(
   }
 }
 
-/** Checks the single-day benchmark response. */
+/**
+ * Checks the daily-update response: today's session, tomorrow's session, the
+ * revised week and the diet/body inputs the app stores with it.
+ */
 export function validateTodayPlan(plan: unknown): string[] {
   if (!isRecord(plan)) return ["response is not an object"];
   const errors: string[] = [];
   checkTopLevelKeys(
     plan,
-    ["today"],
-    ["coachQuestion", "modelsRemarks"],
+    ["today", "tomorrow", "week", "bodyMetrics"],
+    ["diet", "coachQuestion", "modelsRemarks"],
     errors,
   );
   const today = plan.today;
-  if (!isRecord(today)) return [...errors, "missing today object"];
-  checkTodayBenchmarkSession(today, errors, "today:");
-  if (today.date !== TODAY_BENCHMARK_DATE) {
-    errors.push(`today date must be ${TODAY_BENCHMARK_DATE}`);
+  if (!isRecord(today)) {
+    errors.push("missing today object");
+  } else {
+    checkDaySession(today, errors, "today:");
+    if (today.date !== TODAY_BENCHMARK_DATE) {
+      errors.push(`today date must be ${TODAY_BENCHMARK_DATE}`);
+    }
+  }
+  const tomorrow = plan.tomorrow;
+  if (tomorrow !== null) {
+    if (!isRecord(tomorrow)) {
+      errors.push("tomorrow must be an object or null");
+    } else {
+      checkDaySession(tomorrow, errors, "tomorrow:");
+      if (tomorrow.date !== addOneDay(TODAY_BENCHMARK_DATE)) {
+        errors.push(`tomorrow date must be ${addOneDay(TODAY_BENCHMARK_DATE)}`);
+      }
+    }
+  }
+  const week = plan.week;
+  if (!isRecord(week)) {
+    errors.push("missing week object");
+  } else {
+    checkWeekPlan(week, REVISE_WEEK_START, errors, "week:");
+    if (
+      Array.isArray(week.sessions) &&
+      !week.sessions.some(
+        (session) => isRecord(session) && session.date === TODAY_BENCHMARK_DATE,
+      )
+    ) {
+      errors.push("today must be one of the week's sessions");
+    }
+  }
+  if (!Array.isArray(plan.bodyMetrics)) {
+    errors.push("bodyMetrics must be an array");
   }
   return errors;
+}
+
+/** The next calendar day, used for the tomorrow date check. */
+function addOneDay(date: string): string {
+  const value = new Date(`${date}T00:00:00Z`);
+  value.setUTCDate(value.getUTCDate() + 1);
+  return value.toISOString().slice(0, 10);
 }
 
 /** Checks that the season revision has the requested shape before judging. */
@@ -449,47 +467,17 @@ export function validateReviseSeasonPlan(plan: unknown): string[] {
   }
 
   const week = plan.week;
-  const weekDates = Array.from({ length: 7 }, (_, index) => {
-    const date = new Date(`${REVISE_WEEK_START}T00:00:00Z`);
-    date.setUTCDate(date.getUTCDate() + index);
-    return date.toISOString().slice(0, 10);
-  });
   if (!isRecord(week)) {
     errors.push("missing week object");
   } else {
-    for (const key of ["startDate", "focus", "rationale"]) {
-      checkField(week, key, "string", errors, "week:");
-    }
-    checkNullableNumber(week, "estimatedFtpWatts", errors, "week:");
-    if (week.startDate !== REVISE_WEEK_START) {
-      errors.push(`week startDate must be ${REVISE_WEEK_START}`);
-    }
-    if (!Array.isArray(week.sessions) || week.sessions.length !== 7) {
-      errors.push("week: sessions must contain exactly seven sessions");
-    } else {
-      const dates = week.sessions.map((session) =>
-        isRecord(session) ? String(session.date) : "",
-      );
-      if (dates.join(",") !== weekDates.join(",")) {
-        errors.push(
-          `week: sessions must cover ${weekDates[0]} through ${weekDates[6]}`,
-        );
-      }
-      for (const [index, session] of week.sessions.entries()) {
-        if (!isRecord(session)) {
-          errors.push(`week: session ${index + 1} is not an object`);
-          continue;
-        }
-        checkWeekSession(session, errors, `week: session ${index + 1}:`);
-      }
-    }
+    checkWeekPlan(week, REVISE_WEEK_START, errors, "week:");
   }
 
   const today = plan.today;
   if (!isRecord(today)) {
     errors.push("missing today object");
   } else {
-    checkReviseTodaySession(today, errors, "today:");
+    checkDaySession(today, errors, "today:");
     if (today.date !== REVISE_SEASON_DATE) {
       errors.push(`today date must be ${REVISE_SEASON_DATE}`);
     }
