@@ -84,17 +84,18 @@ export const COVERAGE_EXCLUDES = [
  * change between Bun releases, so re-measure when the pin moves. Raise a
  * threshold when coverage improves; never lower one without a good reason.
  *
- * The api function floor fell from 78 to 77 when the benchmark harness and its
+ * The api floor fell from 73/78 to 72/77 when the benchmark harness and its
  * tests moved to `tools/benchmark` (ADR 0032): the well-covered
  * `promptBenchmark` module left the api denominator, so the remaining server
- * code measures 77.60%. The moved tests still run, in the benchmark group.
+ * code measures 72.97% of lines (CI) and 77.60% of functions. The moved tests
+ * still run, in the benchmark group.
  */
 export const COVERAGE_GROUPS: readonly CoverageGroup[] = [
   {
     name: "api",
     root: "apps/api",
     testArgs: ["src"],
-    threshold: { lines: 0.73, functions: 0.77 },
+    threshold: { lines: 0.72, functions: 0.77 },
   },
   {
     name: "web",

@@ -63,15 +63,16 @@ variation. Both lines and functions are checked.
 
 | Package   | Lines measured | Line threshold | Functions measured | Function threshold |
 | --------- | -------------- | -------------- | ------------------ | ------------------ |
-| api       | 73.09%         | 73.0%          | 77.60%             | 77.0%              |
-| web       | 77.21%         | 77.0%          | 72.11%             | 72.0%              |
+| api       | 72.97%         | 72.0%          | 77.60%             | 77.0%              |
+| web       | 77.75%         | 77.0%          | 72.61%             | 72.0%              |
 | shared    | 95.92%         | 95.0%          | 87.64%             | 86.0%              |
 | benchmark | 90.48%         | 90.0%          | 100.00%            | 100.0%             |
 
-The api function floor was 78.0 until the benchmark harness and its tests moved
-to `tools/benchmark` (ADR 0032). The well-covered `promptBenchmark` module left
-the api denominator while its tests kept running in the benchmark group, so the
-remaining server code re-measured at 77.60%.
+The api floor was 73.0% of lines and 78.0% of functions until the benchmark
+harness and its tests moved to `tools/benchmark` (ADR 0032). The well-covered
+`promptBenchmark` module left the api denominator while its tests kept running
+in the benchmark group, so the remaining server code re-measured at 72.97% of
+lines and 77.60% of functions.
 
 The baseline lives in `COVERAGE_GROUPS` in `scripts/coverage.ts`. When coverage
 improves, raise the matching threshold in the same pull request. Lowering a
