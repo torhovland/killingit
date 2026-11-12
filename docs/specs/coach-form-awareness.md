@@ -63,9 +63,9 @@ that `applyTrainingLoad` already consumes.
 
 ## Technical approach
 
-- `apps/api/src/llm/planContext.ts` owns the text format, using the shared
-  `FORM_INTERPRETATION_LABELS` and `interpretTrainingStressBalance` so the prompt
-  and the UI cannot describe the same TSB differently.
+- `apps/api/src/llm/planLevelsContext.ts` owns the level text format, using the
+  shared `FORM_INTERPRETATION_LABELS` and `interpretTrainingStressBalance` so the
+  prompt and the UI cannot describe the same TSB differently.
 - `formatWeekPlan` and `formatDayPlan` add the load inline; the stored
   `trainingLoad` already exists on week sessions and day plans.
 - `formatPlanContext` renders the current form before the recent activities.

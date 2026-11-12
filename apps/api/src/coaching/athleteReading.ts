@@ -16,10 +16,10 @@ import type { LlmProvider } from "../llm/openrouter.js";
 import type { PlanCompletionCredentials } from "../llm/planCompletion.js";
 import type {
   ActivityCommentContext,
-  AthleteAnswerContext,
   ManualActivityContext,
-  PeriodReviewContext,
-} from "../llm/planContext.js";
+} from "../llm/activityContext.js";
+import type { PeriodReviewContext } from "../llm/planContext.js";
+import type { AthleteAnswerContext } from "../llm/profileContext.js";
 import { recordAthleteMetricStatements } from "../metrics/store.js";
 import { saveCoachQuestions } from "../plans/coachQuestions.js";
 import type { StoredWeeklyNote } from "../plans/inputs.js";

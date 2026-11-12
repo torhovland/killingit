@@ -1,10 +1,8 @@
 import type { AnalyzedActivity, AthleteEvent } from "@killingit/shared";
 import { loadDietContext } from "../diet/context.js";
-import {
-  toCoachPlanActivity,
-  type AthleteAnswerContext,
-  type PlanContextInput,
-} from "../llm/planContext.js";
+import { toCoachPlanActivity } from "../llm/activityContext.js";
+import type { PlanContextInput } from "../llm/planContext.js";
+import type { AthleteAnswerContext } from "../llm/profileContext.js";
 import { loadAthleteEvents } from "../events/store.js";
 import {
   loadBodyHistoryForUser,

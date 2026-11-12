@@ -1,9 +1,6 @@
 import type { SeasonPlan } from "@killingit/shared";
-import {
-  formatPlanContext,
-  formatSeasonPlan,
-  type PlanContextInput,
-} from "./planContext.js";
+import { formatPlanContext, type PlanContextInput } from "./planContext.js";
+import { formatSeasonPlan } from "./planLevelsContext.js";
 import {
   BLOCK_CONTRACT,
   BODY_METRIC_POINT_CONTRACT,

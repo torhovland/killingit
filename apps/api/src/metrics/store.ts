@@ -14,7 +14,7 @@ import {
 import { and, asc, eq, gt, inArray } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { athleteMetrics, athleteThresholds } from "../db/schema.js";
-import type { BodyMetricHistory } from "../llm/planContext.js";
+import type { BodyMetricHistory } from "../llm/profileContext.js";
 import {
   buildThresholdTimelines,
   currentThresholdSummaries,

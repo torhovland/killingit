@@ -2,17 +2,18 @@ import { describe, expect, it } from "bun:test";
 import type { AnalyzedActivity } from "@killingit/shared";
 import {
   formatActivitySummary,
-  formatBlockPlan,
-  formatDayPlan,
   formatLaps,
-  formatPlanContext,
-  formatSeasonPlan,
-  formatWeekPlan,
   summarizeLaps,
   toCoachPlanActivity,
-  type PlanContextInput,
   type RecentActivityContext,
-} from "./planContext.js";
+} from "./activityContext.js";
+import { formatPlanContext, type PlanContextInput } from "./planContext.js";
+import {
+  formatBlockPlan,
+  formatDayPlan,
+  formatSeasonPlan,
+  formatWeekPlan,
+} from "./planLevelsContext.js";
 
 const activity: RecentActivityContext = {
   summary: {

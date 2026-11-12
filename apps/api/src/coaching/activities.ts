@@ -53,7 +53,7 @@ import {
   toCoachAnalysis,
   type ActivityFeedback,
 } from "../plans/replies.js";
-import type { BodyMetricHistory } from "../llm/planContext.js";
+import type { BodyMetricHistory } from "../llm/profileContext.js";
 import {
   clearPendingActivityQuestion,
   saveCoachQuestions,

@@ -4,13 +4,12 @@ import type {
   ReviewKind,
   WeekPlan,
 } from "@killingit/shared";
+import { formatPlanContext, type PlanContextInput } from "./planContext.js";
 import {
   formatBlockPlan,
-  formatPlanContext,
   formatSeasonPlan,
   formatWeekPlan,
-  type PlanContextInput,
-} from "./planContext.js";
+} from "./planLevelsContext.js";
 import {
   DIET_RULES,
   GLOBAL_PROMPT_RULES,

@@ -147,7 +147,7 @@ and the reply is null; the failure is logged.
   is kept as the reply and fails open with `planChangeNeeded: true`.
   See `docs/specs/coach-reply-context.md` and
   `docs/specs/llm-text-formatting.md`.
-- **Plan generation** (`planContext`): each activity comment is rendered
+- **Plan generation** (`activityContext`): each activity comment is rendered
   inline under the activity it references, together with an explicit rule that
   the comment describes that same activity and is never additional training.
   Comments for activities outside the recent list stay in a separate section
