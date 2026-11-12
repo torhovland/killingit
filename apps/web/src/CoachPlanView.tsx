@@ -19,7 +19,6 @@ import {
   type SeasonPlan,
   type ThresholdSummary,
   type WeekPlan,
-  type WeekSessionStatus,
 } from "@killingit/shared";
 import { Bullet } from "./Bullet";
 import { CalorieBalancePanel } from "./CalorieBalancePanel";
@@ -29,6 +28,7 @@ import { TrainingLoadLine } from "./TrainingLoadLine";
 import { WeatherSummary } from "./WeatherSummary";
 import { Button } from "./components/Button";
 import { Card } from "./components/Card";
+import { StatusBadge } from "./components/StatusBadge";
 
 export type PlanTab = "day" | "week" | "block" | "season";
 
@@ -647,14 +647,6 @@ function ThresholdsLine({
     </span>
   );
   return inline ? content : <p className="text-base">{content}</p>;
-}
-
-function StatusBadge({ status }: { status: WeekSessionStatus }) {
-  return (
-    <span className="rounded border bg-muted px-2 py-0.5 text-sm capitalize">
-      {status}
-    </span>
-  );
 }
 
 function BlockSection({

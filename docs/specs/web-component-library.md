@@ -26,6 +26,9 @@ The primitives live in `apps/web/src/components/`:
   Tab focus trap and focus restored to the trigger on close. It takes the
   heading id that names it, an optional description id, and a `className` for
   panel layout such as width or scrolling; see `docs/specs/modal-dialog.md`.
+- `StatusBadge` — a week session's status (`completed`, `partial`, `planned`,
+  `missed`, `rest`) as a compact capitalised badge, shared by the plan and
+  calendar views so a status renders identically wherever it appears.
 - `cn` — `clsx` plus `tailwind-merge`, so a caller's `className` overrides a
   primitive's default instead of duplicating it.
 
