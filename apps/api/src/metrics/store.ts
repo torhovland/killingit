@@ -11,9 +11,14 @@ import {
   type MetricSource,
   type ThresholdSummary,
 } from "@killingit/shared";
-import { and, asc, eq, gt, inArray } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, or, sql } from "drizzle-orm";
 import { db } from "../db/index.js";
-import { athleteMetrics, athleteThresholds } from "../db/schema.js";
+import {
+  athleteMetrics,
+  athleteThresholds,
+  type NewAthleteMetricRow,
+  type NewAthleteThresholdRow,
+} from "../db/schema.js";
 import type { BodyMetricHistory } from "../llm/profileContext.js";
 import {
   buildThresholdTimelines,
@@ -21,6 +26,10 @@ import {
   FTP_THRESHOLD,
   type ThresholdTimeline,
 } from "../training/thresholds.js";
+
+/** The shared connection or one transaction on it, so a rewrite can be atomic. */
+type DbExecutor =
+  typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 /** Loads one body metric's stored points, oldest first. */
 export async function loadMetricPoints(
@@ -64,56 +73,12 @@ export async function loadThresholdPoints(
   return rows.map(toAthleteThreshold);
 }
 
-/** Stores an athlete-stated body measurement. A user value always wins. */
-export async function recordUserMetric(input: {
-  userId: number;
-  metric: AthleteMetric;
-  date: string;
-  value: number;
-}): Promise<void> {
-  await db
-    .insert(athleteMetrics)
-    .values({
-      userId: input.userId,
-      metric: input.metric,
-      source: "user",
-      date: input.date,
-      value: input.value,
-      updatedAt: new Date(),
-    })
-    .onConflictDoUpdate({
-      target: [
-        athleteMetrics.userId,
-        athleteMetrics.metric,
-        athleteMetrics.date,
-      ],
-      set: { source: "user", value: input.value, updatedAt: new Date() },
-    });
-}
-
-/** Stores one athlete-stated threshold point. */
-export async function recordUserThreshold(
-  userId: number,
-  statement: AthleteThresholdStatement,
-): Promise<void> {
-  await recordThreshold({
-    userId,
-    date: statement.date,
-    sport: statement.sport ?? "other",
-    measure: statement.measure,
-    label: statement.label,
-    unit: statement.unit,
-    kind: statement.kind,
-    value: statement.value,
-    source: "user",
-    keepSources: [],
-  });
-}
-
 /**
  * Stores a coach threshold estimate and discards older coach estimates that
  * fall after it. Athlete measurements are never removed. The same day is left
- * untouched when the athlete or Garmin already supplied a value there.
+ * untouched when the athlete or Garmin already supplied a value there. The
+ * delete and the insert are one transaction, so a failed write keeps the
+ * estimates it was about to replace.
  */
 export async function recordCoachThreshold(input: {
   userId: number;
@@ -125,28 +90,30 @@ export async function recordCoachThreshold(input: {
   date: string;
   value: number;
 }): Promise<void> {
-  await db
-    .delete(athleteThresholds)
-    .where(
-      and(
-        eq(athleteThresholds.userId, input.userId),
-        eq(athleteThresholds.sport, input.sport),
-        eq(athleteThresholds.measure, input.measure),
-        eq(athleteThresholds.source, "coach"),
-        gt(athleteThresholds.date, input.date),
-      ),
-    );
-  await recordThreshold({
-    userId: input.userId,
-    date: input.date,
-    sport: input.sport,
-    measure: input.measure,
-    label: input.label,
-    unit: input.unit,
-    kind: input.kind,
-    value: input.value,
-    source: "coach",
-    keepSources: ["user", "garmin"],
+  await db.transaction(async (tx) => {
+    await tx
+      .delete(athleteThresholds)
+      .where(
+        and(
+          eq(athleteThresholds.userId, input.userId),
+          eq(athleteThresholds.sport, input.sport),
+          eq(athleteThresholds.measure, input.measure),
+          eq(athleteThresholds.source, "coach"),
+          gt(athleteThresholds.date, input.date),
+        ),
+      );
+    await recordThreshold(tx, {
+      userId: input.userId,
+      date: input.date,
+      sport: input.sport,
+      measure: input.measure,
+      label: input.label,
+      unit: input.unit,
+      kind: input.kind,
+      value: input.value,
+      source: "coach",
+      keepSources: ["user", "garmin"],
+    });
   });
 }
 
@@ -212,7 +179,7 @@ export async function recordGarminFtp(
   samples: readonly GarminFtpSample[],
 ): Promise<void> {
   for (const sample of samples) {
-    await recordThreshold({
+    await recordThreshold(db, {
       userId,
       ...FTP_THRESHOLD,
       date: sample.date,
@@ -342,21 +309,24 @@ async function recordMeasuredMetric(input: {
 }
 
 /** Writes one threshold value unless a stronger source holds that day. */
-async function recordThreshold(input: {
-  userId: number;
-  date: string;
-  sport: string;
-  measure: string;
-  label: string;
-  unit: string;
-  kind: AthleteThresholdStatement["kind"];
-  value: number;
-  source: MetricSource;
-  keepSources: readonly MetricSource[];
-}): Promise<void> {
+async function recordThreshold(
+  executor: DbExecutor,
+  input: {
+    userId: number;
+    date: string;
+    sport: string;
+    measure: string;
+    label: string;
+    unit: string;
+    kind: AthleteThresholdStatement["kind"];
+    value: number;
+    source: MetricSource;
+    keepSources: readonly MetricSource[];
+  },
+): Promise<void> {
   const sport = activitySport(input.sport);
   const measure = normalizeMeasure(input.measure);
-  const existing = await db
+  const existing = await executor
     .select({ source: athleteThresholds.source })
     .from(athleteThresholds)
     .where(
@@ -372,7 +342,7 @@ async function recordThreshold(input: {
   if (!shouldRecordSource(current?.source, input.keepSources)) {
     return;
   }
-  await db
+  await executor
     .insert(athleteThresholds)
     .values({
       userId: input.userId,
@@ -421,6 +391,12 @@ function normalizeMeasure(measure: string): string {
  * reported: a value the athlete later edits out of a comment disappears
  * instead of lingering. Garmin measurements and coach estimates are left
  * alone, and a measure the read says nothing about is untouched.
+ *
+ * The delete and the inserts share one transaction, so a failed write or a
+ * crash cannot leave the athlete's stated values empty, and no reader sees the
+ * series between the two. Each table is written with one batched insert; when
+ * the read reports the same measure twice for a day the later statement wins,
+ * so the batch never names one conflict target twice.
  */
 export async function recordAthleteMetricStatements(
   userId: number,
@@ -450,54 +426,118 @@ export async function recordAthleteMetricStatements(
     }
   }
 
-  if (reportedMetrics.size > 0) {
-    await db
-      .delete(athleteMetrics)
-      .where(
-        and(
-          eq(athleteMetrics.userId, userId),
-          inArray(athleteMetrics.metric, [...reportedMetrics]),
-          eq(athleteMetrics.source, "user"),
-        ),
-      );
-  }
-  for (const threshold of reportedThresholds.values()) {
-    await db
-      .delete(athleteThresholds)
-      .where(
-        and(
-          eq(athleteThresholds.userId, userId),
-          eq(athleteThresholds.sport, threshold.sport),
-          eq(athleteThresholds.measure, threshold.measure),
-          eq(athleteThresholds.source, "user"),
-        ),
-      );
-  }
-
+  const now = new Date();
+  const metricRows = new Map<string, NewAthleteMetricRow>();
+  const thresholdRows = new Map<string, NewAthleteThresholdRow>();
   for (const statement of current) {
     if (statement.weightKg !== null) {
-      await recordUserMetric({
+      metricRows.set(`weight\u0000${statement.date}`, {
         userId,
         metric: "weight",
+        source: "user",
         date: statement.date,
         value: statement.weightKg,
+        updatedAt: now,
       });
     }
     if (statement.bodyFatPercent !== null) {
-      await recordUserMetric({
+      metricRows.set(`body_fat\u0000${statement.date}`, {
         userId,
         metric: "body_fat",
+        source: "user",
         date: statement.date,
         value: statement.bodyFatPercent,
+        updatedAt: now,
       });
     }
     for (const threshold of statement.thresholds) {
-      await recordUserThreshold(userId, {
-        ...threshold,
+      const sport = activitySport(threshold.sport ?? "other");
+      const measure = normalizeMeasure(threshold.measure);
+      thresholdRows.set(`${sport}\u0000${measure}\u0000${statement.date}`, {
+        userId,
+        source: "user",
+        sport,
+        measure,
+        label: threshold.label,
+        unit: threshold.unit,
+        kind: threshold.kind,
         date: statement.date,
+        value: threshold.value,
+        updatedAt: now,
       });
     }
   }
+
+  await db.transaction(async (tx) => {
+    if (reportedMetrics.size > 0) {
+      await tx
+        .delete(athleteMetrics)
+        .where(
+          and(
+            eq(athleteMetrics.userId, userId),
+            inArray(athleteMetrics.metric, [...reportedMetrics]),
+            eq(athleteMetrics.source, "user"),
+          ),
+        );
+    }
+    const thresholdConditions = [...reportedThresholds.values()].map(
+      (threshold) =>
+        and(
+          eq(athleteThresholds.sport, threshold.sport),
+          eq(athleteThresholds.measure, threshold.measure),
+        ),
+    );
+    if (thresholdConditions.length > 0) {
+      await tx
+        .delete(athleteThresholds)
+        .where(
+          and(
+            eq(athleteThresholds.userId, userId),
+            eq(athleteThresholds.source, "user"),
+            or(...thresholdConditions),
+          ),
+        );
+    }
+
+    if (metricRows.size > 0) {
+      await tx
+        .insert(athleteMetrics)
+        .values([...metricRows.values()])
+        .onConflictDoUpdate({
+          target: [
+            athleteMetrics.userId,
+            athleteMetrics.metric,
+            athleteMetrics.date,
+          ],
+          set: {
+            source: "user",
+            value: sql`excluded.value`,
+            updatedAt: now,
+          },
+        });
+    }
+    if (thresholdRows.size > 0) {
+      await tx
+        .insert(athleteThresholds)
+        .values([...thresholdRows.values()])
+        .onConflictDoUpdate({
+          target: [
+            athleteThresholds.userId,
+            athleteThresholds.sport,
+            athleteThresholds.measure,
+            athleteThresholds.date,
+          ],
+          set: {
+            label: sql`excluded.label`,
+            unit: sql`excluded.unit`,
+            kind: sql`excluded.kind`,
+            source: "user",
+            value: sql`excluded.value`,
+            updatedAt: now,
+          },
+        });
+    }
+  });
 }
 
 /** Loads the stored body weight and body-fat series for a prompt. */

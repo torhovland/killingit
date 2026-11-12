@@ -125,7 +125,10 @@ The coach reads them from the athlete's own words:
   replaces the `user` points of every metric it reported. A value the athlete
   edits out of a comment therefore disappears, and a reading produced by an
   older implementation does not linger. Garmin measurements, coach estimates,
-  and any metric the read says nothing about are left alone.
+  and any metric the read says nothing about are left alone. The replacement
+  runs in one transaction and writes each table with one batched insert, so a
+  failed or interrupted write keeps the previous points and concurrent readers
+  never observe an empty series between the delete and the insert.
 - A plan response additionally carries a `bodyMetrics` array of
   `{ date, weightKg, bodyFatPercent }` points and an activity analysis carries
   `weightKg` and `bodyFatPercent`, so the coach can still report a value it
