@@ -105,6 +105,14 @@ Configuration:
 - `--report-only <dir>` — rebuild `report.md` from an existing run without
   calling any model.
 
+## Artifact policy
+
+`benchmarks/llm-coach/runs/` and its PDF summaries are source-controlled
+snapshots. The two-prompt benchmark's output is not: `benchmarks/prompts/runs/`
+and `benchmarks/prompts/reports/` are ignored by git, and the generated
+`<RUN_ID>.html`/`.pdf` reports are local previews to regenerate rather than
+commit. See `benchmarks/README.md`.
+
 ## Data and privacy
 
 The runner stores the generated plans, not the survey answers or raw prompts.

@@ -1,4 +1,4 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { LlmModelGrade } from "@killingit/shared";
 import {
@@ -9,7 +9,8 @@ import {
 
 const RUN_ID = process.env.RUN_ID ?? "2026-10-31-two-prompts";
 const RUN_DIR = resolve(import.meta.dir, "runs", RUN_ID);
-const OUTPUT_HTML = resolve(import.meta.dir, "reports", `${RUN_ID}.html`);
+const OUTPUT_DIR = resolve(import.meta.dir, "reports");
+const OUTPUT_HTML = resolve(OUTPUT_DIR, `${RUN_ID}.html`);
 
 interface Attempt {
   startedAt: string;
@@ -645,6 +646,7 @@ ${sections}
 </body>
 </html>`;
 
+  await mkdir(OUTPUT_DIR, { recursive: true });
   await writeFile(OUTPUT_HTML, html);
   console.log(`wrote ${OUTPUT_HTML}`);
   console.log(`best ${best.toFixed(1)}, shortlist ${close.length}`);
