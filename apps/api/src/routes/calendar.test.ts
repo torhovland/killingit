@@ -370,6 +370,7 @@ describe("calendar route", () => {
   it("extends the calendar range to a date the athlete mentioned", () => {
     const body = buildCalendar({
       today: "2026-10-22",
+      timeZone: null,
       plan: makePlan(),
       feed,
       manualActivities: [],
@@ -387,6 +388,56 @@ describe("calendar route", () => {
     expect(body.latestDate).toBe("2027-02-14");
     const day = body.days.find((entry) => entry.date === "2027-02-14");
     expect(day?.events[0]?.title).toBe("Spring marathon");
+  });
+
+  it("shows an activity on the athlete's local day", () => {
+    // 06:30 UTC on 21 October is 23:30 on 20 October in Los Angeles (PDT).
+    const evening = {
+      ...activity,
+      id: 124,
+      startDate: "2026-10-21T06:30:00.000Z",
+    };
+
+    const local = buildCalendar({
+      today: "2026-10-22",
+      timeZone: "America/Los_Angeles",
+      plan: makePlan(),
+      feed: { model: null, activities: [evening] },
+      manualActivities: [],
+      manualReplies: new Map(),
+    });
+
+    expect(
+      local.days.find((entry) => entry.date === "2026-10-20")?.activities,
+    ).toHaveLength(1);
+    expect(
+      local.days.find((entry) => entry.date === "2026-10-21")?.activities,
+    ).toHaveLength(0);
+
+    const utc = buildCalendar({
+      today: "2026-10-22",
+      timeZone: "UTC",
+      plan: makePlan(),
+      feed: { model: null, activities: [evening] },
+      manualActivities: [],
+      manualReplies: new Map(),
+    });
+    expect(
+      utc.days.find((entry) => entry.date === "2026-10-20")?.activities,
+    ).toHaveLength(0);
+    expect(
+      utc.days.find((entry) => entry.date === "2026-10-21")?.activities,
+    ).toHaveLength(1);
+  });
+
+  it("accepts the athlete's time zone as a query parameter", async () => {
+    const res = await makeApp().fetch(
+      authenticatedRequest(
+        "/api/calendar?today=2026-10-22&timezone=America%2FLos_Angeles",
+      ),
+    );
+
+    expect(res.status).toBe(200);
   });
 
   it("numbers each week inside its season block", async () => {

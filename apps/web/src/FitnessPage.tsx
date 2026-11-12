@@ -38,7 +38,11 @@ export function FitnessPage() {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    const query = new URLSearchParams({ today, range }).toString();
+    const query = new URLSearchParams({
+      today,
+      range,
+      timezone: timeZone,
+    }).toString();
     requestParsed(
       `${API_URL}/api/fitness?${query}`,
       auth,

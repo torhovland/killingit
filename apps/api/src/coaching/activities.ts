@@ -1,5 +1,7 @@
 import {
+  activityLocalDate,
   recordedPowerSummary,
+  zonedDateTime,
   type Activity,
   type ActivitySample,
   type ActivitySummary,
@@ -126,8 +128,13 @@ interface AnalyzeActivitiesOptions {
   userId: number;
   limit: number;
   refresh: boolean;
-  /** The athlete's local date; defaults to the server's UTC date. */
+  /** The athlete's local date; defaults to today in their time zone. */
   today?: string;
+  /**
+   * The athlete's IANA time zone, so an activity is dated by its local day.
+   * A missing zone reads as UTC; see `docs/specs/activity-local-date.md`.
+   */
+  timezone?: string;
   provider?: LlmProvider;
 }
 
@@ -178,7 +185,8 @@ async function loadAnalyzedActivitiesOnce(
     options.provider ??
     withPromptLogging(createOpenRouterProvider(), { userId: options.userId });
   const credentials = await phases.loadGarminCredentials(options.userId);
-  const today = options.today ?? new Date().toISOString().slice(0, 10);
+  const today =
+    options.today ?? zonedDateTime(new Date(), options.timezone).date;
 
   const synced = await phases.syncFeed({
     userId: options.userId,
@@ -190,6 +198,7 @@ async function loadAnalyzedActivitiesOnce(
     options.userId,
     synced.history,
     today,
+    options.timezone,
   );
   if (inputs.settings === null) {
     return phases.assembleFeed({
@@ -198,6 +207,7 @@ async function loadAnalyzedActivitiesOnce(
       inputs,
       model: null,
       analyses: [],
+      timezone: options.timezone,
     });
   }
 
@@ -213,6 +223,7 @@ async function loadAnalyzedActivitiesOnce(
     refresh: options.refresh,
     inputs,
     today,
+    timezone: options.timezone,
   });
   return phases.assembleFeed({
     userId: options.userId,
@@ -220,6 +231,7 @@ async function loadAnalyzedActivitiesOnce(
     inputs,
     model,
     analyses: outcomes.map((outcome) => outcome.activity),
+    timezone: options.timezone,
   });
 }
 
@@ -351,6 +363,7 @@ async function loadAnalysisInputs(
   userId: number,
   history: readonly AnalyzedActivity[],
   today: string,
+  timezone: string | undefined,
 ): Promise<AnalysisInputs> {
   const [settings, feedback, storedPlan, dailyHealth, bodyHistory, diet] =
     await Promise.all([
@@ -364,7 +377,12 @@ async function loadAnalysisInputs(
       loadBodyHistorySafely(userId),
       loadDietContext(userId, today),
     ]);
-  const training = await loadTrainingInputs(userId, history, storedPlan);
+  const training = await loadTrainingInputs(
+    userId,
+    history,
+    storedPlan,
+    timezone,
+  );
   return {
     settings,
     feedback,
@@ -388,9 +406,14 @@ async function loadTrainingInputs(
   userId: number,
   history: readonly AnalyzedActivity[],
   storedPlan: StoredPlan | null,
+  timezone: string | undefined,
 ): Promise<TrainingInputs> {
   try {
-    const training = await loadTrainingContext(userId, storedPlan?.plan);
+    const training = await loadTrainingContext(
+      userId,
+      storedPlan?.plan,
+      timezone,
+    );
     const tssByDate = new Map(training.planTssByDate);
     for (const [date, tss] of training.manualTssByDate) {
       tssByDate.set(date, tss);
@@ -402,6 +425,7 @@ async function loadTrainingInputs(
       loads: buildActivityLoads(
         history,
         training.thresholdTimelines,
+        timezone,
         tssByDate,
       ),
     };
@@ -420,10 +444,12 @@ async function loadTrainingInputs(
 function analysisContextFor(
   inputs: AnalysisInputs,
   today: string,
+  timezone: string | undefined,
 ): ActivityAnalysisContext {
   const plan = inputs.storedPlan?.plan;
   return {
     today: plan?.today.date ?? today,
+    ...(timezone !== undefined ? { timezone } : {}),
     ...(plan !== undefined
       ? { season: plan.season, block: plan.block, week: plan.week }
       : {}),
@@ -455,6 +481,7 @@ interface AnalyzeMissingParams {
   refresh: boolean;
   inputs: AnalysisInputs;
   today: string;
+  timezone: string | undefined;
 }
 
 /**
@@ -469,7 +496,11 @@ async function analyzeMissing(
     params.latest,
     params.refresh,
   );
-  const context = analysisContextFor(params.inputs, params.today);
+  const context = analysisContextFor(
+    params.inputs,
+    params.today,
+    params.timezone,
+  );
   const outcomes = await mapWithConcurrency(
     params.latest,
     ANALYSIS_CONCURRENCY,
@@ -538,7 +569,7 @@ async function analyzeOne(
     };
   }
 
-  const activityDate = activity.startDate.slice(0, 10);
+  const activityDate = activityLocalDate(activity, params.context.timezone);
   try {
     const result = await analyzeActivity(
       params.provider,
@@ -711,6 +742,7 @@ interface AssembleFeedParams {
   inputs: AnalysisInputs;
   model: string | null;
   analyses: readonly AnalyzedActivity[];
+  timezone: string | undefined;
 }
 
 /** Combines the analysed activities with the history and stores the feed. */
@@ -725,6 +757,7 @@ async function assembleFeed(params: AssembleFeedParams): Promise<ActivityFeed> {
       return withActivityLoad(
         analyzed ?? withFeedback(activity, params.inputs.feedback),
         params.inputs.loads,
+        params.timezone,
       );
     }),
   };
@@ -776,14 +809,20 @@ export async function loadUserActivityTrainingLoads(
   userId: number,
   activities: readonly AnalyzedActivity[],
   plan: CoachPlan | undefined,
+  timezone?: string | null,
 ): Promise<ActivityLoads> {
   const { thresholdTimelines, planTssByDate, manualTssByDate } =
-    await loadTrainingContext(userId, plan);
+    await loadTrainingContext(userId, plan, timezone);
   const tssByDate = new Map(planTssByDate);
   for (const [date, tss] of manualTssByDate) {
     tssByDate.set(date, tss);
   }
-  return buildActivityLoads(activities, thresholdTimelines, tssByDate);
+  return buildActivityLoads(
+    activities,
+    thresholdTimelines,
+    timezone,
+    tssByDate,
+  );
 }
 
 /**
@@ -912,12 +951,14 @@ function withFeedback(
 function withActivityLoad(
   activity: AnalyzedActivity,
   loads: ActivityLoads,
+  timezone: string | undefined,
 ): AnalyzedActivity {
   return {
     ...activity,
     activityTss:
       loads.byActivityId.get(activity.id) ?? activity.activityTss ?? null,
-    trainingLoad: loads.byDate.get(activity.startDate.slice(0, 10)) ?? null,
+    trainingLoad:
+      loads.byDate.get(activityLocalDate(activity, timezone)) ?? null,
   };
 }
 

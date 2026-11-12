@@ -43,9 +43,11 @@ export function createWeeklyNoteHandlers(deps: ResolvedCoachingDependencies) {
     async save(c: Context, input: WeeklyNoteInput) {
       const user = getUser(c);
       const { today, timezone, note } = input;
+      // The request's zone wins; the stored setting is the fallback.
+      const timeZone = timezone ?? user.timezone ?? undefined;
 
       await deps.saveWeekly(user.id, today, note);
-      const coachReply = await replyTo(deps, user.id, today, {
+      const coachReply = await replyTo(deps, user.id, today, timeZone, {
         kind: "weekly_note",
         weekStartDate: startOfWeek(today),
         note,
@@ -56,7 +58,7 @@ export function createWeeklyNoteHandlers(deps: ResolvedCoachingDependencies) {
       await deps.trigger(deps.triggerDeps, {
         userId: user.id,
         today,
-        ...(timezone !== undefined ? { timezone } : {}),
+        ...(timeZone !== undefined ? { timezone: timeZone } : {}),
       });
 
       return c.json(

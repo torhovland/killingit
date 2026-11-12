@@ -28,8 +28,10 @@ setting to see the right local time.
 
 ### Out of scope
 
-- Changing stored plan dates or activity dates: those are calendar dates and
-  stay in their original `YYYY-MM-DD` form.
+- Changing stored plan dates: they are calendar dates and stay in their
+  original `YYYY-MM-DD` form. An activity's stored `startDate` also stays an
+  ISO UTC instant; only the calendar day derived from it is read in the
+  athlete's zone, as `docs/specs/activity-local-date.md` describes.
 - Automatic time-zone detection beyond the device default.
 - Per-user zones in multi-athlete/admin views.
 

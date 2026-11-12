@@ -103,6 +103,7 @@ export async function captureCompletedPeriodReviews(
               input.plan.week,
               input.activities,
               input.today,
+              input.timezone ?? null,
               input.manualActivities,
             ),
           },

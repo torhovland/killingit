@@ -81,7 +81,9 @@ export function createReviewHandlers(deps: ResolvedCoachingDependencies) {
         : notFound(c, "This review has no comment to edit");
     }
 
-    const coachReply = await replyTo(deps, user.id, input.today, {
+    // The request's zone wins; the stored setting is the fallback.
+    const timeZone = input.timezone ?? user.timezone ?? undefined;
+    const coachReply = await replyTo(deps, user.id, input.today, timeZone, {
       kind: review.kind === "week" ? "week_review" : "block_review",
       startDate: stored.startDate,
       endDate: stored.endDate,
@@ -94,7 +96,7 @@ export function createReviewHandlers(deps: ResolvedCoachingDependencies) {
     await deps.trigger(deps.triggerDeps, {
       userId: user.id,
       today: input.today,
-      ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),
+      ...(timeZone !== undefined ? { timezone: timeZone } : {}),
     });
 
     return c.json(

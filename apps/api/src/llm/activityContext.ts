@@ -1,5 +1,6 @@
 import {
   activityAverageSpeed,
+  activityLocalDate,
   activityUsesPace,
   cadenceUnit,
   formatActivityPaceOrSpeed,
@@ -63,6 +64,7 @@ export function toCoachPlanActivity(
 export function formatRecentActivities(
   entries: readonly RecentActivityContext[],
   comments: readonly ActivityCommentContext[] = [],
+  timeZone?: string | null,
 ): string {
   if (entries.length === 0) {
     return "No recent activities were recorded. Assume the athlete is starting from the fitness and experience described in the profile, and build the plan conservatively.";
@@ -76,6 +78,7 @@ export function formatRecentActivities(
         entry,
         index,
         commentsById.get(String(entry.summary.id)) ?? null,
+        timeZone,
       ),
     )
     .join("\n");
@@ -164,6 +167,7 @@ function formatActivity(
   entry: RecentActivityContext,
   index: number,
   comment: string | null,
+  timeZone: string | null | undefined,
 ): string {
   const { summary, analysis } = entry;
   const details: string[] = [];
@@ -188,7 +192,7 @@ function formatActivity(
   }
 
   const lines = [
-    `${index + 1}. ${summary.startDate.slice(0, 10)} — ${summary.type} — ${summary.name}: ${details.join(", ")}.`,
+    `${index + 1}. ${activityLocalDate(summary, timeZone)} — ${summary.type} — ${summary.name}: ${details.join(", ")}.`,
   ];
   if (summary.strengthSets !== undefined && summary.strengthSets.length > 0) {
     lines.push(

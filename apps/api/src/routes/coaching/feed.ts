@@ -1,4 +1,5 @@
 import {
+  activityLocalDate,
   analyzedActivitiesResponseSchema,
   coachingInputSaveResponseSchema,
   planDateSchema,
@@ -25,6 +26,8 @@ import { latestActivityAnalysisTimestamp } from "../../plans/status.js";
 import type { ResolvedCoachingDependencies } from "./dependencies.js";
 import { deletionQuerySchema } from "./schemas.js";
 
+const timezoneSchema = z.string().min(1).max(100).optional();
+
 const activityFeedQuerySchema = z.object({
   refresh: z
     .enum(["true", "false"])
@@ -32,7 +35,12 @@ const activityFeedQuerySchema = z.object({
     .transform((value) => value === "true"),
   /** Supplied by the dashboard so a new analysis can refresh the plan. */
   today: planDateSchema.optional(),
-  timezone: z.string().min(1).max(100).optional(),
+  timezone: timezoneSchema,
+});
+
+/** The cached feed is read by day, so it needs the athlete's zone too. */
+const cachedActivityFeedQuerySchema = z.object({
+  timezone: timezoneSchema,
 });
 
 /** The stored feed plus coach feedback and training load, without a sync. */
@@ -80,8 +88,14 @@ export function createFeedHandlers(deps: ResolvedCoachingDependencies) {
 
   return {
     async cached(c: Context) {
+      const query = cachedActivityFeedQuerySchema.safeParse(c.req.query());
+      if (!query.success) {
+        return validationFailed(c, query.error, "Invalid query parameters");
+      }
+
       try {
         const user = getUser(c);
+        const timeZone = query.data.timezone ?? user.timezone;
         const [feed, storedPlan] = await Promise.all([
           deps.loadCachedFeed(user.id),
           deps.plans.load(user.id),
@@ -122,6 +136,7 @@ export function createFeedHandlers(deps: ResolvedCoachingDependencies) {
             user.id,
             activities,
             storedPlan?.plan,
+            timeZone,
           );
           activities = activities.map((activity) => ({
             ...activity,
@@ -130,7 +145,7 @@ export function createFeedHandlers(deps: ResolvedCoachingDependencies) {
               activity.activityTss ??
               null,
             trainingLoad:
-              loads.byDate.get(activity.startDate.slice(0, 10)) ?? null,
+              loads.byDate.get(activityLocalDate(activity, timeZone)) ?? null,
           }));
         } catch (err) {
           console.error("[training-load] cached activity scoring failed:", err);
@@ -152,12 +167,19 @@ export function createFeedHandlers(deps: ResolvedCoachingDependencies) {
 
       try {
         const user = getUser(c);
-        const feed = await deps.loadActivities(user.id, query.data.today);
+        // The request's zone (the device zone when the athlete has not stored
+        // one) wins; the account's stored setting is the fallback.
+        const timeZone = query.data.timezone ?? user.timezone ?? undefined;
+        const feed = await deps.loadActivities(
+          user.id,
+          query.data.today,
+          timeZone,
+        );
         await refreshPlanAfterAnalysis(
           user.id,
           feed,
           query.data.today,
-          query.data.timezone,
+          timeZone,
         );
         return c.json(analyzedActivitiesResponseSchema.parse(feed));
       } catch (err) {

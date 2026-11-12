@@ -1,5 +1,6 @@
 import {
   activityAverageSpeed,
+  activityLocalDate,
   formatActivityPaceOrSpeed,
   formatActivityType,
   type AnalyzedActivity,
@@ -32,6 +33,7 @@ export function applyCompletedDays(
   week: WeekPlan,
   activities: readonly AnalyzedActivity[],
   today: string,
+  timeZone: string | null | undefined,
   manualActivities: readonly ManualActivityContext[] = [],
   todayPlan?: DayPlan,
 ): WeekPlan {
@@ -58,7 +60,12 @@ export function applyCompletedDays(
 
   const activitiesByDate = new Map<string, AnalyzedActivity[]>();
   for (const activity of allActivities) {
-    const date = activity.startDate.slice(0, 10);
+    // A manual entry already carries the day the athlete entered; only a
+    // recorded activity has a UTC instant to read in the athlete's zone.
+    const date =
+      activity.type === "manual"
+        ? activity.startDate
+        : activityLocalDate(activity, timeZone);
     const forDate = activitiesByDate.get(date);
     if (forDate) {
       forDate.push(activity);

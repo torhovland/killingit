@@ -1,3 +1,4 @@
+import { activityLocalDate, zonedDateTime } from "@killingit/shared";
 import { LlmModelChoiceError, type LlmClient } from "../llm/client.js";
 import { generateCoachReplies } from "../llm/coachReplyBatch.js";
 import {
@@ -75,6 +76,7 @@ export interface CoachReplyDependencies {
 interface ReplyGeneration {
   userId: number;
   today: string;
+  timezone?: string;
   request: CoachReplyTarget;
   kind: "coach_reply" | "coaching_question";
   /** Log prefix, so a failure names the feature that asked for the reply. */
@@ -88,12 +90,18 @@ interface ReplyGeneration {
  */
 export async function replyToCoachingInput(
   deps: CoachReplyDependencies,
-  options: { userId: number; today: string; request: CoachingReplyRequest },
+  options: {
+    userId: number;
+    today: string;
+    timezone?: string;
+    request: CoachingReplyRequest;
+  },
 ): Promise<StoredCoachReply | null> {
-  const { userId, today, request } = options;
+  const { userId, today, timezone, request } = options;
   const reply = await generateReply(deps, {
     userId,
     today,
+    ...(timezone !== undefined ? { timezone } : {}),
     request: toPromptTarget(request),
     kind: "coach_reply",
     label: "coach-reply",
@@ -124,9 +132,14 @@ export async function replyToCoachingInput(
  */
 export async function replyToUnansweredActivityComments(
   deps: CoachReplyDependencies,
-  options: { userId: number; today: string; signal?: AbortSignal },
+  options: {
+    userId: number;
+    today: string;
+    timezone?: string;
+    signal?: AbortSignal;
+  },
 ): Promise<StoredCoachReply[]> {
-  const { userId, today, signal } = options;
+  const { userId, today, timezone, signal } = options;
   let plan: Awaited<ReturnType<PlanStore["load"]>>;
   let answers: Awaited<ReturnType<QuestionAnswerStore["listForUser"]>>;
   let llm: LlmClient | null;
@@ -153,6 +166,7 @@ export async function replyToUnansweredActivityComments(
     context = await (deps.loadContext ?? loadReplyContext)({
       userId,
       today,
+      ...(timezone !== undefined ? { timezone } : {}),
       athleteAnswers: answers.map(toAnswerContext),
     });
   } catch (err) {
@@ -163,7 +177,7 @@ export async function replyToUnansweredActivityComments(
   const activityDates = new Map(
     context.recentActivities.map((activity) => [
       String(activity.summary.id),
-      activity.summary.startDate.slice(0, 10),
+      activityLocalDate(activity.summary, timezone ?? context.timezone),
     ]),
   );
   const items = comments.map((entry) => ({
@@ -172,8 +186,9 @@ export async function replyToUnansweredActivityComments(
       kind: "activity_comment" as const,
       activityDate:
         activityDates.get(entry.activityId) ??
-        entry.updatedAt?.slice(0, 10) ??
-        today,
+        (entry.updatedAt !== undefined
+          ? zonedDateTime(new Date(entry.updatedAt), timezone).date
+          : today),
       comment: entry.comment,
     },
   }));
@@ -322,6 +337,9 @@ async function generateReply(
         context: await (deps.loadContext ?? loadReplyContext)({
           userId,
           today,
+          ...(options.timezone !== undefined
+            ? { timezone: options.timezone }
+            : {}),
           athleteAnswers: answers.map(toAnswerContext),
         }),
         request: options.request,

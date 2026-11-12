@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  activityLocalDate,
   analyzedActivitiesResponseSchema,
   coachingInputSaveResponseSchema,
   type AnalyzedActivitiesResponse,
@@ -93,7 +94,7 @@ export function useActivityFeed(
   const loadCached = useCallback(async (): Promise<void> => {
     try {
       const parsed = await requestParsed(
-        `${API_URL}/api/coaching/activities/cached`,
+        `${API_URL}/api/coaching/activities/cached?${new URLSearchParams({ timezone: timeZone })}`,
         auth,
         analyzedActivitiesResponseSchema,
         "Loading the cached activities",
@@ -106,7 +107,7 @@ export function useActivityFeed(
       // The live sync is still running; a missing server cache is not an error.
       console.error("Failed to load cached activities:", err);
     }
-  }, [auth, applyFeed]);
+  }, [auth, timeZone, applyFeed]);
 
   const loadAnalyses = useCallback(
     async (refresh = false): Promise<void> => {
@@ -178,6 +179,7 @@ export function useActivityFeed(
                 dataRef.current,
                 activityId,
                 today,
+                timeZone,
               ),
               comment,
             }),
@@ -249,14 +251,20 @@ export function coachingDateQuery(timeZone: string): string {
   }).toString();
 }
 
-/** The activity's own date, falling back to today when it is not in the feed. */
+/**
+ * The activity's own date in the athlete's zone, falling back to today when it
+ * is not in the feed.
+ */
 function activityStartDate(
   feed: AnalyzedActivitiesResponse | null,
   activityId: string,
   fallback: string,
+  timeZone: string,
 ): string {
   const activity = feed?.activities.find(
     (entry) => String(entry.id) === activityId,
   );
-  return (activity?.startDate ?? fallback).slice(0, 10);
+  return activity === undefined
+    ? fallback
+    : activityLocalDate(activity, timeZone);
 }

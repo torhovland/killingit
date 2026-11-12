@@ -51,7 +51,7 @@ import {
   ftpTimeline,
   type ThresholdTimeline,
 } from "../training/thresholds.js";
-import { addDays, startOfWeek } from "@killingit/shared";
+import { activityLocalDate, addDays, startOfWeek } from "@killingit/shared";
 import {
   dietProgressPending,
   mergeDietProgressTargets,
@@ -108,6 +108,12 @@ export interface PlanGenerationContext {
   weekReviewNeedsRefresh?: boolean;
   /** Whether the newest block review event asks for a plan refresh. */
   blockReviewNeedsRefresh?: boolean;
+  /**
+   * The athlete's IANA time zone, so a recorded activity settles the plan on
+   * its local day. A missing zone reads as UTC; see
+   * `docs/specs/activity-local-date.md`.
+   */
+  timeZone?: string | null;
   /** The athlete's home location, used to label the forecast in prompts. */
   location?: AthleteLocation | null;
   /** The combined forecast, used by prompts and weather-change checks. */
@@ -547,6 +553,7 @@ async function generateFreshPlan(input: GeneratePlanInput): Promise<CoachPlan> {
       withNextPeriod.week,
       context.activities,
       today,
+      context.timeZone,
       context.manualActivities,
       withNextPeriod.today,
     ),
@@ -689,6 +696,7 @@ function reconcileStoredPlan(
     currentPlan.week,
     context.activities,
     today,
+    context.timeZone,
     context.manualActivities,
     todayPlan,
   );
@@ -714,10 +722,11 @@ async function captureEndedPeriodReviews(
     return;
   }
   const context = input.context;
+  const timezone = runTimeZone(input);
   const captured = await input.capturePeriodReviews({
     userId: input.userId,
     today,
-    ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),
+    ...(timezone !== undefined ? { timezone } : {}),
     plan: input.plan.plan,
     provider: context.provider,
     apiKey: context.apiKey,
@@ -899,6 +908,7 @@ async function advancePlan(
       plan.week,
       context.activities,
       today,
+      context.timeZone,
       context.manualActivities,
       plan.today,
     ),
@@ -1227,6 +1237,14 @@ async function planNextPeriod(
   );
 }
 
+/**
+ * The time zone a run uses for every derived day: the caller's selected or
+ * device zone, else the athlete's stored zone. A missing zone reads as UTC.
+ */
+function runTimeZone(input: GeneratePlanInput): string | undefined {
+  return input.timezone ?? input.context.timeZone ?? undefined;
+}
+
 /** The day after the current block, or today if the block already ended. */
 function nextBlockStartDate(block: BlockPlan, today: string): string {
   const dayAfterBlock = addDays(block.endDate, 1);
@@ -1252,13 +1270,16 @@ function activitiesOn(
   date: string,
 ): CompletionActivity[] {
   const synced = context.activities
-    .filter((activity) => activity.startDate.slice(0, 10) === date)
+    .filter(
+      (activity) => activityLocalDate(activity, context.timeZone) === date,
+    )
     .map((activity) => ({
       type: activity.type,
       elapsedTime: activity.elapsedTime,
     }));
+  // A manual entry already stores the athlete's chosen date.
   const manual = context.manualActivities
-    .filter((activity) => activity.startDate.slice(0, 10) === date)
+    .filter((activity) => activity.startDate === date)
     .map(() => ({ type: "manual", elapsedTime: 0 }));
   return [...synced, ...manual];
 }
@@ -1700,6 +1721,7 @@ function withTrainingLoad(
     activities: context.activities,
     manualActivities: context.manualActivities,
     thresholdTimelines: context.thresholdTimelines,
+    timeZone: context.timeZone,
   });
 }
 
@@ -1728,10 +1750,12 @@ function baseContext(input: GeneratePlanInput) {
         activities: input.context.activities,
         manualActivities: input.context.manualActivities,
         thresholdTimelines: input.context.thresholdTimelines,
+        timeZone: input.context.timeZone,
       },
       input.today,
     );
 
+  const timezone = runTimeZone(input);
   return {
     athleteAnswers: input.context.answers,
     recentActivities,
@@ -1764,7 +1788,7 @@ function baseContext(input: GeneratePlanInput) {
       ? { calorieHistory: input.context.calorieHistory }
       : {}),
     today: input.today,
-    ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),
+    ...(timezone !== undefined ? { timezone } : {}),
     ...(input.context.manualActivities.length > 0
       ? { manualActivities: input.context.manualActivities }
       : {}),

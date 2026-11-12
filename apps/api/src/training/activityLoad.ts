@@ -1,4 +1,5 @@
 import {
+  activityLocalDate,
   activitySport,
   CTL_DAYS,
   dailyTrainingLoad,
@@ -10,13 +11,17 @@ import { addDays } from "@killingit/shared";
 import type { ManualActivityContext } from "../llm/activityContext.js";
 import { thresholdForSport, type ThresholdTimeline } from "./thresholds.js";
 
-/** Groups activities by their local calendar date (`YYYY-MM-DD`). */
+/**
+ * Groups activities by their calendar date (`YYYY-MM-DD`) in the athlete's
+ * time zone, so an evening workout west of UTC stays on the day it was done.
+ */
 export function groupActivitiesByDate(
   activities: readonly AnalyzedActivity[],
+  timeZone: string | null | undefined,
 ): Map<string, AnalyzedActivity[]> {
   const grouped = new Map<string, AnalyzedActivity[]>();
   for (const activity of activities) {
-    const date = activity.startDate.slice(0, 10);
+    const date = activityLocalDate(activity, timeZone);
     const entries = grouped.get(date);
     if (entries) {
       entries.push(activity);
@@ -184,15 +189,17 @@ export interface ActivityLoads {
 /**
  * Builds the training-load series over a range that covers every supplied
  * date, together with the TSS each activity contributes on its own. Dates
- * without an activity or estimate count as rest.
+ * without an activity or estimate count as rest. Each activity is scored on
+ * its day in `timeZone`.
  */
 export function buildActivityLoads(
   activities: readonly AnalyzedActivity[],
   timelines: readonly ThresholdTimeline[],
+  timeZone: string | null | undefined,
   estimatedTssByDate: ReadonlyMap<string, number> = new Map(),
   extraDates: readonly string[] = [],
 ): ActivityLoads {
-  const byDate = groupActivitiesByDate(activities);
+  const byDate = groupActivitiesByDate(activities, timeZone);
   const seriesInput = new Map<string, number>(estimatedTssByDate);
   const byActivityId = new Map<number, number>();
 
