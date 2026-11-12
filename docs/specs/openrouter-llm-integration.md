@@ -137,9 +137,11 @@ Weather and daylight are included in the plan prompts; see
   tokens). Reasoning models count reasoning against that budget; completions
   with `finish_reason: "length"` are rejected rather than shown truncated.
 - `planCompletion.ts` — plan generations request `reasoning: { effort:
-"minimal" }` so most of the output budget is available for the JSON. If a
-  model still stops at the limit, it retries with reasoning disabled and a
-  doubled budget before falling back to no reasoning control.
+"minimal" }` so most of the output budget is available for the JSON. A
+  completion walks at most four fallback configurations, and one plan level
+  shares a six-completion, 300-second budget with its two JSON repair turns, so
+  a truncating or failing model cannot bill the whole chain; see
+  `docs/specs/llm-completion-budget.md`.
 - `store.ts` / `analysisStore.ts` — Drizzle upserts and model-scoped cache reads.
 - `coaching/feedCache.ts` — stores the last successfully synced feed per user
   (`activity_feed_cache`) so the page can render it while a new sync runs.

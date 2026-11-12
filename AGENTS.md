@@ -173,6 +173,12 @@ about a past workout, or before a suggested workout, to steer the coach.
   `docs/specs/bike-workout-export.md`.
 - Plan completions use a 16,384-token output budget, with reasoning fallbacks up
   to 32,768, so reasoning models can think and still return the complete JSON.
+  A completion tries at most four configurations and one plan level bills at
+  most six completions, including its JSON repair turns, inside one 300 s
+  wall-clock budget; only a truncated response and a 400 rejection are retried,
+  and an invalid key, insufficient credits, an unknown model, a rate limit or a
+  transport failure ends the call immediately. See
+  `docs/specs/llm-completion-budget.md`.
   Model comparisons run through `bun run benchmark:llm` against the test
   athlete; the harness is the `@killingit/benchmark` workspace in
   `tools/benchmark`, and results and quality notes are kept under
