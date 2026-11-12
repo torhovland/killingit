@@ -5,12 +5,12 @@ import {
   checkReviseSeasonGates,
   combinePromptScores,
   parseCurrentBlock,
-} from "../../apps/api/src/llm/promptBenchmark.js";
+} from "@killingit/benchmark/src/promptBenchmark.js";
 import type {
   BenchmarkPromptDefinition,
   BenchmarkPromptId,
   ReviseSeasonGates,
-} from "../../apps/api/src/llm/promptBenchmark.js";
+} from "@killingit/benchmark/src/promptBenchmark.js";
 
 const RUN_ID = process.env.RUN_ID ?? "2026-10-31-two-prompts";
 const RUN_DIR = resolve(import.meta.dir, "runs", RUN_ID);

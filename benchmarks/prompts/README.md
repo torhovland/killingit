@@ -7,6 +7,10 @@ both responses with `anthropic/claude-haiku-5.5`:
 - `revise-season-prompt.txt` — a season revision on 2026-11-01 after the
   athlete set the Atlas Mountain Race on 28 February 2027 as the next goal.
 
+The prompts, validators, score gates and catalog queries these scripts use live
+in the `@killingit/benchmark` workspace (`tools/benchmark/src`); this directory
+holds the run scripts and their artifacts. See ADR 0032.
+
 Each model's score is the mean of its two judged scores (each out of 12.5), and
 every component keeps the weaker of the two prompts, so a category failure in
 either prompt grades the model F. Speed and cost are the sums of both prompt

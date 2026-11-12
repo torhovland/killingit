@@ -1,17 +1,21 @@
 import { type AnalyzedActivity, type CoachAnalysis } from "@killingit/shared";
 import { eq } from "drizzle-orm";
-import { decrypt } from "../crypto/credentials.js";
-import { db } from "../db/index.js";
-import { activityFeedCache, llmSettings, users } from "../db/schema.js";
-import { llmCredentialsKeyFromEnv } from "../llm/credentials.js";
-import type { CoachingInputs } from "../plans/inputs.js";
-import { loadCoachingInputs } from "../plans/inputs.js";
+import { decrypt } from "../../../apps/api/src/crypto/credentials.js";
+import { db } from "../../../apps/api/src/db/index.js";
+import {
+  activityFeedCache,
+  llmSettings,
+  users,
+} from "../../../apps/api/src/db/schema.js";
+import { llmCredentialsKeyFromEnv } from "../../../apps/api/src/llm/credentials.js";
+import type { CoachingInputs } from "../../../apps/api/src/plans/inputs.js";
+import { loadCoachingInputs } from "../../../apps/api/src/plans/inputs.js";
 import { startOfWeek } from "@killingit/shared";
 import {
   latestActivityAnalysisTimestamp,
   latestAnswerTimestamp,
-} from "../plans/status.js";
-import { dbQuestionAnswerStore } from "../questions/answers.js";
+} from "../../../apps/api/src/plans/status.js";
+import { dbQuestionAnswerStore } from "../../../apps/api/src/questions/answers.js";
 
 export interface BenchmarkFixture {
   userId: number;

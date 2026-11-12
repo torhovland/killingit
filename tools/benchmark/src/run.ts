@@ -4,15 +4,15 @@ import {
   llmMessageText,
   type LlmMessage,
   type LlmProvider,
-} from "../llm/openrouter.js";
-import type { CoachingInputs } from "../plans/inputs.js";
+} from "../../../apps/api/src/llm/openrouter.js";
+import type { CoachingInputs } from "../../../apps/api/src/plans/inputs.js";
 import type {
   PlanGenerationStore,
   PlanStore,
   StoredPlan,
-} from "../plans/store.js";
-import { runPlanGeneration } from "../plans/generate.js";
-import type { StoredAthleteQuestion } from "../questions/answers.js";
+} from "../../../apps/api/src/plans/store.js";
+import { runPlanGeneration } from "../../../apps/api/src/plans/generate.js";
+import type { StoredAthleteQuestion } from "../../../apps/api/src/questions/answers.js";
 import type {
   BenchmarkCall,
   BenchmarkModelResult,

@@ -17,7 +17,8 @@ compared with its cost, time and plan quality.
 
 ### In scope
 
-1. A reusable runner at `apps/api/src/benchmark/` that:
+1. A reusable runner in the `@killingit/benchmark` workspace at
+   `tools/benchmark/src/` that:
    - loads an athlete's survey answers, cached activity feed, activity analyses,
      comments, weekly notes and completed-period reviews from the database;
    - runs the real `runPlanGeneration` full build for the supplied day;
@@ -65,10 +66,14 @@ compared with its cost, time and plan quality.
    attempt.
 8. `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`
    pass.
+9. The harness lives in the `tools/benchmark` workspace; `apps/api/src` keeps
+   no benchmark CLI and no benchmark-only module. See ADR 0032.
 
 ## Running
 
-Prerequisites: a database with the athlete context and an OpenRouter key.
+Prerequisites: a database with the athlete context and an OpenRouter key. Run
+the commands from the repository root. The harness is the `@killingit/benchmark`
+workspace, so it imports the real plan-generation pipeline from `apps/api`.
 
 ```sh
 # Key supplied directly (preferred; never written to the run output).

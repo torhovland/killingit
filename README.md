@@ -50,6 +50,8 @@ apps/
   api/       Hono backend (Drizzle + Postgres)
 packages/
   shared/    Shared Zod schemas and types
+tools/
+  benchmark/ LLM benchmark harness and model-catalog grading queries
 services/
   garmin/    Python Garmin sync sidecar (FastAPI + python-garminconnect)
 ```

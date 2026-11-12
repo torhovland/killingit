@@ -146,8 +146,13 @@ The prompts benchmark runs two prompts per model: the single-day plan
 (`today-prompt.txt`) and a drastic season revision (`revise-season-prompt.txt`).
 Ability is F when a model never mentions Atlas, leaves block 1 unchanged, or
 changes block 1's start date, and speed and cost are the sum of both prompt
-runs. The benchmark can run only the models that still have `?` in ability or
-speed:
+runs. The definition, scoring and the catalog queries and grade writes the
+benchmark needs live in the `@killingit/benchmark` workspace
+(`tools/benchmark/src/promptBenchmark.ts` and `catalogBenchmark.ts`); the
+runtime `modelCatalog.ts` keeps the refresh, the pure grading helpers and the
+catalog rows the API serves. See ADR 0032.
+
+The benchmark can run only the models that still have `?` in ability or speed:
 
 ```sh
 # 1. Run the pending models into a fresh run directory

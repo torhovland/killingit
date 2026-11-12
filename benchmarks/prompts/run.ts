@@ -9,11 +9,11 @@ import {
   sortByPreviousTime,
   validateReviseSeasonPlan,
   validateTodayPlan,
-} from "../../apps/api/src/llm/promptBenchmark.js";
+} from "@killingit/benchmark/src/promptBenchmark.js";
 import type {
   BenchmarkPromptId,
   BenchmarkPromptDefinition,
-} from "../../apps/api/src/llm/promptBenchmark.js";
+} from "@killingit/benchmark/src/promptBenchmark.js";
 import { SPEED_F_LIMIT_MS } from "../../apps/api/src/llm/modelCatalog.js";
 
 const RUN_ID = process.env.RUN_ID ?? "2026-10-31-two-prompts";
@@ -403,7 +403,7 @@ async function main(): Promise<void> {
     );
   }
 
-  const catalog = await import("../../apps/api/src/llm/modelCatalog.js");
+  const catalog = await import("@killingit/benchmark/src/catalogBenchmark.js");
   if (process.env.PENDING_ONLY === "1") {
     const pending = new Set(await catalog.pendingBenchmarkModelIds());
     models = models.filter((model) => pending.has(model.id));

@@ -1,5 +1,5 @@
 import type { LlmModelGrade } from "@killingit/shared";
-import { GRADE_ORDER } from "./modelCatalog.js";
+import { GRADE_ORDER } from "../../../apps/api/src/llm/modelCatalog.js";
 
 /** Dates used by the two benchmark prompts. */
 export const TODAY_BENCHMARK_DATE = "2026-10-30";

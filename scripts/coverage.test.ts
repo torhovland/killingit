@@ -254,9 +254,7 @@ describe("mergeLcov", () => {
 describe("coverage configuration", () => {
   test("documents a valid baseline for every suite", () => {
     for (const group of COVERAGE_GROUPS) {
-      expect(
-        group.root.startsWith("apps/") || group.root.startsWith("packages/"),
-      ).toBe(true);
+      expect(group.root).toMatch(/^(apps|packages|tools)\//);
       expect(group.threshold.lines).toBeGreaterThanOrEqual(0);
       expect(group.threshold.lines).toBeLessThanOrEqual(1);
       expect(group.threshold.functions).toBeGreaterThanOrEqual(0);
