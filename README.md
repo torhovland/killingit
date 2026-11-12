@@ -294,7 +294,15 @@ It reads `GCP_PROJECT` and `DATABASE_URL` from the environment.
 
 ### Deployment runbook (one-time setup)
 
-The deploy pipeline is in `.github/workflows/deploy.yml`. Configure these once:
+The deploy pipeline is in `.github/workflows/deploy.yml`. It always deploys the
+commit CI verified: a `workflow_run` deploy checks out, tags, and releases
+`github.event.workflow_run.head_sha`, while a manual `workflow_dispatch` may only
+run from `main` on a commit with a successful CI run. Deploys are serialised per
+environment (`deploy-test` / `deploy-production`) and a running deploy is never
+cancelled, so two deploys never run migrations against the same database at
+once. See `docs/specs/deploy-workflow.md`.
+
+Configure these once:
 
 **Google Cloud** — already provisioned:
 
