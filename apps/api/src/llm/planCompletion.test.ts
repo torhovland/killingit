@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { z } from "zod";
 import {
   LlmAuthError,
+  LlmProviderError,
   LlmTokenLimitError,
   type LlmCompletionRequest,
   type LlmProvider,
@@ -36,6 +37,15 @@ class FakeProvider implements LlmProvider {
 const resultSchema = z.object({ title: z.string().min(1) });
 const credentials = { apiKey: "key", model: "model" };
 const messages = [{ role: "user" as const, content: "plan" }];
+
+async function failureOf(promise: Promise<unknown>): Promise<unknown> {
+  try {
+    await promise;
+  } catch (err) {
+    return err;
+  }
+  return undefined;
+}
 
 describe("completePlanJson", () => {
   it("returns a valid response without asking for a repair", async () => {
@@ -174,6 +184,34 @@ describe("completePlanJson", () => {
       repairContext: "full",
       repairAttempt: 2,
     });
+  });
+
+  it("stops billing after the plan level's completion budget", async () => {
+    const system = { role: "system" as const, content: "contract" };
+    const user = { role: "user" as const, content: "a large plan context" };
+    const provider = new FakeProvider([
+      '{"title":""}',
+      new LlmTokenLimitError("limit"),
+      new LlmTokenLimitError("limit"),
+      new LlmTokenLimitError("limit"),
+      '{"title":""}',
+      new LlmTokenLimitError("limit"),
+      '{"title":"Easy run"}',
+    ]);
+
+    const failure = await failureOf(
+      completePlanJson(
+        resultSchema,
+        provider,
+        credentials,
+        [system, user],
+        16_384,
+      ),
+    );
+
+    expect(failure).toBeInstanceOf(LlmProviderError);
+    expect((failure as Error).message).toContain("kept failing");
+    expect(provider.requests).toHaveLength(6);
   });
 });
 

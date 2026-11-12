@@ -1,9 +1,15 @@
 import type { LlmPromptKind } from "@killingit/shared";
 import type { z } from "zod";
 import type { LlmMessage, LlmProvider } from "./openrouter.js";
+import {
+  COMPLETION_BUDGET_MS,
+  PLAN_LEVEL_MAX_COMPLETIONS,
+} from "./planBudget.js";
 import { parsePlanJson, PlanJsonError } from "./planJson.js";
 import {
   completeWithFallbacks,
+  completionBudgetLeft,
+  createCompletionBudget,
   type CompletionCredentials,
   type CompletionOptions,
 } from "./resilientCompletion.js";
@@ -53,6 +59,10 @@ export function completePlan(
  * previous response and the validation problems, but drops the large user
  * context. That is enough for most shape errors and avoids re-sending the whole
  * prompt. If the compact repair also fails, one full-context repair is tried.
+ *
+ * One completion budget covers the initial response, its fallback chain and
+ * both repair turns, so a model that keeps truncating or keeps returning
+ * unusable JSON stops after `PLAN_LEVEL_MAX_COMPLETIONS` billed completions.
  */
 export async function completePlanJson<T>(
   schema: z.ZodType<T>,
@@ -62,9 +72,14 @@ export async function completePlanJson<T>(
   maxTokens: number,
   options: PlanJsonCompletionOptions = {},
 ): Promise<T> {
+  const budget = createCompletionBudget({
+    attempts: PLAN_LEVEL_MAX_COMPLETIONS,
+    budgetMs: COMPLETION_BUDGET_MS,
+  });
   const callOptions: CompletionOptions = {
     ...(options.kind !== undefined ? { kind: options.kind } : {}),
     ...(options.metadata !== undefined ? { metadata: options.metadata } : {}),
+    budget,
   };
   const text = await completePlan(
     provider,
@@ -78,6 +93,11 @@ export async function completePlanJson<T>(
     return parsePlanJson(schema, text);
   } catch (err) {
     if (!(err instanceof PlanJsonError)) {
+      throw err;
+    }
+    // The repair turns draw on the same budget; when the initial response used
+    // it all, report the validation failure instead of billing another call.
+    if (!completionBudgetLeft(budget)) {
       throw err;
     }
     const compact = canUseCompactRepair(messages);
