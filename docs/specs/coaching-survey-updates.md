@@ -37,7 +37,9 @@ yet, so the next season refresh can adapt the whole plan.
    includes the pending adjustments and asks the coach to adjust the season,
    block, week, and day where needed. `coachQuestion` is a sparing last resort.
 7. **Consume adjustments.** A successfully saved full plan or season refresh
-   clears that athlete's pending adjustments. A failed generation keeps them.
+   clears the pending adjustments it loaded into its prompt. An answer edited
+   while the run is in progress appends a new adjustment that survives for the
+   next refresh. A failed generation keeps them.
 
 ### Out of scope
 
@@ -67,8 +69,10 @@ yet, so the next season refresh can adapt the whole plan.
    prompt. A plan update that is not a season refresh, or a refresh with no
    pending adjustments, does not include them.
 7. After a successful plan save following a full build or season refresh, the
-   athlete's adjustments are deleted. A failed model call or failed save leaves
-   them for the next attempt.
+   adjustments the run loaded into its prompt are deleted. An adjustment
+   appended while the run was generating, such as an answer the athlete edits
+   mid-run, survives for the next refresh. A failed model call or failed save
+   leaves them for the next attempt.
 8. `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`
    pass.
 
@@ -97,7 +101,8 @@ snapshotted so a later question edit cannot change what the coach was told.
   of each active question, not just the current version.
 - `dbQuestionAnswerStore.saveAnswers` builds adjustments with a pure helper,
   then upserts answers and inserts adjustments in one transaction.
-- `CoachingSurveyAdjustmentStore` loads and clears pending adjustments.
+- `CoachingSurveyAdjustmentStore` loads the pending adjustments and clears only
+  the ids a refresh loaded into its prompt.
 - `PlanGenerationContext` carries the pending adjustments; the plan-update
   prompt renders them only when `revision.season` is true. The shared
   `COACHING_SURVEY_ADJUSTMENT_RULES` fragment in `promptRules.ts` instructs the
@@ -110,5 +115,7 @@ snapshotted so a later question edit cannot change what the coach was told.
   new, revised, edited, and unchanged answers.
 - Prompt tests cover inclusion on a season refresh and exclusion otherwise.
 - Generation tests cover clearing on success and keeping on failure.
+- Database integration tests cover clearing only the loaded adjustments, so a
+  mid-run edit survives.
 - Web tests cover the section split, previous answer, copy button, and the
   "Coaching questions" first-run label.

@@ -26,6 +26,7 @@ import { loadPlanDayCalorieTargets } from "../src/plans/dayCalories.js";
 import { PLAN_GENERATION_STEPS } from "../src/plans/steps.js";
 import { dbPlanGenerationStore, dbPlanStore } from "../src/plans/store.js";
 import { loadPlanWeekTotals } from "../src/plans/weekTotals.js";
+import { dbCoachingSurveyAdjustmentStore } from "../src/questions/adjustments.js";
 import { dbQuestionAnswerStore } from "../src/questions/answers.js";
 import {
   addQuestionVersion,
@@ -636,6 +637,45 @@ describe("question stores", () => {
     ).toEqual([optional.id]);
     expect(await countRows("question_versions")).toBe(2);
     expect(await countRows("question_answers")).toBe(2);
+  });
+
+  it("clears only the survey adjustments a refresh loaded", async () => {
+    const user = await dbUserStore.ensureUser("auth0|adjustment-consumed");
+    const question = await createQuestion({
+      prompt: "How many hours can you train each week?",
+      required: true,
+    });
+    await dbQuestionAnswerStore.saveAnswers(user.id, [
+      {
+        questionId: question.id,
+        versionId: question.versionId,
+        answer: "About eight hours a week.",
+      },
+    ]);
+
+    // The season refresh loads this snapshot into its prompt.
+    const loaded = await dbCoachingSurveyAdjustmentStore.listForUser(user.id);
+    expect(loaded).toHaveLength(1);
+
+    // The athlete edits the answer while the run is still generating.
+    await dbQuestionAnswerStore.saveAnswers(user.id, [
+      {
+        questionId: question.id,
+        versionId: question.versionId,
+        answer: "About ten hours a week.",
+      },
+    ]);
+
+    await dbCoachingSurveyAdjustmentStore.clearConsumed(
+      user.id,
+      loaded.map((adjustment) => adjustment.id),
+    );
+
+    // Only the loaded snapshot was consumed, so the mid-run edit still reaches
+    // the next refresh.
+    const pending = await dbCoachingSurveyAdjustmentStore.listForUser(user.id);
+    expect(pending).toHaveLength(1);
+    expect(pending[0]?.answer).toBe("About ten hours a week.");
   });
 });
 

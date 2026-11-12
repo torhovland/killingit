@@ -544,6 +544,9 @@ export async function runPlanForUser(
     plans: deps.plans,
     generations: deps.generations,
     clearCoachingSurveyAdjustments: () =>
-      surveyAdjustmentStore.clearForUser(userId),
+      surveyAdjustmentStore.clearConsumed(
+        userId,
+        surveyAdjustments.map((adjustment) => adjustment.id),
+      ),
   });
 }

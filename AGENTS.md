@@ -317,7 +317,8 @@ about a past workout, or before a suggested workout, to steer the coach.
   every answer editable in place and a copy-old-answer action for a revised
   question. Any new or changed answer is appended to
   `coaching_survey_adjustments`; the next season refresh receives those
-  adjustments in its prompt and clears them after a successful save. See
+  adjustments in its prompt and clears only the ones it loaded after a
+  successful save, so an answer edited mid-run reaches the next refresh. See
   `docs/specs/coaching-survey-updates.md`.
 - Dated goals and events the athlete states — a race, a sportive, a trip, or a
   dated target — are read from the same athlete text by the same

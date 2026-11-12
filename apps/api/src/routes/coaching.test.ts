@@ -39,7 +39,7 @@ const storedQuestion: StoredAthleteQuestion = {
 
 const emptySurveyAdjustments: CoachingSurveyAdjustmentStore = {
   listForUser: () => Promise.resolve([]),
-  clearForUser: () => Promise.resolve(),
+  clearConsumed: () => Promise.resolve(),
 };
 
 const emptyInputs: CoachingInputs = {
