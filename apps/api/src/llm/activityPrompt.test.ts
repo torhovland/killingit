@@ -8,7 +8,6 @@ import {
   downsampleSamples,
   MAX_PROMPT_SAMPLES,
 } from "./activityPrompt.js";
-import { formatDuration } from "./duration.js";
 import {
   ACTIVITY_EXTRA_PRAISE_RULES,
   ACTIVITY_PRAISE_RULES,
@@ -96,13 +95,6 @@ describe("channelStats", () => {
         "cadence",
       ),
     ).toBeNull();
-  });
-});
-
-describe("formatDuration", () => {
-  it("formats minutes/seconds and hours", () => {
-    expect(formatDuration(65)).toBe("1:05");
-    expect(formatDuration(3725)).toBe("1:02:05");
   });
 });
 

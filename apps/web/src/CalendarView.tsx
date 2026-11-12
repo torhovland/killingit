@@ -5,6 +5,7 @@ import {
   activityAverageSpeed,
   formatActivityPaceOrSpeed,
   formatActivityType,
+  formatDuration,
   formatEventDates,
   type CalendarActivity,
   type CalendarDay,
@@ -24,7 +25,6 @@ import {
   shiftMonth,
 } from "./calendarDates";
 import { formatPlanDate } from "./CoachPlanView";
-import { formatDuration } from "./formatDuration";
 import { FormattedText } from "./FormattedText";
 import { SessionSetting } from "./SessionSetting";
 import { TrainingLoadLine } from "./TrainingLoadLine";

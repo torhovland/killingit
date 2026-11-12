@@ -2,10 +2,10 @@ import {
   activityUsesPace,
   cadenceUnit,
   formatActivityPaceOrSpeed,
+  formatDuration,
   paceUnitLabel,
   type ActivityLap,
 } from "@killingit/shared";
-import { formatDuration } from "./formatDuration";
 
 /** One table column, rendered only when at least one lap has the value. */
 interface LapColumn {
