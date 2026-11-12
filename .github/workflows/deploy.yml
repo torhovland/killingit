@@ -14,14 +14,55 @@ permissions:
   id-token: write
   deployments: write
 
+env:
+  # A `workflow_run` deploy reports the default branch's newest commit in
+  # `github.sha`, not the commit the triggering CI run verified. `head_sha` is
+  # that commit; a manual dispatch has no `workflow_run` payload and deploys the
+  # commit it was dispatched for. Every checkout, image tag and release below
+  # uses this one value, so they cannot drift apart.
+  DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+# A deploy is serialised with every other deploy to the same environment (see
+# each deploy job's `concurrency`): a running deploy finishes, and a queued one
+# waits instead of cancelling it, so two migrations never run at once.
 jobs:
+  verify-ci:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      # A `workflow_run` deploy is already gated on the triggering CI run's
+      # conclusion. A dispatch can select any branch and commit, so it must not
+      # deploy a commit that CI has not passed on main.
+      - name: Require a successful CI run on main
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [[ "${GITHUB_REF}" != "refs/heads/main" ]]; then
+            echo "::error::A manual deploy must run from main, not ${GITHUB_REF}."
+            exit 1
+          fi
+          verified="$(gh api \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?head_sha=${DEPLOY_SHA}&branch=main&status=completed" \
+            --jq '[.workflow_runs[] | select(.conclusion == "success")] | length')"
+          if [[ "${verified}" -lt 1 ]]; then
+            echo "::error::No successful CI run for ${DEPLOY_SHA}; refusing to deploy."
+            exit 1
+          fi
+          echo "CI verified ${DEPLOY_SHA}."
+
   build-and-push-api:
+    needs: [verify-ci]
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     outputs:
       image: ${{ steps.meta.outputs.image }}
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
 
       - id: auth
         uses: google-github-actions/auth@v3
@@ -33,7 +74,7 @@ jobs:
 
       - id: meta
         run: |
-          echo "image=${{ vars.ARTIFACT_REGISTRY }}/killingit-api:${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          echo "image=${{ vars.ARTIFACT_REGISTRY }}/killingit-api:${{ env.DEPLOY_SHA }}" >> "$GITHUB_OUTPUT"
 
       - name: Configure Docker for Artifact Registry
         run: |
@@ -50,17 +91,20 @@ jobs:
           build-args: |
             SENTRY_ORG=${{ vars.SENTRY_ORG }}
             SENTRY_PROJECT=killingit-api
-            SENTRY_RELEASE=${{ github.sha }}
+            SENTRY_RELEASE=${{ env.DEPLOY_SHA }}
           secrets: |
             SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}
 
   build-and-push-garmin:
+    needs: [verify-ci]
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     outputs:
       image: ${{ steps.meta.outputs.image }}
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
 
       - id: auth
         uses: google-github-actions/auth@v3
@@ -72,7 +116,7 @@ jobs:
 
       - id: meta
         run: |
-          echo "image=${{ vars.ARTIFACT_REGISTRY }}/killingit-garmin:${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          echo "image=${{ vars.ARTIFACT_REGISTRY }}/killingit-garmin:${{ env.DEPLOY_SHA }}" >> "$GITHUB_OUTPUT"
 
       - name: Configure Docker for Artifact Registry
         run: |
@@ -91,8 +135,13 @@ jobs:
     needs: [deploy-api-test]
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-test
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - name: Build web (test)
@@ -101,14 +150,14 @@ jobs:
           VITE_APP_ENV: Test
           VITE_API_URL: ${{ vars.TEST_API_URL }}
           VITE_SENTRY_DSN: ${{ secrets.TEST_VITE_SENTRY_DSN }}
-          VITE_SENTRY_RELEASE: ${{ github.sha }}
+          VITE_SENTRY_RELEASE: ${{ env.DEPLOY_SHA }}
           VITE_AUTH0_DOMAIN: ${{ vars.AUTH0_DOMAIN }}
           VITE_AUTH0_CLIENT_ID: ${{ vars.AUTH0_CLIENT_ID }}
           VITE_AUTH0_AUDIENCE: ${{ vars.AUTH0_AUDIENCE }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ vars.SENTRY_ORG }}
           SENTRY_PROJECT: killingit-web
-          SENTRY_RELEASE: ${{ github.sha }}
+          SENTRY_RELEASE: ${{ env.DEPLOY_SHA }}
       - name: Publish to Cloudflare Pages (test)
         uses: cloudflare/wrangler-action@v4
         with:
@@ -121,8 +170,13 @@ jobs:
     needs: [build-and-push-api, build-and-push-garmin]
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-test
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
 
       - id: auth
         uses: google-github-actions/auth@v3
@@ -189,7 +243,7 @@ jobs:
             --set-env-vars "DATABASE_URL=${{ secrets.TEST_DATABASE_URL }}" \
             --set-env-vars "CORS_ORIGIN=https://killingit-test.hovland.co" \
             --set-env-vars "SENTRY_DSN=${{ secrets.TEST_SENTRY_DSN }}" \
-            --set-env-vars "SENTRY_RELEASE=${{ github.sha }}" \
+            --set-env-vars "SENTRY_RELEASE=${{ env.DEPLOY_SHA }}" \
             --set-env-vars "AUTH0_ISSUER=${{ vars.AUTH0_ISSUER }}" \
             --set-env-vars "AUTH0_AUDIENCE=${{ vars.AUTH0_AUDIENCE }}" \
             --set-env-vars "GARMIN_SIDECAR_URL=${{ steps.garmin.outputs.url }}" \
@@ -202,8 +256,13 @@ jobs:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: production
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - name: Build web (production)
@@ -212,14 +271,14 @@ jobs:
           VITE_APP_ENV: Production
           VITE_API_URL: ${{ vars.PROD_API_URL }}
           VITE_SENTRY_DSN: ${{ secrets.PROD_VITE_SENTRY_DSN }}
-          VITE_SENTRY_RELEASE: ${{ github.sha }}
+          VITE_SENTRY_RELEASE: ${{ env.DEPLOY_SHA }}
           VITE_AUTH0_DOMAIN: ${{ vars.AUTH0_DOMAIN }}
           VITE_AUTH0_CLIENT_ID: ${{ vars.AUTH0_CLIENT_ID }}
           VITE_AUTH0_AUDIENCE: ${{ vars.AUTH0_AUDIENCE }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ vars.SENTRY_ORG }}
           SENTRY_PROJECT: killingit-web
-          SENTRY_RELEASE: ${{ github.sha }}
+          SENTRY_RELEASE: ${{ env.DEPLOY_SHA }}
       - name: Publish to Cloudflare Pages (production)
         uses: cloudflare/wrangler-action@v4
         with:
@@ -233,8 +292,13 @@ jobs:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: production
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
 
       - id: auth
         uses: google-github-actions/auth@v3
@@ -301,7 +365,7 @@ jobs:
             --set-env-vars "DATABASE_URL=${{ secrets.PROD_DATABASE_URL }}" \
             --set-env-vars "CORS_ORIGIN=https://killingit.hovland.co" \
             --set-env-vars "SENTRY_DSN=${{ secrets.PROD_SENTRY_DSN }}" \
-            --set-env-vars "SENTRY_RELEASE=${{ github.sha }}" \
+            --set-env-vars "SENTRY_RELEASE=${{ env.DEPLOY_SHA }}" \
             --set-env-vars "AUTH0_ISSUER=${{ vars.AUTH0_ISSUER }}" \
             --set-env-vars "AUTH0_AUDIENCE=${{ vars.AUTH0_AUDIENCE }}" \
             --set-env-vars "GARMIN_SIDECAR_URL=${{ steps.garmin.outputs.url }}" \
