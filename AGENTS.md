@@ -244,15 +244,10 @@ about a past workout, or before a suggested workout, to steer the coach.
   The stored feed keeps every activity ever synced by
   extending its history on each sync rather than replacing it, while only the
   newest 20 are analysed; the Calendar, Activities page, and Fitness chart read
-  the full history. An activity belongs to the athlete's local calendar day,
-  read from its UTC `startDate` in the effective time zone (the request's zone,
-  else `users.timezone`, else UTC), through the shared `activityLocalDate`
-  helper; today's status, completed and missed sessions, TSS/ATL/CTL, the
-  Fitness chart, the calendar and the coach prompts all use the same day. See
-  `docs/specs/activity-local-date.md`. The feed loads in named phases — sync,
-  inputs, analysis, assembly — so each failure path stays with the phase that
-  can fail; see `docs/specs/activity-feed-loading.md`. Each activity in the feed
-  also carries a bounded,
+  the full history. The feed loads in named phases — sync, inputs, analysis,
+  assembly — so each failure path stays with the phase that can fail; see
+  `docs/specs/activity-feed-loading.md`. Each activity in the feed also carries
+  a bounded,
   downsampled sample preview, shown as a collapsible table on the Activities
   page. Running cadence is normalized to total steps per minute and cycling
   cadence to rpm, matching Garmin Connect. Strength activities also carry their
@@ -266,7 +261,12 @@ about a past workout, or before a suggested workout, to steer the coach.
   treated as no laps, since it only restates the whole activity; see
   `docs/specs/garmin-activity-laps.md`. Further sport-specific Garmin
   metrics and their proposed data model are assessed in
-  `docs/specs/garmin-activity-metrics.md`.
+  `docs/specs/garmin-activity-metrics.md`. An activity belongs to the athlete's
+  local calendar day, read from its UTC `startDate` in the effective time zone
+  (the request's zone, else `users.timezone`, else UTC), through the shared
+  `activityLocalDate` helper; today's status, completed and missed sessions,
+  TSS/ATL/CTL, the Fitness chart, the calendar and the coach prompts all use the
+  same day. See `docs/specs/activity-local-date.md`.
   Daily health and recovery values (sleep, HRV, resting heart rate, stress,
   Body Battery, training readiness, recovery time, VO2max, SpO2, respiration,
   steps, calories and intensity minutes) are backfilled one day at a time after
