@@ -3,8 +3,10 @@
 An AI coach app that builds a dynamic training program which reacts to your
 workouts.
 
-> Early-stage boilerplate. See [`AGENTS.md`](./AGENTS.md) for the product vision
-> and development methodology.
+It builds a season, training block, week and day plan, reviews recorded
+workouts, tracks fitness and diet, and shows the plan on a calendar. See
+[`AGENTS.md`](./AGENTS.md) for the product vision, the implemented behaviour and
+the development methodology.
 
 ## Licence
 
@@ -160,18 +162,21 @@ Service worker updates are offered as a reload banner; the worker never caches
 
 `bun run benchmark:llm <model> [<model> ...]` compares OpenRouter models on the
 real four-level plan generation and new-week refresh. The first model is the
-benchmark. Results are written to `benchmarks/llm-coach/runs/` and are committed
-so comparisons stay reproducible. See `docs/specs/llm-benchmark.md`.
+benchmark. Results and their PDF reports are committed under
+`benchmarks/llm-coach/` so comparisons stay reproducible; prompt-benchmark runs
+and generated reports are local output. See `benchmarks/README.md` for the
+artifact policy and `docs/specs/llm-benchmark.md` for the harness.
 
 ## Database
 
-Every account keeps its own settings and activity data. Integration tables:
-`garmin_connections` and `llm_settings` (each account's encrypted Garmin
-credentials and encrypted LLM provider key + selected model),
-`activity_analyses` (cached coach analysis per account/activity/model),
-`questions` / `question_versions` (versioned athlete questions; see ADR 0005),
-`question_answers` (per-athlete answers and skips; see ADR 0007), and `users`
-(accounts and roles; see ADR 0006).
+Every account keeps its own settings and activity data. The schema is in
+`apps/api/src/db/schema.ts` and covers accounts and roles, encrypted provider
+credentials and LLM settings, versioned athlete questions, the four-level coach
+plan and its generation history, recorded and manual activities with their
+cached analyses, threshold and body-metric series, diet entries and calorie
+targets, coach replies and period reviews, and LLM calls. A cached activity
+analysis is keyed by account, activity and kind, so it is reused regardless of
+the selected model or prompt version. Migrations live in `apps/api/drizzle`.
 See ADR 0003, ADR 0004, ADR 0005, ADR 0006, and the specs in `docs/specs/`.
 
 ### Admin accounts
