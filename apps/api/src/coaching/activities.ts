@@ -131,6 +131,27 @@ interface AnalyzeActivitiesOptions {
   provider?: LlmProvider;
 }
 
+/** The phase implementations behind one feed load, injectable for tests. */
+interface ActivityFeedPhases {
+  loadGarminCredentials: typeof loadGarminCredentials;
+  syncFeed: typeof syncFeed;
+  loadAnalysisInputs: typeof loadAnalysisInputs;
+  analyzeMissing: typeof analyzeMissing;
+  assembleFeed: typeof assembleFeed;
+  assertModelUsable: typeof assertModelUsable;
+  loadLlmApiKey: typeof loadLlmApiKey;
+}
+
+const ACTIVITY_FEED_PHASES: ActivityFeedPhases = {
+  loadGarminCredentials,
+  syncFeed,
+  loadAnalysisInputs,
+  analyzeMissing,
+  assembleFeed,
+  assertModelUsable,
+  loadLlmApiKey,
+};
+
 /**
  * Syncs the latest Garmin activities and returns them with cached-or-fresh
  * coach analyses. Before an LLM is configured, activities are returned without
@@ -142,34 +163,36 @@ interface AnalyzeActivitiesOptions {
  */
 export function loadAnalyzedActivities(
   options: AnalyzeActivitiesOptions,
+  phases: ActivityFeedPhases = ACTIVITY_FEED_PHASES,
 ): Promise<ActivityFeed> {
   return shareActivityAnalysis(options.userId, options.refresh, () =>
-    loadAnalyzedActivitiesOnce(options),
+    loadAnalyzedActivitiesOnce(options, phases),
   );
 }
 
 async function loadAnalyzedActivitiesOnce(
   options: AnalyzeActivitiesOptions,
+  phases: ActivityFeedPhases,
 ): Promise<ActivityFeed> {
   const provider =
     options.provider ??
     withPromptLogging(createOpenRouterProvider(), { userId: options.userId });
-  const credentials = await loadGarminCredentials(options.userId);
+  const credentials = await phases.loadGarminCredentials(options.userId);
   const today = options.today ?? new Date().toISOString().slice(0, 10);
 
-  const synced = await syncFeed({
+  const synced = await phases.syncFeed({
     userId: options.userId,
     credentials,
     today,
     limit: options.limit,
   });
-  const inputs = await loadAnalysisInputs(
+  const inputs = await phases.loadAnalysisInputs(
     options.userId,
     synced.history,
     today,
   );
   if (inputs.settings === null) {
-    return assembleFeed({
+    return phases.assembleFeed({
       userId: options.userId,
       history: synced.history,
       inputs,
@@ -179,9 +202,9 @@ async function loadAnalyzedActivitiesOnce(
   }
 
   const model = inputs.settings.dailyModel ?? inputs.settings.model;
-  await assertModelUsable(model, "daily");
-  const apiKey = await loadLlmApiKey(inputs.settings);
-  const outcomes = await analyzeMissing({
+  await phases.assertModelUsable(model, "daily");
+  const apiKey = await phases.loadLlmApiKey(inputs.settings);
+  const outcomes = await phases.analyzeMissing({
     userId: options.userId,
     provider,
     apiKey,
@@ -191,7 +214,7 @@ async function loadAnalyzedActivitiesOnce(
     inputs,
     today,
   });
-  return assembleFeed({
+  return phases.assembleFeed({
     userId: options.userId,
     history: synced.history,
     inputs,

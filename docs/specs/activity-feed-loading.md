@@ -36,6 +36,12 @@ The phase results are explicit objects (`SyncedFeed`, `AnalysisInputs`,
 through the function. Provider and credential resolution stay in small typed
 helpers (`loadGarminCredentials`, `loadLlmApiKey`).
 
+The orchestrator accepts an optional phase set that defaults to the real
+implementations, so a unit test can drive every branch of the top-level flow —
+no LLM configured, daily-model selection, and model fallback — without Garmin,
+the database, or a live model. This follows the injectable-dependencies pattern
+used by `loadDietContext`.
+
 ## Acceptance criteria
 
 - Every phase is a named function under roughly 80 lines.
@@ -43,7 +49,7 @@ helpers (`loadGarminCredentials`, `loadLlmApiKey`).
   analyse → assemble.
 - The response shape, cache writes, question handling, metric writes, log
   messages and error types are unchanged.
-- Existing tests pass without modification.
+- Existing tests pass unchanged, and new tests cover the orchestrator's branches.
 
 ## Data-model and API impact
 
