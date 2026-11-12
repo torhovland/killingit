@@ -34,14 +34,16 @@ import type { DietPromptContext } from "../diet/summary.js";
 import {
   toCoachPlanActivity,
   type ActivityCommentContext,
-  type AthleteAnswerContext,
-  type BodyMetricHistory,
-  type CoachingSurveyAdjustmentContext,
-  type CalorieTargetPoint,
   type ManualActivityContext,
-  type PeriodReviewContext,
   type RecentActivityContext,
-} from "../llm/planContext.js";
+} from "../llm/activityContext.js";
+import type { CalorieTargetPoint } from "../llm/dietContext.js";
+import type { PeriodReviewContext } from "../llm/planContext.js";
+import type {
+  AthleteAnswerContext,
+  BodyMetricHistory,
+  CoachingSurveyAdjustmentContext,
+} from "../llm/profileContext.js";
 import type { LlmProvider } from "../llm/openrouter.js";
 import { applyTrainingLoad, currentTrainingLoad } from "../training/load.js";
 import {

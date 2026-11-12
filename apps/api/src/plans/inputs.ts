@@ -14,8 +14,8 @@ import {
 import type {
   ActivityCommentContext,
   ManualActivityContext,
-  PeriodReviewContext,
-} from "../llm/planContext.js";
+} from "../llm/activityContext.js";
+import type { PeriodReviewContext } from "../llm/planContext.js";
 import { startOfWeek } from "@killingit/shared";
 import { loadPeriodReviews } from "./periodReviews.js";
 import {

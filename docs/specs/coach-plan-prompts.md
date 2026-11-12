@@ -5,7 +5,10 @@
 - **Updated:** 2026-11-11 — a parity test now compares each JSON contract with
   the Zod schema that parses the coach's answer. The unused combined four-level
   prompt and its `generateCoachPlan` wrapper were removed. The shared plan
-  context and the activity adapter now live in `planContext.ts`.
+  context is composed in `planContext.ts` from the topical `profileContext.ts`,
+  `activityContext.ts`, `planLevelsContext.ts`, `dietContext.ts` and
+  `healthContext.ts` modules; the activity adapter lives in
+  `activityContext.ts`.
 - **Related:** ADR 0004 (OpenRouter), `docs/specs/openrouter-llm-integration.md`,
   `docs/specs/athlete-question-answers.md`,
   `docs/specs/coach-plan-lifecycle.md`,
@@ -131,9 +134,10 @@ and returns `LlmProvider` chat messages.
   newest pending question on the dashboard, stores answered questions for the
   season review, and lists recent non-null model remarks on the admin page. See
   `docs/specs/coach-questions.md`.
-- `planContext.ts` exports `PlanContextInput`, `formatPlanContext`, the level
-  formatters, and `toCoachPlanActivity`, which adapts a stored analysed
-  activity for a plan prompt. The split and update prompts assemble their
+- `planContext.ts` exports `PlanContextInput` and `formatPlanContext`; the level
+  formatters live in `planLevelsContext.ts` and `toCoachPlanActivity` lives in
+  `activityContext.ts`, which adapts a stored analysed activity for a plan
+  prompt. The split and update prompts assemble their
   response contracts from the same level contracts, including `optional`,
   `optionalRationale`, `status`, the indoor/outdoor fields, `bikeWorkout`,
   `estimatedTss`, the daily `estimatedFtpWatts` and the dated `bodyMetrics`
@@ -176,9 +180,10 @@ and returns `LlmProvider` chat messages.
   retries with a larger budget (up to 32,768) when a model is truncated.
 - `formatDuration` comes from `@killingit/shared` so durations read the same
   way across coaching prompts and the web app. The activity review shares
-  `formatActivitySummary`, `formatFtpContext`, `formatPlanLevels` and
-  `formatPlannedSession` from `planContext.ts` with the plan prompts, so both
-  describe the same activity and planned session the same way.
+  `formatActivitySummary` from `activityContext.ts`, `formatFtpContext` from
+  `profileContext.ts`, and `formatPlanLevels` and `formatPlannedSession` from
+  `planLevelsContext.ts` with the plan prompts, so both describe the same
+  activity and planned session the same way.
 
 ## Testing
 

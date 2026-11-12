@@ -85,7 +85,7 @@ re-raised.
 
 ## Prompt rendering
 
-`formatLaps` in `apps/api/src/llm/planContext.ts` renders one line per lap:
+`formatLaps` in `apps/api/src/llm/activityContext.ts` renders one line per lap:
 
 ```
 Recorded laps:

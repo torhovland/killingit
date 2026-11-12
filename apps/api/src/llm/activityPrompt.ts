@@ -19,19 +19,21 @@ import type {
 import type { DietPromptContext } from "../diet/summary.js";
 import { downsample } from "../lib/downsample.js";
 import { weekCovers, weekEnd } from "../plans/periods.js";
+import { formatActivitySummary } from "./activityContext.js";
+import { formatDietContext } from "./dietContext.js";
 import { formatDailyHealthContext } from "./healthContext.js";
 import {
-  formatActivitySummary,
   formatBlockPlan,
-  formatBodyHistory,
-  formatDietContext,
-  formatFtpContext,
   formatPlannedSession,
   formatSeasonPlan,
-  formatThresholdContext,
   formatWeekPlan,
+} from "./planLevelsContext.js";
+import {
+  formatBodyHistory,
+  formatFtpContext,
+  formatThresholdContext,
   type BodyMetricHistory,
-} from "./planContext.js";
+} from "./profileContext.js";
 import {
   ACTIVITY_BODY_METRIC_RULES,
   ACTIVITY_EXTRA_PRAISE_RULES,

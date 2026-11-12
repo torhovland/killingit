@@ -5,17 +5,18 @@ import type {
   WeekPlan,
 } from "@killingit/shared";
 import { addDays, startOfWeek, weekDates } from "@killingit/shared";
+import { formatPlanContext, type PlanContextInput } from "./planContext.js";
 import {
   formatBlockPlan,
-  formatCoachingSurveyAdjustments,
   formatDayPlan,
-  formatPlanContext,
   formatPlanLevels,
   formatSeasonAndBlock,
   formatWeekPlan,
+} from "./planLevelsContext.js";
+import {
+  formatCoachingSurveyAdjustments,
   type CoachingSurveyAdjustmentContext,
-  type PlanContextInput,
-} from "./planContext.js";
+} from "./profileContext.js";
 import {
   BIKE_WORKOUT_RULES,
   BODY_METRIC_POINT_CONTRACT,

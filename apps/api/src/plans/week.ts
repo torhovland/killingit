@@ -8,7 +8,7 @@ import {
   type WeekSession,
   type WeekSessionStatus,
 } from "@killingit/shared";
-import type { ManualActivityContext } from "../llm/planContext.js";
+import type { ManualActivityContext } from "../llm/activityContext.js";
 
 /** The minimum an activity needs to settle a planned session's completion. */
 type RecordedEffort = Pick<AnalyzedActivity, "type" | "elapsedTime">;

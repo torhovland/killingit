@@ -93,8 +93,8 @@ sets to bound the sync payload and prompt size.
 - `services/garmin/app.py`: fetch and normalize sets in `_sync`; add
   `_exercise_sets_for` and `_to_strength_sets`.
 - `apps/api/src/llm/activityPrompt.ts`: render sets and include the shared rule.
-- `apps/api/src/llm/planContext.ts`: render a compact set list in the shared
-  activity summary used by the reviews.
+- `apps/api/src/llm/strengthContext.ts`: render a compact set list in the
+  shared activity summary used by the reviews.
 - No database schema change.
 
 ## Risks / open questions

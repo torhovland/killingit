@@ -8,14 +8,16 @@ import type { DietPromptContext } from "../diet/summary.js";
 import {
   toCoachPlanActivity,
   type ActivityCommentContext,
-  type AthleteAnswerContext,
   type ManualActivityContext,
-  type PeriodReviewContext,
-  type PlanContextInput,
+} from "../llm/activityContext.js";
+import type {
+  PeriodReviewContext,
+  PlanContextInput,
 } from "../llm/planContext.js";
 import { generatePeriodReview } from "../llm/periodReview.js";
 import { PERIOD_REVIEW_PROMPT_VERSION } from "../llm/periodReviewPrompt.js";
 import type { LlmProvider } from "../llm/openrouter.js";
+import type { AthleteAnswerContext } from "../llm/profileContext.js";
 import { addDays } from "@killingit/shared";
 import { loadPeriodReview, savePeriodReview } from "../plans/periodReviews.js";
 import { applyCompletedDays } from "../plans/week.js";

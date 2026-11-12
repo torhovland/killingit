@@ -5,10 +5,8 @@ import {
   type CoachReplyOutcome,
 } from "../llm/coachReply.js";
 import type { CoachReplyTarget } from "../llm/coachReplyPrompt.js";
-import type {
-  AthleteAnswerContext,
-  PlanContextInput,
-} from "../llm/planContext.js";
+import type { PlanContextInput } from "../llm/planContext.js";
+import type { AthleteAnswerContext } from "../llm/profileContext.js";
 import { isLlmAbortError } from "../llm/openrouter.js";
 import { GenerationSupersededError } from "../plans/generation.js";
 import { loadUnansweredActivityComments } from "../plans/inputs.js";

@@ -1,5 +1,7 @@
-import type { AthleteAnswerContext } from "./planContext.js";
-import { formatAthleteProfile } from "./planContext.js";
+import {
+  formatAthleteProfile,
+  type AthleteAnswerContext,
+} from "./profileContext.js";
 import {
   COACH_RESPONSE_NOTES_CONTRACT,
   COACH_RESPONSE_NOTES_RULES,

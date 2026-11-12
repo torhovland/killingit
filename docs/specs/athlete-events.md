@@ -109,8 +109,9 @@ API:
   `replaceAthleteEvents`.
 - `apps/api/src/plans/trigger.ts`: runs the reading and passes the stored events
   into the plan context.
-- `apps/api/src/llm/planContext.ts`: renders the events for every prompt that
-  carries the athlete context.
+- `apps/api/src/llm/profileContext.ts`: renders the events, and
+  `planContext.ts` composes them into every prompt that carries the athlete
+  context.
 - `apps/api/src/llm/promptRules.ts`: `ATHLETE_EVENT_RULES`, part of
   `PLAN_PROMPT_RULES`.
 - `apps/api/src/routes/calendar.ts`: events per day, week stats, and bounds.

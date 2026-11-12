@@ -4,11 +4,8 @@ import {
   formatCoachReplyTarget,
   type CoachReplyTarget,
 } from "./coachReplyPrompt.js";
-import {
-  formatPlanContext,
-  formatPlanLevels,
-  type PlanContextInput,
-} from "./planContext.js";
+import { formatPlanContext, type PlanContextInput } from "./planContext.js";
+import { formatPlanLevels } from "./planLevelsContext.js";
 import {
   COACH_REPLY_FIELDS_CONTRACT,
   JSON_ONLY_RULES,

@@ -3,7 +3,7 @@ import type {
   CoachPlan,
   ThresholdSummary,
 } from "@killingit/shared";
-import type { ManualActivityContext } from "../llm/planContext.js";
+import type { ManualActivityContext } from "../llm/activityContext.js";
 import { loadThresholdHistoryForUser } from "../metrics/store.js";
 import { startOfWeek } from "@killingit/shared";
 import { loadCoachingInputs } from "../plans/inputs.js";

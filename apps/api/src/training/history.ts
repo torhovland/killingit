@@ -20,7 +20,7 @@ import {
   type WeekPlan,
   withoutInProgressDailyHealth,
 } from "@killingit/shared";
-import type { ManualActivityContext } from "../llm/planContext.js";
+import type { ManualActivityContext } from "../llm/activityContext.js";
 import { consumedCaloriesByDate } from "../diet/days.js";
 import { dbFoodEntryStore } from "../diet/store.js";
 import { loadDailyHealthHistoryForUser } from "../metrics/dailyMetrics.js";

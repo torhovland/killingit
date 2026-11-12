@@ -1,12 +1,14 @@
 import type { CoachPlan, DailyWeather } from "@killingit/shared";
 import {
-  formatDayPlan,
   formatPlanContext,
-  formatPlanLevels,
-  formatPlannedSession,
   formatWeatherForecast,
   type PlanContextInput,
 } from "./planContext.js";
+import {
+  formatDayPlan,
+  formatPlanLevels,
+  formatPlannedSession,
+} from "./planLevelsContext.js";
 import {
   ATHLETE_INPUT_RULES,
   COACH_AMBITION_RULES,

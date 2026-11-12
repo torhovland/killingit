@@ -6,7 +6,7 @@ import type {
   CoachPlan,
 } from "@killingit/shared";
 import { createApp } from "../index.js";
-import type { ManualActivityContext } from "../llm/planContext.js";
+import type { ManualActivityContext } from "../llm/activityContext.js";
 import type { StoredCoachReply } from "../plans/replies.js";
 import type { PlanStore, StoredPlan } from "../plans/store.js";
 import type { WeekPlanTotals } from "../plans/weekTotals.js";

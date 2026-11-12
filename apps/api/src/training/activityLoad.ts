@@ -7,7 +7,7 @@ import {
   type TrainingLoad,
 } from "@killingit/shared";
 import { addDays } from "@killingit/shared";
-import type { ManualActivityContext } from "../llm/planContext.js";
+import type { ManualActivityContext } from "../llm/activityContext.js";
 import { thresholdForSport, type ThresholdTimeline } from "./thresholds.js";
 
 /** Groups activities by their local calendar date (`YYYY-MM-DD`). */
