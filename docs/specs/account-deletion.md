@@ -31,8 +31,10 @@ behind.
 
 - The Settings section is always visible at the bottom of the page, regardless
   of whether the other settings loaded successfully.
-- The modal can be dismissed with Cancel, Escape, or by clicking the backdrop.
-  Both actions are disabled while the deletion request is running.
+- The modal uses the shared `Modal` primitive: it can be dismissed with Cancel,
+  Escape, or by clicking the backdrop, keeps Tab and Shift+Tab inside it, and
+  returns focus to the Delete account button. Every dismissal is ignored while
+  the deletion request is running.
 - A failed deletion keeps the modal open and shows the error inside it.
 - After the API confirms deletion, the app calls the auth provider's logout so
   the still-valid token cannot recreate the account immediately.
@@ -52,5 +54,7 @@ behind.
 - API tests cover the unauthenticated rejection and that the signed-in subject
   is passed to `deleteUser`.
 - Web tests cover the button, its danger styling and icon, the confirmation
-  modal and warning, the in-flight disabled state, and an error inside the
-  modal.
+  modal, its accessible name and description, the warning, the in-flight
+  disabled state, and an error inside the modal.
+- The Playwright suite covers Escape, the focus trap and focus restore for the
+  confirmation modal.

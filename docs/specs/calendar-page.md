@@ -106,7 +106,9 @@ comment, the coach's response, and the route map for outdoor activities.
 - Selecting a planned workout opens a dialog with the date, status, duration,
   intensity, indoor/outdoor setting, training load or estimated TSS, weather
   when the session can be outdoors, and the coach's description.
-- The dialog closes on the Close button, clicking the backdrop, or Escape.
+- The dialog uses the shared `Modal` primitive: it closes on the Close button,
+  clicking the backdrop, or Escape, keeps Tab and Shift+Tab inside it, and
+  returns focus to the calendar entry that opened it.
 
 ## Data model / API impact
 

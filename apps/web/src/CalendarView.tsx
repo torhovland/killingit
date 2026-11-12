@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   ATHLETE_EVENT_KIND_LABELS,
   EMPTY_WEEK_STATS,
@@ -33,6 +33,7 @@ import { formatDateTime } from "./timeZone";
 import { WeatherSummary } from "./WeatherSummary";
 import { Button } from "./components/Button";
 import { Input } from "./components/Input";
+import { Modal } from "./components/Modal";
 
 export type CalendarSelection =
   | { kind: "activity"; activity: CalendarActivity }
@@ -533,72 +534,40 @@ export function CalendarEntryDialog({
   selection: CalendarSelection | null;
   onClose: () => void;
 }) {
-  useEffect(() => {
-    if (selection === null) {
-      return;
-    }
-    const handleKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    };
-    document.addEventListener("keydown", handleKey);
-    return () => document.removeEventListener("keydown", handleKey);
-  }, [selection, onClose]);
-
   if (selection === null) {
     return null;
   }
 
-  const title =
-    selection.kind === "activity"
-      ? selection.activity.name
-      : selection.session.title;
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-3"
-      role="presentation"
-      onClick={onClose}
+    <Modal
+      labelledBy="calendar-entry-title"
+      onClose={onClose}
+      className="max-h-full max-w-2xl overflow-y-auto"
+      testId="calendar-entry-dialog"
     >
-      <div
-        className="max-h-full w-full max-w-2xl overflow-y-auto rounded-lg border bg-card p-4 shadow-lg"
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        onClick={(event) => event.stopPropagation()}
-        data-testid="calendar-entry-dialog"
-      >
-        <div className="flex items-start justify-between gap-3">
-          <h3 className="text-xl font-semibold">
-            {selection.kind === "activity" ? (
-              selection.activity.name
-            ) : (
-              <>
-                {formatPlanDate(selection.session.date)}
-                <Bullet />
-                {selection.session.title}
-              </>
-            )}
-          </h3>
-          <Button
-            type="button"
-            variant="secondary"
-            size="xs"
-            onClick={onClose}
-            autoFocus
-          >
-            Close
-          </Button>
-        </div>
-
-        {selection.kind === "activity" ? (
-          <ActivityDetails activity={selection.activity} />
-        ) : (
-          <SessionDetails session={selection.session} />
-        )}
+      <div className="flex items-start justify-between gap-3">
+        <h3 id="calendar-entry-title" className="text-xl font-semibold">
+          {selection.kind === "activity" ? (
+            selection.activity.name
+          ) : (
+            <>
+              {formatPlanDate(selection.session.date)}
+              <Bullet />
+              {selection.session.title}
+            </>
+          )}
+        </h3>
+        <Button type="button" variant="secondary" size="xs" onClick={onClose}>
+          Close
+        </Button>
       </div>
-    </div>
+
+      {selection.kind === "activity" ? (
+        <ActivityDetails activity={selection.activity} />
+      ) : (
+        <SessionDetails session={selection.session} />
+      )}
+    </Modal>
   );
 }
 

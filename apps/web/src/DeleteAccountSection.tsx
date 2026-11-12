@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useAuth } from "./auth";
 import { Button } from "./components/Button";
 import { Card } from "./components/Card";
+import { Modal } from "./components/Modal";
 import { DangerIcon } from "./DangerIcon";
 import { fetchJsonAuthed } from "./fetchAuthed";
 import { reportError } from "./reportError";
@@ -72,19 +73,6 @@ export function DeleteAccountSectionView({
   onCancel,
   onConfirm,
 }: DeleteAccountSectionViewProps) {
-  useEffect(() => {
-    if (!confirming) {
-      return;
-    }
-    const handleKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !deleting) {
-        onCancel();
-      }
-    };
-    document.addEventListener("keydown", handleKey);
-    return () => document.removeEventListener("keydown", handleKey);
-  }, [confirming, deleting, onCancel]);
-
   return (
     <>
       <Card
@@ -113,57 +101,53 @@ export function DeleteAccountSectionView({
       </Card>
 
       {confirming && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-3"
-          role="presentation"
-          onClick={onCancel}
+        <Modal
+          labelledBy="delete-account-title"
+          describedBy="delete-account-warning"
+          onClose={() => {
+            if (!deleting) {
+              onCancel();
+            }
+          }}
+          className="max-w-md"
+          testId="delete-account-dialog"
         >
-          <div
-            className="w-full max-w-md rounded-lg border bg-card p-4 shadow-lg"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="delete-account-title"
-            onClick={(event) => event.stopPropagation()}
-            data-testid="delete-account-dialog"
+          <h3
+            id="delete-account-title"
+            className="flex items-center gap-2 text-xl font-semibold text-destructive"
           >
-            <h3
-              id="delete-account-title"
-              className="flex items-center gap-2 text-xl font-semibold text-destructive"
+            <DangerIcon />
+            Delete your account?
+          </h3>
+          <p id="delete-account-warning" className="mt-2 text-base">
+            This permanently deletes your account and everything associated with
+            it: your profile, training plans, synced and manual activities,
+            connections, and coach history. This cannot be undone.
+          </p>
+          {error && (
+            <p className="mt-2 text-base text-destructive">Error: {error}</p>
+          )}
+          <div className="mt-4 flex flex-wrap justify-end gap-2">
+            <Button
+              variant="secondary"
+              size="lg"
+              onClick={onCancel}
+              disabled={deleting}
             >
-              <DangerIcon />
-              Delete your account?
-            </h3>
-            <p className="mt-2 text-base">
-              This permanently deletes your account and everything associated
-              with it: your profile, training plans, synced and manual
-              activities, connections, and coach history. This cannot be undone.
-            </p>
-            {error && (
-              <p className="mt-2 text-base text-destructive">Error: {error}</p>
-            )}
-            <div className="mt-4 flex flex-wrap justify-end gap-2">
-              <Button
-                variant="secondary"
-                size="lg"
-                onClick={onCancel}
-                disabled={deleting}
-                autoFocus
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="dangerStrong"
-                size="lg"
-                className="font-medium"
-                onClick={onConfirm}
-                disabled={deleting}
-                data-testid="delete-account-confirm"
-              >
-                {deleting ? "Deleting…" : "Delete everything"}
-              </Button>
-            </div>
+              Cancel
+            </Button>
+            <Button
+              variant="dangerStrong"
+              size="lg"
+              className="font-medium"
+              onClick={onConfirm}
+              disabled={deleting}
+              data-testid="delete-account-confirm"
+            >
+              {deleting ? "Deleting…" : "Delete everything"}
+            </Button>
           </div>
-        </div>
+        </Modal>
       )}
     </>
   );

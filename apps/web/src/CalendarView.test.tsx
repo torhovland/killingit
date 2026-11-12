@@ -395,6 +395,9 @@ describe("CalendarView", () => {
       />,
     );
 
+    expect(html).toContain('role="dialog"');
+    expect(html).toContain('aria-modal="true"');
+    expect(html).toContain('aria-labelledby="calendar-entry-title"');
     expect(html).toContain("Morning ride");
     expect(html).toContain("25.00 km");
     expect(html).toContain(
