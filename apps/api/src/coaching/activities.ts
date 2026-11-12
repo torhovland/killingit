@@ -299,6 +299,7 @@ async function loadAnalyzedActivitiesOnce(
           model: dailyModel,
           promptVersion: ANALYSIS_PROMPT_VERSION,
           text: result.analysis,
+          planChangeNeeded: result.planChangeNeeded,
         });
         // A regenerated analysis supersedes any question the previous one asked
         // about this activity; the new result may still ask a fresh question.
@@ -647,6 +648,7 @@ function withStoredAnalysis(
       text: stored.text,
       model: stored.model,
       generatedAt: stored.generatedAt.toISOString(),
+      planChangeNeeded: stored.planChangeNeeded,
     },
     analysisError: null,
     programAnalysis: program ? toCoachAnalysis(program) : null,

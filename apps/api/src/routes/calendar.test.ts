@@ -156,6 +156,7 @@ const manualReplies = new Map<number, StoredCoachReply>([
       text: "Good session.",
       model: "test/model",
       generatedAt: new Date("2026-10-05T13:00:00Z"),
+      planChangeNeeded: true,
     },
   ],
 ]);

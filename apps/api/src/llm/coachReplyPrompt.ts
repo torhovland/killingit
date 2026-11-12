@@ -10,6 +10,7 @@ import {
 import {
   ATHLETE_INPUT_RULES,
   COACH_AMBITION_RULES,
+  COACH_REPLY_RESPONSE_RULES,
   DIET_RULES,
   GLOBAL_PROMPT_RULES,
   promptSections,
@@ -76,7 +77,10 @@ export function buildCoachReplyMessages(input: CoachReplyPromptInput): {
       content:
         input.request.kind === "quick_question"
           ? QUICK_QUESTION_SYSTEM_PROMPT
-          : COACH_REPLY_SYSTEM_PROMPT,
+          : promptSections(
+              COACH_REPLY_SYSTEM_PROMPT,
+              COACH_REPLY_RESPONSE_RULES,
+            ),
     },
     { role: "user", content: buildCoachReplyPrompt(input) },
   ];

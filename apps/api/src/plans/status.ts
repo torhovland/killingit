@@ -119,6 +119,37 @@ export function latestActivityAnalysisTimestamp(
   return latest;
 }
 
+/**
+ * The newest analysis that judged the workout changes the plan. An analysis
+ * without the flag is context only, so it never makes the plan stale.
+ */
+export function latestPlanChangingAnalysisTimestamp(
+  activities: readonly {
+    analysis: {
+      generatedAt: string;
+      planChangeNeeded?: boolean | undefined;
+    } | null;
+  }[],
+): Date | null {
+  let latest: Date | null = null;
+  for (const activity of activities) {
+    if (
+      activity.analysis === null ||
+      activity.analysis.planChangeNeeded === false
+    ) {
+      continue;
+    }
+    const generatedAt = new Date(activity.analysis.generatedAt);
+    if (Number.isNaN(generatedAt.getTime())) {
+      continue;
+    }
+    if (latest === null || generatedAt.getTime() > latest.getTime()) {
+      latest = generatedAt;
+    }
+  }
+  return latest;
+}
+
 /** The newest `answeredAt` across the athlete's current answers. */
 export function latestAnswerTimestamp(
   answers: readonly { answeredAt: Date | null }[],

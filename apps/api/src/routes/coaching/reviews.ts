@@ -91,6 +91,8 @@ export function createReviewHandlers(deps: ResolvedCoachingDependencies) {
       comment: input.comment,
     });
 
+    // The run reads the comment and settles the plan's inputs; the reply's flag
+    // decides whether it also pays for a plan completion.
     await deps.trigger(deps.triggerDeps, {
       userId: user.id,
       today: input.today,

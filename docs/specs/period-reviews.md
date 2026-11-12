@@ -73,8 +73,9 @@ The `kind` enum gains `week_review` and `block_review`. `target` is the review's
 - `POST /api/coaching/reviews/:kind/:startDate/reviewed` → acknowledges the
   review without influencing the plan.
 
-A comment save also triggers the normal plan generation. The trigger loads the
-new comment and the review summaries, so the plan revision is built on them.
+A comment save triggers the normal plan generation when the coach's reply
+judges that the comment changes the plan. The trigger loads the new comment and
+the review summaries, so the plan revision is built on them.
 
 ## Generation flow
 
@@ -147,14 +148,15 @@ new comment and the review summaries, so the plan revision is built on them.
    advances.
 2. Dashboard shows only unanswered week and block reviews; an answered review
    stays until the next visit.
-3. A comment gets a coach reply and starts a plan refresh.
+3. A comment gets a coach reply and starts a plan refresh when the reply judges
+   that the comment changes the plan.
 4. Workout, week, and block summaries, comments, replies, and a week's saved
    note with its reply are all present in the prompt for a plan refresh. A
-   generated week review or an answer to it makes the block pending and revises
-   it in place on the next update. A generated block review or an answer to it
-   refreshes the season.
+   generated week review, or an answer to it that asks for a change, makes the
+   block pending and revises it in place on the next update. A generated block
+   review, or an answer that asks for a change, refreshes the season.
 5. Season review lists all reviews and supports editing a comment, which
-   regenerates the reply and refreshes the plan.
+   regenerates the reply and asks for the plan refresh again.
 6. The dashboard has no regeneration button; the survey and settings pages have
    the new-season and season-update actions.
 7. All four quality gates pass.

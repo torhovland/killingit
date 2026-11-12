@@ -33,12 +33,17 @@ keeping today's completed summary in sync with the athlete's latest comment.
    or a manual activity (create or edit) generates a short coach reply. The
    reply is persisted and returned from the save endpoint so the UI can show it
    immediately and after a reload.
-3. **Refresh around the input.** Every coaching-input save keeps triggering the
-   existing weekly + daily revision. The revision now also refreshes tomorrow.
-   A newly generated activity analysis triggers the same revision, so what the
-   coach learned from an activity shapes the remaining week (and block).
-   Completed week and block summaries, athlete comments, and coach replies are
-   included in the same prompt context (see `docs/specs/period-reviews.md`).
+3. **Refresh around the input, when it needs one.** Every coaching-input save asks
+   the coach, in the reply it already writes, whether the input changes the plan.
+   A reply that judges the input context only still runs the cheap preparation
+   and athlete reading but pays for no plan completion; a reply that asks for a
+   change keeps triggering the existing weekly + daily revision. The revision now
+   also refreshes tomorrow. A newly generated activity analysis carries the same
+   judgement; only an analysis that asks for a change runs the plan completion,
+   while the run still settles today's completion and training load. Completed
+   week and block summaries, athlete comments, and coach replies are included in
+   the same prompt context (see `docs/specs/period-reviews.md`) and
+   `docs/specs/plan-refresh-judgement.md`.
 4. **Refresh today's completed session** when the new input describes today: a
    comment on today's activity, or a manual activity dated today. Today's plan
    is regenerated from the recorded activity and its latest comment so the
@@ -134,8 +139,12 @@ and the reply is null; the failure is logged.
   training context every plan prompt gets (profile, recent activities with their
   analyses and comments, manual activities, the weekly note, completed reviews,
   FTP and body histories), the current plan, the forecast stored on today's and
-  tomorrow's sessions, and the specific input. No JSON; the shared
-  `TEXT_FORMATTING_RULES` fragment lets a longer reply use paragraphs and lists.
+  tomorrow's sessions, and the specific input. The reply is one JSON object:
+  `{ "reply": string, "planChangeNeeded": boolean }`. The batched comment reply
+  carries the same fields per item. The shared
+  `TEXT_FORMATTING_RULES` fragment lets a longer reply use paragraphs and lists
+  inside the string. A plain-text answer from a model that ignores the contract
+  is kept as the reply and fails open with `planChangeNeeded: true`.
   See `docs/specs/coach-reply-context.md` and
   `docs/specs/llm-text-formatting.md`.
 - **Plan generation** (`planContext`): each activity comment is rendered
@@ -146,9 +155,12 @@ and the reply is null; the failure is logged.
 
 ## Generation flow
 
-1. A coaching-input route saves the input and generates the reply.
-2. It then starts the normal plan trigger. `keepToday` is true when the input is
-   about today.
+1. A coaching-input route saves the input and generates the reply, which carries
+   `planChangeNeeded`.
+2. It then starts the normal plan trigger. The run reads the athlete's text and
+   settles today's completion, and pays for the plan-update completion only when
+   the reply asks for a change. `keepToday` is true when the input is about
+   today.
 3. `runPlanGeneration` rebuilds as before. In a plan update, when `keepToday` is
    set and the stored plan is for today, the stored `today` day plan and today's
    week session are preserved **unless an activity was recorded today**. In that
@@ -185,19 +197,22 @@ and the reply is null; the failure is logged.
    athlete comment does. A legacy program review is shown only when the general
    analysis is missing.
 2. Commenting on or editing an activity returns and persists a brief coach
-   reply and triggers a week/day/tomorrow revision. When the commented activity
-   is today's, today's completed summary is refreshed from the latest comment and
-   no second workout is proposed.
-3. Saving a weekly note returns and persists a reply and keeps triggering the
-   revision.
-4. Creating or editing a manual activity returns and persists a reply; when its
-   date is today, today's completed summary reflects the manual activity while
-   week and tomorrow change.
+   reply. The reply's flag decides whether the run pays for a week/day/tomorrow
+   revision. When the commented activity is today's, today's completed summary
+   is refreshed from the latest comment and no second workout is proposed; this
+   still holds when no plan completion runs.
+3. Saving a weekly note returns and persists a reply and pays for the revision
+   only when the reply judges the note changes the plan.
+4. Creating or editing a manual activity returns and persists a reply and pays
+   for a revision only when the reply judges the activity changes the plan;
+   when its date is today, today's completed summary reflects the manual
+   activity while week and tomorrow change.
 5. Replies and stored analyses survive a page reload.
 6. An activity has at most one comment. A second add is rejected, and editing
-   the comment replaces the coach's existing reply and refreshes the plan.
-7. A newly analysed activity revises the remaining week and block even when no
-   coaching input changed.
+   the comment replaces the coach's existing reply and asks for a refresh again.
+7. A newly analysed activity that asks for a change revises the remaining week
+   and block even when no coaching input changed; an analysis that judges the
+   plan unchanged records itself without a plan completion.
 8. Today's activity is marked completed (with duration slack) or partial on both
    the day plan and the week plan.
 9. A commented activity stays on the main page for the rest of the visit, even

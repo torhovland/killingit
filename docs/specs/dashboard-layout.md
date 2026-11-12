@@ -45,7 +45,8 @@ header, outstanding activities, the plan, and the inputs that shape it.
 ### Weekly note
 
 The weekly note is for requests and additional information that should
-influence the training plan. Saving it starts a plan revision.
+influence the training plan. Saving it starts a plan revision when the coach's
+reply judges that the note changes the plan.
 
 ### By the way
 

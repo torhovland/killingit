@@ -92,5 +92,6 @@ reply phase so comments left waiting by a superseded run still get answered.
 - A superseded run cannot overwrite the plan, mark the new run done or failed,
   or record its coach questions and metric estimates.
 - An aborted completion is not retried by the reasoning-model fallback cascade.
-- Deleting an activity, saving a manual activity, or saving a weekly note still
-  refreshes the plan, and a newer save supersedes that refresh.
+- Deleting an activity still refreshes the plan. Saving a manual activity or a
+  weekly note refreshes it when the coach's reply judges the input changes the
+  plan, and a newer save supersedes that refresh.

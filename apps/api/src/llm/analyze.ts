@@ -53,6 +53,9 @@ export async function analyzeActivity(
       estimatedFtpWatts: null,
       weightKg: null,
       bodyFatPercent: null,
+      // A response that is not the expected JSON never answered the flag, so
+      // fall back to the old behaviour and refresh the plan.
+      planChangeNeeded: true,
     };
   }
 }

@@ -9,7 +9,12 @@ import {
   formatPlanLevels,
   type PlanContextInput,
 } from "./planContext.js";
-import { JSON_ONLY_RULES, promptSections } from "./promptRules.js";
+import {
+  COACH_REPLY_FIELDS_CONTRACT,
+  JSON_ONLY_RULES,
+  PLAN_CHANGE_FLAG_RULES,
+  promptSections,
+} from "./promptRules.js";
 
 /** One athlete input in a batched reply request. */
 export interface CoachReplyBatchItem {
@@ -29,7 +34,7 @@ const BATCH_INSTRUCTION = `The athlete has shared several inputs at once. Write 
 const BATCH_CONTRACT = `Return only one JSON object with exactly this shape:
 {
   "replies": [
-    { "id": "string", "reply": "string" }
+    { "id": "string", ${COACH_REPLY_FIELDS_CONTRACT} }
   ]
 }
 
@@ -48,6 +53,7 @@ export function buildCoachReplyBatchMessages(
       content: promptSections(
         COACH_REPLY_SYSTEM_PROMPT,
         BATCH_INSTRUCTION,
+        PLAN_CHANGE_FLAG_RULES,
         BATCH_CONTRACT,
         JSON_ONLY_RULES,
       ),

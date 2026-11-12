@@ -83,6 +83,7 @@ export function createCoachQuestionHandlers(
                   text: reply.text,
                   model: reply.model,
                   generatedAt: reply.generatedAt.toISOString(),
+                  planChangeNeeded: reply.planChangeNeeded,
                 },
         }),
       );

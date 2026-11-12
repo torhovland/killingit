@@ -23,6 +23,8 @@ export interface StoredCoachReply {
   text: string;
   model: string;
   generatedAt: Date;
+  /** The coach judged that this input changes the plan. */
+  planChangeNeeded: boolean;
 }
 
 /** The athlete's comment and the coach's reply for one activity. */
@@ -42,6 +44,7 @@ function toStoredReply(row: CoachReplyRow): StoredCoachReply {
     text: row.reply,
     model: row.model,
     generatedAt: row.updatedAt,
+    planChangeNeeded: row.planChangeNeeded,
   };
 }
 
@@ -50,11 +53,13 @@ export function toCoachAnalysis(reply: {
   text: string;
   model: string;
   generatedAt: Date;
+  planChangeNeeded?: boolean;
 }): CoachAnalysis {
   return {
     text: reply.text,
     model: reply.model,
     generatedAt: reply.generatedAt.toISOString(),
+    planChangeNeeded: reply.planChangeNeeded ?? false,
   };
 }
 
@@ -65,6 +70,7 @@ export async function saveCoachReply(input: {
   target: string;
   reply: string;
   model: string;
+  planChangeNeeded: boolean;
 }): Promise<StoredCoachReply> {
   const now = new Date();
   const [row] = await db
@@ -75,6 +81,7 @@ export async function saveCoachReply(input: {
       target: input.target,
       reply: input.reply,
       model: input.model,
+      planChangeNeeded: input.planChangeNeeded,
       createdAt: now,
       updatedAt: now,
     })
@@ -83,6 +90,7 @@ export async function saveCoachReply(input: {
       set: {
         reply: input.reply,
         model: input.model,
+        planChangeNeeded: input.planChangeNeeded,
         updatedAt: now,
       },
     })

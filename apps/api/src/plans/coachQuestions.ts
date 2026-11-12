@@ -255,6 +255,7 @@ function toCoachQuestion(row: CoachQuestionRow): CoachQuestion {
             text: row.reply,
             model: row.replyModel,
             generatedAt: (row.answeredAt ?? row.updatedAt).toISOString(),
+            planChangeNeeded: false,
           }
         : null,
     createdAt: row.createdAt.toISOString(),

@@ -77,8 +77,11 @@ describe("loadReplyContext", () => {
             },
           ],
           weekReviewUpdatedAt: null,
+          weekReviewNeedsRefresh: false,
           blockReviewUpdatedAt: null,
+          blockReviewNeedsRefresh: false,
           updatedAt: null,
+          refreshUpdatedAt: null,
         }),
       loadThresholdHistory: () =>
         Promise.resolve(
@@ -131,8 +134,11 @@ describe("loadReplyContext", () => {
           weeklyNoteUpdatedAt: null,
           periodReviews: [],
           weekReviewUpdatedAt: null,
+          weekReviewNeedsRefresh: false,
           blockReviewUpdatedAt: null,
+          blockReviewNeedsRefresh: false,
           updatedAt: null,
+          refreshUpdatedAt: null,
         }),
       loadThresholdHistory: () =>
         Promise.resolve(

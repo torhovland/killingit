@@ -295,6 +295,11 @@ export const coachAnalysisSchema = z.object({
   text: z.string(),
   model: z.string(),
   generatedAt: z.string().datetime(),
+  /**
+   * The coach judged that this input changes the plan. Absent on analyses
+   * stored before the flag existed.
+   */
+  planChangeNeeded: z.boolean().optional(),
 });
 
 /**
@@ -330,10 +335,29 @@ export const coachAnalysisResultSchema = z
     weightKg: z.number().positive().max(500).nullable().default(null),
     /** Body fat as a percentage of body weight when the input states it. */
     bodyFatPercent: z.number().positive().max(75).nullable().default(null),
+    /**
+     * Whether this workout changes what the coach would prescribe. Fails open:
+     * a missing or malformed flag is treated as a request to refresh, so an
+     * unparsed answer cannot silently drop a needed revision.
+     */
+    planChangeNeeded: z.boolean().catch(true),
   })
   .extend(coachResponseNotesSchema.shape);
 
 export type CoachAnalysisResult = z.infer<typeof coachAnalysisResultSchema>;
+
+/**
+ * The structured reply to one athlete input. `reply` is shown to the athlete;
+ * `planChangeNeeded` decides whether the plan is refreshed. It fails open: a
+ * missing or malformed flag is treated as true, so a model that ignores the
+ * contract still refreshes the plan.
+ */
+export const coachReplyResultSchema = z.object({
+  reply: z.string().trim().min(1),
+  planChangeNeeded: z.boolean().catch(true),
+});
+
+export type CoachReplyResult = z.infer<typeof coachReplyResultSchema>;
 
 export type CoachAnalysis = z.infer<typeof coachAnalysisSchema>;
 

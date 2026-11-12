@@ -68,8 +68,14 @@ about a past workout, or before a suggested workout, to steer the coach.
   prompt version, so neither a model change nor a prompt edit re-bills the
   athlete, and a plan build does not add a second program-only review. Only a
   newer athlete comment makes a stored analysis stale; legacy `program` rows
-  remain a display fallback. See
-  `docs/specs/coach-feedback-and-program-review.md`. See ADR 0004.
+  remain a display fallback. The analysis and every coach reply carry the
+  coach's `planChangeNeeded` judgement: an input is context only unless it
+  changes what the coach would prescribe, and the plan refreshes only when the
+  flag is set. A missing or unparsable flag fails open. A new analysis is still
+  picked up so today's completion and training load settle, but the plan
+  completion is skipped when it judged the plan unchanged. See
+  `docs/specs/coach-feedback-and-program-review.md` and
+  `docs/specs/plan-refresh-judgement.md`. See ADR 0004 and ADR 0029.
 - The model picker is backed by a graded catalog in `llm_models`, refreshed in
   the background at most once every 24 hours (`llm_model_sync`). The Settings
   page selects a season/block model and a separate day-to-day model; both IDs
@@ -138,7 +144,8 @@ about a past workout, or before a suggested workout, to steer the coach.
   user's run id, aborts the previous in-process provider request, and every
   status write and plan save is fenced by that run id. A run first answers every
   unanswered activity comment in one batched completion, stores those replies,
-  and then refreshes the plan, so replies appear before the slower plan phase.
+  and then refreshes the plan when a reply asks for a change, so replies appear
+  before the slower plan phase.
   See `docs/specs/coach-run-cancellation.md` and ADR 0014. After 18:00 the stored
   plan also carries tomorrow's session and, when tomorrow has crossed a week or
   block boundary, the next week and next block, so the Day, Week and Block tabs

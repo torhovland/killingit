@@ -144,13 +144,20 @@ One row per user (`unique (user_id)`):
   pending/staleness checks.
 - `answers_updated_at` — newest answer timestamp included in the plan.
 - `coaching_inputs_updated_at` — newest comment/manual-activity/weekly-note
-  timestamp included in the plan.
+  timestamp included in the plan, whether or not its coach reply asked for a
+  plan change. A newer context-only input does not make the plan stale; its
+  timestamp is recorded so the next run does not read it again.
 - `activities_updated_at` — newest activity analysis included in the plan. It is
   deliberately not `generated_at`: an import or analysis can finish while a
   generation is already running, so a plan can be saved later without the new
   activity. Comparing against the included analysis makes the next visit revise
-  the plan.
+  the plan when the analysis asked for a change.
 - `generated_at`, `updated_at`.
+
+The coach's `planChangeNeeded` flag is stored with each analysis
+(`activity_analyses.plan_change_needed`) and each input reply
+(`coach_replies.plan_change_needed`). The refresh-worthy timestamps are derived
+from those flags; see `docs/specs/plan-refresh-judgement.md`.
 
 ### `plan_generations`
 
@@ -206,17 +213,19 @@ Both routes are behind `requireAuth`.
   server derives it from the athlete's local hour, so a server-triggered update
   after 18:00 plans tomorrow exactly like the dashboard does.
 
-`stale` is true when the newest answer or coaching input is newer than the
-timestamp the plan was saved with. `pending.day` is true when the stored day is
-not for `today`; `pending.week` is true when `today` is not one of the stored
-week's sessions, or when the latest forecast differs significantly from the
-weather stored on the current or planned next week (see
-`docs/specs/location-and-weather.md`); `pending.block` is true when `today`
-falls outside the stored block's dates, or when a week review was generated or
-answered after the plan was saved. After 18:00, `pending.tomorrow` is true when
-tomorrow's day plan is missing, is not covered by a stored week, or falls
-outside a stored block; `pending.nextWeek` and `pending.nextBlock` are true when
-tomorrow has crossed into a period that has not been generated yet.
+`stale` is true when the newest answer is newer than the timestamp the plan was
+saved with, or when a coaching input whose coach reply asked for a plan change
+is newer. An input the coach judged context only does not make the plan stale.
+`pending.day` is true when the stored day is not for `today`; `pending.week` is
+true when `today` is not one of the stored week's sessions, or when the latest
+forecast differs significantly from the weather stored on the current or planned
+next week (see `docs/specs/location-and-weather.md`); `pending.block` is true
+when `today` falls outside the stored block's dates, or when a week review that
+asks for a plan change was generated or answered after the plan was saved. After
+18:00, `pending.tomorrow` is true when tomorrow's day plan is missing, is not
+covered by a stored week, or falls outside a stored block; `pending.nextWeek`
+and `pending.nextBlock` are true when tomorrow has crossed into a period that has
+not been generated yet.
 
 The `plan` in the response is normalised for `today`: if a stored `next_week` or
 `next_block` contains today, it is promoted in the returned plan (and the day
@@ -259,16 +268,18 @@ logs and Sentry without flooding them while the plan endpoint is polled.
    blocks that ended before today and the original season start date are
    restored, and the current block must keep its stored start date, before the
    result is validated.
-4. Otherwise, treat a coach analysis that was not included in the saved plan as
-   a revision trigger too: the new knowledge from the activity must reach the
-   remaining week (and, through the update prompt, the block). This includes an
+4. Otherwise, treat a change the stored plan still needs as a revision trigger:
+   a newly generated activity analysis or coaching input whose coach reply
+   asked for a plan change. An analysis or reply that judged the input context
+   only is recorded without a plan completion. This includes an
    activity imported days later, and an import that finished while an earlier
    generation was still running. Send the current season, block, week, today,
    tomorrow, next week and next block with a revision request naming the levels
    that are stale. The response returns the revised block, week and today when
    a block changed; the week and today when a week or day changed; and the
    season when a refresh is requested. A generated week review or an answer to
-   one marks the block pending and revises the current block in place, even
+   one that asks for a change marks the block pending and revises the current
+   block in place, even
    while today is still inside it. A generated block review or an answer to one
    refreshes the remaining season. Every returned rationale explains the plan
    as it stands after the revision, not why the plan was revised.
@@ -284,12 +295,15 @@ logs and Sentry without flooding them while the plan endpoint is polled.
      matching session. The returned week replaces `next_week` (or, for a
      mid-week block transition, the current week's remaining days). The current
      week and block are left alone when tomorrow has left them.
-6. Save the plan with the current answer timestamp. When today has entered a
-   stored `next_week` or `next_block`, promote it to the current level first.
-   A full build does not run a second activity review; the activity analyses
-   already carry the plan-aware summary (see
-   `docs/specs/coach-feedback-and-program-review.md`). Then mark the status
-   `done` and return the refreshed response.
+6. Save the plan with the current answer and input timestamps. When today has
+   entered a stored `next_week` or `next_block`, promote it to the current level
+   first. A full build does not run a second activity review; the activity
+   analyses already carry the plan-aware summary (see
+   `docs/specs/coach-feedback-and-program-review.md`). When new inputs or
+   analyses arrived but none asked for a plan change, save the stored plan with
+   the new timestamps after settling today's completion, the completed days and
+   the training load, without a plan completion. Then mark the status `done` and
+   return the refreshed response.
 7. On any failure, mark the status `error` and leave the previous plan in place.
 
 All LLM responses are parsed defensively (`parsePlanJson`) so markdown fences or

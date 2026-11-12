@@ -128,6 +128,7 @@ describe("replyToCoachingInput", () => {
         target: string;
         reply: string;
         model: string;
+        planChangeNeeded: boolean;
       } | null;
     } = { value: null };
 
@@ -142,6 +143,7 @@ describe("replyToCoachingInput", () => {
             text: input.reply,
             model: input.model,
             generatedAt: new Date("2026-10-21T12:00:00Z"),
+            planChangeNeeded: input.planChangeNeeded,
           });
         },
       }),
@@ -163,12 +165,92 @@ describe("replyToCoachingInput", () => {
       target: "123",
       reply: "Good work; I will keep Thursday easy.",
       model: "test-model",
+      // The fake provider returns plain text, so the flag fails open.
+      planChangeNeeded: true,
     });
     expect(result?.text).toBe("Good work; I will keep Thursday easy.");
     expect(llmUserIds).toEqual([42]);
     expect(provider.requests[0]?.messages[1]?.content).toContain(
       "Felt strong on the hills.",
     );
+  });
+
+  it("stores the coach's judgement that the input needs no plan change", async () => {
+    const provider = new FakeProvider(
+      JSON.stringify({
+        reply: "Nice work; the plan stays as it is.",
+        planChangeNeeded: false,
+      }),
+    );
+    const saved: { planChangeNeeded: boolean | null } = {
+      planChangeNeeded: null,
+    };
+
+    const result = await replyToCoachingInput(
+      deps(provider, {
+        saveReply: (input) => {
+          saved.planChangeNeeded = input.planChangeNeeded;
+          return Promise.resolve({
+            kind: input.kind,
+            target: input.target,
+            text: input.reply,
+            model: input.model,
+            generatedAt: new Date(),
+            planChangeNeeded: input.planChangeNeeded,
+          });
+        },
+      }),
+      {
+        userId: 42,
+        today: "2026-10-21",
+        request: {
+          kind: "activity_comment",
+          activityId: "123",
+          activityDate: "2026-10-19",
+          comment: "Felt strong on the hills.",
+        },
+      },
+    );
+
+    expect(saved.planChangeNeeded).toBe(false);
+    expect(result?.planChangeNeeded).toBe(false);
+    expect(result?.text).toBe("Nice work; the plan stays as it is.");
+  });
+
+  it("keeps the reply when the flag is malformed and fails open", async () => {
+    const provider = new FakeProvider(
+      JSON.stringify({
+        reply: "Nice work; keep it steady.",
+        planChangeNeeded: "maybe",
+      }),
+    );
+
+    const result = await replyToCoachingInput(
+      deps(provider, {
+        saveReply: (input) =>
+          Promise.resolve({
+            kind: input.kind,
+            target: input.target,
+            text: input.reply,
+            model: input.model,
+            generatedAt: new Date(),
+            planChangeNeeded: input.planChangeNeeded,
+          }),
+      }),
+      {
+        userId: 42,
+        today: "2026-10-21",
+        request: {
+          kind: "activity_comment",
+          activityId: "123",
+          activityDate: "2026-10-19",
+          comment: "Felt strong.",
+        },
+      },
+    );
+
+    expect(result?.text).toBe("Nice work; keep it steady.");
+    expect(result?.planChangeNeeded).toBe(true);
   });
 
   it("shows the athlete's recent training in the reply prompt", async () => {
@@ -238,6 +320,7 @@ describe("replyToCoachingInput", () => {
           text: input.reply,
           model: input.model,
           generatedAt: new Date(),
+          planChangeNeeded: input.planChangeNeeded,
         });
       },
     });
@@ -358,6 +441,7 @@ describe("replyToUnansweredActivityComments", () => {
             text: input.reply,
             model: input.model,
             generatedAt: new Date(),
+            planChangeNeeded: input.planChangeNeeded,
           });
         },
       }),
@@ -374,6 +458,42 @@ describe("replyToUnansweredActivityComments", () => {
     expect(prompt).toContain("Felt strong on the hills.");
     expect(prompt).toContain("Legs were heavy afterwards.");
     expect(provider.requests[0]?.metadata?.batchSize).toBe(2);
+  });
+
+  it("stores the coach's no-change judgement for every reply", async () => {
+    const provider = new FakeProvider(
+      JSON.stringify({
+        replies: [
+          { id: "1", reply: "Nice session.", planChangeNeeded: false },
+          { id: "2", reply: "Good recovery.", planChangeNeeded: false },
+        ],
+      }),
+    );
+
+    const result = await replyToUnansweredActivityComments(
+      deps(provider, {
+        loadUnansweredComments: () =>
+          Promise.resolve([
+            { activityId: "1", comment: "Felt good." },
+            { activityId: "2", comment: "Easy spin." },
+          ]),
+        saveReply: (input) =>
+          Promise.resolve({
+            kind: input.kind,
+            target: input.target,
+            text: input.reply,
+            model: input.model,
+            generatedAt: new Date(),
+            planChangeNeeded: input.planChangeNeeded,
+          }),
+      }),
+      { userId: 42, today: "2026-10-21" },
+    );
+
+    expect(result.map((reply) => reply.planChangeNeeded)).toEqual([
+      false,
+      false,
+    ]);
   });
 
   it("stops without saving when the run is superseded", async () => {

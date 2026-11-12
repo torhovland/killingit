@@ -18,6 +18,8 @@
  * - `DIET_CONTRACT` → `dietPlanSchema`
  * - `COACH_RESPONSE_NOTES_CONTRACT` → `coachResponseNotesSchema`
  * - `BODY_METRIC_POINT_CONTRACT` → `bodyMetricEstimateSchema`
+ * - `COACH_ANALYSIS_CONTRACT` → `coachAnalysisResultSchema`
+ * - `COACH_REPLY_CONTRACT` → `coachReplyResultSchema`
  *
  * The nested fragments `BIKE_WORKOUT_CONTRACT`, `CALORIE_BREAKDOWN_CONTRACT` and
  * `DIET_PROGRESS_CONTRACT` are compared inside the contracts that embed them.
@@ -32,6 +34,8 @@ import { z } from "zod";
 import {
   blockPlanSchema,
   bodyMetricEstimateSchema,
+  coachAnalysisResultSchema,
+  coachReplyResultSchema,
   coachResponseNotesSchema,
   dayPlanSchema,
   dietPlanSchema,
@@ -41,6 +45,8 @@ import {
 import {
   BLOCK_CONTRACT,
   BODY_METRIC_POINT_CONTRACT,
+  COACH_ANALYSIS_CONTRACT,
+  COACH_REPLY_CONTRACT,
   COACH_RESPONSE_NOTES_CONTRACT,
   DAY_CONTRACT,
   DIET_CONTRACT,
@@ -126,6 +132,18 @@ const CONTRACT_MAPPINGS: readonly ContractMapping[] = [
     contract: BODY_METRIC_POINT_CONTRACT,
     schemaName: "bodyMetricEstimateSchema",
     schema: schemaKeys(bodyMetricEstimateSchema),
+  },
+  {
+    contractName: "COACH_ANALYSIS_CONTRACT",
+    contract: COACH_ANALYSIS_CONTRACT,
+    schemaName: "coachAnalysisResultSchema",
+    schema: schemaKeys(coachAnalysisResultSchema),
+  },
+  {
+    contractName: "COACH_REPLY_CONTRACT",
+    contract: COACH_REPLY_CONTRACT,
+    schemaName: "coachReplyResultSchema",
+    schema: schemaKeys(coachReplyResultSchema),
   },
 ];
 
