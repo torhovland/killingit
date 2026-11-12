@@ -39,6 +39,13 @@ A unique key on `(user_id, sport, measure, date)` lets a sport hold several
 measures on the same day, such as cycling FTP and cycling threshold heart rate.
 The migration copies existing cycling FTP points into the new table.
 
+Storing a read is atomic. `recordAthleteMetricStatements` deletes the `user`
+points of the reported measures and writes the new ones in one transaction,
+using one batched insert per table; a failed write keeps the athlete's previous
+values and no reader sees the series between the delete and the insert.
+`recordCoachThreshold` likewise deletes the superseded coach estimates and
+inserts the new one in the same transaction.
+
 The extractor returns dated statements with a `thresholds` array. A threshold
 with a null sport is not stored; instead the coach asks which sport it is for.
 Answered coach questions are included in later extraction input, so the value

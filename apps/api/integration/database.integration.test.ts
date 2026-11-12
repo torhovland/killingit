@@ -8,12 +8,20 @@ import {
   it,
 } from "bun:test";
 import type { CoachPlan } from "@killingit/shared";
+import { sql } from "drizzle-orm";
 import { db } from "../src/db/index.js";
 import {
+  athleteMetrics,
   coachPlans,
   coachingSurveyAdjustments,
   foodEntries,
 } from "../src/db/schema.js";
+import {
+  loadMetricPoints,
+  loadThresholdPoints,
+  recordAthleteMetricStatements,
+  recordCoachThreshold,
+} from "../src/metrics/store.js";
 import { loadPlanDayCalorieTargets } from "../src/plans/dayCalories.js";
 import { PLAN_GENERATION_STEPS } from "../src/plans/steps.js";
 import { dbPlanGenerationStore, dbPlanStore } from "../src/plans/store.js";
@@ -70,6 +78,43 @@ function postgresErrorCode(error: unknown): string | undefined {
     current = (current as { cause?: unknown }).cause;
   }
   return undefined;
+}
+
+/**
+ * Makes one metric write fail the way a crash or constraint violation would,
+ * so a rewrite that deletes before it inserts can be tested between the two.
+ */
+async function withInjectedInsertFailure(
+  table: "athlete_metrics" | "athlete_thresholds",
+  marker: number,
+  run: () => Promise<void>,
+): Promise<void> {
+  const trigger = `${table}_integration_failure`;
+  await db.execute(sql.raw(`drop trigger if exists ${trigger} on ${table}`));
+  await db.execute(
+    sql.raw(`
+      create or replace function ${trigger}() returns trigger as $$
+      begin
+        if new.value = ${marker} then
+          raise exception 'injected metric write failure';
+        end if;
+        return new;
+      end;
+      $$ language plpgsql
+    `),
+  );
+  await db.execute(
+    sql.raw(
+      `create trigger ${trigger} before insert or update on ${table} ` +
+        `for each row execute function ${trigger}()`,
+    ),
+  );
+  try {
+    await run();
+  } finally {
+    await db.execute(sql.raw(`drop trigger if exists ${trigger} on ${table}`));
+    await db.execute(sql.raw(`drop function if exists ${trigger}()`));
+  }
 }
 
 beforeAll(async () => {
@@ -591,5 +636,170 @@ describe("question stores", () => {
     ).toEqual([optional.id]);
     expect(await countRows("question_versions")).toBe(2);
     expect(await countRows("question_answers")).toBe(2);
+  });
+});
+
+describe("metrics stores", () => {
+  const THROUGH_DATE = "2026-11-12";
+  const FTP = {
+    sport: "cycling",
+    measure: "ftp",
+    label: "FTP",
+    unit: "W",
+    kind: "power" as const,
+  };
+
+  it("keeps the athlete's points when a reading fails after the delete", async () => {
+    const user = await dbUserStore.ensureUser("auth0|metrics-rollback");
+    await recordAthleteMetricStatements(
+      user.id,
+      [
+        {
+          date: "2026-01-05",
+          weightKg: 81,
+          bodyFatPercent: 22.5,
+          thresholds: [{ ...FTP, value: 250 }],
+        },
+      ],
+      THROUGH_DATE,
+    );
+
+    let failed = false;
+    await withInjectedInsertFailure("athlete_metrics", 99, async () => {
+      try {
+        await recordAthleteMetricStatements(
+          user.id,
+          [
+            {
+              date: "2026-03-02",
+              weightKg: 79,
+              bodyFatPercent: 99,
+              thresholds: [{ ...FTP, value: 260 }],
+            },
+          ],
+          THROUGH_DATE,
+        );
+      } catch {
+        failed = true;
+      }
+    });
+    expect(failed).toBe(true);
+
+    expect(await loadMetricPoints(user.id, "weight")).toEqual([
+      { date: "2026-01-05", value: 81, source: "user" },
+    ]);
+    expect(await loadMetricPoints(user.id, "body_fat")).toEqual([
+      { date: "2026-01-05", value: 22.5, source: "user" },
+    ]);
+    expect(await loadThresholdPoints(user.id)).toEqual([
+      {
+        ...FTP,
+        date: "2026-01-05",
+        value: 250,
+        source: "user",
+      },
+    ]);
+  });
+
+  it("replaces only the measures the reading reports and lets the last statement win", async () => {
+    const user = await dbUserStore.ensureUser("auth0|metrics-rewrite");
+    await db.insert(athleteMetrics).values({
+      userId: user.id,
+      metric: "weight",
+      source: "garmin",
+      date: "2026-02-01",
+      value: 80.5,
+    });
+    await recordAthleteMetricStatements(
+      user.id,
+      [
+        {
+          date: "2026-01-05",
+          weightKg: 81,
+          bodyFatPercent: null,
+          thresholds: [],
+        },
+        {
+          date: "2026-01-06",
+          weightKg: 80.8,
+          bodyFatPercent: 22,
+          thresholds: [{ ...FTP, value: 250 }],
+        },
+      ],
+      THROUGH_DATE,
+    );
+
+    await recordAthleteMetricStatements(
+      user.id,
+      [
+        {
+          date: "2026-01-06",
+          weightKg: 80.2,
+          bodyFatPercent: null,
+          thresholds: [],
+        },
+        {
+          date: "2026-01-06",
+          weightKg: 80.1,
+          bodyFatPercent: null,
+          thresholds: [],
+        },
+      ],
+      THROUGH_DATE,
+    );
+
+    // The edited-out weight on 5 January is gone, the same-day statements keep
+    // the last value, and the Garmin weigh-in and the unreported measures stay.
+    expect(await loadMetricPoints(user.id, "weight")).toEqual([
+      { date: "2026-01-06", value: 80.1, source: "user" },
+      { date: "2026-02-01", value: 80.5, source: "garmin" },
+    ]);
+    expect(await loadMetricPoints(user.id, "body_fat")).toEqual([
+      { date: "2026-01-06", value: 22, source: "user" },
+    ]);
+    expect(await loadThresholdPoints(user.id)).toEqual([
+      { ...FTP, date: "2026-01-06", value: 250, source: "user" },
+    ]);
+  });
+
+  it("keeps the older coach estimates when a newer one fails to store", async () => {
+    const user = await dbUserStore.ensureUser("auth0|coach-threshold-rollback");
+    await recordCoachThreshold({
+      userId: user.id,
+      ...FTP,
+      date: "2026-01-01",
+      value: 240,
+    });
+    await recordCoachThreshold({
+      userId: user.id,
+      ...FTP,
+      date: "2026-02-01",
+      value: 250,
+    });
+
+    let failed = false;
+    await withInjectedInsertFailure("athlete_thresholds", 9999, async () => {
+      try {
+        await recordCoachThreshold({
+          userId: user.id,
+          ...FTP,
+          date: "2026-01-15",
+          value: 9999,
+        });
+      } catch {
+        failed = true;
+      }
+    });
+    expect(failed).toBe(true);
+
+    expect(
+      (await loadThresholdPoints(user.id)).map((point) => [
+        point.date,
+        point.value,
+      ]),
+    ).toEqual([
+      ["2026-01-01", 240],
+      ["2026-02-01", 250],
+    ]);
   });
 });
