@@ -152,28 +152,30 @@ changes block 1's start date (2026-10-19), and speed and cost are the sum of
 both prompt runs. The definitions and the fixture live in
 `tools/benchmark/src/promptBenchmarkInput.ts` and
 `promptBenchmarkFixture.ts`; the scoring and the catalog queries and grade
-writes the benchmark needs live in the same workspace
-(`tools/benchmark/src/promptBenchmark.ts` and `catalogBenchmark.ts`); the
-runtime `modelCatalog.ts` keeps the refresh, the pure grading helpers and the
-catalog rows the API serves. See ADR 0032.
+writes the benchmark needs live in the same workspace, together with the
+`run`, `judge`, `finalize`, `shortlist`, `sync-db` and `report` stages
+(`tools/benchmark/src/promptBenchmark.ts`, the `promptBenchmark*` modules and
+`catalogBenchmark.ts`). The stages call the app's `LlmProvider`; judging is
+optional. The runtime `modelCatalog.ts` keeps the refresh, the pure grading
+helpers and the catalog rows the API serves. See ADR 0032.
 
 The benchmark can run only the models that still have `?` in ability or speed:
 
 ```sh
 # 1. Run the pending models into a fresh run directory
 PENDING_ONLY=1 RUN_ID=2026-11-15-pending \
-  bun benchmarks/prompts/run.ts
+  bun run benchmark:prompts run
 
-# 2. Judge both returned JSON documents with Haiku
-RUN_ID=2026-11-15-pending bun benchmarks/prompts/judge.ts
+# 2. Judge both returned JSON documents with Haiku (optional)
+RUN_ID=2026-11-15-pending bun run benchmark:prompts judge
 
 # 3. Save the grades into llm_models
-RUN_ID=2026-11-15-pending bun benchmarks/prompts/sync-db.ts
+RUN_ID=2026-11-15-pending bun run benchmark:prompts sync-db
 ```
 
 `pendingBenchmarkModelIds()` resolves alias dependencies before returning the
 run list: if both an alias and the model it points at need grading, the alias is
-left out and the concrete target is graded first. `sync-db.ts` refreshes the
+left out and the concrete target is graded first. The `sync-db` stage refreshes the
 catalog first, records every result in the run, copies the freshly graded
 target onto its waiting aliases, and recomputes ability, speed, cost and
 discouraged. It also clears `needs_rescore` for the models it graded. New
@@ -181,7 +183,7 @@ models, price-changed models and aliases whose target could not be copied are
 picked up automatically.
 
 To re-score only models that already reached a grade, set
-`RESCORE_MIN_ABILITY` (for example `RESCORE_MIN_ABILITY=A`) on `run.ts`; models
+`RESCORE_MIN_ABILITY` (for example `RESCORE_MIN_ABILITY=A`) on the `run` stage; models
 graded below that grade are left untouched, while every ungraded model is still
 included. Set `RESCORE_COST_GRADE` (for example `RESCORE_COST_GRADE=A+`) to keep
 only models whose stored cost grade is exactly that grade, so ungraded models
@@ -190,11 +192,12 @@ selects several exact cost grades, `INCLUDE_MODELS=id1,id2` forces named models
 into the run even when their cost grade is excluded, `EXCLUDE_ABILITY_GRADES=F`
 drops models with that current ability grade (named models are kept), and
 `SORT=slowest` orders the run by previous benchmark time, slowest first.
-Aliases are always skipped and copied from their target by `sync-db.ts`.
+Aliases are always skipped and copied from their target by the `sync-db`
+stage.
 `:batch` variants are excluded
 because they are asynchronous and cannot be called through the synchronous
 endpoint. `DRY_RUN=1` writes the selection to `models.json` without calling any
-model. The benchmark scripts use `BENCHMARK_OPENROUTER_API_KEY`, a dedicated
+model. The benchmark stages use `BENCHMARK_OPENROUTER_API_KEY`, a dedicated
 key separate from the app's per-account key.
 
 A model that reaches the speed-F limit (`1_200_000` ms across both prompts) is

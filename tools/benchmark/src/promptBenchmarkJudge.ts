@@ -1,72 +1,41 @@
-import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import {
-  checkReviseSeasonGates,
-  combinePromptScores,
-  parseCurrentBlock,
-} from "@killingit/benchmark/src/promptBenchmark.js";
+  createOpenRouterProvider,
+  type LlmProvider,
+} from "../../../apps/api/src/llm/openrouter.js";
+import {
+  logPromptBenchmark,
+  promptBenchmarkRunDirectory,
+  readPromptJson,
+  readPromptJsonOr,
+  writePromptJson,
+} from "./promptBenchmarkFiles.js";
 import {
   BENCHMARK_PROMPTS,
   buildBenchmarkPromptMessages,
   formatBenchmarkPrompt,
-} from "@killingit/benchmark/src/promptBenchmarkInput.js";
+  type BenchmarkPromptDefinition,
+  type BenchmarkPromptId,
+} from "./promptBenchmarkInput.js";
+import {
+  checkReviseSeasonGates,
+  combinePromptScores,
+  extractJson,
+  parseCurrentBlock,
+  parseJudge,
+} from "./promptBenchmark.js";
+import { completePrompt } from "./promptBenchmarkProvider.js";
 import type {
-  BenchmarkPromptDefinition,
-  BenchmarkPromptId,
-} from "@killingit/benchmark/src/promptBenchmarkInput.js";
-import type { ReviseSeasonGates } from "@killingit/benchmark/src/promptBenchmark.js";
+  PromptAttempt,
+  PromptJudge,
+  PromptJudgeScore,
+  PromptModelResult,
+  PromptRunResult,
+} from "./promptBenchmarkTypes.js";
 
-const RUN_ID = process.env.RUN_ID ?? "2026-10-31-two-prompts";
-const RUN_DIR = resolve(import.meta.dir, "runs", RUN_ID);
 const JUDGE_MODEL = process.env.JUDGE_MODEL ?? "anthropic/claude-haiku-5.5";
-const API_URL = "https://openrouter.ai/api/v1";
-const CONCURRENCY = Number(process.env.CONCURRENCY ?? 15);
 const MAX_TOKENS = Number(process.env.MAX_TOKENS ?? 4000);
-
-interface Attempt {
-  timeMs: number;
-  costUsd: number;
-  raw: string;
-  parsed: unknown | null;
-  parseError: string | null;
-  error: string | null;
-}
-
-interface PromptResult {
-  prompt: BenchmarkPromptId;
-  attempts: Attempt[];
-  ok: boolean;
-  plan: unknown | null;
-  validationErrors: string[];
-}
-
-interface ModelResult {
-  id: string;
-  name: string;
-  prompts: Record<BenchmarkPromptId, PromptResult>;
-  ok: boolean;
-  expired?: boolean;
-}
-
-interface PromptJudge {
-  score: number;
-  components: Record<string, number>;
-  note: string;
-  judge: {
-    model: string;
-    attempts: number;
-    timeMs: number;
-    costUsd: number;
-    error: string | null;
-  };
-}
-
-interface JudgeScore extends PromptJudge {
-  id: string;
-  failed: boolean;
-  gates: ReviseSeasonGates | null;
-  prompts: Record<BenchmarkPromptId, PromptJudge>;
-}
+const JUDGE_TIMEOUT_MS = 240_000;
 
 const ZERO_COMPONENTS = {
   contract: 0,
@@ -133,161 +102,55 @@ The score is the sum of the six components (maximum 12.5), rounded to one decima
 
 Return strict JSON. Inside the judgment string, do not use quotation marks of any kind (no double quotes and no single quotes). Do not use raw newlines inside the judgment. Refer to field names and phrases without quoting them.`;
 
-function extractJson(text: string): unknown {
-  const trimmed = text.trim();
-  const candidates: string[] = [trimmed];
-  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  if (fenced?.[1]) candidates.push(fenced[1].trim());
-  const start = trimmed.indexOf("{");
-  const end = trimmed.lastIndexOf("}");
-  if (start >= 0 && end > start) candidates.push(trimmed.slice(start, end + 1));
-  for (const candidate of candidates) {
-    try {
-      return JSON.parse(candidate);
-    } catch {
-      // try next
-    }
-  }
-  throw new Error("no parseable JSON in judge response");
-}
-
-function asNumber(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
-
-function parseJudge(value: unknown): {
-  components: Record<string, number>;
-  score: number;
-  note: string;
-} | null {
-  if (typeof value !== "object" || value === null) return null;
-  const entry = value as Record<string, unknown>;
-  const contract = asNumber(entry.contract);
-  const fidelity = asNumber(entry.fidelity);
-  const design = asNumber(entry.design);
-  const rationale = asNumber(entry.rationale);
-  const grounding = asNumber(entry.grounding);
-  const detail = asNumber(entry.detail);
-  const score = asNumber(entry.score);
-  const note = typeof entry.judgment === "string" ? entry.judgment.trim() : "";
-  if (
-    contract === null ||
-    fidelity === null ||
-    design === null ||
-    rationale === null ||
-    grounding === null ||
-    detail === null ||
-    score === null ||
-    note === ""
-  ) {
-    return null;
-  }
-  const components = {
-    contract: Math.max(0, Math.min(1.5, contract)),
-    fidelity: Math.max(0, Math.min(2, fidelity)),
-    design: Math.max(0, Math.min(3, design)),
-    rationale: Math.max(0, Math.min(2, rationale)),
-    grounding: Math.max(0, Math.min(2, grounding)),
-    detail: Math.max(0, Math.min(2, detail)),
-  };
-  return {
-    components,
-    score:
-      Math.round(
-        (components.contract +
-          components.fidelity +
-          components.design +
-          components.rationale +
-          components.grounding +
-          components.detail) *
-          10,
-      ) / 10,
-    note,
-  };
-}
-
 async function callJudge(
+  provider: LlmProvider,
   apiKey: string,
   rubric: string,
   originalPrompt: string,
   candidate: unknown,
-): Promise<Attempt> {
+): Promise<PromptAttempt> {
   const started = performance.now();
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 240_000);
-  try {
-    const response = await fetch(`${API_URL}/chat/completions`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://killingit.local/benchmark",
-        "X-Title": "Killingit prompt judge",
-      },
-      body: JSON.stringify({
-        model: JUDGE_MODEL,
-        messages: [
-          { role: "system", content: rubric },
-          {
-            role: "user",
-            content: `## ORIGINAL PROMPT GIVEN TO THE CANDIDATE\n\n${originalPrompt}\n\n## CANDIDATE JSON RESPONSE\n\n${JSON.stringify(candidate, null, 2)}\n\nScore the candidate now. Return only the JSON scoring object.`,
-          },
-        ],
-        max_tokens: MAX_TOKENS,
-        temperature: 0,
-        response_format: { type: "json_object" },
-      }),
-      signal: controller.signal,
-    });
-    const text = await response.text();
-    const timeMs = performance.now() - started;
-    let body: {
-      choices?: Array<{ message?: { content?: unknown } }>;
-      usage?: { cost?: number };
-      error?: { message?: string } | string;
-    } | null = null;
+  const startedAt = new Date().toISOString();
+  const completion = await completePrompt(
+    provider,
+    {
+      apiKey,
+      model: JUDGE_MODEL,
+      messages: [
+        { role: "system", content: rubric },
+        {
+          role: "user",
+          content: `## ORIGINAL PROMPT GIVEN TO THE CANDIDATE\n\n${originalPrompt}\n\n## CANDIDATE JSON RESPONSE\n\n${JSON.stringify(candidate, null, 2)}\n\nScore the candidate now. Return only the JSON scoring object.`,
+        },
+      ],
+      temperature: 0,
+      maxTokens: MAX_TOKENS,
+    },
+    JUDGE_TIMEOUT_MS,
+  );
+  let parsed: unknown = null;
+  let parseError: string | null = null;
+  if (completion.error === null) {
     try {
-      body = JSON.parse(text) as typeof body;
-    } catch {
-      body = null;
+      parsed = extractJson(completion.text);
+    } catch (err) {
+      parseError = err instanceof Error ? err.message : String(err);
     }
-    const content = body?.choices?.[0]?.message?.content;
-    const raw = typeof content === "string" ? content : "";
-    const providerError =
-      typeof body?.error === "string"
-        ? body.error
-        : (body?.error?.message ?? null);
-    const error =
-      providerError ??
-      (!response.ok ? `HTTP ${response.status}` : null) ??
-      (raw === "" ? "empty judge response" : null);
-    let parsed: unknown | null = null;
-    if (error === null) {
-      try {
-        parsed = extractJson(raw);
-      } catch {
-        parsed = null;
-      }
-    }
-    return {
-      timeMs,
-      costUsd: body?.usage?.cost ?? 0,
-      raw,
-      parsed,
-      error:
-        error ?? (parsed === null ? "judge response was not valid JSON" : null),
-    };
-  } catch (err) {
-    return {
-      timeMs: performance.now() - started,
-      costUsd: 0,
-      raw: "",
-      parsed: null,
-      error: err instanceof Error ? err.message : String(err),
-    };
-  } finally {
-    clearTimeout(timer);
   }
+  return {
+    startedAt,
+    timeMs: performance.now() - started,
+    httpStatus: completion.httpStatus,
+    finishReason: completion.finishReason,
+    usage: completion.usage,
+    costUsd: completion.costUsd,
+    raw: completion.text,
+    parsed,
+    parseError,
+    error:
+      completion.error ??
+      (parsed === null ? "judge response was not valid JSON" : null),
+  };
 }
 
 function unjudgedPrompt(note: string): PromptJudge {
@@ -306,10 +169,11 @@ function unjudgedPrompt(note: string): PromptJudge {
 }
 
 async function judgePrompt(
+  provider: LlmProvider,
   apiKey: string,
   definition: BenchmarkPromptDefinition,
   originalPrompt: string,
-  result: PromptResult,
+  result: PromptRunResult,
 ): Promise<PromptJudge> {
   if (!result.ok || result.plan === null) {
     const last = result.attempts.at(-1);
@@ -325,11 +189,12 @@ async function judgePrompt(
 
   const rubric =
     definition.id === "today" ? TODAY_RUBRIC : REVISE_SEASON_RUBRIC;
-  const attempts: Attempt[] = [];
+  const attempts: PromptAttempt[] = [];
   let judged: ReturnType<typeof parseJudge> = null;
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const judgeAttempt = await callJudge(
+      provider,
       apiKey,
       rubric,
       originalPrompt,
@@ -363,18 +228,24 @@ async function judgePrompt(
   };
 }
 
-function isCurrentScore(value: unknown): value is JudgeScore {
+function isCurrentScore(value: unknown): value is PromptJudgeScore {
   if (typeof value !== "object" || value === null) return false;
-  const score = value as Partial<JudgeScore>;
+  const score = value as Partial<PromptJudgeScore>;
   if (typeof score.prompts !== "object" || score.prompts === null) return false;
   return BENCHMARK_PROMPTS.every(
     (definition) => score.prompts?.[definition.id] !== undefined,
   );
 }
 
-async function main(): Promise<void> {
+/**
+ * Judges the valid responses in a run directory. Judging is an optional stage:
+ * the run itself only calls the models, so a review can stop after `run`.
+ */
+export async function runPromptBenchmarkJudgeStage(): Promise<void> {
   const apiKey = process.env.BENCHMARK_OPENROUTER_API_KEY?.trim();
   if (!apiKey) throw new Error("BENCHMARK_OPENROUTER_API_KEY is not set");
+  const runDirectory = promptBenchmarkRunDirectory();
+  const provider = createOpenRouterProvider();
   const promptTexts = new Map<BenchmarkPromptId, string>();
   for (const definition of BENCHMARK_PROMPTS) {
     promptTexts.set(
@@ -393,18 +264,15 @@ async function main(): Promise<void> {
     );
   }
 
-  const results = JSON.parse(
-    await readFile(resolve(RUN_DIR, "results.json"), "utf8"),
-  ) as ModelResult[];
+  const results = await readPromptJson<PromptModelResult[]>(
+    resolve(runDirectory, "results.json"),
+  );
 
-  const outputPath = resolve(RUN_DIR, "judge-scores.json");
-  let scores: JudgeScore[] = [];
-  try {
-    const parsed: unknown = JSON.parse(await readFile(outputPath, "utf8"));
-    scores = Array.isArray(parsed) ? parsed.filter(isCurrentScore) : [];
-  } catch {
-    scores = [];
-  }
+  const outputPath = resolve(runDirectory, "judge-scores.json");
+  const parsedScores = await readPromptJsonOr<unknown>(outputPath, []);
+  const scores = Array.isArray(parsedScores)
+    ? parsedScores.filter(isCurrentScore)
+    : [];
   const retryFailedJudges = process.env.RETRY_FAILED_JUDGES === "1";
   const done = new Set(
     scores
@@ -424,15 +292,16 @@ async function main(): Promise<void> {
     .filter((result) => !done.has(result.id))
     .filter((result) => !onlyValid || result.ok)
     .slice(0, limit);
-  console.log(
+  logPromptBenchmark(
     `judging ${pending.length} models with ${JUDGE_MODEL} at ${BENCHMARK_PROMPTS.length} prompts ` +
       `(${done.size} already done, ${expired.length} left ungraded at the speed-F limit)`,
   );
 
+  const concurrency = Math.max(1, Number(process.env.CONCURRENCY ?? 15));
   let cursor = 0;
   let completed = done.size;
   const write = async () => {
-    await writeFile(outputPath, `${JSON.stringify(scores, null, 2)}\n`);
+    await writePromptJson(outputPath, scores);
   };
 
   const worker = async (): Promise<void> => {
@@ -449,6 +318,7 @@ async function main(): Promise<void> {
           throw new Error(`missing prompt text for ${definition.id}`);
         }
         promptJudges[definition.id] = await judgePrompt(
+          provider,
           apiKey,
           definition,
           originalPrompt,
@@ -481,7 +351,7 @@ async function main(): Promise<void> {
         promptJudges.today.judge.error ??
         promptJudges.reviseSeason.judge.error ??
         null;
-      const entry: JudgeScore = {
+      const entry: PromptJudgeScore = {
         id: result.id,
         score: combined.score,
         components: combined.components,
@@ -505,7 +375,7 @@ async function main(): Promise<void> {
       if (existingIndex >= 0) scores[existingIndex] = entry;
       else scores.push(entry);
       completed += 1;
-      console.log(
+      logPromptBenchmark(
         `[${completed}/${results.length}] ${result.id} ${entry.score.toFixed(1)} ` +
           `(today ${promptJudges.today.score.toFixed(1)} · revision ${promptJudges.reviseSeason.score.toFixed(1)}) ` +
           `${entry.gates?.failures.length ? `gates failed: ${entry.gates.failures.join("; ")} ` : ""}` +
@@ -515,14 +385,12 @@ async function main(): Promise<void> {
     }
   };
 
-  await Promise.all(Array.from({ length: CONCURRENCY }, () => worker()));
+  await Promise.all(Array.from({ length: concurrency }, () => worker()));
   const totalJudgeCost = scores.reduce(
     (sum, score) => sum + score.judge.costUsd,
     0,
   );
-  console.log(
+  logPromptBenchmark(
     `judged ${scores.length}/${results.length}, judge cost $${totalJudgeCost.toFixed(4)}`,
   );
 }
-
-await main();

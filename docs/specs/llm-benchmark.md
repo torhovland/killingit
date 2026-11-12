@@ -8,10 +8,18 @@
 
 ## Goal
 
-Compare OpenRouter models on the app's real four-level plan generation and its
-new-week refresh, using the same athlete profile, recent training and prompts.
-The first model in the supplied list is the benchmark; every other model is
-compared with its cost, time and plan quality.
+Compare OpenRouter models on the app's real coaching work. The workspace has two
+modes that share one entry point, the app's `LlmProvider` and the app's prompt
+builders:
+
+- the **plan comparison** runs the real four-level plan generation and its
+  new-week refresh for a list of models; and
+- the **two-prompt catalog benchmark** sends the daily-update prompt and the
+  season-revision prompt to every catalog model and grades them.
+
+The first model in a plan-comparison run is the benchmark; every other model is
+compared with its cost, time and plan quality. The two-prompt benchmark fills
+the model catalog's ability, speed and cost grades.
 
 ## Scope
 
@@ -36,6 +44,13 @@ compared with its cost, time and plan quality.
    `PLAN_MAX_TOKENS = 16_384`, with fallback attempts up to 32,768 and a
    4,096-token compatibility attempt for providers that reject a large
    `max_tokens`.
+6. A two-prompt mode with explicit `run`, `judge`, `finalize`, `shortlist`,
+   `sync-db` and `report` stages. The run stage calls both prompts through the
+   app's `LlmProvider`, judging is an optional stage, and the models are selected
+   from the catalog or the environment exactly as before. Its prompt builders,
+   validators, score gates, catalog queries and report renderer all live in the
+   same workspace, so the mode is typechecked, linted and covered like the plan
+   comparison instead of being an untyped root script.
 
 ### Out of scope
 
@@ -68,6 +83,16 @@ compared with its cost, time and plan quality.
    pass.
 9. The harness lives in the `tools/benchmark` workspace; `apps/api/src` keeps
    no benchmark CLI and no benchmark-only module. See ADR 0032.
+10. `bun run benchmark:llm -- --help` and `bun run benchmark:prompts -- --help`
+    both print their usage without a key, database or spend.
+11. The two-prompt mode keeps its run artefacts under
+    `benchmarks/prompts/runs/<RUN_ID>/` (`models.json`, `raw/*.json`,
+    `results.json`, `judge-scores.json`) and its HTML report under
+    `benchmarks/prompts/reports/<RUN_ID>.html`; both directories stay ignored.
+12. Running the two-prompt mode through the plan comparison's `LlmProvider`
+    keeps the recorded status, finish reason, usage, cost, raw text and parse
+    error per attempt, so the existing judge, finalize, report and sync stages
+    read a run unchanged.
 
 ## Running
 
@@ -104,6 +129,25 @@ Configuration:
 - `--scores` — optional quality scores to include in the report.
 - `--report-only <dir>` — rebuild `report.md` from an existing run without
   calling any model.
+
+### Two-prompt catalog benchmark
+
+Run one stage at a time; `RUN_ID` names the run directory and every stage reads
+it:
+
+```sh
+PENDING_ONLY=1 RUN_ID=2026-11-15-pending bun run benchmark:prompts run
+RUN_ID=2026-11-15-pending bun run benchmark:prompts judge
+RUN_ID=2026-11-15-pending bun run benchmark:prompts sync-db
+RUN_ID=... bun run benchmark:prompts report
+```
+
+`run` writes `models.json`, `raw/*.json` and `results.json`; `judge` is optional
+and writes `judge-scores.json`; `finalize` recovers responses rejected only for
+a warning-level contract issue; `shortlist` prints the top judged models;
+`sync-db` refreshes the catalog and records the grades; and `report` renders the
+HTML preview. The detailed model selection, resume and grading variables are in
+`benchmarks/prompts/README.md` and `docs/specs/llm-model-catalog.md`.
 
 ## Artifact policy
 

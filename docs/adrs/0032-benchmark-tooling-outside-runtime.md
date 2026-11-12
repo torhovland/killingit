@@ -40,9 +40,13 @@ tested in CI, which made it a poor home for code that decides model grades.
   list-price and benchmark-derived grades, alias copying, usability checks and
   the catalog rows the API serves. The server still grades a model from a
   benchmark result, because the catalog is refreshed in the background.
-- Keep `benchmarks/prompts/` as the run scripts and data directory. They import
-  the moved modules through the `@killingit/benchmark` package name, and
-  `apps/api` runtime modules through their source paths, as before.
+- Keep `benchmarks/prompts/` as the data directory. Its run and report
+  directories stay git-ignored there, while the root run scripts that used to
+  live beside them moved into `tools/benchmark/src/promptBenchmark*` (the
+  superseded heuristic scorer was dropped). The stages now call the app's
+  `LlmProvider` and prompt builders, share one CLI entry
+  (`bun run benchmark:prompts <stage>`), and are typechecked, linted and covered
+  like the plan comparison.
 
 ## Alternatives considered
 
@@ -69,5 +73,7 @@ tested in CI, which made it a poor home for code that decides model grades.
 - The moved modules import `apps/api` by relative source path. That coupling is
   deliberate: the benchmark must exercise the real plan-generation pipeline, not
   a copy of it.
-- `benchmarks/prompts/` keeps its data directories and stays outside the
-  workspace; only the reusable policy and catalog code moved.
+- `benchmarks/prompts/` keeps only its data directories. The former root
+  scripts were outside every tsconfig, so their types were never checked; moving
+  them into the workspace closed that gap and replaced their private fetch
+  client with the app's `LlmProvider`.

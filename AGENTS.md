@@ -183,12 +183,16 @@ about a past workout, or before a suggested workout, to steer the coach.
   athlete; the harness is the `@killingit/benchmark` workspace in
   `tools/benchmark`, and results and quality notes are kept under
   `benchmarks/llm-coach/`. The first model in a run is the benchmark. The
-  prompt benchmark's two prompts are built by the app's own prompt builders
-  from the fixture athlete in `tools/benchmark/src/promptBenchmarkFixture.ts`,
-  and a snapshot test pins the built text, so a prompt change fails the suite
-  until the snapshot is deliberately updated. Its run directories and generated
-  HTML/PDF reports are local output and ignored by git; see
-  `benchmarks/README.md`. See `docs/specs/llm-benchmark.md` and ADR 0032.
+  two-prompt catalog benchmark runs from the same workspace through
+  `bun run benchmark:prompts <stage>`, with `run`, `judge`, `finalize`,
+  `shortlist`, `sync-db` and `report` stages; judging is optional and every
+  model call goes through the app's `LlmProvider`. Its two prompts are built by
+  the app's own prompt builders from the fixture athlete in
+  `tools/benchmark/src/promptBenchmarkFixture.ts`, and a snapshot test pins the
+  built text, so a prompt change fails the suite until the snapshot is
+  deliberately updated. Its run directories and generated HTML/PDF reports are
+  local output and ignored by git; see `benchmarks/README.md`. See
+  `docs/specs/llm-benchmark.md` and ADR 0032.
 - The athlete's home location is stored on `users` and set in the settings
   location picker. When a week or day is planned, the API loads Open-Meteo and
   Yr.no forecasts, including sunrise and sunset, builds an averaged combined
@@ -493,8 +497,8 @@ across frontend and backend:
   - `apps/api` — Hono + Drizzle backend
   - `packages/shared` — shared Zod schemas and TypeScript types
   - `tools/benchmark` — LLM benchmark harness and model-catalog grading
-    queries, run by `bun run benchmark:llm` and `benchmarks/prompts/*`; it
-    imports the real plan pipeline from `apps/api`. See ADR 0032.
+    queries, run by `bun run benchmark:llm` and `bun run benchmark:prompts`;
+    it imports the real plan pipeline from `apps/api`. See ADR 0032.
 
 ### Database
 

@@ -1,115 +1,31 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import type { LlmModelGrade } from "@killingit/shared";
 import {
   abilityGrade,
   costGrade,
   speedGrade,
-} from "../../apps/api/src/llm/modelCatalog.js";
-
-const RUN_ID = process.env.RUN_ID ?? "2026-10-31-two-prompts";
-const RUN_DIR = resolve(import.meta.dir, "runs", RUN_ID);
-const OUTPUT_DIR = resolve(import.meta.dir, "reports");
-const OUTPUT_HTML = resolve(OUTPUT_DIR, `${RUN_ID}.html`);
-
-interface Attempt {
-  startedAt: string;
-  timeMs: number;
-  httpStatus: number | null;
-  finishReason: string | null;
-  costUsd: number;
-  raw: string;
-  parsed: unknown | null;
-  parseError: string | null;
-  error: string | null;
-  usage: {
-    prompt_tokens?: number;
-    completion_tokens?: number;
-    completion_tokens_details?: { reasoning_tokens?: number };
-  } | null;
-}
-
-interface PromptResult {
-  prompt: string;
-  attempts: Attempt[];
-  retryNeeded: boolean;
-  ok: boolean;
-  totalTimeMs: number;
-  totalCostUsd: number;
-  plan: unknown | null;
-  validationErrors: string[];
-}
-
-interface ModelResult {
-  id: string;
-  name: string;
-  requestedAt: string;
-  prompts: Record<string, PromptResult>;
-  ok: boolean;
-  expired?: boolean;
-  totalTimeMs: number;
-  totalCostUsd: number;
-}
-
-interface PromptJudge {
-  score: number;
-  components: Record<string, number>;
-  note: string;
-  judge: {
-    model: string;
-    attempts: number;
-    timeMs: number;
-    costUsd: number;
-    error: string | null;
-  };
-}
-
-interface JudgeScore {
-  id: string;
-  score: number;
-  components: Record<string, number>;
-  note: string;
-  failed: boolean;
-  gates: {
-    atlasMentioned: boolean;
-    blockOneChanged: boolean;
-    blockOneStartDateKept: boolean;
-    atlasQuestionAsked?: boolean;
-    failures: string[];
-  } | null;
-  prompts: Record<string, PromptJudge>;
-  judge?: {
-    model: string;
-    attempts: number;
-    timeMs: number;
-    costUsd: number;
-    error: string | null;
-  };
-}
-
-interface Override {
-  score?: number;
-  note?: string;
-}
-
-const PROMPTS = [
-  { id: "today", label: "Today plan" },
-  {
-    id: "reviseSeason",
-    label: "Season revision",
-  },
-];
-
-interface ModelGrades {
-  ability: LlmModelGrade;
-  speed: LlmModelGrade;
-  cost: LlmModelGrade;
-}
+} from "../../../apps/api/src/llm/modelCatalog.js";
+import {
+  PROMPT_BENCHMARK_REPORTS_ROOT,
+  promptBenchmarkReportPath,
+  promptBenchmarkRunDirectory,
+  promptBenchmarkRunId,
+  readPromptJson,
+  readPromptJsonOr,
+} from "./promptBenchmarkFiles.js";
+import { BENCHMARK_PROMPTS } from "./promptBenchmarkInput.js";
+import type {
+  PromptBenchmarkSources,
+  PromptJudgeOverride,
+  PromptJudgeScore,
+  PromptModelResult,
+  PromptRunResult,
+} from "./promptBenchmarkTypes.js";
 
 function gradesFor(
-  result: ModelResult | undefined,
-  score: JudgeScore | undefined,
-): ModelGrades {
+  result: PromptModelResult | undefined,
+  score: PromptJudgeScore | undefined,
+): { ability: string; speed: string; cost: string } {
   if (result?.expired === true) {
     return { ability: "?", speed: "F", cost: "?" };
   }
@@ -151,6 +67,10 @@ function scoreClass(score: number): string {
   return "score-fail";
 }
 
+function formatComponent(value: number | undefined): string {
+  return (value ?? 0).toFixed(1);
+}
+
 function prettyJson(value: unknown): string {
   try {
     return JSON.stringify(value, null, 2);
@@ -159,7 +79,7 @@ function prettyJson(value: unknown): string {
   }
 }
 
-function promptPlanText(prompt: PromptResult | undefined): string {
+function promptPlanText(prompt: PromptRunResult | undefined): string {
   if (prompt === undefined) return "This prompt is missing from the run.";
   if (prompt.plan !== null) return prettyJson(prompt.plan);
   return prompt.attempts
@@ -177,37 +97,36 @@ function gateLine(label: string, passed: boolean): string {
   return `<div class="gate ${passed ? "gate-pass" : "gate-fail"}"><span>${escapeHtml(label)}</span><strong>${passed ? "pass" : "FAIL"}</strong></div>`;
 }
 
-async function main(): Promise<void> {
-  const results = JSON.parse(
-    await readFile(resolve(RUN_DIR, "results.json"), "utf8"),
-  ) as ModelResult[];
-  let sourceRuns: string[] = [];
-  try {
-    const sources = JSON.parse(
-      await readFile(resolve(RUN_DIR, "sources.json"), "utf8"),
-    ) as { runIds?: unknown };
-    if (Array.isArray(sources.runIds)) {
-      sourceRuns = sources.runIds.filter(
-        (id): id is string => typeof id === "string",
-      );
-    }
-  } catch {
-    sourceRuns = [];
-  }
+function parseJudgeModel(score: PromptJudgeScore): string | null {
+  return typeof score.judge?.model === "string" ? score.judge.model : null;
+}
+
+/** Renders the two-prompt benchmark's HTML report from a run directory. */
+export async function runPromptBenchmarkReportStage(): Promise<void> {
+  const runId = promptBenchmarkRunId();
+  const runDirectory = promptBenchmarkRunDirectory(runId);
+  const outputHtml = promptBenchmarkReportPath(runId);
+  const results = await readPromptJson<PromptModelResult[]>(
+    resolve(runDirectory, "results.json"),
+  );
+  const sources = await readPromptJsonOr<PromptBenchmarkSources>(
+    resolve(runDirectory, "sources.json"),
+    {},
+  );
+  const sourceRuns = Array.isArray(sources.runIds)
+    ? sources.runIds.filter((id): id is string => typeof id === "string")
+    : [];
   const scoresFile = process.env.SCORES_FILE ?? "judge-scores.json";
-  const scores = JSON.parse(
-    await readFile(resolve(RUN_DIR, scoresFile), "utf8"),
-  ) as JudgeScore[];
-  let overrides: Record<string, Override> = {};
-  if (process.env.USE_OVERRIDES !== "0") {
-    try {
-      overrides = JSON.parse(
-        await readFile(resolve(RUN_DIR, "overrides.json"), "utf8"),
-      ) as Record<string, Override>;
-    } catch {
-      overrides = {};
-    }
-  }
+  const scores = await readPromptJson<PromptJudgeScore[]>(
+    resolve(runDirectory, scoresFile),
+  );
+  const overrides =
+    process.env.USE_OVERRIDES === "0"
+      ? {}
+      : await readPromptJsonOr<Record<string, PromptJudgeOverride>>(
+          resolve(runDirectory, "overrides.json"),
+          {},
+        );
 
   const resultById = new Map(results.map((result) => [result.id, result]));
   for (const score of scores) {
@@ -264,7 +183,7 @@ async function main(): Promise<void> {
     validScores.reduce((sum, score) => sum + score.score, 0) /
     Math.max(validScores.length, 1);
   const judgeModel =
-    scores.find((score) => score.judge !== undefined)?.judge?.model ?? null;
+    scores.map(parseJudgeModel).find((model) => model !== null) ?? null;
   const judgeCost = scores.reduce(
     (sum, score) => sum + (score.judge?.costUsd ?? 0),
     0,
@@ -350,7 +269,7 @@ async function main(): Promise<void> {
       const result = resultById.get(score.id);
       if (!result) return "";
       const grades = gradesFor(result, score);
-      const promptSections = PROMPTS.map((promptDefinition) => {
+      const promptSections = BENCHMARK_PROMPTS.map((promptDefinition) => {
         const prompt = result.prompts[promptDefinition.id];
         const judged = score.prompts?.[promptDefinition.id];
         const lastAttempt = prompt?.attempts.at(-1);
@@ -359,7 +278,7 @@ async function main(): Promise<void> {
             ? `yes (${prompt.attempts.length} attempts)`
             : "no";
         const componentText = judged
-          ? `Contract ${judged.components.contract.toFixed(1)}/1.5 · Fidelity ${judged.components.fidelity.toFixed(1)}/2 · Design ${judged.components.design.toFixed(1)}/3 · Rationale ${judged.components.rationale.toFixed(1)}/2 · Grounding ${judged.components.grounding.toFixed(1)}/2 · Detail ${judged.components.detail.toFixed(1)}/2`
+          ? `Contract ${formatComponent(judged.components.contract)}/1.5 · Fidelity ${formatComponent(judged.components.fidelity)}/2 · Design ${formatComponent(judged.components.design)}/3 · Rationale ${formatComponent(judged.components.rationale)}/2 · Grounding ${formatComponent(judged.components.grounding)}/2 · Detail ${formatComponent(judged.components.detail)}/2`
           : "no judged components";
         const errorText =
           prompt !== undefined && prompt.validationErrors.length > 0
@@ -396,7 +315,7 @@ async function main(): Promise<void> {
               score.gates.blockOneChanged ||
                 score.gates.atlasQuestionAsked === true,
             )}
-            ${gateLine("Block 1 starts 2026-10-21", score.gates.blockOneStartDateKept)}
+            ${gateLine("Block 1 starts 2026-10-19", score.gates.blockOneStartDateKept)}
           </div>
           ${
             score.gates.failures.length > 0
@@ -426,7 +345,7 @@ async function main(): Promise<void> {
           <div><span>Judged</span><strong>${escapeHtml(score.judge?.model ?? "—")}</strong></div>
         </div>
         ${gateBlock}
-        <div class="components">Combined components (weaker of the two prompts): Contract ${score.components.contract.toFixed(1)}/1.5 · Fidelity ${score.components.fidelity.toFixed(1)}/2 · Design ${score.components.design.toFixed(1)}/3 · Rationale ${score.components.rationale.toFixed(1)}/2 · Grounding ${score.components.grounding.toFixed(1)}/2 · Detail ${score.components.detail.toFixed(1)}/2</div>
+        <div class="components">Combined components (weaker of the two prompts): Contract ${formatComponent(score.components.contract)}/1.5 · Fidelity ${formatComponent(score.components.fidelity)}/2 · Design ${formatComponent(score.components.design)}/3 · Rationale ${formatComponent(score.components.rationale)}/2 · Grounding ${formatComponent(score.components.grounding)}/2 · Detail ${formatComponent(score.components.detail)}/2</div>
         <div class="judgment"><strong>Combined judgment:</strong> ${escapeHtml(score.note)}</div>
         ${promptSections}
       </section>`;
@@ -571,7 +490,7 @@ async function main(): Promise<void> {
     <strong>Hard gates on the season revision.</strong> Ability is F for any
     model that does not mention Atlas anywhere in its output, leaves block 1
     unchanged without asking an Atlas coach question, or changes the start date
-    of block 1 (2026-10-21). The gates are
+    of block 1 (2026-10-19). The gates are
     checked mechanically against the supplied current block, not by the judge.
     ${gateFailures} models failed at least one gate.
   </div>
@@ -598,7 +517,7 @@ async function main(): Promise<void> {
     <div class="summary-card"><span>Within 0.3 of best</span><strong>${close.length}</strong></div>
   </div>
 
-  <p class="toc-note">Run <code>${RUN_ID}</code> · generated ${new Date().toISOString().slice(0, 10)} · model costs are OpenRouter-reported, including retries · times are the sum of both prompts · judge: ${judgeModel ?? "—"}.</p>
+  <p class="toc-note">Run <code>${runId}</code> · generated ${new Date().toISOString().slice(0, 10)} · model costs are OpenRouter-reported, including retries · times are the sum of both prompts · judge: ${judgeModel ?? "—"}.</p>
 </div>
 
 <div class="page-break"></div>
@@ -644,10 +563,8 @@ ${sections}
 </body>
 </html>`;
 
-  await mkdir(OUTPUT_DIR, { recursive: true });
-  await writeFile(OUTPUT_HTML, html);
-  console.log(`wrote ${OUTPUT_HTML}`);
+  await mkdir(PROMPT_BENCHMARK_REPORTS_ROOT, { recursive: true });
+  await writeFile(outputHtml, html);
+  console.log(`wrote ${outputHtml}`);
   console.log(`best ${best.toFixed(1)}, shortlist ${close.length}`);
 }
-
-await main();

@@ -5,6 +5,7 @@ import {
   REVISE_SEASON_TOP_LEVEL_KEYS,
   REVISE_WEEK_START,
   TODAY_BENCHMARK_DATE,
+  type BenchmarkPromptId,
 } from "./promptBenchmarkInput.js";
 
 export const BENCHMARK_COMPONENT_KEYS = [
@@ -19,6 +20,14 @@ export const BENCHMARK_COMPONENT_KEYS = [
 const SESSION_TYPES = ["workout", "rest"];
 const INTENSITIES = ["easy", "moderate", "hard", "rest"];
 const SESSION_STATUSES = ["completed", "partial", "planned", "missed", "rest"];
+/**
+ * Contract errors that only describe an extra or unexpected key. A response
+ * with one of these is still recoverable in the `finalize` stage.
+ */
+const WARNING_LEVEL_ERROR_PREFIXES = [
+  "unexpected root keys",
+  "unexpected top-level keys",
+];
 
 export interface BlockWeekBaseline {
   number: number;
@@ -638,6 +647,111 @@ export function checkReviseSeasonGates(
     blockOneStartDateKept,
     atlasQuestionAsked,
     failures,
+  };
+}
+
+/**
+ * Reads the JSON object out of a model response. Direct JSON, a fenced block
+ * and JSON surrounded by prose all appear in real runs, so all three are tried.
+ */
+export function extractJson(text: string): unknown {
+  const trimmed = text.trim();
+  const candidates: string[] = [trimmed];
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fenced?.[1]) candidates.push(fenced[1].trim());
+  const start = trimmed.indexOf("{");
+  const end = trimmed.lastIndexOf("}");
+  if (start >= 0 && end > start) candidates.push(trimmed.slice(start, end + 1));
+  for (const candidate of candidates) {
+    try {
+      return JSON.parse(candidate);
+    } catch {
+      // try the next candidate
+    }
+  }
+  throw new Error("no parseable JSON object in response");
+}
+
+/** Validates one prompt response against the contract that prompt requires. */
+export function validatePromptPlan(
+  prompt: BenchmarkPromptId,
+  plan: unknown,
+): string[] {
+  return prompt === "today"
+    ? validateTodayPlan(plan)
+    : validateReviseSeasonPlan(plan);
+}
+
+/** True for a contract error that only describes an extra or unexpected key. */
+export function isWarningOnlyPromptError(error: string): boolean {
+  return WARNING_LEVEL_ERROR_PREFIXES.some((prefix) =>
+    error.startsWith(prefix),
+  );
+}
+
+/** The contract errors that must invalidate a response, ignoring warnings. */
+export function fatalPromptErrors(
+  prompt: BenchmarkPromptId,
+  plan: unknown,
+): string[] {
+  return validatePromptPlan(prompt, plan).filter(
+    (error) => !isWarningOnlyPromptError(error),
+  );
+}
+
+function asJudgeNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+/**
+ * Reads a judge response, clamping each component to its rubric maximum and
+ * recomputing the total from the components so a lying `score` cannot win.
+ */
+export function parseJudge(value: unknown): {
+  components: Record<string, number>;
+  score: number;
+  note: string;
+} | null {
+  if (!isRecord(value)) return null;
+  const contract = asJudgeNumber(value.contract);
+  const fidelity = asJudgeNumber(value.fidelity);
+  const design = asJudgeNumber(value.design);
+  const rationale = asJudgeNumber(value.rationale);
+  const grounding = asJudgeNumber(value.grounding);
+  const detail = asJudgeNumber(value.detail);
+  const note = typeof value.judgment === "string" ? value.judgment.trim() : "";
+  if (
+    contract === null ||
+    fidelity === null ||
+    design === null ||
+    rationale === null ||
+    grounding === null ||
+    detail === null ||
+    note === ""
+  ) {
+    return null;
+  }
+  const components = {
+    contract: Math.max(0, Math.min(1.5, contract)),
+    fidelity: Math.max(0, Math.min(2, fidelity)),
+    design: Math.max(0, Math.min(3, design)),
+    rationale: Math.max(0, Math.min(2, rationale)),
+    grounding: Math.max(0, Math.min(2, grounding)),
+    detail: Math.max(0, Math.min(2, detail)),
+  };
+  return {
+    components,
+    score:
+      Math.round(
+        (components.contract +
+          components.fidelity +
+          components.design +
+          components.rationale +
+          components.grounding +
+          components.detail) *
+          10,
+      ) / 10,
+    note,
   };
 }
 

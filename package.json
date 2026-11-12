@@ -32,7 +32,8 @@
     "db:down": "docker compose down",
     "db:generate": "bun run --filter @killingit/api db:generate",
     "db:migrate": "bun run --filter @killingit/api db:migrate",
-    "benchmark:llm": "bun run tools/benchmark/src/cli.ts"
+    "benchmark:llm": "bun run tools/benchmark/src/cli.ts",
+    "benchmark:prompts": "bun run tools/benchmark/src/cli.ts prompts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
