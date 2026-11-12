@@ -7,11 +7,7 @@
       "project": ["scripts/**/*.ts!", "benchmarks/prompts/**/*.ts!"]
     },
     "apps/api": {
-      "entry": [
-        "src/server.ts!",
-        "src/benchmark/cli.ts!",
-        "drizzle.config.ts!"
-      ],
+      "entry": ["src/server.ts!", "drizzle.config.ts!"],
       "project": ["src/**/*.ts!", "!src/**/*.test.ts!", "!src/testFixtures/**!"]
     },
     "apps/web": {
@@ -35,6 +31,10 @@
     },
     "packages/shared": {
       "entry": ["src/index.ts!"],
+      "project": ["src/**/*.ts!", "!src/**/*.test.ts!"]
+    },
+    "tools/benchmark": {
+      "entry": ["src/cli.ts!"],
       "project": ["src/**/*.ts!", "!src/**/*.test.ts!"]
     }
   }

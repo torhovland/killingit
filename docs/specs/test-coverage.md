@@ -45,6 +45,7 @@ they are set from the measured baseline and are raised as coverage improves.
 2. `bun test src` in `apps/api`.
 3. `bun test src pwa notices` in `apps/web`.
 4. `bun test` in `packages/shared`.
+5. `bun test src` in `tools/benchmark`.
 
 Each application suite runs with `--coverage --coverage-reporter=lcov` and
 writes its raw report to `coverage/raw/<package>/lcov.info`. The script
@@ -54,17 +55,23 @@ owned by the package, and merges the result into `coverage/lcov.info`.
 
 ### Baseline
 
-Measured on 2026-11-11 with Bun 1.4.4, the version pinned in the CI test job.
+Measured on 2026-11-12 with Bun 1.4.4, the version pinned in the CI test job.
 Bun changes how many executable lines and functions it counts between releases,
 so moving the pin also means re-measuring the baseline. The threshold is the
 measured value floored to a whole percent, leaving a small margin for harmless
 variation. Both lines and functions are checked.
 
-| Package | Lines measured | Line threshold | Functions measured | Function threshold |
-| ------- | -------------- | -------------- | ------------------ | ------------------ |
-| api     | 73.40%         | 73.0%          | 78.65%             | 78.0%              |
-| web     | 77.92%         | 77.0%          | 72.70%             | 72.0%              |
-| shared  | 95.79%         | 95.0%          | 86.75%             | 86.0%              |
+| Package   | Lines measured | Line threshold | Functions measured | Function threshold |
+| --------- | -------------- | -------------- | ------------------ | ------------------ |
+| api       | 73.09%         | 73.0%          | 77.60%             | 77.0%              |
+| web       | 77.21%         | 77.0%          | 72.11%             | 72.0%              |
+| shared    | 95.92%         | 95.0%          | 87.64%             | 86.0%              |
+| benchmark | 90.48%         | 90.0%          | 100.00%            | 100.0%             |
+
+The api function floor was 78.0 until the benchmark harness and its tests moved
+to `tools/benchmark` (ADR 0032). The well-covered `promptBenchmark` module left
+the api denominator while its tests kept running in the benchmark group, so the
+remaining server code re-measured at 77.60%.
 
 The baseline lives in `COVERAGE_GROUPS` in `scripts/coverage.ts`. When coverage
 improves, raise the matching threshold in the same pull request. Lowering a

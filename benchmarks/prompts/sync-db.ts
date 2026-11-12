@@ -2,9 +2,9 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import {
   copyBenchmarkToAliases,
-  recordBenchmarkGrade,
   refreshModelCatalog,
 } from "../../apps/api/src/llm/modelCatalog.js";
+import { recordBenchmarkGrade } from "@killingit/benchmark/src/catalogBenchmark.js";
 
 const RUN_ID = process.env.RUN_ID ?? "2026-10-31-two-prompts";
 const RUN_DIR = resolve(import.meta.dir, "runs", RUN_ID);

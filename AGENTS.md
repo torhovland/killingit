@@ -174,8 +174,10 @@ about a past workout, or before a suggested workout, to steer the coach.
 - Plan completions use a 16,384-token output budget, with reasoning fallbacks up
   to 32,768, so reasoning models can think and still return the complete JSON.
   Model comparisons run through `bun run benchmark:llm` against the test
-  athlete; results and quality notes are kept under `benchmarks/llm-coach/`. The
-  first model in a run is the benchmark. See `docs/specs/llm-benchmark.md`.
+  athlete; the harness is the `@killingit/benchmark` workspace in
+  `tools/benchmark`, and results and quality notes are kept under
+  `benchmarks/llm-coach/`. The first model in a run is the benchmark. See
+  `docs/specs/llm-benchmark.md` and ADR 0032.
 - The athlete's home location is stored on `users` and set in the settings
   location picker. When a week or day is planned, the API loads Open-Meteo and
   Yr.no forecasts, including sunrise and sunset, builds an averaged combined
@@ -454,10 +456,13 @@ across frontend and backend:
 
 ### Monorepo layout
 
-- Bun workspaces under `apps/*` and `packages/*`:
+- Bun workspaces under `apps/*`, `packages/*` and `tools/*`:
   - `apps/web` — React + Vite + Tailwind frontend
   - `apps/api` — Hono + Drizzle backend
   - `packages/shared` — shared Zod schemas and TypeScript types
+  - `tools/benchmark` — LLM benchmark harness and model-catalog grading
+    queries, run by `bun run benchmark:llm` and `benchmarks/prompts/*`; it
+    imports the real plan pipeline from `apps/api`. See ADR 0032.
 
 ### Database
 

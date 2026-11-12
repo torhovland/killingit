@@ -6,6 +6,7 @@
       "name": "killingit",
       "devDependencies": {
         "@eslint/js": "^10.0.1",
+        "@killingit/benchmark": "workspace:*",
         "@playwright/test": "^1.65.0",
         "@types/bun": "^1.4.4",
         "eslint": "^10.14.0",
@@ -64,6 +65,18 @@
       "name": "@killingit/shared",
       "version": "0.1.0",
       "dependencies": {
+        "zod": "^4.6.7",
+      },
+      "devDependencies": {
+        "typescript": "^7.0.2",
+      },
+    },
+    "tools/benchmark": {
+      "name": "@killingit/benchmark",
+      "version": "0.1.0",
+      "dependencies": {
+        "@killingit/shared": "workspace:*",
+        "drizzle-orm": "^0.45.4",
         "zod": "^4.6.7",
       },
       "devDependencies": {
@@ -249,6 +262,8 @@
     "@keyv/serialize": ["@keyv/serialize@1.1.1", "", {}, "sha512-dXn3FZhPv0US+7dtJsIi2R+c7qWYiReoEh5zUntWCf4oSpMNib8FDhSoed6m3QyZdx5hK7iLFkYk3rNxwt8vTA=="],
 
     "@killingit/api": ["@killingit/api@workspace:apps/api"],
+
+    "@killingit/benchmark": ["@killingit/benchmark@workspace:tools/benchmark"],
 
     "@killingit/shared": ["@killingit/shared@workspace:packages/shared"],
 

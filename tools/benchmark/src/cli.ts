@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { z } from "zod";
-import { PLAN_MAX_TOKENS } from "../llm/planBudget.js";
+import { PLAN_MAX_TOKENS } from "../../../apps/api/src/llm/planBudget.js";
 import { BENCHMARK_HELP, parseBenchmarkArgs } from "./config.js";
 import { loadBenchmarkFixture } from "./fixtures.js";
 import { renderBenchmarkReport } from "./report.js";
@@ -12,7 +12,7 @@ import type {
   BenchmarkScores,
 } from "./types.js";
 
-const REPO_ROOT = resolve(import.meta.dir, "../../../..");
+const REPO_ROOT = resolve(import.meta.dir, "../../..");
 const scoresSchema = z.record(
   z.string(),
   z.object({
