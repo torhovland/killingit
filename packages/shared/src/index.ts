@@ -67,6 +67,8 @@ export {
   type PlanDate,
 } from "./date.js";
 
+export { zonedDateTime, type ZonedDateTime } from "./wallClock.js";
+
 export {
   garminConnectionStatusSchema,
   type GarminConnectionStatus,

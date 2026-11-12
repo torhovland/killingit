@@ -52,6 +52,17 @@ setting to see the right local time.
 - `userSettingsUpdateSchema` is `{ timezone: string | null }`.
 - `PATCH /api/me` requires auth, validates the zone, and returns `CurrentUser`.
 
+## Wall-clock conversion
+
+The API and the web app share one pure conversion in `@killingit/shared`:
+`zonedDateTime(instant, timeZone)` returns the wall-clock date, hour, minute and
+second of an instant in an IANA zone. A missing, empty or unknown zone falls
+back to UTC on both sides, so the fallback cannot drift between callers and a
+bad setting can never stop a write or a plan. The API's after-18:00 tomorrow
+cutoff and the web app's "today" and `datetime-local` conversion are thin
+callers of it. DST and unknown-zone behaviour is tested once, in the shared
+package.
+
 ## Testing
 
 - Shared unit tests cover zone validation and clearing the setting.
