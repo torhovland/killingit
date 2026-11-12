@@ -380,8 +380,10 @@ about a past workout, or before a suggested workout, to steer the coach.
 
 ## Stack
 
-The stack below is proposed and should be treated as the starting point. See
-"Development Methodology" for how decisions like these are made and recorded.
+The stack below describes the current implementation. Anything not yet built is
+marked **planned** here and listed under "Known gaps". See "Development
+Methodology" for how decisions are made and recorded, and `docs/adrs/` for the
+accepted ones.
 
 ### Frontend
 
@@ -462,7 +464,9 @@ across frontend and backend:
 - **ORM:** **Drizzle ORM** — SQL-first and fully type-safe. (Fallback:
   **Prisma**.)
 - **Validation:** **Zod** — shared between API handlers and frontend forms.
-- **API contract:** a typed client shared across the monorepo, or tRPC/OpenAPI.
+- **API contract:** shared Zod schemas validated on both sides — the API
+  validates input with `zValidator`, and the web validates every response with
+  `requestParsed` — rather than a generated client or tRPC.
 
 ### Monorepo layout
 
@@ -476,14 +480,17 @@ across frontend and backend:
 
 ### Database
 
-- **PostgreSQL**. Managed options (Neon, Supabase) or self-hosted on the host
-  provider. Keep it behind a cheap host provider.
+- **PostgreSQL** on Neon in production and in Docker locally.
 
 ### Hosting
 
-- Cheap host provider. Prefer **Railway** or **Fly.io** for low-friction
-  managed hosting, or a **Hetzner VPS + Coolify/Caddy** for the cheapest
-  self-managed option.
+- **API:** Google Cloud Run (always-free tier, `us-central1`, scales to zero).
+- **Database:** Neon Postgres free tier.
+- **Web:** Cloudflare Pages.
+- **CI/CD:** GitHub Actions; test deploys on `main`, production needs a manual
+  approval.
+
+See ADR 0001 and the deployment runbook in `README.md`.
 
 ### Auth (third-party login)
 
@@ -501,9 +508,10 @@ OAuth 2.0** connections.
   Free plan's social-connection limit ("unlimited" on the pricing page vs "a
   maximum of two" in the Entity Limit Policy). All four of our connections are
   **social** (not enterprise), and the Free plan includes 1 Enterprise
-  Connection, so no paid feature is required. A hard gate remains: confirm
-  empirically in the tenant dashboard that four social connections work on
-  Free before production sign-off, else fall back to Better Auth.
+  Connection, so no paid feature is required. The tenant dashboard was checked
+  on 2026-10-13 and Free accepts the custom social connections, so the gate is
+  closed; registering our own Strava and Garmin apps is still required, because
+  Auth0's dev keys cannot request the data scopes. See ADR 0002.
 - **Fallback ("build it ourselves"):** self-host **Better Auth** (open source,
   TypeScript, MIT) in our backend. It supports arbitrary OAuth2 providers
   (Google, Apple, Strava, Garmin) at no licensing cost; we own the operational
@@ -567,10 +575,18 @@ and a single sign-in action. See `docs/specs/signed-out-landing.md`.
 
 ## Observability and agent access
 
-- The backend should emit **structured (JSON) logs** (e.g. Pino).
-- The database and application logs must be **accessible to the coding agent**
-  (a documented CLI/script) so the agent can inspect them during debugging and
+- The API logs requests through Hono's plain-text `logger()` today.
+  **Planned:** structured (JSON) logs (for example Pino), tracked in #235.
+- The database and application logs are **accessible to the coding agent**
+  through `scripts/agent.sh`, so the agent can inspect them during debugging and
   when discussing new features.
+
+## Known gaps
+
+The following work is planned, not current practice. Keep this list short and
+remove an entry when its tracking issue closes:
+
+- Structured JSON logs in the API (#235). Request logging is plain text today.
 
 ## Development Methodology
 
@@ -618,7 +634,7 @@ through a disciplined process:
 7. **CI pipeline** (GitHub Actions, `.github/workflows/ci.yml`): these checks
    must pass before merge: typecheck, lint, format, unused exports, unit tests,
    database integration tests, the e2e suite, the Garmin sidecar's Python
-   checks, and the dependency-outdated check.
+   checks, the contribution sign-off check, and the dependency-outdated check.
 8. **Dependencies stay current.** CI fails the build when any dependency is
    outdated (`bun run outdated`). When that happens, update the outdated
    dependencies with `bun update`, verify typecheck/lint/format/tests still
