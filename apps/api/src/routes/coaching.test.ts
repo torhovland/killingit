@@ -1,7 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import type { ActivityFeed } from "../coaching/activities.js";
 import type { CoachQuestion } from "@killingit/shared";
-import { createApp, type AppDependencies } from "../index.js";
+import { createApp } from "../index.js";
+import type { AppDependencies } from "../dependencies.js";
 import type { CoachingInputs } from "../plans/inputs.js";
 import type {
   PeriodReviewWithReply,

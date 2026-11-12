@@ -502,6 +502,13 @@ and never call `ensureUser` themselves. `requireAdmin()` checks that account and
 returns 403 for a member, while a failure to resolve the account is 503. See
 `docs/specs/authenticated-user-middleware.md`, ADR 0024 and ADR 0026.
 
+The API executable is `apps/api/src/server.ts`: it loads the local `.env`,
+builds the app with `createApp`, and exports the Bun server configuration.
+`apps/api/src/index.ts` only exports the side-effect-free app factory, so
+importing it in a test never reads a developer's environment or initialises
+Sentry; every dev, start and Docker entry point uses `server.ts`. See
+`docs/specs/api-server-entry.md` and ADR 0030.
+
 A visitor who is not signed in sees the landing page in
 `apps/web/src/SignInPage.tsx`: a short explanation of the coach, what it covers,
 and a single sign-in action. See `docs/specs/signed-out-landing.md`.

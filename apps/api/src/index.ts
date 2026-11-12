@@ -31,24 +31,6 @@ import { createQuestionsRoute } from "./routes/questions.js";
 import { createWeatherRoute } from "./routes/weather.js";
 import { dbUserStore } from "./users/store.js";
 
-export type { AppDependencies } from "./dependencies.js";
-
-// Load local environment for `bun run dev`. Bun does not auto-load dotenv
-// files (unlike Vite/Node --env-file). Anchor at the repo root (three levels
-// above this file: src -> api -> apps -> root) and fall back to cwd. In
-// CI/production the deploy pipeline injects these vars, and this no-ops when
-// no `.env` file is found.
-const rootEnv = `${import.meta.dir}/../../../.env`;
-try {
-  process.loadEnvFile(rootEnv);
-} catch {
-  try {
-    process.loadEnvFile();
-  } catch {
-    // No `.env` file (tests, CI, Cloud Run) — rely on the injected environment.
-  }
-}
-
 /**
  * The only `/api` routes reachable without a bearer token. Every other request
  * under `/api` is authenticated before it reaches a handler, so adding,
@@ -176,18 +158,3 @@ export function createApp(options: AppDependencies = {}): Hono {
   app.route("/api", api);
   return app;
 }
-
-const app = createApp();
-
-export default {
-  port: Number(process.env.PORT ?? 3001),
-  hostname: "0.0.0.0",
-  // LLM analyses can take longer than Bun's default 10-second idle timeout.
-  // Without this, Bun closes the connection mid-request and Vite surfaces it as
-  // HTTP 502 even though the analyses continue and are persisted. 255s is the
-  // maximum Bun accepts and stays under Cloud Run's 300s request timeout.
-  idleTimeout: 255,
-  fetch: app.fetch,
-};
-
-export type AppType = typeof app;

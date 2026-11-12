@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { QuestionAnswerInput } from "@killingit/shared";
-import app, { createApp } from "../index.js";
+import { createApp } from "../index.js";
 import { apiRequest } from "../testFixtures/request.js";
 import type {
   QuestionAnswerStore,
@@ -21,6 +21,8 @@ const storedQuestion: StoredAthleteQuestion = {
   answeredAt: null,
   previous: null,
 };
+
+const app = createApp();
 
 function createTestApp(store: QuestionAnswerStore) {
   return createApp({
