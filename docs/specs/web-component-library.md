@@ -22,6 +22,10 @@ The primitives live in `apps/web/src/components/`:
 - `Card` — `rounded-lg border p-4` on the card surface, with `as` to keep
   `section`, `article` or `aside` semantics and an `inset` variant for panels
   inside another card.
+- `Modal` — a modal dialog with a backdrop click-to-close, Escape to close, a
+  Tab focus trap and focus restored to the trigger on close. It takes the
+  heading id that names it, an optional description id, and a `className` for
+  panel layout such as width or scrolling; see `docs/specs/modal-dialog.md`.
 - `cn` — `clsx` plus `tailwind-merge`, so a caller's `className` overrides a
   primitive's default instead of duplicating it.
 
@@ -48,6 +52,8 @@ layout for the spinner and forwards `variant`, `size` and `className`.
 - No raw button, input, textarea or select class string is repeated across
   pages; the only remaining native controls are ones with unique styling or
   semantics.
+- Every modal dialog renders through `Modal`; no page reimplements the
+  backdrop, focus trap, Escape handling or focus restore.
 - The primitives have unit tests for their defaults, variants and class
   merging.
 - `bun run typecheck`, `bun run lint`, `bun run format` and `bun run test` pass.

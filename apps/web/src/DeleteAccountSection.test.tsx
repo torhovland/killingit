@@ -38,6 +38,9 @@ describe("DeleteAccountSectionView", () => {
     const html = render({ confirming: true });
 
     expect(html).toContain('role="dialog"');
+    expect(html).toContain('aria-modal="true"');
+    expect(html).toContain('aria-labelledby="delete-account-title"');
+    expect(html).toContain('aria-describedby="delete-account-warning"');
     expect(html).toContain("Delete your account?");
     expect(html).toContain("permanently deletes your account");
     expect(html).toContain("cannot be undone");

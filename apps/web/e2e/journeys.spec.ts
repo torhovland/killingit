@@ -124,6 +124,49 @@ test("an athlete logs a meal with a photo and sees the analysis", async ({
   );
 });
 
+test("a keyboard user closes the calendar workout dialog and gets focus back", async ({
+  page,
+}) => {
+  await signIn(page, { questions: "answered", plan: true });
+
+  await openPage(page, "Calendar");
+  const chip = page.getByTestId("calendar-session").first();
+  await chip.click();
+  const dialog = page.getByTestId("calendar-entry-dialog");
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Close" })).toBeFocused();
+
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(chip).toBeFocused();
+});
+
+test("a keyboard user stays in the open delete dialog and gets focus back", async ({
+  page,
+}) => {
+  await signIn(page, { questions: "answered" });
+
+  await openPage(page, "Settings");
+  const trigger = page.getByTestId("delete-account-button");
+  await trigger.click();
+  const dialog = page.getByTestId("delete-account-dialog");
+  await expect(dialog).toBeVisible();
+
+  const cancel = dialog.getByRole("button", { name: "Cancel" });
+  const confirm = page.getByTestId("delete-account-confirm");
+  await expect(cancel).toBeFocused();
+
+  // Shift+Tab from the first control and Tab from the last both wrap inside.
+  await page.keyboard.press("Shift+Tab");
+  await expect(confirm).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(cancel).toBeFocused();
+
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(trigger).toBeFocused();
+});
+
 test("an athlete deletes the account and lands back on the sign-in page", async ({
   page,
 }) => {
