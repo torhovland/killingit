@@ -1,8 +1,11 @@
 /**
  * Helpers for the athlete's display time zone. The stored setting is an IANA
  * zone (for example `Europe/Oslo`); a missing or unknown value falls back to
- * the device's zone.
+ * the device's zone. The wall-clock conversion itself lives in
+ * `@killingit/shared` and falls back to UTC for a zone it cannot resolve.
  */
+
+import { zonedDateTime } from "@killingit/shared";
 
 /** The device's IANA time zone, or UTC when the runtime cannot report one. */
 export function browserTimeZone(): string {
@@ -28,20 +31,8 @@ export function resolveTimeZone(setting?: string | null): string {
 
 /** The `YYYY-MM-DDTHH:mm` value a `datetime-local` input expects. */
 export function toWallClockValue(date: Date, timeZone: string): string {
-  const parts = zonedParts(date, timeZone);
-  if (parts !== null) {
-    return `${parts.date}T${parts.hour}:${parts.minute}`;
-  }
-  const localDate = [
-    date.getFullYear(),
-    String(date.getMonth() + 1).padStart(2, "0"),
-    String(date.getDate()).padStart(2, "0"),
-  ].join("-");
-  const localTime = [
-    String(date.getHours()).padStart(2, "0"),
-    String(date.getMinutes()).padStart(2, "0"),
-  ].join(":");
-  return `${localDate}T${localTime}`;
+  const { date: localDate, hour, minute } = zonedDateTime(date, timeZone);
+  return `${localDate}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
 
 /**
@@ -71,61 +62,22 @@ export function wallClockToIso(value: string, timeZone: string): string {
   return new Date(candidate).toISOString();
 }
 
-interface ZonedParts {
-  date: string;
-  hour: string;
-  minute: string;
-  second: string;
-}
-
-function zonedParts(date: Date, timeZone: string): ZonedParts | null {
-  try {
-    const parts = new Intl.DateTimeFormat("en-GB", {
-      timeZone,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hourCycle: "h23",
-    }).formatToParts(date);
-    const value = (type: Intl.DateTimeFormatPartTypes): string =>
-      parts.find((part) => part.type === type)?.value ?? "";
-    const year = value("year");
-    const month = value("month");
-    const day = value("day");
-    const hour = value("hour");
-    const minute = value("minute");
-    const second = value("second");
-    if ([year, month, day, hour, minute, second].some((part) => part === "")) {
-      return null;
-    }
-    return {
-      date: `${year}-${month}-${day}`,
-      hour,
-      minute,
-      second,
-    };
-  } catch {
-    return null;
-  }
-}
-
 /** The zone's offset from UTC at an instant, in milliseconds. */
 function zoneOffsetMs(date: Date, timeZone: string): number {
-  const parts = zonedParts(date, timeZone);
-  if (parts === null) {
-    return 0;
-  }
-  const [year, month, day] = parts.date.split("-").map(Number);
+  const {
+    date: localDate,
+    hour,
+    minute,
+    second,
+  } = zonedDateTime(date, timeZone);
+  const [year, month, day] = localDate.split("-").map(Number);
   const asUtc = Date.UTC(
     year ?? 1970,
     (month ?? 1) - 1,
     day ?? 1,
-    Number(parts.hour),
-    Number(parts.minute),
-    Number(parts.second),
+    hour,
+    minute,
+    second,
   );
   return asUtc - Math.floor(date.getTime() / 1000) * 1000;
 }

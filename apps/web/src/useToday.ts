@@ -6,6 +6,8 @@
  * `VITE_APP_ENV`.
  */
 
+import { zonedDateTime } from "@killingit/shared";
+
 const STORAGE_KEY = "killingit.dev.today-override";
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -28,53 +30,12 @@ export function resolveToday(
   override: string | null,
   timeZone?: string,
 ): Today {
-  const { today: actualToday, hour } = localDateParts(now, timeZone);
+  const { date: actualToday, hour } = zonedDateTime(now, timeZone);
 
   return {
     today: override ?? actualToday,
     isAfter18: hour >= 18,
     isOverridden: override !== null,
-  };
-}
-
-/** The calendar date and hour in a time zone (falling back to the device). */
-function localDateParts(
-  now: Date,
-  timeZone: string | undefined,
-): { today: string; hour: number } {
-  if (timeZone !== undefined) {
-    try {
-      const parts = new Intl.DateTimeFormat("en-US", {
-        timeZone,
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        hourCycle: "h23",
-      }).formatToParts(now);
-      const value = (type: Intl.DateTimeFormatPartTypes): string =>
-        parts.find((part) => part.type === type)?.value ?? "";
-      const year = value("year");
-      const month = value("month");
-      const day = value("day");
-      if (year !== "" && month !== "" && day !== "") {
-        return {
-          today: `${year}-${month}-${day}`,
-          hour: Number(value("hour")),
-        };
-      }
-    } catch {
-      // Fall through to the device's local date.
-    }
-  }
-
-  return {
-    today: [
-      now.getFullYear(),
-      String(now.getMonth() + 1).padStart(2, "0"),
-      String(now.getDate()).padStart(2, "0"),
-    ].join("-"),
-    hour: now.getHours(),
   };
 }
 
