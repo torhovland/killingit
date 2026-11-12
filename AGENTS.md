@@ -381,9 +381,8 @@ about a past workout, or before a suggested workout, to steer the coach.
 ## Stack
 
 The stack below describes the current implementation. Anything not yet built is
-marked **planned** here and listed under "Known gaps". See "Development
-Methodology" for how decisions are made and recorded, and `docs/adrs/` for the
-accepted ones.
+marked **planned** here. See "Development Methodology" for how decisions are
+made and recorded, and `docs/adrs/` for the accepted ones.
 
 ### Frontend
 
@@ -576,18 +575,21 @@ and a single sign-in action. See `docs/specs/signed-out-landing.md`.
 
 ## Observability and agent access
 
-- The API logs requests through Hono's plain-text `logger()` today.
-  **Planned:** structured (JSON) logs (for example Pino), tracked in #235.
+- The API writes one JSON object per request to standard output (`requestLogger()`
+  in `apps/api/src/instrumentation/requestLog.ts`): `severity`, `time`, `event`,
+  `requestId`, `method`, `path`, `status` and `durationMs`, plus the error's
+  name, message and stack when the handler throws. A 4xx is a warning and a 5xx
+  is an error, which go to standard error. `severity` and `time` are Cloud
+  Logging's own field names, so Cloud Run parses and filters the lines. An
+  incoming `x-request-id` is reused when it is header-safe and generated
+  otherwise, and it is echoed on the response. The query string, headers and
+  body are never logged, so address searches, tokens and athlete text stay out.
+  Module-level failure notices still use plain-text `console.error` prefixes and
+  are not part of the request line. See `docs/specs/api-logging.md` and ADR 0033.
 - The database and application logs are **accessible to the coding agent**
   through `scripts/agent.sh`, so the agent can inspect them during debugging and
-  when discussing new features.
-
-## Known gaps
-
-The following work is planned, not current practice. Keep this list short and
-remove an entry when its tracking issue closes:
-
-- Structured JSON logs in the API (#235). Request logging is plain text today.
+  when discussing new features. Request lines are valid JSON, so the script's
+  output can be filtered with `jq`.
 
 ## Development Methodology
 

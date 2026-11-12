@@ -86,6 +86,17 @@ describe("api", () => {
     const res = await app.fetch(new Request("http://localhost/api/health"));
     expect(res.status).toBe(200);
   });
+
+  it("echoes the request id its log line carries", async () => {
+    // The request logger is the only middleware that sets this header, so the
+    // echo proves every request through `createApp` is logged.
+    const res = await app.fetch(
+      new Request("http://localhost/api/health", {
+        headers: { "x-request-id": "api-test-1" },
+      }),
+    );
+    expect(res.headers.get("x-request-id")).toBe("api-test-1");
+  });
 });
 
 describe("api contract versions", () => {

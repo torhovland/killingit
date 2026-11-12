@@ -1,7 +1,6 @@
 import { Hono } from "hono";
 import type { MiddlewareHandler } from "hono";
 import { cors } from "hono/cors";
-import { logger } from "hono/logger";
 import { enforceApiVersion } from "./apiVersion.js";
 import { createAuthProvider } from "./auth/index.js";
 import { requireAdmin, requireAuth, requireUser } from "./auth/middleware.js";
@@ -10,6 +9,7 @@ import type {
   AppDependencies,
   ResolvedAppDependencies,
 } from "./dependencies.js";
+import { requestLogger } from "./instrumentation/requestLog.js";
 import { withSentry } from "./instrumentation/sentry.js";
 import { apiError } from "./http/errors.js";
 import { LlmModelChoiceError } from "./llm/client.js";
@@ -79,7 +79,9 @@ export function createApp(options: AppDependencies = {}): Hono {
         details: { settingsUrl: "/settings" },
       });
     }
-    console.error("[api] unhandled error:", err);
+    // The request log line carries the error's name, message and stack, and
+    // Sentry captures the failure, so the error is reported once with its
+    // request id rather than printed here as unstructured text.
     return c.text("Internal Server Error", 500);
   });
 
@@ -87,7 +89,10 @@ export function createApp(options: AppDependencies = {}): Hono {
   // every request below is traced and errors are captured. No-op without a DSN.
   withSentry(app);
 
-  app.use("*", logger());
+  // One JSON line per request, written once the response is known. Registered
+  // before the routes so every request and its failure is logged with a request
+  // id, and the query string and body never reach the log.
+  app.use("*", requestLogger());
   app.use(
     "*",
     cors({
