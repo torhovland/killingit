@@ -52,9 +52,12 @@ issues are independent only when all of these hold:
   regions. Be strict with the files where one change can change the meaning of
   the other: the prompt fragments in `apps/api/src/llm/promptRules.ts`, the
   shared Zod schemas in `packages/shared`, the Drizzle schema and migrations,
-  and the web component primitives. Documentation is independent only when the
-  two issues touch clearly different sections of `AGENTS.md`,
-  `docs/specs/*.md`, or `docs/adrs/*.md`.
+  the web component primitives, and the static-check configuration
+  (`eslint.config.js`, `tsconfig.base.json`, `knip.json`, `scripts/coverage.ts`,
+  `package.json` scripts). Every fix that has to extend CI also edits
+  `.github/workflows/ci.yml`, so two such issues cannot be in the same batch.
+  Documentation is independent only when the two issues touch clearly different
+  sections of `AGENTS.md`, `docs/specs/*.md`, or `docs/adrs/*.md`.
 - **No shared number.** Two issues that would each need a new ADR or a new
   migration compete for the same slot even when their files differ. Keep only
   the more important one.
@@ -86,9 +89,11 @@ For each issue:
    > independent fixes: do not touch another issue's files and do not work on
    > another issue. Start from a clean tree and from `origin/main`. Run every
    > static check the issue makes relevant, not only the default ones, and make
-   > them all pass. Open a pull request when the change is verified, then reply
-   > with the issue number, the branch, a one-line summary, the checks you ran,
-   > and the pull request URL.
+   > them all pass. If the area has no lint, type, or other static check at all,
+   > add the missing check to CI and make that pass too. Open a pull request
+   > when the change is verified, then reply with the issue number, the branch,
+   > a one-line summary, the checks you ran, any check you added, and the pull
+   > request URL.
 
 3. Wait for the sub-session to finish and read its report.
 4. Confirm it left the working tree clean and that its branch contains only
@@ -110,7 +115,9 @@ looks comments on the issue and reports back instead of guessing.
 Give one row per issue in the batch with the issue number and title, the pull
 request URL, or the reason it was skipped, plus the checks that ran. Each row
 must list the issue-specific static checks, not only `typecheck`, `lint`,
-`format`, and `test`, so a thin gate is visible before review.
+`format`, and `test`, and any check the fix added to CI, plus which files those
+shared additions touched, so a thin gate or a hidden merge conflict is visible
+before review.
 
 Do not close issues by hand; merging each pull request closes its own.
 
@@ -119,8 +126,9 @@ Do not close issues by hand; merging each pull request closes its own.
 - One issue per branch and pull request. Never combine two issues into one
   branch to save work, and never let one sub-session fix two issues.
 - Quality is not negotiable per issue: the sub-session runs every lint, type,
-  coverage and other static check the fix attracts and makes them pass, without
-  weakening a rule or skipping a test to get green.
+  coverage and other static check the fix attracts, adds the relevant check to
+  CI when the area has none, and makes them all pass without weakening a rule
+  or skipping a test to get green.
 - Unrelated changes already in the working tree are not yours to touch. Leave
   them uncommitted and out of every pull request; never revert or clean them.
 - If an issue turns out to be much larger than it looked in the batch, skip it
