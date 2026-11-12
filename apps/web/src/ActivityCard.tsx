@@ -3,6 +3,7 @@ import {
   activityAverageSpeed,
   formatActivityPaceOrSpeed,
   formatActivityType,
+  formatDuration,
   hasLapStructure,
   type AnalyzedActivity,
 } from "@killingit/shared";
@@ -11,7 +12,6 @@ import { ActivityLaps } from "./ActivityLaps";
 import { ActivitySamples } from "./ActivitySamples";
 import { Bullet, Bullets } from "./Bullet";
 import { CommentSection } from "./CommentSection";
-import { formatDuration } from "./formatDuration";
 import { FormattedText } from "./FormattedText";
 import { TrainingLoadLine } from "./TrainingLoadLine";
 import { useCommentForm } from "./useCommentForm";

@@ -174,8 +174,8 @@ and returns `LlmProvider` chat messages.
 - The split season/block/week/day plan calls and the plan-update call share
   `PLAN_MAX_TOKENS`. Reasoning tokens count against it; `completeWithFallbacks`
   retries with a larger budget (up to 32,768) when a model is truncated.
-- `formatDuration` comes from `duration.ts` so durations read the same way
-  across coaching prompts. The activity review shares
+- `formatDuration` comes from `@killingit/shared` so durations read the same
+  way across coaching prompts and the web app. The activity review shares
   `formatActivitySummary`, `formatFtpContext`, `formatPlanLevels` and
   `formatPlannedSession` from `planContext.ts` with the plan prompts, so both
   describe the same activity and planned session the same way.

@@ -6,6 +6,7 @@ import {
   cadenceUnit,
   eventEndDate,
   formatActivityPaceOrSpeed,
+  formatDuration,
   formatThresholdValue,
   hasLapStructure,
   interpretTrainingStressBalance,
@@ -37,7 +38,6 @@ import type {
 } from "../diet/summary.js";
 import { addDays, startOfWeek } from "@killingit/shared";
 import { impliedGoalBodyFatPercent } from "../plans/dietProgress.js";
-import { formatDuration } from "./duration.js";
 import { formatDailyHealthContext } from "./healthContext.js";
 import { WEEKLY_NOTE_SCOPE_RULE } from "./promptRules.js";
 

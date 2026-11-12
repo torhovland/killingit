@@ -1,6 +1,7 @@
 import {
   activityUsesPace,
   cadenceUnit,
+  formatDuration,
   formatPace,
   paceUnitLabel,
   paceUnitMetres,
@@ -18,7 +19,6 @@ import type {
 import type { DietPromptContext } from "../diet/summary.js";
 import { downsample } from "../lib/downsample.js";
 import { weekCovers, weekEnd } from "../plans/periods.js";
-import { formatDuration } from "./duration.js";
 import { formatDailyHealthContext } from "./healthContext.js";
 import {
   formatActivitySummary,

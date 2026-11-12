@@ -1,12 +1,12 @@
 import {
   activityUsesPace,
   cadenceUnit,
+  formatDuration,
   formatPace,
   paceUnitLabel,
   paceUnitMetres,
   type ActivitySample,
 } from "@killingit/shared";
-import { formatDuration } from "./formatDuration";
 
 type NumericChannel =
   | "heartRate"
