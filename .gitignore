@@ -54,3 +54,5 @@ __pycache__/
 .venv/
 .pytest_cache/
 benchmarks/prompts/runs
+# Generated prompt-benchmark reports are local previews, not source.
+benchmarks/prompts/reports/

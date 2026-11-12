@@ -176,7 +176,9 @@ about a past workout, or before a suggested workout, to steer the coach.
   Model comparisons run through `bun run benchmark:llm` against the test
   athlete; the harness is the `@killingit/benchmark` workspace in
   `tools/benchmark`, and results and quality notes are kept under
-  `benchmarks/llm-coach/`. The first model in a run is the benchmark. See
+  `benchmarks/llm-coach/`. The first model in a run is the benchmark. The
+  prompt benchmark's run directories and generated HTML/PDF reports are local
+  output and ignored by git; see `benchmarks/README.md`. See
   `docs/specs/llm-benchmark.md` and ADR 0032.
 - The athlete's home location is stored on `users` and set in the settings
   location picker. When a week or day is planned, the API loads Open-Meteo and

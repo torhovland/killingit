@@ -109,8 +109,9 @@ RUN_ID=... SCORES_FILE=judge-scores.json USE_OVERRIDES=0 bun benchmarks/prompts/
 
 The report shows each model's ability, speed and cost grades alongside its run
 time, measured cost and judged score. The HTML report is written to
-`benchmarks/prompts/reports/<RUN_ID>.html`. Convert it to the PDF with a headless
-browser:
+`benchmarks/prompts/reports/<RUN_ID>.html`. That directory is generated output
+and is ignored by git, like the run directories; keep reports on disk and do not
+commit them. Convert the HTML to PDF with a headless browser:
 
 ```sh
 /usr/bin/chromium-browser --headless --no-sandbox --disable-gpu \
