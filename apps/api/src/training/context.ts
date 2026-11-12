@@ -6,7 +6,8 @@ import type {
 import type { ManualActivityContext } from "../llm/planContext.js";
 import { loadThresholdHistoryForUser } from "../metrics/store.js";
 import { startOfWeek } from "@killingit/shared";
-import { loadCoachingInputs, type CoachingInputs } from "../plans/inputs.js";
+import { loadCoachingInputs } from "../plans/inputs.js";
+import { manualTssByDate } from "./activityLoad.js";
 import { ftpTimeline, type ThresholdTimeline } from "./thresholds.js";
 
 /** Everything the load calculations share: thresholds and TSS by date. */
@@ -44,13 +45,14 @@ export async function loadTrainingContext(
     loadThresholdHistoryForUser(userId, planDate),
     loadCoachingInputs(userId, startOfWeek(planDate)),
   ]);
+  const manualByDate = manualTssByDate(coachingInputs.manualActivities);
   return {
     ftpTimeline: ftpTimeline(history.timelines),
     thresholds: history.summaries,
     thresholdPoints: history.points,
     thresholdTimelines: history.timelines,
     planTssByDate: planTssByDate(plan),
-    manualTssByDate: manualTssByDate(coachingInputs),
+    manualTssByDate: manualByDate,
     manualActivities: coachingInputs.manualActivities,
   };
 }
@@ -69,27 +71,6 @@ export function planTssByDate(
     if (tss !== undefined) {
       result.set(session.date, tss);
     }
-  }
-  return result;
-}
-
-/**
- * Manual entries are part of the same load history. Their stored estimates
- * replace the plan's estimate for the date and are summed when the athlete
- * logged more than one entry that day.
- */
-export function manualTssByDate(
-  coachingInputs: Pick<CoachingInputs, "manualActivities">,
-): Map<string, number> {
-  const result = new Map<string, number>();
-  for (const manual of coachingInputs.manualActivities) {
-    if (manual.estimatedTss === null || manual.estimatedTss === undefined) {
-      continue;
-    }
-    result.set(
-      manual.startDate,
-      (result.get(manual.startDate) ?? 0) + manual.estimatedTss,
-    );
   }
   return result;
 }
