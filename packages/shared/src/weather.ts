@@ -107,13 +107,3 @@ export function formatDailyWeatherParts(weather: DailyWeather): string[] {
     ...(daylight === null ? [] : [daylight]),
   ];
 }
-
-/**
- * Formats one day of weather as a single readable line. The units match the
- * forecast data: °C, m/s, and the location's local clock time. Gusts follow the
- * sustained wind in parentheses, and the daylight window is rendered as a
- * range when both sunrise and sunset are known.
- */
-export function formatDailyWeatherLine(weather: DailyWeather): string {
-  return formatDailyWeatherParts(weather).join(" · ");
-}

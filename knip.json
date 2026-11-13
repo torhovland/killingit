@@ -31,7 +31,8 @@
     },
     "packages/shared": {
       "entry": ["src/index.ts!"],
-      "project": ["src/**/*.ts!", "!src/**/*.test.ts!"]
+      "project": ["src/**/*.ts!", "!src/**/*.test.ts!"],
+      "includeEntryExports": true
     },
     "tools/benchmark": {
       "entry": ["src/cli.ts!"],

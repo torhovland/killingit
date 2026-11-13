@@ -403,8 +403,11 @@ problems; the error names the offending fields if the repair also fails. See
   progress without waiting for the POST to resolve.
 - **Reasoning models:** reasoning tokens count against the output budget. Plan
   calls request `reasoning.effort: "minimal"`; if a model still stops at the
-  token limit, `completePlan` retries with reasoning disabled and a doubled
-  budget before falling back to the normal budget without reasoning control.
+  token limit, `completePlanJson` retries with reasoning disabled, then with a
+  doubled budget, and finally with the small rescue budget, so a model that
+  cannot finish with minimal reasoning still gets a configuration without a
+  reasoning control. The ladder and its recorded evidence are in
+  `docs/specs/llm-completion-budget.md`.
 - **Cloud Run:** if the process is terminated mid-generation, its heartbeat
   stops. After two minutes without a refresh, `GET` marks the run as failed and
   the UI offers `Try again`; `begin` can take over the stale claim. The prompt

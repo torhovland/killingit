@@ -27,7 +27,6 @@ import {
   greetingSchema,
   hasLapStructure,
   healthSchema,
-  isRunningActivity,
   llmSettingsSchema,
   paceUnitLabel,
   paceUnitMetres,
@@ -183,12 +182,10 @@ describe("hasLapStructure", () => {
 
 describe("cadence unit", () => {
   it("uses steps or strokes per minute for runs, hikes, rows and swims", () => {
-    expect(isRunningActivity("trail_running")).toBe(true);
     expect(cadenceUnit("running")).toBe("spm");
     expect(cadenceUnit("hiking")).toBe("spm");
     expect(cadenceUnit("indoor_rowing")).toBe("spm");
     expect(cadenceUnit("swimming")).toBe("spm");
-    expect(isRunningActivity("indoor_cycling")).toBe(false);
     expect(cadenceUnit("indoor_cycling")).toBe("rpm");
   });
 });
