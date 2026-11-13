@@ -251,11 +251,15 @@ logs and Sentry without flooding them while the plan endpoint is polled.
    Activity analyses are coordinated per account. A dashboard reload and a plan
    run that overlap share one Garmin sync and one LLM analysis pass instead of
    analysing the same activities twice, and the plan run waits for that pass
-   before it builds its prompt. If an analysis pass starts later, while the
+   before it builds its prompt. The pass is keyed by the athlete's day, so a
+   request for another day waits for the running pass and then runs its own
+   rather than adopting analyses computed with the wrong day's plan fit. An
+   explicit refresh is chained the same way, so it never writes beside a pass
+   already running. If an analysis pass starts later, while the
    athlete-metrics and forecast phases are running, the plan waits for it too
    and uses the finished feed. A plan therefore cannot save an older analysis
    that an in-flight request is about to replace and immediately require
-   another plan update.
+   another plan update. See `docs/specs/activity-analysis-sharing.md`.
 
 3. If there is no plan, the request asks for a new season, or `force` is set,
    build a fresh season in four smaller completions: the season, the block

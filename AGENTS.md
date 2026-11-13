@@ -267,8 +267,12 @@ about a past workout, or before a suggested workout, to steer the coach.
   the full history. The feed loads in named phases — sync, inputs, analysis,
   assembly — so each failure path stays with the phase that can fail; a failed
   read of the stored feed aborts the sync instead of overwriting the history.
-  See `docs/specs/activity-feed-loading.md`. Each activity in the feed also
-  carries a bounded,
+  See `docs/specs/activity-feed-loading.md`. One analysis pass runs per
+  account at a time, shared by overlapping requests for the same athlete day;
+  an explicit refresh, or a request for another day, waits for the running
+  pass and then starts its own, so two passes never write the same analyses at
+  once. See `docs/specs/activity-analysis-sharing.md`. Each activity in the
+  feed also carries a bounded,
   downsampled sample preview, shown as a collapsible table on the Activities
   page. Running cadence is normalized to total steps per minute and cycling
   cadence to rpm, matching Garmin Connect. Strength activities also carry their

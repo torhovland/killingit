@@ -172,21 +172,24 @@ export function loadAnalyzedActivities(
   options: AnalyzeActivitiesOptions,
   phases: ActivityFeedPhases = ACTIVITY_FEED_PHASES,
 ): Promise<ActivityFeed> {
-  return shareActivityAnalysis(options.userId, options.refresh, () =>
-    loadAnalyzedActivitiesOnce(options, phases),
+  // Resolve the day before entering the registry so the pass is keyed by the
+  // day the caller asked for, not by the moment a queued pass finally starts.
+  const today =
+    options.today ?? zonedDateTime(new Date(), options.timezone).date;
+  return shareActivityAnalysis(options.userId, today, options.refresh, () =>
+    loadAnalyzedActivitiesOnce(options, today, phases),
   );
 }
 
 async function loadAnalyzedActivitiesOnce(
   options: AnalyzeActivitiesOptions,
+  today: string,
   phases: ActivityFeedPhases,
 ): Promise<ActivityFeed> {
   const provider =
     options.provider ??
     withPromptLogging(createOpenRouterProvider(), { userId: options.userId });
   const credentials = await phases.loadGarminCredentials(options.userId);
-  const today =
-    options.today ?? zonedDateTime(new Date(), options.timezone).date;
 
   const synced = await phases.syncFeed({
     userId: options.userId,
