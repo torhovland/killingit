@@ -271,6 +271,10 @@ export async function runPlanForUser(
             // cap allows; the plan prompt reviews the same recent window.
             limit: MAX_ANALYZED_ACTIVITIES,
             refresh: false,
+            // Key the pass by the plan's own day so it shares a dashboard
+            // request for the same day and never adopts another day's feed.
+            today,
+            ...(timezone !== undefined ? { timezone } : {}),
           });
     if (preloadedActivities === undefined) {
       await deps.generations.update(
@@ -463,6 +467,7 @@ export async function runPlanForUser(
   // be replaced.
   const refreshedActivities = await latestActivityAnalysisSince(
     userId,
+    today,
     activitiesSnapshotAt,
   );
   if (refreshedActivities !== null) {
