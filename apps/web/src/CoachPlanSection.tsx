@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   coachPlanResponseSchema,
   dietSummaryResponseSchema,
@@ -69,39 +69,39 @@ export function CoachPlanSection({
     string | null
   >(null);
 
-  async function fetchPlan(
-    today: string,
-    includeTomorrow: boolean,
-  ): Promise<CoachPlanResponse> {
-    return requestParsed(
-      `${API_URL}/api/coaching/plan?today=${today}&includeTomorrow=${includeTomorrow}`,
-      auth,
-      coachPlanResponseSchema,
-      "Loading your plan",
-    );
-  }
-
-  async function fetchDietToday(): Promise<DietDaySummary | null> {
-    if (!dietAdvice) {
-      return null;
-    }
-    try {
-      const query = new URLSearchParams({ today }).toString();
-      const summary = await requestParsed(
-        `${API_URL}/api/diet/summary?${query}`,
+  const fetchPlan = useCallback(
+    (today: string, includeTomorrow: boolean): Promise<CoachPlanResponse> =>
+      requestParsed(
+        `${API_URL}/api/coaching/plan?today=${today}&includeTomorrow=${includeTomorrow}`,
         auth,
-        dietSummaryResponseSchema,
-        "Loading today's diet summary",
-      );
-      return summary.days.find((day) => day.date === today) ?? null;
-    } catch (err: unknown) {
-      // The plan must still render when the diet summary cannot be read.
-      console.error("Failed to load today's calories:", err);
-      return null;
-    }
-  }
+        coachPlanResponseSchema,
+        "Loading your plan",
+      ),
+    [auth],
+  );
 
-  async function load(): Promise<CoachPlanResponse | null> {
+  const fetchDietToday =
+    useCallback(async (): Promise<DietDaySummary | null> => {
+      if (!dietAdvice) {
+        return null;
+      }
+      try {
+        const query = new URLSearchParams({ today }).toString();
+        const summary = await requestParsed(
+          `${API_URL}/api/diet/summary?${query}`,
+          auth,
+          dietSummaryResponseSchema,
+          "Loading today's diet summary",
+        );
+        return summary.days.find((day) => day.date === today) ?? null;
+      } catch (err: unknown) {
+        // The plan must still render when the diet summary cannot be read.
+        console.error("Failed to load today's calories:", err);
+        return null;
+      }
+    }, [auth, dietAdvice, today]);
+
+  const load = useCallback(async (): Promise<CoachPlanResponse | null> => {
     setLoading(true);
     setError(null);
     try {
@@ -118,7 +118,7 @@ export function CoachPlanSection({
     } finally {
       setLoading(false);
     }
-  }
+  }, [fetchPlan, fetchDietToday, today, isAfter18]);
 
   async function downloadWorkout(date: string): Promise<void> {
     setDownloadingWorkoutDate(date);
@@ -202,7 +202,7 @@ export function CoachPlanSection({
     return () => {
       cancelled = true;
     };
-  }, [auth.isAuthenticated, ready, refreshKey, start, track, dietAdvice]);
+  }, [auth, ready, refreshKey, start, track, dietAdvice, load]);
 
   // The stored generation error is shown in its own block with a retry action;
   // a provider error is only surfaced when the stored plan does not carry it.

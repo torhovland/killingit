@@ -165,7 +165,7 @@ export function LlmSection({ settings, onSaved, isAdmin }: LlmSectionProps) {
     return () => {
       cancelled = true;
     };
-  }, [auth.isAuthenticated]);
+  }, [auth]);
 
   // Keep a currently selected model visible even when it is retired.
   const selectedIds = useMemo(

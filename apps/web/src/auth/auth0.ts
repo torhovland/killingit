@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import type { AppState } from "@auth0/auth0-react";
 import { isUnrecoverableSessionError, SessionExpiredError } from "./session.js";
@@ -52,79 +52,119 @@ const NOOP_AUTH: AuthState = {
   getToken: () => Promise.resolve(undefined),
 };
 
-/** The app's `useAuth` hook (thin wrapper around the Auth0 SDK hook). */
-export function useAuth(): AuthState {
-  // No hooks are needed when Auth0 is disabled; return a stable no-op state
-  // without invoking the SDK (whose `useAuth0` throws outside a provider).
-  if (!AUTH0_CONFIGURED) {
-    return NOOP_AUTH;
-  }
+/**
+ * The app's `useAuth` hook. `AUTH0_CONFIGURED` is fixed at build time, so
+ * resolving the implementation once at module load keeps the hook order in a
+ * component stable while still letting a build without Auth0 skip the SDK
+ * provider entirely (`useAuth0` throws outside it).
+ */
+export const useAuth: () => AuthState = AUTH0_CONFIGURED
+  ? useConfiguredAuth
+  : useNoopAuth;
 
+/**
+ * `useAuth` without an Auth0 configuration. No hooks are needed, so a build
+ * that has no provider still gets the stable no-op session.
+ */
+function useNoopAuth(): AuthState {
+  return NOOP_AUTH;
+}
+
+/**
+ * `useAuth` backed by the Auth0 SDK.
+ *
+ * The returned object is referentially stable while the session is unchanged:
+ * its fields and the `useCallback`-wrapped methods keep their identity across
+ * renders, and the object itself is rebuilt only when the sign-in state,
+ * loading state, or athlete profile values change. Its methods read the
+ * current session at call time. An effect may therefore depend on `auth` (or
+ * on `auth.getToken`) rather than narrowing to `auth.isAuthenticated`, and the
+ * `react-hooks/exhaustive-deps` rule's suggestions are safe to apply.
+ */
+function useConfiguredAuth(): AuthState {
   const {
     user,
     isAuthenticated,
     isLoading,
     getAccessTokenSilently,
     loginWithRedirect,
-    logout,
+    logout: logoutFromProvider,
   } = useAuth0();
 
-  // Memoize so callers get a stable `auth` object (and can safely depend on it
-  // in effect/`useMemo` dependency arrays without re-running every render).
-  return useMemo(
-    () => ({
-      isAuthenticated,
-      isLoading,
-      sub: user?.sub ?? null,
-      firstName: resolveFirstName(user),
-      picture: user?.picture ?? null,
-      login: () =>
-        loginWithRedirect({
+  const login = useCallback(
+    () =>
+      loginWithRedirect({
+        authorizationParams: {
+          ...(API_AUDIENCE ? { audience: API_AUDIENCE } : {}),
+          scope: API_SCOPE,
+        },
+        appState: { returnTo: window.location.pathname } satisfies AppState,
+      }),
+    [loginWithRedirect],
+  );
+
+  const logout = useCallback(
+    () =>
+      logoutFromProvider({
+        logoutParams: { returnTo: window.location.origin },
+      }),
+    [logoutFromProvider],
+  );
+
+  const getToken = useCallback(
+    async (options?: {
+      forceRefresh?: boolean;
+    }): Promise<string | undefined> => {
+      if (!isAuthenticated) {
+        return undefined;
+      }
+      try {
+        return await getAccessTokenSilently({
+          // A 401 means the cached token was rejected. Skip the cache and
+          // renew with the refresh token (or the silent iframe fallback).
+          ...(options?.forceRefresh ? { cacheMode: "off" as const } : {}),
           authorizationParams: {
             ...(API_AUDIENCE ? { audience: API_AUDIENCE } : {}),
             scope: API_SCOPE,
           },
-          appState: { returnTo: window.location.pathname } satisfies AppState,
-        }),
-      logout: () =>
-        logout({ logoutParams: { returnTo: window.location.origin } }),
-      getToken: async (options) => {
-        if (!isAuthenticated) {
-          return undefined;
+        });
+      } catch (error) {
+        if (!isUnrecoverableSessionError(error)) {
+          throw error;
         }
-        try {
-          return await getAccessTokenSilently({
-            // A 401 means the cached token was rejected. Skip the cache and
-            // renew with the refresh token (or the silent iframe fallback).
-            ...(options?.forceRefresh ? { cacheMode: "off" as const } : {}),
-            authorizationParams: {
-              ...(API_AUDIENCE ? { audience: API_AUDIENCE } : {}),
-              scope: API_SCOPE,
-            },
-          });
-        } catch (error) {
-          if (!isUnrecoverableSessionError(error)) {
-            throw error;
-          }
-          // The cached session can never renew again, so drop it and let the
-          // app render the sign-in button instead of retrying a dead session.
-          await logout({ openUrl: false });
-          throw new SessionExpiredError(error);
-        }
-      },
-    }),
-    [
-      user?.sub,
-      user?.given_name,
-      user?.name,
-      user?.nickname,
-      user?.email,
-      user?.picture,
+        // The cached session can never renew again, so drop it and let the app
+        // render the sign-in button instead of retrying a dead session.
+        await logoutFromProvider({ openUrl: false });
+        throw new SessionExpiredError(error);
+      }
+    },
+    [isAuthenticated, getAccessTokenSilently, logoutFromProvider],
+  );
+
+  const sub = user?.sub ?? null;
+  const firstName = resolveFirstName(user);
+  const picture = user?.picture ?? null;
+
+  return useMemo(
+    () => ({
       isAuthenticated,
       isLoading,
-      getAccessTokenSilently,
-      loginWithRedirect,
+      sub,
+      firstName,
+      picture,
+      login,
       logout,
+      getToken,
+    }),
+    [
+      isAuthenticated,
+      isLoading,
+      sub,
+      firstName,
+      picture,
+      login,
+      logout,
+      getToken,
     ],
   );
 }

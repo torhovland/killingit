@@ -450,6 +450,11 @@ made and recorded, and `docs/adrs/` for the accepted ones.
   repeating a class string in a page. See
   `docs/specs/web-component-library.md`, `docs/specs/modal-dialog.md` and
   ADR 0027.
+- Every web hook is checked by `eslint-plugin-react-hooks`:
+  `react-hooks/rules-of-hooks` and `react-hooks/exhaustive-deps` are errors in
+  `eslint.config.js`. `useAuth` returns a stable session object, so an effect
+  lists `auth` or `auth.getToken` instead of narrowing to
+  `auth.isAuthenticated`; see `docs/specs/auth-integration.md`.
 - **Tailwind CSS** (v4, through `@tailwindcss/vite`) is the styling foundation.
   The primitives compose utility classes through `cn()`, which combines `clsx`
   and `tailwind-merge` so a caller's `className` overrides a default. The

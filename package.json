@@ -41,6 +41,7 @@
     "@types/bun": "^1.4.4",
     "eslint": "^10.14.0",
     "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.14.0",
     "knip": "^6.45.1",
     "prettier": "^3.10.1",

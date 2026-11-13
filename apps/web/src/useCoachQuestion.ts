@@ -47,8 +47,7 @@ export function useCoachQuestion(
       return;
     }
     void load();
-    // Only re-run when sign-in state flips; `auth` is consumed inside.
-  }, [auth.isAuthenticated]);
+  }, [auth, load]);
 
   const answer = useCallback(
     async (id: number, answer: string): Promise<string | null> => {

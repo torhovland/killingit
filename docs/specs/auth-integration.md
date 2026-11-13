@@ -160,6 +160,18 @@ only replaces that module.
   bypasses the Auth0 token cache (`cacheMode: "off"`), and retries the request
   once. This covers the two-hour web-token lifetime boundary where the cached
   token has expired but the SDK has not renewed it yet.
+- **`useAuth` returns a stable session object.** The adapter wraps each SDK
+  callback in `useCallback` and memoizes the returned `AuthState`, so its
+  identity changes only when the session does (sign-in state, loading state, or
+  the athlete's profile fields), and its methods keep their identity across
+  renders while reading the current session when called. An effect may
+  therefore list `auth`, or `auth.getToken`, as a dependency instead of
+  narrowing to `auth.isAuthenticated`. `react-hooks/rules-of-hooks` and
+  `react-hooks/exhaustive-deps` are errors in `eslint.config.js`, so an omitted
+  dependency fails lint rather than surviving as a justification comment. The
+  implementation is resolved once at module load because a build without Auth0
+  must not call `useAuth0` outside its provider, so the hook order cannot
+  depend on configuration.
 
 ## Risks / open questions
 

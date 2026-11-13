@@ -64,8 +64,7 @@ export function useCoachReviews(
       return;
     }
     void load();
-    // Only re-run when sign-in state flips; `auth` is consumed inside.
-  }, [auth.isAuthenticated]);
+  }, [auth, load]);
 
   const keepForVisit = useCallback((kind: ReviewKind, startDate: string) => {
     setKeptReviewKeys((current) =>
