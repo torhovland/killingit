@@ -160,7 +160,7 @@ function dependencies(
     generations,
     coachingSurveyAdjustments: {
       listForUser: () => Promise.resolve([]),
-      clearForUser: () => Promise.resolve(),
+      clearConsumed: () => Promise.resolve(),
     },
     loadActivities: () => Promise.resolve(emptyFeed),
     loadCoachingInputs: () => Promise.resolve(emptyInputs),

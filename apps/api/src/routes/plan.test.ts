@@ -43,7 +43,7 @@ const storedQuestion: StoredAthleteQuestion = {
 
 const emptySurveyAdjustments: CoachingSurveyAdjustmentStore = {
   listForUser: () => Promise.resolve([]),
-  clearForUser: () => Promise.resolve(),
+  clearConsumed: () => Promise.resolve(),
 };
 
 function makePlan(today = "2026-10-21"): CoachPlan {

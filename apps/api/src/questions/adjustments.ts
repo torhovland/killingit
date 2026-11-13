@@ -1,4 +1,4 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "../db/index.js";
 import {
   coachingSurveyAdjustments,
@@ -22,8 +22,15 @@ export interface StoredCoachingSurveyAdjustment {
 export interface CoachingSurveyAdjustmentStore {
   /** Every adjustment in the order it was made, oldest first. */
   listForUser(userId: number): Promise<StoredCoachingSurveyAdjustment[]>;
-  /** Drops every pending adjustment after a successful plan refresh. */
-  clearForUser(userId: number): Promise<void>;
+  /**
+   * Drops the adjustments a refresh loaded into its prompt. Passing the loaded
+   * ids rather than clearing every row keeps an answer the athlete edits while
+   * the run is generating for the next refresh.
+   */
+  clearConsumed(
+    userId: number,
+    adjustmentIds: readonly number[],
+  ): Promise<void>;
 }
 
 /** PostgreSQL-backed pending survey adjustment store. */
@@ -40,10 +47,18 @@ export const dbCoachingSurveyAdjustmentStore: CoachingSurveyAdjustmentStore = {
     return rows.map(toStoredCoachingSurveyAdjustment);
   },
 
-  async clearForUser(userId) {
+  async clearConsumed(userId, adjustmentIds) {
+    if (adjustmentIds.length === 0) {
+      return;
+    }
     await db
       .delete(coachingSurveyAdjustments)
-      .where(eq(coachingSurveyAdjustments.userId, userId));
+      .where(
+        and(
+          eq(coachingSurveyAdjustments.userId, userId),
+          inArray(coachingSurveyAdjustments.id, [...adjustmentIds]),
+        ),
+      );
   },
 };
 
