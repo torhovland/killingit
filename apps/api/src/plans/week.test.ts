@@ -2,7 +2,9 @@ import { describe, expect, it } from "bun:test";
 import type { AnalyzedActivity, WeekPlan } from "@killingit/shared";
 import {
   makeAnalyzedActivity,
+  makeDay,
   makeWeek as makeFixtureWeek,
+  PLAN_TODAY,
 } from "../testFixtures/plan.js";
 import { applyCompletedDays } from "./week.js";
 
@@ -202,19 +204,23 @@ describe("applyCompletedDays", () => {
     expect(applied.sessions[0]?.status).toBe("partial");
   });
 
-  it("settles an already completed today without the activity", () => {
+  it("keeps today planned when the day plan says completed but nothing was recorded", () => {
+    // Today cannot be completed without a recorded activity, whatever a stored
+    // verdict claims, so the day and the week follow the same rule.
     const applied = applyCompletedDays(makeWeek(), [], "2026-10-21", null, [], {
-      date: "2026-10-21",
-      type: "workout",
-      title: "Detailed completed ride",
-      description: "Completed: 50 min ride.",
-      durationMinutes: 50,
-      intensity: "moderate",
-      alternatives: [],
-      rationale: "The ride matched the plan.",
-      optional: false,
-      status: "completed",
+      ...makeDay(PLAN_TODAY, { status: "completed" }),
     });
+
+    const today = applied.sessions[2];
+    expect(today?.status).toBe("planned");
+    expect(today?.title).toBe("Session 3");
+    expect(today?.description).toBe("Easy aerobic work.");
+  });
+
+  it("settles today from a manual activity like any other recorded effort", () => {
+    const applied = applyCompletedDays(makeWeek(), [], "2026-10-21", null, [
+      { id: 6, startDate: "2026-10-21", details: "Gym session" },
+    ]);
 
     const today = applied.sessions[2];
     expect(today?.status).toBe("completed");

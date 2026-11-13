@@ -165,6 +165,21 @@ describe("finalizePlan", () => {
     expect(todaySession(finalized)?.status).toBe("partial");
   });
 
+  it("settles today's day and week from one manual activity", () => {
+    const finalized = finalizePlan(
+      makePlan(),
+      finalizeInput({
+        manualActivities: [
+          { id: 1, startDate: PLAN_TODAY, details: "Strength at the gym" },
+        ],
+      }),
+      COACH_PLAN_FINALISATION,
+    );
+
+    expect(finalized.today.status).toBe("completed");
+    expect(todaySession(finalized)?.status).toBe("completed");
+  });
+
   it("drops an unplaced tomorrow only when the caller does not ask for it", () => {
     const plan = makePlan({
       tomorrow: makeDay("2026-10-30"),
