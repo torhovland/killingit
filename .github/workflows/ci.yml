@@ -113,7 +113,7 @@ jobs:
     # needs, so CI never installs packages from the Ubuntu archives. Keep the
     # tag in step with the @playwright/test version in bun.lock.
     container:
-      image: mcr.microsoft.com/playwright:v1.65.0-noble
+      image: mcr.microsoft.com/playwright:v1.65.1-noble
     services:
       postgres:
         image: postgres:16-alpine
