@@ -83,6 +83,19 @@ The order is not arbitrary:
   are about to be saved, so it runs after every step that rebuilds them.
 - **Validate last.** Validation describes the plan that is about to be stored.
 
+## One today-status rule
+
+Today's completion is decided once. `todayCompletionStatus` in
+`apps/api/src/plans/week.ts` receives the planned session, the activities
+recorded on the day and the coach's verdict; `deriveTodayStatus` (the
+`settleToday` step) and the week's today session both call it, so the Day and
+Week tabs cannot disagree. `activitiesOnDate` in the same module is the only
+place that turns a manual entry into a recorded activity (`type: "manual"`, no
+measured duration) and that reads a synced activity's local day, so both levels
+also agree on which activities happened on a date. A recorded activity is
+required: a stored `completed` verdict on a day with no activity settles back to
+`planned` (or `rest`).
+
 ## Step sets
 
 `COACH_PLAN_FINALISATION` runs every step. The fresh build and every plan
@@ -137,5 +150,7 @@ the generation status, routes and prompts are unchanged.
    structured workout, the sessions keep their stored weather, the diet summaries
    are not re-synced, and an invalid stored plan is saved without failing the run.
 6. Every generation path's saved plan is unchanged by this refactor.
-7. `bun run typecheck`, `bun run lint`, `bun run format`, `bun run test` and
+7. One rule decides today's status for both the day plan and the week's today
+   session, and one function adapts a manual entry to a recorded activity.
+8. `bun run typecheck`, `bun run lint`, `bun run format`, `bun run test` and
    `bun run check:unused` pass.
