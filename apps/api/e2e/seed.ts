@@ -75,13 +75,13 @@ export async function seedE2eState(
   }
 
   if (plan) {
-    const stored = await dbPlanStore.save(
-      user.id,
-      makePlan(),
-      questions === "answered" ? new Date() : null,
-      null,
-      null,
-    );
+    const stored = await dbPlanStore.save({
+      userId: user.id,
+      plan: makePlan(),
+      answersUpdatedAt: questions === "answered" ? new Date() : null,
+      coachingInputsUpdatedAt: null,
+      activitiesUpdatedAt: null,
+    });
     if (stored === null) {
       throw new Error("failed to seed the e2e plan");
     }

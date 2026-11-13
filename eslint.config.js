@@ -61,6 +61,21 @@ export default tseslint.config(
     },
   },
   {
+    // A plan run is described by named options, not by a growing tail of
+    // positional booleans. These entry points take at most five parameters so a
+    // sixth one has to become part of an options object instead. See
+    // `docs/specs/plan-run-arguments.md`.
+    files: [
+      "apps/api/src/plans/generate.ts",
+      "apps/api/src/plans/status.ts",
+      "apps/api/src/plans/store.ts",
+      "apps/api/src/routes/plan.ts",
+    ],
+    rules: {
+      "max-params": ["error", 5],
+    },
+  },
+  {
     files: ["**/*.{js,mjs,cjs}"],
     ...tseslint.configs.disableTypeChecked,
   },

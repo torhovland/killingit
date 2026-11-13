@@ -40,6 +40,18 @@ interface ExportableBikeWorkout {
   bikeWorkout: BikeWorkout;
 }
 
+/** What a plan read needs in order to build its response. */
+interface PlanResponseInput {
+  userId: number;
+  location: AthleteLocation | null;
+  timezone: string | null;
+  today: string;
+  /** After 18:00 the response also reports tomorrow's plan. */
+  includeTomorrow?: boolean;
+  /** The athlete opted in to diet advice, so a missing target is pending. */
+  dietAdvice?: boolean;
+}
+
 /**
  * Finds the indoor bike workout for a date. Today and tomorrow come from the
  * day plans so the download matches the Day tab. Other dates only carry week
@@ -105,14 +117,10 @@ export function createPlanRoute(deps: ResolvedAppDependencies): Hono {
     }
   }
 
-  async function buildResponse(
-    userId: number,
-    location: AthleteLocation | null,
-    timezone: string | null,
-    today: string,
-    includeTomorrow = false,
-    dietAdvice = false,
-  ) {
+  async function buildResponse(input: PlanResponseInput) {
+    const { userId, location, timezone, today } = input;
+    const includeTomorrow = input.includeTomorrow === true;
+    const dietAdvice = input.dietAdvice === true;
     const loadThresholds =
       deps.loadThresholdHistory ?? loadThresholdHistoryForUser;
     const [
@@ -205,14 +213,14 @@ export function createPlanRoute(deps: ResolvedAppDependencies): Hono {
       generatedAt,
       generation,
       stale,
-      pending: planPending(
-        storedPlan === null ? null : storedPlan.plan,
+      pending: planPending({
+        plan: storedPlan === null ? null : storedPlan.plan,
         today,
         includeTomorrow,
         weatherChanged,
         weekReviewPending,
         dietAdvice,
-      ),
+      }),
       thresholds: thresholds?.summaries ?? [],
       events,
     });
@@ -231,14 +239,14 @@ export function createPlanRoute(deps: ResolvedAppDependencies): Hono {
       }
       const includeTomorrow = c.req.query("includeTomorrow") === "true";
       return c.json(
-        await buildResponse(
-          user.id,
-          user.location,
-          user.timezone,
-          today.data,
+        await buildResponse({
+          userId: user.id,
+          location: user.location,
+          timezone: user.timezone,
+          today: today.data,
           includeTomorrow,
-          user.dietAdvice,
-        ),
+          dietAdvice: user.dietAdvice,
+        }),
       );
     })
     .get("/workouts/:date", async (c) => {
@@ -295,27 +303,27 @@ export function createPlanRoute(deps: ResolvedAppDependencies): Hono {
 
         if (!started) {
           return c.json(
-            await buildResponse(
-              user.id,
-              user.location,
-              user.timezone,
+            await buildResponse({
+              userId: user.id,
+              location: user.location,
+              timezone: user.timezone,
               today,
-              false,
-              user.dietAdvice,
-            ),
+              includeTomorrow: false,
+              dietAdvice: user.dietAdvice,
+            }),
             202,
           );
         }
 
         return c.json(
-          await buildResponse(
-            user.id,
-            user.location,
-            user.timezone,
+          await buildResponse({
+            userId: user.id,
+            location: user.location,
+            timezone: user.timezone,
             today,
             includeTomorrow,
-            user.dietAdvice,
-          ),
+            dietAdvice: user.dietAdvice,
+          }),
           202,
         );
       },

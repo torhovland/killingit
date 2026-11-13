@@ -33,17 +33,21 @@ export interface StoredPlan {
   generatedAt: Date;
 }
 
+/** One plan write: the content plus the input timestamps it was built from. */
+export interface PlanSaveInput {
+  userId: number;
+  plan: CoachPlan;
+  answersUpdatedAt: Date | null;
+  coachingInputsUpdatedAt: Date | null;
+  /** Newest activity analysis included in this plan. */
+  activitiesUpdatedAt: Date | null;
+  /** When supplied, the plan is written only while this run owns the row. */
+  runId?: string;
+}
+
 export interface PlanStore {
   load(userId: number): Promise<StoredPlan | null>;
-  save(
-    userId: number,
-    plan: CoachPlan,
-    answersUpdatedAt: Date | null,
-    coachingInputsUpdatedAt: Date | null,
-    activitiesUpdatedAt: Date | null,
-    /** When supplied, the plan is written only while this run owns the row. */
-    runId?: string,
-  ): Promise<StoredPlan | null>;
+  save(input: PlanSaveInput): Promise<StoredPlan | null>;
 }
 
 export interface PlanGenerationStore {
@@ -139,14 +143,14 @@ export const dbPlanStore: PlanStore = {
     return row ? toStoredPlan(row) : null;
   },
 
-  async save(
+  async save({
     userId,
     plan,
     answersUpdatedAt,
     coachingInputsUpdatedAt,
     activitiesUpdatedAt,
     runId,
-  ) {
+  }) {
     const now = new Date();
     const planValues = {
       season: plan.season,

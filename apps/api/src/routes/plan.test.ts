@@ -12,6 +12,7 @@ import type { CoachingInputs } from "../plans/inputs.js";
 import type { PlanGenerationStep } from "../plans/steps.js";
 import type {
   PlanGenerationStore,
+  PlanSaveInput,
   PlanStore,
   StoredPlan,
 } from "../plans/store.js";
@@ -97,13 +98,12 @@ class MemoryPlanStore implements PlanStore {
     return Promise.resolve(this.stored);
   }
 
-  save(
-    _userId: number,
-    plan: CoachPlan,
-    answersUpdatedAt: Date | null,
-    coachingInputsUpdatedAt: Date | null = null,
-    activitiesUpdatedAt: Date | null = null,
-  ): Promise<StoredPlan> {
+  save({
+    plan,
+    answersUpdatedAt,
+    coachingInputsUpdatedAt = null,
+    activitiesUpdatedAt = null,
+  }: PlanSaveInput): Promise<StoredPlan> {
     this.stored = {
       plan,
       answersUpdatedAt,

@@ -234,7 +234,7 @@ export async function runPlanGeneration(
     const decision = decideRevisionPlan(input, currentPlan);
 
     // 5. A new season or a season refresh replaces unanswered questions.
-    if (decision.needsFullPlan || decision.refreshSeason) {
+    if (decision.needsFullPlan || decision.kind === "refresh") {
       await clearPendingCoachQuestions(input);
     }
 
@@ -249,8 +249,8 @@ export async function runPlanGeneration(
     const activePlan = requireCurrentPlan(currentPlan);
 
     // 7. A refresh revises the stored season in place.
-    if (decision.refreshSeason) {
-      const plan = await refreshStoredSeason(input, activePlan, decision);
+    if (decision.kind === "refresh") {
+      const plan = await advancePlan(input, activePlan, decision);
       return await saveGeneratedPlan(input, plan, {
         clearSurveyAdjustments: true,
       });
@@ -268,7 +268,7 @@ export async function runPlanGeneration(
     }
 
     // 9. Advance the levels that are pending.
-    const plan = await advancePendingPlan(input, activePlan, decision);
+    const plan = await advancePlan(input, activePlan, decision);
     return await saveGeneratedPlan(input, plan, {
       clearSurveyAdjustments: false,
     });
@@ -295,8 +295,11 @@ export async function runPlanGeneration(
 interface RevisionDecision {
   /** A missing, forced or deliberately new plan builds all four levels. */
   needsFullPlan: boolean;
-  /** The stored season is revised in place instead of rebuilt. */
-  refreshSeason: boolean;
+  /**
+   * How the run treats the stored season: a refresh revises it in place, an
+   * advance only fills in the levels that are missing or need revising.
+   */
+  kind: "refresh" | "advance";
   /** New coaching input, activities or a week review must reach the plan. */
   revisionNeeded: boolean;
   /** The levels the stored plan is missing or must revise. */
@@ -417,16 +420,16 @@ function decideRevisionPlan(
     planWeatherChanged(currentPlan, context.forecast, today);
   return {
     needsFullPlan,
-    refreshSeason,
+    kind: refreshSeason ? "refresh" : "advance",
     revisionNeeded,
-    pending: planPending(
-      currentPlan,
+    pending: planPending({
+      plan: currentPlan,
       today,
-      input.includeTomorrow,
+      includeTomorrow: input.includeTomorrow === true,
       weatherChanged,
       weekReviewPending,
-      context.dietAdvice === true,
-    ),
+      dietAdvice: context.dietAdvice === true,
+    }),
     weekReviewPending,
     acknowledgementNeeded,
   };
@@ -560,42 +563,6 @@ async function generateFreshPlan(input: GeneratePlanInput): Promise<CoachPlan> {
 }
 
 /**
- * Revises the stored season in place. A season refresh is an update like any
- * other: one completion receives every level and returns the revised season,
- * block, week and day, plus tomorrow and the next period when they are wanted.
- */
-async function refreshStoredSeason(
-  input: GeneratePlanInput,
-  currentPlan: CoachPlan,
-  decision: RevisionDecision,
-): Promise<CoachPlan> {
-  return advancePlan(
-    input,
-    currentPlan,
-    decision.pending,
-    decision.revisionNeeded,
-    true,
-    decision.weekReviewPending,
-  );
-}
-
-/** Advances the levels the pending check, or new coaching input, asks for. */
-async function advancePendingPlan(
-  input: GeneratePlanInput,
-  currentPlan: CoachPlan,
-  decision: RevisionDecision,
-): Promise<CoachPlan> {
-  return advancePlan(
-    input,
-    currentPlan,
-    decision.pending,
-    decision.revisionNeeded,
-    false,
-    decision.weekReviewPending,
-  );
-}
-
-/**
  * Persists a generated plan and finishes the run. A season build or refresh
  * consumes the survey adjustments that shaped it; an incremental update leaves
  * them for the next refresh.
@@ -608,14 +575,14 @@ async function saveGeneratedPlan(
   const { userId, runId } = input;
   await ensureGenerationCurrent(input);
   await input.generations.update(userId, PLAN_GENERATION_STEPS.save, runId);
-  const saved = await input.plans.save(
+  const saved = await input.plans.save({
     userId,
     plan,
-    input.context.answersUpdatedAt,
-    input.context.coachingInputsUpdatedAt,
-    input.context.activitiesUpdatedAt ?? null,
+    answersUpdatedAt: input.context.answersUpdatedAt,
+    coachingInputsUpdatedAt: input.context.coachingInputsUpdatedAt,
+    activitiesUpdatedAt: input.context.activitiesUpdatedAt ?? null,
     runId,
-  );
+  });
   if (saved === null) {
     throw new GenerationSupersededError();
   }
@@ -647,14 +614,14 @@ async function finishUnchangedPlan(
     return input.plan;
   }
   await ensureGenerationCurrent(input);
-  const saved = await input.plans.save(
+  const saved = await input.plans.save({
     userId,
-    reconcileStoredPlan(input, currentPlan),
-    input.plan.answersUpdatedAt,
-    input.context.coachingInputsUpdatedAt,
-    input.context.activitiesUpdatedAt ?? null,
+    plan: reconcileStoredPlan(input, currentPlan),
+    answersUpdatedAt: input.plan.answersUpdatedAt,
+    coachingInputsUpdatedAt: input.context.coachingInputsUpdatedAt,
+    activitiesUpdatedAt: input.context.activitiesUpdatedAt ?? null,
     runId,
-  );
+  });
   if (saved === null) {
     throw new GenerationSupersededError();
   }
@@ -788,17 +755,17 @@ interface PlanUpdateOptions {
  * coach receives the stored season, block, week and day plus the next week,
  * next block and tomorrow when they exist, and returns the complete plan. The
  * API keeps the levels the request did not revise, so one prompt replaces the
- * old block → week → day cascade.
+ * old block → week → day cascade. A refresh decision revises the season in
+ * place; an advance only fills in what is pending.
  */
 async function advancePlan(
   input: GeneratePlanInput,
   current: CoachPlan,
-  pending: ReturnType<typeof planPending>,
-  revisionNeeded: boolean,
-  seasonRefresh = false,
-  weekReviewPending = false,
+  decision: RevisionDecision,
 ): Promise<CoachPlan> {
   const { today, context } = input;
+  const { pending, revisionNeeded, weekReviewPending } = decision;
+  const seasonRefresh = decision.kind === "refresh";
   const includeTomorrow = input.includeTomorrow === true;
   const tomorrowDate = addDays(today, 1);
   const tomorrowWeek = weekFor(current, tomorrowDate);
@@ -1165,14 +1132,12 @@ async function planNextPeriod(
   if (input.includeTomorrow !== true) {
     return plan;
   }
-  const pending = planPending(
+  const pending = planPending({
     plan,
-    input.today,
-    true,
-    false,
-    false,
-    input.context.dietAdvice === true,
-  );
+    today: input.today,
+    includeTomorrow: true,
+    dietAdvice: input.context.dietAdvice === true,
+  });
   if (!pending.tomorrow && !pending.nextWeek && !pending.nextBlock) {
     return plan;
   }
