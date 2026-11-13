@@ -1,6 +1,7 @@
 import type { LlmCallMessage } from "@killingit/shared";
 import {
   isLlmAbortError,
+  LlmTokenLimitError,
   type LlmCompletionRequest,
   type LlmCompletionResult,
   type LlmMessage,
@@ -87,15 +88,10 @@ export function withPromptLogging(
         }
         return result.text;
       } catch (err) {
-        const cancelled = isLlmAbortError(err);
         if (id !== null) {
           await finish(id, {
             response: null,
-            // A superseded run is not a coaching failure; keep it out of the
-            // error count but record that the attempt was cancelled.
-            error: cancelled ? null : errorMessage(err),
-            usage: null,
-            metadata: cancelled ? { cancelled: true } : {},
+            ...failureDetails(err),
             durationMs: elapsedMs(startedAt, clock()),
           });
         }
@@ -103,6 +99,31 @@ export function withPromptLogging(
       }
     },
   };
+}
+
+/**
+ * What a settled attempt records when the provider did not answer. A superseded
+ * run is not a coaching failure, but it is still marked cancelled. A truncated
+ * response has no text yet was billed, so its usage and routing details are
+ * kept instead of dropping the spend.
+ */
+function failureDetails(
+  err: unknown,
+): Pick<LlmCallResult, "error" | "usage" | "metadata"> {
+  if (isLlmAbortError(err)) {
+    return { error: null, usage: null, metadata: { cancelled: true } };
+  }
+  if (err instanceof LlmTokenLimitError) {
+    return {
+      error: errorMessage(err),
+      usage: err.usage,
+      metadata: {
+        responseModel: err.model,
+        finishReason: err.finishReason,
+      },
+    };
+  }
+  return { error: errorMessage(err), usage: null, metadata: {} };
 }
 
 /**
