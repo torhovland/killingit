@@ -4,6 +4,19 @@ import { addDays } from "@killingit/shared";
 import { dietProgressPending } from "./dietProgress.js";
 import { blockFor, weekFor } from "./periods.js";
 
+export interface PlanPendingInput {
+  plan: CoachPlan | null;
+  today: string;
+  /** After 18:00 the run also plans and checks tomorrow. */
+  includeTomorrow?: boolean;
+  /** The latest forecast differs significantly from the stored week's. */
+  weatherChanged?: boolean;
+  /** A week review arrived after the stored plan was saved. */
+  weekReviewPending?: boolean;
+  /** The athlete opted in to diet advice, so a missing target is pending. */
+  dietAdvice?: boolean;
+}
+
 /**
  * Works out which plan levels are missing for `today`. A day is missing when it
  * is not for today, a week is missing when today is not one of its sessions,
@@ -14,14 +27,12 @@ import { blockFor, weekFor } from "./periods.js";
  * one can be generated. `weatherChanged` marks the week for a refresh when the
  * latest forecast differs significantly from the weather stored on it.
  */
-export function planPending(
-  plan: CoachPlan | null,
-  today: string,
-  includeTomorrow = false,
-  weatherChanged = false,
-  weekReviewPending = false,
-  dietAdvice = false,
-): PlanPending {
+export function planPending(input: PlanPendingInput): PlanPending {
+  const { plan, today } = input;
+  const includeTomorrow = input.includeTomorrow === true;
+  const weatherChanged = input.weatherChanged === true;
+  const weekReviewPending = input.weekReviewPending === true;
+  const dietAdvice = input.dietAdvice === true;
   if (!plan) {
     return {
       initial: true,

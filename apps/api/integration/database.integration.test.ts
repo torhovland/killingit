@@ -214,7 +214,13 @@ describe("dbUserStore", () => {
 
   it("removes every row the account owns when it is deleted", async () => {
     const user = await dbUserStore.ensureUser("auth0|cascade-athlete");
-    await dbPlanStore.save(user.id, makePlan(), null, null, null);
+    await dbPlanStore.save({
+      userId: user.id,
+      plan: makePlan(),
+      answersUpdatedAt: null,
+      coachingInputsUpdatedAt: null,
+      activitiesUpdatedAt: null,
+    });
     await dbPlanGenerationStore.begin(user.id, "run-cascade");
     const question = await createQuestion({
       prompt: "How is the training going?",
@@ -259,16 +265,22 @@ describe("dbPlanStore", () => {
   it("upserts a single plan row per user", async () => {
     const user = await dbUserStore.ensureUser("auth0|plan-upsert");
 
-    const first = await dbPlanStore.save(user.id, makePlan(), null, null, null);
+    const first = await dbPlanStore.save({
+      userId: user.id,
+      plan: makePlan(),
+      answersUpdatedAt: null,
+      coachingInputsUpdatedAt: null,
+      activitiesUpdatedAt: null,
+    });
     expect(first?.plan.today.title).toBe("Today's session");
 
-    const second = await dbPlanStore.save(
-      user.id,
-      makePlan({ todayTitle: "A revised plan" }),
-      null,
-      null,
-      null,
-    );
+    const second = await dbPlanStore.save({
+      userId: user.id,
+      plan: makePlan({ todayTitle: "A revised plan" }),
+      answersUpdatedAt: null,
+      coachingInputsUpdatedAt: null,
+      activitiesUpdatedAt: null,
+    });
     expect(second?.plan.today.title).toBe("A revised plan");
     expect(await countRows("coach_plans")).toBe(1);
     expect((await dbPlanStore.load(user.id))?.plan.today.title).toBe(
@@ -279,7 +291,13 @@ describe("dbPlanStore", () => {
   it("enforces the unique coach_plans user index", async () => {
     const user = await dbUserStore.ensureUser("auth0|plan-unique");
     const plan = makePlan();
-    await dbPlanStore.save(user.id, plan, null, null, null);
+    await dbPlanStore.save({
+      userId: user.id,
+      plan,
+      answersUpdatedAt: null,
+      coachingInputsUpdatedAt: null,
+      activitiesUpdatedAt: null,
+    });
 
     let code: string | undefined;
     try {
@@ -309,7 +327,13 @@ describe("dbPlanStore", () => {
 
   it("writes week totals and day calories alongside the plan", async () => {
     const user = await dbUserStore.ensureUser("auth0|plan-companions");
-    await dbPlanStore.save(user.id, makePlan(), null, null, null);
+    await dbPlanStore.save({
+      userId: user.id,
+      plan: makePlan(),
+      answersUpdatedAt: null,
+      coachingInputsUpdatedAt: null,
+      activitiesUpdatedAt: null,
+    });
 
     const weeks = await loadPlanWeekTotals(user.id);
     expect(weeks.get(PLAN_WEEK_START)).toEqual({
@@ -354,13 +378,13 @@ describe("dbPlanStore", () => {
     expect(await countRows("plan_day_calories")).toBe(3);
 
     // Saving the same weeks and days again updates the rows in place.
-    await dbPlanStore.save(
-      user.id,
-      makePlan({ weekWorkouts: ONE_SHORT_WORKOUT_WEEK }),
-      null,
-      null,
-      null,
-    );
+    await dbPlanStore.save({
+      userId: user.id,
+      plan: makePlan({ weekWorkouts: ONE_SHORT_WORKOUT_WEEK }),
+      answersUpdatedAt: null,
+      coachingInputsUpdatedAt: null,
+      activitiesUpdatedAt: null,
+    });
     expect(await countRows("plan_week_totals")).toBe(2);
     expect((await loadPlanWeekTotals(user.id)).get(PLAN_WEEK_START)).toEqual({
       plannedMinutes: 30,
@@ -385,14 +409,14 @@ describe("dbPlanStore", () => {
 
     let failed = false;
     try {
-      await dbPlanStore.save(
-        user.id,
-        invalidPlan,
-        null,
-        null,
-        null,
-        "run-rollback",
-      );
+      await dbPlanStore.save({
+        userId: user.id,
+        plan: invalidPlan,
+        answersUpdatedAt: null,
+        coachingInputsUpdatedAt: null,
+        activitiesUpdatedAt: null,
+        runId: "run-rollback",
+      });
     } catch {
       failed = true;
     }
@@ -406,7 +430,14 @@ describe("dbPlanStore", () => {
   it("makes a superseded run's late save a no-op", async () => {
     const user = await dbUserStore.ensureUser("auth0|run-superseded");
     await dbPlanGenerationStore.begin(user.id, "run-a");
-    await dbPlanStore.save(user.id, makePlan(), null, null, null, "run-a");
+    await dbPlanStore.save({
+      userId: user.id,
+      plan: makePlan(),
+      answersUpdatedAt: null,
+      coachingInputsUpdatedAt: null,
+      activitiesUpdatedAt: null,
+      runId: "run-a",
+    });
 
     await dbPlanGenerationStore.begin(user.id, "run-b");
     expect(await dbPlanGenerationStore.isCurrent(user.id, "run-a")).toBe(false);
@@ -416,7 +447,14 @@ describe("dbPlanStore", () => {
       weekWorkouts: ONE_SHORT_WORKOUT_WEEK,
     });
     expect(
-      await dbPlanStore.save(user.id, latePlan, null, null, null, "run-a"),
+      await dbPlanStore.save({
+        userId: user.id,
+        plan: latePlan,
+        answersUpdatedAt: null,
+        coachingInputsUpdatedAt: null,
+        activitiesUpdatedAt: null,
+        runId: "run-a",
+      }),
     ).toBeNull();
     expect((await dbPlanStore.load(user.id))?.plan.today.title).toBe(
       "Today's session",
@@ -431,7 +469,14 @@ describe("dbPlanStore", () => {
       weekWorkouts: ONE_SHORT_WORKOUT_WEEK,
     });
     expect(
-      await dbPlanStore.save(user.id, acceptedPlan, null, null, null, "run-b"),
+      await dbPlanStore.save({
+        userId: user.id,
+        plan: acceptedPlan,
+        answersUpdatedAt: null,
+        coachingInputsUpdatedAt: null,
+        activitiesUpdatedAt: null,
+        runId: "run-b",
+      }),
     ).not.toBeNull();
     expect((await dbPlanStore.load(user.id))?.plan.today.title).toBe(
       "Plan from run B",

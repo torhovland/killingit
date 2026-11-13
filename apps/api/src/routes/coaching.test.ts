@@ -10,6 +10,7 @@ import type {
 } from "../plans/periodReviews.js";
 import type {
   PlanGenerationStore,
+  PlanSaveInput,
   PlanStore,
   StoredPlan,
 } from "../plans/store.js";
@@ -65,13 +66,12 @@ class MemoryPlanStore implements PlanStore {
     return Promise.resolve(this.stored);
   }
 
-  save(
-    _userId: number,
-    plan: StoredPlan["plan"],
-    answersUpdatedAt: Date | null,
-    coachingInputsUpdatedAt: Date | null = null,
-    activitiesUpdatedAt: Date | null = null,
-  ): Promise<StoredPlan> {
+  save({
+    plan,
+    answersUpdatedAt,
+    coachingInputsUpdatedAt = null,
+    activitiesUpdatedAt = null,
+  }: PlanSaveInput): Promise<StoredPlan> {
     this.stored = {
       plan,
       answersUpdatedAt,
