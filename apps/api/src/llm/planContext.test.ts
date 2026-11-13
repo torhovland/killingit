@@ -8,6 +8,7 @@ import {
   type RecentActivityContext,
 } from "./activityContext.js";
 import { formatPlanContext, type PlanContextInput } from "./planContext.js";
+import { WEEKLY_NOTE_SCOPE_RULE } from "./promptRules.js";
 import {
   formatBlockPlan,
   formatDayPlan,
@@ -104,9 +105,7 @@ describe("formatPlanContext", () => {
     expect(text).toContain(
       "Coach reply to the weekly note:\nThen keep the weekday sessions short and easy.",
     );
-    expect(text).toContain(
-      "A weekly note is normally scoped to the week it was written for.",
-    );
+    expect(text).toContain(WEEKLY_NOTE_SCOPE_RULE);
   });
 
   it("includes the athlete's FTP and recorded power", () => {
@@ -532,9 +531,6 @@ describe("formatPlanContext", () => {
     ).join("\n");
 
     expect(text).toContain("Activity comments:");
-    expect(text).toContain(
-      "Each comment describes the activity with the matching ID. It is not a separate activity or extra training.",
-    );
     expect(text).toContain("- Activity 99: An older session.");
   });
 

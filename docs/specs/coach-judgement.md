@@ -76,6 +76,6 @@ judgement rather than an automatic adjustment.
 
 ## Testing
 
-- `promptRules.test.ts` asserts the ambition and athlete-input wording and that
-  both fragments reach `PLAN_PROMPT_RULES`.
+- `promptRules.test.ts` asserts that `PLAN_PROMPT_RULES` composes both the
+  ambition and athlete-input fragments.
 - `coachReplyPrompt.test.ts` asserts that the reply system prompt carries them.

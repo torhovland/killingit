@@ -107,12 +107,14 @@ so a season refresh cannot silently drop the greeting.
 
 ## Testing
 
-- `promptRules.test.ts` asserts the personality wording, the AI prohibition, the
-  humour limits, the pride/disappointment permission, the real-first-name rule,
-  the non-name guard, and that `GLOBAL_PROMPT_RULES` carries it.
+- `promptRules.test.ts` asserts that `GLOBAL_PROMPT_RULES` composes the
+  personality fragment, and the plan and review prompt tests assert that the
+  global rules reach each prompt by identity.
 - `planInitialPrompt.test.ts` asserts the season prompt asks for the
   introduction.
-- `planUpdatePrompt.test.ts` asserts the update prompt keeps the introduction.
+- `planUpdatePrompt.test.ts` asserts the update prompts compose the shared plan
+  rules and the season contract, whose introduction field stays part of the
+  response.
 - `plan.test.ts` asserts the season schema parses an introduction, defaults a
   missing one, and rejects a season build without one.
 - `generate.test.ts` asserts a season refresh preserves the stored introduction.

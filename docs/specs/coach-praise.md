@@ -67,6 +67,6 @@ simply well executed, so the coach does not only celebrate the exceptional days.
 
 ## Testing
 
-- `promptRules.test.ts` asserts both fragments and the draw boundaries.
-- `activityPrompt.test.ts` asserts the always-on rule in the system prompt, the
-  extra rule at draw 0, and its absence at another draw.
+- `promptRules.test.ts` asserts the draw boundaries.
+- `activityPrompt.test.ts` asserts both fragments reach the review prompt by
+  identity, the extra rule at draw 0, and its absence at another draw.
