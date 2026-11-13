@@ -15,6 +15,67 @@ import type { ManualActivityContext } from "../llm/activityContext.js";
 type RecordedEffort = Pick<AnalyzedActivity, "type" | "elapsedTime">;
 
 /**
+ * Every activity recorded on `date`, synced or manual. A manual entry carries
+ * the day the athlete entered rather than a UTC instant, and has no measured
+ * duration, so it is adapted to a recorded activity here and nowhere else.
+ */
+export function activitiesOnDate(
+  activities: readonly AnalyzedActivity[],
+  manualActivities: readonly ManualActivityContext[],
+  timeZone: string | null | undefined,
+  date: string,
+): AnalyzedActivity[] {
+  const recorded = activities.filter(
+    (activity) => activityLocalDate(activity, timeZone) === date,
+  );
+  const manual = manualActivities
+    .filter((activity) => activity.startDate === date)
+    .map(manualActivity);
+  return [...recorded, ...manual];
+}
+
+function manualActivity(manual: ManualActivityContext): AnalyzedActivity {
+  return {
+    id: manual.id,
+    name: manual.details,
+    type: "manual",
+    startDate: manual.startDate,
+    distance: 0,
+    movingTime: 0,
+    elapsedTime: 0,
+    totalElevationGain: 0,
+    samples: [],
+    sampleCount: 0,
+    analysis: null,
+    analysisError: null,
+    programAnalysis: null,
+    comment: null,
+    coachReply: null,
+  };
+}
+
+/**
+ * Settles today's status from what was recorded. Without a recorded activity
+ * today cannot be completed; with one, the coach's `completed` or `partial`
+ * verdict is kept, because it can see the activity's analysis and comments, and
+ * a coach that only said `planned` is overruled by the recorded duration
+ * compared with the planned session (with slack).
+ */
+export function todayCompletionStatus(
+  planned: Pick<WeekSession, "type" | "durationMinutes">,
+  activities: readonly RecordedEffort[],
+  coachStatus: WeekSessionStatus | undefined,
+): WeekSessionStatus {
+  if (activities.length === 0) {
+    return planned.type === "rest" ? "rest" : "planned";
+  }
+  if (coachStatus === "completed" || coachStatus === "partial") {
+    return coachStatus;
+  }
+  return completionStatus(planned, activities);
+}
+
+/**
  * Settles the week plan's past and present days from what actually happened.
  * The week is always an outline: a recorded activity settles the session's
  * status but does not replace its planned title, description, duration or
@@ -37,45 +98,13 @@ export function applyCompletedDays(
   manualActivities: readonly ManualActivityContext[] = [],
   todayPlan?: DayPlan,
 ): WeekPlan {
-  const allActivities: AnalyzedActivity[] = [
-    ...activities,
-    ...manualActivities.map((manual) => ({
-      id: manual.id,
-      name: manual.details,
-      type: "manual",
-      startDate: manual.startDate,
-      distance: 0,
-      movingTime: 0,
-      elapsedTime: 0,
-      totalElevationGain: 0,
-      samples: [],
-      sampleCount: 0,
-      analysis: null,
-      analysisError: null,
-      programAnalysis: null,
-      comment: null,
-      coachReply: null,
-    })),
-  ];
-
-  const activitiesByDate = new Map<string, AnalyzedActivity[]>();
-  for (const activity of allActivities) {
-    // A manual entry already carries the day the athlete entered; only a
-    // recorded activity has a UTC instant to read in the athlete's zone.
-    const date =
-      activity.type === "manual"
-        ? activity.startDate
-        : activityLocalDate(activity, timeZone);
-    const forDate = activitiesByDate.get(date);
-    if (forDate) {
-      forDate.push(activity);
-    } else {
-      activitiesByDate.set(date, [activity]);
-    }
-  }
-
   const sessions = week.sessions.map((session) => {
-    const dayActivities = activitiesByDate.get(session.date) ?? [];
+    const dayActivities = activitiesOnDate(
+      activities,
+      manualActivities,
+      timeZone,
+      session.date,
+    );
 
     if (session.date > today) {
       return {
@@ -111,24 +140,13 @@ export function applyCompletedDays(
   return { ...week, sessions };
 }
 
-/**
- * Settles today's completion status on the week's outline. The coach's
- * `partial` verdict is preserved; when it only says `planned`, fall back to
- * comparing the recorded activities with the planned session.
- */
+/** Settles today's completion status on the week's outline. */
 function settleTodaySession(
   session: WeekSession,
   activities: readonly AnalyzedActivity[],
   todayPlan: DayPlan | undefined,
 ): WeekSession {
-  const status: WeekSessionStatus =
-    todayPlan?.status === "completed" || todayPlan?.status === "partial"
-      ? todayPlan.status
-      : activities.length > 0
-        ? completionStatus(session, activities)
-        : session.type === "rest"
-          ? "rest"
-          : "planned";
+  const status = todayCompletionStatus(session, activities, todayPlan?.status);
 
   // A planned rest day keeps its outline unless the athlete trained anyway;
   // then the week shows a brief record of what was done instead.
@@ -165,7 +183,7 @@ function activityRecord(
  * Several activities on one day count together, because the day's session may
  * prescribe more than one.
  */
-export function completionStatus(
+function completionStatus(
   planned: Pick<WeekSession, "type" | "durationMinutes">,
   recorded: readonly RecordedEffort[],
 ): Extract<WeekSessionStatus, "completed" | "partial"> {

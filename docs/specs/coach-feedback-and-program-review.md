@@ -134,8 +134,12 @@ and the reply is null; the failure is logged.
   the coach does not criticise a two-hour hike recorded as 2:05 or suggest a
   shorter route to make up for it.
 - **Coach reply** (`coachReplyPrompt`): system prompt asks for a 1–2 sentence
-  reply that acknowledges the input, explains the effect on the plan, and states
-  what the coach will adjust. The user prompt contains the shared athlete and
+  reply that acknowledges the input and says whether it changes the training
+  plan and, if so, what the coach will adjust; when it does not, the reply says
+  the plan stands. The shared `REPLY_PLAN_CHANGE_RULES` fragment in
+  `promptRules.ts` owns that instruction, so the words the athlete reads agree
+  with the `planChangeNeeded` flag the same completion returns. The user prompt
+  contains the shared athlete and
   training context every plan prompt gets (profile, recent activities with their
   analyses and comments, manual activities, the weekly note, completed reviews,
   FTP and body histories), the current plan, the forecast stored on today's and

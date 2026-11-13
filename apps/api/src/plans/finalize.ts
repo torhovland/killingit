@@ -4,7 +4,7 @@ import type {
   DailyWeather,
   DayPlan,
 } from "@killingit/shared";
-import { activityLocalDate, addDays, startOfWeek } from "@killingit/shared";
+import { addDays, startOfWeek } from "@killingit/shared";
 import type { ManualActivityContext } from "../llm/activityContext.js";
 import { applyTrainingLoad } from "../training/load.js";
 import type { ThresholdTimeline } from "../training/thresholds.js";
@@ -14,7 +14,11 @@ import { calorieEstimateProblems } from "./calorieEstimates.js";
 import { syncDietProgressTargets } from "./dietProgress.js";
 import { outlineWeekPlans } from "./outline.js";
 import { blockFor, weekFor } from "./periods.js";
-import { applyCompletedDays, completionStatus } from "./week.js";
+import {
+  applyCompletedDays,
+  activitiesOnDate,
+  todayCompletionStatus,
+} from "./week.js";
 
 /**
  * Every step of the plan finalisation pipeline, in the order it runs.
@@ -176,52 +180,26 @@ function settleCompletedDays(
   };
 }
 
-interface CompletionActivity {
-  type: string;
-  elapsedTime: number;
-}
-
 /**
- * Every synced or manually recorded activity on `date`. A day can prescribe
- * more than one session, so completion is judged against all of them together.
- */
-function activitiesOn(
-  input: FinalizePlanInput,
-  date: string,
-): CompletionActivity[] {
-  const synced = input.activities
-    .filter((activity) => activityLocalDate(activity, input.timeZone) === date)
-    .map((activity) => ({
-      type: activity.type,
-      elapsedTime: activity.elapsedTime,
-    }));
-  // A manual entry already stores the athlete's chosen date.
-  const manual = input.manualActivities
-    .filter((activity) => activity.startDate === date)
-    .map(() => ({ type: "manual", elapsedTime: 0 }));
-  return [...synced, ...manual];
-}
-
-/**
- * Settles today's status from what was recorded. The coach's `partial` verdict
- * is kept because it can see the activity's analysis and comments; when it only
- * returns `planned`, compare the activity with the planned duration (with
- * slack). Without an activity, today cannot be completed.
+ * Settles today's status from what was recorded. The day and the week share one
+ * rule in `week.ts`, so both reach the same verdict from the same activities.
  */
 function deriveTodayStatus(day: DayPlan, input: FinalizePlanInput): DayPlan {
   if (day.date !== input.today) {
     return day;
   }
-  const activities = activitiesOn(input, input.today);
-  if (activities.length === 0) {
-    return { ...day, status: day.type === "rest" ? "rest" : "planned" };
-  }
-  if (day.status === "completed" || day.status === "partial") {
-    return day;
-  }
   return {
     ...day,
-    status: completionStatus(input.plannedToday ?? day, activities),
+    status: todayCompletionStatus(
+      input.plannedToday ?? day,
+      activitiesOnDate(
+        input.activities,
+        input.manualActivities,
+        input.timeZone,
+        input.today,
+      ),
+      day.status,
+    ),
   };
 }
 

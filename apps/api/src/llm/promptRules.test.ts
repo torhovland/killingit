@@ -14,6 +14,7 @@ import {
   DIET_PROGRESS_REPAIR_HINT,
   DIET_REPAIR_HINT,
   PLAN_CHANGE_FLAG_RULES,
+  REPLY_PLAN_CHANGE_RULES,
   DAY_CONTRACT,
   DIET_CONTRACT,
   DIET_PLANNING_RULES,
@@ -66,6 +67,21 @@ describe("PLAN_CHANGE_FLAG_RULES", () => {
     expect(COACH_REPLY_RESPONSE_RULES).toContain(PLAN_CHANGE_FLAG_RULES);
     expect(COACH_ANALYSIS_CONTRACT).toContain('"planChangeNeeded": false');
     expect(COACH_REPLY_CONTRACT).toContain('"planChangeNeeded": false');
+  });
+});
+
+describe("REPLY_PLAN_CHANGE_RULES", () => {
+  it("asks the reply to say whether the plan changes", () => {
+    expect(REPLY_PLAN_CHANGE_RULES).toContain(
+      "say whether this changes the training plan and, if so, what you will adjust",
+    );
+  });
+
+  it("keeps the reply consistent with the flag it sets", () => {
+    expect(REPLY_PLAN_CHANGE_RULES).toContain("say the plan stands");
+    expect(REPLY_PLAN_CHANGE_RULES).toContain(
+      'never promise an adjustment that "planChangeNeeded" says will not happen',
+    );
   });
 });
 

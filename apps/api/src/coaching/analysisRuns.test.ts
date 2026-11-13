@@ -9,26 +9,40 @@ function feed(text: string): ActivityFeed {
   return { model: text, activities: [] };
 }
 
-describe("shareActivityAnalysis", () => {
-  it("runs one analysis pass for overlapping requests", async () => {
-    let runs = 0;
-    let finish: (value: ActivityFeed) => void = () => undefined;
-    const running = new Promise<ActivityFeed>((resolve) => {
-      finish = resolve;
-    });
+const TODAY = "2026-11-13";
+const TOMORROW = "2026-11-14";
 
-    const first = shareActivityAnalysis(1, false, () => {
+function deferred(): {
+  promise: Promise<ActivityFeed>;
+  finish: (value: ActivityFeed) => void;
+  fail: (error: Error) => void;
+} {
+  let finish: (value: ActivityFeed) => void = () => undefined;
+  let fail: (error: Error) => void = () => undefined;
+  const promise = new Promise<ActivityFeed>((resolve, reject) => {
+    finish = resolve;
+    fail = reject;
+  });
+  return { promise, finish, fail };
+}
+
+describe("shareActivityAnalysis", () => {
+  it("runs one analysis pass for overlapping requests on the same day", async () => {
+    let runs = 0;
+    const running = deferred();
+
+    const first = shareActivityAnalysis(1, TODAY, false, () => {
       runs += 1;
-      return running;
+      return running.promise;
     });
-    const second = shareActivityAnalysis(1, false, () => {
+    const second = shareActivityAnalysis(1, TODAY, false, () => {
       runs += 1;
       return Promise.resolve(feed("second"));
     });
 
     expect(second).toBe(first);
     const shared = feed("shared");
-    finish(shared);
+    running.finish(shared);
 
     expect(await first).toBe(shared);
     expect(await second).toBe(shared);
@@ -36,10 +50,10 @@ describe("shareActivityAnalysis", () => {
   });
 
   it("keeps different accounts independent", async () => {
-    const first = await shareActivityAnalysis(1, false, () =>
+    const first = await shareActivityAnalysis(2, TODAY, false, () =>
       Promise.resolve(feed("one")),
     );
-    const second = await shareActivityAnalysis(2, false, () =>
+    const second = await shareActivityAnalysis(3, TODAY, false, () =>
       Promise.resolve(feed("two")),
     );
 
@@ -47,28 +61,58 @@ describe("shareActivityAnalysis", () => {
     expect(second.model).toBe("two");
   });
 
-  it("lets an explicit refresh start while an ordinary pass is running", async () => {
-    let finish: (value: ActivityFeed) => void = () => undefined;
-    const running = new Promise<ActivityFeed>((resolve) => {
-      finish = resolve;
+  it("waits for the running pass before an explicit refresh starts", async () => {
+    const order: string[] = [];
+    const running = deferred();
+
+    const ordinary = shareActivityAnalysis(4, TODAY, false, () => {
+      order.push("ordinary");
+      return running.promise;
+    });
+    const refreshed = shareActivityAnalysis(4, TODAY, true, () => {
+      order.push("refresh");
+      return Promise.resolve(feed("refreshed"));
     });
 
-    const ordinary = shareActivityAnalysis(1, false, () => running);
-    const refreshed = await shareActivityAnalysis(1, true, () =>
-      Promise.resolve(feed("refreshed")),
-    );
-
-    expect(refreshed.model).toBe("refreshed");
+    await Promise.resolve();
+    expect(order).toEqual(["ordinary"]);
 
     const original = feed("original");
-    finish(original);
+    running.finish(original);
+
     expect(await ordinary).toBe(original);
+    expect((await refreshed).model).toBe("refreshed");
+    expect(order).toEqual(["ordinary", "refresh"]);
+  });
+
+  it("does not share a pass computed for another day", async () => {
+    const order: string[] = [];
+    const running = deferred();
+
+    const today = shareActivityAnalysis(5, TODAY, false, () => {
+      order.push("today");
+      return running.promise;
+    });
+    const tomorrow = shareActivityAnalysis(5, TOMORROW, false, () => {
+      order.push("tomorrow");
+      return Promise.resolve(feed("tomorrow"));
+    });
+
+    await Promise.resolve();
+    expect(tomorrow).not.toBe(today);
+    expect(order).toEqual(["today"]);
+
+    running.finish(feed("today"));
+
+    expect((await today).model).toBe("today");
+    expect((await tomorrow).model).toBe("tomorrow");
+    expect(order).toEqual(["today", "tomorrow"]);
   });
 
   it("clears a failed pass so the next request can retry", async () => {
     let failed: unknown = null;
     try {
-      await shareActivityAnalysis(1, false, () =>
+      await shareActivityAnalysis(6, TODAY, false, () =>
         Promise.reject(new Error("analysis failed")),
       );
     } catch (err) {
@@ -77,37 +121,101 @@ describe("shareActivityAnalysis", () => {
     expect(failed).toBeInstanceOf(Error);
     expect((failed as Error).message).toBe("analysis failed");
 
-    const recovered = await shareActivityAnalysis(1, false, () =>
+    const recovered = await shareActivityAnalysis(6, TODAY, false, () =>
       Promise.resolve(feed("recovered")),
     );
     expect(recovered.model).toBe("recovered");
+  });
+
+  it("does not fail a chained refresh when the pass it follows fails", async () => {
+    const running = deferred();
+
+    const ordinary = shareActivityAnalysis(
+      7,
+      TODAY,
+      false,
+      () => running.promise,
+    );
+    const refreshed = shareActivityAnalysis(7, TODAY, true, () =>
+      Promise.resolve(feed("recovered")),
+    );
+
+    running.fail(new Error("analysis failed"));
+
+    let failed: unknown = null;
+    try {
+      await ordinary;
+    } catch (err) {
+      failed = err;
+    }
+    expect((failed as Error).message).toBe("analysis failed");
+    expect((await refreshed).model).toBe("recovered");
   });
 });
 
 describe("latestActivityAnalysisSince", () => {
   it("returns null when this account has not analysed anything", async () => {
-    expect(await latestActivityAnalysisSince(99, 0)).toBeNull();
+    expect(await latestActivityAnalysisSince(99, TODAY, 0)).toBeNull();
   });
 
-  it("waits for a pass that is still running", async () => {
-    let finish: (value: ActivityFeed) => void = () => undefined;
-    const running = new Promise<ActivityFeed>((resolve) => {
-      finish = resolve;
-    });
-    void shareActivityAnalysis(3, false, () => running);
+  it("waits for a pass for the same day that is still running", async () => {
+    const running = deferred();
+    void shareActivityAnalysis(10, TODAY, false, () => running.promise);
 
-    const waiting = latestActivityAnalysisSince(3, 0);
+    let settled = false;
+    const waiting = latestActivityAnalysisSince(10, TODAY, 0).then((value) => {
+      settled = true;
+      return value;
+    });
+
+    await Promise.resolve();
+    expect(settled).toBe(false);
+
     const shared = feed("finished");
-    finish(shared);
+    running.finish(shared);
 
     expect(await waiting).toBe(shared);
   });
 
+  it("does not wait for a pass computed for another day", async () => {
+    const running = deferred();
+    void shareActivityAnalysis(11, TODAY, false, () => running.promise);
+
+    let settled = false;
+    const waiting = latestActivityAnalysisSince(11, TOMORROW, 0).then(
+      (value) => {
+        settled = true;
+        return value;
+      },
+    );
+
+    await Promise.resolve();
+    expect(settled).toBe(true);
+    expect(await waiting).toBeNull();
+
+    running.finish(feed("today"));
+  });
+
   it("returns the most recent pass only when it finished after the snapshot", async () => {
     const before = Date.now();
-    await shareActivityAnalysis(4, false, () => Promise.resolve(feed("old")));
+    await shareActivityAnalysis(12, TODAY, false, () =>
+      Promise.resolve(feed("old")),
+    );
 
-    expect(await latestActivityAnalysisSince(4, before)).not.toBeNull();
-    expect(await latestActivityAnalysisSince(4, Date.now() + 1)).toBeNull();
+    expect(await latestActivityAnalysisSince(12, TODAY, before)).not.toBeNull();
+    expect(
+      await latestActivityAnalysisSince(12, TODAY, Date.now() + 1),
+    ).toBeNull();
+  });
+
+  it("returns a finished feed only for the day it was computed for", async () => {
+    await shareActivityAnalysis(13, TODAY, false, () =>
+      Promise.resolve(feed("today")),
+    );
+
+    expect((await latestActivityAnalysisSince(13, TODAY, 0))?.model).toBe(
+      "today",
+    );
+    expect(await latestActivityAnalysisSince(13, TOMORROW, 0)).toBeNull();
   });
 });

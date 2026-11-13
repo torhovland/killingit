@@ -31,13 +31,12 @@ function inMemoryStores(initial: StoredPlan | null): InMemoryStores {
   let stored = initial;
   const plans: PlanStore = {
     load: () => Promise.resolve(stored),
-    save: (
-      _userId,
+    save: ({
       plan,
       answersUpdatedAt,
       coachingInputsUpdatedAt,
       activitiesUpdatedAt,
-    ) => {
+    }) => {
       stored = {
         plan,
         answersUpdatedAt,

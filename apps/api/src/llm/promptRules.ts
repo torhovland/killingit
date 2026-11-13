@@ -397,6 +397,13 @@ export const JSON_ONLY_RULES = `Do not add markdown fences, headings, explanatio
 export const PLAN_CHANGE_FLAG_RULES = `Also decide whether this changes the training plan, and set "planChangeNeeded" accordingly. Set it to false when the plan already covers what you read: a workout that matched its prescription, praise or thanks, a question, context about a past session, or a feeling the plan already accounts for. Set it to true only when what you read changes what you would prescribe in the remaining season, block, week, today or tomorrow, for example a new constraint or commitment, an illness or injury, a recovery signal that should ease the load, a performance result that resets the targets, or a newly stated goal or event. The flag is a decision for you to make, not a report of whether the athlete asked for a change.`;
 
 /**
+ * How a coach reply reports the plan decision it just made. The reply and
+ * `planChangeNeeded` come from the same completion, so the athlete must hear
+ * the same answer in both: a change that is coming, or a plan that stands.
+ */
+export const REPLY_PLAN_CHANGE_RULES = `In the reply, say whether this changes the training plan and, if so, what you will adjust. When it does not change the plan, say the plan stands; never promise an adjustment that "planChangeNeeded" says will not happen.`;
+
+/**
  * The two notes fields every structured coach response carries. The
  * clarification question is shown to the athlete; model remarks are reviewed
  * by the admin.

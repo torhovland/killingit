@@ -11,7 +11,7 @@ import {
 
 describe("planPending", () => {
   it("marks every level when there is no plan", () => {
-    expect(planPending(null, "2026-10-21")).toEqual({
+    expect(planPending({ plan: null, today: "2026-10-21" })).toEqual({
       initial: true,
       day: true,
       week: true,
@@ -24,7 +24,7 @@ describe("planPending", () => {
   });
 
   it("marks nothing when the plan covers today", () => {
-    expect(planPending(makePlan(), "2026-10-21")).toEqual({
+    expect(planPending({ plan: makePlan(), today: "2026-10-21" })).toEqual({
       initial: false,
       day: false,
       week: false,
@@ -39,7 +39,7 @@ describe("planPending", () => {
   it("marks the day and week pending when a calorie target is implausibly low", () => {
     const plan = makePlan();
     plan.today = { ...plan.today, estimatedCaloriesKcal: 480 };
-    expect(planPending(plan, "2026-10-21")).toMatchObject({
+    expect(planPending({ plan, today: "2026-10-21" })).toMatchObject({
       day: true,
       week: true,
       block: false,
@@ -47,7 +47,13 @@ describe("planPending", () => {
   });
 
   it("marks the block pending when a new week review has arrived", () => {
-    expect(planPending(makePlan(), "2026-10-21", false, false, true)).toEqual({
+    expect(
+      planPending({
+        plan: makePlan(),
+        today: "2026-10-21",
+        weekReviewPending: true,
+      }),
+    ).toEqual({
       initial: false,
       day: false,
       week: false,
@@ -60,7 +66,13 @@ describe("planPending", () => {
   });
 
   it("marks tomorrow when requested and it is missing", () => {
-    expect(planPending(makePlan(), "2026-10-21", true)).toEqual({
+    expect(
+      planPending({
+        plan: makePlan(),
+        today: "2026-10-21",
+        includeTomorrow: true,
+      }),
+    ).toEqual({
       initial: false,
       day: false,
       week: false,
@@ -88,11 +100,14 @@ describe("planPending", () => {
         "This easy run keeps the week consistent; skip it only if you feel unusually tired.",
       status: "planned",
     };
-    expect(planPending(plan, "2026-10-21", true).tomorrow).toBe(false);
+    expect(
+      planPending({ plan, today: "2026-10-21", includeTomorrow: true })
+        .tomorrow,
+    ).toBe(false);
   });
 
   it("marks the day and week when the date moves on", () => {
-    expect(planPending(makePlan(), "2026-10-22")).toEqual({
+    expect(planPending({ plan: makePlan(), today: "2026-10-22" })).toEqual({
       initial: false,
       day: true,
       week: false,
@@ -102,7 +117,7 @@ describe("planPending", () => {
       nextBlock: false,
       dietProgress: false,
     });
-    expect(planPending(makePlan(), "2026-10-26")).toEqual({
+    expect(planPending({ plan: makePlan(), today: "2026-10-26" })).toEqual({
       initial: false,
       day: true,
       week: true,
@@ -115,14 +130,20 @@ describe("planPending", () => {
   });
 
   it("marks the week pending when the weather forecast changed", () => {
-    expect(planPending(makePlan(), "2026-10-21", false, true).week).toBe(true);
+    expect(
+      planPending({
+        plan: makePlan(),
+        today: "2026-10-21",
+        weatherChanged: true,
+      }).week,
+    ).toBe(true);
   });
 
   it("marks the week pending when today's result is not on the week", () => {
     const plan = makePlan();
     plan.today = { ...plan.today, status: "completed" };
 
-    expect(planPending(plan, "2026-10-21").week).toBe(true);
+    expect(planPending({ plan, today: "2026-10-21" }).week).toBe(true);
   });
 
   it("does not mark the week pending when today's result matches", () => {
@@ -137,11 +158,11 @@ describe("planPending", () => {
       ),
     };
 
-    expect(planPending(plan, "2026-10-21").week).toBe(false);
+    expect(planPending({ plan, today: "2026-10-21" }).week).toBe(false);
   });
 
   it("marks the block when today is outside its range", () => {
-    expect(planPending(makePlan(), "2026-12-02")).toEqual({
+    expect(planPending({ plan: makePlan(), today: "2026-12-02" })).toEqual({
       initial: false,
       day: true,
       week: true,
@@ -158,7 +179,9 @@ describe("planPending", () => {
     plan.block = { ...plan.block, endDate: "2026-10-25" };
     plan.today = { ...plan.today, date: "2026-10-25" };
 
-    expect(planPending(plan, "2026-10-25", true)).toEqual({
+    expect(
+      planPending({ plan, today: "2026-10-25", includeTomorrow: true }),
+    ).toEqual({
       initial: false,
       day: false,
       week: false,
@@ -187,7 +210,7 @@ describe("planPending", () => {
     };
 
     expect(
-      planPending(plan, "2026-10-21", false, false, false, true).dietProgress,
+      planPending({ plan, today: "2026-10-21", dietAdvice: true }).dietProgress,
     ).toBe(true);
   });
 
@@ -216,13 +239,13 @@ describe("planPending", () => {
     plan.week = { ...plan.week, dietProgress: progress };
 
     expect(
-      planPending(plan, "2026-10-21", false, false, false, true).dietProgress,
+      planPending({ plan, today: "2026-10-21", dietAdvice: true }).dietProgress,
     ).toBe(false);
   });
 
   it("requests one progress refresh for an older plan with no stored goal", () => {
     expect(
-      planPending(makePlan(), "2026-10-21", false, false, false, true)
+      planPending({ plan: makePlan(), today: "2026-10-21", dietAdvice: true })
         .dietProgress,
     ).toBe(true);
   });
@@ -255,7 +278,7 @@ describe("planPending", () => {
     plan.week = { ...plan.week, dietProgress: progress };
 
     expect(
-      planPending(plan, "2026-10-21", false, false, false, true).dietProgress,
+      planPending({ plan, today: "2026-10-21", dietAdvice: true }).dietProgress,
     ).toBe(true);
   });
 
@@ -284,7 +307,7 @@ describe("planPending", () => {
     plan.week = { ...plan.week, dietProgress: progress };
 
     expect(
-      planPending(plan, "2026-10-21", false, false, false, true).dietProgress,
+      planPending({ plan, today: "2026-10-21", dietAdvice: true }).dietProgress,
     ).toBe(true);
   });
 
@@ -297,10 +320,11 @@ describe("planPending", () => {
     };
 
     expect(
-      planPending(plan, "2026-10-21", false, false, false, true).dietProgress,
+      planPending({ plan, today: "2026-10-21", dietAdvice: true }).dietProgress,
     ).toBe(false);
     expect(
-      planPending(plan, "2026-10-21", false, false, false, false).dietProgress,
+      planPending({ plan, today: "2026-10-21", dietAdvice: false })
+        .dietProgress,
     ).toBe(false);
   });
 
@@ -334,7 +358,9 @@ describe("planPending", () => {
       endDate: "2026-12-06",
     };
 
-    expect(planPending(plan, "2026-10-25", true)).toEqual({
+    expect(
+      planPending({ plan, today: "2026-10-25", includeTomorrow: true }),
+    ).toEqual({
       initial: false,
       day: false,
       week: false,

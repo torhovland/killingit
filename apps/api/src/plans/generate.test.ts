@@ -37,6 +37,7 @@ import type { PlanGenerationStep } from "./steps.js";
 import {
   idleGenerationStatus,
   type PlanGenerationStore,
+  type PlanSaveInput,
   type PlanStore,
   type StoredPlan,
 } from "./store.js";
@@ -291,13 +292,12 @@ class MemoryPlanStore implements PlanStore {
     return Promise.resolve(this.saved);
   }
 
-  save(
-    _userId: number,
-    plan: CoachPlan,
-    answersUpdatedAt: Date | null,
-    coachingInputsUpdatedAt: Date | null = null,
-    activitiesUpdatedAt: Date | null = null,
-  ): Promise<StoredPlan> {
+  save({
+    plan,
+    answersUpdatedAt,
+    coachingInputsUpdatedAt = null,
+    activitiesUpdatedAt = null,
+  }: PlanSaveInput): Promise<StoredPlan> {
     this.saved = {
       plan,
       answersUpdatedAt,
@@ -2009,7 +2009,9 @@ describe("runPlanGeneration", () => {
     expect(provider.calls).toEqual(["plan-update"]);
     expect(saved?.plan.nextWeek?.startDate).toBe("2026-10-26");
     expect(saved?.plan.tomorrow?.date).toBe("2026-10-26");
-    expect(planPending(saved!.plan, today, true).tomorrow).toBe(false);
+    expect(
+      planPending({ plan: saved!.plan, today, includeTomorrow: true }).tomorrow,
+    ).toBe(false);
     expect(generations.status.status).toBe("done");
   });
 
