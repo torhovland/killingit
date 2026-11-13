@@ -29,6 +29,7 @@ import {
 import {
   planFtpEstimates,
   runPlanGeneration,
+  type GeneratePlanInput,
   type PlanGenerationContext,
 } from "./generate.js";
 import { planPending } from "./status.js";
@@ -956,6 +957,60 @@ describe("runPlanGeneration", () => {
     expect(saved?.plan.block.startDate).toBe("2026-10-21");
     expect(saved?.plan.block.focus).toBe(
       "Aerobic endurance with a recovery week",
+    );
+  });
+
+  it("threads a captured review into the run without mutating the caller", async () => {
+    const provider = new FakeProvider({
+      planUpdate: makeUpdate("2026-10-21"),
+    });
+    const existing = makeStoredPlan(
+      makePlan("2026-10-21"),
+      new Date("2026-10-20T10:00:00Z"),
+      new Date("2026-10-20T10:00:00Z"),
+    );
+    const plans = new MemoryPlanStore(existing);
+    const generations = new MemoryGenerationStore();
+    const context = makeContext(
+      provider,
+      new Date("2026-10-20T10:00:00Z"),
+      new Date("2026-10-20T10:00:00Z"),
+    );
+    const reviewUpdatedAt = new Date("2026-10-21T08:00:00Z");
+    const input: GeneratePlanInput = {
+      userId: 1,
+      runId: "run-1",
+      today: "2026-10-21",
+      plan: existing,
+      context,
+      plans,
+      generations,
+      capturePeriodReviews: () =>
+        Promise.resolve([
+          {
+            kind: "week" as const,
+            title: "Week starting 2026-10-12",
+            startDate: "2026-10-12",
+            endDate: "2026-10-18",
+            summary: "The week was consistent; the long run was hard.",
+            comment: null,
+            reply: null,
+            updatedAt: reviewUpdatedAt.toISOString(),
+          },
+        ]),
+    };
+
+    const saved = await runPlanGeneration(input);
+
+    // The review reached the run that used it...
+    expect(provider.calls).toEqual(["plan-update"]);
+    expect(saved?.coachingInputsUpdatedAt).toEqual(reviewUpdatedAt);
+    // ...without rewriting the caller's input.
+    expect(input.context).toBe(context);
+    expect(input.context.periodReviews).toBeUndefined();
+    expect(input.context.weekReviewUpdatedAt).toBeUndefined();
+    expect(input.context.coachingInputsUpdatedAt).toEqual(
+      new Date("2026-10-20T10:00:00Z"),
     );
   });
 
