@@ -72,8 +72,8 @@ export function getAthlete(c: Context): AthleteIdentity {
  * {@link requireAuth}, which is where the subject comes from.
  *
  * Provisioning happens here, once per request, so no handler creates the
- * account itself. The first account in an environment becomes the admin
- * (ADR 0006).
+ * account itself. The account is an admin only when its subject matches
+ * `ADMIN_AUTH_SUBJECT` (ADR 0006).
  *
  * A database failure while resolving the account is an infrastructure failure,
  * not a denial: log it and return 503.

@@ -246,6 +246,7 @@ jobs:
             --set-env-vars "SENTRY_RELEASE=${{ env.DEPLOY_SHA }}" \
             --set-env-vars "AUTH0_ISSUER=${{ vars.AUTH0_ISSUER }}" \
             --set-env-vars "AUTH0_AUDIENCE=${{ vars.AUTH0_AUDIENCE }}" \
+            --set-env-vars "ADMIN_AUTH_SUBJECT=${{ secrets.TEST_ADMIN_AUTH_SUBJECT }}" \
             --set-env-vars "GARMIN_SIDECAR_URL=${{ steps.garmin.outputs.url }}" \
             --set-env-vars "GARMIN_SIDECAR_AUDIENCE=${{ steps.garmin.outputs.url }}" \
             --set-env-vars "GARMIN_CREDENTIALS_KEY=${{ secrets.TEST_GARMIN_CREDENTIALS_KEY }}" \
@@ -368,6 +369,7 @@ jobs:
             --set-env-vars "SENTRY_RELEASE=${{ env.DEPLOY_SHA }}" \
             --set-env-vars "AUTH0_ISSUER=${{ vars.AUTH0_ISSUER }}" \
             --set-env-vars "AUTH0_AUDIENCE=${{ vars.AUTH0_AUDIENCE }}" \
+            --set-env-vars "ADMIN_AUTH_SUBJECT=${{ secrets.PROD_ADMIN_AUTH_SUBJECT }}" \
             --set-env-vars "GARMIN_SIDECAR_URL=${{ steps.garmin.outputs.url }}" \
             --set-env-vars "GARMIN_SIDECAR_AUDIENCE=${{ steps.garmin.outputs.url }}" \
             --set-env-vars "GARMIN_CREDENTIALS_KEY=${{ secrets.PROD_GARMIN_CREDENTIALS_KEY }}" \

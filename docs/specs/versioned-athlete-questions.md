@@ -38,8 +38,8 @@ question wording changes.
 - Answer types other than free text (choice, numeric, scale, …). A new type is
   an additive column/field on the version row.
 - Restoring archived questions or a version-history UI.
-- Admin management UI (invite/promote/demote). The role exists (ADR 0006); only
-  the first account is an admin for now.
+- Admin management UI (invite/promote/demote). The role exists (ADR 0006); the
+  account matching `ADMIN_AUTH_SUBJECT` is the admin.
 
 ## Acceptance criteria
 

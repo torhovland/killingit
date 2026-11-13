@@ -541,9 +541,13 @@ OAuth 2.0** connections.
 Regardless of provider, the Strava/Garmin connections must also grant the data
 scopes we need to pull training data — not just identity.
 
-Application roles live in the `users` table, not in provider tokens. The first
-account provisioned in an environment is the admin; later accounts are members.
-Only the admin can manage athlete questions (see ADR 0006).
+Application roles live in the `users` table, not in provider tokens. The admin
+is provisioned explicitly: the account whose auth subject matches the API's
+`ADMIN_AUTH_SUBJECT` environment variable is the admin when it signs in, and
+every other account is a member. No account is promoted implicitly — not the
+first sign-in, and not the earliest member after the admin deletes their
+account. An environment with the variable unset has no admin. Only the admin can
+manage athlete questions (see ADR 0006).
 
 Authentication is default-on for `/api/*`: `createApp` runs `requireAuth` once
 on the whole namespace and allows only the exact paths in `PUBLIC_API_PATHS`

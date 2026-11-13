@@ -15,6 +15,7 @@ import {
   coachPlans,
   coachingSurveyAdjustments,
   foodEntries,
+  users,
 } from "../src/db/schema.js";
 import {
   loadMetricPoints,
@@ -123,6 +124,9 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
+  // Every test starts with no configured administrator, so a test that grants
+  // one cannot leak the setting into the next test.
+  delete process.env.ADMIN_AUTH_SUBJECT;
   await truncateAllTables();
 });
 
@@ -157,13 +161,55 @@ describe("migrations", () => {
 });
 
 describe("dbUserStore", () => {
-  it("provisions the first account as admin and the next as a member", async () => {
-    const admin = await dbUserStore.ensureUser("auth0|first-athlete");
-    const member = await dbUserStore.ensureUser("auth0|second-athlete");
+  it("provisions every account as a member when no administrator is configured", async () => {
+    const first = await dbUserStore.ensureUser("auth0|first-athlete");
+    const second = await dbUserStore.ensureUser("auth0|second-athlete");
 
-    expect(admin.role).toBe("admin");
-    expect(member.role).toBe("member");
+    expect(first.role).toBe("member");
+    expect(second.role).toBe("member");
     expect(await countRows("users")).toBe(2);
+  });
+
+  it("provisions only the configured auth subject as the administrator", async () => {
+    process.env.ADMIN_AUTH_SUBJECT = "auth0|owner";
+
+    const athlete = await dbUserStore.ensureUser("auth0|athlete");
+    const owner = await dbUserStore.ensureUser("auth0|owner");
+    const later = await dbUserStore.ensureUser("auth0|later-athlete");
+
+    expect(athlete.role).toBe("member");
+    expect(owner.role).toBe("admin");
+    expect(later.role).toBe("member");
+    expect(await countRows("users")).toBe(3);
+  });
+
+  it("promotes an existing member only when its subject is configured", async () => {
+    const account = await dbUserStore.ensureUser("auth0|owner");
+    expect(account.role).toBe("member");
+
+    process.env.ADMIN_AUTH_SUBJECT = "auth0|owner";
+    const promoted = await dbUserStore.ensureUser("auth0|owner");
+
+    expect(promoted.role).toBe("admin");
+    expect(await countRows("users")).toBe(1);
+  });
+
+  it("never promotes the earliest member after the administrator is deleted", async () => {
+    process.env.ADMIN_AUTH_SUBJECT = "auth0|owner";
+    const admin = await dbUserStore.ensureUser("auth0|owner");
+    const member = await dbUserStore.ensureUser("auth0|member-athlete");
+    expect(admin.role).toBe("admin");
+
+    await dbUserStore.deleteUser(admin.sub);
+
+    const returningMember = await dbUserStore.ensureUser(member.sub);
+    const newcomer = await dbUserStore.ensureUser("auth0|newcomer");
+
+    expect(returningMember.role).toBe("member");
+    expect(newcomer.role).toBe("member");
+    const stored = await db.select({ role: users.role }).from(users);
+    expect(stored.some((row) => row.role === "admin")).toBe(false);
+    expect(stored).toHaveLength(2);
   });
 
   it("removes every row the account owns when it is deleted", async () => {

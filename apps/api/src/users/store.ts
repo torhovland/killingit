@@ -2,6 +2,7 @@ import type { AthleteLocation, UserRole } from "@killingit/shared";
 import { eq, sql } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { users, type UserRow } from "../db/schema.js";
+import { configuredAdminSubject } from "./adminSubject.js";
 
 /** An application account with its authorisation role. */
 export interface StoredUser {
@@ -43,15 +44,14 @@ export interface UserStore {
 }
 
 export interface ProvisioningPlan {
-  /** Whether the earliest existing account should be promoted to admin. */
-  promoteEarliest: boolean;
   /** Role assigned to the account being provisioned. */
   role: UserRole;
 }
 
 /**
- * Arbitrary transaction-scoped advisory lock key that serialises first-user
- * provisioning, so two concurrent first sign-ins cannot both become admin.
+ * Arbitrary transaction-scoped advisory lock key that serialises first-time
+ * provisioning of a subject, so two concurrent first sign-ins cannot both
+ * insert the same account.
  */
 const PROVISION_LOCK_KEY = 4_221_001;
 
@@ -96,21 +96,50 @@ async function findUserBySub(sub: string): Promise<StoredUser | null> {
 }
 
 /**
+ * Applies the provisioning plan to an account that already exists. Promotion
+ * requires the account's subject to be the configured administrator; an
+ * existing member is never promoted merely because the environment has no
+ * admin.
+ */
+async function applyProvisioningPlan(
+  user: StoredUser,
+  plan: ProvisioningPlan,
+): Promise<StoredUser> {
+  if (plan.role !== "admin" || user.role === "admin") {
+    return user;
+  }
+
+  const [promoted] = await db
+    .update(users)
+    .set({ role: "admin", updatedAt: new Date() })
+    .where(eq(users.id, user.id))
+    .returning();
+  if (!promoted) {
+    throw new Error("failed to promote the configured administrator");
+  }
+  return toStoredUser(promoted);
+}
+
+/**
  * PostgreSQL-backed account store. `ensureUser` is idempotent: repeated calls
  * for the same subject return the same row.
  *
- * A database that predates roles is repaired on the next provisioning: if any
- * accounts exist but none is an admin, the earliest account is promoted. New
- * environments get their admin from the first account inserted.
+ * The admin role is never granted implicitly. A new account is an admin only
+ * when its subject matches `ADMIN_AUTH_SUBJECT`; every other account is a
+ * member, even in an empty database or when no admin exists. An account already
+ * stored as a member is promoted when its subject is configured, which is how
+ * the operator grants the role to an account that signed in first.
  */
 export const dbUserStore: UserStore = {
   async ensureUser(sub) {
+    const plan = planUserProvisioning(sub, configuredAdminSubject());
+
     const existing = await findUserBySub(sub);
     if (existing) {
-      return existing;
+      return applyProvisioningPlan(existing, plan);
     }
 
-    return db.transaction(async (tx) => {
+    const created = await db.transaction(async (tx) => {
       await tx.execute(
         sql`select pg_advisory_xact_lock(${PROVISION_LOCK_KEY})`,
       );
@@ -125,34 +154,19 @@ export const dbUserStore: UserStore = {
         return toStoredUser(raced);
       }
 
-      const [earliest] = await tx
-        .select({ id: users.id })
-        .from(users)
-        .orderBy(users.id)
-        .limit(1);
-      const [admin] = await tx
-        .select({ id: users.id })
-        .from(users)
-        .where(eq(users.role, "admin"))
-        .limit(1);
-
-      const plan = planUserProvisioning(earliest ? 1 : 0, Boolean(admin));
-      if (plan.promoteEarliest && earliest) {
-        await tx
-          .update(users)
-          .set({ role: "admin", updatedAt: new Date() })
-          .where(eq(users.id, earliest.id));
-      }
-
-      const [created] = await tx
+      const [inserted] = await tx
         .insert(users)
         .values({ authSubject: sub, role: plan.role })
         .returning();
-      if (!created) {
+      if (!inserted) {
         throw new Error("failed to create user");
       }
-      return toStoredUser(created);
+      return toStoredUser(inserted);
     });
+
+    // Covers the race above: the account may have been inserted as a member by
+    // another request before this one observed it.
+    return applyProvisioningPlan(created, plan);
   },
 
   async getById(id) {
@@ -193,17 +207,15 @@ export const dbUserStore: UserStore = {
 };
 
 /**
- * Bootstrap rule for one provisioning pass: the first account in an empty
- * database is the admin; otherwise the new account is a member and, if the
- * database predates roles and has no admin, the earliest account is promoted.
- * Pure so the rule is testable without Postgres.
+ * Bootstrap rule for one provisioning pass: the configured administrator's
+ * auth subject becomes admin, and every other account is a member. Pure so the
+ * rule is testable without Postgres (ADR 0006).
  */
 export function planUserProvisioning(
-  existingUserCount: number,
-  hasAdmin: boolean,
+  sub: string,
+  adminSubject: string | null,
 ): ProvisioningPlan {
-  if (existingUserCount === 0) {
-    return { promoteEarliest: false, role: "admin" };
-  }
-  return { promoteEarliest: !hasAdmin, role: "member" };
+  return {
+    role: adminSubject !== null && sub === adminSubject ? "admin" : "member",
+  };
 }
