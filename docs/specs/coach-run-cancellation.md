@@ -55,6 +55,37 @@ The in-process `AbortController` map only reaches the instance handling the old
 request. The database run id is the cross-instance fence: an old run on another
 instance notices at its next check and stops before writing.
 
+## Process-local state
+
+Every map the run guarantee relies on lives in one process, so the bounds below
+make memory predictable without turning any of them into a cross-instance lock.
+On Cloud Run, where several instances may serve the same account, two instances
+can each debounce a trigger or run an activity-analysis pass; a model-catalog
+refresh is still gated by its sync row. The database run id still stops every
+stale write.
+
+- `activeRuns` (`apps/api/src/plans/runs.ts`) keeps one entry per live run. A
+  newer run replaces it, a settled run releases it, and a run whose generation
+  row could not be claimed is released before the trigger throws, so the map is
+  bounded by the runs in flight.
+- `pendingStarts` (`apps/api/src/plans/trigger.ts`) only holds triggers waiting
+  for their debounce timer, and the timer removes its own entry.
+- `lastTriggerAt` is a `RecentTimestampMap` that prunes every time outside the
+  current debounce window, so it holds only the accounts triggered inside that
+  window instead of every account that ever generated a plan.
+- `reportedInvalidPlans` (`apps/api/src/plans/store.ts`) keeps the newest 256
+  user-and-save-time keys. A corrupt row that is still read after its key was
+  evicted is reported once more, which trades bounded repeat logging for bounded
+  memory.
+- `completedAnalyses` (`apps/api/src/coaching/analysisRuns.ts`) keeps one
+  finished feed for each of the 32 most recently used accounts. `activeAnalyses`
+  removes an entry when its pass settles. Reading a finished feed refreshes its
+  account, so a plan that is waiting on the same athlete day keeps its feed while
+  other accounts are evicted.
+- The model-catalog refresh handle (`apps/api/src/llm/modelCatalog.ts`) is a
+  single in-flight promise that is cleared when it settles, so a page visit joins
+  one refresh per instance rather than accumulating handles.
+
 ## Reply batching
 
 `replyToUnansweredActivityComments` loads every activity comment without a
@@ -95,3 +126,6 @@ reply phase so comments left waiting by a superseded run still get answered.
 - Deleting an activity still refreshes the plan. Saving a manual activity or a
   weekly note refreshes it when the coach's reply judges the input changes the
   plan, and a newer save supersedes that refresh.
+- A corrupt plan is still reported once while it is read repeatedly, and the
+  report set, trigger times and finished feeds stay within their documented
+  bounds.

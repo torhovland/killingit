@@ -60,3 +60,10 @@ run could still save its plan or mark the newer run done.
   store them.
 - The plan save is now a short transaction that locks the user's generation row.
   The extra query is negligible compared with a plan completion.
+- The in-process maps are bounded and process-local. The run registry holds only
+  live runs, the trigger debounce remembers times inside the current window,
+  corrupt-plan reports keep the newest 256 keys, and finished activity feeds keep
+  the 32 most recently used accounts. The database run id remains the only
+  cross-instance fence: a second instance may repeat a debounce window or an
+  activity-analysis pass, but it cannot write a superseded run's result. See
+  `docs/specs/coach-run-cancellation.md`.

@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import type { ActivityFeed } from "./activities.js";
 import {
   latestActivityAnalysisSince,
+  MAX_COMPLETED_ANALYSES,
   shareActivityAnalysis,
 } from "./analysisRuns.js";
 
@@ -217,5 +218,47 @@ describe("latestActivityAnalysisSince", () => {
       "today",
     );
     expect(await latestActivityAnalysisSince(13, TOMORROW, 0)).toBeNull();
+  });
+
+  it("keeps a used feed while the oldest other accounts are evicted", async () => {
+    const keptUser = 500;
+    const otherUsers = Array.from(
+      { length: MAX_COMPLETED_ANALYSES - 1 },
+      (_, index) => 501 + index,
+    );
+    const oldestOther = otherUsers[0];
+    const newestOther = otherUsers[otherUsers.length - 1];
+    if (oldestOther === undefined || newestOther === undefined) {
+      throw new Error("expected at least one other account");
+    }
+
+    await shareActivityAnalysis(keptUser, TODAY, false, () =>
+      Promise.resolve(feed("kept")),
+    );
+    for (const userId of otherUsers) {
+      await shareActivityAnalysis(userId, TODAY, false, () =>
+        Promise.resolve(feed(`other-${userId}`)),
+      );
+    }
+
+    // Reading the kept feed makes its account the most recently used, so the
+    // entry that is evicted when another account finishes is an untouched one.
+    expect((await latestActivityAnalysisSince(keptUser, TODAY, 0))?.model).toBe(
+      "kept",
+    );
+    await shareActivityAnalysis(900, TODAY, false, () =>
+      Promise.resolve(feed("new")),
+    );
+
+    expect((await latestActivityAnalysisSince(keptUser, TODAY, 0))?.model).toBe(
+      "kept",
+    );
+    expect(
+      (await latestActivityAnalysisSince(newestOther, TODAY, 0))?.model,
+    ).toBe(`other-${newestOther}`);
+    expect(await latestActivityAnalysisSince(oldestOther, TODAY, 0)).toBeNull();
+    expect((await latestActivityAnalysisSince(900, TODAY, 0))?.model).toBe(
+      "new",
+    );
   });
 });

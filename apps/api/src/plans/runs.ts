@@ -5,9 +5,11 @@ interface ActiveRun {
 }
 
 /**
- * Only the newest run for a user may keep working. The map is process-local;
- * the run id stored on `plan_generations` is the cross-instance fence, so an
- * old run on another instance still stops before it writes.
+ * Only the newest run for a user may keep working. An entry exists only while
+ * that run is live: starting a new run replaces it and a settled run releases
+ * it, so the map is bounded by the runs in flight on this instance. It is
+ * process-local; the run id stored on `plan_generations` is the cross-instance
+ * fence, so an old run on another instance still stops before it writes.
  */
 const activeRuns = new Map<number, ActiveRun>();
 

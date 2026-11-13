@@ -132,6 +132,13 @@ class RecordingGenerationStore implements PlanGenerationStore {
   }
 }
 
+/** A generation store whose run claim fails before any background work starts. */
+class FailingBeginStore extends RecordingGenerationStore {
+  override begin(): Promise<void> {
+    return Promise.reject(new Error("database unavailable"));
+  }
+}
+
 const plans: PlanStore = {
   load: () => Promise.resolve(null),
   save: () => Promise.resolve(null),
@@ -190,5 +197,21 @@ describe("plan generation failure handling", () => {
     expect(generations.status.status).toBe("error");
     expect(generations.status.error).toBe("diet read failed");
     expect(generations.failures).toEqual(["diet read failed"]);
+  });
+
+  it("propagates a failed run claim without starting a run", async () => {
+    const generations = new FailingBeginStore();
+    const deps = dependencies(generations, () => Promise.resolve(null));
+
+    let failed: unknown = null;
+    try {
+      await triggerPlanGeneration(deps, { userId: 242, today: "2026-11-12" });
+    } catch (err) {
+      failed = err;
+    }
+    await settle();
+
+    expect((failed as Error).message).toBe("database unavailable");
+    expect(generations.failures).toEqual([]);
   });
 });

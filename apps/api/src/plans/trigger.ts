@@ -38,6 +38,7 @@ import {
   type WeatherForecastSet,
 } from "../weather/forecast.js";
 import { ftpHistoryPoints } from "../training/thresholds.js";
+import { RecentTimestampMap } from "../lib/boundedMap.js";
 import { isAfterPlanTomorrowCutoff } from "./dates.js";
 import {
   clearPendingCoachQuestions,
@@ -132,8 +133,21 @@ interface PendingPlanStart {
   options: PlanRunOptions;
 }
 
+/**
+ * Triggers waiting for their debounce window to close. A timer removes its own
+ * entry, and a newer trigger replaces an older one, so the map only holds
+ * accounts triggered inside the current window. It is process-local: a second
+ * instance debounces its own requests but shares the database run fence.
+ */
 const pendingStarts = new Map<number, PendingPlanStart>();
-const lastTriggerAt = new Map<number, number>();
+
+/**
+ * The last trigger time per account, pruned to the current debounce window.
+ * An older time cannot affect a wait calculation, so it is dropped instead of
+ * kept for every account that ever generated a plan. Process-local: on
+ * scale-out each instance debounces the requests it happens to receive.
+ */
+const lastTriggerAt = new RecentTimestampMap();
 
 /**
  * Starts a plan generation in the background. The newest request always owns
@@ -144,7 +158,14 @@ export async function triggerPlanGeneration(
   options: PlanRunOptions,
 ): Promise<boolean> {
   const run = claimRun(options.userId);
-  await deps.generations.begin(options.userId, run.runId);
+  try {
+    await deps.generations.begin(options.userId, run.runId);
+  } catch (err) {
+    // The claim must not outlive a run that never started, or the registry
+    // would keep one entry per account whose begin failed.
+    releaseRun(options.userId, run.runId);
+    throw err;
+  }
 
   const pending = pendingStarts.get(options.userId);
   if (pending !== undefined) {
@@ -153,13 +174,12 @@ export async function triggerPlanGeneration(
   }
 
   const now = Date.now();
-  const previousAt = lastTriggerAt.get(options.userId) ?? null;
-  lastTriggerAt.set(options.userId, now);
   const explicit =
     options.mode === "newSeason" ||
     options.mode === "updateSeason" ||
     options.force === true;
   const debounceMs = deps.planTriggerDebounceMs ?? PLAN_TRIGGER_DEBOUNCE_MS;
+  const previousAt = lastTriggerAt.record(options.userId, now, debounceMs);
   const waitMs =
     explicit || previousAt === null
       ? 0

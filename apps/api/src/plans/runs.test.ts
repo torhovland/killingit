@@ -21,4 +21,14 @@ describe("coach runs", () => {
     expect(second.signal.aborted).toBe(false);
     releaseRun(2, second.runId);
   });
+
+  it("forgets a released run so the registry only holds live runs", () => {
+    const first = claimRun(3);
+    releaseRun(3, first.runId);
+
+    const second = claimRun(3);
+
+    expect(first.signal.aborted).toBe(false);
+    releaseRun(3, second.runId);
+  });
 });

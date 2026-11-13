@@ -5,6 +5,7 @@ import {
 } from "@killingit/shared";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "../db/index.js";
+import { BoundedMap } from "../lib/boundedMap.js";
 import {
   coachPlans,
   planGenerationStepDurations,
@@ -423,12 +424,21 @@ export const dbPlanGenerationStore: PlanGenerationStore = {
   },
 };
 
+/** Corrupt-plan reports remembered before the oldest one is forgotten. */
+export const MAX_REPORTED_INVALID_PLANS = 256;
+
 /**
  * Plans already reported as invalid, keyed by user and save time. The plan
  * endpoints are polled while a generation runs, so a corrupt row must not log on
  * every read. A later save gets a new generation time and is reported again.
+ * The map keeps only the newest {@link MAX_REPORTED_INVALID_PLANS} keys: a row
+ * that is still corrupt after its key is evicted is reported once more, which
+ * is a bounded amount of logging instead of unbounded memory. Process-local,
+ * like the plan run registry; see ADR 0014.
  */
-const reportedInvalidPlans = new Set<string>();
+const reportedInvalidPlans = new BoundedMap<string, true>(
+  MAX_REPORTED_INVALID_PLANS,
+);
 
 /** Reads the plan date from an unvalidated body without trusting its shape. */
 function storedPlanDate(plan: unknown): string | null {
@@ -464,7 +474,7 @@ export async function loadValidatedPlan(
 
   const key = `${userId}:${stored.generatedAt.getTime()}`;
   if (!reportedInvalidPlans.has(key)) {
-    reportedInvalidPlans.add(key);
+    reportedInvalidPlans.set(key, true);
     console.error("[plan] stored plan failed schema validation:", {
       planId: stored.id ?? null,
       planDate: storedPlanDate(stored.plan),

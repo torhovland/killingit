@@ -37,6 +37,15 @@ initial activity load and asks `latestActivityAnalysisSince` for the same day,
 so the plan shares the dashboard's pass and never adopts a feed analysed for
 another day.
 
+The registry is process-local. `activeAnalyses` drops an entry when its pass
+settles, and `completedAnalyses` keeps the finished feed of the 32 most recently
+used accounts, because each feed carries every analysed activity and its sample
+previews. Reading a finished feed refreshes its account, so another account
+finishing does not evict the feed a plan is about to use. Two instances may each
+run their own pass for the same account; the stored analysis is still fenced by
+the activity's own timestamps, and an evicted account analyses again on its next
+request. See ADR 0014.
+
 ## Acceptance criteria
 
 - A second ordinary request for the same account and day returns the active
@@ -49,6 +58,8 @@ another day.
   waiting for, and the next request can retry.
 - `latestActivityAnalysisSince` waits for an active pass only when it is for the
   caller's day, and only returns a completed feed for that day.
+- A finished feed survives while other accounts are evicted, up to the bounded
+  number of retained accounts.
 - The existing single-flight, failure-recovery and plan-run overlap behaviour is
   unchanged.
 
