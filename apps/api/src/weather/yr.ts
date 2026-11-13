@@ -6,6 +6,21 @@ import {
 } from "@killingit/shared";
 import type { FetchLike } from "./openMeteo.js";
 
+/** MET Norway's forecast plus the caching terms it asks clients to honour. */
+export interface YrForecastResult {
+  /** The parsed daily forecast; empty when MET Norway answered 304. */
+  days: DailyWeather[];
+  /** True when a conditional request was answered with `304 Not Modified`. */
+  notModified: boolean;
+  /**
+   * Epoch milliseconds before which the provider asked clients not to request
+   * the same forecast again, read from `Expires` or `Cache-Control: max-age`.
+   */
+  expiresAt: number | null;
+  /** The `Last-Modified` value to replay as `If-Modified-Since`. */
+  lastModified: string | null;
+}
+
 const FORECAST_URL =
   "https://api.met.no/weatherapi/locationforecast/2.0/complete";
 const REQUEST_TIMEOUT_MS = 8_000;
@@ -232,28 +247,71 @@ export function parseYrResponse(
     }));
 }
 
+/**
+ * Reads the earliest time MET Norway allows another request from `Expires`, or
+ * from `Cache-Control`'s `max-age` when the response has no `Expires`.
+ */
+function cacheDeadline(headers: Headers, now: number): number | null {
+  const expires = headers.get("expires");
+  if (expires !== null) {
+    const parsed = Date.parse(expires);
+    if (!Number.isNaN(parsed)) {
+      return parsed;
+    }
+  }
+  const maxAge = headers.get("cache-control")?.match(/max-age=(\d+)/i)?.[1];
+  if (maxAge !== undefined) {
+    return now + Number(maxAge) * 1000;
+  }
+  return null;
+}
+
 /** Loads MET Norway's daily forecast for the athlete's location. */
 export async function fetchYrForecast(
   location: AthleteLocation,
   options: {
     fetchImpl?: FetchLike;
     timezone?: string | null;
+    /** Replays a stored `Last-Modified` so an unchanged forecast costs a 304. */
+    ifModifiedSince?: string | null;
+    /** Test seam for the clock; production uses `Date.now`. */
+    now?: () => number;
   } = {},
-): Promise<DailyWeather[]> {
+): Promise<YrForecastResult> {
   const fetchImpl = options.fetchImpl ?? fetch;
+  const now = (options.now ?? Date.now)();
   const url = new URL(FORECAST_URL);
   url.searchParams.set("lat", String(location.latitude));
   url.searchParams.set("lon", String(location.longitude));
 
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+    "User-Agent": YR_USER_AGENT,
+  };
+  if (options.ifModifiedSince != null) {
+    headers["If-Modified-Since"] = options.ifModifiedSince;
+  }
+
   const response = await fetchImpl(url, {
-    headers: {
-      Accept: "application/json",
-      "User-Agent": YR_USER_AGENT,
-    },
+    headers,
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
+  const lastModified = response.headers.get("last-modified");
+  if (response.status === 304) {
+    return {
+      days: [],
+      notModified: true,
+      expiresAt: cacheDeadline(response.headers, now),
+      lastModified,
+    };
+  }
   if (!response.ok) {
     throw new Error(`Yr returned ${response.status}`);
   }
-  return parseYrResponse(await response.json(), options.timezone ?? "UTC");
+  return {
+    days: parseYrResponse(await response.json(), options.timezone ?? "UTC"),
+    notModified: false,
+    expiresAt: cacheDeadline(response.headers, now),
+    lastModified,
+  };
 }

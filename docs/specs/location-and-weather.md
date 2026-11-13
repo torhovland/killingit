@@ -141,6 +141,27 @@ would be sensible to take it outside.
   can turn them back into outdoor training.
 - Checking the forecast is best effort. If it cannot be loaded, the plan's
   pending state is unchanged.
+- Forecasts are cached in process, keyed by the rounded location (latitude and
+  longitude to 0.01°, about a kilometre) and the effective time zone, so nearby
+  requests share an entry and a different time zone is a separate entry. A good
+  result is reused for an hour; plan polls during a generation therefore do not
+  call either provider again, and a weather-change check reads the cached
+  forecast.
+- Yr.no's terms require caching: the provider's `Expires` (or `Cache-Control`
+  `max-age`) sets the earliest refetch, so an entry lives for whichever is
+  longer, an hour or Yr's own window. Once an entry expires, Yr
+  is revalidated with `If-Modified-Since` from its `Last-Modified`, and a
+  `304 Not Modified` keeps the cached forecast and only renews the window.
+  Open-Meteo is not revalidated and simply shares the one-hour TTL.
+- A failed refresh keeps the rows already cached for the provider that failed,
+  so an outage does not blank the weather mid-season: the other provider's
+  fresh forecast is still combined with it, and the entry is retried after the
+  TTL. A failure with nothing cached still supplies whichever provider
+  answered, and throws only when neither did, so the caller suppresses weather
+  exactly as before.
+- The cache and the clock are injectable through `WeatherForecastOptions`
+  (`cache`, `now`) so tests run against their own store; production uses one
+  process-wide cache and `Date.now`.
 
 ## Data model / API
 
@@ -214,8 +235,8 @@ their single `weather` line.
 
 1. The plan trigger loads the account, including its location and time zone.
 2. If a location exists, it loads the daily forecast from Open-Meteo and Yr.no
-   in parallel and builds the averaged forecast. Weather failures are logged and
-   ignored.
+   in parallel and builds the averaged forecast, or reuses the cached forecast
+   for that location. Weather failures are logged and ignored.
 3. The weekly and daily prompts include the combined forecast and the
    weather/daylight planning rules. The season and block prompts do not need a
    daily forecast.
@@ -267,4 +288,8 @@ containing `snow` or `sleet` → snow, and a code containing `rain` → rain.
 - API tests for significant/non-significant forecast comparisons, newly
   available daylight, current and next week coverage, the plan-read pending
   flag, and weather-service failure handling.
+- API tests for the forecast cache: one fetch for the same rounded location
+  inside the TTL, a separate fetch for another rounded location or time zone,
+  a refetch after expiry, Yr's `Expires` and `Cache-Control` window, a `304`
+  keeping the cached forecast, and a failed refresh preserving cached rows.
 - All four quality gates pass: typecheck, lint, format, test.

@@ -172,7 +172,7 @@ describe("fetchYrForecast", () => {
   it("identifies itself to MET Norway and parses the response", async () => {
     const requested: URL[] = [];
     let userAgent = "";
-    const days = await fetchYrForecast(
+    const forecast = await fetchYrForecast(
       { latitude: 59.91, longitude: 10.75, name: "Oslo" },
       {
         timezone: "Europe/Oslo",
@@ -200,11 +200,72 @@ describe("fetchYrForecast", () => {
       },
     );
 
-    expect(days).toHaveLength(1);
-    expect(days[0]?.date).toBe("2026-11-01");
+    expect(forecast.notModified).toBe(false);
+    expect(forecast.days).toHaveLength(1);
+    expect(forecast.days[0]?.date).toBe("2026-11-01");
     expect(userAgent).toBe(YR_USER_AGENT);
     expect(requested[0]?.searchParams.get("lat")).toBe("59.91");
     expect(requested[0]?.searchParams.get("lon")).toBe("10.75");
+  });
+
+  it("surfaces the provider's Expires so clients know when they may ask again", async () => {
+    const expires = "Sun, 01 Nov 2026 12:00:00 GMT";
+    const forecast = await fetchYrForecast(
+      { latitude: 59.91, longitude: 10.75, name: null },
+      {
+        fetchImpl: () =>
+          Promise.resolve(
+            new Response(JSON.stringify(response([])), {
+              status: 200,
+              headers: {
+                Expires: expires,
+                "Last-Modified": "Sat, 31 Oct 2026",
+              },
+            }),
+          ),
+      },
+    );
+
+    expect(forecast.expiresAt).toBe(Date.parse(expires));
+    expect(forecast.lastModified).toBe("Sat, 31 Oct 2026");
+  });
+
+  it("falls back to Cache-Control max-age when no Expires is sent", async () => {
+    const forecast = await fetchYrForecast(
+      { latitude: 59.91, longitude: 10.75, name: null },
+      {
+        now: () => 1_000,
+        fetchImpl: () =>
+          Promise.resolve(
+            new Response(JSON.stringify(response([])), {
+              status: 200,
+              headers: { "Cache-Control": "public, max-age=900" },
+            }),
+          ),
+      },
+    );
+
+    expect(forecast.expiresAt).toBe(1_000 + 900_000);
+  });
+
+  it("revalidates with If-Modified-Since and reports 304 as unchanged", async () => {
+    const sent: Headers[] = [];
+    const forecast = await fetchYrForecast(
+      { latitude: 59.91, longitude: 10.75, name: null },
+      {
+        ifModifiedSince: "Sat, 31 Oct 2026 08:00:00 GMT",
+        fetchImpl: (_input, init) => {
+          sent.push(new Headers(init?.headers));
+          return Promise.resolve(new Response(null, { status: 304 }));
+        },
+      },
+    );
+
+    expect(sent[0]?.get("if-modified-since")).toBe(
+      "Sat, 31 Oct 2026 08:00:00 GMT",
+    );
+    expect(forecast.notModified).toBe(true);
+    expect(forecast.days).toEqual([]);
   });
 
   it("rejects a non-success response", () =>
