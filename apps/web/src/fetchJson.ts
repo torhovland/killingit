@@ -74,7 +74,9 @@ function parseErrorContract(text: string): {
 // request and throwing an Error that carries enough context (URL, status,
 // content type) to make the resulting Sentry event actionable even when the
 // underlying failure has no stack trace of its own (e.g. Response.json()'s
-// native SyntaxError).
+// native SyntaxError). An `init.signal` reaches the native fetch unchanged, so
+// an aborted request rejects with the platform's AbortError before any of the
+// error handling below runs.
 export async function fetchJson<T>(
   url: string,
   init?: RequestInit,

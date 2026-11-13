@@ -1,9 +1,5 @@
-import { useEffect, useState } from "react";
-import {
-  llmCostsResponseSchema,
-  type LlmCostsResponse,
-} from "@killingit/shared";
-import { useAppStatus } from "./AppStatus";
+import { useState } from "react";
+import { llmCostsResponseSchema } from "@killingit/shared";
 import { useAuth } from "./auth";
 import { CostBarChart } from "./CostBarChart";
 import {
@@ -19,9 +15,8 @@ import {
   type DailyCostRange,
   type MonthlyCostRange,
 } from "./costChart";
-import { requestParsed } from "./fetchAuthed";
-import { reportError } from "./reportError";
 import { useTimeZone } from "./TimeZoneContext";
+import { useApiResource } from "./useApiResource";
 import { getToday } from "./useToday";
 import { Select } from "./components/Select";
 
@@ -33,54 +28,21 @@ const API_URL = import.meta.env.VITE_API_URL ?? "";
  */
 export function CostsPage() {
   const auth = useAuth();
-  const { setStatus } = useAppStatus();
   const timeZone = useTimeZone();
   const today = getToday(timeZone).today;
-  const [costs, setCosts] = useState<LlmCostsResponse | null>(null);
   const [monthlyRange, setMonthlyRange] = useState<MonthlyCostRange>("12m");
   const [dailyRange, setDailyRange] = useState<DailyCostRange>("31d");
   const [stackBy, setStackBy] = useState<CostStackDimension>("model");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const stackLabel = stackBy === "model" ? "model" : "prompt type";
-
-  useEffect(() => {
-    setStatus("costs-page", loading ? "loading" : null);
-    return () => setStatus("costs-page", null);
-  }, [loading, setStatus]);
-
-  useEffect(() => {
-    if (!auth.isAuthenticated) {
-      return;
-    }
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-    requestParsed(
-      `${API_URL}/api/llm/costs`,
-      auth,
-      llmCostsResponseSchema,
-      "Loading the cost history",
-    )
-      .then((costs) => {
-        if (!cancelled) {
-          setCosts(costs);
-        }
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) {
-          setError(reportError(err));
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [auth]);
+  const costs = useApiResource(
+    auth.isAuthenticated ? `${API_URL}/api/llm/costs` : null,
+    llmCostsResponseSchema,
+    "Loading the cost history",
+    { statusSource: "costs-page" },
+  );
+  const loading = costs.loading;
+  const error = costs.error;
+  const data = costs.data;
 
   if (!auth.isAuthenticated) {
     return null;
@@ -98,7 +60,7 @@ export function CostsPage() {
 
       {error && <p className="text-destructive">Error: {error}</p>}
 
-      {costs === null ? (
+      {data === null ? (
         !error && <p className="text-base text-muted-foreground">Loading…</p>
       ) : (
         <>
@@ -148,7 +110,7 @@ export function CostsPage() {
           <CostBarChart
             title="Monthly cost"
             description={`One bar per month, stacked by ${stackLabel}.`}
-            data={monthlyCostChart(costs.monthly, monthlyRange, today, stackBy)}
+            data={monthlyCostChart(data.monthly, monthlyRange, today, stackBy)}
             emptyMessage="No OpenRouter calls have been recorded in this period."
             testId="monthly-cost-chart"
           />
@@ -175,7 +137,7 @@ export function CostsPage() {
           <CostBarChart
             title="Daily cost"
             description={`One bar per day, stacked by ${stackLabel}.`}
-            data={dailyCostChart(costs.daily, dailyRange, today, stackBy)}
+            data={dailyCostChart(data.daily, dailyRange, today, stackBy)}
             emptyMessage="No OpenRouter calls have been recorded in this period."
             testId="daily-cost-chart"
           />

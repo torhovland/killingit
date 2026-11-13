@@ -1,18 +1,15 @@
-import { useCallback, useEffect, useState } from "react";
 import {
   coachQuestionsResponseSchema,
   coachingInputSaveResponseSchema,
   periodReviewsResponseSchema,
-  type CoachQuestion,
-  type PeriodReview,
   type ReviewKind,
 } from "@killingit/shared";
 import { useAuth } from "./auth";
 import { CoachQuestionCard } from "./CoachQuestionCard";
 import { requestParsed } from "./fetchAuthed";
-import { useAppStatus, useBusyReporter } from "./AppStatus";
+import { useBusyReporter } from "./AppStatus";
 import { PeriodReviewCard } from "./PeriodReviewCard";
-import { reportError } from "./reportError";
+import { useApiResources } from "./useApiResource";
 import { useTimeZone } from "./TimeZoneContext";
 import { getToday } from "./useToday";
 
@@ -25,45 +22,29 @@ const API_URL = import.meta.env.VITE_API_URL ?? "";
  */
 export function SeasonReviewPage() {
   const auth = useAuth();
-  const { setStatus } = useAppStatus();
   const reportCommentSave = useBusyReporter("comment-save");
   const timeZone = useTimeZone();
-  const [reviews, setReviews] = useState<PeriodReview[]>([]);
-  const [coachQuestions, setCoachQuestions] = useState<CoachQuestion[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setStatus("season-review", loading ? "loading" : null);
-    return () => setStatus("season-review", null);
-  }, [loading, setStatus]);
-
-  const loadReviews = useCallback(async (): Promise<void> => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [response, questions] = await Promise.all([
-        requestParsed(
-          `${API_URL}/api/coaching/reviews`,
-          auth,
-          periodReviewsResponseSchema,
-          "Loading the season review",
-        ),
-        requestParsed(
-          `${API_URL}/api/coaching/coach-questions`,
-          auth,
-          coachQuestionsResponseSchema,
-          "Loading the coach's questions",
-        ),
-      ]);
-      setReviews(response.reviews);
-      setCoachQuestions(questions.answered);
-    } catch (err: unknown) {
-      setError(reportError(err));
-    } finally {
-      setLoading(false);
-    }
-  }, [auth]);
+  const resource = useApiResources(
+    auth.isAuthenticated
+      ? {
+          reviews: {
+            path: `${API_URL}/api/coaching/reviews`,
+            schema: periodReviewsResponseSchema,
+            action: "Loading the season review",
+          },
+          questions: {
+            path: `${API_URL}/api/coaching/coach-questions`,
+            schema: coachQuestionsResponseSchema,
+            action: "Loading the coach's questions",
+          },
+        }
+      : null,
+    { statusSource: "season-review" },
+  );
+  const reviews = resource.data?.reviews.reviews ?? [];
+  const coachQuestions = resource.data?.questions.answered ?? [];
+  const loading = resource.loading;
+  const error = resource.error;
 
   async function submitComment(
     kind: ReviewKind,
@@ -89,29 +70,30 @@ export function SeasonReviewPage() {
           }),
         },
       );
-      setReviews((current) =>
-        current.map((review) =>
-          review.kind === kind && review.startDate === startDate
-            ? {
-                ...review,
-                comment,
-                coachReply: response.reply ?? review.coachReply,
-              }
-            : review,
-        ),
+      resource.setData((previous) =>
+        previous === null
+          ? previous
+          : {
+              ...previous,
+              reviews: {
+                ...previous.reviews,
+                reviews: previous.reviews.reviews.map((review) =>
+                  review.kind === kind && review.startDate === startDate
+                    ? {
+                        ...review,
+                        comment,
+                        coachReply: response.reply ?? review.coachReply,
+                      }
+                    : review,
+                ),
+              },
+            },
       );
       return response.reply?.text ?? null;
     } finally {
       reportCommentSave(false);
     }
   }
-
-  useEffect(() => {
-    if (!auth.isAuthenticated) {
-      return;
-    }
-    void loadReviews();
-  }, [auth, loadReviews]);
 
   if (!auth.isAuthenticated) {
     return null;

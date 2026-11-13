@@ -51,6 +51,12 @@ The full message keeps the wording the pages already show, and `reportError`
 still reports the error to Sentry because it is neither an `ApiError` nor an
 expected session failure.
 
+`RequestInit.signal` is forwarded to the native fetch. An aborted request
+rejects with the platform's `AbortError` before schema validation, and an
+already-aborted signal stops the bearer-token read and the one-shot 401 refresh
+from starting. Resource loads use it through
+`docs/specs/web-api-resource-hook.md`.
+
 ## Acceptance criteria
 
 - One implementation of response parsing in the web app.

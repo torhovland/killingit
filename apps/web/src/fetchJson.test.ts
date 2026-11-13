@@ -62,6 +62,31 @@ describe("fetchJson", () => {
     expect(addBreadcrumb).toHaveBeenCalledTimes(1);
   });
 
+  it("forwards the abort signal to the native fetch", async () => {
+    addBreadcrumb = spyOn(Sentry, "addBreadcrumb");
+    originalFetch = globalThis.fetch;
+    const controller = new AbortController();
+    let capturedSignal: AbortSignal | null | undefined;
+    globalThis.fetch = ((_url: string | URL | Request, init?: RequestInit) => {
+      capturedSignal = init?.signal;
+      return Promise.reject(new DOMException("Aborted", "AbortError"));
+    }) as unknown as typeof fetch;
+
+    let thrown: unknown;
+    try {
+      await fetchJson<unknown>("http://api/health", {
+        signal: controller.signal,
+      });
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(capturedSignal).toBe(controller.signal);
+    expect((thrown as Error).name).toBe("AbortError");
+    // An abort is not a request outcome, so it records no Sentry breadcrumb.
+    expect(addBreadcrumb).toHaveBeenCalledTimes(0);
+  });
+
   it("throws on a non-2xx response", async () => {
     stubFetch(new Response("nope", { status: 500 }));
 

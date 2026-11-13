@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import {
   llmCallDetailSchema,
   llmCallsResponseSchema,
@@ -12,6 +12,7 @@ import { formatCostUsd } from "./costChart";
 import { requestParsed } from "./fetchAuthed";
 import { reportError } from "./reportError";
 import { browserTimeZone, formatDateTime } from "./timeZone";
+import { useApiResource } from "./useApiResource";
 import { Button } from "./components/Button";
 import { cn } from "./components/cn";
 import { Card } from "./components/Card";
@@ -27,46 +28,18 @@ const PAGE_SIZE = 50;
  */
 export function AdminLlmCallsSection() {
   const auth = useAuth();
-  const [calls, setCalls] = useState<LlmCallSummary[] | null>(null);
+  const callsResource = useApiResource(
+    auth.isAuthenticated
+      ? `${API_URL}/api/admin/llm-calls?limit=${PAGE_SIZE}`
+      : null,
+    llmCallsResponseSchema,
+    "Loading LLM calls",
+  );
+  const calls = callsResource.data?.calls ?? null;
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [selected, setSelected] = useState<LlmCallDetail | null>(null);
-  const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [reloadKey, setReloadKey] = useState(0);
-
-  useEffect(() => {
-    if (!auth.isAuthenticated) {
-      return;
-    }
-    let cancelled = false;
-    setLoading(true);
-    requestParsed(
-      `${API_URL}/api/admin/llm-calls?limit=${PAGE_SIZE}`,
-      auth,
-      llmCallsResponseSchema,
-      "Loading LLM calls",
-    )
-      .then((response) => {
-        if (!cancelled) {
-          setCalls(response.calls);
-          setError(null);
-        }
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) {
-          setError(reportError(err));
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [auth, reloadKey]);
+  const [detailError, setDetailError] = useState<string | null>(null);
 
   async function selectCall(id: number): Promise<void> {
     if (id === selectedId) {
@@ -75,7 +48,8 @@ export function AdminLlmCallsSection() {
     setSelectedId(id);
     setSelected(null);
     setDetailLoading(true);
-    setError(null);
+    setDetailError(null);
+    callsResource.setError(null);
     try {
       const selected = await requestParsed(
         `${API_URL}/api/admin/llm-calls/${id}`,
@@ -85,7 +59,7 @@ export function AdminLlmCallsSection() {
       );
       setSelected(selected);
     } catch (err: unknown) {
-      setError(reportError(err));
+      setDetailError(reportError(err));
       setSelectedId(null);
     } finally {
       setDetailLoading(false);
@@ -97,11 +71,11 @@ export function AdminLlmCallsSection() {
       calls={calls}
       selectedId={selectedId}
       selected={selected}
-      loading={loading}
+      loading={callsResource.loading}
       detailLoading={detailLoading}
-      error={error}
+      error={callsResource.error ?? detailError}
       onSelect={(id) => void selectCall(id)}
-      onRefresh={() => setReloadKey((key) => key + 1)}
+      onRefresh={callsResource.reload}
     />
   );
 }

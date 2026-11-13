@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   questionArchivedResponseSchema,
   questionSchema,
@@ -10,7 +10,7 @@ import { useAuth } from "./auth";
 import { requestParsed } from "./fetchAuthed";
 import { QuestionForm } from "./QuestionForm";
 import { QuestionRow } from "./QuestionRow";
-import { reportError } from "./reportError";
+import { useApiResource } from "./useApiResource";
 import { Button } from "./components/Button";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
@@ -22,45 +22,23 @@ const API_URL = import.meta.env.VITE_API_URL ?? "";
  */
 export function AdminQuestionsSection() {
   const auth = useAuth();
-  const [questions, setQuestions] = useState<Question[] | null>(null);
-  const [loading, setLoading] = useState(true);
+  const resource = useApiResource(
+    auth.isAuthenticated ? `${API_URL}/api/admin/questions` : null,
+    questionsResponseSchema,
+    "Loading questions",
+  );
+  const questions = resource.data?.questions ?? null;
+  const loading = resource.loading;
+  const error = resource.error;
   const [adding, setAdding] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!auth.isAuthenticated) {
-      return;
-    }
-
-    let cancelled = false;
-    setLoading(true);
-    requestParsed(
-      `${API_URL}/api/admin/questions`,
-      auth,
-      questionsResponseSchema,
-      "Loading questions",
-    )
-      .then((response) => {
-        if (!cancelled) {
-          setQuestions(response.questions);
-          setError(null);
-        }
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) {
-          setError(reportError(err));
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [auth]);
+  function setQuestions(
+    update: (previous: Question[] | null) => Question[],
+  ): void {
+    resource.setData((previous) => ({
+      questions: update(previous?.questions ?? null),
+    }));
+  }
 
   async function createQuestion(input: QuestionInput): Promise<void> {
     const created = await requestParsed(
@@ -76,7 +54,7 @@ export function AdminQuestionsSection() {
     );
     setQuestions((previous) => [...(previous ?? []), created]);
     setAdding(false);
-    setError(null);
+    resource.setError(null);
   }
 
   async function saveQuestion(id: number, input: QuestionInput): Promise<void> {
@@ -97,7 +75,7 @@ export function AdminQuestionsSection() {
           question.id === id ? updated : question,
         ) ?? [updated],
     );
-    setError(null);
+    resource.setError(null);
   }
 
   async function moveQuestion(id: number, offset: -1 | 1): Promise<void> {
@@ -128,8 +106,8 @@ export function AdminQuestionsSection() {
         body: JSON.stringify({ ids: next.map((question) => question.id) }),
       },
     );
-    setQuestions(response.questions);
-    setError(null);
+    setQuestions(() => response.questions);
+    resource.setError(null);
   }
 
   async function deleteQuestion(id: number): Promise<void> {
@@ -144,7 +122,7 @@ export function AdminQuestionsSection() {
       (previous) =>
         previous?.filter((question) => question.id !== response.id) ?? [],
     );
-    setError(null);
+    resource.setError(null);
   }
 
   if (!auth.isAuthenticated) {

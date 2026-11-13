@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   llmCatalogResponseSchema,
   llmSettingsSchema,
@@ -12,6 +12,7 @@ import { requestParsed } from "./fetchAuthed";
 import { OpenRouterKeySection } from "./OpenRouterKeySection";
 import { reportError } from "./reportError";
 import { browserTimeZone, formatDateTime } from "./timeZone";
+import { useApiResource } from "./useApiResource";
 import { Select } from "./components/Select";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
@@ -118,9 +119,14 @@ export function compareModels(
  */
 export function LlmSection({ settings, onSaved, isAdmin }: LlmSectionProps) {
   const auth = useAuth();
-  const [catalog, setCatalog] = useState<LlmCatalogModel[] | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [catalogError, setCatalogError] = useState<string | null>(null);
+  const catalogResource = useApiResource(
+    auth.isAuthenticated ? `${API_URL}/api/llm/catalog` : null,
+    llmCatalogResponseSchema,
+    "Loading the model catalog",
+  );
+  const catalog = catalogResource.data?.models ?? null;
+  const loading = catalogResource.loading;
+  const catalogError = catalogResource.error;
   const [seasonModel, setSeasonModel] = useState(
     settings.seasonModel ?? settings.model ?? "",
   );
@@ -139,33 +145,6 @@ export function LlmSection({ settings, onSaved, isAdmin }: LlmSectionProps) {
   const [sortKey, setSortKey] = useState<SortKey>("ability");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const timeZone = browserTimeZone();
-
-  useEffect(() => {
-    if (!auth.isAuthenticated) return;
-    let cancelled = false;
-    setLoading(true);
-    requestParsed(
-      `${API_URL}/api/llm/catalog`,
-      auth,
-      llmCatalogResponseSchema,
-      "Loading the model catalog",
-    )
-      .then((response) => {
-        if (!cancelled) {
-          setCatalog(response.models);
-          setCatalogError(null);
-        }
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) setCatalogError(reportError(err));
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [auth]);
 
   // Keep a currently selected model visible even when it is retired.
   const selectedIds = useMemo(

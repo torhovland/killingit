@@ -447,7 +447,14 @@ made and recorded, and `docs/adrs/` for the accepted ones.
   body against the shared schema, and throws one `ResponseValidationError`
   whose message names the action and whose cause is the schema error. Call
   sites must not hand-write `safeParse` plus their own throw; see
-  `docs/specs/web-api-request-parsing.md`.
+  `docs/specs/web-api-request-parsing.md`. A page or hook that loads a resource
+  uses `useApiResource` / `useApiResources` from
+  `apps/web/src/useApiResource.ts` instead of hand-writing a loading/error
+  effect: the hook owns the `AbortController` (so a superseded or unmounted
+  load cancels its request and never surfaces as an error), the loading and
+  error state, `reload`, and the optional app-status registration. The path is
+  the effect key, and `RequestInit.signal` is threaded through `requestParsed`
+  to the native fetch; see `docs/specs/web-api-resource-hook.md`.
 - We build our own **component library** under `apps/web/src/components/`.
   `Button`, `Input`, `Textarea`, `Select`, `Card`, `HiddenFileInput`,
   `StatusBadge` and `Modal` are the primitives; page components stay flat in
