@@ -1,7 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import {
   activitySport,
-  bestFitSlope,
   formatThresholdNumber,
   formatThresholdValue,
   interpolateMetricSeries,
@@ -95,21 +94,24 @@ describe("interpolateMetricSeries", () => {
 
     expect(series[0]).toEqual({ date: "2026-10-05", value: 18 });
     expect(series).toHaveLength(3);
+    // A single measurement has no trend, so the projection stays flat.
+    expect(series.at(-1)).toEqual({ date: "2026-10-07", value: 18 });
+  });
+
+  it("projects flatly when every measurement is the same", () => {
+    const series = interpolateMetricSeries(
+      [
+        { date: "2026-10-01", value: 80 },
+        { date: "2026-10-05", value: 80 },
+      ],
+      "2026-10-01",
+      "2026-10-07",
+    );
+
+    expect(series.at(-1)).toEqual({ date: "2026-10-07", value: 80 });
   });
 
   it("returns an empty series without measurements", () => {
     expect(interpolateMetricSeries([], "2026-10-01", "2026-10-07")).toEqual([]);
-  });
-});
-
-describe("bestFitSlope", () => {
-  it("is zero for one point and for a flat series", () => {
-    expect(bestFitSlope([{ date: "2026-10-01", value: 80 }])).toBe(0);
-    expect(
-      bestFitSlope([
-        { date: "2026-10-01", value: 80 },
-        { date: "2026-10-05", value: 80 },
-      ]),
-    ).toBe(0);
   });
 });

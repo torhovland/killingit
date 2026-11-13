@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
   dailyForecastsSchema,
   dailyWeatherSchema,
-  formatDailyWeatherLine,
+  formatDailyWeatherParts,
   geocodedLocationSchema,
   WEATHER_ICON_LABELS,
   weatherIconSchema,
@@ -110,22 +110,25 @@ describe("daily forecast presentation", () => {
     sunset: "16:28",
   };
 
-  it("formats a line with centre dots, gusts in parentheses, and daylight", () => {
-    expect(formatDailyWeatherLine(day)).toBe(
-      "Very cloudy · 8–11 °C · wind 10 m/s (18 m/s) · daylight 07:35 - 16:28",
-    );
+  it("formats parts with gusts in parentheses and the daylight window", () => {
+    expect(formatDailyWeatherParts(day)).toEqual([
+      "Very cloudy",
+      "8–11 °C",
+      "wind 10 m/s (18 m/s)",
+      "daylight 07:35 - 16:28",
+    ]);
   });
 
   it("omits unavailable daylight and uses one temperature for a flat range", () => {
     expect(
-      formatDailyWeatherLine({
+      formatDailyWeatherParts({
         ...day,
         temperatureMaxC: 7,
         temperatureMinC: 7,
         sunrise: null,
         sunset: null,
       }),
-    ).toBe("Very cloudy · 7 °C · wind 10 m/s (18 m/s)");
+    ).toEqual(["Very cloudy", "7 °C", "wind 10 m/s (18 m/s)"]);
   });
 
   it("parses the forecast rows for all three sources", () => {

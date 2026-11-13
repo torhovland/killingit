@@ -233,16 +233,6 @@ export function activitySport(type: string): string {
   return words[0] ?? "other";
 }
 
-/** A readable sport label for the athlete-facing UI. */
-export function formatSport(sport: string): string {
-  return activitySport(sport)
-    .split(" ")
-    .map((word, index) =>
-      index === 0 ? `${word.charAt(0).toUpperCase()}${word.slice(1)}` : word,
-    )
-    .join(" ");
-}
-
 /**
  * The sports named in a session title or description, using the same keys
  * thresholds are stored under. A session can name more than one sport, such as
@@ -362,7 +352,7 @@ function interpolateAt(
 }
 
 /** The least-squares slope of value against day, in value units per day. */
-export function bestFitSlope(
+function bestFitSlope(
   points: readonly Pick<MetricPoint, "date" | "value">[],
 ): number {
   const sorted = dedupeByDate(

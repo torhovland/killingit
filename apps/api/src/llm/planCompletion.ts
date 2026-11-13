@@ -30,39 +30,19 @@ export interface PlanJsonCompletionOptions {
 }
 
 /**
- * Sends a structured plan request with the shared reasoning-model fallbacks
- * (see {@link completeWithFallbacks}). This keeps non-reasoning models working
- * while giving reasoning models room for their thinking plus the JSON
- * response.
- */
-export function completePlan(
-  provider: LlmProvider,
-  credentials: PlanCompletionCredentials,
-  messages: LlmMessage[],
-  maxTokens: number,
-  temperature = 0.4,
-  options: CompletionOptions = {},
-): Promise<string> {
-  return completeWithFallbacks(
-    provider,
-    credentials,
-    messages,
-    maxTokens,
-    temperature,
-    options,
-  );
-}
-
-/**
  * Sends a plan request and validates the JSON. A model that returns an invalid
  * response gets a compact repair turn first: it keeps the system contract, the
  * previous response and the validation problems, but drops the large user
  * context. That is enough for most shape errors and avoids re-sending the whole
  * prompt. If the compact repair also fails, one full-context repair is tried.
  *
- * One completion budget covers the initial response, its fallback chain and
- * both repair turns, so a model that keeps truncating or keeps returning
- * unusable JSON stops after `PLAN_LEVEL_MAX_COMPLETIONS` billed completions.
+ * Every attempt goes through {@link completeWithFallbacks}, so it carries the
+ * shared reasoning-model fallbacks: a model that stops at the token limit is
+ * retried with reasoning disabled before the normal budget without a reasoning
+ * control. One completion budget covers the initial response, its fallback
+ * chain and both repair turns, so a model that keeps truncating or keeps
+ * returning unusable JSON stops after `PLAN_LEVEL_MAX_COMPLETIONS` billed
+ * completions.
  */
 export async function completePlanJson<T>(
   schema: z.ZodType<T>,
@@ -81,7 +61,7 @@ export async function completePlanJson<T>(
     ...(options.metadata !== undefined ? { metadata: options.metadata } : {}),
     budget,
   };
-  const text = await completePlan(
+  const text = await completeWithFallbacks(
     provider,
     credentials,
     messages,
@@ -101,7 +81,7 @@ export async function completePlanJson<T>(
       throw err;
     }
     const compact = canUseCompactRepair(messages);
-    const repaired = await completePlan(
+    const repaired = await completeWithFallbacks(
       provider,
       credentials,
       repairMessages(messages, text, err, options.repairHint, compact),
@@ -122,7 +102,7 @@ export async function completePlanJson<T>(
       if (!(retryErr instanceof PlanJsonError) || !compact) {
         throw retryErr;
       }
-      const full = await completePlan(
+      const full = await completeWithFallbacks(
         provider,
         credentials,
         repairMessages(messages, text, retryErr, options.repairHint, false),

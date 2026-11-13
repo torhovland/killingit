@@ -735,10 +735,12 @@ through a disciplined process:
   is a bug waiting to diverge.
 - **Never leave production exports alive only for their tests.** Delete dead
   code, or wire it to a real caller. `bun run check:unused` runs Knip in
-  production mode and fails on an export that only a test imports or on an
-  unreachable production file. Put intentional public API that has no in-repo
-  consumer in `knip.json` with a comment. See
-  `docs/specs/unused-exports.md`.
+  production mode and fails on an export that only a test imports, on a
+  `@killingit/shared` barrel export that no production consumer imports, and on
+  an unreachable production file. A helper that only its own module uses must be
+  un-exported by hand, since `ignoreExportsUsedInFile` still hides that case. Put
+  intentional public API that has no in-repo consumer in `knip.json` with a
+  comment. See `docs/specs/unused-exports.md`.
 - **Wire API dependencies through the shared context.** The injectable surface
   for the plan, coaching, activity, fitness, calendar, diet and weather routes
   lives in `apps/api/src/dependencies.ts`; `createApp` resolves the account

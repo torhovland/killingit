@@ -1,13 +1,12 @@
 import { describe, expect, it } from "bun:test";
 import { z } from "zod";
 import {
-  LlmAuthError,
   LlmProviderError,
   LlmTokenLimitError,
   type LlmCompletionRequest,
   type LlmProvider,
 } from "./openrouter.js";
-import { completePlan, completePlanJson } from "./planCompletion.js";
+import { completePlanJson } from "./planCompletion.js";
 import { PlanJsonError } from "./planJson.js";
 
 class FakeProvider implements LlmProvider {
@@ -61,6 +60,27 @@ describe("completePlanJson", () => {
 
     expect(result).toEqual({ title: "Easy run" });
     expect(provider.requests).toHaveLength(1);
+  });
+
+  it("requests minimal reasoning and retries with it disabled at the token limit", async () => {
+    const provider = new FakeProvider([
+      new LlmTokenLimitError("limit"),
+      '{"title":"Easy run"}',
+    ]);
+
+    const result = await completePlanJson(
+      resultSchema,
+      provider,
+      credentials,
+      messages,
+      4096,
+    );
+
+    expect(result).toEqual({ title: "Easy run" });
+    expect(provider.requests).toHaveLength(2);
+    expect(provider.requests[0]?.reasoning).toEqual({ effort: "minimal" });
+    expect(provider.requests[0]?.maxTokens).toBe(4096);
+    expect(provider.requests[1]?.reasoning).toEqual({ effort: "none" });
   });
 
   it("asks the model to correct an invalid shape once", async () => {
@@ -212,47 +232,5 @@ describe("completePlanJson", () => {
     expect(failure).toBeInstanceOf(LlmProviderError);
     expect((failure as Error).message).toContain("kept failing");
     expect(provider.requests).toHaveLength(6);
-  });
-});
-
-describe("completePlan", () => {
-  it("uses minimal reasoning and retries with a larger budget", async () => {
-    const provider = new FakeProvider([
-      new LlmTokenLimitError("limit"),
-      '{"ok":true}',
-    ]);
-
-    const text = await completePlan(
-      provider,
-      { apiKey: "key", model: "model" },
-      [{ role: "user", content: "plan" }],
-      4096,
-    );
-
-    expect(text).toBe('{"ok":true}');
-    expect(provider.requests).toHaveLength(2);
-    expect(provider.requests[0]?.reasoning).toEqual({ effort: "minimal" });
-    expect(provider.requests[0]?.maxTokens).toBe(4096);
-    expect(provider.requests[1]?.reasoning).toEqual({ effort: "none" });
-    expect(provider.requests[1]?.maxTokens).toBe(4096);
-  });
-
-  it("does not retry an auth failure", async () => {
-    const provider = new FakeProvider([new LlmAuthError("invalid key")]);
-
-    let failure: unknown;
-    try {
-      await completePlan(
-        provider,
-        { apiKey: "key", model: "model" },
-        [{ role: "user", content: "plan" }],
-        4096,
-      );
-    } catch (err) {
-      failure = err;
-    }
-
-    expect(failure).toBeInstanceOf(LlmAuthError);
-    expect(provider.requests).toHaveLength(1);
   });
 });

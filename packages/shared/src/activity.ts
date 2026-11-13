@@ -179,14 +179,6 @@ export function hasLapStructure(
   return laps !== undefined && laps.length > 1;
 }
 
-/**
- * Whether a normalized activity type is a run. Running cadence is measured in
- * total steps per minute, while cycling cadence is the pedalling rate in rpm.
- */
-export function isRunningActivity(type: string): boolean {
-  return type.toLowerCase().includes("run");
-}
-
 /** The unit an activity's recorded cadence is expressed in. */
 export function cadenceUnit(type: string): "spm" | "rpm" {
   return STEP_CADENCE_PATTERN.test(type.trim().toLowerCase()) ? "spm" : "rpm";
