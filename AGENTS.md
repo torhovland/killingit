@@ -156,7 +156,11 @@ about a past workout, or before a suggested workout, to steer the coach.
   week, block or season refresh) sends all current levels to one prompt and
   applies the returned block, week, day, next week, next block and tomorrow that
   the update requested; the plan UI is documented in
-  `docs/specs/coach-plan-lifecycle.md` and ADR 0013. Every write checks that the
+  `docs/specs/coach-plan-lifecycle.md` and ADR 0013. Every path that saves a plan
+  settles and post-processes it through one `finalizePlan` pipeline, so a fresh
+  build, an update and a stored-plan re-save cannot order the completion, the
+  outline, the forecast, the diet targets and the training load differently; see
+  `docs/specs/plan-finalisation.md`. Every write checks that the
   season's blocks tile the season — each block starts the day after the previous
   one ends — and rejects an overlap or a gap with an error naming both blocks, so
   no update can store blocks that later refreshes would reproduce; the shared

@@ -14,9 +14,7 @@ import type {
   SeasonPlan,
   ThresholdSummary,
   WeekPlan,
-  DayPlan,
 } from "@killingit/shared";
-import { applyForecastToPlan } from "../weather/apply.js";
 import { planWeatherChanged } from "../weather/changes.js";
 import type { WeatherForecastSet } from "../weather/forecast.js";
 import {
@@ -45,7 +43,7 @@ import type {
   CoachingSurveyAdjustmentContext,
 } from "../llm/profileContext.js";
 import type { LlmProvider } from "../llm/openrouter.js";
-import { applyTrainingLoad, currentTrainingLoad } from "../training/load.js";
+import { currentTrainingLoad } from "../training/load.js";
 import {
   ftpBaselineAt,
   ftpTimeline,
@@ -55,20 +53,23 @@ import { activityLocalDate, addDays, startOfWeek } from "@killingit/shared";
 import {
   dietProgressPending,
   mergeDietProgressTargets,
-  syncDietProgressTargets,
 } from "./dietProgress.js";
 import {
   GenerationSupersededError,
   isGenerationSuperseded,
 } from "./generation.js";
 import type { CoachQuestionSourceKind } from "./coachQuestions.js";
-import { outlineWeekPlans } from "./outline.js";
-import { blockFor, promoteNextPeriod, weekFor } from "./periods.js";
+import {
+  COACH_PLAN_FINALISATION,
+  finalizePlan,
+  SETTLEMENT_FINALISATION,
+  STORED_PLAN_FINALISATION,
+  type FinalizePlanInput,
+} from "./finalize.js";
+import { promoteNextPeriod, weekFor } from "./periods.js";
 import { planIsStale, planPending } from "./status.js";
 import { PLAN_GENERATION_STEPS } from "./steps.js";
-import { calorieEstimateProblems } from "./calorieEstimates.js";
 import type { PlanGenerationStore, PlanStore, StoredPlan } from "./store.js";
-import { applyCompletedDays, completionStatus } from "./week.js";
 
 export interface PlanGenerationContext {
   answers: readonly AthleteAnswerContext[];
@@ -524,17 +525,11 @@ async function generateFreshPlan(input: GeneratePlanInput): Promise<CoachPlan> {
     dailyModelFor(context),
   );
 
-  const todayPlan = deriveTodayStatus(
-    context,
-    today,
-    dayUpdate.today,
-    dayUpdate.today,
-  );
   const draft: CoachPlan = {
     season,
     block: weekUpdate.block,
     week: dayUpdate.week,
-    today: todayPlan,
+    today: dayUpdate.today,
     tomorrow: dayUpdate.tomorrow,
     nextWeek: null,
     nextBlock: null,
@@ -545,32 +540,23 @@ async function generateFreshPlan(input: GeneratePlanInput): Promise<CoachPlan> {
       dayUpdate.bodyMetrics,
     ),
   };
-  const withNextPeriod =
-    input.includeTomorrow === true ? await planNextPeriod(input, draft) : draft;
-  const completed: CoachPlan = {
-    ...withNextPeriod,
-    week: applyCompletedDays(
-      withNextPeriod.week,
-      context.activities,
-      today,
-      context.timeZone,
-      context.manualActivities,
-      withNextPeriod.today,
-    ),
-  };
-  const withProgress = await ensureDietProgress(input, completed);
-  const generated = withTrainingLoad(
-    applyForecastToPlan(
-      dropUnplacedTomorrow(
-        outlineWeekPlans(syncDietProgressTargets(withProgress)),
-        input.includeTomorrow === true,
-      ),
-      forecastForStorage(context),
-    ),
-    context,
+  // The recorded completion settles before anything else reads the plan, and
+  // before a next-period or progress-only completion sees it.
+  const settled = finalizePlan(
+    draft,
+    finalizeInput(input),
+    SETTLEMENT_FINALISATION,
   );
-  assertPlanValid(generated, today, input.includeTomorrow === true);
-  return generated;
+  const withNextPeriod =
+    input.includeTomorrow === true
+      ? await planNextPeriod(input, settled)
+      : settled;
+  const withProgress = await ensureDietProgress(input, withNextPeriod);
+  return finalizePlan(
+    withProgress,
+    finalizeInput(input),
+    COACH_PLAN_FINALISATION,
+  );
 }
 
 /**
@@ -685,28 +671,34 @@ function reconcileStoredPlan(
   input: GeneratePlanInput,
   currentPlan: CoachPlan,
 ): CoachPlan {
-  const { today, context } = input;
-  const todayPlan = deriveTodayStatus(
-    context,
+  return finalizePlan(
+    currentPlan,
+    finalizeInput(input),
+    STORED_PLAN_FINALISATION,
+  );
+}
+
+/**
+ * The athlete data a plan finalisation reads. `plannedToday` is left to the
+ * caller: a run that revised today judges the completion against the stored
+ * session, and every other run against the plan it is finalising.
+ */
+function finalizeInput(input: GeneratePlanInput): FinalizePlanInput {
+  const { context, today } = input;
+  return {
     today,
-    currentPlan.today,
-    currentPlan.today,
-  );
-  const week = applyCompletedDays(
-    currentPlan.week,
-    context.activities,
-    today,
-    context.timeZone,
-    context.manualActivities,
-    todayPlan,
-  );
-  return withTrainingLoad(
-    dropUnplacedTomorrow(
-      { ...currentPlan, today: todayPlan, week },
-      input.includeTomorrow === true,
-    ),
-    context,
-  );
+    includeTomorrow: input.includeTomorrow === true,
+    activities: context.activities,
+    manualActivities: context.manualActivities,
+    ...(context.timeZone !== undefined ? { timeZone: context.timeZone } : {}),
+    ...(context.thresholdTimelines !== undefined
+      ? { thresholdTimelines: context.thresholdTimelines }
+      : {}),
+    ...(context.weatherForecasts !== undefined
+      ? { weatherForecasts: context.weatherForecasts }
+      : {}),
+    ...(context.forecast !== undefined ? { forecast: context.forecast } : {}),
+  };
 }
 
 /**
@@ -892,40 +884,16 @@ async function advancePlan(
     };
   }
 
-  plan = {
-    ...plan,
-    today: deriveTodayStatus(
-      context,
-      today,
-      plan.today,
-      current.today.date === today ? current.today : plan.today,
-    ),
-  };
-
-  plan = {
-    ...plan,
-    week: applyCompletedDays(
-      plan.week,
-      context.activities,
-      today,
-      context.timeZone,
-      context.manualActivities,
-      plan.today,
-    ),
-  };
-  const finalPlan = syncDietProgressTargets(
-    withTrainingLoad(
-      applyForecastToPlan(
-        dropUnplacedTomorrow(
-          outlineWeekPlans(plan),
-          input.includeTomorrow === true,
-        ),
-        forecastForStorage(context),
-      ),
-      context,
-    ),
+  const finalPlan = finalizePlan(
+    plan,
+    {
+      ...finalizeInput(input),
+      // The stored session is what the athlete was asked to do, so a revised
+      // today is judged against it rather than against the new proposal.
+      ...(current.today.date === today ? { plannedToday: current.today } : {}),
+    },
+    COACH_PLAN_FINALISATION,
   );
-  assertPlanValid(finalPlan, today, input.includeTomorrow === true);
   if (input.includeTomorrow === true && finalPlan.tomorrow === null) {
     throw new Error(
       "The coach did not return tomorrow's session. Please regenerate the plan.",
@@ -1253,63 +1221,13 @@ function nextBlockStartDate(block: BlockPlan, today: string): string {
 
 /** True when a synced or manually recorded activity happened on `date`. */
 function hasActivityOn(context: PlanGenerationContext, date: string): boolean {
-  return activitiesOn(context, date).length > 0;
-}
-
-interface CompletionActivity {
-  type: string;
-  elapsedTime: number;
-}
-
-/**
- * Every synced or manually recorded activity on `date`. A day can prescribe
- * more than one session, so completion is judged against all of them together.
- */
-function activitiesOn(
-  context: PlanGenerationContext,
-  date: string,
-): CompletionActivity[] {
-  const synced = context.activities
-    .filter(
+  return (
+    context.activities.some(
       (activity) => activityLocalDate(activity, context.timeZone) === date,
-    )
-    .map((activity) => ({
-      type: activity.type,
-      elapsedTime: activity.elapsedTime,
-    }));
-  // A manual entry already stores the athlete's chosen date.
-  const manual = context.manualActivities
-    .filter((activity) => activity.startDate === date)
-    .map(() => ({ type: "manual", elapsedTime: 0 }));
-  return [...synced, ...manual];
-}
-
-/**
- * Settles today's status from what was recorded. The coach's `partial` verdict
- * is kept because it can see the activity's analysis and comments; when it only
- * returns `planned`, compare the activity with the planned duration (with
- * slack). Without an activity, today cannot be completed.
- */
-function deriveTodayStatus(
-  context: PlanGenerationContext,
-  today: string,
-  plan: DayPlan,
-  planned: DayPlan,
-): DayPlan {
-  if (plan.date !== today) {
-    return plan;
-  }
-  const activities = activitiesOn(context, today);
-  if (activities.length === 0) {
-    return {
-      ...plan,
-      status: plan.type === "rest" ? "rest" : "planned",
-    };
-  }
-  if (plan.status === "completed" || plan.status === "partial") {
-    return plan;
-  }
-  return { ...plan, status: completionStatus(planned, activities) };
+    ) ||
+    // A manual entry already stores the athlete's chosen date.
+    context.manualActivities.some((activity) => activity.startDate === date)
+  );
 }
 
 /**
@@ -1336,26 +1254,6 @@ function restoreTodaysSession(
       session.date === today ? existing : session,
     ),
   };
-}
-
-/**
- * A tomorrow session that falls outside both stored weeks and blocks cannot be
- * shown next to a week plan. This happens when a server-triggered revision runs
- * without `includeTomorrow` (for example a comment saved after 18:00); keep the
- * plan valid and let the next visit that asks for tomorrow regenerate it.
- */
-function dropUnplacedTomorrow(
-  plan: CoachPlan,
-  includeTomorrow: boolean,
-): CoachPlan {
-  if (includeTomorrow || plan.tomorrow === null) {
-    return plan;
-  }
-  const date = plan.tomorrow.date;
-  if (weekFor(plan, date) !== null && blockFor(plan, date) !== null) {
-    return plan;
-  }
-  return { ...plan, tomorrow: null };
 }
 
 /** True when `today` falls inside the season's dates. */
@@ -1430,134 +1328,6 @@ function assertRefreshedSeason(
     throw new Error(
       "The coach returned a block refresh that does not match the remaining season. Please regenerate the plan.",
     );
-  }
-}
-
-/**
- * Season blocks tile the season: each block starts the day after the previous
- * one ends. A shared day puts a date in two blocks and a skipped day leaves it
- * in none, so both are rejected on every write — a build, a season refresh and
- * a block, week or day update that returns the season alike. Without this a
- * week or block update could store overlapping blocks that every later season
- * refresh then reproduced. Blocks that ended before today are stored history
- * the coach cannot change, so their boundaries are not re-checked.
- */
-function assertSeasonBlocksContiguous(season: SeasonPlan, today: string): void {
-  const upcoming = season.blocks.filter((entry) => entry.endDate >= today);
-  for (let index = 1; index < upcoming.length; index += 1) {
-    const previous = upcoming[index - 1];
-    const next = upcoming[index];
-    if (previous === undefined || next === undefined) {
-      continue;
-    }
-    if (next.startDate <= previous.endDate) {
-      throw new Error(
-        `The coach returned overlapping season blocks: "${next.name}" starts on ${next.startDate}, the day "${previous.name}" ends. Please regenerate the plan.`,
-      );
-    }
-    const unplanned = addDays(previous.endDate, 1);
-    if (next.startDate !== unplanned) {
-      throw new Error(
-        `The coach returned a gap between season blocks: "${previous.name}" ends on ${previous.endDate} and "${next.name}" starts on ${next.startDate}, leaving ${unplanned} unplanned. Please regenerate the plan.`,
-      );
-    }
-  }
-}
-
-/**
- * Guards against a model that returns a plan for the wrong date. Without this
- * the pending check would immediately ask for another generation and loop.
- * Every write path ends here, so the season's block boundaries are checked
- * here too.
- */
-function assertPlanValid(
-  plan: CoachPlan,
-  today: string,
-  includeTomorrow: boolean,
-): void {
-  const calorieProblem = calorieEstimateProblems(plan)[0];
-  if (calorieProblem !== undefined) {
-    throw new Error(`${calorieProblem.message} Please regenerate the plan.`);
-  }
-  assertSeasonBlocksContiguous(plan.season, today);
-  if (plan.today.date !== today) {
-    throw new Error(
-      "The coach returned today's session for the wrong date. Please regenerate the plan.",
-    );
-  }
-  if (!plan.week.sessions.some((session) => session.date === today)) {
-    throw new Error(
-      "The coach returned a week that does not include today. Please regenerate the plan.",
-    );
-  }
-  if (today < plan.block.startDate || today > plan.block.endDate) {
-    throw new Error(
-      "The coach returned a block that does not cover today. Please regenerate the plan.",
-    );
-  }
-  if (today < plan.season.startDate || today > plan.season.endDate) {
-    throw new Error(
-      "The coach returned a season that does not cover today. Please regenerate the plan.",
-    );
-  }
-  if (plan.nextWeek !== null) {
-    if (plan.nextWeek.startDate !== startOfWeek(plan.nextWeek.startDate)) {
-      throw new Error(
-        "The coach returned a week that does not start on a Monday. Please regenerate the plan.",
-      );
-    }
-    if (plan.nextWeek.sessions[0]?.date !== plan.nextWeek.startDate) {
-      throw new Error(
-        "The coach returned a week whose sessions do not match its start date. Please regenerate the plan.",
-      );
-    }
-    if (plan.nextWeek.startDate <= plan.week.startDate) {
-      throw new Error(
-        "The coach returned a next week that is not after the current week. Please regenerate the plan.",
-      );
-    }
-    if (
-      includeTomorrow &&
-      plan.nextWeek.startDate !== startOfWeek(addDays(today, 1))
-    ) {
-      throw new Error(
-        "The coach returned the wrong next week. Please regenerate the plan.",
-      );
-    }
-  }
-  if (plan.nextBlock !== null) {
-    if (plan.nextBlock.startDate <= plan.block.endDate) {
-      throw new Error(
-        "The coach returned a next block that does not follow the current block. Please regenerate the plan.",
-      );
-    }
-    if (plan.nextBlock.startDate > plan.nextBlock.endDate) {
-      throw new Error(
-        "The coach returned a next block with invalid dates. Please regenerate the plan.",
-      );
-    }
-  }
-  if (plan.tomorrow !== null) {
-    const tomorrowDate = addDays(today, 1);
-    if (plan.tomorrow.date !== tomorrowDate) {
-      throw new Error(
-        "The coach returned tomorrow's session for the wrong date. Please regenerate the plan.",
-      );
-    }
-    const week = weekFor(plan, tomorrowDate);
-    if (
-      week === null ||
-      !week.sessions.some((session) => session.date === tomorrowDate)
-    ) {
-      throw new Error(
-        "The coach returned tomorrow's session outside a planned week. Please regenerate the plan.",
-      );
-    }
-    if (blockFor(plan, tomorrowDate) === null) {
-      throw new Error(
-        "The coach returned tomorrow's session outside a planned block. Please regenerate the plan.",
-      );
-    }
   }
 }
 
@@ -1710,22 +1480,6 @@ export function planFtpEstimates(
 }
 
 /**
- * Attaches the resolved training stress and fitness snapshot after every
- * generation path, so stored plans always show consistent TSS/ATL/CTL/TSB.
- */
-function withTrainingLoad(
-  plan: CoachPlan,
-  context: PlanGenerationContext,
-): CoachPlan {
-  return applyTrainingLoad(plan, {
-    activities: context.activities,
-    manualActivities: context.manualActivities,
-    thresholdTimelines: context.thresholdTimelines,
-    timeZone: context.timeZone,
-  });
-}
-
-/**
  * The current FTP for prompts and TSS. It comes only from the stored metric
  * series: the coach read the athlete's stated FTP and the API stored it, so no
  * free text is parsed here.
@@ -1810,26 +1564,6 @@ function baseContext(input: GeneratePlanInput) {
     input.context.periodReviews.length > 0
       ? { periodReviews: input.context.periodReviews }
       : {}),
-  };
-}
-
-/**
- * The full provider set is stored on sessions for display. Older tests and
- * callers may supply only the combined forecast, so use that as a fallback.
- */
-function forecastForStorage(
-  context: PlanGenerationContext,
-): WeatherForecastSet | null {
-  if (context.weatherForecasts) {
-    return context.weatherForecasts;
-  }
-  if (!context.forecast || context.forecast.length === 0) {
-    return null;
-  }
-  return {
-    openMeteo: [],
-    yr: [],
-    combined: [...context.forecast],
   };
 }
 
