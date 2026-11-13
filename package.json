@@ -38,9 +38,9 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@killingit/benchmark": "workspace:*",
-    "@playwright/test": "^1.65.0",
+    "@playwright/test": "^1.65.1",
     "@types/bun": "^1.4.4",
-    "eslint": "^10.14.0",
+    "eslint": "^10.15.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.14.0",

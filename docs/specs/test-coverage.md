@@ -64,7 +64,7 @@ variation. Both lines and functions are checked.
 | Package   | Lines measured | Line threshold | Functions measured | Function threshold |
 | --------- | -------------- | -------------- | ------------------ | ------------------ |
 | api       | 72.97%         | 72.0%          | 77.60%             | 77.0%              |
-| web       | 77.75%         | 77.0%          | 72.61%             | 72.0%              |
+| web       | 77.45%         | 77.0%          | 72.65%             | 72.0%              |
 | shared    | 95.92%         | 95.0%          | 87.64%             | 86.0%              |
 | benchmark | 90.48%         | 90.0%          | 100.00%            | 100.0%             |
 
@@ -77,6 +77,14 @@ lines and 77.60% of functions.
 The baseline lives in `COVERAGE_GROUPS` in `scripts/coverage.ts`. When coverage
 improves, raise the matching threshold in the same pull request. Lowering a
 threshold needs a documented reason, because it silently accepts lost tests.
+
+The web line measurement moved from 77.75% to 77.45% when the Auth0 adapter
+gained its own suite. Three web suites replace the `./auth` barrel with a
+process-global mock, so whether the real `apps/web/src/auth/auth0.ts` reached
+the denominator depended on which file ran first: one commit measured 77.21%
+and 76.60% of lines against the 77.0% floor on two consecutive runs. Its suite
+now imports the adapter directly, so the file is always counted, is fully
+covered, and the aggregate no longer depends on ordering.
 
 ### Excluded paths
 

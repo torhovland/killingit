@@ -227,21 +227,24 @@ export async function runPlanGeneration(
     const promoted = currentPlan !== null && currentPlan !== stored;
 
     // 3. The cascade is about to replace the current week/block. Summarise
-    // them first when they have ended, so the athlete keeps a review.
-    await captureEndedPeriodReviews(input, today);
+    // them first when they have ended, so the athlete keeps a review. The
+    // captured reviews belong to this run, so they are threaded through a
+    // resolved input instead of rewriting the caller's context.
+    const context = await captureEndedPeriodReviews(input, today);
+    const runInput: GeneratePlanInput = { ...input, context };
 
     // 4. Work out which levels this run has to build or revise.
-    const decision = decideRevisionPlan(input, currentPlan);
+    const decision = decideRevisionPlan(runInput, currentPlan);
 
     // 5. A new season or a season refresh replaces unanswered questions.
     if (decision.needsFullPlan || decision.kind === "refresh") {
-      await clearPendingCoachQuestions(input);
+      await clearPendingCoachQuestions(runInput);
     }
 
     // 6. Build every level when there is no plan to advance.
     if (decision.needsFullPlan) {
-      const generated = await generateFreshPlan(input);
-      return await saveGeneratedPlan(input, generated, {
+      const generated = await generateFreshPlan(runInput);
+      return await saveGeneratedPlan(runInput, generated, {
         clearSurveyAdjustments: true,
       });
     }
@@ -250,8 +253,8 @@ export async function runPlanGeneration(
 
     // 7. A refresh revises the stored season in place.
     if (decision.kind === "refresh") {
-      const plan = await advancePlan(input, activePlan, decision);
-      return await saveGeneratedPlan(input, plan, {
+      const plan = await advancePlan(runInput, activePlan, decision);
+      return await saveGeneratedPlan(runInput, plan, {
         clearSurveyAdjustments: true,
       });
     }
@@ -260,7 +263,7 @@ export async function runPlanGeneration(
     // that arrived since the last save.
     if (planIsIdle(decision.pending, decision.revisionNeeded)) {
       return await finishUnchangedPlan(
-        input,
+        runInput,
         activePlan,
         promoted,
         decision.acknowledgementNeeded,
@@ -268,8 +271,8 @@ export async function runPlanGeneration(
     }
 
     // 9. Advance the levels that are pending.
-    const plan = await advancePlan(input, activePlan, decision);
-    return await saveGeneratedPlan(input, plan, {
+    const plan = await advancePlan(runInput, activePlan, decision);
+    return await saveGeneratedPlan(runInput, plan, {
       clearSurveyAdjustments: false,
     });
   } catch (err) {
@@ -670,17 +673,19 @@ function finalizeInput(input: GeneratePlanInput): FinalizePlanInput {
 
 /**
  * Captures a review for every completed period this run is about to replace.
- * The new reviews join this run's context, so the block update can use them
- * immediately and the block becomes pending in the same visit.
+ * Returns the context the rest of the run must use: the caller's context with
+ * the new reviews merged in, so the block update can use them immediately and
+ * the block becomes pending in the same visit. The caller's input is not
+ * modified.
  */
 async function captureEndedPeriodReviews(
   input: GeneratePlanInput,
   today: string,
-): Promise<void> {
-  if (input.plan === null || input.capturePeriodReviews === undefined) {
-    return;
-  }
+): Promise<PlanGenerationContext> {
   const context = input.context;
+  if (input.plan === null || input.capturePeriodReviews === undefined) {
+    return context;
+  }
   const timezone = runTimeZone(input);
   const captured = await input.capturePeriodReviews({
     userId: input.userId,
@@ -702,10 +707,11 @@ async function captureEndedPeriodReviews(
     ...(context.diet !== undefined ? { diet: context.diet } : {}),
     ...(input.signal !== undefined ? { signal: input.signal } : {}),
   });
-  if (captured !== undefined && captured.length > 0) {
-    input.context = mergeCapturedPeriodReviews(input.context, captured);
-  }
   await ensureGenerationCurrent(input);
+  if (captured === undefined || captured.length === 0) {
+    return context;
+  }
+  return mergeCapturedPeriodReviews(context, captured);
 }
 
 /** The stored plan an advancing run revises; a full build always has none. */
