@@ -12,7 +12,7 @@
  * stays consistent no matter which completion produced it.
  */
 
-import { DEFAULT_DIET_GOAL } from "@killingit/shared";
+import { addDays, DEFAULT_DIET_GOAL, weekDates } from "@killingit/shared";
 
 /**
  * How the coach balances ambition against risk. The plan should drive the best
@@ -143,6 +143,21 @@ Base the targets on the tracked weight and body-fat history and the athlete's st
 When diet advice is disabled, or when the athlete has stated no diet goal and you fall back to "${DEFAULT_DIET_GOAL}", set every "dietProgress" to null.`;
 
 /**
+ * The diet goal fields a repair turn asks for when the coach left the goal out.
+ * The schema messages and the repair hints both compose this clause, so the
+ * three field names cannot drift apart between the validation error and the
+ * text the model reads on its second attempt.
+ */
+export const DIET_REPAIR_HINT = `"diet" with "goal", "goalProvided" and "assessment"`;
+
+/**
+ * The progress target a repair turn asks for when a stated diet goal is missing
+ * one. Shared the same way as `DIET_REPAIR_HINT`, so every repair names the
+ * three `dietProgress` fields identically.
+ */
+export const DIET_PROGRESS_REPAIR_HINT = `a "dietProgress" object with "targetWeightKg", "targetBodyFatPercent" and "note"`;
+
+/**
  * The rules every plan prompt includes regardless of the level it builds or
  * updates: training-science guidance, how to read the supplied input, the
  * rationale rules and the body-metric rules. `GLOBAL_PROMPT_RULES` supplies the
@@ -186,10 +201,17 @@ export const SEASON_BLOCK_RULES = `Season blocks tile the season: each block sta
 export const SEASON_INTRODUCTION_RULES = `A new season is your first meeting with the athlete. Set "introduction" to a short, warm greeting from you: greet the athlete by first name when the input gives a name that clearly looks like a real first name, introduce yourself as the coach who will guide their season, and welcome them. For example, you might say that you look forward to working with them, but that is only one option, not a required line. When no real first name is available, greet them without a name. Write it in your own voice in a few sentences. This greeting is not the season rationale, so do not explain the plan in it.`;
 
 /**
+ * The clause every week prompt shares: the week it returns carries exactly
+ * seven sessions. `WEEK_SHAPE_RULES` and the week-dates sentence helpers
+ * compose it, so the count is stated one way wherever a prompt asks for a week.
+ */
+export const SEVEN_SESSIONS_CLAUSE = `exactly seven sessions`;
+
+/**
  * How a week hangs together: seven dated sessions starting on its start date.
  * Every prompt that returns a week uses this.
  */
-export const WEEK_SHAPE_RULES = `Keep the week's start date and exactly seven sessions, one for each day of the week.`;
+export const WEEK_SHAPE_RULES = `Keep the week's start date and ${SEVEN_SESSIONS_CLAUSE}, one for each day of the week.`;
 
 /**
  * The link between the day view and the week for prompts that return both:
@@ -584,4 +606,32 @@ export function jsonTopLevelKeys(keys: readonly string[]): string {
         ? `${quoted[0]} and ${quoted[1]}`
         : `${quoted.slice(0, -1).join(", ")}, and ${quoted.at(-1)}`;
   return `Return one JSON object whose top-level keys are exactly ${list}.`;
+}
+
+/**
+ * The week-dates sentence every plan-update prompt and every repair hint uses:
+ * the week starts on its start date and carries one session per day. `subject`
+ * names the week the sentence is about, for example "next week". Composing the
+ * sentence here keeps the seven dates, and the rule that all of them are
+ * required, identical wherever it is stated.
+ */
+export function weekDatesRule(startDate: string, subject = "week"): string {
+  const dates = weekDates(startDate);
+  return `The ${subject} must start on ${startDate} and contain ${SEVEN_SESSIONS_CLAUSE} dated ${dates.join(", ")}`;
+}
+
+/**
+ * `weekDatesRule` for the prompts that describe the week as a range of dates
+ * rather than a list. Same rule, so the same fragment owns the wording.
+ */
+export function weekCoverageRule(startDate: string, subject = "week"): string {
+  return `The ${subject} must start on ${startDate} and cover ${startDate} through ${addDays(startDate, 6)}. Keep ${SEVEN_SESSIONS_CLAUSE} with those dates`;
+}
+
+/**
+ * `weekDatesRule` for the prompt that is handed only the week's start date and
+ * states the week as a span of dates instead of a list.
+ */
+export function weekDatesRangeRule(startDate: string): string {
+  return `The week must contain ${SEVEN_SESSIONS_CLAUSE} dated ${startDate} through ${addDays(startDate, 6)}`;
 }

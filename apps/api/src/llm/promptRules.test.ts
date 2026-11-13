@@ -11,6 +11,8 @@ import {
   COACH_REPLY_RESPONSE_RULES,
   COACH_RESPONSE_NOTES_CONTRACT,
   COACH_RESPONSE_NOTES_RULES,
+  DIET_PROGRESS_REPAIR_HINT,
+  DIET_REPAIR_HINT,
   PLAN_CHANGE_FLAG_RULES,
   DAY_CONTRACT,
   DIET_CONTRACT,
@@ -27,11 +29,16 @@ import {
   SEASON_BLOCK_RULES,
   SEASON_CONTRACT,
   SEASON_INTRODUCTION_RULES,
+  SEVEN_SESSIONS_CLAUSE,
   TEXT_FORMATTING_RULES,
   TODAY_SESSION_RULES,
   TRAINING_LOAD_RULES,
   WEEK_CONTRACT,
+  weekCoverageRule,
+  weekDatesRangeRule,
+  weekDatesRule,
   WEEK_OUTLINE_RULES,
+  WEEK_SHAPE_RULES,
   WEATHER_PLANNING_RULES,
 } from "./promptRules.js";
 
@@ -276,6 +283,50 @@ describe("TEXT_FORMATTING_RULES", () => {
 
   it("reaches every plan prompt through the shared plan rules", () => {
     expect(PLAN_PROMPT_RULES).toContain(TEXT_FORMATTING_RULES);
+  });
+});
+
+describe("week dates fragments", () => {
+  it("names the seven dates of the week from its start date", () => {
+    expect(weekDatesRule("2026-10-26")).toBe(
+      "The week must start on 2026-10-26 and contain exactly seven sessions dated 2026-10-26, 2026-10-27, 2026-10-28, 2026-10-29, 2026-10-30, 2026-10-31, 2026-11-01",
+    );
+  });
+
+  it("names the week the sentence is about", () => {
+    expect(weekDatesRule("2026-10-26", "next week")).toBe(
+      "The next week must start on 2026-10-26 and contain exactly seven sessions dated 2026-10-26, 2026-10-27, 2026-10-28, 2026-10-29, 2026-10-30, 2026-10-31, 2026-11-01",
+    );
+  });
+
+  it("states the same rule as a range of dates", () => {
+    expect(weekCoverageRule("2026-10-26")).toBe(
+      "The week must start on 2026-10-26 and cover 2026-10-26 through 2026-11-01. Keep exactly seven sessions with those dates",
+    );
+    expect(weekCoverageRule("2026-10-26", "current week")).toContain(
+      "The current week must start on 2026-10-26",
+    );
+    expect(weekDatesRangeRule("2026-10-26")).toBe(
+      "The week must contain exactly seven sessions dated 2026-10-26 through 2026-11-01",
+    );
+  });
+
+  it("states the session count one way everywhere", () => {
+    expect(WEEK_SHAPE_RULES).toContain(SEVEN_SESSIONS_CLAUSE);
+    expect(weekDatesRule("2026-10-26")).toContain(SEVEN_SESSIONS_CLAUSE);
+    expect(weekCoverageRule("2026-10-26")).toContain(SEVEN_SESSIONS_CLAUSE);
+    expect(weekDatesRangeRule("2026-10-26")).toContain(SEVEN_SESSIONS_CLAUSE);
+  });
+});
+
+describe("diet repair hints", () => {
+  it("names the diet goal fields and the progress target fields", () => {
+    expect(DIET_REPAIR_HINT).toBe(
+      '"diet" with "goal", "goalProvided" and "assessment"',
+    );
+    expect(DIET_PROGRESS_REPAIR_HINT).toBe(
+      'a "dietProgress" object with "targetWeightKg", "targetBodyFatPercent" and "note"',
+    );
   });
 });
 
