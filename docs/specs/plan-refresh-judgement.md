@@ -67,6 +67,10 @@ analysis timestamps it has seen, which also records inputs whose flag was false.
   the batched comment reply carries the same field per item.
 - `PLAN_CHANGE_FLAG_RULES` in `promptRules.ts` owns the instruction for both
   prompts and explains the default.
+- `REPLY_PLAN_CHANGE_RULES` in the same module puts the decision in the
+  athlete's words: a reply says whether the input changes the plan and, if so,
+  what the coach will adjust, and says the plan stands when it does not. The
+  reply never promises an adjustment its own `planChangeNeeded` flag denies.
 - A missing flag fails open. A reply or analysis that ignores the JSON contract,
   or omits the field, is treated as `true` so an unparsed answer can never
   silently drop a needed refresh.

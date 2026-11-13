@@ -17,6 +17,7 @@ import {
   ATHLETE_INPUT_RULES,
   COACH_AMBITION_RULES,
   GLOBAL_PROMPT_RULES,
+  REPLY_PLAN_CHANGE_RULES,
   TEXT_FORMATTING_RULES,
 } from "./promptRules.js";
 
@@ -157,6 +158,23 @@ describe("buildCoachReplyMessages", () => {
     expect(messages[0]?.content).toContain(GLOBAL_PROMPT_RULES);
     expect(messages[0]?.content).toContain(COACH_AMBITION_RULES);
     expect(messages[0]?.content).toContain(ATHLETE_INPUT_RULES);
+  });
+
+  it("says whether the plan changes instead of always promising one", () => {
+    const messages = buildCoachReplyMessages(
+      makeInput({
+        request: {
+          kind: "activity_comment",
+          activityDate: "2026-10-20",
+          comment: "Felt strong on the hills.",
+        },
+      }),
+    );
+
+    expect(messages[0]?.content).toContain(REPLY_PLAN_CHANGE_RULES);
+    expect(messages[0]?.content).not.toContain(
+      "explain how it affects the plan",
+    );
   });
 });
 

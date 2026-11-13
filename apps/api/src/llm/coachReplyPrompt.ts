@@ -16,6 +16,7 @@ import {
   DIET_RULES,
   GLOBAL_PROMPT_RULES,
   promptSections,
+  REPLY_PLAN_CHANGE_RULES,
   TEXT_FORMATTING_RULES,
 } from "./promptRules.js";
 
@@ -54,7 +55,8 @@ export const COACH_REPLY_SYSTEM_PROMPT = promptSections(
   ATHLETE_INPUT_RULES,
   "The athlete has just shared something about their training: a comment on a workout, a completed week or block, a note for the week, or a manual activity.",
   "Use the athlete profile, the current plan, and the recent training with its coach analyses to judge what the input means for the athlete.",
-  "Reply briefly in 1-2 sentences. Acknowledge the input in your own words, explain how it affects the plan, and state what you will adjust. Be specific to the athlete's goal and current block. Do not restate the whole plan or ask questions.",
+  "Reply briefly in 1-2 sentences. Acknowledge the input in your own words. Be specific to the athlete's goal and current block. Do not restate the whole plan or ask questions.",
+  REPLY_PLAN_CHANGE_RULES,
   DIET_RULES,
   TEXT_FORMATTING_RULES,
 );
