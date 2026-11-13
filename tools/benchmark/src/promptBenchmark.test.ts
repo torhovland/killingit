@@ -2,11 +2,16 @@ import { describe, expect, it } from "bun:test";
 import {
   checkReviseSeasonGates,
   combinePromptScores,
+  extractJson,
+  fatalPromptErrors,
   filterByCostGrades,
   filterByMinimumAbility,
+  isWarningOnlyPromptError,
+  parseJudge,
   sortByPreviousTime,
   parseAbilityGrade,
   parseCurrentBlock,
+  validatePromptPlan,
   validateReviseSeasonPlan,
   validateTodayPlan,
 } from "./promptBenchmark.js";
@@ -519,5 +524,100 @@ describe("benchmark selection", () => {
       "fast",
       "unknown",
     ]);
+  });
+});
+
+describe("extractJson", () => {
+  it("reads direct JSON and a fenced block", () => {
+    expect(extractJson('{"today": 1}')).toEqual({ today: 1 });
+    expect(extractJson('```json\n{"today": 2}\n```')).toEqual({ today: 2 });
+    expect(extractJson('Here it is:\n```\n{"today": 3}\n```\nDone.')).toEqual({
+      today: 3,
+    });
+  });
+
+  it("reads the object out of surrounding prose", () => {
+    expect(
+      extractJson('The plan follows.\n{"today": 4}\nThat is all.'),
+    ).toEqual({ today: 4 });
+  });
+
+  it("rejects a response with no JSON object", () => {
+    expect(() => extractJson("no json here")).toThrow(
+      "no parseable JSON object in response",
+    );
+  });
+});
+
+describe("prompt validation", () => {
+  it("routes each prompt to its contract", () => {
+    expect(validatePromptPlan("today", null)).toContain(
+      "response is not an object",
+    );
+    expect(validatePromptPlan("reviseSeason", null)).toContain(
+      "response is not an object",
+    );
+  });
+
+  it("separates warning-level key errors from fatal ones", () => {
+    expect(isWarningOnlyPromptError("unexpected top-level keys: extra")).toBe(
+      true,
+    );
+    expect(isWarningOnlyPromptError("missing today object")).toBe(false);
+    const errors = fatalPromptErrors("today", {
+      today: {},
+      tomorrow: null,
+      week: {},
+      bodyMetrics: [],
+      extra: true,
+    });
+    expect(errors).not.toContain(
+      expect.stringContaining("unexpected top-level keys"),
+    );
+    expect(errors.length).toBeGreaterThan(0);
+  });
+});
+
+describe("parseJudge", () => {
+  it("clamps components and recomputes the total", () => {
+    const judged = parseJudge({
+      contract: 9,
+      fidelity: 2,
+      design: 3,
+      rationale: 2,
+      grounding: 2,
+      detail: 2,
+      score: 1,
+      judgment: "Strong plan.",
+    });
+    expect(judged?.components.contract).toBe(1.5);
+    expect(judged?.components.fidelity).toBe(2);
+    expect(judged?.score).toBe(12.5);
+    expect(judged?.note).toBe("Strong plan.");
+  });
+
+  it("rejects an incomplete or non-numeric verdict", () => {
+    expect(parseJudge(null)).toBeNull();
+    expect(
+      parseJudge({
+        contract: 1,
+        fidelity: 2,
+        design: 3,
+        rationale: 2,
+        grounding: 2,
+        judgment: "No detail score.",
+      }),
+    ).toBeNull();
+    expect(
+      parseJudge({
+        contract: 1,
+        fidelity: 2,
+        design: 3,
+        rationale: 2,
+        grounding: 2,
+        detail: 2,
+        judgment: "   ",
+      }),
+    ).toBeNull();
   });
 });

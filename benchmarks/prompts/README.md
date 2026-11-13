@@ -1,12 +1,15 @@
 # Prompts benchmark
 
-This benchmark sends two prompts to every selected OpenRouter model and judges
-both responses with `anthropic/claude-haiku-5.5`:
+This benchmark sends two prompts to every selected OpenRouter model through the
+app's `LlmProvider`:
 
 - the daily-update prompt for 2026-10-30, which asks for today's session,
   tomorrow's session and the current week; and
 - the season-revision prompt for 2026-11-01 after the athlete set the Atlas
   Mountain Race on 28 February 2027 as the next goal.
+
+The optional `judge` stage scores both responses with
+`anthropic/claude-haiku-5.5`.
 
 Both prompts are built by the app's real prompt builders
 (`buildDailyUpdateMessages` and `buildPlanUpdateMessages`) from a fixture
@@ -24,9 +27,10 @@ bun run --filter @killingit/benchmark test --update-snapshots
 Review the snapshot diff before committing it: it is the exact text every model
 receives.
 
-The prompts, validators, score gates and catalog queries these scripts use live
-in the `@killingit/benchmark` workspace (`tools/benchmark/src`); this directory
-holds the run scripts and their artifacts. See ADR 0032.
+The whole harness — prompt builders, validators, score gates, catalog queries
+and the run, judge, finalize, shortlist, sync and report stages — lives in the
+`@killingit/benchmark` workspace (`tools/benchmark/src`). This directory holds
+only the git-ignored run and report artifacts. See ADR 0032.
 
 Each model's score is the mean of its two judged scores (each out of 12.5), and
 every component keeps the weaker of the two prompts, so a category failure in
@@ -57,12 +61,12 @@ it stays ungraded instead of being labelled a failure.
 Run only models that still have `?` in ability or speed:
 
 ```sh
-PENDING_ONLY=1 RUN_ID=2026-11-15-pending bun benchmarks/prompts/run.ts
-RUN_ID=2026-11-15-pending bun benchmarks/prompts/judge.ts
-RUN_ID=2026-11-15-pending bun benchmarks/prompts/sync-db.ts
+PENDING_ONLY=1 RUN_ID=2026-11-15-pending bun run benchmark:prompts run
+RUN_ID=2026-11-15-pending bun run benchmark:prompts judge
+RUN_ID=2026-11-15-pending bun run benchmark:prompts sync-db
 ```
 
-`run.ts` reads `pendingBenchmarkModelIds()` from the database, so new,
+The `run` stage reads `pendingBenchmarkModelIds()` from the database, so new,
 ungraded, price-changed and alias-reassigned models are picked up automatically.
 If an alias and its target both need grading, only the target is run; the alias
 is copied from the finished target afterwards.
@@ -71,7 +75,7 @@ To re-score only models that already reached a grade — for example after a new
 prompt is added — use `RESCORE_MIN_ABILITY`:
 
 ```sh
-RESCORE_MIN_ABILITY=A RUN_ID=2026-11-01-rescore-a bun benchmarks/prompts/run.ts
+RESCORE_MIN_ABILITY=A RUN_ID=2026-11-01-rescore-a bun run benchmark:prompts run
 ```
 
 This keeps models graded A or A+ plus every ungraded model; models graded below
@@ -80,9 +84,9 @@ A (B to F) are dropped. To re-score only models with one exact cost grade, set
 
 ```sh
 export BENCHMARK_OPENROUTER_API_KEY=...
-RUN_ID=2026-11-01-cost-a-plus RESCORE_COST_GRADE=A+ bun benchmarks/prompts/run.ts
-RUN_ID=2026-11-01-cost-a-plus bun benchmarks/prompts/judge.ts
-RUN_ID=2026-11-01-cost-a-plus bun benchmarks/prompts/sync-db.ts
+RUN_ID=2026-11-01-cost-a-plus RESCORE_COST_GRADE=A+ bun run benchmark:prompts run
+RUN_ID=2026-11-01-cost-a-plus bun run benchmark:prompts judge
+RUN_ID=2026-11-01-cost-a-plus bun run benchmark:prompts sync-db
 ```
 
 Unlike the ability filter, this keeps only models whose stored cost grade is
@@ -101,7 +105,7 @@ RUN_ID=2026-11-01-above-a-plus \
 INCLUDE_COST_GRADES=A,B,C \
 INCLUDE_MODELS=elorian/glimpse,openai/gpt-5,perplexity/sonar-pro-search \
 SORT=slowest \
-bun benchmarks/prompts/run.ts
+bun run benchmark:prompts run
 ```
 
 `INCLUDE_COST_GRADES` takes a comma-separated set of exact grades, and
@@ -109,19 +113,19 @@ bun benchmarks/prompts/run.ts
 `EXCLUDE_ABILITY_GRADES` drops models with the listed current ability grades
 (named models are kept), `SORT=slowest` orders the run by each model's previous
 benchmark time, slowest first, and models with no previous time go last.
-Aliases are never benchmarked directly: `sync-db.ts` copies every alias from its
-target afterwards.
+Aliases are never benchmarked directly: the `sync-db` stage copies every alias
+from its target afterwards.
 
-`sync-db.ts` refreshes the catalog, records the scores, and recomputes Ability,
-Speed, Cost and Discouraged. The commands need the same `DATABASE_URL` as the
-API and a dedicated `BENCHMARK_OPENROUTER_API_KEY`, so benchmark spend stays
-separate from the app's per-account key.
+The `sync-db` stage refreshes the catalog, records the scores, and recomputes
+Ability, Speed, Cost and Discouraged. The commands need the same `DATABASE_URL`
+as the API and a dedicated `BENCHMARK_OPENROUTER_API_KEY`, so benchmark spend
+stays separate from the app's per-account key.
 
 A full run is the same sequence without a filter and with a fresh `RUN_ID`. The
 HTML report is generated with:
 
 ```sh
-RUN_ID=... SCORES_FILE=judge-scores.json USE_OVERRIDES=0 bun benchmarks/prompts/report.ts
+RUN_ID=... SCORES_FILE=judge-scores.json USE_OVERRIDES=0 bun run benchmark:prompts report
 ```
 
 The report shows each model's ability, speed and cost grades alongside its run
@@ -145,13 +149,13 @@ a valid answer:
 
 ```sh
 # Retry only the prompts that are still unfinished, cheapest models first.
-RETRY_FAILED=1 CONCURRENCY=2 RUN_ID=... bun benchmarks/prompts/run.ts
+RETRY_FAILED=1 CONCURRENCY=2 RUN_ID=... bun run benchmark:prompts run
 
 # Judge only models that finished both prompts; re-judge empty judge responses.
-ONLY_VALID=1 RETRY_FAILED_JUDGES=1 RUN_ID=... bun benchmarks/prompts/judge.ts
+ONLY_VALID=1 RETRY_FAILED_JUDGES=1 RUN_ID=... bun run benchmark:prompts judge
 
 # Record finished models only and leave the rest at their previous grade.
-SKIP_FAILED=1 SKIP_REFRESH=1 RUN_ID=... bun benchmarks/prompts/sync-db.ts
+SKIP_FAILED=1 SKIP_REFRESH=1 RUN_ID=... bun run benchmark:prompts sync-db
 ```
 
 `RETRY_FAILED=1` merges the new attempt into the existing prompt result, so the

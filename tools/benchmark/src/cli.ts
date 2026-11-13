@@ -83,7 +83,13 @@ async function reportOnly(
 }
 
 async function main(): Promise<void> {
-  const config = await parseBenchmarkArgs(process.argv.slice(2));
+  const args = process.argv.slice(2);
+  if (args[0] === "prompts") {
+    const { runPromptBenchmarkCli } = await import("./promptBenchmarkCli.js");
+    await runPromptBenchmarkCli(args.slice(1));
+    return;
+  }
+  const config = await parseBenchmarkArgs(args);
   if (config.help) {
     console.log(BENCHMARK_HELP);
     return;
