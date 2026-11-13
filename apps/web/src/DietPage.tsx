@@ -1,15 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
-import {
-  dietSummaryResponseSchema,
-  type DietSummaryResponse,
-} from "@killingit/shared";
-import { useAppStatus } from "./AppStatus";
+import { dietSummaryResponseSchema } from "@killingit/shared";
 import { useAuth } from "./auth";
 import { DietView } from "./DietView";
-import { requestParsed } from "./fetchAuthed";
 import { useNavigate } from "./navigation";
-import { reportError } from "./reportError";
 import { useTimeZone } from "./TimeZoneContext";
+import { useApiResource } from "./useApiResource";
 import { getToday } from "./useToday";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
@@ -18,54 +12,27 @@ const API_URL = import.meta.env.VITE_API_URL ?? "";
 export function DietPage({ dietAdvice }: { dietAdvice: boolean }) {
   const auth = useAuth();
   const navigate = useNavigate();
-  const { setStatus } = useAppStatus();
   const timeZone = useTimeZone();
   const today = getToday(timeZone).today;
-  const [summary, setSummary] = useState<DietSummaryResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setStatus("diet-page", loading ? "loading" : null);
-    return () => setStatus("diet-page", null);
-  }, [loading, setStatus]);
-
-  const loadSummary = useCallback(async (): Promise<void> => {
-    setLoading(true);
-    setError(null);
-    try {
-      const query = new URLSearchParams({ today }).toString();
-      const response = await requestParsed(
-        `${API_URL}/api/diet/summary?${query}`,
-        auth,
-        dietSummaryResponseSchema,
-        "Loading your diet log",
-      );
-      setSummary(response);
-    } catch (err: unknown) {
-      setError(reportError(err));
-    } finally {
-      setLoading(false);
-    }
-  }, [auth, today]);
-
-  useEffect(() => {
-    if (auth.isAuthenticated) {
-      void loadSummary();
-    }
-  }, [auth, loadSummary]);
+  const query = new URLSearchParams({ today }).toString();
+  const summary = useApiResource(
+    auth.isAuthenticated ? `${API_URL}/api/diet/summary?${query}` : null,
+    dietSummaryResponseSchema,
+    "Loading your diet log",
+    { statusSource: "diet-page" },
+  );
 
   return (
     <DietView
       dietAdvice={dietAdvice}
-      summary={summary}
+      summary={summary.data}
       today={today}
-      loading={loading}
-      error={error}
-      onRetry={() => void loadSummary()}
+      loading={summary.loading}
+      error={summary.error}
+      onRetry={summary.reload}
       onOpenSettings={() => navigate("settings")}
       onOpenSurvey={() => navigate("survey")}
-      onEntryUpdated={() => void loadSummary()}
+      onEntryUpdated={summary.reload}
     />
   );
 }

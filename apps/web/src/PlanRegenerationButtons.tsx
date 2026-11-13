@@ -9,8 +9,10 @@ import { useAuth } from "./auth";
 import { requestParsed } from "./fetchAuthed";
 import { useNavigate } from "./navigation";
 import { usePlanGeneration } from "./PlanGenerationProvider";
+import { isAbortError } from "./requestAbort";
 import { SubmitButton } from "./SubmitButton";
 import { useTimeZone } from "./TimeZoneContext";
+import { useAbortableRequest } from "./useApiResource";
 import { getToday } from "./useToday";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
@@ -64,84 +66,81 @@ export function PlanRegenerationButtons() {
   const runningAction: PlanAction | null =
     running && (mode === "newSeason" || mode === "updateSeason") ? mode : null;
 
+  const [loadAvailability, abortAvailability] = useAbortableRequest(
+    async (signal: AbortSignal): Promise<boolean> => {
+      const { today } = getToday(timeZone);
+      const response = await requestParsed(
+        `${API_URL}/api/coaching/plan?today=${today}`,
+        auth,
+        coachPlanResponseSchema,
+        "Loading your plan",
+        { signal },
+      );
+      const season = response.plan?.season;
+      return (
+        season !== undefined &&
+        today >= season.startDate &&
+        today <= season.endDate
+      );
+    },
+  );
+
+  const [loadSetup, abortSetup] = useAbortableRequest(
+    async (signal: AbortSignal): Promise<IntegrationSetup> => {
+      const [garmin, llm] = await Promise.all([
+        requestParsed(
+          `${API_URL}/api/garmin/status`,
+          auth,
+          garminConnectionStatusSchema,
+          "Loading the Garmin status",
+          { signal },
+        ),
+        requestParsed(
+          `${API_URL}/api/llm/settings`,
+          auth,
+          llmSettingsSchema,
+          "Loading the LLM settings",
+          { signal },
+        ),
+      ]);
+      return {
+        garminConnected: garmin.connected,
+        llmConfigured: llm.configured,
+      };
+    },
+  );
+
   useEffect(() => {
     if (!auth.isAuthenticated) {
       return;
     }
-    let cancelled = false;
-
-    async function loadAvailability(): Promise<void> {
-      try {
-        const { today } = getToday(timeZone);
-        const response = await requestParsed(
-          `${API_URL}/api/coaching/plan?today=${today}`,
-          auth,
-          coachPlanResponseSchema,
-          "Loading your plan",
-        );
-        if (cancelled) {
-          return;
-        }
-        const season = response.plan?.season;
-        setHasSeason(
-          season !== undefined &&
-            today >= season.startDate &&
-            today <= season.endDate,
-        );
-      } catch (err: unknown) {
+    void loadAvailability()
+      .then(setHasSeason)
+      .catch((err: unknown) => {
         // Availability is advisory: without it the athlete can still start a
         // new season, which is always a valid action.
-        console.error("Failed to check for an existing season:", err);
-      }
-    }
-
-    void loadAvailability();
-    return () => {
-      cancelled = true;
-    };
-  }, [auth, timeZone]);
+        if (!isAbortError(err)) {
+          console.error("Failed to check for an existing season:", err);
+        }
+      });
+    return abortAvailability;
+  }, [auth, timeZone, loadAvailability, abortAvailability]);
 
   useEffect(() => {
     if (!auth.isAuthenticated) {
       return;
     }
-    let cancelled = false;
-
-    async function loadSetup(): Promise<void> {
-      try {
-        const [garmin, llm] = await Promise.all([
-          requestParsed(
-            `${API_URL}/api/garmin/status`,
-            auth,
-            garminConnectionStatusSchema,
-            "Loading the Garmin status",
-          ),
-          requestParsed(
-            `${API_URL}/api/llm/settings`,
-            auth,
-            llmSettingsSchema,
-            "Loading the LLM settings",
-          ),
-        ]);
-        if (cancelled) {
-          return;
-        }
-        setSetup({
-          garminConnected: garmin.connected,
-          llmConfigured: llm.configured,
-        });
-      } catch (err: unknown) {
+    void loadSetup()
+      .then(setSetup)
+      .catch((err: unknown) => {
         // Without the setup status we cannot gate the action; the server still
         // refuses to plan without both integrations.
-        console.error("Failed to check Garmin and OpenRouter setup:", err);
-      }
-    }
-
-    void loadSetup();
-    return () => {
-      cancelled = true;
-    };
-  }, [auth]);
+        if (!isAbortError(err)) {
+          console.error("Failed to check Garmin and OpenRouter setup:", err);
+        }
+      });
+    return abortSetup;
+  }, [auth, loadSetup, abortSetup]);
 
   async function regenerate(action: PlanAction): Promise<void> {
     setError(null);

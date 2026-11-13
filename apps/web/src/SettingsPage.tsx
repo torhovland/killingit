@@ -1,13 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   currentUserSchema,
   garminConnectionStatusSchema,
   llmSettingsSchema,
   type AthleteLocation,
-  type GarminConnectionStatus,
-  type LlmSettings,
 } from "@killingit/shared";
-import { useAppStatus } from "./AppStatus";
 import { useAuth } from "./auth";
 import { DeleteAccountSection } from "./DeleteAccountSection";
 import { DietSection } from "./DietSection";
@@ -20,6 +17,7 @@ import { usePwa } from "./PwaContext";
 import { PwaInstallSection } from "./PwaInstall";
 import { reportError } from "./reportError";
 import { TimeZoneSection } from "./TimeZoneSection";
+import { useApiResources } from "./useApiResource";
 import { Button } from "./components/Button";
 import { Card } from "./components/Card";
 
@@ -53,11 +51,27 @@ export function SettingsPage({
 }) {
   const auth = useAuth();
   const pwa = usePwa();
-  const { setStatus } = useAppStatus();
-  const [garmin, setGarmin] = useState<GarminConnectionStatus | null>(null);
-  const [llm, setLlm] = useState<LlmSettings | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const statuses = useApiResources(
+    auth.isAuthenticated
+      ? {
+          garmin: {
+            path: `${API_URL}/api/garmin/status`,
+            schema: garminConnectionStatusSchema,
+            action: "Loading the Garmin status",
+          },
+          llm: {
+            path: `${API_URL}/api/llm/settings`,
+            schema: llmSettingsSchema,
+            action: "Loading the LLM settings",
+          },
+        }
+      : null,
+    { statusSource: "settings-page" },
+  );
+  const garmin = statuses.data?.garmin ?? null;
+  const llm = statuses.data?.llm ?? null;
+  const loading = statuses.loading;
+  const error = statuses.error;
   const [selectedTimeZone, setSelectedTimeZone] = useState(timeZone ?? "");
   const [savingTimeZone, setSavingTimeZone] = useState(false);
   const [timeZoneError, setTimeZoneError] = useState<string | null>(null);
@@ -108,45 +122,6 @@ export function SettingsPage({
     void saveTimeZone(nextTimeZone);
   }
 
-  useEffect(() => {
-    setStatus("settings-page", loading ? "loading" : null);
-    return () => setStatus("settings-page", null);
-  }, [loading, setStatus]);
-
-  const loadStatuses = useCallback(async (): Promise<void> => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [garmin, llm] = await Promise.all([
-        requestParsed(
-          `${API_URL}/api/garmin/status`,
-          auth,
-          garminConnectionStatusSchema,
-          "Loading the Garmin status",
-        ),
-        requestParsed(
-          `${API_URL}/api/llm/settings`,
-          auth,
-          llmSettingsSchema,
-          "Loading the LLM settings",
-        ),
-      ]);
-      setGarmin(garmin);
-      setLlm(llm);
-    } catch (err: unknown) {
-      setError(reportError(err));
-    } finally {
-      setLoading(false);
-    }
-  }, [auth]);
-
-  useEffect(() => {
-    if (!auth.isAuthenticated) {
-      return;
-    }
-    void loadStatuses();
-  }, [auth, loadStatuses]);
-
   if (!auth.isAuthenticated) {
     return null;
   }
@@ -175,7 +150,7 @@ export function SettingsPage({
           variant="secondary"
           size="lg"
           className="self-start"
-          onClick={() => void loadStatuses()}
+          onClick={statuses.reload}
         >
           Retry
         </Button>
@@ -211,13 +186,27 @@ export function SettingsPage({
             <h3 className="text-2xl font-semibold">Garmin</h3>
             <GarminSection
               connected={garmin.connected}
-              onConnected={setGarmin}
+              onConnected={(connected) =>
+                statuses.setData((previous) =>
+                  previous === null
+                    ? previous
+                    : { ...previous, garmin: connected },
+                )
+              }
             />
           </Card>
 
           <Card as="section" className="flex flex-col gap-3">
             <h3 className="text-2xl font-semibold">OpenRouter</h3>
-            <LlmSection settings={llm} onSaved={setLlm} isAdmin={isAdmin} />
+            <LlmSection
+              settings={llm}
+              onSaved={(saved) =>
+                statuses.setData((previous) =>
+                  previous === null ? previous : { ...previous, llm: saved },
+                )
+              }
+              isAdmin={isAdmin}
+            />
           </Card>
 
           <Card as="section" className="flex flex-col gap-3">

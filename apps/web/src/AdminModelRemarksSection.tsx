@@ -1,14 +1,11 @@
-import { useEffect, useState } from "react";
 import {
   llmModelRemarksResponseSchema,
   LLM_PROMPT_KIND_LABELS,
-  type LlmModelRemark,
 } from "@killingit/shared";
 import { useAuth } from "./auth";
-import { requestParsed } from "./fetchAuthed";
 import { FormattedText } from "./FormattedText";
-import { reportError } from "./reportError";
 import { browserTimeZone, formatDateTime } from "./timeZone";
+import { useApiResource } from "./useApiResource";
 import { Button } from "./components/Button";
 import { Card } from "./components/Card";
 
@@ -22,43 +19,16 @@ const LIMIT = 20;
  */
 export function AdminModelRemarksSection() {
   const auth = useAuth();
-  const [remarks, setRemarks] = useState<LlmModelRemark[] | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [reloadKey, setReloadKey] = useState(0);
-
-  useEffect(() => {
-    if (!auth.isAuthenticated) {
-      return;
-    }
-    let cancelled = false;
-    setLoading(true);
-    requestParsed(
-      `${API_URL}/api/admin/llm-calls/remarks?limit=${LIMIT}`,
-      auth,
-      llmModelRemarksResponseSchema,
-      "Loading model remarks",
-    )
-      .then((response) => {
-        if (!cancelled) {
-          setRemarks(response.remarks);
-          setError(null);
-        }
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) {
-          setError(reportError(err));
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [auth, reloadKey]);
+  const resource = useApiResource(
+    auth.isAuthenticated
+      ? `${API_URL}/api/admin/llm-calls/remarks?limit=${LIMIT}`
+      : null,
+    llmModelRemarksResponseSchema,
+    "Loading model remarks",
+  );
+  const remarks = resource.data?.remarks ?? null;
+  const loading = resource.loading;
+  const error = resource.error;
 
   return (
     <Card
@@ -79,8 +49,8 @@ export function AdminModelRemarksSection() {
           variant="secondary"
           size="md"
           onClick={() => {
-            setRemarks(null);
-            setReloadKey((value) => value + 1);
+            resource.setData(null);
+            resource.reload();
           }}
           disabled={loading}
         >

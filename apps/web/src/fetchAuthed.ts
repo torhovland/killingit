@@ -5,25 +5,32 @@ import type { AuthState } from "./auth";
 
 /**
  * Fetch JSON, attaching a bearer token when authenticated. Uses the same
- * Sentry-breadcrumb-emitting `fetchJson` underneath. A 401 can mean the cached
- * access token expired between renewals, so renew once with the provider's
- * cache bypassed and retry the request before surfacing the failure. A 426
- * means the API no longer answers this app build's contract version, which the
- * app shows as an update notice.
+ * Sentry-breadcrumb-emitting `fetchJson` underneath. `init.signal` aborts the
+ * request, including a token refresh that is waiting to start, and the
+ * rejection stays the platform's `AbortError` rather than becoming an
+ * {@link ApiError}. A 401 can mean the cached access token expired between
+ * renewals, so renew once with the provider's cache bypassed and retry the
+ * request before surfacing the failure. A 426 means the API no longer answers
+ * this app build's contract version, which the app shows as an update notice.
  */
 export async function fetchJsonAuthed<T>(
   url: string,
   auth: AuthState,
   init?: RequestInit,
 ): Promise<T> {
+  const signal = init?.signal;
+  signal?.throwIfAborted();
   const token = await auth.getToken();
+  signal?.throwIfAborted();
   try {
     return await requestJson<T>(url, token, init);
   } catch (error) {
     if (!(error instanceof ApiError) || error.status !== 401) {
       throw error;
     }
+    signal?.throwIfAborted();
     const refreshed = await auth.getToken({ forceRefresh: true });
+    signal?.throwIfAborted();
     if (!refreshed) {
       throw error;
     }
@@ -70,7 +77,8 @@ export interface ResponseSchema<T> {
  * Fetch JSON with {@link fetchJsonAuthed} and validate the body against
  * `schema`. A response that does not match throws one uniform
  * {@link ResponseValidationError} naming the action, so callers never write
- * their own parse-and-throw sequence.
+ * their own parse-and-throw sequence. `init.signal` is forwarded unchanged and
+ * an aborted request rejects without validating a body.
  */
 export async function requestParsed<T>(
   url: string,
@@ -94,23 +102,28 @@ export interface DownloadedFile {
 }
 
 /**
- * Fetch a binary response, applying the same authentication and one-shot token
- * refresh as {@link fetchJsonAuthed}. Used for file downloads such as workout
- * exports, where the response is not JSON.
+ * Fetch a binary response, applying the same authentication, one-shot token
+ * refresh and `init.signal` abort handling as {@link fetchJsonAuthed}. Used for
+ * file downloads such as workout exports, where the response is not JSON.
  */
 export async function fetchFileAuthed(
   url: string,
   auth: AuthState,
   init?: RequestInit,
 ): Promise<DownloadedFile> {
+  const signal = init?.signal;
+  signal?.throwIfAborted();
   const token = await auth.getToken();
+  signal?.throwIfAborted();
   try {
     return await requestFile(url, token, init);
   } catch (error) {
     if (!(error instanceof ApiError) || error.status !== 401) {
       throw error;
     }
+    signal?.throwIfAborted();
     const refreshed = await auth.getToken({ forceRefresh: true });
+    signal?.throwIfAborted();
     if (!refreshed) {
       throw error;
     }

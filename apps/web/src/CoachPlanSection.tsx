@@ -17,6 +17,7 @@ import { reportError } from "./reportError";
 import { SubmitButton } from "./SubmitButton";
 import { useTimeZone } from "./TimeZoneContext";
 import { formatDateTime } from "./timeZone";
+import { useAbortableRequest } from "./useApiResource";
 import { getToday } from "./useToday";
 import { Button } from "./components/Button";
 import { Card } from "./components/Card";
@@ -70,18 +71,23 @@ export function CoachPlanSection({
   >(null);
 
   const fetchPlan = useCallback(
-    (today: string, includeTomorrow: boolean): Promise<CoachPlanResponse> =>
+    (
+      today: string,
+      includeTomorrow: boolean,
+      signal: AbortSignal,
+    ): Promise<CoachPlanResponse> =>
       requestParsed(
         `${API_URL}/api/coaching/plan?today=${today}&includeTomorrow=${includeTomorrow}`,
         auth,
         coachPlanResponseSchema,
         "Loading your plan",
+        { signal },
       ),
     [auth],
   );
 
-  const fetchDietToday =
-    useCallback(async (): Promise<DietDaySummary | null> => {
+  const fetchDietToday = useCallback(
+    async (signal: AbortSignal): Promise<DietDaySummary | null> => {
       if (!dietAdvice) {
         return null;
       }
@@ -92,33 +98,47 @@ export function CoachPlanSection({
           auth,
           dietSummaryResponseSchema,
           "Loading today's diet summary",
+          { signal },
         );
         return summary.days.find((day) => day.date === today) ?? null;
       } catch (err: unknown) {
         // The plan must still render when the diet summary cannot be read.
-        console.error("Failed to load today's calories:", err);
+        if (!signal.aborted) {
+          console.error("Failed to load today's calories:", err);
+        }
         return null;
       }
-    }, [auth, dietAdvice, today]);
+    },
+    [auth, dietAdvice, today],
+  );
 
-  const load = useCallback(async (): Promise<CoachPlanResponse | null> => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [result, diet] = await Promise.all([
-        fetchPlan(today, isAfter18),
-        fetchDietToday(),
-      ]);
-      setData(result);
-      setDietToday(diet);
-      return result;
-    } catch (err: unknown) {
-      setError(reportError(err));
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  }, [fetchPlan, fetchDietToday, today, isAfter18]);
+  const [load, abortLoad] = useAbortableRequest(
+    async (signal: AbortSignal): Promise<CoachPlanResponse | null> => {
+      setLoading(true);
+      setError(null);
+      try {
+        const [result, diet] = await Promise.all([
+          fetchPlan(today, isAfter18, signal),
+          fetchDietToday(signal),
+        ]);
+        if (signal.aborted) {
+          return null;
+        }
+        setData(result);
+        setDietToday(diet);
+        return result;
+      } catch (err: unknown) {
+        if (!signal.aborted) {
+          setError(reportError(err));
+        }
+        return null;
+      } finally {
+        if (!signal.aborted) {
+          setLoading(false);
+        }
+      }
+    },
+  );
 
   async function downloadWorkout(date: string): Promise<void> {
     setDownloadingWorkoutDate(date);
@@ -162,11 +182,9 @@ export function CoachPlanSection({
     }
     const refreshChanged = refreshKey !== lastRefreshKey.current;
     lastRefreshKey.current = refreshKey;
-    let cancelled = false;
 
-    async function run(): Promise<void> {
-      const result = await load();
-      if (cancelled || result === null) {
+    void load().then((result) => {
+      if (result === null) {
         return;
       }
       if (result.generation.status === "running") {
@@ -196,13 +214,20 @@ export function CoachPlanSection({
       if (needsUpdate && ready) {
         void start("auto");
       }
-    }
-
-    void run();
-    return () => {
-      cancelled = true;
-    };
-  }, [auth, ready, refreshKey, start, track, dietAdvice, load]);
+    });
+    return abortLoad;
+  }, [
+    auth,
+    ready,
+    refreshKey,
+    start,
+    track,
+    dietAdvice,
+    load,
+    abortLoad,
+    today,
+    isAfter18,
+  ]);
 
   // The stored generation error is shown in its own block with a retry action;
   // a provider error is only surfaced when the stored plan does not carry it.

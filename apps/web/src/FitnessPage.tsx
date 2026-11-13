@@ -1,16 +1,13 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   DEFAULT_FITNESS_RANGE,
   fitnessHistoryResponseSchema,
-  type FitnessHistoryResponse,
   type FitnessRange,
 } from "@killingit/shared";
-import { useAppStatus } from "./AppStatus";
 import { useAuth } from "./auth";
-import { requestParsed } from "./fetchAuthed";
 import { FitnessView } from "./FitnessView";
-import { reportError } from "./reportError";
 import { useTimeZone } from "./TimeZoneContext";
+import { useApiResource } from "./useApiResource";
 import { getToday } from "./useToday";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
@@ -18,56 +15,20 @@ const API_URL = import.meta.env.VITE_API_URL ?? "";
 /** The Fitness page: loads the daily load and FTP history for the athlete. */
 export function FitnessPage() {
   const auth = useAuth();
-  const { setStatus } = useAppStatus();
   const timeZone = useTimeZone();
   const today = getToday(timeZone).today;
-  const [history, setHistory] = useState<FitnessHistoryResponse | null>(null);
   const [range, setRange] = useState<FitnessRange>(DEFAULT_FITNESS_RANGE);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setStatus("fitness-page", loading ? "loading" : null);
-    return () => setStatus("fitness-page", null);
-  }, [loading, setStatus]);
-
-  useEffect(() => {
-    if (!auth.isAuthenticated) {
-      return;
-    }
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-    const query = new URLSearchParams({
-      today,
-      range,
-      timezone: timeZone,
-    }).toString();
-    requestParsed(
-      `${API_URL}/api/fitness?${query}`,
-      auth,
-      fitnessHistoryResponseSchema,
-      "Loading the fitness history",
-    )
-      .then((history) => {
-        if (!cancelled) {
-          setHistory(history);
-        }
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) {
-          setError(reportError(err));
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [auth, timeZone, today, range]);
+  const query = new URLSearchParams({
+    today,
+    range,
+    timezone: timeZone,
+  }).toString();
+  const history = useApiResource(
+    auth.isAuthenticated ? `${API_URL}/api/fitness?${query}` : null,
+    fitnessHistoryResponseSchema,
+    "Loading the fitness history",
+    { statusSource: "fitness-page" },
+  );
 
   if (!auth.isAuthenticated) {
     return null;
@@ -75,12 +36,12 @@ export function FitnessPage() {
 
   return (
     <FitnessView
-      history={history}
+      history={history.data}
       today={today}
       range={range}
       onRangeChange={setRange}
-      loading={loading}
-      error={error}
+      loading={history.loading}
+      error={history.error}
     />
   );
 }

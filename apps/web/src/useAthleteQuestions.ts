@@ -1,41 +1,23 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 import {
   athleteQuestionsResponseSchema,
-  type AthleteQuestionsResponse,
   type QuestionAnswerInput,
 } from "@killingit/shared";
 import { useAuth } from "./auth";
 import { requestParsed } from "./fetchAuthed";
-import { reportError } from "./reportError";
+import { useApiResource } from "./useApiResource";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
 /** Loads and saves the signed-in athlete's questionnaire answers. */
 export function useAthleteQuestions() {
   const auth = useAuth();
-  const [questions, setQuestions] = useState<AthleteQuestionsResponse | null>(
-    null,
+  const resource = useApiResource(
+    auth.isAuthenticated ? `${API_URL}/api/questions` : null,
+    athleteQuestionsResponseSchema,
+    "Loading your questions",
   );
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(async (): Promise<void> => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await requestParsed(
-        `${API_URL}/api/questions`,
-        auth,
-        athleteQuestionsResponseSchema,
-        "Loading your questions",
-      );
-      setQuestions(response);
-    } catch (err: unknown) {
-      setError(reportError(err));
-    } finally {
-      setLoading(false);
-    }
-  }, [auth]);
+  const { setData } = resource;
 
   const saveAnswers = useCallback(
     async (answers: QuestionAnswerInput[]): Promise<void> => {
@@ -50,17 +32,16 @@ export function useAthleteQuestions() {
           body: JSON.stringify({ answers }),
         },
       );
-      setQuestions(response);
+      setData(response);
     },
-    [auth],
+    [auth, setData],
   );
 
-  useEffect(() => {
-    if (!auth.isAuthenticated) {
-      return;
-    }
-    void load();
-  }, [auth.isAuthenticated, load]);
-
-  return { questions, loading, error, load, saveAnswers };
+  return {
+    questions: resource.data,
+    loading: resource.loading,
+    error: resource.error,
+    load: resource.reload,
+    saveAnswers,
+  };
 }

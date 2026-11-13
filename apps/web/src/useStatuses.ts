@@ -1,4 +1,3 @@
-import { useCallback, useEffect, useState } from "react";
 import {
   garminConnectionStatusSchema,
   llmSettingsSchema,
@@ -6,8 +5,7 @@ import {
   type LlmSettings,
 } from "@killingit/shared";
 import type { AuthState } from "./auth";
-import { requestParsed } from "./fetchAuthed";
-import { reportError } from "./reportError";
+import { useApiResources } from "./useApiResource";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
@@ -16,7 +14,7 @@ export interface IntegrationStatuses {
   llm: LlmSettings | null;
   loading: boolean;
   error: string | null;
-  reload: () => Promise<void>;
+  reload: () => void;
 }
 
 /**
@@ -25,44 +23,28 @@ export interface IntegrationStatuses {
  * new status or validation change reaches them together.
  */
 export function useStatuses(auth: AuthState): IntegrationStatuses {
-  const [garmin, setGarmin] = useState<GarminConnectionStatus | null>(null);
-  const [llm, setLlm] = useState<LlmSettings | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const statuses = useApiResources(
+    auth.isAuthenticated
+      ? {
+          garmin: {
+            path: `${API_URL}/api/garmin/status`,
+            schema: garminConnectionStatusSchema,
+            action: "Loading the Garmin status",
+          },
+          llm: {
+            path: `${API_URL}/api/llm/settings`,
+            schema: llmSettingsSchema,
+            action: "Loading the LLM settings",
+          },
+        }
+      : null,
+  );
 
-  const reload = useCallback(async (): Promise<void> => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [garmin, llm] = await Promise.all([
-        requestParsed(
-          `${API_URL}/api/garmin/status`,
-          auth,
-          garminConnectionStatusSchema,
-          "Loading the Garmin status",
-        ),
-        requestParsed(
-          `${API_URL}/api/llm/settings`,
-          auth,
-          llmSettingsSchema,
-          "Loading the LLM settings",
-        ),
-      ]);
-      setGarmin(garmin);
-      setLlm(llm);
-    } catch (err: unknown) {
-      setError(reportError(err));
-    } finally {
-      setLoading(false);
-    }
-  }, [auth]);
-
-  useEffect(() => {
-    if (!auth.isAuthenticated) {
-      return;
-    }
-    void reload();
-  }, [auth.isAuthenticated, reload]);
-
-  return { garmin, llm, loading, error, reload };
+  return {
+    garmin: statuses.data?.garmin ?? null,
+    llm: statuses.data?.llm ?? null,
+    loading: statuses.loading,
+    error: statuses.error,
+    reload: statuses.reload,
+  };
 }

@@ -12,6 +12,7 @@ import {
   ResponseValidationError,
 } from "./fetchAuthed";
 import { ApiError } from "./fetchJson";
+import { isAbortError } from "./requestAbort";
 
 function fakeAuth(getToken: AuthState["getToken"]): AuthState {
   return {
@@ -130,6 +131,65 @@ describe("fetchJsonAuthed", () => {
     expect(caught).toBeInstanceOf(ApiError);
     expect(captured).toHaveLength(1);
   });
+
+  it("forwards the request signal to fetch", async () => {
+    stubFetch();
+    const auth = fakeAuth(() => Promise.resolve("test-token"));
+    const controller = new AbortController();
+
+    await fetchJsonAuthed<{ ok: boolean }>("http://api/me", auth, {
+      signal: controller.signal,
+    });
+
+    expect(captured[0]?.signal).toBe(controller.signal);
+  });
+
+  it("does not fetch when the signal is already aborted", async () => {
+    stubFetch();
+    const auth = fakeAuth(() => Promise.resolve("test-token"));
+    const controller = new AbortController();
+    controller.abort();
+
+    let caught: unknown;
+    try {
+      await fetchJsonAuthed<{ ok: boolean }>("http://api/me", auth, {
+        signal: controller.signal,
+      });
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(isAbortError(caught)).toBe(true);
+    expect(captured).toHaveLength(0);
+  });
+
+  it("does not renew a token after the request was aborted", async () => {
+    const controller = new AbortController();
+    originalFetch = globalThis.fetch;
+    globalThis.fetch = ((_url: string | URL | Request, init?: RequestInit) => {
+      captured.push(init ?? {});
+      controller.abort();
+      return Promise.resolve(new Response("Unauthorized", { status: 401 }));
+    }) as unknown as typeof fetch;
+    const calls: Array<{ forceRefresh?: boolean } | undefined> = [];
+    const auth = fakeAuth((options) => {
+      calls.push(options);
+      return Promise.resolve("test-token");
+    });
+
+    let caught: unknown;
+    try {
+      await fetchJsonAuthed<{ ok: boolean }>("http://api/me", auth, {
+        signal: controller.signal,
+      });
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(isAbortError(caught)).toBe(true);
+    expect(captured).toHaveLength(1);
+    expect(calls).toEqual([undefined]);
+  });
 });
 
 describe("requestParsed", () => {
@@ -209,6 +269,22 @@ describe("requestParsed", () => {
     );
 
     expect(captured[0]?.method).toBe("POST");
+  });
+
+  it("passes the abort signal through to fetch", async () => {
+    stubFetch();
+    const auth = fakeAuth(() => Promise.resolve("test-token"));
+    const controller = new AbortController();
+
+    await requestParsed(
+      "http://api/greeting",
+      auth,
+      greetingSchema,
+      "Loading the greeting",
+      { signal: controller.signal },
+    );
+
+    expect(captured[0]?.signal).toBe(controller.signal);
   });
 });
 
