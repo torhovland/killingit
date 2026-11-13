@@ -2,6 +2,9 @@
 
 - **Status:** Accepted (implemented)
 - **Date:** 2026-10-21
+- **Updated:** 2026-11-13 — the week-dates sentence and the diet repair hints
+  are shared fragments in `promptRules.ts`, and a guard test fails when the
+  plan-update prompts repeat a fragment instead of composing it.
 - **Updated:** 2026-11-11 — a parity test now compares each JSON contract with
   the Zod schema that parses the coach's answer. The unused combined four-level
   prompt and its `generateCoachPlan` wrapper were removed. The shared plan
@@ -128,6 +131,18 @@ and returns `LlmProvider` chat messages.
   includes are merged into `PLAN_PROMPT_RULES`: the training-science
   requirement, the standard input guidance, the rationale rules and the
   body-metric output fields.
+- A fragment that a call has to build from its arguments lives in
+  `promptRules.ts` as a helper rather than as a sentence each prompt writes for
+  itself. The week-dates sentence is the main case: `weekDatesRule(start)`
+  states it as the seven comma-separated dates, `weekCoverageRule(start)`
+  states the same rule as a covered range, and `weekDatesRangeRule(start)`
+  states it as a start and end span, so the schema messages, the repair hints
+  and every update prompt name the same sessions. `SEVEN_SESSIONS_CLAUSE` owns
+  the session count they state, and `WEEK_SHAPE_RULES` composes it too. The diet
+  repair hints are shared the same way: `DIET_REPAIR_HINT` names the three
+  `diet` fields and `DIET_PROGRESS_REPAIR_HINT` names the three `dietProgress`
+  fields, so the validation message and the repair hint the model reads ask for
+  exactly the same keys.
 - Every strictly JSON coach response also carries `coachQuestion` (one important
   clarification question, or null) and `modelsRemarks` (the model's own
   difficulties, inconsistencies or objections, or null). The app shows the
@@ -199,4 +214,11 @@ and returns `LlmProvider` chat messages.
   (`forecasts`, `weather`, `trainingLoad`, and the season and block
   `estimatedFtpWatts`) are listed in the test, so they stay out of the contracts
   it asks the model to fill.
+- `apps/api/src/llm/promptFragmentGuard.test.ts` holds the plan-update prompts to
+  the composition rule: it scans `planUpdate.ts` and `planUpdatePrompt.ts` for
+  any long prose fragment that `promptRules.ts` already owns, so a sentence that
+  is copied back into a prompt fails the suite instead of drifting away from the
+  shared copy. Widening the scan to every `llm/*Prompt.ts` waits for the copies
+  issue #367 tracks. The benchmark snapshot in `tools/benchmark` pins the
+  composed text, so a refactor that changes a single character fails as well.
 - Run `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`.

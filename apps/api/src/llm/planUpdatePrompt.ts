@@ -4,7 +4,7 @@ import type {
   SeasonPlan,
   WeekPlan,
 } from "@killingit/shared";
-import { addDays, startOfWeek, weekDates } from "@killingit/shared";
+import { addDays, startOfWeek } from "@killingit/shared";
 import { formatPlanContext, type PlanContextInput } from "./planContext.js";
 import {
   formatBlockPlan,
@@ -37,10 +37,14 @@ import {
   promptSections,
   SEASON_BLOCK_RULES,
   SEASON_CONTRACT,
+  SEVEN_SESSIONS_CLAUSE,
   SESSION_PURPOSE_RULES,
   TODAY_IN_WEEK_RULE,
   TRAINING_LOAD_RULES,
   WEEK_CONTRACT,
+  weekCoverageRule,
+  weekDatesRangeRule,
+  weekDatesRule,
   WEEK_OUTLINE_RULES,
   WEEK_SHAPE_RULES,
   WEATHER_PLANNING_RULES,
@@ -191,7 +195,7 @@ export const PLAN_UPDATE_SYSTEM_PROMPT = promptSections(
 - When the current week is revised, change the remaining sessions so the week stays coherent with the block's focus and the athlete's current fatigue. Keep every week session, including today and tomorrow, as a short outline, with the detailed prescription only in the "today" and "tomorrow" day objects. If only today's session is revised, update today's week outline while keeping the rest of the week as supplied.
 - If the current block is revised, or the current week is re-planned under a next block that starts tomorrow, keep today's session unchanged unless the request also revises today.
 - When tomorrow is requested, return it and make sure its outline is the matching session in the current week or, when it falls in the next week, in the next week. Respect every weather preference and daylight constraint.
-- When the next week is requested, start it on the supplied next week start date and give it exactly seven sessions. When the next block is requested, start it on the supplied next block start date and put it in "nextBlock"; update "season" so its block summaries include it. If the block that starts tomorrow falls inside the current week, re-plan the remaining days of the current week under that next block and keep today's session.
+- When the next week is requested, start it on the supplied next week start date and give it ${SEVEN_SESSIONS_CLAUSE}. When the next block is requested, start it on the supplied next block start date and put it in "nextBlock"; update "season" so its block summaries include it. If the block that starts tomorrow falls inside the current week, re-plan the remaining days of the current week under that next block and keep today's session.
 - Include a rationale for today's session and for the week's overall structure.`,
   SEASON_BLOCK_RULES,
   WEEK_SHAPE_RULES,
@@ -273,7 +277,6 @@ export function buildPlanUpdateMessages(input: PlanUpdateInput): {
 
 export function buildPlanUpdatePrompt(input: PlanUpdateInput): string {
   const weekStart = startOfWeek(input.today);
-  const weekEnd = addDays(weekStart, 6);
   const tomorrowDate = addDays(input.today, 1);
   const nextWeekStart = startOfWeek(tomorrowDate);
   const detailedDates = input.revision.tomorrow
@@ -302,7 +305,7 @@ export function buildPlanUpdatePrompt(input: PlanUpdateInput): string {
       ? "Not planned yet."
       : formatBlockPlan(input.nextBlock),
     "",
-    `The current week must start on ${weekStart} and cover ${weekStart} through ${weekEnd}. Keep exactly seven sessions with those dates, and make sure one session has the date ${input.today}; the "today" object must use that same date and be one of the current week's sessions.`,
+    `${weekCoverageRule(weekStart, "current week")}, and make sure one session has the date ${input.today}; the "today" object must use that same date and be one of the current week's sessions.`,
     `Tomorrow is ${tomorrowDate}.`,
     `Fully detail the day objects dated ${detailedDates}. Keep every session in the current week, including ${detailedDates}, as a short outline.`,
     "",
@@ -318,10 +321,7 @@ export function buildPlanUpdatePrompt(input: PlanUpdateInput): string {
         ]
       : []),
     ...(input.revision.nextWeek
-      ? [
-          "",
-          `The next week must start on ${nextWeekStart} and contain exactly seven sessions dated ${weekDates(nextWeekStart).join(", ")}.`,
-        ]
+      ? ["", `${weekDatesRule(nextWeekStart, "next week")}.`]
       : []),
     "",
     jsonTopLevelKeys([
@@ -350,14 +350,13 @@ export function buildDailyUpdateMessages(input: DailyUpdateInput): {
 
 export function buildDailyUpdatePrompt(input: DailyUpdateInput): string {
   const weekStart = startOfWeek(input.today);
-  const weekEnd = addDays(weekStart, 6);
   const detailThrough = input.detailThrough ?? addDays(input.today, 1);
   return [
     ...formatPlanContext(input),
     "",
     ...formatPlanLevels(input),
     "",
-    `The week must start on ${weekStart} and cover ${weekStart} through ${weekEnd}. Keep exactly seven sessions with those dates, and make sure one session has the date ${input.today}; the "today" object must use that same date.`,
+    `${weekCoverageRule(weekStart)}, and make sure one session has the date ${input.today}; the "today" object must use that same date.`,
     "",
     `Fully detail the day objects dated ${input.today} through ${detailThrough}. Keep every session in the week, including ${input.today} through ${detailThrough}, as a short outline.`,
     "",
@@ -379,7 +378,7 @@ export function buildWeeklyUpdateMessages(input: WeeklyUpdateInput): {
 export function buildWeeklyUpdatePrompt(input: WeeklyUpdateInput): string {
   return [
     ...formatPlanContext(input),
-    `Week start date: ${input.weekStartDate}. The week must contain exactly seven sessions dated ${input.weekStartDate} through ${addDays(input.weekStartDate, 6)}.`,
+    `Week start date: ${input.weekStartDate}. ${weekDatesRangeRule(input.weekStartDate)}.`,
     "Create all seven days as short outlines; the following daily update will turn each day into a concrete workout when it arrives.",
     ...(input.keepBlockStartDate !== undefined
       ? [
