@@ -67,6 +67,8 @@ remarks about difficulties or objections, and show those remarks to the admin.
 - `created_at`, `updated_at` timestamptz not null
 - `answered_at` timestamptz nullable
 - index on `(user_id, created_at)`
+- partial unique index on `(user_id)` where `answer is null`, so an account has
+  at most one pending question
 
 ### API
 

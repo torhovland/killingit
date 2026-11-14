@@ -164,7 +164,6 @@ export const athleteMetrics = pgTable(
       table.metric,
       table.date,
     ),
-    index("athlete_metrics_user_id_metric_idx").on(table.userId, table.metric),
     check(
       "athlete_metrics_metric_check",
       sql`${table.metric} in ('ftp', 'weight', 'body_fat')`,
@@ -291,11 +290,6 @@ export const athleteThresholds = pgTable(
       table.sport,
       table.measure,
       table.date,
-    ),
-    index("athlete_thresholds_user_sport_measure_idx").on(
-      table.userId,
-      table.sport,
-      table.measure,
     ),
     check(
       "athlete_thresholds_kind_check",
@@ -801,23 +795,37 @@ export type NewAthleteEvent = typeof athleteEvents.$inferInsert;
  * An activity manually recorded by the athlete, e.g. a workout not captured by
  * Garmin. Kept intentionally simple: a date and free text.
  */
-export const manualActivities = pgTable("manual_activities", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  startDate: text("start_date").notNull(),
-  details: text("details").notNull(),
-  // Coach-estimated training stress for this entry, derived from the free-text
-  // details when it is saved. Null until it has been estimated.
-  estimatedTss: integer("estimated_tss"),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
+export const manualActivities = pgTable(
+  "manual_activities",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    startDate: text("start_date").notNull(),
+    details: text("details").notNull(),
+    // Coach-estimated training stress for this entry, derived from the free-text
+    // details when it is saved. Null until it has been estimated.
+    estimatedTss: integer("estimated_tss"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("manual_activities_user_id_idx").on(table.userId),
+    check(
+      "manual_activities_start_date_check",
+      sql`length(${table.startDate}) = 10`,
+    ),
+    check(
+      "manual_activities_details_check",
+      sql`length(btrim(${table.details})) > 0`,
+    ),
+  ],
+);
 
 export type ManualActivityRow = typeof manualActivities.$inferSelect;
 export type NewManualActivity = typeof manualActivities.$inferInsert;
@@ -1085,6 +1093,12 @@ export const coachQuestions = pgTable(
       table.userId,
       table.createdAt,
     ),
+    // An account has at most one pending question. The partial index backs the
+    // dashboard's "newest unanswered" read and makes the rule a database
+    // constraint rather than only a convention in the write path.
+    uniqueIndex("coach_questions_user_id_pending_idx")
+      .on(table.userId)
+      .where(sql`${table.answer} is null`),
     check(
       "coach_questions_question_check",
       sql`length(btrim(${table.question})) > 0`,
@@ -1233,10 +1247,6 @@ export const planDayCalories = pgTable(
   },
   (table) => [
     uniqueIndex("plan_day_calories_user_id_date_idx").on(
-      table.userId,
-      table.date,
-    ),
-    index("plan_day_calories_user_id_date_order_idx").on(
       table.userId,
       table.date,
     ),
