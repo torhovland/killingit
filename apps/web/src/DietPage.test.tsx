@@ -20,10 +20,21 @@ await mock.module("./auth", () => ({
   useAuth: () => session,
 }));
 
-let today = "2026-03-02";
+/**
+ * The real exports, captured before the module is replaced so the mock keeps
+ * every one another test imports. A nullable override lets a test roll the
+ * athlete's day over without waiting for a real midnight; the mock is
+ * process-wide, so an unset override falls straight through to the real clock.
+ */
+const realUseToday = { ...(await import("./useToday")) };
+let todayOverride: string | null = null;
 
 await mock.module("./useToday", () => ({
-  getToday: () => ({ today, isAfter18: false, isOverridden: false }),
+  ...realUseToday,
+  getToday: (timeZone?: string) => {
+    const real = realUseToday.getToday(timeZone);
+    return todayOverride === null ? real : { ...real, today: todayOverride };
+  },
 }));
 
 const { DietPage } = await import("./DietPage");
@@ -154,12 +165,13 @@ async function findNeeded(kcal: string): Promise<void> {
 }
 
 beforeEach(() => {
-  today = DAY_ONE;
+  todayOverride = DAY_ONE;
 });
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
   calls = [];
+  todayOverride = null;
 });
 
 describe("DietPage", () => {
@@ -215,7 +227,7 @@ describe("DietPage", () => {
     await waitFor(() => expect(calls).toHaveLength(3));
 
     // The athlete's day changes while that reload is still in flight.
-    today = DAY_TWO;
+    todayOverride = DAY_TWO;
     rerender(page());
     await waitFor(() => expect(calls).toHaveLength(4));
     expect(calls[2]?.signal?.aborted).toBe(true);
