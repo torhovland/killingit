@@ -255,7 +255,13 @@ about a past workout, or before a suggested workout, to steer the coach.
   `docs/specs/coach-form-awareness.md`.
   Garmin syncs the last 42 days of activities, body composition, and historic
   cycling FTP, and power metrics are stored on activity summaries so the raw
-  timeseries is not needed. Every sidecar call has a request timeout, and the
+  timeseries is not needed. The weigh-in/FTP refresh and the daily-health
+  backfill are one shared fail-open pass, `syncGarminSupplements`, in
+  `apps/api/src/garmin/supplements.ts`, started in the background by both the
+  activity feed and `GET /api/garmin/activities` through
+  `startGarminSupplements`, dated by the athlete's local day, and run one pass
+  per account at a time so neither caller waits for a slow backfill; see ADR 0039.
+  Every sidecar call has a request timeout, and the
   `/sync` activities are validated against the shared `activitySchema`, so a
   hung or malformed sidecar fails with a typed error instead of entering the
   stored feed. Activity summaries also store average and maximum
@@ -271,9 +277,12 @@ about a past workout, or before a suggested workout, to steer the coach.
   their own tables instead of being duplicated on the activity. The feed loads
   in named phases — sync, inputs, analysis, assembly — so each failure path
   stays with the phase that can fail; a failed read of the stored history
-  aborts the sync instead of reporting an empty one.
-  See `docs/specs/activity-store.md`, `docs/specs/activity-feed-loading.md` and
-  ADR 0034. One analysis pass runs per
+  aborts the sync instead of reporting an empty one. The phases live in
+  `apps/api/src/coaching/feed/` (`sync.ts`, `analysis.ts`, `presenter.ts`), with
+  the feed's own credential errors in `feed/errors.ts`; `coaching/activities.ts`
+  is only the orchestrator that runs them. See
+  `docs/specs/activity-store.md`, `docs/specs/activity-feed-loading.md`,
+  ADR 0034 and ADR 0037. One analysis pass runs per
   account at a time, shared by overlapping requests for the same athlete day;
   an explicit refresh, or a request for another day, waits for the running
   pass and then starts its own, so two passes never write the same analyses at
@@ -311,7 +320,9 @@ about a past workout, or before a suggested workout, to steer the coach.
   each measure; see `docs/specs/garmin-daily-health-metrics.md`.
   Manual activities get a coach-estimated TSS read from their free text, stored
   in `manual_activities.estimated_tss`; without a model the entry stays
-  unscored. Any manual
+  unscored. An edit saves the entry's own text first, which also proves the id
+  belongs to the athlete, so a missing or foreign id is refused with the same
+  `404` before the coach is billed for the estimate. Any manual
   edit or Garmin import rebuilds the full daily series, so every later
   activity's load is recalculated. The Fitness page charts that series with the
   TSB zone colours, the estimated thresholds, and interpolated body weight/body
@@ -451,7 +462,27 @@ made and recorded, and `docs/adrs/` for the accepted ones.
   `apps/api/src/http/validation.ts`. The web reads it in `fetchJson`, exposing
   `ApiError.code` and `ApiError.details` and showing the server's `message` as
   the error text. Only the last-resort `500` stays plain text; see
-  `docs/specs/api-errors.md`.
+  `docs/specs/api-errors.md`. A route path parameter is validated by the same
+  wrapper: `idParamSchema` in `packages/shared/src/params.ts` bounds a numeric
+  id to a positive PostgreSQL serial, and the coaching-only param schemas live
+  in `apps/api/src/routes/coaching/schemas.ts`, so `1.5`, `-1` or `1e12` answers
+  `validation_failed` instead of reaching a query. No route reads
+  `c.req.param(...)` by hand, and a guard test enforces it; see
+  `docs/specs/route-param-validation.md`. A failure from Garmin, the Garmin
+  sidecar or
+  OpenRouter extends `UpstreamError`, which owns the status (and, when it needs
+  one, the code) it is reported with; a route answers its whole error path with
+  `respondUpstreamError(c, err, label)` instead of matching provider classes.
+  A third-party connection the athlete can fix is never `401`: only a request
+  without a usable app session answers that. A missing Garmin connection is
+  `409` `garmin_not_connected`, and a credential Garmin or OpenRouter rejects is
+  `422` `garmin_auth_failed` or `llm_key_invalid`, so the web's renew-and-retry
+  never fires for it. A message the athlete sees outside that contract — a
+  stored `analysisError`, or a response whose failure is not a provider failure —
+  is built with `athleteFailureMessage`: a known athlete-facing failure
+  (`AthleteFacingError`) keeps its message, while a database, environment or
+  other internal failure is logged and replaced by the caller's generic
+  sentence. See ADR 0035, ADR 0036 and ADR 0038.
 - Authenticated API reads go through `requestParsed` in
   `apps/web/src/fetchAuthed.ts`: it fetches with `fetchJsonAuthed`, validates the
   body against the shared schema, and throws one `ResponseValidationError`
@@ -771,7 +802,8 @@ through a disciplined process:
   intentional public API that has no in-repo consumer in `knip.json` with a
   comment. See `docs/specs/unused-exports.md`.
 - **Wire API dependencies through the shared context.** The injectable surface
-  for the plan, coaching, activity, fitness, calendar, diet and weather routes
+  for the plan, coaching, activity, fitness, calendar, diet, weather, Garmin and
+  LLM routes and the admin question set
   lives in `apps/api/src/dependencies.ts`; `createApp` resolves the account
   stores once and passes `ResolvedAppDependencies` to those factories, which
   apply their own `??` production default. Do not conditionally spread a

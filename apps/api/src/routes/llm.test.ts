@@ -1,12 +1,16 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, spyOn } from "bun:test";
 import type { LlmCatalogModel, LlmCostsResponse } from "@killingit/shared";
-import { Hono } from "hono";
-import { requireAuth, requireUser } from "../auth/middleware.js";
 import { keyFromRaw } from "../crypto/credentials.js";
-import { LlmAuthError, type LlmProvider } from "../llm/openrouter.js";
+import { createApp } from "../index.js";
+import {
+  LlmAuthError,
+  LlmProviderError,
+  LlmRateLimitError,
+  type LlmProvider,
+} from "../llm/openrouter.js";
 import type { StoredLlmSettings } from "../llm/store.js";
 import type { UserStore } from "../users/store.js";
-import { createLlmRoute } from "./llm.js";
+import { apiRequest } from "../testFixtures/request.js";
 
 const userStore: UserStore = {
   ensureUser: (sub) =>
@@ -97,24 +101,28 @@ function makeApp(
     loadCosts?: (userId: number) => Promise<LlmCostsResponse>;
   } = {},
 ) {
-  const app = new Hono();
-  app.use(
-    "*",
-    requireAuth({ verify: () => Promise.resolve({ sub: "athlete-1" }) }),
-  );
-  app.use("*", requireUser(userStore));
-  app.route("/llm", createLlmRoute({ loadSettings, ...extras }));
+  const app = createApp({
+    authProvider: { verify: () => Promise.resolve({ sub: "athlete-1" }) },
+    userStore,
+    loadLlmSettings: loadSettings,
+    saveLlmSettings: extras.saveSettings,
+    loadLlmCosts: extras.loadCosts,
+    loadModelCatalog: extras.loadCatalog,
+    refreshModelCatalog: extras.refreshCatalog,
+    llmProvider: extras.provider,
+    llmCredentialsKey: extras.credentialsKey,
+  });
   return app;
 }
 
 function settingsRequest(): Request {
-  return new Request("http://localhost/llm/settings", {
+  return apiRequest("http://localhost/api/llm/settings", {
     headers: { authorization: "Bearer anything" },
   });
 }
 
 function putSettingsRequest(body: unknown): Request {
-  return new Request("http://localhost/llm/settings", {
+  return apiRequest("http://localhost/api/llm/settings", {
     method: "PUT",
     headers: {
       authorization: "Bearer anything",
@@ -220,6 +228,44 @@ describe("PUT /llm/settings", () => {
     expect(saved[0]?.dailyModel).toBe("new-model");
   });
 
+  it("does not leak a credentials-key failure to the athlete", async () => {
+    const log = spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const app = makeApp(() => Promise.resolve(null), {
+        loadCatalog: () => Promise.resolve([catalogModel("test-model")]),
+        provider: fakeProvider,
+        credentialsKey: () =>
+          Promise.reject(
+            new Error(
+              "LLM_CREDENTIALS_KEY must be set to enable this integration",
+            ),
+          ),
+      });
+
+      const res = await app.fetch(
+        putSettingsRequest({
+          apiKey: "valid-key",
+          seasonModel: "test-model",
+          dailyModel: "test-model",
+        }),
+      );
+
+      expect(res.status).toBe(503);
+      const body = (await res.json()) as {
+        error: { code: string; message: string };
+      };
+      expect(body.error.code).toBe("service_unavailable");
+      expect(body.error.message).toBe(
+        "The coach is not available right now. Try again later.",
+      );
+      expect(JSON.stringify(body)).not.toContain("LLM_CREDENTIALS_KEY");
+      expect(log).toHaveBeenCalledTimes(1);
+      expect(String(log.mock.calls[0]?.[1])).toContain("LLM_CREDENTIALS_KEY");
+    } finally {
+      log.mockRestore();
+    }
+  });
+
   it("rejects a key-only save before any models are stored", async () => {
     const saved: StoredLlmSettings[] = [];
     const app = appWithSaved(null, saved);
@@ -253,7 +299,13 @@ describe("PUT /llm/settings", () => {
 
     const res = await app.fetch(putSettingsRequest({ apiKey: "bad-key" }));
 
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(422);
+    expect(await res.json()).toEqual({
+      error: {
+        code: "llm_key_invalid",
+        message: "invalid OpenRouter API key",
+      },
+    });
     expect(saved).toHaveLength(0);
   });
 });
@@ -280,7 +332,7 @@ describe("GET /llm/catalog", () => {
     });
 
     const res = await app.fetch(
-      new Request("http://localhost/llm/catalog", {
+      apiRequest("http://localhost/api/llm/catalog", {
         headers: { authorization: "Bearer anything" },
       }),
     );
@@ -302,6 +354,82 @@ describe("GET /llm/catalog", () => {
           benchmarkedAt: "2026-10-31T15:40:52.865Z",
         },
       ],
+    });
+  });
+});
+
+describe("GET /llm/models", () => {
+  function modelsRequest(): Request {
+    return apiRequest("http://localhost/api/llm/models", {
+      headers: { authorization: "Bearer anything" },
+    });
+  }
+
+  function appFailingWith(error: Error) {
+    return makeApp(() => Promise.resolve(stored), {
+      provider: {
+        ...fakeProvider,
+        listModels: () => Promise.reject(error),
+      },
+    });
+  }
+
+  it("passes the provider's own status through", async () => {
+    const app = appFailingWith(
+      new LlmProviderError("OpenRouter account has insufficient credits", 402),
+    );
+
+    const res = await app.fetch(modelsRequest());
+
+    expect(res.status).toBe(402);
+    expect(await res.json()).toEqual({
+      error: {
+        code: "payment_required",
+        message: "OpenRouter account has insufficient credits",
+      },
+    });
+  });
+
+  it("reports a rate limit as such", async () => {
+    const app = appFailingWith(
+      new LlmRateLimitError("OpenRouter rate limit reached"),
+    );
+
+    const res = await app.fetch(modelsRequest());
+
+    expect(res.status).toBe(429);
+    expect(await res.json()).toEqual({
+      error: {
+        code: "too_many_requests",
+        message: "OpenRouter rate limit reached",
+      },
+    });
+  });
+
+  it("reports a provider failure without a status as unavailable", async () => {
+    const app = appFailingWith(
+      new LlmProviderError("could not reach OpenRouter for the model list"),
+    );
+
+    const res = await app.fetch(modelsRequest());
+
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({
+      error: {
+        code: "service_unavailable",
+        message: "could not reach OpenRouter for the model list",
+      },
+    });
+  });
+
+  it("reports an unexpected failure as unavailable", async () => {
+    const app = appFailingWith(new Error("boom"));
+
+    const res = await app.fetch(modelsRequest());
+
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({
+      error: { code: "service_unavailable", message: "Service Unavailable" },
     });
   });
 });
@@ -339,7 +467,7 @@ describe("GET /llm/costs", () => {
     });
 
     const res = await app.fetch(
-      new Request("http://localhost/llm/costs", {
+      apiRequest("http://localhost/api/llm/costs", {
         headers: { authorization: "Bearer anything" },
       }),
     );
@@ -355,7 +483,7 @@ describe("GET /llm/costs", () => {
     });
 
     const res = await app.fetch(
-      new Request("http://localhost/llm/costs", {
+      apiRequest("http://localhost/api/llm/costs", {
         headers: { authorization: "Bearer anything" },
       }),
     );
@@ -384,7 +512,7 @@ describe("POST /llm/models/refresh", () => {
     });
 
     const res = await app.fetch(
-      new Request("http://localhost/llm/models/refresh", {
+      apiRequest("http://localhost/api/llm/models/refresh", {
         method: "POST",
         headers: { authorization: "Bearer anything" },
       }),

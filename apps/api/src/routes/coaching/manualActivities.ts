@@ -5,7 +5,7 @@ import {
 } from "@killingit/shared";
 import type { Context } from "hono";
 import { getUser } from "../../auth/middleware.js";
-import { badRequest, notFound, validationFailed } from "../../http/errors.js";
+import { notFound, validationFailed } from "../../http/errors.js";
 import type { ActivityLoads } from "../../training/activityLoad.js";
 import { toCoachAnalysis } from "../../plans/replies.js";
 import { ftpBaselineAt, ftpTimeline } from "../../training/thresholds.js";
@@ -57,38 +57,46 @@ export function createManualActivityHandlers(
   async function save(
     c: Context,
     mode: "create" | "edit",
-    idParam: string | undefined,
+    id: number | undefined,
     input: ManualActivityRequest,
   ) {
     const user = getUser(c);
-    const id = mode === "create" ? undefined : Number(idParam);
-    if (mode === "edit" && Number.isNaN(id)) {
-      return badRequest(c, "Invalid manual activity id");
-    }
 
     const { today, timezone, ...activity } = input;
     // The request's zone (the device zone when the athlete has not stored one)
     // wins; the stored setting is the fallback for another client.
     const timeZone = timezone ?? user.timezone ?? undefined;
-    const estimatedTss = await estimateManualTss(
-      user.id,
-      activity.startDate,
-      activity.details,
-    );
 
     let activityId: number;
     if (id === undefined) {
+      const estimatedTss = await estimateManualTss(
+        user.id,
+        activity.startDate,
+        activity.details,
+      );
       activityId = await deps.saveManual(user.id, {
         ...activity,
         estimatedTss,
       });
     } else {
+      // The update doubles as the existence check, so a missing or foreign id
+      // is refused before the coach is billed for an estimate. The entry is
+      // left unscored until the new estimate is stored, rather than keeping an
+      // estimate that describes the text it just replaced.
       const updated = await deps.updateManual(user.id, id, {
         ...activity,
-        estimatedTss,
+        estimatedTss: null,
       });
       if (!updated) {
         return notFound(c, "Manual activity not found");
+      }
+      const estimatedTss = await estimateManualTss(
+        user.id,
+        activity.startDate,
+        activity.details,
+      );
+      if (estimatedTss !== null) {
+        await deps.updateManualTss(user.id, id, estimatedTss);
       }
       activityId = id;
     }
@@ -120,7 +128,7 @@ export function createManualActivityHandlers(
     );
   }
 
-  async function remove(c: Context, idParam: string) {
+  async function remove(c: Context, id: number) {
     const query = deletionQuerySchema.safeParse(c.req.query());
     if (!query.success) {
       return validationFailed(
@@ -131,10 +139,6 @@ export function createManualActivityHandlers(
     }
 
     const user = getUser(c);
-    const id = Number(idParam);
-    if (Number.isNaN(id)) {
-      return badRequest(c, "Invalid manual activity id");
-    }
     const { today, timezone } = query.data;
 
     const deleted = await deps.deleteManual(user.id, id);

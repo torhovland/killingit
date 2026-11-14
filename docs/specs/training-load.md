@@ -126,7 +126,10 @@ edited, the API asks the coach's model for a TSS estimate from the wording,
 using the stored FTP in effect on that date. The wording is read by the model,
 not by a keyword list. If no model is configured or the call fails, the entry
 is left unscored (`estimated_tss` stays null) rather than guessed; the athlete
-can edit the entry to retry. The estimate is stored in
+can edit the entry to retry. An edit saves the entry's own text before the
+estimate, so that update doubles as the existence check: a missing id, or one
+belonging to another account, answers the same `404` without a completion. The
+estimate is then stored in a second, narrow write. The estimate is stored in
 `manual_activities.estimated_tss`, so it is stable across visits and available
 to the plan, the Activities page, and ATL/CTL calculations. Several entries on
 one day add up, and an entry with no estimate is skipped rather than counted as
@@ -222,7 +225,7 @@ API:
   cycling FTP from it. There is no separate FTP timeline.
 - `apps/api/src/training/load.ts` resolves TSS and attaches the load series
   after every generation path, including promotion-only saves.
-- `apps/api/src/coaching/activities.ts` stores power metrics and activity loads
+- `apps/api/src/coaching/feed/sync.ts` stores power metrics and activity loads
   while summarizing synced activities.
 - `apps/api/src/training/manualTss.ts` estimates a manual entry's TSS with the
   coach from its wording and returns null when the model is unavailable.

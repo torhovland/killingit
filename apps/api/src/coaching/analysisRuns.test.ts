@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { ActivityFeed } from "./activities.js";
+import type { ActivityFeed } from "./feed/presenter.js";
 import {
   latestActivityAnalysisSince,
   MAX_COMPLETED_ANALYSES,

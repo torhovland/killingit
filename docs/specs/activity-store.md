@@ -82,7 +82,7 @@ columns it needs, and let the sample preview and GPS route load on demand.
   `loadStoredActivities`, `loadStoredActivityFeed`, `summarizeActivity`,
   `withActivityFeedback`, `MAX_ANALYZED_ACTIVITIES` and
   `MAX_PREVIEW_SAMPLES`. It replaces `coaching/feedCache.ts`.
-- `apps/api/src/coaching/activities.ts`: the sync phase persists the window
+- `apps/api/src/coaching/feed/sync.ts`: the sync phase persists the window
   through the store; the assembly phase no longer writes a second cache copy.
 - `apps/api/src/routes/coaching/feed.ts`, `routes/calendar.ts`,
   `routes/fitness.ts`, `routes/coaching/manualActivities.ts`,

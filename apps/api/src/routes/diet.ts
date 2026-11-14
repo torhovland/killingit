@@ -5,6 +5,7 @@ import {
   foodEntryRequestSchema,
   foodEntrySchema,
   foodEntryUpdateRequestSchema,
+  idParamSchema,
   isDefaultDietGoal,
   planDateSchema,
   type FoodAnalysis,
@@ -13,6 +14,7 @@ import { zValidator } from "../http/validation.js";
 import { Hono } from "hono";
 import { getUser } from "../auth/middleware.js";
 import {
+  athleteFailureMessage,
   badRequest,
   conflict,
   notFound,
@@ -39,6 +41,9 @@ import { createMealPhotos } from "../diet/thumbnail.js";
 /** The reported reason when no provider is configured. */
 const NO_LLM_ERROR =
   "The coach needs an OpenRouter key and model. Add them in Settings, then save the meal again.";
+
+/** The reported reason when the analysis failed on something internal. */
+const FOOD_ANALYSIS_ERROR = "Something went wrong on our side. Try again.";
 
 /** How far back the summary looks when the athlete has logged nothing. */
 const EMPTY_SUMMARY_DAYS = 30;
@@ -125,14 +130,15 @@ async function analyseMeal(
       analysisError: null,
     };
   } catch (err) {
-    console.error("[diet] food analysis failed:", err);
+    // The stored reason is shown on the Diet page and read by the next prompt,
+    // so only an athlete-facing failure keeps its own message.
     return {
       analysis: null,
       model: null,
-      analysisError:
-        err instanceof Error
-          ? err.message
-          : "The coach could not analyse this meal.",
+      analysisError: athleteFailureMessage(err, {
+        fallback: FOOD_ANALYSIS_ERROR,
+        logLabel: "[diet] food analysis failure",
+      }),
     };
   }
 }
@@ -275,12 +281,10 @@ export function createDietRoute(deps: ResolvedAppDependencies): Hono {
     })
     .patch(
       "/entries/:id",
+      zValidator("param", idParamSchema),
       zValidator("json", foodEntryUpdateRequestSchema),
       async (c) => {
-        const id = Number(c.req.param("id"));
-        if (!Number.isInteger(id) || id <= 0) {
-          return badRequest(c, "Invalid meal");
-        }
+        const { id } = c.req.valid("param");
         const user = getUser(c);
         if (!user.dietAdvice) {
           return conflict(
@@ -371,28 +375,30 @@ export function createDietRoute(deps: ResolvedAppDependencies): Hono {
         return c.json(foodEntrySchema.parse(toFoodEntry(stored)));
       },
     )
-    .get("/entries/:id/photo", async (c) => {
-      const id = Number(c.req.param("id"));
-      if (!Number.isInteger(id) || id <= 0) {
-        return badRequest(c, "Invalid meal");
-      }
-      const user = getUser(c);
-      const dataUrl = await entries.photo(user.id, id);
-      if (dataUrl === null) {
-        return notFound(c, "Photo not found");
-      }
-      const photo = decodePhoto(dataUrl);
-      if (photo === null) {
-        return notFound(c, "Photo not found");
-      }
-      return new Response(photo.bytes, {
-        status: 200,
-        headers: {
-          "content-type": photo.contentType,
-          // A meal's photo can be replaced, so the browser must revalidate. The
-          // client adds the entry's updatedAt to the URL for a fresh read.
-          "cache-control": "private, no-cache",
-        },
-      });
-    });
+    .get(
+      "/entries/:id/photo",
+      zValidator("param", idParamSchema),
+      async (c) => {
+        const { id } = c.req.valid("param");
+        const user = getUser(c);
+        const dataUrl = await entries.photo(user.id, id);
+        if (dataUrl === null) {
+          return notFound(c, "Photo not found");
+        }
+        const photo = decodePhoto(dataUrl);
+        if (photo === null) {
+          return notFound(c, "Photo not found");
+        }
+        return new Response(photo.bytes, {
+          status: 200,
+          headers: {
+            "content-type": photo.contentType,
+            // A meal's photo can be replaced, so the browser must revalidate.
+            // The client adds the entry's updatedAt to the URL for a fresh
+            // read.
+            "cache-control": "private, no-cache",
+          },
+        });
+      },
+    );
 }

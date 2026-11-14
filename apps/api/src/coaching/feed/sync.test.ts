@@ -1,15 +1,10 @@
-import { describe, expect, it, mock } from "bun:test";
+import { describe, expect, it, mock, spyOn } from "bun:test";
 import type { Activity, AnalyzedActivity } from "@killingit/shared";
-import type { ActivityFeedback } from "../plans/replies.js";
-import { withActivityFeedback } from "./activityStore.js";
-import {
-  commentIsNewerThanAnalysis,
-  extendStoredFeed,
-  mergeActivityHistory,
-  withActivityLoad,
-} from "./activities.js";
+import type { GarminCredentials } from "../../garmin/client.js";
+import { extendStoredFeed, mergeActivityHistory, syncFeed } from "./sync.js";
 
 type ActivityStore = NonNullable<Parameters<typeof extendStoredFeed>[1]>;
+type SyncFeedDependencies = NonNullable<Parameters<typeof syncFeed>[1]>;
 
 function synced(id: number, startDate: string, name: string): Activity {
   return {
@@ -40,33 +35,6 @@ function stored(id: number, startDate: string): AnalyzedActivity {
     coachReply: null,
   };
 }
-
-describe("commentIsNewerThanAnalysis", () => {
-  const generatedAt = new Date("2026-10-22T09:00:00Z");
-
-  it("regenerates an analysis older than the comment", () => {
-    expect(
-      commentIsNewerThanAnalysis(
-        { generatedAt },
-        new Date("2026-10-22T10:00:00Z"),
-      ),
-    ).toBe(true);
-  });
-
-  it("keeps an analysis produced after the comment", () => {
-    expect(
-      commentIsNewerThanAnalysis(
-        { generatedAt },
-        new Date("2026-10-22T08:00:00Z"),
-      ),
-    ).toBe(false);
-  });
-
-  it("keeps an analysis when there is no comment", () => {
-    expect(commentIsNewerThanAnalysis({ generatedAt }, null)).toBe(false);
-    expect(commentIsNewerThanAnalysis(undefined, new Date())).toBe(false);
-  });
-});
 
 describe("mergeActivityHistory", () => {
   it("keeps activities that fell outside the latest sync window", () => {
@@ -101,69 +69,6 @@ describe("mergeActivityHistory", () => {
     expect(merged[0]?.name).toBe("Renamed ride");
     expect(merged[0]?.analysis?.text).toBe("Analysis 1");
     expect(merged[0]?.comment).toBe("Comment 1");
-  });
-});
-
-describe("withActivityFeedback", () => {
-  const feedback: ActivityFeedback = {
-    comment: "Felt strong",
-    commentUpdatedAt: new Date("2026-10-03T08:00:00Z"),
-    reply: {
-      kind: "activity_comment",
-      target: "1",
-      text: "Good ride",
-      model: "test-model",
-      generatedAt: new Date("2026-10-03T09:00:00Z"),
-      planChangeNeeded: false,
-    },
-    reviewed: true,
-  };
-
-  it("applies the stored comment, reply and reviewed flag", () => {
-    const updated = withActivityFeedback(
-      stored(1, "2026-10-03T06:30:00Z"),
-      new Map([["1", feedback]]),
-    );
-
-    expect(updated.comment).toBe("Felt strong");
-    expect(updated.coachReply?.text).toBe("Good ride");
-    expect(updated.reviewed).toBe(true);
-  });
-
-  it("returns the activity unchanged when it has no stored feedback", () => {
-    const activity = stored(1, "2026-10-03T06:30:00Z");
-
-    expect(withActivityFeedback(activity, new Map())).toBe(activity);
-  });
-});
-
-describe("withActivityLoad", () => {
-  const loads = {
-    byDate: new Map([["2026-10-03", { tss: 85, atl: 29, ctl: 20, tsb: -20 }]]),
-    byActivityId: new Map([[1, 40]]),
-  };
-
-  it("attaches the activity's own TSS and its day's fitness snapshot", () => {
-    const updated = withActivityLoad(
-      stored(1, "2026-10-03T06:30:00Z"),
-      loads,
-      "UTC",
-    );
-
-    expect(updated.activityTss).toBe(40);
-    expect(updated.trainingLoad?.tss).toBe(85);
-  });
-
-  it("keeps an existing activity TSS when the loads do not cover it", () => {
-    const activity = {
-      ...stored(2, "2026-10-04T06:30:00Z"),
-      activityTss: 55,
-    };
-
-    const updated = withActivityLoad(activity, loads, "UTC");
-
-    expect(updated.activityTss).toBe(55);
-    expect(updated.trainingLoad).toBeNull();
   });
 });
 
@@ -220,5 +125,107 @@ describe("extendStoredFeed", () => {
       [synced(2, "2026-10-11T06:30:00Z", "New ride")],
       deletedIds,
     );
+  });
+});
+
+const credentials: GarminCredentials = {
+  username: "rider",
+  password: "secret",
+};
+
+/** A stored-feed store with no history, so a sync test never touches the database. */
+function emptyStore(): NonNullable<SyncFeedDependencies["store"]> {
+  return {
+    load: () => Promise.resolve({ model: null, activities: [] }),
+    save: mock(() => Promise.resolve()),
+  };
+}
+
+/** Lets a background pass settle so its per-account entry is released. */
+function settle(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+describe("syncFeed", () => {
+  it("answers with the synced activities while the supplementary pass runs", async () => {
+    let finish: () => void = () => {};
+    const syncSupplements = mock(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
+
+    const result = await syncFeed(
+      { userId: 29911, credentials, today: "2026-11-14", limit: 20 },
+      {
+        syncActivities: () =>
+          Promise.resolve([synced(2, "2026-10-11T06:30:00Z", "New ride")]),
+        syncSupplements,
+        loadDeletedIds: () => Promise.resolve(new Set()),
+        store: emptyStore(),
+      },
+    );
+
+    expect(result.latest.map((activity) => activity.name)).toEqual([
+      "New ride",
+    ]);
+    expect(result.history.map((activity) => activity.id)).toEqual([2]);
+    expect(syncSupplements).toHaveBeenCalledWith(
+      29911,
+      credentials,
+      "2026-11-14",
+    );
+
+    finish();
+    await settle();
+  });
+
+  it("answers with the synced activities when the supplementary pass fails", async () => {
+    const log = spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const result = await syncFeed(
+        { userId: 29912, credentials, today: "2026-11-14", limit: 20 },
+        {
+          syncActivities: () =>
+            Promise.resolve([
+              synced(3, "2026-10-12T06:30:00Z", "Another ride"),
+            ]),
+          syncSupplements: () => Promise.reject(new Error("sidecar down")),
+          loadDeletedIds: () => Promise.resolve(new Set()),
+          store: emptyStore(),
+        },
+      );
+
+      expect(result.history.map((activity) => activity.id)).toEqual([3]);
+
+      await settle();
+      expect(log).toHaveBeenCalledTimes(1);
+      expect(String(log.mock.calls[0]?.[1])).toContain("sidecar down");
+    } finally {
+      log.mockRestore();
+    }
+  });
+
+  it("does not start the supplementary pass when the activity sync fails", async () => {
+    const syncSupplements = mock(() => Promise.resolve());
+
+    let caught: unknown;
+    try {
+      await syncFeed(
+        { userId: 29913, credentials, today: "2026-11-14", limit: 20 },
+        {
+          syncActivities: () => Promise.reject(new Error("Garmin is down")),
+          syncSupplements,
+          loadDeletedIds: () => Promise.resolve(new Set()),
+          store: emptyStore(),
+        },
+      );
+    } catch (err) {
+      caught = err;
+    }
+
+    expect(String(caught)).toContain("Garmin is down");
+    expect(syncSupplements).not.toHaveBeenCalled();
   });
 });

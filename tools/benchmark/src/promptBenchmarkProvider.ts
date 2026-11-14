@@ -69,7 +69,7 @@ export async function completePrompt(
       finishReason: err instanceof LlmTokenLimitError ? "length" : null,
       usage: null,
       costUsd: 0,
-      httpStatus: err instanceof LlmProviderError ? (err.status ?? null) : null,
+      httpStatus: err instanceof LlmProviderError ? err.status : null,
       error:
         signal.aborted || isLlmAbortError(err)
           ? `timed out after ${Math.round(timeoutMs / 1000)}s`

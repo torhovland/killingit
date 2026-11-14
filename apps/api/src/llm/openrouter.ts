@@ -1,9 +1,11 @@
 import {
   llmModelSchema,
+  type ApiErrorCode,
   type LlmCallUsage,
   type LlmModel,
   type LlmPromptKind,
 } from "@killingit/shared";
+import { UpstreamError } from "../http/errors.js";
 
 const DEFAULT_BASE_URL = "https://openrouter.ai/api/v1";
 // Plan generation uses slow reasoning models and a multi-step cascade. Keep
@@ -12,22 +14,29 @@ const DEFAULT_BASE_URL = "https://openrouter.ai/api/v1";
 const REQUEST_TIMEOUT_MS = 240_000;
 const KEY_CHECK_TIMEOUT_MS = 15_000;
 
-/** Raised when the LLM provider rejects or cannot serve a request. */
-export class LlmProviderError extends Error {
+/**
+ * Raised when the LLM provider rejects or cannot serve a request. A failure
+ * that carries no status of its own is reported as unavailable.
+ */
+export class LlmProviderError extends UpstreamError {
   constructor(
     message: string,
-    readonly status?: number,
-    options?: { cause?: unknown },
+    status?: number,
+    options?: { code?: ApiErrorCode; cause?: unknown },
   ) {
-    super(message, options);
+    super(message, { status, ...options });
     this.name = "LlmProviderError";
   }
 }
 
-/** Raised specifically for an invalid/revoked API key (mapped to 401). */
+/**
+ * Raised specifically for an invalid or revoked API key. The athlete fixes it
+ * in Settings, so it is a `422` with `llm_key_invalid` rather than a `401` the
+ * client would retry. See ADR 0036.
+ */
 export class LlmAuthError extends LlmProviderError {
   constructor(message: string, options?: { cause?: unknown }) {
-    super(message, 401, options);
+    super(message, 422, { code: "llm_key_invalid", ...options });
     this.name = "LlmAuthError";
   }
 }

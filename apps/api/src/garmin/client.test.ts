@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "bun:test";
 import {
   authenticateGarmin,
   GarminAuthError,
+  GarminNotConnectedError,
   GarminSidecarError,
   sidecarAuthHeaders,
   syncGarminActivities,
@@ -285,8 +286,16 @@ describe("sidecarAuthHeaders", () => {
 });
 
 describe("error classes", () => {
-  it("GarminAuthError carries status 401", () => {
+  it("reports a rejected Garmin login as a fixable connection failure", () => {
     const err = new GarminAuthError("bad");
-    expect(err.status).toBe(401);
+    expect(err.status).toBe(422);
+    expect(err.code).toBe("garmin_auth_failed");
+  });
+
+  it("reports a missing Garmin connection without a session failure", () => {
+    const err = new GarminNotConnectedError();
+    expect(err.status).toBe(409);
+    expect(err.code).toBe("garmin_not_connected");
+    expect(err.message).toBe("Not connected to Garmin");
   });
 });

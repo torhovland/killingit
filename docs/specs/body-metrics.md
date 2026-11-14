@@ -83,7 +83,11 @@ athlete measurements are never deleted.
   already supplied it, and the conflict branch checks that instead of reading
   the day before writing. A failed metrics sync is logged and never fails the
   activity feed.
-- `GET /api/garmin/activities` and the activity feed both refresh metrics.
+- `GET /api/garmin/activities` and the activity feed both refresh the body
+  values and historic FTP through the shared fail-open
+  `syncGarminSupplements` pass, dated by the athlete's local calendar day. Both
+  start it in the background, so a slow pass never holds their response and its
+  failure is logged, never returned; see ADR 0039.
 
 ### FTP series
 

@@ -1,5 +1,5 @@
-import type { ActivityFeed } from "../coaching/activities.js";
 import { loadAnalyzedActivities } from "../coaching/activities.js";
+import type { ActivityFeed } from "../coaching/feed/presenter.js";
 import { MAX_ANALYZED_ACTIVITIES } from "../coaching/activityStore.js";
 import { loadLlmClient, type LlmClient } from "../llm/client.js";
 import type { QuestionAnswerStore } from "../questions/answers.js";
@@ -10,6 +10,7 @@ import {
 import type { UserStore } from "../users/store.js";
 import { startOfWeek } from "@killingit/shared";
 import { loadAnsweredCoachQuestions } from "./coachQuestions.js";
+import { planFailureMessage } from "./failure.js";
 import { GenerationSupersededError } from "./generation.js";
 import { loadCoachingInputs, type CoachingInputs } from "./inputs.js";
 import { PLAN_GENERATION_STEPS } from "./steps.js";
@@ -147,9 +148,7 @@ export async function loadPlanGenerationContext(
     if (options.signal.aborted) {
       throw new GenerationSupersededError();
     }
-    const message =
-      err instanceof Error ? err.message : "The plan could not be generated.";
-    await deps.generations.fail(userId, message, options.runId);
+    await deps.generations.fail(userId, planFailureMessage(err), options.runId);
     throw err;
   }
 }

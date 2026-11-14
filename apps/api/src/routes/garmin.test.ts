@@ -1,12 +1,14 @@
-import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { Hono } from "hono";
-import { requireAuth, requireUser } from "../auth/middleware.js";
+import { afterAll, beforeAll, describe, expect, it, spyOn } from "bun:test";
 import type { Activity } from "@killingit/shared";
 import type { GarminCredentials } from "../garmin/client.js";
-import { GarminAuthError, type SyncTransport } from "../garmin/client.js";
+import {
+  GarminAuthError,
+  GarminSidecarError,
+  type SyncTransport,
+} from "../garmin/client.js";
 import type { EncryptedCredentials } from "../garmin/store.js";
+import { createApp } from "../index.js";
 import type { UserStore } from "../users/store.js";
-import { createGarminRoute } from "./garmin.js";
 import { apiRequest } from "../testFixtures/request.js";
 
 const ORIGINAL_KEY = process.env.GARMIN_CREDENTIALS_KEY;
@@ -58,48 +60,68 @@ const users: UserStore = {
     }),
 };
 
-function makeApp(authenticate?: () => Promise<boolean>) {
+function makeApp(
+  authenticate?: () => Promise<boolean>,
+  options: {
+    timezone?: string;
+    now?: () => Date;
+    syncActivities?: SyncTransport;
+    /** The supplementary work; the route starts it in the background. */
+    syncSupplements?: () => Promise<void>;
+  } = {},
+) {
   const stored = new Map<number, EncryptedCredentials>();
   const plain = new Map<number, GarminCredentials>();
   const synced: GarminCredentials[] = [];
-
-  const app = new Hono();
-  app.use(
-    "/garmin/*",
-    requireAuth({ verify: (token) => Promise.resolve({ sub: token }) }),
-  );
-  app.use("/garmin/*", requireUser(users));
-  app.route(
-    "/garmin",
-    createGarminRoute({
-      loadStoredCredentials: (userId) =>
-        Promise.resolve(stored.get(userId) ?? null),
-      saveStoredCredentials: (userId, credentials) => {
-        stored.set(userId, credentials);
-        return Promise.resolve();
-      },
-      loadDecryptedCredentials: (userId) =>
-        Promise.resolve(plain.get(userId) ?? null),
-      authenticate: authenticate ?? (() => Promise.resolve(true)),
-      syncActivities: ((credentials) => {
-        synced.push(credentials);
-        return Promise.resolve([] as Activity[]);
-      }) satisfies SyncTransport,
-      syncMetrics: () => Promise.resolve({ metrics: [], ftp: [] }),
-      saveMetrics: () => Promise.resolve(),
-      saveFtp: () => Promise.resolve(),
-      syncDaily: () =>
-        Promise.resolve({ fetched: [], rateLimited: false, failedDate: null }),
+  const supplementDates: string[] = [];
+  // The account's stored zone decides the local day the supplement pass uses.
+  const accounts: UserStore = {
+    ...users,
+    ensureUser: async (sub) => ({
+      ...(await users.ensureUser(sub)),
+      timezone: options.timezone ?? null,
     }),
-  );
+  };
 
-  return { app, stored, plain, synced };
+  const sync =
+    options.syncActivities ??
+    ((credentials) => {
+      synced.push(credentials);
+      return Promise.resolve([] as Activity[]);
+    });
+
+  const app = createApp({
+    authProvider: { verify: (token) => Promise.resolve({ sub: token }) },
+    userStore: accounts,
+    loadGarminCredentials: (userId) =>
+      Promise.resolve(stored.get(userId) ?? null),
+    saveGarminCredentials: (userId, credentials) => {
+      stored.set(userId, credentials);
+      return Promise.resolve();
+    },
+    loadDecryptedGarminCredentials: (userId) =>
+      Promise.resolve(plain.get(userId) ?? null),
+    authenticateGarmin: authenticate ?? (() => Promise.resolve(true)),
+    syncGarminActivities: sync,
+    syncGarminSupplements: (_userId, _credentials, today) => {
+      supplementDates.push(today);
+      return options.syncSupplements?.() ?? Promise.resolve();
+    },
+    now: options.now ?? (() => new Date()),
+  });
+
+  return { app, stored, plain, synced, supplementDates };
+}
+
+/** Lets a background supplementary pass settle so its per-account entry is released. */
+function settle(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
 function request(path: string, subject: string, init?: RequestInit): Request {
   const headers = new Headers(init?.headers);
   headers.set("authorization", `Bearer ${subject}`);
-  return apiRequest(`http://localhost${path}`, { ...init, headers });
+  return apiRequest(`http://localhost/api${path}`, { ...init, headers });
 }
 
 describe("per-user Garmin credentials", () => {
@@ -146,13 +168,45 @@ describe("per-user Garmin credentials", () => {
     expect(synced).toEqual([{ username: "rider-1", password: "secret-1" }]);
   });
 
+  it("refreshes the supplementary data for the athlete's local day", async () => {
+    const { app, plain, supplementDates } = makeApp(undefined, {
+      timezone: "Europe/Oslo",
+      now: () => new Date("2026-11-14T23:30:00Z"),
+    });
+    plain.set(1, { username: "rider-1", password: "secret-1" });
+
+    const res = await app.fetch(request("/garmin/activities", "athlete-1"));
+
+    expect(res.status).toBe(200);
+    await settle();
+    expect(supplementDates).toEqual(["2026-11-15"]);
+  });
+
+  it("reads an account without a time zone in UTC", async () => {
+    const { app, plain, supplementDates } = makeApp(undefined, {
+      now: () => new Date("2026-11-14T23:30:00Z"),
+    });
+    plain.set(1, { username: "rider-1", password: "secret-1" });
+
+    await app.fetch(request("/garmin/activities", "athlete-1"));
+
+    await settle();
+    expect(supplementDates).toEqual(["2026-11-14"]);
+  });
+
   it("does not sync an account without credentials", async () => {
     const { app, plain, synced } = makeApp();
     plain.set(1, { username: "rider-1", password: "secret-1" });
 
     const res = await app.fetch(request("/garmin/activities", "athlete-2"));
 
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({
+      error: {
+        code: "garmin_not_connected",
+        message: "Not connected to Garmin",
+      },
+    });
     expect(synced).toEqual([]);
   });
 
@@ -169,7 +223,189 @@ describe("per-user Garmin credentials", () => {
       }),
     );
 
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(422);
+    expect(await res.json()).toEqual({
+      error: {
+        code: "garmin_auth_failed",
+        message: "invalid Garmin credentials",
+      },
+    });
     expect(stored.size).toBe(0);
+  });
+});
+
+describe("supplementary sync scheduling", () => {
+  const credentials = { username: "rider-1", password: "secret-1" };
+  const activity: Activity = {
+    id: 1,
+    name: "Morning ride",
+    type: "cycling",
+    startDate: "2026-11-14T07:00:00Z",
+    distance: 30000,
+    movingTime: 3600,
+    elapsedTime: 3700,
+    totalElevationGain: 200,
+    samples: [],
+  };
+
+  it("answers with the activities while the supplementary pass runs", async () => {
+    let finish: () => void = () => {};
+    const { app, plain } = makeApp(undefined, {
+      syncActivities: () => Promise.resolve([activity]),
+      syncSupplements: () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    });
+    plain.set(1, credentials);
+
+    const res = await app.fetch(request("/garmin/activities", "athlete-1"));
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ activities: [activity] });
+
+    // The pass settles only after the response, which is the point: a slow
+    // backfill must not hold the activities.
+    finish();
+    await settle();
+  });
+
+  it("logs a failing supplementary pass without failing the response", async () => {
+    const log = spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const { app, plain } = makeApp(undefined, {
+        syncActivities: () => Promise.resolve([activity]),
+        syncSupplements: () => Promise.reject(new Error("sidecar down")),
+      });
+      plain.set(1, credentials);
+
+      const res = await app.fetch(request("/garmin/activities", "athlete-1"));
+
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ activities: [activity] });
+
+      await settle();
+      expect(log).toHaveBeenCalledTimes(1);
+      expect(String(log.mock.calls[0]?.[1])).toContain("sidecar down");
+    } finally {
+      log.mockRestore();
+    }
+  });
+});
+
+describe("Garmin upstream failures", () => {
+  const credentials = { username: "rider-1", password: "secret-1" };
+
+  function credentialRequest(): Request {
+    return request("/garmin/credentials", "athlete-1", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(credentials),
+    });
+  }
+
+  it("passes the sidecar's status through on a sync", async () => {
+    const { app, plain } = makeApp(undefined, {
+      syncActivities: () =>
+        Promise.reject(new GarminSidecarError("Garmin is rate limiting", 429)),
+    });
+    plain.set(1, credentials);
+
+    const res = await app.fetch(request("/garmin/activities", "athlete-1"));
+
+    expect(res.status).toBe(429);
+    expect(await res.json()).toEqual({
+      error: { code: "too_many_requests", message: "Garmin is rate limiting" },
+    });
+  });
+
+  it("reports a sidecar failure without a status as unavailable", async () => {
+    const { app, plain } = makeApp(undefined, {
+      syncActivities: () =>
+        Promise.reject(
+          new GarminSidecarError(
+            "sidecar returned a malformed activities payload",
+          ),
+        ),
+    });
+    plain.set(1, credentials);
+
+    const res = await app.fetch(request("/garmin/activities", "athlete-1"));
+
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({
+      error: {
+        code: "service_unavailable",
+        message: "sidecar returned a malformed activities payload",
+      },
+    });
+  });
+
+  it("reports an unexpected sync failure as unavailable", async () => {
+    const { app, plain } = makeApp(undefined, {
+      syncActivities: () => Promise.reject(new Error("boom")),
+    });
+    plain.set(1, credentials);
+
+    const res = await app.fetch(request("/garmin/activities", "athlete-1"));
+
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({
+      error: { code: "service_unavailable", message: "Service Unavailable" },
+    });
+  });
+
+  it("passes the sidecar's status through when validating credentials", async () => {
+    const { app, stored } = makeApp(() =>
+      Promise.reject(new GarminSidecarError("MFA is required", 403)),
+    );
+
+    const res = await app.fetch(credentialRequest());
+
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({
+      error: { code: "forbidden", message: "MFA is required" },
+    });
+    expect(stored.size).toBe(0);
+  });
+
+  it("reports an unexpected credential failure as unavailable", async () => {
+    const { app, stored } = makeApp(() => Promise.reject(new Error("boom")));
+
+    const res = await app.fetch(credentialRequest());
+
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({
+      error: { code: "service_unavailable", message: "Service Unavailable" },
+    });
+    expect(stored.size).toBe(0);
+  });
+
+  it("does not leak a credentials-key failure to the athlete", async () => {
+    const log = spyOn(console, "error").mockImplementation(() => {});
+    delete process.env.GARMIN_CREDENTIALS_KEY;
+    try {
+      const { app, stored } = makeApp();
+
+      const res = await app.fetch(credentialRequest());
+
+      expect(res.status).toBe(503);
+      const body = (await res.json()) as {
+        error: { code: string; message: string };
+      };
+      expect(body.error.code).toBe("service_unavailable");
+      expect(body.error.message).toBe(
+        "Garmin is not available right now. Try again later.",
+      );
+      expect(JSON.stringify(body)).not.toContain("GARMIN_CREDENTIALS_KEY");
+      expect(stored.size).toBe(0);
+      expect(log).toHaveBeenCalledTimes(1);
+      expect(String(log.mock.calls[0]?.[1])).toContain(
+        "GARMIN_CREDENTIALS_KEY",
+      );
+    } finally {
+      process.env.GARMIN_CREDENTIALS_KEY = "garmin-route-test-key";
+      log.mockRestore();
+    }
   });
 });

@@ -1,5 +1,15 @@
 import { describe, expect, it } from "bun:test";
-import type { ActivityFeed } from "../coaching/activities.js";
+import type { ActivityFeed } from "../coaching/feed/presenter.js";
+import {
+  GarminCredentialsError,
+  LlmCredentialsError,
+} from "../coaching/feed/errors.js";
+import {
+  GarminAuthError,
+  GarminNotConnectedError,
+  GarminSidecarError,
+} from "../garmin/client.js";
+import { LlmAuthError, LlmProviderError } from "../llm/openrouter.js";
 import type { CoachQuestion } from "@killingit/shared";
 import { createApp } from "../index.js";
 import type { AppDependencies } from "../dependencies.js";
@@ -22,6 +32,7 @@ import type {
 } from "../questions/answers.js";
 import type { CoachingSurveyAdjustmentStore } from "../questions/adjustments.js";
 import { apiRequest } from "../testFixtures/request.js";
+import { expectValidationFailure } from "../testFixtures/validation.js";
 
 const storedQuestion: StoredAthleteQuestion = {
   id: 1,
@@ -171,6 +182,8 @@ function makeApp(options: {
   ) => Promise<boolean>;
   saveActivityReview?: AppDependencies["saveActivityReview"];
   saveManualActivity?: AppDependencies["saveManualActivity"];
+  updateManualActivity?: AppDependencies["updateManualActivity"];
+  updateManualActivityTss?: AppDependencies["updateManualActivityTss"];
   saveWeeklyNote?: (
     userId: number,
     today: string,
@@ -340,6 +353,12 @@ function makeApp(options: {
       : {}),
     ...(options.saveManualActivity !== undefined
       ? { saveManualActivity: options.saveManualActivity }
+      : {}),
+    ...(options.updateManualActivity !== undefined
+      ? { updateManualActivity: options.updateManualActivity }
+      : {}),
+    ...(options.updateManualActivityTss !== undefined
+      ? { updateManualActivityTss: options.updateManualActivityTss }
       : {}),
     ...(options.saveWeeklyNote !== undefined
       ? { saveWeeklyNote: options.saveWeeklyNote }
@@ -606,6 +625,111 @@ describe("coaching activity analysis", () => {
     expect(res.status).toBe(200);
     expect(triggered).toBe(false);
   });
+});
+
+describe("coaching activity feed failures", () => {
+  const failures = [
+    {
+      name: "a Garmin account that is not connected",
+      error: new GarminNotConnectedError(),
+      status: 409,
+      code: "garmin_not_connected",
+      message: "Not connected to Garmin",
+    },
+    {
+      name: "Garmin credentials the sidecar rejects",
+      error: new GarminAuthError("invalid Garmin credentials"),
+      status: 422,
+      code: "garmin_auth_failed",
+      message: "invalid Garmin credentials",
+    },
+    {
+      name: "a Garmin rate limit",
+      error: new GarminSidecarError("Garmin is rate limiting", 429),
+      status: 429,
+      code: "too_many_requests",
+      message: "Garmin is rate limiting",
+    },
+    {
+      name: "a malformed sidecar payload",
+      error: new GarminSidecarError(
+        "sidecar returned a malformed activities payload",
+      ),
+      status: 503,
+      code: "service_unavailable",
+      message: "sidecar returned a malformed activities payload",
+    },
+    {
+      name: "stored Garmin credentials that cannot be decrypted",
+      error: new GarminCredentialsError(
+        "Garmin credentials are unavailable (check GARMIN_CREDENTIALS_KEY)",
+      ),
+      status: 503,
+      code: "service_unavailable",
+      message:
+        "Garmin credentials are unavailable (check GARMIN_CREDENTIALS_KEY)",
+    },
+    {
+      name: "a stored OpenRouter key that cannot be decrypted",
+      error: new LlmCredentialsError(
+        "OpenRouter credentials are unavailable (check LLM_CREDENTIALS_KEY)",
+      ),
+      status: 503,
+      code: "service_unavailable",
+      message:
+        "OpenRouter credentials are unavailable (check LLM_CREDENTIALS_KEY)",
+    },
+    {
+      name: "an OpenRouter key the provider rejects",
+      error: new LlmAuthError("invalid OpenRouter API key"),
+      status: 422,
+      code: "llm_key_invalid",
+      message: "invalid OpenRouter API key",
+    },
+    {
+      name: "an OpenRouter account without credits",
+      error: new LlmProviderError(
+        "OpenRouter account has insufficient credits",
+        402,
+      ),
+      status: 402,
+      code: "payment_required",
+      message: "OpenRouter account has insufficient credits",
+    },
+    {
+      name: "an OpenRouter failure without a status",
+      error: new LlmProviderError(
+        "could not reach OpenRouter for the completion",
+      ),
+      status: 503,
+      code: "service_unavailable",
+      message: "could not reach OpenRouter for the completion",
+    },
+    {
+      name: "an unexpected failure",
+      error: new Error("boom"),
+      status: 503,
+      code: "service_unavailable",
+      message: "Service Unavailable",
+    },
+  ];
+
+  for (const failure of failures) {
+    it(`reports ${failure.name}`, async () => {
+      const app = makeApp({
+        loadActivities: () => Promise.reject(failure.error),
+      });
+
+      const res = await app.fetch(
+        authenticatedRequest("/api/coaching/activities"),
+      );
+
+      expect(res.status).toBe(failure.status);
+      expect(await res.json()).toEqual({
+        error: { code: failure.code, message: failure.message },
+      });
+    });
+  }
 });
 
 describe("coaching activity comments", () => {
@@ -880,6 +1004,82 @@ describe("coaching manual activities", () => {
 
     expect(res.status).toBe(200);
     expect(saved.tss).toBe(255);
+  });
+
+  it("does not bill for a TSS estimate when editing a missing manual activity", async () => {
+    let estimates = 0;
+    let triggered = false;
+    const app = makeApp({
+      updateManualActivity: () => Promise.resolve(false),
+      estimateManualTss: () => {
+        estimates += 1;
+        return Promise.resolve(120);
+      },
+      triggerPlanGeneration: () => {
+        triggered = true;
+        return Promise.resolve(true);
+      },
+    });
+
+    const res = await app.fetch(
+      authenticatedRequest("/api/coaching/activities/manual/7", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          today: "2026-10-21",
+          startDate: "2026-10-20",
+          details: "An easy hour on the bike",
+        }),
+      }),
+    );
+
+    expect(res.status).toBe(404);
+    expect(estimates).toBe(0);
+    expect(triggered).toBe(false);
+  });
+
+  it("re-estimates an edited manual activity once it is known to exist", async () => {
+    const clearedEstimates: Array<number | null | undefined> = [];
+    const storedEstimates: number[] = [];
+    const repliedTo: { target: number | null } = { target: null };
+    const app = makeApp({
+      updateManualActivity: (_userId, activityId, activity) => {
+        expect(activityId).toBe(7);
+        clearedEstimates.push(activity.estimatedTss);
+        return Promise.resolve(true);
+      },
+      updateManualActivityTss: (_userId, activityId, estimatedTss) => {
+        expect(activityId).toBe(7);
+        storedEstimates.push(estimatedTss);
+        return Promise.resolve();
+      },
+      estimateManualTss: () => Promise.resolve(96),
+      replyToCoachingInput: (_deps, options) => {
+        repliedTo.target =
+          options.request.kind === "manual_activity"
+            ? options.request.manualActivityId
+            : null;
+        return Promise.resolve(null);
+      },
+      triggerPlanGeneration: () => Promise.resolve(true),
+    });
+
+    const res = await app.fetch(
+      authenticatedRequest("/api/coaching/activities/manual/7", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          today: "2026-10-21",
+          startDate: "2026-10-20",
+          details: "A hard hour on the bike",
+        }),
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(clearedEstimates).toEqual([null]);
+    expect(storedEstimates).toEqual([96]);
+    expect(repliedTo.target).toBe(7);
   });
 
   it("rejects a manual activity without details", async () => {
@@ -1478,5 +1678,99 @@ describe("coach questions", () => {
       reply: "Six hours is enough for a steady base.",
     });
     expect(runs).toEqual([{ reply: true, today: "2026-10-20" }]);
+  });
+});
+
+describe("coaching path params", () => {
+  const manualBody = JSON.stringify({
+    today: "2026-10-21",
+    startDate: "2026-10-20",
+    details: "An easy hour on the bike",
+  });
+
+  it("rejects an invalid manual activity id when editing", async () => {
+    const app = makeApp({
+      updateManualActivity: () => Promise.resolve(true),
+    });
+    for (const id of ["0", "-1", "1.5", "1e12", "abc"]) {
+      const res = await app.fetch(
+        authenticatedRequest(`/api/coaching/activities/manual/${id}`, {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: manualBody,
+        }),
+      );
+      await expectValidationFailure(res);
+    }
+  });
+
+  it("rejects an invalid manual activity id when deleting", async () => {
+    const app = makeApp({
+      deleteManualActivity: () => Promise.resolve(true),
+    });
+    for (const id of ["0", "-1", "1.5", "1e12", "abc"]) {
+      const res = await app.fetch(
+        authenticatedRequest(
+          `/api/coaching/activities/manual/${id}?today=2026-10-21`,
+          { method: "DELETE" },
+        ),
+      );
+      await expectValidationFailure(res);
+    }
+  });
+
+  it("rejects an invalid coach question id when answering", async () => {
+    const app = makeApp({});
+    const res = await app.fetch(
+      authenticatedRequest("/api/coaching/coach-questions/abc/answer", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ today: "2026-10-21", answer: "Six hours." }),
+      }),
+    );
+    await expectValidationFailure(res);
+  });
+
+  it("rejects an unknown review kind", async () => {
+    const app = makeApp({});
+    const res = await app.fetch(
+      authenticatedRequest("/api/coaching/reviews/month/2026-10-13/comments", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ today: "2026-10-21", comment: "A good month." }),
+      }),
+    );
+    await expectValidationFailure(res);
+  });
+
+  it("rejects a malformed review start date", async () => {
+    const app = makeApp({});
+    const res = await app.fetch(
+      authenticatedRequest("/api/coaching/reviews/week/not-a-date/reviewed", {
+        method: "POST",
+      }),
+    );
+    await expectValidationFailure(res);
+  });
+
+  it("rejects an activity id that is not a bounded identifier", async () => {
+    const app = makeApp({
+      createActivityComment: () => Promise.resolve(true),
+    });
+    const res = await app.fetch(
+      authenticatedRequest(
+        `/api/coaching/activities/${"9".repeat(120)}/comments`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            today: "2026-10-21",
+            activityDate: "2026-10-19",
+            comment: "Felt strong.",
+          }),
+        },
+      ),
+    );
+    await expectValidationFailure(res);
   });
 });

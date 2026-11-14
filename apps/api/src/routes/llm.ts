@@ -7,45 +7,24 @@ import {
   type LlmSettings,
 } from "@killingit/shared";
 import { zValidator } from "../http/validation.js";
-import type { Context } from "hono";
 import { Hono } from "hono";
 import { getUser } from "../auth/middleware.js";
 import {
-  apiError,
+  athleteFailureMessage,
   badRequest,
+  respondUpstreamError,
   serviceUnavailable,
-  unauthorized,
 } from "../http/errors.js";
 import { encrypt } from "../crypto/credentials.js";
+import type { ResolvedAppDependencies } from "../dependencies.js";
 import { loadLlmCosts } from "../llm/costStore.js";
 import { llmCredentialsKeyFromEnv } from "../llm/credentials.js";
-import {
-  createOpenRouterProvider,
-  LlmAuthError,
-  LlmProviderError,
-  type LlmProvider,
-} from "../llm/openrouter.js";
+import { createOpenRouterProvider } from "../llm/openrouter.js";
 import {
   ensureModelCatalogFresh,
   loadModelCatalog,
 } from "../llm/modelCatalog.js";
 import { loadLlmSettings, saveLlmSettings } from "../llm/store.js";
-
-export interface LlmRouteDependencies {
-  /** Injectable for route tests; defaults to the database-backed store. */
-  loadSettings?: typeof loadLlmSettings;
-  saveSettings?: typeof saveLlmSettings;
-  /** Injectable for route tests; defaults to the database-backed cost history. */
-  loadCosts?: typeof loadLlmCosts;
-  /** Injectable for route tests; defaults to the graded catalog. */
-  loadCatalog?: typeof loadModelCatalog;
-  /** Injectable for route tests; defaults to the 24-hour refresh job. */
-  refreshCatalog?: typeof ensureModelCatalogFresh;
-  /** Injectable for route tests; defaults to the OpenRouter provider. */
-  provider?: LlmProvider;
-  /** Injectable for route tests; defaults to `LLM_CREDENTIALS_KEY`. */
-  credentialsKey?: () => Promise<CryptoKey>;
-}
 
 /** Reads the stored configuration without ever exposing the encrypted key. */
 function settingsFromStored(stored: {
@@ -63,32 +42,20 @@ function settingsFromStored(stored: {
   };
 }
 
-/** Maps provider failures to useful HTTP responses. */
-function respondProviderError(c: Context, err: unknown): Response {
-  if (err instanceof LlmAuthError) {
-    return unauthorized(c, err.message);
-  }
-  if (err instanceof LlmProviderError && err.status !== undefined) {
-    return apiError(c, err.status, err.message);
-  }
-  console.error("[llm] provider failure:", err);
-  return serviceUnavailable(c);
-}
-
 /**
  * LLM provider configuration and model discovery (ADR 0004). Each account
  * configures its own provider key and model. The API key is validated against
  * OpenRouter before being stored encrypted, and is never serialized back to the
  * client.
  */
-export function createLlmRoute(deps: LlmRouteDependencies = {}): Hono {
-  const loadSettings = deps.loadSettings ?? loadLlmSettings;
-  const saveSettings = deps.saveSettings ?? saveLlmSettings;
-  const loadCosts = deps.loadCosts ?? loadLlmCosts;
-  const loadCatalog = deps.loadCatalog ?? loadModelCatalog;
-  const refreshCatalog = deps.refreshCatalog ?? ensureModelCatalogFresh;
-  const provider = deps.provider ?? createOpenRouterProvider();
-  const credentialsKey = deps.credentialsKey ?? llmCredentialsKeyFromEnv;
+export function createLlmRoute(deps: ResolvedAppDependencies): Hono {
+  const loadSettings = deps.loadLlmSettings ?? loadLlmSettings;
+  const saveSettings = deps.saveLlmSettings ?? saveLlmSettings;
+  const loadCosts = deps.loadLlmCosts ?? loadLlmCosts;
+  const loadCatalog = deps.loadModelCatalog ?? loadModelCatalog;
+  const refreshCatalog = deps.refreshModelCatalog ?? ensureModelCatalogFresh;
+  const provider = deps.llmProvider ?? createOpenRouterProvider();
+  const credentialsKey = deps.llmCredentialsKey ?? llmCredentialsKeyFromEnv;
 
   return new Hono()
     .get("/settings", async (c) => {
@@ -132,7 +99,16 @@ export function createLlmRoute(deps: LlmRouteDependencies = {}): Hono {
         try {
           key = await credentialsKey();
         } catch (err) {
-          return serviceUnavailable(c, (err as Error).message);
+          // The key names an environment secret, which is an operator detail;
+          // the athlete gets a generic answer and the log keeps the reason.
+          return serviceUnavailable(
+            c,
+            athleteFailureMessage(err, {
+              fallback:
+                "The coach is not available right now. Try again later.",
+              logLabel: "[llm] credentials key failure",
+            }),
+          );
         }
 
         let apiKeyEncrypted = existing?.apiKeyEncrypted;
@@ -141,7 +117,7 @@ export function createLlmRoute(deps: LlmRouteDependencies = {}): Hono {
           try {
             await provider.validateKey(apiKey);
           } catch (err) {
-            return respondProviderError(c, err);
+            return respondUpstreamError(c, err, "[llm] provider failure");
           }
           apiKeyEncrypted = await encrypt(apiKey, key);
         }
@@ -166,7 +142,7 @@ export function createLlmRoute(deps: LlmRouteDependencies = {}): Hono {
             }
           }
         } catch (err) {
-          return respondProviderError(c, err);
+          return respondUpstreamError(c, err, "[llm] provider failure");
         }
 
         await saveSettings(user.id, {
@@ -201,7 +177,7 @@ export function createLlmRoute(deps: LlmRouteDependencies = {}): Hono {
         const models = await provider.listModels();
         return c.json(llmModelsResponseSchema.parse({ models }));
       } catch (err) {
-        return respondProviderError(c, err);
+        return respondUpstreamError(c, err, "[llm] provider failure");
       }
     })
     .get("/catalog", async (c) => {
