@@ -4,6 +4,7 @@ import {
   type LlmModel,
   type LlmPromptKind,
 } from "@killingit/shared";
+import { UpstreamError } from "../http/upstreamError.js";
 
 const DEFAULT_BASE_URL = "https://openrouter.ai/api/v1";
 // Plan generation uses slow reasoning models and a multi-step cascade. Keep
@@ -13,13 +14,9 @@ const REQUEST_TIMEOUT_MS = 240_000;
 const KEY_CHECK_TIMEOUT_MS = 15_000;
 
 /** Raised when the LLM provider rejects or cannot serve a request. */
-export class LlmProviderError extends Error {
-  constructor(
-    message: string,
-    readonly status?: number,
-    options?: { cause?: unknown },
-  ) {
-    super(message, options);
+export class LlmProviderError extends UpstreamError {
+  constructor(message: string, status?: number, options?: { cause?: unknown }) {
+    super(message, status, options);
     this.name = "LlmProviderError";
   }
 }

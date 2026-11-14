@@ -66,6 +66,38 @@ Hono's `onError` fallback keeps replying with plain text
 `Internal Server Error`, as the issue requires. That path is for a bug the API
 did not expect; it carries no structured context to show.
 
+### Upstream failures
+
+An error from an upstream dependency — the Garmin sidecar or the LLM provider —
+carries the HTTP status the API answers with. The base class,
+`UpstreamError` in `apps/api/src/http/upstreamError.ts`, holds that `status`
+and the message; a provider reports one when it answered the request, such as
+401 for rejected credentials, 403 when Garmin needs MFA, 429 for rate limiting
+or 502 for a gateway failure. The status is optional because a failure such as
+a timeout has no answer of its own.
+
+`respondUpstreamError(c, err, { log })` in `apps/api/src/http/errors.ts` is the
+single mapper. No route repeats an `instanceof` ladder for provider errors:
+
+| Error                                           | Response                                            |
+| ----------------------------------------------- | --------------------------------------------------- |
+| `GarminSidecarError`, `LlmProviderError`        | the provider's own status and message, else 503     |
+| `GarminAuthError`, `LlmAuthError`               | 401 with the provider's message                     |
+| `GarminNotConnectedError`                       | 401 with "Not connected to Garmin"                  |
+| `GarminCredentialsError`, `LlmCredentialsError` | 503 with the configuration message, also logged     |
+| anything else, or an upstream error without one | 503 `Service Unavailable`, logged through the route |
+
+`UpstreamConfigurationError` marks a failure in the API's own configuration,
+such as a stored credential that cannot be decrypted, so the mapper logs it
+even though it answers with a status. Every other failure without a usable
+status is logged through the route's own `log` callback, which keeps the
+existing label (`[garmin] activities failure:`, `[llm] provider failure:`, …)
+on the line.
+
+A status outside the failure range is not echoed: `apiError` turns it into a
+503, so a misbehaving provider cannot make the API answer 2xx or 3xx for a
+failure.
+
 ## Status-to-code mapping
 
 | Status | Code                   |
@@ -96,4 +128,7 @@ with `400`, matching the library's existing status.
    body's text.
 4. `ApiError` carries the response `code` and `details` for callers that want
    to branch on them.
-5. The API and web test suites, typecheck, lint and format pass.
+5. Every upstream failure goes through `respondUpstreamError`, which preserves
+   the status and message the provider reported and logs the failures that have
+   none, so no route keeps its own `instanceof` ladder.
+6. The API and web test suites, typecheck, lint and format pass.

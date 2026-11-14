@@ -19,6 +19,10 @@ import { loadDietContext } from "../diet/context.js";
 import type { DietPromptContext } from "../diet/summary.js";
 import type { GarminCredentials } from "../garmin/client.js";
 import { GARMIN_DAILY_SYNC_WINDOW_DAYS } from "../garmin/dailySync.js";
+import {
+  UpstreamConfigurationError,
+  UpstreamError,
+} from "../http/upstreamError.js";
 import { commentIsNewerThanAnalysis } from "./analysisFreshness.js";
 import { syncGarminFeed } from "./feedSync.js";
 import { loadDecryptedGarminCredentials } from "../garmin/credentials.js";
@@ -84,28 +88,25 @@ const ANALYSIS_CONCURRENCY = 3;
 export { commentIsNewerThanAnalysis };
 
 /** The account has not connected Garmin yet. */
-export class GarminNotConnectedError extends Error {
-  readonly status = 401;
+export class GarminNotConnectedError extends UpstreamError {
   constructor() {
-    super("Not connected to Garmin");
+    super("Not connected to Garmin", 401);
     this.name = "GarminNotConnectedError";
   }
 }
 
 /** The stored Garmin credentials could not be decrypted. */
-export class GarminCredentialsError extends Error {
-  readonly status = 503;
+export class GarminCredentialsError extends UpstreamConfigurationError {
   constructor(message: string, options?: { cause?: unknown }) {
-    super(message, options);
+    super(message, 503, options);
     this.name = "GarminCredentialsError";
   }
 }
 
 /** The stored LLM key could not be decrypted. */
-export class LlmCredentialsError extends Error {
-  readonly status = 503;
+export class LlmCredentialsError extends UpstreamConfigurationError {
   constructor(message: string, options?: { cause?: unknown }) {
-    super(message, options);
+    super(message, 503, options);
     this.name = "LlmCredentialsError";
   }
 }

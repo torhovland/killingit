@@ -3,7 +3,11 @@ import type { LlmCatalogModel, LlmCostsResponse } from "@killingit/shared";
 import { Hono } from "hono";
 import { requireAuth, requireUser } from "../auth/middleware.js";
 import { keyFromRaw } from "../crypto/credentials.js";
-import { LlmAuthError, type LlmProvider } from "../llm/openrouter.js";
+import {
+  LlmAuthError,
+  LlmRateLimitError,
+  type LlmProvider,
+} from "../llm/openrouter.js";
 import type { StoredLlmSettings } from "../llm/store.js";
 import type { UserStore } from "../users/store.js";
 import { createLlmRoute } from "./llm.js";
@@ -255,6 +259,28 @@ describe("PUT /llm/settings", () => {
 
     expect(res.status).toBe(401);
     expect(saved).toHaveLength(0);
+  });
+});
+
+describe("GET /llm/models", () => {
+  it("passes a provider rate limit through as 429", async () => {
+    const app = makeApp(() => Promise.resolve(stored), {
+      provider: {
+        ...fakeProvider,
+        listModels: () => Promise.reject(new LlmRateLimitError("rate limited")),
+      },
+    });
+
+    const res = await app.fetch(
+      new Request("http://localhost/llm/models", {
+        headers: { authorization: "Bearer anything" },
+      }),
+    );
+
+    expect(res.status).toBe(429);
+    expect(await res.json()).toEqual({
+      error: { code: "too_many_requests", message: "rate limited" },
+    });
   });
 });
 

@@ -3,7 +3,11 @@ import { Hono } from "hono";
 import { requireAuth, requireUser } from "../auth/middleware.js";
 import type { Activity } from "@killingit/shared";
 import type { GarminCredentials } from "../garmin/client.js";
-import { GarminAuthError, type SyncTransport } from "../garmin/client.js";
+import {
+  GarminAuthError,
+  GarminSidecarError,
+  type SyncTransport,
+} from "../garmin/client.js";
 import type { EncryptedCredentials } from "../garmin/store.js";
 import type { UserStore } from "../users/store.js";
 import { createGarminRoute, type GarminRouteDependencies } from "./garmin.js";
@@ -215,6 +219,26 @@ describe("per-user Garmin credentials", () => {
     );
 
     expect(res.status).toBe(401);
+    expect(stored.size).toBe(0);
+  });
+
+  it("passes a sidecar status through when Garmin asks for MFA", async () => {
+    const { app, stored } = makeApp(() =>
+      Promise.reject(new GarminSidecarError("MFA is required", 403)),
+    );
+
+    const res = await app.fetch(
+      request("/garmin/credentials", "athlete-1", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ username: "rider-1", password: "secret" }),
+      }),
+    );
+
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({
+      error: { code: "forbidden", message: "MFA is required" },
+    });
     expect(stored.size).toBe(0);
   });
 });

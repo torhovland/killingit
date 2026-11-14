@@ -448,8 +448,12 @@ made and recorded, and `docs/adrs/` for the accepted ones.
   `apps/api/src/http/errors.ts` and the validating `zValidator` wrapper in
   `apps/api/src/http/validation.ts`. The web reads it in `fetchJson`, exposing
   `ApiError.code` and `ApiError.details` and showing the server's `message` as
-  the error text. Only the last-resort `500` stays plain text; see
-  `docs/specs/api-errors.md`.
+  the error text. Only the last-resort `500` stays plain text. An upstream
+  failure — the Garmin sidecar or the LLM provider — is answered by the single
+  `respondUpstreamError` helper from the `UpstreamError` base in
+  `apps/api/src/http/upstreamError.ts`, which passes the provider's own status
+  through and logs a failure that has none, so no route keeps its own
+  `instanceof` ladder; see `docs/specs/api-errors.md`.
 - Authenticated API reads go through `requestParsed` in
   `apps/web/src/fetchAuthed.ts`: it fetches with `fetchJsonAuthed`, validates the
   body against the shared schema, and throws one `ResponseValidationError`

@@ -11,18 +11,15 @@ import type { Context } from "hono";
 import { Hono } from "hono";
 import { getUser } from "../auth/middleware.js";
 import {
-  apiError,
   badRequest,
+  respondUpstreamError,
   serviceUnavailable,
-  unauthorized,
 } from "../http/errors.js";
 import { encrypt } from "../crypto/credentials.js";
 import { loadLlmCosts } from "../llm/costStore.js";
 import { llmCredentialsKeyFromEnv } from "../llm/credentials.js";
 import {
   createOpenRouterProvider,
-  LlmAuthError,
-  LlmProviderError,
   type LlmProvider,
 } from "../llm/openrouter.js";
 import {
@@ -65,14 +62,9 @@ function settingsFromStored(stored: {
 
 /** Maps provider failures to useful HTTP responses. */
 function respondProviderError(c: Context, err: unknown): Response {
-  if (err instanceof LlmAuthError) {
-    return unauthorized(c, err.message);
-  }
-  if (err instanceof LlmProviderError && err.status !== undefined) {
-    return apiError(c, err.status, err.message);
-  }
-  console.error("[llm] provider failure:", err);
-  return serviceUnavailable(c);
+  return respondUpstreamError(c, err, {
+    log: (failure) => console.error("[llm] provider failure:", failure),
+  });
 }
 
 /**

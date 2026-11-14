@@ -6,11 +6,13 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { zValidator } from "../http/validation.js";
 import { getUser } from "../auth/middleware.js";
-import { apiError, serviceUnavailable, unauthorized } from "../http/errors.js";
+import {
+  respondUpstreamError,
+  serviceUnavailable,
+  unauthorized,
+} from "../http/errors.js";
 import {
   authenticateGarmin,
-  GarminAuthError,
-  GarminSidecarError,
   syncGarminActivities,
   syncGarminMetrics,
 } from "../garmin/client.js";
@@ -77,16 +79,10 @@ export function createGarminRoute(deps: GarminRouteDependencies = {}): Hono {
       try {
         await authenticate({ username, password });
       } catch (err) {
-        if (err instanceof GarminAuthError) {
-          return unauthorized(c, err.message);
-        }
-        // Surface MFA-required (403), Garmin rate limiting (429), and sidecar
-        // gateway errors (502) as themselves instead of a generic 503.
-        if (err instanceof GarminSidecarError && err.status) {
-          return apiError(c, err.status, err.message);
-        }
-        console.error("[garmin] credential validation failure:", err);
-        return serviceUnavailable(c);
+        return respondUpstreamError(c, err, {
+          log: (failure) =>
+            console.error("[garmin] credential validation failure:", failure),
+        });
       }
 
       const [usernameEncrypted, passwordEncrypted] = await Promise.all([
@@ -131,17 +127,10 @@ export function createGarminRoute(deps: GarminRouteDependencies = {}): Hono {
         );
         return c.json({ activities });
       } catch (err) {
-        if (err instanceof GarminAuthError) {
-          return unauthorized(c, err.message);
-        }
-        if (err instanceof GarminSidecarError && err.status) {
-          // Pass the sidecar's status through so callers can distinguish an
-          // auth problem (401), MFA-required (403), and Garmin rate limiting
-          // (429) from a genuine gateway failure (502).
-          return apiError(c, err.status, err.message);
-        }
-        console.error("[garmin] activities failure:", err);
-        return serviceUnavailable(c);
+        return respondUpstreamError(c, err, {
+          log: (failure) =>
+            console.error("[garmin] activities failure:", failure),
+        });
       }
     });
 }

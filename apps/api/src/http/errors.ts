@@ -1,6 +1,7 @@
 import type { ApiErrorCode, ApiErrorResponse } from "@killingit/shared";
 import type { Context } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
+import { UpstreamConfigurationError, UpstreamError } from "./upstreamError.js";
 
 /** The code reported for each failure status the API uses. */
 const CODE_BY_STATUS: Partial<Record<number, ApiErrorCode>> = {
@@ -93,6 +94,46 @@ export function serviceUnavailable(
   message = "Service Unavailable",
 ) {
   return apiError(c, 503, message);
+}
+
+/** How a route labels the log line for an upstream failure it did not expect. */
+export interface RespondUpstreamErrorOptions {
+  /**
+   * Writes the failure to the log under the calling area's own label. A generic
+   * upstream failure and a configuration failure are logged; a failure the
+   * provider already answered is not, because its status and message carry the
+   * diagnosis.
+   */
+  log?: (err: unknown) => void;
+}
+
+/**
+ * Answers with the response an upstream failure deserves. Routes call this
+ * instead of repeating an `instanceof` ladder for every provider error:
+ *
+ * - An upstream error with a status passes that status and its message through,
+ *   so a provider's 401, 403, 429 or 502 reaches the client as itself.
+ * - A configuration failure is logged as well as answered, because its cause
+ *   never reaches the athlete.
+ * - Anything without a status, including an error the API does not recognise,
+ *   is logged and becomes a generic 503.
+ */
+export function respondUpstreamError(
+  c: Context,
+  err: unknown,
+  options: RespondUpstreamErrorOptions = {},
+): Response {
+  const log =
+    options.log ??
+    ((failure: unknown) => console.error("[upstream] failure:", failure));
+  if (err instanceof UpstreamError && err.status !== undefined) {
+    if (err instanceof UpstreamConfigurationError) {
+      log(err);
+    }
+    return apiError(c, err.status, err.message);
+  }
+  log(err);
+  return serviceUnavailable(c);
 }
 
 function codeForStatus(status: number): ApiErrorCode {
