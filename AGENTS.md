@@ -524,6 +524,12 @@ made and recorded, and `docs/adrs/` for the accepted ones.
   `renderToStaticMarkup`; the static renderer is only for assertions about the
   exact markup. Every `Modal` dialog, `useApiResource` load, race and abort has
   such a test. See `docs/specs/web-interaction-tests.md`.
+- A form value that comes from the server is derived, not copied: `usePropDraft`
+  (`apps/web/src/usePropDraft.ts`) keeps the athlete's unsaved edit while the
+  incoming value is unchanged and lets a genuinely new value win, so a parent
+  re-render cannot discard a draft and no effect re-renders the form. The
+  location picker and the LLM model picker use it; see
+  `docs/specs/web-form-drafts.md` and ADR 0046.
 - Every web hook is checked by `eslint-plugin-react-hooks`:
   `react-hooks/rules-of-hooks` and `react-hooks/exhaustive-deps` are errors in
   `eslint.config.js`. `useAuth` returns a stable session object, so an effect

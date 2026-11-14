@@ -13,6 +13,7 @@ import { OpenRouterKeySection } from "./OpenRouterKeySection";
 import { reportError } from "./reportError";
 import { browserTimeZone, formatDateTime } from "./timeZone";
 import { useApiResource } from "./useApiResource";
+import { usePropDraft } from "./usePropDraft";
 import { Select } from "./components/Select";
 
 const GRADE_ORDER: Record<LlmModelGrade, number> = {
@@ -108,6 +109,30 @@ export function compareModels(
   return a.name.localeCompare(b.name);
 }
 
+interface ModelSelection {
+  seasonModel: string;
+  dailyModel: string;
+}
+
+/** The two stored model choices, falling back to the single legacy model. */
+function storedModels(settings: LlmSettings): ModelSelection {
+  return {
+    seasonModel: settings.seasonModel ?? settings.model ?? "",
+    dailyModel: settings.dailyModel ?? settings.model ?? "",
+  };
+}
+
+/** Whether two selections name the same two models. */
+function sameModelSelection(
+  left: ModelSelection,
+  right: ModelSelection,
+): boolean {
+  return (
+    left.seasonModel === right.seasonModel &&
+    left.dailyModel === right.dailyModel
+  );
+}
+
 /**
  * OpenRouter key entry and the graded model picker. The athlete chooses one
  * model for season/block work and one for day-to-day prompts; once a key is
@@ -125,12 +150,9 @@ export function LlmSection({ settings, onSaved, isAdmin }: LlmSectionProps) {
   const catalog = catalogResource.data?.models ?? null;
   const loading = catalogResource.loading;
   const catalogError = catalogResource.error;
-  const [seasonModel, setSeasonModel] = useState(
-    settings.seasonModel ?? settings.model ?? "",
-  );
-  const [dailyModel, setDailyModel] = useState(
-    settings.dailyModel ?? settings.model ?? "",
-  );
+  const models = usePropDraft(storedModels(settings), sameModelSelection);
+  const seasonModel = models.value.seasonModel;
+  const dailyModel = models.value.dailyModel;
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const saveQueue = useRef<Promise<void>>(Promise.resolve());
@@ -245,8 +267,7 @@ export function LlmSection({ settings, onSaved, isAdmin }: LlmSectionProps) {
   function chooseModel(role: "season" | "daily", modelId: string): void {
     const nextSeason = role === "season" ? modelId : seasonModel;
     const nextDaily = role === "daily" ? modelId : dailyModel;
-    if (role === "season") setSeasonModel(modelId);
-    else setDailyModel(modelId);
+    models.update({ seasonModel: nextSeason, dailyModel: nextDaily });
     if (!settings.configured) return;
     if (nextSeason === "" || nextDaily === "") return;
     persist({ seasonModel: nextSeason, dailyModel: nextDaily });

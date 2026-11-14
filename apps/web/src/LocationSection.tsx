@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   currentUserSchema,
   geocodeResponseSchema,
@@ -10,6 +10,7 @@ import { Bullet } from "./Bullet";
 import { requestParsed } from "./fetchAuthed";
 import { LocationPickerMap } from "./LocationPickerMap";
 import { reportError } from "./reportError";
+import { usePropDraft } from "./usePropDraft";
 import { Button } from "./components/Button";
 import { Input } from "./components/Input";
 
@@ -45,16 +46,12 @@ export function LocationSection({
   onChanged: (location: AthleteLocation | null) => void;
 }) {
   const auth = useAuth();
-  const [draft, setDraft] = useState<AthleteLocation | null>(location);
+  const draft = usePropDraft(location, sameLocation);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<GeocodedLocation[]>([]);
   const [searching, setSearching] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setDraft(location);
-  }, [location]);
 
   async function search(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -80,7 +77,7 @@ export function LocationSection({
   }
 
   function chooseResult(place: GeocodedLocation): void {
-    setDraft({
+    draft.update({
       latitude: place.latitude,
       longitude: place.longitude,
       name: placeLabel(place),
@@ -103,7 +100,7 @@ export function LocationSection({
           body: JSON.stringify({ location: next }),
         },
       );
-      setDraft(response.location);
+      draft.update(response.location);
       onChanged(response.location);
     } catch (err: unknown) {
       setError(reportError(err));
@@ -112,7 +109,7 @@ export function LocationSection({
     }
   }
 
-  const label = draft?.name?.trim();
+  const label = draft.value?.name?.trim();
 
   return (
     <div className="flex flex-col gap-3">
@@ -163,15 +160,15 @@ export function LocationSection({
       )}
 
       <LocationPickerMap
-        value={draft}
+        value={draft.value}
         onSelect={(latitude, longitude) => {
-          setDraft({ latitude, longitude, name: null });
+          draft.update({ latitude, longitude, name: null });
         }}
       />
 
       <div className="flex flex-wrap items-center gap-2 text-base">
         <p className="text-muted-foreground" data-testid="location-summary">
-          {draft === null ? (
+          {draft.value === null ? (
             "No location set. Weather and daylight are not used in your plan."
           ) : (
             <>
@@ -181,7 +178,7 @@ export function LocationSection({
                   <Bullet />
                 </>
               )}
-              {draft.latitude.toFixed(4)}, {draft.longitude.toFixed(4)}
+              {`${draft.value.latitude.toFixed(4)}, ${draft.value.longitude.toFixed(4)}`}
             </>
           )}
         </p>
@@ -217,8 +214,12 @@ export function LocationSection({
           type="button"
           variant="primary"
           size="md"
-          onClick={() => void persist(draft)}
-          disabled={saving || draft === null || sameLocation(draft, location)}
+          onClick={() => void persist(draft.value)}
+          disabled={
+            saving ||
+            draft.value === null ||
+            sameLocation(draft.value, location)
+          }
         >
           {saving ? "Saving…" : "Save location"}
         </Button>
