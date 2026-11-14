@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it, spyOn } from "bun:test";
 import type { Activity } from "@killingit/shared";
 import type { GarminCredentials } from "../garmin/client.js";
 import {
@@ -311,5 +311,33 @@ describe("Garmin upstream failures", () => {
       error: { code: "service_unavailable", message: "Service Unavailable" },
     });
     expect(stored.size).toBe(0);
+  });
+
+  it("does not leak a credentials-key failure to the athlete", async () => {
+    const log = spyOn(console, "error").mockImplementation(() => {});
+    delete process.env.GARMIN_CREDENTIALS_KEY;
+    try {
+      const { app, stored } = makeApp();
+
+      const res = await app.fetch(credentialRequest());
+
+      expect(res.status).toBe(503);
+      const body = (await res.json()) as {
+        error: { code: string; message: string };
+      };
+      expect(body.error.code).toBe("service_unavailable");
+      expect(body.error.message).toBe(
+        "Garmin is not available right now. Try again later.",
+      );
+      expect(JSON.stringify(body)).not.toContain("GARMIN_CREDENTIALS_KEY");
+      expect(stored.size).toBe(0);
+      expect(log).toHaveBeenCalledTimes(1);
+      expect(String(log.mock.calls[0]?.[1])).toContain(
+        "GARMIN_CREDENTIALS_KEY",
+      );
+    } finally {
+      process.env.GARMIN_CREDENTIALS_KEY = "garmin-route-test-key";
+      log.mockRestore();
+    }
   });
 });

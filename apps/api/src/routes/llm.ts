@@ -10,6 +10,7 @@ import { zValidator } from "../http/validation.js";
 import { Hono } from "hono";
 import { getUser } from "../auth/middleware.js";
 import {
+  athleteFailureMessage,
   badRequest,
   respondUpstreamError,
   serviceUnavailable,
@@ -98,7 +99,16 @@ export function createLlmRoute(deps: ResolvedAppDependencies): Hono {
         try {
           key = await credentialsKey();
         } catch (err) {
-          return serviceUnavailable(c, (err as Error).message);
+          // The key names an environment secret, which is an operator detail;
+          // the athlete gets a generic answer and the log keeps the reason.
+          return serviceUnavailable(
+            c,
+            athleteFailureMessage(err, {
+              fallback:
+                "The coach is not available right now. Try again later.",
+              logLabel: "[llm] credentials key failure",
+            }),
+          );
         }
 
         let apiKeyEncrypted = existing?.apiKeyEncrypted;

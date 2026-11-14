@@ -4,7 +4,8 @@
 - **Date:** 2026-11-12
 - **Related:** `docs/specs/api-versioning.md`,
   `docs/specs/web-api-request-parsing.md`,
-  `docs/specs/authenticated-user-middleware.md`, ADR 0035, ADR 0036
+  `docs/specs/authenticated-user-middleware.md`, `docs/specs/diet-log.md`, ADR
+  0035, ADR 0036, ADR 0038
 
 ## Goal
 
@@ -132,6 +133,27 @@ generic service failure. The sidecar reports a Garmin login rejection as `401`
 towards the API; the API turns that into the `422` above, because the rejected
 credential is the athlete's connection, not the caller's session.
 
+## Athlete-facing text
+
+Some failures are not answered with the error contract but still show the
+athlete a reason: a meal analysis stored as `analysisError`, the `error` of a
+failed plan generation, and a response whose failure is not a provider failure.
+Those strings come from `athleteFailureMessage(err, { fallback, logLabel })` in
+`apps/api/src/http/errors.ts`, never from `err.message` directly. A caller that
+logs the failure itself uses the pure `athleteFacingMessage(err, fallback)`.
+
+- `AthleteFacingError` marks an error whose message is written for the athlete.
+  `UpstreamError` extends it, and so does `LlmModelChoiceError`.
+- The mapper keeps the message of an athlete-facing failure, because a rejected
+  key, a rate limit, a missing connection or a retired model is something they
+  can act on.
+- Any other failure is an internal detail. Its message stays in the server log
+  under the caller's label, and the caller's fallback sentence is shown instead,
+  so a database error or an environment variable name never reaches the screen.
+- The log decision matches `respondUpstreamError`: a provider `4xx` and an
+  athlete-facing answer are not incidents, while a provider service failure and
+  every internal failure are logged. See ADR 0038.
+
 ## Acceptance criteria
 
 1. A route failure has `content-type: application/json` and the contract shape;
@@ -147,4 +169,7 @@ credential is the athlete's connection, not the caller's session.
    code (`garmin_not_connected`, `garmin_auth_failed`, `llm_key_invalid`) and
    never `401`, so the web client's renew-and-retry runs only for a missing or
    expired session.
-6. The API and web test suites, typecheck, lint and format pass.
+6. A message an athlete sees outside the error contract is the failure's own
+   message only when the error is athlete-facing; any other failure is logged
+   and replaced with the caller's generic sentence.
+7. The API and web test suites, typecheck, lint and format pass.

@@ -1,4 +1,5 @@
 import { decrypt } from "../crypto/credentials.js";
+import { AthleteFacingError } from "../http/errors.js";
 import { withPromptLogging } from "./callLog.js";
 import { llmCredentialsKeyFromEnv } from "./credentials.js";
 import { modelIsUsable } from "./modelCatalog.js";
@@ -7,8 +8,11 @@ import { loadLlmSettings } from "./store.js";
 
 export type LlmModelRole = "season" | "daily" | "all";
 
-/** Raised when a stored model is retired in the catalog. */
-export class LlmModelChoiceError extends Error {
+/**
+ * Raised when a stored model is retired in the catalog. The message tells the
+ * athlete which Settings change fixes it, so it stays visible; see ADR 0038.
+ */
+export class LlmModelChoiceError extends AthleteFacingError {
   constructor(message: string) {
     super(message);
     this.name = "LlmModelChoiceError";

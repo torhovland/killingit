@@ -172,7 +172,9 @@ One row per user (`unique (user_id)`):
   `updated_at`).
 - `step_expected_ms` — expected duration of the current step, copied from its
   learned average.
-- `error` — failure detail, null on success.
+- `error` — the athlete-facing reason for a failed run, null on success. A
+  provider failure or a retired-model message is shown as it is; any other
+  failure is logged and replaced by a generic reason (ADR 0038).
 - `started_at`, `updated_at`.
 
 While a step runs, `GET` reports `progress` interpolated from the value reached

@@ -475,7 +475,12 @@ made and recorded, and `docs/adrs/` for the accepted ones.
   without a usable app session answers that. A missing Garmin connection is
   `409` `garmin_not_connected`, and a credential Garmin or OpenRouter rejects is
   `422` `garmin_auth_failed` or `llm_key_invalid`, so the web's renew-and-retry
-  never fires for it. See ADR 0035 and ADR 0036.
+  never fires for it. A message the athlete sees outside that contract — a
+  stored `analysisError`, or a response whose failure is not a provider failure —
+  is built with `athleteFailureMessage`: a known athlete-facing failure
+  (`AthleteFacingError`) keeps its message, while a database, environment or
+  other internal failure is logged and replaced by the caller's generic
+  sentence. See ADR 0035, ADR 0036 and ADR 0038.
 - Authenticated API reads go through `requestParsed` in
   `apps/web/src/fetchAuthed.ts`: it fetches with `fetchJsonAuthed`, validates the
   body against the shared schema, and throws one `ResponseValidationError`

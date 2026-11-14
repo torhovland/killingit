@@ -1,8 +1,10 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, spyOn } from "bun:test";
 import type { Activity, AnalyzedActivity } from "@killingit/shared";
+import { LlmModelChoiceError } from "../../llm/client.js";
+import { LlmAuthError, LlmProviderError } from "../../llm/openrouter.js";
 import type { ActivityFeedback } from "../../plans/replies.js";
 import { withActivityFeedback } from "../activityStore.js";
-import { withActivityLoad } from "./presenter.js";
+import { failedAnalysis, withActivityLoad } from "./presenter.js";
 
 function synced(id: number, startDate: string, name: string): Activity {
   return {
@@ -64,6 +66,71 @@ describe("withActivityFeedback", () => {
     const activity = stored(1, "2026-10-03T06:30:00Z");
 
     expect(withActivityFeedback(activity, new Map())).toBe(activity);
+  });
+});
+
+describe("failedAnalysis", () => {
+  it("shows a provider message the athlete can act on", () => {
+    const shown = failedAnalysis(
+      synced(1, "2026-10-03T06:30:00Z", "Ride"),
+      new LlmAuthError("invalid OpenRouter API key"),
+      null,
+      undefined,
+    );
+
+    expect(shown.analysisError).toBe("invalid OpenRouter API key");
+  });
+
+  it("shows a retired-model message", () => {
+    const shown = failedAnalysis(
+      synced(1, "2026-10-03T06:30:00Z", "Ride"),
+      new LlmModelChoiceError("Your daily model is retired."),
+      null,
+      undefined,
+    );
+
+    expect(shown.analysisError).toBe("Your daily model is retired.");
+  });
+
+  it("keeps an internal message out of the card and in the log", () => {
+    const log = spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const shown = failedAnalysis(
+        synced(1, "2026-10-03T06:30:00Z", "Ride"),
+        new Error("relation activities does not exist"),
+        null,
+        undefined,
+      );
+
+      expect(shown.analysisError).toBe(
+        "The coach analysis could not be saved.",
+      );
+      expect(log).toHaveBeenCalledTimes(1);
+      expect(String(log.mock.calls[0]?.[1])).toContain(
+        "relation activities does not exist",
+      );
+    } finally {
+      log.mockRestore();
+    }
+  });
+
+  it("keeps a provider service failure's message", () => {
+    const log = spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const shown = failedAnalysis(
+        synced(1, "2026-10-03T06:30:00Z", "Ride"),
+        new LlmProviderError("OpenRouter returned an empty completion"),
+        null,
+        undefined,
+      );
+
+      expect(shown.analysisError).toBe(
+        "OpenRouter returned an empty completion",
+      );
+      expect(log).toHaveBeenCalledTimes(1);
+    } finally {
+      log.mockRestore();
+    }
   });
 });
 

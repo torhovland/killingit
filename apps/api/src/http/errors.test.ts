@@ -11,6 +11,7 @@ import {
   GarminNotConnectedError,
   GarminSidecarError,
 } from "../garmin/client.js";
+import { LlmModelChoiceError } from "../llm/client.js";
 import {
   LlmAbortError,
   LlmAuthError,
@@ -20,6 +21,7 @@ import {
 } from "../llm/openrouter.js";
 import {
   apiError,
+  athleteFailureMessage,
   badGateway,
   badRequest,
   conflict,
@@ -220,6 +222,68 @@ describe("upstream error mapping", () => {
       expect(error).toHaveBeenCalledTimes(2);
     } finally {
       error.mockRestore();
+    }
+  });
+});
+
+describe("athlete-facing failure text", () => {
+  const label = "[test] failure";
+
+  it("keeps the message of a provider failure the athlete can act on", () => {
+    expect(
+      athleteFailureMessage(new LlmAuthError("invalid OpenRouter API key"), {
+        fallback: "The coach could not answer.",
+        logLabel: label,
+      }),
+    ).toBe("invalid OpenRouter API key");
+  });
+
+  it("keeps the message of another athlete-facing failure", () => {
+    expect(
+      athleteFailureMessage(
+        new LlmModelChoiceError(
+          "Your daily model test/model is retired. Open Settings and choose another model.",
+        ),
+        { fallback: "The coach could not answer.", logLabel: label },
+      ),
+    ).toContain("Open Settings");
+  });
+
+  it("replaces an internal failure's message and logs it", () => {
+    const log = spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const message = athleteFailureMessage(
+        new Error("relation food_entries does not exist"),
+        { fallback: "Something went wrong on our side.", logLabel: label },
+      );
+
+      expect(message).toBe("Something went wrong on our side.");
+      expect(log).toHaveBeenCalledTimes(1);
+      expect(String(log.mock.calls[0]?.[0])).toContain(label);
+      expect(String(log.mock.calls[0]?.[1])).toContain(
+        "relation food_entries does not exist",
+      );
+    } finally {
+      log.mockRestore();
+    }
+  });
+
+  it("logs a provider service failure but not a provider answer", () => {
+    const log = spyOn(console, "error").mockImplementation(() => {});
+    try {
+      athleteFailureMessage(
+        new TestUpstreamError("OpenRouter returned 502", { status: 502 }),
+        { fallback: "The coach is unavailable.", logLabel: label },
+      );
+      expect(log).toHaveBeenCalledTimes(1);
+
+      athleteFailureMessage(new LlmAuthError("invalid OpenRouter API key"), {
+        fallback: "The coach is unavailable.",
+        logLabel: label,
+      });
+      expect(log).toHaveBeenCalledTimes(1);
+    } finally {
+      log.mockRestore();
     }
   });
 });

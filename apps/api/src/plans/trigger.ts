@@ -45,6 +45,7 @@ import {
   GenerationSupersededError,
   isGenerationSuperseded,
 } from "./generation.js";
+import { planFailureMessage } from "./failure.js";
 import { loadPlanGenerationContext } from "./generationContext.js";
 import { runPlanGeneration } from "./generate.js";
 import { planFtpEstimates } from "../metrics/planFtpEstimates.js";
@@ -250,11 +251,14 @@ function startBackgroundPlan(
       console.error("[plan] background generation failed:", err);
       // The loading phase fails the row itself and rethrows. A later phase
       // throws without doing so, so this catch covers the whole run. Failing
-      // an already-failed row is a no-op.
-      const message =
-        err instanceof Error ? err.message : "The plan could not be generated.";
+      // an already-failed row is a no-op. The reason is athlete-facing, and the
+      // raw failure is logged above. See ADR 0038.
       try {
-        await deps.generations.fail(options.userId, message, run.runId);
+        await deps.generations.fail(
+          options.userId,
+          planFailureMessage(err),
+          run.runId,
+        );
       } catch (failure: unknown) {
         console.error("[plan] could not mark generation failed:", failure);
       }

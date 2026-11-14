@@ -4,8 +4,8 @@ import {
   type AnalyzedActivity,
   type CoachPlan,
 } from "@killingit/shared";
+import { athleteFailureMessage } from "../../http/errors.js";
 import type { StoredAnalysis } from "../../llm/analysisStore.js";
-import { LlmProviderError } from "../../llm/openrouter.js";
 import { toCoachAnalysis, type ActivityFeedback } from "../../plans/replies.js";
 import {
   buildActivityLoads,
@@ -140,22 +140,15 @@ export function failedAnalysis(
   program: StoredAnalysis | null,
   feedback: ActivityFeedback | undefined,
 ): AnalyzedActivity {
-  const detail =
-    err instanceof LlmProviderError
-      ? err.message
-      : err instanceof Error
-        ? err.name
-        : "unknown error";
-  console.error(
-    `[coaching] analysis failed for activity ${activity.id}: ${detail}`,
-  );
   return {
     ...summarizeActivity(activity),
     analysis: null,
-    analysisError:
-      err instanceof LlmProviderError
-        ? err.message
-        : "The coach analysis could not be saved.",
+    // A provider answer the athlete can act on stays on the card; an internal
+    // failure is logged and replaced by a generic reason.
+    analysisError: athleteFailureMessage(err, {
+      fallback: "The coach analysis could not be saved.",
+      logLabel: `[coaching] analysis failed for activity ${activity.id}`,
+    }),
     programAnalysis: program ? toCoachAnalysis(program) : null,
     comment: feedback?.comment ?? null,
     coachReply: feedback?.reply ? toCoachAnalysis(feedback.reply) : null,
