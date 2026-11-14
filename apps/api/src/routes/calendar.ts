@@ -18,7 +18,11 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { getUser } from "../auth/middleware.js";
 import { serviceUnavailable, validationFailed } from "../http/errors.js";
-import { loadCachedActivityFeed } from "../coaching/feedCache.js";
+import {
+  loadUserActivityTrainingLoads,
+  withActivityLoad,
+} from "../coaching/activities.js";
+import { loadStoredActivityFeed } from "../coaching/activityStore.js";
 import { loadAthleteEvents } from "../events/store.js";
 import type { ManualActivityContext } from "../llm/activityContext.js";
 import { addDays, startOfWeek } from "@killingit/shared";
@@ -410,7 +414,9 @@ const calendarQuerySchema = z.object({
  * range the athlete has data for.
  */
 export function createCalendarRoute(deps: ResolvedAppDependencies): Hono {
-  const loadFeed = deps.loadCachedFeed ?? loadCachedActivityFeed;
+  const loadFeed = deps.loadStoredFeed ?? loadStoredActivityFeed;
+  const loadLoads =
+    deps.loadActivityTrainingLoads ?? loadUserActivityTrainingLoads;
   const loadManual = deps.loadManualActivities ?? loadManualActivities;
   const loadReplies =
     deps.loadManualActivityReplies ?? loadManualActivityReplies;
@@ -441,7 +447,7 @@ export function createCalendarRoute(deps: ResolvedAppDependencies): Hono {
         events,
         weekTotals,
       ] = await Promise.all([
-        loadFeed(user.id),
+        loadFeed(user.id, "route"),
         loadManual(user.id),
         loadReplies(user.id),
         loadValidatedPlan(deps.planStore, user.id),
@@ -462,13 +468,36 @@ export function createCalendarRoute(deps: ResolvedAppDependencies): Hono {
       ]);
       const plan =
         stored === null ? null : promoteNextPeriod(stored.plan, today);
+      const timeZone = query.data.timezone ?? user.timezone;
+      let activities = feed;
+      try {
+        const loads = await loadLoads(
+          user.id,
+          feed.activities,
+          stored?.plan,
+          timeZone,
+        );
+        activities = {
+          ...feed,
+          activities: feed.activities.map((activity) =>
+            withActivityLoad(activity, loads, timeZone),
+          ),
+        };
+      } catch (err) {
+        // The day's fitness snapshot is supplementary; the calendar still
+        // shows the recorded work without it.
+        console.error(
+          "[training-load] could not score the calendar activities:",
+          err,
+        );
+      }
 
       return c.json(
         buildCalendar({
           today,
-          timeZone: query.data.timezone ?? user.timezone,
+          timeZone,
           plan,
-          feed,
+          feed: activities,
           manualActivities,
           manualReplies,
           events,

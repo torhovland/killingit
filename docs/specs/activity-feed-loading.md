@@ -10,19 +10,21 @@
 Keep `loadAnalyzedActivitiesOnce` readable as a sequence of named phases so the
 happy path reads top to bottom and each failure path sits with the phase that
 can fail. Syncing, analysis caching, coach-question handling, estimate storage,
-training-load fallbacks and feed persistence are unchanged. The one exception
-is a failed read of the stored feed: the sync aborts instead of merging the
-sync window with an empty history and overwriting every older activity.
+training-load fallbacks and feed assembly are unchanged in behaviour. The one
+exception is a failed read of the stored history: the sync aborts instead of
+merging the sync window with an empty history and hiding every older activity.
 
 ## Scope
 
 `apps/api/src/coaching/activities.ts`:
 
 - `syncFeed` — syncs Garmin activities, body metrics and daily health; drops
-  locally deleted activities; merges the stored history; and persists the full
-  history before analysis. The stored feed is read before anything is written,
-  and a failed read aborts the sync: merging the sync window with an empty
-  history would erase every older activity and its coach work.
+  locally deleted activities; merges the stored history; and persists only the
+  sync window before analysis. The stored history is read before anything is
+  written, and a failed read aborts the sync: merging the sync window with an
+  empty history would hide every older activity and its coach work. Activity
+  rows are stored by `coaching/activityStore.ts`; see
+  `docs/specs/activity-store.md`.
 - `loadAnalysisInputs` — loads LLM settings, athlete feedback, the stored plan,
   daily health, body history and diet in parallel, then the training context.
   A training-context failure falls back to empty loads instead of failing the
@@ -32,7 +34,8 @@ sync window with an empty history and overwriting every older activity.
   it, analyses the rest concurrently, saves each result, replaces the previous
   activity question, and stores returned FTP and body estimates oldest first.
 - `assembleFeed` — attaches athlete feedback, the day's fitness snapshot and
-  each activity's own TSS, then persists the feed.
+  each activity's own TSS. It no longer writes a second cache copy: the sync
+  stored the rows and the analysis phase stored its analyses.
 
 The phase results are explicit objects (`SyncedFeed`, `AnalysisInputs`,
 `TrainingInputs`, `ActivityAnalysisOutcome`) instead of mutable locals threaded
@@ -50,12 +53,14 @@ used by `loadDietContext`.
 - Every phase is a named function under roughly 80 lines.
 - `loadAnalyzedActivitiesOnce` reads as provider → credentials → sync → inputs →
   analyse → assemble.
-- The response shape, cache writes, question handling, metric writes and log
-  messages are unchanged.
+- The response shape, question handling, metric writes and log messages are
+  unchanged.
 - Existing tests pass unchanged, and new tests cover the orchestrator's branches.
-- A failed read of the stored feed aborts the sync, so the history is never
-  written when it could not be read first.
+- A failed read of the stored history aborts the sync, so the sync window is
+  never written when the history could not be read first.
 
 ## Data-model and API impact
 
-None. No route, schema, prompt, or response shape changes.
+The send and receive shapes are unchanged. Storage moved from one
+`activity_feed_cache.feed` value to the `activities` rows documented in
+`docs/specs/activity-store.md` and ADR 0034.

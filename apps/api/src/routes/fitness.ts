@@ -8,7 +8,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { getUser } from "../auth/middleware.js";
 import { serviceUnavailable, validationFailed } from "../http/errors.js";
-import { loadCachedActivityFeed } from "../coaching/feedCache.js";
+import { loadStoredActivityFeed } from "../coaching/activityStore.js";
 import type { ResolvedAppDependencies } from "../dependencies.js";
 import { loadValidatedPlan } from "../plans/store.js";
 import { loadFitnessHistory } from "../training/history.js";
@@ -21,7 +21,7 @@ const timezoneSchema = z.string().min(1).max(100).optional();
  * and estimated FTP for a window ending today.
  */
 export function createFitnessRoute(deps: ResolvedAppDependencies): Hono {
-  const loadFeed = deps.loadCachedFeed ?? loadCachedActivityFeed;
+  const loadFeed = deps.loadStoredFeed ?? loadStoredActivityFeed;
   const loadHistory = deps.loadFitnessHistory ?? loadFitnessHistory;
 
   return new Hono().get("/", async (c) => {
@@ -56,7 +56,7 @@ export function createFitnessRoute(deps: ResolvedAppDependencies): Hono {
       ]);
       const history = await loadHistory(
         user.id,
-        feed?.activities ?? [],
+        feed.activities,
         stored?.plan,
         today.data,
         range.data,

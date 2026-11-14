@@ -17,7 +17,6 @@ import {
   GarminNotConnectedError,
   LlmCredentialsError,
   withActivityLoad,
-  withFeedback,
   type ActivityFeed,
 } from "../../coaching/activities.js";
 import { GarminAuthError, GarminSidecarError } from "../../garmin/client.js";
@@ -97,10 +96,10 @@ export function createFeedHandlers(deps: ResolvedCoachingDependencies) {
         const user = getUser(c);
         const timeZone = query.data.timezone ?? user.timezone;
         const [feed, storedPlan] = await Promise.all([
-          deps.loadCachedFeed(user.id),
+          deps.loadStoredFeed(user.id, "samples"),
           deps.plans.load(user.id),
         ]);
-        if (feed === null) {
+        if (feed.activities.length === 0) {
           return c.json(
             analyzedActivitiesResponseSchema.parse({
               model: null,
@@ -108,21 +107,9 @@ export function createFeedHandlers(deps: ResolvedCoachingDependencies) {
             }),
           );
         }
+        // The stored feed joins the latest comment, reply and analysis, so it
+        // never lags behind a coach reply; only the training load is computed.
         let activities = feed.activities;
-        // The cached feed is written by a full sync, so it can lag behind a
-        // reply the coach stored during the reply phase. Overlay the current
-        // feedback so a reply appears as soon as it is stored.
-        try {
-          const feedback = await deps.loadFeedback(
-            user.id,
-            feed.activities.map((activity) => activity.id),
-          );
-          activities = feed.activities.map((activity) =>
-            withFeedback(activity, feedback),
-          );
-        } catch (err) {
-          console.error("[coaching] cached activity feedback failed:", err);
-        }
         try {
           const loads = await deps.loadActivityTrainingLoads(
             user.id,

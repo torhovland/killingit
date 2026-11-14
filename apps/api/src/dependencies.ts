@@ -8,7 +8,7 @@ import type {
   deleteImportedActivity,
   deleteManualActivity,
 } from "./coaching/deletions.js";
-import type { loadCachedActivityFeed } from "./coaching/feedCache.js";
+import type { loadStoredActivityFeed } from "./coaching/activityStore.js";
 import type {
   answerCoachingQuestion,
   replyToCoachQuestion,
@@ -128,7 +128,7 @@ export interface AppDependencies {
     PlanTriggerDependencies["clearPendingCoachQuestions"] | undefined;
   /** Stored food log for the coaching and plan prompts. */
   loadDiet?: typeof loadDietContext | undefined;
-  loadCachedFeed?: typeof loadCachedActivityFeed | undefined;
+  loadStoredFeed?: typeof loadStoredActivityFeed | undefined;
   /** Injectable for route tests; defaults to the stored activity feedback. */
   loadActivityFeedback?: typeof loadActivityFeedback | undefined;
   loadActivityTrainingLoads?: typeof loadUserActivityTrainingLoads | undefined;

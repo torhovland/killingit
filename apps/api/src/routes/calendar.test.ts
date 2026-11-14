@@ -241,7 +241,14 @@ function makeApp(
       activitiesUpdatedAt: null,
       generatedAt: new Date(0),
     }),
-    loadCachedFeed: () => Promise.resolve(feed),
+    loadStoredFeed: () => Promise.resolve(feed),
+    loadActivityTrainingLoads: () =>
+      Promise.resolve({
+        byDate: new Map([
+          ["2026-10-20", { tss: 50, atl: 40, ctl: 45, tsb: 5 }],
+        ]),
+        byActivityId: new Map([[123, 50]]),
+      }),
     loadManualActivities: () => Promise.resolve(manualActivities),
     loadManualActivityReplies: () => Promise.resolve(manualReplies),
     loadEvents: () => Promise.resolve(events),

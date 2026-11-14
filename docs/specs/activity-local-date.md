@@ -99,7 +99,7 @@ timeZone)`, `applyTrainingLoad(plan, context)` with `context.timeZone`, and
 3. The same two activities still count on 12 and 11 November respectively for a
    UTC athlete, so the change is zone-driven and not a date shift.
 4. The calendar, Fitness chart, activity analysis prompt, coach reply context
-   and cached feed all show the same local day for an activity.
+   and stored activity feed all show the same local day for an activity.
 5. A manual entry stays on the date the athlete entered.
 6. `startDate.slice(0, 10)` does not reappear in production code; the guard test
    fails if it does.

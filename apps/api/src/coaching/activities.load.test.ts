@@ -72,11 +72,10 @@ function phaseSpies(settings: Settings) {
       (params: {
         model: string | null;
         analyses: readonly AnalyzedActivity[];
-      }) =>
-        Promise.resolve({
-          model: params.model,
-          activities: [analyzed],
-        }),
+      }) => ({
+        model: params.model,
+        activities: [analyzed],
+      }),
     ),
     assertModelUsable: mock(() => Promise.resolve()),
     loadLlmApiKey: mock(() => Promise.resolve("decrypted-key")),
@@ -111,7 +110,6 @@ describe("loadAnalyzedActivities", () => {
     expect(spies.analyzeMissing).not.toHaveBeenCalled();
     expect(spies.assertModelUsable).not.toHaveBeenCalled();
     expect(spies.assembleFeed).toHaveBeenCalledWith({
-      userId: 9001,
       history: [analyzed],
       inputs: inputs(null),
       model: null,
@@ -158,7 +156,6 @@ describe("loadAnalyzedActivities", () => {
       }),
     );
     expect(spies.assembleFeed).toHaveBeenCalledWith({
-      userId: 9002,
       history: [analyzed],
       inputs: inputs(settings),
       model: "daily-model",
