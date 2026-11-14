@@ -61,6 +61,12 @@ MAX_STRENGTH_SETS = 200
 # and the prompt without dropping the interval structure of a normal session.
 MAX_LAPS = 100
 
+# Step-counted sports report cadence per leg in Garmin's detail and legacy lap
+# channels, while the app stores and displays total steps per minute. The
+# markers mirror STEP_CADENCE_PATTERN in packages/shared/src/activity.ts,
+# minus row and swim, whose stroke rate is already strokes per minute.
+STEP_CADENCE_MARKERS = ("run", "jog", "walk", "hik")
+
 # Where the library caches Garmin session tokens between calls. Configurable so
 # deployments can point it at a persistent volume; defaults to a private temp
 # dir (created 0700). Tokens are single-operator, so one store per username.
@@ -93,6 +99,12 @@ class _RateLimitedError(Exception):
 
 class _UpstreamError(Exception):
     """Garmin returned an unexpected error."""
+
+
+def _is_step_cadence(activity_type: str) -> bool:
+    """Whether a Garmin type counts cadence per leg rather than per minute."""
+    normalized = activity_type.lower()
+    return any(marker in normalized for marker in STEP_CADENCE_MARKERS)
 
 
 def _tokenstore_for(username: str) -> str:
@@ -162,7 +174,7 @@ def _sync(credentials: Credentials) -> list[dict]:
                     raw,
                     _samples_for(garmin, activity_id, activity_type),
                     _strength_sets_for(garmin, activity_id, activity_type),
-                    _laps_for(garmin, activity_id),
+                    _laps_for(garmin, activity_id, activity_type),
                 )
             )
         return activities
@@ -676,7 +688,7 @@ def _is_strength(activity_type: str) -> bool:
     return "strength" in normalized or "weight" in normalized or "gym" in normalized
 
 
-def _laps_for(garmin, activity_id) -> list[dict]:
+def _laps_for(garmin, activity_id, activity_type: str = "") -> list[dict]:
     """Fetch and normalize one activity's recorded laps.
 
     The same fail-open/rate-limit split as the timeseries fetch applies: one bad
@@ -692,7 +704,7 @@ def _laps_for(garmin, activity_id) -> list[dict]:
     except Exception:  # any library/network failure
         logger.exception("Garmin activity splits fetch failed for %s", activity_id)
         return []
-    return _to_laps(payload or {})
+    return _to_laps(payload or {}, activity_type)
 
 
 def _to_strength_sets(payload: dict) -> list[dict]:
@@ -771,7 +783,7 @@ def _exercise_weight_kg(value) -> float | None:
     return round(grams / 1000, 2)
 
 
-def _to_laps(payload: dict) -> list[dict]:
+def _to_laps(payload: dict, activity_type: str = "") -> list[dict]:
     """Normalize Garmin's activity splits into stable lap objects.
 
     Field names vary by device and sport, so each channel is read through its
@@ -784,7 +796,7 @@ def _to_laps(payload: dict) -> list[dict]:
     for position, raw in enumerate(raw_laps or [], start=1):
         if not isinstance(raw, dict):
             continue
-        lap = _lap(raw, position)
+        lap = _lap(raw, position, activity_type)
         if lap is not None:
             laps.append(lap)
         if len(laps) >= MAX_LAPS:
@@ -792,7 +804,29 @@ def _to_laps(payload: dict) -> list[dict]:
     return laps
 
 
-def _lap(raw: dict, position: int) -> dict | None:
+def _lap_cadence(raw: dict, activity_type: str) -> float | None:
+    """Resolve a lap's average cadence in the unit the app displays.
+
+    Garmin's lap payload carries two cadence families. `averageRunCadence` is
+    the number Garmin Connect shows, already counted in total steps per minute
+    for runs, jogs, walks and hikes, so it is never doubled. `avgCadence` is
+    the older per-leg value for those sports and is doubled like the
+    per-sample `directCadence`; for a ride it is the pedalling rate in rpm.
+    `averageBikeCadence` is always rpm.
+    """
+    bike = _first_nonnegative(raw.get("averageBikeCadence"))
+    if bike is not None:
+        return bike
+    steps = _first_nonnegative(raw.get("averageRunCadence"))
+    if steps is not None:
+        return steps
+    cadence = _first_nonnegative(raw.get("avgCadence"))
+    if cadence is None:
+        return None
+    return cadence * 2 if _is_step_cadence(activity_type) else cadence
+
+
+def _lap(raw: dict, position: int, activity_type: str = "") -> dict | None:
     """Map one Garmin lap, or return None when it has no recorded values."""
     index = _first_nonnegative(raw.get("lapIndex"), raw.get("lap"))
     lap: dict = {"index": int(index) if index is not None else position}
@@ -816,18 +850,14 @@ def _lap(raw: dict, position: int) -> dict | None:
         ("averagePower", ("averagePower", "avgPower")),
         ("maxPower", ("maxPower",)),
         ("averageSpeed", ("averageSpeed", "averageMovingSpeed", "avgSpeed")),
-        (
-            "averageCadence",
-            (
-                "averageBikeCadence",
-                "averageRunCadence",
-                "avgCadence",
-            ),
-        ),
     ):
         value = _first_nonnegative(*(raw.get(key) for key in keys))
         if value is not None:
             lap[field] = value
+
+    cadence = _lap_cadence(raw, activity_type)
+    if cadence is not None:
+        lap["averageCadence"] = cadence
 
     elevation = _finite_or_none(raw.get("elevationGain"))
     if elevation is not None:
@@ -956,19 +986,14 @@ def _to_samples(details: dict, activity_type: str = "") -> list[dict]:
     return samples
 
 
-def _is_running(activity_type: str) -> bool:
-    """Whether a normalized Garmin type is a run, whose cadence is per leg."""
-    return "run" in activity_type
-
-
 def _cadence(raw: dict, activity_type: str) -> float | None:
     """Resolve cadence in the unit Garmin Connect displays.
 
-    Running cadence is counted in total steps per minute: Garmin's
-    `directDoubleCadence` already holds that, while `directCadence` is the
-    per-leg half and is doubled for runs. Cycling cadence is the pedalling rate
-    in rpm, reported by `directBikeCadence` (or `directCadence` as a fallback).
-    Rowing and swimming report strokes per minute through
+    Step-counted sports count cadence per leg: `directDoubleCadence` already
+    holds total steps per minute, while `directCadence` is the per-leg half and
+    is doubled for runs, jogs, walks and hikes. Cycling cadence is the pedalling
+    rate in rpm, reported by `directBikeCadence` (or `directCadence` as a
+    fallback). Rowing and swimming report strokes per minute through
     `directStrokeCadence`, which is already the displayed rate.
     `directFractionalCadence` is only the sub-unit remainder of `directCadence`,
     never a cadence on its own, so reading it alone yields 0 or 1.
@@ -991,7 +1016,7 @@ def _cadence(raw: dict, activity_type: str) -> float | None:
     fraction = _finite_or_none(raw.get("directFractionalCadence"))
     if fraction is not None and 0 <= fraction < 1:
         cadence += fraction
-    return cadence * 2 if _is_running(activity_type) else cadence
+    return cadence * 2 if _is_step_cadence(activity_type) else cadence
 
 
 def _finite_or_none(value) -> float | None:

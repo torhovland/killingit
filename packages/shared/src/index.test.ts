@@ -188,12 +188,15 @@ describe("hasLapStructure", () => {
 });
 
 describe("cadence unit", () => {
-  it("uses steps or strokes per minute for runs, hikes, rows and swims", () => {
+  it("uses steps or strokes per minute for runs, jogs, walks, hikes, rows and swims", () => {
     expect(cadenceUnit("running")).toBe("spm");
+    expect(cadenceUnit("jogging")).toBe("spm");
+    expect(cadenceUnit("walking")).toBe("spm");
     expect(cadenceUnit("hiking")).toBe("spm");
     expect(cadenceUnit("indoor_rowing")).toBe("spm");
     expect(cadenceUnit("swimming")).toBe("spm");
     expect(cadenceUnit("indoor_cycling")).toBe("rpm");
+    expect(cadenceUnit("road_biking")).toBe("rpm");
   });
 });
 

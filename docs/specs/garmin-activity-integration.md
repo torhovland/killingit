@@ -226,9 +226,13 @@ one swappable corner, and normalizes Garmin activities into the shared
   `directFractionalCadence` (a 0..1 remainder), the per-leg `directCadence`,
   the running total `directDoubleCadence`, `directBikeCadence`, and
   `directStrokeCadence`. Reading the fractional channel alone made running
-  imports report 0 or 1. The sidecar now prefers the running total, otherwise
-  doubles the per-leg value for runs, keeps pedalling rpm for rides, and keeps
-  the stroke rate for rows and swims.
+  imports report 0 or 1. The sidecar prefers the running total, otherwise
+  doubles the per-leg value for every step-counted sport (runs, jogs, walks and
+  hikes), keeps pedalling rpm for rides, and keeps the stroke rate for rows and
+  swims. Laps have two cadence families: `averageRunCadence` is already total
+  steps per minute, while the older `avgCadence` is per-leg and is doubled for
+  step-counted sports. `cadenceUnit` is the single statement of the display
+  unit; see `docs/specs/cadence-units.md` and ADR 0056.
 - **Speed is canonical; pace is the display unit.** Garmin records speed in
   m/s, even for sports where Connect shows pace. The summary keeps
   `averageSpeed`/`maxSpeed` in m/s, and the UI and prompts convert to pace for

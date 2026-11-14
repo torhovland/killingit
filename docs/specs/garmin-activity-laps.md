@@ -76,6 +76,12 @@ sport:
 | `averageCadence`     | `averageBikeCadence`, `averageRunCadence`, `avgCadence` |
 | `totalElevationGain` | `elevationGain`                                         |
 
+Cadence follows the same rule as the samples. `averageBikeCadence` is pedalling
+rpm. `averageRunCadence` is what Garmin Connect displays: already total steps per
+minute for runs, jogs, walks and hikes, so it is never doubled. The legacy
+`avgCadence` is per-leg for those step-counted sports and is doubled, while for a
+ride it is already rpm. See `docs/specs/cadence-units.md` and ADR 0056.
+
 A lap with none of these values beyond its index is dropped, and the list is
 only attached when at least two laps remain: a single lap is the whole activity
 restated, not interval structure. The list is capped at `MAX_LAPS = 100` to

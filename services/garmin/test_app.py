@@ -4,7 +4,9 @@ These tests exercise `_to_activity`, `normalize_type`, and `_iso` without a
 live Garmin account or network.
 """
 
+import re
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
 from garminconnect import GarminConnectTooManyRequestsError
@@ -12,6 +14,7 @@ from garminconnect import GarminConnectTooManyRequestsError
 import app as sidecar
 from app import (
     MAX_LAPS,
+    STEP_CADENCE_MARKERS,
     SYNC_WINDOW_DAYS,
     Credentials,
     _body_fat_percent,
@@ -316,6 +319,35 @@ def test_to_samples_doubles_the_per_leg_cadence_for_running():
     assert _to_samples(details, "trail_running")[0]["cadence"] == 152.5
 
 
+@pytest.mark.parametrize(
+    ("activity_type", "per_leg", "total"),
+    [("jogging", 55.0, 110.0), ("walking", 55.5, 111.0), ("hiking", 57.25, 114.5)],
+)
+def test_to_samples_counts_walking_and_hiking_cadence_as_total_steps(
+    activity_type, per_leg, total
+):
+    # Every step-counted sport reports a per-leg cadence in `directCadence`;
+    # Garmin Connect shows total steps per minute for walks and hikes too, and
+    # the shared app labels them spm.
+    details = _details(
+        [1790836200000, per_leg],
+        descriptors=[(0, "directTimestamp"), (1, "directCadence")],
+    )
+    assert _to_samples(details, activity_type)[0]["cadence"] == total
+
+
+def test_to_samples_uses_double_cadence_for_a_walk():
+    details = _details(
+        [1790836200000, 111.0, 55.5],
+        descriptors=[
+            (0, "directTimestamp"),
+            (1, "directDoubleCadence"),
+            (2, "directCadence"),
+        ],
+    )
+    assert _to_samples(details, "walking")[0]["cadence"] == 111.0
+
+
 def test_to_samples_keeps_pedalling_cadence_for_cycling():
     details = _details(
         [1790836200000, 90, 0.5],
@@ -476,6 +508,72 @@ def test_to_laps_reads_alternate_keys_and_omits_absent_channels():
     ]
 
 
+def test_to_laps_keeps_total_steps_for_walking_and_hiking():
+    # `averageRunCadence` is the value Garmin Connect displays, already counted
+    # in total steps per minute, so it is never doubled.
+    for activity_type in ("walking", "hiking"):
+        payload = {
+            "lapDTOs": [
+                {"lapIndex": 1, "distance": 1000, "averageRunCadence": 111.0},
+                {"lapIndex": 2, "distance": 1000, "averageRunCadence": 114.5},
+            ]
+        }
+        assert [lap["averageCadence"] for lap in _to_laps(payload, activity_type)] == [
+            111.0,
+            114.5,
+        ]
+
+
+def test_to_laps_doubles_the_per_leg_walking_cadence_fallback():
+    # Older payloads only carry `avgCadence`, which is the per-leg value for a
+    # step-counted sport, so a walk's 55.5 is shown as 111 steps per minute.
+    payload = {
+        "lapDTOs": [
+            {"lapIndex": 1, "distance": 1000, "avgCadence": 55.5},
+            {"lapIndex": 2, "distance": 1000, "avgCadence": 56.25},
+        ]
+    }
+    assert [lap["averageCadence"] for lap in _to_laps(payload, "walking")] == [
+        111.0,
+        112.5,
+    ]
+
+
+def test_to_laps_keeps_pedalling_cadence_for_cycling_with_the_type():
+    payload = {"lapDTOs": [{"lapIndex": 1, "distance": 1000, "avgCadence": 90.5}]}
+    assert _to_laps(payload, "road_biking")[0]["averageCadence"] == 90.5
+    assert _to_laps(payload, "indoor_cycling")[0]["averageCadence"] == 90.5
+
+
+def test_lap_cadence_prefers_garmin_connects_total_over_the_legacy_value():
+    # A payload that carries both families: Connect's total wins and is not
+    # doubled, even though the legacy per-leg value would double to the same.
+    payload = {
+        "lapDTOs": [
+            {
+                "lapIndex": 1,
+                "distance": 1000,
+                "averageRunCadence": 110.0,
+                "avgCadence": 55.0,
+            }
+        ]
+    }
+    assert _to_laps(payload, "walking")[0]["averageCadence"] == 110.0
+
+
+def test_step_cadence_rule_matches_the_shared_display_unit():
+    # The sidecar doubles exactly the sports the shared contract labels as
+    # steps per minute. Rowing and swimming are strokes per minute and already
+    # total, so the shared pattern includes them but the doubling rule does not.
+    source = (
+        Path(__file__).resolve().parents[2] / "packages/shared/src/activity.ts"
+    ).read_text(encoding="utf-8")
+    match = re.search(r"const STEP_CADENCE_PATTERN = /([^/]+)/;", source)
+    assert match is not None, "STEP_CADENCE_PATTERN not found in shared activity.ts"
+    shared_markers = set(match.group(1).split("|"))
+    assert set(STEP_CADENCE_MARKERS) == shared_markers - {"row", "swim"}
+
+
 def test_to_laps_drops_a_lap_with_no_recorded_values():
     assert _to_laps({"lapDTOs": [{"lapIndex": 1}, {"lapIndex": 2, "distance": 0}]}) == [
         {"index": 2, "distance": 0.0}
@@ -581,6 +679,40 @@ def test_sync_attaches_laps_and_survives_a_failed_splits_fetch(monkeypatch):
         {"index": 2, "distance": 2500.0, "averagePower": 260.0},
     ]
     assert "laps" not in activities[1]
+
+
+def test_sync_applies_the_step_cadence_rule_to_a_walk(monkeypatch):
+    class _WalkingFake(_FakeGarmin):
+        def get_activities_by_date(self, startdate, enddate):
+            return [
+                {
+                    "activityId": 7,
+                    "activityName": "Morning Walk",
+                    "activityType": {"typeKey": "WALKING"},
+                    "startTimeLocal": datetime(2026, 10, 1, 7, 0, 0),
+                }
+            ]
+
+    fake = _WalkingFake(
+        details=_details(
+            [1790836200000, 55.5],
+            descriptors=[(0, "directTimestamp"), (1, "directCadence")],
+        ),
+        splits={
+            "7": {
+                "lapDTOs": [
+                    {"lapIndex": 1, "distance": 1000, "avgCadence": 55.5},
+                    {"lapIndex": 2, "distance": 1000, "averageRunCadence": 112.0},
+                ]
+            }
+        },
+    )
+    monkeypatch.setattr(sidecar, "_login", lambda credentials: fake)
+
+    activity = sidecar._sync(Credentials(username="u", password="p"))[0]
+
+    assert activity["samples"][0]["cadence"] == 111.0
+    assert [lap["averageCadence"] for lap in activity["laps"]] == [111.0, 112.0]
 
 
 def test_to_activity_ignores_a_single_lap():

@@ -114,6 +114,22 @@ describe("ActivitySamples", () => {
     expect(html).not.toContain("Cadence spm");
   });
 
+  it("labels a walk's stored cadence as total steps per minute", () => {
+    // The sidecar stores a walk's cadence as total steps per minute, so the
+    // number and the unit must agree.
+    const html = renderToStaticMarkup(
+      <ActivitySamples
+        samples={[{ timestamp: "2026-10-01T06:30:00Z", cadence: 111 }]}
+        sampleCount={1}
+        activityType="walking"
+      />,
+    );
+
+    expect(html).toContain("Cadence spm");
+    expect(html).toContain("111");
+    expect(html).not.toContain("Cadence rpm");
+  });
+
   it("omits channels that were not recorded", () => {
     const html = renderToStaticMarkup(
       <ActivitySamples

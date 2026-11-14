@@ -298,8 +298,14 @@ about a past workout, or before a suggested workout, to steer the coach.
   once. See `docs/specs/activity-analysis-sharing.md`. Each activity in the
   feed also carries a bounded,
   downsampled sample preview, shown as a collapsible table on the Activities
-  page. Running cadence is normalized to total steps per minute and cycling
-  cadence to rpm, matching Garmin Connect. Strength activities also carry their
+  page. Cadence uses one rule per sport: step-counted sports (run, jog, walk
+  and hike) are stored as total steps per minute, cycling as pedalling rpm, and
+  rowing and swimming as strokes per minute, matching Garmin Connect.
+  `cadenceUnit` in `packages/shared/src/activity.ts` is the single statement of
+  the display unit; a walk's and a hike's per-leg Garmin value is doubled like
+  a run's, while a lap's `averageRunCadence` is already total and its legacy
+  `avgCadence` fallback is doubled. See `docs/specs/cadence-units.md` and
+  ADR 0056. Strength activities also carry their
   recorded exercise sets, repetitions, weights and rest intervals, and the
   activity analysis uses them; see
   `docs/specs/garmin-strength-exercise-sets.md`. Activities also carry their
