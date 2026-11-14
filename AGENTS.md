@@ -197,7 +197,11 @@ about a past workout, or before a suggested workout, to steer the coach.
   `tools/benchmark/src/promptBenchmarkFixture.ts`, and a snapshot test pins the
   built text, so a prompt change fails the suite until the snapshot is
   deliberately updated. Its run directories and generated HTML/PDF reports are
-  local output and ignored by git; see `benchmarks/README.md`. See
+  local output and ignored by git; see `benchmarks/README.md`. Every stored run
+  file a stage reads is validated against the Zod schema in
+  `tools/benchmark/src/promptBenchmarkTypes.ts` (and `types.ts` for the plan
+  comparison), so a renamed field or a corrupt file is reported with its path
+  instead of reaching the report as an unchecked cast. See
   `docs/specs/llm-benchmark.md` and ADR 0032.
 - The athlete's home location is stored on `users` and set in the settings
   location picker. When a week or day is planned, the API loads Open-Meteo and

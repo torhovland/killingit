@@ -1,25 +1,20 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { z } from "zod";
 import { PLAN_MAX_TOKENS } from "../../../apps/api/src/llm/planBudget.js";
 import { BENCHMARK_HELP, parseBenchmarkArgs } from "./config.js";
 import { loadBenchmarkFixture } from "./fixtures.js";
+import { readJsonFile, writeJsonFile } from "./jsonFile.js";
 import { renderBenchmarkReport } from "./report.js";
 import { createBenchmarkRunner } from "./run.js";
-import type {
-  BenchmarkMetadata,
-  BenchmarkResults,
-  BenchmarkScores,
+import {
+  benchmarkResultsSchema,
+  benchmarkScoresSchema,
+  type BenchmarkMetadata,
+  type BenchmarkResults,
+  type BenchmarkScores,
 } from "./types.js";
 
 const REPO_ROOT = resolve(import.meta.dir, "../../..");
-const scoresSchema = z.record(
-  z.string(),
-  z.object({
-    quality: z.number().min(0).max(10),
-    notes: z.string(),
-  }),
-);
 
 function slug(model: string): string {
   return model.replace(/[^a-zA-Z0-9.-]+/g, "_");
@@ -43,8 +38,7 @@ async function readScores(
   path: string | null,
 ): Promise<BenchmarkScores | null> {
   if (path === null) return null;
-  const raw = await readFile(path, "utf8");
-  return scoresSchema.parse(JSON.parse(raw));
+  return readJsonFile(path, benchmarkScoresSchema);
 }
 
 async function writeScores(
@@ -52,10 +46,7 @@ async function writeScores(
   scores: BenchmarkScores | null,
 ): Promise<void> {
   if (scores === null) return;
-  await writeFile(
-    resolve(directory, "scores.json"),
-    `${JSON.stringify(scores, null, 2)}\n`,
-  );
+  await writeJsonFile(resolve(directory, "scores.json"), scores);
 }
 
 function log(message: string): void {
@@ -66,9 +57,10 @@ async function reportOnly(
   directory: string,
   scoresPath: string | null,
 ): Promise<void> {
-  const results = JSON.parse(
-    await readFile(resolve(directory, "results.json"), "utf8"),
-  ) as BenchmarkResults;
+  const results = await readJsonFile(
+    resolve(directory, "results.json"),
+    benchmarkResultsSchema,
+  );
   const defaultScores = resolve(directory, "scores.json");
   const scores = await readScores(
     scoresPath ??

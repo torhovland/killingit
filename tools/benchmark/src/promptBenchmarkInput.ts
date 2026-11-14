@@ -1,3 +1,4 @@
+import { z } from "zod";
 import {
   buildDailyUpdateMessages,
   buildPlanUpdateMessages,
@@ -33,7 +34,10 @@ export const REVISE_SEASON_TOP_LEVEL_KEYS = [
   "bodyMetrics",
 ] as const;
 
-export type BenchmarkPromptId = "today" | "reviseSeason";
+/** The ids of the two prompts, as stored in `results.json` and `raw/*.json`. */
+export const benchmarkPromptIdSchema = z.enum(["today", "reviseSeason"]);
+
+export type BenchmarkPromptId = z.infer<typeof benchmarkPromptIdSchema>;
 
 export interface BenchmarkPromptDefinition {
   id: BenchmarkPromptId;

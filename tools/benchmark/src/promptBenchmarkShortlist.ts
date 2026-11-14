@@ -1,11 +1,9 @@
 import { resolve } from "node:path";
+import { readJsonFile } from "./jsonFile.js";
+import { promptBenchmarkRunDirectory } from "./promptBenchmarkFiles.js";
 import {
-  promptBenchmarkRunDirectory,
-  readPromptJson,
-} from "./promptBenchmarkFiles.js";
-import type {
-  PromptJudgeScore,
-  PromptModelResult,
+  promptJudgeScoreSchema,
+  promptModelResultSchema,
 } from "./promptBenchmarkTypes.js";
 
 /** Prints a scalar field, ignoring an object where the contract wants text. */
@@ -35,11 +33,13 @@ function dayFromPlan(plan: unknown): Record<string, unknown> | null {
 export async function runPromptBenchmarkShortlistStage(): Promise<void> {
   const runDirectory = promptBenchmarkRunDirectory();
   const limit = Number(process.env.LIMIT ?? 30);
-  const results = await readPromptJson<PromptModelResult[]>(
+  const results = await readJsonFile(
     resolve(runDirectory, "results.json"),
+    promptModelResultSchema.array(),
   );
-  const scores = await readPromptJson<PromptJudgeScore[]>(
+  const scores = await readJsonFile(
     resolve(runDirectory, "judge-scores.json"),
+    promptJudgeScoreSchema.array(),
   );
   const byId = new Map(results.map((result) => [result.id, result]));
   const ranked = [...scores].sort((a, b) => b.score - a.score);

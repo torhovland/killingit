@@ -1,16 +1,15 @@
 import { resolve } from "node:path";
+import { readJsonFile, writeJsonFile } from "./jsonFile.js";
 import {
   logPromptBenchmark,
   promptBenchmarkRunDirectory,
-  readPromptJson,
-  writePromptJson,
 } from "./promptBenchmarkFiles.js";
 import { BENCHMARK_PROMPTS } from "./promptBenchmarkInput.js";
 import {
   fatalPromptErrors,
   isWarningOnlyPromptError,
 } from "./promptBenchmark.js";
-import type { PromptModelResult } from "./promptBenchmarkTypes.js";
+import { promptModelResultSchema } from "./promptBenchmarkTypes.js";
 
 /**
  * Recovers responses that were rejected only for a warning-level contract
@@ -20,7 +19,10 @@ import type { PromptModelResult } from "./promptBenchmarkTypes.js";
 export async function runPromptBenchmarkFinalizeStage(): Promise<void> {
   const runDirectory = promptBenchmarkRunDirectory();
   const resultsPath = resolve(runDirectory, "results.json");
-  const results = await readPromptJson<PromptModelResult[]>(resultsPath);
+  const results = await readJsonFile(
+    resultsPath,
+    promptModelResultSchema.array(),
+  );
   let recovered = 0;
   for (const result of results) {
     for (const definition of BENCHMARK_PROMPTS) {
@@ -44,7 +46,7 @@ export async function runPromptBenchmarkFinalizeStage(): Promise<void> {
       (definition) => result.prompts[definition.id].ok,
     );
   }
-  await writePromptJson(resultsPath, results);
+  await writeJsonFile(resultsPath, results);
   logPromptBenchmark(
     `recovered ${recovered} prompt responses with only warning-level contract issues`,
   );

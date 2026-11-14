@@ -62,6 +62,31 @@ export default tseslint.config(
     },
   },
   {
+    // The benchmark stores its run files as JSON, so every stage reads them
+    // through the Zod schema that describes the file. This rule stops a new
+    // stage from parsing a stored file with a hand-written cast again. Only
+    // `jsonFile.ts` parses stored files; `promptBenchmark.ts` parses the model's
+    // answer and `run.ts` parses its own outgoing request, so those two are not
+    // reads of a stored file. See `docs/specs/llm-benchmark.md`.
+    files: ["tools/benchmark/src/**/*.ts"],
+    ignores: [
+      "tools/benchmark/src/jsonFile.ts",
+      "tools/benchmark/src/promptBenchmark.ts",
+      "tools/benchmark/src/run.ts",
+    ],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "CallExpression[callee.object.name='JSON'][callee.property.name='parse']",
+          message:
+            "Parse a stored benchmark file through readJsonFile in ./jsonFile.ts so its shape is validated.",
+        },
+      ],
+    },
+  },
+  {
     // A plan run is described by named options, not by a growing tail of
     // positional booleans. These entry points take at most five parameters so a
     // sixth one has to become part of an options object instead. See

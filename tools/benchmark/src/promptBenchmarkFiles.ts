@@ -1,4 +1,3 @@
-import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 const REPO_ROOT = resolve(import.meta.dir, "../../..");
@@ -46,29 +45,4 @@ export function promptBenchmarkSlug(id: string): string {
 /** The prefix every prompt-benchmark stage logs with. */
 export function logPromptBenchmark(message: string): void {
   console.log(`prompt-benchmark> ${message}`);
-}
-
-/** Reads and parses one JSON file. */
-export async function readPromptJson<T>(path: string): Promise<T> {
-  return JSON.parse(await readFile(path, "utf8")) as T;
-}
-
-/** Reads one JSON file, returning the fallback when it is absent or invalid. */
-export async function readPromptJsonOr<T>(
-  path: string,
-  fallback: T,
-): Promise<T> {
-  try {
-    return await readPromptJson<T>(path);
-  } catch {
-    return fallback;
-  }
-}
-
-/** Writes one JSON file with the two-space indentation the runs are stored in. */
-export async function writePromptJson(
-  path: string,
-  value: unknown,
-): Promise<void> {
-  await writeFile(path, `${JSON.stringify(value, null, 2)}\n`);
 }

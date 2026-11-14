@@ -13,12 +13,11 @@ import {
   benchmarkModelTimes,
   pendingBenchmarkModelIds,
 } from "./catalogBenchmark.js";
+import { readJsonEntries, writeJsonFile } from "./jsonFile.js";
 import {
   logPromptBenchmark,
   promptBenchmarkRunDirectory,
   promptBenchmarkSlug,
-  readPromptJsonOr,
-  writePromptJson,
 } from "./promptBenchmarkFiles.js";
 import {
   BENCHMARK_PROMPTS,
@@ -36,11 +35,12 @@ import {
   validatePromptPlan,
 } from "./promptBenchmark.js";
 import { completePrompt } from "./promptBenchmarkProvider.js";
-import type {
-  PromptAttempt,
-  PromptAttemptRecord,
-  PromptModelResult,
-  PromptRunResult,
+import {
+  promptModelResultSchema,
+  type PromptAttempt,
+  type PromptAttemptRecord,
+  type PromptModelResult,
+  type PromptRunResult,
 } from "./promptBenchmarkTypes.js";
 
 /**
@@ -213,7 +213,7 @@ async function runModel(
       attempts: results[definition.id].attempts,
     }),
   );
-  await writePromptJson(
+  await writeJsonFile(
     resolve(runDirectory, "raw", `${promptBenchmarkSlug(model.id)}.json`),
     attemptRecords,
   );
@@ -245,16 +245,6 @@ async function runModel(
       0,
     ),
   };
-}
-
-function isCurrentResult(value: unknown): value is PromptModelResult {
-  if (typeof value !== "object" || value === null) return false;
-  const result = value as Partial<PromptModelResult>;
-  if (typeof result.prompts !== "object" || result.prompts === null)
-    return false;
-  return BENCHMARK_PROMPTS.every(
-    (definition) => result.prompts?.[definition.id] !== undefined,
-  );
 }
 
 function parseGradeSet(
@@ -414,17 +404,14 @@ export async function runPromptBenchmarkRunStage(): Promise<void> {
   const listed = await provider.listModels();
 
   const resultsPath = resolve(runDirectory, "results.json");
-  const parsedResults = await readPromptJsonOr<unknown>(resultsPath, []);
-  const results = Array.isArray(parsedResults)
-    ? parsedResults.filter(isCurrentResult)
-    : [];
+  const results = await readJsonEntries(resultsPath, promptModelResultSchema);
   const models = await selectModels(listed, results);
 
   if (models.length === 0) {
     logPromptBenchmark("nothing to do; no model matched the selection");
     return;
   }
-  await writePromptJson(resolve(runDirectory, "models.json"), models);
+  await writeJsonFile(resolve(runDirectory, "models.json"), models);
   logPromptBenchmark(
     `running ${models.length} models at ${BENCHMARK_PROMPTS.length} prompts`,
   );
@@ -481,7 +468,7 @@ export async function runPromptBenchmarkRunStage(): Promise<void> {
           `total ${(result.totalTimeMs / 1000).toFixed(1)}s $${result.totalCostUsd.toFixed(4)}` +
           (result.expired === true ? " expired (ability stays ?)" : ""),
       );
-      await writePromptJson(resultsPath, results);
+      await writeJsonFile(resultsPath, results);
     }
   };
 

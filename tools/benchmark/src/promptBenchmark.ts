@@ -7,6 +7,7 @@ import {
   TODAY_BENCHMARK_DATE,
   type BenchmarkPromptId,
 } from "./promptBenchmarkInput.js";
+import type { ReviseSeasonGates } from "./promptBenchmarkTypes.js";
 
 export const BENCHMARK_COMPONENT_KEYS = [
   "contract",
@@ -43,15 +44,6 @@ export interface BlockBaseline {
   startDate: string;
   endDate: string;
   weeks: BlockWeekBaseline[];
-}
-
-export interface ReviseSeasonGates {
-  atlasMentioned: boolean;
-  blockOneChanged: boolean;
-  blockOneStartDateKept: boolean;
-  /** The model asked about Atlas instead of planning it into block 1. */
-  atlasQuestionAsked: boolean;
-  failures: string[];
 }
 
 export interface PromptScoreInput {
