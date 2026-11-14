@@ -67,6 +67,15 @@ import {
   type FinalizePlanInput,
 } from "./finalize.js";
 import { promoteNextPeriod, weekFor } from "./periods.js";
+import {
+  mergeNextPeriod,
+  mergeSeasonAndBlock,
+  mergeTomorrow,
+  mergeWeekAndDay,
+  revisionFlags,
+  type PlanUpdateFlags,
+  type RevisionChoice,
+} from "./revision.js";
 import { planIsStale, planPending } from "./status.js";
 import { PLAN_GENERATION_STEPS } from "./steps.js";
 import type { PlanGenerationStore, PlanStore, StoredPlan } from "./store.js";
@@ -295,20 +304,11 @@ export async function runPlanGeneration(
   }
 }
 
-interface RevisionDecision {
+interface RevisionDecision extends RevisionChoice {
   /** A missing, forced or deliberately new plan builds all four levels. */
   needsFullPlan: boolean;
-  /**
-   * How the run treats the stored season: a refresh revises it in place, an
-   * advance only fills in the levels that are missing or need revising.
-   */
-  kind: "refresh" | "advance";
-  /** New coaching input, activities or a week review must reach the plan. */
-  revisionNeeded: boolean;
   /** The levels the stored plan is missing or must revise. */
   pending: PlanPending;
-  /** A week review arrived after the stored plan was saved. */
-  weekReviewPending: boolean;
   /**
    * Inputs or analyses arrived after the plan but none asks for a plan change.
    * The run keeps the plan and records their timestamps so they are not read
@@ -734,20 +734,6 @@ async function ensureGenerationCurrent(
   }
 }
 
-interface PlanUpdateFlags {
-  season: boolean;
-  block: boolean;
-  week: boolean;
-  day: boolean;
-  tomorrow: boolean;
-  nextWeek: boolean;
-  nextBlock: boolean;
-  /** A full week or block revision makes the stored next period stale. */
-  clearNextPeriod: boolean;
-  /** Refresh the diet progress targets on every level. */
-  progress: boolean;
-}
-
 interface PlanUpdateOptions {
   expectedBlockStartDate?: string;
   nextBlockStartDate?: string;
@@ -770,77 +756,26 @@ async function advancePlan(
   decision: RevisionDecision,
 ): Promise<CoachPlan> {
   const { today, context } = input;
-  const { pending, revisionNeeded, weekReviewPending } = decision;
-  const seasonRefresh = decision.kind === "refresh";
   const includeTomorrow = input.includeTomorrow === true;
   const tomorrowDate = addDays(today, 1);
-  const tomorrowWeek = weekFor(current, tomorrowDate);
-  const blockInPlace =
-    weekReviewPending &&
-    !seasonRefresh &&
-    today >= current.block.startDate &&
-    today <= current.block.endDate;
-  const blockRevision = seasonRefresh || pending.block || weekReviewPending;
-  const nextBlockRevision =
-    includeTomorrow && pending.nextBlock && (seasonRefresh || !blockRevision);
-  const nextBlockSameWeek =
-    nextBlockRevision &&
-    tomorrowWeek !== null &&
-    tomorrowWeek.startDate === current.week.startDate;
-  // A new day revises today's session and the rest of the week around it. A
-  // next-block transition that lands in the current week revises the week but
-  // deliberately keeps today's session.
-  const weekRevision =
-    seasonRefresh ||
-    blockRevision ||
-    revisionNeeded ||
-    pending.week ||
-    pending.day ||
-    nextBlockSameWeek;
-  const dayRevision =
-    seasonRefresh ||
-    blockRevision ||
-    revisionNeeded ||
-    pending.week ||
-    pending.day;
-  const nextWeekRevision =
-    includeTomorrow && startOfWeek(tomorrowDate) !== startOfWeek(today);
-  const tomorrowRevision =
-    includeTomorrow &&
-    (pending.tomorrow ||
-      weekRevision ||
-      dayRevision ||
-      nextBlockRevision ||
-      nextWeekRevision);
-  const flags: PlanUpdateFlags = {
-    season: seasonRefresh,
-    block: blockRevision,
-    week: weekRevision,
-    day: dayRevision,
-    tomorrow: tomorrowRevision,
-    nextWeek: nextWeekRevision,
-    nextBlock: nextBlockRevision,
-    clearNextPeriod:
-      seasonRefresh ||
-      blockRevision ||
-      revisionNeeded ||
-      pending.week ||
-      nextBlockRevision,
-    progress: true,
-  };
+  const flags = revisionFlags({
+    current,
+    pending: decision.pending,
+    decision,
+    today,
+    includeTomorrow,
+  });
   const options: PlanUpdateOptions = {
-    ...(seasonRefresh || blockInPlace
+    ...(flags.season || flags.blockInPlace
       ? { expectedBlockStartDate: current.block.startDate }
-      : blockRevision
+      : flags.block
         ? { expectedBlockStartDate: nextBlockStartDate(current.block, today) }
         : {}),
-    ...(blockInPlace ? { reviseBlock: true } : {}),
-    ...(nextBlockRevision
+    ...(flags.blockInPlace ? { reviseBlock: true } : {}),
+    ...(flags.nextBlock
       ? { nextBlockStartDate: nextBlockStartDate(current.block, today) }
       : {}),
-    ...(nextWeekRevision
-      ? { nextWeekStartDate: startOfWeek(tomorrowDate) }
-      : {}),
+    ...(flags.nextWeek ? { nextWeekStartDate: startOfWeek(tomorrowDate) } : {}),
   };
 
   let plan = await requestPlanUpdate(input, current, flags, options);
@@ -956,27 +891,7 @@ function applyPlanUpdate(
   options: PlanUpdateOptions,
 ): CoachPlan {
   const { today } = input;
-  let plan: CoachPlan = { ...current };
-
-  if (revision.season) {
-    const season = withStoredIntroduction(
-      withCompletedSeasonBlocks(update.season, current.season, today),
-      current.season,
-    );
-    assertRefreshedSeason(season, update.block, today, current.block.startDate);
-    plan = { ...plan, season, block: update.block };
-  } else if (revision.block) {
-    plan = {
-      ...plan,
-      season: withStoredIntroduction(update.season, current.season),
-      block: update.block,
-    };
-  } else if (revision.nextBlock) {
-    plan = {
-      ...plan,
-      season: withStoredIntroduction(update.season, current.season),
-    };
-  }
+  let plan = mergeSeasonAndBlock(current, update, revision, today);
 
   if (
     revision.block &&
@@ -988,62 +903,9 @@ function applyPlanUpdate(
     );
   }
 
-  if (revision.day) {
-    plan = { ...plan, week: update.week, today: update.today };
-  } else if (revision.week) {
-    plan = { ...plan, week: update.week, today: current.today };
-  }
-
-  if (revision.clearNextPeriod && !revision.nextBlock) {
-    plan = { ...plan, nextBlock: null };
-  }
-  if (revision.clearNextPeriod && !revision.nextWeek) {
-    plan = { ...plan, nextWeek: null };
-  }
-  if (revision.nextBlock) {
-    plan = { ...plan, nextBlock: update.nextBlock };
-  }
-  if (revision.nextWeek) {
-    plan = { ...plan, nextWeek: update.nextWeek };
-  }
-
-  if (revision.clearNextPeriod && !revision.tomorrow) {
-    plan = { ...plan, tomorrow: null };
-  }
-  if (revision.tomorrow) {
-    plan = { ...plan, tomorrow: update.tomorrow };
-  }
-
-  const tomorrowDate = addDays(today, 1);
-  if (plan.tomorrow !== null && plan.tomorrow.date !== tomorrowDate) {
-    plan = { ...plan, tomorrow: null };
-  }
-  if (plan.tomorrow !== null) {
-    const week = weekFor(plan, plan.tomorrow.date);
-    if (week === null) {
-      throw new Error(
-        "The coach returned tomorrow's session outside a planned week. Please regenerate the plan.",
-      );
-    }
-    if (week.startDate === plan.week.startDate) {
-      plan = {
-        ...plan,
-        week: withOutlineSession(plan.week, update.week, plan.tomorrow.date),
-      };
-    } else {
-      const source = update.nextWeek;
-      if (source !== null) {
-        plan = {
-          ...plan,
-          nextWeek: withOutlineSession(
-            plan.nextWeek ?? source,
-            source,
-            plan.tomorrow.date,
-          ),
-        };
-      }
-    }
-  }
+  plan = mergeWeekAndDay(plan, update, revision);
+  plan = mergeNextPeriod(plan, update, revision);
+  plan = mergeTomorrow(plan, update, revision, today);
 
   if (revision.week && !revision.day) {
     plan = {
@@ -1059,27 +921,6 @@ function applyPlanUpdate(
     ...plan,
     diet: update.diet ?? plan.diet,
     bodyMetrics: mergeBodyMetrics(current.bodyMetrics, update.bodyMetrics),
-  };
-}
-
-/**
- * Replaces one dated week session with the coach's returned outline. The week
- * keeps its other sessions and its overview level; only the named day moves.
- */
-function withOutlineSession(
-  week: WeekPlan,
-  source: WeekPlan,
-  date: string,
-): WeekPlan {
-  const session = source.sessions.find((entry) => entry.date === date);
-  if (session === undefined) {
-    return week;
-  }
-  return {
-    ...week,
-    sessions: week.sessions.map((entry) =>
-      entry.date === date ? session : entry,
-    ),
   };
 }
 
@@ -1113,6 +954,7 @@ async function ensureDietProgress(
         nextWeek: false,
         nextBlock: false,
         clearNextPeriod: false,
+        blockInPlace: false,
         progress: true,
       },
       {},
@@ -1163,6 +1005,7 @@ async function planNextPeriod(
       nextWeek: pending.nextWeek,
       nextBlock: pending.nextBlock,
       clearNextPeriod: pending.nextBlock,
+      blockInPlace: false,
       progress: true,
     },
     {
@@ -1230,76 +1073,6 @@ function restoreTodaysSession(
 /** True when `today` falls inside the season's dates. */
 function seasonCovers(season: SeasonPlan, today: string): boolean {
   return today >= season.startDate && today <= season.endDate;
-}
-
-/**
- * Keeps the greeting from the season the coach first planned. A refresh or a
- * block update returns the season without needing to repeat the introduction,
- * and an omitted greeting must not make the coach introduce themselves again.
- */
-function withStoredIntroduction(
-  season: SeasonPlan,
-  previous: SeasonPlan,
-): SeasonPlan {
-  return {
-    ...season,
-    introduction: season.introduction ?? previous.introduction ?? null,
-  };
-}
-
-/**
- * Restores the season's history after a refresh. Completed blocks are the
- * stored ones, unchanged; everything from today onward comes from the coach's
- * refreshed season. The original start date keeps the history in one season.
- */
-function withCompletedSeasonBlocks(
-  generated: SeasonPlan,
-  previous: SeasonPlan,
-  today: string,
-): SeasonPlan {
-  const completed = previous.blocks.filter((entry) => entry.endDate < today);
-  const remaining = generated.blocks.filter((entry) => entry.endDate >= today);
-  return {
-    ...generated,
-    startDate: previous.startDate,
-    blocks: [...completed, ...remaining],
-  };
-}
-
-/**
- * A refreshed season must keep the current block in place while re-planning
- * from today. Without this check the model can replace a partially completed
- * block with one that starts today, losing the block's original start date.
- * Whether the refreshed blocks tile the season is checked for every write in
- * `assertSeasonBlocksContiguous`.
- */
-function assertRefreshedSeason(
-  season: SeasonPlan,
-  block: BlockPlan,
-  today: string,
-  currentBlockStartDate: string,
-): void {
-  const remaining = season.blocks.filter((entry) => entry.endDate >= today);
-  const first = remaining[0];
-  if (first === undefined || first.startDate !== currentBlockStartDate) {
-    throw new Error(
-      "The coach returned a season refresh that moved the current block's start date. Please regenerate the plan.",
-    );
-  }
-  const last = remaining[remaining.length - 1];
-  if (last !== undefined && last.endDate !== season.endDate) {
-    throw new Error(
-      "The coach returned a season refresh that does not cover the rest of the season. Please regenerate the plan.",
-    );
-  }
-  if (
-    block.startDate !== currentBlockStartDate ||
-    block.endDate !== first.endDate
-  ) {
-    throw new Error(
-      "The coach returned a block refresh that does not match the remaining season. Please regenerate the plan.",
-    );
-  }
 }
 
 function seasonModelFor(context: PlanGenerationContext): string {
