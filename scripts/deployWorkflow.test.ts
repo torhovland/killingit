@@ -124,6 +124,35 @@ describe("CI gate", () => {
   });
 });
 
+describe("API image", () => {
+  it("copies every workspace manifest before the frozen install", async () => {
+    // `bun install --frozen-lockfile` resolves the root's workspace:* links
+    // before pruning, so a manifest that exists in bun.lock but not on disk
+    // fails the API image build even when the API never uses that workspace.
+    const root = path.resolve(import.meta.dir, "..");
+    const rootPackage = (await Bun.file(
+      path.join(root, "package.json"),
+    ).json()) as {
+      workspaces: string[];
+    };
+    const dockerfile = await Bun.file(
+      path.join(root, "apps", "api", "Dockerfile"),
+    ).text();
+    const installAt = dockerfile.indexOf("RUN bun install --frozen-lockfile");
+    expect(installAt).toBeGreaterThan(-1);
+
+    const manifests = rootPackage.workspaces.flatMap((pattern) => [
+      ...new Bun.Glob(`${pattern}/package.json`).scanSync({ cwd: root }),
+    ]);
+    expect(manifests).toContain("tools/benchmark/package.json");
+
+    const beforeInstall = dockerfile.slice(0, installAt);
+    for (const manifest of manifests) {
+      expect(beforeInstall).toContain(`COPY ${manifest} ${manifest}`);
+    }
+  });
+});
+
 describe("concurrency", () => {
   it("serialises each environment without cancelling a running deploy", () => {
     const groups = Object.fromEntries(
