@@ -275,9 +275,12 @@ about a past workout, or before a suggested workout, to steer the coach.
   their own tables instead of being duplicated on the activity. The feed loads
   in named phases — sync, inputs, analysis, assembly — so each failure path
   stays with the phase that can fail; a failed read of the stored history
-  aborts the sync instead of reporting an empty one.
-  See `docs/specs/activity-store.md`, `docs/specs/activity-feed-loading.md` and
-  ADR 0034. One analysis pass runs per
+  aborts the sync instead of reporting an empty one. The phases live in
+  `apps/api/src/coaching/feed/` (`sync.ts`, `analysis.ts`, `presenter.ts`), with
+  the feed's own credential errors in `feed/errors.ts`; `coaching/activities.ts`
+  is only the orchestrator that runs them. See
+  `docs/specs/activity-store.md`, `docs/specs/activity-feed-loading.md`,
+  ADR 0034 and ADR 0037. One analysis pass runs per
   account at a time, shared by overlapping requests for the same athlete day;
   an explicit refresh, or a request for another day, waits for the running
   pass and then starts its own, so two passes never write the same analyses at

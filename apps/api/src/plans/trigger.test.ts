@@ -1,6 +1,6 @@
 import { describe, expect, it, spyOn } from "bun:test";
 import type { PlanGenerationStatus } from "@killingit/shared";
-import type { ActivityFeed } from "../coaching/activities.js";
+import type { ActivityFeed } from "../coaching/feed/presenter.js";
 import type { LlmClient } from "../llm/client.js";
 import type { QuestionAnswerStore } from "../questions/answers.js";
 import type { UserStore } from "../users/store.js";

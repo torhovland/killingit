@@ -1,4 +1,4 @@
-import type { ActivityFeed } from "./activities.js";
+import type { ActivityFeed } from "./feed/presenter.js";
 import { BoundedMap } from "../lib/boundedMap.js";
 
 interface ActiveAnalysis {

@@ -5,7 +5,7 @@ import { z } from "zod";
 import {
   GarminCredentialsError,
   LlmCredentialsError,
-} from "../coaching/activities.js";
+} from "../coaching/feed/errors.js";
 import {
   GarminAuthError,
   GarminNotConnectedError,

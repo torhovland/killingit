@@ -2,7 +2,7 @@ import type { AuthProvider } from "./auth/provider.js";
 import type {
   ActivityFeed,
   loadUserActivityTrainingLoads,
-} from "./coaching/activities.js";
+} from "./coaching/feed/presenter.js";
 import type { syncAthleteReading } from "./coaching/athleteReading.js";
 import type {
   deleteImportedActivity,
