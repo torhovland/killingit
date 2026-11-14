@@ -1,6 +1,7 @@
 import {
   activityCommentRequestSchema,
   coachQuestionAnswerRequestSchema,
+  idParamSchema,
   manualActivityRequestSchema,
   periodReviewCommentRequestSchema,
   quickQuestionRequestSchema,
@@ -15,6 +16,7 @@ import { resolveCoachingDependencies } from "./dependencies.js";
 import { createFeedHandlers } from "./feed.js";
 import { createManualActivityHandlers } from "./manualActivities.js";
 import { createReviewHandlers } from "./reviews.js";
+import { activityIdParamSchema, reviewParamSchema } from "./schemas.js";
 import { createWeeklyNoteHandlers } from "./weeklyNotes.js";
 
 /**
@@ -38,65 +40,63 @@ export function createCoachingRoute(deps: ResolvedAppDependencies): Hono {
     .get("/activities", async (c) => feed.activities(c))
     .post(
       "/activities/:activityId/comments",
+      zValidator("param", activityIdParamSchema),
       zValidator("json", activityCommentRequestSchema),
-      async (c) =>
-        comments.save(
-          c,
-          "create",
-          c.req.param("activityId"),
-          c.req.valid("json"),
-        ),
+      async (c) => {
+        const { activityId } = c.req.valid("param");
+        return comments.save(c, "create", activityId, c.req.valid("json"));
+      },
     )
     .put(
       "/activities/:activityId/comments",
+      zValidator("param", activityIdParamSchema),
       zValidator("json", activityCommentRequestSchema),
-      async (c) =>
-        comments.save(
-          c,
-          "edit",
-          c.req.param("activityId"),
-          c.req.valid("json"),
-        ),
+      async (c) => {
+        const { activityId } = c.req.valid("param");
+        return comments.save(c, "edit", activityId, c.req.valid("json"));
+      },
     )
-    .post("/activities/:activityId/reviewed", async (c) =>
-      comments.reviewed(c, c.req.param("activityId")),
+    .post(
+      "/activities/:activityId/reviewed",
+      zValidator("param", activityIdParamSchema),
+      async (c) => comments.reviewed(c, c.req.valid("param").activityId),
     )
     .get("/coach-questions", async (c) => questions.list(c))
     .post(
       "/coach-questions/:id/answer",
+      zValidator("param", idParamSchema),
       zValidator("json", coachQuestionAnswerRequestSchema),
-      async (c) => questions.answer(c, c.req.param("id"), c.req.valid("json")),
+      async (c) =>
+        questions.answer(c, c.req.valid("param").id, c.req.valid("json")),
     )
     .get("/reviews", async (c) => reviews.list(c))
     .post(
       "/reviews/:kind/:startDate/comments",
+      zValidator("param", reviewParamSchema),
       zValidator("json", periodReviewCommentRequestSchema),
-      async (c) =>
-        reviews.save(
-          c,
-          "create",
-          c.req.param("kind"),
-          c.req.param("startDate"),
-          c.req.valid("json"),
-        ),
+      async (c) => {
+        const review = c.req.valid("param");
+        return reviews.save(c, "create", review, c.req.valid("json"));
+      },
     )
     .put(
       "/reviews/:kind/:startDate/comments",
+      zValidator("param", reviewParamSchema),
       zValidator("json", periodReviewCommentRequestSchema),
-      async (c) =>
-        reviews.save(
-          c,
-          "edit",
-          c.req.param("kind"),
-          c.req.param("startDate"),
-          c.req.valid("json"),
-        ),
+      async (c) => {
+        const review = c.req.valid("param");
+        return reviews.save(c, "edit", review, c.req.valid("json"));
+      },
     )
-    .post("/reviews/:kind/:startDate/reviewed", async (c) =>
-      reviews.reviewed(c, c.req.param("kind"), c.req.param("startDate")),
+    .post(
+      "/reviews/:kind/:startDate/reviewed",
+      zValidator("param", reviewParamSchema),
+      async (c) => reviews.reviewed(c, c.req.valid("param")),
     )
-    .delete("/activities/:activityId", async (c) =>
-      feed.remove(c, c.req.param("activityId")),
+    .delete(
+      "/activities/:activityId",
+      zValidator("param", activityIdParamSchema),
+      async (c) => feed.remove(c, c.req.valid("param").activityId),
     )
     .get("/activities/manual", async (c) => manual.list(c))
     .post(
@@ -106,12 +106,17 @@ export function createCoachingRoute(deps: ResolvedAppDependencies): Hono {
     )
     .put(
       "/activities/manual/:id",
+      zValidator("param", idParamSchema),
       zValidator("json", manualActivityRequestSchema),
-      async (c) =>
-        manual.save(c, "edit", c.req.param("id"), c.req.valid("json")),
+      async (c) => {
+        const { id } = c.req.valid("param");
+        return manual.save(c, "edit", id, c.req.valid("json"));
+      },
     )
-    .delete("/activities/manual/:id", async (c) =>
-      manual.remove(c, c.req.param("id")),
+    .delete(
+      "/activities/manual/:id",
+      zValidator("param", idParamSchema),
+      async (c) => manual.remove(c, c.req.valid("param").id),
     )
     .post(
       "/questions",

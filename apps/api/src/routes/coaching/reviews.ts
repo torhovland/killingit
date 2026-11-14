@@ -2,35 +2,20 @@ import {
   coachingInputSaveResponseSchema,
   periodReviewCommentRequestSchema,
   periodReviewsResponseSchema,
-  planDateSchema,
-  reviewKindSchema,
   type PeriodReview,
-  type ReviewKind,
 } from "@killingit/shared";
 import { z } from "zod";
 import type { Context } from "hono";
 import { getUser } from "../../auth/middleware.js";
-import { badRequest, conflict, notFound } from "../../http/errors.js";
+import { conflict, notFound } from "../../http/errors.js";
 import { toPeriodReview } from "../../plans/periodReviews.js";
 import { replyTo, type ResolvedCoachingDependencies } from "./dependencies.js";
+import { reviewParamSchema } from "./schemas.js";
 
 type ReviewCommentInput = z.infer<typeof periodReviewCommentRequestSchema>;
 
-/** A parsed review URL, or `null` when the kind or date is invalid. */
-function parseReview(
-  kind: string,
-  startDate: string,
-): {
-  kind: ReviewKind;
-  startDate: string;
-} | null {
-  const parsedKind = reviewKindSchema.safeParse(kind);
-  const parsedDate = planDateSchema.safeParse(startDate);
-  if (!parsedKind.success || !parsedDate.success) {
-    return null;
-  }
-  return { kind: parsedKind.data, startDate: parsedDate.data };
-}
+/** The completed week or block a review route addresses. */
+type ReviewRef = z.infer<typeof reviewParamSchema>;
 
 /** Completed week and block reviews, with the athlete's comments. */
 export function createReviewHandlers(deps: ResolvedCoachingDependencies) {
@@ -42,15 +27,9 @@ export function createReviewHandlers(deps: ResolvedCoachingDependencies) {
   async function save(
     c: Context,
     mode: "create" | "edit",
-    kindParam: string,
-    startDateParam: string,
+    review: ReviewRef,
     input: ReviewCommentInput,
   ) {
-    const review = parseReview(kindParam, startDateParam);
-    if (review === null) {
-      return badRequest(c, "Invalid review");
-    }
-
     const user = getUser(c);
     const stored = await deps.loadReview(
       user.id,
@@ -107,16 +86,7 @@ export function createReviewHandlers(deps: ResolvedCoachingDependencies) {
     );
   }
 
-  async function reviewed(
-    c: Context,
-    kindParam: string,
-    startDateParam: string,
-  ) {
-    const review = parseReview(kindParam, startDateParam);
-    if (review === null) {
-      return badRequest(c, "Invalid review");
-    }
-
+  async function reviewed(c: Context, review: ReviewRef) {
     const user = getUser(c);
     const updated = await deps.markReviewReviewed(
       user.id,
