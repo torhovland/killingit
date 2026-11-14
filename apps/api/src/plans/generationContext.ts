@@ -13,7 +13,7 @@ import { loadAnsweredCoachQuestions } from "./coachQuestions.js";
 import { GenerationSupersededError } from "./generation.js";
 import { loadCoachingInputs, type CoachingInputs } from "./inputs.js";
 import { PLAN_GENERATION_STEPS } from "./steps.js";
-import type { PlanStore } from "./store.js";
+import { loadValidatedPlan, type StoredPlan } from "./store.js";
 import type { PlanRunOptions, PlanTriggerDependencies } from "./trigger.js";
 
 /** The failure an account without a configured model reports. */
@@ -26,7 +26,8 @@ const LLM_NOT_CONFIGURED_MESSAGE =
  * are known.
  */
 export interface LoadedPlanGenerationContext {
-  plan: Awaited<ReturnType<PlanStore["load"]>>;
+  /** The stored plan, checked against the current schema; null if absent. */
+  plan: StoredPlan | null;
   answers: Awaited<ReturnType<QuestionAnswerStore["listForUser"]>>;
   activities: ActivityFeed;
   /** The account's configured model. A run never starts without one. */
@@ -118,7 +119,9 @@ export async function loadPlanGenerationContext(
       coachAnswers,
       surveyAdjustments,
     ] = await Promise.all([
-      deps.plans.load(userId),
+      // A row written under an older schema is treated as absent, so the run
+      // rebuilds the plan instead of prompting from a body it cannot read.
+      loadValidatedPlan(deps.plans, userId),
       deps.answers.listForUser(userId),
       deps.loadCoachingInputs
         ? deps.loadCoachingInputs(userId, startOfWeek(today))
