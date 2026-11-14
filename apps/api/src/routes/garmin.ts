@@ -1,5 +1,6 @@
 import {
   garminConnectionStatusSchema,
+  zonedDateTime,
   type GarminConnectionStatus,
 } from "@killingit/shared";
 import { Hono } from "hono";
@@ -12,13 +13,11 @@ import {
   GarminAuthError,
   GarminSidecarError,
   syncGarminActivities,
-  syncGarminMetrics,
 } from "../garmin/client.js";
 import { loadDecryptedGarminCredentials } from "../garmin/credentials.js";
 import { encrypt, garminCredentialsKeyFromEnv } from "../garmin/crypto.js";
 import { loadCredentials, saveCredentials } from "../garmin/store.js";
-import { syncGarminDailyHistory } from "../garmin/dailySync.js";
-import { recordGarminBodyMetrics, recordGarminFtp } from "../metrics/store.js";
+import { syncGarminSupplements } from "../garmin/supplements.js";
 
 /** Request body for POST /credentials — raw (soon-to-be-encrypted) values. */
 const credentialsSchema = z.object({
@@ -33,13 +32,10 @@ export interface GarminRouteDependencies {
   loadDecryptedCredentials?: typeof loadDecryptedGarminCredentials;
   authenticate?: typeof authenticateGarmin;
   syncActivities?: typeof syncGarminActivities;
-  syncMetrics?: typeof syncGarminMetrics;
-  /** Injectable for tests; defaults to the daily health backfill. */
-  syncDaily?: typeof syncGarminDailyHistory;
-  /** Injectable for tests; defaults to the database-backed writer. */
-  saveMetrics?: typeof recordGarminBodyMetrics;
-  /** Injectable for tests; defaults to the database-backed writer. */
-  saveFtp?: typeof recordGarminFtp;
+  /** Injectable for tests; defaults to the fail-open supplementary sync. */
+  syncSupplements?: typeof syncGarminSupplements;
+  /** Injectable for tests; defaults to the wall clock. */
+  now?: () => Date;
 }
 
 /**
@@ -54,10 +50,8 @@ export function createGarminRoute(deps: GarminRouteDependencies = {}): Hono {
     deps.loadDecryptedCredentials ?? loadDecryptedGarminCredentials;
   const authenticate = deps.authenticate ?? authenticateGarmin;
   const sync = deps.syncActivities ?? syncGarminActivities;
-  const syncMetrics = deps.syncMetrics ?? syncGarminMetrics;
-  const syncDaily = deps.syncDaily ?? syncGarminDailyHistory;
-  const saveMetrics = deps.saveMetrics ?? recordGarminBodyMetrics;
-  const saveFtp = deps.saveFtp ?? recordGarminFtp;
+  const syncSupplements = deps.syncSupplements ?? syncGarminSupplements;
+  const now = deps.now ?? (() => new Date());
 
   return new Hono()
     .post("/credentials", zValidator("json", credentialsSchema), async (c) => {
@@ -122,24 +116,13 @@ export function createGarminRoute(deps: GarminRouteDependencies = {}): Hono {
 
       try {
         const activities = await sync(credentials);
-        try {
-          const snapshot = await syncMetrics(credentials);
-          await saveMetrics(user.id, snapshot.metrics);
-          await saveFtp(user.id, snapshot.ftp);
-        } catch (err) {
-          // Body composition is supplementary; the activity sync still counts.
-          console.error("[garmin] body metrics failure:", err);
-        }
-        try {
-          await syncDaily({
-            userId: user.id,
-            credentials,
-            today: new Date().toISOString().slice(0, 10),
-          });
-        } catch (err) {
-          // Daily health is supplementary too; never fail the activity sync.
-          console.error("[garmin] daily health failure:", err);
-        }
+        // Body composition and daily health supplement the activity sync; the
+        // shared pass is fail-open, so neither can fail this response.
+        await syncSupplements(
+          user.id,
+          credentials,
+          zonedDateTime(now(), user.timezone).date,
+        );
         return c.json({ activities });
       } catch (err) {
         if (err instanceof GarminAuthError) {
