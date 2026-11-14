@@ -63,6 +63,9 @@ columns it needs, and let the sample preview and GPS route load on demand.
 - The coach's analysis is not copied onto the activity row. It is read from
   `activity_analyses` (general and program), and the athlete's comment, reply
   and reviewed flag from their own tables, when the feed is loaded.
+- Only the newest `MAX_ANALYZED_ACTIVITIES` (20) activities are analysed, while
+  every activity in the stored history is still returned; the plan and reply
+  prompts review that same recent window.
 
 ### Reading
 

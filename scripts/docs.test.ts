@@ -59,6 +59,11 @@ const REFERENCE_TEXTS = await Promise.all(
   ),
 );
 
+/** The spec paths AGENTS.md links, with any `./` prefix removed. */
+const AGENTS_SPEC_REFERENCES = new Set(
+  documentReferences(AGENTS).map((reference) => reference.replace(/^\.\//, "")),
+);
+
 const REFERENCES = [
   ...new Set(REFERENCE_TEXTS.flatMap(documentReferences).filter(namesFile)),
 ];
@@ -89,6 +94,17 @@ describe("document references", () => {
   it("keeps every referenced spec, ADR and benchmark file on disk", () => {
     // A broken reference is how a renamed or deleted document goes unnoticed.
     expect(MISSING_REFERENCES).toEqual([]);
+  });
+});
+
+describe("spec index", () => {
+  it("links every spec from AGENTS.md", () => {
+    // AGENTS.md is the agent's entry point: a spec the index omits is
+    // effectively invisible, so every file under `docs/specs` is linked.
+    const unlinked = SPEC_FILES.filter(
+      (file) => !AGENTS_SPEC_REFERENCES.has(file),
+    );
+    expect(unlinked).toEqual([]);
   });
 });
 
