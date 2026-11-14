@@ -202,7 +202,9 @@ one swappable corner, and normalizes Garmin activities into the shared
   credentials), `403` (MFA required, unsupported), `429` (Garmin rate limit),
   and `502` (upstream). The Bun routes pass those through instead of collapsing
   everything to `503`, and do it through the one `respondUpstreamError` mapper
-  (ADR 0035).
+  (ADR 0035). The one exception is the sidecar's `401`: a rejected Garmin login
+  is the athlete's connection, not their app session, so the API reports it as
+  `422` `garmin_auth_failed` (ADR 0036).
 - **Type normalization fix:** an activity type object without a `typeKey`
   previously produced a stringified dict; it now yields `"unknown"`.
 - **Sidecar tooling is excluded from JS lint/format** (`services/**/.venv`,

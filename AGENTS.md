@@ -459,7 +459,11 @@ made and recorded, and `docs/adrs/` for the accepted ones.
   OpenRouter extends `UpstreamError`, which owns the status (and, when it needs
   one, the code) it is reported with; a route answers its whole error path with
   `respondUpstreamError(c, err, label)` instead of matching provider classes.
-  See ADR 0035.
+  A third-party connection the athlete can fix is never `401`: only a request
+  without a usable app session answers that. A missing Garmin connection is
+  `409` `garmin_not_connected`, and a credential Garmin or OpenRouter rejects is
+  `422` `garmin_auth_failed` or `llm_key_invalid`, so the web's renew-and-retry
+  never fires for it. See ADR 0035 and ADR 0036.
 - Authenticated API reads go through `requestParsed` in
   `apps/web/src/fetchAuthed.ts`: it fetches with `fetchJsonAuthed`, validates the
   body against the shared schema, and throws one `ResponseValidationError`

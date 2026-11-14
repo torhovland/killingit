@@ -365,3 +365,11 @@ describe("complete", () => {
     );
   });
 });
+
+describe("error classes", () => {
+  it("reports a rejected key as a fixable connection failure", () => {
+    const err = new LlmAuthError("invalid OpenRouter API key");
+    expect(err.status).toBe(422);
+    expect(err.code).toBe("llm_key_invalid");
+  });
+});

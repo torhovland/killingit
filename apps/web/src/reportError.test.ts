@@ -37,7 +37,7 @@ describe("reportError", () => {
   it("does not report expected client errors", () => {
     spyOnCapture();
 
-    reportError(new ApiError("invalid Garmin credentials", 401));
+    reportError(new ApiError("invalid Garmin credentials", 422));
     reportError(new ApiError("Garmin requires MFA", 403));
 
     expect(captureException).not.toHaveBeenCalled();

@@ -17,6 +17,11 @@ export const apiErrorCodeSchema = z.enum([
   "bad_gateway",
   "service_unavailable",
   "internal_error",
+  // A third-party connection the athlete can fix. These are never a session
+  // failure, so a client must not answer one by renewing its own token.
+  "garmin_not_connected",
+  "garmin_auth_failed",
+  "llm_key_invalid",
 ]);
 
 export type ApiErrorCode = z.infer<typeof apiErrorCodeSchema>;

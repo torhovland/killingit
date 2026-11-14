@@ -1,5 +1,6 @@
 import {
   llmModelSchema,
+  type ApiErrorCode,
   type LlmCallUsage,
   type LlmModel,
   type LlmPromptKind,
@@ -18,16 +19,24 @@ const KEY_CHECK_TIMEOUT_MS = 15_000;
  * that carries no status of its own is reported as unavailable.
  */
 export class LlmProviderError extends UpstreamError {
-  constructor(message: string, status?: number, options?: { cause?: unknown }) {
+  constructor(
+    message: string,
+    status?: number,
+    options?: { code?: ApiErrorCode; cause?: unknown },
+  ) {
     super(message, { status, ...options });
     this.name = "LlmProviderError";
   }
 }
 
-/** Raised specifically for an invalid/revoked API key. */
+/**
+ * Raised specifically for an invalid or revoked API key. The athlete fixes it
+ * in Settings, so it is a `422` with `llm_key_invalid` rather than a `401` the
+ * client would retry. See ADR 0036.
+ */
 export class LlmAuthError extends LlmProviderError {
   constructor(message: string, options?: { cause?: unknown }) {
-    super(message, 401, options);
+    super(message, 422, { code: "llm_key_invalid", ...options });
     this.name = "LlmAuthError";
   }
 }

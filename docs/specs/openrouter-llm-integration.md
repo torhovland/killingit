@@ -69,8 +69,9 @@ Weather and daylight are included in the plan prompts; see
 ## Acceptance criteria
 
 1. With `LLM_CREDENTIALS_KEY` set, an athlete can save a valid OpenRouter key
-   and a model for their own account; an invalid key returns 401, an unknown
-   model returns 400, and the stored key is never serialized.
+   and a model for their own account; an invalid key returns `422` with
+   `llm_key_invalid` (not a `401`, which means the session), an unknown model
+   returns 400, and the stored key is never serialized.
 2. The model picker lists OpenRouter models; manual model entry works if the
    catalog request fails.
 3. With Garmin connected and OpenRouter configured, visiting the page syncs
@@ -126,8 +127,9 @@ Weather and daylight are included in the plan prompts; see
 ### API (`apps/api/src/llm/`)
 
 - `openrouter.ts` — `LlmProvider` implementation with injectable `fetch` for
-  tests. Maps 401 → `LlmAuthError`, 402 (no credits) → distinct message,
-  transport failures → 503. No SDK dependency.
+  tests. Maps 401 → `LlmAuthError` (reported to the client as `422`
+  `llm_key_invalid`, since the key is the athlete's to replace), 402 (no
+  credits) → distinct message, transport failures → 503. No SDK dependency.
 - `activityPrompt.ts` — aggregate stats per channel, even downsampling to 90
   samples (first/last kept), a compact `elapsed | channel…` table, the current
   week plan, and system instructions to match the activity to a planned session
@@ -184,7 +186,8 @@ Weather and daylight are included in the plan prompts; see
 - **Privacy:** activity timeseries (including heart rate) is sent to OpenRouter.
   This is required for LLM coaching and is an accepted risk for personal use.
 - **Availability:** OpenRouter or the chosen model being down shows per-activity
-  errors (or a 401/503 for key/transport failures) rather than blanking the app.
+  errors (or a `422` for a rejected key and `503` for transport failures)
+  rather than blanking the app.
 - **Long requests:** analysing a batch can exceed Bun's default 10s idle
   timeout. The server sets `idleTimeout: 255`; without it Bun closes the
   connection and the Vite dev proxy reports HTTP 502 even though analyses are

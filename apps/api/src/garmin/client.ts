@@ -3,6 +3,7 @@ import {
   garminDailyResponseSchema,
   garminMetricsResponseSchema,
   type Activity,
+  type ApiErrorCode,
   type GarminDailyResponse,
   type GarminMetricsResponse,
 } from "@killingit/shared";
@@ -10,21 +11,46 @@ import { UpstreamError } from "../http/errors.js";
 
 /**
  * Thrown when the Garmin sidecar rejects a request — either an authentication
- * failure (bad credentials) or some other error the sidecar surfaced. A failure
- * that carries no status of its own is reported as unavailable.
+ * failure (bad credentials) or some other error the sidecar surfaced. The
+ * failure carries the status it is reported with; one without a status of its
+ * own is reported as unavailable.
  */
 export class GarminSidecarError extends UpstreamError {
-  constructor(message: string, status?: number, options?: { cause?: unknown }) {
+  constructor(
+    message: string,
+    status?: number,
+    options?: { code?: ApiErrorCode; cause?: unknown },
+  ) {
     super(message, { status, ...options });
     this.name = "GarminSidecarError";
   }
 }
 
-/** Raised specifically for bad-credentials responses. */
+/**
+ * Raised when Garmin rejects the credentials the athlete stored. It is not a
+ * session failure: the athlete fixes it by updating the connection, so it is
+ * reported as `422` with `garmin_auth_failed` rather than an `401` a client
+ * would try to renew. See ADR 0036.
+ */
 export class GarminAuthError extends GarminSidecarError {
   constructor(message: string, options?: { cause?: unknown }) {
-    super(message, 401, options);
+    super(message, 422, { code: "garmin_auth_failed", ...options });
     this.name = "GarminAuthError";
+  }
+}
+
+/**
+ * Raised when the account has not connected Garmin yet. Like a rejected login,
+ * this asks the athlete to connect rather than to sign in again, so it is a
+ * `409` with its own code.
+ */
+export class GarminNotConnectedError extends UpstreamError {
+  constructor() {
+    super("Not connected to Garmin", {
+      status: 409,
+      code: "garmin_not_connected",
+    });
+    this.name = "GarminNotConnectedError";
   }
 }
 

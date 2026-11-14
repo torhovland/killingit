@@ -200,7 +200,13 @@ describe("per-user Garmin credentials", () => {
 
     const res = await app.fetch(request("/garmin/activities", "athlete-2"));
 
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({
+      error: {
+        code: "garmin_not_connected",
+        message: "Not connected to Garmin",
+      },
+    });
     expect(synced).toEqual([]);
   });
 
@@ -217,7 +223,13 @@ describe("per-user Garmin credentials", () => {
       }),
     );
 
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(422);
+    expect(await res.json()).toEqual({
+      error: {
+        code: "garmin_auth_failed",
+        message: "invalid Garmin credentials",
+      },
+    });
     expect(stored.size).toBe(0);
   });
 });
