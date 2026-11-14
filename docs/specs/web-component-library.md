@@ -41,7 +41,8 @@ The primitives live in `apps/web/src/components/`:
   primitive's default instead of duplicating it.
 
 Page components stay flat in `apps/web/src/` beside their tests; only shared
-primitives belong in `components/`. A page whose sections have outgrown one
+primitives belong in `components/`. Grouping the flat files by feature is
+tracked separately in issue #420. A page whose sections have outgrown one
 module may move those sections into a named directory: the coach plan's Day,
 Week, Block and Season sections and their shared pieces live in `plan/`, while
 the `CoachPlanView` tab shell stays flat; the OpenRouter model picker's catalog

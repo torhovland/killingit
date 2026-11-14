@@ -5,6 +5,7 @@ import { CoachPlanSection } from "./CoachPlanSection";
 import { CoachQuestionCard } from "./CoachQuestionCard";
 import { CoachingInputsSection } from "./CoachingInputsSection";
 import { pollCoachReplies } from "./coachReplyPoll";
+import { useCurrentUser } from "./CurrentUserProvider";
 import { FoodLogSection } from "./FoodLogSection";
 import { selectPendingActivities } from "./pendingActivities";
 import { PendingActivitiesSection } from "./PendingActivitiesSection";
@@ -19,19 +20,16 @@ import { Button } from "./components/Button";
 interface CoachDashboardProps {
   /** Increment when athlete answers change so the plan refreshes. */
   planRefreshKey: number;
-  /** Whether the athlete wants the food log and diet advice. */
-  dietAdvice: boolean;
 }
 
 /**
  * The main coaching page: activities that still need the athlete's attention,
  * the tabbed plan, and the coaching inputs that shape it.
  */
-export function CoachDashboard({
-  planRefreshKey,
-  dietAdvice,
-}: CoachDashboardProps) {
+export function CoachDashboard({ planRefreshKey }: CoachDashboardProps) {
   const auth = useAuth();
+  const { user } = useCurrentUser();
+  const dietAdvice = user?.dietAdvice ?? false;
   const { setStatus } = useAppStatus();
   const timeZone = useTimeZone();
   const statuses = useStatuses(auth);

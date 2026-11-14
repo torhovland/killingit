@@ -509,10 +509,22 @@ made and recorded, and `docs/adrs/` for the accepted ones.
   `apps/web/src/coachReplyPoll.ts`, which starts its next request only after the
   previous response settled, so slow responses cannot stack or apply out of
   order; see `docs/specs/coach-reply-polling.md`.
+- The signed-in account is owned by `CurrentUserProvider`
+  (`apps/web/src/CurrentUserProvider.tsx`): it loads `/api/me` through
+  `useApiResource`, exposes `user`, `loading`, `error`, `update(patch)` and
+  `reload()` through `useCurrentUser()`, and is the only module that reads or
+  patches `/api/me` apart from account deletion. Pages read it with the hook
+  instead of receiving it through `PageOutlet`, and a failed load renders
+  `CurrentUserLoadError` with a Retry that reloads it. The display time zone
+  stays in `AppShell` with its `timeZoneTouched` ref. A guard test,
+  `apps/web/src/currentUserAccess.test.ts`, fails a source module outside the
+  provider that names the route; see `docs/specs/current-user-provider.md` and
+  ADR 0052.
 - We build our own **component library** under `apps/web/src/components/`.
   `Button`, `Input`, `Textarea`, `Select`, `Card`, `Chip`, `HiddenFileInput`,
   `StatusBadge`, `CoachReply` and `Modal` are the primitives; page components
-  stay flat in `apps/web/src/` beside their tests, while a page's own sections
+  stay flat in `apps/web/src/` beside their tests (grouping the flat files by
+  feature is tracked in issue #420), while a page's own sections
   may move into a named directory (`plan/` holds the coach plan's tab sections,
   `llm/` the OpenRouter model picker's catalog, filters, table and save queue,
   and `calendar/` the calendar's grid, week overview, day cell and detail

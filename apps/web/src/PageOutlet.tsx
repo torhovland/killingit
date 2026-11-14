@@ -1,4 +1,3 @@
-import type { CurrentUser } from "@killingit/shared";
 import type { ReactNode } from "react";
 import { ActivitiesPage } from "./ActivitiesPage";
 import { AdminSettingsPage } from "./AdminSettingsPage";
@@ -17,15 +16,10 @@ export interface PageOutletProps {
   page: Page;
   /** Increment when athlete answers change so the plan refreshes. */
   planRefreshKey: number;
-  /** Whether the athlete wants the food log and diet advice. */
-  dietAdvice: boolean;
-  isAdmin: boolean;
+  /** The athlete's saved display zone; an account setting, not the page's. */
   timeZone: string | null;
-  user: CurrentUser | null;
-  onSurveyAnswersSaved: () => void;
   onTimeZoneChanged: (timeZone: string | null) => void;
-  onLocationChanged: (location: CurrentUser["location"]) => void;
-  onDietAdviceChanged: (dietAdvice: boolean) => void;
+  onSurveyAnswersSaved: () => void;
 }
 
 type PageRenderer = (props: PageOutletProps) => ReactNode;
@@ -33,13 +27,14 @@ type PageRenderer = (props: PageOutletProps) => ReactNode;
 /**
  * The single map from a page to its component. A new page adds one entry here
  * and one definition in `navigation.tsx`, and the type system then requires
- * both to exist.
+ * both to exist. The current user is not passed down: a page that needs it
+ * reads `useCurrentUser` itself.
  */
 const PAGE_RENDERERS: Record<Page, PageRenderer> = {
-  coach: ({ planRefreshKey, dietAdvice }) => (
-    <CoachDashboard planRefreshKey={planRefreshKey} dietAdvice={dietAdvice} />
+  coach: ({ planRefreshKey }) => (
+    <CoachDashboard planRefreshKey={planRefreshKey} />
   ),
-  diet: ({ dietAdvice }) => <DietPage dietAdvice={dietAdvice} />,
+  diet: () => <DietPage />,
   fitness: () => <FitnessPage />,
   calendar: () => <CalendarPage />,
   activities: () => <ActivitiesPage />,
@@ -48,24 +43,8 @@ const PAGE_RENDERERS: Record<Page, PageRenderer> = {
     <CoachingSurveyPage onAnswersSaved={onSurveyAnswersSaved} />
   ),
   costs: () => <CostsPage />,
-  settings: ({
-    timeZone,
-    user,
-    dietAdvice,
-    isAdmin,
-    onTimeZoneChanged,
-    onLocationChanged,
-    onDietAdviceChanged,
-  }) => (
-    <SettingsPage
-      timeZone={timeZone}
-      onTimeZoneChanged={onTimeZoneChanged}
-      location={user?.location ?? null}
-      onLocationChanged={onLocationChanged}
-      dietAdvice={dietAdvice}
-      onDietAdviceChanged={onDietAdviceChanged}
-      isAdmin={isAdmin}
-    />
+  settings: ({ timeZone, onTimeZoneChanged }) => (
+    <SettingsPage timeZone={timeZone} onTimeZoneChanged={onTimeZoneChanged} />
   ),
   admin: () => <AdminSettingsPage />,
 };

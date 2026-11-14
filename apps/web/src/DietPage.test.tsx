@@ -39,7 +39,16 @@ await mock.module("./useToday", () => ({
 
 const { DietPage } = await import("./DietPage");
 const { AppStatusProvider } = await import("./AppStatus");
+const { CurrentUserProvider } = await import("./CurrentUserProvider");
 const { TimeZoneProvider } = await import("./TimeZoneContext");
+
+const ATHLETE = {
+  sub: "athlete",
+  role: "member",
+  timezone: "Europe/Oslo",
+  location: null,
+  dietAdvice: true,
+};
 
 const DAY_ONE = "2026-03-02";
 const DAY_TWO = "2026-03-03";
@@ -144,11 +153,18 @@ async function flush(): Promise<void> {
 function page() {
   return (
     <AppStatusProvider>
-      <TimeZoneProvider timeZone="Europe/Oslo">
-        <DietPage dietAdvice />
-      </TimeZoneProvider>
+      <CurrentUserProvider>
+        <TimeZoneProvider timeZone="Europe/Oslo">
+          <DietPage />
+        </TimeZoneProvider>
+      </CurrentUserProvider>
     </AppStatusProvider>
   );
+}
+
+/** The diet summary requests, ignoring the account load beside them. */
+function summaryCalls(): FetchCall[] {
+  return calls.filter((call) => call.url.includes("/api/diet/summary"));
 }
 
 /**
@@ -179,6 +195,7 @@ describe("DietPage", () => {
     const user = userEvent.setup();
     let summaryLoads = 0;
     stubFetch({
+      "/api/me": () => Promise.resolve(json(ATHLETE)),
       "/api/diet/summary": () => {
         summaryLoads += 1;
         return Promise.resolve(
@@ -205,6 +222,7 @@ describe("DietPage", () => {
     const nextDay = deferred();
     let summaryLoads = 0;
     stubFetch({
+      "/api/me": () => Promise.resolve(json(ATHLETE)),
       [`/api/diet/summary?today=${DAY_TWO}`]: () => nextDay.promise,
       "/api/diet/summary": () => {
         summaryLoads += 1;
@@ -224,13 +242,13 @@ describe("DietPage", () => {
     );
 
     // The edit has already started reloading the first day's summary.
-    await waitFor(() => expect(calls).toHaveLength(3));
+    await waitFor(() => expect(summaryCalls()).toHaveLength(2));
 
     // The athlete's day changes while that reload is still in flight.
     todayOverride = DAY_TWO;
     rerender(page());
-    await waitFor(() => expect(calls).toHaveLength(4));
-    expect(calls[2]?.signal?.aborted).toBe(true);
+    await waitFor(() => expect(summaryCalls()).toHaveLength(3));
+    expect(summaryCalls()[1]?.signal?.aborted).toBe(true);
 
     await act(async () => {
       nextDay.resolve(json(summary(DAY_TWO, 1800)));

@@ -1,21 +1,18 @@
 import { useState } from "react";
-import { currentUserSchema } from "@killingit/shared";
-import { useAuth } from "./auth";
-import { requestParsed } from "./fetchAuthed";
 import { reportError } from "./reportError";
 
 /**
  * The diet-advice opt-in. The dashboard's food log and the food log in every
- * coach prompt are enabled only while this is on.
+ * coach prompt are enabled only while this is on. The page owns the
+ * current-user save; this section owns its progress and failure text.
  */
 export function DietSection({
   enabled,
-  onChanged,
+  onSave,
 }: {
   enabled: boolean;
-  onChanged: (enabled: boolean) => void;
+  onSave: (enabled: boolean) => Promise<void>;
 }) {
-  const auth = useAuth();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -23,18 +20,7 @@ export function DietSection({
     setSaving(true);
     setError(null);
     try {
-      const parsed = await requestParsed(
-        "/api/me",
-        auth,
-        currentUserSchema,
-        "Saving the diet advice setting",
-        {
-          method: "PATCH",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ dietAdvice: next }),
-        },
-      );
-      onChanged(parsed.dietAdvice);
+      await onSave(next);
     } catch (err: unknown) {
       setError(reportError(err));
     } finally {
