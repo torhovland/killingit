@@ -97,6 +97,29 @@ def test_to_activity_keeps_recorded_average_and_max_speed():
     assert activity["maxSpeed"] == 4.1
 
 
+def test_to_activity_keeps_the_recorded_average_heart_rate():
+    raw = {
+        "activityId": 42,
+        "activityName": "Morning Run",
+        "activityType": {"typeKey": "RUNNING"},
+        "startTimeGMT": datetime(2026, 10, 1, 4, 30, 0),
+        "averageHR": 150,
+        "avgHR": 148,
+    }
+    assert _to_activity(raw)["averageHeartRate"] == 150
+
+
+def test_to_activity_omits_an_absent_or_zero_average_heart_rate():
+    base = {
+        "activityId": 42,
+        "activityName": "Morning Run",
+        "activityType": {"typeKey": "RUNNING"},
+        "startTimeGMT": datetime(2026, 10, 1, 4, 30, 0),
+    }
+    assert "averageHeartRate" not in _to_activity(base)
+    assert "averageHeartRate" not in _to_activity({**base, "averageHR": 0})
+
+
 def test_to_activity_derives_average_speed_when_the_source_leaves_it_zero():
     # Indoor rowing records distance in some payloads but leaves averageSpeed
     # at zero, so the mean is derived from distance and moving time.

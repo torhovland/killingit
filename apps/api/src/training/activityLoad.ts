@@ -264,10 +264,28 @@ function intensityTrainingStressScore(
   );
 }
 
-/** Time-weighted mean heart rate from the recorded samples, when present. */
+/**
+ * The activity's mean heart rate: the source's recorded summary average when it
+ * has one, otherwise the time-weighted mean of the recorded samples.
+ *
+ * The stored sample list is a downsampled preview, so averaging it biases the
+ * result and gives nothing at all when the detail fetch failed. The summary is
+ * therefore authoritative and the preview only fills the gap left by an older
+ * stored activity that predates the summary field.
+ */
 export function activityAverageHeartRate(
   activity: AnalyzedActivity,
 ): number | null {
+  const recorded = activity.averageHeartRate;
+  if (
+    recorded !== null &&
+    recorded !== undefined &&
+    Number.isFinite(recorded) &&
+    recorded > 0
+  ) {
+    return recorded;
+  }
+
   const samples = activity.samples
     .filter(
       (sample) =>

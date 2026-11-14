@@ -52,7 +52,7 @@ These fields were present on most activities regardless of type.
 
 | Garmin field                                                     | Unit              | What it adds                                                                                                                | Observed                  |
 | ---------------------------------------------------------------- | ----------------- | --------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
-| `averageHR`, `maxHR`                                             | bpm               | Average and peak cardiovascular load. The app currently derives an average from samples only for TSS; it does not store it. | Yes                       |
+| `averageHR`, `maxHR`                                             | bpm               | Average and peak cardiovascular load. The average is now stored on the summary and scores heart-rate TSS; the peak is not.  | Yes                       |
 | `aerobicTrainingEffect`, `anaerobicTrainingEffect`               | 0–5 score         | Garmin's estimate of the aerobic and anaerobic training stimulus. Useful for judging whether an easy day was actually easy. | Yes                       |
 | `activityTrainingLoad`                                           | Garmin load units | Garmin's own load figure, useful as a cross-check against the app's TSS.                                                    | Yes                       |
 | `avgRespirationRate`, `minRespirationRate`, `maxRespirationRate` | breaths/min       | Breathing response during the session.                                                                                      | Yes                       |
@@ -65,7 +65,7 @@ These fields were present on most activities regardless of type.
 | `steps`                                                          | count             | Useful for runs, walks and hikes; not meaningful for rides.                                                                 | Yes                       |
 | `waterEstimated`                                                 | ml                | Fluid-loss estimate; interesting but not coaching-critical.                                                                 | Yes                       |
 
-**Recommendation: Tier 1.** Average/max heart rate, training effect, Garmin
+**Recommendation: Tier 1.** Maximum heart rate, training effect, Garmin
 training load, respiration, calories, temperature/elevation ranges and
 HR/power zone times are cheap to read, apply across sports, and directly inform
 the coach's recovery and intensity advice. They should be the next addition.

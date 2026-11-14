@@ -877,6 +877,7 @@ def _to_activity(
         if distance > 0 and duration > 0:
             average_speed = distance / duration
     max_speed = _first_positive(raw.get("maxSpeed"))
+    average_heart_rate = _first_positive(raw.get("averageHR"), raw.get("avgHR"))
 
     activity = {
         "id": int(raw.get("activityId") or 0),
@@ -893,6 +894,8 @@ def _to_activity(
         activity["averageSpeed"] = average_speed
     if max_speed is not None:
         activity["maxSpeed"] = max_speed
+    if average_heart_rate is not None:
+        activity["averageHeartRate"] = average_heart_rate
     if strength_sets:
         activity["strengthSets"] = strength_sets
     # A single lap only restates the whole activity, so it carries no interval

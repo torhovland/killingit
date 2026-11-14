@@ -99,6 +99,13 @@ For each session in the stored week (and next week), the resolved TSS is:
 
 Rest days score 0.
 
+An activity with no power uses its sport's pace or speed threshold first, then
+its heart-rate threshold. Heart-rate TSS comes from the activity summary's
+recorded average heart rate, so a downsampled sample preview cannot bias the
+mean and an activity whose timeseries fetch failed still scores. Only an
+activity stored before the summary carried the average falls back to the
+time-weighted mean of its sample preview.
+
 Each recorded activity also carries its own TSS, separate from the day's total.
 An activity with power is scored from that power; one without power uses its
 duration-based fallback. When no activity on a day has power and the coach gave
@@ -198,7 +205,8 @@ Shared (`@killingit/shared`):
 - `trainingLoad` (optional, nullable) on analyzed activities and manual
   activities; `activityTss` (optional, nullable) on analyzed activities carries
   the TSS credited to that activity alone.
-- `averagePower` and `normalizedPower` (optional) on activity summaries.
+- `averagePower`, `normalizedPower` and `averageHeartRate` (optional) on
+  activity summaries.
 - `trainingLoad.ts`: normalized power, power TSS, bike-workout TSS, daily
   exponentially weighted load, and a duration-based session estimate.
 
@@ -286,7 +294,8 @@ API:
 - API unit tests for the coach's metric reading (prompt and storage, fail-open,
   one value per date), the FTP timeline from stored points, power-vs-coach TSS
   resolution, the no-FTP case, clamping, block progression, and day/week
-  mirroring.
+  mirroring. A heart-rate TSS test pins the priority: the summary average wins
+  over the sample preview, and the preview is the fallback.
 - Prompt tests for the new contract fields and rules.
 - Web render tests for the FTP line and the load numbers in all three views.
 - A unit test for the manual-TSS aggregation: several entries on one day sum
