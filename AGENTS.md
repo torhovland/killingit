@@ -767,8 +767,10 @@ through a disciplined process:
   activity feed are required. The required preparation lives in
   `loadPlanGenerationContext` (`plans/generationContext.ts`), which checks the
   account's model before the Garmin sync so a missing key is reported without
-  syncing. See `docs/specs/api-dependency-wiring.md`,
-  `docs/specs/plan-input-loading.md` and ADR 0023.
+  syncing, and reads the stored plan through `loadValidatedPlan` so a row from
+  an older schema is rebuilt rather than advanced. See
+  `docs/specs/api-dependency-wiring.md`, `docs/specs/plan-input-loading.md` and
+  ADR 0023.
 - **Keep exported constants above exported functions.** Top-level `export const`
   declarations come before `export function` declarations in a module. The
   `local/consts-before-functions` ESLint rule enforces it, while preserving the

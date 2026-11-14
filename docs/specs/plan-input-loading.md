@@ -64,6 +64,13 @@ another account or without the stored plan would be wrong rather than merely
 thinner. An advisory failure leaves the prompt without that section, which is
 the same trade-off the reply context already makes.
 
+The stored plan is read through `loadValidatedPlan`, not through
+`PlanStore.load` directly. A row written under an older schema or by a partial
+write is treated as absent, so the run rebuilds the season instead of advancing
+a body the current contract cannot describe. A corrupt row is not a failed
+required read: it is reported once by the loader and the run continues without
+it.
+
 The stored writers — the period-review capture, the FTP and body-metric time
 series, the coach question and its clearing — are injectable too, but their own
 failure semantics stay with `generate.ts`, where storing a generated plan is
@@ -103,6 +110,8 @@ numbers at the call site.
   required loader fails the generation.
 - A run whose account has no model fails with the configuration message and
   never reaches the Garmin sync.
+- A run whose stored plan no longer matches the schema treats it as absent and
+  rebuilds the season instead of failing or re-saving the unusable body.
 - `trigger.test.ts` runs a whole plan run with every loader and writer in
   memory, so it never needs a database.
 - `bun run typecheck`, `bun run lint`, `bun run format`, `bun run test` and

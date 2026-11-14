@@ -234,19 +234,21 @@ computed from the stored plan, so the first visit after a rollover still starts
 a generation that persists the promotion and captures the ended period's
 review.
 
-Every route reads the stored plan through one loader (`loadValidatedPlan`) that
-checks the stored JSON against the current `coachPlanSchema`. A row written by
-an older schema or by a partial write is treated as absent so the client can
-regenerate it. The first read of that save logs the plan id, date, generation
-time and failing paths — never the plan body — so a corrupt row is visible in
-logs and Sentry without flooding them while the plan endpoint is polled.
+Every route and the plan run read the stored plan through one loader
+(`loadValidatedPlan`) that checks the stored JSON against the current
+`coachPlanSchema`. A row written by an older schema or by a partial write is
+treated as absent so the client can regenerate it, and a plan run rebuilds the
+season instead of advancing the unusable body. The first read of that save logs
+the plan id, date, generation time and failing paths — never the plan body — so a
+corrupt row is visible in logs and Sentry without flooding them while the plan
+endpoint is polled.
 
 ## Generation flow
 
 1. `POST` calls `plan_generations.begin`. If already running, return `202`.
-2. Load the stored plan, current answers, recent analysed activities, and the
-   LLM client. Fail the generation with a readable error if Garmin or OpenRouter
-   is not configured.
+2. Load the validated stored plan, current answers, recent analysed activities,
+   and the LLM client. Fail the generation with a readable error if Garmin or
+   OpenRouter is not configured.
 
    Activity analyses are coordinated per account. A dashboard reload and a plan
    run that overlap share one Garmin sync and one LLM analysis pass instead of
