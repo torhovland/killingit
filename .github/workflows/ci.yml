@@ -46,6 +46,28 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run check:unused
 
+  # Proves the artifacts the deploy builds, without publishing them. The deploy
+  # builds both images for linux/amd64 on this same runner, so no qemu is
+  # needed. Nothing is pushed and no registry is logged in to, and the Sentry
+  # build args and token stay unset so the API Dockerfile skips the upload.
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      # The root script runs each workspace's own build, so the web app's
+      # `vite build` runs here and not just its typecheck.
+      - name: Build every workspace
+        run: bun run build
+      # Fails on a Dockerfile that no longer installs from the lockfile, or on
+      # an API bundle whose sources the image does not copy.
+      - name: Build the API image
+        run: docker build --file apps/api/Dockerfile --tag killingit-api:ci .
+      - name: Build the Garmin sidecar image
+        run: docker build --file services/garmin/Dockerfile --tag killingit-garmin:ci services/garmin
+
   test:
     name: Test
     runs-on: ubuntu-latest

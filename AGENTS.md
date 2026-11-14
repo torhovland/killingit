@@ -846,7 +846,10 @@ through a disciplined process:
 7. **CI pipeline** (GitHub Actions, `.github/workflows/ci.yml`): these checks
    must pass before merge: typecheck, lint, format, unused exports, unit tests,
    database integration tests, the e2e suite, the Garmin sidecar's Python
-   checks, the contribution sign-off check, and the dependency-outdated check.
+   checks, the contribution sign-off check, the dependency-outdated check, and
+   the `build` job, which runs the web app's real `vite build` and builds both
+   Docker images without pushing so a broken bundle or Dockerfile fails CI
+   instead of the deploy; see `docs/specs/ci-build-job.md`.
 8. **Dependencies stay current.** CI fails the build when any dependency is
    outdated (`bun run outdated`). When that happens, update the outdated
    dependencies with `bun update`, verify typecheck/lint/format/tests still
