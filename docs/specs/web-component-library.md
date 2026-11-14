@@ -36,9 +36,10 @@ Page components stay flat in `apps/web/src/` beside their tests; only shared
 primitives belong in `components/`. A page whose sections have outgrown one
 module may move those sections into a named directory: the coach plan's Day,
 Week, Block and Season sections and their shared pieces live in `plan/`, while
-the `CoachPlanView` tab shell stays flat. A one-off control with genuinely
-unique styling may stay a plain element, but it must not repeat a primitive's
-base class string.
+the `CoachPlanView` tab shell stays flat; the OpenRouter model picker's catalog
+hook, filter bar, table and save queue live in `llm/`, while the `LlmSection`
+entry point stays flat. A one-off control with genuinely unique styling may
+stay a plain element, but it must not repeat a primitive's base class string.
 
 ## Usage rule
 

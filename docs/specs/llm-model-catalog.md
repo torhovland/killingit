@@ -128,7 +128,9 @@ to:
 The filter bar shows the three grade dropdowns first, then Include ungraded,
 then Include discouraged. Include ungraded only lets a `?` pass the grade it
 belongs to; a model with a `?` ability but an E cost is still hidden when the
-cost filter is B or above.
+cost filter is B or above. The three dropdowns are one `GradeSelect`, whose
+options come from `LLM_GRADES`; `isLlmModelGrade` validates a select's value
+instead of a cast trusting it.
 
 Sorting defaults to ability, then speed, then cost.
 
