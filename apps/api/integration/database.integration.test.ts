@@ -8,18 +8,23 @@ import {
   it,
 } from "bun:test";
 import type { Activity, CoachPlan } from "@killingit/shared";
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
+import { getTableConfig } from "drizzle-orm/pg-core";
 import {
   loadStoredActivities,
   loadStoredActivityFeed,
   saveStoredActivities,
 } from "../src/coaching/activityStore.js";
-import { db } from "../src/db/index.js";
+import { db, pool } from "../src/db/index.js";
 import {
   athleteMetrics,
+  athleteThresholds,
   coachPlans,
+  coachQuestions,
   coachingSurveyAdjustments,
   foodEntries,
+  manualActivities,
+  planDayCalories,
   users,
 } from "../src/db/schema.js";
 import { deleteImportedActivity } from "../src/coaching/deletions.js";
@@ -84,6 +89,15 @@ const ONE_SHORT_WORKOUT_WEEK: readonly (FixtureWorkout | null)[] = [
   null,
 ];
 
+/** The tables whose indexes this suite keeps in step with the schema. */
+const INDEXED_TABLES = [
+  athleteMetrics,
+  athleteThresholds,
+  coachQuestions,
+  manualActivities,
+  planDayCalories,
+];
+
 function postgresErrorCode(error: unknown): string | undefined {
   let current: unknown = error;
   for (let depth = 0; depth < 5 && current !== null; depth += 1) {
@@ -97,6 +111,15 @@ function postgresErrorCode(error: unknown): string | undefined {
     current = (current as { cause?: unknown }).cause;
   }
   return undefined;
+}
+
+/** Every index PostgreSQL reports for one public table, in name order. */
+async function listIndexes(table: string): Promise<string[]> {
+  const result = await pool.query<{ indexname: string }>(
+    "select indexname from pg_indexes where schemaname = 'public' and tablename = $1 order by indexname",
+    [table],
+  );
+  return result.rows.map((row) => row.indexname);
 }
 
 /**
@@ -174,6 +197,49 @@ describe("migrations", () => {
     ];
     for (const table of requiredTables) {
       expect(tables).toContain(table);
+    }
+  });
+
+  it("keeps one index for each column prefix and ordering the queries use", async () => {
+    // Each unique index already covers its table's shorter lookup, so a second
+    // index on the same prefix only adds write cost.
+    expect(await listIndexes("athlete_metrics")).toEqual([
+      "athlete_metrics_pkey",
+      "athlete_metrics_user_id_metric_date_idx",
+    ]);
+    expect(await listIndexes("athlete_thresholds")).toEqual([
+      "athlete_thresholds_pkey",
+      "athlete_thresholds_user_sport_measure_date_idx",
+    ]);
+    expect(await listIndexes("plan_day_calories")).toEqual([
+      "plan_day_calories_pkey",
+      "plan_day_calories_user_id_date_idx",
+    ]);
+
+    // These tables are read by account, so each has the lookup its queries
+    // need and the pending-question rule is a partial unique index.
+    expect(await listIndexes("manual_activities")).toEqual([
+      "manual_activities_pkey",
+      "manual_activities_user_id_idx",
+    ]);
+    expect(await listIndexes("coach_questions")).toEqual([
+      "coach_questions_pkey",
+      "coach_questions_user_id_created_at_idx",
+      "coach_questions_user_id_pending_idx",
+    ]);
+  });
+
+  it("keeps the schema's indexes and the migrated database in step", async () => {
+    for (const table of INDEXED_TABLES) {
+      const config = getTableConfig(table);
+      const declared = config.indexes
+        .map((index) => index.config.name)
+        .filter((name): name is string => name !== undefined)
+        .sort();
+      const migrated = (await listIndexes(config.name)).filter(
+        (name) => name !== `${config.name}_pkey`,
+      );
+      expect(migrated).toEqual(declared);
     }
   });
 });
@@ -1257,5 +1323,76 @@ describe("manual activity writes", () => {
     ).toBe(false);
     await updateManualActivityTss(other.id, id, 200);
     expect((await loadManualActivities(owner.id))[0]?.estimatedTss).toBe(96);
+  });
+
+  it("refuses a manual entry without a full date or non-blank details", async () => {
+    const user = await dbUserStore.ensureUser("auth0|manual-checks");
+
+    for (const input of [
+      { startDate: "2026-10-2", details: "An easy hour" },
+      { startDate: "2026-10-20", details: "   " },
+    ]) {
+      let code: string | undefined;
+      try {
+        await db.insert(manualActivities).values({ userId: user.id, ...input });
+      } catch (error) {
+        code = postgresErrorCode(error);
+      }
+      expect(code).toBe("23514");
+    }
+  });
+});
+
+describe("coach question constraints", () => {
+  it("allows at most one pending question per account", async () => {
+    const owner = await dbUserStore.ensureUser("auth0|pending-owner");
+    const other = await dbUserStore.ensureUser("auth0|pending-other");
+
+    const [pending] = await db
+      .insert(coachQuestions)
+      .values({
+        userId: owner.id,
+        question: "How did the long ride feel?",
+        sourceKind: "weekly_update",
+        model: "test-model",
+      })
+      .returning({ id: coachQuestions.id });
+    if (pending === undefined) {
+      throw new Error("failed to store the first pending question");
+    }
+
+    let duplicateCode: string | undefined;
+    try {
+      await db.insert(coachQuestions).values({
+        userId: owner.id,
+        question: "A second pending question?",
+        sourceKind: "daily_update",
+        model: "test-model",
+      });
+    } catch (error) {
+      duplicateCode = postgresErrorCode(error);
+    }
+    expect(duplicateCode).toBe("23505");
+
+    // The rule is per account, so another athlete still gets a question, and
+    // answering the first frees the slot for the next one.
+    await db.insert(coachQuestions).values({
+      userId: other.id,
+      question: "How is the knee?",
+      sourceKind: "activity_analysis",
+      model: "test-model",
+    });
+    await db
+      .update(coachQuestions)
+      .set({ answer: "Fine.", answeredAt: new Date() })
+      .where(eq(coachQuestions.id, pending.id));
+    await db.insert(coachQuestions).values({
+      userId: owner.id,
+      question: "Ready for the next block?",
+      sourceKind: "block_update",
+      model: "test-model",
+    });
+
+    expect(await countRows("coach_questions")).toBe(3);
   });
 });

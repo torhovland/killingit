@@ -26,6 +26,8 @@ or the plan-save transaction cannot pass CI while being broken at runtime.
      `heartbeat`, `finish`, `fail`) and a superseded run's late save;
    - question versioning, answer upserts and replacement, previous-response
      resolution, and survey adjustments;
+   - the index set of the tables issue #300 touched, plus the
+     `manual_activities` checks and the single-pending-question index;
    - `ON DELETE CASCADE` cleanup when an account is deleted.
 3. A dedicated CI job that starts PostgreSQL, applies the migrations through the
    suite itself, and runs the suite.

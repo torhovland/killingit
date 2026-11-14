@@ -712,8 +712,8 @@ through a disciplined process:
      Database-backed tests live in `apps/api/integration` and run with
      `bun run test:integration` against the docker-compose PostgreSQL. They
      apply every migration to an empty test database, truncate between tests,
-     and cover the stores, constraints, run fencing, and account-deletion
-     cascades. CI runs them in a separate `integration` job. See
+     and cover the stores, constraints, index parity, run fencing, and
+     account-deletion cascades. CI runs them in a separate `integration` job. See
      `docs/specs/database-integration-tests.md`.
    - **End-to-end tests** (Playwright) for critical user journeys.
      A focused suite in `apps/web/e2e` runs the real web app, API, database
