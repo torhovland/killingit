@@ -1,4 +1,5 @@
 import type { CoachPlan } from "@killingit/shared";
+import { PLAN_FAILED_MESSAGE, planFailureMessage } from "./failure.js";
 import { isGenerationSuperseded } from "./generation.js";
 import {
   captureEndedPeriodReviews,
@@ -103,15 +104,19 @@ export async function runPlanGeneration(
     if (isGenerationSuperseded(err) || input.signal?.aborted === true) {
       return null;
     }
-    const message =
-      err instanceof Error ? err.message : "The plan could not be generated.";
+    // The athlete sees a reason they can act on, while the prompt log keeps the
+    // raw detail for the admin. See ADR 0038.
     const startedAt = await input.generations.fail(
       input.userId,
-      message,
+      planFailureMessage(err),
       input.runId,
     );
     if (startedAt !== null) {
-      await input.markPromptsFailed?.(input.userId, startedAt, message);
+      await input.markPromptsFailed?.(
+        input.userId,
+        startedAt,
+        err instanceof Error ? err.message : PLAN_FAILED_MESSAGE,
+      );
     }
     throw err;
   }

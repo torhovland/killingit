@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, spyOn } from "bun:test";
 import type { LlmCatalogModel, LlmCostsResponse } from "@killingit/shared";
 import { keyFromRaw } from "../crypto/credentials.js";
 import { createApp } from "../index.js";
@@ -226,6 +226,44 @@ describe("PUT /llm/settings", () => {
     expect(saved).toHaveLength(1);
     expect(saved[0]?.seasonModel).toBe("test-model");
     expect(saved[0]?.dailyModel).toBe("new-model");
+  });
+
+  it("does not leak a credentials-key failure to the athlete", async () => {
+    const log = spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const app = makeApp(() => Promise.resolve(null), {
+        loadCatalog: () => Promise.resolve([catalogModel("test-model")]),
+        provider: fakeProvider,
+        credentialsKey: () =>
+          Promise.reject(
+            new Error(
+              "LLM_CREDENTIALS_KEY must be set to enable this integration",
+            ),
+          ),
+      });
+
+      const res = await app.fetch(
+        putSettingsRequest({
+          apiKey: "valid-key",
+          seasonModel: "test-model",
+          dailyModel: "test-model",
+        }),
+      );
+
+      expect(res.status).toBe(503);
+      const body = (await res.json()) as {
+        error: { code: string; message: string };
+      };
+      expect(body.error.code).toBe("service_unavailable");
+      expect(body.error.message).toBe(
+        "The coach is not available right now. Try again later.",
+      );
+      expect(JSON.stringify(body)).not.toContain("LLM_CREDENTIALS_KEY");
+      expect(log).toHaveBeenCalledTimes(1);
+      expect(String(log.mock.calls[0]?.[1])).toContain("LLM_CREDENTIALS_KEY");
+    } finally {
+      log.mockRestore();
+    }
   });
 
   it("rejects a key-only save before any models are stored", async () => {

@@ -1,11 +1,11 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, spyOn } from "bun:test";
 import type { FoodAnalysis } from "@killingit/shared";
 import { createApp } from "../index.js";
 import type { FoodAnalysisInput } from "../llm/foodPrompt.js";
 import type { createMealPhotos } from "../diet/thumbnail.js";
-import type { LlmClient } from "../llm/client.js";
+import { LlmModelChoiceError, type LlmClient } from "../llm/client.js";
 import type { PlanContextInput } from "../llm/planContext.js";
-import type { LlmProvider } from "../llm/openrouter.js";
+import { LlmAuthError, type LlmProvider } from "../llm/openrouter.js";
 import type { PlanStore, StoredPlan } from "../plans/store.js";
 import type { loadPlanDayCalorieTargets } from "../plans/dayCalories.js";
 import type {
@@ -304,9 +304,45 @@ describe("POST /api/diet/entries", () => {
     expect(res.status).toBe(400);
   });
 
-  it("keeps the meal when the coach cannot analyse it", async () => {
+  it("keeps the meal and hides an internal failure's message", async () => {
+    const log = spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const { app, store } = makeApp({
+        analyze: () =>
+          Promise.reject(new Error("relation food_entries does not exist")),
+      });
+      const res = await request(app, "/api/diet/entries", {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+
+      expect(res.status).toBe(201);
+      const entry = (await res.json()) as {
+        analysis: unknown;
+        analysisError: string | null;
+      };
+      expect(entry.analysis).toBeNull();
+      expect(entry.analysisError).toBe(
+        "Something went wrong on our side. Try again.",
+      );
+      expect(JSON.stringify(entry)).not.toContain("relation food_entries");
+      expect(store.rows).toHaveLength(1);
+      expect(store.rows[0]?.entry.analysisError).toBe(
+        "Something went wrong on our side. Try again.",
+      );
+      expect(log).toHaveBeenCalledTimes(1);
+      expect(String(log.mock.calls[0]?.[1])).toContain(
+        "relation food_entries does not exist",
+      );
+    } finally {
+      log.mockRestore();
+    }
+  });
+
+  it("keeps a provider message the athlete can act on", async () => {
     const { app, store } = makeApp({
-      analyze: () => Promise.reject(new Error("model unavailable")),
+      analyze: () =>
+        Promise.reject(new LlmAuthError("invalid OpenRouter API key")),
     });
     const res = await request(app, "/api/diet/entries", {
       method: "POST",
@@ -314,13 +350,26 @@ describe("POST /api/diet/entries", () => {
     });
 
     expect(res.status).toBe(201);
-    const entry = (await res.json()) as {
-      analysis: unknown;
-      analysisError: string | null;
-    };
-    expect(entry.analysis).toBeNull();
-    expect(entry.analysisError).toBe("model unavailable");
-    expect(store.rows).toHaveLength(1);
+    const entry = (await res.json()) as { analysisError: string | null };
+    expect(entry.analysisError).toBe("invalid OpenRouter API key");
+    expect(store.rows[0]?.entry.analysisError).toBe(
+      "invalid OpenRouter API key",
+    );
+  });
+
+  it("keeps a retired-model message", async () => {
+    const { app } = makeApp({
+      analyze: () =>
+        Promise.reject(new LlmModelChoiceError("Your daily model is retired.")),
+    });
+    const res = await request(app, "/api/diet/entries", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+
+    expect(res.status).toBe(201);
+    const entry = (await res.json()) as { analysisError: string | null };
+    expect(entry.analysisError).toBe("Your daily model is retired.");
   });
 
   it("stores an explanation when no model is configured", async () => {
@@ -513,33 +562,40 @@ describe("PATCH /api/diet/entries/:id", () => {
     expect(store.rows[0]?.entry.thumbnailDataUrl).toBe(generatedThumbnail);
   });
 
-  it("keeps the edited meal when the coach cannot analyse it", async () => {
+  it("keeps the edited meal and hides an internal analysis failure", async () => {
+    const log = spyOn(console, "error").mockImplementation(() => {});
     let calls = 0;
-    const { app, store } = makeApp({
-      analyze: () => {
-        calls += 1;
-        return calls === 1
-          ? Promise.resolve({ analysis, model: "test/model" })
-          : Promise.reject(new Error("model unavailable"));
-      },
-    });
-    const created = await createMeal(app);
+    try {
+      const { app, store } = makeApp({
+        analyze: () => {
+          calls += 1;
+          return calls === 1
+            ? Promise.resolve({ analysis, model: "test/model" })
+            : Promise.reject(new Error("model unavailable"));
+        },
+      });
+      const created = await createMeal(app);
 
-    const res = await request(app, `/api/diet/entries/${created.id}`, {
-      method: "PATCH",
-      body: JSON.stringify({ description: "A larger sandwich" }),
-    });
+      const res = await request(app, `/api/diet/entries/${created.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ description: "A larger sandwich" }),
+      });
 
-    expect(res.status).toBe(200);
-    const updated = (await res.json()) as {
-      description: string;
-      analysis: unknown;
-      analysisError: string | null;
-    };
-    expect(updated.description).toBe("A larger sandwich");
-    expect(updated.analysis).toBeNull();
-    expect(updated.analysisError).toBe("model unavailable");
-    expect(store.rows[0]?.entry.description).toBe("A larger sandwich");
+      expect(res.status).toBe(200);
+      const updated = (await res.json()) as {
+        description: string;
+        analysis: unknown;
+        analysisError: string | null;
+      };
+      expect(updated.description).toBe("A larger sandwich");
+      expect(updated.analysis).toBeNull();
+      expect(updated.analysisError).toBe(
+        "Something went wrong on our side. Try again.",
+      );
+      expect(store.rows[0]?.entry.description).toBe("A larger sandwich");
+    } finally {
+      log.mockRestore();
+    }
   });
 
   it("returns 404 for a meal that does not exist", async () => {

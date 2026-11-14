@@ -1,4 +1,5 @@
 import { loadLlmClient } from "../llm/client.js";
+import { planFailureMessage } from "../plans/failure.js";
 import {
   GenerationSupersededError,
   isGenerationSuperseded,
@@ -100,9 +101,9 @@ async function runCoachTurn(
     if (isGenerationSuperseded(err) || signal.aborted) {
       return;
     }
-    const message =
-      err instanceof Error ? err.message : "The coach could not finish.";
-    await deps.generations.fail(userId, message, runId);
+    // A provider failure names its own fix; anything else is internal, so the
+    // athlete gets a generic reason and the trigger logs the real one.
+    await deps.generations.fail(userId, planFailureMessage(err), runId);
     throw err;
   }
 }
