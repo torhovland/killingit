@@ -7,7 +7,8 @@ import type { UserStore } from "../users/store.js";
 import type { CoachingInputs } from "./inputs.js";
 import type { PlanGenerationStep } from "./steps.js";
 import { idleGenerationStatus } from "./store.js";
-import type { PlanGenerationStore, PlanStore } from "./store.js";
+import type { PlanGenerationStore, PlanStore, StoredPlan } from "./store.js";
+import { makePlan } from "../testFixtures/plan.js";
 import { isGenerationSuperseded } from "./generation.js";
 import { loadPlanGenerationContext } from "./generationContext.js";
 import {
@@ -349,6 +350,58 @@ describe("loadPlanGenerationContext", () => {
     expect(context?.surveyAdjustments).toEqual([]);
     expect(context?.activities).toEqual(emptyFeed);
     expect(context?.activitiesSnapshotAt).toBeGreaterThan(0);
+  });
+
+  it("treats a stored plan that fails the schema as absent", async () => {
+    const generations = new RecordingGenerationStore();
+    await generations.begin(run.userId, run.runId);
+    const stale = makePlan();
+    delete (stale.week as unknown as Record<string, unknown>).rationale;
+    const stored: StoredPlan = {
+      plan: stale,
+      answersUpdatedAt: null,
+      coachingInputsUpdatedAt: null,
+      activitiesUpdatedAt: null,
+      generatedAt: new Date("2026-11-10T08:00:00Z"),
+    };
+    const error = spyOn(console, "error").mockImplementation(() => {});
+    const deps = dependencies(generations, {
+      plans: {
+        load: () => Promise.resolve(stored),
+        save: () => Promise.resolve(null),
+      },
+    });
+
+    try {
+      const context = await loadPlanGenerationContext(deps, run);
+
+      expect(context?.plan).toBeNull();
+      expect(generations.failures).toEqual([]);
+    } finally {
+      error.mockRestore();
+    }
+  });
+
+  it("returns a stored plan that matches the schema", async () => {
+    const generations = new RecordingGenerationStore();
+    await generations.begin(run.userId, run.runId);
+    const stored: StoredPlan = {
+      plan: makePlan(),
+      answersUpdatedAt: null,
+      coachingInputsUpdatedAt: null,
+      activitiesUpdatedAt: null,
+      generatedAt: new Date("2026-11-11T08:00:00Z"),
+    };
+    const deps = dependencies(generations, {
+      plans: {
+        load: () => Promise.resolve(stored),
+        save: () => Promise.resolve(null),
+      },
+    });
+
+    const context = await loadPlanGenerationContext(deps, run);
+
+    expect(context?.plan).toEqual(stored);
   });
 
   it("fails the generation when a required input cannot be read", async () => {
