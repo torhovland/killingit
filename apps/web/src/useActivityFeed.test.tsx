@@ -1,10 +1,8 @@
-import { afterEach, describe, expect, it } from "bun:test";
-import { renderToStaticMarkup } from "react-dom/server";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type { AnalyzedActivitiesResponse } from "@killingit/shared";
-import {
-  saveCachedActivities,
-  type ActivityCacheStorage,
-} from "./activityCache";
+import { saveCachedActivities } from "./activityCache";
 import { AppStatusProvider } from "./AppStatus";
 import type { AuthState } from "./auth";
 import { useActivityFeed } from "./useActivityFeed";
@@ -18,12 +16,12 @@ const auth: AuthState = {
   getToken: () => Promise.resolve(undefined),
 };
 
-const feed: AnalyzedActivitiesResponse = {
-  model: null,
-  activities: [
-    {
-      id: 1,
-      name: "Morning Run",
+function feed(...names: string[]): AnalyzedActivitiesResponse {
+  return {
+    model: null,
+    activities: names.map((name, index) => ({
+      id: index + 1,
+      name,
       type: "running",
       startDate: "2026-10-01T06:30:00Z",
       distance: 5000,
@@ -37,56 +35,104 @@ const feed: AnalyzedActivitiesResponse = {
       programAnalysis: null,
       comment: null,
       coachReply: null,
-    },
-  ],
-};
-
-function memoryStorage(): ActivityCacheStorage {
-  const values = new Map<string, string>();
-  return {
-    getItem: (key) => values.get(key) ?? null,
-    setItem: (key, value) => {
-      values.set(key, value);
-    },
-    removeItem: (key) => {
-      values.delete(key);
-    },
+    })),
   };
 }
 
 function FeedProbe() {
   const feedState = useActivityFeed(auth, "Europe/Oslo");
   return (
-    <p>
-      {feedState.data?.activities.map((activity) => activity.name).join(",")}
-    </p>
+    <div>
+      <p data-testid="names">
+        {feedState.data === null
+          ? "none"
+          : feedState.data.activities
+              .map((activity) => activity.name)
+              .join(",")}
+      </p>
+      <p data-testid="syncing">{String(feedState.syncing)}</p>
+      <p data-testid="error">{feedState.error ?? "none"}</p>
+      <button type="button" onClick={() => void feedState.loadAnalyses()}>
+        Sync
+      </button>
+    </div>
   );
 }
 
-function render(): string {
-  return renderToStaticMarkup(
+function renderFeed() {
+  render(
     <AppStatusProvider>
       <FeedProbe />
     </AppStatusProvider>,
   );
 }
 
+const originalFetch = globalThis.fetch;
+
+beforeEach(() => {
+  localStorage.clear();
+});
+
+afterEach(() => {
+  globalThis.fetch = originalFetch;
+  localStorage.clear();
+});
+
 describe("useActivityFeed", () => {
-  afterEach(() => {
-    delete (globalThis as { localStorage?: Storage }).localStorage;
-  });
-
   it("seeds the feed from the account's browser cache", () => {
-    const storage = memoryStorage();
-    saveCachedActivities("user-1", feed, storage);
-    Object.assign(globalThis, { localStorage: storage });
+    saveCachedActivities("user-1", feed("Morning Run"));
 
-    expect(render()).toContain("Morning Run");
+    renderFeed();
+
+    expect(screen.getByTestId("names").textContent).toBe("Morning Run");
   });
 
   it("starts empty when the account has no cached feed", () => {
-    Object.assign(globalThis, { localStorage: memoryStorage() });
+    renderFeed();
 
-    expect(render()).toContain("<p></p>");
+    expect(screen.getByTestId("names").textContent).toBe("none");
+  });
+
+  it("replaces the feed with the live sync and caches it", async () => {
+    const user = userEvent.setup();
+    globalThis.fetch = (() =>
+      Promise.resolve(
+        new Response(JSON.stringify(feed("Morning Run", "Evening Ride")), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      )) as unknown as typeof fetch;
+    renderFeed();
+
+    await user.click(screen.getByRole("button", { name: "Sync" }));
+
+    expect(await screen.findByText("Morning Run,Evening Ride")).toBeDefined();
+    expect(screen.getByTestId("syncing").textContent).toBe("false");
+    const cached = localStorage.getItem("killingit.activities.v1:user-1");
+    expect(cached).toContain("Evening Ride");
+  });
+
+  it("shows a failed sync without losing the feed already on screen", async () => {
+    const user = userEvent.setup();
+    saveCachedActivities("user-1", feed("Morning Run"));
+    globalThis.fetch = (() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            error: { code: "internal_error", message: "Sync failed" },
+          }),
+          {
+            status: 500,
+            headers: { "content-type": "application/json" },
+          },
+        ),
+      )) as unknown as typeof fetch;
+    renderFeed();
+
+    await user.click(screen.getByRole("button", { name: "Sync" }));
+
+    expect(await screen.findByText("Sync failed")).toBeDefined();
+    expect(screen.getByTestId("names").textContent).toBe("Morning Run");
+    expect(screen.getByTestId("syncing").textContent).toBe("false");
   });
 });

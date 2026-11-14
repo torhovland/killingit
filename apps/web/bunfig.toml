@@ -1,0 +1,5 @@
+# Web unit tests render React components into a real DOM, so the runner needs
+# browser globals before any test module is imported. See
+# `docs/specs/web-interaction-tests.md`.
+[test]
+preload = ["./src/testSetup.ts"]

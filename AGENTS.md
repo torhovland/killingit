@@ -475,6 +475,14 @@ made and recorded, and `docs/adrs/` for the accepted ones.
   repeating a class string in a page. See
   `docs/specs/web-component-library.md`, `docs/specs/modal-dialog.md` and
   ADR 0027.
+- Web unit tests render components for real: `@testing-library/react` and
+  `@testing-library/user-event` run against `happy-dom`, registered as a
+  `bun:test` preload in `apps/web/bunfig.toml` with `src/testSetup.ts`. Effects,
+  clicks, typing, focus, Escape and dialogs are exercised in-process, so a test
+  that needs to observe state uses a render and a query instead of
+  `renderToStaticMarkup`; the static renderer is only for assertions about the
+  exact markup. Every `Modal` dialog, `useApiResource` load, race and abort has
+  such a test. See `docs/specs/web-interaction-tests.md`.
 - Every web hook is checked by `eslint-plugin-react-hooks`:
   `react-hooks/rules-of-hooks` and `react-hooks/exhaustive-deps` are errors in
   `eslint.config.js`. `useAuth` returns a stable session object, so an effect

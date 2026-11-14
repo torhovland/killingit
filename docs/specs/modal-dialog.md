@@ -33,9 +33,11 @@ one primitive so the behaviour cannot drift apart.
    opened, unless that element has since been removed.
 7. `CalendarEntryDialog` and `DeleteAccountSectionView` render through `Modal`
    and stop carrying their own overlay, Escape handler and `autoFocus`.
-8. The Tab-wrapping decision lives in a pure `trappedFocusIndex` helper so it
-   is unit tested; Escape, wrap-around and focus restore are asserted in the
-   Playwright suite.
+8. The Tab-wrapping decision lives in a pure `trappedFocusIndex` helper, and
+   the mounted dialog's focus capture, wrap-around, Escape, backdrop close and
+   focus restore are covered by Testing Library interaction tests; the
+   Playwright suite still covers the same keys through the real calendar and
+   delete flows. See `docs/specs/web-interaction-tests.md`.
 
 ### Out of scope
 
