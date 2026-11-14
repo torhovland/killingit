@@ -9,6 +9,7 @@ import type { PlanGenerationStep } from "./steps.js";
 import { idleGenerationStatus } from "./store.js";
 import type { PlanGenerationStore, PlanStore, StoredPlan } from "./store.js";
 import { makePlan } from "../testFixtures/plan.js";
+import { PLAN_FAILED_MESSAGE } from "./failure.js";
 import { isGenerationSuperseded } from "./generation.js";
 import { loadPlanGenerationContext } from "./generationContext.js";
 import {
@@ -227,8 +228,9 @@ describe("plan generation failure handling", () => {
     await settle();
 
     expect(generations.status.status).toBe("error");
-    expect(generations.status.error).toBe("reading failed");
-    expect(generations.failures).toEqual(["reading failed"]);
+    // The athlete sees a generic reason; the raw failure is in the log.
+    expect(generations.status.error).toBe(PLAN_FAILED_MESSAGE);
+    expect(generations.failures).toEqual([PLAN_FAILED_MESSAGE]);
   });
 
   it("plans on when an advisory input cannot be read", async () => {
@@ -420,7 +422,9 @@ describe("loadPlanGenerationContext", () => {
     }
 
     expect((failed as Error).message).toBe("coaching inputs unavailable");
-    expect(generations.failures).toEqual(["coaching inputs unavailable"]);
+    // The thrown error keeps the detail for the caller; the stored reason does
+    // not. See ADR 0038.
+    expect(generations.failures).toEqual([PLAN_FAILED_MESSAGE]);
   });
 
   it("reports a superseded run instead of failing the row", async () => {

@@ -8,7 +8,11 @@ import { z } from "zod";
 import { zValidator } from "../http/validation.js";
 import { getUser } from "../auth/middleware.js";
 import type { ResolvedAppDependencies } from "../dependencies.js";
-import { respondUpstreamError, serviceUnavailable } from "../http/errors.js";
+import {
+  athleteFailureMessage,
+  respondUpstreamError,
+  serviceUnavailable,
+} from "../http/errors.js";
 import {
   authenticateGarmin,
   GarminNotConnectedError,
@@ -49,7 +53,16 @@ export function createGarminRoute(deps: ResolvedAppDependencies): Hono {
       try {
         key = await garminCredentialsKeyFromEnv();
       } catch (err) {
-        return serviceUnavailable(c, (err as Error).message);
+        // A missing or invalid key names an environment secret, which is an
+        // operator detail; the athlete gets a generic answer and the log keeps
+        // the real reason.
+        return serviceUnavailable(
+          c,
+          athleteFailureMessage(err, {
+            fallback: "Garmin is not available right now. Try again later.",
+            logLabel: "[garmin] credentials key failure",
+          }),
+        );
       }
 
       // Validate with Garmin before persisting anything, so bad credentials

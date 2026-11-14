@@ -12,6 +12,7 @@ import {
   MemoryGenerationStore,
   MemoryPlanStore,
 } from "../testFixtures/generationHarness.js";
+import { PLAN_FAILED_MESSAGE } from "./failure.js";
 import { runPlanGeneration } from "./generate.js";
 
 describe("runPlanGeneration", () => {
@@ -136,6 +137,9 @@ describe("runPlanGeneration", () => {
 
     expect((failure as Error).message).toContain("wrong date");
     expect(generations.status.status).toBe("error");
+    // The athlete sees a generic reason; the raw detail stays in the prompt log
+    // for the admin. See ADR 0038.
+    expect(generations.status.error).toBe(PLAN_FAILED_MESSAGE);
     expect(marked).toHaveLength(1);
     expect(marked[0]?.userId).toBe(1);
     expect(marked[0]?.error).toContain("wrong date");
@@ -164,7 +168,8 @@ describe("runPlanGeneration", () => {
     expect(failure).toBeInstanceOf(Error);
     expect((failure as Error).message).toBe("no response configured");
     expect(generations.status.status).toBe("error");
-    expect(generations.status.error).toBe("no response configured");
+    expect(generations.status.error).toBe(PLAN_FAILED_MESSAGE);
+    expect(generations.status.error).not.toContain("no response configured");
   });
 
   it("stops without saving or failing when a newer run took over", async () => {

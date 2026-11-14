@@ -14,6 +14,7 @@ import { zValidator } from "../http/validation.js";
 import { Hono } from "hono";
 import { getUser } from "../auth/middleware.js";
 import {
+  athleteFailureMessage,
   badRequest,
   conflict,
   notFound,
@@ -40,6 +41,9 @@ import { createMealPhotos } from "../diet/thumbnail.js";
 /** The reported reason when no provider is configured. */
 const NO_LLM_ERROR =
   "The coach needs an OpenRouter key and model. Add them in Settings, then save the meal again.";
+
+/** The reported reason when the analysis failed on something internal. */
+const FOOD_ANALYSIS_ERROR = "Something went wrong on our side. Try again.";
 
 /** How far back the summary looks when the athlete has logged nothing. */
 const EMPTY_SUMMARY_DAYS = 30;
@@ -126,14 +130,15 @@ async function analyseMeal(
       analysisError: null,
     };
   } catch (err) {
-    console.error("[diet] food analysis failed:", err);
+    // The stored reason is shown on the Diet page and read by the next prompt,
+    // so only an athlete-facing failure keeps its own message.
     return {
       analysis: null,
       model: null,
-      analysisError:
-        err instanceof Error
-          ? err.message
-          : "The coach could not analyse this meal.",
+      analysisError: athleteFailureMessage(err, {
+        fallback: FOOD_ANALYSIS_ERROR,
+        logLabel: "[diet] food analysis failure",
+      }),
     };
   }
 }

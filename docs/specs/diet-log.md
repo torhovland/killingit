@@ -82,7 +82,11 @@ display zone can change later.
   training load and recent food log.
 
 The analysis runs synchronously when the meal is saved. A failed analysis is
-kept as `analysisError` and the meal is still logged.
+kept as `analysisError` and the meal is still logged. The stored reason goes
+through `athleteFailureMessage`: a failure the athlete can act on keeps its own
+message (an invalid key, insufficient credits, a retired model), while a database
+or other internal failure is logged server-side and stored as a generic sentence. The Diet page shows the stored reason and a later analysis receives it
+as context, so neither can receive a stack-level message. See ADR 0038.
 
 ## Editing and re-assessment
 
