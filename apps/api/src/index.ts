@@ -16,8 +16,8 @@ import { LlmModelChoiceError } from "./llm/client.js";
 import { dbPlanGenerationStore, dbPlanStore } from "./plans/store.js";
 import { dbQuestionAnswerStore } from "./questions/answers.js";
 import { dbCoachingSurveyAdjustmentStore } from "./questions/adjustments.js";
-import { adminQuestionsRoute } from "./routes/adminQuestions.js";
 import { createAdminLlmCallsRoute } from "./routes/adminLlmCalls.js";
+import { createAdminQuestionsRoute } from "./routes/adminQuestions.js";
 import { createCalendarRoute } from "./routes/calendar.js";
 import { createCoachingRoute } from "./routes/coaching/index.js";
 import { createDietRoute } from "./routes/diet.js";
@@ -126,12 +126,12 @@ export function createApp(options: AppDependencies = {}): Hono {
 
   // Garmin integration is authenticated and per-user. Credentials are never
   // serialized in responses.
-  api.route("/garmin", createGarminRoute());
+  api.route("/garmin", createGarminRoute(deps.garmin));
 
   // LLM provider configuration (API key + model) and model discovery, per
   // account. The key is validated, encrypted at rest, and never serialized back
   // to the client.
-  api.route("/llm", createLlmRoute());
+  api.route("/llm", createLlmRoute(deps.llm));
 
   // Address search for the athlete's home location. The actual forecast is
   // fetched during plan generation, not exposed as a public route.
@@ -160,7 +160,7 @@ export function createApp(options: AppDependencies = {}): Hono {
   // Admin-only configuration. Only the admin (the first account in the
   // environment) may manage the versioned athlete question set (ADR 0006).
   api.use("/admin/*", requireAdmin());
-  api.route("/admin/questions", adminQuestionsRoute);
+  api.route("/admin/questions", createAdminQuestionsRoute(deps.adminQuestions));
   api.route("/admin/llm-calls", createAdminLlmCallsRoute(deps.adminLlmCalls));
 
   app.route("/api", api);

@@ -23,10 +23,14 @@ factory needed under `exactOptionalPropertyTypes`.
   table in `apps/api/src/index.ts` reads as a list.
 - Those route factories accept `ResolvedAppDependencies` and apply their own
   production default with `?? ` when they consume an optional injectable.
-- The Garmin and LLM routes keep their local hook interfaces because their
-  tests drive the factories directly with a transport stub; neither needs a
-  shared-context field, because the account comes from the auth middleware and
-  `getUser(c)`.
+- The Garmin, LLM and admin-question routes keep their local hook interfaces as
+  nested bags (`garmin`, `llm`, `adminQuestions`) instead of flattening every
+  hook onto the shared surface. `createApp` forwards each bag to its factory —
+  `createGarminRoute(deps.garmin)`, `createLlmRoute(deps.llm)`,
+  `createAdminQuestionsRoute(deps.adminQuestions)` — so a test drives any of
+  them through `createApp`, while their own tests can still build the factory
+  directly with a transport stub. None of these bags carries a store: the
+  account comes from the auth middleware and `getUser(c)`.
 - The coaching route still resolves its short handler names and the plan-run
   bundle in `routes/coaching/dependencies.ts`, but it does so from the shared
   context instead of a second dependency interface.
@@ -36,6 +40,9 @@ factory needed under `exactOptionalPropertyTypes`.
 - Do not declare a per-route dependency interface or conditionally spread
   dependency fields. Forward the field directly; the consumer applies the
   default.
+- A route with its own hook interface keeps it as one optional nested bag on
+  `AppDependencies` (as `adminLlmCalls` does) and receives that bag from
+  `createApp`. The bag is forwarded whole, never spread field by field.
 - Adding an injectable means adding it to `AppDependencies` and using it in the
   route. If plan generation needs it, also add it to the mapping in
   `dependencies.ts` and to `PlanTriggerDependencies`.
@@ -56,4 +63,6 @@ factory needed under `exactOptionalPropertyTypes`.
 
 - Adding an injectable touches at most two files.
 - Route wiring in `createApp` and the plan-run mapping are readable lists.
+- Every route's injectable is reachable by passing it to `createApp`; no route
+  is built from a module constant.
 - Existing route tests pass unchanged.
