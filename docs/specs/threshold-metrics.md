@@ -44,7 +44,14 @@ points of the reported measures and writes the new ones in one transaction,
 using one batched insert per table; a failed write keeps the athlete's previous
 values and no reader sees the series between the delete and the insert.
 `recordCoachThreshold` likewise deletes the superseded coach estimates and
-inserts the new one in the same transaction.
+inserts the new one in the same transaction. A batch of plan estimates is
+applied in one transaction: the earliest estimate of the batch removes the
+stale coach projection after it, and every estimate is written by one insert.
+
+The source precedence of every measured write is the conflict branch of that
+insert: an upsert updates only a day whose stored source is not the stronger
+one, so a `user` or Garmin measurement is never replaced and no read of the
+stored day can race a concurrent writer.
 
 The extractor returns dated statements with a `thresholds` array. A threshold
 with a null sport is not stored; instead the coach asks which sport it is for.

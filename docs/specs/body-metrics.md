@@ -78,8 +78,11 @@ athlete measurements are never deleted.
   `functionalThresholdPower` records. A failed FTP fetch leaves the body
   measurements intact.
 - The API stores body values with source `garmin`; FTP samples are also stored
-  with source `garmin` so a newer coach estimate never deletes them. A failed
-  metrics sync is logged and never fails the activity feed.
+  with source `garmin` so a newer coach estimate never deletes them. One sync
+  writes each table with one statement: the stored day is kept when the athlete
+  already supplied it, and the conflict branch checks that instead of reading
+  the day before writing. A failed metrics sync is logged and never fails the
+  activity feed.
 - `GET /api/garmin/activities` and the activity feed both refresh metrics.
 
 ### FTP series

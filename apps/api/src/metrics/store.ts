@@ -11,7 +11,7 @@ import {
   type MetricSource,
   type ThresholdSummary,
 } from "@killingit/shared";
-import { and, asc, eq, gt, inArray, or, sql } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, notInArray, or, sql } from "drizzle-orm";
 import { db } from "../db/index.js";
 import {
   athleteMetrics,
@@ -30,6 +30,24 @@ import {
 /** The shared connection or one transaction on it, so a rewrite can be atomic. */
 type DbExecutor =
   typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/** One dated body-metric value in a batched write. */
+type MetricWrite = {
+  metric: AthleteMetric;
+  date: string;
+  value: number;
+};
+
+/** One dated threshold value in a batched write. */
+type ThresholdWrite = {
+  sport: string;
+  measure: string;
+  label: string;
+  unit: string;
+  kind: AthleteThresholdStatement["kind"];
+  date: string;
+  value: number;
+};
 
 /** Loads one body metric's stored points, oldest first. */
 export async function loadMetricPoints(
@@ -76,9 +94,7 @@ export async function loadThresholdPoints(
 /**
  * Stores a coach threshold estimate and discards older coach estimates that
  * fall after it. Athlete measurements are never removed. The same day is left
- * untouched when the athlete or Garmin already supplied a value there. The
- * delete and the insert are one transaction, so a failed write keeps the
- * estimates it was about to replace.
+ * untouched when the athlete or Garmin already supplied a value there.
  */
 export async function recordCoachThreshold(input: {
   userId: number;
@@ -90,31 +106,8 @@ export async function recordCoachThreshold(input: {
   date: string;
   value: number;
 }): Promise<void> {
-  await db.transaction(async (tx) => {
-    await tx
-      .delete(athleteThresholds)
-      .where(
-        and(
-          eq(athleteThresholds.userId, input.userId),
-          eq(athleteThresholds.sport, input.sport),
-          eq(athleteThresholds.measure, input.measure),
-          eq(athleteThresholds.source, "coach"),
-          gt(athleteThresholds.date, input.date),
-        ),
-      );
-    await recordThreshold(tx, {
-      userId: input.userId,
-      date: input.date,
-      sport: input.sport,
-      measure: input.measure,
-      label: input.label,
-      unit: input.unit,
-      kind: input.kind,
-      value: input.value,
-      source: "coach",
-      keepSources: ["user", "garmin"],
-    });
-  });
+  const { userId, ...estimate } = input;
+  await recordCoachThresholds(userId, [estimate]);
 }
 
 /** Stores a coach cycling FTP estimate, the legacy power-specific entry point. */
@@ -136,14 +129,64 @@ export async function recordPlanFtpEstimates(
   userId: number,
   estimates: readonly { date: string; watts: number }[],
 ): Promise<void> {
-  const sorted = [...estimates].sort((a, b) => a.date.localeCompare(b.date));
-  for (const estimate of sorted) {
-    await recordCoachFtp({
-      userId,
+  const writes = [...estimates]
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map((estimate) => ({
+      ...FTP_THRESHOLD,
       date: estimate.date,
-      watts: estimate.watts,
-    });
+      value: estimate.watts,
+    }));
+  await recordCoachThresholds(userId, writes);
+}
+
+/**
+ * Stores a batch of coach threshold estimates and discards older coach
+ * estimates that fall after the earliest estimate of the batch, which is what
+ * applying the batch oldest first removes. The delete and the batched insert
+ * are one transaction, so a failed write keeps the estimates it was about to
+ * replace and no reader sees the series between the two.
+ */
+async function recordCoachThresholds(
+  userId: number,
+  writes: readonly ThresholdWrite[],
+): Promise<void> {
+  if (writes.length === 0) {
+    return;
   }
+  const earliest = new Map<
+    string,
+    Pick<AthleteThreshold, "sport" | "measure" | "date">
+  >();
+  for (const write of writes) {
+    const sport = activitySport(write.sport);
+    const measure = normalizeMeasure(write.measure);
+    const key = `${sport}\u0000${measure}`;
+    const current = earliest.get(key);
+    if (current === undefined || write.date < current.date) {
+      earliest.set(key, { sport, measure, date: write.date });
+    }
+  }
+
+  await db.transaction(async (tx) => {
+    await tx
+      .delete(athleteThresholds)
+      .where(
+        and(
+          eq(athleteThresholds.userId, userId),
+          eq(athleteThresholds.source, "coach"),
+          or(
+            ...[...earliest.values()].map((estimate) =>
+              and(
+                eq(athleteThresholds.sport, estimate.sport),
+                eq(athleteThresholds.measure, estimate.measure),
+                gt(athleteThresholds.date, estimate.date),
+              ),
+            ),
+          ),
+        ),
+      );
+    await recordThresholdBatch(tx, userId, "coach", ["user", "garmin"], writes);
+  });
 }
 
 /**
@@ -154,19 +197,24 @@ export async function recordGarminBodyMetrics(
   userId: number,
   samples: readonly GarminBodyMetricSample[],
 ): Promise<void> {
+  const writes: MetricWrite[] = [];
   for (const sample of samples) {
     if (sample.weightKg !== undefined) {
-      await recordGarminMetric(userId, "weight", sample.date, sample.weightKg);
+      writes.push({
+        metric: "weight",
+        date: sample.date,
+        value: sample.weightKg,
+      });
     }
     if (sample.bodyFatPercent !== undefined) {
-      await recordGarminMetric(
-        userId,
-        "body_fat",
-        sample.date,
-        sample.bodyFatPercent,
-      );
+      writes.push({
+        metric: "body_fat",
+        date: sample.date,
+        value: sample.bodyFatPercent,
+      });
     }
   }
+  await recordMetricBatch(db, userId, "garmin", ["user"], writes);
 }
 
 /**
@@ -178,32 +226,17 @@ export async function recordGarminFtp(
   userId: number,
   samples: readonly GarminFtpSample[],
 ): Promise<void> {
-  for (const sample of samples) {
-    await recordThreshold(db, {
-      userId,
+  await recordThresholdBatch(
+    db,
+    userId,
+    "garmin",
+    ["user"],
+    samples.map((sample) => ({
       ...FTP_THRESHOLD,
       date: sample.date,
       value: sample.watts,
-      source: "garmin",
-      keepSources: ["user"],
-    });
-  }
-}
-
-async function recordGarminMetric(
-  userId: number,
-  metric: AthleteMetric,
-  date: string,
-  value: number,
-): Promise<void> {
-  await recordMeasuredMetric({
-    userId,
-    metric,
-    date,
-    value,
-    source: "garmin",
-    keepSources: ["user"],
-  });
+    })),
+  );
 }
 
 /**
@@ -217,83 +250,61 @@ export async function recordCoachBodyMetrics(
   points: readonly BodyMetricEstimate[],
   throughDate?: string,
 ): Promise<void> {
+  const writes: MetricWrite[] = [];
   for (const point of points) {
     if (throughDate !== undefined && point.date > throughDate) {
       continue;
     }
     if (point.weightKg !== null) {
-      await recordMeasuredMetric({
-        userId,
+      writes.push({
         metric: "weight",
         date: point.date,
         value: point.weightKg,
-        source: "coach",
-        keepSources: ["user", "garmin"],
       });
     }
     if (point.bodyFatPercent !== null) {
-      await recordMeasuredMetric({
-        userId,
+      writes.push({
         metric: "body_fat",
         date: point.date,
         value: point.bodyFatPercent,
-        source: "coach",
-        keepSources: ["user", "garmin"],
       });
     }
   }
+  await recordMetricBatch(db, userId, "coach", ["user", "garmin"], writes);
 }
 
 /**
- * Whether an incoming measurement may replace the value already stored for a
- * day. A source listed in `keepSources` is a stronger measurement and wins, so
- * an athlete-stated value is never overwritten by a Garmin sync or a coach
- * estimate.
+ * Writes a batch of body-metric values in one statement. The conflict branch
+ * updates only a day a stronger source (`keepSources`) does not already hold,
+ * so the database decides precedence and no read that another writer can
+ * invalidate sits before the write. A day the batch names twice keeps its last
+ * value, which is the one a sequential write would leave.
  */
-export function shouldRecordSource(
-  current: MetricSource | undefined,
+async function recordMetricBatch(
+  executor: DbExecutor,
+  userId: number,
+  source: MetricSource,
   keepSources: readonly MetricSource[],
-): boolean {
-  return current === undefined || !keepSources.includes(current);
-}
-
-/**
- * Writes one metric value unless a stronger source already holds that day. A
- * stronger value (`keepSources`) is never replaced by this one.
- */
-async function recordMeasuredMetric(input: {
-  userId: number;
-  metric: AthleteMetric;
-  date: string;
-  value: number;
-  source: MetricSource;
-  keepSources: readonly MetricSource[];
-}): Promise<void> {
-  const existing = await db
-    .select({ source: athleteMetrics.source })
-    .from(athleteMetrics)
-    .where(
-      and(
-        eq(athleteMetrics.userId, input.userId),
-        eq(athleteMetrics.metric, input.metric),
-        eq(athleteMetrics.date, input.date),
-      ),
-    )
-    .limit(1);
-  const current = existing[0];
-  if (!shouldRecordSource(current?.source, input.keepSources)) {
+  writes: readonly MetricWrite[],
+): Promise<void> {
+  const now = new Date();
+  const rows = new Map<string, NewAthleteMetricRow>();
+  for (const write of writes) {
+    rows.set(`${write.metric}\u0000${write.date}`, {
+      userId,
+      metric: write.metric,
+      source,
+      date: write.date,
+      value: write.value,
+      updatedAt: now,
+    });
+  }
+  if (rows.size === 0) {
     return;
   }
-  await db
+  await executor
     .insert(athleteMetrics)
-    .values({
-      userId: input.userId,
-      metric: input.metric,
-      source: input.source,
-      date: input.date,
-      value: input.value,
-      updatedAt: new Date(),
-    })
+    .values([...rows.values()])
     .onConflictDoUpdate({
       target: [
         athleteMetrics.userId,
@@ -301,61 +312,50 @@ async function recordMeasuredMetric(input: {
         athleteMetrics.date,
       ],
       set: {
-        source: input.source,
-        value: input.value,
-        updatedAt: new Date(),
+        source,
+        value: sql`excluded.value`,
+        updatedAt: now,
       },
+      where: notInArray(athleteMetrics.source, [...keepSources]),
     });
 }
 
-/** Writes one threshold value unless a stronger source holds that day. */
-async function recordThreshold(
+/**
+ * Writes a batch of threshold values in one statement under the same
+ * precedence rule as {@link recordMetricBatch}: a sport measure and day a
+ * stronger source holds keeps its stored value.
+ */
+async function recordThresholdBatch(
   executor: DbExecutor,
-  input: {
-    userId: number;
-    date: string;
-    sport: string;
-    measure: string;
-    label: string;
-    unit: string;
-    kind: AthleteThresholdStatement["kind"];
-    value: number;
-    source: MetricSource;
-    keepSources: readonly MetricSource[];
-  },
+  userId: number,
+  source: MetricSource,
+  keepSources: readonly MetricSource[],
+  writes: readonly ThresholdWrite[],
 ): Promise<void> {
-  const sport = activitySport(input.sport);
-  const measure = normalizeMeasure(input.measure);
-  const existing = await executor
-    .select({ source: athleteThresholds.source })
-    .from(athleteThresholds)
-    .where(
-      and(
-        eq(athleteThresholds.userId, input.userId),
-        eq(athleteThresholds.sport, sport),
-        eq(athleteThresholds.measure, measure),
-        eq(athleteThresholds.date, input.date),
-      ),
-    )
-    .limit(1);
-  const current = existing[0];
-  if (!shouldRecordSource(current?.source, input.keepSources)) {
+  const now = new Date();
+  const rows = new Map<string, NewAthleteThresholdRow>();
+  for (const write of writes) {
+    const sport = activitySport(write.sport);
+    const measure = normalizeMeasure(write.measure);
+    rows.set(`${sport}\u0000${measure}\u0000${write.date}`, {
+      userId,
+      sport,
+      measure,
+      label: write.label,
+      unit: write.unit,
+      kind: write.kind,
+      source,
+      date: write.date,
+      value: write.value,
+      updatedAt: now,
+    });
+  }
+  if (rows.size === 0) {
     return;
   }
   await executor
     .insert(athleteThresholds)
-    .values({
-      userId: input.userId,
-      sport,
-      measure,
-      label: input.label,
-      unit: input.unit,
-      kind: input.kind,
-      source: input.source,
-      date: input.date,
-      value: input.value,
-      updatedAt: new Date(),
-    })
+    .values([...rows.values()])
     .onConflictDoUpdate({
       target: [
         athleteThresholds.userId,
@@ -364,13 +364,14 @@ async function recordThreshold(
         athleteThresholds.date,
       ],
       set: {
-        label: input.label,
-        unit: input.unit,
-        kind: input.kind,
-        source: input.source,
-        value: input.value,
-        updatedAt: new Date(),
+        label: sql`excluded.label`,
+        unit: sql`excluded.unit`,
+        kind: sql`excluded.kind`,
+        source,
+        value: sql`excluded.value`,
+        updatedAt: now,
       },
+      where: notInArray(athleteThresholds.source, [...keepSources]),
     });
 }
 
@@ -426,44 +427,32 @@ export async function recordAthleteMetricStatements(
     }
   }
 
-  const now = new Date();
-  const metricRows = new Map<string, NewAthleteMetricRow>();
-  const thresholdRows = new Map<string, NewAthleteThresholdRow>();
+  const metricWrites: MetricWrite[] = [];
+  const thresholdWrites: ThresholdWrite[] = [];
   for (const statement of current) {
     if (statement.weightKg !== null) {
-      metricRows.set(`weight\u0000${statement.date}`, {
-        userId,
+      metricWrites.push({
         metric: "weight",
-        source: "user",
         date: statement.date,
         value: statement.weightKg,
-        updatedAt: now,
       });
     }
     if (statement.bodyFatPercent !== null) {
-      metricRows.set(`body_fat\u0000${statement.date}`, {
-        userId,
+      metricWrites.push({
         metric: "body_fat",
-        source: "user",
         date: statement.date,
         value: statement.bodyFatPercent,
-        updatedAt: now,
       });
     }
     for (const threshold of statement.thresholds) {
-      const sport = activitySport(threshold.sport ?? "other");
-      const measure = normalizeMeasure(threshold.measure);
-      thresholdRows.set(`${sport}\u0000${measure}\u0000${statement.date}`, {
-        userId,
-        source: "user",
-        sport,
-        measure,
+      thresholdWrites.push({
+        sport: threshold.sport ?? "other",
+        measure: threshold.measure,
         label: threshold.label,
         unit: threshold.unit,
         kind: threshold.kind,
         date: statement.date,
         value: threshold.value,
-        updatedAt: now,
       });
     }
   }
@@ -499,44 +488,9 @@ export async function recordAthleteMetricStatements(
         );
     }
 
-    if (metricRows.size > 0) {
-      await tx
-        .insert(athleteMetrics)
-        .values([...metricRows.values()])
-        .onConflictDoUpdate({
-          target: [
-            athleteMetrics.userId,
-            athleteMetrics.metric,
-            athleteMetrics.date,
-          ],
-          set: {
-            source: "user",
-            value: sql`excluded.value`,
-            updatedAt: now,
-          },
-        });
-    }
-    if (thresholdRows.size > 0) {
-      await tx
-        .insert(athleteThresholds)
-        .values([...thresholdRows.values()])
-        .onConflictDoUpdate({
-          target: [
-            athleteThresholds.userId,
-            athleteThresholds.sport,
-            athleteThresholds.measure,
-            athleteThresholds.date,
-          ],
-          set: {
-            label: sql`excluded.label`,
-            unit: sql`excluded.unit`,
-            kind: sql`excluded.kind`,
-            source: "user",
-            value: sql`excluded.value`,
-            updatedAt: now,
-          },
-        });
-    }
+    // The athlete's own words always win, so nothing is kept from the stored row.
+    await recordMetricBatch(tx, userId, "user", [], metricWrites);
+    await recordThresholdBatch(tx, userId, "user", [], thresholdWrites);
   });
 }
 

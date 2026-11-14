@@ -114,8 +114,9 @@ have the right typed stores from the earlier Garmin integration:
 
 Both supplement what the athlete provides. A `user` value for the same metric
 and date wins, a Garmin measurement replaces a coach estimate, and a newer coach
-estimate never replaces either a `user` or a Garmin measurement. The same
-precedence helper backs the metric and threshold writes (`shouldRecordSource`).
+estimate never replaces either a `user` or a Garmin measurement. The precedence
+is the conflict branch's guard on the metric and threshold writes, so the
+database decides it without a read of the stored day first.
 
 The activity analysis now receives the stored body history as well as the FTP
 history, so a workout review sees a Garmin weigh-in exactly as it sees an
