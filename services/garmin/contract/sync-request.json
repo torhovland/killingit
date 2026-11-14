@@ -1,0 +1,5 @@
+{
+  "username": "athlete@example.com",
+  "password": "secret",
+  "knownActivityIds": ["1", "3"]
+}

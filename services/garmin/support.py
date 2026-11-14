@@ -44,13 +44,22 @@ def details(
 class FakeGarmin:
     """Stubs the library calls used by an activity sync."""
 
-    def __init__(self, details, failing_ids=(), splits=None, failing_split_ids=()):
+    def __init__(
+        self,
+        details,
+        failing_ids=(),
+        splits=None,
+        failing_split_ids=(),
+        exercise_sets=None,
+    ):
         self.details = details
         self.failing_ids = set(failing_ids)
         self.splits = splits or {}
         self.failing_split_ids = set(failing_split_ids)
+        self.exercise_sets = exercise_sets or {}
         self.requested_ids = []
         self.requested_split_ids = []
+        self.requested_set_ids = []
 
     def get_activities_by_date(self, startdate, enddate):
         return [
@@ -79,6 +88,10 @@ class FakeGarmin:
         if activity_id in self.failing_split_ids:
             raise RuntimeError("splits unavailable")
         return self.splits.get(activity_id, {})
+
+    def get_activity_exercise_sets(self, activity_id):
+        self.requested_set_ids.append(activity_id)
+        return self.exercise_sets.get(activity_id, {})
 
 
 class DailyFake:

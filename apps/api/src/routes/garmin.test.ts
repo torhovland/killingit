@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, spyOn } from "bun:test";
-import type { Activity } from "@killingit/shared";
+import type { Activity, AnalyzedActivity } from "@killingit/shared";
 import type { GarminCredentials } from "../garmin/client.js";
 import {
   GarminAuthError,
@@ -7,6 +7,7 @@ import {
   type SyncTransport,
 } from "../garmin/client.js";
 import type { EncryptedCredentials } from "../garmin/store.js";
+import type { AppDependencies } from "../dependencies.js";
 import { createApp } from "../index.js";
 import type { UserStore } from "../users/store.js";
 import { apiRequest } from "../testFixtures/request.js";
@@ -68,11 +69,17 @@ function makeApp(
     syncActivities?: SyncTransport;
     /** The supplementary work; the route starts it in the background. */
     syncSupplements?: () => Promise<void>;
+    /** The stored feed the route reads for the ids and previews. */
+    loadStoredFeed?: () => Promise<{
+      model: null;
+      activities: AnalyzedActivity[];
+    }>;
   } = {},
 ) {
   const stored = new Map<number, EncryptedCredentials>();
   const plain = new Map<number, GarminCredentials>();
   const synced: GarminCredentials[] = [];
+  const knownIds: (readonly number[])[] = [];
   const supplementDates: string[] = [];
   // The account's stored zone decides the local day the supplement pass uses.
   const accounts: UserStore = {
@@ -83,12 +90,17 @@ function makeApp(
     }),
   };
 
-  const sync =
-    options.syncActivities ??
-    ((credentials) => {
-      synced.push(credentials);
-      return Promise.resolve([] as Activity[]);
-    });
+  const transport = options.syncActivities;
+  const sync: NonNullable<AppDependencies["syncGarminActivities"]> = (
+    credentials,
+    ids = [],
+  ) => {
+    synced.push(credentials);
+    knownIds.push(ids);
+    return transport === undefined
+      ? Promise.resolve([] as Activity[])
+      : transport(credentials, ids);
+  };
 
   const app = createApp({
     authProvider: { verify: (token) => Promise.resolve({ sub: token }) },
@@ -101,6 +113,8 @@ function makeApp(
     },
     loadDecryptedGarminCredentials: (userId) =>
       Promise.resolve(plain.get(userId) ?? null),
+    loadStoredFeed:
+      options.loadStoredFeed ?? (() => Promise.resolve(emptyFeed())),
     authenticateGarmin: authenticate ?? (() => Promise.resolve(true)),
     syncGarminActivities: sync,
     syncGarminSupplements: (_userId, _credentials, today) => {
@@ -110,7 +124,12 @@ function makeApp(
     now: options.now ?? (() => new Date()),
   });
 
-  return { app, stored, plain, synced, supplementDates };
+  return { app, stored, plain, synced, knownIds, supplementDates };
+}
+
+/** An empty stored feed, so a route test never reads the database. */
+function emptyFeed(): { model: null; activities: AnalyzedActivity[] } {
+  return { model: null, activities: [] };
 }
 
 /** Lets a background supplementary pass settle so its per-account entry is released. */
@@ -166,6 +185,65 @@ describe("per-user Garmin credentials", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ activities: [] });
     expect(synced).toEqual([{ username: "rider-1", password: "secret-1" }]);
+  });
+
+  it("passes the stored ids and fills their stored preview back in", async () => {
+    const storedActivity: AnalyzedActivity = {
+      id: 1,
+      name: "Morning ride",
+      type: "cycling",
+      startDate: "2026-11-14T07:00:00Z",
+      distance: 30000,
+      movingTime: 3600,
+      elapsedTime: 3700,
+      totalElevationGain: 200,
+      sampleCount: 2,
+      samples: [
+        { timestamp: "2026-11-14T07:00:00Z", heartRate: 130 },
+        { timestamp: "2026-11-14T07:01:00Z", heartRate: 132 },
+      ],
+      laps: [
+        { index: 1, distance: 1000 },
+        { index: 2, distance: 2000 },
+      ],
+      strengthSets: [{ setType: "active", repetitions: 10, exercises: [] }],
+      analysis: null,
+      analysisError: null,
+      programAnalysis: null,
+      comment: null,
+      coachReply: null,
+    };
+    const renamed: Activity = {
+      id: 1,
+      name: "Renamed ride",
+      type: "cycling",
+      startDate: "2026-11-14T07:00:00Z",
+      distance: 30000,
+      movingTime: 3600,
+      elapsedTime: 3700,
+      totalElevationGain: 200,
+      samples: [],
+    };
+    const { app, plain, knownIds } = makeApp(undefined, {
+      loadStoredFeed: () =>
+        Promise.resolve({ model: null, activities: [storedActivity] }),
+      syncActivities: () => Promise.resolve([renamed]),
+    });
+    plain.set(1, { username: "rider-1", password: "secret-1" });
+
+    const res = await app.fetch(request("/garmin/activities", "athlete-1"));
+
+    expect(knownIds).toEqual([[1]]);
+    expect(await res.json()).toEqual({
+      activities: [
+        {
+          ...renamed,
+          samples: storedActivity.samples,
+          laps: storedActivity.laps,
+          strengthSets: storedActivity.strengthSets,
+        },
+      ],
+    });
   });
 
   it("refreshes the supplementary data for the athlete's local day", async () => {

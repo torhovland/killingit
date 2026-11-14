@@ -5,7 +5,8 @@
 - **Issue:** #280
 - **Related:** `docs/specs/activity-feed-loading.md`,
   `docs/specs/calendar-page.md`, `docs/specs/training-load.md`,
-  `docs/specs/activity-local-date.md`, ADR 0034.
+  `docs/specs/activity-local-date.md`,
+  `docs/specs/garmin-sync-known-activities.md`, ADR 0034.
 
 ## Goal
 
@@ -49,6 +50,11 @@ columns it needs, and let the sample preview and GPS route load on demand.
   deletion.
 - A sync writes only the activities in its own sync window, upserting each row
   and its preview. It no longer rewrites the whole history.
+- A sync skips the per-activity detail, splits and set calls for an activity the
+  API already stores, so its payload carries no samples, laps or sets. The
+  upsert keeps the stored sample preview, route, laps and sets (and the average
+  and normalized power derived from the samples) instead of blanking them; see
+  `docs/specs/garmin-sync-known-activities.md`.
 - An activity that leaves the sync window keeps its row, analysis, comment and
   reply.
 - A locally deleted activity is deleted from `activities` immediately when the

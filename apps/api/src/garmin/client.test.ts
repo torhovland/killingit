@@ -55,6 +55,15 @@ function stubSidecarResponse(body: unknown): SidecarRequest[] {
   return requests;
 }
 
+/** The JSON body a stubbed sidecar request sent. */
+function requestBodyOf(request: SidecarRequest | undefined): unknown {
+  const body = request?.init?.body;
+  if (typeof body !== "string") {
+    throw new Error("expected the sidecar request to carry a JSON body");
+  }
+  return JSON.parse(body) as unknown;
+}
+
 /** The minimal activity payload the sidecar's `/sync` returns. */
 const sidecarActivity = {
   id: 1,
@@ -93,6 +102,7 @@ describe("syncGarminActivities", () => {
     ];
     const result = await syncGarminActivities(
       { username: "u", password: "p" },
+      [],
       () => Promise.resolve(activities),
     );
     expect(result).toEqual(activities);
@@ -100,8 +110,10 @@ describe("syncGarminActivities", () => {
   });
 
   it("propagates a transport rejection", async () => {
-    const promise = syncGarminActivities({ username: "u", password: "p" }, () =>
-      Promise.reject(new GarminSidecarError("boom")),
+    const promise = syncGarminActivities(
+      { username: "u", password: "p" },
+      [],
+      () => Promise.reject(new GarminSidecarError("boom")),
     );
     await expectRejectsWith(promise, GarminSidecarError);
   });
@@ -114,6 +126,31 @@ describe("syncGarminActivities", () => {
     expect(result).toEqual([{ ...sidecarActivity, samples: [] }]);
     expect(requests).toHaveLength(1);
     expect(requests[0]?.url).toBe("http://sidecar.test/sync");
+  });
+
+  it("sends the ids the API already stores so their details are skipped", async () => {
+    const requests = stubSidecarResponse({ activities: [] });
+
+    await syncGarminActivities({ username: "u", password: "p" }, [1, 3]);
+
+    const body = requestBodyOf(requests[0]);
+    expect(body).toEqual({
+      username: "u",
+      password: "p",
+      knownActivityIds: ["1", "3"],
+    });
+  });
+
+  it("sends an empty known-id list when nothing is stored yet", async () => {
+    const requests = stubSidecarResponse({ activities: [] });
+
+    await syncGarminActivities({ username: "u", password: "p" });
+
+    expect(requestBodyOf(requests[0])).toEqual({
+      username: "u",
+      password: "p",
+      knownActivityIds: [],
+    });
   });
 
   it("rejects a malformed activities payload with a typed error", async () => {

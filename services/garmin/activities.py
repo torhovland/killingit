@@ -10,6 +10,7 @@ rate limit aborts the sync. See ADR 0058.
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 
 from garminconnect.activity_details import parse_activity_detail_metrics
 
@@ -40,8 +41,19 @@ def is_step_cadence(activity_type: str) -> bool:
     return any(marker in normalized for marker in STEP_CADENCE_MARKERS)
 
 
-def sync_activities(credentials: auth.Credentials) -> list[dict]:
-    """Fetch the sync window's activities with their samples, laps and sets."""
+def sync_activities(
+    credentials: auth.Credentials, known_activity_ids: Iterable[object] = ()
+) -> list[dict]:
+    """Fetch the sync window's activities with their samples, laps and sets.
+
+    The caller passes the ids it already stores. The whole window is still
+    returned, because the API deletes locally removed rows and refreshes every
+    summary, but a known activity skips the three bulk per-activity calls: its
+    samples, laps and sets are already stored, and only a new recording is worth
+    downloading in full. See ADR 0058 and
+    `docs/specs/garmin-sync-known-activities.md`.
+    """
+    known = {str(value) for value in known_activity_ids}
     garmin = auth.login(credentials)
     startdate, enddate = values.date_window()
 
@@ -58,14 +70,19 @@ def sync_activities(credentials: auth.Credentials) -> list[dict]:
     for raw in raw_activities or []:
         activity_id = raw.get("activityId")
         activity_type = normalize_type(raw.get("activityType"))
-        activities.append(
-            to_activity(
-                raw,
-                _samples_for(garmin, activity_id, activity_type),
-                _strength_sets_for(garmin, activity_id, activity_type),
-                _laps_for(garmin, activity_id, activity_type),
-            )
-        )
+        # Garmin may have renamed or re-typed a stored activity, so its summary
+        # comes from the list call either way; only the bulk payloads are
+        # skipped.
+        already_stored = activity_id is not None and str(activity_id) in known
+        if already_stored:
+            samples: list[dict] = []
+            strength_sets: list[dict] = []
+            laps: list[dict] = []
+        else:
+            samples = _samples_for(garmin, activity_id, activity_type)
+            strength_sets = _strength_sets_for(garmin, activity_id, activity_type)
+            laps = _laps_for(garmin, activity_id, activity_type)
+        activities.append(to_activity(raw, samples, strength_sets, laps))
     return activities
 
 

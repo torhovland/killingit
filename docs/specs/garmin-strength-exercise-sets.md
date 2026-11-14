@@ -21,7 +21,9 @@ least useful part of a strength session.
 
 `python-garminconnect` exposes the missing data through
 `get_activity_exercise_sets(activity_id)`, the same activity-details endpoint
-the sidecar already calls for every activity.
+the sidecar already calls for a new activity. It skips that call for an
+activity the API already stores; see
+`docs/specs/garmin-sync-known-activities.md`.
 
 ## Scope
 

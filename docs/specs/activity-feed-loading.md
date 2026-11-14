@@ -21,16 +21,18 @@ resolves the athlete's day, joins the account's shared analysis pass, and runs
 the phases below. The phases themselves live in `apps/api/src/coaching/feed/`,
 one module per concern (ADR 0037):
 
-- `feed/sync.ts` — `syncFeed` syncs Garmin activities and starts the
+- `feed/sync.ts` — `syncFeed` reads the stored history, syncs Garmin activities
+  with those ids so the sidecar skips their bulk detail calls, and starts the
   supplementary body-metric and daily-health pass in the background, so the feed
   answers as soon as the activities are stored; it then drops locally deleted
   activities, merges the stored history, and persists only the sync window
-  before analysis. The stored history is read before anything is written, and a
-  failed read aborts the sync: merging the sync window with an empty history
-  would hide every older activity and its coach work. Activity rows are stored
-  by `coaching/activityStore.ts`; see `docs/specs/activity-store.md`. The
-  background pass is one per account at a time and its failure is logged, never
-  returned; see ADR 0039.
+  before analysis. The stored history is read before anything is written (and
+  before Garmin is called), and a failed read aborts the sync: merging the sync
+  window with an empty history would hide every older activity and its coach
+  work. Activity rows are stored by `coaching/activityStore.ts`; see
+  `docs/specs/activity-store.md` and
+  `docs/specs/garmin-sync-known-activities.md`. The background pass is one per
+  account at a time and its failure is logged, never returned; see ADR 0039.
 - `feed/analysis.ts` — `loadAnalysisInputs` loads LLM settings, athlete
   feedback, the stored plan, daily health, body history and diet in parallel,
   then the training context; a training-context failure falls back to empty

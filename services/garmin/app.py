@@ -6,7 +6,8 @@ Python runtime to the main backend (see ADR 0003 amendment).
 
 Endpoints:
   POST /authenticate   { "username", "password" } -> 204 (or 401/403/429/502)
-  POST /sync           { "username", "password" } -> { "activities": [...] }
+  POST /sync           { "username", "password", "knownActivityIds"? }
+                       -> { "activities": [...] }
   POST /metrics        { "username", "password" } -> { "metrics": [...] }
   POST /daily          { "username", "password", "date" } -> metrics + date
   GET  /health         -> {"status": "ok"}
@@ -27,6 +28,7 @@ globals, so string annotations such as `Credentials` would be looked up in
 import os
 
 from fastapi import FastAPI, HTTPException
+from pydantic import Field
 
 import activities
 import auth
@@ -36,6 +38,18 @@ import values
 from errors import http_errors
 
 app = FastAPI(title="killingit-garmin-sidecar")
+
+
+class SyncRequest(auth.Credentials):
+    """The `/sync` body. An absent id list means nothing is stored yet.
+
+    Ids are strings on the wire; a number is accepted too because Garmin's own
+    ids are numeric.
+    """
+
+    known_activity_ids: list[str | int] | None = Field(
+        default=None, alias="knownActivityIds"
+    )
 
 
 class DailyRequest(auth.Credentials):
@@ -56,8 +70,9 @@ def authenticate(credentials: auth.Credentials) -> None:
 
 @app.post("/sync")
 @http_errors
-def sync(credentials: auth.Credentials) -> dict:
-    return {"activities": activities.sync_activities(credentials)}
+def sync(request: SyncRequest) -> dict:
+    known_ids = request.known_activity_ids or []
+    return {"activities": activities.sync_activities(request, known_ids)}
 
 
 @app.post("/metrics")

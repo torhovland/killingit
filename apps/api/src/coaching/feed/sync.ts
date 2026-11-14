@@ -63,6 +63,10 @@ export async function loadGarminCredentials(
  * daily-health pass in the background, then merges the result with the stored
  * history and stores the sync window before the (potentially slow) LLM
  * analyses, so the feed answers as soon as the activities are stored.
+ *
+ * The stored history is read before Garmin is called, because its ids are what
+ * lets the sidecar skip the bulky detail calls for activities the API already
+ * has. See `docs/specs/garmin-sync-known-activities.md`.
  */
 export async function syncFeed(
   params: {
@@ -77,7 +81,14 @@ export async function syncFeed(
   const syncSupplements = deps.syncSupplements ?? syncGarminSupplements;
   const loadDeletedIds = deps.loadDeletedIds ?? loadDeletedActivityIds;
 
-  const activities = await syncActivities(params.credentials);
+  const previous = await loadPreviousActivities(
+    params.userId,
+    deps.store?.load,
+  );
+  const activities = await syncActivities(
+    params.credentials,
+    previous.map((activity) => activity.id),
+  );
   // The weigh-in/FTP refresh and the daily-health backfill take far longer than
   // the activity sync, and the feed's response carries none of them: the shared
   // pass runs in the background, keeps its own failure to itself, and runs once
@@ -94,10 +105,32 @@ export async function syncFeed(
       userId: params.userId,
       synced,
       deletedIds,
+      previous,
     },
     deps.store,
   );
-  return { latest: synced.slice(0, params.limit), history };
+  return { latest: latestForAnalysis(synced, history, params.limit), history };
+}
+
+/**
+ * The newest activities to analyse, newest first. A stored activity's synced
+ * payload carries no samples because the sidecar skipped its details, so its
+ * merged history entry supplies the preview a new analysis reads.
+ */
+function latestForAnalysis(
+  synced: readonly Activity[],
+  history: readonly AnalyzedActivity[],
+  limit: number,
+): Activity[] {
+  const historyById = new Map(
+    history.map((activity) => [String(activity.id), activity]),
+  );
+  return synced.slice(0, limit).map((activity) => {
+    if (activity.samples.length > 0) {
+      return activity;
+    }
+    return historyById.get(String(activity.id)) ?? activity;
+  });
 }
 
 /** The activity store reads and writes, injectable so a test can fail the read. */
@@ -122,10 +155,14 @@ export async function extendStoredFeed(
     userId: number;
     synced: readonly Activity[];
     deletedIds: ReadonlySet<string>;
+    /** The already-loaded history; read from the store when omitted. */
+    previous?: readonly AnalyzedActivity[] | undefined;
   },
   store: ActivityStore = ACTIVITY_STORE,
 ): Promise<AnalyzedActivity[]> {
-  const previous = await loadPreviousActivities(params.userId, store.load);
+  const previous =
+    params.previous ??
+    (await loadPreviousActivities(params.userId, store.load));
   const history = mergeActivityHistory(
     previous,
     params.synced,
@@ -135,6 +172,7 @@ export async function extendStoredFeed(
     params.userId,
     params.synced,
     params.deletedIds,
+    previous,
     store.save,
   );
   return history;
@@ -199,14 +237,16 @@ async function loadPreviousActivities(
 
 /**
  * Updates a stored activity's summary from a fresh sync while keeping the
- * coach analysis and athlete feedback already attached to it.
+ * coach analysis and athlete feedback already attached to it. Its stored sample
+ * preview, route, laps and sets survive the sync because the sidecar skipped
+ * their payloads. See `docs/specs/garmin-sync-known-activities.md`.
  */
 function refreshSyncedActivity(
   previous: AnalyzedActivity,
   activity: Activity,
 ): AnalyzedActivity {
   return {
-    ...summarizeActivity(activity),
+    ...summarizeActivity(activity, previous),
     analysis: previous.analysis,
     analysisError: previous.analysisError,
     programAnalysis: previous.programAnalysis,
@@ -221,10 +261,11 @@ async function persistSyncedActivities(
   userId: number,
   synced: readonly Activity[],
   deletedIds: ReadonlySet<string>,
+  previous: readonly AnalyzedActivity[],
   save: ActivityStore["save"] = saveStoredActivities,
 ): Promise<void> {
   try {
-    await save(userId, synced, deletedIds);
+    await save(userId, synced, deletedIds, previous);
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err);
     console.error(`[coaching] could not store the activity rows: ${detail}`);

@@ -29,7 +29,7 @@ from unittest.mock import patch
 
 import app
 import auth
-from app import DailyRequest
+from app import DailyRequest, SyncRequest
 from auth import Credentials
 
 CONTRACT_DIR = Path(__file__).resolve().parent / "contract"
@@ -359,12 +359,24 @@ def _stubbed_login():
         yield
 
 
+def sync_response(request: SyncRequest) -> dict:
+    """The `/sync` body the sidecar returns for one already-built request."""
+    with _stubbed_login():
+        return app.sync(request)
+
+
 def contract_responses() -> dict[str, Any]:
     """The sidecar's whole body for each endpoint, built by its own handlers."""
     with _stubbed_login():
         credentials = Credentials(username="athlete@example.com", password="secret")
         return {
-            "sync": app.sync(credentials),
+            # No known ids, so the committed body carries every bulk payload.
+            "sync": app.sync(
+                SyncRequest(
+                    username=credentials.username,
+                    password=credentials.password,
+                )
+            ),
             "metrics": app.metrics(credentials),
             "daily": app.daily(
                 DailyRequest(

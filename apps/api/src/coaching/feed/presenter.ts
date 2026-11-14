@@ -86,11 +86,34 @@ export function assembleFeed(params: AssembleFeedParams): ActivityFeed {
     activities: params.history.map((activity) => {
       const analyzed = analyzedById.get(String(activity.id));
       return withActivityLoad(
-        analyzed ?? withActivityFeedback(activity, params.inputs.feedback),
+        analyzed === undefined
+          ? withActivityFeedback(activity, params.inputs.feedback)
+          : withCoachWork(activity, analyzed),
         params.inputs.loads,
         params.timezone,
       );
     }),
+  };
+}
+
+/**
+ * Overlays the coach's analysis and feedback onto the stored history entry.
+ * The history entry owns the summary, preview, route, laps and sets, which a
+ * sync that skipped their payloads must not replace; only the coach fields come
+ * from the analysis pass.
+ */
+function withCoachWork(
+  activity: AnalyzedActivity,
+  analyzed: AnalyzedActivity,
+): AnalyzedActivity {
+  return {
+    ...activity,
+    analysis: analyzed.analysis,
+    analysisError: analyzed.analysisError,
+    programAnalysis: analyzed.programAnalysis,
+    comment: analyzed.comment,
+    coachReply: analyzed.coachReply,
+    reviewed: analyzed.reviewed,
   };
 }
 

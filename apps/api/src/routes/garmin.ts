@@ -1,10 +1,16 @@
 import {
   garminConnectionStatusSchema,
   zonedDateTime,
+  type Activity,
   type GarminConnectionStatus,
 } from "@killingit/shared";
 import { Hono } from "hono";
 import { z } from "zod";
+import {
+  loadStoredActivityFeed,
+  summarizeActivity,
+  type ActivityPreview,
+} from "../coaching/activityStore.js";
 import { zValidator } from "../http/validation.js";
 import { getUser } from "../auth/middleware.js";
 import type { ResolvedAppDependencies } from "../dependencies.js";
@@ -45,6 +51,7 @@ export function createGarminRoute(deps: ResolvedAppDependencies): Hono {
   const authenticate = deps.authenticateGarmin ?? authenticateGarmin;
   const sync = deps.syncGarminActivities ?? syncGarminActivities;
   const syncSupplements = deps.syncGarminSupplements ?? syncGarminSupplements;
+  const loadStoredFeed = deps.loadStoredFeed ?? loadStoredActivityFeed;
   const now = deps.now ?? (() => new Date());
 
   return new Hono()
@@ -117,9 +124,13 @@ export function createGarminRoute(deps: ResolvedAppDependencies): Hono {
       }
       const credentials = decrypted;
       const today = zonedDateTime(now(), user.timezone).date;
+      const storedById = await loadStoredPreviews(user.id, loadStoredFeed);
 
       try {
-        const activities = await sync(credentials);
+        const activities = await sync(
+          credentials,
+          [...storedById.values()].map((activity) => activity.id),
+        );
         // Body composition and daily health supplement the activity sync, and
         // the shared pass is fail-open: it runs in the background so a slow
         // backfill never holds this response, and neither can fail it. See
@@ -127,7 +138,11 @@ export function createGarminRoute(deps: ResolvedAppDependencies): Hono {
         void startGarminSupplements(user.id, () =>
           syncSupplements(user.id, credentials, today),
         );
-        return c.json({ activities });
+        return c.json({
+          activities: activities.map((activity) =>
+            toSyncedActivity(activity, storedById.get(String(activity.id))),
+          ),
+        });
       } catch (err) {
         // The sidecar's own status survives: a Garmin auth failure (401),
         // MFA-required (403), a rate limit (429) and a gateway error (502) stay
@@ -135,4 +150,45 @@ export function createGarminRoute(deps: ResolvedAppDependencies): Hono {
         return respondUpstreamError(c, err, "[garmin] activities failure");
       }
     });
+}
+
+/**
+ * The stored previews keyed by activity id, or none when the read fails. The
+ * sync endpoint is still useful without them: it then downloads every activity
+ * in full, and a stored-read failure must not turn a Garmin sync into a 503.
+ */
+async function loadStoredPreviews(
+  userId: number,
+  load: typeof loadStoredActivityFeed,
+): Promise<Map<string, ActivityPreview>> {
+  try {
+    const stored = await load(userId, "samples");
+    return new Map(
+      stored.activities.map((activity) => [String(activity.id), activity]),
+    );
+  } catch (err) {
+    console.error("[garmin] could not read stored activities:", err);
+    return new Map();
+  }
+}
+
+/**
+ * A synced activity in the shape the endpoint returns: the new activity as it
+ * arrived, or a stored one with its stored bulk channels filled in, because the
+ * sidecar skipped those payloads for an id the API already stores. See
+ * `docs/specs/garmin-sync-known-activities.md`.
+ */
+function toSyncedActivity(
+  activity: Activity,
+  stored: ActivityPreview | undefined,
+): Activity {
+  if (stored === undefined) {
+    return activity;
+  }
+  const {
+    sampleCount: _sampleCount,
+    route: _route,
+    ...synced
+  } = summarizeActivity(activity, stored);
+  return synced;
 }

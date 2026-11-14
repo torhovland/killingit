@@ -264,8 +264,15 @@ about a past workout, or before a suggested workout, to steer the coach.
   `docs/specs/coach-form-awareness.md`.
   Garmin syncs the last 42 days of activities, body composition, and historic
   cycling FTP, and power metrics are stored on activity summaries so the raw
-  timeseries is not needed. The weigh-in/FTP refresh and the daily-health
-  backfill are one shared fail-open pass, `syncGarminSupplements`, in
+  timeseries is not needed. A feed sync reads the stored activities before it
+  contacts Garmin and passes their ids as `knownActivityIds`: the sidecar still
+  returns the window's whole activity list, so a rename or a corrected type is
+  refreshed and locally removed rows are deleted, but it skips the details,
+  splits and exercise-set calls for an activity the API already stores. The API
+  keeps that activity's stored sample preview, route, laps and sets, and only a
+  newly recorded activity is downloaded in full; see
+  `docs/specs/garmin-sync-known-activities.md`. The weigh-in/FTP refresh and the
+  daily-health backfill are one shared fail-open pass, `syncGarminSupplements`, in
   `apps/api/src/garmin/supplements.ts`, started in the background by both the
   activity feed and `GET /api/garmin/activities` through
   `startGarminSupplements`, dated by the athlete's local day, and run one pass
