@@ -57,6 +57,14 @@ a retry chain is readable. The JSON repair turn is marked `repair: true`.
 Logging is fail-open: a database error is logged to the console and the
 completion is still returned.
 
+A response stopped at the output-token limit is billed even though it produced
+no usable answer. `LlmTokenLimitError` therefore carries the usage, routed model
+and finish reason from the truncated response, and the failed row records them,
+so the attempt appears in the prompt log and in AI costs instead of looking
+free. A cancelled attempt has no response and stays `usage: null`. The fallback
+chain wraps each attempt separately, so the truncated attempt and the
+configuration that succeeds each own one row and one charge.
+
 ### Status markers in the list
 
 The list response carries the retry and failure state so the admin does not
@@ -124,6 +132,9 @@ questions and the prompt log.
 
 - Every production completion attempt produces exactly one `llm_calls` row,
   including failed attempts and repair turns.
+- A truncated attempt records the usage, routed model, and finish reason of the
+  response it was billed for.
+- A cancelled attempt records no usage.
 - An attempt is recorded before its request is sent, so a process that stops
   while waiting for the provider still leaves a row.
 - A row contains the exact messages sent, the response or error, the model, and

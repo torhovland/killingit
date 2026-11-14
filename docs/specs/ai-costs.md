@@ -62,6 +62,10 @@ before cost capture have no value.
 - A call uses its reported `costUsd` when present. A row without one is
   estimated from its token usage and the catalog's current list price; a model
   with no known price contributes zero rather than a guess.
+- An attempt stopped at the output-token limit contributes the usage OpenRouter
+  billed for it, so a fallback chain counts both the truncated attempt and the
+  configuration that succeeded. Each attempt owns one row, so no charge is
+  counted twice.
 - The web app fills empty months and days, so the chart's x axis is continuous
   over the selected range.
 - Model order and colours come from all-time spend, so changing a range never
@@ -81,6 +85,7 @@ before cost capture have no value.
   with each series' own call count shown before its cost.
 - An empty range shows a clear message instead of an empty plot.
 - The API route is authenticated and scoped to the account.
+- A truncated attempt contributes its reported cost.
 - Unit tests cover the aggregation, the range bucketing, both stack dimensions,
   the chart rendering, and the route.
 

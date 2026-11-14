@@ -3,6 +3,7 @@ import type { LlmCompletionRequest, LlmProvider } from "./openrouter.js";
 import { LlmAbortError, LlmTokenLimitError } from "./openrouter.js";
 import { withPromptLogging } from "./callLog.js";
 import type { LlmCallResult, LlmCallSink, NewLlmCall } from "./callStore.js";
+import { aggregateLlmCosts } from "./costStore.js";
 import { completeWithFallbacks } from "./resilientCompletion.js";
 
 class StubProvider implements LlmProvider {
@@ -203,7 +204,49 @@ describe("withPromptLogging", () => {
     expect(calls[0]?.result).toMatchObject({
       response: null,
       error: null,
+      usage: null,
       metadata: { cancelled: true },
+    });
+  });
+
+  it("records the billed usage of a truncated attempt", async () => {
+    const { calls, sink } = recordingSink();
+    const provider: LlmProvider = {
+      id: "stub",
+      listModels: () => Promise.resolve([]),
+      validateKey: () => Promise.resolve(),
+      complete: () =>
+        Promise.reject(
+          new LlmTokenLimitError("stopped at the token limit", {
+            model: "routed/model",
+            finishReason: "length",
+            usage: {
+              promptTokens: 300,
+              completionTokens: 100,
+              totalTokens: 400,
+              costUsd: 0.004,
+            },
+          }),
+        ),
+    };
+    const wrapped = withPromptLogging(provider, { userId: 4, sink });
+
+    const error: unknown = await wrapped
+      .complete(request())
+      .catch((err: unknown) => err);
+
+    expect(error).toBeInstanceOf(LlmTokenLimitError);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.result).toMatchObject({
+      response: null,
+      error: "stopped at the token limit",
+      usage: {
+        promptTokens: 300,
+        completionTokens: 100,
+        totalTokens: 400,
+        costUsd: 0.004,
+      },
+      metadata: { responseModel: "routed/model", finishReason: "length" },
     });
   });
 
@@ -262,5 +305,81 @@ describe("withPromptLogging", () => {
     expect(
       calls.every((call) => call.started.kind === "activity_analysis"),
     ).toBe(true);
+  });
+
+  it("records a truncated attempt and its successful fallback as separate costs", async () => {
+    const { calls, sink } = recordingSink();
+    let attempts = 0;
+    const provider: LlmProvider = {
+      id: "stub",
+      listModels: () => Promise.resolve([]),
+      validateKey: () => Promise.resolve(),
+      complete: () => Promise.reject(new Error("complete should not be used")),
+      completeDetailed: () => {
+        attempts += 1;
+        if (attempts === 1) {
+          return Promise.reject(
+            new LlmTokenLimitError("stopped at the token limit", {
+              model: "routed/model",
+              finishReason: "length",
+              usage: {
+                promptTokens: 300,
+                completionTokens: 100,
+                totalTokens: 400,
+                costUsd: 0.01,
+              },
+            }),
+          );
+        }
+        return Promise.resolve({
+          text: "Recovered",
+          model: "routed/model",
+          finishReason: "stop",
+          usage: {
+            promptTokens: 320,
+            completionTokens: 40,
+            totalTokens: 360,
+            costUsd: 0.02,
+          },
+        });
+      },
+    };
+    const wrapped = withPromptLogging(provider, { userId: 5, sink });
+
+    const text = await completeWithFallbacks(
+      wrapped,
+      { apiKey: "test-key", model: "openrouter/model" },
+      messages,
+      2048,
+      0.4,
+      { kind: "activity_analysis" },
+    );
+
+    expect(text).toBe("Recovered");
+    expect(calls).toHaveLength(2);
+
+    const costs = aggregateLlmCosts(
+      calls.map((call) => ({
+        createdAt: new Date("2026-11-04T09:00:00Z"),
+        kind: call.started.kind,
+        model: call.started.model,
+        usage: call.result?.usage ?? null,
+        metadata: { ...call.started.metadata, ...call.result?.metadata },
+      })),
+      [],
+    );
+
+    // Each attempt is one row that pays for its own usage: the truncated
+    // attempt's charge is kept, and the fallback's charge is not doubled.
+    expect(costs.monthly).toEqual([
+      {
+        bucket: "2026-11",
+        model: "routed/model",
+        label: "routed/model",
+        kind: "activity_analysis",
+        costUsd: 0.03,
+        calls: 2,
+      },
+    ]);
   });
 });

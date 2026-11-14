@@ -40,11 +40,30 @@ export class LlmRateLimitError extends LlmProviderError {
   }
 }
 
-/** Raised when the provider stops at the requested output-token limit. */
+/** What OpenRouter reported for a response it stopped at the token limit. */
+export interface LlmTokenLimitDetails {
+  /** The model OpenRouter actually routed to, when it reports one. */
+  model?: string | null;
+  finishReason?: string | null;
+  usage?: LlmCallUsage | null;
+}
+
+/**
+ * Raised when the provider stops at the requested output-token limit. The
+ * response is billed even though it produced no usable answer, so the usage and
+ * routing details are attached for the prompt log and the cost report.
+ */
 export class LlmTokenLimitError extends LlmProviderError {
-  constructor(message: string) {
+  readonly model: string | null;
+  readonly finishReason: string | null;
+  readonly usage: LlmCallUsage | null;
+
+  constructor(message: string, details: LlmTokenLimitDetails = {}) {
     super(message);
     this.name = "LlmTokenLimitError";
+    this.model = details.model ?? null;
+    this.finishReason = details.finishReason ?? null;
+    this.usage = details.usage ?? null;
   }
 }
 
@@ -235,9 +254,12 @@ export function createOpenRouterProvider(
     const choice = body.choices?.[0];
     const finishReason =
       typeof choice?.finish_reason === "string" ? choice.finish_reason : null;
+    const model = typeof body.model === "string" ? body.model : null;
+    const usage = normalizeUsage(body.usage);
     if (finishReason === "length") {
       throw new LlmTokenLimitError(
         "OpenRouter stopped the response at the token limit; try again or choose a model with a larger output budget",
+        { model, finishReason, usage },
       );
     }
     const content = choice?.message?.content;
@@ -246,9 +268,9 @@ export function createOpenRouterProvider(
     }
     return {
       text: content.trim(),
-      model: typeof body.model === "string" ? body.model : null,
+      model,
       finishReason,
-      usage: normalizeUsage(body.usage),
+      usage,
     };
   };
 

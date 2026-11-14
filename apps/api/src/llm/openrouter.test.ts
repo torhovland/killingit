@@ -5,6 +5,7 @@ import {
   LlmAuthError,
   LlmProviderError,
   LlmRateLimitError,
+  LlmTokenLimitError,
 } from "./openrouter.js";
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -274,6 +275,52 @@ describe("complete", () => {
       }),
       LlmProviderError,
     );
+  });
+
+  it("carries the billed usage of a truncated response on the error", async () => {
+    const provider = createOpenRouterProvider({
+      baseUrl: "https://example.test/api/v1",
+      fetchImpl: stubFetch(() =>
+        Promise.resolve(
+          jsonResponse({
+            model: "anthropic/claude-test",
+            usage: {
+              prompt_tokens: 4_000,
+              completion_tokens: 2_048,
+              total_tokens: 6_048,
+              cost: 0.0123,
+            },
+            choices: [
+              {
+                message: { content: "You climbed in two main eff" },
+                finish_reason: "length",
+              },
+            ],
+          }),
+        ),
+      ),
+    });
+
+    try {
+      await provider.complete({
+        apiKey: "sk-or-v1-test",
+        model: "openrouter/auto",
+        messages: [{ role: "user", content: "analyse" }],
+        temperature: 0.3,
+        maxTokens: 2048,
+      });
+      throw new Error("expected completion to reject");
+    } catch (err) {
+      expect(err).toBeInstanceOf(LlmTokenLimitError);
+      expect((err as LlmTokenLimitError).usage).toEqual({
+        promptTokens: 4_000,
+        completionTokens: 2_048,
+        totalTokens: 6_048,
+        costUsd: 0.0123,
+      });
+      expect((err as LlmTokenLimitError).model).toBe("anthropic/claude-test");
+      expect((err as LlmTokenLimitError).finishReason).toBe("length");
+    }
   });
 
   it("rejects an empty completion", async () => {
