@@ -2,12 +2,24 @@ import { describe, expect, it } from "bun:test";
 import { Hono } from "hono";
 import { z } from "zod";
 import {
+  GarminCredentialsError,
+  GarminNotConnectedError,
+  LlmCredentialsError,
+} from "../coaching/activities.js";
+import { GarminAuthError, GarminSidecarError } from "../garmin/client.js";
+import {
+  LlmAuthError,
+  LlmProviderError,
+  LlmRateLimitError,
+} from "../llm/openrouter.js";
+import {
   apiError,
   badGateway,
   badRequest,
   conflict,
   forbidden,
   notFound,
+  respondUpstreamError,
   serviceUnavailable,
   unauthorized,
 } from "./errors.js";
@@ -76,6 +88,135 @@ describe("API error helpers", () => {
       },
     });
   });
+});
+
+describe("respondUpstreamError", () => {
+  interface Case {
+    err: Error;
+    status: number;
+    code: string;
+    message: string;
+    logged: boolean;
+  }
+
+  const cases: Case[] = [
+    {
+      err: new GarminAuthError("invalid Garmin credentials"),
+      status: 401,
+      code: "unauthorized",
+      message: "invalid Garmin credentials",
+      logged: false,
+    },
+    {
+      err: new GarminNotConnectedError(),
+      status: 401,
+      code: "unauthorized",
+      message: "Not connected to Garmin",
+      logged: false,
+    },
+    {
+      err: new GarminSidecarError("MFA is required", 403),
+      status: 403,
+      code: "forbidden",
+      message: "MFA is required",
+      logged: false,
+    },
+    {
+      err: new GarminSidecarError("rate limited", 429),
+      status: 429,
+      code: "too_many_requests",
+      message: "rate limited",
+      logged: false,
+    },
+    {
+      err: new GarminSidecarError("gateway failure", 502),
+      status: 502,
+      code: "bad_gateway",
+      message: "gateway failure",
+      logged: false,
+    },
+    {
+      err: new GarminCredentialsError(
+        "Garmin credentials are unavailable (check GARMIN_CREDENTIALS_KEY)",
+      ),
+      status: 503,
+      code: "service_unavailable",
+      message:
+        "Garmin credentials are unavailable (check GARMIN_CREDENTIALS_KEY)",
+      logged: true,
+    },
+    {
+      err: new LlmAuthError("invalid OpenRouter API key"),
+      status: 401,
+      code: "unauthorized",
+      message: "invalid OpenRouter API key",
+      logged: false,
+    },
+    {
+      err: new LlmRateLimitError("rate limited"),
+      status: 429,
+      code: "too_many_requests",
+      message: "rate limited",
+      logged: false,
+    },
+    {
+      err: new LlmProviderError("provider failure", 500),
+      status: 500,
+      code: "internal_error",
+      message: "provider failure",
+      logged: false,
+    },
+    {
+      err: new LlmCredentialsError(
+        "OpenRouter credentials are unavailable (check LLM_CREDENTIALS_KEY)",
+      ),
+      status: 503,
+      code: "service_unavailable",
+      message:
+        "OpenRouter credentials are unavailable (check LLM_CREDENTIALS_KEY)",
+      logged: true,
+    },
+    {
+      err: new GarminSidecarError("could not reach Garmin sidecar"),
+      status: 503,
+      code: "service_unavailable",
+      message: "Service Unavailable",
+      logged: true,
+    },
+    {
+      err: new LlmProviderError("the completion was cancelled"),
+      status: 503,
+      code: "service_unavailable",
+      message: "Service Unavailable",
+      logged: true,
+    },
+    {
+      err: new Error("database down"),
+      status: 503,
+      code: "service_unavailable",
+      message: "Service Unavailable",
+      logged: true,
+    },
+  ];
+
+  for (const testCase of cases) {
+    it(`maps ${testCase.err.name} to ${testCase.status}`, async () => {
+      const logged: unknown[] = [];
+      const app = new Hono().get("/failure", (c) =>
+        respondUpstreamError(c, testCase.err, {
+          log: (failure) => logged.push(failure),
+        }),
+      );
+
+      const res = await app.fetch(new Request("http://localhost/failure"));
+
+      expect(res.status).toBe(testCase.status);
+      expect(await res.json()).toEqual({
+        error: { code: testCase.code, message: testCase.message },
+      });
+      expect(logged).toEqual(testCase.logged ? [testCase.err] : []);
+    });
+  }
 });
 
 describe("validating zValidator wrapper", () => {
