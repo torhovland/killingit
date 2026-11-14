@@ -933,8 +933,12 @@ function refreshSyncedActivity(
   };
 }
 
-/** Applies the latest stored athlete feedback to an activity in the history. */
-function withFeedback(
+/**
+ * Applies the latest stored athlete feedback to an activity in the history.
+ * Also used by the cached feed route, which overlays a reply stored after the
+ * cache was written.
+ */
+export function withFeedback(
   activity: AnalyzedActivity,
   feedback: ReadonlyMap<string, ActivityFeedback>,
 ): AnalyzedActivity {
@@ -950,11 +954,15 @@ function withFeedback(
   };
 }
 
-/** Attaches the day's fitness snapshot and the activity's own TSS for the page. */
-function withActivityLoad(
+/**
+ * Attaches the day's fitness snapshot and the activity's own TSS for the page.
+ * Also used by the cached feed route, whose stored payload may predate both
+ * fields.
+ */
+export function withActivityLoad(
   activity: AnalyzedActivity,
   loads: ActivityLoads,
-  timezone: string | undefined,
+  timezone: string | null | undefined,
 ): AnalyzedActivity {
   return {
     ...activity,
