@@ -9,11 +9,15 @@ ARG SENTRY_ORG
 ARG SENTRY_PROJECT
 ARG SENTRY_RELEASE
 
-# Install the whole workspace so workspace:* links resolve.
+# Install the whole workspace so workspace:* links resolve. Every workspace
+# listed in the lockfile must have its manifest on disk, including workspaces
+# the API does not use at runtime: bun resolves the root's workspace:* links
+# before pruning, and an absent one fails the frozen install.
 COPY package.json bun.lock ./
 COPY apps/api/package.json apps/api/package.json
 COPY apps/web/package.json apps/web/package.json
 COPY packages/shared/package.json packages/shared/package.json
+COPY tools/benchmark/package.json tools/benchmark/package.json
 RUN bun install --frozen-lockfile
 
 # Copy sources needed to typecheck/build.
