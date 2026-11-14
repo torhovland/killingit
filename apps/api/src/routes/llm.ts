@@ -7,22 +7,18 @@ import {
   type LlmSettings,
 } from "@killingit/shared";
 import { zValidator } from "../http/validation.js";
-import type { Context } from "hono";
 import { Hono } from "hono";
 import { getUser } from "../auth/middleware.js";
 import {
-  apiError,
   badRequest,
+  respondUpstreamError,
   serviceUnavailable,
-  unauthorized,
 } from "../http/errors.js";
 import { encrypt } from "../crypto/credentials.js";
 import { loadLlmCosts } from "../llm/costStore.js";
 import { llmCredentialsKeyFromEnv } from "../llm/credentials.js";
 import {
   createOpenRouterProvider,
-  LlmAuthError,
-  LlmProviderError,
   type LlmProvider,
 } from "../llm/openrouter.js";
 import {
@@ -61,18 +57,6 @@ function settingsFromStored(stored: {
     seasonModel: stored.seasonModel ?? stored.model,
     dailyModel: stored.dailyModel ?? stored.model,
   };
-}
-
-/** Maps provider failures to useful HTTP responses. */
-function respondProviderError(c: Context, err: unknown): Response {
-  if (err instanceof LlmAuthError) {
-    return unauthorized(c, err.message);
-  }
-  if (err instanceof LlmProviderError && err.status !== undefined) {
-    return apiError(c, err.status, err.message);
-  }
-  console.error("[llm] provider failure:", err);
-  return serviceUnavailable(c);
 }
 
 /**
@@ -141,7 +125,7 @@ export function createLlmRoute(deps: LlmRouteDependencies = {}): Hono {
           try {
             await provider.validateKey(apiKey);
           } catch (err) {
-            return respondProviderError(c, err);
+            return respondUpstreamError(c, err, "[llm] provider failure");
           }
           apiKeyEncrypted = await encrypt(apiKey, key);
         }
@@ -166,7 +150,7 @@ export function createLlmRoute(deps: LlmRouteDependencies = {}): Hono {
             }
           }
         } catch (err) {
-          return respondProviderError(c, err);
+          return respondUpstreamError(c, err, "[llm] provider failure");
         }
 
         await saveSettings(user.id, {
@@ -201,7 +185,7 @@ export function createLlmRoute(deps: LlmRouteDependencies = {}): Hono {
         const models = await provider.listModels();
         return c.json(llmModelsResponseSchema.parse({ models }));
       } catch (err) {
-        return respondProviderError(c, err);
+        return respondUpstreamError(c, err, "[llm] provider failure");
       }
     })
     .get("/catalog", async (c) => {

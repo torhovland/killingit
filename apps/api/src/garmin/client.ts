@@ -6,23 +6,21 @@ import {
   type GarminDailyResponse,
   type GarminMetricsResponse,
 } from "@killingit/shared";
+import { UpstreamError } from "../http/errors.js";
 
 /**
  * Thrown when the Garmin sidecar rejects a request — either an authentication
- * failure (bad credentials) or some other error the sidecar surfaced.
+ * failure (bad credentials) or some other error the sidecar surfaced. A failure
+ * that carries no status of its own is reported as unavailable.
  */
-export class GarminSidecarError extends Error {
-  constructor(
-    message: string,
-    readonly status?: number,
-    options?: { cause?: unknown },
-  ) {
-    super(message, options);
+export class GarminSidecarError extends UpstreamError {
+  constructor(message: string, status?: number, options?: { cause?: unknown }) {
+    super(message, { status, ...options });
     this.name = "GarminSidecarError";
   }
 }
 
-/** Raised specifically for bad-credentials responses (mapped to 401). */
+/** Raised specifically for bad-credentials responses. */
 export class GarminAuthError extends GarminSidecarError {
   constructor(message: string, options?: { cause?: unknown }) {
     super(message, 401, options);

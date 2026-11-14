@@ -7,13 +7,12 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { zValidator } from "../http/validation.js";
 import { getUser } from "../auth/middleware.js";
-import { apiError, serviceUnavailable, unauthorized } from "../http/errors.js";
 import {
-  authenticateGarmin,
-  GarminAuthError,
-  GarminSidecarError,
-  syncGarminActivities,
-} from "../garmin/client.js";
+  respondUpstreamError,
+  serviceUnavailable,
+  unauthorized,
+} from "../http/errors.js";
+import { authenticateGarmin, syncGarminActivities } from "../garmin/client.js";
 import { loadDecryptedGarminCredentials } from "../garmin/credentials.js";
 import { encrypt, garminCredentialsKeyFromEnv } from "../garmin/crypto.js";
 import { loadCredentials, saveCredentials } from "../garmin/store.js";
@@ -70,16 +69,11 @@ export function createGarminRoute(deps: GarminRouteDependencies = {}): Hono {
       try {
         await authenticate({ username, password });
       } catch (err) {
-        if (err instanceof GarminAuthError) {
-          return unauthorized(c, err.message);
-        }
-        // Surface MFA-required (403), Garmin rate limiting (429), and sidecar
-        // gateway errors (502) as themselves instead of a generic 503.
-        if (err instanceof GarminSidecarError && err.status) {
-          return apiError(c, err.status, err.message);
-        }
-        console.error("[garmin] credential validation failure:", err);
-        return serviceUnavailable(c);
+        return respondUpstreamError(
+          c,
+          err,
+          "[garmin] credential validation failure",
+        );
       }
 
       const [usernameEncrypted, passwordEncrypted] = await Promise.all([
@@ -125,17 +119,10 @@ export function createGarminRoute(deps: GarminRouteDependencies = {}): Hono {
         );
         return c.json({ activities });
       } catch (err) {
-        if (err instanceof GarminAuthError) {
-          return unauthorized(c, err.message);
-        }
-        if (err instanceof GarminSidecarError && err.status) {
-          // Pass the sidecar's status through so callers can distinguish an
-          // auth problem (401), MFA-required (403), and Garmin rate limiting
-          // (429) from a genuine gateway failure (502).
-          return apiError(c, err.status, err.message);
-        }
-        console.error("[garmin] activities failure:", err);
-        return serviceUnavailable(c);
+        // The sidecar's own status survives: a Garmin auth failure (401),
+        // MFA-required (403), a rate limit (429) and a gateway error (502) stay
+        // distinguishable from an unexpected failure.
+        return respondUpstreamError(c, err, "[garmin] activities failure");
       }
     });
 }
