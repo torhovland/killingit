@@ -1,13 +1,17 @@
 import { describe, expect, it, spyOn } from "bun:test";
-import type { PlanGenerationStatus } from "@killingit/shared";
+import type { CoachPlan, PlanGenerationStatus } from "@killingit/shared";
 import type { ActivityFeed } from "../coaching/activities.js";
 import type { LlmClient } from "../llm/client.js";
 import type { QuestionAnswerStore } from "../questions/answers.js";
+import {
+  makePlan as makeFixturePlan,
+  PLAN_TODAY,
+} from "../testFixtures/plan.js";
 import type { UserStore } from "../users/store.js";
 import type { CoachingInputs } from "./inputs.js";
 import type { PlanGenerationStep } from "./steps.js";
 import { idleGenerationStatus } from "./store.js";
-import type { PlanGenerationStore, PlanStore } from "./store.js";
+import type { PlanGenerationStore, PlanStore, StoredPlan } from "./store.js";
 import { isGenerationSuperseded } from "./generation.js";
 import { loadPlanGenerationContext } from "./generationContext.js";
 import {
@@ -149,6 +153,27 @@ const plans: PlanStore = {
   save: () => Promise.resolve(null),
 };
 
+/**
+ * A stored plan wrapped the way the database store returns it. `generatedAt`
+ * distinguishes the loader's once-per-save failure reports.
+ */
+function storedPlan(plan: CoachPlan, generatedAt: Date): StoredPlan {
+  return {
+    plan,
+    answersUpdatedAt: null,
+    coachingInputsUpdatedAt: null,
+    activitiesUpdatedAt: null,
+    generatedAt,
+  };
+}
+
+/** A plan body the current schema no longer accepts. */
+function invalidPlan(): CoachPlan {
+  const plan = makeFixturePlan();
+  delete (plan.week as unknown as Record<string, unknown>).rationale;
+  return plan;
+}
+
 const answers: QuestionAnswerStore = {
   listForUser: () => Promise.resolve([]),
   saveAnswers: () => Promise.resolve(true),
@@ -265,6 +290,47 @@ describe("plan generation failure handling", () => {
     }
   });
 
+  it("rebuilds a stored plan its schema no longer accepts", async () => {
+    const generations = new RecordingGenerationStore();
+    const log = spyOn(console, "error").mockImplementation(() => {});
+    let completions = 0;
+    const deps = dependencies(generations, {
+      plans: {
+        load: () =>
+          Promise.resolve(
+            storedPlan(invalidPlan(), new Date("2026-11-12T08:00:00Z")),
+          ),
+        save: () => Promise.resolve(null),
+      },
+      loadLlm: () =>
+        Promise.resolve({
+          ...llm,
+          provider: {
+            ...llm.provider,
+            complete: () => {
+              completions += 1;
+              return Promise.resolve("");
+            },
+          },
+        }),
+    });
+
+    try {
+      await triggerPlanGeneration(deps, {
+        userId: 242,
+        today: PLAN_TODAY,
+        includeTomorrow: false,
+      });
+      await waitFor(() => completions > 0);
+
+      // The run asked the coach for a new season instead of advancing the
+      // corrupt body, which would otherwise have been re-saved unchanged.
+      expect(completions).toBeGreaterThan(0);
+    } finally {
+      log.mockRestore();
+    }
+  });
+
   it("reports a missing model before it syncs activities", async () => {
     const generations = new RecordingGenerationStore();
     const deps = dependencies(generations, {
@@ -349,6 +415,52 @@ describe("loadPlanGenerationContext", () => {
     expect(context?.surveyAdjustments).toEqual([]);
     expect(context?.activities).toEqual(emptyFeed);
     expect(context?.activitiesSnapshotAt).toBeGreaterThan(0);
+  });
+
+  it("returns a stored plan that still matches the schema", async () => {
+    const generations = new RecordingGenerationStore();
+    await generations.begin(run.userId, run.runId);
+    const stored = storedPlan(
+      makeFixturePlan(),
+      new Date("2026-11-12T09:00:00Z"),
+    );
+    const deps = dependencies(generations, {
+      plans: {
+        load: () => Promise.resolve(stored),
+        save: () => Promise.resolve(null),
+      },
+    });
+
+    const context = await loadPlanGenerationContext(deps, run);
+
+    expect(context?.plan).toEqual(stored);
+    expect(generations.failures).toEqual([]);
+  });
+
+  it("treats a stored plan from an older schema as absent", async () => {
+    const generations = new RecordingGenerationStore();
+    await generations.begin(run.userId, run.runId);
+    const log = spyOn(console, "error").mockImplementation(() => {});
+    const deps = dependencies(generations, {
+      plans: {
+        load: () =>
+          Promise.resolve(
+            storedPlan(invalidPlan(), new Date("2026-11-12T10:00:00Z")),
+          ),
+        save: () => Promise.resolve(null),
+      },
+    });
+
+    try {
+      const context = await loadPlanGenerationContext(deps, run);
+
+      // An unusable body never reaches the run as if it were a plan: the run
+      // sees no stored plan and rebuilds the season.
+      expect(context?.plan).toBeNull();
+      expect(generations.failures).toEqual([]);
+    } finally {
+      log.mockRestore();
+    }
   });
 
   it("fails the generation when a required input cannot be read", async () => {
