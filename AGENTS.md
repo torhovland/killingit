@@ -205,9 +205,12 @@ about a past workout, or before a suggested workout, to steer the coach.
   forecast, gives the combined forecast to the coach, and attaches all three to
   sessions. The UI shows them on workouts that can be done outdoors, including
   flexible sessions the coach planned indoors, and hides them for indoor-only
-  sessions and rest days. A significant change in the combined forecast marks
-  the week pending and refreshes the week and day. See ADR 0008, ADR 0010, and
-  `docs/specs/location-and-weather.md`.
+  sessions and rest days. The picker map is keyboard operable as well as
+  pointer operable: it is a `role="application"` tab stop where the arrow keys
+  move the centre, `+`/`−` zoom, Enter or Space picks the centred point, and a
+  polite live region announces the centre. A significant change in the
+  combined forecast marks the week pending and refreshes the week and day. See
+  ADR 0008, ADR 0010, and `docs/specs/location-and-weather.md`.
 - Threshold measurements and body weight/body-fat percentage are stored as
   daily time series, with a source of `user`, `garmin`, or `coach`. Thresholds
   live in `athlete_thresholds`, keyed by sport, measure, and date, with a display
@@ -549,9 +552,13 @@ made and recorded, and `docs/adrs/` for the accepted ones.
   invocation that CI already runs. A missing `alt`, a detached label, a click
   handler on a non-interactive element or a positive tab index fails
   `bun run lint`. The primitives are declared as the native controls they
-  render so a wrapping `<label>` counts as associated. Static rules cannot
-  judge focus management or chart alternatives, which stay in their own a11y
-  issues; see `docs/specs/accessibility-lint.md` and ADR 0041.
+  render so a wrapping `<label>` counts as associated. A non-SVG element that
+  pairs `role="img"` with a pointer handler also fails, because pointer
+  handlers are invisible to the interaction rules and the location map was
+  once pointer-only. Static rules cannot judge focus management, the location
+  map's keyboard behaviour or chart alternatives; the map's keyboard path is
+  covered by interaction tests, and chart alternatives stay in their own a11y
+  issue. See `docs/specs/accessibility-lint.md` and ADR 0041.
 - **Tailwind CSS** (v4, through `@tailwindcss/vite`) is the styling foundation.
   The primitives compose utility classes through `cn()`, which combines `clsx`
   and `tailwind-merge` so a caller's `className` overrides a default. The

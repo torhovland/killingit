@@ -135,6 +135,16 @@ export default tseslint.config(
       // list. The auth object is stable (see `apps/web/src/auth/index.ts`), so
       // the rule's suggestions are always safe to apply here.
       "react-hooks/exhaustive-deps": "error",
+      // `role="application"` hands raw key presses to the widget instead of
+      // letting a screen reader browse the page, which is what the
+      // keyboard-operable location map needs. jsx-a11y classifies
+      // `application` as a structural role, so it has to be named explicitly;
+      // every other non-interactive role still fails the rule. See
+      // `docs/specs/accessibility-lint.md`.
+      "jsx-a11y/no-noninteractive-tabindex": [
+        "error",
+        { roles: ["application"] },
+      ],
     },
   },
   {
@@ -152,6 +162,12 @@ export default tseslint.config(
     // `import.meta.env.VITE_API_URL` back into the app, which is how the
     // constant reached thirty files before. See
     // `docs/specs/web-api-base-url.md` and ADR 0044.
+    //
+    // jsx-a11y's interaction rules do not inspect pointer handlers, so a
+    // non-SVG element could regress into a pointer-only `role="img"` surface,
+    // as the location map did in #324. SVG charts keep `role="img"` with hover
+    // handlers because they are read-only graphics. See
+    // `docs/specs/accessibility-lint.md`.
     files: ["apps/web/**/*.{ts,tsx}"],
     ignores: ["apps/web/src/apiUrl.ts"],
     rules: {
@@ -161,6 +177,12 @@ export default tseslint.config(
           selector: "MemberExpression[property.name='VITE_API_URL']",
           message:
             "Read the API origin from ./apiUrl, or pass an API path to requestParsed/fetchJsonAuthed, instead of using VITE_API_URL directly.",
+        },
+        {
+          selector:
+            "JSXOpeningElement:not([name.name='svg']):has(JSXAttribute[name.name='role'][value.value='img']):has(JSXAttribute[name.name=/^onPointer/])",
+          message:
+            'A non-SVG element with role="img" must not be pointer-only. Make it keyboard operable and give it an interactive role, or move the pointer handling to a real control.',
         },
       ],
     },

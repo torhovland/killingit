@@ -27,6 +27,9 @@ would be sensible to take it outside.
    - zooming with the plus and minus buttons and the mouse wheel or trackpad;
      tiles are drawn at their native resolution instead of being stretched to
      the rendered map size;
+   - keyboard operation of the map: it is a single tab stop, the arrow keys
+     move the centre, `+` and `−` zoom, and Enter or Space choose the centred
+     point, with a polite live region announcing the centre;
    - save and clear actions that persist the location through `PATCH /api/me`.
 3. When a location is set, the API fetches the daily forecast, including
    sunrise and sunset, from Open-Meteo and Yr.no whenever a week or day plan is
@@ -106,6 +109,15 @@ would be sensible to take it outside.
   over the tiles, not an SVG overlay. A one-tile margin stays mounted around the
   viewport, and tile requests send the page origin as the referrer that
   OpenStreetMap requires.
+- The map is a `role="application"` surface so a screen reader passes the arrow
+  keys to it instead of using them to browse the page, and it is a tab stop with
+  an accessible name that lists the controls. One arrow-key press pans by a
+  fixed number of screen pixels, so the step covers less ground as the map zooms
+  in. `+`, `=` and the numpad `Add` key zoom in; `−`, `_` and the numpad
+  `Subtract` key zoom out, clamped like the buttons. Enter or Space choose the
+  centred point, which is the same value a click sets. A polite live region
+  announces the centre's latitude and longitude after each keyboard move.
+  Pointer behaviour is unchanged.
 - A map click clears any searched name and sets the marker to the clicked
   coordinates.
 - The location uses decimal degrees (WGS 84), matching activity GPS points.
@@ -282,9 +294,11 @@ containing `snow` or `sleet` → snow, and a code containing `rain` → rain.
 - API route tests for location save/clear, geocode auth/validation/errors, and a
   plan generation that receives an injected forecast.
 - Web tests for map projection, wheel zoom anchoring, click conversion, the
-  weather and daylight summary, and the Day/Week plan rendering (flexible
-  workouts show the forecast; indoor-only sessions and rest days do not), plus
-  the Week view's session descriptions and indoor/outdoor intent.
+  map's keyboard path (focus, arrow panning, zoom keys, Enter/Space selection
+  and the live-region announcement), the weather and daylight summary, and the
+  Day/Week plan rendering (flexible workouts show the forecast; indoor-only
+  sessions and rest days do not), plus the Week view's session descriptions and
+  indoor/outdoor intent.
 - API tests for significant/non-significant forecast comparisons, newly
   available daylight, current and next week coverage, the plan-read pending
   flag, and weather-service failure handling.

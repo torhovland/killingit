@@ -2,8 +2,9 @@
 
 - **Status:** Accepted (implemented)
 - **Date:** 2026-11-14
-- **Related:** ADR 0041, issue #305, `docs/specs/web-component-library.md`,
-  `docs/specs/web-interaction-tests.md`, `AGENTS.md`.
+- **Related:** ADR 0041, issues #305 and #324,
+  `docs/specs/web-component-library.md`, `docs/specs/web-interaction-tests.md`,
+  `AGENTS.md`.
 
 ## Goal
 
@@ -32,18 +33,19 @@ tab index, and invalid ARIA.
 ### Out of scope
 
 - Behavioural accessibility that static analysis cannot see: focus traps, chart
-  data exposed to screen readers, keyboard operation of the location map, sort
-  announcements, and a menu primitive. Those stay in their own a11y issues
-  (#324–#328).
+  data exposed to screen readers, sort announcements, and a menu primitive.
+  Those stay in their own a11y issues (#325–#328). The location map's keyboard
+  path (#324) is implemented and guarded by interaction tests rather than by a
+  lint rule, because whether keys actually move the map is behaviour, not JSX.
 - Running the rules over non-React code (the API, scripts, shared package) and
   over the Playwright config. Only the web app renders JSX.
 
 ## Acceptance criteria
 
 1. `bun run lint` passes on a clean tree with the plugin enabled.
-2. Adding an `<img>` without `alt`, a `<label>` without a control, or an
-   `onClick` on a non-interactive `<div>` makes `bun run lint` fail, so CI
-   catches the regression.
+2. Adding an `<img>` without `alt`, a `<label>` without a control, an
+   `onClick` on a non-interactive `<div>`, or a non-SVG `role="img"` with a
+   pointer handler makes `bun run lint` fail, so CI catches the regression.
 3. The findings the preset reported are fixed rather than suppressed: no
    `eslint-disable` comment was added.
 4. `bun run typecheck`, `bun run format` and `bun run test` still pass.
@@ -60,6 +62,27 @@ tab index, and invalid ARIA.
   It is now a real `<button aria-label="Close dialog">` behind the panel: the
   pointer-only close path gets an accessible name, and Escape remains the
   keyboard path.
+
+## Follow-up checks
+
+The location map (#324) exposed two gaps in the recommended preset:
+
+1. **`role="application"` and focus.** `jsx-a11y` classifies `application` as a
+   structural role, so `no-noninteractive-tabindex` rejects a focusable map
+   even though ARIA gives `application` its own key-handling mode. The rule's
+   documented `roles` option now names `application`, and only that role;
+   every other non-interactive role still fails. The map's keydown listener is
+   attached on the DOM element beside the non-passive wheel listener, because
+   the companion `no-noninteractive-element-interactions` rule has no role
+   allowlist. The keyboard behaviour itself is covered by
+   `apps/web/src/LocationPickerMap.test.tsx`.
+2. **Pointer handlers are invisible to the preset.** `no-static-element-interactions`
+   and `no-noninteractive-element-interactions` look only at mouse and keyboard
+   handlers, so a `<div role="img">` with `onPointerDown` passed lint while
+   being pointer-only. A `no-restricted-syntax` selector now rejects a
+   non-SVG element that pairs `role="img"` with a pointer handler. SVG charts
+   keep `role="img"` and hover handlers because they are read-only graphics
+   whose keyboard alternative is issue #325.
 
 ## Data-model and API impact
 
