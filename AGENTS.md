@@ -846,15 +846,22 @@ through a disciplined process:
 7. **CI pipeline** (GitHub Actions, `.github/workflows/ci.yml`): these checks
    must pass before merge: typecheck, lint, format, unused exports, unit tests,
    database integration tests, the e2e suite, the Garmin sidecar's Python
-   checks, the contribution sign-off check, the dependency-outdated check, and
-   the `build` job, which runs the web app's real `vite build` and builds both
-   Docker images without pushing so a broken bundle or Dockerfile fails CI
-   instead of the deploy; see `docs/specs/ci-build-job.md`.
-8. **Dependencies stay current.** CI fails the build when any dependency is
-   outdated (`bun run outdated`). When that happens, update the outdated
-   dependencies with `bun update`, verify typecheck/lint/format/tests still
-   pass, and commit the regenerated `bun.lock` (and any `package.json` changes)
-   in a separate new commit before pushing.
+   checks, the contribution sign-off check, and the `build` job, which runs the
+   web app's real `vite build` and builds both Docker images without pushing so
+   a broken bundle or Dockerfile fails CI instead of the deploy; see
+   `docs/specs/ci-build-job.md`. Dependency freshness is not a pull-request
+   gate: a separate scheduled workflow reports it (rule 8).
+8. **Dependencies stay current.** No pull request fails because a dependency
+   published a release while it was open, so CI does not run the outdated
+   check. The scheduled `outdated` workflow
+   (`.github/workflows/outdated.yml`) runs `bun run outdated` daily against the
+   default branch and fails, notifying its owner, when any dependency is
+   outdated; `workflow_dispatch` runs it on demand. When it reports one, update
+   the outdated dependencies with `bun update` (or `bun update --latest` for a
+   major-version jump), verify typecheck/lint/format/tests still pass, and
+   commit the regenerated `bun.lock` (and any `package.json` changes) in a
+   separate new commit before pushing. `bun run outdated` is the same check
+   locally; see `docs/specs/dependency-freshness.md`.
 9. **Decoupled, clearly named code.** Single-responsibility modules, explicit
    dependencies, descriptive names. Don't over-abstract prematurely, but
    extract real duplication.

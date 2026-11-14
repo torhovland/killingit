@@ -16,7 +16,16 @@ interface WorkflowJob {
   steps?: WorkflowStep[];
 }
 
+interface WorkflowTrigger {
+  schedule?: Array<{ cron?: string }>;
+  workflow_dispatch?: unknown;
+  pull_request?: unknown;
+  push?: unknown;
+}
+
 interface Workflow {
+  on?: WorkflowTrigger;
+  permissions?: Record<string, string>;
   jobs: Record<string, WorkflowJob>;
 }
 
@@ -45,6 +54,7 @@ async function readManifest(directory: string): Promise<PackageManifest> {
 
 const CI = await readWorkflow("ci.yml");
 const DEPLOY = await readWorkflow("deploy.yml");
+const OUTDATED = await readWorkflow("outdated.yml");
 const BUILD_JOB = CI.jobs["build"];
 
 /** The actions the build job may use: checkout, Bun, and nothing that talks to
@@ -202,5 +212,62 @@ describe("build job", () => {
     expect(commands.indexOf("bun install --frozen-lockfile")).toBeLessThan(
       commands.indexOf("bun run build"),
     );
+  });
+});
+
+describe("dependency freshness", () => {
+  const OUTDATED_JOB = OUTDATED.jobs["outdated"];
+
+  function outdatedCommands(): string[] {
+    return (OUTDATED_JOB?.steps ?? []).flatMap((step) =>
+      step.run ? [step.run] : [],
+    );
+  }
+
+  it("keeps the registry check off every pull request", () => {
+    // A release published while a pull request is open must not decide that
+    // pull request's result, so the check lives in its own workflow and CI
+    // knows nothing about it.
+    expect(CI.jobs["outdated"]).toBeUndefined();
+    for (const job of Object.values(CI.jobs)) {
+      for (const step of job.steps ?? []) {
+        expect(step.run ?? "").not.toContain("outdated");
+      }
+    }
+    expect(OUTDATED.on?.pull_request).toBeUndefined();
+    expect(OUTDATED.on?.push).toBeUndefined();
+  });
+
+  it("runs daily and on demand on the default branch", () => {
+    const crons = OUTDATED.on?.schedule?.map((entry) => entry.cron ?? "");
+    expect(crons).toHaveLength(1);
+    // Five fields, each a fixed value: once a day.
+    expect(crons?.[0]).toMatch(/^\d{1,2} \d{1,2} \* \* \*$/);
+    expect(OUTDATED.on?.workflow_dispatch).toBeDefined();
+  });
+
+  it("fails the run loudly when a dependency is outdated", () => {
+    expect(OUTDATED.permissions).toEqual({ contents: "read" });
+    expect(OUTDATED_JOB?.["runs-on"]).toBe("ubuntu-latest");
+
+    const steps = OUTDATED_JOB?.steps ?? [];
+    expect(steps[0]?.uses).toBe("actions/checkout@v5");
+    expect(steps.some((step) => step.uses === "oven-sh/setup-bun@v2")).toBe(
+      true,
+    );
+
+    const commands = outdatedCommands();
+    expect(commands).toContain("bun install --frozen-lockfile");
+    expect(commands).toContain("bun run outdated");
+    expect(commands.indexOf("bun install --frozen-lockfile")).toBeLessThan(
+      commands.indexOf("bun run outdated"),
+    );
+
+    // The failed run is the report, so no step may be excused from failing or
+    // skipped by a condition.
+    for (const step of steps) {
+      expect(step["continue-on-error"]).toBeUndefined();
+      expect(step.if).toBeUndefined();
+    }
   });
 });

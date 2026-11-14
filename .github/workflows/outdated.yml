@@ -1,0 +1,35 @@
+name: outdated
+
+# Dependency freshness is a property of the npm registry, not of a change, so
+# it must not decide a pull request's result: before this workflow existed, a
+# release published while a pull request was open failed that pull request.
+# The check runs daily against the default branch instead, and the maintainer
+# sees a failed run in the Actions tab and in the failure notification GitHub
+# sends to the user who last modified the cron schedule below.
+#
+# Daily rather than weekly: a patch or security release should surface within a
+# day, the run costs a couple of minutes, and a failure is an email rather than
+# a blocked pull request, so there is no noise to trade against freshness. The
+# minute is off the hour because GitHub delays or drops runs scheduled at the
+# start of an hour under load.
+#
+# See docs/specs/dependency-freshness.md.
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  outdated:
+    name: Dependencies up to date
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      # No `continue-on-error` and no conditional: an outdated dependency fails
+      # the run, and the failure is the report.
+      - run: bun run outdated

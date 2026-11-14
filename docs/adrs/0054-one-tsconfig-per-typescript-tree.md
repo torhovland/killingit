@@ -57,7 +57,7 @@ and `typecheck` script. Only the root scripts gap remained.
   `bun.lock`. Rejected.
 - **Declaring a root `typescript@6` dependency.** It satisfies
   `typescript-eslint`, but `bun run outdated` then reports the deliberate pin
-  as an outdated dependency on every build. Rejected.
+  as an outdated dependency on every run of the outdated check. Rejected.
 - **Keeping the `disableTypeChecked` override and only adding the tsconfig.**
   The types would compile, but the strongest lint rules would still be off for
   exactly the code that had just been made checkable. Rejected.
