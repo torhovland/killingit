@@ -1,4 +1,4 @@
-import type { ActivityFeed } from "../coaching/activities.js";
+import type { ActivityFeed } from "../coaching/feed/presenter.js";
 import { latestActivityAnalysisSince } from "../coaching/analysisRuns.js";
 import { MAX_ANALYZED_ACTIVITIES } from "../coaching/activityStore.js";
 import {

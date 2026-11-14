@@ -1,8 +1,8 @@
+import { loadAnalyzedActivities } from "../../coaching/activities.js";
 import {
-  loadAnalyzedActivities,
   loadUserActivityTrainingLoads,
   type ActivityFeed,
-} from "../../coaching/activities.js";
+} from "../../coaching/feed/presenter.js";
 import {
   deleteImportedActivity,
   deleteManualActivity,

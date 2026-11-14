@@ -1,5 +1,5 @@
-import type { ActivityFeed } from "../coaching/activities.js";
 import { loadAnalyzedActivities } from "../coaching/activities.js";
+import type { ActivityFeed } from "../coaching/feed/presenter.js";
 import { MAX_ANALYZED_ACTIVITIES } from "../coaching/activityStore.js";
 import { loadLlmClient, type LlmClient } from "../llm/client.js";
 import type { QuestionAnswerStore } from "../questions/answers.js";
