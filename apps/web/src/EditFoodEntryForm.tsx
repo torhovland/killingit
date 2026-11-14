@@ -185,7 +185,7 @@ export function EditFoodEntryForm({
             <>
               <img
                 src={photoDataUrl}
-                alt="The replacement meal photo"
+                alt="The replacement meal"
                 className="h-16 w-16 rounded object-cover"
               />
               <Button
@@ -206,7 +206,7 @@ export function EditFoodEntryForm({
               <FoodPhoto
                 entryId={entry.id}
                 version={entry.updatedAt}
-                alt="The meal photo you attached"
+                alt="The meal you attached"
                 className="h-16 w-16 rounded object-cover"
               />
               <Button

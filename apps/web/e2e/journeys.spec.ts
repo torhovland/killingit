@@ -160,7 +160,7 @@ test("an athlete logs a meal with a photo and sees the analysis", async ({
     mimeType: "image/png",
     buffer: Buffer.from(MEAL_PHOTO_BASE64, "base64"),
   });
-  await expect(page.getByAltText("The meal photo you attached")).toBeVisible();
+  await expect(page.getByAltText("The meal you attached")).toBeVisible();
   await page.getByRole("button", { name: "Log meal" }).click();
 
   await expect(page.getByTestId("food-entry")).toBeVisible();

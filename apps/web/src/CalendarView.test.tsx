@@ -466,7 +466,7 @@ describe("CalendarView dialog interaction", () => {
     await user.click(activity);
     expect(screen.getByTestId("calendar-dialog-coach-reply")).toBeDefined();
 
-    await user.click(screen.getByRole("presentation"));
+    await user.click(screen.getByRole("button", { name: "Close dialog" }));
     expect(screen.queryByRole("dialog")).toBeNull();
 
     await user.click(screen.getByRole("button", { name: /Morning ride/ }));

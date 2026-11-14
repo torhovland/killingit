@@ -102,15 +102,23 @@ export function Modal({
   }, []);
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-3"
-      role="presentation"
-      onClick={onClose}
-    >
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3">
+      {/*
+        The backdrop is a real button rather than a div with a click handler:
+        it is the dialog's pointer-only close affordance (Escape is the
+        keyboard one), and a button keeps it reachable to assistive tech
+        instead of leaving an unlabelled click target.
+      */}
+      <button
+        type="button"
+        aria-label="Close dialog"
+        className="absolute inset-0 bg-background/80"
+        onClick={onClose}
+      />
       <div
         ref={panelRef}
         className={cn(
-          "w-full rounded-lg border bg-card p-4 shadow-lg outline-none",
+          "relative w-full rounded-lg border bg-card p-4 shadow-lg outline-none",
           className,
         )}
         role="dialog"
@@ -119,7 +127,6 @@ export function Modal({
         aria-describedby={describedBy}
         tabIndex={-1}
         data-testid={testId}
-        onClick={(event) => event.stopPropagation()}
       >
         {children}
       </div>

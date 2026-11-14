@@ -1,5 +1,6 @@
 import js from "@eslint/js";
 import prettier from "eslint-config-prettier";
+import jsxA11y from "eslint-plugin-jsx-a11y";
 import reactHooks from "eslint-plugin-react-hooks";
 import globals from "globals";
 import tseslint from "typescript-eslint";
@@ -97,12 +98,36 @@ export default tseslint.config(
     },
   },
   {
+    // The web app is the one React surface, so the accessibility rules run
+    // only there. `recommended` covers the obvious barriers — a missing
+    // alternative text, a label detached from its control, a click handler on
+    // a non-interactive element, a positive tab index — and fails the build
+    // instead of leaving them to review. See `docs/specs/accessibility-lint.md`.
+    ...jsxA11y.flatConfigs.recommended,
     files: ["apps/web/**/*.{ts,tsx}"],
     languageOptions: {
+      ...jsxA11y.flatConfigs.recommended.languageOptions,
       globals: globals.browser,
     },
-    plugins: { "react-hooks": reactHooks },
+    settings: {
+      "jsx-a11y": {
+        // The primitives render a native control and forward every prop, so
+        // the plugin can treat them as the element they are. This keeps a
+        // wrapping `<label>` associated without repeating ids at each call
+        // site. See `docs/specs/accessibility-lint.md`.
+        components: {
+          Input: "input",
+          Select: "select",
+          Textarea: "textarea",
+        },
+      },
+    },
+    plugins: {
+      ...jsxA11y.flatConfigs.recommended.plugins,
+      "react-hooks": reactHooks,
+    },
     rules: {
+      ...jsxA11y.flatConfigs.recommended.rules,
       // Hooks must run in the same order on every render; a conditional or
       // looping hook is a runtime bug that TypeScript cannot catch.
       "react-hooks/rules-of-hooks": "error",

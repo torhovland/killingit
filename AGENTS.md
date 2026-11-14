@@ -519,6 +519,14 @@ made and recorded, and `docs/adrs/` for the accepted ones.
   `eslint.config.js`. `useAuth` returns a stable session object, so an effect
   lists `auth` or `auth.getToken` instead of narrowing to
   `auth.isAuthenticated`; see `docs/specs/auth-integration.md`.
+- The web app's JSX is checked by `eslint-plugin-jsx-a11y` with the
+  plugin's recommended rules, as errors, in the same root `eslint.config.js`
+  invocation that CI already runs. A missing `alt`, a detached label, a click
+  handler on a non-interactive element or a positive tab index fails
+  `bun run lint`. The primitives are declared as the native controls they
+  render so a wrapping `<label>` counts as associated. Static rules cannot
+  judge focus management or chart alternatives, which stay in their own a11y
+  issues; see `docs/specs/accessibility-lint.md` and ADR 0041.
 - **Tailwind CSS** (v4, through `@tailwindcss/vite`) is the styling foundation.
   The primitives compose utility classes through `cn()`, which combines `clsx`
   and `tailwind-merge` so a caller's `className` overrides a default. The

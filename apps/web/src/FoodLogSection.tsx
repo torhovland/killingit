@@ -211,7 +211,7 @@ export function FoodLogSection({
             <>
               <img
                 src={photoDataUrl}
-                alt="The meal photo you attached"
+                alt="The meal you attached"
                 className="h-16 w-16 rounded object-cover"
               />
               <Button
