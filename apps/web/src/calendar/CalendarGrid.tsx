@@ -5,7 +5,7 @@ import {
   formatMonth,
   monthOf,
   shiftMonth,
-} from "../calendarDates";
+} from "./calendarDates";
 import { Button } from "../components/Button";
 import { Input } from "../components/Input";
 import { CalendarCell } from "./CalendarCell";

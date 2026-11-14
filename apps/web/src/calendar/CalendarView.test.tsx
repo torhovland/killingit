@@ -1,0 +1,477 @@
+import { describe, expect, it } from "bun:test";
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { renderToStaticMarkup } from "react-dom/server";
+import type {
+  CalendarImportedActivity,
+  CalendarResponse,
+  WeekSession,
+} from "@killingit/shared";
+import { CalendarEntryDialog } from "./CalendarEntryDialog";
+import { CalendarView } from "./CalendarView";
+
+const recorded: CalendarImportedActivity = {
+  source: "garmin",
+  id: 123,
+  name: "Morning ride",
+  type: "cycling",
+  startDate: "2026-10-06T07:00:00.000Z",
+  distance: 25000,
+  movingTime: 3600,
+  elapsedTime: 3900,
+  totalElevationGain: 300,
+  sampleCount: 10,
+  samples: [],
+  route: [
+    { latitude: 59.9, longitude: 10.7 },
+    { latitude: 59.92, longitude: 10.72 },
+  ],
+  analysis: null,
+  analysisError: null,
+  programAnalysis: {
+    text: "This ride supported the week's aerobic focus.",
+    model: "test/model",
+    generatedAt: "2026-10-06T08:00:00.000Z",
+  },
+  comment: "Felt strong.",
+  coachReply: {
+    text: "Nice steady effort.",
+    model: "test/model",
+    generatedAt: "2026-10-06T08:05:00.000Z",
+  },
+  reviewed: false,
+  trainingLoad: { tss: 50, atl: 40, ctl: 45, tsb: 5 },
+};
+
+const workout: WeekSession = {
+  date: "2026-10-08",
+  day: "Thursday",
+  type: "workout",
+  title: "Tempo ride",
+  description: "Three blocks at tempo.",
+  durationMinutes: 75,
+  intensity: "moderate",
+  status: "planned",
+  estimatedTss: 70,
+};
+
+const rest: WeekSession = {
+  date: "2026-10-07",
+  day: "Wednesday",
+  type: "rest",
+  title: "Rest",
+  description: "Take the day off.",
+  durationMinutes: 0,
+  intensity: "rest",
+  status: "rest",
+};
+
+const data: CalendarResponse = {
+  earliestDate: "2026-10-01",
+  latestDate: "2026-12-31",
+  season: {
+    goal: "Ride a century.",
+    startDate: "2026-10-01",
+    endDate: "2026-12-31",
+    blocks: [
+      {
+        name: "Base",
+        focus: "Aerobic",
+        startDate: "2026-10-01",
+        endDate: "2026-12-01",
+        weekCount: 8,
+      },
+    ],
+    rationale: "Build endurance.",
+  },
+  weeks: [
+    {
+      startDate: "2026-10-05",
+      endDate: "2026-10-11",
+      focus: "Aerobic base",
+      targetLoad: "Easy",
+      weekNumber: 2,
+      blockName: "Base",
+      stats: {
+        plannedMinutes: 75,
+        completedMinutes: 65,
+        plannedTss: 70,
+        completedTss: 50,
+      },
+    },
+    {
+      startDate: "2026-10-12",
+      endDate: "2026-10-18",
+      focus: null,
+      targetLoad: null,
+      weekNumber: 3,
+      blockName: "Base",
+      stats: {
+        plannedMinutes: 0,
+        completedMinutes: 0,
+        plannedTss: 0,
+        completedTss: 0,
+      },
+    },
+  ],
+  days: [
+    {
+      date: "2026-10-01",
+      activities: [],
+      session: null,
+      blockStart: {
+        name: "Base",
+        focus: "Aerobic",
+        startDate: "2026-10-01",
+        endDate: "2026-12-01",
+        weekCount: 8,
+      },
+      seasonEnd: false,
+      events: [],
+    },
+    {
+      date: "2026-10-05",
+      activities: [
+        {
+          source: "manual",
+          id: 7,
+          name: "Club ride",
+          details: "Club ride",
+          startDate: "2026-10-05",
+          coachReply: null,
+          estimatedTss: 80,
+        },
+      ],
+      session: null,
+      blockStart: null,
+      seasonEnd: false,
+      events: [],
+    },
+    {
+      date: "2026-10-06",
+      activities: [recorded],
+      session: null,
+      blockStart: null,
+      seasonEnd: false,
+      events: [],
+    },
+    {
+      date: "2026-10-07",
+      activities: [],
+      session: rest,
+      blockStart: null,
+      seasonEnd: false,
+      events: [],
+    },
+    {
+      date: "2026-10-08",
+      activities: [],
+      session: workout,
+      blockStart: null,
+      seasonEnd: false,
+      events: [
+        {
+          startDate: "2026-10-08",
+          endDate: "2026-10-10",
+          title: "Oslo Marathon",
+          kind: "race",
+        },
+      ],
+    },
+  ],
+};
+
+/** The opening tag of the element that carries `attribute`. */
+function openingTag(html: string, attribute: string): string {
+  const index = html.indexOf(attribute);
+  if (index === -1) {
+    throw new Error(`missing ${attribute}`);
+  }
+  return html.slice(html.lastIndexOf("<", index), html.indexOf(">", index) + 1);
+}
+
+/** The markup for one week row, from its overview to the next row. */
+function weekBlock(
+  html: string,
+  weekStart: string,
+  nextWeekStart: string,
+): string {
+  const start = html.indexOf(`data-week-start="${weekStart}"`);
+  const end = html.indexOf(`data-week-start="${nextWeekStart}"`, start);
+  return html.slice(start, end === -1 ? html.length : end);
+}
+
+describe("CalendarView", () => {
+  it("renders a month of activities, workouts, rest days, and a block start", () => {
+    const html = renderToStaticMarkup(
+      <CalendarView
+        data={data}
+        month="2026-10"
+        onMonthChange={() => {}}
+        today="2026-10-07"
+      />,
+    );
+
+    expect(html).toContain("Calendar");
+    expect(html).toContain("October 2026");
+    expect(html).toContain("Goal:");
+    expect(html).toContain("Ride a century.");
+    expect(html).toContain("Block starts:<br/>Base");
+    expect(html).toContain("Morning ride");
+    expect(html).toContain("25.0 km");
+    expect(html).toContain("Club ride");
+    expect(html).toContain("TSS 80");
+    expect(html).toContain("Tempo ride");
+    expect(html).toContain("75 min");
+    expect(html).toContain("Rest");
+  });
+
+  it("renders a plan overview box to the left of each week", () => {
+    const html = renderToStaticMarkup(
+      <CalendarView
+        data={data}
+        month="2026-10"
+        onMonthChange={() => {}}
+        today="2026-10-07"
+      />,
+    );
+
+    expect(html).toContain('data-testid="calendar-week-overview"');
+    expect(html).toContain('data-week-start="2026-10-05"');
+    expect(html).toContain("Base");
+    expect(html).toContain("Aerobic base");
+    expect(html).toContain("Target load: Easy");
+    expect(html).toContain("1 workout");
+    expect(html).toContain("1 h 5 min");
+    expect(html).toContain("1 h 15 min planned");
+    expect(html).toContain("50");
+    expect(html).toContain("70 planned");
+    expect(html).toContain('data-testid="calendar-week-time"');
+    expect(html).toContain('data-testid="calendar-week-tss"');
+    expect(html.indexOf('data-week-start="2026-10-05"')).toBeLessThan(
+      html.indexOf('data-date="2026-10-05"'),
+    );
+  });
+
+  it("hides statistics for a future week with nothing planned", () => {
+    const html = renderToStaticMarkup(
+      <CalendarView
+        data={data}
+        month="2026-10"
+        onMonthChange={() => {}}
+        today="2026-10-07"
+      />,
+    );
+
+    const current = weekBlock(html, "2026-10-05", "2026-10-12");
+    const future = weekBlock(html, "2026-10-12", "2026-10-19");
+    expect(current).toContain('data-testid="calendar-week-stats"');
+    expect(future).toContain("Week 3");
+    expect(future).not.toContain('data-testid="calendar-week-stats"');
+  });
+
+  it("shows a dated goal or event on its day", () => {
+    const html = renderToStaticMarkup(
+      <CalendarView
+        data={data}
+        month="2026-10"
+        onMonthChange={() => {}}
+        today="2026-10-07"
+      />,
+    );
+
+    expect(html).toContain('data-testid="calendar-event"');
+    expect(html).toContain("Race: Oslo Marathon");
+  });
+
+  it("centers the month arrows in a full-size button", () => {
+    const html = renderToStaticMarkup(
+      <CalendarView
+        data={data}
+        month="2026-10"
+        onMonthChange={() => {}}
+        today="2026-10-07"
+      />,
+    );
+
+    const previous = openingTag(html, 'aria-label="Previous month"');
+    expect(previous).toContain("size-9");
+    expect(previous).toContain("items-center");
+    expect(previous).toContain("justify-center");
+    // The chevron is a fixed-size icon, so it cannot render tiny or off-centre.
+    expect(html).toContain('class="size-5"');
+    expect(html).toContain('viewBox="0 0 24 24"');
+  });
+
+  it("numbers a week the coach has not detailed yet", () => {
+    const html = renderToStaticMarkup(
+      <CalendarView
+        data={data}
+        month="2026-10"
+        onMonthChange={() => {}}
+        today="2026-10-07"
+      />,
+    );
+
+    const overview = html.slice(
+      html.indexOf('data-week-start="2026-10-12"'),
+      html.indexOf('data-week-start="2026-10-12"') + 300,
+    );
+    expect(overview).toContain("Base");
+    expect(overview).toContain("Week 3");
+    // The block's own focus no longer stands in for the week's description.
+    expect(overview).not.toContain("Aerobic");
+  });
+
+  it("keeps the today ring clear of the grid's scroll clip", () => {
+    const html = renderToStaticMarkup(
+      <CalendarView
+        data={data}
+        month="2026-10"
+        onMonthChange={() => {}}
+        today="2026-10-04"
+      />,
+    );
+
+    // The ring paints outside its cell, so the clipped scroll container needs
+    // inner padding for a Sunday's right side to stay visible.
+    expect(openingTag(html, 'data-testid="calendar-grid"')).toContain("p-1");
+    expect(openingTag(html, 'data-date="2026-10-04"')).toContain(
+      "ring-2 ring-ring",
+    );
+  });
+
+  it("hides planned sessions in the past and on today once an activity is recorded", () => {
+    const activityDayData: CalendarResponse = {
+      ...data,
+      days: data.days.map((day) =>
+        day.date === "2026-10-06"
+          ? { ...day, session: { ...workout, date: "2026-10-06" } }
+          : { ...day, session: null },
+      ),
+    };
+
+    const past = renderToStaticMarkup(
+      <CalendarView
+        data={activityDayData}
+        month="2026-10"
+        onMonthChange={() => {}}
+        today="2026-10-07"
+      />,
+    );
+    expect(past).not.toContain("Tempo ride");
+    expect(past).toContain("Morning ride");
+
+    const today = renderToStaticMarkup(
+      <CalendarView
+        data={activityDayData}
+        month="2026-10"
+        onMonthChange={() => {}}
+        today="2026-10-06"
+      />,
+    );
+    expect(today).not.toContain("Tempo ride");
+    expect(today).toContain("Morning ride");
+  });
+
+  it("bounds the month picker to the data range", () => {
+    const html = renderToStaticMarkup(
+      <CalendarView
+        data={data}
+        month="2026-10"
+        onMonthChange={() => {}}
+        today="2026-10-27"
+      />,
+    );
+
+    expect(html).toContain('min="2026-10"');
+    expect(html).toContain('max="2026-12"');
+    expect(html).toContain("Showing");
+    expect(html).toContain("disabled");
+  });
+
+  it("shows a recorded activity's full details in the dialog", () => {
+    const html = renderToStaticMarkup(
+      <CalendarEntryDialog
+        selection={{ kind: "activity", activity: recorded }}
+        onClose={() => {}}
+      />,
+    );
+
+    expect(html).toContain('role="dialog"');
+    expect(html).toContain('aria-modal="true"');
+    expect(html).toContain('aria-labelledby="calendar-entry-title"');
+    expect(html).toContain("Morning ride");
+    expect(html).toContain("25.00 km");
+    expect(html).toContain(
+      "This ride supported the week&#x27;s aerobic focus.",
+    );
+    expect(html).toContain("You:");
+    expect(html).toContain("Felt strong.");
+    expect(html).toContain("Coach:");
+    expect(html).toContain("Nice steady effort.");
+    expect(html).toContain('data-testid="activity-map"');
+  });
+
+  it("shows a planned workout's details in the dialog", () => {
+    const html = renderToStaticMarkup(
+      <CalendarEntryDialog
+        selection={{ kind: "session", session: workout }}
+        onClose={() => {}}
+      />,
+    );
+
+    expect(html).toContain("Tempo ride");
+    expect(html).toContain("75 min");
+    expect(html).toContain("Three blocks at tempo.");
+    expect(html).toContain("Estimated TSS");
+  });
+});
+
+describe("CalendarView dialog interaction", () => {
+  function renderCalendar() {
+    render(
+      <CalendarView
+        data={data}
+        month="2026-10"
+        onMonthChange={() => {}}
+        today="2026-10-01"
+      />,
+    );
+  }
+
+  it("opens a workout and closes it with Escape", async () => {
+    const user = userEvent.setup();
+    renderCalendar();
+    const session = screen.getByTestId("calendar-session");
+
+    await user.click(session);
+
+    const dialog = screen.getByRole("dialog");
+    expect(
+      within(dialog).getByRole("heading", { name: /Tempo ride/ }),
+    ).toBeDefined();
+    expect(within(dialog).getByText("Three blocks at tempo.")).toBeDefined();
+
+    await user.keyboard("{Escape}");
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(session);
+  });
+
+  it("closes an activity dialog on the backdrop and on the Close button", async () => {
+    const user = userEvent.setup();
+    renderCalendar();
+
+    const activity = screen.getByRole("button", { name: /Morning ride/ });
+    await user.click(activity);
+    expect(screen.getByTestId("calendar-dialog-coach-reply")).toBeDefined();
+
+    await user.click(screen.getByRole("button", { name: "Close dialog" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: /Morning ride/ }));
+    await user.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+});

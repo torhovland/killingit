@@ -32,9 +32,10 @@ already solved the same problem by moving its tab sections into `plan/` while
   - `useLlmCatalog.ts` — the catalog load and the filter and sort state, with
     the selected models kept visible;
   - `useQueuedSave.ts` — the latest-wins queued save.
-- Keep `LlmSection.tsx` flat beside its test as the Settings-page entry point.
-  It owns the key section, the alerts and the two model choices, and composes
-  the pieces above.
+- Keep `LlmSection.tsx` beside its test as the Settings-page entry point. It
+  owns the key section, the alerts and the two model choices, and composes the
+  pieces above. (Amended by ADR 0059: it now lives in `apps/web/src/settings/`;
+  the split from the pieces in `llm/` is unchanged.)
 
 A section that belongs to exactly one page goes in a directory named for the
 page's concern, next to the page component that composes it; shared primitives

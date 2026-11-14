@@ -32,8 +32,9 @@ marks anything not yet built.
 design tokens in `apps/web/src/index.css`. Compose a primitive's `variant`/`size`
 before `className`, merge classes with `cn()`, never repeat a primitive's base
 string in a page, and avoid inline styles and hard-coded colours; the component
-library is in `apps/web/src/components/` (`Modal` owns every dialog), and page
-components stay flat beside their tests. See
+library is in `apps/web/src/components/` (`Modal` owns every dialog), and each
+page lives in its feature directory (`calendar/`, `fitness/`, `diet/`,
+`settings/`, `admin/`) beside its tests. See
 `docs/specs/web-component-library.md` and `docs/specs/modal-dialog.md`.
 
 The app is an installable **PWA**; every page has a canonical URL and every

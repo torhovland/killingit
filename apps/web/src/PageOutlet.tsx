@@ -1,14 +1,14 @@
 import type { ReactNode } from "react";
 import { ActivitiesPage } from "./ActivitiesPage";
-import { AdminSettingsPage } from "./AdminSettingsPage";
-import { CalendarPage } from "./CalendarPage";
+import { AdminSettingsPage } from "./admin/AdminSettingsPage";
+import { CalendarPage } from "./calendar/CalendarPage";
 import { CoachDashboard } from "./CoachDashboard";
 import { CoachingSurveyPage } from "./CoachingSurveyPage";
 import { CostsPage } from "./CostsPage";
-import { DietPage } from "./DietPage";
-import { FitnessPage } from "./FitnessPage";
+import { DietPage } from "./diet/DietPage";
+import { FitnessPage } from "./fitness/FitnessPage";
 import { SeasonReviewPage } from "./SeasonReviewPage";
-import { SettingsPage } from "./SettingsPage";
+import { SettingsPage } from "./settings/SettingsPage";
 import type { Page } from "./navigation";
 
 export interface PageOutletProps {

@@ -4,7 +4,7 @@ import {
   type LlmCostBucket,
   type LlmPromptKind,
 } from "@killingit/shared";
-import { tickStep } from "./chartGeometry";
+import { tickStep } from "./charts/chartGeometry";
 
 /** How far back the monthly cost chart looks. */
 export const MONTHLY_COST_RANGES = ["12m", "all"] as const;

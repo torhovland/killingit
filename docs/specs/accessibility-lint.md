@@ -78,7 +78,7 @@ The location map (#324) exposed two gaps in the recommended preset:
    attached on the DOM element beside the non-passive wheel listener, because
    the companion `no-noninteractive-element-interactions` rule has no role
    allowlist. The keyboard behaviour itself is covered by
-   `apps/web/src/LocationPickerMap.test.tsx`.
+   `apps/web/src/settings/LocationPickerMap.test.tsx`.
 2. **Pointer handlers are invisible to the preset.** `no-static-element-interactions`
    and `no-noninteractive-element-interactions` look only at mouse and keyboard
    handlers, so a `<div role="img">` with `onPointerDown` passed lint while
@@ -103,7 +103,7 @@ closed the lint gap that let a pointer-only chart through:
    through `ChartFrame` and `useChartKeyboard` rather than per chart. The
    location map's `<div>` is out of these selectors' scope because its keydown
    listener is attached on the DOM element, and its behaviour is covered by
-   `apps/web/src/LocationPickerMap.test.tsx`.
+   `apps/web/src/settings/LocationPickerMap.test.tsx`.
 
 ## Data-model and API impact
 

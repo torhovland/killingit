@@ -40,17 +40,19 @@ The primitives live in `apps/web/src/components/`:
 - `cn` — `clsx` plus `tailwind-merge`, so a caller's `className` overrides a
   primitive's default instead of duplicating it.
 
-Page components stay flat in `apps/web/src/` beside their tests; only shared
-primitives belong in `components/`. Grouping the flat files by feature is
-tracked separately in issue #420. A page whose sections have outgrown one
-module may move those sections into a named directory: the coach plan's Day,
-Week, Block and Season sections and their shared pieces live in `plan/`, while
-the `CoachPlanView` tab shell stays flat; the OpenRouter model picker's catalog
-hook, filter bar, table and save queue live in `llm/`, while the `LlmSection`
-entry point stays flat; the calendar's grid, week overview, day cell and detail
-dialog live in `calendar/`, while `CalendarView` stays flat as the page
-content's composer. A one-off control with genuinely unique styling may stay a
-plain element, but it must not repeat a primitive's base class string.
+Page components live in the feature directory that owns them, beside their
+tests: `calendar/`, `fitness/`, `diet/`, `settings/` and `admin/` each hold a
+page, its sections and its single-page helpers. Only shared primitives belong
+in `components/`; the shared chart frame, geometry and keyboard and hover hooks
+live in `charts/`, and pieces used across pages (`TrainingLoadLine`,
+`CalorieBalancePanel`, `mapProjection`, the current-user and time-zone
+providers) stay at the root. A page whose sections outgrow one module keeps the
+same split: the coach plan's Day, Week, Block and Season sections and their
+shared pieces live in `plan/`, while the `CoachPlanView` tab shell stays in the
+feature root; the OpenRouter model picker's catalog hook, filter bar, table and
+save queue live in `llm/`, while the `LlmSection` entry point sits in
+`settings/`. A one-off control with genuinely unique styling may stay a plain
+element, but it must not repeat a primitive's base class string.
 
 ## Usage rule
 
