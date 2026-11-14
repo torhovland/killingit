@@ -137,6 +137,12 @@ wins when the two conflict.
    stop the pass so the next visit retries it.
 5. Daily health is supplementary: a rate limit or outage is logged and never
    fails the activity feed.
+6. The weigh-in/FTP refresh and this backfill run as one shared
+   `syncGarminSupplements(userId, credentials, today)` pass in
+   `apps/api/src/garmin/supplements.ts`, called by both the activity feed and
+   `GET /api/garmin/activities`. `today` is the athlete's local calendar date in
+   the effective time zone, so both callers end the daily window on the day the
+   athlete is living.
 
 ## Acceptance criteria
 
