@@ -17,7 +17,7 @@ the test. The same holds for a shared helper that is only reachable through the
 ### In scope
 
 1. A `knip` run in production mode over the API, web app, shared package, root
-   scripts and the prompt-benchmark scripts.
+   scripts and the benchmark workspace.
 2. Test files are excluded from the run, so an export that only a test imports
    is reported as unused.
 3. The shared package's barrel (`packages/shared/src/index.ts`) is an entry, and
@@ -40,7 +40,7 @@ the test. The same holds for a shared helper that is only reachable through the
    an export has no reference at all, when a shared barrel export has no
    production consumer outside `packages/shared`, or when a production source
    file is unreachable from every entry point.
-3. The API, web app, shared package, root scripts and prompt-benchmark scripts
+3. The API, web app, shared package, root scripts and the benchmark workspace
    are analysed; test, integration and e2e files are not treated as production
    consumers.
 4. `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`

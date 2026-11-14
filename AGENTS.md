@@ -632,6 +632,10 @@ across frontend and backend:
   - `tools/benchmark` — LLM benchmark harness and model-catalog grading
     queries, run by `bun run benchmark:llm` and `bun run benchmark:prompts`;
     it imports the real plan pipeline from `apps/api`. See ADR 0032.
+- `scripts/` is not a workspace: it holds development tooling run through
+  `bun run scripts/...` (the coverage runner, the outdated-dependency and
+  sign-off checks, and their tests) and is typechecked by the root
+  `tsconfig.scripts.json`. See ADR 0054.
 
 ### Database
 
@@ -768,6 +772,12 @@ through a disciplined process:
    strictness flags in `tsconfig.base.json`), ESLint, Prettier, and the
    unused-export scan are all checked in CI (`bun run typecheck`,
    `bun run lint`, `bun run format`, `bun run check:unused`) and must pass.
+   Every TypeScript file belongs to exactly one named project: each workspace
+   package has its own `tsconfig.json`, and the root `tsconfig.scripts.json`
+   owns `scripts/`, which no workspace covers. The root `typecheck` script runs
+   both, so `scripts/` is typechecked and type-aware-linted too, and a guard
+   test fails when a new root-level TypeScript tree is left out. See
+   `docs/specs/typescript-project-coverage.md` and ADR 0054.
 6. **Full test coverage on every feature**, across every layer:
    - **Unit tests** (Vitest) for pure logic and components.
    - **Python sidecar tests** for `services/garmin`: `bun run check:garmin` runs

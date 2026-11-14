@@ -106,13 +106,18 @@ export default tseslint.config(
     ...tseslint.configs.disableTypeChecked,
   },
   {
-    files: ["scripts/**/*.{ts,tsx}", "benchmarks/**/*.{ts,tsx}"],
-    ...tseslint.configs.disableTypeChecked,
+    // The root scripts belong to no workspace package, so they are checked by
+    // the root `tsconfig.scripts.json` project rather than the project service,
+    // which only discovers files named `tsconfig.json`. They run in Bun and
+    // Node, hence the Node globals. See
+    // `docs/specs/typescript-project-coverage.md`.
+    files: ["scripts/**/*.{ts,tsx}"],
     languageOptions: {
       globals: globals.node,
       parserOptions: {
-        project: null,
+        project: ["./tsconfig.scripts.json"],
         projectService: false,
+        tsconfigRootDir: import.meta.dirname,
       },
     },
   },
