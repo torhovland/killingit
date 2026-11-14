@@ -318,7 +318,9 @@ about a past workout, or before a suggested workout, to steer the coach.
   each measure; see `docs/specs/garmin-daily-health-metrics.md`.
   Manual activities get a coach-estimated TSS read from their free text, stored
   in `manual_activities.estimated_tss`; without a model the entry stays
-  unscored. Any manual
+  unscored. An edit saves the entry's own text first, which also proves the id
+  belongs to the athlete, so a missing or foreign id is refused with the same
+  `404` before the coach is billed for the estimate. Any manual
   edit or Garmin import rebuilds the full daily series, so every later
   activity's load is recalculated. The Fitness page charts that series with the
   TSB zone colours, the estimated thresholds, and interpolated body weight/body

@@ -37,6 +37,7 @@ import {
   saveWeeklyNote,
   updateActivityComment,
   updateManualActivity,
+  updateManualActivityTss,
 } from "../../plans/inputs.js";
 import {
   createPeriodReviewComment,
@@ -98,6 +99,7 @@ export interface ResolvedCoachingDependencies {
   loadManual: typeof loadManualActivities;
   loadManualReplies: typeof loadManualActivityReplies;
   updateManual: typeof updateManualActivity;
+  updateManualTss: typeof updateManualActivityTss;
   deleteImported: typeof deleteImportedActivity;
   deleteManual: typeof deleteManualActivity;
   reply: typeof replyToCoachingInput;
@@ -173,6 +175,7 @@ export function resolveCoachingDependencies(
     loadManualReplies:
       deps.loadManualActivityReplies ?? loadManualActivityReplies,
     updateManual: deps.updateManualActivity ?? updateManualActivity,
+    updateManualTss: deps.updateManualActivityTss ?? updateManualActivityTss,
     deleteImported: deps.deleteImportedActivity ?? deleteImportedActivity,
     deleteManual: deps.deleteManualActivity ?? deleteManualActivity,
     reply: deps.replyToCoachingInput ?? replyToCoachingInput,

@@ -279,6 +279,27 @@ export async function updateManualActivity(
 }
 
 /**
+ * Stores the coach's TSS estimate on an existing manual activity. The row was
+ * already confirmed by the update, so this narrow write does not repeat the
+ * other fields.
+ */
+export async function updateManualActivityTss(
+  userId: number,
+  activityId: number,
+  estimatedTss: number,
+): Promise<void> {
+  await db
+    .update(manualActivities)
+    .set({ estimatedTss, updatedAt: new Date() })
+    .where(
+      and(
+        eq(manualActivities.userId, userId),
+        eq(manualActivities.id, activityId),
+      ),
+    );
+}
+
+/**
  * Records a manual activity. The plan's stored input timestamp is deliberately
  * left unchanged so the next status read sees the newer input and regenerates.
  */
