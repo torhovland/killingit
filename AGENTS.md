@@ -555,10 +555,21 @@ made and recorded, and `docs/adrs/` for the accepted ones.
   render so a wrapping `<label>` counts as associated. A non-SVG element that
   pairs `role="img"` with a pointer handler also fails, because pointer
   handlers are invisible to the interaction rules and the location map was
-  once pointer-only. Static rules cannot judge focus management, the location
-  map's keyboard behaviour or chart alternatives; the map's keyboard path is
-  covered by interaction tests, and chart alternatives stay in their own a11y
-  issue. See `docs/specs/accessibility-lint.md` and ADR 0041.
+  once pointer-only, and an `<svg>` with a pointer handler must be a tab stop
+  that handles keys, so a chart cannot regress to hover-only. Static rules
+  cannot judge focus management or the location map's keyboard behaviour; the
+  map's keyboard path is covered by interaction tests, and the pointer-only
+  case for non-SVG elements is a lint rule. See
+  `docs/specs/accessibility-lint.md` and ADR 0041.
+- Every chart's per-day values are reachable without a pointer. A chart is one
+  keyboard stop: `useChartKeyboard` (`apps/web/src/useChartKeyboard.ts`) maps
+  the left and right arrows, Home, End and Escape onto a position, and
+  `useChartHover` composes it so `ChartFrame` gives the fitness, threshold, body
+  and recovery/sleep charts the same marker, card and cursor; the Costs page's
+  bar chart uses the cursor directly. A polite live region reads the
+  keyboard-moved day's card and stays silent while a pointer moves. Left and
+  right are bound rather than up and down so a focused chart does not take the
+  page's scrolling. See `docs/specs/chart-keyboard-navigation.md` and ADR 0051.
 - **Tailwind CSS** (v4, through `@tailwindcss/vite`) is the styling foundation.
   The primitives compose utility classes through `cn()`, which combines `clsx`
   and `tailwind-merge` so a caller's `className` overrides a default. The

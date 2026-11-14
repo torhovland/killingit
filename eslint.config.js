@@ -139,11 +139,14 @@ export default tseslint.config(
       // letting a screen reader browse the page, which is what the
       // keyboard-operable location map needs. jsx-a11y classifies
       // `application` as a structural role, so it has to be named explicitly;
-      // every other non-interactive role still fails the rule. See
-      // `docs/specs/accessibility-lint.md`.
+      // `img` is named for the focusable, read-only charts, whose keyboard
+      // cursor announces its day through a live region rather than through the
+      // graphic's children. Every other non-interactive role still fails the
+      // rule. See `docs/specs/accessibility-lint.md` and
+      // `docs/specs/chart-keyboard-navigation.md`.
       "jsx-a11y/no-noninteractive-tabindex": [
         "error",
-        { roles: ["application"] },
+        { roles: ["application", "img"] },
       ],
     },
   },
@@ -166,8 +169,11 @@ export default tseslint.config(
     // jsx-a11y's interaction rules do not inspect pointer handlers, so a
     // non-SVG element could regress into a pointer-only `role="img"` surface,
     // as the location map did in #324. SVG charts keep `role="img"` with hover
-    // handlers because they are read-only graphics. See
-    // `docs/specs/accessibility-lint.md`.
+    // handlers because they are read-only graphics, and they carry the keyboard
+    // cursor instead: an SVG with a pointer handler has to be a tab stop and
+    // handle keys, so a pointer-only chart cannot come back. See
+    // `docs/specs/accessibility-lint.md` and
+    // `docs/specs/chart-keyboard-navigation.md`.
     files: ["apps/web/**/*.{ts,tsx}"],
     ignores: ["apps/web/src/apiUrl.ts"],
     rules: {
@@ -183,6 +189,18 @@ export default tseslint.config(
             "JSXOpeningElement:not([name.name='svg']):has(JSXAttribute[name.name='role'][value.value='img']):has(JSXAttribute[name.name=/^onPointer/])",
           message:
             'A non-SVG element with role="img" must not be pointer-only. Make it keyboard operable and give it an interactive role, or move the pointer handling to a real control.',
+        },
+        {
+          selector:
+            "JSXOpeningElement[name.name='svg']:has(JSXAttribute[name.name=/^onPointer/]):not(:has(JSXAttribute[name.name='tabIndex']))",
+          message:
+            "An SVG chart with a pointer handler must also be a keyboard stop. Give it tabIndex={0} and a keyboard cursor, such as useChartKeyboard, so its values are reachable without a pointer.",
+        },
+        {
+          selector:
+            "JSXOpeningElement[name.name='svg']:has(JSXAttribute[name.name=/^onPointer/]):not(:has(JSXAttribute[name.name='onKeyDown']))",
+          message:
+            "An SVG chart with a pointer handler must also handle keys, such as with useChartKeyboard, so its values are reachable without a pointer.",
         },
       ],
     },

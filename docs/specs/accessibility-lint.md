@@ -2,9 +2,9 @@
 
 - **Status:** Accepted (implemented)
 - **Date:** 2026-11-14
-- **Related:** ADR 0041, issues #305 and #324,
+- **Related:** ADR 0041, issues #305, #324 and #325,
   `docs/specs/web-component-library.md`, `docs/specs/web-interaction-tests.md`,
-  `AGENTS.md`.
+  `docs/specs/chart-keyboard-navigation.md`, `AGENTS.md`.
 
 ## Goal
 
@@ -34,9 +34,12 @@ tab index, and invalid ARIA.
 
 - Behavioural accessibility that static analysis cannot see: focus traps, chart
   data exposed to screen readers, sort announcements, and a menu primitive.
-  Those stay in their own a11y issues (#325–#328). The location map's keyboard
-  path (#324) is implemented and guarded by interaction tests rather than by a
-  lint rule, because whether keys actually move the map is behaviour, not JSX.
+  Focus traps are covered by the `Modal` tests, and the chart keyboard path
+  (#325) by `docs/specs/chart-keyboard-navigation.md`; sort announcements and a
+  menu primitive stay in their own a11y issues (#326–#328). The location map's
+  keyboard path (#324) is implemented and guarded by interaction tests rather
+  than by a lint rule, because whether keys actually move the map is behaviour,
+  not JSX.
 - Running the rules over non-React code (the API, scripts, shared package) and
   over the Playwright config. Only the web app renders JSX.
 
@@ -80,9 +83,27 @@ The location map (#324) exposed two gaps in the recommended preset:
    and `no-noninteractive-element-interactions` look only at mouse and keyboard
    handlers, so a `<div role="img">` with `onPointerDown` passed lint while
    being pointer-only. A `no-restricted-syntax` selector now rejects a
-   non-SVG element that pairs `role="img"` with a pointer handler. SVG charts
-   keep `role="img"` and hover handlers because they are read-only graphics
-   whose keyboard alternative is issue #325.
+   non-SVG element that pairs `role="img"` with a pointer handler.
+
+## Follow-up checks from issue #325
+
+The chart a11y fix (#325) added the keyboard path the charts were missing and
+closed the lint gap that let a pointer-only chart through:
+
+1. **A focusable `role="img"`.** A chart is a read-only graphic that is also one
+   keyboard stop, so `no-noninteractive-tabindex` now names `img` in its role
+   allowlist beside `application`; every other non-interactive role still
+   fails. The chart keeps `role="img"`, its `aria-label`, and an
+   `aria-describedby` instruction; the values it announces come from its polite
+   live region rather than from the graphic's children. See
+   `docs/specs/chart-keyboard-navigation.md` and ADR 0051.
+2. **A pointer-only `<svg>`.** Two `no-restricted-syntax` selectors now fail an
+   `<svg>` that has a pointer handler without `tabIndex`, and one without
+   `onKeyDown`. A chart cannot regress to hover-only, and the fix is shared
+   through `ChartFrame` and `useChartKeyboard` rather than per chart. The
+   location map's `<div>` is out of these selectors' scope because its keydown
+   listener is attached on the DOM element, and its behaviour is covered by
+   `apps/web/src/LocationPickerMap.test.tsx`.
 
 ## Data-model and API impact
 

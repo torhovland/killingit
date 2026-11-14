@@ -1,4 +1,6 @@
 import { describe, expect, it } from "bun:test";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { renderToStaticMarkup } from "react-dom/server";
 import { chartScale } from "./chartGeometry";
 import { ChartFrame } from "./ChartFrame";
@@ -70,5 +72,72 @@ describe("ChartFrame", () => {
 
     expect(html).not.toContain("<figcaption");
     expect(html).toContain("<title>Estimated threshold in watts</title>");
+  });
+
+  it("is one keyboard stop that announces the day it moved to", async () => {
+    const user = userEvent.setup();
+    render(
+      <ChartFrame
+        label="Resting heart rate chart"
+        days={days}
+        scale={scale}
+        ticks={[0, 100]}
+        tooltipTestId="frame-tooltip"
+        tooltip={(hovered) => <p>{`${hovered.day.date}: 52 bpm`}</p>}
+      >
+        {() => null}
+      </ChartFrame>,
+    );
+
+    await user.tab();
+    const chart = screen.getByRole("img", { name: "Resting heart rate chart" });
+    expect(document.activeElement).toBe(chart);
+    const instructionId = chart.getAttribute("aria-describedby") ?? "";
+    expect(document.getElementById(instructionId)?.textContent).toContain(
+      "arrow keys",
+    );
+
+    await user.keyboard("{ArrowRight}");
+    expect(screen.getByTestId("frame-tooltip").textContent).toBe(
+      "2026-10-20: 52 bpm",
+    );
+    expect(screen.getByRole("status").textContent).toBe("2026-10-20: 52 bpm");
+
+    await user.keyboard("{End}");
+    expect(screen.getByRole("status").textContent).toBe("2026-10-23: 52 bpm");
+
+    await user.keyboard("{Escape}");
+    expect(screen.queryByTestId("frame-tooltip")).toBeNull();
+    expect(screen.getByRole("status").textContent).toBe("");
+  });
+
+  it("announces the date of a chart that has no hover card", async () => {
+    const user = userEvent.setup();
+    render(
+      <ChartFrame label="Bare chart" days={days} scale={scale} ticks={[0, 100]}>
+        {() => null}
+      </ChartFrame>,
+    );
+
+    await user.tab();
+    await user.keyboard("{ArrowRight}");
+    expect(screen.getByRole("status").textContent).toBe("20 Oct");
+  });
+
+  it("does not make a chart without a hover card a tab stop", () => {
+    const html = renderToStaticMarkup(
+      <ChartFrame
+        label="Calories per day"
+        days={days}
+        scale={scale}
+        ticks={[0, 100]}
+        interactive={false}
+      >
+        {() => null}
+      </ChartFrame>,
+    );
+
+    expect(html).not.toContain('tabindex="0"');
+    expect(html).not.toContain("aria-describedby");
   });
 });

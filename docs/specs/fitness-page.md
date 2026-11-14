@@ -233,9 +233,16 @@ API:
   day's estimated FTP. The charts are tall enough
   for the card to sit over the top of the plot without hiding the lines below
   it.
+- Every chart is one keyboard stop as well: the left and right arrow keys move
+  the same marker and card through the days, Home and End jump to the first and
+  last day, and Escape or leaving the chart clears them. A polite live region
+  reads the moved-to day's card, and the chart's hidden description names the
+  keys. The keyboard never announces pointer movement. See
+  `docs/specs/chart-keyboard-navigation.md` and ADR 0051.
 - Every fitness chart shares `ChartFrame` (`apps/web/src/ChartFrame.tsx`): it
   owns the card, the accessible SVG, the y and x axes, the hovered-day guide and
-  the hover card's placement. A chart supplies its scale, ticks, legend and a
+  the hover card's placement, and the keyboard cursor with its live region. A
+  chart supplies its scale, ticks, legend and a
   render-prop that draws its series inside the plot, so the line charts, the
   stacked sleep chart and the calorie bars use the same frame. A chart can add a
   footer, and the body chart adds a right axis.
@@ -274,7 +281,8 @@ API:
 8. Pointing at a day of either chart shows that day's numbers and the
    activities logged on it, or the planned workout when none was (a future
    rest day reads "Planned: Rest", today's or a past one just "Rest"); the FTP
-   chart also shows that day's FTP.
+   chart also shows that day's FTP. The keyboard reaches the same days, and a
+   polite live region reads them.
 9. The range picker switches between the five windows, and `All time` starts at
    the first recorded or manual activity.
 10. The page is reachable from the account menu and renders today's load line.
@@ -304,8 +312,11 @@ API:
 - API route tests: auth, missing date, day clamping, and the happy path.
 - Web unit tests for the chart scale helpers and the shared chart frame
   (caption, left and right axes, date labels, render-prop series, legend and
-  footer), the one path builder (a line, a gap, a skipped day and the
-  coordinate rounding), a render test for the page view (load line, zone legend,
-  both charts, hidden FTP chart, body chart and its hidden states, the Garmin
-  Today columns and the recovery/sleep charts), and a render test for the hover
-  card.
+  footer, and the keyboard stop with its announcement), the one path builder (a
+  line, a gap, a skipped day and the coordinate rounding), a render test for the
+  page view (load line, zone legend, both charts, hidden FTP chart, body chart
+  and its hidden states, the Garmin Today columns and the recovery/sleep
+  charts), a render test for the hover card, and the shared keyboard cursor's
+  interaction tests (`useChartHover.test.tsx`, `FitnessChart.test.tsx`, and
+  `CostBarChart.test.tsx` for the Costs page chart). See
+  `docs/specs/chart-keyboard-navigation.md`.

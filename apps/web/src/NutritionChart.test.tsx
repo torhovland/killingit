@@ -34,6 +34,24 @@ describe("NutritionChart", () => {
     expect(html).toContain("Needed");
   });
 
+  it("is not a keyboard stop, because it has no hover card", () => {
+    const html = renderToStaticMarkup(
+      <NutritionChart
+        today="2026-11-07"
+        days={[
+          {
+            date: "2026-11-05",
+            consumedKcal: 2200,
+            neededKcal: 2400,
+          },
+        ]}
+      />,
+    );
+
+    expect(html).not.toContain('tabindex="0"');
+    expect(html).not.toContain('role="status"');
+  });
+
   it("hides itself when there is no nutrition data", () => {
     const html = renderToStaticMarkup(
       <NutritionChart

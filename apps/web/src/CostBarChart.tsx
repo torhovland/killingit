@@ -11,6 +11,7 @@ import {
   type CostSeriesTotal,
 } from "./costChart";
 import { CostTooltip } from "./CostTooltip";
+import { CHART_KEYBOARD_HINT, useChartKeyboard } from "./useChartKeyboard";
 
 const CHART_HEIGHT = 280;
 const PLOT_WIDTH = CHART_WIDTH - CHART_PADDING.left - CHART_PADDING.right;
@@ -20,7 +21,8 @@ const PLOT_HEIGHT = CHART_HEIGHT - CHART_PADDING.top - CHART_PADDING.bottom;
  * A bar chart of LLM spend where each bar is split into one segment per series:
  * a model or a prompt type. The white plot matches the other charts, and
  * pointing at a bar shows its total and call count, then each series' spend and
- * call count.
+ * call count. The chart is one keyboard stop, using the same cursor as the
+ * fitness charts; see `docs/specs/chart-keyboard-navigation.md`.
  */
 export function CostBarChart({
   title,
@@ -35,7 +37,9 @@ export function CostBarChart({
   emptyMessage: string;
   testId: string;
 }) {
-  const [hovered, setHovered] = useState<number | null>(null);
+  const [pointerHovered, setPointerHovered] = useState<number | null>(null);
+  const keyboard = useChartKeyboard(data.buckets.length);
+  const hovered = keyboard.index ?? pointerHovered;
   const axis = costAxis(
     Math.max(0, ...data.buckets.map((bucket) => bucket.totalUsd)),
   );
@@ -51,8 +55,13 @@ export function CostBarChart({
   );
   const hoveredBucket =
     hovered === null ? null : (data.buckets[hovered] ?? null);
+  const keyboardBucket =
+    keyboard.index === null ? null : (data.buckets[keyboard.index] ?? null);
 
   function onPointerMove(event: PointerEvent<SVGSVGElement>): void {
+    // The pointer takes over from the keyboard cursor, which also keeps the
+    // live region quiet while the pointer moves.
+    keyboard.clear();
     const bounds = event.currentTarget.getBoundingClientRect();
     if (bounds.width === 0) {
       return;
@@ -61,7 +70,7 @@ export function CostBarChart({
       ((event.clientX - bounds.left) / bounds.width) * CHART_WIDTH -
       CHART_PADDING.left;
     const index = costBarIndex(viewX / PLOT_WIDTH, data.buckets.length);
-    setHovered(index < 0 ? null : index);
+    setPointerHovered(index < 0 ? null : index);
   }
 
   if (data.totalUsd === 0) {
@@ -97,10 +106,17 @@ export function CostBarChart({
           className="h-auto w-full"
           role="img"
           aria-label={`${title}. ${description}`}
+          aria-describedby={keyboard.instructionId}
+          tabIndex={0}
           data-testid={`${testId}-svg`}
           onPointerMove={onPointerMove}
           onPointerDown={onPointerMove}
-          onPointerLeave={() => setHovered(null)}
+          onPointerLeave={() => setPointerHovered(null)}
+          onKeyDown={keyboard.onKeyDown}
+          onBlur={() => {
+            keyboard.onBlur();
+            setPointerHovered(null);
+          }}
         >
           <title>{`${title} in USD`}</title>
           <g
@@ -182,6 +198,9 @@ export function CostBarChart({
             })}
           </g>
         </svg>
+        <p id={keyboard.instructionId} className="sr-only">
+          {CHART_KEYBOARD_HINT}
+        </p>
         {hoveredBucket !== null && (
           <CostTooltip
             bucket={hoveredBucket}
@@ -189,6 +208,17 @@ export function CostBarChart({
             left={`${((CHART_PADDING.left + slot * (hovered ?? 0) + slot / 2) / CHART_WIDTH) * 100}%`}
           />
         )}
+        {/* Mounted from the start so a screen reader reports each change, and
+            written only by the keyboard. See ADR 0051. */}
+        <div className="sr-only" role="status" aria-live="polite">
+          {keyboardBucket === null ? null : (
+            <CostTooltip
+              bucket={keyboardBucket}
+              series={data.series}
+              left="50%"
+            />
+          )}
+        </div>
       </div>
       {visibleSeries.length > 0 && (
         <ul

@@ -82,7 +82,9 @@ before cost capture have no value.
 - Each chart shows its total for the selected range and a legend of the series
   that contribute to it.
 - Hovering a bar shows its period, total, per-series split, and call count,
-  with each series' own call count shown before its cost.
+  with each series' own call count shown before its cost. The chart is one
+  keyboard stop that announces the same card, like the Fitness page's charts;
+  see `docs/specs/chart-keyboard-navigation.md`.
 - An empty range shows a clear message instead of an empty plot.
 - The API route is authenticated and scoped to the account.
 - A truncated attempt contributes its reported cost.
