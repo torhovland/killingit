@@ -781,8 +781,11 @@ and a single sign-in action. See `docs/specs/signed-out-landing.md`.
   are not part of the request line. See `docs/specs/api-logging.md` and ADR 0033.
 - The database and application logs are **accessible to the coding agent**
   through `scripts/agent.sh`, so the agent can inspect them during debugging and
-  when discussing new features. Request lines are valid JSON, so the script's
-  output can be filtered with `jq`.
+  when discussing new features. It reads the API or Garmin sidecar logs and runs
+  SQL against the test database in a read-only session by default; `--env prod`
+  selects production and `--write` is the maintainer's explicit opt-in to a
+  read-write session. Request lines are valid JSON, so the script's output can be
+  filtered with `jq`. See `docs/specs/agent-access-script.md`.
 
 ## Development Methodology
 

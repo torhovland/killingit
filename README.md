@@ -292,10 +292,23 @@ Neon database:
 
 ```sh
 scripts/agent.sh logs api --env test
+scripts/agent.sh logs garmin --env test
 scripts/agent.sh sql "SELECT * FROM users;" --env test
+scripts/agent.sh sql "DELETE FROM users WHERE id = 1;" --env test --write
 ```
 
-It reads `GCP_PROJECT` and `DATABASE_URL` from the environment.
+`logs` takes `api` (the API service) or `garmin` (the Garmin sidecar) and reads
+the test environment by default. Pass `--env prod` for production and
+`--tail N` to change the 100-line limit. It reads `GCP_PROJECT` from the
+environment.
+
+`sql` targets the test database by default and reads `DATABASE_URL_TEST`; with
+`--env prod` it reads `DATABASE_URL_PROD`. It never falls back from one
+variable to the other. The session is read-only
+(`default_transaction_read_only=on`), so a query cannot change the database by
+accident; a deliberate write needs `--write`, which opens a read-write session
+against the environment you named. See
+[`docs/specs/agent-access-script.md`](./docs/specs/agent-access-script.md).
 
 ### Deployment runbook (one-time setup)
 
