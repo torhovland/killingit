@@ -458,7 +458,14 @@ made and recorded, and `docs/adrs/` for the accepted ones.
   `apps/api/src/http/validation.ts`. The web reads it in `fetchJson`, exposing
   `ApiError.code` and `ApiError.details` and showing the server's `message` as
   the error text. Only the last-resort `500` stays plain text; see
-  `docs/specs/api-errors.md`. A failure from Garmin, the Garmin sidecar or
+  `docs/specs/api-errors.md`. A route path parameter is validated by the same
+  wrapper: `idParamSchema` in `packages/shared/src/params.ts` bounds a numeric
+  id to a positive PostgreSQL serial, and the coaching-only param schemas live
+  in `apps/api/src/routes/coaching/schemas.ts`, so `1.5`, `-1` or `1e12` answers
+  `validation_failed` instead of reaching a query. No route reads
+  `c.req.param(...)` by hand, and a guard test enforces it; see
+  `docs/specs/route-param-validation.md`. A failure from Garmin, the Garmin
+  sidecar or
   OpenRouter extends `UpstreamError`, which owns the status (and, when it needs
   one, the code) it is reported with; a route answers its whole error path with
   `respondUpstreamError(c, err, label)` instead of matching provider classes.

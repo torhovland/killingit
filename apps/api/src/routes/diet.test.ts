@@ -15,6 +15,7 @@ import type {
 } from "../diet/store.js";
 import type { UserStore } from "../users/store.js";
 import { apiRequest } from "../testFixtures/request.js";
+import { expectValidationFailure } from "../testFixtures/validation.js";
 
 const analysis: FoodAnalysis = {
   meal: "A cheese sandwich and an apple",
@@ -752,5 +753,30 @@ describe("GET /api/diet/entries/:id/photo", () => {
 
     const res = await request(app, `/api/diet/entries/${entry.id}/photo`);
     expect(res.status).toBe(404);
+  });
+});
+
+describe("diet entry path ids", () => {
+  // A meal id is a PostgreSQL serial, so a fraction, a negative number and a
+  // value past the serial range must be refused before a query sees them.
+  const invalidIds = ["0", "-1", "1.5", "1e12", "abc"];
+
+  it("rejects an invalid id when editing a meal", async () => {
+    const { app } = makeApp();
+    for (const id of invalidIds) {
+      const res = await request(app, `/api/diet/entries/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ description: "A sandwich" }),
+      });
+      await expectValidationFailure(res);
+    }
+  });
+
+  it("rejects an invalid id when reading a meal photo", async () => {
+    const { app } = makeApp();
+    for (const id of invalidIds) {
+      const res = await request(app, `/api/diet/entries/${id}/photo`);
+      await expectValidationFailure(res);
+    }
   });
 });

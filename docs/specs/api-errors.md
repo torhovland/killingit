@@ -40,7 +40,11 @@ code, without parsing prose or guessing a route's phrasing.
 3. A validating `zValidator` wrapper in `apps/api/src/http/validation.ts`. It
    keeps the library's typed `c.req.valid(...)` but replaces its default
    `{ success, error }` payload with the error contract and code
-   `validation_failed`.
+   `validation_failed`. Path parameters go through the same wrapper: a numeric
+   route id uses `idParamSchema` from `packages/shared/src/params.ts` and the
+   coaching-only ones live in `apps/api/src/routes/coaching/schemas.ts`. A guard
+   test (`apps/api/src/routeParamGuard.test.ts`) fails when a route reads
+   `c.req.param(...)` by hand; see `docs/specs/route-param-validation.md`.
 
 4. The global handler maps `LlmModelChoiceError` to a `409` contract response
    with `details.settingsUrl`, instead of its own `{ error, settingsUrl }`

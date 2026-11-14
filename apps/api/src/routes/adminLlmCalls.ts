@@ -1,4 +1,5 @@
 import {
+  idParamSchema,
   llmCallDetailSchema,
   llmCallsResponseSchema,
   llmModelRemarksResponseSchema,
@@ -31,10 +32,6 @@ const listQuerySchema = z.object({
 
 const remarksQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
-});
-
-const idParamSchema = z.object({
-  id: z.coerce.number().int().positive(),
 });
 
 /**

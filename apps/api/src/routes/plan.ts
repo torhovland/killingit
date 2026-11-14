@@ -9,6 +9,7 @@ import {
 } from "@killingit/shared";
 import { zValidator } from "../http/validation.js";
 import { Hono } from "hono";
+import { z } from "zod";
 import { getUser } from "../auth/middleware.js";
 import { notFound, validationFailed } from "../http/errors.js";
 import {
@@ -32,6 +33,9 @@ import { triggerPlanGeneration } from "../plans/trigger.js";
 import { planWeatherChanged } from "../weather/changes.js";
 import { fetchWeatherForecasts } from "../weather/forecast.js";
 import { buildZwoWorkout, zwoFilename } from "../workouts/zwo.js";
+
+/** The date of the workout file the athlete downloads. */
+const workoutDateParamSchema = z.object({ date: planDateSchema });
 
 /** The parts of a session needed to build a trainer workout file. */
 interface ExportableBikeWorkout {
@@ -249,38 +253,35 @@ export function createPlanRoute(deps: ResolvedAppDependencies): Hono {
         }),
       );
     })
-    .get("/workouts/:date", async (c) => {
-      const date = planDateSchema.safeParse(c.req.param("date"));
-      if (!date.success) {
-        return validationFailed(
-          c,
-          date.error,
-          "A valid date (YYYY-MM-DD) is required",
+    .get(
+      "/workouts/:date",
+      zValidator("param", workoutDateParamSchema),
+      async (c) => {
+        const { date } = c.req.valid("param");
+        const user = getUser(c);
+        const stored = await loadValidatedPlan(deps.planStore, user.id);
+        if (stored === null) {
+          return notFound(c, "No coach plan is available");
+        }
+        const workout = findExportableBikeWorkout(stored.plan, date);
+        if (workout === null) {
+          return notFound(c, "No downloadable bike workout for that date");
+        }
+        return c.body(
+          buildZwoWorkout({
+            title: workout.title,
+            description: workout.description,
+            workout: workout.bikeWorkout,
+          }),
+          200,
+          {
+            "content-type": "application/xml; charset=utf-8",
+            "content-disposition": `attachment; filename="${zwoFilename(date, workout.title)}"`,
+            "cache-control": "no-store",
+          },
         );
-      }
-      const user = getUser(c);
-      const stored = await loadValidatedPlan(deps.planStore, user.id);
-      if (stored === null) {
-        return notFound(c, "No coach plan is available");
-      }
-      const workout = findExportableBikeWorkout(stored.plan, date.data);
-      if (workout === null) {
-        return notFound(c, "No downloadable bike workout for that date");
-      }
-      return c.body(
-        buildZwoWorkout({
-          title: workout.title,
-          description: workout.description,
-          workout: workout.bikeWorkout,
-        }),
-        200,
-        {
-          "content-type": "application/xml; charset=utf-8",
-          "content-disposition": `attachment; filename="${zwoFilename(date.data, workout.title)}"`,
-          "cache-control": "no-store",
-        },
-      );
-    })
+      },
+    )
     .post(
       "/generate",
       zValidator("json", planGenerateInputSchema),
