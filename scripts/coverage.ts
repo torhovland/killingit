@@ -101,7 +101,7 @@ export const COVERAGE_GROUPS: readonly CoverageGroup[] = [
     name: "web",
     root: "apps/web",
     testArgs: ["src", "pwa", "notices"],
-    threshold: { lines: 0.77, functions: 0.72 },
+    threshold: { lines: 0.8, functions: 0.77 },
   },
   {
     name: "shared",

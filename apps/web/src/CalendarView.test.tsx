@@ -1,4 +1,6 @@
 import { describe, expect, it } from "bun:test";
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { renderToStaticMarkup } from "react-dom/server";
 import type {
   CalendarImportedActivity,
@@ -422,5 +424,53 @@ describe("CalendarView", () => {
     expect(html).toContain("75 min");
     expect(html).toContain("Three blocks at tempo.");
     expect(html).toContain("Estimated TSS");
+  });
+});
+
+describe("CalendarView dialog interaction", () => {
+  function renderCalendar() {
+    render(
+      <CalendarView
+        data={data}
+        month="2026-10"
+        onMonthChange={() => {}}
+        today="2026-10-01"
+      />,
+    );
+  }
+
+  it("opens a workout and closes it with Escape", async () => {
+    const user = userEvent.setup();
+    renderCalendar();
+    const session = screen.getByTestId("calendar-session");
+
+    await user.click(session);
+
+    const dialog = screen.getByRole("dialog");
+    expect(
+      within(dialog).getByRole("heading", { name: /Tempo ride/ }),
+    ).toBeDefined();
+    expect(within(dialog).getByText("Three blocks at tempo.")).toBeDefined();
+
+    await user.keyboard("{Escape}");
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(session);
+  });
+
+  it("closes an activity dialog on the backdrop and on the Close button", async () => {
+    const user = userEvent.setup();
+    renderCalendar();
+
+    const activity = screen.getByRole("button", { name: /Morning ride/ });
+    await user.click(activity);
+    expect(screen.getByTestId("calendar-dialog-coach-reply")).toBeDefined();
+
+    await user.click(screen.getByRole("presentation"));
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: /Morning ride/ }));
+    await user.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 });

@@ -94,9 +94,12 @@ spinner omits `statusSource`.
   `react-hooks/rules-of-hooks` and `react-hooks/exhaustive-deps` without a
   disable.
 - Tests cover the abort plumbing (`fetchAuthed`, `fetchJson`, and the pure
-  abortable-request runner). The repository has no hook-renderer dependency, so
-  the hook's lifecycle itself is covered indirectly rather than by a new Testing
-  Library dependency.
+  abortable-request runner), and Testing Library tests in
+  `apps/web/src/useApiResource.test.tsx` mount the hooks to cover their
+  lifecycle: the initial load, loading/error state, the header spinner,
+  `reload`, a superseded path whose late response is dropped, and an unmount
+  that aborts without surfacing an error. See
+  `docs/specs/web-interaction-tests.md`.
 
 ## Data model and API impact
 

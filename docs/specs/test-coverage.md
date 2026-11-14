@@ -64,9 +64,14 @@ variation. Both lines and functions are checked.
 | Package   | Lines measured | Line threshold | Functions measured | Function threshold |
 | --------- | -------------- | -------------- | ------------------ | ------------------ |
 | api       | 72.97%         | 72.0%          | 77.60%             | 77.0%              |
-| web       | 77.45%         | 77.0%          | 72.65%             | 72.0%              |
+| web       | 80.25%         | 80.0%          | 77.18%             | 77.0%              |
 | shared    | 95.92%         | 95.0%          | 87.64%             | 86.0%              |
 | benchmark | 90.48%         | 90.0%          | 100.00%            | 100.0%             |
+
+The web floor rose from 77.0% of lines and 72.0% of functions to 80.0% and
+77.0% when the Testing Library interaction suite began mounting the hooks and
+dialogs (`docs/specs/web-interaction-tests.md`), which put the effects, event
+handlers and abort paths under test instead of only their static markup.
 
 The api floor was 73.0% of lines and 78.0% of functions until the benchmark
 harness and its tests moved to `tools/benchmark` (ADR 0032). The well-covered

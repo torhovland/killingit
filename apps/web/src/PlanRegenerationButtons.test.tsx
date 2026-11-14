@@ -1,22 +1,27 @@
-import { describe, expect, it } from "bun:test";
-import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it, mock } from "bun:test";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import {
   PlanRegenerationButtonsView,
   seasonSetupNotice,
 } from "./PlanRegenerationButtons";
 
-function render({
+function renderButtons({
   hasSeason,
   running = null,
   busy = running !== null,
   setupNotice = null,
+  onNewSeason = () => undefined,
+  onUpdateSeason = () => undefined,
 }: {
   hasSeason: boolean;
   running?: "newSeason" | "updateSeason" | null;
   busy?: boolean;
   setupNotice?: string | null;
-}): string {
-  return renderToStaticMarkup(
+  onNewSeason?: () => void;
+  onUpdateSeason?: () => void;
+}) {
+  render(
     <PlanRegenerationButtonsView
       hasSeason={hasSeason}
       running={running}
@@ -24,80 +29,106 @@ function render({
       done={false}
       error={null}
       setupNotice={setupNotice}
-      onNewSeason={() => undefined}
-      onUpdateSeason={() => undefined}
+      onNewSeason={onNewSeason}
+      onUpdateSeason={onUpdateSeason}
     />,
   );
 }
 
-/** The markup of the single button whose label contains `label`. */
-function buttonFor(html: string, label: string): string {
-  const button = html
-    .split("<button")
-    .find((part) => part.includes(label) && part.includes("</button>"));
-  if (button === undefined) {
-    throw new Error(`No button with label "${label}"`);
-  }
-  return button;
-}
-
 describe("PlanRegenerationButtonsView", () => {
   it("offers only a new season when no season exists", () => {
-    const html = render({ hasSeason: false });
+    renderButtons({ hasSeason: false });
 
-    expect(html).toContain("Plan a new season");
-    expect(html).not.toContain("Update season plan");
-    expect(buttonFor(html, "Plan a new season")).toContain("bg-primary");
+    expect(
+      screen.getByRole("button", { name: "Plan a new season" }).className,
+    ).toContain("bg-primary");
+    expect(
+      screen.queryByRole("button", { name: "Update season plan" }),
+    ).toBeNull();
   });
 
   it("makes updating the primary action when a season exists", () => {
-    const html = render({ hasSeason: true });
+    renderButtons({ hasSeason: true });
 
-    expect(html).toContain("Plan a new season");
-    expect(html).toContain("Update season plan");
-    expect(html).toContain("keeps completed blocks");
-    expect(buttonFor(html, "Update season plan")).toContain("bg-primary");
-    expect(buttonFor(html, "Plan a new season")).not.toContain("bg-primary");
+    expect(
+      screen.getByRole("button", { name: "Update season plan" }).className,
+    ).toContain("bg-primary");
+    expect(
+      screen.getByRole("button", { name: "Plan a new season" }).className,
+    ).not.toContain("bg-primary");
+    expect(screen.getByText(/keeps completed blocks/)).toBeDefined();
+  });
+
+  it("runs the action that was clicked", async () => {
+    const user = userEvent.setup();
+    const onNewSeason = mock(() => undefined);
+    const onUpdateSeason = mock(() => undefined);
+    renderButtons({ hasSeason: true, onNewSeason, onUpdateSeason });
+
+    await user.click(screen.getByRole("button", { name: "Plan a new season" }));
+    await user.click(
+      screen.getByRole("button", { name: "Update season plan" }),
+    );
+
+    expect(onNewSeason).toHaveBeenCalledTimes(1);
+    expect(onUpdateSeason).toHaveBeenCalledTimes(1);
   });
 
   it("spins and names the coach on the action that is running", () => {
-    const html = render({ hasSeason: true, running: "updateSeason" });
+    renderButtons({ hasSeason: true, running: "updateSeason" });
 
-    const updateButton = buttonFor(html, "Coach is thinking…");
-    expect(updateButton).toContain('data-testid="spinner"');
-    expect(updateButton).toContain("animate-spin");
-    expect(updateButton).toContain("disabled");
+    const running = screen.getByRole("button", { name: "Coach is thinking…" });
+    expect(running.className).toContain("bg-primary");
+    expect(running).toHaveProperty("disabled", true);
+    expect(screen.getAllByTestId("spinner")).toHaveLength(1);
     // The other action stays identifiable but cannot be started.
-    expect(buttonFor(html, "Plan a new season")).toContain("disabled");
-    expect(html.match(/data-testid="spinner"/g)).toHaveLength(1);
+    expect(
+      screen.getByRole("button", { name: "Plan a new season" }),
+    ).toHaveProperty("disabled", true);
   });
 
   it("spins on a new season when it is the only action", () => {
-    const html = render({ hasSeason: false, running: "newSeason" });
+    renderButtons({ hasSeason: false, running: "newSeason" });
 
-    expect(buttonFor(html, "Coach is thinking…")).toContain(
-      'data-testid="spinner"',
-    );
-    expect(html).not.toContain("Plan a new season");
+    expect(
+      screen.getByRole("button", { name: "Coach is thinking…" }),
+    ).toBeDefined();
+    expect(
+      screen.queryByRole("button", { name: "Plan a new season" }),
+    ).toBeNull();
   });
 
-  it("disables every action while another generation is running", () => {
-    const html = render({ hasSeason: true, busy: true });
+  it("disables every action while another generation is running", async () => {
+    const user = userEvent.setup();
+    const onNewSeason = mock(() => undefined);
+    const onUpdateSeason = mock(() => undefined);
+    renderButtons({ hasSeason: true, busy: true, onNewSeason, onUpdateSeason });
 
-    expect(buttonFor(html, "Update season plan")).toContain("disabled");
-    expect(buttonFor(html, "Plan a new season")).toContain("disabled");
+    const update = screen.getByRole("button", { name: "Update season plan" });
+    const start = screen.getByRole("button", { name: "Plan a new season" });
+    expect(update).toHaveProperty("disabled", true);
+    expect(start).toHaveProperty("disabled", true);
     // The run was started elsewhere, so no button claims to be the one running.
-    expect(html).not.toContain("Coach is thinking…");
+    expect(
+      screen.queryByRole("button", { name: "Coach is thinking…" }),
+    ).toBeNull();
+
+    await user.click(update);
+    await user.click(start);
+    expect(onUpdateSeason).not.toHaveBeenCalled();
+    expect(onNewSeason).not.toHaveBeenCalled();
   });
 
   it("shows which integrations are missing before a season can start", () => {
-    const html = render({
+    renderButtons({
       hasSeason: false,
       setupNotice:
         "Set up Garmin and an OpenRouter API key in Settings before planning a new season.",
     });
 
-    expect(html).toContain("Set up Garmin and an OpenRouter API key");
+    expect(screen.getByRole("status").textContent).toContain(
+      "Set up Garmin and an OpenRouter API key",
+    );
   });
 });
 
