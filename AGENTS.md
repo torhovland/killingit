@@ -455,7 +455,11 @@ made and recorded, and `docs/adrs/` for the accepted ones.
   `apps/api/src/http/validation.ts`. The web reads it in `fetchJson`, exposing
   `ApiError.code` and `ApiError.details` and showing the server's `message` as
   the error text. Only the last-resort `500` stays plain text; see
-  `docs/specs/api-errors.md`.
+  `docs/specs/api-errors.md`. A failure from Garmin, the Garmin sidecar or
+  OpenRouter extends `UpstreamError`, which owns the status (and, when it needs
+  one, the code) it is reported with; a route answers its whole error path with
+  `respondUpstreamError(c, err, label)` instead of matching provider classes.
+  See ADR 0035.
 - Authenticated API reads go through `requestParsed` in
   `apps/web/src/fetchAuthed.ts`: it fetches with `fetchJsonAuthed`, validates the
   body against the shared schema, and throws one `ResponseValidationError`

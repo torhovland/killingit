@@ -1,5 +1,12 @@
 import { describe, expect, it } from "bun:test";
 import type { ActivityFeed } from "../coaching/activities.js";
+import {
+  GarminCredentialsError,
+  GarminNotConnectedError,
+  LlmCredentialsError,
+} from "../coaching/activities.js";
+import { GarminAuthError, GarminSidecarError } from "../garmin/client.js";
+import { LlmAuthError, LlmProviderError } from "../llm/openrouter.js";
 import type { CoachQuestion } from "@killingit/shared";
 import { createApp } from "../index.js";
 import type { AppDependencies } from "../dependencies.js";
@@ -606,6 +613,111 @@ describe("coaching activity analysis", () => {
     expect(res.status).toBe(200);
     expect(triggered).toBe(false);
   });
+});
+
+describe("coaching activity feed failures", () => {
+  const failures = [
+    {
+      name: "a Garmin account that is not connected",
+      error: new GarminNotConnectedError(),
+      status: 401,
+      code: "unauthorized",
+      message: "Not connected to Garmin",
+    },
+    {
+      name: "Garmin credentials the sidecar rejects",
+      error: new GarminAuthError("invalid Garmin credentials"),
+      status: 401,
+      code: "unauthorized",
+      message: "invalid Garmin credentials",
+    },
+    {
+      name: "a Garmin rate limit",
+      error: new GarminSidecarError("Garmin is rate limiting", 429),
+      status: 429,
+      code: "too_many_requests",
+      message: "Garmin is rate limiting",
+    },
+    {
+      name: "a malformed sidecar payload",
+      error: new GarminSidecarError(
+        "sidecar returned a malformed activities payload",
+      ),
+      status: 503,
+      code: "service_unavailable",
+      message: "sidecar returned a malformed activities payload",
+    },
+    {
+      name: "stored Garmin credentials that cannot be decrypted",
+      error: new GarminCredentialsError(
+        "Garmin credentials are unavailable (check GARMIN_CREDENTIALS_KEY)",
+      ),
+      status: 503,
+      code: "service_unavailable",
+      message:
+        "Garmin credentials are unavailable (check GARMIN_CREDENTIALS_KEY)",
+    },
+    {
+      name: "a stored OpenRouter key that cannot be decrypted",
+      error: new LlmCredentialsError(
+        "OpenRouter credentials are unavailable (check LLM_CREDENTIALS_KEY)",
+      ),
+      status: 503,
+      code: "service_unavailable",
+      message:
+        "OpenRouter credentials are unavailable (check LLM_CREDENTIALS_KEY)",
+    },
+    {
+      name: "an OpenRouter key the provider rejects",
+      error: new LlmAuthError("invalid OpenRouter API key"),
+      status: 401,
+      code: "unauthorized",
+      message: "invalid OpenRouter API key",
+    },
+    {
+      name: "an OpenRouter account without credits",
+      error: new LlmProviderError(
+        "OpenRouter account has insufficient credits",
+        402,
+      ),
+      status: 402,
+      code: "payment_required",
+      message: "OpenRouter account has insufficient credits",
+    },
+    {
+      name: "an OpenRouter failure without a status",
+      error: new LlmProviderError(
+        "could not reach OpenRouter for the completion",
+      ),
+      status: 503,
+      code: "service_unavailable",
+      message: "could not reach OpenRouter for the completion",
+    },
+    {
+      name: "an unexpected failure",
+      error: new Error("boom"),
+      status: 503,
+      code: "service_unavailable",
+      message: "Service Unavailable",
+    },
+  ];
+
+  for (const failure of failures) {
+    it(`reports ${failure.name}`, async () => {
+      const app = makeApp({
+        loadActivities: () => Promise.reject(failure.error),
+      });
+
+      const res = await app.fetch(
+        authenticatedRequest("/api/coaching/activities"),
+      );
+
+      expect(res.status).toBe(failure.status);
+      expect(await res.json()).toEqual({
+        error: { code: failure.code, message: failure.message },
+      });
+    });
+  }
 });
 
 describe("coaching activity comments", () => {

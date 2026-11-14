@@ -201,7 +201,8 @@ one swappable corner, and normalizes Garmin activities into the shared
 - **Honest error mapping.** The sidecar maps failures to `401` (bad
   credentials), `403` (MFA required, unsupported), `429` (Garmin rate limit),
   and `502` (upstream). The Bun routes pass those through instead of collapsing
-  everything to `503`.
+  everything to `503`, and do it through the one `respondUpstreamError` mapper
+  (ADR 0035).
 - **Type normalization fix:** an activity type object without a `typeKey`
   previously produced a stringified dict; it now yields `"unknown"`.
 - **Sidecar tooling is excluded from JS lint/format** (`services/**/.venv`,
