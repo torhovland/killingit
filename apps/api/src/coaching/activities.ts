@@ -15,6 +15,7 @@ import { loadDietContext } from "../diet/context.js";
 import type { DietPromptContext } from "../diet/summary.js";
 import { UpstreamError } from "../http/errors.js";
 import {
+  GarminNotConnectedError,
   syncGarminActivities,
   type GarminCredentials,
 } from "../garmin/client.js";
@@ -84,14 +85,6 @@ import { shareActivityAnalysis } from "./analysisRuns.js";
 const ANALYSIS_CONCURRENCY = 3;
 
 export { commentIsNewerThanAnalysis };
-
-/** The account has not connected Garmin yet. */
-export class GarminNotConnectedError extends UpstreamError {
-  constructor() {
-    super("Not connected to Garmin", { status: 401 });
-    this.name = "GarminNotConnectedError";
-  }
-}
 
 /** The stored Garmin credentials could not be decrypted. */
 export class GarminCredentialsError extends UpstreamError {

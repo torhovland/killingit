@@ -3,6 +3,22 @@ import type { ApiErrorCode } from "@killingit/shared";
 import { Hono } from "hono";
 import { z } from "zod";
 import {
+  GarminCredentialsError,
+  LlmCredentialsError,
+} from "../coaching/activities.js";
+import {
+  GarminAuthError,
+  GarminNotConnectedError,
+  GarminSidecarError,
+} from "../garmin/client.js";
+import {
+  LlmAbortError,
+  LlmAuthError,
+  LlmProviderError,
+  LlmRateLimitError,
+  LlmTokenLimitError,
+} from "../llm/openrouter.js";
+import {
   apiError,
   badGateway,
   badRequest,
@@ -128,19 +144,19 @@ describe("upstream error mapping", () => {
   });
 
   it("reports the error's own code instead of the status-derived one", async () => {
-    // The credential failures a later change reports use a code their status
-    // alone cannot express.
+    // A credential failure uses a code its status alone cannot express: `422`
+    // on its own would read as a validation failure.
     expect(
       await answer(
         () =>
           new TestUpstreamError("The Garmin login failed", {
             status: 422,
-            code: "unauthorized",
+            code: "garmin_auth_failed",
           }),
       ),
     ).toMatchObject({
       status: 422,
-      body: { error: { code: "unauthorized" } },
+      body: { error: { code: "garmin_auth_failed" } },
     });
   });
 
@@ -198,13 +214,53 @@ describe("upstream error mapping", () => {
       await answer(
         () =>
           new TestUpstreamError("invalid Garmin credentials", {
-            status: 401,
+            status: 422,
           }),
       );
       expect(error).toHaveBeenCalledTimes(2);
     } finally {
       error.mockRestore();
     }
+  });
+});
+
+describe("upstream failure statuses", () => {
+  // A `401` means the request had no usable app session, so the web client
+  // renews its token and retries. A third-party connection the athlete fixes in
+  // Settings must never answer it (ADR 0036), or that retry is spent on a
+  // failure it cannot solve.
+  const failures: Array<[string, () => UpstreamError]> = [
+    ["GarminSidecarError", () => new GarminSidecarError("sidecar down")],
+    ["GarminAuthError", () => new GarminAuthError("invalid Garmin login")],
+    ["GarminNotConnectedError", () => new GarminNotConnectedError()],
+    [
+      "GarminCredentialsError",
+      () => new GarminCredentialsError("cannot decrypt Garmin credentials"),
+    ],
+    ["LlmProviderError", () => new LlmProviderError("provider down")],
+    ["LlmAuthError", () => new LlmAuthError("invalid OpenRouter key")],
+    ["LlmRateLimitError", () => new LlmRateLimitError("rate limited")],
+    ["LlmTokenLimitError", () => new LlmTokenLimitError("truncated")],
+    ["LlmAbortError", () => new LlmAbortError()],
+    [
+      "LlmCredentialsError",
+      () => new LlmCredentialsError("cannot decrypt OpenRouter credentials"),
+    ],
+  ];
+
+  it("never reports a third-party failure as a session failure", () => {
+    for (const [name, make] of failures) {
+      expect({ name, status: make().status }).not.toEqual({
+        name,
+        status: 401,
+      });
+    }
+  });
+
+  it("carries the code its status alone cannot express", () => {
+    expect(new GarminAuthError("bad").code).toBe("garmin_auth_failed");
+    expect(new GarminNotConnectedError().code).toBe("garmin_not_connected");
+    expect(new LlmAuthError("bad").code).toBe("llm_key_invalid");
   });
 });
 

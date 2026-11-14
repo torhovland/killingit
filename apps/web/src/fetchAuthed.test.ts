@@ -115,6 +115,40 @@ describe("fetchJsonAuthed", () => {
     expect(captured).toHaveLength(1);
   });
 
+  it("surfaces a third-party credential failure without renewing the session", async () => {
+    stubFetch(
+      jsonResponse(
+        {
+          error: {
+            code: "llm_key_invalid",
+            message: "invalid OpenRouter API key",
+          },
+        },
+        422,
+      ),
+    );
+    const calls: Array<{ forceRefresh?: boolean } | undefined> = [];
+    const auth = fakeAuth((options) => {
+      calls.push(options);
+      return Promise.resolve("test-token");
+    });
+
+    let caught: unknown;
+    try {
+      await fetchJsonAuthed<{ ok: boolean }>("http://api/coaching/plan", auth);
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(ApiError);
+    expect((caught as ApiError).code).toBe("llm_key_invalid");
+    expect((caught as Error).message).toBe("invalid OpenRouter API key");
+    // A rejected key is the athlete's to fix in Settings, not an expired
+    // session, so the client must not renew and retry the request.
+    expect(calls).toEqual([undefined]);
+    expect(captured).toHaveLength(1);
+  });
+
   it("surfaces the original 401 when a refresh returns no token", async () => {
     stubFetch(new Response("Unauthorized", { status: 401 }));
     const auth = fakeAuth((options) =>
