@@ -1,5 +1,4 @@
 import {
-  activityLocalDate,
   analyzedActivitiesResponseSchema,
   coachingInputSaveResponseSchema,
   planDateSchema,
@@ -17,11 +16,12 @@ import {
   GarminCredentialsError,
   GarminNotConnectedError,
   LlmCredentialsError,
+  withActivityLoad,
+  withFeedback,
   type ActivityFeed,
 } from "../../coaching/activities.js";
 import { GarminAuthError, GarminSidecarError } from "../../garmin/client.js";
 import { LlmAuthError, LlmProviderError } from "../../llm/openrouter.js";
-import { toCoachAnalysis } from "../../plans/replies.js";
 import { latestActivityAnalysisTimestamp } from "../../plans/status.js";
 import type { ResolvedCoachingDependencies } from "./dependencies.js";
 import { deletionQuerySchema } from "./schemas.js";
@@ -117,17 +117,9 @@ export function createFeedHandlers(deps: ResolvedCoachingDependencies) {
             user.id,
             feed.activities.map((activity) => activity.id),
           );
-          activities = feed.activities.map((activity) => {
-            const entry = feedback.get(String(activity.id));
-            return entry === undefined
-              ? activity
-              : {
-                  ...activity,
-                  comment: entry.comment,
-                  coachReply: entry.reply ? toCoachAnalysis(entry.reply) : null,
-                  reviewed: entry.reviewed,
-                };
-          });
+          activities = feed.activities.map((activity) =>
+            withFeedback(activity, feedback),
+          );
         } catch (err) {
           console.error("[coaching] cached activity feedback failed:", err);
         }
@@ -138,15 +130,9 @@ export function createFeedHandlers(deps: ResolvedCoachingDependencies) {
             storedPlan?.plan,
             timeZone,
           );
-          activities = activities.map((activity) => ({
-            ...activity,
-            activityTss:
-              loads.byActivityId.get(activity.id) ??
-              activity.activityTss ??
-              null,
-            trainingLoad:
-              loads.byDate.get(activityLocalDate(activity, timeZone)) ?? null,
-          }));
+          activities = activities.map((activity) =>
+            withActivityLoad(activity, loads, timeZone),
+          );
         } catch (err) {
           console.error("[training-load] cached activity scoring failed:", err);
         }
