@@ -9,7 +9,7 @@ type, the same message shape, and carries the schema's issues as the cause.
 
 ## Scope
 
-- Add `requestParsed(url, auth, schema, label, init?)` next to
+- Add `requestParsed(path, auth, schema, label, init?)` next to
   `fetchJsonAuthed` in `apps/web/src/fetchAuthed.ts`.
 - Add `ResponseValidationError`, thrown when a successful response does not
   match its schema.
@@ -18,6 +18,8 @@ type, the same message shape, and carries the schema's issues as the cause.
   one-off parsers.
 - Leave calls that do not validate a response body (the catalog refresh and the
   account deletion) on `fetchJsonAuthed`.
+- Take an API path rather than a full URL, and let the helper resolve the
+  build's origin (ADR 0044, `docs/specs/web-api-base-url.md`).
 
 ## Design
 

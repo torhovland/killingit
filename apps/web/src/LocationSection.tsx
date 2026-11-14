@@ -13,8 +13,6 @@ import { reportError } from "./reportError";
 import { Button } from "./components/Button";
 import { Input } from "./components/Input";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "";
-
 function placeLabel(place: GeocodedLocation): string {
   return [...new Set([place.name, place.city, place.admin1, place.country])]
     .filter((part): part is string => part !== null && part.trim() !== "")
@@ -68,7 +66,7 @@ export function LocationSection({
     setError(null);
     try {
       const response = await requestParsed(
-        `${API_URL}/api/weather/geocode?q=${encodeURIComponent(trimmed)}`,
+        `/api/weather/geocode?q=${encodeURIComponent(trimmed)}`,
         auth,
         geocodeResponseSchema,
         "Searching for the address",
@@ -95,7 +93,7 @@ export function LocationSection({
     setError(null);
     try {
       const response = await requestParsed(
-        `${API_URL}/api/me`,
+        "/api/me",
         auth,
         currentUserSchema,
         "Saving the location",

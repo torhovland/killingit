@@ -17,7 +17,6 @@ import { Button } from "./components/Button";
 import { cn } from "./components/cn";
 import { Card } from "./components/Card";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "";
 const PAGE_SIZE = 50;
 
 /**
@@ -29,9 +28,7 @@ const PAGE_SIZE = 50;
 export function AdminLlmCallsSection() {
   const auth = useAuth();
   const callsResource = useApiResource(
-    auth.isAuthenticated
-      ? `${API_URL}/api/admin/llm-calls?limit=${PAGE_SIZE}`
-      : null,
+    auth.isAuthenticated ? `/api/admin/llm-calls?limit=${PAGE_SIZE}` : null,
     llmCallsResponseSchema,
     "Loading LLM calls",
   );
@@ -48,7 +45,7 @@ export function AdminLlmCallsSection() {
     async (signal: AbortSignal, id: number): Promise<void> => {
       try {
         const call = await requestParsed(
-          `${API_URL}/api/admin/llm-calls/${id}`,
+          `/api/admin/llm-calls/${id}`,
           auth,
           llmCallDetailSchema,
           "Loading the LLM call",

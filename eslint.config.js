@@ -146,6 +146,26 @@ export default tseslint.config(
     },
   },
   {
+    // The API origin is read once, in `apps/web/src/apiUrl.ts`; every other
+    // module takes an API path and lets `requestParsed` / `fetchJsonAuthed`
+    // resolve it. This rule stops a new page or hook from copying
+    // `import.meta.env.VITE_API_URL` back into the app, which is how the
+    // constant reached thirty files before. See
+    // `docs/specs/web-api-base-url.md` and ADR 0044.
+    files: ["apps/web/**/*.{ts,tsx}"],
+    ignores: ["apps/web/src/apiUrl.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "MemberExpression[property.name='VITE_API_URL']",
+          message:
+            "Read the API origin from ./apiUrl, or pass an API path to requestParsed/fetchJsonAuthed, instead of using VITE_API_URL directly.",
+        },
+      ],
+    },
+  },
+  {
     // The service worker template is plain JavaScript outside the TypeScript
     // project. `__PRECACHE_URLS__` is a build placeholder, not a real global.
     files: ["apps/web/pwa/**/*.js"],

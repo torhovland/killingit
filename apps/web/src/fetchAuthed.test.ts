@@ -53,10 +53,7 @@ describe("fetchJsonAuthed", () => {
     stubFetch();
     const auth = fakeAuth(() => Promise.resolve("test-token"));
 
-    const result = await fetchJsonAuthed<{ ok: boolean }>(
-      "http://api/me",
-      auth,
-    );
+    const result = await fetchJsonAuthed<{ ok: boolean }>("/api/me", auth);
 
     expect(result).toEqual({ ok: true });
     const headers = captured[0]?.headers as Headers;
@@ -68,7 +65,7 @@ describe("fetchJsonAuthed", () => {
     stubFetch();
     const auth = fakeAuth(() => Promise.resolve(undefined));
 
-    await fetchJsonAuthed<{ ok: boolean }>("http://api/me", auth);
+    await fetchJsonAuthed<{ ok: boolean }>("/api/me", auth);
 
     const headers = captured[0]?.headers as Headers;
     expect(headers.get("authorization")).toBeNull();
@@ -87,10 +84,7 @@ describe("fetchJsonAuthed", () => {
       );
     });
 
-    const result = await fetchJsonAuthed<{ ok: boolean }>(
-      "http://api/me",
-      auth,
-    );
+    const result = await fetchJsonAuthed<{ ok: boolean }>("/api/me", auth);
 
     expect(result).toEqual({ ok: true });
     expect(calls).toEqual([undefined, { forceRefresh: true }]);
@@ -106,7 +100,7 @@ describe("fetchJsonAuthed", () => {
 
     let caught: unknown;
     try {
-      await fetchJsonAuthed<{ ok: boolean }>("http://api/me", auth);
+      await fetchJsonAuthed<{ ok: boolean }>("/api/me", auth);
     } catch (error) {
       caught = error;
     }
@@ -135,7 +129,7 @@ describe("fetchJsonAuthed", () => {
 
     let caught: unknown;
     try {
-      await fetchJsonAuthed<{ ok: boolean }>("http://api/coaching/plan", auth);
+      await fetchJsonAuthed<{ ok: boolean }>("/api/coaching/plan", auth);
     } catch (error) {
       caught = error;
     }
@@ -157,7 +151,7 @@ describe("fetchJsonAuthed", () => {
 
     let caught: unknown;
     try {
-      await fetchJsonAuthed<{ ok: boolean }>("http://api/me", auth);
+      await fetchJsonAuthed<{ ok: boolean }>("/api/me", auth);
     } catch (error) {
       caught = error;
     }
@@ -171,7 +165,7 @@ describe("fetchJsonAuthed", () => {
     const auth = fakeAuth(() => Promise.resolve("test-token"));
     const controller = new AbortController();
 
-    await fetchJsonAuthed<{ ok: boolean }>("http://api/me", auth, {
+    await fetchJsonAuthed<{ ok: boolean }>("/api/me", auth, {
       signal: controller.signal,
     });
 
@@ -186,7 +180,7 @@ describe("fetchJsonAuthed", () => {
 
     let caught: unknown;
     try {
-      await fetchJsonAuthed<{ ok: boolean }>("http://api/me", auth, {
+      await fetchJsonAuthed<{ ok: boolean }>("/api/me", auth, {
         signal: controller.signal,
       });
     } catch (error) {
@@ -213,7 +207,7 @@ describe("fetchJsonAuthed", () => {
 
     let caught: unknown;
     try {
-      await fetchJsonAuthed<{ ok: boolean }>("http://api/me", auth, {
+      await fetchJsonAuthed<{ ok: boolean }>("/api/me", auth, {
         signal: controller.signal,
       });
     } catch (error) {
@@ -255,7 +249,7 @@ describe("requestParsed", () => {
     const auth = fakeAuth(() => Promise.resolve("test-token"));
 
     const result = await requestParsed(
-      "http://api/greeting",
+      "/api/greeting",
       auth,
       greetingSchema,
       "Loading the greeting",
@@ -274,7 +268,7 @@ describe("requestParsed", () => {
     let caught: unknown;
     try {
       await requestParsed(
-        "http://api/greeting",
+        "/api/greeting",
         auth,
         greetingSchema,
         "Loading the greeting",
@@ -295,7 +289,7 @@ describe("requestParsed", () => {
     const auth = fakeAuth(() => Promise.resolve("test-token"));
 
     await requestParsed(
-      "http://api/greeting",
+      "/api/greeting",
       auth,
       greetingSchema,
       "Saving the greeting",
@@ -311,7 +305,7 @@ describe("requestParsed", () => {
     const controller = new AbortController();
 
     await requestParsed(
-      "http://api/greeting",
+      "/api/greeting",
       auth,
       greetingSchema,
       "Loading the greeting",
@@ -353,7 +347,7 @@ describe("fetchFileAuthed", () => {
     const auth = fakeAuth(() => Promise.resolve("test-token"));
 
     const result = await fetchFileAuthed(
-      "http://api/coaching/plan/workouts/2026-10-21",
+      "/api/coaching/plan/workouts/2026-10-21",
       auth,
     );
 
@@ -379,8 +373,8 @@ describe("fetchFileAuthed", () => {
     );
     const auth = fakeAuth(() => Promise.resolve("test-token"));
 
-    const named = await fetchFileAuthed("http://api/file", auth);
-    const unnamed = await fetchFileAuthed("http://api/file", auth);
+    const named = await fetchFileAuthed("/api/file", auth);
+    const unnamed = await fetchFileAuthed("/api/file", auth);
 
     expect(named.filename).toBe("2026-10-21-økt.zwo");
     expect(unnamed.filename).toBeNull();
@@ -399,7 +393,7 @@ describe("fetchFileAuthed", () => {
       );
     });
 
-    const result = await fetchFileAuthed("http://api/file", auth);
+    const result = await fetchFileAuthed("/api/file", auth);
 
     expect(await result.blob.text()).toBe("zwo");
     expect(calls).toEqual([undefined, { forceRefresh: true }]);
@@ -414,7 +408,7 @@ describe("fetchFileAuthed", () => {
 
     let caught: unknown;
     try {
-      await fetchFileAuthed("http://api/file", auth);
+      await fetchFileAuthed("/api/file", auth);
     } catch (error) {
       caught = error;
     }

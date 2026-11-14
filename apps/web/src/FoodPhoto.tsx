@@ -2,8 +2,6 @@ import { useEffect, useState } from "react";
 import { useAuth } from "./auth";
 import { fetchFileAuthed } from "./fetchAuthed";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "";
-
 /**
  * A meal photo fetched with the athlete's bearer token. The photo endpoint is
  * authenticated, so an `<img src>` cannot load it directly; the object URL is
@@ -30,11 +28,9 @@ export function FoodPhoto({
     const controller = new AbortController();
     const query =
       version === undefined ? "" : `?v=${encodeURIComponent(version)}`;
-    void fetchFileAuthed(
-      `${API_URL}/api/diet/entries/${entryId}/photo${query}`,
-      auth,
-      { signal: controller.signal },
-    )
+    void fetchFileAuthed(`/api/diet/entries/${entryId}/photo${query}`, auth, {
+      signal: controller.signal,
+    })
       .then((file) => {
         if (!active) {
           return;

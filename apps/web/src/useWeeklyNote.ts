@@ -10,8 +10,6 @@ import { requestParsed } from "./fetchAuthed";
 import { reportError } from "./reportError";
 import { getToday } from "./useToday";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "";
-
 export interface WeeklyNoteState {
   note: string;
   reply: CoachAnalysis | null;
@@ -44,7 +42,7 @@ export function useWeeklyNote(
       try {
         const { today } = getToday(timeZone);
         const response = await requestParsed(
-          `${API_URL}/api/coaching/weekly/notes?today=${today}`,
+          `/api/coaching/weekly/notes?today=${today}`,
           auth,
           weeklyNoteResponseSchema,
           "Loading the weekly note",
@@ -69,7 +67,7 @@ export function useWeeklyNote(
     try {
       const { today } = getToday(timeZone);
       const response = await requestParsed(
-        `${API_URL}/api/coaching/weekly/notes`,
+        "/api/coaching/weekly/notes",
         auth,
         coachingInputSaveResponseSchema,
         "Saving your note",

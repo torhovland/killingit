@@ -7,13 +7,11 @@ import { useAuth } from "./auth";
 import { requestParsed } from "./fetchAuthed";
 import { useApiResource } from "./useApiResource";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "";
-
 /** Loads and saves the signed-in athlete's questionnaire answers. */
 export function useAthleteQuestions() {
   const auth = useAuth();
   const resource = useApiResource(
-    auth.isAuthenticated ? `${API_URL}/api/questions` : null,
+    auth.isAuthenticated ? "/api/questions" : null,
     athleteQuestionsResponseSchema,
     "Loading your questions",
   );
@@ -22,7 +20,7 @@ export function useAthleteQuestions() {
   const saveAnswers = useCallback(
     async (answers: QuestionAnswerInput[]): Promise<void> => {
       const response = await requestParsed(
-        `${API_URL}/api/questions/answers`,
+        "/api/questions/answers",
         auth,
         athleteQuestionsResponseSchema,
         "Saving your answers",

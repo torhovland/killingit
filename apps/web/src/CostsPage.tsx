@@ -20,8 +20,6 @@ import { useApiResource } from "./useApiResource";
 import { getToday } from "./useToday";
 import { Select } from "./components/Select";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "";
-
 /**
  * The AI costs page: what the athlete's coach prompts cost on OpenRouter, per
  * month and per day, stacked by the model that answered or by prompt type.
@@ -35,7 +33,7 @@ export function CostsPage() {
   const [stackBy, setStackBy] = useState<CostStackDimension>("model");
   const stackLabel = stackBy === "model" ? "model" : "prompt type";
   const costs = useApiResource(
-    auth.isAuthenticated ? `${API_URL}/api/llm/costs` : null,
+    auth.isAuthenticated ? "/api/llm/costs" : null,
     llmCostsResponseSchema,
     "Loading the cost history",
     { statusSource: "costs-page" },

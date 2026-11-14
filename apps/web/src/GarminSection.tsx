@@ -9,8 +9,6 @@ import { reportError } from "./reportError";
 import { Button } from "./components/Button";
 import { Input } from "./components/Input";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "";
-
 interface GarminSectionProps {
   connected: boolean;
   onConnected: (status: GarminConnectionStatus) => void;
@@ -35,7 +33,7 @@ export function GarminSection({ connected, onConnected }: GarminSectionProps) {
     setError(null);
     try {
       const parsed = await requestParsed(
-        `${API_URL}/api/garmin/credentials`,
+        "/api/garmin/credentials",
         auth,
         garminConnectionStatusSchema,
         "Connecting to Garmin",

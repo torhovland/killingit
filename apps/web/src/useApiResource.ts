@@ -18,6 +18,7 @@ import { reportError } from "./reportError";
 
 /** One validated GET request a resource hook should load. */
 export interface ApiRequest<T> {
+  /** The API path; the request helpers add the build's base URL. */
   path: string;
   schema: ResponseSchema<T>;
   action: string;
@@ -60,11 +61,11 @@ export interface ApiResourcesState<T extends Record<string, unknown>> {
 
 /**
  * Loads one authenticated, schema-validated GET and owns its abort, loading,
- * error, reload and header-spinner state. `path` is both the request URL and
- * the effect key: put every input that should trigger a refetch in the path,
- * and pass `null` while there is nothing to load. A request that is aborted by
- * a path change or an unmount never reaches state and never surfaces as an
- * error.
+ * error, reload and header-spinner state. `path` is an API path and both the
+ * request and the effect key (the base URL is resolved by `requestParsed`): put
+ * every input that should trigger a refetch in the path, and pass `null` while
+ * there is nothing to load. A request that is aborted by a path change or an
+ * unmount never reaches state and never surfaces as an error.
  */
 export function useApiResource<T>(
   path: string | null,

@@ -6,8 +6,6 @@ import { reportError } from "./reportError";
 import { Button } from "./components/Button";
 import { Input } from "./components/Input";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "";
-
 interface OpenRouterKeySectionProps {
   configured: boolean;
   /** The models chosen in the picker below; required for the first key save. */
@@ -43,7 +41,7 @@ export function OpenRouterKeySection({
     setError(null);
     try {
       const parsed = await requestParsed(
-        `${API_URL}/api/llm/settings`,
+        "/api/llm/settings",
         auth,
         llmSettingsSchema,
         "Saving the OpenRouter key",

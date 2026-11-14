@@ -16,8 +16,6 @@ import { HiddenFileInput } from "./components/HiddenFileInput";
 import { Input } from "./components/Input";
 import { Textarea } from "./components/Textarea";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "";
-
 /**
  * The food log form at the top of the dashboard. It is only mounted when the
  * athlete has enabled diet advice in Settings, so the opt-in gates both the
@@ -84,7 +82,7 @@ export function FoodLogSection({
     try {
       const { today } = getToday(timeZone);
       const parsed = await requestParsed(
-        `${API_URL}/api/diet/entries`,
+        "/api/diet/entries",
         auth,
         foodEntrySchema,
         "Logging the meal",

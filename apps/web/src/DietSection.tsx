@@ -4,8 +4,6 @@ import { useAuth } from "./auth";
 import { requestParsed } from "./fetchAuthed";
 import { reportError } from "./reportError";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "";
-
 /**
  * The diet-advice opt-in. The dashboard's food log and the food log in every
  * coach prompt are enabled only while this is on.
@@ -26,7 +24,7 @@ export function DietSection({
     setError(null);
     try {
       const parsed = await requestParsed(
-        `${API_URL}/api/me`,
+        "/api/me",
         auth,
         currentUserSchema,
         "Saving the diet advice setting",

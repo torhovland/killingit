@@ -15,8 +15,6 @@ import { browserTimeZone, formatDateTime } from "./timeZone";
 import { useApiResource } from "./useApiResource";
 import { Select } from "./components/Select";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "";
-
 const GRADE_ORDER: Record<LlmModelGrade, number> = {
   "A+": 6,
   A: 5,
@@ -120,7 +118,7 @@ export function compareModels(
 export function LlmSection({ settings, onSaved, isAdmin }: LlmSectionProps) {
   const auth = useAuth();
   const catalogResource = useApiResource(
-    auth.isAuthenticated ? `${API_URL}/api/llm/catalog` : null,
+    auth.isAuthenticated ? "/api/llm/catalog" : null,
     llmCatalogResponseSchema,
     "Loading the model catalog",
   );
@@ -220,7 +218,7 @@ export function LlmSection({ settings, onSaved, isAdmin }: LlmSectionProps) {
       .then(async () => {
         try {
           const response = await requestParsed(
-            `${API_URL}/api/llm/settings`,
+            "/api/llm/settings",
             auth,
             llmSettingsSchema,
             "Saving model choices",

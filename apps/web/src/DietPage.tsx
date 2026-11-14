@@ -6,8 +6,6 @@ import { useTimeZone } from "./TimeZoneContext";
 import { useApiResource } from "./useApiResource";
 import { getToday } from "./useToday";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "";
-
 /** Loads the diet goal and the daily food log for the Diet page. */
 export function DietPage({ dietAdvice }: { dietAdvice: boolean }) {
   const auth = useAuth();
@@ -16,7 +14,7 @@ export function DietPage({ dietAdvice }: { dietAdvice: boolean }) {
   const today = getToday(timeZone).today;
   const query = new URLSearchParams({ today }).toString();
   const summary = useApiResource(
-    auth.isAuthenticated ? `${API_URL}/api/diet/summary?${query}` : null,
+    auth.isAuthenticated ? `/api/diet/summary?${query}` : null,
     dietSummaryResponseSchema,
     "Loading your diet log",
     { statusSource: "diet-page" },

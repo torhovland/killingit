@@ -20,8 +20,6 @@ import { HiddenFileInput } from "./components/HiddenFileInput";
 import { Input } from "./components/Input";
 import { Textarea } from "./components/Textarea";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "";
-
 /**
  * Edits one logged meal and asks the coach to re-assess it. The stored photo is
  * only a thumbnail, so an edit without a new photo re-analyses that thumbnail;
@@ -99,7 +97,7 @@ export function EditFoodEntryForm({
             : {}),
       };
       const parsed = await requestParsed(
-        `${API_URL}/api/diet/entries/${entry.id}`,
+        `/api/diet/entries/${entry.id}`,
         auth,
         foodEntrySchema,
         "Editing the meal",

@@ -22,8 +22,6 @@ import { getToday } from "./useToday";
 import { Button } from "./components/Button";
 import { Card } from "./components/Card";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "";
-
 interface CoachPlanSectionProps {
   /** Increment after answers are saved so the section regenerates the plan. */
   refreshKey: number;
@@ -77,7 +75,7 @@ export function CoachPlanSection({
       signal: AbortSignal,
     ): Promise<CoachPlanResponse> =>
       requestParsed(
-        `${API_URL}/api/coaching/plan?today=${today}&includeTomorrow=${includeTomorrow}`,
+        `/api/coaching/plan?today=${today}&includeTomorrow=${includeTomorrow}`,
         auth,
         coachPlanResponseSchema,
         "Loading your plan",
@@ -94,7 +92,7 @@ export function CoachPlanSection({
       try {
         const query = new URLSearchParams({ today }).toString();
         const summary = await requestParsed(
-          `${API_URL}/api/diet/summary?${query}`,
+          `/api/diet/summary?${query}`,
           auth,
           dietSummaryResponseSchema,
           "Loading today's diet summary",
@@ -145,7 +143,7 @@ export function CoachPlanSection({
     setError(null);
     try {
       const { blob, filename } = await fetchFileAuthed(
-        `${API_URL}/api/coaching/plan/workouts/${date}`,
+        `/api/coaching/plan/workouts/${date}`,
         auth,
       );
       saveBlob(blob, filename ?? `${date}-workout.zwo`);

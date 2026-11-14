@@ -13,8 +13,6 @@ import { useApiResources } from "./useApiResource";
 import { useTimeZone } from "./TimeZoneContext";
 import { getToday } from "./useToday";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "";
-
 /**
  * The season review page: every completed week and block summary, with its
  * athlete comment and the coach's reply. Editing a comment generates a new
@@ -28,12 +26,12 @@ export function SeasonReviewPage() {
     auth.isAuthenticated
       ? {
           reviews: {
-            path: `${API_URL}/api/coaching/reviews`,
+            path: "/api/coaching/reviews",
             schema: periodReviewsResponseSchema,
             action: "Loading the season review",
           },
           questions: {
-            path: `${API_URL}/api/coaching/coach-questions`,
+            path: "/api/coaching/coach-questions",
             schema: coachQuestionsResponseSchema,
             action: "Loading the coach's questions",
           },
@@ -56,7 +54,7 @@ export function SeasonReviewPage() {
     try {
       const { today } = getToday(timeZone);
       const response = await requestParsed(
-        `${API_URL}/api/coaching/reviews/${kind}/${startDate}/comments`,
+        `/api/coaching/reviews/${kind}/${startDate}/comments`,
         auth,
         coachingInputSaveResponseSchema,
         "Saving your comment",
