@@ -3,9 +3,10 @@
 This is the single-issue procedure. The batch skill
 (`.opencode/skills/fix-issues/SKILL.md`) runs one sub-session per issue and
 tells each sub-session which issue to fix and which branch to build on. The
-batch is a stack of pull requests merged serially in order: your branch sits on
-top of the earlier fixes in the batch, so you will see their code in your
-checkout. Work only on your own issue. You may change a file an earlier fix
+batch is a stack of pull requests: your branch sits on top of the earlier fixes
+in the batch, so you will see their code in your checkout, and the batch skill
+links every pull request into one native GitHub stack that a human merges from
+the top. Work only on your own issue. You may change a file an earlier fix
 already changed, but build on it instead of undoing it, and keep the diff of
 your pull request to your own issue.
 
@@ -177,16 +178,17 @@ the pull request. Before committing, re-run `git status --short` and confirm
 every staged file belongs to the fix.
 
 Target the base branch, not `main`. That keeps the pull request diff to this
-issue alone even though the branch carries the earlier fixes underneath. Write
-the body to include:
+issue alone even though the branch carries the earlier fixes underneath. Keep
+the base branch exactly as the batch skill gave it: the batch links every pull
+request into one GitHub stack at the end, and that link validates that each base
+is the previous branch. Write the body to include:
 
 - `Closes #<number>` and a short summary of the fix.
 - The checks you ran, naming the issue-specific static checks as well as the
   default four.
 - A **Stacked pull request** line naming the pull request this one is based on
-  (the previous one in the stack, or `main` for the first), its position in the
-  merge order, and a reminder that it must be merged after the pull request
-  beneath it.
+  (the previous one in the stack, or `main` for the first) and its position in
+  the stack; say that the batch skill links the stack and a human merges it.
 
 Then watch CI and fix anything it reports:
 
@@ -194,9 +196,10 @@ Then watch CI and fix anything it reports:
 gh pr checks --watch
 ```
 
-Do not close the issue by hand; merging the pull request closes it. Do not
-rebase or retarget the earlier pull requests in the stack; if GitHub retargets
-this one to `main` after the pull request beneath it merges, that is expected.
+Do not merge the pull request, and do not close the issue by hand: the human
+merges the stack, and each pull request closes its own issue. Do not rebase or
+retarget the earlier pull requests in the stack; if GitHub retargets this one to
+`main` after the pull request beneath it merges, that is expected.
 
 ## 10. Report back
 

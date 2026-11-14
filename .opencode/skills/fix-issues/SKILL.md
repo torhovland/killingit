@@ -1,15 +1,20 @@
 ---
 name: Fix Issues
-description: Pick the ten highest-priority open GitHub issues, solve each one in its own fresh sub-session, and open one pull request per issue as a stack that is merged in order.
+description: Pick the ten highest-priority open GitHub issues, solve each one in its own fresh sub-session, open one pull request per issue, link them into one native GitHub stack, and report how a human approves and merges it.
 ---
 
 # Fix Issues
 
 Turn the ten highest-priority open GitHub issues into ten pull requests, stacked
-one on top of the next and merged serially. Each pull request is based on the
-previous pull request's branch, so one fix may build on another and the batch
-can still deliver all ten issues instead of dropping the ones that share files
-or depend on each other.
+one on top of the next, and link them into one native GitHub stack. Each pull
+request is based on the previous pull request's branch, so one fix may build on
+another and the batch can still deliver all ten issues instead of dropping the
+ones that share files or depend on each other.
+
+A chained base branch alone does not make a stack on GitHub. Until the pull
+requests are linked into a stack, merging one only updates the branch beneath
+it and the layers above never reach `main`. Step 6 links the batch so a human
+can land all of it with one merge.
 
 ## Workflow
 
@@ -88,21 +93,22 @@ For each issue:
 
    > Read `.opencode/skills/fix-issues/WORKFLOW.md` and follow it exactly to fix
    > GitHub issue #<number> in this repository. The issues in this batch are
-   > being delivered as a stack of pull requests that are merged serially in
-   > order: this issue's branch is based on `<base-branch>`, which already
-   > contains the earlier fixes in the batch (`<issue numbers>`). Do not work on
-   > another issue. You may change a file an earlier fix already changed, but do
-   > not undo or rewrite that fix; build on it. Do not push to, amend, rebase or
-   > force-push the base branch. Start from the tip of `<base-branch>` with a
-   > clean tree. Take ADR number `<n>` and migration slot `<n>` if this fix needs
-   > one. Run every static check the issue makes relevant, not only the default
-   > ones, and make them all pass. If a failure comes only from code already on
-   > the base branch, report it instead of fixing it here. If the area has no
-   > lint, type, or other static check at all, add the missing check to CI and
-   > make that pass too. Open a pull request against `<base-branch>` when the
-   > change is verified, then reply with the issue number, the branch, the base
-   > branch, a one-line summary, the checks you ran, any check you added, and
-   > the pull request URL.
+   > being delivered as a native GitHub stack of pull requests that a human
+   > merges from the top: this issue's branch is based on `<base-branch>`, which
+   > already contains the earlier fixes in the batch (`<issue numbers>`). Do not
+   > work on another issue. You may change a file an earlier fix already changed,
+   > but do not undo or rewrite that fix; build on it. Do not push to, amend,
+   > rebase or force-push the base branch. Start from the tip of `<base-branch>`
+   > with a clean tree. Take ADR number `<n>` and migration slot `<n>` if this
+   > fix needs one. Run every static check the issue makes relevant, not only the
+   > default ones, and make them all pass. If a failure comes only from code
+   > already on the base branch, report it instead of fixing it here. If the area
+   > has no lint, type, or other static check at all, add the missing check to CI
+   > and make that pass too. Open a pull request against `<base-branch>` when the
+   > change is verified. Do not merge it and do not change its base branch: the
+   > batch links every pull request into one GitHub stack at the end. Then reply
+   > with the issue number, the branch, the base branch, a one-line summary, the
+   > checks you ran, any check you added, and the pull request URL.
 
 3. Wait for the sub-session to finish and read its report.
 4. Confirm it left the working tree clean, that its branch sits on top of the
@@ -123,7 +129,49 @@ the stack, spec, test-driven development, verification, documentation, commit,
 and pull request. A sub-session that finds its issue stale, ambiguous, or much
 larger than it looks comments on the issue and reports back instead of guessing.
 
-### 6. Report back
+### 6. Link the batch into one GitHub stack
+
+The finished batch is a chain of ordinary pull requests until GitHub is told
+they form a stack. Do this once, after the last sub-session has reported, and
+never merge the batch yourself: the human reviews and merges it.
+
+1. Install the extension once if `gh extension list` does not already show
+   `stack`:
+
+   ```sh
+   gh extension install github/gh-stack
+   ```
+
+2. Link every pull request of the batch, **bottom to top**, by number:
+
+   ```sh
+   gh stack link <bottom-pr> <next-pr> … <top-pr>
+   ```
+
+   Pass the whole batch in stack order and never a subset. `link` checks that
+   each pull request's base ref is the previous pull request's head ref,
+   corrects a base ref that does not chain, and creates the stack object (or
+   appends to one that already exists).
+
+3. Read the stack back and keep the number for the report:
+
+   ```sh
+   REPO=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
+   gh api "repos/$REPO/stacks?pull_request=<bottom-pr>" \
+     --jq '.[0] | {number, base: .base.ref, pull_requests: [.pull_requests[].number]}'
+   ```
+
+   The stack order must match the batch order and `base` must be `main`. If
+   `link` refuses the batch, the order or a base ref is wrong: list the pull
+   requests bottom to top and make sure each base is the previous pull request's
+   branch, never `main`. Fix it and run `gh stack link` again. Never merge a
+   pull request to work around a failed link.
+
+4. If the extension cannot be installed or GitHub refuses the stack, say so in
+   the report and mark the batch as unstacked: the human must then merge bottom
+   up and retarget each next pull request to `main` after every merge.
+
+### 7. Report back
 
 Give one row per issue **in stack order** with the issue number and title, the
 branch, the base branch it was opened against, the pull request URL, or the
@@ -131,11 +179,42 @@ reason it was skipped, plus the checks that ran. Each row must list the
 issue-specific static checks, not only `typecheck`, `lint`, `format`, and
 `test`, and any check the fix added to CI, plus which files those shared
 additions touched, so a thin gate is visible before review. State the merge
-order explicitly: the pull requests are only mergeable as a sequence, from the
-bottom of the stack upwards. If an issue near the bottom is rejected, say which
-pull requests must then be rebased.
+order explicitly and give the stack number and page URL
+(`https://github.com/<owner>/<repo>/stack/<number>`), or say that the batch
+could not be stacked. If an issue near the bottom is rejected, say which pull
+requests must then be rebased.
 
-Do not close issues by hand; merging each pull request closes its own.
+Finish by printing the manual approval and merge steps for this stack, in this
+shape:
+
+> **Approve and merge the stack**
+>
+> Stack page: `<url>`
+>
+> 1. Open the stack page and review each layer's own diff. The stack map at the
+>    top of every pull request shows where that layer sits and moves between
+>    layers.
+> 2. Approve every pull request. The merge is all-or-nothing: a pull request
+>    only merges once every pull request below it is approved and its checks
+>    are green, and the branch protection for `main` applies to every layer.
+> 3. Merge the whole batch: open the **top** pull request, click **Merge pull
+>    request**, and pick the merge method. GitHub lands every unmerged layer
+>    below it on `main` in one atomic operation, one commit per pull request,
+>    and every `Closes #N` fires. This is the normal path.
+> 4. Merge only part of the batch: open a lower pull request and merge it. It
+>    lands with every pull request below it, and the ones above it are rebased
+>    and retargeted onto `main` automatically, so they stay mergeable.
+> 5. If GitHub shows **Rebase stack** because `main` moved while the stack was
+>    open, click it (or run `gh stack sync`) before merging.
+> 6. Do not merge a stacked pull request with `gh pr merge` or the synchronous
+>    merge API, because neither can merge a stack. Use the button,
+>    `gh stack merge <pr> --squash --yes`, or the async merge API
+>    (`PUT /repos/<owner>/<repo>/pulls/<n>/merge-async`, then poll the returned
+>    request id).
+
+Name the explicit merge order as well, so a reviewer can land a lower group
+first if they prefer. Do not close issues by hand; merging the stack closes each
+one.
 
 ## Rules
 
@@ -143,7 +222,11 @@ Do not close issues by hand; merging each pull request closes its own.
   branch to save work, and never let one sub-session fix two issues.
 - Each pull request is based on the previous one and opened against that
   branch, not against `main`. The first pull request of the stack is the only
-  one based on `main`.
+  one based on `main`: a stack's trunk is its bottom pull request's base, so a
+  bottom pull request based on another fix branch would strand the whole batch.
+- Link the whole batch into one stack and leave merging to the human. Never
+  merge it yourself, never use `gh pr merge` on a stack member, and never work
+  around a failed link by merging.
 - No pull request may contain another issue's work. Keep the diff of each one to
   its own issue, so a reviewer sees exactly that fix even though the branch
   carries the earlier fixes underneath.
