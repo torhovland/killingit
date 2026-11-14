@@ -507,13 +507,14 @@ made and recorded, and `docs/adrs/` for the accepted ones.
   previous response settled, so slow responses cannot stack or apply out of
   order; see `docs/specs/coach-reply-polling.md`.
 - We build our own **component library** under `apps/web/src/components/`.
-  `Button`, `Input`, `Textarea`, `Select`, `Card`, `HiddenFileInput`,
-  `StatusBadge` and `Modal` are the primitives; page components stay flat in
-  `apps/web/src/` beside their tests, while a page's own sections may move into
-  a named directory (`plan/` holds the coach plan's tab sections, `llm/` the
-  OpenRouter model picker's catalog, filters, table and save queue). `Modal`
-  owns the backdrop, focus trap, Escape close and focus restore for every
-  dialog.
+  `Button`, `Input`, `Textarea`, `Select`, `Card`, `Chip`, `HiddenFileInput`,
+  `StatusBadge`, `CoachReply` and `Modal` are the primitives; page components
+  stay flat in `apps/web/src/` beside their tests, while a page's own sections
+  may move into a named directory (`plan/` holds the coach plan's tab sections,
+  `llm/` the OpenRouter model picker's catalog, filters, table and save queue,
+  and `calendar/` the calendar's grid, week overview, day cell and detail
+  dialog). `Modal` owns the backdrop, focus trap, Escape close and focus
+  restore for every dialog.
   Add a primitive when markup and styling are genuinely shared instead of
   repeating a class string in a page. See
   `docs/specs/web-component-library.md`, `docs/specs/modal-dialog.md` and

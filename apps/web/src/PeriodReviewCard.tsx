@@ -4,6 +4,7 @@ import { CommentSection } from "./CommentSection";
 import { FormattedText } from "./FormattedText";
 import { useCommentForm } from "./useCommentForm";
 import { Card } from "./components/Card";
+import { CoachReply } from "./components/CoachReply";
 
 const KIND_LABELS: Record<ReviewKind, string> = {
   week: "Week review",
@@ -97,13 +98,10 @@ export function PeriodReviewCard({
         placeholder="How did the week or block feel? Anything the coach should know?"
       >
         {commentForm.shownReply && (
-          <div
-            className="flex flex-col gap-1 text-base"
-            data-testid="period-review-coach-reply"
-          >
-            <span className="font-medium">Coach:</span>
-            <FormattedText text={commentForm.shownReply} />
-          </div>
+          <CoachReply
+            text={commentForm.shownReply}
+            testId="period-review-coach-reply"
+          />
         )}
       </CommentSection>
     </Card>

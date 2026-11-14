@@ -7,7 +7,8 @@ import type {
   CalendarResponse,
   WeekSession,
 } from "@killingit/shared";
-import { CalendarEntryDialog, CalendarView } from "./CalendarView";
+import { CalendarEntryDialog } from "./calendar/CalendarEntryDialog";
+import { CalendarView } from "./CalendarView";
 
 const recorded: CalendarImportedActivity = {
   source: "garmin",

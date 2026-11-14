@@ -142,9 +142,24 @@ API:
 
 - The account menu gains `Calendar` after `Fitness`.
 - `CalendarPage` fetches the data for the effective today.
-- `CalendarView` is presentational: heading, navigation, month grid, legend
-  note, and the dialog. `CalendarEntryDialog` is exported separately so it can
-  be render-tested.
+- `CalendarView` is presentational: it owns the month bounds, the heading, the
+  legend note and the selected entry, and composes the pieces below. The
+  month's sections live in `calendar/`:
+  - `CalendarGrid` — the month navigation (previous/next, Today, month picker)
+    and the six Monday-start week rows;
+  - `WeekOverview` — the plan box to the left of each Monday row;
+  - `CalendarCell` — one day: its number, block start, season end, events, the
+    planned session and each recorded activity;
+  - `CalendarEntryDialog` — the detail dialog for the selected activity or
+    session, exported separately so it can be render-tested;
+  - `selection.ts` — the selected-entry type the grid, the cell and the dialog
+    share.
+    This follows ADR 0047: a page's own sections may move into a directory named
+    for the page's concern while the page component stays flat.
+- A day's block, season and event markers and its rest note render through the
+  shared `Chip` primitive, so the marker styling lives in one place. An
+  activity's distance on its chip uses `formatDistanceKm` at one decimal; the
+  detail dialog and the activity card use the same helper at two.
 - Today's cell carries a lime ring that is painted outside the cell, so the
   grid inside its horizontal scroll container keeps padding; without it the
   scroll clip hides the right side of the ring on a Sunday.
@@ -181,4 +196,5 @@ API:
   their week numbers, and bounds.
 - Web unit tests for the month helpers and render tests for the month grid,
   range controls, week overview boxes, the today ring's clearance inside the
-  scrolling grid, and both dialog variants.
+  scrolling grid, and both dialog variants. The `Chip`, `CoachReply` and
+  `formatDistanceKm` helpers have their own unit tests.
