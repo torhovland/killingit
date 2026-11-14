@@ -36,6 +36,12 @@ export function blockFor(plan: CoachPlan, date: string): BlockPlan | null {
   return null;
 }
 
+/** The day after the current block, or today if the block already ended. */
+export function nextBlockStartDate(block: BlockPlan, today: string): string {
+  const dayAfterBlock = addDays(block.endDate, 1);
+  return dayAfterBlock > today ? dayAfterBlock : today;
+}
+
 /**
  * Moves a stored next week or block into the current slot once today has
  * reached it. The previous period is dropped here, after its review has been

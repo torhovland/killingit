@@ -47,8 +47,8 @@ import {
 } from "./generation.js";
 import { loadPlanGenerationContext } from "./generationContext.js";
 import { runPlanGeneration } from "./generate.js";
-import { planFtpEstimates } from "./generate.js";
-import type { PlanGenerationContext } from "./generate.js";
+import { planFtpEstimates } from "../metrics/planFtpEstimates.js";
+import type { PlanGenerationContext } from "./generation/types.js";
 import { loadPlanDayCalories } from "./dayCalories.js";
 import type { CoachingInputs } from "./inputs.js";
 import { claimRun, releaseRun } from "./runs.js";

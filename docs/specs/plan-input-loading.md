@@ -66,8 +66,8 @@ the same trade-off the reply context already makes.
 
 The stored writers — the period-review capture, the FTP and body-metric time
 series, the coach question and its clearing — are injectable too, but their own
-failure semantics stay with `generate.ts`, where storing a generated plan is
-fail-open.
+failure semantics stay with the plan-generation modules
+(`plans/generation/persist.ts`), where storing a generated plan is fail-open.
 
 ## Order of reads
 
