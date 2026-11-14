@@ -296,7 +296,11 @@ about a past workout, or before a suggested workout, to steer the coach.
   Body Battery, training readiness, recovery time, VO2max, SpO2, respiration,
   steps, calories and intensity minutes) are backfilled one day at a time after
   the activity sync, with a per-day watermark that lets a rate-limited backfill
-  resume. A sleep window Garmin has not confirmed, or one whose total is still
+  resume. The body-composition/FTP pass and the daily health backfill are one
+  fail-open `syncGarminSupplements` sequence (`garmin/supplements.ts`) shared by
+  `GET /api/garmin/activities` and the coaching activity feed, so a metrics
+  failure never stops daily health and neither failure fails the activity sync.
+  A sleep window Garmin has not confirmed, or one whose total is still
   zero, is skipped so the last completed night stays in the series. Today's
   Body Battery high and low are running values, so the prompts and the Fitness
   page's Today panel use the last completed day until today is over. A curated
