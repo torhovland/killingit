@@ -3,7 +3,11 @@ import { Hono } from "hono";
 import { requireAuth, requireUser } from "../auth/middleware.js";
 import type { Activity } from "@killingit/shared";
 import type { GarminCredentials } from "../garmin/client.js";
-import { GarminAuthError, type SyncTransport } from "../garmin/client.js";
+import {
+  GarminAuthError,
+  GarminSidecarError,
+  type SyncTransport,
+} from "../garmin/client.js";
 import type { EncryptedCredentials } from "../garmin/store.js";
 import type { UserStore } from "../users/store.js";
 import { createGarminRoute } from "./garmin.js";
@@ -60,7 +64,11 @@ const users: UserStore = {
 
 function makeApp(
   authenticate?: () => Promise<boolean>,
-  options: { timezone?: string; now?: () => Date } = {},
+  options: {
+    timezone?: string;
+    now?: () => Date;
+    syncActivities?: SyncTransport;
+  } = {},
 ) {
   const stored = new Map<number, EncryptedCredentials>();
   const plain = new Map<number, GarminCredentials>();
@@ -74,6 +82,13 @@ function makeApp(
       timezone: options.timezone ?? null,
     }),
   };
+
+  const sync =
+    options.syncActivities ??
+    ((credentials) => {
+      synced.push(credentials);
+      return Promise.resolve([] as Activity[]);
+    });
 
   const app = new Hono();
   app.use(
@@ -93,10 +108,7 @@ function makeApp(
       loadDecryptedCredentials: (userId) =>
         Promise.resolve(plain.get(userId) ?? null),
       authenticate: authenticate ?? (() => Promise.resolve(true)),
-      syncActivities: ((credentials) => {
-        synced.push(credentials);
-        return Promise.resolve([] as Activity[]);
-      }) satisfies SyncTransport,
+      syncActivities: sync,
       syncSupplements: (_userId, _credentials, today) => {
         supplementDates.push(today);
         return Promise.resolve();
@@ -206,6 +218,95 @@ describe("per-user Garmin credentials", () => {
     );
 
     expect(res.status).toBe(401);
+    expect(stored.size).toBe(0);
+  });
+});
+
+describe("Garmin upstream failures", () => {
+  const credentials = { username: "rider-1", password: "secret-1" };
+
+  function credentialRequest(): Request {
+    return request("/garmin/credentials", "athlete-1", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(credentials),
+    });
+  }
+
+  it("passes the sidecar's status through on a sync", async () => {
+    const { app, plain } = makeApp(undefined, {
+      syncActivities: () =>
+        Promise.reject(new GarminSidecarError("Garmin is rate limiting", 429)),
+    });
+    plain.set(1, credentials);
+
+    const res = await app.fetch(request("/garmin/activities", "athlete-1"));
+
+    expect(res.status).toBe(429);
+    expect(await res.json()).toEqual({
+      error: { code: "too_many_requests", message: "Garmin is rate limiting" },
+    });
+  });
+
+  it("reports a sidecar failure without a status as unavailable", async () => {
+    const { app, plain } = makeApp(undefined, {
+      syncActivities: () =>
+        Promise.reject(
+          new GarminSidecarError(
+            "sidecar returned a malformed activities payload",
+          ),
+        ),
+    });
+    plain.set(1, credentials);
+
+    const res = await app.fetch(request("/garmin/activities", "athlete-1"));
+
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({
+      error: {
+        code: "service_unavailable",
+        message: "sidecar returned a malformed activities payload",
+      },
+    });
+  });
+
+  it("reports an unexpected sync failure as unavailable", async () => {
+    const { app, plain } = makeApp(undefined, {
+      syncActivities: () => Promise.reject(new Error("boom")),
+    });
+    plain.set(1, credentials);
+
+    const res = await app.fetch(request("/garmin/activities", "athlete-1"));
+
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({
+      error: { code: "service_unavailable", message: "Service Unavailable" },
+    });
+  });
+
+  it("passes the sidecar's status through when validating credentials", async () => {
+    const { app, stored } = makeApp(() =>
+      Promise.reject(new GarminSidecarError("MFA is required", 403)),
+    );
+
+    const res = await app.fetch(credentialRequest());
+
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({
+      error: { code: "forbidden", message: "MFA is required" },
+    });
+    expect(stored.size).toBe(0);
+  });
+
+  it("reports an unexpected credential failure as unavailable", async () => {
+    const { app, stored } = makeApp(() => Promise.reject(new Error("boom")));
+
+    const res = await app.fetch(credentialRequest());
+
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({
+      error: { code: "service_unavailable", message: "Service Unavailable" },
+    });
     expect(stored.size).toBe(0);
   });
 });

@@ -19,6 +19,31 @@ const CODE_BY_STATUS: Partial<Record<number, ApiErrorCode>> = {
 };
 
 /**
+ * A failure from a third-party service the API depends on. The failure owns the
+ * status — and, when the provider needs one, the code — it is reported with, so
+ * a route hands its whole error path to `respondUpstreamError` instead of
+ * matching provider classes of its own. A subclass that does not name a status
+ * is reported as a service failure.
+ */
+export abstract class UpstreamError extends Error {
+  readonly status: number;
+  readonly code: ApiErrorCode | undefined;
+
+  constructor(
+    message: string,
+    options: {
+      status?: number | undefined;
+      code?: ApiErrorCode | undefined;
+      cause?: unknown;
+    } = {},
+  ) {
+    super(message, options);
+    this.status = options.status ?? 503;
+    this.code = options.code;
+  }
+}
+
+/**
  * Answers with the shared error contract. Routes use one of the named helpers
  * below; `apiError` is for a status that comes from an upstream provider.
  */
@@ -93,6 +118,37 @@ export function serviceUnavailable(
   message = "Service Unavailable",
 ) {
   return apiError(c, 503, message);
+}
+
+/**
+ * Answers a request that failed on a third-party service, with the status and
+ * code the error carries. Only a service failure is logged: a 4xx asks the
+ * athlete to fix their connection, which is an expected answer rather than an
+ * incident. An error of any other kind is logged with the caller's label and
+ * reported as unavailable, so a route never guesses a status from an
+ * unexpected failure.
+ */
+export function respondUpstreamError(
+  c: Context,
+  err: unknown,
+  logLabel = "[upstream]",
+): Response {
+  if (!(err instanceof UpstreamError)) {
+    console.error(`${logLabel}:`, err);
+    return serviceUnavailable(c);
+  }
+  // A provider can report a status outside the failure range; `apiError`
+  // reports it as unavailable, so the log decision follows that status too.
+  const status = err.status >= 400 && err.status <= 599 ? err.status : 503;
+  if (status >= 500) {
+    console.error(`${logLabel}:`, err);
+  }
+  return apiError(
+    c,
+    status,
+    err.message,
+    err.code === undefined ? {} : { code: err.code },
+  );
 }
 
 function codeForStatus(status: number): ApiErrorCode {

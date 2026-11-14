@@ -3,7 +3,12 @@ import type { LlmCatalogModel, LlmCostsResponse } from "@killingit/shared";
 import { Hono } from "hono";
 import { requireAuth, requireUser } from "../auth/middleware.js";
 import { keyFromRaw } from "../crypto/credentials.js";
-import { LlmAuthError, type LlmProvider } from "../llm/openrouter.js";
+import {
+  LlmAuthError,
+  LlmProviderError,
+  LlmRateLimitError,
+  type LlmProvider,
+} from "../llm/openrouter.js";
 import type { StoredLlmSettings } from "../llm/store.js";
 import type { UserStore } from "../users/store.js";
 import { createLlmRoute } from "./llm.js";
@@ -302,6 +307,82 @@ describe("GET /llm/catalog", () => {
           benchmarkedAt: "2026-10-31T15:40:52.865Z",
         },
       ],
+    });
+  });
+});
+
+describe("GET /llm/models", () => {
+  function modelsRequest(): Request {
+    return new Request("http://localhost/llm/models", {
+      headers: { authorization: "Bearer anything" },
+    });
+  }
+
+  function appFailingWith(error: Error) {
+    return makeApp(() => Promise.resolve(stored), {
+      provider: {
+        ...fakeProvider,
+        listModels: () => Promise.reject(error),
+      },
+    });
+  }
+
+  it("passes the provider's own status through", async () => {
+    const app = appFailingWith(
+      new LlmProviderError("OpenRouter account has insufficient credits", 402),
+    );
+
+    const res = await app.fetch(modelsRequest());
+
+    expect(res.status).toBe(402);
+    expect(await res.json()).toEqual({
+      error: {
+        code: "payment_required",
+        message: "OpenRouter account has insufficient credits",
+      },
+    });
+  });
+
+  it("reports a rate limit as such", async () => {
+    const app = appFailingWith(
+      new LlmRateLimitError("OpenRouter rate limit reached"),
+    );
+
+    const res = await app.fetch(modelsRequest());
+
+    expect(res.status).toBe(429);
+    expect(await res.json()).toEqual({
+      error: {
+        code: "too_many_requests",
+        message: "OpenRouter rate limit reached",
+      },
+    });
+  });
+
+  it("reports a provider failure without a status as unavailable", async () => {
+    const app = appFailingWith(
+      new LlmProviderError("could not reach OpenRouter for the model list"),
+    );
+
+    const res = await app.fetch(modelsRequest());
+
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({
+      error: {
+        code: "service_unavailable",
+        message: "could not reach OpenRouter for the model list",
+      },
+    });
+  });
+
+  it("reports an unexpected failure as unavailable", async () => {
+    const app = appFailingWith(new Error("boom"));
+
+    const res = await app.fetch(modelsRequest());
+
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({
+      error: { code: "service_unavailable", message: "Service Unavailable" },
     });
   });
 });

@@ -1,4 +1,5 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, spyOn } from "bun:test";
+import type { ApiErrorCode } from "@killingit/shared";
 import { Hono } from "hono";
 import { z } from "zod";
 import {
@@ -8,8 +9,10 @@ import {
   conflict,
   forbidden,
   notFound,
+  respondUpstreamError,
   serviceUnavailable,
   unauthorized,
+  UpstreamError,
 } from "./errors.js";
 import { zValidator } from "./validation.js";
 
@@ -75,6 +78,133 @@ describe("API error helpers", () => {
         message: "Upstream gave no answer",
       },
     });
+  });
+});
+
+/** A provider failure of the kind a Garmin or OpenRouter client raises. */
+class TestUpstreamError extends UpstreamError {
+  constructor(
+    message: string,
+    options: { status?: number; code?: ApiErrorCode } = {},
+  ) {
+    super(message, options);
+    this.name = "TestUpstreamError";
+  }
+}
+
+/** One route per failure, answered by the shared upstream mapper. */
+function upstreamApp(failure: () => unknown) {
+  return new Hono().get("/upstream", (c) => {
+    try {
+      throw failure();
+    } catch (err) {
+      return respondUpstreamError(c, err, "[test] upstream");
+    }
+  });
+}
+
+async function answer(failure: () => unknown) {
+  const res = await upstreamApp(failure).fetch(
+    new Request("http://localhost/upstream"),
+  );
+  return { status: res.status, body: await res.json() };
+}
+
+describe("upstream error mapping", () => {
+  it("reports the status and message the error carries", async () => {
+    expect(
+      await answer(
+        () => new TestUpstreamError("Garmin is rate limiting", { status: 429 }),
+      ),
+    ).toEqual({
+      status: 429,
+      body: {
+        error: {
+          code: "too_many_requests",
+          message: "Garmin is rate limiting",
+        },
+      },
+    });
+  });
+
+  it("reports the error's own code instead of the status-derived one", async () => {
+    // The credential failures a later change reports use a code their status
+    // alone cannot express.
+    expect(
+      await answer(
+        () =>
+          new TestUpstreamError("The Garmin login failed", {
+            status: 422,
+            code: "unauthorized",
+          }),
+      ),
+    ).toMatchObject({
+      status: 422,
+      body: { error: { code: "unauthorized" } },
+    });
+  });
+
+  it("reports a failure without a status as unavailable", async () => {
+    expect(
+      await answer(
+        () => new TestUpstreamError("sidecar returned a malformed payload"),
+      ),
+    ).toEqual({
+      status: 503,
+      body: {
+        error: {
+          code: "service_unavailable",
+          message: "sidecar returned a malformed payload",
+        },
+      },
+    });
+  });
+
+  it("does not echo an impossible status", async () => {
+    expect(
+      await answer(
+        () =>
+          new TestUpstreamError("Upstream gave no answer", {
+            status: 204,
+          }),
+      ),
+    ).toMatchObject({
+      status: 503,
+      body: { error: { code: "service_unavailable" } },
+    });
+  });
+
+  it("reports an unexpected failure as unavailable", async () => {
+    expect(await answer(() => new Error("boom"))).toEqual({
+      status: 503,
+      body: {
+        error: { code: "service_unavailable", message: "Service Unavailable" },
+      },
+    });
+  });
+
+  it("logs a service failure and an unexpected failure, not a client one", async () => {
+    const error = spyOn(console, "error").mockImplementation(() => {});
+    try {
+      await answer(
+        () =>
+          new TestUpstreamError("Garmin sidecar returned 502", {
+            status: 502,
+          }),
+      );
+      await answer(() => new Error("boom"));
+      expect(error).toHaveBeenCalledTimes(2);
+
+      await answer(
+        () =>
+          new TestUpstreamError("invalid Garmin credentials", {
+            status: 401,
+          }),
+      );
+      expect(error).toHaveBeenCalledTimes(2);
+    } finally {
+      error.mockRestore();
+    }
   });
 });
 

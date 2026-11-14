@@ -7,20 +7,14 @@ import type { Context } from "hono";
 import { z } from "zod";
 import { getUser } from "../../auth/middleware.js";
 import {
-  apiError,
+  respondUpstreamError,
   serviceUnavailable,
-  unauthorized,
   validationFailed,
 } from "../../http/errors.js";
 import {
-  GarminCredentialsError,
-  GarminNotConnectedError,
-  LlmCredentialsError,
   withActivityLoad,
   type ActivityFeed,
 } from "../../coaching/activities.js";
-import { GarminAuthError, GarminSidecarError } from "../../garmin/client.js";
-import { LlmAuthError, LlmProviderError } from "../../llm/openrouter.js";
 import { latestActivityAnalysisTimestamp } from "../../plans/status.js";
 import type { ResolvedCoachingDependencies } from "./dependencies.js";
 import { deletionQuerySchema } from "./schemas.js";
@@ -156,30 +150,10 @@ export function createFeedHandlers(deps: ResolvedCoachingDependencies) {
         );
         return c.json(analyzedActivitiesResponseSchema.parse(feed));
       } catch (err) {
-        if (err instanceof GarminNotConnectedError) {
-          return unauthorized(c, err.message);
-        }
-        if (err instanceof GarminAuthError) {
-          return unauthorized(c, err.message);
-        }
-        if (err instanceof GarminSidecarError && err.status) {
-          return apiError(c, err.status, err.message);
-        }
-        if (
-          err instanceof GarminCredentialsError ||
-          err instanceof LlmCredentialsError
-        ) {
-          console.error(`[coaching] ${err.message}`);
-          return serviceUnavailable(c, err.message);
-        }
-        if (err instanceof LlmAuthError) {
-          return unauthorized(c, err.message);
-        }
-        if (err instanceof LlmProviderError) {
-          return serviceUnavailable(c, err.message);
-        }
-        console.error("[coaching] activity feed failure:", err);
-        return serviceUnavailable(c);
+        // A Garmin, sidecar or OpenRouter failure carries the status the
+        // athlete needs: an account to connect, a credential to replace, or a
+        // provider that is down.
+        return respondUpstreamError(c, err, "[coaching] activity feed failure");
       }
     },
 

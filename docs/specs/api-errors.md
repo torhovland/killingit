@@ -85,6 +85,38 @@ did not expect; it carries no structured context to show.
 A validation failure from the `zValidator` wrapper uses `validation_failed`
 with `400`, matching the library's existing status.
 
+## Upstream provider failures
+
+A failure from a third-party service is a typed error that extends
+`UpstreamError` (`apps/api/src/http/errors.ts`) and carries the status — and,
+when the provider needs one, the code — it is reported with. A route never
+matches provider classes itself: its whole `catch` is
+
+```ts
+return respondUpstreamError(c, err, "[garmin] activities failure");
+```
+
+`respondUpstreamError` answers with that status and the error's message,
+clamping a status outside the failure range to `503` and, for an error that is
+not an upstream failure, logging it and answering `503` with
+`service_unavailable`. It logs an upstream failure only when it answers a
+service failure; a `4xx` is the athlete's to act on and stays out of the error
+log. See ADR 0035.
+
+| Failure                                         | Status                          |
+| ----------------------------------------------- | ------------------------------- |
+| `GarminAuthError`                               | `401`                           |
+| `GarminNotConnectedError`                       | `401`                           |
+| `LlmAuthError`                                  | `401`                           |
+| `LlmRateLimitError`                             | `429`                           |
+| `GarminSidecarError`, `LlmProviderError`        | the status it carries, else 503 |
+| `GarminCredentialsError`, `LlmCredentialsError` | `503`                           |
+
+A provider that reports a status of its own keeps it, so the Garmin sidecar's
+`403` (MFA required), `429` (rate limit) and `502` (gateway) reach the client
+unchanged, and an OpenRouter `402` (insufficient credits) is not folded into a
+generic service failure.
+
 ## Acceptance criteria
 
 1. A route failure has `content-type: application/json` and the contract shape;
