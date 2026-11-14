@@ -425,7 +425,7 @@ export const dbPlanGenerationStore: PlanGenerationStore = {
 };
 
 /** Corrupt-plan reports remembered before the oldest one is forgotten. */
-export const MAX_REPORTED_INVALID_PLANS = 256;
+const MAX_REPORTED_INVALID_PLANS = 256;
 
 /**
  * Plans already reported as invalid, keyed by user and save time. The plan
@@ -489,7 +489,7 @@ export async function loadValidatedPlan(
 }
 
 /** The status returned before the first generation has ever run. */
-export function idleGenerationStatus(): PlanGenerationStatus {
+function idleGenerationStatus(): PlanGenerationStatus {
   return {
     status: "idle",
     step: null,

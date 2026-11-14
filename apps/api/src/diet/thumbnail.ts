@@ -1,14 +1,14 @@
 import { Jimp } from "jimp";
 
 /** The longest edge of the thumbnail stored for the food log. */
-export const MEAL_THUMBNAIL_MAX_DIMENSION = 320;
+const MEAL_THUMBNAIL_MAX_DIMENSION = 320;
 
 /**
  * The longest edge of the photo sent to the model. A phone photo can be many
  * megapixels, and image tokens grow with its dimensions; a bounded copy keeps
  * the analysis cheap without losing what the meal looks like.
  */
-export const MEAL_ANALYSIS_MAX_DIMENSION = 1024;
+const MEAL_ANALYSIS_MAX_DIMENSION = 1024;
 
 /** The JPEG quality of the stored thumbnail. */
 const THUMBNAIL_QUALITY = 75;

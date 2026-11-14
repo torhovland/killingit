@@ -119,7 +119,7 @@ export interface PlanUpdateInput extends PlanContextInput {
   coachingSurveyAdjustments?: readonly CoachingSurveyAdjustmentContext[];
 }
 
-export const DAILY_UPDATE_SYSTEM_PROMPT = promptSections(
+const DAILY_UPDATE_SYSTEM_PROMPT = promptSections(
   GLOBAL_PROMPT_RULES,
   PLAN_PROMPT_RULES,
   "Update today's session, the rest of the current week, and tomorrow's session for an amateur athlete.",
@@ -146,7 +146,7 @@ export const DAILY_UPDATE_SYSTEM_PROMPT = promptSections(
 }`,
 );
 
-export const WEEKLY_UPDATE_SYSTEM_PROMPT = promptSections(
+const WEEKLY_UPDATE_SYSTEM_PROMPT = promptSections(
   GLOBAL_PROMPT_RULES,
   PLAN_PROMPT_RULES,
   "Create the week starting on the supplied week start date and revise the block plan for an amateur athlete.",
@@ -183,7 +183,7 @@ const PLAN_UPDATE_CONTRACT = `{
   ${COACH_RESPONSE_NOTES_CONTRACT}
 }`;
 
-export const PLAN_UPDATE_SYSTEM_PROMPT = promptSections(
+const PLAN_UPDATE_SYSTEM_PROMPT = promptSections(
   GLOBAL_PROMPT_RULES,
   PLAN_PROMPT_RULES,
   "Update an athlete's training plan.",
@@ -275,7 +275,7 @@ export function buildPlanUpdateMessages(input: PlanUpdateInput): {
   ];
 }
 
-export function buildPlanUpdatePrompt(input: PlanUpdateInput): string {
+function buildPlanUpdatePrompt(input: PlanUpdateInput): string {
   const weekStart = startOfWeek(input.today);
   const tomorrowDate = addDays(input.today, 1);
   const nextWeekStart = startOfWeek(tomorrowDate);
@@ -348,7 +348,7 @@ export function buildDailyUpdateMessages(input: DailyUpdateInput): {
   ];
 }
 
-export function buildDailyUpdatePrompt(input: DailyUpdateInput): string {
+function buildDailyUpdatePrompt(input: DailyUpdateInput): string {
   const weekStart = startOfWeek(input.today);
   const detailThrough = input.detailThrough ?? addDays(input.today, 1);
   return [
@@ -375,7 +375,7 @@ export function buildWeeklyUpdateMessages(input: WeeklyUpdateInput): {
   ];
 }
 
-export function buildWeeklyUpdatePrompt(input: WeeklyUpdateInput): string {
+function buildWeeklyUpdatePrompt(input: WeeklyUpdateInput): string {
   return [
     ...formatPlanContext(input),
     `Week start date: ${input.weekStartDate}. ${weekDatesRangeRule(input.weekStartDate)}.`,

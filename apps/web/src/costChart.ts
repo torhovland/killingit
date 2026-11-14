@@ -82,7 +82,7 @@ interface Period {
  * the same order. Shared by both charts so a series keeps its colour when the
  * athlete changes a range.
  */
-export function costSeries(
+function costSeries(
   rows: readonly LlmCostBucket[],
   dimension: CostStackDimension,
 ): CostSeriesTotal[] {

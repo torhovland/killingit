@@ -20,8 +20,10 @@
  * - `DIET_CONTRACT` → `dietPlanSchema`
  * - `COACH_RESPONSE_NOTES_CONTRACT` → `coachResponseNotesSchema`
  * - `BODY_METRIC_POINT_CONTRACT` → `bodyMetricEstimateSchema`
- * - `COACH_ANALYSIS_CONTRACT` → `coachAnalysisResultSchema`
- * - `COACH_REPLY_CONTRACT` → `coachReplyResultSchema`
+ * - `COACH_ANALYSIS_RESPONSE_RULES`, whose embedded contract →
+ *   `coachAnalysisResultSchema`
+ * - `COACH_REPLY_RESPONSE_RULES`, whose embedded contract →
+ *   `coachReplyResultSchema`
  *
  * The nested fragments `BIKE_WORKOUT_CONTRACT`, `CALORIE_BREAKDOWN_CONTRACT` and
  * `DIET_PROGRESS_CONTRACT` are compared inside the contracts that embed them.
@@ -49,8 +51,8 @@ import {
 import {
   BLOCK_CONTRACT,
   BODY_METRIC_POINT_CONTRACT,
-  COACH_ANALYSIS_CONTRACT,
-  COACH_REPLY_CONTRACT,
+  COACH_ANALYSIS_RESPONSE_RULES,
+  COACH_REPLY_RESPONSE_RULES,
   COACH_RESPONSE_NOTES_CONTRACT,
   DAY_CONTRACT,
   DIET_CONTRACT,
@@ -138,18 +140,30 @@ const CONTRACT_MAPPINGS: readonly ContractMapping[] = [
     schema: schemaKeys(bodyMetricEstimateSchema),
   },
   {
-    contractName: "COACH_ANALYSIS_CONTRACT",
-    contract: COACH_ANALYSIS_CONTRACT,
+    contractName: "COACH_ANALYSIS_RESPONSE_RULES",
+    contract: contractWithin(COACH_ANALYSIS_RESPONSE_RULES),
     schemaName: "coachAnalysisResultSchema",
     schema: schemaKeys(coachAnalysisResultSchema),
   },
   {
-    contractName: "COACH_REPLY_CONTRACT",
-    contract: COACH_REPLY_CONTRACT,
+    contractName: "COACH_REPLY_RESPONSE_RULES",
+    contract: contractWithin(COACH_REPLY_RESPONSE_RULES),
     schemaName: "coachReplyResultSchema",
     schema: schemaKeys(coachReplyResultSchema),
   },
 ];
+
+/**
+ * The JSON object a response-rules fragment asks the model to return. The
+ * fragment starts with the output instruction and then carries the contract.
+ */
+function contractWithin(responseRules: string): string {
+  const start = responseRules.indexOf("{");
+  if (start === -1) {
+    throw new Error("response rules carry no contract");
+  }
+  return responseRules.slice(start);
+}
 
 /**
  * The keys of a Zod schema's input shape, from its JSON Schema form, so

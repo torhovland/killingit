@@ -1,9 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { DailyHealthPoint } from "@killingit/shared";
-import {
-  formatDailyHealthContext,
-  HEALTH_CONTEXT_DAYS,
-} from "./healthContext.js";
+import { formatDailyHealthContext } from "./healthContext.js";
 
 function series(
   metric: DailyHealthPoint["metric"],
@@ -85,9 +82,20 @@ describe("formatDailyHealthContext", () => {
     expect(text).toContain("Body Battery high: latest 30 on 2026-10-26");
   });
 
-  it("says when no values were synced", () => {
+  it("says when no values were synced, naming the lookback window", () => {
     expect(formatDailyHealthContext([], "2026-10-26")).toEqual([
-      `Daily health and recovery (from Garmin, ${HEALTH_CONTEXT_DAYS} days through 2026-10-26):`,
+      "Daily health and recovery (from Garmin, 14 days through 2026-10-26):",
+      "- No daily health data was synced for this period.",
+    ]);
+  });
+
+  it("ignores a value older than the lookback window", () => {
+    const points: DailyHealthPoint[] = [
+      { metric: "resting_heart_rate", date: "2026-10-12", value: 48 },
+    ];
+
+    expect(formatDailyHealthContext(points, "2026-10-26")).toEqual([
+      "Daily health and recovery (from Garmin, 14 days through 2026-10-26):",
       "- No daily health data was synced for this period.",
     ]);
   });

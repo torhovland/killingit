@@ -5,12 +5,7 @@ import {
   greetingSchema,
 } from "@killingit/shared";
 import type { AuthState } from "./auth/auth0";
-import {
-  fetchFileAuthed,
-  fetchJsonAuthed,
-  requestParsed,
-  ResponseValidationError,
-} from "./fetchAuthed";
+import { fetchFileAuthed, fetchJsonAuthed, requestParsed } from "./fetchAuthed";
 import { ApiError } from "./fetchJson";
 import { isAbortError } from "./requestAbort";
 
@@ -261,7 +256,7 @@ describe("requestParsed", () => {
     );
   });
 
-  it("throws a ResponseValidationError with the label and the schema cause", async () => {
+  it("throws a validation error with the label and the schema cause", async () => {
     stubFetch(jsonResponse({ message: 42 }));
     const auth = fakeAuth(() => Promise.resolve("test-token"));
 
@@ -277,7 +272,8 @@ describe("requestParsed", () => {
       caught = error;
     }
 
-    expect(caught).toBeInstanceOf(ResponseValidationError);
+    expect(caught).toBeInstanceOf(Error);
+    expect((caught as Error).name).toBe("ResponseValidationError");
     expect((caught as Error).message).toBe(
       "Loading the greeting returned an unexpected response",
     );

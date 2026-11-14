@@ -3,16 +3,20 @@ import type {
   AnalyzedActivity,
   AthleteThreshold,
   CoachPlan,
+  DailyHealthPoint,
+  FitnessRange,
+  MetricPoint,
   ThresholdHistorySeries,
 } from "@killingit/shared";
+import type { ManualActivityContext } from "../llm/activityContext.js";
 import { buildActivityLoads } from "./activityLoad.js";
+import type { TrainingContext } from "./context.js";
+import { loadFitnessHistory } from "./history.js";
 import { buildThresholdTimelines, FTP_THRESHOLD } from "./thresholds.js";
-import {
-  buildFitnessHistory,
-  earliestRecordedDate,
-  fitnessWindow,
-  FITNESS_RANGE_DAYS,
-} from "./history.js";
+
+type FitnessHistoryDependencies = NonNullable<
+  Parameters<typeof loadFitnessHistory>[7]
+>;
 
 const thresholdPoints: AthleteThreshold[] = [
   {
@@ -115,54 +119,106 @@ function plan(overrides: Partial<CoachPlan> = {}): CoachPlan {
   };
 }
 
-const base = {
-  today: "2026-10-22",
-  range: "week" as const,
-  timeZone: null as string | null,
-  activities: [] as readonly AnalyzedActivity[],
-  thresholdPoints,
-  thresholdTimelines: buildThresholdTimelines(thresholdPoints),
-  plan: plan(),
-  planTssByDate: new Map<string, number>(),
-  manualTssByDate: new Map<string, number>(),
-};
+interface HistoryOptions {
+  /** `null` means the athlete has no stored plan yet; omitted uses the fixture. */
+  plan?: CoachPlan | null;
+  today?: string;
+  range?: FitnessRange;
+  timeZone?: string | null;
+  activities?: readonly AnalyzedActivity[];
+  dietAdvice?: boolean;
+  /** Overrides for the stored training context the loader reads. */
+  context?: Partial<TrainingContext>;
+  weight?: readonly MetricPoint[];
+  bodyFat?: readonly MetricPoint[];
+  dailyHealth?: readonly DailyHealthPoint[];
+  nutrition?: {
+    consumed: ReadonlyMap<string, number>;
+    needed: ReadonlyMap<string, number>;
+  } | null;
+}
 
-describe("fitnessWindow", () => {
-  it("starts the fixed ranges the right distance back", () => {
-    expect(fitnessWindow({ today: "2026-10-22", range: "week" })).toEqual({
-      startDate: "2026-10-16",
-      endDate: "2026-10-22",
-    });
+function historyDependencies(
+  options: HistoryOptions,
+): FitnessHistoryDependencies {
+  const context: TrainingContext = {
+    ftpTimeline: null,
+    thresholds: [],
+    thresholdPoints,
+    thresholdTimelines: buildThresholdTimelines(thresholdPoints),
+    planTssByDate: new Map(),
+    manualTssByDate: new Map(),
+    manualActivities: [],
+    ...options.context,
+  };
+  return {
+    loadTrainingContext: () => Promise.resolve(context),
+    loadMetricPoints: (_userId, metric) =>
+      Promise.resolve([
+        ...(metric === "weight"
+          ? (options.weight ?? [])
+          : (options.bodyFat ?? [])),
+      ]),
+    loadDailyHealth: () => Promise.resolve([...(options.dailyHealth ?? [])]),
+    loadNutrition: (_userId, _plan, _today, dietAdvice) =>
+      Promise.resolve(dietAdvice ? (options.nutrition ?? null) : null),
+  };
+}
+
+function loadFitness(options: HistoryOptions = {}) {
+  const storedPlan =
+    options.plan === undefined ? plan() : (options.plan ?? undefined);
+  return loadFitnessHistory(
+    1,
+    options.activities ?? [],
+    storedPlan,
+    options.today ?? "2026-10-22",
+    options.range ?? "week",
+    options.dietAdvice ?? false,
+    options.timeZone ?? null,
+    historyDependencies(options),
+  );
+}
+
+describe("fitness history window", () => {
+  it("starts the fixed ranges the right distance back", async () => {
+    const week = await loadFitness({ plan: null });
+    expect(week.days).toHaveLength(7);
+    expect(week.days[0]?.date).toBe("2026-10-16");
+    expect(week.days.at(-1)?.date).toBe("2026-10-22");
+
     expect(
-      fitnessWindow({ today: "2026-10-22", range: "month" }).startDate,
+      (await loadFitness({ plan: null, range: "month" })).days[0]?.date,
     ).toBe("2026-09-23");
     expect(
-      fitnessWindow({ today: "2026-10-22", range: "quarter" }).startDate,
+      (await loadFitness({ plan: null, range: "quarter" })).days[0]?.date,
     ).toBe("2026-07-25");
     expect(
-      fitnessWindow({ today: "2026-10-22", range: "year" }).startDate,
+      (await loadFitness({ plan: null, range: "year" })).days[0]?.date,
     ).toBe("2025-10-23");
-    expect(FITNESS_RANGE_DAYS.week).toBe(7);
   });
 
-  it("starts 'all' at the first recorded activity", () => {
+  it("starts 'all' at the first recorded activity", async () => {
     expect(
-      fitnessWindow({
-        today: "2026-10-22",
-        range: "all",
-        earliestDate: "2025-03-04",
-      }).startDate,
+      (
+        await loadFitness({
+          plan: null,
+          range: "all",
+          activities: [activity({ startDate: "2025-03-04T09:00:00Z" })],
+        })
+      ).days[0]?.date,
     ).toBe("2025-03-04");
     // Nothing recorded yet: fall back to the past week.
-    expect(fitnessWindow({ today: "2026-10-22", range: "all" }).startDate).toBe(
-      "2026-10-16",
-    );
+    expect(
+      (await loadFitness({ plan: null, range: "all" })).days[0]?.date,
+    ).toBe("2026-10-16");
   });
 
-  it("ends where the planned workouts end", () => {
-    expect(fitnessWindow({ today: "2026-10-21", range: "week" }).endDate).toBe(
-      "2026-10-21",
-    );
+  it("ends where the planned workouts end", async () => {
+    expect(
+      (await loadFitness({ plan: null, today: "2026-10-21" })).days.at(-1)
+        ?.date,
+    ).toBe("2026-10-21");
 
     const laterPlan: CoachPlan = {
       ...plan(),
@@ -175,54 +231,72 @@ describe("fitnessWindow", () => {
       },
     };
     expect(
-      fitnessWindow({
-        today: "2026-10-21",
-        range: "week",
-        plan: laterPlan,
-      }).endDate,
+      (
+        await loadFitness({
+          today: "2026-10-21",
+          plan: laterPlan,
+        })
+      ).days.at(-1)?.date,
     ).toBe("2026-12-31");
   });
 });
 
-describe("earliestRecordedDate", () => {
-  it("takes the first imported or manual entry", () => {
-    expect(
-      earliestRecordedDate(
-        [activity({ startDate: "2026-10-20T09:00:00Z" })],
-        [
-          { id: 1, startDate: "2026-09-02", details: "Old gym session" },
-          { id: 2, startDate: "2026-10-01", details: "Newer" },
-        ],
-        null,
-      ),
-    ).toBe("2026-09-02");
-    expect(earliestRecordedDate([], [], null)).toBeNull();
+describe("earliest recorded date", () => {
+  it("takes the first imported or manual entry", async () => {
+    const manualActivities: ManualActivityContext[] = [
+      { id: 1, startDate: "2026-09-02", details: "Old gym session" },
+      { id: 2, startDate: "2026-10-01", details: "Newer" },
+    ];
+    const history = await loadFitness({
+      plan: null,
+      range: "all",
+      activities: [activity({ startDate: "2026-10-20T09:00:00Z" })],
+      context: { manualActivities },
+    });
+
+    expect(history.days[0]?.date).toBe("2026-09-02");
   });
 
-  it("reads an imported activity's date in the athlete's zone", () => {
+  it("reads an imported activity's date in the athlete's zone", async () => {
     // 06:30 UTC on 20 October is 23:30 on 19 October in Los Angeles.
     const evening = activity({ startDate: "2026-10-20T06:30:00Z" });
 
-    expect(earliestRecordedDate([evening], [], "America/Los_Angeles")).toBe(
-      "2026-10-19",
-    );
-    expect(earliestRecordedDate([evening], [], "UTC")).toBe("2026-10-20");
+    expect(
+      (
+        await loadFitness({
+          plan: null,
+          range: "all",
+          timeZone: "America/Los_Angeles",
+          activities: [evening],
+        })
+      ).days[0]?.date,
+    ).toBe("2026-10-19");
+    expect(
+      (
+        await loadFitness({
+          plan: null,
+          range: "all",
+          timeZone: "UTC",
+          activities: [evening],
+        })
+      ).days[0]?.date,
+    ).toBe("2026-10-20");
   });
 });
 
-describe("buildFitnessHistory", () => {
-  it("returns one day per calendar day for the chosen range", () => {
-    const history = buildFitnessHistory({ ...base, plan: undefined });
+describe("loadFitnessHistory", () => {
+  it("returns one day per calendar day for the chosen range", async () => {
+    const history = await loadFitness({ plan: null });
 
     expect(history.days).toHaveLength(7);
     expect(history.days[0]?.date).toBe("2026-10-16");
     expect(history.days.at(-1)?.date).toBe("2026-10-22");
   });
 
-  it("reports logged and needed calories for each day", () => {
-    const history = buildFitnessHistory({
-      ...base,
-      plan: undefined,
+  it("reports logged and needed calories for each day", async () => {
+    const history = await loadFitness({
+      plan: null,
+      dietAdvice: true,
       nutrition: {
         consumed: new Map([["2026-10-22", 2100]]),
         needed: new Map([["2026-10-22", 2400]]),
@@ -242,9 +316,9 @@ describe("buildFitnessHistory", () => {
     });
   });
 
-  it("matches the activity load series for the same date", () => {
+  it("matches the activity load series for the same date", async () => {
     const activities = [activity({ normalizedPower: 200 })];
-    const history = buildFitnessHistory({ ...base, activities });
+    const history = await loadFitness({ activities });
     const expected = buildActivityLoads(
       activities,
       buildThresholdTimelines(thresholdPoints),
@@ -259,42 +333,44 @@ describe("buildFitnessHistory", () => {
     expect(day?.tsb).toBe(expected?.tsb);
   });
 
-  it("prefers measured power over the coach's estimate and a manual entry", () => {
-    const history = buildFitnessHistory({
-      ...base,
+  it("prefers measured power over the coach's estimate and a manual entry", async () => {
+    const history = await loadFitness({
       activities: [activity({ normalizedPower: 200 })],
-      planTssByDate: new Map([["2026-10-20", 40]]),
-      manualTssByDate: new Map([["2026-10-20", 30]]),
+      context: {
+        planTssByDate: new Map([["2026-10-20", 40]]),
+        manualTssByDate: new Map([["2026-10-20", 30]]),
+      },
     });
 
     expect(history.days.find((day) => day.date === "2026-10-20")?.tss).toBe(64);
   });
 
-  it("uses the coach's estimate without power and a manual entry over it", () => {
-    const planned = buildFitnessHistory({
-      ...base,
-      planTssByDate: new Map([["2026-10-20", 80]]),
+  it("uses the coach's estimate without power and a manual entry over it", async () => {
+    const planned = await loadFitness({
+      context: { planTssByDate: new Map([["2026-10-20", 80]]) },
     });
     expect(planned.days.find((day) => day.date === "2026-10-20")?.tss).toBe(80);
 
-    const manual = buildFitnessHistory({
-      ...base,
-      planTssByDate: new Map([["2026-10-20", 80]]),
-      manualTssByDate: new Map([["2026-10-20", 120]]),
+    const manual = await loadFitness({
+      context: {
+        planTssByDate: new Map([["2026-10-20", 80]]),
+        manualTssByDate: new Map([["2026-10-20", 120]]),
+      },
     });
     expect(manual.days.find((day) => day.date === "2026-10-20")?.tss).toBe(120);
   });
 
-  it("lists the activities and manual entries logged on each day", () => {
-    const history = buildFitnessHistory({
-      ...base,
+  it("lists the activities and manual entries logged on each day", async () => {
+    const history = await loadFitness({
       activities: [
         activity({ id: 7, name: "Morning ride", type: "indoor_cycling" }),
         activity({ id: 8, name: "", type: "running", movingTime: 0 }),
       ],
-      manualActivities: [
-        { id: 3, startDate: "2026-10-20", details: "Gym session" },
-      ],
+      context: {
+        manualActivities: [
+          { id: 3, startDate: "2026-10-20", details: "Gym session" },
+        ],
+      },
     });
 
     expect(
@@ -316,7 +392,7 @@ describe("buildFitnessHistory", () => {
     ).toEqual([]);
   });
 
-  it("charts an activity on the athlete's local day", () => {
+  it("charts an activity on the athlete's local day", async () => {
     // 06:30 UTC on 22 October is 23:30 on 21 October in Los Angeles.
     const evening = activity({
       id: 9,
@@ -324,8 +400,7 @@ describe("buildFitnessHistory", () => {
       startDate: "2026-10-22T06:30:00Z",
     });
 
-    const local = buildFitnessHistory({
-      ...base,
+    const local = await loadFitness({
       timeZone: "America/Los_Angeles",
       activities: [evening],
     });
@@ -344,15 +419,14 @@ describe("buildFitnessHistory", () => {
     ).toEqual([]);
     expect(local.days.find((day) => day.date === "2026-10-21")?.tss).toBe(55);
 
-    const utc = buildFitnessHistory({ ...base, activities: [evening] });
+    const utc = await loadFitness({ activities: [evening] });
     expect(utc.days.find((day) => day.date === "2026-10-22")?.tss).toBe(55);
     expect(utc.days.find((day) => day.date === "2026-10-21")?.tss).toBe(0);
   });
 
-  it("keeps TSB equal to CTL minus ATL on every day", () => {
-    const history = buildFitnessHistory({
-      ...base,
-      planTssByDate: new Map([["2026-10-20", 80]]),
+  it("keeps TSB equal to CTL minus ATL on every day", async () => {
+    const history = await loadFitness({
+      context: { planTssByDate: new Map([["2026-10-20", 80]]) },
     });
 
     for (const day of history.days) {
@@ -362,8 +436,8 @@ describe("buildFitnessHistory", () => {
     }
   });
 
-  it("carries the plan's session on the days it covers", () => {
-    const history = buildFitnessHistory(base);
+  it("carries the plan's session on the days it covers", async () => {
+    const history = await loadFitness();
 
     expect(
       history.days.find((day) => day.date === "2026-10-22")?.planned,
@@ -374,7 +448,7 @@ describe("buildFitnessHistory", () => {
     ).toBeNull();
   });
 
-  it("carries the season end and diet targets when diet advice is on", () => {
+  it("carries the season end and diet targets when diet advice is on", async () => {
     const withTargets = plan({
       season: {
         ...plan().season,
@@ -415,8 +489,7 @@ describe("buildFitnessHistory", () => {
         },
       },
     });
-    const history = buildFitnessHistory({
-      ...base,
+    const history = await loadFitness({
       plan: withTargets,
       dietAdvice: true,
     });
@@ -433,12 +506,12 @@ describe("buildFitnessHistory", () => {
       bodyFatPercent: 15,
     });
 
-    const withoutDiet = buildFitnessHistory({ ...base, plan: withTargets });
+    const withoutDiet = await loadFitness({ plan: withTargets });
     expect(withoutDiet.dietTargets).toEqual([]);
     expect(withoutDiet.seasonEndDate).toBe("2027-04-01");
   });
 
-  it("carries a planned rest day too", () => {
+  it("carries a planned rest day too", async () => {
     const restPlan: CoachPlan = {
       ...plan(),
       week: {
@@ -456,15 +529,15 @@ describe("buildFitnessHistory", () => {
         ),
       },
     };
-    const history = buildFitnessHistory({ ...base, plan: restPlan });
+    const history = await loadFitness({ plan: restPlan });
 
     expect(
       history.days.find((day) => day.date === "2026-10-22")?.planned,
     ).toEqual({ title: "Rest day", type: "rest", durationMinutes: 0 });
   });
 
-  it("plots the coach's daily estimate from today and the stated FTP before it", () => {
-    const history = buildFitnessHistory({ ...base, range: "month" });
+  it("plots the coach's daily estimate from today and the stated FTP before it", async () => {
+    const history = await loadFitness({ range: "month" });
 
     expect(ftpOn(history.thresholds, "2026-10-15")).toBe(250);
     expect(ftpOn(history.thresholds, "2026-10-21")).toBe(250);
@@ -473,7 +546,7 @@ describe("buildFitnessHistory", () => {
     expect(ftpOn(history.thresholds, "2026-10-25")).toBe(258);
   });
 
-  it("interpolates between the week estimates without daily values", () => {
+  it("interpolates between the week estimates without daily values", async () => {
     const weeklyPlan: CoachPlan = {
       ...plan(),
       week: {
@@ -485,11 +558,7 @@ describe("buildFitnessHistory", () => {
         })),
       },
     };
-    const history = buildFitnessHistory({
-      ...base,
-      plan: weeklyPlan,
-      range: "month",
-    });
+    const history = await loadFitness({ plan: weeklyPlan, range: "month" });
 
     // Today keeps the current week's estimate; the following days climb
     // towards the next week's 262 instead of holding 255 until it starts.
@@ -498,7 +567,7 @@ describe("buildFitnessHistory", () => {
     expect(ftpOn(history.thresholds, "2026-10-25")).toBe(260);
   });
 
-  it("interpolates towards the next week at the end of the week window", () => {
+  it("interpolates towards the next week at the end of the week window", async () => {
     const weeklyPlan: CoachPlan = {
       ...plan(),
       today: { ...plan().today, date: "2026-10-30" },
@@ -532,13 +601,14 @@ describe("buildFitnessHistory", () => {
         ],
       },
     };
-    const history = buildFitnessHistory({
-      ...base,
+    const history = await loadFitness({
       today: "2026-10-30",
       plan: weeklyPlan,
-      thresholdTimelines: buildThresholdTimelines([
-        { ...FTP_THRESHOLD, date: "2026-10-01", value: 220, source: "user" },
-      ]),
+      context: {
+        thresholdTimelines: buildThresholdTimelines([
+          { ...FTP_THRESHOLD, date: "2026-10-01", value: 220, source: "user" },
+        ]),
+      },
     });
 
     // The chart window ends on Sunday 1 November, but the line has already
@@ -548,28 +618,23 @@ describe("buildFitnessHistory", () => {
     expect(ftpOn(history.thresholds, "2026-11-01")).toBe(221);
   });
 
-  it("has no FTP points when the athlete has not stated one", () => {
-    const history = buildFitnessHistory({
-      ...base,
-      thresholdPoints: [],
-      thresholdTimelines: [],
-      plan: undefined,
+  it("has no FTP points when the athlete has not stated one", async () => {
+    const history = await loadFitness({
+      plan: null,
+      context: { thresholdPoints: [], thresholdTimelines: [] },
     });
 
     expect(history.thresholds).toEqual([]);
   });
 
-  it("interpolates body weight and body fat over the window", () => {
-    const history = buildFitnessHistory({
-      ...base,
-      plan: undefined,
-      bodyPoints: {
-        weight: [
-          { date: "2026-10-01", value: 80, source: "garmin" },
-          { date: "2026-10-11", value: 78, source: "garmin" },
-        ],
-        bodyFat: [{ date: "2026-10-06", value: 20, source: "garmin" }],
-      },
+  it("interpolates body weight and body fat over the window", async () => {
+    const history = await loadFitness({
+      plan: null,
+      weight: [
+        { date: "2026-10-01", value: 80, source: "garmin" },
+        { date: "2026-10-11", value: 78, source: "garmin" },
+      ],
+      bodyFat: [{ date: "2026-10-06", value: 20, source: "garmin" }],
     });
 
     expect(history.body.weight[0]).toEqual({
@@ -582,13 +647,13 @@ describe("buildFitnessHistory", () => {
     });
   });
 
-  it("has empty body series when the athlete has no measurements", () => {
-    const history = buildFitnessHistory(base);
+  it("has empty body series when the athlete has no measurements", async () => {
+    const history = await loadFitness();
 
     expect(history.body).toEqual({ weight: [], bodyFat: [] });
   });
 
-  it("returns the newest Garmin daily, body and FTP readings", () => {
+  it("returns the newest Garmin daily, body and FTP readings", async () => {
     const garminFtp: AthleteThreshold = {
       date: "2026-10-02",
       value: 255,
@@ -605,18 +670,15 @@ describe("buildFitnessHistory", () => {
       value: 260,
       source: "coach",
     };
-    const history = buildFitnessHistory({
-      ...base,
-      bodyPoints: {
-        weight: [
-          { date: "2026-10-18", value: 78.5, source: "garmin" },
-          { date: "2026-10-19", value: 78.4, source: "garmin" },
-          { date: "2026-10-20", value: 78.0, source: "user" },
-        ],
-        bodyFat: [{ date: "2026-10-18", value: 24.5, source: "garmin" }],
-      },
-      thresholdPoints: [...thresholdPoints, garminFtp, coachFtp],
-      dailyHealthPoints: [
+    const history = await loadFitness({
+      weight: [
+        { date: "2026-10-18", value: 78.5, source: "garmin" },
+        { date: "2026-10-19", value: 78.4, source: "garmin" },
+        { date: "2026-10-20", value: 78.0, source: "user" },
+      ],
+      bodyFat: [{ date: "2026-10-18", value: 24.5, source: "garmin" }],
+      context: { thresholdPoints: [...thresholdPoints, garminFtp, coachFtp] },
+      dailyHealth: [
         { metric: "sleep_duration", date: "2026-10-20", value: 400 },
         { metric: "sleep_duration", date: "2026-10-21", value: 430 },
         { metric: "hrv", date: "2026-10-21", value: 48 },
@@ -642,10 +704,9 @@ describe("buildFitnessHistory", () => {
     expect(history.dailyHealth).toHaveLength(3);
   });
 
-  it("uses the last completed day for today's running Body Battery values", () => {
-    const history = buildFitnessHistory({
-      ...base,
-      dailyHealthPoints: [
+  it("uses the last completed day for today's running Body Battery values", async () => {
+    const history = await loadFitness({
+      dailyHealth: [
         { metric: "body_battery_high", date: "2026-10-21", value: 81 },
         { metric: "body_battery_high", date: "2026-10-22", value: 30 },
         { metric: "body_battery_low", date: "2026-10-21", value: 24 },
@@ -666,8 +727,8 @@ describe("buildFitnessHistory", () => {
     ]);
   });
 
-  it("leaves absent Garmin readings empty", () => {
-    const history = buildFitnessHistory(base);
+  it("leaves absent Garmin readings empty", async () => {
+    const history = await loadFitness();
 
     expect(history.latestGarmin).toEqual({
       dailyHealth: [],

@@ -2,8 +2,6 @@ import { describe, expect, it } from "bun:test";
 import type { AnalyzedActivity } from "@killingit/shared";
 import {
   formatActivitySummary,
-  formatLaps,
-  summarizeLaps,
   toCoachPlanActivity,
   type RecentActivityContext,
 } from "./activityContext.js";
@@ -242,11 +240,22 @@ describe("formatPlanContext", () => {
       movingTime: 60,
     }));
 
-    const lines = formatLaps(many, "cycling");
+    const lines = formatActivitySummary(
+      { ...activity.summary, type: "road_biking", laps: many },
+      100,
+    );
 
     expect(lines.filter((line) => line.startsWith("- Lap "))).toHaveLength(40);
     expect(lines).toContain("(40 of 45 recorded laps shown.)");
-    expect(summarizeLaps(many)).toBe("45 recorded");
+
+    const ride = {
+      ...activity,
+      summary: { ...activity.summary, type: "road_biking", laps: many },
+    };
+    const text = formatPlanContext(input({ recentActivities: [ride] })).join(
+      "\n",
+    );
+    expect(text).toContain("Laps: 45 recorded");
   });
 
   it("dates the profile so an undated weight is not read as today's", () => {

@@ -9,7 +9,7 @@ import { addDays } from "@killingit/shared";
 import { withoutInProgressDailyHealth } from "../metrics/dailyHealth.js";
 
 /** How much recovery history the coach sees in a prompt. */
-export const HEALTH_CONTEXT_DAYS = 14;
+const HEALTH_CONTEXT_DAYS = 14;
 
 /** Options for the daily health prompt summary. */
 export interface DailyHealthContextOptions {

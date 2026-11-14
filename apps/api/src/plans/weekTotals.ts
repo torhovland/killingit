@@ -21,7 +21,7 @@ type WeekTotalsWriter = Pick<typeof db, "insert">;
  * The planned time and TSS of the weeks the plan details, current and next.
  * Only workouts count: a rest day adds no time or load.
  */
-export function weekTotalsForPlan(plan: CoachPlan): PlanWeekTotalsEntry[] {
+function weekTotalsForPlan(plan: CoachPlan): PlanWeekTotalsEntry[] {
   const entries: PlanWeekTotalsEntry[] = [];
   for (const week of [plan.week, plan.nextWeek]) {
     if (week === null) {

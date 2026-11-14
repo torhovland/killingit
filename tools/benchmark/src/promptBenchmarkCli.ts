@@ -14,7 +14,7 @@ const STAGES = [
   "report",
 ] as const;
 
-export const PROMPT_BENCHMARK_HELP = `Usage:
+const PROMPT_BENCHMARK_HELP = `Usage:
   bun run benchmark:prompts <stage>
 
 Two-prompt model-catalog benchmark. Both prompts are built by the app's real

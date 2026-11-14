@@ -62,7 +62,7 @@ export const dbCoachingSurveyAdjustmentStore: CoachingSurveyAdjustmentStore = {
   },
 };
 
-export function toStoredCoachingSurveyAdjustment(
+function toStoredCoachingSurveyAdjustment(
   row: CoachingSurveyAdjustmentRow,
 ): StoredCoachingSurveyAdjustment {
   return {

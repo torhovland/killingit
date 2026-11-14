@@ -10,9 +10,9 @@ import { athleteMetricStatementSchema } from "./metrics.js";
  * a goal is a dated target that is not a competition, such as covering 100 km by
  * a given day.
  */
-export const ATHLETE_EVENT_KINDS = ["race", "event", "trip", "goal"] as const;
+const ATHLETE_EVENT_KINDS = ["race", "event", "trip", "goal"] as const;
 
-export const athleteEventKindSchema = z.enum(ATHLETE_EVENT_KINDS);
+const athleteEventKindSchema = z.enum(ATHLETE_EVENT_KINDS);
 
 export type AthleteEventKind = z.infer<typeof athleteEventKindSchema>;
 
@@ -39,7 +39,7 @@ export const athleteEventSchema = z.object({
 export type AthleteEvent = z.infer<typeof athleteEventSchema>;
 
 /** The coach's reading of every dated goal or event the athlete states. */
-export const athleteEventsResultSchema = z
+const athleteEventsResultSchema = z
   .object({
     events: z.array(athleteEventSchema).default([]),
   })
@@ -51,12 +51,9 @@ export type AthleteEventsResult = z.infer<typeof athleteEventsResultSchema>;
  * One reading of the athlete's own words: the measurements and the dated goals
  * or events they state, returned together so the text is sent only once.
  */
-export const athleteReadingResultSchema = z
-  .object({
-    statements: z.array(athleteMetricStatementSchema).default([]),
-    events: z.array(athleteEventSchema).default([]),
-  })
-  .extend(coachResponseNotesSchema.shape);
+export const athleteReadingResultSchema = athleteEventsResultSchema.extend({
+  statements: z.array(athleteMetricStatementSchema).default([]),
+});
 
 export type AthleteReadingResult = z.infer<typeof athleteReadingResultSchema>;
 

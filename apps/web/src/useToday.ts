@@ -25,7 +25,7 @@ export interface Today {
  * `YYYY-MM-DD` override, and the athlete's display time zone. Pure so it can be
  * tested without a browser.
  */
-export function resolveToday(
+function resolveToday(
   now: Date,
   override: string | null,
   timeZone?: string,
@@ -45,7 +45,7 @@ export type AppEnvironment = "Development" | "Test" | "Production";
  * Resolves the deployment environment from a configured value and a dev flag.
  * Pure so it can be tested without Vite's `import.meta.env`.
  */
-export function resolveAppEnvironment(
+function resolveAppEnvironment(
   configured: string | undefined,
   isDev: boolean,
 ): AppEnvironment {
@@ -64,7 +64,7 @@ export function resolveAppEnvironment(
  * dev server and "Production" for a plain build, so a misconfigured build never
  * accidentally exposes the override in production.
  */
-export function appEnvironment(): AppEnvironment {
+function appEnvironment(): AppEnvironment {
   return resolveAppEnvironment(
     import.meta.env.VITE_APP_ENV,
     import.meta.env.DEV,
@@ -79,7 +79,7 @@ export function isDateOverrideAllowed(
 }
 
 /** Reads the date override. Returns null outside development/test or when unset. */
-export function readTodayOverride(): string | null {
+function readTodayOverride(): string | null {
   if (!isDateOverrideAllowed() || typeof localStorage === "undefined") {
     return null;
   }

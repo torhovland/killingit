@@ -22,7 +22,7 @@ export interface InitialBlockInput extends SeasonPlanInput {
   season: SeasonPlan;
 }
 
-export const SEASON_PLAN_SYSTEM_PROMPT = promptSections(
+const SEASON_PLAN_SYSTEM_PROMPT = promptSections(
   GLOBAL_PROMPT_RULES,
   PLAN_PROMPT_RULES,
   "Create a season plan for an amateur athlete.",
@@ -38,7 +38,7 @@ export const SEASON_PLAN_SYSTEM_PROMPT = promptSections(
 }`,
 );
 
-export const INITIAL_BLOCK_SYSTEM_PROMPT = promptSections(
+const INITIAL_BLOCK_SYSTEM_PROMPT = promptSections(
   GLOBAL_PROMPT_RULES,
   PLAN_PROMPT_RULES,
   "Create the first block of the season plan for an amateur athlete.",
@@ -62,7 +62,7 @@ export function buildSeasonPlanMessages(input: SeasonPlanInput): {
   ];
 }
 
-export function buildSeasonPlanPrompt(input: SeasonPlanInput): string {
+function buildSeasonPlanPrompt(input: SeasonPlanInput): string {
   return [
     ...formatPlanContext(input),
     "",
@@ -81,7 +81,7 @@ export function buildInitialBlockMessages(input: InitialBlockInput): {
   ];
 }
 
-export function buildInitialBlockPrompt(input: InitialBlockInput): string {
+function buildInitialBlockPrompt(input: InitialBlockInput): string {
   return [
     ...formatPlanContext(input),
     "",

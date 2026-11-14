@@ -5,12 +5,11 @@ import {
   LlmCredentialsError,
 } from "../coaching/feed/errors.js";
 import {
-  GarminAuthError,
   GarminNotConnectedError,
   GarminSidecarError,
 } from "../garmin/client.js";
 import { LlmAuthError, LlmProviderError } from "../llm/openrouter.js";
-import type { CoachQuestion } from "@killingit/shared";
+import type { CoachQuestion, PlanGenerationStatus } from "@killingit/shared";
 import { createApp } from "../index.js";
 import type { AppDependencies } from "../dependencies.js";
 import type { CoachingInputs } from "../plans/inputs.js";
@@ -24,7 +23,6 @@ import type {
   PlanStore,
   StoredPlan,
 } from "../plans/store.js";
-import { idleGenerationStatus } from "../plans/store.js";
 import type { PlanGenerationStep } from "../plans/steps.js";
 import type {
   QuestionAnswerStore,
@@ -94,8 +92,20 @@ class MemoryPlanStore implements PlanStore {
   }
 }
 
+/** The status a generation store reports before the first run. */
+function idleStatus(): PlanGenerationStatus {
+  return {
+    status: "idle",
+    step: null,
+    progress: 0,
+    error: null,
+    runId: null,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
 class MemoryGenerationStore implements PlanGenerationStore {
-  status = idleGenerationStatus();
+  status = idleStatus();
   running = false;
 
   load() {
@@ -638,7 +648,9 @@ describe("coaching activity feed failures", () => {
     },
     {
       name: "Garmin credentials the sidecar rejects",
-      error: new GarminAuthError("invalid Garmin credentials"),
+      error: new GarminSidecarError("invalid Garmin credentials", 422, {
+        code: "garmin_auth_failed",
+      }),
       status: 422,
       code: "garmin_auth_failed",
       message: "invalid Garmin credentials",

@@ -62,7 +62,7 @@ export function manualTssByDate(
  * heart rate. Movement time is preferred, with elapsed time as the fallback for
  * activities whose source reports no moving time.
  */
-export function activityMeasuredTss(
+function activityMeasuredTss(
   activity: AnalyzedActivity,
   timelines: readonly ThresholdTimeline[],
 ): number | null {
@@ -145,7 +145,7 @@ export interface ActivityDayTss {
  * duration-based stress; without an estimate, each activity keeps that
  * duration-based value.
  */
-export function resolveActivityDayTss(
+function resolveActivityDayTss(
   activities: readonly AnalyzedActivity[],
   timelines: readonly ThresholdTimeline[],
   estimatedTss?: number,
@@ -275,9 +275,7 @@ function intensityTrainingStressScore(
  * therefore authoritative and the preview only fills the gap left by an older
  * stored activity that predates the summary field.
  */
-export function activityAverageHeartRate(
-  activity: AnalyzedActivity,
-): number | null {
+function activityAverageHeartRate(activity: AnalyzedActivity): number | null {
   const recorded = activity.averageHeartRate;
   if (
     recorded !== null &&

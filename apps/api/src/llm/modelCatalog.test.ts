@@ -1,13 +1,16 @@
 import { describe, expect, it } from "bun:test";
 import {
   abilityGrade,
-  aliasTargetChanged,
   costGrade,
   isDiscouraged,
-  priceGrade,
-  pricingChanged,
   speedGrade,
 } from "./modelCatalog.js";
+import {
+  aliasTargetChanged,
+  estimateBenchmarkCost,
+  priceGrade,
+  pricingChanged,
+} from "./modelCatalogPricing.js";
 
 describe("abilityGrade", () => {
   const categories = {
@@ -46,33 +49,6 @@ describe("abilityGrade", () => {
 
   it("does not grade an unbenchmarked model", () => {
     expect(abilityGrade({ score: null, categories: null })).toBe("F");
-  });
-});
-
-describe("priceGrade", () => {
-  it("leaves a routed model ungraded", () => {
-    expect(priceGrade(null, 10)).toBe("?");
-    expect(priceGrade(10, null)).toBe("?");
-    expect(priceGrade(-1, -1)).toBe("?");
-  });
-
-  it("grades free and very cheap models A+", () => {
-    expect(priceGrade(0, 0)).toBe("A+");
-    expect(priceGrade(0.09, 0.49)).toBe("A+");
-  });
-
-  it("applies the fixed F limits on either price", () => {
-    expect(priceGrade(20, 0.1)).toBe("F");
-    expect(priceGrade(0.1, 100)).toBe("F");
-    expect(priceGrade(19.99, 99.99)).toBe("E");
-  });
-
-  it("moves through the middle bands at their limits", () => {
-    expect(priceGrade(0.1, 0.5)).toBe("A");
-    expect(priceGrade(0.32, 1.6)).toBe("B");
-    expect(priceGrade(0.8, 4)).toBe("C");
-    expect(priceGrade(2, 10)).toBe("D");
-    expect(priceGrade(3, 15)).toBe("E");
   });
 });
 
@@ -121,6 +97,45 @@ describe("isDiscouraged", () => {
     expect(isDiscouraged("?", "?", "A")).toBe(false);
     expect(isDiscouraged("B", "?", "A")).toBe(false);
     expect(isDiscouraged("B", "E", "E")).toBe(false);
+  });
+});
+
+describe("priceGrade", () => {
+  it("leaves a routed model ungraded", () => {
+    expect(priceGrade(null, 10)).toBe("?");
+    expect(priceGrade(10, null)).toBe("?");
+    expect(priceGrade(-1, -1)).toBe("?");
+  });
+
+  it("grades free and very cheap models A+", () => {
+    expect(priceGrade(0, 0)).toBe("A+");
+    expect(priceGrade(0.09, 0.49)).toBe("A+");
+  });
+
+  it("applies the fixed F limits on either price", () => {
+    expect(priceGrade(20, 0.1)).toBe("F");
+    expect(priceGrade(0.1, 100)).toBe("F");
+    expect(priceGrade(19.99, 99.99)).toBe("E");
+  });
+
+  it("moves through the middle bands at their limits", () => {
+    expect(priceGrade(0.1, 0.5)).toBe("A");
+    expect(priceGrade(0.32, 1.6)).toBe("B");
+    expect(priceGrade(0.8, 4)).toBe("C");
+    expect(priceGrade(2, 10)).toBe("D");
+    expect(priceGrade(3, 15)).toBe("E");
+  });
+});
+
+describe("estimateBenchmarkCost", () => {
+  it("leaves an unpriced model without an estimate", () => {
+    expect(estimateBenchmarkCost(null, null)).toBeNull();
+  });
+
+  it("estimates both benchmark prompts with a missing side as zero", () => {
+    expect(estimateBenchmarkCost(1, 2)).toBeCloseTo(0.0368);
+    expect(estimateBenchmarkCost(1, null)).toBeCloseTo(0.032);
+    expect(estimateBenchmarkCost(null, 2)).toBeCloseTo(0.0048);
   });
 });
 

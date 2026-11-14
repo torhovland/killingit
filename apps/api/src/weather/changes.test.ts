@@ -5,7 +5,7 @@ import type {
   WeekPlan,
   WeekSession,
 } from "@killingit/shared";
-import { planWeatherChanged, weatherChangedSignificantly } from "./changes.js";
+import { planWeatherChanged } from "./changes.js";
 
 function weather(
   date: string,
@@ -137,10 +137,20 @@ const NEXT_WEEK_DATES = [
   "2026-11-01",
 ];
 
-describe("weatherChangedSignificantly", () => {
+describe("planWeatherChanged for one day", () => {
+  function changed(
+    stored: DailyWeather | null | undefined,
+    next: DailyWeather,
+  ): boolean {
+    const storedWeek = week("2026-10-19", [
+      session("2026-10-21", { weather: stored ?? undefined }),
+    ]);
+    return planWeatherChanged(plan({ week: storedWeek }), [next], "2026-10-21");
+  }
+
   it("ignores small changes to a dry day", () => {
     expect(
-      weatherChangedSignificantly(
+      changed(
         weather("2026-10-21", { icon: "sun" }),
         weather("2026-10-21", {
           icon: "partly_cloudy",
@@ -154,15 +164,15 @@ describe("weatherChangedSignificantly", () => {
   });
 
   it("treats a new forecast or a wet day as a change", () => {
-    expect(weatherChangedSignificantly(null, weather("2026-10-21"))).toBe(true);
+    expect(changed(null, weather("2026-10-21"))).toBe(true);
     expect(
-      weatherChangedSignificantly(
+      changed(
         weather("2026-10-21", { icon: "sun" }),
         weather("2026-10-21", { icon: "rain", precipitationMm: 1 }),
       ),
     ).toBe(true);
     expect(
-      weatherChangedSignificantly(
+      changed(
         weather("2026-10-21", { icon: "rain", precipitationMm: 2 }),
         weather("2026-10-21", { icon: "snow", precipitationMm: 2 }),
       ),
@@ -171,23 +181,15 @@ describe("weatherChangedSignificantly", () => {
 
   it("detects significant temperature, wind, gust, and rain changes", () => {
     const base = weather("2026-10-21");
-    expect(
-      weatherChangedSignificantly(base, { ...base, temperatureMaxC: 20 }),
-    ).toBe(true);
-    expect(weatherChangedSignificantly(base, { ...base, windMaxMs: 8 })).toBe(
-      true,
-    );
-    expect(weatherChangedSignificantly(base, { ...base, gustMaxMs: 13 })).toBe(
-      true,
-    );
-    expect(
-      weatherChangedSignificantly(base, { ...base, precipitationMm: 5 }),
-    ).toBe(true);
+    expect(changed(base, { ...base, temperatureMaxC: 20 })).toBe(true);
+    expect(changed(base, { ...base, windMaxMs: 8 })).toBe(true);
+    expect(changed(base, { ...base, gustMaxMs: 13 })).toBe(true);
+    expect(changed(base, { ...base, precipitationMm: 5 })).toBe(true);
   });
 
   it("does not treat a cloud-only icon change as significant", () => {
     expect(
-      weatherChangedSignificantly(
+      changed(
         weather("2026-10-21", { icon: "sun" }),
         weather("2026-10-21", { icon: "very_cloudy" }),
       ),
@@ -198,10 +200,7 @@ describe("weatherChangedSignificantly", () => {
     const stored = weather("2026-10-21");
 
     expect(
-      weatherChangedSignificantly(
-        { ...stored, sunrise: undefined, sunset: undefined },
-        stored,
-      ),
+      changed({ ...stored, sunrise: undefined, sunset: undefined }, stored),
     ).toBe(true);
   });
 
@@ -209,7 +208,7 @@ describe("weatherChangedSignificantly", () => {
     const stored = weather("2026-10-21");
 
     expect(
-      weatherChangedSignificantly(stored, {
+      changed(stored, {
         ...stored,
         sunrise: "07:49",
         sunset: "16:26",

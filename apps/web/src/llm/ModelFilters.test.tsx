@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { LlmModelFilters } from "./catalogFilters";
-import { isLlmModelGrade, LLM_GRADES, ModelFilters } from "./ModelFilters";
+import { ModelFilters } from "./ModelFilters";
 
 function filters(overrides: Partial<LlmModelFilters> = {}): LlmModelFilters {
   return {
@@ -26,23 +26,47 @@ function renderFilters(
   return changes;
 }
 
-describe("LLM_GRADES", () => {
-  it("lists the filterable grades best first, leaving the ungraded mark out", () => {
-    expect(LLM_GRADES).toEqual(["A+", "A", "B", "C", "D", "E", "F"]);
-  });
-});
+describe("grade filters", () => {
+  it("offers every filterable grade best first and leaves the ungraded mark out", () => {
+    renderFilters();
 
-describe("isLlmModelGrade", () => {
-  it("accepts every grade the catalog can store, including the ungraded mark", () => {
-    for (const grade of [...LLM_GRADES, "?"]) {
-      expect(isLlmModelGrade(grade)).toBe(true);
+    const options = within(
+      screen.getByLabelText("Ability at least"),
+    ).getAllByRole("option");
+
+    expect(options.map((option) => option.textContent)).toEqual([
+      "A+",
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "F",
+    ]);
+  });
+
+  it("reports every grade the catalog can store", async () => {
+    const user = userEvent.setup();
+    const changes = renderFilters();
+    const ability = screen.getByLabelText("Ability at least");
+
+    const grades = ["A+", "A", "B", "C", "D", "E", "F"] as const;
+
+    for (const grade of grades) {
+      await user.selectOptions(ability, grade);
+      expect(changes.at(-1)).toEqual({ minAbility: grade });
     }
   });
 
-  it("rejects a value that is not a grade", () => {
-    expect(isLlmModelGrade("Z")).toBe(false);
-    expect(isLlmModelGrade("")).toBe(false);
-    expect(isLlmModelGrade("b")).toBe(false);
+  it("ignores a select value that is not a catalog grade", () => {
+    const changes = renderFilters();
+    const ability = screen.getByLabelText("Ability at least");
+
+    for (const value of ["Z", "", "b"]) {
+      fireEvent.change(ability, { target: { value } });
+    }
+
+    expect(changes).toEqual([]);
   });
 });
 

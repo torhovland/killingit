@@ -9,7 +9,6 @@ import {
 } from "../testFixtures/plan.js";
 import {
   buildCoachReplyMessages,
-  buildCoachReplyPrompt,
   type CoachReplyPromptInput,
 } from "./coachReplyPrompt.js";
 import type { PlanContextInput } from "./planContext.js";
@@ -70,9 +69,14 @@ function makeInput(
   };
 }
 
+/** The user message the app sends for one coach reply. */
+function userPrompt(input: CoachReplyPromptInput): string {
+  return buildCoachReplyMessages(input)[1]?.content ?? "";
+}
+
 describe("buildCoachReplyMessages", () => {
   it("includes the completed week summary when replying to its review", () => {
-    const prompt = buildCoachReplyPrompt(
+    const prompt = userPrompt(
       makeInput({
         request: {
           kind: "week_review",
@@ -90,7 +94,7 @@ describe("buildCoachReplyMessages", () => {
   });
 
   it("describes a weekly note and the week it applies to", () => {
-    const prompt = buildCoachReplyPrompt(
+    const prompt = userPrompt(
       makeInput({
         request: {
           kind: "weekly_note",
@@ -108,7 +112,7 @@ describe("buildCoachReplyMessages", () => {
   });
 
   it("says today's session will not change when the input is about today", () => {
-    const prompt = buildCoachReplyPrompt(
+    const prompt = userPrompt(
       makeInput({
         request: {
           kind: "manual_activity",
@@ -178,9 +182,9 @@ describe("buildCoachReplyMessages", () => {
   });
 });
 
-describe("buildCoachReplyPrompt training context", () => {
+describe("coach reply prompt training context", () => {
   it("shows the recent activities, their analyses and the athlete's comments", () => {
-    const prompt = buildCoachReplyPrompt(
+    const prompt = userPrompt(
       makeInput({
         context: makeContext({
           recentActivities: [
@@ -215,7 +219,7 @@ describe("buildCoachReplyPrompt training context", () => {
   });
 
   it("shows manual activities, the weekly note and completed reviews", () => {
-    const prompt = buildCoachReplyPrompt(
+    const prompt = userPrompt(
       makeInput({
         context: makeContext({
           manualActivities: [
@@ -250,7 +254,7 @@ describe("buildCoachReplyPrompt training context", () => {
   });
 
   it("shows the FTP history and the profile's save date", () => {
-    const prompt = buildCoachReplyPrompt(
+    const prompt = userPrompt(
       makeInput({
         context: makeContext({
           athleteAnswers: [
@@ -277,7 +281,7 @@ describe("buildCoachReplyPrompt training context", () => {
   });
 
   it("shows the forecast stored on today's plan", () => {
-    const prompt = buildCoachReplyPrompt(makeInput());
+    const prompt = userPrompt(makeInput());
 
     expect(prompt).toContain(
       "Weather and daylight forecast stored with today's plan",
@@ -286,7 +290,7 @@ describe("buildCoachReplyPrompt training context", () => {
   });
 
   it("says no activities were recorded when there are none", () => {
-    const prompt = buildCoachReplyPrompt(makeInput());
+    const prompt = userPrompt(makeInput());
 
     expect(prompt).toContain("No recent activities were recorded.");
   });

@@ -1,7 +1,7 @@
 import { API_CONTRACT_VERSION, API_VERSION_HEADER } from "@killingit/shared";
 
 /** The session-storage key that stops a version mismatch reloading in a loop. */
-export const OUTDATED_RELOAD_MARKER = "killingit.api-outdated-reload";
+const OUTDATED_RELOAD_MARKER = "killingit.api-outdated-reload";
 
 /** A reload for the same mismatch is repeated at most once a minute. */
 const OUTDATED_RELOAD_COOLDOWN_MS = 60 * 1000;

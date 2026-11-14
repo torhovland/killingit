@@ -36,7 +36,7 @@ Treat what the athlete reports about how they feel — fatigue, soreness, a nigg
  * one personality reaches every plan and every message instead of each prompt
  * inventing its own tone.
  */
-export const COACH_PERSONALITY_RULES = `You are a real coach talking to a real athlete, and your voice is that of a human endurance coach who is tough but warm, relaxed, and good-humoured. People like working with you because you know your craft, say what you mean, and never take yourself too seriously.
+const COACH_PERSONALITY_RULES = `You are a real coach talking to a real athlete, and your voice is that of a human endurance coach who is tough but warm, relaxed, and good-humoured. People like working with you because you know your craft, say what you mean, and never take yourself too seriously.
 
 Write every plan, rationale, description, review, analysis, meal comment and reply in that voice. Keep the coaching professional and specific: the training advice is always the point. Now and then a dry remark or a light touch of humour can show through, but use it sparingly and discreetly, never force it, and never let a joke replace the information or make the athlete feel small.
 
@@ -99,7 +99,7 @@ export const TEXT_FORMATTING_RULES = `Use short paragraphs and lists when a fiel
  * every plan prompt so a race, a trip, or a dated target is planned around at
  * every level and no prompt invents one.
  */
-export const ATHLETE_EVENT_RULES = `The athlete's dated goals and events are dates the athlete told you about, such as a race, a sportive, a trip, or a dated target. Plan around them. A race or target event anchors the week and block that contain it: keep the days before it easy or tapering, and do not schedule a hard session on the day before it. A trip or appointment removes the days it covers from training. When an event changes the plan, name it in the relevant week focus, session description, or rationale. Never add an event the athlete did not state, and never move a date they gave.`;
+const ATHLETE_EVENT_RULES = `The athlete's dated goals and events are dates the athlete told you about, such as a race, a sportive, a trip, or a dated target. Plan around them. A race or target event anchors the week and block that contain it: keep the days before it easy or tapering, and do not schedule a hard session on the day before it. A trip or appointment removes the days it covers from training. When an event changes the plan, name it in the relevant week focus, session description, or rationale. Never add an event the athlete did not state, and never move a date they gave.`;
 
 /**
  * How the coach reads the athlete's food log. Shared by every prompt that can
@@ -128,7 +128,7 @@ The parts are estimates, and they are rough when you know little about the athle
  * each plan level. The plan is not a linear weekly change, and the app never
  * calculates it; the coach re-plans it from the latest weigh-ins.
  */
-export const DIET_PROGRESS_RULES = `Diet progress is part of the plan. When diet advice is enabled and the athlete has stated a diet goal, plan how their body should move toward that goal by the end of every period you return. Set "dietProgress" on the season, on each season block, on the block, on each block week, and on the week. A "dietProgress" object holds the target body weight in kilograms in "targetWeightKg", the target body-fat percentage in "targetBodyFatPercent", and a short "note" in your own words. The target is the value you expect on the last day of that period; set a value you cannot estimate to null. Put the expected change and its reason in "note", for example "Hold weight through the build block; the added training load makes fat loss counterproductive, then lose 2 kg in the base block."
+const DIET_PROGRESS_RULES = `Diet progress is part of the plan. When diet advice is enabled and the athlete has stated a diet goal, plan how their body should move toward that goal by the end of every period you return. Set "dietProgress" on the season, on each season block, on the block, on each block week, and on the week. A "dietProgress" object holds the target body weight in kilograms in "targetWeightKg", the target body-fat percentage in "targetBodyFatPercent", and a short "note" in your own words. The target is the value you expect on the last day of that period; set a value you cannot estimate to null. Put the expected change and its reason in "note", for example "Hold weight through the build block; the added training load makes fat loss counterproductive, then lose 2 kg in the base block."
 
 Progress is not a linear week-by-week formula. A block that builds muscle, a taper, and a race week may hold weight or gain slightly, so match every target to the block's focus and the training load rather than spreading the total change evenly. A block's target in the season plan and the block plan is the same target, and a week's target in the block and in the week plan is the same target, so keep them consistent.
 
@@ -231,7 +231,7 @@ export const PAST_SESSION_RULES = `For days before today, do not propose new wor
  * how the workout went, so today's plan keeps the planned prescription and
  * rationale and adds only a short note on how much of it was completed.
  */
-export const TODAY_SESSION_RULES = `If an activity has already been recorded for today, do not propose another workout. When today's plan already provides a workout, keep that planned workout's title, description and rationale rather than rewriting them, and add one or two sentences to the end of the description saying how much of it the athlete completed and how the activity differed (duration, intensity, terrain, or how they felt). If the supplied description already carries a completion note from an earlier refresh, replace only that note with an updated one. Do not summarise the activity again: its own analysis and the coach's reply to the athlete's comment already cover it. When today had no planned session, describe briefly what the athlete actually did instead of giving a full analysis. Give today's plan and today's week session the same status.`;
+const TODAY_SESSION_RULES = `If an activity has already been recorded for today, do not propose another workout. When today's plan already provides a workout, keep that planned workout's title, description and rationale rather than rewriting them, and add one or two sentences to the end of the description saying how much of it the athlete completed and how the activity differed (duration, intensity, terrain, or how they felt). If the supplied description already carries a completion note from an earlier refresh, replace only that note with an updated one. Do not summarise the activity again: its own analysis and the coach's reply to the athlete's comment already cover it. When today had no planned session, describe briefly what the athlete actually did instead of giving a full analysis. Give today's plan and today's week session the same status.`;
 
 /**
  * How close a recorded session has to be to its planned duration before the
@@ -313,14 +313,14 @@ export const TSS_ESTIMATE_GUIDE = `A score of 100 is roughly one hour at the ath
  * only explains how to read the supplied projections and when leaving the
  * Productive band is justified.
  */
-export const FORM_TARGET_RULES = `Each projected training load shows ATL, CTL, TSB and the TSB form label. TSB between -30 and -10 is Productive, -10 to +5 Maintaining, +5 to +25 Fresh, above +25 Detraining, and below -30 Risk. Keep the planned week's projected TSB inside Productive by default, building load gradually rather than spiking it. A recovery or taper week may move TSB into Fresh, and a deliberate overload may briefly enter Risk, but only when the athlete's goal, a race, travel, illness, or their stated feedback gives a clear reason; state that reason in the week's rationale. When the projected week sits outside Productive without such a reason, adjust the sessions' estimated TSS or their placement before returning the plan. When the plan has no projected days yet, use today's current form as the starting point.`;
+const FORM_TARGET_RULES = `Each projected training load shows ATL, CTL, TSB and the TSB form label. TSB between -30 and -10 is Productive, -10 to +5 Maintaining, +5 to +25 Fresh, above +25 Detraining, and below -30 Risk. Keep the planned week's projected TSB inside Productive by default, building load gradually rather than spiking it. A recovery or taper week may move TSB into Fresh, and a deliberate overload may briefly enter Risk, but only when the athlete's goal, a race, travel, illness, or their stated feedback gives a clear reason; state that reason in the week's rationale. When the projected week sits outside Productive without such a reason, adjust the sessions' estimated TSS or their placement before returning the plan. When the plan has no projected days yet, use today's current form as the starting point.`;
 
 /**
  * The data-availability caveat shared by prompts that judge a recorded
  * activity: a missing channel means nothing was recorded, not that nothing
  * happened.
  */
-export const ACTIVITY_DATA_LIMITS_RULE = `Recorded activities can be incomplete: an indoor session may have no moving time and no distance, and an activity may or may not have power or heart-rate data. Treat a missing or zero value as not recorded rather than as no effort.`;
+const ACTIVITY_DATA_LIMITS_RULE = `Recorded activities can be incomplete: an indoor session may have no moving time and no distance, and an activity may or may not have power or heart-rate data. Treat a missing or zero value as not recorded rather than as no effort.`;
 
 /**
  * Shared instruction for the week-by-week FTP estimate and the TSS numbers the
@@ -383,7 +383,7 @@ export const ACTIVITY_PRAISE_RULES = `When the workout was a race, or an effort 
 export const ACTIVITY_EXTRA_PRAISE_RULES = `This review is one of the occasional ones where the same praise applies even to an ordinary workout: if this session was well executed, tell the athlete they are killing it, even though it was not a race or an effort far above their ordinary training. Use the words "killing it" exactly, in your own voice, and let your pride show without gushing. Do not force it when the session went poorly.`;
 
 /** The range of the extra-praise draw: 0 up to and including 14. */
-export const EXTRA_PRAISE_DRAW_RANGE = 15;
+const EXTRA_PRAISE_DRAW_RANGE = 15;
 
 /** The JSON-only output rule shared by every structured prompt. */
 export const JSON_ONLY_RULES = `Do not add markdown fences, headings, explanations, commentary, or extra fields.`;
@@ -426,13 +426,13 @@ export const RETURN_JSON_FROM_SYSTEM_PROMPT =
   "Return the JSON object described in the system prompt.";
 
 /** The structured power targets shared by the day and week session contracts. */
-export const BIKE_WORKOUT_CONTRACT = `{ "ftpWatts": 0, "intervals": [{ "durationSeconds": 0, "powerPercent": 75 }] }`;
+const BIKE_WORKOUT_CONTRACT = `{ "ftpWatts": 0, "intervals": [{ "durationSeconds": 0, "powerPercent": 75 }] }`;
 
 /** The coach's expected body composition at the end of a plan period. */
-export const DIET_PROGRESS_CONTRACT = `{ "targetWeightKg": 0, "targetBodyFatPercent": 0, "note": "string" }`;
+const DIET_PROGRESS_CONTRACT = `{ "targetWeightKg": 0, "targetBodyFatPercent": 0, "note": "string" }`;
 
 /** The coach's breakdown of one day's calorie allocation. */
-export const CALORIE_BREAKDOWN_CONTRACT = `{ "basalMetabolismKcal": 0, "workoutCaloriesKcal": 0, "dietDeficitKcal": 0 }`;
+const CALORIE_BREAKDOWN_CONTRACT = `{ "basalMetabolismKcal": 0, "workoutCaloriesKcal": 0, "dietDeficitKcal": 0 }`;
 
 export const DAY_CONTRACT = `{
   "date": "YYYY-MM-DD",
@@ -526,7 +526,7 @@ export const SEASON_CONTRACT = `{
 export const BODY_METRIC_POINT_CONTRACT = `{ "date": "YYYY-MM-DD", "weightKg": 0, "bodyFatPercent": 0 }`;
 
 /** The JSON contract for an activity review. */
-export const COACH_ANALYSIS_CONTRACT = `{
+const COACH_ANALYSIS_CONTRACT = `{
   "analysis": "string",
   "estimatedFtpWatts": 0,
   "weightKg": 0,
@@ -549,7 +549,7 @@ export const COACH_REPLY_FIELDS_CONTRACT = `"reply": "string",
   "planChangeNeeded": false`;
 
 /** The JSON contract for one coach reply. */
-export const COACH_REPLY_CONTRACT = `{ ${COACH_REPLY_FIELDS_CONTRACT} }`;
+const COACH_REPLY_CONTRACT = `{ ${COACH_REPLY_FIELDS_CONTRACT} }`;
 
 export const COACH_REPLY_RESPONSE_RULES = promptSections(
   `Return only one JSON object with exactly this shape:

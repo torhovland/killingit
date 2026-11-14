@@ -71,7 +71,7 @@ export const QUESTION_ANSWER_MAX_LENGTH = 4000;
  * A null answer explicitly skips an optional question. Required questions must
  * carry text.
  */
-export const questionAnswerInputSchema = z.object({
+const questionAnswerInputSchema = z.object({
   questionId: z.number().int().positive(),
   versionId: z.number().int().positive(),
   answer: z.string().trim().min(1).max(QUESTION_ANSWER_MAX_LENGTH).nullable(),
@@ -101,7 +101,7 @@ export type QuestionAnswersInput = z.infer<typeof questionAnswersInputSchema>;
  * survey page show the wording they answered before and copy that answer into
  * the current version.
  */
-export const athleteQuestionPreviousResponseSchema = z.object({
+const athleteQuestionPreviousResponseSchema = z.object({
   versionId: z.number().int().positive(),
   version: z.number().int().positive(),
   prompt: z.string(),
@@ -121,7 +121,7 @@ export type AthleteQuestionPreviousResponse = z.infer<
  * blank. `previous` is the newest earlier version the athlete responded to, so
  * the survey can tell an updated question from a brand-new one.
  */
-export const athleteQuestionSchema = questionSchema.extend({
+const athleteQuestionSchema = questionSchema.extend({
   answer: z.string().nullable(),
   skipped: z.boolean(),
   answeredAt: z.string().datetime().nullable(),

@@ -135,7 +135,7 @@ export interface PlanRunOptions {
  * window closes, so saving several inputs in a row does not pay for several
  * aborted plan completions.
  */
-export const PLAN_TRIGGER_DEBOUNCE_MS = 1_500;
+const PLAN_TRIGGER_DEBOUNCE_MS = 1_500;
 
 interface PendingPlanStart {
   timer: ReturnType<typeof setTimeout>;

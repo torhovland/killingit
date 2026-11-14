@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /** The five weather icons the coach UI can render. */
-export const weatherIconSchema = z.enum([
+const weatherIconSchema = z.enum([
   "sun",
   "partly_cloudy",
   "very_cloudy",
@@ -65,7 +65,7 @@ export const FORECAST_PROVIDER_LABELS: Record<keyof DailyForecasts, string> = {
 /**
  * One address suggestion returned by the geocoding proxy.
  */
-export const geocodedLocationSchema = z.object({
+const geocodedLocationSchema = z.object({
   name: z.string().min(1),
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),

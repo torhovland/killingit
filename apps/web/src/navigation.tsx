@@ -18,7 +18,7 @@ interface PageDefinition {
  * Every top-level page, in account-menu order. A page's URL, menu label and
  * content width live here; its component lives in `PageOutlet`.
  */
-export const PAGE_DEFINITIONS = {
+const PAGE_DEFINITIONS = {
   coach: { path: "/coach", label: "Coach", wide: false },
   diet: { path: "/diet", label: "Diet", wide: false },
   fitness: { path: "/fitness", label: "Fitness", wide: false },
@@ -46,7 +46,7 @@ const NavigationContext = createContext<(page: Page) => void>(() => {});
 
 const pathListeners = new Set<() => void>();
 
-export function pagePath(page: Page): string {
+function pagePath(page: Page): string {
   return PAGE_DEFINITIONS[page].path;
 }
 

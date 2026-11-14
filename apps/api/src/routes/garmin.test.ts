@@ -1,11 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, spyOn } from "bun:test";
 import type { Activity, AnalyzedActivity } from "@killingit/shared";
 import type { GarminCredentials } from "../garmin/client.js";
-import {
-  GarminAuthError,
-  GarminSidecarError,
-  type SyncTransport,
-} from "../garmin/client.js";
+import { GarminSidecarError, type SyncTransport } from "../garmin/client.js";
 import type { EncryptedCredentials } from "../garmin/store.js";
 import type { AppDependencies } from "../dependencies.js";
 import { createApp } from "../index.js";
@@ -290,7 +286,13 @@ describe("per-user Garmin credentials", () => {
 
   it("does not store credentials Garmin rejects", async () => {
     const { app, stored } = makeApp(() =>
-      Promise.reject(new GarminAuthError("invalid Garmin credentials")),
+      Promise.reject(
+        // The contract the Garmin client raises for a 401 from the sidecar: a
+        // fixable connection failure, not a session failure (ADR 0036).
+        new GarminSidecarError("invalid Garmin credentials", 422, {
+          code: "garmin_auth_failed",
+        }),
+      ),
     );
 
     const res = await app.fetch(

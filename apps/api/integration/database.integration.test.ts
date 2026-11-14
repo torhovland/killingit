@@ -11,11 +11,10 @@ import type { Activity, CoachPlan } from "@killingit/shared";
 import { eq, sql } from "drizzle-orm";
 import { getTableConfig } from "drizzle-orm/pg-core";
 import {
-  loadStoredActivities,
   loadStoredActivityFeed,
   saveStoredActivities,
 } from "../src/coaching/activityStore.js";
-import { db, pool } from "../src/db/index.js";
+import { db } from "../src/db/index.js";
 import {
   athleteMetrics,
   athleteThresholds,
@@ -31,9 +30,9 @@ import { deleteImportedActivity } from "../src/coaching/deletions.js";
 import { saveAnalysis } from "../src/llm/analysisStore.js";
 import {
   loadMetricPoints,
-  loadThresholdPoints,
+  loadThresholdHistoryForUser,
   recordAthleteMetricStatements,
-  recordCoachThreshold,
+  recordCoachFtp,
   recordGarminBodyMetrics,
   recordGarminFtp,
   recordPlanFtpEstimates,
@@ -48,6 +47,10 @@ import {
 } from "../src/plans/inputs.js";
 import { PLAN_GENERATION_STEPS } from "../src/plans/steps.js";
 import { dbPlanGenerationStore, dbPlanStore } from "../src/plans/store.js";
+import {
+  loadPendingCoachQuestion,
+  saveCoachQuestions,
+} from "../src/plans/coachQuestions.js";
 import { loadPlanWeekTotals } from "../src/plans/weekTotals.js";
 import { dbCoachingSurveyAdjustmentStore } from "../src/questions/adjustments.js";
 import { dbQuestionAnswerStore } from "../src/questions/answers.js";
@@ -55,6 +58,7 @@ import {
   addQuestionVersion,
   archiveQuestion,
   createQuestion,
+  listActiveQuestions,
   listActiveQuestionsWithVersions,
 } from "../src/questions/store.js";
 import { dbUserStore } from "../src/users/store.js";
@@ -115,11 +119,15 @@ function postgresErrorCode(error: unknown): string | undefined {
 
 /** Every index PostgreSQL reports for one public table, in name order. */
 async function listIndexes(table: string): Promise<string[]> {
-  const result = await pool.query<{ indexname: string }>(
-    "select indexname from pg_indexes where schemaname = 'public' and tablename = $1 order by indexname",
-    [table],
+  const result = await db.execute<{ indexname: string }>(
+    sql`select indexname from pg_indexes where schemaname = 'public' and tablename = ${table} order by indexname`,
   );
   return result.rows.map((row) => row.indexname);
+}
+
+/** Every stored threshold point, read through the page-facing loader. */
+async function thresholdPointsOf(userId: number) {
+  return (await loadThresholdHistoryForUser(userId, "2999-12-31")).points;
 }
 
 /**
@@ -573,6 +581,18 @@ describe("dbPlanStore", () => {
 });
 
 describe("dbPlanGenerationStore", () => {
+  it("reports an idle status before the first run", async () => {
+    const user = await dbUserStore.ensureUser("auth0|run-idle");
+
+    expect(await dbPlanGenerationStore.load(user.id)).toMatchObject({
+      status: "idle",
+      step: null,
+      progress: 0,
+      error: null,
+      runId: null,
+    });
+  });
+
   it("fences a new run and ignores the superseded run's finish", async () => {
     const user = await dbUserStore.ensureUser("auth0|run-fence");
 
@@ -651,6 +671,89 @@ describe("dbPlanGenerationStore", () => {
 });
 
 describe("question stores", () => {
+  it("maps a question and its current version to the stored shape", async () => {
+    const created = await createQuestion({
+      prompt: "How did the long run feel?",
+      required: false,
+    });
+
+    const [stored] = await listActiveQuestions();
+    if (stored === undefined) {
+      throw new Error("expected the active question");
+    }
+    expect(stored).toEqual({
+      id: created.id,
+      versionId: created.versionId,
+      prompt: "How did the long run feel?",
+      required: false,
+      version: 1,
+      versionCount: 1,
+      createdAt: created.createdAt,
+      updatedAt: created.updatedAt,
+    });
+    // The survey view also carries every version of the same question.
+    expect(await listActiveQuestionsWithVersions()).toEqual([
+      {
+        ...stored,
+        versions: [
+          {
+            versionId: created.versionId,
+            version: 1,
+            prompt: "How did the long run feel?",
+            required: false,
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("reports an unanswered question and rejects a malformed submission", async () => {
+    const user = await dbUserStore.ensureUser("auth0|question-validation");
+    const question = await createQuestion({
+      prompt: "How did the long run feel?",
+      required: true,
+    });
+    const other = await createQuestion({
+      prompt: "Anything else?",
+      required: false,
+    });
+
+    const unanswered = (await dbQuestionAnswerStore.listForUser(user.id)).find(
+      (entry) => entry.id === question.id,
+    );
+    expect(unanswered).toMatchObject({
+      id: question.id,
+      answer: null,
+      skipped: false,
+      answeredAt: null,
+      previous: null,
+    });
+
+    const answer = {
+      questionId: question.id,
+      versionId: question.versionId,
+      answer: "Strong",
+    };
+    // An empty submission has nothing to check.
+    expect(await dbQuestionAnswerStore.saveAnswers(user.id, [])).toBe(true);
+    // An unknown question, another question's version, and a duplicate are all
+    // rejected without writing anything.
+    expect(
+      await dbQuestionAnswerStore.saveAnswers(user.id, [
+        { ...answer, questionId: 9_999 },
+      ]),
+    ).toBe(false);
+    expect(
+      await dbQuestionAnswerStore.saveAnswers(user.id, [
+        { ...answer, versionId: other.versionId },
+      ]),
+    ).toBe(false);
+    expect(
+      await dbQuestionAnswerStore.saveAnswers(user.id, [answer, answer]),
+    ).toBe(false);
+    expect(await countRows("question_answers")).toBe(0);
+  });
+
   it("versions a question and replaces an answer without duplicating it", async () => {
     const user = await dbUserStore.ensureUser("auth0|question-upsert");
     const created = await createQuestion({
@@ -703,6 +806,17 @@ describe("question stores", () => {
       ]),
     ).toBe(true);
 
+    // Resubmitting the same answer changes nothing, so it records no adjustment.
+    expect(
+      await dbQuestionAnswerStore.saveAnswers(user.id, [
+        {
+          questionId: versioned.id,
+          versionId: versioned.versionId,
+          answer: "Very strong",
+        },
+      ]),
+    ).toBe(true);
+
     expect(await countRows("question_answers")).toBe(1);
     expect(await countRows("coaching_survey_adjustments")).toBe(2);
 
@@ -710,6 +824,16 @@ describe("question stores", () => {
       .select()
       .from(coachingSurveyAdjustments)
       .orderBy(coachingSurveyAdjustments.id);
+    // The first answer on the new version has no earlier response to snapshot.
+    expect(adjustments[0]).toMatchObject({
+      question: "How did the long run feel, honestly?",
+      previousQuestion: null,
+      previousAnswer: null,
+      answer: "Strong",
+    });
+    expect(adjustments.at(-1)?.previousQuestion).toBe(
+      "How did the long run feel, honestly?",
+    );
     expect(adjustments.at(-1)?.previousAnswer).toBe("Strong");
     expect(adjustments.at(-1)?.answer).toBe("Very strong");
   });
@@ -852,6 +976,38 @@ describe("question stores", () => {
     expect(pending).toHaveLength(1);
     expect(pending[0]?.answer).toBe("About ten hours a week.");
   });
+
+  it("stores only the newest non-blank coach question", async () => {
+    const user = await dbUserStore.ensureUser("auth0|coach-question");
+    const blankUser = await dbUserStore.ensureUser(
+      "auth0|coach-question-blank",
+    );
+
+    await saveCoachQuestions({
+      userId: user.id,
+      questions: ["first", "   ", "second"],
+      model: "test/model",
+      sourceKind: "coach_plan",
+    });
+    expect((await loadPendingCoachQuestion(user.id))?.question).toBe("second");
+
+    // A response without a question leaves the pending one untouched.
+    await saveCoachQuestions({
+      userId: user.id,
+      questions: ["", "  "],
+      model: "test/model",
+      sourceKind: "coach_plan",
+    });
+    expect((await loadPendingCoachQuestion(user.id))?.question).toBe("second");
+
+    await saveCoachQuestions({
+      userId: blankUser.id,
+      questions: ["", "   "],
+      model: "test/model",
+      sourceKind: "coach_plan",
+    });
+    expect(await loadPendingCoachQuestion(blankUser.id)).toBeNull();
+  });
 });
 
 describe("metrics stores", () => {
@@ -906,7 +1062,7 @@ describe("metrics stores", () => {
     expect(await loadMetricPoints(user.id, "body_fat")).toEqual([
       { date: "2026-01-05", value: 22.5, source: "user" },
     ]);
-    expect(await loadThresholdPoints(user.id)).toEqual([
+    expect(await thresholdPointsOf(user.id)).toEqual([
       {
         ...FTP,
         date: "2026-01-05",
@@ -972,34 +1128,23 @@ describe("metrics stores", () => {
     expect(await loadMetricPoints(user.id, "body_fat")).toEqual([
       { date: "2026-01-06", value: 22, source: "user" },
     ]);
-    expect(await loadThresholdPoints(user.id)).toEqual([
+    expect(await thresholdPointsOf(user.id)).toEqual([
       { ...FTP, date: "2026-01-06", value: 250, source: "user" },
     ]);
   });
 
   it("keeps the older coach estimates when a newer one fails to store", async () => {
     const user = await dbUserStore.ensureUser("auth0|coach-threshold-rollback");
-    await recordCoachThreshold({
-      userId: user.id,
-      ...FTP,
-      date: "2026-01-01",
-      value: 240,
-    });
-    await recordCoachThreshold({
-      userId: user.id,
-      ...FTP,
-      date: "2026-02-01",
-      value: 250,
-    });
+    await recordCoachFtp({ userId: user.id, date: "2026-01-01", watts: 240 });
+    await recordCoachFtp({ userId: user.id, date: "2026-02-01", watts: 250 });
 
     let failed = false;
     await withInjectedInsertFailure("athlete_thresholds", 9999, async () => {
       try {
-        await recordCoachThreshold({
+        await recordCoachFtp({
           userId: user.id,
-          ...FTP,
           date: "2026-01-15",
-          value: 9999,
+          watts: 9999,
         });
       } catch {
         failed = true;
@@ -1008,7 +1153,7 @@ describe("metrics stores", () => {
     expect(failed).toBe(true);
 
     expect(
-      (await loadThresholdPoints(user.id)).map((point) => [
+      (await thresholdPointsOf(user.id)).map((point) => [
         point.date,
         point.value,
       ]),
@@ -1055,7 +1200,7 @@ describe("metrics stores", () => {
     });
     expect(failed).toBe(true);
 
-    expect(await loadThresholdPoints(user.id)).toEqual([]);
+    expect(await thresholdPointsOf(user.id)).toEqual([]);
   });
 
   it("keeps the last value for a day a batch names twice", async () => {
@@ -1080,7 +1225,7 @@ describe("metrics stores", () => {
     expect(await loadMetricPoints(user.id, "body_fat")).toEqual([
       { date: "2026-02-01", value: 20.8, source: "garmin" },
     ]);
-    expect(await loadThresholdPoints(user.id)).toEqual([
+    expect(await thresholdPointsOf(user.id)).toEqual([
       { ...FTP, date: "2026-02-01", value: 285, source: "garmin" },
     ]);
   });
@@ -1117,7 +1262,7 @@ describe("metrics stores", () => {
       { date: "2026-02-01", value: 22, source: "garmin" },
       { date: "2026-02-02", value: 21.5, source: "garmin" },
     ]);
-    expect(await loadThresholdPoints(user.id)).toEqual([
+    expect(await thresholdPointsOf(user.id)).toEqual([
       { ...FTP, date: "2026-02-01", value: 260, source: "user" },
       { ...FTP, date: "2026-02-02", value: 305, source: "garmin" },
     ]);
@@ -1130,7 +1275,7 @@ describe("metrics stores", () => {
       ["2026-01-15", 245],
       ["2026-02-01", 250],
     ] as const) {
-      await recordCoachThreshold({ userId: user.id, ...FTP, date, value });
+      await recordCoachFtp({ userId: user.id, date, watts: value });
     }
 
     await recordPlanFtpEstimates(user.id, [
@@ -1141,7 +1286,7 @@ describe("metrics stores", () => {
     // The estimate before the batch stays, the stale projection after the
     // oldest estimate of the batch goes, and the batch itself is stored.
     expect(
-      (await loadThresholdPoints(user.id)).map((point) => [
+      (await thresholdPointsOf(user.id)).map((point) => [
         point.date,
         point.value,
       ]),
@@ -1248,17 +1393,17 @@ describe("stored activity rows", () => {
       syncedActivity(1, "2026-10-01T07:00:00Z"),
     ]);
 
-    const summary = await loadStoredActivities(user.id);
-    expect(summary[0]?.samples).toEqual([]);
-    expect(summary[0]?.route).toBeUndefined();
+    const summary = await loadStoredActivityFeed(user.id);
+    expect(summary.activities[0]?.samples).toEqual([]);
+    expect(summary.activities[0]?.route).toBeUndefined();
 
-    const routed = await loadStoredActivities(user.id, "route");
-    expect(routed[0]?.route).toHaveLength(2);
-    expect(routed[0]?.samples).toEqual([]);
+    const routed = await loadStoredActivityFeed(user.id, "route");
+    expect(routed.activities[0]?.route).toHaveLength(2);
+    expect(routed.activities[0]?.samples).toEqual([]);
 
-    const full = await loadStoredActivities(user.id, "samples");
-    expect(full[0]?.samples).toHaveLength(2);
-    expect(full[0]?.route).toHaveLength(2);
+    const full = await loadStoredActivityFeed(user.id, "samples");
+    expect(full.activities[0]?.samples).toHaveLength(2);
+    expect(full.activities[0]?.route).toHaveLength(2);
   });
 
   it("keeps the stored history newest first and drops a deleted activity", async () => {

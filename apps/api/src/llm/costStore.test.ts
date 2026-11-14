@@ -1,5 +1,10 @@
-import { describe, expect, it } from "bun:test";
-import { aggregateLlmCosts, type LlmCostModelRow } from "./costStore.js";
+import { afterEach, describe, expect, it, spyOn } from "bun:test";
+import { db } from "../db/index.js";
+import {
+  loadLlmCosts,
+  type LlmCostCallRow,
+  type LlmCostModelRow,
+} from "./costStore.js";
 
 const models: LlmCostModelRow[] = [
   {
@@ -16,9 +21,45 @@ const models: LlmCostModelRow[] = [
   },
 ];
 
-describe("aggregateLlmCosts", () => {
-  it("groups the reported charge by routed model, month, and day", () => {
-    const costs = aggregateLlmCosts(
+/**
+ * A query builder that resolves to the supplied rows whether the caller awaits
+ * it directly or after `.where(...)`. `loadLlmCosts` reads the call log with a
+ * filter and the model catalog without one.
+ */
+function rowsQuery(rows: readonly unknown[]) {
+  return Object.assign(Promise.resolve(rows), {
+    where: () => Promise.resolve(rows),
+  });
+}
+
+const select = spyOn(db, "select");
+
+afterEach(() => {
+  select.mockReset();
+});
+
+/**
+ * Replaces the two database reads `loadLlmCosts` makes with the supplied rows,
+ * so the cost aggregation runs as the production consumer of the call log.
+ */
+function stubCostRows(
+  calls: readonly LlmCostCallRow[],
+  catalog: readonly LlmCostModelRow[],
+): void {
+  select.mockImplementationOnce(rowsQueryFor(calls));
+  select.mockImplementationOnce(rowsQueryFor(catalog));
+}
+
+/** A `db.select` implementation that resolves to the supplied rows. */
+function rowsQueryFor(rows: readonly unknown[]): typeof db.select {
+  return (() => ({
+    from: () => rowsQuery(rows),
+  })) as unknown as typeof db.select;
+}
+
+describe("loadLlmCosts", () => {
+  it("groups the reported charge by routed model, month, and day", async () => {
+    stubCostRows(
       [
         {
           createdAt: new Date("2026-11-01T10:00:00Z"),
@@ -59,6 +100,8 @@ describe("aggregateLlmCosts", () => {
       ],
       models,
     );
+
+    const costs = await loadLlmCosts(1);
 
     expect(costs.monthly).toEqual([
       {
@@ -114,8 +157,8 @@ describe("aggregateLlmCosts", () => {
     ]);
   });
 
-  it("estimates a call without a reported charge from list prices", () => {
-    const costs = aggregateLlmCosts(
+  it("estimates a call without a reported charge from list prices", async () => {
+    stubCostRows(
       [
         {
           createdAt: new Date("2026-11-02T08:00:00Z"),
@@ -132,12 +175,14 @@ describe("aggregateLlmCosts", () => {
       models,
     );
 
+    const costs = await loadLlmCosts(1);
+
     expect(costs.monthly[0]?.costUsd).toBe(6);
     expect(costs.daily[0]?.costUsd).toBe(6);
   });
 
-  it("counts a call with no usage or price as zero cost", () => {
-    const costs = aggregateLlmCosts(
+  it("counts a call with no usage or price as zero cost", async () => {
+    stubCostRows(
       [
         {
           createdAt: new Date("2026-11-02T08:00:00Z"),
@@ -160,6 +205,8 @@ describe("aggregateLlmCosts", () => {
       ],
       models,
     );
+
+    const costs = await loadLlmCosts(1);
 
     expect(costs.monthly).toEqual([
       {

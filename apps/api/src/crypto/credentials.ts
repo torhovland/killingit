@@ -14,7 +14,7 @@
  */
 
 /** Raised when encryption/decryption cannot proceed (bad key, tampered data). */
-export class CredentialCryptoError extends Error {
+class CredentialCryptoError extends Error {
   constructor(message: string, options?: { cause?: unknown }) {
     super(message, options);
     this.name = "CredentialCryptoError";
@@ -44,7 +44,7 @@ async function rawKeyBytes(raw: string): Promise<Uint8Array<ArrayBuffer>> {
 }
 
 /** Builds (and caches) the derived CryptoKey for the given raw secret. */
-export async function keyFromRaw(raw: string): Promise<CryptoKey> {
+async function keyFromRaw(raw: string): Promise<CryptoKey> {
   const bytes = await rawKeyBytes(raw);
   return crypto.subtle.importKey("raw", bytes, { name: "AES-GCM" }, false, [
     "encrypt",

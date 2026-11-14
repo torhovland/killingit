@@ -5,17 +5,15 @@ import {
   makePlan as makeFixturePlan,
   makeWeek,
 } from "../testFixtures/plan.js";
-import {
-  loadValidatedPlan,
-  MAX_REPORTED_INVALID_PLANS,
-  type PlanStore,
-  type StoredPlan,
-} from "./store.js";
+import { loadValidatedPlan, type PlanStore, type StoredPlan } from "./store.js";
 
 // A separate user id and generation time keep the loader's once-per-plan
 // failure report from colliding with the route tests.
 const USER_ID = 9_001;
 const GENERATED_AT = new Date("2026-11-09T08:00:00Z");
+// The loader remembers this many corrupt-plan reports before forgetting the
+// oldest one.
+const REPORT_CAP = 256;
 
 function makePlan(): CoachPlan {
   return makeFixturePlan({
@@ -99,21 +97,21 @@ describe("loadValidatedPlan", () => {
     const store = storeWith(makeStored(invalid));
     const error = spyOn(console, "error").mockImplementation(() => {});
     const firstUser = 20_000;
-    const newestUser = firstUser + MAX_REPORTED_INVALID_PLANS;
+    const newestUser = firstUser + REPORT_CAP;
 
     try {
       await loadValidatedPlan(store, firstUser);
-      for (let index = 1; index <= MAX_REPORTED_INVALID_PLANS; index += 1) {
+      for (let index = 1; index <= REPORT_CAP; index += 1) {
         await loadValidatedPlan(store, firstUser + index);
       }
-      expect(error).toHaveBeenCalledTimes(MAX_REPORTED_INVALID_PLANS + 1);
+      expect(error).toHaveBeenCalledTimes(REPORT_CAP + 1);
 
       // The first key fell out of the bounded map, so it is reported again;
       // the newest key is still remembered and stays quiet.
       await loadValidatedPlan(store, firstUser);
       await loadValidatedPlan(store, newestUser);
 
-      expect(error).toHaveBeenCalledTimes(MAX_REPORTED_INVALID_PLANS + 2);
+      expect(error).toHaveBeenCalledTimes(REPORT_CAP + 2);
     } finally {
       error.mockRestore();
     }

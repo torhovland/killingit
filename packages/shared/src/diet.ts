@@ -3,7 +3,7 @@ import { planDateSchema } from "./date.js";
 import { timeZoneSchema } from "./user.js";
 
 /** The maximum length accepted for an athlete's meal description. */
-export const FOOD_DESCRIPTION_MAX_LENGTH = 2000;
+const FOOD_DESCRIPTION_MAX_LENGTH = 2000;
 
 /**
  * The diet goal shown when the athlete has not stated one. The coach assumes
@@ -96,9 +96,9 @@ export type DietProgress = z.infer<typeof dietProgressSchema>;
  * much larger than the thumbnail kept for the food log. The source file is
  * capped at 15 MB in the browser, which leaves room for base64 overhead.
  */
-export const FOOD_PHOTO_DATA_URL_MAX_LENGTH = 30_000_000;
+const FOOD_PHOTO_DATA_URL_MAX_LENGTH = 30_000_000;
 
-export const foodPhotoDataUrlSchema = z
+const foodPhotoDataUrlSchema = z
   .string()
   .max(FOOD_PHOTO_DATA_URL_MAX_LENGTH)
   .regex(
@@ -111,7 +111,7 @@ export const foodPhotoDataUrlSchema = z
  * whole meal; `meal` is the coach's description of what the athlete ate and
  * `dietFit` is its note on how the meal fits the athlete's goal.
  */
-export const foodAnalysisSchema = z.object({
+const foodAnalysisSchema = z.object({
   meal: z.string().trim().min(1).max(4000),
   carbsGrams: z.number().finite().nonnegative().max(5000),
   proteinGrams: z.number().finite().nonnegative().max(2000),
@@ -156,7 +156,7 @@ export type FoodEntry = z.infer<typeof foodEntrySchema>;
  * needed, so a negative number is a deficit and a positive one a surplus. It is
  * null when either side is unknown.
  */
-export const dietDaySummarySchema = z.object({
+const dietDaySummarySchema = z.object({
   date: planDateSchema,
   /** The coach's estimated requirement for the day, when the plan covers it. */
   neededCaloriesKcal: z.number().int().nonnegative().nullable().default(null),
@@ -284,7 +284,7 @@ export type FoodEntryUpdateRequest = z.infer<
  * this slot, so every reader hides an implausible number rather than showing it
  * as the day's requirement.
  */
-export function plausibleCaloriesKcal(
+function plausibleCaloriesKcal(
   value: number | null | undefined,
 ): number | null {
   return value !== null &&

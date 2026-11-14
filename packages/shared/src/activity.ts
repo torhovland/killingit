@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /** One exercise recorded inside a Garmin strength set. */
-export const strengthExerciseSchema = z.object({
+const strengthExerciseSchema = z.object({
   /** Garmin FIT category, for example `SQUAT` or `BENCH_PRESS`. */
   category: z.string().trim().min(1),
   /** Garmin FIT sub-category, when the device recorded one. */
@@ -15,7 +15,7 @@ export type StrengthExercise = z.infer<typeof strengthExerciseSchema>;
  * rest sets separately; absent channels are omitted rather than zeroed, because
  * a bodyweight set legitimately has no weight.
  */
-export const strengthSetSchema = z.object({
+const strengthSetSchema = z.object({
   /** `active` or `rest` as reported by Garmin. */
   setType: z.string().trim().min(1).optional(),
   /** ISO-8601 UTC start of the set. */
@@ -35,7 +35,7 @@ export type StrengthSet = z.infer<typeof strengthSetSchema>;
  * zeroed, so a lap without power does not claim `0 W`. Times are seconds,
  * distance and elevation are metres, and speed is metres per second.
  */
-export const activityLapSchema = z.object({
+const activityLapSchema = z.object({
   /** 1-based lap number as the device recorded it. */
   index: z.number().int().nonnegative(),
   /** `active`, `rest` or an interval label, as the source reports it. */
@@ -157,13 +157,6 @@ export const activitySchema = activitySummarySchema.extend({
 
 export type Activity = z.infer<typeof activitySchema>;
 
-/** Response body of the Garmin sync endpoint (`GET /api/garmin/activities`). */
-export const activitiesResponseSchema = z.object({
-  activities: z.array(activitySchema),
-});
-
-export type ActivitiesResponse = z.infer<typeof activitiesResponseSchema>;
-
 /**
  * Sports whose progress is normally read as pace rather than speed. Garmin
  * records speed for these too, but displays pace in Connect, so the app follows
@@ -235,7 +228,7 @@ export function formatPace(seconds: number): string {
 }
 
 /** Formats a speed in metres per second as kilometres per hour. */
-export function formatSpeed(speedMps: number): string {
+function formatSpeed(speedMps: number): string {
   return `${(speedMps * 3.6).toFixed(1)} km/h`;
 }
 

@@ -70,7 +70,7 @@ export function FitnessDayTooltip({
 }
 
 /** Minutes as `45 min` or `1 h 20`. */
-export function formatDuration(minutes: number): string {
+function formatDuration(minutes: number): string {
   if (minutes < 60) {
     return `${minutes} min`;
   }

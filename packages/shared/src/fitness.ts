@@ -9,7 +9,7 @@ import { trainingLoadSchema } from "./trainingLoad.js";
  * points at that day. Imported activities carry a name and duration; manual
  * entries carry the athlete's own description.
  */
-export const fitnessDayActivitySchema = z.object({
+const fitnessDayActivitySchema = z.object({
   /** Stable key, e.g. `activity-1234` or `manual-7`. */
   id: z.string().min(1),
   name: z.string().min(1),
@@ -54,7 +54,7 @@ export const FITNESS_RANGE_LABELS: Record<FitnessRange, string> = {
 export const DEFAULT_FITNESS_RANGE: FitnessRange = "month";
 
 /** The planned session for a day the stored plan covers. */
-export const fitnessDayPlanSchema = z.object({
+const fitnessDayPlanSchema = z.object({
   title: z.string().min(1),
   type: z.enum(["workout", "rest"]),
   durationMinutes: z.number().int().nonnegative(),
@@ -63,7 +63,7 @@ export const fitnessDayPlanSchema = z.object({
 export type FitnessDayPlan = z.infer<typeof fitnessDayPlanSchema>;
 
 /** One day of the fitness chart: the date, its load, and what was done. */
-export const fitnessHistoryDaySchema = trainingLoadSchema.extend({
+const fitnessHistoryDaySchema = trainingLoadSchema.extend({
   date: planDateSchema,
   activities: z.array(fitnessDayActivitySchema).default([]),
   /** The stored plan's session for the day, when the plan covers it. */
@@ -77,7 +77,7 @@ export type FitnessHistoryDay = z.infer<typeof fitnessHistoryDaySchema>;
  * the coach's estimated requirement for the same day. Either side is null when
  * there is no analysed meal or no stored calorie target.
  */
-export const fitnessNutritionDaySchema = z.object({
+const fitnessNutritionDaySchema = z.object({
   date: planDateSchema,
   consumedKcal: z.number().int().nonnegative().nullable().default(null),
   neededKcal: z.number().int().nonnegative().nullable().default(null),
@@ -89,7 +89,7 @@ export type FitnessNutritionDay = z.infer<typeof fitnessNutritionDaySchema>;
  * The coach's expected body composition at the end of a plan period, flattened
  * from the season, block, and week progress targets. Either value may be null.
  */
-export const fitnessDietTargetSchema = z.object({
+const fitnessDietTargetSchema = z.object({
   date: planDateSchema,
   weightKg: z.number().positive().max(500).nullable().default(null),
   bodyFatPercent: z.number().positive().max(75).nullable().default(null),
@@ -98,7 +98,7 @@ export const fitnessDietTargetSchema = z.object({
 export type FitnessDietTarget = z.infer<typeof fitnessDietTargetSchema>;
 
 /** The estimated threshold series shown on one day of the fitness chart. */
-export const thresholdHistorySeriesSchema = z.object({
+const thresholdHistorySeriesSchema = z.object({
   sport: z.string().min(1),
   measure: z.string().min(1),
   label: z.string().min(1),
@@ -118,7 +118,7 @@ export type ThresholdHistorySeries = z.infer<
 >;
 
 /** One value and the date it was measured. */
-export const latestGarminMeasurementSchema = z.object({
+const latestGarminMeasurementSchema = z.object({
   date: planDateSchema,
   value: z.number().finite(),
 });
@@ -132,7 +132,7 @@ export type LatestGarminMeasurement = z.infer<
  * entry per metric that has data; weight, body fat and FTP stay null when the
  * athlete has never had a Garmin measurement for them.
  */
-export const latestGarminSchema = z.object({
+const latestGarminSchema = z.object({
   dailyHealth: z.array(dailyHealthPointSchema).default([]),
   weight: latestGarminMeasurementSchema.nullable().default(null),
   bodyFat: latestGarminMeasurementSchema.nullable().default(null),

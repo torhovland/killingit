@@ -95,7 +95,7 @@ export function AdminLlmCallsSection() {
 }
 
 /** Presentational prompt log, split out so it is testable without fetching. */
-export function LlmCallsView({
+function LlmCallsView({
   calls,
   selectedId,
   selected,
@@ -236,7 +236,7 @@ export function LlmCallsView({
 }
 
 /** The full prompt, response, and metadata for one logged call. */
-export function LlmCallDetailView({ call }: { call: LlmCallDetail }) {
+function LlmCallDetailView({ call }: { call: LlmCallDetail }) {
   return (
     <Card
       as="article"

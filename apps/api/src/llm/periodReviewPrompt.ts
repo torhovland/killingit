@@ -57,9 +57,7 @@ export function buildPeriodReviewMessages(input: PeriodReviewPromptInput): {
 }
 
 /** Exposed for tests and for inspecting exactly what is sent to the model. */
-export function buildPeriodReviewPrompt(
-  input: PeriodReviewPromptInput,
-): string {
+function buildPeriodReviewPrompt(input: PeriodReviewPromptInput): string {
   const lines = [
     ...formatPlanContext(input.context),
     "",

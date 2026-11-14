@@ -3,7 +3,6 @@ import { renderToStaticMarkup } from "react-dom/server";
 import {
   initialPlanProgress,
   PlanProgress,
-  WAKING_STEP_LABEL,
   type PlanProgressState,
 } from "./PlanProgress";
 
@@ -42,10 +41,11 @@ describe("PlanProgress", () => {
   });
 
   it("shows the waking step only while a fresh prompt is on its way", () => {
-    expect(initialPlanProgress(Promise.resolve())).toEqual({
-      step: WAKING_STEP_LABEL,
-      progress: 0,
-    });
+    const html = render(initialPlanProgress(Promise.resolve()), "thinking");
+
+    expect(html).toContain("Waking the coach…");
+    expect(html).toContain("0%");
+    expect(html).not.toContain("The coach is thinking…");
   });
 
   it("shows no step when tracking a generation already running on the server", () => {

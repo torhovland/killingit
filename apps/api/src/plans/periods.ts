@@ -10,7 +10,7 @@ export function weekCovers(week: WeekPlan, date: string): boolean {
   return date >= week.startDate && date <= weekEnd(week);
 }
 
-export function blockCovers(block: BlockPlan, date: string): boolean {
+function blockCovers(block: BlockPlan, date: string): boolean {
   return date >= block.startDate && date <= block.endDate;
 }
 

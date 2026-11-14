@@ -150,7 +150,7 @@ const ACTIVITY_STORE: ActivityStore = {
  * aborts the sync: merging the sync window with an empty history would drop
  * every older activity from the response, including its coach work.
  */
-export async function extendStoredFeed(
+async function extendStoredFeed(
   params: {
     userId: number;
     synced: readonly Activity[];
@@ -185,7 +185,7 @@ export async function extendStoredFeed(
  * their stored analysis and feedback. Locally deleted activities are omitted.
  * Everything is returned newest first.
  */
-export function mergeActivityHistory(
+function mergeActivityHistory(
   previous: readonly AnalyzedActivity[],
   synced: readonly Activity[],
   deletedIds: ReadonlySet<string> = new Set(),

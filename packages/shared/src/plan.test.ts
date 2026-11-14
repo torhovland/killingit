@@ -6,7 +6,7 @@ import {
   coachPlanSchema,
   coachingInputSaveResponseSchema,
   dayPlanSchema,
-  manualActivitySchema,
+  manualActivitiesResponseSchema,
   planGenerateInputSchema,
   weekPlanSchema,
   weeklyNoteResponseSchema,
@@ -353,12 +353,12 @@ describe("coaching-input feedback schemas", () => {
   });
 
   it("defaults a manual activity's reply to null", () => {
-    const parsed = manualActivitySchema.parse({
-      id: 7,
-      startDate: "2026-10-21",
-      details: "Pool swim",
+    const parsed = manualActivitiesResponseSchema.parse({
+      manualActivities: [
+        { id: 7, startDate: "2026-10-21", details: "Pool swim" },
+      ],
     });
-    expect(parsed.coachReply).toBeNull();
+    expect(parsed.manualActivities[0]?.coachReply).toBeNull();
   });
 
   it("returns a weekly note with its reply", () => {

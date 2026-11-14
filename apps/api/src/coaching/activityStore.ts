@@ -175,7 +175,7 @@ function storedStructureOf(
 }
 
 /** Loads the account's stored activities, newest first, with the chosen preview columns. */
-export async function loadStoredActivities(
+async function loadStoredActivities(
   userId: number,
   scope: ActivityPreviewScope = "none",
 ): Promise<AnalyzedActivity[]> {

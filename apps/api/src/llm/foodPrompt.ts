@@ -33,7 +33,7 @@ export interface FoodAnalysisInput {
   previous?: PreviousFoodAnalysis;
 }
 
-export const FOOD_ANALYSIS_SYSTEM_PROMPT = promptSections(
+const FOOD_ANALYSIS_SYSTEM_PROMPT = promptSections(
   GLOBAL_PROMPT_RULES,
   "The athlete has logged one meal and wants your reading of it.",
   "Give your reading of the meal, estimate its carbohydrate, protein, fat and energy content for the whole meal, and comment on how it fits the athlete's goal, current training and recent food log.",
@@ -43,7 +43,7 @@ export const FOOD_ANALYSIS_SYSTEM_PROMPT = promptSections(
 );
 
 /** The extra rule for a meal the athlete has edited since it was assessed. */
-export const FOOD_REASSESSMENT_RULES = promptSections(
+const FOOD_REASSESSMENT_RULES = promptSections(
   "This is a re-assessment of a meal the athlete already logged.",
   "The athlete's edit is authoritative. Compare the earlier version with the new input, change every part of the earlier assessment that no longer matches, keep the parts that still apply, and do not mention the earlier version unless the change itself matters.",
 );
@@ -83,7 +83,7 @@ export function buildFoodAnalysisMessages(
 }
 
 /** Exposed for tests and for inspecting exactly what is sent to the model. */
-export function buildFoodAnalysisPrompt(
+function buildFoodAnalysisPrompt(
   input: FoodAnalysisInput,
   includePhoto = true,
 ): string {

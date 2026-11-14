@@ -36,7 +36,7 @@ export const FTP_THRESHOLD: Pick<
 };
 
 /** Whether a stored threshold is the cycling FTP measure. */
-export function isFtpThreshold(
+function isFtpThreshold(
   point: Pick<AthleteThreshold, "sport" | "measure">,
 ): boolean {
   return (
@@ -56,7 +56,7 @@ export function ftpTimeline(
  * The anchor in effect on a date: the last one dated on or before it. Before
  * the first anchor the earliest value applies, matching `thresholdAt`.
  */
-export function thresholdBaselineAt(
+function thresholdBaselineAt(
   timeline: ThresholdTimeline | null,
   date: string | Date,
 ): ThresholdAnchor | null {
@@ -197,7 +197,7 @@ function dedupeAnchors(anchors: readonly ThresholdAnchor[]): ThresholdAnchor[] {
 }
 
 /** The value in effect on a date, interpolated between surrounding anchors. */
-export function thresholdAt(
+function thresholdAt(
   timeline: ThresholdTimeline | null,
   date: string | Date,
 ): number | null {

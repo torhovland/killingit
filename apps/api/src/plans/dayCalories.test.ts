@@ -5,7 +5,36 @@ import type {
   DayPlan,
   WeekPlan,
 } from "@killingit/shared";
-import { dayCaloriesForPlan } from "./dayCalories.js";
+import { recordPlanDayCalories } from "./dayCalories.js";
+
+type Writer = NonNullable<Parameters<typeof recordPlanDayCalories>[2]>;
+
+interface StoredRow {
+  date: string;
+  caloriesKcal: number;
+  basalMetabolismKcal: number | null;
+  workoutCaloriesKcal: number | null;
+  dietDeficitKcal: number | null;
+}
+
+function recordingWriter(rows: StoredRow[]): Writer {
+  return {
+    insert: () => ({
+      values: (row: StoredRow) => ({
+        onConflictDoUpdate: () => {
+          rows.push(row);
+          return Promise.resolve();
+        },
+      }),
+    }),
+  } as unknown as Writer;
+}
+
+async function record(plan: CoachPlan): Promise<Map<string, StoredRow>> {
+  const rows: StoredRow[] = [];
+  await recordPlanDayCalories(1, plan, recordingWriter(rows));
+  return new Map(rows.map((row) => [row.date, row]));
+}
 
 function day(
   date: string,
@@ -87,16 +116,16 @@ function plan(overrides: Partial<CoachPlan> = {}): CoachPlan {
   };
 }
 
-describe("dayCaloriesForPlan", () => {
-  it("collects the current and next week and lets the day plan win", () => {
-    const calories = dayCaloriesForPlan(plan());
-    expect(calories.get("2026-11-02")?.caloriesKcal).toBe(2450);
-    expect(calories.get("2026-11-03")?.caloriesKcal).toBe(2500);
-    expect(calories.get("2026-11-09")?.caloriesKcal).toBe(2410);
+describe("recordPlanDayCalories", () => {
+  it("records the current and next week and lets the day plan win", async () => {
+    const stored = await record(plan());
+    expect(stored.get("2026-11-02")?.caloriesKcal).toBe(2450);
+    expect(stored.get("2026-11-03")?.caloriesKcal).toBe(2500);
+    expect(stored.get("2026-11-09")?.caloriesKcal).toBe(2410);
   });
 
-  it("stores the breakdown and uses its sum as the allocated target", () => {
-    const calories = dayCaloriesForPlan(
+  it("stores the breakdown and uses its sum as the allocated target", async () => {
+    const stored = await record(
       plan({
         today: day("2026-11-02", 9999, {
           basalMetabolismKcal: 1800,
@@ -105,31 +134,29 @@ describe("dayCaloriesForPlan", () => {
         }),
       }),
     );
-    expect(calories.get("2026-11-02")).toEqual({
+    expect(stored.get("2026-11-02")).toMatchObject({
       caloriesKcal: 1900,
-      calorieBreakdown: {
-        basalMetabolismKcal: 1800,
-        workoutCaloriesKcal: 400,
-        dietDeficitKcal: 300,
-      },
+      basalMetabolismKcal: 1800,
+      workoutCaloriesKcal: 400,
+      dietDeficitKcal: 300,
     });
   });
 
-  it("omits days without an estimate", () => {
-    const calories = dayCaloriesForPlan(
+  it("omits days without an estimate", async () => {
+    const stored = await record(
       plan({
         week: week("2026-11-02", [2400, 0, 2600, 2700, 2800, 2900, 3000]),
       }),
     );
-    expect(calories.has("2026-11-03")).toBe(false);
+    expect(stored.has("2026-11-03")).toBe(false);
   });
 
-  it("omits a value below the whole-day safety minimum", () => {
-    const calories = dayCaloriesForPlan(
+  it("omits a value below the whole-day safety minimum", async () => {
+    const stored = await record(
       plan({
         week: week("2026-11-02", [2400, 480, 2600, 2700, 2800, 2900, 3000]),
       }),
     );
-    expect(calories.has("2026-11-03")).toBe(false);
+    expect(stored.has("2026-11-03")).toBe(false);
   });
 });

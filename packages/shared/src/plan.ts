@@ -81,7 +81,7 @@ export const seasonPlanSchema = z.object({
 export type SeasonPlan = z.infer<typeof seasonPlanSchema>;
 
 /** One week inside the active block plan. */
-export const blockWeekSummarySchema = z.object({
+const blockWeekSummarySchema = z.object({
   number: z.number().int().positive(),
   startDate: planDateSchema,
   focus: z.string().min(1),
@@ -136,7 +136,7 @@ export const blockPlanSchema = z.object({
 export type BlockPlan = z.infer<typeof blockPlanSchema>;
 
 /** One day in the current week's plan. */
-export const weekSessionStatusSchema = z.enum([
+const weekSessionStatusSchema = z.enum([
   "completed",
   "partial",
   "planned",
@@ -373,7 +373,7 @@ export type CoachPlan = z.infer<typeof coachPlanSchema>;
  * Progress reported while the coach is generating. `progress` is a percentage
  * (0–100) so the UI can render a determinate bar.
  */
-export const planGenerationStatusSchema = z.object({
+const planGenerationStatusSchema = z.object({
   status: z.enum(["idle", "running", "done", "error"]),
   step: z.string().nullable(),
   progress: z.number().int().min(0).max(100),
@@ -386,7 +386,7 @@ export const planGenerationStatusSchema = z.object({
 export type PlanGenerationStatus = z.infer<typeof planGenerationStatusSchema>;
 
 /** Which parts of the stored plan are missing for today's date. */
-export const planPendingSchema = z.object({
+const planPendingSchema = z.object({
   initial: z.boolean(),
   day: z.boolean(),
   week: z.boolean(),
@@ -422,11 +422,7 @@ export const coachPlanResponseSchema = z.object({
 export type CoachPlanResponse = z.infer<typeof coachPlanResponseSchema>;
 
 /** How an explicit regeneration should treat the stored season. */
-export const planGenerateModeSchema = z.enum([
-  "auto",
-  "newSeason",
-  "updateSeason",
-]);
+const planGenerateModeSchema = z.enum(["auto", "newSeason", "updateSeason"]);
 
 export type PlanGenerateMode = z.infer<typeof planGenerateModeSchema>;
 
@@ -449,7 +445,7 @@ export const planGenerateInputSchema = z.object({
 export type PlanGenerateInput = z.infer<typeof planGenerateInputSchema>;
 
 /** A manual activity the athlete recorded themselves. */
-export const manualActivityInputSchema = z.object({
+const manualActivityInputSchema = z.object({
   startDate: planDateSchema,
   details: z.string().min(1).max(2000),
 });
@@ -457,12 +453,10 @@ export const manualActivityInputSchema = z.object({
 export type ManualActivityInput = z.infer<typeof manualActivityInputSchema>;
 
 /** A comment the athlete added to an activity. */
-export const activityCommentInputSchema = z.object({
-  activityId: z.string().min(1),
-  comment: z.string().min(1).max(2000),
-});
-
-export type ActivityCommentInput = z.infer<typeof activityCommentInputSchema>;
+export type ActivityCommentInput = {
+  activityId: string;
+  comment: string;
+};
 
 /** A one-off question the athlete asks the coach. */
 export const quickQuestionRequestSchema = z.object({
@@ -478,13 +472,6 @@ export const quickQuestionResponseSchema = z.object({
 });
 
 export type QuickQuestionResponse = z.infer<typeof quickQuestionResponseSchema>;
-
-/** A general note the athlete added for the current week. */
-export const weeklyNoteInputSchema = z.object({
-  note: z.string().min(1).max(2000),
-});
-
-export type WeeklyNoteInput = z.infer<typeof weeklyNoteInputSchema>;
 
 /** Request body of `POST /api/coaching/weekly/notes`. */
 export const weeklyNoteRequestSchema = z.object({
@@ -517,7 +504,7 @@ export const manualActivityRequestSchema = manualActivityInputSchema.extend({
 export type ManualActivityRequest = z.infer<typeof manualActivityRequestSchema>;
 
 /** A saved manual activity with the coach's latest reply, if any. */
-export const manualActivitySchema = manualActivityInputSchema.extend({
+const manualActivitySchema = manualActivityInputSchema.extend({
   id: z.number().int().positive(),
   coachReply: coachAnalysisSchema.nullable().default(null),
   /** The coach's TSS estimate for this manual entry, when it has one. */

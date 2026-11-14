@@ -16,7 +16,8 @@ import {
   makeWeek,
 } from "../testFixtures/plan.js";
 import { buildThresholdTimelines } from "../training/thresholds.js";
-import { buildFitnessHistory } from "../training/history.js";
+import { loadFitnessHistory } from "../training/history.js";
+import type { TrainingContext } from "../training/context.js";
 import type { UserStore } from "../users/store.js";
 import { apiRequest } from "../testFixtures/request.js";
 
@@ -154,7 +155,8 @@ function makeApp(options: { plan?: CoachPlan | null } = {}) {
           },
     ),
     loadStoredFeed: () => Promise.resolve(feed),
-    // Mirrors the database-backed loader without the account's stored inputs.
+    // Runs the real loader over in-memory sources, so the route is tested
+    // against the series production builds.
     loadFitnessHistory: (
       _userId,
       activities,
@@ -163,25 +165,37 @@ function makeApp(options: { plan?: CoachPlan | null } = {}) {
       range,
       _dietAdvice,
       timeZone,
-    ): Promise<FitnessHistoryResponse> =>
-      Promise.resolve(
-        buildFitnessHistory({
-          today,
-          range,
-          timeZone,
-          activities,
-          plan: storedPlan,
-          thresholdPoints,
-          thresholdTimelines: buildThresholdTimelines(thresholdPoints),
-          planTssByDate: new Map(
-            (storedPlan?.week.sessions ?? []).map((session) => [
-              session.date,
-              session.estimatedTss ?? 0,
-            ]),
-          ),
-          manualTssByDate: new Map(),
-        }),
-      ),
+    ): Promise<FitnessHistoryResponse> => {
+      const context: TrainingContext = {
+        ftpTimeline: null,
+        thresholds: [],
+        thresholdPoints,
+        thresholdTimelines: buildThresholdTimelines(thresholdPoints),
+        planTssByDate: new Map(
+          (storedPlan?.week.sessions ?? []).map((session) => [
+            session.date,
+            session.estimatedTss ?? 0,
+          ]),
+        ),
+        manualTssByDate: new Map(),
+        manualActivities: [],
+      };
+      return loadFitnessHistory(
+        0,
+        activities,
+        storedPlan,
+        today,
+        range,
+        false,
+        timeZone,
+        {
+          loadTrainingContext: () => Promise.resolve(context),
+          loadMetricPoints: () => Promise.resolve([]),
+          loadDailyHealth: () => Promise.resolve([]),
+          loadNutrition: () => Promise.resolve(null),
+        },
+      );
+    },
   });
 }
 

@@ -57,7 +57,7 @@ export class Auth0Provider implements AuthProvider {
 }
 
 /** Auth0's JWKS endpoint for a given issuer. */
-export function jwksUrl(issuer: string): string {
+function jwksUrl(issuer: string): string {
   return `${issuer.replace(/\/$/, "")}/.well-known/jwks.json`;
 }
 

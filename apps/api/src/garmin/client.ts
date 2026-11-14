@@ -32,7 +32,7 @@ export class GarminSidecarError extends UpstreamError {
  * reported as `422` with `garmin_auth_failed` rather than an `401` a client
  * would try to renew. See ADR 0036.
  */
-export class GarminAuthError extends GarminSidecarError {
+class GarminAuthError extends GarminSidecarError {
   constructor(message: string, options?: { cause?: unknown }) {
     super(message, 422, { code: "garmin_auth_failed", ...options });
     this.name = "GarminAuthError";
@@ -77,7 +77,7 @@ export type SyncDailyTransport = (
 ) => Promise<GarminDailyResponse>;
 
 /** Base URL of the sidecar, from env (defaults to the local dev address). */
-export function garminSidecarUrl(): string {
+function garminSidecarUrl(): string {
   return process.env.GARMIN_SIDECAR_URL?.trim() ?? "http://localhost:8000";
 }
 
@@ -113,7 +113,7 @@ let cachedIdToken: {
  * accepts plain requests. Tokens are cached in memory until shortly before
  * they expire.
  */
-export async function sidecarAuthHeaders(
+async function sidecarAuthHeaders(
   env: Record<string, string | undefined> = process.env,
   fetchFn: typeof fetch = fetch,
   now: () => number = Date.now,
@@ -177,7 +177,7 @@ type AuthenticateTransport = (credentials: GarminCredentials) => Promise<void>;
  * sidecar skip their bulk detail, splits and set calls; it still returns the
  * whole window, so a summary Garmin changed is refreshed.
  */
-export function garminSyncRequestBody(
+function garminSyncRequestBody(
   credentials: GarminCredentials,
   knownActivityIds: readonly number[],
 ): Record<string, unknown> {

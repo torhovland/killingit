@@ -2,13 +2,13 @@ import type { FoodAnalysis } from "@killingit/shared";
 import { addDays, startOfWeek } from "@killingit/shared";
 
 /** The window of individually listed meals shown to the coach. */
-export const DIET_RECENT_DAYS = 7;
+const DIET_RECENT_DAYS = 7;
 
 /** How far back the weekly nutrition summaries go. */
 export const DIET_SUMMARY_DAYS = 365;
 
 /** The most weekly summaries a prompt ever carries. */
-export const MAX_DIET_WEEK_SUMMARIES = 52;
+const MAX_DIET_WEEK_SUMMARIES = 52;
 
 /** One meal as the prompt context needs it. */
 export interface DietMealContext {

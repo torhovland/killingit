@@ -5,7 +5,7 @@ import type { CoachPlan, DailyWeather } from "@killingit/shared";
  * week. Forecast models update constantly; without a threshold the plan would
  * be regenerated on almost every visit.
  */
-export const WEATHER_CHANGE_THRESHOLDS = {
+const WEATHER_CHANGE_THRESHOLDS = {
   temperatureMaxC: 5,
   windMaxMs: 5,
   gustMaxMs: 8,
@@ -26,7 +26,7 @@ function isMissing(value: string | null | undefined): boolean {
  * gusts, or rain amount move by a meaningful amount. Cloud-cover changes alone
  * do not affect training.
  */
-export function weatherChangedSignificantly(
+function weatherChangedSignificantly(
   previous: DailyWeather | null | undefined,
   next: DailyWeather,
 ): boolean {

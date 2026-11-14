@@ -1,11 +1,11 @@
 import { describe, expect, it, spyOn } from "bun:test";
 import type { LlmCatalogModel, LlmCostsResponse } from "@killingit/shared";
-import { keyFromRaw } from "../crypto/credentials.js";
+import { credentialsKeyFromEnv } from "../crypto/credentials.js";
 import { createApp } from "../index.js";
 import {
+  createOpenRouterProvider,
   LlmAuthError,
   LlmProviderError,
-  LlmRateLimitError,
   type LlmProvider,
 } from "../llm/openrouter.js";
 import type { StoredLlmSettings } from "../llm/store.js";
@@ -76,6 +76,35 @@ function catalogModel(id: string): LlmCatalogModel {
     benchmarkCostUsd: 0.01,
     benchmarkedAt: "2026-10-31T15:40:52.865Z",
   };
+}
+
+/** The API key's encryption key the test app derives from the environment. */
+function testCredentialsKey(): Promise<CryptoKey> {
+  process.env.TEST_LLM_CREDENTIALS_KEY = "test-secret";
+  return credentialsKeyFromEnv("TEST_LLM_CREDENTIALS_KEY");
+}
+
+/** The rate-limit failure OpenRouter raises for a 429, through the provider. */
+async function rateLimitFailure(): Promise<Error> {
+  const provider = createOpenRouterProvider({
+    baseUrl: "https://openrouter.test",
+    fetchImpl: (() =>
+      Promise.resolve(
+        new Response("rate limited", { status: 429 }),
+      )) as unknown as typeof fetch,
+  });
+  try {
+    await provider.complete({
+      apiKey: "test-key",
+      model: "test/model",
+      messages: [{ role: "user", content: "hello" }],
+      temperature: 0,
+      maxTokens: 8,
+    });
+  } catch (err) {
+    return err as Error;
+  }
+  throw new Error("expected a rate-limit failure");
 }
 
 function makeApp(
@@ -185,7 +214,7 @@ describe("PUT /llm/settings", () => {
         return Promise.resolve();
       },
       provider: fakeProvider,
-      credentialsKey: () => keyFromRaw("test-secret"),
+      credentialsKey: testCredentialsKey,
     });
   }
 
@@ -391,9 +420,8 @@ describe("GET /llm/models", () => {
   });
 
   it("reports a rate limit as such", async () => {
-    const app = appFailingWith(
-      new LlmRateLimitError("OpenRouter rate limit reached"),
-    );
+    const error = await rateLimitFailure();
+    const app = appFailingWith(error);
 
     const res = await app.fetch(modelsRequest());
 
@@ -401,7 +429,7 @@ describe("GET /llm/models", () => {
     expect(await res.json()).toEqual({
       error: {
         code: "too_many_requests",
-        message: "OpenRouter rate limit reached",
+        message: error.message,
       },
     });
   });

@@ -63,7 +63,7 @@ interface DeleteAccountSectionViewProps {
 }
 
 /** Pure presentation, so both the section and its warning can be tested. */
-export function DeleteAccountSectionView({
+function DeleteAccountSectionView({
   confirming,
   deleting,
   error,

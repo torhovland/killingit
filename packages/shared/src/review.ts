@@ -12,7 +12,7 @@ export type ReviewKind = z.infer<typeof reviewKindSchema>;
  * the week review so the season review can show the context the athlete gave
  * while the week was still running.
  */
-export const periodReviewWeeklyNoteSchema = z.object({
+const periodReviewWeeklyNoteSchema = z.object({
   note: z.string().min(1),
   coachReply: coachAnalysisSchema.nullable().default(null),
 });
@@ -26,7 +26,7 @@ export type PeriodReviewWeeklyNote = z.infer<
  * comment and the coach's reply. Reviews are stored separately from the live
  * plan because the plan only keeps the current week and block.
  */
-export const periodReviewSchema = z.object({
+const periodReviewSchema = z.object({
   kind: reviewKindSchema,
   startDate: planDateSchema,
   endDate: planDateSchema,

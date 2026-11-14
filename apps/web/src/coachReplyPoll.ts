@@ -1,12 +1,12 @@
 /** How long the dashboard waits between polls for a coach reply. */
-export const COACH_REPLY_POLL_INTERVAL_MS = 1500;
+const COACH_REPLY_POLL_INTERVAL_MS = 1500;
 
 /**
  * How many times the dashboard asks for a reply before it stops polling, so a
  * reply the coach never stores cannot keep the page polling for the whole
  * visit.
  */
-export const COACH_REPLY_POLL_ATTEMPTS = 40;
+const COACH_REPLY_POLL_ATTEMPTS = 40;
 
 export interface PollCoachRepliesOptions {
   /** Loads and applies the cached feed once; resolves once it is on screen. */

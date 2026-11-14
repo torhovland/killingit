@@ -296,7 +296,7 @@ function thresholdQuestion(
  * that ended before today is dropped; an event that started earlier but is
  * still running is kept. A malformed end date falls back to a one-day event.
  */
-export function normalizeEvents(
+function normalizeEvents(
   events: readonly AthleteEvent[],
   today: string,
 ): AthleteEvent[] {

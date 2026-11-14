@@ -1,9 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import {
-  COACH_REPLY_POLL_ATTEMPTS,
-  COACH_REPLY_POLL_INTERVAL_MS,
-  pollCoachReplies,
-} from "./coachReplyPoll";
+import { pollCoachReplies } from "./coachReplyPoll";
 
 /** Lets the poll's awaits and the test's own microtasks run. */
 function settle(): Promise<void> {
@@ -39,7 +35,7 @@ describe("pollCoachReplies", () => {
     expect(order).toEqual(["sleep", "load", "sleep", "load"]);
   });
 
-  it("gives up after the documented number of attempts", async () => {
+  it("stops after forty attempts a second and a half apart", async () => {
     const waits: number[] = [];
     let loads = 0;
 
@@ -55,9 +51,9 @@ describe("pollCoachReplies", () => {
       isActive: () => true,
     });
 
-    expect(loads).toBe(COACH_REPLY_POLL_ATTEMPTS);
-    expect(waits).toHaveLength(COACH_REPLY_POLL_ATTEMPTS);
-    expect(new Set(waits)).toEqual(new Set([COACH_REPLY_POLL_INTERVAL_MS]));
+    expect(loads).toBe(40);
+    expect(waits).toHaveLength(40);
+    expect(waits.every((ms) => ms === 1500)).toBe(true);
   });
 
   it("stops without another request once the caller is no longer active", async () => {

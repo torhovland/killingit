@@ -2,20 +2,8 @@ import { describe, expect, it } from "bun:test";
 import {
   currentUserSchema,
   timeZoneSchema,
-  userRoleSchema,
   userSettingsUpdateSchema,
 } from "./user.js";
-
-describe("userRoleSchema", () => {
-  it("accepts the two application roles", () => {
-    expect(userRoleSchema.parse("admin")).toBe("admin");
-    expect(userRoleSchema.parse("member")).toBe("member");
-  });
-
-  it("rejects unknown roles", () => {
-    expect(() => userRoleSchema.parse("owner")).toThrow();
-  });
-});
 
 describe("time zone schemas", () => {
   it("accepts IANA zones and rejects unknown ones", () => {
@@ -92,6 +80,12 @@ describe("currentUserSchema", () => {
   it("rejects a payload without a role", () => {
     expect(() =>
       currentUserSchema.parse({ sub: "auth0|athlete-123" }),
+    ).toThrow();
+  });
+
+  it("rejects an unknown role", () => {
+    expect(() =>
+      currentUserSchema.parse({ sub: "auth0|athlete-123", role: "owner" }),
     ).toThrow();
   });
 });

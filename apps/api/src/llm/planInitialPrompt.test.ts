@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import type { SeasonPlan } from "@killingit/shared";
 import {
-  buildInitialBlockPrompt,
-  buildSeasonPlanPrompt,
-  INITIAL_BLOCK_SYSTEM_PROMPT,
-  SEASON_PLAN_SYSTEM_PROMPT,
+  buildInitialBlockMessages,
+  buildSeasonPlanMessages,
+  type InitialBlockInput,
+  type SeasonPlanInput,
 } from "./planInitialPrompt.js";
 import {
   GLOBAL_PROMPT_RULES,
@@ -61,26 +61,44 @@ const base = {
   recentActivities: activities,
 };
 
+function seasonSystemPrompt(): string {
+  return buildSeasonPlanMessages(base)[0]?.content ?? "";
+}
+
+/** The user message the app sends for a season plan. */
+function seasonUserPrompt(input: SeasonPlanInput = base): string {
+  return buildSeasonPlanMessages(input)[1]?.content ?? "";
+}
+
+function blockSystemPrompt(): string {
+  return buildInitialBlockMessages({ ...base, season })[0]?.content ?? "";
+}
+
+/** The user message the app sends for the first block. */
+function blockUserPrompt(input: InitialBlockInput): string {
+  return buildInitialBlockMessages(input)[1]?.content ?? "";
+}
+
 describe("season plan prompt", () => {
   it("requires state of the art training science and a JSON season", () => {
-    expect(SEASON_PLAN_SYSTEM_PROMPT).toContain(
-      "state of the art training science",
-    );
-    expect(SEASON_PLAN_SYSTEM_PROMPT).toContain("season");
-    expect(SEASON_PLAN_SYSTEM_PROMPT).toContain('"season"');
-    expect(SEASON_PLAN_SYSTEM_PROMPT).toContain('"weekCount"');
-    expect(SEASON_PLAN_SYSTEM_PROMPT).toContain("rationale");
-    expect(SEASON_PLAN_SYSTEM_PROMPT).toContain('"dietProgress"');
-    expect(SEASON_PLAN_SYSTEM_PROMPT).toContain('"targetWeightKg"');
+    const system = seasonSystemPrompt();
+
+    expect(system).toContain("state of the art training science");
+    expect(system).toContain("season");
+    expect(system).toContain('"season"');
+    expect(system).toContain('"weekCount"');
+    expect(system).toContain("rationale");
+    expect(system).toContain('"dietProgress"');
+    expect(system).toContain('"targetWeightKg"');
   });
 
   it("opens the season with a greeting from the coach", () => {
-    expect(SEASON_PLAN_SYSTEM_PROMPT).toContain(SEASON_INTRODUCTION_RULES);
-    expect(SEASON_PLAN_SYSTEM_PROMPT).toContain('"introduction"');
+    expect(seasonSystemPrompt()).toContain(SEASON_INTRODUCTION_RULES);
+    expect(seasonSystemPrompt()).toContain('"introduction"');
   });
 
   it("includes the athlete context and today's date", () => {
-    const prompt = buildSeasonPlanPrompt(base);
+    const prompt = seasonUserPrompt();
 
     expect(prompt).toContain("Today's date: 2026-10-21");
     expect(prompt).toContain("Athlete timezone: Europe/Oslo");
@@ -93,34 +111,34 @@ describe("season plan prompt", () => {
   });
 
   it("uses the shared input, rationale and body-metric rules", () => {
-    expect(SEASON_PLAN_SYSTEM_PROMPT).toContain(GLOBAL_PROMPT_RULES);
-    expect(SEASON_PLAN_SYSTEM_PROMPT).toContain(PLAN_PROMPT_RULES);
+    expect(seasonSystemPrompt()).toContain(GLOBAL_PROMPT_RULES);
+    expect(seasonSystemPrompt()).toContain(PLAN_PROMPT_RULES);
   });
 
   it("tiles the season's blocks with the shared rule", () => {
-    expect(SEASON_PLAN_SYSTEM_PROMPT).toContain(SEASON_BLOCK_RULES);
+    expect(seasonSystemPrompt()).toContain(SEASON_BLOCK_RULES);
   });
 });
 
 describe("initial block prompt", () => {
   it("requires the first block and tells the model to keep the season", () => {
-    expect(INITIAL_BLOCK_SYSTEM_PROMPT).toContain(
-      "state of the art training science",
-    );
-    expect(INITIAL_BLOCK_SYSTEM_PROMPT).toContain("first block");
-    expect(INITIAL_BLOCK_SYSTEM_PROMPT).toContain("Keep the season unchanged");
-    expect(INITIAL_BLOCK_SYSTEM_PROMPT).toContain('"block"');
-    expect(INITIAL_BLOCK_SYSTEM_PROMPT).toContain('"targetLoad"');
-    expect(INITIAL_BLOCK_SYSTEM_PROMPT).toContain("rationale");
-    expect(INITIAL_BLOCK_SYSTEM_PROMPT).toContain('"dietProgress"');
-    expect(INITIAL_BLOCK_SYSTEM_PROMPT).toContain('"targetBodyFatPercent"');
-    expect(INITIAL_BLOCK_SYSTEM_PROMPT).toContain(PLAN_PROMPT_RULES);
-    expect(INITIAL_BLOCK_SYSTEM_PROMPT).toContain(GLOBAL_PROMPT_RULES);
-    expect(INITIAL_BLOCK_SYSTEM_PROMPT).toContain(TRAINING_LOAD_RULES);
+    const system = blockSystemPrompt();
+
+    expect(system).toContain("state of the art training science");
+    expect(system).toContain("first block");
+    expect(system).toContain("Keep the season unchanged");
+    expect(system).toContain('"block"');
+    expect(system).toContain('"targetLoad"');
+    expect(system).toContain("rationale");
+    expect(system).toContain('"dietProgress"');
+    expect(system).toContain('"targetBodyFatPercent"');
+    expect(system).toContain(PLAN_PROMPT_RULES);
+    expect(system).toContain(GLOBAL_PROMPT_RULES);
+    expect(system).toContain(TRAINING_LOAD_RULES);
   });
 
   it("includes the season plan and the athlete context", () => {
-    const prompt = buildInitialBlockPrompt({ ...base, season });
+    const prompt = blockUserPrompt({ ...base, season });
 
     expect(prompt).toContain("Today's date: 2026-10-21");
     expect(prompt).toContain("Goal: Sub-4-hour marathon");

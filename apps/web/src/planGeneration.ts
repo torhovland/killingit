@@ -12,7 +12,7 @@ export type PlanGenerationOutcome =
   | { status: "timeout"; error: string };
 
 /** Shown when the server keeps reporting a run for longer than the UI waits. */
-export const GENERATION_TIMEOUT_MESSAGE =
+const GENERATION_TIMEOUT_MESSAGE =
   "The coach is taking longer than expected. Refresh to check again.";
 
 export interface PollPlanGenerationOptions {

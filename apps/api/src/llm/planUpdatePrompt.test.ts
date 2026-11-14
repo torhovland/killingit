@@ -17,7 +17,6 @@ import {
   DAY_CONTRACT,
   DIET_CONTRACT,
   DIET_PLANNING_RULES,
-  DIET_PROGRESS_RULES,
   ENUM_RULES,
   GLOBAL_PROMPT_RULES,
   JSON_RULES,
@@ -37,13 +36,12 @@ import {
   WEATHER_PLANNING_RULES,
 } from "./promptRules.js";
 import {
-  buildDailyUpdatePrompt,
-  buildPlanUpdatePrompt,
-  buildWeeklyUpdatePrompt,
-  DAILY_UPDATE_SYSTEM_PROMPT,
-  PLAN_UPDATE_SYSTEM_PROMPT,
-  WEEKLY_UPDATE_SYSTEM_PROMPT,
+  buildDailyUpdateMessages,
+  buildPlanUpdateMessages,
+  buildWeeklyUpdateMessages,
+  type DailyUpdateInput,
   type PlanUpdateInput,
+  type WeeklyUpdateInput,
 } from "./planUpdatePrompt.js";
 
 const answers = [
@@ -195,14 +193,39 @@ function updateInput(
   };
 }
 
+/** The system message the app sends with a set of prompt messages. */
+function systemPrompt(
+  messages: readonly { role: "system" | "user"; content: string }[],
+): string {
+  return messages[0]?.content ?? "";
+}
+
+/** The user message the app sends for a unified plan update. */
+function updateUserPrompt(input: PlanUpdateInput): string {
+  return buildPlanUpdateMessages(input)[1]?.content ?? "";
+}
+
+/** The user message the app sends for a daily update. */
+function dailyUserPrompt(input: DailyUpdateInput): string {
+  return buildDailyUpdateMessages(input)[1]?.content ?? "";
+}
+
+/** The user message the app sends for a weekly update. */
+function weeklyUserPrompt(input: WeeklyUpdateInput): string {
+  return buildWeeklyUpdateMessages(input)[1]?.content ?? "";
+}
+
 /**
  * The fragments each update prompt composes. A prompt that drops a shared rule,
  * or that stops carrying a contract, fails here without pinning any wording.
+ * The system prompt is read from the production builder that sends it.
  */
 const SYSTEM_PROMPTS = [
   {
     name: "daily update",
-    prompt: DAILY_UPDATE_SYSTEM_PROMPT,
+    prompt: systemPrompt(
+      buildDailyUpdateMessages({ ...base, season, block, week }),
+    ),
     fragments: [
       GLOBAL_PROMPT_RULES,
       PLAN_PROMPT_RULES,
@@ -214,7 +237,6 @@ const SYSTEM_PROMPTS = [
       WEATHER_PLANNING_RULES,
       BIKE_WORKOUT_RULES,
       DIET_PLANNING_RULES,
-      DIET_PROGRESS_RULES,
       TRAINING_LOAD_RULES,
       ENUM_RULES,
       JSON_RULES,
@@ -227,7 +249,14 @@ const SYSTEM_PROMPTS = [
   },
   {
     name: "weekly update",
-    prompt: WEEKLY_UPDATE_SYSTEM_PROMPT,
+    prompt: systemPrompt(
+      buildWeeklyUpdateMessages({
+        ...base,
+        season,
+        block,
+        weekStartDate: "2026-10-26",
+      }),
+    ),
     fragments: [
       GLOBAL_PROMPT_RULES,
       PLAN_PROMPT_RULES,
@@ -238,7 +267,6 @@ const SYSTEM_PROMPTS = [
       WEATHER_PLANNING_RULES,
       BIKE_WORKOUT_RULES,
       DIET_PLANNING_RULES,
-      DIET_PROGRESS_RULES,
       TRAINING_LOAD_RULES,
       ENUM_RULES,
       JSON_RULES,
@@ -250,7 +278,7 @@ const SYSTEM_PROMPTS = [
   },
   {
     name: "plan update",
-    prompt: PLAN_UPDATE_SYSTEM_PROMPT,
+    prompt: systemPrompt(buildPlanUpdateMessages(updateInput())),
     fragments: [
       GLOBAL_PROMPT_RULES,
       PLAN_PROMPT_RULES,
@@ -264,7 +292,6 @@ const SYSTEM_PROMPTS = [
       WEATHER_PLANNING_RULES,
       BIKE_WORKOUT_RULES,
       DIET_PLANNING_RULES,
-      DIET_PROGRESS_RULES,
       TRAINING_LOAD_RULES,
       ENUM_RULES,
       JSON_RULES,
@@ -301,7 +328,7 @@ describe("update system prompts", () => {
 
 describe("unified plan update prompt", () => {
   it("receives every level and asks for the requested levels in one response", () => {
-    const prompt = buildPlanUpdatePrompt(
+    const prompt = updateUserPrompt(
       updateInput({
         revision: {
           ...updateInput().revision,
@@ -339,7 +366,7 @@ describe("unified plan update prompt", () => {
   });
 
   it("asks for a season refresh in place with the stored block start date", () => {
-    const prompt = buildPlanUpdatePrompt(
+    const prompt = updateUserPrompt(
       updateInput({
         revision: {
           ...updateInput().revision,
@@ -356,7 +383,7 @@ describe("unified plan update prompt", () => {
   });
 
   it("includes survey adjustments in a season refresh", () => {
-    const prompt = buildPlanUpdatePrompt(
+    const prompt = updateUserPrompt(
       updateInput({
         revision: {
           ...updateInput().revision,
@@ -386,7 +413,7 @@ describe("unified plan update prompt", () => {
   });
 
   it("keeps survey adjustments out of updates that do not refresh the season", () => {
-    const prompt = buildPlanUpdatePrompt(
+    const prompt = updateUserPrompt(
       updateInput({
         coachingSurveyAdjustments: [
           {
@@ -403,7 +430,7 @@ describe("unified plan update prompt", () => {
   });
 
   it("states the next week and tomorrow dates when they are requested", () => {
-    const prompt = buildPlanUpdatePrompt(
+    const prompt = updateUserPrompt(
       updateInput({
         today: "2026-10-25",
         todayPlan: { ...todayPlan, date: "2026-10-25" },
@@ -424,7 +451,7 @@ describe("unified plan update prompt", () => {
   });
 
   it("includes a completed week review, its comment and the coach reply", () => {
-    const prompt = buildPlanUpdatePrompt(
+    const prompt = updateUserPrompt(
       updateInput({
         periodReviews: [
           {
@@ -475,7 +502,7 @@ describe("unified plan update prompt", () => {
 
 describe("daily update prompt", () => {
   it("includes the profile, activities, season, block, and week", () => {
-    const prompt = buildDailyUpdatePrompt({ ...base, season, block, week });
+    const prompt = dailyUserPrompt({ ...base, season, block, week });
 
     expect(prompt).toContain("Today's date: 2026-10-21");
     expect(prompt).toContain("Athlete timezone: Europe/Oslo");
@@ -503,18 +530,20 @@ describe("daily update prompt", () => {
   });
 
   it("refreshes diet progress without changing the training", () => {
-    const prompt = buildPlanUpdatePrompt(
+    const prompt = updateUserPrompt(
       updateInput({
         revision: { ...updateInput().revision, progress: true },
       }),
     );
 
     expect(prompt).toContain('Change only the "dietProgress" objects');
-    expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain('except for "dietProgress"');
+    expect(systemPrompt(buildPlanUpdateMessages(updateInput()))).toContain(
+      'except for "dietProgress"',
+    );
   });
 
   it("states the exact week and today dates", () => {
-    const prompt = buildDailyUpdatePrompt({
+    const prompt = dailyUserPrompt({
       ...base,
       season,
       block,
@@ -535,7 +564,7 @@ describe("daily update prompt", () => {
   });
 
   it("details only the target day when planning the next period", () => {
-    const prompt = buildDailyUpdatePrompt({
+    const prompt = dailyUserPrompt({
       ...base,
       today: "2026-10-26",
       detailThrough: "2026-10-26",
@@ -550,7 +579,7 @@ describe("daily update prompt", () => {
   });
 
   it("includes the forecast when one is supplied", () => {
-    const prompt = buildDailyUpdatePrompt({
+    const prompt = dailyUserPrompt({
       ...base,
       season,
       block,
@@ -582,7 +611,7 @@ describe("daily update prompt", () => {
 describe("weekly update prompt", () => {
   it("asks for the new week as a set of outlines", () => {
     expect(
-      buildWeeklyUpdatePrompt({
+      weeklyUserPrompt({
         ...base,
         season,
         block,
@@ -594,7 +623,7 @@ describe("weekly update prompt", () => {
   });
 
   it("includes the week start date and the current block", () => {
-    const prompt = buildWeeklyUpdatePrompt({
+    const prompt = weeklyUserPrompt({
       ...base,
       season,
       block,

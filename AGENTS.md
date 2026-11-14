@@ -205,10 +205,11 @@ through a disciplined process:
   diverge.
 - **Never leave production exports alive only for their tests.** Delete dead
   code or wire it to a real caller. `bun run check:unused` runs Knip in production
-  mode and fails on a test-only export, an unused `@killingit/shared` barrel
-  export, and an unreachable production file. Un-export a module-local helper by
-  hand, since `ignoreExportsUsedInFile` hides it, and list intentional public API
-  in `knip.json` with a comment. See `docs/specs/unused-exports.md`.
+  mode and fails on an export referenced only inside its own module, a test-only
+  export, an unused `@killingit/shared` barrel export, and an unreachable
+  production file. Un-export a module-local helper rather than exporting it for
+  its test, and rewrite the test against the production consumer; list intentional
+  public API in `knip.json` with a comment. See `docs/specs/unused-exports.md`.
 - **Wire API dependencies through the shared context.** The injectable surface
   lives in `apps/api/src/dependencies.ts`; `createApp` resolves the account
   stores once and passes `ResolvedAppDependencies` to the factories, with their

@@ -7,9 +7,7 @@ import { coachQuestions, type CoachQuestionRow } from "../db/schema.js";
  * The newest non-blank question in a response. A response may carry several
  * questions, but the athlete only ever sees the most recent one.
  */
-export function newestCoachQuestion(
-  questions: readonly string[],
-): string | null {
+function newestCoachQuestion(questions: readonly string[]): string | null {
   const newest = questions
     .map((question) => question.trim())
     .filter((question) => question !== "")

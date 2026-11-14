@@ -17,7 +17,7 @@ const ICON_SEVERITY: Record<WeatherIcon, number> = {
  * sense for numbers, so when the providers disagree the more severe condition
  * wins: rain beats cloud, and snow beats rain. A tie keeps the Open-Meteo icon.
  */
-export function moreSevereWeatherIcon(
+function moreSevereWeatherIcon(
   first: WeatherIcon,
   second: WeatherIcon,
 ): WeatherIcon {

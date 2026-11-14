@@ -4,7 +4,6 @@ import {
   bikeWorkoutTrainingStressScore,
   dailyTrainingLoad,
   estimatedTssFromSession,
-  normalizedPower,
   powerTrainingStressScore,
   recordedPowerSummary,
 } from "./stress.js";
@@ -69,28 +68,32 @@ describe("bikeWorkoutTrainingStressScore", () => {
   });
 });
 
-describe("normalizedPower", () => {
-  it("returns the same value for steady effort", () => {
+describe("recordedPowerSummary", () => {
+  it("returns the same normalized power for steady effort", () => {
     expect(
-      normalizedPower(samples(Array.from({ length: 120 }, () => 200))),
+      recordedPowerSummary(samples(Array.from({ length: 120 }, () => 200)))
+        .normalizedPower,
     ).toBe(200);
   });
 
   it("rewards surges more than the average power does", () => {
-    const steady = normalizedPower(samples(Array(120).fill(200)));
-    const surging = normalizedPower(
+    const steady = recordedPowerSummary(samples(Array(120).fill(200)));
+    const surging = recordedPowerSummary(
       samples([
         ...Array.from({ length: 60 }, () => 100),
         ...Array.from({ length: 60 }, () => 300),
       ]),
     );
-    expect(steady).toBe(200);
-    expect(surging).not.toBeNull();
-    expect((surging ?? 0) > 200).toBe(true);
+    expect(steady.normalizedPower).toBe(200);
+    expect(surging.normalizedPower).not.toBeNull();
+    expect((surging.normalizedPower ?? 0) > 200).toBe(true);
   });
 
-  it("returns null when the activity has no power", () => {
-    expect(normalizedPower([{ timestamp: "2026-01-01T08:00:00Z" }])).toBeNull();
+  it("returns nulls when the activity has no power", () => {
+    expect(
+      recordedPowerSummary([{ timestamp: "2026-01-01T08:00:00Z" }])
+        .normalizedPower,
+    ).toBeNull();
   });
 
   it("summarizes average and normalized power together", () => {

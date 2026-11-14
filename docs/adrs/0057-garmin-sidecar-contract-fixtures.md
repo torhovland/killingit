@@ -30,9 +30,10 @@ Commit the fixtures and check them from both sides.
   Garmin payloads kept in `services/garmin/contract_fixtures.py`.
 - `services/garmin/test_contract.py` re-runs the handlers and asserts equality,
   so the sidecar's output is pinned byte for byte.
-- `apps/api/src/garmin/contract.test.ts` parses the same files with
-  `activitiesResponseSchema`, `garminMetricsResponseSchema` and
-  `garminDailyResponseSchema`, and asserts the parsed fields the app reads.
+- `apps/api/src/garmin/contract.test.ts` parses the same files through the
+  client's own parsers (`syncGarminActivities` over `activitySchema`) plus
+  `garminMetricsResponseSchema` and `garminDailyResponseSchema`, and asserts the
+  parsed fields the app reads.
 - Regeneration is one documented command
   (`UPDATE_CONTRACT_FIXTURES=1 .venv/bin/python -m pytest test_contract.py`);
   the normal test run only reads.

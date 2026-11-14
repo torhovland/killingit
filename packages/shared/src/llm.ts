@@ -44,7 +44,7 @@ export const llmModelGradeSchema = z.enum([
 export type LlmModelGrade = z.infer<typeof llmModelGradeSchema>;
 
 /** One graded model in the account's model picker. */
-export const llmCatalogModelSchema = z.object({
+const llmCatalogModelSchema = z.object({
   id: z.string(),
   name: z.string(),
   retired: z.boolean(),
@@ -143,7 +143,7 @@ export const LLM_PROMPT_KINDS = [
   "other",
 ] as const;
 
-export const llmPromptKindSchema = z.enum(LLM_PROMPT_KINDS);
+const llmPromptKindSchema = z.enum(LLM_PROMPT_KINDS);
 
 export type LlmPromptKind = z.infer<typeof llmPromptKindSchema>;
 
@@ -172,7 +172,7 @@ export const LLM_PROMPT_KIND_LABELS: Record<LlmPromptKind, string> = {
 };
 
 /** One message sent to the provider, as stored in the prompt log. */
-export const llmCallMessageSchema = z.object({
+const llmCallMessageSchema = z.object({
   role: z.enum(["system", "user", "assistant"]),
   content: z.string(),
 });
@@ -180,7 +180,7 @@ export const llmCallMessageSchema = z.object({
 export type LlmCallMessage = z.infer<typeof llmCallMessageSchema>;
 
 /** Token usage reported by the provider, when it includes it. */
-export const llmCallUsageSchema = z.object({
+const llmCallUsageSchema = z.object({
   promptTokens: z.number().int().nonnegative().nullable(),
   completionTokens: z.number().int().nonnegative().nullable(),
   totalTokens: z.number().int().nonnegative().nullable(),
@@ -194,7 +194,7 @@ export const llmCallUsageSchema = z.object({
 export type LlmCallUsage = z.infer<typeof llmCallUsageSchema>;
 
 /** A logged LLM request without its (potentially large) prompt and response. */
-export const llmCallSummarySchema = z.object({
+const llmCallSummarySchema = z.object({
   id: z.number().int().positive(),
   createdAt: z.string().datetime(),
   userId: z.number().int().positive(),
@@ -232,7 +232,7 @@ export type LlmCallsResponse = z.infer<typeof llmCallsResponseSchema>;
  * The cost of one model's calls in one period. Monthly buckets use
  * `YYYY-MM` and daily buckets use `YYYY-MM-DD`, both in UTC.
  */
-export const llmCostBucketSchema = z.object({
+const llmCostBucketSchema = z.object({
   bucket: z.string().min(1),
   /** The routed model id, used as the stack's stable key. */
   model: z.string().min(1),
@@ -255,7 +255,7 @@ export const llmCostsResponseSchema = z.object({
 export type LlmCostsResponse = z.infer<typeof llmCostsResponseSchema>;
 
 /** One non-null `modelsRemarks` value from a recent prompt log entry. */
-export const llmModelRemarkSchema = z.object({
+const llmModelRemarkSchema = z.object({
   callId: z.number().int().positive(),
   createdAt: z.string().datetime(),
   userId: z.number().int().positive(),

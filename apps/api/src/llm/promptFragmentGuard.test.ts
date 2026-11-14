@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import * as promptRules from "./promptRules.js";
+import { promptRulesProse } from "../testFixtures/prompts.js";
 
 /**
  * Guards the rule in `AGENTS.md` that a reusable prompt fragment lives in
@@ -9,27 +9,15 @@ import * as promptRules from "./promptRules.js";
  * spells the same prose out again the two copies drift apart, and the coach
  * starts receiving two versions of one rule.
  *
+ * The prose is read out of the module's source rather than its exports, because
+ * a fragment used only inside `promptRules.ts` is not exported.
+ *
  * The scan covers the plan-update prompts this rule was applied to. Widening it
  * to every `apps/api/src/llm/*Prompt.ts` waits for the last copies elsewhere,
  * which issue #367 tracks.
  */
 const LLM_DIR = import.meta.dir;
 const PROMPT_MODULES = ["planUpdate.ts", "planUpdatePrompt.ts"];
-
-/**
- * A fragment shorter than this is ordinary wording that a prompt may share by
- * coincidence; anything longer is prose `promptRules.ts` owns.
- */
-const MIN_SHARED_PROSE_LENGTH = 20;
-
-/** The prose fragments `promptRules.ts` owns, as a prompt receives them. */
-function sharedProse(): string[] {
-  return Object.values(promptRules).filter(
-    (value): value is string =>
-      typeof value === "string" &&
-      value.trim().length >= MIN_SHARED_PROSE_LENGTH,
-  );
-}
 
 /**
  * A module's source with its quote escapes resolved, so the same sentence
@@ -43,11 +31,11 @@ function normalizedSource(module: string): string {
 
 describe("shared prompt fragments", () => {
   it("finds the prose promptRules owns, so the scan cannot pass vacuously", () => {
-    expect(sharedProse().length).toBeGreaterThan(0);
+    expect(promptRulesProse().length).toBeGreaterThan(0);
   });
 
   it("is composed in the plan-update prompts instead of repeated", () => {
-    const fragments = sharedProse();
+    const fragments = promptRulesProse();
     const offenders = PROMPT_MODULES.flatMap((module) => {
       const source = normalizedSource(module);
       return fragments

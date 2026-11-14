@@ -60,9 +60,7 @@ export function buildCoachReplyBatchMessages(
 }
 
 /** Exposed for tests and for inspecting exactly what is sent to the model. */
-export function buildCoachReplyBatchPrompt(
-  input: CoachReplyBatchPromptInput,
-): string {
+function buildCoachReplyBatchPrompt(input: CoachReplyBatchPromptInput): string {
   const lines = [
     ...formatPlanContext(input.context),
     "",

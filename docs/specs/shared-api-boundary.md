@@ -25,8 +25,8 @@ Moved out of `packages/shared`:
 
 Stays in `packages/shared`, because the web app reads it or the wire carries it:
 
-- `trainingLoadSchema`, `TrainingLoad`, `formInterpretationSchema`,
-  `FORM_ZONES`, `FORM_INTERPRETATION_LABELS` and
+- `trainingLoadSchema`, `TrainingLoad`, `FormInterpretation`, `FORM_ZONES`,
+  `FORM_INTERPRETATION_LABELS` and
   `interpretTrainingStressBalance` (the load maths above uses the schema as its
   return type).
 - The plan DTO schemas the moved update schemas compose: `seasonPlanSchema`,

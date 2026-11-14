@@ -13,7 +13,7 @@ import {
  */
 
 /** Time constant of the acute (fatigue) load. */
-export const ATL_DAYS = 7;
+const ATL_DAYS = 7;
 /** Time constant of the chronic (fitness) load. */
 export const CTL_DAYS = 42;
 
@@ -71,9 +71,7 @@ export function bikeWorkoutTrainingStressScore(workout: BikeWorkout): number {
  * one-second timeline first, so a missing sample does not distort the result.
  * Returns null when the activity has no usable power samples.
  */
-export function normalizedPower(
-  samples: readonly ActivitySample[],
-): number | null {
+function normalizedPower(samples: readonly ActivitySample[]): number | null {
   const powered = timedPowerSamples(samples);
 
   if (powered.length === 0) {

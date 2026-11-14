@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { parseGeocodeResponse, searchLocations } from "./geocode.js";
+import { searchLocations } from "./geocode.js";
 
 function toUrl(input: string | URL | Request): URL {
   if (input instanceof URL) {
@@ -8,10 +8,16 @@ function toUrl(input: string | URL | Request): URL {
   return typeof input === "string" ? new URL(input) : new URL(input.url);
 }
 
+function search(body: unknown) {
+  return searchLocations("Oslo", () =>
+    Promise.resolve(new Response(JSON.stringify(body), { status: 200 })),
+  );
+}
+
 describe("geocoding", () => {
-  it("parses a street address into a readable suggestion", () => {
+  it("parses a street address into a readable suggestion", async () => {
     expect(
-      parseGeocodeResponse([
+      await search([
         {
           name: "",
           lat: "63.3906332",
@@ -53,9 +59,9 @@ describe("geocoding", () => {
     ]);
   });
 
-  it("returns an empty list when the service finds nothing", () => {
-    expect(parseGeocodeResponse([])).toEqual([]);
-    expect(parseGeocodeResponse({})).toEqual([]);
+  it("returns an empty list when the service finds nothing", async () => {
+    expect(await search([])).toEqual([]);
+    expect(await search({})).toEqual([]);
   });
 
   it("requests Nominatim with the query and an identifying user agent", async () => {

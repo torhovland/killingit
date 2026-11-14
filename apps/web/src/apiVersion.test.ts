@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import {
   claimOutdatedReload,
-  OUTDATED_RELOAD_MARKER,
   reportApiOutdated,
   subscribeApiOutdated,
 } from "./apiVersion";
@@ -9,6 +8,7 @@ import {
 function fakeStorage(initial: Record<string, string> = {}) {
   const values = new Map(Object.entries(initial));
   return {
+    values,
     getItem: (key: string) => values.get(key) ?? null,
     setItem: (key: string, value: string) => {
       values.set(key, value);
@@ -44,7 +44,7 @@ describe("api version mismatch notices", () => {
     expect(claimOutdatedReload(storage, now)).toBe(true);
     expect(claimOutdatedReload(storage, now + 1000)).toBe(false);
     expect(claimOutdatedReload(storage, now + 60_001)).toBe(true);
-    expect(storage.getItem(OUTDATED_RELOAD_MARKER)).toBe(String(now + 60_001));
+    expect([...storage.values.values()]).toEqual([String(now + 60_001)]);
   });
 
   it("shows the notice instead of reloading when storage is unavailable", () => {

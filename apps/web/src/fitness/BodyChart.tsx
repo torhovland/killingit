@@ -53,7 +53,7 @@ export interface BodyChartProps {
  * drawn dotted. When the athlete chooses the season view, the coach's diet
  * targets are drawn as a second dotted line with markers.
  */
-export function BodyChart({
+function BodyChart({
   days,
   weight,
   bodyFat,

@@ -5,7 +5,7 @@ import { z } from "zod";
  * percentage of FTP so the same workout can be exported to a trainer app
  * without needing the athlete's absolute wattage.
  */
-export const bikeWorkoutIntervalSchema = z.object({
+const bikeWorkoutIntervalSchema = z.object({
   /** How long the block lasts. */
   durationSeconds: z
     .number()

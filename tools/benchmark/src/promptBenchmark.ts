@@ -9,7 +9,7 @@ import {
 } from "./promptBenchmarkInput.js";
 import type { ReviseSeasonGates } from "./promptBenchmarkTypes.js";
 
-export const BENCHMARK_COMPONENT_KEYS = [
+const BENCHMARK_COMPONENT_KEYS = [
   "contract",
   "fidelity",
   "design",
@@ -312,7 +312,7 @@ function checkTopLevelKeys(
  * Checks the daily-update response: today's session, tomorrow's session, the
  * revised week and the diet/body inputs the app stores with it.
  */
-export function validateTodayPlan(plan: unknown): string[] {
+function validateTodayPlan(plan: unknown): string[] {
   if (!isRecord(plan)) return ["response is not an object"];
   const errors: string[] = [];
   checkTopLevelKeys(
@@ -369,7 +369,7 @@ function addOneDay(date: string): string {
 }
 
 /** Checks that the season revision has the requested shape before judging. */
-export function validateReviseSeasonPlan(plan: unknown): string[] {
+function validateReviseSeasonPlan(plan: unknown): string[] {
   if (!isRecord(plan)) return ["response is not an object"];
   const errors: string[] = [];
   checkTopLevelKeys(

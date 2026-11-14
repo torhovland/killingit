@@ -70,7 +70,7 @@ function positiveInteger(value: unknown): number | null {
  * Stores one prompt attempt as in flight. The prompt can contain athlete health
  * and training details, so only the admin route reads it back.
  */
-export async function startLlmCall(call: NewLlmCall): Promise<number> {
+async function startLlmCall(call: NewLlmCall): Promise<number> {
   const [row] = await db
     .insert(llmCalls)
     .values({
@@ -93,10 +93,7 @@ export async function startLlmCall(call: NewLlmCall): Promise<number> {
 }
 
 /** Records how one in-flight prompt attempt settled. */
-export async function finishLlmCall(
-  id: number,
-  result: LlmCallResult,
-): Promise<void> {
+async function finishLlmCall(id: number, result: LlmCallResult): Promise<void> {
   await db
     .update(llmCalls)
     .set({
