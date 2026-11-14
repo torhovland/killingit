@@ -28,6 +28,27 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Third-party connection failures. The session is still valid, so the client
+ * must not renew the token and retry; the athlete has to fix the connection in
+ * Settings. See `docs/specs/third-party-credential-failures.md`.
+ */
+const CREDENTIAL_FAILURE_CODES: ReadonlySet<ApiErrorCode> = new Set([
+  "garmin_auth_failed",
+  "llm_key_invalid",
+]);
+
+/** Whether a failure asks the athlete to reconnect a third-party service. */
+export function isCredentialFailure(
+  error: unknown,
+): error is ApiError & { code: ApiErrorCode } {
+  return (
+    error instanceof ApiError &&
+    error.code !== null &&
+    CREDENTIAL_FAILURE_CODES.has(error.code)
+  );
+}
+
 interface ApiFailureContext {
   method: string;
   url: string;

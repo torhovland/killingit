@@ -159,7 +159,11 @@ only replaces that module.
   token, `fetchJsonAuthed` calls `getToken({ forceRefresh: true })`, which
   bypasses the Auth0 token cache (`cacheMode: "off"`), and retries the request
   once. This covers the two-hour web-token lifetime boundary where the cached
-  token has expired but the SDK has not renewed it yet.
+  token has expired but the SDK has not renewed it yet. A third-party
+  credential failure (`garmin_auth_failed`, `llm_key_invalid`) is never
+  refreshed, even if a provider answers 401, because the session is valid and
+  the athlete has to fix the connection; see
+  `docs/specs/third-party-credential-failures.md`.
 - **`useAuth` returns a stable session object.** The adapter wraps each SDK
   callback in `useCallback` and memoizes the returned `AuthState`, so its
   identity changes only when the session does (sign-in state, loading state, or

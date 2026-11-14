@@ -19,13 +19,13 @@ import { loadDietContext } from "../diet/context.js";
 import type { DietPromptContext } from "../diet/summary.js";
 import type { GarminCredentials } from "../garmin/client.js";
 import { GARMIN_DAILY_SYNC_WINDOW_DAYS } from "../garmin/dailySync.js";
-import {
-  UpstreamConfigurationError,
-  UpstreamError,
-} from "../http/upstreamError.js";
+import { UpstreamConfigurationError } from "../http/upstreamError.js";
 import { commentIsNewerThanAnalysis } from "./analysisFreshness.js";
 import { syncGarminFeed } from "./feedSync.js";
-import { loadDecryptedGarminCredentials } from "../garmin/credentials.js";
+import {
+  GarminNotConnectedError,
+  loadDecryptedGarminCredentials,
+} from "../garmin/credentials.js";
 import {
   loadBodyHistoryForUser,
   recordCoachBodyMetrics,
@@ -86,14 +86,6 @@ export const MAX_PREVIEW_SAMPLES = 120;
 const ANALYSIS_CONCURRENCY = 3;
 
 export { commentIsNewerThanAnalysis };
-
-/** The account has not connected Garmin yet. */
-export class GarminNotConnectedError extends UpstreamError {
-  constructor() {
-    super("Not connected to Garmin", 401);
-    this.name = "GarminNotConnectedError";
-  }
-}
 
 /** The stored Garmin credentials could not be decrypted. */
 export class GarminCredentialsError extends UpstreamConfigurationError {

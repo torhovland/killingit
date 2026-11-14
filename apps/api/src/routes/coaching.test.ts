@@ -3,6 +3,8 @@ import type { ActivityFeed } from "../coaching/activities.js";
 import type { CoachQuestion } from "@killingit/shared";
 import { createApp } from "../index.js";
 import type { AppDependencies } from "../dependencies.js";
+import { GarminNotConnectedError } from "../garmin/credentials.js";
+import { LlmAuthError } from "../llm/openrouter.js";
 import type { CoachingInputs } from "../plans/inputs.js";
 import type {
   PeriodReviewWithReply,
@@ -399,6 +401,43 @@ describe("coaching activity feed", () => {
 
     expect(res.status).toBe(200);
     expect(requested.userId).toBe(42);
+  });
+
+  it("reports a missing Garmin connection as a credential failure", async () => {
+    const app = makeApp({
+      loadActivities: () => Promise.reject(new GarminNotConnectedError()),
+    });
+
+    const res = await app.fetch(
+      authenticatedRequest("/api/coaching/activities"),
+    );
+
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({
+      error: {
+        code: "garmin_auth_failed",
+        message: "Not connected to Garmin",
+      },
+    });
+  });
+
+  it("reports a rejected OpenRouter key as a credential failure", async () => {
+    const app = makeApp({
+      loadActivities: () =>
+        Promise.reject(new LlmAuthError("invalid OpenRouter API key")),
+    });
+
+    const res = await app.fetch(
+      authenticatedRequest("/api/coaching/activities"),
+    );
+
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({
+      error: {
+        code: "llm_key_invalid",
+        message: "invalid OpenRouter API key",
+      },
+    });
   });
 
   it("returns the stored feed without syncing Garmin", async () => {

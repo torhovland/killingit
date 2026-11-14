@@ -28,6 +28,29 @@ describe("apiErrorResponseSchema", () => {
     });
   });
 
+  it("accepts the third-party credential failure codes", () => {
+    expect(
+      apiErrorResponseSchema.parse({
+        error: {
+          code: "garmin_auth_failed",
+          message: "Not connected to Garmin",
+        },
+      }),
+    ).toEqual({
+      error: { code: "garmin_auth_failed", message: "Not connected to Garmin" },
+    });
+    expect(
+      apiErrorResponseSchema.parse({
+        error: {
+          code: "llm_key_invalid",
+          message: "invalid OpenRouter API key",
+        },
+      }),
+    ).toEqual({
+      error: { code: "llm_key_invalid", message: "invalid OpenRouter API key" },
+    });
+  });
+
   it("rejects an unknown code or a missing message", () => {
     expect(
       apiErrorResponseSchema.safeParse({

@@ -69,8 +69,9 @@ Weather and daylight are included in the plan prompts; see
 ## Acceptance criteria
 
 1. With `LLM_CREDENTIALS_KEY` set, an athlete can save a valid OpenRouter key
-   and a model for their own account; an invalid key returns 401, an unknown
-   model returns 400, and the stored key is never serialized.
+   and a model for their own account; an invalid key returns 409
+   `llm_key_invalid`, an unknown model returns 400, and the stored key is never
+   serialized.
 2. The model picker lists OpenRouter models; manual model entry works if the
    catalog request fails.
 3. With Garmin connected and OpenRouter configured, visiting the page syncs
@@ -183,7 +184,7 @@ Weather and daylight are included in the plan prompts; see
 - **Privacy:** activity timeseries (including heart rate) is sent to OpenRouter.
   This is required for LLM coaching and is an accepted risk for personal use.
 - **Availability:** OpenRouter or the chosen model being down shows per-activity
-  errors (or a 401/503 for key/transport failures) rather than blanking the app.
+  errors (or a 409/503 for key/transport failures) rather than blanking the app.
 - **Long requests:** analysing a batch can exceed Bun's default 10s idle
   timeout. The server sets `idleTimeout: 255`; without it Bun closes the
   connection and the Vite dev proxy reports HTTP 502 even though analyses are

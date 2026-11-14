@@ -111,8 +111,9 @@ export interface RespondUpstreamErrorOptions {
  * Answers with the response an upstream failure deserves. Routes call this
  * instead of repeating an `instanceof` ladder for every provider error:
  *
- * - An upstream error with a status passes that status and its message through,
- *   so a provider's 401, 403, 429 or 502 reaches the client as itself.
+ * - An upstream error with a status passes that status, its message and its
+ *   code through, so a provider's 403, 429 or 502 reaches the client as itself
+ *   and a rejected credential reaches it as a 409 the client must not retry.
  * - A configuration failure is logged as well as answered, because its cause
  *   never reaches the athlete.
  * - Anything without a status, including an error the API does not recognise,
@@ -130,7 +131,12 @@ export function respondUpstreamError(
     if (err instanceof UpstreamConfigurationError) {
       log(err);
     }
-    return apiError(c, err.status, err.message);
+    return apiError(
+      c,
+      err.status,
+      err.message,
+      err.code === undefined ? {} : { code: err.code },
+    );
   }
   log(err);
   return serviceUnavailable(c);

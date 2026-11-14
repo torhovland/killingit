@@ -5,6 +5,7 @@ import { requireAuth, requireUser } from "../auth/middleware.js";
 import { keyFromRaw } from "../crypto/credentials.js";
 import {
   LlmAuthError,
+  LlmProviderError,
   LlmRateLimitError,
   type LlmProvider,
 } from "../llm/openrouter.js";
@@ -257,7 +258,13 @@ describe("PUT /llm/settings", () => {
 
     const res = await app.fetch(putSettingsRequest({ apiKey: "bad-key" }));
 
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({
+      error: {
+        code: "llm_key_invalid",
+        message: "invalid OpenRouter API key",
+      },
+    });
     expect(saved).toHaveLength(0);
   });
 });
@@ -280,6 +287,27 @@ describe("GET /llm/models", () => {
     expect(res.status).toBe(429);
     expect(await res.json()).toEqual({
       error: { code: "too_many_requests", message: "rate limited" },
+    });
+  });
+
+  it("reports a rejected key as a credential failure, not a 401", async () => {
+    const app = makeApp(() => Promise.resolve(stored), {
+      provider: {
+        ...fakeProvider,
+        listModels: () =>
+          Promise.reject(new LlmProviderError("key rejected", 401)),
+      },
+    });
+
+    const res = await app.fetch(
+      new Request("http://localhost/llm/models", {
+        headers: { authorization: "Bearer anything" },
+      }),
+    );
+
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({
+      error: { code: "llm_key_invalid", message: "key rejected" },
     });
   });
 });

@@ -200,8 +200,10 @@ one swappable corner, and normalizes Garmin activities into the shared
   timestamps; the window is formatted as dates (`_date_window`).
 - **Honest error mapping.** The sidecar maps failures to `401` (bad
   credentials), `403` (MFA required, unsupported), `429` (Garmin rate limit),
-  and `502` (upstream). The Bun routes pass those through instead of collapsing
-  everything to `503`.
+  and `502` (upstream). The Bun routes pass `403`, `429` and `502` through
+  instead of collapsing everything to `503`. A sidecar `401` is the athlete's
+  stored credential, not the API session, so it is translated to `409`
+  `garmin_auth_failed` (see `docs/specs/third-party-credential-failures.md`).
 - **Type normalization fix:** an activity type object without a `typeKey`
   previously produced a stringified dict; it now yields `"unknown"`.
 - **Sidecar tooling is excluded from JS lint/format** (`services/**/.venv`,

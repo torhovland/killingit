@@ -4,7 +4,11 @@ import {
   type LlmModel,
   type LlmPromptKind,
 } from "@killingit/shared";
-import { UpstreamError } from "../http/upstreamError.js";
+import {
+  CREDENTIAL_FAILURE_STATUS,
+  UpstreamError,
+  type UpstreamErrorOptions,
+} from "../http/upstreamError.js";
 
 const DEFAULT_BASE_URL = "https://openrouter.ai/api/v1";
 // Plan generation uses slow reasoning models and a multi-step cascade. Keep
@@ -13,17 +17,32 @@ const DEFAULT_BASE_URL = "https://openrouter.ai/api/v1";
 const REQUEST_TIMEOUT_MS = 240_000;
 const KEY_CHECK_TIMEOUT_MS = 15_000;
 
-/** Raised when the LLM provider rejects or cannot serve a request. */
+/**
+ * Raised when the LLM provider rejects or cannot serve a request. A provider
+ * 401 is translated to the API's credential-failure status, because it names a
+ * stored key the athlete has to replace, not an expired session.
+ */
 export class LlmProviderError extends UpstreamError {
-  constructor(message: string, status?: number, options?: { cause?: unknown }) {
-    super(message, status, options);
+  constructor(
+    message: string,
+    status?: number,
+    options: UpstreamErrorOptions = {},
+  ) {
+    const credentialFailure = status === 401;
+    super(
+      message,
+      credentialFailure ? CREDENTIAL_FAILURE_STATUS : status,
+      credentialFailure
+        ? { ...options, code: options.code ?? "llm_key_invalid" }
+        : options,
+    );
     this.name = "LlmProviderError";
   }
 }
 
-/** Raised specifically for an invalid/revoked API key (mapped to 401). */
+/** An invalid or revoked OpenRouter key the athlete has to replace. */
 export class LlmAuthError extends LlmProviderError {
-  constructor(message: string, options?: { cause?: unknown }) {
+  constructor(message: string, options?: UpstreamErrorOptions) {
     super(message, 401, options);
     this.name = "LlmAuthError";
   }

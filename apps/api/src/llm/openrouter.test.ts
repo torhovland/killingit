@@ -122,6 +122,22 @@ describe("validateKey", () => {
     });
     await expectRejectsWith(provider.validateKey("bad"), LlmAuthError);
   });
+
+  it("answers a rejected key as a 409 credential failure", async () => {
+    const provider = createOpenRouterProvider({
+      fetchImpl: stubFetch(() =>
+        Promise.resolve(jsonResponse({ error: { message: "no" } }, 401)),
+      ),
+    });
+    try {
+      await provider.validateKey("bad");
+      throw new Error("expected validateKey to reject");
+    } catch (err) {
+      expect(err).toBeInstanceOf(LlmAuthError);
+      expect((err as LlmAuthError).status).toBe(409);
+      expect((err as LlmAuthError).code).toBe("llm_key_invalid");
+    }
+  });
 });
 
 describe("complete", () => {

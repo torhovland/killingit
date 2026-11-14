@@ -6,22 +6,39 @@ import {
   type GarminDailyResponse,
   type GarminMetricsResponse,
 } from "@killingit/shared";
-import { UpstreamError } from "../http/upstreamError.js";
+import {
+  CREDENTIAL_FAILURE_STATUS,
+  UpstreamError,
+  type UpstreamErrorOptions,
+} from "../http/upstreamError.js";
 
 /**
  * Thrown when the Garmin sidecar rejects a request — either an authentication
- * failure (bad credentials) or some other error the sidecar surfaced.
+ * failure (bad credentials) or some other error the sidecar surfaced. A
+ * sidecar 401 is translated to the API's credential-failure status, because it
+ * describes the athlete's stored connection, not their session.
  */
 export class GarminSidecarError extends UpstreamError {
-  constructor(message: string, status?: number, options?: { cause?: unknown }) {
-    super(message, status, options);
+  constructor(
+    message: string,
+    status?: number,
+    options: UpstreamErrorOptions = {},
+  ) {
+    const credentialFailure = status === 401;
+    super(
+      message,
+      credentialFailure ? CREDENTIAL_FAILURE_STATUS : status,
+      credentialFailure
+        ? { ...options, code: options.code ?? "garmin_auth_failed" }
+        : options,
+    );
     this.name = "GarminSidecarError";
   }
 }
 
-/** Raised specifically for bad-credentials responses (mapped to 401). */
+/** A rejected Garmin credential the athlete has to update in Settings. */
 export class GarminAuthError extends GarminSidecarError {
-  constructor(message: string, options?: { cause?: unknown }) {
+  constructor(message: string, options?: UpstreamErrorOptions) {
     super(message, 401, options);
     this.name = "GarminAuthError";
   }

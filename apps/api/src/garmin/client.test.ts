@@ -285,8 +285,21 @@ describe("sidecarAuthHeaders", () => {
 });
 
 describe("error classes", () => {
-  it("GarminAuthError carries status 401", () => {
+  it("answers a rejected credential as a 409 credential failure", () => {
     const err = new GarminAuthError("bad");
-    expect(err.status).toBe(401);
+    expect(err.status).toBe(409);
+    expect(err.code).toBe("garmin_auth_failed");
+  });
+
+  it("translates a sidecar 401 to a credential failure", () => {
+    const err = new GarminSidecarError("session rejected", 401);
+    expect(err.status).toBe(409);
+    expect(err.code).toBe("garmin_auth_failed");
+  });
+
+  it("keeps a sidecar 403 as a forbidden upstream answer", () => {
+    const err = new GarminSidecarError("MFA required", 403);
+    expect(err.status).toBe(403);
+    expect(err.code).toBeUndefined();
   });
 });

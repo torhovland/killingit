@@ -100,6 +100,66 @@ describe("fetchJsonAuthed", () => {
     );
   });
 
+  it("does not retry a third-party credential failure", async () => {
+    stubFetch(
+      jsonResponse(
+        {
+          error: {
+            code: "garmin_auth_failed",
+            message: "invalid Garmin credentials",
+          },
+        },
+        409,
+      ),
+      jsonResponse({ ok: true }, 200),
+    );
+    const calls: Array<{ forceRefresh?: boolean } | undefined> = [];
+    const auth = fakeAuth((options) => {
+      calls.push(options);
+      return Promise.resolve("test-token");
+    });
+
+    let caught: unknown;
+    try {
+      await fetchJsonAuthed<{ ok: boolean }>("http://api/activities", auth);
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(ApiError);
+    expect((caught as ApiError).code).toBe("garmin_auth_failed");
+    expect((caught as Error).message).toBe("invalid Garmin credentials");
+    expect(calls).toEqual([undefined]);
+    expect(captured).toHaveLength(1);
+  });
+
+  it("does not renew the token for a credential code even on a 401", async () => {
+    stubFetch(
+      jsonResponse(
+        { error: { code: "llm_key_invalid", message: "invalid API key" } },
+        401,
+      ),
+      jsonResponse({ ok: true }, 200),
+    );
+    const calls: Array<{ forceRefresh?: boolean } | undefined> = [];
+    const auth = fakeAuth((options) => {
+      calls.push(options);
+      return Promise.resolve("test-token");
+    });
+
+    let caught: unknown;
+    try {
+      await fetchJsonAuthed<{ ok: boolean }>("http://api/activities", auth);
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(ApiError);
+    expect((caught as ApiError).code).toBe("llm_key_invalid");
+    expect(calls).toEqual([undefined]);
+    expect(captured).toHaveLength(1);
+  });
+
   it("does not retry other API failures", async () => {
     stubFetch(new Response("Server error", { status: 500 }));
     const auth = fakeAuth(() => Promise.resolve("test-token"));
@@ -372,6 +432,34 @@ describe("fetchFileAuthed", () => {
     expect((captured[1]?.headers as Headers).get("authorization")).toBe(
       "Bearer fresh-token",
     );
+  });
+
+  it("does not retry a credential failure when downloading a file", async () => {
+    stubFetch(
+      new Response(
+        JSON.stringify({
+          error: { code: "garmin_auth_failed", message: "Not connected" },
+        }),
+        { status: 409, headers: { "content-type": "application/json" } },
+      ),
+    );
+    const calls: Array<{ forceRefresh?: boolean } | undefined> = [];
+    const auth = fakeAuth((options) => {
+      calls.push(options);
+      return Promise.resolve("test-token");
+    });
+
+    let caught: unknown;
+    try {
+      await fetchFileAuthed("http://api/file", auth);
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(ApiError);
+    expect((caught as ApiError).code).toBe("garmin_auth_failed");
+    expect(calls).toEqual([undefined]);
+    expect(captured).toHaveLength(1);
   });
 
   it("surfaces non-401 failures as ApiError with the server detail", async () => {
