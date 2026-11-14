@@ -38,6 +38,14 @@ function render(overrides: Partial<Parameters<typeof BodyChart>[0]> = {}) {
   );
 }
 
+/** The `d` attribute of the path a chart draws for one series. */
+function pathData(html: string, series: string): string {
+  const match = html.match(
+    new RegExp(`d="([^"]*)"[^>]*data-series="${series}"`),
+  );
+  return match?.[1] ?? "";
+}
+
 describe("BodyChart", () => {
   it("offers the season view when diet targets exist", () => {
     const html = render();
@@ -56,6 +64,15 @@ describe("BodyChart", () => {
     expect(on).toContain('data-target-date="2026-11-01"');
     expect(on).toContain('data-target-date="2026-12-01"');
     expect(on).toContain("Estimated diet progress");
+  });
+
+  it("joins the sparse target points into one line", () => {
+    const line = pathData(render({ showFuture: true }), "diet-target-weight");
+
+    // The targets are weeks or months apart, so a broken line would show one
+    // subpath per target instead of one trend.
+    expect(line.match(/M/g)).toHaveLength(1);
+    expect(line.match(/L/g)?.length).toBeGreaterThan(0);
   });
 
   it("hides the season view without a target or a future season end", () => {

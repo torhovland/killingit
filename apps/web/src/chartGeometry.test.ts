@@ -5,13 +5,16 @@ import {
   CHART_HEIGHT,
   CHART_PADDING,
   CHART_WIDTH,
+  chartPath,
   chartScale,
+  datedPathPoints,
   formatChartDate,
   indexAt,
   labelIndices,
   lastIndexOnOrBefore,
   linePath,
   niceDomain,
+  roundChartValue,
   tsbSegments,
   zoneBlocks,
 } from "./chartGeometry";
@@ -124,6 +127,78 @@ describe("paths", () => {
     expect(linePath([0, 5, 10], scale)).toBe(
       `M0 ${scale.plotHeight} L${scale.plotWidth / 2} ${scale.plotHeight / 2} L${scale.plotWidth} 0`,
     );
+  });
+
+  it("joins the points it is given, even across a skipped day", () => {
+    expect(
+      chartPath(
+        [
+          { index: 0, value: 0 },
+          { index: 2, value: 10 },
+        ],
+        scale,
+      ),
+    ).toBe(`M0 ${scale.plotHeight} L${scale.plotWidth} 0`);
+  });
+
+  it("starts a new subpath after a missing value", () => {
+    const fourPoints = chartScale(4, { min: 0, max: 10 });
+
+    expect(
+      chartPath(
+        [
+          { index: 0, value: 0 },
+          { index: 1, value: 5 },
+          { index: 2, value: null },
+          { index: 3, value: 10 },
+        ],
+        fourPoints,
+      ),
+    ).toBe(
+      `M0 ${fourPoints.plotHeight} L${roundChartValue(fourPoints.plotWidth / 3)} ${fourPoints.plotHeight / 2} M${fourPoints.plotWidth} 0`,
+    );
+  });
+
+  it("rounds a coordinate to a tenth", () => {
+    const odd = chartScale(7, { min: 0, max: 7 });
+
+    expect(roundChartValue(odd.x(1))).toBe(98.7);
+    expect(roundChartValue(odd.y(1))).toBe(246.9);
+    expect(chartPath([{ index: 1, value: 1 }], odd)).toBe("M98.7 246.9");
+  });
+});
+
+describe("datedPathPoints", () => {
+  const dayIndex = new Map([
+    ["2026-10-20", 0],
+    ["2026-10-21", 1],
+    ["2026-10-22", 2],
+  ]);
+  const points = [
+    { date: "2026-10-20", value: 82 },
+    { date: "2026-10-21", value: 81.8 },
+    { date: "2026-10-22", value: 81.5 },
+  ];
+
+  it("places a dated series on the days the map knows", () => {
+    expect(
+      datedPathPoints([...points, { date: "2026-10-23", value: 81 }], dayIndex),
+    ).toEqual([
+      { index: 0, value: 82 },
+      { index: 1, value: 81.8 },
+      { index: 2, value: 81.5 },
+    ]);
+  });
+
+  it("limits the points to an inclusive index range", () => {
+    expect(datedPathPoints(points, dayIndex, { to: 1 })).toEqual([
+      { index: 0, value: 82 },
+      { index: 1, value: 81.8 },
+    ]);
+    expect(datedPathPoints(points, dayIndex, { from: 1 })).toEqual([
+      { index: 1, value: 81.8 },
+      { index: 2, value: 81.5 },
+    ]);
   });
 });
 

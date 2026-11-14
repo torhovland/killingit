@@ -519,6 +519,12 @@ made and recorded, and `docs/adrs/` for the accepted ones.
   repeating a class string in a page. See
   `docs/specs/web-component-library.md`, `docs/specs/modal-dialog.md` and
   ADR 0027.
+- Every fitness chart draws its lines through `chartPath` in
+  `apps/web/src/chartGeometry.ts`: a chart supplies points with a day index and
+  a value, and the module owns the `M`/`L` assembly and the single coordinate
+  rounding (`roundChartValue`). `linePath`, `nullAwarePath` and
+  `datedPathPoints` only shape a series into points, and a chart does not build
+  path strings of its own. See `docs/specs/fitness-page.md` and ADR 0049.
 - Web unit tests render components for real: `@testing-library/react` and
   `@testing-library/user-event` run against `happy-dom`, registered as a
   `bun:test` preload in `apps/web/bunfig.toml` with `src/testSetup.ts`. Effects,

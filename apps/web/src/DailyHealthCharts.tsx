@@ -11,6 +11,7 @@ import {
   formatChartDate,
   niceDomain,
   nullAwarePath,
+  roundChartValue,
   type ChartScale,
   type Domain,
 } from "./chartGeometry";
@@ -64,10 +65,6 @@ function formatSleepAxis(value: number): string {
   return `${Math.round(value / 60)}h`;
 }
 
-function round(value: number): number {
-  return Math.round(value * 100) / 100;
-}
-
 /** A stacked area segment, breaking wherever a component is missing. */
 function stackedAreaPath(
   top: readonly (number | null)[],
@@ -81,13 +78,14 @@ function stackedAreaPath(
       return;
     }
     const forward = run.map(
-      (index) => `${round(scale.x(index))} ${round(scale.y(top[index] ?? 0))}`,
+      (index) =>
+        `${roundChartValue(scale.x(index))} ${roundChartValue(scale.y(top[index] ?? 0))}`,
     );
     const backward = [...run]
       .reverse()
       .map(
         (index) =>
-          `${round(scale.x(index))} ${round(scale.y(bottom[index] ?? 0))}`,
+          `${roundChartValue(scale.x(index))} ${roundChartValue(scale.y(bottom[index] ?? 0))}`,
       );
     path += `M${forward.join(" L")} L${backward.join(" L")} Z `;
     run = [];
