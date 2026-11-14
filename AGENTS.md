@@ -764,7 +764,10 @@ through a disciplined process:
   dependency field — type it `T | undefined` and forward it. Every loader and
   writer a plan run uses is a `PlanTriggerDependencies` field, and the
   enrichment inputs are fail-open while the account's own state and the
-  activity feed are required. See `docs/specs/api-dependency-wiring.md`,
+  activity feed are required. The required preparation lives in
+  `loadPlanGenerationContext` (`plans/generationContext.ts`), which checks the
+  account's model before the Garmin sync so a missing key is reported without
+  syncing. See `docs/specs/api-dependency-wiring.md`,
   `docs/specs/plan-input-loading.md` and ADR 0023.
 - **Keep exported constants above exported functions.** Top-level `export const`
   declarations come before `export function` declarations in a module. The

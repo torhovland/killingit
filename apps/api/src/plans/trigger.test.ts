@@ -8,6 +8,8 @@ import type { CoachingInputs } from "./inputs.js";
 import type { PlanGenerationStep } from "./steps.js";
 import { idleGenerationStatus } from "./store.js";
 import type { PlanGenerationStore, PlanStore } from "./store.js";
+import { isGenerationSuperseded } from "./generation.js";
+import { loadPlanGenerationContext } from "./generationContext.js";
 import {
   triggerPlanGeneration,
   type PlanTriggerDependencies,
@@ -56,6 +58,8 @@ const user = {
 class RecordingGenerationStore implements PlanGenerationStore {
   status: PlanGenerationStatus = idleGenerationStatus();
   failures: string[] = [];
+  /** The steps the run showed, in order. */
+  steps: PlanGenerationStep[] = [];
 
   load(): Promise<PlanGenerationStatus> {
     return Promise.resolve(this.status);
@@ -87,6 +91,7 @@ class RecordingGenerationStore implements PlanGenerationStore {
     if (this.status.runId !== runId) {
       return Promise.resolve();
     }
+    this.steps.push(step);
     this.status = {
       ...this.status,
       step: step.label,
@@ -260,6 +265,48 @@ describe("plan generation failure handling", () => {
     }
   });
 
+  it("reports a missing model before it syncs activities", async () => {
+    const generations = new RecordingGenerationStore();
+    const deps = dependencies(generations, {
+      // An absent feed loader means "sync first"; a run without a model must
+      // not reach that sync.
+      loadActivities: undefined,
+      loadLlm: () => Promise.resolve(null),
+    });
+
+    await triggerPlanGeneration(deps, { userId: 242, today: "2026-11-12" });
+    await settle();
+
+    expect(generations.status.status).toBe("error");
+    expect(generations.status.error).toBe(
+      "OpenRouter is not configured. Add a key and model first.",
+    );
+    expect(generations.failures).toEqual([
+      "OpenRouter is not configured. Add a key and model first.",
+    ]);
+    expect(generations.steps).toEqual([]);
+  });
+
+  it("reads the model before the already-loaded activity feed", async () => {
+    const generations = new RecordingGenerationStore();
+    const reads: string[] = [];
+    const deps = dependencies(generations, {
+      loadLlm: () => {
+        reads.push("model");
+        return Promise.resolve(llm);
+      },
+      loadActivities: () => {
+        reads.push("activities");
+        return Promise.resolve(emptyFeed);
+      },
+    });
+
+    await triggerPlanGeneration(deps, { userId: 242, today: "2026-11-12" });
+    await waitFor(() => reads.includes("activities"));
+
+    expect(reads.slice(0, 2)).toEqual(["model", "activities"]);
+  });
+
   it("propagates a failed run claim without starting a run", async () => {
     const generations = new FailingBeginStore();
     const deps = dependencies(generations);
@@ -273,6 +320,78 @@ describe("plan generation failure handling", () => {
     await settle();
 
     expect((failed as Error).message).toBe("database unavailable");
+    expect(generations.failures).toEqual([]);
+  });
+});
+
+describe("loadPlanGenerationContext", () => {
+  const run = {
+    userId: 242,
+    today: "2026-11-12",
+    runId: "run-1",
+    signal: new AbortController().signal,
+  };
+
+  it("returns the stored plan, the account and the feed a run needs", async () => {
+    const generations = new RecordingGenerationStore();
+    await generations.begin(run.userId, run.runId);
+    const deps = dependencies(generations);
+
+    const context = await loadPlanGenerationContext(deps, run);
+
+    expect(context).not.toBeNull();
+    expect(context?.plan).toBeNull();
+    expect(context?.answers).toEqual([]);
+    expect(context?.llm).toEqual(llm);
+    expect(context?.coachingInputs).toEqual(emptyInputs);
+    expect(context?.user).toEqual(user);
+    expect(context?.coachAnswers).toEqual([]);
+    expect(context?.surveyAdjustments).toEqual([]);
+    expect(context?.activities).toEqual(emptyFeed);
+    expect(context?.activitiesSnapshotAt).toBeGreaterThan(0);
+  });
+
+  it("fails the generation when a required input cannot be read", async () => {
+    const generations = new RecordingGenerationStore();
+    await generations.begin(run.userId, run.runId);
+    const deps = dependencies(generations, {
+      loadCoachingInputs: () =>
+        Promise.reject(new Error("coaching inputs unavailable")),
+    });
+
+    let failed: unknown = null;
+    try {
+      await loadPlanGenerationContext(deps, run);
+    } catch (err) {
+      failed = err;
+    }
+
+    expect((failed as Error).message).toBe("coaching inputs unavailable");
+    expect(generations.failures).toEqual(["coaching inputs unavailable"]);
+  });
+
+  it("reports a superseded run instead of failing the row", async () => {
+    const generations = new RecordingGenerationStore();
+    await generations.begin(run.userId, run.runId);
+    const controller = new AbortController();
+    const deps = dependencies(generations, {
+      loadCoachingInputs: () => {
+        controller.abort();
+        return Promise.reject(new Error("aborted"));
+      },
+    });
+
+    let failed: unknown = null;
+    try {
+      await loadPlanGenerationContext(deps, {
+        ...run,
+        signal: controller.signal,
+      });
+    } catch (err) {
+      failed = err;
+    }
+
+    expect(isGenerationSuperseded(failed)).toBe(true);
     expect(generations.failures).toEqual([]);
   });
 });
