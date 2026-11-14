@@ -3,10 +3,10 @@ import { Hono } from "hono";
 import { z } from "zod";
 import {
   GarminCredentialsError,
-  GarminNotConnectedError,
   LlmCredentialsError,
 } from "../coaching/activities.js";
 import { GarminAuthError, GarminSidecarError } from "../garmin/client.js";
+import { GarminNotConnectedError } from "../garmin/credentials.js";
 import {
   LlmAuthError,
   LlmProviderError,
@@ -102,16 +102,23 @@ describe("respondUpstreamError", () => {
   const cases: Case[] = [
     {
       err: new GarminAuthError("invalid Garmin credentials"),
-      status: 401,
-      code: "unauthorized",
+      status: 409,
+      code: "garmin_auth_failed",
       message: "invalid Garmin credentials",
       logged: false,
     },
     {
       err: new GarminNotConnectedError(),
-      status: 401,
-      code: "unauthorized",
+      status: 409,
+      code: "garmin_auth_failed",
       message: "Not connected to Garmin",
+      logged: false,
+    },
+    {
+      err: new GarminSidecarError("Garmin session rejected", 401),
+      status: 409,
+      code: "garmin_auth_failed",
+      message: "Garmin session rejected",
       logged: false,
     },
     {
@@ -147,9 +154,16 @@ describe("respondUpstreamError", () => {
     },
     {
       err: new LlmAuthError("invalid OpenRouter API key"),
-      status: 401,
-      code: "unauthorized",
+      status: 409,
+      code: "llm_key_invalid",
       message: "invalid OpenRouter API key",
+      logged: false,
+    },
+    {
+      err: new LlmProviderError("OpenRouter key rejected", 401),
+      status: 409,
+      code: "llm_key_invalid",
+      message: "OpenRouter key rejected",
       logged: false,
     },
     {

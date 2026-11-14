@@ -14,6 +14,8 @@ export const apiErrorCodeSchema = z.enum([
   "payment_required",
   "too_many_requests",
   "api_version_mismatch",
+  "garmin_auth_failed",
+  "llm_key_invalid",
   "bad_gateway",
   "service_unavailable",
   "internal_error",

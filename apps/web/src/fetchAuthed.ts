@@ -1,6 +1,11 @@
 import * as Sentry from "@sentry/react";
 import { reportApiOutdated, withApiVersion } from "./apiVersion";
-import { fetchJson, apiFailure, ApiError } from "./fetchJson";
+import {
+  fetchJson,
+  apiFailure,
+  ApiError,
+  isCredentialFailure,
+} from "./fetchJson";
 import type { AuthState } from "./auth";
 
 /**
@@ -10,8 +15,11 @@ import type { AuthState } from "./auth";
  * rejection stays the platform's `AbortError` rather than becoming an
  * {@link ApiError}. A 401 can mean the cached access token expired between
  * renewals, so renew once with the provider's cache bypassed and retry the
- * request before surfacing the failure. A 426 means the API no longer answers
- * this app build's contract version, which the app shows as an update notice.
+ * request before surfacing the failure. A third-party credential failure is
+ * never renewed, even if a provider answers 401, because the session is valid
+ * and the athlete has to fix the connection. A 426 means the API no longer
+ * answers this app build's contract version, which the app shows as an update
+ * notice.
  */
 export async function fetchJsonAuthed<T>(
   url: string,
@@ -25,7 +33,7 @@ export async function fetchJsonAuthed<T>(
   try {
     return await requestJson<T>(url, token, init);
   } catch (error) {
-    if (!(error instanceof ApiError) || error.status !== 401) {
+    if (!shouldRenewSession(error)) {
       throw error;
     }
     signal?.throwIfAborted();
@@ -49,6 +57,19 @@ function requestJson<T>(
   }
 
   return fetchJson<T>(url, { ...init, headers: withApiVersion(headers) });
+}
+
+/**
+ * Whether a failure can mean the cached access token expired. A credential
+ * failure is excluded by its code as well as its status, so a provider that
+ * one day answers 401 again cannot make the client renew a valid session.
+ */
+function shouldRenewSession(error: unknown): error is ApiError {
+  return (
+    error instanceof ApiError &&
+    error.status === 401 &&
+    !isCredentialFailure(error)
+  );
 }
 
 /**
@@ -118,7 +139,7 @@ export async function fetchFileAuthed(
   try {
     return await requestFile(url, token, init);
   } catch (error) {
-    if (!(error instanceof ApiError) || error.status !== 401) {
+    if (!shouldRenewSession(error)) {
       throw error;
     }
     signal?.throwIfAborted();

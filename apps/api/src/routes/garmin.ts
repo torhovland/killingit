@@ -6,17 +6,16 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { zValidator } from "../http/validation.js";
 import { getUser } from "../auth/middleware.js";
-import {
-  respondUpstreamError,
-  serviceUnavailable,
-  unauthorized,
-} from "../http/errors.js";
+import { respondUpstreamError, serviceUnavailable } from "../http/errors.js";
 import {
   authenticateGarmin,
   syncGarminActivities,
   syncGarminMetrics,
 } from "../garmin/client.js";
-import { loadDecryptedGarminCredentials } from "../garmin/credentials.js";
+import {
+  GarminNotConnectedError,
+  loadDecryptedGarminCredentials,
+} from "../garmin/credentials.js";
 import { encrypt, garminCredentialsKeyFromEnv } from "../garmin/crypto.js";
 import { loadCredentials, saveCredentials } from "../garmin/store.js";
 import { syncGarminDailyHistory } from "../garmin/dailySync.js";
@@ -114,7 +113,7 @@ export function createGarminRoute(deps: GarminRouteDependencies = {}): Hono {
         );
       }
       if (!credentials) {
-        return unauthorized(c, "Not connected to Garmin");
+        return respondUpstreamError(c, new GarminNotConnectedError());
       }
 
       try {

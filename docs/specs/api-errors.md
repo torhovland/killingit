@@ -70,22 +70,22 @@ did not expect; it carries no structured context to show.
 
 An error from an upstream dependency — the Garmin sidecar or the LLM provider —
 carries the HTTP status the API answers with. The base class,
-`UpstreamError` in `apps/api/src/http/upstreamError.ts`, holds that `status`
-and the message; a provider reports one when it answered the request, such as
-401 for rejected credentials, 403 when Garmin needs MFA, 429 for rate limiting
-or 502 for a gateway failure. The status is optional because a failure such as
-a timeout has no answer of its own.
+`UpstreamError` in `apps/api/src/http/upstreamError.ts`, holds that `status`,
+an optional `code` and the message; a provider reports one when it answered the
+request, such as 403 when Garmin needs MFA, 429 for rate limiting or 502 for a
+gateway failure. The status is optional because a failure such as a timeout has
+no answer of its own.
 
 `respondUpstreamError(c, err, { log })` in `apps/api/src/http/errors.ts` is the
 single mapper. No route repeats an `instanceof` ladder for provider errors:
 
-| Error                                           | Response                                            |
-| ----------------------------------------------- | --------------------------------------------------- |
-| `GarminSidecarError`, `LlmProviderError`        | the provider's own status and message, else 503     |
-| `GarminAuthError`, `LlmAuthError`               | 401 with the provider's message                     |
-| `GarminNotConnectedError`                       | 401 with "Not connected to Garmin"                  |
-| `GarminCredentialsError`, `LlmCredentialsError` | 503 with the configuration message, also logged     |
-| anything else, or an upstream error without one | 503 `Service Unavailable`, logged through the route |
+| Error                                           | Response                                             |
+| ----------------------------------------------- | ---------------------------------------------------- |
+| `GarminSidecarError`, `LlmProviderError`        | the provider's own status and message, else 503      |
+| `GarminAuthError`, `GarminNotConnectedError`    | 409 `garmin_auth_failed` with the provider's message |
+| `LlmAuthError`                                  | 409 `llm_key_invalid` with the provider's message    |
+| `GarminCredentialsError`, `LlmCredentialsError` | 503 with the configuration message, also logged      |
+| anything else, or an upstream error without one | 503 `Service Unavailable`, logged through the route  |
 
 `UpstreamConfigurationError` marks a failure in the API's own configuration,
 such as a stored credential that cannot be decrypted, so the mapper logs it
@@ -97,6 +97,34 @@ on the line.
 A status outside the failure range is not echoed: `apiError` turns it into a
 503, so a misbehaving provider cannot make the API answer 2xx or 3xx for a
 failure.
+
+### Third-party credential failures
+
+A rejected credential is not an authentication failure of the API session.
+Answering `401` would make the web client renew the token and retry a request
+the athlete can only fix in Settings. The API therefore answers every
+third-party credential failure with `409` and a specific code; the provider's
+own `401` is translated by its error class, and a raw `LlmProviderError` or
+`GarminSidecarError` with status 401 is translated the same way:
+
+| Failure                                                                   | Status | Code                 |
+| ------------------------------------------------------------------------- | ------ | -------------------- |
+| Garmin missing or rejected (`GarminAuthError`, `GarminNotConnectedError`) | 409    | `garmin_auth_failed` |
+| OpenRouter key rejected (`LlmAuthError`, provider 401)                    | 409    | `llm_key_invalid`    |
+
+`409` is chosen over `422` because `422` already means `validation_failed` for
+a request body that failed schema validation, and because the credential is
+stored account state that conflicts with the request rather than a malformed
+request. A genuinely unauthenticated request keeps its `401` from
+`requireAuth`, and a provider `403` such as Garmin's MFA requirement keeps its
+`403`.
+
+The web client treats `garmin_auth_failed` and `llm_key_invalid` as credential
+failures: `fetchJsonAuthed` and `fetchFileAuthed` never renew the session for
+them, even if a response regresses to `401`, and the page shows the API's
+message so the athlete knows to fix the connection. A `401` without one of
+those codes still gets the one-shot token refresh. See
+`docs/specs/third-party-credential-failures.md`.
 
 ## Status-to-code mapping
 
@@ -115,7 +143,9 @@ failure.
 | 503    | `service_unavailable`  |
 
 A validation failure from the `zValidator` wrapper uses `validation_failed`
-with `400`, matching the library's existing status.
+with `400`, matching the library's existing status. A third-party credential
+failure keeps the general `409` status but overrides the default `conflict`
+code with `garmin_auth_failed` or `llm_key_invalid`.
 
 ## Acceptance criteria
 
@@ -129,6 +159,10 @@ with `400`, matching the library's existing status.
 4. `ApiError` carries the response `code` and `details` for callers that want
    to branch on them.
 5. Every upstream failure goes through `respondUpstreamError`, which preserves
-   the status and message the provider reported and logs the failures that have
-   none, so no route keeps its own `instanceof` ladder.
-6. The API and web test suites, typecheck, lint and format pass.
+   the status and message the provider reported, adds the error's stable code
+   when it has one, and logs the failures that have none, so no route keeps its
+   own `instanceof` ladder.
+6. A third-party credential failure answers `409` with `garmin_auth_failed` or
+   `llm_key_invalid`, never `401`, and the web client does not renew the
+   session for it.
+7. The API and web test suites, typecheck, lint and format pass.

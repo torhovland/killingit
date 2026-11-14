@@ -201,7 +201,13 @@ describe("per-user Garmin credentials", () => {
 
     const res = await app.fetch(request("/garmin/activities", "athlete-2"));
 
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({
+      error: {
+        code: "garmin_auth_failed",
+        message: "Not connected to Garmin",
+      },
+    });
     expect(synced).toEqual([]);
   });
 
@@ -218,7 +224,36 @@ describe("per-user Garmin credentials", () => {
       }),
     );
 
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({
+      error: {
+        code: "garmin_auth_failed",
+        message: "invalid Garmin credentials",
+      },
+    });
+    expect(stored.size).toBe(0);
+  });
+
+  it("translates a sidecar 401 to a credential failure", async () => {
+    const { app, stored } = makeApp(() =>
+      Promise.reject(new GarminSidecarError("Garmin session rejected", 401)),
+    );
+
+    const res = await app.fetch(
+      request("/garmin/credentials", "athlete-1", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ username: "rider-1", password: "secret" }),
+      }),
+    );
+
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({
+      error: {
+        code: "garmin_auth_failed",
+        message: "Garmin session rejected",
+      },
+    });
     expect(stored.size).toBe(0);
   });
 
