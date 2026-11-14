@@ -27,7 +27,10 @@ transient metrics or diet read failed an otherwise possible plan.
    through `createApp` or by constructing `PlanTriggerDependencies` directly.
 2. One function, `loadPlanInputs` in `trigger.ts`, reads every advisory prompt
    input and owns the fail-open policy for all of them.
-3. A read that fails is logged with its label and the run continues without
+3. One function, `loadPlanGenerationContext` in `generationContext.ts`, prepares
+   a run: it reads the model credentials, runs the Garmin sync and reads the
+   remaining required inputs, and it owns the run's fenced failure handling.
+4. A read that fails is logged with its label and the run continues without
    that input.
 
 ### Out of scope
@@ -42,17 +45,19 @@ transient metrics or diet read failed an otherwise possible plan.
 
 Required inputs fail the run; advisory inputs never do.
 
-| Input                                                        | Policy   |
-| ------------------------------------------------------------ | -------- |
-| stored plan, answers, coaching inputs, account, LLM client   | required |
-| analysed activity feed                                       | required |
-| athlete events                                               | advisory |
-| diet log                                                     | advisory |
-| earlier daily calorie targets                                | advisory |
-| threshold history (summaries and timelines)                  | advisory |
-| body weight and body-fat history                             | advisory |
-| daily health series                                          | advisory |
-| weather forecast (only read when the athlete has a location) | advisory |
+| Input                                                         | Policy   |
+| ------------------------------------------------------------- | -------- |
+| LLM credentials (read first)                                  | required |
+| analysed activity feed                                        | required |
+| stored plan, answers, coaching inputs, account, coach answers | required |
+| survey adjustments                                            | required |
+| athlete events                                                | advisory |
+| diet log                                                      | advisory |
+| earlier daily calorie targets                                 | advisory |
+| threshold history (summaries and timelines)                   | advisory |
+| body weight and body-fat history                              | advisory |
+| daily health series                                           | advisory |
+| weather forecast (only read when the athlete has a location)  | advisory |
 
 A required read failure still fails the generation row, because a plan built for
 another account or without the stored plan would be wrong rather than merely
@@ -64,12 +69,40 @@ series, the coach question and its clearing — are injectable too, but their ow
 failure semantics stay with `generate.ts`, where storing a generated plan is
 fail-open.
 
+## Order of reads
+
+`loadPlanGenerationContext` prepares a run in three stages:
+
+1. the account's model credentials, a fast database read;
+2. the Garmin sync and the analysed feed;
+3. the stored plan, answers, coaching inputs, account, answered coach questions
+   and survey adjustments, in parallel.
+
+The credentials come first on purpose. An account without a key is told
+"OpenRouter is not configured. Add a key and model first." and its generation
+row fails before a slow sync runs, so a missing key costs a database read
+instead of a Garmin round trip. The row already reads "Preparing your plan" when
+the run begins, so this check needs no progress step of its own; the sync and
+preparation steps follow as before. A caller that already holds the analysed
+feed (`routes/coaching/feed.ts`) skips the sync but still checks the key first.
+
+The preparation is fenced like the rest of the run: an aborted run throws
+`GenerationSupersededError` without writing, and any other failure marks the
+generation failed and rethrows.
+
+The prompt windows that `loadPlanInputs` reads are named constants
+(`CALORIE_HISTORY_DAYS` for the earlier calorie targets and
+`DAILY_HEALTH_HISTORY_DAYS` for the daily health series) rather than bare
+numbers at the call site.
+
 ## Acceptance criteria
 
-- `trigger.ts` contains no direct call to a production loader or writer except
-  as the `??` default of a dependency field.
+- `trigger.ts` and `generationContext.ts` contain no direct call to a production
+  loader or writer except as the `??` default of a dependency field.
 - A failing advisory loader is logged and the run reaches the model; a failing
   required loader fails the generation.
+- A run whose account has no model fails with the configuration message and
+  never reaches the Garmin sync.
 - `trigger.test.ts` runs a whole plan run with every loader and writer in
   memory, so it never needs a database.
 - `bun run typecheck`, `bun run lint`, `bun run format`, `bun run test` and

@@ -1,5 +1,4 @@
 import type { ActivityFeed } from "../coaching/activities.js";
-import { loadAnalyzedActivities } from "../coaching/activities.js";
 import { latestActivityAnalysisSince } from "../coaching/analysisRuns.js";
 import { MAX_ANALYZED_ACTIVITIES } from "../coaching/feedCache.js";
 import {
@@ -11,7 +10,6 @@ import { loadDietContext } from "../diet/context.js";
 import { captureCompletedPeriodReviews } from "../coaching/periodReviews.js";
 import { markPlanPromptsFailed } from "../llm/callStore.js";
 import type { LlmClient } from "../llm/client.js";
-import { loadLlmClient } from "../llm/client.js";
 import {
   loadBodyHistoryForUser,
   loadThresholdHistoryForUser,
@@ -21,7 +19,6 @@ import {
 import { loadDailyHealthForUser } from "../metrics/dailyMetrics.js";
 import {
   addDays,
-  startOfWeek,
   type AthleteEvent,
   type AthleteLocation,
   type DailyHealthPoint,
@@ -29,10 +26,7 @@ import {
   type PlanGenerateMode,
 } from "@killingit/shared";
 import type { QuestionAnswerStore } from "../questions/answers.js";
-import {
-  dbCoachingSurveyAdjustmentStore,
-  type CoachingSurveyAdjustmentStore,
-} from "../questions/adjustments.js";
+import type { CoachingSurveyAdjustmentStore } from "../questions/adjustments.js";
 import type { UserStore } from "../users/store.js";
 import {
   fetchWeatherForecasts,
@@ -43,21 +37,21 @@ import { RecentTimestampMap } from "../lib/boundedMap.js";
 import { isAfterPlanTomorrowCutoff } from "./dates.js";
 import {
   clearPendingCoachQuestions,
-  loadAnsweredCoachQuestions,
   saveCoachQuestions,
 } from "./coachQuestions.js";
+import type { loadAnsweredCoachQuestions } from "./coachQuestions.js";
 import {
   GENERATION_HEARTBEAT_MS,
   GenerationSupersededError,
   isGenerationSuperseded,
 } from "./generation.js";
+import { loadPlanGenerationContext } from "./generationContext.js";
 import { runPlanGeneration } from "./generate.js";
 import { planFtpEstimates } from "./generate.js";
 import type { PlanGenerationContext } from "./generate.js";
 import { loadPlanDayCalories } from "./dayCalories.js";
-import { loadCoachingInputs, type CoachingInputs } from "./inputs.js";
+import type { CoachingInputs } from "./inputs.js";
 import { claimRun, releaseRun } from "./runs.js";
-import { PLAN_GENERATION_STEPS } from "./steps.js";
 import { athleteTextChanged } from "./athleteText.js";
 import {
   latestActivityAnalysisTimestamp,
@@ -184,6 +178,12 @@ const EMPTY_THRESHOLD_HISTORY: ThresholdHistory = {
 /** The body history used when the stored measurements cannot be read. */
 const EMPTY_BODY_HISTORY: BodyHistory = { weight: [], bodyFat: [] };
 
+/** How far back a plan prompt reads the coach's earlier calorie targets. */
+const CALORIE_HISTORY_DAYS = 28;
+
+/** How far back a plan prompt reads the daily health and recovery series. */
+const DAILY_HEALTH_HISTORY_DAYS = 42;
+
 /**
  * Starts a plan generation in the background. The newest request always owns
  * the run: an older run is aborted and its writes are fenced by the run id.
@@ -284,9 +284,8 @@ export function startHeartbeat(
  * Reads one advisory plan input. Every prompt input a run reads after the
  * account's own state is advisory: an unavailable events, diet, metrics,
  * calorie or weather source is logged and the coach plans without it, because
- * a plan from a thinner picture is better than no plan at all. Only the stored
- * plan, the answers, the coaching inputs, the account, the model and the
- * activity feed are required, and `runPlanForUser` reads those directly.
+ * a plan from a thinner picture is better than no plan at all. Only the inputs
+ * `loadPlanGenerationContext` reads are required.
  */
 async function attempt<T>(
   label: string,
@@ -354,7 +353,7 @@ async function loadPlanInputs(
       async () => {
         const targets = await loadDayCalories(
           userId,
-          addDays(today, -28),
+          addDays(today, -CALORIE_HISTORY_DAYS),
           today,
         );
         return [...targets]
@@ -382,7 +381,7 @@ async function loadPlanInputs(
       () =>
         (deps.loadDailyHealth ?? loadDailyHealthForUser)(
           userId,
-          addDays(today, -42),
+          addDays(today, -DAILY_HEALTH_HISTORY_DAYS),
           today,
         ),
       undefined,
@@ -415,7 +414,7 @@ async function loadPlanInputs(
 }
 
 /**
- * Prepares one run and executes it. The caller has already claimed the
+ * Loads one run's context and executes it. The caller has already claimed the
  * generation row and owns the heartbeat, so this can run after an optional
  * reply phase in the same run.
  */
@@ -425,82 +424,23 @@ export async function runPlanForUser(
 ): Promise<void> {
   const { userId, today, timezone, mode, force, keepToday } = options;
 
-  let plan: Awaited<ReturnType<PlanStore["load"]>>;
-  let answers: Awaited<ReturnType<QuestionAnswerStore["listForUser"]>>;
-  let activities: ActivityFeed;
-  let llm: LlmClient | null;
-  let coachingInputs: CoachingInputs;
-  let user: Awaited<ReturnType<UserStore["getById"]>>;
-  let coachAnswers: Awaited<ReturnType<typeof loadAnsweredCoachQuestions>>;
-  let surveyAdjustments: Awaited<
-    ReturnType<CoachingSurveyAdjustmentStore["listForUser"]>
-  >;
-  const surveyAdjustmentStore =
-    deps.coachingSurveyAdjustments ?? dbCoachingSurveyAdjustmentStore;
-  const activitiesSnapshotAt = Date.now();
-  const preloadedActivities = deps.loadActivities;
-
-  try {
-    // A real plan run owns the Garmin sync, so name that phase separately from
-    // the fast database reads that follow. A caller that already holds the
-    // analysed feed has nothing to sync and goes straight to preparation.
-    if (preloadedActivities === undefined) {
-      await deps.generations.update(
-        userId,
-        PLAN_GENERATION_STEPS.syncActivities,
-        options.runId,
-      );
-    }
-    activities =
-      preloadedActivities !== undefined
-        ? await preloadedActivities(userId)
-        : await loadAnalyzedActivities({
-            userId,
-            // The sidecar syncs 42 days. Analyse the newest activities the
-            // cap allows; the plan prompt reviews the same recent window.
-            limit: MAX_ANALYZED_ACTIVITIES,
-            refresh: false,
-            // Key the pass by the plan's own day so it shares a dashboard
-            // request for the same day and never adopts another day's feed.
-            today,
-            ...(timezone !== undefined ? { timezone } : {}),
-          });
-    if (preloadedActivities === undefined) {
-      await deps.generations.update(
-        userId,
-        PLAN_GENERATION_STEPS.prepare,
-        options.runId,
-      );
-    }
-
-    [
-      plan,
-      answers,
-      llm,
-      coachingInputs,
-      user,
-      coachAnswers,
-      surveyAdjustments,
-    ] = await Promise.all([
-      deps.plans.load(userId),
-      deps.answers.listForUser(userId),
-      deps.loadLlm ? deps.loadLlm(userId) : loadLlmClient(userId, "all"),
-      deps.loadCoachingInputs
-        ? deps.loadCoachingInputs(userId, startOfWeek(today))
-        : loadCoachingInputs(userId, startOfWeek(today)),
-      deps.users.getById(userId),
-      (deps.loadAnsweredCoachQuestions ?? loadAnsweredCoachQuestions)(userId),
-      surveyAdjustmentStore.listForUser(userId),
-    ]);
-  } catch (err) {
-    if (options.signal.aborted) {
-      throw new GenerationSupersededError();
-    }
-    const message =
-      err instanceof Error ? err.message : "The plan could not be generated.";
-    await deps.generations.fail(userId, message, options.runId);
-    throw err;
+  const loaded = await loadPlanGenerationContext(deps, options);
+  if (loaded === null) {
+    // The account has no model; the row already carries the reason.
+    return;
   }
+  const {
+    plan,
+    answers,
+    activities,
+    llm,
+    coachingInputs,
+    user,
+    coachAnswers,
+    surveyAdjustments,
+    surveyAdjustmentStore,
+    activitiesSnapshotAt,
+  } = loaded;
 
   // The request's zone (the athlete's selected or device zone) wins over the
   // stored setting; an account with neither reads as UTC. Every day derived
@@ -521,11 +461,6 @@ export async function runPlanForUser(
     MAX_ANALYZED_ACTIVITIES,
   );
 
-  if (!llm) {
-    const message = "OpenRouter is not configured. Add a key and model first.";
-    await deps.generations.fail(userId, message, options.runId);
-    return;
-  }
   if (
     options.signal.aborted ||
     !(await deps.generations.isCurrent(userId, options.runId))
