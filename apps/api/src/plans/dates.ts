@@ -1,5 +1,5 @@
 /**
- * Time-zone helpers for plan dates. All dates are `YYYY-MM-DD` strings and the
+ * Time helpers for plan dates. All dates are `YYYY-MM-DD` strings and the
  * arithmetic is done in UTC so it is independent of the server's timezone. The
  * generic date arithmetic (`addDays`, `startOfWeek`, `weekDates`) lives in
  * `@killingit/shared`, as does the wall-clock conversion used here.
@@ -9,6 +9,21 @@ import { zonedDateTime } from "@killingit/shared";
 
 /** The local hour from which the next day's session is planned. */
 const TOMORROW_CUTOFF_HOUR = 18;
+
+/**
+ * True when `candidate` happened after `recorded`. A missing candidate is never
+ * newer, while any candidate is newer than a missing recorded timestamp. Both
+ * sides are instants, so a string cannot slip in and compare lexically.
+ */
+export function isNewer(
+  candidate: Date | null | undefined,
+  recorded: Date | null | undefined,
+): boolean {
+  return (
+    candidate != null &&
+    (recorded == null || candidate.getTime() > recorded.getTime())
+  );
+}
 
 /**
  * True when the athlete's local clock has reached the point where tomorrow's

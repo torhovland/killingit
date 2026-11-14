@@ -9,6 +9,7 @@ import {
   type ActivitiesResponse,
   type Activity,
 } from "@killingit/shared";
+import { garminSyncRequestBody } from "./client.js";
 
 /**
  * The TypeScript half of the sidecar contract. The Python sidecar builds its
@@ -42,6 +43,22 @@ function activityOfType(response: ActivitiesResponse, type: string): Activity {
 }
 
 describe("Garmin sidecar contract fixtures", () => {
+  it("pins the /sync request body, including the known activity ids", () => {
+    // The Python half validates the same file through `SyncRequest`, so a
+    // rename of `knownActivityIds` fails one of the two suites.
+    const fixture = readContract("sync-request.json") as Record<
+      string,
+      unknown
+    >;
+
+    expect(
+      garminSyncRequestBody(
+        { username: "athlete@example.com", password: "secret" },
+        [1, 3],
+      ),
+    ).toEqual(fixture);
+  });
+
   it("parses the whole /sync body with the shared response schema", () => {
     const response = activitiesResponseSchema.parse(readContract("sync.json"));
 

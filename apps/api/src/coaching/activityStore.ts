@@ -37,8 +37,27 @@ export type ActivityPreviewScope = "none" | "route" | "samples";
 export type ActivityPreview = ActivitySummary & {
   sampleCount: number;
   samples: ActivitySample[];
-  route?: RoutePoint[];
+  route?: RoutePoint[] | undefined;
 };
+
+/**
+ * The stored channels a sync can skip. The sidecar returns only the summary
+ * for an activity the API already stores, so these are what a sync must not
+ * blank. See `docs/specs/garmin-sync-known-activities.md`.
+ */
+type StoredChannels = Pick<
+  ActivityPreview,
+  | "sampleCount"
+  | "samples"
+  | "route"
+  | "averagePower"
+  | "normalizedPower"
+  | "laps"
+  | "strengthSets"
+>;
+
+/** A stored activity's id and the channels a detail-skipping sync omits. */
+type StoredActivityPreview = StoredChannels & { id: number };
 
 /** The scalar columns every activity read loads. */
 const summaryColumns = {
@@ -85,13 +104,30 @@ interface ActivityRowData {
 /**
  * Reduces a full synced activity to what the app stores: the summary, a bounded
  * sample preview and a bounded GPS route.
+ *
+ * `stored` is the activity's previous preview. A sync skips the detail, splits
+ * and set calls for an activity the API already stores, so its payload carries
+ * no samples, laps or sets; anything the fresh payload did not record keeps the
+ * stored value instead of being wiped. A payload with samples is summarized
+ * from those samples as before. See
+ * `docs/specs/garmin-sync-known-activities.md`.
  */
-export function summarizeActivity(activity: Activity): ActivityPreview {
+export function summarizeActivity(
+  activity: Activity,
+  stored?: StoredChannels,
+): ActivityPreview {
   const { samples, ...summary } = activity;
+  if (samples.length === 0) {
+    return {
+      ...summary,
+      ...storedPreviewOf(stored),
+    };
+  }
   const route = routeFromSamples(samples);
   const power = recordedPowerSummary(samples);
   return {
     ...summary,
+    ...storedStructureOf(summary, stored),
     sampleCount: samples.length,
     samples: downsample(samples, MAX_PREVIEW_SAMPLES),
     ...(power.averagePower !== null
@@ -102,6 +138,40 @@ export function summarizeActivity(activity: Activity): ActivityPreview {
       : {}),
     ...(route.length >= 2 ? { route } : {}),
   };
+}
+
+/** The stored preview channels, or an empty one when nothing was recorded. */
+function storedPreviewOf(stored: StoredChannels | undefined): StoredChannels {
+  return {
+    sampleCount: stored?.sampleCount ?? 0,
+    samples: stored?.samples ?? [],
+    ...(stored?.route !== undefined ? { route: stored.route } : {}),
+    ...(stored?.averagePower !== undefined
+      ? { averagePower: stored.averagePower }
+      : {}),
+    ...(stored?.normalizedPower !== undefined
+      ? { normalizedPower: stored.normalizedPower }
+      : {}),
+    ...storedStructureOf(undefined, stored),
+  };
+}
+
+/** Keeps stored laps and sets when the synced activity recorded none. */
+function storedStructureOf(
+  fresh: Pick<ActivitySummary, "laps" | "strengthSets"> | undefined,
+  stored: StoredChannels | undefined,
+): Pick<StoredChannels, "laps" | "strengthSets"> {
+  const channels: Pick<StoredChannels, "laps" | "strengthSets"> = {};
+  if ((fresh?.laps?.length ?? 0) === 0 && stored?.laps !== undefined) {
+    channels.laps = stored.laps;
+  }
+  if (
+    (fresh?.strengthSets?.length ?? 0) === 0 &&
+    stored?.strengthSets !== undefined
+  ) {
+    channels.strengthSets = stored.strengthSets;
+  }
+  return channels;
 }
 
 /** Loads the account's stored activities, newest first, with the chosen preview columns. */
@@ -177,16 +247,26 @@ function excluded(column: string): ReturnType<typeof sql.raw> {
  * Stores the freshly synced activities and removes the ones the athlete
  * deleted. Only the sync window is written, so a sync no longer rewrites every
  * activity ever recorded.
+ *
+ * `stored` is the previously loaded feed. A sync skips the bulk calls for an
+ * activity it already has, so the stored preview is what keeps that activity's
+ * samples, route, laps and sets from being blanked by the empty payload.
  */
 export async function saveStoredActivities(
   userId: number,
   synced: readonly Activity[],
   deletedIds: ReadonlySet<string> = new Set(),
+  stored: readonly StoredActivityPreview[] = [],
 ): Promise<void> {
   const now = new Date();
+  const storedById = new Map(
+    stored.map((activity) => [String(activity.id), activity]),
+  );
   const rows = synced
     .filter((activity) => !deletedIds.has(String(activity.id)))
-    .map((activity) => toActivityRow(userId, activity, now));
+    .map((activity) =>
+      toActivityRow(userId, activity, now, storedById.get(String(activity.id))),
+    );
   const deletedActivityIds = [...deletedIds]
     .map(Number)
     .filter((id) => !Number.isNaN(id));
@@ -308,8 +388,9 @@ function toActivityRow(
   userId: number,
   activity: Activity,
   now: Date,
+  stored?: StoredChannels,
 ): NewActivityRow {
-  const preview = summarizeActivity(activity);
+  const preview = summarizeActivity(activity, stored);
   return {
     userId,
     activityId: activity.id,

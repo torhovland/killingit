@@ -70,7 +70,10 @@ one swappable corner, and normalizes Garmin activities into the shared
 - **Garmin official developer-program API** — still gated/paused (ADR 0003).
 - **Webhooks / real-time sync.** (Wiring activities into the LLM is now covered
   by `docs/specs/openrouter-llm-integration.md`.)
-- **Incremental sync** — always pulls the full 42-day window for now.
+- **Incremental sync** — always pulls the full 42-day activity list for now.
+  The API does tell the sidecar which activities it already stores, so their
+  bulk detail, splits and set calls are skipped; see
+  `docs/specs/garmin-sync-known-activities.md`.
 - **Timeseries persistence and charts** — samples travel with the sync
   response, and the activity feed carries a bounded, downsampled preview for
   the Activities page; storing the full timeseries and serving chart data is
@@ -85,10 +88,11 @@ one swappable corner, and normalizes Garmin activities into the shared
 3. Bad credentials surface as a clear auth error (not a 500); missing
    credentials surface as "not connected".
 4. Encrypted credentials are never returned by any API response.
-5. Each synced activity carries a `samples` timeseries normalized from Garmin's
-   activity details, with absent channels omitted per sample and one bad detail
-   fetch not failing the whole sync. The stored summary also carries average and
-   normalized power when the activity recorded power, so training-load scoring
+5. Each newly synced activity carries a `samples` timeseries normalized from
+   Garmin's activity details, with absent channels omitted per sample and one
+   bad detail fetch not failing the whole sync; a re-synced activity keeps the
+   stored preview and skips those calls. The stored summary also carries average
+   and normalized power when the activity recorded power, so training-load scoring
    does not need the raw timeseries. It carries the recorded average heart rate
    and average and maximum speed when Garmin supplies them, and derives the
    average speed from distance and duration when Garmin leaves it at zero.
@@ -125,13 +129,15 @@ one swappable corner, and normalizes Garmin activities into the shared
 ### Sidecar (`services/garmin/`, Python)
 
 - FastAPI + `python-garminconnect`. Endpoints:
-  - `POST /sync` — body `{ "username", "password" }` → `{ "activities": [...] }`
-    for the last 42 days. For each activity it also calls
-    `get_activity_details()` and resolves the positional
+  - `POST /sync` — body `{ "username", "password", "knownActivityIds"? }` →
+    `{ "activities": [...] }` for the last 42 days. For each **new** activity it
+    also calls `get_activity_details()` and resolves the positional
     `activityDetailMetrics` with the library's
-    `parse_activity_detail_metrics()` into normalized `samples`. A failed
-    detail fetch logs and yields `samples: []` for that activity; a Garmin
-    rate-limit still fails the sync with `429`.
+    `parse_activity_detail_metrics()` into normalized `samples`; an id in
+    `knownActivityIds` is returned with its summary only, because the API
+    already stores its samples, laps and sets. A failed detail fetch logs and
+    yields `samples: []` for that activity; a Garmin rate-limit still fails the
+    sync with `429`. See `docs/specs/garmin-sync-known-activities.md`.
   - `POST /authenticate` — body `{ "username", "password" }` → `{ "ok": true }`
     or auth error (used to validate before storing).
 - Kept dependency-minimal and isolated so the Bun app treats it as a
@@ -198,9 +204,11 @@ one swappable corner, and normalizes Garmin activities into the shared
   (`GARMIN_SIDECAR_AUDIENCE`) and only its runtime service account holds
   `roles/run.invoker`.
 - **Payload size:** full-resolution timeseries for a month of activities can be
-  large. The sync response is the only consumer today; persistence and
-  downsampling are deferred (see out of scope). Detail fetches add one Garmin
-  request per activity, so the existing rate-limit handling covers them.
+  large. The API stores only a bounded preview, and a re-sync now skips the
+  detail, splits and set calls for every activity it already stores, so the
+  bulk payloads travel only for newly recorded activities. Detail fetches still
+  add one Garmin request per new activity, so the existing rate-limit handling
+  covers them. See `docs/specs/garmin-sync-known-activities.md`.
 
 ## Implementation notes (deviations from the original plan)
 
@@ -289,17 +297,24 @@ one swappable corner, and normalizes Garmin activities into the shared
   outside it keep their stored analysis and feedback. The analysis cap only
   limits how many of the newest activities one run sends to the model;
   Calendar, Activities, and the Fitness chart read the full history.
+- **A stored activity is not re-downloaded in full.** The feed reads the stored
+  activities before it calls Garmin, passes their ids as `knownActivityIds`, and
+  the sidecar returns the whole window's summaries while skipping the details,
+  splits and exercise sets of a known id. The API keeps that activity's stored
+  sample preview, route, laps and sets (and the power summary derived from
+  them), so a re-sync neither re-downloads nor blanks them. A new recording is
+  still fetched in full. See `docs/specs/garmin-sync-known-activities.md`.
 - **Deleting an imported activity is local.** Garmin Connect remains the source
   of truth, so a deletion stores a per-user tombstone and filters the activity
   out of the feed and plan. See `docs/specs/activity-deletion.md`.
-- **Timeseries from activity details.** Each activity triggers
+- **Timeseries from activity details.** Each new activity triggers
   `get_activity_details()`, whose positional `activityDetailMetrics` are
   resolved through the library's `parse_activity_detail_metrics()` and mapped
   to a normalized `samples` list (epoch milliseconds → ISO-8601 UTC; absent or
   non-numeric channels omitted). `sumDistance` is preferred over
   `directDistance` for cumulative distance. A failed detail fetch yields
   `samples: []` for that activity rather than failing the sync.
-- **Laps from activity splits.** Each activity also triggers
+- **Laps from activity splits.** Each new activity also triggers
   `get_activity_splits()`, whose `lapDTOs` are mapped to a normalized `laps`
   list with each lap's index, type, start time, distance, moving and elapsed
   time, average and maximum power, average and maximum heart rate, average

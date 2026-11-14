@@ -6,24 +6,20 @@ import type {
   WeekPlan,
 } from "@killingit/shared";
 import { addDays, startOfWeek } from "@killingit/shared";
+import type { PlanUpdateRevision } from "../llm/planUpdatePrompt.js";
 import { weekFor } from "./periods.js";
 
-/** Which plan levels a single update completion revises. */
-export interface PlanUpdateFlags {
-  season: boolean;
-  block: boolean;
-  week: boolean;
-  day: boolean;
-  tomorrow: boolean;
-  nextWeek: boolean;
-  nextBlock: boolean;
+/**
+ * Which plan levels a single update completion revises, plus the two decisions
+ * only the merge needs. The prompt receives the shared levels as a
+ * `PlanUpdateRevision`.
+ */
+export type PlanUpdateFlags = PlanUpdateRevision & {
   /** A full week or block revision makes the stored next period stale. */
   clearNextPeriod: boolean;
   /** Revise the current block in place instead of starting the next one. */
   blockInPlace: boolean;
-  /** Refresh the diet progress targets on every level. */
-  progress: boolean;
-}
+};
 
 /** The part of a run's revision decision that chooses the levels to revise. */
 export interface RevisionChoice {
@@ -114,6 +110,16 @@ export function revisionFlags(input: RevisionFlagsInput): PlanUpdateFlags {
     blockInPlace,
     progress: true,
   };
+}
+
+/**
+ * The prompt-level revision a plan update asks for: every level the prompt
+ * shares with the merge, without the two decisions only the merge makes.
+ */
+export function planUpdateRevision(flags: PlanUpdateFlags): PlanUpdateRevision {
+  const { clearNextPeriod, blockInPlace, ...revision } = flags;
+  // Both are merge-only decisions; the prompt must never see them.
+  return revision;
 }
 
 /**

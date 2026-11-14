@@ -1,10 +1,12 @@
 import { describe, expect, it } from "bun:test";
+import type { CoachPlan } from "@killingit/shared";
 import {
   FakeProvider,
   makeBlock,
   makeContext,
   makeDay,
   makePlan,
+  makeRefreshedSeason,
   makeSeason,
   makeStoredPlan,
   makeUpdate,
@@ -13,6 +15,7 @@ import {
   MemoryPlanStore,
 } from "../../testFixtures/generationHarness.js";
 import { runPlanGeneration } from "../generate.js";
+import { requestPlanUpdate } from "./revision.js";
 import type { GeneratePlanInput } from "./types.js";
 
 describe("runPlanGeneration", () => {
@@ -657,6 +660,111 @@ describe("runPlanGeneration", () => {
 
     expect(saved?.plan.today.description).toBe(
       "Completed: corrected strength summary.",
+    );
+  });
+});
+
+describe("requestPlanUpdate", () => {
+  /** The fixture plan and an input that runs one plan-update request. */
+  function updateInput(provider: FakeProvider): {
+    input: GeneratePlanInput;
+    current: CoachPlan;
+  } {
+    const current = makePlan("2026-10-21");
+    const existing = makeStoredPlan(current);
+    return {
+      input: {
+        userId: 1,
+        runId: "run-1",
+        today: "2026-10-21",
+        plan: existing,
+        context: makeContext(provider),
+        plans: new MemoryPlanStore(existing),
+        generations: new MemoryGenerationStore(),
+      },
+      current,
+    };
+  }
+
+  it("asks the prompt to revise every level a season refresh revises", async () => {
+    const today = "2026-10-21";
+    const provider = new FakeProvider({
+      planUpdate: makeUpdate(today, {
+        season: makeRefreshedSeason(today),
+        block: makeBlock(today, "2026-12-31"),
+        week: makeWeek("2026-10-19"),
+        today: makeDay(today),
+      }),
+    });
+    const { input, current } = updateInput(provider);
+
+    await requestPlanUpdate(
+      input,
+      current,
+      {
+        season: true,
+        block: true,
+        week: true,
+        day: true,
+        tomorrow: true,
+        nextWeek: true,
+        nextBlock: true,
+        progress: true,
+        clearNextPeriod: true,
+        blockInPlace: false,
+      },
+      {},
+    );
+
+    const prompt = provider.prompts[0] ?? "";
+    expect(prompt).toContain(
+      "- Refresh the season and the current block in place.",
+    );
+    expect(prompt).toContain(
+      '- Revise the current week and return it in "week".',
+    );
+    expect(prompt).toContain(
+      '- Create or revise today\'s session and return it in "today".',
+    );
+    expect(prompt).toContain(
+      '- Return tomorrow\'s session in "tomorrow" and place its outline',
+    );
+    expect(prompt).toContain("- Create the next week starting on ");
+    expect(prompt).toContain("- Create the next block starting on ");
+    expect(prompt).toContain("Refresh the diet progress target on every level");
+  });
+
+  it("asks the prompt to revise the current block in place", async () => {
+    const provider = new FakeProvider({
+      planUpdate: makeUpdate("2026-10-21"),
+    });
+    const { input, current } = updateInput(provider);
+
+    await requestPlanUpdate(
+      input,
+      current,
+      {
+        season: false,
+        block: true,
+        week: true,
+        day: true,
+        tomorrow: false,
+        nextWeek: false,
+        nextBlock: false,
+        progress: true,
+        clearNextPeriod: true,
+        blockInPlace: true,
+      },
+      { reviseBlock: true, expectedBlockStartDate: current.block.startDate },
+    );
+
+    const prompt = provider.prompts[0] ?? "";
+    expect(prompt).toContain("- Revise the current block in place:");
+    expect(prompt).toContain(
+      '- Revise the current week and return it in "week".',
+    );
+    expect(prompt).toContain(
+      '- Create or revise today\'s session and return it in "today".',
     );
   });
 });

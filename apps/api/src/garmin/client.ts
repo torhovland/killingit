@@ -62,6 +62,7 @@ export interface GarminCredentials {
 
 export type SyncTransport = (
   credentials: GarminCredentials,
+  knownActivityIds: readonly number[],
 ) => Promise<Activity[]>;
 
 /** Injectable transport for the body-composition and FTP sync. */
@@ -172,20 +173,45 @@ export async function authenticateGarmin(
 type AuthenticateTransport = (credentials: GarminCredentials) => Promise<void>;
 
 /**
+ * The sidecar's `/sync` request body. The ids the API already stores let the
+ * sidecar skip their bulk detail, splits and set calls; it still returns the
+ * whole window, so a summary Garmin changed is refreshed.
+ */
+export function garminSyncRequestBody(
+  credentials: GarminCredentials,
+  knownActivityIds: readonly number[],
+): Record<string, unknown> {
+  return {
+    ...credentialsBody(credentials),
+    knownActivityIds: knownActivityIds.map(String),
+  };
+}
+
+/**
  * Fetches the last 42 days of activities (with their workout timeseries) from
  * the sidecar, mapped to the shared {@link Activity} shape. The transport is
  * injectable so tests stub the network.
+ *
+ * `knownActivityIds` are the activities the API already stores, so the sidecar
+ * skips their bulk payloads; an empty list downloads every activity in full.
  */
 export async function syncGarminActivities(
   credentials: GarminCredentials,
+  knownActivityIds: readonly number[] = [],
   transport: SyncTransport = postSync,
 ): Promise<Activity[]> {
-  return transport(credentials);
+  return transport(credentials, knownActivityIds);
 }
 
 /** Default transport: POSTs credentials to the sidecar's `/sync` endpoint. */
-async function postSync(credentials: GarminCredentials): Promise<Activity[]> {
-  const res = await sidecarPost("/sync", credentials);
+async function postSync(
+  credentials: GarminCredentials,
+  knownActivityIds: readonly number[],
+): Promise<Activity[]> {
+  const res = await sidecarPost(
+    "/sync",
+    garminSyncRequestBody(credentials, knownActivityIds),
+  );
   const body = (await res.json()) as { activities?: unknown } | null;
   const parsed = activitySchema.array().safeParse(body?.activities);
   if (!parsed.success) {
@@ -213,7 +239,7 @@ export async function syncGarminMetrics(
 async function postMetrics(
   credentials: GarminCredentials,
 ): Promise<GarminMetricsResponse> {
-  const res = await sidecarPost("/metrics", credentials);
+  const res = await sidecarPost("/metrics", credentialsBody(credentials));
   const parsed = garminMetricsResponseSchema.safeParse(await res.json());
   if (!parsed.success) {
     throw new GarminSidecarError(
@@ -240,7 +266,10 @@ async function postDaily(
   credentials: GarminCredentials,
   date: string,
 ): Promise<GarminDailyResponse> {
-  const res = await sidecarPost("/daily", credentials, { date });
+  const res = await sidecarPost("/daily", {
+    ...credentialsBody(credentials),
+    date,
+  });
   const parsed = garminDailyResponseSchema.safeParse(await res.json());
   if (!parsed.success) {
     throw new GarminSidecarError(
@@ -252,15 +281,21 @@ async function postDaily(
 
 /** Default transport: POSTs credentials to the sidecar's `/authenticate`. */
 async function postAuthenticate(credentials: GarminCredentials): Promise<void> {
-  const res = await sidecarPost("/authenticate", credentials);
+  const res = await sidecarPost("/authenticate", credentialsBody(credentials));
   await res.text();
+}
+
+/** The credential fields every sidecar request body carries. */
+function credentialsBody(
+  credentials: GarminCredentials,
+): Record<string, unknown> {
+  return { username: credentials.username, password: credentials.password };
 }
 
 /** Shared POST helper with sidecar error mapping. */
 async function sidecarPost(
   path: string,
-  credentials: GarminCredentials,
-  extra: Record<string, unknown> = {},
+  body: Record<string, unknown>,
 ): Promise<Response> {
   const authHeaders = await sidecarAuthHeaders();
 
@@ -269,11 +304,7 @@ async function sidecarPost(
     res = await fetch(`${garminSidecarUrl()}${path}`, {
       method: "POST",
       headers: { "content-type": "application/json", ...authHeaders },
-      body: JSON.stringify({
-        username: credentials.username,
-        password: credentials.password,
-        ...extra,
-      }),
+      body: JSON.stringify(body),
       signal: AbortSignal.timeout(SIDECAR_REQUEST_TIMEOUT_MS),
     });
   } catch (cause) {

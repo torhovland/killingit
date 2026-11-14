@@ -85,6 +85,9 @@ runs the whole pipeline with a fake provider and in-memory stores.
 ## Target structure
 
 - A pure flag function owns the revision rules, so a table test can pin them.
+- `PlanUpdateFlags` extends the prompt's `PlanUpdateRevision` with the two
+  decisions only the merge uses, `clearNextPeriod` and `blockInPlace`, so one
+  field list defines both and the prompt receives exactly the revision type.
 - Each level group owns its merge, so a direct test can show which stored
   levels survive an update.
 - `advancePlan` keeps the request, today preservation and finalisation, and

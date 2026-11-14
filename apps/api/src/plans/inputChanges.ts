@@ -6,6 +6,8 @@
  * refreshing the plan, so a failed reply can never silently drop a change.
  */
 
+import { isNewer } from "./dates.js";
+
 /** One stored input and whether its coach reply asked for a plan change. */
 export interface CoachingInputChange {
   updatedAt: Date;
@@ -26,16 +28,12 @@ export function summarizeCoachingInputChanges(
   let updatedAt: Date | null = null;
   let refreshUpdatedAt: Date | null = null;
   for (const change of changes) {
-    if (
-      updatedAt === null ||
-      change.updatedAt.getTime() > updatedAt.getTime()
-    ) {
+    if (isNewer(change.updatedAt, updatedAt)) {
       updatedAt = change.updatedAt;
     }
     if (
       change.planChangeNeeded &&
-      (refreshUpdatedAt === null ||
-        change.updatedAt.getTime() > refreshUpdatedAt.getTime())
+      isNewer(change.updatedAt, refreshUpdatedAt)
     ) {
       refreshUpdatedAt = change.updatedAt;
     }
@@ -71,10 +69,7 @@ export function summarizeReviewChanges(
     const events = reviews.filter((review) => review.kind === kind);
     let latest: ReviewChange | null = null;
     for (const event of events) {
-      if (
-        latest === null ||
-        event.updatedAt.getTime() > latest.updatedAt.getTime()
-      ) {
+      if (isNewer(event.updatedAt, latest?.updatedAt)) {
         latest = event;
       }
     }

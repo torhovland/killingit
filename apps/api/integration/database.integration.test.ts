@@ -1202,6 +1202,46 @@ describe("stored activity rows", () => {
     expect(feed.activities[0]?.samples).toHaveLength(2);
   });
 
+  it("keeps the preview, laps and sets when a re-sync has no details", async () => {
+    const user = await dbUserStore.ensureUser("auth0|activity-preview-kept");
+    const full: Activity = {
+      ...syncedActivity(1, "2026-10-01T07:00:00Z"),
+      laps: [
+        { index: 1, distance: 1000 },
+        { index: 2, distance: 2000 },
+      ],
+      strengthSets: [{ setType: "active", repetitions: 10, exercises: [] }],
+    };
+    await saveStoredActivities(user.id, [full]);
+    const previous = (await loadStoredActivityFeed(user.id, "samples"))
+      .activities;
+
+    // The sidecar skips the bulk calls for an activity the API already stores,
+    // so the re-sync returns its renamed summary with no samples, laps or sets.
+    await saveStoredActivities(
+      user.id,
+      [
+        {
+          ...syncedActivity(1, "2026-10-01T07:00:00Z", "Renamed ride"),
+          samples: [],
+        },
+      ],
+      new Set(),
+      previous,
+    );
+
+    const feed = await loadStoredActivityFeed(user.id, "samples");
+    const activity = feed.activities[0];
+
+    expect(activity?.name).toBe("Renamed ride");
+    expect(activity?.sampleCount).toBe(2);
+    expect(activity?.samples).toHaveLength(2);
+    expect(activity?.route).toHaveLength(2);
+    expect(activity?.averagePower).toBeDefined();
+    expect(activity?.laps).toHaveLength(2);
+    expect(activity?.strengthSets).toHaveLength(1);
+  });
+
   it("loads the sample preview and route only when they are asked for", async () => {
     const user = await dbUserStore.ensureUser("auth0|activity-preview");
     await saveStoredActivities(user.id, [

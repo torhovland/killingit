@@ -625,6 +625,92 @@ def test_to_activity_ignores_a_single_lap():
     assert to_activity(raw, laps=two_laps)["laps"] == two_laps
 
 
+def test_sync_skips_the_detail_calls_for_a_known_activity(monkeypatch):
+    fake = FakeGarmin(
+        details=details(
+            [1790836200000, 140],
+            descriptors=[(0, "directTimestamp"), (1, "directHeartRate")],
+        ),
+        splits={
+            "2": {
+                "lapDTOs": [
+                    {"lapIndex": 1, "distance": 2500, "averagePower": 250},
+                    {"lapIndex": 2, "distance": 2500, "averagePower": 260},
+                ]
+            }
+        },
+    )
+    monkeypatch.setattr(auth, "login", lambda credentials: fake)
+
+    # A numeric id is accepted as well as a string: the app stores numbers.
+    activities_ = activities.sync_activities(
+        auth.Credentials(username="u", password="p"), [1]
+    )
+
+    # The stored run costs no Garmin calls beyond the list call, while the new
+    # ride is fetched in full.
+    assert fake.requested_ids == ["2"]
+    assert fake.requested_split_ids == ["2"]
+    assert activities_[0]["samples"] == []
+    assert "laps" not in activities_[0]
+    assert activities_[1]["samples"] == [
+        {"timestamp": "2026-10-01T06:30:00Z", "heartRate": 140.0}
+    ]
+    assert activities_[1]["laps"] == [
+        {"index": 1, "distance": 2500.0, "averagePower": 250.0},
+        {"index": 2, "distance": 2500.0, "averagePower": 260.0},
+    ]
+
+
+def test_sync_with_an_empty_known_id_list_fetches_every_activity(monkeypatch):
+    # An empty list means "nothing is stored", exactly like an absent field.
+    fake = FakeGarmin(
+        details=details(
+            [1790836200000, 140],
+            descriptors=[(0, "directTimestamp"), (1, "directHeartRate")],
+        )
+    )
+    monkeypatch.setattr(auth, "login", lambda credentials: fake)
+
+    activities.sync_activities(auth.Credentials(username="u", password="p"), [])
+
+    assert fake.requested_ids == ["1", "2"]
+
+
+def test_sync_skips_the_set_fetch_for_a_known_strength_activity(monkeypatch):
+    class _StrengthFake(FakeGarmin):
+        def get_activities_by_date(self, startdate, enddate):
+            return [
+                {
+                    "activityId": 3,
+                    "activityName": "Gym Session",
+                    "activityType": {"typeKey": "STRENGTH_TRAINING"},
+                    "startTimeLocal": datetime(2026, 10, 5, 18, 0, 0),
+                }
+            ]
+
+    exercise_sets = {
+        "3": {
+            "exerciseSets": [
+                {"setType": "ACTIVE", "repetitionCount": 10, "weight": 12000}
+            ]
+        }
+    }
+    fake = _StrengthFake(details={}, exercise_sets=exercise_sets)
+    monkeypatch.setattr(auth, "login", lambda credentials: fake)
+    credentials = auth.Credentials(username="u", password="p")
+
+    stored = activities.sync_activities(credentials, ["3"])
+    assert fake.requested_set_ids == []
+    assert "strengthSets" not in stored[0]
+
+    fetched = activities.sync_activities(credentials)
+    assert fake.requested_set_ids == ["3"]
+    assert fetched[0]["strengthSets"] == [
+        {"setType": "active", "repetitions": 10, "weightKg": 12.0}
+    ]
+
+
 def test_sync_maps_a_splits_rate_limit_to_rate_limited(monkeypatch):
     class _RateLimitedFake(FakeGarmin):
         def get_activity_splits(self, activity_id):

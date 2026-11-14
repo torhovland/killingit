@@ -26,19 +26,17 @@ numbers must agree across the Day, Week, and Block tabs.
 2. Ask the coach for a week-by-week FTP estimate and for a TSS estimate on
    every session. The estimate is anchored to the stated FTP and shown in the
    Week and Block tabs.
-3. Calculate TSS from recorded power when an activity has it, using the week's
-   estimated FTP. Score structured indoor bike workouts from their intervals.
-   Use the coach's estimate for every other session.
+3. Calculate TSS from recorded power when an activity has it, using the sport's
+   power threshold in effect on that date. Score structured indoor bike workouts
+   from their intervals. Use the coach's estimate for every other session.
 4. Calculate ATL, CTL, and TSB for each day from the resolved TSS values, and
    show all four numbers in the Today, Tomorrow, and Week views.
 
 ### Out of scope (deferred)
 
 - A user-editable FTP setting. The athlete states FTP in the profile for now.
-- Persisting a multi-season training-load history. ATL/CTL are seeded from the
-  recent activity feed (42 days) on each generation.
-- A dedicated load chart. Added separately in `docs/specs/fitness-page.md`.
-- Sport-specific threshold models (running pace, swim CSS, rowing).
+- Separate ATL/CTL curves per sport. Every activity is scored with the threshold
+  for its own sport, but the load series is one aggregate curve.
 
 ## Behaviour
 
@@ -58,7 +56,7 @@ numbers must agree across the Day, Week, and Block tabs.
 - The coach's reading runs before every plan generation, which the app only
   starts when a plan level is missing or an input changed. A failed read is
   logged and the stored series is used unchanged.
-- The known FTP values are stored as a daily time series in `athlete_metrics`
+- The known FTP values are stored as a daily time series in `athlete_thresholds`
   with a source of `user`, `garmin`, or `coach`. The coach's reading of the
   athlete's own words is stored as `user` points; Garmin's historic cycling FTP
   is synced as a measurement; and the coach's weekly plan estimates and activity
@@ -86,9 +84,9 @@ numbers must agree across the Day, Week, and Block tabs.
 For each session in the stored week (and next week), the resolved TSS is:
 
 1. **Measured power.** If the date has a recorded activity with normalized
-   power and the week has an estimated FTP, score
-   `hours × (NP / FTP)² × 100`. An unpowered activity on the same day adds its
-   duration-based stress, so the day's total is the sum of its activities.
+   power and the sport's power threshold is known on that date, score
+   `hours × (NP / threshold)² × 100`. An unpowered activity on the same day adds
+   its duration-based stress, so the day's total is the sum of its activities.
 2. **Structured indoor workout.** If the session has a `bikeWorkout`, score
    every interval from its percentage of FTP. The absolute FTP cancels out, so
    this works even without a stated FTP.
@@ -254,7 +252,7 @@ API:
   measured power or a duration fallback; manual entries use their stored
   coach-estimated TSS.
 - **Fitness page** charts the daily CTL, ATL, and TSB with the TSB zone colours
-  and the day-by-day estimated FTP over the same window; see
+  and the estimated-threshold chart over the same window; see
   `docs/specs/fitness-page.md`.
 - Older stored plans and cached activity payloads without the new fields render
   exactly as before.
@@ -268,7 +266,7 @@ API:
    one.
 3. Every workout in the Week tab shows a TSS number; rest days show 0.
 4. A completed activity with power is scored from its normalized power and the
-   week's estimated FTP, overriding the coach's estimate.
+   power threshold in effect on that date, overriding the coach's estimate.
 5. A structured indoor bike workout is scored from its intervals.
 6. Today, Tomorrow, and Week show ATL, CTL, and TSB for the same date with the
    same values.

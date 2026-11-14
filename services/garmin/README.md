@@ -59,13 +59,20 @@ the API invokes them with an OIDC identity token (see the root README).
 
 ## Endpoints
 
-| Method | Path            | Body                         | Response                         |
-| ------ | --------------- | ---------------------------- | -------------------------------- |
-| `POST` | `/authenticate` | `{username, password}`       | 204 (or 401/403/429/502)         |
-| `POST` | `/sync`         | `{username, password}`       | `{ activities: [...] }`          |
-| `POST` | `/metrics`      | `{username, password}`       | `{ metrics: [...], ftp: [...] }` |
-| `POST` | `/daily`        | `{username, password, date}` | `{ date, metrics: {...} }`       |
-| `GET`  | `/health`       | —                            | `{status: "ok"}`                 |
+| Method | Path            | Body                                      | Response                         |
+| ------ | --------------- | ----------------------------------------- | -------------------------------- |
+| `POST` | `/authenticate` | `{username, password}`                    | 204 (or 401/403/429/502)         |
+| `POST` | `/sync`         | `{username, password, knownActivityIds?}` | `{ activities: [...] }`          |
+| `POST` | `/metrics`      | `{username, password}`                    | `{ metrics: [...], ftp: [...] }` |
+| `POST` | `/daily`        | `{username, password, date}`              | `{ date, metrics: {...} }`       |
+| `GET`  | `/health`       | —                                         | `{status: "ok"}`                 |
+
+`/sync` returns the whole window's activities, but skips the details, splits and
+exercise-set calls for an activity whose id is in `knownActivityIds`; that
+activity's samples, laps and sets are already stored by the API. A missing or
+empty list means nothing is known and everything is fetched in full. The request
+body is pinned by `contract/sync-request.json`. See
+`docs/specs/garmin-sync-known-activities.md`.
 
 The Bun API talks to this service via `GARMIN_SIDECAR_URL` (default
 `http://localhost:8000`).
@@ -98,10 +105,11 @@ pytest
 
 ## Contract fixtures
 
-`contract/` holds one committed JSON file per endpoint (`sync.json`,
-`metrics.json`, `daily.json`): the whole response body the sidecar returns. They
-pin the Python sidecar to the shared Zod schemas that the Bun API parses those
-bodies with, so a renamed field fails a pull request instead of production.
+`contract/` holds one committed JSON file per response body (`sync.json`,
+`metrics.json`, `daily.json`) plus the `/sync` request body (`sync-request.json`).
+They pin the Python sidecar to the shared Zod schemas that the Bun API parses
+those bodies with, and pin the request field names the API sends, so a rename on
+either side fails a pull request instead of production.
 
 - `contract_fixtures.py` keeps the representative raw Garmin payloads and
   rebuilds the responses by calling the sidecar's own route handlers.
@@ -118,8 +126,9 @@ UPDATE_CONTRACT_FIXTURES=1 .venv/bin/python -m pytest test_contract.py
 ```
 
 Then make the shared schemas and the code that consumes them match, and let the
-Bun test prove the new body parses. The normal test run only reads the files. See
-`docs/specs/garmin-sidecar-contract.md` and ADR 0057.
+Bun test prove the new body parses. The normal test run only reads the files.
+`sync-request.json` is edited by hand on a deliberate request change; both
+suites validate it. See `docs/specs/garmin-sidecar-contract.md` and ADR 0057.
 
 ## Notes
 

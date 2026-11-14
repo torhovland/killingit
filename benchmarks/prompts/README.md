@@ -28,9 +28,9 @@ Review the snapshot diff before committing it: it is the exact text every model
 receives.
 
 The whole harness — prompt builders, validators, score gates, catalog queries
-and the run, judge, finalize, shortlist, sync and report stages — lives in the
-`@killingit/benchmark` workspace (`tools/benchmark/src`). This directory holds
-only the git-ignored run and report artifacts. See ADR 0032.
+and the run, judge, finalize, shortlist, sync-db and report stages — lives in
+the `@killingit/benchmark` workspace (`tools/benchmark/src`). This directory
+holds only the git-ignored run and report artifacts. See ADR 0032.
 
 Each model's score is the mean of its two judged scores (each out of 12.5), and
 every component keeps the weaker of the two prompts, so a category failure in

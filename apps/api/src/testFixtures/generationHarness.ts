@@ -377,6 +377,7 @@ export class FakeProvider implements LlmProvider {
   readonly id = "fake";
   calls: string[] = [];
   models: string[] = [];
+  prompts: string[] = [];
 
   constructor(
     private readonly responses: {
@@ -398,6 +399,8 @@ export class FakeProvider implements LlmProvider {
 
   complete(request: LlmCompletionRequest): Promise<string> {
     this.models.push(request.model);
+    const userMessage = request.messages[1]?.content;
+    this.prompts.push(typeof userMessage === "string" ? userMessage : "");
     const system = request.messages[0]?.content ?? "";
     if (system === SEASON_PLAN_SYSTEM_PROMPT) {
       this.calls.push("season");

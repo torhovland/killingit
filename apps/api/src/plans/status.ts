@@ -1,6 +1,7 @@
 import type { CoachPlan, PlanPending } from "@killingit/shared";
 import { calorieEstimateProblems } from "./calorieEstimates.js";
 import { addDays } from "@killingit/shared";
+import { isNewer } from "./dates.js";
 import { dietProgressPending } from "./dietProgress.js";
 import { blockFor, weekFor } from "./periods.js";
 
@@ -123,7 +124,7 @@ export function latestActivityAnalysisTimestamp(
     if (Number.isNaN(generatedAt.getTime())) {
       continue;
     }
-    if (latest === null || generatedAt.getTime() > latest.getTime()) {
+    if (isNewer(generatedAt, latest)) {
       latest = generatedAt;
     }
   }
@@ -154,7 +155,7 @@ export function latestPlanChangingAnalysisTimestamp(
     if (Number.isNaN(generatedAt.getTime())) {
       continue;
     }
-    if (latest === null || generatedAt.getTime() > latest.getTime()) {
+    if (isNewer(generatedAt, latest)) {
       latest = generatedAt;
     }
   }
@@ -167,10 +168,7 @@ export function latestAnswerTimestamp(
 ): Date | null {
   let latest: Date | null = null;
   for (const answer of answers) {
-    if (
-      answer.answeredAt !== null &&
-      (latest === null || answer.answeredAt.getTime() > latest.getTime())
-    ) {
+    if (isNewer(answer.answeredAt, latest)) {
       latest = answer.answeredAt;
     }
   }

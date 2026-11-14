@@ -54,8 +54,9 @@ the model catalog's ability, speed and cost grades.
 
 ### Out of scope
 
-- Automatic judging of coaching quality. Quality is a human/agent assessment
-  recorded in `scores.json` and the report.
+- Automatic judging of the **plan comparison's** plan quality. That mode's
+  quality is a human/agent assessment recorded in `scores.json` and the report;
+  the two-prompt catalog benchmark has its own automatic `judge` stage.
 - Weather/daylight-sensitive scenarios: the benchmark does not load a location
   so runs are independent of network weather providers.
 - The completed-period summary and post-build activity-review calls. They do not
@@ -160,6 +161,10 @@ Configuration:
   calling any model.
 
 ### Two-prompt catalog benchmark
+
+The two-prompt stages read `BENCHMARK_OPENROUTER_API_KEY`, a dedicated key
+separate from the plan comparison's `BENCHMARK_API_KEY`, so catalog spend stays
+apart from the app's per-account key.
 
 Run one stage at a time; `RUN_ID` names the run directory and every stage reads
 it:

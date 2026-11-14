@@ -36,6 +36,25 @@ function stored(id: number, startDate: string): AnalyzedActivity {
   };
 }
 
+/** A stored activity whose bulk channels a detail-skipping sync omits. */
+function storedWithPreview(id: number, startDate: string): AnalyzedActivity {
+  return {
+    ...stored(id, startDate),
+    sampleCount: 2,
+    samples: [
+      { timestamp: "2026-10-01T07:00:00Z", heartRate: 130 },
+      { timestamp: "2026-10-01T07:01:00Z", heartRate: 132 },
+    ],
+    averagePower: 200,
+    normalizedPower: 210,
+    laps: [
+      { index: 1, distance: 1000 },
+      { index: 2, distance: 2000 },
+    ],
+    strengthSets: [{ setType: "active", repetitions: 10, exercises: [] }],
+  };
+}
+
 describe("mergeActivityHistory", () => {
   it("keeps activities that fell outside the latest sync window", () => {
     const merged = mergeActivityHistory(
@@ -124,6 +143,7 @@ describe("extendStoredFeed", () => {
       1,
       [synced(2, "2026-10-11T06:30:00Z", "New ride")],
       deletedIds,
+      [stored(1, "2026-10-03T06:30:00Z")],
     );
   });
 });
@@ -205,6 +225,51 @@ describe("syncFeed", () => {
     } finally {
       log.mockRestore();
     }
+  });
+
+  it("passes the stored ids and keeps a skipped activity's stored preview", async () => {
+    const previous = storedWithPreview(1, "2026-10-03T06:30:00Z");
+    const knownIds: (readonly number[])[] = [];
+    const store = {
+      load: () => Promise.resolve({ model: null, activities: [previous] }),
+      save: mock(() => Promise.resolve()),
+    };
+
+    const result = await syncFeed(
+      { userId: 29914, credentials, today: "2026-11-14", limit: 20 },
+      {
+        // Garmin still reports the activity, with its fresh summary but none of
+        // the bulk payloads the sidecar skipped.
+        syncActivities: (_credentials, ids = []) => {
+          knownIds.push(ids);
+          return Promise.resolve([
+            { ...synced(1, "2026-10-03T06:30:00Z", "Renamed ride") },
+          ]);
+        },
+        syncSupplements: () => Promise.resolve(),
+        loadDeletedIds: () => Promise.resolve(new Set()),
+        store,
+      },
+    );
+
+    expect(knownIds).toEqual([[1]]);
+    expect(result.history[0]).toMatchObject({
+      name: "Renamed ride",
+      sampleCount: 2,
+      averagePower: 200,
+      normalizedPower: 210,
+    });
+    expect(result.history[0]?.samples).toHaveLength(2);
+    expect(result.history[0]?.laps).toHaveLength(2);
+    expect(result.history[0]?.strengthSets).toHaveLength(1);
+    // The analysis reads the stored preview rather than the empty payload.
+    expect(result.latest[0]?.samples).toHaveLength(2);
+    expect(store.save).toHaveBeenCalledWith(
+      29914,
+      expect.any(Array),
+      expect.any(Set),
+      [previous],
+    );
   });
 
   it("does not start the supplementary pass when the activity sync fails", async () => {
