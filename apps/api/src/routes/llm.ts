@@ -15,33 +15,15 @@ import {
   serviceUnavailable,
 } from "../http/errors.js";
 import { encrypt } from "../crypto/credentials.js";
+import type { ResolvedAppDependencies } from "../dependencies.js";
 import { loadLlmCosts } from "../llm/costStore.js";
 import { llmCredentialsKeyFromEnv } from "../llm/credentials.js";
-import {
-  createOpenRouterProvider,
-  type LlmProvider,
-} from "../llm/openrouter.js";
+import { createOpenRouterProvider } from "../llm/openrouter.js";
 import {
   ensureModelCatalogFresh,
   loadModelCatalog,
 } from "../llm/modelCatalog.js";
 import { loadLlmSettings, saveLlmSettings } from "../llm/store.js";
-
-export interface LlmRouteDependencies {
-  /** Injectable for route tests; defaults to the database-backed store. */
-  loadSettings?: typeof loadLlmSettings;
-  saveSettings?: typeof saveLlmSettings;
-  /** Injectable for route tests; defaults to the database-backed cost history. */
-  loadCosts?: typeof loadLlmCosts;
-  /** Injectable for route tests; defaults to the graded catalog. */
-  loadCatalog?: typeof loadModelCatalog;
-  /** Injectable for route tests; defaults to the 24-hour refresh job. */
-  refreshCatalog?: typeof ensureModelCatalogFresh;
-  /** Injectable for route tests; defaults to the OpenRouter provider. */
-  provider?: LlmProvider;
-  /** Injectable for route tests; defaults to `LLM_CREDENTIALS_KEY`. */
-  credentialsKey?: () => Promise<CryptoKey>;
-}
 
 /** Reads the stored configuration without ever exposing the encrypted key. */
 function settingsFromStored(stored: {
@@ -65,14 +47,14 @@ function settingsFromStored(stored: {
  * OpenRouter before being stored encrypted, and is never serialized back to the
  * client.
  */
-export function createLlmRoute(deps: LlmRouteDependencies = {}): Hono {
-  const loadSettings = deps.loadSettings ?? loadLlmSettings;
-  const saveSettings = deps.saveSettings ?? saveLlmSettings;
-  const loadCosts = deps.loadCosts ?? loadLlmCosts;
-  const loadCatalog = deps.loadCatalog ?? loadModelCatalog;
-  const refreshCatalog = deps.refreshCatalog ?? ensureModelCatalogFresh;
-  const provider = deps.provider ?? createOpenRouterProvider();
-  const credentialsKey = deps.credentialsKey ?? llmCredentialsKeyFromEnv;
+export function createLlmRoute(deps: ResolvedAppDependencies): Hono {
+  const loadSettings = deps.loadLlmSettings ?? loadLlmSettings;
+  const saveSettings = deps.saveLlmSettings ?? saveLlmSettings;
+  const loadCosts = deps.loadLlmCosts ?? loadLlmCosts;
+  const loadCatalog = deps.loadModelCatalog ?? loadModelCatalog;
+  const refreshCatalog = deps.refreshModelCatalog ?? ensureModelCatalogFresh;
+  const provider = deps.llmProvider ?? createOpenRouterProvider();
+  const credentialsKey = deps.llmCredentialsKey ?? llmCredentialsKeyFromEnv;
 
   return new Hono()
     .get("/settings", async (c) => {

@@ -58,3 +58,16 @@ forward with a conditional spread.
 - The whole context is available to every route, so TypeScript no longer lists
   a route's exact needs. The route body and its imports document that instead.
 - Tests continue to inject through `createApp` without changes.
+
+## Amendment (2026-11-14)
+
+Issue #293 brought the last three route families in. `createGarminRoute`,
+`createLlmRoute` and the admin question route now take `ResolvedAppDependencies`
+like the others; `adminQuestionsRoute` became `createAdminQuestionsRoute`, and
+its five store functions became one `QuestionSetStore`. The Garmin and LLM
+routes previously kept local hook interfaces because their tests drove the
+factories directly; those tests now build their app with `createApp`, which is
+what makes the consequence above hold. Injectables on the flat surface are
+named after the production function they replace (`loadGarminCredentials`,
+`loadLlmSettings`) so a bare `authenticate` or `provider` cannot be mistaken for
+another route's seam.
