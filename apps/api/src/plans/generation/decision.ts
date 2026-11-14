@@ -1,6 +1,7 @@
 import type { CoachPlan, PlanPending } from "@killingit/shared";
 import { planWeatherChanged } from "../../weather/changes.js";
 import type { PeriodReviewContext } from "../../llm/planContext.js";
+import { isNewer } from "../dates.js";
 import { planIsStale, planPending } from "../status.js";
 import { ensureGenerationCurrent } from "./persist.js";
 import { runTimeZone, seasonModelFor } from "./promptContext.js";
@@ -32,10 +33,7 @@ export function decideRevisionPlan(
       : context.coachingInputsUpdatedAt;
   const inputsChanged =
     plan !== null &&
-    inputsRefreshUpdatedAt !== null &&
-    (plan.coachingInputsUpdatedAt === null ||
-      inputsRefreshUpdatedAt.getTime() >
-        plan.coachingInputsUpdatedAt.getTime());
+    isNewer(inputsRefreshUpdatedAt, plan.coachingInputsUpdatedAt);
   // Compare against the analyses included in the plan, not when the plan was
   // saved: an import can finish while a generation is running, so the plan
   // may be newer than its save time yet still not contain the activity.
@@ -45,45 +43,30 @@ export function decideRevisionPlan(
       : context.activitiesUpdatedAt;
   const activitiesChanged =
     plan !== null &&
-    activitiesRefreshUpdatedAt != null &&
-    (plan.activitiesUpdatedAt === null ||
-      activitiesRefreshUpdatedAt.getTime() >
-        plan.activitiesUpdatedAt.getTime());
+    isNewer(activitiesRefreshUpdatedAt, plan.activitiesUpdatedAt);
   // A newly generated week review, or an answer to one that asked for a plan
   // change, makes the block pending. The block is revised in place when today
   // is still inside it.
   const weekReviewPending =
     plan !== null &&
-    context.weekReviewUpdatedAt != null &&
     context.weekReviewNeedsRefresh !== false &&
-    (plan.coachingInputsUpdatedAt === null ||
-      context.weekReviewUpdatedAt.getTime() >
-        plan.coachingInputsUpdatedAt.getTime());
+    isNewer(context.weekReviewUpdatedAt, plan.coachingInputsUpdatedAt);
   // A newly generated block review, or an answer that asked for a change,
   // refreshes the remaining season around what the completed block achieved.
   const blockReviewPending =
     plan !== null &&
-    context.blockReviewUpdatedAt != null &&
     context.blockReviewNeedsRefresh !== false &&
-    (plan.coachingInputsUpdatedAt === null ||
-      context.blockReviewUpdatedAt.getTime() >
-        plan.coachingInputsUpdatedAt.getTime());
+    isNewer(context.blockReviewUpdatedAt, plan.coachingInputsUpdatedAt);
   const revisionNeeded =
     inputsChanged || activitiesChanged || weekReviewPending;
   // The plan still stores the newest input and analysis of any kind, so a
   // context-only input is recorded once and never triggers another run.
   const unreviewedInputs =
     plan !== null &&
-    context.coachingInputsUpdatedAt !== null &&
-    (plan.coachingInputsUpdatedAt === null ||
-      context.coachingInputsUpdatedAt.getTime() >
-        plan.coachingInputsUpdatedAt.getTime());
+    isNewer(context.coachingInputsUpdatedAt, plan.coachingInputsUpdatedAt);
   const unreviewedActivities =
     plan !== null &&
-    context.activitiesUpdatedAt != null &&
-    (plan.activitiesUpdatedAt === null ||
-      context.activitiesUpdatedAt.getTime() >
-        plan.activitiesUpdatedAt.getTime());
+    isNewer(context.activitiesUpdatedAt, plan.activitiesUpdatedAt);
   const acknowledgementNeeded =
     (unreviewedInputs && !inputsChanged) ||
     (unreviewedActivities && !activitiesChanged);
@@ -235,7 +218,7 @@ function latestDate(
   if (second == null) {
     return first;
   }
-  return second.getTime() > first.getTime() ? second : first;
+  return isNewer(second, first) ? second : first;
 }
 
 /** True when `today` falls inside the season's dates. */

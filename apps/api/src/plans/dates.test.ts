@@ -1,5 +1,35 @@
 import { describe, expect, it } from "bun:test";
-import { isAfterPlanTomorrowCutoff, localDateTimeInZone } from "./dates.js";
+import {
+  isAfterPlanTomorrowCutoff,
+  isNewer,
+  localDateTimeInZone,
+} from "./dates.js";
+
+describe("isNewer", () => {
+  const earlier = new Date("2026-10-20T10:00:00Z");
+  const later = new Date("2026-10-21T10:00:00Z");
+
+  it("compares instants", () => {
+    expect(isNewer(later, earlier)).toBe(true);
+    expect(isNewer(earlier, later)).toBe(false);
+  });
+
+  it("is not newer when the instants are equal", () => {
+    expect(isNewer(later, new Date(later.getTime()))).toBe(false);
+  });
+
+  it("is newer than a missing recorded timestamp", () => {
+    expect(isNewer(later, null)).toBe(true);
+    expect(isNewer(later, undefined)).toBe(true);
+  });
+
+  it("has no candidate when it is missing", () => {
+    expect(isNewer(null, earlier)).toBe(false);
+    expect(isNewer(undefined, earlier)).toBe(false);
+    expect(isNewer(null, null)).toBe(false);
+    expect(isNewer(undefined, undefined)).toBe(false);
+  });
+});
 
 describe("isAfterPlanTomorrowCutoff", () => {
   it("uses the athlete's local hour", () => {
