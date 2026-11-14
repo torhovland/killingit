@@ -28,8 +28,8 @@ describing what kind of coaching they want, their age and location, how much
 they want to work out, their goals, their current performance, and similar.
 This input forms the athlete profile.
 
-The user can connect their training data from sources such as **Garmin**,
-**Strava**, and **Wahoo**.
+The user can connect their training data from **Garmin**. Connecting
+**Strava** and **Wahoo** is **planned**.
 
 The app connects to an **LLM** that generates coaching based on the athlete
 profile and connected training data. It produces a plan for:
@@ -683,20 +683,20 @@ See ADR 0001 and the deployment runbook in `README.md`.
 
 ### Auth (third-party login)
 
-We need login via Strava, Garmin, Google, Apple, and others. Google and Apple
-are standard "social" IdPs; **Strava and Garmin are the unusual cases** — they
-are not built into most auth SaaS and must be configured as **custom
-OAuth 2.0** connections.
+Sign-in runs through Auth0. Google and Apple are the standard "social" IdPs.
+**Garmin and Strava are planned** — they are the unusual cases, because they are
+not built into most auth SaaS and must be configured as **custom OAuth 2.0**
+connections.
 
 - **Recommendation: Auth0 Free plan.** It includes 25k monthly active users,
   and (as of the 2024 plan refresh) unlimited social connections **and custom
-  social connections**. Google and Apple are native; Strava and Garmin are set
-  up as social connections (native where a Marketplace integration exists,
-  custom OAuth 2.0 otherwise).
+  social connections**. Google and Apple are native; Garmin and Strava will be
+  set up as social connections when their apps are registered (native where a
+  Marketplace integration exists, custom OAuth 2.0 otherwise).
 - **Decision / verification:** see ADR 0002. Auth0's own docs disagree on the
   Free plan's social-connection limit ("unlimited" on the pricing page vs "a
-  maximum of two" in the Entity Limit Policy). All four of our connections are
-  **social** (not enterprise), and the Free plan includes 1 Enterprise
+  maximum of two" in the Entity Limit Policy). All four planned connections
+  are **social** (not enterprise), and the Free plan includes 1 Enterprise
   Connection, so no paid feature is required. The tenant dashboard was checked
   on 2026-10-13 and Free accepts the custom social connections, so the gate is
   closed; registering our own Strava and Garmin apps is still required, because
@@ -708,8 +708,8 @@ OAuth 2.0** connections.
 - Rejected alternatives: **Kinde** (custom OAuth2 is Pro-only, not free) and
   **Clerk** (free tier limits social connections and custom providers).
 
-Regardless of provider, the Strava/Garmin connections must also grant the data
-scopes we need to pull training data — not just identity.
+Regardless of provider, the planned Strava/Garmin connections must also grant
+the data scopes we need to pull training data — not just identity.
 
 Application roles live in the `users` table, not in provider tokens. The admin
 is provisioned explicitly: the account whose auth subject matches the API's
@@ -812,7 +812,8 @@ through a disciplined process:
    test fails when a new root-level TypeScript tree is left out. See
    `docs/specs/typescript-project-coverage.md` and ADR 0054.
 6. **Full test coverage on every feature**, across every layer:
-   - **Unit tests** (Vitest) for pure logic and components.
+   - **Unit tests** with Bun's test runner (`bun:test`) for pure logic and
+     components.
    - **Python sidecar tests** for `services/garmin`: `bun run check:garmin` runs
      `pytest` plus `ruff check`, `ruff format --check` and `mypy`, with the
      tools pinned in `services/garmin/requirements-dev.txt` and configured in
@@ -862,7 +863,10 @@ through a disciplined process:
    dependencies, descriptive names. Don't over-abstract prematurely, but
    extract real duplication.
 10. **Documents stay current.** Keep AGENTS.md accurate and write ADRs (a
-    decision log) for significant architectural choices.
+    decision log) for significant architectural choices. A guard test
+    (`scripts/docs.test.ts`) fails when a referenced spec, ADR or benchmark
+    file is missing, when two ADRs share a number, or when AGENTS.md names a
+    unit-test runner other than `bun:test`.
 11. **Definition of done.** A change is done only when tests, types, lint and
     the unused-export check pass, including `bun run check:garmin` when the
     sidecar or its tooling changes.

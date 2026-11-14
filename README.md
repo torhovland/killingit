@@ -240,8 +240,8 @@ tenant, application, API resource server, and client grant are managed via the
   access tokens but no refresh token, so the first renewal after the 2 h web
   token lifetime fails with `Missing Refresh Token`.
 - **Note:** the Auth0 MCP server exposes no Connections tools; social
-  connections (Google/Apple/…, and Strava/Garmin as custom OAuth2) are
-  configured in the Auth0 dashboard.
+  connections (Google/Apple/…, and, when built, Strava/Garmin as custom OAuth2)
+  are configured in the Auth0 dashboard.
 
 The web app reports browser errors and tracing via `@sentry/react`, enabled
 only when `VITE_SENTRY_DSN` is set at build time.

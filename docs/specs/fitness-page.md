@@ -5,15 +5,15 @@
 - **Related:** `docs/specs/training-load.md`, ADR 0012,
   `docs/specs/dashboard-layout.md`, `docs/specs/threshold-metrics.md`.
 
-> Thresholds are now per sport and the FTP chart is the **Estimated threshold**
-> chart, with one line per measure. The FTP-specific projection below still
-> describes how the cycling FTP line is built; see
+> Thresholds are now per sport and the FTP chart has become the **Estimated
+> threshold** chart, with one line per measure. The FTP-specific projection
+> below still describes how the cycling FTP line is built; see
 > `docs/specs/threshold-metrics.md` and ADR 0015 for the generic model.
 
 ## Goal
 
 Give the athlete a single place to see how their fitness (CTL), fatigue (ATL),
-and form (TSB) have moved, how the coach's estimated FTP is progressing, and
+and form (TSB) have moved, how their estimated thresholds are progressing, and
 how body weight and body-fat percentage are trending. The numbers and the TSB
 colours must match the ones already shown on the plan and activity views.
 
@@ -23,9 +23,10 @@ colours must match the ones already shown on the plan and activity views.
 
 1. A new authenticated endpoint that returns the day-by-day training load over
    a window, using the same TSS resolution as the Activities page.
-2. A new day-by-day estimated-FTP series for the same window.
+2. A new day-by-day estimated-threshold series for the same window, with one
+   line per stored measure.
 3. A `Fitness` page with a fitness/form chart, a coloured TSB zone legend using
-   the existing interpretation colours, an estimated-FTP chart, a body
+   the existing interpretation colours, an estimated-threshold chart, a body
    weight/body-fat chart when measurements exist, and recovery/sleep charts
    when Garmin has recorded those measures.
 4. A hover card on either load chart showing the pointed-at day's numbers, the
@@ -38,9 +39,8 @@ colours must match the ones already shown on the plan and activity views.
 
 - Zooming and brushing on the charts.
 - A custom date range. The API accepts the five named ranges only.
-- Persisting load history beyond the Garmin sync window (42 days) and the
-  stored plan.
-- Per-sport load or separate running/cycling FTP models.
+- Separate ATL/CTL curves per sport: each activity is scored with the threshold
+  for its own sport, but the load series is a single aggregate curve.
 
 ## Behaviour
 
@@ -72,6 +72,11 @@ The ATL/CTL recurrence is seeded 42 days before the window start (rest days
 count as zero), so the chart and the Activities page agree for the same date.
 `TSB = CTL − ATL`, as in the plan views.
 
+The series is not limited to Garmin's 42-day sync window: the activity store
+keeps every activity ever synced, so an activity that leaves the window still
+contributes its TSS to the chart and its seeding. See
+`docs/specs/activity-store.md`.
+
 ### Activities per day
 
 Each day carries the activities logged on it, for the chart's hover card:
@@ -88,12 +93,14 @@ length in minutes. The hover card shows the planned workout when the athlete
 has not logged anything that day. A rest day that is still ahead reads
 "Planned: Rest"; once it has arrived or passed it reads simply "Rest".
 
-### FTP series
+### Estimated threshold series
 
-For each day before today, the estimated FTP is the interpolated athlete
-timeline value (`ftpAt`), which covers the stated profile FTP, every later FTP
-test the athlete mentioned, and recorded history. From today onward the series
-is the plan's projection, interpolated rather than stepped:
+Every stored threshold measure gets its own line in the estimated-threshold
+chart. For the cycling FTP line, each day before today is the interpolated
+athlete timeline value, built from the stored threshold points; it covers the
+stated profile FTP, every later FTP test the athlete mentioned, and Garmin's
+recorded history. From today onward the FTP line is the plan's projection,
+interpolated rather than stepped:
 
 1. the coach's per-day estimate for each fully detailed session;
 2. the weekly estimates of the current and next week and of every week of the
@@ -105,10 +112,12 @@ estimate across the week, so a week whose estimate rises from 220 W to 222 W
 shows the days in between on the way to 222 W instead of holding 220 W until
 the next week starts.
 
-The series is empty when the athlete has never stated an FTP, and the page hides
-the FTP chart. The plan's per-session estimates are stored as `coach` points in
-`athlete_metrics` when the plan is saved, so the projection survives the plan's
-JSON shape and feeds the prompts as FTP history.
+The other measures keep their measured, interpolated trend and get no
+projection. A measure with no stored points gets no series; when no threshold
+is stored at all, the page hides the estimated-threshold chart. The plan's
+per-session estimates are stored as `coach` points in `athlete_thresholds` when
+the plan is saved, so the projection survives the plan's JSON shape and feeds
+the prompts as threshold history.
 
 ### Body series
 
@@ -141,10 +150,10 @@ Shared (`@killingit/shared`):
   (`id`, `name`, `type`, optional `durationMinutes`), `fitnessDayPlanSchema`
   (`title`, `type`, `durationMinutes`), `fitnessHistoryDaySchema` (`date`, the
   existing `trainingLoadSchema`, `activities`, and `planned`),
-  `ftpHistoryPointSchema` (`date`, `watts`),
-  `fitnessMetricPointSchema` (`date`, `value`), `fitnessBodySchema`
-  (`weight`, `bodyFat`), `latestGarminSchema` (`dailyHealth`, `weight`,
-  `bodyFat`, `ftp`), `fitnessDietTargetSchema` (`date`, `weightKg`,
+  `thresholdHistorySeriesSchema` (`sport`, `measure`, `label`, `unit`, `kind`,
+  and one point per day), `fitnessMetricPointSchema` (`date`, `value`),
+  `fitnessBodySchema` (`weight`, `bodyFat`), `latestGarminSchema` (`dailyHealth`,
+  `weight`, `bodyFat`, `ftp`), `fitnessDietTargetSchema` (`date`, `weightKg`,
   `bodyFatPercent`), and `fitnessHistoryResponseSchema` (`days`, `thresholds`,
   `body`, `latestGarmin`, `dailyHealth`, `nutrition`, `seasonEndDate`,
   `dietTargets`). `metrics.ts` also holds the interpolation and best-fit
@@ -158,14 +167,16 @@ Shared (`@killingit/shared`):
 API:
 
 - `apps/api/src/training/history.ts` — `buildFitnessHistory` (pure) and
-  `loadFitnessHistory` (loads the cached activity feed's FTP context and body
-  metric series).
-- `apps/api/src/metrics/store.ts` — the `athlete_metrics` time-series reads and
-  writes, including the coach-estimate replacement rule.
-- `apps/api/src/training/context.ts` — the FTP timeline, plan TSS, and manual
-  TSS shared with `loadUserActivityTrainingLoads`.
+  `loadFitnessHistory` (loads the threshold context, body metric series, daily
+  health and nutrition inputs).
+- `apps/api/src/metrics/store.ts` — the `athlete_metrics` and
+  `athlete_thresholds` time-series reads and writes, including the
+  coach-estimate replacement rule.
+- `apps/api/src/training/context.ts` — the threshold timelines, plan TSS, and
+  manual TSS shared with `loadUserActivityTrainingLoads`.
 - `apps/api/src/routes/fitness.ts` — the endpoint above.
-- Migration `0026_ancient_deathbird.sql` adds `athlete_metrics`.
+- Migration `0026_ancient_deathbird.sql` adds `athlete_metrics`, and migration
+  `0032_slimy_warhawk.sql` adds `athlete_thresholds`.
 
 ## UI
 
@@ -218,7 +229,8 @@ API:
   window. A day without an analysed meal has no bar, and a day without a target
   breaks the line; see `docs/specs/diet-coaching.md`.
 - Only the fitness chart's plot is white, so the zone tints stay clean while the
-  rest of that chart — and the whole FTP chart — keeps the card's surface. The bands are soft tints (62.5%) of the
+  rest of that chart — and the whole estimated-threshold chart — keeps the
+  card's surface. The bands are soft tints (62.5%) of the
   zone colours, and the TSB line is solid and coloured by the zone it is in
   (`--form-*-line`, the zone colours darkened towards black), so line and band
   stay distinct. The line changes colour where it crosses a zone boundary, not
@@ -231,8 +243,8 @@ API:
 - Pointing at (or tapping) either chart marks the nearest day with a guide line
   and a marker on the CTL line, and shows a card with the date, the load
   numbers and interpretation, and the activities logged that day — or the
-  planned workout when nothing was logged. The FTP chart's card also shows that
-  day's estimated FTP. The charts are tall enough
+  planned workout when nothing was logged. The estimated-threshold chart's card
+  also shows that day's values. The charts are tall enough
   for the card to sit over the top of the plot without hiding the lines below
   it.
 - Every chart is one keyboard stop as well: the left and right arrow keys move
@@ -271,10 +283,10 @@ API:
 4. The TSB zone bands and the legend use the same colours as the interpretation
    text (`--form-risk`, `--form-productive`, …), and the TSB line is solid and
    changes colour exactly where it crosses from one zone into the next.
-5. The FTP chart plots the plan's projection from today onward as a line
-   interpolated between the coach's daily estimates and the weekly estimates,
-   and the athlete's stated/tested values for recorded history, and is hidden
-   without an FTP.
+5. The estimated-threshold chart plots the plan's cycling FTP projection from
+   today onward as a line interpolated between the coach's daily estimates and
+   the weekly estimates, and the athlete's stated/tested values for recorded
+   history; the chart is hidden without a threshold.
 6. The charts run as far ahead as the stored plan has workouts, and the part
    after today is dotted.
 7. The Today panel spells out training stress, fatigue, fitness, and form
@@ -309,15 +321,15 @@ API:
   `FORM_ZONES` is exercised through the web chart tests.
 - API unit tests for `buildFitnessHistory`: continuous days, TSS precedence,
   manual entries, plan TSS, daily plan estimate vs. interpolated week estimate
-  vs. timeline, no FTP, the activities listed per day, the interpolated body
-  series, and the latest Garmin readings.
+  vs. timeline, no threshold, the activities listed per day, the interpolated
+  body series, and the latest Garmin readings.
 - API route tests: auth, missing date, day clamping, and the happy path.
 - Web unit tests for the chart scale helpers and the shared chart frame
   (caption, left and right axes, date labels, render-prop series, legend and
   footer, and the keyboard stop with its announcement), the one path builder (a
   line, a gap, a skipped day and the coordinate rounding), a render test for the
-  page view (load line, zone legend, both charts, hidden FTP chart, body chart
-  and its hidden states, the Garmin Today columns and the recovery/sleep
+  page view (load line, zone legend, both charts, hidden threshold chart, body
+  chart and its hidden states, the Garmin Today columns and the recovery/sleep
   charts), a render test for the hover card, and the shared keyboard cursor's
   interaction tests (`useChartHover.test.tsx`, `FitnessChart.test.tsx`, and
   `CostBarChart.test.tsx` for the Costs page chart). See
