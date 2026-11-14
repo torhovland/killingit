@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, spyOn } from "bun:test";
 import type { PlanGenerationStatus } from "@killingit/shared";
 import type { ActivityFeed } from "../coaching/activities.js";
 import type { LlmClient } from "../llm/client.js";
@@ -156,9 +156,13 @@ const users: UserStore = {
   deleteUser: () => Promise.resolve(),
 };
 
+/**
+ * A plan run whose every loader and writer is in memory. A test replaces only
+ * the dependency it exercises; nothing here reaches the database.
+ */
 function dependencies(
   generations: PlanGenerationStore,
-  loadDiet: PlanTriggerDependencies["loadDiet"],
+  overrides: Partial<PlanTriggerDependencies> = {},
 ): PlanTriggerDependencies {
   return {
     users,
@@ -170,12 +174,27 @@ function dependencies(
       clearConsumed: () => Promise.resolve(),
     },
     loadActivities: () => Promise.resolve(emptyFeed),
+    loadThresholdHistory: () =>
+      Promise.resolve({ points: [], timelines: [], summaries: [] }),
+    loadBodyHistory: () => Promise.resolve({ weight: [], bodyFat: [] }),
+    loadDailyHealth: () => Promise.resolve([]),
+    loadEvents: () => Promise.resolve([]),
+    loadDiet: () => Promise.resolve(null),
+    loadDayCalories: () => Promise.resolve(new Map()),
+    latestActivityAnalysisSince: () => Promise.resolve(null),
+    capturePeriodReviews: () => Promise.resolve([]),
+    recordFtpEstimates: () => Promise.resolve(),
+    recordBodyMetrics: () => Promise.resolve(),
+    saveCoachQuestions: () => Promise.resolve(),
+    clearPendingCoachQuestions: () => Promise.resolve(),
     loadCoachingInputs: () => Promise.resolve(emptyInputs),
     loadLlm: () => Promise.resolve(llm),
     syncAthleteReading: () => Promise.resolve(null),
-    loadEvents: () => Promise.resolve([]),
-    loadDiet,
     loadAnsweredCoachQuestions: () => Promise.resolve([]),
+    markPlanPromptsFailed: () => Promise.resolve(),
+    // Tests share the local debounce window; keep every run immediate.
+    planTriggerDebounceMs: 0,
+    ...overrides,
   };
 }
 
@@ -184,24 +203,66 @@ function settle(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
+/** Waits until the background run reaches the state the test asserts. */
+async function waitFor(predicate: () => boolean): Promise<void> {
+  for (let attempt = 0; attempt < 100 && !predicate(); attempt += 1) {
+    await settle();
+  }
+}
+
 describe("plan generation failure handling", () => {
   it("marks the generation failed when a phase after loading throws", async () => {
     const generations = new RecordingGenerationStore();
-    const deps = dependencies(generations, () =>
-      Promise.reject(new Error("diet read failed")),
-    );
+    const deps = dependencies(generations, {
+      syncAthleteReading: () => Promise.reject(new Error("reading failed")),
+    });
 
     await triggerPlanGeneration(deps, { userId: 242, today: "2026-11-12" });
     await settle();
 
     expect(generations.status.status).toBe("error");
-    expect(generations.status.error).toBe("diet read failed");
-    expect(generations.failures).toEqual(["diet read failed"]);
+    expect(generations.status.error).toBe("reading failed");
+    expect(generations.failures).toEqual(["reading failed"]);
+  });
+
+  it("plans on when an advisory input cannot be read", async () => {
+    const generations = new RecordingGenerationStore();
+    const log = spyOn(console, "error").mockImplementation(() => {});
+    let completions = 0;
+    const deps = dependencies(generations, {
+      loadDiet: () => Promise.reject(new Error("diet read failed")),
+      loadLlm: () =>
+        Promise.resolve({
+          ...llm,
+          provider: {
+            ...llm.provider,
+            complete: () => {
+              completions += 1;
+              return Promise.resolve("");
+            },
+          },
+        }),
+    });
+
+    try {
+      await triggerPlanGeneration(deps, { userId: 242, today: "2026-11-12" });
+      await waitFor(() => completions > 0);
+
+      expect(completions).toBeGreaterThan(0);
+      expect(generations.failures).not.toContain("diet read failed");
+      expect(
+        log.mock.calls.some((call) =>
+          String(call[0]).includes("could not read the diet log"),
+        ),
+      ).toBe(true);
+    } finally {
+      log.mockRestore();
+    }
   });
 
   it("propagates a failed run claim without starting a run", async () => {
     const generations = new FailingBeginStore();
-    const deps = dependencies(generations, () => Promise.resolve(null));
+    const deps = dependencies(generations);
 
     let failed: unknown = null;
     try {

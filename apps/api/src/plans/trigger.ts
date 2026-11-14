@@ -22,6 +22,7 @@ import { loadDailyHealthForUser } from "../metrics/dailyMetrics.js";
 import {
   addDays,
   startOfWeek,
+  type AthleteEvent,
   type AthleteLocation,
   type DailyHealthPoint,
   type DailyWeather,
@@ -52,6 +53,7 @@ import {
 } from "./generation.js";
 import { runPlanGeneration } from "./generate.js";
 import { planFtpEstimates } from "./generate.js";
+import type { PlanGenerationContext } from "./generate.js";
 import { loadPlanDayCalories } from "./dayCalories.js";
 import { loadCoachingInputs, type CoachingInputs } from "./inputs.js";
 import { claimRun, releaseRun } from "./runs.js";
@@ -85,6 +87,20 @@ export interface PlanTriggerDependencies {
   loadEvents?: typeof loadAthleteEvents | undefined;
   /** Injectable for route tests; defaults to the stored food log. */
   loadDiet?: typeof loadDietContext | undefined;
+  /** Injectable for tests; defaults to the stored calorie targets. */
+  loadDayCalories?: typeof loadPlanDayCalories | undefined;
+  /** Injectable for tests; defaults to waiting for a newer analysis pass. */
+  latestActivityAnalysisSince?: typeof latestActivityAnalysisSince | undefined;
+  /** Injectable for tests; defaults to the database-backed review writer. */
+  capturePeriodReviews?: typeof captureCompletedPeriodReviews | undefined;
+  /** Injectable for tests; defaults to the stored FTP estimate writer. */
+  recordFtpEstimates?: typeof recordPlanFtpEstimates | undefined;
+  /** Injectable for tests; defaults to the stored body-metric writer. */
+  recordBodyMetrics?: typeof recordCoachBodyMetrics | undefined;
+  /** Injectable for tests; defaults to the stored coach-question writer. */
+  saveCoachQuestions?: typeof saveCoachQuestions | undefined;
+  /** Injectable for tests; defaults to clearing the pending coach question. */
+  clearPendingCoachQuestions?: typeof clearPendingCoachQuestions | undefined;
   /** Injectable for route tests; defaults to answered coach questions. */
   loadAnsweredCoachQuestions?: typeof loadAnsweredCoachQuestions | undefined;
   /** Injectable for route tests; defaults to the account's stored config. */
@@ -133,6 +149,15 @@ interface PendingPlanStart {
   options: PlanRunOptions;
 }
 
+/** The threshold history a plan prompt reads, as the store returns it. */
+type ThresholdHistory = Awaited<ReturnType<typeof loadThresholdHistoryForUser>>;
+
+/** The body weight and body-fat history a plan prompt reads. */
+type BodyHistory = Awaited<ReturnType<typeof loadBodyHistoryForUser>>;
+
+/** The coach's earlier calorie targets, newest first. */
+type CalorieHistory = NonNullable<PlanGenerationContext["calorieHistory"]>;
+
 /**
  * Triggers waiting for their debounce window to close. A timer removes its own
  * entry, and a newer trigger replaces an older one, so the map only holds
@@ -148,6 +173,16 @@ const pendingStarts = new Map<number, PendingPlanStart>();
  * scale-out each instance debounces the requests it happens to receive.
  */
 const lastTriggerAt = new RecentTimestampMap();
+
+/** The threshold history used when the stored values cannot be read. */
+const EMPTY_THRESHOLD_HISTORY: ThresholdHistory = {
+  points: [],
+  timelines: [],
+  summaries: [],
+};
+
+/** The body history used when the stored measurements cannot be read. */
+const EMPTY_BODY_HISTORY: BodyHistory = { weight: [], bodyFat: [] };
 
 /**
  * Starts a plan generation in the background. The newest request always owns
@@ -243,6 +278,140 @@ export function startHeartbeat(
   }, GENERATION_HEARTBEAT_MS);
   heartbeat.unref();
   return heartbeat;
+}
+
+/**
+ * Reads one advisory plan input. Every prompt input a run reads after the
+ * account's own state is advisory: an unavailable events, diet, metrics,
+ * calorie or weather source is logged and the coach plans without it, because
+ * a plan from a thinner picture is better than no plan at all. Only the stored
+ * plan, the answers, the coaching inputs, the account, the model and the
+ * activity feed are required, and `runPlanForUser` reads those directly.
+ */
+async function attempt<T>(
+  label: string,
+  read: () => Promise<T>,
+  fallback: T,
+): Promise<T> {
+  try {
+    return await read();
+  } catch (err) {
+    console.error(
+      `[plan] could not read the ${label}; planning without it:`,
+      err,
+    );
+    return fallback;
+  }
+}
+
+/**
+ * Reads every advisory prompt input a plan run enriches its prompts with. One
+ * function owns the list and the fail-open policy, so a new input is declared
+ * here instead of growing a bespoke `try`/`catch` at its call site.
+ */
+async function loadPlanInputs(
+  deps: PlanTriggerDependencies,
+  options: {
+    userId: number;
+    today: string;
+    location: AthleteLocation | null;
+    timeZone: string | null;
+  },
+): Promise<{
+  events: AthleteEvent[];
+  diet: Awaited<ReturnType<typeof loadDietContext>>;
+  calorieHistory: CalorieHistory | undefined;
+  thresholdHistory: ThresholdHistory;
+  bodyHistory: BodyHistory;
+  dailyHealth: DailyHealthPoint[] | undefined;
+  weatherForecasts: WeatherForecastSet | null;
+  forecast: DailyWeather[] | null;
+}> {
+  const { userId, today, location, timeZone } = options;
+  const loadDayCalories = deps.loadDayCalories ?? loadPlanDayCalories;
+
+  const [
+    events,
+    diet,
+    calorieHistory,
+    thresholdHistory,
+    bodyHistory,
+    dailyHealth,
+    weather,
+  ] = await Promise.all([
+    attempt<AthleteEvent[]>(
+      "athlete's events",
+      () => (deps.loadEvents ?? loadAthleteEvents)(userId),
+      [],
+    ),
+    attempt<Awaited<ReturnType<typeof loadDietContext>>>(
+      "diet log",
+      () => (deps.loadDiet ?? loadDietContext)(userId, today),
+      null,
+    ),
+    attempt<CalorieHistory | undefined>(
+      "earlier calorie targets",
+      async () => {
+        const targets = await loadDayCalories(
+          userId,
+          addDays(today, -28),
+          today,
+        );
+        return [...targets]
+          .map(([date, caloriesKcal]) => ({ date, caloriesKcal }))
+          .sort((a, b) => b.date.localeCompare(a.date));
+      },
+      undefined,
+    ),
+    attempt<ThresholdHistory>(
+      "threshold history",
+      () =>
+        (deps.loadThresholdHistory ?? loadThresholdHistoryForUser)(
+          userId,
+          today,
+        ),
+      EMPTY_THRESHOLD_HISTORY,
+    ),
+    attempt<BodyHistory>(
+      "body history",
+      () => (deps.loadBodyHistory ?? loadBodyHistoryForUser)(userId),
+      EMPTY_BODY_HISTORY,
+    ),
+    attempt<DailyHealthPoint[] | undefined>(
+      "daily health metrics",
+      () =>
+        (deps.loadDailyHealth ?? loadDailyHealthForUser)(
+          userId,
+          addDays(today, -42),
+          today,
+        ),
+      undefined,
+    ),
+    location === null
+      ? null
+      : attempt<WeatherForecastSet | null>(
+          "weather forecast",
+          () =>
+            (
+              deps.loadForecast ??
+              ((entry: AthleteLocation, zone: string | null) =>
+                fetchWeatherForecasts(entry, { timezone: zone }))
+            )(location, timeZone),
+          null,
+        ),
+  ]);
+
+  return {
+    events,
+    diet,
+    calorieHistory,
+    thresholdHistory,
+    bodyHistory,
+    dailyHealth,
+    weatherForecasts: weather,
+    forecast:
+      weather !== null && weather.combined.length > 0 ? weather.combined : null,
+  };
 }
 
 /**
@@ -415,68 +584,16 @@ export async function runPlanForUser(
       throw new GenerationSupersededError();
     }
   }
-  let events: Awaited<ReturnType<typeof loadAthleteEvents>>;
-  try {
-    events = await (deps.loadEvents ?? loadAthleteEvents)(userId);
-  } catch (err) {
-    // Events are advisory. A read failure must not stop the plan.
-    console.error("[events] could not load the athlete's events:", err);
-    events = [];
-  }
-
-  const diet = await (deps.loadDiet ?? loadDietContext)(userId, today);
-
-  let calorieHistory: { date: string; caloriesKcal: number }[] | undefined;
-  try {
-    const targets = await loadPlanDayCalories(
-      userId,
-      addDays(today, -28),
-      today,
-    );
-    calorieHistory = [...targets]
-      .map(([date, caloriesKcal]) => ({ date, caloriesKcal }))
-      .sort((a, b) => b.date.localeCompare(a.date));
-  } catch (err) {
-    // The earlier targets only help the coach judge the trend; the plan must
-    // still generate when they cannot be read.
-    console.error("[diet] could not read the calorie targets:", err);
-    calorieHistory = undefined;
-  }
-
-  const thresholdHistory = await (
-    deps.loadThresholdHistory ?? loadThresholdHistoryForUser
-  )(userId, today);
-  const bodyHistory = await (deps.loadBodyHistory ?? loadBodyHistoryForUser)(
-    userId,
-  );
-  let dailyHealth: DailyHealthPoint[] | undefined;
-  try {
-    dailyHealth = await (deps.loadDailyHealth ?? loadDailyHealthForUser)(
-      userId,
-      addDays(today, -42),
-      today,
-    );
-  } catch (err) {
-    // Recovery data is advisory; the plan must still generate without it.
-    console.error("[garmin] could not read daily health metrics:", err);
-    dailyHealth = undefined;
-  }
-  let weatherForecasts: WeatherForecastSet | null = null;
-  let forecast: DailyWeather[] | null = null;
-  if (location !== null) {
-    try {
-      const loadForecast =
-        deps.loadForecast ??
-        ((entry: AthleteLocation, zone: string | null) =>
-          fetchWeatherForecasts(entry, { timezone: zone }));
-      weatherForecasts = await loadForecast(location, timeZone);
-      forecast =
-        weatherForecasts.combined.length > 0 ? weatherForecasts.combined : null;
-    } catch (err) {
-      // Weather is advisory. A forecast outage must not stop the plan.
-      console.error("[weather] could not fetch the forecast:", err);
-    }
-  }
+  const {
+    events,
+    diet,
+    calorieHistory,
+    thresholdHistory,
+    bodyHistory,
+    dailyHealth,
+    weatherForecasts,
+    forecast,
+  } = await loadPlanInputs(deps, { userId, today, location, timeZone });
 
   // The caller owns the background task and heartbeat; the client polls GET
   // for progress while this long cascade runs.
@@ -485,11 +602,9 @@ export async function runPlanForUser(
   // while the athlete-metrics and forecast phases run. Wait for it and use its
   // finished feed so the prompt never plans from an analysis that is about to
   // be replaced.
-  const refreshedActivities = await latestActivityAnalysisSince(
-    userId,
-    today,
-    activitiesSnapshotAt,
-  );
+  const refreshedActivities = await (
+    deps.latestActivityAnalysisSince ?? latestActivityAnalysisSince
+  )(userId, today, activitiesSnapshotAt);
   if (refreshedActivities !== null) {
     recentActivities = refreshedActivities.activities.slice(
       0,
@@ -507,15 +622,25 @@ export async function runPlanForUser(
     ...(force !== undefined ? { force } : {}),
     ...(includeTomorrow !== undefined ? { includeTomorrow } : {}),
     ...(keepToday !== undefined ? { keepToday } : {}),
-    capturePeriodReviews: captureCompletedPeriodReviews,
+    capturePeriodReviews:
+      deps.capturePeriodReviews ?? captureCompletedPeriodReviews,
     markPromptsFailed: deps.markPlanPromptsFailed ?? markPlanPromptsFailed,
     recordFtpEstimates: (generatedPlan) =>
-      recordPlanFtpEstimates(userId, planFtpEstimates(generatedPlan)),
+      (deps.recordFtpEstimates ?? recordPlanFtpEstimates)(
+        userId,
+        planFtpEstimates(generatedPlan),
+      ),
     recordBodyMetrics: (points) =>
-      recordCoachBodyMetrics(userId, points, today),
+      (deps.recordBodyMetrics ?? recordCoachBodyMetrics)(userId, points, today),
     recordCoachQuestion: ({ question, model, sourceKind }) =>
-      saveCoachQuestions({ userId, questions: [question], model, sourceKind }),
-    clearCoachQuestions: () => clearPendingCoachQuestions(userId),
+      (deps.saveCoachQuestions ?? saveCoachQuestions)({
+        userId,
+        questions: [question],
+        model,
+        sourceKind,
+      }),
+    clearCoachQuestions: () =>
+      (deps.clearPendingCoachQuestions ?? clearPendingCoachQuestions)(userId),
     plan,
     context: {
       answers,

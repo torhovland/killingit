@@ -39,6 +39,10 @@ factory needed under `exactOptionalPropertyTypes`.
 - Adding an injectable means adding it to `AppDependencies` and using it in the
   route. If plan generation needs it, also add it to the mapping in
   `dependencies.ts` and to `PlanTriggerDependencies`.
+- Every loader and writer a plan run uses is a `PlanTriggerDependencies` field,
+  so tests can run a plan without a database. The plan run's advisory prompt
+  inputs are fail-open; the account's own state and the activity feed are
+  required. See `docs/specs/plan-input-loading.md`.
 - Keep an injectable optional where absence has meaning. A plan run treats an
   absent `loadActivities` as "sync first" and an absent `loadLlm` as "use the
   season model", so those are not resolved centrally.
