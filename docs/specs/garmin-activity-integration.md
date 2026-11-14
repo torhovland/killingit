@@ -211,7 +211,7 @@ one swappable corner, and normalizes Garmin activities into the shared
   timeout), so a hung sidecar fails with a typed `GarminSidecarError` instead
   of holding the API request open. The `/sync` activities are parsed with the
   shared `activitySchema` array, and a malformed payload raises
-  `GarminSidecarError` before anything reaches the stored feed.
+  `GarminSidecarError` before anything reaches the stored activity rows.
 - **Malformed sync payloads cannot blank the page.** The web validates the
   `{ activities }` response against the shared `activitiesResponseSchema`
   before rendering; a shape error becomes an inline Garmin error. `samples`
@@ -237,16 +237,17 @@ one swappable corner, and normalizes Garmin activities into the shared
   Garmin recorded neither distance nor speed, the recorded-samples view says so
   instead of showing a zero-only distance column; pace cannot be derived from
   heart rate or stroke rate alone.
-- **Sample preview.** The feed keeps the full timeseries server-side and adds
-  an evenly spaced, bounded `samples` preview (`MAX_PREVIEW_SAMPLES`) to each
-  `AnalyzedActivity`. The Activities page shows it in a collapsible table so the
-  athlete can inspect what was recorded without a second Garmin request.
-- **Every synced activity is kept.** A sync extends the stored feed instead of
-  replacing it: activities still inside Garmin's 42-day window get their latest
-  summary and preview, and activities that have fallen outside it keep their
-  stored analysis and feedback. The analysis cap only limits how many of the
-  newest activities one run sends to the model; Calendar, Activities, and the
-  Fitness chart read the full history.
+- **Sample preview.** The full timeseries stays server-side and each stored
+  activity keeps an evenly spaced, bounded `samples` preview
+  (`MAX_PREVIEW_SAMPLES`). The Activities page shows it in a collapsible table
+  so the athlete can inspect what was recorded without a second Garmin request;
+  other pages select only the summary columns. See
+  `docs/specs/activity-store.md`.
+- **Every synced activity is kept.** A sync upserts the rows inside Garmin's
+  42-day window and leaves older rows alone, so activities that have fallen
+  outside it keep their stored analysis and feedback. The analysis cap only
+  limits how many of the newest activities one run sends to the model;
+  Calendar, Activities, and the Fitness chart read the full history.
 - **Deleting an imported activity is local.** Garmin Connect remains the source
   of truth, so a deletion stores a per-user tombstone and filters the activity
   out of the feed and plan. See `docs/specs/activity-deletion.md`.

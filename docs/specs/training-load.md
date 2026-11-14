@@ -158,7 +158,7 @@ Load is never applied incrementally. Every change rebuilds the daily series
 from the earliest relevant date (42 days before the first activity) through the
 latest one, so editing a manual entry, deleting one, or importing/updating a
 Garmin activity recalculates the TSS, ATL, CTL, and TSB for every later day and
-activity. The Activities page refreshes the cached feed after a manual edit or
+activity. The Activities page refreshes the activity feed after a manual edit or
 delete and resyncs after an imported activity is deleted.
 
 Each TSB value also carries a plain-language interpretation, shown after the

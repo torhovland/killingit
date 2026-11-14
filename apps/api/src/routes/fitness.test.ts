@@ -153,7 +153,7 @@ function makeApp(options: { plan?: CoachPlan | null } = {}) {
             generatedAt: new Date(0),
           },
     ),
-    loadCachedFeed: () => Promise.resolve(feed),
+    loadStoredFeed: () => Promise.resolve(feed),
     // Mirrors the database-backed loader without the account's stored inputs.
     loadFitnessHistory: (
       _userId,

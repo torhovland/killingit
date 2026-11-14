@@ -96,11 +96,11 @@ Weather and daylight are included in the plan prompts; see
   `created_at`, `updated_at`; unique `(user_id, activity_id, kind)`. A cached
   analysis is keyed by the account, activity and kind; the model and prompt
   version are recorded for provenance and do not invalidate it.
-- **New table `activity_feed_cache`**: one row per user with the last
-  successfully synced `{ model, activities }` feed. It is replaced after every
-  successful sync and lets the dashboard show existing cards on page load
-  without waiting for Garmin. Also cached in browser storage per account for a
-  synchronous first paint.
+- **New table `activities`**: one row per synced activity (ADR 0034), so the
+  dashboard can show existing cards on page load without waiting for Garmin.
+  The coach's analyses and the athlete's feedback live in their own tables and
+  are joined when the feed is read. Also cached in browser storage per account
+  for a synchronous first paint.
 - **New env var** `LLM_CREDENTIALS_KEY` (encryption key) and optional
   `OPENROUTER_API_URL` (base-URL override).
 - **New routes** (all behind `requireAuth`):
@@ -143,8 +143,9 @@ Weather and daylight are included in the plan prompts; see
   a truncating or failing model cannot bill the whole chain; see
   `docs/specs/llm-completion-budget.md`.
 - `store.ts` / `analysisStore.ts` — Drizzle upserts and model-scoped cache reads.
-- `coaching/feedCache.ts` — stores the last successfully synced feed per user
-  (`activity_feed_cache`) so the page can render it while a new sync runs.
+- `coaching/activityStore.ts` — stores the synced activity rows (`activities`)
+  and composes the stored feed so the page can render it while a new sync
+  runs.
 - `routes/llm.ts` — settings + catalog; `routes/coaching.ts` — sync, bounded
   concurrency (3), cached-or-fresh analyses, per-activity error isolation. The
   response carries activity summaries and a `sampleCount`; the full timeseries

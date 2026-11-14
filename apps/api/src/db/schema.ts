@@ -1,5 +1,6 @@
 import type {
-  AnalyzedActivitiesResponse,
+  ActivityLap,
+  ActivitySample,
   BlockPlan,
   DayPlan,
   DietPlan,
@@ -7,7 +8,9 @@ import type {
   LlmCallMessage,
   LlmCallUsage,
   LlmPromptKind,
+  RoutePoint,
   SeasonPlan,
+  StrengthSet,
   WeekPlan,
 } from "@killingit/shared";
 import { DAILY_HEALTH_METRIC_KEYS, LLM_PROMPT_KINDS } from "@killingit/shared";
@@ -543,23 +546,68 @@ export type ActivityAnalysis = typeof activityAnalyses.$inferSelect;
 export type NewActivityAnalysis = typeof activityAnalyses.$inferInsert;
 
 /**
- * The activity feed per user: every activity ever synced, with its latest
- * analysis and athlete feedback. It lets the dashboard show existing activities
- * immediately on load, while the live Garmin sync and any new analyses run.
- * Extended after every successful sync, never truncated to the sync window.
+ * One synced activity per row, so every page reads only the columns it needs
+ * instead of loading one unbounded JSONB feed. The summary columns are read by
+ * the calendar, fitness, manual-activity and prompt loaders; the bounded sample
+ * preview and GPS route are JSONB columns that only the activity feed and the
+ * calendar's route map select. History extends on every sync, so an activity
+ * that has left Garmin's sync window keeps its row.
+ *
+ * The coach's analysis lives in `activity_analyses` and the athlete's comment,
+ * reply and review in their own tables; the row never duplicates them. See
+ * `docs/specs/activity-store.md` and ADR 0034.
  */
-export const activityFeedCache = pgTable("activity_feed_cache", {
-  userId: integer("user_id")
-    .primaryKey()
-    .references(() => users.id, { onDelete: "cascade" }),
-  feed: jsonb("feed").$type<AnalyzedActivitiesResponse>().notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
+export const activities = pgTable(
+  "activities",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    // Garmin activity ids are ~2.5e10, beyond a 32-bit integer.
+    activityId: bigint("activity_id", { mode: "number" }).notNull(),
+    name: text("name").notNull(),
+    type: text("type").notNull(),
+    startDate: timestamp("start_date", { withTimezone: true }).notNull(),
+    distance: doublePrecision("distance").notNull(),
+    movingTime: doublePrecision("moving_time").notNull(),
+    elapsedTime: doublePrecision("elapsed_time").notNull(),
+    totalElevationGain: doublePrecision("total_elevation_gain").notNull(),
+    averagePower: doublePrecision("average_power"),
+    normalizedPower: doublePrecision("normalized_power"),
+    averageHeartRate: doublePrecision("average_heart_rate"),
+    averageSpeed: doublePrecision("average_speed"),
+    maxSpeed: doublePrecision("max_speed"),
+    sampleCount: integer("sample_count").notNull().default(0),
+    /** Recorded strength sets; null when the source recorded none. */
+    strengthSets: jsonb("strength_sets").$type<StrengthSet[]>(),
+    /** Recorded laps; null when the source recorded none. */
+    laps: jsonb("laps").$type<ActivityLap[]>(),
+    /** Bounded, downsampled preview shown on the Activities page. */
+    samples: jsonb("samples").$type<ActivitySample[]>().notNull().default([]),
+    /** Downsampled GPS trace for the route map, when one was recorded. */
+    route: jsonb("route").$type<RoutePoint[]>(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("activities_user_id_activity_id_idx").on(
+      table.userId,
+      table.activityId,
+    ),
+    index("activities_user_id_start_date_idx").on(
+      table.userId,
+      table.startDate,
+    ),
+  ],
+);
 
-export type ActivityFeedCacheRow = typeof activityFeedCache.$inferSelect;
-export type NewActivityFeedCache = typeof activityFeedCache.$inferInsert;
+export type ActivityRow = typeof activities.$inferSelect;
+export type NewActivityRow = typeof activities.$inferInsert;
 
 /**
  * Stable identity for an athlete question. The wording lives in

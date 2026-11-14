@@ -1,17 +1,13 @@
 import {
   activityLocalDate,
-  recordedPowerSummary,
   zonedDateTime,
   type Activity,
-  type ActivitySample,
-  type ActivitySummary,
   type AnalyzedActivity,
   type BodyMetricEstimate,
   type CoachAnalysisResult,
   type CoachPlan,
   type DailyHealthPoint,
   type MetricPoint,
-  type RoutePoint,
   type ThresholdSummary,
 } from "@killingit/shared";
 import { decrypt } from "../crypto/credentials.js";
@@ -37,7 +33,6 @@ import {
   recordGarminFtp,
 } from "../metrics/store.js";
 import { loadDailyHealthForUser } from "../metrics/dailyMetrics.js";
-import { downsample } from "../lib/downsample.js";
 import { mapWithConcurrency } from "../lib/mapWithConcurrency.js";
 import { addDays } from "@killingit/shared";
 import {
@@ -81,12 +76,14 @@ import {
   ftpHistoryPoints,
   type ThresholdTimeline,
 } from "../training/thresholds.js";
-import { loadCachedActivityFeed, saveCachedActivityFeed } from "./feedCache.js";
+import {
+  loadStoredActivityFeed,
+  saveStoredActivities,
+  summarizeActivity,
+  withActivityFeedback,
+} from "./activityStore.js";
 import { shareActivityAnalysis } from "./analysisRuns.js";
-import { routeFromSamples } from "./route.js";
 
-/** Enough samples for a readable preview without bloating the cached feed. */
-export const MAX_PREVIEW_SAMPLES = 120;
 /** Bounded concurrency so a batch does not flood OpenRouter. */
 const ANALYSIS_CONCURRENCY = 3;
 
@@ -205,7 +202,6 @@ async function loadAnalyzedActivitiesOnce(
   );
   if (inputs.settings === null) {
     return phases.assembleFeed({
-      userId: options.userId,
       history: synced.history,
       inputs,
       model: null,
@@ -229,7 +225,6 @@ async function loadAnalyzedActivitiesOnce(
     timezone: options.timezone,
   });
   return phases.assembleFeed({
-    userId: options.userId,
     history: synced.history,
     inputs,
     model,
@@ -280,7 +275,7 @@ interface SyncedFeed {
 
 /**
  * Syncs Garmin activities, body metrics and daily health, merges the result
- * with the stored history, and stores the full history before the (potentially
+ * with the stored history, and stores the sync window before the (potentially
  * slow) LLM analyses so a reload during analysis still shows every activity.
  */
 async function syncFeed(params: {
@@ -304,22 +299,22 @@ async function syncFeed(params: {
   return { latest: synced.slice(0, params.limit), history };
 }
 
-/** The feed cache reads and writes, injectable so a test can fail the read. */
-interface FeedCache {
-  load: typeof loadCachedActivityFeed;
-  save: typeof saveCachedActivityFeed;
+/** The activity store reads and writes, injectable so a test can fail the read. */
+interface ActivityStore {
+  load: typeof loadStoredActivityFeed;
+  save: typeof saveStoredActivities;
 }
 
-const FEED_CACHE: FeedCache = {
-  load: loadCachedActivityFeed,
-  save: saveCachedActivityFeed,
+const ACTIVITY_STORE: ActivityStore = {
+  load: loadStoredActivityFeed,
+  save: saveStoredActivities,
 };
 
 /**
- * Merges the synced activities with the stored history and stores the result.
- * The stored feed is read before anything is written, and a failed read aborts
- * the sync: merging the sync window with an empty history would overwrite every
- * older activity, including its analysis, comment and reply.
+ * Merges the synced activities with the stored history and stores the sync.
+ * The stored history is read before anything is written, and a failed read
+ * aborts the sync: merging the sync window with an empty history would drop
+ * every older activity from the response, including its coach work.
  */
 export async function extendStoredFeed(
   params: {
@@ -327,18 +322,19 @@ export async function extendStoredFeed(
     synced: readonly Activity[];
     deletedIds: ReadonlySet<string>;
   },
-  cache: FeedCache = FEED_CACHE,
+  store: ActivityStore = ACTIVITY_STORE,
 ): Promise<AnalyzedActivity[]> {
-  const previous = await loadPreviousActivities(params.userId, cache.load);
+  const previous = await loadPreviousActivities(params.userId, store.load);
   const history = mergeActivityHistory(
     previous,
     params.synced,
     params.deletedIds,
   );
-  await persistFeed(
+  await persistSyncedActivities(
     params.userId,
-    { model: null, activities: history },
-    cache.save,
+    params.synced,
+    params.deletedIds,
+    store.save,
   );
   return history;
 }
@@ -692,7 +688,7 @@ function failedAnalysis(
     `[coaching] analysis failed for activity ${activity.id}: ${detail}`,
   );
   return {
-    ...summarize(activity),
+    ...summarizeActivity(activity),
     analysis: null,
     analysisError:
       err instanceof LlmProviderError
@@ -740,7 +736,6 @@ async function recordActivityEstimates(
 }
 
 interface AssembleFeedParams {
-  userId: number;
   history: readonly AnalyzedActivity[];
   inputs: AnalysisInputs;
   model: string | null;
@@ -748,24 +743,26 @@ interface AssembleFeedParams {
   timezone: string | undefined;
 }
 
-/** Combines the analysed activities with the history and stores the feed. */
-async function assembleFeed(params: AssembleFeedParams): Promise<ActivityFeed> {
+/**
+ * Combines the analysed activities with the history and attaches the training
+ * load. Analyses are stored by the analysis phase and the activity rows by the
+ * sync phase, so the response needs no second write.
+ */
+function assembleFeed(params: AssembleFeedParams): ActivityFeed {
   const analyzedById = new Map(
     params.analyses.map((activity) => [String(activity.id), activity]),
   );
-  const feed: ActivityFeed = {
+  return {
     model: params.model,
     activities: params.history.map((activity) => {
       const analyzed = analyzedById.get(String(activity.id));
       return withActivityLoad(
-        analyzed ?? withFeedback(activity, params.inputs.feedback),
+        analyzed ?? withActivityFeedback(activity, params.inputs.feedback),
         params.inputs.loads,
         params.timezone,
       );
     }),
   };
-  await persistFeed(params.userId, feed);
-  return feed;
 }
 
 /**
@@ -899,10 +896,10 @@ async function loadBodyHistorySafely(userId: number) {
  */
 async function loadPreviousActivities(
   userId: number,
-  load: FeedCache["load"] = loadCachedActivityFeed,
+  load: ActivityStore["load"] = loadStoredActivityFeed,
 ): Promise<readonly AnalyzedActivity[]> {
   try {
-    return (await load(userId))?.activities ?? [];
+    return (await load(userId, "samples")).activities;
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err);
     console.error(
@@ -923,7 +920,7 @@ function refreshSyncedActivity(
   activity: Activity,
 ): AnalyzedActivity {
   return {
-    ...summarize(activity),
+    ...summarizeActivity(activity),
     analysis: previous.analysis,
     analysisError: previous.analysisError,
     programAnalysis: previous.programAnalysis,
@@ -934,30 +931,8 @@ function refreshSyncedActivity(
 }
 
 /**
- * Applies the latest stored athlete feedback to an activity in the history.
- * Also used by the cached feed route, which overlays a reply stored after the
- * cache was written.
- */
-export function withFeedback(
-  activity: AnalyzedActivity,
-  feedback: ReadonlyMap<string, ActivityFeedback>,
-): AnalyzedActivity {
-  const entry = feedback.get(String(activity.id));
-  if (entry === undefined) {
-    return activity;
-  }
-  return {
-    ...activity,
-    comment: entry.comment,
-    coachReply: entry.reply ? toCoachAnalysis(entry.reply) : null,
-    reviewed: entry.reviewed,
-  };
-}
-
-/**
  * Attaches the day's fitness snapshot and the activity's own TSS for the page.
- * Also used by the cached feed route, whose stored payload may predate both
- * fields.
+ * Used by the live feed, the cached feed route and the calendar.
  */
 export function withActivityLoad(
   activity: AnalyzedActivity,
@@ -973,45 +948,19 @@ export function withActivityLoad(
   };
 }
 
-/** Stores the feed for a fast first paint; a cache failure must not fail sync. */
-async function persistFeed(
+/** Stores the sync window; a write failure must not fail the sync response. */
+async function persistSyncedActivities(
   userId: number,
-  feed: ActivityFeed,
-  save: FeedCache["save"] = saveCachedActivityFeed,
+  synced: readonly Activity[],
+  deletedIds: ReadonlySet<string>,
+  save: ActivityStore["save"] = saveStoredActivities,
 ): Promise<void> {
   try {
-    await save(userId, feed);
+    await save(userId, synced, deletedIds);
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err);
-    console.error(`[coaching] could not cache the activity feed: ${detail}`);
+    console.error(`[coaching] could not store the activity rows: ${detail}`);
   }
-}
-
-/**
- * Strips the (large) timeseries, keeping the summary, its sample count, a
- * bounded sample preview for the activities page, and a bounded GPS route for
- * the activity map.
- */
-function summarize(activity: Activity): ActivitySummary & {
-  sampleCount: number;
-  samples: ActivitySample[];
-  route?: RoutePoint[];
-} {
-  const { samples, ...summary } = activity;
-  const route = routeFromSamples(samples);
-  const power = recordedPowerSummary(samples);
-  return {
-    ...summary,
-    sampleCount: samples.length,
-    samples: downsample(samples, MAX_PREVIEW_SAMPLES),
-    ...(power.averagePower !== null
-      ? { averagePower: power.averagePower }
-      : {}),
-    ...(power.normalizedPower !== null
-      ? { normalizedPower: power.normalizedPower }
-      : {}),
-    ...(route.length >= 2 ? { route } : {}),
-  };
 }
 
 /** Wraps cached analyses and athlete feedback in the shared response shape. */
@@ -1022,7 +971,7 @@ function withStoredAnalysis(
   feedback?: ActivityFeedback,
 ): AnalyzedActivity {
   return {
-    ...summarize(activity),
+    ...summarizeActivity(activity),
     analysis: {
       text: stored.text,
       model: stored.model,
@@ -1043,7 +992,7 @@ function withoutAnalysis(
   feedback?: ActivityFeedback,
 ): AnalyzedActivity {
   return {
-    ...summarize(activity),
+    ...summarizeActivity(activity),
     analysis: null,
     analysisError: null,
     programAnalysis: null,

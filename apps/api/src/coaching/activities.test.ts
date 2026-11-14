@@ -1,15 +1,15 @@
 import { describe, expect, it, mock } from "bun:test";
 import type { Activity, AnalyzedActivity } from "@killingit/shared";
 import type { ActivityFeedback } from "../plans/replies.js";
+import { withActivityFeedback } from "./activityStore.js";
 import {
   commentIsNewerThanAnalysis,
   extendStoredFeed,
   mergeActivityHistory,
   withActivityLoad,
-  withFeedback,
 } from "./activities.js";
 
-type FeedCache = NonNullable<Parameters<typeof extendStoredFeed>[1]>;
+type ActivityStore = NonNullable<Parameters<typeof extendStoredFeed>[1]>;
 
 function synced(id: number, startDate: string, name: string): Activity {
   return {
@@ -104,7 +104,7 @@ describe("mergeActivityHistory", () => {
   });
 });
 
-describe("withFeedback", () => {
+describe("withActivityFeedback", () => {
   const feedback: ActivityFeedback = {
     comment: "Felt strong",
     commentUpdatedAt: new Date("2026-10-03T08:00:00Z"),
@@ -120,7 +120,7 @@ describe("withFeedback", () => {
   };
 
   it("applies the stored comment, reply and reviewed flag", () => {
-    const updated = withFeedback(
+    const updated = withActivityFeedback(
       stored(1, "2026-10-03T06:30:00Z"),
       new Map([["1", feedback]]),
     );
@@ -133,7 +133,7 @@ describe("withFeedback", () => {
   it("returns the activity unchanged when it has no stored feedback", () => {
     const activity = stored(1, "2026-10-03T06:30:00Z");
 
-    expect(withFeedback(activity, new Map())).toBe(activity);
+    expect(withActivityFeedback(activity, new Map())).toBe(activity);
   });
 });
 
@@ -169,7 +169,7 @@ describe("withActivityLoad", () => {
 
 describe("extendStoredFeed", () => {
   it("does not store a sync when the stored feed cannot be read", async () => {
-    const cache: FeedCache = {
+    const store: ActivityStore = {
       load: () => Promise.reject(new Error("connection reset")),
       save: mock(() => Promise.resolve()),
     };
@@ -182,7 +182,7 @@ describe("extendStoredFeed", () => {
           synced: [synced(2, "2026-10-11T06:30:00Z", "New ride")],
           deletedIds: new Set(),
         },
-        cache,
+        store,
       );
     } catch (err) {
       caught = err;
@@ -191,11 +191,11 @@ describe("extendStoredFeed", () => {
     expect(caught instanceof Error ? caught.message : "").toBe(
       "The stored activity feed could not be read",
     );
-    expect(cache.save).not.toHaveBeenCalled();
+    expect(store.save).not.toHaveBeenCalled();
   });
 
-  it("stores the merged history when the stored feed can be read", async () => {
-    const cache: FeedCache = {
+  it("stores only the synced window when the stored feed can be read", async () => {
+    const store: ActivityStore = {
       load: () =>
         Promise.resolve({
           model: null,
@@ -203,20 +203,22 @@ describe("extendStoredFeed", () => {
         }),
       save: mock(() => Promise.resolve()),
     };
+    const deletedIds = new Set(["3"]);
 
     const history = await extendStoredFeed(
       {
         userId: 1,
         synced: [synced(2, "2026-10-11T06:30:00Z", "New ride")],
-        deletedIds: new Set(),
+        deletedIds,
       },
-      cache,
+      store,
     );
 
     expect(history.map((activity) => activity.id)).toEqual([2, 1]);
-    expect(cache.save).toHaveBeenCalledWith(1, {
-      model: null,
-      activities: history,
-    });
+    expect(store.save).toHaveBeenCalledWith(
+      1,
+      [synced(2, "2026-10-11T06:30:00Z", "New ride")],
+      deletedIds,
+    );
   });
 });

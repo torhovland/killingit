@@ -1,8 +1,11 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "../db/index.js";
 import {
+  activities,
+  activityAnalyses,
   activityComments,
   activityDeletions,
+  activityReviews,
   coachReplies,
   manualActivities,
 } from "../db/schema.js";
@@ -38,7 +41,7 @@ export async function deleteImportedActivity(
           activityDeletions.activityId,
         ],
       });
-    await deleteSyncedActivityFeedback(tx, userId, activityId);
+    await deleteSyncedActivityWork(tx, userId, activityId);
   });
 }
 
@@ -95,11 +98,12 @@ export async function loadDeletedActivityIds(
   return new Set(rows.map((row) => row.activityId));
 }
 
-async function deleteSyncedActivityFeedback(
+async function deleteSyncedActivityWork(
   tx: DbTransaction,
   userId: number,
   activityId: string,
 ): Promise<void> {
+  const numericId = Number(activityId);
   await Promise.all([
     tx
       .delete(activityComments)
@@ -118,6 +122,34 @@ async function deleteSyncedActivityFeedback(
           eq(coachReplies.target, activityId),
         ),
       ),
+    tx
+      .delete(activityReviews)
+      .where(
+        and(
+          eq(activityReviews.userId, userId),
+          eq(activityReviews.activityId, activityId),
+        ),
+      ),
+    ...(Number.isNaN(numericId)
+      ? []
+      : [
+          tx
+            .delete(activityAnalyses)
+            .where(
+              and(
+                eq(activityAnalyses.userId, userId),
+                eq(activityAnalyses.activityId, numericId),
+              ),
+            ),
+          tx
+            .delete(activities)
+            .where(
+              and(
+                eq(activities.userId, userId),
+                eq(activities.activityId, numericId),
+              ),
+            ),
+        ]),
   ]);
 }
 

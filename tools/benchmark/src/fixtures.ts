@@ -1,12 +1,9 @@
-import { type AnalyzedActivity, type CoachAnalysis } from "@killingit/shared";
+import { type AnalyzedActivity } from "@killingit/shared";
 import { eq } from "drizzle-orm";
+import { loadStoredActivityFeed } from "../../../apps/api/src/coaching/activityStore.js";
 import { decrypt } from "../../../apps/api/src/crypto/credentials.js";
 import { db } from "../../../apps/api/src/db/index.js";
-import {
-  activityFeedCache,
-  llmSettings,
-  users,
-} from "../../../apps/api/src/db/schema.js";
+import { llmSettings, users } from "../../../apps/api/src/db/schema.js";
 import { llmCredentialsKeyFromEnv } from "../../../apps/api/src/llm/credentials.js";
 import type { CoachingInputs } from "../../../apps/api/src/plans/inputs.js";
 import { loadCoachingInputs } from "../../../apps/api/src/plans/inputs.js";
@@ -77,32 +74,9 @@ async function resolveApiKey(userId: number): Promise<string> {
   return decrypt(row.apiKeyEncrypted, await llmCredentialsKeyFromEnv());
 }
 
-function asCoachAnalysis(value: unknown): CoachAnalysis | null {
-  if (typeof value !== "object" || value === null) {
-    return null;
-  }
-  const entry = value as {
-    text?: unknown;
-    model?: unknown;
-    generatedAt?: unknown;
-  };
-  if (
-    typeof entry.text !== "string" ||
-    typeof entry.model !== "string" ||
-    typeof entry.generatedAt !== "string"
-  ) {
-    return null;
-  }
-  return {
-    text: entry.text,
-    model: entry.model,
-    generatedAt: entry.generatedAt,
-  };
-}
-
 /**
  * Reads the athlete context that the app would use for a plan generation. The
- * benchmark deliberately reads the cached activity feed rather than syncing
+ * benchmark deliberately reads the stored activity rows rather than syncing
  * Garmin, so a run is deterministic and does not touch the athlete's device
  * connection.
  */
@@ -112,49 +86,15 @@ export async function loadBenchmarkFixture(input: {
   refreshToday: string;
 }): Promise<BenchmarkFixture> {
   const userId = await resolveUserId(input.userId);
-  const [apiKey, answers, feedRows, fullInputs, refreshInputs] =
-    await Promise.all([
-      resolveApiKey(userId),
-      dbQuestionAnswerStore.listForUser(userId),
-      db
-        .select({ feed: activityFeedCache.feed })
-        .from(activityFeedCache)
-        .where(eq(activityFeedCache.userId, userId))
-        .limit(1),
-      loadCoachingInputs(userId, startOfWeek(input.today)),
-      loadCoachingInputs(userId, startOfWeek(input.refreshToday)),
-    ]);
+  const [apiKey, answers, feed, fullInputs, refreshInputs] = await Promise.all([
+    resolveApiKey(userId),
+    dbQuestionAnswerStore.listForUser(userId),
+    loadStoredActivityFeed(userId),
+    loadCoachingInputs(userId, startOfWeek(input.today)),
+    loadCoachingInputs(userId, startOfWeek(input.refreshToday)),
+  ]);
   const answersUpdatedAt = latestAnswerTimestamp(answers);
-
-  const feed = feedRows[0]?.feed;
-  const activities = (feed?.activities ?? []).map(
-    (activity): AnalyzedActivity => ({
-      id: activity.id,
-      name: activity.name,
-      type: activity.type,
-      startDate: activity.startDate,
-      distance: activity.distance,
-      movingTime: activity.movingTime,
-      elapsedTime: activity.elapsedTime,
-      totalElevationGain: activity.totalElevationGain,
-      ...(activity.averagePower !== undefined
-        ? { averagePower: activity.averagePower }
-        : {}),
-      ...(activity.normalizedPower !== undefined
-        ? { normalizedPower: activity.normalizedPower }
-        : {}),
-      sampleCount: activity.sampleCount,
-      samples: activity.samples,
-      analysis: asCoachAnalysis(activity.analysis),
-      analysisError: activity.analysisError,
-      programAnalysis: asCoachAnalysis(activity.programAnalysis),
-      comment: activity.comment,
-      coachReply: asCoachAnalysis(activity.coachReply),
-      ...(activity.reviewed !== undefined
-        ? { reviewed: activity.reviewed }
-        : {}),
-    }),
-  );
+  const activities: AnalyzedActivity[] = feed.activities;
 
   return {
     userId,

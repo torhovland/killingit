@@ -61,7 +61,7 @@ comment, the coach's response, and the route map for outdoor activities.
 
 ### Entries
 
-- Imported activities use the cached analysed feed, so the dialog shows the
+- Imported activities use the stored activity rows, so the dialog shows the
   same analysis (or legacy program review), comment, coach reply, training load,
   and GPS route as the Activities page.
 - Manual activities show their description, the coach's reply, and the
@@ -131,9 +131,12 @@ API:
 - `apps/api/src/plans/weekTotals.ts`: the planned totals of the weeks a plan
   details, written with every plan save and read by the calendar.
 - Registered at `/api/calendar` behind `requireAuth`.
-- The endpoint reads `coach_plans`, `activity_feed_cache`, `manual_activities`,
+- The endpoint reads `coach_plans`, `activities`, `manual_activities`,
   `coach_replies`, `athlete_events`, and `plan_week_totals`. Migration `0045`
-  creates `athlete_events`; migration `0046` creates `plan_week_totals`.
+  creates `athlete_events`; migration `0046` creates `plan_week_totals`;
+  migration `0052` replaces `activity_feed_cache` with `activities` (ADR 0034).
+  The calendar loads each activity's GPS route but not its sample preview, and
+  computes the day's training load when it is served.
 
 ## UI
 

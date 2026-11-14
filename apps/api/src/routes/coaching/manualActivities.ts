@@ -161,7 +161,7 @@ export function createManualActivityHandlers(
       const [activities, replies, cached, storedPlan] = await Promise.all([
         deps.loadManual(user.id),
         deps.loadManualReplies(user.id),
-        deps.loadCachedFeed(user.id),
+        deps.loadStoredFeed(user.id),
         deps.plans.load(user.id),
       ]);
       let loads: ActivityLoads = {
@@ -171,7 +171,7 @@ export function createManualActivityHandlers(
       try {
         loads = await deps.loadActivityTrainingLoads(
           user.id,
-          cached?.activities ?? [],
+          cached.activities,
           storedPlan?.plan,
           user.timezone,
         );

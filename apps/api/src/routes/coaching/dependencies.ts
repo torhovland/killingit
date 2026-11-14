@@ -12,9 +12,9 @@ import {
   type CoachRunDependencies,
 } from "../../coaching/coachRun.js";
 import {
-  loadCachedActivityFeed,
+  loadStoredActivityFeed,
   MAX_ANALYZED_ACTIVITIES,
-} from "../../coaching/feedCache.js";
+} from "../../coaching/activityStore.js";
 import {
   answerCoachingQuestion,
   replyToCoachQuestion,
@@ -79,7 +79,7 @@ export interface ResolvedCoachingDependencies {
     today?: string,
     timezone?: string,
   ) => Promise<ActivityFeed>;
-  loadCachedFeed: typeof loadCachedActivityFeed;
+  loadStoredFeed: typeof loadStoredActivityFeed;
   loadFeedback: typeof loadActivityFeedback;
   loadActivityTrainingLoads: typeof loadUserActivityTrainingLoads;
   estimateTss: typeof estimateManualActivityTss;
@@ -149,7 +149,7 @@ export function resolveCoachingDependencies(
     plans: deps.planStore,
     generations: deps.generationStore,
     loadActivities,
-    loadCachedFeed: deps.loadCachedFeed ?? loadCachedActivityFeed,
+    loadStoredFeed: deps.loadStoredFeed ?? loadStoredActivityFeed,
     loadFeedback: deps.loadActivityFeedback ?? loadActivityFeedback,
     loadActivityTrainingLoads:
       deps.loadActivityTrainingLoads ?? loadUserActivityTrainingLoads,

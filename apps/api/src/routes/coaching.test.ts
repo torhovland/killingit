@@ -152,7 +152,7 @@ function makeApp(options: {
   generationStore?: PlanGenerationStore;
   answers?: QuestionAnswerStore;
   loadActivities?: (userId: number) => Promise<ActivityFeed>;
-  loadCachedFeed?: AppDependencies["loadCachedFeed"];
+  loadStoredFeed?: AppDependencies["loadStoredFeed"];
   loadActivityFeedback?: AppDependencies["loadActivityFeedback"];
   loadActivityTrainingLoads?: AppDependencies["loadActivityTrainingLoads"];
   estimateManualTss?: AppDependencies["estimateManualTss"];
@@ -250,7 +250,9 @@ function makeApp(options: {
     loadActivities:
       options.loadActivities ??
       (() => Promise.resolve({ model: "test-model", activities: [] })),
-    loadCachedFeed: options.loadCachedFeed ?? (() => Promise.resolve(null)),
+    loadStoredFeed:
+      options.loadStoredFeed ??
+      (() => Promise.resolve({ model: null, activities: [] })),
     loadActivityFeedback:
       options.loadActivityFeedback ?? (() => Promise.resolve(new Map())),
     loadActivityTrainingLoads:
@@ -404,7 +406,7 @@ describe("coaching activity feed", () => {
   it("returns the stored feed without syncing Garmin", async () => {
     const requested = { userId: null as number | null };
     const app = makeApp({
-      loadCachedFeed: (userId) => {
+      loadStoredFeed: (userId) => {
         requested.userId = userId;
         return Promise.resolve({
           model: "test-model",
@@ -458,7 +460,7 @@ describe("coaching activity feed", () => {
 
   it("returns an empty feed when nothing has been cached yet", async () => {
     const app = makeApp({
-      loadCachedFeed: () => Promise.resolve(null),
+      loadStoredFeed: () => Promise.resolve({ model: null, activities: [] }),
     });
 
     const res = await app.fetch(
@@ -469,9 +471,9 @@ describe("coaching activity feed", () => {
     expect(await res.json()).toEqual({ model: null, activities: [] });
   });
 
-  it("merges feedback the coach stored after the feed was cached", async () => {
+  it("returns the coach feedback already stored with the feed", async () => {
     const app = makeApp({
-      loadCachedFeed: () =>
+      loadStoredFeed: () =>
         Promise.resolve({
           model: "test-model",
           activities: [
@@ -489,32 +491,15 @@ describe("coaching activity feed", () => {
               analysis: null,
               analysisError: null,
               programAnalysis: null,
-              comment: null,
-              coachReply: null,
+              comment: "Felt strong on the climbs.",
+              coachReply: {
+                text: "Good pacing; keep the climbs easy next time.",
+                model: "test-model",
+                generatedAt: "2026-10-21T09:00:00.000Z",
+              },
             },
           ],
         }),
-      loadActivityFeedback: () =>
-        Promise.resolve(
-          new Map([
-            [
-              "7",
-              {
-                comment: "Felt strong on the climbs.",
-                commentUpdatedAt: new Date("2026-10-21T08:00:00Z"),
-                reply: {
-                  kind: "activity_comment" as const,
-                  target: "7",
-                  text: "Good pacing; keep the climbs easy next time.",
-                  model: "test-model",
-                  generatedAt: new Date("2026-10-21T09:00:00Z"),
-                  planChangeNeeded: true,
-                },
-                reviewed: false,
-              },
-            ],
-          ]),
-        ),
     });
 
     const res = await app.fetch(

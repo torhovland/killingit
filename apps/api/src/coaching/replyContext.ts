@@ -18,9 +18,9 @@ import {
 } from "../training/thresholds.js";
 import { currentTrainingLoad } from "../training/load.js";
 import {
-  loadCachedActivityFeed,
+  loadStoredActivityFeed,
   MAX_ANALYZED_ACTIVITIES,
-} from "./feedCache.js";
+} from "./activityStore.js";
 
 /** The athlete and the day a reply is written for. */
 export interface ReplyContextInput {
@@ -71,8 +71,8 @@ async function attempt<T>(
 async function cachedActivities(
   userId: number,
 ): Promise<readonly AnalyzedActivity[]> {
-  const feed = await loadCachedActivityFeed(userId);
-  return feed?.activities ?? [];
+  const feed = await loadStoredActivityFeed(userId);
+  return feed.activities;
 }
 
 /**

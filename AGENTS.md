@@ -261,13 +261,19 @@ about a past workout, or before a suggested workout, to steer the coach.
   stored feed. Activity summaries also store average and maximum
   speed; the UI and prompts show pace for running, walking, hiking, swimming
   and rowing (per 100 m for swims and per 500 m for rows) and speed for cycling.
-  The stored feed keeps every activity ever synced by
-  extending its history on each sync rather than replacing it, while only the
-  newest 20 are analysed; the Calendar, Activities page, and Fitness chart read
-  the full history. The feed loads in named phases — sync, inputs, analysis,
-  assembly — so each failure path stays with the phase that can fail; a failed
-  read of the stored feed aborts the sync instead of overwriting the history.
-  See `docs/specs/activity-feed-loading.md`. One analysis pass runs per
+  Each synced activity is one row in `activities`, so history keeps every
+  activity ever synced rather than replacing it on each sync, while only the
+  newest 20 are analysed. The Calendar, fitness, manual-activity and prompt
+  loaders read only the summary columns; the bounded sample preview and GPS
+  route are JSONB columns that the activity feed and the calendar's route map
+  select on demand. A sync writes only its 42-day window and deletes locally
+  removed rows, and the coach's analysis and the athlete's feedback stay in
+  their own tables instead of being duplicated on the activity. The feed loads
+  in named phases — sync, inputs, analysis, assembly — so each failure path
+  stays with the phase that can fail; a failed read of the stored history
+  aborts the sync instead of reporting an empty one.
+  See `docs/specs/activity-store.md`, `docs/specs/activity-feed-loading.md` and
+  ADR 0034. One analysis pass runs per
   account at a time, shared by overlapping requests for the same athlete day;
   an explicit refresh, or a request for another day, waits for the running
   pass and then starts its own, so two passes never write the same analyses at

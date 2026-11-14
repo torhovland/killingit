@@ -1,6 +1,6 @@
 import type { ActivityFeed } from "../coaching/activities.js";
 import { latestActivityAnalysisSince } from "../coaching/analysisRuns.js";
-import { MAX_ANALYZED_ACTIVITIES } from "../coaching/feedCache.js";
+import { MAX_ANALYZED_ACTIVITIES } from "../coaching/activityStore.js";
 import {
   buildAthleteReadingSource,
   syncAthleteReading,

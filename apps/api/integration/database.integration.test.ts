@@ -7,8 +7,13 @@ import {
   expect,
   it,
 } from "bun:test";
-import type { CoachPlan } from "@killingit/shared";
+import type { Activity, CoachPlan } from "@killingit/shared";
 import { sql } from "drizzle-orm";
+import {
+  loadStoredActivities,
+  loadStoredActivityFeed,
+  saveStoredActivities,
+} from "../src/coaching/activityStore.js";
 import { db } from "../src/db/index.js";
 import {
   athleteMetrics,
@@ -17,6 +22,8 @@ import {
   foodEntries,
   users,
 } from "../src/db/schema.js";
+import { deleteImportedActivity } from "../src/coaching/deletions.js";
+import { saveAnalysis } from "../src/llm/analysisStore.js";
 import {
   loadMetricPoints,
   loadThresholdPoints,
@@ -27,6 +34,7 @@ import {
   recordPlanFtpEstimates,
 } from "../src/metrics/store.js";
 import { loadPlanDayCalorieTargets } from "../src/plans/dayCalories.js";
+import { createActivityComment } from "../src/plans/inputs.js";
 import { PLAN_GENERATION_STEPS } from "../src/plans/steps.js";
 import { dbPlanGenerationStore, dbPlanStore } from "../src/plans/store.js";
 import { loadPlanWeekTotals } from "../src/plans/weekTotals.js";
@@ -147,6 +155,7 @@ describe("migrations", () => {
   it("creates the tables the stores and lifecycle tests use", async () => {
     const tables = await listPublicTables();
     const requiredTables = [
+      "activities",
       "coach_plans",
       "plan_week_totals",
       "plan_day_calories",
@@ -1069,5 +1078,135 @@ describe("metrics stores", () => {
       ["2026-01-08", 242],
       ["2026-01-20", 248],
     ]);
+  });
+});
+
+function syncedActivity(
+  id: number,
+  startDate: string,
+  name = "Morning ride",
+): Activity {
+  return {
+    id,
+    name,
+    type: "cycling",
+    startDate,
+    distance: 20000,
+    movingTime: 3600,
+    elapsedTime: 3700,
+    totalElevationGain: 200,
+    samples: [
+      {
+        timestamp: "2026-10-01T07:00:00Z",
+        latitude: 59.9,
+        longitude: 10.7,
+        power: 200,
+      },
+      {
+        timestamp: "2026-10-01T07:01:00Z",
+        latitude: 59.91,
+        longitude: 10.71,
+        power: 210,
+      },
+    ],
+  };
+}
+
+describe("stored activity rows", () => {
+  it("stores one row per activity and updates a re-synced activity in place", async () => {
+    const user = await dbUserStore.ensureUser("auth0|activity-rows");
+    await saveStoredActivities(user.id, [
+      syncedActivity(1, "2026-10-01T07:00:00Z"),
+    ]);
+    await saveStoredActivities(user.id, [
+      syncedActivity(1, "2026-10-01T07:00:00Z", "Renamed ride"),
+    ]);
+
+    const feed = await loadStoredActivityFeed(user.id, "samples");
+
+    expect(feed.activities).toHaveLength(1);
+    expect(feed.activities[0]?.name).toBe("Renamed ride");
+    expect(feed.activities[0]?.sampleCount).toBe(2);
+    expect(feed.activities[0]?.samples).toHaveLength(2);
+  });
+
+  it("loads the sample preview and route only when they are asked for", async () => {
+    const user = await dbUserStore.ensureUser("auth0|activity-preview");
+    await saveStoredActivities(user.id, [
+      syncedActivity(1, "2026-10-01T07:00:00Z"),
+    ]);
+
+    const summary = await loadStoredActivities(user.id);
+    expect(summary[0]?.samples).toEqual([]);
+    expect(summary[0]?.route).toBeUndefined();
+
+    const routed = await loadStoredActivities(user.id, "route");
+    expect(routed[0]?.route).toHaveLength(2);
+    expect(routed[0]?.samples).toEqual([]);
+
+    const full = await loadStoredActivities(user.id, "samples");
+    expect(full[0]?.samples).toHaveLength(2);
+    expect(full[0]?.route).toHaveLength(2);
+  });
+
+  it("keeps the stored history newest first and drops a deleted activity", async () => {
+    const user = await dbUserStore.ensureUser("auth0|activity-deletion");
+    await saveStoredActivities(user.id, [
+      syncedActivity(1, "2026-10-01T07:00:00Z"),
+      syncedActivity(2, "2026-10-03T07:00:00Z"),
+    ]);
+    await saveStoredActivities(user.id, [], new Set(["2"]));
+
+    const feed = await loadStoredActivityFeed(user.id);
+
+    expect(feed.activities.map((activity) => activity.id)).toEqual([1]);
+  });
+
+  it("removes the activity and its coach work when the athlete deletes it", async () => {
+    const user = await dbUserStore.ensureUser("auth0|activity-delete-row");
+    await saveStoredActivities(user.id, [
+      syncedActivity(1, "2026-10-01T07:00:00Z"),
+    ]);
+    await saveAnalysis({
+      userId: user.id,
+      activityId: 1,
+      model: "test-model",
+      promptVersion: 1,
+      text: "A steady aerobic ride.",
+      planChangeNeeded: false,
+    });
+
+    await deleteImportedActivity(user.id, "1");
+
+    expect(await loadStoredActivityFeed(user.id)).toEqual({
+      model: null,
+      activities: [],
+    });
+    expect(await countRows("activities")).toBe(0);
+    expect(await countRows("activity_analyses")).toBe(0);
+  });
+
+  it("attaches the stored analysis and athlete comment to the feed", async () => {
+    const user = await dbUserStore.ensureUser("auth0|activity-coach-work");
+    await saveStoredActivities(user.id, [
+      syncedActivity(1, "2026-10-01T07:00:00Z"),
+    ]);
+    await saveAnalysis({
+      userId: user.id,
+      activityId: 1,
+      model: "test-model",
+      promptVersion: 1,
+      text: "A steady aerobic ride.",
+      planChangeNeeded: false,
+    });
+    await createActivityComment(user.id, {
+      activityId: "1",
+      comment: "Felt strong.",
+    });
+
+    const feed = await loadStoredActivityFeed(user.id);
+
+    expect(feed.activities[0]?.analysis?.text).toBe("A steady aerobic ride.");
+    expect(feed.activities[0]?.comment).toBe("Felt strong.");
   });
 });

@@ -105,8 +105,9 @@ reply phase so comments left waiting by a superseded run still get answered.
 - While any activity has a comment but no coach reply, the dashboard polls
   `GET /api/coaching/activities/cached` every 1.5 seconds for up to one minute
   and merges new replies into the feed on screen. The endpoint overlays the
-  stored comment, reply and review state on the cached feed, so a reply written
-  by the reply phase shows up before the plan phase refreshes the feed. The
+  stored comment, reply and review state when it reads the activity rows, so a
+  reply written by the reply phase shows up before the plan phase refreshes the
+  feed. The
   activity card shows `Coach: thinking…` under the athlete's comment until the
   reply replaces it.
 - The plan section continues to poll generation status. A superseded run never
