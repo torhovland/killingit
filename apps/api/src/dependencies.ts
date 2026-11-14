@@ -45,7 +45,10 @@ import type {
   loadCoachQuestion,
   loadPendingCoachQuestion,
 } from "./plans/coachQuestions.js";
-import type { loadPlanDayCalorieTargets } from "./plans/dayCalories.js";
+import type {
+  loadPlanDayCalorieTargets,
+  loadPlanDayCalories,
+} from "./plans/dayCalories.js";
 import type {
   createPeriodReviewComment,
   loadPeriodReview,
@@ -108,6 +111,21 @@ export interface AppDependencies {
   loadWeekTotals?: typeof loadPlanWeekTotals | undefined;
   /** Stored daily calorie targets and their breakdown, injectable for tests. */
   loadDayCalorieTargets?: typeof loadPlanDayCalorieTargets | undefined;
+  /** Stored daily calorie totals for the plan prompt, injectable for tests. */
+  loadDayCalories?: typeof loadPlanDayCalories | undefined;
+  /** Newer activity-analysis pass to wait for, injectable for tests. */
+  latestActivityAnalysisSince?:
+    PlanTriggerDependencies["latestActivityAnalysisSince"] | undefined;
+  /** Plan-run writers, injectable for DB-free plan generation tests. */
+  capturePeriodReviews?:
+    PlanTriggerDependencies["capturePeriodReviews"] | undefined;
+  recordFtpEstimates?:
+    PlanTriggerDependencies["recordFtpEstimates"] | undefined;
+  recordBodyMetrics?: PlanTriggerDependencies["recordBodyMetrics"] | undefined;
+  saveCoachQuestions?:
+    PlanTriggerDependencies["saveCoachQuestions"] | undefined;
+  clearPendingCoachQuestions?:
+    PlanTriggerDependencies["clearPendingCoachQuestions"] | undefined;
   /** Stored food log for the coaching and plan prompts. */
   loadDiet?: typeof loadDietContext | undefined;
   loadCachedFeed?: typeof loadCachedActivityFeed | undefined;
@@ -206,6 +224,13 @@ export function planTriggerDependencies(
     syncAthleteReading: deps.syncAthleteReading,
     loadEvents: deps.loadEvents,
     loadDiet: deps.loadDiet,
+    loadDayCalories: deps.loadDayCalories,
+    latestActivityAnalysisSince: deps.latestActivityAnalysisSince,
+    capturePeriodReviews: deps.capturePeriodReviews,
+    recordFtpEstimates: deps.recordFtpEstimates,
+    recordBodyMetrics: deps.recordBodyMetrics,
+    saveCoachQuestions: deps.saveCoachQuestions,
+    clearPendingCoachQuestions: deps.clearPendingCoachQuestions,
     loadAnsweredCoachQuestions: deps.loadAnsweredCoachQuestions,
     loadLlm: deps.loadLlm,
     loadCoachingInputs: deps.loadCoachingInputs,

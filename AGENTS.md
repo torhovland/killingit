@@ -761,8 +761,11 @@ through a disciplined process:
   lives in `apps/api/src/dependencies.ts`; `createApp` resolves the account
   stores once and passes `ResolvedAppDependencies` to those factories, which
   apply their own `??` production default. Do not conditionally spread a
-  dependency field — type it `T | undefined` and forward it. See
-  `docs/specs/api-dependency-wiring.md` and ADR 0023.
+  dependency field — type it `T | undefined` and forward it. Every loader and
+  writer a plan run uses is a `PlanTriggerDependencies` field, and the
+  enrichment inputs are fail-open while the account's own state and the
+  activity feed are required. See `docs/specs/api-dependency-wiring.md`,
+  `docs/specs/plan-input-loading.md` and ADR 0023.
 - **Keep exported constants above exported functions.** Top-level `export const`
   declarations come before `export function` declarations in a module. The
   `local/consts-before-functions` ESLint rule enforces it, while preserving the
