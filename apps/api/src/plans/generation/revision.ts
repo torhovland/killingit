@@ -1,10 +1,13 @@
 import type { CoachPlan } from "@killingit/shared";
 import { addDays, startOfWeek } from "@killingit/shared";
 import { generatePlanUpdate } from "../../llm/planUpdate.js";
-import type { PlanUpdateRevision } from "../../llm/planUpdatePrompt.js";
 import { COACH_PLAN_FINALISATION, finalizePlan } from "../finalize.js";
 import { nextBlockStartDate } from "../periods.js";
-import { revisionFlags, type PlanUpdateFlags } from "../revision.js";
+import {
+  planUpdateRevision,
+  revisionFlags,
+  type PlanUpdateFlags,
+} from "../revision.js";
 import { PLAN_GENERATION_STEPS } from "../steps.js";
 import {
   applyPlanUpdate,
@@ -106,16 +109,7 @@ export async function requestPlanUpdate(
   options: PlanUpdateOptions,
 ): Promise<CoachPlan> {
   const { userId, context, generations } = input;
-  const revision: PlanUpdateRevision = {
-    season: flags.season,
-    block: flags.block,
-    week: flags.week,
-    day: flags.day,
-    tomorrow: flags.tomorrow,
-    nextWeek: flags.nextWeek,
-    nextBlock: flags.nextBlock,
-    progress: flags.progress,
-  };
+  const revision = planUpdateRevision(flags);
   const model =
     flags.season || flags.block || flags.nextBlock
       ? seasonModelFor(context)
