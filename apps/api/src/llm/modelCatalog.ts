@@ -559,6 +559,12 @@ export async function refreshModelCatalog(
   }
 }
 
+/**
+ * The catalog refresh a page visit joins. At most one refresh runs per process,
+ * and it is cleared when it settles so a later visit can start another. The
+ * sync row's timestamp bounds the work across instances; this handle only
+ * coalesces the page visits that reach one instance.
+ */
 let inFlight: Promise<CatalogRefreshResult> | null = null;
 
 /** Fire-and-forget entry point used on a page visit. */

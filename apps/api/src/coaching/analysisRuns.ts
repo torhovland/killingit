@@ -1,4 +1,5 @@
 import type { ActivityFeed } from "./activities.js";
+import { BoundedMap } from "../lib/boundedMap.js";
 
 interface ActiveAnalysis {
   /** The athlete's local day this pass is computed for. */
@@ -14,14 +15,33 @@ interface CompletedAnalysis {
 }
 
 /**
+ * Accounts whose finished feed is kept. Each feed carries every analysed
+ * activity and its sample previews, so only the most recently used accounts
+ * are retained instead of every account that ever visited.
+ */
+export const MAX_COMPLETED_ANALYSES = 32;
+
+/**
  * One activity-analysis pass per account. The map is process-local, like the
  * plan run registry: overlapping dashboard and plan requests on one instance
  * share the same Garmin sync and the same LLM analyses instead of analysing the
  * same activities twice and racing each other's writes. A pass records the
  * athlete's day as well, because its analyses include that day's plan fit.
+ * An entry is removed when its pass settles, so the map holds only live passes.
  */
 const activeAnalyses = new Map<number, ActiveAnalysis>();
-const completedAnalyses = new Map<number, CompletedAnalysis>();
+
+/**
+ * The latest finished feed per account. A read through
+ * `latestActivityAnalysisSince` makes that account the most recently used, and
+ * an insert beyond {@link MAX_COMPLETED_ANALYSES} evicts the least recently
+ * used account. An evicted account simply analyses again on its next request;
+ * a kept account still returns the feed only for the day it was computed for.
+ * Process-local: another instance may run its own pass.
+ */
+const completedAnalyses = new BoundedMap<number, CompletedAnalysis>(
+  MAX_COMPLETED_ANALYSES,
+);
 
 /**
  * Runs an account's activity analyses one pass at a time. An ordinary request
@@ -90,6 +110,7 @@ function startAnalysis(
     (feed) => {
       // One finished feed per account is enough: it is only reused for its own
       // day, and keeping an older day's full history would grow without bound.
+      // The bounded map keeps the newest accounts and evicts the rest.
       completedAnalyses.set(userId, {
         today,
         feed,
