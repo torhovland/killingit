@@ -1,23 +1,44 @@
 import { describe, expect, it, mock } from "bun:test";
 import type { Activity, AnalyzedActivity } from "@killingit/shared";
-import type { LlmProvider } from "../llm/openrouter.js";
-import { loadAnalyzedActivities } from "./activities.js";
+import type { LlmProvider } from "../../llm/openrouter.js";
+import { extendStoredFeed, loadAnalyzedActivities } from "./sync.js";
 
 type Phases = NonNullable<Parameters<typeof loadAnalyzedActivities>[1]>;
 type Inputs = Awaited<ReturnType<Phases["loadAnalysisInputs"]>>;
 type Settings = Inputs["settings"];
+type FeedCache = NonNullable<Parameters<typeof extendStoredFeed>[1]>;
 
-const activity: Activity = {
-  id: 1,
-  name: "Morning ride",
-  type: "cycling",
-  startDate: "2026-11-11T07:00:00Z",
-  distance: 30000,
-  movingTime: 3600,
-  elapsedTime: 3700,
-  totalElevationGain: 200,
-  samples: [],
-};
+function synced(id: number, startDate: string, name: string): Activity {
+  return {
+    id,
+    name,
+    type: "cycling",
+    startDate,
+    distance: 10000,
+    movingTime: 1800,
+    elapsedTime: 1900,
+    totalElevationGain: 100,
+    samples: [],
+  };
+}
+
+function stored(id: number, startDate: string): AnalyzedActivity {
+  return {
+    ...synced(id, startDate, `Old ${id}`),
+    sampleCount: 0,
+    analysis: {
+      text: `Analysis ${id}`,
+      model: "test-model",
+      generatedAt: "2026-10-01T07:00:00Z",
+    },
+    analysisError: null,
+    programAnalysis: null,
+    comment: `Comment ${id}`,
+    coachReply: null,
+  };
+}
+
+const activity = synced(1, "2026-11-11T07:00:00Z", "Morning ride");
 
 const analyzed: AnalyzedActivity = {
   ...activity,
@@ -190,5 +211,59 @@ describe("loadAnalyzedActivities", () => {
     expect(spies.analyzeMissing).toHaveBeenCalledWith(
       expect.objectContaining({ model: "only-model" }),
     );
+  });
+});
+
+describe("extendStoredFeed", () => {
+  it("does not store a sync when the stored feed cannot be read", async () => {
+    const cache: FeedCache = {
+      load: () => Promise.reject(new Error("connection reset")),
+      save: mock(() => Promise.resolve()),
+    };
+
+    let caught: unknown;
+    try {
+      await extendStoredFeed(
+        {
+          userId: 1,
+          synced: [synced(2, "2026-10-11T06:30:00Z", "New ride")],
+          deletedIds: new Set(),
+        },
+        cache,
+      );
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(Error);
+    expect(caught instanceof Error ? caught.message : "").toBe(
+      "The stored activity feed could not be read",
+    );
+    expect(cache.save).not.toHaveBeenCalled();
+  });
+
+  it("stores the merged history when the stored feed can be read", async () => {
+    const cache: FeedCache = {
+      load: () =>
+        Promise.resolve({
+          model: null,
+          activities: [stored(1, "2026-10-03T06:30:00Z")],
+        }),
+      save: mock(() => Promise.resolve()),
+    };
+
+    const history = await extendStoredFeed(
+      {
+        userId: 1,
+        synced: [synced(2, "2026-10-11T06:30:00Z", "New ride")],
+        deletedIds: new Set(),
+      },
+      cache,
+    );
+
+    expect(history.map((activity) => activity.id)).toEqual([2, 1]);
+    expect(cache.save).toHaveBeenCalledWith(1, {
+      model: null,
+      activities: history,
+    });
   });
 });

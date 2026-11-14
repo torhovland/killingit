@@ -16,7 +16,26 @@ sync window with an empty history and overwriting every older activity.
 
 ## Scope
 
-`apps/api/src/coaching/activities.ts`:
+The feed lives in `apps/api/src/coaching/feed/`, split by responsibility so no
+module mixes Garmin, the model and response shaping:
+
+- `sync.ts` — the orchestrator `loadAnalyzedActivities` plus the Garmin sync and
+  stored-history handling (`syncFeed`, `extendStoredFeed`). It owns the
+  provider, credential and feed-cache plumbing.
+- `analysis.ts` — the LLM analysis pass: input loading, the cached-or-fresh
+  decision, concurrent analysis, coach-question handling, estimate storage and
+  `loadUserActivityTrainingLoads`.
+- `presenter.ts` — every function that builds an `AnalyzedActivity`: the summary
+  and preview downsampling, the feedback and training-load overlays, the history
+  merge, and the mappings from a stored or failed analysis.
+- `errors.ts` — `GarminCredentialsError` and `LlmCredentialsError`.
+
+`sync.ts` depends on `analysis.ts` and `presenter.ts`, `analysis.ts` on
+`presenter.ts`, and `presenter.ts` on neither, so the modules form a directed
+graph with no cycle. Importers point at the module that owns the symbol; there
+is no re-export barrel.
+
+The phases themselves:
 
 - `syncFeed` — syncs Garmin activities, body metrics and daily health through
   `syncGarminFeed`, which delegates the supplementary passes to
@@ -54,9 +73,13 @@ used by `loadDietContext`.
   analyse → assemble.
 - The response shape, cache writes, question handling, metric writes and log
   messages are unchanged.
-- Existing tests pass unchanged, and new tests cover the orchestrator's branches.
+- Existing tests keep their assertions and move beside the module they cover,
+  and the orchestrator's branches stay covered.
 - A failed read of the stored feed aborts the sync, so the history is never
   written when it could not be read first.
+- Each module stays close to one responsibility: Garmin and persistence in
+  `sync.ts`, the model in `analysis.ts`, `AnalyzedActivity` shaping in
+  `presenter.ts`, and the credential errors in `errors.ts`.
 
 ## Data-model and API impact
 

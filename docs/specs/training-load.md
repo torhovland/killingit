@@ -222,8 +222,8 @@ API:
   cycling FTP from it. There is no separate FTP timeline.
 - `apps/api/src/training/load.ts` resolves TSS and attaches the load series
   after every generation path, including promotion-only saves.
-- `apps/api/src/coaching/activities.ts` stores power metrics and activity loads
-  while summarizing synced activities.
+- `apps/api/src/coaching/feed/presenter.ts` stores power metrics and activity
+  loads while summarizing synced activities.
 - `apps/api/src/training/manualTss.ts` estimates a manual entry's TSS with the
   coach from its wording and returns null when the model is unavailable.
 - `manual_activities.estimated_tss` stores the manual estimate (migration

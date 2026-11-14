@@ -29,7 +29,7 @@ for the day it was computed for.
 - Finished feeds are stored with the local day they were computed for.
   `latestActivityAnalysisSince` reads and waits only for the caller's day.
 
-`apps/api/src/coaching/activities.ts` resolves `today` once, before entering the
+`apps/api/src/coaching/feed/sync.ts` resolves `today` once, before entering the
 registry, so the day that keys the pass is the day the pass was asked for.
 
 `apps/api/src/plans/trigger.ts` passes its own `today` and `timezone` into the

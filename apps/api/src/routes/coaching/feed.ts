@@ -15,7 +15,7 @@ import {
   withActivityLoad,
   withFeedback,
   type ActivityFeed,
-} from "../../coaching/activities.js";
+} from "../../coaching/feed/presenter.js";
 import { latestActivityAnalysisTimestamp } from "../../plans/status.js";
 import type { ResolvedCoachingDependencies } from "./dependencies.js";
 import { deletionQuerySchema } from "./schemas.js";

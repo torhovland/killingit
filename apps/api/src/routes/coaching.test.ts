@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { ActivityFeed } from "../coaching/activities.js";
+import type { ActivityFeed } from "../coaching/feed/presenter.js";
 import type { CoachQuestion } from "@killingit/shared";
 import { createApp } from "../index.js";
 import type { AppDependencies } from "../dependencies.js";
