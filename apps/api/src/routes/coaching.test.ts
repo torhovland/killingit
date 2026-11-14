@@ -183,6 +183,7 @@ function makeApp(options: {
   saveActivityReview?: AppDependencies["saveActivityReview"];
   saveManualActivity?: AppDependencies["saveManualActivity"];
   updateManualActivity?: AppDependencies["updateManualActivity"];
+  updateManualActivityTss?: AppDependencies["updateManualActivityTss"];
   saveWeeklyNote?: (
     userId: number,
     today: string,
@@ -355,6 +356,9 @@ function makeApp(options: {
       : {}),
     ...(options.updateManualActivity !== undefined
       ? { updateManualActivity: options.updateManualActivity }
+      : {}),
+    ...(options.updateManualActivityTss !== undefined
+      ? { updateManualActivityTss: options.updateManualActivityTss }
       : {}),
     ...(options.saveWeeklyNote !== undefined
       ? { saveWeeklyNote: options.saveWeeklyNote }
@@ -1000,6 +1004,82 @@ describe("coaching manual activities", () => {
 
     expect(res.status).toBe(200);
     expect(saved.tss).toBe(255);
+  });
+
+  it("does not bill for a TSS estimate when editing a missing manual activity", async () => {
+    let estimates = 0;
+    let triggered = false;
+    const app = makeApp({
+      updateManualActivity: () => Promise.resolve(false),
+      estimateManualTss: () => {
+        estimates += 1;
+        return Promise.resolve(120);
+      },
+      triggerPlanGeneration: () => {
+        triggered = true;
+        return Promise.resolve(true);
+      },
+    });
+
+    const res = await app.fetch(
+      authenticatedRequest("/api/coaching/activities/manual/7", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          today: "2026-10-21",
+          startDate: "2026-10-20",
+          details: "An easy hour on the bike",
+        }),
+      }),
+    );
+
+    expect(res.status).toBe(404);
+    expect(estimates).toBe(0);
+    expect(triggered).toBe(false);
+  });
+
+  it("re-estimates an edited manual activity once it is known to exist", async () => {
+    const clearedEstimates: Array<number | null | undefined> = [];
+    const storedEstimates: number[] = [];
+    const repliedTo: { target: number | null } = { target: null };
+    const app = makeApp({
+      updateManualActivity: (_userId, activityId, activity) => {
+        expect(activityId).toBe(7);
+        clearedEstimates.push(activity.estimatedTss);
+        return Promise.resolve(true);
+      },
+      updateManualActivityTss: (_userId, activityId, estimatedTss) => {
+        expect(activityId).toBe(7);
+        storedEstimates.push(estimatedTss);
+        return Promise.resolve();
+      },
+      estimateManualTss: () => Promise.resolve(96),
+      replyToCoachingInput: (_deps, options) => {
+        repliedTo.target =
+          options.request.kind === "manual_activity"
+            ? options.request.manualActivityId
+            : null;
+        return Promise.resolve(null);
+      },
+      triggerPlanGeneration: () => Promise.resolve(true),
+    });
+
+    const res = await app.fetch(
+      authenticatedRequest("/api/coaching/activities/manual/7", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          today: "2026-10-21",
+          startDate: "2026-10-20",
+          details: "A hard hour on the bike",
+        }),
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(clearedEstimates).toEqual([null]);
+    expect(storedEstimates).toEqual([96]);
+    expect(repliedTo.target).toBe(7);
   });
 
   it("rejects a manual activity without details", async () => {

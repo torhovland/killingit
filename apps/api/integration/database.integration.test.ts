@@ -34,7 +34,13 @@ import {
   recordPlanFtpEstimates,
 } from "../src/metrics/store.js";
 import { loadPlanDayCalorieTargets } from "../src/plans/dayCalories.js";
-import { createActivityComment } from "../src/plans/inputs.js";
+import {
+  createActivityComment,
+  loadManualActivities,
+  saveManualActivity,
+  updateManualActivity,
+  updateManualActivityTss,
+} from "../src/plans/inputs.js";
 import { PLAN_GENERATION_STEPS } from "../src/plans/steps.js";
 import { dbPlanGenerationStore, dbPlanStore } from "../src/plans/store.js";
 import { loadPlanWeekTotals } from "../src/plans/weekTotals.js";
@@ -1208,5 +1214,48 @@ describe("stored activity rows", () => {
 
     expect(feed.activities[0]?.analysis?.text).toBe("A steady aerobic ride.");
     expect(feed.activities[0]?.comment).toBe("Felt strong.");
+  });
+});
+
+describe("manual activity writes", () => {
+  it("updates the athlete's own entry and stores its estimate separately", async () => {
+    const owner = await dbUserStore.ensureUser("auth0|manual-owner");
+    const other = await dbUserStore.ensureUser("auth0|manual-other");
+    const id = await saveManualActivity(owner.id, {
+      startDate: "2026-10-20",
+      details: "An easy hour on the bike",
+      estimatedTss: 40,
+    });
+
+    const updated = await updateManualActivity(owner.id, id, {
+      startDate: "2026-10-20",
+      details: "A hard hour on the bike",
+      estimatedTss: null,
+    });
+    await updateManualActivityTss(owner.id, id, 96);
+
+    expect(updated).toBe(true);
+    const [stored] = await loadManualActivities(owner.id);
+    expect(stored?.details).toBe("A hard hour on the bike");
+    expect(stored?.estimatedTss).toBe(96);
+
+    // A foreign account's id answers exactly like a missing one and leaves the
+    // athlete's entry untouched.
+    expect(
+      await updateManualActivity(other.id, id, {
+        startDate: "2026-10-20",
+        details: "Not my entry",
+        estimatedTss: null,
+      }),
+    ).toBe(false);
+    expect(
+      await updateManualActivity(other.id, id + 1, {
+        startDate: "2026-10-20",
+        details: "Not my entry",
+        estimatedTss: null,
+      }),
+    ).toBe(false);
+    await updateManualActivityTss(other.id, id, 200);
+    expect((await loadManualActivities(owner.id))[0]?.estimatedTss).toBe(96);
   });
 });

@@ -66,25 +66,37 @@ export function createManualActivityHandlers(
     // The request's zone (the device zone when the athlete has not stored one)
     // wins; the stored setting is the fallback for another client.
     const timeZone = timezone ?? user.timezone ?? undefined;
-    const estimatedTss = await estimateManualTss(
-      user.id,
-      activity.startDate,
-      activity.details,
-    );
 
     let activityId: number;
     if (id === undefined) {
+      const estimatedTss = await estimateManualTss(
+        user.id,
+        activity.startDate,
+        activity.details,
+      );
       activityId = await deps.saveManual(user.id, {
         ...activity,
         estimatedTss,
       });
     } else {
+      // The update doubles as the existence check, so a missing or foreign id
+      // is refused before the coach is billed for an estimate. The entry is
+      // left unscored until the new estimate is stored, rather than keeping an
+      // estimate that describes the text it just replaced.
       const updated = await deps.updateManual(user.id, id, {
         ...activity,
-        estimatedTss,
+        estimatedTss: null,
       });
       if (!updated) {
         return notFound(c, "Manual activity not found");
+      }
+      const estimatedTss = await estimateManualTss(
+        user.id,
+        activity.startDate,
+        activity.details,
+      );
+      if (estimatedTss !== null) {
+        await deps.updateManualTss(user.id, id, estimatedTss);
       }
       activityId = id;
     }
