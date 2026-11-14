@@ -60,7 +60,10 @@ Python 3.12, and caches pip downloads against `requirements*.txt`.
   `UP`, `SIM`, `BLE` and `RUF` rule families, and configures mypy with
   `python_version = "3.12"`, `check_untyped_defs`, `ignore_missing_imports` (the
   `garminconnect` package ships no stubs) and the warning flags.
-- Test discovery is limited to `test_app.py` so the virtualenv is never walked.
+- Test discovery is limited to `test_auth.py`, `test_activities.py`,
+  `test_body.py`, `test_daily.py`, `test_errors.py`, `test_values.py` and
+  `test_contract.py` so the virtualenv is never walked. Each module follows the
+  sidecar module it covers; `support.py` holds the shared Garmin stubs.
 
 ### Code changes required by the gates
 
@@ -69,8 +72,8 @@ Python 3.12, and caches pip downloads against `requirements*.txt`.
 - Replace the unused loop variable in the strength-set timestamp mapping.
 - Annotate the two mixed-value dicts (`str` date/timestamp plus numeric
   channels) so mypy does not infer a `dict[str, str]`.
-- Apply `ruff format` to `app.py` and `test_app.py`, and unpack the lap lists in
-  the lap test instead of concatenating them.
+- Apply `ruff format` to the sidecar and its test modules, and unpack the lap
+  lists in the lap test instead of concatenating them.
 
 ## Data-model and API impact
 

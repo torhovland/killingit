@@ -3,12 +3,10 @@ import {
   createOpenRouterProvider,
   type LlmProvider,
 } from "../../../apps/api/src/llm/openrouter.js";
+import { readJsonEntries, readJsonFile, writeJsonFile } from "./jsonFile.js";
 import {
   logPromptBenchmark,
   promptBenchmarkRunDirectory,
-  readPromptJson,
-  readPromptJsonOr,
-  writePromptJson,
 } from "./promptBenchmarkFiles.js";
 import {
   BENCHMARK_PROMPTS,
@@ -25,12 +23,13 @@ import {
   parseJudge,
 } from "./promptBenchmark.js";
 import { completePrompt } from "./promptBenchmarkProvider.js";
-import type {
-  PromptAttempt,
-  PromptJudge,
-  PromptJudgeScore,
-  PromptModelResult,
-  PromptRunResult,
+import {
+  promptJudgeScoreSchema,
+  promptModelResultSchema,
+  type PromptAttempt,
+  type PromptJudge,
+  type PromptJudgeScore,
+  type PromptRunResult,
 } from "./promptBenchmarkTypes.js";
 
 const JUDGE_MODEL = process.env.JUDGE_MODEL ?? "anthropic/claude-haiku-5.5";
@@ -228,15 +227,6 @@ async function judgePrompt(
   };
 }
 
-function isCurrentScore(value: unknown): value is PromptJudgeScore {
-  if (typeof value !== "object" || value === null) return false;
-  const score = value as Partial<PromptJudgeScore>;
-  if (typeof score.prompts !== "object" || score.prompts === null) return false;
-  return BENCHMARK_PROMPTS.every(
-    (definition) => score.prompts?.[definition.id] !== undefined,
-  );
-}
-
 /**
  * Judges the valid responses in a run directory. Judging is an optional stage:
  * the run itself only calls the models, so a review can stop after `run`.
@@ -264,15 +254,13 @@ export async function runPromptBenchmarkJudgeStage(): Promise<void> {
     );
   }
 
-  const results = await readPromptJson<PromptModelResult[]>(
+  const results = await readJsonFile(
     resolve(runDirectory, "results.json"),
+    promptModelResultSchema.array(),
   );
 
   const outputPath = resolve(runDirectory, "judge-scores.json");
-  const parsedScores = await readPromptJsonOr<unknown>(outputPath, []);
-  const scores = Array.isArray(parsedScores)
-    ? parsedScores.filter(isCurrentScore)
-    : [];
+  const scores = await readJsonEntries(outputPath, promptJudgeScoreSchema);
   const retryFailedJudges = process.env.RETRY_FAILED_JUDGES === "1";
   const done = new Set(
     scores
@@ -301,7 +289,7 @@ export async function runPromptBenchmarkJudgeStage(): Promise<void> {
   let cursor = 0;
   let completed = done.size;
   const write = async () => {
-    await writePromptJson(outputPath, scores);
+    await writeJsonFile(outputPath, scores);
   };
 
   const worker = async (): Promise<void> => {

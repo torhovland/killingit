@@ -1,6 +1,5 @@
 import { useState } from "react";
 import {
-  currentUserSchema,
   geocodeResponseSchema,
   type AthleteLocation,
   type GeocodedLocation,
@@ -36,14 +35,15 @@ function sameLocation(
 
 /**
  * Location settings: search for an address or click the map, then save the
- * point used for the coach's weather and daylight forecast.
+ * point used for the coach's weather and daylight forecast. The page owns the
+ * current-user save; this section owns the draft and its own progress.
  */
 export function LocationSection({
   location,
-  onChanged,
+  onSave,
 }: {
   location: AthleteLocation | null;
-  onChanged: (location: AthleteLocation | null) => void;
+  onSave: (location: AthleteLocation | null) => Promise<AthleteLocation | null>;
 }) {
   const auth = useAuth();
   const draft = usePropDraft(location, sameLocation);
@@ -89,19 +89,8 @@ export function LocationSection({
     setSaving(true);
     setError(null);
     try {
-      const response = await requestParsed(
-        "/api/me",
-        auth,
-        currentUserSchema,
-        "Saving the location",
-        {
-          method: "PATCH",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ location: next }),
-        },
-      );
-      draft.update(response.location);
-      onChanged(response.location);
+      const saved = await onSave(next);
+      draft.update(saved);
     } catch (err: unknown) {
       setError(reportError(err));
     } finally {

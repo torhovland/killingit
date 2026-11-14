@@ -1,11 +1,11 @@
-import {
-  isDefaultDietGoal,
-  type BlockPlan,
-  type CoachPlan,
-  type FitnessDietTarget,
-  type WeekPlan,
+import type {
+  BlockPlan,
+  CoachPlan,
+  FitnessDietTarget,
+  WeekPlan,
 } from "@killingit/shared";
 import { addDays } from "@killingit/shared";
+import { isDefaultDietGoal } from "../diet/goal.js";
 import { planDietTargets } from "../training/dietTargets.js";
 
 /** How far a target may miss a stated goal and still count as reaching it. */

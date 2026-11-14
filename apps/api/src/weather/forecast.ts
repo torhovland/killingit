@@ -1,10 +1,7 @@
-import {
-  isValidTimeZone,
-  type AthleteLocation,
-  type DailyWeather,
-} from "@killingit/shared";
+import type { AthleteLocation, DailyWeather } from "@killingit/shared";
 import { combineForecasts } from "./combine.js";
 import { fetchWeatherForecast, type FetchLike } from "./openMeteo.js";
+import { isValidTimeZone } from "./timeZone.js";
 import { fetchYrForecast } from "./yr.js";
 
 export interface WeatherForecastSet {

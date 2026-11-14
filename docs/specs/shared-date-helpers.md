@@ -12,9 +12,8 @@ everywhere.
 
 - `packages/shared/src/date.ts` owns `addDays`, `startOfWeek` and `weekDates`
   next to `planDateSchema`, and `packages/shared/src/index.ts` re-exports them.
-- `packages/shared/src/trainingLoad.ts` and
-  `packages/shared/src/metrics.ts` import `addDays` from `./date.js` instead of
-  keeping a local copy.
+- `packages/shared/src/metrics.ts` and `apps/api/src/training/stress.ts` import
+  `addDays` from `@killingit/shared` instead of keeping a local copy.
 - `apps/api/src/plans/dates.ts` keeps only its API-specific helpers
   (`isAfterPlanTomorrowCutoff`, `localDateTimeInZone`); every API module imports
   the generic helpers from `@killingit/shared`.

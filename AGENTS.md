@@ -197,7 +197,11 @@ about a past workout, or before a suggested workout, to steer the coach.
   `tools/benchmark/src/promptBenchmarkFixture.ts`, and a snapshot test pins the
   built text, so a prompt change fails the suite until the snapshot is
   deliberately updated. Its run directories and generated HTML/PDF reports are
-  local output and ignored by git; see `benchmarks/README.md`. See
+  local output and ignored by git; see `benchmarks/README.md`. Every stored run
+  file a stage reads is validated against the Zod schema in
+  `tools/benchmark/src/promptBenchmarkTypes.ts` (and `types.ts` for the plan
+  comparison), so a renamed field or a corrupt file is reported with its path
+  instead of reaching the report as an unchecked cast. See
   `docs/specs/llm-benchmark.md` and ADR 0032.
 - The athlete's home location is stored on `users` and set in the settings
   location picker. When a week or day is planned, the API loads Open-Meteo and
@@ -205,9 +209,12 @@ about a past workout, or before a suggested workout, to steer the coach.
   forecast, gives the combined forecast to the coach, and attaches all three to
   sessions. The UI shows them on workouts that can be done outdoors, including
   flexible sessions the coach planned indoors, and hides them for indoor-only
-  sessions and rest days. A significant change in the combined forecast marks
-  the week pending and refreshes the week and day. See ADR 0008, ADR 0010, and
-  `docs/specs/location-and-weather.md`.
+  sessions and rest days. The picker map is keyboard operable as well as
+  pointer operable: it is a `role="application"` tab stop where the arrow keys
+  move the centre, `+`/`−` zoom, Enter or Space picks the centred point, and a
+  polite live region announces the centre. A significant change in the
+  combined forecast marks the week pending and refreshes the week and day. See
+  ADR 0008, ADR 0010, and `docs/specs/location-and-weather.md`.
 - Threshold measurements and body weight/body-fat percentage are stored as
   daily time series, with a source of `user`, `garmin`, or `coach`. Thresholds
   live in `athlete_thresholds`, keyed by sport, measure, and date, with a display
@@ -266,7 +273,21 @@ about a past workout, or before a suggested workout, to steer the coach.
   Every sidecar call has a request timeout, and the
   `/sync` activities are validated against the shared `activitySchema`, so a
   hung or malformed sidecar fails with a typed error instead of entering the
-  stored feed. Activity summaries also store average and maximum
+  stored feed. The sidecar's whole body for `/sync`, `/metrics` and `/daily` is
+  committed as JSON under `services/garmin/contract/` and pinned from both
+  languages: `services/garmin/test_contract.py` rebuilds it through the
+  sidecar's own handlers, and `apps/api/src/garmin/contract.test.ts` parses it
+  with `activitiesResponseSchema`, `garminMetricsResponseSchema` and
+  `garminDailyResponseSchema`, so a field rename on either side fails a pull
+  request; see `docs/specs/garmin-sidecar-contract.md` and ADR 0057. The sidecar
+  itself is split by concern: `app.py` holds only the FastAPI app and its routes,
+  `auth.py` login and the token store, `activities.py` activity, sample, lap and
+  strength normalisation, `body.py` weigh-ins and FTP, `daily.py` daily health,
+  `values.py` the shared coercions and `errors.py` the failure taxonomy, the one
+  `rate_limited` context manager and the one `http_errors` route decorator, so a
+  route cannot forget the status mapping and a Garmin call cannot forget the
+  rate limit; see `docs/specs/garmin-sidecar-modules.md` and ADR 0058. Activity
+  summaries also store average and maximum
   speed; the UI and prompts show pace for running, walking, hiking, swimming
   and rowing (per 100 m for swims and per 500 m for rows) and speed for cycling.
   Each synced activity is one row in `activities`, so history keeps every
@@ -291,8 +312,14 @@ about a past workout, or before a suggested workout, to steer the coach.
   once. See `docs/specs/activity-analysis-sharing.md`. Each activity in the
   feed also carries a bounded,
   downsampled sample preview, shown as a collapsible table on the Activities
-  page. Running cadence is normalized to total steps per minute and cycling
-  cadence to rpm, matching Garmin Connect. Strength activities also carry their
+  page. Cadence uses one rule per sport: step-counted sports (run, jog, walk
+  and hike) are stored as total steps per minute, cycling as pedalling rpm, and
+  rowing and swimming as strokes per minute, matching Garmin Connect.
+  `cadenceUnit` in `packages/shared/src/activity.ts` is the single statement of
+  the display unit; a walk's and a hike's per-leg Garmin value is doubled like
+  a run's, while a lap's `averageRunCadence` is already total and its legacy
+  `avgCadence` fallback is doubled. See `docs/specs/cadence-units.md` and
+  ADR 0056. Strength activities also carry their
   recorded exercise sets, repetitions, weights and rest intervals, and the
   activity analysis uses them; see
   `docs/specs/garmin-strength-exercise-sets.md`. Activities also carry their
@@ -506,10 +533,22 @@ made and recorded, and `docs/adrs/` for the accepted ones.
   `apps/web/src/coachReplyPoll.ts`, which starts its next request only after the
   previous response settled, so slow responses cannot stack or apply out of
   order; see `docs/specs/coach-reply-polling.md`.
+- The signed-in account is owned by `CurrentUserProvider`
+  (`apps/web/src/CurrentUserProvider.tsx`): it loads `/api/me` through
+  `useApiResource`, exposes `user`, `loading`, `error`, `update(patch)` and
+  `reload()` through `useCurrentUser()`, and is the only module that reads or
+  patches `/api/me` apart from account deletion. Pages read it with the hook
+  instead of receiving it through `PageOutlet`, and a failed load renders
+  `CurrentUserLoadError` with a Retry that reloads it. The display time zone
+  stays in `AppShell` with its `timeZoneTouched` ref. A guard test,
+  `apps/web/src/currentUserAccess.test.ts`, fails a source module outside the
+  provider that names the route; see `docs/specs/current-user-provider.md` and
+  ADR 0052.
 - We build our own **component library** under `apps/web/src/components/`.
   `Button`, `Input`, `Textarea`, `Select`, `Card`, `Chip`, `HiddenFileInput`,
   `StatusBadge`, `CoachReply` and `Modal` are the primitives; page components
-  stay flat in `apps/web/src/` beside their tests, while a page's own sections
+  stay flat in `apps/web/src/` beside their tests (grouping the flat files by
+  feature is tracked in issue #420), while a page's own sections
   may move into a named directory (`plan/` holds the coach plan's tab sections,
   `llm/` the OpenRouter model picker's catalog, filters, table and save queue,
   and `calendar/` the calendar's grid, week overview, day cell and detail
@@ -549,9 +588,24 @@ made and recorded, and `docs/adrs/` for the accepted ones.
   invocation that CI already runs. A missing `alt`, a detached label, a click
   handler on a non-interactive element or a positive tab index fails
   `bun run lint`. The primitives are declared as the native controls they
-  render so a wrapping `<label>` counts as associated. Static rules cannot
-  judge focus management or chart alternatives, which stay in their own a11y
-  issues; see `docs/specs/accessibility-lint.md` and ADR 0041.
+  render so a wrapping `<label>` counts as associated. A non-SVG element that
+  pairs `role="img"` with a pointer handler also fails, because pointer
+  handlers are invisible to the interaction rules and the location map was
+  once pointer-only, and an `<svg>` with a pointer handler must be a tab stop
+  that handles keys, so a chart cannot regress to hover-only. Static rules
+  cannot judge focus management or the location map's keyboard behaviour; the
+  map's keyboard path is covered by interaction tests, and the pointer-only
+  case for non-SVG elements is a lint rule. See
+  `docs/specs/accessibility-lint.md` and ADR 0041.
+- Every chart's per-day values are reachable without a pointer. A chart is one
+  keyboard stop: `useChartKeyboard` (`apps/web/src/useChartKeyboard.ts`) maps
+  the left and right arrows, Home, End and Escape onto a position, and
+  `useChartHover` composes it so `ChartFrame` gives the fitness, threshold, body
+  and recovery/sleep charts the same marker, card and cursor; the Costs page's
+  bar chart uses the cursor directly. A polite live region reads the
+  keyboard-moved day's card and stays silent while a pointer moves. Left and
+  right are bound rather than up and down so a focused chart does not take the
+  page's scrolling. See `docs/specs/chart-keyboard-navigation.md` and ADR 0051.
 - **Tailwind CSS** (v4, through `@tailwindcss/vite`) is the styling foundation.
   The primitives compose utility classes through `cn()`, which combines `clsx`
   and `tailwind-merge` so a caller's `className` overrides a default. The
@@ -594,10 +648,17 @@ across frontend and backend:
 - Bun workspaces under `apps/*`, `packages/*` and `tools/*`:
   - `apps/web` — React + Vite + Tailwind frontend
   - `apps/api` — Hono + Drizzle backend
-  - `packages/shared` — shared Zod schemas and TypeScript types
+  - `packages/shared` — the wire contract (Zod schemas and TypeScript types) and
+    the helpers both the API and the web app use; logic only the API computes or
+    parses lives in `apps/api`. See ADR 0055 and
+    `docs/specs/shared-api-boundary.md`.
   - `tools/benchmark` — LLM benchmark harness and model-catalog grading
     queries, run by `bun run benchmark:llm` and `bun run benchmark:prompts`;
     it imports the real plan pipeline from `apps/api`. See ADR 0032.
+- `scripts/` is not a workspace: it holds development tooling run through
+  `bun run scripts/...` (the coverage runner, the outdated-dependency and
+  sign-off checks, and their tests) and is typechecked by the root
+  `tsconfig.scripts.json`. See ADR 0054.
 
 ### Database
 
@@ -734,13 +795,29 @@ through a disciplined process:
    strictness flags in `tsconfig.base.json`), ESLint, Prettier, and the
    unused-export scan are all checked in CI (`bun run typecheck`,
    `bun run lint`, `bun run format`, `bun run check:unused`) and must pass.
+   Every TypeScript file belongs to exactly one named project: each workspace
+   package has its own `tsconfig.json`, and the root `tsconfig.scripts.json`
+   owns `scripts/`, which no workspace covers. The root `typecheck` script runs
+   both, so `scripts/` is typechecked and type-aware-linted too, and a guard
+   test fails when a new root-level TypeScript tree is left out. See
+   `docs/specs/typescript-project-coverage.md` and ADR 0054.
 6. **Full test coverage on every feature**, across every layer:
    - **Unit tests** (Vitest) for pure logic and components.
    - **Python sidecar tests** for `services/garmin`: `bun run check:garmin` runs
      `pytest` plus `ruff check`, `ruff format --check` and `mypy`, with the
      tools pinned in `services/garmin/requirements-dev.txt` and configured in
-     its `pyproject.toml`. CI runs the same script in the `garmin` job; see
-     `docs/specs/garmin-sidecar-checks.md`.
+     its `pyproject.toml`. The suite is split along the same module lines as the
+     sidecar (`test_auth.py`, `test_activities.py`, `test_body.py`,
+     `test_daily.py`, `test_errors.py`, `test_values.py`), with the shared Garmin
+     stubs in `support.py`. The suite also holds the Python half of the sidecar
+     contract: `services/garmin/test_contract.py` rebuilds the committed
+     response fixtures in `services/garmin/contract/` through the sidecar's own
+     handlers, and `apps/api/src/garmin/contract.test.ts` parses them with the
+     shared schemas; a wire rename on either side therefore fails a pull
+     request. CI runs the same script in the `garmin` job; see
+     `docs/specs/garmin-sidecar-checks.md`,
+     `docs/specs/garmin-sidecar-modules.md` and
+     `docs/specs/garmin-sidecar-contract.md`.
    - **Integration tests** against the API and a test database.
      Database-backed tests live in `apps/api/integration` and run with
      `bun run test:integration` against the docker-compose PostgreSQL. They

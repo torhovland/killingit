@@ -29,6 +29,27 @@ pip install -r requirements.txt
 python app.py
 ```
 
+## Layout
+
+`app.py` is only the FastAPI app, the request models and the five routes. Each
+concern lives in its own module beside it:
+
+| Module          | Owns                                                                |
+| --------------- | ------------------------------------------------------------------- |
+| `auth.py`       | Login, token store and the `Credentials` request model              |
+| `activities.py` | Activity summaries, detail samples, laps and strength sets          |
+| `body.py`       | Weigh-ins, body fat and historic cycling FTP                        |
+| `daily.py`      | One day of daily stats, sleep, readiness and VO2max                 |
+| `values.py`     | Numeric/date coercions, metric ranges and the 42-day sync window    |
+| `errors.py`     | Domain errors, the `rate_limited` context manager and `http_errors` |
+
+Every route is decorated with `errors.http_errors`, so a new route cannot forget
+the status mapping, and every Garmin call goes through `errors.rate_limited`, so
+a new call cannot forget the `429`. The tests follow the same modules
+(`test_auth.py`, `test_activities.py`, `test_body.py`, `test_daily.py`,
+`test_errors.py`, `test_values.py`) and share their Garmin stubs through
+`support.py`. See `docs/specs/garmin-sidecar-modules.md` and ADR 0058.
+
 ## Container
 
 `Dockerfile` builds the Cloud Run image. It listens on `$PORT` (Cloud Run sets
@@ -75,6 +96,31 @@ pip install -r requirements-dev.txt
 pytest
 ```
 
+## Contract fixtures
+
+`contract/` holds one committed JSON file per endpoint (`sync.json`,
+`metrics.json`, `daily.json`): the whole response body the sidecar returns. They
+pin the Python sidecar to the shared Zod schemas that the Bun API parses those
+bodies with, so a renamed field fails a pull request instead of production.
+
+- `contract_fixtures.py` keeps the representative raw Garmin payloads and
+  rebuilds the responses by calling the sidecar's own route handlers.
+- `test_contract.py` (part of `bun run check:garmin`) asserts the sidecar still
+  produces exactly the committed JSON.
+- `apps/api/src/garmin/contract.test.ts` (part of `bun run test`) parses the same
+  files with the shared schemas.
+
+After a deliberate wire change, regenerate the fixtures:
+
+```sh
+cd services/garmin
+UPDATE_CONTRACT_FIXTURES=1 .venv/bin/python -m pytest test_contract.py
+```
+
+Then make the shared schemas and the code that consumes them match, and let the
+Bun test prove the new body parses. The normal test run only reads the files. See
+`docs/specs/garmin-sidecar-contract.md` and ADR 0057.
+
 ## Notes
 
 - MFA-required Garmin accounts are **not supported** and return 403.
@@ -108,12 +154,15 @@ pytest
   and max metrics. It returns only the values that were recorded, using the
   stable metric keys in `packages/shared/src/health.ts`. Body composition stays
   on `/metrics` so no weigh-in is fetched twice.
-- Cadence matches what Garmin Connect shows: runs and hikes use total steps per
-  minute (`directDoubleCadence`, or twice the per-leg `directCadence`), rides
-  use pedalling rpm (`directBikeCadence`, falling back to `directCadence`), and
-  rows and swims use the stroke rate from `directStrokeCadence`.
-  `directFractionalCadence` is only the sub-unit remainder and is never read as
-  a cadence on its own.
+- Cadence matches what Garmin Connect shows: every step-counted sport (runs,
+  jogs, walks and hikes) uses total steps per minute (`directDoubleCadence`, or
+  twice the per-leg `directCadence`), rides use pedalling rpm
+  (`directBikeCadence`, falling back to `directCadence`), and rows and swims use
+  the stroke rate from `directStrokeCadence`. A lap's `averageRunCadence` is
+  already total steps per minute and is never doubled, while its legacy
+  `avgCadence` fallback is doubled for step-counted sports. See
+  `docs/specs/cadence-units.md`. `directFractionalCadence` is only the sub-unit
+  remainder and is never read as a cadence on its own.
 - Activity-detail calls add one Garmin request per activity. If a detail fetch
   fails, that activity is returned with `samples: []` and the sync continues;
   Garmin rate limiting still fails the whole sync with `429`.

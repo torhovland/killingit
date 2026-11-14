@@ -8,11 +8,17 @@ import {
   type ChartScale,
 } from "./chartGeometry";
 import { useChartHover, type HoveredChartDay } from "./useChartHover";
+import { CHART_KEYBOARD_HINT } from "./useChartKeyboard";
 
 /**
  * The shared frame for the fitness charts: the card, accessible SVG, the y and
  * x axes, the hover guide and its card. A chart supplies its scale and ticks,
  * draws its own series inside the plot, and can add a legend and footer.
+ *
+ * An interactive chart is one keyboard stop: the frame owns the cursor keys
+ * through `useChartHover`, and announces the card of the day the keyboard
+ * moved to in a polite live region. See
+ * `docs/specs/chart-keyboard-navigation.md`.
  */
 export function ChartFrame<T extends { date: string }>({
   title,
@@ -82,10 +88,15 @@ export function ChartFrame<T extends { date: string }>({
         Record<`data-${string}`, string | undefined>)
     | undefined;
 }) {
-  const { hovered, onPointerMove, onPointerLeave } = useChartHover(
-    days.length,
-    (index) => days[index],
-  );
+  const {
+    hovered,
+    announced,
+    instructionId,
+    onPointerMove,
+    onPointerLeave,
+    onKeyDown,
+    onBlur,
+  } = useChartHover(days.length, (index) => days[index]);
   const xLabels = labelIndices(days.length);
   const grid = gridTicks ?? ticks;
   const activeHover = interactive ? hovered : null;
@@ -116,10 +127,14 @@ export function ChartFrame<T extends { date: string }>({
           className="h-auto w-full"
           role="img"
           aria-label={label}
+          aria-describedby={interactive ? instructionId : undefined}
+          tabIndex={interactive ? 0 : undefined}
           data-testid={svgTestId}
           onPointerMove={interactive ? onPointerMove : undefined}
           onPointerDown={interactive ? onPointerMove : undefined}
           onPointerLeave={interactive ? onPointerLeave : undefined}
+          onKeyDown={interactive ? onKeyDown : undefined}
+          onBlur={interactive ? onBlur : undefined}
         >
           <title>{svgTitle ?? label}</title>
           <g
@@ -197,6 +212,11 @@ export function ChartFrame<T extends { date: string }>({
             );
           })}
         </svg>
+        {interactive && (
+          <p id={instructionId} className="sr-only">
+            {CHART_KEYBOARD_HINT}
+          </p>
+        )}
         {activeHover !== null && tooltip !== undefined && (
           <div
             className={`pointer-events-none absolute top-2 z-10 -translate-x-1/2 rounded border bg-card p-2 text-sm shadow-lg ${tooltipClassName}`}
@@ -204,6 +224,18 @@ export function ChartFrame<T extends { date: string }>({
             data-testid={tooltipTestId}
           >
             {tooltip(activeHover)}
+          </div>
+        )}
+        {interactive && (
+          // Mounted from the start so a screen reader reports each change. Only
+          // the keyboard writes to it, so a pointer sweeping the plot is
+          // silent; the card itself is visual. See ADR 0051.
+          <div className="sr-only" role="status" aria-live="polite">
+            {announced === null
+              ? null
+              : tooltip === undefined
+                ? formatChartDate(announced.day.date)
+                : tooltip(announced)}
           </div>
         )}
       </div>

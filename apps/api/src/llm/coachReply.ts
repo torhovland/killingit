@@ -1,5 +1,5 @@
-import { coachReplyResultSchema } from "@killingit/shared";
 import type { LlmProvider } from "./openrouter.js";
+import { coachReplyResultSchema } from "./coachResult.js";
 import {
   buildCoachReplyMessages,
   type CoachReplyPromptInput,

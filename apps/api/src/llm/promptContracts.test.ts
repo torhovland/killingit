@@ -1,12 +1,14 @@
 /**
  * Parity between the model-facing JSON contracts in `promptRules.ts` and the
- * Zod schemas in `@killingit/shared` that parse the coach's answer.
+ * Zod schemas that parse the coach's answer.
  *
  * Every contract restates a schema's field list by hand, so a field added on one
  * side alone is invisible to the other: the coach never returns a field the
  * schema accepts, or returns a field the schema cannot hold and the completion
  * fails or repairs at runtime. These tests parse both sides into the same key
  * tree and compare them, failing with the contract, the path and the key.
+ * The DTO contracts read the shared package; the answer contracts read the API
+ * schemas that parse the coach's response. See ADR 0055.
  *
  * The mapping between a contract and its schema:
  *
@@ -34,14 +36,16 @@ import { z } from "zod";
 import {
   blockPlanSchema,
   bodyMetricEstimateSchema,
-  coachAnalysisResultSchema,
-  coachReplyResultSchema,
   coachResponseNotesSchema,
   dayPlanSchema,
   dietPlanSchema,
   seasonPlanSchema,
   weekPlanSchema,
 } from "@killingit/shared";
+import {
+  coachAnalysisResultSchema,
+  coachReplyResultSchema,
+} from "./coachResult.js";
 import {
   BLOCK_CONTRACT,
   BODY_METRIC_POINT_CONTRACT,

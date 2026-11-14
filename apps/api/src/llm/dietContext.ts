@@ -1,4 +1,5 @@
-import { isDefaultDietGoal, type DietPlan } from "@killingit/shared";
+import type { DietPlan } from "@killingit/shared";
+import { isDefaultDietGoal } from "../diet/goal.js";
 import type {
   DietMealContext,
   DietPromptContext,

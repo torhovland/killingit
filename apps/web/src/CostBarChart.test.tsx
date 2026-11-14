@@ -1,4 +1,6 @@
 import { describe, expect, it } from "bun:test";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { LlmCostBucket } from "@killingit/shared";
 import { CostBarChart } from "./CostBarChart";
@@ -118,5 +120,31 @@ describe("CostBarChart", () => {
 
     expect(html).toContain("Claude");
     expect(html).not.toContain(">GPT<");
+  });
+
+  it("announces a bar's spend when driven from the keyboard", async () => {
+    const user = userEvent.setup();
+    render(
+      <CostBarChart
+        title="Monthly cost"
+        description="One bar per month."
+        data={monthlyCostChart(rows, "12m", "2026-11-04", "model")}
+        emptyMessage="No calls."
+        testId="monthly-cost-chart"
+      />,
+    );
+
+    await user.tab();
+    const chart = screen.getByRole("img", { name: /monthly cost/i });
+    expect(document.activeElement).toBe(chart);
+
+    await user.keyboard("{End}");
+    const announcement = screen.getByRole("status").textContent ?? "";
+    expect(announcement).toContain("November 2026");
+    expect(announcement).toContain("$0.25");
+    expect(screen.getAllByTestId("cost-tooltip")).toHaveLength(2);
+
+    await user.keyboard("{Home}");
+    expect(screen.getByRole("status").textContent).toContain("December 2025");
   });
 });

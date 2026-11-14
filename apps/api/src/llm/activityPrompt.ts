@@ -183,9 +183,11 @@ const CHANNELS: ChannelDefinition[] = [
   {
     key: "cadence",
     name: "cadence",
-    label: "cadence rpm",
+    // The unit comes from `cadenceUnit`, the single statement of the display
+    // unit, which `channelLabel` and `channelStat` append.
+    label: "cadence",
     display: (v) => `${Math.round(v)}`,
-    stat: (v) => `${Math.round(v)} rpm`,
+    stat: (v) => `${Math.round(v)}`,
   },
   {
     key: "elevation",

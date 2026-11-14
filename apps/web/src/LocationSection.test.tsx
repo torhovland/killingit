@@ -76,6 +76,11 @@ afterEach(() => {
   globalThis.fetch = originalFetch;
 });
 
+/** A save that accepts whatever the section sends unless a test says otherwise. */
+function saveNothing(location: AthleteLocation | null) {
+  return Promise.resolve(location);
+}
+
 /** Searches for and selects Bergen, leaving the saved Oslo location unchanged. */
 async function chooseBergen(): Promise<void> {
   const user = userEvent.setup();
@@ -91,7 +96,7 @@ async function chooseBergen(): Promise<void> {
 
 describe("LocationSection", () => {
   it("shows the map and address search when no location is set", () => {
-    render(<LocationSection location={null} onChanged={() => undefined} />);
+    render(<LocationSection location={null} onSave={saveNothing} />);
 
     expect(screen.getByText("Find an address")).toBeDefined();
     expect(screen.getByRole("button", { name: "Search" })).toBeDefined();
@@ -101,7 +106,7 @@ describe("LocationSection", () => {
   });
 
   it("shows a saved location and offers to clear it", () => {
-    render(<LocationSection location={OSLO} onChanged={() => undefined} />);
+    render(<LocationSection location={OSLO} onSave={saveNothing} />);
 
     expect(screen.getByText(/Oslo, Norway/)).toBeDefined();
     expect(screen.getByText(/59.9100, 10.7500/)).toBeDefined();
@@ -116,7 +121,7 @@ describe("LocationSection", () => {
   it("keeps an unsaved draft when the saved location is unchanged", async () => {
     stubGeocode();
     const { rerender } = render(
-      <LocationSection location={OSLO} onChanged={() => undefined} />,
+      <LocationSection location={OSLO} onSave={saveNothing} />,
     );
     await chooseBergen();
     expect(screen.getByTestId("location-summary").textContent).toContain(
@@ -125,9 +130,7 @@ describe("LocationSection", () => {
 
     // A parent re-render with the same saved location, even as a new object,
     // must not throw the athlete's unsaved choice away.
-    rerender(
-      <LocationSection location={{ ...OSLO }} onChanged={() => undefined} />,
-    );
+    rerender(<LocationSection location={{ ...OSLO }} onSave={saveNothing} />);
 
     expect(screen.getByTestId("location-summary").textContent).toContain(
       "60.3900, 5.3200",
@@ -137,18 +140,33 @@ describe("LocationSection", () => {
   it("takes a genuinely changed saved location over the draft", async () => {
     stubGeocode();
     const { rerender } = render(
-      <LocationSection location={OSLO} onChanged={() => undefined} />,
+      <LocationSection location={OSLO} onSave={saveNothing} />,
     );
     await chooseBergen();
 
-    rerender(
-      <LocationSection location={TRONDHEIM} onChanged={() => undefined} />,
-    );
+    rerender(<LocationSection location={TRONDHEIM} onSave={saveNothing} />);
 
     expect(screen.getByTestId("location-summary").textContent).toContain(
       "63.4300, 10.3900",
     );
     expect(screen.getByTestId("location-summary").textContent).not.toContain(
+      "60.3900, 5.3200",
+    );
+  });
+
+  it("saves the chosen point and shows the location the page returns", async () => {
+    stubGeocode();
+    const user = userEvent.setup();
+    const onSave = mock((next: AthleteLocation | null) =>
+      Promise.resolve(next),
+    );
+    render(<LocationSection location={OSLO} onSave={onSave} />);
+    await chooseBergen();
+
+    await user.click(screen.getByRole("button", { name: "Save location" }));
+
+    expect(onSave).toHaveBeenCalledWith(BERGEN);
+    expect(screen.getByTestId("location-summary").textContent).toContain(
       "60.3900, 5.3200",
     );
   });

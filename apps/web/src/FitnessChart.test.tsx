@@ -1,4 +1,6 @@
 import { describe, expect, it } from "bun:test";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { renderToStaticMarkup } from "react-dom/server";
 import type {
   FitnessHistoryDay,
@@ -70,6 +72,33 @@ describe("FitnessChart", () => {
     );
 
     expect(html).not.toContain('data-future="true"');
+  });
+
+  it("lets the keyboard read a day's numbers", async () => {
+    const user = userEvent.setup();
+    const numbered = days.map((entry, index) => ({
+      ...entry,
+      tss: 40 + index * 10,
+      atl: 20 + index,
+      ctl: 30 + index,
+      tsb: 10 - index,
+    }));
+    render(<FitnessChart days={numbered} today="2026-10-22" />);
+
+    await user.tab();
+    const chart = screen.getByRole("img", { name: /fitness \(ctl\)/i });
+    expect(document.activeElement).toBe(chart);
+
+    await user.keyboard("{ArrowRight}{ArrowRight}");
+    const announcement = screen.getByRole("status").textContent ?? "";
+    expect(announcement).toContain("21 Oct");
+    expect(announcement).toContain("TSS 50");
+    expect(announcement).toContain("CTL 31");
+    // The visible card and the announced copy both carry the same day.
+    expect(screen.getAllByTestId("fitness-tooltip")).toHaveLength(2);
+
+    await user.keyboard("{Escape}");
+    expect(screen.queryAllByTestId("fitness-tooltip")).toHaveLength(0);
   });
 });
 

@@ -5,21 +5,22 @@ import {
   costGrade,
   speedGrade,
 } from "../../../apps/api/src/llm/modelCatalog.js";
+import { readJsonFile, readJsonFileOr } from "./jsonFile.js";
 import {
   PROMPT_BENCHMARK_REPORTS_ROOT,
   promptBenchmarkReportPath,
   promptBenchmarkRunDirectory,
   promptBenchmarkRunId,
-  readPromptJson,
-  readPromptJsonOr,
 } from "./promptBenchmarkFiles.js";
 import { BENCHMARK_PROMPTS } from "./promptBenchmarkInput.js";
-import type {
-  PromptBenchmarkSources,
-  PromptJudgeOverride,
-  PromptJudgeScore,
-  PromptModelResult,
-  PromptRunResult,
+import {
+  promptBenchmarkSourcesSchema,
+  promptJudgeOverridesSchema,
+  promptJudgeScoreSchema,
+  promptModelResultSchema,
+  type PromptJudgeScore,
+  type PromptModelResult,
+  type PromptRunResult,
 } from "./promptBenchmarkTypes.js";
 
 function gradesFor(
@@ -106,25 +107,27 @@ export async function runPromptBenchmarkReportStage(): Promise<void> {
   const runId = promptBenchmarkRunId();
   const runDirectory = promptBenchmarkRunDirectory(runId);
   const outputHtml = promptBenchmarkReportPath(runId);
-  const results = await readPromptJson<PromptModelResult[]>(
+  const results = await readJsonFile(
     resolve(runDirectory, "results.json"),
+    promptModelResultSchema.array(),
   );
-  const sources = await readPromptJsonOr<PromptBenchmarkSources>(
+  const sources = await readJsonFileOr(
     resolve(runDirectory, "sources.json"),
+    promptBenchmarkSourcesSchema,
     {},
   );
-  const sourceRuns = Array.isArray(sources.runIds)
-    ? sources.runIds.filter((id): id is string => typeof id === "string")
-    : [];
+  const sourceRuns = sources.runIds ?? [];
   const scoresFile = process.env.SCORES_FILE ?? "judge-scores.json";
-  const scores = await readPromptJson<PromptJudgeScore[]>(
+  const scores = await readJsonFile(
     resolve(runDirectory, scoresFile),
+    promptJudgeScoreSchema.array(),
   );
   const overrides =
     process.env.USE_OVERRIDES === "0"
       ? {}
-      : await readPromptJsonOr<Record<string, PromptJudgeOverride>>(
+      : await readJsonFileOr(
           resolve(runDirectory, "overrides.json"),
+          promptJudgeOverridesSchema,
           {},
         );
 

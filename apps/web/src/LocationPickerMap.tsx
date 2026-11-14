@@ -24,6 +24,10 @@ const WHEEL_ZOOM_COOLDOWN_MS = 250;
 // unmount the edge tiles and leave visible gaps while the next row loads.
 const TILE_BUFFER = TILE_SIZE;
 const SLOT_NAMES = ["a", "b"] as const;
+// One arrow-key press pans by a fixed number of screen pixels, so the step
+// feels the same at every zoom level while it covers less ground as the map
+// zooms in.
+const PAN_STEP_PIXELS = 40;
 
 interface DragState {
   pointerId: number;
@@ -90,10 +94,12 @@ function layerForView(
 
 /**
  * An OpenStreetMap picker. A click sets the location, dragging pans the map,
- * and the mouse wheel or trackpad zooms around the pointer. Tiles are plain
- * HTML images in two alternating layers: panning only translates the current
- * layer, and a zoom keeps the previous layer underneath until the next zoom,
- * so tiles never disappear while a new zoom level loads.
+ * and the mouse wheel or trackpad zooms around the pointer. The map is also one
+ * keyboard stop: the arrow keys move the centre, `+` and `−` zoom, and Enter or
+ * Space choose the centred point, which a polite live region announces. Tiles
+ * are plain HTML images in two alternating layers: panning only translates the
+ * current layer, and a zoom keeps the previous layer underneath until the next
+ * zoom, so tiles never disappear while a new zoom level loads.
  */
 export function LocationPickerMap({
   value,
@@ -241,6 +247,77 @@ export function LocationPickerMap({
     return () => target.removeEventListener("wheel", handleWheel);
   }, [changeView]);
 
+  // The map is a `role="application"` surface, so a keyboard user can drive it
+  // without the pointer. React's synthetic key handler is not usable here:
+  // `jsx-a11y` classifies `application` as a structural role and would reject
+  // it, so the element owns its keydown listener next to the wheel listener
+  // above. See `docs/specs/accessibility-lint.md`.
+  useEffect(() => {
+    const element = map.current;
+    if (element === null) {
+      return;
+    }
+    const target = element;
+    function handleKeyDown(event: KeyboardEvent): void {
+      // The zoom buttons sit inside the map. Their key presses belong to the
+      // button, not to the panning surface.
+      if (event.target !== target) {
+        return;
+      }
+      const current = viewport.current;
+      switch (event.key) {
+        case "ArrowUp":
+        case "ArrowDown":
+        case "ArrowLeft":
+        case "ArrowRight": {
+          event.preventDefault();
+          const centerWorld = projectPoint(current.center, current.zoom);
+          const dx =
+            event.key === "ArrowLeft"
+              ? -PAN_STEP_PIXELS
+              : event.key === "ArrowRight"
+                ? PAN_STEP_PIXELS
+                : 0;
+          const dy =
+            event.key === "ArrowUp"
+              ? -PAN_STEP_PIXELS
+              : event.key === "ArrowDown"
+                ? PAN_STEP_PIXELS
+                : 0;
+          changeView(
+            unprojectPoint(
+              { x: centerWorld.x + dx, y: centerWorld.y + dy },
+              current.zoom,
+            ),
+            current.zoom,
+          );
+          return;
+        }
+        case "+":
+        case "=":
+        case "Add":
+          event.preventDefault();
+          changeView(current.center, clampZoom(current.zoom + 1));
+          return;
+        case "-":
+        case "_":
+        case "Subtract":
+          event.preventDefault();
+          changeView(current.center, clampZoom(current.zoom - 1));
+          return;
+        case "Enter":
+        case " ":
+          event.preventDefault();
+          onSelect(current.center.latitude, current.center.longitude);
+          return;
+        default:
+          return;
+      }
+    }
+    target.addEventListener("keydown", handleKeyDown);
+    return () => target.removeEventListener("keydown", handleKeyDown);
+  }, [changeView, onSelect]);
+
   // A search result or a saved location moves the map to that place. Clicking
   // the map also updates the value; recentring there is harmless.
   useEffect(() => {
@@ -354,8 +431,10 @@ export function LocationPickerMap({
       <div
         ref={map}
         className="relative isolate aspect-[4/3] w-full touch-none overflow-hidden rounded border bg-muted select-none"
-        role="img"
-        aria-label="Location picker map. Click to set your location. Scroll to zoom."
+        role="application"
+        aria-roledescription="map"
+        aria-label="Location picker map. Use the arrow keys to move the centre, plus and minus to zoom, and Enter or Space to choose the centred point. A pointer click or drag also chooses a point."
+        tabIndex={0}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -443,10 +522,17 @@ export function LocationPickerMap({
         </div>
       </div>
 
+      <p className="sr-only" role="status" aria-live="polite">
+        Map centre: latitude {center.latitude.toFixed(4)}, longitude{" "}
+        {center.longitude.toFixed(4)}
+      </p>
+
       <p className="mt-1 px-1 text-xs text-muted-foreground">
-        Click or drag the map to choose a point
+        Click, drag, or use the arrow keys to choose a point
         <Bullet />
-        Scroll to zoom
+        Scroll or +/− to zoom
+        <Bullet />
+        Enter picks the centred point
         <Bullet />
         <a
           href="https://www.openstreetmap.org/copyright"

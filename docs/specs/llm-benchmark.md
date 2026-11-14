@@ -93,6 +93,35 @@ the model catalog's ability, speed and cost grades.
     keeps the recorded status, finish reason, usage, cost, raw text and parse
     error per attempt, so the existing judge, finalize, report and sync stages
     read a run unchanged.
+13. Every run file a stage reads is parsed through the schema that describes it,
+    so a renamed field or a corrupt file is reported with its path; `report`,
+    `shortlist`, `sync-db` and `finalize` refuse an invalid input, while `run`
+    and `judge` keep their current-shape resume filter. The exported types are
+    `z.infer` of those schemas, so a type cannot drift from its file.
+
+## Stored run files
+
+`results.json`, `raw/*.json`, `judge-scores.json`, `sources.json`,
+`overrides.json` and the plan comparison's `metadata.json`, `results.json` and
+`scores.json` all have a fixed JSON shape. Each shape is a Zod schema in
+`tools/benchmark/src/promptBenchmarkTypes.ts` (two-prompt benchmark) or
+`tools/benchmark/src/types.ts` (plan comparison), and every exported type is
+`z.infer` of its schema. Reads go through `readJsonFile` in
+`tools/benchmark/src/jsonFile.ts`, which names the file and the offending field
+when validation fails.
+
+The resume stages need a partial file to be usable: `run` and `judge` reuse a
+stored model only when both prompts are present, so an entry written for the
+superseded flat results format or a model judged on one prompt is skipped and
+run again. `readJsonEntries` applies the same schema per entry for that filter.
+The other stages are strict, because the file is their whole input: a corrupt
+`results.json` or `judge-scores.json` fails `report`, `shortlist`, `sync-db` and
+`finalize` instead of rendering a table or recording a grade that a silent zero
+would misrepresent. An ESLint rule bans `JSON.parse` in `tools/benchmark/src`
+outside `jsonFile.ts`, the model-answer extractor and the outgoing-request
+parser, so a new stage cannot go back to a hand-written cast. A unit test parses
+every committed plan-comparison run, so a plan-shape change that would break
+`--report-only` fails CI.
 
 ## Running
 

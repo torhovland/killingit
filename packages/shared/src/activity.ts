@@ -53,7 +53,10 @@ export const activityLapSchema = z.object({
   maxPower: z.number().nonnegative().optional(),
   /** Mean speed in metres per second; render as pace for pace-based sports. */
   averageSpeed: z.number().nonnegative().optional(),
-  /** Mean cadence in the sport's unit (rpm for cycling, steps/min for runs). */
+  /**
+   * Mean cadence in the sport's unit (rpm for cycling, steps per minute for
+   * step-counted sports, strokes per minute for rowing and swimming).
+   */
   averageCadence: z.number().nonnegative().optional(),
   totalElevationGain: z.number().optional(),
 });
@@ -124,8 +127,8 @@ export type RoutePoint = z.infer<typeof routePointSchema>;
  * sample only carries the values the device recorded at that moment.
  *
  * Units: latitude/longitude degrees, heartRate bpm, power W, temperature °C,
- * speed m/s, distance m (cumulative), elevation m, cadence rpm (bike) or
- * steps/min (run) as reported by the source.
+ * speed m/s, distance m (cumulative), elevation m, cadence rpm (cycling) or
+ * steps per minute (step-counted sports) as normalized by the source.
  */
 export const activitySampleSchema = z.object({
   timestamp: z.string().datetime(),
@@ -169,9 +172,12 @@ export type ActivitiesResponse = z.infer<typeof activitiesResponseSchema>;
 const PACE_ACTIVITY_PATTERN = /run|jog|walk|hik|swim|row|ski/;
 
 /**
- * Sports whose cadence is counted in steps or strokes per minute rather than
- * pedal revolutions. Garmin's running and hiking channels are already totals,
- * and rowing and swimming report strokes per minute.
+ * Sports whose cadence is displayed as steps or strokes per minute rather than
+ * pedal revolutions. A step-counted sport (run, jog, walk, hike) is stored as
+ * total steps per minute: the sidecar doubles Garmin's per-leg channel, and a
+ * test pins that rule to this pattern. Rowing and swimming already arrive as
+ * strokes per minute. This pattern is the single statement of the display
+ * unit; the UI and the prompts read it through `cadenceUnit`.
  */
 const STEP_CADENCE_PATTERN = /run|jog|walk|hik|row|swim/;
 

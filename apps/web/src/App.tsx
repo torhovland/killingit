@@ -1,9 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { currentUserSchema, type CurrentUser } from "@killingit/shared";
 import { AppStatusProvider, useAppStatus } from "./AppStatus";
 import { CoachingSurveyPage } from "./CoachingSurveyPage";
 import { useAuth } from "./auth";
-import { fetchJsonAuthed, requestParsed } from "./fetchAuthed";
+import {
+  CurrentUserLoadError,
+  CurrentUserProvider,
+  useCurrentUser,
+} from "./CurrentUserProvider";
+import { fetchJsonAuthed } from "./fetchAuthed";
 import {
   NavigationProvider,
   PAGES,
@@ -19,7 +23,6 @@ import { PlanGenerationProvider } from "./PlanGenerationProvider";
 import { PwaBanners } from "./PwaBanners";
 import { usePwa } from "./PwaContext";
 import { InstallAppButton } from "./PwaInstall";
-import { reportError } from "./reportError";
 import { SignInPage } from "./SignInPage";
 import { TimeZoneProvider } from "./TimeZoneContext";
 import { useAthleteQuestions } from "./useAthleteQuestions";
@@ -28,7 +31,9 @@ import { Button } from "./components/Button";
 export function App() {
   return (
     <AppStatusProvider>
-      <AppShell />
+      <CurrentUserProvider>
+        <AppShell />
+      </CurrentUserProvider>
     </AppStatusProvider>
   );
 }
@@ -37,7 +42,7 @@ function AppShell() {
   const auth = useAuth();
   const pwa = usePwa();
   const { status, setStatus } = useAppStatus();
-  const [me, setMe] = useState<CurrentUser | null>(null);
+  const { user } = useCurrentUser();
   const [timeZone, setTimeZone] = useState<string | null>(null);
   const timeZoneTouched = useRef(false);
   const pathname = useLocationPath();
@@ -46,7 +51,6 @@ function AppShell() {
   // the URL.
   const page = matchedPage ?? "coach";
   const [planRefreshKey, setPlanRefreshKey] = useState(0);
-  const [error, setError] = useState<string | null>(null);
   const {
     questions,
     loading: loadingQuestions,
@@ -55,7 +59,7 @@ function AppShell() {
   } = useAthleteQuestions();
 
   const signedIn = auth.isAuthenticated;
-  const isAdmin = me?.role === "admin";
+  const isAdmin = user?.role === "admin";
 
   useEffect(() => {
     const loading = auth.isLoading || (loadingQuestions && questions === null);
@@ -82,10 +86,10 @@ function AppShell() {
   // Admin settings belong to the admin. A member who opens the URL is sent
   // back to the coach page once their role is known.
   useEffect(() => {
-    if (signedIn && me !== null && page === "admin" && !isAdmin) {
+    if (signedIn && user !== null && page === "admin" && !isAdmin) {
       navigateToPage("coach", { replace: true });
     }
-  }, [signedIn, me, page, isAdmin]);
+  }, [signedIn, user, page, isAdmin]);
 
   // A page visit asks the API to refresh OpenRouter's catalog. The API checks
   // its own 24-hour timestamp, so this is cheap on every other visit.
@@ -98,34 +102,22 @@ function AppShell() {
     });
   }, [auth]);
 
-  // When authenticated, fetch the protected /api/me to prove the token flows.
+  // The display zone starts from the saved account setting. The touched ref
+  // lets a zone the athlete just saved survive a late account load; signing out
+  // clears both so the next account starts from its own setting.
   useEffect(() => {
-    if (!auth.isAuthenticated) {
-      setMe(null);
+    if (!signedIn) {
       setTimeZone(null);
       timeZoneTouched.current = false;
       return;
     }
-    requestParsed(
-      "/api/me",
-      auth,
-      currentUserSchema,
-      "Loading the current user",
-    )
-      .then((user) => {
-        setMe(user);
-        if (!timeZoneTouched.current) {
-          setTimeZone(user.timezone);
-        }
-      })
-      .catch((e: unknown) => {
-        setError(reportError(e));
-      });
-  }, [auth]);
+    if (!timeZoneTouched.current) {
+      setTimeZone(user?.timezone ?? null);
+    }
+  }, [signedIn, user]);
 
   function navigate(next: Page): void {
     navigateToPage(next);
-    setError(null);
   }
 
   function handleAnswersSaved(): void {
@@ -200,7 +192,7 @@ function AppShell() {
             className={`mx-auto flex w-full ${contentWidth} flex-col gap-4 px-0 py-4 sm:px-4 sm:py-6`}
           >
             <PlanGenerationProvider>
-              {error && <p className="text-destructive">Error: {error}</p>}
+              <CurrentUserLoadError />
 
               {!signedIn ? (
                 auth.isLoading ? (
@@ -232,24 +224,11 @@ function AppShell() {
                 <PageOutlet
                   page={page === "admin" && !isAdmin ? "coach" : page}
                   planRefreshKey={planRefreshKey}
-                  dietAdvice={me?.dietAdvice ?? false}
-                  isAdmin={isAdmin}
                   timeZone={timeZone}
-                  user={me}
                   onSurveyAnswersSaved={handleAnswersSaved}
                   onTimeZoneChanged={(timezone) => {
                     timeZoneTouched.current = true;
                     setTimeZone(timezone);
-                  }}
-                  onLocationChanged={(location) => {
-                    setMe((current) =>
-                      current === null ? current : { ...current, location },
-                    );
-                  }}
-                  onDietAdviceChanged={(dietAdvice) => {
-                    setMe((current) =>
-                      current === null ? current : { ...current, dietAdvice },
-                    );
                   }}
                 />
               )}

@@ -60,6 +60,19 @@ describe("ActivityLaps", () => {
     expect(html).toContain("12");
   });
 
+  it("labels a walk's stored lap cadence as steps per minute", () => {
+    const html = renderToStaticMarkup(
+      <ActivityLaps
+        laps={[{ index: 1, distance: 1000, averageCadence: 111 }]}
+        activityType="walking"
+      />,
+    );
+
+    expect(html).toContain("Cadence spm");
+    expect(html).toContain("111");
+    expect(html).not.toContain("Cadence rpm");
+  });
+
   it("shows pace for pace-based sports and omits unrecorded columns", () => {
     const html = renderToStaticMarkup(
       <ActivityLaps

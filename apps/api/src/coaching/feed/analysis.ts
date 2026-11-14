@@ -4,7 +4,6 @@ import {
   type Activity,
   type AnalyzedActivity,
   type BodyMetricEstimate,
-  type CoachAnalysisResult,
   type DailyHealthPoint,
   type MetricPoint,
   type ThresholdSummary,
@@ -18,6 +17,7 @@ import {
   ANALYSIS_PROMPT_VERSION,
   type ActivityAnalysisContext,
 } from "../../llm/activityPrompt.js";
+import type { CoachAnalysisResult } from "../../llm/coachResult.js";
 import { analyzeActivity } from "../../llm/analyze.js";
 import {
   loadAnalyses,

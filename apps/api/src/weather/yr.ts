@@ -1,10 +1,10 @@
-import {
-  isValidTimeZone,
-  type AthleteLocation,
-  type DailyWeather,
-  type WeatherIcon,
+import type {
+  AthleteLocation,
+  DailyWeather,
+  WeatherIcon,
 } from "@killingit/shared";
 import type { FetchLike } from "./openMeteo.js";
+import { isValidTimeZone } from "./timeZone.js";
 
 /** MET Norway's forecast plus the caching terms it asks clients to honour. */
 export interface YrForecastResult {

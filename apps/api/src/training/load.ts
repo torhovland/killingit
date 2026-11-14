@@ -1,8 +1,4 @@
 import {
-  bikeWorkoutTrainingStressScore,
-  CTL_DAYS,
-  dailyTrainingLoad,
-  estimatedTssFromSession,
   type AnalyzedActivity,
   type BlockPlan,
   type CoachPlan,
@@ -19,6 +15,12 @@ import {
   manualTssByDate,
   measuredActivityTss,
 } from "./activityLoad.js";
+import {
+  bikeWorkoutTrainingStressScore,
+  CTL_DAYS,
+  dailyTrainingLoad,
+  estimatedTssFromSession,
+} from "./stress.js";
 import {
   ftpTimeline,
   ftpWattsAt,

@@ -1,14 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  currentUserSchema,
   garminConnectionStatusSchema,
   llmSettingsSchema,
-  type AthleteLocation,
 } from "@killingit/shared";
 import { useAuth } from "./auth";
+import { useCurrentUser } from "./CurrentUserProvider";
 import { DeleteAccountSection } from "./DeleteAccountSection";
 import { DietSection } from "./DietSection";
-import { requestParsed } from "./fetchAuthed";
 import { GarminSection } from "./GarminSection";
 import { LlmSection } from "./LlmSection";
 import { LocationSection } from "./LocationSection";
@@ -33,22 +31,14 @@ function supportedTimeZones(): string[] {
 export function SettingsPage({
   timeZone,
   onTimeZoneChanged,
-  location,
-  onLocationChanged,
-  dietAdvice,
-  onDietAdviceChanged,
-  isAdmin,
 }: {
   timeZone: string | null;
   onTimeZoneChanged: (timeZone: string | null) => void;
-  location: AthleteLocation | null;
-  onLocationChanged: (location: AthleteLocation | null) => void;
-  dietAdvice: boolean;
-  onDietAdviceChanged: (enabled: boolean) => void;
-  isAdmin: boolean;
 }) {
   const auth = useAuth();
   const pwa = usePwa();
+  const { user, update } = useCurrentUser();
+  const isAdmin = user?.role === "admin";
   const statuses = useApiResources(
     auth.isAuthenticated
       ? {
@@ -88,19 +78,9 @@ export function SettingsPage({
     setSavingTimeZone(true);
     setTimeZoneError(null);
     try {
-      const response = await requestParsed(
-        "/api/me",
-        auth,
-        currentUserSchema,
-        "Saving the time zone",
-        {
-          method: "PATCH",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            timezone: nextTimeZone === "" ? null : nextTimeZone,
-          }),
-        },
-      );
+      const response = await update({
+        timezone: nextTimeZone === "" ? null : nextTimeZone,
+      });
       if (request === timeZoneRequest.current) {
         onTimeZoneChanged(response.timezone);
       }
@@ -170,14 +150,19 @@ export function SettingsPage({
               sessions around rain, wind, cold, sunrise, and sunset.
             </p>
             <LocationSection
-              location={location}
-              onChanged={onLocationChanged}
+              location={user?.location ?? null}
+              onSave={async (location) => (await update({ location })).location}
             />
           </Card>
 
           <Card as="section" className="flex flex-col gap-3">
             <h3 className="text-2xl font-semibold">Diet</h3>
-            <DietSection enabled={dietAdvice} onChanged={onDietAdviceChanged} />
+            <DietSection
+              enabled={user?.dietAdvice ?? false}
+              onSave={async (dietAdvice) => {
+                await update({ dietAdvice });
+              }}
+            />
           </Card>
 
           <Card as="section" className="flex flex-col gap-3">

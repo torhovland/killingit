@@ -1,5 +1,6 @@
 import { dietSummaryResponseSchema } from "@killingit/shared";
 import { useAuth } from "./auth";
+import { useCurrentUser } from "./CurrentUserProvider";
 import { DietView } from "./DietView";
 import { useNavigate } from "./navigation";
 import { useTimeZone } from "./TimeZoneContext";
@@ -7,8 +8,10 @@ import { useApiResource } from "./useApiResource";
 import { getToday } from "./useToday";
 
 /** Loads the diet goal and the daily food log for the Diet page. */
-export function DietPage({ dietAdvice }: { dietAdvice: boolean }) {
+export function DietPage() {
   const auth = useAuth();
+  const { user } = useCurrentUser();
+  const dietAdvice = user?.dietAdvice ?? false;
   const navigate = useNavigate();
   const timeZone = useTimeZone();
   const today = getToday(timeZone).today;

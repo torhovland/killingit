@@ -39,7 +39,9 @@ the recorded strength sets. A separate proposed change adds average and maximum
 speed and sport-aware pace rendering; this document assumes that change lands
 first, because grade-adjusted pace builds on it. The feed keeps a bounded,
 downsampled sample preview with timestamp, GPS position, heart rate, power,
-temperature, speed, distance, elevation and cadence.
+temperature, speed, distance, elevation and cadence (total steps per minute for
+step-counted sports, strokes per minute for rowing and swimming, rpm for
+cycling; see `docs/specs/cadence-units.md`).
 
 That covers the core endurance picture. The gaps are mostly recovery context,
 sport-specific technique and intensity, and Garmin's own training-load figures.

@@ -1,0 +1,202 @@
+{
+  "activities": [
+    {
+      "id": 1,
+      "name": "Morning Run",
+      "type": "running",
+      "startDate": "2026-10-01T04:30:00Z",
+      "distance": 5000.0,
+      "movingTime": 1500.0,
+      "elapsedTime": 1580.0,
+      "totalElevationGain": 42.0,
+      "samples": [
+        {
+          "timestamp": "2026-10-01T06:30:00Z",
+          "latitude": 59.91,
+          "longitude": 10.75,
+          "heartRate": 138.0,
+          "power": 240.0,
+          "temperature": 11.5,
+          "speed": 3.1,
+          "elevation": 18.0,
+          "cadence": 152.0,
+          "distance": 0.0
+        },
+        {
+          "timestamp": "2026-10-01T06:31:00Z",
+          "heartRate": 148.0,
+          "power": 265.0,
+          "speed": 3.4,
+          "elevation": 22.0,
+          "cadence": 154.0,
+          "distance": 1000.0
+        },
+        {
+          "timestamp": "2026-10-01T06:32:00Z",
+          "latitude": 59.92,
+          "longitude": 10.76,
+          "heartRate": 151.0,
+          "power": 270.0,
+          "temperature": 11.6,
+          "speed": 3.45,
+          "elevation": 24.0,
+          "cadence": 156.0,
+          "distance": 2000.0
+        }
+      ],
+      "averageSpeed": 3.33,
+      "maxSpeed": 4.12,
+      "averageHeartRate": 148.0,
+      "laps": [
+        {
+          "index": 1,
+          "type": "active",
+          "startTime": "2026-10-01T04:30:00Z",
+          "distance": 1600.0,
+          "movingTime": 470.0,
+          "elapsedTime": 480.0,
+          "averageHeartRate": 140.0,
+          "maxHeartRate": 149.0,
+          "averagePower": 245.0,
+          "maxPower": 280.0,
+          "averageSpeed": 3.4,
+          "averageCadence": 152.0,
+          "totalElevationGain": 18.0
+        },
+        {
+          "index": 2,
+          "type": "active",
+          "distance": 1400.0,
+          "movingTime": 415.0,
+          "elapsedTime": 420.0,
+          "averageHeartRate": 156.0,
+          "maxHeartRate": 163.0,
+          "averagePower": 268.0,
+          "maxPower": 310.0,
+          "averageCadence": 154.0,
+          "totalElevationGain": 12.0
+        },
+        {
+          "index": 3,
+          "type": "active",
+          "distance": 2000.0,
+          "movingTime": 590.0,
+          "elapsedTime": 600.0,
+          "averageHeartRate": 150.0,
+          "maxHeartRate": 158.0,
+          "averagePower": 255.0,
+          "maxPower": 295.0,
+          "averageSpeed": 3.4,
+          "totalElevationGain": 12.0
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Interval Ride",
+      "type": "road_biking",
+      "startDate": "2026-10-03T07:00:00Z",
+      "distance": 40250.0,
+      "movingTime": 5400.0,
+      "elapsedTime": 6000.0,
+      "totalElevationGain": 380.0,
+      "samples": [
+        {
+          "timestamp": "2026-10-03T07:00:00Z",
+          "latitude": 58.95,
+          "longitude": 5.72,
+          "heartRate": 132.0,
+          "power": 210.0,
+          "speed": 8.4,
+          "cadence": 92.0,
+          "distance": 0.0
+        },
+        {
+          "timestamp": "2026-10-03T07:01:00Z",
+          "latitude": 58.96,
+          "longitude": 5.73,
+          "heartRate": 145.0,
+          "power": 320.0,
+          "speed": 10.1,
+          "cadence": 94.0,
+          "distance": 500.0
+        }
+      ],
+      "averageSpeed": 7.45,
+      "maxSpeed": 15.8,
+      "averageHeartRate": 141.0,
+      "laps": [
+        {
+          "index": 1,
+          "type": "active",
+          "distance": 7000.0,
+          "movingTime": 895.0,
+          "elapsedTime": 900.0,
+          "averageHeartRate": 148.0,
+          "maxHeartRate": 162.0,
+          "averagePower": 205.0,
+          "maxPower": 420.0,
+          "averageSpeed": 7.8,
+          "averageCadence": 88.0,
+          "totalElevationGain": 40.0
+        },
+        {
+          "index": 2,
+          "type": "rest",
+          "distance": 2200.0,
+          "movingTime": 300.0,
+          "elapsedTime": 300.0,
+          "averageHeartRate": 118.0,
+          "maxHeartRate": 126.0,
+          "averagePower": 120.0,
+          "maxPower": 180.0,
+          "averageSpeed": 7.3,
+          "averageCadence": 70.0
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Gym Session",
+      "type": "strength_training",
+      "startDate": "2026-10-05T16:00:00Z",
+      "distance": 0.0,
+      "movingTime": 2700.0,
+      "elapsedTime": 3000.0,
+      "totalElevationGain": 0.0,
+      "samples": [],
+      "averageHeartRate": 112.0,
+      "strengthSets": [
+        {
+          "setType": "active",
+          "startTime": "2026-10-05T16:02:00Z",
+          "durationSeconds": 45.0,
+          "repetitions": 10,
+          "weightKg": 12.0,
+          "exercises": [
+            {
+              "category": "SQUAT",
+              "name": "GOBLET_SQUAT"
+            }
+          ]
+        },
+        {
+          "setType": "rest",
+          "durationSeconds": 90.0
+        },
+        {
+          "setType": "active",
+          "startTime": "2026-10-05T16:05:00Z",
+          "durationSeconds": 40.0,
+          "repetitions": 8,
+          "exercises": [
+            {
+              "category": "PUSH_UP",
+              "name": null
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

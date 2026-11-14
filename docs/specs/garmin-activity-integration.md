@@ -136,6 +136,13 @@ one swappable corner, and normalizes Garmin activities into the shared
     or auth error (used to validate before storing).
 - Kept dependency-minimal and isolated so the Bun app treats it as a
   replaceable adapter.
+- Split by concern (ADR 0058): `app.py` holds only the FastAPI app and the
+  routes, `auth.py` login and the token store, `activities.py` the activity,
+  sample, lap and strength normalization, `body.py` the weigh-ins and FTP,
+  `daily.py` the daily health values, `values.py` the shared coercions and
+  `errors.py` the failure taxonomy plus the one `rate_limited` context manager
+  and the one `http_errors` route decorator. See
+  `docs/specs/garmin-sidecar-modules.md`.
 
 ### API (`apps/api/src/garmin/`)
 
@@ -165,6 +172,14 @@ one swappable corner, and normalizes Garmin activities into the shared
   client mapping + error handling; config-from-env.
 - **Unit (Python):** activity and sample normalization + 42-day filtering with
   a stubbed Garmin client (no live network).
+- **Contract (both languages):** the sidecar's whole response for `/sync`,
+  `/metrics` and `/daily` is committed as JSON under `services/garmin/contract/`
+  and pinned from both sides — `services/garmin/test_contract.py` re-runs the
+  sidecar's handlers over representative Garmin payloads and asserts the
+  committed bytes, and `apps/api/src/garmin/contract.test.ts` parses the same
+  files with `activitiesResponseSchema`, `garminMetricsResponseSchema` and
+  `garminDailyResponseSchema`. A field rename on either side therefore fails a
+  pull request; see `docs/specs/garmin-sidecar-contract.md` and ADR 0057.
 - Run `bun run typecheck`, `bun run lint`, `bun run format`, `bun run test` and
   `bun run check:garmin` (the sidecar's pytest, ruff and mypy gates).
 
@@ -209,12 +224,31 @@ one swappable corner, and normalizes Garmin activities into the shared
   previously produced a stringified dict; it now yields `"unknown"`.
 - **Sidecar tooling is excluded from JS lint/format** (`services/**/.venv`,
   `__pycache__`).
+- **The sidecar is split by concern with one failure boundary.** `app.py` is
+  only the app and its routes; login lives in `auth.py`, the normalization in
+  `activities.py`, `body.py` and `daily.py`, the shared coercions in `values.py`
+  and the failure taxonomy in `errors.py`. `rate_limited` is the one place that
+  turns Garmin's `429` into the sidecar's rate-limit error and `http_errors` is
+  the one decorator every route uses, so a new call or route cannot copy a
+  slightly different mapping. `app.py` deliberately does not use
+  `from __future__ import annotations`, because FastAPI resolves a decorated
+  route's annotations through the decorator's globals. The committed contract
+  fixtures prove the wire bodies did not change. See
+  `docs/specs/garmin-sidecar-modules.md` and ADR 0058.
 - **Sidecar responses are validated and bounded.** Every sidecar request
   carries an `AbortSignal.timeout` (kept under the API's 255-second idle
   timeout), so a hung sidecar fails with a typed `GarminSidecarError` instead
   of holding the API request open. The `/sync` activities are parsed with the
   shared `activitySchema` array, and a malformed payload raises
   `GarminSidecarError` before anything reaches the stored activity rows.
+- **The sidecar's wire bodies are pinned by committed fixtures.** The
+  sidecar builds its response dicts by hand and TypeScript owns the schemas that
+  parse them, so `services/garmin/contract/` holds each endpoint's whole body and
+  both sides check it: pytest re-runs the sidecar's handlers over representative
+  Garmin payloads and asserts the committed bytes, and
+  `apps/api/src/garmin/contract.test.ts` parses the same files with the shared
+  schemas. A rename on either side fails a pull request. See
+  `docs/specs/garmin-sidecar-contract.md` and ADR 0057.
 - **Malformed sync payloads cannot blank the page.** The web validates the
   `{ activities }` response against the shared `activitiesResponseSchema`
   before rendering; a shape error becomes an inline Garmin error. `samples`
@@ -226,9 +260,13 @@ one swappable corner, and normalizes Garmin activities into the shared
   `directFractionalCadence` (a 0..1 remainder), the per-leg `directCadence`,
   the running total `directDoubleCadence`, `directBikeCadence`, and
   `directStrokeCadence`. Reading the fractional channel alone made running
-  imports report 0 or 1. The sidecar now prefers the running total, otherwise
-  doubles the per-leg value for runs, keeps pedalling rpm for rides, and keeps
-  the stroke rate for rows and swims.
+  imports report 0 or 1. The sidecar prefers the running total, otherwise
+  doubles the per-leg value for every step-counted sport (runs, jogs, walks and
+  hikes), keeps pedalling rpm for rides, and keeps the stroke rate for rows and
+  swims. Laps have two cadence families: `averageRunCadence` is already total
+  steps per minute, while the older `avgCadence` is per-leg and is doubled for
+  step-counted sports. `cadenceUnit` is the single statement of the display
+  unit; see `docs/specs/cadence-units.md` and ADR 0056.
 - **Speed is canonical; pace is the display unit.** Garmin records speed in
   m/s, even for sports where Connect shows pace. The summary keeps
   `averageSpeed`/`maxSpeed` in m/s, and the UI and prompts convert to pace for

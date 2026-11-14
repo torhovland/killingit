@@ -90,8 +90,8 @@ sets to bound the sync payload and prompt size.
 - `packages/shared/src/activity.ts`: new `strengthSetSchema` and an optional
   `strengthSets` field on the activity summary, so `Activity` and
   `AnalyzedActivity` carry it.
-- `services/garmin/app.py`: fetch and normalize sets in `_sync`; add
-  `_exercise_sets_for` and `_to_strength_sets`.
+- `services/garmin/activities.py`: fetch and normalize sets in
+  `sync_activities`; add `_strength_sets_for` and `to_strength_sets`.
 - `apps/api/src/llm/activityPrompt.ts`: render sets and include the shared rule.
 - `apps/api/src/llm/strengthContext.ts`: render a compact set list in the
   shared activity summary used by the reviews.

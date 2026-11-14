@@ -1,12 +1,12 @@
-import {
-  coachAnalysisResultSchema,
-  type Activity,
-  type CoachAnalysisResult,
-} from "@killingit/shared";
+import type { Activity } from "@killingit/shared";
 import {
   buildActivityAnalysisMessages,
   type ActivityAnalysisContext,
 } from "./activityPrompt.js";
+import {
+  coachAnalysisResultSchema,
+  type CoachAnalysisResult,
+} from "./coachResult.js";
 import type { LlmProvider } from "./openrouter.js";
 import { ANALYSIS_MAX_TOKENS } from "./planBudget.js";
 import { parsePlanJson, PlanJsonError } from "./planJson.js";

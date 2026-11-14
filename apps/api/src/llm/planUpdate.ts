@@ -1,15 +1,12 @@
-import {
-  coachPlanSchema,
-  dailyPlanUpdateSchema,
-  isDefaultDietGoal,
-  weeklyPlanUpdateSchema,
-  type CoachPlan,
-  type DailyPlanUpdate,
-  type DietPlan,
-  type WeeklyPlanUpdate,
-} from "@killingit/shared";
+import type { CoachPlan, DietPlan } from "@killingit/shared";
 import type { z } from "zod";
-import { addDays, startOfWeek, weekDates } from "@killingit/shared";
+import {
+  addDays,
+  coachPlanSchema,
+  startOfWeek,
+  weekDates,
+} from "@killingit/shared";
+import { isDefaultDietGoal } from "../diet/goal.js";
 import {
   dietGoalProblems,
   dietProgressConsistencyProblems,
@@ -18,6 +15,12 @@ import {
 import type { LlmProvider } from "./openrouter.js";
 import { completePlanJson } from "./planCompletion.js";
 import { PLAN_MAX_TOKENS } from "./planBudget.js";
+import {
+  dailyPlanUpdateSchema,
+  weeklyPlanUpdateSchema,
+  type DailyPlanUpdate,
+  type WeeklyPlanUpdate,
+} from "./planResult.js";
 import {
   buildDailyUpdateMessages,
   buildPlanUpdateMessages,

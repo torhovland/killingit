@@ -4,16 +4,15 @@ import {
   refreshModelCatalog,
 } from "../../../apps/api/src/llm/modelCatalog.js";
 import { recordBenchmarkGrade } from "./catalogBenchmark.js";
+import { readJsonFile, readJsonFileOr } from "./jsonFile.js";
 import {
   logPromptBenchmark,
   promptBenchmarkRunDirectory,
   promptBenchmarkRunId,
-  readPromptJson,
-  readPromptJsonOr,
 } from "./promptBenchmarkFiles.js";
-import type {
-  PromptJudgeScore,
-  PromptModelResult,
+import {
+  promptJudgeScoreSchema,
+  promptModelResultSchema,
 } from "./promptBenchmarkTypes.js";
 
 /**
@@ -23,11 +22,13 @@ import type {
  */
 export async function runPromptBenchmarkSyncStage(): Promise<void> {
   const runDirectory = promptBenchmarkRunDirectory();
-  const results = await readPromptJson<PromptModelResult[]>(
+  const results = await readJsonFile(
     resolve(runDirectory, "results.json"),
+    promptModelResultSchema.array(),
   );
-  const judge = await readPromptJsonOr<PromptJudgeScore[]>(
+  const judge = await readJsonFileOr(
     resolve(runDirectory, "judge-scores.json"),
+    promptJudgeScoreSchema.array(),
     [],
   );
   const judgeById = new Map(judge.map((entry) => [entry.id, entry]));
