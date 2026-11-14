@@ -4,7 +4,8 @@
 - **Date:** 2026-11-07
 - **Related:** `docs/specs/dashboard-layout.md`,
   `docs/specs/garmin-activity-integration.md`,
-  `docs/specs/activity-deletion.md`, `docs/specs/web-coaching-pages.md`
+  `docs/specs/activity-deletion.md`, `docs/specs/web-coaching-pages.md`,
+  `docs/specs/coach-reply-polling.md`
 
 ## Goal
 
@@ -43,7 +44,8 @@ cache logic, so a fix or behaviour change reaches both pages at once.
   `docs/specs/web-coaching-pages.md`.
 - Changing the API routes or their payloads.
 - Moving the dashboard's reply polling inside the hook; the hook exposes the
-  `awaitingReplies` flag and `loadCached`, and the dashboard keeps the timer.
+  `awaitingReplies` flag and `loadCached`, and the dashboard keeps the timer
+  (`docs/specs/coach-reply-polling.md`).
 
 ## Target structure
 

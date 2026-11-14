@@ -4,6 +4,7 @@ import { useAuth } from "./auth";
 import { CoachPlanSection } from "./CoachPlanSection";
 import { CoachQuestionCard } from "./CoachQuestionCard";
 import { CoachingInputsSection } from "./CoachingInputsSection";
+import { pollCoachReplies } from "./coachReplyPoll";
 import { FoodLogSection } from "./FoodLogSection";
 import { selectPendingActivities } from "./pendingActivities";
 import { PendingActivitiesSection } from "./PendingActivitiesSection";
@@ -72,21 +73,17 @@ export function CoachDashboard({
   ]);
 
   // The coach stores replies before it starts the slower plan refresh, so poll
-  // the cached feed while any comment is still waiting for its reply.
+  // the cached feed while any comment is still waiting for its reply. The poll
+  // waits for each response before asking again, so slow answers cannot stack.
   useEffect(() => {
     if (!auth.isAuthenticated || !awaitingReplies) {
       return;
     }
-    let attempts = 0;
-    const timer = setInterval(() => {
-      attempts += 1;
-      if (attempts > 40) {
-        clearInterval(timer);
-        return;
-      }
-      void loadCached();
-    }, 1500);
-    return () => clearInterval(timer);
+    let active = true;
+    void pollCoachReplies({ loadCached, isActive: () => active });
+    return () => {
+      active = false;
+    };
   }, [auth, awaitingReplies, loadCached]);
 
   if (!auth.isAuthenticated) {

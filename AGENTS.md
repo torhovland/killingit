@@ -501,7 +501,11 @@ made and recorded, and `docs/adrs/` for the accepted ones.
   load cancels its request and never surfaces as an error), the loading and
   error state, `reload`, and the optional app-status registration. The path is
   the effect key, and `RequestInit.signal` is threaded through `requestParsed`
-  to the native fetch; see `docs/specs/web-api-resource-hook.md`.
+  to the native fetch; see `docs/specs/web-api-resource-hook.md`. A page that
+  polls — the dashboard waiting for a coach reply — uses `pollCoachReplies` in
+  `apps/web/src/coachReplyPoll.ts`, which starts its next request only after the
+  previous response settled, so slow responses cannot stack or apply out of
+  order; see `docs/specs/coach-reply-polling.md`.
 - We build our own **component library** under `apps/web/src/components/`.
   `Button`, `Input`, `Textarea`, `Select`, `Card`, `HiddenFileInput`,
   `StatusBadge` and `Modal` are the primitives; page components stay flat in
