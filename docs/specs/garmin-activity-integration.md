@@ -89,9 +89,9 @@ one swappable corner, and normalizes Garmin activities into the shared
    activity details, with absent channels omitted per sample and one bad detail
    fetch not failing the whole sync. The stored summary also carries average and
    normalized power when the activity recorded power, so training-load scoring
-   does not need the raw timeseries. It carries the recorded average and maximum
-   speed when Garmin supplies them, and derives the average from distance and
-   duration when Garmin leaves it at zero.
+   does not need the raw timeseries. It carries the recorded average heart rate
+   and average and maximum speed when Garmin supplies them, and derives the
+   average speed from distance and duration when Garmin leaves it at zero.
 6. `startDate` is the activity's UTC start (`startTimeGMT`), not the naive
    wall-clock `startTimeLocal`, so the UI can render it in the athlete's chosen
    time zone.
@@ -275,7 +275,7 @@ one swappable corner, and normalizes Garmin activities into the shared
 Garmin's activity summary exposes more than the current normalized shape. The
 following are the highest-value additions, roughly in priority order:
 
-- **All sports:** average and maximum heart rate, time in heart-rate and power
+- **All sports:** maximum heart rate, time in heart-rate and power
   zones, aerobic/anaerobic training effect, Garmin's activity training load,
   respiration rate, calories, and min/max temperature and elevation.
 - **Running:** grade-adjusted speed/pace (`avgGradeAdjustedSpeed`), stride

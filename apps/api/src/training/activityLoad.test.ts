@@ -19,6 +19,21 @@ const cyclingFtp: AthleteThreshold = {
 };
 const timeline = buildThresholdTimelines([cyclingFtp]);
 
+function thresholdHeartRate() {
+  return buildThresholdTimelines([
+    {
+      date: "2026-10-01",
+      value: 165,
+      source: "user",
+      sport: "running",
+      measure: "threshold_heart_rate",
+      label: "Threshold heart rate",
+      unit: "bpm",
+      kind: "heart_rate",
+    },
+  ]);
+}
+
 function activity(overrides: Partial<AnalyzedActivity> = {}): AnalyzedActivity {
   return {
     id: 1,
@@ -184,19 +199,54 @@ describe("buildActivityLoads", () => {
     expect(loads.get("2026-10-20")?.tss).toBe(69);
   });
 
-  it("scores an unmeasured activity from its sport's threshold heart rate", () => {
-    const running = buildThresholdTimelines([
-      {
-        date: "2026-10-01",
-        value: 165,
-        source: "user",
-        sport: "running",
-        measure: "threshold_heart_rate",
-        label: "Threshold heart rate",
-        unit: "bpm",
-        kind: "heart_rate",
-      },
-    ]);
+  it("scores heart-rate TSS from the recorded summary average", () => {
+    const running = thresholdHeartRate();
+    const loads = buildActivityLoads(
+      [
+        activity({
+          type: "running",
+          distance: 0,
+          movingTime: 3600,
+          elapsedTime: 3600,
+          averageHeartRate: 150,
+          // The downsampled preview is biased; the summary wins over it.
+          samples: [
+            { timestamp: "2026-10-20T09:00:00Z", heartRate: 120 },
+            { timestamp: "2026-10-20T10:00:00Z", heartRate: 120 },
+          ],
+        }),
+      ],
+      running,
+      null,
+    ).byDate;
+
+    // One hour at 150 bpm against a 165 bpm threshold.
+    expect(loads.get("2026-10-20")?.tss).toBe(83);
+  });
+
+  it("scores heart-rate TSS from the summary when there is no sample preview", () => {
+    const running = thresholdHeartRate();
+    const loads = buildActivityLoads(
+      [
+        activity({
+          type: "running",
+          distance: 0,
+          movingTime: 3600,
+          elapsedTime: 3600,
+          averageHeartRate: 150,
+          sampleCount: 0,
+          samples: [],
+        }),
+      ],
+      running,
+      null,
+    ).byDate;
+
+    expect(loads.get("2026-10-20")?.tss).toBe(83);
+  });
+
+  it("falls back to the sample preview's mean heart rate", () => {
+    const running = thresholdHeartRate();
     const loads = buildActivityLoads(
       [
         activity({
@@ -214,7 +264,6 @@ describe("buildActivityLoads", () => {
       null,
     ).byDate;
 
-    // One hour at 150 bpm against a 165 bpm threshold.
     expect(loads.get("2026-10-20")?.tss).toBe(83);
   });
 

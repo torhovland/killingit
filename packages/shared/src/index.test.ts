@@ -148,6 +148,11 @@ describe("activitySchema", () => {
     expect(parsed.maxSpeed).toBe(4.1);
   });
 
+  it("carries the recorded summary average heart rate", () => {
+    const parsed = activitySchema.parse({ ...summary, averageHeartRate: 150 });
+    expect(parsed.averageHeartRate).toBe(150);
+  });
+
   it("carries recorded laps with their averages", () => {
     const lap = {
       index: 2,

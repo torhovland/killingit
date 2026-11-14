@@ -84,6 +84,12 @@ export const activitySummarySchema = z.object({
   /** Normalized power from the recorded samples, in watts. */
   normalizedPower: z.number().nonnegative().nullable().optional(),
   /**
+   * Mean heart rate in beats per minute as recorded by the source. Preferred
+   * over the downsampled sample preview when scoring heart-rate training
+   * stress, and absent for activities without heart-rate data.
+   */
+  averageHeartRate: z.number().nonnegative().nullable().optional(),
+  /**
    * Mean speed in metres per second, as recorded by the source or derived from
    * distance and moving time. Sports whose source records pace rather than
    * speed are normalized into this field, so speed and pace never disagree.
