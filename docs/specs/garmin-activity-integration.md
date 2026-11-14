@@ -136,6 +136,13 @@ one swappable corner, and normalizes Garmin activities into the shared
     or auth error (used to validate before storing).
 - Kept dependency-minimal and isolated so the Bun app treats it as a
   replaceable adapter.
+- Split by concern (ADR 0058): `app.py` holds only the FastAPI app and the
+  routes, `auth.py` login and the token store, `activities.py` the activity,
+  sample, lap and strength normalization, `body.py` the weigh-ins and FTP,
+  `daily.py` the daily health values, `values.py` the shared coercions and
+  `errors.py` the failure taxonomy plus the one `rate_limited` context manager
+  and the one `http_errors` route decorator. See
+  `docs/specs/garmin-sidecar-modules.md`.
 
 ### API (`apps/api/src/garmin/`)
 
@@ -217,6 +224,17 @@ one swappable corner, and normalizes Garmin activities into the shared
   previously produced a stringified dict; it now yields `"unknown"`.
 - **Sidecar tooling is excluded from JS lint/format** (`services/**/.venv`,
   `__pycache__`).
+- **The sidecar is split by concern with one failure boundary.** `app.py` is
+  only the app and its routes; login lives in `auth.py`, the normalization in
+  `activities.py`, `body.py` and `daily.py`, the shared coercions in `values.py`
+  and the failure taxonomy in `errors.py`. `rate_limited` is the one place that
+  turns Garmin's `429` into the sidecar's rate-limit error and `http_errors` is
+  the one decorator every route uses, so a new call or route cannot copy a
+  slightly different mapping. `app.py` deliberately does not use
+  `from __future__ import annotations`, because FastAPI resolves a decorated
+  route's annotations through the decorator's globals. The committed contract
+  fixtures prove the wire bodies did not change. See
+  `docs/specs/garmin-sidecar-modules.md` and ADR 0058.
 - **Sidecar responses are validated and bounded.** Every sidecar request
   carries an `AbortSignal.timeout` (kept under the API's 255-second idle
   timeout), so a hung sidecar fails with a typed `GarminSidecarError` instead

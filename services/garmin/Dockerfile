@@ -14,7 +14,10 @@ WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY app.py ./
+# Only the runtime modules: `app.py` is the route layer and the rest are its
+# concerns (ADR 0058). The tests, the shared test stubs and the contract
+# fixtures stay out of the image.
+COPY app.py auth.py activities.py body.py daily.py errors.py values.py ./
 
 # Run unprivileged. The token cache lives under /tmp, which is writable.
 RUN useradd --create-home --uid 10001 sidecar

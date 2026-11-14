@@ -1,36 +1,26 @@
-"""Unit tests for the Garmin sidecar's pure logic (normalization + filtering).
-
-These tests exercise `_to_activity`, `normalize_type`, and `_iso` without a
-live Garmin account or network.
-"""
+"""Unit tests for activity, sample, lap and strength-set normalization."""
 
 import re
-from datetime import UTC, datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 
 import pytest
 from garminconnect import GarminConnectTooManyRequestsError
 
-import app as sidecar
-from app import (
+import activities
+import auth
+from activities import (
     MAX_LAPS,
+    MAX_STRENGTH_SETS,
     STEP_CADENCE_MARKERS,
-    SYNC_WINDOW_DAYS,
-    Credentials,
-    _body_fat_percent,
-    _date_window,
-    _iso,
-    _metric_date,
-    _sync_daily,
-    _to_activity,
-    _to_body_metrics,
-    _to_ftp_history,
-    _to_laps,
-    _to_samples,
-    _to_strength_sets,
-    _weight_kg,
     normalize_type,
+    to_activity,
+    to_laps,
+    to_samples,
+    to_strength_sets,
 )
+from errors import RateLimitedError
+from support import FakeGarmin, details
 
 
 def test_normalize_type_lowercases_type_key():
@@ -41,19 +31,6 @@ def test_normalize_type_lowercases_type_key():
 
 def test_normalize_type_handles_plain_string():
     assert normalize_type("Cycling") == "cycling"
-
-
-def test_iso_normalizes_datetime_to_utc_z():
-    dt = datetime(2026, 10, 1, 6, 30, 0)
-    assert _iso(dt) == "2026-10-01T06:30:00Z"
-
-
-def test_iso_passes_through_non_iso_text():
-    assert _iso("not a date") == "not a date"
-
-
-def test_iso_normalizes_iso_string():
-    assert _iso("2026-10-01T06:30:00+02:00") == "2026-10-01T04:30:00Z"
 
 
 def test_to_activity_maps_known_fields():
@@ -69,7 +46,7 @@ def test_to_activity_maps_known_fields():
         "elevationGain": 55,
     }
     samples = [{"timestamp": "2026-10-01T06:30:00Z", "heartRate": 140.0}]
-    assert _to_activity(raw, samples) == {
+    assert to_activity(raw, samples) == {
         "id": 42,
         "name": "Morning Run",
         "type": "running",
@@ -95,7 +72,7 @@ def test_to_activity_keeps_recorded_average_and_max_speed():
         "averageSpeed": 3.2,
         "maxSpeed": 4.1,
     }
-    activity = _to_activity(raw)
+    activity = to_activity(raw)
     assert activity["averageSpeed"] == 3.2
     assert activity["maxSpeed"] == 4.1
 
@@ -109,7 +86,7 @@ def test_to_activity_keeps_the_recorded_average_heart_rate():
         "averageHR": 150,
         "avgHR": 148,
     }
-    assert _to_activity(raw)["averageHeartRate"] == 150
+    assert to_activity(raw)["averageHeartRate"] == 150
 
 
 def test_to_activity_omits_an_absent_or_zero_average_heart_rate():
@@ -119,8 +96,8 @@ def test_to_activity_omits_an_absent_or_zero_average_heart_rate():
         "activityType": {"typeKey": "RUNNING"},
         "startTimeGMT": datetime(2026, 10, 1, 4, 30, 0),
     }
-    assert "averageHeartRate" not in _to_activity(base)
-    assert "averageHeartRate" not in _to_activity({**base, "averageHR": 0})
+    assert "averageHeartRate" not in to_activity(base)
+    assert "averageHeartRate" not in to_activity({**base, "averageHR": 0})
 
 
 def test_to_activity_derives_average_speed_when_the_source_leaves_it_zero():
@@ -136,7 +113,7 @@ def test_to_activity_derives_average_speed_when_the_source_leaves_it_zero():
         "duration": 500,
         "averageSpeed": 0.0,
     }
-    assert _to_activity(raw)["averageSpeed"] == 2000 / 480
+    assert to_activity(raw)["averageSpeed"] == 2000 / 480
 
 
 def test_to_activity_defaults_to_empty_samples():
@@ -146,7 +123,7 @@ def test_to_activity_defaults_to_empty_samples():
         "activityType": {"typeKey": "OTHER"},
         "startTimeLocal": datetime(2026, 10, 1, 0, 0, 0),
     }
-    assert _to_activity(raw)["samples"] == []
+    assert to_activity(raw)["samples"] == []
 
 
 def test_to_activity_defaults_missing_numeric_fields():
@@ -156,59 +133,16 @@ def test_to_activity_defaults_missing_numeric_fields():
         "activityType": {"typeKey": "OTHER"},
         "startTimeLocal": datetime(2026, 10, 1, 0, 0, 0),
     }
-    result = _to_activity(raw)
+    result = to_activity(raw)
     assert result["distance"] == 0.0
     assert result["movingTime"] == 0.0
     assert result["elapsedTime"] == 0.0
     assert result["totalElevationGain"] == 0.0
 
 
-def test_date_window_returns_plain_dates():
-    # Garmin's get_activities_by_date requires YYYY-MM-DD, not ISO timestamps.
-    now = datetime(2026, 10, 20, 15, 30, tzinfo=UTC)
-    start, end = _date_window(now)
-    assert end == "2026-10-20"
-    assert start == "2026-09-08"
-    assert (
-        datetime.fromisoformat(end).date() - datetime.fromisoformat(start).date()
-    ).days == SYNC_WINDOW_DAYS
-
-
-def test_date_window_defaults_to_now():
-    start, end = _date_window()
-    assert len(start) == 10 and start[4] == "-" and start[7] == "-"
-    assert len(end) == 10 and end[4] == "-" and end[7] == "-"
-    span = datetime.fromisoformat(end).date() - datetime.fromisoformat(start).date()
-    assert span == timedelta(days=SYNC_WINDOW_DAYS)
-
-
-# Garmin reports activity details as positional metrics; metricDescriptors maps
-# each position to a key. Values are epoch milliseconds / SI-ish units.
-def _details(*samples, descriptors=None):
-    if descriptors is None:
-        descriptors = [
-            (0, "directTimestamp"),
-            (1, "directLatitude"),
-            (2, "directLongitude"),
-            (3, "directHeartRate"),
-            (4, "directPower"),
-            (5, "directAirTemperature"),
-            (6, "directSpeed"),
-            (7, "sumDistance"),
-            (8, "directCorrectedElevation"),
-            (9, "directBikeCadence"),
-        ]
-    return {
-        "metricDescriptors": [
-            {"metricsIndex": index, "key": key} for index, key in descriptors
-        ],
-        "activityDetailMetrics": [{"metrics": list(sample)} for sample in samples],
-    }
-
-
 def test_to_samples_maps_known_metrics():
-    details = _details([1790836200000, 59.91, 10.75, 140, 250, 12.5, 3.2, 1000, 20, 80])
-    assert _to_samples(details) == [
+    payload = details([1790836200000, 59.91, 10.75, 140, 250, 12.5, 3.2, 1000, 20, 80])
+    assert to_samples(payload) == [
         {
             "timestamp": "2026-10-01T06:30:00Z",
             "latitude": 59.91,
@@ -225,11 +159,11 @@ def test_to_samples_maps_known_metrics():
 
 
 def test_to_samples_falls_back_to_enhanced_speed():
-    details = _details(
+    payload = details(
         [1790836200000, 4.2],
         descriptors=[(0, "directTimestamp"), (1, "directEnhancedSpeed")],
     )
-    assert _to_samples(details) == [
+    assert to_samples(payload) == [
         {
             "timestamp": "2026-10-01T06:30:00Z",
             "speed": 4.2,
@@ -238,15 +172,15 @@ def test_to_samples_falls_back_to_enhanced_speed():
 
 
 def test_to_samples_skips_samples_without_a_timestamp():
-    details = _details(
+    payload = details(
         [140],
         descriptors=[(0, "directHeartRate")],
     )
-    assert _to_samples(details) == []
+    assert to_samples(payload) == []
 
 
 def test_to_samples_omits_absent_and_non_numeric_channels():
-    details = _details(
+    payload = details(
         [1790836200000, None, 10.75],
         descriptors=[
             (0, "directTimestamp"),
@@ -254,7 +188,7 @@ def test_to_samples_omits_absent_and_non_numeric_channels():
             (2, "directLongitude"),
         ],
     )
-    assert _to_samples(details) == [
+    assert to_samples(payload) == [
         {
             "timestamp": "2026-10-01T06:30:00Z",
             "longitude": 10.75,
@@ -263,7 +197,7 @@ def test_to_samples_omits_absent_and_non_numeric_channels():
 
 
 def test_to_samples_supports_alternate_metric_keys():
-    details = _details(
+    payload = details(
         [1790836200000, 12.5, 20, 80],
         descriptors=[
             (0, "directTimestamp"),
@@ -272,7 +206,7 @@ def test_to_samples_supports_alternate_metric_keys():
             (3, "directCadence"),
         ],
     )
-    assert _to_samples(details) == [
+    assert to_samples(payload) == [
         {
             "timestamp": "2026-10-01T06:30:00Z",
             "temperature": 12.5,
@@ -285,15 +219,15 @@ def test_to_samples_supports_alternate_metric_keys():
 def test_to_samples_never_reads_fractional_cadence_as_cadence():
     # `directFractionalCadence` is the sub-revolution remainder (0..1); reading
     # it alone made every running sample report a cadence of 0 or 1.
-    details = _details(
+    payload = details(
         [1790836200000, 0.0],
         descriptors=[(0, "directTimestamp"), (1, "directFractionalCadence")],
     )
-    assert _to_samples(details, "running") == [{"timestamp": "2026-10-01T06:30:00Z"}]
+    assert to_samples(payload, "running") == [{"timestamp": "2026-10-01T06:30:00Z"}]
 
 
 def test_to_samples_uses_double_cadence_for_running():
-    details = _details(
+    payload = details(
         [1790836200000, 152, 76, 0.5],
         descriptors=[
             (0, "directTimestamp"),
@@ -302,13 +236,13 @@ def test_to_samples_uses_double_cadence_for_running():
             (3, "directFractionalCadence"),
         ],
     )
-    assert _to_samples(details, "running")[0]["cadence"] == 152.0
+    assert to_samples(payload, "running")[0]["cadence"] == 152.0
 
 
 def test_to_samples_doubles_the_per_leg_cadence_for_running():
     # Devices that only report the per-leg value: Garmin Connect shows the
     # total, so a 76-per-leg run is 152 steps per minute.
-    details = _details(
+    payload = details(
         [1790836200000, 76, 0.25],
         descriptors=[
             (0, "directTimestamp"),
@@ -316,7 +250,7 @@ def test_to_samples_doubles_the_per_leg_cadence_for_running():
             (2, "directFractionalCadence"),
         ],
     )
-    assert _to_samples(details, "trail_running")[0]["cadence"] == 152.5
+    assert to_samples(payload, "trail_running")[0]["cadence"] == 152.5
 
 
 @pytest.mark.parametrize(
@@ -329,15 +263,15 @@ def test_to_samples_counts_walking_and_hiking_cadence_as_total_steps(
     # Every step-counted sport reports a per-leg cadence in `directCadence`;
     # Garmin Connect shows total steps per minute for walks and hikes too, and
     # the shared app labels them spm.
-    details = _details(
+    payload = details(
         [1790836200000, per_leg],
         descriptors=[(0, "directTimestamp"), (1, "directCadence")],
     )
-    assert _to_samples(details, activity_type)[0]["cadence"] == total
+    assert to_samples(payload, activity_type)[0]["cadence"] == total
 
 
 def test_to_samples_uses_double_cadence_for_a_walk():
-    details = _details(
+    payload = details(
         [1790836200000, 111.0, 55.5],
         descriptors=[
             (0, "directTimestamp"),
@@ -345,11 +279,11 @@ def test_to_samples_uses_double_cadence_for_a_walk():
             (2, "directCadence"),
         ],
     )
-    assert _to_samples(details, "walking")[0]["cadence"] == 111.0
+    assert to_samples(payload, "walking")[0]["cadence"] == 111.0
 
 
 def test_to_samples_keeps_pedalling_cadence_for_cycling():
-    details = _details(
+    payload = details(
         [1790836200000, 90, 0.5],
         descriptors=[
             (0, "directTimestamp"),
@@ -357,11 +291,11 @@ def test_to_samples_keeps_pedalling_cadence_for_cycling():
             (2, "directFractionalCadence"),
         ],
     )
-    assert _to_samples(details, "indoor_cycling")[0]["cadence"] == 90.5
+    assert to_samples(payload, "indoor_cycling")[0]["cadence"] == 90.5
 
 
 def test_to_samples_keeps_stroke_cadence_for_rowing():
-    details = _details(
+    payload = details(
         [1790836200000, 19.0, 0.5],
         descriptors=[
             (0, "directTimestamp"),
@@ -369,11 +303,11 @@ def test_to_samples_keeps_stroke_cadence_for_rowing():
             (2, "directFractionalCadence"),
         ],
     )
-    assert _to_samples(details, "indoor_rowing")[0]["cadence"] == 19.0
+    assert to_samples(payload, "indoor_rowing")[0]["cadence"] == 19.0
 
 
 def test_to_samples_prefers_primary_metric_aliases():
-    details = _details(
+    payload = details(
         [1790836200000, 20, 18, 12.5, 11.0, 80, 82],
         descriptors=[
             (0, "directTimestamp"),
@@ -385,7 +319,7 @@ def test_to_samples_prefers_primary_metric_aliases():
             (6, "directFractionalCadence"),
         ],
     )
-    assert _to_samples(details) == [
+    assert to_samples(payload) == [
         {
             "timestamp": "2026-10-01T06:30:00Z",
             "elevation": 20.0,
@@ -402,13 +336,13 @@ def test_to_samples_prefers_sum_distance_and_falls_back_to_direct_distance():
         (2, "directDistance"),
     ]
     assert (
-        _to_samples(_details([1790836200000, 1200, 1100], descriptors=descriptors))[0][
+        to_samples(details([1790836200000, 1200, 1100], descriptors=descriptors))[0][
             "distance"
         ]
         == 1200.0
     )
     assert (
-        _to_samples(_details([1790836200000, None, 1100], descriptors=descriptors))[0][
+        to_samples(details([1790836200000, None, 1100], descriptors=descriptors))[0][
             "distance"
         ]
         == 1100.0
@@ -451,7 +385,7 @@ def test_to_laps_maps_a_real_shaped_lap_payload():
         ],
     }
 
-    assert _to_laps(payload) == [
+    assert to_laps(payload) == [
         {
             "index": 1,
             "type": "active",
@@ -496,7 +430,7 @@ def test_to_laps_reads_alternate_keys_and_omits_absent_channels():
         ]
     }
 
-    assert _to_laps(payload) == [
+    assert to_laps(payload) == [
         {
             "index": 7,
             "type": "interval",
@@ -518,7 +452,7 @@ def test_to_laps_keeps_total_steps_for_walking_and_hiking():
                 {"lapIndex": 2, "distance": 1000, "averageRunCadence": 114.5},
             ]
         }
-        assert [lap["averageCadence"] for lap in _to_laps(payload, activity_type)] == [
+        assert [lap["averageCadence"] for lap in to_laps(payload, activity_type)] == [
             111.0,
             114.5,
         ]
@@ -533,7 +467,7 @@ def test_to_laps_doubles_the_per_leg_walking_cadence_fallback():
             {"lapIndex": 2, "distance": 1000, "avgCadence": 56.25},
         ]
     }
-    assert [lap["averageCadence"] for lap in _to_laps(payload, "walking")] == [
+    assert [lap["averageCadence"] for lap in to_laps(payload, "walking")] == [
         111.0,
         112.5,
     ]
@@ -541,8 +475,8 @@ def test_to_laps_doubles_the_per_leg_walking_cadence_fallback():
 
 def test_to_laps_keeps_pedalling_cadence_for_cycling_with_the_type():
     payload = {"lapDTOs": [{"lapIndex": 1, "distance": 1000, "avgCadence": 90.5}]}
-    assert _to_laps(payload, "road_biking")[0]["averageCadence"] == 90.5
-    assert _to_laps(payload, "indoor_cycling")[0]["averageCadence"] == 90.5
+    assert to_laps(payload, "road_biking")[0]["averageCadence"] == 90.5
+    assert to_laps(payload, "indoor_cycling")[0]["averageCadence"] == 90.5
 
 
 def test_lap_cadence_prefers_garmin_connects_total_over_the_legacy_value():
@@ -558,7 +492,7 @@ def test_lap_cadence_prefers_garmin_connects_total_over_the_legacy_value():
             }
         ]
     }
-    assert _to_laps(payload, "walking")[0]["averageCadence"] == 110.0
+    assert to_laps(payload, "walking")[0]["averageCadence"] == 110.0
 
 
 def test_step_cadence_rule_matches_the_shared_display_unit():
@@ -575,87 +509,49 @@ def test_step_cadence_rule_matches_the_shared_display_unit():
 
 
 def test_to_laps_drops_a_lap_with_no_recorded_values():
-    assert _to_laps({"lapDTOs": [{"lapIndex": 1}, {"lapIndex": 2, "distance": 0}]}) == [
+    assert to_laps({"lapDTOs": [{"lapIndex": 1}, {"lapIndex": 2, "distance": 0}]}) == [
         {"index": 2, "distance": 0.0}
     ]
 
 
 def test_to_laps_falls_back_to_position_and_caps_the_list():
     payload = {"lapDTOs": [{"distance": 1000}] * (MAX_LAPS + 5)}
-    laps = _to_laps(payload)
+    laps = to_laps(payload)
     assert len(laps) == MAX_LAPS
     assert laps[0]["index"] == 1
     assert laps[-1]["index"] == MAX_LAPS
 
 
 def test_to_laps_tolerates_a_malformed_payload():
-    assert _to_laps({}) == []
-    assert _to_laps({"lapDTOs": None}) == []
-    assert _to_laps({"lapDTOs": ["not a lap"]}) == []
-
-
-class _FakeGarmin:
-    """Stubs the library calls used by _sync."""
-
-    def __init__(self, details, failing_ids=(), splits=None, failing_split_ids=()):
-        self.details = details
-        self.failing_ids = set(failing_ids)
-        self.splits = splits or {}
-        self.failing_split_ids = set(failing_split_ids)
-        self.requested_ids = []
-        self.requested_split_ids = []
-
-    def get_activities_by_date(self, startdate, enddate):
-        return [
-            {
-                "activityId": 1,
-                "activityName": "Morning Run",
-                "activityType": {"typeKey": "RUNNING"},
-                "startTimeLocal": datetime(2026, 10, 1, 6, 30, 0),
-            },
-            {
-                "activityId": 2,
-                "activityName": "Evening Ride",
-                "activityType": {"typeKey": "CYCLING"},
-                "startTimeLocal": datetime(2026, 10, 2, 17, 0, 0),
-            },
-        ]
-
-    def get_activity_details(self, activity_id):
-        self.requested_ids.append(activity_id)
-        if activity_id in self.failing_ids:
-            raise RuntimeError("details unavailable")
-        return self.details
-
-    def get_activity_splits(self, activity_id):
-        self.requested_split_ids.append(activity_id)
-        if activity_id in self.failing_split_ids:
-            raise RuntimeError("splits unavailable")
-        return self.splits.get(activity_id, {})
+    assert to_laps({}) == []
+    assert to_laps({"lapDTOs": None}) == []
+    assert to_laps({"lapDTOs": ["not a lap"]}) == []
 
 
 def test_sync_attaches_samples_and_survives_a_failed_detail_fetch(monkeypatch):
-    fake = _FakeGarmin(
-        details=_details(
+    fake = FakeGarmin(
+        details=details(
             [1790836200000, 140],
             descriptors=[(0, "directTimestamp"), (1, "directHeartRate")],
         ),
         failing_ids={"2"},
     )
-    monkeypatch.setattr(sidecar, "_login", lambda credentials: fake)
+    monkeypatch.setattr(auth, "login", lambda credentials: fake)
 
-    activities = sidecar._sync(Credentials(username="u", password="p"))
+    activities_ = activities.sync_activities(
+        auth.Credentials(username="u", password="p")
+    )
 
     assert fake.requested_ids == ["1", "2"]
-    assert activities[0]["samples"] == [
+    assert activities_[0]["samples"] == [
         {"timestamp": "2026-10-01T06:30:00Z", "heartRate": 140.0}
     ]
-    assert activities[1]["samples"] == []
+    assert activities_[1]["samples"] == []
 
 
 def test_sync_attaches_laps_and_survives_a_failed_splits_fetch(monkeypatch):
-    fake = _FakeGarmin(
-        details=_details(
+    fake = FakeGarmin(
+        details=details(
             [1790836200000, 140],
             descriptors=[(0, "directTimestamp"), (1, "directHeartRate")],
         ),
@@ -669,20 +565,22 @@ def test_sync_attaches_laps_and_survives_a_failed_splits_fetch(monkeypatch):
         },
         failing_split_ids={"2"},
     )
-    monkeypatch.setattr(sidecar, "_login", lambda credentials: fake)
+    monkeypatch.setattr(auth, "login", lambda credentials: fake)
 
-    activities = sidecar._sync(Credentials(username="u", password="p"))
+    activities_ = activities.sync_activities(
+        auth.Credentials(username="u", password="p")
+    )
 
     assert fake.requested_split_ids == ["1", "2"]
-    assert activities[0]["laps"] == [
+    assert activities_[0]["laps"] == [
         {"index": 1, "distance": 2500.0, "averagePower": 250.0},
         {"index": 2, "distance": 2500.0, "averagePower": 260.0},
     ]
-    assert "laps" not in activities[1]
+    assert "laps" not in activities_[1]
 
 
 def test_sync_applies_the_step_cadence_rule_to_a_walk(monkeypatch):
-    class _WalkingFake(_FakeGarmin):
+    class _WalkingFake(FakeGarmin):
         def get_activities_by_date(self, startdate, enddate):
             return [
                 {
@@ -694,7 +592,7 @@ def test_sync_applies_the_step_cadence_rule_to_a_walk(monkeypatch):
             ]
 
     fake = _WalkingFake(
-        details=_details(
+        details=details(
             [1790836200000, 55.5],
             descriptors=[(0, "directTimestamp"), (1, "directCadence")],
         ),
@@ -707,9 +605,11 @@ def test_sync_applies_the_step_cadence_rule_to_a_walk(monkeypatch):
             }
         },
     )
-    monkeypatch.setattr(sidecar, "_login", lambda credentials: fake)
+    monkeypatch.setattr(auth, "login", lambda credentials: fake)
 
-    activity = sidecar._sync(Credentials(username="u", password="p"))[0]
+    activity = activities.sync_activities(auth.Credentials(username="u", password="p"))[
+        0
+    ]
 
     assert activity["samples"][0]["cadence"] == 111.0
     assert [lap["averageCadence"] for lap in activity["laps"]] == [111.0, 112.0]
@@ -721,128 +621,30 @@ def test_to_activity_ignores_a_single_lap():
     two_laps = [*one_lap, dict(index=2, distance=1000.0)]
 
     # A single lap is the whole activity restated, not interval structure.
-    assert "laps" not in _to_activity(raw, laps=one_lap)
-    assert _to_activity(raw, laps=two_laps)["laps"] == two_laps
+    assert "laps" not in to_activity(raw, laps=one_lap)
+    assert to_activity(raw, laps=two_laps)["laps"] == two_laps
 
 
 def test_sync_maps_a_splits_rate_limit_to_rate_limited(monkeypatch):
-    class _RateLimitedFake(_FakeGarmin):
+    class _RateLimitedFake(FakeGarmin):
         def get_activity_splits(self, activity_id):
             raise GarminConnectTooManyRequestsError("429")
 
-    monkeypatch.setattr(
-        sidecar, "_login", lambda credentials: _RateLimitedFake(details={})
-    )
+    monkeypatch.setattr(auth, "login", lambda credentials: _RateLimitedFake(details={}))
 
-    with pytest.raises(sidecar._RateLimitedError):
-        sidecar._sync(Credentials(username="u", password="p"))
+    with pytest.raises(RateLimitedError):
+        activities.sync_activities(auth.Credentials(username="u", password="p"))
 
 
 def test_sync_maps_a_detail_rate_limit_to_rate_limited(monkeypatch):
-    class _RateLimitedFake(_FakeGarmin):
+    class _RateLimitedFake(FakeGarmin):
         def get_activity_details(self, activity_id):
             raise GarminConnectTooManyRequestsError("429")
 
-    monkeypatch.setattr(
-        sidecar, "_login", lambda credentials: _RateLimitedFake(details={})
-    )
+    monkeypatch.setattr(auth, "login", lambda credentials: _RateLimitedFake(details={}))
 
-    with pytest.raises(sidecar._RateLimitedError):
-        sidecar._sync(Credentials(username="u", password="p"))
-
-
-def test_to_body_metrics_normalizes_weight_and_body_fat():
-    payload = {
-        "dateWeightList": [
-            {
-                "calendarDate": "2026-10-01",
-                "weight": 78500,
-                "bodyFat": 24.5,
-                "unitKey": "g",
-            },
-            {
-                "calendarDate": "2026-10-02",
-                "weight": 78.0,
-                "unitKey": "kg",
-                "weightUnit": "kg",
-            },
-        ]
-    }
-
-    assert _to_body_metrics(payload) == [
-        {"date": "2026-10-01", "weightKg": 78.5, "bodyFatPercent": 24.5},
-        {"date": "2026-10-02", "weightKg": 78.0},
-    ]
-
-
-def test_weight_converts_pounds_and_grams():
-    assert _weight_kg({"weight": 172.0, "unitKey": "lbs"}) == 78.02
-    assert _weight_kg({"weight": 78500}) == 78.5
-    assert _weight_kg({"weight": 78.0}) == 78.0
-    assert _weight_kg({"weight": 0}) is None
-
-
-def test_body_fat_accepts_fraction_and_rejects_impossible_values():
-    assert _body_fat_percent({"bodyFat": 0.245}) == 24.5
-    assert _body_fat_percent({"percentFat": 18.2}) == 18.2
-    assert _body_fat_percent({"bodyFat": 80}) is None
-
-
-def test_metric_date_reads_calendar_date_and_epoch():
-    assert _metric_date({"calendarDate": "2026-10-01"}) == "2026-10-01"
-    assert (
-        _metric_date({"timestampGMT": 1790836200000})
-        == datetime.fromtimestamp(1790836200, tz=UTC).date().isoformat()
-    )
-
-
-def test_sync_metrics_uses_body_composition(monkeypatch):
-    class _MetricsFake:
-        def get_body_composition(self, startdate, enddate):
-            return {"dateWeightList": [{"calendarDate": "2026-10-01", "weight": 78000}]}
-
-        def get_functional_threshold_power_range(
-            self, startdate, enddate, *, sport, aggregation
-        ):
-            return [
-                {
-                    "calendarDate": "2026-10-01",
-                    "functionalThresholdPower": 255,
-                }
-            ]
-
-    monkeypatch.setattr(sidecar, "_login", lambda credentials: _MetricsFake())
-
-    assert sidecar._sync_metrics(Credentials(username="u", password="p")) == {
-        "metrics": [{"date": "2026-10-01", "weightKg": 78.0}],
-        "ftp": [{"date": "2026-10-01", "watts": 255}],
-    }
-
-
-def test_metrics_route_returns_the_flat_response_the_api_expects(monkeypatch):
-    snapshot = {
-        "metrics": [{"date": "2026-10-01", "weightKg": 78.0}],
-        "ftp": [{"date": "2026-10-01", "watts": 255}],
-    }
-    monkeypatch.setattr(sidecar, "_sync_metrics", lambda credentials: snapshot)
-
-    assert sidecar.metrics(Credentials(username="u", password="p")) == snapshot
-
-
-def test_to_ftp_history_handles_lists_and_nested_records():
-    assert _to_ftp_history(
-        [
-            {"calendarDate": "2026-10-01", "functionalThresholdPower": 250},
-            {"calendarDate": "2026-10-02", "ftp": {"value": 255}},
-            {"calendarDate": "2026-10-03", "value": 20},
-        ]
-    ) == [
-        {"date": "2026-10-01", "watts": 250},
-        {"date": "2026-10-02", "watts": 255},
-    ]
-    assert _to_ftp_history(
-        {"functionalThresholdPower": [{"calendarDate": "2026-10-01", "value": 260}]}
-    ) == [{"date": "2026-10-01", "watts": 260}]
+    with pytest.raises(RateLimitedError):
+        activities.sync_activities(auth.Credentials(username="u", password="p"))
 
 
 def test_to_strength_sets_maps_exercises_reps_and_grams():
@@ -864,7 +666,7 @@ def test_to_strength_sets_maps_exercises_reps_and_grams():
         ]
     }
 
-    assert _to_strength_sets(payload) == [
+    assert to_strength_sets(payload) == [
         {
             "setType": "active",
             "startTime": "2026-10-27T15:05:00Z",
@@ -883,175 +685,9 @@ def test_to_strength_sets_drops_empty_sets_and_caps_length():
             {"setType": "ACTIVE", "exercises": []},
             *[
                 {"setType": "ACTIVE", "repetitionCount": 1, "exercises": []}
-                for _ in range(sidecar.MAX_STRENGTH_SETS + 5)
+                for _ in range(MAX_STRENGTH_SETS + 5)
             ],
         ]
     }
 
-    assert len(_to_strength_sets(payload)) == sidecar.MAX_STRENGTH_SETS
-
-
-class _DailyFake:
-    def get_stats(self, date):
-        return {
-            "restingHeartRate": 52,
-            "sleepingSeconds": 25200,
-            "averageStressLevel": 31,
-            "bodyBatteryHighestValue": 88,
-            "bodyBatteryLowestValue": 24,
-            "totalSteps": 8200,
-            "activeKilocalories": 640,
-            "moderateIntensityMinutes": 20,
-            "vigorousIntensityMinutes": 5,
-        }
-
-    def get_sleep_data(self, date):
-        # Mirrors the real Garmin payload: overnight HRV sits at the top level,
-        # while SpO2 is averageSpO2Value inside dailySleepDTO. The DTO-level
-        # avgSleepHRV/avgSpO2 keys are legacy fallbacks.
-        return {
-            "avgOvernightHrv": 48,
-            "dailySleepDTO": {
-                "sleepTimeSeconds": 25800,
-                "sleepScores": {"overall": {"value": 82}},
-                "deepSleepSeconds": 4200,
-                "lightSleepSeconds": 14400,
-                "remSleepSeconds": 5400,
-                "awakeSleepSeconds": 600,
-                "averageSpO2Value": 96,
-                "averageRespirationValue": 14.2,
-            },
-        }
-
-    def get_training_readiness(self, date):
-        return [
-            {"timestamp": "2026-11-02T06:00:00", "score": 74, "recoveryTime": 720},
-            {"timestamp": "2026-11-02T08:00:00", "score": 78, "recoveryTime": 600},
-        ]
-
-    def get_max_metrics(self, date):
-        # Garmin's daily endpoint returns a list of records, not a bare dict.
-        return [
-            {
-                "generic": {"vo2MaxPreciseValue": 48.5},
-                "cycling": {"vo2MaxValue": 43},
-            }
-        ]
-
-
-def test_sync_daily_combines_bundle_sleep_readiness_and_vo2max(monkeypatch):
-    monkeypatch.setattr(sidecar, "_login", lambda credentials: _DailyFake())
-
-    assert _sync_daily(Credentials(username="u", password="p"), "2026-11-02") == {
-        "date": "2026-11-02",
-        "metrics": {
-            "resting_heart_rate": 52,
-            "sleep_duration": 430.0,
-            "stress": 31,
-            "body_battery_high": 88,
-            "body_battery_low": 24,
-            "steps": 8200,
-            "active_calories": 640,
-            "intensity_minutes": 30,
-            "sleep_score": 82,
-            "deep_sleep": 70.0,
-            "light_sleep": 240.0,
-            "rem_sleep": 90.0,
-            "awake_sleep": 10.0,
-            "hrv": 48,
-            "spo2": 96,
-            "respiration": 14.2,
-            "training_readiness": 78,
-            "recovery_time": 600,
-            "vo2max": 48.5,
-            "vo2max_cycling": 43,
-        },
-    }
-
-
-def test_sync_daily_omits_sleep_until_the_night_is_confirmed(monkeypatch):
-    class _UnconfirmedSleep(_DailyFake):
-        def get_stats(self, date):
-            stats = super().get_stats(date)
-            stats["sleepingSeconds"] = 0
-            return stats
-
-        def get_sleep_data(self, date):
-            return {
-                "dailySleepDTO": {
-                    "sleepWindowConfirmed": False,
-                    "sleepTimeSeconds": 0,
-                    "sleepScores": {"overall": {"value": 0}},
-                    "deepSleepSeconds": 0,
-                    "lightSleepSeconds": 0,
-                    "remSleepSeconds": 0,
-                    "awakeSleepSeconds": 0,
-                    "averageSpO2Value": 0,
-                    "averageRespirationValue": 0,
-                },
-            }
-
-    monkeypatch.setattr(sidecar, "_login", lambda credentials: _UnconfirmedSleep())
-
-    result = _sync_daily(Credentials(username="u", password="p"), "2026-11-02")
-
-    assert "sleep_duration" not in result["metrics"]
-    assert "sleep_score" not in result["metrics"]
-    assert "deep_sleep" not in result["metrics"]
-    assert result["metrics"]["resting_heart_rate"] == 52
-
-
-def test_sync_daily_omits_a_zero_sleep_without_a_confirmation_flag(monkeypatch):
-    class _EmptySleep(_DailyFake):
-        def get_stats(self, date):
-            stats = super().get_stats(date)
-            stats["sleepingSeconds"] = 0
-            return stats
-
-        def get_sleep_data(self, date):
-            return {
-                "dailySleepDTO": {
-                    "sleepTimeSeconds": 0,
-                    "sleepScores": {"overall": {"value": 0}},
-                    "deepSleepSeconds": 0,
-                    "lightSleepSeconds": 0,
-                    "remSleepSeconds": 0,
-                    "awakeSleepSeconds": 0,
-                },
-            }
-
-    monkeypatch.setattr(sidecar, "_login", lambda credentials: _EmptySleep())
-
-    result = _sync_daily(Credentials(username="u", password="p"), "2026-11-02")
-
-    assert "sleep_duration" not in result["metrics"]
-    assert "sleep_score" not in result["metrics"]
-
-
-def test_sync_daily_tolerates_one_failed_source(monkeypatch):
-    class _PartlyBroken(_DailyFake):
-        def get_sleep_data(self, date):
-            raise RuntimeError("sleep unavailable")
-
-        def get_training_readiness(self, date):
-            raise RuntimeError("readiness unavailable")
-
-        def get_max_metrics(self, date):
-            raise RuntimeError("max metrics unavailable")
-
-    monkeypatch.setattr(sidecar, "_login", lambda credentials: _PartlyBroken())
-
-    result = _sync_daily(Credentials(username="u", password="p"), "2026-11-02")
-    assert result["metrics"]["resting_heart_rate"] == 52
-    assert "sleep_score" not in result["metrics"]
-
-
-def test_sync_daily_propagates_rate_limit(monkeypatch):
-    class _RateLimited(_DailyFake):
-        def get_sleep_data(self, date):
-            raise GarminConnectTooManyRequestsError("429")
-
-    monkeypatch.setattr(sidecar, "_login", lambda credentials: _RateLimited())
-
-    with pytest.raises(sidecar._RateLimitedError):
-        _sync_daily(Credentials(username="u", password="p"), "2026-11-02")
+    assert len(to_strength_sets(payload)) == MAX_STRENGTH_SETS

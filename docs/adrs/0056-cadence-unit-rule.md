@@ -33,7 +33,7 @@ The app stores one unit per sport and labels it in one place:
 - Rowing and swimming keep strokes per minute, already total.
 - Cycling keeps pedalling rpm.
 
-`STEP_CADENCE_MARKERS` in `services/garmin/app.py` is the step-counted subset
+`STEP_CADENCE_MARKERS` in `services/garmin/activities.py` is the step-counted subset
 and `STEP_CADENCE_PATTERN` in `packages/shared/src/activity.ts` is the display
 rule. The shared pattern also covers row and swim because they share the `spm`
 label. A sidecar test reads the shared pattern and asserts the two sets match

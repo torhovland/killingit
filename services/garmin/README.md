@@ -29,6 +29,27 @@ pip install -r requirements.txt
 python app.py
 ```
 
+## Layout
+
+`app.py` is only the FastAPI app, the request models and the five routes. Each
+concern lives in its own module beside it:
+
+| Module          | Owns                                                                |
+| --------------- | ------------------------------------------------------------------- |
+| `auth.py`       | Login, token store and the `Credentials` request model              |
+| `activities.py` | Activity summaries, detail samples, laps and strength sets          |
+| `body.py`       | Weigh-ins, body fat and historic cycling FTP                        |
+| `daily.py`      | One day of daily stats, sleep, readiness and VO2max                 |
+| `values.py`     | Numeric/date coercions, metric ranges and the 42-day sync window    |
+| `errors.py`     | Domain errors, the `rate_limited` context manager and `http_errors` |
+
+Every route is decorated with `errors.http_errors`, so a new route cannot forget
+the status mapping, and every Garmin call goes through `errors.rate_limited`, so
+a new call cannot forget the `429`. The tests follow the same modules
+(`test_auth.py`, `test_activities.py`, `test_body.py`, `test_daily.py`,
+`test_errors.py`, `test_values.py`) and share their Garmin stubs through
+`support.py`. See `docs/specs/garmin-sidecar-modules.md` and ADR 0058.
+
 ## Container
 
 `Dockerfile` builds the Cloud Run image. It listens on `$PORT` (Cloud Run sets

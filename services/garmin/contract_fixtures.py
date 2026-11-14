@@ -27,8 +27,10 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
-import app as sidecar
-from app import Credentials, DailyRequest
+import app
+import auth
+from app import DailyRequest
+from auth import Credentials
 
 CONTRACT_DIR = Path(__file__).resolve().parent / "contract"
 
@@ -353,7 +355,7 @@ class _ContractGarmin:
 @contextmanager
 def _stubbed_login():
     """Run the sidecar's handlers against the fixed Garmin client."""
-    with patch.object(sidecar, "_login", lambda credentials: _ContractGarmin()):
+    with patch.object(auth, "login", lambda credentials: _ContractGarmin()):
         yield
 
 
@@ -362,9 +364,9 @@ def contract_responses() -> dict[str, Any]:
     with _stubbed_login():
         credentials = Credentials(username="athlete@example.com", password="secret")
         return {
-            "sync": sidecar.sync(credentials),
-            "metrics": sidecar.metrics(credentials),
-            "daily": sidecar.daily(
+            "sync": app.sync(credentials),
+            "metrics": app.metrics(credentials),
+            "daily": app.daily(
                 DailyRequest(
                     username="athlete@example.com",
                     password="secret",

@@ -32,7 +32,8 @@ for cycling.
 
 ## Scope
 
-- Sample, lap and activity-summary normalization in `services/garmin/app.py`.
+- Sample, lap and activity-summary normalization in
+  `services/garmin/activities.py`.
 - The shared unit helper and the web and prompt renderers that use it.
 - No database migration. Stored activities are re-derived by the next sync
   inside Garmin's 42-day window; an older stored walk keeps its old number until

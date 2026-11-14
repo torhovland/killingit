@@ -8,8 +8,10 @@
 
 ## Goal
 
-The Python sidecar builds its HTTP response dicts by hand (`_to_activity`,
-`_lap`, `_strength_set`, `_sync_metrics`, `_sync_daily`) while TypeScript owns
+The Python sidecar builds its HTTP response dicts by hand (`to_activity`,
+`to_laps`, `to_strength_sets` and `to_samples` in `services/garmin/activities.py`,
+`sync_metrics` in `services/garmin/body.py`, `sync_daily` in
+`services/garmin/daily.py`) while TypeScript owns
 the Zod schemas that parse them (`activitiesResponseSchema`,
 `garminMetricsResponseSchema`, `garminDailyResponseSchema`). Nothing compared
 the two, so a field rename on either side broke only in production, where the
@@ -30,7 +32,7 @@ sides with one committed set of fixtures.
    payloads (activity summaries, activity details with positional metrics,
    splits/lapDTOs, exercise sets, body composition, historic FTP, one day of
    stats/sleep/readiness/max-metrics) and rebuilds the three responses by
-   calling the sidecar's own route handlers with a stubbed `_login`, so the
+   calling the sidecar's own route handlers with a stubbed `auth.login`, so the
    fixture cannot drift from the code path that serves it.
 3. `services/garmin/test_contract.py` re-runs those handlers over the raw
    payloads and asserts the result equals the committed JSON, so a Python-side

@@ -279,7 +279,14 @@ about a past workout, or before a suggested workout, to steer the coach.
   sidecar's own handlers, and `apps/api/src/garmin/contract.test.ts` parses it
   with `activitiesResponseSchema`, `garminMetricsResponseSchema` and
   `garminDailyResponseSchema`, so a field rename on either side fails a pull
-  request; see `docs/specs/garmin-sidecar-contract.md` and ADR 0057. Activity
+  request; see `docs/specs/garmin-sidecar-contract.md` and ADR 0057. The sidecar
+  itself is split by concern: `app.py` holds only the FastAPI app and its routes,
+  `auth.py` login and the token store, `activities.py` activity, sample, lap and
+  strength normalisation, `body.py` weigh-ins and FTP, `daily.py` daily health,
+  `values.py` the shared coercions and `errors.py` the failure taxonomy, the one
+  `rate_limited` context manager and the one `http_errors` route decorator, so a
+  route cannot forget the status mapping and a Garmin call cannot forget the
+  rate limit; see `docs/specs/garmin-sidecar-modules.md` and ADR 0058. Activity
   summaries also store average and maximum
   speed; the UI and prompts show pace for running, walking, hiking, swimming
   and rowing (per 100 m for swims and per 500 m for rows) and speed for cycling.
@@ -799,13 +806,17 @@ through a disciplined process:
    - **Python sidecar tests** for `services/garmin`: `bun run check:garmin` runs
      `pytest` plus `ruff check`, `ruff format --check` and `mypy`, with the
      tools pinned in `services/garmin/requirements-dev.txt` and configured in
-     its `pyproject.toml`. The suite also holds the Python half of the sidecar
+     its `pyproject.toml`. The suite is split along the same module lines as the
+     sidecar (`test_auth.py`, `test_activities.py`, `test_body.py`,
+     `test_daily.py`, `test_errors.py`, `test_values.py`), with the shared Garmin
+     stubs in `support.py`. The suite also holds the Python half of the sidecar
      contract: `services/garmin/test_contract.py` rebuilds the committed
      response fixtures in `services/garmin/contract/` through the sidecar's own
      handlers, and `apps/api/src/garmin/contract.test.ts` parses them with the
      shared schemas; a wire rename on either side therefore fails a pull
      request. CI runs the same script in the `garmin` job; see
-     `docs/specs/garmin-sidecar-checks.md` and
+     `docs/specs/garmin-sidecar-checks.md`,
+     `docs/specs/garmin-sidecar-modules.md` and
      `docs/specs/garmin-sidecar-contract.md`.
    - **Integration tests** against the API and a test database.
      Database-backed tests live in `apps/api/integration` and run with

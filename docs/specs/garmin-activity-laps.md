@@ -57,7 +57,7 @@ sidecar normalizes it away and consumers ignore a one-element list.
 ## Sidecar mapping
 
 `Garmin.get_activity_splits(activity_id)` returns `{ "lapDTOs": [...] }`.
-`_to_laps` maps each lap defensively, because field names vary by device and
+`to_laps` maps each lap defensively, because field names vary by device and
 sport:
 
 | Normalized           | Garmin keys, first present wins                         |
