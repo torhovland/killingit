@@ -64,6 +64,13 @@ another account or without the stored plan would be wrong rather than merely
 thinner. An advisory failure leaves the prompt without that section, which is
 the same trade-off the reply context already makes.
 
+The stored plan is read through `loadValidatedPlan`
+(`plans/store.ts`), the same loader the routes use, so its JSON is checked
+against the current `coachPlanSchema` before the run touches it. A row written
+under an older schema or by a partial write is treated as absent and the run
+builds a fresh plan, with the failure logged once per save; see
+`docs/specs/coach-plan-lifecycle.md`.
+
 The stored writers — the period-review capture, the FTP and body-metric time
 series, the coach question and its clearing — are injectable too, but their own
 failure semantics stay with the plan-generation modules
