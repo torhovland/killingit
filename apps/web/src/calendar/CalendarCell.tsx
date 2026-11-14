@@ -7,7 +7,7 @@ import {
   type WeekSession,
 } from "@killingit/shared";
 import { Bullets } from "../Bullet";
-import { dayNumber } from "../calendarDates";
+import { dayNumber } from "./calendarDates";
 import { formatDistanceKm } from "../formatDistance";
 import { Chip } from "../components/Chip";
 import type { CalendarSelection } from "./selection";

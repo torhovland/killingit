@@ -19,7 +19,7 @@ chart.
 ### In scope
 
 1. A shared keyboard cursor over a chart's positions,
-   `useChartKeyboard(count)` in `apps/web/src/useChartKeyboard.ts`: the chart is
+   `useChartKeyboard(count)` in `apps/web/src/charts/useChartKeyboard.ts`: the chart is
    one tab stop, the left and right arrow keys move the cursor, Home and End
    jump to the first and last position, and Escape clears it.
 2. `useChartHover` composes the cursor and reuses the existing hover marker and
@@ -106,12 +106,12 @@ chart.
 
 ## Testing
 
-- `apps/web/src/useChartHover.test.tsx` drives the shared hook through a small
+- `apps/web/src/charts/useChartHover.test.tsx` drives the shared hook through a small
   harness: Tab focus, Right/Left, Home/End, Escape, blur, the announced text and
   a pointer move that stays silent.
-- `apps/web/src/ChartFrame.test.tsx` proves the shared frame is one tab stop
+- `apps/web/src/charts/ChartFrame.test.tsx` proves the shared frame is one tab stop
   with the keyboard description and announces the hovered day.
-- `apps/web/src/FitnessChart.test.tsx` proves a real chart wires the cursor: the
+- `apps/web/src/fitness/FitnessChart.test.tsx` proves a real chart wires the cursor: the
   keyboard-selected day's card content appears and matches `FitnessDayTooltip`.
 - `apps/web/src/CostBarChart.test.tsx` proves the bar chart announces a bar's
   total.

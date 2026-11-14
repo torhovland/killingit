@@ -11,7 +11,7 @@ const SOURCE_DIR = import.meta.dir;
  */
 const ALLOWED = new Set([
   "CurrentUserProvider.tsx",
-  "DeleteAccountSection.tsx",
+  "settings/DeleteAccountSection.tsx",
 ]);
 
 /** The account route in a string literal, template or query-bearing path. */

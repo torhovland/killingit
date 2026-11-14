@@ -6,7 +6,7 @@ import { CoachQuestionCard } from "./CoachQuestionCard";
 import { CoachingInputsSection } from "./CoachingInputsSection";
 import { pollCoachReplies } from "./coachReplyPoll";
 import { useCurrentUser } from "./CurrentUserProvider";
-import { FoodLogSection } from "./FoodLogSection";
+import { FoodLogSection } from "./diet/FoodLogSection";
 import { selectPendingActivities } from "./pendingActivities";
 import { PendingActivitiesSection } from "./PendingActivitiesSection";
 import { PendingReviewsList } from "./PendingReviewsList";

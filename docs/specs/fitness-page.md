@@ -253,7 +253,7 @@ API:
   reads the moved-to day's card, and the chart's hidden description names the
   keys. The keyboard never announces pointer movement. See
   `docs/specs/chart-keyboard-navigation.md` and ADR 0051.
-- Every fitness chart shares `ChartFrame` (`apps/web/src/ChartFrame.tsx`): it
+- Every fitness chart shares `ChartFrame` (`apps/web/src/charts/ChartFrame.tsx`): it
   owns the card, the accessible SVG, the y and x axes, the hovered-day guide and
   the hover card's placement, and the keyboard cursor with its live region. A
   chart supplies its scale, ticks, legend and a
@@ -261,7 +261,7 @@ API:
   stacked sleep chart and the calorie bars use the same frame. A chart can add a
   footer, and the body chart adds a right axis.
 - Every chart path is built by `chartPath` in
-  `apps/web/src/chartGeometry.ts`, which owns the `M`/`L` assembly and the one
+  `apps/web/src/charts/chartGeometry.ts`, which owns the `M`/`L` assembly and the one
   coordinate rounding (`roundChartValue`). A chart supplies points with a day
   index and a value; `linePath` and `nullAwarePath` shape a value array, and
   `datedPathPoints` shapes a dated series for the body chart, whose sparse diet

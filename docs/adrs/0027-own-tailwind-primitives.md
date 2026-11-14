@@ -27,7 +27,8 @@ built on Radix, no light theme, and no third-party component dependency.
 - Express the looks as `variant` and `size` props with the app's existing
   tokens; keep `className` for layout and deliberate overrides.
 - Keep page components flat in `apps/web/src/` and move only shared primitives
-  into `components/`.
+  into `components/`. (Amended by ADR 0059: pages now live in feature
+  directories; the primitive boundary is unchanged.)
 
 ## Alternatives considered
 

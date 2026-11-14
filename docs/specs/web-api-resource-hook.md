@@ -102,7 +102,7 @@ spinner omits `statusSource`.
   `reload`, a superseded path whose late response is dropped, and an unmount
   that aborts without surfacing an error. See
   `docs/specs/web-interaction-tests.md`.
-- The Diet page's own race is pinned by `apps/web/src/DietPage.test.tsx`: a
+- The Diet page's own race is pinned by `apps/web/src/diet/DietPage.test.tsx`: a
   meal edit reloads the summary, a day change aborts that reload, and the
   superseded response that resolves last cannot replace the new day's totals.
   A page that hand-writes its load again and loses the abort fails the suite.

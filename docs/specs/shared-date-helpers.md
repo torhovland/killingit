@@ -17,7 +17,7 @@ everywhere.
 - `apps/api/src/plans/dates.ts` keeps only its API-specific helpers
   (`isAfterPlanTomorrowCutoff`, `localDateTimeInZone`); every API module imports
   the generic helpers from `@killingit/shared`.
-- `apps/web/src/calendarDates.ts` keeps the month-grid helpers, imports
+- `apps/web/src/calendar/calendarDates.ts` keeps the month-grid helpers, imports
   `addDays`/`startOfWeek` from `@killingit/shared`, and lets `buildMonthGrid`
   reuse `startOfWeek` instead of repeating the weekday arithmetic.
 - `apps/web/src/costChart.ts` and `apps/api/integration/planFixture.ts` import
