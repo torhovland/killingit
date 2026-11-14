@@ -138,6 +138,13 @@ wins when the two conflict.
 5. Daily health is supplementary: a rate limit or outage is logged and never
    fails the activity feed.
 
+The metrics/FTP pass and the daily health pass are one sequence in
+`apps/api/src/garmin/supplements.ts` (`syncGarminSupplements`). Both
+`GET /api/garmin/activities` and the coaching activity feed call it after their
+activity sync, so the two paths cannot drift: the metrics failure is logged and
+does not stop daily health, and either failure is logged without failing the
+activity sync.
+
 ## Acceptance criteria
 
 1. `/daily` returns the normalized metrics above for a stubbed Garmin day,

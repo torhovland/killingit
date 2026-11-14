@@ -18,11 +18,13 @@ sync window with an empty history and overwriting every older activity.
 
 `apps/api/src/coaching/activities.ts`:
 
-- `syncFeed` — syncs Garmin activities, body metrics and daily health; drops
-  locally deleted activities; merges the stored history; and persists the full
-  history before analysis. The stored feed is read before anything is written,
-  and a failed read aborts the sync: merging the sync window with an empty
-  history would erase every older activity and its coach work.
+- `syncFeed` — syncs Garmin activities, body metrics and daily health through
+  `syncGarminFeed`, which delegates the supplementary passes to
+  `garmin/supplements.ts`; drops locally deleted activities; merges the stored
+  history; and persists the full history before analysis. The stored feed is
+  read before anything is written, and a failed read aborts the sync: merging
+  the sync window with an empty history would erase every older activity and
+  its coach work.
 - `loadAnalysisInputs` — loads LLM settings, athlete feedback, the stored plan,
   daily health, body history and diet in parallel, then the training context.
   A training-context failure falls back to empty loads instead of failing the

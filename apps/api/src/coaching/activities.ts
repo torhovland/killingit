@@ -17,24 +17,15 @@ import {
 import { decrypt } from "../crypto/credentials.js";
 import { loadDietContext } from "../diet/context.js";
 import type { DietPromptContext } from "../diet/summary.js";
-import {
-  syncGarminActivities,
-  syncGarminMetrics,
-  type GarminCredentials,
-} from "../garmin/client.js";
-import {
-  GARMIN_DAILY_SYNC_WINDOW_DAYS,
-  syncGarminDailyHistory,
-} from "../garmin/dailySync.js";
+import type { GarminCredentials } from "../garmin/client.js";
+import { GARMIN_DAILY_SYNC_WINDOW_DAYS } from "../garmin/dailySync.js";
 import { commentIsNewerThanAnalysis } from "./analysisFreshness.js";
-import { loadDeletedActivityIds } from "./deletions.js";
+import { syncGarminFeed } from "./feedSync.js";
 import { loadDecryptedGarminCredentials } from "../garmin/credentials.js";
 import {
   loadBodyHistoryForUser,
   recordCoachBodyMetrics,
   recordCoachFtp,
-  recordGarminBodyMetrics,
-  recordGarminFtp,
 } from "../metrics/store.js";
 import { loadDailyHealthForUser } from "../metrics/dailyMetrics.js";
 import { downsample } from "../lib/downsample.js";
@@ -289,13 +280,10 @@ async function syncFeed(params: {
   today: string;
   limit: number;
 }): Promise<SyncedFeed> {
-  const activities = await syncGarminActivities(params.credentials);
-  await syncBodyMetrics(params.userId, params.credentials);
-  await syncDailyHealth(params.userId, params.credentials, params.today);
-  const deletedIds = await loadDeletedActivityIds(params.userId, "garmin");
-  const synced = [...activities]
-    .filter((activity) => !deletedIds.has(String(activity.id)))
-    .sort((a, b) => Date.parse(b.startDate) - Date.parse(a.startDate));
+  const { activities, deletedIds } = await syncGarminFeed(params);
+  const synced = [...activities].sort(
+    (a, b) => Date.parse(b.startDate) - Date.parse(a.startDate),
+  );
   const history = await extendStoredFeed({
     userId: params.userId,
     synced,
@@ -826,42 +814,6 @@ export async function loadUserActivityTrainingLoads(
     timezone,
     tssByDate,
   );
-}
-
-/**
- * Pulls Garmin body-composition weigh-ins into the metric time series. A
- * failure here must not fail the activity feed: body data is supplementary.
- */
-async function syncBodyMetrics(
-  userId: number,
-  credentials: { username: string; password: string },
-): Promise<void> {
-  try {
-    const snapshot = await syncGarminMetrics(credentials);
-    await recordGarminBodyMetrics(userId, snapshot.metrics);
-    await recordGarminFtp(userId, snapshot.ftp);
-  } catch (err) {
-    const detail = err instanceof Error ? err.message : String(err);
-    console.error(`[garmin] could not sync body metrics: ${detail}`);
-  }
-}
-
-/**
- * Pulls daily health and recovery metrics after the activities. The pass is
- * fail-open: its own function already stops on a rate limit, and a failure here
- * must not hide the synced activities.
- */
-async function syncDailyHealth(
-  userId: number,
-  credentials: { username: string; password: string },
-  today: string,
-): Promise<void> {
-  try {
-    await syncGarminDailyHistory({ userId, credentials, today });
-  } catch (err) {
-    const detail = err instanceof Error ? err.message : String(err);
-    console.error(`[garmin] could not sync daily health metrics: ${detail}`);
-  }
 }
 
 /** Loads the daily health series for prompts, omitting it on a read failure. */

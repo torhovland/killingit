@@ -6,7 +6,7 @@ import type { GarminCredentials } from "../garmin/client.js";
 import { GarminAuthError, type SyncTransport } from "../garmin/client.js";
 import type { EncryptedCredentials } from "../garmin/store.js";
 import type { UserStore } from "../users/store.js";
-import { createGarminRoute } from "./garmin.js";
+import { createGarminRoute, type GarminRouteDependencies } from "./garmin.js";
 import { apiRequest } from "../testFixtures/request.js";
 
 const ORIGINAL_KEY = process.env.GARMIN_CREDENTIALS_KEY;
@@ -58,7 +58,10 @@ const users: UserStore = {
     }),
 };
 
-function makeApp(authenticate?: () => Promise<boolean>) {
+function makeApp(
+  authenticate?: () => Promise<boolean>,
+  overrides: Pick<GarminRouteDependencies, "syncMetrics" | "syncDaily"> = {},
+) {
   const stored = new Map<number, EncryptedCredentials>();
   const plain = new Map<number, GarminCredentials>();
   const synced: GarminCredentials[] = [];
@@ -85,11 +88,19 @@ function makeApp(authenticate?: () => Promise<boolean>) {
         synced.push(credentials);
         return Promise.resolve([] as Activity[]);
       }) satisfies SyncTransport,
-      syncMetrics: () => Promise.resolve({ metrics: [], ftp: [] }),
+      syncMetrics:
+        overrides.syncMetrics ??
+        (() => Promise.resolve({ metrics: [], ftp: [] })),
       saveMetrics: () => Promise.resolve(),
       saveFtp: () => Promise.resolve(),
-      syncDaily: () =>
-        Promise.resolve({ fetched: [], rateLimited: false, failedDate: null }),
+      syncDaily:
+        overrides.syncDaily ??
+        (() =>
+          Promise.resolve({
+            fetched: [],
+            rateLimited: false,
+            failedDate: null,
+          })),
     }),
   );
 
@@ -144,6 +155,40 @@ describe("per-user Garmin credentials", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ activities: [] });
     expect(synced).toEqual([{ username: "rider-1", password: "secret-1" }]);
+  });
+
+  it("still syncs daily health when body metrics fail", async () => {
+    const dailyUserIds: number[] = [];
+    const { app, plain } = makeApp(undefined, {
+      syncMetrics: () => Promise.reject(new Error("body composition outage")),
+      syncDaily: ({ userId }) => {
+        dailyUserIds.push(userId);
+        return Promise.resolve({
+          fetched: [],
+          rateLimited: false,
+          failedDate: null,
+        });
+      },
+    });
+    plain.set(1, { username: "rider-1", password: "secret-1" });
+
+    const res = await app.fetch(request("/garmin/activities", "athlete-1"));
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ activities: [] });
+    expect(dailyUserIds).toEqual([1]);
+  });
+
+  it("returns the activities when daily health fails", async () => {
+    const { app, plain } = makeApp(undefined, {
+      syncDaily: () => Promise.reject(new Error("daily outage")),
+    });
+    plain.set(1, { username: "rider-1", password: "secret-1" });
+
+    const res = await app.fetch(request("/garmin/activities", "athlete-1"));
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ activities: [] });
   });
 
   it("does not sync an account without credentials", async () => {

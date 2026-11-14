@@ -18,6 +18,7 @@ import { loadDecryptedGarminCredentials } from "../garmin/credentials.js";
 import { encrypt, garminCredentialsKeyFromEnv } from "../garmin/crypto.js";
 import { loadCredentials, saveCredentials } from "../garmin/store.js";
 import { syncGarminDailyHistory } from "../garmin/dailySync.js";
+import { syncGarminSupplements } from "../garmin/supplements.js";
 import { recordGarminBodyMetrics, recordGarminFtp } from "../metrics/store.js";
 
 /** Request body for POST /credentials — raw (soon-to-be-encrypted) values. */
@@ -122,24 +123,12 @@ export function createGarminRoute(deps: GarminRouteDependencies = {}): Hono {
 
       try {
         const activities = await sync(credentials);
-        try {
-          const snapshot = await syncMetrics(credentials);
-          await saveMetrics(user.id, snapshot.metrics);
-          await saveFtp(user.id, snapshot.ftp);
-        } catch (err) {
-          // Body composition is supplementary; the activity sync still counts.
-          console.error("[garmin] body metrics failure:", err);
-        }
-        try {
-          await syncDaily({
-            userId: user.id,
-            credentials,
-            today: new Date().toISOString().slice(0, 10),
-          });
-        } catch (err) {
-          // Daily health is supplementary too; never fail the activity sync.
-          console.error("[garmin] daily health failure:", err);
-        }
+        await syncGarminSupplements(
+          user.id,
+          credentials,
+          new Date().toISOString().slice(0, 10),
+          { syncMetrics, saveMetrics, saveFtp, syncDaily },
+        );
         return c.json({ activities });
       } catch (err) {
         if (err instanceof GarminAuthError) {
