@@ -98,9 +98,11 @@ about a past workout, or before a suggested workout, to steer the coach.
 - Every completion attempt is stored in `llm_calls` with its full messages,
   response or error, model, usage, and request metadata. The admin settings
   page lists them under "LLM prompts" (`GET /api/admin/llm-calls`). Logging is
-  admin-only and fail-open, so a log write can never break coaching. See
-  `docs/specs/llm-call-log.md`. OpenRouter's reported `usage.cost` is stored
-  per call, and the **AI costs** page (above Settings in the menu,
+  admin-only and fail-open, so a log write can never break coaching. Selecting
+  another call aborts the detail request it supersedes, so a late response
+  cannot replace the current selection. See `docs/specs/llm-call-log.md`.
+  OpenRouter's reported `usage.cost` is stored per call, and the **AI costs**
+  page (above Settings in the menu,
   `GET /api/llm/costs`) charts monthly and daily spend stacked either by model
   or by prompt type for the account; calls written before cost capture are
   estimated from token usage and the catalog's current list prices. See
