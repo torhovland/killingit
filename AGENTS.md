@@ -786,7 +786,8 @@ through a disciplined process:
   intentional public API that has no in-repo consumer in `knip.json` with a
   comment. See `docs/specs/unused-exports.md`.
 - **Wire API dependencies through the shared context.** The injectable surface
-  for the plan, coaching, activity, fitness, calendar, diet and weather routes
+  for the plan, coaching, activity, fitness, calendar, diet, weather, Garmin and
+  LLM routes and the admin question set
   lives in `apps/api/src/dependencies.ts`; `createApp` resolves the account
   stores once and passes `ResolvedAppDependencies` to those factories, which
   apply their own `??` production default. Do not conditionally spread a

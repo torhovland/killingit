@@ -1,6 +1,4 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { Hono } from "hono";
-import { requireAuth, requireUser } from "../auth/middleware.js";
 import type { Activity } from "@killingit/shared";
 import type { GarminCredentials } from "../garmin/client.js";
 import {
@@ -9,8 +7,8 @@ import {
   type SyncTransport,
 } from "../garmin/client.js";
 import type { EncryptedCredentials } from "../garmin/store.js";
+import { createApp } from "../index.js";
 import type { UserStore } from "../users/store.js";
-import { createGarminRoute } from "./garmin.js";
 import { apiRequest } from "../testFixtures/request.js";
 
 const ORIGINAL_KEY = process.env.GARMIN_CREDENTIALS_KEY;
@@ -90,32 +88,25 @@ function makeApp(
       return Promise.resolve([] as Activity[]);
     });
 
-  const app = new Hono();
-  app.use(
-    "/garmin/*",
-    requireAuth({ verify: (token) => Promise.resolve({ sub: token }) }),
-  );
-  app.use("/garmin/*", requireUser(accounts));
-  app.route(
-    "/garmin",
-    createGarminRoute({
-      loadStoredCredentials: (userId) =>
-        Promise.resolve(stored.get(userId) ?? null),
-      saveStoredCredentials: (userId, credentials) => {
-        stored.set(userId, credentials);
-        return Promise.resolve();
-      },
-      loadDecryptedCredentials: (userId) =>
-        Promise.resolve(plain.get(userId) ?? null),
-      authenticate: authenticate ?? (() => Promise.resolve(true)),
-      syncActivities: sync,
-      syncSupplements: (_userId, _credentials, today) => {
-        supplementDates.push(today);
-        return Promise.resolve();
-      },
-      now: options.now ?? (() => new Date()),
-    }),
-  );
+  const app = createApp({
+    authProvider: { verify: (token) => Promise.resolve({ sub: token }) },
+    userStore: accounts,
+    loadGarminCredentials: (userId) =>
+      Promise.resolve(stored.get(userId) ?? null),
+    saveGarminCredentials: (userId, credentials) => {
+      stored.set(userId, credentials);
+      return Promise.resolve();
+    },
+    loadDecryptedGarminCredentials: (userId) =>
+      Promise.resolve(plain.get(userId) ?? null),
+    authenticateGarmin: authenticate ?? (() => Promise.resolve(true)),
+    syncGarminActivities: sync,
+    syncGarminSupplements: (_userId, _credentials, today) => {
+      supplementDates.push(today);
+      return Promise.resolve();
+    },
+    now: options.now ?? (() => new Date()),
+  });
 
   return { app, stored, plain, synced, supplementDates };
 }
@@ -123,7 +114,7 @@ function makeApp(
 function request(path: string, subject: string, init?: RequestInit): Request {
   const headers = new Headers(init?.headers);
   headers.set("authorization", `Bearer ${subject}`);
-  return apiRequest(`http://localhost${path}`, { ...init, headers });
+  return apiRequest(`http://localhost/api${path}`, { ...init, headers });
 }
 
 describe("per-user Garmin credentials", () => {

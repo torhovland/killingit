@@ -1,8 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import type { LlmCatalogModel, LlmCostsResponse } from "@killingit/shared";
-import { Hono } from "hono";
-import { requireAuth, requireUser } from "../auth/middleware.js";
 import { keyFromRaw } from "../crypto/credentials.js";
+import { createApp } from "../index.js";
 import {
   LlmAuthError,
   LlmProviderError,
@@ -11,7 +10,7 @@ import {
 } from "../llm/openrouter.js";
 import type { StoredLlmSettings } from "../llm/store.js";
 import type { UserStore } from "../users/store.js";
-import { createLlmRoute } from "./llm.js";
+import { apiRequest } from "../testFixtures/request.js";
 
 const userStore: UserStore = {
   ensureUser: (sub) =>
@@ -102,24 +101,28 @@ function makeApp(
     loadCosts?: (userId: number) => Promise<LlmCostsResponse>;
   } = {},
 ) {
-  const app = new Hono();
-  app.use(
-    "*",
-    requireAuth({ verify: () => Promise.resolve({ sub: "athlete-1" }) }),
-  );
-  app.use("*", requireUser(userStore));
-  app.route("/llm", createLlmRoute({ loadSettings, ...extras }));
+  const app = createApp({
+    authProvider: { verify: () => Promise.resolve({ sub: "athlete-1" }) },
+    userStore,
+    loadLlmSettings: loadSettings,
+    saveLlmSettings: extras.saveSettings,
+    loadLlmCosts: extras.loadCosts,
+    loadModelCatalog: extras.loadCatalog,
+    refreshModelCatalog: extras.refreshCatalog,
+    llmProvider: extras.provider,
+    llmCredentialsKey: extras.credentialsKey,
+  });
   return app;
 }
 
 function settingsRequest(): Request {
-  return new Request("http://localhost/llm/settings", {
+  return apiRequest("http://localhost/api/llm/settings", {
     headers: { authorization: "Bearer anything" },
   });
 }
 
 function putSettingsRequest(body: unknown): Request {
-  return new Request("http://localhost/llm/settings", {
+  return apiRequest("http://localhost/api/llm/settings", {
     method: "PUT",
     headers: {
       authorization: "Bearer anything",
@@ -291,7 +294,7 @@ describe("GET /llm/catalog", () => {
     });
 
     const res = await app.fetch(
-      new Request("http://localhost/llm/catalog", {
+      apiRequest("http://localhost/api/llm/catalog", {
         headers: { authorization: "Bearer anything" },
       }),
     );
@@ -319,7 +322,7 @@ describe("GET /llm/catalog", () => {
 
 describe("GET /llm/models", () => {
   function modelsRequest(): Request {
-    return new Request("http://localhost/llm/models", {
+    return apiRequest("http://localhost/api/llm/models", {
       headers: { authorization: "Bearer anything" },
     });
   }
@@ -426,7 +429,7 @@ describe("GET /llm/costs", () => {
     });
 
     const res = await app.fetch(
-      new Request("http://localhost/llm/costs", {
+      apiRequest("http://localhost/api/llm/costs", {
         headers: { authorization: "Bearer anything" },
       }),
     );
@@ -442,7 +445,7 @@ describe("GET /llm/costs", () => {
     });
 
     const res = await app.fetch(
-      new Request("http://localhost/llm/costs", {
+      apiRequest("http://localhost/api/llm/costs", {
         headers: { authorization: "Bearer anything" },
       }),
     );
@@ -471,7 +474,7 @@ describe("POST /llm/models/refresh", () => {
     });
 
     const res = await app.fetch(
-      new Request("http://localhost/llm/models/refresh", {
+      apiRequest("http://localhost/api/llm/models/refresh", {
         method: "POST",
         headers: { authorization: "Bearer anything" },
       }),

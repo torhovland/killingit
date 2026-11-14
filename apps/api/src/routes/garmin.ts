@@ -7,6 +7,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { zValidator } from "../http/validation.js";
 import { getUser } from "../auth/middleware.js";
+import type { ResolvedAppDependencies } from "../dependencies.js";
 import { respondUpstreamError, serviceUnavailable } from "../http/errors.js";
 import {
   authenticateGarmin,
@@ -24,32 +25,19 @@ const credentialsSchema = z.object({
   password: z.string().min(1),
 });
 
-export interface GarminRouteDependencies {
-  /** Injectable for tests; default to the database-backed store. */
-  loadStoredCredentials?: typeof loadCredentials;
-  saveStoredCredentials?: typeof saveCredentials;
-  loadDecryptedCredentials?: typeof loadDecryptedGarminCredentials;
-  authenticate?: typeof authenticateGarmin;
-  syncActivities?: typeof syncGarminActivities;
-  /** Injectable for tests; defaults to the fail-open supplementary sync. */
-  syncSupplements?: typeof syncGarminSupplements;
-  /** Injectable for tests; defaults to the wall clock. */
-  now?: () => Date;
-}
-
 /**
  * Garmin integration routes (ADR 0003 amendment). All paths sit behind auth and
  * scope credentials to the signed-in account. Credentials/ciphertext are never
  * serialized back to the client.
  */
-export function createGarminRoute(deps: GarminRouteDependencies = {}): Hono {
-  const loadStored = deps.loadStoredCredentials ?? loadCredentials;
-  const saveStored = deps.saveStoredCredentials ?? saveCredentials;
+export function createGarminRoute(deps: ResolvedAppDependencies): Hono {
+  const loadStored = deps.loadGarminCredentials ?? loadCredentials;
+  const saveStored = deps.saveGarminCredentials ?? saveCredentials;
   const loadDecrypted =
-    deps.loadDecryptedCredentials ?? loadDecryptedGarminCredentials;
-  const authenticate = deps.authenticate ?? authenticateGarmin;
-  const sync = deps.syncActivities ?? syncGarminActivities;
-  const syncSupplements = deps.syncSupplements ?? syncGarminSupplements;
+    deps.loadDecryptedGarminCredentials ?? loadDecryptedGarminCredentials;
+  const authenticate = deps.authenticateGarmin ?? authenticateGarmin;
+  const sync = deps.syncGarminActivities ?? syncGarminActivities;
+  const syncSupplements = deps.syncGarminSupplements ?? syncGarminSupplements;
   const now = deps.now ?? (() => new Date());
 
   return new Hono()

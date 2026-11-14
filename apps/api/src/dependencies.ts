@@ -21,9 +21,23 @@ import type { loadDietContext } from "./diet/context.js";
 import type { FoodEntryStore } from "./diet/store.js";
 import type { createMealPhotos } from "./diet/thumbnail.js";
 import type { loadAthleteEvents } from "./events/store.js";
+import type {
+  authenticateGarmin,
+  syncGarminActivities,
+} from "./garmin/client.js";
+import type { loadDecryptedGarminCredentials } from "./garmin/credentials.js";
+import type { loadCredentials, saveCredentials } from "./garmin/store.js";
+import type { syncGarminSupplements } from "./garmin/supplements.js";
 import type { analyzeFood } from "./llm/foodAnalysis.js";
 import type { LlmClient } from "./llm/client.js";
+import type { loadLlmCosts } from "./llm/costStore.js";
+import type {
+  ensureModelCatalogFresh,
+  loadModelCatalog,
+} from "./llm/modelCatalog.js";
+import type { LlmProvider } from "./llm/openrouter.js";
 import type { PlanContextInput } from "./llm/planContext.js";
+import type { loadLlmSettings, saveLlmSettings } from "./llm/store.js";
 import type { loadDailyHealthForUser } from "./metrics/dailyMetrics.js";
 import type {
   loadBodyHistoryForUser,
@@ -69,6 +83,7 @@ import type {
 import type { loadPlanWeekTotals } from "./plans/weekTotals.js";
 import type { QuestionAnswerStore } from "./questions/answers.js";
 import type { CoachingSurveyAdjustmentStore } from "./questions/adjustments.js";
+import type { QuestionSetStore } from "./questions/adminStore.js";
 import type { AdminLlmCallsDependencies } from "./routes/adminLlmCalls.js";
 import type { loadFitnessHistory } from "./training/history.js";
 import type { estimateManualActivityTss } from "./training/manualTss.js";
@@ -184,6 +199,27 @@ export interface AppDependencies {
   loadForecast?: PlanTriggerDependencies["loadForecast"] | undefined;
   /** Prompt log readers, injectable for DB-free admin route tests. */
   adminLlmCalls?: AdminLlmCallsDependencies | undefined;
+  /** Versioned athlete question set, injectable for admin route tests. */
+  questionSetStore?: QuestionSetStore | undefined;
+  /** Garmin credentials, sidecar calls and clock, injectable for route tests. */
+  loadGarminCredentials?: typeof loadCredentials | undefined;
+  saveGarminCredentials?: typeof saveCredentials | undefined;
+  loadDecryptedGarminCredentials?:
+    typeof loadDecryptedGarminCredentials | undefined;
+  authenticateGarmin?: typeof authenticateGarmin | undefined;
+  syncGarminActivities?: typeof syncGarminActivities | undefined;
+  syncGarminSupplements?: typeof syncGarminSupplements | undefined;
+  /** The app clock, injectable for tests that pin the athlete's local day. */
+  now?: (() => Date) | undefined;
+  /** LLM settings, cost history, catalog and provider, injectable for tests. */
+  loadLlmSettings?: typeof loadLlmSettings | undefined;
+  saveLlmSettings?: typeof saveLlmSettings | undefined;
+  loadLlmCosts?: typeof loadLlmCosts | undefined;
+  loadModelCatalog?: typeof loadModelCatalog | undefined;
+  refreshModelCatalog?: typeof ensureModelCatalogFresh | undefined;
+  llmProvider?: LlmProvider | undefined;
+  /** Key-encryption key for a stored provider key, injectable for tests. */
+  llmCredentialsKey?: (() => Promise<CryptoKey>) | undefined;
   /** Prompt-log failure marker, injectable for DB-free plan route tests. */
   markPlanPromptsFailed?:
     PlanTriggerDependencies["markPlanPromptsFailed"] | undefined;
