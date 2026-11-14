@@ -2,55 +2,82 @@
 
 This is the single-issue procedure. The batch skill
 (`.opencode/skills/fix-issues/SKILL.md`) runs one sub-session per issue and
-tells each sub-session which issue to fix. Work only on that issue: another
-sub-session is handling every other issue in the batch, and the value of the
-batch is that each pull request can be merged on its own.
+tells each sub-session which issue to fix and which branch to build on. The
+batch is a stack of pull requests merged serially in order: your branch sits on
+top of the earlier fixes in the batch, so you will see their code in your
+checkout. Work only on your own issue. You may change a file an earlier fix
+already changed, but build on it instead of undoing it, and keep the diff of
+your pull request to your own issue.
 
 ## 1. Check the working tree
 
 Run `git status --short` and note anything unrelated to the issue. Leave those
 files exactly as they are: do not modify, stash, delete, or commit them. Never
-fold unrelated work into the fix. If the unrelated changes would block the fix
-(for example a file the issue must edit already has conflicting local edits),
-comment on the issue with the situation and report back without a pull request.
+fold unrelated work into the fix. Stage only the files your fix changes, so the
+pre-existing edits stay out of the pull request.
 
 ## 2. Read the issue fully
 
 Run `gh issue view <number> --comments`. Read the files, specs, and ADRs it
-references.
+references, including anything the earlier fixes in the batch added that the
+issue now builds on.
 
 If the issue is stale, already fixed, or too ambiguous to implement safely,
 comment on the issue with your questions or findings and report back. Do not
 guess.
 
-## 3. Branch from the default branch
+## 3. Branch on top of the stack
+
+The batch skill tells you the base branch: `main` for the first issue in the
+stack, otherwise the branch of the previous issue.
 
 ```sh
 git fetch origin
-git switch --create fix/<number>-<short-slug> origin/main
+git switch --create fix/<number>-<short-slug> <base-branch>
 ```
 
-One issue per branch. Never commit directly to `main` and never rewrite history.
+Use the local base branch if it exists (the previous sub-session created it);
+otherwise use `origin/<base-branch>`. Confirm the base is where you expect:
 
-## 4. Check independence once more
+```sh
+git log --oneline -n 5
+```
 
-Before writing code, list the files you expect to change. If the fix needs a
-change to shared ground that another issue in the batch also needs — a prompt
-fragment in `apps/api/src/llm/promptRules.ts`, a shared Zod schema, the database
-schema, a spec both issues would edit, the next ADR number, or a static-check
-and CI configuration change (`eslint.config.js`, `tsconfig.base.json`,
-`knip.json`, `scripts/coverage.ts`, `package.json` scripts,
-`.github/workflows/ci.yml`) — stop. Comment on the issue with the overlap and
-report back without a pull request. Two pull requests that collide cannot be
-merged independently, and a silently duplicated fragment is worse than a
-skipped issue.
+One issue per branch. Never commit directly to `main`, never commit to the base
+branch, and never rewrite history — no amend, rebase or force-push of a branch
+that is not yours.
+
+## 4. Check the stack base
+
+Before writing code, list the files you expect to change and read what the
+earlier fixes in the stack did to them. Shared ground is expected now, but it
+must be extended, not duplicated:
+
+- A prompt fragment in `apps/api/src/llm/promptRules.ts`: reuse and extend the
+  export an earlier fix added. Never add a second copy of the same rule.
+- A shared Zod schema, the Drizzle schema, or a migration: extend the existing
+  table and column definitions, and take the migration number the batch skill
+  reserved for you.
+- Static-check and CI configuration (`eslint.config.js`, `tsconfig.base.json`,
+  `knip.json`, `scripts/coverage.ts`, `package.json` scripts,
+  `.github/workflows/ci.yml`): add your rule or step next to the earlier one and
+  leave it in place.
+- A spec or ADR: take the ADR number the batch skill reserved for you and edit
+  the section your issue owns.
+
+If the fix needs a change to what an earlier fix in the stack introduced — a
+bug, a wrong default, a helper with the wrong shape — do not patch around it and
+do not push to that branch. Comment on your issue with the overlap and report
+back, so the batch fixes the base branch first and the stack does not carry a
+workaround.
 
 ## 5. Spec before code
 
 For anything non-trivial, write or update a short spec in `docs/specs/` (goal,
 scope, acceptance criteria, data-model and API impact) before implementing.
-Record architectural decisions as a new ADR in `docs/adrs/`. For refactors,
-state the target structure in the issue or the spec.
+Record architectural decisions as a new ADR in `docs/adrs/`, using the number
+the batch skill reserved for you. For refactors, state the target structure in
+the issue or the spec.
 
 ## 6. Test-driven development
 
@@ -96,6 +123,10 @@ failing test, and do not relax a tsconfig, ESLint rule, coverage baseline, or
 CI job. Fix the cause. When a rule genuinely has to change, say so in the pull
 request and follow `AGENTS.md`.
 
+A failure that comes only from code already on the base branch is not yours to
+fix here: report it back with the failing check and the commit that caused it,
+so the base branch is repaired before the stack continues.
+
 ### Close the gap in CI
 
 The gate above only helps if CI actually runs it. Before calling the change
@@ -118,10 +149,9 @@ part of this fix rather than leaving the gap for the next person:
 Run the new check locally and make it pass. A check that nobody runs locally,
 or that CI does not call, does not count. If the new check exposes failures
 outside this issue's scope, do not fix them here: open a new issue for them and
-narrow the check to the area this fix touches, so the pull request still stands
-alone. Say in the pull request body that CI coverage was extended, because CI
-workflow and static-check config are shared files that another sub-session must
-not also change.
+narrow the check to the area this fix touches. Add the check next to whatever
+earlier fixes in the stack added to the same workflow, and say in the pull
+request body that CI coverage was extended.
 
 List the checks you ran, including the issue-specific ones and any check you
 added, in the pull request body so the reviewer can see the gate the fix passed.
@@ -138,7 +168,7 @@ open source or touch the licence notice.
 git add <only the files you changed>
 git commit -m "<focused message>"
 git push -u origin fix/<number>-<short-slug>
-gh pr create --fill
+gh pr create --base <base-branch> --head fix/<number>-<short-slug>
 ```
 
 Stage files explicitly. Never use `git add -A` or `git commit -a`: unrelated
@@ -146,19 +176,31 @@ files that were already in the working tree must stay uncommitted and out of
 the pull request. Before committing, re-run `git status --short` and confirm
 every staged file belongs to the fix.
 
-Edit the pull request body to include `Closes #<number>`, a short summary of the
-fix, and the checks you ran, naming the issue-specific static checks as well as
-the default four. Then watch CI and fix anything it reports:
+Target the base branch, not `main`. That keeps the pull request diff to this
+issue alone even though the branch carries the earlier fixes underneath. Write
+the body to include:
+
+- `Closes #<number>` and a short summary of the fix.
+- The checks you ran, naming the issue-specific static checks as well as the
+  default four.
+- A **Stacked pull request** line naming the pull request this one is based on
+  (the previous one in the stack, or `main` for the first), its position in the
+  merge order, and a reminder that it must be merged after the pull request
+  beneath it.
+
+Then watch CI and fix anything it reports:
 
 ```sh
 gh pr checks --watch
 ```
 
-Do not close the issue by hand; merging the pull request closes it.
+Do not close the issue by hand; merging the pull request closes it. Do not
+rebase or retarget the earlier pull requests in the stack; if GitHub retargets
+this one to `main` after the pull request beneath it merges, that is expected.
 
 ## 10. Report back
 
-Reply with the issue number and title, the branch, a one-line summary of the
-change, the checks you ran (including the issue-specific static checks), and the
-pull request URL. If you stopped without a pull request, say exactly where you
-stopped and why.
+Reply with the issue number and title, the branch, the base branch, a one-line
+summary of the change, the checks you ran (including the issue-specific static
+checks), and the pull request URL. If you stopped without a pull request, say
+exactly where you stopped and why.
