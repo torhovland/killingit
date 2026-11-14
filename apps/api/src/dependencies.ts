@@ -52,6 +52,7 @@ import type {
   saveWeeklyNote,
   updateActivityComment,
   updateManualActivity,
+  updateManualActivityTss,
 } from "./plans/inputs.js";
 import type {
   answerCoachQuestion,
@@ -181,6 +182,7 @@ export interface AppDependencies {
   saveManualActivity?: typeof saveManualActivity | undefined;
   saveWeeklyNote?: typeof saveWeeklyNote | undefined;
   updateManualActivity?: typeof updateManualActivity | undefined;
+  updateManualActivityTss?: typeof updateManualActivityTss | undefined;
   deleteImportedActivity?: typeof deleteImportedActivity | undefined;
   deleteManualActivity?: typeof deleteManualActivity | undefined;
   /** Coach replies and their loaders, injectable for DB-free route tests. */
