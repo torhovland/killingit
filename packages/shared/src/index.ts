@@ -39,6 +39,7 @@ export * from "./garminConnection.js";
 export * from "./health.js";
 export * from "./llm.js";
 export * from "./metrics.js";
+export * from "./params.js";
 export * from "./plan.js";
 export * from "./questions.js";
 export * from "./review.js";

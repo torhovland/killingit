@@ -1,4 +1,5 @@
 import {
+  idParamSchema,
   questionArchivedResponseSchema,
   questionInputSchema,
   questionOrderInputSchema,
@@ -7,15 +8,10 @@ import {
 } from "@killingit/shared";
 import { zValidator } from "../http/validation.js";
 import { Hono } from "hono";
-import { z } from "zod";
 import type { ResolvedAppDependencies } from "../dependencies.js";
 import { badRequest, notFound } from "../http/errors.js";
 import { dbQuestionSetStore } from "../questions/adminStore.js";
 import { toQuestionResponse } from "../questions/serializers.js";
-
-const questionIdParamSchema = z.object({
-  id: z.coerce.number().int().positive(),
-});
 
 /**
  * Admin management of the versioned athlete question set. Editing appends a new
@@ -55,7 +51,7 @@ export function createAdminQuestionsRoute(deps: ResolvedAppDependencies): Hono {
     })
     .post(
       "/:id/versions",
-      zValidator("param", questionIdParamSchema),
+      zValidator("param", idParamSchema),
       zValidator("json", questionInputSchema),
       async (c) => {
         const { id } = c.req.valid("param");
@@ -69,7 +65,7 @@ export function createAdminQuestionsRoute(deps: ResolvedAppDependencies): Hono {
         return c.json(questionSchema.parse(toQuestionResponse(updated)));
       },
     )
-    .delete("/:id", zValidator("param", questionIdParamSchema), async (c) => {
+    .delete("/:id", zValidator("param", idParamSchema), async (c) => {
       const { id } = c.req.valid("param");
       if (!(await questionSet.archiveQuestion(id))) {
         return notFound(c, "Question not found");

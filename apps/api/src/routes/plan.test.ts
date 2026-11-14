@@ -26,6 +26,7 @@ import { makeDay, makePlan as makeFixturePlan } from "../testFixtures/plan.js";
 import { combineForecasts } from "../weather/combine.js";
 import type { WeatherForecastSet } from "../weather/forecast.js";
 import { apiRequest } from "../testFixtures/request.js";
+import { expectValidationFailure } from "../testFixtures/validation.js";
 
 const storedQuestion: StoredAthleteQuestion = {
   id: 1,
@@ -1084,7 +1085,7 @@ describe("coach plan route", () => {
     const res = await makeApp({}).fetch(
       authenticatedRequest("/api/coaching/plan/workouts/not-a-date"),
     );
-    expect(res.status).toBe(400);
+    await expectValidationFailure(res);
   });
 
   it("returns 404 when there is no plan to export from", async () => {

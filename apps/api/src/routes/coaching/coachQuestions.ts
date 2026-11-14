@@ -8,7 +8,7 @@ import {
 import type { Context } from "hono";
 import { z } from "zod";
 import { getUser } from "../../auth/middleware.js";
-import { badRequest, conflict, notFound } from "../../http/errors.js";
+import { conflict, notFound } from "../../http/errors.js";
 import { toCoachAnalysis } from "../../plans/replies.js";
 import type { ResolvedCoachingDependencies } from "./dependencies.js";
 
@@ -29,13 +29,8 @@ export function createCoachQuestionHandlers(
       return c.json(coachQuestionsResponseSchema.parse({ pending, answered }));
     },
 
-    async answer(c: Context, idParam: string, input: CoachQuestionAnswer) {
+    async answer(c: Context, id: number, input: CoachQuestionAnswer) {
       const user = getUser(c);
-      const id = Number(idParam);
-      if (!Number.isInteger(id) || id <= 0) {
-        return badRequest(c, "Invalid question");
-      }
-
       const question = await deps.loadQuestion(user.id, id);
       if (question === null) {
         return notFound(c, "Question not found");
