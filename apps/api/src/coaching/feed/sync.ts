@@ -5,7 +5,10 @@ import {
   type GarminCredentials,
 } from "../../garmin/client.js";
 import { loadDecryptedGarminCredentials } from "../../garmin/credentials.js";
-import { syncGarminSupplements } from "../../garmin/supplements.js";
+import {
+  syncGarminSupplements,
+  startGarminSupplements,
+} from "../../garmin/supplements.js";
 import {
   loadStoredActivityFeed,
   saveStoredActivities,
@@ -21,6 +24,19 @@ interface SyncedFeed {
   latest: readonly Activity[];
   /** Every synced activity merged with stored history, newest first. */
   history: AnalyzedActivity[];
+}
+
+/**
+ * The Garmin calls and the store behind one feed sync, injectable so a test can
+ * drive the sync without Garmin or the database. `syncSupplements` is the
+ * supplementary work the sync starts in the background; a test supplies a slow
+ * or failing pass to prove the feed answers regardless.
+ */
+export interface FeedSyncDependencies {
+  syncActivities?: typeof syncGarminActivities;
+  syncSupplements?: typeof syncGarminSupplements;
+  loadDeletedIds?: typeof loadDeletedActivityIds;
+  store?: ActivityStore;
 }
 
 /** The stored credentials, or a typed error the route can report. */
@@ -43,27 +59,44 @@ export async function loadGarminCredentials(
 }
 
 /**
- * Syncs Garmin activities, body metrics and daily health, merges the result
- * with the stored history, and stores the sync window before the (potentially
- * slow) LLM analyses so a reload during analysis still shows every activity.
+ * Syncs Garmin activities and starts the supplementary body-metric and
+ * daily-health pass in the background, then merges the result with the stored
+ * history and stores the sync window before the (potentially slow) LLM
+ * analyses, so the feed answers as soon as the activities are stored.
  */
-export async function syncFeed(params: {
-  userId: number;
-  credentials: GarminCredentials;
-  today: string;
-  limit: number;
-}): Promise<SyncedFeed> {
-  const activities = await syncGarminActivities(params.credentials);
-  await syncGarminSupplements(params.userId, params.credentials, params.today);
-  const deletedIds = await loadDeletedActivityIds(params.userId, "garmin");
+export async function syncFeed(
+  params: {
+    userId: number;
+    credentials: GarminCredentials;
+    today: string;
+    limit: number;
+  },
+  deps: FeedSyncDependencies = {},
+): Promise<SyncedFeed> {
+  const syncActivities = deps.syncActivities ?? syncGarminActivities;
+  const syncSupplements = deps.syncSupplements ?? syncGarminSupplements;
+  const loadDeletedIds = deps.loadDeletedIds ?? loadDeletedActivityIds;
+
+  const activities = await syncActivities(params.credentials);
+  // The weigh-in/FTP refresh and the daily-health backfill take far longer than
+  // the activity sync, and the feed's response carries none of them: the shared
+  // pass runs in the background, keeps its own failure to itself, and runs once
+  // per account at a time. See ADR 0039.
+  void startGarminSupplements(params.userId, () =>
+    syncSupplements(params.userId, params.credentials, params.today),
+  );
+  const deletedIds = await loadDeletedIds(params.userId, "garmin");
   const synced = [...activities]
     .filter((activity) => !deletedIds.has(String(activity.id)))
     .sort((a, b) => Date.parse(b.startDate) - Date.parse(a.startDate));
-  const history = await extendStoredFeed({
-    userId: params.userId,
-    synced,
-    deletedIds,
-  });
+  const history = await extendStoredFeed(
+    {
+      userId: params.userId,
+      synced,
+      deletedIds,
+    },
+    deps.store,
+  );
   return { latest: synced.slice(0, params.limit), history };
 }
 
