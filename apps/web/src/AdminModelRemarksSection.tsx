@@ -9,7 +9,6 @@ import { useApiResource } from "./useApiResource";
 import { Button } from "./components/Button";
 import { Card } from "./components/Card";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "";
 const LIMIT = 20;
 
 /**
@@ -20,9 +19,7 @@ const LIMIT = 20;
 export function AdminModelRemarksSection() {
   const auth = useAuth();
   const resource = useApiResource(
-    auth.isAuthenticated
-      ? `${API_URL}/api/admin/llm-calls/remarks?limit=${LIMIT}`
-      : null,
+    auth.isAuthenticated ? `/api/admin/llm-calls/remarks?limit=${LIMIT}` : null,
     llmModelRemarksResponseSchema,
     "Loading model remarks",
   );

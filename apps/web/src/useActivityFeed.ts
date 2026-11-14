@@ -19,8 +19,6 @@ import { requestParsed } from "./fetchAuthed";
 import { reportError } from "./reportError";
 import { getToday } from "./useToday";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "";
-
 export interface ActivityFeedState {
   /** The feed on screen, seeded from the per-account browser cache. */
   data: AnalyzedActivitiesResponse | null;
@@ -94,7 +92,7 @@ export function useActivityFeed(
   const loadCached = useCallback(async (): Promise<void> => {
     try {
       const parsed = await requestParsed(
-        `${API_URL}/api/coaching/activities/cached?${new URLSearchParams({ timezone: timeZone })}`,
+        `/api/coaching/activities/cached?${new URLSearchParams({ timezone: timeZone })}`,
         auth,
         analyzedActivitiesResponseSchema,
         "Loading the cached activities",
@@ -120,7 +118,7 @@ export function useActivityFeed(
           params.set("refresh", "true");
         }
         const res = await requestParsed(
-          `${API_URL}/api/coaching/activities?${params.toString()}`,
+          `/api/coaching/activities?${params.toString()}`,
           auth,
           analyzedActivitiesResponseSchema,
           "Loading the coaching activities",
@@ -139,7 +137,7 @@ export function useActivityFeed(
   const deleteActivity = useCallback(
     async (activityId: string): Promise<void> => {
       await requestParsed(
-        `${API_URL}/api/coaching/activities/${activityId}?${coachingDateQuery(timeZone)}`,
+        `/api/coaching/activities/${activityId}?${coachingDateQuery(timeZone)}`,
         auth,
         coachingInputSaveResponseSchema,
         "Deleting the activity",
@@ -165,7 +163,7 @@ export function useActivityFeed(
       try {
         const { today } = getToday(timeZone);
         const response = await requestParsed(
-          `${API_URL}/api/coaching/activities/${activityId}/comments`,
+          `/api/coaching/activities/${activityId}/comments`,
           auth,
           coachingInputSaveResponseSchema,
           "Saving your comment",
@@ -209,7 +207,7 @@ export function useActivityFeed(
   const markNoComment = useCallback(
     async (activityId: string): Promise<void> => {
       await requestParsed(
-        `${API_URL}/api/coaching/activities/${activityId}/reviewed`,
+        `/api/coaching/activities/${activityId}/reviewed`,
         auth,
         coachingInputSaveResponseSchema,
         "Marking the activity as reviewed",

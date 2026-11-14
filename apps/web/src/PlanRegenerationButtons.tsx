@@ -15,8 +15,6 @@ import { useTimeZone } from "./TimeZoneContext";
 import { useAbortableRequest } from "./useApiResource";
 import { getToday } from "./useToday";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "";
-
 type PlanAction = Extract<PlanGenerateMode, "newSeason" | "updateSeason">;
 
 interface IntegrationSetup {
@@ -70,7 +68,7 @@ export function PlanRegenerationButtons() {
     async (signal: AbortSignal): Promise<boolean> => {
       const { today } = getToday(timeZone);
       const response = await requestParsed(
-        `${API_URL}/api/coaching/plan?today=${today}`,
+        `/api/coaching/plan?today=${today}`,
         auth,
         coachPlanResponseSchema,
         "Loading your plan",
@@ -89,14 +87,14 @@ export function PlanRegenerationButtons() {
     async (signal: AbortSignal): Promise<IntegrationSetup> => {
       const [garmin, llm] = await Promise.all([
         requestParsed(
-          `${API_URL}/api/garmin/status`,
+          "/api/garmin/status",
           auth,
           garminConnectionStatusSchema,
           "Loading the Garmin status",
           { signal },
         ),
         requestParsed(
-          `${API_URL}/api/llm/settings`,
+          "/api/llm/settings",
           auth,
           llmSettingsSchema,
           "Loading the LLM settings",

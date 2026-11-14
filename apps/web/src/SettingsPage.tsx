@@ -21,8 +21,6 @@ import { useApiResources } from "./useApiResource";
 import { Button } from "./components/Button";
 import { Card } from "./components/Card";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "";
-
 /** The runtime's IANA zones, with a safe fallback for older browsers. */
 function supportedTimeZones(): string[] {
   const intl = Intl as typeof Intl & {
@@ -55,12 +53,12 @@ export function SettingsPage({
     auth.isAuthenticated
       ? {
           garmin: {
-            path: `${API_URL}/api/garmin/status`,
+            path: "/api/garmin/status",
             schema: garminConnectionStatusSchema,
             action: "Loading the Garmin status",
           },
           llm: {
-            path: `${API_URL}/api/llm/settings`,
+            path: "/api/llm/settings",
             schema: llmSettingsSchema,
             action: "Loading the LLM settings",
           },
@@ -91,7 +89,7 @@ export function SettingsPage({
     setTimeZoneError(null);
     try {
       const response = await requestParsed(
-        `${API_URL}/api/me`,
+        "/api/me",
         auth,
         currentUserSchema,
         "Saving the time zone",

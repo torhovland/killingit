@@ -7,8 +7,6 @@ import {
 import type { AuthState } from "./auth";
 import { useApiResources } from "./useApiResource";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "";
-
 export interface IntegrationStatuses {
   garmin: GarminConnectionStatus | null;
   llm: LlmSettings | null;
@@ -27,12 +25,12 @@ export function useStatuses(auth: AuthState): IntegrationStatuses {
     auth.isAuthenticated
       ? {
           garmin: {
-            path: `${API_URL}/api/garmin/status`,
+            path: "/api/garmin/status",
             schema: garminConnectionStatusSchema,
             action: "Loading the Garmin status",
           },
           llm: {
-            path: `${API_URL}/api/llm/settings`,
+            path: "/api/llm/settings",
             schema: llmSettingsSchema,
             action: "Loading the LLM settings",
           },

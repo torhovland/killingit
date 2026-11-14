@@ -14,11 +14,13 @@ import { Bullet, Bullets } from "./Bullet";
 import { CommentSection } from "./CommentSection";
 import { FormattedText } from "./FormattedText";
 import { TrainingLoadLine } from "./TrainingLoadLine";
+import { formatDistanceKm } from "./formatDistance";
 import { useCommentForm } from "./useCommentForm";
 import { useTimeZone } from "./TimeZoneContext";
 import { formatDateTime } from "./timeZone";
 import { Button } from "./components/Button";
 import { Card } from "./components/Card";
+import { CoachReply } from "./components/CoachReply";
 
 /**
  * One synced activity with its coach analysis and program review.
@@ -98,7 +100,7 @@ export function ActivityCard({
     formatActivityType(activity.type),
   ];
   if (activity.distance > 0) {
-    metadata.push(`${(activity.distance / 1000).toFixed(2)} km`);
+    metadata.push(formatDistanceKm(activity.distance));
   }
   const averageSpeed = activityAverageSpeed(activity);
   if (averageSpeed !== null) {
@@ -199,13 +201,10 @@ export function ActivityCard({
         placeholder="How did it feel? Anything the coach should know?"
       >
         {commentForm.shownReply !== null ? (
-          <div
-            className="flex flex-col gap-1 text-base"
-            data-testid="activity-coach-reply"
-          >
-            <span className="font-medium">Coach:</span>
-            <FormattedText text={commentForm.shownReply} />
-          </div>
+          <CoachReply
+            text={commentForm.shownReply}
+            testId="activity-coach-reply"
+          />
         ) : awaitingReply ? (
           <p
             className="text-base text-muted-foreground"

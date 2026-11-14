@@ -122,7 +122,10 @@ On wide screens the log is a list/detail split: the list keeps its own scroll
 area in a left column and the selected call is rendered beside it, so reading a
 prompt never means scrolling past the remaining list entries. Below the `lg`
 breakpoint the list and the detail stack, and an empty pane invites the admin to
-pick a call.
+pick a call. Selecting another call aborts the detail request it supersedes, and
+a settle path that finds its signal aborted never writes to the selection, so a
+detail response that arrives late cannot replace the call the admin selected
+after it.
 
 The Admin settings page uses the full width of the content panel for every
 section, and its development date override comes first, above the athlete

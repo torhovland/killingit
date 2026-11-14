@@ -1,20 +1,23 @@
 import * as Sentry from "@sentry/react";
+import { apiUrl } from "./apiUrl";
 import { reportApiOutdated, withApiVersion } from "./apiVersion";
 import { fetchJson, apiFailure, ApiError } from "./fetchJson";
 import type { AuthState } from "./auth";
 
 /**
- * Fetch JSON, attaching a bearer token when authenticated. Uses the same
- * Sentry-breadcrumb-emitting `fetchJson` underneath. `init.signal` aborts the
- * request, including a token refresh that is waiting to start, and the
- * rejection stays the platform's `AbortError` rather than becoming an
- * {@link ApiError}. A 401 can mean the cached access token expired between
- * renewals, so renew once with the provider's cache bypassed and retry the
- * request before surfacing the failure. A 426 means the API no longer answers
- * this app build's contract version, which the app shows as an update notice.
+ * Fetch JSON, attaching a bearer token when authenticated. Takes an API path
+ * and resolves it against the build's origin with {@link apiUrl}, so no caller
+ * reads `VITE_API_URL`. Uses the same Sentry-breadcrumb-emitting `fetchJson`
+ * underneath. `init.signal` aborts the request, including a token refresh that
+ * is waiting to start, and the rejection stays the platform's `AbortError`
+ * rather than becoming an {@link ApiError}. A 401 can mean the cached access
+ * token expired between renewals, so renew once with the provider's cache
+ * bypassed and retry the request before surfacing the failure. A 426 means the
+ * API no longer answers this app build's contract version, which the app shows
+ * as an update notice.
  */
 export async function fetchJsonAuthed<T>(
-  url: string,
+  path: string,
   auth: AuthState,
   init?: RequestInit,
 ): Promise<T> {
@@ -22,6 +25,7 @@ export async function fetchJsonAuthed<T>(
   signal?.throwIfAborted();
   const token = await auth.getToken();
   signal?.throwIfAborted();
+  const url = apiUrl(path);
   try {
     return await requestJson<T>(url, token, init);
   } catch (error) {
@@ -75,19 +79,20 @@ export interface ResponseSchema<T> {
 
 /**
  * Fetch JSON with {@link fetchJsonAuthed} and validate the body against
- * `schema`. A response that does not match throws one uniform
- * {@link ResponseValidationError} naming the action, so callers never write
- * their own parse-and-throw sequence. `init.signal` is forwarded unchanged and
- * an aborted request rejects without validating a body.
+ * `schema`. The first argument is an API path, which `fetchJsonAuthed`
+ * resolves against the build's origin. A response that does not match throws
+ * one uniform {@link ResponseValidationError} naming the action, so callers
+ * never write their own parse-and-throw sequence. `init.signal` is forwarded
+ * unchanged and an aborted request rejects without validating a body.
  */
 export async function requestParsed<T>(
-  url: string,
+  path: string,
   auth: AuthState,
   schema: ResponseSchema<T>,
   label: string,
   init?: RequestInit,
 ): Promise<T> {
-  const response = await fetchJsonAuthed<unknown>(url, auth, init);
+  const response = await fetchJsonAuthed<unknown>(path, auth, init);
   const parsed = schema.safeParse(response);
   if (!parsed.success) {
     throw new ResponseValidationError(label, { cause: parsed.error });
@@ -103,11 +108,12 @@ export interface DownloadedFile {
 
 /**
  * Fetch a binary response, applying the same authentication, one-shot token
- * refresh and `init.signal` abort handling as {@link fetchJsonAuthed}. Used for
- * file downloads such as workout exports, where the response is not JSON.
+ * refresh and `init.signal` abort handling as {@link fetchJsonAuthed}. Takes an
+ * API path, resolved against the build's origin, and is used for file
+ * downloads such as workout exports, where the response is not JSON.
  */
 export async function fetchFileAuthed(
-  url: string,
+  path: string,
   auth: AuthState,
   init?: RequestInit,
 ): Promise<DownloadedFile> {
@@ -115,6 +121,7 @@ export async function fetchFileAuthed(
   signal?.throwIfAborted();
   const token = await auth.getToken();
   signal?.throwIfAborted();
+  const url = apiUrl(path);
   try {
     return await requestFile(url, token, init);
   } catch (error) {

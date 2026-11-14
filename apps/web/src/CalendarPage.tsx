@@ -7,8 +7,6 @@ import { useTimeZone } from "./TimeZoneContext";
 import { useApiResource } from "./useApiResource";
 import { getToday } from "./useToday";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "";
-
 /** Loads the calendar's activities, plan sessions, and range bounds. */
 export function CalendarPage() {
   const auth = useAuth();
@@ -17,7 +15,7 @@ export function CalendarPage() {
   const [month, setMonth] = useState(() => monthOf(today));
   const query = new URLSearchParams({ today, timezone: timeZone }).toString();
   const calendar = useApiResource(
-    auth.isAuthenticated ? `${API_URL}/api/calendar?${query}` : null,
+    auth.isAuthenticated ? `/api/calendar?${query}` : null,
     calendarResponseSchema,
     "Loading the calendar",
     { statusSource: "calendar-page" },

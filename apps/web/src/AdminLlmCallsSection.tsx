@@ -12,12 +12,11 @@ import { formatCostUsd } from "./costChart";
 import { requestParsed } from "./fetchAuthed";
 import { reportError } from "./reportError";
 import { browserTimeZone, formatDateTime } from "./timeZone";
-import { useApiResource } from "./useApiResource";
+import { useAbortableRequest, useApiResource } from "./useApiResource";
 import { Button } from "./components/Button";
 import { cn } from "./components/cn";
 import { Card } from "./components/Card";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "";
 const PAGE_SIZE = 50;
 
 /**
@@ -29,9 +28,7 @@ const PAGE_SIZE = 50;
 export function AdminLlmCallsSection() {
   const auth = useAuth();
   const callsResource = useApiResource(
-    auth.isAuthenticated
-      ? `${API_URL}/api/admin/llm-calls?limit=${PAGE_SIZE}`
-      : null,
+    auth.isAuthenticated ? `/api/admin/llm-calls?limit=${PAGE_SIZE}` : null,
     llmCallsResponseSchema,
     "Loading LLM calls",
   );
@@ -41,29 +38,46 @@ export function AdminLlmCallsSection() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
 
-  async function selectCall(id: number): Promise<void> {
+  // Selecting another call aborts the detail request it supersedes. The abort
+  // check on every settle path also stops a response that was already on its
+  // way from writing over the newer selection.
+  const [loadDetail, abortDetail] = useAbortableRequest(
+    async (signal: AbortSignal, id: number): Promise<void> => {
+      try {
+        const call = await requestParsed(
+          `/api/admin/llm-calls/${id}`,
+          auth,
+          llmCallDetailSchema,
+          "Loading the LLM call",
+          { signal },
+        );
+        if (!signal.aborted) {
+          setSelected(call);
+        }
+      } catch (err: unknown) {
+        if (!signal.aborted) {
+          setDetailError(reportError(err));
+          setSelectedId(null);
+        }
+      } finally {
+        if (!signal.aborted) {
+          setDetailLoading(false);
+        }
+      }
+    },
+  );
+
+  function selectCall(id: number): void {
     if (id === selectedId) {
       return;
     }
+    abortDetail();
     setSelectedId(id);
     setSelected(null);
     setDetailLoading(true);
     setDetailError(null);
     callsResource.setError(null);
-    try {
-      const selected = await requestParsed(
-        `${API_URL}/api/admin/llm-calls/${id}`,
-        auth,
-        llmCallDetailSchema,
-        "Loading the LLM call",
-      );
-      setSelected(selected);
-    } catch (err: unknown) {
-      setDetailError(reportError(err));
-      setSelectedId(null);
-    } finally {
-      setDetailLoading(false);
-    }
+    void loadDetail(id);
   }
 
   return (

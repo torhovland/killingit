@@ -13,8 +13,6 @@ import { QuestionRow } from "./QuestionRow";
 import { useApiResource } from "./useApiResource";
 import { Button } from "./components/Button";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "";
-
 /**
  * Admin surface for the versioned athlete question set (ADR 0005). Creating a
  * question stores version 1; editing appends a version; deleting archives the
@@ -23,7 +21,7 @@ const API_URL = import.meta.env.VITE_API_URL ?? "";
 export function AdminQuestionsSection() {
   const auth = useAuth();
   const resource = useApiResource(
-    auth.isAuthenticated ? `${API_URL}/api/admin/questions` : null,
+    auth.isAuthenticated ? "/api/admin/questions" : null,
     questionsResponseSchema,
     "Loading questions",
   );
@@ -42,7 +40,7 @@ export function AdminQuestionsSection() {
 
   async function createQuestion(input: QuestionInput): Promise<void> {
     const created = await requestParsed(
-      `${API_URL}/api/admin/questions`,
+      "/api/admin/questions",
       auth,
       questionSchema,
       "Creating the question",
@@ -59,7 +57,7 @@ export function AdminQuestionsSection() {
 
   async function saveQuestion(id: number, input: QuestionInput): Promise<void> {
     const updated = await requestParsed(
-      `${API_URL}/api/admin/questions/${id}/versions`,
+      `/api/admin/questions/${id}/versions`,
       auth,
       questionSchema,
       "Saving the question",
@@ -96,7 +94,7 @@ export function AdminQuestionsSection() {
     next.splice(target, 0, moved);
 
     const response = await requestParsed(
-      `${API_URL}/api/admin/questions/order`,
+      "/api/admin/questions/order",
       auth,
       questionsResponseSchema,
       "Reordering questions",
@@ -112,7 +110,7 @@ export function AdminQuestionsSection() {
 
   async function deleteQuestion(id: number): Promise<void> {
     const response = await requestParsed(
-      `${API_URL}/api/admin/questions/${id}`,
+      `/api/admin/questions/${id}`,
       auth,
       questionArchivedResponseSchema,
       "Archiving the question",

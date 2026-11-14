@@ -114,7 +114,7 @@ describe("Modal", () => {
     await user.click(within(dialog).getByRole("heading"));
     expect(closed).toBe(0);
 
-    await user.click(screen.getByRole("presentation"));
+    await user.click(screen.getByRole("button", { name: "Close dialog" }));
     expect(closed).toBe(1);
   });
 

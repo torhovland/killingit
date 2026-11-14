@@ -12,8 +12,6 @@ import { reviewKey, selectPendingReviews } from "./pendingReviews";
 import { reportError } from "./reportError";
 import { getToday } from "./useToday";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "";
-
 export interface CoachReviewsState {
   reviews: PeriodReview[];
   /** Reviews that still need the athlete's attention this visit. */
@@ -48,7 +46,7 @@ export function useCoachReviews(
   const load = useCallback(async (): Promise<void> => {
     try {
       const response = await requestParsed(
-        `${API_URL}/api/coaching/reviews`,
+        "/api/coaching/reviews",
         auth,
         periodReviewsResponseSchema,
         "Loading your week and block reviews",
@@ -83,7 +81,7 @@ export function useCoachReviews(
       try {
         const { today } = getToday(timeZone);
         const response = await requestParsed(
-          `${API_URL}/api/coaching/reviews/${kind}/${startDate}/comments`,
+          `/api/coaching/reviews/${kind}/${startDate}/comments`,
           auth,
           coachingInputSaveResponseSchema,
           "Saving your comment",
@@ -112,7 +110,7 @@ export function useCoachReviews(
   const markNoComment = useCallback(
     async (kind: ReviewKind, startDate: string): Promise<void> => {
       await requestParsed(
-        `${API_URL}/api/coaching/reviews/${kind}/${startDate}/reviewed`,
+        `/api/coaching/reviews/${kind}/${startDate}/reviewed`,
         auth,
         coachingInputSaveResponseSchema,
         "Marking the review as reviewed",

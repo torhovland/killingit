@@ -1,7 +1,26 @@
-import { describe, expect, it } from "bun:test";
+import { afterEach, describe, expect, it, mock } from "bun:test";
 import type { LlmCallDetail, LlmCallSummary } from "@killingit/shared";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { renderToStaticMarkup } from "react-dom/server";
-import { LlmCallDetailView, LlmCallsView } from "./AdminLlmCallsSection";
+
+const { SessionExpiredError } = await import("./auth/session");
+
+await mock.module("./auth", () => ({
+  SessionExpiredError,
+  useAuth: () => ({
+    isAuthenticated: true,
+    isLoading: false,
+    sub: "admin",
+    login: () => Promise.resolve(),
+    logout: () => Promise.resolve(),
+    getToken: () => Promise.resolve("token"),
+  }),
+}));
+
+const { AdminLlmCallsSection, LlmCallDetailView, LlmCallsView } =
+  await import("./AdminLlmCallsSection");
+const { AppStatusProvider } = await import("./AppStatus");
 
 const summary: LlmCallSummary = {
   id: 12,
@@ -222,5 +241,119 @@ describe("LlmCallDetailView", () => {
     expect(html).toContain("Retry");
     expect(html).toContain("Plan failed");
     expect(html).toContain("Plan failure: The season has a gap.");
+  });
+});
+
+const otherSummary: LlmCallSummary = {
+  ...summary,
+  id: 13,
+  kind: "plan_update",
+  model: "openrouter/other-model",
+};
+
+function detailFor(call: LlmCallSummary, response: string): LlmCallDetail {
+  return {
+    ...detail,
+    ...call,
+    response,
+  };
+}
+
+interface PendingResponse {
+  promise: Promise<Response>;
+  resolve: (response: Response) => void;
+}
+
+function pendingResponse(): PendingResponse {
+  let resolve: (response: Response) => void = () => undefined;
+  const promise = new Promise<Response>((settle) => {
+    resolve = settle;
+  });
+  return { promise, resolve };
+}
+
+function json(body: unknown): Response {
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { "content-type": "application/json" },
+  });
+}
+
+const originalFetch = globalThis.fetch;
+
+/** Serves the list immediately and lets each detail answer in any order. */
+function stubCalls(
+  first: PendingResponse,
+  second: PendingResponse,
+): Array<AbortSignal | undefined> {
+  const detailSignals: Array<AbortSignal | undefined> = [];
+  globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) => {
+    const url =
+      typeof input === "string"
+        ? input
+        : input instanceof URL
+          ? input.href
+          : input.url;
+    if (url.includes("/api/admin/llm-calls?limit")) {
+      return Promise.resolve(json({ calls: [summary, otherSummary] }));
+    }
+    const match = /\/api\/admin\/llm-calls\/(\d+)$/.exec(url);
+    if (match?.[1] === "12") {
+      detailSignals.push(init?.signal ?? undefined);
+      return first.promise;
+    }
+    if (match?.[1] === "13") {
+      detailSignals.push(init?.signal ?? undefined);
+      return second.promise;
+    }
+    return Promise.reject(new Error(`Unexpected fetch: ${url}`));
+  }) as typeof fetch;
+  return detailSignals;
+}
+
+afterEach(() => {
+  globalThis.fetch = originalFetch;
+});
+
+describe("AdminLlmCallsSection", () => {
+  it("keeps the newest selected call when an older detail arrives last", async () => {
+    const user = userEvent.setup();
+    const first = pendingResponse();
+    const second = pendingResponse();
+    const signals = stubCalls(first, second);
+    render(
+      <AppStatusProvider>
+        <AdminLlmCallsSection />
+      </AppStatusProvider>,
+    );
+
+    await user.click(
+      await screen.findByRole("button", { name: /Season plan/ }),
+    );
+    await waitFor(() => expect(signals).toHaveLength(1));
+
+    await user.click(
+      await screen.findByRole("button", { name: /Plan update/ }),
+    );
+    await waitFor(() => expect(signals).toHaveLength(2));
+
+    // The newest request answers first, then the superseded one arrives late.
+    second.resolve(json(detailFor(otherSummary, "The newest call")));
+    expect(await screen.findByText("The newest call")).toBeDefined();
+
+    first.resolve(json(detailFor(summary, "The stale call")));
+
+    // Let the late response run its full settle path before asserting.
+    await waitFor(
+      async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(screen.queryByText("The stale call")).toBeNull();
+        expect(screen.getByText("The newest call")).toBeDefined();
+      },
+      { timeout: 500, interval: 10 },
+    );
+    // The superseded request was aborted too, rather than merely ignored.
+    expect(signals[0]?.aborted).toBe(true);
+    expect(signals[1]?.aborted).toBe(false);
   });
 });

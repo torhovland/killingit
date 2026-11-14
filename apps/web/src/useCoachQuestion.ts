@@ -9,8 +9,6 @@ import { requestParsed } from "./fetchAuthed";
 import { reportError } from "./reportError";
 import { getToday } from "./useToday";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "";
-
 export interface CoachQuestionState {
   question: CoachQuestion | null;
   error: string | null;
@@ -31,7 +29,7 @@ export function useCoachQuestion(
   const load = useCallback(async (): Promise<void> => {
     try {
       const response = await requestParsed(
-        `${API_URL}/api/coaching/coach-questions`,
+        "/api/coaching/coach-questions",
         auth,
         coachQuestionsResponseSchema,
         "Loading the coach's questions",
@@ -53,7 +51,7 @@ export function useCoachQuestion(
     async (id: number, answer: string): Promise<string | null> => {
       const { today } = getToday(timeZone);
       const parsed = await requestParsed(
-        `${API_URL}/api/coaching/coach-questions/${id}/answer`,
+        `/api/coaching/coach-questions/${id}/answer`,
         auth,
         coachingInputSaveResponseSchema,
         "Saving your answer",

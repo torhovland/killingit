@@ -159,10 +159,15 @@ Weather and daylight are included in the plan prompts; see
 
 - `OpenRouterKeySection.tsx` — key entry with an explicit Save button, a green
   connected status, and an update action, mirroring `GarminSection.tsx`.
-- `LlmSection.tsx` — the sortable, filterable graded model table; catalog loaded
-  via `GET /api/llm/catalog`. Once a key is stored, both model choices are saved
-  as soon as a radio button is clicked. Before the first key save the choices
-  stay local and are sent with the key.
+- `LlmSection.tsx` — the Settings-page entry point for the sortable, filterable
+  graded model table; catalog loaded via `GET /api/llm/catalog`. Once a key is
+  stored, both model choices are saved as soon as a radio button is clicked.
+  Before the first key save the choices stay local and are sent with the key.
+  Its pieces live in `llm/`: `useLlmCatalog` loads the catalog and owns the
+  filter and sort state, `ModelFilters` renders the filter bar through one
+  `GradeSelect` with the shared `LLM_GRADES` and `isLlmModelGrade` guard,
+  `ModelTable` renders the sortable table and its two selection radios, and
+  `useQueuedSave` persists the choices one attempt at a time.
 - `ActivityCard.tsx` — presentational activity summary + analysis.
 - `CoachDashboard.tsx` — loads Garmin/LLM status, then the latest analysed
   activities; offers "Sync & re-analyze".

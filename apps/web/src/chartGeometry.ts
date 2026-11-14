@@ -219,6 +219,56 @@ export function zoneBlocks(
   })).filter((block) => block.to > block.from);
 }
 
+/** One point on a chart path: the day it sits on and the value to draw. */
+interface ChartPathPoint {
+  index: number;
+  value: number | null;
+}
+
+/**
+ * An SVG path through the points in order. A null value starts a new subpath,
+ * so a series with no measurement on a day is not drawn across that gap. The
+ * points carry their day index, so a sparse series keeps the chart's scale.
+ */
+export function chartPath(
+  points: readonly ChartPathPoint[],
+  scale: ChartScale,
+): string {
+  let path = "";
+  let open = false;
+  for (const point of points) {
+    if (point.value === null) {
+      open = false;
+      continue;
+    }
+    path += `${open ? "L" : "M"}${roundChartValue(scale.x(point.index))} ${roundChartValue(scale.y(point.value))} `;
+    open = true;
+  }
+  return path.trim();
+}
+
+/**
+ * The path points for a dated series, on the days the index map knows and
+ * within the inclusive day-index range. A date the map does not know is left
+ * out, so the line joins the days around it instead of breaking.
+ */
+export function datedPathPoints(
+  points: readonly { date: string; value: number }[],
+  dayIndex: ReadonlyMap<string, number>,
+  range: { from?: number; to?: number } = {},
+): ChartPathPoint[] {
+  const { from = 0, to = Number.POSITIVE_INFINITY } = range;
+  const pathPoints: ChartPathPoint[] = [];
+  for (const point of points) {
+    const index = dayIndex.get(point.date);
+    if (index === undefined || index < from || index > to) {
+      continue;
+    }
+    pathPoints.push({ index, value: point.value });
+  }
+  return pathPoints;
+}
+
 /** A path that breaks wherever a series has no value on a day. */
 export function nullAwarePath(
   values: readonly (number | null)[],
@@ -226,18 +276,11 @@ export function nullAwarePath(
   start: number,
   end: number,
 ): string {
-  let path = "";
-  let open = false;
+  const points: ChartPathPoint[] = [];
   for (let index = start; index <= end; index += 1) {
-    const value = values[index];
-    if (value === null || value === undefined) {
-      open = false;
-      continue;
-    }
-    path += `${open ? "L" : "M"}${round(scale.x(index))} ${round(scale.y(value))} `;
-    open = true;
+    points.push({ index, value: values[index] ?? null });
   }
-  return path.trim();
+  return chartPath(points, scale);
 }
 
 /**
@@ -268,12 +311,10 @@ export function linePath(
   scale: ChartScale,
   start = 0,
 ): string {
-  return values
-    .map((value, offset) => {
-      const index = start + offset;
-      return `${offset === 0 ? "M" : "L"}${round(scale.x(index))} ${round(scale.y(value))}`;
-    })
-    .join(" ");
+  return chartPath(
+    values.map((value, offset) => ({ index: start + offset, value })),
+    scale,
+  );
 }
 
 /** A short axis label for a `YYYY-MM-DD` date, e.g. `12 Oct`. */
@@ -301,6 +342,10 @@ const MONTHS = [
   "Dec",
 ] as const;
 
-function round(value: number): number {
+/**
+ * Rounds a chart coordinate or a value shown on a chart to a tenth. That is
+ * finer than a rendered pixel and keeps the SVG's path strings short.
+ */
+export function roundChartValue(value: number): number {
   return Math.round(value * 10) / 10;
 }

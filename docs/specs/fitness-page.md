@@ -239,6 +239,13 @@ API:
   render-prop that draws its series inside the plot, so the line charts, the
   stacked sleep chart and the calorie bars use the same frame. A chart can add a
   footer, and the body chart adds a right axis.
+- Every chart path is built by `chartPath` in
+  `apps/web/src/chartGeometry.ts`, which owns the `M`/`L` assembly and the one
+  coordinate rounding (`roundChartValue`). A chart supplies points with a day
+  index and a value; `linePath` and `nullAwarePath` shape a value array, and
+  `datedPathPoints` shapes a dated series for the body chart, whose sparse diet
+  targets are joined across instead of broken. A null value starts a new
+  subpath. See ADR 0049.
 - The charts are static SVG (no new dependency), scale with the page width, and
   carry an accessible title.
 - Loading, error, and (when there is no planned or recorded training) empty
@@ -297,6 +304,8 @@ API:
 - API route tests: auth, missing date, day clamping, and the happy path.
 - Web unit tests for the chart scale helpers and the shared chart frame
   (caption, left and right axes, date labels, render-prop series, legend and
-  footer), a render test for the page view (load line, zone legend, both charts,
-  hidden FTP chart, body chart and its hidden states, the Garmin Today columns
-  and the recovery/sleep charts), and a render test for the hover card.
+  footer), the one path builder (a line, a gap, a skipped day and the
+  coordinate rounding), a render test for the page view (load line, zone legend,
+  both charts, hidden FTP chart, body chart and its hidden states, the Garmin
+  Today columns and the recovery/sleep charts), and a render test for the hover
+  card.

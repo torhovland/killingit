@@ -7,7 +7,8 @@ import type {
   CalendarResponse,
   WeekSession,
 } from "@killingit/shared";
-import { CalendarEntryDialog, CalendarView } from "./CalendarView";
+import { CalendarEntryDialog } from "./calendar/CalendarEntryDialog";
+import { CalendarView } from "./CalendarView";
 
 const recorded: CalendarImportedActivity = {
   source: "garmin",
@@ -466,7 +467,7 @@ describe("CalendarView dialog interaction", () => {
     await user.click(activity);
     expect(screen.getByTestId("calendar-dialog-coach-reply")).toBeDefined();
 
-    await user.click(screen.getByRole("presentation"));
+    await user.click(screen.getByRole("button", { name: "Close dialog" }));
     expect(screen.queryByRole("dialog")).toBeNull();
 
     await user.click(screen.getByRole("button", { name: /Morning ride/ }));

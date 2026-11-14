@@ -6,11 +6,14 @@ import type {
 } from "@killingit/shared";
 import {
   axisTicks,
+  chartPath,
   chartScale,
+  datedPathPoints,
   formatChartDate,
   FUTURE_DASH,
   lastIndexOnOrBefore,
   niceDomain,
+  roundChartValue,
 } from "./chartGeometry";
 import {
   datesAfter,
@@ -175,11 +178,11 @@ export function BodyChart({
             <p className="font-medium">{formatChartDate(hovered.day.date)}</p>
             {values.weight !== null && <p>Weight {values.weight} kg</p>}
             {values.targetWeight !== null && (
-              <p>Target weight {round(values.targetWeight)} kg</p>
+              <p>Target weight {roundChartValue(values.targetWeight)} kg</p>
             )}
             {values.fat !== null && <p>Body fat {values.fat}%</p>}
             {values.targetFat !== null && (
-              <p>Target body fat {round(values.targetFat)}%</p>
+              <p>Target body fat {roundChartValue(values.targetFat)}%</p>
             )}
             {values.weight === null &&
               values.fat === null &&
@@ -220,13 +223,21 @@ export function BodyChart({
             {weightScale !== null && (
               <>
                 <path
-                  d={metricPath(weight, dayIndex, weightScale, split, "past")}
+                  d={chartPath(
+                    datedPathPoints(weight, dayIndex, { to: split }),
+                    weightScale,
+                  )}
                   className="fill-none stroke-primary"
                   strokeWidth={2.5}
                   data-series="weight"
                 />
                 <path
-                  d={metricPath(weight, dayIndex, weightScale, split, "future")}
+                  d={chartPath(
+                    datedPathPoints(weight, dayIndex, {
+                      from: Math.max(split, 0),
+                    }),
+                    weightScale,
+                  )}
                   className="fill-none stroke-primary"
                   strokeWidth={2.5}
                   strokeDasharray={FUTURE_DASH}
@@ -238,13 +249,21 @@ export function BodyChart({
             {fatScale !== null && (
               <>
                 <path
-                  d={metricPath(bodyFat, dayIndex, fatScale, split, "past")}
+                  d={chartPath(
+                    datedPathPoints(bodyFat, dayIndex, { to: split }),
+                    fatScale,
+                  )}
                   className="fill-none stroke-chart-ink-muted"
                   strokeWidth={1.5}
                   data-series="body-fat"
                 />
                 <path
-                  d={metricPath(bodyFat, dayIndex, fatScale, split, "future")}
+                  d={chartPath(
+                    datedPathPoints(bodyFat, dayIndex, {
+                      from: Math.max(split, 0),
+                    }),
+                    fatScale,
+                  )}
                   className="fill-none stroke-chart-ink-muted"
                   strokeWidth={1.5}
                   strokeDasharray={FUTURE_DASH}
@@ -256,7 +275,10 @@ export function BodyChart({
             {weightScale !== null && weightTargets.length > 0 && (
               <>
                 <path
-                  d={targetPath(weightTargets, dayIndex, weightScale)}
+                  d={chartPath(
+                    datedPathPoints(weightTargets, dayIndex),
+                    weightScale,
+                  )}
                   className="fill-none stroke-chart-ink"
                   strokeWidth={2}
                   strokeDasharray={TARGET_DASH}
@@ -277,7 +299,7 @@ export function BodyChart({
             {fatScale !== null && fatTargets.length > 0 && (
               <>
                 <path
-                  d={targetPath(fatTargets, dayIndex, fatScale)}
+                  d={chartPath(datedPathPoints(fatTargets, dayIndex), fatScale)}
                   className="fill-none stroke-chart-ink-muted"
                   strokeWidth={1.5}
                   strokeDasharray={TARGET_DASH}
@@ -349,64 +371,4 @@ function valueOnDay(
     points.find((entry) => entry.date === date) ??
     lastPointOnOrBefore(points, date);
   return point ? { date, value: point.value } : null;
-}
-
-/**
- * A path through the target points, which all fall on or after today. The
- * points may be sparse, so the segments between periods are straight.
- */
-function targetPath(
-  points: readonly BodyTargetPoint[],
-  dayIndex: ReadonlyMap<string, number>,
-  scale: ReturnType<typeof chartScale>,
-): string {
-  const commands: string[] = [];
-  for (const point of points) {
-    const index = dayIndex.get(point.date);
-    if (index === undefined) {
-      continue;
-    }
-    commands.push(
-      `${commands.length === 0 ? "M" : "L"}${round(scale.x(index))} ${round(
-        scale.y(point.value),
-      )}`,
-    );
-  }
-  return commands.join(" ");
-}
-
-/**
- * A path through the days with a value, split before and after today. The
- * series may start after the window's first day, so the path is built from the
- * real day index rather than the point's position in its own array.
- */
-function metricPath(
-  points: readonly FitnessMetricPoint[],
-  dayIndex: ReadonlyMap<string, number>,
-  scale: ReturnType<typeof chartScale>,
-  split: number,
-  part: "past" | "future",
-): string {
-  const commands: string[] = [];
-  for (const point of points) {
-    const index = dayIndex.get(point.date);
-    if (index === undefined) {
-      continue;
-    }
-    const inPart =
-      part === "future" ? split < 0 || index >= split : index <= split;
-    if (!inPart) {
-      continue;
-    }
-    commands.push(
-      `${commands.length === 0 ? "M" : "L"}${round(scale.x(index))} ${round(
-        scale.y(point.value),
-      )}`,
-    );
-  }
-  return commands.join(" ");
-}
-
-function round(value: number): number {
-  return Math.round(value * 10) / 10;
 }

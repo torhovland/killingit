@@ -6,8 +6,6 @@ import { requestParsed } from "./fetchAuthed";
 import { reportError } from "./reportError";
 import { getToday } from "./useToday";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "";
-
 export interface QuickQuestionState {
   question: string;
   reply: string | null;
@@ -38,7 +36,7 @@ export function useQuickQuestion(
     try {
       const { today } = getToday(timeZone);
       const response = await requestParsed(
-        `${API_URL}/api/coaching/questions`,
+        "/api/coaching/questions",
         auth,
         quickQuestionResponseSchema,
         "Asking the coach",

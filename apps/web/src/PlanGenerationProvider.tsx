@@ -25,8 +25,6 @@ import { reportError } from "./reportError";
 import { useTimeZone } from "./TimeZoneContext";
 import { getToday } from "./useToday";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "";
-
 interface PlanGenerationContextValue {
   /** Whether the coach is currently generating or refreshing the plan. */
   running: boolean;
@@ -115,7 +113,7 @@ export function PlanGenerationProvider({ children }: { children: ReactNode }) {
   const fetchPlan = useCallback(
     (today: string, includeTomorrow: boolean) =>
       requestParsed(
-        `${API_URL}/api/coaching/plan?today=${today}&includeTomorrow=${includeTomorrow}`,
+        `/api/coaching/plan?today=${today}&includeTomorrow=${includeTomorrow}`,
         authRef.current,
         coachPlanResponseSchema,
         "Loading your plan",
@@ -210,7 +208,7 @@ export function PlanGenerationProvider({ children }: { children: ReactNode }) {
       }
       const { today, isAfter18 } = getToday(timeZoneRef.current);
       const request = fetchJsonAuthed<unknown>(
-        `${API_URL}/api/coaching/plan/generate`,
+        "/api/coaching/plan/generate",
         authRef.current,
         {
           method: "POST",

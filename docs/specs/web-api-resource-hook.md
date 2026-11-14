@@ -55,7 +55,7 @@ hiding the late result.
 
 ```ts
 const calendar = useApiResource(
-  auth.isAuthenticated ? `${API_URL}/api/calendar?${query}` : null,
+  auth.isAuthenticated ? `/api/calendar?${query}` : null,
   calendarResponseSchema,
   "Loading the calendar",
   { statusSource: "calendar-page" },
@@ -63,6 +63,8 @@ const calendar = useApiResource(
 ```
 
 The path is the effect key, so every input that should refetch belongs in it.
+The base URL is added once, by `requestParsed`; see
+`docs/specs/web-api-base-url.md`.
 The hook does not take a dependency array: `react-hooks/exhaustive-deps` cannot
 statically verify a spread or a caller-supplied list, and a path that encodes
 the query is both simpler and harder to get wrong.
@@ -100,6 +102,10 @@ spinner omits `statusSource`.
   `reload`, a superseded path whose late response is dropped, and an unmount
   that aborts without surfacing an error. See
   `docs/specs/web-interaction-tests.md`.
+- The Diet page's own race is pinned by `apps/web/src/DietPage.test.tsx`: a
+  meal edit reloads the summary, a day change aborts that reload, and the
+  superseded response that resolves last cannot replace the new day's totals.
+  A page that hand-writes its load again and loses the abort fails the suite.
 
 ## Data model and API impact
 

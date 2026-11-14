@@ -25,10 +25,6 @@ import { TimeZoneProvider } from "./TimeZoneContext";
 import { useAthleteQuestions } from "./useAthleteQuestions";
 import { Button } from "./components/Button";
 
-// Absolute API origin for deployed environments (e.g. the Cloud Run URL).
-// Empty string keeps relative "/api" for the local Vite dev proxy.
-const API_URL = import.meta.env.VITE_API_URL ?? "";
-
 export function App() {
   return (
     <AppStatusProvider>
@@ -95,7 +91,7 @@ function AppShell() {
   // its own 24-hour timestamp, so this is cheap on every other visit.
   useEffect(() => {
     if (!auth.isAuthenticated) return;
-    void fetchJsonAuthed<unknown>(`${API_URL}/api/llm/models/refresh`, auth, {
+    void fetchJsonAuthed<unknown>("/api/llm/models/refresh", auth, {
       method: "POST",
     }).catch(() => {
       // A catalog refresh must never block the page.
@@ -111,7 +107,7 @@ function AppShell() {
       return;
     }
     requestParsed(
-      `${API_URL}/api/me`,
+      "/api/me",
       auth,
       currentUserSchema,
       "Loading the current user",

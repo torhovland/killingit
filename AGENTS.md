@@ -98,9 +98,11 @@ about a past workout, or before a suggested workout, to steer the coach.
 - Every completion attempt is stored in `llm_calls` with its full messages,
   response or error, model, usage, and request metadata. The admin settings
   page lists them under "LLM prompts" (`GET /api/admin/llm-calls`). Logging is
-  admin-only and fail-open, so a log write can never break coaching. See
-  `docs/specs/llm-call-log.md`. OpenRouter's reported `usage.cost` is stored
-  per call, and the **AI costs** page (above Settings in the menu,
+  admin-only and fail-open, so a log write can never break coaching. Selecting
+  another call aborts the detail request it supersedes, so a late response
+  cannot replace the current selection. See `docs/specs/llm-call-log.md`.
+  OpenRouter's reported `usage.cost` is stored per call, and the **AI costs**
+  page (above Settings in the menu,
   `GET /api/llm/costs`) charts monthly and daily spend stacked either by model
   or by prompt type for the account; calls written before cost capture are
   estimated from token usage and the catalog's current list prices. See
@@ -488,24 +490,41 @@ made and recorded, and `docs/adrs/` for the accepted ones.
   body against the shared schema, and throws one `ResponseValidationError`
   whose message names the action and whose cause is the schema error. Call
   sites must not hand-write `safeParse` plus their own throw; see
-  `docs/specs/web-api-request-parsing.md`. A page or hook that loads a resource
-  uses `useApiResource` / `useApiResources` from
+  `docs/specs/web-api-request-parsing.md`. Both helpers take an API path such
+  as `/api/calendar?month=2026-11` and resolve it against the build's origin,
+  which is read once in `apps/web/src/apiUrl.ts`; no other web module reads
+  `VITE_API_URL`, and an ESLint rule enforces it. See
+  `docs/specs/web-api-base-url.md` and ADR 0044. A page or hook that loads a
+  resource uses `useApiResource` / `useApiResources` from
   `apps/web/src/useApiResource.ts` instead of hand-writing a loading/error
   effect: the hook owns the `AbortController` (so a superseded or unmounted
   load cancels its request and never surfaces as an error), the loading and
   error state, `reload`, and the optional app-status registration. The path is
   the effect key, and `RequestInit.signal` is threaded through `requestParsed`
-  to the native fetch; see `docs/specs/web-api-resource-hook.md`.
+  to the native fetch; see `docs/specs/web-api-resource-hook.md`. A page that
+  polls — the dashboard waiting for a coach reply — uses `pollCoachReplies` in
+  `apps/web/src/coachReplyPoll.ts`, which starts its next request only after the
+  previous response settled, so slow responses cannot stack or apply out of
+  order; see `docs/specs/coach-reply-polling.md`.
 - We build our own **component library** under `apps/web/src/components/`.
-  `Button`, `Input`, `Textarea`, `Select`, `Card`, `HiddenFileInput`,
-  `StatusBadge` and `Modal` are the primitives; page components stay flat in
-  `apps/web/src/` beside their tests, while a page's own sections may move into
-  a named directory (`plan/` holds the coach plan's tab sections). `Modal` owns
-  the backdrop, focus trap, Escape close and focus restore for every dialog.
+  `Button`, `Input`, `Textarea`, `Select`, `Card`, `Chip`, `HiddenFileInput`,
+  `StatusBadge`, `CoachReply` and `Modal` are the primitives; page components
+  stay flat in `apps/web/src/` beside their tests, while a page's own sections
+  may move into a named directory (`plan/` holds the coach plan's tab sections,
+  `llm/` the OpenRouter model picker's catalog, filters, table and save queue,
+  and `calendar/` the calendar's grid, week overview, day cell and detail
+  dialog). `Modal` owns the backdrop, focus trap, Escape close and focus
+  restore for every dialog.
   Add a primitive when markup and styling are genuinely shared instead of
   repeating a class string in a page. See
   `docs/specs/web-component-library.md`, `docs/specs/modal-dialog.md` and
   ADR 0027.
+- Every fitness chart draws its lines through `chartPath` in
+  `apps/web/src/chartGeometry.ts`: a chart supplies points with a day index and
+  a value, and the module owns the `M`/`L` assembly and the single coordinate
+  rounding (`roundChartValue`). `linePath`, `nullAwarePath` and
+  `datedPathPoints` only shape a series into points, and a chart does not build
+  path strings of its own. See `docs/specs/fitness-page.md` and ADR 0049.
 - Web unit tests render components for real: `@testing-library/react` and
   `@testing-library/user-event` run against `happy-dom`, registered as a
   `bun:test` preload in `apps/web/bunfig.toml` with `src/testSetup.ts`. Effects,
@@ -514,11 +533,25 @@ made and recorded, and `docs/adrs/` for the accepted ones.
   `renderToStaticMarkup`; the static renderer is only for assertions about the
   exact markup. Every `Modal` dialog, `useApiResource` load, race and abort has
   such a test. See `docs/specs/web-interaction-tests.md`.
+- A form value that comes from the server is derived, not copied: `usePropDraft`
+  (`apps/web/src/usePropDraft.ts`) keeps the athlete's unsaved edit while the
+  incoming value is unchanged and lets a genuinely new value win, so a parent
+  re-render cannot discard a draft and no effect re-renders the form. The
+  location picker and the LLM model picker use it; see
+  `docs/specs/web-form-drafts.md` and ADR 0046.
 - Every web hook is checked by `eslint-plugin-react-hooks`:
   `react-hooks/rules-of-hooks` and `react-hooks/exhaustive-deps` are errors in
   `eslint.config.js`. `useAuth` returns a stable session object, so an effect
   lists `auth` or `auth.getToken` instead of narrowing to
   `auth.isAuthenticated`; see `docs/specs/auth-integration.md`.
+- The web app's JSX is checked by `eslint-plugin-jsx-a11y` with the
+  plugin's recommended rules, as errors, in the same root `eslint.config.js`
+  invocation that CI already runs. A missing `alt`, a detached label, a click
+  handler on a non-interactive element or a positive tab index fails
+  `bun run lint`. The primitives are declared as the native controls they
+  render so a wrapping `<label>` counts as associated. Static rules cannot
+  judge focus management or chart alternatives, which stay in their own a11y
+  issues; see `docs/specs/accessibility-lint.md` and ADR 0041.
 - **Tailwind CSS** (v4, through `@tailwindcss/vite`) is the styling foundation.
   The primitives compose utility classes through `cn()`, which combines `clsx`
   and `tailwind-merge` so a caller's `className` overrides a default. The

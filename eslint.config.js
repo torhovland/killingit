@@ -1,5 +1,6 @@
 import js from "@eslint/js";
 import prettier from "eslint-config-prettier";
+import jsxA11y from "eslint-plugin-jsx-a11y";
 import reactHooks from "eslint-plugin-react-hooks";
 import globals from "globals";
 import tseslint from "typescript-eslint";
@@ -97,12 +98,36 @@ export default tseslint.config(
     },
   },
   {
+    // The web app is the one React surface, so the accessibility rules run
+    // only there. `recommended` covers the obvious barriers — a missing
+    // alternative text, a label detached from its control, a click handler on
+    // a non-interactive element, a positive tab index — and fails the build
+    // instead of leaving them to review. See `docs/specs/accessibility-lint.md`.
+    ...jsxA11y.flatConfigs.recommended,
     files: ["apps/web/**/*.{ts,tsx}"],
     languageOptions: {
+      ...jsxA11y.flatConfigs.recommended.languageOptions,
       globals: globals.browser,
     },
-    plugins: { "react-hooks": reactHooks },
+    settings: {
+      "jsx-a11y": {
+        // The primitives render a native control and forward every prop, so
+        // the plugin can treat them as the element they are. This keeps a
+        // wrapping `<label>` associated without repeating ids at each call
+        // site. See `docs/specs/accessibility-lint.md`.
+        components: {
+          Input: "input",
+          Select: "select",
+          Textarea: "textarea",
+        },
+      },
+    },
+    plugins: {
+      ...jsxA11y.flatConfigs.recommended.plugins,
+      "react-hooks": reactHooks,
+    },
     rules: {
+      ...jsxA11y.flatConfigs.recommended.rules,
       // Hooks must run in the same order on every render; a conditional or
       // looping hook is a runtime bug that TypeScript cannot catch.
       "react-hooks/rules-of-hooks": "error",
@@ -118,6 +143,26 @@ export default tseslint.config(
     files: ["apps/web/playwright.config.ts", "apps/web/e2e/**/*.{ts,tsx}"],
     languageOptions: {
       globals: { ...globals.browser, ...globals.node },
+    },
+  },
+  {
+    // The API origin is read once, in `apps/web/src/apiUrl.ts`; every other
+    // module takes an API path and lets `requestParsed` / `fetchJsonAuthed`
+    // resolve it. This rule stops a new page or hook from copying
+    // `import.meta.env.VITE_API_URL` back into the app, which is how the
+    // constant reached thirty files before. See
+    // `docs/specs/web-api-base-url.md` and ADR 0044.
+    files: ["apps/web/**/*.{ts,tsx}"],
+    ignores: ["apps/web/src/apiUrl.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "MemberExpression[property.name='VITE_API_URL']",
+          message:
+            "Read the API origin from ./apiUrl, or pass an API path to requestParsed/fetchJsonAuthed, instead of using VITE_API_URL directly.",
+        },
+      ],
     },
   },
   {

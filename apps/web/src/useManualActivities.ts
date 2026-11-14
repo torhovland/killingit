@@ -10,8 +10,6 @@ import { reportError } from "./reportError";
 import { getToday } from "./useToday";
 import { coachingDateQuery } from "./useActivityFeed";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "";
-
 export interface ManualActivitiesState {
   activities: ManualActivity[];
   error: string | null;
@@ -48,7 +46,7 @@ export function useManualActivities(
   const load = useCallback(async (): Promise<void> => {
     try {
       const response = await requestParsed(
-        `${API_URL}/api/coaching/activities/manual`,
+        "/api/coaching/activities/manual",
         auth,
         manualActivitiesResponseSchema,
         "Loading manual activities",
@@ -78,8 +76,8 @@ export function useManualActivities(
         const { today } = getToday(timeZone);
         const path =
           editing === null
-            ? `${API_URL}/api/coaching/activities/manual`
-            : `${API_URL}/api/coaching/activities/manual/${editing.id}`;
+            ? "/api/coaching/activities/manual"
+            : `/api/coaching/activities/manual/${editing.id}`;
         await requestParsed(
           path,
           auth,
@@ -136,7 +134,7 @@ export function useManualActivities(
       setError(null);
       try {
         await requestParsed(
-          `${API_URL}/api/coaching/activities/manual/${activity.id}?${coachingDateQuery(timeZone)}`,
+          `/api/coaching/activities/manual/${activity.id}?${coachingDateQuery(timeZone)}`,
           auth,
           coachingInputSaveResponseSchema,
           "Deleting the manual activity",

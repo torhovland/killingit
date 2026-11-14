@@ -7,8 +7,6 @@ import { DangerIcon } from "./DangerIcon";
 import { fetchJsonAuthed } from "./fetchAuthed";
 import { reportError } from "./reportError";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "";
-
 /**
  * Permanent account deletion. The API removes the account row and, through the
  * schema's cascades, every plan, activity, connection, and coach message that
@@ -25,7 +23,7 @@ export function DeleteAccountSection() {
     setDeleting(true);
     setError(null);
     try {
-      await fetchJsonAuthed<unknown>(`${API_URL}/api/me`, auth, {
+      await fetchJsonAuthed<unknown>("/api/me", auth, {
         method: "DELETE",
       });
       setConfirming(false);
