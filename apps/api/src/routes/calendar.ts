@@ -21,7 +21,7 @@ import { serviceUnavailable, validationFailed } from "../http/errors.js";
 import {
   loadUserActivityTrainingLoads,
   withActivityLoad,
-} from "../coaching/activities.js";
+} from "../coaching/feed/presenter.js";
 import { loadStoredActivityFeed } from "../coaching/activityStore.js";
 import { loadAthleteEvents } from "../events/store.js";
 import type { ManualActivityContext } from "../llm/activityContext.js";

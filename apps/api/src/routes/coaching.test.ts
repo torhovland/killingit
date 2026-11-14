@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import type { ActivityFeed } from "../coaching/activities.js";
+import type { ActivityFeed } from "../coaching/feed/presenter.js";
 import {
   GarminCredentialsError,
   LlmCredentialsError,
-} from "../coaching/activities.js";
+} from "../coaching/feed/errors.js";
 import {
   GarminAuthError,
   GarminNotConnectedError,
