@@ -114,11 +114,13 @@ current `versionId`), `questionOrderInputSchema` (`ids`),
     count in memory (the admin set is small).
   - `reorderQuestions(ids)` verifies that `ids` is exactly the active set before
     assigning sequential positions in one transaction.
-- `routes/adminQuestions.ts` — Zod validation for params and bodies, 404 for
+- `routes/adminQuestions.ts` — `createAdminQuestionsRoute(deps)`, with the
+  question-store functions injectable for route tests and forwarding wired in
+  `dependencies.ts`; it owns the Zod validation for params and bodies, 404 for
   unknown/archived questions, and response schema parsing before serialization.
 - `db/schema.ts` — Drizzle tables and inferred types.
 - `index.ts` — mount `/api/admin/questions` behind `requireAuth` +
-  `requireAdmin`.
+  `requireAdmin`, forwarding the injectable bag from the shared context.
 
 ### Web (`apps/web/src/`)
 

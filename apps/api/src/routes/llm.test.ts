@@ -11,6 +11,8 @@ import {
 } from "../llm/openrouter.js";
 import type { StoredLlmSettings } from "../llm/store.js";
 import type { UserStore } from "../users/store.js";
+import { createApp } from "../index.js";
+import { apiRequest } from "../testFixtures/request.js";
 import { createLlmRoute } from "./llm.js";
 
 const userStore: UserStore = {
@@ -128,6 +130,38 @@ function putSettingsRequest(body: unknown): Request {
     body: JSON.stringify(body),
   });
 }
+
+describe("llm route dependency wiring", () => {
+  it("loads settings with the loader injected through createApp", async () => {
+    const userIds: number[] = [];
+    const app = createApp({
+      authProvider: { verify: () => Promise.resolve({ sub: "athlete-1" }) },
+      userStore,
+      llm: {
+        loadSettings: (userId) => {
+          userIds.push(userId);
+          return Promise.resolve(stored);
+        },
+      },
+    });
+
+    const res = await app.fetch(
+      apiRequest("http://localhost/api/llm/settings", {
+        headers: { authorization: "Bearer anything" },
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(userIds).toEqual([42]);
+    expect(await res.json()).toEqual({
+      configured: true,
+      provider: "openrouter",
+      model: "test-model",
+      seasonModel: "test-model",
+      dailyModel: "test-model",
+    });
+  });
+});
 
 describe("GET /llm/settings", () => {
   it("loads the signed-in account's settings", async () => {

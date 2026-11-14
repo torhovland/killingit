@@ -10,6 +10,7 @@ import {
 } from "../garmin/client.js";
 import type { EncryptedCredentials } from "../garmin/store.js";
 import type { UserStore } from "../users/store.js";
+import { createApp } from "../index.js";
 import { createGarminRoute, type GarminRouteDependencies } from "./garmin.js";
 import { apiRequest } from "../testFixtures/request.js";
 
@@ -116,6 +117,39 @@ function request(path: string, subject: string, init?: RequestInit): Request {
   headers.set("authorization", `Bearer ${subject}`);
   return apiRequest(`http://localhost${path}`, { ...init, headers });
 }
+
+describe("garmin route dependency wiring", () => {
+  it("syncs with the dependencies injected through createApp", async () => {
+    const synced: GarminCredentials[] = [];
+    const app = createApp({
+      authProvider: { verify: (token) => Promise.resolve({ sub: token }) },
+      userStore: users,
+      garmin: {
+        loadDecryptedCredentials: () =>
+          Promise.resolve({ username: "rider-1", password: "secret-1" }),
+        syncActivities: (credentials) => {
+          synced.push(credentials);
+          return Promise.resolve([] as Activity[]);
+        },
+        syncMetrics: () => Promise.resolve({ metrics: [], ftp: [] }),
+        saveMetrics: () => Promise.resolve(),
+        saveFtp: () => Promise.resolve(),
+        syncDaily: () =>
+          Promise.resolve({
+            fetched: [],
+            rateLimited: false,
+            failedDate: null,
+          }),
+      },
+    });
+
+    const res = await app.fetch(request("/api/garmin/activities", "athlete-1"));
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ activities: [] });
+    expect(synced).toEqual([{ username: "rider-1", password: "secret-1" }]);
+  });
+});
 
 describe("per-user Garmin credentials", () => {
   it("stores credentials for the signed-in account only", async () => {

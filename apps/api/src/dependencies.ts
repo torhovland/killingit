@@ -68,6 +68,9 @@ import type { loadPlanWeekTotals } from "./plans/weekTotals.js";
 import type { QuestionAnswerStore } from "./questions/answers.js";
 import type { CoachingSurveyAdjustmentStore } from "./questions/adjustments.js";
 import type { AdminLlmCallsDependencies } from "./routes/adminLlmCalls.js";
+import type { AdminQuestionsRouteDependencies } from "./routes/adminQuestions.js";
+import type { GarminRouteDependencies } from "./routes/garmin.js";
+import type { LlmRouteDependencies } from "./routes/llm.js";
 import type { loadFitnessHistory } from "./training/history.js";
 import type { estimateManualActivityTss } from "./training/manualTss.js";
 import type { UserStore } from "./users/store.js";
@@ -182,6 +185,12 @@ export interface AppDependencies {
   loadForecast?: PlanTriggerDependencies["loadForecast"] | undefined;
   /** Prompt log readers, injectable for DB-free admin route tests. */
   adminLlmCalls?: AdminLlmCallsDependencies | undefined;
+  /** Athlete-question admin hooks, injectable for DB-free route tests. */
+  adminQuestions?: AdminQuestionsRouteDependencies | undefined;
+  /** Garmin integration hooks, injectable for DB-free route tests. */
+  garmin?: GarminRouteDependencies | undefined;
+  /** LLM settings, catalog and provider hooks, injectable for route tests. */
+  llm?: LlmRouteDependencies | undefined;
   /** Prompt-log failure marker, injectable for DB-free plan route tests. */
   markPlanPromptsFailed?:
     PlanTriggerDependencies["markPlanPromptsFailed"] | undefined;

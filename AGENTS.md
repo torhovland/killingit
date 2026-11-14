@@ -769,10 +769,13 @@ through a disciplined process:
   intentional public API that has no in-repo consumer in `knip.json` with a
   comment. See `docs/specs/unused-exports.md`.
 - **Wire API dependencies through the shared context.** The injectable surface
-  for the plan, coaching, activity, fitness, calendar, diet and weather routes
-  lives in `apps/api/src/dependencies.ts`; `createApp` resolves the account
-  stores once and passes `ResolvedAppDependencies` to those factories, which
-  apply their own `??` production default. Do not conditionally spread a
+  for the plan, coaching, activity, fitness, calendar, diet, weather, Garmin,
+  LLM and admin-question routes lives in `apps/api/src/dependencies.ts`;
+  `createApp` resolves the account stores once and passes
+  `ResolvedAppDependencies` to those factories, which apply their own `??`
+  production default. A route with several hooks of its own (Garmin, LLM,
+  admin-question, admin LLM calls) keeps them as one optional nested bag on that
+  surface rather than flattening them. Do not conditionally spread a
   dependency field — type it `T | undefined` and forward it. Every loader and
   writer a plan run uses is a `PlanTriggerDependencies` field, and the
   enrichment inputs are fail-open while the account's own state and the
