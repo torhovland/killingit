@@ -1,8 +1,6 @@
-import {
-  loadAnalyzedActivities,
-  loadUserActivityTrainingLoads,
-  type ActivityFeed,
-} from "../../coaching/activities.js";
+import { loadUserActivityTrainingLoads } from "../../coaching/feed/analysis.js";
+import type { ActivityFeed } from "../../coaching/feed/presenter.js";
+import { loadAnalyzedActivities } from "../../coaching/feed/sync.js";
 import {
   deleteImportedActivity,
   deleteManualActivity,
