@@ -17,16 +17,20 @@ factory needed under `exactOptionalPropertyTypes`.
     that `createApp` resolves once.
   - `planTriggerDependencies` maps the shared context onto
     `PlanTriggerDependencies`, the contract for a plan run.
-- `createApp` resolves the stores once and forwards the whole context to the
-  plan, coaching, fitness, calendar, diet and weather factories:
-  `createPlanRoute(deps)`, `createCoachingRoute(deps)`, and so on. The route
-  table in `apps/api/src/index.ts` reads as a list.
+- `createApp` resolves the stores once and forwards the whole context to every
+  route factory: `createPlanRoute(deps)`, `createCoachingRoute(deps)`,
+  `createGarminRoute(deps)`, `createLlmRoute(deps)`,
+  `createAdminQuestionsRoute(deps)` and so on. The route table in
+  `apps/api/src/index.ts` reads as a list.
 - Those route factories accept `ResolvedAppDependencies` and apply their own
   production default with `?? ` when they consume an optional injectable.
-- The Garmin and LLM routes keep their local hook interfaces because their
-  tests drive the factories directly with a transport stub; neither needs a
-  shared-context field, because the account comes from the auth middleware and
-  `getUser(c)`.
+- The Garmin and LLM routes name their injectables after the production
+  functions they replace (`loadGarminCredentials`, `syncGarminActivities`,
+  `loadLlmSettings`, `loadModelCatalog`, …), because the surface is flat and a
+  bare `authenticate` or `provider` would be ambiguous next to the other routes.
+- The admin question set is one grouped store, `QuestionSetStore` in
+  `apps/api/src/questions/adminStore.ts`, exposed to `createApp` as
+  `questionSetStore` like the other stores instead of five loose functions.
 - The coaching route still resolves its short handler names and the plan-run
   bundle in `routes/coaching/dependencies.ts`, but it does so from the shared
   context instead of a second dependency interface.
@@ -49,11 +53,23 @@ factory needed under `exactOptionalPropertyTypes`.
 - Route handlers read the signed-in account with `getUser(c)`. They never take
   a `UserStore` to provision it; the auth middleware resolves it once. See
   `docs/specs/authenticated-user-middleware.md`.
-- Tests keep injecting through `createApp`; they must not need changes for a
-  wiring refactor.
+- Tests inject through `createApp`, so a route that stops forwarding an
+  injectable fails its own test instead of silently falling back to the
+  production default. A route test that needs a custom request harness still
+  builds it on `createApp`; it does not call the factory directly.
+- Name an injectable after the production function or store it replaces.
+  Because the surface is flat, `authenticate`, `provider` or `clock` alone
+  would be ambiguous; `authenticateGarmin`, `llmProvider` and the like say
+  which route owns them.
+- Group a store that a route reads and writes through one interface (as
+  `QuestionAnswerStore` or `QuestionSetStore` does) rather than adding one
+  field per function.
 
 ## Acceptance criteria
 
 - Adding an injectable touches at most two files.
 - Route wiring in `createApp` and the plan-run mapping are readable lists.
-- Existing route tests pass unchanged.
+- The plan, coaching, activity, fitness, calendar, diet, weather, Garmin, LLM and
+  admin-question routes take the shared context; none declares its own
+  dependency interface.
+- Route tests pass and exercise injection through `createApp`.
