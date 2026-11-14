@@ -82,6 +82,10 @@ stale write.
   removes an entry when its pass settles. Reading a finished feed refreshes its
   account, so a plan that is waiting on the same athlete day keeps its feed while
   other accounts are evicted.
+- `runningSupplements` (`apps/api/src/garmin/supplements.ts`) holds the
+  account's supplementary Garmin pass while it runs and joins a visit that
+  arrives mid-pass, instead of starting a second one. An entry is removed when
+  its pass settles, so the map is bounded by the accounts mid-pass; see ADR 0039.
 - The model-catalog refresh handle (`apps/api/src/llm/modelCatalog.ts`) is a
   single in-flight promise that is cleared when it settles, so a page visit joins
   one refresh per instance rather than accumulating handles.
