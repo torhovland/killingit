@@ -258,7 +258,13 @@ describe("PUT /llm/settings", () => {
 
     const res = await app.fetch(putSettingsRequest({ apiKey: "bad-key" }));
 
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(422);
+    expect(await res.json()).toEqual({
+      error: {
+        code: "llm_key_invalid",
+        message: "invalid OpenRouter API key",
+      },
+    });
     expect(saved).toHaveLength(0);
   });
 });

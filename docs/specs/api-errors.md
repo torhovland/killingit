@@ -4,7 +4,7 @@
 - **Date:** 2026-11-12
 - **Related:** `docs/specs/api-versioning.md`,
   `docs/specs/web-api-request-parsing.md`,
-  `docs/specs/authenticated-user-middleware.md`
+  `docs/specs/authenticated-user-middleware.md`, ADR 0035, ADR 0036
 
 ## Goal
 
@@ -82,6 +82,10 @@ did not expect; it carries no structured context to show.
 | 502    | `bad_gateway`          |
 | 503    | `service_unavailable`  |
 
+That default is for a failure without a code of its own. An upstream failure
+carries its own code where its status alone would be misleading, such as
+`garmin_auth_failed` on a `422`; see below.
+
 A validation failure from the `zValidator` wrapper uses `validation_failed`
 with `400`, matching the library's existing status.
 
@@ -103,19 +107,26 @@ not an upstream failure, logging it and answering `503` with
 service failure; a `4xx` is the athlete's to act on and stays out of the error
 log. See ADR 0035.
 
-| Failure                                         | Status                          |
-| ----------------------------------------------- | ------------------------------- |
-| `GarminAuthError`                               | `401`                           |
-| `GarminNotConnectedError`                       | `401`                           |
-| `LlmAuthError`                                  | `401`                           |
-| `LlmRateLimitError`                             | `429`                           |
-| `GarminSidecarError`, `LlmProviderError`        | the status it carries, else 503 |
-| `GarminCredentialsError`, `LlmCredentialsError` | `503`                           |
+A third-party connection the athlete can fix is never a `401`: that status is
+reserved for a request without a usable app session, so a client's renew-and-
+retry never fires for a broken connection. Those failures answer a `4xx` with
+their own code instead. See ADR 0036.
+
+| Failure                                         | Status                          | Code                   |
+| ----------------------------------------------- | ------------------------------- | ---------------------- |
+| `GarminAuthError`                               | `422`                           | `garmin_auth_failed`   |
+| `GarminNotConnectedError`                       | `409`                           | `garmin_not_connected` |
+| `LlmAuthError`                                  | `422`                           | `llm_key_invalid`      |
+| `LlmRateLimitError`                             | `429`                           | `too_many_requests`    |
+| `GarminSidecarError`, `LlmProviderError`        | the status it carries, else 503 | its status's code      |
+| `GarminCredentialsError`, `LlmCredentialsError` | `503`                           | `service_unavailable`  |
 
 A provider that reports a status of its own keeps it, so the Garmin sidecar's
 `403` (MFA required), `429` (rate limit) and `502` (gateway) reach the client
 unchanged, and an OpenRouter `402` (insufficient credits) is not folded into a
-generic service failure.
+generic service failure. The sidecar reports a Garmin login rejection as `401`
+towards the API; the API turns that into the `422` above, because the rejected
+credential is the athlete's connection, not the caller's session.
 
 ## Acceptance criteria
 
@@ -128,4 +139,8 @@ generic service failure.
    body's text.
 4. `ApiError` carries the response `code` and `details` for callers that want
    to branch on them.
-5. The API and web test suites, typecheck, lint and format pass.
+5. A third-party credential or connection failure answers a `4xx` with its own
+   code (`garmin_not_connected`, `garmin_auth_failed`, `llm_key_invalid`) and
+   never `401`, so the web client's renew-and-retry runs only for a missing or
+   expired session.
+6. The API and web test suites, typecheck, lint and format pass.

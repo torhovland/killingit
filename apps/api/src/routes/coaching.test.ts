@@ -2,10 +2,13 @@ import { describe, expect, it } from "bun:test";
 import type { ActivityFeed } from "../coaching/activities.js";
 import {
   GarminCredentialsError,
-  GarminNotConnectedError,
   LlmCredentialsError,
 } from "../coaching/activities.js";
-import { GarminAuthError, GarminSidecarError } from "../garmin/client.js";
+import {
+  GarminAuthError,
+  GarminNotConnectedError,
+  GarminSidecarError,
+} from "../garmin/client.js";
 import { LlmAuthError, LlmProviderError } from "../llm/openrouter.js";
 import type { CoachQuestion } from "@killingit/shared";
 import { createApp } from "../index.js";
@@ -620,15 +623,15 @@ describe("coaching activity feed failures", () => {
     {
       name: "a Garmin account that is not connected",
       error: new GarminNotConnectedError(),
-      status: 401,
-      code: "unauthorized",
+      status: 409,
+      code: "garmin_not_connected",
       message: "Not connected to Garmin",
     },
     {
       name: "Garmin credentials the sidecar rejects",
       error: new GarminAuthError("invalid Garmin credentials"),
-      status: 401,
-      code: "unauthorized",
+      status: 422,
+      code: "garmin_auth_failed",
       message: "invalid Garmin credentials",
     },
     {
@@ -670,8 +673,8 @@ describe("coaching activity feed failures", () => {
     {
       name: "an OpenRouter key the provider rejects",
       error: new LlmAuthError("invalid OpenRouter API key"),
-      status: 401,
-      code: "unauthorized",
+      status: 422,
+      code: "llm_key_invalid",
       message: "invalid OpenRouter API key",
     },
     {
