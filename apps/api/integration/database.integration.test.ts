@@ -22,6 +22,9 @@ import {
   loadThresholdPoints,
   recordAthleteMetricStatements,
   recordCoachThreshold,
+  recordGarminBodyMetrics,
+  recordGarminFtp,
+  recordPlanFtpEstimates,
 } from "../src/metrics/store.js";
 import { loadPlanDayCalorieTargets } from "../src/plans/dayCalories.js";
 import { PLAN_GENERATION_STEPS } from "../src/plans/steps.js";
@@ -931,6 +934,140 @@ describe("metrics stores", () => {
     ).toEqual([
       ["2026-01-01", 240],
       ["2026-02-01", 250],
+    ]);
+  });
+
+  it("stores a Garmin sync's weigh-ins in one batch or not at all", async () => {
+    const user = await dbUserStore.ensureUser("auth0|garmin-batch-failure");
+
+    let failed = false;
+    await withInjectedInsertFailure("athlete_metrics", 79.9, async () => {
+      try {
+        await recordGarminBodyMetrics(user.id, [
+          { date: "2026-02-01", weightKg: 80.4, bodyFatPercent: 21 },
+          { date: "2026-02-02", weightKg: 79.9, bodyFatPercent: 20.9 },
+        ]);
+      } catch {
+        failed = true;
+      }
+    });
+    expect(failed).toBe(true);
+
+    // One statement means a bad sample cannot leave the earlier ones stored.
+    expect(await loadMetricPoints(user.id, "weight")).toEqual([]);
+    expect(await loadMetricPoints(user.id, "body_fat")).toEqual([]);
+  });
+
+  it("stores a Garmin FTP sync in one batch or not at all", async () => {
+    const user = await dbUserStore.ensureUser("auth0|garmin-ftp-batch-failure");
+
+    let failed = false;
+    await withInjectedInsertFailure("athlete_thresholds", 290, async () => {
+      try {
+        await recordGarminFtp(user.id, [
+          { date: "2026-02-01", watts: 280 },
+          { date: "2026-02-02", watts: 290 },
+        ]);
+      } catch {
+        failed = true;
+      }
+    });
+    expect(failed).toBe(true);
+
+    expect(await loadThresholdPoints(user.id)).toEqual([]);
+  });
+
+  it("keeps the last value for a day a batch names twice", async () => {
+    const user = await dbUserStore.ensureUser(
+      "auth0|garmin-batch-duplicate-day",
+    );
+
+    await recordGarminBodyMetrics(user.id, [
+      { date: "2026-02-01", weightKg: 80.4, bodyFatPercent: 21 },
+      { date: "2026-02-01", weightKg: 80.2, bodyFatPercent: 20.8 },
+      { date: "2026-02-02", weightKg: 80.0 },
+    ]);
+    await recordGarminFtp(user.id, [
+      { date: "2026-02-01", watts: 280 },
+      { date: "2026-02-01", watts: 285 },
+    ]);
+
+    expect(await loadMetricPoints(user.id, "weight")).toEqual([
+      { date: "2026-02-01", value: 80.2, source: "garmin" },
+      { date: "2026-02-02", value: 80.0, source: "garmin" },
+    ]);
+    expect(await loadMetricPoints(user.id, "body_fat")).toEqual([
+      { date: "2026-02-01", value: 20.8, source: "garmin" },
+    ]);
+    expect(await loadThresholdPoints(user.id)).toEqual([
+      { ...FTP, date: "2026-02-01", value: 285, source: "garmin" },
+    ]);
+  });
+
+  it("keeps an athlete value a Garmin sync finds already stored", async () => {
+    const user = await dbUserStore.ensureUser("auth0|garmin-batch-precedence");
+    await recordAthleteMetricStatements(
+      user.id,
+      [
+        {
+          date: "2026-02-01",
+          weightKg: 78,
+          bodyFatPercent: null,
+          thresholds: [{ ...FTP, value: 260 }],
+        },
+      ],
+      THROUGH_DATE,
+    );
+
+    await recordGarminBodyMetrics(user.id, [
+      { date: "2026-02-01", weightKg: 79, bodyFatPercent: 22 },
+      { date: "2026-02-02", weightKg: 78.5, bodyFatPercent: 21.5 },
+    ]);
+    await recordGarminFtp(user.id, [
+      { date: "2026-02-01", watts: 300 },
+      { date: "2026-02-02", watts: 305 },
+    ]);
+
+    expect(await loadMetricPoints(user.id, "weight")).toEqual([
+      { date: "2026-02-01", value: 78, source: "user" },
+      { date: "2026-02-02", value: 78.5, source: "garmin" },
+    ]);
+    expect(await loadMetricPoints(user.id, "body_fat")).toEqual([
+      { date: "2026-02-01", value: 22, source: "garmin" },
+      { date: "2026-02-02", value: 21.5, source: "garmin" },
+    ]);
+    expect(await loadThresholdPoints(user.id)).toEqual([
+      { ...FTP, date: "2026-02-01", value: 260, source: "user" },
+      { ...FTP, date: "2026-02-02", value: 305, source: "garmin" },
+    ]);
+  });
+
+  it("applies a batch of plan FTP estimates and drops the projection after the oldest", async () => {
+    const user = await dbUserStore.ensureUser("auth0|plan-ftp-batch");
+    for (const [date, value] of [
+      ["2026-01-01", 240],
+      ["2026-01-15", 245],
+      ["2026-02-01", 250],
+    ] as const) {
+      await recordCoachThreshold({ userId: user.id, ...FTP, date, value });
+    }
+
+    await recordPlanFtpEstimates(user.id, [
+      { date: "2026-01-08", watts: 242 },
+      { date: "2026-01-20", watts: 248 },
+    ]);
+
+    // The estimate before the batch stays, the stale projection after the
+    // oldest estimate of the batch goes, and the batch itself is stored.
+    expect(
+      (await loadThresholdPoints(user.id)).map((point) => [
+        point.date,
+        point.value,
+      ]),
+    ).toEqual([
+      ["2026-01-01", 240],
+      ["2026-01-08", 242],
+      ["2026-01-20", 248],
     ]);
   });
 });
