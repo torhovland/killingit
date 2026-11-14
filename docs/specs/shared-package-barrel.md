@@ -17,9 +17,8 @@ barrel only changes when a module is added.
   modules is ambiguous in a wildcard barrel and fails typechecking.
   `packages/shared/src/date.ts` owns `planDateSchema`; `plan.ts` no longer
   re-exports it, and every importer reads it from `date.js`.
-- Symbols that a module used only internally are not exported:
-  `POWER_WINDOW_SECONDS` and `averagePower` in `trainingLoad.ts` stay private,
-  so the wildcard adds nothing to the public surface.
+- Symbols that a module used only internally are not exported: `formatMinutes` in
+  `health.ts` stays private, so the wildcard adds nothing to the public surface.
 - `packages/shared/src/index.test.ts` imports a representative symbol from every
   module through the barrel, so a module that stops being re-exported fails the
   test.

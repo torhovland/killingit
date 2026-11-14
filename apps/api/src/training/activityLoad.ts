@@ -1,14 +1,16 @@
 import {
   activityLocalDate,
   activitySport,
-  CTL_DAYS,
-  dailyTrainingLoad,
-  powerTrainingStressScore,
   type AnalyzedActivity,
   type TrainingLoad,
 } from "@killingit/shared";
 import { addDays } from "@killingit/shared";
 import type { ManualActivityContext } from "../llm/activityContext.js";
+import {
+  CTL_DAYS,
+  dailyTrainingLoad,
+  powerTrainingStressScore,
+} from "./stress.js";
 import { thresholdForSport, type ThresholdTimeline } from "./thresholds.js";
 
 /**

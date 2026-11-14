@@ -151,7 +151,9 @@ Shared (`@killingit/shared`):
   helpers.
 - `trainingLoad.ts`: `FORM_ZONES`, the TSB bands (`from` inclusive, `to`
   exclusive) used to shade the chart. The band colours stay in the web theme
-  (`--form-*`), so they cannot drift from the interpretation text.
+  (`--form-*`), so they cannot drift from the interpretation text. The load
+  maths that fills the chart lives in `apps/api/src/training/stress.ts`; see
+  `docs/specs/shared-api-boundary.md`.
 
 API:
 

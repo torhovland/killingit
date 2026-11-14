@@ -9,7 +9,6 @@ import {
   foodEntryRequestSchema,
   foodEntrySchema,
   foodEntryUpdateRequestSchema,
-  isDefaultDietGoal,
   MIN_PLAUSIBLE_CALORIES_KCAL,
   plannedCaloriesKcal,
   plausibleCaloriesKcal,
@@ -94,20 +93,6 @@ describe("dietPlanSchema", () => {
     expect(parsed.goalWeightKg).toBeUndefined();
     expect(parsed.goalBodyFatPercent).toBeUndefined();
     expect(parsed.goalDate).toBeUndefined();
-  });
-});
-
-describe("isDefaultDietGoal", () => {
-  it("recognises the default wording, including punctuation", () => {
-    expect(isDefaultDietGoal("Maintain current weight")).toBe(true);
-    expect(isDefaultDietGoal(" maintain current weight. ")).toBe(true);
-    expect(isDefaultDietGoal(null)).toBe(true);
-    expect(isDefaultDietGoal(undefined)).toBe(true);
-  });
-
-  it("treats a stated goal as custom", () => {
-    expect(isDefaultDietGoal("Lose 3 kg by March")).toBe(false);
-    expect(isDefaultDietGoal("Hold 78 kg while building strength")).toBe(false);
   });
 });
 

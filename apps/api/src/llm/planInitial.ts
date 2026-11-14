@@ -1,12 +1,12 @@
+import type { LlmProvider } from "./openrouter.js";
+import { completePlanJson } from "./planCompletion.js";
+import { PLAN_MAX_TOKENS } from "./planBudget.js";
 import {
   initialBlockUpdateSchema,
   seasonPlanUpdateSchema,
   type InitialBlockUpdate,
   type SeasonPlanUpdate,
-} from "@killingit/shared";
-import type { LlmProvider } from "./openrouter.js";
-import { completePlanJson } from "./planCompletion.js";
-import { PLAN_MAX_TOKENS } from "./planBudget.js";
+} from "./planResult.js";
 import {
   buildInitialBlockMessages,
   buildSeasonPlanMessages,

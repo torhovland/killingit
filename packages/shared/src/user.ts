@@ -17,7 +17,7 @@ export const timeZoneSchema = z
   .trim()
   .min(1)
   .max(100)
-  .refine(isValidTimeZone, "Unknown time zone");
+  .refine(isIanaTimeZone, "Unknown time zone");
 
 export type TimeZone = z.infer<typeof timeZoneSchema>;
 
@@ -77,7 +77,7 @@ export const currentUserSchema = z.object({
 export type CurrentUser = z.infer<typeof currentUserSchema>;
 
 /** Whether `value` is an IANA time zone name the runtime understands. */
-export function isValidTimeZone(value: string): boolean {
+function isIanaTimeZone(value: string): boolean {
   try {
     new Intl.DateTimeFormat("en-US", { timeZone: value });
     return true;

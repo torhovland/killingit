@@ -319,19 +319,3 @@ export function plannedCaloriesKcal(value: PlannedCalories): number | null {
   }
   return plausibleCaloriesKcal(value.estimatedCaloriesKcal);
 }
-
-/**
- * True when a goal is the default maintenance fallback rather than a goal the
- * athlete stated. Old plans do not carry `goalProvided`, so an exact default
- * wording identifies them; trailing punctuation is ignored.
- */
-export function isDefaultDietGoal(goal: string | null | undefined): boolean {
-  if (goal === null || goal === undefined) {
-    return true;
-  }
-  const normalised = goal
-    .trim()
-    .toLowerCase()
-    .replace(/[.!]+$/, "");
-  return normalised === DEFAULT_DIET_GOAL.toLowerCase();
-}

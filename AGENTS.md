@@ -628,7 +628,10 @@ across frontend and backend:
 - Bun workspaces under `apps/*`, `packages/*` and `tools/*`:
   - `apps/web` — React + Vite + Tailwind frontend
   - `apps/api` — Hono + Drizzle backend
-  - `packages/shared` — shared Zod schemas and TypeScript types
+  - `packages/shared` — the wire contract (Zod schemas and TypeScript types) and
+    the helpers both the API and the web app use; logic only the API computes or
+    parses lives in `apps/api`. See ADR 0055 and
+    `docs/specs/shared-api-boundary.md`.
   - `tools/benchmark` — LLM benchmark harness and model-catalog grading
     queries, run by `bun run benchmark:llm` and `bun run benchmark:prompts`;
     it imports the real plan pipeline from `apps/api`. See ADR 0032.

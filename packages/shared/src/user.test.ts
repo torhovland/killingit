@@ -1,7 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import {
   currentUserSchema,
-  isValidTimeZone,
   timeZoneSchema,
   userRoleSchema,
   userSettingsUpdateSchema,
@@ -21,8 +20,6 @@ describe("userRoleSchema", () => {
 describe("time zone schemas", () => {
   it("accepts IANA zones and rejects unknown ones", () => {
     expect(timeZoneSchema.parse("Europe/Oslo")).toBe("Europe/Oslo");
-    expect(isValidTimeZone("Europe/Oslo")).toBe(true);
-    expect(isValidTimeZone("Mars/Olympus_Mons")).toBe(false);
     expect(() => timeZoneSchema.parse("Mars/Olympus_Mons")).toThrow();
   });
 

@@ -6,13 +6,13 @@ import {
   foodEntrySchema,
   foodEntryUpdateRequestSchema,
   idParamSchema,
-  isDefaultDietGoal,
   planDateSchema,
   type FoodAnalysis,
 } from "@killingit/shared";
 import { zValidator } from "../http/validation.js";
 import { Hono } from "hono";
 import { getUser } from "../auth/middleware.js";
+import { isDefaultDietGoal } from "../diet/goal.js";
 import {
   athleteFailureMessage,
   badRequest,

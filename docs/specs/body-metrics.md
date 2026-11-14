@@ -171,8 +171,9 @@ The coach reads them from the athlete's own words:
 - `GET /api/fitness` response adds the optional-with-default `body` object.
 - Garmin sidecar `POST /metrics`.
 - Plan response schemas gain `bodyMetrics` (default `[]`), and
-  `coachPlanSchema` carries it as an optional array. `coachAnalysisResultSchema`
-  gains `weightKg` and `bodyFatPercent` (nullable, default `null`).
+  `coachPlanSchema` carries it as an optional array.
+  `coachAnalysisResultSchema` (`apps/api/src/llm/coachResult.ts`) gains
+  `weightKg` and `bodyFatPercent` (nullable, default `null`).
 - `athleteMetricStatementSchema` (shared) describes one dated statement with
   `ftpWatts`, `weightKg`, and `bodyFatPercent`; `athleteReadingResultSchema`
   wraps the list together with the dated events.

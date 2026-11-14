@@ -210,8 +210,11 @@ Shared (`@killingit/shared`):
   the TSS credited to that activity alone.
 - `averagePower`, `normalizedPower` and `averageHeartRate` (optional) on
   activity summaries.
-- `trainingLoad.ts`: normalized power, power TSS, bike-workout TSS, daily
-  exponentially weighted load, and a duration-based session estimate.
+- `trainingLoad.ts`: `trainingLoadSchema`, plus the form interpretation the web
+  app reads. The load maths — normalized power, power TSS, bike-workout TSS, the
+  daily exponentially weighted load, and a duration-based session estimate —
+  lives in `apps/api/src/training/stress.ts`, because only the API computes it.
+  See `docs/specs/shared-api-boundary.md`.
 
 API:
 

@@ -1,5 +1,4 @@
 import {
-  recordedPowerSummary,
   type Activity,
   type ActivityLap,
   type ActivitySample,
@@ -19,6 +18,7 @@ import {
   toCoachAnalysis,
   type ActivityFeedback,
 } from "../plans/replies.js";
+import { recordedPowerSummary } from "../training/stress.js";
 import { routeFromSamples } from "./route.js";
 
 /**

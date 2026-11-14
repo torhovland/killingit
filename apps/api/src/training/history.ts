@@ -1,8 +1,6 @@
 import {
   activityLocalDate,
-  CTL_DAYS,
   DAILY_HEALTH_METRIC_KEYS,
-  dailyTrainingLoad,
   formatActivityType,
   interpolateMetricSeries,
   type AnalyzedActivity,
@@ -19,18 +17,19 @@ import {
   type MetricPoint,
   type ThresholdHistorySeries,
   type WeekPlan,
-  withoutInProgressDailyHealth,
 } from "@killingit/shared";
 import type { ManualActivityContext } from "../llm/activityContext.js";
 import { consumedCaloriesByDate } from "../diet/days.js";
 import { dbFoodEntryStore } from "../diet/store.js";
 import { loadDailyHealthHistoryForUser } from "../metrics/dailyMetrics.js";
+import { withoutInProgressDailyHealth } from "../metrics/dailyHealth.js";
 import { loadMetricPoints } from "../metrics/store.js";
 import { addDays, startOfWeek } from "@killingit/shared";
 import { loadPlanDayCalories } from "../plans/dayCalories.js";
 import { activityDayTss, groupActivitiesByDate } from "./activityLoad.js";
 import { loadTrainingContext } from "./context.js";
 import { planDietTargets } from "./dietTargets.js";
+import { CTL_DAYS, dailyTrainingLoad } from "./stress.js";
 import {
   buildThresholdSeries,
   buildThresholdTimelines,

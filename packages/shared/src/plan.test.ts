@@ -5,12 +5,9 @@ import {
   coachPlanResponseSchema,
   coachPlanSchema,
   coachingInputSaveResponseSchema,
-  dailyPlanUpdateSchema,
   dayPlanSchema,
-  initialBlockUpdateSchema,
   manualActivitySchema,
   planGenerateInputSchema,
-  seasonPlanUpdateSchema,
   weekPlanSchema,
   weeklyNoteResponseSchema,
 } from "./plan.js";
@@ -297,62 +294,6 @@ describe("coachPlanSchema", () => {
       coachPlanSchema.parse(makePlan()).season.dietProgress,
     ).toBeUndefined();
   });
-});
-
-describe("split build schemas", () => {
-  it("parses the season and first block as separate steps", () => {
-    const plan = makePlan();
-    expect(seasonPlanUpdateSchema.parse({ season: plan.season })).toEqual({
-      season: plan.season,
-      bodyMetrics: [],
-    });
-    expect(initialBlockUpdateSchema.parse({ block: plan.block })).toEqual({
-      block: plan.block,
-      bodyMetrics: [],
-    });
-  });
-
-  it("keeps the body metrics the coach found", () => {
-    const plan = makePlan();
-    const parsed = seasonPlanUpdateSchema.parse({
-      season: plan.season,
-      bodyMetrics: [
-        { date: "2026-10-21", weightKg: 89.5, bodyFatPercent: 24.5 },
-      ],
-    });
-
-    expect(parsed.bodyMetrics).toEqual([
-      { date: "2026-10-21", weightKg: 89.5, bodyFatPercent: 24.5 },
-    ]);
-  });
-
-  it("defaults a body metric that gives only one value", () => {
-    const plan = makePlan();
-    const parsed = seasonPlanUpdateSchema.parse({
-      season: plan.season,
-      bodyMetrics: [{ date: "2026-10-21", weightKg: 89.5 }],
-    });
-
-    expect(parsed.bodyMetrics[0]?.bodyFatPercent).toBeNull();
-  });
-
-  it("keeps the coach's introduction with the season", () => {
-    const plan = makePlan();
-    const parsed = seasonPlanUpdateSchema.parse({ season: plan.season });
-
-    expect(parsed.season.introduction).toBe(
-      "Hello Alex, I'm your coach. I'm looking forward to working with you.",
-    );
-  });
-
-  it("requires the introduction when the season is first planned", () => {
-    const { introduction, ...season } = makePlan().season;
-    void introduction;
-
-    expect(() => seasonPlanUpdateSchema.parse({ season })).toThrow(
-      "The season must open with",
-    );
-  });
 
   it("still parses a season stored before the introduction existed", () => {
     const { introduction, ...season } = makePlan().season;
@@ -430,33 +371,6 @@ describe("coaching-input feedback schemas", () => {
       },
     });
     expect(parsed.reply?.text).toContain("Thursday");
-  });
-});
-
-describe("dailyPlanUpdateSchema", () => {
-  it("parses a day and a revised week", () => {
-    const parsed = dailyPlanUpdateSchema.parse({
-      today: {
-        date: "2026-10-21",
-        type: "workout",
-        title: "Easy run",
-        description: "45 minutes easy.",
-        durationMinutes: 45,
-        intensity: "easy",
-        rationale: "Easy aerobic work.",
-        optional: true,
-        optionalRationale:
-          "Skip it if your legs are tired; the plan still works without it.",
-      },
-      week: makeWeek(),
-    });
-    expect(parsed.today.alternatives).toEqual([]);
-    expect(parsed.today.status).toBe("planned");
-    expect(parsed.today.optional).toBe(true);
-    expect(parsed.today.optionalRationale).toBe(
-      "Skip it if your legs are tired; the plan still works without it.",
-    );
-    expect(parsed.week.sessions).toHaveLength(7);
   });
 });
 

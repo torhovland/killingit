@@ -2,11 +2,11 @@ import {
   DAILY_HEALTH_METRIC_KEYS,
   DAILY_HEALTH_METRICS,
   formatDailyHealthValue,
-  withoutInProgressDailyHealth,
   type DailyHealthMetricKey,
   type DailyHealthPoint,
 } from "@killingit/shared";
 import { addDays } from "@killingit/shared";
+import { withoutInProgressDailyHealth } from "../metrics/dailyHealth.js";
 
 /** How much recovery history the coach sees in a prompt. */
 export const HEALTH_CONTEXT_DAYS = 14;
