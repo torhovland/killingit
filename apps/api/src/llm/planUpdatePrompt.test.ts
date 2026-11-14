@@ -5,11 +5,35 @@ import type {
   SeasonPlan,
   WeekPlan,
 } from "@killingit/shared";
+import { missingFragments } from "../testFixtures/prompts.js";
 import {
+  BIKE_WORKOUT_RULES,
+  BLOCK_CONTRACT,
+  BODY_METRIC_POINT_CONTRACT,
+  COACH_RESPONSE_NOTES_CONTRACT,
+  COACHING_SURVEY_ADJUSTMENT_RULES,
+  COMPLETED_SESSION_RULES,
+  COMPLETION_SLACK_RULES,
+  DAY_CONTRACT,
+  DIET_CONTRACT,
+  DIET_PLANNING_RULES,
+  DIET_PROGRESS_RULES,
+  ENUM_RULES,
   GLOBAL_PROMPT_RULES,
+  JSON_RULES,
+  PAST_SESSION_RULES,
   PLAN_PROMPT_RULES,
   SEASON_BLOCK_RULES,
+  SEASON_CONTRACT,
+  SESSION_PURPOSE_RULES,
+  TODAY_IN_WEEK_RULE,
+  TRAINING_LOAD_RULES,
+  WEEK_CONTRACT,
+  weekDatesRangeRule,
+  weekDatesRule,
+  WEEKLY_NOTE_SCOPE_RULE,
   WEEK_OUTLINE_RULES,
+  WEEK_SHAPE_RULES,
   WEATHER_PLANNING_RULES,
 } from "./promptRules.js";
 import {
@@ -171,8 +195,112 @@ function updateInput(
   };
 }
 
+/**
+ * The fragments each update prompt composes. A prompt that drops a shared rule,
+ * or that stops carrying a contract, fails here without pinning any wording.
+ */
+const SYSTEM_PROMPTS = [
+  {
+    name: "daily update",
+    prompt: DAILY_UPDATE_SYSTEM_PROMPT,
+    fragments: [
+      GLOBAL_PROMPT_RULES,
+      PLAN_PROMPT_RULES,
+      WEEK_SHAPE_RULES,
+      TODAY_IN_WEEK_RULE,
+      COMPLETED_SESSION_RULES,
+      WEEK_OUTLINE_RULES,
+      SESSION_PURPOSE_RULES,
+      WEATHER_PLANNING_RULES,
+      BIKE_WORKOUT_RULES,
+      DIET_PLANNING_RULES,
+      DIET_PROGRESS_RULES,
+      TRAINING_LOAD_RULES,
+      ENUM_RULES,
+      JSON_RULES,
+      DAY_CONTRACT,
+      WEEK_CONTRACT,
+      DIET_CONTRACT,
+      BODY_METRIC_POINT_CONTRACT,
+      COACH_RESPONSE_NOTES_CONTRACT,
+    ],
+  },
+  {
+    name: "weekly update",
+    prompt: WEEKLY_UPDATE_SYSTEM_PROMPT,
+    fragments: [
+      GLOBAL_PROMPT_RULES,
+      PLAN_PROMPT_RULES,
+      WEEK_SHAPE_RULES,
+      PAST_SESSION_RULES,
+      COMPLETION_SLACK_RULES,
+      WEEK_OUTLINE_RULES,
+      WEATHER_PLANNING_RULES,
+      BIKE_WORKOUT_RULES,
+      DIET_PLANNING_RULES,
+      DIET_PROGRESS_RULES,
+      TRAINING_LOAD_RULES,
+      ENUM_RULES,
+      JSON_RULES,
+      WEEK_CONTRACT,
+      BLOCK_CONTRACT,
+      BODY_METRIC_POINT_CONTRACT,
+      COACH_RESPONSE_NOTES_CONTRACT,
+    ],
+  },
+  {
+    name: "plan update",
+    prompt: PLAN_UPDATE_SYSTEM_PROMPT,
+    fragments: [
+      GLOBAL_PROMPT_RULES,
+      PLAN_PROMPT_RULES,
+      SEASON_BLOCK_RULES,
+      WEEK_SHAPE_RULES,
+      TODAY_IN_WEEK_RULE,
+      COMPLETED_SESSION_RULES,
+      WEEK_OUTLINE_RULES,
+      SESSION_PURPOSE_RULES,
+      COACHING_SURVEY_ADJUSTMENT_RULES,
+      WEATHER_PLANNING_RULES,
+      BIKE_WORKOUT_RULES,
+      DIET_PLANNING_RULES,
+      DIET_PROGRESS_RULES,
+      TRAINING_LOAD_RULES,
+      ENUM_RULES,
+      JSON_RULES,
+      SEASON_CONTRACT,
+      BLOCK_CONTRACT,
+      WEEK_CONTRACT,
+      DAY_CONTRACT,
+      DIET_CONTRACT,
+      BODY_METRIC_POINT_CONTRACT,
+      COACH_RESPONSE_NOTES_CONTRACT,
+    ],
+  },
+];
+
+describe("update system prompts", () => {
+  it("starts with the global rules", () => {
+    for (const { name, prompt } of SYSTEM_PROMPTS) {
+      expect({
+        name,
+        startsWithGlobal: prompt.startsWith(GLOBAL_PROMPT_RULES),
+      }).toEqual({ name, startsWithGlobal: true });
+    }
+  });
+
+  it("composes every shared fragment and contract its prompt needs", () => {
+    for (const { name, prompt, fragments } of SYSTEM_PROMPTS) {
+      expect({ name, missing: missingFragments(prompt, fragments) }).toEqual({
+        name,
+        missing: [],
+      });
+    }
+  });
+});
+
 describe("unified plan update prompt", () => {
-  it("receives every level and asks for every level in one response", () => {
+  it("receives every level and asks for the requested levels in one response", () => {
     const prompt = buildPlanUpdatePrompt(
       updateInput({
         revision: {
@@ -186,20 +314,28 @@ describe("unified plan update prompt", () => {
       }),
     );
 
-    expect(prompt).toContain("Current season plan:");
-    expect(prompt).toContain("Current block plan:");
-    expect(prompt).toContain("Current week plan:");
-    expect(prompt).toContain("Today's plan:");
-    expect(prompt).toContain("Tomorrow's plan:");
-    expect(prompt).toContain("Next week plan:");
-    expect(prompt).toContain("Next block plan:");
-    expect(prompt).toContain("Revision request:");
+    for (const label of [
+      "Current season plan:",
+      "Current block plan:",
+      "Current week plan:",
+      "Today's plan:",
+      "Tomorrow's plan:",
+      "Next week plan:",
+      "Next block plan:",
+      "Revision request:",
+    ]) {
+      expect(prompt).toContain(label);
+    }
     expect(prompt).toContain(
       'top-level keys are exactly "season", "block", "week", "today", "tomorrow", "nextWeek", "nextBlock", "diet", and "bodyMetrics"',
     );
     expect(prompt).toContain("Create the current block starting on 2026-10-21");
-    expect(prompt).toContain("Revise the current week");
-    expect(prompt).toContain("Create or revise today's session");
+    expect(prompt).toContain(
+      '- Revise the current week and return it in "week".',
+    );
+    expect(prompt).toContain(
+      '- Create or revise today\'s session and return it in "today".',
+    );
   });
 
   it("asks for a season refresh in place with the stored block start date", () => {
@@ -216,13 +352,7 @@ describe("unified plan update prompt", () => {
       }),
     );
 
-    expect(prompt).toContain(
-      "Refresh the season and the current block in place",
-    );
-    expect(prompt).toContain(
-      "keep the blocks that ended before today unchanged",
-    );
-    expect(prompt).toContain("must start on 2026-10-21");
+    expect(prompt).toContain("The current block must start on 2026-10-21");
   });
 
   it("includes survey adjustments in a season refresh", () => {
@@ -253,7 +383,6 @@ describe("unified plan update prompt", () => {
     expect(prompt).toContain("How many hours do you train each week?");
     expect(prompt).toContain("Previous answer: About six.");
     expect(prompt).toContain("New answer: About nine.");
-    expect(prompt).toContain("Apply these survey adjustments to the plan");
   });
 
   it("keeps survey adjustments out of updates that do not refresh the season", () => {
@@ -287,12 +416,10 @@ describe("unified plan update prompt", () => {
       }),
     );
 
-    expect(prompt).toContain(
-      "The next week must start on 2026-10-26 and contain exactly seven sessions dated 2026-10-26, 2026-10-27, 2026-10-28, 2026-10-29, 2026-10-30, 2026-10-31, 2026-11-01.",
-    );
+    expect(prompt).toContain(`${weekDatesRule("2026-10-26", "next week")}.`);
     expect(prompt).toContain("Tomorrow is 2026-10-26.");
     expect(prompt).toContain(
-      'Return tomorrow\'s session in "tomorrow" and place its outline in the current week or the next week.',
+      '- Return tomorrow\'s session in "tomorrow" and place its outline in the current week or the next week.',
     );
   });
 
@@ -342,104 +469,11 @@ describe("unified plan update prompt", () => {
     expect(prompt).toContain(
       "Coach reply to the weekly note: Then we will put the long ride on Saturday.",
     );
-    expect(prompt).toContain("Revise the current block in place");
-  });
-
-  it("keeps the shared coaching, weather, load and outline rules", () => {
-    expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain(
-      "state of the art training science",
-    );
-    expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain(WEEK_OUTLINE_RULES);
-    expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain(WEATHER_PLANNING_RULES);
-    expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain(PLAN_PROMPT_RULES);
-    expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain(GLOBAL_PROMPT_RULES);
-    expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain('"bikeWorkout"');
-    expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain('"estimatedTss"');
-    expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain('"estimatedFtpWatts"');
-    expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain('"bodyMetrics"');
-    expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain('"coachQuestion"');
-    expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain('"modelsRemarks"');
-    expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain(
-      "what the athlete loses toward that goal",
-    );
-  });
-
-  it("keeps the season's introduction from the first plan", () => {
-    expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain(
-      'Keep the season\'s "introduction" exactly as supplied',
-    );
-  });
-
-  it("tiles the season's blocks with the shared rule", () => {
-    expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain(SEASON_BLOCK_RULES);
-  });
-
-  it("asks for rationales about the revised plan, not the revision", () => {
-    expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain(PLAN_PROMPT_RULES);
-    expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain(
-      "explains the plan as it stands, not the act of creating or revising it",
-    );
-    expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain(
-      "Do not describe a previous plan, what changed, or why it was revised.",
-    );
-    expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain(
-      'Do not write phrases such as "we adjusted", "we changed", "this replaces", or "because of the new review".',
-    );
+    expect(prompt).toContain("keep its start date (2026-10-21)");
   });
 });
 
-describe("daily update prompts", () => {
-  it("requires state of the art training science and a coherent day/week", () => {
-    const prompt = DAILY_UPDATE_SYSTEM_PROMPT;
-    expect(prompt).toContain("state of the art training science");
-    expect(prompt).toContain("exactly seven sessions");
-    expect(prompt).toContain("today object must match today's date");
-    expect(prompt).toContain(
-      "keep that planned workout's title, description and rationale",
-    );
-    expect(prompt).toContain("Do not summarise the activity again");
-    expect(prompt).toContain("do not propose new workouts");
-    expect(prompt).toContain("rationale");
-    expect(prompt).toContain("status");
-    expect(prompt).toContain("partial");
-    expect(prompt).toContain("a 60-minute ride recorded as 50 minutes");
-    expect(prompt).toContain('"today"');
-    expect(prompt).toContain('"tomorrow"');
-    expect(prompt).toContain('"week"');
-    expect(prompt).toContain('"alternatives"');
-    expect(prompt).toContain('"optional"');
-    expect(prompt).toContain('"optionalRationale"');
-    expect(prompt).toContain('"bikeWorkout"');
-    expect(prompt).toContain('"powerPercent"');
-    expect(prompt).toContain('set "bikeWorkout" to null');
-    expect(prompt).toContain('"estimatedTss"');
-    expect(prompt).toContain("training stress score");
-    expect(prompt).toContain('"estimatedFtpWatts"');
-    expect(prompt).toContain("estimate how it will change day by day");
-    expect(prompt).toContain('Set "estimatedFtpWatts" on every week session');
-    expect(prompt).toContain('"bodyMetrics"');
-    expect(prompt).toContain('"weightKg"');
-    expect(prompt).toContain('"bodyFatPercent"');
-    expect(prompt).toContain(PLAN_PROMPT_RULES);
-    expect(prompt).toContain("what the athlete loses toward that goal");
-    expect(prompt).toContain(
-      "if you cannot state a concrete loss for skipping a planned session",
-    );
-    expect(prompt).toContain(
-      "Revise the week so every workout serves the goal",
-    );
-  });
-
-  it("keeps every week session as an outline", () => {
-    expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain(WEEK_OUTLINE_RULES);
-    expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain(
-      "Treat every week plan, the current week and the next week, as an outline, not seven finished workouts",
-    );
-    expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain(
-      'never put detailed intervals, repetitions, paces, power targets or a "bikeWorkout" in a week session, even when it is dated today or tomorrow',
-    );
-  });
-
+describe("daily update prompt", () => {
   it("includes the profile, activities, season, block, and week", () => {
     const prompt = buildDailyUpdatePrompt({ ...base, season, block, week });
 
@@ -458,9 +492,7 @@ describe("daily update prompts", () => {
     expect(prompt).toContain(
       "Coach reply to the weekly note:\nUnderstood; Thursday is a rest day.",
     );
-    expect(prompt).toContain(
-      "A weekly note is normally scoped to the week it was written for.",
-    );
+    expect(prompt).toContain(WEEKLY_NOTE_SCOPE_RULE);
     expect(prompt).toContain("Goal: Sub-4-hour marathon");
     expect(prompt).toContain("Block: Base");
     expect(prompt).toContain("Week starting 2026-10-19");
@@ -470,22 +502,6 @@ describe("daily update prompts", () => {
     );
   });
 
-  it("asks the coach to respect weather and daylight and classify indoor/outdoor sessions", () => {
-    expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain(WEATHER_PLANNING_RULES);
-    expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain('"outdoor"');
-    expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain('"canBeOutdoor"');
-    expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain(
-      "could reasonably be done outdoors",
-    );
-    expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain("not ride outdoors in rain");
-    expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain("prefers daylight");
-    expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain("train in the dark");
-    expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain("before or after work");
-    expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain("long outdoor sessions");
-    expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain("weekend");
-    expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain("dry");
-  });
-
   it("refreshes diet progress without changing the training", () => {
     const prompt = buildPlanUpdatePrompt(
       updateInput({
@@ -493,42 +509,8 @@ describe("daily update prompts", () => {
       }),
     );
 
-    expect(prompt).toContain(
-      "Refresh the diet progress target on every level you return from the latest measurements.",
-    );
     expect(prompt).toContain('Change only the "dietProgress" objects');
-    expect(prompt).toContain(
-      'apart from refreshing their "dietProgress" targets',
-    );
     expect(PLAN_UPDATE_SYSTEM_PROMPT).toContain('except for "dietProgress"');
-  });
-
-  it("asks every update prompt for diet progress targets", () => {
-    for (const prompt of [
-      DAILY_UPDATE_SYSTEM_PROMPT,
-      WEEKLY_UPDATE_SYSTEM_PROMPT,
-      PLAN_UPDATE_SYSTEM_PROMPT,
-    ]) {
-      expect(prompt).toContain('"dietProgress"');
-      expect(prompt).toContain('"targetWeightKg"');
-      expect(prompt).toContain('"targetBodyFatPercent"');
-    }
-    expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain('"goalProvided": false');
-  });
-
-  it("requires the exact enum values from the schema", () => {
-    expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain(
-      'never output a session name such as "run", "strength", or "rest day" as a type',
-    );
-    expect(DAILY_UPDATE_SYSTEM_PROMPT).toContain(
-      "Every field must use the exact name and value type shown in the contract",
-    );
-    expect(WEEKLY_UPDATE_SYSTEM_PROMPT).toContain(
-      'never output a session name such as "run", "strength", or "rest day" as a type',
-    );
-    expect(WEEKLY_UPDATE_SYSTEM_PROMPT).toContain(
-      "Every field must use the exact name and value type shown in the contract",
-    );
   });
 
   it("states the exact week and today dates", () => {
@@ -597,38 +579,8 @@ describe("daily update prompts", () => {
   });
 });
 
-describe("weekly update prompts", () => {
-  it("requires a new week and a revised block", () => {
-    const prompt = WEEKLY_UPDATE_SYSTEM_PROMPT;
-    expect(prompt).toContain("state of the art training science");
-    expect(prompt).toContain("exactly seven sessions");
-    expect(prompt).toContain("Revise the block's weeks and target loads");
-    expect(prompt).toContain("do not propose new workouts");
-    expect(prompt).toContain("rationale");
-    expect(prompt).toContain("status");
-    expect(prompt).toContain("partial");
-    expect(prompt).toContain("Allow reasonable slack");
-    expect(prompt).toContain('"week"');
-    expect(prompt).toContain('"block"');
-    expect(prompt).toContain('"bikeWorkout"');
-    expect(prompt).toContain('"powerPercent"');
-    expect(prompt).toContain('"estimatedTss"');
-    expect(prompt).toContain('"estimatedFtpWatts"');
-    expect(prompt).toContain("estimate how it will change day by day");
-    expect(prompt).toContain('Set "estimatedFtpWatts" on every week session');
-    expect(prompt).toContain('"bodyMetrics"');
-    expect(prompt).toContain(PLAN_PROMPT_RULES);
-    expect(prompt).toContain("training stress score");
-  });
-
-  it("requires a week outline and leaves the detail to the daily update", () => {
-    expect(WEEKLY_UPDATE_SYSTEM_PROMPT).toContain(WEEK_OUTLINE_RULES);
-    expect(WEEKLY_UPDATE_SYSTEM_PROMPT).toContain(
-      "Treat every week plan, the current week and the next week, as an outline, not seven finished workouts",
-    );
-    expect(WEEKLY_UPDATE_SYSTEM_PROMPT).toContain(
-      "The daily update turns a week outline into that day's concrete workout",
-    );
+describe("weekly update prompt", () => {
+  it("asks for the new week as a set of outlines", () => {
     expect(
       buildWeeklyUpdatePrompt({
         ...base,
@@ -650,7 +602,7 @@ describe("weekly update prompts", () => {
     });
 
     expect(prompt).toContain(
-      "Week start date: 2026-10-26. The week must contain exactly seven sessions dated 2026-10-26 through 2026-11-01.",
+      `Week start date: 2026-10-26. ${weekDatesRangeRule("2026-10-26")}.`,
     );
     expect(prompt).toContain("Goal: Sub-4-hour marathon");
     expect(prompt).toContain("Block: Base");
@@ -658,13 +610,5 @@ describe("weekly update prompts", () => {
     expect(prompt).toContain(
       'top-level keys are exactly "week", "block", and "bodyMetrics"',
     );
-  });
-
-  it("asks the coach to place sessions around the weather and daylight", () => {
-    expect(WEEKLY_UPDATE_SYSTEM_PROMPT).toContain(WEATHER_PLANNING_RULES);
-    expect(WEEKLY_UPDATE_SYSTEM_PROMPT).toContain(
-      "Saturday is sunny and Sunday is rainy",
-    );
-    expect(WEEKLY_UPDATE_SYSTEM_PROMPT).toContain("prefers daylight");
   });
 });

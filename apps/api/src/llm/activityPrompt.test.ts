@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import type { Activity, ActivitySample, WeekPlan } from "@killingit/shared";
 import { makeActivity as makeFixtureActivity } from "../testFixtures/plan.js";
+import { missingFragments } from "../testFixtures/prompts.js";
 import {
   buildActivityAnalysisMessages,
   buildActivityAnalysisPrompt,
@@ -9,9 +10,19 @@ import {
   MAX_PROMPT_SAMPLES,
 } from "./activityPrompt.js";
 import {
+  ACTIVITY_BODY_METRIC_RULES,
+  ACTIVITY_DATA_LIMITS_RULE,
   ACTIVITY_EXTRA_PRAISE_RULES,
+  ACTIVITY_FTP_ESTIMATE_RULES,
   ACTIVITY_PRAISE_RULES,
+  ACTIVITY_TYPE_RULE,
+  COACH_ANALYSIS_RESPONSE_RULES,
+  DAILY_HEALTH_RULES,
+  DIET_RULES,
+  DURATION_TOLERANCE_RULES,
   GLOBAL_PROMPT_RULES,
+  LAP_STRUCTURE_RULES,
+  STRENGTH_SET_RULES,
   TEXT_FORMATTING_RULES,
 } from "./promptRules.js";
 
@@ -61,6 +72,10 @@ function makeActivity(overrides: Partial<Activity> = {}): Activity {
   });
 }
 
+function systemPrompt(): string {
+  return buildActivityAnalysisMessages(makeActivity())[0]?.content ?? "";
+}
+
 describe("downsampleSamples", () => {
   it("keeps every sample when under the limit", () => {
     const samples = makeActivity().samples;
@@ -95,6 +110,27 @@ describe("channelStats", () => {
         "cadence",
       ),
     ).toBeNull();
+  });
+});
+
+describe("activity review system prompt", () => {
+  it("composes every shared review rule and the response contract", () => {
+    expect(
+      missingFragments(systemPrompt(), [
+        GLOBAL_PROMPT_RULES,
+        ACTIVITY_TYPE_RULE,
+        DURATION_TOLERANCE_RULES,
+        ACTIVITY_PRAISE_RULES,
+        STRENGTH_SET_RULES,
+        LAP_STRUCTURE_RULES,
+        DAILY_HEALTH_RULES,
+        DIET_RULES,
+        ACTIVITY_FTP_ESTIMATE_RULES,
+        ACTIVITY_BODY_METRIC_RULES,
+        TEXT_FORMATTING_RULES,
+        COACH_ANALYSIS_RESPONSE_RULES,
+      ]),
+    ).toEqual([]);
   });
 });
 
@@ -210,13 +246,9 @@ describe("buildActivityAnalysisPrompt", () => {
     expect(prompt).toContain("Recorded strength sets:");
     expect(prompt).toContain("Goblet squat: 3 × 10 reps at 12 kg");
     expect(prompt).toContain("Rest between sets: 60 s");
-
-    const system =
-      buildActivityAnalysisMessages(makeActivity())[0]?.content ?? "";
-    expect(system).toContain("do not assume a strength workout was performed");
   });
 
-  it("includes stored weigh-ins with their sources and the precedence rule", () => {
+  it("includes stored weigh-ins with their sources and precedence", () => {
     const prompt = buildActivityAnalysisPrompt(makeActivity(), {
       today: "2026-10-01",
       bodyHistory: {
@@ -233,10 +265,6 @@ describe("buildActivityAnalysisPrompt", () => {
     expect(prompt).toContain("- 2026-10-01: 78.0 kg (user)");
     expect(prompt).toContain("- 2026-09-30: 24.4 % (garmin)");
     expect(prompt).not.toContain("77.9 kg");
-
-    const system =
-      buildActivityAnalysisMessages(makeActivity())[0]?.content ?? "";
-    expect(system).toContain("the athlete's own statement wins");
   });
 
   it("includes the recovery context up to the activity date", () => {
@@ -254,12 +282,10 @@ describe("buildActivityAnalysisPrompt", () => {
   });
 
   it("explains incomplete recordings and refuses an FTP guess without data", () => {
-    const system =
-      buildActivityAnalysisMessages(makeActivity())[0]?.content ?? "";
+    const system = systemPrompt();
 
-    expect(system).toContain("an indoor session may have no moving time");
-    expect(system).toContain("may or may not have power or heart-rate data");
-    expect(system).toContain("do not guess an FTP change from incomplete");
+    expect(system).toContain(ACTIVITY_DATA_LIMITS_RULE);
+    expect(system).toContain(ACTIVITY_FTP_ESTIMATE_RULES);
   });
 
   it("includes the week plan so the coach can match the activity to a session", () => {
@@ -289,10 +315,6 @@ describe("buildActivityAnalysisPrompt", () => {
     expect(prompt).toContain("2026-10-01 (Monday) [planned]: Easy ride");
     expect(prompt).toContain(
       "Planned session for 2026-10-01: Easy ride [workout, easy, 60 min]",
-    );
-    expect(prompt).toContain("Match the workout to it.");
-    expect(prompt).toContain(
-      "Include how well the workout fit its planned session",
     );
   });
 
@@ -399,21 +421,8 @@ describe("buildActivityAnalysisPrompt", () => {
       "The workout happened on 2026-10-01, outside the current week (2026-10-05 to 2026-10-11).",
     );
     expect(prompt).toContain("No planned session is available for that date.");
-    expect(prompt).toContain(
-      "Do not match it to a session in the current week",
-    );
-    expect(prompt).toContain("review the workout on its own merits");
-    expect(prompt).toContain("relate it to the current block's focus");
     expect(prompt).not.toContain("Current week plan:");
-    expect(prompt).not.toContain(
-      "Match it to the planned session for that date",
-    );
-    expect(prompt).toContain(
-      "Do not compare the workout to the current week plan",
-    );
-    expect(prompt).not.toContain(
-      "Include how well the workout fit its planned session",
-    );
+    expect(prompt).not.toContain("Planned session for 2026-10-01");
   });
 
   it("includes the athlete's comment and trusts it over the device label", () => {
@@ -425,48 +434,26 @@ describe("buildActivityAnalysisPrompt", () => {
 
     expect(messages[1]?.content).toContain("Athlete comment on this activity");
     expect(messages[1]?.content).toContain("double spinning class");
-    expect(messages[1]?.content).toContain("not an additional session");
-    expect(messages[0]?.content).toContain(
-      "treat the comment as authoritative over the device label",
-    );
+    expect(messages[0]?.content).toContain(ACTIVITY_TYPE_RULE);
   });
 
   it("asks for body weight and body fat from the athlete's own words", () => {
-    const system =
-      buildActivityAnalysisMessages(makeActivity())[0]?.content ?? "";
+    const system = systemPrompt();
 
-    expect(system).toContain('"weightKg"');
-    expect(system).toContain('"bodyFatPercent"');
-    expect(system).toContain('"coachQuestion"');
-    expect(system).toContain('"modelsRemarks"');
-    expect(system).toContain("second person");
-    expect(system).toContain("never estimate a weigh-in from the workout data");
+    expect(system).toContain(COACH_ANALYSIS_RESPONSE_RULES);
     expect(system).toContain(GLOBAL_PROMPT_RULES);
   });
 
   it("does not treat a near-target duration as short or long", () => {
-    const system =
-      buildActivityAnalysisMessages(makeActivity())[0]?.content ?? "";
-
-    expect(system).toContain(
-      "a two-hour session recorded as 1:50 or 2:05 matched its plan",
-    );
-    expect(system).toContain("build on it instead of inventing a correction");
+    expect(systemPrompt()).toContain(DURATION_TOLERANCE_RULES);
   });
 
   it("asks for paragraphs and lists in the review", () => {
-    const system =
-      buildActivityAnalysisMessages(makeActivity())[0]?.content ?? "";
-
-    expect(system).toContain(TEXT_FORMATTING_RULES);
+    expect(systemPrompt()).toContain(TEXT_FORMATTING_RULES);
   });
 
   it("praises a well-performed race or extraordinary effort", () => {
-    const system =
-      buildActivityAnalysisMessages(makeActivity())[0]?.content ?? "";
-
-    expect(system).toContain(ACTIVITY_PRAISE_RULES);
-    expect(system).toContain("tell them plainly that they are killing it");
+    expect(systemPrompt()).toContain(ACTIVITY_PRAISE_RULES);
   });
 
   it("adds the extra praise when the draw is 0", () => {
@@ -478,9 +465,6 @@ describe("buildActivityAnalysisPrompt", () => {
     );
 
     expect(messages[1]?.content).toContain(ACTIVITY_EXTRA_PRAISE_RULES);
-    expect(messages[1]?.content).toContain(
-      "even though it was not a race or an effort far above their ordinary training",
-    );
   });
 
   it("leaves out the extra praise for any other draw", () => {
@@ -497,8 +481,7 @@ describe("buildActivityAnalysisPrompt", () => {
   it("does not trust the recorded activity type", () => {
     const messages = buildActivityAnalysisMessages(makeActivity());
 
-    expect(messages[0]?.content).toContain("do not trust it");
-    expect(messages[0]?.content).toContain("strength-training workout");
+    expect(messages[0]?.content).toContain(ACTIVITY_TYPE_RULE);
     expect(messages[1]?.content).toContain(
       "Type (recorded by the device; may be wrong)",
     );
