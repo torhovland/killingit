@@ -255,7 +255,11 @@ about a past workout, or before a suggested workout, to steer the coach.
   `docs/specs/coach-form-awareness.md`.
   Garmin syncs the last 42 days of activities, body composition, and historic
   cycling FTP, and power metrics are stored on activity summaries so the raw
-  timeseries is not needed. Every sidecar call has a request timeout, and the
+  timeseries is not needed. The weigh-in/FTP refresh and the daily-health
+  backfill are one shared fail-open pass, `syncGarminSupplements`, in
+  `apps/api/src/garmin/supplements.ts`, used by both the activity feed and
+  `GET /api/garmin/activities`, and dated by the athlete's local day.
+  Every sidecar call has a request timeout, and the
   `/sync` activities are validated against the shared `activitySchema`, so a
   hung or malformed sidecar fails with a typed error instead of entering the
   stored feed. Activity summaries also store average and maximum

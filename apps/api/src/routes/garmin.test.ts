@@ -58,17 +58,29 @@ const users: UserStore = {
     }),
 };
 
-function makeApp(authenticate?: () => Promise<boolean>) {
+function makeApp(
+  authenticate?: () => Promise<boolean>,
+  options: { timezone?: string; now?: () => Date } = {},
+) {
   const stored = new Map<number, EncryptedCredentials>();
   const plain = new Map<number, GarminCredentials>();
   const synced: GarminCredentials[] = [];
+  const supplementDates: string[] = [];
+  // The account's stored zone decides the local day the supplement pass uses.
+  const accounts: UserStore = {
+    ...users,
+    ensureUser: async (sub) => ({
+      ...(await users.ensureUser(sub)),
+      timezone: options.timezone ?? null,
+    }),
+  };
 
   const app = new Hono();
   app.use(
     "/garmin/*",
     requireAuth({ verify: (token) => Promise.resolve({ sub: token }) }),
   );
-  app.use("/garmin/*", requireUser(users));
+  app.use("/garmin/*", requireUser(accounts));
   app.route(
     "/garmin",
     createGarminRoute({
@@ -85,15 +97,15 @@ function makeApp(authenticate?: () => Promise<boolean>) {
         synced.push(credentials);
         return Promise.resolve([] as Activity[]);
       }) satisfies SyncTransport,
-      syncMetrics: () => Promise.resolve({ metrics: [], ftp: [] }),
-      saveMetrics: () => Promise.resolve(),
-      saveFtp: () => Promise.resolve(),
-      syncDaily: () =>
-        Promise.resolve({ fetched: [], rateLimited: false, failedDate: null }),
+      syncSupplements: (_userId, _credentials, today) => {
+        supplementDates.push(today);
+        return Promise.resolve();
+      },
+      now: options.now ?? (() => new Date()),
     }),
   );
 
-  return { app, stored, plain, synced };
+  return { app, stored, plain, synced, supplementDates };
 }
 
 function request(path: string, subject: string, init?: RequestInit): Request {
@@ -144,6 +156,30 @@ describe("per-user Garmin credentials", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ activities: [] });
     expect(synced).toEqual([{ username: "rider-1", password: "secret-1" }]);
+  });
+
+  it("refreshes the supplementary data for the athlete's local day", async () => {
+    const { app, plain, supplementDates } = makeApp(undefined, {
+      timezone: "Europe/Oslo",
+      now: () => new Date("2026-11-14T23:30:00Z"),
+    });
+    plain.set(1, { username: "rider-1", password: "secret-1" });
+
+    const res = await app.fetch(request("/garmin/activities", "athlete-1"));
+
+    expect(res.status).toBe(200);
+    expect(supplementDates).toEqual(["2026-11-15"]);
+  });
+
+  it("reads an account without a time zone in UTC", async () => {
+    const { app, plain, supplementDates } = makeApp(undefined, {
+      now: () => new Date("2026-11-14T23:30:00Z"),
+    });
+    plain.set(1, { username: "rider-1", password: "secret-1" });
+
+    await app.fetch(request("/garmin/activities", "athlete-1"));
+
+    expect(supplementDates).toEqual(["2026-11-14"]);
   });
 
   it("does not sync an account without credentials", async () => {
