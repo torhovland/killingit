@@ -1,5 +1,8 @@
-import { describe, expect, it, mock } from "bun:test";
-import { syncGarminSupplements } from "./supplements.js";
+import { describe, expect, it, mock, spyOn } from "bun:test";
+import {
+  startGarminSupplements,
+  syncGarminSupplements,
+} from "./supplements.js";
 
 const credentials = { username: "rider", password: "secret" };
 
@@ -80,5 +83,78 @@ describe("syncGarminSupplements", () => {
 
     expect(saveFtp).not.toHaveBeenCalled();
     expect(syncDaily).toHaveBeenCalled();
+  });
+});
+
+describe("startGarminSupplements", () => {
+  it("returns at once without waiting for the pass", async () => {
+    let finish: () => void = () => {};
+    const pass = mock(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
+
+    const running = startGarminSupplements(29901, pass);
+    let settled = false;
+    void running.then(() => {
+      settled = true;
+    });
+    await Promise.resolve();
+
+    expect(pass).toHaveBeenCalledTimes(1);
+    expect(settled).toBe(false);
+
+    finish();
+    await running;
+  });
+
+  it("runs one pass per account at a time", async () => {
+    let finish: () => void = () => {};
+    const first = mock(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const second = mock(() => Promise.resolve());
+
+    const running = startGarminSupplements(29902, first);
+    const joined = startGarminSupplements(29902, second);
+
+    expect(joined).toBe(running);
+    expect(second).not.toHaveBeenCalled();
+
+    finish();
+    await running;
+  });
+
+  it("starts a new pass once the previous one has settled", async () => {
+    const pass = mock(() => Promise.resolve());
+
+    await startGarminSupplements(29903, pass);
+    await startGarminSupplements(29903, pass);
+
+    expect(pass).toHaveBeenCalledTimes(2);
+  });
+
+  it("logs a failing pass instead of rejecting", async () => {
+    const log = spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const running = startGarminSupplements(29904, () =>
+        Promise.reject(new Error("sidecar down")),
+      );
+
+      await running;
+
+      expect(log).toHaveBeenCalledTimes(1);
+      expect(String(log.mock.calls[0]?.[0])).toContain(
+        "supplementary sync failed",
+      );
+      expect(String(log.mock.calls[0]?.[1])).toContain("sidecar down");
+    } finally {
+      log.mockRestore();
+    }
   });
 });

@@ -85,7 +85,9 @@ athlete measurements are never deleted.
   activity feed.
 - `GET /api/garmin/activities` and the activity feed both refresh the body
   values and historic FTP through the shared fail-open
-  `syncGarminSupplements` pass, dated by the athlete's local calendar day.
+  `syncGarminSupplements` pass, dated by the athlete's local calendar day. Both
+  start it in the background, so a slow pass never holds their response and its
+  failure is logged, never returned; see ADR 0039.
 
 ### FTP series
 

@@ -139,10 +139,20 @@ wins when the two conflict.
    fails the activity feed.
 6. The weigh-in/FTP refresh and this backfill run as one shared
    `syncGarminSupplements(userId, credentials, today)` pass in
-   `apps/api/src/garmin/supplements.ts`, called by both the activity feed and
-   `GET /api/garmin/activities`. `today` is the athlete's local calendar date in
-   the effective time zone, so both callers end the daily window on the day the
-   athlete is living.
+   `apps/api/src/garmin/supplements.ts`. It is **started in the background** by
+   `startGarminSupplements` from both the activity feed's sync phase and
+   `GET /api/garmin/activities`: the response is written as soon as the
+   activities are stored and the pass keeps going without it. `today` is the
+   athlete's local calendar date in the effective time zone, so both callers
+   end the daily window on the day the athlete is living.
+7. One supplementary pass per account runs at a time. A caller that arrives
+   while the account's pass is running joins it instead of starting a second
+   one, so two requests never write the same metrics at once. The map is
+   process-local and holds only the accounts mid-pass.
+8. The background pass takes no request, `AbortSignal` or request-scoped
+   context, and the scheduler logs anything it throws, so it can neither reject
+   an unawaited task nor fail a response that was already written. It starts in
+   the same tick as the request rather than on a timer; see ADR 0039.
 
 ## Acceptance criteria
 
@@ -158,6 +168,9 @@ wins when the two conflict.
    analysis prompts, filtered through the relevant date.
 6. Unit tests cover daily normalization, date planning, `429` handling, storage
    calls and prompt formatting. Quality gates pass.
+7. The feed and `GET /api/garmin/activities` answer with the stored activities
+   while the supplementary pass is slow or failing, and one pass per account
+   runs at a time.
 
 ## Risks / open questions
 
@@ -177,3 +190,7 @@ wins when the two conflict.
   values become visible the next day.
 - The app has no existing health-metrics UI. This spec deliberately stops at
   storage and prompt context.
+- The pass runs after the response, so on Cloud Run's request-based billing the
+  instance's CPU can be throttled before it finishes. Nothing is corrupted: a
+  stored day is watermarked, today and yesterday are refreshed on every pass, and
+  the next visit resumes where the last one stopped. See ADR 0039.

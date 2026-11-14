@@ -21,7 +21,10 @@ import {
 import { loadDecryptedGarminCredentials } from "../garmin/credentials.js";
 import { encrypt, garminCredentialsKeyFromEnv } from "../garmin/crypto.js";
 import { loadCredentials, saveCredentials } from "../garmin/store.js";
-import { syncGarminSupplements } from "../garmin/supplements.js";
+import {
+  syncGarminSupplements,
+  startGarminSupplements,
+} from "../garmin/supplements.js";
 
 /** Request body for POST /credentials — raw (soon-to-be-encrypted) values. */
 const credentialsSchema = z.object({
@@ -95,9 +98,9 @@ export function createGarminRoute(deps: ResolvedAppDependencies): Hono {
     .get("/activities", async (c) => {
       const user = getUser(c);
 
-      let credentials;
+      let decrypted;
       try {
-        credentials = await loadDecrypted(user.id);
+        decrypted = await loadDecrypted(user.id);
       } catch (err) {
         console.error("[garmin] could not read stored credentials:", err);
         return serviceUnavailable(
@@ -105,22 +108,24 @@ export function createGarminRoute(deps: ResolvedAppDependencies): Hono {
           "Garmin credentials are unavailable (check GARMIN_CREDENTIALS_KEY)",
         );
       }
-      if (!credentials) {
+      if (!decrypted) {
         return respondUpstreamError(
           c,
           new GarminNotConnectedError(),
           "[garmin] not connected",
         );
       }
+      const credentials = decrypted;
+      const today = zonedDateTime(now(), user.timezone).date;
 
       try {
         const activities = await sync(credentials);
-        // Body composition and daily health supplement the activity sync; the
-        // shared pass is fail-open, so neither can fail this response.
-        await syncSupplements(
-          user.id,
-          credentials,
-          zonedDateTime(now(), user.timezone).date,
+        // Body composition and daily health supplement the activity sync, and
+        // the shared pass is fail-open: it runs in the background so a slow
+        // backfill never holds this response, and neither can fail it. See
+        // ADR 0039.
+        void startGarminSupplements(user.id, () =>
+          syncSupplements(user.id, credentials, today),
         );
         return c.json({ activities });
       } catch (err) {

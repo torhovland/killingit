@@ -257,8 +257,10 @@ about a past workout, or before a suggested workout, to steer the coach.
   cycling FTP, and power metrics are stored on activity summaries so the raw
   timeseries is not needed. The weigh-in/FTP refresh and the daily-health
   backfill are one shared fail-open pass, `syncGarminSupplements`, in
-  `apps/api/src/garmin/supplements.ts`, used by both the activity feed and
-  `GET /api/garmin/activities`, and dated by the athlete's local day.
+  `apps/api/src/garmin/supplements.ts`, started in the background by both the
+  activity feed and `GET /api/garmin/activities` through
+  `startGarminSupplements`, dated by the athlete's local day, and run one pass
+  per account at a time so neither caller waits for a slow backfill; see ADR 0039.
   Every sidecar call has a request timeout, and the
   `/sync` activities are validated against the shared `activitySchema`, so a
   hung or malformed sidecar fails with a typed error instead of entering the

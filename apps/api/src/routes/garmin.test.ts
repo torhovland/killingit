@@ -66,6 +66,8 @@ function makeApp(
     timezone?: string;
     now?: () => Date;
     syncActivities?: SyncTransport;
+    /** The supplementary work; the route starts it in the background. */
+    syncSupplements?: () => Promise<void>;
   } = {},
 ) {
   const stored = new Map<number, EncryptedCredentials>();
@@ -103,12 +105,17 @@ function makeApp(
     syncGarminActivities: sync,
     syncGarminSupplements: (_userId, _credentials, today) => {
       supplementDates.push(today);
-      return Promise.resolve();
+      return options.syncSupplements?.() ?? Promise.resolve();
     },
     now: options.now ?? (() => new Date()),
   });
 
   return { app, stored, plain, synced, supplementDates };
+}
+
+/** Lets a background supplementary pass settle so its per-account entry is released. */
+function settle(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
 function request(path: string, subject: string, init?: RequestInit): Request {
@@ -171,6 +178,7 @@ describe("per-user Garmin credentials", () => {
     const res = await app.fetch(request("/garmin/activities", "athlete-1"));
 
     expect(res.status).toBe(200);
+    await settle();
     expect(supplementDates).toEqual(["2026-11-15"]);
   });
 
@@ -182,6 +190,7 @@ describe("per-user Garmin credentials", () => {
 
     await app.fetch(request("/garmin/activities", "athlete-1"));
 
+    await settle();
     expect(supplementDates).toEqual(["2026-11-14"]);
   });
 
@@ -222,6 +231,65 @@ describe("per-user Garmin credentials", () => {
       },
     });
     expect(stored.size).toBe(0);
+  });
+});
+
+describe("supplementary sync scheduling", () => {
+  const credentials = { username: "rider-1", password: "secret-1" };
+  const activity: Activity = {
+    id: 1,
+    name: "Morning ride",
+    type: "cycling",
+    startDate: "2026-11-14T07:00:00Z",
+    distance: 30000,
+    movingTime: 3600,
+    elapsedTime: 3700,
+    totalElevationGain: 200,
+    samples: [],
+  };
+
+  it("answers with the activities while the supplementary pass runs", async () => {
+    let finish: () => void = () => {};
+    const { app, plain } = makeApp(undefined, {
+      syncActivities: () => Promise.resolve([activity]),
+      syncSupplements: () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    });
+    plain.set(1, credentials);
+
+    const res = await app.fetch(request("/garmin/activities", "athlete-1"));
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ activities: [activity] });
+
+    // The pass settles only after the response, which is the point: a slow
+    // backfill must not hold the activities.
+    finish();
+    await settle();
+  });
+
+  it("logs a failing supplementary pass without failing the response", async () => {
+    const log = spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const { app, plain } = makeApp(undefined, {
+        syncActivities: () => Promise.resolve([activity]),
+        syncSupplements: () => Promise.reject(new Error("sidecar down")),
+      });
+      plain.set(1, credentials);
+
+      const res = await app.fetch(request("/garmin/activities", "athlete-1"));
+
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ activities: [activity] });
+
+      await settle();
+      expect(log).toHaveBeenCalledTimes(1);
+      expect(String(log.mock.calls[0]?.[1])).toContain("sidecar down");
+    } finally {
+      log.mockRestore();
+    }
   });
 });
 

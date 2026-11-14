@@ -1,8 +1,10 @@
-import { describe, expect, it, mock } from "bun:test";
+import { describe, expect, it, mock, spyOn } from "bun:test";
 import type { Activity, AnalyzedActivity } from "@killingit/shared";
-import { extendStoredFeed, mergeActivityHistory } from "./sync.js";
+import type { GarminCredentials } from "../../garmin/client.js";
+import { extendStoredFeed, mergeActivityHistory, syncFeed } from "./sync.js";
 
 type ActivityStore = NonNullable<Parameters<typeof extendStoredFeed>[1]>;
+type SyncFeedDependencies = NonNullable<Parameters<typeof syncFeed>[1]>;
 
 function synced(id: number, startDate: string, name: string): Activity {
   return {
@@ -123,5 +125,107 @@ describe("extendStoredFeed", () => {
       [synced(2, "2026-10-11T06:30:00Z", "New ride")],
       deletedIds,
     );
+  });
+});
+
+const credentials: GarminCredentials = {
+  username: "rider",
+  password: "secret",
+};
+
+/** A stored-feed store with no history, so a sync test never touches the database. */
+function emptyStore(): NonNullable<SyncFeedDependencies["store"]> {
+  return {
+    load: () => Promise.resolve({ model: null, activities: [] }),
+    save: mock(() => Promise.resolve()),
+  };
+}
+
+/** Lets a background pass settle so its per-account entry is released. */
+function settle(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+describe("syncFeed", () => {
+  it("answers with the synced activities while the supplementary pass runs", async () => {
+    let finish: () => void = () => {};
+    const syncSupplements = mock(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
+
+    const result = await syncFeed(
+      { userId: 29911, credentials, today: "2026-11-14", limit: 20 },
+      {
+        syncActivities: () =>
+          Promise.resolve([synced(2, "2026-10-11T06:30:00Z", "New ride")]),
+        syncSupplements,
+        loadDeletedIds: () => Promise.resolve(new Set()),
+        store: emptyStore(),
+      },
+    );
+
+    expect(result.latest.map((activity) => activity.name)).toEqual([
+      "New ride",
+    ]);
+    expect(result.history.map((activity) => activity.id)).toEqual([2]);
+    expect(syncSupplements).toHaveBeenCalledWith(
+      29911,
+      credentials,
+      "2026-11-14",
+    );
+
+    finish();
+    await settle();
+  });
+
+  it("answers with the synced activities when the supplementary pass fails", async () => {
+    const log = spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const result = await syncFeed(
+        { userId: 29912, credentials, today: "2026-11-14", limit: 20 },
+        {
+          syncActivities: () =>
+            Promise.resolve([
+              synced(3, "2026-10-12T06:30:00Z", "Another ride"),
+            ]),
+          syncSupplements: () => Promise.reject(new Error("sidecar down")),
+          loadDeletedIds: () => Promise.resolve(new Set()),
+          store: emptyStore(),
+        },
+      );
+
+      expect(result.history.map((activity) => activity.id)).toEqual([3]);
+
+      await settle();
+      expect(log).toHaveBeenCalledTimes(1);
+      expect(String(log.mock.calls[0]?.[1])).toContain("sidecar down");
+    } finally {
+      log.mockRestore();
+    }
+  });
+
+  it("does not start the supplementary pass when the activity sync fails", async () => {
+    const syncSupplements = mock(() => Promise.resolve());
+
+    let caught: unknown;
+    try {
+      await syncFeed(
+        { userId: 29913, credentials, today: "2026-11-14", limit: 20 },
+        {
+          syncActivities: () => Promise.reject(new Error("Garmin is down")),
+          syncSupplements,
+          loadDeletedIds: () => Promise.resolve(new Set()),
+          store: emptyStore(),
+        },
+      );
+    } catch (err) {
+      caught = err;
+    }
+
+    expect(String(caught)).toContain("Garmin is down");
+    expect(syncSupplements).not.toHaveBeenCalled();
   });
 });
