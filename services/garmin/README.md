@@ -75,6 +75,31 @@ pip install -r requirements-dev.txt
 pytest
 ```
 
+## Contract fixtures
+
+`contract/` holds one committed JSON file per endpoint (`sync.json`,
+`metrics.json`, `daily.json`): the whole response body the sidecar returns. They
+pin the Python sidecar to the shared Zod schemas that the Bun API parses those
+bodies with, so a renamed field fails a pull request instead of production.
+
+- `contract_fixtures.py` keeps the representative raw Garmin payloads and
+  rebuilds the responses by calling the sidecar's own route handlers.
+- `test_contract.py` (part of `bun run check:garmin`) asserts the sidecar still
+  produces exactly the committed JSON.
+- `apps/api/src/garmin/contract.test.ts` (part of `bun run test`) parses the same
+  files with the shared schemas.
+
+After a deliberate wire change, regenerate the fixtures:
+
+```sh
+cd services/garmin
+UPDATE_CONTRACT_FIXTURES=1 .venv/bin/python -m pytest test_contract.py
+```
+
+Then make the shared schemas and the code that consumes them match, and let the
+Bun test prove the new body parses. The normal test run only reads the files. See
+`docs/specs/garmin-sidecar-contract.md` and ADR 0057.
+
 ## Notes
 
 - MFA-required Garmin accounts are **not supported** and return 403.

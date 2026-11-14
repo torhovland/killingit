@@ -1,0 +1,28 @@
+{
+  "metrics": [
+    {
+      "date": "2026-10-01",
+      "weightKg": 78.5,
+      "bodyFatPercent": 24.5
+    },
+    {
+      "date": "2026-10-08",
+      "weightKg": 78.02,
+      "bodyFatPercent": 24.1
+    },
+    {
+      "date": "2026-10-15",
+      "weightKg": 78.2
+    }
+  ],
+  "ftp": [
+    {
+      "date": "2026-10-01",
+      "watts": 255
+    },
+    {
+      "date": "2026-10-20",
+      "watts": 262
+    }
+  ]
+}

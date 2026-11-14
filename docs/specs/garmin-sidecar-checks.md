@@ -60,7 +60,8 @@ Python 3.12, and caches pip downloads against `requirements*.txt`.
   `UP`, `SIM`, `BLE` and `RUF` rule families, and configures mypy with
   `python_version = "3.12"`, `check_untyped_defs`, `ignore_missing_imports` (the
   `garminconnect` package ships no stubs) and the warning flags.
-- Test discovery is limited to `test_app.py` so the virtualenv is never walked.
+- Test discovery is limited to `test_app.py` and `test_contract.py` so the
+  virtualenv is never walked.
 
 ### Code changes required by the gates
 

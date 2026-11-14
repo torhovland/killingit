@@ -5,7 +5,9 @@
 # follow the `python:3.12-slim` image the sidecar is deployed in.
 
 [tool.pytest.ini_options]
-testpaths = ["test_app.py"]
+# Only these modules, so the virtualenv is never walked. `test_contract.py`
+# pins the sidecar's wire JSON to the committed fixtures in `contract/`.
+testpaths = ["test_app.py", "test_contract.py"]
 
 [tool.ruff]
 line-length = 88
@@ -20,7 +22,7 @@ quote-style = "double"
 
 [tool.mypy]
 python_version = "3.12"
-files = ["app.py", "test_app.py"]
+files = ["app.py", "test_app.py", "contract_fixtures.py", "test_contract.py"]
 check_untyped_defs = true
 ignore_missing_imports = true
 no_implicit_optional = true

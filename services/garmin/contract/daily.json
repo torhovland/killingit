@@ -1,0 +1,25 @@
+{
+  "date": "2026-11-12",
+  "metrics": {
+    "resting_heart_rate": 52.0,
+    "sleep_duration": 430.0,
+    "stress": 31.0,
+    "body_battery_high": 88.0,
+    "body_battery_low": 24.0,
+    "steps": 8200.0,
+    "active_calories": 640.0,
+    "spo2": 96.0,
+    "intensity_minutes": 30.0,
+    "sleep_score": 82.0,
+    "deep_sleep": 70.0,
+    "light_sleep": 240.0,
+    "rem_sleep": 90.0,
+    "awake_sleep": 10.0,
+    "hrv": 48.0,
+    "respiration": 14.2,
+    "training_readiness": 78.0,
+    "recovery_time": 600.0,
+    "vo2max": 48.5,
+    "vo2max_cycling": 43.0
+  }
+}

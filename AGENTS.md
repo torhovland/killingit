@@ -273,7 +273,14 @@ about a past workout, or before a suggested workout, to steer the coach.
   Every sidecar call has a request timeout, and the
   `/sync` activities are validated against the shared `activitySchema`, so a
   hung or malformed sidecar fails with a typed error instead of entering the
-  stored feed. Activity summaries also store average and maximum
+  stored feed. The sidecar's whole body for `/sync`, `/metrics` and `/daily` is
+  committed as JSON under `services/garmin/contract/` and pinned from both
+  languages: `services/garmin/test_contract.py` rebuilds it through the
+  sidecar's own handlers, and `apps/api/src/garmin/contract.test.ts` parses it
+  with `activitiesResponseSchema`, `garminMetricsResponseSchema` and
+  `garminDailyResponseSchema`, so a field rename on either side fails a pull
+  request; see `docs/specs/garmin-sidecar-contract.md` and ADR 0057. Activity
+  summaries also store average and maximum
   speed; the UI and prompts show pace for running, walking, hiking, swimming
   and rowing (per 100 m for swims and per 500 m for rows) and speed for cycling.
   Each synced activity is one row in `activities`, so history keeps every
@@ -792,8 +799,14 @@ through a disciplined process:
    - **Python sidecar tests** for `services/garmin`: `bun run check:garmin` runs
      `pytest` plus `ruff check`, `ruff format --check` and `mypy`, with the
      tools pinned in `services/garmin/requirements-dev.txt` and configured in
-     its `pyproject.toml`. CI runs the same script in the `garmin` job; see
-     `docs/specs/garmin-sidecar-checks.md`.
+     its `pyproject.toml`. The suite also holds the Python half of the sidecar
+     contract: `services/garmin/test_contract.py` rebuilds the committed
+     response fixtures in `services/garmin/contract/` through the sidecar's own
+     handlers, and `apps/api/src/garmin/contract.test.ts` parses them with the
+     shared schemas; a wire rename on either side therefore fails a pull
+     request. CI runs the same script in the `garmin` job; see
+     `docs/specs/garmin-sidecar-checks.md` and
+     `docs/specs/garmin-sidecar-contract.md`.
    - **Integration tests** against the API and a test database.
      Database-backed tests live in `apps/api/integration` and run with
      `bun run test:integration` against the docker-compose PostgreSQL. They

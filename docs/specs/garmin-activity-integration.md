@@ -165,6 +165,14 @@ one swappable corner, and normalizes Garmin activities into the shared
   client mapping + error handling; config-from-env.
 - **Unit (Python):** activity and sample normalization + 42-day filtering with
   a stubbed Garmin client (no live network).
+- **Contract (both languages):** the sidecar's whole response for `/sync`,
+  `/metrics` and `/daily` is committed as JSON under `services/garmin/contract/`
+  and pinned from both sides — `services/garmin/test_contract.py` re-runs the
+  sidecar's handlers over representative Garmin payloads and asserts the
+  committed bytes, and `apps/api/src/garmin/contract.test.ts` parses the same
+  files with `activitiesResponseSchema`, `garminMetricsResponseSchema` and
+  `garminDailyResponseSchema`. A field rename on either side therefore fails a
+  pull request; see `docs/specs/garmin-sidecar-contract.md` and ADR 0057.
 - Run `bun run typecheck`, `bun run lint`, `bun run format`, `bun run test` and
   `bun run check:garmin` (the sidecar's pytest, ruff and mypy gates).
 
@@ -215,6 +223,14 @@ one swappable corner, and normalizes Garmin activities into the shared
   of holding the API request open. The `/sync` activities are parsed with the
   shared `activitySchema` array, and a malformed payload raises
   `GarminSidecarError` before anything reaches the stored activity rows.
+- **The sidecar's wire bodies are pinned by committed fixtures.** The
+  sidecar builds its response dicts by hand and TypeScript owns the schemas that
+  parse them, so `services/garmin/contract/` holds each endpoint's whole body and
+  both sides check it: pytest re-runs the sidecar's handlers over representative
+  Garmin payloads and asserts the committed bytes, and
+  `apps/api/src/garmin/contract.test.ts` parses the same files with the shared
+  schemas. A rename on either side fails a pull request. See
+  `docs/specs/garmin-sidecar-contract.md` and ADR 0057.
 - **Malformed sync payloads cannot blank the page.** The web validates the
   `{ activities }` response against the shared `activitiesResponseSchema`
   before rendering; a shape error becomes an inline Garmin error. `samples`
