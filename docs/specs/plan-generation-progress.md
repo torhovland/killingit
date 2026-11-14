@@ -99,7 +99,8 @@ Heartbeats keep refreshing `updated_at` only.
 1. Step definitions and pure estimation helpers.
 2. New columns and duration table with a migration.
 3. Store changes: interpolate on read, learn durations on step changes.
-4. Step call sites in `generate.ts` use the definitions.
+4. Step call sites in `plans/generation/freshPlan.ts` and
+   `plans/generation/revision.ts` use the definitions.
 5. Unit tests for interpolation and duration averaging.
 6. The web bar's width transition matches the 1.5s poll interval so consecutive
    polls look continuous.

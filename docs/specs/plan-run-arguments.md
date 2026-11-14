@@ -16,12 +16,12 @@ refresh and the incremental advance share one function.
 Four entry points that drive a plan run carried their last arguments
 positionally, and three of them ended in optional booleans:
 
-| Entry point                                      | Arguments                                                        |
-| ------------------------------------------------ | ---------------------------------------------------------------- |
-| `advancePlan` (`apps/api/src/plans/generate.ts`) | input, stored plan, pending flags, revision flag, season, review |
-| `planPending` (`apps/api/src/plans/status.ts`)   | plan, today, include-tomorrow, weather, week-review, diet-advice |
-| `PlanStore.save` (`apps/api/src/plans/store.ts`) | user id, plan, three timestamps, run id                          |
-| `buildResponse` (`apps/api/src/routes/plan.ts`)  | user id, location, zone, today, include-tomorrow, diet advice    |
+| Entry point                                                 | Arguments                                                        |
+| ----------------------------------------------------------- | ---------------------------------------------------------------- |
+| `advancePlan` (`apps/api/src/plans/generation/revision.ts`) | input, stored plan, pending flags, revision flag, season, review |
+| `planPending` (`apps/api/src/plans/status.ts`)              | plan, today, include-tomorrow, weather, week-review, diet-advice |
+| `PlanStore.save` (`apps/api/src/plans/store.ts`)            | user id, plan, three timestamps, run id                          |
+| `buildResponse` (`apps/api/src/routes/plan.ts`)             | user id, location, zone, today, include-tomorrow, diet advice    |
 
 `refreshStoredSeason` and `advancePendingPlan` were wrappers whose only
 difference was the `seasonRefresh` boolean in the fourth position, so the

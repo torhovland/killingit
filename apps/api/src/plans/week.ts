@@ -34,6 +34,47 @@ export function activitiesOnDate(
   return [...recorded, ...manual];
 }
 
+/** The recorded data a day's completion is settled from. */
+export interface TodayStatusInput {
+  today: string;
+  /**
+   * The session today's completion is judged against; defaults to the plan's
+   * own today. A run that revised today passes the stored session, so the
+   * verdict compares the recorded activity with what the athlete was asked to
+   * do rather than with a freshly proposed session.
+   */
+  plannedToday?: DayPlan;
+  activities: readonly AnalyzedActivity[];
+  manualActivities: readonly ManualActivityContext[];
+  timeZone?: string | null | undefined;
+}
+
+/**
+ * Settles today's status from what was recorded. The day and the week share one
+ * rule, so both reach the same verdict from the same activities.
+ */
+export function deriveTodayStatus(
+  day: DayPlan,
+  input: TodayStatusInput,
+): DayPlan {
+  if (day.date !== input.today) {
+    return day;
+  }
+  return {
+    ...day,
+    status: todayCompletionStatus(
+      input.plannedToday ?? day,
+      activitiesOnDate(
+        input.activities,
+        input.manualActivities,
+        input.timeZone,
+        input.today,
+      ),
+      day.status,
+    ),
+  };
+}
+
 function manualActivity(manual: ManualActivityContext): AnalyzedActivity {
   return {
     id: manual.id,

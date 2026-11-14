@@ -41,8 +41,9 @@ runs the whole pipeline with a fake provider and in-memory stores.
 - Behaviour. `runPlanGeneration` saves the same plan for the same input; the
   prompt, the stored plan shape, the database and the API contract are
   unchanged.
-- Splitting `generate.ts` into separate modules. The request, generation and
-  save steps stay where they are.
+- Splitting `generate.ts` into separate modules. That split has since happened
+  in `docs/specs/plan-generation-modules.md`; this spec's revision flags and
+  merge helpers keep the same behaviour in the new modules.
 - The diet-progress, diet and body-metric merges, which are not level merges.
 
 ## The revision rules
