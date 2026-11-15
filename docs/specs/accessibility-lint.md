@@ -2,9 +2,10 @@
 
 - **Status:** Accepted (implemented)
 - **Date:** 2026-11-14
-- **Related:** ADR 0041, issues #305, #324 and #325,
+- **Related:** ADR 0041, issues #305, #324, #325 and #328,
   `docs/specs/web-component-library.md`, `docs/specs/web-interaction-tests.md`,
-  `docs/specs/chart-keyboard-navigation.md`, `AGENTS.md`.
+  `docs/specs/chart-keyboard-navigation.md`, `docs/specs/modal-dialog.md`,
+  `AGENTS.md`.
 
 ## Goal
 
@@ -105,6 +106,20 @@ closed the lint gap that let a pointer-only chart through:
    location map's `<div>` is out of these selectors' scope because its keydown
    listener is attached on the DOM element, and its behaviour is covered by
    `apps/web/src/settings/LocationPickerMap.test.tsx`.
+
+## Follow-up check from issue #328
+
+The dialog fix (#328) replaced the last native `confirm()` calls with the
+`ConfirmDialog` primitive and closed the lint gap that let them live:
+
+1. **A native browser prompt.** A bare `confirm()` and `window.confirm()` are
+   both rejected by `no-restricted-syntax` on the web app. A native prompt
+   cannot carry the focus trap, Escape handling, focus restore or in-dialog
+   error the primitive provides, and the browser's blocking UI cannot be
+   asserted by the interaction or Playwright suites. The activity card, the
+   admin question row and the manual-activity delete now open `ConfirmDialog`;
+   the consuming page renders it because a hook cannot. See
+   `docs/specs/modal-dialog.md`.
 
 ## Data-model and API impact
 

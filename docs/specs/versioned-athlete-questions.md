@@ -125,7 +125,8 @@ current `versionId`), `questionOrderInputSchema` (`ids`),
 - `AdminQuestionsSection.tsx` — loads the list, owns create/edit/delete
   requests, and updates state from validated API responses.
 - `QuestionRow.tsx` — renders one question and toggles an inline editor; delete
-  asks for confirmation and explains that history is preserved.
+  opens a `ConfirmDialog` that explains history is preserved, focuses Cancel
+  and keeps a failed archive's error inside the dialog.
 - `QuestionForm.tsx` — shared create/edit form (prompt + required).
 - `AdminSettingsPage.tsx` — hosts the section on the admin-only page (ADR 0006);
   `CoachDashboard.tsx` no longer renders it.
@@ -138,8 +139,9 @@ current `versionId`), `questionOrderInputSchema` (`ids`),
   prompt rejection, question/response schema parsing.
 - **API unit tests:** the stored-row mapper and route authorization (401 without
   a token, 403 for a member), which also proves the route is mounted.
-- **Web unit tests:** static rendering of a question row (prompt, version,
-  required, actions) and the shared form.
+- **Web unit tests:** interaction tests for a question row's confirmation,
+  archive and failed archive, plus static rendering of its actions, and the
+  shared form.
 - DB-backed integration coverage for the question stores and version
   allocation runs in `apps/api/integration`; see
   `docs/specs/database-integration-tests.md`. Route behaviour is covered with

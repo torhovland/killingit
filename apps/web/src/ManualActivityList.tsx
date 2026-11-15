@@ -11,7 +11,7 @@ export function ManualActivityList({
 }: {
   activities: ManualActivity[];
   onEdit: (activity: ManualActivity) => void;
-  onDelete: (activity: ManualActivity) => Promise<void>;
+  onDelete: (activity: ManualActivity) => void;
 }) {
   if (activities.length === 0) {
     return null;
@@ -60,7 +60,7 @@ export function ManualActivityList({
                 variant="link"
                 size="none"
                 className="text-destructive"
-                onClick={() => void onDelete(activity)}
+                onClick={() => onDelete(activity)}
               >
                 Delete
               </Button>

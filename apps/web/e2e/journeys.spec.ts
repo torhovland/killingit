@@ -196,12 +196,23 @@ test("deleting the question that forced the survey releases the athlete", async 
       response.url().includes("/api/admin/questions/") &&
       response.request().method() === "DELETE",
   );
-  page.once("dialog", (dialog) => void dialog.accept());
-  await page
+  const trigger = page
     .getByTestId("question-row")
     .filter({ hasText: "How did your last race go?" })
-    .getByRole("button", { name: "Delete" })
-    .click();
+    .getByRole("button", { name: "Delete" });
+  await trigger.click();
+  const dialog = page.getByTestId("confirm-dialog");
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Cancel" })).toBeFocused();
+
+  // Escape cancels the confirmation and returns focus to the row's button.
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(trigger).toBeFocused();
+
+  await trigger.click();
+  await expect(dialog).toBeVisible();
+  await dialog.getByTestId("confirm-dialog-confirm").click();
   await archived;
   await expect(page.getByTestId("question-row")).toHaveCount(1);
   await page.waitForLoadState("networkidle");

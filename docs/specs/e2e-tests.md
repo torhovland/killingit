@@ -34,7 +34,9 @@ sign-out.
    - an admin opens the admin settings while the survey has an unanswered
      question (including a reload);
    - a forced survey keeps the survey's panel width, not the rejected page's;
-   - deleting the new question that forced the survey releases the athlete;
+   - deleting the new question that forced the survey releases the athlete,
+     after cancelling its confirmation dialog with Escape and returning focus
+     to the row's Delete button;
    - an athlete saves a weekly note and sees the coach reply;
    - an athlete logs a meal with a photo and sees the analysis;
    - a keyboard user closes the calendar workout dialog with Escape and gets

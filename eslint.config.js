@@ -226,6 +226,13 @@ export default tseslint.config(
     // constant reached thirty files before. See
     // `docs/specs/web-api-base-url.md` and ADR 0044.
     //
+    // A native confirm bypasses the dialog primitive's focus trap, Escape and
+    // focus restore, and its blocking browser prompt cannot be styled or
+    // tested like the rest of the app. Every confirmation opens a
+    // `ConfirmDialog`; the rule stops the native prompt from creeping back as
+    // the activity, question and manual-activity deletes once did. See
+    // `docs/specs/modal-dialog.md` and `docs/specs/accessibility-lint.md`.
+    //
     // jsx-a11y's interaction rules do not inspect pointer handlers, so a
     // non-SVG element could regress into a pointer-only `role="img"` surface,
     // as the location map did in #324. SVG charts keep `role="img"` with hover
@@ -239,6 +246,17 @@ export default tseslint.config(
     rules: {
       "no-restricted-syntax": [
         "error",
+        {
+          selector: "CallExpression[callee.name='confirm']",
+          message:
+            "Open a ConfirmDialog from ./components/ConfirmDialog instead of a native confirm, so focus, Escape and the backdrop behave like every other dialog.",
+        },
+        {
+          selector:
+            "CallExpression[callee.object.name='window'][callee.property.name='confirm']",
+          message:
+            "Open a ConfirmDialog from ./components/ConfirmDialog instead of window.confirm, so focus, Escape and the backdrop behave like every other dialog.",
+        },
         {
           selector: "MemberExpression[property.name='VITE_API_URL']",
           message:

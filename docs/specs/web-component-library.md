@@ -26,6 +26,13 @@ The primitives live in `apps/web/src/components/`:
   Tab focus trap and focus restored to the trigger on close. It takes the
   heading id that names it, an optional description id, and a `className` for
   panel layout such as width or scrolling; see `docs/specs/modal-dialog.md`.
+- `ConfirmDialog` — a destructive confirmation on `Modal`: a title, the
+  consequence it describes, Cancel and one labelled destructive action. Cancel
+  is first so focus opens on the safe action, and a busy state disables both
+  actions and blocks Escape and the backdrop; a failed action's error stays
+  inside the dialog. The activity, manual-activity and athlete-question deletes
+  use it, so no web source calls the native `confirm()`. See
+  `docs/specs/modal-dialog.md`.
 - `Menu` — a disclosure button around a labelled navigation panel, with the
   open state owned by the caller. It takes the trigger's accessible name, the
   panel's landmark name, the trigger contents and `onOpenChange`; Escape and a
@@ -125,6 +132,8 @@ layout for the spinner and forwards `variant`, `size` and `className`.
   semantics.
 - Every modal dialog renders through `Modal`; no page reimplements the
   backdrop, focus trap, Escape handling or focus restore.
+- Every destructive confirmation renders through `ConfirmDialog`, and no web
+  source calls the native `confirm()`.
 - Every menu renders through `Menu`; no page attaches its own Escape or
   outside-click listener, and the current page's item carries
   `aria-current="page"`.

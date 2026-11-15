@@ -36,9 +36,10 @@ string in a page, and never build a `className` from a template literal (the
 only for a value computed at runtime, such as a pan offset, hover-card position
 or progress width, with a comment saying why it cannot be a utility, and never
 hard-code a UI colour. The component library is in
-`apps/web/src/components/` (`Modal` owns every dialog), and each page lives in
-its feature directory (`calendar/`, `fitness/`, `diet/`, `settings/`, `admin/`)
-beside its tests. See `docs/specs/web-component-library.md` and
+`apps/web/src/components/` (`Modal` owns every dialog and `ConfirmDialog` builds
+every destructive confirmation on it), and each page lives in its feature
+directory (`calendar/`, `fitness/`, `diet/`, `settings/`, `admin/`) beside its
+tests. See `docs/specs/web-component-library.md` and
 `docs/specs/modal-dialog.md`.
 
 The app is an installable **PWA**; every page has a canonical URL and every
