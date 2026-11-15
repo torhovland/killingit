@@ -46,7 +46,9 @@ import {
   DIET_RULES,
   DURATION_TOLERANCE_RULES,
   GLOBAL_PROMPT_RULES,
+  type LlmMessage,
   promptSections,
+  systemUserMessages,
   LAP_STRUCTURE_RULES,
   rollExtraPraise,
   STRENGTH_SET_RULES,
@@ -313,17 +315,11 @@ export function buildActivityAnalysisMessages(
   context?: ActivityAnalysisContext,
   comment?: string | null,
   random: () => number = Math.random,
-): {
-  role: "system" | "user";
-  content: string;
-}[] {
-  return [
-    { role: "system", content: ANALYSIS_SYSTEM_PROMPT },
-    {
-      role: "user",
-      content: buildActivityAnalysisPrompt(activity, context, comment, random),
-    },
-  ];
+): LlmMessage[] {
+  return systemUserMessages(
+    ANALYSIS_SYSTEM_PROMPT,
+    buildActivityAnalysisPrompt(activity, context, comment, random),
+  );
 }
 
 /** Exposed for tests and for inspecting exactly what is sent to the model. */

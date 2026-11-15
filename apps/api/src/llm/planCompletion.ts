@@ -1,6 +1,6 @@
 import type { LlmPromptKind } from "@killingit/shared";
 import type { z } from "zod";
-import type { LlmMessage, LlmProvider } from "./openrouter.js";
+import type { LlmProvider, LlmProviderMessage } from "./openrouter.js";
 import {
   COMPLETION_BUDGET_MS,
   PLAN_LEVEL_MAX_COMPLETIONS,
@@ -46,7 +46,7 @@ export async function completePlanJson<T>(
   schema: z.ZodType<T>,
   provider: LlmProvider,
   credentials: CompletionCredentials,
-  messages: LlmMessage[],
+  messages: LlmProviderMessage[],
   maxTokens: number,
   options: PlanJsonCompletionOptions = {},
 ): Promise<T> {
@@ -122,7 +122,7 @@ export async function completePlanJson<T>(
 }
 
 /** A system prompt carries the contract, so a compact repair is meaningful. */
-function canUseCompactRepair(messages: readonly LlmMessage[]): boolean {
+function canUseCompactRepair(messages: readonly LlmProviderMessage[]): boolean {
   return messages.some((message) => message.role === "system");
 }
 
@@ -132,12 +132,12 @@ function canUseCompactRepair(messages: readonly LlmMessage[]): boolean {
  * also keeps the original user context.
  */
 function repairMessages(
-  messages: LlmMessage[],
+  messages: LlmProviderMessage[],
   previous: string,
   error: PlanJsonError,
   repairHint: string | undefined,
   compact: boolean,
-): LlmMessage[] {
+): LlmProviderMessage[] {
   return [
     ...(compact
       ? messages.filter((message) => message.role === "system")

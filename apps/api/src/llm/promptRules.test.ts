@@ -4,6 +4,7 @@ import {
   missingFragments,
   promptRuleLiteral,
 } from "../testFixtures/prompts.js";
+import type { LlmProviderMessage } from "./openrouter.js";
 import {
   ATHLETE_INPUT_RULES,
   COACH_AMBITION_RULES,
@@ -29,6 +30,7 @@ import {
   PLAN_PROMPT_RULES,
   rollExtraPraise,
   SEVEN_SESSIONS_CLAUSE,
+  systemUserMessages,
   TEXT_FORMATTING_RULES,
   TRAINING_LOAD_RULES,
   TSS_ESTIMATE_GUIDE,
@@ -148,6 +150,25 @@ describe("shared prompt composition", () => {
     expect(rollExtraPraise(() => 1 / 15)).toBe(false);
     expect(rollExtraPraise(() => 14 / 15)).toBe(false);
     expect(rollExtraPraise(() => 0.999999)).toBe(false);
+  });
+
+  it("builds the two text messages every prompt sends", () => {
+    expect(systemUserMessages("the rules", "the context")).toEqual([
+      { role: "system", content: "the rules" },
+      { role: "user", content: "the context" },
+    ]);
+  });
+
+  it("assigns a prompt message to the provider's message type", () => {
+    const providerMessages: LlmProviderMessage[] = systemUserMessages(
+      "the rules",
+      "the context",
+    );
+
+    expect(providerMessages.map((message) => message.role)).toEqual([
+      "system",
+      "user",
+    ]);
   });
 });
 

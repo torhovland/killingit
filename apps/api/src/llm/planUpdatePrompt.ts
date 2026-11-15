@@ -33,12 +33,14 @@ import {
   jsonTopLevelKeys,
   PAST_SESSION_RULES,
   GLOBAL_PROMPT_RULES,
+  type LlmMessage,
   PLAN_PROMPT_RULES,
   promptSections,
   SEASON_BLOCK_RULES,
   SEASON_CONTRACT,
   SEVEN_SESSIONS_CLAUSE,
   SESSION_PURPOSE_RULES,
+  systemUserMessages,
   TODAY_IN_WEEK_RULE,
   TRAINING_LOAD_RULES,
   WEEK_CONTRACT,
@@ -257,14 +259,11 @@ function revisionInstructions(input: PlanUpdateInput): string[] {
   return lines;
 }
 
-export function buildPlanUpdateMessages(input: PlanUpdateInput): {
-  role: "system" | "user";
-  content: string;
-}[] {
-  return [
-    { role: "system", content: PLAN_UPDATE_SYSTEM_PROMPT },
-    { role: "user", content: buildPlanUpdatePrompt(input) },
-  ];
+export function buildPlanUpdateMessages(input: PlanUpdateInput): LlmMessage[] {
+  return systemUserMessages(
+    PLAN_UPDATE_SYSTEM_PROMPT,
+    buildPlanUpdatePrompt(input),
+  );
 }
 
 function buildPlanUpdatePrompt(input: PlanUpdateInput): string {
@@ -330,14 +329,13 @@ function buildPlanUpdatePrompt(input: PlanUpdateInput): string {
   ].join("\n");
 }
 
-export function buildDailyUpdateMessages(input: DailyUpdateInput): {
-  role: "system" | "user";
-  content: string;
-}[] {
-  return [
-    { role: "system", content: DAILY_UPDATE_SYSTEM_PROMPT },
-    { role: "user", content: buildDailyUpdatePrompt(input) },
-  ];
+export function buildDailyUpdateMessages(
+  input: DailyUpdateInput,
+): LlmMessage[] {
+  return systemUserMessages(
+    DAILY_UPDATE_SYSTEM_PROMPT,
+    buildDailyUpdatePrompt(input),
+  );
 }
 
 function buildDailyUpdatePrompt(input: DailyUpdateInput): string {
@@ -357,14 +355,13 @@ function buildDailyUpdatePrompt(input: DailyUpdateInput): string {
   ].join("\n");
 }
 
-export function buildWeeklyUpdateMessages(input: WeeklyUpdateInput): {
-  role: "system" | "user";
-  content: string;
-}[] {
-  return [
-    { role: "system", content: WEEKLY_UPDATE_SYSTEM_PROMPT },
-    { role: "user", content: buildWeeklyUpdatePrompt(input) },
-  ];
+export function buildWeeklyUpdateMessages(
+  input: WeeklyUpdateInput,
+): LlmMessage[] {
+  return systemUserMessages(
+    WEEKLY_UPDATE_SYSTEM_PROMPT,
+    buildWeeklyUpdatePrompt(input),
+  );
 }
 
 function buildWeeklyUpdatePrompt(input: WeeklyUpdateInput): string {

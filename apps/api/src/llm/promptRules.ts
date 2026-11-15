@@ -15,6 +15,17 @@
 import { addDays, DEFAULT_DIET_GOAL, weekDates } from "@killingit/shared";
 
 /**
+ * One text-only message in a coach prompt: either the system message that
+ * carries the rules and response contract, or the user message that carries the
+ * athlete's context. The provider's wider `LlmProviderMessage` also holds
+ * assistant turns and image parts; every prompt message is assignable to it.
+ */
+export interface LlmMessage {
+  role: "system" | "user";
+  content: string;
+}
+
+/**
  * How the coach balances ambition against risk. The plan should drive the best
  * progress the athlete can absorb rather than the safest plan that can be
  * defended, while still avoiding illness and injury.
@@ -597,6 +608,19 @@ export function jsonShape(contract?: string): string {
   return contract === undefined
     ? `${JSON_SHAPE_INSTRUCTION}.`
     : `${JSON_SHAPE_INSTRUCTION}:\n${contract}`;
+}
+
+/**
+ * The two messages every text prompt sends: one system message with the rules
+ * and response contract, one user message with the athlete's context. A prompt
+ * that attaches an image builds the provider messages itself, because its user
+ * content is a list of parts rather than a string.
+ */
+export function systemUserMessages(system: string, user: string): LlmMessage[] {
+  return [
+    { role: "system", content: system },
+    { role: "user", content: user },
+  ];
 }
 
 /**

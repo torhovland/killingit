@@ -30,6 +30,28 @@ const PROMPT_MODULES = [
 ];
 
 /**
+ * Modules that legitimately build a provider-level message instead of the
+ * text-only prompt message `systemUserMessages` returns. A repair appends an
+ * assistant turn, a meal analysis attaches an image, and the provider module
+ * defines the wider type. Add a module here only with the reason it cannot use
+ * the shared builder.
+ */
+const PROVIDER_MESSAGE_MODULES: ReadonlySet<string> = new Set([
+  // Attaches the meal photo as a content part.
+  "foodPrompt.ts",
+  // Defines the provider message type.
+  "openrouter.ts",
+  // Appends the rejected answer and the corrective turn.
+  "planCompletion.ts",
+]);
+
+/** A hand-written message role, at either the prompt or the provider level. */
+const MESSAGE_ROLE = /\brole:\s*"(?:system|user|assistant)"/;
+
+/** The inline prompt message type the shared `LlmMessage` replaced. */
+const INLINE_MESSAGE_TYPE = /\brole:\s*"system"\s*\|\s*"user"\s*;/;
+
+/**
  * A module's source with its quote escapes resolved, so the same sentence
  * matches whichever quote style it is written in.
  */
@@ -63,5 +85,31 @@ describe("shared prompt fragments", () => {
     );
 
     expect(offenders).toEqual([]);
+  });
+
+  it("declares the prompt message type in promptRules alone", () => {
+    const offenders = PROMPT_MODULES.filter((module) =>
+      INLINE_MESSAGE_TYPE.test(normalizedSource(module)),
+    );
+
+    expect(offenders).toEqual([]);
+  });
+
+  it("builds every text prompt with the shared message builder", () => {
+    const offenders = PROMPT_MODULES.filter(
+      (module) =>
+        !PROVIDER_MESSAGE_MODULES.has(module) &&
+        MESSAGE_ROLE.test(normalizedSource(module)),
+    );
+
+    expect(offenders).toEqual([]);
+  });
+
+  it("keeps every provider-message exception in use", () => {
+    const stale = [...PROVIDER_MESSAGE_MODULES.keys()].filter(
+      (module) => !MESSAGE_ROLE.test(normalizedSource(module)),
+    );
+
+    expect(stale).toEqual([]);
   });
 });

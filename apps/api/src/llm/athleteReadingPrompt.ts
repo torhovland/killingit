@@ -8,8 +8,10 @@ import {
   GLOBAL_PROMPT_RULES,
   JSON_ONLY_RULES,
   jsonShape,
+  type LlmMessage,
   promptSections,
   RETURN_JSON_FROM_SYSTEM_PROMPT,
+  systemUserMessages,
 } from "./promptRules.js";
 
 /**
@@ -70,14 +72,13 @@ const ATHLETE_READING_SYSTEM_PROMPT = promptSections(
 );
 
 /** Builds the chat messages that ask the coach to read the athlete's text. */
-export function buildAthleteReadingMessages(source: AthleteReadingSource): {
-  role: "system" | "user";
-  content: string;
-}[] {
-  return [
-    { role: "system", content: ATHLETE_READING_SYSTEM_PROMPT },
-    { role: "user", content: buildAthleteReadingPrompt(source) },
-  ];
+export function buildAthleteReadingMessages(
+  source: AthleteReadingSource,
+): LlmMessage[] {
+  return systemUserMessages(
+    ATHLETE_READING_SYSTEM_PROMPT,
+    buildAthleteReadingPrompt(source),
+  );
 }
 
 /** Exposed for tests and for inspecting exactly what is sent to the model. */

@@ -13,6 +13,7 @@ import {
   JSON_ONLY_RULES,
   jsonShape,
   promptSections,
+  systemUserMessages,
   TSS_ESTIMATE_GUIDE,
 } from "../llm/promptRules.js";
 import type { CompletionCredentials } from "../llm/resilientCompletion.js";
@@ -65,20 +66,17 @@ export async function estimateManualActivityTss(
       manualTssSchema,
       provider,
       credentials,
-      [
-        { role: "system", content: MANUAL_TSS_SYSTEM_PROMPT },
-        {
-          role: "user",
-          content: [
-            `Date: ${input.startDate}`,
-            `Athlete FTP: ${input.ftpWatts === null ? "not stated" : `${input.ftpWatts} W`}`,
-            ...(thresholdLines.length > 0
-              ? ["Athlete thresholds:", ...thresholdLines]
-              : []),
-            `Activity details: ${input.details.trim()}`,
-          ].join("\n"),
-        },
-      ],
+      systemUserMessages(
+        MANUAL_TSS_SYSTEM_PROMPT,
+        [
+          `Date: ${input.startDate}`,
+          `Athlete FTP: ${input.ftpWatts === null ? "not stated" : `${input.ftpWatts} W`}`,
+          ...(thresholdLines.length > 0
+            ? ["Athlete thresholds:", ...thresholdLines]
+            : []),
+          `Activity details: ${input.details.trim()}`,
+        ].join("\n"),
+      ),
       1024,
       { kind: "manual_tss" },
     );

@@ -10,8 +10,10 @@ import {
   COACH_REPLY_FIELDS_CONTRACT,
   JSON_ONLY_RULES,
   jsonShape,
+  type LlmMessage,
   PLAN_CHANGE_FLAG_RULES,
   promptSections,
+  systemUserMessages,
 } from "./promptRules.js";
 
 /** One athlete input in a batched reply request. */
@@ -41,23 +43,17 @@ const BATCH_CONTRACT = promptSections(
 /** Builds the chat messages for one completion that answers several inputs. */
 export function buildCoachReplyBatchMessages(
   input: CoachReplyBatchPromptInput,
-): {
-  role: "system" | "user";
-  content: string;
-}[] {
-  return [
-    {
-      role: "system",
-      content: promptSections(
-        COACH_REPLY_SYSTEM_PROMPT,
-        BATCH_INSTRUCTION,
-        PLAN_CHANGE_FLAG_RULES,
-        BATCH_CONTRACT,
-        JSON_ONLY_RULES,
-      ),
-    },
-    { role: "user", content: buildCoachReplyBatchPrompt(input) },
-  ];
+): LlmMessage[] {
+  return systemUserMessages(
+    promptSections(
+      COACH_REPLY_SYSTEM_PROMPT,
+      BATCH_INSTRUCTION,
+      PLAN_CHANGE_FLAG_RULES,
+      BATCH_CONTRACT,
+      JSON_ONLY_RULES,
+    ),
+    buildCoachReplyBatchPrompt(input),
+  );
 }
 
 /** Exposed for tests and for inspecting exactly what is sent to the model. */

@@ -8,11 +8,13 @@ import {
   JSON_RULES,
   jsonTopLevelKeys,
   GLOBAL_PROMPT_RULES,
+  type LlmMessage,
   PLAN_PROMPT_RULES,
   promptSections,
   SEASON_BLOCK_RULES,
   SEASON_CONTRACT,
   SEASON_INTRODUCTION_RULES,
+  systemUserMessages,
   TRAINING_LOAD_RULES,
 } from "./promptRules.js";
 
@@ -52,14 +54,11 @@ const INITIAL_BLOCK_SYSTEM_PROMPT = promptSections(
 }`,
 );
 
-export function buildSeasonPlanMessages(input: SeasonPlanInput): {
-  role: "system" | "user";
-  content: string;
-}[] {
-  return [
-    { role: "system", content: SEASON_PLAN_SYSTEM_PROMPT },
-    { role: "user", content: buildSeasonPlanPrompt(input) },
-  ];
+export function buildSeasonPlanMessages(input: SeasonPlanInput): LlmMessage[] {
+  return systemUserMessages(
+    SEASON_PLAN_SYSTEM_PROMPT,
+    buildSeasonPlanPrompt(input),
+  );
 }
 
 function buildSeasonPlanPrompt(input: SeasonPlanInput): string {
@@ -71,14 +70,13 @@ function buildSeasonPlanPrompt(input: SeasonPlanInput): string {
   ].join("\n");
 }
 
-export function buildInitialBlockMessages(input: InitialBlockInput): {
-  role: "system" | "user";
-  content: string;
-}[] {
-  return [
-    { role: "system", content: INITIAL_BLOCK_SYSTEM_PROMPT },
-    { role: "user", content: buildInitialBlockPrompt(input) },
-  ];
+export function buildInitialBlockMessages(
+  input: InitialBlockInput,
+): LlmMessage[] {
+  return systemUserMessages(
+    INITIAL_BLOCK_SYSTEM_PROMPT,
+    buildInitialBlockPrompt(input),
+  );
 }
 
 function buildInitialBlockPrompt(input: InitialBlockInput): string {

@@ -13,7 +13,9 @@ import {
 import {
   DIET_RULES,
   GLOBAL_PROMPT_RULES,
+  type LlmMessage,
   promptSections,
+  systemUserMessages,
   TEXT_FORMATTING_RULES,
 } from "./promptRules.js";
 
@@ -46,14 +48,13 @@ const PERIOD_REVIEW_SYSTEM_PROMPT = promptSections(
 );
 
 /** Builds the messages that ask the coach for a week or block summary. */
-export function buildPeriodReviewMessages(input: PeriodReviewPromptInput): {
-  role: "system" | "user";
-  content: string;
-}[] {
-  return [
-    { role: "system", content: PERIOD_REVIEW_SYSTEM_PROMPT },
-    { role: "user", content: buildPeriodReviewPrompt(input) },
-  ];
+export function buildPeriodReviewMessages(
+  input: PeriodReviewPromptInput,
+): LlmMessage[] {
+  return systemUserMessages(
+    PERIOD_REVIEW_SYSTEM_PROMPT,
+    buildPeriodReviewPrompt(input),
+  );
 }
 
 /** Exposed for tests and for inspecting exactly what is sent to the model. */

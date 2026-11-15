@@ -2,6 +2,10 @@
 
 - **Status:** Accepted (implemented)
 - **Date:** 2026-10-21
+- **Updated:** 2026-11-15 — every text prompt returns the shared `LlmMessage`
+  and builds its two messages with `systemUserMessages(system, user)`. The
+  fragment guard fails on an inline message type or a hand-written role array
+  outside the provider-level modules.
 - **Updated:** 2026-11-15 — `jsonShape(contract)` owns the "Return only one
   JSON object with exactly this shape" opening in every structured prompt, and
   the fragment guard scans every module under `llm/`.
@@ -149,7 +153,13 @@ and returns `LlmProvider` chat messages.
   states the instruction and places the exact contract under it, while
   `jsonShape()` states the instruction alone for the plan prompts, whose contract
   follows the output rules. Every structured prompt composes it, so the model is
-  never asked for "exactly this shape" in two wordings.
+  never asked for "exactly this shape" in two wordings. The message type and
+  builder are shared the same way: every text prompt returns `LlmMessage` and
+  builds its system and user messages with `systemUserMessages(system, user)`,
+  so the two-element array has one owner. The provider's `LlmProviderMessage` is
+  deliberately wider, adding assistant turns for a repair and image parts for a
+  meal analysis; a prompt message is assignable to it. A prompt that attaches an
+  image is the only one that builds its own provider messages.
 - Every strictly JSON coach response also carries `coachQuestion` (one important
   clarification question, or null) and `modelsRemarks` (the model's own
   difficulties, inconsistencies or objections, or null). The app shows the
@@ -224,9 +234,12 @@ and returns `LlmProvider` chat messages.
 - `apps/api/src/llm/promptFragmentGuard.test.ts` holds every module under
   `apps/api/src/llm/` and `training/manualTss.ts` to the composition rule: it
   scans their source for template-literal prose that `promptRules.ts` already
-  owns, and checks that the JSON-shape instruction appears only in
-  `promptRules.ts`, so a sentence that is copied back into a prompt fails the
-  suite instead of drifting away from the shared copy. The benchmark snapshot in
+  owns, and checks that the JSON-shape instruction and the prompt message type
+  appear only in `promptRules.ts`, so a sentence or message shape that is copied
+  back into a prompt fails the suite instead of drifting away from the shared
+  copy. It also fails on a hand-written role array outside the provider-level
+  modules that must build one, so a new prompt composes `systemUserMessages`
+  rather than repeating the pair. The benchmark snapshot in
   `tools/benchmark` pins the composed text, so a refactor that changes a single
   character fails as well.
 - Run `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`.

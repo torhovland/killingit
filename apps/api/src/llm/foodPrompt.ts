@@ -2,11 +2,12 @@ import type { FoodAnalysis } from "@killingit/shared";
 import {
   FOOD_ANALYSIS_RESPONSE_RULES,
   GLOBAL_PROMPT_RULES,
+  systemUserMessages,
   TEXT_FORMATTING_RULES,
   promptSections,
 } from "./promptRules.js";
 import { formatPlanContext, type PlanContextInput } from "./planContext.js";
-import type { LlmMessage } from "./openrouter.js";
+import type { LlmProviderMessage } from "./openrouter.js";
 
 /** The saved meal an edit started from. */
 export interface PreviousFoodAnalysis {
@@ -52,7 +53,7 @@ const FOOD_REASSESSMENT_RULES = promptSections(
 export function buildFoodAnalysisMessages(
   input: FoodAnalysisInput,
   includePhoto = true,
-): LlmMessage[] {
+): LlmProviderMessage[] {
   const text = buildFoodAnalysisPrompt(input, includePhoto);
   const photo =
     includePhoto &&
@@ -67,17 +68,20 @@ export function buildFoodAnalysisMessages(
     input.previous !== undefined ? FOOD_REASSESSMENT_RULES : null,
   );
 
+  if (photo === null) {
+    return systemUserMessages(system, text);
+  }
+
+  // The provider message carries the photo beside the text. A prompt message
+  // holds text only, so this is the one prompt that builds its own array.
   return [
     { role: "system", content: system },
     {
       role: "user",
-      content:
-        photo === null
-          ? text
-          : [
-              { type: "text", text },
-              { type: "image_url", image_url: { url: photo } },
-            ],
+      content: [
+        { type: "text", text },
+        { type: "image_url", image_url: { url: photo } },
+      ],
     },
   ];
 }

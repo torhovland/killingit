@@ -15,8 +15,10 @@ import {
   COACH_REPLY_RESPONSE_RULES,
   DIET_RULES,
   GLOBAL_PROMPT_RULES,
+  type LlmMessage,
   promptSections,
   REPLY_PLAN_CHANGE_RULES,
+  systemUserMessages,
   TEXT_FORMATTING_RULES,
 } from "./promptRules.js";
 
@@ -71,23 +73,15 @@ const QUICK_QUESTION_SYSTEM_PROMPT = promptSections(
 );
 
 /** Builds the chat messages for a short reply to an athlete input. */
-export function buildCoachReplyMessages(input: CoachReplyPromptInput): {
-  role: "system" | "user";
-  content: string;
-}[] {
-  return [
-    {
-      role: "system",
-      content:
-        input.request.kind === "quick_question"
-          ? QUICK_QUESTION_SYSTEM_PROMPT
-          : promptSections(
-              COACH_REPLY_SYSTEM_PROMPT,
-              COACH_REPLY_RESPONSE_RULES,
-            ),
-    },
-    { role: "user", content: buildCoachReplyPrompt(input) },
-  ];
+export function buildCoachReplyMessages(
+  input: CoachReplyPromptInput,
+): LlmMessage[] {
+  return systemUserMessages(
+    input.request.kind === "quick_question"
+      ? QUICK_QUESTION_SYSTEM_PROMPT
+      : promptSections(COACH_REPLY_SYSTEM_PROMPT, COACH_REPLY_RESPONSE_RULES),
+    buildCoachReplyPrompt(input),
+  );
 }
 
 /** Exposed for tests and for inspecting exactly what is sent to the model. */
