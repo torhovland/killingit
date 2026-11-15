@@ -91,9 +91,10 @@ thirteen web suites replace the `./auth` barrel with a process-global
 first. One commit measured 77.21% and 76.60% of lines against the 77.0% floor on
 two consecutive runs. `auth/auth0.test.tsx` now imports the adapter through
 query-string specifiers and `auth/index.test.ts` does the same for the barrel,
-so both files are always counted and fully covered. Every suite that mocks the
-barrel also calls `mock.restore()` in `afterAll`, and
-`apps/web/src/mockIsolation.test.ts` fails when a new suite does not, so the
+so both files are always counted and fully covered. Every suite that registers a
+`mock.module` mock — the barrel, a sibling component, a provider, a hook or
+`@auth0/auth0-react` — also calls `mock.restore()` in `afterAll`, and
+`apps/web/src/mockIsolation.test.ts` fails when a suite does not, so the
 aggregate no longer depends on ordering or on luck.
 
 ### Excluded paths

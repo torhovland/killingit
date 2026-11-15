@@ -4,13 +4,13 @@ import { join, relative } from "node:path";
 
 const SOURCE_DIR = import.meta.dir;
 
-/** A suite that replaces the auth barrel with a process-global mock. */
-const AUTH_BARREL_MOCK = /mock\.module\(\s*["'`](?:\.\.?\/auth)["'`]/;
+/** A suite that replaces a module with a process-global mock. */
+const MODULE_MOCK = /mock\.module\s*\(/;
 
 /**
  * The restore inside an `afterAll` callback. Bun's `mock.restore()` clears
  * every module mock in the process, so a suite that never calls it leaves the
- * fake barrel behind for whichever suite loads next.
+ * fake behind for whichever suite loads next.
  */
 const RESTORES_MOCKS =
   /afterAll\(\s*(?:async\s*)?\(\)\s*=>\s*\{[\s\S]*?mock\.restore\(\)/;
@@ -28,27 +28,22 @@ function testFiles(directory: string): string[] {
   });
 }
 
-const TEST_SOURCES = testFiles(SOURCE_DIR).map((file) => ({
-  file: relative(SOURCE_DIR, file),
-  text: readFileSync(file, "utf8"),
-}));
+const TEST_SOURCES = testFiles(SOURCE_DIR)
+  .filter((file) => file !== import.meta.path)
+  .map((file) => ({
+    file: relative(SOURCE_DIR, file),
+    text: readFileSync(file, "utf8"),
+  }));
 
-const AUTH_BARREL_MOCKS = TEST_SOURCES.filter(({ text }) =>
-  AUTH_BARREL_MOCK.test(text),
-);
+const MODULE_MOCKS = TEST_SOURCES.filter(({ text }) => MODULE_MOCK.test(text));
 
-/**
- * The auth barrel owns the only stateful module mock in the web suite, so this
- * guard covers it alone. Issue #488 broadens the check to every `mock.module`
- * suite once those restore their mocks too.
- */
 describe("module mock isolation", () => {
-  it("finds the suites that mock the auth barrel", () => {
-    expect(AUTH_BARREL_MOCKS.length).toBeGreaterThan(0);
+  it("finds the suites that mock a module", () => {
+    expect(MODULE_MOCKS.length).toBeGreaterThan(0);
   });
 
-  it("restores every auth-barrel mock when its suite ends", () => {
-    const offenders = AUTH_BARREL_MOCKS.filter(
+  it("restores every module mock when its suite ends", () => {
+    const offenders = MODULE_MOCKS.filter(
       ({ text }) => !RESTORES_MOCKS.test(text),
     ).map(({ file }) => file);
 
