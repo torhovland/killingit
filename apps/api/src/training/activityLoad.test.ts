@@ -1,10 +1,12 @@
 import { describe, expect, it } from "bun:test";
 import type { AnalyzedActivity, AthleteThreshold } from "@killingit/shared";
 import {
+  activityDayTss,
   buildActivityLoads,
   EMPTY_ACTIVITY_LOADS,
   groupActivitiesByDate,
   manualTssByDate,
+  measuredActivityTss,
   mergeTrainingTss,
 } from "./activityLoad.js";
 import { buildThresholdTimelines } from "./thresholds.js";
@@ -98,6 +100,76 @@ describe("mergeTrainingTss", () => {
 
     expect([...planTss]).toEqual([["2026-10-20", 80]]);
     expect([...manualTss]).toEqual([["2026-10-20", 120]]);
+  });
+});
+
+describe("measuredActivityTss", () => {
+  it("sums every measured activity on the day", () => {
+    expect(
+      measuredActivityTss(
+        [
+          activity({ id: 1, normalizedPower: 200 }),
+          activity({ id: 2, normalizedPower: 250 }),
+        ],
+        timeline,
+      ),
+    ).toBe(164);
+  });
+
+  it("adds the fallback of an unmeasured activity on a measured day", () => {
+    expect(
+      measuredActivityTss(
+        [
+          activity({ id: 1, normalizedPower: 200 }),
+          activity({
+            id: 2,
+            type: "running",
+            distance: 0,
+            movingTime: 3600,
+            elapsedTime: 3600,
+          }),
+        ],
+        timeline,
+      ),
+    ).toBe(129);
+  });
+
+  it("returns null when nothing on the day can be measured", () => {
+    expect(
+      measuredActivityTss(
+        [
+          activity({
+            id: 1,
+            type: "running",
+            distance: 0,
+            movingTime: 3600,
+            elapsedTime: 3600,
+          }),
+        ],
+        timeline,
+      ),
+    ).toBeNull();
+  });
+
+  it("returns null when the day has no activities", () => {
+    expect(measuredActivityTss([], timeline)).toBeNull();
+  });
+
+  it("resolves the same total as the day resolver's measured branch", () => {
+    const activities = [
+      activity({ id: 1, normalizedPower: 200 }),
+      activity({
+        id: 2,
+        type: "running",
+        distance: 0,
+        movingTime: 3600,
+        elapsedTime: 3600,
+      }),
+    ];
+
+    expect(activityDayTss(activities, timeline)).toBe(
+      measuredActivityTss(activities, timeline) ?? 0,
+    );
   });
 });
 

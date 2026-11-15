@@ -6,6 +6,7 @@ import {
   estimatedTssFromSession,
   powerTrainingStressScore,
   recordedPowerSummary,
+  trainingStressScore,
 } from "./stress.js";
 
 function samples(powerBySecond: readonly number[]): ActivitySample[] {
@@ -36,6 +37,17 @@ describe("powerTrainingStressScore", () => {
     ).toBe(49);
   });
 
+  it("rounds the unrounded score at the caller", () => {
+    // 1000 seconds at FTP is 27.78 before rounding.
+    expect(
+      powerTrainingStressScore({
+        durationSeconds: 1000,
+        normalizedPowerWatts: 250,
+        ftpWatts: 250,
+      }),
+    ).toBe(28);
+  });
+
   it("returns null without usable power or FTP", () => {
     expect(
       powerTrainingStressScore({
@@ -54,6 +66,13 @@ describe("powerTrainingStressScore", () => {
   });
 });
 
+describe("trainingStressScore", () => {
+  it("returns the unrounded score for hours at an intensity factor", () => {
+    expect(trainingStressScore(1, 1)).toBe(100);
+    expect(trainingStressScore(1000 / 3600, 1)).toBeCloseTo(27.78, 2);
+  });
+});
+
 describe("bikeWorkoutTrainingStressScore", () => {
   it("scores steady intervals from their percentage of FTP", () => {
     expect(
@@ -65,6 +84,19 @@ describe("bikeWorkoutTrainingStressScore", () => {
         ],
       }),
     ).toBe(102);
+  });
+
+  it("rounds once after summing the unrounded intervals", () => {
+    // Four 30-second blocks at FTP: 3.33 in total, not 4 from rounding each.
+    expect(
+      bikeWorkoutTrainingStressScore({
+        ftpWatts: 250,
+        intervals: Array.from({ length: 4 }, () => ({
+          durationSeconds: 30,
+          powerPercent: 100,
+        })),
+      }),
+    ).toBe(3);
   });
 });
 

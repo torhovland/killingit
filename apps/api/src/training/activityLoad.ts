@@ -10,6 +10,8 @@ import {
   CTL_DAYS,
   dailyTrainingLoad,
   powerTrainingStressScore,
+  roundWholeNonNegative,
+  trainingStressScore,
 } from "./stress.js";
 import { thresholdForSport, type ThresholdTimeline } from "./thresholds.js";
 
@@ -142,6 +144,26 @@ function activityMeasuredTss(
 }
 
 /**
+ * The TSS each activity on a day contributes, in input order: its measured
+ * score, or its duration-based fallback when the recording cannot be measured.
+ * Null when nothing on the day can be measured.
+ */
+function measuredDayTss(
+  activities: readonly AnalyzedActivity[],
+  timelines: readonly ThresholdTimeline[],
+): number[] | null {
+  const measured = activities.map((activity) =>
+    activityMeasuredTss(activity, timelines),
+  );
+  if (!measured.some((value) => value !== null)) {
+    return null;
+  }
+  return activities.map(
+    (activity, index) => measured[index] ?? fallbackActivityTss(activity),
+  );
+}
+
+/**
  * Sums the threshold-scored TSS of every activity on one day, when at least one
  * activity can be measured. Activities without a usable threshold still
  * contribute their duration-based stress, so a day's total is the sum of its
@@ -151,17 +173,8 @@ export function measuredActivityTss(
   activities: readonly AnalyzedActivity[],
   timelines: readonly ThresholdTimeline[],
 ): number | null {
-  const measured = activities.map((activity) =>
-    activityMeasuredTss(activity, timelines),
-  );
-  if (!measured.some((value) => value !== null)) {
-    return null;
-  }
-  return activities.reduce(
-    (total, activity, index) =>
-      total + (measured[index] ?? fallbackActivityTss(activity)),
-    0,
-  );
+  const byActivity = measuredDayTss(activities, timelines);
+  return byActivity === null ? null : sumTss(byActivity);
 }
 
 /** One day's TSS split across its activities, aligned with the input order. */
@@ -186,14 +199,9 @@ function resolveActivityDayTss(
   timelines: readonly ThresholdTimeline[],
   estimatedTss?: number,
 ): ActivityDayTss {
-  const measured = activities.map((activity) =>
-    activityMeasuredTss(activity, timelines),
-  );
-  if (measured.some((value) => value !== null)) {
-    const byActivity = activities.map(
-      (activity, index) => measured[index] ?? fallbackActivityTss(activity),
-    );
-    return { byActivity, total: sumTss(byActivity) };
+  const measured = measuredDayTss(activities, timelines);
+  if (measured !== null) {
+    return { byActivity: measured, total: sumTss(measured) };
   }
 
   const fallbacks = activities.map(fallbackActivityTss);
@@ -288,9 +296,8 @@ function intensityTrainingStressScore(
   ) {
     return null;
   }
-  return Math.max(
-    0,
-    Math.round((durationSeconds / 3600) * intensityFactor ** 2 * 100),
+  return roundWholeNonNegative(
+    trainingStressScore(durationSeconds / 3600, intensityFactor),
   );
 }
 
