@@ -12,18 +12,22 @@
 Exercise the critical browser journeys against the real web app, API, database
 schema and migrations. The unit and route tests cover behaviour in isolation;
 this suite covers the parts only a real browser reaches: the signed-out landing
-page, the sign-in hand-off, the dashboard cross-page state, the survey gate, a
-background-free coach reply, a meal photo upload with its analysis, page URLs
-across a deep link, reload and the history buttons, the modal focus trap and
-focus restore, and account deletion with sign-out.
+page, the sign-in hand-off, the dashboard cross-page state, the survey gate, the
+account menu's disclosure behaviour, a background-free coach reply, a meal photo
+upload with its analysis, page URLs across a deep link, reload and the history
+buttons, the modal focus trap and focus restore, and account deletion with
+sign-out.
 
 ## Scope
 
 ### In scope
 
-1. Playwright (`@playwright/test`) with a small, serial suite of thirteen journeys:
+1. Playwright (`@playwright/test`) with a small, serial suite of fourteen
+   journeys:
    - a signed-out visitor sees the landing page and signs in to the dashboard;
    - a page keeps its URL across a reload, back and forward;
+   - the account menu closes from Escape and an outside click, returns focus to
+     its trigger, and marks the current page;
    - a deep link opens its page after signing in;
    - an unknown path lands on the coach page;
    - an athlete answers the coaching survey and reaches today's session;

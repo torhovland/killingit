@@ -21,7 +21,9 @@ header, outstanding activities, the plan, and the inputs that shape it.
 - The app name is an underline-free link back to the coaching dashboard.
 - The account menu is opened from a visible hamburger button. The user's first
   name, optional round avatar, `Admin` badge, and the status spinner sit next to
-  the hamburger icon, not inside the menu.
+  the hamburger icon, not inside the menu. Escape or a click outside closes the
+  menu, the current page's item carries `aria-current="page"`, and closing from
+  the keyboard returns focus to the hamburger button.
 - The menu links to the coaching dashboard, fitness, activities, season review,
   coaching survey, settings, admin settings (admins only), and sign out.
 - The spinner reports `loading`, `syncing`, or `thinking` across any page. A

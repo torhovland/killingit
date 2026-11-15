@@ -33,14 +33,14 @@ tab index, and invalid ARIA.
 ### Out of scope
 
 - Behavioural accessibility that static analysis cannot see: focus traps, chart
-  data exposed to screen readers, sort announcements, and a menu primitive.
-  Focus traps are covered by the `Modal` tests, the chart keyboard path
-  (#325) by `docs/specs/chart-keyboard-navigation.md`, and the model table's
-  sort announcements (#326) by `apps/web/src/llm/ModelTable.test.tsx`; a menu
-  primitive stays in its own a11y issue (#328). The location map's
-  keyboard path (#324) is implemented and guarded by interaction tests rather
-  than by a lint rule, because whether keys actually move the map is behaviour,
-  not JSX.
+  data exposed to screen readers, sort announcements, and menus. Focus traps are
+  covered by the `Modal` tests, the chart keyboard path (#325) by
+  `docs/specs/chart-keyboard-navigation.md`, the model table's sort
+  announcements (#326) by `apps/web/src/llm/ModelTable.test.tsx`, and the menu
+  disclosure (#327) by `apps/web/src/components/Menu.test.tsx` plus the account
+  menu's journey test. The location map's keyboard path (#324) is implemented
+  and guarded by interaction tests rather than by a lint rule, because whether
+  keys actually move the map is behaviour, not JSX.
 - Running the rules over non-React code (the API, scripts, shared package) and
   over the Playwright config. Only the web app renders JSX.
 

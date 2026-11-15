@@ -43,7 +43,10 @@ async function signIn(
 }
 
 async function openPage(page: Page, label: string): Promise<void> {
-  await page.getByTestId("user-menu").locator("summary").click();
+  await page
+    .getByTestId("user-menu")
+    .getByRole("button", { name: "Account menu" })
+    .click();
   await page.getByRole("button", { name: label, exact: true }).click();
 }
 
@@ -77,6 +80,33 @@ test("a page keeps its URL across reload and the history buttons", async ({
   await page.goForward();
   await expect(page).toHaveURL(/\/calendar$/);
   await expect(page.getByTestId("calendar-grid")).toBeVisible();
+});
+
+test("the account menu closes from Escape and an outside click and marks the current page", async ({
+  page,
+}) => {
+  await signIn(page, { questions: "answered" });
+  const trigger = page
+    .getByTestId("user-menu")
+    .getByRole("button", { name: "Account menu" });
+  const panel = page.getByRole("navigation", { name: "Account" });
+
+  await trigger.click();
+  await expect(panel).toBeVisible();
+  await expect(
+    panel.getByRole("button", { name: "Coach", exact: true }),
+  ).toHaveAttribute("aria-current", "page");
+  await expect(trigger).toHaveAttribute("aria-expanded", "true");
+
+  await page.keyboard.press("Escape");
+  await expect(panel).toHaveCount(0);
+  await expect(trigger).toHaveAttribute("aria-expanded", "false");
+  await expect(trigger).toBeFocused();
+
+  await trigger.click();
+  await expect(panel).toBeVisible();
+  await page.getByRole("heading", { name: "Your plan" }).click();
+  await expect(panel).toHaveCount(0);
 });
 
 test("a deep link opens its page after signing in", async ({ page }) => {
