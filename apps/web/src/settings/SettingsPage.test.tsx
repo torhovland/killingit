@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, mock } from "bun:test";
+import { afterAll, afterEach, describe, expect, it, mock } from "bun:test";
 import type { CurrentUser } from "@killingit/shared";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -19,6 +19,10 @@ await mock.module("../auth", () => ({
   SessionExpiredError,
   useAuth: () => auth,
 }));
+
+afterAll(() => {
+  mock.restore();
+});
 
 const { AppStatusProvider } = await import("../AppStatus");
 const { CurrentUserProvider } = await import("../CurrentUserProvider");

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, mock } from "bun:test";
+import { afterAll, afterEach, describe, expect, it, mock } from "bun:test";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { AthleteLocation } from "@killingit/shared";
@@ -19,6 +19,10 @@ await mock.module("../auth", () => ({
   SessionExpiredError,
   useAuth: () => auth,
 }));
+
+afterAll(() => {
+  mock.restore();
+});
 
 const { LocationSection } = await import("./LocationSection");
 

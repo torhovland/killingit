@@ -1,4 +1,5 @@
 import {
+  afterAll,
   afterEach,
   beforeEach,
   describe,
@@ -32,6 +33,10 @@ await mock.module("./auth", () => ({
   SessionExpiredError,
   useAuth: () => auth,
 }));
+
+afterAll(() => {
+  mock.restore();
+});
 
 interface Generation {
   running: boolean;

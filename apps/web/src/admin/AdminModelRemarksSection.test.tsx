@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, mock } from "bun:test";
+import { afterAll, afterEach, describe, expect, it, mock } from "bun:test";
 import type { LlmModelRemark } from "@killingit/shared";
 import { render, screen } from "@testing-library/react";
 import { formatDateTime } from "../timeZone";
@@ -17,6 +17,10 @@ await mock.module("../auth", () => ({
     getToken: () => Promise.resolve("token"),
   }),
 }));
+
+afterAll(() => {
+  mock.restore();
+});
 
 const { AdminModelRemarksSection } = await import("./AdminModelRemarksSection");
 const { AppStatusProvider } = await import("../AppStatus");

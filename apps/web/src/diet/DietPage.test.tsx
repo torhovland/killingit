@@ -1,4 +1,12 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  mock,
+} from "bun:test";
 import type { DietSummaryResponse, FoodEntry } from "@killingit/shared";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -19,6 +27,10 @@ await mock.module("../auth", () => ({
   SessionExpiredError,
   useAuth: () => session,
 }));
+
+afterAll(() => {
+  mock.restore();
+});
 
 /**
  * The real exports, captured before the module is replaced so the mock keeps

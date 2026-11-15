@@ -1,4 +1,12 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  mock,
+} from "bun:test";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ResponseSchema } from "./fetchAuthed";
@@ -33,6 +41,10 @@ await mock.module("./auth", () => ({
   SessionExpiredError,
   useAuth: () => auth,
 }));
+
+afterAll(() => {
+  mock.restore();
+});
 
 const { AppStatusProvider, useAppStatus } = await import("./AppStatus");
 const { useAbortableRequest, useApiResource, useApiResources } =
