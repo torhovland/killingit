@@ -32,8 +32,10 @@ marks anything not yet built.
 design tokens in `apps/web/src/index.css`. Compose a primitive's `variant`/`size`
 before `className`, merge classes with `cn()`, never repeat a primitive's base
 string in a page, and never build a `className` from a template literal (the
-`local/no-template-classname` rule fails `bun run lint`); avoid inline styles
-and hard-coded colours. The component library is in
+`local/no-template-classname` rule fails `bun run lint`); use an inline `style`
+only for a value computed at runtime, such as a pan offset, hover-card position
+or progress width, with a comment saying why it cannot be a utility, and never
+hard-code a UI colour. The component library is in
 `apps/web/src/components/` (`Modal` owns every dialog), and each page lives in
 its feature directory (`calendar/`, `fitness/`, `diet/`, `settings/`, `admin/`)
 beside its tests. See `docs/specs/web-component-library.md` and

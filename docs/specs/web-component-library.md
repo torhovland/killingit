@@ -61,6 +61,17 @@ reported by the `local/no-template-classname` ESLint rule, which runs on the
 web app and fails `bun run lint`. A template literal passed _to_ `cn()` is the
 intended dynamic input and stays allowed.
 
+## Inline styles
+
+A `style` prop is reserved for a value the browser only knows at runtime: a map
+layer's pan and zoom `transform`, a tile's or marker's world position, a hover
+card's offset, or a progress bar's live width. Each remaining `style` carries a
+short comment saying why it cannot be a utility class. A constant — the chart
+legend inset, a layer's transform origin or stacking order, a tile's fixed
+`TILE_SIZE` edge — is a utility class such as `CHART_LEGEND_INSET_CLASS`,
+`origin-top-left` or `size-[256px]`; Tailwind needs the literal value in a
+class, and no inline style is added for anything constant.
+
 Page components live in the feature directory that owns them, beside their
 tests: `calendar/`, `fitness/`, `diet/`, `settings/` and `admin/` each hold a
 page, its sections and its single-page helpers. Only shared primitives belong
@@ -111,6 +122,9 @@ layout for the spinner and forwards `variant`, `size` and `className`.
 - Every conditional `className` is composed with `cn()`, and no JSX attribute is
   built from a template literal; `local/no-template-classname` fails
   `bun run lint` otherwise.
+- Every remaining inline `style` holds a value the browser computes at runtime
+  and carries a comment explaining why; a constant offset, size or stacking
+  order uses a utility class instead. No new inline style is introduced.
 - The fitness, threshold and cost chart legends render through `ChartLegend`;
   the threshold chart and the fitness health charts take their series colours
   from `seriesClass`; no chart repeats that legend markup, series palette or the

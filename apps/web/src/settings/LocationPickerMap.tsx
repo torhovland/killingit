@@ -10,6 +10,7 @@ import {
   type MapPoint,
 } from "../mapProjection";
 import { Button } from "../components/Button";
+import { cn } from "../components/cn";
 
 const DEFAULT_WIDTH = 400;
 const DEFAULT_HEIGHT = 300;
@@ -498,11 +499,14 @@ export function LocationPickerMap({
           return (
             <div
               key={slotName}
-              className="pointer-events-none absolute inset-0"
+              className={cn(
+                "pointer-events-none absolute inset-0 origin-top-left",
+                slots.current === slotName ? "z-[2]" : "z-[1]",
+              )}
+              // Pan and zoom translate and scale the whole layer, so its
+              // transform is only known to the runtime viewport.
               style={{
                 transform: `translate3d(${Math.round(-topLeft.x)}px, ${Math.round(-topLeft.y)}px, 0) scale(${scale})`,
-                transformOrigin: "0 0",
-                zIndex: slots.current === slotName ? 2 : 1,
               }}
             >
               {layer.tiles.map((tile) => (
@@ -512,12 +516,12 @@ export function LocationPickerMap({
                   alt=""
                   draggable={false}
                   referrerPolicy="origin"
-                  className="absolute max-w-none select-none"
+                  className="absolute size-[256px] max-w-none select-none"
+                  // Every tile keeps its fixed TILE_SIZE square from the class
+                  // above; only its world position moves with a pan.
                   style={{
                     left: tile.x,
                     top: tile.y,
-                    width: TILE_SIZE,
-                    height: TILE_SIZE,
                   }}
                 />
               ))}
@@ -528,6 +532,8 @@ export function LocationPickerMap({
         {marker !== null && (
           <div
             className="pointer-events-none absolute z-10 size-[22px] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-primary bg-primary/20"
+            // The marker sits on the projection of the selected point, which
+            // moves with every pan and zoom.
             style={{
               left: marker.x - topLeft.x,
               top: marker.y - topLeft.y,

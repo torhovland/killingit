@@ -27,6 +27,8 @@ export function CostTooltip({
   return (
     <div
       className="pointer-events-none absolute top-2 z-10 w-60 -translate-x-1/2 rounded border bg-card p-2 text-sm shadow-lg"
+      // The card is centred over the hovered bar, and that share of the card
+      // width is only known to the chart that drew the bar.
       style={{ left }}
       data-testid="cost-tooltip"
     >

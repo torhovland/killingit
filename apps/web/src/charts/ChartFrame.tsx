@@ -224,6 +224,8 @@ export function ChartFrame<T extends { date: string }>({
               "pointer-events-none absolute top-2 z-10 -translate-x-1/2 rounded border bg-card p-2 text-sm shadow-lg",
               tooltipClassName,
             )}
+            // The card follows the hovered day across the plot, so its offset
+            // is a share of the rendered width that changes per pointer move.
             style={{ left: `${activeHover.percent}%` }}
             data-testid={tooltipTestId}
           >

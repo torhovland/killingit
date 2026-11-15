@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { AthleteLocation } from "@killingit/shared";
+import { TILE_SIZE } from "../mapProjection";
 import { LocationPickerMap } from "./LocationPickerMap";
 
 const OSLO: AthleteLocation = {
@@ -69,6 +70,9 @@ describe("LocationPickerMap", () => {
     // The layer has no intrinsic width, so Tailwind's global `max-width: 100%`
     // on images would otherwise collapse every tile to zero width.
     expect(html).toContain("max-w-none");
+    // The tile edge is a literal utility class rather than an inline style, so
+    // link it to the world-coordinate geometry that places the tile.
+    expect(html).toContain(`size-[${TILE_SIZE}px]`);
   });
 
   it("is a keyboard stop whose name describes the keyboard controls", async () => {
