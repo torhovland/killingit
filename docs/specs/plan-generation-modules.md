@@ -49,6 +49,20 @@ covered all of them in one run.
     metric writes it feeds.
 12. The test file is split along the same seams, with the shared fixtures and
     in-memory stores in `testFixtures/generationHarness.ts`.
+13. `plans/planInputs.ts` — the advisory loader dependencies
+    (`PlanInputDependencies`), the `ThresholdHistory`, `BodyHistory` and
+    `CalorieHistory` aliases, the prompt windows and the fail-open
+    `loadPlanInputs`.
+14. `plans/generationContext.ts` — `loadPlanGenerationContext` keeps the
+    required inputs and the fenced failure handling; `syncAthleteReadingIfChanged`
+    owns the athlete-reading decision and its post-reading fence;
+    `buildPlanContext` is the one mapping from the loaded and advisory inputs to
+    `PlanGenerationContext`.
+15. `plans/trigger.ts` keeps the debounce, the background start, the heartbeat
+    and a short `runPlanForUser`: load, fence, read the athlete's text, load the
+    advisory inputs, wait for a newer analysis, and run generation. Both fences
+    go through `ensureGenerationCurrent`; ESLint rejects a direct
+    `generations.isCurrent` call anywhere under `plans/`.
 
 ### Out of scope
 
@@ -75,4 +89,7 @@ an explicit `undefined` exactly like an absent field. See
 2. Every extracted module has one responsibility and no behaviour change.
 3. Optional prompt context is typed `T | undefined` and forwarded instead of
    conditionally spread.
-4. Typecheck, lint, format, unused-export check and the full test suite pass.
+4. `runPlanForUser` names its phases — load, fence, athlete reading, advisory
+   inputs, analysis wait — and the prompt context is assembled by one tested
+   `buildPlanContext`.
+5. Typecheck, lint, format, unused-export check and the full test suite pass.

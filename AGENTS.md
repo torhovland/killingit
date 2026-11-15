@@ -237,10 +237,12 @@ through a disciplined process:
   stores once and passes `ResolvedAppDependencies` to the factories, with their
   own `??` defaults. Do not conditionally spread a field — type it `T | undefined`
   and forward it. A plan run's loaders and writers are `PlanTriggerDependencies`
-  fields; enrichment inputs are fail-open, while the account state and activity
-  feed are required. `loadPlanGenerationContext` (`plans/generationContext.ts`)
-  checks the account's model before the Garmin sync, so a missing key is reported
-  without syncing. See `docs/specs/api-dependency-wiring.md`,
+  fields, and the advisory prompt inputs are the `PlanInputDependencies` fields
+  in `plans/planInputs.ts`; enrichment inputs are fail-open, while the account
+  state and activity feed are required. `plans/generationContext.ts` checks the
+  account's model before the Garmin sync, so a missing key is reported without
+  syncing, and it assembles the `PlanGenerationContext` every plan prompt reads.
+  See `docs/specs/api-dependency-wiring.md`,
   `docs/specs/plan-input-loading.md` and ADR 0023.
 - **Keep exported constants above exported functions.** Top-level `export const`
   declarations come before `export function` and `export default function`
