@@ -8,6 +8,7 @@ import type {
 import { addDays, startOfWeek } from "@killingit/shared";
 import type { PlanUpdateRevision } from "../llm/planUpdatePrompt.js";
 import { weekFor } from "./periods.js";
+import { PlanValidationError } from "./planValidationError.js";
 
 /**
  * Which plan levels a single update completion revises, plus the two decisions
@@ -232,8 +233,8 @@ export function mergeTomorrow(
 
   const week = weekFor(plan, plan.tomorrow.date);
   if (week === null) {
-    throw new Error(
-      "The coach returned tomorrow's session outside a planned week. Please regenerate the plan.",
+    throw new PlanValidationError(
+      "The coach returned tomorrow's session outside a planned week.",
     );
   }
   if (week.startDate === plan.week.startDate) {
@@ -327,22 +328,22 @@ function assertRefreshedSeason(
   const remaining = season.blocks.filter((entry) => entry.endDate >= today);
   const first = remaining[0];
   if (first === undefined || first.startDate !== currentBlockStartDate) {
-    throw new Error(
-      "The coach returned a season refresh that moved the current block's start date. Please regenerate the plan.",
+    throw new PlanValidationError(
+      "The coach returned a season refresh that moved the current block's start date.",
     );
   }
   const last = remaining[remaining.length - 1];
   if (last !== undefined && last.endDate !== season.endDate) {
-    throw new Error(
-      "The coach returned a season refresh that does not cover the rest of the season. Please regenerate the plan.",
+    throw new PlanValidationError(
+      "The coach returned a season refresh that does not cover the rest of the season.",
     );
   }
   if (
     block.startDate !== currentBlockStartDate ||
     block.endDate !== first.endDate
   ) {
-    throw new Error(
-      "The coach returned a block refresh that does not match the remaining season. Please regenerate the plan.",
+    throw new PlanValidationError(
+      "The coach returned a block refresh that does not match the remaining season.",
     );
   }
 }
