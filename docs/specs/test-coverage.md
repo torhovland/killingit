@@ -55,11 +55,11 @@ owned by the package, and merges the result into `coverage/lcov.info`.
 
 ### Baseline
 
-Measured on 2026-11-12 with Bun 1.4.4, the version pinned in the CI test job.
-Bun changes how many executable lines and functions it counts between releases,
-so moving the pin also means re-measuring the baseline. The threshold is the
-measured value floored to a whole percent, leaving a small margin for harmless
-variation. Both lines and functions are checked.
+Measured on 2026-11-12 with the Bun release pinned in `.bun-version` and
+installed by CI. Bun changes how many executable lines and functions it counts
+between releases, so moving the pin also means re-measuring the baseline. The
+threshold is the measured value floored to a whole percent, leaving a small
+margin for harmless variation. Both lines and functions are checked.
 
 | Package   | Lines measured | Line threshold | Functions measured | Function threshold |
 | --------- | -------------- | -------------- | ------------------ | ------------------ |

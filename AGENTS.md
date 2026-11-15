@@ -61,8 +61,12 @@ device zone shifts a day. See `docs/specs/pwa.md`,
 `docs/specs/web-component-library.md` and
 `docs/specs/web-date-formatting.md`.
 
-**Backend.** TypeScript on Bun, Hono for the API, Drizzle ORM and Zod. Shared Zod
-schemas are validated on both sides (API `zValidator`, web responses);
+**Backend.** TypeScript on Bun, Hono for the API, Drizzle ORM and Zod. The Bun
+release is pinned once in `.bun-version`; every CI and deploy job installs it
+through `bun-version-file`, the e2e job reads the same file by hand, and the API
+Dockerfile's two `oven/bun` tags name it. `scripts/bunVersion.test.ts` fails on
+a literal or floating version. Shared Zod schemas are validated on both sides
+(API `zValidator`, web responses);
 `packages/shared` holds the wire contract and API-only logic lives in `apps/api`.
 Failures use `{ error: { code, message, details? } }` from
 `packages/shared/src/apiError.ts`, and `apps/api/src/index.ts` exports the

@@ -60,7 +60,8 @@ services/
 
 ## Prerequisites
 
-- [Bun](https://bun.sh) ≥ 1.4
+- [Bun](https://bun.sh), at the release pinned in
+  [`.bun-version`](.bun-version)
 - Docker (for the local Postgres database)
 - Python 3 (for the Garmin sidecar; `bun run dev` creates its virtualenv on
   first run, and `bun run check:garmin` installs the sidecar's test and lint

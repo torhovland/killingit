@@ -63,6 +63,14 @@ the environment still ends on the latest verified commit.
 The build-and-push jobs are not serialised: they only push an image tagged with
 a commit SHA, which two runs cannot conflict over.
 
+### The Bun version
+
+Every `oven-sh/setup-bun@v2` step in `deploy.yml` passes
+`bun-version-file: .bun-version`, so the migration, web-build and API jobs
+install the same Bun release CI verified the commit with. The API image's
+`oven/bun` tags name that release too. `scripts/bunVersion.test.ts` asserts it
+for both workflows, and `bun run test` runs it.
+
 ### The Pages publish
 
 Pinning every checkout to `DEPLOY_SHA` leaves the runner on a detached HEAD, so
@@ -85,6 +93,8 @@ the deployments were pinned to a SHA.
   publish a preview in place of the environment's site.
 - Deploys to one environment never overlap, and a running deploy is never
   cancelled by a queued one.
+- Every Bun installation in the workflow reads `.bun-version`, so the deploy
+  cannot install a release other than the one CI verified.
 - `scripts/deployWorkflow.test.ts` asserts these invariants. `bun run test` runs
   it, and CI's test job runs the same script suite through `test:coverage`.
 
