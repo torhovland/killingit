@@ -1,7 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { promptRulesProse } from "../testFixtures/prompts.js";
+import {
+  promptRuleLiteral,
+  promptRulesProse,
+} from "../testFixtures/prompts.js";
 
 /**
  * Guards the rule in `AGENTS.md` that a reusable prompt fragment lives in
@@ -9,15 +12,22 @@ import { promptRulesProse } from "../testFixtures/prompts.js";
  * spells the same prose out again the two copies drift apart, and the coach
  * starts receiving two versions of one rule.
  *
- * The prose is read out of the module's source rather than its exports, because
- * a fragment used only inside `promptRules.ts` is not exported.
- *
- * The scan covers the plan-update prompts this rule was applied to. Widening it
- * to every `apps/api/src/llm/*Prompt.ts` waits for the last copies elsewhere,
- * which issue #367 tracks.
+ * The scan covers every module under `llm/`, plus the manual TSS prompt under
+ * `training/`. The prose is read out of the module's source rather than its
+ * exports, because a fragment used only inside `promptRules.ts` is not exported.
  */
 const LLM_DIR = import.meta.dir;
-const PROMPT_MODULES = ["planUpdate.ts", "planUpdatePrompt.ts"];
+const PROMPT_MODULES = [
+  ...readdirSync(LLM_DIR)
+    .filter(
+      (file) =>
+        file.endsWith(".ts") &&
+        !file.endsWith(".test.ts") &&
+        file !== "promptRules.ts",
+    )
+    .sort(),
+  "../training/manualTss.ts",
+];
 
 /**
  * A module's source with its quote escapes resolved, so the same sentence
@@ -34,7 +44,7 @@ describe("shared prompt fragments", () => {
     expect(promptRulesProse().length).toBeGreaterThan(0);
   });
 
-  it("is composed in the plan-update prompts instead of repeated", () => {
+  it("is composed in every llm module instead of repeated", () => {
     const fragments = promptRulesProse();
     const offenders = PROMPT_MODULES.flatMap((module) => {
       const source = normalizedSource(module);
@@ -42,6 +52,15 @@ describe("shared prompt fragments", () => {
         .filter((fragment) => source.includes(fragment))
         .map((fragment) => `${module} repeats "${fragment}"`);
     });
+
+    expect(offenders).toEqual([]);
+  });
+
+  it("keeps the JSON-shape instruction in promptRules alone", () => {
+    const instruction = promptRuleLiteral("JSON_SHAPE_INSTRUCTION");
+    const offenders = PROMPT_MODULES.filter((module) =>
+      normalizedSource(module).includes(instruction),
+    );
 
     expect(offenders).toEqual([]);
   });

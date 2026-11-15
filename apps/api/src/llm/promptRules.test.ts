@@ -19,9 +19,11 @@ import {
   DIET_REPAIR_HINT,
   DIET_RULES,
   DURATION_TOLERANCE_RULES,
+  FOOD_ANALYSIS_RESPONSE_RULES,
   GLOBAL_PROMPT_RULES,
   JSON_ONLY_RULES,
   JSON_RULES,
+  jsonShape,
   PAST_SESSION_RULES,
   PLAN_CHANGE_FLAG_RULES,
   PLAN_PROMPT_RULES,
@@ -100,6 +102,24 @@ describe("shared prompt composition", () => {
         COACH_RESPONSE_NOTES_RULES,
       ]),
     ).toEqual([]);
+  });
+
+  it("asks for one JSON object with the contract's shape", () => {
+    const instruction = promptRuleLiteral("JSON_SHAPE_INSTRUCTION");
+    expect(jsonShape(`{ "tss": 0 }`)).toBe(`${instruction}:\n{ "tss": 0 }`);
+    expect(jsonShape()).toBe(`${instruction}.`);
+  });
+
+  it("opens every JSON response with the same shape instruction", () => {
+    const instruction = promptRuleLiteral("JSON_SHAPE_INSTRUCTION");
+    for (const rules of [
+      JSON_RULES,
+      COACH_ANALYSIS_RESPONSE_RULES,
+      COACH_REPLY_RESPONSE_RULES,
+      FOOD_ANALYSIS_RESPONSE_RULES,
+    ]) {
+      expect(rules).toContain(instruction);
+    }
   });
 
   it("builds the analysis and reply response rules from the shared decisions", () => {

@@ -389,6 +389,13 @@ const EXTRA_PRAISE_DRAW_RANGE = 15;
 export const JSON_ONLY_RULES = `Do not add markdown fences, headings, explanations, commentary, or extra fields.`;
 
 /**
+ * The opening every structured prompt uses to ask for one JSON object with an
+ * exact shape. `jsonShape` states the shape, so the instruction has one owner
+ * and cannot drift into a second wording.
+ */
+const JSON_SHAPE_INSTRUCTION = `Return only one JSON object with exactly this shape`;
+
+/**
  * How the coach decides whether the input it just read changes the plan. The
  * analysis or reply that already read the workout, comment or note carries the
  * decision, so a refresh never needs a second completion. An input is context
@@ -415,7 +422,7 @@ export const COACH_RESPONSE_NOTES_RULES = `Use "coachQuestion" only for an impor
 
 /** The full JSON output rule for the plan prompts. */
 export const JSON_RULES = promptSections(
-  "Return only a single valid JSON object with exactly this shape.",
+  jsonShape(),
   JSON_ONLY_RULES,
   `Every field must use the exact name and value type shown in the contract. The top-level keys must be exactly the keys shown at the top level of the contract, with the same nesting; never return a bare inner object, an array, or a wrapper such as "plan" or "response". When a contract lists choices separated by "|", output exactly one of those choices as a string and never the list itself. Replace every placeholder such as "YYYY-MM-DD", "string", or 0 with a real value.`,
   COACH_RESPONSE_NOTES_RULES,
@@ -536,8 +543,7 @@ const COACH_ANALYSIS_CONTRACT = `{
 }`;
 
 export const COACH_ANALYSIS_RESPONSE_RULES = promptSections(
-  `Return only one JSON object with exactly this shape:
-${COACH_ANALYSIS_CONTRACT}`,
+  jsonShape(COACH_ANALYSIS_CONTRACT),
   `Replace "estimatedFtpWatts" with the integer estimate in watts, or null when there is no useful evidence. Set "weightKg" to the athlete's body weight in kilograms and "bodyFatPercent" to their body fat as a percentage only when the input for this activity states them, and to null otherwise. Put the whole coach summary in "analysis".`,
   PLAN_CHANGE_FLAG_RULES,
   COACH_RESPONSE_NOTES_RULES,
@@ -552,8 +558,7 @@ export const COACH_REPLY_FIELDS_CONTRACT = `"reply": "string",
 const COACH_REPLY_CONTRACT = `{ ${COACH_REPLY_FIELDS_CONTRACT} }`;
 
 export const COACH_REPLY_RESPONSE_RULES = promptSections(
-  `Return only one JSON object with exactly this shape:
-${COACH_REPLY_CONTRACT}`,
+  jsonShape(COACH_REPLY_CONTRACT),
   `Put the whole reply in "reply".`,
   PLAN_CHANGE_FLAG_RULES,
   JSON_ONLY_RULES,
@@ -561,15 +566,14 @@ ${COACH_REPLY_CONTRACT}`,
 
 /** The JSON contract for one logged meal. */
 export const FOOD_ANALYSIS_RESPONSE_RULES = promptSections(
-  `Return only one JSON object with exactly this shape:
-{
+  jsonShape(`{
   "meal": "string",
   "carbsGrams": 0,
   "proteinGrams": 0,
   "fatGrams": 0,
   "caloriesKcal": 0,
   "dietFit": "string"
-}`,
+}`),
   `Replace "meal" with one short paragraph that adds to the athlete's own description rather than repeating it. Say what the photo confirms or shows beyond the description, and state any assumption you make, such as whether a weight is cooked or raw or how a mixed portion splits. Never describe the meal back to the athlete or restate the ingredients, weights or wording they already gave; their description is shown separately. When there is no description, identify and describe the meal from the photo. Replace the four numbers with your best estimate for the whole meal, in grams for the macronutrients and kilocalories for energy. Send whole numbers, never ranges or text. When the description or photo does not give a quantity, assume an ordinary portion and say so in "meal". Put your comment on how the meal fits the athlete's goal, training and recent food log in "dietFit".`,
   DIET_RULES,
   JSON_ONLY_RULES,
@@ -582,6 +586,17 @@ export const FOOD_ANALYSIS_RESPONSE_RULES = promptSections(
  */
 export function rollExtraPraise(random: () => number = Math.random): boolean {
   return Math.floor(random() * EXTRA_PRAISE_DRAW_RANGE) === 0;
+}
+
+/**
+ * The instruction that asks for one JSON object with the exact shape `contract`
+ * names. A prompt that states its output rules before the contract omits the
+ * argument, so the sentence owns the rule while the shape follows the rules.
+ */
+export function jsonShape(contract?: string): string {
+  return contract === undefined
+    ? `${JSON_SHAPE_INSTRUCTION}.`
+    : `${JSON_SHAPE_INSTRUCTION}:\n${contract}`;
 }
 
 /**
