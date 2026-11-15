@@ -1,4 +1,5 @@
 import { COST_SERIES_SWATCH } from "./costColors";
+import { cn } from "./components/cn";
 import {
   formatCallCount,
   formatCostUsd,
@@ -45,11 +46,12 @@ export function CostTooltip({
             >
               <span className="flex min-w-0 items-center gap-1.5">
                 <span
-                  className={`inline-block size-2.5 shrink-0 rounded-sm ${
+                  className={cn(
+                    "inline-block size-2.5 shrink-0 rounded-sm",
                     COST_SERIES_SWATCH[
                       Math.max(0, index) % COST_SERIES_SWATCH.length
-                    ]
-                  }`}
+                    ],
+                  )}
                 />
                 <span className="truncate">{entry?.label ?? part.series}</span>
               </span>

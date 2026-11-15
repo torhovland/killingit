@@ -62,6 +62,16 @@ export default tseslint.config(
     },
   },
   {
+    // A conditional `className` is composed through `cn()` so conflicting
+    // Tailwind utilities merge and an omitted fragment leaves no stray space.
+    // A template literal passed to `cn()` is the intended dynamic input. See
+    // `docs/specs/web-component-library.md`.
+    files: ["apps/web/**/*.{ts,tsx}"],
+    rules: {
+      "local/no-template-classname": "error",
+    },
+  },
+  {
     // The benchmark stores its run files as JSON, so every stage reads them
     // through the Zod schema that describes the file. This rule stops a new
     // stage from parsing a stored file with a hand-written cast again. Only

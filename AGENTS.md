@@ -31,11 +31,13 @@ marks anything not yet built.
 **Frontend.** React and TypeScript on Vite, styled with Tailwind CSS v4 and
 design tokens in `apps/web/src/index.css`. Compose a primitive's `variant`/`size`
 before `className`, merge classes with `cn()`, never repeat a primitive's base
-string in a page, and avoid inline styles and hard-coded colours; the component
-library is in `apps/web/src/components/` (`Modal` owns every dialog), and each
-page lives in its feature directory (`calendar/`, `fitness/`, `diet/`,
-`settings/`, `admin/`) beside its tests. See
-`docs/specs/web-component-library.md` and `docs/specs/modal-dialog.md`.
+string in a page, and never build a `className` from a template literal (the
+`local/no-template-classname` rule fails `bun run lint`); avoid inline styles
+and hard-coded colours. The component library is in
+`apps/web/src/components/` (`Modal` owns every dialog), and each page lives in
+its feature directory (`calendar/`, `fitness/`, `diet/`, `settings/`, `admin/`)
+beside its tests. See `docs/specs/web-component-library.md` and
+`docs/specs/modal-dialog.md`.
 
 The app is an installable **PWA**; every page has a canonical URL and every
 request carries the API contract version. API reads use `requestParsed` and
@@ -86,18 +88,18 @@ geocoder and tiles handle address search and maps; see
 Run from the root; `bun run db:up` starts local PostgreSQL and `bun run dev` runs
 the web app, API and Garmin sidecar after migrating.
 
-| Command                    | What it does                                          |
-| -------------------------- | ----------------------------------------------------- |
-| `bun run typecheck`        | TypeScript for every project and `scripts/`           |
-| `bun run test`             | Unit tests, including `scripts/` and its guard tests  |
-| `bun run lint` / `format`  | ESLint and Prettier (`lint:fix` / `format:fix` write) |
-| `bun run check:unused`     | Knip production export and file scan                  |
-| `bun run check:garmin`     | pytest, ruff and mypy for the Garmin sidecar          |
-| `bun run test:integration` | Database-backed API tests                             |
-| `bun run test:e2e`         | Playwright journeys                                   |
-| `bun run test:coverage`    | Coverage against each package's baseline              |
-| `bun run outdated`         | Report outdated dependencies                          |
-| `bun run benchmark:llm`    | Model comparison harness (`benchmark:prompts` too)    |
+| Command                    | What it does                                            |
+| -------------------------- | ------------------------------------------------------- |
+| `bun run typecheck`        | TypeScript for every project and `scripts/`             |
+| `bun run test`             | Unit tests, including `scripts/` and local ESLint rules |
+| `bun run lint` / `format`  | ESLint and Prettier (`lint:fix` / `format:fix` write)   |
+| `bun run check:unused`     | Knip production export and file scan                    |
+| `bun run check:garmin`     | pytest, ruff and mypy for the Garmin sidecar            |
+| `bun run test:integration` | Database-backed API tests                               |
+| `bun run test:e2e`         | Playwright journeys                                     |
+| `bun run test:coverage`    | Coverage against each package's baseline                |
+| `bun run outdated`         | Report outdated dependencies                            |
+| `bun run benchmark:llm`    | Model comparison harness (`benchmark:prompts` too)      |
 
 ## Observability and agent access
 

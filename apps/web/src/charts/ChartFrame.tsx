@@ -8,6 +8,7 @@ import {
   type ChartScale,
 } from "./chartGeometry";
 import { useChartHover, type HoveredChartDay } from "./useChartHover";
+import { cn } from "../components/cn";
 import { CHART_KEYBOARD_HINT } from "./useChartKeyboard";
 
 /**
@@ -219,7 +220,10 @@ export function ChartFrame<T extends { date: string }>({
         )}
         {activeHover !== null && tooltip !== undefined && (
           <div
-            className={`pointer-events-none absolute top-2 z-10 -translate-x-1/2 rounded border bg-card p-2 text-sm shadow-lg ${tooltipClassName}`}
+            className={cn(
+              "pointer-events-none absolute top-2 z-10 -translate-x-1/2 rounded border bg-card p-2 text-sm shadow-lg",
+              tooltipClassName,
+            )}
             style={{ left: `${activeHover.percent}%` }}
             data-testid={tooltipTestId}
           >

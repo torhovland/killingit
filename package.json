@@ -20,7 +20,7 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --check .",
     "format:fix": "prettier --write .",
-    "test": "bun test scripts && bun run --filter '*' test",
+    "test": "bun test scripts eslint-rules && bun run --filter '*' test",
     "test:coverage": "bun run scripts/coverage.ts",
     "test:integration": "bun run --filter @killingit/api test:integration",
     "test:e2e": "playwright test --config apps/web/playwright.config.ts",

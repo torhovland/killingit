@@ -10,6 +10,7 @@ import { Bullets } from "../Bullet";
 import { dayNumber } from "./calendarDates";
 import { formatDistanceKm } from "../formatDistance";
 import { Chip } from "../components/Chip";
+import { cn } from "../components/cn";
 import type { CalendarSelection } from "./selection";
 
 /**
@@ -40,16 +41,19 @@ export function CalendarCell({
 
   return (
     <div
-      className={`flex min-h-28 flex-col gap-1 rounded border p-1.5 text-sm ${
-        inMonth ? "bg-card" : "bg-muted/40 text-muted-foreground"
-      } ${isToday ? "ring-2 ring-ring" : ""}`}
+      className={cn(
+        "flex min-h-28 flex-col gap-1 rounded border p-1.5 text-sm",
+        inMonth ? "bg-card" : "bg-muted/40 text-muted-foreground",
+        isToday && "ring-2 ring-ring",
+      )}
       data-testid={inMonth ? "calendar-day" : undefined}
       data-date={date}
     >
       <span
-        className={`self-start rounded px-1 text-sm ${
-          isToday ? "bg-primary font-semibold text-primary-foreground" : ""
-        }`}
+        className={cn(
+          "self-start rounded px-1 text-sm",
+          isToday && "bg-primary font-semibold text-primary-foreground",
+        )}
       >
         {dayNumber(date)}
       </span>

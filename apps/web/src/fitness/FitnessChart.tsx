@@ -22,6 +22,7 @@ import {
   zoneBlocks,
 } from "../charts/chartGeometry";
 import { ChartFrame } from "../charts/ChartFrame";
+import { cn } from "../components/cn";
 import { FitnessDayTooltip } from "./FitnessDayTooltip";
 
 /**
@@ -83,7 +84,10 @@ export function FitnessChart({
                 data-testid={`form-zone-${zone.interpretation}`}
               >
                 <span
-                  className={`inline-block size-2.5 rounded-sm ${FORM_SWATCH_CLASSES[zone.interpretation]}`}
+                  className={cn(
+                    "inline-block size-2.5 rounded-sm",
+                    FORM_SWATCH_CLASSES[zone.interpretation],
+                  )}
                 />
                 <span className={FORM_TEXT_CLASSES[zone.interpretation]}>
                   {FORM_INTERPRETATION_LABELS[zone.interpretation]}
@@ -205,7 +209,7 @@ const LEGEND_CLASSES = "flex flex-wrap gap-x-4 gap-y-1 text-sm";
 function LineSwatch({ className }: { className: string }) {
   return (
     <span className="flex h-3 w-6 items-center justify-center rounded-sm bg-chart-plot">
-      <span className={`block h-0.5 w-4 ${className}`} />
+      <span className={cn("block h-0.5 w-4", className)} />
     </span>
   );
 }

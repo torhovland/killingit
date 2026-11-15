@@ -16,6 +16,7 @@ import {
   type Domain,
 } from "../charts/chartGeometry";
 import { ChartFrame } from "../charts/ChartFrame";
+import { cn } from "../components/cn";
 
 interface HealthSeries {
   key: DailyHealthMetricKey;
@@ -152,7 +153,7 @@ function HealthLineChart({
           {series.map((entry) => (
             <li key={entry.key} className="flex items-center gap-1.5">
               <span
-                className={`inline-block h-0.5 w-4 ${entry.swatch}`}
+                className={cn("inline-block h-0.5 w-4", entry.swatch)}
                 aria-hidden="true"
               />
               <span className="font-medium">{entry.label}</span>
@@ -166,7 +167,7 @@ function HealthLineChart({
           <path
             key={entry.key}
             d={nullAwarePath(entry.values, scale, 0, days.length - 1)}
-            className={`fill-none ${entry.stroke}`}
+            className={cn("fill-none", entry.stroke)}
             strokeWidth={2}
             data-series={entry.key}
           />
@@ -465,7 +466,7 @@ function SleepChart({
           {data.series.map((entry) => (
             <li key={entry.key} className="flex items-center gap-1.5">
               <span
-                className={`inline-block h-3 w-4 ${entry.swatch}`}
+                className={cn("inline-block h-3 w-4", entry.swatch)}
                 aria-hidden="true"
               />
               <span className="font-medium">{entry.label}</span>

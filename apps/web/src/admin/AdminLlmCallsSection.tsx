@@ -399,7 +399,7 @@ function Badge({
   }[tone];
   return (
     <span
-      className={`rounded border px-2 py-0.5 text-sm ${toneClass}`}
+      className={cn("rounded border px-2 py-0.5 text-sm", toneClass)}
       data-testid={testId}
     >
       {children}

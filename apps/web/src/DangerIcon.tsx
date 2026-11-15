@@ -1,3 +1,5 @@
+import { cn } from "./components/cn";
+
 /** A warning triangle for destructive actions and danger notices. */
 export function DangerIcon({ className = "" }: { className?: string }) {
   return (
@@ -6,7 +8,7 @@ export function DangerIcon({ className = "" }: { className?: string }) {
       fill="none"
       stroke="currentColor"
       strokeWidth={1.8}
-      className={`size-4 shrink-0 ${className}`}
+      className={cn("size-4 shrink-0", className)}
       aria-hidden="true"
       data-testid="danger-icon"
     >

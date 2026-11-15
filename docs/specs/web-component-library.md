@@ -40,6 +40,27 @@ The primitives live in `apps/web/src/components/`:
 - `cn` — `clsx` plus `tailwind-merge`, so a caller's `className` overrides a
   primitive's default instead of duplicating it.
 
+## Class composition
+
+A `className` that is built from more than a fixed string is composed with
+`cn()`, passing each conditional or optional fragment as its own argument:
+
+```tsx
+className={cn(
+  "flex flex-col gap-1 rounded border p-1.5 text-sm",
+  inMonth ? "bg-card" : "bg-muted/40 text-muted-foreground",
+  isToday && "ring-2 ring-ring",
+)}
+```
+
+This keeps tailwind-merge in the loop, so a caller's `p-6` overrides the
+primitive's `p-4`, and an omitted fragment — a false condition, `undefined` or
+an empty string — adds neither a class nor a stray space. A template literal
+such as ``className={`p-4 ${active ? "bg-card" : ""}`}`` bypasses both and is
+reported by the `local/no-template-classname` ESLint rule, which runs on the
+web app and fails `bun run lint`. A template literal passed _to_ `cn()` is the
+intended dynamic input and stays allowed.
+
 Page components live in the feature directory that owns them, beside their
 tests: `calendar/`, `fitness/`, `diet/`, `settings/` and `admin/` each hold a
 page, its sections and its single-page helpers. Only shared primitives belong
@@ -77,6 +98,9 @@ layout for the spinner and forwards `variant`, `size` and `className`.
   backdrop, focus trap, Escape handling or focus restore.
 - The primitives have unit tests for their defaults, variants and class
   merging.
+- Every conditional `className` is composed with `cn()`, and no JSX attribute is
+  built from a template literal; `local/no-template-classname` fails
+  `bun run lint` otherwise.
 - `bun run typecheck`, `bun run lint`, `bun run format` and `bun run test` pass.
 
 ## Data model and API impact

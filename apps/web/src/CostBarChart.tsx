@@ -15,6 +15,7 @@ import {
   type CostSeriesTotal,
 } from "./costChart";
 import { CostTooltip } from "./CostTooltip";
+import { cn } from "./components/cn";
 import {
   CHART_KEYBOARD_HINT,
   useChartKeyboard,
@@ -238,11 +239,12 @@ export function CostBarChart({
           {visibleSeries.map((series) => (
             <li key={series.series} className="flex items-center gap-1.5">
               <span
-                className={`inline-block size-2.5 rounded-sm ${
+                className={cn(
+                  "inline-block size-2.5 rounded-sm",
                   COST_SERIES_SWATCH[
                     data.series.indexOf(series) % COST_SERIES_SWATCH.length
-                  ]
-                }`}
+                  ],
+                )}
               />
               <span>{series.label}</span>
             </li>

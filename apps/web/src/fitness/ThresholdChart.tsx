@@ -14,6 +14,7 @@ import {
   nullAwarePath,
 } from "../charts/chartGeometry";
 import { ChartFrame } from "../charts/ChartFrame";
+import { cn } from "../components/cn";
 import { FitnessDayTooltip } from "./FitnessDayTooltip";
 
 /** Distinct line classes so several measures in one unit stay readable. */
@@ -151,7 +152,11 @@ function ThresholdPanel({
           {group.series.map((entry, index) => (
             <li key={`${entry.sport}:${entry.measure}`} className="flex gap-1">
               <span
-                className={`mt-1 inline-block h-0.5 w-4 ${SERIES_CLASSES[index % SERIES_CLASSES.length]?.background ?? SERIES_CLASSES[0]?.background}`}
+                className={cn(
+                  "mt-1 inline-block h-0.5 w-4",
+                  SERIES_CLASSES[index % SERIES_CLASSES.length]?.background ??
+                    SERIES_CLASSES[0]?.background,
+                )}
                 aria-hidden="true"
               />
               <span className="font-medium">{entry.label}</span>
@@ -175,7 +180,11 @@ function ThresholdPanel({
             <g key={`${entry.sport}:${entry.measure}`}>
               <path
                 d={nullAwarePath(seriesValues, scale, 0, split)}
-                className={`fill-none ${SERIES_CLASSES[index % SERIES_CLASSES.length]?.stroke ?? SERIES_CLASSES[0]?.stroke}`}
+                className={cn(
+                  "fill-none",
+                  SERIES_CLASSES[index % SERIES_CLASSES.length]?.stroke ??
+                    SERIES_CLASSES[0]?.stroke,
+                )}
                 strokeWidth={2}
                 data-series={`${entry.sport}:${entry.measure}`}
               />
@@ -187,7 +196,11 @@ function ThresholdPanel({
                     Math.max(split, 0),
                     days.length - 1,
                   )}
-                  className={`fill-none ${SERIES_CLASSES[index % SERIES_CLASSES.length]?.stroke ?? SERIES_CLASSES[0]?.stroke}`}
+                  className={cn(
+                    "fill-none",
+                    SERIES_CLASSES[index % SERIES_CLASSES.length]?.stroke ??
+                      SERIES_CLASSES[0]?.stroke,
+                  )}
                   strokeWidth={2}
                   strokeDasharray={FUTURE_DASH}
                   data-series={`${entry.sport}:${entry.measure}`}
