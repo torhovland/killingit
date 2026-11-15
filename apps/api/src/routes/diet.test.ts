@@ -278,22 +278,62 @@ describe("POST /api/diet/entries", () => {
     expect(store.rows[0]?.entry.thumbnailDataUrl).toBe(generatedThumbnail);
   });
 
-  it("keeps the meal out of the log when the photo cannot be read", async () => {
+  it("derives the photo copies and analyses the meal once", async () => {
+    let processed = 0;
+    let analyses = 0;
     const { app, store } = makeApp({
-      createPhotos: () => Promise.reject(new Error("unsupported image")),
+      createPhotos: () => {
+        processed += 1;
+        return Promise.resolve({
+          analysisDataUrl: generatedAnalysisPhoto,
+          thumbnailDataUrl: generatedThumbnail,
+        });
+      },
+      analyze: () => {
+        analyses += 1;
+        return Promise.resolve({ analysis, model: "test/model" });
+      },
     });
     const res = await request(app, "/api/diet/entries", {
       method: "POST",
       body: JSON.stringify({
-        eatenAt: body.eatenAt,
-        timezone: body.timezone,
-        description: "A cheese sandwich",
+        ...body,
         photoDataUrl: fullPhoto,
       }),
     });
 
-    expect(res.status).toBe(400);
-    expect(store.rows).toHaveLength(0);
+    expect(res.status).toBe(201);
+    expect(processed).toBe(1);
+    expect(analyses).toBe(1);
+    expect(store.rows[0]?.entry.thumbnailDataUrl).toBe(generatedThumbnail);
+  });
+
+  it("keeps the meal out of the log when the photo cannot be read", async () => {
+    const log = spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const { app, store } = makeApp({
+        createPhotos: () => Promise.reject(new Error("unsupported image")),
+      });
+      const res = await request(app, "/api/diet/entries", {
+        method: "POST",
+        body: JSON.stringify({
+          eatenAt: body.eatenAt,
+          timezone: body.timezone,
+          description: "A cheese sandwich",
+          photoDataUrl: fullPhoto,
+        }),
+      });
+
+      expect(res.status).toBe(400);
+      const error = (await res.json()) as { error: { message: string } };
+      expect(error.error.message).toBe(
+        "The photo could not be read. Try another photo.",
+      );
+      expect(store.rows).toHaveLength(0);
+      expect(log).toHaveBeenCalledTimes(1);
+    } finally {
+      log.mockRestore();
+    }
   });
 
   it("rejects a meal with neither a description nor a photo", async () => {
@@ -493,6 +533,65 @@ describe("PATCH /api/diet/entries/:id", () => {
 
     expect(res.status).toBe(200);
     expect(seen[1]?.photoDataUrl).toBe(generatedThumbnail);
+  });
+
+  it("derives the photo copies and re-analyses once when the photo is replaced", async () => {
+    let processed = 0;
+    let analyses = 0;
+    const { app, store } = makeApp({
+      createPhotos: () => {
+        processed += 1;
+        return Promise.resolve({
+          analysisDataUrl: generatedAnalysisPhoto,
+          thumbnailDataUrl: generatedThumbnail,
+        });
+      },
+      analyze: () => {
+        analyses += 1;
+        return Promise.resolve({ analysis, model: "test/model" });
+      },
+    });
+    // The create sends no photo, so the edit is the only photo producer.
+    const created = await createMeal(app);
+
+    const res = await request(app, `/api/diet/entries/${created.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ photoDataUrl: fullPhoto }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(processed).toBe(1);
+    expect(analyses).toBe(2);
+    expect(store.rows[0]?.entry.thumbnailDataUrl).toBe(generatedThumbnail);
+  });
+
+  it("rejects an unreadable new photo and keeps the stored meal", async () => {
+    const log = spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const { app, store } = makeApp({
+        createPhotos: () => Promise.reject(new Error("unsupported image")),
+      });
+      const created = await createMeal(app);
+
+      const res = await request(app, `/api/diet/entries/${created.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          description: "A larger sandwich",
+          photoDataUrl: fullPhoto,
+        }),
+      });
+
+      expect(res.status).toBe(400);
+      const error = (await res.json()) as { error: { message: string } };
+      expect(error.error.message).toBe(
+        "The photo could not be read. Try another photo.",
+      );
+      expect(store.rows[0]?.entry.description).toBe("A cheese sandwich");
+      expect(store.rows[0]?.entry.thumbnailDataUrl).toBeNull();
+      expect(log).toHaveBeenCalledTimes(1);
+    } finally {
+      log.mockRestore();
+    }
   });
 
   it("replaces the photo and stores its new thumbnail", async () => {
