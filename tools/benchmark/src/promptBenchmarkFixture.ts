@@ -16,10 +16,8 @@ import {
 import type { ActivityCommentContext } from "../../../apps/api/src/llm/activityContext.js";
 import type { CalorieTargetPoint } from "../../../apps/api/src/llm/dietContext.js";
 import type { PlanContextInput } from "../../../apps/api/src/llm/planContext.js";
-import type {
-  AthleteAnswerContext,
-  CoachingSurveyAdjustmentContext,
-} from "../../../apps/api/src/llm/profileContext.js";
+import type { AthleteAnswerContext } from "../../../apps/api/src/llm/profileContext.js";
+import type { CoachingSurveyAdjustment } from "../../../apps/api/src/questions/adjustments.js";
 
 /**
  * The athlete the two-prompt benchmark sends to every model. It is a stable
@@ -36,7 +34,7 @@ import type {
  */
 
 /** The survey change the season revision has to absorb: the Atlas race. */
-export const BENCHMARK_COACHING_SURVEY_ADJUSTMENTS: readonly CoachingSurveyAdjustmentContext[] =
+export const BENCHMARK_COACHING_SURVEY_ADJUSTMENTS: readonly CoachingSurveyAdjustment[] =
   [
     {
       question: "What is your main goal?",

@@ -5,13 +5,25 @@ import {
   type CoachingSurveyAdjustmentRow,
 } from "../db/schema.js";
 
-/** One survey answer the coach has not incorporated into the plan yet. */
-export interface StoredCoachingSurveyAdjustment {
-  id: number;
+/** The shared connection or one transaction on it, so a save stays atomic. */
+type DbExecutor =
+  typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/**
+ * One survey answer the coach has not incorporated into the plan yet. The
+ * survey save builds it, the store writes it, and the plan prompt reads it, so
+ * the snapshot's shape is declared once here.
+ */
+export interface CoachingSurveyAdjustment {
   question: string;
   previousQuestion: string | null;
   answer: string | null;
   previousAnswer: string | null;
+}
+
+/** A stored adjustment, with the row identity a refresh consumes. */
+export interface StoredCoachingSurveyAdjustment extends CoachingSurveyAdjustment {
+  id: number;
   createdAt: Date;
 }
 
@@ -22,6 +34,15 @@ export interface StoredCoachingSurveyAdjustment {
 export interface CoachingSurveyAdjustmentStore {
   /** Every adjustment in the order it was made, oldest first. */
   listForUser(userId: number): Promise<StoredCoachingSurveyAdjustment[]>;
+  /**
+   * Appends the snapshots one answer save produced. Pass the transaction that
+   * saves the answers, so the record of a change cannot outlive a failed save.
+   */
+  append(
+    userId: number,
+    adjustments: readonly CoachingSurveyAdjustment[],
+    executor?: DbExecutor,
+  ): Promise<void>;
   /**
    * Drops the adjustments a refresh loaded into its prompt. Passing the loaded
    * ids rather than clearing every row keeps an answer the athlete edits while
@@ -45,6 +66,15 @@ export const dbCoachingSurveyAdjustmentStore: CoachingSurveyAdjustmentStore = {
         asc(coachingSurveyAdjustments.id),
       );
     return rows.map(toStoredCoachingSurveyAdjustment);
+  },
+
+  async append(userId, adjustments, executor = db) {
+    if (adjustments.length === 0) {
+      return;
+    }
+    await executor
+      .insert(coachingSurveyAdjustments)
+      .values(adjustments.map((adjustment) => ({ userId, ...adjustment })));
   },
 
   async clearConsumed(userId, adjustmentIds) {

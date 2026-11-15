@@ -4,6 +4,7 @@ import {
   type MetricPoint,
   type ThresholdSummary,
 } from "@killingit/shared";
+import type { CoachingSurveyAdjustment } from "../questions/adjustments.js";
 
 /** One interview question with the athlete's answer or explicit skip. */
 export interface AthleteAnswerContext {
@@ -13,14 +14,6 @@ export interface AthleteAnswerContext {
   skipped: boolean;
   /** When this answer was last saved, used to date an FTP statement. */
   answeredAt?: Date | string | null;
-}
-
-/** One survey answer the coach has not incorporated into the plan yet. */
-export interface CoachingSurveyAdjustmentContext {
-  question: string;
-  previousQuestion: string | null;
-  answer: string | null;
-  previousAnswer: string | null;
 }
 
 /** The stored body-composition series handed to a prompt. */
@@ -74,7 +67,7 @@ function formatAthleteAnswers(
  * including the earlier wording and answer so the coach can see what changed.
  */
 export function formatCoachingSurveyAdjustments(
-  adjustments: readonly CoachingSurveyAdjustmentContext[],
+  adjustments: readonly CoachingSurveyAdjustment[],
 ): string[] {
   if (adjustments.length === 0) {
     return [];

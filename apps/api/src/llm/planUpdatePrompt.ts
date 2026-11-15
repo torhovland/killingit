@@ -5,6 +5,7 @@ import type {
   WeekPlan,
 } from "@killingit/shared";
 import { addDays, startOfWeek } from "@killingit/shared";
+import type { CoachingSurveyAdjustment } from "../questions/adjustments.js";
 import { formatPlanContext, type PlanContextInput } from "./planContext.js";
 import {
   formatBlockPlan,
@@ -13,10 +14,7 @@ import {
   formatSeasonAndBlock,
   formatWeekPlan,
 } from "./planLevelsContext.js";
-import {
-  formatCoachingSurveyAdjustments,
-  type CoachingSurveyAdjustmentContext,
-} from "./profileContext.js";
+import { formatCoachingSurveyAdjustments } from "./profileContext.js";
 import {
   BIKE_WORKOUT_RULES,
   BODY_METRIC_POINT_CONTRACT,
@@ -110,7 +108,7 @@ export interface PlanUpdateInput extends PlanContextInput {
   /** The Monday the next week must start on. */
   nextWeekStartDate?: string;
   /** Survey answers changed since the plan was generated. */
-  coachingSurveyAdjustments?: readonly CoachingSurveyAdjustmentContext[];
+  coachingSurveyAdjustments?: readonly CoachingSurveyAdjustment[];
 }
 
 const DAILY_UPDATE_SYSTEM_PROMPT = promptSections(

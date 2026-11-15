@@ -598,12 +598,7 @@ export async function runPlanForUser(
       coachingInputsRefreshUpdatedAt: coachingInputs.refreshUpdatedAt,
       weekReviewNeedsRefresh: coachingInputs.weekReviewNeedsRefresh,
       blockReviewNeedsRefresh: coachingInputs.blockReviewNeedsRefresh,
-      coachingSurveyAdjustments: surveyAdjustments.map((adjustment) => ({
-        question: adjustment.question,
-        previousQuestion: adjustment.previousQuestion,
-        answer: adjustment.answer,
-        previousAnswer: adjustment.previousAnswer,
-      })),
+      coachingSurveyAdjustments: surveyAdjustments,
       activitiesUpdatedAt: latestActivityAnalysisTimestamp(recentActivities),
       activitiesRefreshUpdatedAt:
         latestPlanChangingAnalysisTimestamp(recentActivities),

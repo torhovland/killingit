@@ -23,9 +23,9 @@ import type { PeriodReviewContext } from "../../llm/planContext.js";
 import type {
   AthleteAnswerContext,
   BodyMetricHistory,
-  CoachingSurveyAdjustmentContext,
 } from "../../llm/profileContext.js";
 import type { LlmProvider } from "../../llm/openrouter.js";
+import type { CoachingSurveyAdjustment } from "../../questions/adjustments.js";
 import type { ThresholdTimeline } from "../../training/thresholds.js";
 import type { CoachQuestionSourceKind } from "../coachQuestions.js";
 import type { RevisionChoice } from "../revision.js";
@@ -54,7 +54,7 @@ export interface PlanGenerationContext {
   /** Newest coaching input whose coach reply asked for a plan change. */
   coachingInputsRefreshUpdatedAt: Date | null;
   /** Survey answers changed after the stored plan was generated. */
-  coachingSurveyAdjustments?: readonly CoachingSurveyAdjustmentContext[];
+  coachingSurveyAdjustments?: readonly CoachingSurveyAdjustment[];
   /** Newest general coach analysis among the recent activities, if any. */
   activitiesUpdatedAt?: Date | null;
   /** Newest analysis that judged the workout changes the plan. */
