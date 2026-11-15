@@ -7,6 +7,8 @@ import {
   expect,
   it,
 } from "bun:test";
+import { readdir, readFile } from "node:fs/promises";
+import { join } from "node:path";
 import type { Activity, CoachPlan } from "@killingit/shared";
 import { eq, sql } from "drizzle-orm";
 import { getTableConfig } from "drizzle-orm/pg-core";
@@ -101,6 +103,28 @@ const INDEXED_TABLES = [
   manualActivities,
   planDayCalories,
 ];
+
+const MIGRATIONS_FOLDER = join(import.meta.dir, "..", "drizzle");
+
+/**
+ * Runs migration 0054's statements again. The suite migrates from empty, so a
+ * migration that repairs old rows needs its real SQL applied to a simulated
+ * pre-state to prove it cannot fail on data an existing database may hold.
+ */
+async function applyFtpRemovalMigration(): Promise<void> {
+  const files = (await readdir(MIGRATIONS_FOLDER)).filter((file) =>
+    file.startsWith("0054_"),
+  );
+  if (files.length !== 1 || files[0] === undefined) {
+    throw new Error("expected exactly one 0054 migration file");
+  }
+  const migration = await readFile(join(MIGRATIONS_FOLDER, files[0]), "utf8");
+  for (const statement of migration.split("--> statement-breakpoint")) {
+    if (statement.trim() !== "") {
+      await db.execute(sql.raw(statement));
+    }
+  }
+}
 
 function postgresErrorCode(error: unknown): string | undefined {
   let current: unknown = error;
@@ -249,6 +273,78 @@ describe("migrations", () => {
       );
       expect(migrated).toEqual(declared);
     }
+  });
+
+  it("moves a legacy ftp metric into thresholds before narrowing the check", async () => {
+    const user = await dbUserStore.ensureUser("auth0|legacy-ftp-metric");
+    // Put the table back in its pre-0054 shape: the old check still allowed
+    // `ftp`, and a database restored from before migration 0032 can hold one.
+    await db.execute(
+      sql`alter table athlete_metrics drop constraint athlete_metrics_metric_check`,
+    );
+    await db.execute(
+      sql`alter table athlete_metrics add constraint athlete_metrics_metric_check check (metric in ('ftp', 'weight', 'body_fat'))`,
+    );
+    await db.execute(
+      sql`insert into athlete_metrics (user_id, metric, source, date, value)
+          values (${user.id}, 'ftp', 'user', '2026-01-04', 999),
+                 (${user.id}, 'ftp', 'coach', '2026-01-05', 250),
+                 (${user.id}, 'weight', 'user', '2026-01-05', 81)`,
+    );
+    // A same-day threshold already stored by the athlete wins over the legacy
+    // metric row, so the repair never overwrites a newer measurement.
+    await db.insert(athleteThresholds).values({
+      userId: user.id,
+      sport: "cycling",
+      measure: "ftp",
+      label: "FTP",
+      unit: "W",
+      kind: "power",
+      source: "user",
+      date: "2026-01-04",
+      value: 240,
+    });
+
+    await applyFtpRemovalMigration();
+
+    expect(await thresholdPointsOf(user.id)).toEqual([
+      {
+        sport: "cycling",
+        measure: "ftp",
+        label: "FTP",
+        unit: "W",
+        kind: "power",
+        source: "user",
+        date: "2026-01-04",
+        value: 240,
+      },
+      {
+        sport: "cycling",
+        measure: "ftp",
+        label: "FTP",
+        unit: "W",
+        kind: "power",
+        source: "coach",
+        date: "2026-01-05",
+        value: 250,
+      },
+    ]);
+    expect(await loadMetricPoints(user.id, "weight")).toEqual([
+      { date: "2026-01-05", value: 81, source: "user" },
+    ]);
+    expect(await countRows("athlete_metrics")).toBe(1);
+
+    // The narrowed check rejects a new legacy value.
+    let code: string | undefined;
+    try {
+      await db.execute(
+        sql`insert into athlete_metrics (user_id, metric, source, date, value)
+            values (${user.id}, 'ftp', 'user', '2026-02-01', 260)`,
+      );
+    } catch (error) {
+      code = postgresErrorCode(error);
+    }
+    expect(code).toBe("23514");
   });
 });
 

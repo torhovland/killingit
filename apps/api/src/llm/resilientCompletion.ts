@@ -1,4 +1,4 @@
-import type { LlmPromptKind } from "@killingit/shared";
+import type { LlmCallMetadata, LlmPromptKind } from "@killingit/shared";
 import {
   isLlmAbortError,
   LlmAbortError,
@@ -59,7 +59,7 @@ export function completionBudgetLeft(budget: CompletionBudget): boolean {
 /** The coaching task and extra metadata recorded in the prompt log. */
 export interface CompletionOptions {
   kind?: LlmPromptKind;
-  metadata?: Record<string, unknown>;
+  metadata?: LlmCallMetadata;
   /** Shared retry and time budget; a fresh one is created when omitted. */
   budget?: CompletionBudget;
 }

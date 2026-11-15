@@ -1,6 +1,7 @@
 import type {
   LlmCallDetail,
   LlmCallMessage,
+  LlmCallMetadata,
   LlmCallSummary,
   LlmCallUsage,
   LlmModelRemark,
@@ -17,7 +18,7 @@ export interface NewLlmCall {
   provider: string;
   model: string;
   messages: LlmCallMessage[];
-  metadata: Record<string, unknown>;
+  metadata: LlmCallMetadata;
 }
 
 /** What the provider reported when a completion attempt settled. */
@@ -26,7 +27,7 @@ export interface LlmCallResult {
   error: string | null;
   usage: LlmCallUsage | null;
   /** Extra metadata such as the routed model and finish reason. */
-  metadata: Record<string, unknown>;
+  metadata: LlmCallMetadata;
   durationMs: number;
 }
 

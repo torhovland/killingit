@@ -6,6 +6,7 @@ import type {
   DietPlan,
   FoodAnalysis,
   LlmCallMessage,
+  LlmCallMetadata,
   LlmCallUsage,
   LlmPromptKind,
   RoutePoint,
@@ -13,7 +14,13 @@ import type {
   StrengthSet,
   WeekPlan,
 } from "@killingit/shared";
-import { DAILY_HEALTH_METRIC_KEYS, LLM_PROMPT_KINDS } from "@killingit/shared";
+import {
+  ATHLETE_EVENT_KINDS,
+  ATHLETE_METRICS,
+  DAILY_HEALTH_METRIC_KEYS,
+  LLM_MODEL_GRADES,
+  LLM_PROMPT_KINDS,
+} from "@killingit/shared";
 import { sql } from "drizzle-orm";
 import {
   bigint,
@@ -30,6 +37,21 @@ import {
   timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+
+/** A quoted SQL list for an `in (...)` check over a shared enum catalog. */
+function sqlStringList(values: readonly string[]): string {
+  return values.map((value) => `'${value}'`).join(", ");
+}
+
+/**
+ * SQL lists of the shared enum catalogs. Building them from the shared arrays
+ * keeps every database check in step with the TypeScript-type and Zod contract,
+ * so adding or removing a value is a one-place change.
+ */
+const ATHLETE_METRIC_SQL_LIST = sqlStringList(ATHLETE_METRICS);
+const ATHLETE_EVENT_KIND_SQL_LIST = sqlStringList(ATHLETE_EVENT_KINDS);
+const LLM_MODEL_GRADE_SQL_LIST = sqlStringList(LLM_MODEL_GRADES);
+const DAILY_HEALTH_METRIC_SQL_LIST = sqlStringList(DAILY_HEALTH_METRIC_KEYS);
 
 /**
  * An application account, keyed by the auth provider's subject (`sub`). Roles
@@ -147,7 +169,7 @@ export const athleteMetrics = pgTable(
     userId: integer("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    metric: text("metric", { enum: ["ftp", "weight", "body_fat"] }).notNull(),
+    metric: text("metric", { enum: ATHLETE_METRICS }).notNull(),
     source: text("source", { enum: ["user", "coach", "garmin"] }).notNull(),
     date: text("date").notNull(),
     value: doublePrecision("value").notNull(),
@@ -166,7 +188,7 @@ export const athleteMetrics = pgTable(
     ),
     check(
       "athlete_metrics_metric_check",
-      sql`${table.metric} in ('ftp', 'weight', 'body_fat')`,
+      sql`${table.metric} in (${sql.raw(ATHLETE_METRIC_SQL_LIST)})`,
     ),
     check(
       "athlete_metrics_source_check",
@@ -177,11 +199,6 @@ export const athleteMetrics = pgTable(
 
 export type AthleteMetricRow = typeof athleteMetrics.$inferSelect;
 export type NewAthleteMetricRow = typeof athleteMetrics.$inferInsert;
-
-/** SQL list of the stored daily health keys, kept in step with the shared catalog. */
-const DAILY_HEALTH_METRIC_SQL_LIST = DAILY_HEALTH_METRIC_KEYS.map(
-  (metric) => `'${metric}'`,
-).join(", ");
 
 /**
  * One daily health or recovery value from a connected device. Values are stored
@@ -373,21 +390,9 @@ export const llmModels = pgTable(
     aliasTargetSlug: text("alias_target_slug"),
     retired: boolean("retired").notNull().default(false),
     discouraged: boolean("discouraged").notNull().default(false),
-    ability: text("ability", {
-      enum: ["A+", "A", "B", "C", "D", "E", "F", "?"],
-    })
-      .notNull()
-      .default("?"),
-    speed: text("speed", {
-      enum: ["A+", "A", "B", "C", "D", "E", "F", "?"],
-    })
-      .notNull()
-      .default("?"),
-    cost: text("cost", {
-      enum: ["A+", "A", "B", "C", "D", "E", "F", "?"],
-    })
-      .notNull()
-      .default("?"),
+    ability: text("ability", { enum: LLM_MODEL_GRADES }).notNull().default("?"),
+    speed: text("speed", { enum: LLM_MODEL_GRADES }).notNull().default("?"),
+    cost: text("cost", { enum: LLM_MODEL_GRADES }).notNull().default("?"),
     promptPricePerMillion: doublePrecision("prompt_price_per_million"),
     completionPricePerMillion: doublePrecision("completion_price_per_million"),
     /** A list-price change after benchmarking makes the cost grade stale. */
@@ -412,15 +417,15 @@ export const llmModels = pgTable(
   (table) => [
     check(
       "llm_models_ability_check",
-      sql`${table.ability} in ('A+', 'A', 'B', 'C', 'D', 'E', 'F', '?')`,
+      sql`${table.ability} in (${sql.raw(LLM_MODEL_GRADE_SQL_LIST)})`,
     ),
     check(
       "llm_models_speed_check",
-      sql`${table.speed} in ('A+', 'A', 'B', 'C', 'D', 'E', 'F', '?')`,
+      sql`${table.speed} in (${sql.raw(LLM_MODEL_GRADE_SQL_LIST)})`,
     ),
     check(
       "llm_models_cost_check",
-      sql`${table.cost} in ('A+', 'A', 'B', 'C', 'D', 'E', 'F', '?')`,
+      sql`${table.cost} in (${sql.raw(LLM_MODEL_GRADE_SQL_LIST)})`,
     ),
   ],
 );
@@ -463,10 +468,7 @@ export const llmCalls = pgTable(
     error: text("error"),
     usage: jsonb("usage").$type<LlmCallUsage | null>(),
     /** Temperature, output budget, reasoning options, attempt, and model. */
-    metadata: jsonb("metadata")
-      .$type<Record<string, unknown>>()
-      .notNull()
-      .default({}),
+    metadata: jsonb("metadata").$type<LlmCallMetadata>().notNull().default({}),
     durationMs: integer("duration_ms").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -763,7 +765,7 @@ export const athleteEvents = pgTable(
     /** A short name the athlete would recognise, such as "Oslo Marathon". */
     title: text("title").notNull(),
     /** `race`, `event`, `trip`, or `goal`. */
-    kind: text("kind").notNull(),
+    kind: text("kind", { enum: ATHLETE_EVENT_KINDS }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -779,7 +781,7 @@ export const athleteEvents = pgTable(
     check("athlete_events_title_check", sql`length(btrim(${table.title})) > 0`),
     check(
       "athlete_events_kind_check",
-      sql`${table.kind} in ('race', 'event', 'trip', 'goal')`,
+      sql`${table.kind} in (${sql.raw(ATHLETE_EVENT_KIND_SQL_LIST)})`,
     ),
     check(
       "athlete_events_date_check",

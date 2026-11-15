@@ -29,8 +29,12 @@ export const llmModelsResponseSchema = z.object({
 
 export type LlmModelsResponse = z.infer<typeof llmModelsResponseSchema>;
 
-/** Letter grade used by the model catalog. `?` means not benchmarked yet. */
-export const llmModelGradeSchema = z.enum([
+/**
+ * The letter grades used by the model catalog, strongest first. `?` means the
+ * model has not been benchmarked yet. The Zod schema, the database columns and
+ * their check constraints all derive from this one list.
+ */
+export const LLM_MODEL_GRADES = [
   "A+",
   "A",
   "B",
@@ -39,7 +43,9 @@ export const llmModelGradeSchema = z.enum([
   "E",
   "F",
   "?",
-]);
+] as const;
+
+export const llmModelGradeSchema = z.enum(LLM_MODEL_GRADES);
 
 export type LlmModelGrade = z.infer<typeof llmModelGradeSchema>;
 
@@ -274,6 +280,56 @@ export const llmModelRemarksResponseSchema = z.object({
 export type LlmModelRemarksResponse = z.infer<
   typeof llmModelRemarksResponseSchema
 >;
+
+/**
+ * The request and response metadata recorded with one LLM call. Every field is
+ * optional because each stage writes only what it knows: the request settings
+ * when the attempt starts, the routing details when the provider settles, and
+ * the repair or plan-failure markers the caller adds. It is a type alias rather
+ * than an interface so a stored column value stays assignable to an open
+ * record. A future caller adds its key here instead of widening the type, while
+ * older stored rows stay readable through the admin detail view's record type.
+ */
+export type LlmCallMetadata = {
+  /** Sampling temperature sent with the request. */
+  temperature?: number;
+  /** Output-token budget sent with the request. */
+  maxTokens?: number;
+  /** Provider reasoning controls sent with the request. */
+  reasoning?: {
+    effort?: "minimal" | "low" | "medium" | "high" | "none";
+    max_tokens?: number;
+    exclude?: boolean;
+  };
+  /** The provider attempt that produced this row, when part of a chain. */
+  attempt?: number;
+  /** How many attempts the fallback chain allowed. */
+  ofAttempts?: number;
+  /** The JSON repair turn that followed a rejected response. */
+  repair?: true;
+  /** Whether the repair turn kept the full context or only the contract. */
+  repairContext?: "compact" | "full";
+  /** Which repair turn this was, when a compact repair was retried. */
+  repairAttempt?: number;
+  /** The concrete model the provider routed to, when it reported one. */
+  responseModel?: string | null;
+  /** Why the provider stopped, such as `length` or `stop`. */
+  finishReason?: string | null;
+  /** The attempt was superseded or cancelled before the provider answered. */
+  cancelled?: true;
+  /** The plan generation this prompt belongs to ended in failure. */
+  planFailed?: true;
+  /** The failure the plan generation reported. */
+  planError?: string;
+  /** Whether the reviewed period was a week or a block. */
+  periodKind?: "week" | "block";
+  /** The meal analysis included a photo. */
+  withPhoto?: boolean;
+  /** The photo call failed, so the meal was re-analysed from text alone. */
+  photoFallback?: true;
+  /** How many replies one coach-reply prompt carried. */
+  batchSize?: number;
+};
 
 /**
  * One full LLM call for the admin detail view: the exact messages sent, the

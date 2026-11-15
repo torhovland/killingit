@@ -51,17 +51,20 @@ days that the stored plan covers.
 | ------------ | ---------------------------------------------- |
 | `id`         | serial primary key                             |
 | `user_id`    | account reference, cascade delete              |
-| `metric`     | `ftp`, `weight`, or `body_fat`                 |
+| `metric`     | `weight` or `body_fat`                         |
 | `source`     | `user`, `garmin`, or `coach`                   |
 | `date`       | `YYYY-MM-DD`                                   |
 | `value`      | double precision; watts, kilograms, or percent |
 | `created_at` | timestamp with time zone                       |
 | `updated_at` | timestamp with time zone                       |
 
-A unique index on `(user_id, metric, date)` keeps one value per day. A `user` or
-`garmin` value replaces a coach estimate for the same day. When the coach
-returns a newer FTP estimate at date D, every coach FTP point after D is deleted;
-athlete measurements are never deleted.
+A unique index on `(user_id, metric, date)` keeps one value per day. FTP is not
+stored here: migration `0032_slimy_warhawk.sql` moved it to `athlete_thresholds`
+(with a sport and measure), and migration `0054_cultured_dracula.sql` removes
+the stale `ftp` value from this table's metric check, moving any survivor into
+`athlete_thresholds` first. A `user` or `garmin` value replaces a coach estimate
+for the same day. When the coach returns a newer FTP estimate at date D, every
+coach FTP point after D is deleted; athlete measurements are never deleted.
 
 ## Behaviour
 

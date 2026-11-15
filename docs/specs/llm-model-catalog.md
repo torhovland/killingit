@@ -28,6 +28,10 @@ for day-to-day prompts, and keep the catalog current without blocking a visit.
 `llm_model_sync` stores the single most recent catalog check, its error, and the
 24-hour gate.
 
+The grade values themselves are defined once, by `LLM_MODEL_GRADES` in
+`packages/shared`: the Zod schema, the three `text` columns and their check
+constraints all derive from that list.
+
 ### Grades
 
 Ability:

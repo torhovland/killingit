@@ -37,7 +37,9 @@ running stress score, and similar — for the sport it belongs to.
 
 A unique key on `(user_id, sport, measure, date)` lets a sport hold several
 measures on the same day, such as cycling FTP and cycling threshold heart rate.
-The migration copies existing cycling FTP points into the new table.
+The migration copies existing cycling FTP points into the new table, and
+migration `0054_cultured_dracula.sql` removes the stale `ftp` value from
+`athlete_metrics`' metric check, moving any surviving row here first.
 
 Storing a read is atomic. `recordAthleteMetricStatements` deletes the `user`
 points of the reported measures and writes the new ones in one transaction,

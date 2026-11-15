@@ -1,4 +1,5 @@
 import type {
+  LlmCallMetadata,
   LlmCallUsage,
   LlmCostBucket,
   LlmCostsResponse,
@@ -16,7 +17,7 @@ export interface LlmCostCallRow {
   /** The model the app asked for; it may be an alias. */
   model: string;
   usage: LlmCallUsage | null;
-  metadata: Record<string, unknown>;
+  metadata: LlmCallMetadata;
 }
 
 /** The catalog entry used for display names and fallback list prices. */
@@ -101,7 +102,7 @@ export async function loadLlmCosts(userId: number): Promise<LlmCostsResponse> {
 }
 
 /** The concrete model OpenRouter routed to, when the log recorded it. */
-function responseModel(metadata: Record<string, unknown>): string | null {
+function responseModel(metadata: LlmCallMetadata): string | null {
   const value = metadata.responseModel;
   return typeof value === "string" && value !== "" ? value : null;
 }
