@@ -46,7 +46,6 @@ const provider: LlmProvider = {
 export const e2eLlmClient: LlmClient = {
   provider,
   apiKey: "e2e-api-key",
-  model: "e2e/coach",
   seasonModel: "e2e/coach",
   dailyModel: "e2e/coach",
 };

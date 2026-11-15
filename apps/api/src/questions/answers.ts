@@ -1,11 +1,11 @@
 import type { QuestionAnswerInput } from "@killingit/shared";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../db/index.js";
+import { questionAnswers, type QuestionAnswerRow } from "../db/schema.js";
 import {
-  coachingSurveyAdjustments,
-  questionAnswers,
-  type QuestionAnswerRow,
-} from "../db/schema.js";
+  dbCoachingSurveyAdjustmentStore,
+  type CoachingSurveyAdjustment,
+} from "./adjustments.js";
 import {
   listActiveQuestionsWithVersions,
   type StoredQuestion,
@@ -31,14 +31,6 @@ export interface StoredAthleteQuestion extends StoredQuestion {
   answeredAt: Date | null;
   /** The newest earlier version the athlete responded to, if any. */
   previous: StoredAthleteQuestionPreviousResponse | null;
-}
-
-/** One survey answer the coach has not incorporated into the plan yet. */
-export interface CoachingSurveyAdjustmentDraft {
-  question: string;
-  previousQuestion: string | null;
-  answer: string | null;
-  previousAnswer: string | null;
 }
 
 /** The version and the response used to build a previous-response snapshot. */
@@ -155,15 +147,7 @@ export const dbQuestionAnswerStore: QuestionAnswerStore = {
           },
         });
 
-      if (adjustments.length > 0) {
-        await tx.insert(coachingSurveyAdjustments).values(
-          adjustments.map((adjustment) => ({
-            userId,
-            ...adjustment,
-            createdAt: now,
-          })),
-        );
-      }
+      await dbCoachingSurveyAdjustmentStore.append(userId, adjustments, tx);
 
       return true;
     });
@@ -198,11 +182,11 @@ function buildCoachingSurveyAdjustments(
   questions: readonly StoredQuestionWithVersions[],
   answersByVersionId: ReadonlyMap<number, Pick<QuestionAnswerRow, "answer">>,
   submitted: readonly QuestionAnswerInput[],
-): CoachingSurveyAdjustmentDraft[] {
+): CoachingSurveyAdjustment[] {
   const questionById = new Map(
     questions.map((question) => [question.id, question]),
   );
-  const adjustments: CoachingSurveyAdjustmentDraft[] = [];
+  const adjustments: CoachingSurveyAdjustment[] = [];
 
   for (const entry of submitted) {
     const question = questionById.get(entry.questionId);

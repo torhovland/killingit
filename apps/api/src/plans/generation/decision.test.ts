@@ -290,6 +290,7 @@ describe("runPlanGeneration", () => {
     const generations = new MemoryGenerationStore();
     const context = makeContext(provider);
     context.activitiesUpdatedAt = new Date("2026-10-21T09:00:00Z");
+    context.activitiesRefreshUpdatedAt = new Date("2026-10-21T09:00:00Z");
 
     await runPlanGeneration({
       userId: 1,
@@ -309,7 +310,7 @@ describe("runPlanGeneration", () => {
     const plans = new MemoryPlanStore(null);
     const generations = new MemoryGenerationStore();
     const context = makeContext(provider);
-    context.forecast = [
+    const forecast = [
       {
         date: "2026-10-21",
         icon: "rain",
@@ -319,7 +320,13 @@ describe("runPlanGeneration", () => {
         gustMaxMs: 8,
         precipitationMm: 2,
       },
-    ];
+    ] as const;
+    context.forecast = forecast;
+    context.weatherForecasts = {
+      openMeteo: [],
+      yr: [],
+      combined: [...forecast],
+    };
 
     const saved = await runPlanGeneration({
       userId: 1,
@@ -345,7 +352,13 @@ describe("runPlanGeneration", () => {
     const plans = new MemoryPlanStore(existing);
     const generations = new MemoryGenerationStore();
     const context = makeContext(provider);
-    context.forecast = weekForecast("rain");
+    const forecast = weekForecast("rain");
+    context.forecast = forecast;
+    context.weatherForecasts = {
+      openMeteo: [],
+      yr: [],
+      combined: [...forecast],
+    };
 
     const saved = await runPlanGeneration({
       userId: 1,

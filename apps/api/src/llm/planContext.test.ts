@@ -785,6 +785,35 @@ describe("formatPlanContext", () => {
       formatPlanContext(input({ diet: { meals: [], weeks: [] } })).join("\n"),
     ).not.toContain("Food log");
   });
+
+  it("treats an optional field explicitly set to undefined as absent", () => {
+    const omitted = formatPlanContext(input());
+    const explicit = formatPlanContext(
+      input({
+        timezone: undefined,
+        manualActivities: undefined,
+        activityComments: undefined,
+        weeklyNote: undefined,
+        weeklyNoteWeekStartDate: undefined,
+        weeklyNoteReply: undefined,
+        periodReviews: undefined,
+        forecast: undefined,
+        locationName: undefined,
+        ftpHistory: undefined,
+        thresholds: undefined,
+        bodyHistory: undefined,
+        dailyHealth: undefined,
+        dietGoal: undefined,
+        dietAdvice: undefined,
+        calorieHistory: undefined,
+        currentForm: undefined,
+        events: undefined,
+        diet: undefined,
+      }),
+    );
+
+    expect(explicit).toEqual(omitted);
+  });
 });
 
 describe("formatDayPlan", () => {

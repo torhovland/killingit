@@ -42,7 +42,8 @@ const llm: LlmClient = {
     complete: () => Promise.resolve(""),
   },
   apiKey: "test-key",
-  model: "test-model",
+  seasonModel: "test-model",
+  dailyModel: "test-model",
 };
 
 const user = {
@@ -189,6 +190,7 @@ function dependencies(
     generations,
     coachingSurveyAdjustments: {
       listForUser: () => Promise.resolve([]),
+      append: () => Promise.resolve(),
       clearConsumed: () => Promise.resolve(),
     },
     loadActivities: () => Promise.resolve(emptyFeed),

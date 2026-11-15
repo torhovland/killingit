@@ -7,8 +7,11 @@ import {
   COACH_RESPONSE_NOTES_RULES,
   GLOBAL_PROMPT_RULES,
   JSON_ONLY_RULES,
+  jsonShape,
+  type LlmMessage,
   promptSections,
   RETURN_JSON_FROM_SYSTEM_PROMPT,
+  systemUserMessages,
 } from "./promptRules.js";
 
 /**
@@ -59,25 +62,23 @@ const ATHLETE_READING_SYSTEM_PROMPT = promptSections(
   `Report events from today onward. Skip a date that has already passed. When an event spans several days, set "endDate" to its last day; for a one-day event set "endDate" to null. When the same event is mentioned more than once, report it once, using the newest date.`,
   `Set "kind" to "race" for a competition, "event" for another dated commitment such as a group ride, sportive, or appointment, "trip" for travel that changes when the athlete can train, and "goal" for a dated target that is not a competition.`,
   `"title" is a short name the athlete would recognise, such as "Oslo Marathon" or "Gran Canaria training camp". Do not quote a whole sentence.`,
-  `Return only one JSON object with exactly this shape:
-{ "statements": [ { "date": "YYYY-MM-DD", "weightKg": 0, "bodyFatPercent": 0,
+  jsonShape(`{ "statements": [ { "date": "YYYY-MM-DD", "weightKg": 0, "bodyFatPercent": 0,
   "thresholds": [ { "sport": "cycling", "measure": "ftp", "label": "FTP", "unit": "W", "kind": "power", "value": 0 } ] } ],
   "events": [ { "startDate": "YYYY-MM-DD", "endDate": null, "title": "string", "kind": "race | event | trip | goal" } ],
   ${COACH_RESPONSE_NOTES_CONTRACT}
-}`,
+}`),
   COACH_RESPONSE_NOTES_RULES,
   JSON_ONLY_RULES,
 );
 
 /** Builds the chat messages that ask the coach to read the athlete's text. */
-export function buildAthleteReadingMessages(source: AthleteReadingSource): {
-  role: "system" | "user";
-  content: string;
-}[] {
-  return [
-    { role: "system", content: ATHLETE_READING_SYSTEM_PROMPT },
-    { role: "user", content: buildAthleteReadingPrompt(source) },
-  ];
+export function buildAthleteReadingMessages(
+  source: AthleteReadingSource,
+): LlmMessage[] {
+  return systemUserMessages(
+    ATHLETE_READING_SYSTEM_PROMPT,
+    buildAthleteReadingPrompt(source),
+  );
 }
 
 /** Exposed for tests and for inspecting exactly what is sent to the model. */

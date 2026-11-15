@@ -199,7 +199,7 @@ export async function replyToUnansweredActivityComments(
       llm.provider,
       {
         apiKey: llm.apiKey,
-        model: llm.model,
+        model: llm.dailyModel,
         ...(signal !== undefined ? { signal } : {}),
       },
       { plan: plan.plan, context, items },
@@ -229,7 +229,7 @@ export async function replyToUnansweredActivityComments(
           kind: "activity_comment",
           target: item.id,
           reply: text,
-          model: llm.model,
+          model: llm.dailyModel,
           planChangeNeeded: reply.planChangeNeeded,
         }),
       );
@@ -331,7 +331,7 @@ async function generateReply(
   try {
     const outcome = await generateCoachReply(
       llm.provider,
-      { apiKey: llm.apiKey, model: llm.model },
+      { apiKey: llm.apiKey, model: llm.dailyModel },
       {
         plan: plan.plan,
         context: await (deps.loadContext ?? loadReplyContext)({
@@ -352,7 +352,7 @@ async function generateReply(
       : {
           text: reply,
           planChangeNeeded: outcome.planChangeNeeded,
-          model: llm.model,
+          model: llm.dailyModel,
         };
   } catch (err) {
     console.error(`[${options.label}] could not generate a reply:`, err);

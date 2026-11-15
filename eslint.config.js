@@ -102,6 +102,26 @@ export default tseslint.config(
     },
   },
   {
+    // A plan-generation write is fenced by `ensureGenerationCurrent` in
+    // `generation/persist.ts`, which also refuses to write for an aborted run.
+    // Calling the generation store's `isCurrent` directly skips that abort
+    // check, so every fence has to go through the helper. See
+    // `docs/specs/coach-run-cancellation.md`.
+    files: ["apps/api/src/plans/generation/**/*.ts"],
+    ignores: ["apps/api/src/plans/generation/persist.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "CallExpression[callee.object.property.name='generations'][callee.property.name='isCurrent']",
+          message:
+            "Fence a plan-generation write through ensureGenerationCurrent in ./persist.ts so an aborted run stops too.",
+        },
+      ],
+    },
+  },
+  {
     files: ["**/*.{js,mjs,cjs}"],
     ...tseslint.configs.disableTypeChecked,
   },

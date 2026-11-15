@@ -4,8 +4,8 @@ import {
   LlmAbortError,
   LlmProviderError,
   LlmTokenLimitError,
-  type LlmMessage,
   type LlmProvider,
+  type LlmProviderMessage,
   type LlmReasoning,
 } from "./openrouter.js";
 import {
@@ -19,7 +19,7 @@ export interface CompletionCredentials {
   apiKey: string;
   model: string;
   /** Cancels the completion when a newer coach run starts. */
-  signal?: AbortSignal;
+  signal?: AbortSignal | undefined;
 }
 
 /**
@@ -99,7 +99,7 @@ const TIMEOUT_MESSAGE =
 export async function completeWithFallbacks(
   provider: LlmProvider,
   credentials: CompletionCredentials,
-  messages: LlmMessage[],
+  messages: LlmProviderMessage[],
   maxTokens: number,
   temperature = 0.4,
   options: CompletionOptions = {},

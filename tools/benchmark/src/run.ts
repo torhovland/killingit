@@ -2,7 +2,7 @@ import type { AnalyzedActivity, CoachPlan, LlmModel } from "@killingit/shared";
 import {
   createOpenRouterProvider,
   llmMessageText,
-  type LlmMessage,
+  type LlmProviderMessage,
   type LlmProvider,
 } from "../../../apps/api/src/llm/openrouter.js";
 import type { CoachingInputs } from "../../../apps/api/src/plans/inputs.js";
@@ -67,7 +67,7 @@ function inMemoryStores(initial: StoredPlan | null): InMemoryStores {
   return { plans, generations, current: () => stored };
 }
 
-function stepFor(messages: LlmMessage[]): BenchmarkStep {
+function stepFor(messages: LlmProviderMessage[]): BenchmarkStep {
   const systemMessage = messages.find(
     (message) => message.role === "system",
   )?.content;
@@ -131,7 +131,7 @@ async function runGeneration(input: GenerationInput): Promise<BenchmarkRun> {
     const requestBody =
       typeof init?.body === "string"
         ? (JSON.parse(init.body) as {
-            messages?: LlmMessage[];
+            messages?: LlmProviderMessage[];
             max_tokens?: number;
             reasoning?: unknown;
           })
@@ -205,13 +205,16 @@ async function runGeneration(input: GenerationInput): Promise<BenchmarkRun> {
         weeklyNote: input.coachingInputs.weeklyNote,
         periodReviews: input.coachingInputs.periodReviews,
         coachingInputsUpdatedAt: input.coachingInputsUpdatedAt,
+        coachingInputsRefreshUpdatedAt: input.coachingInputsUpdatedAt,
         activitiesUpdatedAt: input.activitiesUpdatedAt,
+        activitiesRefreshUpdatedAt: input.activitiesUpdatedAt,
         location: null,
         forecast: null,
         weatherForecasts: null,
         provider,
         apiKey: input.apiKey,
-        model: input.model,
+        seasonModel: input.model,
+        dailyModel: input.model,
       },
       plans: stores.plans,
       generations: stores.generations,

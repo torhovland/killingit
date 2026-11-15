@@ -4,8 +4,8 @@ import {
   LlmTokenLimitError,
   type LlmCompletionRequest,
   type LlmCompletionResult,
-  type LlmMessage,
   type LlmProvider,
+  type LlmProviderMessage,
 } from "./openrouter.js";
 import {
   dbLlmCallSink,
@@ -131,7 +131,9 @@ function failureDetails(
  * recorded as a marker rather than embedding its base64 payload, so the admin
  * view stays readable and one photo cannot fill the log with megabytes.
  */
-function toLogMessages(messages: readonly LlmMessage[]): LlmCallMessage[] {
+function toLogMessages(
+  messages: readonly LlmProviderMessage[],
+): LlmCallMessage[] {
   return messages.map((message) => ({
     role: message.role,
     content:

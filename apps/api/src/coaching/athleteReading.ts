@@ -13,7 +13,7 @@ import type {
   AthleteReadingSource,
 } from "../llm/athleteReadingPrompt.js";
 import type { LlmProvider } from "../llm/openrouter.js";
-import type { PlanCompletionCredentials } from "../llm/planCompletion.js";
+import type { CompletionCredentials } from "../llm/resilientCompletion.js";
 import type {
   ActivityCommentContext,
   ManualActivityContext,
@@ -141,7 +141,7 @@ export async function syncAthleteReading(input: {
   today: string;
   source: AthleteReadingSource;
   provider: LlmProvider;
-  credentials: PlanCompletionCredentials;
+  credentials: CompletionCredentials;
   dependencies?: AthleteReadingDependencies;
 }): Promise<AthleteReadingResult | null> {
   const extract = input.dependencies?.extract ?? extractAthleteReading;

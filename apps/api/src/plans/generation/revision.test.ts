@@ -265,6 +265,7 @@ describe("runPlanGeneration", () => {
     const generations = new MemoryGenerationStore();
     const context = makeContext(provider);
     context.activitiesUpdatedAt = new Date("2026-10-21T09:00:00Z");
+    context.activitiesRefreshUpdatedAt = new Date("2026-10-21T09:00:00Z");
 
     await runPlanGeneration({
       userId: 1,
@@ -311,6 +312,7 @@ describe("runPlanGeneration", () => {
       },
     ];
     context.activitiesUpdatedAt = new Date("2026-10-22T09:00:00Z");
+    context.activitiesRefreshUpdatedAt = new Date("2026-10-22T09:00:00Z");
 
     const saved = await runPlanGeneration({
       userId: 1,

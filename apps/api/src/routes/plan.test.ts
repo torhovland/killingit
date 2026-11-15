@@ -46,6 +46,7 @@ const storedQuestion: StoredAthleteQuestion = {
 
 const emptySurveyAdjustments: CoachingSurveyAdjustmentStore = {
   listForUser: () => Promise.resolve([]),
+  append: () => Promise.resolve(),
   clearConsumed: () => Promise.resolve(),
 };
 
@@ -292,7 +293,8 @@ function makeApp(options: {
           complete: () => Promise.resolve(JSON.stringify(makePlan())),
         },
         apiKey: "test-key",
-        model: "test-model",
+        seasonModel: "test-model",
+        dailyModel: "test-model",
       }),
     loadCoachingInputs: () =>
       Promise.resolve(

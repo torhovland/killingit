@@ -4,6 +4,7 @@ import {
   missingFragments,
   promptRuleLiteral,
 } from "../testFixtures/prompts.js";
+import type { LlmProviderMessage } from "./openrouter.js";
 import {
   ATHLETE_INPUT_RULES,
   COACH_AMBITION_RULES,
@@ -19,14 +20,17 @@ import {
   DIET_REPAIR_HINT,
   DIET_RULES,
   DURATION_TOLERANCE_RULES,
+  FOOD_ANALYSIS_RESPONSE_RULES,
   GLOBAL_PROMPT_RULES,
   JSON_ONLY_RULES,
   JSON_RULES,
+  jsonShape,
   PAST_SESSION_RULES,
   PLAN_CHANGE_FLAG_RULES,
   PLAN_PROMPT_RULES,
   rollExtraPraise,
   SEVEN_SESSIONS_CLAUSE,
+  systemUserMessages,
   TEXT_FORMATTING_RULES,
   TRAINING_LOAD_RULES,
   TSS_ESTIMATE_GUIDE,
@@ -102,6 +106,24 @@ describe("shared prompt composition", () => {
     ).toEqual([]);
   });
 
+  it("asks for one JSON object with the contract's shape", () => {
+    const instruction = promptRuleLiteral("JSON_SHAPE_INSTRUCTION");
+    expect(jsonShape(`{ "tss": 0 }`)).toBe(`${instruction}:\n{ "tss": 0 }`);
+    expect(jsonShape()).toBe(`${instruction}.`);
+  });
+
+  it("opens every JSON response with the same shape instruction", () => {
+    const instruction = promptRuleLiteral("JSON_SHAPE_INSTRUCTION");
+    for (const rules of [
+      JSON_RULES,
+      COACH_ANALYSIS_RESPONSE_RULES,
+      COACH_REPLY_RESPONSE_RULES,
+      FOOD_ANALYSIS_RESPONSE_RULES,
+    ]) {
+      expect(rules).toContain(instruction);
+    }
+  });
+
   it("builds the analysis and reply response rules from the shared decisions", () => {
     expect(
       missingFragments(COACH_ANALYSIS_RESPONSE_RULES, [
@@ -128,6 +150,25 @@ describe("shared prompt composition", () => {
     expect(rollExtraPraise(() => 1 / 15)).toBe(false);
     expect(rollExtraPraise(() => 14 / 15)).toBe(false);
     expect(rollExtraPraise(() => 0.999999)).toBe(false);
+  });
+
+  it("builds the two text messages every prompt sends", () => {
+    expect(systemUserMessages("the rules", "the context")).toEqual([
+      { role: "system", content: "the rules" },
+      { role: "user", content: "the context" },
+    ]);
+  });
+
+  it("assigns a prompt message to the provider's message type", () => {
+    const providerMessages: LlmProviderMessage[] = systemUserMessages(
+      "the rules",
+      "the context",
+    );
+
+    expect(providerMessages.map((message) => message.role)).toEqual([
+      "system",
+      "user",
+    ]);
   });
 });
 

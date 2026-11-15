@@ -648,17 +648,17 @@ describe("dbPlanGenerationStore", () => {
 
     await dbPlanGenerationStore.update(
       user.id,
-      PLAN_GENERATION_STEPS.review,
+      PLAN_GENERATION_STEPS.initialBlock,
       "run-a",
     );
     expect((await dbPlanGenerationStore.load(user.id)).step).toBe(
-      PLAN_GENERATION_STEPS.review.label,
+      PLAN_GENERATION_STEPS.initialBlock.label,
     );
 
     await dbPlanGenerationStore.begin(user.id, "run-b");
     await dbPlanGenerationStore.update(
       user.id,
-      PLAN_GENERATION_STEPS.season,
+      PLAN_GENERATION_STEPS.initialWeek,
       "run-a",
     );
     expect((await dbPlanGenerationStore.load(user.id)).step).toBe(
@@ -752,6 +752,7 @@ describe("question stores", () => {
       await dbQuestionAnswerStore.saveAnswers(user.id, [answer, answer]),
     ).toBe(false);
     expect(await countRows("question_answers")).toBe(0);
+    expect(await countRows("coaching_survey_adjustments")).toBe(0);
   });
 
   it("versions a question and replaces an answer without duplicating it", async () => {
@@ -936,6 +937,45 @@ describe("question stores", () => {
     ).toEqual([optional.id]);
     expect(await countRows("question_versions")).toBe(2);
     expect(await countRows("question_answers")).toBe(2);
+  });
+
+  it("appends survey adjustments through the store", async () => {
+    const user = await dbUserStore.ensureUser("auth0|adjustment-append");
+
+    // An empty batch has nothing to write.
+    await dbCoachingSurveyAdjustmentStore.append(user.id, []);
+    expect(await countRows("coaching_survey_adjustments")).toBe(0);
+
+    await dbCoachingSurveyAdjustmentStore.append(user.id, [
+      {
+        question: "How many hours can you train each week?",
+        previousQuestion: null,
+        answer: "About eight hours a week.",
+        previousAnswer: null,
+      },
+      {
+        question: "Anything else?",
+        previousQuestion: null,
+        answer: null,
+        previousAnswer: null,
+      },
+    ]);
+
+    const stored = await dbCoachingSurveyAdjustmentStore.listForUser(user.id);
+    expect(
+      stored.map(({ question, answer, previousAnswer }) => ({
+        question,
+        answer,
+        previousAnswer,
+      })),
+    ).toEqual([
+      {
+        question: "How many hours can you train each week?",
+        answer: "About eight hours a week.",
+        previousAnswer: null,
+      },
+      { question: "Anything else?", answer: null, previousAnswer: null },
+    ]);
   });
 
   it("clears only the survey adjustments a refresh loaded", async () => {

@@ -100,7 +100,12 @@ export type LlmContentPart =
   | { type: "text"; text: string }
   | { type: "image_url"; image_url: { url: string } };
 
-export interface LlmMessage {
+/**
+ * One message in a provider conversation. It is wider than the prompt
+ * `LlmMessage` in `promptRules.ts`: a repair adds an assistant turn, and a meal
+ * analysis attaches an image part. Every prompt message is assignable to it.
+ */
+export interface LlmProviderMessage {
   role: "system" | "user" | "assistant";
   content: string | LlmContentPart[];
 }
@@ -133,7 +138,7 @@ export interface LlmReasoning {
 export interface LlmCompletionRequest {
   apiKey: string;
   model: string;
-  messages: LlmMessage[];
+  messages: LlmProviderMessage[];
   temperature: number;
   maxTokens: number;
   reasoning?: LlmReasoning;

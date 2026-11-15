@@ -14,6 +14,9 @@ import {
   MemoryPlanStore,
 } from "../../testFixtures/generationHarness.js";
 import { runPlanGeneration } from "../generate.js";
+import { GenerationSupersededError } from "../generation.js";
+import { clearPendingCoachQuestions, recordCoachQuestion } from "./persist.js";
+import type { GeneratePlanInput } from "./types.js";
 
 describe("runPlanGeneration", () => {
   it("stores the body metrics the coach found in the input", async () => {
@@ -252,5 +255,109 @@ describe("runPlanGeneration", () => {
     expect(failure).toBeInstanceOf(Error);
     expect((failure as Error).message).toBe("no response configured");
     expect(cleared).toBe(0);
+  });
+});
+
+function makeRunInput(
+  options: Partial<GeneratePlanInput> = {},
+): GeneratePlanInput {
+  return {
+    userId: 1,
+    runId: "run-1",
+    today: "2026-10-21",
+    plan: null,
+    context: makeContext(new FakeProvider(buildResponses())),
+    plans: new MemoryPlanStore(null),
+    generations: new MemoryGenerationStore(),
+    ...options,
+  };
+}
+
+describe("fenced coach-question writes", () => {
+  it("stops clearing questions when the run was aborted", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    let cleared = 0;
+
+    const failure = await clearPendingCoachQuestions(
+      makeRunInput({
+        signal: controller.signal,
+        clearCoachQuestions: () => {
+          cleared += 1;
+          return Promise.resolve();
+        },
+      }),
+    ).catch((err: unknown) => err);
+
+    expect(failure).toBeInstanceOf(GenerationSupersededError);
+    expect(cleared).toBe(0);
+  });
+
+  it("stops storing a question when the run was aborted", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    let recorded = 0;
+
+    const failure = await recordCoachQuestion(
+      makeRunInput({
+        signal: controller.signal,
+        recordCoachQuestion: () => {
+          recorded += 1;
+          return Promise.resolve();
+        },
+      }),
+      "How did the long run feel?",
+      "season_plan",
+      "test-model",
+    ).catch((err: unknown) => err);
+
+    expect(failure).toBeInstanceOf(GenerationSupersededError);
+    expect(recorded).toBe(0);
+  });
+
+  it("stops storing a question when a newer run owns the row", async () => {
+    const generations = new MemoryGenerationStore();
+    generations.isCurrent = () => Promise.resolve(false);
+    let recorded = 0;
+
+    const failure = await recordCoachQuestion(
+      makeRunInput({
+        generations,
+        recordCoachQuestion: () => {
+          recorded += 1;
+          return Promise.resolve();
+        },
+      }),
+      "How did the long run feel?",
+      "season_plan",
+      "test-model",
+    ).catch((err: unknown) => err);
+
+    expect(failure).toBeInstanceOf(GenerationSupersededError);
+    expect(recorded).toBe(0);
+  });
+
+  it("stores the coach's question while the run owns the row", async () => {
+    const recorded: unknown[] = [];
+
+    await recordCoachQuestion(
+      makeRunInput({
+        recordCoachQuestion: (input) => {
+          recorded.push(input);
+          return Promise.resolve();
+        },
+      }),
+      "How did the long run feel?",
+      "season_plan",
+      "test-model",
+    );
+
+    expect(recorded).toEqual([
+      {
+        question: "How did the long run feel?",
+        model: "test-model",
+        sourceKind: "season_plan",
+      },
+    ]);
   });
 });

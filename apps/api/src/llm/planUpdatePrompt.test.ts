@@ -563,21 +563,6 @@ describe("daily update prompt", () => {
     );
   });
 
-  it("details only the target day when planning the next period", () => {
-    const prompt = dailyUserPrompt({
-      ...base,
-      today: "2026-10-26",
-      detailThrough: "2026-10-26",
-      season,
-      block,
-      week: { ...week, startDate: "2026-10-26" },
-    });
-
-    expect(prompt).toContain(
-      "Fully detail the day objects dated 2026-10-26 through 2026-10-26",
-    );
-  });
-
   it("includes the forecast when one is supplied", () => {
     const prompt = dailyUserPrompt({
       ...base,

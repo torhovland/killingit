@@ -22,10 +22,8 @@ export class LlmModelChoiceError extends AthleteFacingError {
 export interface LlmClient {
   provider: LlmProvider;
   apiKey: string;
-  /** Daily model, retained as the default for existing call sites. */
-  model: string;
-  seasonModel?: string;
-  dailyModel?: string;
+  seasonModel: string;
+  dailyModel: string;
 }
 
 export async function assertModelUsable(
@@ -53,8 +51,8 @@ export async function loadLlmClient(
   if (!settings) {
     return null;
   }
-  const seasonModel = settings.seasonModel ?? settings.model;
-  const dailyModel = settings.dailyModel ?? settings.model;
+  const seasonModel = settings.seasonModel;
+  const dailyModel = settings.dailyModel;
   if (role === "season" || role === "all") {
     await assertModelUsable(seasonModel, "season");
   }
@@ -66,7 +64,6 @@ export async function loadLlmClient(
   return {
     provider: withPromptLogging(createOpenRouterProvider(), { userId }),
     apiKey,
-    model: dailyModel,
     seasonModel,
     dailyModel,
   };

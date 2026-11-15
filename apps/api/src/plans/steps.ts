@@ -43,12 +43,6 @@ export const PLAN_GENERATION_STEPS = {
     target: 12,
     defaultMs: LLM_STEP_MS,
   },
-  review: {
-    id: "review",
-    label: "Reviewing your profile and recent training",
-    target: 22,
-    defaultMs: LLM_STEP_MS,
-  },
   season: {
     id: "season",
     label: "Designing your season",

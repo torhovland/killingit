@@ -25,7 +25,7 @@ import { applyCompletedDays } from "../plans/week.js";
 export interface CapturePeriodReviewsInput {
   userId: number;
   today: string;
-  timezone?: string;
+  timezone?: string | undefined;
   plan: CoachPlan;
   provider: LlmProvider;
   apiKey: string;
@@ -36,13 +36,13 @@ export interface CapturePeriodReviewsInput {
   activityComments: readonly ActivityCommentContext[];
   weeklyNote: string | null;
   /** Stored daily health and recovery values for the prompt. */
-  dailyHealth?: readonly DailyHealthPoint[];
+  dailyHealth?: readonly DailyHealthPoint[] | undefined;
   /** Dated goals and events the athlete stated. */
-  events?: readonly AthleteEvent[];
+  events?: readonly AthleteEvent[] | undefined;
   /** Meals and weekly nutrition summaries from the food log. */
-  diet?: DietPromptContext;
+  diet?: DietPromptContext | undefined;
   /** Cancels the review when a newer run starts. */
-  signal?: AbortSignal;
+  signal?: AbortSignal | undefined;
   /** Injectable for tests; defaults to the database-backed writer. */
   save?: typeof savePeriodReview;
   /** Injectable for tests; defaults to the database-backed reader. */

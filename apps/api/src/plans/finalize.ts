@@ -1,9 +1,4 @@
-import type {
-  AnalyzedActivity,
-  CoachPlan,
-  DailyWeather,
-  DayPlan,
-} from "@killingit/shared";
+import type { AnalyzedActivity, CoachPlan, DayPlan } from "@killingit/shared";
 import type { ManualActivityContext } from "../llm/activityContext.js";
 import { applyTrainingLoad } from "../training/load.js";
 import type { ThresholdTimeline } from "../training/thresholds.js";
@@ -98,9 +93,7 @@ export interface FinalizePlanInput {
   timeZone?: string | null | undefined;
   thresholdTimelines?: readonly ThresholdTimeline[] | undefined;
   /** Both provider forecasts and their combined average, attached to sessions. */
-  weatherForecasts?: WeatherForecastSet | null;
-  /** The combined forecast, used when only it is known. */
-  forecast?: readonly DailyWeather[] | null;
+  weatherForecasts: WeatherForecastSet | null;
 }
 
 /**
@@ -137,7 +130,7 @@ const FINALIZE_PLAN_STEP_RUNNERS: Readonly<
   dropUnplacedTomorrow: (plan, input) =>
     dropUnplacedTomorrow(plan, input.includeTomorrow),
   attachForecast: (plan, input) =>
-    applyForecastToPlan(plan, forecastForStorage(input)),
+    applyForecastToPlan(plan, input.weatherForecasts),
   syncDietProgress: (plan) => syncDietProgressTargets(plan),
   applyTrainingLoad: (plan, input) =>
     applyTrainingLoad(plan, {
@@ -193,24 +186,4 @@ function dropUnplacedTomorrow(
     return plan;
   }
   return { ...plan, tomorrow: null };
-}
-
-/**
- * The full provider set is stored on sessions for display. Older tests and
- * callers may supply only the combined forecast, so use that as a fallback.
- */
-function forecastForStorage(
-  input: FinalizePlanInput,
-): WeatherForecastSet | null {
-  if (input.weatherForecasts) {
-    return input.weatherForecasts;
-  }
-  if (!input.forecast || input.forecast.length === 0) {
-    return null;
-  }
-  return {
-    openMeteo: [],
-    yr: [],
-    combined: [...input.forecast],
-  };
 }

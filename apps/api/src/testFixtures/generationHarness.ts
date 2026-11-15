@@ -262,9 +262,13 @@ export function makeContext(
     activityComments: [],
     weeklyNote: null,
     coachingInputsUpdatedAt,
+    coachingInputsRefreshUpdatedAt: coachingInputsUpdatedAt,
+    activitiesRefreshUpdatedAt: null,
+    weatherForecasts: null,
     provider,
     apiKey: "test-key",
-    model: "test-model",
+    seasonModel: "test-model",
+    dailyModel: "test-model",
   };
 }
 

@@ -48,6 +48,10 @@ Cancellation is therefore paired with a run fence:
 - `plans.save` locks and checks the generation row before writing.
 - Coach questions, FTP/body estimates, activity reviews and period reviews are
   not written by a superseded run.
+- Every plan-generation fence calls `ensureGenerationCurrent`, which refuses an
+  aborted run as well as a replaced one. ESLint rejects a direct
+  `generations.isCurrent` call in `plans/generation/` so a fenced write cannot
+  skip the abort check.
 - An aborted or superseded run does not mark its prompt log rows as plan
   failures.
 

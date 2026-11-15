@@ -14,9 +14,10 @@ import {
 } from "../testFixtures/generationHarness.js";
 import { PLAN_FAILED_MESSAGE } from "./failure.js";
 import { runPlanGeneration } from "./generate.js";
+import { PLAN_GENERATION_STEPS } from "./steps.js";
 
 describe("runPlanGeneration", () => {
-  it("builds all four levels in sequential steps when there is no plan", async () => {
+  it("builds all four levels in sequential steps, writing each step once", async () => {
     const provider = new FakeProvider(buildResponses());
     const plans = new MemoryPlanStore(null);
     const generations = new MemoryGenerationStore();
@@ -34,9 +35,16 @@ describe("runPlanGeneration", () => {
     expect(provider.calls).toEqual(["season", "block", "weekly", "daily"]);
     expect(saved?.plan.today.date).toBe("2026-10-21");
     expect(generations.status.status).toBe("done");
-    expect(generations.steps).toContain("Designing your season");
-    expect(generations.steps).toContain("Designing your block");
-    expect(generations.steps).toContain("Building your week");
+    // Each step is reported once: a step written and immediately replaced would
+    // never be seen and would only add writes. See
+    // docs/specs/plan-generation-progress.md.
+    expect(generations.steps).toEqual([
+      PLAN_GENERATION_STEPS.season.label,
+      PLAN_GENERATION_STEPS.initialBlock.label,
+      PLAN_GENERATION_STEPS.initialWeek.label,
+      PLAN_GENERATION_STEPS.day.label,
+      PLAN_GENERATION_STEPS.save.label,
+    ]);
   });
 
   it("uses the season model for season and block prompts and the daily model for week and day", async () => {

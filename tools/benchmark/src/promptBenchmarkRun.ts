@@ -4,7 +4,7 @@ import type { LlmModel, LlmModelGrade } from "@killingit/shared";
 import { SPEED_F_LIMIT_MS } from "../../../apps/api/src/llm/modelCatalog.js";
 import {
   createOpenRouterProvider,
-  type LlmMessage,
+  type LlmProviderMessage,
   type LlmProvider,
 } from "../../../apps/api/src/llm/openrouter.js";
 import {
@@ -75,7 +75,7 @@ async function callPromptModel(
 ): Promise<PromptAttempt> {
   const started = performance.now();
   const startedAt = new Date().toISOString();
-  const llmMessages: LlmMessage[] = messages.map((message) => ({
+  const llmMessages: LlmProviderMessage[] = messages.map((message) => ({
     role: message.role,
     content: message.content,
   }));

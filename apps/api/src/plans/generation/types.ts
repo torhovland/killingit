@@ -23,9 +23,9 @@ import type { PeriodReviewContext } from "../../llm/planContext.js";
 import type {
   AthleteAnswerContext,
   BodyMetricHistory,
-  CoachingSurveyAdjustmentContext,
 } from "../../llm/profileContext.js";
 import type { LlmProvider } from "../../llm/openrouter.js";
+import type { CoachingSurveyAdjustment } from "../../questions/adjustments.js";
 import type { ThresholdTimeline } from "../../training/thresholds.js";
 import type { CoachQuestionSourceKind } from "../coachQuestions.js";
 import type { RevisionChoice } from "../revision.js";
@@ -51,21 +51,14 @@ export interface PlanGenerationContext {
   /** When the newest block review was generated or its comment answered. */
   blockReviewUpdatedAt?: Date | null;
   coachingInputsUpdatedAt: Date | null;
-  /**
-   * Newest coaching input whose coach reply asked for a plan change. A missing
-   * value falls back to `coachingInputsUpdatedAt`, so older callers keep the
-   * previous always-refresh behaviour.
-   */
-  coachingInputsRefreshUpdatedAt?: Date | null;
+  /** Newest coaching input whose coach reply asked for a plan change. */
+  coachingInputsRefreshUpdatedAt: Date | null;
   /** Survey answers changed after the stored plan was generated. */
-  coachingSurveyAdjustments?: readonly CoachingSurveyAdjustmentContext[];
+  coachingSurveyAdjustments?: readonly CoachingSurveyAdjustment[];
   /** Newest general coach analysis among the recent activities, if any. */
   activitiesUpdatedAt?: Date | null;
-  /**
-   * Newest analysis that judged the workout changes the plan. A missing value
-   * falls back to `activitiesUpdatedAt`.
-   */
-  activitiesRefreshUpdatedAt?: Date | null;
+  /** Newest analysis that judged the workout changes the plan. */
+  activitiesRefreshUpdatedAt: Date | null;
   /** Whether the newest week review event asks for a plan refresh. */
   weekReviewNeedsRefresh?: boolean;
   /** Whether the newest block review event asks for a plan refresh. */
@@ -81,7 +74,7 @@ export interface PlanGenerationContext {
   /** The combined forecast, used by prompts and weather-change checks. */
   forecast?: readonly DailyWeather[] | null;
   /** Both provider forecasts and their combined average, stored on sessions. */
-  weatherForecasts?: WeatherForecastSet | null;
+  weatherForecasts: WeatherForecastSet | null;
   /** Stored FTP history for the prompt, oldest first. */
   ftpHistory?: readonly MetricPoint[] | undefined;
   /** Every threshold measure in effect today, across all sports. */
@@ -104,12 +97,10 @@ export interface PlanGenerationContext {
   diet?: DietPromptContext | undefined;
   provider: LlmProvider;
   apiKey: string;
-  /** Daily model, kept as the default for older callers and tests. */
-  model: string;
-  /** Season/block model; falls back to `model`. */
-  seasonModel?: string;
-  /** Week/day model; falls back to `model`. */
-  dailyModel?: string;
+  /** Season/block model. */
+  seasonModel: string;
+  /** Week/day model. */
+  dailyModel: string;
   /** Cancels this run's provider requests when a newer run starts. */
   signal?: AbortSignal;
 }
@@ -121,19 +112,19 @@ export interface GeneratePlanInput {
   /** Cancels the run's provider requests when a newer run starts. */
   signal?: AbortSignal;
   today: string;
-  timezone?: string;
+  timezone?: string | undefined;
   /** How an explicit regeneration should treat the stored season. */
-  mode?: PlanGenerateMode;
+  mode?: PlanGenerateMode | undefined;
   /** Rebuild every level even when the stored plan is still current. */
-  force?: boolean;
+  force?: boolean | undefined;
   /** The client is after 18:00, so tomorrow's session is wanted. */
-  includeTomorrow?: boolean;
+  includeTomorrow?: boolean | undefined;
   /**
    * Revise the week around a new input. Today's stored session is preserved
    * unless an activity was already recorded today, in which case today's plan
    * is refreshed to add a short completion note to the planned workout.
    */
-  keepToday?: boolean;
+  keepToday?: boolean | undefined;
   /** Stores the coach's FTP estimates from a generated plan, when supplied. */
   recordFtpEstimates?: (plan: CoachPlan) => Promise<void>;
   /** Stores the body-composition points the coach found, when supplied. */

@@ -4,25 +4,22 @@ import { currentTrainingLoad } from "../../training/load.js";
 import { ftpBaselineAt, ftpTimeline } from "../../training/thresholds.js";
 import type { GeneratePlanInput, PlanGenerationContext } from "./types.js";
 
-/** The season/block model, falling back to the daily model. */
+/** The season/block model. */
 export function seasonModelFor(context: PlanGenerationContext): string {
-  return context.seasonModel ?? context.model;
+  return context.seasonModel;
 }
 
-/** The week/day model, falling back to the daily model. */
+/** The week/day model. */
 export function dailyModelFor(context: PlanGenerationContext): string {
-  return context.dailyModel ?? context.model;
+  return context.dailyModel;
 }
 
 /** The provider credentials a prompt call runs with. */
-export function credentials(
-  context: PlanGenerationContext,
-  model = context.model,
-) {
+export function credentials(context: PlanGenerationContext, model: string) {
   return {
     apiKey: context.apiKey,
     model,
-    ...(context.signal !== undefined ? { signal: context.signal } : {}),
+    signal: context.signal,
   };
 }
 
@@ -69,57 +66,25 @@ export function baseContext(input: GeneratePlanInput) {
   return {
     athleteAnswers: input.context.answers,
     recentActivities,
-    ...(currentForm !== null ? { currentForm } : {}),
+    currentForm,
     athleteFtpWatts: ftpBaseline(input.context, input.today)?.watts ?? null,
-    ...(input.context.ftpHistory !== undefined
-      ? { ftpHistory: input.context.ftpHistory }
-      : {}),
-    ...(input.context.thresholds !== undefined
-      ? { thresholds: input.context.thresholds }
-      : {}),
-    ...(input.context.bodyHistory !== undefined
-      ? { bodyHistory: input.context.bodyHistory }
-      : {}),
-    ...(input.context.dailyHealth !== undefined
-      ? { dailyHealth: input.context.dailyHealth }
-      : {}),
-    ...(input.context.events !== undefined && input.context.events.length > 0
-      ? { events: input.context.events }
-      : {}),
-    ...(input.context.diet !== undefined ? { diet: input.context.diet } : {}),
-    ...(input.context.dietGoal !== undefined
-      ? { dietGoal: input.context.dietGoal }
-      : {}),
-    ...(input.context.dietAdvice !== undefined
-      ? { dietAdvice: input.context.dietAdvice }
-      : {}),
-    ...(input.context.calorieHistory !== undefined &&
-    input.context.calorieHistory.length > 0
-      ? { calorieHistory: input.context.calorieHistory }
-      : {}),
+    ftpHistory: input.context.ftpHistory,
+    thresholds: input.context.thresholds,
+    bodyHistory: input.context.bodyHistory,
+    dailyHealth: input.context.dailyHealth,
+    events: input.context.events,
+    diet: input.context.diet,
+    dietGoal: input.context.dietGoal,
+    dietAdvice: input.context.dietAdvice,
+    calorieHistory: input.context.calorieHistory,
     today: input.today,
-    ...(timezone !== undefined ? { timezone } : {}),
-    ...(input.context.manualActivities.length > 0
-      ? { manualActivities: input.context.manualActivities }
-      : {}),
-    ...(input.context.activityComments.length > 0
-      ? { activityComments: input.context.activityComments }
-      : {}),
-    ...(input.context.weeklyNote !== null
-      ? {
-          weeklyNote: input.context.weeklyNote,
-          ...(input.context.weeklyNoteWeekStartDate != null
-            ? { weeklyNoteWeekStartDate: input.context.weeklyNoteWeekStartDate }
-            : {}),
-        }
-      : {}),
-    ...(input.context.weeklyNoteReply != null
-      ? { weeklyNoteReply: input.context.weeklyNoteReply }
-      : {}),
-    ...(input.context.periodReviews !== undefined &&
-    input.context.periodReviews.length > 0
-      ? { periodReviews: input.context.periodReviews }
-      : {}),
+    timezone,
+    manualActivities: input.context.manualActivities,
+    activityComments: input.context.activityComments,
+    weeklyNote: input.context.weeklyNote,
+    weeklyNoteWeekStartDate: input.context.weeklyNoteWeekStartDate,
+    weeklyNoteReply: input.context.weeklyNoteReply,
+    periodReviews: input.context.periodReviews,
   };
 }
 
@@ -128,13 +93,8 @@ export function baseContext(input: GeneratePlanInput) {
  * those prompts rather than to the season and block prompts.
  */
 export function weatherContext(input: GeneratePlanInput) {
-  const forecast = input.context.forecast;
-  if (!forecast || forecast.length === 0) {
-    return {};
-  }
-  const name = input.context.location?.name;
   return {
-    forecast,
-    ...(name !== undefined && name !== null ? { locationName: name } : {}),
+    forecast: input.context.forecast ?? undefined,
+    locationName: input.context.location?.name,
   };
 }

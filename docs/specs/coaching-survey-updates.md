@@ -59,9 +59,10 @@ yet, so the next season refresh can adapt the whole plan.
 3. Leaving the app with an unresolved active question opens the survey page.
    Saving the last unresolved answer returns the athlete to normal navigation.
 4. `POST /api/questions/answers` records one adjustment for each new or changed
-   answer in the same transaction as the answer upsert. The snapshot carries the
-   current question, the new answer or skip, and the earlier wording/answer when
-   there is one.
+   answer in the same transaction as the answer upsert, appended through
+   `CoachingSurveyAdjustmentStore.append`. The snapshot carries the current
+   question, the new answer or skip, and the earlier wording/answer when there
+   is one.
 5. `GET /api/questions` and the answer save share the response shape and reject
    stale versions, duplicate questions, blank required answers, and oversized
    answers as before.
@@ -100,19 +101,37 @@ snapshotted so a later question edit cannot change what the coach was told.
 - `QuestionAnswerStore.listForUser` resolves earlier responses from all versions
   of each active question, not just the current version.
 - `dbQuestionAnswerStore.saveAnswers` builds adjustments with a pure helper,
-  then upserts answers and inserts adjustments in one transaction.
-- `CoachingSurveyAdjustmentStore` loads the pending adjustments and clears only
-  the ids a refresh loaded into its prompt.
+  then upserts answers and appends the adjustments in one transaction.
+- `CoachingSurveyAdjustmentStore` loads the pending adjustments, appends the
+  snapshot an answer save builds, and clears only the ids a refresh loaded into
+  its prompt.
 - `PlanGenerationContext` carries the pending adjustments; the plan-update
   prompt renders them only when `revision.season` is true. The shared
   `COACHING_SURVEY_ADJUSTMENT_RULES` fragment in `promptRules.ts` instructs the
   coach, including the sparing use of `coachQuestion`.
+
+### One adjustment shape, one writer
+
+`questions/adjustments.ts` declares `CoachingSurveyAdjustment`, the four
+snapshot fields (`question`, `previousQuestion`, `answer`, `previousAnswer`).
+`StoredCoachingSurveyAdjustment` extends it with the row's `id` and `createdAt`
+for consumption, and the plan prompt takes the base type. Nothing else declares
+the fields: a copied shape would drift from the column mapping and from the
+prompt's reader.
+
+`CoachingSurveyAdjustmentStore.append` is the only writer. The answer save
+passes its transaction, so the adjustment rows commit with the answers they
+describe; `append` takes the shared connection when a caller is not already in
+one. The guard in `questions/adjustmentsGuard.test.ts` fails on a second
+declaration of the fields or a direct `.insert(coachingSurveyAdjustments)`
+outside the store.
 
 ## Testing
 
 - Shared schema tests cover the previous-response shape.
 - API answer tests cover previous-response mapping and adjustment snapshots for
   new, revised, edited, and unchanged answers.
+- The adjustment guard test covers one declared shape and one insert path.
 - Prompt tests cover inclusion on a season refresh and exclusion otherwise.
 - Generation tests cover clearing on success and keeping on failure.
 - Database integration tests cover clearing only the loaded adjustments, so a

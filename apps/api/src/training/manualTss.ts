@@ -11,7 +11,9 @@ import {
   COACH_RESPONSE_NOTES_RULES,
   GLOBAL_PROMPT_RULES,
   JSON_ONLY_RULES,
+  jsonShape,
   promptSections,
+  systemUserMessages,
   TSS_ESTIMATE_GUIDE,
 } from "../llm/promptRules.js";
 import type { CompletionCredentials } from "../llm/resilientCompletion.js";
@@ -28,7 +30,8 @@ const MANUAL_TSS_SYSTEM_PROMPT = promptSections(
   "Estimate the training stress score (TSS) of an athlete's manually recorded activity.",
   TSS_ESTIMATE_GUIDE,
   "Read the duration, activity type, intensity clues, heart rate, and power from the athlete's own wording, and use the athlete's threshold for that sport when it is provided. If the description gives little detail, make a conservative assumption and keep the estimate modest.",
-  `Return only a JSON object with exactly this shape: {"tss": 0, ${COACH_RESPONSE_NOTES_CONTRACT}}. "tss" is a whole number from 0 to 2000.`,
+  jsonShape(`{"tss": 0, ${COACH_RESPONSE_NOTES_CONTRACT}}`),
+  `"tss" is a whole number from 0 to 2000.`,
   COACH_RESPONSE_NOTES_RULES,
   JSON_ONLY_RULES,
 );
@@ -63,20 +66,17 @@ export async function estimateManualActivityTss(
       manualTssSchema,
       provider,
       credentials,
-      [
-        { role: "system", content: MANUAL_TSS_SYSTEM_PROMPT },
-        {
-          role: "user",
-          content: [
-            `Date: ${input.startDate}`,
-            `Athlete FTP: ${input.ftpWatts === null ? "not stated" : `${input.ftpWatts} W`}`,
-            ...(thresholdLines.length > 0
-              ? ["Athlete thresholds:", ...thresholdLines]
-              : []),
-            `Activity details: ${input.details.trim()}`,
-          ].join("\n"),
-        },
-      ],
+      systemUserMessages(
+        MANUAL_TSS_SYSTEM_PROMPT,
+        [
+          `Date: ${input.startDate}`,
+          `Athlete FTP: ${input.ftpWatts === null ? "not stated" : `${input.ftpWatts} W`}`,
+          ...(thresholdLines.length > 0
+            ? ["Athlete thresholds:", ...thresholdLines]
+            : []),
+          `Activity details: ${input.details.trim()}`,
+        ].join("\n"),
+      ),
       1024,
       { kind: "manual_tss" },
     );

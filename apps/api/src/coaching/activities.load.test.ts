@@ -121,7 +121,7 @@ describe("loadAnalyzedActivities", () => {
     const settings = {
       provider: "openrouter",
       apiKeyEncrypted: "encrypted",
-      model: "season-model",
+      seasonModel: "season-model",
       dailyModel: "daily-model",
     };
     const spies = phaseSpies(settings);
@@ -162,30 +162,5 @@ describe("loadAnalyzedActivities", () => {
       analyses: [analyzed],
     });
     expect(result).toEqual({ model: "daily-model", activities: [analyzed] });
-  });
-
-  it("falls back to the single stored model when no daily model is set", async () => {
-    const settings = {
-      provider: "openrouter",
-      apiKeyEncrypted: "encrypted",
-      model: "only-model",
-    };
-    const spies = phaseSpies(settings);
-
-    await loadAnalyzedActivities(
-      {
-        userId: 9003,
-        limit: 20,
-        refresh: true,
-        today: "2026-11-12",
-        provider,
-      },
-      phases(spies),
-    );
-
-    expect(spies.assertModelUsable).toHaveBeenCalledWith("only-model", "daily");
-    expect(spies.analyzeMissing).toHaveBeenCalledWith(
-      expect.objectContaining({ model: "only-model" }),
-    );
   });
 });

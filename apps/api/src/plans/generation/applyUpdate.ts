@@ -5,6 +5,7 @@ import type {
 } from "@killingit/shared";
 import { activityLocalDate } from "@killingit/shared";
 import { mergeDietProgressTargets } from "../dietProgress.js";
+import { PlanValidationError } from "../planValidationError.js";
 import {
   mergeNextPeriod,
   mergeSeasonAndBlock,
@@ -35,8 +36,8 @@ export function applyPlanUpdate(
     options.expectedBlockStartDate !== undefined &&
     plan.block.startDate !== options.expectedBlockStartDate
   ) {
-    throw new Error(
-      `The coach returned a block with start date ${plan.block.startDate} instead of ${options.expectedBlockStartDate}. Please regenerate the plan.`,
+    throw new PlanValidationError(
+      `The coach returned a block with start date ${plan.block.startDate} instead of ${options.expectedBlockStartDate}.`,
     );
   }
 

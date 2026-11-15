@@ -3,6 +3,7 @@ import { addDays, startOfWeek } from "@killingit/shared";
 import { generatePlanUpdate } from "../../llm/planUpdate.js";
 import { COACH_PLAN_FINALISATION, finalizePlan } from "../finalize.js";
 import { nextBlockStartDate } from "../periods.js";
+import { PlanValidationError } from "../planValidationError.js";
 import {
   planUpdateRevision,
   revisionFlags,
@@ -94,8 +95,8 @@ export async function advancePlan(
     COACH_PLAN_FINALISATION,
   );
   if (input.includeTomorrow === true && finalPlan.tomorrow === null) {
-    throw new Error(
-      "The coach did not return tomorrow's session. Please regenerate the plan.",
+    throw new PlanValidationError(
+      "The coach did not return tomorrow's session.",
     );
   }
   return finalPlan;

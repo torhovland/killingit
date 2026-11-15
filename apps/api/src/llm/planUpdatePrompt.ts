@@ -5,6 +5,7 @@ import type {
   WeekPlan,
 } from "@killingit/shared";
 import { addDays, startOfWeek } from "@killingit/shared";
+import type { CoachingSurveyAdjustment } from "../questions/adjustments.js";
 import { formatPlanContext, type PlanContextInput } from "./planContext.js";
 import {
   formatBlockPlan,
@@ -13,10 +14,7 @@ import {
   formatSeasonAndBlock,
   formatWeekPlan,
 } from "./planLevelsContext.js";
-import {
-  formatCoachingSurveyAdjustments,
-  type CoachingSurveyAdjustmentContext,
-} from "./profileContext.js";
+import { formatCoachingSurveyAdjustments } from "./profileContext.js";
 import {
   BIKE_WORKOUT_RULES,
   BODY_METRIC_POINT_CONTRACT,
@@ -33,12 +31,14 @@ import {
   jsonTopLevelKeys,
   PAST_SESSION_RULES,
   GLOBAL_PROMPT_RULES,
+  type LlmMessage,
   PLAN_PROMPT_RULES,
   promptSections,
   SEASON_BLOCK_RULES,
   SEASON_CONTRACT,
   SEVEN_SESSIONS_CLAUSE,
   SESSION_PURPOSE_RULES,
+  systemUserMessages,
   TODAY_IN_WEEK_RULE,
   TRAINING_LOAD_RULES,
   WEEK_CONTRACT,
@@ -55,12 +55,6 @@ export interface DailyUpdateInput extends PlanContextInput {
   season: SeasonPlan;
   block: BlockPlan;
   week: WeekPlan;
-  /**
-   * The last date that may carry a fully detailed workout. Defaults to
-   * tomorrow. The next-period update passes the target day so the day after it
-   * stays an outline.
-   */
-  detailThrough?: string;
 }
 
 /** Input for the weekly cascade: the new week plus the current block. */
@@ -69,8 +63,6 @@ export interface WeeklyUpdateInput extends PlanContextInput {
   block: BlockPlan;
   /** Monday of the week being planned (YYYY-MM-DD). */
   weekStartDate: string;
-  /** A block that started earlier and must keep this start date. */
-  keepBlockStartDate?: string;
 }
 
 /**
@@ -116,7 +108,7 @@ export interface PlanUpdateInput extends PlanContextInput {
   /** The Monday the next week must start on. */
   nextWeekStartDate?: string;
   /** Survey answers changed since the plan was generated. */
-  coachingSurveyAdjustments?: readonly CoachingSurveyAdjustmentContext[];
+  coachingSurveyAdjustments?: readonly CoachingSurveyAdjustment[];
 }
 
 const DAILY_UPDATE_SYSTEM_PROMPT = promptSections(
@@ -265,14 +257,11 @@ function revisionInstructions(input: PlanUpdateInput): string[] {
   return lines;
 }
 
-export function buildPlanUpdateMessages(input: PlanUpdateInput): {
-  role: "system" | "user";
-  content: string;
-}[] {
-  return [
-    { role: "system", content: PLAN_UPDATE_SYSTEM_PROMPT },
-    { role: "user", content: buildPlanUpdatePrompt(input) },
-  ];
+export function buildPlanUpdateMessages(input: PlanUpdateInput): LlmMessage[] {
+  return systemUserMessages(
+    PLAN_UPDATE_SYSTEM_PROMPT,
+    buildPlanUpdatePrompt(input),
+  );
 }
 
 function buildPlanUpdatePrompt(input: PlanUpdateInput): string {
@@ -338,19 +327,18 @@ function buildPlanUpdatePrompt(input: PlanUpdateInput): string {
   ].join("\n");
 }
 
-export function buildDailyUpdateMessages(input: DailyUpdateInput): {
-  role: "system" | "user";
-  content: string;
-}[] {
-  return [
-    { role: "system", content: DAILY_UPDATE_SYSTEM_PROMPT },
-    { role: "user", content: buildDailyUpdatePrompt(input) },
-  ];
+export function buildDailyUpdateMessages(
+  input: DailyUpdateInput,
+): LlmMessage[] {
+  return systemUserMessages(
+    DAILY_UPDATE_SYSTEM_PROMPT,
+    buildDailyUpdatePrompt(input),
+  );
 }
 
 function buildDailyUpdatePrompt(input: DailyUpdateInput): string {
   const weekStart = startOfWeek(input.today);
-  const detailThrough = input.detailThrough ?? addDays(input.today, 1);
+  const detailThrough = addDays(input.today, 1);
   return [
     ...formatPlanContext(input),
     "",
@@ -365,14 +353,13 @@ function buildDailyUpdatePrompt(input: DailyUpdateInput): string {
   ].join("\n");
 }
 
-export function buildWeeklyUpdateMessages(input: WeeklyUpdateInput): {
-  role: "system" | "user";
-  content: string;
-}[] {
-  return [
-    { role: "system", content: WEEKLY_UPDATE_SYSTEM_PROMPT },
-    { role: "user", content: buildWeeklyUpdatePrompt(input) },
-  ];
+export function buildWeeklyUpdateMessages(
+  input: WeeklyUpdateInput,
+): LlmMessage[] {
+  return systemUserMessages(
+    WEEKLY_UPDATE_SYSTEM_PROMPT,
+    buildWeeklyUpdatePrompt(input),
+  );
 }
 
 function buildWeeklyUpdatePrompt(input: WeeklyUpdateInput): string {
@@ -380,12 +367,6 @@ function buildWeeklyUpdatePrompt(input: WeeklyUpdateInput): string {
     ...formatPlanContext(input),
     `Week start date: ${input.weekStartDate}. ${weekDatesRangeRule(input.weekStartDate)}.`,
     "Create all seven days as short outlines; the following daily update will turn each day into a concrete workout when it arrives.",
-    ...(input.keepBlockStartDate !== undefined
-      ? [
-          "",
-          `The current block already started on ${input.keepBlockStartDate}. Keep that start date while revising the block.`,
-        ]
-      : []),
     "",
     ...formatSeasonAndBlock(input.season, input.block),
     "",

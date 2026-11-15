@@ -2,6 +2,7 @@ import type { CoachPlan } from "@killingit/shared";
 import { addDays, startOfWeek } from "@killingit/shared";
 import { calorieEstimateProblems } from "./calorieEstimates.js";
 import { blockFor, weekFor } from "./periods.js";
+import { PlanValidationError } from "./planValidationError.js";
 
 /**
  * Guards against a model that returns a plan for the wrong date. Without this
@@ -16,71 +17,69 @@ export function assertPlanValid(
 ): void {
   const calorieProblem = calorieEstimateProblems(plan)[0];
   if (calorieProblem !== undefined) {
-    throw new Error(`${calorieProblem.message} Please regenerate the plan.`);
+    throw new PlanValidationError(calorieProblem.message);
   }
   assertSeasonBlocksContiguous(plan.season, today);
   if (plan.today.date !== today) {
-    throw new Error(
-      "The coach returned today's session for the wrong date. Please regenerate the plan.",
+    throw new PlanValidationError(
+      "The coach returned today's session for the wrong date.",
     );
   }
   if (!plan.week.sessions.some((session) => session.date === today)) {
-    throw new Error(
-      "The coach returned a week that does not include today. Please regenerate the plan.",
+    throw new PlanValidationError(
+      "The coach returned a week that does not include today.",
     );
   }
   if (today < plan.block.startDate || today > plan.block.endDate) {
-    throw new Error(
-      "The coach returned a block that does not cover today. Please regenerate the plan.",
+    throw new PlanValidationError(
+      "The coach returned a block that does not cover today.",
     );
   }
   if (today < plan.season.startDate || today > plan.season.endDate) {
-    throw new Error(
-      "The coach returned a season that does not cover today. Please regenerate the plan.",
+    throw new PlanValidationError(
+      "The coach returned a season that does not cover today.",
     );
   }
   if (plan.nextWeek !== null) {
     if (plan.nextWeek.startDate !== startOfWeek(plan.nextWeek.startDate)) {
-      throw new Error(
-        "The coach returned a week that does not start on a Monday. Please regenerate the plan.",
+      throw new PlanValidationError(
+        "The coach returned a week that does not start on a Monday.",
       );
     }
     if (plan.nextWeek.sessions[0]?.date !== plan.nextWeek.startDate) {
-      throw new Error(
-        "The coach returned a week whose sessions do not match its start date. Please regenerate the plan.",
+      throw new PlanValidationError(
+        "The coach returned a week whose sessions do not match its start date.",
       );
     }
     if (plan.nextWeek.startDate <= plan.week.startDate) {
-      throw new Error(
-        "The coach returned a next week that is not after the current week. Please regenerate the plan.",
+      throw new PlanValidationError(
+        "The coach returned a next week that is not after the current week.",
       );
     }
     if (
       includeTomorrow &&
       plan.nextWeek.startDate !== startOfWeek(addDays(today, 1))
     ) {
-      throw new Error(
-        "The coach returned the wrong next week. Please regenerate the plan.",
-      );
+      throw new PlanValidationError("The coach returned the wrong next week.");
     }
   }
   if (plan.nextBlock !== null) {
     if (plan.nextBlock.startDate <= plan.block.endDate) {
-      throw new Error(
-        "The coach returned a next block that does not follow the current block. Please regenerate the plan.",
+      throw new PlanValidationError(
+        "The coach returned a next block that does not follow the current block.",
       );
     }
     if (plan.nextBlock.startDate > plan.nextBlock.endDate) {
-      throw new Error(
-        "The coach returned a next block with invalid dates. Please regenerate the plan.",
+      throw new PlanValidationError(
+        "The coach returned a next block with invalid dates.",
       );
     }
   }
   if (plan.tomorrow !== null) {
     const tomorrowDate = addDays(today, 1);
     if (plan.tomorrow.date !== tomorrowDate) {
-      throw new Error(
-        "The coach returned tomorrow's session for the wrong date. Please regenerate the plan.",
+      throw new PlanValidationError(
+        "The coach returned tomorrow's session for the wrong date.",
       );
     }
     const week = weekFor(plan, tomorrowDate);
@@ -88,13 +87,13 @@ export function assertPlanValid(
       week === null ||
       !week.sessions.some((session) => session.date === tomorrowDate)
     ) {
-      throw new Error(
-        "The coach returned tomorrow's session outside a planned week. Please regenerate the plan.",
+      throw new PlanValidationError(
+        "The coach returned tomorrow's session outside a planned week.",
       );
     }
     if (blockFor(plan, tomorrowDate) === null) {
-      throw new Error(
-        "The coach returned tomorrow's session outside a planned block. Please regenerate the plan.",
+      throw new PlanValidationError(
+        "The coach returned tomorrow's session outside a planned block.",
       );
     }
   }
@@ -121,14 +120,14 @@ function assertSeasonBlocksContiguous(
       continue;
     }
     if (next.startDate <= previous.endDate) {
-      throw new Error(
-        `The coach returned overlapping season blocks: "${next.name}" starts on ${next.startDate}, the day "${previous.name}" ends. Please regenerate the plan.`,
+      throw new PlanValidationError(
+        `The coach returned overlapping season blocks: "${next.name}" starts on ${next.startDate}, the day "${previous.name}" ends.`,
       );
     }
     const unplanned = addDays(previous.endDate, 1);
     if (next.startDate !== unplanned) {
-      throw new Error(
-        `The coach returned a gap between season blocks: "${previous.name}" ends on ${previous.endDate} and "${next.name}" starts on ${next.startDate}, leaving ${unplanned} unplanned. Please regenerate the plan.`,
+      throw new PlanValidationError(
+        `The coach returned a gap between season blocks: "${previous.name}" ends on ${previous.endDate} and "${next.name}" starts on ${next.startDate}, leaving ${unplanned} unplanned.`,
       );
     }
   }
