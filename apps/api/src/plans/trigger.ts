@@ -512,7 +512,7 @@ export async function runPlanForUser(
       provider: llm.provider,
       credentials: {
         apiKey: llm.apiKey,
-        model: llm.model,
+        model: llm.dailyModel,
         signal: options.signal,
       },
     });
@@ -623,11 +623,8 @@ export async function runPlanForUser(
       ...(calorieHistory !== undefined ? { calorieHistory } : {}),
       provider: llm.provider,
       apiKey: llm.apiKey,
-      model: llm.model,
-      ...(llm.seasonModel !== undefined
-        ? { seasonModel: llm.seasonModel }
-        : {}),
-      ...(llm.dailyModel !== undefined ? { dailyModel: llm.dailyModel } : {}),
+      seasonModel: llm.seasonModel,
+      dailyModel: llm.dailyModel,
       signal: options.signal,
     },
     plans: deps.plans,

@@ -29,6 +29,7 @@ function finalizeInput(
     includeTomorrow: false,
     activities: [],
     manualActivities: [],
+    weatherForecasts: null,
     ...overrides,
   };
 }
@@ -192,15 +193,16 @@ describe("finalizePlan", () => {
       },
     });
     const forecast = [makeWeather(PLAN_TODAY, "rain")];
+    const weatherForecasts = { openMeteo: [], yr: [], combined: forecast };
 
     const reSaved = finalizePlan(
       stored,
-      finalizeInput({ forecast }),
+      finalizeInput({ weatherForecasts }),
       STORED_PLAN_FINALISATION,
     );
     const rebuilt = finalizePlan(
       stored,
-      finalizeInput({ forecast }),
+      finalizeInput({ weatherForecasts }),
       COACH_PLAN_FINALISATION,
     );
 

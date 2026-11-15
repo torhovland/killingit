@@ -36,7 +36,7 @@ export function createManualActivityHandlers(
       const history = await deps.loadThresholds(userId, startDate);
       return await deps.estimateTss(
         llm.provider,
-        { apiKey: llm.apiKey, model: llm.model },
+        { apiKey: llm.apiKey, model: llm.dailyModel },
         {
           startDate,
           details,

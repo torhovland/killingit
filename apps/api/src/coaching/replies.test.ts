@@ -92,7 +92,8 @@ function llm(provider: FakeProvider, userIds?: number[]) {
     return Promise.resolve({
       provider,
       apiKey: "test-key",
-      model: "test-model",
+      seasonModel: "test-model",
+      dailyModel: "test-model",
     });
   };
 }

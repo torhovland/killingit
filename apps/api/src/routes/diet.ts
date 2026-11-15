@@ -112,7 +112,7 @@ async function analyseMeal(
     });
     const result = await deps.analyze(
       llm.provider,
-      { apiKey: llm.apiKey, model: llm.model },
+      { apiKey: llm.apiKey, model: llm.dailyModel },
       {
         context,
         eatenDate: request.eatenDate,

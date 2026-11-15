@@ -5,10 +5,8 @@ import { llmSettings } from "../db/schema.js";
 export interface StoredLlmSettings {
   provider: string;
   apiKeyEncrypted: string;
-  /** Legacy single model, still returned for older callers. */
-  model: string;
-  seasonModel?: string;
-  dailyModel?: string;
+  seasonModel: string;
+  dailyModel: string;
 }
 
 /**
@@ -25,18 +23,18 @@ export async function saveLlmSettings(
       userId,
       provider: settings.provider,
       apiKeyEncrypted: settings.apiKeyEncrypted,
-      model: settings.model,
-      seasonModel: settings.seasonModel ?? settings.model,
-      dailyModel: settings.dailyModel ?? settings.model,
+      model: settings.dailyModel,
+      seasonModel: settings.seasonModel,
+      dailyModel: settings.dailyModel,
     })
     .onConflictDoUpdate({
       target: llmSettings.userId,
       set: {
         provider: settings.provider,
         apiKeyEncrypted: settings.apiKeyEncrypted,
-        model: settings.model,
-        seasonModel: settings.seasonModel ?? settings.model,
-        dailyModel: settings.dailyModel ?? settings.model,
+        model: settings.dailyModel,
+        seasonModel: settings.seasonModel,
+        dailyModel: settings.dailyModel,
         updatedAt: new Date(),
       },
     });
@@ -61,7 +59,7 @@ export async function loadLlmSettings(
   return {
     provider: row.provider,
     apiKeyEncrypted: row.apiKeyEncrypted,
-    model: row.model,
+    // Rows written before the split stored only the legacy model.
     seasonModel: row.seasonModel ?? row.model,
     dailyModel: row.dailyModel ?? row.model,
   };

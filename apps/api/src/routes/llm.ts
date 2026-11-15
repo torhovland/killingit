@@ -29,16 +29,16 @@ import { loadLlmSettings, saveLlmSettings } from "../llm/store.js";
 /** Reads the stored configuration without ever exposing the encrypted key. */
 function settingsFromStored(stored: {
   provider: string;
-  model: string;
-  seasonModel?: string;
-  dailyModel?: string;
+  seasonModel: string;
+  dailyModel: string;
 }): LlmSettings {
   return {
     configured: true,
     provider: stored.provider,
-    model: stored.model,
-    seasonModel: stored.seasonModel ?? stored.model,
-    dailyModel: stored.dailyModel ?? stored.model,
+    // The legacy response field mirrors the day-to-day model.
+    model: stored.dailyModel,
+    seasonModel: stored.seasonModel,
+    dailyModel: stored.dailyModel,
   };
 }
 
@@ -84,10 +84,8 @@ export function createLlmRoute(deps: ResolvedAppDependencies): Hono {
         const existing = await loadSettings(user.id);
         // A key-only update keeps the stored models, so rotating a key never
         // races a model change made in the table below the key form.
-        const nextSeasonModel =
-          seasonModel ?? model ?? existing?.seasonModel ?? existing?.model;
-        const nextDailyModel =
-          dailyModel ?? model ?? existing?.dailyModel ?? existing?.model;
+        const nextSeasonModel = seasonModel ?? model ?? existing?.seasonModel;
+        const nextDailyModel = dailyModel ?? model ?? existing?.dailyModel;
         if (!nextSeasonModel || !nextDailyModel) {
           return badRequest(
             c,
@@ -148,14 +146,12 @@ export function createLlmRoute(deps: ResolvedAppDependencies): Hono {
         await saveSettings(user.id, {
           provider: provider.id,
           apiKeyEncrypted,
-          model: nextDailyModel,
           seasonModel: nextSeasonModel,
           dailyModel: nextDailyModel,
         });
         return c.json(
           settingsFromStored({
             provider: provider.id,
-            model: nextDailyModel,
             seasonModel: nextSeasonModel,
             dailyModel: nextDailyModel,
           }),

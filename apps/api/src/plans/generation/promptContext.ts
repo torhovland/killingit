@@ -4,21 +4,18 @@ import { currentTrainingLoad } from "../../training/load.js";
 import { ftpBaselineAt, ftpTimeline } from "../../training/thresholds.js";
 import type { GeneratePlanInput, PlanGenerationContext } from "./types.js";
 
-/** The season/block model, falling back to the daily model. */
+/** The season/block model. */
 export function seasonModelFor(context: PlanGenerationContext): string {
-  return context.seasonModel ?? context.model;
+  return context.seasonModel;
 }
 
-/** The week/day model, falling back to the daily model. */
+/** The week/day model. */
 export function dailyModelFor(context: PlanGenerationContext): string {
-  return context.dailyModel ?? context.model;
+  return context.dailyModel;
 }
 
 /** The provider credentials a prompt call runs with. */
-export function credentials(
-  context: PlanGenerationContext,
-  model = context.model,
-) {
+export function credentials(context: PlanGenerationContext, model: string) {
   return {
     apiKey: context.apiKey,
     model,

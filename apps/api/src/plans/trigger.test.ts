@@ -42,7 +42,8 @@ const llm: LlmClient = {
     complete: () => Promise.resolve(""),
   },
   apiKey: "test-key",
-  model: "test-model",
+  seasonModel: "test-model",
+  dailyModel: "test-model",
 };
 
 const user = {

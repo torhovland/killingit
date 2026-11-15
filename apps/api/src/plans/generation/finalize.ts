@@ -17,9 +17,6 @@ export function finalizeInput(input: GeneratePlanInput): FinalizePlanInput {
     ...(context.thresholdTimelines !== undefined
       ? { thresholdTimelines: context.thresholdTimelines }
       : {}),
-    ...(context.weatherForecasts !== undefined
-      ? { weatherForecasts: context.weatherForecasts }
-      : {}),
-    ...(context.forecast !== undefined ? { forecast: context.forecast } : {}),
+    weatherForecasts: context.weatherForecasts,
   };
 }

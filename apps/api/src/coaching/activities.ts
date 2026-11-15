@@ -103,7 +103,7 @@ async function loadAnalyzedActivitiesOnce(
     });
   }
 
-  const model = inputs.settings.dailyModel ?? inputs.settings.model;
+  const model = inputs.settings.dailyModel;
   await phases.assertModelUsable(model, "daily");
   const apiKey = await phases.loadLlmApiKey(inputs.settings);
   const outcomes = await phases.analyzeMissing({

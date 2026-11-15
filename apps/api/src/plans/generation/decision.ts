@@ -27,20 +27,14 @@ export function decideRevisionPlan(
   const stale =
     plan !== null &&
     planIsStale(plan.answersUpdatedAt, context.answersUpdatedAt);
-  const inputsRefreshUpdatedAt =
-    context.coachingInputsRefreshUpdatedAt !== undefined
-      ? context.coachingInputsRefreshUpdatedAt
-      : context.coachingInputsUpdatedAt;
+  const inputsRefreshUpdatedAt = context.coachingInputsRefreshUpdatedAt;
   const inputsChanged =
     plan !== null &&
     isNewer(inputsRefreshUpdatedAt, plan.coachingInputsUpdatedAt);
   // Compare against the analyses included in the plan, not when the plan was
   // saved: an import can finish while a generation is running, so the plan
   // may be newer than its save time yet still not contain the activity.
-  const activitiesRefreshUpdatedAt =
-    context.activitiesRefreshUpdatedAt !== undefined
-      ? context.activitiesRefreshUpdatedAt
-      : context.activitiesUpdatedAt;
+  const activitiesRefreshUpdatedAt = context.activitiesRefreshUpdatedAt;
   const activitiesChanged =
     plan !== null &&
     isNewer(activitiesRefreshUpdatedAt, plan.activitiesUpdatedAt);

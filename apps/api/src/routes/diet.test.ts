@@ -141,7 +141,12 @@ function makeApp(
   const store = options.store ?? new MemoryFoodStore();
   const llm =
     options.llm === undefined
-      ? { provider, apiKey: "key", model: "test/model" }
+      ? {
+          provider,
+          apiKey: "key",
+          seasonModel: "test/model",
+          dailyModel: "test/model",
+        }
       : options.llm;
   const analyzeFood =
     options.analyze ??

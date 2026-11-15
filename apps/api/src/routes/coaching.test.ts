@@ -307,7 +307,8 @@ function makeApp(options: {
           complete: () => Promise.reject(new Error("not used")),
         },
         apiKey: "test-key",
-        model: "test-model",
+        seasonModel: "test-model",
+        dailyModel: "test-model",
       }),
     loadCoachingInputs:
       options.loadCoachingInputs ?? (() => Promise.resolve(emptyInputs)),

@@ -49,7 +49,8 @@ const userStore: UserStore = {
 const stored: StoredLlmSettings = {
   provider: "openrouter",
   apiKeyEncrypted: "encrypted-secret",
-  model: "test-model",
+  seasonModel: "test-model",
+  dailyModel: "test-model",
 };
 
 const fakeProvider: LlmProvider = {
@@ -226,7 +227,6 @@ describe("PUT /llm/settings", () => {
 
     expect(res.status).toBe(200);
     expect(saved).toHaveLength(1);
-    expect(saved[0]?.model).toBe("test-model");
     expect(saved[0]?.seasonModel).toBe("test-model");
     expect(saved[0]?.dailyModel).toBe("test-model");
     expect(saved[0]?.apiKeyEncrypted).not.toBe("valid-key");
