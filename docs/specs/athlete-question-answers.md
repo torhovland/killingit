@@ -63,7 +63,8 @@ presents the questions before it loads or shows any activities.
    same shape as `GET /api/questions`.
 5. An edit to a question appends a new version and therefore makes the question
    unresolved again for every athlete; archived questions no longer count
-   towards completion.
+   towards completion. The app reads one shared question response for the gate
+   and the survey page, and changes made on the admin page re-read it.
 6. The signed-in athlete sees the question form, and no activities are loaded,
    while any active question is unresolved. Optional questions can be skipped by
    leaving them blank and submitting; required questions cannot. With no active

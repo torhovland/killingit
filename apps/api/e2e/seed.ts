@@ -19,6 +19,8 @@ export interface E2EState {
 export interface SeedOptions {
   /** Whether to seed a question, and whether the athlete has answered it. */
   questions?: "none" | "unanswered" | "answered";
+  /** Whether to add a second required question the athlete has not seen. */
+  newQuestion?: boolean;
   /** Whether to store the shared four-level plan fixture. */
   plan?: boolean;
   /** Whether the athlete has opted in to the food log. */
@@ -26,12 +28,18 @@ export interface SeedOptions {
 }
 
 const QUESTION_PROMPT = "What are you training for this season?";
+const NEW_QUESTION_PROMPT = "How did your last race go?";
 
 /** Clears every table, then seeds only the rows the requested journey needs. */
 export async function seedE2eState(
   options: SeedOptions = {},
 ): Promise<E2EState> {
-  const { questions = "answered", plan = false, dietAdvice = true } = options;
+  const {
+    questions = "answered",
+    newQuestion = false,
+    plan = false,
+    dietAdvice = true,
+  } = options;
 
   await truncateAllTables();
 
@@ -72,6 +80,12 @@ export async function seedE2eState(
         throw new Error("failed to seed the e2e survey answer");
       }
     }
+  }
+
+  // Added after the answered question so a journey can start with a survey
+  // that has one new, unanswered question.
+  if (newQuestion) {
+    await createQuestion({ prompt: NEW_QUESTION_PROMPT, required: true });
   }
 
   if (plan) {

@@ -21,7 +21,7 @@ focus restore, and account deletion with sign-out.
 
 ### In scope
 
-1. Playwright (`@playwright/test`) with a small, serial suite of eleven journeys:
+1. Playwright (`@playwright/test`) with a small, serial suite of thirteen journeys:
    - a signed-out visitor sees the landing page and signs in to the dashboard;
    - a page keeps its URL across a reload, back and forward;
    - a deep link opens its page after signing in;
@@ -29,6 +29,8 @@ focus restore, and account deletion with sign-out.
    - an athlete answers the coaching survey and reaches today's session;
    - an admin opens the admin settings while the survey has an unanswered
      question (including a reload);
+   - a forced survey keeps the survey's panel width, not the rejected page's;
+   - deleting the new question that forced the survey releases the athlete;
    - an athlete saves a weekly note and sees the coach reply;
    - an athlete logs a meal with a photo and sees the analysis;
    - a keyboard user closes the calendar workout dialog with Escape and gets

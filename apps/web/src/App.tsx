@@ -1,4 +1,8 @@
 import { useEffect, useRef, useState } from "react";
+import {
+  AthleteQuestionsProvider,
+  useAthleteQuestionsContext,
+} from "./AthleteQuestionsProvider";
 import { AppStatusProvider, useAppStatus } from "./AppStatus";
 import { CoachingSurveyPage } from "./CoachingSurveyPage";
 import { useAuth } from "./auth";
@@ -14,7 +18,6 @@ import {
   navigateToPage,
   pageForPath,
   pageLabel,
-  pageWidthClass,
   useLocationPath,
   type Page,
 } from "./navigation";
@@ -24,9 +27,8 @@ import { PwaBanners } from "./PwaBanners";
 import { usePwa } from "./PwaContext";
 import { InstallAppButton } from "./PwaInstall";
 import { SignInPage } from "./SignInPage";
-import { surveyGate } from "./surveyGate";
+import { panelWidthClass, surveyGate } from "./surveyGate";
 import { TimeZoneProvider } from "./TimeZoneContext";
-import { useAthleteQuestions } from "./useAthleteQuestions";
 import { Button } from "./components/Button";
 import { cn } from "./components/cn";
 
@@ -34,7 +36,9 @@ export function App() {
   return (
     <AppStatusProvider>
       <CurrentUserProvider>
-        <AppShell />
+        <AthleteQuestionsProvider>
+          <AppShell />
+        </AthleteQuestionsProvider>
       </CurrentUserProvider>
     </AppStatusProvider>
   );
@@ -58,7 +62,7 @@ function AppShell() {
     loading: loadingQuestions,
     error: questionsError,
     load: loadQuestions,
-  } = useAthleteQuestions();
+  } = useAthleteQuestionsContext();
 
   const signedIn = auth.isAuthenticated;
   const isAdmin = user?.role === "admin";
@@ -137,8 +141,9 @@ function AppShell() {
   }
 
   // The month grid needs room for a wide week box plus seven day columns, so
-  // the calendar gets a wider content panel than the other pages.
-  const contentWidth = signedIn ? pageWidthClass(page) : "max-w-5xl";
+  // the calendar gets a wider content panel than the other pages. While the
+  // survey gate replaces the page, the survey's narrower panel applies.
+  const contentWidth = signedIn ? panelWidthClass(gate, page) : "max-w-5xl";
 
   return (
     <TimeZoneProvider timeZone={timeZone}>
@@ -205,6 +210,7 @@ function AppShell() {
               contentWidth,
               "flex-col gap-4 px-0 py-4 sm:px-4 sm:py-6",
             )}
+            data-testid="app-panel"
           >
             <PlanGenerationProvider>
               <CurrentUserLoadError />

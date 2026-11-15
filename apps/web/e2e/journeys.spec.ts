@@ -12,6 +12,7 @@ const MEAL_PHOTO_BASE64 =
 
 interface SeedOptions {
   questions?: "none" | "unanswered" | "answered";
+  newQuestion?: boolean;
   plan?: boolean;
   dietAdvice?: boolean;
 }
@@ -135,6 +136,51 @@ test("an admin opens the admin settings with an unanswered survey question", asy
   await page.reload();
   await expect(page).toHaveURL(/\/admin$/);
   await expect(page.getByTestId("admin-settings")).toBeVisible();
+});
+
+test("a forced survey keeps the survey's narrow panel", async ({ page }) => {
+  await signIn(page, { questions: "unanswered" }, "/calendar");
+
+  await expect(page).toHaveURL(/\/survey$/);
+  await expect(page.getByTestId("coaching-survey-page")).toBeVisible();
+  // The calendar's wide panel follows the page on screen, not the URL the gate
+  // rejected.
+  await expect(page.getByTestId("app-panel")).toHaveClass(/max-w-5xl/);
+});
+
+test("deleting the question that forced the survey releases the athlete", async ({
+  page,
+}) => {
+  await signIn(page, { questions: "answered", newQuestion: true });
+
+  await expect(page).toHaveURL(/\/survey$/);
+  await expect(page.getByTestId("athlete-profile")).toContainText(
+    "How did your last race go?",
+  );
+
+  await openPage(page, "Admin settings");
+  await expect(page).toHaveURL(/\/admin$/);
+
+  const archived = page.waitForResponse(
+    (response) =>
+      response.url().includes("/api/admin/questions/") &&
+      response.request().method() === "DELETE",
+  );
+  page.once("dialog", (dialog) => void dialog.accept());
+  await page
+    .getByTestId("question-row")
+    .filter({ hasText: "How did your last race go?" })
+    .getByRole("button", { name: "Delete" })
+    .click();
+  await archived;
+  await expect(page.getByTestId("question-row")).toHaveCount(1);
+  await page.waitForLoadState("networkidle");
+
+  // The gate reads the refreshed question set, so the survey releases the
+  // athlete without a reload.
+  await openPage(page, "Coach");
+  await expect(page).toHaveURL(/\/coach$/);
+  await expect(page.getByTestId("coaching-inputs")).toBeVisible();
 });
 
 test("an athlete saves a weekly note and sees the coach reply", async ({

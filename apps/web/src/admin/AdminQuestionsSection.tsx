@@ -6,6 +6,7 @@ import {
   type Question,
   type QuestionInput,
 } from "@killingit/shared";
+import { useAthleteQuestionsContext } from "../AthleteQuestionsProvider";
 import { useAuth } from "../auth";
 import { requestParsed } from "../fetchAuthed";
 import { QuestionForm } from "./QuestionForm";
@@ -20,6 +21,10 @@ import { Button } from "../components/Button";
  */
 export function AdminQuestionsSection() {
   const auth = useAuth();
+  // The active question set drives the survey gate, so every change re-reads
+  // the athlete's questions: deleting the one that forced the survey releases
+  // the athlete without a reload.
+  const { load: reloadSurvey } = useAthleteQuestionsContext();
   const resource = useApiResource(
     auth.isAuthenticated ? "/api/admin/questions" : null,
     questionsResponseSchema,
@@ -53,6 +58,7 @@ export function AdminQuestionsSection() {
     setQuestions((previous) => [...(previous ?? []), created]);
     setAdding(false);
     resource.setError(null);
+    reloadSurvey();
   }
 
   async function saveQuestion(id: number, input: QuestionInput): Promise<void> {
@@ -74,6 +80,7 @@ export function AdminQuestionsSection() {
         ) ?? [updated],
     );
     resource.setError(null);
+    reloadSurvey();
   }
 
   async function moveQuestion(id: number, offset: -1 | 1): Promise<void> {
@@ -106,6 +113,7 @@ export function AdminQuestionsSection() {
     );
     setQuestions(() => response.questions);
     resource.setError(null);
+    reloadSurvey();
   }
 
   async function deleteQuestion(id: number): Promise<void> {
@@ -121,6 +129,7 @@ export function AdminQuestionsSection() {
         previous?.filter((question) => question.id !== response.id) ?? [],
     );
     resource.setError(null);
+    reloadSurvey();
   }
 
   if (!auth.isAuthenticated) {

@@ -1,4 +1,4 @@
-import type { Page } from "./navigation";
+import { pageWidthClass, type Page } from "./navigation";
 
 /** What the survey gate decides for the page the URL asks for. */
 export type SurveyGate = "page" | "wait" | "survey";
@@ -38,4 +38,16 @@ export function surveyGate({
     }
   }
   return "survey";
+}
+
+/**
+ * The content-panel width for what is actually on screen. The gate can replace
+ * the page the URL asks for, and the survey renders before the redirect
+ * rewrites that URL, so a rejected calendar visit must not widen the survey.
+ */
+export function panelWidthClass(
+  gate: SurveyGate,
+  page: Page,
+): "max-w-5xl" | "max-w-7xl" {
+  return pageWidthClass(gate === "page" ? page : "survey");
 }
