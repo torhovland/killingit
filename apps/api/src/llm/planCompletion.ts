@@ -14,8 +14,6 @@ import {
   type CompletionOptions,
 } from "./resilientCompletion.js";
 
-export type PlanCompletionCredentials = CompletionCredentials;
-
 export interface PlanJsonCompletionOptions {
   /**
    * Extra instruction for the repair turn. Used when the caller knows a
@@ -47,7 +45,7 @@ export interface PlanJsonCompletionOptions {
 export async function completePlanJson<T>(
   schema: z.ZodType<T>,
   provider: LlmProvider,
-  credentials: PlanCompletionCredentials,
+  credentials: CompletionCredentials,
   messages: LlmMessage[],
   maxTokens: number,
   options: PlanJsonCompletionOptions = {},

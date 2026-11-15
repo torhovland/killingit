@@ -13,12 +13,12 @@ import {
   type InitialBlockInput,
   type SeasonPlanInput,
 } from "./planInitialPrompt.js";
-import type { PlanUpdateCredentials } from "./planUpdate.js";
+import type { CompletionCredentials } from "./resilientCompletion.js";
 
 /** Asks the coach for the season plan alone. */
 export async function generateSeasonPlan(
   provider: LlmProvider,
-  credentials: PlanUpdateCredentials,
+  credentials: CompletionCredentials,
   input: SeasonPlanInput,
 ): Promise<SeasonPlanUpdate> {
   return completePlanJson(
@@ -34,7 +34,7 @@ export async function generateSeasonPlan(
 /** Asks the coach for the first block of the season. */
 export async function generateInitialBlock(
   provider: LlmProvider,
-  credentials: PlanUpdateCredentials,
+  credentials: CompletionCredentials,
   input: InitialBlockInput,
 ): Promise<InitialBlockUpdate> {
   return completePlanJson(

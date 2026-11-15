@@ -15,6 +15,7 @@ import {
 import type { LlmProvider } from "./openrouter.js";
 import { completePlanJson } from "./planCompletion.js";
 import { PLAN_MAX_TOKENS } from "./planBudget.js";
+import type { CompletionCredentials } from "./resilientCompletion.js";
 import {
   dailyPlanUpdateSchema,
   weeklyPlanUpdateSchema,
@@ -38,13 +39,6 @@ import {
   DIET_REPAIR_HINT,
   weekDatesRule,
 } from "./promptRules.js";
-
-export interface PlanUpdateCredentials {
-  apiKey: string;
-  model: string;
-  /** Cancels the completion when a newer coach run starts. */
-  signal?: AbortSignal | undefined;
-}
 
 interface DatedWeek {
   startDate: string;
@@ -229,7 +223,7 @@ function dailyDateHint(today: string, startDate: string): string {
  */
 export async function generatePlanUpdate(
   provider: LlmProvider,
-  credentials: PlanUpdateCredentials,
+  credentials: CompletionCredentials,
   input: PlanUpdateInput,
 ): Promise<CoachPlan> {
   const weekStart = startOfWeek(input.today);
@@ -284,7 +278,7 @@ export async function generatePlanUpdate(
 /** Asks the coach for today's session and a revised week. */
 export async function generateDailyUpdate(
   provider: LlmProvider,
-  credentials: PlanUpdateCredentials,
+  credentials: CompletionCredentials,
   input: DailyUpdateInput,
 ): Promise<DailyPlanUpdate> {
   const weekStartDate = startOfWeek(input.today);
@@ -310,7 +304,7 @@ export async function generateDailyUpdate(
 /** Asks the coach for a new week and a revised block. */
 export async function generateWeeklyUpdate(
   provider: LlmProvider,
-  credentials: PlanUpdateCredentials,
+  credentials: CompletionCredentials,
   input: WeeklyUpdateInput,
 ): Promise<WeeklyPlanUpdate> {
   return completePlanJson(

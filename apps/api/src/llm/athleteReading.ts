@@ -3,10 +3,8 @@ import {
   type AthleteReadingResult,
 } from "@killingit/shared";
 import type { LlmProvider } from "./openrouter.js";
-import {
-  completePlanJson,
-  type PlanCompletionCredentials,
-} from "./planCompletion.js";
+import { completePlanJson } from "./planCompletion.js";
+import type { CompletionCredentials } from "./resilientCompletion.js";
 import {
   buildAthleteReadingMessages,
   type AthleteReadingSource,
@@ -22,7 +20,7 @@ const ATHLETE_READING_MAX_TOKENS = 4096;
  */
 export async function extractAthleteReading(
   provider: LlmProvider,
-  credentials: PlanCompletionCredentials,
+  credentials: CompletionCredentials,
   source: AthleteReadingSource,
 ): Promise<AthleteReadingResult> {
   return completePlanJson(
