@@ -1,4 +1,4 @@
-import type { LlmCallMessage } from "@killingit/shared";
+import type { LlmCallMessage, LlmCallMetadata } from "@killingit/shared";
 import {
   isLlmAbortError,
   LlmTokenLimitError,
@@ -164,9 +164,7 @@ async function completeResult(
 }
 
 /** The request settings recorded alongside every prompt. */
-function requestMetadata(
-  request: LlmCompletionRequest,
-): Record<string, unknown> {
+function requestMetadata(request: LlmCompletionRequest): LlmCallMetadata {
   return {
     ...(request.metadata ?? {}),
     temperature: request.temperature,

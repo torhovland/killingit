@@ -296,27 +296,15 @@ export function createPlanRoute(deps: ResolvedAppDependencies): Hono {
           },
         );
 
-        if (!started) {
-          return c.json(
-            await buildResponse({
-              userId: user.id,
-              location: user.location,
-              timezone: user.timezone,
-              today,
-              includeTomorrow: false,
-              dietAdvice: user.dietAdvice,
-            }),
-            202,
-          );
-        }
-
+        // A run that is already in flight has not planned tomorrow yet, so its
+        // first response reports only today; a newly started run can.
         return c.json(
           await buildResponse({
             userId: user.id,
             location: user.location,
             timezone: user.timezone,
             today,
-            includeTomorrow,
+            includeTomorrow: started && includeTomorrow,
             dietAdvice: user.dietAdvice,
           }),
           202,

@@ -31,20 +31,34 @@ marks anything not yet built.
 **Frontend.** React and TypeScript on Vite, styled with Tailwind CSS v4 and
 design tokens in `apps/web/src/index.css`. Compose a primitive's `variant`/`size`
 before `className`, merge classes with `cn()`, never repeat a primitive's base
-string in a page, and avoid inline styles and hard-coded colours; the component
-library is in `apps/web/src/components/` (`Modal` owns every dialog), and each
-page lives in its feature directory (`calendar/`, `fitness/`, `diet/`,
-`settings/`, `admin/`) beside its tests. See
-`docs/specs/web-component-library.md` and `docs/specs/modal-dialog.md`.
+string in a page, and never build a `className` from a template literal (the
+`local/no-template-classname` rule fails `bun run lint`); use an inline `style`
+only for a value computed at runtime, such as a pan offset, hover-card position
+or progress width, with a comment saying why it cannot be a utility, and never
+hard-code a UI colour. The component library is in
+`apps/web/src/components/` (`Modal` owns every dialog), and each page lives in
+its feature directory (`calendar/`, `fitness/`, `diet/`, `settings/`, `admin/`)
+beside its tests. See `docs/specs/web-component-library.md` and
+`docs/specs/modal-dialog.md`.
 
 The app is an installable **PWA**; every page has a canonical URL and every
 request carries the API contract version. API reads use `requestParsed` and
 `useApiResource`, paths resolve through `apps/web/src/apiUrl.ts`, and form values
 from the server use `usePropDraft`. Hooks and JSX are linted (`react-hooks`,
-`jsx-a11y`), and charts are keyboard reachable and draw through `chartPath`. See
-`docs/specs/pwa.md`, `docs/specs/web-api-request-parsing.md`,
-`docs/specs/web-api-resource-hook.md` and
-`docs/specs/chart-keyboard-navigation.md`.
+`jsx-a11y`); charts are keyboard reachable and draw through `chartPath`, the
+fitness, threshold and cost charts share their legend through `ChartLegend`, and
+the threshold and fitness health charts take their series colours from
+`seriesClass`. The fitness page's chart data shaping and scales live in pure
+`fitness/charts/*Data.ts` modules with their own tests, beside thin chart
+components, while cross-page chart infrastructure stays in `charts/`. Stored
+dates render through `apps/web/src/dateFormat.ts`, which owns the cached
+`Intl.DateTimeFormat` month and day labels and parses every key in UTC so no
+device zone shifts a day. See `docs/specs/pwa.md`,
+`docs/specs/web-api-request-parsing.md`,
+`docs/specs/web-api-resource-hook.md`,
+`docs/specs/chart-keyboard-navigation.md`,
+`docs/specs/web-component-library.md` and
+`docs/specs/web-date-formatting.md`.
 
 **Backend.** TypeScript on Bun, Hono for the API, Drizzle ORM and Zod. Shared Zod
 schemas are validated on both sides (API `zValidator`, web responses);
@@ -53,7 +67,10 @@ Failures use `{ error: { code, message, details? } }` from
 `packages/shared/src/apiError.ts`, and `apps/api/src/index.ts` exports the
 side-effect-free `createApp` that `server.ts` runs. See
 `docs/specs/shared-api-boundary.md`, `docs/specs/api-errors.md` and
-`docs/specs/api-server-entry.md`.
+`docs/specs/api-server-entry.md`. Secrets stored for another service (Garmin
+credentials, LLM API keys) are encrypted with AES-256-GCM under an
+HKDF-derived key and bound to the owning account; always pass the account id to
+the shared helper. See `docs/specs/credential-encryption.md` and ADR 0060.
 
 Bun workspaces: `apps/web`, `apps/api`, `packages/shared` (ADR 0055) and
 `tools/benchmark` (ADR 0032); `scripts/` is not a workspace but is typechecked by
@@ -83,18 +100,18 @@ geocoder and tiles handle address search and maps; see
 Run from the root; `bun run db:up` starts local PostgreSQL and `bun run dev` runs
 the web app, API and Garmin sidecar after migrating.
 
-| Command                    | What it does                                          |
-| -------------------------- | ----------------------------------------------------- |
-| `bun run typecheck`        | TypeScript for every project and `scripts/`           |
-| `bun run test`             | Unit tests, including `scripts/` and its guard tests  |
-| `bun run lint` / `format`  | ESLint and Prettier (`lint:fix` / `format:fix` write) |
-| `bun run check:unused`     | Knip production export and file scan                  |
-| `bun run check:garmin`     | pytest, ruff and mypy for the Garmin sidecar          |
-| `bun run test:integration` | Database-backed API tests                             |
-| `bun run test:e2e`         | Playwright journeys                                   |
-| `bun run test:coverage`    | Coverage against each package's baseline              |
-| `bun run outdated`         | Report outdated dependencies                          |
-| `bun run benchmark:llm`    | Model comparison harness (`benchmark:prompts` too)    |
+| Command                    | What it does                                            |
+| -------------------------- | ------------------------------------------------------- |
+| `bun run typecheck`        | TypeScript for every project and `scripts/`             |
+| `bun run test`             | Unit tests, including `scripts/` and local ESLint rules |
+| `bun run lint` / `format`  | ESLint and Prettier (`lint:fix` / `format:fix` write)   |
+| `bun run check:unused`     | Knip production export and file scan                    |
+| `bun run check:garmin`     | pytest, ruff and mypy for the Garmin sidecar            |
+| `bun run test:integration` | Database-backed API tests                               |
+| `bun run test:e2e`         | Playwright journeys                                     |
+| `bun run test:coverage`    | Coverage against each package's baseline                |
+| `bun run outdated`         | Report outdated dependencies                            |
+| `bun run benchmark:llm`    | Model comparison harness (`benchmark:prompts` too)      |
 
 ## Observability and agent access
 
@@ -242,9 +259,9 @@ a spec is missing.
 **Diet:** `docs/specs/diet-log.md`, `docs/specs/diet-coaching.md`, `docs/specs/diet-progress-targets.md`, `docs/specs/calorie-breakdown.md`.
 
 **Web:** `docs/specs/accessibility-lint.md`, `docs/specs/chart-keyboard-navigation.md`, `docs/specs/current-user-provider.md`, `docs/specs/modal-dialog.md`, `docs/specs/pwa.md`, `docs/specs/signed-out-landing.md`, `docs/specs/web-api-base-url.md`, `docs/specs/web-api-request-parsing.md`, `docs/specs/web-api-resource-hook.md`, `docs/specs/web-cache-busting.md`, `docs/specs/web-coaching-hooks.md`,
-`docs/specs/web-coaching-pages.md`, `docs/specs/web-comment-form.md`, `docs/specs/web-component-library.md`, `docs/specs/web-form-drafts.md`, `docs/specs/web-interaction-tests.md`, `docs/specs/web-routing.md`, `docs/specs/user-time-zone.md`.
+`docs/specs/web-coaching-pages.md`, `docs/specs/web-comment-form.md`, `docs/specs/web-component-library.md`, `docs/specs/web-date-formatting.md`, `docs/specs/web-form-drafts.md`, `docs/specs/web-interaction-tests.md`, `docs/specs/web-routing.md`, `docs/specs/user-time-zone.md`.
 
-**API and backend:** `docs/specs/api-dependency-wiring.md`, `docs/specs/api-errors.md`, `docs/specs/api-logging.md`, `docs/specs/api-query-validation.md`, `docs/specs/api-server-entry.md`, `docs/specs/api-versioning.md`, `docs/specs/authenticated-user-middleware.md`, `docs/specs/auth-integration.md`, `docs/specs/route-param-validation.md`, `docs/specs/shared-api-boundary.md`, `docs/specs/shared-date-helpers.md`, `docs/specs/shared-package-barrel.md`,
+**API and backend:** `docs/specs/api-dependency-wiring.md`, `docs/specs/api-errors.md`, `docs/specs/api-logging.md`, `docs/specs/api-query-validation.md`, `docs/specs/api-server-entry.md`, `docs/specs/api-versioning.md`, `docs/specs/authenticated-user-middleware.md`, `docs/specs/auth-integration.md`, `docs/specs/credential-encryption.md`, `docs/specs/route-param-validation.md`, `docs/specs/shared-api-boundary.md`, `docs/specs/shared-date-helpers.md`, `docs/specs/shared-package-barrel.md`,
 `docs/specs/unused-exports.md`.
 
 **Tests, infrastructure and process:** `docs/specs/database-indexes.md`, `docs/specs/database-integration-tests.md`, `docs/specs/e2e-tests.md`, `docs/specs/test-coverage.md`, `docs/specs/test-file-organisation.md`, `docs/specs/agent-access-script.md`, `docs/specs/ci-build-job.md`, `docs/specs/deploy-workflow.md`, `docs/specs/third-party-notices.md`, `docs/specs/typescript-project-coverage.md`, `docs/specs/error-monitoring.md`, `docs/specs/account-deletion.md`, `docs/specs/admin-settings.md`, `docs/specs/location-and-weather.md`.

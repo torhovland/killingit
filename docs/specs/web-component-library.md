@@ -40,19 +40,61 @@ The primitives live in `apps/web/src/components/`:
 - `cn` — `clsx` plus `tailwind-merge`, so a caller's `className` overrides a
   primitive's default instead of duplicating it.
 
+## Class composition
+
+A `className` that is built from more than a fixed string is composed with
+`cn()`, passing each conditional or optional fragment as its own argument:
+
+```tsx
+className={cn(
+  "flex flex-col gap-1 rounded border p-1.5 text-sm",
+  inMonth ? "bg-card" : "bg-muted/40 text-muted-foreground",
+  isToday && "ring-2 ring-ring",
+)}
+```
+
+This keeps tailwind-merge in the loop, so a caller's `p-6` overrides the
+primitive's `p-4`, and an omitted fragment — a false condition, `undefined` or
+an empty string — adds neither a class nor a stray space. A template literal
+such as ``className={`p-4 ${active ? "bg-card" : ""}`}`` bypasses both and is
+reported by the `local/no-template-classname` ESLint rule, which runs on the
+web app and fails `bun run lint`. A template literal passed _to_ `cn()` is the
+intended dynamic input and stays allowed.
+
+## Inline styles
+
+A `style` prop is reserved for a value the browser only knows at runtime: a map
+layer's pan and zoom `transform`, a tile's or marker's world position, a hover
+card's offset, or a progress bar's live width. Each remaining `style` carries a
+short comment saying why it cannot be a utility class. A constant — the chart
+legend inset, a layer's transform origin or stacking order, a tile's fixed
+`TILE_SIZE` edge — is a utility class such as `CHART_LEGEND_INSET_CLASS`,
+`origin-top-left` or `size-[256px]`; Tailwind needs the literal value in a
+class, and no inline style is added for anything constant.
+
 Page components live in the feature directory that owns them, beside their
 tests: `calendar/`, `fitness/`, `diet/`, `settings/` and `admin/` each hold a
 page, its sections and its single-page helpers. Only shared primitives belong
-in `components/`; the shared chart frame, geometry and keyboard and hover hooks
-live in `charts/`, and pieces used across pages (`TrainingLoadLine`,
-`CalorieBalancePanel`, `mapProjection`, the current-user and time-zone
-providers) stay at the root. A page whose sections outgrow one module keeps the
-same split: the coach plan's Day, Week, Block and Season sections and their
-shared pieces live in `plan/`, while the `CoachPlanView` tab shell stays in the
-feature root; the OpenRouter model picker's catalog hook, filter bar, table and
-save queue live in `llm/`, while the `LlmSection` entry point sits in
-`settings/`. A one-off control with genuinely unique styling may stay a plain
-element, but it must not repeat a primitive's base class string.
+in `components/`; the shared chart frame, legend and series palette, geometry
+and keyboard and hover hooks live in `charts/`, and pieces used across pages
+(`TrainingLoadLine`, `CalorieBalancePanel`, `mapProjection`, the current-user and
+time-zone providers) stay at the root. The fitness, threshold and cost chart
+legends render through `ChartLegend`, which owns the list, swatch shapes and
+optional `sport · unit` detail, and the legend inset is the exported
+`CHART_LEGEND_INSET_CLASS` utility rather than an inline style. The threshold
+chart's series colours come from `seriesClass(index)`, which wraps the shared
+palette; the fitness health charts pass their semantic palette to the same
+helper. The fitness page's chart variants and their pure data preparation live
+in `fitness/charts/`: `dailyHealthData.ts` shapes the recovery series and the
+stacked sleep layers, `bodyChartData.ts` prepares the body scales and diet
+targets, and `DailyHealthCharts.tsx`, `HealthLineChart.tsx`, `SleepChart.tsx`
+and `BodyChart.tsx` only render the prepared data. A page whose sections outgrow
+one module keeps the same split: the coach plan's Day, Week, Block and Season
+sections and their shared pieces live in `plan/`, while the `CoachPlanView` tab
+shell stays in the feature root; the OpenRouter model picker's catalog hook,
+filter bar, table and save queue live in `llm/`, while the `LlmSection` entry
+point sits in `settings/`. A one-off control with genuinely unique styling may
+stay a plain element, but it must not repeat a primitive's base class string.
 
 ## Usage rule
 
@@ -77,6 +119,19 @@ layout for the spinner and forwards `variant`, `size` and `className`.
   backdrop, focus trap, Escape handling or focus restore.
 - The primitives have unit tests for their defaults, variants and class
   merging.
+- Every conditional `className` is composed with `cn()`, and no JSX attribute is
+  built from a template literal; `local/no-template-classname` fails
+  `bun run lint` otherwise.
+- Every remaining inline `style` holds a value the browser computes at runtime
+  and carries a comment explaining why; a constant offset, size or stacking
+  order uses a utility class instead. No new inline style is introduced.
+- The fitness, threshold and cost chart legends render through `ChartLegend`;
+  the threshold chart and the fitness health charts take their series colours
+  from `seriesClass`; no chart repeats that legend markup, series palette or the
+  plot inset.
+- A chart with several measures keeps its data shaping and scales in a pure
+  module beside it, with unit tests, and the component only renders the prepared
+  data.
 - `bun run typecheck`, `bun run lint`, `bun run format` and `bun run test` pass.
 
 ## Data model and API impact

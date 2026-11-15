@@ -13,9 +13,9 @@ export async function loadDecryptedGarminCredentials(
   if (!stored) {
     return null;
   }
-  const key = await garminCredentialsKeyFromEnv();
+  const keys = await garminCredentialsKeyFromEnv();
   return {
-    username: await decrypt(stored.usernameEncrypted, key),
-    password: await decrypt(stored.passwordEncrypted, key),
+    username: await decrypt(stored.usernameEncrypted, keys, userId),
+    password: await decrypt(stored.passwordEncrypted, keys, userId),
   };
 }

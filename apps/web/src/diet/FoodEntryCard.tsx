@@ -5,6 +5,7 @@ import { useTimeZone } from "../TimeZoneContext";
 import { formatDateTime } from "../timeZone";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
+import { cn } from "../components/cn";
 
 /** One logged meal with the coach's reading of it. */
 export function FoodEntryCard({
@@ -23,9 +24,10 @@ export function FoodEntryCard({
 
   return (
     <article
-      className={`flex flex-col gap-3 rounded-lg border bg-card p-4 text-left ${
-        compact ? "" : "sm:flex-row"
-      }`}
+      className={cn(
+        "flex flex-col gap-3 rounded-lg border bg-card p-4 text-left",
+        !compact && "sm:flex-row",
+      )}
       data-testid="food-entry"
     >
       {entry.hasPhoto && (

@@ -14,18 +14,10 @@ import {
   nullAwarePath,
 } from "../charts/chartGeometry";
 import { ChartFrame } from "../charts/ChartFrame";
+import { ChartLegend } from "../charts/ChartLegend";
+import { seriesClass } from "../charts/seriesClass";
+import { cn } from "../components/cn";
 import { FitnessDayTooltip } from "./FitnessDayTooltip";
-
-/** Distinct line classes so several measures in one unit stay readable. */
-const SERIES_CLASSES = [
-  { stroke: "stroke-primary", background: "bg-primary" },
-  { stroke: "stroke-foreground", background: "bg-foreground" },
-  {
-    stroke: "stroke-form-fresh-line",
-    background: "bg-form-fresh-line",
-  },
-  { stroke: "stroke-destructive", background: "bg-destructive" },
-];
 
 interface ThresholdGroup {
   unit: string;
@@ -147,20 +139,16 @@ function ThresholdPanel({
         );
       }}
       legend={
-        <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-          {group.series.map((entry, index) => (
-            <li key={`${entry.sport}:${entry.measure}`} className="flex gap-1">
-              <span
-                className={`mt-1 inline-block h-0.5 w-4 ${SERIES_CLASSES[index % SERIES_CLASSES.length]?.background ?? SERIES_CLASSES[0]?.background}`}
-                aria-hidden="true"
-              />
-              <span className="font-medium">{entry.label}</span>
-              <span className="text-muted-foreground">
-                {entry.sport} · {entry.unit}
-              </span>
-            </li>
-          ))}
-        </ul>
+        <ChartLegend
+          items={group.series.map((entry, index) => ({
+            key: `${entry.sport}:${entry.measure}`,
+            label: entry.label,
+            swatch: seriesClass(index)?.background,
+            detail: `${entry.sport} · ${entry.unit}`,
+            className: "gap-1 items-stretch",
+            swatchClassName: "mt-1",
+          }))}
+        />
       }
     >
       {() =>
@@ -175,7 +163,7 @@ function ThresholdPanel({
             <g key={`${entry.sport}:${entry.measure}`}>
               <path
                 d={nullAwarePath(seriesValues, scale, 0, split)}
-                className={`fill-none ${SERIES_CLASSES[index % SERIES_CLASSES.length]?.stroke ?? SERIES_CLASSES[0]?.stroke}`}
+                className={cn("fill-none", seriesClass(index)?.stroke)}
                 strokeWidth={2}
                 data-series={`${entry.sport}:${entry.measure}`}
               />
@@ -187,7 +175,7 @@ function ThresholdPanel({
                     Math.max(split, 0),
                     days.length - 1,
                   )}
-                  className={`fill-none ${SERIES_CLASSES[index % SERIES_CLASSES.length]?.stroke ?? SERIES_CLASSES[0]?.stroke}`}
+                  className={cn("fill-none", seriesClass(index)?.stroke)}
                   strokeWidth={2}
                   strokeDasharray={FUTURE_DASH}
                   data-series={`${entry.sport}:${entry.measure}`}

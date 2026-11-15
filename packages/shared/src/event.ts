@@ -10,7 +10,7 @@ import { athleteMetricStatementSchema } from "./metrics.js";
  * a goal is a dated target that is not a competition, such as covering 100 km by
  * a given day.
  */
-const ATHLETE_EVENT_KINDS = ["race", "event", "trip", "goal"] as const;
+export const ATHLETE_EVENT_KINDS = ["race", "event", "trip", "goal"] as const;
 
 const athleteEventKindSchema = z.enum(ATHLETE_EVENT_KINDS);
 

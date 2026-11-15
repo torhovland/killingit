@@ -1,4 +1,4 @@
-import type { AthleteEvent, AthleteEventKind } from "@killingit/shared";
+import type { AthleteEvent } from "@killingit/shared";
 import { asc, eq } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { athleteEvents } from "../db/schema.js";
@@ -19,7 +19,7 @@ export async function loadAthleteEvents(
     startDate: row.startDate,
     endDate: row.endDate,
     title: row.title,
-    kind: row.kind as AthleteEventKind,
+    kind: row.kind,
   }));
 }
 

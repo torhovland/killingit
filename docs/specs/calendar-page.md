@@ -101,8 +101,9 @@ comment, the coach's response, and the route map for outdoor activities.
 ### Detail dialog
 
 - Selecting an activity opens a dialog with its name, date and time, type,
-  distance, duration, climb, training load, coach analysis, athlete comment,
-  coach response, and the route map when at least two route points exist.
+  distance, pace or speed, duration, climb, average and normalized power,
+  training load, coach analysis, athlete comment, coach response, and the route
+  map when at least two route points exist.
 - Selecting a planned workout opens a dialog with the date, status, duration,
   intensity, indoor/outdoor setting, training load or estimated TSS, weather
   when the session can be outdoors, and the coach's description.
@@ -159,7 +160,9 @@ API:
 - A day's block, season and event markers and its rest note render through the
   shared `Chip` primitive, so the marker styling lives in one place. An
   activity's distance on its chip uses `formatDistanceKm` at one decimal; the
-  detail dialog and the activity card use the same helper at two.
+  detail dialog and the activity card use the same helper at two. Both also
+  build their date, type, distance, pace or speed, duration, climb and power
+  line with the shared `activityMetadata` helper.
 - Today's cell carries a lime ring that is painted outside the cell, so the
   grid inside its horizontal scroll container keeps padding; without it the
   scroll clip hides the right side of the ring on a Sunday.
@@ -196,5 +199,5 @@ API:
   their week numbers, and bounds.
 - Web unit tests for the month helpers and render tests for the month grid,
   range controls, week overview boxes, the today ring's clearance inside the
-  scrolling grid, and both dialog variants. The `Chip`, `CoachReply` and
-  `formatDistanceKm` helpers have their own unit tests.
+  scrolling grid, and both dialog variants. The `Chip`, `CoachReply`,
+  `activityMetadata` and `formatDistanceKm` helpers have their own unit tests.

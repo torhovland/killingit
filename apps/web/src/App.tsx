@@ -28,6 +28,7 @@ import { surveyGate } from "./surveyGate";
 import { TimeZoneProvider } from "./TimeZoneContext";
 import { useAthleteQuestions } from "./useAthleteQuestions";
 import { Button } from "./components/Button";
+import { cn } from "./components/cn";
 
 export function App() {
   return (
@@ -199,7 +200,11 @@ function AppShell() {
           />
 
           <div
-            className={`mx-auto flex w-full ${contentWidth} flex-col gap-4 px-0 py-4 sm:px-4 sm:py-6`}
+            className={cn(
+              "mx-auto flex w-full",
+              contentWidth,
+              "flex-col gap-4 px-0 py-4 sm:px-4 sm:py-6",
+            )}
           >
             <PlanGenerationProvider>
               <CurrentUserLoadError />

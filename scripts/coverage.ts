@@ -268,9 +268,11 @@ function main(): void {
   rmSync(COVERAGE_DIR, { recursive: true, force: true });
   mkdirSync(RAW_COVERAGE_DIR, { recursive: true });
 
-  // The root scripts suite covers development tooling, not application code.
-  // It runs for parity with `bun run test` but is not part of the denominator.
+  // The root scripts and local ESLint-rule suites cover development tooling,
+  // not application code. They run for parity with `bun run test` but are not
+  // part of the denominator.
   runTests("scripts", REPO_ROOT, ["scripts"]);
+  runTests("eslint-rules", REPO_ROOT, ["eslint-rules"]);
 
   const sources: CoverageSource[] = [];
   const rows: CoverageReportRow[] = [];

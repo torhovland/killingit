@@ -78,7 +78,7 @@ export type SyncDailyTransport = (
 
 /** Base URL of the sidecar, from env (defaults to the local dev address). */
 function garminSidecarUrl(): string {
-  return process.env.GARMIN_SIDECAR_URL?.trim() ?? "http://localhost:8000";
+  return process.env.GARMIN_SIDECAR_URL?.trim() || "http://localhost:8000";
 }
 
 /**

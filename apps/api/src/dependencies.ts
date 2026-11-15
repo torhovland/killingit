@@ -17,6 +17,7 @@ import type {
 import type { ReplyContextInput } from "./coaching/replyContext.js";
 import type { saveActivityReview } from "./coaching/reviews.js";
 import type { startCoachRun } from "./coaching/coachRun.js";
+import type { CredentialKeys } from "./crypto/credentials.js";
 import type { loadDietContext } from "./diet/context.js";
 import type { FoodEntryStore } from "./diet/store.js";
 import type { createMealPhotos } from "./diet/thumbnail.js";
@@ -220,8 +221,8 @@ export interface AppDependencies {
   loadModelCatalog?: typeof loadModelCatalog | undefined;
   refreshModelCatalog?: typeof ensureModelCatalogFresh | undefined;
   llmProvider?: LlmProvider | undefined;
-  /** Key-encryption key for a stored provider key, injectable for tests. */
-  llmCredentialsKey?: (() => Promise<CryptoKey>) | undefined;
+  /** Key-encryption keys for a stored provider key, injectable for tests. */
+  llmCredentialsKey?: (() => Promise<CredentialKeys>) | undefined;
   /** Prompt-log failure marker, injectable for DB-free plan route tests. */
   markPlanPromptsFailed?:
     PlanTriggerDependencies["markPlanPromptsFailed"] | undefined;

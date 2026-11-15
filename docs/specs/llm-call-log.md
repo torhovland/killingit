@@ -101,6 +101,11 @@ call is in flight and when the process stopped before settling it. Rows are
 deleted with the account (`on delete cascade`). Prompt text can contain health
 and training details, so the table is read only through admin routes.
 
+The metadata column is typed by `LlmCallMetadata` in `packages/shared`, which
+names every key a caller writes (request settings, retry and repair markers,
+routing details, and plan-failure markers). The key list is open to new callers,
+so a later prompt type can add a field without a migration.
+
 ### API
 
 - `GET /api/admin/llm-calls?limit=50&offset=0` returns the newest calls without

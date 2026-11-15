@@ -13,6 +13,13 @@ const MEAL_PHOTO_QUALITY = 0.92;
 const MAX_SOURCE_BYTES = 15 * 1024 * 1024;
 
 /**
+ * The opaque backdrop painted under a photo before it is encoded as JPEG. A
+ * transparent PNG would render black in a JPEG without it, so the backdrop
+ * must stay white.
+ */
+const JPEG_BACKGROUND = "#ffffff";
+
+/**
  * Prepares a camera or gallery image for a meal log. The browser sends one
  * full-size image to the API; the API sends it to the coach and derives the
  * stored thumbnail from it. Runs entirely in the browser so the upload is a
@@ -53,8 +60,7 @@ function renderImage(
   if (context === null) {
     throw new Error("This browser cannot prepare the photo.");
   }
-  // A transparent PNG becomes black in a JPEG without an opaque backdrop.
-  context.fillStyle = "#ffffff";
+  context.fillStyle = JPEG_BACKGROUND;
   context.fillRect(0, 0, width, height);
   context.drawImage(image, 0, 0, width, height);
   return canvas.toDataURL("image/jpeg", quality);

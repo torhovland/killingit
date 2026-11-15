@@ -1,4 +1,4 @@
-import type { LlmPromptKind } from "@killingit/shared";
+import type { LlmCallMetadata, LlmPromptKind } from "@killingit/shared";
 import type { z } from "zod";
 import type { LlmProvider, LlmProviderMessage } from "./openrouter.js";
 import {
@@ -24,7 +24,7 @@ export interface PlanJsonCompletionOptions {
   /** The coaching task, recorded in the prompt log. */
   kind?: LlmPromptKind;
   /** Extra prompt-log metadata such as the season or week being planned. */
-  metadata?: Record<string, unknown>;
+  metadata?: LlmCallMetadata;
 }
 
 /**

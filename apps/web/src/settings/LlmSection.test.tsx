@@ -4,6 +4,8 @@ import userEvent from "@testing-library/user-event";
 import type { LlmCatalogModel, LlmSettings } from "@killingit/shared";
 import type { AuthState } from "../auth";
 import { discouragedMessage } from "../llm/catalogFilters";
+import { formatDateTime } from "../timeZone";
+import { TimeZoneProvider } from "../TimeZoneContext";
 
 const { SessionExpiredError } = await import("../auth/session");
 
@@ -325,5 +327,27 @@ describe("LlmSection", () => {
 
     expect(bodies).toEqual([]);
     expect((await radio(BETA.name, "season planning")).checked).toBe(true);
+  });
+
+  it("formats the last-scored time in the account's zone for an admin", async () => {
+    const scoredAt = "2026-10-31T15:40:52.865Z";
+    const zone = "Pacific/Kiritimati";
+    stubCatalog([model({ benchmarkedAt: scoredAt })]);
+    render(
+      <AppStatusProvider>
+        <TimeZoneProvider timeZone={zone}>
+          <LlmSection
+            settings={settings()}
+            onSaved={() => undefined}
+            isAdmin={true}
+          />
+        </TimeZoneProvider>
+      </AppStatusProvider>,
+    );
+
+    expect(
+      await screen.findByText(formatDateTime(scoredAt, zone)),
+    ).toBeTruthy();
+    expect(screen.queryByText(formatDateTime(scoredAt, "UTC"))).toBe(null);
   });
 });

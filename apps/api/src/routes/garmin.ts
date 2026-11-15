@@ -59,9 +59,9 @@ export function createGarminRoute(deps: ResolvedAppDependencies): Hono {
       const user = getUser(c);
       const { username, password } = c.req.valid("json");
 
-      let key;
+      let keys;
       try {
-        key = await garminCredentialsKeyFromEnv();
+        keys = await garminCredentialsKeyFromEnv();
       } catch (err) {
         // A missing or invalid key names an environment secret, which is an
         // operator detail; the athlete gets a generic answer and the log keeps
@@ -88,8 +88,8 @@ export function createGarminRoute(deps: ResolvedAppDependencies): Hono {
       }
 
       const [usernameEncrypted, passwordEncrypted] = await Promise.all([
-        encrypt(username, key),
-        encrypt(password, key),
+        encrypt(username, keys, user.id),
+        encrypt(password, keys, user.id),
       ]);
       await saveStored(user.id, { usernameEncrypted, passwordEncrypted });
       return c.json(garminConnectionStatusSchema.parse({ connected: true }));

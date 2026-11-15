@@ -19,7 +19,7 @@ describe("llmCredentialsKeyFromEnv", () => {
 
   it("derives a non-extractable AES key", async () => {
     process.env.LLM_CREDENTIALS_KEY = "a-test-passphrase";
-    const key = await llmCredentialsKeyFromEnv();
-    expect(key.extractable).toBe(false);
+    const keys = await llmCredentialsKeyFromEnv();
+    expect(keys.current.extractable).toBe(false);
   });
 });

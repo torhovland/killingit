@@ -379,6 +379,13 @@
       "when": 1794668194562,
       "tag": "0053_worried_swordsman",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1794741882512,
+      "tag": "0054_cultured_dracula",
+      "breakpoints": true
     }
   ]
 }

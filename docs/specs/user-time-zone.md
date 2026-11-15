@@ -20,8 +20,10 @@ setting to see the right local time.
 3. A time-zone selector in the athlete settings page. Two dropdowns replace the
    single zone list: a continent and a city, assembled into an IANA zone such
    as `Europe/Oslo`. A "Device time zone" option clears the stored zone.
-4. Activity timestamps and the plan's "Generated at" timestamp are formatted in
-   the selected zone, without appending a zone identifier such as `CEST`.
+4. Activity timestamps, the plan's "Generated at" timestamp, the settings page's
+   model "last scored" times, and the admin prompt log and model remark times
+   are formatted in the selected zone, without appending a zone identifier such
+   as `CEST`.
 5. The effective "today" date and the after-18:00 check use the selected zone.
 6. Coaching requests send the selected zone instead of always reading the
    browser zone.
@@ -45,6 +47,10 @@ setting to see the right local time.
   not contain the current city waits for a city choice before saving.
 - The setting applies immediately after saving; the app keeps the returned
   `CurrentUser` in state.
+- Components read the display zone through `useTimeZone()` and never call
+  `browserTimeZone()` themselves, so the device zone is only the provider's
+  fallback when no zone is stored. An admin list shows every row in the admin's
+  own zone, not in the zone of the athlete who made the call.
 
 ## Data model / API
 
@@ -71,3 +77,6 @@ package.
 - API tests cover saving a valid zone and rejecting an unknown one.
 - Web unit tests cover resolving a valid/unknown zone and formatting an ISO
   timestamp in the selected zone.
+- Settings and admin component tests render inside a `TimeZoneProvider` with a
+  zone that differs from the device's and assert the formatted timestamps use
+  the account zone.

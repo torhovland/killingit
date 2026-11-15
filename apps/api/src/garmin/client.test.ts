@@ -378,6 +378,18 @@ describe("sidecar authentication", () => {
   });
 });
 
+describe("sidecar URL configuration", () => {
+  it("falls back to the local default when the env var is empty", async () => {
+    process.env.GARMIN_SIDECAR_URL = "";
+    delete process.env.GARMIN_SIDECAR_AUDIENCE;
+    const requests = stubFetch({ body: {} });
+
+    await syncGarminMetrics({ username: "u", password: "p" });
+
+    expect(requests[0]?.url).toBe("http://localhost:8000/metrics");
+  });
+});
+
 describe("error classes", () => {
   it("reports a missing Garmin connection without a session failure", () => {
     const err = new GarminNotConnectedError();

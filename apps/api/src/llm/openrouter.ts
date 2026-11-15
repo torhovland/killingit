@@ -1,6 +1,7 @@
 import {
   llmModelSchema,
   type ApiErrorCode,
+  type LlmCallMetadata,
   type LlmCallUsage,
   type LlmModel,
   type LlmPromptKind,
@@ -148,7 +149,7 @@ export interface LlmCompletionRequest {
    * Extra debug metadata for the prompt log (retry attempt, repair turn).
    * Never sent to the provider.
    */
-  metadata?: Record<string, unknown>;
+  metadata?: LlmCallMetadata;
   /** Cancels this request; it is combined with the provider timeout. */
   signal?: AbortSignal;
 }

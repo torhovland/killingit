@@ -93,9 +93,9 @@ export function createLlmRoute(deps: ResolvedAppDependencies): Hono {
           );
         }
 
-        let key: CryptoKey;
+        let keys;
         try {
-          key = await credentialsKey();
+          keys = await credentialsKey();
         } catch (err) {
           // The key names an environment secret, which is an operator detail;
           // the athlete gets a generic answer and the log keeps the reason.
@@ -117,7 +117,7 @@ export function createLlmRoute(deps: ResolvedAppDependencies): Hono {
           } catch (err) {
             return respondUpstreamError(c, err, "[llm] provider failure");
           }
-          apiKeyEncrypted = await encrypt(apiKey, key);
+          apiKeyEncrypted = await encrypt(apiKey, keys, user.id);
         }
         if (apiKeyEncrypted === undefined) {
           return badRequest(c, "An OpenRouter API key is required");

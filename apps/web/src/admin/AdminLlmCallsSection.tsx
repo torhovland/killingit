@@ -11,7 +11,8 @@ import { Bullet } from "../Bullet";
 import { formatCostUsd } from "../costChart";
 import { requestParsed } from "../fetchAuthed";
 import { reportError } from "../reportError";
-import { browserTimeZone, formatDateTime } from "../timeZone";
+import { formatDateTime } from "../timeZone";
+import { useTimeZone } from "../TimeZoneContext";
 import { useAbortableRequest, useApiResource } from "../useApiResource";
 import { Button } from "../components/Button";
 import { cn } from "../components/cn";
@@ -114,6 +115,7 @@ function LlmCallsView({
   onSelect: (id: number) => void;
   onRefresh: () => void;
 }) {
+  const timeZone = useTimeZone();
   return (
     <section className="flex flex-col gap-3" data-testid="admin-llm-calls">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -191,9 +193,7 @@ function LlmCallsView({
                         </span>
                       </span>
                       <span className="flex flex-wrap gap-x-3 text-sm text-muted-foreground">
-                        <span>
-                          {formatDateTime(call.createdAt, browserTimeZone())}
-                        </span>
+                        <span>{formatDateTime(call.createdAt, timeZone)}</span>
                         <span className="truncate" title={call.userLabel}>
                           {call.userLabel}
                         </span>
@@ -237,6 +237,7 @@ function LlmCallsView({
 
 /** The full prompt, response, and metadata for one logged call. */
 function LlmCallDetailView({ call }: { call: LlmCallDetail }) {
+  const timeZone = useTimeZone();
   return (
     <Card
       as="article"
@@ -249,7 +250,7 @@ function LlmCallDetailView({ call }: { call: LlmCallDetail }) {
             {LLM_PROMPT_KIND_LABELS[call.kind]}
           </h3>
           <p className="text-base text-muted-foreground">
-            {formatDateTime(call.createdAt, browserTimeZone())}
+            {formatDateTime(call.createdAt, timeZone)}
             <Bullet />
             {call.userLabel}
             <Bullet />
@@ -398,7 +399,7 @@ function Badge({
   }[tone];
   return (
     <span
-      className={`rounded border px-2 py-0.5 text-sm ${toneClass}`}
+      className={cn("rounded border px-2 py-0.5 text-sm", toneClass)}
       data-testid={testId}
     >
       {children}

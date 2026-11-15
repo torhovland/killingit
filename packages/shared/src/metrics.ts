@@ -1,8 +1,14 @@
 import { z } from "zod";
 import { addDays, planDateSchema } from "./date.js";
 
-/** The body measurements the app stores as a daily time series. */
-export type AthleteMetric = "weight" | "body_fat";
+/**
+ * The body measurements the app stores as a daily time series. FTP is not one:
+ * it lives in `athlete_thresholds`, which carries a sport and measure beside the
+ * value.
+ */
+export const ATHLETE_METRICS = ["weight", "body_fat"] as const;
+
+export type AthleteMetric = (typeof ATHLETE_METRICS)[number];
 
 /**
  * Who supplied a metric value. A `user` measurement is something the athlete

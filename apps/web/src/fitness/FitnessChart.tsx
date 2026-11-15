@@ -12,8 +12,6 @@ import {
 import {
   axisTicks,
   chartScale,
-  CHART_PADDING,
-  CHART_WIDTH,
   FUTURE_DASH,
   lastIndexOnOrBefore,
   linePath,
@@ -21,6 +19,7 @@ import {
   tsbSegments,
   zoneBlocks,
 } from "../charts/chartGeometry";
+import { CHART_LEGEND_INSET_CLASS, ChartLegend } from "../charts/ChartLegend";
 import { ChartFrame } from "../charts/ChartFrame";
 import { FitnessDayTooltip } from "./FitnessDayTooltip";
 
@@ -75,36 +74,43 @@ export function FitnessChart({
       )}
       legend={
         <>
-          <ul className={LEGEND_CLASSES} style={{ paddingLeft: LEGEND_INSET }}>
-            {[...FORM_ZONES].reverse().map((zone) => (
-              <li
-                key={zone.interpretation}
-                className="flex items-center gap-1.5"
-                data-testid={`form-zone-${zone.interpretation}`}
-              >
-                <span
-                  className={`inline-block size-2.5 rounded-sm ${FORM_SWATCH_CLASSES[zone.interpretation]}`}
-                />
-                <span className={FORM_TEXT_CLASSES[zone.interpretation]}>
-                  {FORM_INTERPRETATION_LABELS[zone.interpretation]}
-                </span>
-              </li>
-            ))}
-          </ul>
-          <ul className={LEGEND_CLASSES} style={{ paddingLeft: LEGEND_INSET }}>
-            <li className="flex items-center gap-1.5">
-              <LineSwatch className="bg-chart-ink" />
-              Fitness (CTL)
-            </li>
-            <li className="flex items-center gap-1.5">
-              <LineSwatch className="border-t border-dashed border-chart-ink-muted" />
-              Fatigue (ATL)
-            </li>
-            <li className="flex items-center gap-1.5">
-              <LineSwatch className="bg-form-productive-line" />
-              Form (TSB)
-            </li>
-          </ul>
+          <ChartLegend
+            className={CHART_LEGEND_INSET_CLASS}
+            items={[...FORM_ZONES].reverse().map((zone) => ({
+              key: zone.interpretation,
+              label: FORM_INTERPRETATION_LABELS[zone.interpretation],
+              swatch: FORM_SWATCH_CLASSES[zone.interpretation],
+              swatchShape: "square",
+              text: FORM_TEXT_CLASSES[zone.interpretation],
+              testId: `form-zone-${zone.interpretation}`,
+            }))}
+          />
+          <ChartLegend
+            className={CHART_LEGEND_INSET_CLASS}
+            items={[
+              {
+                key: "ctl",
+                label: "Fitness (CTL)",
+                swatch: "bg-chart-ink",
+                swatchShape: "plot-line",
+                text: null,
+              },
+              {
+                key: "atl",
+                label: "Fatigue (ATL)",
+                swatch: "border-t border-dashed border-chart-ink-muted",
+                swatchShape: "plot-line",
+                text: null,
+              },
+              {
+                key: "tsb",
+                label: "Form (TSB)",
+                swatch: "bg-form-productive-line",
+                swatchShape: "plot-line",
+                text: null,
+              },
+            ]}
+          />
         </>
       }
     >
@@ -190,22 +196,5 @@ export function FitnessChart({
         </>
       )}
     </ChartFrame>
-  );
-}
-
-/**
- * The legends line up with the plot's left edge rather than the axis gutter:
- * the gutter is `CHART_PADDING.left` of the chart's `CHART_WIDTH` viewBox, and
- * the SVG scales to the figure's width.
- */
-const LEGEND_INSET = `${((CHART_PADDING.left / CHART_WIDTH) * 100).toFixed(4)}%`;
-const LEGEND_CLASSES = "flex flex-wrap gap-x-4 gap-y-1 text-sm";
-
-/** A line-style legend swatch, drawn on the same white as the plot. */
-function LineSwatch({ className }: { className: string }) {
-  return (
-    <span className="flex h-3 w-6 items-center justify-center rounded-sm bg-chart-plot">
-      <span className={`block h-0.5 w-4 ${className}`} />
-    </span>
   );
 }

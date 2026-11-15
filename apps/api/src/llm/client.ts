@@ -56,8 +56,8 @@ export async function loadLlmClient(
   if (role === "daily" || role === "all") {
     await assertModelUsable(dailyModel, "daily");
   }
-  const key = await llmCredentialsKeyFromEnv();
-  const apiKey = await decrypt(settings.apiKeyEncrypted, key);
+  const keys = await llmCredentialsKeyFromEnv();
+  const apiKey = await decrypt(settings.apiKeyEncrypted, keys, userId);
   return {
     provider: withPromptLogging(createOpenRouterProvider(), { userId }),
     apiKey,

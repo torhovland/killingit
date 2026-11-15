@@ -5,6 +5,13 @@ import {
   type LlmPromptKind,
 } from "@killingit/shared";
 import { tickStep } from "./charts/chartGeometry";
+import {
+  formatDayMonth,
+  formatDayMonthYear,
+  formatLongMonthYear,
+  formatShortMonth,
+  formatShortMonthYear,
+} from "./dateFormat";
 
 /** How far back the monthly cost chart looks. */
 export const MONTHLY_COST_RANGES = ["12m", "all"] as const;
@@ -117,8 +124,8 @@ export function monthlyCostChart(
 
   const periods = monthsBetween(start, end).map((key) => ({
     key,
-    label: monthLabel(key, range === "all"),
-    title: monthTitle(key),
+    label: range === "all" ? formatShortMonthYear(key) : formatShortMonth(key),
+    title: formatLongMonthYear(key),
   }));
   return buildCostChart(rowsByBucket, periods, rows, dimension);
 }
@@ -146,8 +153,8 @@ export function dailyCostChart(
 
   const periods = daysBetween(start, end).map((key) => ({
     key,
-    label: formatDay(key),
-    title: formatDayTitle(key),
+    label: formatDayMonth(key),
+    title: formatDayMonthYear(key),
   }));
   return buildCostChart(rowsByBucket, periods, rows, dimension);
 }
@@ -281,61 +288,6 @@ function seriesOf(
 
 function promptKindLabel(kind: LlmPromptKind): string {
   return LLM_PROMPT_KIND_LABELS[kind];
-}
-
-const MONTH_NAMES = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-] as const;
-
-const FULL_MONTH_NAMES = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-] as const;
-
-function monthLabel(key: string, includeYear: boolean): string {
-  const [year, month] = key.split("-");
-  const name = MONTH_NAMES[Number(month) - 1] ?? key;
-  return includeYear && year !== undefined ? `${name} ${year.slice(2)}` : name;
-}
-
-function monthTitle(key: string): string {
-  const [year, month] = key.split("-");
-  const name = FULL_MONTH_NAMES[Number(month) - 1] ?? key;
-  return year === undefined ? name : `${name} ${year}`;
-}
-
-function formatDay(key: string): string {
-  const [, month, day] = key.split("-");
-  const name = MONTH_NAMES[Number(month) - 1];
-  return name === undefined || day === undefined
-    ? key
-    : `${Number(day)} ${name}`;
-}
-
-function formatDayTitle(key: string): string {
-  const [year] = key.split("-");
-  return `${formatDay(key)}${year === undefined ? "" : ` ${year}`}`;
 }
 
 function addMonths(month: string, delta: number): string {

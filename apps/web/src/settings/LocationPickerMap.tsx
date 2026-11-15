@@ -10,6 +10,7 @@ import {
   type MapPoint,
 } from "../mapProjection";
 import { Button } from "../components/Button";
+import { cn } from "../components/cn";
 
 const DEFAULT_WIDTH = 400;
 const DEFAULT_HEIGHT = 300;
@@ -49,6 +50,11 @@ interface MapLayer {
   tiles: LayerTile[];
 }
 
+interface Coordinates {
+  latitude: number;
+  longitude: number;
+}
+
 interface SlotState {
   current: (typeof SLOT_NAMES)[number];
   fallback: {
@@ -59,6 +65,22 @@ interface SlotState {
 
 function clampZoom(zoom: number): number {
   return Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom));
+}
+
+function coordinatesOf(value: AthleteLocation | null): Coordinates | null {
+  return value === null
+    ? null
+    : { latitude: value.latitude, longitude: value.longitude };
+}
+
+function sameCoordinates(
+  left: Coordinates | null,
+  right: Coordinates | null,
+): boolean {
+  if (left === null || right === null) {
+    return left === right;
+  }
+  return left.latitude === right.latitude && left.longitude === right.longitude;
 }
 
 /** The tile layer for a view, with every tile at its absolute world position. */
@@ -130,6 +152,11 @@ export function LocationPickerMap({
   const lastWheelZoom = useRef(0);
   const pendingPan = useRef<MapPoint | null>(null);
   const panFrame = useRef<number | null>(null);
+  // The last value the component saw and the point it last asked the parent to
+  // store. A value that matches either one did not come from an outside source
+  // such as a search result or a saved location, so it must not move the view.
+  const receivedValue = useRef<Coordinates | null>(coordinatesOf(value));
+  const requestedSelection = useRef<Coordinates | null>(null);
 
   useEffect(
     () => () => {
@@ -175,6 +202,14 @@ export function LocationPickerMap({
       setZoom(nextZoom);
     },
     [],
+  );
+
+  const selectPoint = useCallback(
+    (latitude: number, longitude: number): void => {
+      requestedSelection.current = { latitude, longitude };
+      onSelect(latitude, longitude);
+    },
+    [onSelect],
   );
 
   useEffect(() => {
@@ -308,7 +343,7 @@ export function LocationPickerMap({
         case "Enter":
         case " ":
           event.preventDefault();
-          onSelect(current.center.latitude, current.center.longitude);
+          selectPoint(current.center.latitude, current.center.longitude);
           return;
         default:
           return;
@@ -316,18 +351,25 @@ export function LocationPickerMap({
     }
     target.addEventListener("keydown", handleKeyDown);
     return () => target.removeEventListener("keydown", handleKeyDown);
-  }, [changeView, onSelect]);
+  }, [changeView, selectPoint]);
 
-  // A search result or a saved location moves the map to that place. Clicking
-  // the map also updates the value; recentring there is harmless.
+  // A search result or a saved location moves the map to that place. A map
+  // click or Enter also updates the value, and a parent re-render may recreate
+  // it: neither came from outside, so do not move the view or change the zoom.
   useEffect(() => {
-    if (value !== null) {
-      const current = viewport.current;
-      changeView(
-        { latitude: value.latitude, longitude: value.longitude },
-        Math.max(current.zoom, 10),
-      );
+    const next = coordinatesOf(value);
+    const previous = receivedValue.current;
+    const requested = requestedSelection.current;
+    receivedValue.current = next;
+    requestedSelection.current = null;
+    if (
+      next === null ||
+      sameCoordinates(next, previous) ||
+      sameCoordinates(next, requested)
+    ) {
+      return;
     }
+    changeView(next, viewport.current.zoom);
   }, [value, changeView]);
 
   function zoomBy(direction: 1 | -1): void {
@@ -423,7 +465,7 @@ export function LocationPickerMap({
       return;
     }
     const point = pointFromEvent(event);
-    onSelect(point.latitude, point.longitude);
+    selectPoint(point.latitude, point.longitude);
   }
 
   return (
@@ -457,11 +499,14 @@ export function LocationPickerMap({
           return (
             <div
               key={slotName}
-              className="pointer-events-none absolute inset-0"
+              className={cn(
+                "pointer-events-none absolute inset-0 origin-top-left",
+                slots.current === slotName ? "z-[2]" : "z-[1]",
+              )}
+              // Pan and zoom translate and scale the whole layer, so its
+              // transform is only known to the runtime viewport.
               style={{
                 transform: `translate3d(${Math.round(-topLeft.x)}px, ${Math.round(-topLeft.y)}px, 0) scale(${scale})`,
-                transformOrigin: "0 0",
-                zIndex: slots.current === slotName ? 2 : 1,
               }}
             >
               {layer.tiles.map((tile) => (
@@ -471,12 +516,12 @@ export function LocationPickerMap({
                   alt=""
                   draggable={false}
                   referrerPolicy="origin"
-                  className="absolute max-w-none select-none"
+                  className="absolute size-[256px] max-w-none select-none"
+                  // Every tile keeps its fixed TILE_SIZE square from the class
+                  // above; only its world position moves with a pan.
                   style={{
                     left: tile.x,
                     top: tile.y,
-                    width: TILE_SIZE,
-                    height: TILE_SIZE,
                   }}
                 />
               ))}
@@ -487,6 +532,8 @@ export function LocationPickerMap({
         {marker !== null && (
           <div
             className="pointer-events-none absolute z-10 size-[22px] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-primary bg-primary/20"
+            // The marker sits on the projection of the selected point, which
+            // moves with every pan and zoom.
             style={{
               left: marker.x - topLeft.x,
               top: marker.y - topLeft.y,

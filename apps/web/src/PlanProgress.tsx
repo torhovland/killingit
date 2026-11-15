@@ -66,7 +66,8 @@ export function PlanProgress({
             // Match the poll interval so each small increase blends into a
             // continuous move instead of a visible step.
             className="h-full rounded bg-primary transition-[width] duration-[1500ms] ease-linear"
-            // Dynamic width is the one value that must be inline.
+            // The bar's width is the generation's live percentage, which no
+            // utility class can express.
             style={{ width: `${progress.progress}%` }}
           />
         ) : (

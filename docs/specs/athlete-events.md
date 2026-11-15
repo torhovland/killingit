@@ -91,9 +91,10 @@ and Day plan tabs, and give the coach the same list when it plans.
 
 Shared (`@killingit/shared`):
 
-- `event.ts`: `athleteEventSchema`, `eventCoversDate`, `eventOverlapsRange`, and
-  `formatEventDates`; the combined `athleteReadingResultSchema` carries the
-  events with the athlete's metric statements.
+- `event.ts`: `athleteEventSchema`, `ATHLETE_EVENT_KINDS`, `eventCoversDate`,
+  `eventOverlapsRange`, and `formatEventDates`; the combined
+  `athleteReadingResultSchema` carries the events with the athlete's metric
+  statements.
 - `calendar.ts`: `calendarDaySchema.events`, `calendarWeekStatsSchema`, and
   `calendarWeekSchema.stats`.
 - `plan.ts`: `coachPlanResponseSchema.events`.
