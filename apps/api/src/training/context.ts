@@ -5,8 +5,8 @@ import type {
 } from "@killingit/shared";
 import type { ManualActivityContext } from "../llm/activityContext.js";
 import { loadThresholdHistoryForUser } from "../metrics/store.js";
-import { startOfWeek, zonedDateTime } from "@killingit/shared";
-import { loadCoachingInputs } from "../plans/inputs.js";
+import { zonedDateTime } from "@killingit/shared";
+import { loadManualActivities } from "../plans/inputs.js";
 import { manualTssByDate } from "./activityLoad.js";
 import { ftpTimeline, type ThresholdTimeline } from "./thresholds.js";
 
@@ -42,11 +42,11 @@ export async function loadTrainingContext(
   timeZone?: string | null,
 ): Promise<TrainingContext> {
   const planDate = plan?.today.date ?? zonedDateTime(new Date(), timeZone).date;
-  const [history, coachingInputs] = await Promise.all([
+  const [history, manualActivities] = await Promise.all([
     loadThresholdHistoryForUser(userId, planDate),
-    loadCoachingInputs(userId, startOfWeek(planDate)),
+    loadManualActivities(userId),
   ]);
-  const manualByDate = manualTssByDate(coachingInputs.manualActivities);
+  const manualByDate = manualTssByDate(manualActivities);
   return {
     ftpTimeline: ftpTimeline(history.timelines),
     thresholds: history.summaries,
@@ -54,7 +54,7 @@ export async function loadTrainingContext(
     thresholdTimelines: history.timelines,
     planTssByDate: planTssByDate(plan),
     manualTssByDate: manualByDate,
-    manualActivities: coachingInputs.manualActivities,
+    manualActivities,
   };
 }
 
