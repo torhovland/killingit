@@ -112,19 +112,19 @@ export interface GeneratePlanInput {
   /** Cancels the run's provider requests when a newer run starts. */
   signal?: AbortSignal;
   today: string;
-  timezone?: string;
+  timezone?: string | undefined;
   /** How an explicit regeneration should treat the stored season. */
-  mode?: PlanGenerateMode;
+  mode?: PlanGenerateMode | undefined;
   /** Rebuild every level even when the stored plan is still current. */
-  force?: boolean;
+  force?: boolean | undefined;
   /** The client is after 18:00, so tomorrow's session is wanted. */
-  includeTomorrow?: boolean;
+  includeTomorrow?: boolean | undefined;
   /**
    * Revise the week around a new input. Today's stored session is preserved
    * unless an activity was already recorded today, in which case today's plan
    * is refreshed to add a short completion note to the planned workout.
    */
-  keepToday?: boolean;
+  keepToday?: boolean | undefined;
   /** Stores the coach's FTP estimates from a generated plan, when supplied. */
   recordFtpEstimates?: (plan: CoachPlan) => Promise<void>;
   /** Stores the body-composition points the coach found, when supplied. */

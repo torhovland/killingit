@@ -144,7 +144,7 @@ export async function captureEndedPeriodReviews(
   const captured = await input.capturePeriodReviews({
     userId: input.userId,
     today,
-    ...(timezone !== undefined ? { timezone } : {}),
+    timezone,
     plan: input.plan.plan,
     provider: context.provider,
     apiKey: context.apiKey,
@@ -154,12 +154,10 @@ export async function captureEndedPeriodReviews(
     manualActivities: context.manualActivities,
     activityComments: context.activityComments,
     weeklyNote: context.weeklyNote,
-    ...(context.dailyHealth !== undefined
-      ? { dailyHealth: context.dailyHealth }
-      : {}),
-    ...(context.events !== undefined ? { events: context.events } : {}),
-    ...(context.diet !== undefined ? { diet: context.diet } : {}),
-    ...(input.signal !== undefined ? { signal: input.signal } : {}),
+    dailyHealth: context.dailyHealth,
+    events: context.events,
+    diet: context.diet,
+    signal: input.signal,
   });
   await ensureGenerationCurrent(input);
   if (captured === undefined || captured.length === 0) {

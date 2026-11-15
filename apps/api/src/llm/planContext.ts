@@ -64,48 +64,49 @@ export interface PlanContextInput {
   athleteAnswers: readonly AthleteAnswerContext[];
   recentActivities: readonly RecentActivityContext[];
   today: string;
-  timezone?: string;
-  manualActivities?: readonly ManualActivityContext[];
-  activityComments?: readonly ActivityCommentContext[];
-  weeklyNote?: string | null;
+  timezone?: string | undefined;
+  manualActivities?: readonly ManualActivityContext[] | undefined;
+  activityComments?: readonly ActivityCommentContext[] | undefined;
+  weeklyNote?: string | null | undefined;
   /** The Monday of the week the current note belongs to. */
-  weeklyNoteWeekStartDate?: string | null;
+  weeklyNoteWeekStartDate?: string | null | undefined;
   /** The coach's reply to the current week's note. */
-  weeklyNoteReply?: string | null;
+  weeklyNoteReply?: string | null | undefined;
   /** Coach reviews of completed weeks and blocks, with athlete feedback. */
-  periodReviews?: readonly PeriodReviewContext[];
+  periodReviews?: readonly PeriodReviewContext[] | undefined;
   /** Daily forecast for the athlete's location, when one has been set. */
-  forecast?: readonly DailyWeather[];
+  forecast?: readonly DailyWeather[] | undefined;
   /** The location label for the forecast, if the athlete named one. */
-  locationName?: string | null;
+  locationName?: string | null | undefined;
   /** The FTP stated in the athlete's profile, when they gave one. */
-  athleteFtpWatts?: number | null;
+  athleteFtpWatts?: number | null | undefined;
   /** The stored FTP threshold history, oldest first, including coach estimates. */
-  ftpHistory?: readonly Pick<MetricPoint, "date" | "value" | "source">[];
+  ftpHistory?:
+    readonly Pick<MetricPoint, "date" | "value" | "source">[] | undefined;
   /** Every threshold measure in effect today, across all sports. */
-  thresholds?: readonly ThresholdSummary[];
+  thresholds?: readonly ThresholdSummary[] | undefined;
   /** The stored body weight and body-fat series, oldest first. */
   bodyHistory?: BodyMetricHistory | undefined;
   /** Stored daily sleep, HRV, readiness and related values for the prompt. */
-  dailyHealth?: readonly DailyHealthPoint[];
+  dailyHealth?: readonly DailyHealthPoint[] | undefined;
   /** The coach's current diet goal and weight-trend assessment. */
-  dietGoal?: DietPlan | null;
+  dietGoal?: DietPlan | null | undefined;
   /** Whether the athlete has enabled diet advice. */
-  dietAdvice?: boolean;
+  dietAdvice?: boolean | undefined;
   /** The coach's earlier calorie targets for recent days, newest first. */
-  calorieHistory?: readonly CalorieTargetPoint[];
+  calorieHistory?: readonly CalorieTargetPoint[] | undefined;
   /** The athlete's fitness snapshot for today, when one has been calculated. */
-  currentForm?: TrainingLoad | null;
+  currentForm?: TrainingLoad | null | undefined;
   /**
    * Dated goals and events the athlete stated, so the coach plans around a race,
    * a trip or a dated target instead of treating the week as empty.
    */
-  events?: readonly AthleteEvent[];
+  events?: readonly AthleteEvent[] | undefined;
   /**
    * The meals from the last seven days and the completed-week nutrition
    * summaries, when the athlete wants diet advice and has logged food.
    */
-  diet?: DietPromptContext;
+  diet?: DietPromptContext | undefined;
 }
 
 /**

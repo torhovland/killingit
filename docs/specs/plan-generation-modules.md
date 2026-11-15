@@ -57,8 +57,22 @@ covered all of them in one run.
   contract are unchanged.
 - Renaming the existing pure `plans/revision.ts` merge helpers.
 
+## Optional prompt context
+
+Every prompt field that may be absent is typed `T | undefined` — on
+`PlanGenerationContext`, `GeneratePlanInput`, `PlanContextInput` and
+`CapturePeriodReviewsInput` — and forwarded as-is. The prompt context is one
+plain object shape rather than a different set of keys per run: the formatter
+decides what to omit, so `baseContext`, `captureEndedPeriodReviews` and
+`runPlanGeneration` contain no `...(value !== undefined ? { value } : {})`.
+`promptContext.test.ts` guards the rule in `AGENTS.md`, and the formatter treats
+an explicit `undefined` exactly like an absent field. See
+`docs/specs/plan-input-loading.md`.
+
 ## Acceptance criteria
 
 1. `runPlanGeneration` is a short orchestrator in `plans/generate.ts`.
 2. Every extracted module has one responsibility and no behaviour change.
-3. Typecheck, lint, format, unused-export check and the full test suite pass.
+3. Optional prompt context is typed `T | undefined` and forwarded instead of
+   conditionally spread.
+4. Typecheck, lint, format, unused-export check and the full test suite pass.

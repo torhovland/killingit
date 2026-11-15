@@ -43,7 +43,7 @@ export interface PlanUpdateCredentials {
   apiKey: string;
   model: string;
   /** Cancels the completion when a newer coach run starts. */
-  signal?: AbortSignal;
+  signal?: AbortSignal | undefined;
 }
 
 interface DatedWeek {
