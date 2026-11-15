@@ -58,11 +58,20 @@ covered all of them in one run.
     owns the athlete-reading decision and its post-reading fence;
     `buildPlanContext` is the one mapping from the loaded and advisory inputs to
     `PlanGenerationContext`.
-15. `plans/trigger.ts` keeps the debounce, the background start, the heartbeat
-    and a short `runPlanForUser`: load, fence, read the athlete's text, load the
-    advisory inputs, wait for a newer analysis, and run generation. Both fences
-    go through `ensureGenerationCurrent`; ESLint rejects a direct
+15. `plans/trigger.ts` keeps the background start, the heartbeat and a short
+    `runPlanForUser`: load, fence, read the athlete's text, load the advisory
+    inputs, wait for a newer analysis, and run generation. Both fences go
+    through `ensureGenerationCurrent`; ESLint rejects a direct
     `generations.isCurrent` call anywhere under `plans/`.
+16. `plans/triggerDebounce.ts` owns the trigger debounce and coalescing:
+    `PLAN_TRIGGER_DEBOUNCE_MS`, the pending per-account starts and the last
+    trigger time, in a `PlanTriggerDebounce` class. `plans/trigger.ts` keeps
+    the one process-local instance and schedules through it; a test constructs
+    its own. First trigger immediate, a trigger inside the window replaces the
+    one, explicit new-season, update-season and forced runs wait zero, the
+    timer is `unref`'d, and the window arrives on every call so
+    `deps.planTriggerDebounceMs` still applies. The state stays process-local
+    (ADR 0014); the database run id remains the cross-instance fence.
 
 ### Out of scope
 
@@ -93,3 +102,6 @@ an explicit `undefined` exactly like an absent field. See
    inputs, analysis wait — and the prompt context is assembled by one tested
    `buildPlanContext`.
 5. Typecheck, lint, format, unused-export check and the full test suite pass.
+   `triggerDebounce.test.ts` covers the immediate first start, replacement
+   inside the window, the explicit modes and the per-call window; `trigger.test.ts`
+   keeps covering a whole plan run.

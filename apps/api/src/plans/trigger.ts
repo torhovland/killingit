@@ -13,7 +13,6 @@ import type { PlanGenerateMode } from "@killingit/shared";
 import type { QuestionAnswerStore } from "../questions/answers.js";
 import type { CoachingSurveyAdjustmentStore } from "../questions/adjustments.js";
 import type { UserStore } from "../users/store.js";
-import { RecentTimestampMap } from "../lib/boundedMap.js";
 import { isAfterPlanTomorrowCutoff } from "./dates.js";
 import {
   clearPendingCoachQuestions,
@@ -37,6 +36,10 @@ import { loadPlanInputs, type PlanInputDependencies } from "./planInputs.js";
 import type { CoachingInputs } from "./inputs.js";
 import { claimRun, releaseRun } from "./runs.js";
 import type { PlanGenerationStore, PlanStore } from "./store.js";
+import {
+  PLAN_TRIGGER_DEBOUNCE_MS,
+  PlanTriggerDebounce,
+} from "./triggerDebounce.js";
 
 /**
  * The stores and injectable functions one plan run reads. The advisory loaders
@@ -93,39 +96,16 @@ export interface PlanRunOptions {
 }
 
 /**
- * Rapid auto triggers are coalesced for this long. A first trigger starts
- * immediately; a second one inside the window replaces it and starts when the
- * window closes, so saving several inputs in a row does not pay for several
- * aborted plan completions.
+ * The one process-local debounce state every trigger in this process
+ * schedules through. See `docs/specs/coach-run-cancellation.md`.
  */
-const PLAN_TRIGGER_DEBOUNCE_MS = 1_500;
-
-interface PendingPlanStart {
-  timer: ReturnType<typeof setTimeout>;
-  run: { runId: string; signal: AbortSignal };
-  deps: PlanTriggerDependencies;
-  options: PlanRunOptions;
-}
-
-/**
- * Triggers waiting for their debounce window to close. A timer removes its own
- * entry, and a newer trigger replaces an older one, so the map only holds
- * accounts triggered inside the current window. It is process-local: a second
- * instance debounces its own requests but shares the database run fence.
- */
-const pendingStarts = new Map<number, PendingPlanStart>();
-
-/**
- * The last trigger time per account, pruned to the current debounce window.
- * An older time cannot affect a wait calculation, so it is dropped instead of
- * kept for every account that ever generated a plan. Process-local: on
- * scale-out each instance debounces the requests it happens to receive.
- */
-const lastTriggerAt = new RecentTimestampMap();
+const planTriggerDebounce = new PlanTriggerDebounce();
 
 /**
  * Starts a plan generation in the background. The newest request always owns
  * the run: an older run is aborted and its writes are fenced by the run id.
+ * Rapid auto triggers are coalesced by `planTriggerDebounce` before the
+ * background work starts.
  */
 export async function triggerPlanGeneration(
   deps: PlanTriggerDependencies,
@@ -141,37 +121,19 @@ export async function triggerPlanGeneration(
     throw err;
   }
 
-  const pending = pendingStarts.get(options.userId);
-  if (pending !== undefined) {
-    clearTimeout(pending.timer);
-    pendingStarts.delete(options.userId);
-  }
-
-  const now = Date.now();
-  const explicit =
-    options.mode === "newSeason" ||
-    options.mode === "updateSeason" ||
-    options.force === true;
-  const debounceMs = deps.planTriggerDebounceMs ?? PLAN_TRIGGER_DEBOUNCE_MS;
-  const previousAt = lastTriggerAt.record(options.userId, now, debounceMs);
-  const waitMs =
-    explicit || previousAt === null
-      ? 0
-      : Math.max(0, debounceMs - (now - previousAt));
-
-  if (waitMs === 0) {
-    startBackgroundPlan(deps, options, run);
-    return true;
-  }
-
-  const timer = setTimeout(() => {
-    pendingStarts.delete(options.userId);
-    if (!run.signal.aborted) {
-      startBackgroundPlan(deps, options, run);
-    }
-  }, waitMs);
-  timer.unref();
-  pendingStarts.set(options.userId, { timer, run, deps, options });
+  planTriggerDebounce.schedule(
+    options.userId,
+    {
+      mode: options.mode,
+      force: options.force,
+      windowMs: deps.planTriggerDebounceMs ?? PLAN_TRIGGER_DEBOUNCE_MS,
+    },
+    () => {
+      if (!run.signal.aborted) {
+        startBackgroundPlan(deps, options, run);
+      }
+    },
+  );
   return true;
 }
 

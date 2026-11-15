@@ -74,11 +74,15 @@ stale write.
   newer run replaces it, a settled run releases it, and a run whose generation
   row could not be claimed is released before the trigger throws, so the map is
   bounded by the runs in flight.
-- `pendingStarts` (`apps/api/src/plans/trigger.ts`) only holds triggers waiting
-  for their debounce timer, and the timer removes its own entry.
-- `lastTriggerAt` is a `RecentTimestampMap` that prunes every time outside the
-  current debounce window, so it holds only the accounts triggered inside that
-  window instead of every account that ever generated a plan.
+- `PlanTriggerDebounce` (`apps/api/src/plans/triggerDebounce.ts`) holds the
+  coalescing state. `pendingStarts` only holds triggers waiting for their
+  debounce timer, and the timer removes its own entry; `lastTriggerAt` is a
+  `RecentTimestampMap` that prunes every time outside the current debounce
+  window, so it holds only the accounts triggered inside that window instead of
+  every account that ever generated a plan. It is a class so a test owns an
+  isolated instance while production keeps one instance in `plans/trigger.ts`;
+  the window is a per-call input, so the injected
+  `deps.planTriggerDebounceMs` still applies.
 - `reportedInvalidPlans` (`apps/api/src/plans/store.ts`) keeps the newest 256
   user-and-save-time keys. A corrupt row that is still read after its key was
   evicted is reported once more, which trades bounded repeat logging for bounded

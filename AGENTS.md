@@ -249,6 +249,12 @@ through a disciplined process:
   syncing, and it assembles the `PlanGenerationContext` every plan prompt reads.
   See `docs/specs/api-dependency-wiring.md`,
   `docs/specs/plan-input-loading.md` and ADR 0023.
+- **Keep plan-trigger debounce state in its class.** The coalescing state lives
+  in `PlanTriggerDebounce` (`apps/api/src/plans/triggerDebounce.ts`), not in
+  module globals, and production keeps one instance in `plans/trigger.ts` while
+  a test constructs its own. Pass the window on every call so
+  `deps.planTriggerDebounceMs` still applies, and keep the state process-local:
+  the database run id is the cross-instance fence (ADR 0014).
 - **Keep exported constants above exported functions.** Top-level `export const`
   declarations come before `export function` and `export default function`
   declarations, enforced by the `local/consts-before-functions` ESLint rule. A
