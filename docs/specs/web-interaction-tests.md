@@ -38,15 +38,24 @@ save queues, polling and dialogs were only reachable through the e2e suite.
    header spinner source, `reload`, a `null` path and a signed-out session
    skipping the request, a superseded path whose late response is dropped, and
    an unmount that aborts the in-flight request without surfacing an error.
-6. A conversion rule for new tests: render the component and query it by role
+6. Interaction tests for the plan generation layer: `CoachPlanSection` loads,
+   retries a failed read, reloads on `refreshKey`, tracks a server run, starts
+   for a stale plan only when setup is ready, queues a follow-up run when
+   answers change mid-run and shows a stored generation error; the
+   `PlanGenerationProvider` itself polls a started run to a terminal state,
+   never commits a run superseded by an account change, tracks an
+   already-running server run, and surfaces a failed status read.
+7. A conversion rule for new tests: render the component and query it by role
    or test id; use `renderToStaticMarkup` only for assertions about the exact
    server-rendered markup, such as a class list or attribute order.
 
 ### Out of scope
 
-- Covering every remaining untested component. The 40 file names in the issue
-  are the backlog; this change installs the harness and proves it on the
-  highest-risk layer.
+- Covering every remaining untested component. Apart from `ThresholdChart`,
+  which is left for its own change, the fitness charts have sibling tests;
+  `CalendarEntryDialog` is covered too. The remaining untested components are
+  the backlog, and `DayCard`/`WeekSection` stay covered indirectly through the
+  `CoachPlanView.*.test.tsx` files.
 - Removing the Playwright journeys. They still own real-browser behaviour such
   as navigation, the PWA shell and the Auth0 redirect.
 - A test for browser layout or CSS. Happy DOM has no layout engine.
@@ -78,12 +87,24 @@ so a test can mount signed out. The same applies to any other process-global
 `apps/web/src/mockIsolation.test.ts` fails when any suite in the web test tree
 registers `mock.module` without that restore.
 
+Bun applies a module mock to the whole test process, including files loaded
+after the registering suite, and `mock.restore()` does not undo it for those
+late imports. A suite that stubs a module another suite exercises therefore
+delegates to the real hook whenever its own tests are not running:
+`PlanRegenerationButtons` keeps its controlled `usePlanGeneration` only for its
+own tests, so `CoachPlanSection` and `PlanGenerationProvider` still reach the
+provider's real context.
+
 ## Acceptance criteria
 
 - A component test can click, type and wait for an effect's result.
 - Escape, backdrop close, focus trap and focus restore are unit tested.
 - A superseded and an unmounted `useApiResource` request never commit state and
   never surface an error.
+- The plan section's initial load, failed read and retry, `refreshKey` reload
+  and generation decisions are interaction tested.
+- The plan generation provider polls a started run to a terminal state, does not
+  commit a superseded run, tracks an already-running run and reports failures.
 - `bun run typecheck`, `bun run lint`, `bun run format`, `bun run test`,
   `bun run test:coverage` and `bun run check:unused` pass.
 

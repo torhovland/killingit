@@ -47,18 +47,33 @@ interface Generation {
 
 let generation: Generation;
 
+/**
+ * Whether this suite's controlled generation replaces the real hook. Other
+ * suites load after this file and must see the real provider, so the stub only
+ * applies while this suite's own tests are running.
+ */
+let useControlledGeneration = false;
+
 // Stub only the hook and keep the provider export, which other suites render.
 const realPlanGenerationProvider = await import("./PlanGenerationProvider");
+// Capture the function itself: the module namespace is live, so reading
+// `realPlanGenerationProvider.usePlanGeneration` after the mock would recurse.
+const realUsePlanGeneration = realPlanGenerationProvider.usePlanGeneration;
 
 await mock.module("./PlanGenerationProvider", () => ({
   ...realPlanGenerationProvider,
-  usePlanGeneration: () => ({
-    ...generation,
-    progress: null,
-    latest: null,
-    revision: 0,
-    error: null,
-  }),
+  usePlanGeneration: () => {
+    if (!useControlledGeneration) {
+      return realUsePlanGeneration();
+    }
+    return {
+      ...generation,
+      progress: null,
+      latest: null,
+      revision: 0,
+      error: null,
+    };
+  },
 }));
 
 const { PlanRegenerationButtons } = await import("./PlanRegenerationButtons");
@@ -216,6 +231,7 @@ const done: PlanGenerationOutcome = {
 
 beforeEach(() => {
   setSystemTime(new Date("2026-11-15T12:00:00Z"));
+  useControlledGeneration = true;
   generation = {
     running: false,
     mode: null,
@@ -225,6 +241,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  useControlledGeneration = false;
   globalThis.fetch = originalFetch;
   setSystemTime();
 });
