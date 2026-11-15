@@ -103,6 +103,12 @@ One latest reply per athlete input:
 - `PUT /api/coaching/activities/:id/comments` accepts the same body. It edits the
   existing comment, regenerates the single coach reply, and returns
   `{ message, reply }`; it returns `404` when the activity has no comment.
+- The comment and manual-activity handlers have one `create` and one `update`
+  entry point, so a create never receives an id and an update always does. Both
+  share one private tail that generates the reply, starts the run and builds
+  `{ message, reply }`.
+- An omitted `timezone` in any coaching input body falls back to the account's
+  stored zone, like the query parameter on the read routes.
 - `GET /api/coaching/weekly/notes` returns `{ note, reply }`;
   `POST` returns `{ message, reply }`.
 - `GET /api/coaching/activities/manual` returns each activity with its

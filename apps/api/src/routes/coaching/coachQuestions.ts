@@ -31,6 +31,9 @@ export function createCoachQuestionHandlers(
 
     async answer(c: Context, id: number, input: CoachQuestionAnswer) {
       const user = getUser(c);
+      // The request's zone (the device zone when the athlete has not stored
+      // one) wins; the stored setting is the fallback for another client.
+      const timeZone = input.timezone ?? user.timezone ?? undefined;
       const question = await deps.loadQuestion(user.id, id);
       if (question === null) {
         return notFound(c, "Question not found");
@@ -65,22 +68,14 @@ export function createCoachQuestionHandlers(
       await deps.startRun(deps.coachRunDeps, {
         userId: user.id,
         today: input.today,
-        ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),
+        ...(timeZone !== undefined ? { timezone: timeZone } : {}),
         reply: true,
       });
 
       return c.json(
         coachingInputSaveResponseSchema.parse({
           message: "Answer saved",
-          reply:
-            reply === null
-              ? null
-              : {
-                  text: reply.text,
-                  model: reply.model,
-                  generatedAt: reply.generatedAt.toISOString(),
-                  planChangeNeeded: reply.planChangeNeeded,
-                },
+          reply: reply === null ? null : toCoachAnalysis(reply),
         }),
       );
     },

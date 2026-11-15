@@ -14,6 +14,7 @@ import {
 } from "../../training/activityLoad.js";
 import { toCoachAnalysis } from "../../plans/replies.js";
 import { ftpBaselineAt, ftpTimeline } from "../../training/thresholds.js";
+import type { StoredUser } from "../../users/store.js";
 import { replyTo, type ResolvedCoachingDependencies } from "./dependencies.js";
 
 /** Athlete-logged activities, with their coach replies and training load. */
@@ -57,59 +58,28 @@ export function createManualActivityHandlers(
     }
   }
 
-  /** Saves a new entry or updates an existing one, then asks the coach about it. */
-  async function save(
+  /**
+   * Replies to the saved entry, starts the run its reply asks for, and returns
+   * the save response. Creating and updating share this tail, so the reply
+   * contract cannot drift between them.
+   */
+  async function replyAfterSave(
     c: Context,
-    mode: "create" | "edit",
-    id: number | undefined,
+    user: StoredUser,
     input: ManualActivityRequest,
+    activityId: number,
+    message: string,
   ) {
-    const user = getUser(c);
-
-    const { today, timezone, ...activity } = input;
+    const { today, startDate, details } = input;
     // The request's zone (the device zone when the athlete has not stored one)
     // wins; the stored setting is the fallback for another client.
-    const timeZone = timezone ?? user.timezone ?? undefined;
-
-    let activityId: number;
-    if (id === undefined) {
-      const estimatedTss = await estimateManualTss(
-        user.id,
-        activity.startDate,
-        activity.details,
-      );
-      activityId = await deps.saveManual(user.id, {
-        ...activity,
-        estimatedTss,
-      });
-    } else {
-      // The update doubles as the existence check, so a missing or foreign id
-      // is refused before the coach is billed for an estimate. The entry is
-      // left unscored until the new estimate is stored, rather than keeping an
-      // estimate that describes the text it just replaced.
-      const updated = await deps.updateManual(user.id, id, {
-        ...activity,
-        estimatedTss: null,
-      });
-      if (!updated) {
-        return notFound(c, "Manual activity not found");
-      }
-      const estimatedTss = await estimateManualTss(
-        user.id,
-        activity.startDate,
-        activity.details,
-      );
-      if (estimatedTss !== null) {
-        await deps.updateManualTss(user.id, id, estimatedTss);
-      }
-      activityId = id;
-    }
+    const timeZone = input.timezone ?? user.timezone ?? undefined;
 
     const coachReply = await replyTo(deps, user.id, today, timeZone, {
       kind: "manual_activity",
       manualActivityId: activityId,
-      startDate: activity.startDate,
-      details: activity.details,
+      startDate,
+      details,
     });
 
     // The run reads the entry and settles today's plan; the reply's flag
@@ -118,17 +88,11 @@ export function createManualActivityHandlers(
       userId: user.id,
       today,
       ...(timeZone !== undefined ? { timezone: timeZone } : {}),
-      keepToday: activity.startDate === today,
+      keepToday: startDate === today,
     });
 
     return c.json(
-      coachingInputSaveResponseSchema.parse({
-        message:
-          mode === "create"
-            ? "Manual activity saved"
-            : "Manual activity updated",
-        reply: coachReply,
-      }),
+      coachingInputSaveResponseSchema.parse({ message, reply: coachReply }),
     );
   }
 
@@ -191,7 +155,48 @@ export function createManualActivityHandlers(
         }),
       );
     },
-    save,
+    /** Saves the athlete's new entry and asks the coach about it. */
+    async create(c: Context, input: ManualActivityRequest) {
+      const user = getUser(c);
+      const { startDate, details } = input;
+      const estimatedTss = await estimateManualTss(user.id, startDate, details);
+      const activityId = await deps.saveManual(user.id, {
+        startDate,
+        details,
+        estimatedTss,
+      });
+      return replyAfterSave(
+        c,
+        user,
+        input,
+        activityId,
+        "Manual activity saved",
+      );
+    },
+    /**
+     * Updates an existing entry and asks the coach about it. The update doubles
+     * as the existence check, so a missing or foreign id is refused before the
+     * coach is billed for an estimate. The entry is left unscored until the new
+     * estimate is stored, rather than keeping an estimate that describes the
+     * text it just replaced.
+     */
+    async update(c: Context, id: number, input: ManualActivityRequest) {
+      const user = getUser(c);
+      const { startDate, details } = input;
+      const updated = await deps.updateManual(user.id, id, {
+        startDate,
+        details,
+        estimatedTss: null,
+      });
+      if (!updated) {
+        return notFound(c, "Manual activity not found");
+      }
+      const estimatedTss = await estimateManualTss(user.id, startDate, details);
+      if (estimatedTss !== null) {
+        await deps.updateManualTss(user.id, id, estimatedTss);
+      }
+      return replyAfterSave(c, user, input, id, "Manual activity updated");
+    },
     remove,
   };
 }
