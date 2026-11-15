@@ -23,18 +23,23 @@ def test_date_window_returns_plain_dates():
     now = datetime(2026, 10, 20, 15, 30, tzinfo=UTC)
     start, end = date_window(now)
     assert end == "2026-10-20"
-    assert start == "2026-09-08"
-    assert (
-        datetime.fromisoformat(end).date() - datetime.fromisoformat(start).date()
-    ).days == SYNC_WINDOW_DAYS
+    assert start == "2026-09-09"
+    # Both ends are inclusive, so the window holds exactly SYNC_WINDOW_DAYS dates.
+    first = datetime.fromisoformat(start).date()
+    dates = [first + timedelta(days=offset) for offset in range(SYNC_WINDOW_DAYS)]
+    assert dates[0].isoformat() == start
+    assert dates[-1].isoformat() == end
+    assert len(dates) == SYNC_WINDOW_DAYS
 
 
-def test_date_window_defaults_to_now():
+def test_date_window_defaults_to_today():
     start, end = date_window()
     assert len(start) == 10 and start[4] == "-" and start[7] == "-"
     assert len(end) == 10 and end[4] == "-" and end[7] == "-"
-    span = datetime.fromisoformat(end).date() - datetime.fromisoformat(start).date()
-    assert span == timedelta(days=SYNC_WINDOW_DAYS)
+    today = datetime.now(UTC).date()
+    assert end == today.isoformat()
+    span = today - datetime.fromisoformat(start).date()
+    assert span == timedelta(days=SYNC_WINDOW_DAYS - 1)
 
 
 def test_metric_date_reads_calendar_date_and_epoch():

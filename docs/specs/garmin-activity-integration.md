@@ -224,7 +224,8 @@ one swappable corner, and normalizes Garmin activities into the shared
   A first login can still log transient `429`s from individual library
   strategies before a later strategy succeeds.
 - **Plain `YYYY-MM-DD` dates.** `get_activities_by_date` rejects ISO
-  timestamps; the window is formatted as dates (`_date_window`).
+  timestamps; the window is formatted as dates (`date_window`), holding exactly
+  `SYNC_WINDOW_DAYS` (42) inclusive calendar dates that end today.
 - **Honest error mapping.** The sidecar maps failures to `401` (bad
   credentials), `403` (MFA required, unsupported), `429` (Garmin rate limit),
   and `502` (upstream). The Bun routes pass those through instead of collapsing
