@@ -30,6 +30,7 @@ import { SignInPage } from "./SignInPage";
 import { panelWidthClass, surveyGate } from "./surveyGate";
 import { TimeZoneProvider } from "./TimeZoneContext";
 import { Button } from "./components/Button";
+import { Menu } from "./components/Menu";
 import { cn } from "./components/cn";
 
 export function App() {
@@ -189,6 +190,7 @@ function AppShell() {
                   picture={auth.picture}
                   isAdmin={isAdmin}
                   status={status}
+                  currentPage={page}
                   onNavigate={navigate}
                   onSignOut={() => void auth.logout()}
                 />
@@ -271,6 +273,7 @@ function UserMenu({
   picture,
   isAdmin,
   status,
+  currentPage,
   onNavigate,
   onSignOut,
 }: {
@@ -278,9 +281,11 @@ function UserMenu({
   picture?: string | null | undefined;
   isAdmin: boolean;
   status: "idle" | "loading" | "syncing" | "thinking";
+  currentPage: Page;
   onNavigate: (page: Page) => void;
   onSignOut: () => void;
 }) {
+  const [open, setOpen] = useState(false);
   const name = firstName?.trim() || "Athlete";
   const label =
     status === "thinking"
@@ -291,91 +296,87 @@ function UserMenu({
           ? "Loading"
           : null;
 
-  function choose(page: Page, event: React.MouseEvent<HTMLButtonElement>) {
-    closeMenu(event);
+  function choose(page: Page): void {
+    setOpen(false);
     onNavigate(page);
   }
 
-  function signOut(event: React.MouseEvent<HTMLButtonElement>) {
-    closeMenu(event);
+  function signOut(): void {
+    setOpen(false);
     onSignOut();
   }
 
   return (
-    <details className="relative" data-testid="user-menu">
-      <summary
-        className="flex cursor-pointer list-none items-center gap-2 rounded border bg-card px-2 py-1.5 text-base hover:bg-muted [&::-webkit-details-marker]:hidden"
-        aria-label="Open account menu"
-        title="Menu"
-      >
-        <svg
-          aria-hidden="true"
-          viewBox="0 0 24 24"
-          className="size-5"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-        >
-          <path d="M4 6h16M4 12h16M4 18h16" />
-        </svg>
-        {picture ? (
-          <img
-            src={picture}
-            alt=""
-            className="size-7 rounded-full object-cover"
-          />
-        ) : (
-          <span className="flex size-7 items-center justify-center rounded-full bg-accent text-sm font-medium text-accent-foreground">
-            {name.slice(0, 1).toUpperCase()}
-          </span>
-        )}
-        <span className="hidden font-medium sm:inline">{name}</span>
-        {isAdmin && (
-          <span className="hidden rounded border border-transparent bg-accent px-2 py-0.5 text-sm text-accent-foreground sm:inline">
-            Admin
-          </span>
-        )}
-        {label && (
-          <span
-            className="inline-flex size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-            role="status"
-            aria-label={label}
-            title={label}
-            data-testid="header-spinner"
-            data-state={status}
-          />
-        )}
-      </summary>
-      <nav
-        className="absolute right-0 z-10 mt-1 flex min-w-48 flex-col rounded border bg-card p-1 text-base shadow-lg"
-        aria-label="Account"
-      >
-        {PAGES.filter((entry) => entry !== "admin" || isAdmin).map((entry) => (
-          <Button
-            key={entry}
-            type="button"
-            variant="ghost"
-            size="menu"
-            onClick={(event) => choose(entry, event)}
+    <Menu
+      label="Account menu"
+      panelLabel="Account"
+      open={open}
+      onOpenChange={setOpen}
+      testId="user-menu"
+      trigger={
+        <>
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            className="size-5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
           >
-            {pageLabel(entry)}
-          </Button>
-        ))}
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+          {picture ? (
+            <img
+              src={picture}
+              alt=""
+              className="size-7 rounded-full object-cover"
+            />
+          ) : (
+            <span className="flex size-7 items-center justify-center rounded-full bg-accent text-sm font-medium text-accent-foreground">
+              {name.slice(0, 1).toUpperCase()}
+            </span>
+          )}
+          <span className="hidden font-medium sm:inline">{name}</span>
+          {isAdmin && (
+            <span className="hidden rounded border border-transparent bg-accent px-2 py-0.5 text-sm text-accent-foreground sm:inline">
+              Admin
+            </span>
+          )}
+          {label && (
+            <span
+              className="inline-flex size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+              role="status"
+              aria-label={label}
+              title={label}
+              data-testid="header-spinner"
+              data-state={status}
+            />
+          )}
+        </>
+      }
+    >
+      {PAGES.filter((entry) => entry !== "admin" || isAdmin).map((entry) => (
         <Button
+          key={entry}
           type="button"
           variant="ghost"
           size="menu"
-          className="text-destructive"
-          onClick={signOut}
+          aria-current={entry === currentPage ? "page" : undefined}
+          onClick={() => choose(entry)}
         >
-          Sign out
+          {pageLabel(entry)}
         </Button>
-      </nav>
-    </details>
+      ))}
+      <Button
+        type="button"
+        variant="ghost"
+        size="menu"
+        className="text-destructive"
+        onClick={signOut}
+      >
+        Sign out
+      </Button>
+    </Menu>
   );
-}
-
-function closeMenu(event: React.MouseEvent<HTMLButtonElement>): void {
-  event.currentTarget.closest("details")?.removeAttribute("open");
 }

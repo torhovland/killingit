@@ -12,7 +12,7 @@ import {
   type SyncDailyTransport,
 } from "./client.js";
 
-/** The same history window as the activity sync. */
+/** The same inclusive history window as the activity sync. */
 export const GARMIN_DAILY_SYNC_WINDOW_DAYS = 42;
 /** Today and yesterday are fetched again because they can still change. */
 const GARMIN_DAILY_REFRESH_DAYS = 2;
@@ -22,6 +22,7 @@ export interface DailySyncOptions {
   credentials: GarminCredentials;
   /** The athlete's local calendar date. */
   today: string;
+  /** Number of dates in the inclusive window, counting today. */
   windowDays?: number;
   refreshDays?: number;
 }
@@ -83,7 +84,9 @@ export async function syncGarminDailyHistory(
 
   const windowDays = options.windowDays ?? GARMIN_DAILY_SYNC_WINDOW_DAYS;
   const refreshDays = options.refreshDays ?? GARMIN_DAILY_REFRESH_DAYS;
-  const windowStart = addDays(options.today, -windowDays);
+  // The window is inclusive of today, so its first date is one day short of
+  // the full span: 42 days means today plus the 41 days before it.
+  const windowStart = addDays(options.today, -(windowDays - 1));
 
   let synced: Set<string>;
   try {

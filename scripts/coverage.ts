@@ -79,10 +79,11 @@ export const COVERAGE_EXCLUDES = [
 ] as const;
 
 /**
- * The baseline measured on 2026-11-12 with Bun 1.4.4, the version pinned in
- * the CI test job, and floored to a whole percent. Line and function counts
- * change between Bun releases, so re-measure when the pin moves. Raise a
- * threshold when coverage improves; never lower one without a good reason.
+ * The baseline measured on 2026-11-12 with the Bun release pinned in
+ * `.bun-version` and installed by every CI and deploy job, and floored to a
+ * whole percent. Line and function counts change between Bun releases, so
+ * re-measure when the pin moves. Raise a threshold when coverage improves;
+ * never lower one without a good reason.
  *
  * The api floor fell from 73/78 to 72/77 when the benchmark harness and its
  * tests moved to `tools/benchmark` (ADR 0032): the well-covered

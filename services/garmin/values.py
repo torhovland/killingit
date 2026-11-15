@@ -12,7 +12,7 @@ import math
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-# Number of days of history to sync (inclusive window ending today). This
+# Number of days of history to sync, as an inclusive window ending today. This
 # matches the chronic-training-load window used by the plan's ATL/CTL numbers.
 SYNC_WINDOW_DAYS = 42
 
@@ -20,10 +20,12 @@ SYNC_WINDOW_DAYS = 42
 def date_window(now: datetime | None = None) -> tuple[str, str]:
     """Return the inclusive (start, end) dates for the sync window, YYYY-MM-DD.
 
-    `get_activities_by_date` requires plain dates, not ISO timestamps.
+    Both ends are inclusive, so the window holds exactly `SYNC_WINDOW_DAYS`
+    dates ending today. `get_activities_by_date` requires plain dates, not ISO
+    timestamps.
     """
     end = (now or datetime.now(UTC)).date()
-    start = end - timedelta(days=SYNC_WINDOW_DAYS)
+    start = end - timedelta(days=SYNC_WINDOW_DAYS - 1)
     return start.isoformat(), end.isoformat()
 
 

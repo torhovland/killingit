@@ -23,7 +23,7 @@ describe("ManualActivityList", () => {
         <ManualActivityList
           activities={[]}
           onEdit={() => {}}
-          onDelete={() => Promise.resolve()}
+          onDelete={() => {}}
         />,
       ),
     ).toBe("");
@@ -34,7 +34,7 @@ describe("ManualActivityList", () => {
       <ManualActivityList
         activities={[activity]}
         onEdit={() => {}}
-        onDelete={() => Promise.resolve()}
+        onDelete={() => {}}
       />,
     );
 

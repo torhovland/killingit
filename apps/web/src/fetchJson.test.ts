@@ -50,7 +50,7 @@ describe("fetchJson", () => {
 
     let thrown: unknown;
     try {
-      await fetchJson<unknown>("http://api/greet?name=athlete");
+      await fetchJson<unknown>("http://api/health");
     } catch (e) {
       thrown = e;
     }
@@ -92,7 +92,7 @@ describe("fetchJson", () => {
 
     let thrown: unknown;
     try {
-      await fetchJson<unknown>("http://api/greet");
+      await fetchJson<unknown>("http://api/health");
     } catch (e) {
       thrown = e;
     }

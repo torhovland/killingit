@@ -89,12 +89,14 @@ and slicing the feed. Plan generation uses the same filtered feed.
 ## UI
 
 - `ActivityCard` gets an optional `onDelete` handler and renders a Delete button
-  only when it is supplied. The card confirms, shows a busy state, and surfaces
-  an error if the request fails.
+  only when it is supplied. The card opens a `ConfirmDialog`, shows the busy
+  state on its action, and keeps a failure message inside the dialog.
 - `useActivityFeed` removes a deleted imported activity from local state.
-- `useManualActivities` deletes a manual entry, clears it from the form when it
-  was being edited, and asks the page to reload the activity feed so the day's
-  training load is rebuilt.
+- `useManualActivities` exposes the manual entry waiting for confirmation and
+  its confirm/cancel handlers; it deletes only the confirmed entry, clears it
+  from the form when it was being edited, and asks the page to reload the
+  activity feed so the day's training load is rebuilt. The hook cannot render
+  the dialog, so `ActivitiesPage` renders the one `ConfirmDialog` for the list.
 - Saved manual activities show Edit and Delete actions side by side.
 
 ## Acceptance criteria
@@ -106,6 +108,6 @@ and slicing the feed. Plan generation uses the same filtered feed.
 3. Deleting either kind removes its comment and coach reply.
 4. Either deletion starts a plan revision.
 5. Deleting an unknown manual activity returns 404; a missing `today` returns 400.
-6. Unit tests cover the routes and the activity card's delete affordance, and
-   `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`
-   pass.
+6. Unit tests cover the routes, the activity card's delete dialog and the
+   manual-activity hook's pending confirmation, and `bun run typecheck`,
+   `bun run lint`, `bun run format`, and `bun run test` pass.

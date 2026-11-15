@@ -21,17 +21,25 @@ function SortHeader({
   direction,
   onSort,
 }: SortHeaderProps) {
-  const marker =
-    currentKey === sortKey ? (direction === "asc" ? " ▲" : " ▼") : "";
+  const sorted = currentKey === sortKey;
   return (
-    <button
-      type="button"
-      className="text-left font-semibold"
-      onClick={() => onSort(sortKey)}
+    <th
+      className="p-2"
+      aria-sort={
+        sorted ? (direction === "asc" ? "ascending" : "descending") : undefined
+      }
     >
-      {label}
-      {marker}
-    </button>
+      <button
+        type="button"
+        className="text-left font-semibold"
+        onClick={() => onSort(sortKey)}
+      >
+        {label}
+        {sorted && (
+          <span aria-hidden="true">{direction === "asc" ? " ▲" : " ▼"}</span>
+        )}
+      </button>
+    </th>
   );
 }
 
@@ -82,14 +90,12 @@ export function ModelTable({
       <table className="w-full border-collapse text-left text-sm">
         <thead className="sticky top-0 bg-card">
           <tr className="border-b">
-            <th className="p-2">{header("Model", "model")}</th>
-            <th className="p-2">{header("Ability", "ability")}</th>
-            <th className="p-2">{header("Speed", "speed")}</th>
-            <th className="p-2">{header("Cost", "cost")}</th>
-            {isAdmin && (
-              <th className="p-2">{header("Last scored", "benchmarkedAt")}</th>
-            )}
-            <th className="p-2">{header("Discouraged", "discouraged")}</th>
+            {header("Model", "model")}
+            {header("Ability", "ability")}
+            {header("Speed", "speed")}
+            {header("Cost", "cost")}
+            {isAdmin && header("Last scored", "benchmarkedAt")}
+            {header("Discouraged", "discouraged")}
             <th className="p-2">Season plan</th>
             <th className="p-2">Day to day</th>
           </tr>

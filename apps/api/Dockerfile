@@ -1,5 +1,7 @@
 # Build stage: install workspace deps and compile/produce the API bundle.
-FROM oven/bun:1 AS build
+# Keep this tag equal to `.bun-version`, the release every CI and deploy job
+# installs; `scripts/bunVersion.test.ts` fails on a drift.
+FROM oven/bun:1.4.4 AS build
 
 WORKDIR /repo
 
@@ -50,7 +52,7 @@ RUN --mount=type=secret,id=SENTRY_AUTH_TOKEN \
     fi
 
 # Runtime stage: lean image, no lockfile/sources needed.
-FROM oven/bun:1-slim
+FROM oven/bun:1.4.4-slim
 
 WORKDIR /app
 

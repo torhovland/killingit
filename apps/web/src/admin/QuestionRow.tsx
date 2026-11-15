@@ -4,6 +4,7 @@ import { Bullet } from "../Bullet";
 import { QuestionForm } from "./QuestionForm";
 import { reportError } from "../reportError";
 import { Button } from "../components/Button";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 
 interface QuestionRowProps {
   question: Question;
@@ -25,6 +26,7 @@ export function QuestionRow({
   onMoveDown,
 }: QuestionRowProps) {
   const [editing, setEditing] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [moving, setMoving] = useState<"up" | "down" | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -45,11 +47,8 @@ export function QuestionRow({
     }
   }
 
-  async function remove(): Promise<void> {
-    const confirmed = window.confirm(
-      "Archive this question? Existing versions are kept for past answers.",
-    );
-    if (!confirmed) {
+  async function archive(): Promise<void> {
+    if (deleting) {
       return;
     }
 
@@ -57,6 +56,7 @@ export function QuestionRow({
     setError(null);
     try {
       await onDelete();
+      setConfirming(false);
     } catch (err: unknown) {
       setError(reportError(err));
     } finally {
@@ -92,7 +92,7 @@ export function QuestionRow({
         <Bullet />
         {question.required ? "Required" : "Optional"}
       </p>
-      {error && (
+      {error && !confirming && (
         <p className="text-destructive" data-testid="question-row-error">
           {error}
         </p>
@@ -136,12 +136,28 @@ export function QuestionRow({
           type="button"
           variant="danger"
           size="md"
-          onClick={() => void remove()}
+          onClick={() => {
+            setError(null);
+            setConfirming(true);
+          }}
           disabled={deleting}
         >
           {deleting ? "Archiving…" : "Delete"}
         </Button>
       </div>
+
+      {confirming && (
+        <ConfirmDialog
+          title="Archive this question?"
+          description="Existing versions are kept for past answers."
+          confirmLabel="Archive"
+          busyLabel="Archiving…"
+          busy={deleting}
+          error={error}
+          onConfirm={() => void archive()}
+          onCancel={() => setConfirming(false)}
+        />
+      )}
     </li>
   );
 }

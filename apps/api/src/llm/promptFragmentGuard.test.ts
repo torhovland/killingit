@@ -66,6 +66,19 @@ describe("shared prompt fragments", () => {
     expect(promptRulesProse().length).toBeGreaterThan(0);
   });
 
+  it("reads a plain-string fragment, not only a template literal", () => {
+    expect(promptRulesProse()).toContain(
+      promptRuleLiteral("RETURN_JSON_FROM_SYSTEM_PROMPT"),
+    );
+  });
+
+  it("leaves the short technical strings out of the guarded prose", () => {
+    const prose = promptRulesProse();
+    for (const technical of ["system", "user", "string", "week"]) {
+      expect(prose).not.toContain(technical);
+    }
+  });
+
   it("is composed in every llm module instead of repeated", () => {
     const fragments = promptRulesProse();
     const offenders = PROMPT_MODULES.flatMap((module) => {

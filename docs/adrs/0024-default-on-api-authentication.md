@@ -21,9 +21,9 @@ the wrong default for per-account data.
 
 - Register `requireAuth` once on `/api/*` in `createApp`, before the sub-app
   routes are mounted.
-- Allow only the paths listed in `PUBLIC_API_PATHS` (`/api/health` and
-  `/api/greet`) through unauthenticated. The list is exact-match: anything else
-  under `/api`, including an unknown path, is rejected with 401 before routing.
+- Allow only the paths listed in `PUBLIC_API_PATHS` (`/api/health`) through
+  unauthenticated. The list is exact-match: anything else under `/api`,
+  including an unknown path, is rejected with 401 before routing.
 - Keep `requireAdmin` as an additional middleware on `/admin/*`; it runs after
   the global `requireAuth`, which is where the athlete identity comes from.
 - Test one sample route from every protected family, the plan read and generate
@@ -50,5 +50,5 @@ the wrong default for per-account data.
   404, which also avoids revealing which routes exist.
 - Route-level and factory tests still mount their own `requireAuth`; they test
   a route in isolation and are unaffected.
-- The public surface is two exact paths, which is small enough to audit in one
+- The public surface is one exact path, which is small enough to audit in one
   place.

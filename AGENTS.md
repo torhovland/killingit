@@ -36,9 +36,10 @@ string in a page, and never build a `className` from a template literal (the
 only for a value computed at runtime, such as a pan offset, hover-card position
 or progress width, with a comment saying why it cannot be a utility, and never
 hard-code a UI colour. The component library is in
-`apps/web/src/components/` (`Modal` owns every dialog), and each page lives in
-its feature directory (`calendar/`, `fitness/`, `diet/`, `settings/`, `admin/`)
-beside its tests. See `docs/specs/web-component-library.md` and
+`apps/web/src/components/` (`Modal` owns every dialog and `ConfirmDialog` builds
+every destructive confirmation on it), and each page lives in its feature
+directory (`calendar/`, `fitness/`, `diet/`, `settings/`, `admin/`) beside its
+tests. See `docs/specs/web-component-library.md` and
 `docs/specs/modal-dialog.md`.
 
 The app is an installable **PWA**; every page has a canonical URL and every
@@ -60,8 +61,12 @@ device zone shifts a day. See `docs/specs/pwa.md`,
 `docs/specs/web-component-library.md` and
 `docs/specs/web-date-formatting.md`.
 
-**Backend.** TypeScript on Bun, Hono for the API, Drizzle ORM and Zod. Shared Zod
-schemas are validated on both sides (API `zValidator`, web responses);
+**Backend.** TypeScript on Bun, Hono for the API, Drizzle ORM and Zod. The Bun
+release is pinned once in `.bun-version`; every CI and deploy job installs it
+through `bun-version-file`, the e2e job reads the same file by hand, and the API
+Dockerfile's two `oven/bun` tags name it. `scripts/bunVersion.test.ts` fails on
+a literal or floating version. Shared Zod schemas are validated on both sides
+(API `zValidator`, web responses);
 `packages/shared` holds the wire contract and API-only logic lives in `apps/api`.
 Failures use `{ error: { code, message, details? } }` from
 `packages/shared/src/apiError.ts`, and `apps/api/src/index.ts` exports the
@@ -238,8 +243,9 @@ through a disciplined process:
   without syncing. See `docs/specs/api-dependency-wiring.md`,
   `docs/specs/plan-input-loading.md` and ADR 0023.
 - **Keep exported constants above exported functions.** Top-level `export const`
-  declarations come before `export function` declarations, enforced by the
-  `local/consts-before-functions` ESLint rule.
+  declarations come before `export function` and `export default function`
+  declarations, enforced by the `local/consts-before-functions` ESLint rule. A
+  declaration-less `export { x }` is not resolved by the rule.
 
 ## Spec index
 

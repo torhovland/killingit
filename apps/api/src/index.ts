@@ -23,7 +23,6 @@ import { createCoachingRoute } from "./routes/coaching/index.js";
 import { createDietRoute } from "./routes/diet.js";
 import { createFitnessRoute } from "./routes/fitness.js";
 import { createGarminRoute } from "./routes/garmin.js";
-import { greet } from "./routes/greet.js";
 import { health } from "./routes/health.js";
 import { createLlmRoute } from "./routes/llm.js";
 import { createMeRoute } from "./routes/me.js";
@@ -37,10 +36,7 @@ import { dbUserStore } from "./users/store.js";
  * under `/api` is authenticated before it reaches a handler, so adding,
  * moving, or re-mounting a route can never make it public by accident.
  */
-const PUBLIC_API_PATHS: ReadonlySet<string> = new Set([
-  "/api/health",
-  "/api/greet",
-]);
+const PUBLIC_API_PATHS: ReadonlySet<string> = new Set(["/api/health"]);
 
 // The provider is created lazily on the first protected request so module
 // import stays side-effect-free (mirroring how Sentry is a no-op without a
@@ -103,7 +99,7 @@ export function createApp(options: AppDependencies = {}): Hono {
     }),
   );
 
-  const api = new Hono().route("/health", health).route("/greet", greet);
+  const api = new Hono().route("/health", health);
 
   // Authenticate the whole API by default, then resolve the account behind the
   // token, and allow only the listed paths through without either. This runs

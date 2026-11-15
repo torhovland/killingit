@@ -26,6 +26,21 @@ The primitives live in `apps/web/src/components/`:
   Tab focus trap and focus restored to the trigger on close. It takes the
   heading id that names it, an optional description id, and a `className` for
   panel layout such as width or scrolling; see `docs/specs/modal-dialog.md`.
+- `ConfirmDialog` — a destructive confirmation on `Modal`: a title, the
+  consequence it describes, Cancel and one labelled destructive action. Cancel
+  is first so focus opens on the safe action, and a busy state disables both
+  actions and blocks Escape and the backdrop; a failed action's error stays
+  inside the dialog. The activity, manual-activity and athlete-question deletes
+  use it, so no web source calls the native `confirm()`. See
+  `docs/specs/modal-dialog.md`.
+- `Menu` — a disclosure button around a labelled navigation panel, with the
+  open state owned by the caller. It takes the trigger's accessible name, the
+  panel's landmark name, the trigger contents and `onOpenChange`; Escape and a
+  click outside close it, focus returns to the trigger when the panel loses it,
+  and the caller marks the current item with `aria-current="page"`. The account
+  menu renders through it, so a page never wires its own outside-click or
+  Escape listener and no code touches the DOM to close a menu. Mount the panel
+  only while `open`, as `Modal` is mounted; see `docs/specs/accessibility-lint.md`.
 - `StatusBadge` — a week session's status (`completed`, `partial`, `planned`,
   `missed`, `rest`) as a compact capitalised badge, shared by the plan and
   calendar views so a status renders identically wherever it appears.
@@ -117,6 +132,11 @@ layout for the spinner and forwards `variant`, `size` and `className`.
   semantics.
 - Every modal dialog renders through `Modal`; no page reimplements the
   backdrop, focus trap, Escape handling or focus restore.
+- Every destructive confirmation renders through `ConfirmDialog`, and no web
+  source calls the native `confirm()`.
+- Every menu renders through `Menu`; no page attaches its own Escape or
+  outside-click listener, and the current page's item carries
+  `aria-current="page"`.
 - The primitives have unit tests for their defaults, variants and class
   merging.
 - Every conditional `className` is composed with `cn()`, and no JSX attribute is

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "bun:test";
 import {
   API_CONTRACT_VERSION,
   API_VERSION_HEADER,
-  greetingSchema,
+  healthSchema,
 } from "@killingit/shared";
 import type { AuthState } from "./auth/auth0";
 import { fetchFileAuthed, fetchJsonAuthed, requestParsed } from "./fetchAuthed";
@@ -216,6 +216,12 @@ describe("fetchJsonAuthed", () => {
 });
 
 describe("requestParsed", () => {
+  const HEALTH_PAYLOAD = {
+    status: "ok",
+    service: "killingit-api",
+    version: "0.1.0",
+    timestamp: "2026-11-15T00:00:00.000Z",
+  };
   let originalFetch: typeof fetch;
   let captured: RequestInit[] = [];
 
@@ -228,7 +234,7 @@ describe("requestParsed", () => {
     originalFetch = globalThis.fetch;
     globalThis.fetch = ((_url: string | URL | Request, init?: RequestInit) => {
       captured.push(init ?? {});
-      const response = responses.shift() ?? jsonResponse({ message: "hi" });
+      const response = responses.shift() ?? jsonResponse(HEALTH_PAYLOAD);
       return Promise.resolve(response);
     }) as unknown as typeof fetch;
   }
@@ -244,29 +250,29 @@ describe("requestParsed", () => {
     const auth = fakeAuth(() => Promise.resolve("test-token"));
 
     const result = await requestParsed(
-      "/api/greeting",
+      "/api/health",
       auth,
-      greetingSchema,
-      "Loading the greeting",
+      healthSchema,
+      "Loading the health check",
     );
 
-    expect(result.message).toBe("hi");
+    expect(result.status).toBe("ok");
     expect((captured[0]?.headers as Headers).get("authorization")).toBe(
       "Bearer test-token",
     );
   });
 
   it("throws a validation error with the label and the schema cause", async () => {
-    stubFetch(jsonResponse({ message: 42 }));
+    stubFetch(jsonResponse({ ...HEALTH_PAYLOAD, status: "down" }));
     const auth = fakeAuth(() => Promise.resolve("test-token"));
 
     let caught: unknown;
     try {
       await requestParsed(
-        "/api/greeting",
+        "/api/health",
         auth,
-        greetingSchema,
-        "Loading the greeting",
+        healthSchema,
+        "Loading the health check",
       );
     } catch (error) {
       caught = error;
@@ -275,7 +281,7 @@ describe("requestParsed", () => {
     expect(caught).toBeInstanceOf(Error);
     expect((caught as Error).name).toBe("ResponseValidationError");
     expect((caught as Error).message).toBe(
-      "Loading the greeting returned an unexpected response",
+      "Loading the health check returned an unexpected response",
     );
     expect((caught as Error).cause).toBeDefined();
   });
@@ -285,10 +291,10 @@ describe("requestParsed", () => {
     const auth = fakeAuth(() => Promise.resolve("test-token"));
 
     await requestParsed(
-      "/api/greeting",
+      "/api/health",
       auth,
-      greetingSchema,
-      "Saving the greeting",
+      healthSchema,
+      "Saving the health check",
       { method: "POST" },
     );
 
@@ -301,10 +307,10 @@ describe("requestParsed", () => {
     const controller = new AbortController();
 
     await requestParsed(
-      "/api/greeting",
+      "/api/health",
       auth,
-      greetingSchema,
-      "Loading the greeting",
+      healthSchema,
+      "Loading the health check",
       { signal: controller.signal },
     );
 

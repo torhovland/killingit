@@ -170,8 +170,10 @@ Weather and daylight are included in the plan prompts; see
   Its pieces live in `llm/`: `useLlmCatalog` loads the catalog and owns the
   filter and sort state, `ModelFilters` renders the filter bar through one
   `GradeSelect` with the shared `LLM_GRADES` and `isLlmModelGrade` guard,
-  `ModelTable` renders the sortable table and its two selection radios, and
-  `useQueuedSave` persists the choices one attempt at a time.
+  `ModelTable` renders the sortable table and its two selection radios, with
+  `aria-sort` on the sorted column's header and the ▲/▼ glyph hidden from
+  assistive technology, and `useQueuedSave` persists the choices one attempt at
+  a time.
 - `ActivityCard.tsx` — presentational activity summary + analysis.
 - `CoachDashboard.tsx` — loads Garmin/LLM status, then the latest analysed
   activities; offers "Sync & re-analyze".

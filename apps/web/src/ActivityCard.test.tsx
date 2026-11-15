@@ -1,4 +1,6 @@
 import { describe, expect, it } from "bun:test";
+import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { AnalyzedActivity } from "@killingit/shared";
 import { ActivityCard } from "./ActivityCard";
@@ -432,5 +434,82 @@ describe("ActivityCard", () => {
 
     expect(html).not.toContain('data-testid="activity-comment-form"');
     expect(html).not.toContain("Add a comment about this activity");
+  });
+
+  it("asks for confirmation before deleting and focuses the safe action", async () => {
+    const user = userEvent.setup();
+    let deleted = 0;
+    render(
+      <ActivityCard
+        activity={activity}
+        onDelete={() => {
+          deleted += 1;
+          return Promise.resolve();
+        }}
+      />,
+    );
+    const trigger = screen.getByTestId("activity-delete");
+
+    await user.click(trigger);
+
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText("Delete this activity?")).toBeDefined();
+    expect(
+      within(dialog).getByText(/disappears from your coaching view/),
+    ).toBeDefined();
+    expect(document.activeElement).toBe(
+      within(dialog).getByRole("button", { name: "Cancel" }),
+    );
+    expect(deleted).toBe(0);
+
+    await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+    expect(deleted).toBe(0);
+  });
+
+  it("deletes the activity only after the destructive action is confirmed", async () => {
+    const user = userEvent.setup();
+    const deleted: string[] = [];
+    render(
+      <ActivityCard
+        activity={activity}
+        onDelete={(activityId) => {
+          deleted.push(activityId);
+          return Promise.resolve();
+        }}
+      />,
+    );
+    await user.click(screen.getByTestId("activity-delete"));
+
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Delete",
+      }),
+    );
+
+    await waitFor(() => expect(deleted).toEqual(["1"]));
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("keeps the dialog open with the delete error when deletion fails", async () => {
+    const user = userEvent.setup();
+    render(
+      <ActivityCard
+        activity={activity}
+        onDelete={() => Promise.reject(new Error("Could not delete"))}
+      />,
+    );
+    await user.click(screen.getByTestId("activity-delete"));
+
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Delete",
+      }),
+    );
+
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("Error: Could not delete")).toBeDefined();
   });
 });

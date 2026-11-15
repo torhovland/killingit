@@ -18,12 +18,21 @@ export interface ManualActivitiesState {
   startDate: string;
   details: string;
   saving: boolean;
+  /** The activity whose deletion is waiting for confirmation. */
+  pendingDelete: ManualActivity | null;
+  /** Whether the confirmed deletion is running. */
+  deleting: boolean;
   setStartDate: (value: string) => void;
   setDetails: (value: string) => void;
   submit: (event: React.FormEvent<HTMLFormElement>) => Promise<void>;
   edit: (activity: ManualActivity) => void;
   cancelEdit: () => void;
-  remove: (activity: ManualActivity) => Promise<void>;
+  /** Opens the confirmation for an activity instead of deleting it. */
+  requestDelete: (activity: ManualActivity) => void;
+  /** Deletes the pending activity; the page's dialog calls this. */
+  confirmDelete: () => Promise<void>;
+  /** Closes the confirmation without deleting. */
+  cancelDelete: () => void;
 }
 
 /**
@@ -42,6 +51,10 @@ export function useManualActivities(
   const [startDate, setStartDate] = useState(() => getToday(timeZone).today);
   const [details, setDetails] = useState("");
   const [saving, setSaving] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<ManualActivity | null>(
+    null,
+  );
+  const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async (): Promise<void> => {
     try {
@@ -121,37 +134,46 @@ export function useManualActivities(
     setDetails("");
   }, [timeZone]);
 
-  const remove = useCallback(
-    async (activity: ManualActivity): Promise<void> => {
-      if (
-        !window.confirm(
-          `Delete the manual activity from ${activity.startDate}?`,
-        )
-      ) {
-        return;
+  const requestDelete = useCallback((activity: ManualActivity): void => {
+    setError(null);
+    setPendingDelete(activity);
+  }, []);
+
+  const cancelDelete = useCallback((): void => {
+    if (!deleting) {
+      setPendingDelete(null);
+    }
+  }, [deleting]);
+
+  const confirmDelete = useCallback(async (): Promise<void> => {
+    const activity = pendingDelete;
+    if (activity === null || deleting) {
+      return;
+    }
+    const editingDeleted = editing?.id === activity.id;
+    setDeleting(true);
+    setError(null);
+    try {
+      await requestParsed(
+        `/api/coaching/activities/manual/${activity.id}?${coachingDateQuery(timeZone)}`,
+        auth,
+        coachingInputSaveResponseSchema,
+        "Deleting the manual activity",
+        { method: "DELETE" },
+      );
+      setPendingDelete(null);
+      if (editingDeleted) {
+        setEditing(null);
+        setStartDate(getToday(timeZone).today);
+        setDetails("");
       }
-      const editingDeleted = editing?.id === activity.id;
-      setError(null);
-      try {
-        await requestParsed(
-          `/api/coaching/activities/manual/${activity.id}?${coachingDateQuery(timeZone)}`,
-          auth,
-          coachingInputSaveResponseSchema,
-          "Deleting the manual activity",
-          { method: "DELETE" },
-        );
-        if (editingDeleted) {
-          setEditing(null);
-          setStartDate(getToday(timeZone).today);
-          setDetails("");
-        }
-        await Promise.all([load(), onChanged?.()]);
-      } catch (err: unknown) {
-        setError(reportError(err));
-      }
-    },
-    [auth, timeZone, editing, load, onChanged],
-  );
+      await Promise.all([load(), onChanged?.()]);
+    } catch (err: unknown) {
+      setError(reportError(err));
+    } finally {
+      setDeleting(false);
+    }
+  }, [auth, timeZone, editing, deleting, pendingDelete, load, onChanged]);
 
   return {
     activities,
@@ -160,11 +182,15 @@ export function useManualActivities(
     startDate,
     details,
     saving,
+    pendingDelete,
+    deleting,
     setStartDate,
     setDetails,
     submit,
     edit,
     cancelEdit,
-    remove,
+    requestDelete,
+    confirmDelete,
+    cancelDelete,
   };
 }

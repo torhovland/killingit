@@ -43,7 +43,10 @@ async function signIn(
 }
 
 async function openPage(page: Page, label: string): Promise<void> {
-  await page.getByTestId("user-menu").locator("summary").click();
+  await page
+    .getByTestId("user-menu")
+    .getByRole("button", { name: "Account menu" })
+    .click();
   await page.getByRole("button", { name: label, exact: true }).click();
 }
 
@@ -77,6 +80,33 @@ test("a page keeps its URL across reload and the history buttons", async ({
   await page.goForward();
   await expect(page).toHaveURL(/\/calendar$/);
   await expect(page.getByTestId("calendar-grid")).toBeVisible();
+});
+
+test("the account menu closes from Escape and an outside click and marks the current page", async ({
+  page,
+}) => {
+  await signIn(page, { questions: "answered" });
+  const trigger = page
+    .getByTestId("user-menu")
+    .getByRole("button", { name: "Account menu" });
+  const panel = page.getByRole("navigation", { name: "Account" });
+
+  await trigger.click();
+  await expect(panel).toBeVisible();
+  await expect(
+    panel.getByRole("button", { name: "Coach", exact: true }),
+  ).toHaveAttribute("aria-current", "page");
+  await expect(trigger).toHaveAttribute("aria-expanded", "true");
+
+  await page.keyboard.press("Escape");
+  await expect(panel).toHaveCount(0);
+  await expect(trigger).toHaveAttribute("aria-expanded", "false");
+  await expect(trigger).toBeFocused();
+
+  await trigger.click();
+  await expect(panel).toBeVisible();
+  await page.getByRole("heading", { name: "Your plan" }).click();
+  await expect(panel).toHaveCount(0);
 });
 
 test("a deep link opens its page after signing in", async ({ page }) => {
@@ -130,6 +160,9 @@ test("an admin opens the admin settings with an unanswered survey question", asy
   await openPage(page, "Admin settings");
   await expect(page).toHaveURL(/\/admin$/);
   await expect(page.getByTestId("admin-settings")).toBeVisible();
+  // The e2e server is a Vite dev server, so the admin page keeps the
+  // development date override that a Production bundle leaves out.
+  await expect(page.getByTestId("dev-date-picker")).toBeVisible();
 
   // The survey gate must not bounce the admin off a reload either, so the
   // admin can fix the questions that hold every athlete back.
@@ -166,12 +199,23 @@ test("deleting the question that forced the survey releases the athlete", async 
       response.url().includes("/api/admin/questions/") &&
       response.request().method() === "DELETE",
   );
-  page.once("dialog", (dialog) => void dialog.accept());
-  await page
+  const trigger = page
     .getByTestId("question-row")
     .filter({ hasText: "How did your last race go?" })
-    .getByRole("button", { name: "Delete" })
-    .click();
+    .getByRole("button", { name: "Delete" });
+  await trigger.click();
+  const dialog = page.getByTestId("confirm-dialog");
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Cancel" })).toBeFocused();
+
+  // Escape cancels the confirmation and returns focus to the row's button.
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(trigger).toBeFocused();
+
+  await trigger.click();
+  await expect(dialog).toBeVisible();
+  await dialog.getByTestId("confirm-dialog-confirm").click();
   await archived;
   await expect(page.getByTestId("question-row")).toHaveCount(1);
   await page.waitForLoadState("networkidle");

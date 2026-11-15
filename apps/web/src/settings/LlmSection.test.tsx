@@ -272,13 +272,23 @@ describe("LlmSection", () => {
       "Use Beta for season planning",
       "Use Gamma for season planning",
     ]);
+    expect(
+      screen
+        .getByRole("columnheader", { name: "Model" })
+        .getAttribute("aria-sort"),
+    ).toBe("ascending");
 
-    await user.click(screen.getByRole("button", { name: "Model ▲" }));
+    await user.click(screen.getByRole("button", { name: "Model" }));
     expect(seasonOrder()).toEqual([
       "Use Gamma for season planning",
       "Use Beta for season planning",
       "Use Alpha for season planning",
     ]);
+    expect(
+      screen
+        .getByRole("columnheader", { name: "Model" })
+        .getAttribute("aria-sort"),
+    ).toBe("descending");
   });
 
   it("saves both choices as soon as a radio is clicked once a key is stored", async () => {

@@ -2,6 +2,10 @@
 
 - **Status:** Accepted (implemented)
 - **Date:** 2026-10-21
+- **Updated:** 2026-11-15 — the fragment guard reads every string-literal form
+  in `promptRules.ts`, not only template literals, so the closing JSON
+  instruction is a guarded fragment too. `foodPrompt.ts` composes
+  `RETURN_JSON_FROM_SYSTEM_PROMPT` instead of spelling it out.
 - **Updated:** 2026-11-15 — every text prompt returns the shared `LlmMessage`
   and builds its two messages with `systemUserMessages(system, user)`. The
   fragment guard fails on an inline message type or a hand-written role array
@@ -233,13 +237,14 @@ and returns `LlmProvider` chat messages.
   it asks the model to fill.
 - `apps/api/src/llm/promptFragmentGuard.test.ts` holds every module under
   `apps/api/src/llm/` and `training/manualTss.ts` to the composition rule: it
-  scans their source for template-literal prose that `promptRules.ts` already
-  owns, and checks that the JSON-shape instruction and the prompt message type
-  appear only in `promptRules.ts`, so a sentence or message shape that is copied
-  back into a prompt fails the suite instead of drifting away from the shared
-  copy. It also fails on a hand-written role array outside the provider-level
-  modules that must build one, so a new prompt composes `systemUserMessages`
-  rather than repeating the pair. The benchmark snapshot in
-  `tools/benchmark` pins the composed text, so a refactor that changes a single
-  character fails as well.
+  scans their source for prose that `promptRules.ts` already owns, in every
+  string-literal form the module defines (template, double-quoted and
+  single-quoted) and long enough to be prose rather than a technical string, and
+  checks that the JSON-shape instruction and the prompt message type appear only
+  in `promptRules.ts`, so a sentence or message shape that is copied back into a
+  prompt fails the suite instead of drifting away from the shared copy. It also
+  fails on a hand-written role array outside the provider-level modules that must
+  build one, so a new prompt composes `systemUserMessages` rather than repeating
+  the pair. The benchmark snapshot in `tools/benchmark` pins the composed text,
+  so a refactor that changes a single character fails as well.
 - Run `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`.

@@ -21,7 +21,6 @@ import {
   formatDuration,
   formatPace,
   garminConnectionStatusSchema,
-  greetingSchema,
   hasLapStructure,
   healthSchema,
   idParamSchema,
@@ -90,12 +89,6 @@ describe("healthSchema", () => {
 
   it("rejects an invalid status", () => {
     expect(() => healthSchema.parse({ status: "down" })).toThrow();
-  });
-});
-
-describe("greetingSchema", () => {
-  it("accepts a string message", () => {
-    expect(greetingSchema.parse({ message: "hello" }).message).toBe("hello");
   });
 });
 

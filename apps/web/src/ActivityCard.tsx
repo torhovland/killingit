@@ -13,6 +13,7 @@ import { useTimeZone } from "./TimeZoneContext";
 import { Button } from "./components/Button";
 import { Card } from "./components/Card";
 import { CoachReply } from "./components/CoachReply";
+import { ConfirmDialog } from "./components/ConfirmDialog";
 
 /**
  * One synced activity with its coach analysis and program review.
@@ -38,6 +39,7 @@ export function ActivityCard({
   onDelete?: (activityId: string) => Promise<void>;
 }) {
   const timeZone = useTimeZone();
+  const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const commentForm = useCommentForm({
@@ -59,13 +61,11 @@ export function ActivityCard({
     if (!onDelete || deleting) {
       return;
     }
-    if (!window.confirm("Delete this activity from your coaching view?")) {
-      return;
-    }
     setDeleting(true);
     setDeleteError(null);
     try {
       await onDelete(String(activity.id));
+      setConfirming(false);
     } catch (err: unknown) {
       setDeleteError(
         err instanceof Error ? err.message : "Could not delete activity",
@@ -115,7 +115,10 @@ export function ActivityCard({
                     variant="link"
                     size="none"
                     className="text-destructive"
-                    onClick={() => void handleDelete()}
+                    onClick={() => {
+                      setDeleteError(null);
+                      setConfirming(true);
+                    }}
                     disabled={deleting}
                     data-testid="activity-delete"
                   >
@@ -126,7 +129,7 @@ export function ActivityCard({
             </p>
           </header>
 
-          {deleteError && (
+          {deleteError && !confirming && (
             <p className="text-sm text-destructive">{deleteError}</p>
           )}
 
@@ -191,6 +194,19 @@ export function ActivityCard({
           </p>
         ) : null}
       </CommentSection>
+
+      {confirming && (
+        <ConfirmDialog
+          title="Delete this activity?"
+          description="It disappears from your coaching view; its comment and coach reply are removed and the plan is revised."
+          confirmLabel="Delete"
+          busyLabel="Deleting…"
+          busy={deleting}
+          error={deleteError}
+          onConfirm={() => void handleDelete()}
+          onCancel={() => setConfirming(false)}
+        />
+      )}
     </Card>
   );
 }

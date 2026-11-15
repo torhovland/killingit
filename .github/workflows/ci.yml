@@ -16,6 +16,8 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
       - run: bun install --frozen-lockfile
       - run: bun run typecheck
 
@@ -25,6 +27,8 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
       - run: bun install --frozen-lockfile
       - run: bun run lint
 
@@ -34,6 +38,8 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
       - run: bun install --frozen-lockfile
       - run: bun run format
 
@@ -43,6 +49,8 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
       - run: bun install --frozen-lockfile
       - run: bun run check:unused
 
@@ -56,6 +64,8 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
       - run: bun install --frozen-lockfile
       # The root script runs each workspace's own build, so the web app's
       # `vite build` runs here and not just its typecheck.
@@ -76,8 +86,8 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           # Coverage line counts change between Bun releases. Keep the
-          # baseline in scripts/coverage.ts tied to this version.
-          bun-version: 1.4.4
+          # baseline in scripts/coverage.ts tied to .bun-version.
+          bun-version-file: .bun-version
       - run: bun install --frozen-lockfile
       - run: bun run test:coverage
       - name: Upload coverage report
@@ -125,6 +135,8 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
       - run: bun install --frozen-lockfile
       - run: bun run test:integration
 
@@ -159,10 +171,12 @@ jobs:
       - uses: actions/checkout@v5
       - name: Install Bun
         # setup-bun needs unzip, which the Playwright image omits. The image
-        # has Python, so extract the pinned Bun release without apt.
+        # has Python, so extract the pinned Bun release without apt. The
+        # version comes from `.bun-version`, the same file setup-bun reads.
         run: |
+          BUN_VERSION="$(cat .bun-version)"
           curl -fsSL -o /tmp/bun.zip \
-            https://github.com/oven-sh/bun/releases/download/bun-v1.4.4/bun-linux-x64.zip
+            "https://github.com/oven-sh/bun/releases/download/bun-v${BUN_VERSION}/bun-linux-x64.zip"
           python3 -m zipfile -e /tmp/bun.zip /tmp/bun
           install /tmp/bun/bun-linux-x64/bun /usr/local/bin/bun
       - run: bun install --frozen-lockfile
@@ -177,6 +191,8 @@ jobs:
         with:
           fetch-depth: 0
       - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
       - run: git fetch --no-tags origin ${{ github.base_ref }}
       - run: bun run check:signoff origin/${{ github.base_ref }}
 
@@ -186,5 +202,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
       - run: bun install --frozen-lockfile
       - run: bun run outdated

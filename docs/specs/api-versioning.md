@@ -25,7 +25,7 @@ the background — across several API deploys.
    choke points of `apps/web/src/fetchAuthed.ts` (JSON and file downloads).
 3. The API enforces a supported range in
    `apps/api/src/apiVersion.ts`, mounted on `/api/*` before authentication and
-   skipped for the public allowlist (`/api/health`, `/api/greet`).
+   skipped for the public allowlist (`/api/health`).
 4. A refused build gets `426` with the standard error contract
    (`docs/specs/api-errors.md`):
 
@@ -78,8 +78,7 @@ the background — across several API deploys.
    downloads.
 2. The API returns `426` for a lower version, a higher version, and a missing
    version, and lets a supported version reach authentication.
-3. `/api/health` and `/api/greet` work without the header, so monitoring and
-   the smoke test are unaffected.
+3. `/api/health` works without the header, so monitoring is unaffected.
 4. A `426` triggers exactly one automatic reload per cooldown window; a second
    mismatch shows the update banner, whose Reload action repeats the update.
 5. The web and API both typecheck, lint, format, and pass their tests.

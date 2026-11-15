@@ -31,6 +31,8 @@ save queues, polling and dialogs were only reachable through the e2e suite.
 4. Interaction tests for the `Modal` primitive: focus moves into the dialog,
    Tab and Shift+Tab wrap inside it, Escape and a backdrop click close it, a
    panel click does not, and closing restores focus to the trigger.
+   `ConfirmDialog` adds its own tests for the safe action's initial focus, the
+   busy state blocking every close path, and an in-dialog failure.
 5. Effect and race tests for `useApiResource`, `useApiResources` and
    `useAbortableRequest`: the initial load, the loading and error state, the
    header spinner source, `reload`, a `null` path and a signed-out session

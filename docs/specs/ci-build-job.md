@@ -4,7 +4,8 @@
 - **Date:** 2026-11-14
 - **Issue:** #342
 - **Related:** `docs/specs/deploy-workflow.md`, `docs/specs/garmin-sidecar-checks.md`,
-  `docs/specs/test-coverage.md`, ADR 0001, ADR 0003.
+  `docs/specs/test-coverage.md`, `docs/specs/e2e-tests.md`, issue #343,
+  ADR 0001, ADR 0003.
 
 ## Goal
 
@@ -57,6 +58,8 @@ build:
   steps:
     - uses: actions/checkout@v5
     - uses: oven-sh/setup-bun@v2
+      with:
+        bun-version-file: .bun-version
     - run: bun install --frozen-lockfile
     - run: bun run build
     - run: docker build --file apps/api/Dockerfile --tag killingit-api:ci .
@@ -72,6 +75,21 @@ the filter.
 The API image build additionally proves the frozen workspace install inside the
 image: the Dockerfile copies every workspace manifest the lockfile lists, and
 `bun install --frozen-lockfile` fails if one is missing.
+
+### The Bun version
+
+`.bun-version` names the one Bun release the repository uses. Every
+`oven-sh/setup-bun@v2` step in `ci.yml` and `deploy.yml` passes
+`bun-version-file: .bun-version`, so typecheck, lint, format, unused, build,
+test, integration, sign-off, outdated and every deploy job install the same
+release. The e2e job cannot use the action (see `docs/specs/e2e-tests.md`), so
+its shell step reads the same file, and the API Dockerfile's two `oven/bun`
+image tags name the same release.
+
+`scripts/bunVersion.test.ts` fails when a `setup-bun` step repeats a literal
+`bun-version`, when a workflow hard-codes a `bun-v<version>` download URL, when
+the e2e step stops reading `.bun-version`, or when a Dockerfile tag drifts.
+`bun run test` and CI's test job run it, so the pin cannot float again.
 
 ## The API's production bundle
 
@@ -99,6 +117,9 @@ CI therefore runs the bundling command exactly where the deploy runs it.
   `deploy.yml`'s `docker/build-push-action` steps.
 - The job never pushes, never logs in to a registry, and never receives a
   secret or a Sentry build arg.
+- Every Bun installation in `ci.yml`, `deploy.yml` and `apps/api/Dockerfile`
+  names the release in `.bun-version`; `scripts/bunVersion.test.ts` fails on a
+  literal or floating version.
 - `scripts/ciWorkflow.test.ts` asserts these properties, including that the
   root `build` command reaches a real `vite build` and that no step can opt out
   of failing.

@@ -11,6 +11,7 @@ import { useActivityFeed } from "./useActivityFeed";
 import { useManualActivities } from "./useManualActivities";
 import { useStatuses } from "./useStatuses";
 import { Button } from "./components/Button";
+import { ConfirmDialog } from "./components/ConfirmDialog";
 
 /**
  * The activities page: every imported activity, the manual activity log, and
@@ -52,7 +53,12 @@ export function ActivitiesPage() {
     : statuses.llm?.configured
       ? "Sync & re-analyze"
       : "Sync activities";
-  const errorMessage = manual.error ?? feed.error ?? statuses.error;
+  // An open confirmation shows the manual-activity error inside itself, so the
+  // page does not announce the same failure twice.
+  const errorMessage =
+    (manual.pendingDelete === null ? manual.error : null) ??
+    feed.error ??
+    statuses.error;
 
   return (
     <section className="flex w-full flex-col gap-4 text-left">
@@ -115,8 +121,21 @@ export function ActivitiesPage() {
       <ManualActivityList
         activities={manual.activities}
         onEdit={manual.edit}
-        onDelete={manual.remove}
+        onDelete={manual.requestDelete}
       />
+
+      {manual.pendingDelete && (
+        <ConfirmDialog
+          title="Delete this manual activity?"
+          description={`Delete the manual activity from ${manual.pendingDelete.startDate}? The coach no longer counts it as training and the plan is revised.`}
+          confirmLabel="Delete"
+          busyLabel="Deleting…"
+          busy={manual.deleting}
+          error={manual.error}
+          onConfirm={() => void manual.confirmDelete()}
+          onCancel={manual.cancelDelete}
+        />
+      )}
 
       {feed.syncing && (
         <p className="text-base text-muted-foreground" aria-live="polite">

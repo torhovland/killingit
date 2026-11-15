@@ -12,25 +12,32 @@
 Exercise the critical browser journeys against the real web app, API, database
 schema and migrations. The unit and route tests cover behaviour in isolation;
 this suite covers the parts only a real browser reaches: the signed-out landing
-page, the sign-in hand-off, the dashboard cross-page state, the survey gate, a
-background-free coach reply, a meal photo upload with its analysis, page URLs
-across a deep link, reload and the history buttons, the modal focus trap and
-focus restore, and account deletion with sign-out.
+page, the sign-in hand-off, the dashboard cross-page state, the survey gate, the
+account menu's disclosure behaviour, a background-free coach reply, a meal photo
+upload with its analysis, page URLs across a deep link, reload and the history
+buttons, the modal focus trap and focus restore, and account deletion with
+sign-out.
 
 ## Scope
 
 ### In scope
 
-1. Playwright (`@playwright/test`) with a small, serial suite of thirteen journeys:
+1. Playwright (`@playwright/test`) with a small, serial suite of fourteen
+   journeys:
    - a signed-out visitor sees the landing page and signs in to the dashboard;
    - a page keeps its URL across a reload, back and forward;
+   - the account menu closes from Escape and an outside click, returns focus to
+     its trigger, and marks the current page;
    - a deep link opens its page after signing in;
    - an unknown path lands on the coach page;
    - an athlete answers the coaching survey and reaches today's session;
    - an admin opens the admin settings while the survey has an unanswered
-     question (including a reload);
+     question (including a reload), and the dev server still shows the
+     development date override there;
    - a forced survey keeps the survey's panel width, not the rejected page's;
-   - deleting the new question that forced the survey releases the athlete;
+   - deleting the new question that forced the survey releases the athlete,
+     after cancelling its confirmation dialog with Escape and returning focus
+     to the row's Delete button;
    - an athlete saves a weekly note and sees the coach reply;
    - an athlete logs a meal with a photo and sees the analysis;
    - a keyboard user closes the calendar workout dialog with Escape and gets
@@ -96,11 +103,13 @@ service and runs `bun run test:e2e` inside the official Playwright container
 image (`mcr.microsoft.com/playwright:v<version>-noble`). The image carries
 Chromium and its system libraries, so the job never installs packages from the
 Ubuntu archives; the tag must match the `@playwright/test` version in
-`bun.lock`. The image does not include Bun or `unzip`, so the job downloads the
-pinned Bun release and extracts it with Python. Playwright starts the API and
-web dev servers through its `webServer` config, and reaches PostgreSQL by the
-service label `postgres` with `sslmode=disable` so the local service is not
-mistaken for a hosted database that needs TLS.
+`bun.lock`. The image does not include Bun or `unzip`, so the job reads the
+release from `.bun-version` (the file the other jobs pass to
+`oven-sh/setup-bun`) and downloads `bun-v<version>` from the Bun releases page,
+extracting it with Python. Playwright starts the API and web dev servers
+through its `webServer` config, and reaches PostgreSQL by the service label
+`postgres` with `sslmode=disable` so the local service is not mistaken for a
+hosted database that needs TLS.
 
 ## Data-model and API impact
 
