@@ -55,12 +55,6 @@ export interface DailyUpdateInput extends PlanContextInput {
   season: SeasonPlan;
   block: BlockPlan;
   week: WeekPlan;
-  /**
-   * The last date that may carry a fully detailed workout. Defaults to
-   * tomorrow. The next-period update passes the target day so the day after it
-   * stays an outline.
-   */
-  detailThrough?: string;
 }
 
 /** Input for the weekly cascade: the new week plus the current block. */
@@ -69,8 +63,6 @@ export interface WeeklyUpdateInput extends PlanContextInput {
   block: BlockPlan;
   /** Monday of the week being planned (YYYY-MM-DD). */
   weekStartDate: string;
-  /** A block that started earlier and must keep this start date. */
-  keepBlockStartDate?: string;
 }
 
 /**
@@ -350,7 +342,7 @@ export function buildDailyUpdateMessages(input: DailyUpdateInput): {
 
 function buildDailyUpdatePrompt(input: DailyUpdateInput): string {
   const weekStart = startOfWeek(input.today);
-  const detailThrough = input.detailThrough ?? addDays(input.today, 1);
+  const detailThrough = addDays(input.today, 1);
   return [
     ...formatPlanContext(input),
     "",
@@ -380,12 +372,6 @@ function buildWeeklyUpdatePrompt(input: WeeklyUpdateInput): string {
     ...formatPlanContext(input),
     `Week start date: ${input.weekStartDate}. ${weekDatesRangeRule(input.weekStartDate)}.`,
     "Create all seven days as short outlines; the following daily update will turn each day into a concrete workout when it arrives.",
-    ...(input.keepBlockStartDate !== undefined
-      ? [
-          "",
-          `The current block already started on ${input.keepBlockStartDate}. Keep that start date while revising the block.`,
-        ]
-      : []),
     "",
     ...formatSeasonAndBlock(input.season, input.block),
     "",
