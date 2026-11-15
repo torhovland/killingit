@@ -23,7 +23,8 @@ would be sensible to take it outside.
 2. A settings-page location picker with:
    - an OpenStreetMap map that sets the location when clicked;
    - address search (OpenStreetMap Nominatim geocoding) that finds streets and
-     house numbers, recenters the map, and selects a result;
+     house numbers, recenters the map at its current zoom, and selects a
+     result;
    - zooming with the plus and minus buttons and the mouse wheel or trackpad;
      tiles are drawn at their native resolution instead of being stretched to
      the rendered map size;
@@ -120,6 +121,11 @@ would be sensible to take it outside.
   Pointer behaviour is unchanged.
 - A map click clears any searched name and sets the marker to the clicked
   coordinates.
+- A search result and a saved location recentre the map without changing the
+  zoom. A map click or Enter/Space only chooses the point and moves its marker:
+  it does not recentre the map or change the zoom. A parent re-render that
+  recreates the value object with the same coordinates also leaves the view
+  alone; only a new coordinate from outside the map moves it.
 - The location uses decimal degrees (WGS 84), matching activity GPS points.
 - Weather and daylight are attached by the server after the model response, so
   icons, numbers, and times come from the forecast rather than model invention.
@@ -295,7 +301,9 @@ containing `snow` or `sleet` → snow, and a code containing `rain` → rain.
   plan generation that receives an injected forecast.
 - Web tests for map projection, wheel zoom anchoring, click conversion, the
   map's keyboard path (focus, arrow panning, zoom keys, Enter/Space selection
-  and the live-region announcement), the weather and daylight summary, and the
+  and the live-region announcement), recentring only for a search or saved
+  location (a click, the chosen zoom and a recreated value leave the view
+  alone), the weather and daylight summary, and the
   Day/Week plan rendering (flexible workouts show the forecast; indoor-only
   sessions and rest days do not), plus the Week view's session descriptions and
   indoor/outdoor intent.

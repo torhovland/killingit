@@ -49,6 +49,11 @@ interface MapLayer {
   tiles: LayerTile[];
 }
 
+interface Coordinates {
+  latitude: number;
+  longitude: number;
+}
+
 interface SlotState {
   current: (typeof SLOT_NAMES)[number];
   fallback: {
@@ -59,6 +64,22 @@ interface SlotState {
 
 function clampZoom(zoom: number): number {
   return Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom));
+}
+
+function coordinatesOf(value: AthleteLocation | null): Coordinates | null {
+  return value === null
+    ? null
+    : { latitude: value.latitude, longitude: value.longitude };
+}
+
+function sameCoordinates(
+  left: Coordinates | null,
+  right: Coordinates | null,
+): boolean {
+  if (left === null || right === null) {
+    return left === right;
+  }
+  return left.latitude === right.latitude && left.longitude === right.longitude;
 }
 
 /** The tile layer for a view, with every tile at its absolute world position. */
@@ -130,6 +151,11 @@ export function LocationPickerMap({
   const lastWheelZoom = useRef(0);
   const pendingPan = useRef<MapPoint | null>(null);
   const panFrame = useRef<number | null>(null);
+  // The last value the component saw and the point it last asked the parent to
+  // store. A value that matches either one did not come from an outside source
+  // such as a search result or a saved location, so it must not move the view.
+  const receivedValue = useRef<Coordinates | null>(coordinatesOf(value));
+  const requestedSelection = useRef<Coordinates | null>(null);
 
   useEffect(
     () => () => {
@@ -175,6 +201,14 @@ export function LocationPickerMap({
       setZoom(nextZoom);
     },
     [],
+  );
+
+  const selectPoint = useCallback(
+    (latitude: number, longitude: number): void => {
+      requestedSelection.current = { latitude, longitude };
+      onSelect(latitude, longitude);
+    },
+    [onSelect],
   );
 
   useEffect(() => {
@@ -308,7 +342,7 @@ export function LocationPickerMap({
         case "Enter":
         case " ":
           event.preventDefault();
-          onSelect(current.center.latitude, current.center.longitude);
+          selectPoint(current.center.latitude, current.center.longitude);
           return;
         default:
           return;
@@ -316,18 +350,25 @@ export function LocationPickerMap({
     }
     target.addEventListener("keydown", handleKeyDown);
     return () => target.removeEventListener("keydown", handleKeyDown);
-  }, [changeView, onSelect]);
+  }, [changeView, selectPoint]);
 
-  // A search result or a saved location moves the map to that place. Clicking
-  // the map also updates the value; recentring there is harmless.
+  // A search result or a saved location moves the map to that place. A map
+  // click or Enter also updates the value, and a parent re-render may recreate
+  // it: neither came from outside, so do not move the view or change the zoom.
   useEffect(() => {
-    if (value !== null) {
-      const current = viewport.current;
-      changeView(
-        { latitude: value.latitude, longitude: value.longitude },
-        Math.max(current.zoom, 10),
-      );
+    const next = coordinatesOf(value);
+    const previous = receivedValue.current;
+    const requested = requestedSelection.current;
+    receivedValue.current = next;
+    requestedSelection.current = null;
+    if (
+      next === null ||
+      sameCoordinates(next, previous) ||
+      sameCoordinates(next, requested)
+    ) {
+      return;
     }
+    changeView(next, viewport.current.zoom);
   }, [value, changeView]);
 
   function zoomBy(direction: 1 | -1): void {
@@ -423,7 +464,7 @@ export function LocationPickerMap({
       return;
     }
     const point = pointFromEvent(event);
-    onSelect(point.latitude, point.longitude);
+    selectPoint(point.latitude, point.longitude);
   }
 
   return (
