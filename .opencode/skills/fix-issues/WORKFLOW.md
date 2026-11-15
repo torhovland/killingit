@@ -17,15 +17,35 @@ files exactly as they are: do not modify, stash, delete, or commit them. Never
 fold unrelated work into the fix. Stage only the files your fix changes, so the
 pre-existing edits stay out of the pull request.
 
-## 2. Read the issue fully
+## 2. Read and verify the issue
 
 Run `gh issue view <number> --comments`. Read the files, specs, and ADRs it
 references, including anything the earlier fixes in the batch added that the
 issue now builds on.
 
-If the issue is stale, already fixed, or too ambiguous to implement safely,
-comment on the issue with your questions or findings and report back. Do not
-guess.
+An issue is a report, not a contract: it was written from a snapshot and its
+author can be wrong. Check it against the code at `HEAD` before you write
+anything.
+
+- **Reproduce the evidence.** Open the cited files and lines and confirm the
+  sizes, counts, duplication and behaviour the issue describes. A stale line
+  number is harmless; a conclusion the code does not support is not.
+- **Look for the fix that already exists.** Grep for the helper, type, constant
+  or component the issue proposes, and read the spec and ADR that own the area.
+  If the helper is already there the issue is stale; if it reverses a documented
+  decision, the spec has to change first.
+- **Judge whether it is worth the diff.** A fix earns its commit when it removes
+  a real hazard: behaviour that disagrees with a sibling path, a bug, dead code,
+  duplication that will drift apart, or a rule `AGENTS.md` states. Renaming a
+  private local, naming a single-use string, inlining a one-line alias, merging
+  two three-line helpers, or freezing existing violations into a ratchet is
+  churn. Excellent code quality is the goal; a quiet file is not.
+
+If the issue is stale, already fixed, wrong about the code, contradicts a
+documented decision, too ambiguous to implement safely, or the fix would be
+churn with no real value, comment on the issue with the evidence and report
+back. Do not implement it and do not guess: pushing back is a successful
+outcome, and the batch skill drops or narrows the issue.
 
 ## 3. Branch on top of the stack
 
