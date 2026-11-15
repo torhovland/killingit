@@ -1,6 +1,6 @@
 ---
 name: Fix Issues
-description: Pick the ten highest-priority open GitHub issues, solve each one in its own fresh sub-session, open one pull request per issue, link them into one native GitHub stack, and report how a human approves and merges it.
+description: Pick the ten highest-priority open GitHub issues, verify each is still meaningful and worth fixing before trusting it, solve each one in its own fresh sub-session, open one pull request per issue, link them into one native GitHub stack, and report how a human approves and merges it.
 ---
 
 # Fix Issues
@@ -39,15 +39,40 @@ Do not backfill from below the top ten: if an issue is dropped, the stack gets
 shorter instead of padded with lower-priority work. Do not ask for confirmation
 before starting.
 
-### 3. Read every issue in the batch
+### 3. Read and verify every issue in the batch
 
 Run `gh issue view <number> --comments` for each issue and read the files,
 specs, and ADRs it references. Build a picture of what each fix would touch and
 of how the fixes relate.
 
-If an issue is stale, already fixed, or too ambiguous to implement safely, it is
-out of the batch: comment on it with your questions or findings and skip it. Do
-not guess.
+Then check the issue itself against the code at `HEAD`. An issue is a report,
+not a contract: it was written from a snapshot, by a tool or a person who can be
+wrong, and the pull request is reviewed as your change. Do not trust a claim you
+have not reproduced.
+
+- **Reproduce the evidence.** Open every file and line the issue cites and check
+  the size, count, duplication and behaviour it describes. A line number off by
+  ten is harmless; a conclusion the code does not support is fatal.
+- **Find the fix that already exists.** Grep for the helper, type, constant or
+  component the issue proposes, and read the spec and ADR that own the area. An
+  issue whose helper already exists is stale; an issue that reverses a
+  documented decision is out of the batch until the spec changes.
+- **Weigh the value, not only the facts.** A fix earns its diff when it removes
+  a real hazard: behaviour that disagrees with a sibling path, a bug, dead code,
+  duplication that will drift apart, or a rule `AGENTS.md` states. Renaming a
+  private local, naming a single-use string, inlining a one-line alias, merging
+  two three-line helpers, or freezing hundreds of existing violations into a
+  ratchet costs review and churn for nothing. Excellent code quality is the
+  goal; a quiet file is not.
+- **Check the rest of the batch for the same ground**, so two issues do not each
+  invent a helper for it, edit the same lines in opposite directions, or arrive
+  in an order that turns one into a rebase.
+
+If an issue fails verification — wrong premise, already fixed, contradicts a
+spec or ADR, too ambiguous to implement safely, or not worth the diff — comment
+on the GitHub issue with the evidence and the reason, then drop it from the
+batch or narrow it to the part that is real. Do not implement a premise you know
+is wrong, and do not close a number with a no-op. Do not guess.
 
 ### 4. Order the stack
 
@@ -96,19 +121,24 @@ For each issue:
    > being delivered as a native GitHub stack of pull requests that a human
    > merges from the top: this issue's branch is based on `<base-branch>`, which
    > already contains the earlier fixes in the batch (`<issue numbers>`). Do not
-   > work on another issue. You may change a file an earlier fix already changed,
-   > but do not undo or rewrite that fix; build on it. Do not push to, amend,
-   > rebase or force-push the base branch. Start from the tip of `<base-branch>`
-   > with a clean tree. Take ADR number `<n>` and migration slot `<n>` if this
-   > fix needs one. Run every static check the issue makes relevant, not only the
-   > default ones, and make them all pass. If a failure comes only from code
-   > already on the base branch, report it instead of fixing it here. If the area
-   > has no lint, type, or other static check at all, add the missing check to CI
-   > and make that pass too. Open a pull request against `<base-branch>` when the
-   > change is verified. Do not merge it and do not change its base branch: the
-   > batch links every pull request into one GitHub stack at the end. Then reply
-   > with the issue number, the branch, the base branch, a one-line summary, the
-   > checks you ran, any check you added, and the pull request URL.
+   > work on another issue. Verify the issue's claims against the code before
+   > implementing them: if the premise is wrong, the fix already exists, it
+   > reverses a documented decision, or the change is churn that does not pay
+   > for its diff, comment on the issue with the evidence and report back
+   > instead of implementing it. You may change a file an earlier fix already
+   > changed, but do not undo or rewrite that fix; build on it. Do not push to,
+   > amend, rebase or force-push the base branch. Start from the tip of
+   > `<base-branch>` with a clean tree. Take ADR number `<n>` and migration slot
+   > `<n>` if this fix needs one. Run every static check the issue makes
+   > relevant, not only the default ones, and make them all pass. If a failure
+   > comes only from code already on the base branch, report it instead of
+   > fixing it here. If the area has no lint, type, or other static check at
+   > all, add the missing check to CI and make that pass too. Open a pull
+   > request against `<base-branch>` when the change is verified. Do not merge
+   > it and do not change its base branch: the batch links every pull request
+   > into one GitHub stack at the end. Then reply with the issue number, the
+   > branch, the base branch, a one-line summary, the checks you ran, any check
+   > you added, and the pull request URL.
 
 3. Wait for the sub-session to finish and read its report.
 4. Confirm it left the working tree clean, that its branch sits on top of the
@@ -125,9 +155,11 @@ For each issue:
    branch beneath it.
 
 `WORKFLOW.md` is the single-issue procedure: working-tree hygiene, branching on
-the stack, spec, test-driven development, verification, documentation, commit,
-and pull request. A sub-session that finds its issue stale, ambiguous, or much
-larger than it looks comments on the issue and reports back instead of guessing.
+the stack, verification of the issue, spec, test-driven development,
+verification, documentation, commit, and pull request. A sub-session that finds
+its issue stale, wrong about the code, contradicting a spec, ambiguous, much
+larger than it looks, or not worth the diff comments on the issue with the
+evidence and reports back instead of guessing or churning.
 
 ### 6. Link the batch into one GitHub stack
 
@@ -243,6 +275,14 @@ one.
   CI when the area has none, and makes them all pass without weakening a rule
   or skipping a test to get green. A base branch that is already red is fixed
   before the stack continues.
+- Verify, do not trust. Reproduce every claim an issue makes before
+  implementing it, and push back on GitHub with evidence when the premise is
+  wrong, the fix already exists, or the change is churn. Dropping or narrowing
+  an issue is a good outcome, not a failure to deliver.
+- Narrow instead of padding. When an issue bundles worthwhile work with
+  cosmetics, fix the worthwhile part, comment on the issue with what you left
+  out and why, and name it in the pull request. Do not carry a no-op edit just
+  to close the whole issue.
 - Unrelated changes already in the working tree are not yours to touch. Leave
   them uncommitted and out of every pull request; never revert or clean them.
 - If an issue turns out to be much larger than it looked in the batch, drop it
