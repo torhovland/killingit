@@ -1,40 +1,42 @@
 import {
   analyzedActivitiesResponseSchema,
   coachingInputSaveResponseSchema,
-  planDateSchema,
+  zonedDateTime,
 } from "@killingit/shared";
 import type { Context } from "hono";
 import { z } from "zod";
 import { getUser } from "../../auth/middleware.js";
+import { respondUpstreamError, serviceUnavailable } from "../../http/errors.js";
 import {
-  respondUpstreamError,
-  serviceUnavailable,
-  validationFailed,
-} from "../../http/errors.js";
+  todayQuerySchema,
+  timezoneSchema,
+  type TodayWithTimezoneQuery,
+} from "../../http/query.js";
 import {
   withActivityLoad,
   type ActivityFeed,
 } from "../../coaching/feed/presenter.js";
 import { latestActivityAnalysisTimestamp } from "../../plans/status.js";
 import type { ResolvedCoachingDependencies } from "./dependencies.js";
-import { deletionQuerySchema } from "./schemas.js";
 
-const timezoneSchema = z.string().min(1).max(100).optional();
-
-const activityFeedQuerySchema = z.object({
+export const activityFeedQuerySchema = todayQuerySchema.partial().extend({
   refresh: z
     .enum(["true", "false"])
     .default("false")
     .transform((value) => value === "true"),
-  /** Supplied by the dashboard so a new analysis can refresh the plan. */
-  today: planDateSchema.optional(),
   timezone: timezoneSchema,
 });
 
+/** The parsed activity feed query; `today` is supplied by the dashboard. */
+type ActivityFeedQuery = z.infer<typeof activityFeedQuerySchema>;
+
 /** The cached feed is read by day, so it needs the athlete's zone too. */
-const cachedActivityFeedQuerySchema = z.object({
+export const cachedActivityFeedQuerySchema = z.object({
   timezone: timezoneSchema,
 });
+
+/** The parsed cached-feed query. */
+type CachedActivityFeedQuery = z.infer<typeof cachedActivityFeedQuerySchema>;
 
 /** The stored feed plus coach feedback and training load, without a sync. */
 export function createFeedHandlers(deps: ResolvedCoachingDependencies) {
@@ -80,15 +82,10 @@ export function createFeedHandlers(deps: ResolvedCoachingDependencies) {
   }
 
   return {
-    async cached(c: Context) {
-      const query = cachedActivityFeedQuerySchema.safeParse(c.req.query());
-      if (!query.success) {
-        return validationFailed(c, query.error, "Invalid query parameters");
-      }
-
+    async cached(c: Context, query: CachedActivityFeedQuery) {
       try {
         const user = getUser(c);
-        const timeZone = query.data.timezone ?? user.timezone;
+        const timeZone = query.timezone ?? user.timezone;
         const [feed, storedPlan] = await Promise.all([
           deps.loadStoredFeed(user.id, "samples"),
           deps.plans.load(user.id),
@@ -109,6 +106,7 @@ export function createFeedHandlers(deps: ResolvedCoachingDependencies) {
             user.id,
             activities,
             storedPlan?.plan,
+            zonedDateTime(new Date(), timeZone).date,
             timeZone,
           );
           activities = activities.map((activity) =>
@@ -126,28 +124,14 @@ export function createFeedHandlers(deps: ResolvedCoachingDependencies) {
       }
     },
 
-    async activities(c: Context) {
-      const query = activityFeedQuerySchema.safeParse(c.req.query());
-      if (!query.success) {
-        return validationFailed(c, query.error, "Invalid query parameters");
-      }
-
+    async activities(c: Context, query: ActivityFeedQuery) {
       try {
         const user = getUser(c);
         // The request's zone (the device zone when the athlete has not stored
         // one) wins; the account's stored setting is the fallback.
-        const timeZone = query.data.timezone ?? user.timezone ?? undefined;
-        const feed = await deps.loadActivities(
-          user.id,
-          query.data.today,
-          timeZone,
-        );
-        await refreshPlanAfterAnalysis(
-          user.id,
-          feed,
-          query.data.today,
-          timeZone,
-        );
+        const timeZone = query.timezone ?? user.timezone ?? undefined;
+        const feed = await deps.loadActivities(user.id, query.today, timeZone);
+        await refreshPlanAfterAnalysis(user.id, feed, query.today, timeZone);
         return c.json(analyzedActivitiesResponseSchema.parse(feed));
       } catch (err) {
         // A Garmin, sidecar or OpenRouter failure carries the status the
@@ -157,18 +141,13 @@ export function createFeedHandlers(deps: ResolvedCoachingDependencies) {
       }
     },
 
-    async remove(c: Context, activityId: string) {
-      const query = deletionQuerySchema.safeParse(c.req.query());
-      if (!query.success) {
-        return validationFailed(
-          c,
-          query.error,
-          "A valid today date (YYYY-MM-DD) is required",
-        );
-      }
-
+    async remove(
+      c: Context,
+      activityId: string,
+      query: TodayWithTimezoneQuery,
+    ) {
       const user = getUser(c);
-      const { today, timezone } = query.data;
+      const { today, timezone } = query;
 
       await deps.deleteImported(user.id, activityId);
       await deps.trigger(deps.triggerDeps, {

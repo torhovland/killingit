@@ -1,4 +1,9 @@
-import type { BlockPlan, CoachPlan, WeekPlan } from "@killingit/shared";
+import type {
+  BlockPlan,
+  CoachPlan,
+  WeekPlan,
+  WeekSession,
+} from "@killingit/shared";
 import { addDays } from "@killingit/shared";
 
 /** The last day (Sunday) of a Monday-based week plan. */
@@ -12,6 +17,11 @@ export function weekCovers(week: WeekPlan, date: string): boolean {
 
 function blockCovers(block: BlockPlan, date: string): boolean {
   return date >= block.startDate && date <= block.endDate;
+}
+
+/** The stored plan's sessions: the current week's, then the next week's. */
+export function planSessions(plan: CoachPlan): WeekSession[] {
+  return [...plan.week.sessions, ...(plan.nextWeek?.sessions ?? [])];
 }
 
 /** The stored week that contains `date`, current or next. */

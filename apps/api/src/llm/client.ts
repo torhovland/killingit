@@ -26,10 +26,7 @@ export interface LlmClient {
   dailyModel: string;
 }
 
-export async function assertModelUsable(
-  model: string,
-  role: "season" | "daily",
-) {
+async function assertModelUsable(model: string, role: "season" | "daily") {
   const state = await modelIsUsable(model);
   if (state === null || state.usable) return;
   throw new LlmModelChoiceError(

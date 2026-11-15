@@ -84,7 +84,7 @@ export async function loadPeriodReviews(
         ),
       ),
     weekStartDates.length === 0
-      ? Promise.resolve([] as WeeklyNoteRow[])
+      ? Promise.resolve<WeeklyNoteRow[]>([])
       : db
           .select()
           .from(weeklyNotes)
@@ -95,7 +95,7 @@ export async function loadPeriodReviews(
             ),
           ),
     weekStartDates.length === 0
-      ? Promise.resolve([] as CoachReplyRow[])
+      ? Promise.resolve<CoachReplyRow[]>([])
       : db
           .select()
           .from(coachReplies)

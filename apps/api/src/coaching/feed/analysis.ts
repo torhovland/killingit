@@ -8,7 +8,6 @@ import {
   type MetricPoint,
   type ThresholdSummary,
 } from "@killingit/shared";
-import { decrypt } from "../../crypto/credentials.js";
 import { loadDietContext } from "../../diet/context.js";
 import type { DietPromptContext } from "../../diet/summary.js";
 import { GARMIN_DAILY_SYNC_WINDOW_DAYS } from "../../garmin/dailySync.js";
@@ -24,10 +23,8 @@ import {
   saveAnalysis,
   type StoredAnalysis,
 } from "../../llm/analysisStore.js";
-import { llmCredentialsKeyFromEnv } from "../../llm/credentials.js";
 import { LlmAuthError, type LlmProvider } from "../../llm/openrouter.js";
 import type { BodyMetricHistory } from "../../llm/profileContext.js";
-import { loadLlmSettings, type StoredLlmSettings } from "../../llm/store.js";
 import { loadDailyHealthForUser } from "../../metrics/dailyMetrics.js";
 import {
   loadBodyHistoryForUser,
@@ -45,6 +42,8 @@ import {
 import { dbPlanStore, type StoredPlan } from "../../plans/store.js";
 import {
   buildActivityLoads,
+  EMPTY_ACTIVITY_LOADS,
+  mergeTrainingTss,
   type ActivityLoads,
 } from "../../training/activityLoad.js";
 import { loadTrainingContext } from "../../training/context.js";
@@ -54,7 +53,6 @@ import {
   type ThresholdTimeline,
 } from "../../training/thresholds.js";
 import { commentIsNewerThanAnalysis } from "../analysisFreshness.js";
-import { LlmCredentialsError } from "./errors.js";
 import { failedAnalysis, withStoredAnalysis } from "./presenter.js";
 
 /** Bounded concurrency so a batch does not flood OpenRouter. */
@@ -62,7 +60,6 @@ const ANALYSIS_CONCURRENCY = 3;
 
 /** Everything the analysis pass and the final feed need besides the history. */
 export interface AnalysisInputs {
-  settings: StoredLlmSettings | null;
   feedback: ReadonlyMap<string, ActivityFeedback>;
   storedPlan: StoredPlan | null;
   dailyHealth: DailyHealthPoint[] | undefined;
@@ -132,9 +129,8 @@ export async function loadAnalysisInputs(
   today: string,
   timezone: string | undefined,
 ): Promise<AnalysisInputs> {
-  const [settings, feedback, storedPlan, dailyHealth, bodyHistory, diet] =
+  const [feedback, storedPlan, dailyHealth, bodyHistory, diet] =
     await Promise.all([
-      loadLlmSettings(userId),
       loadActivityFeedback(
         userId,
         history.map((activity) => activity.id),
@@ -148,10 +144,10 @@ export async function loadAnalysisInputs(
     userId,
     history,
     storedPlan,
+    today,
     timezone,
   );
   return {
-    settings,
     feedback,
     storedPlan,
     dailyHealth,
@@ -199,37 +195,19 @@ export async function analyzeMissing(
   return outcomes;
 }
 
-/** Loads and decrypts the account's LLM key, reporting a typed error. */
-export async function loadLlmApiKey(
-  settings: StoredLlmSettings,
-): Promise<string> {
-  try {
-    const key = await llmCredentialsKeyFromEnv();
-    return await decrypt(settings.apiKeyEncrypted, key);
-  } catch (err) {
-    throw new LlmCredentialsError(
-      "OpenRouter credentials are unavailable (check LLM_CREDENTIALS_KEY)",
-      { cause: err },
-    );
-  }
-}
-
 async function loadTrainingInputs(
   userId: number,
   history: readonly AnalyzedActivity[],
   storedPlan: StoredPlan | null,
+  today: string,
   timezone: string | undefined,
 ): Promise<TrainingInputs> {
   try {
-    const training = await loadTrainingContext(
-      userId,
-      storedPlan?.plan,
-      timezone,
+    const training = await loadTrainingContext(userId, storedPlan?.plan, today);
+    const tssByDate = mergeTrainingTss(
+      training.planTssByDate,
+      training.manualTssByDate,
     );
-    const tssByDate = new Map(training.planTssByDate);
-    for (const [date, tss] of training.manualTssByDate) {
-      tssByDate.set(date, tss);
-    }
     return {
       ftpHistory: ftpHistoryPoints(training.thresholdTimelines),
       ftp: training.ftpTimeline,
@@ -247,7 +225,7 @@ async function loadTrainingInputs(
       ftpHistory: [],
       ftp: null,
       thresholds: [],
-      loads: { byDate: new Map(), byActivityId: new Map() },
+      loads: EMPTY_ACTIVITY_LOADS,
     };
   }
 }

@@ -13,6 +13,25 @@ import {
 } from "./stress.js";
 import { thresholdForSport, type ThresholdTimeline } from "./thresholds.js";
 
+/** Day snapshots plus the TSS credited to each individual activity. */
+export interface ActivityLoads {
+  /** The fitness snapshot for each date. */
+  byDate: ReadonlyMap<string, TrainingLoad>;
+  /** The TSS credited to each activity, keyed by activity id. */
+  byActivityId: ReadonlyMap<number, number>;
+}
+
+/**
+ * The load snapshot for a caller with no training data yet. The maps are
+ * readonly so every sharing caller reads this one value instead of copying the
+ * literal; a caller that needs real loads replaces the value with a
+ * `buildActivityLoads` result.
+ */
+export const EMPTY_ACTIVITY_LOADS: ActivityLoads = {
+  byDate: new Map(),
+  byActivityId: new Map(),
+};
+
 /**
  * Groups activities by their calendar date (`YYYY-MM-DD`) in the athlete's
  * time zone, so an evening workout west of UTC stays on the day it was done.
@@ -53,6 +72,23 @@ export function manualTssByDate(
     );
   }
   return result;
+}
+
+/**
+ * Merges the plan's TSS estimates with the manual entries' estimates for the
+ * same days. A manual entry is real training the plan's estimate does not
+ * cover, so it replaces the plan's number for its date instead of adding to it;
+ * every other date keeps the plan's value. Returns a new map the caller owns.
+ */
+export function mergeTrainingTss(
+  planTssByDate: ReadonlyMap<string, number>,
+  manualTssByDate: ReadonlyMap<string, number>,
+): Map<string, number> {
+  const merged = new Map(planTssByDate);
+  for (const [date, tss] of manualTssByDate) {
+    merged.set(date, tss);
+  }
+  return merged;
 }
 
 /**
@@ -178,14 +214,6 @@ export function activityDayTss(
   estimatedTss?: number,
 ): number {
   return resolveActivityDayTss(activities, timelines, estimatedTss).total;
-}
-
-/** Day snapshots plus the TSS credited to each individual activity. */
-export interface ActivityLoads {
-  /** The fitness snapshot for each date. */
-  byDate: Map<string, TrainingLoad>;
-  /** The TSS credited to each activity, keyed by activity id. */
-  byActivityId: Map<number, number>;
 }
 
 /**

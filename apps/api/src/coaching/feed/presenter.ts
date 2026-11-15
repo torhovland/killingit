@@ -9,6 +9,7 @@ import type { StoredAnalysis } from "../../llm/analysisStore.js";
 import { toCoachAnalysis, type ActivityFeedback } from "../../plans/replies.js";
 import {
   buildActivityLoads,
+  mergeTrainingTss,
   type ActivityLoads,
 } from "../../training/activityLoad.js";
 import { loadTrainingContext } from "../../training/context.js";
@@ -24,25 +25,23 @@ export interface ActivityFeed {
  * Builds the training-load snapshots for the synced activity dates and the TSS
  * each activity contributes on its own. The FTP timeline includes any revised
  * test result the athlete mentioned, and the stored plan supplies coach TSS
- * estimates for the days it covers.
+ * estimates for the days it covers. The threshold cutoff uses the caller's
+ * `today`, so a stale stored plan cannot hide newer measurements.
  */
 export async function loadUserActivityTrainingLoads(
   userId: number,
   activities: readonly AnalyzedActivity[],
   plan: CoachPlan | undefined,
+  today: string,
   timezone?: string | null,
 ): Promise<ActivityLoads> {
   const { thresholdTimelines, planTssByDate, manualTssByDate } =
-    await loadTrainingContext(userId, plan, timezone);
-  const tssByDate = new Map(planTssByDate);
-  for (const [date, tss] of manualTssByDate) {
-    tssByDate.set(date, tss);
-  }
+    await loadTrainingContext(userId, plan, today);
   return buildActivityLoads(
     activities,
     thresholdTimelines,
     timezone,
-    tssByDate,
+    mergeTrainingTss(planTssByDate, manualTssByDate),
   );
 }
 
@@ -140,19 +139,20 @@ export function withStoredAnalysis(
   };
 }
 
-/** An activity shown before an LLM has been configured. */
-export function withoutAnalysis(
-  activity: Activity,
-  feedback?: ActivityFeedback,
-): AnalyzedActivity {
+/**
+ * An activity shown before an LLM has been configured. It carries no feedback:
+ * `assembleFeed` overlays the athlete's stored feedback with
+ * `withActivityFeedback`, so a freshly synced activity starts empty.
+ */
+export function withoutAnalysis(activity: Activity): AnalyzedActivity {
   return {
     ...summarizeActivity(activity),
     analysis: null,
     analysisError: null,
     programAnalysis: null,
-    comment: feedback?.comment ?? null,
-    coachReply: feedback?.reply ? toCoachAnalysis(feedback.reply) : null,
-    reviewed: feedback?.reviewed ?? false,
+    comment: null,
+    coachReply: null,
+    reviewed: false,
   };
 }
 

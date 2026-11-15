@@ -6,7 +6,6 @@ import {
   foodEntrySchema,
   foodEntryUpdateRequestSchema,
   idParamSchema,
-  planDateSchema,
   type FoodAnalysis,
 } from "@killingit/shared";
 import { zValidator } from "../http/validation.js";
@@ -18,8 +17,8 @@ import {
   badRequest,
   conflict,
   notFound,
-  validationFailed,
 } from "../http/errors.js";
+import { todayQuerySchema } from "../http/query.js";
 import { toAnswerContext } from "../coaching/replies.js";
 import {
   loadReplyContext,
@@ -45,6 +44,10 @@ const NO_LLM_ERROR =
 /** The reported reason when the analysis failed on something internal. */
 const FOOD_ANALYSIS_ERROR = "Something went wrong on our side. Try again.";
 
+/** The reported reason when a meal photo cannot be decoded. */
+const UNREADABLE_PHOTO_MESSAGE =
+  "The photo could not be read. Try another photo.";
+
 /** How far back the summary looks when the athlete has logged nothing. */
 const EMPTY_SUMMARY_DAYS = 30;
 
@@ -67,6 +70,15 @@ function decodePhoto(dataUrl: string): {
   } catch {
     return null;
   }
+}
+
+/**
+ * The two derived copies of a meal photo; both are null when there is no
+ * photo, while a null pair means the photo could not be read.
+ */
+interface MealPhotoPair {
+  analysisDataUrl: string | null;
+  thumbnailDataUrl: string | null;
 }
 
 /** The meal fields the coach needs to analyse a meal. */
@@ -156,17 +168,35 @@ export function createDietRoute(deps: ResolvedAppDependencies): Hono {
   const loadContext = deps.loadFoodContext ?? loadReplyContext;
   const analyze = deps.analyzeFood ?? analyzeFood;
   const createPhotos = deps.createMealPhotos ?? createMealPhotos;
+  const analysisDeps = {
+    answers: deps.answerStore,
+    loadLlm: llmLoader,
+    loadContext,
+    analyze,
+  };
+
+  /**
+   * Reads a meal photo into the bounded analysis copy and the stored
+   * thumbnail. A missing photo yields two nulls; unreadable bytes are logged
+   * and yield null, so the create and edit handlers reject with one answer.
+   */
+  async function processPhoto(
+    photoDataUrl: string | null,
+  ): Promise<MealPhotoPair | null> {
+    if (photoDataUrl === null) {
+      return { analysisDataUrl: null, thumbnailDataUrl: null };
+    }
+    try {
+      return await createPhotos(photoDataUrl);
+    } catch (err) {
+      console.error("[diet] could not read the meal photo:", err);
+      return null;
+    }
+  }
 
   return new Hono()
-    .get("/summary", async (c) => {
-      const today = planDateSchema.safeParse(c.req.query("today"));
-      if (!today.success) {
-        return validationFailed(
-          c,
-          today.error,
-          "A valid today date (YYYY-MM-DD) is required",
-        );
-      }
+    .get("/summary", zValidator("query", todayQuerySchema), async (c) => {
+      const { today } = c.req.valid("query");
       const user = getUser(c);
       if (!user.dietAdvice) {
         return c.json(
@@ -182,9 +212,9 @@ export function createDietRoute(deps: ResolvedAppDependencies): Hono {
       const stored = await entries.listForUser(user.id);
       const earliest =
         stored.map((entry) => entry.eatenDate).sort()[0] ??
-        addDays(today.data, -EMPTY_SUMMARY_DAYS);
+        addDays(today, -EMPTY_SUMMARY_DAYS);
       const [targets, plan] = await Promise.all([
-        loadTargets(user.id, earliest, today.data),
+        loadTargets(user.id, earliest, today),
         deps.planStore.load(user.id),
       ]);
       const diet = plan?.plan.diet ?? null;
@@ -200,7 +230,7 @@ export function createDietRoute(deps: ResolvedAppDependencies): Hono {
             goal: diet?.goal ?? null,
             goalProvided,
             assessment: diet?.assessment ?? null,
-            today: today.data,
+            today: today,
           }),
         ),
       );
@@ -233,21 +263,9 @@ export function createDietRoute(deps: ResolvedAppDependencies): Hono {
       // The bounded analysis copy and the thumbnail are generated from the same
       // bytes, so the coach and the stored image can never disagree. Neither the
       // original nor the analysis copy is stored.
-      const photoDataUrl = input.photoDataUrl ?? null;
-      let analysisPhotoDataUrl: string | null = null;
-      let thumbnailDataUrl: string | null = null;
-      if (photoDataUrl !== null) {
-        try {
-          const photos = await createPhotos(photoDataUrl);
-          analysisPhotoDataUrl = photos.analysisDataUrl;
-          thumbnailDataUrl = photos.thumbnailDataUrl;
-        } catch (err) {
-          console.error("[diet] could not read the meal photo:", err);
-          return badRequest(
-            c,
-            "The photo could not be read. Try another photo.",
-          );
-        }
+      const photos = await processPhoto(input.photoDataUrl ?? null);
+      if (photos === null) {
+        return badRequest(c, UNREADABLE_PHOTO_MESSAGE);
       }
 
       const result = await analyseMeal(
@@ -257,14 +275,9 @@ export function createDietRoute(deps: ResolvedAppDependencies): Hono {
           eatenDate: local.date,
           eatenTime: local.time,
           description,
-          photoDataUrl: analysisPhotoDataUrl,
+          photoDataUrl: photos.analysisDataUrl,
         },
-        {
-          answers: deps.answerStore,
-          loadLlm: llmLoader,
-          loadContext,
-          analyze,
-        },
+        analysisDeps,
       );
 
       const stored = await entries.create(user.id, {
@@ -272,7 +285,7 @@ export function createDietRoute(deps: ResolvedAppDependencies): Hono {
         eatenDate: local.date,
         eatenTime: local.time,
         description,
-        thumbnailDataUrl,
+        thumbnailDataUrl: photos.thumbnailDataUrl,
         analysis: result.analysis,
         model: result.model,
         analysisError: result.analysisError,
@@ -318,17 +331,12 @@ export function createDietRoute(deps: ResolvedAppDependencies): Hono {
         let photoDataUrl = existing.thumbnailDataUrl;
         const newPhoto = input.photoDataUrl ?? null;
         if (newPhoto !== null) {
-          try {
-            const photos = await createPhotos(newPhoto);
-            thumbnailDataUrl = photos.thumbnailDataUrl;
-            photoDataUrl = photos.analysisDataUrl;
-          } catch (err) {
-            console.error("[diet] could not read the meal photo:", err);
-            return badRequest(
-              c,
-              "The photo could not be read. Try another photo.",
-            );
+          const photos = await processPhoto(newPhoto);
+          if (photos === null) {
+            return badRequest(c, UNREADABLE_PHOTO_MESSAGE);
           }
+          thumbnailDataUrl = photos.thumbnailDataUrl;
+          photoDataUrl = photos.analysisDataUrl;
         } else if (input.removePhoto === true) {
           thumbnailDataUrl = null;
           photoDataUrl = null;
@@ -351,12 +359,7 @@ export function createDietRoute(deps: ResolvedAppDependencies): Hono {
               analysis: existing.analysis,
             },
           },
-          {
-            answers: deps.answerStore,
-            loadLlm: llmLoader,
-            loadContext,
-            analyze,
-          },
+          analysisDeps,
         );
 
         const stored = await entries.update(user.id, id, {

@@ -22,6 +22,7 @@
       "project": [
         "src/**/*.{ts,tsx}!",
         "!src/**/*.test.{ts,tsx}!",
+        "!src/testFixtures/**!",
         "pwa/**/*.ts!",
         "notices/**/*.ts!",
         "vite.config.ts!",

@@ -1,16 +1,20 @@
 import {
   coachingInputSaveResponseSchema,
   manualActivitiesResponseSchema,
+  zonedDateTime,
   type ManualActivityRequest,
 } from "@killingit/shared";
 import type { Context } from "hono";
 import { getUser } from "../../auth/middleware.js";
-import { notFound, validationFailed } from "../../http/errors.js";
-import type { ActivityLoads } from "../../training/activityLoad.js";
+import { notFound } from "../../http/errors.js";
+import type { TodayWithTimezoneQuery } from "../../http/query.js";
+import {
+  EMPTY_ACTIVITY_LOADS,
+  type ActivityLoads,
+} from "../../training/activityLoad.js";
 import { toCoachAnalysis } from "../../plans/replies.js";
 import { ftpBaselineAt, ftpTimeline } from "../../training/thresholds.js";
 import { replyTo, type ResolvedCoachingDependencies } from "./dependencies.js";
-import { deletionQuerySchema } from "./schemas.js";
 
 /** Athlete-logged activities, with their coach replies and training load. */
 export function createManualActivityHandlers(
@@ -128,18 +132,9 @@ export function createManualActivityHandlers(
     );
   }
 
-  async function remove(c: Context, id: number) {
-    const query = deletionQuerySchema.safeParse(c.req.query());
-    if (!query.success) {
-      return validationFailed(
-        c,
-        query.error,
-        "A valid today date (YYYY-MM-DD) is required",
-      );
-    }
-
+  async function remove(c: Context, id: number, query: TodayWithTimezoneQuery) {
     const user = getUser(c);
-    const { today, timezone } = query.data;
+    const { today, timezone } = query;
 
     const deleted = await deps.deleteManual(user.id, id);
     if (!deleted) {
@@ -168,15 +163,13 @@ export function createManualActivityHandlers(
         deps.loadStoredFeed(user.id),
         deps.plans.load(user.id),
       ]);
-      let loads: ActivityLoads = {
-        byDate: new Map(),
-        byActivityId: new Map(),
-      };
+      let loads: ActivityLoads = EMPTY_ACTIVITY_LOADS;
       try {
         loads = await deps.loadActivityTrainingLoads(
           user.id,
           cached.activities,
           storedPlan?.plan,
+          zonedDateTime(new Date(), user.timezone).date,
           user.timezone,
         );
       } catch (err) {

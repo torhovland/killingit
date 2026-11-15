@@ -336,7 +336,7 @@ describe("formatPlanContext", () => {
     expect(text).toContain("- 2026-10-22: 2400 kcal");
   });
 
-  it("shows a legacy body-fat goal in the prompt target line", () => {
+  it("does not read a body-fat goal out of the goal text", () => {
     const text = formatPlanContext(
       input({
         dietGoal: {
@@ -346,7 +346,7 @@ describe("formatPlanContext", () => {
       }),
     ).join("\n");
 
-    expect(text).toContain("Diet goal target: 15.0 % body fat.");
+    expect(text).not.toContain("Diet goal target:");
   });
 
   it("says whether the diet goal was stated and whether diet advice is on", () => {

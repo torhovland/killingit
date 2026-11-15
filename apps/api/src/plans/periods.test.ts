@@ -9,6 +9,7 @@ import {
 } from "../testFixtures/plan.js";
 import {
   blockFor,
+  planSessions,
   promoteNextPeriod,
   weekCovers,
   weekEnd,
@@ -65,6 +66,26 @@ describe("weekFor and blockFor", () => {
     expect(blockFor(plan, "2026-10-25")?.startDate).toBe("2026-10-01");
     expect(blockFor(plan, "2026-10-26")?.startDate).toBe("2026-10-26");
     expect(blockFor(plan, "2027-01-01")).toBeNull();
+  });
+});
+
+describe("planSessions", () => {
+  it("returns the current week's sessions when no next week is stored", () => {
+    const plan = makePlan();
+
+    expect(planSessions(plan).map((session) => session.date)).toEqual(
+      plan.week.sessions.map((session) => session.date),
+    );
+  });
+
+  it("returns the next week's sessions after the current week's", () => {
+    const nextWeek = makeWeek("2026-10-26");
+    const plan: CoachPlan = { ...makePlan(), nextWeek };
+
+    expect(planSessions(plan).map((session) => session.date)).toEqual([
+      ...plan.week.sessions.map((session) => session.date),
+      ...nextWeek.sessions.map((session) => session.date),
+    ]);
   });
 });
 

@@ -282,7 +282,7 @@ describe("planPending", () => {
     ).toBe(true);
   });
 
-  it("reads a legacy goal text when deciding whether to refresh progress", () => {
+  it("does not read a legacy goal text when deciding whether to refresh progress", () => {
     const progress = {
       targetWeightKg: 84,
       targetBodyFatPercent: 23.7,
@@ -308,7 +308,7 @@ describe("planPending", () => {
 
     expect(
       planPending({ plan, today: "2026-10-21", dietAdvice: true }).dietProgress,
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it("ignores diet progress without diet advice or a stated goal", () => {

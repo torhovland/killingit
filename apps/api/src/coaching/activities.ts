@@ -1,18 +1,12 @@
 import { zonedDateTime } from "@killingit/shared";
+import { AthleteFacingError } from "../http/errors.js";
+import { loadLlmClient, type LlmClient } from "../llm/client.js";
+import type { LlmProvider } from "../llm/openrouter.js";
 import { shareActivityAnalysis } from "./analysisRuns.js";
-import {
-  analyzeMissing,
-  loadAnalysisInputs,
-  loadLlmApiKey,
-} from "./feed/analysis.js";
+import { analyzeMissing, loadAnalysisInputs } from "./feed/analysis.js";
+import { LlmCredentialsError } from "./feed/errors.js";
 import { assembleFeed, type ActivityFeed } from "./feed/presenter.js";
 import { loadGarminCredentials, syncFeed } from "./feed/sync.js";
-import { assertModelUsable } from "../llm/client.js";
-import { withPromptLogging } from "../llm/callLog.js";
-import {
-  createOpenRouterProvider,
-  type LlmProvider,
-} from "../llm/openrouter.js";
 
 interface AnalyzeActivitiesOptions {
   userId: number;
@@ -35,8 +29,7 @@ interface ActivityFeedPhases {
   loadAnalysisInputs: typeof loadAnalysisInputs;
   analyzeMissing: typeof analyzeMissing;
   assembleFeed: typeof assembleFeed;
-  assertModelUsable: typeof assertModelUsable;
-  loadLlmApiKey: typeof loadLlmApiKey;
+  loadLlmClient: typeof loadLlmClient;
 }
 
 const ACTIVITY_FEED_PHASES: ActivityFeedPhases = {
@@ -45,8 +38,7 @@ const ACTIVITY_FEED_PHASES: ActivityFeedPhases = {
   loadAnalysisInputs,
   analyzeMissing,
   assembleFeed,
-  assertModelUsable,
-  loadLlmApiKey,
+  loadLlmClient,
 };
 
 /**
@@ -76,9 +68,6 @@ async function loadAnalyzedActivitiesOnce(
   today: string,
   phases: ActivityFeedPhases,
 ): Promise<ActivityFeed> {
-  const provider =
-    options.provider ??
-    withPromptLogging(createOpenRouterProvider(), { userId: options.userId });
   const credentials = await phases.loadGarminCredentials(options.userId);
 
   const synced = await phases.syncFeed({
@@ -93,7 +82,8 @@ async function loadAnalyzedActivitiesOnce(
     today,
     options.timezone,
   );
-  if (inputs.settings === null) {
+  const llm = await loadDailyLlmClient(options.userId, phases);
+  if (llm === null) {
     return phases.assembleFeed({
       history: synced.history,
       inputs,
@@ -103,14 +93,12 @@ async function loadAnalyzedActivitiesOnce(
     });
   }
 
-  const model = inputs.settings.dailyModel;
-  await phases.assertModelUsable(model, "daily");
-  const apiKey = await phases.loadLlmApiKey(inputs.settings);
+  const provider = options.provider ?? llm.provider;
   const outcomes = await phases.analyzeMissing({
     userId: options.userId,
     provider,
-    apiKey,
-    model,
+    apiKey: llm.apiKey,
+    model: llm.dailyModel,
     latest: synced.latest,
     refresh: options.refresh,
     inputs,
@@ -120,8 +108,30 @@ async function loadAnalyzedActivitiesOnce(
   return phases.assembleFeed({
     history: synced.history,
     inputs,
-    model,
+    model: llm.dailyModel,
     analyses: outcomes.map((outcome) => outcome.activity),
     timezone: options.timezone,
   });
+}
+
+/**
+ * Loads the account's daily client, keeping the feed's credential contract: a
+ * retired model stays athlete-facing, while any other failure is reported as an
+ * unavailable OpenRouter credential instead of a generic server error.
+ */
+async function loadDailyLlmClient(
+  userId: number,
+  phases: ActivityFeedPhases,
+): Promise<LlmClient | null> {
+  try {
+    return await phases.loadLlmClient(userId, "daily");
+  } catch (err) {
+    if (err instanceof AthleteFacingError) {
+      throw err;
+    }
+    throw new LlmCredentialsError(
+      "OpenRouter credentials are unavailable (check LLM_CREDENTIALS_KEY)",
+      { cause: err },
+    );
+  }
 }

@@ -4,7 +4,11 @@ import { LlmModelChoiceError } from "../../llm/client.js";
 import { LlmAuthError, LlmProviderError } from "../../llm/openrouter.js";
 import type { ActivityFeedback } from "../../plans/replies.js";
 import { withActivityFeedback } from "../activityStore.js";
-import { failedAnalysis, withActivityLoad } from "./presenter.js";
+import {
+  failedAnalysis,
+  withActivityLoad,
+  withoutAnalysis,
+} from "./presenter.js";
 
 function synced(id: number, startDate: string, name: string): Activity {
   return {
@@ -66,6 +70,19 @@ describe("withActivityFeedback", () => {
     const activity = stored(1, "2026-10-03T06:30:00Z");
 
     expect(withActivityFeedback(activity, new Map())).toBe(activity);
+  });
+});
+
+describe("withoutAnalysis", () => {
+  it("returns the no-analysis shape with empty feedback fields", () => {
+    const shown = withoutAnalysis(synced(1, "2026-10-03T06:30:00Z", "Ride"));
+
+    expect(shown.analysis).toBeNull();
+    expect(shown.analysisError).toBeNull();
+    expect(shown.programAnalysis).toBeNull();
+    expect(shown.comment).toBeNull();
+    expect(shown.coachReply).toBeNull();
+    expect(shown.reviewed).toBe(false);
   });
 });
 

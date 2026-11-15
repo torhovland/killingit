@@ -104,9 +104,11 @@ throughout:
 
 The resulting meal must still have a description or a photo; otherwise the API
 returns 400. The endpoint returns 404 for a meal the athlete does not own and
-409 when diet advice is off. A failed re-assessment keeps the edited meal and
-records `analysisError`, clearing the earlier analysis because its numbers no
-longer describe the saved description.
+409 when diet advice is off. A replacement photo that cannot be decoded is
+rejected with the same 400 answer as on create, and the stored meal is left
+unchanged. A failed re-assessment keeps the edited meal and records
+`analysisError`, clearing the earlier analysis because its numbers no longer
+describe the saved description.
 
 The re-assessment prompt carries the meal as it was stored before the edit: the
 previous description and the previous structured analysis, including its meal
@@ -156,9 +158,11 @@ food log.
   keeps normal phone photos intact and strips EXIF metadata) and sent to the
   API. The API uses Jimp, a pure JavaScript decoder, to derive a 1024 px JPEG
   for the coach and a 320 px thumbnail for the food log from the same decode.
-  The original and the analysis copy are never stored. The thumbnail is served,
-  with the bearer token, from a separate endpoint, so the list response never
-  carries image bytes and the thumbnail is not publicly readable.
+  The original and the analysis copy are never stored. A photo the decoder
+  cannot read is rejected with 400 before anything is stored or changed. The
+  thumbnail is served, with the bearer token, from a separate endpoint, so the
+  list response never carries image bytes and the thumbnail is not publicly
+  readable.
 - A model without vision support is retried once without the photo, so a text
   description still gets an analysis. A photo-only meal whose model cannot read
   images keeps the meal and records the analysis error.

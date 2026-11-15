@@ -5,7 +5,6 @@ import type {
   DietPromptContext,
   DietWeekSummary,
 } from "../diet/summary.js";
-import { impliedGoalBodyFatPercent } from "../plans/dietProgress.js";
 
 /** One earlier calorie requirement the coach set for a day. */
 export interface CalorieTargetPoint {
@@ -99,9 +98,8 @@ function formatDietGoalTarget(diet: DietPlan): string | null {
   if (diet.goalWeightKg != null) {
     parts.push(`${diet.goalWeightKg.toFixed(1)} kg`);
   }
-  const goalBodyFatPercent =
-    diet.goalBodyFatPercent ?? impliedGoalBodyFatPercent(diet.goal);
-  if (goalBodyFatPercent !== null) {
+  const goalBodyFatPercent = diet.goalBodyFatPercent;
+  if (goalBodyFatPercent != null) {
     parts.push(`${goalBodyFatPercent.toFixed(1)} % body fat`);
   }
   if (diet.goalDate != null) {

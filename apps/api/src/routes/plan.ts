@@ -11,7 +11,8 @@ import { zValidator } from "../http/validation.js";
 import { Hono } from "hono";
 import { z } from "zod";
 import { getUser } from "../auth/middleware.js";
-import { notFound, validationFailed } from "../http/errors.js";
+import { notFound } from "../http/errors.js";
+import { todayQuerySchema } from "../http/query.js";
 import {
   planTriggerDependencies,
   type ResolvedAppDependencies,
@@ -231,23 +232,16 @@ export function createPlanRoute(deps: ResolvedAppDependencies): Hono {
   }
 
   return new Hono()
-    .get("/", async (c) => {
+    .get("/", zValidator("query", todayQuerySchema), async (c) => {
       const user = getUser(c);
-      const today = planDateSchema.safeParse(c.req.query("today"));
-      if (!today.success) {
-        return validationFailed(
-          c,
-          today.error,
-          "A valid today date (YYYY-MM-DD) is required",
-        );
-      }
+      const { today } = c.req.valid("query");
       const includeTomorrow = c.req.query("includeTomorrow") === "true";
       return c.json(
         await buildResponse({
           userId: user.id,
           location: user.location,
           timezone: user.timezone,
-          today: today.data,
+          today,
           includeTomorrow,
           dietAdvice: user.dietAdvice,
         }),

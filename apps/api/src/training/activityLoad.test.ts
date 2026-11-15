@@ -2,8 +2,10 @@ import { describe, expect, it } from "bun:test";
 import type { AnalyzedActivity, AthleteThreshold } from "@killingit/shared";
 import {
   buildActivityLoads,
+  EMPTY_ACTIVITY_LOADS,
   groupActivitiesByDate,
   manualTssByDate,
+  mergeTrainingTss,
 } from "./activityLoad.js";
 import { buildThresholdTimelines } from "./thresholds.js";
 
@@ -69,6 +71,40 @@ describe("manualTssByDate", () => {
       ["2026-10-20", 65],
       ["2026-10-22", 90],
     ]);
+  });
+});
+
+describe("mergeTrainingTss", () => {
+  it("keeps the plan's TSS and lets a manual entry win on the same date", () => {
+    const merged = mergeTrainingTss(
+      new Map([
+        ["2026-10-20", 80],
+        ["2026-10-21", 40],
+      ]),
+      new Map([["2026-10-20", 120]]),
+    );
+
+    expect([...merged]).toEqual([
+      ["2026-10-20", 120],
+      ["2026-10-21", 40],
+    ]);
+  });
+
+  it("does not modify either input map", () => {
+    const planTss = new Map([["2026-10-20", 80]]);
+    const manualTss = new Map([["2026-10-20", 120]]);
+
+    mergeTrainingTss(planTss, manualTss).set("2026-10-22", 55);
+
+    expect([...planTss]).toEqual([["2026-10-20", 80]]);
+    expect([...manualTss]).toEqual([["2026-10-20", 120]]);
+  });
+});
+
+describe("EMPTY_ACTIVITY_LOADS", () => {
+  it("has no dates or activities", () => {
+    expect(EMPTY_ACTIVITY_LOADS.byDate.size).toBe(0);
+    expect(EMPTY_ACTIVITY_LOADS.byActivityId.size).toBe(0);
   });
 });
 

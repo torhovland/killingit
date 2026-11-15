@@ -20,6 +20,7 @@ import { loadFitnessHistory } from "../training/history.js";
 import type { TrainingContext } from "../training/context.js";
 import type { UserStore } from "../users/store.js";
 import { apiRequest } from "../testFixtures/request.js";
+import { expectValidationFailure } from "../testFixtures/validation.js";
 
 const thresholdPoints: AthleteThreshold[] = [
   {
@@ -215,14 +216,14 @@ describe("fitness route", () => {
 
   it("rejects a missing today date", async () => {
     const res = await makeApp().fetch(authenticatedRequest("/api/fitness"));
-    expect(res.status).toBe(400);
+    await expectValidationFailure(res);
   });
 
   it("rejects an unknown range", async () => {
     const res = await makeApp().fetch(
       authenticatedRequest("/api/fitness?today=2026-10-22&range=decade"),
     );
-    expect(res.status).toBe(400);
+    await expectValidationFailure(res);
   });
 
   it("returns the daily load and FTP series", async () => {

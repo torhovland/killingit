@@ -5,8 +5,8 @@ import type {
 } from "@killingit/shared";
 import type { ManualActivityContext } from "../llm/activityContext.js";
 import { loadThresholdHistoryForUser } from "../metrics/store.js";
-import { startOfWeek, zonedDateTime } from "@killingit/shared";
-import { loadCoachingInputs } from "../plans/inputs.js";
+import { loadManualActivities } from "../plans/inputs.js";
+import { planSessions } from "../plans/periods.js";
 import { manualTssByDate } from "./activityLoad.js";
 import { ftpTimeline, type ThresholdTimeline } from "./thresholds.js";
 
@@ -32,21 +32,21 @@ export interface TrainingContext {
  * Loads the athlete's FTP timeline and the TSS the stored plan and manual
  * entries contribute. The timeline is read from the stored metric series, which
  * includes the FTP the coach read from the athlete's words, every Garmin
- * measurement, and the coach's estimates. Values dated after the plan date are
- * excluded from the timeline used for load, so a future projection cannot
- * become today's baseline.
+ * measurement, and the coach's estimates. Values dated after the caller's
+ * `today` are excluded from the timeline used for load, so a future projection
+ * cannot become today's baseline and a stale stored plan cannot hide newer
+ * measurements.
  */
 export async function loadTrainingContext(
   userId: number,
   plan: CoachPlan | undefined,
-  timeZone?: string | null,
+  today: string,
 ): Promise<TrainingContext> {
-  const planDate = plan?.today.date ?? zonedDateTime(new Date(), timeZone).date;
-  const [history, coachingInputs] = await Promise.all([
-    loadThresholdHistoryForUser(userId, planDate),
-    loadCoachingInputs(userId, startOfWeek(planDate)),
+  const [history, manualActivities] = await Promise.all([
+    loadThresholdHistoryForUser(userId, today),
+    loadManualActivities(userId),
   ]);
-  const manualByDate = manualTssByDate(coachingInputs.manualActivities);
+  const manualByDate = manualTssByDate(manualActivities);
   return {
     ftpTimeline: ftpTimeline(history.timelines),
     thresholds: history.summaries,
@@ -54,7 +54,7 @@ export async function loadTrainingContext(
     thresholdTimelines: history.timelines,
     planTssByDate: planTssByDate(plan),
     manualTssByDate: manualByDate,
-    manualActivities: coachingInputs.manualActivities,
+    manualActivities,
   };
 }
 
@@ -64,8 +64,7 @@ function planTssByDate(plan: CoachPlan | undefined): Map<string, number> {
   if (plan === undefined) {
     return result;
   }
-  const sessions = [...plan.week.sessions, ...(plan.nextWeek?.sessions ?? [])];
-  for (const session of sessions) {
+  for (const session of planSessions(plan)) {
     const tss = session.trainingLoad?.tss ?? session.estimatedTss;
     if (tss !== undefined) {
       result.set(session.date, tss);
