@@ -24,6 +24,7 @@ import { PwaBanners } from "./PwaBanners";
 import { usePwa } from "./PwaContext";
 import { InstallAppButton } from "./PwaInstall";
 import { SignInPage } from "./SignInPage";
+import { surveyGate } from "./surveyGate";
 import { TimeZoneProvider } from "./TimeZoneContext";
 import { useAthleteQuestions } from "./useAthleteQuestions";
 import { Button } from "./components/Button";
@@ -42,7 +43,7 @@ function AppShell() {
   const auth = useAuth();
   const pwa = usePwa();
   const { status, setStatus } = useAppStatus();
-  const { user } = useCurrentUser();
+  const { user, loading: loadingUser } = useCurrentUser();
   const [timeZone, setTimeZone] = useState<string | null>(null);
   const timeZoneTouched = useRef(false);
   const pathname = useLocationPath();
@@ -60,6 +61,15 @@ function AppShell() {
 
   const signedIn = auth.isAuthenticated;
   const isAdmin = user?.role === "admin";
+  // The coaching survey holds the athlete back until it is answered; only the
+  // admin's own settings page stays open, because the admin edits the
+  // questions that block everyone.
+  const gate = surveyGate({
+    page,
+    surveyRequired: questions !== null && !questions.complete,
+    isAdmin,
+    rolePending: signedIn && loadingUser,
+  });
 
   useEffect(() => {
     const loading = auth.isLoading || (loadingQuestions && questions === null);
@@ -76,12 +86,12 @@ function AppShell() {
   }, [matchedPage]);
 
   // An added or revised question sends the athlete to the survey so they can
-  // see what changed and answer it.
+  // see what changed and answer it. The gate keeps the admin settings page.
   useEffect(() => {
-    if (questions !== null && !questions.complete && page !== "survey") {
+    if (gate === "survey") {
       navigateToPage("survey", { replace: true });
     }
-  }, [page, questions]);
+  }, [gate]);
 
   // Admin settings belong to the admin. A member who opens the URL is sent
   // back to the coach page once their role is known.
@@ -218,8 +228,13 @@ function AppShell() {
                     Retry
                   </Button>
                 </section>
-              ) : !questions.complete ? (
+              ) : gate === "survey" ? (
                 <CoachingSurveyPage onAnswersSaved={handleAnswersSaved} />
+              ) : gate === "wait" ? (
+                // `/admin` renders once the account's role is known, so a
+                // reload keeps the admin there instead of bouncing to the
+                // survey.
+                <p className="text-base text-muted-foreground">Loading…</p>
               ) : (
                 <PageOutlet
                   page={page === "admin" && !isAdmin ? "coach" : page}

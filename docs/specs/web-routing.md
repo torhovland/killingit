@@ -43,7 +43,8 @@ ternary chain.
    component, replacing the nested ternaries in `App.tsx`.
 4. Redirects written as `replaceState` so they do not trap the back button:
    - `/` and any unknown path go to `/coach`;
-   - an incomplete coaching survey goes to `/survey` from any other page;
+   - an incomplete coaching survey goes to `/survey` from any other page
+     except the admin's `/admin`;
    - a signed-in member who opens `/admin` goes to `/coach`.
 5. The header logo and the account menu keep their labels but now change the
    URL. The calendar keeps the wider content panel, expressed in its page
@@ -72,9 +73,12 @@ ternary chain.
 - A page change does not reload the shell: only the URL changes, so in-flight
   requests, a running plan generation and the header spinner survive.
 - The survey gate and the admin guard are the existing rules; they now change
-  the URL instead of component state. Reloading `/survey` keeps the survey page
-  even after every answer is saved, because the survey is a real page with a
-  real URL (the old in-memory page reset to the dashboard on reload).
+  the URL instead of component state. An incomplete survey holds the athlete on
+  `/survey`, except on the admin's `/admin`: the admin edits the questions that
+  block everyone, so that page stays open (and a reload waits for the role
+  instead of bouncing through `/survey`). Reloading `/survey` keeps the survey
+  page even after every answer is saved, because the survey is a real page with
+  a real URL (the old in-memory page reset to the dashboard on reload).
 - Signing in returns to the path the visitor requested, because the Auth0
   adapter already asks Auth0 to return to `window.location.pathname`.
 
@@ -85,10 +89,11 @@ ternary chain.
 2. The nested ternary chain is gone; every page is one registry entry plus its
    definition entry.
 3. `/` and unknown paths redirect to `/coach`; `/admin` redirects a member to
-   `/coach`; an incomplete survey redirects to `/survey`.
-4. Pure tests cover the path mapping, label lookup and the calendar's wide
-   panel; the e2e suite covers a deep link after sign-in, reload and the history
-   buttons.
+   `/coach`; an incomplete survey redirects to `/survey` except on the admin's
+   `/admin`.
+4. Pure tests cover the path mapping, label lookup, the survey gate and the
+   calendar's wide panel; the e2e suite covers a deep link after sign-in, reload
+   and the history buttons.
 5. `bun run typecheck`, `bun run lint`, `bun run format`, `bun run test` and
    `bun run test:e2e` pass.
 
