@@ -63,12 +63,26 @@ the environment still ends on the latest verified commit.
 The build-and-push jobs are not serialised: they only push an image tagged with
 a commit SHA, which two runs cannot conflict over.
 
+### The Pages publish
+
+Pinning every checkout to `DEPLOY_SHA` leaves the runner on a detached HEAD, so
+wrangler cannot read a branch name. Both web deploys therefore pass
+`--branch=main` explicitly. A deployment on the project's production branch
+replaces the site behind `killingit-test.hovland.co` and
+`killingit.hovland.co`; a deployment on any other branch is a preview. Without
+the flag, wrangler names the branch `head`, publishes a preview, and the custom
+domain keeps serving the previous production deployment while every deploy job
+still reports success. That is how the web sites silently stopped updating when
+the deployments were pinned to a SHA.
+
 ## Acceptance criteria
 
 - On `workflow_run`, all checkouts, image tags, and Sentry releases use the
   triggering run's `head_sha`.
 - A manual dispatch from another branch, or for a commit without a successful
   CI run on `main`, fails before building or deploying.
+- Both Pages publishes name `main` as the branch, so a pinned checkout cannot
+  publish a preview in place of the environment's site.
 - Deploys to one environment never overlap, and a running deploy is never
   cancelled by a queued one.
 - `scripts/deployWorkflow.test.ts` asserts these invariants. `bun run test` runs

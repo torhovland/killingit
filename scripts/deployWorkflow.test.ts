@@ -41,6 +41,16 @@ function allSteps(): WorkflowStep[] {
   return Object.values(WORKFLOW.jobs).flatMap((job) => job.steps ?? []);
 }
 
+/** The Cloudflare Pages publish commands, one per environment. */
+function pagesPublishCommands(): string[] {
+  return allSteps()
+    .map((step) => step.with?.command)
+    .filter(
+      (command): command is string =>
+        typeof command === "string" && command.startsWith("pages deploy"),
+    );
+}
+
 describe("deployed commit", () => {
   it("checks out the commit CI verified in every job", () => {
     expect(WORKFLOW.env?.DEPLOY_SHA).toBe(
@@ -77,6 +87,19 @@ describe("deployed commit", () => {
     expect(releases.length).toBeGreaterThan(0);
     for (const release of releases) {
       expect(release).toContain(DEPLOY_SHA);
+    }
+  });
+});
+
+describe("web publish", () => {
+  it("names the production branch instead of letting wrangler infer one", () => {
+    // Pinning the checkout to `DEPLOY_SHA` detaches HEAD, so wrangler cannot
+    // read a branch and calls the deployment `head`. That publishes a preview
+    // and leaves the custom domain on the last production deployment.
+    const commands = pagesPublishCommands();
+    expect(commands).toHaveLength(2);
+    for (const command of commands) {
+      expect(command).toContain("--branch=main");
     }
   });
 });

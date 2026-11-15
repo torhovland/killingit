@@ -163,7 +163,10 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy apps/web/dist --project-name ${{ vars.CF_PAGES_TEST }}
+          # The pinned checkout is a detached HEAD, so wrangler cannot infer a
+          # branch and would publish a `head` preview instead of a production
+          # deployment.
+          command: pages deploy apps/web/dist --project-name ${{ vars.CF_PAGES_TEST }} --branch=main
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
 
   deploy-api-test:
@@ -285,7 +288,8 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy apps/web/dist --project-name ${{ vars.CF_PAGES_PROD }}
+          # See the test publish: the deployed commit is a detached HEAD.
+          command: pages deploy apps/web/dist --project-name ${{ vars.CF_PAGES_PROD }} --branch=main
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
 
   deploy-api-production:
