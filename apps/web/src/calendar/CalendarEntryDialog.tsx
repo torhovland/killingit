@@ -1,20 +1,12 @@
-import {
-  activityAverageSpeed,
-  formatActivityPaceOrSpeed,
-  formatActivityType,
-  formatDuration,
-  type CalendarActivity,
-  type WeekSession,
-} from "@killingit/shared";
+import { type CalendarActivity, type WeekSession } from "@killingit/shared";
 import { ActivityMap } from "../ActivityMap";
+import { activityMetadata } from "../activityMetadata";
 import { Bullet, Bullets } from "../Bullet";
 import { FormattedText } from "../FormattedText";
 import { SessionSetting } from "../SessionSetting";
 import { TrainingLoadLine } from "../TrainingLoadLine";
 import { useTimeZone } from "../TimeZoneContext";
-import { formatDistanceKm } from "../formatDistance";
 import { formatPlanDate } from "../plan/formatPlanDate";
-import { formatDateTime } from "../timeZone";
 import { WeatherSummary } from "../WeatherSummary";
 import { Button } from "../components/Button";
 import { CoachReply } from "../components/CoachReply";
@@ -103,30 +95,7 @@ function ActivityDetails({ activity }: { activity: CalendarActivity }) {
 
   const route = activity.route ?? [];
   const hasMap = route.length >= 2;
-  const metadata = [
-    formatDateTime(activity.startDate, timeZone),
-    formatActivityType(activity.type),
-  ];
-  if (activity.distance > 0) {
-    metadata.push(formatDistanceKm(activity.distance));
-  }
-  const averageSpeed = activityAverageSpeed(activity);
-  if (averageSpeed !== null) {
-    const paceOrSpeed = formatActivityPaceOrSpeed(activity.type, averageSpeed);
-    if (paceOrSpeed !== null) {
-      metadata.push(paceOrSpeed);
-    }
-  }
-  metadata.push(formatDuration(activity.elapsedTime));
-  if (activity.totalElevationGain > 0) {
-    metadata.push(`${Math.round(activity.totalElevationGain)} m climb`);
-  }
-  if (activity.averagePower != null && activity.averagePower > 0) {
-    metadata.push(`${Math.round(activity.averagePower)} W average`);
-  }
-  if (activity.normalizedPower != null && activity.normalizedPower > 0) {
-    metadata.push(`${Math.round(activity.normalizedPower)} W normalized`);
-  }
+  const metadata = activityMetadata(activity, timeZone);
   const summary =
     activity.analysis?.text.trim() ||
     activity.programAnalysis?.text.trim() ||

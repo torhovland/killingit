@@ -1,23 +1,15 @@
 import { useState } from "react";
-import {
-  activityAverageSpeed,
-  formatActivityPaceOrSpeed,
-  formatActivityType,
-  formatDuration,
-  hasLapStructure,
-  type AnalyzedActivity,
-} from "@killingit/shared";
+import { hasLapStructure, type AnalyzedActivity } from "@killingit/shared";
 import { ActivityMap } from "./ActivityMap";
 import { ActivityLaps } from "./ActivityLaps";
 import { ActivitySamples } from "./ActivitySamples";
+import { activityMetadata } from "./activityMetadata";
 import { Bullet, Bullets } from "./Bullet";
 import { CommentSection } from "./CommentSection";
 import { FormattedText } from "./FormattedText";
 import { TrainingLoadLine } from "./TrainingLoadLine";
-import { formatDistanceKm } from "./formatDistance";
 import { useCommentForm } from "./useCommentForm";
 import { useTimeZone } from "./TimeZoneContext";
-import { formatDateTime } from "./timeZone";
 import { Button } from "./components/Button";
 import { Card } from "./components/Card";
 import { CoachReply } from "./components/CoachReply";
@@ -95,24 +87,7 @@ export function ActivityCard({
     activity.analysis?.text.trim() || activity.programAnalysis?.text.trim();
   const route = activity.route ?? [];
   const hasMap = route.length >= 2;
-  const metadata = [
-    formatDateTime(activity.startDate, timeZone),
-    formatActivityType(activity.type),
-  ];
-  if (activity.distance > 0) {
-    metadata.push(formatDistanceKm(activity.distance));
-  }
-  const averageSpeed = activityAverageSpeed(activity);
-  if (averageSpeed !== null) {
-    const paceOrSpeed = formatActivityPaceOrSpeed(activity.type, averageSpeed);
-    if (paceOrSpeed !== null) {
-      metadata.push(paceOrSpeed);
-    }
-  }
-  metadata.push(formatDuration(activity.elapsedTime));
-  if (activity.totalElevationGain > 0) {
-    metadata.push(`${Math.round(activity.totalElevationGain)} m climb`);
-  }
+  const metadata = activityMetadata(activity, timeZone);
 
   return (
     <Card

@@ -105,8 +105,8 @@ the activity reasonably conformed, and is direct about improvements. Cards do
 not show the generating model or the number of recorded samples. Activity types
 are shown in natural language (`indoor_cycling` becomes `Indoor cycling`) in
 cards and weekly-plan descriptions. Duration is **elapsed** time, not moving
-time, so indoor activities report their real elapsed duration. Distance and
-climb are omitted when zero.
+time, so indoor activities report their real elapsed duration. Distance, climb
+and power are omitted when zero or absent.
 
 When an activity has GPS positions, a compact route map on an OpenStreetMap
 background (with attribution) is shown next to the coach analysis. Activities
