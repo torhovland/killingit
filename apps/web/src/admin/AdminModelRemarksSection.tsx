@@ -4,7 +4,8 @@ import {
 } from "@killingit/shared";
 import { useAuth } from "../auth";
 import { FormattedText } from "../FormattedText";
-import { browserTimeZone, formatDateTime } from "../timeZone";
+import { formatDateTime } from "../timeZone";
+import { useTimeZone } from "../TimeZoneContext";
 import { useApiResource } from "../useApiResource";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
@@ -26,6 +27,7 @@ export function AdminModelRemarksSection() {
   const remarks = resource.data?.remarks ?? null;
   const loading = resource.loading;
   const error = resource.error;
+  const timeZone = useTimeZone();
 
   return (
     <Card
@@ -78,9 +80,7 @@ export function AdminModelRemarksSection() {
                 </span>
                 <span>{remark.model}</span>
                 <span>{remark.userLabel}</span>
-                <span>
-                  {formatDateTime(remark.createdAt, browserTimeZone())}
-                </span>
+                <span>{formatDateTime(remark.createdAt, timeZone)}</span>
                 <span>Prompt #{remark.callId}</span>
               </div>
               <FormattedText text={remark.remarks} />

@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, mock } from "bun:test";
 import type { LlmCallDetail, LlmCallSummary } from "@killingit/shared";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { formatDateTime } from "../timeZone";
+import { TimeZoneProvider } from "../TimeZoneContext";
 
 const { SessionExpiredError } = await import("../auth/session");
 
@@ -101,10 +103,12 @@ function stubApi(
   }) as typeof fetch;
 }
 
-function renderSection() {
+function renderSection(timeZone = "Europe/Oslo") {
   return render(
     <AppStatusProvider>
-      <AdminLlmCallsSection />
+      <TimeZoneProvider timeZone={timeZone}>
+        <AdminLlmCallsSection />
+      </TimeZoneProvider>
     </AppStatusProvider>,
   );
 }
@@ -130,6 +134,27 @@ describe("AdminLlmCallsSection", () => {
     expect(row.textContent).toContain("openrouter/model");
     expect(row.textContent).toContain("auth|admin");
     expect(row.textContent).toContain("1200 ms");
+  });
+
+  it("formats both the list and the detail time in the account's zone", async () => {
+    const zone = "Pacific/Kiritimati";
+    stubApi([summary], { 12: detail });
+    renderSection(zone);
+
+    const row = await screen.findByRole("button", {
+      name: /openrouter\/model/,
+    });
+    expect(row.textContent).toContain(formatDateTime(summary.createdAt, zone));
+    expect(row.textContent).not.toContain(
+      formatDateTime(summary.createdAt, "UTC"),
+    );
+
+    await selectCall(/openrouter\/model/);
+    const card = await screen.findByTestId("llm-call-detail");
+    expect(card.textContent).toContain(formatDateTime(summary.createdAt, zone));
+    expect(card.textContent).not.toContain(
+      formatDateTime(summary.createdAt, "UTC"),
+    );
   });
 
   it("keeps the selected call readable instead of putting light text on accent", async () => {

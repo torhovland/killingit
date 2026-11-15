@@ -8,7 +8,7 @@ import { ModelTable, type ModelRole } from "../llm/ModelTable";
 import { useLlmCatalog } from "../llm/useLlmCatalog";
 import { useQueuedSave } from "../llm/useQueuedSave";
 import { OpenRouterKeySection } from "./OpenRouterKeySection";
-import { browserTimeZone } from "../timeZone";
+import { useTimeZone } from "../TimeZoneContext";
 import { usePropDraft } from "../usePropDraft";
 
 interface LlmSectionProps {
@@ -70,7 +70,7 @@ export function LlmSection({ settings, onSaved, isAdmin }: LlmSectionProps) {
       ),
     onSaved,
   );
-  const timeZone = browserTimeZone();
+  const timeZone = useTimeZone();
 
   function chooseModel(role: ModelRole, modelId: string): void {
     const next: ModelSelection = {
