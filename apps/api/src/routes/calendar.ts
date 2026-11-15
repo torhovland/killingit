@@ -31,7 +31,7 @@ import {
   toCoachAnalysis,
 } from "../plans/replies.js";
 import { loadManualActivities } from "../plans/inputs.js";
-import { promoteNextPeriod } from "../plans/periods.js";
+import { planSessions, promoteNextPeriod } from "../plans/periods.js";
 import { loadValidatedPlan } from "../plans/store.js";
 import type { ResolvedAppDependencies } from "../dependencies.js";
 import {
@@ -55,8 +55,7 @@ function latest(dates: readonly string[], fallback: string): string {
 
 /** The plan's sessions for the dates it describes (today through next week). */
 function plannedSessions(plan: CoachPlan): Map<string, WeekSession> {
-  const sessions = [...plan.week.sessions, ...(plan.nextWeek?.sessions ?? [])];
-  return new Map(sessions.map((session) => [session.date, session]));
+  return new Map(planSessions(plan).map((session) => [session.date, session]));
 }
 
 /**
@@ -164,7 +163,7 @@ function weekStats(
   const sessions =
     plan === null
       ? []
-      : [...plan.week.sessions, ...(plan.nextWeek?.sessions ?? [])].filter(
+      : planSessions(plan).filter(
           (session) =>
             session.type === "workout" &&
             session.date >= startDate &&

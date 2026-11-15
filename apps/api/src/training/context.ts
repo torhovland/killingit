@@ -6,6 +6,7 @@ import type {
 import type { ManualActivityContext } from "../llm/activityContext.js";
 import { loadThresholdHistoryForUser } from "../metrics/store.js";
 import { loadManualActivities } from "../plans/inputs.js";
+import { planSessions } from "../plans/periods.js";
 import { manualTssByDate } from "./activityLoad.js";
 import { ftpTimeline, type ThresholdTimeline } from "./thresholds.js";
 
@@ -63,8 +64,7 @@ function planTssByDate(plan: CoachPlan | undefined): Map<string, number> {
   if (plan === undefined) {
     return result;
   }
-  const sessions = [...plan.week.sessions, ...(plan.nextWeek?.sessions ?? [])];
-  for (const session of sessions) {
+  for (const session of planSessions(plan)) {
     const tss = session.trainingLoad?.tss ?? session.estimatedTss;
     if (tss !== undefined) {
       result.set(session.date, tss);

@@ -26,6 +26,7 @@ import { withoutInProgressDailyHealth } from "../metrics/dailyHealth.js";
 import { loadMetricPoints } from "../metrics/store.js";
 import { addDays, startOfWeek } from "@killingit/shared";
 import { loadPlanDayCalories } from "../plans/dayCalories.js";
+import { planSessions } from "../plans/periods.js";
 import {
   activityDayTss,
   groupActivitiesByDate,
@@ -266,8 +267,7 @@ function plannedSessions(
   if (plan === undefined) {
     return result;
   }
-  const sessions = [...plan.week.sessions, ...(plan.nextWeek?.sessions ?? [])];
-  for (const session of sessions) {
+  for (const session of planSessions(plan)) {
     result.set(session.date, {
       title: session.title,
       type: session.type,
