@@ -5,7 +5,21 @@
  * upstream plugins.
  */
 
-/** Requires top-level `export const` declarations to precede `export function`. */
+/**
+ * Requires top-level `export const` declarations to precede exported function
+ * declarations.
+ *
+ * An exported function declaration is either `export function` or
+ * `export default function`; the latter wraps the declaration in an
+ * `ExportDefaultDeclaration`, so it needs its own visitor.
+ *
+ * A declaration-less `export { x }` is deliberately not inspected. The
+ * specifier may name a function, a const, an import, a re-export, a class or a
+ * type, and the rule would have to compare the declaration's position rather
+ * than the export statement's to match its message. Resolving the binding would
+ * either guess or report a false positive, so this form is a documented
+ * limitation rather than a rule.
+ */
 const constsBeforeFunctions = {
   meta: {
     type: "suggestion",
@@ -24,6 +38,12 @@ const constsBeforeFunctions = {
     let seenExportedFunction = false;
 
     return {
+      ExportDefaultDeclaration(node) {
+        if (node.declaration.type === "FunctionDeclaration") {
+          seenExportedFunction = true;
+        }
+      },
+
       ExportNamedDeclaration(node) {
         if (node.declaration?.type === "FunctionDeclaration") {
           seenExportedFunction = true;

@@ -243,8 +243,9 @@ through a disciplined process:
   without syncing. See `docs/specs/api-dependency-wiring.md`,
   `docs/specs/plan-input-loading.md` and ADR 0023.
 - **Keep exported constants above exported functions.** Top-level `export const`
-  declarations come before `export function` declarations, enforced by the
-  `local/consts-before-functions` ESLint rule.
+  declarations come before `export function` and `export default function`
+  declarations, enforced by the `local/consts-before-functions` ESLint rule. A
+  declaration-less `export { x }` is not resolved by the rule.
 
 ## Spec index
 
