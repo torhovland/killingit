@@ -32,7 +32,8 @@ read the LLM call log. No account is ever promoted implicitly.
 6. **Admin settings page.** A signed-in admin gets an "Admin settings" page that
    contains athlete question management and, in development/test environments,
    the date override used to simulate visiting on another day. Members do not
-   see the page.
+   see the page, and an unanswered coaching survey never holds the admin away
+   from it: the admin is the one who edits the questions that block athletes.
 
 ### Out of scope (deferred)
 

@@ -120,6 +120,23 @@ test("an athlete answers the survey and sees today's session", async ({
   await expect(page.getByTestId("plan-today")).toContainText("Today's session");
 });
 
+test("an admin opens the admin settings with an unanswered survey question", async ({
+  page,
+}) => {
+  await signIn(page, { questions: "unanswered" });
+
+  await expect(page).toHaveURL(/\/survey$/);
+  await openPage(page, "Admin settings");
+  await expect(page).toHaveURL(/\/admin$/);
+  await expect(page.getByTestId("admin-settings")).toBeVisible();
+
+  // The survey gate must not bounce the admin off a reload either, so the
+  // admin can fix the questions that hold every athlete back.
+  await page.reload();
+  await expect(page).toHaveURL(/\/admin$/);
+  await expect(page.getByTestId("admin-settings")).toBeVisible();
+});
+
 test("an athlete saves a weekly note and sees the coach reply", async ({
   page,
 }) => {
