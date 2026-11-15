@@ -4,6 +4,7 @@ import {
   type FormInterpretation,
   type FormZone,
 } from "@killingit/shared";
+import { formatDayMonth } from "../dateFormat";
 
 /** The SVG viewBox the charts are drawn in; the page scales it to its width. */
 export const CHART_WIDTH = 640;
@@ -319,28 +320,8 @@ export function linePath(
 
 /** A short axis label for a `YYYY-MM-DD` date, e.g. `12 Oct`. */
 export function formatChartDate(date: string): string {
-  const [, month, day] = date.split("-");
-  const name = MONTHS[Number(month) - 1];
-  if (name === undefined || day === undefined) {
-    return date;
-  }
-  return `${Number(day)} ${name}`;
+  return formatDayMonth(date);
 }
-
-const MONTHS = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-] as const;
 
 /**
  * Rounds a chart coordinate or a value shown on a chart to a tenth. That is

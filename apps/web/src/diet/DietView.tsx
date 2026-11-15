@@ -9,6 +9,7 @@ import { EditableFoodEntryCard } from "./EditableFoodEntryCard";
 import { FormattedText } from "../FormattedText";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
+import { formatWeekdayDayMonthYear } from "../dateFormat";
 
 /**
  * The presentational Diet page: the coach's goal and weight-trend judgement,
@@ -238,15 +239,5 @@ function formatBalance(balanceKcal: number | null): string {
 }
 
 function formatDietDate(date: string): string {
-  const parsed = new Date(`${date}T00:00:00Z`);
-  if (Number.isNaN(parsed.getTime())) {
-    return date;
-  }
-  return parsed.toLocaleDateString(undefined, {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    timeZone: "UTC",
-  });
+  return formatWeekdayDayMonthYear(date);
 }

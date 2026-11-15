@@ -4,6 +4,7 @@
  */
 
 import { addDays, startOfWeek } from "@killingit/shared";
+import { formatLongMonthYear } from "../dateFormat";
 
 /** The `YYYY-MM` month containing a `YYYY-MM-DD` date. */
 export function monthOf(date: string): string {
@@ -47,15 +48,7 @@ export function buildMonthGrid(month: string): MonthCell[] {
 
 /** A human-readable month heading, e.g. "October 2026". */
 export function formatMonth(month: string): string {
-  const parsed = new Date(`${month}-01T00:00:00Z`);
-  if (Number.isNaN(parsed.getTime())) {
-    return month;
-  }
-  return parsed.toLocaleDateString(undefined, {
-    month: "long",
-    year: "numeric",
-    timeZone: "UTC",
-  });
+  return formatLongMonthYear(month);
 }
 
 /** A short day number for a grid cell. */

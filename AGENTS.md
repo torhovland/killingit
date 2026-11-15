@@ -48,11 +48,15 @@ fitness, threshold and cost charts share their legend through `ChartLegend`, and
 the threshold and fitness health charts take their series colours from
 `seriesClass`. The fitness page's chart data shaping and scales live in pure
 `fitness/charts/*Data.ts` modules with their own tests, beside thin chart
-components, while cross-page chart infrastructure stays in `charts/`. See
-`docs/specs/pwa.md`, `docs/specs/web-api-request-parsing.md`,
+components, while cross-page chart infrastructure stays in `charts/`. Stored
+dates render through `apps/web/src/dateFormat.ts`, which owns the cached
+`Intl.DateTimeFormat` month and day labels and parses every key in UTC so no
+device zone shifts a day. See `docs/specs/pwa.md`,
+`docs/specs/web-api-request-parsing.md`,
 `docs/specs/web-api-resource-hook.md`,
-`docs/specs/chart-keyboard-navigation.md` and
-`docs/specs/web-component-library.md`.
+`docs/specs/chart-keyboard-navigation.md`,
+`docs/specs/web-component-library.md` and
+`docs/specs/web-date-formatting.md`.
 
 **Backend.** TypeScript on Bun, Hono for the API, Drizzle ORM and Zod. Shared Zod
 schemas are validated on both sides (API `zValidator`, web responses);
@@ -253,7 +257,7 @@ a spec is missing.
 **Diet:** `docs/specs/diet-log.md`, `docs/specs/diet-coaching.md`, `docs/specs/diet-progress-targets.md`, `docs/specs/calorie-breakdown.md`.
 
 **Web:** `docs/specs/accessibility-lint.md`, `docs/specs/chart-keyboard-navigation.md`, `docs/specs/current-user-provider.md`, `docs/specs/modal-dialog.md`, `docs/specs/pwa.md`, `docs/specs/signed-out-landing.md`, `docs/specs/web-api-base-url.md`, `docs/specs/web-api-request-parsing.md`, `docs/specs/web-api-resource-hook.md`, `docs/specs/web-cache-busting.md`, `docs/specs/web-coaching-hooks.md`,
-`docs/specs/web-coaching-pages.md`, `docs/specs/web-comment-form.md`, `docs/specs/web-component-library.md`, `docs/specs/web-form-drafts.md`, `docs/specs/web-interaction-tests.md`, `docs/specs/web-routing.md`, `docs/specs/user-time-zone.md`.
+`docs/specs/web-coaching-pages.md`, `docs/specs/web-comment-form.md`, `docs/specs/web-component-library.md`, `docs/specs/web-date-formatting.md`, `docs/specs/web-form-drafts.md`, `docs/specs/web-interaction-tests.md`, `docs/specs/web-routing.md`, `docs/specs/user-time-zone.md`.
 
 **API and backend:** `docs/specs/api-dependency-wiring.md`, `docs/specs/api-errors.md`, `docs/specs/api-logging.md`, `docs/specs/api-query-validation.md`, `docs/specs/api-server-entry.md`, `docs/specs/api-versioning.md`, `docs/specs/authenticated-user-middleware.md`, `docs/specs/auth-integration.md`, `docs/specs/credential-encryption.md`, `docs/specs/route-param-validation.md`, `docs/specs/shared-api-boundary.md`, `docs/specs/shared-date-helpers.md`, `docs/specs/shared-package-barrel.md`,
 `docs/specs/unused-exports.md`.
