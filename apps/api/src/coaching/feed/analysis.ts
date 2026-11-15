@@ -45,6 +45,8 @@ import {
 import { dbPlanStore, type StoredPlan } from "../../plans/store.js";
 import {
   buildActivityLoads,
+  EMPTY_ACTIVITY_LOADS,
+  mergeTrainingTss,
   type ActivityLoads,
 } from "../../training/activityLoad.js";
 import { loadTrainingContext } from "../../training/context.js";
@@ -224,10 +226,10 @@ async function loadTrainingInputs(
 ): Promise<TrainingInputs> {
   try {
     const training = await loadTrainingContext(userId, storedPlan?.plan, today);
-    const tssByDate = new Map(training.planTssByDate);
-    for (const [date, tss] of training.manualTssByDate) {
-      tssByDate.set(date, tss);
-    }
+    const tssByDate = mergeTrainingTss(
+      training.planTssByDate,
+      training.manualTssByDate,
+    );
     return {
       ftpHistory: ftpHistoryPoints(training.thresholdTimelines),
       ftp: training.ftpTimeline,
@@ -245,7 +247,7 @@ async function loadTrainingInputs(
       ftpHistory: [],
       ftp: null,
       thresholds: [],
-      loads: { byDate: new Map(), byActivityId: new Map() },
+      loads: EMPTY_ACTIVITY_LOADS,
     };
   }
 }

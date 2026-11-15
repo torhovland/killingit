@@ -26,7 +26,11 @@ import { withoutInProgressDailyHealth } from "../metrics/dailyHealth.js";
 import { loadMetricPoints } from "../metrics/store.js";
 import { addDays, startOfWeek } from "@killingit/shared";
 import { loadPlanDayCalories } from "../plans/dayCalories.js";
-import { activityDayTss, groupActivitiesByDate } from "./activityLoad.js";
+import {
+  activityDayTss,
+  groupActivitiesByDate,
+  mergeTrainingTss,
+} from "./activityLoad.js";
 import { loadTrainingContext } from "./context.js";
 import { planDietTargets } from "./dietTargets.js";
 import { CTL_DAYS, dailyTrainingLoad } from "./stress.js";
@@ -109,10 +113,10 @@ function buildFitnessHistory(
   });
   // Same precedence as the Activities page: a manual entry replaces the plan's
   // estimate for its date, and measured power wins over either.
-  const tssByDate = new Map(input.planTssByDate);
-  for (const [date, tss] of input.manualTssByDate) {
-    tssByDate.set(date, tss);
-  }
+  const tssByDate = mergeTrainingTss(
+    input.planTssByDate,
+    input.manualTssByDate,
+  );
   for (const [date, activities] of groupActivitiesByDate(
     input.activities,
     input.timeZone,

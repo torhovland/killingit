@@ -7,7 +7,10 @@ import {
 import type { Context } from "hono";
 import { getUser } from "../../auth/middleware.js";
 import { notFound, validationFailed } from "../../http/errors.js";
-import type { ActivityLoads } from "../../training/activityLoad.js";
+import {
+  EMPTY_ACTIVITY_LOADS,
+  type ActivityLoads,
+} from "../../training/activityLoad.js";
 import { toCoachAnalysis } from "../../plans/replies.js";
 import { ftpBaselineAt, ftpTimeline } from "../../training/thresholds.js";
 import { replyTo, type ResolvedCoachingDependencies } from "./dependencies.js";
@@ -169,10 +172,7 @@ export function createManualActivityHandlers(
         deps.loadStoredFeed(user.id),
         deps.plans.load(user.id),
       ]);
-      let loads: ActivityLoads = {
-        byDate: new Map(),
-        byActivityId: new Map(),
-      };
+      let loads: ActivityLoads = EMPTY_ACTIVITY_LOADS;
       try {
         loads = await deps.loadActivityTrainingLoads(
           user.id,

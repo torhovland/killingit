@@ -9,6 +9,7 @@ import type { StoredAnalysis } from "../../llm/analysisStore.js";
 import { toCoachAnalysis, type ActivityFeedback } from "../../plans/replies.js";
 import {
   buildActivityLoads,
+  mergeTrainingTss,
   type ActivityLoads,
 } from "../../training/activityLoad.js";
 import { loadTrainingContext } from "../../training/context.js";
@@ -36,15 +37,11 @@ export async function loadUserActivityTrainingLoads(
 ): Promise<ActivityLoads> {
   const { thresholdTimelines, planTssByDate, manualTssByDate } =
     await loadTrainingContext(userId, plan, today);
-  const tssByDate = new Map(planTssByDate);
-  for (const [date, tss] of manualTssByDate) {
-    tssByDate.set(date, tss);
-  }
   return buildActivityLoads(
     activities,
     thresholdTimelines,
     timezone,
-    tssByDate,
+    mergeTrainingTss(planTssByDate, manualTssByDate),
   );
 }
 

@@ -19,6 +19,7 @@ import type {
   StoredAthleteQuestion,
 } from "../questions/answers.js";
 import type { CoachingSurveyAdjustmentStore } from "../questions/adjustments.js";
+import { EMPTY_ACTIVITY_LOADS } from "../training/activityLoad.js";
 import { makePlan } from "./plan.js";
 import { apiRequest } from "./request.js";
 
@@ -285,11 +286,7 @@ export function makeTestApp(options: TestAppOptions = {}) {
       options.loadActivityFeedback ?? (() => Promise.resolve(new Map())),
     loadActivityTrainingLoads:
       options.loadActivityTrainingLoads ??
-      (() =>
-        Promise.resolve({
-          byDate: new Map(),
-          byActivityId: new Map(),
-        })),
+      (() => Promise.resolve(EMPTY_ACTIVITY_LOADS)),
     estimateManualTss: options.estimateManualTss ?? (() => Promise.resolve(0)),
     loadThresholdHistory:
       options.loadThresholdHistory ??

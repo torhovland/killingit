@@ -1,6 +1,7 @@
 import { describe, expect, it, mock } from "bun:test";
 import type { Activity, AnalyzedActivity } from "@killingit/shared";
 import type { LlmProvider } from "../llm/openrouter.js";
+import { EMPTY_ACTIVITY_LOADS } from "../training/activityLoad.js";
 import { loadAnalyzedActivities } from "./activities.js";
 
 type Phases = NonNullable<Parameters<typeof loadAnalyzedActivities>[1]>;
@@ -50,7 +51,7 @@ function inputs(settings: Settings): Inputs {
     ftpHistory: [],
     ftp: null,
     thresholds: [],
-    loads: { byDate: new Map(), byActivityId: new Map() },
+    loads: EMPTY_ACTIVITY_LOADS,
   };
 }
 

@@ -133,7 +133,11 @@ to the plan, the Activities page, and ATL/CTL calculations. Several entries on
 one day add up, and an entry with no estimate is skipped rather than counted as
 zero. `manualTssByDate` (`apps/api/src/training/activityLoad.ts`) owns that
 aggregation, and the plan load, the Fitness series and the no-plan form snapshot
-all read the map it returns.
+all read the map it returns. The same module's `mergeTrainingTss` combines that
+map with the plan's estimates, with a manual entry replacing the plan's number
+for its date; the plan load, the Activities page and the Fitness series all use
+it instead of repeating the merge. `EMPTY_ACTIVITY_LOADS` is the shared,
+readonly empty snapshot for a page that has no load to show yet.
 
 ### ATL, CTL, and TSB
 
@@ -305,3 +309,5 @@ API:
 - A unit test for the manual-TSS aggregation: several entries on one day sum
   and an unscored entry is skipped, in both the plan load and the no-plan
   form snapshot.
+- A unit test for the plan-and-manual TSS merge: a date present in both maps
+  takes the manual value, and neither input is modified.
