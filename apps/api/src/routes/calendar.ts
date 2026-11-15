@@ -475,6 +475,7 @@ export function createCalendarRoute(deps: ResolvedAppDependencies): Hono {
           user.id,
           feed.activities,
           stored?.plan,
+          today,
           timeZone,
         );
         activities = {

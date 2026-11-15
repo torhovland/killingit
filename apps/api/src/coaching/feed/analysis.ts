@@ -148,6 +148,7 @@ export async function loadAnalysisInputs(
     userId,
     history,
     storedPlan,
+    today,
     timezone,
   );
   return {
@@ -218,14 +219,11 @@ async function loadTrainingInputs(
   userId: number,
   history: readonly AnalyzedActivity[],
   storedPlan: StoredPlan | null,
+  today: string,
   timezone: string | undefined,
 ): Promise<TrainingInputs> {
   try {
-    const training = await loadTrainingContext(
-      userId,
-      storedPlan?.plan,
-      timezone,
-    );
+    const training = await loadTrainingContext(userId, storedPlan?.plan, today);
     const tssByDate = new Map(training.planTssByDate);
     for (const [date, tss] of training.manualTssByDate) {
       tssByDate.set(date, tss);

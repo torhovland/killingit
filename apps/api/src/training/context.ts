@@ -5,7 +5,6 @@ import type {
 } from "@killingit/shared";
 import type { ManualActivityContext } from "../llm/activityContext.js";
 import { loadThresholdHistoryForUser } from "../metrics/store.js";
-import { zonedDateTime } from "@killingit/shared";
 import { loadManualActivities } from "../plans/inputs.js";
 import { manualTssByDate } from "./activityLoad.js";
 import { ftpTimeline, type ThresholdTimeline } from "./thresholds.js";
@@ -32,18 +31,18 @@ export interface TrainingContext {
  * Loads the athlete's FTP timeline and the TSS the stored plan and manual
  * entries contribute. The timeline is read from the stored metric series, which
  * includes the FTP the coach read from the athlete's words, every Garmin
- * measurement, and the coach's estimates. Values dated after the plan date are
- * excluded from the timeline used for load, so a future projection cannot
- * become today's baseline.
+ * measurement, and the coach's estimates. Values dated after the caller's
+ * `today` are excluded from the timeline used for load, so a future projection
+ * cannot become today's baseline and a stale stored plan cannot hide newer
+ * measurements.
  */
 export async function loadTrainingContext(
   userId: number,
   plan: CoachPlan | undefined,
-  timeZone?: string | null,
+  today: string,
 ): Promise<TrainingContext> {
-  const planDate = plan?.today.date ?? zonedDateTime(new Date(), timeZone).date;
   const [history, manualActivities] = await Promise.all([
-    loadThresholdHistoryForUser(userId, planDate),
+    loadThresholdHistoryForUser(userId, today),
     loadManualActivities(userId),
   ]);
   const manualByDate = manualTssByDate(manualActivities);

@@ -1,6 +1,7 @@
 import {
   coachingInputSaveResponseSchema,
   manualActivitiesResponseSchema,
+  zonedDateTime,
   type ManualActivityRequest,
 } from "@killingit/shared";
 import type { Context } from "hono";
@@ -177,6 +178,7 @@ export function createManualActivityHandlers(
           user.id,
           cached.activities,
           storedPlan?.plan,
+          zonedDateTime(new Date(), user.timezone).date,
           user.timezone,
         );
       } catch (err) {

@@ -2,6 +2,7 @@ import {
   analyzedActivitiesResponseSchema,
   coachingInputSaveResponseSchema,
   planDateSchema,
+  zonedDateTime,
 } from "@killingit/shared";
 import type { Context } from "hono";
 import { z } from "zod";
@@ -109,6 +110,7 @@ export function createFeedHandlers(deps: ResolvedCoachingDependencies) {
             user.id,
             activities,
             storedPlan?.plan,
+            zonedDateTime(new Date(), timeZone).date,
             timeZone,
           );
           activities = activities.map((activity) =>

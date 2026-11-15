@@ -24,16 +24,18 @@ export interface ActivityFeed {
  * Builds the training-load snapshots for the synced activity dates and the TSS
  * each activity contributes on its own. The FTP timeline includes any revised
  * test result the athlete mentioned, and the stored plan supplies coach TSS
- * estimates for the days it covers.
+ * estimates for the days it covers. The threshold cutoff uses the caller's
+ * `today`, so a stale stored plan cannot hide newer measurements.
  */
 export async function loadUserActivityTrainingLoads(
   userId: number,
   activities: readonly AnalyzedActivity[],
   plan: CoachPlan | undefined,
+  today: string,
   timezone?: string | null,
 ): Promise<ActivityLoads> {
   const { thresholdTimelines, planTssByDate, manualTssByDate } =
-    await loadTrainingContext(userId, plan, timezone);
+    await loadTrainingContext(userId, plan, today);
   const tssByDate = new Map(planTssByDate);
   for (const [date, tss] of manualTssByDate) {
     tssByDate.set(date, tss);

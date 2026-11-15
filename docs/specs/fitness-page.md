@@ -173,7 +173,9 @@ API:
   `athlete_thresholds` time-series reads and writes, including the
   coach-estimate replacement rule.
 - `apps/api/src/training/context.ts` — the threshold timelines, plan TSS, and
-  manual TSS shared with `loadUserActivityTrainingLoads`.
+  manual TSS shared with `loadUserActivityTrainingLoads`. The threshold series
+  is cut at the caller's `today`, so a stale stored plan cannot hide newer
+  measurements from the load calculation.
 - `apps/api/src/routes/fitness.ts` — the endpoint above.
 - Migration `0026_ancient_deathbird.sql` adds `athlete_metrics`, and migration
   `0032_slimy_warhawk.sql` adds `athlete_thresholds`.

@@ -351,7 +351,7 @@ export async function loadFitnessHistory(
 ): Promise<FitnessHistoryResponse> {
   const [context, weight, bodyFat, dailyHealthPoints, nutrition] =
     await Promise.all([
-      (deps.loadTrainingContext ?? loadTrainingContext)(userId, plan, timeZone),
+      (deps.loadTrainingContext ?? loadTrainingContext)(userId, plan, today),
       (deps.loadMetricPoints ?? loadMetricPoints)(userId, "weight"),
       (deps.loadMetricPoints ?? loadMetricPoints)(userId, "body_fat"),
       (deps.loadDailyHealth ?? loadDailyHealthHistoryForUser)(userId, today),
