@@ -3,7 +3,6 @@ import type { CoachPlan } from "@killingit/shared";
 import {
   dietGoalProblems,
   dietProgressConsistencyProblems,
-  impliedGoalBodyFatPercent,
   mergeDietProgressTargets,
   syncDietProgressTargets,
 } from "./dietProgress.js";
@@ -335,14 +334,7 @@ describe("syncDietProgressTargets", () => {
     expect(dietGoalProblems(base, "2026-10-22")).toEqual([]);
   });
 
-  it("reads a body-fat goal from a legacy goal text", () => {
-    expect(
-      impliedGoalBodyFatPercent("Lose fat gradually toward 15% body fat"),
-    ).toBe(15);
-    expect(impliedGoalBodyFatPercent("Body fat to 18 %")).toBe(18);
-    expect(impliedGoalBodyFatPercent("Lose 5% of body weight")).toBeNull();
-    expect(impliedGoalBodyFatPercent("Get leaner")).toBeNull();
-
+  it("does not read a body-fat goal out of the goal text", () => {
     const base = plan();
     base.season = { ...base.season, dietProgress: target(84, 20) };
     base.diet = {
@@ -350,7 +342,7 @@ describe("syncDietProgressTargets", () => {
       assessment: "On target.",
     };
 
-    expect(dietGoalProblems(base, "2026-10-22")[0]).toContain("15 % body fat");
+    expect(dietGoalProblems(base, "2026-10-22")).toEqual([]);
   });
 
   it("flags a last block target that differs from the season-end target", () => {

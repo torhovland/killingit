@@ -70,11 +70,10 @@ the block, each block week summary, and each week:
 - `dietPlanSchema.goalWeightKg`, `goalBodyFatPercent` and `goalDate` record the
   numeric target and date the athlete stated, or are absent/null when they
   stated none. They are the coach's reading of the athlete's words, not a new
-  target, and older plans parse without them. For a legacy plan whose goal text
-  clearly names a body-fat percentage (for example "toward 15% body fat"), the
-  app also reads that percentage when deciding whether the stored plan still
-  reaches the goal. The check never writes a target; it only makes an old plan
-  refresh itself.
+  target, and older plans parse without them. The app does not read a number out
+  of the `goal` text: only the structured `goalBodyFatPercent` is checked, so a
+  plan stored before the field existed relies on the coach recording it on the
+  next refresh.
 - `dietPlanSchema.goalMissReason` holds the coach's specific explanation when
   the plan deliberately does not reach a stated numeric goal because it is
   unrealistic or conflicts with another season goal. A non-empty reason accepts

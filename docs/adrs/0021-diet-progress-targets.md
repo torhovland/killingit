@@ -62,9 +62,10 @@ The target is planned only when diet advice is enabled and the athlete stated a
 goal. With the default maintenance fallback the targets stay null, and the Diet
 page asks the athlete to provide a goal on the Coaching Survey. This keeps the
 feature honest: a goal the athlete never chose does not produce a body
-projection. For a plan stored before the structured goal fields existed, the app
-also reads a clear body-fat percentage from the goal text so the plan can refresh
-itself; that check never writes a target.
+projection. The goal text is the coach's phrasing of the athlete's words, not a
+second place the app reads numbers from: only the structured
+`goalBodyFatPercent` drives the check, so a plan stored before that field existed
+relies on the coach recording it on the next refresh.
 
 ### The Body chart gets a season view from the same targets
 

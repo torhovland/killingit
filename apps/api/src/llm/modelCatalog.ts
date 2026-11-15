@@ -1,4 +1,4 @@
-import type { LlmModelGrade } from "@killingit/shared";
+import type { LlmModel, LlmModelGrade } from "@killingit/shared";
 import {
   and,
   eq,
@@ -144,6 +144,38 @@ export interface CatalogRefreshResult {
   error: string | null;
 }
 
+/** The counters a catalog refresh accumulates before it finalises. */
+interface CatalogRefreshCounts {
+  added: number;
+  retired: number;
+  rescored: number;
+  reassigned: number;
+  copied: number;
+  removed: number;
+}
+
+const NO_CATALOG_CHANGES: CatalogRefreshCounts = {
+  added: 0,
+  retired: 0,
+  rescored: 0,
+  reassigned: 0,
+  copied: 0,
+  removed: 0,
+};
+
+/**
+ * One shape for a skipped, failed or completed refresh. A skipped or failed
+ * refresh changed nothing, so it reports zeros; only the completed step names
+ * its counters and clears the error.
+ */
+function catalogRefreshResult(
+  checked: boolean,
+  counts: CatalogRefreshCounts = NO_CATALOG_CHANGES,
+  error: string | null = null,
+): CatalogRefreshResult {
+  return { checked, ...counts, error };
+}
+
 async function claimCatalogCheck(): Promise<boolean> {
   const now = new Date();
   const cutoff = new Date(now.getTime() - DAY_MS);
@@ -276,6 +308,160 @@ async function recomputeDiscouraged(): Promise<void> {
   }
 }
 
+/** Fetches OpenRouter's model list, the only network step of a refresh. */
+async function fetchCatalogModels(): Promise<LlmModel[]> {
+  const provider = createOpenRouterProvider();
+  return provider.listModels();
+}
+
+/**
+ * Reconciles the stored catalog with the provider's list: deletes batch-only
+ * rows, inserts new models ungraded with a price grade, refreshes existing
+ * models, and retires the models that disappeared. Existing benchmark grades
+ * are never overwritten, except on an alias whose concrete target moved.
+ */
+async function storeCatalogModels(
+  models: readonly LlmModel[],
+): Promise<Omit<CatalogRefreshCounts, "copied">> {
+  const removedRows = await db
+    .delete(llmModels)
+    .where(like(llmModels.id, "%:batch"))
+    .returning({ id: llmModels.id });
+  const removed = removedRows.length;
+  const existing = await db
+    .select({
+      id: llmModels.id,
+      ability: llmModels.ability,
+      aliasTargetSlug: llmModels.aliasTargetSlug,
+      promptPricePerMillion: llmModels.promptPricePerMillion,
+      completionPricePerMillion: llmModels.completionPricePerMillion,
+    })
+    .from(llmModels);
+  const existingById = new Map(existing.map((row) => [row.id, row]));
+  const incomingIds = new Set(models.map((model) => model.id));
+  let added = 0;
+  let rescored = 0;
+  let reassigned = 0;
+
+  for (const model of models) {
+    const estimatedCost = estimateBenchmarkCost(
+      model.promptPricePerMillion,
+      model.completionPricePerMillion,
+    );
+    const price = priceGrade(
+      model.promptPricePerMillion,
+      model.completionPricePerMillion,
+    );
+    const prior = existingById.get(model.id);
+    if (prior !== undefined) {
+      const priceChanged = pricingChanged(
+        prior.promptPricePerMillion,
+        prior.completionPricePerMillion,
+        model.promptPricePerMillion,
+        model.completionPricePerMillion,
+      );
+      const targetChanged = aliasTargetChanged(
+        prior.aliasTargetSlug,
+        model.aliasTargetSlug,
+      );
+      if (priceChanged) rescored += 1;
+      if (targetChanged) reassigned += 1;
+      await db
+        .update(llmModels)
+        .set({
+          name: model.name,
+          aliasTargetSlug: model.aliasTargetSlug,
+          retired: false,
+          lastSeenAt: new Date(),
+          updatedAt: new Date(),
+          promptPricePerMillion: model.promptPricePerMillion,
+          completionPricePerMillion: model.completionPricePerMillion,
+          ...(targetChanged
+            ? {
+                // The alias now resolves to a different model, so the old
+                // ability/speed score no longer describes it. Treat it as
+                // ungraded until the pending benchmark runs again.
+                ability: "?",
+                speed: "?",
+                cost: price,
+                discouraged: false,
+                needsRescore: true,
+                benchmarkScore: null,
+                benchmarkTimeMs: null,
+                benchmarkCostUsd: estimatedCost,
+                benchmarkCategories: null,
+                benchmarkedAt: null,
+              }
+            : prior.ability === "?"
+              ? { cost: price, benchmarkCostUsd: estimatedCost }
+              : priceChanged
+                ? { cost: price, needsRescore: true }
+                : {}),
+        })
+        .where(eq(llmModels.id, model.id));
+    } else {
+      added += 1;
+      await db.insert(llmModels).values({
+        id: model.id,
+        name: model.name,
+        aliasTargetSlug: model.aliasTargetSlug,
+        retired: false,
+        discouraged: false,
+        ability: "?",
+        speed: "?",
+        cost: price,
+        benchmarkCostUsd: estimatedCost,
+        promptPricePerMillion: model.promptPricePerMillion,
+        completionPricePerMillion: model.completionPricePerMillion,
+        lastSeenAt: new Date(),
+      });
+    }
+  }
+
+  let retired = 0;
+  if (incomingIds.size > 0) {
+    const retiredRows = await db
+      .update(llmModels)
+      .set({ retired: true, updatedAt: new Date() })
+      .where(
+        and(
+          eq(llmModels.retired, false),
+          notInArray(llmModels.id, [...incomingIds]),
+        ),
+      )
+      .returning({ id: llmModels.id });
+    retired = retiredRows.length;
+  }
+
+  return { added, retired, rescored, reassigned, removed };
+}
+
+/**
+ * Completes a stored refresh: copies graded benchmark data onto aliases,
+ * recomputes discouraged, clears the sync error and returns the counters.
+ */
+async function finaliseCatalogRefresh(
+  counts: Omit<CatalogRefreshCounts, "copied">,
+): Promise<CatalogRefreshResult> {
+  const copied = await copyBenchmarkToAliases();
+  await recomputeDiscouraged();
+  await db
+    .update(llmModelSync)
+    .set({ lastError: null, updatedAt: new Date() })
+    .where(eq(llmModelSync.id, 1));
+  return catalogRefreshResult(true, { ...counts, copied });
+}
+
+/** Records a failed refresh's message on the sync row and returns it. */
+async function failCatalogRefresh(err: unknown): Promise<CatalogRefreshResult> {
+  const message = err instanceof Error ? err.message : String(err);
+  await db
+    .update(llmModelSync)
+    .set({ lastError: message, updatedAt: new Date() })
+    .where(eq(llmModelSync.id, 1));
+  return catalogRefreshResult(true, NO_CATALOG_CHANGES, message);
+}
+
 /**
  * Checks OpenRouter's catalog at most once every 24 hours. New models are
  * inserted ungraded (`?`) with a cost grade estimated from their list price;
@@ -286,163 +472,15 @@ export async function refreshModelCatalog(
   options: { force?: boolean; now?: Date } = {},
 ): Promise<CatalogRefreshResult> {
   if (options.force !== true && !(await claimCatalogCheck())) {
-    return {
-      checked: false,
-      added: 0,
-      retired: 0,
-      rescored: 0,
-      reassigned: 0,
-      copied: 0,
-      removed: 0,
-      error: null,
-    };
+    return catalogRefreshResult(false);
   }
 
   try {
-    const provider = createOpenRouterProvider();
-    const models = await provider.listModels();
-    const removedRows = await db
-      .delete(llmModels)
-      .where(like(llmModels.id, "%:batch"))
-      .returning({ id: llmModels.id });
-    const removed = removedRows.length;
-    const existing = await db
-      .select({
-        id: llmModels.id,
-        ability: llmModels.ability,
-        aliasTargetSlug: llmModels.aliasTargetSlug,
-        promptPricePerMillion: llmModels.promptPricePerMillion,
-        completionPricePerMillion: llmModels.completionPricePerMillion,
-      })
-      .from(llmModels);
-    const existingById = new Map(existing.map((row) => [row.id, row]));
-    const incomingIds = new Set(models.map((model) => model.id));
-    let added = 0;
-    let rescored = 0;
-    let reassigned = 0;
-
-    for (const model of models) {
-      const estimatedCost = estimateBenchmarkCost(
-        model.promptPricePerMillion,
-        model.completionPricePerMillion,
-      );
-      const price = priceGrade(
-        model.promptPricePerMillion,
-        model.completionPricePerMillion,
-      );
-      const prior = existingById.get(model.id);
-      if (prior !== undefined) {
-        const priceChanged = pricingChanged(
-          prior.promptPricePerMillion,
-          prior.completionPricePerMillion,
-          model.promptPricePerMillion,
-          model.completionPricePerMillion,
-        );
-        const targetChanged = aliasTargetChanged(
-          prior.aliasTargetSlug,
-          model.aliasTargetSlug,
-        );
-        if (priceChanged) rescored += 1;
-        if (targetChanged) reassigned += 1;
-        await db
-          .update(llmModels)
-          .set({
-            name: model.name,
-            aliasTargetSlug: model.aliasTargetSlug,
-            retired: false,
-            lastSeenAt: new Date(),
-            updatedAt: new Date(),
-            promptPricePerMillion: model.promptPricePerMillion,
-            completionPricePerMillion: model.completionPricePerMillion,
-            ...(targetChanged
-              ? {
-                  // The alias now resolves to a different model, so the old
-                  // ability/speed score no longer describes it. Treat it as
-                  // ungraded until the pending benchmark runs again.
-                  ability: "?",
-                  speed: "?",
-                  cost: price,
-                  discouraged: false,
-                  needsRescore: true,
-                  benchmarkScore: null,
-                  benchmarkTimeMs: null,
-                  benchmarkCostUsd: estimatedCost,
-                  benchmarkCategories: null,
-                  benchmarkedAt: null,
-                }
-              : prior.ability === "?"
-                ? { cost: price, benchmarkCostUsd: estimatedCost }
-                : priceChanged
-                  ? { cost: price, needsRescore: true }
-                  : {}),
-          })
-          .where(eq(llmModels.id, model.id));
-      } else {
-        added += 1;
-        await db.insert(llmModels).values({
-          id: model.id,
-          name: model.name,
-          aliasTargetSlug: model.aliasTargetSlug,
-          retired: false,
-          discouraged: false,
-          ability: "?",
-          speed: "?",
-          cost: price,
-          benchmarkCostUsd: estimatedCost,
-          promptPricePerMillion: model.promptPricePerMillion,
-          completionPricePerMillion: model.completionPricePerMillion,
-          lastSeenAt: new Date(),
-        });
-      }
-    }
-
-    let retired = 0;
-    if (incomingIds.size > 0) {
-      const retiredRows = await db
-        .update(llmModels)
-        .set({ retired: true, updatedAt: new Date() })
-        .where(
-          and(
-            eq(llmModels.retired, false),
-            notInArray(llmModels.id, [...incomingIds]),
-          ),
-        )
-        .returning({ id: llmModels.id });
-      retired = retiredRows.length;
-    }
-
-    const copied = await copyBenchmarkToAliases();
-    await recomputeDiscouraged();
-    await db
-      .update(llmModelSync)
-      .set({ lastError: null, updatedAt: new Date() })
-      .where(eq(llmModelSync.id, 1));
-    return {
-      checked: true,
-      added,
-      retired,
-      rescored,
-      reassigned,
-      copied,
-      removed,
-      error: null,
-    };
+    const models = await fetchCatalogModels();
+    const counts = await storeCatalogModels(models);
+    return await finaliseCatalogRefresh(counts);
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    await db
-      .update(llmModelSync)
-      .set({ lastError: message, updatedAt: new Date() })
-      .where(eq(llmModelSync.id, 1));
-    return {
-      checked: true,
-      added: 0,
-      retired: 0,
-      rescored: 0,
-      reassigned: 0,
-      copied: 0,
-      removed: 0,
-      error: message,
-    };
+    return failCatalogRefresh(err);
   }
 }
 

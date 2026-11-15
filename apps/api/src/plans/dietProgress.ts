@@ -33,8 +33,7 @@ export function dietGoalProblems(plan: CoachPlan, today: string): string[] {
   const goalDate = diet.goalDate ?? plan.season.endDate;
   const checkpoint = goalCheckpoint(plan, today, goalDate);
   const problems: string[] = [];
-  const goalBodyFatPercent =
-    diet.goalBodyFatPercent ?? impliedGoalBodyFatPercent(diet.goal);
+  const goalBodyFatPercent = diet.goalBodyFatPercent ?? null;
   if (goalBodyFatPercent !== null) {
     const target = checkpoint?.bodyFatPercent ?? null;
     if (target === null || target > goalBodyFatPercent + GOAL_TOLERANCE) {
@@ -68,31 +67,6 @@ function goalCheckpoint(
     (target) => target.date >= goalDate,
   );
   return targets[0] ?? null;
-}
-
-/**
- * A body-fat percentage in the goal text, used as a safety net for a plan stored
- * before the structured goal fields existed. The coach still records the value
- * in `diet.goalBodyFatPercent`; this only lets a legacy goal be checked so the
- * plan can refresh itself. Only a percentage next to "body fat" or "bf" counts.
- */
-export function impliedGoalBodyFatPercent(goal: string): number | null {
-  const patterns = [
-    /(\d{1,2}(?:\.\d+)?)\s*%\s*(?:body\s*fat|bf)\b/i,
-    /\b(?:body\s*fat|bf)\s*(?:to|toward|of|at|around|about)?\s*(\d{1,2}(?:\.\d+)?)\s*%/i,
-  ];
-  for (const pattern of patterns) {
-    const match = pattern.exec(goal);
-    const raw = match?.[1];
-    if (raw === undefined) {
-      continue;
-    }
-    const value = Number(raw);
-    if (value > 0 && value <= 75) {
-      return value;
-    }
-  }
-  return null;
 }
 
 /**
