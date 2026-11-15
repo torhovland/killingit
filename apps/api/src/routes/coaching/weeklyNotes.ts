@@ -1,6 +1,6 @@
 import {
   coachingInputSaveResponseSchema,
-  planDateSchema,
+  type PlanDate,
   startOfWeek,
   weeklyNoteRequestSchema,
   weeklyNoteResponseSchema,
@@ -8,7 +8,6 @@ import {
 import type { Context } from "hono";
 import { z } from "zod";
 import { getUser } from "../../auth/middleware.js";
-import { validationFailed } from "../../http/errors.js";
 import { toCoachAnalysis } from "../../plans/replies.js";
 import { replyTo, type ResolvedCoachingDependencies } from "./dependencies.js";
 
@@ -17,17 +16,9 @@ type WeeklyNoteInput = z.infer<typeof weeklyNoteRequestSchema>;
 /** The athlete's note about the current training week. */
 export function createWeeklyNoteHandlers(deps: ResolvedCoachingDependencies) {
   return {
-    async show(c: Context) {
+    async show(c: Context, today: PlanDate) {
       const user = getUser(c);
-      const today = planDateSchema.safeParse(c.req.query("today"));
-      if (!today.success) {
-        return validationFailed(
-          c,
-          today.error,
-          "A valid today date (YYYY-MM-DD) is required",
-        );
-      }
-      const weekStartDate = startOfWeek(today.data);
+      const weekStartDate = startOfWeek(today);
       const [note, storedReply] = await Promise.all([
         deps.loadNote(user.id, weekStartDate),
         deps.loadNoteReply(user.id, weekStartDate),

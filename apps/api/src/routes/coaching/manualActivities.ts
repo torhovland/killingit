@@ -6,7 +6,8 @@ import {
 } from "@killingit/shared";
 import type { Context } from "hono";
 import { getUser } from "../../auth/middleware.js";
-import { notFound, validationFailed } from "../../http/errors.js";
+import { notFound } from "../../http/errors.js";
+import type { TodayWithTimezoneQuery } from "../../http/query.js";
 import {
   EMPTY_ACTIVITY_LOADS,
   type ActivityLoads,
@@ -14,7 +15,6 @@ import {
 import { toCoachAnalysis } from "../../plans/replies.js";
 import { ftpBaselineAt, ftpTimeline } from "../../training/thresholds.js";
 import { replyTo, type ResolvedCoachingDependencies } from "./dependencies.js";
-import { deletionQuerySchema } from "./schemas.js";
 
 /** Athlete-logged activities, with their coach replies and training load. */
 export function createManualActivityHandlers(
@@ -132,18 +132,9 @@ export function createManualActivityHandlers(
     );
   }
 
-  async function remove(c: Context, id: number) {
-    const query = deletionQuerySchema.safeParse(c.req.query());
-    if (!query.success) {
-      return validationFailed(
-        c,
-        query.error,
-        "A valid today date (YYYY-MM-DD) is required",
-      );
-    }
-
+  async function remove(c: Context, id: number, query: TodayWithTimezoneQuery) {
     const user = getUser(c);
-    const { today, timezone } = query.data;
+    const { today, timezone } = query;
 
     const deleted = await deps.deleteManual(user.id, id);
     if (!deleted) {

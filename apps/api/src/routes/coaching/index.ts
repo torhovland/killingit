@@ -10,10 +10,18 @@ import {
 import { zValidator } from "../../http/validation.js";
 import { Hono } from "hono";
 import type { ResolvedAppDependencies } from "../../dependencies.js";
+import {
+  todayQuerySchema,
+  todayWithTimezoneQuerySchema,
+} from "../../http/query.js";
 import { createCoachQuestionHandlers } from "./coachQuestions.js";
 import { createCommentHandlers } from "./comments.js";
 import { resolveCoachingDependencies } from "./dependencies.js";
-import { createFeedHandlers } from "./feed.js";
+import {
+  activityFeedQuerySchema,
+  cachedActivityFeedQuerySchema,
+  createFeedHandlers,
+} from "./feed.js";
 import { createManualActivityHandlers } from "./manualActivities.js";
 import { createReviewHandlers } from "./reviews.js";
 import { activityIdParamSchema, reviewParamSchema } from "./schemas.js";
@@ -36,8 +44,16 @@ export function createCoachingRoute(deps: ResolvedAppDependencies): Hono {
   const notes = createWeeklyNoteHandlers(resolved);
 
   return new Hono()
-    .get("/activities/cached", async (c) => feed.cached(c))
-    .get("/activities", async (c) => feed.activities(c))
+    .get(
+      "/activities/cached",
+      zValidator("query", cachedActivityFeedQuerySchema),
+      async (c) => feed.cached(c, c.req.valid("query")),
+    )
+    .get(
+      "/activities",
+      zValidator("query", activityFeedQuerySchema),
+      async (c) => feed.activities(c, c.req.valid("query")),
+    )
     .post(
       "/activities/:activityId/comments",
       zValidator("param", activityIdParamSchema),
@@ -96,7 +112,9 @@ export function createCoachingRoute(deps: ResolvedAppDependencies): Hono {
     .delete(
       "/activities/:activityId",
       zValidator("param", activityIdParamSchema),
-      async (c) => feed.remove(c, c.req.valid("param").activityId),
+      zValidator("query", todayWithTimezoneQuerySchema),
+      async (c) =>
+        feed.remove(c, c.req.valid("param").activityId, c.req.valid("query")),
     )
     .get("/activities/manual", async (c) => manual.list(c))
     .post(
@@ -116,14 +134,18 @@ export function createCoachingRoute(deps: ResolvedAppDependencies): Hono {
     .delete(
       "/activities/manual/:id",
       zValidator("param", idParamSchema),
-      async (c) => manual.remove(c, c.req.valid("param").id),
+      zValidator("query", todayWithTimezoneQuerySchema),
+      async (c) =>
+        manual.remove(c, c.req.valid("param").id, c.req.valid("query")),
     )
     .post(
       "/questions",
       zValidator("json", quickQuestionRequestSchema),
       async (c) => questions.ask(c, c.req.valid("json")),
     )
-    .get("/weekly/notes", async (c) => notes.show(c))
+    .get("/weekly/notes", zValidator("query", todayQuerySchema), async (c) =>
+      notes.show(c, c.req.valid("query").today),
+    )
     .post(
       "/weekly/notes",
       zValidator("json", weeklyNoteRequestSchema),

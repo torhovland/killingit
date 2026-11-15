@@ -15,6 +15,7 @@ import {
   makeTestApp as makeApp,
   MemoryPlanStore,
 } from "../../testFixtures/app.js";
+import { expectValidationFailure } from "../../testFixtures/validation.js";
 
 describe("coaching activity feed", () => {
   it("loads activities for the signed-in account", async () => {
@@ -387,6 +388,6 @@ describe("coaching activity deletion", () => {
       }),
     );
 
-    expect(res.status).toBe(400);
+    await expectValidationFailure(res);
   });
 });

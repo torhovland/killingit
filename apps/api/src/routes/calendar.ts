@@ -3,7 +3,6 @@ import {
   calendarResponseSchema,
   EMPTY_WEEK_STATS,
   eventEndDate,
-  planDateSchema,
   type AnalyzedActivitiesResponse,
   type AthleteEvent,
   type CalendarActivity,
@@ -15,9 +14,10 @@ import {
   type WeekSession,
 } from "@killingit/shared";
 import { Hono } from "hono";
-import { z } from "zod";
 import { getUser } from "../auth/middleware.js";
-import { serviceUnavailable, validationFailed } from "../http/errors.js";
+import { serviceUnavailable } from "../http/errors.js";
+import { todayWithTimezoneQuerySchema } from "../http/query.js";
+import { zValidator } from "../http/validation.js";
 import {
   loadUserActivityTrainingLoads,
   withActivityLoad,
@@ -401,12 +401,6 @@ function buildCalendar(input: {
   });
 }
 
-/** The calendar's date and the athlete's zone for the day boundaries. */
-const calendarQuerySchema = z.object({
-  today: planDateSchema,
-  timezone: z.string().min(1).max(100).optional(),
-});
-
 /**
  * The calendar page's data: activities, manual entries, planned sessions, block
  * starts, the season end, and the athlete's dated goals and events over the
@@ -422,91 +416,87 @@ export function createCalendarRoute(deps: ResolvedAppDependencies): Hono {
   const loadEvents = deps.loadEvents ?? loadAthleteEvents;
   const loadWeekTotals = deps.loadWeekTotals ?? loadPlanWeekTotals;
 
-  return new Hono().get("/", async (c) => {
-    const query = calendarQuerySchema.safeParse({
-      today: c.req.query("today"),
-      timezone: c.req.query("timezone"),
-    });
-    if (!query.success) {
-      return validationFailed(
-        c,
-        query.error,
-        "A valid today date (YYYY-MM-DD) is required",
-      );
-    }
-    const { today } = query.data;
+  return new Hono().get(
+    "/",
+    zValidator("query", todayWithTimezoneQuerySchema),
+    async (c) => {
+      const { today, timezone } = c.req.valid("query");
 
-    try {
-      const user = getUser(c);
-      const [
-        feed,
-        manualActivities,
-        manualReplies,
-        stored,
-        events,
-        weekTotals,
-      ] = await Promise.all([
-        loadFeed(user.id, "route"),
-        loadManual(user.id),
-        loadReplies(user.id),
-        loadValidatedPlan(deps.planStore, user.id),
-        loadEvents(user.id).catch((err: unknown) => {
-          // Events are advisory. A read failure must not empty the calendar.
-          console.error("[calendar] could not load the athlete's events:", err);
-          return [];
-        }),
-        loadWeekTotals(user.id).catch((err: unknown) => {
-          // The planned record is advisory. A read failure still shows the
-          // live plan's weeks and the completed work.
-          console.error(
-            "[calendar] could not load the stored week totals:",
-            err,
-          );
-          return new Map<string, WeekPlanTotals>();
-        }),
-      ]);
-      const plan =
-        stored === null ? null : promoteNextPeriod(stored.plan, today);
-      const timeZone = query.data.timezone ?? user.timezone;
-      let activities = feed;
       try {
-        const loads = await loadLoads(
-          user.id,
-          feed.activities,
-          stored?.plan,
-          today,
-          timeZone,
-        );
-        activities = {
-          ...feed,
-          activities: feed.activities.map((activity) =>
-            withActivityLoad(activity, loads, timeZone),
-          ),
-        };
-      } catch (err) {
-        // The day's fitness snapshot is supplementary; the calendar still
-        // shows the recorded work without it.
-        console.error(
-          "[training-load] could not score the calendar activities:",
-          err,
-        );
-      }
-
-      return c.json(
-        buildCalendar({
-          today,
-          timeZone,
-          plan,
-          feed: activities,
+        const user = getUser(c);
+        const [
+          feed,
           manualActivities,
           manualReplies,
+          stored,
           events,
           weekTotals,
-        }),
-      );
-    } catch (err) {
-      console.error("[calendar] could not build the calendar:", err);
-      return serviceUnavailable(c);
-    }
-  });
+        ] = await Promise.all([
+          loadFeed(user.id, "route"),
+          loadManual(user.id),
+          loadReplies(user.id),
+          loadValidatedPlan(deps.planStore, user.id),
+          loadEvents(user.id).catch((err: unknown) => {
+            // Events are advisory. A read failure must not empty the calendar.
+            console.error(
+              "[calendar] could not load the athlete's events:",
+              err,
+            );
+            return [];
+          }),
+          loadWeekTotals(user.id).catch((err: unknown) => {
+            // The planned record is advisory. A read failure still shows the
+            // live plan's weeks and the completed work.
+            console.error(
+              "[calendar] could not load the stored week totals:",
+              err,
+            );
+            return new Map<string, WeekPlanTotals>();
+          }),
+        ]);
+        const plan =
+          stored === null ? null : promoteNextPeriod(stored.plan, today);
+        const timeZone = timezone ?? user.timezone;
+        let activities = feed;
+        try {
+          const loads = await loadLoads(
+            user.id,
+            feed.activities,
+            stored?.plan,
+            today,
+            timeZone,
+          );
+          activities = {
+            ...feed,
+            activities: feed.activities.map((activity) =>
+              withActivityLoad(activity, loads, timeZone),
+            ),
+          };
+        } catch (err) {
+          // The day's fitness snapshot is supplementary; the calendar still
+          // shows the recorded work without it.
+          console.error(
+            "[training-load] could not score the calendar activities:",
+            err,
+          );
+        }
+
+        return c.json(
+          buildCalendar({
+            today,
+            timeZone,
+            plan,
+            feed: activities,
+            manualActivities,
+            manualReplies,
+            events,
+            weekTotals,
+          }),
+        );
+      } catch (err) {
+        console.error("[calendar] could not build the calendar:", err);
+        return serviceUnavailable(c);
+      }
+    },
+  );
 }

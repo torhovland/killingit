@@ -1,12 +1,6 @@
 import { planDateSchema, reviewKindSchema } from "@killingit/shared";
 import { z } from "zod";
 
-/** A mutation that needs the athlete's local date and timezone. */
-export const deletionQuerySchema = z.object({
-  today: planDateSchema,
-  timezone: z.string().min(1).max(100).optional(),
-});
-
 /**
  * The activity a comment, acknowledgement or deletion addresses. A Garmin id
  * and a manual entry's id are both text, so the path value stays a bounded

@@ -12,6 +12,7 @@ import {
 } from "../testFixtures/app.js";
 import { forecastSet } from "../testFixtures/planRoute.js";
 import { apiRequest } from "../testFixtures/request.js";
+import { expectValidationFailure } from "../testFixtures/validation.js";
 
 describe("coach plan route", () => {
   it("requires a bearer token", async () => {
@@ -65,7 +66,7 @@ describe("coach plan route", () => {
     const res = await makeApp({}).fetch(
       authenticatedRequest("/api/coaching/plan"),
     );
-    expect(res.status).toBe(400);
+    await expectValidationFailure(res);
   });
 
   it("returns a stored plan that covers today", async () => {

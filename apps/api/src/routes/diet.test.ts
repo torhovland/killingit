@@ -661,6 +661,12 @@ describe("GET /api/diet/summary", () => {
     };
   }
 
+  it("requires a today date", async () => {
+    const app = makeApp({}).app;
+    const res = await request(app, "/api/diet/summary");
+    await expectValidationFailure(res);
+  });
+
   it("returns the coach's goal, assessment, and per-day calories", async () => {
     const store = new MemoryFoodStore();
     store.rows.push({

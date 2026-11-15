@@ -3,6 +3,7 @@ import {
   authenticatedRequest,
   makeTestApp as makeApp,
 } from "../../testFixtures/app.js";
+import { expectValidationFailure } from "../../testFixtures/validation.js";
 
 describe("coaching manual activities", () => {
   it("saves a manual activity, replies, and keeps today's session when dated today", async () => {
@@ -244,6 +245,17 @@ describe("coaching manual activities", () => {
     expect(triggered).toBe(true);
     const body = (await res.json()) as { message: string };
     expect(body.message).toBe("Manual activity deleted");
+  });
+
+  it("requires a today date when deleting a manual activity", async () => {
+    const app = makeApp({});
+    const res = await app.fetch(
+      authenticatedRequest("/api/coaching/activities/manual/7", {
+        method: "DELETE",
+      }),
+    );
+
+    await expectValidationFailure(res);
   });
 
   it("returns 404 when deleting an unknown manual activity", async () => {

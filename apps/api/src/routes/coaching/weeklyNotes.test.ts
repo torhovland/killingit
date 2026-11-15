@@ -3,6 +3,7 @@ import {
   authenticatedRequest,
   makeTestApp as makeApp,
 } from "../../testFixtures/app.js";
+import { expectValidationFailure } from "../../testFixtures/validation.js";
 
 describe("coaching weekly notes", () => {
   it("saves a weekly note, replies, and triggers plan generation", async () => {
@@ -72,6 +73,15 @@ describe("coaching weekly notes", () => {
     };
     expect(body.note).toBe("No training on Thursday.");
     expect(body.reply?.text).toContain("rest day");
+  });
+
+  it("requires a today date to show the current week's note", async () => {
+    const app = makeApp({});
+    const res = await app.fetch(
+      authenticatedRequest("/api/coaching/weekly/notes"),
+    );
+
+    await expectValidationFailure(res);
   });
 
   it("rejects an empty weekly note", async () => {

@@ -6,7 +6,6 @@ import {
   foodEntrySchema,
   foodEntryUpdateRequestSchema,
   idParamSchema,
-  planDateSchema,
   type FoodAnalysis,
 } from "@killingit/shared";
 import { zValidator } from "../http/validation.js";
@@ -18,8 +17,8 @@ import {
   badRequest,
   conflict,
   notFound,
-  validationFailed,
 } from "../http/errors.js";
+import { todayQuerySchema } from "../http/query.js";
 import { toAnswerContext } from "../coaching/replies.js";
 import {
   loadReplyContext,
@@ -158,15 +157,8 @@ export function createDietRoute(deps: ResolvedAppDependencies): Hono {
   const createPhotos = deps.createMealPhotos ?? createMealPhotos;
 
   return new Hono()
-    .get("/summary", async (c) => {
-      const today = planDateSchema.safeParse(c.req.query("today"));
-      if (!today.success) {
-        return validationFailed(
-          c,
-          today.error,
-          "A valid today date (YYYY-MM-DD) is required",
-        );
-      }
+    .get("/summary", zValidator("query", todayQuerySchema), async (c) => {
+      const { today } = c.req.valid("query");
       const user = getUser(c);
       if (!user.dietAdvice) {
         return c.json(
@@ -182,9 +174,9 @@ export function createDietRoute(deps: ResolvedAppDependencies): Hono {
       const stored = await entries.listForUser(user.id);
       const earliest =
         stored.map((entry) => entry.eatenDate).sort()[0] ??
-        addDays(today.data, -EMPTY_SUMMARY_DAYS);
+        addDays(today, -EMPTY_SUMMARY_DAYS);
       const [targets, plan] = await Promise.all([
-        loadTargets(user.id, earliest, today.data),
+        loadTargets(user.id, earliest, today),
         deps.planStore.load(user.id),
       ]);
       const diet = plan?.plan.diet ?? null;
@@ -200,7 +192,7 @@ export function createDietRoute(deps: ResolvedAppDependencies): Hono {
             goal: diet?.goal ?? null,
             goalProvided,
             assessment: diet?.assessment ?? null,
-            today: today.data,
+            today: today,
           }),
         ),
       );

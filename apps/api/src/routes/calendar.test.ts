@@ -20,6 +20,7 @@ import {
 } from "../testFixtures/plan.js";
 import type { UserStore } from "../users/store.js";
 import { apiRequest } from "../testFixtures/request.js";
+import { expectValidationFailure } from "../testFixtures/validation.js";
 
 function makePlan(): CoachPlan {
   const week = makeWeek("2026-10-19");
@@ -275,7 +276,7 @@ describe("calendar route", () => {
 
   it("rejects a missing today date", async () => {
     const res = await makeApp().fetch(authenticatedRequest("/api/calendar"));
-    expect(res.status).toBe(400);
+    await expectValidationFailure(res);
   });
 
   it("returns activities, plan sessions, block starts, and the season end", async () => {
