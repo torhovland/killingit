@@ -162,9 +162,7 @@ export async function clearPendingCoachQuestions(
   if (input.clearCoachQuestions === undefined) {
     return;
   }
-  if (!(await input.generations.isCurrent(input.userId, input.runId))) {
-    throw new GenerationSupersededError();
-  }
+  await ensureGenerationCurrent(input);
   try {
     await input.clearCoachQuestions();
   } catch (err) {
@@ -186,9 +184,7 @@ export async function recordCoachQuestion(
   ) {
     return;
   }
-  if (!(await input.generations.isCurrent(input.userId, input.runId))) {
-    throw new GenerationSupersededError();
-  }
+  await ensureGenerationCurrent(input);
   try {
     await input.recordCoachQuestion({
       question,
