@@ -2,6 +2,7 @@ import type { FoodAnalysis } from "@killingit/shared";
 import {
   FOOD_ANALYSIS_RESPONSE_RULES,
   GLOBAL_PROMPT_RULES,
+  RETURN_JSON_FROM_SYSTEM_PROMPT,
   systemUserMessages,
   TEXT_FORMATTING_RULES,
   promptSections,
@@ -130,7 +131,7 @@ function buildFoodAnalysisPrompt(
         ]),
     "",
     "Describe what you add to the athlete's description, estimate the meal's nutrition, and say how it fits the athlete's diet and training.",
-    "Return the JSON object described in the system prompt.",
+    RETURN_JSON_FROM_SYSTEM_PROMPT,
   ].join("\n");
 }
 
