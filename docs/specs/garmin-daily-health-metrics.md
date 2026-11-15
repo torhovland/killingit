@@ -127,7 +127,8 @@ wins when the two conflict.
 
 1. Sync activities and their analyses first. A failed activity sync stops the
    run; daily health is never fetched without fresh activities.
-2. Compute the 42-day window ending today.
+2. Compute the 42-date inclusive window ending today, the same window the
+   activity sync covers.
 3. Walk dates from today backwards. Refresh today and yesterday even when a
    watermark exists; for older dates skip those already marked in
    `garmin_daily_sync`.

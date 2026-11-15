@@ -1,14 +1,17 @@
 import { describe, expect, it } from "bun:test";
 import type { GarminDailyResponse } from "@killingit/shared";
 import { GarminSidecarError } from "./client.js";
-import { syncGarminDailyHistory } from "./dailySync.js";
+import {
+  GARMIN_DAILY_SYNC_WINDOW_DAYS,
+  syncGarminDailyHistory,
+} from "./dailySync.js";
 
 const credentials = { username: "u", password: "p" };
 
 /** Runs a pass and returns the dates it fetched, in order. */
 function plannedDates(options: {
   today: string;
-  windowDays: number;
+  windowDays?: number;
   synced: ReadonlySet<string>;
   refreshDays?: number;
 }): Promise<string[]> {
@@ -17,7 +20,9 @@ function plannedDates(options: {
       userId: 1,
       credentials,
       today: options.today,
-      windowDays: options.windowDays,
+      ...(options.windowDays === undefined
+        ? {}
+        : { windowDays: options.windowDays }),
       ...(options.refreshDays === undefined
         ? {}
         : { refreshDays: options.refreshDays }),
@@ -45,23 +50,38 @@ describe("syncGarminDailyHistory date planning", () => {
   it("adds a missing older date and skips watermarked neighbours", async () => {
     const dates = await plannedDates({
       today: "2026-11-02",
-      windowDays: 3,
+      windowDays: 4,
       synced: new Set(["2026-10-31"]),
     });
 
     expect(dates).toEqual(["2026-11-02", "2026-11-01", "2026-10-30"]);
   });
 
-  it("walks the whole window on the first pass", async () => {
+  it("walks the whole inclusive window on the first pass", async () => {
     const dates = await plannedDates({
       today: "2026-11-02",
       windowDays: 5,
       synced: new Set(),
     });
 
-    expect(dates).toHaveLength(6);
+    expect(dates).toEqual([
+      "2026-11-02",
+      "2026-11-01",
+      "2026-10-31",
+      "2026-10-30",
+      "2026-10-29",
+    ]);
+  });
+
+  it("plans exactly 42 dates by default, ending today", async () => {
+    const dates = await plannedDates({
+      today: "2026-11-02",
+      synced: new Set(),
+    });
+
+    expect(dates).toHaveLength(GARMIN_DAILY_SYNC_WINDOW_DAYS);
     expect(dates[0]).toBe("2026-11-02");
-    expect(dates[dates.length - 1]).toBe("2026-10-28");
+    expect(dates[dates.length - 1]).toBe("2026-09-22");
   });
 });
 
@@ -75,7 +95,7 @@ describe("syncGarminDailyHistory", () => {
         userId: 1,
         credentials,
         today: "2026-11-02",
-        windowDays: 3,
+        windowDays: 4,
       },
       {
         loadSyncedDates: () => Promise.resolve(new Set(["2026-10-31"])),
@@ -144,7 +164,7 @@ describe("syncGarminDailyHistory", () => {
         userId: 1,
         credentials,
         today: "2026-11-02",
-        windowDays: 1,
+        windowDays: 2,
       },
       {
         loadSyncedDates: () => Promise.resolve(new Set()),
