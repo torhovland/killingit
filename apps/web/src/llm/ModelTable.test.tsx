@@ -98,10 +98,34 @@ describe("ModelTable", () => {
     expect(sorts).toEqual(["cost"]);
   });
 
-  it("marks the sorted column and its direction", () => {
+  it("announces the sorted column and its direction", () => {
     table({ sortKey: "speed", sortDirection: "asc" });
 
-    expect(screen.getByRole("button", { name: "Speed ▲" })).toBeTruthy();
+    // `aria-sort` carries the state, so the glyph is decoration and the
+    // button keeps the column name as its accessible name.
+    expect(
+      screen
+        .getByRole("columnheader", { name: "Speed" })
+        .getAttribute("aria-sort"),
+    ).toBe("ascending");
+    expect(screen.getByRole("button", { name: "Speed" })).toBeTruthy();
+    expect(screen.getByText("▲").getAttribute("aria-hidden")).toBe("true");
+  });
+
+  it("marks only the sorted column, and reverses the direction", () => {
+    table({ sortKey: "speed", sortDirection: "desc" });
+
+    expect(
+      screen
+        .getByRole("columnheader", { name: "Speed" })
+        .getAttribute("aria-sort"),
+    ).toBe("descending");
+    expect(screen.getByText("▼").getAttribute("aria-hidden")).toBe("true");
+    expect(
+      screen
+        .getByRole("columnheader", { name: "Ability" })
+        .hasAttribute("aria-sort"),
+    ).toBe(false);
     expect(screen.getByRole("button", { name: "Ability" })).toBeTruthy();
   });
 

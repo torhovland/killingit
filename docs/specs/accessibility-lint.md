@@ -34,9 +34,10 @@ tab index, and invalid ARIA.
 
 - Behavioural accessibility that static analysis cannot see: focus traps, chart
   data exposed to screen readers, sort announcements, and a menu primitive.
-  Focus traps are covered by the `Modal` tests, and the chart keyboard path
-  (#325) by `docs/specs/chart-keyboard-navigation.md`; sort announcements and a
-  menu primitive stay in their own a11y issues (#326–#328). The location map's
+  Focus traps are covered by the `Modal` tests, the chart keyboard path
+  (#325) by `docs/specs/chart-keyboard-navigation.md`, and the model table's
+  sort announcements (#326) by `apps/web/src/llm/ModelTable.test.tsx`; a menu
+  primitive stays in its own a11y issue (#328). The location map's
   keyboard path (#324) is implemented and guarded by interaction tests rather
   than by a lint rule, because whether keys actually move the map is behaviour,
   not JSX.
