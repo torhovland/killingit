@@ -43,7 +43,9 @@ The app is an installable **PWA**; every page has a canonical URL and every
 request carries the API contract version. API reads use `requestParsed` and
 `useApiResource`, paths resolve through `apps/web/src/apiUrl.ts`, and form values
 from the server use `usePropDraft`. Hooks and JSX are linted (`react-hooks`,
-`jsx-a11y`), and charts are keyboard reachable and draw through `chartPath`. See
+`jsx-a11y`); charts are keyboard reachable and draw through `chartPath`, the
+fitness, threshold and cost charts share their legend through `ChartLegend`, and
+the threshold chart's series colours come from `seriesClass`. See
 `docs/specs/pwa.md`, `docs/specs/web-api-request-parsing.md`,
 `docs/specs/web-api-resource-hook.md` and
 `docs/specs/chart-keyboard-navigation.md`.

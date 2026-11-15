@@ -4,6 +4,7 @@ import {
   CHART_WIDTH,
   labelIndices,
 } from "./charts/chartGeometry";
+import { CHART_LEGEND_INSET_CLASS, ChartLegend } from "./charts/ChartLegend";
 import { COST_SERIES_FILL, COST_SERIES_SWATCH } from "./costColors";
 import {
   costAxis,
@@ -15,7 +16,6 @@ import {
   type CostSeriesTotal,
 } from "./costChart";
 import { CostTooltip } from "./CostTooltip";
-import { cn } from "./components/cn";
 import {
   CHART_KEYBOARD_HINT,
   useChartKeyboard,
@@ -229,27 +229,20 @@ export function CostBarChart({
         </div>
       </div>
       {visibleSeries.length > 0 && (
-        <ul
-          className="flex flex-wrap gap-x-4 gap-y-1 text-sm"
-          style={{
-            paddingLeft: `${((CHART_PADDING.left / CHART_WIDTH) * 100).toFixed(4)}%`,
-          }}
-          data-testid={`${testId}-legend`}
-        >
-          {visibleSeries.map((series) => (
-            <li key={series.series} className="flex items-center gap-1.5">
-              <span
-                className={cn(
-                  "inline-block size-2.5 rounded-sm",
-                  COST_SERIES_SWATCH[
-                    data.series.indexOf(series) % COST_SERIES_SWATCH.length
-                  ],
-                )}
-              />
-              <span>{series.label}</span>
-            </li>
-          ))}
-        </ul>
+        <ChartLegend
+          className={CHART_LEGEND_INSET_CLASS}
+          testId={`${testId}-legend`}
+          items={visibleSeries.map((series) => ({
+            key: series.series,
+            label: series.label,
+            swatch:
+              COST_SERIES_SWATCH[
+                data.series.indexOf(series) % COST_SERIES_SWATCH.length
+              ],
+            swatchShape: "square",
+            text: null,
+          }))}
+        />
       )}
     </figure>
   );

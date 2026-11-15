@@ -16,6 +16,7 @@ import {
   type Domain,
 } from "../charts/chartGeometry";
 import { ChartFrame } from "../charts/ChartFrame";
+import { ChartLegend } from "../charts/ChartLegend";
 import { cn } from "../components/cn";
 
 interface HealthSeries {
@@ -149,17 +150,13 @@ function HealthLineChart({
         );
       }}
       legend={
-        <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-          {series.map((entry) => (
-            <li key={entry.key} className="flex items-center gap-1.5">
-              <span
-                className={cn("inline-block h-0.5 w-4", entry.swatch)}
-                aria-hidden="true"
-              />
-              <span className="font-medium">{entry.label}</span>
-            </li>
-          ))}
-        </ul>
+        <ChartLegend
+          items={series.map((entry) => ({
+            key: entry.key,
+            label: entry.label,
+            swatch: entry.swatch,
+          }))}
+        />
       }
     >
       {() =>
@@ -462,20 +459,17 @@ function SleepChart({
         );
       }}
       legend={
-        <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-          {data.series.map((entry) => (
-            <li key={entry.key} className="flex items-center gap-1.5">
-              <span
-                className={cn("inline-block h-3 w-4", entry.swatch)}
-                aria-hidden="true"
-              />
-              <span className="font-medium">{entry.label}</span>
-            </li>
-          ))}
-          <li className="flex items-center gap-1.5">
-            <span className="font-medium">Awake</span>
-          </li>
-        </ul>
+        <ChartLegend
+          items={[
+            ...data.series.map((entry) => ({
+              key: entry.key,
+              label: entry.label,
+              swatch: entry.swatch,
+              swatchShape: "bar" as const,
+            })),
+            { key: "awake", label: "Awake", swatchShape: "none" as const },
+          ]}
+        />
       }
     >
       {() =>
