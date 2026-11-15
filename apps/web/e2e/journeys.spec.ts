@@ -160,6 +160,9 @@ test("an admin opens the admin settings with an unanswered survey question", asy
   await openPage(page, "Admin settings");
   await expect(page).toHaveURL(/\/admin$/);
   await expect(page.getByTestId("admin-settings")).toBeVisible();
+  // The e2e server is a Vite dev server, so the admin page keeps the
+  // development date override that a Production bundle leaves out.
+  await expect(page.getByTestId("dev-date-picker")).toBeVisible();
 
   // The survey gate must not bounce the admin off a reload either, so the
   // admin can fix the questions that hold every athlete back.

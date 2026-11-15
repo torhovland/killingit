@@ -32,7 +32,8 @@ sign-out.
    - an unknown path lands on the coach page;
    - an athlete answers the coaching survey and reaches today's session;
    - an admin opens the admin settings while the survey has an unanswered
-     question (including a reload);
+     question (including a reload), and the dev server still shows the
+     development date override there;
    - a forced survey keeps the survey's panel width, not the rejected page's;
    - deleting the new question that forced the survey releases the athlete,
      after cancelling its confirmation dialog with Escape and returning focus

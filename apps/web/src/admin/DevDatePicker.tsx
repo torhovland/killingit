@@ -7,7 +7,8 @@ import { Input } from "../components/Input";
 /**
  * Date picker for development and test environments. Selecting a date stores it
  * as an override and reloads the app, so the visit behaves exactly like a fresh
- * visit on that day. It renders nothing in production.
+ * visit on that day. It renders nothing in production, and the admin page only
+ * compiles it into a build that can show it (see `AdminSettingsPage`).
  */
 export function DevDatePicker() {
   const timeZone = useTimeZone();

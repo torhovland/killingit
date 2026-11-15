@@ -101,7 +101,8 @@ picker appears in Admin settings. Picking a date stores it as an override and
 reloads the app, so the visit behaves exactly like a fresh visit on that day:
 the plan status is re-evaluated and any missing day, week, or block is generated
 for the selected date. Use "Clear override" to return to the real clock. The
-override lives in `localStorage` and is hidden in production builds.
+override lives in `localStorage` and is hidden in production, whose bundle does
+not contain the picker's code at all.
 
 The environment is chosen by `VITE_APP_ENV` ("Development", "Test", or
 "Production"). The Vite dev server defaults to "Development" and a plain build

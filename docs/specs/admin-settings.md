@@ -31,9 +31,11 @@ read the LLM call log. No account is ever promoted implicitly.
    returns `403` for members.
 6. **Admin settings page.** A signed-in admin gets an "Admin settings" page that
    contains athlete question management and, in development/test environments,
-   the date override used to simulate visiting on another day. Members do not
-   see the page, and an unanswered coaching survey never holds the admin away
-   from it: the admin is the one who edits the questions that block athletes.
+   the date override used to simulate visiting on another day. A Production
+   build leaves the date picker's module out of the bundle instead of shipping
+   code that renders nothing. Members do not see the page, and an unanswered
+   coaching survey never holds the admin away from it: the admin is the one who
+   edits the questions that block athletes.
 
 ### Out of scope (deferred)
 
@@ -61,7 +63,8 @@ read the LLM call log. No account is ever promoted implicitly.
    `role: "admin"`; the questions section is no longer on the coach dashboard.
 9. In development and test environments, the date override lives on the admin
    settings page rather than floating over every page, and it renders nothing
-   in production.
+   in production. `vite build` with the Production environment does not include
+   `DevDatePicker.tsx` in any emitted asset or source map.
 10. Athlete questions can be reordered from the admin page; the chosen order is
     used for onboarding and coach prompts.
 11. `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`
@@ -126,7 +129,13 @@ the `UserRole` union, re-exported from the package index.
 
 - `App.tsx` — fetches and validates `/api/me`, adds Coach/Admin settings
   navigation for admins only, and renders the page.
-- `AdminSettingsPage.tsx` — admin page shell.
+- `AdminSettingsPage.tsx` — admin page shell. It gates `DevDatePicker` on a
+  build-time flag: `import.meta.env.DEV` or `VITE_APP_ENV` being Development or
+  Test. Vite replaces those reads with literals, so a Production build folds the
+  flag to `false` and the bundler drops `DevDatePicker` from the bundle and its
+  source map. `DevDatePicker` keeps `isDateOverrideAllowed()` as a runtime
+  backstop, so a misconfigured build still renders nothing.
+- `DevDatePicker.tsx` — the date override form; development and test only.
 - `AdminQuestionsSection.tsx` — moved from the coach dashboard to the admin
   page; its API calls are unchanged.
 - `CoachDashboard.tsx` — no longer renders question management.
@@ -139,8 +148,14 @@ the `UserRole` union, re-exported from the package index.
   the store fails; `requireAdmin` allows admins and denies members with `403`;
   `/api/me` returns `sub` + `role` against a fake store; admin questions reject
   unauthenticated (`401`) and member (`403`) callers.
-- **Web:** covered by typecheck plus existing component tests; the page shell is
-  thin and its access is enforced by the API.
+- **Web:** `AdminSettingsPage.test.tsx` pins the development-tools gate: the
+  picker's slot renders on the dev server and in the Test environment and is
+  absent in Production and when no environment is configured, with the picker
+  and page sections stubbed so the test observes the page's decision rather
+  than the picker's own runtime guard. The rest is covered by typecheck plus
+  existing component tests; the page shell is thin and its access is enforced
+  by the API. A real `vite build` in the Production environment is the
+  acceptance check that the picker's module is gone from the bundle.
 - DB-backed coverage in `apps/api/integration` provisions a member-only
   environment, provisions and promotes the configured subject, and checks that
   deleting the admin leaves every later sign-in a member; see
