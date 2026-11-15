@@ -45,10 +45,14 @@ request carries the API contract version. API reads use `requestParsed` and
 from the server use `usePropDraft`. Hooks and JSX are linted (`react-hooks`,
 `jsx-a11y`); charts are keyboard reachable and draw through `chartPath`, the
 fitness, threshold and cost charts share their legend through `ChartLegend`, and
-the threshold chart's series colours come from `seriesClass`. See
+the threshold and fitness health charts take their series colours from
+`seriesClass`. The fitness page's chart data shaping and scales live in pure
+`fitness/charts/*Data.ts` modules with their own tests, beside thin chart
+components, while cross-page chart infrastructure stays in `charts/`. See
 `docs/specs/pwa.md`, `docs/specs/web-api-request-parsing.md`,
-`docs/specs/web-api-resource-hook.md` and
-`docs/specs/chart-keyboard-navigation.md`.
+`docs/specs/web-api-resource-hook.md`,
+`docs/specs/chart-keyboard-navigation.md` and
+`docs/specs/web-component-library.md`.
 
 **Backend.** TypeScript on Bun, Hono for the API, Drizzle ORM and Zod. Shared Zod
 schemas are validated on both sides (API `zValidator`, web responses);

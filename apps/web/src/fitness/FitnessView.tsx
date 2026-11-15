@@ -8,8 +8,8 @@ import {
   type FitnessHistoryResponse,
   type FitnessRange,
 } from "@killingit/shared";
-import { BodyChartSection } from "./BodyChart";
-import { DailyHealthCharts } from "./DailyHealthCharts";
+import { BodyChartSection } from "./charts/BodyChart";
+import { DailyHealthCharts } from "./charts/DailyHealthCharts";
 import { FitnessChart } from "./FitnessChart";
 import { NutritionChart } from "./NutritionChart";
 import { ThresholdChart } from "./ThresholdChart";

@@ -142,6 +142,19 @@ The response carries `body.weight` and `body.bodyFat`, each a daily
    unless the athlete selects the view. See
    `docs/specs/diet-progress-targets.md`.
 
+### Chart modules
+
+The fitness chart variants live in `apps/web/src/fitness/charts/`. The pure
+modules `dailyHealthData.ts` and `bodyChartData.ts` shape the series, the
+stacked sleep layers, the body domains and scales, the diet target lines and the
+hover lookups; their unit tests sit beside them. `DailyHealthCharts.tsx`,
+`HealthLineChart.tsx`, `SleepChart.tsx` and `BodyChart.tsx` are thin components
+that render the prepared data and keep the chart test ids, accessible labels,
+legends and keyboard handling unchanged. Cross-page chart infrastructure — the
+frame, legend, series palette and geometry — stays in `apps/web/src/charts/`,
+while `bodyProjection.ts` remains the feature-root helper for the body target
+series. See `docs/specs/web-component-library.md`.
+
 ## Data model / API impact
 
 Shared (`@killingit/shared`):

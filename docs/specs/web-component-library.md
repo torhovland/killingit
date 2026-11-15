@@ -72,13 +72,18 @@ legends render through `ChartLegend`, which owns the list, swatch shapes and
 optional `sport · unit` detail, and the legend inset is the exported
 `CHART_LEGEND_INSET_CLASS` utility rather than an inline style. The threshold
 chart's series colours come from `seriesClass(index)`, which wraps the shared
-palette. A page whose sections outgrow one module keeps the same split: the
-coach plan's Day, Week, Block and Season sections and their shared pieces live
-in `plan/`, while the `CoachPlanView` tab shell stays in the feature root; the
-OpenRouter model picker's catalog hook, filter bar, table and save queue live in
-`llm/`, while the `LlmSection` entry point sits in `settings/`. A one-off
-control with genuinely unique styling may stay a plain element, but it must not
-repeat a primitive's base class string.
+palette; the fitness health charts pass their semantic palette to the same
+helper. The fitness page's chart variants and their pure data preparation live
+in `fitness/charts/`: `dailyHealthData.ts` shapes the recovery series and the
+stacked sleep layers, `bodyChartData.ts` prepares the body scales and diet
+targets, and `DailyHealthCharts.tsx`, `HealthLineChart.tsx`, `SleepChart.tsx`
+and `BodyChart.tsx` only render the prepared data. A page whose sections outgrow
+one module keeps the same split: the coach plan's Day, Week, Block and Season
+sections and their shared pieces live in `plan/`, while the `CoachPlanView` tab
+shell stays in the feature root; the OpenRouter model picker's catalog hook,
+filter bar, table and save queue live in `llm/`, while the `LlmSection` entry
+point sits in `settings/`. A one-off control with genuinely unique styling may
+stay a plain element, but it must not repeat a primitive's base class string.
 
 ## Usage rule
 
@@ -106,9 +111,13 @@ layout for the spinner and forwards `variant`, `size` and `className`.
 - Every conditional `className` is composed with `cn()`, and no JSX attribute is
   built from a template literal; `local/no-template-classname` fails
   `bun run lint` otherwise.
-- The fitness, threshold and cost chart legends render through `ChartLegend`
-  and the threshold chart's series colours come from `seriesClass`; no chart
-  repeats that legend markup, the series palette or the plot inset.
+- The fitness, threshold and cost chart legends render through `ChartLegend`;
+  the threshold chart and the fitness health charts take their series colours
+  from `seriesClass`; no chart repeats that legend markup, series palette or the
+  plot inset.
+- A chart with several measures keeps its data shaping and scales in a pure
+  module beside it, with unit tests, and the component only renders the prepared
+  data.
 - `bun run typecheck`, `bun run lint`, `bun run format` and `bun run test` pass.
 
 ## Data model and API impact
