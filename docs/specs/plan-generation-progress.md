@@ -86,7 +86,10 @@ at the cost of a few runs. A step with no sample uses `defaultMs`.
 switches to `syncActivities` (`Syncing Garmin activities`) before loading the
 activity feed, then back to `prepare` once the feed is ready. A caller that
 already holds the analysed feed, such as the refresh after a dashboard sync,
-skips the sync step. Each `update` records the finished
+skips the sync step. The completed period's review is generated under the step
+that is already active and is skipped when no review is needed, so it has no
+step of its own: a step written for it would only be replaced before the athlete
+saw it, which is two writes without feedback. Each `update` records the finished
 step's duration, carries the current estimate forward as the new floor, and
 starts the new step. `finish` records the last step and reports 100%. `fail`
 settles at the current estimate so the bar does not jump backwards on error.

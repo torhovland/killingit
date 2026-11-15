@@ -41,7 +41,6 @@ export async function generateFreshPlan(
 ): Promise<CoachPlan> {
   const { context, generations, runId, today, userId } = input;
 
-  await generations.update(userId, PLAN_GENERATION_STEPS.review, runId);
   await generations.update(userId, PLAN_GENERATION_STEPS.season, runId);
   const seasonUpdate = await generateSeasonPlan(
     context.provider,

@@ -648,17 +648,17 @@ describe("dbPlanGenerationStore", () => {
 
     await dbPlanGenerationStore.update(
       user.id,
-      PLAN_GENERATION_STEPS.review,
+      PLAN_GENERATION_STEPS.initialBlock,
       "run-a",
     );
     expect((await dbPlanGenerationStore.load(user.id)).step).toBe(
-      PLAN_GENERATION_STEPS.review.label,
+      PLAN_GENERATION_STEPS.initialBlock.label,
     );
 
     await dbPlanGenerationStore.begin(user.id, "run-b");
     await dbPlanGenerationStore.update(
       user.id,
-      PLAN_GENERATION_STEPS.season,
+      PLAN_GENERATION_STEPS.initialWeek,
       "run-a",
     );
     expect((await dbPlanGenerationStore.load(user.id)).step).toBe(
