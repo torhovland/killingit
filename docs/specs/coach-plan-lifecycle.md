@@ -213,7 +213,9 @@ Both routes are behind `requireAuth`.
   already running. `mode` is `auto` (default), `newSeason`, or `updateSeason`;
   `force: true` behaves like `newSeason`. When `includeTomorrow` is omitted, the
   server derives it from the athlete's local hour, so a server-triggered update
-  after 18:00 plans tomorrow exactly like the dashboard does.
+  after 18:00 plans tomorrow exactly like the dashboard does. A response to a
+  run that is already in flight reports today only, because that run has not
+  planned tomorrow yet.
 
 `stale` is true when the newest answer is newer than the timestamp the plan was
 saved with, or when a coaching input whose coach reply asked for a plan change

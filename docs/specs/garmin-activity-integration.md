@@ -42,8 +42,10 @@ one swappable corner, and normalizes Garmin activities into the shared
 2. **Credential entry** — a web form (behind Auth0 sign-in) that POSTs the
    Garmin username/password to a protected, per-account API endpoint.
 3. **Encrypted storage** — credentials encrypted at rest with AES-256-GCM,
-   key from `GARMIN_CREDENTIALS_KEY` (env), stored in Postgres per user. Never
-   serialized back to the client.
+   under an HKDF-derived key from `GARMIN_CREDENTIALS_KEY` (env) and bound to
+   the owning account with AES-GCM additional data, stored in Postgres per
+   user. Never serialized back to the client. See
+   `docs/specs/credential-encryption.md`.
 4. **Sync trigger** — automatically when the operator loads the app while
    credentials exist; progress surfaced on the main page.
 5. **Shared types** — a Garmin connection-status schema, the existing
@@ -153,7 +155,7 @@ one swappable corner, and normalizes Garmin activities into the shared
 ### API (`apps/api/src/garmin/`)
 
 - `crypto.ts` — AES-256-GCM encrypt/decrypt helpers (key from
-  `GARMIN_CREDENTIALS_KEY`).
+  `GARMIN_CREDENTIALS_KEY`, ciphertext bound to the account id).
 - `client.ts` — thin HTTP client to the sidecar, injectable for tests.
 - `store.ts` — Drizzle upsert/load of the user's `garmin_connections` row.
 - `routes/garmin.ts` — the three routes above, guarded by `requireAuth`.
@@ -174,8 +176,9 @@ one swappable corner, and normalizes Garmin activities into the shared
 
 ## Testing
 
-- **Unit (API):** AES encrypt/decrypt round-trip and tamper detection; sidecar
-  client mapping + error handling; config-from-env.
+- **Unit (API):** AES encrypt/decrypt round-trip, tamper detection, the
+  account binding and the legacy-format fallback; sidecar client mapping +
+  error handling; config-from-env.
 - **Unit (Python):** activity and sample normalization + 42-day filtering with
   a stubbed Garmin client (no live network).
 - **Contract (both languages):** the sidecar's whole response for `/sync`,

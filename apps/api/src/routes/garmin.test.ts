@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it, spyOn } from "bun:test";
 import type { Activity, AnalyzedActivity } from "@killingit/shared";
+import { credentialsKeyFromEnv, decrypt } from "../crypto/credentials.js";
 import type { GarminCredentials } from "../garmin/client.js";
 import { GarminSidecarError, type SyncTransport } from "../garmin/client.js";
 import type { EncryptedCredentials } from "../garmin/store.js";
@@ -155,6 +156,27 @@ describe("per-user Garmin credentials", () => {
     expect(await res.json()).toEqual({ connected: true });
     expect(stored.get(1)).toBeDefined();
     expect(stored.get(2)).toBeUndefined();
+  });
+
+  it("binds stored credentials to the signed-in account", async () => {
+    const { app, stored } = makeApp();
+
+    const res = await app.fetch(
+      request("/garmin/credentials", "athlete-1", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ username: "rider-1", password: "secret" }),
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    const saved = stored.get(1);
+    if (saved === undefined) {
+      throw new Error("expected stored credentials");
+    }
+    const keys = await credentialsKeyFromEnv("GARMIN_CREDENTIALS_KEY");
+    expect(await decrypt(saved.passwordEncrypted, keys, 1)).toBe("secret");
+    return expect(decrypt(saved.passwordEncrypted, keys, 2)).rejects.toThrow();
   });
 
   it("reports connection status per account", async () => {

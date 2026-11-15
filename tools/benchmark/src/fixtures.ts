@@ -71,7 +71,7 @@ async function resolveApiKey(userId: number): Promise<string> {
       "Set BENCHMARK_API_KEY or configure an OpenRouter key for this account",
     );
   }
-  return decrypt(row.apiKeyEncrypted, await llmCredentialsKeyFromEnv());
+  return decrypt(row.apiKeyEncrypted, await llmCredentialsKeyFromEnv(), userId);
 }
 
 /**

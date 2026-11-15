@@ -1,6 +1,10 @@
 import { describe, expect, it, spyOn } from "bun:test";
 import type { LlmCatalogModel, LlmCostsResponse } from "@killingit/shared";
-import { credentialsKeyFromEnv } from "../crypto/credentials.js";
+import {
+  credentialsKeyFromEnv,
+  decrypt,
+  type CredentialKeys,
+} from "../crypto/credentials.js";
 import { createApp } from "../index.js";
 import {
   createOpenRouterProvider,
@@ -79,8 +83,8 @@ function catalogModel(id: string): LlmCatalogModel {
   };
 }
 
-/** The API key's encryption key the test app derives from the environment. */
-function testCredentialsKey(): Promise<CryptoKey> {
+/** The API key's encryption keys the test app derives from the environment. */
+function testCredentialsKey(): Promise<CredentialKeys> {
   process.env.TEST_LLM_CREDENTIALS_KEY = "test-secret";
   return credentialsKeyFromEnv("TEST_LLM_CREDENTIALS_KEY");
 }
@@ -127,7 +131,7 @@ function makeApp(
       settings: StoredLlmSettings,
     ) => Promise<void>;
     provider?: LlmProvider;
-    credentialsKey?: () => Promise<CryptoKey>;
+    credentialsKey?: () => Promise<CredentialKeys>;
     loadCosts?: (userId: number) => Promise<LlmCostsResponse>;
   } = {},
 ) {
@@ -255,6 +259,32 @@ describe("PUT /llm/settings", () => {
     expect(saved).toHaveLength(1);
     expect(saved[0]?.seasonModel).toBe("test-model");
     expect(saved[0]?.dailyModel).toBe("new-model");
+  });
+
+  it("binds the stored key to the owning account", async () => {
+    const saved: StoredLlmSettings[] = [];
+    const app = appWithSaved(null, saved);
+
+    const res = await app.fetch(
+      putSettingsRequest({
+        apiKey: "valid-key",
+        seasonModel: "test-model",
+        dailyModel: "new-model",
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    const storedSettings = saved[0];
+    if (storedSettings === undefined) {
+      throw new Error("expected saved settings");
+    }
+    const keys = await testCredentialsKey();
+    expect(await decrypt(storedSettings.apiKeyEncrypted, keys, 42)).toBe(
+      "valid-key",
+    );
+    return expect(
+      decrypt(storedSettings.apiKeyEncrypted, keys, 7),
+    ).rejects.toThrow();
   });
 
   it("does not leak a credentials-key failure to the athlete", async () => {

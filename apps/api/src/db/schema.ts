@@ -324,7 +324,8 @@ export type NewAthleteThresholdRow = typeof athleteThresholds.$inferInsert;
 
 /**
  * One Garmin connection per account. Username and password are stored
- * AES-256-GCM-encrypted; ciphertext is never serialized.
+ * AES-256-GCM-encrypted, with the account id as additional authenticated data;
+ * ciphertext is never serialized.
  */
 export const garminConnections = pgTable(
   "garmin_connections",
@@ -347,8 +348,9 @@ export type NewGarminConnection = typeof garminConnections.$inferInsert;
 
 /**
  * One LLM provider configuration per account. The API key is
- * AES-256-GCM-encrypted at rest and never serialized. `provider` is stored now
- * so another provider can be added without a schema change.
+ * AES-256-GCM-encrypted at rest, with the account id as additional
+ * authenticated data, and never serialized. `provider` is stored now so
+ * another provider can be added without a schema change.
  */
 export const llmSettings = pgTable(
   "llm_settings",

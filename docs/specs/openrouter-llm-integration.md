@@ -27,10 +27,12 @@ coach analysis on the main page.
      `docs/specs/llm-model-catalog.md`.
    - A retired selection is refused with a prompt to open Settings. A
      discouraged selection is allowed and shows a warning below the table.
-2. **Encrypted storage** of each account's API key (AES-256-GCM, key from
-   `LLM_CREDENTIALS_KEY`) plus the selected season and daily models in
+2. **Encrypted storage** of each account's API key (AES-256-GCM, under an
+   HKDF-derived key from `LLM_CREDENTIALS_KEY` and bound to the owning account
+   with AES-GCM additional data) plus the selected season and daily models in
    `llm_settings`, one row per
-   account. The key is never returned by any endpoint.
+   account. The key is never returned by any endpoint. See
+   `docs/specs/credential-encryption.md`.
 3. **Provider-agnostic LLM seam** (`LlmProvider`) implemented by OpenRouter:
    `listModels`, `validateKey`, `complete`.
 4. **Coach analysis for activities**:
@@ -153,7 +155,9 @@ Weather and daylight are included in the plan prompts; see
   response carries activity summaries and a `sampleCount`; the full timeseries
   stays server-side (it is only needed to build the prompt).
 - `crypto/credentials.ts` — shared AES-256-GCM helper extracted from the Garmin
-  integration; Garmin keeps a thin re-export, LLM has its own env key.
+  integration; Garmin keeps a thin re-export, LLM has its own env key. The key
+  is HKDF-derived and the ciphertext is bound to the account id; see
+  `docs/specs/credential-encryption.md`.
 
 ### Web (`apps/web/src/`)
 

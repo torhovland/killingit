@@ -1,4 +1,7 @@
-import { credentialsKeyFromEnv } from "../crypto/credentials.js";
+import {
+  credentialsKeyFromEnv,
+  type CredentialKeys,
+} from "../crypto/credentials.js";
 
 /**
  * Garmin credentials use the shared AES-256-GCM helper with a Garmin-specific
@@ -7,7 +10,7 @@ import { credentialsKeyFromEnv } from "../crypto/credentials.js";
  */
 export { decrypt, encrypt } from "../crypto/credentials.js";
 
-/** Reads `GARMIN_CREDENTIALS_KEY` and derives the Garmin encryption key. */
-export function garminCredentialsKeyFromEnv(): Promise<CryptoKey> {
+/** Reads `GARMIN_CREDENTIALS_KEY` and derives the Garmin encryption keys. */
+export function garminCredentialsKeyFromEnv(): Promise<CredentialKeys> {
   return credentialsKeyFromEnv("GARMIN_CREDENTIALS_KEY");
 }
