@@ -139,19 +139,20 @@ export function withStoredAnalysis(
   };
 }
 
-/** An activity shown before an LLM has been configured. */
-export function withoutAnalysis(
-  activity: Activity,
-  feedback?: ActivityFeedback,
-): AnalyzedActivity {
+/**
+ * An activity shown before an LLM has been configured. It carries no feedback:
+ * `assembleFeed` overlays the athlete's stored feedback with
+ * `withActivityFeedback`, so a freshly synced activity starts empty.
+ */
+export function withoutAnalysis(activity: Activity): AnalyzedActivity {
   return {
     ...summarizeActivity(activity),
     analysis: null,
     analysisError: null,
     programAnalysis: null,
-    comment: feedback?.comment ?? null,
-    coachReply: feedback?.reply ? toCoachAnalysis(feedback.reply) : null,
-    reviewed: feedback?.reviewed ?? false,
+    comment: null,
+    coachReply: null,
+    reviewed: false,
   };
 }
 
