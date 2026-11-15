@@ -3,7 +3,6 @@ import type { LlmCompletionRequest, LlmProvider } from "./openrouter.js";
 import { LlmAbortError, LlmTokenLimitError } from "./openrouter.js";
 import { withPromptLogging } from "./callLog.js";
 import type { LlmCallResult, LlmCallSink, NewLlmCall } from "./callStore.js";
-import { aggregateLlmCosts } from "./costStore.js";
 import { completeWithFallbacks } from "./resilientCompletion.js";
 
 class StubProvider implements LlmProvider {
@@ -358,27 +357,20 @@ describe("withPromptLogging", () => {
     expect(text).toBe("Recovered");
     expect(calls).toHaveLength(2);
 
-    const costs = aggregateLlmCosts(
-      calls.map((call) => ({
-        createdAt: new Date("2026-11-04T09:00:00Z"),
-        kind: call.started.kind,
-        model: call.started.model,
-        usage: call.result?.usage ?? null,
-        metadata: { ...call.started.metadata, ...call.result?.metadata },
-      })),
-      [],
-    );
-
     // Each attempt is one row that pays for its own usage: the truncated
     // attempt's charge is kept, and the fallback's charge is not doubled.
-    expect(costs.monthly).toEqual([
+    expect(calls.map((call) => call.result?.usage)).toEqual([
       {
-        bucket: "2026-11",
-        model: "routed/model",
-        label: "routed/model",
-        kind: "activity_analysis",
-        costUsd: 0.03,
-        calls: 2,
+        promptTokens: 300,
+        completionTokens: 100,
+        totalTokens: 400,
+        costUsd: 0.01,
+      },
+      {
+        promptTokens: 320,
+        completionTokens: 40,
+        totalTokens: 360,
+        costUsd: 0.02,
       },
     ]);
   });

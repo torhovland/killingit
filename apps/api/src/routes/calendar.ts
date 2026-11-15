@@ -236,7 +236,7 @@ function weekStats(
  * the athlete's dated goals and events. Days are sparse: only days with
  * something to show are returned.
  */
-export function buildCalendar(input: {
+function buildCalendar(input: {
   today: string;
   /**
    * The athlete's IANA time zone, so a recorded activity appears on its local

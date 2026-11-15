@@ -12,7 +12,7 @@ export const GENERATION_HEARTBEAT_MS = 15_000;
  * out after four minutes, and a Cloud Run instance can stop refreshing the
  * heartbeat while it waits on one.
  */
-export const STALE_GENERATION_MS = 5 * 60 * 1000;
+const STALE_GENERATION_MS = 5 * 60 * 1000;
 
 /**
  * Raised when a newer run has taken ownership of the generation row. The old

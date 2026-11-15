@@ -1,10 +1,8 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import {
   authenticateGarmin,
-  GarminAuthError,
   GarminNotConnectedError,
   GarminSidecarError,
-  sidecarAuthHeaders,
   syncGarminActivities,
   syncGarminDailyMetrics,
   syncGarminMetrics,
@@ -35,24 +33,55 @@ interface SidecarRequest {
   init: RequestInit | undefined;
 }
 
-/** Stubs the global `fetch` with one JSON response and records the request. */
-function stubSidecarResponse(body: unknown): SidecarRequest[] {
-  process.env.GARMIN_SIDECAR_URL = "http://sidecar.test";
-  delete process.env.GARMIN_SIDECAR_AUDIENCE;
+/**
+ * Stubs the global `fetch`, recording every request. A metadata request is
+ * answered by `metadata`; anything else is the sidecar response.
+ */
+function stubFetch(options: {
+  body?: unknown;
+  status?: number;
+  metadata?: () => Response;
+}): SidecarRequest[] {
   const requests: SidecarRequest[] = [];
   globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) => {
-    requests.push({
-      url: input instanceof Request ? input.url : input.toString(),
-      init,
-    });
+    const url = input instanceof Request ? input.url : input.toString();
+    requests.push({ url, init });
+    if (url.includes("metadata.google.internal")) {
+      return Promise.resolve(options.metadata?.() ?? new Response("id-token"));
+    }
     return Promise.resolve(
-      new Response(JSON.stringify(body), {
-        status: 200,
+      new Response(JSON.stringify(options.body ?? {}), {
+        status: options.status ?? 200,
         headers: { "content-type": "application/json" },
       }),
     );
   }) as unknown as typeof fetch;
   return requests;
+}
+
+/** Stubs the sidecar with one JSON response and no configured audience. */
+function stubSidecarResponse(body: unknown, status = 200): SidecarRequest[] {
+  process.env.GARMIN_SIDECAR_URL = "http://sidecar.test";
+  delete process.env.GARMIN_SIDECAR_AUDIENCE;
+  return stubFetch({ body, status });
+}
+
+/** The metadata and sidecar requests a stubbed `fetch` recorded separately. */
+function metadataRequests(
+  requests: readonly SidecarRequest[],
+): SidecarRequest[] {
+  return requests.filter((request) =>
+    request.url.includes("metadata.google.internal"),
+  );
+}
+
+/** The authorization header of every sidecar request, in order. */
+function sidecarAuthorizations(
+  requests: readonly SidecarRequest[],
+): (string | null)[] {
+  return requests
+    .filter((request) => !request.url.includes("metadata.google.internal"))
+    .map((request) => new Headers(request.init?.headers).get("authorization"));
 }
 
 /** The JSON body a stubbed sidecar request sent. */
@@ -192,6 +221,16 @@ async function expectRejectsWith<T extends Error>(
   throw new Error("expected promise to reject");
 }
 
+/** Runs a promise that must reject and returns the thrown error. */
+async function caughtError(promise: Promise<unknown>): Promise<unknown> {
+  try {
+    await promise;
+  } catch (err) {
+    return err;
+  }
+  throw new Error("expected promise to reject");
+}
+
 describe("syncGarminMetrics", () => {
   it("returns normalized body-composition and FTP samples from the transport", async () => {
     const snapshot = {
@@ -254,81 +293,92 @@ describe("authenticateGarmin", () => {
     expect(ok).toBe(true);
   });
 
-  it("propagates GarminAuthError", async () => {
-    const promise = authenticateGarmin({ username: "u", password: "p" }, () =>
-      Promise.reject(new GarminAuthError("invalid Garmin credentials")),
+  it("reports a rejected Garmin login as a fixable connection failure", async () => {
+    stubSidecarResponse({ detail: "invalid Garmin credentials" }, 401);
+
+    const error = await caughtError(
+      authenticateGarmin({ username: "u", password: "p" }),
     );
-    await expectRejectsWith(promise, GarminAuthError);
+
+    expect(error).toBeInstanceOf(GarminSidecarError);
+    // A third-party login failure must not answer 401, which the web client
+    // would spend renewing its own session (ADR 0036).
+    expect((error as GarminSidecarError).status).toBe(422);
+    expect((error as GarminSidecarError).code).toBe("garmin_auth_failed");
+    expect((error as Error).message).toBe("invalid Garmin credentials");
   });
 });
 
-describe("sidecarAuthHeaders", () => {
-  it("returns no auth headers when no audience is configured", async () => {
-    const headers = await sidecarAuthHeaders({}, (() =>
-      Promise.reject(new Error("must not fetch"))) as unknown as typeof fetch);
-    expect(headers).toEqual({});
+describe("sidecar authentication", () => {
+  it("sends no authorization header when no audience is configured", async () => {
+    const requests = stubSidecarResponse({});
+
+    await syncGarminMetrics({ username: "u", password: "p" });
+
+    expect(metadataRequests(requests)).toHaveLength(0);
+    expect(sidecarAuthorizations(requests)).toEqual([null]);
+    expect(requests[0]?.url).toBe("http://sidecar.test/metrics");
   });
 
   it("mints an identity token for the configured audience", async () => {
-    const calls: Array<{ url: string; init: RequestInit | undefined }> = [];
-    const fetchFn = ((url: string, init?: RequestInit) => {
-      calls.push({ url, init });
-      return Promise.resolve(new Response("id-token", { status: 200 }));
-    }) as unknown as typeof fetch;
+    process.env.GARMIN_SIDECAR_URL = "http://sidecar.test";
+    process.env.GARMIN_SIDECAR_AUDIENCE = "https://garmin-test.example.run.app";
+    const requests = stubFetch({
+      metadata: () => new Response("id-token", { status: 200 }),
+    });
 
-    const headers = await sidecarAuthHeaders(
-      { GARMIN_SIDECAR_AUDIENCE: "https://garmin-test.example.run.app" },
-      fetchFn,
-    );
+    await syncGarminMetrics({ username: "u", password: "p" });
 
-    expect(headers).toEqual({ authorization: "Bearer id-token" });
-    expect(calls).toHaveLength(1);
-    expect(calls[0]?.url).toContain(
+    const [metadata] = metadataRequests(requests);
+    expect(metadata?.url).toContain(
       "audience=https%3A%2F%2Fgarmin-test.example.run.app",
     );
-    expect(calls[0]?.init?.headers).toEqual({ "Metadata-Flavor": "Google" });
+    expect(metadata?.init?.headers).toEqual({ "Metadata-Flavor": "Google" });
+    expect(sidecarAuthorizations(requests)).toEqual(["Bearer id-token"]);
   });
 
   it("caches the identity token until it expires", async () => {
-    let fetches = 0;
+    process.env.GARMIN_SIDECAR_URL = "http://sidecar.test";
+    process.env.GARMIN_SIDECAR_AUDIENCE = "https://cached.example.run.app";
+    let tokens = 0;
+    const requests = stubFetch({
+      metadata: () => new Response(`token-${(tokens += 1)}`, { status: 200 }),
+    });
+    const realNow = Date.now;
     let now = 1_000;
-    const fetchFn = (() => {
-      fetches += 1;
-      return Promise.resolve(new Response(`token-${fetches}`, { status: 200 }));
-    }) as unknown as typeof fetch;
-    const env = { GARMIN_SIDECAR_AUDIENCE: "https://cached.example.run.app" };
+    Date.now = () => now;
+    try {
+      await syncGarminMetrics({ username: "u", password: "p" });
+      now += 60_000;
+      await syncGarminMetrics({ username: "u", password: "p" });
+      expect(metadataRequests(requests)).toHaveLength(1);
 
-    const first = await sidecarAuthHeaders(env, fetchFn, () => now);
-    now += 60_000;
-    const second = await sidecarAuthHeaders(env, fetchFn, () => now);
-    expect(second).toEqual(first);
-    expect(fetches).toBe(1);
-
-    now += 46 * 60 * 1000;
-    const refreshed = await sidecarAuthHeaders(env, fetchFn, () => now);
-    expect(refreshed.authorization).toBe("Bearer token-2");
-    expect(fetches).toBe(2);
+      now += 46 * 60 * 1000;
+      await syncGarminMetrics({ username: "u", password: "p" });
+      expect(metadataRequests(requests)).toHaveLength(2);
+      expect(sidecarAuthorizations(requests)).toEqual([
+        "Bearer token-1",
+        "Bearer token-1",
+        "Bearer token-2",
+      ]);
+    } finally {
+      Date.now = realNow;
+    }
   });
 
   it("throws when the token endpoint fails", async () => {
-    const promise = sidecarAuthHeaders(
-      { GARMIN_SIDECAR_AUDIENCE: "https://broken.example.run.app" },
-      (() =>
-        Promise.resolve(
-          new Response("nope", { status: 500 }),
-        )) as unknown as typeof fetch,
-    );
+    process.env.GARMIN_SIDECAR_URL = "http://sidecar.test";
+    process.env.GARMIN_SIDECAR_AUDIENCE = "https://broken.example.run.app";
+    stubFetch({
+      metadata: () => new Response("nope", { status: 500 }),
+    });
+
+    const promise = syncGarminMetrics({ username: "u", password: "p" });
     await expectRejectsWith(promise, GarminSidecarError);
   });
 });
 
 describe("error classes", () => {
-  it("reports a rejected Garmin login as a fixable connection failure", () => {
-    const err = new GarminAuthError("bad");
-    expect(err.status).toBe(422);
-    expect(err.code).toBe("garmin_auth_failed");
-  });
-
   it("reports a missing Garmin connection without a session failure", () => {
     const err = new GarminNotConnectedError();
     expect(err.status).toBe(409);

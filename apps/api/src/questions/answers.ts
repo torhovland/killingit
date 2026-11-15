@@ -175,7 +175,7 @@ export const dbQuestionAnswerStore: QuestionAnswerStore = {
  * and an earlier version. Kept separate so answer selection is testable without
  * a database.
  */
-export function toStoredAthleteQuestion(
+function toStoredAthleteQuestion(
   question: StoredQuestion,
   answer: QuestionAnswerRow | null,
   previous: PreviousAnswerVersion | null = null,
@@ -194,7 +194,7 @@ export function toStoredAthleteQuestion(
  * answer, and a skip all count; an unchanged resubmission does not. The earlier
  * wording and answer are snapshotted so the coach can see what changed.
  */
-export function buildCoachingSurveyAdjustments(
+function buildCoachingSurveyAdjustments(
   questions: readonly StoredQuestionWithVersions[],
   answersByVersionId: ReadonlyMap<number, Pick<QuestionAnswerRow, "answer">>,
   submitted: readonly QuestionAnswerInput[],
@@ -239,7 +239,7 @@ export function buildCoachingSurveyAdjustments(
  * once, and a required question cannot be skipped. Returns false for stale,
  * archived, unknown, duplicate, or invalid entries.
  */
-export function answersMatchCurrentQuestions(
+function answersMatchCurrentQuestions(
   activeQuestions: readonly StoredQuestion[],
   answers: readonly QuestionAnswerInput[],
 ): boolean {

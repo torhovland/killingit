@@ -1,9 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { CoachPlanResponse } from "@killingit/shared";
-import {
-  GENERATION_TIMEOUT_MESSAGE,
-  pollPlanGeneration,
-} from "./planGeneration";
+import { pollPlanGeneration } from "./planGeneration";
 
 function response(
   status: "idle" | "running" | "done" | "error",
@@ -156,9 +153,11 @@ describe("pollPlanGeneration", () => {
       ...clock,
     });
 
-    expect(outcome).toEqual({
-      status: "timeout",
-      error: GENERATION_TIMEOUT_MESSAGE,
-    });
+    expect(outcome.status).toBe("timeout");
+    if (outcome.status !== "timeout") {
+      throw new Error("expected the generation to time out");
+    }
+    expect(outcome.error).toContain("taking longer than expected");
+    expect(outcome.error).toContain("Refresh to check again");
   });
 });

@@ -59,9 +59,7 @@ export async function loadTrainingContext(
 }
 
 /** The resolved or coach-estimated TSS for each day the stored plan covers. */
-export function planTssByDate(
-  plan: CoachPlan | undefined,
-): Map<string, number> {
+function planTssByDate(plan: CoachPlan | undefined): Map<string, number> {
   const result = new Map<string, number>();
   if (plan === undefined) {
     return result;

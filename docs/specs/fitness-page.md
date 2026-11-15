@@ -166,9 +166,9 @@ Shared (`@killingit/shared`):
 
 API:
 
-- `apps/api/src/training/history.ts` — `buildFitnessHistory` (pure) and
-  `loadFitnessHistory` (loads the threshold context, body metric series, daily
-  health and nutrition inputs).
+- `apps/api/src/training/history.ts` — `buildFitnessHistory` (pure and
+  module-internal) and the exported `loadFitnessHistory` (loads the threshold
+  context, body metric series, daily health and nutrition inputs).
 - `apps/api/src/metrics/store.ts` — the `athlete_metrics` and
   `athlete_thresholds` time-series reads and writes, including the
   coach-estimate replacement rule.
@@ -319,7 +319,7 @@ API:
 
 - Shared: no new schema behaviour beyond the existing training-load tests;
   `FORM_ZONES` is exercised through the web chart tests.
-- API unit tests for `buildFitnessHistory`: continuous days, TSS precedence,
+- API unit tests for `loadFitnessHistory`: continuous days, TSS precedence,
   manual entries, plan TSS, daily plan estimate vs. interpolated week estimate
   vs. timeline, no threshold, the activities listed per day, the interpolated
   body series, and the latest Garmin readings.

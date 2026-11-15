@@ -95,8 +95,8 @@ implicitly.
 
 ### Shared types
 
-`userRoleSchema` and `currentUserSchema` in `packages/shared/src/user.ts`,
-re-exported from the package index.
+`currentUserSchema` in `packages/shared/src/user.ts`, whose `role` field carries
+the `UserRole` union, re-exported from the package index.
 
 ## Technical approach
 

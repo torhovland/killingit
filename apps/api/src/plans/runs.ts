@@ -26,7 +26,7 @@ export function claimRun(userId: number): {
 }
 
 /** Stops the current run for a user before a newer run takes over. */
-export function abortRun(userId: number): void {
+function abortRun(userId: number): void {
   activeRuns.get(userId)?.controller.abort();
   activeRuns.delete(userId);
 }

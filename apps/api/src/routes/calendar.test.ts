@@ -19,7 +19,6 @@ import {
   makeWeek,
 } from "../testFixtures/plan.js";
 import type { UserStore } from "../users/store.js";
-import { buildCalendar } from "./calendar.js";
 import { apiRequest } from "../testFixtures/request.js";
 
 function makePlan(): CoachPlan {
@@ -228,7 +227,11 @@ const answers: QuestionAnswerStore = {
 };
 
 function makeApp(
-  options: { weekTotals?: Map<string, WeekPlanTotals> } = {},
+  options: {
+    weekTotals?: Map<string, WeekPlanTotals>;
+    events?: AthleteEvent[];
+    feed?: AnalyzedActivitiesResponse;
+  } = {},
 ): ReturnType<typeof createApp> {
   return createApp({
     authProvider: { verify: () => Promise.resolve({ sub: "athlete-1" }) },
@@ -241,7 +244,7 @@ function makeApp(
       activitiesUpdatedAt: null,
       generatedAt: new Date(0),
     }),
-    loadStoredFeed: () => Promise.resolve(feed),
+    loadStoredFeed: () => Promise.resolve(options.feed ?? feed),
     loadActivityTrainingLoads: () =>
       Promise.resolve({
         byDate: new Map([
@@ -251,7 +254,7 @@ function makeApp(
       }),
     loadManualActivities: () => Promise.resolve(manualActivities),
     loadManualActivityReplies: () => Promise.resolve(manualReplies),
-    loadEvents: () => Promise.resolve(events),
+    loadEvents: () => Promise.resolve(options.events ?? events),
     loadWeekTotals: () => Promise.resolve(options.weekTotals ?? new Map()),
   });
 }
@@ -374,14 +377,8 @@ describe("calendar route", () => {
     expect(weeks.get("2026-10-19")?.stats.plannedTss).toBe(330);
   });
 
-  it("extends the calendar range to a date the athlete mentioned", () => {
-    const body = buildCalendar({
-      today: "2026-10-22",
-      timeZone: null,
-      plan: makePlan(),
-      feed,
-      manualActivities: [],
-      manualReplies: new Map(),
+  it("extends the calendar range to a date the athlete mentioned", async () => {
+    const res = await makeApp({
       events: [
         {
           startDate: "2027-02-14",
@@ -390,14 +387,15 @@ describe("calendar route", () => {
           kind: "race",
         },
       ],
-    });
+    }).fetch(authenticatedRequest("/api/calendar?today=2026-10-22"));
 
+    const body = (await res.json()) as CalendarResponse;
     expect(body.latestDate).toBe("2027-02-14");
     const day = body.days.find((entry) => entry.date === "2027-02-14");
     expect(day?.events[0]?.title).toBe("Spring marathon");
   });
 
-  it("shows an activity on the athlete's local day", () => {
+  it("shows an activity on the athlete's local day", async () => {
     // 06:30 UTC on 21 October is 23:30 on 20 October in Los Angeles (PDT).
     const evening = {
       ...activity,
@@ -405,14 +403,14 @@ describe("calendar route", () => {
       startDate: "2026-10-21T06:30:00.000Z",
     };
 
-    const local = buildCalendar({
-      today: "2026-10-22",
-      timeZone: "America/Los_Angeles",
-      plan: makePlan(),
+    const localRes = await makeApp({
       feed: { model: null, activities: [evening] },
-      manualActivities: [],
-      manualReplies: new Map(),
-    });
+    }).fetch(
+      authenticatedRequest(
+        "/api/calendar?today=2026-10-22&timezone=America%2FLos_Angeles",
+      ),
+    );
+    const local = (await localRes.json()) as CalendarResponse;
 
     expect(
       local.days.find((entry) => entry.date === "2026-10-20")?.activities,
@@ -421,14 +419,12 @@ describe("calendar route", () => {
       local.days.find((entry) => entry.date === "2026-10-21")?.activities,
     ).toHaveLength(0);
 
-    const utc = buildCalendar({
-      today: "2026-10-22",
-      timeZone: "UTC",
-      plan: makePlan(),
+    const utcRes = await makeApp({
       feed: { model: null, activities: [evening] },
-      manualActivities: [],
-      manualReplies: new Map(),
-    });
+    }).fetch(
+      authenticatedRequest("/api/calendar?today=2026-10-22&timezone=UTC"),
+    );
+    const utc = (await utcRes.json()) as CalendarResponse;
     expect(
       utc.days.find((entry) => entry.date === "2026-10-20")?.activities,
     ).toHaveLength(0);

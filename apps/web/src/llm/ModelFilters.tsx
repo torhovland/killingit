@@ -8,7 +8,7 @@ import type { LlmModelFilters } from "./catalogFilters";
  * minimum, so it is not offered: the include-ungraded checkbox decides whether
  * an ungraded model passes.
  */
-export const LLM_GRADES = [
+const LLM_GRADES = [
   "A+",
   "A",
   "B",
@@ -19,7 +19,7 @@ export const LLM_GRADES = [
 ] as const satisfies readonly LlmModelGrade[];
 
 /** Whether a select's value names a grade the catalog can store. */
-export function isLlmModelGrade(value: string): value is LlmModelGrade {
+function isLlmModelGrade(value: string): value is LlmModelGrade {
   return llmModelGradeSchema.safeParse(value).success;
 }
 

@@ -211,7 +211,7 @@ export const dbUserStore: UserStore = {
  * auth subject becomes admin, and every other account is a member. Pure so the
  * rule is testable without Postgres (ADR 0006).
  */
-export function planUserProvisioning(
+function planUserProvisioning(
   sub: string,
   adminSubject: string | null,
 ): ProvisioningPlan {

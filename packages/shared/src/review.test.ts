@@ -1,9 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import {
-  periodReviewSchema,
-  periodReviewsResponseSchema,
-  reviewKindSchema,
-} from "./index.js";
+import { periodReviewsResponseSchema } from "./index.js";
 
 const review = {
   kind: "week",
@@ -28,35 +24,38 @@ const review = {
   reviewed: false,
 };
 
+function parseReview(input: unknown) {
+  return periodReviewsResponseSchema.parse({ reviews: [input] }).reviews[0];
+}
+
 describe("period review schemas", () => {
   it("parses a week review with its weekly note", () => {
-    const parsed = periodReviewSchema.parse(review);
-    expect(parsed.kind).toBe("week");
-    expect(parsed.summary.text).toContain("consistent");
-    expect(parsed.weeklyNote?.note).toContain("Thursday");
-    expect(parsed.weeklyNote?.coachReply?.text).toContain("Friday");
+    const parsed = parseReview(review);
+    expect(parsed?.kind).toBe("week");
+    expect(parsed?.summary.text).toContain("consistent");
+    expect(parsed?.weeklyNote?.note).toContain("Thursday");
+    expect(parsed?.weeklyNote?.coachReply?.text).toContain("Friday");
   });
 
   it("defaults the optional feedback fields", () => {
-    const parsed = periodReviewSchema.parse({
+    const parsed = parseReview({
       kind: "block",
       startDate: "2026-09-01",
       endDate: "2026-10-01",
       title: "Base",
       summary: review.summary,
     });
-    expect(parsed.comment).toBeNull();
-    expect(parsed.coachReply).toBeNull();
-    expect(parsed.weeklyNote).toBeNull();
-    expect(parsed.reviewed).toBe(false);
+    expect(parsed?.comment).toBeNull();
+    expect(parsed?.coachReply).toBeNull();
+    expect(parsed?.weeklyNote).toBeNull();
+    expect(parsed?.reviewed).toBe(false);
   });
 
   it("rejects an unknown review kind", () => {
-    expect(reviewKindSchema.safeParse("season").success).toBe(false);
-  });
-
-  it("parses a review list response", () => {
-    const parsed = periodReviewsResponseSchema.parse({ reviews: [review] });
-    expect(parsed.reviews).toHaveLength(1);
+    expect(
+      periodReviewsResponseSchema.safeParse({
+        reviews: [{ ...review, kind: "season" }],
+      }).success,
+    ).toBe(false);
   });
 });

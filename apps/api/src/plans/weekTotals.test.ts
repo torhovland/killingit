@@ -1,6 +1,37 @@
 import { describe, expect, it } from "bun:test";
 import type { CoachPlan, WeekPlan, WeekSession } from "@killingit/shared";
-import { weekTotalsForPlan } from "./weekTotals.js";
+import { recordPlanWeekTotals } from "./weekTotals.js";
+
+type Writer = NonNullable<Parameters<typeof recordPlanWeekTotals>[2]>;
+
+interface StoredRow {
+  weekStartDate: string;
+  plannedMinutes: number;
+  plannedTss: number;
+}
+
+function recordingWriter(rows: StoredRow[]): Writer {
+  return {
+    insert: () => ({
+      values: (row: StoredRow) => ({
+        onConflictDoUpdate: () => {
+          rows.push(row);
+          return Promise.resolve();
+        },
+      }),
+    }),
+  } as unknown as Writer;
+}
+
+async function record(plan: CoachPlan): Promise<StoredRow[]> {
+  const rows: StoredRow[] = [];
+  await recordPlanWeekTotals(1, plan, recordingWriter(rows));
+  return rows.map((row) => ({
+    weekStartDate: row.weekStartDate,
+    plannedMinutes: row.plannedMinutes,
+    plannedTss: row.plannedTss,
+  }));
+}
 
 function session(overrides: Partial<WeekSession>): WeekSession {
   return {
@@ -33,9 +64,9 @@ function plan(overrides: Partial<CoachPlan>): CoachPlan {
   } as CoachPlan;
 }
 
-describe("weekTotalsForPlan", () => {
-  it("totals the workout sessions of the current and next week", () => {
-    const totals = weekTotalsForPlan(
+describe("recordPlanWeekTotals", () => {
+  it("totals the workout sessions of the current and next week", async () => {
+    const rows = await record(
       plan({
         week: week("2026-10-19", [
           session({ durationMinutes: 60, estimatedTss: 55 }),
@@ -62,15 +93,15 @@ describe("weekTotalsForPlan", () => {
       }),
     );
 
-    expect(totals).toEqual([
+    expect(rows).toEqual([
       { weekStartDate: "2026-10-19", plannedMinutes: 150, plannedTss: 135 },
       { weekStartDate: "2026-10-26", plannedMinutes: 120, plannedTss: 100 },
     ]);
   });
 
-  it("omits a week the plan does not carry", () => {
+  it("omits a week the plan does not carry", async () => {
     expect(
-      weekTotalsForPlan(
+      await record(
         plan({
           week: week("2026-10-19", [
             session({ durationMinutes: 45, estimatedTss: 40 }),

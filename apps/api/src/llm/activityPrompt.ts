@@ -55,7 +55,7 @@ import {
 } from "./promptRules.js";
 
 /** Upper bound on time-series rows sent to the model (keeps prompts small). */
-export const MAX_PROMPT_SAMPLES = 90;
+const MAX_PROMPT_SAMPLES = 90;
 
 /**
  * Recorded with each stored analysis for provenance. Changing it does not
@@ -273,7 +273,7 @@ function channelStat(
  * Picks at most `maxSamples` samples spread evenly across the activity,
  * always keeping the first and last recorded point.
  */
-export function downsampleSamples(
+function downsampleSamples(
   samples: readonly ActivitySample[],
   maxSamples = MAX_PROMPT_SAMPLES,
 ): ActivitySample[] {
@@ -281,7 +281,7 @@ export function downsampleSamples(
 }
 
 /** Min/avg/max for one numeric channel, or null when it was not recorded. */
-export function channelStats(
+function channelStats(
   samples: readonly ActivitySample[],
   key: NumericChannel,
 ): ChannelStats | null {
@@ -327,7 +327,7 @@ export function buildActivityAnalysisMessages(
 }
 
 /** Exposed for tests and for inspecting exactly what is sent to the model. */
-export function buildActivityAnalysisPrompt(
+function buildActivityAnalysisPrompt(
   activity: Activity,
   context?: ActivityAnalysisContext,
   comment?: string | null,

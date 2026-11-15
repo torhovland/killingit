@@ -1,10 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import {
-  fetchYrForecast,
-  parseYrResponse,
-  weatherIconForYrSymbol,
-  YR_USER_AGENT,
-} from "./yr.js";
+import type { DailyWeather } from "@killingit/shared";
+import { fetchYrForecast } from "./yr.js";
 
 function toUrl(input: string | URL | Request): URL {
   if (input instanceof URL) {
@@ -54,24 +50,75 @@ function response(timeseries: unknown[]): unknown {
   return { properties: { timeseries } };
 }
 
-describe("weatherIconForYrSymbol", () => {
-  it("maps MET Norway's symbol families to the five display icons", () => {
-    expect(weatherIconForYrSymbol("clearsky_day")).toBe("sun");
-    expect(weatherIconForYrSymbol("fair_night")).toBe("partly_cloudy");
-    expect(weatherIconForYrSymbol("partlycloudy_day")).toBe("partly_cloudy");
-    expect(weatherIconForYrSymbol("cloudy")).toBe("very_cloudy");
-    expect(weatherIconForYrSymbol("fog")).toBe("very_cloudy");
-    expect(weatherIconForYrSymbol("lightrain")).toBe("rain");
-    expect(weatherIconForYrSymbol("heavyrainshowers_day")).toBe("rain");
-    expect(weatherIconForYrSymbol("lightsnow")).toBe("snow");
-    expect(weatherIconForYrSymbol("sleetandthunder")).toBe("snow");
-    expect(weatherIconForYrSymbol("something-new")).toBe("very_cloudy");
+/** Runs a promise that must reject and returns the thrown error. */
+async function rejection(promise: Promise<unknown>): Promise<unknown> {
+  try {
+    await promise;
+  } catch (err) {
+    return err;
+  }
+  throw new Error("expected the forecast to reject");
+}
+
+function parseForecast(
+  body: unknown,
+  timezone = "UTC",
+): Promise<DailyWeather[]> {
+  return fetchYrForecast(
+    { latitude: 59.91, longitude: 10.75, name: null },
+    {
+      timezone,
+      fetchImpl: () =>
+        Promise.resolve(new Response(JSON.stringify(body), { status: 200 })),
+    },
+  ).then((forecast) => forecast.days);
+}
+
+describe("fetchYrForecast weather icons", () => {
+  it("maps MET Norway's symbol families to the five display icons", async () => {
+    const symbols = [
+      "clearsky_day",
+      "fair_night",
+      "partlycloudy_day",
+      "cloudy",
+      "fog",
+      "lightrain",
+      "heavyrainshowers_day",
+      "lightsnow",
+      "sleetandthunder",
+      "something-new",
+    ];
+    const days = await parseForecast(
+      response(
+        symbols.map((symbol, index) =>
+          entry({
+            time: `2026-11-${String(index + 1).padStart(2, "0")}T12:00:00Z`,
+            temperature: 4,
+            wind: 2,
+            symbol,
+          }),
+        ),
+      ),
+    );
+
+    expect(days.map((day) => day.icon)).toEqual([
+      "sun",
+      "partly_cloudy",
+      "partly_cloudy",
+      "very_cloudy",
+      "very_cloudy",
+      "rain",
+      "rain",
+      "snow",
+      "snow",
+      "very_cloudy",
+    ]);
   });
 });
 
-describe("parseYrResponse", () => {
-  it("aggregates hourly entries into daily weather", () => {
-    const days = parseYrResponse(
+describe("fetchYrForecast parsing", () => {
+  it("aggregates hourly entries into daily weather", async () => {
+    const days = await parseForecast(
       response([
         entry({
           time: "2026-11-01T00:00:00Z",
@@ -114,8 +161,8 @@ describe("parseYrResponse", () => {
     expect(days[1]?.gustMaxMs).toBe(2);
   });
 
-  it("uses the local calendar day for the athlete's time zone", () => {
-    const days = parseYrResponse(
+  it("uses the local calendar day for the athlete's time zone", async () => {
+    const days = await parseForecast(
       response([
         entry({
           time: "2026-11-01T22:30:00Z",
@@ -136,8 +183,8 @@ describe("parseYrResponse", () => {
     expect(days.map((day) => day.date)).toEqual(["2026-11-01", "2026-11-02"]);
   });
 
-  it("falls back to the sustained wind when a gust is not reported", () => {
-    const days = parseYrResponse(
+  it("falls back to the sustained wind when a gust is not reported", async () => {
+    const days = await parseForecast(
       response([
         entry({
           time: "2026-11-01T00:00:00Z",
@@ -152,19 +199,23 @@ describe("parseYrResponse", () => {
     expect(days[0]?.gustMaxMs).toBe(6);
   });
 
-  it("rejects a malformed response", () => {
-    expect(() => parseYrResponse({})).toThrow();
-    expect(() => parseYrResponse(response([{ time: "not a time" }]))).toThrow();
-    expect(() =>
-      parseYrResponse(
-        response([
-          {
-            time: "2026-11-01T00:00:00Z",
-            data: { instant: { details: {} } },
-          },
-        ]),
+  it("rejects a malformed response", async () => {
+    expect(await rejection(parseForecast({}))).toBeInstanceOf(Error);
+    expect(
+      await rejection(parseForecast(response([{ time: "not a time" }]))),
+    ).toBeInstanceOf(Error);
+    expect(
+      await rejection(
+        parseForecast(
+          response([
+            {
+              time: "2026-11-01T00:00:00Z",
+              data: { instant: { details: {} } },
+            },
+          ]),
+        ),
       ),
-    ).toThrow();
+    ).toBeInstanceOf(Error);
   });
 });
 
@@ -203,7 +254,9 @@ describe("fetchYrForecast", () => {
     expect(forecast.notModified).toBe(false);
     expect(forecast.days).toHaveLength(1);
     expect(forecast.days[0]?.date).toBe("2026-11-01");
-    expect(userAgent).toBe(YR_USER_AGENT);
+    // MET Norway asks clients to identify themselves with a contact URL.
+    expect(userAgent).toContain("killingit/");
+    expect(userAgent).toContain("github.com/torhovland/killingit");
     expect(requested[0]?.searchParams.get("lat")).toBe("59.91");
     expect(requested[0]?.searchParams.get("lon")).toBe("10.75");
   });

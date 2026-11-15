@@ -1,10 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { Jimp } from "jimp";
-import {
-  createMealPhotos,
-  MEAL_ANALYSIS_MAX_DIMENSION,
-  MEAL_THUMBNAIL_MAX_DIMENSION,
-} from "./thumbnail.js";
+import { createMealPhotos } from "./thumbnail.js";
 
 async function samplePhoto(width = 2000, height = 1500): Promise<string> {
   const image = new Jimp({
@@ -31,11 +27,11 @@ describe("createMealPhotos", () => {
       true,
     );
     expect(await metadata(photos.analysisDataUrl)).toEqual({
-      width: MEAL_ANALYSIS_MAX_DIMENSION,
+      width: 1024,
       height: 768,
     });
     expect(await metadata(photos.thumbnailDataUrl)).toEqual({
-      width: MEAL_THUMBNAIL_MAX_DIMENSION,
+      width: 320,
       height: 240,
     });
   });

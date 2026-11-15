@@ -4,14 +4,10 @@ import { makeActivity as makeFixtureActivity } from "../testFixtures/plan.js";
 import { missingFragments } from "../testFixtures/prompts.js";
 import {
   buildActivityAnalysisMessages,
-  buildActivityAnalysisPrompt,
-  channelStats,
-  downsampleSamples,
-  MAX_PROMPT_SAMPLES,
+  type ActivityAnalysisContext,
 } from "./activityPrompt.js";
 import {
   ACTIVITY_BODY_METRIC_RULES,
-  ACTIVITY_DATA_LIMITS_RULE,
   ACTIVITY_EXTRA_PRAISE_RULES,
   ACTIVITY_FTP_ESTIMATE_RULES,
   ACTIVITY_PRAISE_RULES,
@@ -76,40 +72,57 @@ function systemPrompt(): string {
   return buildActivityAnalysisMessages(makeActivity())[0]?.content ?? "";
 }
 
-describe("downsampleSamples", () => {
-  it("keeps every sample when under the limit", () => {
-    const samples = makeActivity().samples;
-    expect(downsampleSamples(samples, 10)).toHaveLength(3);
+/** The user message the app sends for one activity. */
+function userPrompt(
+  activity: Activity = makeActivity(),
+  context?: ActivityAnalysisContext,
+  comment?: string | null,
+  random?: () => number,
+): string {
+  return (
+    buildActivityAnalysisMessages(activity, context, comment, random)[1]
+      ?.content ?? ""
+  );
+}
+
+describe("time-series sampling", () => {
+  it("shows every sample when the series is under the limit", () => {
+    const prompt = userPrompt();
+
+    expect(prompt).toContain("0:00 | 0.00 | 120 | 180");
+    expect(prompt).toContain("10:00 | 5.00 | 150 | 240");
+    expect(prompt).toContain("20:00 | 10.00 | 165 | 210");
+    expect(prompt).not.toContain("samples shown");
   });
 
   it("caps the sample count and keeps the first and last points", () => {
     const samples = Array.from({ length: 1000 }, (_, index) => ({
       timestamp: new Date(Date.UTC(2026, 9, 1, 6, 0, index)).toISOString(),
-      heartRate: 100 + (index % 50),
+      heartRate: index,
     }));
-    const picked = downsampleSamples(samples, MAX_PROMPT_SAMPLES);
-    expect(picked).toHaveLength(MAX_PROMPT_SAMPLES);
-    expect(picked[0]).toEqual(samples[0]);
-    expect(picked[picked.length - 1]).toEqual(samples[samples.length - 1]);
+    const prompt = userPrompt(makeActivity({ samples }));
+
+    expect(prompt).toContain("(90 of 1000 samples shown, evenly spaced.)");
+    expect(prompt).toContain("0:00 | 0");
+    expect(prompt).toContain("16:39 | 999");
   });
 });
 
-describe("channelStats", () => {
-  it("computes min, max, and average", () => {
-    const stats = channelStats(makeActivity().samples, "heartRate");
-    expect(stats).toEqual({ min: 120, max: 165, avg: 145, count: 3 });
+describe("aggregate values", () => {
+  it("computes min, max, and average for a recorded channel", () => {
+    expect(userPrompt()).toContain(
+      "- heart rate: avg 145 bpm, min 120 bpm, max 165 bpm",
+    );
   });
 
-  it("returns null for a channel that was never recorded", () => {
-    expect(channelStats(makeActivity().samples, "cadence")).not.toBeNull();
-    expect(
-      channelStats(
-        makeActivity().samples.map((sample) => ({
-          timestamp: sample.timestamp,
-        })),
-        "cadence",
-      ),
-    ).toBeNull();
+  it("omits a channel that was never recorded", () => {
+    const prompt = userPrompt(
+      makeActivity({
+        samples: samples.map((sample) => ({ timestamp: sample.timestamp })),
+      }),
+    );
+
+    expect(prompt).not.toContain("Aggregate values:");
   });
 });
 
@@ -134,9 +147,9 @@ describe("activity review system prompt", () => {
   });
 });
 
-describe("buildActivityAnalysisPrompt", () => {
+describe("activity analysis user prompt", () => {
   it("includes the summary, aggregate stats, and the time series", () => {
-    const prompt = buildActivityAnalysisPrompt(makeActivity());
+    const prompt = userPrompt(makeActivity());
 
     expect(prompt).toContain("Morning Ride");
     expect(prompt).toContain("20.00 km");
@@ -149,7 +162,7 @@ describe("buildActivityAnalysisPrompt", () => {
   });
 
   it("includes recorded laps with their averages", () => {
-    const prompt = buildActivityAnalysisPrompt(
+    const prompt = userPrompt(
       makeActivity({
         laps: [
           {
@@ -178,7 +191,7 @@ describe("buildActivityAnalysisPrompt", () => {
   });
 
   it("omits a single recorded lap", () => {
-    const prompt = buildActivityAnalysisPrompt(
+    const prompt = userPrompt(
       makeActivity({ laps: [{ index: 1, movingTime: 2400 }] }),
     );
 
@@ -186,9 +199,7 @@ describe("buildActivityAnalysisPrompt", () => {
   });
 
   it("labels running cadence in steps per minute", () => {
-    const prompt = buildActivityAnalysisPrompt(
-      makeActivity({ type: "running" }),
-    );
+    const prompt = userPrompt(makeActivity({ type: "running" }));
 
     expect(prompt).toContain("cadence spm");
     expect(prompt).toContain("cadence: avg 88 spm");
@@ -196,23 +207,19 @@ describe("buildActivityAnalysisPrompt", () => {
   });
 
   it("shows pace instead of speed for pace-based activities", () => {
-    const running = buildActivityAnalysisPrompt(
-      makeActivity({ type: "running" }),
-    );
+    const running = userPrompt(makeActivity({ type: "running" }));
     expect(running).toContain("pace /km");
     expect(running).toContain("Average pace: 2:00 /km");
     expect(running).toContain("pace: avg 2:02 /km");
     expect(running).not.toContain("speed km/h");
 
-    const rowing = buildActivityAnalysisPrompt(
-      makeActivity({ type: "indoor_rowing" }),
-    );
+    const rowing = userPrompt(makeActivity({ type: "indoor_rowing" }));
     expect(rowing).toContain("pace /500m");
     expect(rowing).toContain("Average pace: 1:00 /500m");
   });
 
   it("keeps speed for rides and other speed-based activities", () => {
-    const prompt = buildActivityAnalysisPrompt(makeActivity());
+    const prompt = userPrompt(makeActivity());
 
     expect(prompt).toContain("speed km/h");
     expect(prompt).toContain("Average speed: 30.0 km/h");
@@ -226,7 +233,7 @@ describe("buildActivityAnalysisPrompt", () => {
       weightKg: 12,
       exercises: [{ category: "SQUAT", name: "GOBLET_SQUAT" }],
     };
-    const prompt = buildActivityAnalysisPrompt(
+    const prompt = userPrompt(
       makeActivity({
         type: "strength_training",
         samples: [],
@@ -249,7 +256,7 @@ describe("buildActivityAnalysisPrompt", () => {
   });
 
   it("includes stored weigh-ins with their sources and precedence", () => {
-    const prompt = buildActivityAnalysisPrompt(makeActivity(), {
+    const prompt = userPrompt(makeActivity(), {
       today: "2026-10-01",
       bodyHistory: {
         weight: [
@@ -268,7 +275,7 @@ describe("buildActivityAnalysisPrompt", () => {
   });
 
   it("includes the recovery context up to the activity date", () => {
-    const prompt = buildActivityAnalysisPrompt(makeActivity(), {
+    const prompt = userPrompt(makeActivity(), {
       today: "2026-10-01",
       dailyHealth: [
         { metric: "sleep_duration", date: "2026-09-30", value: 420 },
@@ -281,11 +288,8 @@ describe("buildActivityAnalysisPrompt", () => {
     expect(prompt).not.toContain("5 h on 2026-10-02");
   });
 
-  it("explains incomplete recordings and refuses an FTP guess without data", () => {
-    const system = systemPrompt();
-
-    expect(system).toContain(ACTIVITY_DATA_LIMITS_RULE);
-    expect(system).toContain(ACTIVITY_FTP_ESTIMATE_RULES);
+  it("refuses an FTP guess without usable data", () => {
+    expect(systemPrompt()).toContain(ACTIVITY_FTP_ESTIMATE_RULES);
   });
 
   it("includes the week plan so the coach can match the activity to a session", () => {
@@ -343,7 +347,7 @@ describe("buildActivityAnalysisPrompt", () => {
       })),
     };
 
-    const local = buildActivityAnalysisPrompt(makeActivity(), {
+    const local = userPrompt(makeActivity(), {
       today: "2026-10-01",
       timezone: "America/Los_Angeles",
       week,
@@ -352,7 +356,7 @@ describe("buildActivityAnalysisPrompt", () => {
     expect(local).toContain("Planned session for 2026-09-30: Session 3");
     expect(local).not.toContain("Planned session for 2026-10-01");
 
-    const utc = buildActivityAnalysisPrompt(makeActivity(), {
+    const utc = userPrompt(makeActivity(), {
       today: "2026-10-01",
       week,
     });
@@ -468,12 +472,7 @@ describe("buildActivityAnalysisPrompt", () => {
   });
 
   it("leaves out the extra praise for any other draw", () => {
-    const prompt = buildActivityAnalysisPrompt(
-      makeActivity(),
-      undefined,
-      null,
-      () => 1 / 15,
-    );
+    const prompt = userPrompt(makeActivity(), undefined, null, () => 1 / 15);
 
     expect(prompt).not.toContain(ACTIVITY_EXTRA_PRAISE_RULES);
   });
@@ -488,7 +487,7 @@ describe("buildActivityAnalysisPrompt", () => {
   });
 
   it("handles an activity without recorded samples", () => {
-    const prompt = buildActivityAnalysisPrompt(makeActivity({ samples: [] }));
+    const prompt = userPrompt(makeActivity({ samples: [] }));
     expect(prompt).toContain(
       "No time-series samples were recorded for this activity.",
     );
@@ -499,7 +498,7 @@ describe("buildActivityAnalysisPrompt", () => {
       timestamp: new Date(Date.UTC(2026, 9, 1, 6, 0, index)).toISOString(),
       heartRate: 140,
     }));
-    const prompt = buildActivityAnalysisPrompt(makeActivity({ samples }));
+    const prompt = userPrompt(makeActivity({ samples }));
     expect(prompt).toContain("90 of 120 samples shown");
   });
 });

@@ -43,7 +43,7 @@ export interface AthleteReadingSource {
   }[];
 }
 
-export const ATHLETE_READING_SYSTEM_PROMPT = promptSections(
+const ATHLETE_READING_SYSTEM_PROMPT = promptSections(
   GLOBAL_PROMPT_RULES,
   "Read an amateur athlete's own words and report two things: the measurements they state about themselves (threshold values per sport, body weight, and body-fat percentage), and every dated goal or event they state (a race or competition, a sportive or group event, a trip or holiday, an appointment or commitment, or a dated target such as covering 100 km by a given day).",
   `Measurements: threshold values include FTP (functional threshold power), threshold heart rate, functional threshold pace, critical power, critical swim speed, running stress score, and any similar threshold measure the athlete mentions. For example, "I want an FTP of 300 W" and "I want to get to 15 % body fat" state targets, not current values. Never turn a goal into a measurement.`,
@@ -81,9 +81,7 @@ export function buildAthleteReadingMessages(source: AthleteReadingSource): {
 }
 
 /** Exposed for tests and for inspecting exactly what is sent to the model. */
-export function buildAthleteReadingPrompt(
-  source: AthleteReadingSource,
-): string {
+function buildAthleteReadingPrompt(source: AthleteReadingSource): string {
   const lines = [
     `Today's date: ${source.today}`,
     "",

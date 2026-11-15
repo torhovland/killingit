@@ -64,7 +64,7 @@ function addWeek(
  * day objects win over the week outline for the same date, because the day is
  * the coach's final prescription.
  */
-export function dayCaloriesForPlan(
+function dayCaloriesForPlan(
   plan: CoachPlan,
 ): Map<string, PlanDayCalorieTarget> {
   const calories = new Map<string, PlanDayCalorieTarget>();

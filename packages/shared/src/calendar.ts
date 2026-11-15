@@ -14,7 +14,7 @@ import { trainingLoadSchema } from "./trainingLoad.js";
  * so the detail dialog can show the same analysis, comments, and route as the
  * Activities page.
  */
-export const calendarImportedActivitySchema = analyzedActivitySchema.extend({
+const calendarImportedActivitySchema = analyzedActivitySchema.extend({
   source: z.literal("garmin"),
 });
 
@@ -26,7 +26,7 @@ export type CalendarImportedActivity = z.infer<
  * A manually logged activity. It has no route or imported statistics, only the
  * athlete's description, the coach's reply, and any training-stress estimate.
  */
-export const calendarManualActivitySchema = z.object({
+const calendarManualActivitySchema = z.object({
   source: z.literal("manual"),
   id: z.number().int().positive(),
   /** The description, trimmed for use as the calendar title. */
@@ -43,7 +43,7 @@ export type CalendarManualActivity = z.infer<
   typeof calendarManualActivitySchema
 >;
 
-export const calendarActivitySchema = z.discriminatedUnion("source", [
+const calendarActivitySchema = z.discriminatedUnion("source", [
   calendarImportedActivitySchema,
   calendarManualActivitySchema,
 ]);
@@ -55,7 +55,7 @@ export type CalendarActivity = z.infer<typeof calendarActivitySchema>;
  * activity, a planned session, a block start, or the season end are omitted
  * from the response.
  */
-export const calendarDaySchema = z.object({
+const calendarDaySchema = z.object({
   date: planDateSchema,
   /** Everything recorded on the day, imported activities first. */
   activities: z.array(calendarActivitySchema).default([]),
@@ -76,7 +76,7 @@ export type CalendarDay = z.infer<typeof calendarDaySchema>;
  * recorded. Completed time is recorded elapsed time; completed TSS is each
  * imported activity's own score plus any manual entry's estimate.
  */
-export const calendarWeekStatsSchema = z.object({
+const calendarWeekStatsSchema = z.object({
   plannedMinutes: z.number().int().nonnegative().default(0),
   completedMinutes: z.number().int().nonnegative().default(0),
   plannedTss: z.number().nonnegative().default(0),
@@ -99,7 +99,7 @@ export const EMPTY_WEEK_STATS: CalendarWeekStats = {
  * the week number places it inside its season block, so weeks the coach has not
  * detailed yet still say where they fall.
  */
-export const calendarWeekSchema = z.object({
+const calendarWeekSchema = z.object({
   startDate: planDateSchema,
   endDate: planDateSchema,
   /** The week's focus from the block or week plan, when one describes it. */

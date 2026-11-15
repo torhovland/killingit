@@ -10,16 +10,10 @@ import {
   writeJsonFile,
 } from "./jsonFile.js";
 import {
-  promptAttemptRecordSchema,
-  promptAttemptSchema,
   promptBenchmarkSourcesSchema,
   promptJudgeOverridesSchema,
-  promptJudgeSchema,
   promptJudgeScoreSchema,
   promptModelResultSchema,
-  promptRunResultSchema,
-  promptUsageSchema,
-  reviseSeasonGatesSchema,
   type PromptAttempt,
   type PromptModelResult,
   type PromptRunResult,
@@ -106,22 +100,17 @@ interface FileFixture {
   fixture: unknown;
 }
 
+/**
+ * A run file schema and one valid value for it. The model result nests the
+ * usage, attempt, gates and judge shapes, so it covers every stored file the
+ * stages read.
+ */
 const FILE_FIXTURES: readonly FileFixture[] = [
-  { name: "usage", schema: promptUsageSchema, fixture: ATTEMPT.usage },
-  { name: "attempt", schema: promptAttemptSchema, fixture: ATTEMPT },
-  {
-    name: "attempt record",
-    schema: promptAttemptRecordSchema,
-    fixture: { prompt: "today", attempts: [ATTEMPT] },
-  },
-  { name: "run result", schema: promptRunResultSchema, fixture: TODAY_RESULT },
   {
     name: "model result",
     schema: promptModelResultSchema,
     fixture: MODEL_RESULT,
   },
-  { name: "gates", schema: reviseSeasonGatesSchema, fixture: GATES },
-  { name: "judge", schema: promptJudgeSchema, fixture: JUDGE },
   { name: "judge score", schema: promptJudgeScoreSchema, fixture: JUDGE_SCORE },
   {
     name: "judge overrides",
@@ -275,9 +264,15 @@ describe("stored files from an older run", () => {
         cost_details: { upstream_inference_cost: 0.01 },
       },
     };
-    const path = await writeFixture({ ...TODAY_RESULT, attempts: [attempt] });
-    const parsed = await readJsonFile(path, promptRunResultSchema);
-    expect(parsed.attempts[0]?.usage).toEqual(attempt.usage);
+    const path = await writeFixture({
+      ...MODEL_RESULT,
+      prompts: {
+        today: { ...TODAY_RESULT, attempts: [attempt] },
+        reviseSeason: REVISION_RESULT,
+      },
+    });
+    const parsed = await readJsonFile(path, promptModelResultSchema);
+    expect(parsed.prompts.today?.attempts[0]?.usage).toEqual(attempt.usage);
   });
 
   it("accepts a judge score written before the Atlas-question gate", async () => {

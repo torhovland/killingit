@@ -29,7 +29,7 @@ const REQUEST_TIMEOUT_MS = 8_000;
  * MET Norway asks every client to identify itself with a contact URL. The
  * repository doubles as the contact point for this app.
  */
-export const YR_USER_AGENT =
+const YR_USER_AGENT =
   "killingit/0.1 (+https://github.com/torhovland/killingit)";
 
 const ICON_SEVERITY: Record<WeatherIcon, number> = {
@@ -45,7 +45,7 @@ const ICON_SEVERITY: Record<WeatherIcon, number> = {
  * carry a time-of-day suffix (`_day`, `_night`, `_polartwilight`), so the
  * mapping is based on the leading condition rather than the full string.
  */
-export function weatherIconForYrSymbol(symbol: string): WeatherIcon {
+function weatherIconForYrSymbol(symbol: string): WeatherIcon {
   const code = symbol.toLowerCase();
   if (code.startsWith("clearsky")) {
     return "sun";
@@ -190,10 +190,7 @@ interface DayAccumulator {
  * calendar days. Yr has no daylight times, so the combined forecast takes them
  * from Open-Meteo.
  */
-export function parseYrResponse(
-  body: unknown,
-  timeZone = "UTC",
-): DailyWeather[] {
+function parseYrResponse(body: unknown, timeZone = "UTC"): DailyWeather[] {
   const properties = isRecord(body) ? body.properties : undefined;
   const timeseries = isRecord(properties) ? properties.timeseries : undefined;
   if (!Array.isArray(timeseries)) {

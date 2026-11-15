@@ -26,7 +26,7 @@ interface IntegrationSetup {
  * The setup the athlete still needs before a new season can be planned, or
  * `null` when Garmin and OpenRouter are both ready.
  */
-export function seasonSetupNotice({
+function seasonSetupNotice({
   garminConnected,
   llmConfigured,
 }: IntegrationSetup): string | null {
@@ -189,7 +189,7 @@ interface PlanRegenerationButtonsViewProps {
 }
 
 /** Pure presentation, so the button availability can be tested directly. */
-export function PlanRegenerationButtonsView({
+function PlanRegenerationButtonsView({
   hasSeason,
   running,
   busy = running !== null,

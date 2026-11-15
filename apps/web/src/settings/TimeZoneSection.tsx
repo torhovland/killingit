@@ -4,7 +4,7 @@ import { Select } from "../components/Select";
 
 /** Split an IANA zone such as `Europe/Oslo` into its continent and city. A
  * zone without a slash, such as `UTC`, belongs to a continent of its own. */
-export function splitTimeZone(zone: string): { region: string; city: string } {
+function splitTimeZone(zone: string): { region: string; city: string } {
   const slash = zone.indexOf("/");
   return slash === -1
     ? { region: zone, city: zone }
@@ -17,7 +17,7 @@ function joinTimeZone(region: string, city: string): string {
 }
 
 /** Group zones by continent, keeping the order they are given in. */
-export function groupTimeZones(options: string[]): Map<string, string[]> {
+function groupTimeZones(options: string[]): Map<string, string[]> {
   const groups = new Map<string, string[]>();
   for (const zone of options) {
     const { region, city } = splitTimeZone(zone);

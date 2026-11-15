@@ -286,7 +286,7 @@ function formatLap(lap: ActivityLap, activityType: string): string | null {
  * whether an interval or tempo session was executed as prescribed. Bounded so
  * a long auto-lap ride cannot dominate the prompt.
  */
-export function formatLaps(
+function formatLaps(
   laps: readonly ActivityLap[],
   activityType: string,
 ): string[] {
@@ -324,7 +324,7 @@ function lapRange(
  * analysis gets the full table; every other prompt only needs to know that the
  * session had interval structure and how hard the laps were.
  */
-export function summarizeLaps(laps: readonly ActivityLap[]): string {
+function summarizeLaps(laps: readonly ActivityLap[]): string {
   const parts = [`${laps.length} recorded`];
   const power = lapRange(
     laps.map((lap) => lap.averagePower),

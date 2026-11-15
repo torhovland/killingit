@@ -91,7 +91,7 @@ export function buildCoachReplyMessages(input: CoachReplyPromptInput): {
 }
 
 /** Exposed for tests and for inspecting exactly what is sent to the model. */
-export function buildCoachReplyPrompt(input: CoachReplyPromptInput): string {
+function buildCoachReplyPrompt(input: CoachReplyPromptInput): string {
   const { plan, request } = input;
   const today = input.context.today;
   const targetDate =

@@ -9,7 +9,7 @@ import { z } from "zod";
  */
 
 /** Token usage reported by OpenRouter for one completion. */
-export const benchmarkUsageSchema = z.object({
+const benchmarkUsageSchema = z.object({
   prompt_tokens: z.number().optional(),
   completion_tokens: z.number().optional(),
   total_tokens: z.number().optional(),
@@ -30,7 +30,7 @@ export const benchmarkUsageSchema = z.object({
 
 export type BenchmarkUsage = z.infer<typeof benchmarkUsageSchema>;
 
-export const benchmarkStepSchema = z.enum([
+const benchmarkStepSchema = z.enum([
   "season",
   "block",
   "week",
@@ -41,7 +41,7 @@ export const benchmarkStepSchema = z.enum([
 export type BenchmarkStep = z.infer<typeof benchmarkStepSchema>;
 
 /** One HTTP completion, including fallback and repair attempts. */
-export const benchmarkCallSchema = z.object({
+const benchmarkCallSchema = z.object({
   step: benchmarkStepSchema,
   /** True when this was a JSON-repair turn. */
   repair: z.boolean(),
@@ -59,7 +59,7 @@ export const benchmarkCallSchema = z.object({
 export type BenchmarkCall = z.infer<typeof benchmarkCallSchema>;
 
 /** The result of one full build or one week+day refresh. */
-export const benchmarkRunSchema = z.object({
+const benchmarkRunSchema = z.object({
   ok: z.boolean(),
   wallMs: z.number(),
   costUsd: z.number(),
@@ -73,7 +73,7 @@ export const benchmarkRunSchema = z.object({
 
 export type BenchmarkRun = z.infer<typeof benchmarkRunSchema>;
 
-export const benchmarkModelResultSchema = z.object({
+const benchmarkModelResultSchema = z.object({
   model: z.string(),
   pricing: z
     .object({
@@ -89,7 +89,7 @@ export const benchmarkModelResultSchema = z.object({
 
 export type BenchmarkModelResult = z.infer<typeof benchmarkModelResultSchema>;
 
-export const benchmarkMetadataSchema = z.object({
+const benchmarkMetadataSchema = z.object({
   runId: z.string(),
   runAt: z.string(),
   gitCommit: z.string().nullable(),
@@ -112,7 +112,7 @@ export const benchmarkResultsSchema = z.object({
 export type BenchmarkResults = z.infer<typeof benchmarkResultsSchema>;
 
 /** Optional hand-written quality assessment for one model. */
-export const benchmarkScoreSchema = z.object({
+const benchmarkScoreSchema = z.object({
   quality: z.number().min(0).max(10),
   notes: z.string(),
 });

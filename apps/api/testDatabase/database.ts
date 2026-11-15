@@ -1,8 +1,9 @@
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
+import { sql } from "drizzle-orm";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import pg from "pg";
-import { db, pool } from "../src/db/index.js";
+import { db } from "../src/db/index.js";
 
 const MIGRATIONS_FOLDER = join(import.meta.dir, "..", "drizzle");
 const IDENTIFIER_PATTERN = /^[a-z_][a-z0-9_]*$/i;
@@ -53,17 +54,17 @@ async function ensureDatabaseExists(databaseUrl: string): Promise<void> {
  * applies from nothing on every run.
  */
 async function rebuildSchema(): Promise<MigrationResult> {
-  await pool.query("drop schema if exists public cascade");
-  await pool.query("drop schema if exists drizzle cascade");
-  await pool.query("create schema public");
+  await db.execute(sql.raw("drop schema if exists public cascade"));
+  await db.execute(sql.raw("drop schema if exists drizzle cascade"));
+  await db.execute(sql.raw("create schema public"));
 
   await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
 
   const files = (await readdir(MIGRATIONS_FOLDER)).filter((file) =>
     file.endsWith(".sql"),
   );
-  const result = await pool.query<{ count: number }>(
-    "select count(*)::int as count from drizzle.__drizzle_migrations",
+  const result = await db.execute<{ count: number }>(
+    sql`select count(*)::int as count from drizzle.__drizzle_migrations`,
   );
 
   return {
@@ -86,35 +87,35 @@ export async function prepareTestDatabase(
 
 /** Clears every table between tests without disturbing the migration record. */
 export async function truncateAllTables(): Promise<void> {
-  const result = await pool.query<{ tablename: string }>(
-    "select tablename from pg_tables where schemaname = 'public'",
+  const result = await db.execute<{ tablename: string }>(
+    sql`select tablename from pg_tables where schemaname = 'public'`,
   );
   const tables = result.rows.map((row) => quoteIdentifier(row.tablename));
   if (tables.length === 0) {
     return;
   }
-  await pool.query(
-    `truncate table ${tables.join(", ")} restart identity cascade`,
+  await db.execute(
+    sql.raw(`truncate table ${tables.join(", ")} restart identity cascade`),
   );
 }
 
 /** Lists every table in the rebuilt public schema. */
 export async function listPublicTables(): Promise<string[]> {
-  const result = await pool.query<{ table_name: string }>(
-    "select table_name from information_schema.tables where table_schema = 'public' order by table_name",
+  const result = await db.execute<{ table_name: string }>(
+    sql`select table_name from information_schema.tables where table_schema = 'public' order by table_name`,
   );
   return result.rows.map((row) => row.table_name);
 }
 
 /** Counts the rows in one public table, for cascade and upsert assertions. */
 export async function countRows(table: string): Promise<number> {
-  const result = await pool.query<{ count: number }>(
-    `select count(*)::int as count from ${quoteIdentifier(table)}`,
+  const result = await db.execute<{ count: number }>(
+    sql.raw(`select count(*)::int as count from ${quoteIdentifier(table)}`),
   );
   return result.rows[0]?.count ?? 0;
 }
 
 /** Ends the shared pool once the suite has finished. */
 export async function closeTestDatabase(): Promise<void> {
-  await pool.end();
+  await db.$client.end();
 }

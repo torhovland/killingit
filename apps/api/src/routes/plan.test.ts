@@ -7,7 +7,6 @@ import type {
   PlanGenerationStatus,
 } from "@killingit/shared";
 import { createApp } from "../index.js";
-import { STALE_GENERATION_MS } from "../plans/generation.js";
 import type { CoachingInputs } from "../plans/inputs.js";
 import type { PlanGenerationStep } from "../plans/steps.js";
 import type {
@@ -16,7 +15,6 @@ import type {
   PlanStore,
   StoredPlan,
 } from "../plans/store.js";
-import { idleGenerationStatus } from "../plans/store.js";
 import type {
   QuestionAnswerStore,
   StoredAthleteQuestion,
@@ -27,6 +25,9 @@ import { combineForecasts } from "../weather/combine.js";
 import type { WeatherForecastSet } from "../weather/forecast.js";
 import { apiRequest } from "../testFixtures/request.js";
 import { expectValidationFailure } from "../testFixtures/validation.js";
+
+/** A running row is stale once its five-minute lease has expired. */
+const STALE_RUN_MS = 5 * 60 * 1000;
 
 const storedQuestion: StoredAthleteQuestion = {
   id: 1,
@@ -116,8 +117,20 @@ class MemoryPlanStore implements PlanStore {
   }
 }
 
+/** The status a generation store reports before the first run. */
+function idleStatus(): PlanGenerationStatus {
+  return {
+    status: "idle",
+    step: null,
+    progress: 0,
+    error: null,
+    runId: null,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
 class MemoryGenerationStore implements PlanGenerationStore {
-  status: PlanGenerationStatus = idleGenerationStatus();
+  status: PlanGenerationStatus = idleStatus();
   running = false;
 
   load(): Promise<PlanGenerationStatus> {
@@ -962,9 +975,7 @@ describe("coach plan route", () => {
       runId: "stale-run",
       step: "Choosing tomorrow's session",
       progress: 90,
-      updatedAt: new Date(
-        Date.now() - STALE_GENERATION_MS - 1000,
-      ).toISOString(),
+      updatedAt: new Date(Date.now() - STALE_RUN_MS - 1000).toISOString(),
     };
     const marked: { userId: number; error: string }[] = [];
 
@@ -1009,9 +1020,7 @@ describe("coach plan route", () => {
       runId: "stale-run",
       step: "Choosing tomorrow's session",
       progress: 90,
-      updatedAt: new Date(
-        Date.now() - STALE_GENERATION_MS - 1000,
-      ).toISOString(),
+      updatedAt: new Date(Date.now() - STALE_RUN_MS - 1000).toISOString(),
     };
     const marked: string[] = [];
 

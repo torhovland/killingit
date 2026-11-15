@@ -7,16 +7,15 @@ import {
   LlmCredentialsError,
 } from "../coaching/feed/errors.js";
 import {
-  GarminAuthError,
   GarminNotConnectedError,
   GarminSidecarError,
 } from "../garmin/client.js";
 import { LlmModelChoiceError } from "../llm/client.js";
 import {
+  createOpenRouterProvider,
   LlmAbortError,
   LlmAuthError,
   LlmProviderError,
-  LlmRateLimitError,
   LlmTokenLimitError,
 } from "../llm/openrouter.js";
 import {
@@ -288,6 +287,29 @@ describe("athlete-facing failure text", () => {
   });
 });
 
+/** The rate-limit failure OpenRouter raises for a 429, through the provider. */
+async function rateLimitedFailure(): Promise<UpstreamError> {
+  const provider = createOpenRouterProvider({
+    baseUrl: "https://openrouter.test",
+    fetchImpl: (() =>
+      Promise.resolve(
+        new Response("rate limited", { status: 429 }),
+      )) as unknown as typeof fetch,
+  });
+  try {
+    await provider.complete({
+      apiKey: "test-key",
+      model: "test/model",
+      messages: [{ role: "user", content: "hello" }],
+      temperature: 0,
+      maxTokens: 8,
+    });
+  } catch (err) {
+    return err as UpstreamError;
+  }
+  throw new Error("expected a rate-limit failure");
+}
+
 describe("upstream failure statuses", () => {
   // A `401` means the request had no usable app session, so the web client
   // renews its token and retries. A third-party connection the athlete fixes in
@@ -295,7 +317,6 @@ describe("upstream failure statuses", () => {
   // failure it cannot solve.
   const failures: Array<[string, () => UpstreamError]> = [
     ["GarminSidecarError", () => new GarminSidecarError("sidecar down")],
-    ["GarminAuthError", () => new GarminAuthError("invalid Garmin login")],
     ["GarminNotConnectedError", () => new GarminNotConnectedError()],
     [
       "GarminCredentialsError",
@@ -303,7 +324,6 @@ describe("upstream failure statuses", () => {
     ],
     ["LlmProviderError", () => new LlmProviderError("provider down")],
     ["LlmAuthError", () => new LlmAuthError("invalid OpenRouter key")],
-    ["LlmRateLimitError", () => new LlmRateLimitError("rate limited")],
     ["LlmTokenLimitError", () => new LlmTokenLimitError("truncated")],
     ["LlmAbortError", () => new LlmAbortError()],
     [
@@ -312,8 +332,13 @@ describe("upstream failure statuses", () => {
     ],
   ];
 
-  it("never reports a third-party failure as a session failure", () => {
-    for (const [name, make] of failures) {
+  it("never reports a third-party failure as a session failure", async () => {
+    const rateLimited = await rateLimitedFailure();
+    const allFailures: Array<[string, () => UpstreamError]> = [
+      ...failures,
+      ["OpenRouter rate limit", () => rateLimited],
+    ];
+    for (const [name, make] of allFailures) {
       expect({ name, status: make().status }).not.toEqual({
         name,
         status: 401,
@@ -322,7 +347,6 @@ describe("upstream failure statuses", () => {
   });
 
   it("carries the code its status alone cannot express", () => {
-    expect(new GarminAuthError("bad").code).toBe("garmin_auth_failed");
     expect(new GarminNotConnectedError().code).toBe("garmin_not_connected");
     expect(new LlmAuthError("bad").code).toBe("llm_key_invalid");
   });

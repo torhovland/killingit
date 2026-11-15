@@ -1,5 +1,8 @@
 import { z } from "zod";
-import { benchmarkPromptIdSchema } from "./promptBenchmarkInput.js";
+import {
+  benchmarkPromptIdSchema,
+  type BenchmarkPromptId,
+} from "./promptBenchmarkInput.js";
 
 /**
  * The stored shapes of the two-prompt benchmark's run files. Every stage reads
@@ -13,7 +16,7 @@ import { benchmarkPromptIdSchema } from "./promptBenchmarkInput.js";
  * because runs written before the provider normalization carry OpenRouter's
  * full usage object, and a later stage re-saves the parsed value.
  */
-export const promptUsageSchema = z.looseObject({
+const promptUsageSchema = z.looseObject({
   prompt_tokens: z.number().nullable(),
   completion_tokens: z.number().nullable(),
   total_tokens: z.number().nullable(),
@@ -23,7 +26,7 @@ export const promptUsageSchema = z.looseObject({
 export type PromptUsage = z.infer<typeof promptUsageSchema>;
 
 /** One completion attempt, successful or failed. */
-export const promptAttemptSchema = z.object({
+const promptAttemptSchema = z.object({
   startedAt: z.string(),
   timeMs: z.number(),
   httpStatus: z.number().nullable(),
@@ -39,15 +42,13 @@ export const promptAttemptSchema = z.object({
 export type PromptAttempt = z.infer<typeof promptAttemptSchema>;
 
 /** The raw attempts for one prompt, written to `raw/<model>.json`. */
-export const promptAttemptRecordSchema = z.object({
-  prompt: benchmarkPromptIdSchema,
-  attempts: z.array(promptAttemptSchema),
-});
-
-export type PromptAttemptRecord = z.infer<typeof promptAttemptRecordSchema>;
+export interface PromptAttemptRecord {
+  prompt: BenchmarkPromptId;
+  attempts: PromptAttempt[];
+}
 
 /** The result of running one benchmark prompt against one model. */
-export const promptRunResultSchema = z.object({
+const promptRunResultSchema = z.object({
   prompt: benchmarkPromptIdSchema,
   attempts: z.array(promptAttemptSchema),
   retryNeeded: z.boolean(),
@@ -82,7 +83,7 @@ export type PromptModelResult = z.infer<typeof promptModelResultSchema>;
  * The three hard gates the season revision applies to ability. A failed gate
  * grades the model F no matter what the judge thought of the plan.
  */
-export const reviseSeasonGatesSchema = z.object({
+const reviseSeasonGatesSchema = z.object({
   atlasMentioned: z.boolean(),
   blockOneChanged: z.boolean(),
   blockOneStartDateKept: z.boolean(),
@@ -97,7 +98,7 @@ export const reviseSeasonGatesSchema = z.object({
 export type ReviseSeasonGates = z.infer<typeof reviseSeasonGatesSchema>;
 
 /** The judge's verdict on one prompt response. */
-export const promptJudgeSchema = z.object({
+const promptJudgeSchema = z.object({
   score: z.number(),
   components: z.record(z.string(), z.number()),
   note: z.string(),

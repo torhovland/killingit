@@ -1,11 +1,8 @@
 import { z } from "zod";
 import { addDays, planDateSchema } from "./date.js";
-import { coachResponseNotesSchema } from "./llm.js";
 
 /** The body measurements the app stores as a daily time series. */
-export const athleteMetricSchema = z.enum(["weight", "body_fat"]);
-
-export type AthleteMetric = z.infer<typeof athleteMetricSchema>;
+export type AthleteMetric = "weight" | "body_fat";
 
 /**
  * Who supplied a metric value. A `user` measurement is something the athlete
@@ -13,7 +10,7 @@ export type AthleteMetric = z.infer<typeof athleteMetricSchema>;
  * `coach` is an estimate the LLM produced. Only coach estimates are replaced
  * when a newer estimate arrives.
  */
-export const metricSourceSchema = z.enum(["user", "coach", "garmin"]);
+const metricSourceSchema = z.enum(["user", "coach", "garmin"]);
 
 export type MetricSource = z.infer<typeof metricSourceSchema>;
 
@@ -42,7 +39,7 @@ export type ThresholdKind = z.infer<typeof thresholdKindSchema>;
  * code change; `measure` is the stable key, while `label` is what the athlete
  * sees.
  */
-export const athleteThresholdStatementSchema = z.object({
+const athleteThresholdStatementSchema = z.object({
   date: planDateSchema,
   /** The sport the threshold belongs to, or null when the athlete did not say. */
   sport: z.string().trim().min(1).max(60).nullable().default(null),
@@ -61,35 +58,25 @@ export type AthleteThresholdStatement = z.infer<
 >;
 
 /** One stored threshold value for a sport, measure, and calendar day. */
-export const athleteThresholdSchema = athleteThresholdStatementSchema
-  .omit({ sport: true })
-  .extend({
-    sport: z.string().trim().min(1).max(60),
-    source: metricSourceSchema,
-  });
-
-export type AthleteThreshold = z.infer<typeof athleteThresholdSchema>;
+export type AthleteThreshold = ThresholdSummary;
 
 /** A threshold value plotted on the Fitness page. */
-export const thresholdSeriesPointSchema = z.object({
-  date: planDateSchema,
-  value: z.number().finite(),
-});
-
-export type ThresholdSeriesPoint = z.infer<typeof thresholdSeriesPointSchema>;
+export type ThresholdSeriesPoint = {
+  date: string;
+  value: number;
+};
 
 /**
  * One threshold measure over time. A sport can have several series, for
  * example cycling FTP and cycling threshold heart rate.
  */
-export const thresholdSeriesSchema = athleteThresholdStatementSchema
-  .omit({ date: true, value: true })
-  .extend({
-    sport: z.string().trim().min(1).max(60),
-    points: z.array(thresholdSeriesPointSchema).default([]),
-  });
-
-export type ThresholdSeries = z.infer<typeof thresholdSeriesSchema>;
+export type ThresholdSeries = Omit<
+  AthleteThresholdStatement,
+  "date" | "value" | "sport"
+> & {
+  sport: string;
+  points: ThresholdSeriesPoint[];
+};
 
 /** The latest known value of one threshold measure. */
 export const thresholdSummarySchema = athleteThresholdStatementSchema
@@ -102,16 +89,14 @@ export const thresholdSummarySchema = athleteThresholdStatementSchema
 export type ThresholdSummary = z.infer<typeof thresholdSummarySchema>;
 
 /** One stored value for a metric on a calendar day. */
-export const metricPointSchema = z.object({
-  date: planDateSchema,
-  value: z.number().finite(),
-  source: metricSourceSchema,
-});
-
-export type MetricPoint = z.infer<typeof metricPointSchema>;
+export type MetricPoint = {
+  date: string;
+  value: number;
+  source: MetricSource;
+};
 
 /** A daily value plotted on the Fitness page. */
-export const fitnessMetricPointSchema = z.object({
+const fitnessMetricPointSchema = z.object({
   date: planDateSchema,
   value: z.number().finite(),
 });
@@ -132,7 +117,7 @@ export type FitnessBody = z.infer<typeof fitnessBodySchema>;
  * One body-composition sample normalized from Garmin. Either value may be
  * missing: not every scale records body fat, and a weigh-in may omit it.
  */
-export const garminBodyMetricSampleSchema = z
+const garminBodyMetricSampleSchema = z
   .object({
     date: planDateSchema,
     weightKg: z.number().positive().max(500).optional(),
@@ -169,17 +154,8 @@ export type AthleteMetricStatement = z.infer<
   typeof athleteMetricStatementSchema
 >;
 
-/** The coach's reading of every measurement the athlete states. */
-export const athleteMetricsResultSchema = z
-  .object({
-    statements: z.array(athleteMetricStatementSchema).default([]),
-  })
-  .extend(coachResponseNotesSchema.shape);
-
-export type AthleteMetricsResult = z.infer<typeof athleteMetricsResultSchema>;
-
 /** Response body of the Garmin sidecar's metric sync. */
-export const garminFtpSampleSchema = z.object({
+const garminFtpSampleSchema = z.object({
   date: planDateSchema,
   watts: z.number().int().min(50).max(2000),
 });

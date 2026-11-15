@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
 import type { JWTPayload } from "jose";
-import { Auth0Provider, jwksUrl } from "./auth0.js";
+import { Auth0Provider } from "./auth0.js";
 import { AuthVerificationError } from "./provider.js";
 
 const ISSUER = "https://dev-5qhhcjppmcpsomq0.us.auth0.com/";
@@ -159,13 +159,42 @@ describe("Auth0Provider.verify", () => {
   });
 });
 
-describe("jwksUrl", () => {
-  it("normalizes a trailing slash and appends the well-known path", () => {
-    expect(jwksUrl("https://x.auth0.com/")).toBe(
-      "https://x.auth0.com/.well-known/jwks.json",
-    );
-    expect(jwksUrl("https://x.auth0.com")).toBe(
-      "https://x.auth0.com/.well-known/jwks.json",
-    );
+describe("JWKS endpoint", () => {
+  it("normalizes a trailing slash and appends the well-known path", async () => {
+    const { publicKey, privateKey } = await generateKeyPair("RS256");
+    const jwk = await exportJWK(publicKey);
+    const requested: string[] = [];
+    const fetchFn = (input: string) => {
+      requested.push(String(input));
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            keys: [{ ...jwk, alg: "RS256", use: "sig", kid: "test-1" }],
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+      );
+    };
+
+    for (const issuer of [ISSUER, ISSUER.replace(/\/$/, "")]) {
+      const token = await new SignJWT({})
+        .setProtectedHeader({ alg: "RS256", kid: "test-1" })
+        .setIssuer(issuer)
+        .setAudience(AUDIENCE)
+        .setSubject("auth0|athlete-123")
+        .setIssuedAt()
+        .setExpirationTime("1h")
+        .sign(privateKey);
+      const provider = new Auth0Provider(
+        { issuer, audience: AUDIENCE },
+        fetchFn,
+      );
+      await provider.verify(token);
+    }
+
+    expect(requested).toEqual([
+      "https://dev-5qhhcjppmcpsomq0.us.auth0.com/.well-known/jwks.json",
+      "https://dev-5qhhcjppmcpsomq0.us.auth0.com/.well-known/jwks.json",
+    ]);
   });
 });

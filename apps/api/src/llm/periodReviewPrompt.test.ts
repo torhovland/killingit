@@ -2,8 +2,8 @@ import { describe, expect, it } from "bun:test";
 import type { BlockPlan, CoachPlan, WeekPlan } from "@killingit/shared";
 import {
   buildPeriodReviewMessages,
-  buildPeriodReviewPrompt,
   PERIOD_REVIEW_PROMPT_VERSION,
+  type PeriodReviewPromptInput,
 } from "./periodReviewPrompt.js";
 import type { PlanContextInput } from "./planContext.js";
 import { GLOBAL_PROMPT_RULES, TEXT_FORMATTING_RULES } from "./promptRules.js";
@@ -84,9 +84,14 @@ const context: PlanContextInput = {
   periodReviews: [],
 };
 
-describe("buildPeriodReviewPrompt", () => {
+/** The user message the app sends for one completed period. */
+function userPrompt(input: PeriodReviewPromptInput): string {
+  return buildPeriodReviewMessages(input)[1]?.content ?? "";
+}
+
+describe("period review prompt", () => {
   it("includes the completed week and asks for a plain-text summary", () => {
-    const prompt = buildPeriodReviewPrompt({
+    const prompt = userPrompt({
       context,
       today: "2026-10-21",
       kind: "week",
@@ -108,7 +113,7 @@ describe("buildPeriodReviewPrompt", () => {
   });
 
   it("includes the completed block and the season", () => {
-    const prompt = buildPeriodReviewPrompt({
+    const prompt = userPrompt({
       context,
       today: "2026-10-29",
       kind: "block",

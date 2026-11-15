@@ -42,7 +42,7 @@ interface BucketAccumulator {
  * capture have to be estimated from their token usage and the catalog's current
  * list price; a model with no known price contributes zero rather than a guess.
  */
-export function aggregateLlmCosts(
+function aggregateLlmCosts(
   calls: readonly LlmCostCallRow[],
   models: readonly LlmCostModelRow[],
 ): LlmCostsResponse {

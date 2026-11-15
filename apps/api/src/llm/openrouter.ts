@@ -42,7 +42,7 @@ export class LlmAuthError extends LlmProviderError {
 }
 
 /** Raised when the provider rate-limits a request or hits a daily quota (429). */
-export class LlmRateLimitError extends LlmProviderError {
+class LlmRateLimitError extends LlmProviderError {
   constructor(message: string, options?: { cause?: unknown }) {
     super(message, 429, options);
     this.name = "LlmRateLimitError";

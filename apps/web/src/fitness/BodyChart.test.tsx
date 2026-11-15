@@ -1,7 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { renderToStaticMarkup } from "react-dom/server";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type { FitnessDietTarget } from "@killingit/shared";
-import { BodyChart } from "./BodyChart";
+import { BodyChartSection } from "./BodyChart";
 
 const days = [
   { date: "2026-10-20" },
@@ -23,19 +24,22 @@ const dietTargets: FitnessDietTarget[] = [
   { date: "2026-12-01", weightKg: 78, bodyFatPercent: 16 },
 ];
 
-function render(overrides: Partial<Parameters<typeof BodyChart>[0]> = {}) {
-  return renderToStaticMarkup(
-    <BodyChart
+function renderChart(
+  overrides: Partial<Parameters<typeof BodyChartSection>[0]> = {},
+) {
+  const user = userEvent.setup();
+  const { container } = render(
+    <BodyChartSection
       days={days}
       weight={weight}
       bodyFat={bodyFat}
       today="2026-10-22"
       seasonEndDate="2026-12-31"
       dietTargets={dietTargets}
-      onShowFutureChange={() => undefined}
       {...overrides}
     />,
   );
+  return { container, user };
 }
 
 /** The `d` attribute of the path a chart draws for one series. */
@@ -46,28 +50,35 @@ function pathData(html: string, series: string): string {
   return match?.[1] ?? "";
 }
 
-describe("BodyChart", () => {
+describe("BodyChartSection", () => {
   it("offers the season view when diet targets exist", () => {
-    const html = render();
-    expect(html).toContain('data-testid="body-chart-future-toggle"');
-    expect(html).toContain("Include future dates to the end of the season");
+    renderChart();
+
+    expect(screen.getByTestId("body-chart-future-toggle")).toBeDefined();
+    expect(screen.getByLabelText(/Include future dates/)).toBeDefined();
   });
 
-  it("draws the coach's dotted target lines only when the season view is on", () => {
-    const off = render();
-    expect(off).not.toContain('data-series="diet-target-weight"');
-    expect(off).not.toContain("Estimated diet progress");
+  it("draws the coach's dotted target lines only when the season view is on", async () => {
+    const { container, user } = renderChart();
+    expect(container.innerHTML).not.toContain(
+      'data-series="diet-target-weight"',
+    );
+    expect(container.innerHTML).not.toContain("Estimated diet progress");
 
-    const on = render({ showFuture: true });
-    expect(on).toContain('data-series="diet-target-weight"');
-    expect(on).toContain('data-series="diet-target-body-fat"');
-    expect(on).toContain('data-target-date="2026-11-01"');
-    expect(on).toContain('data-target-date="2026-12-01"');
-    expect(on).toContain("Estimated diet progress");
+    await user.click(screen.getByTestId("body-chart-future-toggle"));
+
+    expect(container.innerHTML).toContain('data-series="diet-target-weight"');
+    expect(container.innerHTML).toContain('data-series="diet-target-body-fat"');
+    expect(container.innerHTML).toContain('data-target-date="2026-11-01"');
+    expect(container.innerHTML).toContain('data-target-date="2026-12-01"');
+    expect(container.innerHTML).toContain("Estimated diet progress");
   });
 
-  it("joins the sparse target points into one line", () => {
-    const line = pathData(render({ showFuture: true }), "diet-target-weight");
+  it("joins the sparse target points into one line", async () => {
+    const { container, user } = renderChart();
+    await user.click(screen.getByTestId("body-chart-future-toggle"));
+
+    const line = pathData(container.innerHTML, "diet-target-weight");
 
     // The targets are weeks or months apart, so a broken line would show one
     // subpath per target instead of one trend.
@@ -75,17 +86,21 @@ describe("BodyChart", () => {
     expect(line.match(/L/g)?.length).toBeGreaterThan(0);
   });
 
-  it("hides the season view without a target or a future season end", () => {
-    expect(render({ dietTargets: [] })).not.toContain(
-      'data-testid="body-chart-future-toggle"',
-    );
-    expect(render({ seasonEndDate: "2026-10-22" })).not.toContain(
-      'data-testid="body-chart-future-toggle"',
-    );
+  it("hides the season view without a diet target", () => {
+    renderChart({ dietTargets: [] });
+
+    expect(screen.queryByTestId("body-chart-future-toggle")).toBeNull();
+  });
+
+  it("hides the season view when the season ends today", () => {
+    renderChart({ seasonEndDate: "2026-10-22" });
+
+    expect(screen.queryByTestId("body-chart-future-toggle")).toBeNull();
   });
 
   it("hides the chart without measurements", () => {
-    const html = render({ weight: [], bodyFat: [] });
-    expect(html).toBe("");
+    const { container } = renderChart({ weight: [], bodyFat: [] });
+
+    expect(container.innerHTML).toBe("");
   });
 });

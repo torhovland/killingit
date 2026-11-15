@@ -24,22 +24,24 @@ the test. The same holds for a shared helper that is only reachable through the
    its entry exports are checked (`includeEntryExports`). A symbol that every
    shared module re-exports wholesale is therefore reported when no production
    module outside the shared package imports it.
-4. A CI job that fails when a new unused export or unreachable production file
+4. An export referenced only inside its own module (`ignoreExportsUsedInFile` is
+   off). The helper is used in that module, so the fix is to drop the `export`
+   keyword, not to delete the helper.
+5. A CI job that fails when a new unused export or unreachable production file
    appears.
 
 ### Out of scope
 
 - Checking for unused dependencies or unused files in test-only folders.
-- Enforcing that every internal helper is un-exported when its module uses it
-  (`ignoreExportsUsedInFile`, see "Known gap" below).
 
 ## Acceptance criteria
 
 1. `bun run check:unused` passes on a clean tree.
-2. The run fails when a production export is referenced only by its test, when
-   an export has no reference at all, when a shared barrel export has no
-   production consumer outside `packages/shared`, or when a production source
-   file is unreachable from every entry point.
+2. The run fails when a production export is referenced only inside its own
+   module, when it is referenced only by its test, when it has no reference at
+   all, when a shared barrel export has no production consumer outside
+   `packages/shared`, or when a production source file is unreachable from every
+   entry point.
 3. The API, web app, shared package, root scripts and the benchmark workspace
    are analysed; test, integration and e2e files are not treated as production
    consumers.
@@ -60,25 +62,18 @@ and a shared helper with no consumer in the API, the web app, the benchmark or
 the scripts is reported — which is how `isRunningActivity`, `formatSport` and
 `formatDailyWeatherLine` were found and deleted.
 
-An internal helper that is exported but used only inside its own module is
-handled by hand rather than by the check. `bestFitSlope` in
-`packages/shared/src/metrics.ts` was un-exported this way, with its dedicated
-test rewritten against `interpolateMetricSeries`, the production consumer that
-uses it.
+An export that is used only inside its own module needs no `export` keyword:
+drop it. When a test imports that helper, the test is rewritten against the
+production consumer that uses it; for example `bestFitSlope` in
+`packages/shared/src/metrics.ts` is tested through `interpolateMetricSeries`.
+The same applies to a constant or schema that composes a larger production
+value: test the composed value instead of keeping the internal piece public.
+A test that needs to inspect every fragment of a module, such as the shared
+prompt-fragment guard, reads the module's source rather than importing internals
+that production does not use.
 
 If a genuinely public export has no in-repo consumer yet, add it to
 `ignoreIssues` with a comment explaining why it is part of the public surface.
-
-## Known gap
-
-`ignoreExportsUsedInFile` is still enabled, because turning it off reports
-roughly 220 exports across the API, web app, shared package and benchmark that
-are referenced only from within their own module (many of them only by tests).
-Closing that gap is a follow-up of its own, tracked in issue #365: every finding
-is either an unnecessary `export` keyword or an export kept alive by its test,
-and several call for restructuring the test that imports it. Until then the
-reusable rule still stands on its own: do not leave an export alive only for a
-test, and un-export an internal helper by hand.
 
 ## CI
 

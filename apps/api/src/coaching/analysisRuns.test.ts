@@ -2,7 +2,6 @@ import { describe, expect, it } from "bun:test";
 import type { ActivityFeed } from "./feed/presenter.js";
 import {
   latestActivityAnalysisSince,
-  MAX_COMPLETED_ANALYSES,
   shareActivityAnalysis,
 } from "./analysisRuns.js";
 
@@ -11,6 +10,8 @@ function feed(text: string): ActivityFeed {
 }
 
 const TODAY = "2026-11-13";
+// Finished feeds kept for the most recently used accounts.
+const KEPT_FEEDS = 32;
 const TOMORROW = "2026-11-14";
 
 function deferred(): {
@@ -223,7 +224,7 @@ describe("latestActivityAnalysisSince", () => {
   it("keeps a used feed while the oldest other accounts are evicted", async () => {
     const keptUser = 500;
     const otherUsers = Array.from(
-      { length: MAX_COMPLETED_ANALYSES - 1 },
+      { length: KEPT_FEEDS - 1 },
       (_, index) => 501 + index,
     );
     const oldestOther = otherUsers[0];

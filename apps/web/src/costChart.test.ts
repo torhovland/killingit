@@ -3,7 +3,6 @@ import type { LlmCostBucket } from "@killingit/shared";
 import {
   costBarIndex,
   costAxis,
-  costSeries,
   dailyCostChart,
   formatCallCount,
   formatCostAxis,
@@ -46,16 +45,20 @@ const rows: LlmCostBucket[] = [
   },
 ];
 
-describe("costSeries", () => {
+describe("cost chart series", () => {
   it("orders models by all-time spend", () => {
-    expect(costSeries(rows, "model")).toEqual([
+    const chart = monthlyCostChart(rows, "all", "2026-11-04", "model");
+
+    expect(chart.series).toEqual([
       { series: "openai/gpt", label: "GPT", totalUsd: 3 },
       { series: "anthropic/claude", label: "Claude", totalUsd: 0.75 },
     ]);
   });
 
   it("orders prompt types by all-time spend", () => {
-    expect(costSeries(rows, "kind")).toEqual([
+    const chart = monthlyCostChart(rows, "all", "2026-11-04", "kind");
+
+    expect(chart.series).toEqual([
       { series: "season_plan", label: "Season plan", totalUsd: 3 },
       {
         series: "activity_analysis",

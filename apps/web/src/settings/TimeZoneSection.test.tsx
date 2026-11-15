@@ -1,12 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { renderToStaticMarkup } from "react-dom/server";
-import {
-  groupTimeZones,
-  splitTimeZone,
-  TimeZoneSection,
-} from "./TimeZoneSection";
+import { render, screen, within } from "@testing-library/react";
+import { TimeZoneSection } from "./TimeZoneSection";
 
-function render({
+const options = ["Europe/Oslo", "America/New_York", "Europe/Berlin", "UTC"];
+
+function renderSection({
   selected = "Europe/Oslo",
   saving = false,
   error = null,
@@ -14,11 +12,11 @@ function render({
   selected?: string;
   saving?: boolean;
   error?: string | null;
-} = {}): string {
-  return renderToStaticMarkup(
+} = {}) {
+  render(
     <TimeZoneSection
       selected={selected}
-      options={["Europe/Oslo", "America/New_York", "UTC"]}
+      options={options}
       saving={saving}
       error={error}
       onChange={() => undefined}
@@ -26,71 +24,71 @@ function render({
   );
 }
 
-describe("splitTimeZone", () => {
-  it("splits a zone into a continent and city", () => {
-    expect(splitTimeZone("Europe/Oslo")).toEqual({
-      region: "Europe",
-      city: "Oslo",
-    });
-  });
-
-  it("keeps every segment after the first slash in the city", () => {
-    expect(splitTimeZone("America/Argentina/Buenos_Aires")).toEqual({
-      region: "America",
-      city: "Argentina/Buenos_Aires",
-    });
-  });
-
-  it("makes a slash-free zone its own continent and city", () => {
-    expect(splitTimeZone("UTC")).toEqual({ region: "UTC", city: "UTC" });
-  });
-});
-
-describe("groupTimeZones", () => {
-  it("groups zones by continent in the given order", () => {
-    expect([
-      ...groupTimeZones(["Europe/Oslo", "America/New_York", "Europe/Berlin"]),
-    ]).toEqual([
-      ["Europe", ["Oslo", "Berlin"]],
-      ["America", ["New_York"]],
-    ]);
-  });
-});
+function optionsIn(label: string): Array<string | null> {
+  return within(screen.getByLabelText(label))
+    .getAllByRole("option")
+    .map((option) => option.getAttribute("value"));
+}
 
 describe("TimeZoneSection", () => {
   it("offers a continent and a city dropdown instead of one zone list", () => {
-    const html = render();
+    renderSection();
 
-    expect(html).toContain("Device time zone");
-    expect(html).toContain(">Continent<");
-    expect(html).toContain(">City<");
-    expect(html).toContain(
-      '<option value="Europe" selected="">Europe</option>',
+    expect(screen.getByLabelText("Continent")).toHaveProperty(
+      "value",
+      "Europe",
     );
-    expect(html).toContain('<option value="Oslo" selected="">Oslo</option>');
-    expect(html).not.toContain("Europe/Oslo");
-    expect(html).not.toContain("<button");
-    expect(html).not.toContain("Save time zone");
+    expect(screen.getByLabelText("City")).toHaveProperty("value", "Oslo");
+    expect(optionsIn("Continent")).toEqual(["", "Europe", "America", "UTC"]);
+    expect(screen.queryByRole("option", { name: "Europe/Oslo" })).toBeNull();
+    expect(screen.queryByRole("button")).toBeNull();
+  });
+
+  it("splits the stored zone into its continent and city pickers", () => {
+    renderSection({ selected: "America/Argentina/Buenos_Aires" });
+
+    expect(screen.getByLabelText("Continent")).toHaveProperty(
+      "value",
+      "America",
+    );
+    expect(screen.getByLabelText("City")).toHaveProperty(
+      "value",
+      "Argentina/Buenos_Aires",
+    );
+  });
+
+  it("makes a slash-free zone its own continent and city", () => {
+    renderSection({ selected: "UTC" });
+
+    expect(screen.getByLabelText("Continent")).toHaveProperty("value", "UTC");
+    expect(screen.getByLabelText("City")).toHaveProperty("value", "UTC");
+  });
+
+  it("groups the cities by continent in the given order", () => {
+    renderSection();
+
+    expect(optionsIn("City")).toEqual(["Oslo", "Berlin"]);
   });
 
   it("asks for a continent when the device zone is selected", () => {
-    const html = render({ selected: "" });
+    renderSection({ selected: "" });
 
-    expect(html).toContain("Choose a continent");
-    expect(html).toContain("disabled");
+    expect(optionsIn("Continent")[0]).toBe("");
+    expect(optionsIn("City")).toEqual([""]);
+    expect(screen.getByLabelText("City")).toHaveProperty("disabled", true);
   });
 
   it("shows a stored zone that is not in the runtime list", () => {
-    const html = render({ selected: "America/Chicago" });
+    renderSection({ selected: "America/Chicago" });
 
-    expect(html).toContain(
-      '<option value="Chicago" selected="">Chicago</option>',
-    );
-    expect(html).toContain('<option value="New_York">New_York</option>');
+    expect(screen.getByLabelText("City")).toHaveProperty("value", "Chicago");
+    expect(optionsIn("City")).toEqual(["Chicago", "New_York"]);
   });
 
   it("reports a save in progress and shows its error", () => {
-    expect(render({ saving: true })).toContain("Saving time zone…");
-    expect(render({ error: "Could not save" })).toContain("Could not save");
+    renderSection({ saving: true, error: "Could not save" });
+
+    expect(screen.getByText("Saving time zone…")).toBeDefined();
+    expect(screen.getByText("Could not save")).toBeDefined();
   });
 });

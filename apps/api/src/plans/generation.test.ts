@@ -1,8 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import type { PlanGenerationStatus } from "@killingit/shared";
-import { isStaleRunning, STALE_GENERATION_MS } from "./generation.js";
+import { isStaleRunning } from "./generation.js";
 
 const NOW = Date.parse("2026-10-25T12:00:00Z");
+/** A running row is stale once its five-minute lease has expired. */
+const LEASE_MS = 5 * 60 * 1000;
 
 function status(
   state: PlanGenerationStatus["status"],
@@ -22,10 +24,7 @@ describe("isStaleRunning", () => {
   it("keeps a freshly updated run live", () => {
     expect(
       isStaleRunning(
-        status(
-          "running",
-          new Date(NOW - STALE_GENERATION_MS + 1000).toISOString(),
-        ),
+        status("running", new Date(NOW - LEASE_MS + 1000).toISOString()),
         NOW,
       ),
     ).toBe(false);
@@ -34,10 +33,7 @@ describe("isStaleRunning", () => {
   it("marks a run stale once its lease has expired", () => {
     expect(
       isStaleRunning(
-        status(
-          "running",
-          new Date(NOW - STALE_GENERATION_MS - 1000).toISOString(),
-        ),
+        status("running", new Date(NOW - LEASE_MS - 1000).toISOString()),
         NOW,
       ),
     ).toBe(true);
@@ -53,7 +49,7 @@ describe("isStaleRunning", () => {
   });
 
   it("only considers running runs", () => {
-    const old = new Date(NOW - STALE_GENERATION_MS * 2).toISOString();
+    const old = new Date(NOW - LEASE_MS * 2).toISOString();
     expect(isStaleRunning(status("done", old), NOW)).toBe(false);
     expect(isStaleRunning(status("error", old), NOW)).toBe(false);
     expect(isStaleRunning(status("idle", old), NOW)).toBe(false);

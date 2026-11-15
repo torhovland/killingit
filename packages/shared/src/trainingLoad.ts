@@ -23,15 +23,8 @@ export const trainingLoadSchema = z.object({
 export type TrainingLoad = z.infer<typeof trainingLoadSchema>;
 
 /** How the athlete should read today's training stress balance. */
-export const formInterpretationSchema = z.enum([
-  "risk",
-  "productive",
-  "maintaining",
-  "fresh",
-  "detraining",
-]);
-
-export type FormInterpretation = z.infer<typeof formInterpretationSchema>;
+export type FormInterpretation =
+  "risk" | "productive" | "maintaining" | "fresh" | "detraining";
 
 /** Display labels for each TSB interpretation. */
 export const FORM_INTERPRETATION_LABELS: Record<FormInterpretation, string> = {

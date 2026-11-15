@@ -37,7 +37,7 @@ export interface StoredQuestionWithVersions extends StoredQuestion {
  * Pure mapping from a question row plus its current version. Kept separate so
  * the version-selection shape is unit-testable without a database.
  */
-export function toStoredQuestion(
+function toStoredQuestion(
   question: QuestionRow,
   currentVersion: QuestionVersionRow,
   versionCount: number,

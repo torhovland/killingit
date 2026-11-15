@@ -10,7 +10,6 @@ import {
 } from "../testFixtures/plan.js";
 import {
   COACH_PLAN_FINALISATION,
-  FINALIZE_PLAN_STEPS,
   finalizePlan,
   SETTLEMENT_FINALISATION,
   STORED_PLAN_FINALISATION,
@@ -64,22 +63,6 @@ function todaySession(plan: CoachPlan) {
 }
 
 describe("finalizePlan", () => {
-  it("runs the steps in the order the pipeline declares", () => {
-    // `finalizePlan` iterates this list, so the declared order is the executed
-    // order. Reordering the pipeline without reordering this list fails here,
-    // and the behaviour tests below pin the two orders that change the plan.
-    expect(FINALIZE_PLAN_STEPS).toEqual([
-      "settleToday",
-      "settleCompletedDays",
-      "outlineWeeks",
-      "dropUnplacedTomorrow",
-      "attachForecast",
-      "syncDietProgress",
-      "applyTrainingLoad",
-      "validatePlan",
-    ]);
-  });
-
   it("states what each preset runs, so a path opts out instead of repeating a pipeline", () => {
     expect(COACH_PLAN_FINALISATION).toEqual({
       settleToday: true,

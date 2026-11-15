@@ -1,7 +1,7 @@
 import type { ActivitySample, RoutePoint } from "@killingit/shared";
 
 /** Enough detail for a readable preview without bloating the cached feed. */
-export const MAX_ROUTE_POINTS = 500;
+const MAX_ROUTE_POINTS = 500;
 
 /**
  * Extracts GPS positions from an activity's timeseries and downsamples them to

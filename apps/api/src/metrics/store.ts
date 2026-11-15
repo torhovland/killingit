@@ -72,7 +72,7 @@ export async function loadMetricPoints(
  * Loads every stored threshold point, oldest first. The filter is optional so
  * callers can load one sport/measure or the full set.
  */
-export async function loadThresholdPoints(
+async function loadThresholdPoints(
   userId: number,
   filter?: { sport?: string; measure?: string },
 ): Promise<AthleteThreshold[]> {
@@ -96,7 +96,7 @@ export async function loadThresholdPoints(
  * fall after it. Athlete measurements are never removed. The same day is left
  * untouched when the athlete or Garmin already supplied a value there.
  */
-export async function recordCoachThreshold(input: {
+async function recordCoachThreshold(input: {
   userId: number;
   sport: string;
   measure: string;

@@ -4,7 +4,7 @@ import { z } from "zod";
  * The role of an account in this environment. The first account provisioned in
  * a database is an admin; everyone after is a member.
  */
-export const userRoleSchema = z.enum(["admin", "member"]);
+const userRoleSchema = z.enum(["admin", "member"]);
 
 export type UserRole = z.infer<typeof userRoleSchema>;
 
@@ -26,7 +26,7 @@ export type TimeZone = z.infer<typeof timeZoneSchema>;
  * such as "Oslo, Norway" and may be null when the athlete picked a point on the
  * map instead of searching for an address.
  */
-export const athleteLocationSchema = z.object({
+const athleteLocationSchema = z.object({
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),
   name: z.string().trim().max(200).nullable().default(null),

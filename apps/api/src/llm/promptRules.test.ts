@@ -1,35 +1,24 @@
 import { describe, expect, it } from "bun:test";
 import { DEFAULT_DIET_GOAL } from "@killingit/shared";
-import { missingFragments } from "../testFixtures/prompts.js";
 import {
-  ACTIVITY_DATA_LIMITS_RULE,
-  ACTIVITY_FTP_ESTIMATE_RULES,
-  ATHLETE_EVENT_RULES,
+  missingFragments,
+  promptRuleLiteral,
+} from "../testFixtures/prompts.js";
+import {
   ATHLETE_INPUT_RULES,
-  BIKE_WORKOUT_CONTRACT,
-  BLOCK_CONTRACT,
-  CALORIE_BREAKDOWN_CONTRACT,
   COACH_AMBITION_RULES,
-  COACH_ANALYSIS_CONTRACT,
+  ACTIVITY_FTP_ESTIMATE_RULES,
   COACH_ANALYSIS_RESPONSE_RULES,
-  COACH_PERSONALITY_RULES,
-  COACH_REPLY_CONTRACT,
   COACH_REPLY_RESPONSE_RULES,
-  COACH_RESPONSE_NOTES_CONTRACT,
   COACH_RESPONSE_NOTES_RULES,
   COMPLETED_SESSION_RULES,
   COMPLETION_SLACK_RULES,
   DAILY_HEALTH_RULES,
-  DAY_CONTRACT,
   DIET_PLANNING_RULES,
-  DIET_PROGRESS_CONTRACT,
   DIET_PROGRESS_REPAIR_HINT,
-  DIET_PROGRESS_RULES,
   DIET_REPAIR_HINT,
   DIET_RULES,
   DURATION_TOLERANCE_RULES,
-  EXTRA_PRAISE_DRAW_RANGE,
-  FORM_TARGET_RULES,
   GLOBAL_PROMPT_RULES,
   JSON_ONLY_RULES,
   JSON_RULES,
@@ -37,13 +26,10 @@ import {
   PLAN_CHANGE_FLAG_RULES,
   PLAN_PROMPT_RULES,
   rollExtraPraise,
-  SEASON_CONTRACT,
   SEVEN_SESSIONS_CLAUSE,
   TEXT_FORMATTING_RULES,
-  TODAY_SESSION_RULES,
   TRAINING_LOAD_RULES,
   TSS_ESTIMATE_GUIDE,
-  WEEK_CONTRACT,
   weekCoverageRule,
   weekDatesRangeRule,
   weekDatesRule,
@@ -53,7 +39,9 @@ import {
 describe("shared prompt composition", () => {
   it("builds the global rules from the coach personality", () => {
     expect(
-      missingFragments(GLOBAL_PROMPT_RULES, [COACH_PERSONALITY_RULES]),
+      missingFragments(GLOBAL_PROMPT_RULES, [
+        promptRuleLiteral("COACH_PERSONALITY_RULES"),
+      ]),
     ).toEqual([]);
   });
 
@@ -62,20 +50,20 @@ describe("shared prompt composition", () => {
       missingFragments(PLAN_PROMPT_RULES, [
         COACH_AMBITION_RULES,
         ATHLETE_INPUT_RULES,
-        ATHLETE_EVENT_RULES,
+        promptRuleLiteral("ATHLETE_EVENT_RULES"),
         DAILY_HEALTH_RULES,
         DIET_RULES,
-        DIET_PROGRESS_RULES,
         TEXT_FORMATTING_RULES,
       ]),
     ).toEqual([]);
   });
 
   it("builds the completed-session rules in the order a prompt reads them", () => {
+    const todayRules = promptRuleLiteral("TODAY_SESSION_RULES");
     expect(
       missingFragments(COMPLETED_SESSION_RULES, [
         PAST_SESSION_RULES,
-        TODAY_SESSION_RULES,
+        todayRules,
         COMPLETION_SLACK_RULES,
       ]),
     ).toEqual([]);
@@ -83,16 +71,16 @@ describe("shared prompt composition", () => {
       missingFragments(COMPLETION_SLACK_RULES, [DURATION_TOLERANCE_RULES]),
     ).toEqual([]);
     expect(COMPLETED_SESSION_RULES.indexOf(PAST_SESSION_RULES)).toBeLessThan(
-      COMPLETED_SESSION_RULES.indexOf(TODAY_SESSION_RULES),
+      COMPLETED_SESSION_RULES.indexOf(todayRules),
     );
   });
 
   it("builds the training-load rules from the estimate and form fragments", () => {
     expect(
       missingFragments(TRAINING_LOAD_RULES, [
-        ACTIVITY_DATA_LIMITS_RULE,
+        promptRuleLiteral("ACTIVITY_DATA_LIMITS_RULE"),
         TSS_ESTIMATE_GUIDE,
-        FORM_TARGET_RULES,
+        promptRuleLiteral("FORM_TARGET_RULES"),
       ]),
     ).toEqual([]);
   });
@@ -100,7 +88,7 @@ describe("shared prompt composition", () => {
   it("builds the activity FTP estimate from the activity data limits", () => {
     expect(
       missingFragments(ACTIVITY_FTP_ESTIMATE_RULES, [
-        ACTIVITY_DATA_LIMITS_RULE,
+        promptRuleLiteral("ACTIVITY_DATA_LIMITS_RULE"),
       ]),
     ).toEqual([]);
   });
@@ -117,7 +105,6 @@ describe("shared prompt composition", () => {
   it("builds the analysis and reply response rules from the shared decisions", () => {
     expect(
       missingFragments(COACH_ANALYSIS_RESPONSE_RULES, [
-        COACH_ANALYSIS_CONTRACT,
         PLAN_CHANGE_FLAG_RULES,
         COACH_RESPONSE_NOTES_RULES,
         JSON_ONLY_RULES,
@@ -125,53 +112,21 @@ describe("shared prompt composition", () => {
     ).toEqual([]);
     expect(
       missingFragments(COACH_REPLY_RESPONSE_RULES, [
-        COACH_REPLY_CONTRACT,
         PLAN_CHANGE_FLAG_RULES,
         JSON_ONLY_RULES,
       ]),
     ).toEqual([]);
   });
 
-  it("embeds the coach notes contract in the analysis contract", () => {
-    expect(
-      missingFragments(COACH_ANALYSIS_CONTRACT, [
-        COACH_RESPONSE_NOTES_CONTRACT,
-      ]),
-    ).toEqual([]);
-  });
-
-  it("embeds the nested contracts in the plan contracts", () => {
-    expect(
-      missingFragments(DAY_CONTRACT, [
-        CALORIE_BREAKDOWN_CONTRACT,
-        BIKE_WORKOUT_CONTRACT,
-      ]),
-    ).toEqual([]);
-    expect(
-      missingFragments(WEEK_CONTRACT, [
-        CALORIE_BREAKDOWN_CONTRACT,
-        BIKE_WORKOUT_CONTRACT,
-        DIET_PROGRESS_CONTRACT,
-      ]),
-    ).toEqual([]);
-    expect(missingFragments(BLOCK_CONTRACT, [DIET_PROGRESS_CONTRACT])).toEqual(
-      [],
-    );
-    expect(missingFragments(SEASON_CONTRACT, [DIET_PROGRESS_CONTRACT])).toEqual(
-      [],
-    );
-  });
-
-  it("names the default diet goal in the diet rules", () => {
+  it("names the default diet goal in the plan rules", () => {
     expect(DIET_PLANNING_RULES).toContain(DEFAULT_DIET_GOAL);
-    expect(DIET_PROGRESS_RULES).toContain(DEFAULT_DIET_GOAL);
+    expect(PLAN_PROMPT_RULES).toContain(DEFAULT_DIET_GOAL);
   });
 
   it("draws the extra praise for one review in fifteen", () => {
-    expect(EXTRA_PRAISE_DRAW_RANGE).toBe(15);
     expect(rollExtraPraise(() => 0)).toBe(true);
-    expect(rollExtraPraise(() => 1 / EXTRA_PRAISE_DRAW_RANGE)).toBe(false);
-    expect(rollExtraPraise(() => 14 / EXTRA_PRAISE_DRAW_RANGE)).toBe(false);
+    expect(rollExtraPraise(() => 1 / 15)).toBe(false);
+    expect(rollExtraPraise(() => 14 / 15)).toBe(false);
     expect(rollExtraPraise(() => 0.999999)).toBe(false);
   });
 });

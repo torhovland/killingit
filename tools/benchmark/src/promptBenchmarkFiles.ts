@@ -3,13 +3,13 @@ import { resolve } from "node:path";
 const REPO_ROOT = resolve(import.meta.dir, "../../..");
 
 /** Default run directory name, kept for a run started without `RUN_ID`. */
-export const PROMPT_BENCHMARK_DEFAULT_RUN_ID = "2026-10-31-two-prompts";
+const PROMPT_BENCHMARK_DEFAULT_RUN_ID = "2026-10-31-two-prompts";
 
 /**
  * The two-prompt benchmark's run and report directories. They stay under
  * `benchmarks/prompts/` as git-ignored local output; see `benchmarks/README.md`.
  */
-export const PROMPT_BENCHMARK_RUNS_ROOT = resolve(
+const PROMPT_BENCHMARK_RUNS_ROOT = resolve(
   REPO_ROOT,
   "benchmarks/prompts/runs",
 );

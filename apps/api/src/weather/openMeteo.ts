@@ -22,7 +22,7 @@ export type FetchLike = (
  * supports. Unknown codes are treated as very cloudy rather than failing the
  * forecast.
  */
-export function weatherIconForCode(code: number): WeatherIcon {
+function weatherIconForCode(code: number): WeatherIcon {
   if (code <= 1) {
     return "sun";
   }
@@ -124,7 +124,7 @@ function localClockTime(value: string | null): string | null {
  * set so a partial or malformed response fails loudly instead of producing
  * forecast days with invented values.
  */
-export function parseForecastResponse(body: unknown): DailyWeather[] {
+function parseForecastResponse(body: unknown): DailyWeather[] {
   const daily =
     typeof body === "object" && body !== null
       ? (body as { daily?: unknown }).daily

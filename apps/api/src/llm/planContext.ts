@@ -258,9 +258,7 @@ export function formatPlanContext(input: PlanContextInput): string[] {
 }
 
 /** Renders completed-period summaries and the athlete's feedback on them. */
-export function formatPeriodReviews(
-  entries: readonly PeriodReviewContext[],
-): string {
+function formatPeriodReviews(entries: readonly PeriodReviewContext[]): string {
   return entries
     .map((entry) => {
       const lines = [

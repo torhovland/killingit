@@ -5,18 +5,17 @@ import {
   dietPlanSchema,
   dietProgressSchema,
   dietSummaryResponseSchema,
-  foodAnalysisSchema,
+  foodAnalysisResultSchema,
   foodEntryRequestSchema,
   foodEntrySchema,
   foodEntryUpdateRequestSchema,
   MIN_PLAUSIBLE_CALORIES_KCAL,
   plannedCaloriesKcal,
-  plausibleCaloriesKcal,
 } from "./diet.js";
 
-describe("foodAnalysisSchema", () => {
+describe("foodAnalysisResultSchema", () => {
   it("accepts macro estimates and a diet-fit note", () => {
-    const parsed = foodAnalysisSchema.parse({
+    const parsed = foodAnalysisResultSchema.parse({
       meal: "Porridge with berries",
       carbsGrams: 62,
       proteinGrams: 18,
@@ -30,7 +29,7 @@ describe("foodAnalysisSchema", () => {
 
   it("rejects a negative macro estimate", () => {
     expect(
-      foodAnalysisSchema.safeParse({
+      foodAnalysisResultSchema.safeParse({
         meal: "Toast",
         carbsGrams: -1,
         proteinGrams: 2,
@@ -242,19 +241,24 @@ describe("calorie breakdown", () => {
   });
 });
 
-describe("plausibleCaloriesKcal", () => {
+describe("plannedCaloriesKcal whole-day floor", () => {
   it("hides a value that could be a deficit or burned calories", () => {
-    expect(plausibleCaloriesKcal(480)).toBeNull();
-    expect(plausibleCaloriesKcal(MIN_PLAUSIBLE_CALORIES_KCAL - 1)).toBeNull();
+    expect(plannedCaloriesKcal({ estimatedCaloriesKcal: 480 })).toBeNull();
+    expect(
+      plannedCaloriesKcal({
+        estimatedCaloriesKcal: MIN_PLAUSIBLE_CALORIES_KCAL - 1,
+      }),
+    ).toBeNull();
   });
 
   it("keeps a whole-day total", () => {
-    expect(plausibleCaloriesKcal(MIN_PLAUSIBLE_CALORIES_KCAL)).toBe(
-      MIN_PLAUSIBLE_CALORIES_KCAL,
-    );
-    expect(plausibleCaloriesKcal(2400)).toBe(2400);
-    expect(plausibleCaloriesKcal(null)).toBeNull();
-    expect(plausibleCaloriesKcal(undefined)).toBeNull();
+    expect(
+      plannedCaloriesKcal({
+        estimatedCaloriesKcal: MIN_PLAUSIBLE_CALORIES_KCAL,
+      }),
+    ).toBe(MIN_PLAUSIBLE_CALORIES_KCAL);
+    expect(plannedCaloriesKcal({ estimatedCaloriesKcal: 2400 })).toBe(2400);
+    expect(plannedCaloriesKcal({ estimatedCaloriesKcal: null })).toBeNull();
   });
 });
 

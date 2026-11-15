@@ -1,17 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import {
-  PAGES,
-  pageForPath,
-  pageLabel,
-  pagePath,
-  pageWidthClass,
-} from "./navigation";
+import { PAGES, pageForPath, pageLabel, pageWidthClass } from "./navigation";
 
 describe("page routes", () => {
-  it("gives every page a distinct, canonical path", () => {
-    const paths = PAGES.map(pagePath);
-
-    expect(paths).toEqual([
+  it("gives every page a distinct, canonical path it resolves back to", () => {
+    const paths = [
       "/coach",
       "/diet",
       "/fitness",
@@ -22,16 +14,12 @@ describe("page routes", () => {
       "/costs",
       "/settings",
       "/admin",
-    ]);
+    ];
+
+    expect(paths.map(pageForPath)).toEqual(PAGES);
     expect(new Set(paths).size).toBe(paths.length);
     for (const path of paths) {
       expect(path.endsWith("/")).toBe(false);
-    }
-  });
-
-  it("finds the page for each canonical path", () => {
-    for (const page of PAGES) {
-      expect(pageForPath(pagePath(page))).toBe(page);
     }
   });
 

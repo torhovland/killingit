@@ -20,7 +20,7 @@ import { applyCompletedDays, deriveTodayStatus } from "./week.js";
  * `finalizePlan` iterates this list, so the declared order is the executed
  * order. See `docs/specs/plan-finalisation.md`.
  */
-export const FINALIZE_PLAN_STEPS = [
+const FINALIZE_PLAN_STEPS = [
   "settleToday",
   "settleCompletedDays",
   "outlineWeeks",

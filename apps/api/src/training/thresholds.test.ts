@@ -9,9 +9,11 @@ import {
   ftpHistoryPoints,
   ftpTimeline,
   ftpWattsAt,
-  thresholdAt,
   thresholdForSport,
 } from "./thresholds.js";
+
+/** One stored threshold timeline, as the interpolation helper takes it. */
+type ThresholdTimeline = Parameters<typeof thresholdForSport>[0][number];
 
 function point(overrides: Partial<AthleteThreshold> = {}): AthleteThreshold {
   return {
@@ -48,6 +50,14 @@ const points: AthleteThreshold[] = [
   }),
 ];
 
+function valueAt(
+  timeline: ThresholdTimeline | null,
+  date: string,
+): number | null {
+  const timelines = timeline === null ? [] : [timeline];
+  return thresholdForSport(timelines, "cycling", "power", date)?.value ?? null;
+}
+
 describe("threshold timelines", () => {
   it("builds one timeline per sport and measure", () => {
     const timelines = buildThresholdTimelines(points);
@@ -60,8 +70,8 @@ describe("threshold timelines", () => {
   it("interpolates between values and holds the last one", () => {
     const [cycling] = buildThresholdTimelines(points);
 
-    expect(thresholdAt(cycling ?? null, "2026-10-06")).toBe(255);
-    expect(thresholdAt(cycling ?? null, "2026-10-20")).toBe(260);
+    expect(valueAt(cycling ?? null, "2026-10-06")).toBe(255);
+    expect(valueAt(cycling ?? null, "2026-10-20")).toBe(260);
   });
 
   it("selects the threshold for the activity's sport and kind", () => {
@@ -100,7 +110,7 @@ describe("threshold interpolation edge cases", () => {
   it("holds the earliest value before the first anchor", () => {
     const [cycling] = buildThresholdTimelines(points);
 
-    expect(thresholdAt(cycling ?? null, "2026-09-01")).toBe(250);
+    expect(valueAt(cycling ?? null, "2026-09-01")).toBe(250);
   });
 
   it("returns null without a timeline or anchors", () => {
@@ -113,14 +123,14 @@ describe("threshold interpolation edge cases", () => {
       anchors: [],
     };
 
-    expect(thresholdAt(null, "2026-10-01")).toBeNull();
-    expect(thresholdAt(empty, "2026-10-01")).toBeNull();
+    expect(valueAt(null, "2026-10-01")).toBeNull();
+    expect(valueAt(empty, "2026-10-01")).toBeNull();
   });
 
   it("returns null for an unreadable date", () => {
     const [cycling] = buildThresholdTimelines(points);
 
-    expect(thresholdAt(cycling ?? null, "not-a-date")).toBeNull();
+    expect(valueAt(cycling ?? null, "not-a-date")).toBeNull();
   });
 
   it("keeps the last anchor for a duplicate timestamp", () => {
@@ -130,7 +140,7 @@ describe("threshold interpolation edge cases", () => {
     ]);
 
     expect(cycling?.anchors).toHaveLength(1);
-    expect(thresholdAt(cycling ?? null, "2026-10-01")).toBe(250);
+    expect(valueAt(cycling ?? null, "2026-10-01")).toBe(250);
   });
 });
 

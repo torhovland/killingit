@@ -4,7 +4,7 @@
  * thumbnail decoder stays within the API's memory. Re-encoding also strips EXIF
  * data such as the photo's location before it leaves the browser.
  */
-export const MEAL_PHOTO_RECODE_MAX_DIMENSION = 4096;
+const MEAL_PHOTO_RECODE_MAX_DIMENSION = 4096;
 
 /** The JPEG quality of the full-size analysis image. */
 const MEAL_PHOTO_QUALITY = 0.92;

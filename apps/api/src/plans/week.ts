@@ -19,7 +19,7 @@ type RecordedEffort = Pick<AnalyzedActivity, "type" | "elapsedTime">;
  * the day the athlete entered rather than a UTC instant, and has no measured
  * duration, so it is adapted to a recorded activity here and nowhere else.
  */
-export function activitiesOnDate(
+function activitiesOnDate(
   activities: readonly AnalyzedActivity[],
   manualActivities: readonly ManualActivityContext[],
   timeZone: string | null | undefined,
@@ -102,7 +102,7 @@ function manualActivity(manual: ManualActivityContext): AnalyzedActivity {
  * a coach that only said `planned` is overruled by the recorded duration
  * compared with the planned session (with slack).
  */
-export function todayCompletionStatus(
+function todayCompletionStatus(
   planned: Pick<WeekSession, "type" | "durationMinutes">,
   activities: readonly RecordedEffort[],
   coachStatus: WeekSessionStatus | undefined,

@@ -1,35 +1,61 @@
 import { describe, expect, it } from "bun:test";
 import type { GarminDailyResponse } from "@killingit/shared";
 import { GarminSidecarError } from "./client.js";
-import { planDailySyncDates, syncGarminDailyHistory } from "./dailySync.js";
+import { syncGarminDailyHistory } from "./dailySync.js";
 
 const credentials = { username: "u", password: "p" };
 
-describe("planDailySyncDates", () => {
-  it("refreshes today and yesterday even when they are watermarked", () => {
-    const dates = planDailySyncDates({
+/** Runs a pass and returns the dates it fetched, in order. */
+function plannedDates(options: {
+  today: string;
+  windowDays: number;
+  synced: ReadonlySet<string>;
+  refreshDays?: number;
+}): Promise<string[]> {
+  return syncGarminDailyHistory(
+    {
+      userId: 1,
+      credentials,
+      today: options.today,
+      windowDays: options.windowDays,
+      ...(options.refreshDays === undefined
+        ? {}
+        : { refreshDays: options.refreshDays }),
+    },
+    {
+      loadSyncedDates: () => Promise.resolve(new Set(options.synced)),
+      fetchDay: (_credentials, date) => Promise.resolve({ date, metrics: {} }),
+      saveDay: () => Promise.resolve(),
+      markSynced: () => Promise.resolve(),
+    },
+  ).then((result) => result.fetched);
+}
+
+describe("syncGarminDailyHistory date planning", () => {
+  it("refreshes today and yesterday even when they are watermarked", async () => {
+    const dates = await plannedDates({
       today: "2026-11-02",
-      windowStart: "2026-10-30",
+      windowDays: 3,
       synced: new Set(["2026-11-02", "2026-11-01", "2026-10-31", "2026-10-30"]),
     });
 
     expect(dates).toEqual(["2026-11-02", "2026-11-01"]);
   });
 
-  it("adds a missing older date and skips watermarked neighbours", () => {
-    const dates = planDailySyncDates({
+  it("adds a missing older date and skips watermarked neighbours", async () => {
+    const dates = await plannedDates({
       today: "2026-11-02",
-      windowStart: "2026-10-30",
+      windowDays: 3,
       synced: new Set(["2026-10-31"]),
     });
 
     expect(dates).toEqual(["2026-11-02", "2026-11-01", "2026-10-30"]);
   });
 
-  it("walks the whole window on the first pass", () => {
-    const dates = planDailySyncDates({
+  it("walks the whole window on the first pass", async () => {
+    const dates = await plannedDates({
       today: "2026-11-02",
-      windowStart: "2026-10-28",
+      windowDays: 5,
       synced: new Set(),
     });
 

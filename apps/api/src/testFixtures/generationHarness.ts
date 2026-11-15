@@ -2,20 +2,12 @@ import type {
   BlockPlan,
   CoachPlan,
   DailyWeather,
+  LlmPromptKind,
   PlanGenerationStatus,
   SeasonPlan,
   WeekPlan,
 } from "@killingit/shared";
-import {
-  INITIAL_BLOCK_SYSTEM_PROMPT,
-  SEASON_PLAN_SYSTEM_PROMPT,
-} from "../llm/planInitialPrompt.js";
 import type { LlmCompletionRequest, LlmProvider } from "../llm/openrouter.js";
-import {
-  DAILY_UPDATE_SYSTEM_PROMPT,
-  PLAN_UPDATE_SYSTEM_PROMPT,
-  WEEKLY_UPDATE_SYSTEM_PROMPT,
-} from "../llm/planUpdatePrompt.js";
 import { startOfWeek } from "@killingit/shared";
 import {
   makeBlock as makeFixtureBlock,
@@ -29,7 +21,6 @@ import type { PlanGenerationContext } from "../plans/generation/types.js";
 export { makeDay, makeSeason, makeWeek } from "./plan.js";
 import type { PlanGenerationStep } from "../plans/steps.js";
 import {
-  idleGenerationStatus,
   type PlanGenerationStore,
   type PlanSaveInput,
   type PlanStore,
@@ -306,7 +297,14 @@ export class MemoryPlanStore implements PlanStore {
 }
 
 export class MemoryGenerationStore implements PlanGenerationStore {
-  status: PlanGenerationStatus = idleGenerationStatus();
+  status: PlanGenerationStatus = {
+    status: "idle",
+    step: null,
+    progress: 0,
+    error: null,
+    runId: null,
+    updatedAt: new Date().toISOString(),
+  };
   steps: string[] = [];
 
   load(): Promise<PlanGenerationStatus> {
@@ -373,21 +371,37 @@ export class MemoryGenerationStore implements PlanGenerationStore {
   }
 }
 
+/** The fixture responses, keyed by the plan prompt that consumes each one. */
+interface FakeResponses {
+  season?: string;
+  block?: string;
+  daily?: string;
+  weekly?: string;
+  planUpdate?: string;
+}
+
+/**
+ * The fixture response, and the recorded call name, for each plan prompt kind.
+ * A prompt is recognised by the kind the production call marks it with, not by
+ * comparing its system prompt.
+ */
+const PLAN_PROMPT_KINDS: Partial<
+  Record<LlmPromptKind, { call: string; response: keyof FakeResponses }>
+> = {
+  season_plan: { call: "season", response: "season" },
+  initial_block: { call: "block", response: "block" },
+  daily_update: { call: "daily", response: "daily" },
+  weekly_update: { call: "weekly", response: "weekly" },
+  plan_update: { call: "plan-update", response: "planUpdate" },
+};
+
 export class FakeProvider implements LlmProvider {
   readonly id = "fake";
   calls: string[] = [];
   models: string[] = [];
   prompts: string[] = [];
 
-  constructor(
-    private readonly responses: {
-      season?: string;
-      block?: string;
-      daily?: string;
-      weekly?: string;
-      planUpdate?: string;
-    },
-  ) {}
+  constructor(private readonly responses: FakeResponses) {}
 
   listModels(): Promise<never[]> {
     return Promise.resolve([]);
@@ -401,28 +415,13 @@ export class FakeProvider implements LlmProvider {
     this.models.push(request.model);
     const userMessage = request.messages[1]?.content;
     this.prompts.push(typeof userMessage === "string" ? userMessage : "");
-    const system = request.messages[0]?.content ?? "";
-    if (system === SEASON_PLAN_SYSTEM_PROMPT) {
-      this.calls.push("season");
-      return this.respond(this.responses.season);
+    const plan =
+      request.kind === undefined ? undefined : PLAN_PROMPT_KINDS[request.kind];
+    if (plan === undefined) {
+      return Promise.reject(new Error("unexpected prompt"));
     }
-    if (system === INITIAL_BLOCK_SYSTEM_PROMPT) {
-      this.calls.push("block");
-      return this.respond(this.responses.block);
-    }
-    if (system === DAILY_UPDATE_SYSTEM_PROMPT) {
-      this.calls.push("daily");
-      return this.respond(this.responses.daily);
-    }
-    if (system === WEEKLY_UPDATE_SYSTEM_PROMPT) {
-      this.calls.push("weekly");
-      return this.respond(this.responses.weekly);
-    }
-    if (system === PLAN_UPDATE_SYSTEM_PROMPT) {
-      this.calls.push("plan-update");
-      return this.respond(this.responses.planUpdate);
-    }
-    return Promise.reject(new Error("unexpected prompt"));
+    this.calls.push(plan.call);
+    return this.respond(this.responses[plan.response]);
   }
 
   private respond(response: string | undefined): Promise<string> {

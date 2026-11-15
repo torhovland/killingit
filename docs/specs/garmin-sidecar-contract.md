@@ -12,8 +12,8 @@ The Python sidecar builds its HTTP response dicts by hand (`to_activity`,
 `to_laps`, `to_strength_sets` and `to_samples` in `services/garmin/activities.py`,
 `sync_metrics` in `services/garmin/body.py`, `sync_daily` in
 `services/garmin/daily.py`) while TypeScript owns
-the Zod schemas that parse them (`activitiesResponseSchema`,
-`garminMetricsResponseSchema`, `garminDailyResponseSchema`). Nothing compared
+the Zod schemas that parse them (`activitySchema`, `garminMetricsResponseSchema`,
+`garminDailyResponseSchema`). Nothing compared
 the two, so a field rename on either side broke only in production, where the
 API turns a mismatched body into a `GarminSidecarError` and the athlete loses
 their activity feed, weigh-ins or daily health data.

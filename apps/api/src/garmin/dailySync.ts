@@ -15,7 +15,7 @@ import {
 /** The same history window as the activity sync. */
 export const GARMIN_DAILY_SYNC_WINDOW_DAYS = 42;
 /** Today and yesterday are fetched again because they can still change. */
-export const GARMIN_DAILY_REFRESH_DAYS = 2;
+const GARMIN_DAILY_REFRESH_DAYS = 2;
 
 export interface DailySyncOptions {
   userId: number;
@@ -47,7 +47,7 @@ export interface DailySyncResult {
  * date without a watermark, walking back to the window floor. A marked date is
  * skipped, so a rate-limited backfill resumes where it stopped.
  */
-export function planDailySyncDates(input: {
+function planDailySyncDates(input: {
   today: string;
   windowStart: string;
   synced: ReadonlySet<string>;

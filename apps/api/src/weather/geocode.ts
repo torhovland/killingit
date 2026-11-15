@@ -97,7 +97,7 @@ function geocodedLocation(value: unknown): GeocodedLocation | null {
 }
 
 /** Parses Nominatim's search response, ignoring malformed suggestions. */
-export function parseGeocodeResponse(body: unknown): GeocodedLocation[] {
+function parseGeocodeResponse(body: unknown): GeocodedLocation[] {
   if (!Array.isArray(body)) {
     return [];
   }

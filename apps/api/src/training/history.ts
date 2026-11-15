@@ -40,10 +40,7 @@ import {
 } from "./thresholds.js";
 
 /** How many days of history each fixed range covers, today included. */
-export const FITNESS_RANGE_DAYS: Record<
-  Exclude<FitnessRange, "all">,
-  number
-> = {
+const FITNESS_RANGE_DAYS: Record<Exclude<FitnessRange, "all">, number> = {
   week: 7,
   month: 30,
   quarter: 90,
@@ -97,7 +94,7 @@ export interface FitnessHistoryInput {
  * entry, then the duration fallback), and the window is not extended into the
  * past beyond what was requested: days without training count as rest.
  */
-export function buildFitnessHistory(
+function buildFitnessHistory(
   input: FitnessHistoryInput,
 ): FitnessHistoryResponse {
   const { startDate, endDate } = fitnessWindow({
@@ -277,7 +274,7 @@ function plannedSessions(
 }
 
 /** The earliest activity the athlete recorded or logged by hand. */
-export function earliestRecordedDate(
+function earliestRecordedDate(
   activities: readonly AnalyzedActivity[],
   manualActivities: readonly ManualActivityContext[],
   timeZone: string | null | undefined,
@@ -328,7 +325,20 @@ function activitiesPerDay(
   return result;
 }
 
-/** Loads the cached activities and stores the fitness history for the page. */
+/**
+ * The stores the fitness history reads from. Injected so the page's series can
+ * be built without a database; production leaves every field unset.
+ */
+interface FitnessHistoryDependencies {
+  loadTrainingContext?: typeof loadTrainingContext | undefined;
+  loadMetricPoints?: typeof loadMetricPoints | undefined;
+  loadDailyHealth?: typeof loadDailyHealthHistoryForUser | undefined;
+  loadNutrition?: typeof loadNutrition | undefined;
+}
+
+/**
+ * Loads the cached activities and stores the fitness history for the page.
+ */
 export async function loadFitnessHistory(
   userId: number,
   activities: readonly AnalyzedActivity[],
@@ -337,14 +347,15 @@ export async function loadFitnessHistory(
   range: FitnessRange,
   dietAdvice = false,
   timeZone?: string | null,
+  deps: FitnessHistoryDependencies = {},
 ): Promise<FitnessHistoryResponse> {
   const [context, weight, bodyFat, dailyHealthPoints, nutrition] =
     await Promise.all([
-      loadTrainingContext(userId, plan, timeZone),
-      loadMetricPoints(userId, "weight"),
-      loadMetricPoints(userId, "body_fat"),
-      loadDailyHealthHistoryForUser(userId, today),
-      loadNutrition(userId, plan, today, dietAdvice),
+      (deps.loadTrainingContext ?? loadTrainingContext)(userId, plan, timeZone),
+      (deps.loadMetricPoints ?? loadMetricPoints)(userId, "weight"),
+      (deps.loadMetricPoints ?? loadMetricPoints)(userId, "body_fat"),
+      (deps.loadDailyHealth ?? loadDailyHealthHistoryForUser)(userId, today),
+      (deps.loadNutrition ?? loadNutrition)(userId, plan, today, dietAdvice),
     ]);
   return buildFitnessHistory({
     today,
@@ -393,7 +404,7 @@ async function loadNutrition(
  * end is the later of today and the stored plan's last day, so the chart runs
  * exactly as far ahead as there are planned workouts.
  */
-export function fitnessWindow(input: {
+function fitnessWindow(input: {
   today: string;
   range: FitnessRange;
   plan?: CoachPlan | undefined;

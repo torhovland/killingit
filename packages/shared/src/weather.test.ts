@@ -3,12 +3,20 @@ import {
   dailyForecastsSchema,
   dailyWeatherSchema,
   formatDailyWeatherParts,
-  geocodedLocationSchema,
+  geocodeResponseSchema,
   WEATHER_ICON_LABELS,
-  weatherIconSchema,
 } from "./weather.js";
 
 describe("weather schemas", () => {
+  const baseForecast = {
+    date: "2026-10-25",
+    temperatureMaxC: 9,
+    temperatureMinC: 4,
+    windMaxMs: 5,
+    gustMaxMs: 9,
+    precipitationMm: 0,
+  };
+
   it("accepts the five display icons and labels each one", () => {
     for (const icon of [
       "sun",
@@ -17,10 +25,14 @@ describe("weather schemas", () => {
       "rain",
       "snow",
     ] as const) {
-      expect(weatherIconSchema.parse(icon)).toBe(icon);
+      expect(dailyWeatherSchema.parse({ ...baseForecast, icon }).icon).toBe(
+        icon,
+      );
       expect(WEATHER_ICON_LABELS[icon].length).toBeGreaterThan(0);
     }
-    expect(() => weatherIconSchema.parse("hail")).toThrow();
+    expect(() =>
+      dailyWeatherSchema.parse({ ...baseForecast, icon: "hail" }),
+    ).toThrow();
   });
 
   it("parses a daily forecast with SI units and local daylight times", () => {
@@ -143,17 +155,21 @@ describe("daily forecast presentation", () => {
   });
 });
 
-describe("geocodedLocationSchema", () => {
+describe("geocodeResponseSchema", () => {
   it("keeps optional administrative fields when present", () => {
     expect(
-      geocodedLocationSchema.parse({
-        name: "Oslo",
-        latitude: 59.91,
-        longitude: 10.75,
-        country: "Norway",
-        admin1: "Oslo",
-        city: "Oslo",
-      }),
+      geocodeResponseSchema.parse({
+        results: [
+          {
+            name: "Oslo",
+            latitude: 59.91,
+            longitude: 10.75,
+            country: "Norway",
+            admin1: "Oslo",
+            city: "Oslo",
+          },
+        ],
+      }).results[0],
     ).toEqual({
       name: "Oslo",
       latitude: 59.91,
@@ -166,11 +182,9 @@ describe("geocodedLocationSchema", () => {
 
   it("defaults missing administrative fields to null", () => {
     expect(
-      geocodedLocationSchema.parse({
-        name: "Oslo",
-        latitude: 59.91,
-        longitude: 10.75,
-      }),
+      geocodeResponseSchema.parse({
+        results: [{ name: "Oslo", latitude: 59.91, longitude: 10.75 }],
+      }).results[0],
     ).toEqual({
       name: "Oslo",
       latitude: 59.91,

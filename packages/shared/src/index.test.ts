@@ -1,20 +1,18 @@
 import { describe, expect, it } from "bun:test";
 import {
-  activitiesResponseSchema,
   activityAverageSpeed,
   activitySchema,
   activityUsesPace,
   addDays,
   API_CONTRACT_VERSION,
   athleteEventSchema,
-  athleteIdentitySchema,
-  athleteThresholdSchema,
   bikeWorkoutSchema,
   cadenceUnit,
   calendarResponseSchema,
-  coachQuestionSchema,
+  coachQuestionsResponseSchema,
   currentUserSchema,
   dailyHealthPointSchema,
+  dailyWeatherSchema,
   dayPlanSchema,
   dietSummaryResponseSchema,
   fitnessHistoryResponseSchema,
@@ -22,7 +20,6 @@ import {
   formatActivityType,
   formatDuration,
   formatPace,
-  formatSpeed,
   garminConnectionStatusSchema,
   greetingSchema,
   hasLapStructure,
@@ -31,27 +28,27 @@ import {
   llmSettingsSchema,
   paceUnitLabel,
   paceUnitMetres,
-  periodReviewSchema,
+  periodReviewsResponseSchema,
   planDateSchema,
   questionSchema,
+  thresholdSummarySchema,
   trainingLoadSchema,
-  weatherIconSchema,
+  type AthleteIdentity,
   zonedDateTime,
 } from "./index";
 
 describe("package barrel", () => {
-  it("re-exports a symbol from every shared module", () => {
+  it("re-exports the shared runtime surface", () => {
     const surface = [
       API_CONTRACT_VERSION,
       addDays,
       athleteEventSchema,
-      athleteIdentitySchema,
-      athleteThresholdSchema,
       bikeWorkoutSchema,
       calendarResponseSchema,
-      coachQuestionSchema,
+      coachQuestionsResponseSchema,
       currentUserSchema,
       dailyHealthPointSchema,
+      dailyWeatherSchema,
       dayPlanSchema,
       dietSummaryResponseSchema,
       fitnessHistoryResponseSchema,
@@ -59,17 +56,24 @@ describe("package barrel", () => {
       garminConnectionStatusSchema,
       idParamSchema,
       llmSettingsSchema,
-      periodReviewSchema,
+      periodReviewsResponseSchema,
       planDateSchema,
       questionSchema,
+      thresholdSummarySchema,
       trainingLoadSchema,
-      weatherIconSchema,
       zonedDateTime,
     ];
 
     for (const symbol of surface) {
       expect(symbol).toBeDefined();
     }
+  });
+
+  it("re-exports the athlete identity type", () => {
+    const athlete: AthleteIdentity = { sub: "auth0|athlete-123" };
+    expect(currentUserSchema.parse({ ...athlete, role: "member" }).sub).toBe(
+      "auth0|athlete-123",
+    );
   });
 });
 
@@ -222,7 +226,6 @@ describe("pace and speed", () => {
   it("formats pace and speed", () => {
     expect(formatPace(312)).toBe("5:12");
     expect(formatPace(0)).toBe("–");
-    expect(formatSpeed(3.3333)).toBe("12.0 km/h");
     expect(formatActivityPaceOrSpeed("running", 1000 / 312)).toBe("5:12 /km");
     expect(formatActivityPaceOrSpeed("indoor_cycling", 1000 / 312)).toBe(
       "11.5 km/h",
@@ -268,32 +271,5 @@ describe("formatActivityType", () => {
   it("handles GPS and unknown labels", () => {
     expect(formatActivityType("gps_run")).toBe("GPS run");
     expect(formatActivityType("  ")).toBe("Unknown activity");
-  });
-});
-
-describe("activitiesResponseSchema", () => {
-  it("parses a list of activities", () => {
-    const parsed = activitiesResponseSchema.parse({
-      activities: [
-        {
-          id: 1,
-          name: "Morning Run",
-          type: "running",
-          startDate: "2026-10-01T06:30:00Z",
-          distance: 5000,
-          movingTime: 1500,
-          elapsedTime: 1600,
-          totalElevationGain: 55,
-          samples: [{ timestamp: "2026-10-01T06:30:00Z" }],
-        },
-      ],
-    });
-    expect(parsed.activities[0]?.samples).toHaveLength(1);
-  });
-
-  it("rejects a payload without an activities array", () => {
-    expect(() =>
-      activitiesResponseSchema.parse({ activities: "nope" }),
-    ).toThrow();
   });
 });

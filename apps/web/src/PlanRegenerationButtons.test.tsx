@@ -1,58 +1,253 @@
-import { describe, expect, it, mock } from "bun:test";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  mock,
+  setSystemTime,
+} from "bun:test";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import {
-  PlanRegenerationButtonsView,
-  seasonSetupNotice,
-} from "./PlanRegenerationButtons";
+import type {
+  CoachPlan,
+  CoachPlanResponse,
+  PlanGenerateMode,
+} from "@killingit/shared";
+import type { AuthState } from "./auth";
+import type { PlanGenerationOutcome } from "./planGeneration";
 
-function renderButtons({
-  hasSeason,
-  running = null,
-  busy = running !== null,
-  setupNotice = null,
-  onNewSeason = () => undefined,
-  onUpdateSeason = () => undefined,
-}: {
-  hasSeason: boolean;
-  running?: "newSeason" | "updateSeason" | null;
-  busy?: boolean;
-  setupNotice?: string | null;
-  onNewSeason?: () => void;
-  onUpdateSeason?: () => void;
-}) {
-  render(
-    <PlanRegenerationButtonsView
-      hasSeason={hasSeason}
-      running={running}
-      busy={busy}
-      done={false}
-      error={null}
-      setupNotice={setupNotice}
-      onNewSeason={onNewSeason}
-      onUpdateSeason={onUpdateSeason}
-    />,
-  );
+const auth: AuthState = {
+  isAuthenticated: true,
+  isLoading: false,
+  sub: "user-1",
+  login: () => Promise.resolve(),
+  logout: () => Promise.resolve(),
+  getToken: () => Promise.resolve("token"),
+};
+
+const { SessionExpiredError } = await import("./auth/session");
+
+await mock.module("./auth", () => ({
+  SessionExpiredError,
+  useAuth: () => auth,
+}));
+
+interface Generation {
+  running: boolean;
+  mode: PlanGenerateMode | null;
+  start: (mode?: PlanGenerateMode) => Promise<PlanGenerationOutcome>;
+  track: () => void;
 }
 
-describe("PlanRegenerationButtonsView", () => {
-  it("offers only a new season when no season exists", () => {
-    renderButtons({ hasSeason: false });
+let generation: Generation;
 
-    expect(
-      screen.getByRole("button", { name: "Plan a new season" }).className,
-    ).toContain("bg-primary");
+// Stub only the hook and keep the provider export, which other suites render.
+const realPlanGenerationProvider = await import("./PlanGenerationProvider");
+
+await mock.module("./PlanGenerationProvider", () => ({
+  ...realPlanGenerationProvider,
+  usePlanGeneration: () => ({
+    ...generation,
+    progress: null,
+    latest: null,
+    revision: 0,
+    error: null,
+  }),
+}));
+
+const { PlanRegenerationButtons } = await import("./PlanRegenerationButtons");
+
+const plan: CoachPlan = {
+  season: {
+    goal: "Finish the season strong",
+    startDate: "2026-10-01",
+    endDate: "2026-12-31",
+    rationale: "Build aerobic fitness.",
+    blocks: [
+      {
+        name: "Base",
+        focus: "Aerobic base",
+        startDate: "2026-10-01",
+        endDate: "2026-12-31",
+        weekCount: 12,
+      },
+    ],
+  },
+  block: {
+    name: "Base",
+    focus: "Aerobic base",
+    startDate: "2026-10-01",
+    endDate: "2026-12-01",
+    rationale: "Build volume gradually.",
+    weeks: [
+      {
+        number: 1,
+        startDate: "2026-09-28",
+        focus: "Aerobic base",
+        targetLoad: "Easy",
+      },
+    ],
+  },
+  week: {
+    startDate: "2026-09-28",
+    focus: "Aerobic base",
+    rationale: "Keep it easy.",
+    sessions: [
+      "2026-09-28",
+      "2026-09-29",
+      "2026-09-30",
+      "2026-10-01",
+      "2026-10-02",
+      "2026-10-03",
+      "2026-10-04",
+    ].map((date) => ({
+      date,
+      day: "Monday",
+      type: "rest" as const,
+      title: "Rest",
+      description: "Rest day.",
+      durationMinutes: 0,
+      intensity: "rest" as const,
+      status: "rest" as const,
+    })),
+  },
+  today: {
+    date: "2026-10-01",
+    type: "rest",
+    title: "Rest",
+    description: "Rest day.",
+    durationMinutes: 0,
+    intensity: "rest",
+    alternatives: [],
+    rationale: "Rest is part of the plan.",
+    optional: false,
+    status: "rest",
+  },
+  tomorrow: null,
+  nextWeek: null,
+  nextBlock: null,
+};
+
+function planResponse(hasSeason: boolean): CoachPlanResponse {
+  return {
+    plan: hasSeason ? plan : null,
+    generatedAt: null,
+    generation: {
+      status: "idle",
+      step: null,
+      progress: 0,
+      error: null,
+      runId: null,
+      updatedAt: "2026-11-15T08:00:00.000Z",
+    },
+    stale: false,
+    pending: {
+      initial: false,
+      day: false,
+      week: false,
+      block: false,
+      tomorrow: false,
+      nextWeek: false,
+      nextBlock: false,
+      dietProgress: false,
+    },
+    thresholds: [],
+    events: [],
+  };
+}
+
+function json(body: unknown): Response {
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { "content-type": "application/json" },
+  });
+}
+
+const originalFetch = globalThis.fetch;
+
+interface Setup {
+  hasSeason?: boolean;
+  garminConnected?: boolean;
+  llmConfigured?: boolean;
+}
+
+/** Serves the availability and integration checks the buttons make on mount. */
+function stubApi({
+  hasSeason = true,
+  garminConnected = true,
+  llmConfigured = true,
+}: Setup = {}): void {
+  globalThis.fetch = ((input: string | URL | Request) => {
+    const url =
+      typeof input === "string"
+        ? input
+        : input instanceof URL
+          ? input.href
+          : input.url;
+    if (url.includes("/api/coaching/plan?today=")) {
+      return Promise.resolve(json(planResponse(hasSeason)));
+    }
+    if (url.includes("/api/garmin/status")) {
+      return Promise.resolve(json({ connected: garminConnected }));
+    }
+    if (url.includes("/api/llm/settings")) {
+      return Promise.resolve(
+        json({
+          configured: llmConfigured,
+          provider: "openrouter",
+          model: null,
+        }),
+      );
+    }
+    return Promise.reject(new Error(`Unexpected fetch: ${url}`));
+  }) as typeof fetch;
+}
+
+const done: PlanGenerationOutcome = {
+  status: "done",
+  plan: planResponse(true),
+};
+
+beforeEach(() => {
+  setSystemTime(new Date("2026-11-15T12:00:00Z"));
+  generation = {
+    running: false,
+    mode: null,
+    start: mock(() => Promise.resolve(done)),
+    track: () => undefined,
+  };
+});
+
+afterEach(() => {
+  globalThis.fetch = originalFetch;
+  setSystemTime();
+});
+
+describe("PlanRegenerationButtons", () => {
+  it("offers only a new season when no season exists", async () => {
+    stubApi({ hasSeason: false });
+    render(<PlanRegenerationButtons />);
+
+    const start = await screen.findByRole("button", {
+      name: "Plan a new season",
+    });
+
+    expect(start.className).toContain("bg-primary");
     expect(
       screen.queryByRole("button", { name: "Update season plan" }),
     ).toBeNull();
   });
 
-  it("makes updating the primary action when a season exists", () => {
-    renderButtons({ hasSeason: true });
+  it("makes updating the primary action when a season exists", async () => {
+    stubApi();
+    render(<PlanRegenerationButtons />);
 
-    expect(
-      screen.getByRole("button", { name: "Update season plan" }).className,
-    ).toContain("bg-primary");
+    const update = await screen.findByRole("button", {
+      name: "Update season plan",
+    });
+
+    expect(update.className).toContain("bg-primary");
     expect(
       screen.getByRole("button", { name: "Plan a new season" }).className,
     ).not.toContain("bg-primary");
@@ -61,23 +256,30 @@ describe("PlanRegenerationButtonsView", () => {
 
   it("runs the action that was clicked", async () => {
     const user = userEvent.setup();
-    const onNewSeason = mock(() => undefined);
-    const onUpdateSeason = mock(() => undefined);
-    renderButtons({ hasSeason: true, onNewSeason, onUpdateSeason });
+    stubApi();
+    render(<PlanRegenerationButtons />);
 
-    await user.click(screen.getByRole("button", { name: "Plan a new season" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Plan a new season" }),
+    );
     await user.click(
       screen.getByRole("button", { name: "Update season plan" }),
     );
 
-    expect(onNewSeason).toHaveBeenCalledTimes(1);
-    expect(onUpdateSeason).toHaveBeenCalledTimes(1);
+    expect(generation.start).toHaveBeenNthCalledWith(1, "newSeason");
+    expect(generation.start).toHaveBeenNthCalledWith(2, "updateSeason");
   });
 
-  it("spins and names the coach on the action that is running", () => {
-    renderButtons({ hasSeason: true, running: "updateSeason" });
+  it("spins and names the coach on the action that is running", async () => {
+    generation.running = true;
+    generation.mode = "updateSeason";
+    stubApi();
+    render(<PlanRegenerationButtons />);
 
-    const running = screen.getByRole("button", { name: "Coach is thinking…" });
+    const running = await screen.findByRole("button", {
+      name: "Coach is thinking…",
+    });
+
     expect(running.className).toContain("bg-primary");
     expect(running).toHaveProperty("disabled", true);
     expect(screen.getAllByTestId("spinner")).toHaveLength(1);
@@ -87,11 +289,14 @@ describe("PlanRegenerationButtonsView", () => {
     ).toHaveProperty("disabled", true);
   });
 
-  it("spins on a new season when it is the only action", () => {
-    renderButtons({ hasSeason: false, running: "newSeason" });
+  it("spins on a new season when it is the only action", async () => {
+    generation.running = true;
+    generation.mode = "newSeason";
+    stubApi({ hasSeason: false });
+    render(<PlanRegenerationButtons />);
 
     expect(
-      screen.getByRole("button", { name: "Coach is thinking…" }),
+      await screen.findByRole("button", { name: "Coach is thinking…" }),
     ).toBeDefined();
     expect(
       screen.queryByRole("button", { name: "Plan a new season" }),
@@ -100,11 +305,14 @@ describe("PlanRegenerationButtonsView", () => {
 
   it("disables every action while another generation is running", async () => {
     const user = userEvent.setup();
-    const onNewSeason = mock(() => undefined);
-    const onUpdateSeason = mock(() => undefined);
-    renderButtons({ hasSeason: true, busy: true, onNewSeason, onUpdateSeason });
+    generation.running = true;
+    generation.mode = "auto";
+    stubApi();
+    render(<PlanRegenerationButtons />);
 
-    const update = screen.getByRole("button", { name: "Update season plan" });
+    const update = await screen.findByRole("button", {
+      name: "Update season plan",
+    });
     const start = screen.getByRole("button", { name: "Plan a new season" });
     expect(update).toHaveProperty("disabled", true);
     expect(start).toHaveProperty("disabled", true);
@@ -115,49 +323,42 @@ describe("PlanRegenerationButtonsView", () => {
 
     await user.click(update);
     await user.click(start);
-    expect(onUpdateSeason).not.toHaveBeenCalled();
-    expect(onNewSeason).not.toHaveBeenCalled();
+    expect(generation.start).not.toHaveBeenCalled();
   });
 
-  it("shows which integrations are missing before a season can start", () => {
-    renderButtons({
-      hasSeason: false,
-      setupNotice:
-        "Set up Garmin and an OpenRouter API key in Settings before planning a new season.",
-    });
+  it("asks for both integrations when neither is set up", async () => {
+    stubApi({ hasSeason: false, garminConnected: false, llmConfigured: false });
+    render(<PlanRegenerationButtons />);
 
-    expect(screen.getByRole("status").textContent).toContain(
+    expect((await screen.findByRole("status")).textContent).toContain(
       "Set up Garmin and an OpenRouter API key",
     );
   });
-});
 
-describe("seasonSetupNotice", () => {
-  it("asks for both integrations when neither is set up", () => {
-    expect(
-      seasonSetupNotice({ garminConnected: false, llmConfigured: false }),
-    ).toBe(
-      "Set up Garmin and an OpenRouter API key in Settings before planning a new season.",
+  it("asks only for Garmin when OpenRouter is configured", async () => {
+    stubApi({ hasSeason: false, garminConnected: false, llmConfigured: true });
+    render(<PlanRegenerationButtons />);
+
+    expect((await screen.findByRole("status")).textContent).toBe(
+      "Set up Garmin in Settings before planning a new season.",
     );
   });
 
-  it("asks only for Garmin when OpenRouter is configured", () => {
-    expect(
-      seasonSetupNotice({ garminConnected: false, llmConfigured: true }),
-    ).toBe("Set up Garmin in Settings before planning a new season.");
-  });
+  it("asks only for OpenRouter when Garmin is connected", async () => {
+    stubApi({ hasSeason: false, garminConnected: true, llmConfigured: false });
+    render(<PlanRegenerationButtons />);
 
-  it("asks only for OpenRouter when Garmin is connected", () => {
-    expect(
-      seasonSetupNotice({ garminConnected: true, llmConfigured: false }),
-    ).toBe(
+    expect((await screen.findByRole("status")).textContent).toBe(
       "Set up an OpenRouter API key in Settings before planning a new season.",
     );
   });
 
-  it("returns null when both integrations are ready", () => {
-    expect(
-      seasonSetupNotice({ garminConnected: true, llmConfigured: true }),
-    ).toBeNull();
+  it("shows no setup notice when both integrations are ready", async () => {
+    stubApi({ hasSeason: false });
+    render(<PlanRegenerationButtons />);
+
+    await screen.findByRole("button", { name: "Plan a new season" });
+
+    expect(screen.queryByRole("status")).toBeNull();
   });
 });

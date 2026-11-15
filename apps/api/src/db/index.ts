@@ -17,5 +17,5 @@ const effectiveUrl = needsSsl
 
 const pool = new pg.Pool({ connectionString: effectiveUrl });
 
+/** The Drizzle client over this module's PostgreSQL pool. */
 export const db = drizzle(pool, { schema });
-export { pool };

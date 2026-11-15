@@ -31,7 +31,7 @@ export const DAILY_HEALTH_METRIC_KEYS = [
 
 export type DailyHealthMetricKey = (typeof DAILY_HEALTH_METRIC_KEYS)[number];
 
-export const dailyHealthMetricKeySchema = z.enum(DAILY_HEALTH_METRIC_KEYS);
+const dailyHealthMetricKeySchema = z.enum(DAILY_HEALTH_METRIC_KEYS);
 
 /** Formats a stored minute count as hours and minutes. */
 function formatMinutes(minutes: number): string {

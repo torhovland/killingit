@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { FitnessHistoryDay } from "@killingit/shared";
-import { FitnessDayTooltip, formatDuration } from "./FitnessDayTooltip";
+import { FitnessDayTooltip } from "./FitnessDayTooltip";
 
 function day(overrides: Partial<FitnessHistoryDay> = {}): FitnessHistoryDay {
   return {
@@ -136,12 +136,38 @@ describe("FitnessDayTooltip", () => {
 
     expect(html).toContain("No activities recorded");
   });
-});
 
-describe("formatDuration", () => {
-  it("reads as minutes under an hour and hours above it", () => {
-    expect(formatDuration(45)).toBe("45 min");
-    expect(formatDuration(60)).toBe("1 h");
-    expect(formatDuration(80)).toBe("1 h 20");
+  it("reads activity durations in minutes under an hour and hours above it", () => {
+    const html = renderToStaticMarkup(
+      <FitnessDayTooltip
+        today="2026-10-22"
+        day={day({
+          activities: [
+            {
+              id: "activity-1",
+              name: "Easy spin",
+              type: "cycling",
+              durationMinutes: 45,
+            },
+            {
+              id: "activity-2",
+              name: "Long ride",
+              type: "cycling",
+              durationMinutes: 60,
+            },
+            {
+              id: "activity-3",
+              name: "Endurance ride",
+              type: "cycling",
+              durationMinutes: 80,
+            },
+          ],
+        })}
+      />,
+    );
+
+    expect(html).toContain("45 min");
+    expect(html).toContain("1 h</span>");
+    expect(html).toContain("1 h 20");
   });
 });

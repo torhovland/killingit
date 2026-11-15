@@ -4,7 +4,7 @@ import { z } from "zod";
  * Machine-readable kind of an API failure. A code is stable across releases,
  * while its message may be reworded for the athlete.
  */
-export const apiErrorCodeSchema = z.enum([
+const apiErrorCodeSchema = z.enum([
   "bad_request",
   "validation_failed",
   "unauthorized",

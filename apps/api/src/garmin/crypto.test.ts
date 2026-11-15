@@ -1,20 +1,26 @@
 import { describe, expect, it } from "bun:test";
 import {
-  CredentialCryptoError,
+  credentialsKeyFromEnv,
   decrypt,
   encrypt,
-  keyFromRaw,
 } from "../crypto/credentials.js";
 import { garminCredentialsKeyFromEnv } from "./crypto.js";
 
-/** Asserts a promise rejects with a CredentialCryptoError. */
+/** Derives a key from a raw secret through the environment entry point. */
+function keyFromRaw(raw: string): Promise<CryptoKey> {
+  process.env.TEST_CREDENTIALS_KEY = raw;
+  return credentialsKeyFromEnv("TEST_CREDENTIALS_KEY");
+}
+
+/** Asserts a promise rejects with the credential-crypto failure. */
 async function expectRejectsWithCryptoError(
   promise: Promise<unknown>,
 ): Promise<void> {
   try {
     await promise;
   } catch (err) {
-    expect(err).toBeInstanceOf(CredentialCryptoError);
+    expect(err).toBeInstanceOf(Error);
+    expect((err as Error).name).toBe("CredentialCryptoError");
     return;
   }
   throw new Error("expected promise to reject");

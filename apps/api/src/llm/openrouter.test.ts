@@ -4,7 +4,6 @@ import {
   LlmAbortError,
   LlmAuthError,
   LlmProviderError,
-  LlmRateLimitError,
   LlmTokenLimitError,
 } from "./openrouter.js";
 
@@ -221,7 +220,7 @@ describe("complete", () => {
     }
   });
 
-  it("maps a 429 to LlmRateLimitError with quota guidance", async () => {
+  it("maps a 429 to a rate-limit failure with quota guidance", async () => {
     const provider = createOpenRouterProvider({
       fetchImpl: stubFetch(() =>
         Promise.resolve(
@@ -242,8 +241,9 @@ describe("complete", () => {
       });
       throw new Error("expected completion to reject");
     } catch (err) {
-      expect(err).toBeInstanceOf(LlmRateLimitError);
-      expect((err as LlmRateLimitError).status).toBe(429);
+      expect(err).toBeInstanceOf(LlmProviderError);
+      expect((err as LlmProviderError).status).toBe(429);
+      expect(err).not.toBeInstanceOf(LlmAuthError);
       expect((err as Error).message).toContain("Daily limit exceeded");
       expect((err as Error).message).toContain("free-model daily request cap");
     }

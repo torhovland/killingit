@@ -14,7 +14,7 @@ const BUSY_LABELS: Record<AppBusyState, string> = {
 };
 
 /** The step shown while a fresh prompt is on its way to the coach. */
-export const WAKING_STEP_LABEL = "Waking the coach…";
+const WAKING_STEP_LABEL = "Waking the coach…";
 
 /**
  * The progress to show when a run begins. Only a run that sends its own prompt

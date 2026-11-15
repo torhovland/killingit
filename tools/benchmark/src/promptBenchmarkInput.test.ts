@@ -2,12 +2,12 @@ import { describe, expect, it } from "bun:test";
 import { startOfWeek } from "@killingit/shared";
 import {
   BIKE_WORKOUT_RULES,
-  CALORIE_BREAKDOWN_CONTRACT,
-  DIET_PROGRESS_CONTRACT,
-  FORM_TARGET_RULES,
+  DAY_CONTRACT,
   GLOBAL_PROMPT_RULES,
   PLAN_PROMPT_RULES,
   SEASON_BLOCK_RULES,
+  TRAINING_LOAD_RULES,
+  WEEK_CONTRACT,
   WEEK_OUTLINE_RULES,
 } from "../../../apps/api/src/llm/promptRules.js";
 import { parseCurrentBlock } from "./promptBenchmark.js";
@@ -31,9 +31,9 @@ describe("benchmark prompts", () => {
     expect(today).toContain(PLAN_PROMPT_RULES);
     expect(today).toContain(WEEK_OUTLINE_RULES);
     expect(today).toContain(BIKE_WORKOUT_RULES);
-    expect(today).toContain(FORM_TARGET_RULES);
-    expect(today).toContain(CALORIE_BREAKDOWN_CONTRACT);
-    expect(today).toContain(DIET_PROGRESS_CONTRACT);
+    expect(today).toContain(TRAINING_LOAD_RULES);
+    expect(today).toContain(DAY_CONTRACT);
+    expect(today).toContain(WEEK_CONTRACT);
     expect(reviseSeason).toContain(GLOBAL_PROMPT_RULES);
     expect(reviseSeason).toContain(PLAN_PROMPT_RULES);
     expect(reviseSeason).toContain(SEASON_BLOCK_RULES);

@@ -1,7 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { AnalyzedActivitiesResponse } from "@killingit/shared";
 import {
-  activityCacheKey,
   loadCachedActivities,
   markActivityReviewed,
   mergeActivityFeeds,
@@ -69,7 +68,7 @@ describe("activityCache", () => {
     saveCachedActivities("user-1", feed, storage);
 
     expect(loadCachedActivities("user-2", storage)).toBeNull();
-    expect(storage.values.has(activityCacheKey("user-1"))).toBe(true);
+    expect(storage.values.size).toBe(1);
   });
 
   it("reads a cache written before the account id was known", () => {
@@ -86,18 +85,21 @@ describe("activityCache", () => {
 
     saveCachedActivities("user-1", feed, storage);
 
-    expect(storage.values.has(activityCacheKey(null))).toBe(false);
-    expect(storage.values.has(activityCacheKey("user-1"))).toBe(true);
+    expect(storage.values.size).toBe(1);
+    expect(loadCachedActivities(null, storage)).toBeNull();
+    expect(loadCachedActivities("user-1", storage)).toEqual(feed);
   });
 
   it("ignores malformed or outdated cache entries", () => {
     const storage = memoryStorage();
+    saveCachedActivities("user-1", feed, storage);
+    const [key] = [...storage.values.keys()];
 
-    storage.setItem(activityCacheKey("user-1"), "{not json");
+    storage.setItem(key!, "{not json");
     expect(loadCachedActivities("user-1", storage)).toBeNull();
 
     storage.setItem(
-      activityCacheKey("user-1"),
+      key!,
       JSON.stringify({ model: null, activities: [{ id: "wrong" }] }),
     );
     expect(loadCachedActivities("user-1", storage)).toBeNull();

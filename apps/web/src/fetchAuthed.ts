@@ -59,7 +59,7 @@ function requestJson<T>(
  * A successful response body that did not match the shared schema it was
  * validated against. Carries the schema's issues as the cause.
  */
-export class ResponseValidationError extends Error {
+class ResponseValidationError extends Error {
   constructor(label: string, options?: { cause?: unknown }) {
     super(`${label} returned an unexpected response`, options);
     this.name = "ResponseValidationError";

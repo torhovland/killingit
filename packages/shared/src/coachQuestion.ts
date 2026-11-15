@@ -7,7 +7,7 @@ import { planDateSchema } from "./date.js";
  * it on the main page, the coach replies, and the answered question is kept for
  * the season review. Only the newest unanswered question is shown at a time.
  */
-export const coachQuestionSchema = z.object({
+const coachQuestionSchema = z.object({
   id: z.number().int().positive(),
   question: z.string().min(1),
   answer: z.string().min(1).nullable(),

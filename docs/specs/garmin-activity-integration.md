@@ -183,7 +183,8 @@ one swappable corner, and normalizes Garmin activities into the shared
   and pinned from both sides — `services/garmin/test_contract.py` re-runs the
   sidecar's handlers over representative Garmin payloads and asserts the
   committed bytes, and `apps/api/src/garmin/contract.test.ts` parses the same
-  files with `activitiesResponseSchema`, `garminMetricsResponseSchema` and
+  files through the client's own parsers (`syncGarminActivities` over
+  `activitySchema`) plus `garminMetricsResponseSchema` and
   `garminDailyResponseSchema`. A field rename on either side therefore fails a
   pull request; see `docs/specs/garmin-sidecar-contract.md` and ADR 0057.
 - Run `bun run typecheck`, `bun run lint`, `bun run format`, `bun run test` and
@@ -258,8 +259,8 @@ one swappable corner, and normalizes Garmin activities into the shared
   schemas. A rename on either side fails a pull request. See
   `docs/specs/garmin-sidecar-contract.md` and ADR 0057.
 - **Malformed sync payloads cannot blank the page.** The web validates the
-  `{ activities }` response against the shared `activitiesResponseSchema`
-  before rendering; a shape error becomes an inline Garmin error. `samples`
+  activity feed against the shared `analyzedActivitiesResponseSchema` before
+  rendering; a shape error becomes an inline Garmin error. `samples`
   defaults to `[]` so a pre-timeseries sidecar still parses. Independently, a
   top-level React `ErrorBoundary` renders a recovery page ("Something went
   wrong", retry/reload) for any uncaught render error and reports it to Sentry

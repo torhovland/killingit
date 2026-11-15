@@ -5,8 +5,8 @@ import type { StoredUser, UserStore } from "../users/store.js";
 import { AuthVerificationError } from "./provider.js";
 import type { AuthProvider } from "./provider.js";
 
-export const ATHLETE_CONTEXT_KEY = "athlete";
-export const USER_CONTEXT_KEY = "user";
+const ATHLETE_CONTEXT_KEY = "athlete";
+const USER_CONTEXT_KEY = "user";
 
 declare module "hono" {
   interface ContextVariableMap {

@@ -60,7 +60,7 @@ export function formatAthleteProfile(
 }
 
 /** Renders the athlete's profile for a prompt. */
-export function formatAthleteAnswers(
+function formatAthleteAnswers(
   entries: readonly AthleteAnswerContext[],
 ): string {
   if (entries.length === 0) {

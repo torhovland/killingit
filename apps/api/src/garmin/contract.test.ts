@@ -1,15 +1,13 @@
-import { describe, expect, it } from "bun:test";
+import { afterEach, describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
-  activitiesResponseSchema,
   DAILY_HEALTH_METRIC_KEYS,
   garminDailyResponseSchema,
   garminMetricsResponseSchema,
-  type ActivitiesResponse,
   type Activity,
 } from "@killingit/shared";
-import { garminSyncRequestBody } from "./client.js";
+import { syncGarminActivities, type GarminCredentials } from "./client.js";
 
 /**
  * The TypeScript half of the sidecar contract. The Python sidecar builds its
@@ -26,6 +24,30 @@ import { garminSyncRequestBody } from "./client.js";
 const REPO_ROOT = join(import.meta.dir, "..", "..", "..", "..");
 const CONTRACT_DIR = join(REPO_ROOT, "services", "garmin", "contract");
 
+const CREDENTIALS: GarminCredentials = {
+  username: "athlete@example.com",
+  password: "secret",
+};
+
+const originalFetch = globalThis.fetch;
+const originalSidecarUrl = process.env.GARMIN_SIDECAR_URL;
+const originalSidecarAudience = process.env.GARMIN_SIDECAR_AUDIENCE;
+
+afterEach(() => {
+  globalThis.fetch = originalFetch;
+  restoreEnv("GARMIN_SIDECAR_URL", originalSidecarUrl);
+  restoreEnv("GARMIN_SIDECAR_AUDIENCE", originalSidecarAudience);
+});
+
+/** Restores an environment variable to its value before the test. */
+function restoreEnv(name: string, value: string | undefined): void {
+  if (value === undefined) {
+    delete process.env[name];
+  } else {
+    process.env[name] = value;
+  }
+}
+
 /** Reads one committed fixture. Resolved from the repo root, never the cwd. */
 function readContract(name: string): unknown {
   const parsed: unknown = JSON.parse(
@@ -34,8 +56,38 @@ function readContract(name: string): unknown {
   return parsed;
 }
 
-function activityOfType(response: ActivitiesResponse, type: string): Activity {
-  const activity = response.activities.find((entry) => entry.type === type);
+/** Answers the sidecar's `/sync` call with one fixture and records the request. */
+function stubSidecar(body: unknown): unknown[] {
+  process.env.GARMIN_SIDECAR_URL = "http://sidecar.test";
+  delete process.env.GARMIN_SIDECAR_AUDIENCE;
+  const requestBodies: unknown[] = [];
+  globalThis.fetch = ((_input: string | URL | Request, init?: RequestInit) => {
+    requestBodies.push(
+      typeof init?.body === "string"
+        ? (JSON.parse(init.body) as unknown)
+        : null,
+    );
+    return Promise.resolve(
+      new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+  }) as unknown as typeof fetch;
+  return requestBodies;
+}
+
+/** Parses the committed `/sync` fixture with the client's own parser. */
+function parseSyncFixture(): Promise<Activity[]> {
+  stubSidecar(readContract("sync.json"));
+  return syncGarminActivities(CREDENTIALS);
+}
+
+function activityOfType(
+  activities: readonly Activity[],
+  type: string,
+): Activity {
+  const activity = activities.find((entry) => entry.type === type);
   if (activity === undefined) {
     throw new Error(`the sync fixture has no ${type} activity`);
   }
@@ -43,33 +95,26 @@ function activityOfType(response: ActivitiesResponse, type: string): Activity {
 }
 
 describe("Garmin sidecar contract fixtures", () => {
-  it("pins the /sync request body, including the known activity ids", () => {
+  it("pins the /sync request body, including the known activity ids", async () => {
     // The Python half validates the same file through `SyncRequest`, so a
     // rename of `knownActivityIds` fails one of the two suites.
-    const fixture = readContract("sync-request.json") as Record<
-      string,
-      unknown
-    >;
+    const fixture = readContract("sync-request.json");
+    const requestBodies = stubSidecar({ activities: [] });
 
-    expect(
-      garminSyncRequestBody(
-        { username: "athlete@example.com", password: "secret" },
-        [1, 3],
-      ),
-    ).toEqual(fixture);
+    await syncGarminActivities(CREDENTIALS, [1, 3]);
+
+    expect(requestBodies[0]).toEqual(fixture);
   });
 
-  it("parses the whole /sync body with the shared response schema", () => {
-    const response = activitiesResponseSchema.parse(readContract("sync.json"));
+  it("parses the whole /sync body with the shared response schema", async () => {
+    const activities = await parseSyncFixture();
 
-    expect(
-      response.activities.map((activity) => [activity.id, activity.type]),
-    ).toEqual([
+    expect(activities.map((activity) => [activity.id, activity.type])).toEqual([
       [1, "running"],
       [2, "road_biking"],
       [3, "strength_training"],
     ]);
-    expect(activityOfType(response, "running")).toMatchObject({
+    expect(activityOfType(activities, "running")).toMatchObject({
       name: "Morning Run",
       startDate: "2026-10-01T04:30:00Z",
       distance: 5000,
@@ -82,11 +127,8 @@ describe("Garmin sidecar contract fixtures", () => {
     });
   });
 
-  it("parses every channel of a recorded sample and keeps omitted ones absent", () => {
-    const run = activityOfType(
-      activitiesResponseSchema.parse(readContract("sync.json")),
-      "running",
-    );
+  it("parses every channel of a recorded sample and keeps omitted ones absent", async () => {
+    const run = activityOfType(await parseSyncFixture(), "running");
 
     expect(run.samples).toEqual([
       {
@@ -127,11 +169,8 @@ describe("Garmin sidecar contract fixtures", () => {
     ]);
   });
 
-  it("parses lap structure, its channels and both cadence families", () => {
-    const run = activityOfType(
-      activitiesResponseSchema.parse(readContract("sync.json")),
-      "running",
-    );
+  it("parses lap structure, its channels and both cadence families", async () => {
+    const run = activityOfType(await parseSyncFixture(), "running");
     const laps = run.laps ?? [];
 
     expect(laps[0]).toEqual({
@@ -158,9 +197,9 @@ describe("Garmin sidecar contract fixtures", () => {
     ]);
   });
 
-  it("parses strength sets, including a rest set and a bodyweight set", () => {
+  it("parses strength sets, including a rest set and a bodyweight set", async () => {
     const strength = activityOfType(
-      activitiesResponseSchema.parse(readContract("sync.json")),
+      await parseSyncFixture(),
       "strength_training",
     );
 

@@ -14,7 +14,7 @@ export interface ActivityCacheStorage {
 }
 
 /** Cache key scoped to the signed-in account so users cannot see each other. */
-export function activityCacheKey(sub: string | null | undefined): string {
+function activityCacheKey(sub: string | null | undefined): string {
   return `${CACHE_KEY_PREFIX}:${sub ?? "anonymous"}`;
 }
 

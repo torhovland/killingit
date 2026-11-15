@@ -19,7 +19,7 @@ interface CompletedAnalysis {
  * activity and its sample previews, so only the most recently used accounts
  * are retained instead of every account that ever visited.
  */
-export const MAX_COMPLETED_ANALYSES = 32;
+const MAX_COMPLETED_ANALYSES = 32;
 
 /**
  * One activity-analysis pass per account. The map is process-local, like the

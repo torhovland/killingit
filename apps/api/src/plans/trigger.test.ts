@@ -6,7 +6,6 @@ import type { QuestionAnswerStore } from "../questions/answers.js";
 import type { UserStore } from "../users/store.js";
 import type { CoachingInputs } from "./inputs.js";
 import type { PlanGenerationStep } from "./steps.js";
-import { idleGenerationStatus } from "./store.js";
 import type { PlanGenerationStore, PlanStore, StoredPlan } from "./store.js";
 import { makePlan } from "../testFixtures/plan.js";
 import { PLAN_FAILED_MESSAGE } from "./failure.js";
@@ -56,9 +55,21 @@ const user = {
   createdAt: new Date("2026-11-12T00:00:00Z"),
 };
 
+/** The status a generation store reports before the first run. */
+function idleStatus(): PlanGenerationStatus {
+  return {
+    status: "idle",
+    step: null,
+    progress: 0,
+    error: null,
+    runId: null,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
 /** A generation row that records only the first failure for its run. */
 class RecordingGenerationStore implements PlanGenerationStore {
-  status: PlanGenerationStatus = idleGenerationStatus();
+  status: PlanGenerationStatus = idleStatus();
   failures: string[] = [];
   /** The steps the run showed, in order. */
   steps: PlanGenerationStep[] = [];

@@ -1,9 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import {
-  fetchWeatherForecast,
-  parseForecastResponse,
-  weatherIconForCode,
-} from "./openMeteo.js";
+import type { DailyWeather } from "@killingit/shared";
+import { fetchWeatherForecast } from "./openMeteo.js";
 
 function toUrl(input: string | URL | Request): URL {
   if (input instanceof URL) {
@@ -28,25 +25,64 @@ function forecastBody() {
   };
 }
 
-describe("weatherIconForCode", () => {
-  it("maps the WMO ranges to the five supported icons", () => {
-    expect(weatherIconForCode(0)).toBe("sun");
-    expect(weatherIconForCode(1)).toBe("sun");
-    expect(weatherIconForCode(2)).toBe("partly_cloudy");
-    expect(weatherIconForCode(3)).toBe("very_cloudy");
-    expect(weatherIconForCode(45)).toBe("very_cloudy");
-    expect(weatherIconForCode(67)).toBe("rain");
-    expect(weatherIconForCode(82)).toBe("rain");
-    expect(weatherIconForCode(71)).toBe("snow");
-    expect(weatherIconForCode(86)).toBe("snow");
-    expect(weatherIconForCode(95)).toBe("rain");
-    expect(weatherIconForCode(199)).toBe("very_cloudy");
+/** Runs a promise that must reject and returns the thrown error. */
+async function rejection(promise: Promise<unknown>): Promise<unknown> {
+  try {
+    await promise;
+  } catch (err) {
+    return err;
+  }
+  throw new Error("expected the forecast to reject");
+}
+
+function parseForecast(body: unknown): Promise<DailyWeather[]> {
+  return fetchWeatherForecast(
+    { latitude: 59.91, longitude: 10.75, name: null },
+    {
+      fetchImpl: () =>
+        Promise.resolve(new Response(JSON.stringify(body), { status: 200 })),
+    },
+  );
+}
+
+describe("fetchWeatherForecast weather icons", () => {
+  it("maps the WMO ranges to the five supported icons", async () => {
+    const codes = [0, 1, 2, 3, 45, 67, 82, 71, 86, 95, 199];
+    const days = await parseForecast({
+      daily: {
+        time: codes.map(
+          (_, index) => `2026-10-${String(index + 1).padStart(2, "0")}`,
+        ),
+        weather_code: codes,
+        temperature_2m_max: codes.map(() => 12),
+        temperature_2m_min: codes.map(() => 4),
+        wind_speed_10m_max: codes.map(() => 4),
+        wind_gusts_10m_max: codes.map(() => 8),
+        precipitation_sum: codes.map(() => 0),
+        sunrise: codes.map(() => null),
+        sunset: codes.map(() => null),
+      },
+    });
+
+    expect(days.map((day) => day.icon)).toEqual([
+      "sun",
+      "sun",
+      "partly_cloudy",
+      "very_cloudy",
+      "very_cloudy",
+      "rain",
+      "rain",
+      "snow",
+      "snow",
+      "rain",
+      "very_cloudy",
+    ]);
   });
 });
 
-describe("parseForecastResponse", () => {
-  it("turns Open-Meteo arrays into daily weather", () => {
-    const days = parseForecastResponse(forecastBody());
+describe("fetchWeatherForecast parsing", () => {
+  it("turns Open-Meteo arrays into daily weather", async () => {
+    const days = await parseForecast(forecastBody());
 
     expect(days).toHaveLength(2);
     expect(days[0]).toEqual({
@@ -66,12 +102,12 @@ describe("parseForecastResponse", () => {
     expect(days[1]?.sunset).toBe("16:32");
   });
 
-  it("keeps null daylight values for polar days and nights", () => {
+  it("keeps null daylight values for polar days and nights", async () => {
     const body = forecastBody();
     body.daily.sunrise = [null, "2026-10-26T07:44"];
     body.daily.sunset = [null, "2026-10-26T16:32"];
 
-    const days = parseForecastResponse(body);
+    const days = await parseForecast(body);
 
     expect(days[0]?.sunrise).toBeNull();
     expect(days[0]?.sunset).toBeNull();
@@ -82,11 +118,11 @@ describe("parseForecastResponse", () => {
     const body = forecastBody();
     body.daily.sunrise = ["not a time", "2026-10-26T07:44"];
 
-    expect(() => parseForecastResponse(body)).toThrow();
+    return expect(parseForecast(body)).rejects.toThrow();
   });
 
-  it("skips incomplete trailing days instead of failing the forecast", () => {
-    const days = parseForecastResponse({
+  it("skips incomplete trailing days instead of failing the forecast", async () => {
+    const days = await parseForecast({
       daily: {
         time: ["2026-10-25", "2026-10-26", "2026-10-27"],
         weather_code: [0, 61, null],
@@ -103,13 +139,15 @@ describe("parseForecastResponse", () => {
     expect(days.map((day) => day.date)).toEqual(["2026-10-25", "2026-10-26"]);
   });
 
-  it("rejects a malformed or mismatched response", () => {
-    expect(() => parseForecastResponse({})).toThrow();
-    expect(() =>
-      parseForecastResponse({
-        daily: { ...forecastBody().daily, time: ["2026-10-25"] },
-      }),
-    ).toThrow();
+  it("rejects a malformed or mismatched response", async () => {
+    expect(await rejection(parseForecast({}))).toBeInstanceOf(Error);
+    expect(
+      await rejection(
+        parseForecast({
+          daily: { ...forecastBody().daily, time: ["2026-10-25"] },
+        }),
+      ),
+    ).toBeInstanceOf(Error);
   });
 });
 
