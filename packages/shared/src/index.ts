@@ -17,13 +17,6 @@ export const healthSchema = z.object({
 
 export type Health = z.infer<typeof healthSchema>;
 
-/** A placeholder greeting payload for the wiring smoke test. */
-export const greetingSchema = z.object({
-  message: z.string(),
-});
-
-export type Greeting = z.infer<typeof greetingSchema>;
-
 export * from "./activity.js";
 export * from "./apiError.js";
 export * from "./apiVersion.js";

@@ -11,8 +11,8 @@ barrel only changes when a module is added.
 ## Scope
 
 - `packages/shared/src/index.ts` re-exports every module with
-  `export * from "./<module>.js"`. The health-check and greeting schemas stay
-  declared there because they belong to no other module.
+  `export * from "./<module>.js"`. The health-check schema stays declared there
+  because it belongs to no other module.
 - A name must exist in exactly one module, because a symbol exported by two
   modules is ambiguous in a wildcard barrel and fails typechecking.
   `packages/shared/src/date.ts` owns `planDateSchema`; `plan.ts` no longer

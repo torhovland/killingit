@@ -143,11 +143,11 @@ only replaces that module.
   the iframe instead of failing.
 - **Authentication is default-on for `/api/*`.** `createApp` registers
   `requireAuth` once on `/api/*` before the sub-app routes, and only the exact
-  paths in `PUBLIC_API_PATHS` (`/api/health`, `/api/greet`) pass without a
-  token. The plan route is protected by this central rule rather than by the
-  `/coaching/*` prefix it happens to live under (issue #161). The API tests
-  sample one route from every protected family plus an unregistered `/api`
-  path and assert 401. See ADR 0024.
+  paths in `PUBLIC_API_PATHS` (`/api/health`) pass without a token. The plan
+  route is protected by this central rule rather than by the `/coaching/*`
+  prefix it happens to live under (issue #161). The API tests sample one route
+  from every protected family plus an unregistered `/api` path and assert 401.
+  See ADR 0024.
 - **The account is resolved in middleware, not in handlers.** `createApp` runs
   `requireUser(deps.userStore)` immediately after `requireAuth` on the same
   paths; it provisions the account on first sight, stores it under `user`, and

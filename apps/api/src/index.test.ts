@@ -7,6 +7,7 @@ import {
 import { Hono } from "hono";
 import { createApp } from "./index.js";
 import { withSentry } from "./instrumentation/sentry.js";
+import { authenticatedRequest, makeTestApp } from "./testFixtures/app.js";
 import type { UserStore } from "./users/store.js";
 
 /**
@@ -48,13 +49,12 @@ describe("api", () => {
     expect(body.service).toBe("killingit-api");
   });
 
-  it("greets on /api/greet", async () => {
-    const res = await app.fetch(
-      new Request("http://localhost/api/greet?name=tor"),
-    );
-    expect(res.status).toBe(200);
-    const body = (await res.json()) as { message: string };
-    expect(body.message).toBe("Hello, tor!");
+  it("no longer serves the removed /api/greet smoke-test route", async () => {
+    // `/api/greet` was a wiring smoke test; `/api/health` covers liveness now.
+    // The route is gone, so a signed-in request falls through to 404 (an
+    // unauthenticated one still meets the default-on auth first).
+    const res = await makeTestApp().fetch(authenticatedRequest("/api/greet"));
+    expect(res.status).toBe(404);
   });
 
   it.each(PROTECTED_ROUTES)(
