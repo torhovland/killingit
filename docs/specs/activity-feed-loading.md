@@ -33,10 +33,10 @@ one module per concern (ADR 0037):
   `docs/specs/activity-store.md` and
   `docs/specs/garmin-sync-known-activities.md`. The background pass is one per
   account at a time and its failure is logged, never returned; see ADR 0039.
-- `feed/analysis.ts` — `loadAnalysisInputs` loads LLM settings, athlete
-  feedback, the stored plan, daily health, body history and diet in parallel,
-  then the training context; a training-context failure falls back to empty
-  loads instead of failing the feed. `analyzeMissing` then loads the cached
+- `feed/analysis.ts` — `loadAnalysisInputs` loads athlete feedback, the stored
+  plan, daily health, body history and diet in parallel, then the training
+  context; a training-context failure falls back to empty loads instead of
+  failing the feed. `analyzeMissing` then loads the cached
   general and program analyses (skipped on an explicit refresh), reuses an
   analysis unless the athlete commented after it, analyses the rest
   concurrently, saves each result, replaces the previous activity question,
@@ -55,8 +55,12 @@ one module per concern (ADR 0037):
 
 The phase results are explicit objects (`SyncedFeed`, `AnalysisInputs`,
 `TrainingInputs`, `ActivityAnalysisOutcome`) instead of mutable locals threaded
-through the function. Provider and credential resolution stay in small typed
-helpers (`loadGarminCredentials`, `loadLlmApiKey`).
+through the function. Garmin credential resolution stays in its own typed helper
+(`loadGarminCredentials`), and the daily LLM client comes from the shared
+`loadLlmClient` in `apps/api/src/llm/client.ts`, so model choice, the catalog
+check and key decryption are reused rather than repeated here. A retired model
+still reaches the route as `LlmModelChoiceError`, and any other client failure
+is reported as `LlmCredentialsError`.
 
 `activities.ts` is not a barrel: each caller imports the module that owns the
 helper it needs, so an orphaned helper shows up in `bun run check:unused`
@@ -71,8 +75,8 @@ used by `loadDietContext`.
 ## Acceptance criteria
 
 - Every phase is a named function under roughly 80 lines.
-- `loadAnalyzedActivitiesOnce` reads as provider → credentials → sync → inputs →
-  analyse → assemble.
+- `loadAnalyzedActivitiesOnce` reads as credentials → sync → inputs → daily LLM
+  client → analyse → assemble.
 - The response shape, question handling, metric writes and log messages are
   unchanged.
 - Existing tests pass unchanged, and new tests cover the orchestrator's branches.
