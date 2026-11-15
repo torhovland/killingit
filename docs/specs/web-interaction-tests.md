@@ -71,7 +71,12 @@ Requests are replaced by stubbing `globalThis.fetch`, matching the existing
 That keeps the test on the real `requestParsed` validation and abort path. A
 hook that reads `useAuth` is exercised through a process-global `./auth` mock,
 the same pattern `GarminSection.test.tsx` already uses, with a mutable session
-so a test can mount signed out.
+so a test can mount signed out. The same applies to any other process-global
+`mock.module` stub — a sibling component, a provider, `@auth0/auth0-react` or
+`../useToday`: every suite that registers one calls `mock.restore()` in
+`afterAll` so it cannot leak the fake into another suite.
+`apps/web/src/mockIsolation.test.ts` fails when any suite in the web test tree
+registers `mock.module` without that restore.
 
 ## Acceptance criteria
 

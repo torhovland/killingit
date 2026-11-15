@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, mock } from "bun:test";
+import { afterAll, afterEach, describe, expect, it, mock } from "bun:test";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { LlmCatalogModel, LlmSettings } from "@killingit/shared";
@@ -22,6 +22,10 @@ await mock.module("../auth", () => ({
   SessionExpiredError,
   useAuth: () => auth,
 }));
+
+afterAll(() => {
+  mock.restore();
+});
 
 const { LlmSection } = await import("./LlmSection");
 const { AppStatusProvider } = await import("../AppStatus");

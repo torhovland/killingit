@@ -1,4 +1,12 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  mock,
+} from "bun:test";
 import { render, screen } from "@testing-library/react";
 
 const originalDev = process.env.DEV;
@@ -29,6 +37,10 @@ await mock.module("./AdminModelRemarksSection", () => ({
 await mock.module("./DevDatePicker", () => ({
   DevDatePicker: () => <div data-testid="dev-date-picker-stub" />,
 }));
+
+afterAll(() => {
+  mock.restore();
+});
 
 const { AdminSettingsPage } = await import("./AdminSettingsPage");
 

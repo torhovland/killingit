@@ -1,4 +1,4 @@
-import { describe, expect, it, mock } from "bun:test";
+import { afterAll, describe, expect, it, mock } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 
 const { SessionExpiredError } = await import("../auth/session");
@@ -13,6 +13,10 @@ await mock.module("../auth", () => ({
     getToken: () => Promise.resolve("token"),
   }),
 }));
+
+afterAll(() => {
+  mock.restore();
+});
 
 const { OpenRouterKeySection } = await import("./OpenRouterKeySection");
 

@@ -40,6 +40,10 @@ setup that more than one file needs lives in a test fixture, not in a copy of
 6. Knip excludes each package's `src/testFixtures/` directory, exactly as it
    already excluded the API directory, so a helper exported only for tests is
    not reported as an unused production export.
+7. A web suite that registers a process-global `mock.module` stub calls
+   `mock.restore()` in `afterAll`, because Bun's module registry is shared by
+   every file in the test process. `apps/web/src/mockIsolation.test.ts` fails
+   when any web test file mocks a module without that restore.
 
 ### Out of scope
 

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, mock } from "bun:test";
+import { afterAll, afterEach, describe, expect, it, mock } from "bun:test";
 import type { LlmCallDetail, LlmCallSummary } from "@killingit/shared";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -18,6 +18,10 @@ await mock.module("../auth", () => ({
     getToken: () => Promise.resolve("token"),
   }),
 }));
+
+afterAll(() => {
+  mock.restore();
+});
 
 const { AdminLlmCallsSection } = await import("./AdminLlmCallsSection");
 const { AppStatusProvider } = await import("../AppStatus");
