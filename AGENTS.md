@@ -70,12 +70,17 @@ a literal or floating version. Shared Zod schemas are validated on both sides
 `packages/shared` holds the wire contract and API-only logic lives in `apps/api`.
 Failures use `{ error: { code, message, details? } }` from
 `packages/shared/src/apiError.ts`, and `apps/api/src/index.ts` exports the
-side-effect-free `createApp` that `server.ts` runs. See
-`docs/specs/shared-api-boundary.md`, `docs/specs/api-errors.md` and
-`docs/specs/api-server-entry.md`. Secrets stored for another service (Garmin
-credentials, LLM API keys) are encrypted with AES-256-GCM under an
-HKDF-derived key and bound to the owning account; always pass the account id to
-the shared helper. See `docs/specs/credential-encryption.md` and ADR 0060.
+side-effect-free `createApp` that `server.ts` runs. `DATABASE_URL` is required
+outside development and tests (an unset or empty `NODE_ENV`, `development` and
+`test` may fall back to the local database); `apps/api/src/db/connection.ts`
+resolves it, throws at startup when a deployed process omits it, and logs an idle
+Postgres client's error instead of crashing. See
+`docs/specs/shared-api-boundary.md`, `docs/specs/api-errors.md`,
+`docs/specs/api-server-entry.md` and `docs/specs/database-connection.md`.
+Secrets stored for another service (Garmin credentials, LLM API keys) are
+encrypted with AES-256-GCM under an HKDF-derived key and bound to the owning
+account; always pass the account id to the shared helper. See
+`docs/specs/credential-encryption.md` and ADR 0060.
 
 Bun workspaces: `apps/web`, `apps/api`, `packages/shared` (ADR 0055) and
 `tools/benchmark` (ADR 0032); `scripts/` is not a workspace but is typechecked by
@@ -269,7 +274,7 @@ a spec is missing.
 **Web:** `docs/specs/accessibility-lint.md`, `docs/specs/chart-keyboard-navigation.md`, `docs/specs/current-user-provider.md`, `docs/specs/modal-dialog.md`, `docs/specs/pwa.md`, `docs/specs/signed-out-landing.md`, `docs/specs/web-api-base-url.md`, `docs/specs/web-api-request-parsing.md`, `docs/specs/web-api-resource-hook.md`, `docs/specs/web-cache-busting.md`, `docs/specs/web-coaching-hooks.md`,
 `docs/specs/web-coaching-pages.md`, `docs/specs/web-comment-form.md`, `docs/specs/web-component-library.md`, `docs/specs/web-date-formatting.md`, `docs/specs/web-form-drafts.md`, `docs/specs/web-interaction-tests.md`, `docs/specs/web-routing.md`, `docs/specs/user-time-zone.md`.
 
-**API and backend:** `docs/specs/api-dependency-wiring.md`, `docs/specs/api-errors.md`, `docs/specs/api-logging.md`, `docs/specs/api-query-validation.md`, `docs/specs/api-server-entry.md`, `docs/specs/api-versioning.md`, `docs/specs/authenticated-user-middleware.md`, `docs/specs/auth-integration.md`, `docs/specs/credential-encryption.md`, `docs/specs/route-param-validation.md`, `docs/specs/shared-api-boundary.md`, `docs/specs/shared-date-helpers.md`, `docs/specs/shared-package-barrel.md`,
+**API and backend:** `docs/specs/api-dependency-wiring.md`, `docs/specs/api-errors.md`, `docs/specs/api-logging.md`, `docs/specs/api-query-validation.md`, `docs/specs/api-server-entry.md`, `docs/specs/api-versioning.md`, `docs/specs/authenticated-user-middleware.md`, `docs/specs/auth-integration.md`, `docs/specs/credential-encryption.md`, `docs/specs/database-connection.md`, `docs/specs/route-param-validation.md`, `docs/specs/shared-api-boundary.md`, `docs/specs/shared-date-helpers.md`, `docs/specs/shared-package-barrel.md`,
 `docs/specs/unused-exports.md`.
 
 **Tests, infrastructure and process:** `docs/specs/database-indexes.md`, `docs/specs/database-integration-tests.md`, `docs/specs/e2e-tests.md`, `docs/specs/test-coverage.md`, `docs/specs/test-file-organisation.md`, `docs/specs/agent-access-script.md`, `docs/specs/ci-build-job.md`, `docs/specs/deploy-workflow.md`, `docs/specs/third-party-notices.md`, `docs/specs/typescript-project-coverage.md`, `docs/specs/error-monitoring.md`, `docs/specs/account-deletion.md`, `docs/specs/admin-settings.md`, `docs/specs/location-and-weather.md`.
