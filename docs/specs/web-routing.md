@@ -79,6 +79,9 @@ ternary chain.
   instead of bouncing through `/survey`). Reloading `/survey` keeps the survey
   page even after every answer is saved, because the survey is a real page with
   a real URL (the old in-memory page reset to the dashboard on reload).
+- The content panel's width follows the page on screen, not the URL it was
+  asked for: the survey renders for one paint before the redirect replaces a
+  rejected URL, so a rejected calendar visit must not widen it.
 - Signing in returns to the path the visitor requested, because the Auth0
   adapter already asks Auth0 to return to `window.location.pathname`.
 
@@ -91,9 +94,9 @@ ternary chain.
 3. `/` and unknown paths redirect to `/coach`; `/admin` redirects a member to
    `/coach`; an incomplete survey redirects to `/survey` except on the admin's
    `/admin`.
-4. Pure tests cover the path mapping, label lookup, the survey gate and the
-   calendar's wide panel; the e2e suite covers a deep link after sign-in, reload
-   and the history buttons.
+4. Pure tests cover the path mapping, label lookup, the survey gate (including
+   the panel width of the page on screen) and the calendar's wide panel; the
+   e2e suite covers a deep link after sign-in, reload and the history buttons.
 5. `bun run typecheck`, `bun run lint`, `bun run format`, `bun run test` and
    `bun run test:e2e` pass.
 

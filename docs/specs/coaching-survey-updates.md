@@ -29,14 +29,20 @@ yet, so the next season refresh can adapt the whole plan.
    athlete's earlier answer (or skip), and a button that copies the old answer
    into the new textarea.
 4. **Automatic direction.** When a question has been added or revised, the app
-   opens the Coaching survey page instead of the normal page.
-5. **Survey adjustments.** Saving a new answer, an answer to a revised version,
+   opens the Coaching survey page instead of the normal page. The shell's gate
+   and the survey page read one shared question response, so they cannot
+   disagree about what is left to answer.
+5. **Question changes refresh the gate.** Creating, editing, archiving or
+   reordering a question on the admin page re-reads the athlete's question
+   response. Archiving the question that forced the survey releases the athlete
+   without a reload, and the survey no longer lists the deleted question.
+6. **Survey adjustments.** Saving a new answer, an answer to a revised version,
    or an edit to an existing answer appends a snapshot to
    `coaching_survey_adjustments`. Unchanged resubmissions append nothing.
-6. **Season refresh prompt.** When a stale season is refreshed, the prompt
+7. **Season refresh prompt.** When a stale season is refreshed, the prompt
    includes the pending adjustments and asks the coach to adjust the season,
    block, week, and day where needed. `coachQuestion` is a sparing last resort.
-7. **Consume adjustments.** A successfully saved full plan or season refresh
+8. **Consume adjustments.** A successfully saved full plan or season refresh
    clears the pending adjustments it loaded into its prompt. An answer edited
    while the run is in progress appends a new adjustment that survives for the
    next refresh. A failed generation keeps them.
@@ -57,7 +63,9 @@ yet, so the next season refresh can adapt the whole plan.
    Updated/New after it is saved, and labels the first section "Coaching
    questions" when no question has any response.
 3. Leaving the app with an unresolved active question opens the survey page.
-   Saving the last unresolved answer returns the athlete to normal navigation.
+   Saving the last unresolved answer returns the athlete to normal navigation,
+   and archiving the last unresolved question on the admin page releases the
+   gate without a reload.
 4. `POST /api/questions/answers` records one adjustment for each new or changed
    answer in the same transaction as the answer upsert, appended through
    `CoachingSurveyAdjustmentStore.append`. The snapshot carries the current

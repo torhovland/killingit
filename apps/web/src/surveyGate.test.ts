@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { PAGES } from "./navigation";
-import { surveyGate } from "./surveyGate";
+import { panelWidthClass, surveyGate } from "./surveyGate";
 
 describe("survey gate", () => {
   it("never blocks a page once the survey is complete", () => {
@@ -61,5 +61,14 @@ describe("survey gate", () => {
         rolePending: false,
       }),
     ).toBe("survey");
+  });
+
+  it("takes the panel width from the page on screen", () => {
+    expect(panelWidthClass("page", "calendar")).toBe("max-w-7xl");
+    expect(panelWidthClass("page", "coach")).toBe("max-w-5xl");
+
+    // A rejected wide page must not widen the survey that replaced it.
+    expect(panelWidthClass("survey", "calendar")).toBe("max-w-5xl");
+    expect(panelWidthClass("wait", "calendar")).toBe("max-w-5xl");
   });
 });

@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import {
   athleteQuestionsResponseSchema,
   type QuestionAnswerInput,
@@ -7,15 +7,26 @@ import { useAuth } from "./auth";
 import { requestParsed } from "./fetchAuthed";
 import { useApiResource } from "./useApiResource";
 
-/** Loads and saves the signed-in athlete's questionnaire answers. */
+/**
+ * Loads and saves the signed-in athlete's questionnaire answers. Read the
+ * shared {@link useAthleteQuestionsContext} instead of calling this directly:
+ * the app reads one response, so the survey gate and the survey page cannot
+ * disagree. The returned object is memoised so a re-rendering provider only
+ * re-renders its consumers when the questions change.
+ */
 export function useAthleteQuestions() {
   const auth = useAuth();
-  const resource = useApiResource(
+  const {
+    data: questions,
+    loading,
+    error,
+    reload,
+    setData,
+  } = useApiResource(
     auth.isAuthenticated ? "/api/questions" : null,
     athleteQuestionsResponseSchema,
     "Loading your questions",
   );
-  const { setData } = resource;
 
   const saveAnswers = useCallback(
     async (answers: QuestionAnswerInput[]): Promise<void> => {
@@ -35,11 +46,8 @@ export function useAthleteQuestions() {
     [auth, setData],
   );
 
-  return {
-    questions: resource.data,
-    loading: resource.loading,
-    error: resource.error,
-    load: resource.reload,
-    saveAnswers,
-  };
+  return useMemo(
+    () => ({ questions, loading, error, load: reload, saveAnswers }),
+    [questions, loading, error, reload, saveAnswers],
+  );
 }

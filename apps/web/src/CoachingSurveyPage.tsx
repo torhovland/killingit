@@ -1,8 +1,8 @@
 import { useEffect } from "react";
+import { useAthleteQuestionsContext } from "./AthleteQuestionsProvider";
 import { AthleteAnswersSection } from "./AthleteAnswersSection";
 import { useAppStatus } from "./AppStatus";
 import { PlanRegenerationButtons } from "./PlanRegenerationButtons";
-import { useAthleteQuestions } from "./useAthleteQuestions";
 import { Button } from "./components/Button";
 import { Card } from "./components/Card";
 
@@ -20,7 +20,7 @@ export function CoachingSurveyPage({
 }: CoachingSurveyPageProps) {
   const { setStatus } = useAppStatus();
   const { questions, loading, error, load, saveAnswers } =
-    useAthleteQuestions();
+    useAthleteQuestionsContext();
 
   useEffect(() => {
     setStatus("survey-page", loading ? "loading" : null);
