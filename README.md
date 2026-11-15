@@ -64,8 +64,8 @@ services/
   [`.bun-version`](.bun-version)
 - Docker (for the local Postgres database)
 - Python 3 (for the Garmin sidecar; `bun run dev` creates its virtualenv on
-  first run, and `bun run check:garmin` installs the sidecar's test and lint
-  tools)
+  first run and installs its requirements, and `bun run check:garmin` installs
+  the sidecar's test and lint tools)
 
 ## Getting started
 
