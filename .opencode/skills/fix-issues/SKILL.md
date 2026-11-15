@@ -155,11 +155,11 @@ For each issue:
    branch beneath it.
 
 `WORKFLOW.md` is the single-issue procedure: working-tree hygiene, branching on
-the stack, verification of the issue, spec, test-driven development,
-verification, documentation, commit, and pull request. A sub-session that finds
-its issue stale, wrong about the code, contradicting a spec, ambiguous, much
-larger than it looks, or not worth the diff comments on the issue with the
-evidence and reports back instead of guessing or churning.
+the stack, issue verification, spec, test-driven development, static checks,
+documentation, commit, and pull request. A sub-session that finds its issue
+stale, wrong about the code, contradicting a spec, ambiguous, much larger than
+it looks, or not worth the diff comments on the issue with the evidence and
+reports back instead of guessing or churning.
 
 ### 6. Link the batch into one GitHub stack
 
