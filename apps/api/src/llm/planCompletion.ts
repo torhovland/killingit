@@ -13,6 +13,7 @@ import {
   type CompletionCredentials,
   type CompletionOptions,
 } from "./resilientCompletion.js";
+import { PLAN_TEMPERATURE, REPAIR_TEMPERATURE } from "./sampling.js";
 
 export interface PlanJsonCompletionOptions {
   /**
@@ -55,6 +56,8 @@ export async function completePlanJson<T>(
     budgetMs: COMPLETION_BUDGET_MS,
   });
   const callOptions: CompletionOptions = {
+    maxTokens,
+    temperature: PLAN_TEMPERATURE,
     ...(options.kind !== undefined ? { kind: options.kind } : {}),
     ...(options.metadata !== undefined ? { metadata: options.metadata } : {}),
     budget,
@@ -63,8 +66,6 @@ export async function completePlanJson<T>(
     provider,
     credentials,
     messages,
-    maxTokens,
-    0.4,
     callOptions,
   );
   try {
@@ -83,10 +84,9 @@ export async function completePlanJson<T>(
       provider,
       credentials,
       repairMessages(messages, text, err, options.repairHint, compact),
-      maxTokens,
-      0.2,
       {
         ...callOptions,
+        temperature: REPAIR_TEMPERATURE,
         metadata: {
           ...(options.metadata ?? {}),
           repair: true,
@@ -104,10 +104,9 @@ export async function completePlanJson<T>(
         provider,
         credentials,
         repairMessages(messages, text, retryErr, options.repairHint, false),
-        maxTokens,
-        0.2,
         {
           ...callOptions,
+          temperature: REPAIR_TEMPERATURE,
           metadata: {
             ...(options.metadata ?? {}),
             repair: true,

@@ -9,6 +9,7 @@ import {
   completeWithFallbacks,
   type CompletionCredentials,
 } from "./resilientCompletion.js";
+import { FOOD_ANALYSIS_TEMPERATURE } from "./sampling.js";
 
 /** The model's reading of one meal. */
 export interface FoodAnalysisOutcome {
@@ -39,9 +40,12 @@ export async function analyzeFood(
       provider,
       credentials,
       buildFoodAnalysisMessages(input, true),
-      1024,
-      0.2,
-      { kind: "food_analysis", metadata: { withPhoto: hasPhoto } },
+      {
+        maxTokens: 1024,
+        temperature: FOOD_ANALYSIS_TEMPERATURE,
+        kind: "food_analysis",
+        metadata: { withPhoto: hasPhoto },
+      },
     );
   } catch (err) {
     // Retrying without the photo only helps when there is text to analyse. A
@@ -57,9 +61,9 @@ export async function analyzeFood(
       provider,
       credentials,
       buildFoodAnalysisMessages(input, false),
-      1024,
-      0.2,
       {
+        maxTokens: 1024,
+        temperature: FOOD_ANALYSIS_TEMPERATURE,
         kind: "food_analysis",
         metadata: { withPhoto: false, photoFallback: true },
       },

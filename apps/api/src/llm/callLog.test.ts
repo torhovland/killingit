@@ -291,9 +291,7 @@ describe("withPromptLogging", () => {
       wrapped,
       { apiKey: "test-key", model: "openrouter/model" },
       messages,
-      2048,
-      0.4,
-      { kind: "activity_analysis" },
+      { maxTokens: 2048, temperature: 0.4, kind: "activity_analysis" },
     );
 
     expect(text).toBe("Recovered");
@@ -349,9 +347,7 @@ describe("withPromptLogging", () => {
       wrapped,
       { apiKey: "test-key", model: "openrouter/model" },
       messages,
-      2048,
-      0.4,
-      { kind: "activity_analysis" },
+      { maxTokens: 2048, temperature: 0.4, kind: "activity_analysis" },
     );
 
     expect(text).toBe("Recovered");

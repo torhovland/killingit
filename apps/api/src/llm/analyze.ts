@@ -11,6 +11,7 @@ import type { LlmProvider } from "./openrouter.js";
 import { ANALYSIS_MAX_TOKENS } from "./planBudget.js";
 import { parsePlanJson, PlanJsonError } from "./planJson.js";
 import { completeWithFallbacks } from "./resilientCompletion.js";
+import { ANALYSIS_TEMPERATURE } from "./sampling.js";
 
 export interface AnalysisInput {
   apiKey: string;
@@ -36,11 +37,13 @@ export async function analyzeActivity(
     provider,
     input,
     buildActivityAnalysisMessages(activity, context, comment),
-    // A generous ceiling lets a reasoning model finish in one attempt rather
-    // than truncating the visible analysis and paying for fallback attempts.
-    ANALYSIS_MAX_TOKENS,
-    0.3,
-    { kind: "activity_analysis" },
+    {
+      // A generous ceiling lets a reasoning model finish in one attempt rather
+      // than truncating the visible analysis and paying for fallback attempts.
+      maxTokens: ANALYSIS_MAX_TOKENS,
+      temperature: ANALYSIS_TEMPERATURE,
+      kind: "activity_analysis",
+    },
   );
   try {
     return parsePlanJson(coachAnalysisResultSchema, text);

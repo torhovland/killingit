@@ -107,6 +107,15 @@ repair turn can never restart the fallback chain with a fresh allowance. The
 standalone callers of `completeWithFallbacks` (activity analysis, coach replies,
 period reviews, food analysis) get one budget per completion.
 
+`completeWithFallbacks` takes one options object after the provider,
+credentials and messages: the required `maxTokens` and `temperature`, plus the
+optional `kind`, `metadata` and `budget`. Temperature has no default, so every
+caller names its intent with a constant from `sampling.ts`:
+`PLAN_TEMPERATURE`, `COACH_REPLY_TEMPERATURE`, `ANALYSIS_TEMPERATURE`,
+`FOOD_ANALYSIS_TEMPERATURE` or `REPAIR_TEMPERATURE`. A plan level starts at
+`PLAN_TEMPERATURE`, and its compact and full repair turns use
+`REPAIR_TEMPERATURE`.
+
 A request aborted by the deadline is logged by `withPromptLogging` as a
 cancelled attempt, because the provider only sees an aborted request. The plan
 generation itself fails with the budget message rather than a stale-run

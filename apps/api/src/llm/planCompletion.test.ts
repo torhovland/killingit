@@ -8,6 +8,7 @@ import {
 } from "./openrouter.js";
 import { completePlanJson } from "./planCompletion.js";
 import { PlanJsonError } from "./planJson.js";
+import { PLAN_TEMPERATURE, REPAIR_TEMPERATURE } from "./sampling.js";
 
 class FakeProvider implements LlmProvider {
   readonly id = "fake";
@@ -96,6 +97,8 @@ describe("completePlanJson", () => {
 
     expect(result).toEqual({ title: "Easy run" });
     expect(provider.requests).toHaveLength(2);
+    expect(provider.requests[0]?.temperature).toBe(PLAN_TEMPERATURE);
+    expect(provider.requests[1]?.temperature).toBe(REPAIR_TEMPERATURE);
     const repair = provider.requests[1]?.messages ?? [];
     expect(repair.slice(0, -2)).toEqual(messages);
     expect(repair.at(-2)).toEqual({
