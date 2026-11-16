@@ -154,8 +154,9 @@ one swappable corner, and normalizes Garmin activities into the shared
 
 ### API (`apps/api/src/garmin/`)
 
-- `crypto.ts` — AES-256-GCM encrypt/decrypt helpers (key from
-  `GARMIN_CREDENTIALS_KEY`, ciphertext bound to the account id).
+- `credentials.ts` — loads and decrypts the stored credentials, and derives the
+  encryption keys from `GARMIN_CREDENTIALS_KEY` through the shared
+  `crypto/credentials.ts` helper (ciphertext bound to the account id).
 - `client.ts` — thin HTTP client to the sidecar, injectable for tests.
 - `store.ts` — Drizzle upsert/load of the user's `garmin_connections` row.
 - `routes/garmin.ts` — the three routes above, guarded by `requireAuth`.

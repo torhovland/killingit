@@ -17,7 +17,7 @@ fail to decrypt instead of exposing the original secret.
 
 - `apps/api/src/crypto/credentials.ts` owns key derivation, the ciphertext
   format and decryption. It is shared by both integrations.
-- `apps/api/src/garmin/crypto.ts` names `GARMIN_CREDENTIALS_KEY` and
+- `apps/api/src/garmin/credentials.ts` names `GARMIN_CREDENTIALS_KEY` and
   `apps/api/src/llm/credentials.ts` names `LLM_CREDENTIALS_KEY`; they stay
   separate so either secret can be rotated on its own.
 - Every `encrypt`/`decrypt` call site passes the owning account's `userId`

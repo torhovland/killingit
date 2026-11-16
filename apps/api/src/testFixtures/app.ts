@@ -351,7 +351,7 @@ export function makeTestApp(options: TestAppOptions = {}) {
     answerCoachQuestion: options.answerCoachQuestion,
     replyToCoachQuestion: options.replyToCoachQuestion,
     triggerPlanGeneration: options.triggerPlanGeneration,
-    startCoachRun: options.startCoachRun ?? (() => Promise.resolve(true)),
+    startCoachRun: options.startCoachRun ?? (() => Promise.resolve()),
     loadForecast: options.loadForecast,
     markPlanPromptsFailed: options.markPlanPromptsFailed,
   });

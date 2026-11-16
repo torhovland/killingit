@@ -441,7 +441,7 @@ async function loadBodyHistorySafely(userId: number) {
   try {
     return await loadBodyHistoryForUser(userId);
   } catch (err) {
-    console.error("[garmin] could not read body metrics:", err);
+    console.error("[metrics] could not read body metrics:", err);
     return undefined;
   }
 }

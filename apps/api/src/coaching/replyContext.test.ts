@@ -121,6 +121,46 @@ describe("loadReplyContext", () => {
     expect(context.bodyHistory?.weight).toHaveLength(1);
   });
 
+  it("reads the same daily-health window as the activity analysis", async () => {
+    const windows: Array<{
+      userId: number;
+      fromDate: string;
+      throughDate: string;
+    }> = [];
+
+    await loadReplyContext(input, {
+      loadActivities: () => Promise.resolve([]),
+      loadCoachingInputs: () =>
+        Promise.resolve({
+          manualActivities: [],
+          activityComments: [],
+          weeklyNote: null,
+          weeklyNoteWeekStartDate: null,
+          weeklyNoteReply: null,
+          weeklyNoteUpdatedAt: null,
+          periodReviews: [],
+          weekReviewUpdatedAt: null,
+          weekReviewNeedsRefresh: false,
+          blockReviewUpdatedAt: null,
+          blockReviewNeedsRefresh: false,
+          updatedAt: null,
+          refreshUpdatedAt: null,
+        }),
+      loadThresholdHistory: () => Promise.resolve(ftpHistory([])),
+      loadBodyHistory: () => Promise.resolve({ weight: [], bodyFat: [] }),
+      loadDailyHealth: (userId, fromDate, throughDate) => {
+        windows.push({ userId, fromDate, throughDate });
+        return Promise.resolve([]);
+      },
+      loadEvents: () => Promise.resolve([]),
+      loadDiet: () => Promise.resolve(null),
+    });
+
+    expect(windows).toEqual([
+      { userId: 42, fromDate: "2026-09-09", throughDate: "2026-10-21" },
+    ]);
+  });
+
   it("keeps the rest of the context when one source fails", async () => {
     const context = await loadReplyContext(input, {
       loadActivities: () => Promise.reject(new Error("Garmin is down")),

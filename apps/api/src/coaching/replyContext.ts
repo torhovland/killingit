@@ -4,6 +4,7 @@ import { toCoachPlanActivity } from "../llm/activityContext.js";
 import type { PlanContextInput } from "../llm/planContext.js";
 import type { AthleteAnswerContext } from "../llm/profileContext.js";
 import { loadAthleteEvents } from "../events/store.js";
+import { GARMIN_DAILY_SYNC_WINDOW_DAYS } from "../garmin/dailySync.js";
 import {
   loadBodyHistoryForUser,
   loadThresholdHistoryForUser,
@@ -113,7 +114,7 @@ export async function loadReplyContext(
     attempt("daily health metrics", () =>
       (deps.loadDailyHealth ?? loadDailyHealthForUser)(
         userId,
-        addDays(today, -42),
+        addDays(today, -GARMIN_DAILY_SYNC_WINDOW_DAYS),
         today,
       ),
     ),

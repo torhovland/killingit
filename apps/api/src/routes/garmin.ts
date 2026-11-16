@@ -25,8 +25,11 @@ import {
   syncGarminActivities,
   type GarminCredentials,
 } from "../garmin/client.js";
-import { loadDecryptedGarminCredentials } from "../garmin/credentials.js";
-import { encrypt, garminCredentialsKeyFromEnv } from "../garmin/crypto.js";
+import {
+  garminCredentialsKeyFromEnv,
+  loadDecryptedGarminCredentials,
+} from "../garmin/credentials.js";
+import { encrypt } from "../crypto/credentials.js";
 import { loadCredentials, saveCredentials } from "../garmin/store.js";
 import {
   syncGarminSupplements,

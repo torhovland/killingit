@@ -35,7 +35,7 @@ const noPlanGeneration: typeof triggerPlanGeneration = () =>
   Promise.resolve(true);
 
 /** Comment replies run as a background coach run; the suite replies inline. */
-const noCoachRun: typeof startCoachRun = () => Promise.resolve(true);
+const noCoachRun: typeof startCoachRun = () => Promise.resolve();
 
 await prepareTestDatabase(e2eDatabaseUrl);
 

@@ -80,7 +80,7 @@ describe("coach questions", () => {
       },
       startCoachRun: (_deps, options) => {
         runs.push({ reply: options.reply, today: options.today });
-        return Promise.resolve(true);
+        return Promise.resolve();
       },
     });
 
@@ -117,7 +117,7 @@ describe("coach questions", () => {
         }),
       startCoachRun: (_deps, options) => {
         zones.push(options.timezone);
-        return Promise.resolve(true);
+        return Promise.resolve();
       },
     });
 
