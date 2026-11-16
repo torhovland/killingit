@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { Activity, ActivitySample, WeekPlan } from "@killingit/shared";
+import { addDays } from "@killingit/shared";
 import { makeActivity as makeFixtureActivity } from "../testFixtures/plan.js";
 import { missingFragments } from "../testFixtures/prompts.js";
 import {
@@ -71,6 +72,39 @@ function makeActivity(overrides: Partial<Activity> = {}): Activity {
 function systemPrompt(): string {
   return buildActivityAnalysisMessages(makeActivity())[0]?.content ?? "";
 }
+
+/** A stored week of daily sessions starting on `startDate`. */
+function makeWeek(startDate = "2026-09-28"): WeekPlan {
+  return {
+    startDate,
+    focus: "Aerobic base",
+    rationale: "Keep the week easy.",
+    sessions: Array.from({ length: 7 }, (_, index) => ({
+      date: addDays(startDate, index),
+      day: "Monday",
+      type: "workout" as const,
+      title: index === 3 ? "Easy ride" : `Session ${index + 1}`,
+      description: "Steady aerobic work.",
+      durationMinutes: 60,
+      intensity: "easy" as const,
+      status: "planned" as const,
+    })),
+  };
+}
+
+/** The closing instructions the prompt chose, so a test pins one branch. */
+function closingInstructions(prompt: string): string[] {
+  return prompt
+    .split("\n")
+    .filter((line) => line.startsWith("Write the brief coach summary"));
+}
+
+const PLANNED_CLOSING =
+  "Write the brief coach summary. Include how well the workout fit its planned session and cite only the most useful evidence.";
+const NO_PLAN_CLOSING =
+  "Write the brief coach summary. Do not compare the workout to the current week plan; cite only the most useful evidence.";
+const NO_WEEK_CLOSING =
+  "Write the brief coach summary, citing only the most useful evidence.";
 
 /** The user message the app sends for one activity. */
 function userPrompt(
@@ -320,6 +354,8 @@ describe("activity analysis user prompt", () => {
     expect(prompt).toContain(
       "Planned session for 2026-10-01: Easy ride [workout, easy, 60 min]",
     );
+    expect(prompt).toContain("Match the workout to it.");
+    expect(closingInstructions(prompt)).toEqual([PLANNED_CLOSING]);
   });
 
   it("dates the activity by the athlete's local day", () => {
@@ -427,6 +463,51 @@ describe("activity analysis user prompt", () => {
     expect(prompt).toContain("No planned session is available for that date.");
     expect(prompt).not.toContain("Current week plan:");
     expect(prompt).not.toContain("Planned session for 2026-10-01");
+    expect(closingInstructions(prompt)).toEqual([NO_PLAN_CLOSING]);
+  });
+
+  it("asks for another session when the week has none on the activity date", () => {
+    const week = makeWeek();
+    const prompt = userPrompt(makeActivity(), {
+      today: "2026-10-01",
+      week: {
+        ...week,
+        sessions: week.sessions.map((session) =>
+          session.date === "2026-10-01"
+            ? { ...session, date: "2026-09-27" }
+            : session,
+        ),
+      },
+    });
+
+    expect(prompt).toContain(
+      "The workout happened on 2026-10-01, within the current week, but no session was planned for that date. Match it to another session this week if its data fits one.",
+    );
+    expect(prompt).toContain("Current week plan:");
+    expect(prompt).not.toContain("Planned session for 2026-10-01");
+    // Inside the week the closing still asks for the plan fit: the system
+    // prompt covers matching another session when the date has none.
+    expect(closingInstructions(prompt)).toEqual([PLANNED_CLOSING]);
+  });
+
+  it("reviews the workout on its own merits without a week plan", () => {
+    const prompt = userPrompt(makeActivity(), { today: "2026-10-01" });
+
+    expect(prompt).toContain(
+      "No current week plan is available. Analyse the workout on its own merits and do not compare it to a planned session.",
+    );
+    expect(prompt).not.toContain("Current week plan:");
+    expect(closingInstructions(prompt)).toEqual([NO_WEEK_CLOSING]);
+  });
+
+  it("needs no context to write the summary", () => {
+    expect(closingInstructions(userPrompt())).toEqual([NO_WEEK_CLOSING]);
+  });
+
+  it("omits an athlete comment that is only whitespace", () => {
+    const prompt = userPrompt(makeActivity(), undefined, "   ");
+
+    expect(prompt).not.toContain("Athlete comment");
   });
 
   it("includes the athlete's comment and trusts it over the device label", () => {

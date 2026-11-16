@@ -133,7 +133,14 @@ and the reply is null; the failure is logged.
   not ask the athlete to describe an activity again. A comment saved after the
   cached analysis makes that analysis stale; it is regenerated with the comment,
   and any pending question the old analysis asked about the activity is cleared.
-  Versioned with `ANALYSIS_PROMPT_VERSION`.
+  Versioned with `ANALYSIS_PROMPT_VERSION`. `buildActivityAnalysisPrompt`
+  resolves the activity's place in the stored week once, as one `WeekFit` value
+  (no week, inside the week with a session on its date, inside the week without
+  one, or outside the week), and renders each prompt section — plan context,
+  athlete context, summary, comment, aggregates, time series and closing
+  instruction — from it, so the week-fit paragraph and the closing instruction
+  cannot disagree. Each channel's pace or cadence rendering is resolved once per
+  prompt and reused for the aggregates and the whole table.
 - **Duration tolerance** (`DURATION_TOLERANCE_RULES`): both activity reviews and
   the plan prompts share one rule that a session within a few minutes of its
   planned duration matched the plan, whether a little short or a little long, so

@@ -16,6 +16,7 @@ import type {
   SeasonPlan,
   ThresholdSummary,
   WeekPlan,
+  WeekSession,
 } from "@killingit/shared";
 import type { DietPromptContext } from "../diet/summary.js";
 import { downsample } from "../lib/downsample.js";
@@ -214,72 +215,28 @@ export interface ChannelStats {
   count: number;
 }
 
-/** The pace rendering of a channel for a pace-based activity, when it has one. */
-function paceFormat(
+/** The one rendering of a channel for `activityType`. */
+function resolveChannel(
   channel: ChannelDefinition,
   activityType: string,
-): ChannelFormat | null {
-  return channel.key === "speed" &&
+): ChannelFormat {
+  if (
+    channel.key === "speed" &&
     activityUsesPace(activityType) &&
     channel.pace !== undefined
-    ? channel.pace(activityType)
-    : null;
-}
-
-/** The aggregate-statistics label for a channel and activity type. */
-function channelName(channel: ChannelDefinition, activityType: string): string {
-  return paceFormat(channel, activityType)?.name ?? channel.name;
-}
-
-/** The time-series column label, including the unit for the activity type. */
-function channelLabel(
-  channel: ChannelDefinition,
-  activityType: string,
-): string {
-  const pace = paceFormat(channel, activityType);
-  if (pace !== null) {
-    return pace.label;
+  ) {
+    return channel.pace(activityType);
   }
-  return channel.key === "cadence"
-    ? `cadence ${cadenceUnit(activityType)}`
-    : channel.label;
-}
-
-/** Renders a time-series value, using pace for pace-based activities. */
-function channelDisplay(
-  channel: ChannelDefinition,
-  value: number,
-  activityType: string,
-): string {
-  return (
-    paceFormat(channel, activityType)?.display(value) ?? channel.display(value)
-  );
-}
-
-/** An aggregate value with its unit, matching the activity's cadence unit. */
-function channelStat(
-  channel: ChannelDefinition,
-  value: number,
-  activityType: string,
-): string {
-  const pace = paceFormat(channel, activityType);
-  if (pace !== null) {
-    return pace.stat(value);
+  if (channel.key === "cadence") {
+    const unit = cadenceUnit(activityType);
+    return {
+      name: channel.name,
+      label: `cadence ${unit}`,
+      display: channel.display,
+      stat: (value) => `${Math.round(value)} ${unit}`,
+    };
   }
-  return channel.key === "cadence"
-    ? `${Math.round(value)} ${cadenceUnit(activityType)}`
-    : channel.stat(value);
-}
-
-/**
- * Picks at most `maxSamples` samples spread evenly across the activity,
- * always keeping the first and last recorded point.
- */
-function downsampleSamples(
-  samples: readonly ActivitySample[],
-  maxSamples = MAX_PROMPT_SAMPLES,
-): ActivitySample[] {
-  return downsample(samples, maxSamples);
+  return channel;
 }
 
 /** Min/avg/max for one numeric channel, or null when it was not recorded. */
@@ -322,156 +279,261 @@ export function buildActivityAnalysisMessages(
   );
 }
 
-/** Exposed for tests and for inspecting exactly what is sent to the model. */
+/**
+ * Where the activity falls relative to the athlete's stored week. Resolved once
+ * so the week-fit paragraph and the closing instruction read the same value.
+ */
+type WeekFit =
+  | { kind: "no-week" }
+  | {
+      kind: "planned";
+      week: WeekPlan;
+      activityDate: string;
+      session: WeekSession;
+    }
+  | { kind: "unplanned"; week: WeekPlan; activityDate: string }
+  | { kind: "outside-week"; week: WeekPlan; activityDate: string };
+
+/**
+ * The closing instruction when the workout falls inside the stored week. A date
+ * without a session keeps it: the system prompt asks the coach to match another
+ * session that week when the data fits one.
+ */
+const IN_WEEK_CLOSING =
+  "Write the brief coach summary. Include how well the workout fit its planned session and cite only the most useful evidence.";
+
+/** The closing instruction for each plan-fit state. */
+const CLOSING_INSTRUCTIONS: Record<WeekFit["kind"], string> = {
+  planned: IN_WEEK_CLOSING,
+  unplanned: IN_WEEK_CLOSING,
+  "outside-week":
+    "Write the brief coach summary. Do not compare the workout to the current week plan; cite only the most useful evidence.",
+  "no-week":
+    "Write the brief coach summary, citing only the most useful evidence.",
+};
+
+/** Resolves where the activity falls relative to the stored week. */
+function resolveWeekFit(
+  activityDate: string,
+  week: WeekPlan | undefined,
+): WeekFit {
+  if (week === undefined) {
+    return { kind: "no-week" };
+  }
+  if (!weekCovers(week, activityDate)) {
+    return { kind: "outside-week", week, activityDate };
+  }
+  const session = week.sessions.find(
+    (candidate) => candidate.date === activityDate,
+  );
+  return session === undefined
+    ? { kind: "unplanned", week, activityDate }
+    : { kind: "planned", week, activityDate, session };
+}
+
+/** The plan-fit paragraph for the activity's place in the stored week. */
+function formatWeekFit(weekFit: WeekFit): string[] {
+  switch (weekFit.kind) {
+    case "no-week":
+      return [
+        "No current week plan is available. Analyse the workout on its own merits and do not compare it to a planned session.",
+        "",
+      ];
+    case "planned":
+      return [
+        "Current week plan:",
+        formatWeekPlan(weekFit.week),
+        "",
+        `Planned session for ${weekFit.activityDate}: ${formatPlannedSession(weekFit.session)}. Match the workout to it.`,
+        "",
+      ];
+    case "unplanned":
+      return [
+        "Current week plan:",
+        formatWeekPlan(weekFit.week),
+        "",
+        `The workout happened on ${weekFit.activityDate}, within the current week, but no session was planned for that date. Match it to another session this week if its data fits one.`,
+        "",
+      ];
+    case "outside-week":
+      return [
+        `The workout happened on ${weekFit.activityDate}, outside the current week (${weekFit.week.startDate} to ${weekEnd(weekFit.week)}). No planned session is available for that date. Do not match it to a session in the current week and do not claim it did or did not follow a prescription; review the workout on its own merits, though you may relate it to the current block's focus.`,
+        "",
+      ];
+  }
+}
+
+/** Today's date plus the season, block and week context, including plan fit. */
+function formatPlanContext(
+  context: ActivityAnalysisContext,
+  weekFit: WeekFit,
+): string[] {
+  const lines = [`Today's date: ${context.today}`, ""];
+  if (context.season !== undefined && context.block !== undefined) {
+    lines.push(
+      "Current season plan:",
+      formatSeasonPlan(context.season),
+      "",
+      "Current block plan:",
+      formatBlockPlan(context.block),
+      "",
+    );
+  }
+  return [...lines, ...formatWeekFit(weekFit)];
+}
+
+/** The FTP, threshold, body, health and diet context for the activity date. */
+function formatAthleteContext(
+  context: ActivityAnalysisContext,
+  activityDate: string,
+): string[] {
+  const lines: string[] = [];
+  if (
+    context.currentFtpWatts !== undefined &&
+    context.currentFtpWatts !== null
+  ) {
+    lines.push(`Current FTP: ${context.currentFtpWatts} W`, "");
+  }
+  if (context.ftpHistory !== undefined && context.ftpHistory.length > 0) {
+    lines.push(...formatFtpContext(context.ftpHistory), "");
+  }
+  if (context.thresholds !== undefined && context.thresholds.length > 0) {
+    lines.push(...formatThresholdContext(context.thresholds), "");
+  }
+  if (context.bodyHistory !== undefined) {
+    lines.push(...formatBodyHistory(context.bodyHistory, activityDate));
+  }
+  if (context.dailyHealth !== undefined) {
+    lines.push(
+      ...formatDailyHealthContext(context.dailyHealth, activityDate, {
+        today: context.today,
+      }),
+      "",
+    );
+  }
+  if (context.diet !== undefined) {
+    lines.push(...formatDietContext(context.diet, context.today), "");
+  }
+  return lines;
+}
+
+/** The activity summary the coach reviews. */
+function formatSummary(activity: Activity): string[] {
+  return [
+    "Activity summary:",
+    ...formatActivitySummary(activity, activity.samples.length),
+  ];
+}
+
+/** The athlete's own description of the activity, when they wrote one. */
+function formatComment(comment: string | null | undefined): string[] {
+  if (comment === undefined || comment === null || comment.trim() === "") {
+    return [];
+  }
+  return [
+    "",
+    "Athlete comment on this activity (it describes this same activity, not an additional session):",
+    comment.trim(),
+  ];
+}
+
+/** Min, average and max for each recorded channel. */
+function formatAggregates(activity: Activity): string[] {
+  const lines: string[] = [];
+  for (const channel of CHANNELS) {
+    const stats = channelStats(activity.samples, channel.key);
+    if (stats === null) {
+      continue;
+    }
+    const format = resolveChannel(channel, activity.type);
+    lines.push(
+      `- ${format.name}: avg ${format.stat(stats.avg)}, min ${format.stat(stats.min)}, max ${format.stat(stats.max)}`,
+    );
+  }
+  return lines.length > 0 ? ["", "Aggregate values:", ...lines] : [];
+}
+
+/** The elapsed time and channel table for the samples sent to the model. */
+function formatTimeSeries(
+  activity: Activity,
+  shown: readonly ActivitySample[],
+): string[] {
+  if (shown.length === 0) {
+    return [
+      "",
+      "Time series:",
+      "No time-series samples were recorded for this activity.",
+    ];
+  }
+  const start = Date.parse(shown[0]?.timestamp ?? activity.startDate);
+  const present = CHANNELS.filter((channel) =>
+    shown.some((sample) => Number.isFinite(sample[channel.key])),
+  ).map((channel) => ({
+    key: channel.key,
+    format: resolveChannel(channel, activity.type),
+  }));
+  const lines = [
+    "",
+    "Time series:",
+    ["elapsed", ...present.map((column) => column.format.label)].join(" | "),
+  ];
+
+  for (const sample of shown) {
+    const elapsed = Math.max(0, (Date.parse(sample.timestamp) - start) / 1000);
+    const values = present.map(({ key, format }) => {
+      const value = sample[key];
+      return Number.isFinite(value) ? format.display(value as number) : "–";
+    });
+    lines.push([formatDuration(elapsed), ...values].join(" | "));
+  }
+
+  if (activity.samples.length > shown.length) {
+    lines.push(
+      `(${shown.length} of ${activity.samples.length} samples shown, evenly spaced.)`,
+    );
+  }
+  return lines;
+}
+
+/** The closing instruction, with the occasional extra praise above it. */
+function formatClosing(weekFit: WeekFit, random: () => number): string[] {
+  return [
+    "",
+    ...(rollExtraPraise(random) ? [ACTIVITY_EXTRA_PRAISE_RULES, ""] : []),
+    CLOSING_INSTRUCTIONS[weekFit.kind],
+    RETURN_JSON_FROM_SYSTEM_PROMPT,
+  ];
+}
+
+/**
+ * Builds the user message that asks the coach to review one activity. It renders
+ * the plan fit, the athlete context, the summary, the athlete's comment, the
+ * aggregate channel stats and a downsampled time-series table so the model can
+ * inspect how the workout unfolded.
+ */
 function buildActivityAnalysisPrompt(
   activity: Activity,
   context?: ActivityAnalysisContext,
   comment?: string | null,
   random: () => number = Math.random,
 ): string {
-  const shown = downsampleSamples(activity.samples);
   const activityDate = activityLocalDate(activity, context?.timezone);
-  const inWeek =
-    context?.week !== undefined
-      ? weekCovers(context.week, activityDate)
-      : false;
-  const plannedSession =
-    inWeek && context?.week !== undefined
-      ? context.week.sessions.find((session) => session.date === activityDate)
-      : undefined;
-  const lines: string[] = [];
+  const weekFit = resolveWeekFit(activityDate, context?.week);
+  const shown = downsample(activity.samples, MAX_PROMPT_SAMPLES);
+  const contextLines =
+    context !== undefined
+      ? [
+          ...formatPlanContext(context, weekFit),
+          ...formatAthleteContext(context, activityDate),
+        ]
+      : [];
 
-  if (context) {
-    lines.push(`Today's date: ${context.today}`, "");
-    if (context.season !== undefined && context.block !== undefined) {
-      lines.push(
-        "Current season plan:",
-        formatSeasonPlan(context.season),
-        "",
-        "Current block plan:",
-        formatBlockPlan(context.block),
-        "",
-      );
-    }
-    if (context.week !== undefined) {
-      if (inWeek) {
-        lines.push("Current week plan:", formatWeekPlan(context.week), "");
-        lines.push(
-          plannedSession !== undefined
-            ? `Planned session for ${activityDate}: ${formatPlannedSession(plannedSession)}. Match the workout to it.`
-            : `The workout happened on ${activityDate}, within the current week, but no session was planned for that date. Match it to another session this week if its data fits one.`,
-          "",
-        );
-      } else {
-        lines.push(
-          `The workout happened on ${activityDate}, outside the current week (${context.week.startDate} to ${weekEnd(context.week)}). No planned session is available for that date. Do not match it to a session in the current week and do not claim it did or did not follow a prescription; review the workout on its own merits, though you may relate it to the current block's focus.`,
-          "",
-        );
-      }
-    } else {
-      lines.push(
-        "No current week plan is available. Analyse the workout on its own merits and do not compare it to a planned session.",
-        "",
-      );
-    }
-    if (
-      context.currentFtpWatts !== undefined &&
-      context.currentFtpWatts !== null
-    ) {
-      lines.push(`Current FTP: ${context.currentFtpWatts} W`, "");
-    }
-    if (context.ftpHistory !== undefined && context.ftpHistory.length > 0) {
-      lines.push(...formatFtpContext(context.ftpHistory), "");
-    }
-    if (context.thresholds !== undefined && context.thresholds.length > 0) {
-      lines.push(...formatThresholdContext(context.thresholds), "");
-    }
-    if (context.bodyHistory !== undefined) {
-      lines.push(...formatBodyHistory(context.bodyHistory, activityDate));
-    }
-    if (context.dailyHealth !== undefined) {
-      lines.push(
-        ...formatDailyHealthContext(context.dailyHealth, activityDate, {
-          today: context.today,
-        }),
-        "",
-      );
-    }
-    if (context.diet !== undefined) {
-      lines.push(...formatDietContext(context.diet, context.today), "");
-    }
-  }
-
-  lines.push(
-    "Activity summary:",
-    ...formatActivitySummary(activity, activity.samples.length),
-  );
-
-  if (comment !== undefined && comment !== null && comment.trim() !== "") {
-    lines.push(
-      "",
-      "Athlete comment on this activity (it describes this same activity, not an additional session):",
-      comment.trim(),
-    );
-  }
-
-  const statsLines: string[] = [];
-  for (const channel of CHANNELS) {
-    const stats = channelStats(activity.samples, channel.key);
-    if (stats) {
-      statsLines.push(
-        `- ${channelName(channel, activity.type)}: avg ${channelStat(channel, stats.avg, activity.type)}, min ${channelStat(channel, stats.min, activity.type)}, max ${channelStat(channel, stats.max, activity.type)}`,
-      );
-    }
-  }
-  if (statsLines.length > 0) {
-    lines.push("", "Aggregate values:", ...statsLines);
-  }
-
-  lines.push("", "Time series:");
-  if (shown.length === 0) {
-    lines.push("No time-series samples were recorded for this activity.");
-  } else {
-    const present = CHANNELS.filter((channel) =>
-      shown.some((sample) => Number.isFinite(sample[channel.key])),
-    );
-    const start = Date.parse(shown[0]?.timestamp ?? activity.startDate);
-    const header = [
-      "elapsed",
-      ...present.map((channel) => channelLabel(channel, activity.type)),
-    ].join(" | ");
-    lines.push(header);
-
-    for (const sample of shown) {
-      const elapsed = Math.max(
-        0,
-        (Date.parse(sample.timestamp) - start) / 1000,
-      );
-      const values = present.map((channel) => {
-        const value = sample[channel.key];
-        return Number.isFinite(value)
-          ? channelDisplay(channel, value as number, activity.type)
-          : "–";
-      });
-      lines.push([formatDuration(elapsed), ...values].join(" | "));
-    }
-
-    if (activity.samples.length > shown.length) {
-      lines.push(
-        `(${shown.length} of ${activity.samples.length} samples shown, evenly spaced.)`,
-      );
-    }
-  }
-
-  lines.push(
-    "",
-    ...(rollExtraPraise(random) ? [ACTIVITY_EXTRA_PRAISE_RULES, ""] : []),
-    context?.week !== undefined
-      ? inWeek
-        ? "Write the brief coach summary. Include how well the workout fit its planned session and cite only the most useful evidence."
-        : "Write the brief coach summary. Do not compare the workout to the current week plan; cite only the most useful evidence."
-      : "Write the brief coach summary, citing only the most useful evidence.",
-    RETURN_JSON_FROM_SYSTEM_PROMPT,
-  );
-  return lines.join("\n");
+  return [
+    ...contextLines,
+    ...formatSummary(activity),
+    ...formatComment(comment),
+    ...formatAggregates(activity),
+    ...formatTimeSeries(activity, shown),
+    ...formatClosing(weekFit, random),
+  ].join("\n");
 }
