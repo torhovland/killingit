@@ -1,8 +1,11 @@
 import type {
   AnalyzedActivity,
   AthleteEvent,
+  BlockPlan,
   CoachPlan,
   DailyHealthPoint,
+  ReviewKind,
+  WeekPlan,
 } from "@killingit/shared";
 import type { DietPromptContext } from "../diet/summary.js";
 import {
@@ -14,7 +17,10 @@ import type {
   PeriodReviewContext,
   PlanContextInput,
 } from "../llm/planContext.js";
-import { generatePeriodReview } from "../llm/periodReview.js";
+import {
+  generatePeriodReview,
+  type PeriodReviewCredentials,
+} from "../llm/periodReview.js";
 import { PERIOD_REVIEW_PROMPT_VERSION } from "../llm/periodReviewPrompt.js";
 import type { LlmProvider } from "../llm/openrouter.js";
 import type { AthleteAnswerContext } from "../llm/profileContext.js";
@@ -49,6 +55,79 @@ export interface CapturePeriodReviewsInput {
   load?: typeof loadPeriodReview;
 }
 
+/** The detailed plan level the review prompt renders for a completed period. */
+type PeriodPlanSlice = { week: WeekPlan } | { block: BlockPlan };
+
+interface CompletedPeriod {
+  kind: ReviewKind;
+  startDate: string;
+  endDate: string;
+  title: string;
+  /**
+   * Built inside the guarded call so a failure while shaping the plan slice is
+   * handled like the rest of the period.
+   */
+  planSlice: () => PeriodPlanSlice;
+}
+
+/**
+ * Generates and stores one completed period's review. Returns `null` when the
+ * review already exists or its generation fails, so one period never stops the
+ * plan or the other period's review.
+ */
+async function capturePeriodReview(
+  input: CapturePeriodReviewsInput,
+  context: PlanContextInput,
+  credentials: PeriodReviewCredentials,
+  period: CompletedPeriod,
+): Promise<PeriodReviewContext | null> {
+  try {
+    const existing = await (input.load ?? loadPeriodReview)(
+      input.userId,
+      period.kind,
+      period.startDate,
+    );
+    if (existing !== null) {
+      return null;
+    }
+    const text = await generatePeriodReview(input.provider, credentials, {
+      context,
+      today: input.today,
+      kind: period.kind,
+      plan: input.plan,
+      startDate: period.startDate,
+      endDate: period.endDate,
+      title: period.title,
+      ...period.planSlice(),
+    });
+    const summary = text.trim();
+    await (input.save ?? savePeriodReview)({
+      userId: input.userId,
+      kind: period.kind,
+      startDate: period.startDate,
+      endDate: period.endDate,
+      title: period.title,
+      summary,
+      model: input.model,
+      promptVersion: PERIOD_REVIEW_PROMPT_VERSION,
+    });
+    return {
+      kind: period.kind,
+      title: period.title,
+      startDate: period.startDate,
+      endDate: period.endDate,
+      summary,
+      comment: null,
+      reply: null,
+      updatedAt: new Date().toISOString(),
+    };
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    console.error(`[period-review] ${period.kind} summary failed: ${detail}`);
+    return null;
+  }
+}
+
 /**
  * Summarises the stored plan's week and block once they have ended. The review
  * is generated before the cascade replaces them, so the completed period is not
@@ -58,8 +137,6 @@ export async function captureCompletedPeriodReviews(
   input: CapturePeriodReviewsInput,
 ): Promise<PeriodReviewContext[]> {
   const captured: PeriodReviewContext[] = [];
-  const save = input.save ?? savePeriodReview;
-  const load = input.load ?? loadPeriodReview;
   const context: PlanContextInput = {
     athleteAnswers: input.athleteAnswers,
     recentActivities: input.activities.map(toCoachPlanActivity),
@@ -74,118 +151,46 @@ export async function captureCompletedPeriodReviews(
     ...(input.events !== undefined ? { events: input.events } : {}),
     ...(input.diet !== undefined ? { diet: input.diet } : {}),
   };
+  const credentials: PeriodReviewCredentials = {
+    apiKey: input.apiKey,
+    model: input.model,
+    ...(input.signal !== undefined ? { signal: input.signal } : {}),
+  };
 
   const weekEnd = addDays(input.plan.week.startDate, 6);
   if (weekEnd < input.today) {
-    try {
-      const existing = await load(
-        input.userId,
-        "week",
-        input.plan.week.startDate,
-      );
-      if (existing === null) {
-        const text = await generatePeriodReview(
-          input.provider,
-          {
-            apiKey: input.apiKey,
-            model: input.model,
-            ...(input.signal !== undefined ? { signal: input.signal } : {}),
-          },
-          {
-            context,
-            today: input.today,
-            kind: "week",
-            plan: input.plan,
-            startDate: input.plan.week.startDate,
-            endDate: weekEnd,
-            title: `Week starting ${input.plan.week.startDate}`,
-            week: applyCompletedDays(
-              input.plan.week,
-              input.activities,
-              input.today,
-              input.timezone ?? null,
-              input.manualActivities,
-            ),
-          },
-        );
-        await save({
-          userId: input.userId,
-          kind: "week",
-          startDate: input.plan.week.startDate,
-          endDate: weekEnd,
-          title: `Week starting ${input.plan.week.startDate}`,
-          summary: text.trim(),
-          model: input.model,
-          promptVersion: PERIOD_REVIEW_PROMPT_VERSION,
-        });
-        captured.push({
-          kind: "week",
-          title: `Week starting ${input.plan.week.startDate}`,
-          startDate: input.plan.week.startDate,
-          endDate: weekEnd,
-          summary: text.trim(),
-          comment: null,
-          reply: null,
-          updatedAt: new Date().toISOString(),
-        });
-      }
-    } catch (err) {
-      const detail = err instanceof Error ? err.message : String(err);
-      console.error(`[period-review] week summary failed: ${detail}`);
+    const review = await capturePeriodReview(input, context, credentials, {
+      kind: "week",
+      startDate: input.plan.week.startDate,
+      endDate: weekEnd,
+      title: `Week starting ${input.plan.week.startDate}`,
+      planSlice: () => ({
+        week: applyCompletedDays(
+          input.plan.week,
+          input.activities,
+          input.today,
+          input.timezone ?? null,
+          input.manualActivities,
+        ),
+      }),
+    });
+    if (review !== null) {
+      captured.push(review);
     }
   }
 
   if (input.plan.block.endDate < input.today) {
-    try {
-      const existing = await load(
-        input.userId,
-        "block",
-        input.plan.block.startDate,
-      );
-      if (existing === null) {
-        const text = await generatePeriodReview(
-          input.provider,
-          {
-            apiKey: input.apiKey,
-            model: input.model,
-            ...(input.signal !== undefined ? { signal: input.signal } : {}),
-          },
-          {
-            context,
-            today: input.today,
-            kind: "block",
-            plan: input.plan,
-            startDate: input.plan.block.startDate,
-            endDate: input.plan.block.endDate,
-            title: input.plan.block.name,
-            block: input.plan.block,
-          },
-        );
-        await save({
-          userId: input.userId,
-          kind: "block",
-          startDate: input.plan.block.startDate,
-          endDate: input.plan.block.endDate,
-          title: input.plan.block.name,
-          summary: text.trim(),
-          model: input.model,
-          promptVersion: PERIOD_REVIEW_PROMPT_VERSION,
-        });
-        captured.push({
-          kind: "block",
-          title: input.plan.block.name,
-          startDate: input.plan.block.startDate,
-          endDate: input.plan.block.endDate,
-          summary: text.trim(),
-          comment: null,
-          reply: null,
-          updatedAt: new Date().toISOString(),
-        });
-      }
-    } catch (err) {
-      const detail = err instanceof Error ? err.message : String(err);
-      console.error(`[period-review] block summary failed: ${detail}`);
+    const review = await capturePeriodReview(input, context, credentials, {
+      kind: "block",
+      startDate: input.plan.block.startDate,
+      endDate: input.plan.block.endDate,
+      title: input.plan.block.name,
+      planSlice: () => ({ block: input.plan.block }),
+    });
+    if (review !== null) {
+      captured.push(review);
     }
   }
+
   return captured;
 }

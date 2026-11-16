@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, spyOn } from "bun:test";
 import type { LlmCompletionRequest, LlmProvider } from "../llm/openrouter.js";
 import {
   makeBlock,
@@ -155,5 +155,35 @@ describe("captureCompletedPeriodReviews", () => {
 
     expect(provider.requests).toHaveLength(0);
     expect(saved).toHaveLength(0);
+  });
+
+  it("still captures the block when the week review fails", async () => {
+    const log = spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const provider = new FakeProvider();
+      const saved: Array<{ kind: string }> = [];
+      const captured = await captureCompletedPeriodReviews(
+        input({
+          provider,
+          load: (_userId: number, kind: string) =>
+            kind === "week"
+              ? Promise.reject(new Error("week load failed"))
+              : Promise.resolve(null),
+          save: (entry: { kind: string }) => {
+            saved.push(entry);
+            return Promise.resolve();
+          },
+        }),
+      );
+
+      expect(captured.map((entry) => entry.kind)).toEqual(["block"]);
+      expect(saved.map((entry) => entry.kind)).toEqual(["block"]);
+      expect(provider.requests).toHaveLength(1);
+      expect(log).toHaveBeenCalledWith(
+        "[period-review] week summary failed: week load failed",
+      );
+    } finally {
+      log.mockRestore();
+    }
   });
 });
