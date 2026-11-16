@@ -357,6 +357,13 @@ const ENUM_RULES = `For every type field use either "workout" or "rest"; for eve
 export const ACTIVITY_TYPE_RULE = `The activity type recorded by the device is only a label and may be wrong: do not trust it. If the heart-rate data looks erratic — sudden spikes or drops that do not fit the steady effort the summary suggests — this may be a strength-training workout even when the device labelled it as running, cycling, or another endurance activity. When the athlete's comment on this activity explains what the session actually was, treat the comment as authoritative over the device label and do not ask them to describe it again.`;
 
 /**
+ * How the activity review matches a workout to the planned session for its
+ * date. The user message names the supplied week and the matched session; this
+ * owns the policy for a week the review can and cannot compare against.
+ */
+export const ACTIVITY_WEEK_MATCH_RULES = `When the athlete's current week plan is provided and the workout happened within that week, match the workout to the planned session for its date, or another session that week if the data fits one, then make how well it fit the plan part of the same summary. If it followed the plan reasonably well, say so warmly and encouragingly. If it did not, point out clearly what could be improved without being harsh. When the workout happened outside the supplied week, do not match it to a session in the current week and do not claim it did or did not follow a prescription; the athlete may have older activities that have not been analysed yet, so analyse the workout on its own merits, though you may relate it to the current block's focus.`;
+
+/**
  * How the coach uses recorded strength sets in the activity analysis, so it
  * does not invent exercises or loads.
  */
@@ -701,4 +708,22 @@ export function weekCoverageRule(startDate: string, subject = "week"): string {
  */
 export function weekDatesRangeRule(startDate: string): string {
   return `The week must contain ${SEVEN_SESSIONS_CLAUSE} dated ${startDate} through ${addDays(startDate, 6)}`;
+}
+
+/**
+ * The schema and repair message that asks for the diet goal when the coach left
+ * it out. The validation issue and the repair turn read the same sentence, so
+ * the goal fields named in it cannot drift apart.
+ */
+export function missingDietGoalMessage(): string {
+  return `Missing the diet goal. Return ${DIET_REPAIR_HINT}.`;
+}
+
+/**
+ * The schema and repair message that asks for a missing progress target.
+ * `subject` names the period it is missing from, for example "the current
+ * week", so one wording serves every level.
+ */
+export function missingDietProgressMessage(subject: string): string {
+  return `Missing the diet progress target for ${subject}. Return ${DIET_PROGRESS_REPAIR_HINT}.`;
 }
