@@ -205,8 +205,11 @@ flight as failed with the stale-run message (see `docs/specs/llm-call-log.md`).
 
 Both routes are behind `requireAuth`.
 
-- `GET /api/coaching/plan?today=YYYY-MM-DD`
-  → `{ plan, generatedAt, generation, stale, pending }`.
+- `GET /api/coaching/plan?today=YYYY-MM-DD&includeTomorrow=true|false`
+  → `{ plan, generatedAt, generation, stale, pending }`. The optional
+  `includeTomorrow` flag defaults to false and checks tomorrow's pending
+  fields; the dashboard sets it after 18:00. Any value other than `true` or
+  `false` is a validation failure.
 - `POST /api/coaching/plan/generate` with
   `{ today, timezone?, mode?, force?, includeTomorrow? }`
   → the same response body after generation completes; `202` if a generation is

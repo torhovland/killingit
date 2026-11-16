@@ -12,7 +12,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { getUser } from "../auth/middleware.js";
 import { notFound } from "../http/errors.js";
-import { todayQuerySchema } from "../http/query.js";
+import { booleanQuerySchema, todayQuerySchema } from "../http/query.js";
 import {
   planTriggerDependencies,
   type ResolvedAppDependencies,
@@ -37,6 +37,11 @@ import { buildZwoWorkout, zwoFilename } from "../workouts/zwo.js";
 
 /** The date of the workout file the athlete downloads. */
 const workoutDateParamSchema = z.object({ date: planDateSchema });
+
+/** The plan read's query: the athlete's date and an optional tomorrow flag. */
+const planQuerySchema = todayQuerySchema.extend({
+  includeTomorrow: booleanQuerySchema,
+});
 
 /** The parts of a session needed to build a trainer workout file. */
 interface ExportableBikeWorkout {
@@ -232,10 +237,9 @@ export function createPlanRoute(deps: ResolvedAppDependencies): Hono {
   }
 
   return new Hono()
-    .get("/", zValidator("query", todayQuerySchema), async (c) => {
+    .get("/", zValidator("query", planQuerySchema), async (c) => {
       const user = getUser(c);
-      const { today } = c.req.valid("query");
-      const includeTomorrow = c.req.query("includeTomorrow") === "true";
+      const { today, includeTomorrow } = c.req.valid("query");
       return c.json(
         await buildResponse({
           userId: user.id,

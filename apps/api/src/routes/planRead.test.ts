@@ -69,6 +69,25 @@ describe("coach plan route", () => {
     await expectValidationFailure(res);
   });
 
+  it("rejects an includeTomorrow that is not true or false", async () => {
+    const res = await makeApp({}).fetch(
+      authenticatedRequest(
+        "/api/coaching/plan?today=2026-10-21&includeTomorrow=yes",
+      ),
+    );
+    await expectValidationFailure(res);
+  });
+
+  it("accepts the explicit includeTomorrow the dashboard sends", async () => {
+    const res = await makeApp({}).fetch(
+      authenticatedRequest(
+        "/api/coaching/plan?today=2026-10-21&includeTomorrow=false",
+      ),
+    );
+
+    expect(res.status).toBe(200);
+  });
+
   it("returns a stored plan that covers today", async () => {
     const plan = makePlan();
     const planStore = new MemoryPlanStore({

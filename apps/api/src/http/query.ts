@@ -17,6 +17,16 @@ export const todayQuerySchema = z.object({
  */
 export const timezoneSchema = z.string().min(1).max(100).optional();
 
+/**
+ * A query flag sent as the literal `"true"` or `"false"`. Query values arrive as
+ * strings, so the schema checks the only two forms the app sends and coerces an
+ * absent flag to false.
+ */
+export const booleanQuerySchema = z
+  .enum(["true", "false"])
+  .default("false")
+  .transform((value) => value === "true");
+
 /** A day boundary or a mutation: the athlete's local date and optional zone. */
 export const todayWithTimezoneQuerySchema = todayQuerySchema.extend({
   timezone: timezoneSchema,
