@@ -228,7 +228,7 @@ export async function loadStoredActivityFeed(
   return {
     model: null,
     activities: stored.map((activity) =>
-      withCoachWork(
+      withStoredCoachFields(
         activity,
         feedback.get(String(activity.id)),
         analyses.get(activity.id),
@@ -314,7 +314,7 @@ export async function saveStoredActivities(
 }
 
 /** Applies the coach's analyses and the athlete's feedback to one activity. */
-function withCoachWork(
+function withStoredCoachFields(
   activity: AnalyzedActivity,
   feedback: ActivityFeedback | undefined,
   analysis: StoredAnalysis | undefined,
