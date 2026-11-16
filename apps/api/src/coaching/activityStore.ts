@@ -1,14 +1,13 @@
 import {
   type Activity,
-  type ActivityLap,
   type ActivitySample,
   type ActivitySummary,
   type AnalyzedActivitiesResponse,
   type AnalyzedActivity,
   type RoutePoint,
-  type StrengthSet,
 } from "@killingit/shared";
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, getTableColumns, inArray, sql } from "drizzle-orm";
+import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { db } from "../db/index.js";
 import { activities, type NewActivityRow } from "../db/schema.js";
 import { downsample } from "../lib/downsample.js";
@@ -79,27 +78,54 @@ const summaryColumns = {
   laps: activities.laps,
 };
 
+/** Adds the GPS route to the summary columns for a route preview. */
+const routePreviewColumns = { ...summaryColumns, route: activities.route };
+
+/** Adds the sample preview and route to the summary columns for a full preview. */
+const samplePreviewColumns = {
+  ...summaryColumns,
+  samples: activities.samples,
+  route: activities.route,
+};
+
+/** The three distinct result shapes a stored-activity read can select. */
+type StoredActivitySelection =
+  | typeof summaryColumns
+  | typeof routePreviewColumns
+  | typeof samplePreviewColumns;
+
+/** The columns the insert owns: the upsert keys and the timestamps it sets. */
+const upsertInsertColumns = new Set<AnyPgColumn>([
+  activities.id,
+  activities.userId,
+  activities.activityId,
+  activities.createdAt,
+  activities.updatedAt,
+]);
+
+/**
+ * The update side of an activity upsert: every other column takes the value
+ * from the row being inserted. Deriving it from the table means a renamed or
+ * added column cannot silently fall out of a re-sync.
+ */
+const activityConflictUpdates = Object.fromEntries(
+  Object.entries(getTableColumns(activities))
+    .filter(([, column]) => !upsertInsertColumns.has(column))
+    .map(([key, column]) => [
+      key,
+      sql`excluded.${sql.identifier(column.name)}`,
+    ]),
+);
+
 /** One selected row before it is mapped to the shared activity shape. */
-interface ActivityRowData {
-  activityId: number;
-  name: string;
-  type: string;
-  startDate: Date;
-  distance: number;
-  movingTime: number;
-  elapsedTime: number;
-  totalElevationGain: number;
-  averagePower: number | null;
-  normalizedPower: number | null;
-  averageHeartRate: number | null;
-  averageSpeed: number | null;
-  maxSpeed: number | null;
-  sampleCount: number;
-  strengthSets: StrengthSet[] | null;
-  laps: ActivityLap[] | null;
+type ActivityRowData = Awaited<
+  ReturnType<typeof selectStoredActivities>
+>[number] & {
+  /** The bounded sample preview, selected only by the samples scope. */
   samples?: ActivitySample[];
+  /** The GPS route, selected by the route and samples scopes. */
   route?: RoutePoint[] | null;
-}
+};
 
 /**
  * Reduces a full synced activity to what the app stores: the summary, a bounded
@@ -174,6 +200,18 @@ function storedStructureOf(
   return channels;
 }
 
+/** Selects the account's activities, newest first, with the chosen preview columns. */
+function selectStoredActivities(
+  userId: number,
+  selection: StoredActivitySelection,
+) {
+  return db
+    .select(selection)
+    .from(activities)
+    .where(eq(activities.userId, userId))
+    .orderBy(desc(activities.startDate), desc(activities.activityId));
+}
+
 /** Loads the account's stored activities, newest first, with the chosen preview columns. */
 async function loadStoredActivities(
   userId: number,
@@ -181,26 +219,10 @@ async function loadStoredActivities(
 ): Promise<AnalyzedActivity[]> {
   const rows =
     scope === "samples"
-      ? await db
-          .select({
-            ...summaryColumns,
-            samples: activities.samples,
-            route: activities.route,
-          })
-          .from(activities)
-          .where(eq(activities.userId, userId))
-          .orderBy(desc(activities.startDate), desc(activities.activityId))
+      ? await selectStoredActivities(userId, samplePreviewColumns)
       : scope === "route"
-        ? await db
-            .select({ ...summaryColumns, route: activities.route })
-            .from(activities)
-            .where(eq(activities.userId, userId))
-            .orderBy(desc(activities.startDate), desc(activities.activityId))
-        : await db
-            .select(summaryColumns)
-            .from(activities)
-            .where(eq(activities.userId, userId))
-            .orderBy(desc(activities.startDate), desc(activities.activityId));
+        ? await selectStoredActivities(userId, routePreviewColumns)
+        : await selectStoredActivities(userId, summaryColumns);
 
   return rows.map(toStoredActivity);
 }
@@ -238,11 +260,6 @@ export async function loadStoredActivityFeed(
   };
 }
 
-/** The inserted row's value for a column name, for the upsert's update set. */
-function excluded(column: string): ReturnType<typeof sql.raw> {
-  return sql.raw(`excluded."${column}"`);
-}
-
 /**
  * Stores the freshly synced activities and removes the ones the athlete
  * deleted. Only the sync window is written, so a sync no longer rewrites every
@@ -278,26 +295,7 @@ export async function saveStoredActivities(
         .values(rows)
         .onConflictDoUpdate({
           target: [activities.userId, activities.activityId],
-          set: {
-            name: excluded("name"),
-            type: excluded("type"),
-            startDate: excluded("start_date"),
-            distance: excluded("distance"),
-            movingTime: excluded("moving_time"),
-            elapsedTime: excluded("elapsed_time"),
-            totalElevationGain: excluded("total_elevation_gain"),
-            averagePower: excluded("average_power"),
-            normalizedPower: excluded("normalized_power"),
-            averageHeartRate: excluded("average_heart_rate"),
-            averageSpeed: excluded("average_speed"),
-            maxSpeed: excluded("max_speed"),
-            sampleCount: excluded("sample_count"),
-            strengthSets: excluded("strength_sets"),
-            laps: excluded("laps"),
-            samples: excluded("samples"),
-            route: excluded("route"),
-            updatedAt: now,
-          },
+          set: { ...activityConflictUpdates, updatedAt: now },
         });
     }
     if (deletedActivityIds.length > 0) {
