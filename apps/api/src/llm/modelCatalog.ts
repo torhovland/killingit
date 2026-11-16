@@ -11,6 +11,7 @@ import {
 } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { llmModels, llmModelSync } from "../db/schema.js";
+import { errorMessage } from "../lib/errorMessage.js";
 import { estimateBenchmarkCost, priceGrade } from "./modelCatalogPricing.js";
 import { catalogUpdateFor } from "./modelCatalogUpdate.js";
 import { createOpenRouterProvider } from "./openrouter.js";
@@ -400,7 +401,7 @@ async function finaliseCatalogRefresh(
 
 /** Records a failed refresh's message on the sync row and returns it. */
 async function failCatalogRefresh(err: unknown): Promise<CatalogRefreshResult> {
-  const message = err instanceof Error ? err.message : String(err);
+  const message = errorMessage(err);
   await db
     .update(llmModelSync)
     .set({ lastError: message, updatedAt: new Date() })

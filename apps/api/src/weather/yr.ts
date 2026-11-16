@@ -3,6 +3,7 @@ import type {
   DailyWeather,
   WeatherIcon,
 } from "@killingit/shared";
+import { moreSevereIcon } from "./icons.js";
 import type { FetchLike } from "./openMeteo.js";
 import { isValidTimeZone } from "./timeZone.js";
 
@@ -32,14 +33,6 @@ const REQUEST_TIMEOUT_MS = 8_000;
 const YR_USER_AGENT =
   "killingit/0.1 (+https://github.com/torhovland/killingit)";
 
-const ICON_SEVERITY: Record<WeatherIcon, number> = {
-  sun: 0,
-  partly_cloudy: 1,
-  very_cloudy: 2,
-  rain: 3,
-  snow: 4,
-};
-
 /**
  * Maps a MET Norway symbol code to one of the five display icons. Symbol codes
  * carry a time-of-day suffix (`_day`, `_night`, `_polartwilight`), so the
@@ -63,10 +56,6 @@ function weatherIconForYrSymbol(symbol: string): WeatherIcon {
     return "rain";
   }
   return "very_cloudy";
-}
-
-function moreSevereIcon(current: WeatherIcon, next: WeatherIcon): WeatherIcon {
-  return ICON_SEVERITY[current] >= ICON_SEVERITY[next] ? current : next;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

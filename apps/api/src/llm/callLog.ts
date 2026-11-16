@@ -1,4 +1,5 @@
 import type { LlmCallMessage, LlmCallMetadata } from "@killingit/shared";
+import { errorMessage } from "../lib/errorMessage.js";
 import {
   isLlmAbortError,
   LlmTokenLimitError,
@@ -175,8 +176,4 @@ function requestMetadata(request: LlmCompletionRequest): LlmCallMetadata {
 
 function elapsedMs(startedAt: number, finishedAt: number): number {
   return Math.max(0, Math.round(finishedAt - startedAt));
-}
-
-function errorMessage(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
 }

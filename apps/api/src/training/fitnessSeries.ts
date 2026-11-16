@@ -1,0 +1,515 @@
+import {
+  activityLocalDate,
+  addDays,
+  DAILY_HEALTH_METRIC_KEYS,
+  formatActivityType,
+  interpolateMetricSeries,
+  startOfWeek,
+  type AnalyzedActivity,
+  type AthleteThreshold,
+  type BlockWeekSummary,
+  type CoachPlan,
+  type DailyHealthPoint,
+  type FitnessDayActivity,
+  type FitnessDayPlan,
+  type FitnessHistoryDay,
+  type FitnessHistoryResponse,
+  type FitnessRange,
+  type LatestGarmin,
+  type MetricPoint,
+  type ThresholdHistorySeries,
+  type WeekPlan,
+} from "@killingit/shared";
+import type { ManualActivityContext } from "../llm/activityContext.js";
+import { withoutInProgressDailyHealth } from "../metrics/dailyHealth.js";
+import { planSessions } from "../plans/periods.js";
+import {
+  activityDayTss,
+  groupActivitiesByDate,
+  mergeTrainingTss,
+} from "./activityLoad.js";
+import { planDietTargets } from "./dietTargets.js";
+import { CTL_DAYS, dailyTrainingLoad } from "./stress.js";
+import {
+  buildThresholdSeries,
+  buildThresholdTimelines,
+  FTP_THRESHOLD,
+  ftpTimeline,
+  ftpWattsAt,
+  isFtpThreshold,
+  type ThresholdTimeline,
+} from "./thresholds.js";
+
+/** How many days of history each fixed range covers, today included. */
+const FITNESS_RANGE_DAYS: Record<Exclude<FitnessRange, "all">, number> = {
+  week: 7,
+  month: 30,
+  quarter: 90,
+  year: 365,
+};
+
+export interface FitnessHistoryInput {
+  /** The athlete's current date; the window ends here unless the plan runs on. */
+  today: string;
+  /**
+   * The athlete's IANA time zone, so an activity is charted on its local day.
+   * A missing zone reads as UTC; see `docs/specs/activity-local-date.md`.
+   */
+  timeZone: string | null | undefined;
+  /** How far back to look. `all` starts at the first recorded activity. */
+  range: FitnessRange;
+  activities: readonly AnalyzedActivity[];
+  /** Every stored threshold timeline, used to score each sport separately. */
+  thresholdTimelines?: readonly ThresholdTimeline[];
+  plan?: CoachPlan | undefined;
+  /** TSS the stored plan contributes for the days it covers. */
+  planTssByDate: ReadonlyMap<string, number>;
+  /** Summed coach estimate for each day with manual entries. */
+  manualTssByDate: ReadonlyMap<string, number>;
+  /** The athlete's manual entries, listed on the day they were logged. */
+  manualActivities?: readonly ManualActivityContext[] | undefined;
+  /** Stored body-composition measurements, used for the body chart. */
+  bodyPoints?: {
+    weight: readonly MetricPoint[];
+    bodyFat: readonly MetricPoint[];
+  };
+  /** Every stored threshold point, used for one line per measure. */
+  thresholdPoints?: readonly AthleteThreshold[];
+  /** The stored daily health points, used for the latest panel and charts. */
+  dailyHealthPoints?: readonly DailyHealthPoint[];
+  /** Logged and needed calories by date, used for the nutrition chart. */
+  nutrition?: {
+    consumed: ReadonlyMap<string, number>;
+    needed: ReadonlyMap<string, number>;
+  };
+  /** Whether the athlete wants diet advice, so the body chart may show targets. */
+  dietAdvice?: boolean;
+}
+
+/**
+ * Builds the Fitness page's daily series. TSS is resolved exactly as on the
+ * Activities page (measured power, then the coach's estimate, then a manual
+ * entry, then the duration fallback), and the window is not extended into the
+ * past beyond what was requested: days without training count as rest.
+ */
+export function buildFitnessHistory(
+  input: FitnessHistoryInput,
+): FitnessHistoryResponse {
+  const { startDate, endDate } = fitnessWindow({
+    today: input.today,
+    range: input.range,
+    plan: input.plan,
+    earliestDate: earliestRecordedDate(
+      input.activities,
+      input.manualActivities ?? [],
+      input.timeZone,
+    ),
+  });
+  // Same precedence as the Activities page: a manual entry replaces the plan's
+  // estimate for its date, and measured power wins over either.
+  const tssByDate = mergeTrainingTss(
+    input.planTssByDate,
+    input.manualTssByDate,
+  );
+  for (const [date, activities] of groupActivitiesByDate(
+    input.activities,
+    input.timeZone,
+  )) {
+    tssByDate.set(
+      date,
+      activityDayTss(
+        activities,
+        input.thresholdTimelines ?? [],
+        tssByDate.get(date),
+      ),
+    );
+  }
+
+  const series = dailyTrainingLoad({
+    startDate: addDays(startDate, -CTL_DAYS),
+    endDate,
+    tssByDate,
+  });
+  const activitiesByDate = activitiesPerDay(
+    input.activities,
+    input.manualActivities ?? [],
+    input.timeZone,
+  );
+  const plannedByDate = plannedSessions(input.plan);
+  const days: FitnessHistoryDay[] = [];
+  for (let date = startDate; date <= endDate; date = addDays(date, 1)) {
+    const load = series.get(date);
+    if (load !== undefined) {
+      days.push({
+        date,
+        ...load,
+        activities: activitiesByDate.get(date) ?? [],
+        planned: plannedByDate.get(date) ?? null,
+      });
+    }
+  }
+
+  // Today's Body Battery high and low are still running values, so the chart
+  // and the Today panel use the last completed day until today is over.
+  const dailyHealth = withoutInProgressDailyHealth(
+    input.dailyHealthPoints ?? [],
+    input.today,
+  );
+
+  return {
+    days,
+    thresholds: thresholdHistory(
+      input.thresholdTimelines ?? [],
+      input.thresholdPoints ?? [],
+      input.plan,
+      days,
+      input.today,
+    ),
+    body: {
+      weight: interpolateMetricSeries(
+        input.bodyPoints?.weight ?? [],
+        startDate,
+        endDate,
+      ),
+      bodyFat: interpolateMetricSeries(
+        input.bodyPoints?.bodyFat ?? [],
+        startDate,
+        endDate,
+      ),
+    },
+    latestGarmin: {
+      dailyHealth: latestDailyHealthPoints(dailyHealth),
+      weight: latestGarminMetric(input.bodyPoints?.weight ?? [], input.today),
+      bodyFat: latestGarminMetric(input.bodyPoints?.bodyFat ?? [], input.today),
+      ftp: latestGarminFtp(input.thresholdPoints ?? [], input.today),
+    },
+    dailyHealth,
+    nutrition: days.map((day) => ({
+      date: day.date,
+      consumedKcal: input.nutrition?.consumed.get(day.date) ?? null,
+      neededKcal: input.nutrition?.needed.get(day.date) ?? null,
+    })),
+    seasonEndDate: input.plan?.season.endDate ?? null,
+    dietTargets:
+      input.dietAdvice === true ? planDietTargets(input.plan, input.today) : [],
+  };
+}
+
+/** Keeps the newest reading for each daily health metric, in catalog order. */
+function latestDailyHealthPoints(
+  points: readonly DailyHealthPoint[],
+): DailyHealthPoint[] {
+  const latest = new Map<string, DailyHealthPoint>();
+  for (const point of points) {
+    const current = latest.get(point.metric);
+    if (current === undefined || point.date > current.date) {
+      latest.set(point.metric, point);
+    }
+  }
+  return DAILY_HEALTH_METRIC_KEYS.flatMap((metric) => {
+    const point = latest.get(metric);
+    return point === undefined ? [] : [point];
+  });
+}
+
+/** The newest Garmin measurement in a body-metric series. */
+function latestGarminMetric(
+  points: readonly MetricPoint[],
+  throughDate: string,
+): LatestGarmin["weight"] {
+  let latest: LatestGarmin["weight"] = null;
+  for (const point of points) {
+    if (
+      point.source !== "garmin" ||
+      point.date > throughDate ||
+      (latest !== null && point.date <= latest.date)
+    ) {
+      continue;
+    }
+    latest = { date: point.date, value: point.value };
+  }
+  return latest;
+}
+
+/** The newest Garmin cycling FTP measurement, ignoring coach projections. */
+function latestGarminFtp(
+  points: readonly AthleteThreshold[],
+  throughDate: string,
+): LatestGarmin["ftp"] {
+  let latest: LatestGarmin["ftp"] = null;
+  for (const point of points) {
+    if (
+      point.source !== "garmin" ||
+      !isFtpThreshold(point) ||
+      point.date > throughDate ||
+      (latest !== null && point.date <= latest.date)
+    ) {
+      continue;
+    }
+    latest = { date: point.date, value: point.value };
+  }
+  return latest;
+}
+
+/** The stored plan's session for each day it covers. */
+function plannedSessions(
+  plan: CoachPlan | undefined,
+): Map<string, FitnessDayPlan> {
+  const result = new Map<string, FitnessDayPlan>();
+  if (plan === undefined) {
+    return result;
+  }
+  for (const session of planSessions(plan)) {
+    result.set(session.date, {
+      title: session.title,
+      type: session.type,
+      durationMinutes: session.durationMinutes,
+    });
+  }
+  return result;
+}
+
+/** The earliest activity the athlete recorded or logged by hand. */
+function earliestRecordedDate(
+  activities: readonly AnalyzedActivity[],
+  manualActivities: readonly ManualActivityContext[],
+  timeZone: string | null | undefined,
+): string | null {
+  const dates = [
+    ...activities.map((activity) => activityLocalDate(activity, timeZone)),
+    ...manualActivities.map((manual) => manual.startDate),
+  ].sort();
+  return dates[0] ?? null;
+}
+
+/**
+ * The activities logged on each day, for the chart's hover card. Imported
+ * activities come first; manual entries follow with the athlete's description.
+ */
+function activitiesPerDay(
+  activities: readonly AnalyzedActivity[],
+  manualActivities: readonly ManualActivityContext[],
+  timeZone: string | null | undefined,
+): Map<string, FitnessDayActivity[]> {
+  const result = new Map<string, FitnessDayActivity[]>();
+  const add = (date: string, entry: FitnessDayActivity): void => {
+    const entries = result.get(date);
+    if (entries === undefined) {
+      result.set(date, [entry]);
+    } else {
+      entries.push(entry);
+    }
+  };
+
+  for (const activity of activities) {
+    add(activityLocalDate(activity, timeZone), {
+      id: `activity-${activity.id}`,
+      name: activity.name.trim() || formatActivityType(activity.type),
+      type: activity.type,
+      ...(activity.movingTime > 0
+        ? { durationMinutes: Math.round(activity.movingTime / 60) }
+        : {}),
+    });
+  }
+  for (const manual of manualActivities) {
+    add(manual.startDate, {
+      id: `manual-${manual.id}`,
+      name: manual.details,
+      type: "manual",
+    });
+  }
+  return result;
+}
+
+/**
+ * The first and last day of the chart. The start follows the chosen range; the
+ * end is the later of today and the stored plan's last day, so the chart runs
+ * exactly as far ahead as there are planned workouts.
+ */
+function fitnessWindow(input: {
+  today: string;
+  range: FitnessRange;
+  plan?: CoachPlan | undefined;
+  /** The first recorded or manually logged activity, for the `all` range. */
+  earliestDate?: string | null | undefined;
+}): { startDate: string; endDate: string } {
+  const earliest = input.earliestDate ?? null;
+  const startDate =
+    input.range === "all"
+      ? earliest !== null && earliest < input.today
+        ? earliest
+        : addDays(input.today, -6)
+      : addDays(input.today, -(FITNESS_RANGE_DAYS[input.range] - 1));
+  const plannedEnd = plannedEndDate(input.plan);
+  return {
+    startDate: startDate <= input.today ? startDate : input.today,
+    endDate:
+      plannedEnd !== null && plannedEnd > input.today
+        ? plannedEnd
+        : input.today,
+  };
+}
+
+/**
+ * One series per threshold measure: the athlete's interpolated measurements
+ * plus the plan's projected FTP from today onward. Every other measure keeps
+ * its measured trend, so the Fitness page can show cycling FTP and threshold
+ * heart rate side by side without inventing a projection for either.
+ */
+function thresholdHistory(
+  timelines: readonly ThresholdTimeline[],
+  points: readonly AthleteThreshold[],
+  plan: CoachPlan | undefined,
+  days: readonly { date: string }[],
+  today: string,
+): ThresholdHistorySeries[] {
+  const projection = planFtpProjection(plan, ftpTimeline(timelines), today);
+  const firstDate = days[0]?.date;
+  const lastDate = days[days.length - 1]?.date;
+  if (firstDate === undefined || lastDate === undefined) {
+    return [];
+  }
+
+  return buildThresholdSeries(points).map((series) => {
+    const measured = new Map(
+      interpolateMetricSeries(series.points, firstDate, lastDate).map(
+        (point) => [point.date, point.value],
+      ),
+    );
+    const isProjectedFtp = isFtpThreshold(series);
+    const seriesPoints = days.flatMap(({ date }) => {
+      const projected =
+        isProjectedFtp && date >= today && projection !== null
+          ? ftpWattsAt(projection, date)
+          : null;
+      const value = projected ?? measured.get(date) ?? null;
+      return value === null ? [] : [{ date, value }];
+    });
+    return {
+      sport: series.sport,
+      measure: series.measure,
+      label: series.label,
+      unit: series.unit,
+      kind: series.kind,
+      points: seriesPoints,
+    };
+  });
+}
+
+/**
+ * The plan's projected FTP from today onward. The weekly estimates are anchors
+ * at their week's start and the daily session estimates are anchors at their
+ * own dates, so `ftpWattsAt` interpolates between them. Today is anchored at the
+ * current estimate, which keeps the projection starting where the athlete is
+ * now instead of jumping at the next week's boundary.
+ */
+function planFtpProjection(
+  plan: CoachPlan | undefined,
+  ftp: ThresholdTimeline | null,
+  today: string,
+): ThresholdTimeline | null {
+  const weekly = weeklyFtpEstimates(plan);
+  const anchors = new Map(weekly);
+  for (const [date, watts] of dailyFtpEstimates(plan, today)) {
+    anchors.set(date, watts);
+  }
+  if (!anchors.has(today)) {
+    const current = weekly.get(startOfWeek(today)) ?? ftpWattsAt(ftp, today);
+    if (current !== null) {
+      anchors.set(today, current);
+    }
+  }
+  if (anchors.size === 0) {
+    return null;
+  }
+  return (
+    buildThresholdTimelines(
+      [...anchors].map(([date, value]) => ({
+        ...FTP_THRESHOLD,
+        date,
+        value,
+        source: "coach" as const,
+      })),
+    )[0] ?? null
+  );
+}
+
+/** The coach's per-day estimates for the planned days from today onward. */
+function dailyFtpEstimates(
+  plan: CoachPlan | undefined,
+  today: string,
+): Map<string, number> {
+  const result = new Map<string, number>();
+  if (plan === undefined) {
+    return result;
+  }
+  const addWeek = (week: WeekPlan | null): void => {
+    if (week === null) {
+      return;
+    }
+    for (const session of week.sessions) {
+      if (
+        session.date >= today &&
+        session.estimatedFtpWatts !== null &&
+        session.estimatedFtpWatts !== undefined
+      ) {
+        result.set(session.date, session.estimatedFtpWatts);
+      }
+    }
+  };
+  addWeek(plan.week);
+  addWeek(plan.nextWeek);
+  return result;
+}
+
+/** The coach's estimate for every week the stored plan describes. */
+function weeklyFtpEstimates(plan: CoachPlan | undefined): Map<string, number> {
+  const result = new Map<string, number>();
+  if (plan === undefined) {
+    return result;
+  }
+  addBlockWeeks(result, plan.block.weeks);
+  if (plan.nextBlock !== null) {
+    addBlockWeeks(result, plan.nextBlock.weeks);
+  }
+  addWeekEstimate(result, plan.week);
+  addWeekEstimate(result, plan.nextWeek);
+  return result;
+}
+
+function addBlockWeeks(
+  result: Map<string, number>,
+  weeks: readonly BlockWeekSummary[],
+): void {
+  for (const week of weeks) {
+    const watts = week.estimatedFtpWatts;
+    if (watts !== null && watts !== undefined) {
+      result.set(week.startDate, watts);
+    }
+  }
+}
+
+function addWeekEstimate(
+  result: Map<string, number>,
+  week: WeekPlan | null,
+): void {
+  if (week === null) {
+    return;
+  }
+  const watts = week.estimatedFtpWatts;
+  if (watts !== null && watts !== undefined) {
+    result.set(week.startDate, watts);
+  }
+}
+
+/** The last date the stored plan describes. */
+export function plannedEndDate(plan: CoachPlan | undefined): string | null {
+  if (plan === undefined) {
+    return null;
+  }
+  const dates = [
+    ...plan.week.sessions.map((session) => session.date),
+    ...(plan.nextWeek?.sessions.map((session) => session.date) ?? []),
+  ];
+  return dates.sort().at(-1) ?? null;
+}

@@ -24,6 +24,7 @@ import {
 import {
   ftpTimeline,
   ftpWattsAt,
+  latestAnchor,
   type ThresholdTimeline,
 } from "./thresholds.js";
 
@@ -67,7 +68,7 @@ export function applyTrainingLoad(
 ): CoachPlan {
   const thresholdTimelines = context.thresholdTimelines ?? [];
   const ftp = ftpTimeline(thresholdTimelines);
-  const latest = ftp?.anchors[ftp.anchors.length - 1] ?? null;
+  const latest = latestAnchor(ftp);
   const baseFtpWatts = latest?.value ?? null;
   const floorAtBase = latest !== null && latest.source !== "coach";
   const activitiesByDate = groupActivitiesByDate(
@@ -75,34 +76,33 @@ export function applyTrainingLoad(
     context.timeZone,
   );
   const manualByDate = manualTssByDate(context.manualActivities ?? []);
-  const current = applyWeekLoad(
-    plan.week,
-    plan.today.date,
+  const current = applyWeekLoad({
+    week: plan.week,
+    today: plan.today.date,
     ftp,
     thresholdTimelines,
     activitiesByDate,
-    manualByDate,
-    undefined,
-    weekFtpFromBlock(plan.block, plan.week.startDate),
+    manualTssByDate: manualByDate,
+    blockEstimate: weekFtpFromBlock(plan.block, plan.week.startDate),
     floorAtBase,
-  );
+  });
   const next =
     plan.nextWeek === null
       ? null
-      : applyWeekLoad(
-          plan.nextWeek,
-          plan.today.date,
+      : applyWeekLoad({
+          week: plan.nextWeek,
+          today: plan.today.date,
           ftp,
           thresholdTimelines,
           activitiesByDate,
-          manualByDate,
-          current.tssByDate,
-          weekFtpFromBlock(
+          manualTssByDate: manualByDate,
+          priorTssByDate: current.tssByDate,
+          blockEstimate: weekFtpFromBlock(
             plan.nextBlock ?? plan.block,
             plan.nextWeek.startDate,
           ),
           floorAtBase,
-        );
+        });
 
   const sessions = new Map<string, WeekSession>();
   for (const session of current.week.sessions) {
@@ -181,29 +181,44 @@ export function currentTrainingLoad(
   );
 }
 
+/** Everything one week's load resolution reads. */
+interface WeekLoadInput {
+  week: WeekPlan;
+  today: string;
+  ftp: ThresholdTimeline | null;
+  thresholdTimelines: readonly ThresholdTimeline[];
+  activitiesByDate: ReadonlyMap<string, readonly AnalyzedActivity[]>;
+  manualTssByDate: ReadonlyMap<string, number>;
+  /** A previously loaded week's TSS, which takes precedence when seeding. */
+  priorTssByDate?: ReadonlyMap<string, number> | undefined;
+  /** The coach's block-level estimate for this week. */
+  blockEstimate?: number | null | undefined;
+  /** Whether a fresh test floors every estimate at the stated FTP. */
+  floorAtBase?: boolean | undefined;
+}
+
 /**
  * Resolves the week's FTP estimate, each session's TSS, and the fitness
  * snapshot for every day in the week.
  */
-function applyWeekLoad(
-  week: WeekPlan,
-  today: string,
-  ftp: ThresholdTimeline | null,
-  thresholdTimelines: readonly ThresholdTimeline[],
-  activitiesByDate: ReadonlyMap<string, readonly AnalyzedActivity[]>,
-  manualTssByDate: ReadonlyMap<string, number>,
-  priorTssByDate?: ReadonlyMap<string, number>,
-  blockEstimate?: number | null,
-  floorAtBase = false,
-): LoadedWeek {
-  const baseFtpWatts = ftp?.anchors[ftp.anchors.length - 1]?.value ?? null;
+function applyWeekLoad(input: WeekLoadInput): LoadedWeek {
+  const {
+    week,
+    today,
+    ftp,
+    thresholdTimelines,
+    activitiesByDate,
+    manualTssByDate,
+    priorTssByDate,
+    blockEstimate,
+    floorAtBase = false,
+  } = input;
+  const baseFtpWatts = latestAnchor(ftp)?.value ?? null;
   const estimate = week.estimatedFtpWatts ?? blockEstimate;
   const ftpWatts =
     estimate !== null && estimate !== undefined && estimate > 0
       ? resolveFtpWatts(estimate, baseFtpWatts, floorAtBase)
-      : floorAtBase
-        ? baseFtpWatts
-        : (ftpWattsAt(ftp, week.startDate) ?? baseFtpWatts);
+      : ftpWattsOrBase(ftp, week.startDate, baseFtpWatts, floorAtBase);
   const tssByDate = new Map<string, number>();
 
   for (const session of week.sessions) {
@@ -295,9 +310,21 @@ function resolveDayFtp(
   if (raw !== null && raw !== undefined) {
     return resolveFtpWatts(raw, baseFtpWatts, floorAtBase);
   }
-  return floorAtBase
-    ? baseFtpWatts
-    : (ftpWattsAt(ftp, session.date) ?? baseFtpWatts);
+  return ftpWattsOrBase(ftp, session.date, baseFtpWatts, floorAtBase);
+}
+
+/**
+ * The timeline's FTP on `date`, else the latest stated FTP when the timeline
+ * holds no value yet. A fresh test result floors the plan at that value instead
+ * of letting an older projection pull it backwards.
+ */
+function ftpWattsOrBase(
+  ftp: ThresholdTimeline | null,
+  date: string,
+  baseFtpWatts: number | null,
+  floorAtBase: boolean,
+): number | null {
+  return floorAtBase ? baseFtpWatts : (ftpWattsAt(ftp, date) ?? baseFtpWatts);
 }
 
 /**
@@ -347,7 +374,7 @@ function withEstimatedFtp(
   currentWeekEstimate: number | null,
   floorAtBase = false,
 ): BlockPlan {
-  const latestAt = ftp?.anchors[ftp.anchors.length - 1]?.at ?? null;
+  const latestAt = latestAnchor(ftp)?.at ?? null;
   return {
     ...block,
     estimatedFtpWatts: currentWeekEstimate,

@@ -463,6 +463,76 @@ describe("applyTrainingLoad", () => {
     expect(tuesday?.trainingLoad?.tss).toBe(70);
   });
 
+  it("reads the week's FTP from the timeline when the coach omitted it", () => {
+    const loaded = applyTrainingLoad(
+      {
+        ...plan,
+        week: { ...week, estimatedFtpWatts: null },
+        block: {
+          ...plan.block,
+          weeks: [
+            {
+              number: 1,
+              startDate: "2026-10-19",
+              focus: "Base",
+              targetLoad: "6 hours",
+            },
+            ...plan.block.weeks.slice(1),
+          ],
+        },
+      },
+      {
+        thresholdTimelines: ftpTimelines([
+          { date: "2026-10-01", value: 200, source: "user" },
+          { date: "2026-10-26", value: 260, source: "coach" },
+        ]),
+        activities: [],
+      },
+    );
+
+    // The newest anchor is a coach projection, so the week interpolates the
+    // timeline instead of flooring at 260 W.
+    expect(loaded.week.estimatedFtpWatts).toBe(243);
+    expect(
+      loaded.week.sessions.find((entry) => entry.date === "2026-10-20")
+        ?.estimatedFtpWatts,
+    ).toBe(246);
+  });
+
+  it("floors the week's default FTP at the latest measurement", () => {
+    const loaded = applyTrainingLoad(
+      {
+        ...plan,
+        week: { ...week, estimatedFtpWatts: null },
+        block: {
+          ...plan.block,
+          weeks: [
+            {
+              number: 1,
+              startDate: "2026-10-19",
+              focus: "Base",
+              targetLoad: "6 hours",
+            },
+            ...plan.block.weeks.slice(1),
+          ],
+        },
+      },
+      {
+        thresholdTimelines: ftpTimelines([
+          { date: "2026-10-01", value: 200, source: "user" },
+          { date: "2026-10-26", value: 260, source: "user" },
+        ]),
+        activities: [],
+      },
+    );
+
+    expect(loaded.week.estimatedFtpWatts).toBe(260);
+    expect(
+      loaded.week.sessions.find((entry) => entry.date === "2026-10-20")
+        ?.estimatedFtpWatts,
+    ).toBe(260);
+  });
+
   it("clamps an implausible coach estimate to the stated FTP", () => {
     const loaded = applyTrainingLoad(
       {

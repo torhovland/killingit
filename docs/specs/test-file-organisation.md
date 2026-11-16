@@ -2,7 +2,7 @@
 
 - **Status:** Accepted (implemented)
 - **Date:** 2026-11-15
-- **Related:** issue #275, `docs/specs/test-coverage.md`,
+- **Related:** issue #275, issue #543, `docs/specs/test-coverage.md`,
   `docs/specs/plan-generation-modules.md`,
   `docs/specs/web-interaction-tests.md`.
 
@@ -44,6 +44,15 @@ setup that more than one file needs lives in a test fixture, not in a copy of
    `mock.restore()` in `afterAll`, because Bun's module registry is shared by
    every file in the test process. `apps/web/src/mockIsolation.test.ts` fails
    when any web test file mocks a module without that restore.
+8. The database-backed integration suite is split the same way, one file per
+   store under `apps/api/integration/`: `migrations`, `dbUserStore`,
+   `dbPlanStore`, `dbPlanGenerationStore`, `questionStores`, `metricsStores`,
+   `activityStore`, `manualActivityWrites`, `coachQuestionConstraints`,
+   `foodEntryStore` and `athleteEvents`. `integration/setup.ts` registers the
+   migration, truncation and close hooks every file needs, so the split keeps a
+   single migration run for the whole process and truncates before every test.
+   `integration/helpers.ts` owns the SQLSTATE and threshold readers that more
+   than one suite uses, and `integration/planFixture.ts` keeps the one plan.
 
 ### Out of scope
 
@@ -57,6 +66,9 @@ setup that more than one file needs lives in a test fixture, not in a copy of
 
 - Every test that ran before the split still runs, with the same title and the
   same body; only imports and file placement change.
+- The integration split keeps that rule too: `integration/setup.ts` migrates
+  once for the run, truncates before every test, and closes the pool after the
+  last file.
 - A route test builds its app through `testFixtures/app.ts` instead of a local
   `makeApp`.
 - `bun run typecheck`, `bun run lint`, `bun run format`, `bun run test`,

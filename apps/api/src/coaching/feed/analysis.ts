@@ -338,7 +338,7 @@ function currentFtpAt(
   ftp: ThresholdTimeline | null,
   date: string,
 ): number | null {
-  return ftp === null ? null : (ftpBaselineAt(ftp, date)?.watts ?? null);
+  return ftpBaselineAt(ftp, date);
 }
 
 /**

@@ -59,7 +59,7 @@ const users: UserStore = {
 };
 
 function makeApp(
-  authenticate?: () => Promise<boolean>,
+  authenticate?: () => Promise<void>,
   options: {
     timezone?: string;
     now?: () => Date;
@@ -115,7 +115,7 @@ function makeApp(
       ((userId) => Promise.resolve(plain.get(userId) ?? null)),
     loadStoredFeed:
       options.loadStoredFeed ?? (() => Promise.resolve(emptyFeed())),
-    authenticateGarmin: authenticate ?? (() => Promise.resolve(true)),
+    authenticateGarmin: authenticate ?? (() => Promise.resolve()),
     syncGarminActivities: sync,
     syncGarminSupplements: (_userId, _credentials, today) => {
       supplementDates.push(today);

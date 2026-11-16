@@ -1,5 +1,6 @@
 import type { GarminDailyResponse } from "@killingit/shared";
 import { addDays } from "@killingit/shared";
+import { errorMessage } from "../lib/errorMessage.js";
 import {
   loadGarminDailySyncDates,
   markGarminDailySynced,
@@ -12,7 +13,7 @@ import {
   type SyncDailyTransport,
 } from "./client.js";
 
-/** The same inclusive history window as the activity sync. */
+/** The same inclusive history window as the sidecar's `SYNC_WINDOW_DAYS`. */
 export const GARMIN_DAILY_SYNC_WINDOW_DAYS = 42;
 /** Today and yesterday are fetched again because they can still change. */
 const GARMIN_DAILY_REFRESH_DAYS = 2;
@@ -52,14 +53,13 @@ function planDailySyncDates(input: {
   today: string;
   windowStart: string;
   synced: ReadonlySet<string>;
-  refreshDays?: number;
+  refreshDays: number;
 }): string[] {
-  const refreshDays = input.refreshDays ?? GARMIN_DAILY_REFRESH_DAYS;
   const dates: string[] = [];
   let date = input.today;
   let index = 0;
   while (date >= input.windowStart) {
-    if (index < refreshDays || !input.synced.has(date)) {
+    if (index < input.refreshDays || !input.synced.has(date)) {
       dates.push(date);
     }
     date = addDays(date, -1);
@@ -117,7 +117,7 @@ export async function syncGarminDailyHistory(
         );
         return { fetched, rateLimited: true, failedDate: null };
       }
-      const detail = err instanceof Error ? err.message : String(err);
+      const detail = errorMessage(err);
       console.error(`[garmin] daily health sync stopped at ${date}: ${detail}`);
       return { fetched, rateLimited: false, failedDate: date };
     }

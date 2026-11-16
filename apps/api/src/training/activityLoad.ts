@@ -425,25 +425,25 @@ function distributeTss(total: number, weights: readonly number[]): number[] {
   return parts;
 }
 
+/**
+ * Duration-based stress for an activity whose recording cannot be measured,
+ * keyed by the shared sport `activitySport()` returns so this table and the
+ * threshold lookup cannot classify a sport differently. Swimming has no
+ * measured basis and shares the conservative default with an unknown sport.
+ */
+const TSS_PER_HOUR_BY_SPORT: ReadonlyMap<string, number> = new Map([
+  ["cycling", 55],
+  ["running", 65],
+  ["hiking", 45],
+  ["walking", 35],
+  ["strength", 40],
+  ["rowing", 50],
+  ["skiing", 50],
+  ["swimming", 45],
+]);
+
+const DEFAULT_TSS_PER_HOUR = 45;
+
 function tssPerHour(type: string): number {
-  const normalized = type.toLowerCase();
-  if (normalized.includes("cycl") || normalized.includes("bik")) {
-    return 55;
-  }
-  if (normalized.includes("run")) {
-    return 65;
-  }
-  if (normalized.includes("hik")) {
-    return 45;
-  }
-  if (normalized.includes("walk")) {
-    return 35;
-  }
-  if (normalized.includes("strength") || normalized.includes("weight")) {
-    return 40;
-  }
-  if (normalized.includes("row") || normalized.includes("ski")) {
-    return 50;
-  }
-  return 45;
+  return TSS_PER_HOUR_BY_SPORT.get(activitySport(type)) ?? DEFAULT_TSS_PER_HOUR;
 }

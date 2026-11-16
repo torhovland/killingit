@@ -4,6 +4,7 @@ import {
   type ThresholdSummary,
 } from "@killingit/shared";
 import { z } from "zod";
+import { errorMessage } from "../lib/errorMessage.js";
 import { completePlanJson } from "../llm/planCompletion.js";
 import { saveCoachQuestions } from "../plans/coachQuestions.js";
 import {
@@ -98,7 +99,7 @@ export async function estimateManualActivityTss(
     }
     return result.tss;
   } catch (err) {
-    const detail = err instanceof Error ? err.message : String(err);
+    const detail = errorMessage(err);
     console.error(`[manual-tss] estimate failed: ${detail}`);
     return null;
   }

@@ -151,8 +151,7 @@ export async function loadReplyContext(
     weeklyNoteReply: coachingInputs?.weeklyNoteReply ?? null,
     periodReviews: coachingInputs?.periodReviews ?? [],
     athleteFtpWatts:
-      ftpBaselineAt(ftpTimeline(history?.timelines ?? []), today)?.watts ??
-      null,
+      ftpBaselineAt(ftpTimeline(history?.timelines ?? []), today) ?? null,
     ftpHistory: ftpHistoryPoints(history?.timelines ?? []),
     thresholds: history?.summaries ?? [],
     ...(bodyHistory !== null ? { bodyHistory } : {}),

@@ -158,22 +158,14 @@ function makeApp(options: { plan?: CoachPlan | null } = {}) {
     loadStoredFeed: () => Promise.resolve(feed),
     // Runs the real loader over in-memory sources, so the route is tested
     // against the series production builds.
-    loadFitnessHistory: (
-      _userId,
-      activities,
-      storedPlan,
-      today,
-      range,
-      _dietAdvice,
-      timeZone,
-    ): Promise<FitnessHistoryResponse> => {
+    loadFitnessHistory: (request): Promise<FitnessHistoryResponse> => {
       const context: TrainingContext = {
         ftpTimeline: null,
         thresholds: [],
         thresholdPoints,
         thresholdTimelines: buildThresholdTimelines(thresholdPoints),
         planTssByDate: new Map(
-          (storedPlan?.week.sessions ?? []).map((session) => [
+          (request.plan?.week.sessions ?? []).map((session) => [
             session.date,
             session.estimatedTss ?? 0,
           ]),
@@ -181,21 +173,17 @@ function makeApp(options: { plan?: CoachPlan | null } = {}) {
         manualTssByDate: new Map(),
         manualActivities: [],
       };
-      return loadFitnessHistory(
-        0,
-        activities,
-        storedPlan,
-        today,
-        range,
-        false,
-        timeZone,
-        {
+      return loadFitnessHistory({
+        ...request,
+        userId: 0,
+        dietAdvice: false,
+        deps: {
           loadTrainingContext: () => Promise.resolve(context),
           loadMetricPoints: () => Promise.resolve([]),
           loadDailyHealth: () => Promise.resolve([]),
           loadNutrition: () => Promise.resolve(null),
         },
-      );
+      });
     },
   });
 }

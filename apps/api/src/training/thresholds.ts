@@ -36,7 +36,7 @@ export const FTP_THRESHOLD: Pick<
 };
 
 /** Whether a stored threshold is the cycling FTP measure. */
-function isFtpThreshold(
+export function isFtpThreshold(
   point: Pick<AthleteThreshold, "sport" | "measure">,
 ): boolean {
   return (
@@ -50,6 +50,16 @@ export function ftpTimeline(
   timelines: readonly ThresholdTimeline[],
 ): ThresholdTimeline | null {
   return timelines.find(isFtpThreshold) ?? null;
+}
+
+/**
+ * The newest anchor of a timeline, or null when it holds none. Anchors run
+ * oldest first, so the last one is the value in effect from its date.
+ */
+export function latestAnchor(
+  timeline: ThresholdTimeline | null,
+): ThresholdAnchor | null {
+  return timeline?.anchors[timeline.anchors.length - 1] ?? null;
 }
 
 /**
@@ -77,15 +87,12 @@ function thresholdBaselineAt(
   return result;
 }
 
-/** The FTP in effect on a date and whether the athlete measured it. */
+/** The FTP value in effect on a date, without interpolation. */
 export function ftpBaselineAt(
   timeline: ThresholdTimeline | null,
   date: string | Date,
-): { watts: number; fromRevision: boolean } | null {
-  const anchor = thresholdBaselineAt(timeline, date);
-  return anchor === null
-    ? null
-    : { watts: anchor.value, fromRevision: anchor.source !== "coach" };
+): number | null {
+  return thresholdBaselineAt(timeline, date)?.value ?? null;
 }
 
 /** The FTP in effect on a date, interpolated between anchors in whole watts. */
