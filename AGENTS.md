@@ -254,6 +254,14 @@ through a disciplined process:
   syncing, and it assembles the `PlanGenerationContext` every plan prompt reads.
   See `docs/specs/api-dependency-wiring.md`,
   `docs/specs/plan-input-loading.md` and ADR 0023.
+- **Forward an optional value as `T | undefined`.** When a field exists only to
+  pass an optional value through, type it `T | undefined` in the consumer and
+  pass the value directly instead of writing
+  `...(value !== undefined ? { value } : {})`. The spread hides an optional
+  field behind a second object shape and drifts from the consumer's type;
+  `local/no-optional-spread` fails `bun run lint` on it. Array and prompt
+  fragments, nullish fallbacks, null checks and spreads with an extra condition
+  keep their meaning and are allowed.
 - **Keep plan-trigger debounce state in its class.** The coalescing state lives
   in `PlanTriggerDebounce` (`apps/api/src/plans/triggerDebounce.ts`), not in
   module globals, and production keeps one instance in `plans/trigger.ts` while

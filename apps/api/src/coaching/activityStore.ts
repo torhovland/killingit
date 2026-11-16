@@ -171,13 +171,9 @@ function storedPreviewOf(stored: StoredChannels | undefined): StoredChannels {
   return {
     sampleCount: stored?.sampleCount ?? 0,
     samples: stored?.samples ?? [],
-    ...(stored?.route !== undefined ? { route: stored.route } : {}),
-    ...(stored?.averagePower !== undefined
-      ? { averagePower: stored.averagePower }
-      : {}),
-    ...(stored?.normalizedPower !== undefined
-      ? { normalizedPower: stored.normalizedPower }
-      : {}),
+    route: stored?.route,
+    averagePower: stored?.averagePower,
+    normalizedPower: stored?.normalizedPower,
     ...storedStructureOf(undefined, stored),
   };
 }

@@ -239,18 +239,14 @@ function analysisContextFor(
   const plan = inputs.storedPlan?.plan;
   return {
     today: plan?.today.date ?? today,
-    ...(timezone !== undefined ? { timezone } : {}),
-    ...(plan !== undefined
-      ? { season: plan.season, block: plan.block, week: plan.week }
-      : {}),
+    timezone,
+    season: plan?.season,
+    block: plan?.block,
+    week: plan?.week,
     ftpHistory: inputs.ftpHistory,
     thresholds: inputs.thresholds,
-    ...(inputs.dailyHealth !== undefined
-      ? { dailyHealth: inputs.dailyHealth }
-      : {}),
-    ...(inputs.bodyHistory !== undefined
-      ? { bodyHistory: inputs.bodyHistory }
-      : {}),
+    dailyHealth: inputs.dailyHealth,
+    bodyHistory: inputs.bodyHistory,
     ...(inputs.diet !== null ? { diet: inputs.diet } : {}),
   };
 }

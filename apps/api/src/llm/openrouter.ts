@@ -134,9 +134,9 @@ export interface LlmCompletionRequest {
   messages: LlmProviderMessage[];
   temperature: number;
   maxTokens: number;
-  reasoning?: LlmReasoning;
+  reasoning?: LlmReasoning | undefined;
   /** The coaching task this prompt belongs to, recorded in the prompt log. */
-  kind?: LlmPromptKind;
+  kind?: LlmPromptKind | undefined;
   /**
    * Extra debug metadata for the prompt log (retry attempt, repair turn).
    * Never sent to the provider.
@@ -211,9 +211,7 @@ export function createOpenRouterProvider(
           messages: input.messages,
           temperature: input.temperature,
           max_tokens: input.maxTokens,
-          ...(input.reasoning !== undefined
-            ? { reasoning: input.reasoning }
-            : {}),
+          reasoning: input.reasoning,
         }),
         signal: requestSignal(input.signal, REQUEST_TIMEOUT_MS),
       },

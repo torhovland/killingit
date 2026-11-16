@@ -75,7 +75,7 @@ export function createReviewHandlers(deps: ResolvedCoachingDependencies) {
     await deps.trigger(deps.triggerDeps, {
       userId: user.id,
       today: input.today,
-      ...(timeZone !== undefined ? { timezone: timeZone } : {}),
+      timezone: timeZone,
     });
 
     return c.json(

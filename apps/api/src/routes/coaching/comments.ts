@@ -32,7 +32,7 @@ export function createCommentHandlers(deps: ResolvedCoachingDependencies) {
     await deps.startRun(deps.coachRunDeps, {
       userId: user.id,
       today,
-      ...(timeZone !== undefined ? { timezone: timeZone } : {}),
+      timezone: timeZone,
       keepToday: activityDate === today,
       reply: true,
     });

@@ -282,9 +282,10 @@ export function mergeDietProgressTargets(
 ): CoachPlan {
   const season = {
     ...plan.season,
-    ...(update.season.dietProgress !== undefined
-      ? { dietProgress: update.season.dietProgress }
-      : {}),
+    dietProgress:
+      update.season.dietProgress === undefined
+        ? plan.season.dietProgress
+        : update.season.dietProgress,
     blocks: withDetailedProgress(plan.season.blocks, update.season.blocks),
   };
   const nextBlock =
@@ -311,9 +312,10 @@ function mergeBlockProgress(block: BlockPlan, update: BlockPlan): BlockPlan {
   }
   return {
     ...block,
-    ...(update.dietProgress !== undefined
-      ? { dietProgress: update.dietProgress }
-      : {}),
+    dietProgress:
+      update.dietProgress === undefined
+        ? block.dietProgress
+        : update.dietProgress,
     weeks: withDetailedProgress(block.weeks, update.weeks),
   };
 }

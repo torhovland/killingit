@@ -118,7 +118,7 @@ export async function fetchWeatherForecasts(
     fetchYrForecast(location, {
       timezone,
       ...commonOptions,
-      ...(options.now !== undefined ? { now: options.now } : {}),
+      now: options.now,
       ...(cached?.yrLastModified != null
         ? { ifModifiedSince: cached.yrLastModified }
         : {}),

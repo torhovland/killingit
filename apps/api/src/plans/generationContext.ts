@@ -120,7 +120,7 @@ export async function loadPlanGenerationContext(
             // Key the pass by the plan's own day so it shares a dashboard
             // request for the same day and never adopts another day's feed.
             today,
-            ...(timezone !== undefined ? { timezone } : {}),
+            timezone,
           });
     if (preloadedActivities === undefined) {
       await deps.generations.update(

@@ -133,9 +133,7 @@ async function analyseMeal(
         eatenTime: request.eatenTime,
         description: request.description,
         photoDataUrl: request.photoDataUrl,
-        ...(request.previous !== undefined
-          ? { previous: request.previous }
-          : {}),
+        previous: request.previous,
       },
     );
     return {

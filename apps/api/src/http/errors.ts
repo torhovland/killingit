@@ -67,7 +67,7 @@ export function apiError(
     error: {
       code: options.code ?? codeForStatus(failureStatus),
       message,
-      ...(options.details === undefined ? {} : { details: options.details }),
+      details: options.details,
     },
   };
   return c.json(body, failureStatus as ContentfulStatusCode);
@@ -75,7 +75,7 @@ export function apiError(
 
 /** A request the client can fix by changing what it sent. */
 export function badRequest(c: Context, message: string, details?: unknown) {
-  return apiError(c, 400, message, details === undefined ? {} : { details });
+  return apiError(c, 400, message, { details });
 }
 
 /**

@@ -87,7 +87,7 @@ export function createManualActivityHandlers(
     await deps.trigger(deps.triggerDeps, {
       userId: user.id,
       today,
-      ...(timeZone !== undefined ? { timezone: timeZone } : {}),
+      timezone: timeZone,
       keepToday: startDate === today,
     });
 
@@ -108,7 +108,7 @@ export function createManualActivityHandlers(
     await deps.trigger(deps.triggerDeps, {
       userId: user.id,
       today,
-      ...(timezone !== undefined ? { timezone } : {}),
+      timezone,
     });
 
     return c.json(

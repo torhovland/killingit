@@ -67,7 +67,7 @@ function errorFields(error: Error | undefined): Record<string, unknown> | null {
   return {
     name: error.name,
     message: error.message,
-    ...(error.stack === undefined ? {} : { stack: error.stack }),
+    stack: error.stack,
   };
 }
 

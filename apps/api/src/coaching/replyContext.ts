@@ -31,7 +31,7 @@ export interface ReplyContextInput {
    * The athlete's IANA time zone, so a recorded activity is described on its
    * local day. A missing zone reads as UTC.
    */
-  timezone?: string;
+  timezone?: string | undefined;
   /** The profile answers, already mapped from the stored questions. */
   athleteAnswers: readonly AthleteAnswerContext[];
 }
@@ -142,7 +142,7 @@ export async function loadReplyContext(
       .slice(0, MAX_ANALYZED_ACTIVITIES)
       .map(toCoachPlanActivity),
     today,
-    ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),
+    timezone: input.timezone,
     ...(currentForm !== null ? { currentForm } : {}),
     manualActivities: coachingInputs?.manualActivities ?? [],
     activityComments: coachingInputs?.activityComments ?? [],

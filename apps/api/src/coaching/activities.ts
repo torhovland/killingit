@@ -13,12 +13,12 @@ interface AnalyzeActivitiesOptions {
   limit: number;
   refresh: boolean;
   /** The athlete's local date; defaults to today in their time zone. */
-  today?: string;
+  today?: string | undefined;
   /**
    * The athlete's IANA time zone, so an activity is dated by its local day.
    * A missing zone reads as UTC; see `docs/specs/activity-local-date.md`.
    */
-  timezone?: string;
+  timezone?: string | undefined;
   provider?: LlmProvider;
 }
 

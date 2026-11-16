@@ -76,7 +76,7 @@ export interface CoachReplyDependencies {
 interface ReplyGeneration {
   userId: number;
   today: string;
-  timezone?: string;
+  timezone?: string | undefined;
   request: CoachReplyTarget;
   kind: "coach_reply" | "coaching_question";
   /** Log prefix, so a failure names the feature that asked for the reply. */
@@ -93,7 +93,7 @@ export async function replyToCoachingInput(
   options: {
     userId: number;
     today: string;
-    timezone?: string;
+    timezone?: string | undefined;
     request: CoachingReplyRequest;
   },
 ): Promise<StoredCoachReply | null> {
@@ -101,7 +101,7 @@ export async function replyToCoachingInput(
   const reply = await generateReply(deps, {
     userId,
     today,
-    ...(timezone !== undefined ? { timezone } : {}),
+    timezone,
     request: toPromptTarget(request),
     kind: "coach_reply",
     label: "coach-reply",
@@ -135,8 +135,8 @@ export async function replyToUnansweredActivityComments(
   options: {
     userId: number;
     today: string;
-    timezone?: string;
-    signal?: AbortSignal;
+    timezone?: string | undefined;
+    signal?: AbortSignal | undefined;
   },
 ): Promise<StoredCoachReply[]> {
   const { userId, today, timezone, signal } = options;
@@ -166,7 +166,7 @@ export async function replyToUnansweredActivityComments(
     context = await (deps.loadContext ?? loadReplyContext)({
       userId,
       today,
-      ...(timezone !== undefined ? { timezone } : {}),
+      timezone,
       athleteAnswers: answers.map(toAnswerContext),
     });
   } catch (err) {
@@ -200,7 +200,7 @@ export async function replyToUnansweredActivityComments(
       {
         apiKey: llm.apiKey,
         model: llm.dailyModel,
-        ...(signal !== undefined ? { signal } : {}),
+        signal,
       },
       { plan: plan.plan, context, items },
     );
@@ -337,9 +337,7 @@ async function generateReply(
         context: await (deps.loadContext ?? loadReplyContext)({
           userId,
           today,
-          ...(options.timezone !== undefined
-            ? { timezone: options.timezone }
-            : {}),
+          timezone: options.timezone,
           athleteAnswers: answers.map(toAnswerContext),
         }),
         request: options.request,

@@ -293,7 +293,7 @@ export function createPlanRoute(deps: ResolvedAppDependencies): Hono {
           {
             userId: user.id,
             today,
-            ...(timezone !== undefined ? { timezone } : {}),
+            timezone,
             mode,
             force,
             includeTomorrow,

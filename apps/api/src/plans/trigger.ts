@@ -87,7 +87,7 @@ export interface PlanTriggerDependencies extends PlanInputDependencies {
 export interface PlanRunOptions {
   userId: number;
   today: string;
-  timezone?: string;
+  timezone?: string | undefined;
   mode?: PlanGenerateMode;
   force?: boolean;
   includeTomorrow?: boolean;

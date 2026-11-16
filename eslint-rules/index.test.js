@@ -30,6 +30,44 @@ ruleTester.run("no-template-classname", local.rules["no-template-classname"], {
   ],
 });
 
+ruleTester.run("no-optional-spread", local.rules["no-optional-spread"], {
+  valid: [
+    // The value is forwarded directly once its field type allows undefined.
+    "const a = { value };",
+    // An array fragment is a real conditional, not an optional field.
+    "const a = { ...(value !== undefined ? [value] : []) };",
+    // A nullish fallback has its own meaning.
+    "const a = { ...(options ?? {}) };",
+    // A null check is not the undefined comparison this rule owns.
+    "const a = { ...(value !== null ? { value } : {}) };",
+    // An extra condition makes the spread deliberate.
+    "const a = { ...(flag && value !== undefined ? { value } : {}) };",
+    // The property does not forward the tested reference.
+    "const a = { ...(value !== undefined ? { length: value.length } : {}) };",
+    "const a = { ...(value !== undefined ? { value: other } : {}) };",
+    // Neither branch is the empty object.
+    "const a = { ...(value !== undefined ? { value } : other) };",
+  ],
+  invalid: [
+    {
+      code: "const a = { ...(value !== undefined ? { value } : {}) };",
+      errors: [{ messageId: "optionalSpread" }],
+    },
+    {
+      code: "const a = { ...(value === undefined ? {} : { value }) };",
+      errors: [{ messageId: "optionalSpread" }],
+    },
+    {
+      code: "const a = { ...(input.timezone !== undefined ? { timezone: input.timezone } : {}) };",
+      errors: [{ messageId: "optionalSpread" }],
+    },
+    {
+      code: "const a = { ...(stored?.route !== undefined ? { route: stored.route } : {}) };",
+      errors: [{ messageId: "optionalSpread" }],
+    },
+  ],
+});
+
 ruleTester.run(
   "consts-before-functions",
   local.rules["consts-before-functions"],

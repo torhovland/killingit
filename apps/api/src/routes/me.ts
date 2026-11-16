@@ -29,9 +29,9 @@ export function createMeRoute(users: UserStore): Hono {
       const identity = getAthlete(c);
       const { timezone, location, dietAdvice } = c.req.valid("json");
       const user = await users.updateSettings(identity.sub, {
-        ...(timezone !== undefined ? { timezone } : {}),
-        ...(location !== undefined ? { location } : {}),
-        ...(dietAdvice !== undefined ? { dietAdvice } : {}),
+        timezone,
+        location,
+        dietAdvice,
       });
       return c.json(toCurrentUser(identity.sub, user));
     })

@@ -94,13 +94,13 @@ export interface PlanUpdateInput extends PlanContextInput {
   nextBlock: BlockPlan | null;
   revision: PlanUpdateRevision;
   /** The date the revised current block must start on. */
-  blockStartDate?: string;
+  blockStartDate?: string | undefined;
   /** Revise the current block in place instead of creating a new one. */
   reviseBlock?: boolean;
   /** The date the next block must start on. */
-  nextBlockStartDate?: string;
+  nextBlockStartDate?: string | undefined;
   /** The Monday the next week must start on. */
-  nextWeekStartDate?: string;
+  nextWeekStartDate?: string | undefined;
   /** Survey answers changed since the plan was generated. */
   coachingSurveyAdjustments?: readonly CoachingSurveyAdjustment[];
 }

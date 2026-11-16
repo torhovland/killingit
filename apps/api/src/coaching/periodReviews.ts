@@ -141,20 +141,18 @@ export async function captureCompletedPeriodReviews(
     athleteAnswers: input.athleteAnswers,
     recentActivities: input.activities.map(toCoachPlanActivity),
     today: input.today,
-    ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),
+    timezone: input.timezone,
     manualActivities: input.manualActivities,
     activityComments: input.activityComments,
     weeklyNote: input.weeklyNote,
-    ...(input.dailyHealth !== undefined
-      ? { dailyHealth: input.dailyHealth }
-      : {}),
-    ...(input.events !== undefined ? { events: input.events } : {}),
-    ...(input.diet !== undefined ? { diet: input.diet } : {}),
+    dailyHealth: input.dailyHealth,
+    events: input.events,
+    diet: input.diet,
   };
   const credentials: PeriodReviewCredentials = {
     apiKey: input.apiKey,
     model: input.model,
-    ...(input.signal !== undefined ? { signal: input.signal } : {}),
+    signal: input.signal,
   };
 
   const weekEnd = addDays(input.plan.week.startDate, 6);

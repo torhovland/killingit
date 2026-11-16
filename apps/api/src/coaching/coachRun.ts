@@ -82,7 +82,7 @@ async function runCoachTurn(
         {
           userId,
           today,
-          ...(timezone !== undefined ? { timezone } : {}),
+          timezone,
           signal,
         },
       );

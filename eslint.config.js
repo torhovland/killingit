@@ -62,6 +62,18 @@ export default tseslint.config(
     },
   },
   {
+    // An optional value forwarded to another object is typed `T | undefined`
+    // and passed straight through. The conditional object spread that used to
+    // satisfy `exactOptionalPropertyTypes` hides an optional field behind a
+    // shape change and drifts apart from the consumer's type. Tests keep their
+    // fixture shortcuts; production API code does not. See AGENTS.md.
+    files: ["apps/api/src/**/*.ts"],
+    ignores: ["**/*.test.ts"],
+    rules: {
+      "local/no-optional-spread": "error",
+    },
+  },
+  {
     // A conditional `className` is composed through `cn()` so conflicting
     // Tailwind utilities merge and an omitted fragment leaves no stray space.
     // A template literal passed to `cn()` is the intended dynamic input. See

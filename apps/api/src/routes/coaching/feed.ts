@@ -68,7 +68,7 @@ export function createFeedHandlers(deps: ResolvedCoachingDependencies) {
         {
           userId,
           today,
-          ...(timezone !== undefined ? { timezone } : {}),
+          timezone,
         },
       );
     } catch (err) {
@@ -151,7 +151,7 @@ export function createFeedHandlers(deps: ResolvedCoachingDependencies) {
       await deps.trigger(deps.triggerDeps, {
         userId: user.id,
         today,
-        ...(timezone !== undefined ? { timezone } : {}),
+        timezone,
       });
 
       return c.json(

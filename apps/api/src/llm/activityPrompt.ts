@@ -79,13 +79,13 @@ export interface ActivityAnalysisContext {
    * health window and body history all use its local day. A missing zone reads
    * as UTC.
    */
-  timezone?: string;
+  timezone?: string | undefined;
   /** The current season, shown so the coach can relate the workout to its focus. */
-  season?: SeasonPlan;
+  season?: SeasonPlan | undefined;
   /** The current block, shown so the coach can relate the workout to its focus. */
-  block?: BlockPlan;
+  block?: BlockPlan | undefined;
   /** The athlete's current week, when one is stored. */
-  week?: WeekPlan;
+  week?: WeekPlan | undefined;
   /** The stored FTP threshold history, oldest first, including coach estimates. */
   ftpHistory?: readonly Pick<MetricPoint, "date" | "value" | "source">[];
   /** The FTP in effect on the activity date, when known. */
@@ -93,9 +93,9 @@ export interface ActivityAnalysisContext {
   /** Every threshold measure in effect on the activity date. */
   thresholds?: readonly ThresholdSummary[];
   /** Daily health and recovery values, filtered through the activity date. */
-  dailyHealth?: readonly DailyHealthPoint[];
+  dailyHealth?: readonly DailyHealthPoint[] | undefined;
   /** Stored body weight and body-fat history, including Garmin weigh-ins. */
-  bodyHistory?: BodyMetricHistory;
+  bodyHistory?: BodyMetricHistory | undefined;
   /** Meals from the last seven days and completed-week summaries. */
   diet?: DietPromptContext;
 }

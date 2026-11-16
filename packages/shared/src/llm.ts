@@ -296,11 +296,13 @@ export type LlmCallMetadata = {
   /** Output-token budget sent with the request. */
   maxTokens?: number;
   /** Provider reasoning controls sent with the request. */
-  reasoning?: {
-    effort?: "minimal" | "low" | "medium" | "high" | "none";
-    max_tokens?: number;
-    exclude?: boolean;
-  };
+  reasoning?:
+    | {
+        effort?: "minimal" | "low" | "medium" | "high" | "none";
+        max_tokens?: number;
+        exclude?: boolean;
+      }
+    | undefined;
   /** The provider attempt that produced this row, when part of a chain. */
   attempt?: number;
   /** How many attempts the fallback chain allowed. */
