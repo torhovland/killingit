@@ -86,7 +86,10 @@ the review summaries, so the plan revision is built on them.
    3–5 sentence summary of the completed period using the period plan, the
    season/block context, the recent activities and analyses, and the athlete's
    profile and feedback.
-3. Store the summary. A failure is logged and never fails the plan.
+3. Store the summary. Both periods run through the same capture step,
+   parameterised by kind, dates, title and plan level, so the week and block
+   behave the same way. A failure is logged with its period kind and never fails
+   the plan or stops the other period's review.
 4. A generated week review, or an answer to one, is newer than the plan's
    stored coaching-input timestamp. That makes `pending.block` true even while
    today is still inside the current block. The update asks the coach to revise
@@ -136,7 +139,8 @@ the review summaries, so the plan revision is built on them.
 
 - Shared schema tests for the review contract and defaults.
 - API unit tests for the review prompt, period capture (completed vs current,
-  duplicate suppression), and the plan-context rendering of all review levels.
+  duplicate suppression, one period's failure not stopping the other), and the
+  plan-context rendering of all review levels.
 - API route tests for listing, creating/editing comments, duplicate rejection,
   acknowledging, and triggering a plan revision.
 - Web render tests for `PeriodReviewCard` and the pending-review filter.

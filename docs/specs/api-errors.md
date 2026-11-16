@@ -122,16 +122,17 @@ their own code instead. See ADR 0036.
 | `GarminAuthError`                               | `422`                           | `garmin_auth_failed`   |
 | `GarminNotConnectedError`                       | `409`                           | `garmin_not_connected` |
 | `LlmAuthError`                                  | `422`                           | `llm_key_invalid`      |
-| `LlmRateLimitError`                             | `429`                           | `too_many_requests`    |
 | `GarminSidecarError`, `LlmProviderError`        | the status it carries, else 503 | its status's code      |
 | `GarminCredentialsError`, `LlmCredentialsError` | `503`                           | `service_unavailable`  |
 
 A provider that reports a status of its own keeps it, so the Garmin sidecar's
 `403` (MFA required), `429` (rate limit) and `502` (gateway) reach the client
-unchanged, and an OpenRouter `402` (insufficient credits) is not folded into a
-generic service failure. The sidecar reports a Garmin login rejection as `401`
-towards the API; the API turns that into the `422` above, because the rejected
-credential is the athlete's connection, not the caller's session.
+unchanged, an OpenRouter `429` (per-minute rate limit or free-model daily cap)
+stays `too_many_requests`, and an OpenRouter `402` (insufficient credits) is not
+folded into a generic service failure. The sidecar reports a Garmin login
+rejection as `401` towards the API; the API turns that into the `422` above,
+because the rejected credential is the athlete's connection, not the caller's
+session.
 
 ## Athlete-facing text
 

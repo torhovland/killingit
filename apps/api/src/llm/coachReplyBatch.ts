@@ -7,6 +7,7 @@ import {
 } from "./coachReplyBatchPrompt.js";
 import { parsePlanJson } from "./planJson.js";
 import { completeWithFallbacks } from "./resilientCompletion.js";
+import { COACH_REPLY_TEMPERATURE } from "./sampling.js";
 
 export interface CoachReplyBatchCredentials {
   apiKey: string;
@@ -36,10 +37,13 @@ export async function generateCoachReplies(
     provider,
     credentials,
     buildCoachReplyBatchMessages(input),
-    // One completion must hold every reply plus the model's reasoning.
-    Math.min(4096, 1024 + input.items.length * 256),
-    0.4,
-    { kind: "coach_reply", metadata: { batchSize: input.items.length } },
+    {
+      // One completion must hold every reply plus the model's reasoning.
+      maxTokens: Math.min(4096, 1024 + input.items.length * 256),
+      temperature: COACH_REPLY_TEMPERATURE,
+      kind: "coach_reply",
+      metadata: { batchSize: input.items.length },
+    },
   );
   const parsed = parsePlanJson(replyBatchSchema, text);
   const replies = new Map<string, CoachReplyOutcome>();

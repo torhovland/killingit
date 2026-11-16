@@ -1483,6 +1483,67 @@ describe("stored activity rows", () => {
     expect(feed.activities[0]?.samples).toHaveLength(2);
   });
 
+  it("refreshes every stored column from a full re-sync", async () => {
+    const user = await dbUserStore.ensureUser("auth0|activity-all-columns");
+    await saveStoredActivities(user.id, [
+      syncedActivity(1, "2026-10-01T07:00:00Z"),
+    ]);
+    const resynced: Activity = {
+      ...syncedActivity(1, "2026-10-02T08:00:00Z", "Renamed ride"),
+      type: "running",
+      distance: 30000,
+      movingTime: 7200,
+      elapsedTime: 7400,
+      totalElevationGain: 400,
+      averageHeartRate: 150,
+      averageSpeed: 4.2,
+      maxSpeed: 5.5,
+      laps: [
+        { index: 1, distance: 1000 },
+        { index: 2, distance: 2000 },
+      ],
+      strengthSets: [{ setType: "active", repetitions: 10, exercises: [] }],
+      samples: [
+        {
+          timestamp: "2026-10-02T08:00:00Z",
+          latitude: 59.9,
+          longitude: 10.7,
+          power: 300,
+        },
+        {
+          timestamp: "2026-10-02T08:01:00Z",
+          latitude: 59.91,
+          longitude: 10.71,
+          power: 310,
+        },
+      ],
+    };
+    await saveStoredActivities(user.id, [resynced]);
+
+    const [activity] = (await loadStoredActivityFeed(user.id, "samples"))
+      .activities;
+
+    expect(activity).toMatchObject({
+      name: "Renamed ride",
+      type: "running",
+      startDate: "2026-10-02T08:00:00.000Z",
+      distance: 30000,
+      movingTime: 7200,
+      elapsedTime: 7400,
+      totalElevationGain: 400,
+      averagePower: 300,
+      averageHeartRate: 150,
+      averageSpeed: 4.2,
+      maxSpeed: 5.5,
+      sampleCount: 2,
+    });
+    expect(activity?.normalizedPower).toBeDefined();
+    expect(activity?.laps).toHaveLength(2);
+    expect(activity?.strengthSets).toHaveLength(1);
+    expect(activity?.samples).toHaveLength(2);
+    expect(activity?.route).toHaveLength(2);
+  });
+
   it("keeps the preview, laps and sets when a re-sync has no details", async () => {
     const user = await dbUserStore.ensureUser("auth0|activity-preview-kept");
     const full: Activity = {
@@ -1540,6 +1601,23 @@ describe("stored activity rows", () => {
     const full = await loadStoredActivityFeed(user.id, "samples");
     expect(full.activities[0]?.samples).toHaveLength(2);
     expect(full.activities[0]?.route).toHaveLength(2);
+  });
+
+  it("filters and orders every preview scope the same way", async () => {
+    const owner = await dbUserStore.ensureUser("auth0|activity-scope-owner");
+    const other = await dbUserStore.ensureUser("auth0|activity-scope-other");
+    await saveStoredActivities(owner.id, [
+      syncedActivity(1, "2026-10-01T07:00:00Z"),
+      syncedActivity(2, "2026-10-03T07:00:00Z"),
+    ]);
+    await saveStoredActivities(other.id, [
+      syncedActivity(3, "2026-10-05T07:00:00Z"),
+    ]);
+
+    for (const scope of ["none", "route", "samples"] as const) {
+      const feed = await loadStoredActivityFeed(owner.id, scope);
+      expect(feed.activities.map((activity) => activity.id)).toEqual([2, 1]);
+    }
   });
 
   it("keeps the stored history newest first and drops a deleted activity", async () => {

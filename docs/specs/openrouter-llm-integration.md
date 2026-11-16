@@ -137,9 +137,10 @@ Weather and daylight are included in the plan prompts; see
   week plan, and system instructions to match the activity to a planned session
   without trusting the device's activity type (a 3–5 sentence coach response
   with one recommendation).
-- `analyze.ts` — one completion per activity (temperature 0.3, 2048 max
-  tokens). Reasoning models count reasoning against that budget; completions
-  with `finish_reason: "length"` are rejected rather than shown truncated.
+- `analyze.ts` — one completion per activity (`ANALYSIS_TEMPERATURE`,
+  `ANALYSIS_MAX_TOKENS`). Reasoning models count reasoning against that budget;
+  completions with `finish_reason: "length"` are rejected rather than shown
+  truncated.
 - `planCompletion.ts` — plan generations request `reasoning: { effort:
 "minimal" }` so most of the output budget is available for the JSON. A
   completion walks at most four fallback configurations, and one plan level

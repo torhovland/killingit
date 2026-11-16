@@ -56,9 +56,15 @@ export function completionBudgetLeft(budget: CompletionBudget): boolean {
   return budget.attemptsRemaining > 0 && Date.now() < budget.deadline;
 }
 
-/** The coaching task and extra metadata recorded in the prompt log. */
+/** Everything one completion needs beyond its provider, credentials and prompt. */
 export interface CompletionOptions {
+  /** Output budget for the first attempt; the fallback ladder may double it. */
+  maxTokens: number;
+  /** Sampling temperature, named by the caller's intent; there is no default. */
+  temperature: number;
+  /** The coaching task, recorded in the prompt log. */
   kind?: LlmPromptKind;
+  /** Extra prompt-log metadata such as the season or week being planned. */
   metadata?: LlmCallMetadata;
   /** Shared retry and time budget; a fresh one is created when omitted. */
   budget?: CompletionBudget;
@@ -100,12 +106,10 @@ export async function completeWithFallbacks(
   provider: LlmProvider,
   credentials: CompletionCredentials,
   messages: LlmProviderMessage[],
-  maxTokens: number,
-  temperature = 0.4,
-  options: CompletionOptions = {},
+  options: CompletionOptions,
 ): Promise<string> {
   const budget = options.budget ?? createCompletionBudget();
-  const attempts = attemptLadder(maxTokens);
+  const attempts = attemptLadder(options.maxTokens);
   const ofAttempts = Math.min(attempts.length, budget.attemptsRemaining);
 
   let lastError: unknown;
@@ -128,7 +132,7 @@ export async function completeWithFallbacks(
         apiKey: credentials.apiKey,
         model: credentials.model,
         messages,
-        temperature,
+        temperature: options.temperature,
         maxTokens: attempt.maxTokens,
         ...(attempt.reasoning !== undefined
           ? { reasoning: attempt.reasoning }

@@ -6,6 +6,7 @@ import {
 } from "./coachReplyPrompt.js";
 import { parsePlanJson, PlanJsonError } from "./planJson.js";
 import { completeWithFallbacks } from "./resilientCompletion.js";
+import { COACH_REPLY_TEMPERATURE } from "./sampling.js";
 
 export interface CoachReplyCredentials {
   apiKey: string;
@@ -37,10 +38,12 @@ export async function generateCoachReply(
     provider,
     credentials,
     buildCoachReplyMessages(input),
-    // Brief text; leave room for reasoning tokens on reasoning models.
-    1024,
-    0.4,
-    { kind },
+    {
+      // Brief text; leave room for reasoning tokens on reasoning models.
+      maxTokens: 1024,
+      temperature: COACH_REPLY_TEMPERATURE,
+      kind,
+    },
   );
   // A one-off question is a conversation only, whatever the model returns.
   if (kind === "coaching_question") {

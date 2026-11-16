@@ -4,6 +4,7 @@ import {
   type PeriodReviewPromptInput,
 } from "./periodReviewPrompt.js";
 import { completeWithFallbacks } from "./resilientCompletion.js";
+import { ANALYSIS_TEMPERATURE } from "./sampling.js";
 
 export interface PeriodReviewCredentials {
   apiKey: string;
@@ -22,9 +23,12 @@ export function generatePeriodReview(
     provider,
     credentials,
     buildPeriodReviewMessages(input),
-    // Leave room for reasoning tokens plus a complete 3-5 sentence summary.
-    2048,
-    0.3,
-    { kind: "period_review", metadata: { periodKind: input.kind } },
+    {
+      // Leave room for reasoning tokens plus a complete 3-5 sentence summary.
+      maxTokens: 2048,
+      temperature: ANALYSIS_TEMPERATURE,
+      kind: "period_review",
+      metadata: { periodKind: input.kind },
+    },
   );
 }

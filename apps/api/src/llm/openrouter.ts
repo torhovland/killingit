@@ -42,14 +42,6 @@ export class LlmAuthError extends LlmProviderError {
   }
 }
 
-/** Raised when the provider rate-limits a request or hits a daily quota (429). */
-class LlmRateLimitError extends LlmProviderError {
-  constructor(message: string, options?: { cause?: unknown }) {
-    super(message, 429, options);
-    this.name = "LlmRateLimitError";
-  }
-}
-
 /** What OpenRouter reported for a response it stopped at the token limit. */
 export interface LlmTokenLimitDetails {
   /** The model OpenRouter actually routed to, when it reports one. */
@@ -228,39 +220,11 @@ export function createOpenRouterProvider(
       "could not reach OpenRouter for the completion",
     );
 
-    if (res.status === 401) {
-      throw new LlmAuthError("invalid OpenRouter API key");
-    }
-    if (res.status === 402) {
-      throw new LlmProviderError(
-        "OpenRouter account has insufficient credits",
-        402,
-      );
-    }
-    if (res.status === 429) {
-      const detail = await providerDetail(res, "OpenRouter rate limit");
-      throw new LlmRateLimitError(
-        `${detail} This may be a per-minute rate limit or a free-model daily request cap that is separate from your credit balance. Wait a few minutes and retry, or switch to a paid model.`,
-      );
-    }
-    if (!res.ok) {
-      throw new LlmProviderError(
-        await providerDetail(
-          res,
-          `OpenRouter completion returned ${res.status}`,
-        ),
-        res.status,
-      );
-    }
+    await throwForStatus(res, "OpenRouter completion");
 
     const body = (await res.json()) as {
       model?: unknown;
-      usage?: {
-        prompt_tokens?: unknown;
-        completion_tokens?: unknown;
-        total_tokens?: unknown;
-        cost?: unknown;
-      };
+      usage?: OpenRouterUsage;
       choices?: Array<{
         message?: { content?: unknown };
         finish_reason?: unknown;
@@ -299,12 +263,7 @@ export function createOpenRouterProvider(
         { signal: AbortSignal.timeout(KEY_CHECK_TIMEOUT_MS) },
         "could not reach OpenRouter for the model list",
       );
-      if (!res.ok) {
-        throw new LlmProviderError(
-          await providerDetail(res, `OpenRouter returned ${res.status}`),
-          res.status,
-        );
-      }
+      await throwForStatus(res, "OpenRouter");
 
       const body = (await res.json()) as { data?: unknown };
       if (!Array.isArray(body.data)) {
@@ -334,18 +293,7 @@ export function createOpenRouterProvider(
         },
         "could not reach OpenRouter to validate the API key",
       );
-      if (res.status === 401) {
-        throw new LlmAuthError("invalid OpenRouter API key");
-      }
-      if (!res.ok) {
-        throw new LlmProviderError(
-          await providerDetail(
-            res,
-            `OpenRouter key check returned ${res.status}`,
-          ),
-          res.status,
-        );
-      }
+      await throwForStatus(res, "OpenRouter key check");
       // Drain the body so the connection can be reused.
       await res.text();
     },
@@ -385,17 +333,48 @@ async function request(
   }
 }
 
+/**
+ * Maps a provider failure status to the error the API reports. A `401` is the
+ * athlete's key, not the caller's session, so it becomes the `422` they fix in
+ * Settings (ADR 0036). Every other failure keeps the provider's status and
+ * message, with the rate-limit guidance attached to a `429`.
+ */
+async function throwForStatus(res: Response, label: string): Promise<void> {
+  if (res.ok) {
+    return;
+  }
+  if (res.status === 401) {
+    throw new LlmAuthError("invalid OpenRouter API key");
+  }
+  if (res.status === 402) {
+    throw new LlmProviderError(
+      "OpenRouter account has insufficient credits",
+      402,
+    );
+  }
+  if (res.status === 429) {
+    const detail = await providerDetail(res, "OpenRouter rate limit");
+    throw new LlmProviderError(
+      `${detail} This may be a per-minute rate limit or a free-model daily request cap that is separate from your credit balance. Wait a few minutes and retry, or switch to a paid model.`,
+      429,
+    );
+  }
+  throw new LlmProviderError(
+    await providerDetail(res, `${label} returned ${res.status}`),
+    res.status,
+  );
+}
+
+/** Token usage as OpenRouter reports it, before normalization. */
+interface OpenRouterUsage {
+  prompt_tokens?: unknown;
+  completion_tokens?: unknown;
+  total_tokens?: unknown;
+  cost?: unknown;
+}
+
 /** Normalizes OpenRouter's token usage, or null when it reports none. */
-function normalizeUsage(
-  raw:
-    | {
-        prompt_tokens?: unknown;
-        completion_tokens?: unknown;
-        total_tokens?: unknown;
-        cost?: unknown;
-      }
-    | undefined,
-): LlmCallUsage | null {
+function normalizeUsage(raw: OpenRouterUsage | undefined): LlmCallUsage | null {
   if (raw === undefined) {
     return null;
   }

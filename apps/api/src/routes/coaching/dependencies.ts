@@ -104,11 +104,11 @@ export interface ResolvedCoachingDependencies {
   deleteManual: typeof deleteManualActivity;
   reply: typeof replyToCoachingInput;
   replyToQuestion: typeof replyToCoachQuestion;
-  answerQuestion: typeof answerCoachingQuestion;
+  askQuickQuestion: typeof answerCoachingQuestion;
   loadPendingQuestion: typeof loadPendingCoachQuestion;
   loadAnsweredQuestions: typeof loadAnsweredCoachQuestions;
   loadQuestion: typeof loadCoachQuestion;
-  answerCoachQuestionStore: typeof answerCoachQuestion;
+  saveQuestionAnswer: typeof answerCoachQuestion;
   trigger: typeof triggerPlanGeneration;
   llmLoader: (userId: number) => Promise<LlmClient | null>;
   loadThresholds: typeof loadThresholdHistoryForUser;
@@ -180,12 +180,12 @@ export function resolveCoachingDependencies(
     deleteManual: deps.deleteManualActivity ?? deleteManualActivity,
     reply: deps.replyToCoachingInput ?? replyToCoachingInput,
     replyToQuestion: deps.replyToCoachQuestion ?? replyToCoachQuestion,
-    answerQuestion: deps.answerCoachingQuestion ?? answerCoachingQuestion,
+    askQuickQuestion: deps.answerCoachingQuestion ?? answerCoachingQuestion,
     loadPendingQuestion:
       deps.loadPendingCoachQuestion ?? loadPendingCoachQuestion,
     loadAnsweredQuestions,
     loadQuestion: deps.loadCoachQuestion ?? loadCoachQuestion,
-    answerCoachQuestionStore: deps.answerCoachQuestion ?? answerCoachQuestion,
+    saveQuestionAnswer: deps.answerCoachQuestion ?? answerCoachQuestion,
     trigger: deps.triggerPlanGeneration ?? triggerPlanGeneration,
     llmLoader,
     loadThresholds: deps.loadThresholdHistory ?? loadThresholdHistoryForUser,

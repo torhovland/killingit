@@ -79,17 +79,15 @@ describe("completeWithFallbacks", () => {
       "Analysis.",
     ]);
 
-    const text = await completeWithFallbacks(
-      provider,
-      credentials,
-      messages,
-      2048,
-      0.3,
-    );
+    const text = await completeWithFallbacks(provider, credentials, messages, {
+      maxTokens: 2048,
+      temperature: 0.3,
+    });
 
     expect(text).toBe("Analysis.");
     expect(provider.requests).toHaveLength(2);
     expect(provider.requests[0]?.reasoning).toEqual({ effort: "minimal" });
+    expect(provider.requests[0]?.temperature).toBe(0.3);
     expect(provider.requests[1]?.reasoning).toEqual({ effort: "none" });
     expect(provider.requests[1]?.maxTokens).toBe(2048);
   });
@@ -101,13 +99,10 @@ describe("completeWithFallbacks", () => {
       "Analysis.",
     ]);
 
-    const text = await completeWithFallbacks(
-      provider,
-      credentials,
-      messages,
-      2048,
-      0.3,
-    );
+    const text = await completeWithFallbacks(provider, credentials, messages, {
+      maxTokens: 2048,
+      temperature: 0.3,
+    });
 
     expect(text).toBe("Analysis.");
     expect(provider.requests[2]?.reasoning).toBeUndefined();
@@ -121,13 +116,10 @@ describe("completeWithFallbacks", () => {
       "Analysis.",
     ]);
 
-    const text = await completeWithFallbacks(
-      provider,
-      credentials,
-      messages,
-      16_384,
-      0.3,
-    );
+    const text = await completeWithFallbacks(provider, credentials, messages, {
+      maxTokens: 16_384,
+      temperature: 0.3,
+    });
 
     expect(text).toBe("Analysis.");
     expect(provider.requests[2]?.maxTokens).toBe(32_768);
@@ -141,13 +133,10 @@ describe("completeWithFallbacks", () => {
       "Analysis.",
     ]);
 
-    const text = await completeWithFallbacks(
-      provider,
-      credentials,
-      messages,
-      16_384,
-      0.3,
-    );
+    const text = await completeWithFallbacks(provider, credentials, messages, {
+      maxTokens: 16_384,
+      temperature: 0.3,
+    });
 
     expect(text).toBe("Analysis.");
     expect(provider.requests).toHaveLength(4);
@@ -166,13 +155,10 @@ describe("completeWithFallbacks", () => {
     );
     const provider = new FakeProvider([mandatory, mandatory, "Analysis."]);
 
-    const text = await completeWithFallbacks(
-      provider,
-      credentials,
-      messages,
-      2048,
-      0.3,
-    );
+    const text = await completeWithFallbacks(provider, credentials, messages, {
+      maxTokens: 2048,
+      temperature: 0.3,
+    });
 
     expect(text).toBe("Analysis.");
     expect(provider.requests).toHaveLength(3);
@@ -184,7 +170,10 @@ describe("completeWithFallbacks", () => {
     const provider = new FakeProvider([new LlmAuthError("invalid key")]);
 
     const failure = await failureOf(
-      completeWithFallbacks(provider, credentials, messages, 2048),
+      completeWithFallbacks(provider, credentials, messages, {
+        maxTokens: 2048,
+        temperature: 0.3,
+      }),
     );
 
     expect(failure).toBeInstanceOf(LlmAuthError);
@@ -198,7 +187,10 @@ describe("completeWithFallbacks", () => {
       ]);
 
       const failure = await failureOf(
-        completeWithFallbacks(provider, credentials, messages, 2048),
+        completeWithFallbacks(provider, credentials, messages, {
+          maxTokens: 2048,
+          temperature: 0.3,
+        }),
       );
 
       expect(failure).toBeInstanceOf(LlmProviderError);
@@ -212,7 +204,10 @@ describe("completeWithFallbacks", () => {
     );
 
     const failure = await failureOf(
-      completeWithFallbacks(provider, credentials, messages, 16_384),
+      completeWithFallbacks(provider, credentials, messages, {
+        maxTokens: 16_384,
+        temperature: 0.3,
+      }),
     );
 
     expect(failure).toBeInstanceOf(LlmTokenLimitError);
@@ -223,7 +218,9 @@ describe("completeWithFallbacks", () => {
     const provider = new FakeProvider(["unused"]);
 
     const failure = await failureOf(
-      completeWithFallbacks(provider, credentials, messages, 2048, 0.3, {
+      completeWithFallbacks(provider, credentials, messages, {
+        maxTokens: 2048,
+        temperature: 0.3,
         budget: createCompletionBudget({ attempts: 0 }),
       }),
     );
@@ -237,7 +234,9 @@ describe("completeWithFallbacks", () => {
     const provider = new FakeProvider(["unused"]);
 
     const failure = await failureOf(
-      completeWithFallbacks(provider, credentials, messages, 2048, 0.3, {
+      completeWithFallbacks(provider, credentials, messages, {
+        maxTokens: 2048,
+        temperature: 0.3,
         budget: createCompletionBudget({ budgetMs: 0 }),
       }),
     );
@@ -251,7 +250,9 @@ describe("completeWithFallbacks", () => {
     const provider = new HangingProvider();
 
     const failure = await failureOf(
-      completeWithFallbacks(provider, credentials, messages, 2048, 0.3, {
+      completeWithFallbacks(provider, credentials, messages, {
+        maxTokens: 2048,
+        temperature: 0.3,
         budget: createCompletionBudget({ budgetMs: 25 }),
       }),
     );
@@ -271,7 +272,7 @@ describe("completeWithFallbacks", () => {
         provider,
         { ...credentials, signal: controller.signal },
         messages,
-        2048,
+        { maxTokens: 2048, temperature: 0.3 },
       ),
     );
 
@@ -287,7 +288,7 @@ describe("completeWithFallbacks", () => {
       provider,
       { ...credentials, signal: controller.signal },
       messages,
-      2048,
+      { maxTokens: 2048, temperature: 0.3 },
     );
 
     const signal = provider.requests[0]?.signal;

@@ -176,7 +176,9 @@ export const dbPlanStore: PlanStore = {
     };
 
     type PlanWriter = Pick<typeof db, "insert">;
-    const write = async (executor: PlanWriter) => {
+    // The plan and the week totals and day calories derived from it are one
+    // write, so a fenced save cannot leave the companion rows behind.
+    const persist = async (executor: PlanWriter) => {
       const [row] = await executor
         .insert(coachPlans)
         .values({ userId, ...planValues })
@@ -188,14 +190,13 @@ export const dbPlanStore: PlanStore = {
       if (!row) {
         throw new Error("failed to persist the coach plan");
       }
+      await recordPlanWeekTotals(userId, plan, executor);
+      await recordPlanDayCalories(userId, plan, executor);
       return toStoredPlan(row);
     };
 
     if (runId === undefined) {
-      const saved = await write(db);
-      await recordPlanWeekTotals(userId, plan, db);
-      await recordPlanDayCalories(userId, plan, db);
-      return saved;
+      return persist(db);
     }
 
     // Lock the generation row, then verify this run still owns it before
@@ -210,10 +211,7 @@ export const dbPlanStore: PlanStore = {
       if (rows[0]?.runId !== runId) {
         return null;
       }
-      const saved = await write(tx);
-      await recordPlanWeekTotals(userId, plan, tx);
-      await recordPlanDayCalories(userId, plan, tx);
-      return saved;
+      return persist(tx);
     });
   },
 };
@@ -268,6 +266,21 @@ async function learnDuration(row: PlanGenerationRow, now: Date): Promise<void> {
     });
 }
 
+/**
+ * Reads the generation row and records the time its current step took, returning
+ * the row as the caller found it so it can carry the reported progress forward.
+ */
+async function endStep(
+  userId: number,
+  now: Date,
+): Promise<PlanGenerationRow | null> {
+  const row = await loadGenerationRow(userId);
+  if (row !== null) {
+    await learnDuration(row, now);
+  }
+  return row;
+}
+
 /** PostgreSQL-backed generation status store. */
 export const dbPlanGenerationStore: PlanGenerationStore = {
   async load(userId) {
@@ -311,10 +324,7 @@ export const dbPlanGenerationStore: PlanGenerationStore = {
 
   async update(userId, step, runId) {
     const now = new Date();
-    const previous = await loadGenerationRow(userId);
-    if (previous !== null) {
-      await learnDuration(previous, now);
-    }
+    const previous = await endStep(userId, now);
     // Carry the percentage reached so far into the new step instead of
     // restarting from a fixed checkpoint, so a skipped step cannot cause a jump.
     const from =
@@ -358,10 +368,7 @@ export const dbPlanGenerationStore: PlanGenerationStore = {
 
   async finish(userId, runId) {
     const now = new Date();
-    const previous = await loadGenerationRow(userId);
-    if (previous !== null) {
-      await learnDuration(previous, now);
-    }
+    await endStep(userId, now);
     await db
       .update(planGenerations)
       .set({

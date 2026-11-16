@@ -126,9 +126,15 @@ Shared (`@killingit/shared`):
 
 API:
 
-- `apps/api/src/routes/calendar.ts`: `buildCalendar` (pure), `weekOutlines`
-  (week summaries from the season blocks, active and next block week plans, and
-  current and next week), `weekStats`, and the route.
+- `apps/api/src/calendar/buildCalendar.ts`: the pure calendar build. It reads
+  in four named steps — `calendarRange` (the dates the page may show),
+  `calendarActivities` (imported and manual entries), `calendarDays` (the sparse
+  day map, including events and plan markers) and `calendarWeeks` (the Monday
+  outlines and stats) — with `weekOutlines`, `weekStats` and the plan-session
+  lookup private to it.
+- `apps/api/src/routes/calendar.ts`: `createCalendarRoute`, the dependency
+  resolution, and the advisory fail-open reads for events and stored week
+  totals.
 - `apps/api/src/plans/weekTotals.ts`: the planned totals of the weeks a plan
   details, written with every plan save and read by the calendar.
 - Registered at `/api/calendar` behind `requireAuth`.

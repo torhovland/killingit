@@ -87,7 +87,7 @@ export function assembleFeed(params: AssembleFeedParams): ActivityFeed {
       return withActivityLoad(
         analyzed === undefined
           ? withActivityFeedback(activity, params.inputs.feedback)
-          : withCoachWork(activity, analyzed),
+          : overlayFreshCoachFields(activity, analyzed),
         params.inputs.loads,
         params.timezone,
       );
@@ -101,7 +101,7 @@ export function assembleFeed(params: AssembleFeedParams): ActivityFeed {
  * sync that skipped their payloads must not replace; only the coach fields come
  * from the analysis pass.
  */
-function withCoachWork(
+function overlayFreshCoachFields(
   activity: AnalyzedActivity,
   analyzed: AnalyzedActivity,
 ): AnalyzedActivity {
