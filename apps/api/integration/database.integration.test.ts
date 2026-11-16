@@ -28,6 +28,7 @@ import {
   planDayCalories,
   users,
 } from "../src/db/schema.js";
+import * as dbSchema from "../src/db/schema.js";
 import { deleteImportedActivity } from "../src/coaching/deletions.js";
 import { saveAnalysis } from "../src/llm/analysisStore.js";
 import {
@@ -147,6 +148,23 @@ async function listIndexes(table: string): Promise<string[]> {
     sql`select indexname from pg_indexes where schemaname = 'public' and tablename = ${table} order by indexname`,
   );
   return result.rows.map((row) => row.indexname);
+}
+
+/** Every check constraint PostgreSQL reports for one public table, by name. */
+async function listCheckConstraints(table: string): Promise<string[]> {
+  const result = await db.execute<{ conname: string }>(
+    sql`
+      select conname
+      from pg_constraint
+      join pg_class on pg_class.oid = pg_constraint.conrelid
+      join pg_namespace on pg_namespace.oid = pg_class.relnamespace
+      where pg_namespace.nspname = 'public'
+        and pg_class.relname = ${table}
+        and pg_constraint.contype = 'c'
+      order by conname
+    `,
+  );
+  return result.rows.map((row) => row.conname);
 }
 
 /** Every stored threshold point, read through the page-facing loader. */
@@ -272,6 +290,14 @@ describe("migrations", () => {
         (name) => name !== `${config.name}_pkey`,
       );
       expect(migrated).toEqual(declared);
+    }
+  });
+
+  it("keeps every declared check and the migrated database in step", async () => {
+    for (const table of Object.values(dbSchema)) {
+      const config = getTableConfig(table);
+      const declared = config.checks.map((entry) => entry.name).sort();
+      expect(await listCheckConstraints(config.name)).toEqual(declared);
     }
   });
 
