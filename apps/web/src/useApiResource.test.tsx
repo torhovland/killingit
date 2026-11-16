@@ -270,7 +270,11 @@ describe("useApiResource", () => {
 
     expect(await screen.findByText("The API is down")).toBeDefined();
     expect(screen.getByTestId("value").textContent).toBe("empty");
-    expect(screen.getByTestId("app-status").textContent).toBe("idle");
+    // The spinner clears in the status effect after the request settles, so
+    // this is one tick behind the error text becoming visible.
+    await waitFor(() =>
+      expect(screen.getByTestId("app-status").textContent).toBe("idle"),
+    );
   });
 
   it("refetches when reload is called", async () => {

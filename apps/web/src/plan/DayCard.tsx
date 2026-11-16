@@ -18,6 +18,7 @@ import { Card } from "../components/Card";
 import { StatusBadge } from "../components/StatusBadge";
 import { formatPlanDate } from "./formatPlanDate";
 import { RefreshingOverlay, ThresholdsLine } from "./sections";
+import { showsWeather } from "./sessionWeather";
 
 /**
  * The threshold measures that belong to the day's own sport. A rest day has no
@@ -121,11 +122,9 @@ export function DayCard({
         {day.trainingLoad !== null && day.trainingLoad !== undefined && (
           <TrainingLoadLine load={day.trainingLoad} testId={`${testId}-load`} />
         )}
-        {day.type === "workout" &&
-          day.canBeOutdoor !== false &&
-          (day.weather != null || day.forecasts != null) && (
-            <WeatherSummary weather={day.weather} forecasts={day.forecasts} />
-          )}
+        {showsWeather(day) && (
+          <WeatherSummary weather={day.weather} forecasts={day.forecasts} />
+        )}
         <FormattedText
           text={day.description}
           className="text-base text-muted-foreground"

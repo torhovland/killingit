@@ -1,3 +1,4 @@
+import type { Dispatch, SetStateAction } from "react";
 import {
   garminConnectionStatusSchema,
   llmSettingsSchema,
@@ -5,7 +6,13 @@ import {
   type LlmSettings,
 } from "@killingit/shared";
 import type { AuthState } from "./auth";
-import { useApiResources } from "./useApiResource";
+import { useApiResources, type ApiResourceOptions } from "./useApiResource";
+
+/** The two integration statuses as the shared requests return them. */
+interface IntegrationStatusData {
+  garmin: GarminConnectionStatus;
+  llm: LlmSettings;
+}
 
 export interface IntegrationStatuses {
   garmin: GarminConnectionStatus | null;
@@ -13,14 +20,23 @@ export interface IntegrationStatuses {
   loading: boolean;
   error: string | null;
   reload: () => void;
+  /** Replaces a status after a save, for example new Garmin credentials. */
+  setData: Dispatch<SetStateAction<IntegrationStatusData | null>>;
 }
 
 /**
- * Loads the two integration statuses the coaching pages need: whether Garmin is
- * connected and how the LLM is configured. Both pages share this loader so a
- * new status or validation change reaches them together.
+ * The single loader for the two integration statuses: whether Garmin is
+ * connected and how the LLM is configured. Every consumer shares this loader so
+ * a new status or validation change reaches them together.
+ *
+ * `options` is forwarded to `useApiResources`, so a page that owns a
+ * page-level spinner can register it through `statusSource`. A caller that
+ * saves a status passes the new value to `setData` instead of refetching.
  */
-export function useStatuses(auth: AuthState): IntegrationStatuses {
+export function useStatuses(
+  auth: AuthState,
+  options: ApiResourceOptions = {},
+): IntegrationStatuses {
   const statuses = useApiResources(
     auth.isAuthenticated
       ? {
@@ -36,6 +52,7 @@ export function useStatuses(auth: AuthState): IntegrationStatuses {
           },
         }
       : null,
+    options,
   );
 
   return {
@@ -44,5 +61,6 @@ export function useStatuses(auth: AuthState): IntegrationStatuses {
     loading: statuses.loading,
     error: statuses.error,
     reload: statuses.reload,
+    setData: statuses.setData,
   };
 }

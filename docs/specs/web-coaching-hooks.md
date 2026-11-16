@@ -9,17 +9,24 @@
 
 ## Goal
 
-Keep the two pages that show the activity feed — the coaching dashboard and the
+Keep the pages that show the activity feed — the coaching dashboard and the
 Activities page — on one implementation of the feed, status, comment, delete and
-cache logic, so a fix or behaviour change reaches both pages at once.
+cache logic, so a fix or behaviour change reaches both pages at once. The
+integration statuses are loaded the same way everywhere they appear, including
+the settings page and the plan-regeneration buttons.
 
 ## Scope
 
 ### In scope
 
-1. **`useStatuses(auth)`** loads the Garmin connection status and the LLM
-   settings in parallel, validates both responses, and exposes the two values,
-   a loading flag, an error message, and a `reload` action.
+1. **`useStatuses(auth, options)`** loads the Garmin connection status and the
+   LLM settings in parallel, validates both responses, and exposes the two
+   values, a loading flag, an error message, a `reload` action, and `setData` so
+   a page can replace a status it just saved. It forwards the optional
+   `ApiResourceOptions` to `useApiResources`, so a page that owns a header
+   spinner registers its `statusSource` without rebuilding the requests. The
+   dashboard, the Activities page, `settings/SettingsPage.tsx` and
+   `PlanRegenerationButtons.tsx` all read the statuses through it.
 2. **`useActivityFeed(auth, timeZone, options)`** owns:
    - the feed on screen, seeded from the per-account browser cache;
    - loading the live feed (with `today`, `timezone`, and optional `refresh`);
@@ -65,7 +72,7 @@ hook that more than one page needs joins the shared list above.
 
 ## Acceptance criteria
 
-1. `coachingDateQuery`, `deleteActivity`, `submitComment`, the status loaders
+1. `coachingDateQuery`, `deleteActivity`, `submitComment`, the status loader
    and the cache writes exist in one place.
 2. The Activities page still lists the full feed, supports manual activities,
    sync / re-analyse, comments and delete.

@@ -27,6 +27,7 @@ import { PwaBanners } from "./PwaBanners";
 import { usePwa } from "./PwaContext";
 import { InstallAppButton } from "./PwaInstall";
 import { SignInPage } from "./SignInPage";
+import { Spinner } from "./Spinner";
 import { panelWidthClass, surveyGate } from "./surveyGate";
 import { TimeZoneProvider } from "./TimeZoneContext";
 import { Button } from "./components/Button";
@@ -343,16 +344,7 @@ function UserMenu({
               Admin
             </span>
           )}
-          {label && (
-            <span
-              className="inline-flex size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-              role="status"
-              aria-label={label}
-              title={label}
-              data-testid="header-spinner"
-              data-state={status}
-            />
-          )}
+          {label && <Spinner label={label} />}
         </>
       }
     >

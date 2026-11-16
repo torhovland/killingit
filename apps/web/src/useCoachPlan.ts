@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  coachPlanResponseSchema,
   dietSummaryResponseSchema,
   type CoachPlanResponse,
   type DietDaySummary,
@@ -8,7 +7,11 @@ import {
 } from "@killingit/shared";
 import type { AuthState } from "./auth";
 import { requestParsed } from "./fetchAuthed";
-import { hasPendingWork, type PlanGenerationOutcome } from "./planGeneration";
+import {
+  fetchCoachPlan,
+  hasPendingWork,
+  type PlanGenerationOutcome,
+} from "./planGeneration";
 import { usePlanGeneration } from "./PlanGenerationProvider";
 import type { PlanProgressState } from "./PlanProgress";
 import { reportError } from "./reportError";
@@ -78,13 +81,7 @@ export function useCoachPlan(
       includeTomorrow: boolean,
       signal: AbortSignal,
     ): Promise<CoachPlanResponse> =>
-      requestParsed(
-        `/api/coaching/plan?today=${today}&includeTomorrow=${includeTomorrow}`,
-        auth,
-        coachPlanResponseSchema,
-        "Loading your plan",
-        { signal },
-      ),
+      fetchCoachPlan(auth, { today, includeTomorrow }, signal),
     [auth],
   );
 

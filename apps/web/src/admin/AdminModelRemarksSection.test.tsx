@@ -1,21 +1,25 @@
 import { afterAll, afterEach, describe, expect, it, mock } from "bun:test";
 import type { LlmModelRemark } from "@killingit/shared";
+import type { AuthState } from "../auth";
 import { render, screen } from "@testing-library/react";
 import { formatDateTime } from "../timeZone";
 import { TimeZoneProvider } from "../TimeZoneContext";
 
 const { SessionExpiredError } = await import("../auth/session");
 
+/** Stable identity, as the real `useAuth` contract promises. */
+const auth: AuthState = {
+  isAuthenticated: true,
+  isLoading: false,
+  sub: "admin",
+  login: () => Promise.resolve(),
+  logout: () => Promise.resolve(),
+  getToken: () => Promise.resolve("token"),
+};
+
 await mock.module("../auth", () => ({
   SessionExpiredError,
-  useAuth: () => ({
-    isAuthenticated: true,
-    isLoading: false,
-    sub: "admin",
-    login: () => Promise.resolve(),
-    logout: () => Promise.resolve(),
-    getToken: () => Promise.resolve("token"),
-  }),
+  useAuth: () => auth,
 }));
 
 afterAll(() => {

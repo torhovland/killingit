@@ -7,6 +7,7 @@ import { SessionSetting } from "../SessionSetting";
 import { TrainingLoadLine } from "../TrainingLoadLine";
 import { useTimeZone } from "../TimeZoneContext";
 import { formatPlanDate } from "../plan/formatPlanDate";
+import { showsWeather } from "../plan/sessionWeather";
 import { WeatherSummary } from "../WeatherSummary";
 import { Button } from "../components/Button";
 import { CoachReply } from "../components/CoachReply";
@@ -187,14 +188,12 @@ function SessionDetails({ session }: { session: WeekSession }) {
           testId="calendar-dialog-load"
         />
       )}
-      {session.type === "workout" &&
-        session.canBeOutdoor !== false &&
-        (session.weather != null || session.forecasts != null) && (
-          <WeatherSummary
-            weather={session.weather}
-            forecasts={session.forecasts}
-          />
-        )}
+      {showsWeather(session) && (
+        <WeatherSummary
+          weather={session.weather}
+          forecasts={session.forecasts}
+        />
+      )}
       <FormattedText
         text={session.description}
         className="text-base text-muted-foreground"

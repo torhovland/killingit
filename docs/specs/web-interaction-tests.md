@@ -90,10 +90,18 @@ registers `mock.module` without that restore.
 Bun applies a module mock to the whole test process, including files loaded
 after the registering suite, and `mock.restore()` does not undo it for those
 late imports. A suite that stubs a module another suite exercises therefore
-delegates to the real hook whenever its own tests are not running:
+delegates to the real component whenever its own tests are not running:
 `PlanRegenerationButtons` keeps its controlled `usePlanGeneration` only for its
 own tests, so `CoachPlanSection` and `PlanGenerationProvider` still reach the
-provider's real context.
+provider's real context, and `AdminSettingsPage` renders the real
+`AdminLlmCallsSection` and `AdminModelRemarksSection` outside its own tests so
+their suites never see the page's stubs.
+
+A `useAuth` mock must return a stable session object, because the real hook
+promises one and `useApiResource` lists `auth` in an effect dependency. A mock
+that builds a fresh object per call aborts and refetches on every render, which
+times out under load. `apps/web/src/mockIsolation.test.ts` fails on that shape
+as well as on an unrestored `mock.module`.
 
 ## Acceptance criteria
 
@@ -101,6 +109,8 @@ provider's real context.
 - Escape, backdrop close, focus trap and focus restore are unit tested.
 - A superseded and an unmounted `useApiResource` request never commit state and
   never surface an error.
+- A stubbed component exposes its real implementation to that component's own
+  suite, and every `useAuth` mock keeps a stable session identity.
 - The plan section's initial load, failed read and retry, `refreshKey` reload
   and generation decisions are interaction tested.
 - The plan generation provider polls a started run to a terminal state, does not

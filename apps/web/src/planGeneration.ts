@@ -1,4 +1,10 @@
-import type { CoachPlanResponse, PlanPending } from "@killingit/shared";
+import {
+  coachPlanResponseSchema,
+  type CoachPlanResponse,
+  type PlanPending,
+} from "@killingit/shared";
+import type { AuthState } from "./auth";
+import { requestParsed } from "./fetchAuthed";
 import { reportError } from "./reportError";
 
 /**
@@ -41,6 +47,37 @@ export interface PollPlanGenerationOptions {
 
 const DEFAULT_INTERVAL_MS = 1500;
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
+
+/** Which plan the caller wants: the athlete's today and, optionally, tomorrow. */
+export interface CoachPlanQuery {
+  /** The athlete's current date, sent with every plan fetch. */
+  today: string;
+  /** Whether tomorrow's session is wanted; omitted means the server's false. */
+  includeTomorrow?: boolean;
+}
+
+/**
+ * Fetch the stored plan through the shared response validator. Always sends
+ * `today`, sends `includeTomorrow` only when the caller supplies it, and
+ * forwards an abort signal, so every reader builds the same request.
+ */
+export function fetchCoachPlan(
+  auth: AuthState,
+  { today, includeTomorrow }: CoachPlanQuery,
+  signal?: AbortSignal,
+): Promise<CoachPlanResponse> {
+  const query = new URLSearchParams({ today });
+  if (includeTomorrow !== undefined) {
+    query.set("includeTomorrow", String(includeTomorrow));
+  }
+  return requestParsed(
+    `/api/coaching/plan?${query.toString()}`,
+    auth,
+    coachPlanResponseSchema,
+    "Loading your plan",
+    signal === undefined ? undefined : { signal },
+  );
+}
 
 /**
  * Whether the stored plan has any level missing for today, so the section should

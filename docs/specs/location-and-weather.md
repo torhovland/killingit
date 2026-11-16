@@ -181,6 +181,19 @@ would be sensible to take it outside.
   (`cache`, `now`) so tests run against their own store; production uses one
   process-wide cache and `Date.now`.
 
+## Map modules
+
+`LocationPickerMap` is the composition root and keeps the picker's exported
+props and DOM surface. The pieces live beside it in
+`apps/web/src/settings/`:
+
+- `useTileSlots` owns the centre, zoom, rendered size, resize observation and
+  the two tile slots that cross-fade on a zoom, plus the external-value sync.
+- `useMapGestures` owns pointer pan and click selection, wheel zoom and the
+  DOM-level keyboard listener.
+- `MapTileLayer` and `MapMarker` render one tile slot and the selected point.
+- `mapView` holds the shared view types, zoom bounds and tile-layer geometry.
+
 ## Data model / API
 
 ### `users`
@@ -300,13 +313,13 @@ containing `snow` or `sleet` → snow, and a code containing `rain` → rain.
 - API route tests for location save/clear, geocode auth/validation/errors, and a
   plan generation that receives an injected forecast.
 - Web tests for map projection, wheel zoom anchoring, click conversion, the
-  map's keyboard path (focus, arrow panning, zoom keys, Enter/Space selection
-  and the live-region announcement), recentring only for a search or saved
-  location (a click, the chosen zoom and a recreated value leave the view
-  alone), the weather and daylight summary, and the
-  Day/Week plan rendering (flexible workouts show the forecast; indoor-only
-  sessions and rest days do not), plus the Week view's session descriptions and
-  indoor/outdoor intent.
+  view's zoom clamp and buffered tile layer, the map's keyboard path (focus,
+  arrow panning, zoom keys, Enter/Space selection and the live-region
+  announcement), recentring only for a search or saved location (a click, the
+  chosen zoom and a recreated value leave the view alone), the weather and
+  daylight summary, and the Day/Week plan rendering (flexible workouts show the
+  forecast; indoor-only sessions and rest days do not), plus the Week view's
+  session descriptions and indoor/outdoor intent.
 - API tests for significant/non-significant forecast comparisons, newly
   available daylight, current and next week coverage, the plan-read pending
   flag, and weather-service failure handling.

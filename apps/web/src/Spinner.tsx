@@ -1,3 +1,5 @@
+import { cn } from "./components/cn";
+
 /**
  * An indeterminate loading spinner. Inside a submit button, omit `label` so the
  * button's own text stays the accessible name.
@@ -11,7 +13,10 @@ export function Spinner({
   /** Tailwind size and colour utilities. */
   className?: string;
 }) {
-  const classes = `inline-flex animate-spin rounded-full border-2 border-current border-t-transparent ${className}`;
+  const classes = cn(
+    "inline-flex animate-spin rounded-full border-2 border-current border-t-transparent",
+    className,
+  );
 
   if (label) {
     return (

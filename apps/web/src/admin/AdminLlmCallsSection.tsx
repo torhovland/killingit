@@ -1,22 +1,14 @@
-import { useState, type ReactNode } from "react";
-import {
-  llmCallDetailSchema,
-  llmCallsResponseSchema,
-  LLM_PROMPT_KIND_LABELS,
-  type LlmCallDetail,
-  type LlmCallSummary,
-} from "@killingit/shared";
+import { llmCallsResponseSchema, type LlmCallSummary } from "@killingit/shared";
 import { useAuth } from "../auth";
-import { Bullet } from "../Bullet";
-import { formatCostUsd } from "../costChart";
-import { requestParsed } from "../fetchAuthed";
-import { reportError } from "../reportError";
-import { formatDateTime } from "../timeZone";
-import { useTimeZone } from "../TimeZoneContext";
-import { useAbortableRequest, useApiResource } from "../useApiResource";
+import { useApiResource } from "../useApiResource";
 import { Button } from "../components/Button";
-import { cn } from "../components/cn";
-import { Card } from "../components/Card";
+import { LlmCallDetail } from "./LlmCallDetail";
+import { LlmCallList } from "./LlmCallList";
+import {
+  selectedCallId,
+  useLlmCallDetail,
+  type LlmCallDetailState,
+} from "./useLlmCallDetail";
 
 const PAGE_SIZE = 50;
 
@@ -34,62 +26,23 @@ export function AdminLlmCallsSection() {
     "Loading LLM calls",
   );
   const calls = callsResource.data?.calls ?? null;
-  const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [selected, setSelected] = useState<LlmCallDetail | null>(null);
-  const [detailLoading, setDetailLoading] = useState(false);
-  const [detailError, setDetailError] = useState<string | null>(null);
-
-  // Selecting another call aborts the detail request it supersedes. The abort
-  // check on every settle path also stops a response that was already on its
-  // way from writing over the newer selection.
-  const [loadDetail, abortDetail] = useAbortableRequest(
-    async (signal: AbortSignal, id: number): Promise<void> => {
-      try {
-        const call = await requestParsed(
-          `/api/admin/llm-calls/${id}`,
-          auth,
-          llmCallDetailSchema,
-          "Loading the LLM call",
-          { signal },
-        );
-        if (!signal.aborted) {
-          setSelected(call);
-        }
-      } catch (err: unknown) {
-        if (!signal.aborted) {
-          setDetailError(reportError(err));
-          setSelectedId(null);
-        }
-      } finally {
-        if (!signal.aborted) {
-          setDetailLoading(false);
-        }
-      }
-    },
-  );
+  const detail = useLlmCallDetail();
 
   function selectCall(id: number): void {
-    if (id === selectedId) {
-      return;
-    }
-    abortDetail();
-    setSelectedId(id);
-    setSelected(null);
-    setDetailLoading(true);
-    setDetailError(null);
     callsResource.setError(null);
-    void loadDetail(id);
+    detail.select(id);
   }
+
+  const detailError =
+    detail.state.status === "error" ? detail.state.error : null;
 
   return (
     <LlmCallsView
       calls={calls}
-      selectedId={selectedId}
-      selected={selected}
+      detail={detail.state}
       loading={callsResource.loading}
-      detailLoading={detailLoading}
       error={callsResource.error ?? detailError}
-      onSelect={(id) => void selectCall(id)}
+      onSelect={selectCall}
       onRefresh={callsResource.reload}
     />
   );
@@ -98,24 +51,21 @@ export function AdminLlmCallsSection() {
 /** Presentational prompt log, split out so it is testable without fetching. */
 function LlmCallsView({
   calls,
-  selectedId,
-  selected,
+  detail,
   loading,
-  detailLoading,
   error,
   onSelect,
   onRefresh,
 }: {
   calls: LlmCallSummary[] | null;
-  selectedId: number | null;
-  selected: LlmCallDetail | null;
+  detail: LlmCallDetailState;
   loading: boolean;
-  detailLoading: boolean;
   error: string | null;
   onSelect: (id: number) => void;
   onRefresh: () => void;
 }) {
-  const timeZone = useTimeZone();
+  const detailLoading = detail.status === "loading";
+  const call = detail.status === "loaded" ? detail.call : null;
   return (
     <section className="flex flex-col gap-3" data-testid="admin-llm-calls">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -144,75 +94,12 @@ function LlmCallsView({
       {/* The list and the selected call sit side by side on wide screens, so
           reading a prompt never means scrolling past the rest of the list. */}
       <div className="grid items-start gap-3 lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
-        <div
-          className="flex min-w-0 flex-col gap-3"
-          data-testid="llm-calls-list"
-        >
-          {loading && calls === null && (
-            <p className="text-base text-muted-foreground">Loading prompts…</p>
-          )}
-
-          {!loading && calls !== null && calls.length === 0 && (
-            <p className="text-base text-muted-foreground">
-              No prompts have been sent yet.
-            </p>
-          )}
-
-          {calls !== null && calls.length > 0 && (
-            <ul className="max-h-[60vh] divide-y overflow-y-auto rounded border bg-card lg:max-h-[70vh]">
-              {calls.map((call) => {
-                const selected = call.id === selectedId;
-                return (
-                  <li key={call.id}>
-                    <Button
-                      variant="ghost"
-                      size="none"
-                      className={cn(
-                        "flex w-full flex-col gap-1 px-3 py-2 text-left",
-                        selected && "bg-inset ring-1 ring-accent ring-inset",
-                      )}
-                      onClick={() => onSelect(call.id)}
-                      aria-current={selected ? "true" : undefined}
-                    >
-                      <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                        <span className="font-medium">
-                          {LLM_PROMPT_KIND_LABELS[call.kind]}
-                        </span>
-                        <CallBadges call={call} />
-                        <span
-                          className="truncate text-sm text-muted-foreground"
-                          title={call.model}
-                        >
-                          {call.model}
-                        </span>
-                        <span className="ml-auto">
-                          <CallStatus
-                            failed={call.failed}
-                            pending={call.pending}
-                          />
-                        </span>
-                      </span>
-                      <span className="flex flex-wrap gap-x-3 text-sm text-muted-foreground">
-                        <span>{formatDateTime(call.createdAt, timeZone)}</span>
-                        <span className="truncate" title={call.userLabel}>
-                          {call.userLabel}
-                        </span>
-                        {!call.pending && <span>{call.durationMs} ms</span>}
-                        {call.ofAttempts !== null &&
-                          call.attempt !== null &&
-                          call.ofAttempts > 1 && (
-                            <span data-testid="llm-call-attempt">
-                              Attempt {call.attempt}/{call.ofAttempts}
-                            </span>
-                          )}
-                      </span>
-                    </Button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
+        <LlmCallList
+          calls={calls}
+          selectedId={selectedCallId(detail)}
+          loading={loading}
+          onSelect={onSelect}
+        />
 
         <div
           className="flex min-w-0 flex-col gap-3"
@@ -222,9 +109,9 @@ function LlmCallsView({
             <p className="text-base text-muted-foreground">Loading call…</p>
           )}
 
-          {selected !== null && <LlmCallDetailView call={selected} />}
+          {call !== null && <LlmCallDetail call={call} />}
 
-          {selected === null && !detailLoading && (calls?.length ?? 0) > 0 && (
+          {call === null && !detailLoading && (calls?.length ?? 0) > 0 && (
             <p className="rounded border border-dashed bg-card px-3 py-6 text-center text-base text-muted-foreground">
               Select a prompt to read it in full.
             </p>
@@ -232,186 +119,5 @@ function LlmCallsView({
         </div>
       </div>
     </section>
-  );
-}
-
-/** The full prompt, response, and metadata for one logged call. */
-function LlmCallDetailView({ call }: { call: LlmCallDetail }) {
-  const timeZone = useTimeZone();
-  return (
-    <Card
-      as="article"
-      className="flex flex-col gap-4 rounded"
-      data-testid="llm-call-detail"
-    >
-      <header className="flex flex-wrap items-start justify-between gap-2">
-        <div className="flex flex-col gap-1">
-          <h3 className="text-xl font-semibold">
-            {LLM_PROMPT_KIND_LABELS[call.kind]}
-          </h3>
-          <p className="text-base text-muted-foreground">
-            {formatDateTime(call.createdAt, timeZone)}
-            <Bullet />
-            {call.userLabel}
-            <Bullet />
-            {call.model}
-          </p>
-          <div className="flex flex-wrap items-center gap-1">
-            <CallBadges call={call} />
-          </div>
-        </div>
-        <CallStatus failed={call.failed} pending={call.pending} />
-      </header>
-
-      {call.planFailed && typeof call.metadata.planError === "string" && (
-        <p
-          className="text-base text-destructive"
-          data-testid="llm-call-plan-error"
-        >
-          Plan failure: {call.metadata.planError}
-        </p>
-      )}
-
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-base sm:grid-cols-3">
-        <Metadata label="Call" value={`#${call.id}`} />
-        <Metadata label="User" value={`${call.userLabel} (#${call.userId})`} />
-        <Metadata label="Provider" value={call.provider} />
-        <Metadata
-          label="Duration"
-          value={call.pending ? "In flight" : `${call.durationMs} ms`}
-        />
-        <Metadata
-          label="Prompt tokens"
-          value={call.usage?.promptTokens ?? "—"}
-        />
-        <Metadata
-          label="Completion tokens"
-          value={call.usage?.completionTokens ?? "—"}
-        />
-        <Metadata label="Total tokens" value={call.usage?.totalTokens ?? "—"} />
-        {call.usage?.costUsd !== null && call.usage?.costUsd !== undefined && (
-          <Metadata label="Cost" value={formatCostUsd(call.usage.costUsd)} />
-        )}
-      </dl>
-
-      {Object.keys(call.metadata).length > 0 && (
-        <details>
-          <summary className="cursor-pointer text-base font-medium">
-            Request metadata
-          </summary>
-          <pre className="mt-2 overflow-auto whitespace-pre-wrap break-words rounded bg-inset p-3 text-sm">
-            {JSON.stringify(call.metadata, null, 2)}
-          </pre>
-        </details>
-      )}
-
-      <section className="flex flex-col gap-2">
-        <h4 className="text-base font-semibold">Prompt</h4>
-        {call.messages.map((message, index) => (
-          <div key={index} className="flex flex-col gap-1">
-            <p className="text-sm font-medium uppercase text-muted-foreground">
-              {message.role}
-            </p>
-            <pre className="overflow-auto whitespace-pre-wrap break-words rounded bg-inset p-3 text-sm">
-              {message.content}
-            </pre>
-          </div>
-        ))}
-      </section>
-
-      <section className="flex flex-col gap-2">
-        <h4 className="text-base font-semibold">
-          {call.failed ? "Error" : "Response"}
-        </h4>
-        {call.pending && (
-          <p className="text-base text-muted-foreground">
-            Waiting for the provider to answer.
-          </p>
-        )}
-        {call.error !== null && (
-          <pre className="overflow-auto whitespace-pre-wrap break-words rounded bg-inset p-3 text-sm text-destructive">
-            {call.error}
-          </pre>
-        )}
-        {call.response !== null && (
-          <pre className="overflow-auto whitespace-pre-wrap break-words rounded bg-inset p-3 text-sm">
-            {call.response}
-          </pre>
-        )}
-      </section>
-    </Card>
-  );
-}
-
-/** Retry and plan-failure markers shared by the list and the detail view. */
-function CallBadges({ call }: { call: LlmCallSummary }) {
-  const retried = call.repair || (call.attempt !== null && call.attempt > 1);
-  return (
-    <>
-      {retried && (
-        <Badge tone="accent" testId="llm-call-retry">
-          Retry
-        </Badge>
-      )}
-      {call.planFailed && (
-        <Badge tone="danger" testId="llm-call-plan-failed">
-          Plan failed
-        </Badge>
-      )}
-    </>
-  );
-}
-
-function CallStatus({
-  failed,
-  pending,
-}: {
-  failed: boolean;
-  pending: boolean;
-}) {
-  if (pending) {
-    return (
-      <Badge tone="accent" testId="llm-call-status">
-        In flight
-      </Badge>
-    );
-  }
-  return (
-    <Badge tone={failed ? "danger" : "muted"} testId="llm-call-status">
-      {failed ? "Failed" : "Succeeded"}
-    </Badge>
-  );
-}
-
-function Badge({
-  tone,
-  testId,
-  children,
-}: {
-  tone: "accent" | "danger" | "muted";
-  testId: string;
-  children: ReactNode;
-}) {
-  const toneClass = {
-    accent: "border-transparent bg-accent text-accent-foreground",
-    danger: "border-destructive/40 text-destructive",
-    muted: "border-border text-muted-foreground",
-  }[tone];
-  return (
-    <span
-      className={cn("rounded border px-2 py-0.5 text-sm", toneClass)}
-      data-testid={testId}
-    >
-      {children}
-    </span>
-  );
-}
-
-function Metadata({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div className="flex flex-col">
-      <dt className="text-sm text-muted-foreground">{label}</dt>
-      <dd className="break-words">{value}</dd>
-    </div>
   );
 }
