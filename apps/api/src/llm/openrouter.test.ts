@@ -96,6 +96,15 @@ describe("listModels", () => {
     });
     await expectRejectsWith(provider.listModels(), LlmProviderError);
   });
+
+  it("maps a 401 to LlmAuthError", async () => {
+    const provider = createOpenRouterProvider({
+      fetchImpl: stubFetch(() =>
+        Promise.resolve(jsonResponse({ error: { message: "no" } }, 401)),
+      ),
+    });
+    await expectRejectsWith(provider.listModels(), LlmAuthError);
+  });
 });
 
 describe("validateKey", () => {
@@ -120,6 +129,23 @@ describe("validateKey", () => {
       ),
     });
     await expectRejectsWith(provider.validateKey("bad"), LlmAuthError);
+  });
+
+  it("reports a rate-limited key check with its 429 guidance", async () => {
+    const provider = createOpenRouterProvider({
+      fetchImpl: stubFetch(() =>
+        Promise.resolve(jsonResponse({ error: { message: "slow down" } }, 429)),
+      ),
+    });
+    try {
+      await provider.validateKey("sk-or-v1-test");
+      throw new Error("expected the key check to reject");
+    } catch (err) {
+      expect(err).toBeInstanceOf(LlmProviderError);
+      expect((err as LlmProviderError).status).toBe(429);
+      expect((err as Error).message).toContain("slow down");
+      expect((err as Error).message).toContain("free-model daily request cap");
+    }
   });
 });
 
