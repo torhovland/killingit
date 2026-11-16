@@ -2,12 +2,13 @@ import { describe, expect, it } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { CoachPlan } from "@killingit/shared";
 import { CoachPlanView } from "./CoachPlanView";
-import { BULLET, plan } from "./testFixtures/plan";
+import { BULLET, noPending, plan } from "./testFixtures/plan";
 
 describe("CoachPlanView levels", () => {
   it("shows an event that falls inside the week on the Week tab", () => {
     const html = renderToStaticMarkup(
       <CoachPlanView
+        pending={noPending}
         plan={plan}
         defaultTab="week"
         events={[
@@ -35,19 +36,19 @@ describe("CoachPlanView levels", () => {
 
   it("renders the week, block, and season levels with rationales", () => {
     const week = renderToStaticMarkup(
-      <CoachPlanView plan={plan} defaultTab="week" />,
+      <CoachPlanView pending={noPending} plan={plan} defaultTab="week" />,
     );
     expect(week).toContain(`This week${BULLET}Aerobic base`);
     expect(week).toContain("Keep the week easy and consistent.");
 
     const block = renderToStaticMarkup(
-      <CoachPlanView plan={plan} defaultTab="block" />,
+      <CoachPlanView pending={noPending} plan={plan} defaultTab="block" />,
     );
     expect(block).toContain(`Current block${BULLET}Base`);
     expect(block).toContain("Establish consistent aerobic volume.");
 
     const season = renderToStaticMarkup(
-      <CoachPlanView plan={plan} defaultTab="season" />,
+      <CoachPlanView pending={noPending} plan={plan} defaultTab="season" />,
     );
     expect(season).toContain(`Season${BULLET}Sub-4-hour marathon`);
     expect(season).toContain(
@@ -58,6 +59,7 @@ describe("CoachPlanView levels", () => {
   it("shows the coach's introduction on the Season tab", () => {
     const season = renderToStaticMarkup(
       <CoachPlanView
+        pending={noPending}
         plan={{
           ...plan,
           season: {
@@ -78,7 +80,7 @@ describe("CoachPlanView levels", () => {
 
   it("lists block weeks like season blocks, with muted details and rules", () => {
     const block = renderToStaticMarkup(
-      <CoachPlanView plan={plan} defaultTab="block" />,
+      <CoachPlanView pending={noPending} plan={plan} defaultTab="block" />,
     );
     expect(block).toContain("Week 1");
     expect(block).toContain("Week starting Mon, Oct 19");
@@ -87,7 +89,7 @@ describe("CoachPlanView levels", () => {
     expect(block).toContain("border-b");
 
     const season = renderToStaticMarkup(
-      <CoachPlanView plan={plan} defaultTab="season" />,
+      <CoachPlanView pending={noPending} plan={plan} defaultTab="season" />,
     );
     expect(season).toContain("1. Base");
     expect(season).toContain("6 weeks");
@@ -130,7 +132,7 @@ describe("CoachPlanView levels", () => {
     };
 
     const week = renderToStaticMarkup(
-      <CoachPlanView plan={nextPlan} defaultTab="week" />,
+      <CoachPlanView pending={noPending} plan={nextPlan} defaultTab="week" />,
     );
     expect(week).toContain(`This week${BULLET}Aerobic base`);
     expect(week).toContain(`Next week${BULLET}Aerobic build`);
@@ -140,7 +142,7 @@ describe("CoachPlanView levels", () => {
     expect(week).toContain("260 W");
 
     const block = renderToStaticMarkup(
-      <CoachPlanView plan={nextPlan} defaultTab="block" />,
+      <CoachPlanView pending={noPending} plan={nextPlan} defaultTab="block" />,
     );
     expect(block).toContain(`Current block${BULLET}Base`);
     expect(block).toContain(`Next block${BULLET}Build`);
@@ -150,7 +152,7 @@ describe("CoachPlanView levels", () => {
 
   it("shows completed and missed sessions for past days", () => {
     const html = renderToStaticMarkup(
-      <CoachPlanView plan={plan} defaultTab="week" />,
+      <CoachPlanView pending={noPending} plan={plan} defaultTab="week" />,
     );
 
     expect(html).toContain("Morning Run");
@@ -161,7 +163,7 @@ describe("CoachPlanView levels", () => {
 
   it("puts each week session's title right after its date", () => {
     const html = renderToStaticMarkup(
-      <CoachPlanView plan={plan} defaultTab="week" />,
+      <CoachPlanView pending={noPending} plan={plan} defaultTab="week" />,
     );
 
     expect(html).toContain(`Mon, Oct 19${BULLET}Morning Run`);
@@ -169,7 +171,7 @@ describe("CoachPlanView levels", () => {
 
   it("puts the week session details before the status box", () => {
     const html = renderToStaticMarkup(
-      <CoachPlanView plan={plan} defaultTab="week" />,
+      <CoachPlanView pending={noPending} plan={plan} defaultTab="week" />,
     );
 
     expect(html.indexOf("45 min")).toBeLessThan(html.indexOf(">completed<"));
@@ -177,7 +179,7 @@ describe("CoachPlanView levels", () => {
 
   it("lets the week session details wrap above the status box on narrow screens", () => {
     const html = renderToStaticMarkup(
-      <CoachPlanView plan={plan} defaultTab="week" />,
+      <CoachPlanView pending={noPending} plan={plan} defaultTab="week" />,
     );
 
     expect(html).toContain(

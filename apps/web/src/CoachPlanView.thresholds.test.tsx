@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { ThresholdSummary } from "@killingit/shared";
 import { CoachPlanView } from "./CoachPlanView";
-import { BULLET, plan } from "./testFixtures/plan";
+import { BULLET, noPending, plan } from "./testFixtures/plan";
 
 describe("CoachPlanView thresholds", () => {
   it("shows every known threshold in place of the single FTP estimate", () => {
@@ -30,7 +30,12 @@ describe("CoachPlanView thresholds", () => {
     ];
 
     const html = renderToStaticMarkup(
-      <CoachPlanView plan={plan} defaultTab="week" thresholds={thresholds} />,
+      <CoachPlanView
+        pending={noPending}
+        plan={plan}
+        defaultTab="week"
+        thresholds={thresholds}
+      />,
     );
 
     expect(html).toContain('data-testid="week-thresholds"');
@@ -66,7 +71,7 @@ describe("CoachPlanView thresholds", () => {
     ];
 
     const html = renderToStaticMarkup(
-      <CoachPlanView plan={plan} thresholds={thresholds} />,
+      <CoachPlanView pending={noPending} plan={plan} thresholds={thresholds} />,
     );
 
     expect(html).toContain('data-testid="plan-today-thresholds"');
@@ -77,6 +82,7 @@ describe("CoachPlanView thresholds", () => {
   it("shows no thresholds on a rest day", () => {
     const html = renderToStaticMarkup(
       <CoachPlanView
+        pending={noPending}
         plan={{
           ...plan,
           today: {
@@ -107,6 +113,7 @@ describe("CoachPlanView thresholds", () => {
   it("uses a bullet after the Thresholds label instead of a colon", () => {
     const html = renderToStaticMarkup(
       <CoachPlanView
+        pending={noPending}
         plan={plan}
         thresholds={[
           {

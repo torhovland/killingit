@@ -45,7 +45,10 @@ tests. See `docs/specs/web-component-library.md` and
 The app is an installable **PWA**; every page has a canonical URL and every
 request carries the API contract version. API reads use `requestParsed` and
 `useApiResource`, paths resolve through `apps/web/src/apiUrl.ts`, and form values
-from the server use `usePropDraft`. Hooks and JSX are linted (`react-hooks`,
+from the server use `usePropDraft`. The coaching dashboard's plan section keeps
+its plan and diet-summary fetching plus the generation decision tree in
+`useCoachPlan`, its workout download in `usePlanWorkoutDownload`, and its
+markup in `CoachPlanView`. Hooks and JSX are linted (`react-hooks`,
 `jsx-a11y`); charts are keyboard reachable and draw through `chartPath`, the
 fitness, threshold and cost charts share their legend through `ChartLegend`, and
 the threshold and fitness health charts take their series colours from
@@ -58,7 +61,8 @@ device zone shifts a day. See `docs/specs/pwa.md`,
 `docs/specs/web-api-request-parsing.md`,
 `docs/specs/web-api-resource-hook.md`,
 `docs/specs/chart-keyboard-navigation.md`,
-`docs/specs/web-component-library.md` and
+`docs/specs/web-component-library.md`,
+`docs/specs/web-coaching-pages.md` and
 `docs/specs/web-date-formatting.md`.
 
 **Backend.** TypeScript on Bun, Hono for the API, Drizzle ORM and Zod. The Bun

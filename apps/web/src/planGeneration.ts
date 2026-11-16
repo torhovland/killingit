@@ -1,4 +1,4 @@
-import type { CoachPlanResponse } from "@killingit/shared";
+import type { CoachPlanResponse, PlanPending } from "@killingit/shared";
 import { reportError } from "./reportError";
 
 /**
@@ -41,6 +41,24 @@ export interface PollPlanGenerationOptions {
 
 const DEFAULT_INTERVAL_MS = 1500;
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
+
+/**
+ * Whether the stored plan has any level missing for today, so the section should
+ * start a generation. `stale` is checked separately: a plan can be stale
+ * without a level being absent.
+ */
+export function hasPendingWork(pending: PlanPending): boolean {
+  return (
+    pending.initial ||
+    pending.day ||
+    pending.week ||
+    pending.block ||
+    pending.tomorrow ||
+    pending.nextWeek ||
+    pending.nextBlock ||
+    pending.dietProgress
+  );
+}
 
 /**
  * Poll a generation's status until it finishes, fails, or the deadline passes.

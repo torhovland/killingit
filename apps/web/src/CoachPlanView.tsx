@@ -3,6 +3,7 @@ import type {
   AthleteEvent,
   CoachPlan,
   DietDaySummary,
+  PlanPending,
   ThresholdSummary,
 } from "@killingit/shared";
 import {
@@ -28,15 +29,16 @@ const TABS: Array<{ id: PlanTab; label: string }> = [
  * Presentational four-level plan in a tabbed view. Day is the default tab and
  * shows today's session plus tomorrow's after 18:00. Kept separate from the
  * fetching/progress container so it can be rendered and tested without auth.
- * Each tab lives in its own module under `./plan/`; this file is the shell.
+ * The plan's `pending` levels and the provider's `running` flag decide which
+ * level is dimmed while its replacement is in flight. Each tab lives in its own
+ * module under `./plan/`; this file is the shell.
  */
 export function CoachPlanView({
   plan,
+  pending,
+  running = false,
   showTomorrow = false,
   defaultTab = "day",
-  refreshingDays = {},
-  refreshingWeeks = {},
-  refreshingBlocks = {},
   onDownloadWorkout,
   downloadingWorkoutDate = null,
   thresholds = [],
@@ -45,14 +47,12 @@ export function CoachPlanView({
   showCalories = false,
 }: {
   plan: CoachPlan;
+  /** The levels the stored plan is missing or has outdated. */
+  pending: PlanPending;
+  /** Whether a generation is running, so a pending level is being replaced. */
+  running?: boolean;
   showTomorrow?: boolean;
   defaultTab?: PlanTab;
-  /** Days whose stored content is being replaced by a generation in flight. */
-  refreshingDays?: { today?: boolean; tomorrow?: boolean };
-  /** Weeks whose stored content is being replaced by a generation in flight. */
-  refreshingWeeks?: { week?: boolean; nextWeek?: boolean };
-  /** Blocks whose stored content is being replaced by a generation in flight. */
-  refreshingBlocks?: { block?: boolean; nextBlock?: boolean };
   /** Starts a download of the structured workout for a date. */
   onDownloadWorkout?: (date: string) => void;
   /** The date whose workout file is currently being prepared. */
@@ -67,6 +67,14 @@ export function CoachPlanView({
   showCalories?: boolean;
 }) {
   const [tab, setTab] = useState<PlanTab>(defaultTab);
+  const refreshing = {
+    day: running && pending.day,
+    tomorrow: running && pending.tomorrow,
+    week: running && pending.week,
+    nextWeek: running && pending.nextWeek,
+    block: running && pending.block,
+    nextBlock: running && pending.nextBlock,
+  };
 
   return (
     <div className="flex flex-col gap-4" data-testid="coach-plan-view">
@@ -100,7 +108,7 @@ export function CoachPlanView({
               day={plan.today}
               label="Today"
               testId="plan-today"
-              refreshing={refreshingDays.today ?? false}
+              refreshing={refreshing.day}
               onDownloadWorkout={onDownloadWorkout}
               downloading={downloadingWorkoutDate === plan.today.date}
               thresholds={thresholds}
@@ -117,7 +125,7 @@ export function CoachPlanView({
                   day={plan.tomorrow}
                   label="Tomorrow"
                   testId="plan-tomorrow"
-                  refreshing={refreshingDays.tomorrow ?? false}
+                  refreshing={refreshing.tomorrow}
                   onDownloadWorkout={onDownloadWorkout}
                   downloading={downloadingWorkoutDate === plan.tomorrow.date}
                   thresholds={thresholds}
@@ -137,7 +145,7 @@ export function CoachPlanView({
               week={plan.week}
               label="This week"
               testId="plan-week"
-              refreshing={refreshingWeeks.week ?? false}
+              refreshing={refreshing.week}
               thresholds={thresholds}
               showCalories={showCalories}
             />
@@ -151,7 +159,7 @@ export function CoachPlanView({
                   week={plan.nextWeek}
                   label="Next week"
                   testId="plan-next-week"
-                  refreshing={refreshingWeeks.nextWeek ?? false}
+                  refreshing={refreshing.nextWeek}
                   thresholds={thresholds}
                   showCalories={showCalories}
                 />
@@ -165,7 +173,7 @@ export function CoachPlanView({
               block={plan.block}
               label="Current block"
               testId="plan-block"
-              refreshing={refreshingBlocks.block ?? false}
+              refreshing={refreshing.block}
               thresholds={thresholds}
               showDiet={showCalories}
             />
@@ -174,7 +182,7 @@ export function CoachPlanView({
                 block={plan.nextBlock}
                 label="Next block"
                 testId="plan-next-block"
-                refreshing={refreshingBlocks.nextBlock ?? false}
+                refreshing={refreshing.nextBlock}
                 thresholds={thresholds}
                 showDiet={showCalories}
               />

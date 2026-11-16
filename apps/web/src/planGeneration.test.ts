@@ -1,6 +1,17 @@
 import { describe, expect, it } from "bun:test";
 import type { CoachPlanResponse } from "@killingit/shared";
-import { pollPlanGeneration } from "./planGeneration";
+import { hasPendingWork, pollPlanGeneration } from "./planGeneration";
+
+const noPending: CoachPlanResponse["pending"] = {
+  initial: false,
+  day: false,
+  week: false,
+  block: false,
+  tomorrow: false,
+  nextWeek: false,
+  nextBlock: false,
+  dietProgress: false,
+};
 
 function response(
   status: "idle" | "running" | "done" | "error",
@@ -47,6 +58,19 @@ function fakeClock(): {
     },
   };
 }
+
+describe("hasPendingWork", () => {
+  it("reports no work when every level is already planned", () => {
+    expect(hasPendingWork(noPending)).toBe(false);
+  });
+
+  const levels = Object.keys(noPending) as Array<keyof typeof noPending>;
+  for (const level of levels) {
+    it(`reports work when ${level} is missing`, () => {
+      expect(hasPendingWork({ ...noPending, [level]: true })).toBe(true);
+    });
+  }
+});
 
 describe("pollPlanGeneration", () => {
   it("keeps polling a running generation and reports every response", async () => {

@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { CoachPlan } from "@killingit/shared";
 import { CoachPlanView } from "./CoachPlanView";
-import { plan } from "./testFixtures/plan";
+import { noPending, plan } from "./testFixtures/plan";
 
 describe("CoachPlanView training metrics", () => {
   it("shows the week's estimated FTP and training load", () => {
@@ -26,7 +26,7 @@ describe("CoachPlanView training metrics", () => {
     };
 
     const html = renderToStaticMarkup(
-      <CoachPlanView plan={loadedPlan} defaultTab="week" />,
+      <CoachPlanView pending={noPending} plan={loadedPlan} defaultTab="week" />,
     );
 
     expect(html).toContain('data-testid="week-ftp"');
@@ -49,7 +49,9 @@ describe("CoachPlanView training metrics", () => {
       },
     };
 
-    const html = renderToStaticMarkup(<CoachPlanView plan={loadedPlan} />);
+    const html = renderToStaticMarkup(
+      <CoachPlanView pending={noPending} plan={loadedPlan} />,
+    );
 
     expect(html).toContain("TSS 20");
     expect(html).toContain("TSB 0");
@@ -66,7 +68,9 @@ describe("CoachPlanView training metrics", () => {
       },
     };
 
-    const html = renderToStaticMarkup(<CoachPlanView plan={loadedPlan} />);
+    const html = renderToStaticMarkup(
+      <CoachPlanView pending={noPending} plan={loadedPlan} />,
+    );
 
     expect(html).toContain("TSB -35");
     expect(html).toContain("Risk");
@@ -81,13 +85,13 @@ describe("CoachPlanView training metrics", () => {
     };
 
     const block = renderToStaticMarkup(
-      <CoachPlanView plan={withFtp} defaultTab="block" />,
+      <CoachPlanView pending={noPending} plan={withFtp} defaultTab="block" />,
     );
     expect(block).toContain('data-testid="block-ftp"');
     expect(block).toContain("250 W");
 
     const season = renderToStaticMarkup(
-      <CoachPlanView plan={withFtp} defaultTab="season" />,
+      <CoachPlanView pending={noPending} plan={withFtp} defaultTab="season" />,
     );
     expect(season).toContain('data-testid="season-ftp"');
     expect(season).toContain("250 W");
@@ -107,7 +111,7 @@ describe("CoachPlanView training metrics", () => {
     };
 
     const html = renderToStaticMarkup(
-      <CoachPlanView plan={loadedPlan} showTomorrow />,
+      <CoachPlanView pending={noPending} plan={loadedPlan} showTomorrow />,
     );
 
     expect(html).toContain('data-testid="plan-today-load"');

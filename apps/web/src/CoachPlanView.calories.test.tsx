@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { CoachPlan } from "@killingit/shared";
 import { CoachPlanView } from "./CoachPlanView";
-import { plan } from "./testFixtures/plan";
+import { noPending, plan } from "./testFixtures/plan";
 
 describe("CoachPlanView calories", () => {
   it("shows diet progress targets on the week, block and season tabs", () => {
@@ -51,7 +51,12 @@ describe("CoachPlanView calories", () => {
     };
 
     const week = renderToStaticMarkup(
-      <CoachPlanView plan={withProgress} defaultTab="week" showCalories />,
+      <CoachPlanView
+        pending={noPending}
+        plan={withProgress}
+        defaultTab="week"
+        showCalories
+      />,
     );
     expect(week).toContain('data-testid="week-diet-progress"');
     expect(week).toContain("Diet target by the end of the week:");
@@ -59,7 +64,12 @@ describe("CoachPlanView calories", () => {
     expect(week).toContain("Hold weight through the week.");
 
     const block = renderToStaticMarkup(
-      <CoachPlanView plan={withProgress} defaultTab="block" showCalories />,
+      <CoachPlanView
+        pending={noPending}
+        plan={withProgress}
+        defaultTab="block"
+        showCalories
+      />,
     );
     expect(block).toContain('data-testid="block-diet-progress"');
     expect(block).toContain("Diet target by the end of the block:");
@@ -68,7 +78,12 @@ describe("CoachPlanView calories", () => {
     expect(block).toContain("81.0 kg and 18.0 % body fat");
 
     const season = renderToStaticMarkup(
-      <CoachPlanView plan={withProgress} defaultTab="season" showCalories />,
+      <CoachPlanView
+        pending={noPending}
+        plan={withProgress}
+        defaultTab="season"
+        showCalories
+      />,
     );
     expect(season).toContain('data-testid="season-diet-progress"');
     expect(season).toContain("Diet target by the end of the season:");
@@ -90,7 +105,11 @@ describe("CoachPlanView calories", () => {
       },
     };
     const html = renderToStaticMarkup(
-      <CoachPlanView plan={withProgress} defaultTab="week" />,
+      <CoachPlanView
+        pending={noPending}
+        plan={withProgress}
+        defaultTab="week"
+      />,
     );
     expect(html).not.toContain("Diet target by the end of the week:");
   });
@@ -98,6 +117,7 @@ describe("CoachPlanView calories", () => {
   it("shows today's needed, logged and remaining calories", () => {
     const html = renderToStaticMarkup(
       <CoachPlanView
+        pending={noPending}
         plan={{
           ...plan,
           today: { ...plan.today, estimatedCaloriesKcal: 2400 },
@@ -130,6 +150,7 @@ describe("CoachPlanView calories", () => {
   it("shows the estimated calorie requirement on each week session", () => {
     const html = renderToStaticMarkup(
       <CoachPlanView
+        pending={noPending}
         plan={{
           ...plan,
           week: {
@@ -153,6 +174,7 @@ describe("CoachPlanView calories", () => {
   it("does not show an implausibly low calorie target", () => {
     const html = renderToStaticMarkup(
       <CoachPlanView
+        pending={noPending}
         plan={{
           ...plan,
           today: { ...plan.today, estimatedCaloriesKcal: 480 },

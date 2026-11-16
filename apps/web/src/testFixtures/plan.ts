@@ -1,7 +1,19 @@
-import type { CoachPlan } from "@killingit/shared";
+import type { CoachPlan, PlanPending } from "@killingit/shared";
 
 /** The bullet the plan headings separate their parts with. */
 export const BULLET = '<span class="mx-[0.75em]">·</span>';
+
+/** No plan level is waiting to be replaced, for view tests without a refresh. */
+export const noPending: PlanPending = {
+  initial: false,
+  day: false,
+  week: false,
+  block: false,
+  tomorrow: false,
+  nextWeek: false,
+  nextBlock: false,
+  dietProgress: false,
+};
 
 /** The plan fixture every CoachPlanView test builds on. */
 export const plan: CoachPlan = {

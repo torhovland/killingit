@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { CoachPlan } from "@killingit/shared";
 import { CoachPlanView } from "./CoachPlanView";
-import { plan } from "./testFixtures/plan";
+import { noPending, plan } from "./testFixtures/plan";
 
 describe("CoachPlanView refresh", () => {
   it("dims today's stale session and shows a spinner while it is refreshed", () => {
@@ -10,7 +10,8 @@ describe("CoachPlanView refresh", () => {
       <CoachPlanView
         plan={plan}
         showTomorrow
-        refreshingDays={{ today: true, tomorrow: false }}
+        pending={{ ...noPending, day: true }}
+        running
       />,
     );
 
@@ -27,7 +28,8 @@ describe("CoachPlanView refresh", () => {
       <CoachPlanView
         plan={plan}
         showTomorrow
-        refreshingDays={{ today: true, tomorrow: true }}
+        pending={{ ...noPending, day: true, tomorrow: true }}
+        running
       />,
     );
 
@@ -39,7 +41,7 @@ describe("CoachPlanView refresh", () => {
 
   it("leaves the days undimmed when no refresh is in flight", () => {
     const html = renderToStaticMarkup(
-      <CoachPlanView plan={plan} showTomorrow />,
+      <CoachPlanView plan={plan} pending={noPending} showTomorrow />,
     );
 
     expect(html).not.toContain("-refreshing");
@@ -52,7 +54,8 @@ describe("CoachPlanView refresh", () => {
       <CoachPlanView
         plan={plan}
         defaultTab="week"
-        refreshingWeeks={{ week: true }}
+        pending={{ ...noPending, week: true }}
+        running
       />,
     );
 
@@ -79,7 +82,8 @@ describe("CoachPlanView refresh", () => {
       <CoachPlanView
         plan={nextPlan}
         defaultTab="week"
-        refreshingWeeks={{ nextWeek: true }}
+        pending={{ ...noPending, nextWeek: true }}
+        running
       />,
     );
     expect(week).toContain('data-testid="plan-next-week-refreshing"');
@@ -90,7 +94,8 @@ describe("CoachPlanView refresh", () => {
       <CoachPlanView
         plan={nextPlan}
         defaultTab="block"
-        refreshingBlocks={{ nextBlock: true }}
+        pending={{ ...noPending, nextBlock: true }}
+        running
       />,
     );
     expect(block).toContain('data-testid="plan-next-block-refreshing"');
@@ -103,7 +108,8 @@ describe("CoachPlanView refresh", () => {
       <CoachPlanView
         plan={plan}
         defaultTab="block"
-        refreshingBlocks={{ block: true }}
+        pending={{ ...noPending, block: true }}
+        running
       />,
     );
 

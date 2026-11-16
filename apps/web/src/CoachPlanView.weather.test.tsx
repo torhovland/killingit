@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { CoachPlan } from "@killingit/shared";
 import { CoachPlanView } from "./CoachPlanView";
-import { BULLET, plan } from "./testFixtures/plan";
+import { BULLET, noPending, plan } from "./testFixtures/plan";
 
 describe("CoachPlanView weather", () => {
   it("shows the forecast on an outdoor workout", () => {
@@ -21,7 +21,9 @@ describe("CoachPlanView weather", () => {
       ...plan,
       today: { ...plan.today, outdoor: true, weather },
     };
-    const html = renderToStaticMarkup(<CoachPlanView plan={weatherPlan} />);
+    const html = renderToStaticMarkup(
+      <CoachPlanView pending={noPending} plan={weatherPlan} />,
+    );
 
     expect(html).toContain("Rain");
     expect(html).toContain(
@@ -76,9 +78,15 @@ describe("CoachPlanView weather", () => {
       },
     };
 
-    const day = renderToStaticMarkup(<CoachPlanView plan={weatherPlan} />);
+    const day = renderToStaticMarkup(
+      <CoachPlanView pending={noPending} plan={weatherPlan} />,
+    );
     const week = renderToStaticMarkup(
-      <CoachPlanView plan={weatherPlan} defaultTab="week" />,
+      <CoachPlanView
+        pending={noPending}
+        plan={weatherPlan}
+        defaultTab="week"
+      />,
     );
 
     for (const html of [day, week]) {
@@ -100,6 +108,7 @@ describe("CoachPlanView weather", () => {
     };
     const flexible = renderToStaticMarkup(
       <CoachPlanView
+        pending={noPending}
         plan={{
           ...plan,
           today: {
@@ -116,6 +125,7 @@ describe("CoachPlanView weather", () => {
 
     const indoorOnly = renderToStaticMarkup(
       <CoachPlanView
+        pending={noPending}
         plan={{
           ...plan,
           today: {
@@ -131,6 +141,7 @@ describe("CoachPlanView weather", () => {
 
     const indoorWeek = renderToStaticMarkup(
       <CoachPlanView
+        pending={noPending}
         plan={{
           ...plan,
           week: {
@@ -154,6 +165,7 @@ describe("CoachPlanView weather", () => {
 
     const rest = renderToStaticMarkup(
       <CoachPlanView
+        pending={noPending}
         plan={{
           ...plan,
           today: { ...plan.today, type: "rest", weather },
@@ -166,6 +178,7 @@ describe("CoachPlanView weather", () => {
   it("shows the coach's session details and indoor/outdoor intent in the week view", () => {
     const week = renderToStaticMarkup(
       <CoachPlanView
+        pending={noPending}
         plan={{
           ...plan,
           week: {
@@ -214,7 +227,7 @@ describe("CoachPlanView weather", () => {
       },
     };
     const html = renderToStaticMarkup(
-      <CoachPlanView plan={weekPlan} defaultTab="week" />,
+      <CoachPlanView pending={noPending} plan={weekPlan} defaultTab="week" />,
     );
 
     expect(html).toContain("Sunny");
