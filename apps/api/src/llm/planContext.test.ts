@@ -106,6 +106,59 @@ describe("formatPlanContext", () => {
     expect(text).toContain(WEEKLY_NOTE_SCOPE_RULE);
   });
 
+  it("scopes and trims the weekly note to the week it was written for", () => {
+    const lines = formatPlanContext(
+      input({
+        weeklyNote: "  I can only train before work this week.  ",
+        weeklyNoteWeekStartDate: "2026-10-12",
+        weeklyNoteReply: "  Then keep the weekday sessions short.  ",
+      }),
+    );
+    const scopeIndex = lines.indexOf(WEEKLY_NOTE_SCOPE_RULE);
+
+    expect(lines.slice(scopeIndex - 1, scopeIndex + 7)).toEqual([
+      "",
+      WEEKLY_NOTE_SCOPE_RULE,
+      "",
+      "Weekly note for the week starting 2026-10-12 (2026-10-12 → 2026-10-18):",
+      "I can only train before work this week.",
+      "Coach reply to the weekly note:",
+      "Then keep the weekday sessions short.",
+    ]);
+  });
+
+  it("omits a blank weekly note and any reply to it", () => {
+    const text = formatPlanContext(
+      input({ weeklyNote: "   ", weeklyNoteReply: "Ignored without a note." }),
+    ).join("\n");
+
+    expect(text).not.toContain("Weekly note for the week starting");
+    expect(text).not.toContain(WEEKLY_NOTE_SCOPE_RULE);
+    expect(text).not.toContain("Coach reply to the weekly note:");
+  });
+
+  it("adds the weekly-note scope rule when only a review carries a note", () => {
+    const text = formatPlanContext(
+      input({
+        periodReviews: [
+          {
+            kind: "week",
+            title: "Week starting 2026-10-13",
+            startDate: "2026-10-13",
+            endDate: "2026-10-19",
+            summary: "A consistent week of easy work.",
+            comment: null,
+            reply: null,
+            weeklyNote: { note: "No training on Thursday.", reply: null },
+          },
+        ],
+      }),
+    ).join("\n");
+
+    expect(text).toContain(WEEKLY_NOTE_SCOPE_RULE);
+    expect(text).not.toContain("Weekly note for the week starting 2026-10-19");
+  });
+
   it("includes the athlete's FTP and recorded power", () => {
     const text = formatPlanContext(
       input({
@@ -530,6 +583,36 @@ describe("formatPlanContext", () => {
     expect(text).toContain("0.0 mm precipitation");
     expect(text).not.toMatch(/sunrise \d{2}:\d{2}/);
     expect(text).not.toMatch(/sunset \d{2}:\d{2}/);
+  });
+
+  it("names no location in the forecast header when none was set", () => {
+    const forecast = [
+      {
+        date: "2026-10-25",
+        icon: "sun" as const,
+        temperatureMaxC: 12.4,
+        temperatureMinC: 4.2,
+        windMaxMs: 4.6,
+        gustMaxMs: 8.2,
+        precipitationMm: 0,
+      },
+    ];
+    const header =
+      "Combined daily weather and daylight forecast (the average of Open-Meteo and Yr.no). Temperatures are in °C; wind and gusts are in m/s; sunrise and sunset are local clock times.";
+
+    const unnamed = formatPlanContext(input({ forecast }));
+    const blank = formatPlanContext(input({ forecast, locationName: "   " }));
+
+    expect(unnamed).toContain(header);
+    expect(blank).toContain(header);
+  });
+
+  it("omits an empty forecast", () => {
+    const text = formatPlanContext(
+      input({ forecast: [], locationName: "Oslo, Norway" }),
+    ).join("\n");
+
+    expect(text).not.toContain("Combined daily weather and daylight forecast");
   });
 
   it("keeps comments for unlisted activities clearly separate", () => {

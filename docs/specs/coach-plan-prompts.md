@@ -2,6 +2,12 @@
 
 - **Status:** Accepted (implemented)
 - **Date:** 2026-10-21
+- **Updated:** 2026-11-16 — `formatPlanContext` keeps its optional sections as
+  one-line delegations to the topical formatters and owns only the two blocks
+  with real branching: the private `formatWeeklyNote` renders the current note,
+  its coach reply and the shared scope rule, and the private
+  `formatForecastHeader` names the location only when the athlete supplied one.
+  The rendered prompt text is unchanged.
 - **Updated:** 2026-11-15 — the fragment guard reads every string-literal form
   in `promptRules.ts`, not only template literals, so the closing JSON
   instruction is a guarded fragment too. `foodPrompt.ts` composes
