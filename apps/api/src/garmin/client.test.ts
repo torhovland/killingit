@@ -182,13 +182,16 @@ describe("syncGarminActivities", () => {
     });
   });
 
-  it("rejects a malformed activities payload with a typed error", async () => {
+  it("rejects a malformed activities payload with a typed error and cause", async () => {
     stubSidecarResponse({
       activities: [{ ...sidecarActivity, id: "not-a-number" }],
     });
 
-    const promise = syncGarminActivities({ username: "u", password: "p" });
-    await expectRejectsWith(promise, GarminSidecarError);
+    const error = await caughtError(
+      syncGarminActivities({ username: "u", password: "p" }),
+    );
+    expect(error).toBeInstanceOf(GarminSidecarError);
+    expect((error as GarminSidecarError).cause).toBeInstanceOf(Error);
   });
 
   it("rejects a non-array activities payload with a typed error", async () => {
@@ -254,6 +257,16 @@ describe("syncGarminMetrics", () => {
     );
     await expectRejectsWith(promise, GarminSidecarError);
   });
+
+  it("rejects a malformed body-metrics payload with a typed error and cause", async () => {
+    stubSidecarResponse({ metrics: "nope" });
+
+    const error = await caughtError(
+      syncGarminMetrics({ username: "u", password: "p" }),
+    );
+    expect(error).toBeInstanceOf(GarminSidecarError);
+    expect((error as GarminSidecarError).cause).toBeInstanceOf(Error);
+  });
 });
 
 describe("syncGarminDailyMetrics", () => {
@@ -283,14 +296,25 @@ describe("syncGarminDailyMetrics", () => {
     );
     await expectRejectsWith(promise, GarminSidecarError);
   });
+
+  it("rejects a malformed daily-metrics payload with a typed error and cause", async () => {
+    stubSidecarResponse({ date: 42 });
+
+    const error = await caughtError(
+      syncGarminDailyMetrics({ username: "u", password: "p" }, "2026-11-02"),
+    );
+    expect(error).toBeInstanceOf(GarminSidecarError);
+    expect((error as GarminSidecarError).cause).toBeInstanceOf(Error);
+  });
 });
 
 describe("authenticateGarmin", () => {
-  it("resolves true on success", async () => {
-    const ok = await authenticateGarmin({ username: "u", password: "p" }, () =>
-      Promise.resolve(),
+  it("resolves void on success", async () => {
+    const result = await authenticateGarmin(
+      { username: "u", password: "p" },
+      () => Promise.resolve(),
     );
-    expect(ok).toBe(true);
+    expect(result).toBeUndefined();
   });
 
   it("reports a rejected Garmin login as a fixable connection failure", async () => {

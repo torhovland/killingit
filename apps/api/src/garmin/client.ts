@@ -7,6 +7,7 @@ import {
   type GarminDailyResponse,
   type GarminMetricsResponse,
 } from "@killingit/shared";
+import { z } from "zod";
 import { UpstreamError } from "../http/errors.js";
 
 /**
@@ -160,14 +161,14 @@ async function sidecarAuthHeaders(
 
 /**
  * Authenticates credentials against the sidecar (which tries a Garmin login)
- * without fetching activities. Returns true on success.
+ * without fetching activities. It resolves once the sidecar accepts them, and
+ * rejects with the sidecar's failure otherwise.
  */
 export async function authenticateGarmin(
   credentials: GarminCredentials,
   transport: AuthenticateTransport = postAuthenticate,
-): Promise<boolean> {
+): Promise<void> {
   await transport(credentials);
-  return true;
 }
 
 type AuthenticateTransport = (credentials: GarminCredentials) => Promise<void>;
@@ -185,6 +186,33 @@ function garminSyncRequestBody(
     ...credentialsBody(credentials),
     knownActivityIds: knownActivityIds.map(String),
   };
+}
+
+/** The sidecar's `/sync` response wrapper around the activity list. */
+const garminSyncResponseSchema = z.object({
+  activities: activitySchema.array(),
+});
+
+/**
+ * POSTs a body to the sidecar and validates the JSON response against
+ * `schema`. A malformed payload raises a {@link GarminSidecarError} that keeps
+ * the Zod error as its cause, so every sidecar response path reports a parse
+ * failure the same way and the reason survives to the log.
+ */
+async function postAndValidate<S extends z.ZodType>(
+  path: string,
+  body: Record<string, unknown>,
+  schema: S,
+  malformedMessage: string,
+): Promise<z.infer<S>> {
+  const res = await sidecarPost(path, body);
+  const parsed = schema.safeParse(await res.json());
+  if (!parsed.success) {
+    throw new GarminSidecarError(malformedMessage, undefined, {
+      cause: parsed.error,
+    });
+  }
+  return parsed.data;
 }
 
 /**
@@ -208,20 +236,13 @@ async function postSync(
   credentials: GarminCredentials,
   knownActivityIds: readonly number[],
 ): Promise<Activity[]> {
-  const res = await sidecarPost(
+  const { activities } = await postAndValidate(
     "/sync",
     garminSyncRequestBody(credentials, knownActivityIds),
+    garminSyncResponseSchema,
+    "sidecar returned a malformed activities payload",
   );
-  const body = (await res.json()) as { activities?: unknown } | null;
-  const parsed = activitySchema.array().safeParse(body?.activities);
-  if (!parsed.success) {
-    throw new GarminSidecarError(
-      "sidecar returned a malformed activities payload",
-      undefined,
-      { cause: parsed.error },
-    );
-  }
-  return parsed.data;
+  return activities;
 }
 
 /**
@@ -239,14 +260,12 @@ export async function syncGarminMetrics(
 async function postMetrics(
   credentials: GarminCredentials,
 ): Promise<GarminMetricsResponse> {
-  const res = await sidecarPost("/metrics", credentialsBody(credentials));
-  const parsed = garminMetricsResponseSchema.safeParse(await res.json());
-  if (!parsed.success) {
-    throw new GarminSidecarError(
-      "sidecar returned a malformed body-metrics payload",
-    );
-  }
-  return parsed.data;
+  return postAndValidate(
+    "/metrics",
+    credentialsBody(credentials),
+    garminMetricsResponseSchema,
+    "sidecar returned a malformed body-metrics payload",
+  );
 }
 
 /**
@@ -266,17 +285,12 @@ async function postDaily(
   credentials: GarminCredentials,
   date: string,
 ): Promise<GarminDailyResponse> {
-  const res = await sidecarPost("/daily", {
-    ...credentialsBody(credentials),
-    date,
-  });
-  const parsed = garminDailyResponseSchema.safeParse(await res.json());
-  if (!parsed.success) {
-    throw new GarminSidecarError(
-      "sidecar returned a malformed daily-metrics payload",
-    );
-  }
-  return parsed.data;
+  return postAndValidate(
+    "/daily",
+    { ...credentialsBody(credentials), date },
+    garminDailyResponseSchema,
+    "sidecar returned a malformed daily-metrics payload",
+  );
 }
 
 /** Default transport: POSTs credentials to the sidecar's `/authenticate`. */
