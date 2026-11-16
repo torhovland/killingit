@@ -1,5 +1,6 @@
 import { syncGarminMetrics, type GarminCredentials } from "./client.js";
 import { syncGarminDailyHistory } from "./dailySync.js";
+import { errorMessage } from "../lib/errorMessage.js";
 import { recordGarminBodyMetrics, recordGarminFtp } from "../metrics/store.js";
 
 /** The sidecar calls and stores one supplementary pass uses. */
@@ -42,14 +43,14 @@ export async function syncGarminSupplements(
     await saveMetrics(userId, snapshot.metrics);
     await saveFtp(userId, snapshot.ftp);
   } catch (err) {
-    const detail = err instanceof Error ? err.message : String(err);
+    const detail = errorMessage(err);
     console.error(`[garmin] could not sync body metrics: ${detail}`);
   }
 
   try {
     await syncDaily({ userId, credentials, today });
   } catch (err) {
-    const detail = err instanceof Error ? err.message : String(err);
+    const detail = errorMessage(err);
     console.error(`[garmin] could not sync daily health metrics: ${detail}`);
   }
 }

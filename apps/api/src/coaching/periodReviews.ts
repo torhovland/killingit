@@ -8,6 +8,7 @@ import type {
   WeekPlan,
 } from "@killingit/shared";
 import type { DietPromptContext } from "../diet/summary.js";
+import { errorMessage } from "../lib/errorMessage.js";
 import {
   toCoachPlanActivity,
   type ActivityCommentContext,
@@ -122,7 +123,7 @@ async function capturePeriodReview(
       updatedAt: new Date().toISOString(),
     };
   } catch (err) {
-    const detail = err instanceof Error ? err.message : String(err);
+    const detail = errorMessage(err);
     console.error(`[period-review] ${period.kind} summary failed: ${detail}`);
     return null;
   }

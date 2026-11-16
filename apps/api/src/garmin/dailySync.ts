@@ -1,5 +1,6 @@
 import type { GarminDailyResponse } from "@killingit/shared";
 import { addDays } from "@killingit/shared";
+import { errorMessage } from "../lib/errorMessage.js";
 import {
   loadGarminDailySyncDates,
   markGarminDailySynced,
@@ -117,7 +118,7 @@ export async function syncGarminDailyHistory(
         );
         return { fetched, rateLimited: true, failedDate: null };
       }
-      const detail = err instanceof Error ? err.message : String(err);
+      const detail = errorMessage(err);
       console.error(`[garmin] daily health sync stopped at ${date}: ${detail}`);
       return { fetched, rateLimited: false, failedDate: date };
     }

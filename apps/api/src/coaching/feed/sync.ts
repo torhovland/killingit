@@ -9,6 +9,7 @@ import {
   syncGarminSupplements,
   startGarminSupplements,
 } from "../../garmin/supplements.js";
+import { errorMessage } from "../../lib/errorMessage.js";
 import {
   loadStoredActivityFeed,
   saveStoredActivities,
@@ -229,7 +230,7 @@ async function loadPreviousActivities(
   try {
     return (await load(userId, "samples")).activities;
   } catch (err) {
-    const detail = err instanceof Error ? err.message : String(err);
+    const detail = errorMessage(err);
     console.error(
       `[coaching] could not read the stored activity feed: ${detail}`,
     );
@@ -271,7 +272,7 @@ async function persistSyncedActivities(
   try {
     await save(userId, synced, deletedIds, previous);
   } catch (err) {
-    const detail = err instanceof Error ? err.message : String(err);
+    const detail = errorMessage(err);
     console.error(`[coaching] could not store the activity rows: ${detail}`);
   }
 }
