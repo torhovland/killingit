@@ -16,6 +16,7 @@ import {
   RefreshingOverlay,
   ThresholdsLine,
 } from "./sections";
+import { showsWeather } from "./sessionWeather";
 
 /** One week's outline: focus, rationale, and a line for each session. */
 export function WeekSection({
@@ -123,16 +124,14 @@ export function WeekSection({
                       testId="session-load"
                     />
                   )}
-                {session.type === "workout" &&
-                  session.canBeOutdoor !== false &&
-                  (session.weather != null || session.forecasts != null) && (
-                    <div className="w-full" data-testid="week-weather">
-                      <WeatherSummary
-                        weather={session.weather}
-                        forecasts={session.forecasts}
-                      />
-                    </div>
-                  )}
+                {showsWeather(session) && (
+                  <div className="w-full" data-testid="week-weather">
+                    <WeatherSummary
+                      weather={session.weather}
+                      forecasts={session.forecasts}
+                    />
+                  </div>
+                )}
                 {session.description.trim() !== "" && (
                   <FormattedText
                     text={session.description}
