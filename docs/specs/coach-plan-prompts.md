@@ -5,7 +5,11 @@
 - **Updated:** 2026-11-16 — the daily, weekly and plan-update prompts compose
   their shared seven-fragment tail through `PLAN_UPDATE_SHARED_RULES`, which
   takes a prompt's own level rules between the outline and the weather rule.
-  The rendered prompt text is unchanged.
+  The activity review's plan-fit paragraph is the exported
+  `ACTIVITY_WEEK_MATCH_RULES`, and its schema messages for a missing diet goal
+  and progress target come from `missingDietGoalMessage()` and
+  `missingDietProgressMessage(subject)` so the repair turn reads the same
+  sentence. The rendered prompt text is unchanged.
 - **Updated:** 2026-11-16 — `formatPlanContext` keeps its optional sections as
   one-line delegations to the topical formatters and owns only the two blocks
   with real branching: the private `formatWeeklyNote` renders the current note,
