@@ -1,6 +1,6 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "../db/index.js";
-import { activityAnalyses } from "../db/schema.js";
+import { activityAnalyses, type ActivityAnalysis } from "../db/schema.js";
 
 /** A `general` review of the workout, or a `program` review against the plan. */
 export type AnalysisKind = "general" | "program";
@@ -13,6 +13,18 @@ export interface StoredAnalysis {
   generatedAt: Date;
   /** The coach judged that this workout changes the plan. */
   planChangeNeeded: boolean;
+}
+
+/** Maps one stored analysis row to the shape the API is built from. */
+function toStoredAnalysis(row: ActivityAnalysis): StoredAnalysis {
+  return {
+    activityId: row.activityId,
+    kind: row.kind,
+    model: row.model,
+    text: row.analysis,
+    generatedAt: row.updatedAt,
+    planChangeNeeded: row.planChangeNeeded,
+  };
 }
 
 /**
@@ -42,19 +54,7 @@ export async function loadAnalyses(
       ),
     );
 
-  return new Map(
-    rows.map((row) => [
-      row.activityId,
-      {
-        activityId: row.activityId,
-        kind,
-        model: row.model,
-        text: row.analysis,
-        generatedAt: row.updatedAt,
-        planChangeNeeded: row.planChangeNeeded,
-      },
-    ]),
-  );
+  return new Map(rows.map((row) => [row.activityId, toStoredAnalysis(row)]));
 }
 
 /** Inserts or replaces the cached analysis for one activity and kind. */
@@ -100,12 +100,5 @@ export async function saveAnalysis(input: {
   if (!row) {
     throw new Error("failed to persist activity analysis");
   }
-  return {
-    activityId: row.activityId,
-    kind,
-    model: row.model,
-    text: row.analysis,
-    generatedAt: row.updatedAt,
-    planChangeNeeded: row.planChangeNeeded,
-  };
+  return toStoredAnalysis(row);
 }

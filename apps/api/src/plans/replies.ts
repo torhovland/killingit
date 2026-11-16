@@ -37,7 +37,8 @@ export interface ActivityFeedback {
   reviewed: boolean;
 }
 
-function toStoredReply(row: CoachReplyRow): StoredCoachReply {
+/** Maps one stored reply row to the shape the API is built from. */
+export function toStoredReply(row: CoachReplyRow): StoredCoachReply {
   return {
     kind: row.kind,
     target: row.target,

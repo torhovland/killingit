@@ -66,7 +66,9 @@ the block, each block week summary, and each week:
   A missing or null `dietProgress` means no target for that period.
 - `dietPlanSchema.goalProvided` records whether the athlete stated the goal.
   Older plans omit it; the API infers the default from the exact
-  `DEFAULT_DIET_GOAL` wording.
+  `DEFAULT_DIET_GOAL` wording. Every reader goes through `isDietGoalProvided`,
+  which answers true, false, or `undefined` when no goal is stored at all, so a
+  missing plan is never mistaken for an unstated goal.
 - `dietPlanSchema.goalWeightKg`, `goalBodyFatPercent` and `goalDate` record the
   numeric target and date the athlete stated, or are absent/null when they
   stated none. They are the coach's reading of the athlete's words, not a new
@@ -189,6 +191,9 @@ it: the season, first block, week, day, and unified update prompts.
 
 - Shared schemas: diet progress targets on every plan level, the nullable
   numbers, `goalProvided`, and the summary flag.
+- Goal helper tests: the stored `goalProvided` flag wins over the goal wording,
+  an older plan is inferred from the default wording, and no stored goal is
+  distinct from an unstated one.
 - Prompt tests: the progress rule's focus-aware, non-linear planning, the
   front-loaded path to a stated numeric goal, the mid-season goal date, the
   explicit miss reason, the default/diet-advice guard, and the contracts on

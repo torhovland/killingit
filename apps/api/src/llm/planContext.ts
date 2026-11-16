@@ -198,40 +198,7 @@ export function formatPlanContext(input: PlanContextInput): string[] {
       formatActivityComments(unlistedComments),
     );
   }
-  const hasCurrentWeeklyNote =
-    input.weeklyNote !== undefined &&
-    input.weeklyNote !== null &&
-    input.weeklyNote.trim() !== "";
-  const hasReviewWeeklyNote =
-    input.periodReviews?.some(
-      (review) => review.weeklyNote !== undefined && review.weeklyNote !== null,
-    ) ?? false;
-  if (hasCurrentWeeklyNote || hasReviewWeeklyNote) {
-    lines.push("", WEEKLY_NOTE_SCOPE_RULE);
-  }
-  if (
-    hasCurrentWeeklyNote &&
-    input.weeklyNote !== null &&
-    input.weeklyNote !== undefined
-  ) {
-    const weekStart = input.weeklyNoteWeekStartDate ?? startOfWeek(input.today);
-    const weekEnd = addDays(weekStart, 6);
-    lines.push(
-      "",
-      `Weekly note for the week starting ${weekStart} (${weekStart} → ${weekEnd}):`,
-      input.weeklyNote.trim(),
-    );
-    if (
-      input.weeklyNoteReply !== undefined &&
-      input.weeklyNoteReply !== null &&
-      input.weeklyNoteReply.trim() !== ""
-    ) {
-      lines.push(
-        "Coach reply to the weekly note:",
-        input.weeklyNoteReply.trim(),
-      );
-    }
-  }
+  lines.push(...formatWeeklyNote(input));
 
   if (input.periodReviews && input.periodReviews.length > 0) {
     lines.push(
@@ -242,20 +209,56 @@ export function formatPlanContext(input: PlanContextInput): string[] {
   }
 
   if (input.forecast && input.forecast.length > 0) {
-    const where =
-      input.locationName !== undefined &&
-      input.locationName !== null &&
-      input.locationName.trim() !== ""
-        ? ` for ${input.locationName.trim()}`
-        : "";
     lines.push(
       "",
-      `Combined daily weather and daylight forecast${where} (the average of Open-Meteo and Yr.no). Temperatures are in °C; wind and gusts are in m/s; sunrise and sunset are local clock times.`,
+      formatForecastHeader(input.locationName),
       formatWeatherForecast(input.forecast),
     );
   }
 
   return lines;
+}
+
+/**
+ * The athlete's note for the current week with the coach's reply, and the rule
+ * that scopes the note to its own week. A completed week's review can carry a
+ * note even when the current week has none, so the scope rule covers both.
+ */
+function formatWeeklyNote(input: PlanContextInput): string[] {
+  const note = input.weeklyNote?.trim() ?? "";
+  const hasReviewWeeklyNote =
+    input.periodReviews?.some(
+      (review) => review.weeklyNote !== undefined && review.weeklyNote !== null,
+    ) ?? false;
+  const lines: string[] = [];
+  if (note !== "" || hasReviewWeeklyNote) {
+    lines.push("", WEEKLY_NOTE_SCOPE_RULE);
+  }
+  if (note === "") {
+    return lines;
+  }
+  const weekStart = input.weeklyNoteWeekStartDate ?? startOfWeek(input.today);
+  const weekEnd = addDays(weekStart, 6);
+  lines.push(
+    "",
+    `Weekly note for the week starting ${weekStart} (${weekStart} → ${weekEnd}):`,
+    note,
+  );
+  const reply = input.weeklyNoteReply?.trim() ?? "";
+  if (reply !== "") {
+    lines.push("Coach reply to the weekly note:", reply);
+  }
+  return lines;
+}
+
+/**
+ * The forecast's opening line, naming the athlete's location only when they
+ * named one so the header never reads "for " with an empty label.
+ */
+function formatForecastHeader(locationName: string | null | undefined): string {
+  const location = locationName?.trim() ?? "";
+  const where = location === "" ? "" : ` for ${location}`;
+  return `Combined daily weather and daylight forecast${where} (the average of Open-Meteo and Yr.no). Temperatures are in °C; wind and gusts are in m/s; sunrise and sunset are local clock times.`;
 }
 
 /** Renders completed-period summaries and the athlete's feedback on them. */

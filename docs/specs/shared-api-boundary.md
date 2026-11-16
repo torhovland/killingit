@@ -19,7 +19,7 @@ Moved out of `packages/shared`:
 | `seasonPlanUpdateSchema`, `initialBlockUpdateSchema`, `dailyPlanUpdateSchema`, `weeklyPlanUpdateSchema` and their types                                                         | `apps/api/src/llm/planResult.ts`      |
 | `coachAnalysisResultSchema`, `coachReplyResultSchema` and their types                                                                                                           | `apps/api/src/llm/coachResult.ts`     |
 | `normalizedPower`, `powerTrainingStressScore`, `bikeWorkoutTrainingStressScore`, `recordedPowerSummary`, `dailyTrainingLoad`, `estimatedTssFromSession`, `ATL_DAYS`, `CTL_DAYS` | `apps/api/src/training/stress.ts`     |
-| `isDefaultDietGoal`                                                                                                                                                             | `apps/api/src/diet/goal.ts`           |
+| `isDefaultDietGoal` (now the private wording check behind `isDietGoalProvided`)                                                                                                 | `apps/api/src/diet/goal.ts`           |
 | `withoutInProgressDailyHealth` and its in-progress metric catalog                                                                                                               | `apps/api/src/metrics/dailyHealth.ts` |
 | `isValidTimeZone`                                                                                                                                                               | `apps/api/src/weather/timeZone.ts`    |
 

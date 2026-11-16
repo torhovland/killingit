@@ -72,19 +72,13 @@ export function revisionFlags(input: RevisionFlagsInput): PlanUpdateFlags {
   // A new day revises today's session and the rest of the week around it. A
   // next-block transition that lands in the current week revises the week but
   // deliberately keeps today's session.
-  const weekRevision =
-    seasonRefresh ||
-    blockRevision ||
-    decision.revisionNeeded ||
-    pending.week ||
-    pending.day ||
-    nextBlockSameWeek;
   const dayRevision =
     seasonRefresh ||
     blockRevision ||
     decision.revisionNeeded ||
     pending.week ||
     pending.day;
+  const weekRevision = dayRevision || nextBlockSameWeek;
   const nextWeekRevision =
     includeTomorrow && startOfWeek(tomorrowDate) !== startOfWeek(today);
   const tomorrowRevision =
@@ -245,6 +239,10 @@ export function mergeTomorrow(
   }
   const source = update.nextWeek;
   if (source === null) {
+    // A run that does not want tomorrow does not revise the next week either,
+    // and may return no next week even though one is stored. The stored week
+    // already holds tomorrow's session, so keep it instead of dropping a level
+    // this run did not ask the coach to change.
     return plan;
   }
   return {

@@ -79,6 +79,8 @@ runs the whole pipeline with a fake provider and in-memory stores.
    revision did not return, then stores the returned ones.
 5. `mergeTomorrow` clears or stores tomorrow, drops it when it is no longer the
    next day, and copies tomorrow's outline from the returned week or next week.
+   A run that does not want tomorrow does not revise the next week either, so
+   an answer that omits it keeps the stored next week and tomorrow unchanged.
 6. The week-only revision restores today's stored session, then the diet
    progress targets, diet and body-metric points are merged.
 

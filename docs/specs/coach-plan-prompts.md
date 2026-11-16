@@ -2,6 +2,20 @@
 
 - **Status:** Accepted (implemented)
 - **Date:** 2026-10-21
+- **Updated:** 2026-11-16 — the daily, weekly and plan-update prompts compose
+  their shared seven-fragment tail through `PLAN_UPDATE_SHARED_RULES`, which
+  takes a prompt's own level rules between the outline and the weather rule.
+  The activity review's plan-fit paragraph is the exported
+  `ACTIVITY_WEEK_MATCH_RULES`, and its schema messages for a missing diet goal
+  and progress target come from `missingDietGoalMessage()` and
+  `missingDietProgressMessage(subject)` so the repair turn reads the same
+  sentence. The rendered prompt text is unchanged.
+- **Updated:** 2026-11-16 — `formatPlanContext` keeps its optional sections as
+  one-line delegations to the topical formatters and owns only the two blocks
+  with real branching: the private `formatWeeklyNote` renders the current note,
+  its coach reply and the shared scope rule, and the private
+  `formatForecastHeader` names the location only when the athlete supplied one.
+  The rendered prompt text is unchanged.
 - **Updated:** 2026-11-15 — the fragment guard reads every string-literal form
   in `promptRules.ts`, not only template literals, so the closing JSON
   instruction is a guarded fragment too. `foodPrompt.ts` composes
@@ -141,7 +155,11 @@ and returns `LlmProvider` chat messages.
   limits and units, and the activity-comment rule. Rules that every plan prompt
   includes are merged into `PLAN_PROMPT_RULES`: the training-science
   requirement, the standard input guidance, the rationale rules and the
-  body-metric output fields.
+  body-metric output fields. The daily, weekly and plan-update prompts close
+  with `PLAN_UPDATE_SHARED_RULES`: the week-outline, weather, bike-workout,
+  diet, training-load, enum and JSON rules in one block. It takes the prompt's
+  own level rules between the outline and the weather rule, so each prompt keeps
+  its reading order without repeating the tail.
 - A fragment that a call has to build from its arguments lives in
   `promptRules.ts` as a helper rather than as a sentence each prompt writes for
   itself. The week-dates sentence is the main case: `weekDatesRule(start)`

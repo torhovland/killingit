@@ -12,10 +12,10 @@ import {
   COACH_ANALYSIS_RESPONSE_RULES,
   COACH_REPLY_RESPONSE_RULES,
   COACH_RESPONSE_NOTES_RULES,
+  COACHING_SURVEY_ADJUSTMENT_RULES,
   COMPLETED_SESSION_RULES,
   COMPLETION_SLACK_RULES,
   DAILY_HEALTH_RULES,
-  DIET_PLANNING_RULES,
   DIET_PROGRESS_REPAIR_HINT,
   DIET_REPAIR_HINT,
   DIET_RULES,
@@ -25,10 +25,14 @@ import {
   JSON_ONLY_RULES,
   JSON_RULES,
   jsonShape,
+  missingDietGoalMessage,
+  missingDietProgressMessage,
   PAST_SESSION_RULES,
   PLAN_CHANGE_FLAG_RULES,
   PLAN_PROMPT_RULES,
+  PLAN_UPDATE_SHARED_RULES,
   rollExtraPraise,
+  SESSION_PURPOSE_RULES,
   SEVEN_SESSIONS_CLAUSE,
   systemUserMessages,
   TEXT_FORMATTING_RULES,
@@ -39,6 +43,15 @@ import {
   weekDatesRule,
   WEEK_SHAPE_RULES,
 } from "./promptRules.js";
+
+/**
+ * The diet planning rule as a prompt receives it. Its source interpolates the
+ * default goal, so the fixture's raw literal has to resolve it before it can be
+ * matched against a rendered prompt.
+ */
+const DIET_PLANNING_PROMPT = promptRuleLiteral(
+  "DIET_PLANNING_RULES",
+).replaceAll("${DEFAULT_DIET_GOAL}", DEFAULT_DIET_GOAL);
 
 describe("shared prompt composition", () => {
   it("builds the global rules from the coach personality", () => {
@@ -87,6 +100,37 @@ describe("shared prompt composition", () => {
         promptRuleLiteral("FORM_TARGET_RULES"),
       ]),
     ).toEqual([]);
+  });
+
+  it("builds the update tail from the seven shared rules in order", () => {
+    const tail = PLAN_UPDATE_SHARED_RULES();
+    const order = [
+      promptRuleLiteral("WEEK_OUTLINE_RULES"),
+      promptRuleLiteral("WEATHER_PLANNING_RULES"),
+      promptRuleLiteral("BIKE_WORKOUT_RULES"),
+      DIET_PLANNING_PROMPT,
+      TRAINING_LOAD_RULES,
+      promptRuleLiteral("ENUM_RULES"),
+      JSON_RULES,
+    ];
+    expect(missingFragments(tail, order)).toEqual([]);
+    const positions = order.map((fragment) => tail.indexOf(fragment));
+    expect(positions).toEqual([...positions].sort((a, b) => a - b));
+  });
+
+  it("places a prompt's own rules inside the tail where it reads them", () => {
+    const tail = PLAN_UPDATE_SHARED_RULES([
+      SESSION_PURPOSE_RULES,
+      COACHING_SURVEY_ADJUSTMENT_RULES,
+    ]);
+    const positions = [
+      promptRuleLiteral("WEEK_OUTLINE_RULES"),
+      SESSION_PURPOSE_RULES,
+      COACHING_SURVEY_ADJUSTMENT_RULES,
+      promptRuleLiteral("WEATHER_PLANNING_RULES"),
+    ].map((fragment) => tail.indexOf(fragment));
+    expect(positions).not.toContain(-1);
+    expect(positions).toEqual([...positions].sort((a, b) => a - b));
   });
 
   it("builds the activity FTP estimate from the activity data limits", () => {
@@ -141,7 +185,7 @@ describe("shared prompt composition", () => {
   });
 
   it("names the default diet goal in the plan rules", () => {
-    expect(DIET_PLANNING_RULES).toContain(DEFAULT_DIET_GOAL);
+    expect(DIET_PLANNING_PROMPT).toContain(DEFAULT_DIET_GOAL);
     expect(PLAN_PROMPT_RULES).toContain(DEFAULT_DIET_GOAL);
   });
 
@@ -216,5 +260,17 @@ describe("diet repair hints", () => {
     for (const field of ["targetWeightKg", "targetBodyFatPercent", "note"]) {
       expect(DIET_PROGRESS_REPAIR_HINT).toContain(`"${field}"`);
     }
+  });
+
+  it("names the goal fields in the missing-goal message", () => {
+    expect(missingDietGoalMessage()).toBe(
+      `Missing the diet goal. Return ${DIET_REPAIR_HINT}.`,
+    );
+  });
+
+  it("names the period and progress fields in the missing-target message", () => {
+    expect(missingDietProgressMessage("the current week")).toBe(
+      `Missing the diet progress target for the current week. Return ${DIET_PROGRESS_REPAIR_HINT}.`,
+    );
   });
 });

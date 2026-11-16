@@ -1,14 +1,19 @@
 import type { PeriodReview, ReviewKind } from "@killingit/shared";
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull, type SQL } from "drizzle-orm";
 import { db } from "../db/index.js";
 import {
   coachReplies,
   periodReviews,
   weeklyNotes,
   type CoachReplyRow,
+  type PeriodReviewRow,
   type WeeklyNoteRow,
 } from "../db/schema.js";
-import { toCoachAnalysis, type StoredCoachReply } from "./replies.js";
+import {
+  toCoachAnalysis,
+  toStoredReply,
+  type StoredCoachReply,
+} from "./replies.js";
 
 /** A stored week or block review before it is turned into the API shape. */
 export interface StoredPeriodReview {
@@ -29,17 +34,34 @@ export interface PeriodReviewWithReply {
   review: StoredPeriodReview;
   reply: StoredCoachReply | null;
   /** The weekly note saved for a week review and the coach's reply to it. */
-  weeklyNote?: StoredWeeklyNote | null;
+  weeklyNote?: StoredWeeklyNoteWithReply | null;
 }
 
 /** The athlete's note for a week and the coach's reply to that note. */
-export interface StoredWeeklyNote {
+export interface StoredWeeklyNoteWithReply {
   note: string;
   reply: StoredCoachReply | null;
 }
 
 function replyKind(kind: ReviewKind): "week_review" | "block_review" {
   return kind === "week" ? "week_review" : "block_review";
+}
+
+/** Maps one stored review row to the shape the API is built from. */
+function toStoredReview(row: PeriodReviewRow): StoredPeriodReview {
+  return {
+    kind: row.kind,
+    startDate: row.startDate,
+    endDate: row.endDate,
+    title: row.title,
+    summary: row.summary,
+    model: row.model,
+    promptVersion: row.promptVersion,
+    comment: row.comment,
+    reviewed: row.reviewed,
+    generatedAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
 }
 
 /** Loads every week/block review for a user with its coach reply. */
@@ -55,19 +77,7 @@ export async function loadPeriodReviews(
     return [];
   }
 
-  const reviewRows = rows.map((row) => ({
-    kind: row.kind === "week" ? ("week" as const) : ("block" as const),
-    startDate: row.startDate,
-    endDate: row.endDate,
-    title: row.title,
-    summary: row.summary,
-    model: row.model,
-    promptVersion: row.promptVersion,
-    comment: row.comment,
-    reviewed: row.reviewed,
-    generatedAt: row.createdAt,
-    updatedAt: row.updatedAt,
-  }));
+  const reviewRows = rows.map(toStoredReview);
 
   const weekStartDates = reviewRows
     .filter((review) => review.kind === "week")
@@ -110,14 +120,7 @@ export async function loadPeriodReviews(
 
   const replies = new Map<string, StoredCoachReply>();
   for (const row of replyRows) {
-    replies.set(`${row.kind}:${row.target}`, {
-      kind: row.kind,
-      target: row.target,
-      text: row.reply,
-      model: row.model,
-      generatedAt: row.updatedAt,
-      planChangeNeeded: row.planChangeNeeded,
-    });
+    replies.set(`${row.kind}:${row.target}`, toStoredReply(row));
   }
 
   const notes = new Map<string, string>();
@@ -127,14 +130,7 @@ export async function loadPeriodReviews(
 
   const noteReplies = new Map<string, StoredCoachReply>();
   for (const row of noteReplyRows) {
-    noteReplies.set(row.target, {
-      kind: row.kind,
-      target: row.target,
-      text: row.reply,
-      model: row.model,
-      generatedAt: row.updatedAt,
-      planChangeNeeded: row.planChangeNeeded,
-    });
+    noteReplies.set(row.target, toStoredReply(row));
   }
 
   return reviewRows.map((review) => {
@@ -176,19 +172,7 @@ export async function loadPeriodReview(
   if (!row) {
     return null;
   }
-  return {
-    kind: row.kind === "week" ? "week" : "block",
-    startDate: row.startDate,
-    endDate: row.endDate,
-    title: row.title,
-    summary: row.summary,
-    model: row.model,
-    promptVersion: row.promptVersion,
-    comment: row.comment,
-    reviewed: row.reviewed,
-    generatedAt: row.createdAt,
-    updatedAt: row.updatedAt,
-  };
+  return toStoredReview(row);
 }
 
 /**
@@ -230,6 +214,33 @@ export async function savePeriodReview(input: {
 }
 
 /**
+ * Applies `set` to one review. `guard` narrows which row may change, so a
+ * comment is only added while the review has none. Returns false when no row
+ * matched.
+ */
+async function updateReview(
+  userId: number,
+  kind: ReviewKind,
+  startDate: string,
+  set: { comment: string } | { reviewed: true },
+  guard?: SQL,
+): Promise<boolean> {
+  const rows = await db
+    .update(periodReviews)
+    .set({ ...set, updatedAt: new Date() })
+    .where(
+      and(
+        eq(periodReviews.userId, userId),
+        eq(periodReviews.kind, kind),
+        eq(periodReviews.startDate, startDate),
+        guard,
+      ),
+    )
+    .returning({ id: periodReviews.id });
+  return rows.length > 0;
+}
+
+/**
  * Adds the single comment a review may have. Returns false when one already
  * exists, so a second add is rejected instead of silently replacing it.
  */
@@ -239,19 +250,13 @@ export async function createPeriodReviewComment(
   startDate: string,
   comment: string,
 ): Promise<boolean> {
-  const rows = await db
-    .update(periodReviews)
-    .set({ comment, updatedAt: new Date() })
-    .where(
-      and(
-        eq(periodReviews.userId, userId),
-        eq(periodReviews.kind, kind),
-        eq(periodReviews.startDate, startDate),
-        isNull(periodReviews.comment),
-      ),
-    )
-    .returning({ id: periodReviews.id });
-  return rows.length > 0;
+  return updateReview(
+    userId,
+    kind,
+    startDate,
+    { comment },
+    isNull(periodReviews.comment),
+  );
 }
 
 /**
@@ -264,18 +269,7 @@ export async function updatePeriodReviewComment(
   startDate: string,
   comment: string,
 ): Promise<boolean> {
-  const rows = await db
-    .update(periodReviews)
-    .set({ comment, updatedAt: new Date() })
-    .where(
-      and(
-        eq(periodReviews.userId, userId),
-        eq(periodReviews.kind, kind),
-        eq(periodReviews.startDate, startDate),
-      ),
-    )
-    .returning({ id: periodReviews.id });
-  return rows.length > 0;
+  return updateReview(userId, kind, startDate, { comment });
 }
 
 /** Records that the athlete acknowledged a review with "No comment". */
@@ -284,18 +278,7 @@ export async function markPeriodReviewReviewed(
   kind: ReviewKind,
   startDate: string,
 ): Promise<boolean> {
-  const rows = await db
-    .update(periodReviews)
-    .set({ reviewed: true, updatedAt: new Date() })
-    .where(
-      and(
-        eq(periodReviews.userId, userId),
-        eq(periodReviews.kind, kind),
-        eq(periodReviews.startDate, startDate),
-      ),
-    )
-    .returning({ id: periodReviews.id });
-  return rows.length > 0;
+  return updateReview(userId, kind, startDate, { reviewed: true });
 }
 
 /** Converts a stored review and reply into the shared API shape. */

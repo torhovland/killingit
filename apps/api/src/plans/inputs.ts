@@ -10,6 +10,8 @@ import {
   coachReplies,
   manualActivities,
   weeklyNotes,
+  type ActivityCommentRow,
+  type ManualActivityRow,
 } from "../db/schema.js";
 import type {
   ActivityCommentContext,
@@ -70,6 +72,33 @@ export interface CoachingInputs {
    * counts as a request, so a failed reply never drops a needed refresh.
    */
   refreshUpdatedAt: Date | null;
+}
+
+/** Maps a stored manual activity to the coach's activity context. */
+function toManualActivityContext(
+  row: Pick<
+    ManualActivityRow,
+    "id" | "startDate" | "details" | "estimatedTss" | "updatedAt"
+  >,
+): ManualActivityContext {
+  return {
+    id: row.id,
+    startDate: row.startDate,
+    details: row.details,
+    estimatedTss: row.estimatedTss,
+    updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
+/** Maps a stored activity comment to the coach's activity context. */
+function toActivityCommentContext(
+  row: Pick<ActivityCommentRow, "activityId" | "comment" | "updatedAt">,
+): ActivityCommentContext {
+  return {
+    activityId: row.activityId,
+    comment: row.comment,
+    updatedAt: row.updatedAt.toISOString(),
+  };
 }
 
 /**
@@ -154,18 +183,8 @@ export async function loadCoachingInputs(
     noteRows.find((row) => row.weekStartDate === weekStartDate) ?? null;
 
   return {
-    manualActivities: manualRows.map((row) => ({
-      id: row.id,
-      startDate: row.startDate,
-      details: row.details,
-      estimatedTss: row.estimatedTss,
-      updatedAt: row.updatedAt.toISOString(),
-    })),
-    activityComments: commentRows.map((row) => ({
-      activityId: row.activityId,
-      comment: row.comment,
-      updatedAt: row.updatedAt.toISOString(),
-    })),
+    manualActivities: manualRows.map(toManualActivityContext),
+    activityComments: commentRows.map(toActivityCommentContext),
     weeklyNote: currentNote?.note ?? null,
     weeklyNoteWeekStartDate: currentNote === null ? null : weekStartDate,
     weeklyNoteReply: noteReply?.text ?? null,
@@ -225,11 +244,7 @@ export async function loadUnansweredActivityComments(
     )
     .where(and(eq(activityComments.userId, userId), isNull(coachReplies.id)));
 
-  return rows.map((row) => ({
-    activityId: row.activityId,
-    comment: row.comment,
-    updatedAt: row.updatedAt.toISOString(),
-  }));
+  return rows.map(toActivityCommentContext);
 }
 
 /** Loads all manual activities for a user. */
@@ -240,13 +255,7 @@ export async function loadManualActivities(
     .select()
     .from(manualActivities)
     .where(eq(manualActivities.userId, userId));
-  return rows.map((row) => ({
-    id: row.id,
-    startDate: row.startDate,
-    details: row.details,
-    estimatedTss: row.estimatedTss,
-    updatedAt: row.updatedAt.toISOString(),
-  }));
+  return rows.map(toManualActivityContext);
 }
 
 /**

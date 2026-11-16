@@ -6,8 +6,8 @@ import type {
 } from "@killingit/shared";
 import { addDays } from "@killingit/shared";
 
-/** The last day (Sunday) of a Monday-based week plan. */
-export function weekEnd(week: WeekPlan): string {
+/** The last day (Sunday) of a Monday-based week. */
+export function weekEnd(week: { startDate: string }): string {
   return addDays(week.startDate, 6);
 }
 

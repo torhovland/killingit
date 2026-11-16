@@ -112,9 +112,12 @@ list in the background.
 
 A refresh runs in three steps: fetch OpenRouter's list, reconcile the stored
 rows (insert, update, retire), then copy benchmark data, recompute `discouraged`
-and clear the sync error. A skipped or failed refresh reports the same all-zero
-counters, so the route and the page visit read one result shape whether or not
-any work ran.
+and clear the sync error. The per-model insert-or-update decision is the pure
+`catalogUpdateFor` in `apps/api/src/llm/modelCatalogUpdate.ts`, unit-tested
+without a database; `storeCatalogModels` only performs its writes, and every row
+written by one run shares a single timestamp. A skipped or failed refresh reports
+the same all-zero counters, so the route and the page visit read one result shape
+whether or not any work ran.
 
 ### Settings
 

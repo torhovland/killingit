@@ -11,7 +11,7 @@ import {
 import { zValidator } from "../http/validation.js";
 import { Hono } from "hono";
 import { getUser } from "../auth/middleware.js";
-import { isDefaultDietGoal } from "../diet/goal.js";
+import { isDietGoalProvided } from "../diet/goal.js";
 import {
   athleteFailureMessage,
   badRequest,
@@ -218,10 +218,9 @@ export function createDietRoute(deps: ResolvedAppDependencies): Hono {
         deps.planStore.load(user.id),
       ]);
       const diet = plan?.plan.diet ?? null;
-      const goalProvided =
-        diet === null
-          ? false
-          : (diet.goalProvided ?? !isDefaultDietGoal(diet.goal));
+      // The summary always reports a boolean, so no stored plan reads as "the
+      // athlete stated no goal"; the tri-state helper keeps that choice here.
+      const goalProvided = isDietGoalProvided(diet) ?? false;
       return c.json(
         dietSummaryResponseSchema.parse(
           buildDietSummary({
