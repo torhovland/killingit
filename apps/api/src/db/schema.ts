@@ -367,12 +367,10 @@ export const llmSettings = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
     provider: text("provider").notNull().default("openrouter"),
     apiKeyEncrypted: text("api_key_encrypted").notNull(),
-    /** Legacy single model; kept so existing rows and clients keep working. */
-    model: text("model").notNull(),
     /** Model used for season plans, season refreshes and block planning. */
-    seasonModel: text("season_model"),
+    seasonModel: text("season_model").notNull(),
     /** Model used for week/day planning and every day-to-day prompt. */
-    dailyModel: text("daily_model"),
+    dailyModel: text("daily_model").notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

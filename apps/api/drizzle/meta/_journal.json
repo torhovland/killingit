@@ -393,6 +393,13 @@
       "when": 1794833883671,
       "tag": "0055_smooth_ghost_rider",
       "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1794834436866,
+      "tag": "0056_daily_pete_wisdom",
+      "breakpoints": true
     }
   ]
 }
