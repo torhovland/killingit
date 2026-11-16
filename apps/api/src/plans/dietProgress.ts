@@ -1,12 +1,13 @@
 import type {
   BlockPlan,
   CoachPlan,
+  DietProgress,
   FitnessDietTarget,
   WeekPlan,
 } from "@killingit/shared";
-import { addDays } from "@killingit/shared";
 import { isDefaultDietGoal } from "../diet/goal.js";
 import { planDietTargets } from "../training/dietTargets.js";
+import { weekEnd } from "./periods.js";
 
 /** How far a target may miss a stated goal and still count as reaching it. */
 const GOAL_TOLERANCE = 0.5;
@@ -32,29 +33,55 @@ export function dietGoalProblems(plan: CoachPlan, today: string): string[] {
   }
   const goalDate = diet.goalDate ?? plan.season.endDate;
   const checkpoint = goalCheckpoint(plan, today, goalDate);
-  const problems: string[] = [];
   const goalBodyFatPercent = diet.goalBodyFatPercent ?? null;
-  if (goalBodyFatPercent !== null) {
-    const target = checkpoint?.bodyFatPercent ?? null;
-    if (target === null || target > goalBodyFatPercent + GOAL_TOLERANCE) {
-      problems.push(
-        `The target at ${checkpoint?.date ?? goalDate} ${
-          target === null ? "has no body-fat target" : `is ${target} % body fat`
-        }, so it does not reach the athlete's goal of ${goalBodyFatPercent} % body fat by ${goalDate}. Plan the target at that date to reach the goal, or set "diet.goalMissReason" with the specific conflict.`,
-      );
-    }
+  const checkpointDate = checkpoint?.date ?? goalDate;
+  const checks: GoalCheck[] = [
+    {
+      goal: goalBodyFatPercent,
+      target: checkpoint?.bodyFatPercent ?? null,
+      missing: "body-fat",
+      unit: "% body fat",
+    },
+    {
+      goal: diet.goalWeightKg ?? null,
+      target: checkpoint?.weightKg ?? null,
+      missing: "weight",
+      unit: "kg",
+    },
+  ];
+  return checks
+    .map((check) => goalProblem(check, goalDate, checkpointDate))
+    .filter((problem): problem is string => problem !== null);
+}
+
+/** One stated numeric goal and the target that must reach it. */
+type GoalCheck = {
+  /** The stated goal, or null when the athlete stated none for this measure. */
+  goal: number | null;
+  /** The target at the goal checkpoint, or null when the plan has none. */
+  target: number | null;
+  /** The measure as named when its target is missing, such as "body-fat". */
+  missing: string;
+  /** The unit after a value, such as "% body fat" or "kg". */
+  unit: string;
+};
+
+/**
+ * The problem when the target at one checkpoint does not reach a stated numeric
+ * goal, or null when it does or the athlete stated no goal for that measure.
+ */
+function goalProblem(
+  check: GoalCheck,
+  goalDate: string,
+  checkpointDate: string,
+): string | null {
+  const { goal, target, missing, unit } = check;
+  if (goal === null || (target !== null && target <= goal + GOAL_TOLERANCE)) {
+    return null;
   }
-  if (diet.goalWeightKg != null) {
-    const target = checkpoint?.weightKg ?? null;
-    if (target === null || target > diet.goalWeightKg + GOAL_TOLERANCE) {
-      problems.push(
-        `The target at ${checkpoint?.date ?? goalDate} ${
-          target === null ? "has no weight target" : `is ${target} kg`
-        }, so it does not reach the athlete's goal of ${diet.goalWeightKg} kg by ${goalDate}. Plan the target at that date to reach the goal, or set "diet.goalMissReason" with the specific conflict.`,
-      );
-    }
-  }
-  return problems;
+  return `The target at ${checkpointDate} ${
+    target === null ? `has no ${missing} target` : `is ${target} ${unit}`
+  }, so it does not reach the athlete's goal of ${goal} ${unit} by ${goalDate}. Plan the target at that date to reach the goal, or set "diet.goalMissReason" with the specific conflict.`;
 }
 
 /** The first progress target on or after the goal date. */
@@ -106,7 +133,7 @@ function blockWeekProblems(block: BlockPlan): string[] {
   const lastWeek = block.weeks[block.weeks.length - 1];
   if (
     lastWeek === undefined ||
-    addDays(lastWeek.startDate, 6) !== block.endDate ||
+    weekEnd(lastWeek) !== block.endDate ||
     lastWeek.dietProgress == null ||
     block.dietProgress == null
   ) {
@@ -175,7 +202,7 @@ export function missingDietProgressTargets(
     missing.push("the current block");
   }
   for (const week of plan.block.weeks) {
-    if (addDays(week.startDate, 6) >= today && week.dietProgress == null) {
+    if (weekEnd(week) >= today && week.dietProgress == null) {
       missing.push(`block week ${week.number}`);
     }
   }
@@ -190,7 +217,7 @@ export function missingDietProgressTargets(
       missing.push("the next block");
     }
     for (const week of plan.nextBlock.weeks) {
-      if (addDays(week.startDate, 6) >= today && week.dietProgress == null) {
+      if (weekEnd(week) >= today && week.dietProgress == null) {
         missing.push(`next block week ${week.number}`);
       }
     }
@@ -261,14 +288,7 @@ export function mergeDietProgressTargets(
     ...(update.season.dietProgress !== undefined
       ? { dietProgress: update.season.dietProgress }
       : {}),
-    blocks: plan.season.blocks.map((summary) => {
-      const detailed = update.season.blocks.find(
-        (block) => block.startDate === summary.startDate,
-      );
-      return detailed?.dietProgress === undefined
-        ? summary
-        : { ...summary, dietProgress: detailed.dietProgress };
-    }),
+    blocks: withDetailedProgress(plan.season.blocks, update.season.blocks),
   };
   const nextBlock =
     plan.nextBlock === null || update.nextBlock === null
@@ -297,14 +317,7 @@ function mergeBlockProgress(block: BlockPlan, update: BlockPlan): BlockPlan {
     ...(update.dietProgress !== undefined
       ? { dietProgress: update.dietProgress }
       : {}),
-    weeks: block.weeks.map((summary) => {
-      const detailed = update.weeks.find(
-        (week) => week.startDate === summary.startDate,
-      );
-      return detailed?.dietProgress === undefined
-        ? summary
-        : { ...summary, dietProgress: detailed.dietProgress };
-    }),
+    weeks: withDetailedProgress(block.weeks, update.weeks),
   };
 }
 
@@ -334,14 +347,7 @@ export function syncDietProgressTargets(plan: CoachPlan): CoachPlan {
     (week): week is WeekPlan => week !== null,
   );
 
-  const blocks = plan.season.blocks.map((summary) => {
-    const detailed = detailedBlocks.find(
-      (block) => block.startDate === summary.startDate,
-    );
-    return detailed?.dietProgress === undefined
-      ? summary
-      : { ...summary, dietProgress: detailed.dietProgress };
-  });
+  const blocks = withDetailedProgress(plan.season.blocks, detailedBlocks);
 
   // The last block ends on the season's last day, so its target is the
   // season-end target too. The detailed block is the newer plan.
@@ -370,13 +376,31 @@ function syncBlockWeeks(
 ): BlockPlan {
   return {
     ...block,
-    weeks: block.weeks.map((summary) => {
-      const detailed = detailedWeeks.find(
-        (week) => week.startDate === summary.startDate,
-      );
-      return detailed?.dietProgress === undefined
-        ? summary
-        : { ...summary, dietProgress: detailed.dietProgress };
-    }),
+    weeks: withDetailedProgress(block.weeks, detailedWeeks),
   };
+}
+
+/** A plan level that carries an optional diet target, matched by start date. */
+type DatedDietProgress = {
+  startDate: string;
+  dietProgress?: DietProgress | null | undefined;
+};
+
+/**
+ * Copies each detailed level's `dietProgress` onto the summary that starts on
+ * the same date. A summary with no detailed match, or whose match omits the
+ * field, keeps its stored target.
+ */
+function withDetailedProgress<T extends DatedDietProgress>(
+  summaries: readonly T[],
+  detailed: readonly DatedDietProgress[],
+): T[] {
+  return summaries.map((summary) => {
+    const match = detailed.find(
+      (level) => level.startDate === summary.startDate,
+    );
+    return match?.dietProgress === undefined
+      ? summary
+      : { ...summary, dietProgress: match.dietProgress };
+  });
 }

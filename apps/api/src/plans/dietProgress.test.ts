@@ -228,6 +228,29 @@ describe("syncDietProgressTargets", () => {
     expect(synced.nextBlock?.weeks[0]?.dietProgress?.targetWeightKg).toBe(76.5);
   });
 
+  it("keeps a summary with no detailed level to copy from", () => {
+    const base = plan();
+    const synced = syncDietProgressTargets({
+      ...base,
+      season: {
+        ...base.season,
+        blocks: [
+          ...base.season.blocks,
+          {
+            name: "Build",
+            focus: "Threshold",
+            startDate: "2026-11-30",
+            endDate: "2027-01-10",
+            weekCount: 6,
+            dietProgress: progress(78),
+          },
+        ],
+      },
+    });
+
+    expect(synced.season.blocks[1]?.dietProgress?.targetWeightKg).toBe(78);
+  });
+
   it("flags a season target that does not reach the stated goal", () => {
     const base = plan();
     base.season = {
@@ -247,6 +270,26 @@ describe("syncDietProgressTargets", () => {
     expect(problems).toHaveLength(2);
     expect(problems[0]).toContain("does not reach");
     expect(problems[0]).toContain("15 % body fat");
+  });
+
+  it("flags a weight goal with no target at its date", () => {
+    const base = plan();
+    base.season = {
+      ...base.season,
+      dietProgress: target(null, 15),
+    };
+    base.diet = {
+      goal: "Reach 80 kg",
+      goalWeightKg: 80,
+      goalDate: null,
+      assessment: "On target.",
+    };
+
+    const problems = dietGoalProblems(base, "2026-10-22");
+
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain("has no weight target");
+    expect(problems[0]).toContain("goal of 80 kg");
   });
 
   it("accepts a season target that reaches the goal", () => {
