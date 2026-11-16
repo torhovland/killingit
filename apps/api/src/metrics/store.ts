@@ -12,7 +12,7 @@ import {
   type ThresholdSummary,
 } from "@killingit/shared";
 import { and, asc, eq, gt, inArray, notInArray, or, sql } from "drizzle-orm";
-import { db } from "../db/index.js";
+import { db, type DbExecutor } from "../db/index.js";
 import {
   athleteMetrics,
   athleteThresholds,
@@ -26,10 +26,6 @@ import {
   FTP_THRESHOLD,
   type ThresholdTimeline,
 } from "../training/thresholds.js";
-
-/** The shared connection or one transaction on it, so a rewrite can be atomic. */
-type DbExecutor =
-  typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 /** One dated body-metric value in a batched write. */
 type MetricWrite = {

@@ -1,4 +1,41 @@
 import { describe, expect, it } from "bun:test";
+import { readdirSync, readFileSync } from "node:fs";
+import path from "node:path";
+
+/** A module-local declaration of a type that `db/index.ts` exports for reuse. */
+const LOCAL_EXECUTOR_TYPE = /^(?:export )?type (?:DbExecutor|DbTransaction)\b/m;
+
+const SRC = path.join(import.meta.dir, "..");
+
+/** Every non-test module under `apps/api/src`. */
+function productionFiles(directory: string): string[] {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const file = path.join(directory, entry.name);
+    if (entry.isDirectory()) {
+      return productionFiles(file);
+    }
+    if (!entry.name.endsWith(".ts") || entry.name.endsWith(".test.ts")) {
+      return [];
+    }
+    return [file];
+  });
+}
+
+describe("database executor types", () => {
+  it("declares them only in db/index.ts", () => {
+    // The type of the shared connection and of one transaction on it is derived
+    // from the Drizzle client once, so every store accepts the same executor
+    // and a change to the client cannot leave one module behind.
+    const declarations = productionFiles(SRC)
+      .flatMap((file) =>
+        LOCAL_EXECUTOR_TYPE.test(readFileSync(file, "utf8"))
+          ? [path.relative(SRC, file)]
+          : [],
+      )
+      .sort();
+    expect(declarations).toEqual(["db/index.ts"]);
+  });
+});
 
 describe("database module", () => {
   it("refuses to load without DATABASE_URL outside development and tests", () => {

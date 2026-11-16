@@ -1,5 +1,5 @@
 import { and, eq, inArray } from "drizzle-orm";
-import { db } from "../db/index.js";
+import { db, type DbTransaction } from "../db/index.js";
 import {
   activities,
   activityAnalyses,
@@ -12,8 +12,6 @@ import {
 
 /** Where a deleted activity came from. Mirrors `activity_deletions.source`. */
 export type ActivitySource = "garmin" | "manual";
-
-type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 /**
  * Hides a synced Garmin activity from the athlete's coaching view. The activity
