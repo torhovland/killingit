@@ -6,7 +6,7 @@ import {
   startOfWeek,
   weekDates,
 } from "@killingit/shared";
-import { isDefaultDietGoal } from "../diet/goal.js";
+import { isDietGoalProvided } from "../diet/goal.js";
 import {
   dietGoalProblems,
   dietProgressConsistencyProblems,
@@ -111,10 +111,7 @@ function withRequiredDietProgress<T extends CoachPlan>(
       return;
     }
     const goal = effectiveDietGoal(input, value);
-    const goalProvided =
-      goal?.goalProvided ??
-      (goal == null ? false : !isDefaultDietGoal(goal.goal));
-    if (goalProvided !== true) {
+    if (isDietGoalProvided(goal) !== true) {
       return;
     }
     for (const label of missingDietProgressTargets(value, input.today)) {
@@ -193,11 +190,7 @@ function withRequiredWeekDietProgress<T extends DailyPlanUpdate>(
       return;
     }
     const goalProvided =
-      value.diet.goalProvided ??
-      (input.dietGoal == null
-        ? undefined
-        : (input.dietGoal.goalProvided ??
-          !isDefaultDietGoal(input.dietGoal.goal)));
+      value.diet.goalProvided ?? isDietGoalProvided(input.dietGoal);
     if (goalProvided === true && value.week.dietProgress == null) {
       ctx.addIssue({
         code: "custom",

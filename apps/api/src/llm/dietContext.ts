@@ -1,5 +1,5 @@
 import type { DietPlan } from "@killingit/shared";
-import { isDefaultDietGoal } from "../diet/goal.js";
+import { isDietGoalProvided } from "../diet/goal.js";
 import type {
   DietMealContext,
   DietPromptContext,
@@ -22,7 +22,7 @@ export function formatDietGoal(diet: DietPlan): string[] {
     "",
     `Diet goal: ${diet.goal}`,
     `Diet goal status: ${
-      (diet.goalProvided ?? !isDefaultDietGoal(diet.goal))
+      isDietGoalProvided(diet)
         ? "stated by the athlete"
         : "default because the athlete stated none"
     }.`,

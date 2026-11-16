@@ -5,7 +5,7 @@ import type {
   FitnessDietTarget,
   WeekPlan,
 } from "@killingit/shared";
-import { isDefaultDietGoal } from "../diet/goal.js";
+import { isDietGoalProvided } from "../diet/goal.js";
 import { planDietTargets } from "../training/dietTargets.js";
 import { weekEnd } from "./periods.js";
 
@@ -239,10 +239,7 @@ export function dietProgressPending(
   if (plan === null || !dietAdvice) {
     return false;
   }
-  const goalProvided =
-    plan.diet == null
-      ? undefined
-      : (plan.diet.goalProvided ?? !isDefaultDietGoal(plan.diet.goal));
+  const goalProvided = isDietGoalProvided(plan.diet);
   if (goalProvided === false) {
     return false;
   }
