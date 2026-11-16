@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useAuth } from "../auth";
 import { useCurrentUser } from "../CurrentUserProvider";
 import { DeleteAccountSection } from "./DeleteAccountSection";
@@ -11,6 +11,7 @@ import { usePwa } from "../PwaContext";
 import { PwaInstallSection } from "../PwaInstall";
 import { reportError } from "../reportError";
 import { TimeZoneSection } from "./TimeZoneSection";
+import { usePropDraft } from "../usePropDraft";
 import { useStatuses } from "../useStatuses";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
@@ -21,6 +22,11 @@ function supportedTimeZones(): string[] {
     supportedValuesOf?: (key: "timeZone") => string[];
   };
   return intl.supportedValuesOf?.("timeZone") ?? [];
+}
+
+/** The picker's zone is plain text, so equal strings are the same selection. */
+function sameTimeZone(left: string, right: string): boolean {
+  return left === right;
 }
 
 /** Account settings: Garmin, OpenRouter, time zone, and plan regeneration. */
@@ -38,17 +44,13 @@ export function SettingsPage({
   const { garmin, llm, loading, error, reload, setData } = useStatuses(auth, {
     statusSource: "settings-page",
   });
-  const [selectedTimeZone, setSelectedTimeZone] = useState(timeZone ?? "");
+  const draft = usePropDraft(timeZone ?? "", sameTimeZone);
   const [savingTimeZone, setSavingTimeZone] = useState(false);
   const [timeZoneError, setTimeZoneError] = useState<string | null>(null);
   const timeZoneRequest = useRef(0);
   const timeZoneOptions = useMemo(() => {
     const zones = supportedTimeZones();
     return timeZone && !zones.includes(timeZone) ? [timeZone, ...zones] : zones;
-  }, [timeZone]);
-
-  useEffect(() => {
-    setSelectedTimeZone(timeZone ?? "");
   }, [timeZone]);
 
   async function saveTimeZone(nextTimeZone: string): Promise<void> {
@@ -74,7 +76,7 @@ export function SettingsPage({
   }
 
   function changeTimeZone(nextTimeZone: string): void {
-    setSelectedTimeZone(nextTimeZone);
+    draft.update(nextTimeZone);
     void saveTimeZone(nextTimeZone);
   }
 
@@ -113,7 +115,7 @@ export function SettingsPage({
       ) : (
         <>
           <TimeZoneSection
-            selected={selectedTimeZone}
+            selected={draft.value}
             options={timeZoneOptions}
             saving={savingTimeZone}
             error={timeZoneError}

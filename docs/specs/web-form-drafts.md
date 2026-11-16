@@ -2,7 +2,7 @@
 
 - **Status:** Accepted (implemented)
 - **Date:** 2026-11-14
-- **Related:** issue #312, `docs/adrs/0046-form-drafts-follow-props.md`,
+- **Related:** issue #312, issue #560, `docs/adrs/0046-form-drafts-follow-props.md`,
   `docs/specs/web-interaction-tests.md`.
 
 ## Goal
@@ -14,8 +14,8 @@ effect may copy the prop into state just to keep the form in step.
 
 ## Scope
 
-Two settings forms copied a prop into local state and got the behaviour wrong
-in opposite directions:
+Three settings forms copied a prop into local state and got the behaviour wrong
+in opposite directions or paid for an effect they did not need:
 
 - `LocationSection` reset its draft in an effect on every new `location` object.
   A parent re-render with an equal location threw away a point the athlete had
@@ -23,6 +23,12 @@ in opposite directions:
 - `LlmSection` initialised its model choices once with `useState`. A later
   `settings` payload — for example the server's answer after the OpenRouter key
   was saved — never reached the radio buttons.
+- `SettingsPage` mirrored its `timeZone` prop into `selectedTimeZone` with
+  `useEffect(() => setSelectedTimeZone(timeZone ?? ""), [timeZone])`. The
+  effect compared the raw `string | null` prop while the picker shows the
+  normalised `?? ""` zone, so the two spellings of "follow the device zone"
+  counted as a change, and the extra commit bought nothing the derived value
+  cannot do.
 
 The fix is a shared hook, `usePropDraft` in `apps/web/src/usePropDraft.ts`:
 
@@ -36,8 +42,9 @@ The hook stores the source value the edit was based on. It shows the edit only
 while the current source is equal to that base; once the source holds a
 different value, the source wins. Equality is the caller's, so a new object with
 the same fields is not a change (`sameLocation` for the location, the two model
-ids for the picker). Because the value is derived during render and updated only
-from event handlers, the form neither renders twice nor needs an effect.
+ids for the picker, and the normalised zone string for the settings page).
+Because the value is derived during render and updated only from event handlers,
+the form neither renders twice nor needs an effect.
 
 ## Behaviour
 
@@ -45,10 +52,16 @@ from event handlers, the form neither renders twice nor needs an effect.
   unchanged, including one that passes an equal new object.
 - A new saved value replaces the draft. For the location this is the point
   returned by another save or another tab; for the model picker it is the
-  server's answer to the key save.
+  server's answer to the key save; for the time zone it is the zone
+  `onTimeZoneChanged` delivers after a successful save.
 - A local model choice made before the first key save is kept while the
   settings are unchanged and travels with the key, as before. Once the server
   reports the stored choices, those choices are shown.
+- The time-zone draft shows the athlete's choice as soon as they pick it, keeps
+  it when the save fails so they can see what they selected, and yields to the
+  saved zone when the parent reports one. `null` and the empty string both mean
+  "follow the device zone", so a re-render that switches between them leaves the
+  draft alone.
 
 ## Acceptance criteria
 
@@ -58,6 +71,10 @@ from event handlers, the form neither renders twice nor needs an effect.
 - `LlmSection` keeps a chosen model across an equal settings re-render and
   follows a later settings payload for both roles; its initial value still
   falls back to the single legacy `model`.
+- `SettingsPage` keeps an unsaved time zone across a re-render with an equal
+  saved zone, keeps it when the device zone is respelled as `null` or `""`,
+  follows a changed saved zone, and contains no effect that copies `timeZone`
+  into state.
 - `usePropDraft` has a unit test for the equal-new-object and changed-value
   cases.
 - `bun run typecheck`, `bun run lint`, `bun run format`, `bun run test`,

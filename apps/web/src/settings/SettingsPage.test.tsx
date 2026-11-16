@@ -81,8 +81,14 @@ const EMPTY_PLAN = {
   events: [],
 };
 
-/** Answers every settings-page request and records the `/api/me` saves. */
-function stubSettingsServer(): Array<Record<string, unknown>> {
+/**
+ * Answers every settings-page request and records the `/api/me` saves. With
+ * `failTimeZoneSave` a zone save answers with an API error instead, leaving the
+ * stored account unchanged.
+ */
+function stubSettingsServer({
+  failTimeZoneSave = false,
+}: { failTimeZoneSave?: boolean } = {}): Array<Record<string, unknown>> {
   let user = ATHLETE;
   const patches: Array<Record<string, unknown>> = [];
   globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) => {
@@ -99,6 +105,22 @@ function stubSettingsServer(): Array<Record<string, unknown>> {
           return Promise.reject(new Error("Expected a JSON string body"));
         }
         const patch = JSON.parse(body) as Record<string, unknown>;
+        if (failTimeZoneSave && "timezone" in patch) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                error: {
+                  code: "bad_request",
+                  message: "Could not save the time zone",
+                },
+              }),
+              {
+                status: 400,
+                headers: { "content-type": "application/json" },
+              },
+            ),
+          );
+        }
         patches.push(patch);
         user = { ...user, ...patch };
       }
@@ -132,23 +154,28 @@ function stubSettingsServer(): Array<Record<string, unknown>> {
   return patches;
 }
 
-function renderSettings() {
-  return render(
+/** The page inside the providers it reads, with the given saved zone. */
+function settingsTree(timeZone: string | null) {
+  return (
     <AppStatusProvider>
       <PwaProvider>
         <TimeZoneProvider timeZone="Europe/Oslo">
           <CurrentUserProvider>
             <PlanGenerationProvider>
               <SettingsPage
-                timeZone="Europe/Oslo"
+                timeZone={timeZone}
                 onTimeZoneChanged={() => undefined}
               />
             </PlanGenerationProvider>
           </CurrentUserProvider>
         </TimeZoneProvider>
       </PwaProvider>
-    </AppStatusProvider>,
+    </AppStatusProvider>
   );
+}
+
+function renderSettings(timeZone: string | null = "Europe/Oslo") {
+  return render(settingsTree(timeZone));
 }
 
 afterEach(() => {
@@ -198,5 +225,76 @@ describe("SettingsPage", () => {
     await user.click(within(form).getByRole("button", { name: "Save" }));
 
     expect(await screen.findByText("Garmin connected")).toBeDefined();
+  });
+
+  it("saves the time zone the athlete picks", async () => {
+    const patches = stubSettingsServer();
+    const user = userEvent.setup();
+    renderSettings();
+
+    await user.selectOptions(await screen.findByLabelText("City"), "Berlin");
+
+    await waitFor(() =>
+      expect(patches).toEqual([{ timezone: "Europe/Berlin" }]),
+    );
+    expect(screen.getByLabelText("City")).toHaveProperty("value", "Berlin");
+  });
+
+  it("keeps an unsaved time zone across an equal saved-zone re-render", async () => {
+    stubSettingsServer({ failTimeZoneSave: true });
+    const user = userEvent.setup();
+    const view = renderSettings();
+
+    await user.selectOptions(await screen.findByLabelText("City"), "Berlin");
+    expect(
+      await screen.findByText("Could not save the time zone"),
+    ).toBeDefined();
+
+    view.rerender(settingsTree("Europe/Oslo"));
+
+    expect(screen.getByLabelText("City")).toHaveProperty("value", "Berlin");
+    expect(screen.getByLabelText("Continent")).toHaveProperty(
+      "value",
+      "Europe",
+    );
+  });
+
+  it("keeps an unsaved time zone when the device zone is respelled", async () => {
+    stubSettingsServer({ failTimeZoneSave: true });
+    const user = userEvent.setup();
+    const view = renderSettings(null);
+
+    await user.selectOptions(
+      await screen.findByLabelText("Continent"),
+      "Europe",
+    );
+    await user.selectOptions(screen.getByLabelText("City"), "Berlin");
+    expect(
+      await screen.findByText("Could not save the time zone"),
+    ).toBeDefined();
+
+    // `null` and the empty string both mean "follow the device zone".
+    view.rerender(settingsTree(""));
+
+    expect(screen.getByLabelText("City")).toHaveProperty("value", "Berlin");
+  });
+
+  it("replaces an unsaved time zone when a new saved zone arrives", async () => {
+    stubSettingsServer({ failTimeZoneSave: true });
+    const user = userEvent.setup();
+    const view = renderSettings();
+
+    await user.selectOptions(await screen.findByLabelText("City"), "Berlin");
+    expect(
+      await screen.findByText("Could not save the time zone"),
+    ).toBeDefined();
+
+    view.rerender(settingsTree("America/New_York"));
+
+    expect(screen.getByLabelText("Continent")).toHaveProperty(
+      "value",
+      "America",
+    );
+    expect(screen.getByLabelText("City")).toHaveProperty("value", "New_York");
   });
 });
