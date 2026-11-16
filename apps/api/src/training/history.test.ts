@@ -15,7 +15,7 @@ import { loadFitnessHistory } from "./history.js";
 import { buildThresholdTimelines, FTP_THRESHOLD } from "./thresholds.js";
 
 type FitnessHistoryDependencies = NonNullable<
-  Parameters<typeof loadFitnessHistory>[7]
+  Parameters<typeof loadFitnessHistory>[0]["deps"]
 >;
 
 const thresholdPoints: AthleteThreshold[] = [
@@ -168,16 +168,16 @@ function historyDependencies(
 function loadFitness(options: HistoryOptions = {}) {
   const storedPlan =
     options.plan === undefined ? plan() : (options.plan ?? undefined);
-  return loadFitnessHistory(
-    1,
-    options.activities ?? [],
-    storedPlan,
-    options.today ?? "2026-10-22",
-    options.range ?? "week",
-    options.dietAdvice ?? false,
-    options.timeZone ?? null,
-    historyDependencies(options),
-  );
+  return loadFitnessHistory({
+    userId: 1,
+    activities: options.activities ?? [],
+    plan: storedPlan,
+    today: options.today ?? "2026-10-22",
+    range: options.range ?? "week",
+    dietAdvice: options.dietAdvice ?? false,
+    timeZone: options.timeZone ?? null,
+    deps: historyDependencies(options),
+  });
 }
 
 describe("fitness history window", () => {

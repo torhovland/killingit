@@ -179,9 +179,11 @@ Shared (`@killingit/shared`):
 
 API:
 
-- `apps/api/src/training/history.ts` — `buildFitnessHistory` (pure and
-  module-internal) and the exported `loadFitnessHistory` (loads the threshold
-  context, body metric series, daily health and nutrition inputs).
+- `apps/api/src/training/fitnessSeries.ts` — `buildFitnessHistory` (pure) and
+  the series helpers it owns.
+- `apps/api/src/training/history.ts` — the exported `loadFitnessHistory`, which
+  loads the threshold context, body metric series, daily health and nutrition
+  inputs and hands them to the pure builder.
 - `apps/api/src/metrics/store.ts` — the `athlete_metrics` and
   `athlete_thresholds` time-series reads and writes, including the
   coach-estimate replacement rule.

@@ -36,7 +36,7 @@ export const FTP_THRESHOLD: Pick<
 };
 
 /** Whether a stored threshold is the cycling FTP measure. */
-function isFtpThreshold(
+export function isFtpThreshold(
   point: Pick<AthleteThreshold, "sport" | "measure">,
 ): boolean {
   return (

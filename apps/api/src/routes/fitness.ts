@@ -39,15 +39,15 @@ export function createFitnessRoute(deps: ResolvedAppDependencies): Hono {
           loadFeed(user.id),
           loadValidatedPlan(deps.planStore, user.id),
         ]);
-        const history = await loadHistory(
-          user.id,
-          feed.activities,
-          stored?.plan,
+        const history = await loadHistory({
+          userId: user.id,
+          activities: feed.activities,
+          plan: stored?.plan,
           today,
           range,
-          user.dietAdvice,
-          timezone ?? user.timezone,
-        );
+          dietAdvice: user.dietAdvice,
+          timeZone: timezone ?? user.timezone,
+        });
         return c.json(fitnessHistoryResponseSchema.parse(history));
       } catch (err) {
         console.error("[fitness] history failure:", err);
