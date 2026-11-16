@@ -25,6 +25,8 @@ import {
   JSON_ONLY_RULES,
   JSON_RULES,
   jsonShape,
+  missingDietGoalMessage,
+  missingDietProgressMessage,
   PAST_SESSION_RULES,
   PLAN_CHANGE_FLAG_RULES,
   PLAN_PROMPT_RULES,
@@ -258,5 +260,17 @@ describe("diet repair hints", () => {
     for (const field of ["targetWeightKg", "targetBodyFatPercent", "note"]) {
       expect(DIET_PROGRESS_REPAIR_HINT).toContain(`"${field}"`);
     }
+  });
+
+  it("names the goal fields in the missing-goal message", () => {
+    expect(missingDietGoalMessage()).toBe(
+      `Missing the diet goal. Return ${DIET_REPAIR_HINT}.`,
+    );
+  });
+
+  it("names the period and progress fields in the missing-target message", () => {
+    expect(missingDietProgressMessage("the current week")).toBe(
+      `Missing the diet progress target for the current week. Return ${DIET_PROGRESS_REPAIR_HINT}.`,
+    );
   });
 });

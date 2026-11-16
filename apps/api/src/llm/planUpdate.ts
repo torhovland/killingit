@@ -37,6 +37,8 @@ import {
 import {
   DIET_PROGRESS_REPAIR_HINT,
   DIET_REPAIR_HINT,
+  missingDietGoalMessage,
+  missingDietProgressMessage,
   weekDatesRule,
 } from "./promptRules.js";
 
@@ -103,7 +105,7 @@ function withRequiredDietProgress<T extends CoachPlan>(
     if (input.dietGoal == null && value.diet == null) {
       ctx.addIssue({
         code: "custom",
-        message: `Missing the diet goal. Return ${DIET_REPAIR_HINT}.`,
+        message: missingDietGoalMessage(),
         path: ["diet"],
       });
       return;
@@ -118,7 +120,7 @@ function withRequiredDietProgress<T extends CoachPlan>(
     for (const label of missingDietProgressTargets(value, input.today)) {
       ctx.addIssue({
         code: "custom",
-        message: `Missing the diet progress target for ${label}. Return ${DIET_PROGRESS_REPAIR_HINT}.`,
+        message: missingDietProgressMessage(label),
       });
     }
     for (const problem of dietGoalProblems(
@@ -185,7 +187,7 @@ function withRequiredWeekDietProgress<T extends DailyPlanUpdate>(
     if (value.diet == null) {
       ctx.addIssue({
         code: "custom",
-        message: `Missing the diet goal. Return ${DIET_REPAIR_HINT}.`,
+        message: missingDietGoalMessage(),
         path: ["diet"],
       });
       return;
@@ -199,7 +201,7 @@ function withRequiredWeekDietProgress<T extends DailyPlanUpdate>(
     if (goalProvided === true && value.week.dietProgress == null) {
       ctx.addIssue({
         code: "custom",
-        message: `Missing the diet progress target for the current week. Return ${DIET_PROGRESS_REPAIR_HINT}.`,
+        message: missingDietProgressMessage("the current week"),
         path: ["week", "dietProgress"],
       });
     }
