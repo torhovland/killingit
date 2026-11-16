@@ -34,11 +34,11 @@ export interface PeriodReviewWithReply {
   review: StoredPeriodReview;
   reply: StoredCoachReply | null;
   /** The weekly note saved for a week review and the coach's reply to it. */
-  weeklyNote?: StoredWeeklyNote | null;
+  weeklyNote?: StoredWeeklyNoteWithReply | null;
 }
 
 /** The athlete's note for a week and the coach's reply to that note. */
-export interface StoredWeeklyNote {
+export interface StoredWeeklyNoteWithReply {
   note: string;
   reply: StoredCoachReply | null;
 }
