@@ -51,7 +51,7 @@ export function createCoachQuestionHandlers(
           answer: input.answer,
         },
       );
-      const saved = await deps.answerCoachQuestionStore({
+      const saved = await deps.saveQuestionAnswer({
         userId: user.id,
         id,
         answer: input.answer,
@@ -84,7 +84,7 @@ export function createCoachQuestionHandlers(
       const user = getUser(c);
       const { today, question } = input;
 
-      const answer = await deps.answerQuestion(
+      const answer = await deps.askQuickQuestion(
         { plans: deps.plans, answers: deps.answers, loadLlm: deps.llmLoader },
         { userId: user.id, today, question },
       );
