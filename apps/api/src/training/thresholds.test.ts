@@ -9,6 +9,7 @@ import {
   ftpHistoryPoints,
   ftpTimeline,
   ftpWattsAt,
+  latestAnchor,
   thresholdForSport,
 } from "./thresholds.js";
 
@@ -152,7 +153,7 @@ describe("FTP from the threshold timelines", () => {
     expect(ftpTimeline([])).toBeNull();
   });
 
-  it("interpolates between points and marks a measurement", () => {
+  it("interpolates between points and selects the anchor in effect", () => {
     const timeline = ftpTimeline(
       buildThresholdTimelines([
         point({ date: "2026-10-01", value: 240 }),
@@ -162,14 +163,8 @@ describe("FTP from the threshold timelines", () => {
     );
 
     expect(ftpWattsAt(timeline, "2026-10-05")).toBe(244);
-    expect(ftpBaselineAt(timeline, "2026-10-15")).toEqual({
-      watts: 250,
-      fromRevision: false,
-    });
-    expect(ftpBaselineAt(timeline, "2026-10-20")).toEqual({
-      watts: 260,
-      fromRevision: true,
-    });
+    expect(ftpBaselineAt(timeline, "2026-10-15")).toBe(250);
+    expect(ftpBaselineAt(timeline, "2026-10-20")).toBe(260);
   });
 
   it("excludes values dated after the reference day", () => {
@@ -184,10 +179,7 @@ describe("FTP from the threshold timelines", () => {
       ),
     );
 
-    expect(ftpBaselineAt(timeline, "2026-10-20")).toEqual({
-      watts: 250,
-      fromRevision: false,
-    });
+    expect(ftpBaselineAt(timeline, "2026-10-20")).toBe(250);
   });
 
   it("keeps a user or Garmin value when a coach estimate shares its date", () => {
@@ -204,17 +196,36 @@ describe("FTP from the threshold timelines", () => {
       ]),
     );
 
-    expect(ftpBaselineAt(user, "2026-10-10")).toEqual({
-      watts: 250,
-      fromRevision: true,
-    });
-    expect(ftpBaselineAt(garmin, "2026-10-10")).toEqual({
-      watts: 265,
-      fromRevision: true,
-    });
+    expect(ftpBaselineAt(user, "2026-10-10")).toBe(250);
+    expect(ftpBaselineAt(garmin, "2026-10-10")).toBe(265);
   });
 
-  it("reports a measurement when the athlete retests after a projection", () => {
+  it("selects the newest anchor of a timeline", () => {
+    const timeline = ftpTimeline(
+      buildThresholdTimelines([
+        point({ date: "2026-10-01", value: 240 }),
+        point({ date: "2026-10-20", value: 260 }),
+      ]),
+    );
+
+    expect(latestAnchor(timeline)).toMatchObject({
+      value: 260,
+      source: "user",
+    });
+    expect(latestAnchor(null)).toBeNull();
+    expect(
+      latestAnchor({
+        sport: "cycling",
+        measure: "ftp",
+        label: "FTP",
+        unit: "W",
+        kind: "power",
+        anchors: [],
+      }),
+    ).toBeNull();
+  });
+
+  it("selects the retest anchor after a projection", () => {
     const timeline = ftpTimeline(
       buildThresholdTimelines([
         point({ date: "2026-10-01", value: 250, source: "coach" }),
@@ -222,14 +233,8 @@ describe("FTP from the threshold timelines", () => {
       ]),
     );
 
-    expect(ftpBaselineAt(timeline, "2026-10-11")).toEqual({
-      watts: 250,
-      fromRevision: false,
-    });
-    expect(ftpBaselineAt(timeline, "2026-10-12")).toEqual({
-      watts: 268,
-      fromRevision: true,
-    });
+    expect(ftpBaselineAt(timeline, "2026-10-11")).toBe(250);
+    expect(ftpBaselineAt(timeline, "2026-10-12")).toBe(268);
   });
 
   it("has no FTP when the athlete has stated none", () => {

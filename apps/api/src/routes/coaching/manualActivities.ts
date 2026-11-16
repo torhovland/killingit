@@ -46,8 +46,7 @@ export function createManualActivityHandlers(
           startDate,
           details,
           ftpWatts:
-            ftpBaselineAt(ftpTimeline(history.timelines), startDate)?.watts ??
-            null,
+            ftpBaselineAt(ftpTimeline(history.timelines), startDate) ?? null,
           thresholds: history.summaries,
           userId,
         },

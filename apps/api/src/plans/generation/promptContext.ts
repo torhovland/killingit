@@ -67,7 +67,7 @@ export function baseContext(input: GeneratePlanInput) {
     athleteAnswers: input.context.answers,
     recentActivities,
     currentForm,
-    athleteFtpWatts: ftpBaseline(input.context, input.today)?.watts ?? null,
+    athleteFtpWatts: ftpBaseline(input.context, input.today),
     ftpHistory: input.context.ftpHistory,
     thresholds: input.context.thresholds,
     bodyHistory: input.context.bodyHistory,
