@@ -127,6 +127,30 @@ summarized: power is expanded onto a one-second timeline, averaged over a
 summary stores average and normalized power, so the plan generator never needs
 the raw timeseries.
 
+### Duration fallback by sport
+
+An activity that no threshold can score falls back to `hours × TSS per hour`,
+with the rate chosen by the sport `activitySport()` returns. One table keys the
+rate on that shared sport, so the fallback and the threshold lookup cannot drift
+apart when a new sport is added.
+
+| Sport                      | TSS per hour |
+| -------------------------- | ------------ |
+| `cycling`                  | 55           |
+| `running`                  | 65           |
+| `hiking`                   | 45           |
+| `walking`                  | 35           |
+| `strength`                 | 40           |
+| `rowing`                   | 50           |
+| `skiing`                   | 50           |
+| `swimming`                 | 45           |
+| any other sport or `other` | 45           |
+
+`jog` and `trail` therefore score as running, and `gym` as strength. Swimming has
+no measured basis and shares the conservative default with an unknown sport, as
+does the first word `activitySport()` returns for an unrecognised type. An empty
+type scores the default too.
+
 ### Manual activities
 
 A manually recorded activity has only a date and free text. When it is saved or
@@ -324,3 +348,6 @@ API:
   form snapshot.
 - A unit test for the plan-and-manual TSS merge: a date present in both maps
   takes the manual value, and neither input is modified.
+- A unit test pins the duration fallback's TSS per hour for every sport in the
+  table plus an unknown type and the empty string, so keying it on
+  `activitySport()` cannot silently change a sport's value.

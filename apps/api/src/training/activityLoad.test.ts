@@ -393,6 +393,48 @@ describe("buildActivityLoads", () => {
   });
 });
 
+describe("duration fallback by sport", () => {
+  // `activitySport()` resolves each type to one shared sport key, so the
+  // fallback reads that key instead of keeping a second list of substrings.
+  const expectedTssByType: ReadonlyArray<readonly [string, number]> = [
+    ["cycling", 55],
+    ["bicycle", 55],
+    ["running", 65],
+    ["jog", 65],
+    ["trail", 65],
+    ["hiking", 45],
+    ["walking", 35],
+    ["strength", 40],
+    ["gym", 40],
+    ["rowing", 50],
+    ["skiing", 50],
+    ["swimming", 45],
+    ["other", 45],
+    ["vault", 45],
+    // A prototype key must fall through, not resolve to an inherited value.
+    ["constructor", 45],
+    ["", 45],
+  ];
+
+  for (const [type, tss] of expectedTssByType) {
+    it(`scores ${type === "" ? "an empty type" : type} at ${tss} TSS per hour`, () => {
+      const dayTss = activityDayTss(
+        [
+          activity({
+            type,
+            distance: 0,
+            movingTime: 3600,
+            elapsedTime: 3600,
+          }),
+        ],
+        timeline,
+      );
+
+      expect(dayTss).toBe(tss);
+    });
+  }
+});
+
 describe("an activity's local day", () => {
   it("dates a late evening ride in Los Angeles by the previous day", () => {
     // 07:30 UTC is 23:30 on 11 November in Los Angeles (PST, UTC-8).
