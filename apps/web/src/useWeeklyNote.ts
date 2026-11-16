@@ -7,7 +7,7 @@ import {
 import { useBusyReporter } from "./AppStatus";
 import type { AuthState } from "./auth";
 import { requestParsed } from "./fetchAuthed";
-import { reportError } from "./reportError";
+import { reportError, reportErrorQuietly } from "./reportError";
 import { getToday } from "./useToday";
 
 export interface WeeklyNoteState {
@@ -51,7 +51,7 @@ export function useWeeklyNote(
         setReply(response.reply);
       } catch (err: unknown) {
         // Don't block the dashboard if the note fails to load.
-        console.error("Failed to load weekly note:", err);
+        reportErrorQuietly(err);
       }
     }
     void load();

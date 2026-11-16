@@ -8,11 +8,11 @@ import { AppHeader } from "./AppHeader";
 import { AppStatusProvider, useAppStatus } from "./AppStatus";
 import { useAuth } from "./auth";
 import { CurrentUserProvider, useCurrentUser } from "./CurrentUserProvider";
-import { fetchJsonAuthed } from "./fetchAuthed";
 import { NavigationProvider, navigateToPage } from "./navigation";
 import { PwaBanners } from "./PwaBanners";
 import { usePwa } from "./PwaContext";
 import { TimeZoneProvider } from "./TimeZoneContext";
+import { useModelCatalogRefresh } from "./useModelCatalogRefresh";
 import { useRouteGuards } from "./useRouteGuards";
 import { useTimeZoneState } from "./useTimeZoneState";
 
@@ -58,23 +58,13 @@ function AppShell() {
     signedIn,
     accountTimeZone: user?.timezone,
   });
+  useModelCatalogRefresh(auth);
 
   useEffect(() => {
     const loading = auth.isLoading || (loadingQuestions && questions === null);
     setStatus("app", loading ? "loading" : null);
     return () => setStatus("app", null);
   }, [auth.isLoading, loadingQuestions, questions, setStatus]);
-
-  // A page visit asks the API to refresh OpenRouter's catalog. The API checks
-  // its own 24-hour timestamp, so this is cheap on every other visit.
-  useEffect(() => {
-    if (!auth.isAuthenticated) return;
-    void fetchJsonAuthed<unknown>("/api/llm/models/refresh", auth, {
-      method: "POST",
-    }).catch(() => {
-      // A catalog refresh must never block the page.
-    });
-  }, [auth]);
 
   function handleAnswersSaved(): void {
     setPlanRefreshKey((key) => key + 1);

@@ -1,55 +1,81 @@
-import { afterEach, describe, expect, it, spyOn } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import type { Mock } from "bun:test";
 import * as Sentry from "@sentry/react";
 import { SessionExpiredError } from "./auth";
 import { ApiError } from "./fetchJson";
-import { reportError } from "./reportError";
+import { reportError, reportErrorQuietly } from "./reportError";
 
 type CaptureException = typeof Sentry.captureException;
 
-describe("reportError", () => {
+describe("web error reporting", () => {
   let captureException: Mock<CaptureException>;
 
-  function spyOnCapture() {
+  beforeEach(() => {
     captureException = spyOn(Sentry, "captureException");
-  }
+  });
 
   afterEach(() => {
     captureException.mockRestore();
   });
 
-  it("reports unexpected errors and returns the message", () => {
-    spyOnCapture();
-    const error = new Error("boom");
+  describe("reportError", () => {
+    it("reports unexpected errors and returns the message", () => {
+      const error = new Error("boom");
 
-    expect(reportError(error)).toBe("boom");
-    expect(captureException).toHaveBeenCalledWith(error);
+      expect(reportError(error)).toBe("boom");
+      expect(captureException).toHaveBeenCalledWith(error);
+    });
+
+    it("reports server errors", () => {
+      const error = new ApiError("failed: 503", 503);
+
+      reportError(error);
+      expect(captureException).toHaveBeenCalledWith(error);
+    });
+
+    it("does not report expected client errors", () => {
+      reportError(new ApiError("invalid Garmin credentials", 422));
+      reportError(new ApiError("Garmin requires MFA", 403));
+
+      expect(captureException).not.toHaveBeenCalled();
+    });
+
+    it("does not report an expired session, which the athlete fixes by signing in", () => {
+      const error = new SessionExpiredError();
+
+      expect(reportError(error)).toBe(
+        "Your session has expired. Sign in again to continue.",
+      );
+      expect(captureException).not.toHaveBeenCalled();
+    });
   });
 
-  it("reports server errors", () => {
-    spyOnCapture();
-    const error = new ApiError("failed: 503", 503);
+  describe("reportErrorQuietly", () => {
+    it("reports unexpected errors without returning a message", () => {
+      const error = new Error("boom");
 
-    reportError(error);
-    expect(captureException).toHaveBeenCalledWith(error);
-  });
+      expect(reportErrorQuietly(error)).toBeUndefined();
+      expect(captureException).toHaveBeenCalledWith(error);
+    });
 
-  it("does not report expected client errors", () => {
-    spyOnCapture();
+    it("reports server errors", () => {
+      const error = new ApiError("failed: 503", 503);
 
-    reportError(new ApiError("invalid Garmin credentials", 422));
-    reportError(new ApiError("Garmin requires MFA", 403));
+      reportErrorQuietly(error);
+      expect(captureException).toHaveBeenCalledWith(error);
+    });
 
-    expect(captureException).not.toHaveBeenCalled();
-  });
+    it("does not report expected client errors", () => {
+      reportErrorQuietly(new ApiError("invalid Garmin credentials", 422));
+      reportErrorQuietly(new ApiError("Garmin requires MFA", 403));
 
-  it("does not report an expired session, which the athlete fixes by signing in", () => {
-    spyOnCapture();
-    const error = new SessionExpiredError();
+      expect(captureException).not.toHaveBeenCalled();
+    });
 
-    expect(reportError(error)).toBe(
-      "Your session has expired. Sign in again to continue.",
-    );
-    expect(captureException).not.toHaveBeenCalled();
+    it("does not report an expired session", () => {
+      reportErrorQuietly(new SessionExpiredError());
+
+      expect(captureException).not.toHaveBeenCalled();
+    });
   });
 });

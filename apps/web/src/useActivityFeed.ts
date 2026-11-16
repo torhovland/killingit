@@ -16,7 +16,7 @@ import {
 import { useBusyReporter } from "./AppStatus";
 import type { AuthState } from "./auth";
 import { requestParsed } from "./fetchAuthed";
-import { reportError } from "./reportError";
+import { reportError, reportErrorQuietly } from "./reportError";
 import { getToday } from "./useToday";
 
 export interface ActivityFeedState {
@@ -103,7 +103,7 @@ export function useActivityFeed(
       applyFeed(mergeActivityFeeds(dataRef.current, parsed));
     } catch (err: unknown) {
       // The live sync is still running; a missing server cache is not an error.
-      console.error("Failed to load cached activities:", err);
+      reportErrorQuietly(err);
     }
   }, [auth, timeZone, applyFeed]);
 

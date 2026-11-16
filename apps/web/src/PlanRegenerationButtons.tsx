@@ -5,6 +5,7 @@ import { useNavigate } from "./navigation";
 import { fetchCoachPlan } from "./planGeneration";
 import { usePlanGeneration } from "./PlanGenerationProvider";
 import { isAbortError } from "./requestAbort";
+import { reportErrorQuietly } from "./reportError";
 import { SubmitButton } from "./SubmitButton";
 import { useTimeZone } from "./TimeZoneContext";
 import { useAbortableRequest } from "./useApiResource";
@@ -104,7 +105,7 @@ export function PlanRegenerationButtons() {
         // Availability is advisory: without it the athlete can still start a
         // new season, which is always a valid action.
         if (!isAbortError(err)) {
-          console.error("Failed to check for an existing season:", err);
+          reportErrorQuietly(err);
         }
       });
     return abortAvailability;
