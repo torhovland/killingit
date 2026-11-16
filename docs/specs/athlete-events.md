@@ -115,7 +115,8 @@ API:
   context.
 - `apps/api/src/llm/promptRules.ts`: `ATHLETE_EVENT_RULES`, part of
   `PLAN_PROMPT_RULES`.
-- `apps/api/src/routes/calendar.ts`: events per day, week stats, and bounds.
+- `apps/api/src/calendar/buildCalendar.ts`: events per day, and the bounds they
+  extend.
 - `apps/api/src/routes/plan.ts`: events in the plan response.
 - One Drizzle migration for `athlete_events`. The reading uses the
   `athlete_reading` prompt kind; the older `athlete_metrics` and `athlete_events`
