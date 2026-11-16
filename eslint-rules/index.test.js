@@ -17,6 +17,13 @@ ruleTester.run("no-template-classname", local.rules["no-template-classname"], {
     // A template literal is a legitimate dynamic input to cn(): only the JSX
     // attribute itself is disallowed.
     '<div className={cn(`p-4`, active && "bg-card")} />;',
+    // A variable that holds a fixed string is not a template literal.
+    'const classes = "p-4"; <div className={classes} />;',
+    // A template literal variable passed to cn() is the intended dynamic input.
+    "const classes = `p-4`; <div className={cn(classes)} />;",
+    // A parameter shadows the template literal variable, so the identifier
+    // resolves to the parameter rather than the outer declaration.
+    "const classes = `flex ${active}`; function Panel({ classes }) { return <div className={classes} />; }",
   ],
   invalid: [
     {
@@ -25,6 +32,12 @@ ruleTester.run("no-template-classname", local.rules["no-template-classname"], {
     },
     {
       code: "<div className={`p-4`} />;",
+      errors: [{ messageId: "templateClassName" }],
+    },
+    {
+      // A template literal assigned to a variable and later passed directly as
+      // className bypasses cn() just like the inline form.
+      code: "const classes = `flex ${active ? 'a' : 'b'}`; <div className={classes} />;",
       errors: [{ messageId: "templateClassName" }],
     },
   ],

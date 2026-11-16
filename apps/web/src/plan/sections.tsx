@@ -6,6 +6,7 @@ import {
 } from "@killingit/shared";
 import { Bullet } from "../Bullet";
 import { FormattedText } from "../FormattedText";
+import { Spinner } from "../Spinner";
 import { Card } from "../components/Card";
 
 /** Dimmed overlay shown while a plan level is being replaced in flight. */
@@ -22,10 +23,9 @@ export function RefreshingOverlay({
       className="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-lg bg-inset/60"
       data-testid={testId}
     >
-      <span
-        className="inline-flex size-6 animate-spin rounded-full border-2 border-current border-t-transparent text-primary"
-        role="status"
-        aria-label={`Updating ${label} plan`}
+      <Spinner
+        className="size-6 text-primary"
+        label={`Updating ${label} plan`}
       />
       <span className="text-base text-muted-foreground">
         Updating {label} plan…

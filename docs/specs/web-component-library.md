@@ -73,8 +73,16 @@ primitive's `p-4`, and an omitted fragment — a false condition, `undefined` or
 an empty string — adds neither a class nor a stray space. A template literal
 such as ``className={`p-4 ${active ? "bg-card" : ""}`}`` bypasses both and is
 reported by the `local/no-template-classname` ESLint rule, which runs on the
-web app and fails `bun run lint`. A template literal passed _to_ `cn()` is the
-intended dynamic input and stays allowed.
+web app and fails `bun run lint`. The rule also reports a template literal
+assigned to a variable that is later passed directly as `className`:
+
+```tsx
+const classes = `p-4 ${active ? "bg-card" : ""}`;
+<div className={classes} />;
+```
+
+It bypasses `cn()` in the same way as the inline form. A template literal
+passed _to_ `cn()` is the intended dynamic input and stays allowed.
 
 ## Inline styles
 
@@ -139,9 +147,9 @@ layout for the spinner and forwards `variant`, `size` and `className`.
   `aria-current="page"`.
 - The primitives have unit tests for their defaults, variants and class
   merging.
-- Every conditional `className` is composed with `cn()`, and no JSX attribute is
-  built from a template literal; `local/no-template-classname` fails
-  `bun run lint` otherwise.
+- Every conditional `className` is composed with `cn()`, and no `className` is
+  built from a template literal — inline or through a variable holding one;
+  `local/no-template-classname` fails `bun run lint` otherwise.
 - Every remaining inline `style` holds a value the browser computes at runtime
   and carries a comment explaining why; a constant offset, size or stacking
   order uses a utility class instead. No new inline style is introduced.
