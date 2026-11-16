@@ -41,7 +41,9 @@ ternary chain.
    app renders the page for `window.location.pathname`.
 3. A page registry in `apps/web/src/PageOutlet.tsx` mapping every page to its
    component, replacing the nested ternaries in `App.tsx`.
-4. Redirects written as `replaceState` so they do not trap the back button:
+4. Redirects written as `replaceState` so they do not trap the back button,
+   applied by `useRouteGuards` (`apps/web/src/useRouteGuards.ts`), which also
+   resolves the path to its page and decides the survey gate:
    - `/` and any unknown path go to `/coach`;
    - an incomplete coaching survey goes to `/survey` from any other page
      except the admin's `/admin`;
@@ -95,8 +97,9 @@ ternary chain.
    `/coach`; an incomplete survey redirects to `/survey` except on the admin's
    `/admin`.
 4. Pure tests cover the path mapping, label lookup, the survey gate (including
-   the panel width of the page on screen) and the calendar's wide panel; the
-   e2e suite covers a deep link after sign-in, reload and the history buttons.
+   the panel width of the page on screen) and the calendar's wide panel;
+   `useRouteGuards` unit tests cover the three redirects, and the e2e suite
+   covers a deep link after sign-in, reload and the history buttons.
 5. `bun run typecheck`, `bun run lint`, `bun run format`, `bun run test` and
    `bun run test:e2e` pass.
 

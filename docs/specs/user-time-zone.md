@@ -46,7 +46,9 @@ setting to see the right local time.
   joined into the zone that is saved. Choosing a different continent that does
   not contain the current city waits for a city choice before saving.
 - The setting applies immediately after saving; the app keeps the returned
-  `CurrentUser` in state.
+  `CurrentUser` in state. `useTimeZoneState` holds the display zone for the
+  shell: it seeds from the saved account zone, keeps a zone the athlete just
+  saved through a late account load, and clears both on sign-out.
 - Components read the display zone through `useTimeZone()` and never call
   `browserTimeZone()` themselves, so the device zone is only the provider's
   fallback when no zone is stored. An admin list shows every row in the admin's
@@ -76,7 +78,8 @@ package.
 - Shared unit tests cover zone validation and clearing the setting.
 - API tests cover saving a valid zone and rejecting an unknown one.
 - Web unit tests cover resolving a valid/unknown zone and formatting an ISO
-  timestamp in the selected zone.
+  timestamp in the selected zone. `useTimeZoneState` tests cover the account
+  seed, a saved zone surviving a late account load, and the sign-out clear.
 - Settings and admin component tests render inside a `TimeZoneProvider` with a
   zone that differs from the device's and assert the formatted timestamps use
   the account zone.
