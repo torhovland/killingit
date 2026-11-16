@@ -1,11 +1,8 @@
 import { useEffect, useState } from "react";
-import {
-  coachPlanResponseSchema,
-  type PlanGenerateMode,
-} from "@killingit/shared";
+import type { PlanGenerateMode } from "@killingit/shared";
 import { useAuth } from "./auth";
-import { requestParsed } from "./fetchAuthed";
 import { useNavigate } from "./navigation";
+import { fetchCoachPlan } from "./planGeneration";
 import { usePlanGeneration } from "./PlanGenerationProvider";
 import { isAbortError } from "./requestAbort";
 import { SubmitButton } from "./SubmitButton";
@@ -87,13 +84,7 @@ export function PlanRegenerationButtons() {
   const [loadAvailability, abortAvailability] = useAbortableRequest(
     async (signal: AbortSignal): Promise<boolean> => {
       const { today } = getToday(timeZone);
-      const response = await requestParsed(
-        `/api/coaching/plan?today=${today}`,
-        auth,
-        coachPlanResponseSchema,
-        "Loading your plan",
-        { signal },
-      );
+      const response = await fetchCoachPlan(auth, { today }, signal);
       const season = response.plan?.season;
       return (
         season !== undefined &&

@@ -8,16 +8,13 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import {
-  coachPlanResponseSchema,
-  type CoachPlanResponse,
-  type PlanGenerateMode,
-} from "@killingit/shared";
+import type { CoachPlanResponse, PlanGenerateMode } from "@killingit/shared";
 import { useAppStatus } from "./AppStatus";
 import { useAuth } from "./auth";
-import { fetchJsonAuthed, requestParsed } from "./fetchAuthed";
+import { fetchJsonAuthed } from "./fetchAuthed";
 import { initialPlanProgress, type PlanProgressState } from "./PlanProgress";
 import {
+  fetchCoachPlan,
   pollPlanGeneration,
   type PlanGenerationOutcome,
 } from "./planGeneration";
@@ -112,12 +109,7 @@ export function PlanGenerationProvider({ children }: { children: ReactNode }) {
 
   const fetchPlan = useCallback(
     (today: string, includeTomorrow: boolean) =>
-      requestParsed(
-        `/api/coaching/plan?today=${today}&includeTomorrow=${includeTomorrow}`,
-        authRef.current,
-        coachPlanResponseSchema,
-        "Loading your plan",
-      ),
+      fetchCoachPlan(authRef.current, { today, includeTomorrow }),
     [],
   );
 

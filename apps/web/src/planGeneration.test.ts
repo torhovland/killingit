@@ -1,6 +1,11 @@
-import { describe, expect, it } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import type { CoachPlanResponse } from "@killingit/shared";
-import { hasPendingWork, pollPlanGeneration } from "./planGeneration";
+import type { AuthState } from "./auth/auth0";
+import {
+  fetchCoachPlan,
+  hasPendingWork,
+  pollPlanGeneration,
+} from "./planGeneration";
 
 const noPending: CoachPlanResponse["pending"] = {
   initial: false,
@@ -44,6 +49,16 @@ function response(
   };
 }
 
+function fakeAuth(): AuthState {
+  return {
+    isAuthenticated: true,
+    isLoading: false,
+    login: () => Promise.resolve(),
+    logout: () => Promise.resolve(),
+    getToken: () => Promise.resolve("test-token"),
+  };
+}
+
 /** A clock and sleep pair that advances instantly. */
 function fakeClock(): {
   now: () => number;
@@ -58,6 +73,59 @@ function fakeClock(): {
     },
   };
 }
+
+describe("fetchCoachPlan", () => {
+  let originalFetch: typeof fetch;
+  let requested: Array<{ url: string; init: RequestInit | undefined }>;
+
+  beforeEach(() => {
+    originalFetch = globalThis.fetch;
+    requested = [];
+    globalThis.fetch = ((url: string, init?: RequestInit) => {
+      requested.push({ url, init });
+      return Promise.resolve(
+        new Response(JSON.stringify(response("idle")), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+    }) as unknown as typeof fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  it("sends today and the explicit tomorrow flag", async () => {
+    const plan = await fetchCoachPlan(fakeAuth(), {
+      today: "2026-11-16",
+      includeTomorrow: true,
+    });
+
+    expect(plan.generation.status).toBe("idle");
+    expect(requested[0]?.url).toBe(
+      "/api/coaching/plan?today=2026-11-16&includeTomorrow=true",
+    );
+  });
+
+  it("omits tomorrow when the caller only asks for today", async () => {
+    await fetchCoachPlan(fakeAuth(), { today: "2026-11-16" });
+
+    expect(requested[0]?.url).toBe("/api/coaching/plan?today=2026-11-16");
+  });
+
+  it("forwards the abort signal to the request", async () => {
+    const controller = new AbortController();
+
+    await fetchCoachPlan(
+      fakeAuth(),
+      { today: "2026-11-16" },
+      controller.signal,
+    );
+
+    expect(requested[0]?.init?.signal).toBe(controller.signal);
+  });
+});
 
 describe("hasPendingWork", () => {
   it("reports no work when every level is already planned", () => {
