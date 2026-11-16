@@ -102,6 +102,39 @@ describe("coach questions", () => {
     });
     expect(runs).toEqual([{ reply: true, today: "2026-10-20" }]);
   });
+
+  it("falls back to the account time zone when the request omits one", async () => {
+    const zones: Array<string | undefined> = [];
+    const app = makeApp({
+      timezone: "Europe/Oslo",
+      loadCoachQuestion: () => Promise.resolve(pendingCoachQuestion),
+      replyToCoachQuestion: () => Promise.resolve(null),
+      answerCoachQuestion: (input) =>
+        Promise.resolve({
+          ...pendingCoachQuestion,
+          answer: input.answer,
+          answeredAt: "2026-10-20T10:00:00.000Z",
+        }),
+      startCoachRun: (_deps, options) => {
+        zones.push(options.timezone);
+        return Promise.resolve(true);
+      },
+    });
+
+    const res = await app.fetch(
+      authenticatedRequest("/api/coaching/coach-questions/7/answer", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          today: "2026-10-20",
+          answer: "About six hours.",
+        }),
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(zones).toEqual(["Europe/Oslo"]);
+  });
 });
 
 describe("coaching by-the-way questions", () => {

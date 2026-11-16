@@ -349,6 +349,9 @@ Configure these once:
 The `DATABASE_URL` values go to `TEST_DATABASE_URL` / `PROD_DATABASE_URL`;
 the `DATABASE_URL_UNPOOLED` values go to `TEST_DATABASE_URL_UNPOOLED` /
 `PROD_DATABASE_URL_UNPOOLED`. Migrations run automatically in CI (unpooled).
+The API refuses to start outside development and tests when `DATABASE_URL` is
+missing, so a deploy that forgets the secret fails at boot instead of querying
+localhost; see `docs/specs/database-connection.md`.
 
 **Cloudflare Pages**
 

@@ -48,6 +48,33 @@ describe("coaching activity comments", () => {
     expect(body.reply).toBeNull();
   });
 
+  it("falls back to the account time zone when the request omits one", async () => {
+    const zones: Array<string | undefined> = [];
+    const app = makeApp({
+      timezone: "Europe/Oslo",
+      createActivityComment: () => Promise.resolve(true),
+      startCoachRun: (_deps, options) => {
+        zones.push(options.timezone);
+        return Promise.resolve(true);
+      },
+    });
+
+    const res = await app.fetch(
+      authenticatedRequest("/api/coaching/activities/123/comments", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          today: "2026-10-21",
+          activityDate: "2026-10-21",
+          comment: "Felt strong on the hills.",
+        }),
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(zones).toEqual(["Europe/Oslo"]);
+  });
+
   it("does not keep today's session for an earlier activity", async () => {
     let keepToday: boolean | undefined;
     const app = makeApp({

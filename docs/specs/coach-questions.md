@@ -76,7 +76,8 @@ remarks about difficulties or objections, and show those remarks to the admin.
   is the newest unanswered question or null and `answered` is newest first.
 - `POST /api/coaching/coach-questions/:id/answer` with
   `{ today, timezone?, answer }` → `{ message, reply }`. Generates the coach
-  reply and triggers a plan revision.
+  reply and triggers a plan revision. An omitted `timezone` falls back to the
+  account's stored zone, like every other coaching input.
 - `GET /api/admin/llm-calls/remarks?limit=` → `{ remarks }`, newest first, from
   recent prompt responses whose `modelsRemarks` is non-null.
 

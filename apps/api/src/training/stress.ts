@@ -27,6 +27,26 @@ const POWER_WINDOW_SECONDS = 30;
 const MAX_POWER_SECONDS = 6 * 60 * 60;
 
 /**
+ * Training stress score for `hours` at `intensityFactor`, where one hour at the
+ * threshold (an intensity factor of 1) scores 100. The value is unrounded so a
+ * caller can sum intervals before rounding once.
+ */
+export function trainingStressScore(
+  hours: number,
+  intensityFactor: number,
+): number {
+  return hours * intensityFactor ** 2 * 100;
+}
+
+/**
+ * Rounds to a whole, non-negative number. TSS and power are never negative, so
+ * every caller shares this rather than writing the clamp again.
+ */
+export function roundWholeNonNegative(value: number): number {
+  return Math.max(0, Math.round(value));
+}
+
+/**
  * Training stress score for a ride with measured power. Uses normalized power
  * as the intensity factor, so a steady hour at FTP scores 100 and an hour at
  * 70% of FTP scores 49.
@@ -47,8 +67,8 @@ export function powerTrainingStressScore(input: {
     return null;
   }
   const intensityFactor = input.normalizedPowerWatts / input.ftpWatts;
-  return roundStress(
-    (input.durationSeconds / 3600) * intensityFactor ** 2 * 100,
+  return roundWholeNonNegative(
+    trainingStressScore(input.durationSeconds / 3600, intensityFactor),
   );
 }
 
@@ -58,11 +78,16 @@ export function powerTrainingStressScore(input: {
  * and does not depend on an absolute FTP value.
  */
 export function bikeWorkoutTrainingStressScore(workout: BikeWorkout): number {
-  const total = workout.intervals.reduce((sum, interval) => {
-    const intensityFactor = interval.powerPercent / 100;
-    return sum + (interval.durationSeconds / 3600) * intensityFactor ** 2 * 100;
-  }, 0);
-  return roundStress(total);
+  const total = workout.intervals.reduce(
+    (sum, interval) =>
+      sum +
+      trainingStressScore(
+        interval.durationSeconds / 3600,
+        interval.powerPercent / 100,
+      ),
+    0,
+  );
+  return roundWholeNonNegative(total);
 }
 
 /**
@@ -107,7 +132,7 @@ function normalizedPower(samples: readonly ActivitySample[]): number | null {
   }
 
   if (seconds < POWER_WINDOW_SECONDS) {
-    return roundWatts(averagePower(powered));
+    return roundWholeNonNegative(averagePower(powered));
   }
 
   let fourthPowerSum = 0;
@@ -125,7 +150,7 @@ function normalizedPower(samples: readonly ActivitySample[]): number | null {
   if (windows === 0) {
     return null;
   }
-  return roundWatts((fourthPowerSum / windows) ** 0.25);
+  return roundWholeNonNegative((fourthPowerSum / windows) ** 0.25);
 }
 
 /**
@@ -141,7 +166,7 @@ export function recordedPowerSummary(samples: readonly ActivitySample[]): {
     return { averagePower: null, normalizedPower: null };
   }
   return {
-    averagePower: roundWatts(averagePower(powered)),
+    averagePower: roundWholeNonNegative(averagePower(powered)),
     normalizedPower: normalizedPower(samples),
   };
 }
@@ -170,7 +195,7 @@ export function dailyTrainingLoad(input: {
     atl += (tss - atl) / ATL_DAYS;
     ctl += (tss - ctl) / CTL_DAYS;
     result.set(date, {
-      tss: roundStress(tss),
+      tss: roundWholeNonNegative(tss),
       atl: roundOneDecimal(atl),
       ctl: roundOneDecimal(ctl),
       tsb: roundOneDecimal(ctl - atl),
@@ -199,7 +224,7 @@ export function estimatedTssFromSession(session: {
       : session.intensity === "moderate"
         ? 60
         : 40;
-  return roundStress((session.durationMinutes / 60) * perHour);
+  return roundWholeNonNegative((session.durationMinutes / 60) * perHour);
 }
 
 /** Usable power samples paired with their timestamp in seconds. */
@@ -237,14 +262,6 @@ function averagePower(
     seconds += duration;
   }
   return seconds > 0 ? weighted / seconds : 0;
-}
-
-function roundStress(value: number): number {
-  return Math.max(0, Math.round(value));
-}
-
-function roundWatts(value: number): number {
-  return Math.max(0, Math.round(value));
 }
 
 function roundOneDecimal(value: number): number {

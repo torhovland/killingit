@@ -2,12 +2,13 @@ import { describe, expect, it } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { CoachPlan } from "@killingit/shared";
 import { CoachPlanView } from "./CoachPlanView";
-import { BULLET, plan } from "./testFixtures/plan";
+import { BULLET, noPending, plan } from "./testFixtures/plan";
 
 describe("CoachPlanView", () => {
   it("shows a dated goal or event on the Day tab", () => {
     const html = renderToStaticMarkup(
       <CoachPlanView
+        pending={noPending}
         plan={plan}
         events={[
           {
@@ -26,7 +27,9 @@ describe("CoachPlanView", () => {
   });
 
   it("renders today's session, alternatives, and rationale", () => {
-    const html = renderToStaticMarkup(<CoachPlanView plan={plan} />);
+    const html = renderToStaticMarkup(
+      <CoachPlanView pending={noPending} plan={plan} />,
+    );
 
     expect(html).toContain("Today");
     expect(html).toContain("Easy run");
@@ -38,6 +41,7 @@ describe("CoachPlanView", () => {
   it("renders lists in the daily description and rationale as HTML lists", () => {
     const html = renderToStaticMarkup(
       <CoachPlanView
+        pending={noPending}
         plan={{
           ...plan,
           today: {
@@ -59,7 +63,9 @@ describe("CoachPlanView", () => {
   });
 
   it("shows the four plan tabs with Day selected by default", () => {
-    const html = renderToStaticMarkup(<CoachPlanView plan={plan} />);
+    const html = renderToStaticMarkup(
+      <CoachPlanView pending={noPending} plan={plan} />,
+    );
 
     expect(html).toContain('role="tablist"');
     expect(html).toContain("Day");
@@ -77,7 +83,9 @@ describe("CoachPlanView", () => {
       ...plan,
       today: { ...plan.today, status: "completed", outdoor: true },
     };
-    const html = renderToStaticMarkup(<CoachPlanView plan={completedPlan} />);
+    const html = renderToStaticMarkup(
+      <CoachPlanView pending={noPending} plan={completedPlan} />,
+    );
 
     expect(html).toContain('class="flex min-w-0 flex-wrap items-center gap-2"');
     expect(html).toContain(">completed<");
@@ -85,7 +93,7 @@ describe("CoachPlanView", () => {
 
   it("shows a rest day's status box without repeating a rest label", () => {
     const html = renderToStaticMarkup(
-      <CoachPlanView plan={plan} defaultTab="week" />,
+      <CoachPlanView pending={noPending} plan={plan} defaultTab="week" />,
     );
 
     expect(html).toContain(">rest<");
@@ -106,11 +114,17 @@ describe("CoachPlanView", () => {
       },
     };
 
-    const day = renderToStaticMarkup(<CoachPlanView plan={partialPlan} />);
+    const day = renderToStaticMarkup(
+      <CoachPlanView pending={noPending} plan={partialPlan} />,
+    );
     expect(day).toContain("partial");
 
     const week = renderToStaticMarkup(
-      <CoachPlanView plan={partialPlan} defaultTab="week" />,
+      <CoachPlanView
+        pending={noPending}
+        plan={partialPlan}
+        defaultTab="week"
+      />,
     );
     expect(week.match(/partial/g)?.length).toBeGreaterThanOrEqual(2);
   });
@@ -133,7 +147,7 @@ describe("CoachPlanView", () => {
       },
     };
     const html = renderToStaticMarkup(
-      <CoachPlanView plan={manualPlan} defaultTab="week" />,
+      <CoachPlanView pending={noPending} plan={manualPlan} defaultTab="week" />,
     );
 
     expect(html).toContain("Logged manually");
@@ -142,7 +156,7 @@ describe("CoachPlanView", () => {
 
   it("explains what skipping today's and tomorrow's sessions would cost", () => {
     const html = renderToStaticMarkup(
-      <CoachPlanView plan={plan} showTomorrow />,
+      <CoachPlanView pending={noPending} plan={plan} showTomorrow />,
     );
 
     expect(html.match(/Why this session matters/g)?.length).toBe(2);
@@ -171,7 +185,9 @@ describe("CoachPlanView", () => {
       },
     };
 
-    const html = renderToStaticMarkup(<CoachPlanView plan={restPlan} />);
+    const html = renderToStaticMarkup(
+      <CoachPlanView pending={noPending} plan={restPlan} />,
+    );
 
     expect(html).not.toContain("Why this session matters");
     expect(html).not.toContain("Optional session");
@@ -179,12 +195,14 @@ describe("CoachPlanView", () => {
 
   it("shows tomorrow only when requested", () => {
     const withTomorrow = renderToStaticMarkup(
-      <CoachPlanView plan={plan} showTomorrow />,
+      <CoachPlanView pending={noPending} plan={plan} showTomorrow />,
     );
     expect(withTomorrow).toContain("Tomorrow");
     expect(withTomorrow).toContain("Keep the aerobic week consistent.");
 
-    const withoutTomorrow = renderToStaticMarkup(<CoachPlanView plan={plan} />);
+    const withoutTomorrow = renderToStaticMarkup(
+      <CoachPlanView pending={noPending} plan={plan} />,
+    );
     expect(withoutTomorrow).not.toContain("Tomorrow");
   });
 });

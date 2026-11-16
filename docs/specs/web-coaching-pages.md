@@ -21,6 +21,11 @@ changes.
 - `apps/web/src/useCoachReviews.ts` — loads completed-period reviews, tracks the
   reviews kept for the rest of the visit, saves a review comment and marks a
   review as reviewed without a comment.
+- `apps/web/src/useCoachPlan.ts` — loads the stored plan and today's diet
+  summary, runs the refresh-key reload and the track/start decision tree, and
+  exposes the newest tracked response instead of copying it into local state.
+- `apps/web/src/usePlanWorkoutDownload.ts` — the authenticated workout-file
+  fetch, the browser save, the in-flight date and the download error.
 - `apps/web/src/useCoachQuestion.ts` — loads the pending coach question and
   answers it.
 - `apps/web/src/useManualActivities.ts` — loads the athlete's manual activities,
@@ -38,6 +43,11 @@ changes.
 - `apps/web/src/ManualActivityForm.tsx` — the add/edit manual activity form.
 - `apps/web/src/ManualActivityList.tsx` — saved manual activities with edit and
   delete actions.
+- `apps/web/src/CoachPlanSection.tsx` — the plan card's layout, composing
+  `useCoachPlan`, `usePlanWorkoutDownload` and `CoachPlanView`.
+- `apps/web/src/CoachPlanView.tsx` — the tab shell. It receives the plan's
+  `pending` levels and whether a run is `running` once, and dims each level
+  whose replacement is in flight.
 - `apps/web/src/CoachDashboard.tsx` and `apps/web/src/ActivitiesPage.tsx` —
   composition and layout only.
 
@@ -50,9 +60,13 @@ changes.
    the dashboard's keep-answered rule, reply polling, plan refresh keys and
    retry states.
 3. The extracted components are presentational where possible and are covered
-   by render tests; the existing tests need no changes.
+   by render and interaction tests; a test is only edited when a prop seam it
+   exercises changes, and no assertion is dropped.
 4. `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`
    pass.
+5. The plan section's generated output is unchanged: the loaded plan, the diet
+   summary, the loading and error paths, and the per-level refresh greying all
+   render as before.
 
 ## Out of scope
 

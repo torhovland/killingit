@@ -58,6 +58,11 @@ cache logic, so a fix or behaviour change reaches both pages at once.
 - `apps/web/src/ActivitiesPage.tsx` and `apps/web/src/CoachDashboard.tsx` —
   consume the hooks and render the returned state.
 
+Single-page hooks share that home: a hook used by one page or section lives in
+`apps/web/src/use<Name>.ts` beside its consumer, as `useCoachPlan.ts` and
+`usePlanWorkoutDownload.ts` do for the coaching dashboard's plan section. Only a
+hook that more than one page needs joins the shared list above.
+
 ## Acceptance criteria
 
 1. `coachingDateQuery`, `deleteActivity`, `submitComment`, the status loaders

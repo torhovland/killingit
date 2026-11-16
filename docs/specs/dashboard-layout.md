@@ -51,7 +51,8 @@ header, outstanding activities, the plan, and the inputs that shape it.
    selected by default and shows today plus tomorrow after 18:00. After 18:00,
    `Week` shows the current week and the next week when tomorrow has crossed
    into it, and `Block` shows the current block and the next block when tomorrow
-   has crossed into it.
+   has crossed into it. While a generation is replacing a level, that level is
+   dimmed and marked busy; the rest of the plan stays readable.
 3. **Talk to the coach** — the weekly note and a by-the-way question.
 
 ### Weekly note

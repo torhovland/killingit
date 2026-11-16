@@ -332,11 +332,17 @@ problems; the error names the offending fields if the repair also fails. See
   from the page that started it. `CoachPlanSection` and
   `PlanRegenerationButtons` start and observe the provider; leaving a page no
   longer cancels the progress indication.
-- `CoachPlanSection` loads the stored plan and fills in anything missing. It
-  observes the provider for progress and its latest response, so the Day, Week,
-  and Block tabs update while a run is tracked.
+- `CoachPlanSection` is the plan card's layout. Its fetching and generation
+  decision tree live in `useCoachPlan`, and its workout download in
+  `usePlanWorkoutDownload`; the hook observes the provider's progress and
+  latest response, so the Day, Week, and Block tabs update while a run is
+  tracked. The decision tree loads the stored plan, tracks a run already
+  running on the server, and starts one when `stale` or any `pending` level
+  needs work and setup is ready.
 - `CoachPlanView` is the pure presentation of the plan, so it can be tested
-  without auth or network. It is the tab shell: each tab's section lives in
+  without auth or network. It receives the plan's `pending` levels and the
+  provider's `running` flag once and dims the level whose replacement is in
+  flight. It is the tab shell: each tab's section lives in
   `apps/web/src/plan/` (`DayCard`, `WeekSection`, `BlockSection`,
   `SeasonSection`, plus the shared `sections.tsx`, `AthleteEventList` and
   `formatPlanDate`). The Day tab shows today and, after 18:00, tomorrow.

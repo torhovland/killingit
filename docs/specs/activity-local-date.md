@@ -51,7 +51,8 @@ the `users.timezone` value stored by the settings page, and `null` (UTC) only
 when the account has neither.
 
 - Coaching requests already carry `timezone`; the API resolves it against the
-  account row (`query.timezone ?? user.timezone`).
+  account row (`timezone ?? user.timezone`), whether it arrives in the query or
+  the request body.
 - The stored-feed, calendar and fitness reads gain an optional `timezone` query
   parameter and fall back to `users.timezone`.
 - Plan generation resolves the zone once in the trigger (`timezone ??

@@ -1,18 +1,36 @@
 import { loadAnalyzedActivities } from "../coaching/activities.js";
 import type { ActivityFeed } from "../coaching/feed/presenter.js";
 import { MAX_ANALYZED_ACTIVITIES } from "../coaching/activityStore.js";
+import {
+  buildAthleteReadingSource,
+  syncAthleteReading,
+} from "../coaching/athleteReading.js";
 import { loadLlmClient, type LlmClient } from "../llm/client.js";
 import type { QuestionAnswerStore } from "../questions/answers.js";
 import {
   dbCoachingSurveyAdjustmentStore,
   type CoachingSurveyAdjustmentStore,
 } from "../questions/adjustments.js";
+import { ftpHistoryPoints } from "../training/thresholds.js";
 import type { UserStore } from "../users/store.js";
-import { startOfWeek } from "@killingit/shared";
+import {
+  startOfWeek,
+  type AnalyzedActivity,
+  type AthleteLocation,
+} from "@killingit/shared";
+import { athleteTextChanged } from "./athleteText.js";
 import { loadAnsweredCoachQuestions } from "./coachQuestions.js";
 import { planFailureMessage } from "./failure.js";
 import { GenerationSupersededError } from "./generation.js";
+import { ensureGenerationCurrent } from "./generation/persist.js";
+import type { PlanGenerationContext } from "./generation/types.js";
 import { loadCoachingInputs, type CoachingInputs } from "./inputs.js";
+import type { PlanInputs } from "./planInputs.js";
+import {
+  latestActivityAnalysisTimestamp,
+  latestAnswerTimestamp,
+  latestPlanChangingAnalysisTimestamp,
+} from "./status.js";
 import { PLAN_GENERATION_STEPS } from "./steps.js";
 import { loadValidatedPlan, type StoredPlan } from "./store.js";
 import type { PlanRunOptions, PlanTriggerDependencies } from "./trigger.js";
@@ -151,4 +169,139 @@ export async function loadPlanGenerationContext(
     await deps.generations.fail(userId, planFailureMessage(err), options.runId);
     throw err;
   }
+}
+
+/** The dependencies the athlete-reading phase reads. */
+type AthleteReadingDependencies = Pick<
+  PlanTriggerDependencies,
+  "syncAthleteReading" | "generations"
+>;
+
+/**
+ * Reads the athlete's own words when the last plan build did not. A new day, a
+ * forecast change or a new synced activity does not change what the athlete
+ * wrote, so the model task is skipped. The run is fenced afterwards because the
+ * reading is slow enough for a newer run to supersede it.
+ */
+export async function syncAthleteReadingIfChanged(
+  deps: AthleteReadingDependencies,
+  loaded: LoadedPlanGenerationContext,
+  run: PlanRunOptions & { runId: string; signal: AbortSignal },
+): Promise<void> {
+  const { userId, today, runId, signal } = run;
+  const { plan, answers, coachingInputs, coachAnswers, llm } = loaded;
+  const shouldRead = athleteTextChanged({
+    planGeneratedAt: plan?.generatedAt ?? null,
+    planAnswersUpdatedAt: plan?.answersUpdatedAt ?? null,
+    planCoachingInputsUpdatedAt: plan?.coachingInputsUpdatedAt ?? null,
+    answers,
+    coachingInputsUpdatedAt: coachingInputs.updatedAt,
+    coachAnswers,
+  });
+  if (!shouldRead) {
+    return;
+  }
+  // One reading covers the measurements, goals and events the athlete states
+  // in their own words. Reading is a model task, not a phrase list.
+  await (deps.syncAthleteReading ?? syncAthleteReading)({
+    userId,
+    today,
+    source: buildAthleteReadingSource(
+      {
+        answers,
+        activityComments: coachingInputs.activityComments,
+        manualActivities: coachingInputs.manualActivities,
+        weeklyNotes: coachingInputs.weeklyNotes ?? [],
+        periodReviews: coachingInputs.periodReviews,
+        coachQuestionAnswers: coachAnswers.map((answer) => ({
+          question: answer.question,
+          answer: answer.answer ?? "",
+          answeredAt: answer.answeredAt,
+        })),
+      },
+      today,
+    ),
+    provider: llm.provider,
+    credentials: {
+      apiKey: llm.apiKey,
+      model: llm.dailyModel,
+      signal,
+    },
+  });
+  await ensureGenerationCurrent({
+    userId,
+    runId,
+    signal,
+    generations: deps.generations,
+  });
+}
+
+/** Everything a run read before it assembles the prompt context. */
+export interface PlanContextBuild {
+  /** The required inputs `loadPlanGenerationContext` read. */
+  loaded: LoadedPlanGenerationContext;
+  /** The activity window the prompt reviews, after any newer analysis pass. */
+  activities: readonly AnalyzedActivity[];
+  /** The advisory inputs `loadPlanInputs` read. */
+  inputs: PlanInputs;
+  /** The request's zone, falling back to the athlete's stored zone. */
+  timeZone: string | null;
+  /** The athlete's home location, or null when none is stored. */
+  location: AthleteLocation | null;
+  signal: AbortSignal;
+}
+
+/**
+ * Assembles the one context every plan prompt reads. The loaded and advisory
+ * inputs keep their own shapes; this function only renames them and derives
+ * the timestamps the prompt compares against the stored plan, so the mapping
+ * lives in one place with its own test instead of inside the run.
+ */
+export function buildPlanContext(
+  input: PlanContextBuild,
+): PlanGenerationContext {
+  const { loaded, inputs } = input;
+  const { coachingInputs, llm } = loaded;
+  return {
+    answers: loaded.answers,
+    answersUpdatedAt: latestAnswerTimestamp(loaded.answers),
+    activities: input.activities,
+    manualActivities: coachingInputs.manualActivities,
+    activityComments: coachingInputs.activityComments,
+    weeklyNote: coachingInputs.weeklyNote,
+    weeklyNoteWeekStartDate: coachingInputs.weeklyNoteWeekStartDate,
+    weeklyNoteReply: coachingInputs.weeklyNoteReply,
+    weeklyNoteUpdatedAt: coachingInputs.weeklyNoteUpdatedAt,
+    periodReviews: coachingInputs.periodReviews,
+    weekReviewUpdatedAt: coachingInputs.weekReviewUpdatedAt,
+    blockReviewUpdatedAt: coachingInputs.blockReviewUpdatedAt,
+    coachingInputsUpdatedAt: coachingInputs.updatedAt,
+    coachingInputsRefreshUpdatedAt: coachingInputs.refreshUpdatedAt,
+    weekReviewNeedsRefresh: coachingInputs.weekReviewNeedsRefresh,
+    blockReviewNeedsRefresh: coachingInputs.blockReviewNeedsRefresh,
+    coachingSurveyAdjustments: loaded.surveyAdjustments,
+    activitiesUpdatedAt: latestActivityAnalysisTimestamp(input.activities),
+    activitiesRefreshUpdatedAt: latestPlanChangingAnalysisTimestamp(
+      input.activities,
+    ),
+    timeZone: input.timeZone,
+    location: input.location,
+    forecast: inputs.forecast,
+    weatherForecasts: inputs.weatherForecasts,
+    ftpHistory: ftpHistoryPoints(inputs.thresholdHistory.timelines),
+    thresholds: inputs.thresholdHistory.summaries,
+    thresholdTimelines: inputs.thresholdHistory.timelines,
+    bodyHistory: inputs.bodyHistory,
+    dailyHealth: inputs.dailyHealth,
+    events: inputs.events,
+    diet: inputs.diet ?? undefined,
+    dietGoal: loaded.plan?.plan.diet ?? null,
+    dietAdvice: loaded.user?.dietAdvice ?? false,
+    calorieHistory: inputs.calorieHistory,
+    provider: llm.provider,
+    apiKey: llm.apiKey,
+    seasonModel: llm.seasonModel,
+    dailyModel: llm.dailyModel,
+    signal: input.signal,
+  };
 }

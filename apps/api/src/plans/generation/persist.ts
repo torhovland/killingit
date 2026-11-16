@@ -3,13 +3,27 @@ import type { CoachQuestionSourceKind } from "../coachQuestions.js";
 import { STORED_PLAN_FINALISATION, finalizePlan } from "../finalize.js";
 import { GenerationSupersededError } from "../generation.js";
 import { PLAN_GENERATION_STEPS } from "../steps.js";
-import type { StoredPlan } from "../store.js";
+import type { PlanGenerationStore, StoredPlan } from "../store.js";
 import { finalizeInput } from "./finalize.js";
 import type { GeneratePlanInput } from "./types.js";
 
-/** Throws when a newer run has claimed the account's generation row. */
+/** The run identity a generation fence needs, and nothing else. */
+interface GenerationFence {
+  userId: number;
+  /** The run that must still own the generation row. */
+  runId: string;
+  /** Cancels the run's provider requests when a newer run starts. */
+  signal?: AbortSignal | undefined;
+  generations: Pick<PlanGenerationStore, "isCurrent">;
+}
+
+/**
+ * Throws when the run was aborted or a newer run has claimed the account's
+ * generation row. Every fence goes through this helper, so an aborted run can
+ * never take the cheaper `isCurrent`-only path.
+ */
 export async function ensureGenerationCurrent(
-  input: GeneratePlanInput,
+  input: GenerationFence,
 ): Promise<void> {
   if (input.signal?.aborted === true) {
     throw new GenerationSupersededError();

@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { CoachPlan } from "@killingit/shared";
 import { CoachPlanView } from "./CoachPlanView";
-import { plan } from "./testFixtures/plan";
+import { noPending, plan } from "./testFixtures/plan";
 
 describe("CoachPlanView workouts", () => {
   it("offers a workout-file download for indoor bike power sessions", () => {
@@ -33,6 +33,7 @@ describe("CoachPlanView workouts", () => {
 
     const html = renderToStaticMarkup(
       <CoachPlanView
+        pending={noPending}
         plan={bikePlan}
         showTomorrow
         onDownloadWorkout={() => undefined}
@@ -51,7 +52,9 @@ describe("CoachPlanView workouts", () => {
   });
 
   it("shows no estimated FTP when the session has no structured power targets", () => {
-    const html = renderToStaticMarkup(<CoachPlanView plan={plan} />);
+    const html = renderToStaticMarkup(
+      <CoachPlanView pending={noPending} plan={plan} />,
+    );
 
     expect(html).not.toContain('data-testid="plan-today-ftp"');
     expect(html).not.toContain("Workout FTP:");
@@ -64,6 +67,7 @@ describe("CoachPlanView workouts", () => {
     };
     const outdoor = renderToStaticMarkup(
       <CoachPlanView
+        pending={noPending}
         plan={{
           ...plan,
           today: { ...plan.today, outdoor: true, bikeWorkout },
@@ -77,6 +81,7 @@ describe("CoachPlanView workouts", () => {
 
     const noTargets = renderToStaticMarkup(
       <CoachPlanView
+        pending={noPending}
         plan={{ ...plan, today: { ...plan.today, outdoor: false } }}
         onDownloadWorkout={() => undefined}
       />,
@@ -85,6 +90,7 @@ describe("CoachPlanView workouts", () => {
 
     const withoutHandler = renderToStaticMarkup(
       <CoachPlanView
+        pending={noPending}
         plan={{
           ...plan,
           today: { ...plan.today, outdoor: false, bikeWorkout },
@@ -97,6 +103,7 @@ describe("CoachPlanView workouts", () => {
   it("disables the download button while the file is prepared", () => {
     const html = renderToStaticMarkup(
       <CoachPlanView
+        pending={noPending}
         plan={{
           ...plan,
           today: {

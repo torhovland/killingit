@@ -97,6 +97,13 @@ For each session in the stored week (and next week), the resolved TSS is:
 
 Rest days score 0.
 
+The measured-power score, the structured-workout score and the pace and
+heart-rate scores all share `trainingStressScore(hours, intensityFactor)` in
+`apps/api/src/training/stress.ts`, which returns the unrounded
+`hours × intensityFactor² × 100`; each caller clamps and rounds once. A
+structured workout therefore sums its unrounded intervals before rounding, so
+many short blocks cannot accumulate per-interval rounding error.
+
 An activity with no power uses its sport's pace or speed threshold first, then
 its heart-rate threshold. Heart-rate TSS comes from the activity summary's
 recorded average heart rate, so a downsampled sample preview cannot bias the
@@ -109,7 +116,10 @@ An activity with power is scored from that power; one without power uses its
 duration-based fallback. When no activity on a day has power and the coach gave
 a day estimate, that estimate is split across the activities in proportion to
 their duration-based stress, so the parts add up to the day total. Duration
-falls back to elapsed time when the source reports no moving time.
+falls back to elapsed time when the source reports no moving time. One mapping
+in `apps/api/src/training/activityLoad.ts` scores every activity and fills the
+unmeasured ones with their fallback; the single-day total and the per-activity
+split both read it, so the two views cannot disagree.
 
 Normalized power is computed from the recorded samples when the activity feed is
 summarized: power is expanded onto a one-second timeline, averaged over a
@@ -299,6 +309,9 @@ API:
 
 - Shared unit tests for power TSS, bike-workout TSS, normalized power, the
   duration fallback, and the ATL/CTL/TSB recurrence.
+- API unit tests for the shared `trainingStressScore` formula (unrounded return,
+  unrounded interval accumulation, rounding at the caller) and the measured-day
+  mapping (all measured, partly measured, none measured, no activities).
 - API unit tests for the coach's metric reading (prompt and storage, fail-open,
   one value per date), the FTP timeline from stored points, power-vs-coach TSS
   resolution, the no-FTP case, clamping, block progression, and day/week

@@ -25,8 +25,10 @@ transient metrics or diet read failed an otherwise possible plan.
    a production default applied where it is used. `AppDependencies` forwards
    them through `planTriggerDependencies`, so a test can inject any of them
    through `createApp` or by constructing `PlanTriggerDependencies` directly.
-2. One function, `loadPlanInputs` in `trigger.ts`, reads every advisory prompt
-   input and owns the fail-open policy for all of them.
+2. One function, `loadPlanInputs` in `plans/planInputs.ts`, reads every advisory
+   prompt input and owns the fail-open policy for all of them. Its seven loaders
+   are `PlanInputDependencies`, which `PlanTriggerDependencies` extends, so a
+   caller that only loads inputs does not need the account state.
 3. One function, `loadPlanGenerationContext` in `generationContext.ts`, prepares
    a run: it reads the model credentials, runs the Garmin sync and reads the
    remaining required inputs, and it owns the run's fenced failure handling.
@@ -104,13 +106,15 @@ numbers at the call site.
 
 ## Acceptance criteria
 
-- `trigger.ts` and `generationContext.ts` contain no direct call to a production
-  loader or writer except as the `??` default of a dependency field.
+- `trigger.ts`, `generationContext.ts` and `planInputs.ts` contain no direct call
+  to a production loader or writer except as the `??` default of a dependency
+  field.
 - A failing advisory loader is logged and the run reaches the model; a failing
   required loader fails the generation.
 - A run whose account has no model fails with the configuration message and
   never reaches the Garmin sync.
 - `trigger.test.ts` runs a whole plan run with every loader and writer in
-  memory, so it never needs a database.
+  memory, so it never needs a database; `planInputs.test.ts` covers the
+  fail-open policy and `generationContext.test.ts` covers context assembly.
 - `bun run typecheck`, `bun run lint`, `bun run format`, `bun run test` and
   `bun run check:unused` pass.

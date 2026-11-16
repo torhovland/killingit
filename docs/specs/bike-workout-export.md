@@ -103,8 +103,9 @@ manually.
 ## UI
 
 `CoachPlanView` accepts an optional `onDownloadWorkout(date)` callback and the
-date currently being prepared. `CoachPlanSection` owns the authenticated fetch,
-the browser save, and the error message. The button appears only when
+date currently being prepared. `usePlanWorkoutDownload` owns the authenticated
+fetch, the browser save, and the error message; `CoachPlanSection` passes its
+action and in-flight date to the view. The button appears only when
 `hasExportableBikeWorkout` is true for a Today or Tomorrow card. A bike session
 with `bikeWorkout` also shows "Estimated FTP: N W" and tells the athlete to set
 that value in the trainer app; this line is shown whether the session is indoor

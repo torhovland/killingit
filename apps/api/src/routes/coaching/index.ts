@@ -60,7 +60,7 @@ export function createCoachingRoute(deps: ResolvedAppDependencies): Hono {
       zValidator("json", activityCommentRequestSchema),
       async (c) => {
         const { activityId } = c.req.valid("param");
-        return comments.save(c, "create", activityId, c.req.valid("json"));
+        return comments.create(c, activityId, c.req.valid("json"));
       },
     )
     .put(
@@ -69,7 +69,7 @@ export function createCoachingRoute(deps: ResolvedAppDependencies): Hono {
       zValidator("json", activityCommentRequestSchema),
       async (c) => {
         const { activityId } = c.req.valid("param");
-        return comments.save(c, "edit", activityId, c.req.valid("json"));
+        return comments.update(c, activityId, c.req.valid("json"));
       },
     )
     .post(
@@ -120,7 +120,7 @@ export function createCoachingRoute(deps: ResolvedAppDependencies): Hono {
     .post(
       "/activities/manual",
       zValidator("json", manualActivityRequestSchema),
-      async (c) => manual.save(c, "create", undefined, c.req.valid("json")),
+      async (c) => manual.create(c, c.req.valid("json")),
     )
     .put(
       "/activities/manual/:id",
@@ -128,7 +128,7 @@ export function createCoachingRoute(deps: ResolvedAppDependencies): Hono {
       zValidator("json", manualActivityRequestSchema),
       async (c) => {
         const { id } = c.req.valid("param");
-        return manual.save(c, "edit", id, c.req.valid("json"));
+        return manual.update(c, id, c.req.valid("json"));
       },
     )
     .delete(

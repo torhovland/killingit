@@ -182,6 +182,8 @@ export interface TestAppOptions {
   generationStore?: PlanGenerationStore;
   answers?: QuestionAnswerStore;
   location?: AthleteLocation | null;
+  /** The signed-in account's stored zone; null means the device zone. */
+  timezone?: string | null;
   events?: AthleteEvent[];
   coachingInputs?: CoachingInputs;
   loadForecast?: AppDependencies["loadForecast"];
@@ -232,6 +234,7 @@ export interface TestAppOptions {
  */
 export function makeTestApp(options: TestAppOptions = {}) {
   const location = options.location ?? null;
+  const timezone = options.timezone ?? null;
   return createApp({
     authProvider: { verify: () => Promise.resolve({ sub: "athlete-1" }) },
     userStore: {
@@ -240,7 +243,7 @@ export function makeTestApp(options: TestAppOptions = {}) {
           id: 42,
           sub,
           role: "member",
-          timezone: null,
+          timezone,
           location,
           dietAdvice: false,
           createdAt: new Date(0),
@@ -250,7 +253,7 @@ export function makeTestApp(options: TestAppOptions = {}) {
           id,
           sub: "athlete-1",
           role: "member",
-          timezone: null,
+          timezone,
           location,
           dietAdvice: false,
           createdAt: new Date(0),
