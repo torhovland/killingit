@@ -124,7 +124,7 @@ export const DIET_RULES = `When a food log is provided, it lists meals the athle
  * a daily calorie requirement. The judgement of the weight trend and of the
  * deficit is the coach's, never a formula in the app.
  */
-export const DIET_PLANNING_RULES = `Nutrition is part of the plan. The athlete's diet goal is whatever they state in their profile, notes, or comments; when they state none, assume the goal is to maintain their current weight. Report the goal in "diet.goal" as a short statement in their own terms, or "${DEFAULT_DIET_GOAL}" when they gave none. Set "diet.goalProvided" to true only when the athlete stated the goal themselves, and to false when you fell back to "${DEFAULT_DIET_GOAL}". When the athlete names a body weight, a body-fat percentage, or a date for the goal, report it in "diet.goalWeightKg", "diet.goalBodyFatPercent" and "diet.goalDate"; set a value they did not state to null. Never invent a target or a date. When the plan deliberately does not reach a stated numeric goal because the goal is unrealistic or conflicts with another season goal, set "diet.goalMissReason" to a specific explanation and say the same in "diet.assessment"; set it to null when the plan reaches the goal or the goal has no numeric target.
+const DIET_PLANNING_RULES = `Nutrition is part of the plan. The athlete's diet goal is whatever they state in their profile, notes, or comments; when they state none, assume the goal is to maintain their current weight. Report the goal in "diet.goal" as a short statement in their own terms, or "${DEFAULT_DIET_GOAL}" when they gave none. Set "diet.goalProvided" to true only when the athlete stated the goal themselves, and to false when you fell back to "${DEFAULT_DIET_GOAL}". When the athlete names a body weight, a body-fat percentage, or a date for the goal, report it in "diet.goalWeightKg", "diet.goalBodyFatPercent" and "diet.goalDate"; set a value they did not state to null. Never invent a target or a date. When the plan deliberately does not reach a stated numeric goal because the goal is unrealistic or conflicts with another season goal, set "diet.goalMissReason" to a specific explanation and say the same in "diet.assessment"; set it to null when the plan reaches the goal or the goal has no numeric target.
 
 In "diet.assessment", judge from the tracked weight history and the logged calories against your earlier calorie targets whether the athlete is on track for that goal. Say whether the calorie deficit or surplus is right, too large, or too small, and what you changed. Judge the weight trend from the measurements themselves rather than from a fixed formula. When there is no weight history yet, say what you will judge the trend by and set a sensible starting target.
 
@@ -277,7 +277,7 @@ export const COMPLETED_SESSION_RULES = promptSections(
  * the today and tomorrow day objects, while the week keeps an overview of each
  * day so the Week view shows the plan's shape.
  */
-export const WEEK_OUTLINE_RULES = `Treat every week plan, the current week and the next week, as an outline, not seven finished workouts. Each week session is a short overview: the session type, a brief title naming the kind of session, a one-sentence description of its intent, an approximate duration and intensity, and an "estimatedTss". Keep the detailed prescription, including alternatives, optionality, rationale and any "bikeWorkout", in the "today" and "tomorrow" day objects only; never put detailed intervals, repetitions, paces, power targets or a "bikeWorkout" in a week session, even when it is dated today or tomorrow. Once a day has arrived, keep its week outline and add at most one short sentence to its description on how far the athlete completed it; do not replace the outline with an activity summary. The daily update turns a week outline into that day's concrete workout when the day arrives. The outlines must still show the week's shape: which days are long, hard, easy, or rest. Set the week's "estimatedFtpWatts" from the athlete's profile and the plan's progression, and estimate each outline day's "estimatedTss" against it.`;
+const WEEK_OUTLINE_RULES = `Treat every week plan, the current week and the next week, as an outline, not seven finished workouts. Each week session is a short overview: the session type, a brief title naming the kind of session, a one-sentence description of its intent, an approximate duration and intensity, and an "estimatedTss". Keep the detailed prescription, including alternatives, optionality, rationale and any "bikeWorkout", in the "today" and "tomorrow" day objects only; never put detailed intervals, repetitions, paces, power targets or a "bikeWorkout" in a week session, even when it is dated today or tomorrow. Once a day has arrived, keep its week outline and add at most one short sentence to its description on how far the athlete completed it; do not replace the outline with an activity summary. The daily update turns a week outline into that day's concrete workout when the day arrives. The outlines must still show the week's shape: which days are long, hard, easy, or rest. Set the week's "estimatedFtpWatts" from the athlete's profile and the plan's progression, and estimate each outline day's "estimatedTss" against it.`;
 
 /**
  * Shared rule for the day the athlete is about to train. A session must earn
@@ -299,7 +299,7 @@ If today or tomorrow is a rest day, explain in "rationale" why rest is the best 
  * without one, the coach should still place outdoor work sensibly and prefer
  * daylight.
  */
-export const WEATHER_PLANNING_RULES = `When a daily forecast is provided, use it to choose which day gets each session. Set "outdoor" to false when this instance is done indoors (gym, treadmill, trainer, pool) and true when it is done outside (running, cycling, hiking, and similar). Set "canBeOutdoor" to false only when the session is tied to indoor equipment or a venue (indoor cycling or trainer, treadmill, gym, pool, rowing machine); set it true when the same session could reasonably be done outdoors (road ride, run, hike, walk), even when you plan this instance indoors. Weather only restricts outdoor sessions.
+const WEATHER_PLANNING_RULES = `When a daily forecast is provided, use it to choose which day gets each session. Set "outdoor" to false when this instance is done indoors (gym, treadmill, trainer, pool) and true when it is done outside (running, cycling, hiking, and similar). Set "canBeOutdoor" to false only when the session is tied to indoor equipment or a venue (indoor cycling or trainer, treadmill, gym, pool, rowing machine); set it true when the same session could reasonably be done outdoors (road ride, run, hike, walk), even when you plan this instance indoors. Weather only restricts outdoor sessions.
 
 Read the forecast row for the exact date. Do not describe a day as rainy or snowy, and do not move a flexible session indoors, when that date's forecast is dry and the athlete has no stated preference against training outdoors.
 
@@ -314,7 +314,7 @@ The daylight times let you keep outdoor work in daylight. Unless the athlete's p
  * these as a trainer workout file, so the intervals and power targets must be
  * machine-readable rather than only prose.
  */
-export const BIKE_WORKOUT_RULES = `When you prescribe an indoor bike workout with power targets in a day plan (for example a trainer or ERG session), set "outdoor" to false and include "bikeWorkout". "ftpWatts" is the FTP you used; use that day's session "estimatedFtpWatts" when it has one, otherwise the week's value, and when the athlete's profile states no FTP at all, estimate one from their current performance and mention the assumption in the description. List the session in order in "intervals", with each block's "durationSeconds" and its target "powerPercent" of FTP (75 means 75%). Include the warm-up, every work interval, every recovery, and the cool-down as separate entries. Their durations should add up to "durationMinutes" (rounding is fine). Use at most 40 intervals and keep each block at a steady power. For every other session, including outdoor rides, rest days and every week outline, set "bikeWorkout" to null. If you revise an existing indoor bike day plan, keep or update its "bikeWorkout" so it still matches the description.`;
+const BIKE_WORKOUT_RULES = `When you prescribe an indoor bike workout with power targets in a day plan (for example a trainer or ERG session), set "outdoor" to false and include "bikeWorkout". "ftpWatts" is the FTP you used; use that day's session "estimatedFtpWatts" when it has one, otherwise the week's value, and when the athlete's profile states no FTP at all, estimate one from their current performance and mention the assumption in the description. List the session in order in "intervals", with each block's "durationSeconds" and its target "powerPercent" of FTP (75 means 75%). Include the warm-up, every work interval, every recovery, and the cool-down as separate entries. Their durations should add up to "durationMinutes" (rounding is fine). Use at most 40 intervals and keep each block at a steady power. For every other session, including outdoor rides, rest days and every week outline, set "bikeWorkout" to null. If you revise an existing indoor bike day plan, keep or update its "bikeWorkout" so it still matches the description.`;
 
 /** The common TSS scale shared by the plan prompts and the manual TSS estimate. */
 export const TSS_ESTIMATE_GUIDE = `A score of 100 is roughly one hour at the athlete's threshold, 60-70 is an easy aerobic hour, and 20-40 is a short strength session.`;
@@ -348,7 +348,7 @@ export const TRAINING_LOAD_RULES = promptSections(
 );
 
 /** The exact enum values the plan schemas accept for a session. */
-export const ENUM_RULES = `For every type field use either "workout" or "rest"; for every intensity field use "easy", "moderate", "hard", or "rest". For a rest session set both type and intensity to "rest"; for a workout set type to "workout" and intensity to "easy", "moderate", or "hard". These are exact, lowercase strings: never output a session name such as "run", "strength", or "rest day" as a type, and never copy the "|" choices from the contract into the response.`;
+const ENUM_RULES = `For every type field use either "workout" or "rest"; for every intensity field use "easy", "moderate", "hard", or "rest". For a rest session set both type and intensity to "rest"; for a workout set type to "workout" and intensity to "easy", "moderate", or "hard". These are exact, lowercase strings: never output a session name such as "run", "strength", or "rest day" as a type, and never copy the "|" choices from the contract into the response.`;
 
 /**
  * The activity-type caveat shared by both activity reviews: the device label
@@ -442,6 +442,27 @@ export const JSON_RULES = promptSections(
 /** The shared closing instruction for prompts that return JSON. */
 export const RETURN_JSON_FROM_SYSTEM_PROMPT =
   "Return the JSON object described in the system prompt.";
+
+/**
+ * The tail the daily, weekly and plan-update prompts close with: the week
+ * outline and the weather, bike-workout, diet, training-load, enum and JSON
+ * rules. `levelRules` carries a prompt's own rules in the place it reads them,
+ * between the outline and the weather rule, so each prompt keeps its wording
+ * and order while the shared tail has one owner.
+ */
+export const PLAN_UPDATE_SHARED_RULES = (
+  levelRules: readonly string[] = [],
+): string =>
+  promptSections(
+    WEEK_OUTLINE_RULES,
+    ...levelRules,
+    WEATHER_PLANNING_RULES,
+    BIKE_WORKOUT_RULES,
+    DIET_PLANNING_RULES,
+    TRAINING_LOAD_RULES,
+    ENUM_RULES,
+    JSON_RULES,
+  );
 
 /** The structured power targets shared by the day and week session contracts. */
 const BIKE_WORKOUT_CONTRACT = `{ "ftpWatts": 0, "intervals": [{ "durationSeconds": 0, "powerPercent": 75 }] }`;

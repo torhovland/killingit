@@ -7,7 +7,6 @@ import type {
 } from "@killingit/shared";
 import { missingFragments } from "../testFixtures/prompts.js";
 import {
-  BIKE_WORKOUT_RULES,
   BLOCK_CONTRACT,
   BODY_METRIC_POINT_CONTRACT,
   COACH_RESPONSE_NOTES_CONTRACT,
@@ -16,24 +15,19 @@ import {
   COMPLETION_SLACK_RULES,
   DAY_CONTRACT,
   DIET_CONTRACT,
-  DIET_PLANNING_RULES,
-  ENUM_RULES,
   GLOBAL_PROMPT_RULES,
-  JSON_RULES,
   PAST_SESSION_RULES,
   PLAN_PROMPT_RULES,
+  PLAN_UPDATE_SHARED_RULES,
   SEASON_BLOCK_RULES,
   SEASON_CONTRACT,
   SESSION_PURPOSE_RULES,
   TODAY_IN_WEEK_RULE,
-  TRAINING_LOAD_RULES,
   WEEK_CONTRACT,
   weekDatesRangeRule,
   weekDatesRule,
   WEEKLY_NOTE_SCOPE_RULE,
-  WEEK_OUTLINE_RULES,
   WEEK_SHAPE_RULES,
-  WEATHER_PLANNING_RULES,
 } from "./promptRules.js";
 import {
   buildDailyUpdateMessages,
@@ -226,20 +220,13 @@ const SYSTEM_PROMPTS = [
     prompt: systemPrompt(
       buildDailyUpdateMessages({ ...base, season, block, week }),
     ),
+    tail: PLAN_UPDATE_SHARED_RULES([SESSION_PURPOSE_RULES]),
     fragments: [
       GLOBAL_PROMPT_RULES,
       PLAN_PROMPT_RULES,
       WEEK_SHAPE_RULES,
       TODAY_IN_WEEK_RULE,
       COMPLETED_SESSION_RULES,
-      WEEK_OUTLINE_RULES,
-      SESSION_PURPOSE_RULES,
-      WEATHER_PLANNING_RULES,
-      BIKE_WORKOUT_RULES,
-      DIET_PLANNING_RULES,
-      TRAINING_LOAD_RULES,
-      ENUM_RULES,
-      JSON_RULES,
       DAY_CONTRACT,
       WEEK_CONTRACT,
       DIET_CONTRACT,
@@ -257,19 +244,13 @@ const SYSTEM_PROMPTS = [
         weekStartDate: "2026-10-26",
       }),
     ),
+    tail: PLAN_UPDATE_SHARED_RULES(),
     fragments: [
       GLOBAL_PROMPT_RULES,
       PLAN_PROMPT_RULES,
       WEEK_SHAPE_RULES,
       PAST_SESSION_RULES,
       COMPLETION_SLACK_RULES,
-      WEEK_OUTLINE_RULES,
-      WEATHER_PLANNING_RULES,
-      BIKE_WORKOUT_RULES,
-      DIET_PLANNING_RULES,
-      TRAINING_LOAD_RULES,
-      ENUM_RULES,
-      JSON_RULES,
       WEEK_CONTRACT,
       BLOCK_CONTRACT,
       BODY_METRIC_POINT_CONTRACT,
@@ -279,6 +260,10 @@ const SYSTEM_PROMPTS = [
   {
     name: "plan update",
     prompt: systemPrompt(buildPlanUpdateMessages(updateInput())),
+    tail: PLAN_UPDATE_SHARED_RULES([
+      SESSION_PURPOSE_RULES,
+      COACHING_SURVEY_ADJUSTMENT_RULES,
+    ]),
     fragments: [
       GLOBAL_PROMPT_RULES,
       PLAN_PROMPT_RULES,
@@ -286,15 +271,6 @@ const SYSTEM_PROMPTS = [
       WEEK_SHAPE_RULES,
       TODAY_IN_WEEK_RULE,
       COMPLETED_SESSION_RULES,
-      WEEK_OUTLINE_RULES,
-      SESSION_PURPOSE_RULES,
-      COACHING_SURVEY_ADJUSTMENT_RULES,
-      WEATHER_PLANNING_RULES,
-      BIKE_WORKOUT_RULES,
-      DIET_PLANNING_RULES,
-      TRAINING_LOAD_RULES,
-      ENUM_RULES,
-      JSON_RULES,
       SEASON_CONTRACT,
       BLOCK_CONTRACT,
       WEEK_CONTRACT,
@@ -322,6 +298,13 @@ describe("update system prompts", () => {
         name,
         missing: [],
       });
+    }
+  });
+
+  it("closes with the shared tail exactly once", () => {
+    for (const { name, prompt, tail } of SYSTEM_PROMPTS) {
+      const occurrences = prompt.split(tail).length - 1;
+      expect({ name, occurrences }).toEqual({ name, occurrences: 1 });
     }
   });
 });

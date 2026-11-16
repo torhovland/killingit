@@ -1,14 +1,13 @@
 import { describe, expect, it } from "bun:test";
 import { startOfWeek } from "@killingit/shared";
+import { promptRuleLiteral } from "../../../apps/api/src/testFixtures/prompts.js";
 import {
-  BIKE_WORKOUT_RULES,
   DAY_CONTRACT,
   GLOBAL_PROMPT_RULES,
   PLAN_PROMPT_RULES,
   SEASON_BLOCK_RULES,
   TRAINING_LOAD_RULES,
   WEEK_CONTRACT,
-  WEEK_OUTLINE_RULES,
 } from "../../../apps/api/src/llm/promptRules.js";
 import { parseCurrentBlock } from "./promptBenchmark.js";
 import {
@@ -29,8 +28,8 @@ describe("benchmark prompts", () => {
   it("builds both prompts from the app's current plan rules", () => {
     expect(today).toContain(GLOBAL_PROMPT_RULES);
     expect(today).toContain(PLAN_PROMPT_RULES);
-    expect(today).toContain(WEEK_OUTLINE_RULES);
-    expect(today).toContain(BIKE_WORKOUT_RULES);
+    expect(today).toContain(promptRuleLiteral("WEEK_OUTLINE_RULES"));
+    expect(today).toContain(promptRuleLiteral("BIKE_WORKOUT_RULES"));
     expect(today).toContain(TRAINING_LOAD_RULES);
     expect(today).toContain(DAY_CONTRACT);
     expect(today).toContain(WEEK_CONTRACT);
