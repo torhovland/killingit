@@ -12,6 +12,15 @@ quality rubric.
 - `runs/2026-10-26-gemini-4-argon/` — the budget-increased run. Benchmark:
   Gemini 4 Argon. Models: Gemini 4 Argon, Claude Opus 5.5, GLM 5.3, GLM 5.3
   Prime, DeepSeek V4.1 Flash, Flint (free), DeepSeek V4 Pro.
+- `runs/2026-10-27-six-model/` — a six-model follow-up at the 16,384-token
+  budget. Benchmark: Gemini 4 Argon. Models: Gemini 4 Argon, Claude Haiku 5.5,
+  DeepSeek V4.1 Flash, Mercury 3, MiniMax M3.1 Flash, GLM 5.3. Mercury 3 failed
+  schema validation, so the run records its cost and error instead of a plan.
+- `runs/2026-10-28-mercury-rerun/` — a single-model `inception/mercury-3`
+  rerun after that failure. It produced a complete plan.
+- `runs/2026-10-28-six-model-mercury-rerun/` — the same six models and budget
+  as `2026-10-27-six-model`, with the successful Mercury 3 rerun in place of
+  the failed attempt. The other five plans are unchanged from 27 October.
 
 Each run lives in `runs/<run-id>/`:
 
@@ -26,6 +35,17 @@ runs/2026-10-26T12-00-00-000Z/
 
 The **first model in the list is the benchmark**. `results.json` and
 `report.md` mark it; other models get cost/time ratios against it.
+
+## Reports
+
+`reports/` holds committed PDF summaries of the runs:
+
+- `reports/2026-10-26-llm-plan-report.pdf` — the initial 16-model run and the
+  budget-increased seven-model run together.
+- `reports/2026-10-27-six-model-plan-report.pdf` — the 27 October six-model
+  run, with Mercury 3's failed entry in place of a plan.
+- `reports/2026-10-28-six-model-plan-report.pdf` — the six-model comparison
+  with the successful Mercury 3 rerun.
 
 ## Reproducing a run
 
