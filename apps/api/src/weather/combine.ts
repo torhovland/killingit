@@ -1,28 +1,5 @@
-import type {
-  DailyForecasts,
-  DailyWeather,
-  WeatherIcon,
-} from "@killingit/shared";
-
-const ICON_SEVERITY: Record<WeatherIcon, number> = {
-  sun: 0,
-  partly_cloudy: 1,
-  very_cloudy: 2,
-  rain: 3,
-  snow: 4,
-};
-
-/**
- * Picks one of two weather types for the combined forecast. Averages only make
- * sense for numbers, so when the providers disagree the more severe condition
- * wins: rain beats cloud, and snow beats rain. A tie keeps the Open-Meteo icon.
- */
-function moreSevereWeatherIcon(
-  first: WeatherIcon,
-  second: WeatherIcon,
-): WeatherIcon {
-  return ICON_SEVERITY[first] >= ICON_SEVERITY[second] ? first : second;
-}
+import type { DailyForecasts, DailyWeather } from "@killingit/shared";
+import { moreSevereIcon } from "./icons.js";
 
 function average(first: number, second: number): number {
   return (first + second) / 2;
@@ -31,7 +8,7 @@ function average(first: number, second: number): number {
 function combinedDay(openMeteo: DailyWeather, yr: DailyWeather): DailyWeather {
   return {
     date: openMeteo.date,
-    icon: moreSevereWeatherIcon(openMeteo.icon, yr.icon),
+    icon: moreSevereIcon(openMeteo.icon, yr.icon),
     temperatureMaxC: average(openMeteo.temperatureMaxC, yr.temperatureMaxC),
     temperatureMinC: average(openMeteo.temperatureMinC, yr.temperatureMinC),
     windMaxMs: average(openMeteo.windMaxMs, yr.windMaxMs),
