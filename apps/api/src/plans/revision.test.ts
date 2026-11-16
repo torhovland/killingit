@@ -593,25 +593,17 @@ describe("mergeTomorrow", () => {
     expect(plan.week).toEqual(current.week);
   });
 
-  it("keeps the stored next week when the update did not return one", () => {
+  it("keeps a stored next week and tomorrow a run did not ask to revise", () => {
     const current = makePlan({
       today: makeDay("2026-10-25"),
       week: makeWeek("2026-10-19"),
+      tomorrow: makeDay("2026-10-26"),
       nextWeek: makeWeek("2026-10-26"),
     });
 
-    const plan = mergeTomorrow(
-      current,
-      {
-        ...makePlan(),
-        tomorrow: makeDay("2026-10-26"),
-      },
-      makeFlags({ tomorrow: true }),
-      "2026-10-25",
-    );
+    const plan = mergeTomorrow(current, makePlan(), makeFlags(), "2026-10-25");
 
-    expect(plan.tomorrow?.date).toBe("2026-10-26");
-    expect(plan.nextWeek).toEqual(current.nextWeek);
+    expect(plan).toBe(current);
   });
 
   it("rejects a tomorrow outside every planned week", () => {
