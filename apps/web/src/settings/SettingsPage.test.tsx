@@ -1,6 +1,6 @@
 import { afterAll, afterEach, describe, expect, it, mock } from "bun:test";
 import type { CurrentUser } from "@killingit/shared";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { AuthState } from "../auth";
 
@@ -104,6 +104,9 @@ function stubSettingsServer(): Array<Record<string, unknown>> {
       }
       return Promise.resolve(json(user));
     }
+    if (url.includes("/api/garmin/credentials")) {
+      return Promise.resolve(json({ connected: true }));
+    }
     if (url.includes("/api/garmin/status")) {
       return Promise.resolve(json({ connected: false }));
     }
@@ -182,5 +185,18 @@ describe("SettingsPage", () => {
     });
     await waitFor(() => expect(checked.checked).toBe(true));
     expect(patches).toEqual([{ dietAdvice: true }]);
+  });
+
+  it("updates the shared Garmin status after connecting", async () => {
+    stubSettingsServer();
+    const user = userEvent.setup();
+    renderSettings();
+
+    const form = await screen.findByTestId("garmin-credentials-form");
+    await user.type(screen.getByPlaceholderText("Garmin email"), "athlete");
+    await user.type(screen.getByPlaceholderText("Garmin password"), "secret");
+    await user.click(within(form).getByRole("button", { name: "Save" }));
+
+    expect(await screen.findByText("Garmin connected")).toBeDefined();
   });
 });

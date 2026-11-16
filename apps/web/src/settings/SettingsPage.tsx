@@ -1,8 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  garminConnectionStatusSchema,
-  llmSettingsSchema,
-} from "@killingit/shared";
 import { useAuth } from "../auth";
 import { useCurrentUser } from "../CurrentUserProvider";
 import { DeleteAccountSection } from "./DeleteAccountSection";
@@ -15,7 +11,7 @@ import { usePwa } from "../PwaContext";
 import { PwaInstallSection } from "../PwaInstall";
 import { reportError } from "../reportError";
 import { TimeZoneSection } from "./TimeZoneSection";
-import { useApiResources } from "../useApiResource";
+import { useStatuses } from "../useStatuses";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 
@@ -39,27 +35,9 @@ export function SettingsPage({
   const pwa = usePwa();
   const { user, update } = useCurrentUser();
   const isAdmin = user?.role === "admin";
-  const statuses = useApiResources(
-    auth.isAuthenticated
-      ? {
-          garmin: {
-            path: "/api/garmin/status",
-            schema: garminConnectionStatusSchema,
-            action: "Loading the Garmin status",
-          },
-          llm: {
-            path: "/api/llm/settings",
-            schema: llmSettingsSchema,
-            action: "Loading the LLM settings",
-          },
-        }
-      : null,
-    { statusSource: "settings-page" },
-  );
-  const garmin = statuses.data?.garmin ?? null;
-  const llm = statuses.data?.llm ?? null;
-  const loading = statuses.loading;
-  const error = statuses.error;
+  const { garmin, llm, loading, error, reload, setData } = useStatuses(auth, {
+    statusSource: "settings-page",
+  });
   const [selectedTimeZone, setSelectedTimeZone] = useState(timeZone ?? "");
   const [savingTimeZone, setSavingTimeZone] = useState(false);
   const [timeZoneError, setTimeZoneError] = useState<string | null>(null);
@@ -128,7 +106,7 @@ export function SettingsPage({
           variant="secondary"
           size="lg"
           className="self-start"
-          onClick={statuses.reload}
+          onClick={reload}
         >
           Retry
         </Button>
@@ -170,7 +148,7 @@ export function SettingsPage({
             <GarminSection
               connected={garmin.connected}
               onConnected={(connected) =>
-                statuses.setData((previous) =>
+                setData((previous) =>
                   previous === null
                     ? previous
                     : { ...previous, garmin: connected },
@@ -184,7 +162,7 @@ export function SettingsPage({
             <LlmSection
               settings={llm}
               onSaved={(saved) =>
-                statuses.setData((previous) =>
+                setData((previous) =>
                   previous === null ? previous : { ...previous, llm: saved },
                 )
               }
