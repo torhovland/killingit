@@ -4,6 +4,17 @@ import { db } from "../db/index.js";
 import { athleteEvents } from "../db/schema.js";
 
 /**
+ * The identity of one dated event, used to drop a duplicate. The stored list
+ * and the reading's normalised list both build it here, so the two cannot
+ * dedupe the same input differently.
+ */
+export function eventKey(
+  event: Pick<AthleteEvent, "startDate" | "endDate" | "title">,
+): string {
+  return `${event.startDate}\u0000${event.endDate ?? ""}\u0000${event.title}`;
+}
+
+/**
  * Loads every dated goal and event stored for the account, earliest first.
  * These are facts the athlete stated, so nothing here is derived from the plan.
  */
@@ -35,7 +46,7 @@ export async function replaceAthleteEvents(
 ): Promise<void> {
   const seen = new Set<string>();
   const deduped = events.filter((event) => {
-    const key = `${event.startDate}\u0000${event.endDate ?? ""}\u0000${event.title}`;
+    const key = eventKey(event);
     if (seen.has(key)) {
       return false;
     }

@@ -6,7 +6,7 @@ import {
   type AthleteReadingResult,
   type AthleteThresholdStatement,
 } from "@killingit/shared";
-import { replaceAthleteEvents } from "../events/store.js";
+import { eventKey, replaceAthleteEvents } from "../events/store.js";
 import { extractAthleteReading } from "../llm/athleteReading.js";
 import type {
   AthleteReadingEntry,
@@ -319,10 +319,7 @@ function normalizeEvents(
     if (eventEndDate(normalized) < today) {
       continue;
     }
-    byKey.set(
-      `${normalized.startDate}\u0000${normalized.endDate ?? ""}\u0000${title}`,
-      normalized,
-    );
+    byKey.set(eventKey(normalized), normalized);
   }
   return [...byKey.values()].sort((a, b) =>
     a.startDate.localeCompare(b.startDate),
