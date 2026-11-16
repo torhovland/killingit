@@ -11,12 +11,8 @@ import {
 } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { llmModels, llmModelSync } from "../db/schema.js";
-import {
-  aliasTargetChanged,
-  estimateBenchmarkCost,
-  priceGrade,
-  pricingChanged,
-} from "./modelCatalogPricing.js";
+import { estimateBenchmarkCost, priceGrade } from "./modelCatalogPricing.js";
+import { catalogUpdateFor } from "./modelCatalogUpdate.js";
 import { createOpenRouterProvider } from "./openrouter.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -318,11 +314,13 @@ async function fetchCatalogModels(): Promise<LlmModel[]> {
  * Reconciles the stored catalog with the provider's list: deletes batch-only
  * rows, inserts new models ungraded with a price grade, refreshes existing
  * models, and retires the models that disappeared. Existing benchmark grades
- * are never overwritten, except on an alias whose concrete target moved.
+ * are never overwritten, except on an alias whose concrete target moved. Every
+ * row written by one refresh shares the same timestamp.
  */
 async function storeCatalogModels(
   models: readonly LlmModel[],
 ): Promise<Omit<CatalogRefreshCounts, "copied">> {
+  const now = new Date();
   const removedRows = await db
     .delete(llmModels)
     .where(like(llmModels.id, "%:batch"))
@@ -344,85 +342,33 @@ async function storeCatalogModels(
   let reassigned = 0;
 
   for (const model of models) {
-    const estimatedCost = estimateBenchmarkCost(
-      model.promptPricePerMillion,
-      model.completionPricePerMillion,
-    );
-    const price = priceGrade(
-      model.promptPricePerMillion,
-      model.completionPricePerMillion,
-    );
-    const prior = existingById.get(model.id);
-    if (prior !== undefined) {
-      const priceChanged = pricingChanged(
-        prior.promptPricePerMillion,
-        prior.completionPricePerMillion,
+    const change = catalogUpdateFor(
+      existingById.get(model.id) ?? null,
+      model,
+      priceGrade(model.promptPricePerMillion, model.completionPricePerMillion),
+      estimateBenchmarkCost(
         model.promptPricePerMillion,
         model.completionPricePerMillion,
-      );
-      const targetChanged = aliasTargetChanged(
-        prior.aliasTargetSlug,
-        model.aliasTargetSlug,
-      );
-      if (priceChanged) rescored += 1;
-      if (targetChanged) reassigned += 1;
-      await db
-        .update(llmModels)
-        .set({
-          name: model.name,
-          aliasTargetSlug: model.aliasTargetSlug,
-          retired: false,
-          lastSeenAt: new Date(),
-          updatedAt: new Date(),
-          promptPricePerMillion: model.promptPricePerMillion,
-          completionPricePerMillion: model.completionPricePerMillion,
-          ...(targetChanged
-            ? {
-                // The alias now resolves to a different model, so the old
-                // ability/speed score no longer describes it. Treat it as
-                // ungraded until the pending benchmark runs again.
-                ability: "?",
-                speed: "?",
-                cost: price,
-                discouraged: false,
-                needsRescore: true,
-                benchmarkScore: null,
-                benchmarkTimeMs: null,
-                benchmarkCostUsd: estimatedCost,
-                benchmarkCategories: null,
-                benchmarkedAt: null,
-              }
-            : prior.ability === "?"
-              ? { cost: price, benchmarkCostUsd: estimatedCost }
-              : priceChanged
-                ? { cost: price, needsRescore: true }
-                : {}),
-        })
-        .where(eq(llmModels.id, model.id));
-    } else {
+      ),
+    );
+    if (change.action === "insert") {
       added += 1;
-      await db.insert(llmModels).values({
-        id: model.id,
-        name: model.name,
-        aliasTargetSlug: model.aliasTargetSlug,
-        retired: false,
-        discouraged: false,
-        ability: "?",
-        speed: "?",
-        cost: price,
-        benchmarkCostUsd: estimatedCost,
-        promptPricePerMillion: model.promptPricePerMillion,
-        completionPricePerMillion: model.completionPricePerMillion,
-        lastSeenAt: new Date(),
-      });
+      await db.insert(llmModels).values({ ...change.values, lastSeenAt: now });
+      continue;
     }
+    if (change.rescored) rescored += 1;
+    if (change.reassigned) reassigned += 1;
+    await db
+      .update(llmModels)
+      .set({ ...change.values, lastSeenAt: now, updatedAt: now })
+      .where(eq(llmModels.id, model.id));
   }
 
   let retired = 0;
   if (incomingIds.size > 0) {
     const retiredRows = await db
       .update(llmModels)
-      .set({ retired: true, updatedAt: new Date() })
+      .set({ retired: true, updatedAt: now })
       .where(
         and(
           eq(llmModels.retired, false),
@@ -466,10 +412,11 @@ async function failCatalogRefresh(err: unknown): Promise<CatalogRefreshResult> {
  * Checks OpenRouter's catalog at most once every 24 hours. New models are
  * inserted ungraded (`?`) with a cost grade estimated from their list price;
  * models that disappeared are marked retired. Existing grades are never
- * overwritten by a catalog refresh.
+ * overwritten by a catalog refresh, except on an alias whose concrete target
+ * moved.
  */
 export async function refreshModelCatalog(
-  options: { force?: boolean; now?: Date } = {},
+  options: { force?: boolean } = {},
 ): Promise<CatalogRefreshResult> {
   if (options.force !== true && !(await claimCatalogCheck())) {
     return catalogRefreshResult(false);
@@ -534,25 +481,17 @@ export async function loadModelCatalog(): Promise<CatalogRow[]> {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export async function modelIsUsable(modelId: string): Promise<{
-  usable: boolean;
-  retired: boolean;
-  discouraged: boolean;
-} | null> {
+/**
+ * True when the catalog knows the model and has retired it. A model missing
+ * from the catalog is not retired, so a selection made before the catalog
+ * existed still runs; a discouraged model is usable, because Settings only
+ * warns about it.
+ */
+export async function modelIsRetired(modelId: string): Promise<boolean> {
   const rows = await db
-    .select({
-      retired: llmModels.retired,
-      discouraged: llmModels.discouraged,
-    })
+    .select({ retired: llmModels.retired })
     .from(llmModels)
     .where(eq(llmModels.id, modelId))
     .limit(1);
-  const row = rows[0];
-  if (!row) return null;
-  return {
-    // A discouraged model is still usable; Settings only warns about it.
-    usable: !row.retired,
-    retired: row.retired,
-    discouraged: row.discouraged,
-  };
+  return rows[0]?.retired ?? false;
 }

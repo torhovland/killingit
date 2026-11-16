@@ -2,7 +2,7 @@ import { decrypt } from "../crypto/credentials.js";
 import { AthleteFacingError } from "../http/errors.js";
 import { withPromptLogging } from "./callLog.js";
 import { llmCredentialsKeyFromEnv } from "./credentials.js";
-import { modelIsUsable } from "./modelCatalog.js";
+import { modelIsRetired } from "./modelCatalog.js";
 import { createOpenRouterProvider, type LlmProvider } from "./openrouter.js";
 import { loadLlmSettings } from "./store.js";
 
@@ -27,8 +27,7 @@ export interface LlmClient {
 }
 
 async function assertModelUsable(model: string, role: "season" | "daily") {
-  const state = await modelIsUsable(model);
-  if (state === null || state.usable) return;
+  if (!(await modelIsRetired(model))) return;
   throw new LlmModelChoiceError(
     `Your ${role === "season" ? "season planning" : "day-to-day"} model ${model} is retired. Open Settings and choose another model.`,
   );
