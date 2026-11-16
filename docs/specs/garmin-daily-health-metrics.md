@@ -128,7 +128,11 @@ wins when the two conflict.
 1. Sync activities and their analyses first. A failed activity sync stops the
    run; daily health is never fetched without fresh activities.
 2. Compute the 42-date inclusive window ending today, the same window the
-   activity sync covers.
+   activity sync covers. `GARMIN_DAILY_SYNC_WINDOW_DAYS` in
+   `apps/api/src/garmin/dailySync.ts` must equal the sidecar's
+   `SYNC_WINDOW_DAYS` in `services/garmin/values.py`;
+   `apps/api/src/garmin/contract.test.ts` reads the Python declaration and
+   asserts the two are equal, so neither language can move the window alone.
 3. Walk dates from today backwards. Refresh today and yesterday even when a
    watermark exists; for older dates skip those already marked in
    `garmin_daily_sync`.

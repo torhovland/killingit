@@ -8,6 +8,7 @@ import {
   type Activity,
 } from "@killingit/shared";
 import { syncGarminActivities, type GarminCredentials } from "./client.js";
+import { GARMIN_DAILY_SYNC_WINDOW_DAYS } from "./dailySync.js";
 
 /**
  * The TypeScript half of the sidecar contract. The Python sidecar builds its
@@ -20,9 +21,14 @@ import { syncGarminActivities, type GarminCredentials } from "./client.js";
  *
  * The fixtures are regenerated from the sidecar (see
  * `services/garmin/README.md`); this test never writes.
+ *
+ * It also reads the sidecar's `SYNC_WINDOW_DAYS` declaration directly, because
+ * the two languages walk the same inclusive history window and nothing else
+ * checks that the numbers still agree.
  */
 const REPO_ROOT = join(import.meta.dir, "..", "..", "..", "..");
 const CONTRACT_DIR = join(REPO_ROOT, "services", "garmin", "contract");
+const SIDECAR_VALUES = join(REPO_ROOT, "services", "garmin", "values.py");
 
 const CREDENTIALS: GarminCredentials = {
   username: "athlete@example.com",
@@ -54,6 +60,23 @@ function readContract(name: string): unknown {
     readFileSync(join(CONTRACT_DIR, name), "utf8"),
   );
   return parsed;
+}
+
+/**
+ * Reads the sidecar's inclusive history window from its declaration in
+ * `values.py`. The two languages walk the same dates, so a rename or a changed
+ * number must fail here instead of silently drifting.
+ */
+function readSidecarSyncWindowDays(): number {
+  const match = /^SYNC_WINDOW_DAYS\s*=\s*(\d+)\s*$/m.exec(
+    readFileSync(SIDECAR_VALUES, "utf8"),
+  );
+  if (match === null) {
+    throw new Error(
+      "services/garmin/values.py no longer declares SYNC_WINDOW_DAYS as an integer; update this parity test",
+    );
+  }
+  return Number(match[1]);
 }
 
 /** Answers the sidecar's `/sync` call with one fixture and records the request. */
@@ -267,5 +290,12 @@ describe("Garmin sidecar contract fixtures", () => {
     expect(Object.keys(response.metrics)).toHaveLength(
       DAILY_HEALTH_METRIC_KEYS.length,
     );
+  });
+
+  it("pins the daily sync window to the sidecar's SYNC_WINDOW_DAYS", () => {
+    // The API's daily pass and the sidecar's `date_window` each walk an
+    // inclusive window ending today. A change on one side alone makes the two
+    // fetch different histories.
+    expect(GARMIN_DAILY_SYNC_WINDOW_DAYS).toBe(readSidecarSyncWindowDays());
   });
 });
