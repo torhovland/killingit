@@ -1,10 +1,11 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { foodEntrySchema, type FoodEntry } from "@killingit/shared";
 import { useBusyReporter } from "../AppStatus";
 import { useAuth } from "../auth";
 import { requestParsed } from "../fetchAuthed";
 import { FoodEntryCard } from "./FoodEntryCard";
-import { prepareMealPhoto } from "../imageUpload";
+import { MealPhotoControls } from "./MealPhotoControls";
+import { useMealPhoto } from "./useMealPhoto";
 import { reportError } from "../reportError";
 import { SubmitButton } from "../SubmitButton";
 import { useTimeZone } from "../TimeZoneContext";
@@ -12,7 +13,6 @@ import { toWallClockValue, wallClockToIso } from "../timeZone";
 import { getToday } from "../useToday";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
-import { HiddenFileInput } from "../components/HiddenFileInput";
 import { Input } from "../components/Input";
 import { Textarea } from "../components/Textarea";
 
@@ -32,46 +32,26 @@ export function FoodLogSection({
   const auth = useAuth();
   const timeZone = useTimeZone();
   const reportSave = useBusyReporter("food-log");
-  const cameraInput = useRef<HTMLInputElement>(null);
-  const uploadInput = useRef<HTMLInputElement>(null);
 
   const [eatenAt, setEatenAt] = useState(() =>
     toWallClockValue(new Date(), timeZone),
   );
   const [description, setDescription] = useState("");
-  const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null);
-  const [photoName, setPhotoName] = useState<string | null>(null);
-  const [preparingPhoto, setPreparingPhoto] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<FoodEntry | null>(null);
+  const photo = useMealPhoto({ setError });
 
   if (!enabled) {
     return null;
   }
 
-  async function choosePhoto(file: File | undefined): Promise<void> {
-    if (file === undefined) {
-      return;
-    }
-    setPreparingPhoto(true);
-    setError(null);
-    try {
-      setPhotoDataUrl(await prepareMealPhoto(file));
-      setPhotoName(file.name);
-    } catch (err: unknown) {
-      setError(reportError(err));
-    } finally {
-      setPreparingPhoto(false);
-    }
-  }
-
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (
-      (!description.trim() && photoDataUrl === null) ||
+      (!description.trim() && photo.photoDataUrl === null) ||
       submitting ||
-      preparingPhoto
+      photo.preparingPhoto
     ) {
       return;
     }
@@ -94,15 +74,14 @@ export function FoodLogSection({
             timezone: timeZone,
             today,
             description: description.trim() || null,
-            photoDataUrl,
+            photoDataUrl: photo.photoDataUrl,
           }),
         },
       );
       setResult(parsed);
       onLogged?.(parsed);
       setDescription("");
-      setPhotoDataUrl(null);
-      setPhotoName(null);
+      photo.clearPhoto();
       setEatenAt(toWallClockValue(new Date(), timeZone));
     } catch (err: unknown) {
       setError(reportError(err));
@@ -165,50 +144,15 @@ export function FoodLogSection({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <HiddenFileInput
-            ref={cameraInput}
-            accept="image/*"
-            capture="environment"
-            data-testid="meal-photo-camera"
-            onChange={(event) => {
-              const file = event.currentTarget.files?.[0];
-              event.currentTarget.value = "";
-              void choosePhoto(file);
-            }}
-          />
-          <HiddenFileInput
-            ref={uploadInput}
-            accept="image/*"
-            data-testid="meal-photo-upload"
-            onChange={(event) => {
-              const file = event.currentTarget.files?.[0];
-              event.currentTarget.value = "";
-              void choosePhoto(file);
-            }}
-          />
-          <Button
-            type="button"
-            variant="secondary"
-            size="md"
-            disabled={preparingPhoto}
-            onClick={() => cameraInput.current?.click()}
-          >
-            Take photo
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            size="md"
-            disabled={preparingPhoto}
-            onClick={() => uploadInput.current?.click()}
-          >
-            Upload image
-          </Button>
-          {photoDataUrl !== null && (
+        <MealPhotoControls
+          photo={photo}
+          cameraTestId="meal-photo-camera"
+          uploadTestId="meal-photo-upload"
+        >
+          {photo.photoDataUrl !== null && (
             <>
               <img
-                src={photoDataUrl}
+                src={photo.photoDataUrl}
                 alt="The meal you attached"
                 className="h-16 w-16 rounded object-cover"
               />
@@ -217,26 +161,13 @@ export function FoodLogSection({
                 variant="secondary"
                 size="md"
                 className="text-sm"
-                onClick={() => {
-                  setPhotoDataUrl(null);
-                  setPhotoName(null);
-                }}
+                onClick={photo.clearPhoto}
               >
                 Remove photo
               </Button>
             </>
           )}
-          {preparingPhoto && (
-            <span className="text-sm text-muted-foreground">
-              Preparing photo…
-            </span>
-          )}
-          {photoName !== null && photoDataUrl !== null && (
-            <span className="max-w-48 truncate text-sm text-muted-foreground">
-              {photoName}
-            </span>
-          )}
-        </div>
+        </MealPhotoControls>
 
         <SubmitButton
           busy={submitting}
@@ -244,7 +175,8 @@ export function FoodLogSection({
           size="md"
           className="self-start"
           disabled={
-            (!description.trim() && photoDataUrl === null) || preparingPhoto
+            (!description.trim() && photo.photoDataUrl === null) ||
+            photo.preparingPhoto
           }
         >
           {submitting ? "Coach is thinking…" : "Log meal"}
