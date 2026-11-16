@@ -1,17 +1,21 @@
 import { afterAll, describe, expect, it, mock } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
+import type { AuthState } from "../auth";
 
 const { SessionExpiredError } = await import("../auth/session");
 
+/** Stable identity, as the real `useAuth` contract promises. */
+const auth: AuthState = {
+  isAuthenticated: true,
+  isLoading: false,
+  login: () => Promise.resolve(),
+  logout: () => Promise.resolve(),
+  getToken: () => Promise.resolve("token"),
+};
+
 await mock.module("../auth", () => ({
   SessionExpiredError,
-  useAuth: () => ({
-    isAuthenticated: true,
-    isLoading: false,
-    login: () => Promise.resolve(),
-    logout: () => Promise.resolve(),
-    getToken: () => Promise.resolve("token"),
-  }),
+  useAuth: () => auth,
 }));
 
 afterAll(() => {

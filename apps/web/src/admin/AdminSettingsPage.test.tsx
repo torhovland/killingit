@@ -25,14 +25,37 @@ function restoreEnv(name: string, value: string | undefined): void {
 // `isDateOverrideAllowed()` guard already renders nothing in production, so a
 // real one would pass the production case whether or not the page compiled it
 // out.
+//
+// A module mock outlives the file that registered it for late imports, so the
+// two sections with their own suites delegate to the real component whenever
+// this suite is not running. Otherwise their suites would render the stub and
+// time out. See `docs/specs/web-interaction-tests.md`.
+const { AdminLlmCallsSection: RealAdminLlmCallsSection } =
+  await import("./AdminLlmCallsSection");
+const { AdminModelRemarksSection: RealAdminModelRemarksSection } =
+  await import("./AdminModelRemarksSection");
+
+/** Whether this suite's own tests are running, so the stubs may stand in. */
+let ownSuite = false;
+
 await mock.module("./AdminQuestionsSection", () => ({
   AdminQuestionsSection: () => <div data-testid="questions-stub" />,
 }));
 await mock.module("./AdminLlmCallsSection", () => ({
-  AdminLlmCallsSection: () => <div data-testid="llm-calls-stub" />,
+  AdminLlmCallsSection: () =>
+    ownSuite ? (
+      <div data-testid="llm-calls-stub" />
+    ) : (
+      <RealAdminLlmCallsSection />
+    ),
 }));
 await mock.module("./AdminModelRemarksSection", () => ({
-  AdminModelRemarksSection: () => <div data-testid="remarks-stub" />,
+  AdminModelRemarksSection: () =>
+    ownSuite ? (
+      <div data-testid="remarks-stub" />
+    ) : (
+      <RealAdminModelRemarksSection />
+    ),
 }));
 await mock.module("./DevDatePicker", () => ({
   DevDatePicker: () => <div data-testid="dev-date-picker-stub" />,
@@ -45,11 +68,13 @@ afterAll(() => {
 const { AdminSettingsPage } = await import("./AdminSettingsPage");
 
 beforeEach(() => {
+  ownSuite = true;
   delete process.env.DEV;
   delete process.env.VITE_APP_ENV;
 });
 
 afterEach(() => {
+  ownSuite = false;
   restoreEnv("DEV", originalDev);
   restoreEnv("VITE_APP_ENV", originalAppEnv);
 });
