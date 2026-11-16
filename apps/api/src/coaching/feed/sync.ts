@@ -39,13 +39,17 @@ export interface FeedSyncDependencies {
   store?: ActivityStore;
 }
 
-/** The stored credentials, or a typed error the route can report. */
+/**
+ * The stored credentials, or a typed error the route can report. The decrypting
+ * loader is injectable so a route test can fail the read without a database.
+ */
 export async function loadGarminCredentials(
   userId: number,
+  load: typeof loadDecryptedGarminCredentials = loadDecryptedGarminCredentials,
 ): Promise<GarminCredentials> {
   let credentials;
   try {
-    credentials = await loadDecryptedGarminCredentials(userId);
+    credentials = await load(userId);
   } catch (err) {
     throw new GarminCredentialsError(
       "Garmin credentials are unavailable (check GARMIN_CREDENTIALS_KEY)",

@@ -141,16 +141,10 @@ export async function requestPlanUpdate(
       context.coachingSurveyAdjustments.length > 0
         ? { coachingSurveyAdjustments: context.coachingSurveyAdjustments }
         : {}),
-      ...(options.expectedBlockStartDate !== undefined
-        ? { blockStartDate: options.expectedBlockStartDate }
-        : {}),
+      blockStartDate: options.expectedBlockStartDate,
       ...(options.reviseBlock === true ? { reviseBlock: true } : {}),
-      ...(options.nextBlockStartDate !== undefined
-        ? { nextBlockStartDate: options.nextBlockStartDate }
-        : {}),
-      ...(options.nextWeekStartDate !== undefined
-        ? { nextWeekStartDate: options.nextWeekStartDate }
-        : {}),
+      nextBlockStartDate: options.nextBlockStartDate,
+      nextWeekStartDate: options.nextWeekStartDate,
     },
   );
   await recordCoachQuestion(input, update.coachQuestion, "plan_update", model);

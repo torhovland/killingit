@@ -49,7 +49,7 @@ export function createWeeklyNoteHandlers(deps: ResolvedCoachingDependencies) {
       await deps.trigger(deps.triggerDeps, {
         userId: user.id,
         today,
-        ...(timeZone !== undefined ? { timezone: timeZone } : {}),
+        timezone: timeZone,
       });
 
       return c.json(

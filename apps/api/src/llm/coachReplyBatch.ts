@@ -13,7 +13,7 @@ export interface CoachReplyBatchCredentials {
   apiKey: string;
   model: string;
   /** Cancels the completion when a newer coach run starts. */
-  signal?: AbortSignal;
+  signal?: AbortSignal | undefined;
 }
 
 const replyBatchSchema = z.object({

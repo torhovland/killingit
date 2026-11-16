@@ -10,6 +10,7 @@ import {
 } from "@killingit/shared";
 import { zValidator } from "../http/validation.js";
 import { Hono } from "hono";
+import type { Context } from "hono";
 import { getUser } from "../auth/middleware.js";
 import { isDietGoalProvided } from "../diet/goal.js";
 import {
@@ -31,6 +32,7 @@ import { analyzeFood } from "../llm/foodAnalysis.js";
 import type { PreviousFoodAnalysis } from "../llm/foodPrompt.js";
 import { localDateTimeInZone } from "../plans/dates.js";
 import { loadPlanDayCalorieTargets } from "../plans/dayCalories.js";
+import { loadValidatedPlan } from "../plans/store.js";
 import type { QuestionAnswerStore } from "../questions/answers.js";
 import { buildDietSummary } from "../diet/days.js";
 import { toFoodEntry } from "../diet/presenter.js";
@@ -131,9 +133,7 @@ async function analyseMeal(
         eatenTime: request.eatenTime,
         description: request.description,
         photoDataUrl: request.photoDataUrl,
-        ...(request.previous !== undefined
-          ? { previous: request.previous }
-          : {}),
+        previous: request.previous,
       },
     );
     return {
@@ -153,6 +153,68 @@ async function analyseMeal(
       }),
     };
   }
+}
+
+/**
+ * The 409 answer for a diet write the athlete has not enabled diet advice for,
+ * or null when the request may continue. Settings is the only place the
+ * feature is switched on.
+ */
+function requireDietAdvice(c: Context, dietAdvice: boolean): Response | null {
+  if (dietAdvice) {
+    return null;
+  }
+  return conflict(
+    c,
+    "Diet advice is not enabled. Turn it on in Settings first.",
+  );
+}
+
+/** The meal fields a create or an edit may state. */
+interface MealInput {
+  eatenAt?: string | undefined;
+  timezone?: string | undefined;
+  today?: string | undefined;
+  description?: string | null | undefined;
+}
+
+/** The local timing and description one meal row stores. */
+interface ResolvedMeal {
+  eatenAt: Date;
+  eatenDate: string;
+  eatenTime: string;
+  /** The athlete's local day the coach is asked about. */
+  today: string;
+  description: string | null;
+}
+
+/**
+ * Resolves a meal body into the fields its row stores. The caller supplies the
+ * meal instant: a create takes it from the body, while an edit keeps the stored
+ * one when the body omits it. The local date and time are derived in the body's
+ * time zone, falling back to the athlete's, and an omitted description keeps
+ * the stored one.
+ */
+function resolveMeal(
+  input: MealInput,
+  options: {
+    eatenAt: Date;
+    storedDescription: string | null;
+    accountTimezone: string | null;
+  },
+): ResolvedMeal {
+  const timezone = input.timezone ?? options.accountTimezone;
+  const local = localDateTimeInZone(options.eatenAt, timezone);
+  return {
+    eatenAt: options.eatenAt,
+    eatenDate: local.date,
+    eatenTime: local.time,
+    today: input.today ?? localDateTimeInZone(new Date(), timezone).date,
+    description:
+      input.description === undefined
+        ? options.storedDescription
+        : input.description?.trim() || null,
+  };
 }
 
 /**
@@ -215,7 +277,7 @@ export function createDietRoute(deps: ResolvedAppDependencies): Hono {
         addDays(today, -EMPTY_SUMMARY_DAYS);
       const [targets, plan] = await Promise.all([
         loadTargets(user.id, earliest, today),
-        deps.planStore.load(user.id),
+        loadValidatedPlan(deps.planStore, user.id),
       ]);
       const diet = plan?.plan.diet ?? null;
       // The summary always reports a boolean, so no stored plan reads as "the
@@ -245,20 +307,17 @@ export function createDietRoute(deps: ResolvedAppDependencies): Hono {
     })
     .post("/entries", zValidator("json", foodEntryRequestSchema), async (c) => {
       const user = getUser(c);
-      if (!user.dietAdvice) {
-        return conflict(
-          c,
-          "Diet advice is not enabled. Turn it on in Settings first.",
-        );
+      const refusal = requireDietAdvice(c, user.dietAdvice);
+      if (refusal !== null) {
+        return refusal;
       }
 
       const input = c.req.valid("json");
-      const eatenAt = new Date(input.eatenAt);
-      const timezone = input.timezone ?? user.timezone;
-      const local = localDateTimeInZone(eatenAt, timezone);
-      const today =
-        input.today ?? localDateTimeInZone(new Date(), timezone).date;
-      const description = input.description?.trim() || null;
+      const meal = resolveMeal(input, {
+        eatenAt: new Date(input.eatenAt),
+        storedDescription: null,
+        accountTimezone: user.timezone,
+      });
       // The bounded analysis copy and the thumbnail are generated from the same
       // bytes, so the coach and the stored image can never disagree. Neither the
       // original nor the analysis copy is stored.
@@ -270,20 +329,20 @@ export function createDietRoute(deps: ResolvedAppDependencies): Hono {
       const result = await analyseMeal(
         {
           userId: user.id,
-          today,
-          eatenDate: local.date,
-          eatenTime: local.time,
-          description,
+          today: meal.today,
+          eatenDate: meal.eatenDate,
+          eatenTime: meal.eatenTime,
+          description: meal.description,
           photoDataUrl: photos.analysisDataUrl,
         },
         analysisDeps,
       );
 
       const stored = await entries.create(user.id, {
-        eatenAt,
-        eatenDate: local.date,
-        eatenTime: local.time,
-        description,
+        eatenAt: meal.eatenAt,
+        eatenDate: meal.eatenDate,
+        eatenTime: meal.eatenTime,
+        description: meal.description,
         thumbnailDataUrl: photos.thumbnailDataUrl,
         analysis: result.analysis,
         model: result.model,
@@ -298,11 +357,9 @@ export function createDietRoute(deps: ResolvedAppDependencies): Hono {
       async (c) => {
         const { id } = c.req.valid("param");
         const user = getUser(c);
-        if (!user.dietAdvice) {
-          return conflict(
-            c,
-            "Diet advice is not enabled. Turn it on in Settings first.",
-          );
+        const refusal = requireDietAdvice(c, user.dietAdvice);
+        if (refusal !== null) {
+          return refusal;
         }
         const existing = await entries.findForUser(user.id, id);
         if (existing === null) {
@@ -310,18 +367,14 @@ export function createDietRoute(deps: ResolvedAppDependencies): Hono {
         }
 
         const input = c.req.valid("json");
-        const eatenAt =
-          input.eatenAt === undefined
-            ? existing.eatenAt
-            : new Date(input.eatenAt);
-        const timezone = input.timezone ?? user.timezone;
-        const local = localDateTimeInZone(eatenAt, timezone);
-        const today =
-          input.today ?? localDateTimeInZone(new Date(), timezone).date;
-        const description =
-          input.description === undefined
-            ? existing.description
-            : input.description?.trim() || null;
+        const meal = resolveMeal(input, {
+          eatenAt:
+            input.eatenAt === undefined
+              ? existing.eatenAt
+              : new Date(input.eatenAt),
+          storedDescription: existing.description,
+          accountTimezone: user.timezone,
+        });
 
         // An edit without a new photo re-analyses the stored thumbnail, because
         // the full-resolution original and the analysis copy are never kept.
@@ -341,17 +394,17 @@ export function createDietRoute(deps: ResolvedAppDependencies): Hono {
           photoDataUrl = null;
         }
 
-        if (description === null && thumbnailDataUrl === null) {
+        if (meal.description === null && thumbnailDataUrl === null) {
           return badRequest(c, "Describe the meal or keep a photo.");
         }
 
         const result = await analyseMeal(
           {
             userId: user.id,
-            today,
-            eatenDate: local.date,
-            eatenTime: local.time,
-            description,
+            today: meal.today,
+            eatenDate: meal.eatenDate,
+            eatenTime: meal.eatenTime,
+            description: meal.description,
             photoDataUrl,
             previous: {
               description: existing.description,
@@ -362,10 +415,10 @@ export function createDietRoute(deps: ResolvedAppDependencies): Hono {
         );
 
         const stored = await entries.update(user.id, id, {
-          eatenAt,
-          eatenDate: local.date,
-          eatenTime: local.time,
-          description,
+          eatenAt: meal.eatenAt,
+          eatenDate: meal.eatenDate,
+          eatenTime: meal.eatenTime,
+          description: meal.description,
           thumbnailDataUrl,
           analysis: result.analysis,
           model: result.model,

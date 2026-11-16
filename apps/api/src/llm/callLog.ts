@@ -169,9 +169,7 @@ function requestMetadata(request: LlmCompletionRequest): LlmCallMetadata {
     ...(request.metadata ?? {}),
     temperature: request.temperature,
     maxTokens: request.maxTokens,
-    ...(request.reasoning !== undefined
-      ? { reasoning: request.reasoning }
-      : {}),
+    reasoning: request.reasoning,
   };
 }
 

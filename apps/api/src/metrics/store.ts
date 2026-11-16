@@ -12,7 +12,7 @@ import {
   type ThresholdSummary,
 } from "@killingit/shared";
 import { and, asc, eq, gt, inArray, notInArray, or, sql } from "drizzle-orm";
-import { db } from "../db/index.js";
+import { db, type DbExecutor } from "../db/index.js";
 import {
   athleteMetrics,
   athleteThresholds,
@@ -26,10 +26,6 @@ import {
   FTP_THRESHOLD,
   type ThresholdTimeline,
 } from "../training/thresholds.js";
-
-/** The shared connection or one transaction on it, so a rewrite can be atomic. */
-type DbExecutor =
-  typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 /** One dated body-metric value in a batched write. */
 type MetricWrite = {
@@ -48,6 +44,25 @@ type ThresholdWrite = {
   date: string;
   value: number;
 };
+
+/**
+ * One date's body-composition values as batched writes, skipping a value the
+ * sample or statement did not state.
+ */
+function bodyWrites(
+  date: string,
+  weightKg: number | null | undefined,
+  bodyFatPercent: number | null | undefined,
+): MetricWrite[] {
+  const writes: MetricWrite[] = [];
+  if (weightKg != null) {
+    writes.push({ metric: "weight", date, value: weightKg });
+  }
+  if (bodyFatPercent != null) {
+    writes.push({ metric: "body_fat", date, value: bodyFatPercent });
+  }
+  return writes;
+}
 
 /** Loads one body metric's stored points, oldest first. */
 export async function loadMetricPoints(
@@ -92,36 +107,16 @@ async function loadThresholdPoints(
 }
 
 /**
- * Stores a coach threshold estimate and discards older coach estimates that
- * fall after it. Athlete measurements are never removed. The same day is left
- * untouched when the athlete or Garmin already supplied a value there.
+ * Stores a coach cycling FTP estimate, the legacy power-specific entry point.
  */
-async function recordCoachThreshold(input: {
-  userId: number;
-  sport: string;
-  measure: string;
-  label: string;
-  unit: string;
-  kind: AthleteThresholdStatement["kind"];
-  date: string;
-  value: number;
-}): Promise<void> {
-  const { userId, ...estimate } = input;
-  await recordCoachThresholds(userId, [estimate]);
-}
-
-/** Stores a coach cycling FTP estimate, the legacy power-specific entry point. */
 export async function recordCoachFtp(input: {
   userId: number;
   date: string;
   watts: number;
 }): Promise<void> {
-  await recordCoachThreshold({
-    userId: input.userId,
-    ...FTP_THRESHOLD,
-    date: input.date,
-    value: input.watts,
-  });
+  await recordCoachThresholds(input.userId, [
+    { ...FTP_THRESHOLD, date: input.date, value: input.watts },
+  ]);
 }
 
 /** Stores every FTP estimate the coach returned for a plan. */
@@ -197,23 +192,9 @@ export async function recordGarminBodyMetrics(
   userId: number,
   samples: readonly GarminBodyMetricSample[],
 ): Promise<void> {
-  const writes: MetricWrite[] = [];
-  for (const sample of samples) {
-    if (sample.weightKg !== undefined) {
-      writes.push({
-        metric: "weight",
-        date: sample.date,
-        value: sample.weightKg,
-      });
-    }
-    if (sample.bodyFatPercent !== undefined) {
-      writes.push({
-        metric: "body_fat",
-        date: sample.date,
-        value: sample.bodyFatPercent,
-      });
-    }
-  }
+  const writes = samples.flatMap((sample) =>
+    bodyWrites(sample.date, sample.weightKg, sample.bodyFatPercent),
+  );
   await recordMetricBatch(db, userId, "garmin", ["user"], writes);
 }
 
@@ -250,26 +231,11 @@ export async function recordCoachBodyMetrics(
   points: readonly BodyMetricEstimate[],
   throughDate?: string,
 ): Promise<void> {
-  const writes: MetricWrite[] = [];
-  for (const point of points) {
-    if (throughDate !== undefined && point.date > throughDate) {
-      continue;
-    }
-    if (point.weightKg !== null) {
-      writes.push({
-        metric: "weight",
-        date: point.date,
-        value: point.weightKg,
-      });
-    }
-    if (point.bodyFatPercent !== null) {
-      writes.push({
-        metric: "body_fat",
-        date: point.date,
-        value: point.bodyFatPercent,
-      });
-    }
-  }
+  const writes = points
+    .filter((point) => throughDate === undefined || point.date <= throughDate)
+    .flatMap((point) =>
+      bodyWrites(point.date, point.weightKg, point.bodyFatPercent),
+    );
   await recordMetricBatch(db, userId, "coach", ["user", "garmin"], writes);
 }
 
@@ -430,20 +396,13 @@ export async function recordAthleteMetricStatements(
   const metricWrites: MetricWrite[] = [];
   const thresholdWrites: ThresholdWrite[] = [];
   for (const statement of current) {
-    if (statement.weightKg !== null) {
-      metricWrites.push({
-        metric: "weight",
-        date: statement.date,
-        value: statement.weightKg,
-      });
-    }
-    if (statement.bodyFatPercent !== null) {
-      metricWrites.push({
-        metric: "body_fat",
-        date: statement.date,
-        value: statement.bodyFatPercent,
-      });
-    }
+    metricWrites.push(
+      ...bodyWrites(
+        statement.date,
+        statement.weightKg,
+        statement.bodyFatPercent,
+      ),
+    );
     for (const threshold of statement.thresholds) {
       thresholdWrites.push({
         sport: threshold.sport ?? "other",

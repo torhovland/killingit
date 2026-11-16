@@ -29,21 +29,26 @@ and nowhere else, so every new route could copy the wrong message again.
     `@killingit/shared`.
   - `timezoneSchema` — the athlete's optional IANA zone, a bounded non-empty
     string.
+  - `booleanQuerySchema` — a flag sent as the literal `"true"` or `"false"`,
+    coerced to a boolean and false when absent.
   - `todayWithTimezoneQuerySchema` — `today` plus `timezone`, the shape a day
     boundary or a mutation needs.
 - A route that also accepts another field composes the shared schema instead of
   copying it: the fitness route extends `todayQuerySchema` with `range` and
-  `timezone`, and the activity feed derives its optional `today` through
+  `timezone`, the plan route with `includeTomorrow`, the activity feed with
+  `refresh`, and the activity feed derives its optional `today` through
   `.partial()`.
 - Every handler reads the parsed value through `c.req.valid("query")`. Where a
   route is wired in `apps/api/src/routes/coaching/index.ts`, the
   `zValidator("query", ...)` runs on the Hono route and the handler takes the
   parsed value. No route parses `c.req.query("today")` or calls
-  `planDateSchema.safeParse` itself.
+  `planDateSchema.safeParse` itself, and no route coerces a query flag by hand.
 - `apps/api/src/routeQueryGuard.test.ts` scans the production route files and
-  fails when one parses `today` by hand. It runs in the existing unit-test job.
-  It ignores legitimate schema composition such as
-  `today: planDateSchema.optional()`.
+  fails when one parses `today` by hand or compares `c.req.query(...)` with a
+  string literal to make a boolean. It runs in the existing unit-test job. It
+  ignores legitimate schema composition such as
+  `today: planDateSchema.optional()` and
+  `includeTomorrow: booleanQuerySchema`.
 
 ## Out of scope
 
@@ -51,8 +56,8 @@ and nowhere else, so every new route could copy the wrong message again.
   body changes to the shared contract with `code: "validation_failed"` and the
   Zod issues under `details.issues`.
 - Response shapes and route paths, which are unchanged.
-- Route inputs other than `today` that a handler reads directly, such as the
-  plan route's `includeTomorrow` flag, which this refactor leaves alone.
+- Free-text query fields validated in their handler, such as the weather
+  geocoder's `q`, which keeps its route-specific message.
 
 ## Acceptance criteria
 
@@ -66,14 +71,19 @@ and nowhere else, so every new route could copy the wrong message again.
 valid"` and at least one issue.
 2. A valid `today` still reaches the handler as a `PlanDate`, and an absent
    `timezone` still falls back to the athlete's stored zone.
-3. No production route file under `apps/api/src/routes` reads
-   `c.req.query("today")` or calls `planDateSchema.safeParse`.
-4. `bun run typecheck`, `bun run lint`, `bun run format`, `bun run test`,
+3. `GET /api/coaching/plan` accepts `includeTomorrow=true` and
+   `includeTomorrow=false` and rejects any other value with the same `400`
+   contract; an absent flag means false.
+4. No production route file under `apps/api/src/routes` reads
+   `c.req.query("today")`, calls `planDateSchema.safeParse`, or coerces a query
+   flag by hand.
+5. `bun run typecheck`, `bun run lint`, `bun run format`, `bun run test`,
    `bun run check:unused` and `bun run test:coverage` pass.
 
 ## Data model and API impact
 
 No schema or migration. The API contract is unchanged except that an invalid
-`today` now answers the shared `validation_failed` contract with the default
-message instead of a route-specific sentence. The Zod issues point at the same
-`today` field.
+`today`, or an `includeTomorrow` other than `true` or `false`, now answers the
+shared `validation_failed` contract with the default message instead of a
+route-specific sentence or a silent false. The Zod issues point at the same
+field.

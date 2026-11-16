@@ -121,8 +121,11 @@ whether or not any work ran.
 
 ### Settings
 
-`llm_settings` gains `season_model` and `daily_model`; the legacy `model` column
-remains as the fallback. The Settings page shows one table of non-retired
+`llm_settings` stores `season_model` and `daily_model`, both required; the legacy
+`model` column is dropped after migration 0056 backfills it into either role.
+The response still mirrors the day-to-day choice in its legacy `model` field and
+the update form still accepts it, for client compatibility, but nothing reads a
+stored `model` column. The Settings page shows one table of non-retired
 models, plus any currently selected retired model with `(retired)` appended to
 its name.
 

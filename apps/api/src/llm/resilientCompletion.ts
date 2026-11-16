@@ -63,16 +63,16 @@ export interface CompletionOptions {
   /** Sampling temperature, named by the caller's intent; there is no default. */
   temperature: number;
   /** The coaching task, recorded in the prompt log. */
-  kind?: LlmPromptKind;
+  kind?: LlmPromptKind | undefined;
   /** Extra prompt-log metadata such as the season or week being planned. */
-  metadata?: LlmCallMetadata;
+  metadata?: LlmCallMetadata | undefined;
   /** Shared retry and time budget; a fresh one is created when omitted. */
   budget?: CompletionBudget;
 }
 
 interface CompletionAttempt {
   maxTokens: number;
-  reasoning?: LlmReasoning;
+  reasoning?: LlmReasoning | undefined;
 }
 
 const ATTEMPTS_MESSAGE =
@@ -134,10 +134,8 @@ export async function completeWithFallbacks(
         messages,
         temperature: options.temperature,
         maxTokens: attempt.maxTokens,
-        ...(attempt.reasoning !== undefined
-          ? { reasoning: attempt.reasoning }
-          : {}),
-        ...(options.kind !== undefined ? { kind: options.kind } : {}),
+        reasoning: attempt.reasoning,
+        kind: options.kind,
         // The deadline aborts an attempt that would outlive the budget, so a
         // slow model cannot stretch one call past its wall-clock allowance.
         signal:

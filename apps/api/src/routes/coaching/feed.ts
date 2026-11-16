@@ -8,6 +8,7 @@ import { z } from "zod";
 import { getUser } from "../../auth/middleware.js";
 import { respondUpstreamError, serviceUnavailable } from "../../http/errors.js";
 import {
+  booleanQuerySchema,
   todayQuerySchema,
   timezoneSchema,
   type TodayWithTimezoneQuery,
@@ -20,10 +21,7 @@ import { latestActivityAnalysisTimestamp } from "../../plans/status.js";
 import type { ResolvedCoachingDependencies } from "./dependencies.js";
 
 export const activityFeedQuerySchema = todayQuerySchema.partial().extend({
-  refresh: z
-    .enum(["true", "false"])
-    .default("false")
-    .transform((value) => value === "true"),
+  refresh: booleanQuerySchema,
   timezone: timezoneSchema,
 });
 
@@ -70,7 +68,7 @@ export function createFeedHandlers(deps: ResolvedCoachingDependencies) {
         {
           userId,
           today,
-          ...(timezone !== undefined ? { timezone } : {}),
+          timezone,
         },
       );
     } catch (err) {
@@ -153,7 +151,7 @@ export function createFeedHandlers(deps: ResolvedCoachingDependencies) {
       await deps.trigger(deps.triggerDeps, {
         userId: user.id,
         today,
-        ...(timezone !== undefined ? { timezone } : {}),
+        timezone,
       });
 
       return c.json(

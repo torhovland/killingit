@@ -13,6 +13,13 @@ const REPO_ROOT = join(import.meta.dir, "..", "..", "..");
 const ROUTES = join(REPO_ROOT, "apps", "api", "src", "routes");
 const HAND_PARSED_TODAY =
   /c\.req\.query\(\s*["']today["']\s*\)|planDateSchema\.safeParse/;
+/**
+ * A query flag belongs in a route's `zValidator("query", ...)` schema too: the
+ * handler reads the coerced boolean through `c.req.valid("query")`, so an
+ * unknown value fails validation instead of silently meaning false.
+ */
+const HAND_PARSED_QUERY_FLAG =
+  /c\.req\.query\([^)]*\)\s*(?:===|!==|==|!=)\s*["']|Boolean\(\s*c\.req\.query\(/;
 
 function productionFiles(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -42,5 +49,21 @@ describe("route query today", () => {
     expect(HAND_PARSED_TODAY.test("today: planDateSchema.optional()")).toBe(
       false,
     );
+  });
+});
+
+describe("route query flags", () => {
+  it("never coerces a query flag without the shared query schema", () => {
+    const offenders = productionFiles(ROUTES)
+      .filter((path) => HAND_PARSED_QUERY_FLAG.test(readFileSync(path, "utf8")))
+      .map((path) => relative(REPO_ROOT, path));
+
+    expect(offenders).toEqual([]);
+  });
+
+  it("allows the shared boolean schema in a query object", () => {
+    expect(
+      HAND_PARSED_QUERY_FLAG.test("includeTomorrow: booleanQuerySchema"),
+    ).toBe(false);
   });
 });

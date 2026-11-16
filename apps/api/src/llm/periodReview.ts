@@ -10,7 +10,7 @@ export interface PeriodReviewCredentials {
   apiKey: string;
   model: string;
   /** Cancels the completion when a newer coach run starts. */
-  signal?: AbortSignal;
+  signal?: AbortSignal | undefined;
 }
 
 /** Asks the provider for a summary of a completed week or block. */

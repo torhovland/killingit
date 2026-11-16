@@ -24,10 +24,12 @@ import {
   coachQuestions,
   coachingSurveyAdjustments,
   foodEntries,
+  llmSettings,
   manualActivities,
   planDayCalories,
   users,
 } from "../src/db/schema.js";
+import * as dbSchema from "../src/db/schema.js";
 import { deleteImportedActivity } from "../src/coaching/deletions.js";
 import { saveAnalysis } from "../src/llm/analysisStore.js";
 import {
@@ -107,16 +109,16 @@ const INDEXED_TABLES = [
 const MIGRATIONS_FOLDER = join(import.meta.dir, "..", "drizzle");
 
 /**
- * Runs migration 0054's statements again. The suite migrates from empty, so a
+ * Runs one migration's statements again. The suite migrates from empty, so a
  * migration that repairs old rows needs its real SQL applied to a simulated
  * pre-state to prove it cannot fail on data an existing database may hold.
  */
-async function applyFtpRemovalMigration(): Promise<void> {
+async function applyMigration(prefix: string): Promise<void> {
   const files = (await readdir(MIGRATIONS_FOLDER)).filter((file) =>
-    file.startsWith("0054_"),
+    file.startsWith(`${prefix}_`),
   );
   if (files.length !== 1 || files[0] === undefined) {
-    throw new Error("expected exactly one 0054 migration file");
+    throw new Error(`expected exactly one ${prefix} migration file`);
   }
   const migration = await readFile(join(MIGRATIONS_FOLDER, files[0]), "utf8");
   for (const statement of migration.split("--> statement-breakpoint")) {
@@ -147,6 +149,23 @@ async function listIndexes(table: string): Promise<string[]> {
     sql`select indexname from pg_indexes where schemaname = 'public' and tablename = ${table} order by indexname`,
   );
   return result.rows.map((row) => row.indexname);
+}
+
+/** Every check constraint PostgreSQL reports for one public table, by name. */
+async function listCheckConstraints(table: string): Promise<string[]> {
+  const result = await db.execute<{ conname: string }>(
+    sql`
+      select conname
+      from pg_constraint
+      join pg_class on pg_class.oid = pg_constraint.conrelid
+      join pg_namespace on pg_namespace.oid = pg_class.relnamespace
+      where pg_namespace.nspname = 'public'
+        and pg_class.relname = ${table}
+        and pg_constraint.contype = 'c'
+      order by conname
+    `,
+  );
+  return result.rows.map((row) => row.conname);
 }
 
 /** Every stored threshold point, read through the page-facing loader. */
@@ -275,6 +294,14 @@ describe("migrations", () => {
     }
   });
 
+  it("keeps every declared check and the migrated database in step", async () => {
+    for (const table of Object.values(dbSchema)) {
+      const config = getTableConfig(table);
+      const declared = config.checks.map((entry) => entry.name).sort();
+      expect(await listCheckConstraints(config.name)).toEqual(declared);
+    }
+  });
+
   it("moves a legacy ftp metric into thresholds before narrowing the check", async () => {
     const user = await dbUserStore.ensureUser("auth0|legacy-ftp-metric");
     // Put the table back in its pre-0054 shape: the old check still allowed
@@ -305,7 +332,7 @@ describe("migrations", () => {
       value: 240,
     });
 
-    await applyFtpRemovalMigration();
+    await applyMigration("0054");
 
     expect(await thresholdPointsOf(user.id)).toEqual([
       {
@@ -345,6 +372,69 @@ describe("migrations", () => {
       code = postgresErrorCode(error);
     }
     expect(code).toBe("23514");
+  });
+
+  it("backfills the split models before it drops the legacy column", async () => {
+    const legacy = await dbUserStore.ensureUser("auth0|legacy-llm-settings");
+    const partial = await dbUserStore.ensureUser("auth0|partial-llm-settings");
+    // Put the table back in its pre-0056 shape: the split columns were
+    // nullable and the legacy column still held the only stored choice.
+    await db.execute(
+      sql`alter table llm_settings alter column season_model drop not null`,
+    );
+    await db.execute(
+      sql`alter table llm_settings alter column daily_model drop not null`,
+    );
+    await db.execute(sql`alter table llm_settings add column model text`);
+    await db.execute(
+      sql`alter table llm_settings alter column model set not null`,
+    );
+    await db.execute(
+      sql`insert into llm_settings (user_id, provider, api_key_encrypted, model)
+          values (${legacy.id}, 'openrouter', 'ciphertext', 'legacy/model')`,
+    );
+    await db.execute(
+      sql`insert into llm_settings
+            (user_id, provider, api_key_encrypted, model, season_model)
+          values (${partial.id}, 'openrouter', 'ciphertext', 'legacy/model', 'season/model')`,
+    );
+
+    await applyMigration("0056");
+
+    const rows = await db
+      .select({
+        userId: llmSettings.userId,
+        seasonModel: llmSettings.seasonModel,
+        dailyModel: llmSettings.dailyModel,
+      })
+      .from(llmSettings)
+      .orderBy(llmSettings.userId);
+    expect(rows).toEqual([
+      {
+        userId: legacy.id,
+        seasonModel: "legacy/model",
+        dailyModel: "legacy/model",
+      },
+      {
+        userId: partial.id,
+        seasonModel: "season/model",
+        dailyModel: "legacy/model",
+      },
+    ]);
+    const columns = await db.execute<{
+      column_name: string;
+      is_nullable: string;
+    }>(sql`
+      select column_name, is_nullable
+      from information_schema.columns
+      where table_schema = 'public' and table_name = 'llm_settings'
+        and column_name in ('model', 'season_model', 'daily_model')
+      order by column_name
+    `);
+    expect(columns.rows).toEqual([
+      { column_name: "daily_model", is_nullable: "NO" },
+      { column_name: "season_model", is_nullable: "NO" },
+    ]);
   });
 });
 

@@ -23,9 +23,9 @@ export interface PlanJsonCompletionOptions {
    */
   repairHint?: string;
   /** The coaching task, recorded in the prompt log. */
-  kind?: LlmPromptKind;
+  kind?: LlmPromptKind | undefined;
   /** Extra prompt-log metadata such as the season or week being planned. */
-  metadata?: LlmCallMetadata;
+  metadata?: LlmCallMetadata | undefined;
 }
 
 /**
@@ -58,8 +58,8 @@ export async function completePlanJson<T>(
   const callOptions: CompletionOptions = {
     maxTokens,
     temperature: PLAN_TEMPERATURE,
-    ...(options.kind !== undefined ? { kind: options.kind } : {}),
-    ...(options.metadata !== undefined ? { metadata: options.metadata } : {}),
+    kind: options.kind,
+    metadata: options.metadata,
     budget,
   };
   const text = await completeWithFallbacks(

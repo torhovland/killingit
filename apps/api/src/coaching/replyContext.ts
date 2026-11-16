@@ -4,6 +4,7 @@ import { toCoachPlanActivity } from "../llm/activityContext.js";
 import type { PlanContextInput } from "../llm/planContext.js";
 import type { AthleteAnswerContext } from "../llm/profileContext.js";
 import { loadAthleteEvents } from "../events/store.js";
+import { GARMIN_DAILY_SYNC_WINDOW_DAYS } from "../garmin/dailySync.js";
 import {
   loadBodyHistoryForUser,
   loadThresholdHistoryForUser,
@@ -30,7 +31,7 @@ export interface ReplyContextInput {
    * The athlete's IANA time zone, so a recorded activity is described on its
    * local day. A missing zone reads as UTC.
    */
-  timezone?: string;
+  timezone?: string | undefined;
   /** The profile answers, already mapped from the stored questions. */
   athleteAnswers: readonly AthleteAnswerContext[];
 }
@@ -113,7 +114,7 @@ export async function loadReplyContext(
     attempt("daily health metrics", () =>
       (deps.loadDailyHealth ?? loadDailyHealthForUser)(
         userId,
-        addDays(today, -42),
+        addDays(today, -GARMIN_DAILY_SYNC_WINDOW_DAYS),
         today,
       ),
     ),
@@ -141,7 +142,7 @@ export async function loadReplyContext(
       .slice(0, MAX_ANALYZED_ACTIVITIES)
       .map(toCoachPlanActivity),
     today,
-    ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),
+    timezone: input.timezone,
     ...(currentForm !== null ? { currentForm } : {}),
     manualActivities: coachingInputs?.manualActivities ?? [],
     activityComments: coachingInputs?.activityComments ?? [],

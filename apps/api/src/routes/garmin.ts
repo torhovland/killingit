@@ -11,6 +11,7 @@ import {
   summarizeActivity,
   type ActivityPreview,
 } from "../coaching/activityStore.js";
+import { loadGarminCredentials } from "../coaching/feed/sync.js";
 import { zValidator } from "../http/validation.js";
 import { getUser } from "../auth/middleware.js";
 import type { ResolvedAppDependencies } from "../dependencies.js";
@@ -21,11 +22,14 @@ import {
 } from "../http/errors.js";
 import {
   authenticateGarmin,
-  GarminNotConnectedError,
   syncGarminActivities,
+  type GarminCredentials,
 } from "../garmin/client.js";
-import { loadDecryptedGarminCredentials } from "../garmin/credentials.js";
-import { encrypt, garminCredentialsKeyFromEnv } from "../garmin/crypto.js";
+import {
+  garminCredentialsKeyFromEnv,
+  loadDecryptedGarminCredentials,
+} from "../garmin/credentials.js";
+import { encrypt } from "../crypto/credentials.js";
 import { loadCredentials, saveCredentials } from "../garmin/store.js";
 import {
   syncGarminSupplements,
@@ -105,24 +109,12 @@ export function createGarminRoute(deps: ResolvedAppDependencies): Hono {
     .get("/activities", async (c) => {
       const user = getUser(c);
 
-      let decrypted;
+      let credentials: GarminCredentials;
       try {
-        decrypted = await loadDecrypted(user.id);
+        credentials = await loadGarminCredentials(user.id, loadDecrypted);
       } catch (err) {
-        console.error("[garmin] could not read stored credentials:", err);
-        return serviceUnavailable(
-          c,
-          "Garmin credentials are unavailable (check GARMIN_CREDENTIALS_KEY)",
-        );
+        return respondUpstreamError(c, err, "[garmin] credentials failure");
       }
-      if (!decrypted) {
-        return respondUpstreamError(
-          c,
-          new GarminNotConnectedError(),
-          "[garmin] not connected",
-        );
-      }
-      const credentials = decrypted;
       const today = zonedDateTime(now(), user.timezone).date;
       const storedById = await loadStoredPreviews(user.id, loadStoredFeed);
 

@@ -130,8 +130,8 @@ export function resolveCoachingDependencies(
         // activity in the stored history.
         limit: MAX_ANALYZED_ACTIVITIES,
         refresh: false,
-        ...(today !== undefined ? { today } : {}),
-        ...(timezone !== undefined ? { timezone } : {}),
+        today,
+        timezone,
       }));
   const llmLoader = deps.loadLlm ?? loadLlmClient;
   const loadAnsweredQuestions =
@@ -209,7 +209,7 @@ export async function replyTo(
 ): Promise<CoachAnalysis | null> {
   const stored = await deps.reply(
     { plans: deps.plans, answers: deps.answers, loadLlm: deps.llmLoader },
-    { userId, today, ...(timezone !== undefined ? { timezone } : {}), request },
+    { userId, today, timezone, request },
   );
   return stored === null ? null : toCoachAnalysis(stored);
 }

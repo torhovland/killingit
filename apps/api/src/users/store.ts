@@ -20,9 +20,9 @@ export interface StoredUser {
 
 /** A partial settings update; omitted fields keep their stored value. */
 export interface UserSettingsPatch {
-  timezone?: string | null;
-  location?: AthleteLocation | null;
-  dietAdvice?: boolean;
+  timezone?: string | null | undefined;
+  location?: AthleteLocation | null | undefined;
+  dietAdvice?: boolean | undefined;
 }
 
 /**
@@ -182,13 +182,11 @@ export const dbUserStore: UserStore = {
     const [updated] = await db
       .update(users)
       .set({
-        ...(update.timezone !== undefined ? { timezone: update.timezone } : {}),
+        timezone: update.timezone,
         ...(update.location !== undefined
           ? locationColumns(update.location)
           : {}),
-        ...(update.dietAdvice !== undefined
-          ? { dietAdvice: update.dietAdvice }
-          : {}),
+        dietAdvice: update.dietAdvice,
         updatedAt: new Date(),
       })
       .where(eq(users.authSubject, sub))

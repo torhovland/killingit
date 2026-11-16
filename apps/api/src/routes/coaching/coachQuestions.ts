@@ -68,7 +68,7 @@ export function createCoachQuestionHandlers(
       await deps.startRun(deps.coachRunDeps, {
         userId: user.id,
         today: input.today,
-        ...(timeZone !== undefined ? { timezone: timeZone } : {}),
+        timezone: timeZone,
         reply: true,
       });
 

@@ -23,7 +23,6 @@ export async function saveLlmSettings(
       userId,
       provider: settings.provider,
       apiKeyEncrypted: settings.apiKeyEncrypted,
-      model: settings.dailyModel,
       seasonModel: settings.seasonModel,
       dailyModel: settings.dailyModel,
     })
@@ -32,7 +31,6 @@ export async function saveLlmSettings(
       set: {
         provider: settings.provider,
         apiKeyEncrypted: settings.apiKeyEncrypted,
-        model: settings.dailyModel,
         seasonModel: settings.seasonModel,
         dailyModel: settings.dailyModel,
         updatedAt: new Date(),
@@ -59,8 +57,7 @@ export async function loadLlmSettings(
   return {
     provider: row.provider,
     apiKeyEncrypted: row.apiKeyEncrypted,
-    // Rows written before the split stored only the legacy model.
-    seasonModel: row.seasonModel ?? row.model,
-    dailyModel: row.dailyModel ?? row.model,
+    seasonModel: row.seasonModel,
+    dailyModel: row.dailyModel,
   };
 }

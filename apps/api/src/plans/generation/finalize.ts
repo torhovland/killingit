@@ -13,10 +13,8 @@ export function finalizeInput(input: GeneratePlanInput): FinalizePlanInput {
     includeTomorrow: input.includeTomorrow === true,
     activities: context.activities,
     manualActivities: context.manualActivities,
-    ...(context.timeZone !== undefined ? { timeZone: context.timeZone } : {}),
-    ...(context.thresholdTimelines !== undefined
-      ? { thresholdTimelines: context.thresholdTimelines }
-      : {}),
+    timeZone: context.timeZone,
+    thresholdTimelines: context.thresholdTimelines,
     weatherForecasts: context.weatherForecasts,
   };
 }

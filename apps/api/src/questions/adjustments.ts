@@ -1,13 +1,9 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
-import { db } from "../db/index.js";
+import { db, type DbExecutor } from "../db/index.js";
 import {
   coachingSurveyAdjustments,
   type CoachingSurveyAdjustmentRow,
 } from "../db/schema.js";
-
-/** The shared connection or one transaction on it, so a save stays atomic. */
-type DbExecutor =
-  typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 /**
  * One survey answer the coach has not incorporated into the plan yet. The

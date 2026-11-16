@@ -21,7 +21,7 @@ import {
   LLM_MODEL_GRADES,
   LLM_PROMPT_KINDS,
 } from "@killingit/shared";
-import { sql } from "drizzle-orm";
+import { sql, type SQL, type SQLWrapper } from "drizzle-orm";
 import {
   bigint,
   boolean,
@@ -38,20 +38,55 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
-/** A quoted SQL list for an `in (...)` check over a shared enum catalog. */
+/** A quoted SQL list for an `in (...)` check over a fixed string catalog. */
 function sqlStringList(values: readonly string[]): string {
   return values.map((value) => `'${value}'`).join(", ");
 }
 
 /**
- * SQL lists of the shared enum catalogs. Building them from the shared arrays
- * keeps every database check in step with the TypeScript-type and Zod contract,
- * so adding or removing a value is a one-place change.
+ * An `in (...)` check over a fixed string catalog. The column's `enum` and this
+ * check read the same array, so adding or removing a value is a one-place
+ * change that cannot leave the TypeScript type and the database out of step.
  */
-const ATHLETE_METRIC_SQL_LIST = sqlStringList(ATHLETE_METRICS);
-const ATHLETE_EVENT_KIND_SQL_LIST = sqlStringList(ATHLETE_EVENT_KINDS);
-const LLM_MODEL_GRADE_SQL_LIST = sqlStringList(LLM_MODEL_GRADES);
-const DAILY_HEALTH_METRIC_SQL_LIST = sqlStringList(DAILY_HEALTH_METRIC_KEYS);
+function sqlInList(column: SQLWrapper, values: readonly string[]): SQL {
+  return sql`${column} in (${sql.raw(sqlStringList(values))})`;
+}
+
+/** The `created_at`/`updated_at` pair carried by every edited row. */
+const timestamps = {
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+};
+
+/**
+ * String catalogs stored in a `text` column. The column's `enum` and its check
+ * constraint both read the same array.
+ */
+const USER_ROLES = ["admin", "member"] as const;
+const METRIC_SOURCES = ["user", "coach", "garmin"] as const;
+const DAILY_METRIC_SOURCES = ["garmin"] as const;
+const THRESHOLD_KINDS = [
+  "power",
+  "heart_rate",
+  "pace",
+  "speed",
+  "stress",
+  "other",
+] as const;
+const ACTIVITY_DELETION_SOURCES = ["garmin", "manual"] as const;
+const COACH_REPLY_KINDS = [
+  "activity_comment",
+  "weekly_note",
+  "manual_activity",
+  "week_review",
+  "block_review",
+] as const;
+const PERIOD_REVIEW_KINDS = ["week", "block"] as const;
+const PLAN_GENERATION_STATUSES = ["idle", "running", "done", "error"] as const;
 
 /**
  * An application account, keyed by the auth provider's subject (`sub`). Roles
@@ -64,9 +99,7 @@ export const users = pgTable(
   {
     id: serial("id").primaryKey(),
     authSubject: text("auth_subject").notNull().unique(),
-    role: text("role", { enum: ["admin", "member"] })
-      .notNull()
-      .default("member"),
+    role: text("role", { enum: USER_ROLES }).notNull().default("member"),
     // IANA zone used to display the athlete's times; null means device zone.
     timezone: text("timezone"),
     // Home location used for weather-aware planning. Latitude and longitude are
@@ -77,15 +110,10 @@ export const users = pgTable(
     // The athlete asked for diet advice: the dashboard shows the food log and
     // every coach prompt receives the meal context.
     dietAdvice: boolean("diet_advice").notNull().default(false),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    ...timestamps,
   },
   (table) => [
-    check("users_role_check", sql`${table.role} in ('admin', 'member')`),
+    check("users_role_check", sqlInList(table.role, USER_ROLES)),
     check(
       "users_location_check",
       sql`(${table.latitude} is null and ${table.longitude} is null) or (${table.latitude} is not null and ${table.longitude} is not null)`,
@@ -126,12 +154,7 @@ export const foodEntries = pgTable(
     analysis: jsonb("analysis").$type<FoodAnalysis>(),
     model: text("model"),
     analysisError: text("analysis_error"),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    ...timestamps,
   },
   (table) => [
     index("food_entries_user_id_eaten_at_idx").on(table.userId, table.eatenAt),
@@ -170,15 +193,10 @@ export const athleteMetrics = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     metric: text("metric", { enum: ATHLETE_METRICS }).notNull(),
-    source: text("source", { enum: ["user", "coach", "garmin"] }).notNull(),
+    source: text("source", { enum: METRIC_SOURCES }).notNull(),
     date: text("date").notNull(),
     value: doublePrecision("value").notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    ...timestamps,
   },
   (table) => [
     uniqueIndex("athlete_metrics_user_id_metric_date_idx").on(
@@ -188,11 +206,11 @@ export const athleteMetrics = pgTable(
     ),
     check(
       "athlete_metrics_metric_check",
-      sql`${table.metric} in (${sql.raw(ATHLETE_METRIC_SQL_LIST)})`,
+      sqlInList(table.metric, ATHLETE_METRICS),
     ),
     check(
       "athlete_metrics_source_check",
-      sql`${table.source} in ('user', 'coach', 'garmin')`,
+      sqlInList(table.source, METRIC_SOURCES),
     ),
   ],
 );
@@ -215,15 +233,10 @@ export const athleteDailyMetrics = pgTable(
     metric: text("metric").notNull(),
     date: text("date").notNull(),
     value: doublePrecision("value").notNull(),
-    source: text("source", { enum: ["garmin"] })
+    source: text("source", { enum: DAILY_METRIC_SOURCES })
       .notNull()
       .default("garmin"),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    ...timestamps,
   },
   (table) => [
     uniqueIndex("athlete_daily_metrics_user_id_metric_date_idx").on(
@@ -237,11 +250,11 @@ export const athleteDailyMetrics = pgTable(
     ),
     check(
       "athlete_daily_metrics_metric_check",
-      sql`${table.metric} in (${sql.raw(DAILY_HEALTH_METRIC_SQL_LIST)})`,
+      sqlInList(table.metric, DAILY_HEALTH_METRIC_KEYS),
     ),
     check(
       "athlete_daily_metrics_source_check",
-      sql`${table.source} in ('garmin')`,
+      sqlInList(table.source, DAILY_METRIC_SOURCES),
     ),
   ],
 );
@@ -288,18 +301,11 @@ export const athleteThresholds = pgTable(
     measure: text("measure").notNull(),
     label: text("label").notNull(),
     unit: text("unit").notNull(),
-    kind: text("kind", {
-      enum: ["power", "heart_rate", "pace", "speed", "stress", "other"],
-    }).notNull(),
-    source: text("source", { enum: ["user", "coach", "garmin"] }).notNull(),
+    kind: text("kind", { enum: THRESHOLD_KINDS }).notNull(),
+    source: text("source", { enum: METRIC_SOURCES }).notNull(),
     date: text("date").notNull(),
     value: doublePrecision("value").notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    ...timestamps,
   },
   (table) => [
     uniqueIndex("athlete_thresholds_user_sport_measure_date_idx").on(
@@ -310,11 +316,11 @@ export const athleteThresholds = pgTable(
     ),
     check(
       "athlete_thresholds_kind_check",
-      sql`${table.kind} in ('power', 'heart_rate', 'pace', 'speed', 'stress', 'other')`,
+      sqlInList(table.kind, THRESHOLD_KINDS),
     ),
     check(
       "athlete_thresholds_source_check",
-      sql`${table.source} in ('user', 'coach', 'garmin')`,
+      sqlInList(table.source, METRIC_SOURCES),
     ),
   ],
 );
@@ -361,12 +367,10 @@ export const llmSettings = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
     provider: text("provider").notNull().default("openrouter"),
     apiKeyEncrypted: text("api_key_encrypted").notNull(),
-    /** Legacy single model; kept so existing rows and clients keep working. */
-    model: text("model").notNull(),
     /** Model used for season plans, season refreshes and block planning. */
-    seasonModel: text("season_model"),
+    seasonModel: text("season_model").notNull(),
     /** Model used for week/day planning and every day-to-day prompt. */
-    dailyModel: text("daily_model"),
+    dailyModel: text("daily_model").notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -419,16 +423,10 @@ export const llmModels = pgTable(
   (table) => [
     check(
       "llm_models_ability_check",
-      sql`${table.ability} in (${sql.raw(LLM_MODEL_GRADE_SQL_LIST)})`,
+      sqlInList(table.ability, LLM_MODEL_GRADES),
     ),
-    check(
-      "llm_models_speed_check",
-      sql`${table.speed} in (${sql.raw(LLM_MODEL_GRADE_SQL_LIST)})`,
-    ),
-    check(
-      "llm_models_cost_check",
-      sql`${table.cost} in (${sql.raw(LLM_MODEL_GRADE_SQL_LIST)})`,
-    ),
+    check("llm_models_speed_check", sqlInList(table.speed, LLM_MODEL_GRADES)),
+    check("llm_models_cost_check", sqlInList(table.cost, LLM_MODEL_GRADES)),
   ],
 );
 
@@ -484,12 +482,7 @@ export const llmCalls = pgTable(
   (table) => [
     index("llm_calls_created_at_idx").on(table.createdAt),
     index("llm_calls_user_id_created_at_idx").on(table.userId, table.createdAt),
-    check(
-      "llm_calls_kind_check",
-      sql`${table.kind} in (${sql.raw(
-        LLM_PROMPT_KINDS.map((kind) => `'${kind}'`).join(", "),
-      )})`,
-    ),
+    check("llm_calls_kind_check", sqlInList(table.kind, LLM_PROMPT_KINDS)),
     check("llm_calls_duration_ms_check", sql`${table.durationMs} >= 0`),
   ],
 );
@@ -524,12 +517,7 @@ export const activityAnalyses = pgTable(
     // analysis with the flag set is what triggers a plan refresh; the others
     // stay context only.
     planChangeNeeded: boolean("plan_change_needed").notNull().default(false),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    ...timestamps,
   },
   (table) => [
     uniqueIndex("activity_analyses_user_id_activity_id_kind_idx").on(
@@ -585,12 +573,7 @@ export const activities = pgTable(
     samples: jsonb("samples").$type<ActivitySample[]>().notNull().default([]),
     /** Downsampled GPS trace for the route map, when one was recorded. */
     route: jsonb("route").$type<RoutePoint[]>(),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    ...timestamps,
   },
   (table) => [
     uniqueIndex("activities_user_id_activity_id_idx").on(
@@ -678,12 +661,7 @@ export const questionAnswers = pgTable(
       .references(() => questionVersions.id, { onDelete: "cascade" }),
     // Null means the athlete explicitly skipped an optional question.
     answer: text("answer"),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    ...timestamps,
   },
   (table) => [
     uniqueIndex("question_answers_user_id_question_version_id_idx").on(
@@ -768,12 +746,7 @@ export const athleteEvents = pgTable(
     title: text("title").notNull(),
     /** `race`, `event`, `trip`, or `goal`. */
     kind: text("kind", { enum: ATHLETE_EVENT_KINDS }).notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    ...timestamps,
   },
   (table) => [
     index("athlete_events_user_id_start_date_idx").on(
@@ -783,7 +756,7 @@ export const athleteEvents = pgTable(
     check("athlete_events_title_check", sql`length(btrim(${table.title})) > 0`),
     check(
       "athlete_events_kind_check",
-      sql`${table.kind} in (${sql.raw(ATHLETE_EVENT_KIND_SQL_LIST)})`,
+      sqlInList(table.kind, ATHLETE_EVENT_KINDS),
     ),
     check(
       "athlete_events_date_check",
@@ -811,12 +784,7 @@ export const manualActivities = pgTable(
     // Coach-estimated training stress for this entry, derived from the free-text
     // details when it is saved. Null until it has been estimated.
     estimatedTss: integer("estimated_tss"),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    ...timestamps,
   },
   (table) => [
     index("manual_activities_user_id_idx").on(table.userId),
@@ -848,14 +816,9 @@ export const activityDeletions = pgTable(
     userId: integer("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    source: text("source", { enum: ["garmin", "manual"] }).notNull(),
+    source: text("source", { enum: ACTIVITY_DELETION_SOURCES }).notNull(),
     activityId: text("activity_id").notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    ...timestamps,
   },
   (table) => [
     uniqueIndex("activity_deletions_user_id_source_activity_id_idx").on(
@@ -865,7 +828,7 @@ export const activityDeletions = pgTable(
     ),
     check(
       "activity_deletions_source_check",
-      sql`${table.source} in ('garmin', 'manual')`,
+      sqlInList(table.source, ACTIVITY_DELETION_SOURCES),
     ),
   ],
 );
@@ -886,12 +849,7 @@ export const activityComments = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
     activityId: text("activity_id").notNull(),
     comment: text("comment").notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    ...timestamps,
   },
   (table) => [
     uniqueIndex("activity_comments_user_id_activity_id_idx").on(
@@ -944,12 +902,7 @@ export const weeklyNotes = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
     weekStartDate: text("week_start_date").notNull(),
     note: text("note").notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    ...timestamps,
   },
   (table) => [
     uniqueIndex("weekly_notes_user_id_week_start_date_idx").on(
@@ -975,15 +928,7 @@ export const coachReplies = pgTable(
     userId: integer("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    kind: text("kind", {
-      enum: [
-        "activity_comment",
-        "weekly_note",
-        "manual_activity",
-        "week_review",
-        "block_review",
-      ],
-    }).notNull(),
+    kind: text("kind", { enum: COACH_REPLY_KINDS }).notNull(),
     target: text("target").notNull(),
     reply: text("reply").notNull(),
     model: text("model").notNull(),
@@ -991,12 +936,7 @@ export const coachReplies = pgTable(
     // use it to skip a plan run, and the plan loader uses it to tell a refresh
     // from context only.
     planChangeNeeded: boolean("plan_change_needed").notNull().default(false),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    ...timestamps,
   },
   (table) => [
     uniqueIndex("coach_replies_user_id_kind_target_idx").on(
@@ -1004,10 +944,7 @@ export const coachReplies = pgTable(
       table.kind,
       table.target,
     ),
-    check(
-      "coach_replies_kind_check",
-      sql`${table.kind} in ('activity_comment', 'weekly_note', 'manual_activity', 'week_review', 'block_review')`,
-    ),
+    check("coach_replies_kind_check", sqlInList(table.kind, COACH_REPLY_KINDS)),
   ],
 );
 
@@ -1026,7 +963,7 @@ export const periodReviews = pgTable(
     userId: integer("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    kind: text("kind", { enum: ["week", "block"] }).notNull(),
+    kind: text("kind", { enum: PERIOD_REVIEW_KINDS }).notNull(),
     startDate: text("start_date").notNull(),
     endDate: text("end_date").notNull(),
     title: text("title").notNull(),
@@ -1037,12 +974,7 @@ export const periodReviews = pgTable(
     comment: text("comment"),
     /** The athlete dismissed the review with "No comment". */
     reviewed: boolean("reviewed").notNull().default(false),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    ...timestamps,
   },
   (table) => [
     uniqueIndex("period_reviews_user_id_kind_start_date_idx").on(
@@ -1050,7 +982,10 @@ export const periodReviews = pgTable(
       table.kind,
       table.startDate,
     ),
-    check("period_reviews_kind_check", sql`${table.kind} in ('week', 'block')`),
+    check(
+      "period_reviews_kind_check",
+      sqlInList(table.kind, PERIOD_REVIEW_KINDS),
+    ),
     check(
       "period_reviews_comment_check",
       sql`${table.comment} is null or length(btrim(${table.comment})) > 0`,
@@ -1084,12 +1019,7 @@ export const coachQuestions = pgTable(
     /** The coach's reply after the athlete answers. */
     reply: text("reply"),
     replyModel: text("reply_model"),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    ...timestamps,
     answeredAt: timestamp("answered_at", { withTimezone: true }),
   },
   (table) => [
@@ -1114,6 +1044,10 @@ export const coachQuestions = pgTable(
     check(
       "coach_questions_reply_check",
       sql`${table.reply} is null or length(btrim(${table.reply})) > 0`,
+    ),
+    check(
+      "coach_questions_source_kind_check",
+      sqlInList(table.sourceKind, LLM_PROMPT_KINDS),
     ),
   ],
 );
@@ -1200,12 +1134,7 @@ export const planWeekTotals = pgTable(
     weekStartDate: text("week_start_date").notNull(),
     plannedMinutes: integer("planned_minutes").notNull(),
     plannedTss: integer("planned_tss").notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    ...timestamps,
   },
   (table) => [
     uniqueIndex("plan_week_totals_user_id_week_start_date_idx").on(
@@ -1242,12 +1171,7 @@ export const planDayCalories = pgTable(
     workoutCaloriesKcal: integer("workout_calories_kcal"),
     /** The planned deficit; negative for a planned surplus. */
     dietDeficitKcal: integer("diet_deficit_kcal"),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    ...timestamps,
   },
   (table) => [
     uniqueIndex("plan_day_calories_user_id_date_idx").on(
@@ -1282,7 +1206,7 @@ export const planGenerations = pgTable(
     userId: integer("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    status: text("status", { enum: ["idle", "running", "done", "error"] })
+    status: text("status", { enum: PLAN_GENERATION_STATUSES })
       .notNull()
       .default("idle"),
     /** Identifies the run that currently owns this row. */
@@ -1307,7 +1231,7 @@ export const planGenerations = pgTable(
     uniqueIndex("plan_generations_user_id_idx").on(table.userId),
     check(
       "plan_generations_status_check",
-      sql`${table.status} in ('idle', 'running', 'done', 'error')`,
+      sqlInList(table.status, PLAN_GENERATION_STATUSES),
     ),
     check(
       "plan_generations_progress_check",

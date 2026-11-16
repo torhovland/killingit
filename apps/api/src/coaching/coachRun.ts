@@ -39,7 +39,7 @@ export interface CoachRunOptions extends PlanRunOptions {
 export async function startCoachRun(
   deps: CoachRunDependencies,
   options: CoachRunOptions,
-): Promise<boolean> {
+): Promise<void> {
   const { userId } = options;
   const run = claimRun(userId);
   await deps.generations.begin(userId, run.runId);
@@ -55,8 +55,6 @@ export async function startCoachRun(
       clearInterval(heartbeat);
       releaseRun(userId, run.runId);
     });
-
-  return true;
 }
 
 async function runCoachTurn(
@@ -84,7 +82,7 @@ async function runCoachTurn(
         {
           userId,
           today,
-          ...(timezone !== undefined ? { timezone } : {}),
+          timezone,
           signal,
         },
       );

@@ -272,7 +272,7 @@ export async function fetchYrForecast(
     /** Replays a stored `Last-Modified` so an unchanged forecast costs a 304. */
     ifModifiedSince?: string | null;
     /** Test seam for the clock; production uses `Date.now`. */
-    now?: () => number;
+    now?: (() => number) | undefined;
   } = {},
 ): Promise<YrForecastResult> {
   const fetchImpl = options.fetchImpl ?? fetch;

@@ -32,7 +32,7 @@ export interface FoodAnalysisInput {
    * The meal as it was stored before an edit. Present only for a re-assessment,
    * so the coach can compare the two versions and adjust its earlier reading.
    */
-  previous?: PreviousFoodAnalysis;
+  previous?: PreviousFoodAnalysis | undefined;
 }
 
 const FOOD_ANALYSIS_SYSTEM_PROMPT = promptSections(

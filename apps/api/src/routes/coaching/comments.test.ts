@@ -20,7 +20,7 @@ describe("coaching activity comments", () => {
       startCoachRun: (_deps, options) => {
         keepToday = options.keepToday;
         askedForReplies = options.reply;
-        return Promise.resolve(true);
+        return Promise.resolve();
       },
     });
 
@@ -55,7 +55,7 @@ describe("coaching activity comments", () => {
       createActivityComment: () => Promise.resolve(true),
       startCoachRun: (_deps, options) => {
         zones.push(options.timezone);
-        return Promise.resolve(true);
+        return Promise.resolve();
       },
     });
 
@@ -81,7 +81,7 @@ describe("coaching activity comments", () => {
       createActivityComment: () => Promise.resolve(true),
       startCoachRun: (_deps, options) => {
         keepToday = options.keepToday;
-        return Promise.resolve(true);
+        return Promise.resolve();
       },
     });
 
@@ -171,7 +171,7 @@ describe("coaching activity comments", () => {
       },
       startCoachRun: () => {
         started = true;
-        return Promise.resolve(true);
+        return Promise.resolve();
       },
     });
 

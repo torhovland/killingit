@@ -91,9 +91,9 @@ Weather and daylight are included in the plan prompts; see
 ## Data-model / API impact
 
 - **New table `llm_settings`** (one row per account, unique `user_id`, replace
-  on save): `provider` (default `openrouter`), `api_key_encrypted`, legacy
-  `model`, and `season_model` / `daily_model`,
-  `updated_at`.
+  on save): `provider` (default `openrouter`), `api_key_encrypted`, and the
+  required `season_model` / `daily_model` (migration 0056 drops the legacy
+  `model` column after backfilling it), `updated_at`.
 - **New table `activity_analyses`**: `user_id`, `activity_id` (`bigint` — Garmin
   ids exceed 32-bit integers), `kind`, `model`, `prompt_version`, `analysis`,
   `created_at`, `updated_at`; unique `(user_id, activity_id, kind)`. A cached
