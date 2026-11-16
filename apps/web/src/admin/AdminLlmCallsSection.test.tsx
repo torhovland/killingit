@@ -397,6 +397,93 @@ describe("AdminLlmCallsSection", () => {
     expect(signals[0]?.aborted).toBe(true);
     expect(signals[1]?.aborted).toBe(false);
   });
+
+  it("keeps the loading state on the selected row until the call arrives", async () => {
+    const user = userEvent.setup();
+    const pending = pendingResponse();
+    const signals = stubPendingDetail(pending);
+    renderSection();
+
+    const row = await screen.findByRole("button", { name: /Season plan/ });
+    await user.click(row);
+
+    expect(await screen.findByText("Loading call…")).toBeDefined();
+    expect(screen.queryByTestId("llm-call-detail")).toBeNull();
+    // The list highlights the row while its detail is still loading.
+    expect(row.getAttribute("aria-current")).toBe("true");
+    expect(signals).toHaveLength(1);
+
+    pending.resolve(json(detail));
+
+    expect(await screen.findByTestId("llm-call-detail")).toBeDefined();
+    expect(screen.queryByText("Loading call…")).toBeNull();
+  });
+
+  it("does not refetch the call that is already loading or loaded", async () => {
+    const user = userEvent.setup();
+    const pending = pendingResponse();
+    const signals = stubPendingDetail(pending);
+    renderSection();
+
+    const row = await screen.findByRole("button", { name: /Season plan/ });
+    await user.click(row);
+    await waitFor(() => expect(signals).toHaveLength(1));
+
+    await user.click(row);
+    expect(signals).toHaveLength(1);
+    expect(signals[0]?.aborted).toBe(false);
+
+    pending.resolve(json(detail));
+    await screen.findByTestId("llm-call-detail");
+
+    await user.click(row);
+    expect(signals).toHaveLength(1);
+    expect(signals[0]?.aborted).toBe(false);
+  });
+
+  it("clears a failed detail and its selection when another call is picked", async () => {
+    const user = userEvent.setup();
+    globalThis.fetch = ((input: string | URL | Request) => {
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url;
+      if (url.includes("/api/admin/llm-calls?limit")) {
+        return Promise.resolve(json({ calls: [summary, otherSummary] }));
+      }
+      if (url.endsWith("/api/admin/llm-calls/12")) {
+        return Promise.resolve(
+          new Response("Call detail unavailable", {
+            status: 500,
+            headers: { "content-type": "text/plain" },
+          }),
+        );
+      }
+      return Promise.resolve(json(detailFor(otherSummary, "The other call")));
+    }) as typeof fetch;
+    renderSection();
+
+    const failedRow = await screen.findByRole("button", {
+      name: /Season plan/,
+    });
+    await user.click(failedRow);
+
+    const error = await screen.findByTestId("admin-llm-calls-error");
+    expect(error.textContent).toContain("Call detail unavailable");
+    // An errored detail has no selected row.
+    expect(failedRow.getAttribute("aria-current")).toBeNull();
+
+    const otherRow = await screen.findByRole("button", { name: /Plan update/ });
+    await user.click(otherRow);
+
+    await waitFor(() =>
+      expect(screen.queryByTestId("admin-llm-calls-error")).toBeNull(),
+    );
+    expect(await screen.findByText("The other call")).toBeDefined();
+    expect(otherRow.getAttribute("aria-current")).toBe("true");
+  });
 });
 
 interface PendingResponse {
@@ -410,6 +497,28 @@ function pendingResponse(): PendingResponse {
     resolve = settle;
   });
   return { promise, resolve };
+}
+
+/** Serves the list immediately and holds the only detail request open. */
+function stubPendingDetail(
+  pending: PendingResponse,
+  calls: LlmCallSummary[] = [summary],
+): Array<AbortSignal | undefined> {
+  const signals: Array<AbortSignal | undefined> = [];
+  globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) => {
+    const url =
+      typeof input === "string"
+        ? input
+        : input instanceof URL
+          ? input.href
+          : input.url;
+    if (url.includes("/api/admin/llm-calls?limit")) {
+      return Promise.resolve(json({ calls }));
+    }
+    signals.push(init?.signal ?? undefined);
+    return pending.promise;
+  }) as typeof fetch;
+  return signals;
 }
 
 /** Serves the list immediately and lets each detail answer in any order. */
