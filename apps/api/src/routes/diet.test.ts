@@ -14,6 +14,7 @@ import type {
   StoredFoodEntry,
 } from "../diet/store.js";
 import type { UserStore } from "../users/store.js";
+import { makePlan } from "../testFixtures/plan.js";
 import { apiRequest } from "../testFixtures/request.js";
 import { expectValidationFailure } from "../testFixtures/validation.js";
 
@@ -754,8 +755,12 @@ describe("GET /api/diet/summary", () => {
     return {
       load: () =>
         Promise.resolve({
-          plan: { diet },
-        } as unknown as StoredPlan),
+          plan: makePlan(diet === null ? {} : { diet }),
+          answersUpdatedAt: null,
+          coachingInputsUpdatedAt: null,
+          activitiesUpdatedAt: null,
+          generatedAt: new Date(0),
+        }),
       save: () => Promise.resolve(null),
     };
   }
@@ -764,6 +769,44 @@ describe("GET /api/diet/summary", () => {
     const app = makeApp({}).app;
     const res = await request(app, "/api/diet/summary");
     await expectValidationFailure(res);
+  });
+
+  it("treats a stored plan that no longer validates as absent", async () => {
+    const log = spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const app = makeApp({
+        planStore: {
+          // The plan predates the current schema and cannot be trusted.
+          load: () =>
+            Promise.resolve({
+              plan: {
+                diet: { goal: "Lose 3 kg by March", assessment: "On target." },
+              },
+              answersUpdatedAt: null,
+              coachingInputsUpdatedAt: null,
+              activitiesUpdatedAt: null,
+              // A date of its own keeps the loader's once-per-plan report from
+              // colliding with another test's corrupt row.
+              generatedAt: new Date("2026-11-07T00:00:00Z"),
+            } as unknown as StoredPlan),
+          save: () => Promise.resolve(null),
+        },
+        loadDayCalorieTargets: () => Promise.resolve(new Map()),
+      }).app;
+
+      const res = await request(app, "/api/diet/summary?today=2026-11-07");
+
+      expect(res.status).toBe(200);
+      const parsed = (await res.json()) as {
+        goal: string | null;
+        goalProvided: boolean;
+      };
+      expect(parsed.goal).toBeNull();
+      expect(parsed.goalProvided).toBe(false);
+      expect(log).toHaveBeenCalledTimes(1);
+    } finally {
+      log.mockRestore();
+    }
   });
 
   it("returns the coach's goal, assessment, and per-day calories", async () => {

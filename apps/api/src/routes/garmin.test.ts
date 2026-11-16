@@ -71,6 +71,8 @@ function makeApp(
       model: null;
       activities: AnalyzedActivity[];
     }>;
+    /** The decrypting credential read, so a test can fail it. */
+    loadDecrypted?: (userId: number) => Promise<GarminCredentials | null>;
   } = {},
 ) {
   const stored = new Map<number, EncryptedCredentials>();
@@ -108,8 +110,9 @@ function makeApp(
       stored.set(userId, credentials);
       return Promise.resolve();
     },
-    loadDecryptedGarminCredentials: (userId) =>
-      Promise.resolve(plain.get(userId) ?? null),
+    loadDecryptedGarminCredentials:
+      options.loadDecrypted ??
+      ((userId) => Promise.resolve(plain.get(userId) ?? null)),
     loadStoredFeed:
       options.loadStoredFeed ?? (() => Promise.resolve(emptyFeed())),
     authenticateGarmin: authenticate ?? (() => Promise.resolve(true)),
@@ -455,6 +458,32 @@ describe("Garmin upstream failures", () => {
     expect(await res.json()).toEqual({
       error: { code: "service_unavailable", message: "Service Unavailable" },
     });
+  });
+
+  it("reports stored credentials that cannot be decrypted as unavailable", async () => {
+    const log = spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const { app } = makeApp(undefined, {
+        loadDecrypted: () => Promise.reject(new Error("bad key")),
+      });
+
+      const res = await app.fetch(request("/garmin/activities", "athlete-1"));
+
+      expect(res.status).toBe(503);
+      expect(await res.json()).toEqual({
+        error: {
+          code: "service_unavailable",
+          message:
+            "Garmin credentials are unavailable (check GARMIN_CREDENTIALS_KEY)",
+        },
+      });
+      expect(log).toHaveBeenCalledTimes(1);
+      expect(String(log.mock.calls[0]?.[1])).toContain(
+        "GARMIN_CREDENTIALS_KEY",
+      );
+    } finally {
+      log.mockRestore();
+    }
   });
 
   it("passes the sidecar's status through when validating credentials", async () => {
