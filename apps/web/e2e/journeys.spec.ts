@@ -149,6 +149,16 @@ test("an athlete answers the survey and sees today's session", async ({
   await openPage(page, "Coach");
   await expect(page).toHaveURL(/\/coach$/);
   await expect(page.getByTestId("plan-today")).toContainText("Today's session");
+
+  // The plan levels are one WAI-ARIA tablist, so a pointer click moves both
+  // the selected tab and the mounted panel.
+  await page.getByRole("tab", { name: "Week" }).click();
+  await expect(page.getByRole("tab", { name: "Week" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  await expect(page.getByTestId("plan-week")).toBeVisible();
+  await expect(page.getByTestId("plan-today")).toHaveCount(0);
 });
 
 test("an admin opens the admin settings with an unanswered survey question", async ({

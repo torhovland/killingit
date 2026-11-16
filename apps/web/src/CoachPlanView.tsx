@@ -6,6 +6,7 @@ import type {
   PlanPending,
   ThresholdSummary,
 } from "@killingit/shared";
+import { Tabs, type TabEntry } from "./components/Tabs";
 import {
   AthleteEventList,
   eventsInWeek,
@@ -17,13 +18,6 @@ import { SeasonSection } from "./plan/SeasonSection";
 import { WeekSection } from "./plan/WeekSection";
 
 export type PlanTab = "day" | "week" | "block" | "season";
-
-const TABS: Array<{ id: PlanTab; label: string }> = [
-  { id: "day", label: "Day" },
-  { id: "week", label: "Week" },
-  { id: "block", label: "Block" },
-  { id: "season", label: "Season" },
-];
 
 /**
  * Presentational four-level plan in a tabbed view. Day is the default tab and
@@ -76,127 +70,131 @@ export function CoachPlanView({
     nextBlock: running && pending.nextBlock,
   };
 
-  return (
-    <div className="flex flex-col gap-4" data-testid="coach-plan-view">
-      <div
-        className="flex flex-wrap gap-1"
-        role="tablist"
-        aria-label="Plan levels"
-      >
-        {TABS.map((entry) => (
-          <button
-            key={entry.id}
-            type="button"
-            role="tab"
-            aria-selected={tab === entry.id}
-            className="rounded border bg-inset px-3 py-1 text-base aria-[selected=true]:border-transparent aria-[selected=true]:bg-primary aria-[selected=true]:text-primary-foreground"
-            onClick={() => setTab(entry.id)}
-          >
-            {entry.label}
-          </button>
-        ))}
-      </div>
-
-      <div role="tabpanel">
-        {tab === "day" && (
-          <div className="flex flex-col gap-4">
-            <AthleteEventList
-              events={eventsOn(events, plan.today.date)}
-              testId="plan-today-events"
-            />
-            <DayCard
-              day={plan.today}
-              label="Today"
-              testId="plan-today"
-              refreshing={refreshing.day}
-              onDownloadWorkout={onDownloadWorkout}
-              downloading={downloadingWorkoutDate === plan.today.date}
-              thresholds={thresholds}
-              dietToday={dietToday}
-              showCalories={showCalories}
-            />
-            {showTomorrow && plan.tomorrow && (
-              <>
-                <AthleteEventList
-                  events={eventsOn(events, plan.tomorrow.date)}
-                  testId="plan-tomorrow-events"
-                />
-                <DayCard
-                  day={plan.tomorrow}
-                  label="Tomorrow"
-                  testId="plan-tomorrow"
-                  refreshing={refreshing.tomorrow}
-                  onDownloadWorkout={onDownloadWorkout}
-                  downloading={downloadingWorkoutDate === plan.tomorrow.date}
-                  thresholds={thresholds}
-                  showCalories={showCalories}
-                />
-              </>
-            )}
-          </div>
-        )}
-        {tab === "week" && (
-          <div className="flex flex-col gap-4">
-            <AthleteEventList
-              events={eventsInWeek(events, plan.week.startDate)}
-              testId="plan-week-events"
-            />
-            <WeekSection
-              week={plan.week}
-              label="This week"
-              testId="plan-week"
-              refreshing={refreshing.week}
-              thresholds={thresholds}
-              showCalories={showCalories}
-            />
-            {plan.nextWeek !== null && (
-              <>
-                <AthleteEventList
-                  events={eventsInWeek(events, plan.nextWeek.startDate)}
-                  testId="plan-next-week-events"
-                />
-                <WeekSection
-                  week={plan.nextWeek}
-                  label="Next week"
-                  testId="plan-next-week"
-                  refreshing={refreshing.nextWeek}
-                  thresholds={thresholds}
-                  showCalories={showCalories}
-                />
-              </>
-            )}
-          </div>
-        )}
-        {tab === "block" && (
-          <div className="flex flex-col gap-4">
-            <BlockSection
-              block={plan.block}
-              label="Current block"
-              testId="plan-block"
-              refreshing={refreshing.block}
-              thresholds={thresholds}
-              showDiet={showCalories}
-            />
-            {plan.nextBlock !== null && (
-              <BlockSection
-                block={plan.nextBlock}
-                label="Next block"
-                testId="plan-next-block"
-                refreshing={refreshing.nextBlock}
-                thresholds={thresholds}
-                showDiet={showCalories}
+  const tabs: Array<TabEntry<PlanTab>> = [
+    {
+      id: "day",
+      label: "Day",
+      content: (
+        <div className="flex flex-col gap-4">
+          <AthleteEventList
+            events={eventsOn(events, plan.today.date)}
+            testId="plan-today-events"
+          />
+          <DayCard
+            day={plan.today}
+            label="Today"
+            testId="plan-today"
+            refreshing={refreshing.day}
+            onDownloadWorkout={onDownloadWorkout}
+            downloading={downloadingWorkoutDate === plan.today.date}
+            thresholds={thresholds}
+            dietToday={dietToday}
+            showCalories={showCalories}
+          />
+          {showTomorrow && plan.tomorrow && (
+            <>
+              <AthleteEventList
+                events={eventsOn(events, plan.tomorrow.date)}
+                testId="plan-tomorrow-events"
               />
-            )}
-          </div>
-        )}
-        {tab === "season" && (
-          <SeasonSection
-            season={plan.season}
+              <DayCard
+                day={plan.tomorrow}
+                label="Tomorrow"
+                testId="plan-tomorrow"
+                refreshing={refreshing.tomorrow}
+                onDownloadWorkout={onDownloadWorkout}
+                downloading={downloadingWorkoutDate === plan.tomorrow.date}
+                thresholds={thresholds}
+                showCalories={showCalories}
+              />
+            </>
+          )}
+        </div>
+      ),
+    },
+    {
+      id: "week",
+      label: "Week",
+      content: (
+        <div className="flex flex-col gap-4">
+          <AthleteEventList
+            events={eventsInWeek(events, plan.week.startDate)}
+            testId="plan-week-events"
+          />
+          <WeekSection
+            week={plan.week}
+            label="This week"
+            testId="plan-week"
+            refreshing={refreshing.week}
+            thresholds={thresholds}
+            showCalories={showCalories}
+          />
+          {plan.nextWeek !== null && (
+            <>
+              <AthleteEventList
+                events={eventsInWeek(events, plan.nextWeek.startDate)}
+                testId="plan-next-week-events"
+              />
+              <WeekSection
+                week={plan.nextWeek}
+                label="Next week"
+                testId="plan-next-week"
+                refreshing={refreshing.nextWeek}
+                thresholds={thresholds}
+                showCalories={showCalories}
+              />
+            </>
+          )}
+        </div>
+      ),
+    },
+    {
+      id: "block",
+      label: "Block",
+      content: (
+        <div className="flex flex-col gap-4">
+          <BlockSection
+            block={plan.block}
+            label="Current block"
+            testId="plan-block"
+            refreshing={refreshing.block}
             thresholds={thresholds}
             showDiet={showCalories}
           />
-        )}
-      </div>
-    </div>
+          {plan.nextBlock !== null && (
+            <BlockSection
+              block={plan.nextBlock}
+              label="Next block"
+              testId="plan-next-block"
+              refreshing={refreshing.nextBlock}
+              thresholds={thresholds}
+              showDiet={showCalories}
+            />
+          )}
+        </div>
+      ),
+    },
+    {
+      id: "season",
+      label: "Season",
+      content: (
+        <SeasonSection
+          season={plan.season}
+          thresholds={thresholds}
+          showDiet={showCalories}
+        />
+      ),
+    },
+  ];
+
+  return (
+    <Tabs
+      label="Plan levels"
+      tabs={tabs}
+      value={tab}
+      onChange={setTab}
+      className="flex flex-col gap-4"
+      testId="coach-plan-view"
+    />
   );
 }
