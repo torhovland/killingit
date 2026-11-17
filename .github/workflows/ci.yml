@@ -62,6 +62,12 @@ jobs:
         run: docker build --file apps/api/Dockerfile --tag killingit-api:ci .
       - name: Build the Garmin sidecar image
         run: docker build --file services/garmin/Dockerfile --tag killingit-garmin:ci services/garmin
+      # The Dockerfile lists the runtime modules by name, so a module `app.py`
+      # imports but the list forgets builds green and fails on first request.
+      # Importing the app once proves every module resolves inside the image;
+      # starting the server stays the Cloud Run revision's job.
+      - name: Import the Garmin sidecar image
+        run: docker run --rm killingit-garmin:ci python -c "import app"
 
   test:
     name: Test

@@ -174,7 +174,8 @@ through a disciplined process:
 7. **CI pipeline** (`.github/workflows/ci.yml`): typecheck, lint, format, unused
    exports, unit, integration and e2e tests, the sidecar's Python checks, the
    contribution sign-off check, and the `build` job (real `vite build` plus both
-   Docker images, so a broken bundle or Dockerfile fails CI); see
+   Docker images, and a one-shot `import app` in the sidecar image, so a broken
+   bundle, Dockerfile or sidecar module list fails CI); see
    `docs/specs/ci-build-job.md`.
 8. **Dependencies stay current.** CI fails the pull request when any dependency
    is outdated (`bun run outdated`), so the update is made inside the ordinary

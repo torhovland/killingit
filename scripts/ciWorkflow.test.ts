@@ -90,6 +90,12 @@ const ALLOWED_ACTIONS = new Set([
   SETUP_ACTION,
 ]);
 
+/** The sidecar's runtime modules are hard-listed in its Dockerfile `COPY`, so a
+ * module `app.py` imports but the list forgets builds green and fails on first
+ * request. Importing the app once in the built image proves they resolve. */
+const GARMIN_IMAGE = "killingit-garmin:ci";
+const GARMIN_SMOKE_COMMAND = `docker run --rm ${GARMIN_IMAGE} python -c "import app"`;
+
 function usesSetupAction(job: WorkflowJob | undefined): boolean {
   return (job?.steps ?? []).some((step) => step.uses === SETUP_ACTION);
 }
@@ -198,6 +204,24 @@ describe("build job", () => {
     }
   });
 
+  it("imports the Garmin sidecar from the image it builds", () => {
+    const steps = buildSteps();
+    const buildAt = steps.findIndex((step) =>
+      step.run?.startsWith(
+        `docker build --file services/garmin/Dockerfile --tag ${GARMIN_IMAGE} `,
+      ),
+    );
+    const smokeAt = steps.findIndex(
+      (step) => step.run === GARMIN_SMOKE_COMMAND,
+    );
+
+    // The import only proves anything against the image this job just built, so
+    // the step must follow the build and must not be dropped. Retagging the
+    // build also fails here, before the image is ever run.
+    expect(buildAt).toBeGreaterThan(-1);
+    expect(smokeAt).toBe(buildAt + 1);
+  });
+
   it("neither pushes nor logs in nor takes a secret", () => {
     // Without this the assertions below hold for a job that has no steps.
     expect(buildSteps().length).toBeGreaterThan(0);
@@ -210,6 +234,7 @@ describe("build job", () => {
       expect(Object.keys(step.with ?? {})).not.toContain("build-args");
     }
 
+    // Every `run` is covered, including the sidecar's one-shot import.
     for (const command of runCommands()) {
       expect(command).not.toMatch(/(^|\s)--(push|secret|build-arg)\b/);
       expect(command).not.toMatch(/\bdocker\s+login\b/);

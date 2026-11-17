@@ -49,7 +49,10 @@ give the sidecar one rate-limit handler and one route error boundary.
    `test_errors.py` and the unchanged `test_contract.py`, with the shared Garmin
    stubs in `support.py`.
 5. The Docker image copies every runtime module, and `pyproject.toml` collects
-   every test module and type-checks every module.
+   every test module and type-checks every module. The CI build job imports the
+   built image once (`python -c "import app"`), so a runtime module the
+   Dockerfile's hard-listed `COPY` omits fails before merge
+   (`docs/specs/ci-build-job.md`).
 
 ### Out of scope
 
