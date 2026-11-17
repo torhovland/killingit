@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import type {
-  BlockPlan,
-  DayPlan,
-  SeasonPlan,
-  WeekPlan,
-} from "@killingit/shared";
+import {
+  makeBlock,
+  makeDay,
+  makeSeason,
+  makeWeek,
+} from "../testFixtures/plan.js";
 import { missingFragments } from "../testFixtures/prompts.js";
 import {
   BLOCK_CONTRACT,
@@ -67,35 +67,13 @@ const activities = [
   },
 ];
 
-const season: SeasonPlan = {
+const season = makeSeason({
   goal: "Sub-4-hour marathon",
-  startDate: "2026-10-21",
-  endDate: "2027-04-01",
   rationale: "Build a strong aerobic base.",
-  blocks: [
-    {
-      name: "Base",
-      focus: "Aerobic endurance",
-      startDate: "2026-10-21",
-      endDate: "2026-12-01",
-      weekCount: 6,
-    },
-    {
-      name: "Build",
-      focus: "Threshold and race pace",
-      startDate: "2026-12-02",
-      endDate: "2027-02-01",
-      weekCount: 8,
-    },
-  ],
-};
+});
 
-const block: BlockPlan = {
-  name: "Base",
+const block = makeBlock({
   focus: "Aerobic endurance",
-  rationale: "Establish consistent volume.",
-  startDate: "2026-10-21",
-  endDate: "2026-12-01",
   weeks: [
     {
       number: 1,
@@ -110,23 +88,9 @@ const block: BlockPlan = {
       targetLoad: "Easy to moderate",
     },
   ],
-};
+});
 
-const week: WeekPlan = {
-  startDate: "2026-10-19",
-  focus: "Aerobic base",
-  rationale: "Keep the week easy.",
-  sessions: Array.from({ length: 7 }, (_, index) => ({
-    date: `2026-10-${String(19 + index)}`,
-    day: "Monday",
-    type: "workout" as const,
-    title: index === 2 ? "Easy run" : `Session ${index + 1}`,
-    description: "Easy aerobic work.",
-    durationMinutes: 45,
-    intensity: "easy" as const,
-    status: "planned" as const,
-  })),
-};
+const week = makeWeek("2026-10-19");
 
 const base = {
   today: "2026-10-21",
@@ -148,18 +112,7 @@ const base = {
   weeklyNoteReply: "Understood; Thursday is a rest day.",
 };
 
-const todayPlan: DayPlan = {
-  date: "2026-10-21",
-  type: "workout",
-  title: "Easy run",
-  description: "Easy aerobic work.",
-  durationMinutes: 45,
-  intensity: "easy",
-  alternatives: ["Rest"],
-  rationale: "Keep the week easy.",
-  optional: false,
-  status: "planned",
-};
+const todayPlan = makeDay();
 
 function updateInput(
   overrides: Partial<PlanUpdateInput> = {},
@@ -506,7 +459,7 @@ describe("daily update prompt", () => {
     expect(prompt).toContain("Goal: Sub-4-hour marathon");
     expect(prompt).toContain("Block: Base");
     expect(prompt).toContain("Week starting 2026-10-19");
-    expect(prompt).toContain("Easy run");
+    expect(prompt).toContain("Session 3");
     expect(prompt).toContain(
       'top-level keys are exactly "today", "tomorrow", "week", "diet", and "bodyMetrics"',
     );
