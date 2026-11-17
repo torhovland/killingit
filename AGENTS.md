@@ -187,8 +187,8 @@ through a disciplined process:
    duplication.
 10. **Documents stay current.** Keep AGENTS.md accurate and write ADRs for
     significant choices. `scripts/docs.test.ts` fails on a missing referenced
-    spec, ADR or benchmark file, a duplicate ADR number, a foreign unit-test
-    runner, or a spec missing from the index below.
+    spec, ADR, benchmark file or source path, a duplicate ADR number, a foreign
+    unit-test runner, or a spec missing from the index below.
 11. **Definition of done.** Tests, types, lint and the unused-export check pass,
     including `bun run check:garmin` when the sidecar or its tooling changes.
 12. **Clean, readable code first.** Readability matters as much as working
