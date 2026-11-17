@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAppStatus } from "./AppStatus";
 import { useAuth } from "./auth";
-import { CoachPlanSection } from "./CoachPlanSection";
+import { CoachPlanSection } from "./plan/CoachPlanSection";
 import { CoachQuestionCard } from "./CoachQuestionCard";
 import { CoachingInputsSection } from "./CoachingInputsSection";
 import { pollCoachReplies } from "./coachReplyPoll";

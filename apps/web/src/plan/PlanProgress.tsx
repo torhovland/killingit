@@ -1,5 +1,5 @@
-import type { AppBusyState } from "./AppStatus";
-import { Card } from "./components/Card";
+import type { AppBusyState } from "../AppStatus";
+import { Card } from "../components/Card";
 
 /** The step and percentage of a running plan generation. */
 export interface PlanProgressState {

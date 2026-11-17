@@ -21,10 +21,10 @@ changes.
 - `apps/web/src/useCoachReviews.ts` — loads completed-period reviews, tracks the
   reviews kept for the rest of the visit, saves a review comment and marks a
   review as reviewed without a comment.
-- `apps/web/src/useCoachPlan.ts` — loads the stored plan and today's diet
+- `apps/web/src/plan/useCoachPlan.ts` — loads the stored plan and today's diet
   summary, runs the refresh-key reload and the track/start decision tree, and
   exposes the newest tracked response instead of copying it into local state.
-- `apps/web/src/usePlanWorkoutDownload.ts` — the authenticated workout-file
+- `apps/web/src/plan/usePlanWorkoutDownload.ts` — the authenticated workout-file
   fetch, the browser save, the in-flight date and the download error.
 - `apps/web/src/useCoachQuestion.ts` — loads the pending coach question and
   answers it.
@@ -43,9 +43,9 @@ changes.
 - `apps/web/src/ManualActivityForm.tsx` — the add/edit manual activity form.
 - `apps/web/src/ManualActivityList.tsx` — saved manual activities with edit and
   delete actions.
-- `apps/web/src/CoachPlanSection.tsx` — the plan card's layout, composing
+- `apps/web/src/plan/CoachPlanSection.tsx` — the plan card's layout, composing
   `useCoachPlan`, `usePlanWorkoutDownload` and `CoachPlanView`.
-- `apps/web/src/CoachPlanView.tsx` — the tab shell, rendering the plan levels
+- `apps/web/src/plan/CoachPlanView.tsx` — the tab shell, rendering the plan levels
   through the shared `Tabs` primitive. It receives the plan's `pending` levels
   and whether a run is `running` once, and dims each level whose replacement is
   in flight.

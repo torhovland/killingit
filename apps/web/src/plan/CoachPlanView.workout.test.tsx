@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { CoachPlan } from "@killingit/shared";
 import { CoachPlanView } from "./CoachPlanView";
-import { noPending, plan } from "./testFixtures/plan";
+import { noPending, plan } from "../testFixtures/plan";
 
 describe("CoachPlanView workouts", () => {
   it("offers a workout-file download for indoor bike power sessions", () => {

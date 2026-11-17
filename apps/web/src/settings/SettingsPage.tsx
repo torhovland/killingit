@@ -6,7 +6,7 @@ import { DietSection } from "./DietSection";
 import { GarminSection } from "./GarminSection";
 import { LlmSection } from "./LlmSection";
 import { LocationSection } from "./LocationSection";
-import { PlanRegenerationButtons } from "../PlanRegenerationButtons";
+import { PlanRegenerationButtons } from "../plan/PlanRegenerationButtons";
 import { usePwa } from "../PwaContext";
 import { PwaInstallSection } from "../PwaInstall";
 import { reportError } from "../reportError";

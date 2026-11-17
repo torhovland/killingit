@@ -34,8 +34,8 @@ setup that more than one file needs lives in a test fixture, not in a copy of
    the combined forecast set and waiting for a background generation to settle.
    Plan generation fixtures stay in `testFixtures/generationHarness.ts`.
 5. A web component test is split by the component's concern.
-   `CoachPlanView` has separate day, levels, calories, weather, refresh,
-   training, workout-file and threshold files. The one plan fixture and the
+   `apps/web/src/plan/CoachPlanView.tsx` has separate day, levels, calories,
+   weather, refresh, training, workout-file and threshold files. The one plan fixture and the
    heading bullet live in `apps/web/src/testFixtures/plan.ts`.
 6. Knip excludes each package's `src/testFixtures/` directory, exactly as it
    already excluded the API directory, so a helper exported only for tests is

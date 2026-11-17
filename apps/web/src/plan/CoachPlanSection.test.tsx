@@ -14,8 +14,8 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import * as Sentry from "@sentry/react";
 import type { CoachPlanResponse } from "@killingit/shared";
-import type { AuthState } from "./auth";
-import { plan } from "./testFixtures/plan";
+import type { AuthState } from "../auth";
+import { plan } from "../testFixtures/plan";
 
 const auth: AuthState = {
   isAuthenticated: true,
@@ -26,9 +26,9 @@ const auth: AuthState = {
   getToken: () => Promise.resolve("token"),
 };
 
-const { SessionExpiredError } = await import("./auth/session");
+const { SessionExpiredError } = await import("../auth/session");
 
-await mock.module("./auth", () => ({
+await mock.module("../auth", () => ({
   SessionExpiredError,
   useAuth: () => auth,
 }));
@@ -37,10 +37,10 @@ afterAll(() => {
   mock.restore();
 });
 
-const { AppStatusProvider } = await import("./AppStatus");
+const { AppStatusProvider } = await import("../AppStatus");
 const { CoachPlanSection } = await import("./CoachPlanSection");
 const { PlanGenerationProvider } = await import("./PlanGenerationProvider");
-const { TimeZoneProvider } = await import("./TimeZoneContext");
+const { TimeZoneProvider } = await import("../TimeZoneContext");
 
 const originalFetch = globalThis.fetch;
 type Schedule = (

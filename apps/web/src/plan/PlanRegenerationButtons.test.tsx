@@ -18,7 +18,7 @@ import type {
   CoachPlanResponse,
   PlanGenerateMode,
 } from "@killingit/shared";
-import type { AuthState } from "./auth";
+import type { AuthState } from "../auth";
 import type { PlanGenerationOutcome } from "./planGeneration";
 
 const auth: AuthState = {
@@ -30,9 +30,9 @@ const auth: AuthState = {
   getToken: () => Promise.resolve("token"),
 };
 
-const { SessionExpiredError } = await import("./auth/session");
+const { SessionExpiredError } = await import("../auth/session");
 
-await mock.module("./auth", () => ({
+await mock.module("../auth", () => ({
   SessionExpiredError,
   useAuth: () => auth,
 }));
@@ -79,7 +79,7 @@ await mock.module("./PlanGenerationProvider", () => ({
   },
 }));
 
-const { AppStatusProvider } = await import("./AppStatus");
+const { AppStatusProvider } = await import("../AppStatus");
 const { PlanRegenerationButtons } = await import("./PlanRegenerationButtons");
 
 /** The buttons read the shared status hook, which registers a header source. */

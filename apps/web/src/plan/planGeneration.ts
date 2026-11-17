@@ -3,9 +3,9 @@ import {
   type CoachPlanResponse,
   type PlanPending,
 } from "@killingit/shared";
-import type { AuthState } from "./auth";
-import { requestParsed } from "./fetchAuthed";
-import { reportError } from "./reportError";
+import type { AuthState } from "../auth";
+import { requestParsed } from "../fetchAuthed";
+import { reportError } from "../reportError";
 
 /**
  * The result of tracking one plan generation to completion. A generation that

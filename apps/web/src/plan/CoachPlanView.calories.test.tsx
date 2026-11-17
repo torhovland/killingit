@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { CoachPlan } from "@killingit/shared";
 import { CoachPlanView } from "./CoachPlanView";
-import { noPending, plan } from "./testFixtures/plan";
+import { noPending, plan } from "../testFixtures/plan";
 
 describe("CoachPlanView calories", () => {
   it("shows diet progress targets on the week, block and season tabs", () => {

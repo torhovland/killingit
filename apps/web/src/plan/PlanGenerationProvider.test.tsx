@@ -10,8 +10,8 @@ import {
 } from "bun:test";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import type { CoachPlanResponse } from "@killingit/shared";
-import type { AuthState } from "./auth";
-import { plan } from "./testFixtures/plan";
+import type { AuthState } from "../auth";
+import { plan } from "../testFixtures/plan";
 
 const auth: AuthState = {
   isAuthenticated: true,
@@ -22,9 +22,9 @@ const auth: AuthState = {
   getToken: () => Promise.resolve("token"),
 };
 
-const { SessionExpiredError } = await import("./auth/session");
+const { SessionExpiredError } = await import("../auth/session");
 
-await mock.module("./auth", () => ({
+await mock.module("../auth", () => ({
   SessionExpiredError,
   useAuth: () => auth,
 }));
@@ -33,10 +33,10 @@ afterAll(() => {
   mock.restore();
 });
 
-const { AppStatusProvider } = await import("./AppStatus");
+const { AppStatusProvider } = await import("../AppStatus");
 const { PlanGenerationProvider, usePlanGeneration } =
   await import("./PlanGenerationProvider");
-const { TimeZoneProvider } = await import("./TimeZoneContext");
+const { TimeZoneProvider } = await import("../TimeZoneContext");
 
 /** The live context value, refreshed on every provider render. */
 let generation: ReturnType<typeof usePlanGeneration>;

@@ -9,18 +9,18 @@ import {
   type ReactNode,
 } from "react";
 import type { CoachPlanResponse, PlanGenerateMode } from "@killingit/shared";
-import { useAppStatus } from "./AppStatus";
-import { useAuth } from "./auth";
-import { fetchJsonAuthed } from "./fetchAuthed";
+import { useAppStatus } from "../AppStatus";
+import { useAuth } from "../auth";
+import { fetchJsonAuthed } from "../fetchAuthed";
 import { initialPlanProgress, type PlanProgressState } from "./PlanProgress";
 import {
   fetchCoachPlan,
   pollPlanGeneration,
   type PlanGenerationOutcome,
 } from "./planGeneration";
-import { reportError } from "./reportError";
-import { useTimeZone } from "./TimeZoneContext";
-import { getToday } from "./useToday";
+import { reportError } from "../reportError";
+import { useTimeZone } from "../TimeZoneContext";
+import { getToday } from "../useToday";
 
 interface PlanGenerationContextValue {
   /** Whether the coach is currently generating or refreshing the plan. */

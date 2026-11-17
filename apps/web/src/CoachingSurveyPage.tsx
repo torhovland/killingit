@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useAthleteQuestionsContext } from "./AthleteQuestionsProvider";
 import { AthleteAnswersSection } from "./AthleteAnswersSection";
 import { useAppStatus } from "./AppStatus";
-import { PlanRegenerationButtons } from "./PlanRegenerationButtons";
+import { PlanRegenerationButtons } from "./plan/PlanRegenerationButtons";
 import { Button } from "./components/Button";
 import { Card } from "./components/Card";
 

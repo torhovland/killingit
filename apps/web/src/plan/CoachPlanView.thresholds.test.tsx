@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { ThresholdSummary } from "@killingit/shared";
 import { CoachPlanView } from "./CoachPlanView";
-import { BULLET, noPending, plan } from "./testFixtures/plan";
+import { BULLET, noPending, plan } from "../testFixtures/plan";
 
 describe("CoachPlanView thresholds", () => {
   it("shows every known threshold in place of the single FTP estimate", () => {

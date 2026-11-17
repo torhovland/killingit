@@ -67,9 +67,10 @@ the settings page and the plan-regeneration buttons.
   consume the hooks and render the returned state.
 
 Single-page hooks share that home: a hook used by one page or section lives in
-`apps/web/src/use<Name>.ts` beside its consumer, as `useCoachPlan.ts` and
-`usePlanWorkoutDownload.ts` do for the coaching dashboard's plan section. Only a
-hook that more than one page needs joins the shared list above.
+its feature directory beside its consumer, as `apps/web/src/plan/useCoachPlan.ts`
+and `apps/web/src/plan/usePlanWorkoutDownload.ts` do for the coaching dashboard's
+plan section. Only a hook that more than one page needs joins the shared list
+above.
 
 ## Acceptance criteria
 
