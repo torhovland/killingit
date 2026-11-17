@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { AppBusyState } from "./AppStatus";
 import { PAGES, pageLabel, type Page } from "./navigation";
 import { Spinner } from "./Spinner";
+import { Badge } from "./components/Badge";
 import { Button } from "./components/Button";
 import { Menu } from "./components/Menu";
 
@@ -83,9 +84,9 @@ export function UserMenu({
           )}
           <span className="hidden font-medium sm:inline">{name}</span>
           {isAdmin && (
-            <span className="hidden rounded border border-transparent bg-accent px-2 py-0.5 text-sm text-accent-foreground sm:inline">
+            <Badge variant="accent" className="hidden sm:inline">
               Admin
-            </span>
+            </Badge>
           )}
           {label && <Spinner label={label} />}
         </>

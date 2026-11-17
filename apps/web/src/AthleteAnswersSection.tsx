@@ -6,6 +6,7 @@ import {
   type QuestionAnswerInput,
 } from "@killingit/shared";
 import { reportError } from "./reportError";
+import { Badge } from "./components/Badge";
 import { Button } from "./components/Button";
 import { Textarea } from "./components/Textarea";
 import { Card } from "./components/Card";
@@ -161,9 +162,9 @@ function AnswerEditor({
           className="flex flex-wrap items-center gap-2 font-medium"
         >
           {question.prompt}
-          <span className="rounded border bg-muted px-2 py-0.5 text-sm font-normal text-muted-foreground">
+          <Badge className="font-normal text-muted-foreground">
             {question.required ? "Required" : "Optional"}
-          </span>
+          </Badge>
         </label>
         <Textarea
           id={`survey-question-${question.versionId}`}

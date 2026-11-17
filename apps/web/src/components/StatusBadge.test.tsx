@@ -7,7 +7,7 @@ describe("StatusBadge", () => {
     const html = renderToStaticMarkup(<StatusBadge status="completed" />);
 
     expect(html).toBe(
-      '<span class="rounded border bg-muted px-2 py-0.5 text-sm capitalize">completed</span>',
+      '<span class="rounded border px-2 py-0.5 text-sm bg-muted capitalize">completed</span>',
     );
   });
 
