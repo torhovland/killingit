@@ -19,9 +19,11 @@ without publishing them.
 
 ### In scope
 
-1. A `build` job in `.github/workflows/ci.yml` that runs, in order:
-   `bun install --frozen-lockfile`, `bun run build`, and a `docker build` for
-   `apps/api/Dockerfile` and for `services/garmin/Dockerfile`.
+1. A `build` job in `.github/workflows/ci.yml` that checks out the repository,
+   runs the shared `.github/actions/setup-bun-install` action (the pinned Bun
+   release plus `bun install --frozen-lockfile`), then `bun run build` and a
+   `docker build` for `apps/api/Dockerfile` and for
+   `services/garmin/Dockerfile`.
 2. The API image is built with the deploy's context (`.`) and the same
    Dockerfile, and the sidecar's with context `services/garmin`, so the gate and
    the deploy cannot diverge over what they build.
@@ -57,14 +59,18 @@ build:
   runs-on: ubuntu-latest
   steps:
     - uses: actions/checkout@v5
-    - uses: oven-sh/setup-bun@v2
-      with:
-        bun-version-file: .bun-version
-    - run: bun install --frozen-lockfile
+    - uses: ./.github/actions/setup-bun-install
     - run: bun run build
     - run: docker build --file apps/api/Dockerfile --tag killingit-api:ci .
     - run: docker build --file services/garmin/Dockerfile --tag killingit-garmin:ci services/garmin
 ```
+
+The checkout stays in the job. A local `./.github/actions/...` path is resolved
+from the workspace, which is empty until `actions/checkout` runs, so a composite
+action that checked the repository out itself could never be loaded
+(actions/runner#646). The action owns the setup-bun step, its `.bun-version`
+input and the frozen install; the eight CI jobs that install dependencies differ
+only in the command they run afterwards.
 
 `bun run build` is the root `bun run --filter '*' build`, so it runs every
 workspace's own `build` script: the web app's `tsc --noEmit && vite build` (the
@@ -78,18 +84,20 @@ image: the Dockerfile copies every workspace manifest the lockfile lists, and
 
 ### The Bun version
 
-`.bun-version` names the one Bun release the repository uses. Every
-`oven-sh/setup-bun@v2` step in `ci.yml` and `deploy-environment.yml` passes
-`bun-version-file: .bun-version`, so typecheck, lint, format, unused, build,
-test, integration, sign-off, outdated and every deploy step install the same
-release. The e2e job cannot use the action (see `docs/specs/e2e-tests.md`), so
-its shell step reads the same file, and the API Dockerfile's two `oven/bun`
-image tags name the same release.
+`.bun-version` names the one Bun release the repository uses. The eight CI jobs
+that install dependencies call `.github/actions/setup-bun-install`, whose
+`oven-sh/setup-bun@v2` step passes `bun-version-file: .bun-version`, so
+typecheck, lint, format, unused, build, test, integration and outdated install
+the same release. The sign-off job calls setup-bun directly because it skips the
+install, `deploy-environment.yml` keeps its own step, and the e2e job cannot use
+the action (see `docs/specs/e2e-tests.md`), so its shell step reads the same
+file. The API Dockerfile's two `oven/bun` image tags name the same release.
 
-`scripts/bunVersion.test.ts` fails when a `setup-bun` step repeats a literal
-`bun-version`, when a workflow hard-codes a `bun-v<version>` download URL, when
-the e2e step stops reading `.bun-version`, or when a Dockerfile tag drifts.
-`bun run test` and CI's test job run it, so the pin cannot float again.
+`scripts/bunVersion.test.ts` fails when a `setup-bun` step in a workflow or in
+the composite action repeats a literal `bun-version`, when either hard-codes a
+`bun-v<version>` download URL, when the e2e step stops reading `.bun-version`,
+or when a Dockerfile tag drifts. `bun run test` and CI's test job run it, so the
+pin cannot float again.
 
 ## The API's production bundle
 
@@ -117,12 +125,14 @@ CI therefore runs the bundling command exactly where the deploy runs it.
   `deploy.yml`'s `docker/build-push-action` steps.
 - The job never pushes, never logs in to a registry, and never receives a
   secret or a Sentry build arg.
-- Every Bun installation in `ci.yml`, `deploy-environment.yml` and
+- Every Bun installation in `ci.yml`,
+  `.github/actions/setup-bun-install/action.yml`, `deploy-environment.yml` and
   `apps/api/Dockerfile` names the release in `.bun-version`;
   `scripts/bunVersion.test.ts` fails on a literal or floating version.
 - `scripts/ciWorkflow.test.ts` asserts these properties, including that the
-  root `build` command reaches a real `vite build` and that no step can opt out
-  of failing.
+  root `build` command reaches a real `vite build`, that every job running the
+  frozen install uses the shared action (e2e excepted), and that no step can opt
+  out of failing.
 
 ## Data model and API impact
 

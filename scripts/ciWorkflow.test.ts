@@ -5,6 +5,7 @@ interface WorkflowStep {
   name?: string;
   uses?: string;
   run?: string;
+  shell?: string;
   if?: string;
   with?: Record<string, unknown>;
   "continue-on-error"?: boolean;
@@ -18,6 +19,13 @@ interface WorkflowJob {
 
 interface Workflow {
   jobs: Record<string, WorkflowJob>;
+}
+
+interface CompositeAction {
+  runs?: {
+    using?: string;
+    steps?: WorkflowStep[];
+  };
 }
 
 interface PackageManifest {
@@ -38,6 +46,13 @@ async function readWorkflow(name: string): Promise<Workflow> {
   return Bun.YAML.parse(text) as Workflow;
 }
 
+async function readAction(name: string): Promise<CompositeAction> {
+  const text = await Bun.file(
+    path.join(REPO_ROOT, ".github", "actions", name, "action.yml"),
+  ).text();
+  return Bun.YAML.parse(text) as CompositeAction;
+}
+
 async function readManifest(directory: string): Promise<PackageManifest> {
   const manifestPath = path.join(REPO_ROOT, directory, "package.json");
   return (await Bun.file(manifestPath).json()) as PackageManifest;
@@ -47,12 +62,37 @@ const CI = await readWorkflow("ci.yml");
 const DEPLOY = await readWorkflow("deploy.yml");
 const BUILD_JOB = CI.jobs["build"];
 
-/** The actions the build job may use: checkout, Bun, and nothing that talks to
- * a registry or a remote service. */
+/** The step every install job runs after its checkout. */
+const SETUP_ACTION = "./.github/actions/setup-bun-install";
+const SETUP_ACTION_RUNS = (await readAction("setup-bun-install")).runs;
+
+/**
+ * The CI jobs that need a checkout, the pinned Bun release and a frozen
+ * workspace install. A new job joins this list deliberately instead of copying
+ * the steps again.
+ */
+const SETUP_ACTION_JOBS = [
+  "typecheck",
+  "lint",
+  "format",
+  "unused",
+  "build",
+  "test",
+  "integration",
+  "outdated",
+] as const;
+
+/** The actions the build job may use: checkout, Bun setup directly or through
+ * the shared action, and nothing that talks to a registry or a remote service. */
 const ALLOWED_ACTIONS = new Set([
   "actions/checkout@v5",
   "oven-sh/setup-bun@v2",
+  SETUP_ACTION,
 ]);
+
+function usesSetupAction(job: WorkflowJob | undefined): boolean {
+  return (job?.steps ?? []).some((step) => step.uses === SETUP_ACTION);
+}
 
 function buildSteps(): WorkflowStep[] {
   return BUILD_JOB?.steps ?? [];
@@ -193,14 +233,56 @@ describe("build job", () => {
   it("follows the shape of the other jobs", () => {
     const steps = buildSteps();
     expect(steps[0]?.uses).toBe("actions/checkout@v5");
-    expect(steps.some((step) => step.uses === "oven-sh/setup-bun@v2")).toBe(
-      true,
+    expect(steps[1]?.uses).toBe(SETUP_ACTION);
+
+    // The frozen install runs inside the action, so its step must stay ahead
+    // of the bundle rather than being moved after it.
+    const setupAt = steps.findIndex((step) => step.uses === SETUP_ACTION);
+    const buildAt = steps.findIndex((step) => step.run === "bun run build");
+    expect(setupAt).toBeGreaterThan(-1);
+    expect(buildAt).toBeGreaterThan(setupAt);
+  });
+});
+
+describe("shared setup action", () => {
+  it("installs Bun and the workspace dependencies", () => {
+    expect(SETUP_ACTION_RUNS?.using).toBe("composite");
+    const steps = SETUP_ACTION_RUNS?.steps ?? [];
+
+    // A local `./.github/actions/...` path is resolved from the workspace,
+    // which is empty until the caller checks out, so the action must not try
+    // to check the repository out itself.
+    expect(steps.some((step) => step.uses === "actions/checkout@v5")).toBe(
+      false,
     );
 
-    const commands = runCommands();
-    expect(commands).toContain("bun install --frozen-lockfile");
-    expect(commands.indexOf("bun install --frozen-lockfile")).toBeLessThan(
-      commands.indexOf("bun run build"),
+    const bun = steps.find((step) => step.uses === "oven-sh/setup-bun@v2");
+    expect(bun?.with?.["bun-version-file"]).toBe(".bun-version");
+
+    const install = steps.find(
+      (step) => step.run === "bun install --frozen-lockfile",
     );
+    expect(install?.shell).toBe("bash");
+  });
+
+  it("runs in exactly the jobs that install the dependencies", () => {
+    const withAction = Object.entries(CI.jobs)
+      .filter(([, job]) => usesSetupAction(job))
+      .map(([jobId]) => jobId)
+      .sort();
+    expect(withAction).toEqual([...SETUP_ACTION_JOBS].sort());
+
+    for (const [jobId, job] of Object.entries(CI.jobs)) {
+      const installs = (job.steps ?? []).some(
+        (step) => step.run === "bun install --frozen-lockfile",
+      );
+      // e2e installs the pinned release by hand in the Playwright image, so it
+      // is the one job allowed to run the frozen install without the action.
+      // Every other job must get it from the action, never a copy of the steps.
+      expect({ jobId, installs }).toEqual({
+        jobId,
+        installs: jobId === "e2e",
+      });
+    }
   });
 });
