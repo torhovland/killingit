@@ -314,8 +314,10 @@ against the environment you named. See
 
 ### Deployment runbook (one-time setup)
 
-The deploy pipeline is in `.github/workflows/deploy.yml`. It always deploys the
-commit CI verified: a `workflow_run` deploy checks out, tags, and releases
+The deploy pipeline is `.github/workflows/deploy.yml`, which runs the shared
+environment pipeline in `.github/workflows/deploy-environment.yml` once for
+test and once for production. It always deploys the commit CI verified: a
+`workflow_run` deploy checks out, tags, and releases
 `github.event.workflow_run.head_sha`, while a manual `workflow_dispatch` may only
 run from `main` on a commit with a successful CI run. Deploys are serialised per
 environment (`deploy-test` / `deploy-production`) and a running deploy is never
@@ -396,9 +398,8 @@ localhost; see `docs/specs/database-connection.md`.
 | `AUTH0_AUDIENCE`                 | var    | API audience `https://api.killingit.hovland.co`                                             |
 | `AUTH0_ISSUER`                   | var    | Auth0 tenant issuer (domain + trailing slash); non-secret                                   |
 
-The `production` environment's API/web deploy jobs also require an approval
-gate (or protected-environment rule) in the repo settings to make the manual
-step real.
+The production deploy job also requires an approval gate (or
+protected-environment rule) in the repo settings to make the manual step real.
 
 **Garmin sidecar**
 

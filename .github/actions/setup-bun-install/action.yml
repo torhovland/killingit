@@ -1,0 +1,17 @@
+name: Setup Bun and install
+description: Install the Bun release pinned in .bun-version and the workspace dependencies.
+
+# A local `./.github/actions/...` path is resolved from the workspace, which is
+# empty until the caller checks out, so this action must not check the
+# repository out itself: every caller keeps `actions/checkout` as its first
+# step. See https://github.com/actions/runner/issues/646.
+runs:
+  using: composite
+  steps:
+    - uses: oven-sh/setup-bun@v2
+      with:
+        # The one file naming the Bun release. A literal `bun-version` would win
+        # over the file and drift; `scripts/bunVersion.test.ts` fails on it.
+        bun-version-file: .bun-version
+    - run: bun install --frozen-lockfile
+      shell: bash

@@ -58,8 +58,9 @@ the settings page and the plan-regeneration buttons.
 
 - `apps/web/src/useStatuses.ts` — the two integration statuses.
 - `apps/web/src/useActivityFeed.ts` — the feed and its mutations.
-- `apps/web/src/coachingSave.ts` — the shared `{ message, reply }` response
-  parser.
+- `packages/shared/src/plan.ts` — `coachingInputSaveResponseSchema`, the shared
+  `{ message, reply }` response contract of the comment, review, weekly-note and
+  manual-activity saves.
 - `apps/web/src/activityCache.ts` — cache storage, merge, and the pure feed
   transformations used by the hook.
 - `apps/web/src/ActivitiesPage.tsx` and `apps/web/src/CoachDashboard.tsx` —

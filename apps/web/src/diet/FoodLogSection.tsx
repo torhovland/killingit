@@ -68,14 +68,13 @@ export function FoodLogSection({
         "Logging the meal",
         {
           method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
+          json: {
             eatenAt: wallClockToIso(eatenAt, timeZone),
             timezone: timeZone,
             today,
             description: description.trim() || null,
             photoDataUrl: photo.photoDataUrl,
-          }),
+          },
         },
       );
       setResult(parsed);

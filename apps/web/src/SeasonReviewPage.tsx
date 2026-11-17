@@ -60,12 +60,11 @@ export function SeasonReviewPage() {
         "Saving your comment",
         {
           method: mode === "edit" ? "PUT" : "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
+          json: {
             today,
             timezone: timeZone,
             comment,
-          }),
+          },
         },
       );
       resource.setData((previous) =>

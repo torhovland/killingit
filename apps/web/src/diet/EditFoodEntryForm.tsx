@@ -85,8 +85,7 @@ export function EditFoodEntryForm({
         "Editing the meal",
         {
           method: "PATCH",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify(body),
+          json: body,
         },
       );
       onSaved(parsed);

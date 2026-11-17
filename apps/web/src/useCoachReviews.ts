@@ -87,12 +87,11 @@ export function useCoachReviews(
           "Saving your comment",
           {
             method: mode === "edit" ? "PUT" : "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({
+            json: {
               today,
               timezone: timeZone,
               comment,
-            }),
+            },
           },
         );
         // Leave the review in place for this visit; the next page load only

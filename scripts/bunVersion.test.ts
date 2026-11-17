@@ -16,6 +16,13 @@ interface Workflow {
   jobs: Record<string, WorkflowJob>;
 }
 
+interface CompositeAction {
+  runs?: {
+    using?: string;
+    steps?: WorkflowStep[];
+  };
+}
+
 const REPO_ROOT = path.resolve(import.meta.dir, "..");
 
 /** The one file that names the Bun version every job installs. */
@@ -25,7 +32,11 @@ const BUN_VERSION = (
   await Bun.file(path.join(REPO_ROOT, VERSION_FILE)).text()
 ).trim();
 
-const WORKFLOW_FILES = ["ci.yml", "deploy.yml"] as const;
+const WORKFLOW_FILES = [
+  "ci.yml",
+  "deploy.yml",
+  "deploy-environment.yml",
+] as const;
 
 const WORKFLOWS = await Promise.all(
   WORKFLOW_FILES.map(async (file) => {
@@ -40,16 +51,40 @@ const WORKFLOWS = await Promise.all(
   }),
 );
 
+/** The composite action the CI install jobs call after their checkout. */
+const SETUP_ACTION_FILE = ".github/actions/setup-bun-install/action.yml";
+
+const SETUP_ACTION_TEXT = await Bun.file(
+  path.join(REPO_ROOT, SETUP_ACTION_FILE),
+).text();
+
+const SETUP_ACTION = Bun.YAML.parse(SETUP_ACTION_TEXT) as CompositeAction;
+
+/**
+ * Every file whose steps install Bun: the workflows, plus the composite action
+ * the CI jobs delegate their setup and install to.
+ */
+const CHECKED_FILES = [
+  ...WORKFLOWS.map(({ file, text, parsed }) => ({
+    file,
+    text,
+    steps: allSteps(parsed),
+  })),
+  {
+    file: SETUP_ACTION_FILE,
+    text: SETUP_ACTION_TEXT,
+    steps: SETUP_ACTION.runs?.steps ?? [],
+  },
+];
+
 /** Every step of every job in the given workflow. */
 function allSteps(workflow: Workflow): WorkflowStep[] {
   return Object.values(workflow.jobs).flatMap((job) => job.steps ?? []);
 }
 
 /** The steps that install Bun through the setup action. */
-function setupBunSteps(workflow: Workflow): WorkflowStep[] {
-  return allSteps(workflow).filter(
-    (step) => step.uses === "oven-sh/setup-bun@v2",
-  );
+function setupBunSteps(steps: WorkflowStep[]): WorkflowStep[] {
+  return steps.filter((step) => step.uses === "oven-sh/setup-bun@v2");
 }
 
 /** The `oven/bun:<tag>` image tags a Dockerfile builds from. */
@@ -65,16 +100,18 @@ describe("Bun version", () => {
   });
 
   it("is installed through the version file by every setup-bun step", () => {
-    const steps = WORKFLOWS.flatMap((workflow) =>
-      setupBunSteps(workflow.parsed).map((step) => ({
-        file: workflow.file,
-        step,
-      })),
+    const installSteps = CHECKED_FILES.flatMap(({ file, steps }) =>
+      setupBunSteps(steps).map((step) => ({ file, step })),
     );
     // Without this the assertions below hold for a workflow with no Bun step.
-    expect(steps.length).toBeGreaterThan(0);
+    expect(installSteps.length).toBeGreaterThan(0);
+    // The CI install jobs delegate to the composite action, so its step must
+    // be one the assertions below check rather than a workflow-only step.
+    expect(
+      installSteps.filter(({ file }) => file === SETUP_ACTION_FILE),
+    ).toHaveLength(1);
 
-    for (const { file, step } of steps) {
+    for (const { file, step } of installSteps) {
       expect({ file, versionFile: step.with?.["bun-version-file"] }).toEqual({
         file,
         versionFile: VERSION_FILE,
@@ -84,10 +121,10 @@ describe("Bun version", () => {
     }
   });
 
-  it("is not repeated as a literal in a workflow", () => {
-    for (const workflow of WORKFLOWS) {
-      expect(workflow.text).not.toMatch(/\bbun-version:\s*[^\s$]/);
-      expect(workflow.text).not.toMatch(/\bbun-v\d/);
+  it("is not repeated as a literal in a workflow or the action", () => {
+    for (const { text } of CHECKED_FILES) {
+      expect(text).not.toMatch(/\bbun-version:\s*[^\s$]/);
+      expect(text).not.toMatch(/\bbun-v\d/);
     }
   });
 

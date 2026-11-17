@@ -15,10 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: .bun-version
-      - run: bun install --frozen-lockfile
+      - uses: ./.github/actions/setup-bun-install
       - run: bun run typecheck
 
   lint:
@@ -26,10 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: .bun-version
-      - run: bun install --frozen-lockfile
+      - uses: ./.github/actions/setup-bun-install
       - run: bun run lint
 
   format:
@@ -37,10 +31,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: .bun-version
-      - run: bun install --frozen-lockfile
+      - uses: ./.github/actions/setup-bun-install
       - run: bun run format
 
   unused:
@@ -48,10 +39,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: .bun-version
-      - run: bun install --frozen-lockfile
+      - uses: ./.github/actions/setup-bun-install
       - run: bun run check:unused
 
   # Proves the artifacts the deploy builds, without publishing them. The deploy
@@ -63,10 +51,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: .bun-version
-      - run: bun install --frozen-lockfile
+      - uses: ./.github/actions/setup-bun-install
       # The root script runs each workspace's own build, so the web app's
       # `vite build` runs here and not just its typecheck.
       - name: Build every workspace
@@ -77,18 +62,21 @@ jobs:
         run: docker build --file apps/api/Dockerfile --tag killingit-api:ci .
       - name: Build the Garmin sidecar image
         run: docker build --file services/garmin/Dockerfile --tag killingit-garmin:ci services/garmin
+      # The Dockerfile lists the runtime modules by name, so a module `app.py`
+      # imports but the list forgets builds green and fails on first request.
+      # Importing the app once proves every module resolves inside the image;
+      # starting the server stays the Cloud Run revision's job.
+      - name: Import the Garmin sidecar image
+        run: docker run --rm killingit-garmin:ci python -c "import app"
 
   test:
     name: Test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: oven-sh/setup-bun@v2
-        with:
-          # Coverage line counts change between Bun releases. Keep the
-          # baseline in scripts/coverage.ts tied to .bun-version.
-          bun-version-file: .bun-version
-      - run: bun install --frozen-lockfile
+      # Coverage line counts change between Bun releases. Keep the baseline in
+      # scripts/coverage.ts tied to .bun-version, which the shared action reads.
+      - uses: ./.github/actions/setup-bun-install
       - run: bun run test:coverage
       - name: Upload coverage report
         if: ${{ !cancelled() }}
@@ -134,10 +122,7 @@ jobs:
       INTEGRATION_DATABASE_URL: postgres://killingit:killingit@localhost:5432/killingit_test
     steps:
       - uses: actions/checkout@v5
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: .bun-version
-      - run: bun install --frozen-lockfile
+      - uses: ./.github/actions/setup-bun-install
       - run: bun run test:integration
 
   e2e:
@@ -201,8 +186,5 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: .bun-version
-      - run: bun install --frozen-lockfile
+      - uses: ./.github/actions/setup-bun-install
       - run: bun run outdated

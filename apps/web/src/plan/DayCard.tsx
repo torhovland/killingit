@@ -13,6 +13,7 @@ import { FormattedText } from "../FormattedText";
 import { SessionSetting } from "../SessionSetting";
 import { TrainingLoadLine } from "../TrainingLoadLine";
 import { WeatherSummary } from "../WeatherSummary";
+import { Badge } from "../components/Badge";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { StatusBadge } from "../components/StatusBadge";
@@ -90,7 +91,7 @@ export function DayCard({
             {(day.status === "completed" || day.status === "partial") && (
               <StatusBadge status={day.status} />
             )}
-            <span className="rounded border bg-muted px-2 py-0.5 text-sm capitalize">
+            <Badge className="capitalize">
               {day.type === "rest" ? (
                 "Rest day"
               ) : (
@@ -101,7 +102,7 @@ export function DayCard({
                   <SessionSetting outdoor={day.outdoor} />
                 </>
               )}
-            </span>
+            </Badge>
           </span>
         </div>
         <p className="text-lg font-medium">{day.title}</p>

@@ -246,28 +246,24 @@ Shared (`@killingit/shared`):
   the TSS credited to that activity alone.
 - `averagePower`, `normalizedPower` and `averageHeartRate` (optional) on
   activity summaries.
-- `trainingLoad.ts`: `trainingLoadSchema`, plus the form interpretation the web
-  app reads. The load maths — normalized power, power TSS, bike-workout TSS, the
-  daily exponentially weighted load, and a duration-based session estimate —
-  lives in `apps/api/src/training/stress.ts`, because only the API computes it.
-  See `docs/specs/shared-api-boundary.md`.
+- The shared schema also carries the form interpretation the web app reads. The
+  load maths — normalized power, power TSS, bike-workout TSS, the daily
+  exponentially weighted load, and a duration-based session estimate — lives in
+  the API, because only the API computes it. See
+  `docs/specs/shared-api-boundary.md`.
 
 API:
 
-- `apps/api/src/llm/athleteReadingPrompt.ts` and
-  `apps/api/src/coaching/athleteReading.ts` read the FTP, body weight, and
-  body-fat values the athlete states in their own words and store them as
-  `user` metric points, together with their dated goals and events. No free text
-  is pattern-matched.
-- `apps/api/src/training/thresholds.ts` builds the single threshold timeline
-  model; its `ftpTimeline`, `ftpBaselineAt`, and `ftpWattsAt` selectors read
-  cycling FTP from it. There is no separate FTP timeline.
-- `apps/api/src/training/load.ts` resolves TSS and attaches the load series
-  after every generation path, including promotion-only saves.
-- `apps/api/src/coaching/feed/sync.ts` stores power metrics and activity loads
-  while summarizing synced activities.
-- `apps/api/src/training/manualTss.ts` estimates a manual entry's TSS with the
-  coach from its wording and returns null when the model is unavailable.
+- The athlete's own words are read for the FTP, body weight, and body-fat values
+  they state about themselves and stored as `user` metric points, together with
+  their dated goals and events. No free text is pattern-matched.
+- The threshold timeline is the single FTP timeline; cycling FTP is read from
+  it, and there is no separate FTP timeline.
+- TSS resolution and load-series attachment run after every generation path,
+  including promotion-only saves.
+- Summarizing a synced activity stores its power metrics and activity load.
+- A manual entry's TSS is estimated with the coach from its wording and stays
+  null when the model is unavailable.
 - `manual_activities.estimated_tss` stores the manual estimate (migration
   `0024`).
 - The plan prompts include the athlete's FTP (when known), the week's and

@@ -66,10 +66,11 @@ device zone shifts a day. See `docs/specs/pwa.md`,
 `docs/specs/web-date-formatting.md`.
 
 **Backend.** TypeScript on Bun, Hono for the API, Drizzle ORM and Zod. The Bun
-release is pinned once in `.bun-version`; every CI and deploy job installs it
-through `bun-version-file`, the e2e job reads the same file by hand, and the API
-Dockerfile's two `oven/bun` tags name it. `scripts/bunVersion.test.ts` fails on
-a literal or floating version. Shared Zod schemas are validated on both sides
+release is pinned once in `.bun-version`; CI's install jobs get it through
+`.github/actions/setup-bun-install`, the sign-off and deploy jobs pass it to
+`oven-sh/setup-bun` directly, the e2e job reads the same file by hand, and the
+API Dockerfile's two `oven/bun` tags name it. `scripts/bunVersion.test.ts` fails
+on a literal or floating version. Shared Zod schemas are validated on both sides
 (API `zValidator`, web responses);
 `packages/shared` holds the wire contract and API-only logic lives in `apps/api`.
 Failures use `{ error: { code, message, details? } }` from
@@ -173,7 +174,8 @@ through a disciplined process:
 7. **CI pipeline** (`.github/workflows/ci.yml`): typecheck, lint, format, unused
    exports, unit, integration and e2e tests, the sidecar's Python checks, the
    contribution sign-off check, and the `build` job (real `vite build` plus both
-   Docker images, so a broken bundle or Dockerfile fails CI); see
+   Docker images, and a one-shot `import app` in the sidecar image, so a broken
+   bundle, Dockerfile or sidecar module list fails CI); see
    `docs/specs/ci-build-job.md`.
 8. **Dependencies stay current.** CI fails the pull request when any dependency
    is outdated (`bun run outdated`), so the update is made inside the ordinary
@@ -185,8 +187,8 @@ through a disciplined process:
    duplication.
 10. **Documents stay current.** Keep AGENTS.md accurate and write ADRs for
     significant choices. `scripts/docs.test.ts` fails on a missing referenced
-    spec, ADR or benchmark file, a duplicate ADR number, a foreign unit-test
-    runner, or a spec missing from the index below.
+    spec, ADR, benchmark file or source path, a duplicate ADR number, a foreign
+    unit-test runner, or a spec missing from the index below.
 11. **Definition of done.** Tests, types, lint and the unused-export check pass,
     including `bun run check:garmin` when the sidecar or its tooling changes.
 12. **Clean, readable code first.** Readability matters as much as working

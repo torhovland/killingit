@@ -50,9 +50,16 @@ The primitives live in `apps/web/src/components/`:
   roving `tabIndex` and wrap at either end, and the selected tab is the tablist's
   only tab stop. The coach plan's Day, Week, Block and Season levels render
   through it; see `docs/specs/accessibility-lint.md`.
+- `Badge` — a compact inline label with `muted` (the default), `accent`,
+  `danger` and `outline` variants. The `rounded border px-2 py-0.5 text-sm`
+  layout lives here; a caller keeps its own casing, spacing and visibility in
+  `className`. `StatusBadge`, a plan day's type, the diet page's "Today"
+  marker, the survey's Required/Optional note, the account menu's Admin marker
+  and the admin LLM call markers all render through it.
 - `StatusBadge` — a week session's status (`completed`, `partial`, `planned`,
-  `missed`, `rest`) as a compact capitalised badge, shared by the plan and
-  calendar views so a status renders identically wherever it appears.
+  `missed`, `rest`) as a compact capitalised badge, built on `Badge` and shared
+  by the plan and calendar views so a status renders identically wherever it
+  appears.
 - `Chip` — a small inline label for a dense list, with an `accent variant` for
   a plan or event marker and a `muted` one for a note such as a rest day. The
   calendar's day cell renders its block start, season end, events and rest note
@@ -158,6 +165,9 @@ layout for the spinner and forwards `variant`, `size` and `className`.
 - Every tabbed view renders through `Tabs`; no page builds its own `tablist`,
   and the tab, panel and roving-focus ids and key handling stay in the
   primitive.
+- Every badge-shaped label renders through `Badge`; `StatusBadge` and the
+  admin LLM call markers build on it, and no page repeats its base class
+  string.
 - The primitives have unit tests for their defaults, variants and class
   merging.
 - Every conditional `className` is composed with `cn()`, and no `className` is

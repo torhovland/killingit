@@ -37,8 +37,7 @@ export function useAthleteQuestions() {
         "Saving your answers",
         {
           method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ answers }),
+          json: { answers },
         },
       );
       setData(response);

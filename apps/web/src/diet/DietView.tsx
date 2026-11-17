@@ -7,6 +7,7 @@ import {
 import { CalorieBalancePanel } from "../CalorieBalancePanel";
 import { EditableFoodEntryCard } from "./EditableFoodEntryCard";
 import { FormattedText } from "../FormattedText";
+import { Badge } from "../components/Badge";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { formatWeekdayDayMonthYear } from "../dateFormat";
@@ -172,11 +173,7 @@ function DietDayCard({
     <Card as="article" className="flex flex-col gap-3" data-testid="diet-day">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="text-lg font-semibold">{formatDietDate(day.date)}</h3>
-        {day.date === today && (
-          <span className="rounded border bg-muted px-2 py-0.5 text-sm">
-            Today
-          </span>
-        )}
+        {day.date === today && <Badge>Today</Badge>}
       </div>
       <dl className="flex flex-wrap gap-x-4 gap-y-1 text-base">
         <Stat

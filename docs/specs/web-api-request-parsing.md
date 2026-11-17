@@ -20,6 +20,8 @@ type, the same message shape, and carries the schema's issues as the cause.
   account deletion) on `fetchJsonAuthed`.
 - Take an API path rather than a full URL, and let the helper resolve the
   build's origin (ADR 0044, `docs/specs/web-api-base-url.md`).
+- Take a `json` value in the request init instead of a hand-written
+  `content-type: application/json` header plus a `JSON.stringify` body.
 
 ## Design
 
@@ -59,6 +61,15 @@ already-aborted signal stops the bearer-token read and the one-shot 401 refresh
 from starting. Resource loads use it through
 `docs/specs/web-api-resource-hook.md`.
 
+Both helpers take a JSON request init: its `json` field becomes the request
+body, serialised with `JSON.stringify` and sent with a
+`content-type: application/json` header unless the caller supplied a content
+type of their own. `body` is not part of that init type, so a call site cannot
+repeat the header-and-stringify pair or hand over an unserialised body. The
+remaining init fields, including caller headers and `init.signal`, are forwarded
+unchanged, the one-shot 401 retry re-sends the same serialised body, and the
+`json` key itself never reaches `fetch`.
+
 ## Acceptance criteria
 
 - One implementation of response parsing in the web app.
@@ -68,8 +79,11 @@ from starting. Resource loads use it through
   action and whose `cause` is the schema's validation error.
 - Existing behaviour is preserved: successful responses return the parsed,
   typed body, and non-2xx responses still surface as `ApiError`.
-- Unit tests cover a successful parse, a validation failure, and a passed
-  `RequestInit`.
+- A request with a `json` value sends exactly that value serialised as its body
+  with the JSON content type, and no call site writes the header and
+  `JSON.stringify` pair itself.
+- Unit tests cover a successful parse, a validation failure, a passed
+  `RequestInit`, and the `json` option with its headers and body.
 
 ## Data model and API impact
 
