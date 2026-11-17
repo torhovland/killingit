@@ -1,0 +1,210 @@
+name: deploy-environment
+
+# One environment's deploy, called by `deploy.yml` once for test and once for
+# production. A `workflow_call` workflow does not inherit the caller's
+# top-level `env`, so the deployed commit arrives as `deploy_sha` and every
+# checkout and Sentry release below uses that input.
+on:
+  workflow_call:
+    inputs:
+      # Also the GitHub environment this job refers to, which is what applies
+      # the production approval gate. A caller job that uses `uses` cannot
+      # declare `environment:`, so it travels through this input.
+      environment_name:
+        description: Environment to deploy (test or production).
+        required: true
+        type: string
+      deploy_sha:
+        description: Commit CI verified; used by every checkout, image and release.
+        required: true
+        type: string
+      api_image:
+        description: Pushed API image tagged with the deployed commit.
+        required: true
+        type: string
+      garmin_image:
+        description: Pushed Garmin sidecar image tagged with the deployed commit.
+        required: true
+        type: string
+      api_service:
+        description: Cloud Run API service name.
+        required: true
+        type: string
+      garmin_service:
+        description: Cloud Run Garmin sidecar service name.
+        required: true
+        type: string
+      cors_origin:
+        description: Web origin the API allows.
+        required: true
+        type: string
+      vite_app_env:
+        description: VITE_APP_ENV for the web build.
+        required: true
+        type: string
+      api_url:
+        description: Deployed API URL for the web build.
+        required: true
+        type: string
+      cloudflare_project:
+        description: Cloudflare Pages project to publish.
+        required: true
+        type: string
+    secrets:
+      GCP_WORKLOAD_IDENTITY_PROVIDER:
+        description: Workload identity provider the deploy authenticates through.
+        required: true
+      GCP_SERVICE_ACCOUNT:
+        description: Service account the deploy authenticates as.
+        required: true
+      DATABASE_URL:
+        description: Pooled database URL the API runs against.
+        required: true
+      DATABASE_URL_UNPOOLED:
+        description: Direct database URL the migrations run against.
+        required: true
+      SENTRY_DSN:
+        description: Sentry DSN for the API.
+        required: true
+      VITE_SENTRY_DSN:
+        description: Sentry DSN for the web build.
+        required: true
+      SENTRY_AUTH_TOKEN:
+        description: Sentry token for source-map upload.
+        required: true
+      ADMIN_AUTH_SUBJECT:
+        description: Auth0 subject of the environment's admin (may be empty).
+        required: true
+      GARMIN_CREDENTIALS_KEY:
+        description: Passphrase for encrypting Garmin credentials at rest.
+        required: true
+      LLM_CREDENTIALS_KEY:
+        description: Passphrase for encrypting the OpenRouter API key at rest.
+        required: true
+      CLOUDFLARE_API_TOKEN:
+        description: Cloudflare Pages:Edit token.
+        required: true
+      CLOUDFLARE_ACCOUNT_ID:
+        description: Cloudflare account that owns the Pages project.
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+  deployments: write
+
+jobs:
+  deploy:
+    name: Deploy ${{ inputs.environment_name }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment_name }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.deploy_sha }}
+
+      - id: auth
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v3
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
+      - run: bun install --frozen-lockfile
+
+      # The API goes first: the web build reads the deployed API URL, and a
+      # failed migration or Cloud Run deploy must stop the environment before
+      # its site is republished.
+      - name: Run migrations (${{ inputs.environment_name }})
+        run: bun run db:migrate
+        env:
+          DATABASE_URL_UNPOOLED: ${{ secrets.DATABASE_URL_UNPOOLED }}
+
+      - name: Deploy Garmin sidecar to Cloud Run (${{ inputs.environment_name }})
+        id: garmin
+        run: |
+          gcloud run deploy ${{ inputs.garmin_service }} \
+            --image ${{ inputs.garmin_image }} \
+            --project ${{ vars.GCP_PROJECT }} \
+            --region us-central1 \
+            --platform managed \
+            --no-allow-unauthenticated \
+            --memory 1Gi \
+            --concurrency 4 \
+            --max-instances 1 \
+            --timeout 300 \
+            --quiet
+
+          url="$(gcloud run services describe ${{ inputs.garmin_service }} \
+            --project ${{ vars.GCP_PROJECT }} \
+            --region us-central1 \
+            --format='value(status.url)')"
+          echo "url=${url}" >> "$GITHUB_OUTPUT"
+
+      - name: Allow the API to invoke the Garmin sidecar (${{ inputs.environment_name }})
+        run: |
+          # Use the API's configured runtime service account, or the Compute
+          # Engine default service account when --service-account is unset.
+          api_sa="$(gcloud run services describe ${{ inputs.api_service }} \
+            --project ${{ vars.GCP_PROJECT }} \
+            --region us-central1 \
+            --format='value(spec.template.spec.serviceAccountName)')"
+          if [[ -z "${api_sa}" ]]; then
+            api_sa="${{ vars.GCP_PROJECT_NUMBER }}-compute@developer.gserviceaccount.com"
+          fi
+          gcloud run services add-iam-policy-binding ${{ inputs.garmin_service }} \
+            --project ${{ vars.GCP_PROJECT }} \
+            --region us-central1 \
+            --member="serviceAccount:${api_sa}" \
+            --role=roles/run.invoker \
+            --quiet
+
+      - name: Deploy API to Cloud Run (${{ inputs.environment_name }})
+        run: |
+          gcloud run deploy ${{ inputs.api_service }} \
+            --image ${{ inputs.api_image }} \
+            --project ${{ vars.GCP_PROJECT }} \
+            --region us-central1 \
+            --platform managed \
+            --allow-unauthenticated \
+            --set-env-vars "DATABASE_URL=${{ secrets.DATABASE_URL }}" \
+            --set-env-vars "CORS_ORIGIN=${{ inputs.cors_origin }}" \
+            --set-env-vars "SENTRY_DSN=${{ secrets.SENTRY_DSN }}" \
+            --set-env-vars "SENTRY_RELEASE=${{ inputs.deploy_sha }}" \
+            --set-env-vars "AUTH0_ISSUER=${{ vars.AUTH0_ISSUER }}" \
+            --set-env-vars "AUTH0_AUDIENCE=${{ vars.AUTH0_AUDIENCE }}" \
+            --set-env-vars "ADMIN_AUTH_SUBJECT=${{ secrets.ADMIN_AUTH_SUBJECT }}" \
+            --set-env-vars "GARMIN_SIDECAR_URL=${{ steps.garmin.outputs.url }}" \
+            --set-env-vars "GARMIN_SIDECAR_AUDIENCE=${{ steps.garmin.outputs.url }}" \
+            --set-env-vars "GARMIN_CREDENTIALS_KEY=${{ secrets.GARMIN_CREDENTIALS_KEY }}" \
+            --set-env-vars "LLM_CREDENTIALS_KEY=${{ secrets.LLM_CREDENTIALS_KEY }}"
+
+      - name: Build web (${{ inputs.environment_name }})
+        run: bun run --filter @killingit/web build
+        env:
+          VITE_APP_ENV: ${{ inputs.vite_app_env }}
+          VITE_API_URL: ${{ inputs.api_url }}
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          VITE_SENTRY_RELEASE: ${{ inputs.deploy_sha }}
+          VITE_AUTH0_DOMAIN: ${{ vars.AUTH0_DOMAIN }}
+          VITE_AUTH0_CLIENT_ID: ${{ vars.AUTH0_CLIENT_ID }}
+          VITE_AUTH0_AUDIENCE: ${{ vars.AUTH0_AUDIENCE }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ vars.SENTRY_ORG }}
+          SENTRY_PROJECT: killingit-web
+          SENTRY_RELEASE: ${{ inputs.deploy_sha }}
+
+      - name: Publish to Cloudflare Pages (${{ inputs.environment_name }})
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # The pinned checkout is a detached HEAD, so wrangler cannot infer a
+          # branch and would publish a `head` preview instead of a production
+          # deployment.
+          command: pages deploy apps/web/dist --project-name ${{ inputs.cloudflare_project }} --branch=main
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}

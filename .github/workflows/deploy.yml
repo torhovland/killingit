@@ -131,258 +131,79 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.image }}
 
-  deploy-web-test:
-    needs: [deploy-api-test]
+  # One reusable workflow holds the API-then-web pipeline both environments
+  # run. A caller job cannot use `environment:` beside `uses`, so each caller
+  # passes `environment_name` and the called job applies it (the production
+  # input selects the approval gate). The caller keeps the CI gate, needs and
+  # per-environment concurrency.
+  deploy-test:
+    needs: [build-and-push-api, build-and-push-garmin]
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
-    runs-on: ubuntu-latest
+    uses: ./.github/workflows/deploy-environment.yml
+    permissions:
+      contents: read
+      id-token: write
+      deployments: write
     concurrency:
       group: deploy-test
       cancel-in-progress: false
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          ref: ${{ env.DEPLOY_SHA }}
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: .bun-version
-      - run: bun install --frozen-lockfile
-      - name: Build web (test)
-        run: bun run --filter @killingit/web build
-        env:
-          VITE_APP_ENV: Test
-          VITE_API_URL: ${{ vars.TEST_API_URL }}
-          VITE_SENTRY_DSN: ${{ secrets.TEST_VITE_SENTRY_DSN }}
-          VITE_SENTRY_RELEASE: ${{ env.DEPLOY_SHA }}
-          VITE_AUTH0_DOMAIN: ${{ vars.AUTH0_DOMAIN }}
-          VITE_AUTH0_CLIENT_ID: ${{ vars.AUTH0_CLIENT_ID }}
-          VITE_AUTH0_AUDIENCE: ${{ vars.AUTH0_AUDIENCE }}
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_ORG: ${{ vars.SENTRY_ORG }}
-          SENTRY_PROJECT: killingit-web
-          SENTRY_RELEASE: ${{ env.DEPLOY_SHA }}
-      - name: Publish to Cloudflare Pages (test)
-        uses: cloudflare/wrangler-action@v4
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          # The pinned checkout is a detached HEAD, so wrangler cannot infer a
-          # branch and would publish a `head` preview instead of a production
-          # deployment.
-          command: pages deploy apps/web/dist --project-name ${{ vars.CF_PAGES_TEST }} --branch=main
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+    with:
+      environment_name: test
+      deploy_sha: ${{ github.event.workflow_run.head_sha || github.sha }}
+      api_image: ${{ needs.build-and-push-api.outputs.image }}
+      garmin_image: ${{ needs.build-and-push-garmin.outputs.image }}
+      api_service: killingit-api-test
+      garmin_service: killingit-garmin-test
+      cors_origin: https://killingit-test.hovland.co
+      vite_app_env: Test
+      api_url: ${{ vars.TEST_API_URL }}
+      cloudflare_project: ${{ vars.CF_PAGES_TEST }}
+    secrets:
+      GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+      GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+      DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+      DATABASE_URL_UNPOOLED: ${{ secrets.TEST_DATABASE_URL_UNPOOLED }}
+      SENTRY_DSN: ${{ secrets.TEST_SENTRY_DSN }}
+      VITE_SENTRY_DSN: ${{ secrets.TEST_VITE_SENTRY_DSN }}
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      ADMIN_AUTH_SUBJECT: ${{ secrets.TEST_ADMIN_AUTH_SUBJECT }}
+      GARMIN_CREDENTIALS_KEY: ${{ secrets.TEST_GARMIN_CREDENTIALS_KEY }}
+      LLM_CREDENTIALS_KEY: ${{ secrets.TEST_LLM_CREDENTIALS_KEY }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-  deploy-api-test:
+  deploy-production:
     needs: [build-and-push-api, build-and-push-garmin]
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
-    runs-on: ubuntu-latest
-    concurrency:
-      group: deploy-test
-      cancel-in-progress: false
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          ref: ${{ env.DEPLOY_SHA }}
-
-      - id: auth
-        uses: google-github-actions/auth@v3
-        with:
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-
-      - uses: google-github-actions/setup-gcloud@v3
-
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: .bun-version
-      - run: bun install --frozen-lockfile
-      - name: Run migrations (test)
-        run: bun run db:migrate
-        env:
-          DATABASE_URL_UNPOOLED: ${{ secrets.TEST_DATABASE_URL_UNPOOLED }}
-
-      - name: Deploy Garmin sidecar to Cloud Run (test)
-        id: garmin
-        run: |
-          gcloud run deploy killingit-garmin-test \
-            --image ${{ needs.build-and-push-garmin.outputs.image }} \
-            --project ${{ vars.GCP_PROJECT }} \
-            --region us-central1 \
-            --platform managed \
-            --no-allow-unauthenticated \
-            --memory 1Gi \
-            --concurrency 4 \
-            --max-instances 1 \
-            --timeout 300 \
-            --quiet
-
-          url="$(gcloud run services describe killingit-garmin-test \
-            --project ${{ vars.GCP_PROJECT }} \
-            --region us-central1 \
-            --format='value(status.url)')"
-          echo "url=${url}" >> "$GITHUB_OUTPUT"
-
-      - name: Allow the API to invoke the Garmin sidecar (test)
-        run: |
-          # Use the API's configured runtime service account, or the Compute
-          # Engine default service account when --service-account is unset.
-          api_sa="$(gcloud run services describe killingit-api-test \
-            --project ${{ vars.GCP_PROJECT }} \
-            --region us-central1 \
-            --format='value(spec.template.spec.serviceAccountName)')"
-          if [[ -z "${api_sa}" ]]; then
-            api_sa="${{ vars.GCP_PROJECT_NUMBER }}-compute@developer.gserviceaccount.com"
-          fi
-          gcloud run services add-iam-policy-binding killingit-garmin-test \
-            --project ${{ vars.GCP_PROJECT }} \
-            --region us-central1 \
-            --member="serviceAccount:${api_sa}" \
-            --role=roles/run.invoker \
-            --quiet
-
-      - name: Deploy API to Cloud Run (test)
-        run: |
-          gcloud run deploy killingit-api-test \
-            --image ${{ needs.build-and-push-api.outputs.image }} \
-            --project ${{ vars.GCP_PROJECT }} \
-            --region us-central1 \
-            --platform managed \
-            --allow-unauthenticated \
-            --set-env-vars "DATABASE_URL=${{ secrets.TEST_DATABASE_URL }}" \
-            --set-env-vars "CORS_ORIGIN=https://killingit-test.hovland.co" \
-            --set-env-vars "SENTRY_DSN=${{ secrets.TEST_SENTRY_DSN }}" \
-            --set-env-vars "SENTRY_RELEASE=${{ env.DEPLOY_SHA }}" \
-            --set-env-vars "AUTH0_ISSUER=${{ vars.AUTH0_ISSUER }}" \
-            --set-env-vars "AUTH0_AUDIENCE=${{ vars.AUTH0_AUDIENCE }}" \
-            --set-env-vars "ADMIN_AUTH_SUBJECT=${{ secrets.TEST_ADMIN_AUTH_SUBJECT }}" \
-            --set-env-vars "GARMIN_SIDECAR_URL=${{ steps.garmin.outputs.url }}" \
-            --set-env-vars "GARMIN_SIDECAR_AUDIENCE=${{ steps.garmin.outputs.url }}" \
-            --set-env-vars "GARMIN_CREDENTIALS_KEY=${{ secrets.TEST_GARMIN_CREDENTIALS_KEY }}" \
-            --set-env-vars "LLM_CREDENTIALS_KEY=${{ secrets.TEST_LLM_CREDENTIALS_KEY }}"
-
-  deploy-web-production:
-    needs: [deploy-api-production]
     if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    environment: production
+    uses: ./.github/workflows/deploy-environment.yml
+    permissions:
+      contents: read
+      id-token: write
+      deployments: write
     concurrency:
       group: deploy-production
       cancel-in-progress: false
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          ref: ${{ env.DEPLOY_SHA }}
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: .bun-version
-      - run: bun install --frozen-lockfile
-      - name: Build web (production)
-        run: bun run --filter @killingit/web build
-        env:
-          VITE_APP_ENV: Production
-          VITE_API_URL: ${{ vars.PROD_API_URL }}
-          VITE_SENTRY_DSN: ${{ secrets.PROD_VITE_SENTRY_DSN }}
-          VITE_SENTRY_RELEASE: ${{ env.DEPLOY_SHA }}
-          VITE_AUTH0_DOMAIN: ${{ vars.AUTH0_DOMAIN }}
-          VITE_AUTH0_CLIENT_ID: ${{ vars.AUTH0_CLIENT_ID }}
-          VITE_AUTH0_AUDIENCE: ${{ vars.AUTH0_AUDIENCE }}
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_ORG: ${{ vars.SENTRY_ORG }}
-          SENTRY_PROJECT: killingit-web
-          SENTRY_RELEASE: ${{ env.DEPLOY_SHA }}
-      - name: Publish to Cloudflare Pages (production)
-        uses: cloudflare/wrangler-action@v4
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          # See the test publish: the deployed commit is a detached HEAD.
-          command: pages deploy apps/web/dist --project-name ${{ vars.CF_PAGES_PROD }} --branch=main
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
-
-  deploy-api-production:
-    needs: [build-and-push-api, build-and-push-garmin]
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    environment: production
-    concurrency:
-      group: deploy-production
-      cancel-in-progress: false
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          ref: ${{ env.DEPLOY_SHA }}
-
-      - id: auth
-        uses: google-github-actions/auth@v3
-        with:
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-
-      - uses: google-github-actions/setup-gcloud@v3
-
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: .bun-version
-      - run: bun install --frozen-lockfile
-      - name: Run migrations (production)
-        run: bun run db:migrate
-        env:
-          DATABASE_URL_UNPOOLED: ${{ secrets.PROD_DATABASE_URL_UNPOOLED }}
-
-      - name: Deploy Garmin sidecar to Cloud Run (production)
-        id: garmin
-        run: |
-          gcloud run deploy killingit-garmin \
-            --image ${{ needs.build-and-push-garmin.outputs.image }} \
-            --project ${{ vars.GCP_PROJECT }} \
-            --region us-central1 \
-            --platform managed \
-            --no-allow-unauthenticated \
-            --memory 1Gi \
-            --concurrency 4 \
-            --max-instances 1 \
-            --timeout 300 \
-            --quiet
-
-          url="$(gcloud run services describe killingit-garmin \
-            --project ${{ vars.GCP_PROJECT }} \
-            --region us-central1 \
-            --format='value(status.url)')"
-          echo "url=${url}" >> "$GITHUB_OUTPUT"
-
-      - name: Allow the API to invoke the Garmin sidecar (production)
-        run: |
-          # Use the API's configured runtime service account, or the Compute
-          # Engine default service account when --service-account is unset.
-          api_sa="$(gcloud run services describe killingit-api \
-            --project ${{ vars.GCP_PROJECT }} \
-            --region us-central1 \
-            --format='value(spec.template.spec.serviceAccountName)')"
-          if [[ -z "${api_sa}" ]]; then
-            api_sa="${{ vars.GCP_PROJECT_NUMBER }}-compute@developer.gserviceaccount.com"
-          fi
-          gcloud run services add-iam-policy-binding killingit-garmin \
-            --project ${{ vars.GCP_PROJECT }} \
-            --region us-central1 \
-            --member="serviceAccount:${api_sa}" \
-            --role=roles/run.invoker \
-            --quiet
-
-      - name: Deploy API to Cloud Run (production)
-        run: |
-          gcloud run deploy killingit-api \
-            --image ${{ needs.build-and-push-api.outputs.image }} \
-            --project ${{ vars.GCP_PROJECT }} \
-            --region us-central1 \
-            --platform managed \
-            --allow-unauthenticated \
-            --set-env-vars "DATABASE_URL=${{ secrets.PROD_DATABASE_URL }}" \
-            --set-env-vars "CORS_ORIGIN=https://killingit.hovland.co" \
-            --set-env-vars "SENTRY_DSN=${{ secrets.PROD_SENTRY_DSN }}" \
-            --set-env-vars "SENTRY_RELEASE=${{ env.DEPLOY_SHA }}" \
-            --set-env-vars "AUTH0_ISSUER=${{ vars.AUTH0_ISSUER }}" \
-            --set-env-vars "AUTH0_AUDIENCE=${{ vars.AUTH0_AUDIENCE }}" \
-            --set-env-vars "ADMIN_AUTH_SUBJECT=${{ secrets.PROD_ADMIN_AUTH_SUBJECT }}" \
-            --set-env-vars "GARMIN_SIDECAR_URL=${{ steps.garmin.outputs.url }}" \
-            --set-env-vars "GARMIN_SIDECAR_AUDIENCE=${{ steps.garmin.outputs.url }}" \
-            --set-env-vars "GARMIN_CREDENTIALS_KEY=${{ secrets.PROD_GARMIN_CREDENTIALS_KEY }}" \
-            --set-env-vars "LLM_CREDENTIALS_KEY=${{ secrets.PROD_LLM_CREDENTIALS_KEY }}"
+    with:
+      environment_name: production
+      deploy_sha: ${{ github.event.workflow_run.head_sha || github.sha }}
+      api_image: ${{ needs.build-and-push-api.outputs.image }}
+      garmin_image: ${{ needs.build-and-push-garmin.outputs.image }}
+      api_service: killingit-api
+      garmin_service: killingit-garmin
+      cors_origin: https://killingit.hovland.co
+      vite_app_env: Production
+      api_url: ${{ vars.PROD_API_URL }}
+      cloudflare_project: ${{ vars.CF_PAGES_PROD }}
+    secrets:
+      GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+      GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+      DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+      DATABASE_URL_UNPOOLED: ${{ secrets.PROD_DATABASE_URL_UNPOOLED }}
+      SENTRY_DSN: ${{ secrets.PROD_SENTRY_DSN }}
+      VITE_SENTRY_DSN: ${{ secrets.PROD_VITE_SENTRY_DSN }}
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      ADMIN_AUTH_SUBJECT: ${{ secrets.PROD_ADMIN_AUTH_SUBJECT }}
+      GARMIN_CREDENTIALS_KEY: ${{ secrets.PROD_GARMIN_CREDENTIALS_KEY }}
+      LLM_CREDENTIALS_KEY: ${{ secrets.PROD_LLM_CREDENTIALS_KEY }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

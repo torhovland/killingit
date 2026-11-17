@@ -79,9 +79,9 @@ image: the Dockerfile copies every workspace manifest the lockfile lists, and
 ### The Bun version
 
 `.bun-version` names the one Bun release the repository uses. Every
-`oven-sh/setup-bun@v2` step in `ci.yml` and `deploy.yml` passes
+`oven-sh/setup-bun@v2` step in `ci.yml` and `deploy-environment.yml` passes
 `bun-version-file: .bun-version`, so typecheck, lint, format, unused, build,
-test, integration, sign-off, outdated and every deploy job install the same
+test, integration, sign-off, outdated and every deploy step install the same
 release. The e2e job cannot use the action (see `docs/specs/e2e-tests.md`), so
 its shell step reads the same file, and the API Dockerfile's two `oven/bun`
 image tags name the same release.
@@ -117,9 +117,9 @@ CI therefore runs the bundling command exactly where the deploy runs it.
   `deploy.yml`'s `docker/build-push-action` steps.
 - The job never pushes, never logs in to a registry, and never receives a
   secret or a Sentry build arg.
-- Every Bun installation in `ci.yml`, `deploy.yml` and `apps/api/Dockerfile`
-  names the release in `.bun-version`; `scripts/bunVersion.test.ts` fails on a
-  literal or floating version.
+- Every Bun installation in `ci.yml`, `deploy-environment.yml` and
+  `apps/api/Dockerfile` names the release in `.bun-version`;
+  `scripts/bunVersion.test.ts` fails on a literal or floating version.
 - `scripts/ciWorkflow.test.ts` asserts these properties, including that the
   root `build` command reaches a real `vite build` and that no step can opt out
   of failing.

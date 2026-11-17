@@ -25,7 +25,11 @@ const BUN_VERSION = (
   await Bun.file(path.join(REPO_ROOT, VERSION_FILE)).text()
 ).trim();
 
-const WORKFLOW_FILES = ["ci.yml", "deploy.yml"] as const;
+const WORKFLOW_FILES = [
+  "ci.yml",
+  "deploy.yml",
+  "deploy-environment.yml",
+] as const;
 
 const WORKFLOWS = await Promise.all(
   WORKFLOW_FILES.map(async (file) => {
