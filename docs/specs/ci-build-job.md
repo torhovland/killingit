@@ -86,7 +86,12 @@ the filter.
 
 The API image build additionally proves the frozen workspace install inside the
 image: the Dockerfile copies every workspace manifest the lockfile lists, and
-`bun install --frozen-lockfile` fails if one is missing.
+`bun install --frozen-lockfile` fails if one is missing. Its one global install,
+`@sentry/cli`, names an exact version as `services/garmin/requirements.txt`
+does: `bun.lock` does not cover it, so a floating specifier would install
+whatever the registry serves at build time and would stay invisible to
+`bun run outdated`. `scripts/deployWorkflow.test.ts` fails when a
+`RUN bun add -g` in the Dockerfile omits the exact version.
 
 The Garmin image's `COPY` hard-lists the runtime modules (`app.py` and the
 concerns it imports), while the tests, `support.py` and `contract_fixtures.py`
@@ -144,6 +149,8 @@ CI therefore runs the bundling command exactly where the deploy runs it.
 - The job never pushes, never logs in to a registry, and never receives a
   secret or a Sentry build arg; the import step is covered by the same
   assertions.
+- Every global package the API image installs names an exact version;
+  `scripts/deployWorkflow.test.ts` fails on an unpinned `RUN bun add -g`.
 - Every Bun installation in `ci.yml`,
   `.github/actions/setup-bun-install/action.yml`, `deploy-environment.yml` and
   `apps/api/Dockerfile` names the release in `.bun-version`;

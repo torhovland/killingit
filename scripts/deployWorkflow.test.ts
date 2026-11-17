@@ -35,12 +35,8 @@ interface ReusableWorkflow {
   jobs: Record<string, WorkflowJob>;
 }
 
-const WORKFLOWS_DIR = path.resolve(
-  import.meta.dir,
-  "..",
-  ".github",
-  "workflows",
-);
+const ROOT = path.resolve(import.meta.dir, "..");
+const WORKFLOWS_DIR = path.join(ROOT, ".github", "workflows");
 const DEPLOY_PATH = path.join(WORKFLOWS_DIR, "deploy.yml");
 const ENVIRONMENT_PATH = path.join(WORKFLOWS_DIR, "deploy-environment.yml");
 
@@ -338,26 +334,43 @@ describe("API image", () => {
     // `bun install --frozen-lockfile` resolves the root's workspace:* links
     // before pruning, so a manifest that exists in bun.lock but not on disk
     // fails the API image build even when the API never uses that workspace.
-    const root = path.resolve(import.meta.dir, "..");
     const rootPackage = (await Bun.file(
-      path.join(root, "package.json"),
+      path.join(ROOT, "package.json"),
     ).json()) as {
       workspaces: string[];
     };
     const dockerfile = await Bun.file(
-      path.join(root, "apps", "api", "Dockerfile"),
+      path.join(ROOT, "apps", "api", "Dockerfile"),
     ).text();
     const installAt = dockerfile.indexOf("RUN bun install --frozen-lockfile");
     expect(installAt).toBeGreaterThan(-1);
 
     const manifests = rootPackage.workspaces.flatMap((pattern) => [
-      ...new Bun.Glob(`${pattern}/package.json`).scanSync({ cwd: root }),
+      ...new Bun.Glob(`${pattern}/package.json`).scanSync({ cwd: ROOT }),
     ]);
     expect(manifests).toContain("tools/benchmark/package.json");
 
     const beforeInstall = dockerfile.slice(0, installAt);
     for (const manifest of manifests) {
       expect(beforeInstall).toContain(`COPY ${manifest} ${manifest}`);
+    }
+  });
+
+  it("pins every globally installed package to an exact version", async () => {
+    // A global `bun add` in the image sits outside bun.lock, so an unpinned
+    // package would install whatever the registry serves at build time.
+    const dockerfile = await Bun.file(
+      path.join(ROOT, "apps", "api", "Dockerfile"),
+    ).text();
+    const installs = dockerfile
+      .split("\n")
+      .filter((line) => line.startsWith("RUN bun add -g "))
+      .flatMap((line) =>
+        line.slice("RUN bun add -g ".length).trim().split(/\s+/),
+      );
+    expect(installs.length).toBeGreaterThan(0);
+    for (const install of installs) {
+      expect(install).toMatch(/^(@[^/\s]+\/)?[^@\s]+@\d+\.\d+\.\d+$/);
     }
   });
 });
