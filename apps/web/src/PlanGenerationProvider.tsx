@@ -204,13 +204,12 @@ export function PlanGenerationProvider({ children }: { children: ReactNode }) {
         authRef.current,
         {
           method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
+          json: {
             today,
             timezone: timeZoneRef.current,
             mode: generationMode,
             includeTomorrow: isAfter18,
-          }),
+          },
         },
       );
       return runGeneration(generationMode, today, isAfter18, request);

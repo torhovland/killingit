@@ -42,8 +42,7 @@ export function useQuickQuestion(
         "Asking the coach",
         {
           method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ today, question: question.trim() }),
+          json: { today, question: question.trim() },
         },
       );
       setReply(

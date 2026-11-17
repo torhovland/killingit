@@ -100,13 +100,12 @@ export function useManualActivities(
             : "Updating the manual activity",
           {
             method: editing === null ? "POST" : "PUT",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({
+            json: {
               today,
               timezone: timeZone,
               startDate,
               details,
-            }),
+            },
           },
         );
         setEditing(null);

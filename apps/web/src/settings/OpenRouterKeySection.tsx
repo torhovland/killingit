@@ -47,10 +47,7 @@ export function OpenRouterKeySection({
         "Saving the OpenRouter key",
         {
           method: "PUT",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify(
-            configured ? { apiKey } : { apiKey, seasonModel, dailyModel },
-          ),
+          json: configured ? { apiKey } : { apiKey, seasonModel, dailyModel },
         },
       );
       setApiKey("");

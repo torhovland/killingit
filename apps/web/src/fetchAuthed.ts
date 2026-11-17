@@ -5,21 +5,29 @@ import { fetchJson, apiFailure, ApiError } from "./fetchJson";
 import type { AuthState } from "./auth";
 
 /**
+ * A request init for {@link fetchJsonAuthed} and {@link requestParsed}. `json`
+ * is serialised into the body and sent with a `content-type: application/json`
+ * header unless the caller sets a content type. `body` is omitted so a call
+ * site cannot send an unserialised body next to `json`.
+ */
+type JsonRequestInit = Omit<RequestInit, "body"> & { json?: unknown };
+
+/**
  * Fetch JSON, attaching a bearer token when authenticated. Takes an API path
  * and resolves it against the build's origin with {@link apiUrl}, so no caller
  * reads `VITE_API_URL`. Uses the same Sentry-breadcrumb-emitting `fetchJson`
- * underneath. `init.signal` aborts the request, including a token refresh that
- * is waiting to start, and the rejection stays the platform's `AbortError`
- * rather than becoming an {@link ApiError}. A 401 can mean the cached access
- * token expired between renewals, so renew once with the provider's cache
- * bypassed and retry the request before surfacing the failure. A 426 means the
- * API no longer answers this app build's contract version, which the app shows
- * as an update notice.
+ * underneath. A `json` value becomes the serialised request body. `init.signal`
+ * aborts the request, including a token refresh that is waiting to start, and
+ * the rejection stays the platform's `AbortError` rather than becoming an
+ * {@link ApiError}. A 401 can mean the cached access token expired between
+ * renewals, so renew once with the provider's cache bypassed and retry the
+ * request before surfacing the failure. A 426 means the API no longer answers
+ * this app build's contract version, which the app shows as an update notice.
  */
 export async function fetchJsonAuthed<T>(
   path: string,
   auth: AuthState,
-  init?: RequestInit,
+  init?: JsonRequestInit,
 ): Promise<T> {
   const signal = init?.signal;
   signal?.throwIfAborted();
@@ -45,14 +53,22 @@ export async function fetchJsonAuthed<T>(
 function requestJson<T>(
   url: string,
   token: string | undefined,
-  init: RequestInit | undefined,
+  init: JsonRequestInit | undefined,
 ): Promise<T> {
-  const headers = new Headers(init?.headers);
+  const { json, ...rest } = init ?? {};
+  const headers = new Headers(rest.headers);
   if (token) {
     headers.set("authorization", `Bearer ${token}`);
   }
+  if (json !== undefined && !headers.has("content-type")) {
+    headers.set("content-type", "application/json");
+  }
 
-  return fetchJson<T>(url, { ...init, headers: withApiVersion(headers) });
+  return fetchJson<T>(url, {
+    ...rest,
+    headers: withApiVersion(headers),
+    ...(json === undefined ? {} : { body: JSON.stringify(json) }),
+  });
 }
 
 /**
@@ -80,17 +96,19 @@ export interface ResponseSchema<T> {
 /**
  * Fetch JSON with {@link fetchJsonAuthed} and validate the body against
  * `schema`. The first argument is an API path, which `fetchJsonAuthed`
- * resolves against the build's origin. A response that does not match throws
- * one uniform {@link ResponseValidationError} naming the action, so callers
- * never write their own parse-and-throw sequence. `init.signal` is forwarded
- * unchanged and an aborted request rejects without validating a body.
+ * resolves against the build's origin. It takes the same JSON request init as
+ * `fetchJsonAuthed`, so a `json` value is serialised into the request body. A
+ * response that does not match throws one uniform
+ * {@link ResponseValidationError} naming the action, so callers never write
+ * their own parse-and-throw sequence. `init.signal` is forwarded unchanged and
+ * an aborted request rejects without validating a body.
  */
 export async function requestParsed<T>(
   path: string,
   auth: AuthState,
   schema: ResponseSchema<T>,
   label: string,
-  init?: RequestInit,
+  init?: JsonRequestInit,
 ): Promise<T> {
   const response = await fetchJsonAuthed<unknown>(path, auth, init);
   const parsed = schema.safeParse(response);

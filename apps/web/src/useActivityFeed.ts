@@ -169,8 +169,7 @@ export function useActivityFeed(
           "Saving your comment",
           {
             method: mode === "edit" ? "PUT" : "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({
+            json: {
               today,
               timezone: timeZone,
               activityDate: activityStartDate(
@@ -180,7 +179,7 @@ export function useActivityFeed(
                 timeZone,
               ),
               comment,
-            }),
+            },
           },
         );
         // Leave the activity in place for this visit. A reload only shows

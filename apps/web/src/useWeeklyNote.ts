@@ -73,12 +73,11 @@ export function useWeeklyNote(
         "Saving your note",
         {
           method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
+          json: {
             today,
             timezone: timeZone,
             note,
-          }),
+          },
         },
       );
       setReply(response.reply);

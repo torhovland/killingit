@@ -51,8 +51,7 @@ export function AdminQuestionsSection() {
       "Creating the question",
       {
         method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(input),
+        json: input,
       },
     );
     setQuestions((previous) => [...(previous ?? []), created]);
@@ -69,8 +68,7 @@ export function AdminQuestionsSection() {
       "Saving the question",
       {
         method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(input),
+        json: input,
       },
     );
     setQuestions(
@@ -107,8 +105,7 @@ export function AdminQuestionsSection() {
       "Reordering questions",
       {
         method: "PUT",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ ids: next.map((question) => question.id) }),
+        json: { ids: next.map((question) => question.id) },
       },
     );
     setQuestions(() => response.questions);

@@ -57,8 +57,7 @@ export function useCoachQuestion(
         "Saving your answer",
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ today, timezone: timeZone, answer }),
+          json: { today, timezone: timeZone, answer },
         },
       );
       setQuestion((current) =>

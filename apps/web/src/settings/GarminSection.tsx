@@ -39,8 +39,7 @@ export function GarminSection({ connected, onConnected }: GarminSectionProps) {
         "Connecting to Garmin",
         {
           method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ username, password }),
+          json: { username, password },
         },
       );
       setPassword("");

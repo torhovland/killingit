@@ -64,8 +64,7 @@ export function LlmSection({ settings, onSaved, isAdmin }: LlmSectionProps) {
         "Saving model choices",
         {
           method: "PUT",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify(selection),
+          json: selection,
         },
       ),
     onSaved,

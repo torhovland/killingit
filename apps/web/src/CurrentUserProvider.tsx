@@ -54,8 +54,7 @@ export function CurrentUserProvider({ children }: { children: ReactNode }) {
         "Saving your settings",
         {
           method: "PATCH",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify(patch),
+          json: patch,
         },
       );
       setData(user);

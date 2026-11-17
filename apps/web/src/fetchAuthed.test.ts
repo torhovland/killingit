@@ -66,6 +66,41 @@ describe("fetchJsonAuthed", () => {
     expect(headers.get("authorization")).toBeNull();
   });
 
+  it("serialises a json option into the body and content type", async () => {
+    stubFetch();
+    const auth = fakeAuth(() => Promise.resolve("test-token"));
+
+    await fetchJsonAuthed<{ ok: boolean }>(
+      "/api/coaching/plan/generate",
+      auth,
+      {
+        method: "POST",
+        json: { today: "2026-11-17", mode: "auto" },
+      },
+    );
+
+    const headers = captured[0]?.headers as Headers;
+    expect(headers.get("content-type")).toBe("application/json");
+    expect(headers.get("authorization")).toBe("Bearer test-token");
+    expect(captured[0]?.body).toBe(
+      JSON.stringify({ today: "2026-11-17", mode: "auto" }),
+    );
+    expect(captured[0]).not.toHaveProperty("json");
+  });
+
+  it("sends no body when the json option is omitted", async () => {
+    stubFetch();
+    const auth = fakeAuth(() => Promise.resolve("test-token"));
+
+    await fetchJsonAuthed<{ ok: boolean }>("/api/me", auth, {
+      method: "DELETE",
+    });
+
+    const headers = captured[0]?.headers as Headers;
+    expect(headers.get("content-type")).toBeNull();
+    expect(captured[0]?.body).toBeUndefined();
+  });
+
   it("renews once and retries when the API rejects the cached token", async () => {
     stubFetch(
       new Response("Unauthorized", { status: 401 }),
@@ -299,6 +334,33 @@ describe("requestParsed", () => {
     );
 
     expect(captured[0]?.method).toBe("POST");
+  });
+
+  it("serialises a json option and keeps caller headers and signal", async () => {
+    stubFetch();
+    const auth = fakeAuth(() => Promise.resolve("test-token"));
+    const controller = new AbortController();
+
+    await requestParsed(
+      "/api/health",
+      auth,
+      healthSchema,
+      "Saving the health check",
+      {
+        method: "POST",
+        json: { status: "ok" },
+        headers: { "x-trace": "abc" },
+        signal: controller.signal,
+      },
+    );
+
+    const headers = captured[0]?.headers as Headers;
+    expect(headers.get("content-type")).toBe("application/json");
+    expect(headers.get("x-trace")).toBe("abc");
+    expect(headers.get("authorization")).toBe("Bearer test-token");
+    expect(captured[0]?.body).toBe(JSON.stringify({ status: "ok" }));
+    expect(captured[0]?.signal).toBe(controller.signal);
+    expect(captured[0]).not.toHaveProperty("json");
   });
 
   it("passes the abort signal through to fetch", async () => {
