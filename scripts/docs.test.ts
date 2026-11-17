@@ -21,6 +21,13 @@ const FOREIGN_TEST_RUNNERS = /\b(?:vitest|jest|mocha)\b/i;
 /** The source trees whose files the documents may name by path. */
 const SOURCE_ROOTS = /^(?:apps|packages|scripts|services|tools)\//;
 
+/**
+ * A path segment the checkout generates or keeps out of version control: a
+ * virtualenv (`.venv`), a local env file (`.env.local`) or build output
+ * (`dist`). Such a path names no file in a fresh clone.
+ */
+const GENERATED_SEGMENT = /^(?:\.|build$|coverage$|dist$|node_modules$)/;
+
 function markdownFiles(pattern: string): string[] {
   return [...new Bun.Glob(pattern).scanSync({ cwd: ROOT })].sort();
 }
@@ -54,9 +61,10 @@ function namesFile(reference: string): boolean {
 
 /**
  * Backticked source paths. A command snippet such as
- * `scripts/agent.sh logs api`, a glob over `apps/web/**` or a placeholder such
- * as `apps/web/src/use<Name>.ts` names no single file, so the same rules the
- * document guard uses skip them here.
+ * `scripts/agent.sh logs api`, a glob over `apps/web/**`, a placeholder such as
+ * `apps/web/src/use<Name>.ts` and generated output such as `services/garmin/.venv`
+ * name no file a checkout carries, so the same rules the document guard uses
+ * skip them here.
  */
 function sourcePaths(text: string): string[] {
   return [...text.matchAll(/`([^`\n]+)`/g)].flatMap((match) => {
@@ -65,7 +73,8 @@ function sourcePaths(text: string): string[] {
       candidate === undefined ||
       !SOURCE_ROOTS.test(candidate) ||
       /\s/.test(candidate) ||
-      !namesFile(candidate)
+      !namesFile(candidate) ||
+      candidate.split("/").some((segment) => GENERATED_SEGMENT.test(segment))
     ) {
       return [];
     }
