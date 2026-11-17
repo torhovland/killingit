@@ -145,12 +145,9 @@ async function main(): Promise<void> {
 
   const results: BenchmarkResults = { metadata, models: {} };
   const writeResults = async () => {
-    await writeFile(resultsPath, `${JSON.stringify(results, null, 2)}\n`);
+    await writeJsonFile(resultsPath, results);
   };
-  await writeFile(
-    resolve(directory, "metadata.json"),
-    `${JSON.stringify(metadata, null, 2)}\n`,
-  );
+  await writeJsonFile(resolve(directory, "metadata.json"), metadata);
 
   for (const model of config.models) {
     log(`${model}: full build`);
@@ -167,10 +164,10 @@ async function main(): Promise<void> {
     }
     results.models[model] = result;
     await writeResults();
-    await writeFile(
-      resolve(directory, "plans", `${slug(model)}.json`),
-      `${JSON.stringify({ full: result.full?.plan ?? null, refresh: result.refresh?.plan ?? null }, null, 2)}\n`,
-    );
+    await writeJsonFile(resolve(directory, "plans", `${slug(model)}.json`), {
+      full: result.full?.plan ?? null,
+      refresh: result.refresh?.plan ?? null,
+    });
   }
 
   await writeScores(directory, scores);

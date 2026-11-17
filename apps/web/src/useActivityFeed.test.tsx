@@ -1,5 +1,7 @@
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
+import type { Mock } from "bun:test";
+import { render, screen, waitFor } from "@testing-library/react";
+import * as Sentry from "@sentry/react";
 import userEvent from "@testing-library/user-event";
 import type { AnalyzedActivitiesResponse } from "@killingit/shared";
 import { saveCachedActivities } from "./activityCache";
@@ -55,6 +57,9 @@ function FeedProbe() {
       <button type="button" onClick={() => void feedState.loadAnalyses()}>
         Sync
       </button>
+      <button type="button" onClick={() => void feedState.loadCached()}>
+        Load cached
+      </button>
     </div>
   );
 }
@@ -68,6 +73,7 @@ function renderFeed() {
 }
 
 const originalFetch = globalThis.fetch;
+let captureException: Mock<typeof Sentry.captureException> | undefined;
 
 beforeEach(() => {
   localStorage.clear();
@@ -76,6 +82,8 @@ beforeEach(() => {
 afterEach(() => {
   globalThis.fetch = originalFetch;
   localStorage.clear();
+  captureException?.mockRestore();
+  captureException = undefined;
 });
 
 describe("useActivityFeed", () => {
@@ -110,6 +118,31 @@ describe("useActivityFeed", () => {
     expect(screen.getByTestId("syncing").textContent).toBe("false");
     const cached = localStorage.getItem("killingit.activities.v1:user-1");
     expect(cached).toContain("Evening Ride");
+  });
+
+  it("reports a failed cached load without showing an error", async () => {
+    const user = userEvent.setup();
+    const capture = spyOn(Sentry, "captureException");
+    captureException = capture;
+    globalThis.fetch = (() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            error: { code: "internal_error", message: "Cache is down" },
+          }),
+          {
+            status: 500,
+            headers: { "content-type": "application/json" },
+          },
+        ),
+      )) as unknown as typeof fetch;
+    renderFeed();
+
+    await user.click(screen.getByRole("button", { name: "Load cached" }));
+
+    await waitFor(() => expect(capture).toHaveBeenCalled());
+    // The live sync still owns the visible error; the cached load is advisory.
+    expect(screen.getByTestId("error").textContent).toBe("none");
   });
 
   it("shows a failed sync without losing the feed already on screen", async () => {

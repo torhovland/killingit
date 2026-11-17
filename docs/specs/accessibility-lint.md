@@ -2,7 +2,7 @@
 
 - **Status:** Accepted (implemented)
 - **Date:** 2026-11-14
-- **Related:** ADR 0041, issues #305, #324, #325 and #328,
+- **Related:** ADR 0041, issues #305, #324, #325, #328 and #556,
   `docs/specs/web-component-library.md`, `docs/specs/web-interaction-tests.md`,
   `docs/specs/chart-keyboard-navigation.md`, `docs/specs/modal-dialog.md`,
   `AGENTS.md`.
@@ -34,14 +34,16 @@ tab index, and invalid ARIA.
 ### Out of scope
 
 - Behavioural accessibility that static analysis cannot see: focus traps, chart
-  data exposed to screen readers, sort announcements, and menus. Focus traps are
-  covered by the `Modal` tests, the chart keyboard path (#325) by
+  data exposed to screen readers, sort announcements, menus and tabs. Focus traps
+  are covered by the `Modal` tests, the chart keyboard path (#325) by
   `docs/specs/chart-keyboard-navigation.md`, the model table's sort
-  announcements (#326) by `apps/web/src/llm/ModelTable.test.tsx`, and the menu
+  announcements (#326) by `apps/web/src/llm/ModelTable.test.tsx`, the menu
   disclosure (#327) by `apps/web/src/components/Menu.test.tsx` plus the account
-  menu's journey test. The location map's keyboard path (#324) is implemented
-  and guarded by interaction tests rather than by a lint rule, because whether
-  keys actually move the map is behaviour, not JSX.
+  menu's journey test, and the tablist's roving focus and panel wiring (#556) by
+  `apps/web/src/components/Tabs.test.tsx` plus `CoachPlanView.test.tsx`. The
+  location map's keyboard path (#324) is implemented and guarded by interaction
+  tests rather than by a lint rule, because whether keys actually move the map
+  is behaviour, not JSX.
 - Running the rules over non-React code (the API, scripts, shared package) and
   over the Playwright config. Only the web app renders JSX.
 
@@ -120,6 +122,17 @@ The dialog fix (#328) replaced the last native `confirm()` calls with the
    admin question row and the manual-activity delete now open `ConfirmDialog`;
    the consuming page renders it because a hook cannot. See
    `docs/specs/modal-dialog.md`.
+
+## Follow-up check from issue #556
+
+The tabs fix (#556) replaced the coach plan's hand-rolled tablist with the
+`Tabs` primitive. Whether arrow keys actually move selection and focus, and
+whether a tab's `aria-controls` matches its panel's id, is behaviour the static
+preset cannot see; `apps/web/src/components/Tabs.test.tsx` asserts the ids,
+`aria-selected`, roving `tabIndex`, the mounted panel and the arrow, Home and End
+keys, and `apps/web/src/CoachPlanView.test.tsx` checks the plan shell uses it.
+No new lint rule or CI step is added, because `bun run test` already runs both
+suites.
 
 ## Data-model and API impact
 

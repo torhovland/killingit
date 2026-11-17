@@ -7,9 +7,12 @@ import {
   it,
   mock,
   setSystemTime,
+  spyOn,
 } from "bun:test";
+import type { Mock } from "bun:test";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import * as Sentry from "@sentry/react";
 import type { CoachPlanResponse } from "@killingit/shared";
 import type { AuthState } from "./auth";
 import { plan } from "./testFixtures/plan";
@@ -104,6 +107,8 @@ const done = planResponse({
   generation: { status: "done", step: "Done", progress: 100 },
 });
 
+let captureException: Mock<typeof Sentry.captureException> | undefined;
+
 interface Server {
   gets: number;
   urls: string[];
@@ -115,6 +120,7 @@ interface Server {
 function stubPlanServer(
   reply: (getIndex: number) => Promise<Response> = () =>
     respond(planResponse()),
+  dietReply: () => Promise<Response> = () => respond({ days: [] }),
 ): Server {
   const server: Server = { gets: 0, urls: [], posts: [], reply };
   globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) => {
@@ -124,6 +130,9 @@ function stubPlanServer(
         : input instanceof URL
           ? input.href
           : input.url;
+    if (url.includes("/api/diet/summary")) {
+      return dietReply();
+    }
     if (url.includes("/api/coaching/plan/generate")) {
       if (typeof init?.body !== "string") {
         return Promise.reject(new Error("Expected a JSON request body"));
@@ -157,8 +166,9 @@ function section(
   refreshKey: number,
   {
     ready = true,
+    dietAdvice = false,
     onGenerated,
-  }: { ready?: boolean; onGenerated?: () => void } = {},
+  }: { ready?: boolean; dietAdvice?: boolean; onGenerated?: () => void } = {},
 ) {
   return (
     <AppStatusProvider>
@@ -167,6 +177,7 @@ function section(
           <CoachPlanSection
             refreshKey={refreshKey}
             ready={ready}
+            dietAdvice={dietAdvice}
             {...(onGenerated === undefined ? {} : { onGenerated })}
           />
         </PlanGenerationProvider>
@@ -195,6 +206,8 @@ afterEach(() => {
   globalThis.fetch = originalFetch;
   globalThis.setTimeout = realSetTimeout;
   setSystemTime();
+  captureException?.mockRestore();
+  captureException = undefined;
 });
 
 describe("CoachPlanSection", () => {
@@ -366,5 +379,23 @@ describe("CoachPlanSection", () => {
     await waitFor(() => expect(server.posts).toHaveLength(1));
     expect(server.posts[0]?.mode).toBe("auto");
     await waitFor(() => expect(server.gets).toBe(2));
+  });
+
+  it("reports a failed calorie load without hiding the plan", async () => {
+    const capture = spyOn(Sentry, "captureException");
+    captureException = capture;
+    stubPlanServer(undefined, () =>
+      respond(
+        { error: { code: "internal_error", message: "Diet is down" } },
+        500,
+      ),
+    );
+
+    render(section(0, { dietAdvice: true }));
+
+    expect(await screen.findByTestId("coach-plan-view")).toBeDefined();
+    await waitFor(() => expect(capture).toHaveBeenCalled());
+    // The calorie panel is advisory, so the failed read shows no plan error.
+    expect(screen.queryByTestId("plan-error")).toBeNull();
   });
 });

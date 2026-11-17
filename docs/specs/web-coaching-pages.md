@@ -45,9 +45,10 @@ changes.
   delete actions.
 - `apps/web/src/CoachPlanSection.tsx` — the plan card's layout, composing
   `useCoachPlan`, `usePlanWorkoutDownload` and `CoachPlanView`.
-- `apps/web/src/CoachPlanView.tsx` — the tab shell. It receives the plan's
-  `pending` levels and whether a run is `running` once, and dims each level
-  whose replacement is in flight.
+- `apps/web/src/CoachPlanView.tsx` — the tab shell, rendering the plan levels
+  through the shared `Tabs` primitive. It receives the plan's `pending` levels
+  and whether a run is `running` once, and dims each level whose replacement is
+  in flight.
 - `apps/web/src/CoachDashboard.tsx` and `apps/web/src/ActivitiesPage.tsx` —
   composition and layout only.
 

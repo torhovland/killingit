@@ -41,6 +41,15 @@ The primitives live in `apps/web/src/components/`:
   menu renders through it, so a page never wires its own outside-click or
   Escape listener and no code touches the DOM to close a menu. Mount the panel
   only while `open`, as `Modal` is mounted; see `docs/specs/accessibility-lint.md`.
+- `Tabs` — a WAI-ARIA horizontal tablist and the selected tab's panel, with the
+  selection owned by the caller. It takes the tablist's accessible name, the
+  tabs as `{ id, label, content }` entries, `value` and `onChange`. Each tab
+  names the panel it controls through `aria-controls`, the panel names its tab
+  through `aria-labelledby`, and only the selected panel is mounted. A click,
+  ArrowLeft, ArrowRight, Home or End selects a tab, arrow keys move focus with
+  roving `tabIndex` and wrap at either end, and the selected tab is the tablist's
+  only tab stop. The coach plan's Day, Week, Block and Season levels render
+  through it; see `docs/specs/accessibility-lint.md`.
 - `StatusBadge` — a week session's status (`completed`, `partial`, `planned`,
   `missed`, `rest`) as a compact capitalised badge, shared by the plan and
   calendar views so a status renders identically wherever it appears.
@@ -101,7 +110,8 @@ page, its sections and its single-page helpers. Only shared primitives belong
 in `components/`; the shared chart frame, legend and series palette, geometry
 and keyboard and hover hooks live in `charts/`, and pieces used across pages
 (`TrainingLoadLine`, `CalorieBalancePanel`, `mapProjection`, the current-user and
-time-zone providers) stay at the root. The fitness, threshold and cost chart
+time-zone providers, and the app shell's `AppHeader`, `UserMenu` and `AppBody`)
+stay at the root. The fitness, threshold and cost chart
 legends render through `ChartLegend`, which owns the list, swatch shapes and
 optional `sport · unit` detail, and the legend inset is the exported
 `CHART_LEGEND_INSET_CLASS` utility rather than an inline style. The threshold
@@ -145,6 +155,9 @@ layout for the spinner and forwards `variant`, `size` and `className`.
 - Every menu renders through `Menu`; no page attaches its own Escape or
   outside-click listener, and the current page's item carries
   `aria-current="page"`.
+- Every tabbed view renders through `Tabs`; no page builds its own `tablist`,
+  and the tab, panel and roving-focus ids and key handling stay in the
+  primitive.
 - The primitives have unit tests for their defaults, variants and class
   merging.
 - Every conditional `className` is composed with `cn()`, and no `className` is

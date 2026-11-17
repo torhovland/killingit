@@ -104,6 +104,30 @@ function latestBodyRows(
   return rows;
 }
 
+/** One column of the newest Garmin readings in the Today panel. */
+function LatestRowList({
+  rows,
+  testId,
+}: {
+  rows: readonly LatestGarminRow[];
+  testId: string;
+}) {
+  return (
+    <ul
+      className="flex flex-col gap-0.5 text-base text-muted-foreground"
+      data-testid={testId}
+    >
+      {rows.map((row) => (
+        <li key={row.key}>
+          <span>{row.label}</span>{" "}
+          <span className="font-medium text-foreground">{row.value}</span>{" "}
+          <span className="text-sm">({row.date})</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 /**
  * The Fitness page content: today's load line with the current FTP estimate,
  * the range picker, the fitness/form chart with its TSB zone legend, and the
@@ -191,37 +215,17 @@ export function FitnessView({
               )}
               {(leftRows.length > 0 || sleepRows.length > 0) && (
                 <div className="grid gap-4 border-t pt-2 sm:grid-cols-2">
-                  <ul
-                    className="flex flex-col gap-0.5 text-base text-muted-foreground"
-                    data-testid="fitness-today-garmin-left"
-                  >
-                    {leftRows.map((row) => (
-                      <li key={row.key}>
-                        <span>{row.label}</span>{" "}
-                        <span className="font-medium text-foreground">
-                          {row.value}
-                        </span>{" "}
-                        <span className="text-sm">({row.date})</span>
-                      </li>
-                    ))}
-                  </ul>
+                  <LatestRowList
+                    rows={leftRows}
+                    testId="fitness-today-garmin-left"
+                  />
                   {sleepRows.length > 0 && (
                     <div className="flex flex-col gap-0.5">
                       <span className="text-lg font-medium">Sleep</span>
-                      <ul
-                        className="flex flex-col gap-0.5 text-base text-muted-foreground"
-                        data-testid="fitness-today-garmin-sleep"
-                      >
-                        {sleepRows.map((row) => (
-                          <li key={row.key}>
-                            <span>{row.label}</span>{" "}
-                            <span className="font-medium text-foreground">
-                              {row.value}
-                            </span>{" "}
-                            <span className="text-sm">({row.date})</span>
-                          </li>
-                        ))}
-                      </ul>
+                      <LatestRowList
+                        rows={sleepRows}
+                        testId="fitness-today-garmin-sleep"
+                      />
                     </div>
                   )}
                 </div>

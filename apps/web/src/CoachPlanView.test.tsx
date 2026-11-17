@@ -1,4 +1,6 @@
 import { describe, expect, it } from "bun:test";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { CoachPlan } from "@killingit/shared";
 import { CoachPlanView } from "./CoachPlanView";
@@ -74,8 +76,39 @@ describe("CoachPlanView", () => {
     expect(html).toContain("Season");
     expect(html).toContain('aria-selected="true"');
     expect(html).toContain('aria-selected="false"');
+    expect(html).toContain('role="tabpanel"');
+    expect(html).toContain("aria-controls=");
+    expect(html).toContain("aria-labelledby=");
     expect(html).toContain('data-testid="plan-today"');
     expect(html).not.toContain(`This week${BULLET}Aerobic base`);
+  });
+
+  it("switches the visible plan level from its tab", async () => {
+    const user = userEvent.setup();
+    render(<CoachPlanView pending={noPending} plan={plan} />);
+
+    await user.click(screen.getByRole("tab", { name: "Week" }));
+
+    expect(
+      screen.getByRole("tab", { name: "Week" }).getAttribute("aria-selected"),
+    ).toBe("true");
+    expect(screen.getByRole("tabpanel", { name: "Week" })).toBeDefined();
+    expect(screen.getByTestId("plan-week")).toBeDefined();
+    expect(screen.queryByTestId("plan-today")).toBeNull();
+  });
+
+  it("moves between plan levels with the arrow keys", async () => {
+    const user = userEvent.setup();
+    render(<CoachPlanView pending={noPending} plan={plan} />);
+    const day = screen.getByRole("tab", { name: "Day" });
+
+    day.focus();
+    await user.keyboard("{ArrowRight}");
+
+    const week = screen.getByRole("tab", { name: "Week" });
+    expect(document.activeElement).toBe(week);
+    expect(week.getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByTestId("plan-week")).toBeDefined();
   });
 
   it("lets today's status and session details wrap on narrow screens", () => {

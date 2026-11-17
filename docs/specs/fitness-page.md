@@ -344,10 +344,11 @@ API:
 - Web unit tests for the chart scale helpers and the shared chart frame
   (caption, left and right axes, date labels, render-prop series, legend and
   footer, and the keyboard stop with its announcement), the one path builder (a
-  line, a gap, a skipped day and the coordinate rounding), a render test for the
-  page view (load line, zone legend, both charts, hidden threshold chart, body
-  chart and its hidden states, the Garmin Today columns and the recovery/sleep
-  charts), a render test for the hover card, and the shared keyboard cursor's
-  interaction tests (`useChartHover.test.tsx`, `FitnessChart.test.tsx`, and
-  `CostBarChart.test.tsx` for the Costs page chart). See
+  line, a gap, a skipped day and the coordinate rounding), the threshold series
+  shaping (`thresholdData.test.ts`), a render test for the page view (load line,
+  zone legend, both charts, hidden threshold chart, body chart and its hidden
+  states, the Garmin Today columns and the recovery/sleep charts), a render test
+  for the hover card, and the shared keyboard cursor's interaction tests
+  (`useChartHover.test.tsx`, `FitnessChart.test.tsx`, which also reads the
+  threshold card, and `CostBarChart.test.tsx` for the Costs page chart). See
   `docs/specs/chart-keyboard-navigation.md`.

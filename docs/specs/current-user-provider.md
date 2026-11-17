@@ -28,9 +28,12 @@ the UI instead of leaving a dead error paragraph.
    account deletion's `DELETE /api/me`.
 4. `CurrentUserLoadError` renders the failed load with a Retry that calls
    `reload()`.
-5. `AppShell` keeps the display time zone and its `timeZoneTouched` ref, the
-   survey gate, the redirect effects and the catalog refresh. It reads `user`
-   from the provider for the admin role and seeding the zone.
+5. `AppShell` keeps the catalog refresh, the header spinner source and the
+   plan refresh key, and reads `user` from the provider for the admin role. The
+   display time zone lives in `useTimeZoneState` and the survey gate with its
+   redirect effects in `useRouteGuards`, both at the web root beside the shell.
+   `AppHeader`, `UserMenu` and `AppBody` hold the header, the account menu and
+   the gated page region.
 6. `PageOutlet` receives only the page, the plan refresh key, the time zone
    and the callbacks those need. Pages that need the account read it from the
    provider.

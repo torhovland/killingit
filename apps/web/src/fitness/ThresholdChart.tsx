@@ -12,11 +12,13 @@ import {
   lastIndexOnOrBefore,
   niceDomain,
   nullAwarePath,
+  type ChartScale,
 } from "../charts/chartGeometry";
 import { ChartFrame } from "../charts/ChartFrame";
 import { ChartLegend } from "../charts/ChartLegend";
 import { seriesClass } from "../charts/seriesClass";
 import { cn } from "../components/cn";
+import { prepareThresholdSeries } from "./charts/thresholdData";
 import { FitnessDayTooltip } from "./FitnessDayTooltip";
 
 interface ThresholdGroup {
@@ -83,6 +85,7 @@ function ThresholdPanel({
     days.map((day) => day.date),
     today,
   );
+  const lines = prepareThresholdSeries(days, group.series);
 
   return (
     <ChartFrame
@@ -98,20 +101,14 @@ function ThresholdPanel({
       formatTick={(tick) => formatThresholdNumber(tick, group.unit, group.kind)}
       tooltipTestId="threshold-tooltip"
       tooltip={(hovered) => {
-        const hoveredValues = group.series.flatMap((entry) => {
-          const value = entry.points.find(
-            (point) => point.date === hovered.day.date,
-          );
+        const hoveredValues = lines.flatMap(({ series: entry, byDate }) => {
+          const value = byDate.get(hovered.day.date);
           return value === undefined
             ? []
             : [
                 {
                   label: `${entry.label} (${entry.sport})`,
-                  value: formatThresholdValue(
-                    value.value,
-                    entry.unit,
-                    entry.kind,
-                  ),
+                  value: formatThresholdValue(value, entry.unit, entry.kind),
                 },
               ];
         });
@@ -152,41 +149,59 @@ function ThresholdPanel({
       }
     >
       {() =>
-        group.series.map((entry, index) => {
-          const seriesValues = days.map((day) => {
-            const point = entry.points.find(
-              (candidate) => candidate.date === day.date,
-            );
-            return point?.value ?? null;
-          });
-          return (
-            <g key={`${entry.sport}:${entry.measure}`}>
-              <path
-                d={nullAwarePath(seriesValues, scale, 0, split)}
-                className={cn("fill-none", seriesClass(index)?.stroke)}
-                strokeWidth={2}
-                data-series={`${entry.sport}:${entry.measure}`}
-              />
-              {split < days.length - 1 && (
-                <path
-                  d={nullAwarePath(
-                    seriesValues,
-                    scale,
-                    Math.max(split, 0),
-                    days.length - 1,
-                  )}
-                  className={cn("fill-none", seriesClass(index)?.stroke)}
-                  strokeWidth={2}
-                  strokeDasharray={FUTURE_DASH}
-                  data-series={`${entry.sport}:${entry.measure}`}
-                  data-future="true"
-                />
-              )}
-            </g>
-          );
-        })
+        lines.map(({ series: entry, values: lineValues }, index) => (
+          <ThresholdLine
+            key={`${entry.sport}:${entry.measure}`}
+            values={lineValues}
+            scale={scale}
+            split={split}
+            seriesId={`${entry.sport}:${entry.measure}`}
+            strokeClass={seriesClass(index)?.stroke}
+          />
+        ))
       }
     </ChartFrame>
+  );
+}
+
+/** A threshold line, solid up to today and dotted for the plan's projection. */
+function ThresholdLine({
+  values,
+  scale,
+  split,
+  seriesId,
+  strokeClass,
+}: {
+  values: readonly (number | null)[];
+  scale: ChartScale;
+  split: number;
+  seriesId: string;
+  strokeClass: string | undefined;
+}) {
+  return (
+    <g>
+      <path
+        d={nullAwarePath(values, scale, 0, split)}
+        className={cn("fill-none", strokeClass)}
+        strokeWidth={2}
+        data-series={seriesId}
+      />
+      {split < values.length - 1 && (
+        <path
+          d={nullAwarePath(
+            values,
+            scale,
+            Math.max(split, 0),
+            values.length - 1,
+          )}
+          className={cn("fill-none", strokeClass)}
+          strokeWidth={2}
+          strokeDasharray={FUTURE_DASH}
+          data-series={seriesId}
+          data-future="true"
+        />
+      )}
+    </g>
   );
 }
 

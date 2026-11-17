@@ -1,38 +1,20 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AthleteQuestionsProvider,
   useAthleteQuestionsContext,
 } from "./AthleteQuestionsProvider";
+import { AppBody } from "./AppBody";
+import { AppHeader } from "./AppHeader";
 import { AppStatusProvider, useAppStatus } from "./AppStatus";
-import { CoachingSurveyPage } from "./CoachingSurveyPage";
 import { useAuth } from "./auth";
-import {
-  CurrentUserLoadError,
-  CurrentUserProvider,
-  useCurrentUser,
-} from "./CurrentUserProvider";
-import { fetchJsonAuthed } from "./fetchAuthed";
-import {
-  NavigationProvider,
-  PAGES,
-  navigateToPage,
-  pageForPath,
-  pageLabel,
-  useLocationPath,
-  type Page,
-} from "./navigation";
-import { PageOutlet } from "./PageOutlet";
-import { PlanGenerationProvider } from "./PlanGenerationProvider";
+import { CurrentUserProvider, useCurrentUser } from "./CurrentUserProvider";
+import { NavigationProvider, navigateToPage } from "./navigation";
 import { PwaBanners } from "./PwaBanners";
 import { usePwa } from "./PwaContext";
-import { InstallAppButton } from "./PwaInstall";
-import { SignInPage } from "./SignInPage";
-import { Spinner } from "./Spinner";
-import { panelWidthClass, surveyGate } from "./surveyGate";
 import { TimeZoneProvider } from "./TimeZoneContext";
-import { Button } from "./components/Button";
-import { Menu } from "./components/Menu";
-import { cn } from "./components/cn";
+import { useModelCatalogRefresh } from "./useModelCatalogRefresh";
+import { useRouteGuards } from "./useRouteGuards";
+import { useTimeZoneState } from "./useTimeZoneState";
 
 export function App() {
   return (
@@ -51,32 +33,32 @@ function AppShell() {
   const pwa = usePwa();
   const { status, setStatus } = useAppStatus();
   const { user, loading: loadingUser } = useCurrentUser();
-  const [timeZone, setTimeZone] = useState<string | null>(null);
-  const timeZoneTouched = useRef(false);
-  const pathname = useLocationPath();
-  const matchedPage = pageForPath(pathname);
-  // An unknown path renders the coach page while the redirect below replaces
-  // the URL.
-  const page = matchedPage ?? "coach";
-  const [planRefreshKey, setPlanRefreshKey] = useState(0);
   const {
     questions,
     loading: loadingQuestions,
     error: questionsError,
     load: loadQuestions,
   } = useAthleteQuestionsContext();
+  const [planRefreshKey, setPlanRefreshKey] = useState(0);
 
   const signedIn = auth.isAuthenticated;
   const isAdmin = user?.role === "admin";
   // The coaching survey holds the athlete back until it is answered; only the
   // admin's own settings page stays open, because the admin edits the
   // questions that block everyone.
-  const gate = surveyGate({
-    page,
-    surveyRequired: questions !== null && !questions.complete,
+  const surveyRequired = questions !== null && !questions.complete;
+  const { page, gate } = useRouteGuards({
+    signedIn,
+    loadingUser,
+    user,
     isAdmin,
-    rolePending: signedIn && loadingUser,
+    surveyRequired,
   });
+  const { timeZone, setTimeZone } = useTimeZoneState({
+    signedIn,
+    accountTimeZone: user?.timezone,
+  });
+  useModelCatalogRefresh(auth);
 
   useEffect(() => {
     const loading = auth.isLoading || (loadingQuestions && questions === null);
@@ -84,122 +66,28 @@ function AppShell() {
     return () => setStatus("app", null);
   }, [auth.isLoading, loadingQuestions, questions, setStatus]);
 
-  // Every page has a canonical URL. "/" and any unknown path resolve to the
-  // coach page, replacing the entry so the back button stays useful.
-  useEffect(() => {
-    if (matchedPage === null) {
-      navigateToPage("coach", { replace: true });
-    }
-  }, [matchedPage]);
-
-  // An added or revised question sends the athlete to the survey so they can
-  // see what changed and answer it. The gate keeps the admin settings page.
-  useEffect(() => {
-    if (gate === "survey") {
-      navigateToPage("survey", { replace: true });
-    }
-  }, [gate]);
-
-  // Admin settings belong to the admin. A member who opens the URL is sent
-  // back to the coach page once their role is known.
-  useEffect(() => {
-    if (signedIn && user !== null && page === "admin" && !isAdmin) {
-      navigateToPage("coach", { replace: true });
-    }
-  }, [signedIn, user, page, isAdmin]);
-
-  // A page visit asks the API to refresh OpenRouter's catalog. The API checks
-  // its own 24-hour timestamp, so this is cheap on every other visit.
-  useEffect(() => {
-    if (!auth.isAuthenticated) return;
-    void fetchJsonAuthed<unknown>("/api/llm/models/refresh", auth, {
-      method: "POST",
-    }).catch(() => {
-      // A catalog refresh must never block the page.
-    });
-  }, [auth]);
-
-  // The display zone starts from the saved account setting. The touched ref
-  // lets a zone the athlete just saved survive a late account load; signing out
-  // clears both so the next account starts from its own setting.
-  useEffect(() => {
-    if (!signedIn) {
-      setTimeZone(null);
-      timeZoneTouched.current = false;
-      return;
-    }
-    if (!timeZoneTouched.current) {
-      setTimeZone(user?.timezone ?? null);
-    }
-  }, [signedIn, user]);
-
-  function navigate(next: Page): void {
-    navigateToPage(next);
-  }
-
   function handleAnswersSaved(): void {
     setPlanRefreshKey((key) => key + 1);
     void loadQuestions();
   }
 
-  // The month grid needs room for a wide week box plus seven day columns, so
-  // the calendar gets a wider content panel than the other pages. While the
-  // survey gate replaces the page, the survey's narrower panel applies.
-  const contentWidth = signedIn ? panelWidthClass(gate, page) : "max-w-5xl";
-
   return (
     <TimeZoneProvider timeZone={timeZone}>
-      <NavigationProvider navigate={navigate}>
+      <NavigationProvider navigate={navigateToPage}>
         <div className="flex min-h-screen w-full flex-col">
-          <header className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 sm:px-4">
-            <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-              <a
-                href="/coach"
-                className="flex items-center gap-2 text-2xl font-bold tracking-tight no-underline hover:no-underline"
-                onClick={(event) => {
-                  event.preventDefault();
-                  navigate("coach");
-                }}
-              >
-                <img
-                  src="/logo.svg"
-                  alt=""
-                  width={32}
-                  height={32}
-                  className="size-8 shrink-0"
-                />
-                <span className="whitespace-nowrap">Killing It</span>
-              </a>
-              <span
-                aria-hidden="true"
-                className="hidden h-5 w-px bg-muted-foreground/45 sm:block"
-              />
-              <p className="hidden text-sm text-muted-foreground sm:block">
-                <b className="font-medium text-primary">Deadly serious</b> about
-                your progress
-              </p>
-            </div>
-
-            <div className="ml-auto flex items-center gap-2">
-              <InstallAppButton
-                installable={pwa.installable}
-                onInstall={() => void pwa.install()}
-              />
-              {signedIn ? (
-                <UserMenu
-                  firstName={auth.firstName}
-                  picture={auth.picture}
-                  isAdmin={isAdmin}
-                  status={status}
-                  currentPage={page}
-                  onNavigate={navigate}
-                  onSignOut={() => void auth.logout()}
-                />
-              ) : auth.isLoading ? (
-                <p className="text-base text-muted-foreground">Loading…</p>
-              ) : null}
-            </div>
-          </header>
+          <AppHeader
+            signedIn={signedIn}
+            loading={auth.isLoading}
+            firstName={auth.firstName}
+            picture={auth.picture}
+            isAdmin={isAdmin}
+            status={status}
+            page={page}
+            installable={pwa.installable}
+            onInstall={() => void pwa.install()}
+            onNavigate={navigateToPage}
+            onSignOut={() => void auth.logout()}
+          />
 
           <PwaBanners
             offline={pwa.offline}
@@ -207,168 +95,24 @@ function AppShell() {
             onReload={() => pwa.reloadForUpdate()}
           />
 
-          <div
-            className={cn(
-              "mx-auto flex w-full",
-              contentWidth,
-              "flex-col gap-4 px-0 py-4 sm:px-4 sm:py-6",
-            )}
-            data-testid="app-panel"
-          >
-            <PlanGenerationProvider>
-              <CurrentUserLoadError />
-
-              {!signedIn ? (
-                auth.isLoading ? (
-                  <p className="text-base text-muted-foreground">Loading…</p>
-                ) : (
-                  <SignInPage onSignIn={() => void auth.login()} />
-                )
-              ) : loadingQuestions && questions === null ? (
-                <p className="text-base text-muted-foreground">
-                  Loading your profile…
-                </p>
-              ) : questions === null ? (
-                <section className="flex flex-col items-start gap-2">
-                  {questionsError && (
-                    <p className="text-destructive">Error: {questionsError}</p>
-                  )}
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="lg"
-                    onClick={() => void loadQuestions()}
-                  >
-                    Retry
-                  </Button>
-                </section>
-              ) : gate === "survey" ? (
-                <CoachingSurveyPage onAnswersSaved={handleAnswersSaved} />
-              ) : gate === "wait" ? (
-                // `/admin` renders once the account's role is known, so a
-                // reload keeps the admin there instead of bouncing to the
-                // survey.
-                <p className="text-base text-muted-foreground">Loading…</p>
-              ) : (
-                <PageOutlet
-                  page={page === "admin" && !isAdmin ? "coach" : page}
-                  planRefreshKey={planRefreshKey}
-                  timeZone={timeZone}
-                  onSurveyAnswersSaved={handleAnswersSaved}
-                  onTimeZoneChanged={(timezone) => {
-                    timeZoneTouched.current = true;
-                    setTimeZone(timezone);
-                  }}
-                />
-              )}
-            </PlanGenerationProvider>
-          </div>
+          <AppBody
+            signedIn={signedIn}
+            authLoading={auth.isLoading}
+            onSignIn={() => void auth.login()}
+            questions={questions}
+            questionsLoading={loadingQuestions}
+            questionsError={questionsError}
+            onRetryQuestions={() => void loadQuestions()}
+            gate={gate}
+            page={page}
+            isAdmin={isAdmin}
+            planRefreshKey={planRefreshKey}
+            timeZone={timeZone}
+            onAnswersSaved={handleAnswersSaved}
+            onTimeZoneChanged={setTimeZone}
+          />
         </div>
       </NavigationProvider>
     </TimeZoneProvider>
-  );
-}
-
-function UserMenu({
-  firstName,
-  picture,
-  isAdmin,
-  status,
-  currentPage,
-  onNavigate,
-  onSignOut,
-}: {
-  firstName?: string | null | undefined;
-  picture?: string | null | undefined;
-  isAdmin: boolean;
-  status: "idle" | "loading" | "syncing" | "thinking";
-  currentPage: Page;
-  onNavigate: (page: Page) => void;
-  onSignOut: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const name = firstName?.trim() || "Athlete";
-  const label =
-    status === "thinking"
-      ? "The coach is thinking"
-      : status === "syncing"
-        ? "Syncing"
-        : status === "loading"
-          ? "Loading"
-          : null;
-
-  function choose(page: Page): void {
-    setOpen(false);
-    onNavigate(page);
-  }
-
-  function signOut(): void {
-    setOpen(false);
-    onSignOut();
-  }
-
-  return (
-    <Menu
-      label="Account menu"
-      panelLabel="Account"
-      open={open}
-      onOpenChange={setOpen}
-      testId="user-menu"
-      trigger={
-        <>
-          <svg
-            aria-hidden="true"
-            viewBox="0 0 24 24"
-            className="size-5"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-          >
-            <path d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
-          {picture ? (
-            <img
-              src={picture}
-              alt=""
-              className="size-7 rounded-full object-cover"
-            />
-          ) : (
-            <span className="flex size-7 items-center justify-center rounded-full bg-accent text-sm font-medium text-accent-foreground">
-              {name.slice(0, 1).toUpperCase()}
-            </span>
-          )}
-          <span className="hidden font-medium sm:inline">{name}</span>
-          {isAdmin && (
-            <span className="hidden rounded border border-transparent bg-accent px-2 py-0.5 text-sm text-accent-foreground sm:inline">
-              Admin
-            </span>
-          )}
-          {label && <Spinner label={label} />}
-        </>
-      }
-    >
-      {PAGES.filter((entry) => entry !== "admin" || isAdmin).map((entry) => (
-        <Button
-          key={entry}
-          type="button"
-          variant="ghost"
-          size="menu"
-          aria-current={entry === currentPage ? "page" : undefined}
-          onClick={() => choose(entry)}
-        >
-          {pageLabel(entry)}
-        </Button>
-      ))}
-      <Button
-        type="button"
-        variant="ghost"
-        size="menu"
-        className="text-destructive"
-        onClick={signOut}
-      >
-        Sign out
-      </Button>
-    </Menu>
   );
 }

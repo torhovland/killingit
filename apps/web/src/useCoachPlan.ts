@@ -14,7 +14,7 @@ import {
 } from "./planGeneration";
 import { usePlanGeneration } from "./PlanGenerationProvider";
 import type { PlanProgressState } from "./PlanProgress";
-import { reportError } from "./reportError";
+import { reportError, reportErrorQuietly } from "./reportError";
 import { useAbortableRequest } from "./useApiResource";
 import { getToday } from "./useToday";
 
@@ -103,7 +103,7 @@ export function useCoachPlan(
       } catch (err: unknown) {
         // The plan must still render when the diet summary cannot be read.
         if (!signal.aborted) {
-          console.error("Failed to load today's calories:", err);
+          reportErrorQuietly(err);
         }
         return null;
       }

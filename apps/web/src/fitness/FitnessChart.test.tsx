@@ -178,4 +178,26 @@ describe("ThresholdChart", () => {
     expect(html).not.toContain(" /km</text>");
     expect(html).toContain("running · s/km");
   });
+
+  it("reads the hovered day's values from the same lookup as the line", async () => {
+    const user = userEvent.setup();
+    render(
+      <ThresholdChart
+        days={days}
+        series={thresholdSeries}
+        today="2026-10-22"
+      />,
+    );
+
+    await user.tab();
+    expect(document.activeElement).toBe(
+      screen.getByRole("img", { name: /estimated threshold in w/i }),
+    );
+
+    await user.keyboard("{ArrowRight}{ArrowRight}");
+    const [tooltip] = screen.getAllByTestId("threshold-tooltip");
+    expect(tooltip?.textContent).toContain("21 Oct");
+    expect(tooltip?.textContent).toContain("FTP (cycling)");
+    expect(tooltip?.textContent).toContain("251 W");
+  });
 });

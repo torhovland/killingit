@@ -1,4 +1,5 @@
 import {
+  addDays,
   type BikeWorkout,
   type BlockPlan,
   type DailyHealthPoint,
@@ -603,12 +604,6 @@ function benchmarkCalorieHistory(today: string): CalorieTargetPoint[] {
     date: addDays(today, -daysAgo),
     caloriesKcal: 2400 + daysAgo * 40,
   }));
-}
-
-function addDays(date: string, days: number): string {
-  const value = new Date(`${date}T00:00:00Z`);
-  value.setUTCDate(value.getUTCDate() + days);
-  return value.toISOString().slice(0, 10);
 }
 
 /** The stored season the benchmark athlete is part way through. */

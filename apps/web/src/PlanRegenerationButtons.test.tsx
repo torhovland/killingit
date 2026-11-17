@@ -7,9 +7,12 @@ import {
   it,
   mock,
   setSystemTime,
+  spyOn,
 } from "bun:test";
-import { render, screen } from "@testing-library/react";
+import type { Mock } from "bun:test";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import * as Sentry from "@sentry/react";
 import type {
   CoachPlan,
   CoachPlanResponse,
@@ -217,6 +220,8 @@ interface Setup {
   llmConfigured?: boolean;
   /** Fail both status requests, as an unreachable API would. */
   statusesFail?: boolean;
+  /** Fail the season-availability check. */
+  planFails?: boolean;
   /** Leave both status requests in flight. */
   statusesPending?: boolean;
 }
@@ -227,6 +232,7 @@ function stubApi({
   garminConnected = true,
   llmConfigured = true,
   statusesFail = false,
+  planFails = false,
   statusesPending = false,
 }: Setup = {}): void {
   globalThis.fetch = ((input: string | URL | Request) => {
@@ -237,7 +243,9 @@ function stubApi({
           ? input.href
           : input.url;
     if (url.includes("/api/coaching/plan?today=")) {
-      return Promise.resolve(json(planResponse(hasSeason)));
+      return planFails
+        ? failure()
+        : Promise.resolve(json(planResponse(hasSeason)));
     }
     if (url.includes("/api/garmin/status")) {
       if (statusesPending) {
@@ -272,6 +280,8 @@ const done: PlanGenerationOutcome = {
   plan: planResponse(true),
 };
 
+let captureException: Mock<typeof Sentry.captureException> | undefined;
+
 beforeEach(() => {
   setSystemTime(new Date("2026-11-15T12:00:00Z"));
   useControlledGeneration = true;
@@ -287,6 +297,8 @@ afterEach(() => {
   useControlledGeneration = false;
   globalThis.fetch = originalFetch;
   setSystemTime();
+  captureException?.mockRestore();
+  captureException = undefined;
 });
 
 describe("PlanRegenerationButtons", () => {
@@ -452,6 +464,25 @@ describe("PlanRegenerationButtons", () => {
     });
 
     expect(screen.queryByRole("status")).toBeNull();
+
+    await user.click(start);
+    expect(generation.start).toHaveBeenCalledWith("newSeason");
+  });
+
+  it("reports a failed season check without blocking a new season", async () => {
+    const user = userEvent.setup();
+    const capture = spyOn(Sentry, "captureException");
+    captureException = capture;
+    stubApi({ hasSeason: false, planFails: true });
+    renderButtons();
+
+    const start = await screen.findByRole("button", {
+      name: "Plan a new season",
+    });
+
+    await waitFor(() => expect(capture).toHaveBeenCalled());
+    // Availability is advisory, so the failed check shows no error.
+    expect(screen.queryByText("The API is down")).toBeNull();
 
     await user.click(start);
     expect(generation.start).toHaveBeenCalledWith("newSeason");

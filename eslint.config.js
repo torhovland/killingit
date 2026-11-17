@@ -84,6 +84,29 @@ export default tseslint.config(
     },
   },
   {
+    // A web failure caught by the app goes through `reportError` or
+    // `reportErrorQuietly` so Sentry sees it; a bare console call would bypass
+    // the report. Tests may still log. `ErrorBoundary` deliberately logs the
+    // component stack for development, and the root hooks in `main.tsx`
+    // already capture render errors, so those two keep their console calls.
+    // See `docs/specs/error-monitoring.md`.
+    files: ["apps/web/src/**/*.{ts,tsx}"],
+    ignores: [
+      "apps/web/src/**/*.test.{ts,tsx}",
+      "apps/web/src/ErrorBoundary.tsx",
+    ],
+    rules: {
+      "no-console": "error",
+    },
+  },
+  {
+    // The root error hooks warn alongside their own Sentry capture.
+    files: ["apps/web/src/main.tsx"],
+    rules: {
+      "no-console": ["error", { allow: ["warn"] }],
+    },
+  },
+  {
     // The benchmark stores its run files as JSON, so every stage reads them
     // through the Zod schema that describes the file. This rule stops a new
     // stage from parsing a stored file with a hand-written cast again. Only

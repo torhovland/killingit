@@ -24,7 +24,14 @@ the Team plan is the upgrade path if the volume outgrows it.
   its JSON request line; see `docs/specs/api-logging.md`.
 - A web error is sent through `reportError` (`apps/web/src/reportError.ts`),
   and Sentry is initialised first in `apps/web/src/main.tsx` so uncaught render
-  errors reach the error boundary and the report.
+  errors reach the error boundary and the report. A deliberate fail-open path
+  uses `reportErrorQuietly`, which records the error without a UI message.
+  Both share the rule that an expected client outcome (`ApiError` under 500,
+  `SessionExpiredError`) is not reported.
+- ESLint's `no-console` rule fails a web production source that logs directly,
+  so a caught failure cannot bypass Sentry. `ErrorBoundary.tsx` keeps its
+  development log, and `main.tsx` may call `console.warn` beside its own root
+  error hooks.
 - The deploy workflow tags a release with `DEPLOY_SHA`, so the built tree, the
   pushed image and the release it reports cannot name different commits; see
   `docs/specs/deploy-workflow.md`.
@@ -37,5 +44,7 @@ the Team plan is the upgrade path if the volume outgrows it.
   missing DSN is a no-op rather than a startup failure.
 - An API failure that throws out of a handler is captured once, not printed a
   second time as plain text.
+- A web production source cannot call `console` directly except the documented
+  `ErrorBoundary.tsx` and `main.tsx` warnings.
 - A release names the commit that CI tested and deployed.
 - `bun run typecheck`, `bun run lint`, `bun run format` and `bun run test` pass.
