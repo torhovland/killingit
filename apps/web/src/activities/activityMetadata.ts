@@ -5,8 +5,8 @@ import {
   formatDuration,
   type ActivitySummary,
 } from "@killingit/shared";
-import { formatDistanceKm } from "./formatDistance";
-import { formatDateTime } from "./timeZone";
+import { formatDistanceKm } from "../formatDistance";
+import { formatDateTime } from "../timeZone";
 
 /** The activity fields the metadata line renders. */
 type ActivityMetadataSource = Pick<

@@ -18,7 +18,7 @@ growing queue of requests behind a page the athlete has already left.
 
 ### In scope
 
-1. **`apps/web/src/coachReplyPoll.ts`** — `pollCoachReplies` owns the loop:
+1. **`apps/web/src/coach/coachReplyPoll.ts`** — `pollCoachReplies` owns the loop:
 
    - it waits `COACH_REPLY_POLL_INTERVAL_MS` (1.5 s) before each attempt;
    - it stops when `isActive()` is false, so an answered comment or an unmounted
@@ -36,7 +36,7 @@ growing queue of requests behind a page the athlete has already left.
    `useActivityFeed`, which keeps exposing only `awaitingReplies` and
    `loadCached` (see `docs/specs/web-coaching-hooks.md`).
 
-3. **`apps/web/src/coachReplyPoll.test.ts`** covers the loop's contract with an
+3. **`apps/web/src/coach/coachReplyPoll.test.ts`** covers the loop's contract with an
    injected `sleep`: a request settles before the next one starts, the attempt
    cap and interval hold, an inactive caller stops the poll, and a failed
    attempt does not.

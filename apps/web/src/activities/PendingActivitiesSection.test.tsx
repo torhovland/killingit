@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { AnalyzedActivity } from "@killingit/shared";
 import { PendingActivitiesSection } from "./PendingActivitiesSection";
-import { TimeZoneProvider } from "./TimeZoneContext";
+import { TimeZoneProvider } from "../TimeZoneContext";
 
 const activity: AnalyzedActivity = {
   id: 1,

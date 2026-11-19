@@ -13,11 +13,11 @@ import {
   saveCachedActivities,
   updateActivityComment,
 } from "./activityCache";
-import { useBusyReporter } from "./AppStatus";
-import type { AuthState } from "./auth";
-import { requestParsed } from "./fetchAuthed";
-import { reportError, reportErrorQuietly } from "./reportError";
-import { getToday } from "./useToday";
+import { useBusyReporter } from "../AppStatus";
+import type { AuthState } from "../auth";
+import { requestParsed } from "../fetchAuthed";
+import { reportError, reportErrorQuietly } from "../reportError";
+import { getToday } from "../useToday";
 
 export interface ActivityFeedState {
   /** The feed on screen, seeded from the per-account browser cache. */

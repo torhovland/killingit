@@ -1,10 +1,10 @@
 import type { PeriodReview, ReviewKind } from "@killingit/shared";
-import { Bullet } from "./Bullet";
-import { CommentSection } from "./CommentSection";
-import { FormattedText } from "./FormattedText";
-import { useCommentForm } from "./useCommentForm";
-import { Card } from "./components/Card";
-import { CoachReply } from "./components/CoachReply";
+import { Bullet } from "../Bullet";
+import { CommentSection } from "../CommentSection";
+import { FormattedText } from "../FormattedText";
+import { useCommentForm } from "../useCommentForm";
+import { Card } from "../components/Card";
+import { CoachReply } from "../components/CoachReply";
 
 const KIND_LABELS: Record<ReviewKind, string> = {
   week: "Week review",

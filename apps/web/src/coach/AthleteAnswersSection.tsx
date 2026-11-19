@@ -5,11 +5,11 @@ import {
   type AthleteQuestionPreviousResponse,
   type QuestionAnswerInput,
 } from "@killingit/shared";
-import { reportError } from "./reportError";
-import { Badge } from "./components/Badge";
-import { Button } from "./components/Button";
-import { Textarea } from "./components/Textarea";
-import { Card } from "./components/Card";
+import { reportError } from "../reportError";
+import { Badge } from "../components/Badge";
+import { Button } from "../components/Button";
+import { Textarea } from "../components/Textarea";
+import { Card } from "../components/Card";
 
 interface AthleteAnswersSectionProps {
   questions: AthleteQuestion[];

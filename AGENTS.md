@@ -39,7 +39,9 @@ hard-code a UI colour. The component library is in
 `apps/web/src/components/` (`Modal` owns every dialog and `ConfirmDialog` builds
 every destructive confirmation on it), and each page or feature lives in its
 own directory under `apps/web/src/` (`calendar/`, `fitness/`, `diet/`,
-`settings/`, `admin/`, `plan/`) beside its tests. See
+`settings/`, `admin/`, `plan/`, `activities/`, `coach/`) beside its tests;
+`apps/web/src/rootModules.test.ts` keeps the root to the shared plumbing ADR
+0059 lists, so a new flat module fails the unit suite. See
 `docs/specs/web-component-library.md` and
 `docs/specs/modal-dialog.md`.
 

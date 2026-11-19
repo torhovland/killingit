@@ -18,7 +18,7 @@ changes.
 
 ## Target structure
 
-- `apps/web/src/useCoachReviews.ts` — loads completed-period reviews, tracks the
+- `apps/web/src/coach/useCoachReviews.ts` — loads completed-period reviews, tracks the
   reviews kept for the rest of the visit, saves a review comment and marks a
   review as reviewed without a comment.
 - `apps/web/src/plan/useCoachPlan.ts` — loads the stored plan and today's diet
@@ -26,31 +26,33 @@ changes.
   exposes the newest tracked response instead of copying it into local state.
 - `apps/web/src/plan/usePlanWorkoutDownload.ts` — the authenticated workout-file
   fetch, the browser save, the in-flight date and the download error.
-- `apps/web/src/useCoachQuestion.ts` — loads the pending coach question and
+- `apps/web/src/coach/useCoachQuestion.ts` — loads the pending coach question and
   answers it.
-- `apps/web/src/useManualActivities.ts` — loads the athlete's manual activities,
-  owns the edit target, and deletes an entry.
-- `apps/web/src/WeeklyNoteCard.tsx` — the weekly note form and the coach's reply.
-- `apps/web/src/QuickQuestionCard.tsx` — the by-the-way form and answer.
-- `apps/web/src/CoachingInputsSection.tsx` — the "Talk to the coach" section
-  that composes the two cards.
-- `apps/web/src/ActivityList.tsx` — renders activity cards, with an optional
-  empty message.
-- `apps/web/src/PendingActivitiesSection.tsx` — the dashboard's pending activity
-  heading plus `ActivityList`.
-- `apps/web/src/PendingReviewsList.tsx` — the completed-training section with
-  its block and week review groups.
-- `apps/web/src/ManualActivityForm.tsx` — the add/edit manual activity form.
-- `apps/web/src/ManualActivityList.tsx` — saved manual activities with edit and
-  delete actions.
+- `apps/web/src/activities/useManualActivities.ts` — loads the athlete's
+  manual activities, owns the edit target, and deletes an entry.
+- `apps/web/src/coach/WeeklyNoteCard.tsx` — the weekly note form and the coach's
+  reply.
+- `apps/web/src/coach/QuickQuestionCard.tsx` — the by-the-way form and answer.
+- `apps/web/src/coach/CoachingInputsSection.tsx` — the "Talk to the coach"
+  section that composes the two cards.
+- `apps/web/src/activities/ActivityList.tsx` — renders activity cards, with an
+  optional empty message.
+- `apps/web/src/activities/PendingActivitiesSection.tsx` — the dashboard's
+  pending activity heading plus `ActivityList`.
+- `apps/web/src/coach/PendingReviewsList.tsx` — the completed-training section
+  with its block and week review groups.
+- `apps/web/src/activities/ManualActivityForm.tsx` — the add/edit manual
+  activity form.
+- `apps/web/src/activities/ManualActivityList.tsx` — saved manual activities
+  with edit and delete actions.
 - `apps/web/src/plan/CoachPlanSection.tsx` — the plan card's layout, composing
   `useCoachPlan`, `usePlanWorkoutDownload` and `CoachPlanView`.
 - `apps/web/src/plan/CoachPlanView.tsx` — the tab shell, rendering the plan levels
   through the shared `Tabs` primitive. It receives the plan's `pending` levels
   and whether a run is `running` once, and dims each level whose replacement is
   in flight.
-- `apps/web/src/CoachDashboard.tsx` and `apps/web/src/ActivitiesPage.tsx` —
-  composition and layout only.
+- `apps/web/src/coach/CoachDashboard.tsx` and
+  `apps/web/src/activities/ActivitiesPage.tsx` — composition and layout only.
 
 ## Acceptance criteria
 

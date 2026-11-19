@@ -1,10 +1,10 @@
 import { useCallback, useState } from "react";
 import { quickQuestionResponseSchema } from "@killingit/shared";
-import { useBusyReporter } from "./AppStatus";
-import type { AuthState } from "./auth";
-import { requestParsed } from "./fetchAuthed";
-import { reportError } from "./reportError";
-import { getToday } from "./useToday";
+import { useBusyReporter } from "../AppStatus";
+import type { AuthState } from "../auth";
+import { requestParsed } from "../fetchAuthed";
+import { reportError } from "../reportError";
+import { getToday } from "../useToday";
 
 export interface QuickQuestionState {
   question: string;

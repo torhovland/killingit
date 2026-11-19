@@ -1,9 +1,9 @@
 import { useState } from "react";
 import type { CoachQuestion } from "@killingit/shared";
-import { FormattedText } from "./FormattedText";
-import { SubmitButton } from "./SubmitButton";
-import { Card } from "./components/Card";
-import { Textarea } from "./components/Textarea";
+import { FormattedText } from "../FormattedText";
+import { SubmitButton } from "../SubmitButton";
+import { Card } from "../components/Card";
+import { Textarea } from "../components/Textarea";
 
 /**
  * One clarification question from the coach. Pending questions get an answer

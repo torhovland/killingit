@@ -1,21 +1,21 @@
 import { useCallback, useEffect, useState } from "react";
-import { useAppStatus } from "./AppStatus";
-import { useAuth } from "./auth";
-import { CoachPlanSection } from "./plan/CoachPlanSection";
+import { selectPendingActivities } from "../activities/pendingActivities";
+import { PendingActivitiesSection } from "../activities/PendingActivitiesSection";
+import { useActivityFeed } from "../activities/useActivityFeed";
+import { useAppStatus } from "../AppStatus";
+import { useAuth } from "../auth";
+import { CoachPlanSection } from "../plan/CoachPlanSection";
 import { CoachQuestionCard } from "./CoachQuestionCard";
 import { CoachingInputsSection } from "./CoachingInputsSection";
 import { pollCoachReplies } from "./coachReplyPoll";
-import { useCurrentUser } from "./CurrentUserProvider";
-import { FoodLogSection } from "./diet/FoodLogSection";
-import { selectPendingActivities } from "./pendingActivities";
-import { PendingActivitiesSection } from "./PendingActivitiesSection";
+import { useCurrentUser } from "../CurrentUserProvider";
+import { FoodLogSection } from "../diet/FoodLogSection";
 import { PendingReviewsList } from "./PendingReviewsList";
-import { useTimeZone } from "./TimeZoneContext";
-import { useActivityFeed } from "./useActivityFeed";
+import { useTimeZone } from "../TimeZoneContext";
 import { useCoachQuestion } from "./useCoachQuestion";
 import { useCoachReviews } from "./useCoachReviews";
-import { useStatuses } from "./useStatuses";
-import { Button } from "./components/Button";
+import { useStatuses } from "../useStatuses";
+import { Button } from "../components/Button";
 
 interface CoachDashboardProps {
   /** Increment when athlete answers change so the plan refreshes. */

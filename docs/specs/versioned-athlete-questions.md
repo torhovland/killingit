@@ -129,7 +129,7 @@ current `versionId`), `questionOrderInputSchema` (`ids`),
   and keeps a failed archive's error inside the dialog.
 - `QuestionForm.tsx` — shared create/edit form (prompt + required).
 - `AdminSettingsPage.tsx` — hosts the section on the admin-only page (ADR 0006);
-  `CoachDashboard.tsx` no longer renders it.
+  `coach/CoachDashboard.tsx` no longer renders it.
 - `AdminQuestionsSection.tsx` / `QuestionRow.tsx` — move up/down actions send
   the new complete order and replace the list with the server's response.
 

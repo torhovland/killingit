@@ -168,11 +168,12 @@ one swappable corner, and normalizes Garmin activities into the shared
   state and an "Update Garmin credentials" action that reopens the form; saving
   replaces that user's stored credentials. Activity loading lives in the
   coaching dashboard.
-- `CoachDashboard.tsx` / `ActivityCard.tsx` — on load, if status is connected,
-  fetches `/api/coaching/activities` (which syncs Garmin and optionally analyses
-  the activities) and renders a "Syncing…" state, then the activity list. The
-  last successful feed is cached in browser storage per account, so existing
-  cards render immediately on reload while the sync and analyses refresh.
+- `coach/CoachDashboard.tsx` / `activities/ActivityCard.tsx` — on load, if status is
+  connected, fetches `/api/coaching/activities` (which syncs Garmin and
+  optionally analyses the activities) and renders a "Syncing…" state, then the
+  activity list. The last successful feed is cached in browser storage per
+  account, so existing cards render immediately on reload while the sync and
+  analyses refresh.
 - Kept thin; no new SDK dependency beyond the existing fetch helpers.
 
 ## Testing

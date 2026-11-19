@@ -5,12 +5,12 @@ import {
   type PeriodReview,
   type ReviewKind,
 } from "@killingit/shared";
-import { useBusyReporter } from "./AppStatus";
-import type { AuthState } from "./auth";
-import { requestParsed } from "./fetchAuthed";
+import { useBusyReporter } from "../AppStatus";
+import type { AuthState } from "../auth";
+import { requestParsed } from "../fetchAuthed";
 import { reviewKey, selectPendingReviews } from "./pendingReviews";
-import { reportError } from "./reportError";
-import { getToday } from "./useToday";
+import { reportError } from "../reportError";
+import { getToday } from "../useToday";
 
 export interface CoachReviewsState {
   reviews: PeriodReview[];

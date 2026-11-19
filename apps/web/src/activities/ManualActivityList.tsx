@@ -1,7 +1,7 @@
 import type { ManualActivity } from "@killingit/shared";
-import { FormattedText } from "./FormattedText";
-import { TrainingLoadLine } from "./TrainingLoadLine";
-import { Button } from "./components/Button";
+import { FormattedText } from "../FormattedText";
+import { TrainingLoadLine } from "../TrainingLoadLine";
+import { Button } from "../components/Button";
 
 /** Saved manual activities with their coach reply and edit/delete actions. */
 export function ManualActivityList({

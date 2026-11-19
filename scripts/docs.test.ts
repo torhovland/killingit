@@ -163,7 +163,9 @@ describe("source paths", () => {
     expect(SOURCE_PATHS.length).toBeGreaterThan(50);
     // One path from each source root, so a narrowed pattern cannot pass by
     // matching nothing.
-    expect(SOURCE_PATHS).toContain("apps/web/src/useActivityFeed.ts");
+    expect(SOURCE_PATHS).toContain(
+      "apps/web/src/activities/useActivityFeed.ts",
+    );
     expect(SOURCE_PATHS).toContain("packages/shared/src/trainingLoad.ts");
     expect(SOURCE_PATHS).toContain("scripts/agent.sh");
     expect(SOURCE_PATHS).toContain("services/garmin/app.py");

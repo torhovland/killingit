@@ -175,8 +175,8 @@ Weather and daylight are included in the plan prompts; see
   `aria-sort` on the sorted column's header and the ▲/▼ glyph hidden from
   assistive technology, and `useQueuedSave` persists the choices one attempt at
   a time.
-- `ActivityCard.tsx` — presentational activity summary + analysis.
-- `CoachDashboard.tsx` — loads Garmin/LLM status, then the latest analysed
+- `activities/ActivityCard.tsx` — presentational activity summary + analysis.
+- `coach/CoachDashboard.tsx` — loads Garmin/LLM status, then the latest analysed
   activities; offers "Sync & re-analyze".
 - `GarminSection.tsx` now only handles credential entry/connection state;
   activity sync and display moved to the dashboard.

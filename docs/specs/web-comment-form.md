@@ -7,11 +7,11 @@
 
 ## Goal
 
-`ActivityCard` and `PeriodReviewCard` each implement the same athlete-comment
-state machine: the draft text, saving, the saved comment and coach reply,
-editing, cancelling, dismissing with "No comment", and the error shown when a
-save fails. The two copies had already drifted in their error sentences. Keep
-one implementation so a fix reaches both cards.
+`activities/ActivityCard` and `coach/PeriodReviewCard` each implement the same
+athlete-comment state machine: the draft text, saving, the saved comment and
+coach reply, editing, cancelling, dismissing with "No comment", and the error
+shown when a save fails. The two copies had already drifted in their error
+sentences. Keep one implementation so a fix reaches both cards.
 
 ## Scope
 
@@ -34,7 +34,7 @@ one implementation so a fix reaches both cards.
 ### Out of scope
 
 - The API routes, payloads, and the data hooks (`useActivityFeed`,
-  `useCoachReviews`) that perform the requests.
+  `coach/useCoachReviews`) that perform the requests.
 - The weekly-note form, which has a different saved/load model.
 - Any visible behaviour or markup change.
 
@@ -42,8 +42,9 @@ one implementation so a fix reaches both cards.
 
 - `apps/web/src/useCommentForm.ts` — the state machine.
 - `apps/web/src/CommentSection.tsx` — the shared comment display and form.
-- `apps/web/src/ActivityCard.tsx` and `apps/web/src/PeriodReviewCard.tsx` —
-  consume the shared pieces and keep only their card-specific rendering.
+- `apps/web/src/activities/ActivityCard.tsx` and
+  `apps/web/src/coach/PeriodReviewCard.tsx` — consume the shared pieces and keep only
+  their card-specific rendering.
 
 ## Acceptance criteria
 
