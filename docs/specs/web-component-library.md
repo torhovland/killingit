@@ -119,6 +119,9 @@ chart frame, legend and series palette, geometry and keyboard and hover hooks
 live in `charts/`, and pieces used across pages (`TrainingLoadLine`,
 `CalorieBalancePanel`, `mapProjection`, the current-user and time-zone providers,
 and the app shell's `AppHeader`, `UserMenu` and `AppBody`) stay at the root.
+Only that shared plumbing belongs at the root: `apps/web/src/rootModules.test.ts`
+fails when a new page or feature module is added there instead of its
+directory.
 The fitness, threshold and cost chart legends render through `ChartLegend`,
 which owns the list, swatch shapes and optional `sport · unit` detail, and the
 legend inset is the exported
@@ -184,6 +187,9 @@ layout for the spinner and forwards `variant`, `size` and `className`.
 - A chart with several measures keeps its data shaping and scales in a pure
   module beside it, with unit tests, and the component only renders the prepared
   data.
+- A new page or feature module lives in its feature directory, and a move
+  leaves no stale root allowlist entry; `apps/web/src/rootModules.test.ts` fails
+  otherwise.
 - `bun run typecheck`, `bun run lint`, `bun run format` and `bun run test` pass.
 
 ## Data model and API impact

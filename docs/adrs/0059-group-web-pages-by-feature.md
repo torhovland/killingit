@@ -40,6 +40,11 @@ in issue #420 so the behaviour change and the mechanical rename stay apart.
   time-zone and PWA contexts, routing, authentication and the app shell. The
   plan generation provider is mounted by the shell but owns the plan feature's
   state, so it lives in `plan/` beside the section and hooks that read it.
+- Treat a module directly at the root as a deliberate exception. The shared
+  plumbing above is the entire allowlist, and `apps/web/src/rootModules.test.ts`
+  fails the unit suite when a new flat source module appears or an allowlisted
+  one goes stale after a move; a feature's module belongs in its feature
+  directory.
 - Move files with a pure rename plus import updates. Do not combine a move with
   a behaviour change.
 - Update AGENTS.md and `docs/specs/web-component-library.md` when a directory
@@ -63,7 +68,8 @@ in issue #420 so the behaviour change and the mechanical rename stay apart.
 
 - A page's files are found from its feature name, and its tests sit beside it.
 - The cross-page modules are the deliberate exception and are listed in the
-  component-library spec, so a new file has an obvious home.
+  component-library spec, so a new file has an obvious home and the root guard
+  fails when a page or feature module is added outside its directory.
 - The move produces large but mechanical diffs; each feature directory can land
   as its own rename-only pull request.
 - ADR 0027's "page components stay flat" rule and ADR 0047's assumption that

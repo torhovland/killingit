@@ -44,7 +44,11 @@ setup that more than one file needs lives in a test fixture, not in a copy of
    `mock.restore()` in `afterAll`, because Bun's module registry is shared by
    every file in the test process. `apps/web/src/mockIsolation.test.ts` fails
    when any web test file mocks a module without that restore.
-8. The database-backed integration suite is split the same way, one file per
+8. `apps/web/src/rootModules.test.ts` guards the web source root: every direct
+   `.ts`/`.tsx` module must be in the shared-plumbing allowlist ADR 0059
+   defines, and every allowlisted module must still exist, so a feature file
+   added flat fails as does a stale entry after a move.
+9. The database-backed integration suite is split the same way, one file per
    store under `apps/api/integration/`: `migrations`, `dbUserStore`,
    `dbPlanStore`, `dbPlanGenerationStore`, `questionStores`, `metricsStores`,
    `activityStore`, `manualActivityWrites`, `coachQuestionConstraints`,
@@ -69,6 +73,8 @@ setup that more than one file needs lives in a test fixture, not in a copy of
 - The integration split keeps that rule too: `integration/setup.ts` migrates
   once for the run, truncates before every test, and closes the pool after the
   last file.
+- The web root guard fails on a new flat source module and on a stale allowlist
+  entry: `apps/web/src/rootModules.test.ts` checks both directions.
 - A route test builds its app through `testFixtures/app.ts` instead of a local
   `makeApp`.
 - `bun run typecheck`, `bun run lint`, `bun run format`, `bun run test`,
