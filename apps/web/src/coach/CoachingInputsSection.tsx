@@ -1,10 +1,10 @@
-import { useAuth } from "./auth";
+import { useAuth } from "../auth";
 import { QuickQuestionCard } from "./QuickQuestionCard";
 import { useQuickQuestion } from "./useQuickQuestion";
-import { useTimeZone } from "./TimeZoneContext";
+import { useTimeZone } from "../TimeZoneContext";
 import { useWeeklyNote } from "./useWeeklyNote";
 import { WeeklyNoteCard } from "./WeeklyNoteCard";
-import { Card } from "./components/Card";
+import { Card } from "../components/Card";
 
 /**
  * The two ways the athlete talks to the coach: a weekly note that shapes the

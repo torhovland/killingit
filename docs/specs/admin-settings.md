@@ -138,7 +138,7 @@ the `UserRole` union, re-exported from the package index.
 - `DevDatePicker.tsx` — the date override form; development and test only.
 - `AdminQuestionsSection.tsx` — moved from the coach dashboard to the admin
   page; its API calls are unchanged.
-- `CoachDashboard.tsx` — no longer renders question management.
+- `apps/web/src/coach/CoachDashboard.tsx` — no longer renders question management.
 
 ## Testing
 

@@ -1,7 +1,7 @@
-import { FormattedText } from "./FormattedText";
-import { SubmitButton } from "./SubmitButton";
-import { Textarea } from "./components/Textarea";
-import { Card } from "./components/Card";
+import { FormattedText } from "../FormattedText";
+import { SubmitButton } from "../SubmitButton";
+import { Textarea } from "../components/Textarea";
+import { Card } from "../components/Card";
 
 /**
  * The by-the-way form and the coach's answer. The exchange is not stored and

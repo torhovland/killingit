@@ -361,7 +361,7 @@ problems; the error names the offending fields if the repair also fails. See
   plan has today's `completed`/`partial` result missing from today's week
   session, `pending.week` becomes true and the normal plan update
   refreshes the week.
-- `CoachDashboard` increments a refresh key after answers are saved, which
+- `coach/CoachDashboard` increments a refresh key after answers are saved, which
   makes the plan section refetch, spot the stale plan, and start the
   regeneration. With a stored season that contains today, that regeneration is
   an update, so completed blocks survive.

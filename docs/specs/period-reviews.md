@@ -124,13 +124,14 @@ the review summaries, so the plan revision is built on them.
 
 ## UI
 
-- `PeriodReviewCard` renders one summary, its comment and reply, and the comment
-  form / edit and "No comment" actions. On the season review page a week review
-  also shows the weekly note saved for that week and the coach's reply to it.
-- `useCoachReviews` loads reviews, filters with `selectPendingReviews`, and
-  keeps answered reviews visible for the visit; `PendingReviewsList` renders the
-  block and week groups on the dashboard.
-- `SeasonReviewPage` lists every review and offers the edit action. It is
+- `coach/PeriodReviewCard` renders one summary, its comment and reply, and the
+  comment form / edit and "No comment" actions. On the season review page a week
+  review also shows the weekly note saved for that week and the coach's reply to
+  it.
+- `coach/useCoachReviews` loads reviews, filters with `selectPendingReviews`,
+  and keeps answered reviews visible for the visit; `coach/PendingReviewsList`
+  renders the block and week groups on the dashboard.
+- `coach/SeasonReviewPage` lists every review and offers the edit action. It is
   reachable from the account menu as **Season review**.
 - The dashboard no longer has a regeneration button. The new-season and
   season-update actions remain on the coaching survey and settings pages.
@@ -143,7 +144,7 @@ the review summaries, so the plan revision is built on them.
   plan-context rendering of all review levels.
 - API route tests for listing, creating/editing comments, duplicate rejection,
   acknowledging, and triggering a plan revision.
-- Web render tests for `PeriodReviewCard` and the pending-review filter.
+- Web render tests for `coach/PeriodReviewCard` and the pending-review filter.
 - `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`.
 
 ## Acceptance criteria

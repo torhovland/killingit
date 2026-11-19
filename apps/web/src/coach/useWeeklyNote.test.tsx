@@ -3,8 +3,8 @@ import type { Mock } from "bun:test";
 import { renderHook, waitFor } from "@testing-library/react";
 import * as Sentry from "@sentry/react";
 import type { ReactNode } from "react";
-import { AppStatusProvider } from "./AppStatus";
-import type { AuthState } from "./auth";
+import { AppStatusProvider } from "../AppStatus";
+import type { AuthState } from "../auth";
 import { useWeeklyNote } from "./useWeeklyNote";
 
 const auth: AuthState = {

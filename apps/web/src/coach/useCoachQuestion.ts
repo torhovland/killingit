@@ -4,10 +4,10 @@ import {
   coachingInputSaveResponseSchema,
   type CoachQuestion,
 } from "@killingit/shared";
-import type { AuthState } from "./auth";
-import { requestParsed } from "./fetchAuthed";
-import { reportError } from "./reportError";
-import { getToday } from "./useToday";
+import type { AuthState } from "../auth";
+import { requestParsed } from "../fetchAuthed";
+import { reportError } from "../reportError";
+import { getToday } from "../useToday";
 
 export interface CoachQuestionState {
   question: CoachQuestion | null;

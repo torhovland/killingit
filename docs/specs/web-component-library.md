@@ -113,10 +113,10 @@ class, and no inline style is added for anything constant.
 
 Page and feature components live in the directory that owns them, beside their
 tests: `calendar/`, `fitness/`, `diet/`, `settings/`, `admin/`, `plan/`,
-`costs/` and `activities/` each hold their components, sections and single-page
-helpers. Only shared primitives belong in `components/`; the shared chart frame,
-legend and series palette, geometry and keyboard and hover hooks live in
-`charts/`, and pieces used across pages (`TrainingLoadLine`,
+`costs/`, `activities/` and `coach/` each hold their components, sections and
+single-page helpers. Only shared primitives belong in `components/`; the shared
+chart frame, legend and series palette, geometry and keyboard and hover hooks
+live in `charts/`, and pieces used across pages (`TrainingLoadLine`,
 `CalorieBalancePanel`, `mapProjection`, the current-user and time-zone providers,
 and the app shell's `AppHeader`, `UserMenu` and `AppBody`) stay at the root.
 The fitness, threshold and cost chart legends render through `ChartLegend`,

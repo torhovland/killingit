@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { AppStatusProvider } from "./AppStatus";
+import { AppStatusProvider } from "../AppStatus";
 import { CoachingInputsSection } from "./CoachingInputsSection";
-import { TimeZoneProvider } from "./TimeZoneContext";
+import { TimeZoneProvider } from "../TimeZoneContext";
 
 describe("CoachingInputsSection", () => {
   it("shows both coach conversation forms", () => {

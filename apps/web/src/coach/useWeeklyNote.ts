@@ -4,11 +4,11 @@ import {
   weeklyNoteResponseSchema,
   type CoachAnalysis,
 } from "@killingit/shared";
-import { useBusyReporter } from "./AppStatus";
-import type { AuthState } from "./auth";
-import { requestParsed } from "./fetchAuthed";
-import { reportError, reportErrorQuietly } from "./reportError";
-import { getToday } from "./useToday";
+import { useBusyReporter } from "../AppStatus";
+import type { AuthState } from "../auth";
+import { requestParsed } from "../fetchAuthed";
+import { reportError, reportErrorQuietly } from "../reportError";
+import { getToday } from "../useToday";
 
 export interface WeeklyNoteState {
   note: string;

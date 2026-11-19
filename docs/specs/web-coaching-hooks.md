@@ -64,7 +64,7 @@ the settings page and the plan-regeneration buttons.
 - `apps/web/src/activities/activityCache.ts` — cache storage, merge, and the pure
   feed transformations used by the hook.
 - `apps/web/src/activities/ActivitiesPage.tsx` and
-  `apps/web/src/CoachDashboard.tsx` consume the hooks and render the returned
+  `apps/web/src/coach/CoachDashboard.tsx` consume the hooks and render the returned
   state.
 
 Single-page hooks share that home: a hook used by one page or section lives in

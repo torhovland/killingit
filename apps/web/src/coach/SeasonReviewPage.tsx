@@ -4,14 +4,14 @@ import {
   periodReviewsResponseSchema,
   type ReviewKind,
 } from "@killingit/shared";
-import { useAuth } from "./auth";
+import { useAuth } from "../auth";
 import { CoachQuestionCard } from "./CoachQuestionCard";
-import { requestParsed } from "./fetchAuthed";
-import { useBusyReporter } from "./AppStatus";
+import { requestParsed } from "../fetchAuthed";
+import { useBusyReporter } from "../AppStatus";
 import { PeriodReviewCard } from "./PeriodReviewCard";
-import { useApiResources } from "./useApiResource";
-import { useTimeZone } from "./TimeZoneContext";
-import { getToday } from "./useToday";
+import { useApiResources } from "../useApiResource";
+import { useTimeZone } from "../TimeZoneContext";
+import { getToday } from "../useToday";
 
 /**
  * The season review page: every completed week and block summary, with its

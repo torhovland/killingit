@@ -33,7 +33,7 @@ await mock.module("./PageOutlet", () => ({
   ),
 }));
 
-await mock.module("./CoachingSurveyPage", () => ({
+await mock.module("./coach/CoachingSurveyPage", () => ({
   CoachingSurveyPage: ({ onAnswersSaved }: { onAnswersSaved: () => void }) => (
     <button type="button" data-testid="survey-stub" onClick={onAnswersSaved}>
       Survey

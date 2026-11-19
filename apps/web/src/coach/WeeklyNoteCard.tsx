@@ -1,8 +1,8 @@
 import type { CoachAnalysis } from "@killingit/shared";
-import { FormattedText } from "./FormattedText";
-import { SubmitButton } from "./SubmitButton";
-import { Textarea } from "./components/Textarea";
-import { Card } from "./components/Card";
+import { FormattedText } from "../FormattedText";
+import { SubmitButton } from "../SubmitButton";
+import { Textarea } from "../components/Textarea";
+import { Card } from "../components/Card";
 
 /**
  * The weekly note form and the coach's reply. Saving a note asks the coach to

@@ -1,6 +1,6 @@
 import type { AthleteQuestionsResponse } from "@killingit/shared";
 import type { ReactNode } from "react";
-import { CoachingSurveyPage } from "./CoachingSurveyPage";
+import { CoachingSurveyPage } from "./coach/CoachingSurveyPage";
 import { CurrentUserLoadError } from "./CurrentUserProvider";
 import { PageOutlet } from "./PageOutlet";
 import { PlanGenerationProvider } from "./plan/PlanGenerationProvider";

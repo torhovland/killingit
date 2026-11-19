@@ -129,13 +129,13 @@ versions are retained.
 
 ### Web (`apps/web/src/`)
 
-- `AthleteAnswersSection.tsx` is the single athlete-question form. It splits the
+- `coach/AthleteAnswersSection.tsx` is the single athlete-question form. It splits the
   active questions into updated, new, and answered groups, pre-fills every
   answer, marks optional questions, blocks submission until required fields are
   non-blank, posts blank optional answers as skips, and shows request errors
   inline. Every answer stays editable in place, and a revised question offers
   the earlier answer as a starting point.
-- `CoachingSurveyPage.tsx` hosts `AthleteAnswersSection.tsx` and the plan
+- `coach/CoachingSurveyPage.tsx` hosts `AthleteAnswersSection.tsx` and the plan
   regeneration action. `App.tsx` loads `/api/questions` first; while the active
   set is incomplete it shows the Coaching survey page instead of the coaching
   surface, and the page replaces the gate after a successful save without a

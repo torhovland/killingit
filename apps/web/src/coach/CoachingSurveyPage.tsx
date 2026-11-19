@@ -1,10 +1,10 @@
 import { useEffect } from "react";
-import { useAthleteQuestionsContext } from "./AthleteQuestionsProvider";
+import { useAthleteQuestionsContext } from "../AthleteQuestionsProvider";
 import { AthleteAnswersSection } from "./AthleteAnswersSection";
-import { useAppStatus } from "./AppStatus";
-import { PlanRegenerationButtons } from "./plan/PlanRegenerationButtons";
-import { Button } from "./components/Button";
-import { Card } from "./components/Card";
+import { useAppStatus } from "../AppStatus";
+import { PlanRegenerationButtons } from "../plan/PlanRegenerationButtons";
+import { Button } from "../components/Button";
+import { Card } from "../components/Card";
 
 interface CoachingSurveyPageProps {
   /** Called after answers are saved so the main plan can refresh. */

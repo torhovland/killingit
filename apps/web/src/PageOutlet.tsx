@@ -2,12 +2,12 @@ import type { ReactNode } from "react";
 import { ActivitiesPage } from "./activities/ActivitiesPage";
 import { AdminSettingsPage } from "./admin/AdminSettingsPage";
 import { CalendarPage } from "./calendar/CalendarPage";
-import { CoachDashboard } from "./CoachDashboard";
-import { CoachingSurveyPage } from "./CoachingSurveyPage";
+import { CoachDashboard } from "./coach/CoachDashboard";
+import { CoachingSurveyPage } from "./coach/CoachingSurveyPage";
 import { CostsPage } from "./costs/CostsPage";
 import { DietPage } from "./diet/DietPage";
 import { FitnessPage } from "./fitness/FitnessPage";
-import { SeasonReviewPage } from "./SeasonReviewPage";
+import { SeasonReviewPage } from "./coach/SeasonReviewPage";
 import { SettingsPage } from "./settings/SettingsPage";
 import type { Page } from "./navigation";
 
