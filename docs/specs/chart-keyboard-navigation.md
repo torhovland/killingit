@@ -113,8 +113,8 @@ chart.
   with the keyboard description and announces the hovered day.
 - `apps/web/src/fitness/FitnessChart.test.tsx` proves a real chart wires the cursor: the
   keyboard-selected day's card content appears and matches `FitnessDayTooltip`.
-- `apps/web/src/CostBarChart.test.tsx` proves the bar chart announces a bar's
-  total.
+- `apps/web/src/costs/CostBarChart.test.tsx` proves the bar chart announces a
+  bar's total.
 
 ## Data model and API impact
 

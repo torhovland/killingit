@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { llmCostsResponseSchema } from "@killingit/shared";
-import { useAuth } from "./auth";
+import { useAuth } from "../auth";
 import { CostBarChart } from "./CostBarChart";
 import {
   DAILY_COST_RANGES,
@@ -15,10 +15,10 @@ import {
   type DailyCostRange,
   type MonthlyCostRange,
 } from "./costChart";
-import { useTimeZone } from "./TimeZoneContext";
-import { useApiResource } from "./useApiResource";
-import { getToday } from "./useToday";
-import { Select } from "./components/Select";
+import { useTimeZone } from "../TimeZoneContext";
+import { useApiResource } from "../useApiResource";
+import { getToday } from "../useToday";
+import { Select } from "../components/Select";
 
 /**
  * The AI costs page: what the athlete's coach prompts cost on OpenRouter, per

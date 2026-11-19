@@ -25,10 +25,10 @@ in issue #420 so the behaviour change and the mechanical rename stay apart.
 ## Decision
 
 - Give each page or feature its own directory in `apps/web/src/`: `calendar/`,
-  `fitness/`, `diet/`, `settings/`, `admin/` and `plan/`. A directory holds the
-  page or feature component, its own sections, its single-page helpers and
-  their tests; the coaching dashboard's plan section, its shell, provider and
-  hooks all live in `plan/`.
+  `fitness/`, `diet/`, `settings/`, `admin/`, `plan/` and `costs/`. A directory
+  holds the page or feature component, its own sections, its single-page helpers
+  and their tests; the coaching dashboard's plan section, its shell, provider
+  and hooks all live in `plan/`.
 - Keep shared primitives in `components/`. Keep the shared chart frame,
   geometry and keyboard and hover hooks in `charts/`, and the model picker's
   own sections in `llm/` as ADR 0047 established.

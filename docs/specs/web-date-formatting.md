@@ -30,8 +30,8 @@ app renders from a stored `YYYY-MM` or `YYYY-MM-DD` key:
 The call sites delegate to it instead of keeping a list or a
 `toLocaleDateString` call:
 
-- `apps/web/src/costChart.ts` uses the short, short-with-year and long month
-  labels, and the day and day-with-year labels.
+- `apps/web/src/costs/costChart.ts` uses the short, short-with-year and long
+  month labels, and the day and day-with-year labels.
 - `apps/web/src/charts/chartGeometry.ts` uses the chart axis label.
 - `apps/web/src/calendar/calendarDates.ts` uses the long month heading.
 - `apps/web/src/plan/formatPlanDate.ts` uses the weekday, day and month label.

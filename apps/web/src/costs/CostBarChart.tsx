@@ -3,8 +3,8 @@ import {
   CHART_PADDING,
   CHART_WIDTH,
   labelIndices,
-} from "./charts/chartGeometry";
-import { CHART_LEGEND_INSET_CLASS, ChartLegend } from "./charts/ChartLegend";
+} from "../charts/chartGeometry";
+import { CHART_LEGEND_INSET_CLASS, ChartLegend } from "../charts/ChartLegend";
 import { COST_SERIES_FILL, COST_SERIES_SWATCH } from "./costColors";
 import {
   costAxis,
@@ -19,7 +19,7 @@ import { CostTooltip } from "./CostTooltip";
 import {
   CHART_KEYBOARD_HINT,
   useChartKeyboard,
-} from "./charts/useChartKeyboard";
+} from "../charts/useChartKeyboard";
 
 const CHART_HEIGHT = 280;
 const PLOT_WIDTH = CHART_WIDTH - CHART_PADDING.left - CHART_PADDING.right;
