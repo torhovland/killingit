@@ -164,6 +164,7 @@ describe("buildPlanContext", () => {
         coachingInputs,
       }),
       activities,
+      recentActivities: activities,
       inputs,
       timeZone: "Europe/Oslo",
       location,
@@ -174,6 +175,7 @@ describe("buildPlanContext", () => {
       answers: [answer],
       answersUpdatedAt: new Date("2026-11-01T09:00:00Z"),
       activities,
+      recentActivities: activities,
       manualActivities: [],
       activityComments: [],
       weeklyNote: "Big week ahead.",
@@ -212,10 +214,29 @@ describe("buildPlanContext", () => {
     });
   });
 
+  it("keeps the full activity history for the load and the recent window for prompts", () => {
+    const newest = makeAnalyzedActivity();
+    const oldest = makeAnalyzedActivity({ id: 2 });
+
+    const context = buildPlanContext({
+      loaded: loadedContext(),
+      activities: [newest, oldest],
+      recentActivities: [newest],
+      inputs: emptyPlanInputs,
+      timeZone: null,
+      location: null,
+      signal: new AbortController().signal,
+    });
+
+    expect(context.activities).toEqual([newest, oldest]);
+    expect(context.recentActivities).toEqual([newest]);
+  });
+
   it("leaves the diet section out when no diet was read", () => {
     const context = buildPlanContext({
       loaded: loadedContext(),
       activities: [],
+      recentActivities: [],
       inputs: emptyPlanInputs,
       timeZone: null,
       location: null,

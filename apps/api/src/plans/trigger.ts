@@ -274,13 +274,12 @@ export async function runPlanForUser(
   const includeTomorrow =
     options.includeTomorrow ?? isAfterPlanTomorrowCutoff(timeZone);
 
-  // The stored feed keeps every activity ever synced. Prompts stay on the same
+  // The stored feed keeps every activity ever synced. The load series needs that
+  // whole history for the 42-day chronic warm-up; prompts stay on the same
   // recent window as the analysis cap so they do not grow with the athlete's
   // entire history.
-  let recentActivities = activities.activities.slice(
-    0,
-    MAX_ANALYZED_ACTIVITIES,
-  );
+  let activityHistory = activities.activities;
+  let recentActivities = activityHistory.slice(0, MAX_ANALYZED_ACTIVITIES);
 
   await ensureGenerationCurrent({
     userId,
@@ -311,10 +310,8 @@ export async function runPlanForUser(
     deps.latestActivityAnalysisSince ?? latestActivityAnalysisSince
   )(userId, today, activitiesSnapshotAt);
   if (refreshedActivities !== null) {
-    recentActivities = refreshedActivities.activities.slice(
-      0,
-      MAX_ANALYZED_ACTIVITIES,
-    );
+    activityHistory = refreshedActivities.activities;
+    recentActivities = activityHistory.slice(0, MAX_ANALYZED_ACTIVITIES);
   }
 
   await runPlanGeneration({
@@ -349,7 +346,8 @@ export async function runPlanForUser(
     plan: loaded.plan,
     context: buildPlanContext({
       loaded,
-      activities: recentActivities,
+      activities: activityHistory,
+      recentActivities,
       inputs,
       timeZone,
       location,

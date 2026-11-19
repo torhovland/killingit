@@ -4,13 +4,12 @@ import {
   type AnalyzedActivity,
   type TrainingLoad,
 } from "@killingit/shared";
-import { addDays } from "@killingit/shared";
 import type { ManualActivityContext } from "../llm/activityContext.js";
 import {
-  CTL_DAYS,
   dailyTrainingLoad,
   powerTrainingStressScore,
   roundWholeNonNegative,
+  trainingLoadSeriesStart,
   trainingStressScore,
 } from "./stress.js";
 import { thresholdForSport, type ThresholdTimeline } from "./thresholds.js";
@@ -266,7 +265,7 @@ export function buildActivityLoads(
   }
 
   const series = dailyTrainingLoad({
-    startDate: addDays(first, -CTL_DAYS),
+    startDate: trainingLoadSeriesStart(seriesInput, first),
     endDate: last,
     tssByDate: seriesInput,
   });

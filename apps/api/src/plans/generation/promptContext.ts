@@ -42,8 +42,9 @@ function ftpBaseline(context: PlanGenerationContext, today: string) {
 
 /** The athlete and training context every plan prompt starts from. */
 export function baseContext(input: GeneratePlanInput) {
-  const recentActivities: RecentActivityContext[] =
-    input.context.activities.map(toCoachPlanActivity);
+  const recentActivities: RecentActivityContext[] = (
+    input.context.recentActivities ?? input.context.activities
+  ).map(toCoachPlanActivity);
   // Prefer the stored plan's snapshot because it includes today's planned
   // session; fall back to the recorded history for a plan that has none yet.
   const storedForm =

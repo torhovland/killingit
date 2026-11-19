@@ -240,8 +240,10 @@ export async function syncAthleteReadingIfChanged(
 export interface PlanContextBuild {
   /** The required inputs `loadPlanGenerationContext` read. */
   loaded: LoadedPlanGenerationContext;
-  /** The activity window the prompt reviews, after any newer analysis pass. */
+  /** Every stored activity, so the load series has its full warm-up. */
   activities: readonly AnalyzedActivity[];
+  /** The activity window the prompt reviews, after any newer analysis pass. */
+  recentActivities: readonly AnalyzedActivity[];
   /** The advisory inputs `loadPlanInputs` read. */
   inputs: PlanInputs;
   /** The request's zone, falling back to the athlete's stored zone. */
@@ -266,6 +268,7 @@ export function buildPlanContext(
     answers: loaded.answers,
     answersUpdatedAt: latestAnswerTimestamp(loaded.answers),
     activities: input.activities,
+    recentActivities: input.recentActivities,
     manualActivities: coachingInputs.manualActivities,
     activityComments: coachingInputs.activityComments,
     weeklyNote: coachingInputs.weeklyNote,
@@ -280,9 +283,11 @@ export function buildPlanContext(
     weekReviewNeedsRefresh: coachingInputs.weekReviewNeedsRefresh,
     blockReviewNeedsRefresh: coachingInputs.blockReviewNeedsRefresh,
     coachingSurveyAdjustments: loaded.surveyAdjustments,
-    activitiesUpdatedAt: latestActivityAnalysisTimestamp(input.activities),
+    activitiesUpdatedAt: latestActivityAnalysisTimestamp(
+      input.recentActivities,
+    ),
     activitiesRefreshUpdatedAt: latestPlanChangingAnalysisTimestamp(
-      input.activities,
+      input.recentActivities,
     ),
     timeZone: input.timeZone,
     location: input.location,

@@ -68,8 +68,10 @@ The TSS for a day is resolved exactly as on the Activities page:
 3. a manual entry's stored coach estimate for its date (summed per day);
 4. a duration-based estimate for an imported activity without power.
 
-The ATL/CTL recurrence is seeded 42 days before the window start (rest days
-count as zero), so the chart and the Activities page agree for the same date.
+The ATL/CTL recurrence is seeded 42 days before the earliest day with a TSS in
+the stored history (rest days count as zero), so the chart and the Activities
+page agree for the same date and a day's value does not change when another
+range is selected.
 `TSB = CTL − ATL`, as in the plan views.
 
 The series is not limited to Garmin's 42-day sync window: the activity store
@@ -339,7 +341,8 @@ API:
 - API unit tests for `loadFitnessHistory`: continuous days, TSS precedence,
   manual entries, plan TSS, daily plan estimate vs. interpolated week estimate
   vs. timeline, no threshold, the activities listed per day, the interpolated
-  body series, and the latest Garmin readings.
+  body series, and the latest Garmin readings. One test pins the same day's load
+  across ranges, so the chart's seeding cannot depend on the selected window.
 - API route tests: auth, missing date, day clamping, and the happy path.
 - Web unit tests for the chart scale helpers and the shared chart frame
   (caption, left and right axes, date labels, render-prop series, legend and

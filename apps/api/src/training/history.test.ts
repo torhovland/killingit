@@ -316,6 +316,31 @@ describe("loadFitnessHistory", () => {
     });
   });
 
+  it("computes the same load for a day whatever range is selected", async () => {
+    // A load older than the week's seed window must still warm up CTL, so the
+    // week and the quarter cannot disagree about today's form.
+    const activities = [
+      activity({
+        startDate: "2026-08-01T09:00:00Z",
+        normalizedPower: 250,
+      }),
+    ];
+    const week = await loadFitness({ activities, plan: null, range: "week" });
+    const quarter = await loadFitness({
+      activities,
+      plan: null,
+      range: "quarter",
+    });
+
+    const today = "2026-10-22";
+    expect(week.days.find((day) => day.date === today)?.ctl).toBe(
+      quarter.days.find((day) => day.date === today)?.ctl,
+    );
+    expect(week.days.find((day) => day.date === today)?.tsb).toBe(
+      quarter.days.find((day) => day.date === today)?.tsb,
+    );
+  });
+
   it("matches the activity load series for the same date", async () => {
     const activities = [activity({ normalizedPower: 200 })];
     const history = await loadFitness({ activities });
