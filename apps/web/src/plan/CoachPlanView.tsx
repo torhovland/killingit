@@ -6,16 +6,12 @@ import type {
   PlanPending,
   ThresholdSummary,
 } from "@killingit/shared";
-import { Tabs, type TabEntry } from "./components/Tabs";
-import {
-  AthleteEventList,
-  eventsInWeek,
-  eventsOn,
-} from "./plan/AthleteEventList";
-import { BlockSection } from "./plan/BlockSection";
-import { DayCard } from "./plan/DayCard";
-import { SeasonSection } from "./plan/SeasonSection";
-import { WeekSection } from "./plan/WeekSection";
+import { Tabs, type TabEntry } from "../components/Tabs";
+import { AthleteEventList, eventsInWeek, eventsOn } from "./AthleteEventList";
+import { BlockSection } from "./BlockSection";
+import { DayCard } from "./DayCard";
+import { SeasonSection } from "./SeasonSection";
+import { WeekSection } from "./WeekSection";
 
 export type PlanTab = "day" | "week" | "block" | "season";
 
@@ -25,7 +21,7 @@ export type PlanTab = "day" | "week" | "block" | "season";
  * fetching/progress container so it can be rendered and tested without auth.
  * The plan's `pending` levels and the provider's `running` flag decide which
  * level is dimmed while its replacement is in flight. Each tab lives in its own
- * module under `./plan/`; this file is the shell.
+ * module in this directory; this file is the shell.
  */
 export function CoachPlanView({
   plan,

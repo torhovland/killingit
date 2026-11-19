@@ -1,15 +1,15 @@
-import { useAppStatus } from "./AppStatus";
-import { useAuth } from "./auth";
+import { useAppStatus } from "../AppStatus";
+import { useAuth } from "../auth";
 import { CoachPlanView } from "./CoachPlanView";
-import { useNavigate } from "./navigation";
+import { useNavigate } from "../navigation";
 import { PlanProgress } from "./PlanProgress";
-import { SubmitButton } from "./SubmitButton";
+import { SubmitButton } from "../SubmitButton";
 import { useCoachPlan } from "./useCoachPlan";
 import { usePlanWorkoutDownload } from "./usePlanWorkoutDownload";
-import { useTimeZone } from "./TimeZoneContext";
-import { formatDateTime } from "./timeZone";
-import { Button } from "./components/Button";
-import { Card } from "./components/Card";
+import { useTimeZone } from "../TimeZoneContext";
+import { formatDateTime } from "../timeZone";
+import { Button } from "../components/Button";
+import { Card } from "../components/Card";
 
 interface CoachPlanSectionProps {
   /** Increment after answers are saved so the section regenerates the plan. */

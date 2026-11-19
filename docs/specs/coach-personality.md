@@ -118,4 +118,4 @@ so a season refresh cannot silently drop the greeting.
 - `plan.test.ts` asserts the season schema parses an introduction, defaults a
   missing one, and rejects a season build without one.
 - `generate.test.ts` asserts a season refresh preserves the stored introduction.
-- `CoachPlanView.test.tsx` asserts the Season tab renders the introduction.
+- `plan/CoachPlanView.test.tsx` asserts the Season tab renders the introduction.

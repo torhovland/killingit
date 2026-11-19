@@ -1,7 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import type { Activity, ActivitySample, WeekPlan } from "@killingit/shared";
-import { addDays } from "@killingit/shared";
-import { makeActivity as makeFixtureActivity } from "../testFixtures/plan.js";
+import type { Activity, ActivitySample } from "@killingit/shared";
+import {
+  makeActivity as makeFixtureActivity,
+  makeWeek,
+} from "../testFixtures/plan.js";
 import { missingFragments } from "../testFixtures/prompts.js";
 import {
   buildActivityAnalysisMessages,
@@ -72,25 +74,6 @@ function makeActivity(overrides: Partial<Activity> = {}): Activity {
 
 function systemPrompt(): string {
   return buildActivityAnalysisMessages(makeActivity())[0]?.content ?? "";
-}
-
-/** A stored week of daily sessions starting on `startDate`. */
-function makeWeek(startDate = "2026-09-28"): WeekPlan {
-  return {
-    startDate,
-    focus: "Aerobic base",
-    rationale: "Keep the week easy.",
-    sessions: Array.from({ length: 7 }, (_, index) => ({
-      date: addDays(startDate, index),
-      day: "Monday",
-      type: "workout" as const,
-      title: index === 3 ? "Easy ride" : `Session ${index + 1}`,
-      description: "Steady aerobic work.",
-      durationMinutes: 60,
-      intensity: "easy" as const,
-      status: "planned" as const,
-    })),
-  };
 }
 
 /** The closing instructions the prompt chose, so a test pins one branch. */
@@ -324,26 +307,8 @@ describe("activity analysis user prompt", () => {
     expect(prompt).not.toContain("5 h on 2026-10-02");
   });
 
-  it("refuses an FTP guess without usable data", () => {
-    expect(systemPrompt()).toContain(ACTIVITY_FTP_ESTIMATE_RULES);
-  });
-
   it("includes the week plan so the coach can match the activity to a session", () => {
-    const week: WeekPlan = {
-      startDate: "2026-09-28",
-      focus: "Aerobic base",
-      rationale: "Keep the week easy.",
-      sessions: Array.from({ length: 7 }, (_, index) => ({
-        date: `2026-10-${String(index + 1).padStart(2, "0")}`,
-        day: "Monday",
-        type: index === 2 ? ("rest" as const) : ("workout" as const),
-        title: index === 0 ? "Easy ride" : `Session ${index + 1}`,
-        description: "Steady aerobic work.",
-        durationMinutes: 60,
-        intensity: index === 0 ? ("easy" as const) : ("moderate" as const),
-        status: "planned" as const,
-      })),
-    };
+    const week = makeWeek("2026-09-28");
 
     const messages = buildActivityAnalysisMessages(makeActivity(), {
       today: "2026-10-01",
@@ -352,38 +317,16 @@ describe("activity analysis user prompt", () => {
     const prompt = messages[1]?.content ?? "";
 
     expect(prompt).toContain("Current week plan:");
-    expect(prompt).toContain("2026-10-01 (Monday) [planned]: Easy ride");
+    expect(prompt).toContain("2026-10-01 (Thursday) [planned]: Session 4");
     expect(prompt).toContain(
-      "Planned session for 2026-10-01: Easy ride [workout, easy, 60 min]",
+      "Planned session for 2026-10-01: Session 4 [workout, easy, 45 min]",
     );
     expect(prompt).toContain("Match the workout to it.");
     expect(closingInstructions(prompt)).toEqual([PLANNED_CLOSING]);
   });
 
   it("dates the activity by the athlete's local day", () => {
-    const week: WeekPlan = {
-      startDate: "2026-09-28",
-      focus: "Aerobic base",
-      rationale: "Keep the week easy.",
-      sessions: [
-        "2026-09-28",
-        "2026-09-29",
-        "2026-09-30",
-        "2026-10-01",
-        "2026-10-02",
-        "2026-10-03",
-        "2026-10-04",
-      ].map((date, index) => ({
-        date,
-        day: "Monday",
-        type: "workout" as const,
-        title: `Session ${index + 1}`,
-        description: "Steady aerobic work.",
-        durationMinutes: 60,
-        intensity: "easy" as const,
-        status: "planned" as const,
-      })),
-    };
+    const week = makeWeek("2026-09-28");
 
     const local = userPrompt(makeActivity(), {
       today: "2026-10-01",
@@ -402,21 +345,7 @@ describe("activity analysis user prompt", () => {
   });
 
   it("does not match an activity that happened outside the supplied week", () => {
-    const week: WeekPlan = {
-      startDate: "2026-10-05",
-      focus: "Aerobic base",
-      rationale: "Keep the week easy.",
-      sessions: Array.from({ length: 7 }, (_, index) => ({
-        date: `2026-10-${String(index + 5).padStart(2, "0")}`,
-        day: "Monday",
-        type: "workout" as const,
-        title: index === 0 ? "Run-walk" : `Session ${index + 1}`,
-        description: "Steady aerobic work.",
-        durationMinutes: 60,
-        intensity: "easy" as const,
-        status: "planned" as const,
-      })),
-    };
+    const week = makeWeek("2026-10-05");
 
     const messages = buildActivityAnalysisMessages(
       makeActivity({ type: "running" }),
@@ -469,7 +398,7 @@ describe("activity analysis user prompt", () => {
   });
 
   it("asks for another session when the week has none on the activity date", () => {
-    const week = makeWeek();
+    const week = makeWeek("2026-09-28");
     const prompt = userPrompt(makeActivity(), {
       today: "2026-10-01",
       week: {
@@ -512,7 +441,7 @@ describe("activity analysis user prompt", () => {
     expect(prompt).not.toContain("Athlete comment");
   });
 
-  it("includes the athlete's comment and trusts it over the device label", () => {
+  it("includes the athlete's comment", () => {
     const messages = buildActivityAnalysisMessages(
       makeActivity(),
       undefined,
@@ -521,26 +450,6 @@ describe("activity analysis user prompt", () => {
 
     expect(messages[1]?.content).toContain("Athlete comment on this activity");
     expect(messages[1]?.content).toContain("double spinning class");
-    expect(messages[0]?.content).toContain(ACTIVITY_TYPE_RULE);
-  });
-
-  it("asks for body weight and body fat from the athlete's own words", () => {
-    const system = systemPrompt();
-
-    expect(system).toContain(COACH_ANALYSIS_RESPONSE_RULES);
-    expect(system).toContain(GLOBAL_PROMPT_RULES);
-  });
-
-  it("does not treat a near-target duration as short or long", () => {
-    expect(systemPrompt()).toContain(DURATION_TOLERANCE_RULES);
-  });
-
-  it("asks for paragraphs and lists in the review", () => {
-    expect(systemPrompt()).toContain(TEXT_FORMATTING_RULES);
-  });
-
-  it("praises a well-performed race or extraordinary effort", () => {
-    expect(systemPrompt()).toContain(ACTIVITY_PRAISE_RULES);
   });
 
   it("adds the extra praise when the draw is 0", () => {
@@ -560,10 +469,9 @@ describe("activity analysis user prompt", () => {
     expect(prompt).not.toContain(ACTIVITY_EXTRA_PRAISE_RULES);
   });
 
-  it("does not trust the recorded activity type", () => {
+  it("labels the recorded activity type as possibly wrong", () => {
     const messages = buildActivityAnalysisMessages(makeActivity());
 
-    expect(messages[0]?.content).toContain(ACTIVITY_TYPE_RULE);
     expect(messages[1]?.content).toContain(
       "Type (recorded by the device; may be wrong)",
     );

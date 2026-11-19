@@ -5,8 +5,8 @@ import {
   type DietDaySummary,
   type PlanGenerateMode,
 } from "@killingit/shared";
-import type { AuthState } from "./auth";
-import { requestParsed } from "./fetchAuthed";
+import type { AuthState } from "../auth";
+import { requestParsed } from "../fetchAuthed";
 import {
   fetchCoachPlan,
   hasPendingWork,
@@ -14,9 +14,9 @@ import {
 } from "./planGeneration";
 import { usePlanGeneration } from "./PlanGenerationProvider";
 import type { PlanProgressState } from "./PlanProgress";
-import { reportError, reportErrorQuietly } from "./reportError";
-import { useAbortableRequest } from "./useApiResource";
-import { getToday } from "./useToday";
+import { reportError, reportErrorQuietly } from "../reportError";
+import { useAbortableRequest } from "../useApiResource";
+import { getToday } from "../useToday";
 
 export interface CoachPlanOptions {
   /** Increment after answers are saved so the section regenerates the plan. */

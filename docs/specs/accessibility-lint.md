@@ -40,7 +40,7 @@ tab index, and invalid ARIA.
   announcements (#326) by `apps/web/src/llm/ModelTable.test.tsx`, the menu
   disclosure (#327) by `apps/web/src/components/Menu.test.tsx` plus the account
   menu's journey test, and the tablist's roving focus and panel wiring (#556) by
-  `apps/web/src/components/Tabs.test.tsx` plus `CoachPlanView.test.tsx`. The
+  `apps/web/src/components/Tabs.test.tsx` plus `plan/CoachPlanView.test.tsx`. The
   location map's keyboard path (#324) is implemented and guarded by interaction
   tests rather than by a lint rule, because whether keys actually move the map
   is behaviour, not JSX.
@@ -130,7 +130,7 @@ The tabs fix (#556) replaced the coach plan's hand-rolled tablist with the
 whether a tab's `aria-controls` matches its panel's id, is behaviour the static
 preset cannot see; `apps/web/src/components/Tabs.test.tsx` asserts the ids,
 `aria-selected`, roving `tabIndex`, the mounted panel and the arrow, Home and End
-keys, and `apps/web/src/CoachPlanView.test.tsx` checks the plan shell uses it.
+keys, and `apps/web/src/plan/CoachPlanView.test.tsx` checks the plan shell uses it.
 No new lint rule or CI step is added, because `bun run test` already runs both
 suites.
 

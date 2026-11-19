@@ -26,7 +26,8 @@ afterAll(() => {
 
 const { AppStatusProvider } = await import("../AppStatus");
 const { CurrentUserProvider } = await import("../CurrentUserProvider");
-const { PlanGenerationProvider } = await import("../PlanGenerationProvider");
+const { PlanGenerationProvider } =
+  await import("../plan/PlanGenerationProvider");
 const { PwaProvider } = await import("../PwaContext");
 const { SettingsPage } = await import("./SettingsPage");
 const { TimeZoneProvider } = await import("../TimeZoneContext");

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import type { CoachPlanResponse } from "@killingit/shared";
-import type { AuthState } from "./auth/auth0";
+import type { AuthState } from "../auth/auth0";
 import {
   fetchCoachPlan,
   hasPendingWork,

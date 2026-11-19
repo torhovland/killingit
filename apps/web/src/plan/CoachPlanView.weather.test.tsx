@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { CoachPlan } from "@killingit/shared";
 import { CoachPlanView } from "./CoachPlanView";
-import { BULLET, noPending, plan } from "./testFixtures/plan";
+import { BULLET, noPending, plan } from "../testFixtures/plan";
 
 describe("CoachPlanView weather", () => {
   it("shows the forecast on an outdoor workout", () => {

@@ -111,9 +111,9 @@ legend inset, a layer's transform origin or stacking order, a tile's fixed
 `origin-top-left` or `size-[256px]`; Tailwind needs the literal value in a
 class, and no inline style is added for anything constant.
 
-Page components live in the feature directory that owns them, beside their
-tests: `calendar/`, `fitness/`, `diet/`, `settings/` and `admin/` each hold a
-page, its sections and its single-page helpers. Only shared primitives belong
+Page and feature components live in the directory that owns them, beside their
+tests: `calendar/`, `fitness/`, `diet/`, `settings/`, `admin/` and `plan/` each
+hold their components, sections and single-page helpers. Only shared primitives belong
 in `components/`; the shared chart frame, legend and series palette, geometry
 and keyboard and hover hooks live in `charts/`, and pieces used across pages
 (`TrainingLoadLine`, `CalorieBalancePanel`, `mapProjection`, the current-user and
@@ -129,9 +129,9 @@ in `fitness/charts/`: `dailyHealthData.ts` shapes the recovery series and the
 stacked sleep layers, `bodyChartData.ts` prepares the body scales and diet
 targets, and `DailyHealthCharts.tsx`, `HealthLineChart.tsx`, `SleepChart.tsx`
 and `BodyChart.tsx` only render the prepared data. A page whose sections outgrow
-one module keeps the same split: the coach plan's Day, Week, Block and Season
-sections and their shared pieces live in `plan/`, while the `CoachPlanView` tab
-shell stays in the feature root; the OpenRouter model picker's catalog hook,
+one module keeps the same split: the coach plan's `CoachPlanView` tab shell, its
+Day, Week, Block and Season sections, its hooks and their shared pieces live in
+`plan/`; the OpenRouter model picker's catalog hook,
 filter bar, table and save queue live in `llm/`, while the `LlmSection` entry
 point sits in `settings/`. A one-off control with genuinely unique styling may
 stay a plain element, but it must not repeat a primitive's base class string.

@@ -37,9 +37,10 @@ only for a value computed at runtime, such as a pan offset, hover-card position
 or progress width, with a comment saying why it cannot be a utility, and never
 hard-code a UI colour. The component library is in
 `apps/web/src/components/` (`Modal` owns every dialog and `ConfirmDialog` builds
-every destructive confirmation on it), and each page lives in its feature
-directory (`calendar/`, `fitness/`, `diet/`, `settings/`, `admin/`) beside its
-tests. See `docs/specs/web-component-library.md` and
+every destructive confirmation on it), and each page or feature lives in its
+own directory under `apps/web/src/` (`calendar/`, `fitness/`, `diet/`,
+`settings/`, `admin/`, `plan/`) beside its tests. See
+`docs/specs/web-component-library.md` and
 `docs/specs/modal-dialog.md`.
 
 The app is an installable **PWA**; every page has a canonical URL and every
@@ -47,8 +48,8 @@ request carries the API contract version. API reads use `requestParsed` and
 `useApiResource`, paths resolve through `apps/web/src/apiUrl.ts`, and form values
 from the server use `usePropDraft`. The coaching dashboard's plan section keeps
 its plan and diet-summary fetching plus the generation decision tree in
-`useCoachPlan`, its workout download in `usePlanWorkoutDownload`, and its
-markup in `CoachPlanView`. Hooks and JSX are linted (`react-hooks`,
+`plan/useCoachPlan`, its workout download in `plan/usePlanWorkoutDownload`, and
+its markup in `plan/CoachPlanView`. Hooks and JSX are linted (`react-hooks`,
 `jsx-a11y`); charts are keyboard reachable and draw through `chartPath`, the
 fitness, threshold and cost charts share their legend through `ChartLegend`, and
 the threshold and fitness health charts take their series colours from

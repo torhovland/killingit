@@ -1,8 +1,8 @@
 import { useCallback, useState } from "react";
-import type { AuthState } from "./auth";
-import { saveBlob } from "./download";
-import { fetchFileAuthed } from "./fetchAuthed";
-import { reportError } from "./reportError";
+import type { AuthState } from "../auth";
+import { saveBlob } from "../download";
+import { fetchFileAuthed } from "../fetchAuthed";
+import { reportError } from "../reportError";
 
 export interface PlanWorkoutDownloadState {
   /** The date whose workout file is being prepared, if any. */

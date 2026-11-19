@@ -55,7 +55,7 @@ save queues, polling and dialogs were only reachable through the e2e suite.
   which is left for its own change, the fitness charts have sibling tests;
   `CalendarEntryDialog` is covered too. The remaining untested components are
   the backlog, and `DayCard`/`WeekSection` stay covered indirectly through the
-  `CoachPlanView.*.test.tsx` files.
+  `apps/web/src/plan/CoachPlanView.*.test.tsx` files.
 - Removing the Playwright journeys. They still own real-browser behaviour such
   as navigation, the PWA shell and the Auth0 redirect.
 - A test for browser layout or CSS. Happy DOM has no layout engine.

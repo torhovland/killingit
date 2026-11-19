@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { CoachPlan } from "@killingit/shared";
 import { CoachPlanView } from "./CoachPlanView";
-import { noPending, plan } from "./testFixtures/plan";
+import { noPending, plan } from "../testFixtures/plan";
 
 describe("CoachPlanView training metrics", () => {
   it("shows the week's estimated FTP and training load", () => {

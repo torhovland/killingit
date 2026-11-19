@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { CoachPlan } from "@killingit/shared";
 import { CoachPlanView } from "./CoachPlanView";
-import { BULLET, noPending, plan } from "./testFixtures/plan";
+import { BULLET, noPending, plan } from "../testFixtures/plan";
 
 describe("CoachPlanView", () => {
   it("shows a dated goal or event on the Day tab", () => {

@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { CoachingSurveyPage } from "./CoachingSurveyPage";
 import { CurrentUserLoadError } from "./CurrentUserProvider";
 import { PageOutlet } from "./PageOutlet";
-import { PlanGenerationProvider } from "./PlanGenerationProvider";
+import { PlanGenerationProvider } from "./plan/PlanGenerationProvider";
 import { SignInPage } from "./SignInPage";
 import { Button } from "./components/Button";
 import { cn } from "./components/cn";

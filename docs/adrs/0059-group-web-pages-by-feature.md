@@ -6,7 +6,7 @@
 - **Related:** `docs/specs/web-component-library.md`,
   `docs/adrs/0027-own-tailwind-primitives.md`,
   `docs/adrs/0047-page-sections-in-a-named-directory.md`, issue #329,
-  issue #420
+  issue #420, issue #492
 
 ## Context
 
@@ -24,15 +24,19 @@ in issue #420 so the behaviour change and the mechanical rename stay apart.
 
 ## Decision
 
-- Give each page a feature directory in `apps/web/src/`: `calendar/`,
-  `fitness/`, `diet/`, `settings/` and `admin/`. A directory holds the page
-  component, its own sections, its single-page helpers and their tests.
+- Give each page or feature its own directory in `apps/web/src/`: `calendar/`,
+  `fitness/`, `diet/`, `settings/`, `admin/` and `plan/`. A directory holds the
+  page or feature component, its own sections, its single-page helpers and
+  their tests; the coaching dashboard's plan section, its shell, provider and
+  hooks all live in `plan/`.
 - Keep shared primitives in `components/`. Keep the shared chart frame,
   geometry and keyboard and hover hooks in `charts/`, and the model picker's
   own sections in `llm/` as ADR 0047 established.
 - Keep pieces used across pages at the root: `TrainingLoadLine`,
   `CalorieBalancePanel`, `mapProjection`, the current-user provider, the
-  time-zone and PWA contexts, routing, authentication and the app shell.
+  time-zone and PWA contexts, routing, authentication and the app shell. The
+  plan generation provider is mounted by the shell but owns the plan feature's
+  state, so it lives in `plan/` beside the section and hooks that read it.
 - Move files with a pure rename plus import updates. Do not combine a move with
   a behaviour change.
 - Update AGENTS.md and `docs/specs/web-component-library.md` when a directory

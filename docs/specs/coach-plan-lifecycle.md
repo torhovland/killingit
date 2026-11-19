@@ -345,10 +345,10 @@ problems; the error names the offending fields if the repair also fails. See
 - `CoachPlanView` is the pure presentation of the plan, so it can be tested
   without auth or network. It receives the plan's `pending` levels and the
   provider's `running` flag once and dims the level whose replacement is in
-  flight. It is the tab shell: each tab's section lives in
-  `apps/web/src/plan/` (`DayCard`, `WeekSection`, `BlockSection`,
-  `SeasonSection`, plus the shared `sections.tsx`, `AthleteEventList` and
-  `formatPlanDate`). The Day tab shows today and, after 18:00, tomorrow.
+  flight. It is the tab shell and lives in `apps/web/src/plan/` beside each
+  tab's section (`DayCard`, `WeekSection`, `BlockSection`, `SeasonSection`,
+  plus the shared `sections.tsx`, `AthleteEventList` and `formatPlanDate`).
+  The Day tab shows today and, after 18:00, tomorrow.
   The Week tab shows today's week and, when one has been planned for tomorrow,
   the next week, with each session's description, planned duration, intensity,
   and whether the coach set it indoors or outdoors. Every day is an outline

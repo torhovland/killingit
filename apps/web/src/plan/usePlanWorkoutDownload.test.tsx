@@ -1,7 +1,7 @@
 import { afterAll, afterEach, describe, expect, it, mock } from "bun:test";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { AuthState } from "./auth";
+import type { AuthState } from "../auth";
 
 const auth: AuthState = {
   isAuthenticated: true,
@@ -14,7 +14,7 @@ const auth: AuthState = {
 
 const saved: string[] = [];
 
-await mock.module("./download", () => ({
+await mock.module("../download", () => ({
   saveBlob: (_blob: Blob, filename: string) => {
     saved.push(filename);
   },

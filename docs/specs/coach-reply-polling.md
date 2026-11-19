@@ -45,7 +45,7 @@ growing queue of requests behind a page the athlete has already left.
 
 - The API routes and their payloads. The poll reads the existing
   `GET /api/coaching/activities/cached`.
-- `pollPlanGeneration` (`apps/web/src/planGeneration.ts`), which already awaits
+- `pollPlanGeneration` (`apps/web/src/plan/planGeneration.ts`), which already awaits
   each status response before the next one; it keeps its own loop.
 - Aborting a request the browser has already sent when the dashboard unmounts.
   Its response only re-merges the same server feed into the browser cache.

@@ -1,16 +1,16 @@
 import { useEffect, useState } from "react";
 import type { PlanGenerateMode } from "@killingit/shared";
-import { useAuth } from "./auth";
-import { useNavigate } from "./navigation";
+import { useAuth } from "../auth";
+import { useNavigate } from "../navigation";
 import { fetchCoachPlan } from "./planGeneration";
 import { usePlanGeneration } from "./PlanGenerationProvider";
-import { isAbortError } from "./requestAbort";
-import { reportErrorQuietly } from "./reportError";
-import { SubmitButton } from "./SubmitButton";
-import { useTimeZone } from "./TimeZoneContext";
-import { useAbortableRequest } from "./useApiResource";
-import { useStatuses, type IntegrationStatuses } from "./useStatuses";
-import { getToday } from "./useToday";
+import { isAbortError } from "../requestAbort";
+import { reportErrorQuietly } from "../reportError";
+import { SubmitButton } from "../SubmitButton";
+import { useTimeZone } from "../TimeZoneContext";
+import { useAbortableRequest } from "../useApiResource";
+import { useStatuses, type IntegrationStatuses } from "../useStatuses";
+import { getToday } from "../useToday";
 
 type PlanAction = Extract<PlanGenerateMode, "newSeason" | "updateSeason">;
 

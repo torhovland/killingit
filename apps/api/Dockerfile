@@ -32,8 +32,11 @@ COPY packages/shared packages/shared
 WORKDIR /repo/apps/api
 RUN bun build ./src/server.ts --target bun --sourcemap=external --outdir ./dist
 
-# Install Sentry CLI for source-map debug-ID injection + upload.
-RUN bun add -g @sentry/cli
+# Install Sentry CLI for source-map debug-ID injection + upload. Pinned to an
+# exact version because a global install sits outside bun.lock, so a floating
+# specifier would take whatever the registry serves at build time;
+# `scripts/deployWorkflow.test.ts` fails on an unpinned `bun add -g`.
+RUN bun add -g @sentry/cli@3.8.2
 
 # Inject debug IDs and upload source maps so runtime stack frames resolve to
 # source. Skipped when no auth token is supplied (local / non-CI builds).
