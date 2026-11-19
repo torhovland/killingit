@@ -4,7 +4,7 @@ import { AdminSettingsPage } from "./admin/AdminSettingsPage";
 import { CalendarPage } from "./calendar/CalendarPage";
 import { CoachDashboard } from "./CoachDashboard";
 import { CoachingSurveyPage } from "./CoachingSurveyPage";
-import { CostsPage } from "./CostsPage";
+import { CostsPage } from "./costs/CostsPage";
 import { DietPage } from "./diet/DietPage";
 import { FitnessPage } from "./fitness/FitnessPage";
 import { SeasonReviewPage } from "./SeasonReviewPage";

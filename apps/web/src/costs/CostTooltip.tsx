@@ -1,5 +1,5 @@
 import { COST_SERIES_SWATCH } from "./costColors";
-import { cn } from "./components/cn";
+import { cn } from "../components/cn";
 import {
   formatCallCount,
   formatCostUsd,

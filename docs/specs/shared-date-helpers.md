@@ -20,8 +20,8 @@ everywhere.
 - `apps/web/src/calendar/calendarDates.ts` keeps the month-grid helpers, imports
   `addDays`/`startOfWeek` from `@killingit/shared`, and lets `buildMonthGrid`
   reuse `startOfWeek` instead of repeating the weekday arithmetic.
-- `apps/web/src/costChart.ts` and `apps/api/integration/planFixture.ts` import
-  `addDays` from `@killingit/shared` instead of defining their own.
+- `apps/web/src/costs/costChart.ts` and `apps/api/integration/planFixture.ts`
+  import `addDays` from `@killingit/shared` instead of defining their own.
 - `weekEnd(week)` stays in `apps/api/src/plans/periods.ts`: it takes a stored
   `WeekPlan`, so it is a plan helper rather than a date primitive, and it is
   built on the shared `addDays`.

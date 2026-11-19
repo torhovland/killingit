@@ -5,7 +5,7 @@ import {
 import { Bullet } from "../Bullet";
 import { Card } from "../components/Card";
 import { PreBlock } from "../components/PreBlock";
-import { formatCostUsd } from "../costChart";
+import { formatCostUsd } from "../costs/costChart";
 import { formatDateTime } from "../timeZone";
 import { useTimeZone } from "../TimeZoneContext";
 import { CallBadges, CallStatus } from "./LlmCallBadges";
