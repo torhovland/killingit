@@ -497,7 +497,7 @@ describe("loadPlanGenerationContext", () => {
 describe("plan generation load history", () => {
   const today = "2026-10-21";
 
-  /** `count` cycling activities, newest first, the oldest outside the warm-up. */
+  /** `count` cycling activities, newest first; the oldest fall outside the prompt cap. */
   function feed(count: number): ActivityFeed {
     return {
       model: null,
@@ -553,9 +553,8 @@ describe("plan generation load history", () => {
   }
 
   it("seeds the plan's load from the whole stored activity history", async () => {
-    // The oldest five activities sit before the plan's 42-day prompt window but
-    // still carry fitness into the week. They must warm up CTL, not be dropped
-    // with the prompt's activity cap.
+    // The oldest five activities sit outside the prompt's 20-activity window
+    // but still inside CTL's 42-day warm-up, so they must raise the plan's load.
     const wholeHistory = await savedTodayCtl(feed(25));
     const cappedHistory = await savedTodayCtl(feed(20));
 
