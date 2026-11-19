@@ -96,6 +96,18 @@ describe("createDatabasePool", () => {
     }
   });
 
+  it("bounds a connection attempt and recycles idle connections", async () => {
+    const pool = createDatabasePool(LOCAL_URL);
+    try {
+      expect(pool.options.connectionTimeoutMillis).toBe(10_000);
+      expect(pool.options.idleTimeoutMillis).toBe(30_000);
+      expect(pool.options.maxUses).toBe(7_500);
+      expect(pool.options.keepAlive).toBe(true);
+    } finally {
+      await pool.end();
+    }
+  });
+
   it("logs an idle-client error instead of letting it crash the process", async () => {
     const log = spyOn(console, "error").mockImplementation(() => {});
     const pool = createDatabasePool(LOCAL_URL);

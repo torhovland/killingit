@@ -18,6 +18,7 @@ import {
   type ResolvedAppDependencies,
 } from "../dependencies.js";
 import { loadAthleteEvents } from "../events/store.js";
+import { reportError } from "../instrumentation/reportError.js";
 import { markPlanPromptsFailed } from "../llm/callStore.js";
 import { loadThresholdHistoryForUser } from "../metrics/store.js";
 import { startOfWeek } from "@killingit/shared";
@@ -173,6 +174,13 @@ export function createPlanRoute(deps: ResolvedAppDependencies): Hono {
           userId,
           startedAt,
           message,
+        );
+        // The run died without recording anything, so this read is the only
+        // place the failure can reach Sentry.
+        (deps.reportError ?? reportError)(
+          new Error(
+            `plan generation ${generation.runId ?? "(no run id)"} stopped refreshing its heartbeat at ${generation.updatedAt}`,
+          ),
         );
       }
       generation = await deps.generationStore.load(userId);

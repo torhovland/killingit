@@ -188,6 +188,7 @@ export interface TestAppOptions {
   coachingInputs?: CoachingInputs;
   loadForecast?: AppDependencies["loadForecast"];
   markPlanPromptsFailed?: AppDependencies["markPlanPromptsFailed"];
+  reportError?: AppDependencies["reportError"];
   loadActivities?: (userId: number) => Promise<ActivityFeed>;
   loadStoredFeed?: AppDependencies["loadStoredFeed"];
   loadActivityFeedback?: AppDependencies["loadActivityFeedback"];
@@ -354,6 +355,7 @@ export function makeTestApp(options: TestAppOptions = {}) {
     startCoachRun: options.startCoachRun ?? (() => Promise.resolve()),
     loadForecast: options.loadForecast,
     markPlanPromptsFailed: options.markPlanPromptsFailed,
+    reportError: options.reportError,
   });
 }
 

@@ -31,6 +31,20 @@ function abortRun(userId: number): void {
   activeRuns.delete(userId);
 }
 
+/**
+ * Stops the user's run when it is still the one with this id. A run that has
+ * already settled or been replaced is left alone, so a late heartbeat failure
+ * cannot abort the run that replaced it.
+ */
+export function stopRun(userId: number, runId: string, reason?: unknown): void {
+  const active = activeRuns.get(userId);
+  if (active?.runId !== runId) {
+    return;
+  }
+  active.controller.abort(reason);
+  activeRuns.delete(userId);
+}
+
 /** Releases the map entry only when this run is still the active one. */
 export function releaseRun(userId: number, runId: string): void {
   if (activeRuns.get(userId)?.runId === runId) {

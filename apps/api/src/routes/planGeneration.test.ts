@@ -170,12 +170,16 @@ describe("coach plan generation", () => {
       updatedAt: new Date(Date.now() - STALE_RUN_MS - 1000).toISOString(),
     };
     const marked: { userId: number; error: string }[] = [];
+    const reported: unknown[] = [];
 
     const res = await makeApp({
       generationStore,
       markPlanPromptsFailed: (userId, _since, error) => {
         marked.push({ userId, error });
         return Promise.resolve();
+      },
+      reportError: (error) => {
+        reported.push(error);
       },
     }).fetch(authenticatedRequest("/api/coaching/plan?today=2026-10-21"));
 
@@ -189,6 +193,9 @@ describe("coach plan generation", () => {
     expect(marked).toHaveLength(1);
     expect(marked[0]?.userId).toBe(42);
     expect(marked[0]?.error).toContain("stopped before finishing");
+    // Nothing else recorded this failure, so the release is what reaches Sentry.
+    expect(reported).toHaveLength(1);
+    expect((reported[0] as Error).message).toContain("stale-run");
   });
 
   it("keeps a run that was replaced after the stale status was read", async () => {
@@ -215,12 +222,16 @@ describe("coach plan generation", () => {
       updatedAt: new Date(Date.now() - STALE_RUN_MS - 1000).toISOString(),
     };
     const marked: string[] = [];
+    const reported: unknown[] = [];
 
     const res = await makeApp({
       generationStore,
       markPlanPromptsFailed: (_userId, _since, error) => {
         marked.push(error);
         return Promise.resolve();
+      },
+      reportError: (error) => {
+        reported.push(error);
       },
     }).fetch(authenticatedRequest("/api/coaching/plan?today=2026-10-21"));
 
@@ -232,6 +243,8 @@ describe("coach plan generation", () => {
     expect(body.generation.error).toBeNull();
     expect(generationStore.running).toBe(true);
     expect(marked).toEqual([]);
+    // A run that a newer one replaced is not a failure.
+    expect(reported).toEqual([]);
   });
 
   it("keeps a fresh running generation live", async () => {
