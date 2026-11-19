@@ -226,6 +226,8 @@ export interface AppDependencies {
   /** Prompt-log failure marker, injectable for DB-free plan route tests. */
   markPlanPromptsFailed?:
     PlanTriggerDependencies["markPlanPromptsFailed"] | undefined;
+  /** Background-failure reporter, injectable for tests; defaults to Sentry. */
+  reportError?: PlanTriggerDependencies["reportError"] | undefined;
   /** Plan-trigger debounce, injectable for fast route tests. */
   planTriggerDebounceMs?: number | undefined;
 }
@@ -275,6 +277,7 @@ export function planTriggerDependencies(
     loadCoachingInputs: deps.loadCoachingInputs,
     loadForecast: deps.loadForecast,
     markPlanPromptsFailed: deps.markPlanPromptsFailed,
+    reportError: deps.reportError,
     planTriggerDebounceMs: deps.planTriggerDebounceMs,
   };
 }

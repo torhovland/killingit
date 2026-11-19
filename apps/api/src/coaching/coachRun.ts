@@ -1,3 +1,4 @@
+import { reportError } from "../instrumentation/reportError.js";
 import { loadLlmClient } from "../llm/client.js";
 import { planFailureMessage } from "../plans/failure.js";
 import {
@@ -43,12 +44,13 @@ export async function startCoachRun(
   const { userId } = options;
   const run = claimRun(userId);
   await deps.generations.begin(userId, run.runId);
-  const heartbeat = startHeartbeat(deps, userId, run.runId);
+  const heartbeat = startHeartbeat(deps, { userId, runId: run.runId });
 
   void runCoachTurn(deps, { ...options, ...run })
     .catch((err: unknown) => {
       if (!isGenerationSuperseded(err)) {
         console.error("[coach-run] background run failed:", err);
+        (deps.reportError ?? reportError)(err);
       }
     })
     .finally(() => {

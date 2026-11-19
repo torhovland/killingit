@@ -9,9 +9,13 @@ import type { PlanGenerationStep } from "./steps.js";
 import type { PlanGenerationStore, PlanStore, StoredPlan } from "./store.js";
 import { makePlan } from "../testFixtures/plan.js";
 import { PLAN_FAILED_MESSAGE } from "./failure.js";
-import { isGenerationSuperseded } from "./generation.js";
+import {
+  HEARTBEAT_FAILURE_LIMIT,
+  isGenerationSuperseded,
+} from "./generation.js";
 import { loadPlanGenerationContext } from "./generationContext.js";
 import {
+  startHeartbeat,
   triggerPlanGeneration,
   type PlanTriggerDependencies,
 } from "./trigger.js";
@@ -246,6 +250,25 @@ describe("plan generation failure handling", () => {
     expect(generations.failures).toEqual([PLAN_FAILED_MESSAGE]);
   });
 
+  it("reports a background failure to the injected reporter", async () => {
+    const log = spyOn(console, "error").mockImplementation(() => {});
+    const generations = new RecordingGenerationStore();
+    const reported: unknown[] = [];
+    const deps = dependencies(generations, {
+      syncAthleteReading: () => Promise.reject(new Error("reading failed")),
+      reportError: (error) => {
+        reported.push(error);
+      },
+    });
+
+    await triggerPlanGeneration(deps, { userId: 242, today: "2026-11-12" });
+    await settle();
+    log.mockRestore();
+
+    expect(reported).toHaveLength(1);
+    expect((reported[0] as Error).message).toBe("reading failed");
+  });
+
   it("plans on when an advisory input cannot be read", async () => {
     const generations = new RecordingGenerationStore();
     const log = spyOn(console, "error").mockImplementation(() => {});
@@ -463,5 +486,111 @@ describe("loadPlanGenerationContext", () => {
 
     expect(isGenerationSuperseded(failed)).toBe(true);
     expect(generations.failures).toEqual([]);
+  });
+});
+
+describe("generation heartbeat", () => {
+  /** Runs the event loop a few turns so the interval can fire. */
+  async function turns(count: number): Promise<void> {
+    for (let turn = 0; turn < count; turn += 1) {
+      await settle();
+    }
+  }
+
+  it("stops a run whose heartbeat keeps failing", async () => {
+    const log = spyOn(console, "error").mockImplementation(() => {});
+    const reported: unknown[] = [];
+    const stopped: unknown[] = [];
+    let beats = 0;
+    const generations = new RecordingGenerationStore();
+    await generations.begin(242, "run-1");
+    generations.heartbeat = () => {
+      beats += 1;
+      return Promise.reject(new Error("Connection terminated unexpectedly"));
+    };
+    const deps = dependencies(generations, {
+      reportError: (error) => {
+        reported.push(error);
+      },
+    });
+
+    const heartbeat = startHeartbeat(deps, {
+      userId: 242,
+      runId: "run-1",
+      intervalMs: 1,
+      stop: (error) => {
+        stopped.push(error);
+      },
+    });
+    await waitFor(() => stopped.length > 0);
+    const beatsAtStop = beats;
+    await turns(3);
+    clearInterval(heartbeat);
+    log.mockRestore();
+
+    expect(stopped).toHaveLength(1);
+    expect((stopped[0] as Error).message).toBe(
+      "Connection terminated unexpectedly",
+    );
+    expect(reported).toHaveLength(1);
+    expect(generations.failures).toEqual([PLAN_FAILED_MESSAGE]);
+    // The stopped run stops heartbeating; it does not keep failing forever.
+    expect(beats).toBe(beatsAtStop);
+  });
+
+  it("logs a single failed heartbeat without stopping the run", async () => {
+    const log = spyOn(console, "error").mockImplementation(() => {});
+    const stopped: unknown[] = [];
+    let beats = 0;
+    const generations = new RecordingGenerationStore();
+    await generations.begin(242, "run-1");
+    generations.heartbeat = () => {
+      beats += 1;
+      return beats === 1
+        ? Promise.reject(new Error("Socket is closed"))
+        : Promise.resolve();
+    };
+
+    const heartbeat = startHeartbeat(dependencies(generations), {
+      userId: 242,
+      runId: "run-1",
+      intervalMs: 1,
+      stop: (error) => {
+        stopped.push(error);
+      },
+    });
+    await waitFor(() => beats > 2);
+    clearInterval(heartbeat);
+    log.mockRestore();
+
+    expect(stopped).toEqual([]);
+    expect(generations.failures).toEqual([]);
+  });
+
+  it("resets the failure count when a heartbeat succeeds", async () => {
+    const stopped: unknown[] = [];
+    let beats = 0;
+    const generations = new RecordingGenerationStore();
+    await generations.begin(242, "run-1");
+    generations.heartbeat = () => {
+      beats += 1;
+      return beats % 2 === 0
+        ? Promise.resolve()
+        : Promise.reject(new Error("Socket is closed"));
+    };
+
+    const heartbeat = startHeartbeat(dependencies(generations), {
+      userId: 242,
+      runId: "run-1",
+      intervalMs: 1,
+      stop: (error) => {
+        stopped.push(error);
+      },
+    });
+    // More failures than the limit, but never that many in a row.
+    await waitFor(() => beats > HEARTBEAT_FAILURE_LIMIT * 2);
+    clearInterval(heartbeat);
+
+    expect(stopped).toEqual([]);
   });
 });

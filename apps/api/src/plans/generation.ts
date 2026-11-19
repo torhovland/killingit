@@ -4,6 +4,13 @@ import type { PlanGenerationStatus } from "@killingit/shared";
 export const GENERATION_HEARTBEAT_MS = 15_000;
 
 /**
+ * How many consecutive heartbeat failures stop a run. A heartbeat that cannot
+ * write means the run cannot record its progress or its failure either, so
+ * continuing only spends model budget on work that can never be saved.
+ */
+export const HEARTBEAT_FAILURE_LIMIT = 3;
+
+/**
  * A running generation that has not refreshed its status for this long is
  * assumed to belong to a process that stopped (for example a restart or a
  * crashed instance). It must not block the athlete from trying again.

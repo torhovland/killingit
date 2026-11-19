@@ -3,6 +3,7 @@ import { latestActivityAnalysisSince } from "../coaching/analysisRuns.js";
 import { MAX_ANALYZED_ACTIVITIES } from "../coaching/activityStore.js";
 import type { syncAthleteReading } from "../coaching/athleteReading.js";
 import { captureCompletedPeriodReviews } from "../coaching/periodReviews.js";
+import { reportError } from "../instrumentation/reportError.js";
 import { markPlanPromptsFailed } from "../llm/callStore.js";
 import type { LlmClient } from "../llm/client.js";
 import {
@@ -21,6 +22,7 @@ import {
 import type { loadAnsweredCoachQuestions } from "./coachQuestions.js";
 import {
   GENERATION_HEARTBEAT_MS,
+  HEARTBEAT_FAILURE_LIMIT,
   isGenerationSuperseded,
 } from "./generation.js";
 import { ensureGenerationCurrent } from "./generation/persist.js";
@@ -34,7 +36,7 @@ import { runPlanGeneration } from "./generate.js";
 import { planFtpEstimates } from "../metrics/planFtpEstimates.js";
 import { loadPlanInputs, type PlanInputDependencies } from "./planInputs.js";
 import type { CoachingInputs } from "./inputs.js";
-import { claimRun, releaseRun } from "./runs.js";
+import { claimRun, releaseRun, stopRun } from "./runs.js";
 import type { PlanGenerationStore, PlanStore } from "./store.js";
 import {
   PLAN_TRIGGER_DEBOUNCE_MS,
@@ -79,6 +81,8 @@ export interface PlanTriggerDependencies extends PlanInputDependencies {
     | undefined;
   /** Injectable for tests; defaults to the prompt-log writer. */
   markPlanPromptsFailed?: typeof markPlanPromptsFailed | undefined;
+  /** Injectable for tests; defaults to the Sentry reporter. */
+  reportError?: typeof reportError | undefined;
   /** Injectable for tests; defaults to {@link PLAN_TRIGGER_DEBOUNCE_MS}. */
   planTriggerDebounceMs?: number | undefined;
 }
@@ -142,13 +146,17 @@ function startBackgroundPlan(
   options: PlanRunOptions,
   run: { runId: string; signal: AbortSignal },
 ): void {
-  const heartbeat = startHeartbeat(deps, options.userId, run.runId);
+  const heartbeat = startHeartbeat(deps, {
+    userId: options.userId,
+    runId: run.runId,
+  });
   void runPlanForUser(deps, { ...options, ...run })
     .catch(async (err: unknown) => {
       if (isGenerationSuperseded(err)) {
         return;
       }
       console.error("[plan] background generation failed:", err);
+      (deps.reportError ?? reportError)(err);
       // The loading phase fails the row itself and rethrows. A later phase
       // throws without doing so, so this catch covers the whole run. Failing
       // an already-failed row is a no-op. The reason is athlete-facing, and the
@@ -169,17 +177,64 @@ function startBackgroundPlan(
     });
 }
 
-/** Refreshes the running row so loading a large feed cannot look like a crash. */
+/** What one heartbeat needs to know about the run it refreshes. */
+export interface HeartbeatOptions {
+  userId: number;
+  runId: string;
+  /** Injectable for tests; defaults to {@link GENERATION_HEARTBEAT_MS}. */
+  intervalMs?: number | undefined;
+  /** Injectable for tests; defaults to stopping the run in the registry. */
+  stop?: ((error: unknown) => void) | undefined;
+}
+
+/**
+ * Refreshes the running row so loading a large feed cannot look like a crash.
+ * A heartbeat that keeps failing means the run cannot save anything, so after
+ * `HEARTBEAT_FAILURE_LIMIT` consecutive failures it stops the run, reports the
+ * error and tries once to record the failure. A success resets the count, so a
+ * single dropped connection does not end a run. See
+ * `docs/specs/plan-run-resilience.md`.
+ */
 export function startHeartbeat(
   deps: PlanTriggerDependencies,
-  userId: number,
-  runId: string,
+  {
+    userId,
+    runId,
+    intervalMs = GENERATION_HEARTBEAT_MS,
+    stop,
+  }: HeartbeatOptions,
 ): ReturnType<typeof setInterval> {
+  let failures = 0;
   const heartbeat = setInterval(() => {
-    void deps.generations.heartbeat(userId, runId).catch((err: unknown) => {
-      console.error("[plan] could not refresh generation status:", err);
-    });
-  }, GENERATION_HEARTBEAT_MS);
+    void deps.generations.heartbeat(userId, runId).then(
+      () => {
+        failures = 0;
+      },
+      (err: unknown) => {
+        failures += 1;
+        if (failures < HEARTBEAT_FAILURE_LIMIT) {
+          console.error("[plan] could not refresh generation status:", err);
+          return;
+        }
+        clearInterval(heartbeat);
+        console.error("[plan] stopping a run that lost its database:", err);
+        (deps.reportError ?? reportError)(err);
+        if (stop !== undefined) {
+          stop(err);
+        } else {
+          stopRun(userId, runId, err);
+        }
+        // A recovered database still has to stop the athlete's poll, so record
+        // the failure when it answers; when it does not, the stale lease
+        // releases the row on the next read.
+        void deps.generations
+          .fail(userId, planFailureMessage(err), runId)
+          .catch((failure: unknown) => {
+            console.error("[plan] could not mark generation failed:", failure);
+          });
+      },
+    );
+  }, intervalMs);
   heartbeat.unref();
   return heartbeat;
 }

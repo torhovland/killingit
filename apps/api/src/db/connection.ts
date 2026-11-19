@@ -1,4 +1,5 @@
 import pg from "pg";
+import { withConnectionRetry } from "./queryRetry.js";
 
 /**
  * The local docker-compose database, used when development and test runs leave
@@ -46,17 +47,41 @@ export function resolveDatabaseUrl(
 }
 
 /**
+ * How long pg waits for a new connection before failing its query. Without a
+ * bound, a dropped Neon connection leaves a request waiting on the socket.
+ */
+const CONNECT_TIMEOUT_MS = 10_000;
+
+/**
+ * How long an unused connection is kept. Neon and its pooler drop idle
+ * connections on their own schedule, so recycle ours first.
+ */
+const IDLE_TIMEOUT_MS = 30_000;
+
+/** How many queries one connection serves before it is replaced. */
+const MAX_USES = 7_500;
+
+/**
  * A pool over `connectionString`. When an idle client fails (a Neon failover, a
  * dropped connection), pg emits `error` on the pool; without a listener Node
  * treats that as an unhandled event and exits the process. Log the error, which
  * does not include the connection string, and let pg discard the client.
+ *
+ * The connection bounds keep a dead socket from being waited on forever, and
+ * `withConnectionRetry` retries the one failure a fresh connection can fix.
  */
 export function createDatabasePool(connectionString: string): pg.Pool {
-  const pool = new pg.Pool({ connectionString });
+  const pool = new pg.Pool({
+    connectionString,
+    connectionTimeoutMillis: CONNECT_TIMEOUT_MS,
+    idleTimeoutMillis: IDLE_TIMEOUT_MS,
+    maxUses: MAX_USES,
+    keepAlive: true,
+  });
   pool.on("error", (error) => {
     console.error("[db] idle client error:", error);
   });
-  return pool;
+  return withConnectionRetry(pool);
 }
 
 /**

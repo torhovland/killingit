@@ -4,7 +4,8 @@
 - **Date:** 2026-11-15
 - **Related:** `docs/adrs/0001-hosting-cloud-run-neon-cloudflare.md`,
   `docs/specs/deploy-workflow.md`, `docs/specs/api-server-entry.md`,
-  `docs/specs/database-integration-tests.md`, `.env.example`
+  `docs/specs/database-integration-tests.md`,
+  `docs/specs/plan-run-resilience.md`, `.env.example`
 
 ## Goal
 
@@ -12,7 +13,8 @@ A deployed API process must fail immediately and clearly when `DATABASE_URL` is
 missing, instead of silently targeting the local docker-compose database and
 failing later with an unexplained connection error. A Postgres client that drops
 while idle must be logged and discarded instead of crashing the process with an
-unhandled `error` event.
+unhandled `error` event. A connection that died before a statement reached the
+server must not fail the caller when a fresh connection would succeed.
 
 ## Scope
 
@@ -32,6 +34,11 @@ unhandled `error` event.
 5. `createDatabasePool` attaches an `error` listener that logs
    `[db] idle client error:` followed by the error through `console.error`, and
    lets pg discard the client.
+6. `createDatabasePool` bounds every connection attempt and recycles
+   connections: `connectionTimeoutMillis` 10 s, `idleTimeoutMillis` 30 s,
+   `maxUses` 7 500, and TCP keepalive.
+7. `withConnectionRetry` wraps the pool's `query` so one failure that proves the
+   statement never reached the server is retried once on a fresh connection.
 
 ### Out of scope
 
@@ -53,6 +60,13 @@ unhandled `error` event.
   `NODE_ENV`.
 - The configured value is trimmed; a blank value counts as missing.
 - The pool error listener is added before the pool can connect.
+- Only a failure raised before the statement was sent is retried: a closed
+  socket, an authentication timeout, a connection timeout, or a refused,
+  unresolvable or unreachable host. `Connection terminated unexpectedly` is
+  deliberately not retried, because the server may already have applied the
+  statement and a retry could duplicate a write.
+- The retry happens at most once per query, outside transactions: a transaction
+  holds one checked-out client and fails as a whole.
 
 ## Data-model and API impact
 
@@ -72,5 +86,7 @@ error no longer terminating the process.
    and loopback or already-qualified strings are left untouched.
 4. A `Pool` built by `createDatabasePool` logs an emitted `error` under the
    `[db]` prefix and does not throw.
-5. Typecheck, lint, format, unit tests, the unused-export check and the
+5. A query that fails with a closed socket is attempted twice; one that fails
+   with `Connection terminated unexpectedly` is attempted once.
+6. Typecheck, lint, format, unit tests, the unused-export check and the
    database-backed integration tests pass.
