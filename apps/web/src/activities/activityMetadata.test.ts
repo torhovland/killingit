@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { activityMetadata } from "./activityMetadata";
-import { formatDateTime } from "./timeZone";
+import { formatDateTime } from "../timeZone";
 
 const ride = {
   startDate: "2026-10-01T06:30:00Z",

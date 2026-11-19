@@ -1,17 +1,17 @@
 import { useEffect } from "react";
 import { ActivityList } from "./ActivityList";
-import { useAppStatus } from "./AppStatus";
-import { useAuth } from "./auth";
+import { useAppStatus } from "../AppStatus";
+import { useAuth } from "../auth";
 import { ManualActivityForm } from "./ManualActivityForm";
 import { ManualActivityList } from "./ManualActivityList";
-import { useNavigate } from "./navigation";
-import { SubmitButton } from "./SubmitButton";
-import { useTimeZone } from "./TimeZoneContext";
+import { useNavigate } from "../navigation";
+import { SubmitButton } from "../SubmitButton";
+import { useTimeZone } from "../TimeZoneContext";
 import { useActivityFeed } from "./useActivityFeed";
 import { useManualActivities } from "./useManualActivities";
-import { useStatuses } from "./useStatuses";
-import { Button } from "./components/Button";
-import { ConfirmDialog } from "./components/ConfirmDialog";
+import { useStatuses } from "../useStatuses";
+import { Button } from "../components/Button";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 
 /**
  * The activities page: every imported activity, the manual activity log, and

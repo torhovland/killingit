@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { AuthState } from "./auth";
+import type { AuthState } from "../auth";
 import { useManualActivities } from "./useManualActivities";
 
 const auth: AuthState = {

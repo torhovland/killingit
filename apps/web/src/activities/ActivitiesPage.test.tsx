@@ -1,9 +1,9 @@
 import { afterAll, afterEach, describe, expect, it, mock } from "bun:test";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { AuthState } from "./auth";
+import type { AuthState } from "../auth";
 
-const { SessionExpiredError } = await import("./auth/session");
+const { SessionExpiredError } = await import("../auth/session");
 
 const auth: AuthState = {
   isAuthenticated: true,
@@ -14,7 +14,7 @@ const auth: AuthState = {
   getToken: () => Promise.resolve("token"),
 };
 
-await mock.module("./auth", () => ({
+await mock.module("../auth", () => ({
   SessionExpiredError,
   useAuth: () => auth,
 }));
@@ -24,8 +24,8 @@ afterAll(() => {
 });
 
 const { ActivitiesPage } = await import("./ActivitiesPage");
-const { AppStatusProvider } = await import("./AppStatus");
-const { TimeZoneProvider } = await import("./TimeZoneContext");
+const { AppStatusProvider } = await import("../AppStatus");
+const { TimeZoneProvider } = await import("../TimeZoneContext");
 
 const MANUAL_ACTIVITY = {
   id: 3,

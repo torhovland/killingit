@@ -112,15 +112,16 @@ legend inset, a layer's transform origin or stacking order, a tile's fixed
 class, and no inline style is added for anything constant.
 
 Page and feature components live in the directory that owns them, beside their
-tests: `calendar/`, `fitness/`, `diet/`, `settings/`, `admin/`, `plan/` and
-`costs/` each hold their components, sections and single-page helpers. Only
-shared primitives belong in `components/`; the shared chart frame, legend and
-series palette, geometry and keyboard and hover hooks live in `charts/`, and
-pieces used across pages (`TrainingLoadLine`, `CalorieBalancePanel`,
-`mapProjection`, the current-user and time-zone providers, and the app shell's
-`AppHeader`, `UserMenu` and `AppBody`) stay at the root. The fitness, threshold and cost chart
-legends render through `ChartLegend`, which owns the list, swatch shapes and
-optional `sport · unit` detail, and the legend inset is the exported
+tests: `calendar/`, `fitness/`, `diet/`, `settings/`, `admin/`, `plan/`,
+`costs/` and `activities/` each hold their components, sections and single-page
+helpers. Only shared primitives belong in `components/`; the shared chart frame,
+legend and series palette, geometry and keyboard and hover hooks live in
+`charts/`, and pieces used across pages (`TrainingLoadLine`,
+`CalorieBalancePanel`, `mapProjection`, the current-user and time-zone providers,
+and the app shell's `AppHeader`, `UserMenu` and `AppBody`) stay at the root.
+The fitness, threshold and cost chart legends render through `ChartLegend`,
+which owns the list, swatch shapes and optional `sport · unit` detail, and the
+legend inset is the exported
 `CHART_LEGEND_INSET_CLASS` utility rather than an inline style. The threshold
 chart's series colours come from `seriesClass(index)`, which wraps the shared
 palette; the fitness health charts pass their semantic palette to the same

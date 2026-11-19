@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { ActivitiesPage } from "./ActivitiesPage";
+import { ActivitiesPage } from "./activities/ActivitiesPage";
 import { AdminSettingsPage } from "./admin/AdminSettingsPage";
 import { CalendarPage } from "./calendar/CalendarPage";
 import { CoachDashboard } from "./CoachDashboard";

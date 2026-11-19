@@ -5,8 +5,8 @@ import * as Sentry from "@sentry/react";
 import userEvent from "@testing-library/user-event";
 import type { AnalyzedActivitiesResponse } from "@killingit/shared";
 import { saveCachedActivities } from "./activityCache";
-import { AppStatusProvider } from "./AppStatus";
-import type { AuthState } from "./auth";
+import { AppStatusProvider } from "../AppStatus";
+import type { AuthState } from "../auth";
 import { useActivityFeed } from "./useActivityFeed";
 
 const auth: AuthState = {

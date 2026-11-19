@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { AnalyzedActivity } from "@killingit/shared";
 import { ActivityCard } from "./ActivityCard";
-import { TimeZoneProvider } from "./TimeZoneContext";
+import { TimeZoneProvider } from "../TimeZoneContext";
 
 const activity: AnalyzedActivity = {
   id: 1,

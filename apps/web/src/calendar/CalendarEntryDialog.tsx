@@ -1,6 +1,6 @@
 import { type CalendarActivity, type WeekSession } from "@killingit/shared";
-import { ActivityMap } from "../ActivityMap";
-import { activityMetadata } from "../activityMetadata";
+import { ActivityMap } from "../activities/ActivityMap";
+import { activityMetadata } from "../activities/activityMetadata";
 import { Bullet, Bullets } from "../Bullet";
 import { FormattedText } from "../FormattedText";
 import { SessionSetting } from "../SessionSetting";

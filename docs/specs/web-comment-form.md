@@ -42,8 +42,9 @@ one implementation so a fix reaches both cards.
 
 - `apps/web/src/useCommentForm.ts` — the state machine.
 - `apps/web/src/CommentSection.tsx` — the shared comment display and form.
-- `apps/web/src/ActivityCard.tsx` and `apps/web/src/PeriodReviewCard.tsx` —
-  consume the shared pieces and keep only their card-specific rendering.
+- `apps/web/src/activities/ActivityCard.tsx` and
+  `apps/web/src/PeriodReviewCard.tsx` — consume the shared pieces and keep only
+  their card-specific rendering.
 
 ## Acceptance criteria
 

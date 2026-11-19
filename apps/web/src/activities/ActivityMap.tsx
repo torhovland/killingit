@@ -1,5 +1,5 @@
 import type { RoutePoint } from "@killingit/shared";
-import { mapTiles, projectPoint, TILE_SIZE } from "./mapProjection";
+import { mapTiles, projectPoint, TILE_SIZE } from "../mapProjection";
 
 const WIDTH = 300;
 const HEIGHT = 300;

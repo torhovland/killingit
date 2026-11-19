@@ -4,10 +4,10 @@ import {
   manualActivitiesResponseSchema,
   type ManualActivity,
 } from "@killingit/shared";
-import type { AuthState } from "./auth";
-import { requestParsed } from "./fetchAuthed";
-import { reportError } from "./reportError";
-import { getToday } from "./useToday";
+import type { AuthState } from "../auth";
+import { requestParsed } from "../fetchAuthed";
+import { reportError } from "../reportError";
+import { getToday } from "../useToday";
 import { coachingDateQuery } from "./useActivityFeed";
 
 export interface ManualActivitiesState {

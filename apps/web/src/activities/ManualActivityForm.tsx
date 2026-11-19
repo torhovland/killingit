@@ -1,7 +1,7 @@
-import { SubmitButton } from "./SubmitButton";
-import { Button } from "./components/Button";
-import { Input } from "./components/Input";
-import { Textarea } from "./components/Textarea";
+import { SubmitButton } from "../SubmitButton";
+import { Button } from "../components/Button";
+import { Input } from "../components/Input";
+import { Textarea } from "../components/Textarea";
 
 /**
  * The add/edit form for a manually logged activity. The page owns the values so

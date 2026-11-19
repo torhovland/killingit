@@ -4,16 +4,16 @@ import { ActivityMap } from "./ActivityMap";
 import { ActivityLaps } from "./ActivityLaps";
 import { ActivitySamples } from "./ActivitySamples";
 import { activityMetadata } from "./activityMetadata";
-import { Bullet, Bullets } from "./Bullet";
-import { CommentSection } from "./CommentSection";
-import { FormattedText } from "./FormattedText";
-import { TrainingLoadLine } from "./TrainingLoadLine";
-import { useCommentForm } from "./useCommentForm";
-import { useTimeZone } from "./TimeZoneContext";
-import { Button } from "./components/Button";
-import { Card } from "./components/Card";
-import { CoachReply } from "./components/CoachReply";
-import { ConfirmDialog } from "./components/ConfirmDialog";
+import { Bullet, Bullets } from "../Bullet";
+import { CommentSection } from "../CommentSection";
+import { FormattedText } from "../FormattedText";
+import { TrainingLoadLine } from "../TrainingLoadLine";
+import { useCommentForm } from "../useCommentForm";
+import { useTimeZone } from "../TimeZoneContext";
+import { Button } from "../components/Button";
+import { Card } from "../components/Card";
+import { CoachReply } from "../components/CoachReply";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 
 /**
  * One synced activity with its coach analysis and program review.
