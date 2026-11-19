@@ -6,6 +6,7 @@ import {
   estimatedTssFromSession,
   powerTrainingStressScore,
   recordedPowerSummary,
+  trainingLoadSeriesStart,
   trainingStressScore,
 } from "./stress.js";
 
@@ -138,6 +139,24 @@ describe("recordedPowerSummary", () => {
       averagePower: null,
       normalizedPower: null,
     });
+  });
+});
+
+describe("trainingLoadSeriesStart", () => {
+  it("starts 42 days before the earliest day with a TSS", () => {
+    expect(
+      trainingLoadSeriesStart(
+        new Map([
+          ["2026-10-01", 50],
+          ["2026-10-10", 80],
+        ]),
+        "2026-10-20",
+      ),
+    ).toBe("2026-08-20");
+  });
+
+  it("uses the required start when no day carries a TSS", () => {
+    expect(trainingLoadSeriesStart(new Map(), "2026-10-20")).toBe("2026-09-08");
   });
 });
 

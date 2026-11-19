@@ -181,10 +181,15 @@ For every day in the week:
 - `CTL = CTL_prev + (TSS − CTL_prev) / 42`
 - `TSB = CTL − ATL`
 
-The series starts 42 days before the week. Garmin syncs the last 42 days, while
-the stored feed keeps every activity ever synced, so the load seeding uses the
-full available history. Plan generation analyses the newest activities the
-analysis cap allows (20); older activities keep their stored analyses.
+The series starts 42 days before the earliest day with a TSS in the athlete's
+stored history, so CTL has its full warm-up. The plan, the Fitness page and the
+Activities page all start from that same day and read the same TSS inputs, so
+they agree for any given date and the Fitness chart does not change when another
+range is selected. Garmin syncs the last 42 days, while the stored feed keeps
+every activity ever synced, so an activity that has left the sync window still
+contributes its load. Plan generation analyses the newest activities the
+analysis cap allows (20) for prompts; the load calculation always reads the full
+stored feed, so the prompt cap never shortens the series.
 Recorded activities are scored with measured power where possible;
 the rest use a duration-based estimate purely for seeding (they are never shown
 as a workout's TSS). A day without activity or a planned session counts as
@@ -332,6 +337,9 @@ API:
 - API unit tests for the shared `trainingStressScore` formula (unrounded return,
   unrounded interval accumulation, rounding at the caller) and the measured-day
   mapping (all measured, partly measured, none measured, no activities).
+- A load-series test pins the series start to the earliest day with a TSS, so an
+  activity older than the past 42 days still warms up CTL and the plan's numbers
+  match the chart's.
 - API unit tests for the coach's metric reading (prompt and storage, fail-open,
   one value per date), the FTP timeline from stored points, power-vs-coach TSS
   resolution, the no-FTP case, clamping, block progression, and day/week

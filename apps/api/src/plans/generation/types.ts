@@ -35,7 +35,17 @@ import type { captureCompletedPeriodReviews } from "../../coaching/periodReviews
 export interface PlanGenerationContext {
   answers: readonly AthleteAnswerContext[];
   answersUpdatedAt: Date | null;
+  /**
+   * Every stored activity, in the feed's newest-first order. The load series
+   * reads the whole history so its chronic warm-up is complete, while prompts
+   * read {@link recentActivities} only.
+   */
   activities: readonly AnalyzedActivity[];
+  /**
+   * The newest activities the prompt reviews, capped by the analysis window.
+   * Falls back to `activities` when a caller has not split the feed.
+   */
+  recentActivities?: readonly AnalyzedActivity[];
   manualActivities: readonly ManualActivityContext[];
   activityComments: readonly ActivityCommentContext[];
   weeklyNote: string | null;

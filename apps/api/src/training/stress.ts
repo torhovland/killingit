@@ -172,6 +172,26 @@ export function recordedPowerSummary(samples: readonly ActivitySample[]): {
 }
 
 /**
+ * The first day of a load series. It starts 42 days before the earliest day
+ * with a TSS, or earlier when the caller's required start is before that, so
+ * the chronic load has its whole warm-up and the series still covers the range
+ * its view needs. Every view uses the same rule for the same data, so the plan
+ * and the charts cannot show different ATL, CTL or TSB.
+ */
+export function trainingLoadSeriesStart(
+  tssByDate: ReadonlyMap<string, number>,
+  requiredStartDate: string,
+): string {
+  let earliest = requiredStartDate;
+  for (const date of tssByDate.keys()) {
+    if (date < earliest) {
+      earliest = date;
+    }
+  }
+  return addDays(earliest, -CTL_DAYS);
+}
+
+/**
  * Builds the day-by-day training load for a date range. TSS on days without an
  * entry counts as zero (rest), which matches how an off day is scored.
  */

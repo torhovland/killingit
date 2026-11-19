@@ -29,7 +29,7 @@ import {
   mergeTrainingTss,
 } from "./activityLoad.js";
 import { planDietTargets } from "./dietTargets.js";
-import { CTL_DAYS, dailyTrainingLoad } from "./stress.js";
+import { dailyTrainingLoad, trainingLoadSeriesStart } from "./stress.js";
 import {
   buildThresholdSeries,
   buildThresholdTimelines,
@@ -126,7 +126,7 @@ export function buildFitnessHistory(
   }
 
   const series = dailyTrainingLoad({
-    startDate: addDays(startDate, -CTL_DAYS),
+    startDate: trainingLoadSeriesStart(tssByDate, startDate),
     endDate,
     tssByDate,
   });

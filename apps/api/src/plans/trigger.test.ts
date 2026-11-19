@@ -1,5 +1,5 @@
 import { describe, expect, it, spyOn } from "bun:test";
-import type { PlanGenerationStatus } from "@killingit/shared";
+import { addDays, type PlanGenerationStatus } from "@killingit/shared";
 import type { ActivityFeed } from "../coaching/feed/presenter.js";
 import type { LlmClient } from "../llm/client.js";
 import type { QuestionAnswerStore } from "../questions/answers.js";
@@ -7,7 +7,12 @@ import type { UserStore } from "../users/store.js";
 import type { CoachingInputs } from "./inputs.js";
 import type { PlanGenerationStep } from "./steps.js";
 import type { PlanGenerationStore, PlanStore, StoredPlan } from "./store.js";
-import { makePlan } from "../testFixtures/plan.js";
+import { makeAnalyzedActivity, makePlan } from "../testFixtures/plan.js";
+import {
+  MemoryPlanStore,
+  makePlan as makeHarnessPlan,
+  makeStoredPlan,
+} from "../testFixtures/generationHarness.js";
 import { PLAN_FAILED_MESSAGE } from "./failure.js";
 import {
   HEARTBEAT_FAILURE_LIMIT,
@@ -486,6 +491,76 @@ describe("loadPlanGenerationContext", () => {
 
     expect(isGenerationSuperseded(failed)).toBe(true);
     expect(generations.failures).toEqual([]);
+  });
+});
+
+describe("plan generation load history", () => {
+  const today = "2026-10-21";
+
+  /** `count` cycling activities, newest first, the oldest outside the warm-up. */
+  function feed(count: number): ActivityFeed {
+    return {
+      model: null,
+      activities: Array.from({ length: count }, (_, index) =>
+        makeAnalyzedActivity({
+          id: index + 1,
+          startDate: `${addDays(today, -(index + 30))}T09:00:00Z`,
+          ...(index === 0
+            ? {
+                analysis: {
+                  text: "Easy aerobic ride.",
+                  model: "test-model",
+                  generatedAt: "2026-10-20T09:00:00Z",
+                  planChangeNeeded: false,
+                },
+              }
+            : {}),
+        }),
+      ),
+    };
+  }
+
+  async function savedTodayCtl(
+    activities: ActivityFeed,
+  ): Promise<number | undefined> {
+    const generations = new RecordingGenerationStore();
+    const plans = new MemoryPlanStore(
+      makeStoredPlan(
+        makeHarnessPlan(today),
+        null,
+        null,
+        new Date("2026-10-19T00:00:00Z"),
+      ),
+    );
+    const deps = dependencies(generations, {
+      plans,
+      loadActivities: () => Promise.resolve(activities),
+    });
+
+    await triggerPlanGeneration(deps, {
+      userId: 242,
+      today,
+      includeTomorrow: false,
+    });
+    await waitFor(
+      () =>
+        generations.status.status === "done" ||
+        generations.status.status === "error",
+    );
+
+    expect(generations.status.status).toBe("done");
+    return plans.saved?.plan.today.trainingLoad?.ctl;
+  }
+
+  it("seeds the plan's load from the whole stored activity history", async () => {
+    // The oldest five activities sit before the plan's 42-day prompt window but
+    // still carry fitness into the week. They must warm up CTL, not be dropped
+    // with the prompt's activity cap.
+    const wholeHistory = await savedTodayCtl(feed(25));
+    const cappedHistory = await savedTodayCtl(feed(20));
+
+    expect(wholeHistory).toBeDefined();
+    expect(wholeHistory ?? 0).toBeGreaterThan(cappedHistory ?? 0);
   });
 });
 

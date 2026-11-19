@@ -178,6 +178,22 @@ describe("applyTrainingLoad", () => {
     expect(tuesday?.trainingLoad?.tsb).toBe(-7.6);
   });
 
+  it("seeds the load from activities older than the past 42 days", () => {
+    const older = activity({ startDate: "2026-08-01T09:00:00Z" });
+    const monday = "2026-10-19";
+    const ctl = (activities: readonly AnalyzedActivity[]) => {
+      const loaded = applyTrainingLoad(plan, {
+        thresholdTimelines: statedFtp,
+        activities,
+      });
+      return loaded.week.sessions.find((entry) => entry.date === monday)
+        ?.trainingLoad?.ctl;
+    };
+    // Two months old still carries fitness into the week, and both the plan and
+    // the charts must see it.
+    expect(ctl([older])).toBeGreaterThan(ctl([]) ?? 0);
+  });
+
   it("adds an unpowered activity's fallback to the day's measured TSS", () => {
     const loaded = applyTrainingLoad(plan, {
       thresholdTimelines: statedFtp,

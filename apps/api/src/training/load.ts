@@ -20,6 +20,7 @@ import {
   CTL_DAYS,
   dailyTrainingLoad,
   estimatedTssFromSession,
+  trainingLoadSeriesStart,
 } from "./stress.js";
 import {
   ftpTimeline,
@@ -176,8 +177,11 @@ export function currentTrainingLoad(
     return null;
   }
   return (
-    dailyTrainingLoad({ startDate, endDate: today, tssByDate }).get(today) ??
-    null
+    dailyTrainingLoad({
+      startDate: trainingLoadSeriesStart(tssByDate, today),
+      endDate: today,
+      tssByDate,
+    }).get(today) ?? null
   );
 }
 
@@ -233,14 +237,20 @@ function applyWeekLoad(input: WeekLoadInput): LoadedWeek {
     );
   }
 
-  // Start far enough back for CTL to settle. Older recorded activities carry
-  // no planned TSS, so power-scored activities use their measured effort and
-  // the rest fall back to a duration estimate purely to seed the history.
-  const historyStartDate = addDays(week.startDate, -CTL_DAYS);
+  // Seed from every stored activity and manual entry, not just the days before
+  // the week: the chronic load needs its full 42-day warm-up, and the earliest
+  // training may be older than that window. The Fitness page and the Activities
+  // page build the same series from the same start, so the views agree.
   const seriesInput = new Map<string, number>();
   for (const [date, activities] of activitiesByDate) {
-    if (date >= historyStartDate && date < week.startDate) {
-      seriesInput.set(date, activityDayTss(activities, thresholdTimelines));
+    seriesInput.set(
+      date,
+      activityDayTss(activities, thresholdTimelines, manualTssByDate.get(date)),
+    );
+  }
+  for (const [date, value] of manualTssByDate) {
+    if (!activitiesByDate.has(date)) {
+      seriesInput.set(date, value);
     }
   }
   // A previously planned week already resolved its own TSS, including the
@@ -255,7 +265,7 @@ function applyWeekLoad(input: WeekLoadInput): LoadedWeek {
   }
 
   const series = dailyTrainingLoad({
-    startDate: historyStartDate,
+    startDate: trainingLoadSeriesStart(seriesInput, week.startDate),
     endDate: addDays(week.startDate, 6),
     tssByDate: seriesInput,
   });

@@ -150,7 +150,7 @@ export async function captureEndedPeriodReviews(
     apiKey: context.apiKey,
     model: seasonModelFor(context),
     athleteAnswers: context.answers,
-    activities: context.activities,
+    activities: context.recentActivities ?? context.activities,
     manualActivities: context.manualActivities,
     activityComments: context.activityComments,
     weeklyNote: context.weeklyNote,
