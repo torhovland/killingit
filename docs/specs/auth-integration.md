@@ -141,6 +141,14 @@ only replaces that module.
   keeps the expected outcome out of Sentry. `useRefreshTokensFallback` stays
   on so a session cached before refresh tokens existed is renewed silently via
   the iframe instead of failing.
+- **A contended renewal is retried once.** The SDK renews under a cross-tab
+  lock with a five-second budget and throws `TimeoutError` ("Timeout") when
+  another renewal — usually another tab, a frozen background tab, or a forced
+  refresh after a `401` — holds the lock past it. `requestTokenWithRetry`
+  retries that one error unchanged, because the competing renewal has by then
+  populated the cache or released the lock; a second timeout becomes
+  `TokenRenewalTimeoutError` with a message the athlete can act on, and the
+  session is kept. See `docs/specs/web-token-renewal.md`.
 - **Authentication is default-on for `/api/*`.** `createApp` registers
   `requireAuth` once on `/api/*` before the sub-app routes, and only the exact
   paths in `PUBLIC_API_PATHS` (`/api/health`) pass without a token. The plan

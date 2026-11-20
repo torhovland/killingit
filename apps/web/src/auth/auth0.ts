@@ -2,6 +2,7 @@ import { useCallback, useMemo } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import type { AppState } from "@auth0/auth0-react";
 import { isUnrecoverableSessionError, SessionExpiredError } from "./session.js";
+import { requestTokenWithRetry } from "./tokenRetry.js";
 
 /**
  * Auth0-specific adapter for the web app (ADR 0002 / spec `auth-integration`).
@@ -118,8 +119,8 @@ function useConfiguredAuth(): AuthState {
       if (!isAuthenticated) {
         return undefined;
       }
-      try {
-        return await getAccessTokenSilently({
+      const request = () =>
+        getAccessTokenSilently({
           // A 401 means the cached token was rejected. Skip the cache and
           // renew with the refresh token (or the silent iframe fallback).
           ...(options?.forceRefresh ? { cacheMode: "off" as const } : {}),
@@ -128,6 +129,10 @@ function useConfiguredAuth(): AuthState {
             scope: API_SCOPE,
           },
         });
+      try {
+        // A renewal lock held past the SDK's budget is retried once, so a slow
+        // renewal in another tab does not fail the request.
+        return await requestTokenWithRetry(request);
       } catch (error) {
         if (!isUnrecoverableSessionError(error)) {
           throw error;

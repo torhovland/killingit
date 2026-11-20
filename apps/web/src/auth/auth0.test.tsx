@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, mock } from "bun:test";
-import { MissingRefreshTokenError } from "@auth0/auth0-react";
+import { MissingRefreshTokenError, TimeoutError } from "@auth0/auth0-react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { AuthState } from "./auth0";
 import { SessionExpiredError } from "./session";
@@ -280,6 +280,42 @@ describe("useAuth with an Auth0 configuration", () => {
     const error = await session.getToken().catch((caught: unknown) => caught);
 
     expect(error).toBe(failure);
+    expect(logoutCalls).toHaveLength(0);
+  });
+
+  it("retries a token request whose renewal lock timed out", async () => {
+    let calls = 0;
+    provider = providerSession({
+      ...SIGNED_IN,
+      getAccessTokenSilently: () => {
+        calls += 1;
+        return calls === 1
+          ? Promise.reject(new TimeoutError())
+          : Promise.resolve("renewed-token");
+      },
+    });
+
+    const session = readSession(configuredModule.useAuth);
+
+    expect(await session.getToken()).toBe("renewed-token");
+    expect(calls).toBe(2);
+    expect(logoutCalls).toHaveLength(0);
+  });
+
+  it("keeps the session when the renewal keeps timing out", async () => {
+    provider = providerSession({
+      ...SIGNED_IN,
+      getAccessTokenSilently: () => Promise.reject(new TimeoutError()),
+    });
+
+    const session = readSession(configuredModule.useAuth);
+
+    const error = await session.getToken().catch((caught: unknown) => caught);
+
+    expect((error as Error).name).toBe("TokenRenewalTimeoutError");
+    expect((error as Error).message).toBe(
+      "Renewing your session timed out. Check your connection and try again.",
+    );
     expect(logoutCalls).toHaveLength(0);
   });
 
