@@ -56,7 +56,7 @@ describe("completePlanJson", () => {
       provider,
       credentials,
       messages,
-      4096,
+      { maxTokens: 4096 },
     );
 
     expect(result).toEqual({ title: "Easy run" });
@@ -74,7 +74,7 @@ describe("completePlanJson", () => {
       provider,
       credentials,
       messages,
-      4096,
+      { maxTokens: 4096 },
     );
 
     expect(result).toEqual({ title: "Easy run" });
@@ -92,7 +92,7 @@ describe("completePlanJson", () => {
       provider,
       credentials,
       messages,
-      4096,
+      { maxTokens: 4096 },
     );
 
     expect(result).toEqual({ title: "Easy run" });
@@ -118,17 +118,11 @@ describe("completePlanJson", () => {
   it("includes a caller's repair hint in the corrective turn", async () => {
     const provider = new FakeProvider(['{"title":""}', '{"title":"Easy run"}']);
 
-    await completePlanJson(
-      resultSchema,
-      provider,
-      credentials,
-      messages,
-      4096,
-      {
-        repairHint:
-          "The week must start on 2026-10-19 and today's date must be 2026-10-21.",
-      },
-    );
+    await completePlanJson(resultSchema, provider, credentials, messages, {
+      maxTokens: 4096,
+      repairHint:
+        "The week must start on 2026-10-19 and today's date must be 2026-10-21.",
+    });
 
     expect(provider.requests[1]?.messages.at(-1)?.content).toContain(
       "The week must start on 2026-10-19 and today's date must be 2026-10-21.",
@@ -140,13 +134,9 @@ describe("completePlanJson", () => {
 
     let failure: unknown;
     try {
-      await completePlanJson(
-        resultSchema,
-        provider,
-        credentials,
-        messages,
-        4096,
-      );
+      await completePlanJson(resultSchema, provider, credentials, messages, {
+        maxTokens: 4096,
+      });
     } catch (err) {
       failure = err;
     }
@@ -165,7 +155,7 @@ describe("completePlanJson", () => {
       provider,
       credentials,
       [system, user],
-      4096,
+      { maxTokens: 4096 },
     );
 
     expect(result).toEqual({ title: "Easy run" });
@@ -196,7 +186,7 @@ describe("completePlanJson", () => {
       provider,
       credentials,
       [system, user],
-      4096,
+      { maxTokens: 4096 },
     );
 
     expect(result).toEqual({ title: "Easy run" });
@@ -223,13 +213,9 @@ describe("completePlanJson", () => {
     ]);
 
     const failure = await failureOf(
-      completePlanJson(
-        resultSchema,
-        provider,
-        credentials,
-        [system, user],
-        16_384,
-      ),
+      completePlanJson(resultSchema, provider, credentials, [system, user], {
+        maxTokens: 16_384,
+      }),
     );
 
     expect(failure).toBeInstanceOf(LlmProviderError);

@@ -124,7 +124,20 @@ function localClockTime(value: string | null): string | null {
  * set so a partial or malformed response fails loudly instead of producing
  * forecast days with invented values.
  */
-function parseForecastResponse(body: unknown): DailyWeather[] {
+interface ForecastColumns {
+  dates: string[];
+  codes: (number | null)[];
+  maxTemperatures: (number | null)[];
+  minTemperatures: (number | null)[];
+  windSpeeds: (number | null)[];
+  windGusts: (number | null)[];
+  precipitation: (number | null)[];
+  sunrises: (string | null)[];
+  sunsets: (string | null)[];
+}
+
+/** Reads the daily columns and rejects a partial or ragged response. */
+function forecastColumns(body: unknown): ForecastColumns {
   const daily =
     typeof body === "object" && body !== null
       ? (body as { daily?: unknown }).daily
@@ -144,15 +157,15 @@ function parseForecastResponse(body: unknown): DailyWeather[] {
   const sunrises = asNullableStringArray(fields.sunrise);
   const sunsets = asNullableStringArray(fields.sunset);
   if (
-    !dates ||
-    !codes ||
-    !maxTemperatures ||
-    !minTemperatures ||
-    !windSpeeds ||
-    !windGusts ||
-    !precipitation ||
-    !sunrises ||
-    !sunsets ||
+    dates === null ||
+    codes === null ||
+    maxTemperatures === null ||
+    minTemperatures === null ||
+    windSpeeds === null ||
+    windGusts === null ||
+    precipitation === null ||
+    sunrises === null ||
+    sunsets === null ||
     dates.length !== codes.length ||
     dates.length !== maxTemperatures.length ||
     dates.length !== minTemperatures.length ||
@@ -165,49 +178,75 @@ function parseForecastResponse(body: unknown): DailyWeather[] {
     throw new Error("Weather service returned an unexpected forecast shape");
   }
 
+  return {
+    dates,
+    codes,
+    maxTemperatures,
+    minTemperatures,
+    windSpeeds,
+    windGusts,
+    precipitation,
+    sunrises,
+    sunsets,
+  };
+}
+
+/**
+ * One day's readings, or null when the service has not filled the day in yet.
+ * The preceding days are still useful, and the plan simply has no weather for
+ * the missing dates.
+ */
+function forecastReading(
+  columns: ForecastColumns,
+  index: number,
+): Omit<DailyWeather, "date"> | null {
+  const code = columns.codes[index];
+  const temperatureMaxC = columns.maxTemperatures[index];
+  const temperatureMinC = columns.minTemperatures[index];
+  const windMaxMs = columns.windSpeeds[index];
+  const gustMaxMs = columns.windGusts[index];
+  const precipitationMm = columns.precipitation[index];
+  if (
+    code === null ||
+    code === undefined ||
+    temperatureMaxC === null ||
+    temperatureMaxC === undefined ||
+    temperatureMinC === null ||
+    temperatureMinC === undefined ||
+    windMaxMs === null ||
+    windMaxMs === undefined ||
+    gustMaxMs === null ||
+    gustMaxMs === undefined ||
+    precipitationMm === null ||
+    precipitationMm === undefined
+  ) {
+    return null;
+  }
+  return {
+    icon: weatherIconForCode(code),
+    temperatureMaxC,
+    temperatureMinC,
+    windMaxMs,
+    gustMaxMs,
+    precipitationMm,
+    sunrise: localClockTime(columns.sunrises[index] ?? null),
+    sunset: localClockTime(columns.sunsets[index] ?? null),
+  };
+}
+
+function parseForecastResponse(body: unknown): DailyWeather[] {
+  const columns = forecastColumns(body);
   const days: DailyWeather[] = [];
-  for (let index = 0; index < dates.length; index += 1) {
-    const date = dates[index];
-    const code = codes[index];
-    const temperatureMaxC = maxTemperatures[index];
-    const temperatureMinC = minTemperatures[index];
-    const windMaxMs = windSpeeds[index];
-    const gustMaxMs = windGusts[index];
-    const precipitationMm = precipitation[index];
-    const sunrise = localClockTime(sunrises[index] ?? null);
-    const sunset = localClockTime(sunsets[index] ?? null);
+  for (let index = 0; index < columns.dates.length; index += 1) {
+    const date = columns.dates[index];
     if (date === undefined || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       throw new Error("Weather service returned an invalid forecast date");
     }
-    // Drop days the service has not filled in yet. The preceding days are
-    // still useful, and the plan simply has no weather for the missing dates.
-    if (
-      code === null ||
-      code === undefined ||
-      temperatureMaxC === null ||
-      temperatureMaxC === undefined ||
-      temperatureMinC === null ||
-      temperatureMinC === undefined ||
-      windMaxMs === null ||
-      windMaxMs === undefined ||
-      gustMaxMs === null ||
-      gustMaxMs === undefined ||
-      precipitationMm === null ||
-      precipitationMm === undefined
-    ) {
+    const reading = forecastReading(columns, index);
+    if (reading === null) {
       continue;
     }
-    days.push({
-      date,
-      icon: weatherIconForCode(code),
-      temperatureMaxC,
-      temperatureMinC,
-      windMaxMs,
-      gustMaxMs,
-      precipitationMm,
-      sunrise,
-      sunset,
-    });
+    days.push({ date, ...reading });
   }
   return days;
 }

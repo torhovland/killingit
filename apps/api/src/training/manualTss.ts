@@ -78,8 +78,7 @@ export async function estimateManualActivityTss(
           `Activity details: ${input.details.trim()}`,
         ].join("\n"),
       ),
-      1024,
-      { kind: "manual_tss" },
+      { maxTokens: 1024, kind: "manual_tss" },
     );
     if (
       input.userId !== undefined &&

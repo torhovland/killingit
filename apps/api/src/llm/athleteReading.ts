@@ -28,7 +28,6 @@ export async function extractAthleteReading(
     provider,
     credentials,
     buildAthleteReadingMessages(source),
-    ATHLETE_READING_MAX_TOKENS,
-    { kind: "athlete_reading" },
+    { maxTokens: ATHLETE_READING_MAX_TOKENS, kind: "athlete_reading" },
   );
 }

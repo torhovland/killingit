@@ -58,15 +58,20 @@ function aggregateLlmCosts(
     const label = catalogEntry?.name ?? routed;
     const costUsd = callCostUsd(call.usage, catalogEntry);
 
-    addCost(
-      monthly,
-      monthKey(call.createdAt),
+    addCost(monthly, {
+      bucket: monthKey(call.createdAt),
       model,
       label,
-      call.kind,
+      kind: call.kind,
       costUsd,
-    );
-    addCost(daily, dayKey(call.createdAt), model, label, call.kind, costUsd);
+    });
+    addCost(daily, {
+      bucket: dayKey(call.createdAt),
+      model,
+      label,
+      kind: call.kind,
+      costUsd,
+    });
   }
 
   return {
@@ -133,29 +138,35 @@ function callCostUsd(
   );
 }
 
+/** One call's contribution to a cost bucket. */
+interface CostEntry {
+  bucket: string;
+  model: string;
+  label: string;
+  kind: LlmPromptKind;
+  costUsd: number;
+}
+
 function addCost(
   buckets: Map<string, Map<string, BucketAccumulator>>,
-  bucket: string,
-  model: string,
-  label: string,
-  kind: LlmPromptKind,
-  costUsd: number,
+  entry: CostEntry,
 ): void {
-  const bySeries = buckets.get(bucket) ?? new Map<string, BucketAccumulator>();
+  const bySeries =
+    buckets.get(entry.bucket) ?? new Map<string, BucketAccumulator>();
   // One row per model and prompt kind, so the client can stack the same
   // buckets either by which model answered or by what the prompt was for.
-  const key = `${model}\u0000${kind}`;
-  const entry = bySeries.get(key) ?? {
-    model,
-    label,
-    kind,
+  const key = `${entry.model}\u0000${entry.kind}`;
+  const accumulator = bySeries.get(key) ?? {
+    model: entry.model,
+    label: entry.label,
+    kind: entry.kind,
     costUsd: 0,
     calls: 0,
   };
-  entry.costUsd += costUsd;
-  entry.calls += 1;
-  bySeries.set(key, entry);
-  buckets.set(bucket, bySeries);
+  accumulator.costUsd += entry.costUsd;
+  accumulator.calls += 1;
+  bySeries.set(key, accumulator);
+  buckets.set(entry.bucket, bySeries);
 }
 
 /** Turns the nested map into flat, period-sorted rows. */

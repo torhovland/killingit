@@ -132,17 +132,27 @@ export default tseslint.config(
     },
   },
   {
-    // A plan run is described by named options, not by a growing tail of
-    // positional booleans. These entry points take at most five parameters so a
-    // sixth one has to become part of an options object instead. See
-    // `docs/specs/plan-run-arguments.md`.
-    files: [
-      "apps/api/src/plans/generate.ts",
-      "apps/api/src/plans/status.ts",
-      "apps/api/src/plans/store.ts",
-      "apps/api/src/routes/plan.ts",
+    // A function is bounded in length, branching and positional arguments so a
+    // growing handler is split instead of becoming unreviewable. A plan run is
+    // also described by named options, not by a growing tail of positional
+    // booleans, so a sixth argument has to become part of an options object.
+    //
+    // These are the first ratchet step: the numbers catch today's worst
+    // offenders, every one of them is fixed rather than suppressed, and the
+    // benchmark harness is exempt until it becomes production code. Tighten the
+    // numbers as the tree shrinks; see `docs/specs/function-size-limits.md` and
+    // ADR 0061.
+    files: ["**/*.{ts,tsx}"],
+    ignores: [
+      "**/*.test.{ts,tsx}",
+      "**/*.d.ts",
+      "apps/api/e2e/**",
+      "apps/web/e2e/**",
+      "tools/benchmark/**",
     ],
     rules: {
+      complexity: ["error", 30],
+      "max-lines-per-function": ["error", 200],
       "max-params": ["error", 5],
     },
   },

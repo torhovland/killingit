@@ -16,6 +16,8 @@ import {
 import { PLAN_TEMPERATURE, REPAIR_TEMPERATURE } from "./sampling.js";
 
 export interface PlanJsonCompletionOptions {
+  /** The completion budget for the initial call and every repair turn. */
+  maxTokens: number;
   /**
    * Extra instruction for the repair turn. Used when the caller knows a
    * constraint the generic validation message cannot express, such as the exact
@@ -48,15 +50,14 @@ export async function completePlanJson<T>(
   provider: LlmProvider,
   credentials: CompletionCredentials,
   messages: LlmProviderMessage[],
-  maxTokens: number,
-  options: PlanJsonCompletionOptions = {},
+  options: PlanJsonCompletionOptions,
 ): Promise<T> {
   const budget = createCompletionBudget({
     attempts: PLAN_LEVEL_MAX_COMPLETIONS,
     budgetMs: COMPLETION_BUDGET_MS,
   });
   const callOptions: CompletionOptions = {
-    maxTokens,
+    maxTokens: options.maxTokens,
     temperature: PLAN_TEMPERATURE,
     kind: options.kind,
     metadata: options.metadata,
