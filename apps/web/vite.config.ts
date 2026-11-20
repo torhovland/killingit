@@ -27,7 +27,16 @@ const sentryPlugins =
           ...(sentryRelease
             ? { release: { name: sentryRelease, inject: false } }
             : {}),
-          sourcemaps: { filesToDeleteAfterUpload: ["**/*.js.map"] },
+          // The plugin removes the maps from `dist` once it has uploaded them,
+          // so a failed upload leaves a bundle Sentry can never symbolicate.
+          // Failing the build keeps that bundle from being deployed; see
+          // `docs/specs/error-monitoring.md`.
+          errorHandler: (error) => {
+            throw error;
+          },
+          // Hidden maps for an uploaded build: the deployed JS carries no
+          // `sourceMappingURL` for a map that is not published beside it.
+          sourcemaps: { deleteSourcemapsAfterUpload: true },
         }),
       ]
     : [];
