@@ -168,8 +168,11 @@ export async function captureCompletedPeriodReviews(
           input.plan.week,
           input.activities,
           input.today,
-          input.timezone ?? null,
-          input.manualActivities,
+          {
+            timeZone: input.timezone ?? null,
+            manualActivities: input.manualActivities,
+            todayPlan: undefined,
+          },
         ),
       }),
     });

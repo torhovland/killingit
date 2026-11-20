@@ -135,14 +135,17 @@ export function applyCompletedDays(
   week: WeekPlan,
   activities: readonly AnalyzedActivity[],
   today: string,
-  timeZone: string | null | undefined,
-  manualActivities: readonly ManualActivityContext[] = [],
-  todayPlan?: DayPlan,
+  options: {
+    timeZone: string | null | undefined;
+    manualActivities: readonly ManualActivityContext[] | undefined;
+    todayPlan: DayPlan | undefined;
+  },
 ): WeekPlan {
+  const { timeZone, manualActivities, todayPlan } = options;
   const sessions = week.sessions.map((session) => {
     const dayActivities = activitiesOnDate(
       activities,
-      manualActivities,
+      manualActivities ?? [],
       timeZone,
       session.date,
     );

@@ -25,6 +25,105 @@ const CHART_HEIGHT = 280;
 const PLOT_WIDTH = CHART_WIDTH - CHART_PADDING.left - CHART_PADDING.right;
 const PLOT_HEIGHT = CHART_HEIGHT - CHART_PADDING.top - CHART_PADDING.bottom;
 
+/** The y-axis grid lines and their dollar labels. */
+function CostAxisTicks({ axis }: { axis: ReturnType<typeof costAxis> }) {
+  return (
+    <>
+      {axis.ticks.map((tick) => {
+        const y = PLOT_HEIGHT - (tick / axis.max) * PLOT_HEIGHT;
+        return (
+          <g key={tick}>
+            <line
+              x1={0}
+              x2={PLOT_WIDTH}
+              y1={y}
+              y2={y}
+              className="stroke-border"
+              strokeWidth={1}
+            />
+            <text
+              x={-6}
+              y={y}
+              textAnchor="end"
+              dominantBaseline="middle"
+              className="fill-muted-foreground text-[10px]"
+            >
+              {formatCostAxis(tick)}
+            </text>
+          </g>
+        );
+      })}
+    </>
+  );
+}
+
+/** The bucket labels under the plot, anchored so the edge slots stay inside. */
+function CostBucketLabels({
+  buckets,
+  xLabels,
+  slot,
+}: {
+  buckets: readonly CostBucket[];
+  xLabels: readonly number[];
+  slot: number;
+}) {
+  return (
+    <>
+      {xLabels.map((index) => {
+        const bucket = buckets[index];
+        if (bucket === undefined) {
+          return null;
+        }
+        return (
+          <text
+            key={bucket.key}
+            x={slot * index + slot / 2}
+            y={PLOT_HEIGHT + 14}
+            textAnchor={
+              index === 0
+                ? "start"
+                : index === buckets.length - 1
+                  ? "end"
+                  : "middle"
+            }
+            className="fill-muted-foreground text-[10px]"
+          >
+            {bucket.label}
+          </text>
+        );
+      })}
+    </>
+  );
+}
+
+/** The legend for the series that spent money in this period. */
+function CostSeriesLegend({
+  data,
+  visibleSeries,
+  testId,
+}: {
+  data: CostChartData;
+  visibleSeries: readonly CostSeriesTotal[];
+  testId: string;
+}) {
+  return (
+    <ChartLegend
+      className={CHART_LEGEND_INSET_CLASS}
+      testId={`${testId}-legend`}
+      items={visibleSeries.map((series) => ({
+        key: series.series,
+        label: series.label,
+        swatch:
+          COST_SERIES_SWATCH[
+            data.series.indexOf(series) % COST_SERIES_SWATCH.length
+          ],
+        swatchShape: "square",
+        text: null,
+      }))}
+    />
+  );
+}
+
 /**
  * A bar chart of LLM spend where each bar is split into one segment per series:
  * a model or a prompt type. The white plot matches the other charts, and
@@ -137,30 +236,7 @@ export function CostBarChart({
               height={PLOT_HEIGHT}
               className="fill-card"
             />
-            {axis.ticks.map((tick) => {
-              const y = PLOT_HEIGHT - (tick / axis.max) * PLOT_HEIGHT;
-              return (
-                <g key={tick}>
-                  <line
-                    x1={0}
-                    x2={PLOT_WIDTH}
-                    y1={y}
-                    y2={y}
-                    className="stroke-border"
-                    strokeWidth={1}
-                  />
-                  <text
-                    x={-6}
-                    y={y}
-                    textAnchor="end"
-                    dominantBaseline="middle"
-                    className="fill-muted-foreground text-[10px]"
-                  >
-                    {formatCostAxis(tick)}
-                  </text>
-                </g>
-              );
-            })}
+            <CostAxisTicks axis={axis} />
             {hoveredBucket !== null && (
               <rect
                 x={slot * (hovered ?? 0)}
@@ -181,29 +257,11 @@ export function CostBarChart({
                 series={data.series}
               />
             ))}
-            {xLabels.map((index) => {
-              const bucket = data.buckets[index];
-              if (bucket === undefined) {
-                return null;
-              }
-              return (
-                <text
-                  key={bucket.key}
-                  x={slot * index + slot / 2}
-                  y={PLOT_HEIGHT + 14}
-                  textAnchor={
-                    index === 0
-                      ? "start"
-                      : index === data.buckets.length - 1
-                        ? "end"
-                        : "middle"
-                  }
-                  className="fill-muted-foreground text-[10px]"
-                >
-                  {bucket.label}
-                </text>
-              );
-            })}
+            <CostBucketLabels
+              buckets={data.buckets}
+              xLabels={xLabels}
+              slot={slot}
+            />
           </g>
         </svg>
         <p id={keyboard.instructionId} className="sr-only">
@@ -229,19 +287,10 @@ export function CostBarChart({
         </div>
       </div>
       {visibleSeries.length > 0 && (
-        <ChartLegend
-          className={CHART_LEGEND_INSET_CLASS}
-          testId={`${testId}-legend`}
-          items={visibleSeries.map((series) => ({
-            key: series.series,
-            label: series.label,
-            swatch:
-              COST_SERIES_SWATCH[
-                data.series.indexOf(series) % COST_SERIES_SWATCH.length
-              ],
-            swatchShape: "square",
-            text: null,
-          }))}
+        <CostSeriesLegend
+          data={data}
+          visibleSeries={visibleSeries}
+          testId={testId}
         />
       )}
     </figure>

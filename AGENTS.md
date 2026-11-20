@@ -164,7 +164,10 @@ through a disciplined process:
    (`bun run typecheck`, `bun run lint`, `bun run format`,
    `bun run check:unused`). Every TypeScript file belongs to one named project —
    each package has its `tsconfig.json` and the root `tsconfig.scripts.json` owns
-   `scripts/` — and a guard test fails on a new root-level tree. See
+   `scripts/` — and a guard test fails on a new root-level tree. ESLint also
+   bounds function length, complexity and positional parameters, so an
+   oversized handler is split when it is written rather than after review. See
+   `docs/specs/function-size-limits.md`, ADR 0061,
    `docs/specs/typescript-project-coverage.md` and ADR 0054.
 6. **Full test coverage on every feature**, across every layer: unit tests with
    `bun:test`; the Garmin sidecar's pytest/ruff/mypy suite via
@@ -302,4 +305,4 @@ a spec is missing.
 **API and backend:** `docs/specs/api-dependency-wiring.md`, `docs/specs/api-errors.md`, `docs/specs/api-logging.md`, `docs/specs/api-query-validation.md`, `docs/specs/api-server-entry.md`, `docs/specs/api-versioning.md`, `docs/specs/authenticated-user-middleware.md`, `docs/specs/auth-integration.md`, `docs/specs/credential-encryption.md`, `docs/specs/database-connection.md`, `docs/specs/db-executor-types.md`, `docs/specs/route-param-validation.md`, `docs/specs/shared-api-boundary.md`, `docs/specs/shared-date-helpers.md`, `docs/specs/shared-package-barrel.md`,
 `docs/specs/unused-exports.md`.
 
-**Tests, infrastructure and process:** `docs/specs/database-indexes.md`, `docs/specs/database-integration-tests.md`, `docs/specs/e2e-tests.md`, `docs/specs/test-coverage.md`, `docs/specs/test-file-organisation.md`, `docs/specs/agent-access-script.md`, `docs/specs/ci-build-job.md`, `docs/specs/deploy-workflow.md`, `docs/specs/third-party-notices.md`, `docs/specs/typescript-project-coverage.md`, `docs/specs/error-monitoring.md`, `docs/specs/account-deletion.md`, `docs/specs/admin-settings.md`, `docs/specs/location-and-weather.md`.
+**Tests, infrastructure and process:** `docs/specs/database-indexes.md`, `docs/specs/database-integration-tests.md`, `docs/specs/e2e-tests.md`, `docs/specs/test-coverage.md`, `docs/specs/test-file-organisation.md`, `docs/specs/agent-access-script.md`, `docs/specs/ci-build-job.md`, `docs/specs/deploy-workflow.md`, `docs/specs/third-party-notices.md`, `docs/specs/typescript-project-coverage.md`, `docs/specs/function-size-limits.md`, `docs/specs/error-monitoring.md`, `docs/specs/account-deletion.md`, `docs/specs/admin-settings.md`, `docs/specs/location-and-weather.md`.

@@ -117,10 +117,8 @@ export interface ResolvedCoachingDependencies {
   startRun: typeof startCoachRun;
 }
 
-/** Fills every optional dependency with the production implementation. */
-export function resolveCoachingDependencies(
-  deps: ResolvedAppDependencies,
-): ResolvedCoachingDependencies {
+/** The activity and period-review dependencies, each with its default. */
+function activityDependencies(deps: ResolvedAppDependencies) {
   const loadActivities =
     deps.loadActivities ??
     ((userId: number, today?: string, timezone?: string) =>
@@ -133,23 +131,7 @@ export function resolveCoachingDependencies(
         today,
         timezone,
       }));
-  const llmLoader = deps.loadLlm ?? loadLlmClient;
-  const loadAnsweredQuestions =
-    deps.loadAnsweredCoachQuestions ?? loadAnsweredCoachQuestions;
-
-  const triggerDeps: PlanTriggerDependencies = {
-    ...planTriggerDependencies(deps),
-    loadAnsweredCoachQuestions: loadAnsweredQuestions,
-  };
-  const coachRunDeps: CoachRunDependencies = {
-    ...triggerDeps,
-    loadLlm: llmLoader,
-  };
-
   return {
-    answers: deps.answerStore,
-    plans: deps.planStore,
-    generations: deps.generationStore,
     loadActivities,
     loadStoredFeed: deps.loadStoredFeed ?? loadStoredActivityFeed,
     loadFeedback: deps.loadActivityFeedback ?? loadActivityFeedback,
@@ -178,6 +160,15 @@ export function resolveCoachingDependencies(
     updateManualTss: deps.updateManualActivityTss ?? updateManualActivityTss,
     deleteImported: deps.deleteImportedActivity ?? deleteImportedActivity,
     deleteManual: deps.deleteManualActivity ?? deleteManualActivity,
+  };
+}
+
+/** The reply and coach-question dependencies, each with its default. */
+function replyDependencies(
+  deps: ResolvedAppDependencies,
+  loadAnsweredQuestions: typeof loadAnsweredCoachQuestions,
+) {
+  return {
     reply: deps.replyToCoachingInput ?? replyToCoachingInput,
     replyToQuestion: deps.replyToCoachQuestion ?? replyToCoachQuestion,
     askQuickQuestion: deps.answerCoachingQuestion ?? answerCoachingQuestion,
@@ -186,12 +177,46 @@ export function resolveCoachingDependencies(
     loadAnsweredQuestions,
     loadQuestion: deps.loadCoachQuestion ?? loadCoachQuestion,
     saveQuestionAnswer: deps.answerCoachQuestion ?? answerCoachQuestion,
+  };
+}
+
+/** The plan-run dependencies shared by the trigger and the coach run. */
+function runDependencies(
+  deps: ResolvedAppDependencies,
+  loadAnsweredQuestions: typeof loadAnsweredCoachQuestions,
+) {
+  const llmLoader = deps.loadLlm ?? loadLlmClient;
+  const triggerDeps: PlanTriggerDependencies = {
+    ...planTriggerDependencies(deps),
+    loadAnsweredCoachQuestions: loadAnsweredQuestions,
+  };
+  const coachRunDeps: CoachRunDependencies = {
+    ...triggerDeps,
+    loadLlm: llmLoader,
+  };
+  return {
     trigger: deps.triggerPlanGeneration ?? triggerPlanGeneration,
     llmLoader,
     loadThresholds: deps.loadThresholdHistory ?? loadThresholdHistoryForUser,
     triggerDeps,
     coachRunDeps,
     startRun: deps.startCoachRun ?? startCoachRun,
+  };
+}
+
+/** Fills every optional dependency with the production implementation. */
+export function resolveCoachingDependencies(
+  deps: ResolvedAppDependencies,
+): ResolvedCoachingDependencies {
+  const loadAnsweredQuestions =
+    deps.loadAnsweredCoachQuestions ?? loadAnsweredCoachQuestions;
+  return {
+    answers: deps.answerStore,
+    plans: deps.planStore,
+    generations: deps.generationStore,
+    ...activityDependencies(deps),
+    ...replyDependencies(deps, loadAnsweredQuestions),
+    ...runDependencies(deps, loadAnsweredQuestions),
   };
 }
 

@@ -44,8 +44,10 @@ lengthens the tail that every caller must repeat.
 3. `PlanStore.save(options)` takes one options object with the user id, the
    plan, the three timestamps and the optional run id.
 4. `buildResponse(options)` in the plan route takes one options object.
-5. The plan modules and the plan route declare an ESLint `max-params` limit so a
-   sixth positional argument cannot come back unnoticed.
+5. The plan modules and the plan route are covered by the tree-wide
+   `max-params` limit of five in `eslint.config.js`, so a sixth positional
+   argument cannot come back unnoticed. See
+   `docs/specs/function-size-limits.md`.
 
 ### Out of scope
 

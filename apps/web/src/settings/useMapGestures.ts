@@ -37,45 +37,18 @@ export interface MapGestureHandlers {
   onPointerCancel: () => void;
 }
 
-/**
- * Pointer pan and click, wheel zoom and keyboard control for the location
- * picker. The wheel and keydown listeners live on the DOM element rather than
- * in JSX so the wheel listener can be non-passive and the `role="application"`
- * surface can own its keys; see `docs/specs/accessibility-lint.md`.
- */
-export function useMapGestures({
+/** Wheel zoom on the map element, non-passive so the page does not scroll. */
+function useWheelZoom({
   mapRef,
   viewport,
-  center,
-  zoom,
-  size,
   changeView,
-  panTo,
-  selectPoint,
 }: {
   mapRef: RefObject<HTMLDivElement | null>;
   viewport: RefObject<MapViewport>;
-  center: MapPoint;
-  zoom: number;
-  size: MapSize;
   changeView: (nextCenter: MapPoint, nextZoom: number) => void;
-  panTo: (nextCenter: MapPoint) => void;
-  selectPoint: (latitude: number, longitude: number) => void;
-}): MapGestureHandlers {
-  const drag = useRef<DragState | null>(null);
+}): void {
   const wheelDelta = useRef(0);
   const lastWheelZoom = useRef(0);
-  const pendingPan = useRef<MapPoint | null>(null);
-  const panFrame = useRef<number | null>(null);
-
-  useEffect(
-    () => () => {
-      if (panFrame.current !== null) {
-        cancelAnimationFrame(panFrame.current);
-      }
-    },
-    [],
-  );
 
   // Wheel listeners must be non-passive so zooming the map does not scroll the
   // page. React attaches wheel events passively at the root, so use the DOM.
@@ -124,7 +97,25 @@ export function useMapGestures({
     target.addEventListener("wheel", handleWheel, { passive: false });
     return () => target.removeEventListener("wheel", handleWheel);
   }, [changeView, mapRef, viewport]);
+}
 
+/**
+ * Keyboard pan, zoom and selection for the `role="application"` map
+ * surface. The element owns its keydown listener because `jsx-a11y`
+ * classifies `application` as a structural role; see
+ * `docs/specs/accessibility-lint.md`.
+ */
+function useMapKeyboard({
+  mapRef,
+  viewport,
+  changeView,
+  selectPoint,
+}: {
+  mapRef: RefObject<HTMLDivElement | null>;
+  viewport: RefObject<MapViewport>;
+  changeView: (nextCenter: MapPoint, nextZoom: number) => void;
+  selectPoint: (latitude: number, longitude: number) => void;
+}): void {
   // The map is a `role="application"` surface, so a keyboard user can drive it
   // without the pointer. React's synthetic key handler is not usable here:
   // `jsx-a11y` classifies `application` as a structural role and would reject
@@ -195,6 +186,48 @@ export function useMapGestures({
     target.addEventListener("keydown", handleKeyDown);
     return () => target.removeEventListener("keydown", handleKeyDown);
   }, [changeView, mapRef, selectPoint, viewport]);
+}
+
+/**
+ * Pointer pan and click, wheel zoom and keyboard control for the location
+ * picker. The wheel and keydown listeners live on the DOM element rather than
+ * in JSX so the wheel listener can be non-passive and the `role="application"`
+ * surface can own its keys; see `docs/specs/accessibility-lint.md`.
+ */
+export function useMapGestures({
+  mapRef,
+  viewport,
+  center,
+  zoom,
+  size,
+  changeView,
+  panTo,
+  selectPoint,
+}: {
+  mapRef: RefObject<HTMLDivElement | null>;
+  viewport: RefObject<MapViewport>;
+  center: MapPoint;
+  zoom: number;
+  size: MapSize;
+  changeView: (nextCenter: MapPoint, nextZoom: number) => void;
+  panTo: (nextCenter: MapPoint) => void;
+  selectPoint: (latitude: number, longitude: number) => void;
+}): MapGestureHandlers {
+  const drag = useRef<DragState | null>(null);
+  const pendingPan = useRef<MapPoint | null>(null);
+  const panFrame = useRef<number | null>(null);
+
+  useEffect(
+    () => () => {
+      if (panFrame.current !== null) {
+        cancelAnimationFrame(panFrame.current);
+      }
+    },
+    [],
+  );
+
+  useWheelZoom({ mapRef, viewport, changeView });
+  useMapKeyboard({ mapRef, viewport, changeView, selectPoint });
 
   function pointFromEvent(event: ReactPointerEvent<HTMLDivElement>): MapPoint {
     const rect = event.currentTarget.getBoundingClientRect();

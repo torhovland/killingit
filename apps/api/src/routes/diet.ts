@@ -7,6 +7,8 @@ import {
   foodEntryUpdateRequestSchema,
   idParamSchema,
   type FoodAnalysis,
+  type FoodEntryRequest,
+  type FoodEntryUpdateRequest,
 } from "@killingit/shared";
 import { zValidator } from "../http/validation.js";
 import { Hono } from "hono";
@@ -36,7 +38,7 @@ import { loadValidatedPlan } from "../plans/store.js";
 import type { QuestionAnswerStore } from "../questions/answers.js";
 import { buildDietSummary } from "../diet/days.js";
 import { toFoodEntry } from "../diet/presenter.js";
-import { dbFoodEntryStore } from "../diet/store.js";
+import { dbFoodEntryStore, type FoodEntryStore } from "../diet/store.js";
 import { createMealPhotos } from "../diet/thumbnail.js";
 
 /** The reported reason when no provider is configured. */
@@ -217,6 +219,240 @@ function resolveMeal(
   };
 }
 
+/** Everything the diet handlers share, resolved once per route. */
+interface DietRouteContext {
+  entries: FoodEntryStore;
+  loadTargets: typeof loadPlanDayCalorieTargets;
+  planStore: ResolvedAppDependencies["planStore"];
+  analysisDeps: Parameters<typeof analyseMeal>[1];
+  readPhoto: (photoDataUrl: string | null) => Promise<MealPhotoPair | null>;
+}
+
+/**
+ * Reads a meal photo into the bounded analysis copy and the stored thumbnail.
+ * A missing photo yields two nulls; unreadable bytes are logged and yield null,
+ * so the create and edit handlers reject with one answer.
+ */
+async function readMealPhoto(
+  createPhotos: typeof createMealPhotos,
+  photoDataUrl: string | null,
+): Promise<MealPhotoPair | null> {
+  if (photoDataUrl === null) {
+    return { analysisDataUrl: null, thumbnailDataUrl: null };
+  }
+  try {
+    return await createPhotos(photoDataUrl);
+  } catch (err) {
+    console.error("[diet] could not read the meal photo:", err);
+    return null;
+  }
+}
+
+/** The diet summary, or an empty one before the athlete enables advice. */
+async function dietSummary(
+  c: Context,
+  today: string,
+  context: DietRouteContext,
+) {
+  const user = getUser(c);
+  if (!user.dietAdvice) {
+    return c.json(
+      dietSummaryResponseSchema.parse({
+        goal: null,
+        goalProvided: false,
+        assessment: null,
+        days: [],
+      }),
+    );
+  }
+
+  const stored = await context.entries.listForUser(user.id);
+  const earliest =
+    stored.map((entry) => entry.eatenDate).sort()[0] ??
+    addDays(today, -EMPTY_SUMMARY_DAYS);
+  const [targets, plan] = await Promise.all([
+    context.loadTargets(user.id, earliest, today),
+    loadValidatedPlan(context.planStore, user.id),
+  ]);
+  const diet = plan?.plan.diet ?? null;
+  // The summary always reports a boolean, so no stored plan reads as "the
+  // athlete stated no goal"; the tri-state helper keeps that choice here.
+  const goalProvided = isDietGoalProvided(diet) ?? false;
+  return c.json(
+    dietSummaryResponseSchema.parse(
+      buildDietSummary({
+        entries: stored,
+        targets,
+        goal: diet?.goal ?? null,
+        goalProvided,
+        assessment: diet?.assessment ?? null,
+        today,
+      }),
+    ),
+  );
+}
+
+/** Lists the athlete's meals, newest first. */
+async function listEntries(c: Context, entries: FoodEntryStore) {
+  const user = getUser(c);
+  const stored = await entries.listForUser(user.id);
+  return c.json(
+    foodEntriesResponseSchema.parse({
+      entries: stored.map(toFoodEntry),
+    }),
+  );
+}
+
+/** Stores a new meal after the coach has analysed it. */
+async function createEntry(
+  c: Context,
+  input: FoodEntryRequest,
+  context: DietRouteContext,
+) {
+  const user = getUser(c);
+  const refusal = requireDietAdvice(c, user.dietAdvice);
+  if (refusal !== null) {
+    return refusal;
+  }
+
+  const meal = resolveMeal(input, {
+    eatenAt: new Date(input.eatenAt),
+    storedDescription: null,
+    accountTimezone: user.timezone,
+  });
+  // The bounded analysis copy and the thumbnail are generated from the same
+  // bytes, so the coach and the stored image can never disagree. Neither the
+  // original nor the analysis copy is stored.
+  const photos = await context.readPhoto(input.photoDataUrl ?? null);
+  if (photos === null) {
+    return badRequest(c, UNREADABLE_PHOTO_MESSAGE);
+  }
+
+  const result = await analyseMeal(
+    {
+      userId: user.id,
+      today: meal.today,
+      eatenDate: meal.eatenDate,
+      eatenTime: meal.eatenTime,
+      description: meal.description,
+      photoDataUrl: photos.analysisDataUrl,
+    },
+    context.analysisDeps,
+  );
+
+  const stored = await context.entries.create(user.id, {
+    eatenAt: meal.eatenAt,
+    eatenDate: meal.eatenDate,
+    eatenTime: meal.eatenTime,
+    description: meal.description,
+    thumbnailDataUrl: photos.thumbnailDataUrl,
+    analysis: result.analysis,
+    model: result.model,
+    analysisError: result.analysisError,
+  });
+  return c.json(foodEntrySchema.parse(toFoodEntry(stored)), 201);
+}
+
+/** Re-analyses an edited meal, keeping or replacing its photo. */
+async function updateEntry(
+  c: Context,
+  id: number,
+  input: FoodEntryUpdateRequest,
+  context: DietRouteContext,
+) {
+  const user = getUser(c);
+  const refusal = requireDietAdvice(c, user.dietAdvice);
+  if (refusal !== null) {
+    return refusal;
+  }
+  const existing = await context.entries.findForUser(user.id, id);
+  if (existing === null) {
+    return notFound(c, "Meal not found");
+  }
+
+  const meal = resolveMeal(input, {
+    eatenAt:
+      input.eatenAt === undefined ? existing.eatenAt : new Date(input.eatenAt),
+    storedDescription: existing.description,
+    accountTimezone: user.timezone,
+  });
+
+  // An edit without a new photo re-analyses the stored thumbnail, because the
+  // full-resolution original and the analysis copy are never kept. Removing the
+  // photo sends no image at all.
+  let thumbnailDataUrl = existing.thumbnailDataUrl;
+  let photoDataUrl = existing.thumbnailDataUrl;
+  const newPhoto = input.photoDataUrl ?? null;
+  if (newPhoto !== null) {
+    const photos = await context.readPhoto(newPhoto);
+    if (photos === null) {
+      return badRequest(c, UNREADABLE_PHOTO_MESSAGE);
+    }
+    thumbnailDataUrl = photos.thumbnailDataUrl;
+    photoDataUrl = photos.analysisDataUrl;
+  } else if (input.removePhoto === true) {
+    thumbnailDataUrl = null;
+    photoDataUrl = null;
+  }
+
+  if (meal.description === null && thumbnailDataUrl === null) {
+    return badRequest(c, "Describe the meal or keep a photo.");
+  }
+
+  const result = await analyseMeal(
+    {
+      userId: user.id,
+      today: meal.today,
+      eatenDate: meal.eatenDate,
+      eatenTime: meal.eatenTime,
+      description: meal.description,
+      photoDataUrl,
+      previous: {
+        description: existing.description,
+        analysis: existing.analysis,
+      },
+    },
+    context.analysisDeps,
+  );
+
+  const stored = await context.entries.update(user.id, id, {
+    eatenAt: meal.eatenAt,
+    eatenDate: meal.eatenDate,
+    eatenTime: meal.eatenTime,
+    description: meal.description,
+    thumbnailDataUrl,
+    analysis: result.analysis,
+    model: result.model,
+    analysisError: result.analysisError,
+  });
+  if (stored === null) {
+    return notFound(c, "Meal not found");
+  }
+  return c.json(foodEntrySchema.parse(toFoodEntry(stored)));
+}
+
+/** One meal's stored photo, served with revalidation. */
+async function mealPhoto(c: Context, id: number, entries: FoodEntryStore) {
+  const user = getUser(c);
+  const dataUrl = await entries.photo(user.id, id);
+  if (dataUrl === null) {
+    return notFound(c, "Photo not found");
+  }
+  const photo = decodePhoto(dataUrl);
+  if (photo === null) {
+    return notFound(c, "Photo not found");
+  }
+  return new Response(photo.bytes, {
+    status: 200,
+    headers: {
+      "content-type": photo.contentType,
+      // A meal's photo can be replaced, so the browser must revalidate. The
+      // client adds the entry's updatedAt to the URL for a fresh read.
+      "cache-control": "private, no-cache",
+    },
+  });
+}
+
 /**
  * The diet log. Logging requires the athlete to have enabled diet advice; the
  * meal is stored even when the coach cannot analyse it, so nothing the athlete
@@ -225,235 +461,36 @@ function resolveMeal(
  */
 export function createDietRoute(deps: ResolvedAppDependencies): Hono {
   const entries = deps.dietEntries ?? dbFoodEntryStore;
-  const loadTargets = deps.loadDayCalorieTargets ?? loadPlanDayCalorieTargets;
-  const llmLoader = deps.loadLlm ?? loadLlmClient;
-  const loadContext = deps.loadFoodContext ?? loadReplyContext;
-  const analyze = deps.analyzeFood ?? analyzeFood;
-  const createPhotos = deps.createMealPhotos ?? createMealPhotos;
-  const analysisDeps = {
-    answers: deps.answerStore,
-    loadLlm: llmLoader,
-    loadContext,
-    analyze,
+  const context: DietRouteContext = {
+    entries,
+    loadTargets: deps.loadDayCalorieTargets ?? loadPlanDayCalorieTargets,
+    planStore: deps.planStore,
+    analysisDeps: {
+      answers: deps.answerStore,
+      loadLlm: deps.loadLlm ?? loadLlmClient,
+      loadContext: deps.loadFoodContext ?? loadReplyContext,
+      analyze: deps.analyzeFood ?? analyzeFood,
+    },
+    readPhoto: (photoDataUrl) =>
+      readMealPhoto(deps.createMealPhotos ?? createMealPhotos, photoDataUrl),
   };
 
-  /**
-   * Reads a meal photo into the bounded analysis copy and the stored
-   * thumbnail. A missing photo yields two nulls; unreadable bytes are logged
-   * and yield null, so the create and edit handlers reject with one answer.
-   */
-  async function processPhoto(
-    photoDataUrl: string | null,
-  ): Promise<MealPhotoPair | null> {
-    if (photoDataUrl === null) {
-      return { analysisDataUrl: null, thumbnailDataUrl: null };
-    }
-    try {
-      return await createPhotos(photoDataUrl);
-    } catch (err) {
-      console.error("[diet] could not read the meal photo:", err);
-      return null;
-    }
-  }
-
   return new Hono()
-    .get("/summary", zValidator("query", todayQuerySchema), async (c) => {
-      const { today } = c.req.valid("query");
-      const user = getUser(c);
-      if (!user.dietAdvice) {
-        return c.json(
-          dietSummaryResponseSchema.parse({
-            goal: null,
-            goalProvided: false,
-            assessment: null,
-            days: [],
-          }),
-        );
-      }
-
-      const stored = await entries.listForUser(user.id);
-      const earliest =
-        stored.map((entry) => entry.eatenDate).sort()[0] ??
-        addDays(today, -EMPTY_SUMMARY_DAYS);
-      const [targets, plan] = await Promise.all([
-        loadTargets(user.id, earliest, today),
-        loadValidatedPlan(deps.planStore, user.id),
-      ]);
-      const diet = plan?.plan.diet ?? null;
-      // The summary always reports a boolean, so no stored plan reads as "the
-      // athlete stated no goal"; the tri-state helper keeps that choice here.
-      const goalProvided = isDietGoalProvided(diet) ?? false;
-      return c.json(
-        dietSummaryResponseSchema.parse(
-          buildDietSummary({
-            entries: stored,
-            targets,
-            goal: diet?.goal ?? null,
-            goalProvided,
-            assessment: diet?.assessment ?? null,
-            today: today,
-          }),
-        ),
-      );
-    })
-    .get("/entries", async (c) => {
-      const user = getUser(c);
-      const stored = await entries.listForUser(user.id);
-      return c.json(
-        foodEntriesResponseSchema.parse({
-          entries: stored.map(toFoodEntry),
-        }),
-      );
-    })
-    .post("/entries", zValidator("json", foodEntryRequestSchema), async (c) => {
-      const user = getUser(c);
-      const refusal = requireDietAdvice(c, user.dietAdvice);
-      if (refusal !== null) {
-        return refusal;
-      }
-
-      const input = c.req.valid("json");
-      const meal = resolveMeal(input, {
-        eatenAt: new Date(input.eatenAt),
-        storedDescription: null,
-        accountTimezone: user.timezone,
-      });
-      // The bounded analysis copy and the thumbnail are generated from the same
-      // bytes, so the coach and the stored image can never disagree. Neither the
-      // original nor the analysis copy is stored.
-      const photos = await processPhoto(input.photoDataUrl ?? null);
-      if (photos === null) {
-        return badRequest(c, UNREADABLE_PHOTO_MESSAGE);
-      }
-
-      const result = await analyseMeal(
-        {
-          userId: user.id,
-          today: meal.today,
-          eatenDate: meal.eatenDate,
-          eatenTime: meal.eatenTime,
-          description: meal.description,
-          photoDataUrl: photos.analysisDataUrl,
-        },
-        analysisDeps,
-      );
-
-      const stored = await entries.create(user.id, {
-        eatenAt: meal.eatenAt,
-        eatenDate: meal.eatenDate,
-        eatenTime: meal.eatenTime,
-        description: meal.description,
-        thumbnailDataUrl: photos.thumbnailDataUrl,
-        analysis: result.analysis,
-        model: result.model,
-        analysisError: result.analysisError,
-      });
-      return c.json(foodEntrySchema.parse(toFoodEntry(stored)), 201);
-    })
+    .get("/summary", zValidator("query", todayQuerySchema), (c) =>
+      dietSummary(c, c.req.valid("query").today, context),
+    )
+    .get("/entries", (c) => listEntries(c, entries))
+    .post("/entries", zValidator("json", foodEntryRequestSchema), (c) =>
+      createEntry(c, c.req.valid("json"), context),
+    )
     .patch(
       "/entries/:id",
       zValidator("param", idParamSchema),
       zValidator("json", foodEntryUpdateRequestSchema),
-      async (c) => {
-        const { id } = c.req.valid("param");
-        const user = getUser(c);
-        const refusal = requireDietAdvice(c, user.dietAdvice);
-        if (refusal !== null) {
-          return refusal;
-        }
-        const existing = await entries.findForUser(user.id, id);
-        if (existing === null) {
-          return notFound(c, "Meal not found");
-        }
-
-        const input = c.req.valid("json");
-        const meal = resolveMeal(input, {
-          eatenAt:
-            input.eatenAt === undefined
-              ? existing.eatenAt
-              : new Date(input.eatenAt),
-          storedDescription: existing.description,
-          accountTimezone: user.timezone,
-        });
-
-        // An edit without a new photo re-analyses the stored thumbnail, because
-        // the full-resolution original and the analysis copy are never kept.
-        // Removing the photo sends no image at all.
-        let thumbnailDataUrl = existing.thumbnailDataUrl;
-        let photoDataUrl = existing.thumbnailDataUrl;
-        const newPhoto = input.photoDataUrl ?? null;
-        if (newPhoto !== null) {
-          const photos = await processPhoto(newPhoto);
-          if (photos === null) {
-            return badRequest(c, UNREADABLE_PHOTO_MESSAGE);
-          }
-          thumbnailDataUrl = photos.thumbnailDataUrl;
-          photoDataUrl = photos.analysisDataUrl;
-        } else if (input.removePhoto === true) {
-          thumbnailDataUrl = null;
-          photoDataUrl = null;
-        }
-
-        if (meal.description === null && thumbnailDataUrl === null) {
-          return badRequest(c, "Describe the meal or keep a photo.");
-        }
-
-        const result = await analyseMeal(
-          {
-            userId: user.id,
-            today: meal.today,
-            eatenDate: meal.eatenDate,
-            eatenTime: meal.eatenTime,
-            description: meal.description,
-            photoDataUrl,
-            previous: {
-              description: existing.description,
-              analysis: existing.analysis,
-            },
-          },
-          analysisDeps,
-        );
-
-        const stored = await entries.update(user.id, id, {
-          eatenAt: meal.eatenAt,
-          eatenDate: meal.eatenDate,
-          eatenTime: meal.eatenTime,
-          description: meal.description,
-          thumbnailDataUrl,
-          analysis: result.analysis,
-          model: result.model,
-          analysisError: result.analysisError,
-        });
-        if (stored === null) {
-          return notFound(c, "Meal not found");
-        }
-        return c.json(foodEntrySchema.parse(toFoodEntry(stored)));
-      },
+      (c) =>
+        updateEntry(c, c.req.valid("param").id, c.req.valid("json"), context),
     )
-    .get(
-      "/entries/:id/photo",
-      zValidator("param", idParamSchema),
-      async (c) => {
-        const { id } = c.req.valid("param");
-        const user = getUser(c);
-        const dataUrl = await entries.photo(user.id, id);
-        if (dataUrl === null) {
-          return notFound(c, "Photo not found");
-        }
-        const photo = decodePhoto(dataUrl);
-        if (photo === null) {
-          return notFound(c, "Photo not found");
-        }
-        return new Response(photo.bytes, {
-          status: 200,
-          headers: {
-            "content-type": photo.contentType,
-            // A meal's photo can be replaced, so the browser must revalidate.
-            // The client adds the entry's updatedAt to the URL for a fresh
-            // read.
-            "cache-control": "private, no-cache",
-          },
-        });
-      },
+    .get("/entries/:id/photo", zValidator("param", idParamSchema), (c) =>
+      mealPhoto(c, c.req.valid("param").id, entries),
     );
 }

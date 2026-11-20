@@ -76,16 +76,22 @@ async function cachedActivities(
   return feed.activities;
 }
 
-/**
- * The athlete and training context for a reply, built exactly like the plan
- * prompts' context so the coach answers a question from the same picture it
- * plans from. The last synced activity feed is used rather than a Garmin sync:
- * a reply is interactive, and the plan revision that follows it syncs anyway.
- */
-export async function loadReplyContext(
+/** Every stored source a reply reads, or null when that source failed. */
+interface ReplySources {
+  activities: readonly AnalyzedActivity[] | null;
+  coachingInputs: CoachingInputs | null;
+  history: Awaited<ReturnType<typeof loadThresholdHistoryForUser>> | null;
+  bodyHistory: Awaited<ReturnType<typeof loadBodyHistoryForUser>> | null;
+  dailyHealth: Awaited<ReturnType<typeof loadDailyHealthForUser>> | null;
+  events: readonly AthleteEvent[] | null;
+  diet: Awaited<ReturnType<typeof loadDietContext>> | null;
+}
+
+/** Loads the reply's sources in parallel, each failing open on its own. */
+async function loadReplySources(
   input: ReplyContextInput,
-  deps: ReplyContextDependencies = {},
-): Promise<PlanContextInput> {
+  deps: ReplyContextDependencies,
+): Promise<ReplySources> {
   const { userId, today } = input;
   const [
     activities,
@@ -125,12 +131,57 @@ export async function loadReplyContext(
       (deps.loadDiet ?? loadDietContext)(userId, today),
     ),
   ]);
+  return {
+    activities,
+    coachingInputs,
+    history,
+    bodyHistory,
+    dailyHealth,
+    events,
+    diet,
+  };
+}
 
+/** The reply's coaching fields, with empty defaults when the load failed. */
+function coachingContext(coachingInputs: CoachingInputs | null) {
+  return {
+    manualActivities: coachingInputs?.manualActivities ?? [],
+    activityComments: coachingInputs?.activityComments ?? [],
+    weeklyNote: coachingInputs?.weeklyNote ?? null,
+    weeklyNoteWeekStartDate: coachingInputs?.weeklyNoteWeekStartDate ?? null,
+    weeklyNoteReply: coachingInputs?.weeklyNoteReply ?? null,
+    periodReviews: coachingInputs?.periodReviews ?? [],
+  };
+}
+
+/**
+ * The athlete and training context for a reply, built exactly like the plan
+ * prompts' context so the coach answers a question from the same picture it
+ * plans from. The last synced activity feed is used rather than a Garmin sync:
+ * a reply is interactive, and the plan revision that follows it syncs anyway.
+ */
+export async function loadReplyContext(
+  input: ReplyContextInput,
+  deps: ReplyContextDependencies = {},
+): Promise<PlanContextInput> {
+  const { today } = input;
+  const {
+    activities,
+    coachingInputs,
+    history,
+    bodyHistory,
+    dailyHealth,
+    events,
+    diet,
+  } = await loadReplySources(input, deps);
+
+  const timelines = history?.timelines ?? [];
+  const recentActivities = activities ?? [];
   const currentForm = currentTrainingLoad(
     {
-      activities: activities ?? [],
+      activities: recentActivities,
       manualActivities: coachingInputs?.manualActivities ?? [],
-      thresholdTimelines: history?.timelines ?? [],
+      thresholdTimelines: timelines,
       timeZone: input.timezone,
     },
     today,
@@ -138,21 +189,15 @@ export async function loadReplyContext(
 
   return {
     athleteAnswers: input.athleteAnswers,
-    recentActivities: (activities ?? [])
+    recentActivities: recentActivities
       .slice(0, MAX_ANALYZED_ACTIVITIES)
       .map(toCoachPlanActivity),
     today,
     timezone: input.timezone,
     ...(currentForm !== null ? { currentForm } : {}),
-    manualActivities: coachingInputs?.manualActivities ?? [],
-    activityComments: coachingInputs?.activityComments ?? [],
-    weeklyNote: coachingInputs?.weeklyNote ?? null,
-    weeklyNoteWeekStartDate: coachingInputs?.weeklyNoteWeekStartDate ?? null,
-    weeklyNoteReply: coachingInputs?.weeklyNoteReply ?? null,
-    periodReviews: coachingInputs?.periodReviews ?? [],
-    athleteFtpWatts:
-      ftpBaselineAt(ftpTimeline(history?.timelines ?? []), today) ?? null,
-    ftpHistory: ftpHistoryPoints(history?.timelines ?? []),
+    ...coachingContext(coachingInputs),
+    athleteFtpWatts: ftpBaselineAt(ftpTimeline(timelines), today) ?? null,
+    ftpHistory: ftpHistoryPoints(timelines),
     thresholds: history?.summaries ?? [],
     ...(bodyHistory !== null ? { bodyHistory } : {}),
     ...(dailyHealth !== null ? { dailyHealth } : {}),

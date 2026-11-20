@@ -101,33 +101,35 @@ function findExportableBikeWorkout(
   };
 }
 
+/** Whether the forecast moved enough to refresh the Week tab. */
+async function hasWeatherChanged(
+  deps: ResolvedAppDependencies,
+  plan: CoachPlan,
+  location: AthleteLocation,
+  today: string,
+  timezone: string | null,
+): Promise<boolean> {
+  try {
+    const loadForecast =
+      deps.loadForecast ??
+      ((target: AthleteLocation, zone: string | null) =>
+        fetchWeatherForecasts(target, { timezone: zone }));
+    const { combined } = await loadForecast(location, timezone);
+    return planWeatherChanged(plan, combined, today);
+  } catch (err) {
+    // Weather is advisory. An outage must not make the plan look pending or
+    // fail the request.
+    console.error("[weather] could not check the forecast:", err);
+    return false;
+  }
+}
+
 /**
  * Coach plan routes. GET reads the stored plan and reports what is missing for
  * the supplied date. POST runs the generation cascade; the UI calls it without
  * awaiting the response and polls GET for progress.
  */
 export function createPlanRoute(deps: ResolvedAppDependencies): Hono {
-  async function hasWeatherChanged(
-    plan: CoachPlan,
-    location: AthleteLocation,
-    today: string,
-    timezone: string | null,
-  ): Promise<boolean> {
-    try {
-      const loadForecast =
-        deps.loadForecast ??
-        ((target: AthleteLocation, zone: string | null) =>
-          fetchWeatherForecasts(target, { timezone: zone }));
-      const { combined } = await loadForecast(location, timezone);
-      return planWeatherChanged(plan, combined, today);
-    } catch (err) {
-      // Weather is advisory. An outage must not make the plan look pending or
-      // fail the request.
-      console.error("[weather] could not check the forecast:", err);
-      return false;
-    }
-  }
-
   async function buildResponse(input: PlanResponseInput) {
     const { userId, location, timezone, today } = input;
     const includeTomorrow = input.includeTomorrow === true;
@@ -223,7 +225,7 @@ export function createPlanRoute(deps: ResolvedAppDependencies): Hono {
     // the client is polling, and the finished response checks the saved plan.
     const weatherChanged =
       plan !== null && location !== null && generation.status !== "running"
-        ? await hasWeatherChanged(plan, location, today, timezone)
+        ? await hasWeatherChanged(deps, plan, location, today, timezone)
         : false;
 
     return coachPlanResponseSchema.parse({

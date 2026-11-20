@@ -157,14 +157,11 @@ function settleCompletedDays(
 ): CoachPlan {
   return {
     ...plan,
-    week: applyCompletedDays(
-      plan.week,
-      input.activities,
-      input.today,
-      input.timeZone,
-      input.manualActivities,
-      plan.today,
-    ),
+    week: applyCompletedDays(plan.week, input.activities, input.today, {
+      timeZone: input.timeZone,
+      manualActivities: input.manualActivities,
+      todayPlan: plan.today,
+    }),
   };
 }
 

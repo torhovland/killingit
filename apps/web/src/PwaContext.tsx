@@ -39,6 +39,44 @@ interface PwaContextValue extends PwaState {
 
 const PwaContext = createContext<PwaContextValue | null>(null);
 
+/** Tracks the browser's install prompt and its online state. */
+function useInstallEvents(
+  setInstallPrompt: (prompt: BeforeInstallPromptEvent | null) => void,
+  setInstalled: (installed: boolean) => void,
+  setOffline: (offline: boolean) => void,
+): void {
+  useEffect(() => {
+    function offerInstall(event: Event): void {
+      event.preventDefault();
+      setInstallPrompt(event as BeforeInstallPromptEvent);
+    }
+
+    function markInstalled(): void {
+      setInstalled(true);
+      setInstallPrompt(null);
+    }
+
+    function markOnline(): void {
+      setOffline(false);
+    }
+
+    function markOffline(): void {
+      setOffline(true);
+    }
+
+    window.addEventListener("beforeinstallprompt", offerInstall);
+    window.addEventListener("appinstalled", markInstalled);
+    window.addEventListener("online", markOnline);
+    window.addEventListener("offline", markOffline);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", offerInstall);
+      window.removeEventListener("appinstalled", markInstalled);
+      window.removeEventListener("online", markOnline);
+      window.removeEventListener("offline", markOffline);
+    };
+  }, [setInstallPrompt, setInstalled, setOffline]);
+}
+
 /**
  * Registers the production service worker and exposes install, offline, and
  * update state to the app. The Vite dev server is never controlled by a worker.
@@ -82,36 +120,7 @@ export function PwaProvider({ children }: { children: ReactNode }) {
     [reloadForUpdate],
   );
 
-  useEffect(() => {
-    function offerInstall(event: Event): void {
-      event.preventDefault();
-      setInstallPrompt(event as BeforeInstallPromptEvent);
-    }
-
-    function markInstalled(): void {
-      setInstalled(true);
-      setInstallPrompt(null);
-    }
-
-    function markOnline(): void {
-      setOffline(false);
-    }
-
-    function markOffline(): void {
-      setOffline(true);
-    }
-
-    window.addEventListener("beforeinstallprompt", offerInstall);
-    window.addEventListener("appinstalled", markInstalled);
-    window.addEventListener("online", markOnline);
-    window.addEventListener("offline", markOffline);
-    return () => {
-      window.removeEventListener("beforeinstallprompt", offerInstall);
-      window.removeEventListener("appinstalled", markInstalled);
-      window.removeEventListener("online", markOnline);
-      window.removeEventListener("offline", markOffline);
-    };
-  }, []);
+  useInstallEvents(setInstallPrompt, setInstalled, setOffline);
 
   useEffect(() => {
     if (!import.meta.env.PROD || !("serviceWorker" in navigator)) {

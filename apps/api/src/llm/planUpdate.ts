@@ -262,8 +262,8 @@ export async function generatePlanUpdate(
     provider,
     credentials,
     buildPlanUpdateMessages(input),
-    PLAN_MAX_TOKENS,
     {
+      maxTokens: PLAN_MAX_TOKENS,
       repairHint: `${dailyDateHint(input.today, weekStart)} Tomorrow is ${addDays(input.today, 1)}; tomorrow's session must be in the current week or the next week${nextWeekStart === null ? "." : `, and the next week must start on ${nextWeekStart}.`} When diet advice is on and no stored goal exists, return ${DIET_REPAIR_HINT}. When the athlete stated a diet goal, every current and future period must carry ${DIET_PROGRESS_REPAIR_HINT}.`,
       kind: "plan_update",
     },
@@ -288,8 +288,8 @@ export async function generateDailyUpdate(
     provider,
     credentials,
     buildDailyUpdateMessages(input),
-    PLAN_MAX_TOKENS,
     {
+      maxTokens: PLAN_MAX_TOKENS,
       repairHint: `${dailyDateHint(input.today, weekStartDate)} When diet advice is on, return ${DIET_REPAIR_HINT}. When the athlete stated a diet goal, the week must carry ${DIET_PROGRESS_REPAIR_HINT}.`,
       kind: "daily_update",
     },
@@ -310,7 +310,10 @@ export async function generateWeeklyUpdate(
     provider,
     credentials,
     buildWeeklyUpdateMessages(input),
-    PLAN_MAX_TOKENS,
-    { repairHint: weekDateHint(input.weekStartDate), kind: "weekly_update" },
+    {
+      maxTokens: PLAN_MAX_TOKENS,
+      repairHint: weekDateHint(input.weekStartDate),
+      kind: "weekly_update",
+    },
   );
 }
