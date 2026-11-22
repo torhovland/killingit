@@ -20,6 +20,7 @@ COPY apps/api/package.json apps/api/package.json
 COPY apps/web/package.json apps/web/package.json
 COPY packages/shared/package.json packages/shared/package.json
 COPY tools/benchmark/package.json tools/benchmark/package.json
+COPY tools/season-simulation/package.json tools/season-simulation/package.json
 RUN bun install --frozen-lockfile
 
 # Copy sources needed to typecheck/build.

@@ -90,6 +90,21 @@
         "typescript": "^7.0.2",
       },
     },
+    "tools/season-simulation": {
+      "name": "@killingit/season-simulation",
+      "version": "0.1.0",
+      "dependencies": {
+        "@killingit/shared": "workspace:*",
+        "drizzle-orm": "^0.45.4",
+        "pg": "^8.23.1",
+        "zod": "^4.6.7",
+      },
+      "devDependencies": {
+        "@playwright/test": "^1.65.1",
+        "@types/pg": "^8.23.1",
+        "typescript": "^7.0.2",
+      },
+    },
   },
   "overrides": {
     "sentry": "^0.50.0",
@@ -310,6 +325,8 @@
     "@killingit/api": ["@killingit/api@workspace:apps/api"],
 
     "@killingit/benchmark": ["@killingit/benchmark@workspace:tools/benchmark"],
+
+    "@killingit/season-simulation": ["@killingit/season-simulation@workspace:tools/season-simulation"],
 
     "@killingit/shared": ["@killingit/shared@workspace:packages/shared"],
 
