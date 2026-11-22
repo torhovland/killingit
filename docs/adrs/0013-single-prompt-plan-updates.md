@@ -1,6 +1,6 @@
 # ADR 0013: Update every affected plan level in one completion
 
-- **Status:** Accepted
+- **Status:** Accepted; a day-only revision now uses the daily prompt (ADR 0062)
 - **Date:** 2026-10-29
 - **Deciders:** torhovland
 - **Related:** `docs/specs/coach-plan-lifecycle.md`,
@@ -66,6 +66,7 @@ sees the season, block, week, today, tomorrow and the next period together.
   tomorrow's placement before saving. A response that moves a required block
   start date or leaves tomorrow outside a planned week fails with the existing
   readable error and leaves the old plan in place.
-- The prompt log gains the `plan_update` kind. Historical `daily_update`,
-  `weekly_update`, `block_update`, `target_day_update` and `season_refresh`
-  rows remain readable.
+- The prompt log gains the `plan_update` kind. A day-only revision subsequently
+  moved to the daily prompt and logs `daily_update` again (ADR 0062); historical
+  `daily_update`, `weekly_update`, `block_update`, `target_day_update` and
+  `season_refresh` rows remain readable.

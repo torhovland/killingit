@@ -49,6 +49,11 @@ export interface DailyUpdateInput extends PlanContextInput {
   season: SeasonPlan;
   block: BlockPlan;
   week: WeekPlan;
+  /**
+   * The stored detailed session for today, when a refresh revises an existing
+   * plan. A first build has no day yet.
+   */
+  todayPlan?: DayPlan | null;
 }
 
 /** Input for the weekly cascade: the new week plus the current block. */
@@ -319,12 +324,17 @@ function buildDailyUpdatePrompt(input: DailyUpdateInput): string {
     ...formatPlanContext(input),
     "",
     ...formatPlanLevels(input),
+    ...(input.todayPlan != null
+      ? ["", "Today's plan:", formatDayPlan(input.todayPlan)]
+      : []),
     "",
     `${weekCoverageRule(weekStart)}, and make sure one session has the date ${input.today}; the "today" object must use that same date.`,
     "",
     `Fully detail the day objects dated ${input.today} through ${detailThrough}. Keep every session in the week, including ${input.today} through ${detailThrough}, as a short outline.`,
     "",
-    "Create today's session and revise this week's remaining sessions.",
+    input.todayPlan != null
+      ? "Revise today's session and this week's remaining sessions."
+      : "Create today's session and revise this week's remaining sessions.",
     jsonTopLevelKeys(["today", "tomorrow", "week", "diet", "bodyMetrics"]),
   ].join("\n");
 }

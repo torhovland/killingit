@@ -31,8 +31,9 @@ covered all of them in one run.
    capture/merging and the season-coverage check.
 3. `freshPlan.ts` — the fresh build, the next-period completion and the
    progress-only diet completion.
-4. `revision.ts` — the update engine (`advancePlan`) and the single
-   plan-update prompt (`requestPlanUpdate`).
+4. `revision.ts` — the update engine (`advancePlan`) and the prompt request
+   (`requestPlanUpdate`), which uses the daily prompt for a day-only revision
+   and the single plan-update prompt otherwise.
 5. `applyUpdate.ts` — applying the levels the update returned, restoring
    today's stored session while the rest of the week is revised, the
    activity-on-day check and the body-metric merge.

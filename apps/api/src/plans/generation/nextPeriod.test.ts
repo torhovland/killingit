@@ -3,6 +3,7 @@ import {
   FakeProvider,
   makeBlock,
   makeContext,
+  makeDailyUpdate,
   makeDay,
   makeEndedWeek,
   makePlan,
@@ -215,10 +216,7 @@ describe("runPlanGeneration", () => {
       new Date("2026-10-25T10:00:00Z"),
     );
     const provider = new FakeProvider({
-      planUpdate: makeUpdate(today, {
-        nextWeek: makeWeek("2026-10-26"),
-        tomorrow: makeDay("2026-10-26"),
-      }),
+      daily: makeDailyUpdate(today),
     });
     const plans = new MemoryPlanStore(stored);
     const generations = new MemoryGenerationStore();
@@ -237,7 +235,7 @@ describe("runPlanGeneration", () => {
       generations,
     });
 
-    expect(provider.calls).toEqual(["plan-update"]);
+    expect(provider.calls).toEqual(["daily"]);
     expect(saved?.plan.tomorrow).toBeNull();
     expect(saved?.plan.nextWeek).toBeNull();
   });

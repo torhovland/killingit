@@ -5,6 +5,7 @@ import {
   FakeProvider,
   makeBlock,
   makeContext,
+  makeDailyUpdate,
   makeDay,
   makeGappedRefreshedSeason,
   makeMidSeasonPlan,
@@ -470,10 +471,7 @@ describe("runPlanGeneration", () => {
       today: makeDay("2026-11-14"),
     };
     const provider = new FakeProvider({
-      planUpdate: makeUpdate(today, {
-        week: makeWeek("2026-11-09"),
-        today: makeDay(today),
-      }),
+      daily: makeDailyUpdate(today),
     });
     const existing = makeStoredPlan(ended);
     const plans = new MemoryPlanStore(existing);
@@ -489,7 +487,7 @@ describe("runPlanGeneration", () => {
       generations,
     });
 
-    expect(provider.calls).toEqual(["plan-update"]);
+    expect(provider.calls).toEqual(["daily"]);
     expect(saved?.plan.today.date).toBe(today);
     expect(saved?.plan.season.blocks).toHaveLength(3);
   });

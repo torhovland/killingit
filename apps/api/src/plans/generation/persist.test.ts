@@ -4,11 +4,11 @@ import {
   buildResponses,
   FakeProvider,
   makeContext,
+  makeDailyUpdate,
   makeDay,
   makePlan,
   makeSeason,
   makeStoredPlan,
-  makeUpdate,
   makeWeek,
   MemoryGenerationStore,
   MemoryPlanStore,
@@ -137,7 +137,7 @@ describe("runPlanGeneration", () => {
 
   it("keeps pending coach questions when only the day changes", async () => {
     const provider = new FakeProvider({
-      planUpdate: makeUpdate("2026-10-21"),
+      daily: makeDailyUpdate("2026-10-21"),
     });
     const existing = makeStoredPlan(makePlan("2026-10-20"));
     let cleared = 0;
@@ -156,7 +156,7 @@ describe("runPlanGeneration", () => {
       },
     });
 
-    expect(provider.calls).toEqual(["plan-update"]);
+    expect(provider.calls).toEqual(["daily"]);
     expect(cleared).toBe(0);
   });
 

@@ -63,6 +63,11 @@ runs the whole pipeline with a fake provider and in-memory stores.
 
 ## The merge rules
 
+A revision that changes only today, the week around it and tomorrow asks the
+daily prompt for its response and merges it through the same helpers; the
+stored season and block stand in for the levels the daily response does not
+carry. See `docs/specs/daily-plan-refresh.md` and ADR 0062.
+
 `applyPlanUpdate` composes the helpers in a fixed order:
 
 1. `mergeSeasonAndBlock` restores the greeting on every returned season. A

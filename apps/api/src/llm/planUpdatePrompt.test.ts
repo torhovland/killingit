@@ -478,6 +478,34 @@ describe("daily update prompt", () => {
     );
   });
 
+  it("includes the stored detailed today plan for a day refresh", () => {
+    const prompt = dailyUserPrompt({
+      ...base,
+      season,
+      block,
+      week,
+      todayPlan: {
+        ...makeDay("2026-10-21"),
+        title: "Stored intervals",
+        rationale: "Build threshold power.",
+        alternatives: ["Easy spin"],
+        bikeWorkout: {
+          ftpWatts: 250,
+          intervals: [{ durationSeconds: 600, powerPercent: 90 }],
+        },
+      },
+    });
+
+    expect(prompt).toContain("Today's plan:");
+    expect(prompt).toContain("Title: Stored intervals");
+    expect(prompt).toContain("Rationale: Build threshold power.");
+    expect(prompt).toContain("Alternatives: Easy spin");
+    expect(prompt).toContain("Bike workout: power targets at FTP 250 W");
+    expect(prompt).toContain(
+      "Revise today's session and this week's remaining sessions.",
+    );
+  });
+
   it("states the exact week and today dates", () => {
     const prompt = dailyUserPrompt({
       ...base,

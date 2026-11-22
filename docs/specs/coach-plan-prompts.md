@@ -2,6 +2,11 @@
 
 - **Status:** Accepted (implemented)
 - **Date:** 2026-10-21
+- **Updated:** 2026-11-22 — a revision that changes only today, its week and
+  tomorrow now uses the daily prompt instead of the full plan update. The daily
+  prompt accepts the stored detailed today plan for a refresh, while a first
+  build renders it as before. See `docs/specs/daily-plan-refresh.md` and
+  ADR 0062.
 - **Updated:** 2026-11-16 — the daily, weekly and plan-update prompts compose
   their shared seven-fragment tail through `PLAN_UPDATE_SHARED_RULES`, which
   takes a prompt's own level rules between the outline and the weather rule.
@@ -207,6 +212,10 @@ and returns `LlmProvider` chat messages.
   tomorrow, next week and next block) and a revision request. The response is
   the full `CoachPlan` shape, so the coach can show a revised block with its
   week and day instead of the API chaining separate calls. See ADR 0013.
+  A revision that changes only today, its week and tomorrow uses
+  `buildDailyUpdateMessages` instead, with the stored detailed today plan as
+  optional context; a week, next-period, progress-only, block or season
+  revision keeps the full prompt. See ADR 0062.
 - Every plan prompt uses the same rationale, outline, weather, bike-workout,
   training-load, body-metric, session-purpose and enum rules. The initial
   season and block prompts also ask for a rationale and the training-load

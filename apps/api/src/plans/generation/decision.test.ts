@@ -5,6 +5,7 @@ import {
   FakeProvider,
   makeBlock,
   makeContext,
+  makeDailyUpdate,
   makeDay,
   makeEndedWeek,
   makePlan,
@@ -266,7 +267,7 @@ describe("runPlanGeneration", () => {
 
   it("revises when a new analysis judged the plan changed", async () => {
     const provider = new FakeProvider({
-      planUpdate: makeUpdate("2026-10-21"),
+      daily: makeDailyUpdate("2026-10-21"),
     });
     const existing = makeStoredPlan(
       makePlan("2026-10-21"),
@@ -290,7 +291,7 @@ describe("runPlanGeneration", () => {
       generations,
     });
 
-    expect(provider.calls).toEqual(["plan-update"]);
+    expect(provider.calls).toEqual(["daily"]);
   });
 
   it("records a coaching input that judged the plan unchanged without revising it", async () => {
@@ -392,7 +393,7 @@ describe("runPlanGeneration", () => {
 
   it("revises for an activity analysed while the plan was generating", async () => {
     const provider = new FakeProvider({
-      planUpdate: makeUpdate("2026-10-21"),
+      daily: makeDailyUpdate("2026-10-21"),
     });
     // The plan was saved after the analysis, but its context did not include it.
     const existing = makeStoredPlan(
@@ -418,7 +419,7 @@ describe("runPlanGeneration", () => {
       generations,
     });
 
-    expect(provider.calls).toEqual(["plan-update"]);
+    expect(provider.calls).toEqual(["daily"]);
   });
 
   it("attaches the supplied forecast to the saved plan", async () => {
@@ -460,7 +461,7 @@ describe("runPlanGeneration", () => {
 
   it("revises the week and day when the forecast changes significantly", async () => {
     const provider = new FakeProvider({
-      planUpdate: makeUpdate("2026-10-21"),
+      daily: makeDailyUpdate("2026-10-21"),
     });
     const existing = makeStoredPlan(
       withWeather(makePlan("2026-10-21"), weekForecast("sun")),
@@ -486,7 +487,7 @@ describe("runPlanGeneration", () => {
       generations,
     });
 
-    expect(provider.calls).toEqual(["plan-update"]);
+    expect(provider.calls).toEqual(["daily"]);
     expect(saved?.plan.week.sessions[0]?.weather?.icon).toBe("rain");
 
     // The saved plan now carries the new forecast, so the next visit does not
@@ -500,7 +501,7 @@ describe("runPlanGeneration", () => {
       plans,
       generations,
     });
-    expect(provider.calls).toEqual(["plan-update"]);
+    expect(provider.calls).toEqual(["daily"]);
     expect(again).toBe(saved);
   });
 
