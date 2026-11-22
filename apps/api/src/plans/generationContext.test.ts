@@ -187,11 +187,18 @@ describe("buildPlanContext", () => {
       blockReviewUpdatedAt: new Date("2026-11-01T09:00:00Z"),
       coachingInputsUpdatedAt: new Date("2026-11-10T09:00:00Z"),
       coachingInputsRefreshUpdatedAt: new Date("2026-11-10T08:00:00Z"),
+      coachingInputsRefreshChanges: undefined,
       weekReviewNeedsRefresh: true,
       blockReviewNeedsRefresh: false,
       coachingSurveyAdjustments: [],
       activitiesUpdatedAt: new Date("2026-11-11T06:00:00Z"),
       activitiesRefreshUpdatedAt: new Date("2026-11-11T06:00:00Z"),
+      activitiesRefreshChanges: [
+        {
+          updatedAt: new Date("2026-11-11T06:00:00Z"),
+          planChangeScope: "season",
+        },
+      ],
       timeZone: "Europe/Oslo",
       location,
       forecast: null,
@@ -212,6 +219,35 @@ describe("buildPlanContext", () => {
       dailyModel: "test-model",
       signal,
     });
+  });
+
+  it("carries every plan-changing analysis's scope for the refresh decision", () => {
+    const scoped = makeAnalyzedActivity({
+      id: 1,
+      analysis: {
+        text: "A hard day.",
+        model: "test-model",
+        generatedAt: "2026-11-11T06:00:00.000Z",
+        planChangeNeeded: true,
+        planChangeScope: "day",
+      },
+    });
+    const context = buildPlanContext({
+      loaded: loadedContext(),
+      activities: [scoped],
+      recentActivities: [scoped],
+      inputs: emptyPlanInputs,
+      timeZone: null,
+      location: null,
+      signal: new AbortController().signal,
+    });
+
+    expect(context.activitiesRefreshChanges).toEqual([
+      {
+        updatedAt: new Date("2026-11-11T06:00:00.000Z"),
+        planChangeScope: "day",
+      },
+    ]);
   });
 
   it("keeps the full activity history for the load and the recent window for prompts", () => {

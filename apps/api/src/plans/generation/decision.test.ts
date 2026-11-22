@@ -17,6 +17,122 @@ import {
   withWeather,
 } from "../../testFixtures/generationHarness.js";
 import { runPlanGeneration } from "../generate.js";
+import { decideRevisionPlan } from "./decision.js";
+
+/** The plan a decision test starts from, with every timestamp set. */
+function storedForDecision() {
+  return makeStoredPlan(
+    makePlan("2026-10-21"),
+    new Date("2026-10-20T10:00:00Z"),
+    new Date("2026-10-21T09:00:00Z"),
+    new Date("2026-10-21T09:00:00Z"),
+  );
+}
+
+describe("decideRevisionPlan", () => {
+  it("refreshes the season when the newest unseen input reaches the season", () => {
+    const provider = new FakeProvider({});
+    const existing = storedForDecision();
+    const context = makeContext(
+      provider,
+      undefined,
+      new Date("2026-10-21T10:00:00Z"),
+    );
+    context.coachingInputsRefreshChanges = [
+      {
+        updatedAt: new Date("2026-10-21T10:00:00Z"),
+        planChangeScope: "season",
+      },
+    ];
+
+    const decision = decideRevisionPlan(
+      {
+        userId: 1,
+        runId: "run-1",
+        today: "2026-10-21",
+        plan: existing,
+        context,
+        plans: new MemoryPlanStore(existing),
+        generations: new MemoryGenerationStore(),
+      },
+      existing.plan,
+    );
+
+    expect(decision.kind).toBe("refresh");
+    expect(decision.refreshScope).toBe("season");
+  });
+
+  it("does not widen to an older season input the plan has already seen", () => {
+    const provider = new FakeProvider({});
+    const existing = storedForDecision();
+    const context = makeContext(
+      provider,
+      undefined,
+      new Date("2026-10-21T10:00:00Z"),
+    );
+    context.coachingInputsRefreshChanges = [
+      {
+        updatedAt: new Date("2026-10-20T10:00:00Z"),
+        planChangeScope: "season",
+      },
+      {
+        updatedAt: new Date("2026-10-21T10:00:00Z"),
+        planChangeScope: "day",
+      },
+    ];
+
+    const decision = decideRevisionPlan(
+      {
+        userId: 1,
+        runId: "run-1",
+        today: "2026-10-21",
+        plan: existing,
+        context,
+        plans: new MemoryPlanStore(existing),
+        generations: new MemoryGenerationStore(),
+      },
+      existing.plan,
+    );
+
+    expect(decision.kind).toBe("advance");
+    expect(decision.refreshScope).toBe("day");
+  });
+
+  it("does not make the block pending when a week review only reaches the week", () => {
+    const provider = new FakeProvider({});
+    const existing = storedForDecision();
+    const context = makeContext(
+      provider,
+      undefined,
+      new Date("2026-10-21T10:00:00Z"),
+    );
+    context.weekReviewUpdatedAt = new Date("2026-10-21T10:00:00Z");
+    context.weekReviewNeedsRefresh = true;
+    context.coachingInputsRefreshChanges = [
+      {
+        updatedAt: new Date("2026-10-21T10:00:00Z"),
+        planChangeScope: "week",
+      },
+    ];
+
+    const decision = decideRevisionPlan(
+      {
+        userId: 1,
+        runId: "run-1",
+        today: "2026-10-21",
+        plan: existing,
+        context,
+        plans: new MemoryPlanStore(existing),
+        generations: new MemoryGenerationStore(),
+      },
+      existing.plan,
+    );
+
+    expect(decision.refreshScope).toBe("week");
+    expect(decision.weekReviewPending).toBe(false);
+    expect(decision.pending.block).toBe(false);
+  });
+});
 
 describe("runPlanGeneration", () => {
   it("refreshes the existing season when the answers are stale", async () => {

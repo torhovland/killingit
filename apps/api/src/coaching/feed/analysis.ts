@@ -356,6 +356,7 @@ async function saveFreshAnalysis(
     promptVersion: ANALYSIS_PROMPT_VERSION,
     text: result.analysis,
     planChangeNeeded: result.planChangeNeeded,
+    planChangeScope: result.planChangeScope,
   });
   try {
     await clearPendingActivityQuestion(

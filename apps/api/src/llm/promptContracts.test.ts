@@ -144,12 +144,16 @@ const CONTRACT_MAPPINGS: readonly ContractMapping[] = [
     contract: contractWithin(COACH_ANALYSIS_RESPONSE_RULES),
     schemaName: "coachAnalysisResultSchema",
     schema: schemaKeys(coachAnalysisResultSchema),
+    // The boolean is derived from the scope after the coach responds. The
+    // schema still accepts it so an older or non-conforming answer parses.
+    serverKeys: { "": ["planChangeNeeded"] },
   },
   {
     contractName: "COACH_REPLY_RESPONSE_RULES",
     contract: contractWithin(COACH_REPLY_RESPONSE_RULES),
     schemaName: "coachReplyResultSchema",
     schema: schemaKeys(coachReplyResultSchema),
+    serverKeys: { "": ["planChangeNeeded"] },
   },
 ];
 

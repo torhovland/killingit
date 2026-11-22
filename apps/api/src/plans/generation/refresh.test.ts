@@ -57,6 +57,93 @@ describe("runPlanGeneration", () => {
     expect(generations.steps).toContain("Refreshing your season");
   });
 
+  it("refreshes the whole season for a comment the coach scoped to the season", async () => {
+    const today = "2026-11-15";
+    const previous = makeMidSeasonPlan(today);
+    const completed = previous.season.blocks[0];
+    const provider = new FakeProvider({
+      planUpdate: makeUpdate(today, {
+        season: makeRefreshedSeason("2026-11-01"),
+        block: makeBlock("2026-11-01", "2026-12-31"),
+        week: makeWeek(startOfWeek(today)),
+        today: makeDay(today),
+      }),
+    });
+    const existing = makeStoredPlan(previous);
+    const plans = new MemoryPlanStore(existing);
+    const generations = new MemoryGenerationStore();
+    const context = makeContext(
+      provider,
+      undefined,
+      new Date("2026-11-15T10:00:00Z"),
+    );
+    context.coachingInputsRefreshChanges = [
+      {
+        updatedAt: new Date("2026-11-15T10:00:00Z"),
+        planChangeScope: "season",
+      },
+    ];
+
+    const saved = await runPlanGeneration({
+      userId: 1,
+      runId: "run-1",
+      today,
+      plan: existing,
+      context,
+      plans,
+      generations,
+    });
+
+    expect(provider.calls).toEqual(["plan-update"]);
+    // The comment was scoped to the season, so the current block is re-planned
+    // and a future block is returned even though no answer changed.
+    expect(saved?.plan.season.startDate).toBe("2026-10-01");
+    expect(saved?.plan.season.blocks[0]).toEqual(completed);
+    expect(saved?.plan.season.blocks[1]?.startDate).toBe("2026-11-01");
+    expect(saved?.plan.block.startDate).toBe("2026-11-01");
+    expect(generations.steps).toContain("Refreshing your season");
+  });
+
+  it("refreshes the whole season for an activity the coach scoped to the season", async () => {
+    const today = "2026-11-15";
+    const previous = makeMidSeasonPlan(today);
+    const completed = previous.season.blocks[0];
+    const provider = new FakeProvider({
+      planUpdate: makeUpdate(today, {
+        season: makeRefreshedSeason("2026-11-01"),
+        block: makeBlock("2026-11-01", "2026-12-31"),
+        week: makeWeek(startOfWeek(today)),
+        today: makeDay(today),
+      }),
+    });
+    const existing = makeStoredPlan(previous);
+    const plans = new MemoryPlanStore(existing);
+    const generations = new MemoryGenerationStore();
+    const context = makeContext(provider);
+    context.activitiesRefreshUpdatedAt = new Date("2026-11-15T09:00:00Z");
+    context.activitiesRefreshChanges = [
+      {
+        updatedAt: new Date("2026-11-15T09:00:00Z"),
+        planChangeScope: "season",
+      },
+    ];
+
+    const saved = await runPlanGeneration({
+      userId: 1,
+      runId: "run-1",
+      today,
+      plan: existing,
+      context,
+      plans,
+      generations,
+    });
+
+    expect(provider.calls).toEqual(["plan-update"]);
+    expect(saved?.plan.season.blocks[0]).toEqual(completed);
+    expect(saved?.plan.season.blocks[1]?.startDate).toBe("2026-11-01");
+    expect(generations.steps).toContain("Refreshing your season");
+  });
+
   it("keeps the stored introduction when the season is refreshed", async () => {
     const today = "2026-11-15";
     const base = makeMidSeasonPlan(today);

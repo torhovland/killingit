@@ -60,14 +60,15 @@ describe("analyzeActivity", () => {
     );
 
     const captured = provider.requests[0];
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       analysis: "Solid aerobic effort.",
       estimatedFtpWatts: 255,
       weightKg: null,
       bodyFatPercent: null,
-      // The response omits the flag, so it fails open.
+      // The response omits the flag, so it fails open to the widest scope.
       planChangeNeeded: true,
     });
+    expect(result).toMatchObject({ planChangeScope: "season" });
     expect(captured?.model).toBe("test/model");
     expect(captured?.apiKey).toBe("test-key");
     expect(captured?.maxTokens).toBe(ANALYSIS_MAX_TOKENS);
@@ -105,13 +106,14 @@ describe("analyzeActivity", () => {
       activity,
     );
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       analysis: "Solid aerobic effort.",
       estimatedFtpWatts: null,
       weightKg: null,
       bodyFatPercent: null,
       planChangeNeeded: true,
     });
+    expect(result).toMatchObject({ planChangeScope: "season" });
   });
 
   it("carries the coach's judgement that the workout needs no plan change", async () => {
@@ -129,6 +131,64 @@ describe("analyzeActivity", () => {
     );
 
     expect(result.planChangeNeeded).toBe(false);
+    expect(result).toMatchObject({ planChangeScope: "none" });
+  });
+
+  it("carries the level the coach judged for a plan change", async () => {
+    const provider = new FakeProvider([
+      JSON.stringify({
+        analysis: "An unplanned race six weeks out changes the goal.",
+        planChangeScope: "season",
+      }),
+    ]);
+
+    const result = await analyzeActivity(
+      provider,
+      { apiKey: "test-key", model: "test/model" },
+      activity,
+    );
+
+    expect(result).toMatchObject({
+      planChangeNeeded: true,
+      planChangeScope: "season",
+    });
+  });
+
+  it("derives the flag from an explicit scope", async () => {
+    const provider = new FakeProvider([
+      JSON.stringify({
+        analysis: "An easy recovery spin that went as planned.",
+        planChangeScope: "none",
+      }),
+    ]);
+
+    const result = await analyzeActivity(
+      provider,
+      { apiKey: "test-key", model: "test/model" },
+      activity,
+    );
+
+    expect(result.planChangeNeeded).toBe(false);
+    expect(result).toMatchObject({ planChangeScope: "none" });
+  });
+
+  it("lets an explicit scope win over an inconsistent boolean", async () => {
+    const provider = new FakeProvider([
+      JSON.stringify({
+        analysis: "An unplanned race six weeks out changes the goal.",
+        planChangeNeeded: false,
+        planChangeScope: "season",
+      }),
+    ]);
+
+    const result = await analyzeActivity(
+      provider,
+      { apiKey: "test-key", model: "test/model" },
+      activity,
+    );
+
+    expect(result.planChangeNeeded).toBe(true);
+    expect(result).toMatchObject({ planChangeScope: "season" });
   });
 
   it("keeps the analysis when the flag is malformed and fails open", async () => {
@@ -147,5 +207,29 @@ describe("analyzeActivity", () => {
 
     expect(result.analysis).toBe("Solid aerobic effort.");
     expect(result.planChangeNeeded).toBe(true);
+    expect(result).toMatchObject({ planChangeScope: "season" });
+  });
+
+  it("keeps the analysis when the scope is malformed and fails open", async () => {
+    const provider = new FakeProvider([
+      JSON.stringify({
+        analysis: "Solid aerobic effort.",
+        estimatedFtpWatts: 261,
+        planChangeScope: "month",
+      }),
+    ]);
+
+    const result = await analyzeActivity(
+      provider,
+      { apiKey: "test-key", model: "test/model" },
+      activity,
+    );
+
+    expect(result).toMatchObject({
+      analysis: "Solid aerobic effort.",
+      estimatedFtpWatts: 261,
+      planChangeNeeded: true,
+      planChangeScope: "season",
+    });
   });
 });

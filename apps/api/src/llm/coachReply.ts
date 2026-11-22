@@ -1,5 +1,6 @@
+import type { PlanChangeScope } from "@killingit/shared";
 import type { LlmProvider } from "./openrouter.js";
-import { coachReplyResultSchema } from "./coachResult.js";
+import { coachReplyResultSchema, resolvePlanChange } from "./coachResult.js";
 import {
   buildCoachReplyMessages,
   type CoachReplyPromptInput,
@@ -15,10 +16,11 @@ export interface CoachReplyCredentials {
   signal?: AbortSignal;
 }
 
-/** A short coach reply and whether it asked for a plan refresh. */
+/** A short coach reply and how far it says the input changes the plan. */
 export interface CoachReplyOutcome {
   text: string;
   planChangeNeeded: boolean;
+  planChangeScope: PlanChangeScope;
 }
 
 /**
@@ -47,15 +49,26 @@ export async function generateCoachReply(
   );
   // A one-off question is a conversation only, whatever the model returns.
   if (kind === "coaching_question") {
-    return { text: text.trim(), planChangeNeeded: false };
+    return {
+      text: text.trim(),
+      planChangeNeeded: false,
+      planChangeScope: "none",
+    };
   }
   try {
     const parsed = parsePlanJson(coachReplyResultSchema, text);
-    return { text: parsed.reply, planChangeNeeded: parsed.planChangeNeeded };
+    return {
+      text: parsed.reply,
+      ...resolvePlanChange(parsed),
+    };
   } catch (err) {
     if (!(err instanceof PlanJsonError)) {
       throw err;
     }
-    return { text: text.trim(), planChangeNeeded: true };
+    return {
+      text: text.trim(),
+      planChangeNeeded: true,
+      planChangeScope: "season",
+    };
   }
 }

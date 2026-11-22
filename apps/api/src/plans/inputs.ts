@@ -18,11 +18,12 @@ import type {
   ManualActivityContext,
 } from "../llm/activityContext.js";
 import type { PeriodReviewContext } from "../llm/planContext.js";
-import { startOfWeek } from "@killingit/shared";
+import { startOfWeek, type PlanChangeScope } from "@killingit/shared";
 import { loadPeriodReviews } from "./periodReviews.js";
 import {
   summarizeCoachingInputChanges,
   summarizeReviewChanges,
+  type PlanRefreshChange,
 } from "./inputChanges.js";
 import { loadWeeklyNoteReply } from "./replies.js";
 
@@ -58,6 +59,8 @@ export interface CoachingInputs {
   weekReviewUpdatedAt: Date | null;
   /** The newest week review event asks for a plan refresh. */
   weekReviewNeedsRefresh: boolean;
+  /** How far the newest week review event reaches, when it refreshes. */
+  weekReviewScope?: PlanChangeScope | null | undefined;
   /**
    * The newest block review event: when a block review was generated or when
    * its comment was answered. A newer block review makes the season pending.
@@ -72,6 +75,11 @@ export interface CoachingInputs {
    * counts as a request, so a failed reply never drops a needed refresh.
    */
   refreshUpdatedAt: Date | null;
+  /**
+   * Every refresh-worthy input with the scope the coach judged, so the run can
+   * widen the revision to the level the input changes.
+   */
+  refreshChanges?: readonly PlanRefreshChange[] | undefined;
 }
 
 /** Maps a stored manual activity to the coach's activity context. */
@@ -139,42 +147,59 @@ export async function loadCoachingInputs(
     db.select().from(coachReplies).where(eq(coachReplies.userId, userId)),
   ]);
 
-  // The coach's flag for each input. A missing reply is unknown, not false.
-  const replyFlags = new Map<string, boolean>();
+  // The coach's scope for each input. A missing reply is unknown, not none.
+  const replyScopes = new Map<string, PlanChangeScope>();
   for (const row of replyRows) {
-    replyFlags.set(`${row.kind}:${row.target}`, row.planChangeNeeded);
+    replyScopes.set(
+      `${row.kind}:${row.target}`,
+      row.planChangeScope ?? (row.planChangeNeeded ? "season" : "none"),
+    );
   }
-  const replyFlag = (kind: string, target: string | number): boolean =>
-    replyFlags.get(`${kind}:${target}`) ?? true;
+  const replyScope = (kind: string, target: string | number): PlanChangeScope =>
+    replyScopes.get(`${kind}:${target}`) ?? "season";
 
-  const reviewChanges = reviewEntries.map(({ review, reply }) => ({
-    kind: review.kind,
+  const reviewChanges = reviewEntries.map(({ review, reply }) => {
     // A generated summary matters even before anyone comments. Once the
     // athlete answers it, the comment's timestamp is the newer event.
-    updatedAt: review.comment !== null ? review.updatedAt : review.generatedAt,
-    planChangeNeeded:
-      review.comment === null ? true : (reply?.planChangeNeeded ?? true),
-  }));
+    const planChangeScope =
+      review.comment === null
+        ? review.kind === "week"
+          ? ("block" as const)
+          : ("season" as const)
+        : (reply?.planChangeScope ?? "season");
+    return {
+      kind: review.kind,
+      updatedAt:
+        review.comment !== null ? review.updatedAt : review.generatedAt,
+      planChangeNeeded: planChangeScope !== "none",
+      planChangeScope,
+    };
+  });
   const reviews = summarizeReviewChanges(reviewChanges);
 
   const inputs = summarizeCoachingInputChanges([
     ...manualRows.map((row) => ({
       updatedAt: row.updatedAt,
-      planChangeNeeded: replyFlag("manual_activity", row.id),
+      planChangeNeeded: replyScope("manual_activity", row.id) !== "none",
+      planChangeScope: replyScope("manual_activity", row.id),
     })),
     ...commentRows.map((row) => ({
       updatedAt: row.updatedAt,
-      planChangeNeeded: replyFlag("activity_comment", row.activityId),
+      planChangeNeeded:
+        replyScope("activity_comment", row.activityId) !== "none",
+      planChangeScope: replyScope("activity_comment", row.activityId),
     })),
     ...noteRows.map((row) => ({
       updatedAt: row.updatedAt,
-      planChangeNeeded: replyFlag("weekly_note", row.weekStartDate),
+      planChangeNeeded: replyScope("weekly_note", row.weekStartDate) !== "none",
+      planChangeScope: replyScope("weekly_note", row.weekStartDate),
     })),
     // Deleting an activity removes training data, which always changes the
-    // plan's load picture.
+    // plan's load picture. It affects the current week, not the season.
     ...deletionRows.map((row) => ({
       updatedAt: row.updatedAt,
       planChangeNeeded: true,
+      planChangeScope: "week" as const,
     })),
     ...reviewChanges,
   ]);
@@ -213,10 +238,12 @@ export async function loadCoachingInputs(
     })),
     weekReviewUpdatedAt: reviews.weekUpdatedAt,
     weekReviewNeedsRefresh: reviews.weekNeedsRefresh,
+    weekReviewScope: reviews.weekScope,
     blockReviewUpdatedAt: reviews.blockUpdatedAt,
     blockReviewNeedsRefresh: reviews.blockNeedsRefresh,
     updatedAt: inputs.updatedAt,
     refreshUpdatedAt: inputs.refreshUpdatedAt,
+    refreshChanges: inputs.refreshChanges,
   };
 }
 

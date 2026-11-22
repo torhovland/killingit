@@ -147,21 +147,22 @@ and the reply is null; the failure is logged.
   the coach does not criticise a two-hour hike recorded as 2:05 or suggest a
   shorter route to make up for it.
 - **Coach reply** (`coachReplyPrompt`): system prompt asks for a 1–2 sentence
-  reply that acknowledges the input and says whether it changes the training
-  plan and, if so, what the coach will adjust; when it does not, the reply says
-  the plan stands. The shared `REPLY_PLAN_CHANGE_RULES` fragment in
+  reply that acknowledges the input and says which level of the training plan
+  it changes, if any, and what the coach will adjust; when it does not, the
+  reply says the plan stands. The shared `REPLY_PLAN_CHANGE_RULES` fragment in
   `promptRules.ts` owns that instruction, so the words the athlete reads agree
-  with the `planChangeNeeded` flag the same completion returns. The user prompt
+  with the `planChangeScope` the same completion returns. The user prompt
   contains the shared athlete and
   training context every plan prompt gets (profile, recent activities with their
   analyses and comments, manual activities, the weekly note, completed reviews,
   FTP and body histories), the current plan, the forecast stored on today's and
   tomorrow's sessions, and the specific input. The reply is one JSON object:
-  `{ "reply": string, "planChangeNeeded": boolean }`. The batched comment reply
+  `{ "reply": string, "planChangeScope": "none | day | week | block | season" }`.
+  The batched comment reply
   carries the same fields per item. The shared
   `TEXT_FORMATTING_RULES` fragment lets a longer reply use paragraphs and lists
   inside the string. A plain-text answer from a model that ignores the contract
-  is kept as the reply and fails open with `planChangeNeeded: true`.
+  is kept as the reply and fails open with `planChangeScope: "season"`.
   See `docs/specs/coach-reply-context.md` and
   `docs/specs/llm-text-formatting.md`.
 - **Plan generation** (`activityContext`): each activity comment is rendered
@@ -173,7 +174,7 @@ and the reply is null; the failure is logged.
 ## Generation flow
 
 1. A coaching-input route saves the input and generates the reply, which carries
-   `planChangeNeeded`.
+   `planChangeScope`.
 2. It then starts the normal plan trigger. The run reads the athlete's text and
    settles today's completion, and pays for the plan-update completion only when
    the reply asks for a change. `keepToday` is true when the input is about

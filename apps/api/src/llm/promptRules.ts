@@ -414,19 +414,19 @@ export const JSON_ONLY_RULES = `Do not add markdown fences, headings, explanatio
 const JSON_SHAPE_INSTRUCTION = `Return only one JSON object with exactly this shape`;
 
 /**
- * How the coach decides whether the input it just read changes the plan. The
+ * How the coach decides how far the input it just read changes the plan. The
  * analysis or reply that already read the workout, comment or note carries the
  * decision, so a refresh never needs a second completion. An input is context
  * unless it gives the coach a reason to change what is prescribed.
  */
-export const PLAN_CHANGE_FLAG_RULES = `Also decide whether this changes the training plan, and set "planChangeNeeded" accordingly. Set it to false when the plan already covers what you read: a workout that matched its prescription, praise or thanks, a question, context about a past session, or a feeling the plan already accounts for. Set it to true only when what you read changes what you would prescribe in the remaining season, block, week, today or tomorrow, for example a new constraint or commitment, an illness or injury, a recovery signal that should ease the load, a performance result that resets the targets, or a newly stated goal or event. The flag is a decision for you to make, not a report of whether the athlete asked for a change.`;
+export const PLAN_CHANGE_SCOPE_RULES = `Also decide the highest level of the training plan this changes, and set "planChangeScope" to "none", "day", "week", "block" or "season". Set it to "none" when the plan already covers what you read: a workout that matched its prescription, praise or thanks, a question, context about a past session, or a feeling the plan already accounts for. Set it to "day" when only today's session, or tomorrow's when it is being planned, should change. Set it to "week" when the remaining sessions of the current week should change while today's session stands. Set it to "block" when the current block's remaining weeks or target loads should change. Set it to "season" when the rest of the season should change, for example a newly stated goal or event beyond the current block, or a performance result that resets the targets for the rest of the season. A new constraint or commitment, an illness or injury and a recovery signal are scoped to the period they affect. The decision is yours to make, not a report of whether the athlete asked for a change.`;
 
 /**
  * How a coach reply reports the plan decision it just made. The reply and
- * `planChangeNeeded` come from the same completion, so the athlete must hear
- * the same answer in both: a change that is coming, or a plan that stands.
+ * `planChangeScope` come from the same completion, so the athlete must hear
+ * the same answer in both: a change at the named level, or a plan that stands.
  */
-export const REPLY_PLAN_CHANGE_RULES = `In the reply, say whether this changes the training plan and, if so, what you will adjust. When it does not change the plan, say the plan stands; never promise an adjustment that "planChangeNeeded" says will not happen.`;
+export const REPLY_PLAN_CHANGE_RULES = `In the reply, say which level of the training plan this changes and what you will adjust, naming the day, week, block or season. When it changes nothing, say the plan stands; never promise an adjustment that "planChangeScope" says will not happen.`;
 
 /**
  * The two notes fields every structured coach response carries. The
@@ -577,21 +577,21 @@ const COACH_ANALYSIS_CONTRACT = `{
   "estimatedFtpWatts": 0,
   "weightKg": 0,
   "bodyFatPercent": 0,
-  "planChangeNeeded": false,
+  "planChangeScope": "none | day | week | block | season",
   ${COACH_RESPONSE_NOTES_CONTRACT}
 }`;
 
 export const COACH_ANALYSIS_RESPONSE_RULES = promptSections(
   jsonShape(COACH_ANALYSIS_CONTRACT),
   `Replace "estimatedFtpWatts" with the integer estimate in watts, or null when there is no useful evidence. Set "weightKg" to the athlete's body weight in kilograms and "bodyFatPercent" to their body fat as a percentage only when the input for this activity states them, and to null otherwise. Put the whole coach summary in "analysis".`,
-  PLAN_CHANGE_FLAG_RULES,
+  PLAN_CHANGE_SCOPE_RULES,
   COACH_RESPONSE_NOTES_RULES,
   JSON_ONLY_RULES,
 );
 
 /** The fields of a coach reply, shared by the single and batched contracts. */
 export const COACH_REPLY_FIELDS_CONTRACT = `"reply": "string",
-  "planChangeNeeded": false`;
+  "planChangeScope": "none | day | week | block | season"`;
 
 /** The JSON contract for one coach reply. */
 const COACH_REPLY_CONTRACT = `{ ${COACH_REPLY_FIELDS_CONTRACT} }`;
@@ -599,7 +599,7 @@ const COACH_REPLY_CONTRACT = `{ ${COACH_REPLY_FIELDS_CONTRACT} }`;
 export const COACH_REPLY_RESPONSE_RULES = promptSections(
   jsonShape(COACH_REPLY_CONTRACT),
   `Put the whole reply in "reply".`,
-  PLAN_CHANGE_FLAG_RULES,
+  PLAN_CHANGE_SCOPE_RULES,
   JSON_ONLY_RULES,
 );
 

@@ -1,4 +1,8 @@
-import { activityLocalDate, zonedDateTime } from "@killingit/shared";
+import {
+  activityLocalDate,
+  zonedDateTime,
+  type PlanChangeScope,
+} from "@killingit/shared";
 import { LlmModelChoiceError, type LlmClient } from "../llm/client.js";
 import { generateCoachReplies } from "../llm/coachReplyBatch.js";
 import {
@@ -51,6 +55,8 @@ export interface CoachingQuestionAnswer {
   generatedAt: Date;
   /** Whether the answer asked for a plan refresh. */
   planChangeNeeded: boolean;
+  /** How far the answer said the change reaches. */
+  planChangeScope: PlanChangeScope;
 }
 
 export interface CoachReplyDependencies {
@@ -118,6 +124,7 @@ export async function replyToCoachingInput(
       reply: reply.text,
       model: reply.model,
       planChangeNeeded: reply.planChangeNeeded,
+      planChangeScope: reply.planChangeScope,
     });
   } catch (err) {
     console.error("[coach-reply] could not store the reply:", err);
@@ -231,6 +238,7 @@ export async function replyToUnansweredActivityComments(
           reply: text,
           model: llm.dailyModel,
           planChangeNeeded: reply.planChangeNeeded,
+          planChangeScope: reply.planChangeScope,
         }),
       );
     } catch (err) {
@@ -268,6 +276,7 @@ export async function replyToCoachQuestion(
         model: reply.model,
         generatedAt: new Date(),
         planChangeNeeded: reply.planChangeNeeded,
+        planChangeScope: reply.planChangeScope,
       };
 }
 
@@ -294,6 +303,7 @@ export async function answerCoachingQuestion(
         model: reply.model,
         generatedAt: new Date(),
         planChangeNeeded: false,
+        planChangeScope: "none",
       };
 }
 
@@ -350,6 +360,7 @@ async function generateReply(
       : {
           text: reply,
           planChangeNeeded: outcome.planChangeNeeded,
+          planChangeScope: outcome.planChangeScope,
           model: llm.dailyModel,
         };
   } catch (err) {

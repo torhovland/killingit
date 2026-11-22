@@ -9,7 +9,7 @@ import {
 import { buildCoachReplyBatchMessages } from "./coachReplyBatchPrompt.js";
 import type { PlanContextInput } from "./planContext.js";
 import {
-  PLAN_CHANGE_FLAG_RULES,
+  PLAN_CHANGE_SCOPE_RULES,
   REPLY_PLAN_CHANGE_RULES,
 } from "./promptRules.js";
 
@@ -40,7 +40,7 @@ describe("buildCoachReplyBatchMessages", () => {
     });
 
     expect(messages[0]?.content).toContain(REPLY_PLAN_CHANGE_RULES);
-    expect(messages[0]?.content).toContain(PLAN_CHANGE_FLAG_RULES);
+    expect(messages[0]?.content).toContain(PLAN_CHANGE_SCOPE_RULES);
     expect(messages[0]?.content).not.toContain(
       "explain how it affects the plan",
     );

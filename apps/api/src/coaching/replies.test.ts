@@ -130,6 +130,7 @@ describe("replyToCoachingInput", () => {
         reply: string;
         model: string;
         planChangeNeeded: boolean;
+        planChangeScope: string;
       } | null;
     } = { value: null };
 
@@ -145,6 +146,7 @@ describe("replyToCoachingInput", () => {
             model: input.model,
             generatedAt: new Date("2026-10-21T12:00:00Z"),
             planChangeNeeded: input.planChangeNeeded,
+            planChangeScope: input.planChangeScope,
           });
         },
       }),
@@ -168,6 +170,7 @@ describe("replyToCoachingInput", () => {
       model: "test-model",
       // The fake provider returns plain text, so the flag fails open.
       planChangeNeeded: true,
+      planChangeScope: "season",
     });
     expect(result?.text).toBe("Good work; I will keep Thursday easy.");
     expect(llmUserIds).toEqual([42]);
@@ -198,6 +201,7 @@ describe("replyToCoachingInput", () => {
             model: input.model,
             generatedAt: new Date(),
             planChangeNeeded: input.planChangeNeeded,
+            planChangeScope: input.planChangeScope,
           });
         },
       }),
@@ -215,7 +219,124 @@ describe("replyToCoachingInput", () => {
 
     expect(saved.planChangeNeeded).toBe(false);
     expect(result?.planChangeNeeded).toBe(false);
+    expect(result).toMatchObject({ planChangeScope: "none" });
     expect(result?.text).toBe("Nice work; the plan stays as it is.");
+  });
+
+  it("stores the level the coach judged for a plan change", async () => {
+    const provider = new FakeProvider(
+      JSON.stringify({
+        reply: "A race six weeks out changes the rest of the season.",
+        planChangeScope: "season",
+      }),
+    );
+    const saved: { value: unknown } = { value: null };
+
+    const result = await replyToCoachingInput(
+      deps(provider, {
+        saveReply: (input) => {
+          saved.value = input;
+          return Promise.resolve({
+            kind: input.kind,
+            target: input.target,
+            text: input.reply,
+            model: input.model,
+            generatedAt: new Date(),
+            planChangeNeeded: input.planChangeNeeded,
+            planChangeScope: input.planChangeScope,
+          });
+        },
+      }),
+      {
+        userId: 42,
+        today: "2026-10-21",
+        request: {
+          kind: "activity_comment",
+          activityId: "123",
+          activityDate: "2026-10-19",
+          comment: "I signed up for a race in six weeks.",
+        },
+      },
+    );
+
+    expect(saved.value).toMatchObject({ planChangeScope: "season" });
+    expect(result).toMatchObject({ planChangeScope: "season" });
+  });
+
+  it("fails a reply without a scope open to the season", async () => {
+    const provider = new FakeProvider(
+      JSON.stringify({
+        reply: "Good work; I will adjust the plan.",
+        planChangeNeeded: true,
+      }),
+    );
+
+    const result = await replyToCoachingInput(
+      deps(provider, {
+        saveReply: (input) =>
+          Promise.resolve({
+            kind: input.kind,
+            target: input.target,
+            text: input.reply,
+            model: input.model,
+            generatedAt: new Date(),
+            planChangeNeeded: input.planChangeNeeded,
+            planChangeScope: input.planChangeScope,
+          }),
+      }),
+      {
+        userId: 42,
+        today: "2026-10-21",
+        request: {
+          kind: "activity_comment",
+          activityId: "123",
+          activityDate: "2026-10-19",
+          comment: "Felt strong.",
+        },
+      },
+    );
+
+    expect(result).toMatchObject({ planChangeScope: "season" });
+  });
+
+  it("keeps the reply when the scope is malformed and fails open", async () => {
+    const provider = new FakeProvider(
+      JSON.stringify({
+        reply: "Nice work; keep it steady.",
+        planChangeScope: "month",
+      }),
+    );
+
+    const result = await replyToCoachingInput(
+      deps(provider, {
+        saveReply: (input) =>
+          Promise.resolve({
+            kind: input.kind,
+            target: input.target,
+            text: input.reply,
+            model: input.model,
+            generatedAt: new Date(),
+            planChangeNeeded: input.planChangeNeeded,
+            planChangeScope: input.planChangeScope,
+          }),
+      }),
+      {
+        userId: 42,
+        today: "2026-10-21",
+        request: {
+          kind: "activity_comment",
+          activityId: "123",
+          activityDate: "2026-10-19",
+          comment: "Felt strong.",
+        },
+      },
+    );
+
+    expect(result?.text).toBe("Nice work; keep it steady.");
+    expect(result).toMatchObject({
+      planChangeNeeded: true,
+      planChangeScope: "season",
+    });
   });
 
   it("keeps the reply when the flag is malformed and fails open", async () => {
@@ -236,6 +357,7 @@ describe("replyToCoachingInput", () => {
             model: input.model,
             generatedAt: new Date(),
             planChangeNeeded: input.planChangeNeeded,
+            planChangeScope: input.planChangeScope,
           }),
       }),
       {
@@ -322,6 +444,7 @@ describe("replyToCoachingInput", () => {
           model: input.model,
           generatedAt: new Date(),
           planChangeNeeded: input.planChangeNeeded,
+          planChangeScope: input.planChangeScope,
         });
       },
     });
@@ -443,6 +566,7 @@ describe("replyToUnansweredActivityComments", () => {
             model: input.model,
             generatedAt: new Date(),
             planChangeNeeded: input.planChangeNeeded,
+            planChangeScope: input.planChangeScope,
           });
         },
       }),
@@ -486,6 +610,7 @@ describe("replyToUnansweredActivityComments", () => {
             model: input.model,
             generatedAt: new Date(),
             planChangeNeeded: input.planChangeNeeded,
+            planChangeScope: input.planChangeScope,
           }),
       }),
       { userId: 42, today: "2026-10-21" },
@@ -494,6 +619,51 @@ describe("replyToUnansweredActivityComments", () => {
     expect(result.map((reply) => reply.planChangeNeeded)).toEqual([
       false,
       false,
+    ]);
+  });
+
+  it("stores each batched reply's plan change scope", async () => {
+    const provider = new FakeProvider(
+      JSON.stringify({
+        replies: [
+          {
+            id: "1",
+            reply: "A race six weeks out changes the rest of the season.",
+            planChangeScope: "season",
+          },
+          {
+            id: "2",
+            reply: "Travel next weekend; I will move the long ride.",
+            planChangeScope: "week",
+          },
+        ],
+      }),
+    );
+
+    const result = await replyToUnansweredActivityComments(
+      deps(provider, {
+        loadUnansweredComments: () =>
+          Promise.resolve([
+            { activityId: "1", comment: "Race in six weeks." },
+            { activityId: "2", comment: "Away next weekend." },
+          ]),
+        saveReply: (input) =>
+          Promise.resolve({
+            kind: input.kind,
+            target: input.target,
+            text: input.reply,
+            model: input.model,
+            generatedAt: new Date(),
+            planChangeNeeded: input.planChangeNeeded,
+            planChangeScope: input.planChangeScope,
+          }),
+      }),
+      { userId: 42, today: "2026-10-21" },
+    );
+
+    expect(result).toMatchObject([
+      { planChangeScope: "season" },
+      { planChangeScope: "week" },
     ]);
   });
 

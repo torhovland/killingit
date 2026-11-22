@@ -494,6 +494,88 @@ describe("coach plan route", () => {
     expect(body.pending.block).toBe(false);
   });
 
+  it("does not mark the block pending when a week review only reaches the week", async () => {
+    const plan = makePlan();
+    const storedAt = new Date("2026-10-20T10:00:00Z");
+    const reviewedAt = new Date("2026-10-21T08:00:00Z");
+    const planStore = new MemoryPlanStore({
+      plan,
+      answersUpdatedAt: storedAt,
+      coachingInputsUpdatedAt: storedAt,
+      activitiesUpdatedAt: null,
+      generatedAt: storedAt,
+    });
+
+    const res = await makeApp({
+      planStore,
+      coachingInputs: {
+        manualActivities: [],
+        activityComments: [],
+        weeklyNote: null,
+        weeklyNoteWeekStartDate: null,
+        weeklyNoteReply: null,
+        weeklyNoteUpdatedAt: null,
+        periodReviews: [],
+        weekReviewUpdatedAt: reviewedAt,
+        weekReviewNeedsRefresh: true,
+        weekReviewScope: "week",
+        blockReviewUpdatedAt: null,
+        blockReviewNeedsRefresh: false,
+        updatedAt: reviewedAt,
+        refreshUpdatedAt: reviewedAt,
+      },
+    }).fetch(authenticatedRequest("/api/coaching/plan?today=2026-10-21"));
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      stale: boolean;
+      pending: { block: boolean };
+    };
+    expect(body.stale).toBe(true);
+    expect(body.pending.block).toBe(false);
+  });
+
+  it("marks the block pending when a week review reaches the block", async () => {
+    const plan = makePlan();
+    const storedAt = new Date("2026-10-20T10:00:00Z");
+    const reviewedAt = new Date("2026-10-21T08:00:00Z");
+    const planStore = new MemoryPlanStore({
+      plan,
+      answersUpdatedAt: storedAt,
+      coachingInputsUpdatedAt: storedAt,
+      activitiesUpdatedAt: null,
+      generatedAt: storedAt,
+    });
+
+    const res = await makeApp({
+      planStore,
+      coachingInputs: {
+        manualActivities: [],
+        activityComments: [],
+        weeklyNote: null,
+        weeklyNoteWeekStartDate: null,
+        weeklyNoteReply: null,
+        weeklyNoteUpdatedAt: null,
+        periodReviews: [],
+        weekReviewUpdatedAt: reviewedAt,
+        weekReviewNeedsRefresh: true,
+        weekReviewScope: "block",
+        blockReviewUpdatedAt: null,
+        blockReviewNeedsRefresh: false,
+        updatedAt: reviewedAt,
+        refreshUpdatedAt: reviewedAt,
+      },
+    }).fetch(authenticatedRequest("/api/coaching/plan?today=2026-10-21"));
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      stale: boolean;
+      pending: { block: boolean };
+    };
+    expect(body.stale).toBe(true);
+    expect(body.pending.block).toBe(true);
+  });
+
   it("treats an invalid stored plan as absent instead of failing", async () => {
     const invalidPlan = makePlan();
     // Simulate a plan saved under an older schema that predates `rationale`.

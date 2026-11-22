@@ -56,6 +56,7 @@ export async function advancePlan(
     decision,
     today,
     includeTomorrow,
+    keepToday: input.keepToday === true,
   });
   const options: PlanUpdateOptions = {
     ...(flags.season || flags.blockInPlace
