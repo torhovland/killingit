@@ -35,15 +35,18 @@ development or production database.
 5. The modelled FTP and threshold pace are written to the account as Garmin-style
    dated estimates before each training day and before each refresh, so the
    coach's prompt and the activity TSS see the same values.
-6. An independent race check beside the coach's own words: a Riegel-style
+6. A positive weekly note from the athlete ("every workout this week felt easy")
+   so the coach receives the subjective feedback a real compliant athlete would
+   give, through the app's normal weekly-note input.
+7. An independent race check beside the coach's own words: a Riegel-style
    half-marathon prediction from threshold pace and a steady-state speed/power
    model for the gravel course, reported both solo and in a group.
-7. Per-session feasibility checks: duration-adjusted intensity cap and a report
+8. Per-session feasibility checks: duration-adjusted intensity cap and a report
    flag when a prescribed session looks beyond the athlete.
-8. Saved state after every week and around every refresh, so a failed model run
+9. Saved state after every week and around every refresh, so a failed model run
    can be retried with `--resume` instead of replaying the season.
-9. A JSON result per scenario and a PDF report (`report.pdf`) with the weekly
-   progression, race checks, coach excerpts, comparison and findings.
+10. A JSON result per scenario and a PDF report (`report.pdf`) with the weekly
+    progression, race checks, coach excerpts, comparison and findings.
 
 ### Out of scope
 
@@ -104,13 +107,16 @@ fresh: rebuild dedicated DB → seed athlete/profile/events/thresholds
 loop:  read plan.nextWeek
        for each day: advance the athlete model, record an activity if the
                      session is trained, update CTL
-       at Sunday 21:00: write thresholds → auto refresh with tomorrow
+       at Sunday 21:00: write thresholds, write the week's positive note,
+                     then auto refresh with tomorrow
        stop at 2027-08-29
 ```
 
 `includeTomorrow` is always explicit, so the server's real clock never decides
 whether tomorrow is planned. The simulated `today` is passed to every plan
-refresh and to the forecast loader.
+refresh and to the forecast loader. The weekly note is the athlete's subjective
+feedback for the completed week ("every workout this week felt easy"); the coach
+reads it through the normal weekly-note input.
 
 The first build and every refresh use `runPlanForUser` with the production
 database stores. The harness injects only `loadActivities`, `loadLlm`,

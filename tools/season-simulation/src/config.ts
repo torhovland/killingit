@@ -104,6 +104,14 @@ export const SEASON_EVENT_TITLES = {
   gravel: "100 km gravel race, 1170 m climbing, 3:10 goal",
 } as const;
 
+/**
+ * The athlete's weekly feedback. The scenario assumes every prescribed session
+ * was completed comfortably, so the coach gets a positive signal every week
+ * instead of only the activity data.
+ */
+export const WEEKLY_FEEDBACK =
+  "Every workout this week felt easy. I finished every session with plenty left and felt ready for more.";
+
 /** Refuses to drop a database that is not clearly the harness's own. */
 export function assertDedicatedDatabase(databaseUrl: string): void {
   const name = new URL(databaseUrl).pathname.replace(/^\//, "");

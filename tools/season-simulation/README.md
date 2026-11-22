@@ -11,6 +11,9 @@ assumptions.
 # A real model key is required.
 export BENCHMARK_OPENROUTER_API_KEY=...
 
+# Optional; the default is openai/gpt-6-luna-pro.
+export SEASON_SIM_MODEL=openai/gpt-6.1-sol
+
 # The harness rebuilds this database; the name must end in _season_sim.
 export SEASON_SIM_DATABASE_URL=postgres://killingit:killingit@localhost:5432/killingit_season_sim
 

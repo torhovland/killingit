@@ -13,6 +13,7 @@ import {
   recordGarminBodyMetrics,
   recordGarminFtp,
 } from "../../../apps/api/src/metrics/store.js";
+import { saveWeeklyNote } from "../../../apps/api/src/plans/inputs.js";
 import {
   dbPlanStore,
   dbPlanGenerationStore,
@@ -175,6 +176,15 @@ async function upsertThreshold(
         updatedAt: new Date(),
       },
     });
+}
+
+/** Stores the athlete's positive weekly note for the week ending `weekEnd`. */
+export async function writeWeeklyFeedback(
+  userId: number,
+  weekEnd: string,
+  note: string,
+): Promise<void> {
+  await saveWeeklyNote(userId, weekEnd, note);
 }
 
 /** The validated stored plan, or null before the first build. */

@@ -152,13 +152,13 @@ function methodSection(): string {
 <p><strong>Activities.</strong> Each prescribed session is converted into an imported activity with concrete duration, distance, elevation, average and normalized power, average heart rate and pace. Cycling and running TSS therefore comes from measured power or pace, not from free text. A race day is simulated from the athlete's modelled ability on that morning.</p>
 <p><strong>Progression.</strong> Ability is a function of chronic training load (CTL, 42-day EWMA): the athlete regains the gap to the prior peak with diminishing returns and never exceeds it in this model. The model is a simulation assumption, not app logic.</p>
 <p><strong>Feasibility.</strong> The report makes an independent numeric check beside the coach's own words. The half is predicted from threshold pace (half pace = 1.04 × threshold, 1% taper). The gravel race uses a steady-state speed/power model (93 kg system mass, CdA 0.385, Crr 0.0055, 97% drivetrain, 3:10 target). A target is treated as met within a 1% modelling tolerance. The solo and group cases are reported separately.</p>
-<div class="note">Weather and daylight are a deterministic Trondheim-like seasonal approximation rather than a live provider call, so the season is reproducible. The app's real prompt, plan validation, period reviews and stored-plan pipeline are otherwise used unchanged.</div>`;
+<div class="note">Weather and daylight are a deterministic Trondheim-like seasonal approximation rather than a live provider call, so the season is reproducible. The app's real prompt, plan validation, period reviews and stored-plan pipeline are otherwise used unchanged. Test 2 is the alternate-day reference from the earlier prompt set; it is retained to show the adherence effect, not as a controlled model comparison.</div>`;
 }
 
 function scenarioSection(result: ScenarioResult): string {
   return `<div class="pb"></div>
 <h2>${result.scenario === "full" ? "Test 1" : "Test 2"} — ${escapeHtml(result.label)}</h2>
-<p>${escapeHtml(result.description)} Season ${escapeHtml(result.season?.startDate ?? "—")} → ${escapeHtml(result.season?.endDate ?? "—")}. ${String(result.calls.length)} model calls, ${formatCost(result.costUsd)}, ${formatNumber(result.promptTokens)} prompt and ${formatNumber(result.completionTokens)} completion tokens. Wall time ${wallTime(result)}.</p>
+<p>${escapeHtml(result.description)} Season ${escapeHtml(result.season?.startDate ?? "—")} → ${escapeHtml(result.season?.endDate ?? "—")}. Model ${escapeHtml(result.model)}. ${String(result.calls.length)} model calls, ${formatCost(result.costUsd)}, ${formatNumber(result.promptTokens)} prompt and ${formatNumber(result.completionTokens)} completion tokens. Wall time ${wallTime(result)}.</p>
 ${raceSection(result)}
 <h3>Weekly progression</h3>
 ${charts(result)}
@@ -363,6 +363,8 @@ function findingsSection(data: ReportData): string {
   if (full !== undefined) {
     findings.push(...goalFindings(full));
     findings.push(loadFinding(full));
+    const readiness = readinessFinding(full);
+    if (readiness !== null) findings.push(readiness);
     const claim = coachClaimFinding(full);
     if (claim !== null) findings.push(claim);
     const caveat = raceWeekCaveat(full);
@@ -430,13 +432,35 @@ function loadFinding(result: ScenarioResult): string {
   const gravel = result.races.find((race) => race.kind === "gravel");
   const halfText =
     half?.met === true
-      ? "That was enough for the half marathon"
-      : "That was not enough for the half marathon";
+      ? "enough for the half marathon"
+      : "not enough for the half marathon";
   const gravelGap =
     gravel === undefined
       ? 0
       : Math.round((gravel.predictedSeconds - gravel.targetSeconds) / 60);
-  return `The plan averaged ${meanHours.toFixed(1)} training hours a week (peak ${peakHours.toFixed(1)} h), using only part of the 8–10 h the athlete offered, and its own estimates peaked at ${String(peakPlan)} TSS a week (mean ${String(meanPlan)}) with chronic load at ${peakCtl.toFixed(0)} CTL. ${halfText}, but the gravel target was missed by ${String(gravelGap)} minutes: the block after the half never rebuilt FTP toward the ~281 W the 3:10 target needs.`;
+  const gravelText =
+    gravel?.met === true
+      ? "enough for the gravel race"
+      : `not enough for the gravel race (missed by ${String(gravelGap)} minutes)`;
+  const ftpText =
+    gravel?.met === true
+      ? "The gravel block rebuilt FTP to the level the 3:10 target needs."
+      : "The block after the half never rebuilt FTP toward the ~281 W the 3:10 target needs.";
+  return `The plan averaged ${meanHours.toFixed(1)} training hours a week (peak ${peakHours.toFixed(1)} h), using the athlete's stated capacity, and its own estimates peaked at ${String(peakPlan)} TSS a week (mean ${String(meanPlan)}) with chronic load at ${peakCtl.toFixed(0)} CTL. That was ${halfText} and ${gravelText}. ${ftpText}`;
+}
+
+/** Whether the race-week readiness assessment matched the independent check. */
+function readinessFinding(result: ScenarioResult): string | null {
+  const half = result.races.find((race) => race.kind === "half");
+  const gravel = result.races.find((race) => race.kind === "gravel");
+  const text = `${half?.coachText ?? ""} ${gravel?.coachText ?? ""}`;
+  const cautious =
+    /plausible but unconfirmed|remains a stretch|not a race prediction|not confirmed/i.test(
+      text,
+    );
+  const met = result.races.filter((race) => race.met).length;
+  if (!cautious || met === 0) return null;
+  return `The race-week readiness assessments were cautious — the half was "plausible but unconfirmed" and the gravel "remains a stretch" — while the independent model placed ${String(met)} of ${String(result.races.length)} goals inside their targets. The coach no longer hides a gap, but it may now understate a goal the training actually supports.`;
 }
 
 /** Contrasts a confident race-week claim with the independent check. */
@@ -471,7 +495,7 @@ function comparisonFindings(
   return [
     `Training every other day cut recorded TSS to ${formatNumber(reducedSummary.totalTss)} (${String(share)}% of test 1) and peak CTL to ${reducedSummary.peakCtl.toFixed(0)} from ${fullSummary.peakCtl.toFixed(0)}.`,
     `Peak FTP was ${String(Math.round(fullSummary.peakFtp))} W in test 1 and ${String(Math.round(reducedSummary.peakFtp))} W in test 2; the half race prediction was ${formatClock(fullSummary.half)} versus ${formatClock(reducedSummary.half)}, and the gravel race prediction ${formatClock(fullSummary.gravel)} versus ${formatClock(reducedSummary.gravel)}.`,
-    `Test 2 completed ${String(reducedSummary.recorded)} sessions against test 1's ${String(fullSummary.recorded)}. The slower progression is the expected consequence of the lower chronic load, and it is considerably larger than the week-to-week model noise.`,
+    `Test 2 completed ${String(reducedSummary.recorded)} sessions against test 1's ${String(fullSummary.recorded)}. The slower progression is the expected consequence of the lower chronic load, and it is considerably larger than the week-to-week model noise. Test 2 predates the current prompt set and model, so read this comparison as the adherence effect plus a version difference, not as a controlled model comparison.`,
   ];
 }
 

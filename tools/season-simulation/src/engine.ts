@@ -29,6 +29,7 @@ import {
   SEASON_END_DATE,
   SIM_DATABASE_URL,
   START_DATE,
+  WEEKLY_FEEDBACK,
 } from "./config.js";
 import {
   loadPlan,
@@ -36,6 +37,7 @@ import {
   prepareSimulationDatabase,
   seedAthlete,
   writeThresholds,
+  writeWeeklyFeedback,
 } from "./db.js";
 import { createRecordedLlm } from "./llm.js";
 import {
@@ -176,6 +178,7 @@ async function runWeeks(
       break;
     }
     await writeThresholds(run.userId, run.today, run.state);
+    await writeWeeklyFeedback(run.userId, run.today, WEEKLY_FEEDBACK);
     run.pendingRefresh = { today: run.today, mode: "auto" };
     await writeSimulationState(OUTPUT_ROOT, run);
     plan = await refreshPlan({
