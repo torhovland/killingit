@@ -47,6 +47,15 @@ a row in two steps:
   (including OpenRouter's reported USD cost when present), routed model, finish
   reason, and duration.
 
+Usage also keeps the provider's prompt-cache and reasoning counts:
+`prompt_tokens_details.cached_tokens` becomes `cachedTokens`,
+`prompt_tokens_details.cache_write_tokens` becomes `cacheWriteTokens`, and
+`completion_tokens_details.reasoning_tokens` becomes `reasoningTokens`. A
+provider that omits a detail object, or reports an unusable value in it,
+records `null` rather than dropping the field or rejecting the call. Older rows
+predate these fields and remain readable because all three are optional and
+nullable.
+
 The row therefore exists while the request is in flight. A process that stops
 while waiting for the provider (for example a Cloud Run restart) leaves a
 visible row instead of losing the attempt, because the write does not depend on
@@ -115,13 +124,52 @@ so a later prompt type can add a field without a migration.
 
 Both routes sit behind the existing `/api/admin/*` auth and admin-role guard.
 
+### Reasoning and cache analysis
+
+The usage field is JSONB, so the detail view can show the counts without a new
+aggregation endpoint, and an owner can compute distributions directly. The
+following read-only query reports the p50 and p95 reasoning share (reasoning
+tokens divided by completion tokens) and cache-hit rate (cached tokens divided
+by prompt tokens) per prompt kind. Rows without the detail keys, and divisions
+by a zero count, contribute `NULL`, which `percentile_cont` ignores.
+
+```sql
+WITH shares AS (
+  SELECT
+    kind,
+    (usage->>'reasoningTokens')::numeric
+      / nullif((usage->>'completionTokens')::numeric, 0) AS reasoning_share,
+    (usage->>'cachedTokens')::numeric
+      / nullif((usage->>'promptTokens')::numeric, 0) AS cache_hit_rate
+  FROM llm_calls
+  WHERE usage IS NOT NULL
+)
+SELECT
+  kind,
+  count(*) AS calls,
+  percentile_cont(0.5) WITHIN GROUP (ORDER BY reasoning_share) AS p50_reasoning_share,
+  percentile_cont(0.95) WITHIN GROUP (ORDER BY reasoning_share) AS p95_reasoning_share,
+  percentile_cont(0.5) WITHIN GROUP (ORDER BY cache_hit_rate) AS p50_cache_hit_rate,
+  percentile_cont(0.95) WITHIN GROUP (ORDER BY cache_hit_rate) AS p95_cache_hit_rate
+FROM shares
+GROUP BY kind
+ORDER BY kind;
+```
+
+Add `WHERE kind = 'plan_update'` (or another prompt kind) to the CTE to narrow
+the report. Run it through `scripts/agent.sh --env prod`, which opens the
+production database read-only by default.
+
 ### UI
 
 The Admin settings page gains an "LLM prompts" section. Each row is a button
 showing the prompt type, model, datetime, user auth subject, duration, and
 succeeded/failed status. Selecting a row fetches the full call and shows the
 metadata, token usage (with the reported cost when available), each message by
-role, and the response or error. A refresh button reloads the newest 50.
+role, and the response or error. The detail view adds the cached, cache-write
+and reasoning counts when the row recorded them, and omits each line when it is
+absent, so a row from before detail capture renders unchanged. A refresh button
+reloads the newest 50.
 
 On wide screens the log is a list/detail split: the list keeps its own scroll
 area in a left column and the selected call is rendered beside it, so reading a
@@ -142,6 +190,12 @@ questions and the prompt log.
   including failed attempts and repair turns.
 - A truncated attempt records the usage, routed model, and finish reason of the
   response it was billed for.
+- A settled call records OpenRouter's cached, cache-write and reasoning counts
+  when the provider reports them.
+- A call whose provider omits or malforms the detail objects still records its
+  other usage, with the missing counts as null.
+- A stored row from before detail capture still parses and renders without the
+  new counts.
 - A cancelled attempt records no usage.
 - An attempt is recorded before its request is sent, so a process that stops
   while waiting for the provider still leaves a row.

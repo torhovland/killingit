@@ -64,6 +64,21 @@ export function LlmCallDetail({ call }: { call: LlmCallDetailData }) {
           value={call.usage?.completionTokens ?? "—"}
         />
         <Metadata label="Total tokens" value={call.usage?.totalTokens ?? "—"} />
+        {call.usage?.cachedTokens != null && (
+          <Metadata label="Cached tokens" value={call.usage.cachedTokens} />
+        )}
+        {call.usage?.cacheWriteTokens != null && (
+          <Metadata
+            label="Cache write tokens"
+            value={call.usage.cacheWriteTokens}
+          />
+        )}
+        {call.usage?.reasoningTokens != null && (
+          <Metadata
+            label="Reasoning tokens"
+            value={call.usage.reasoningTokens}
+          />
+        )}
         {call.usage?.costUsd !== null && call.usage?.costUsd !== undefined && (
           <Metadata label="Cost" value={formatCostUsd(call.usage.costUsd)} />
         )}

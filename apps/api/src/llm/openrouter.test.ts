@@ -193,6 +193,13 @@ describe("complete", () => {
               completion_tokens: 30,
               total_tokens: 150,
               cost: 0.0012,
+              prompt_tokens_details: {
+                cached_tokens: 80,
+                cache_write_tokens: 20,
+              },
+              completion_tokens_details: {
+                reasoning_tokens: 12,
+              },
             },
             choices: [
               { message: { content: "Plan ready." }, finish_reason: "stop" },
@@ -221,7 +228,92 @@ describe("complete", () => {
         completionTokens: 30,
         totalTokens: 150,
         costUsd: 0.0012,
+        cachedTokens: 80,
+        cacheWriteTokens: 20,
+        reasoningTokens: 12,
       },
+    });
+  });
+
+  it("records null detail counts when the provider omits the detail objects", async () => {
+    const provider = createOpenRouterProvider({
+      fetchImpl: stubFetch(() =>
+        Promise.resolve(
+          jsonResponse({
+            usage: {
+              prompt_tokens: 100,
+              completion_tokens: 20,
+              total_tokens: 120,
+            },
+            choices: [
+              { message: { content: "Plan ready." }, finish_reason: "stop" },
+            ],
+          }),
+        ),
+      ),
+    });
+    const result = await provider.completeDetailed?.({
+      apiKey: "sk-or-v1-test",
+      model: "openrouter/auto",
+      messages: [{ role: "user", content: "analyse" }],
+      temperature: 0.3,
+      maxTokens: 500,
+    });
+    if (result === undefined) {
+      throw new Error("expected completeDetailed to be implemented");
+    }
+
+    expect(result.usage).toEqual({
+      promptTokens: 100,
+      completionTokens: 20,
+      totalTokens: 120,
+      costUsd: null,
+      cachedTokens: null,
+      cacheWriteTokens: null,
+      reasoningTokens: null,
+    });
+  });
+
+  it("ignores malformed token detail objects", async () => {
+    const provider = createOpenRouterProvider({
+      fetchImpl: stubFetch(() =>
+        Promise.resolve(
+          jsonResponse({
+            usage: {
+              prompt_tokens: 100,
+              completion_tokens: 20,
+              total_tokens: 120,
+              prompt_tokens_details: "cached",
+              completion_tokens_details: {
+                reasoning_tokens: -1,
+              },
+            },
+            choices: [
+              { message: { content: "Plan ready." }, finish_reason: "stop" },
+            ],
+          }),
+        ),
+      ),
+    });
+    const result = await provider.completeDetailed?.({
+      apiKey: "sk-or-v1-test",
+      model: "openrouter/auto",
+      messages: [{ role: "user", content: "analyse" }],
+      temperature: 0.3,
+      maxTokens: 500,
+    });
+    if (result === undefined) {
+      throw new Error("expected completeDetailed to be implemented");
+    }
+
+    expect(result.usage).toEqual({
+      promptTokens: 100,
+      completionTokens: 20,
+      totalTokens: 120,
+      costUsd: null,
+      cachedTokens: null,
+      cacheWriteTokens: null,
+      reasoningTokens: null,
     });
   });
 
@@ -342,6 +434,9 @@ describe("complete", () => {
         promptTokens: 4_000,
         completionTokens: 2_048,
         totalTokens: 6_048,
+        cachedTokens: null,
+        cacheWriteTokens: null,
+        reasoningTokens: null,
         costUsd: 0.0123,
       });
       expect((err as LlmTokenLimitError).model).toBe("anthropic/claude-test");
