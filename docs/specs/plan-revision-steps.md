@@ -68,14 +68,21 @@ daily prompt for its response and merges it through the same helpers; the
 stored season and block stand in for the levels the daily response does not
 carry. See `docs/specs/daily-plan-refresh.md` and ADR 0062.
 
+The plan-update prompt asks only for the levels its revision changes, and the
+answer may omit every level it does not return. The level merges take that
+partial response and fall back to the stored level for each omitted field, so a
+week-only answer cannot replace the stored season or block with an empty one.
+The diet-progress checks cover only the levels the answer carries. See ADR 0063.
+
 `applyPlanUpdate` composes the helpers in a fixed order:
 
 1. `mergeSeasonAndBlock` restores the greeting on every returned season. A
    refresh also keeps the completed blocks and the original season start date,
-   takes the returned block, and rejects an answer that moved the current
-   block's start date. A block revision takes the returned block; a next-block
-   revision refreshes only the season summary.
-2. The block's expected start date is checked against the returned block. A
+   takes the returned block, and rejects a returned season and block that moved
+   the current block's start date. A block revision takes the returned block; a
+   next-block revision refreshes only the season summary. A level the answer
+   omits keeps the stored one.
+2. The block's expected start date is checked against a returned block. A
    week review that lands inside the block passes `reviseBlock`, so the coach
    revises the current block in place instead of starting the next one.
 3. `mergeWeekAndDay` takes the returned week and today for a day revision, and

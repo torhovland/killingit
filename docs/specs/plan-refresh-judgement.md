@@ -89,8 +89,9 @@ volunteered. The scope makes the coach's judgement travel to the revision.
   the plan as before.
 - **Right-sizing the week, block and season prompts and capping their
   reasoning.** The scope is what made it safe to route a day-scoped refresh to
-  the smaller daily prompt (`docs/specs/daily-plan-refresh.md`); shrinking the
-  full prompt for the remaining revisions is a separate change.
+  the smaller daily prompt (`docs/specs/daily-plan-refresh.md`). The remaining
+  revisions now ask the plan-update prompt only for the levels they change
+  (ADR 0063); capping reasoning is still separate.
 
 ## Data model
 

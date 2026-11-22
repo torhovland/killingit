@@ -4,7 +4,10 @@ import type {
   WeekPlan,
 } from "@killingit/shared";
 import { activityLocalDate } from "@killingit/shared";
-import type { DailyPlanUpdate } from "../../llm/planResult.js";
+import type {
+  DailyPlanUpdate,
+  PlanUpdateResponse,
+} from "../../llm/planResult.js";
 import { mergeDietProgressTargets } from "../dietProgress.js";
 import { PlanValidationError } from "../planValidationError.js";
 import {
@@ -20,7 +23,7 @@ import type { GeneratePlanInput, PlanGenerationContext } from "./types.js";
 export function applyPlanUpdate(
   input: GeneratePlanInput,
   current: CoachPlan,
-  update: CoachPlan,
+  update: PlanUpdateResponse,
   revision: PlanUpdateFlags,
   options: {
     expectedBlockStartDate?: string;
@@ -34,6 +37,7 @@ export function applyPlanUpdate(
 
   if (
     revision.block &&
+    update.block !== undefined &&
     options.expectedBlockStartDate !== undefined &&
     plan.block.startDate !== options.expectedBlockStartDate
   ) {

@@ -12,7 +12,9 @@ Stop paying for a complete plan response when a refresh changes only today and
 the week around it. A day-scoped comment, a missing or moved day and the
 ordinary next-day advance use the daily prompt, whose contract already returns
 today, tomorrow and the week, while every revision that reaches the season,
-block or next period keeps the full plan-update prompt.
+block or next period keeps the plan-update prompt. That prompt now asks only
+for the levels the revision changes, so a week-only or progress-only refresh
+does not re-emit season and block training content either. See ADR 0063.
 
 ## Scope
 
@@ -35,9 +37,10 @@ block or next period keeps the full plan-update prompt.
 
 - Week-only revisions (`week` set, `day` clear), a pure tomorrow fill, the
   progress-only diet refresh in `freshPlan.ts`, and every season, block or
-  next-period revision. They keep the full plan-update prompt because they need
+  next-period revision. They keep the plan-update prompt because they need
   levels the daily contract does not carry.
-- Right-sizing the week, block and season prompts themselves.
+- Right-sizing the week, block and season prompts themselves; that is
+  `docs/specs/plan-revision-steps.md` and ADR 0063.
 - Changing the model or its reasoning budget.
 
 ## Revision routing
@@ -46,18 +49,24 @@ block or next period keeps the full plan-update prompt.
 that scope and the pending levels into the same flags as before. The request
 then chooses the prompt:
 
-| Flags                                                       | Prompt           |
-| ----------------------------------------------------------- | ---------------- |
-| `day`, with no `season`, `block`, `nextBlock` or `nextWeek` | daily update     |
-| `week` only, or a pure tomorrow fill                        | full plan update |
-| progress only                                               | full plan update |
-| `season`, `block` or a next-period revision                 | full plan update |
+| Flags                                                       | Prompt       |
+| ----------------------------------------------------------- | ------------ |
+| `day`, with no `season`, `block`, `nextBlock` or `nextWeek` | daily update |
+| `week` only, or a pure tomorrow fill                        | plan update  |
+| progress only                                               | plan update  |
+| `season`, `block` or a next-period revision                 | plan update  |
 
 A day-only revision still sets `week` because today's outline in the week must
 stay in step; it is the `day` flag and the absence of the wider levels that
 choose the daily prompt. A day scope that also wants tomorrow stays on the
 daily prompt; the response's tomorrow is merged when the `tomorrow` flag is
 set.
+
+The remaining revisions use the plan-update prompt, but its response contract
+carries only the levels they change: a week-only refresh returns the week, a
+block refresh returns the season, block, week and today, and a progress-only
+refresh returns every level whose `dietProgress` target it refreshes. A season
+refresh keeps the complete contract. See ADR 0063.
 
 The merge uses the revision flags exactly as a full update does: a day revision
 takes the returned today and week, a tomorrow revision takes the returned

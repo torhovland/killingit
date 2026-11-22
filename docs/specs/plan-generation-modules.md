@@ -34,9 +34,10 @@ covered all of them in one run.
 4. `revision.ts` — the update engine (`advancePlan`) and the prompt request
    (`requestPlanUpdate`), which uses the daily prompt for a day-only revision
    and the single plan-update prompt otherwise.
-5. `applyUpdate.ts` — applying the levels the update returned, restoring
-   today's stored session while the rest of the week is revised, the
-   activity-on-day check and the body-metric merge.
+5. `applyUpdate.ts` — applying the levels the update returned and keeping the
+   stored level for each level a partial response omits, restoring today's
+   stored session while the rest of the week is revised, the activity-on-day
+   check and the body-metric merge.
 6. `finalize.ts` — the adapter from a run input to `FinalizePlanInput`. The
    pipeline itself stays in `plans/finalize.ts`.
 7. `persist.ts` — saving, run fencing, the completion wrappers and the

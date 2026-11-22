@@ -922,13 +922,14 @@ describe("requestPlanUpdate", () => {
     expect(plan.tomorrow?.date).toBe("2026-10-22");
   });
 
-  it("keeps the full prompt for a week-only revision", async () => {
+  it("takes a week-only response and keeps the stored season, block and today", async () => {
+    const revisedWeek = { ...makeWeek("2026-10-19"), focus: "Revised week" };
     const provider = new FakeProvider({
-      planUpdate: makeUpdate("2026-10-21"),
+      planUpdate: JSON.stringify({ week: revisedWeek, bodyMetrics: [] }),
     });
     const { input, current } = updateInput(provider);
 
-    await requestPlanUpdate(
+    const plan = await requestPlanUpdate(
       input,
       current,
       {
@@ -939,7 +940,7 @@ describe("requestPlanUpdate", () => {
         tomorrow: false,
         nextWeek: false,
         nextBlock: false,
-        progress: true,
+        progress: false,
         clearNextPeriod: true,
         blockInPlace: false,
       },
@@ -947,6 +948,79 @@ describe("requestPlanUpdate", () => {
     );
 
     expect(provider.calls).toEqual(["plan-update"]);
+    expect(plan.week.focus).toBe("Revised week");
+    expect(plan.season).toEqual(current.season);
+    expect(plan.block).toEqual(current.block);
+    expect(plan.today).toEqual(current.today);
+  });
+
+  it("refreshes every stored target from a progress-only response", async () => {
+    const target = {
+      targetWeightKg: 80,
+      targetBodyFatPercent: 20,
+      note: "On target.",
+    };
+    const current = makePlan("2026-10-21");
+    const provider = new FakeProvider({
+      planUpdate: JSON.stringify({
+        season: {
+          ...current.season,
+          dietProgress: target,
+          blocks: current.season.blocks.map((block) => ({
+            ...block,
+            dietProgress: target,
+          })),
+        },
+        block: {
+          ...current.block,
+          dietProgress: target,
+          weeks: current.block.weeks.map((week) => ({
+            ...week,
+            dietProgress: target,
+          })),
+        },
+        week: { ...current.week, dietProgress: target },
+        nextWeek: null,
+        nextBlock: null,
+        bodyMetrics: [],
+      }),
+    });
+    const existing = makeStoredPlan(current);
+    const input: GeneratePlanInput = {
+      userId: 1,
+      runId: "run-1",
+      today: "2026-10-21",
+      plan: existing,
+      context: makeContext(provider),
+      plans: new MemoryPlanStore(existing),
+      generations: new MemoryGenerationStore(),
+    };
+
+    const plan = await requestPlanUpdate(
+      input,
+      current,
+      {
+        season: false,
+        block: false,
+        week: false,
+        day: false,
+        tomorrow: false,
+        nextWeek: false,
+        nextBlock: false,
+        progress: true,
+        clearNextPeriod: false,
+        blockInPlace: false,
+      },
+      {},
+    );
+
+    expect(provider.calls).toEqual(["plan-update"]);
+    expect(plan.season.dietProgress?.targetWeightKg).toBe(80);
+    expect(plan.block.dietProgress?.targetWeightKg).toBe(80);
+    expect(plan.block.weeks[0]?.dietProgress?.targetWeightKg).toBe(80);
+    expect(plan.week.dietProgress?.targetWeightKg).toBe(80);
+    expect(plan.week.focus).toBe(current.week.focus);
+    expect(plan.today).toEqual(current.today);
   });
 
   it("keeps the full prompt for a progress-only update", async () => {

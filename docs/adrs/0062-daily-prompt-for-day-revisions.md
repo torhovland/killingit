@@ -1,6 +1,7 @@
 # ADR 0062: Use the daily prompt for a day-only plan revision
 
-- **Status:** Accepted
+- **Status:** Accepted; ADR 0063 later right-sizes the plan-update contract for
+  the remaining revisions
 - **Date:** 2026-11-22
 - **Deciders:** torhovland
 - **Related:** ADR 0013 (update every affected level in one completion),

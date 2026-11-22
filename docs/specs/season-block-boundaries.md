@@ -77,8 +77,8 @@ boundary the coach controls can never be stored broken.
 
 `SEASON_BLOCK_RULES` in `apps/api/src/llm/promptRules.ts` states the rule and a
 worked example (a block ending 2026-11-23 is followed by one starting
-2026-11-24), and is composed into `SEASON_PLAN_SYSTEM_PROMPT` and
-`PLAN_UPDATE_SYSTEM_PROMPT`, replacing the prose each prompt used to carry.
+2026-11-24), and is composed into `SEASON_PLAN_SYSTEM_PROMPT` and the plan-update
+system prompt, replacing the prose each prompt used to carry.
 
 ## Data model and API impact
 

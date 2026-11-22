@@ -115,6 +115,17 @@ function planUpdateInput(): PlanUpdateInput {
   };
 }
 
+const progressRevision = {
+  season: false,
+  block: false,
+  week: false,
+  day: false,
+  tomorrow: false,
+  nextWeek: false,
+  nextBlock: false,
+  progress: true,
+};
+
 function planUpdateResponse(overrides: Partial<CoachPlan> = {}): string {
   const weekPlan = input().week;
   const todayPlan: DayPlan = day("2026-10-21");
@@ -205,10 +216,71 @@ describe("generatePlanUpdate", () => {
       planUpdateInput(),
     );
 
-    expect(result.week.startDate).toBe("2026-10-19");
-    expect(result.today.date).toBe("2026-10-21");
+    expect(result.week?.startDate).toBe("2026-10-19");
+    expect(result.today?.date).toBe("2026-10-21");
     expect(provider.requests).toHaveLength(1);
     expect(provider.requests[0]?.kind).toBe("plan_update");
+  });
+
+  it("accepts a week-only response without the stored season and block", async () => {
+    const provider = new FakeProvider([
+      JSON.stringify({
+        week: { ...input().week, focus: "Revised week" },
+        bodyMetrics: [],
+      }),
+    ]);
+
+    const result = await generatePlanUpdate(
+      provider,
+      { apiKey: "key", model: "model" },
+      {
+        ...planUpdateInput(),
+        revision: {
+          ...planUpdateInput().revision,
+          day: false,
+        },
+      },
+    );
+
+    expect(provider.requests).toHaveLength(1);
+    expect(result.week?.focus).toBe("Revised week");
+    expect(result.season).toBeUndefined();
+    expect(result.block).toBeUndefined();
+  });
+
+  it("does not require a season target a week-only response omits", async () => {
+    const progress = {
+      targetWeightKg: 80,
+      targetBodyFatPercent: 20,
+      note: "On target.",
+    };
+    const provider = new FakeProvider([
+      JSON.stringify({
+        week: { ...input().week, dietProgress: progress },
+        bodyMetrics: [],
+      }),
+    ]);
+
+    const result = await generatePlanUpdate(
+      provider,
+      { apiKey: "key", model: "model" },
+      {
+        ...planUpdateInput(),
+        revision: {
+          ...planUpdateInput().revision,
+          day: false,
+        },
+        dietAdvice: true,
+        dietGoal: {
+          goal: "Lose 3 kg by March",
+          goalProvided: true,
+          assessment: "On target.",
+        },
+      },
+    );
+
+    expect(provider.requests).toHaveLength(1);
+    expect(result.week?.dietProgress?.targetWeightKg).toBe(80);
   });
 
   it("repairs a plan that is missing a stated diet goal's progress targets", async () => {
@@ -270,11 +342,11 @@ describe("generatePlanUpdate", () => {
     expect(provider.requests).toHaveLength(2);
     expect(provider.requests[1]?.metadata).toMatchObject({ repair: true });
     expect(provider.requests[1]?.messages.at(-1)?.content).toContain(
-      "Missing the diet progress target for the season",
+      "Missing the diet progress target for the current week",
     );
-    expect(result.season.dietProgress?.targetWeightKg).toBe(80);
-    expect(result.block.weeks[0]?.dietProgress?.targetWeightKg).toBe(80);
-    expect(result.week.dietProgress?.targetWeightKg).toBe(80);
+    expect(result.season?.dietProgress?.targetWeightKg).toBe(80);
+    expect(result.block?.weeks[0]?.dietProgress?.targetWeightKg).toBe(80);
+    expect(result.week?.dietProgress?.targetWeightKg).toBe(80);
   });
 
   it("repairs a season target that does not reach the stated goal", async () => {
@@ -318,6 +390,7 @@ describe("generatePlanUpdate", () => {
       { apiKey: "key", model: "model" },
       {
         ...planUpdateInput(),
+        revision: progressRevision,
         dietAdvice: true,
         dietGoal: {
           goal: "Lose fat gradually toward 15% body fat",
@@ -335,7 +408,7 @@ describe("generatePlanUpdate", () => {
     expect(provider.requests[1]?.messages.at(-1)?.content).toContain(
       "does not reach the athlete's goal of 15 % body fat",
     );
-    expect(result.season.dietProgress?.targetBodyFatPercent).toBe(15);
+    expect(result.season?.dietProgress?.targetBodyFatPercent).toBe(15);
   });
 
   it("repairs a next week that does not start on Monday", async () => {

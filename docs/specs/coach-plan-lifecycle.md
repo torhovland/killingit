@@ -27,11 +27,13 @@ answers change and as days, weeks, and blocks roll over.
    Garmin activities when the plan is missing or the answers are stale.
 4. Advance the plan lazily when the athlete opens the app. One plan-update
    prompt receives every current level and the revision request, and returns
-   all the levels the update needs:
+   only the levels the update changes:
    - day missing → return today's session and the revised week;
-   - week missing → return the new week, a revised block and the detailed day;
+   - week missing → return the new week (a week-only refresh returns only the
+     week; a missing week that also needs a block returns the block and day);
    - block missing → return the new block, the revised season, the week and the
      detailed day.
+     A level the response omits keeps its stored content. See ADR 0063.
 5. Plan the next period when tomorrow has crossed into it (after 18:00) in the
    same plan-update response where possible:
    - tomorrow in the next week → return the next week, leaving the current week
@@ -289,9 +291,10 @@ without flooding them while the plan endpoint is polled.
    activity imported days later, and an import that finished while an earlier
    generation was still running. Send the current season, block, week, today,
    tomorrow, next week and next block with a revision request naming the levels
-   that are stale. The response returns the revised block, week and today when
-   a block changed; the week and today when a week or day changed; and the
-   season when a refresh is requested. A generated week review or an answer to
+   that are stale. The response carries only those levels: the revised block,
+   season, week and today when a block changed; the week when only the week
+   changed; the week and today when the day changed; and the season when a
+   refresh is requested. A generated week review or an answer to
    one that asks for a change marks the block pending and revises the current
    block in place, even
    while today is still inside it. A generated block review or an answer to one

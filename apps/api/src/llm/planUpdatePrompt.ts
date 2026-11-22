@@ -148,25 +148,132 @@ const WEEKLY_UPDATE_SYSTEM_PROMPT = promptSections(
 }`,
 );
 
-const PLAN_UPDATE_CONTRACT = `{
-  "season": ${SEASON_CONTRACT},
-  "block": ${BLOCK_CONTRACT},
-  "week": ${WEEK_CONTRACT},
-  "today": ${DAY_CONTRACT},
-  "tomorrow": ${DAY_CONTRACT} | null,
-  "nextWeek": ${WEEK_CONTRACT} | null,
-  "nextBlock": ${BLOCK_CONTRACT} | null,
-  "diet": ${DIET_CONTRACT},
-  "bodyMetrics": [${BODY_METRIC_POINT_CONTRACT}],
-  ${COACH_RESPONSE_NOTES_CONTRACT}
-}`;
+/**
+ * The levels a plan-update response carries. A revision asks only for the
+ * levels it changes, plus the levels whose diet-progress target it refreshes.
+ * See ADR 0063.
+ */
+export interface PlanUpdateResponseLevels {
+  season: boolean;
+  block: boolean;
+  week: boolean;
+  today: boolean;
+  tomorrow: boolean;
+  nextWeek: boolean;
+  nextBlock: boolean;
+}
 
-const PLAN_UPDATE_SYSTEM_PROMPT = promptSections(
-  GLOBAL_PROMPT_RULES,
-  PLAN_PROMPT_RULES,
-  "Update an athlete's training plan.",
-  "You receive the complete current plan at every level: the season, the current block, the current week, today's session, tomorrow's session when one has been planned, the next week when one has been planned, and the next block when one has been planned.",
-  `The revision request lists the levels that need to change. Return every level in the contract, so the saved plan always has a coherent season, block, week and day:
+const ALL_PLAN_UPDATE_LEVELS: PlanUpdateResponseLevels = {
+  season: true,
+  block: true,
+  week: true,
+  today: true,
+  tomorrow: true,
+  nextWeek: true,
+  nextBlock: true,
+};
+
+/**
+ * Works out which levels a plan-update response carries. A season refresh keeps
+ * the complete contract because it re-plans the whole plan. A progress-only
+ * update asks for every level that carries a diet-progress target, even though
+ * it changes no training. See ADR 0063.
+ */
+export function planUpdateResponseLevels(
+  revision: PlanUpdateRevision,
+): PlanUpdateResponseLevels {
+  const progressOnly =
+    revision.progress &&
+    !revision.season &&
+    !revision.block &&
+    !revision.week &&
+    !revision.day &&
+    !revision.tomorrow &&
+    !revision.nextWeek &&
+    !revision.nextBlock;
+  if (revision.season) {
+    return ALL_PLAN_UPDATE_LEVELS;
+  }
+  return {
+    season: revision.block || revision.nextBlock || progressOnly,
+    block: revision.block || progressOnly,
+    week:
+      revision.week ||
+      revision.day ||
+      progressOnly ||
+      (revision.tomorrow && !revision.nextWeek),
+    today: revision.day,
+    tomorrow: revision.tomorrow,
+    nextWeek: revision.nextWeek || progressOnly,
+    nextBlock: revision.nextBlock || progressOnly,
+  };
+}
+
+/** The response contract for one revision, with only the levels it returns. */
+function planUpdateContract(levels: PlanUpdateResponseLevels): string {
+  const fields: string[] = [];
+  if (levels.season) {
+    fields.push(`"season": ${SEASON_CONTRACT}`);
+  }
+  if (levels.block) {
+    fields.push(`"block": ${BLOCK_CONTRACT}`);
+  }
+  if (levels.week) {
+    fields.push(`"week": ${WEEK_CONTRACT}`);
+  }
+  if (levels.today) {
+    fields.push(`"today": ${DAY_CONTRACT}`);
+  }
+  if (levels.tomorrow) {
+    fields.push(`"tomorrow": ${DAY_CONTRACT} | null`);
+  }
+  if (levels.nextWeek) {
+    fields.push(`"nextWeek": ${WEEK_CONTRACT} | null`);
+  }
+  if (levels.nextBlock) {
+    fields.push(`"nextBlock": ${BLOCK_CONTRACT} | null`);
+  }
+  fields.push(`"diet": ${DIET_CONTRACT}`);
+  fields.push(`"bodyMetrics": [${BODY_METRIC_POINT_CONTRACT}]`);
+  fields.push(COACH_RESPONSE_NOTES_CONTRACT);
+  return `{\n  ${fields.join(",\n  ")}\n}`;
+}
+
+/** The top-level keys a plan-update response must carry, in contract order. */
+function planUpdateTopLevelKeys(levels: PlanUpdateResponseLevels): string[] {
+  const keys: string[] = [];
+  if (levels.season) {
+    keys.push("season");
+  }
+  if (levels.block) {
+    keys.push("block");
+  }
+  if (levels.week) {
+    keys.push("week");
+  }
+  if (levels.today) {
+    keys.push("today");
+  }
+  if (levels.tomorrow) {
+    keys.push("tomorrow");
+  }
+  if (levels.nextWeek) {
+    keys.push("nextWeek");
+  }
+  if (levels.nextBlock) {
+    keys.push("nextBlock");
+  }
+  keys.push("diet", "bodyMetrics");
+  return keys;
+}
+
+function planUpdateSystemPrompt(levels: PlanUpdateResponseLevels): string {
+  return promptSections(
+    GLOBAL_PROMPT_RULES,
+    PLAN_PROMPT_RULES,
+    "Update an athlete's training plan.",
+    "You receive the complete current plan at every level: the season, the current block, the current week, today's session, tomorrow's session when one has been planned, the next week when one has been planned, and the next block when one has been planned.",
+    `The revision request lists the levels that need to change. Return every level in the contract, so the saved plan always has a coherent season, block, week and day:
 - Keep the season, block, week, today, tomorrow, next week and next block exactly as supplied unless the request names them, except for "dietProgress": always refresh the diet progress target on every level you return from the latest measurements. Keep the season's "introduction" exactly as supplied, so a refresh never reintroduces the coach. Only the "dietProgress" objects change when the request refreshes progress without revising the training. Keep a level that is null and not requested as null.
 - When the current block is revised, return the revised block, a revised current week that fits it, and today's detailed session. Keep the current block's start date when the request says to keep it; otherwise start the new block on the supplied block start date. When a completed week review or its answer is supplied, use that feedback to adjust the block's progression. Update the season block summaries only when the revised block changes them.
 - When the season is refreshed, keep the blocks that ended before today exactly as supplied, keep the current block's existing start date, re-plan the rest of the season from the current block, and return the detailed current block.
@@ -175,18 +282,22 @@ const PLAN_UPDATE_SYSTEM_PROMPT = promptSections(
 - When tomorrow is requested, return it and make sure its outline is the matching session in the current week or, when it falls in the next week, in the next week. Respect every weather preference and daylight constraint.
 - When the next week is requested, start it on the supplied next week start date and give it ${SEVEN_SESSIONS_CLAUSE}. When the next block is requested, start it on the supplied next block start date and put it in "nextBlock"; update "season" so its block summaries include it. If the block that starts tomorrow falls inside the current week, re-plan the remaining days of the current week under that next block and keep today's session.
 - Include a rationale for today's session and for the week's overall structure.`,
-  SEASON_BLOCK_RULES,
-  WEEK_SHAPE_RULES,
-  TODAY_IN_WEEK_RULE,
-  COMPLETED_SESSION_RULES,
-  PLAN_UPDATE_SHARED_RULES([
-    SESSION_PURPOSE_RULES,
-    COACHING_SURVEY_ADJUSTMENT_RULES,
-  ]),
-  PLAN_UPDATE_CONTRACT,
-);
+    SEASON_BLOCK_RULES,
+    WEEK_SHAPE_RULES,
+    TODAY_IN_WEEK_RULE,
+    COMPLETED_SESSION_RULES,
+    PLAN_UPDATE_SHARED_RULES([
+      SESSION_PURPOSE_RULES,
+      COACHING_SURVEY_ADJUSTMENT_RULES,
+    ]),
+    planUpdateContract(levels),
+  );
+}
 
-function revisionInstructions(input: PlanUpdateInput): string[] {
+function revisionInstructions(
+  input: PlanUpdateInput,
+  levels: PlanUpdateResponseLevels,
+): string[] {
   const lines = ["Revision request:"];
   if (input.revision.season) {
     lines.push(
@@ -200,35 +311,53 @@ function revisionInstructions(input: PlanUpdateInput): string[] {
     lines.push(
       `- Create the current block starting on ${input.blockStartDate ?? input.block.startDate}. Return it in "block" and update the season's block summaries if the new block changes them.`,
     );
-  } else {
+  } else if (levels.season && levels.block) {
     lines.push(
       '- Keep the current block and the season block summaries\' training content unchanged, apart from refreshing their "dietProgress" targets.',
     );
+  } else if (levels.season) {
+    lines.push(
+      '- Keep the season block summaries\' training content unchanged, apart from refreshing their "dietProgress" targets.',
+    );
+  } else {
+    lines.push("- Keep the stored season and block unchanged.");
   }
   lines.push(
     input.revision.week
       ? '- Revise the current week and return it in "week".'
-      : "- Keep the current week's training content unchanged, apart from today's session if it is revised and its \"dietProgress\" target.",
+      : !levels.week
+        ? "- Keep the stored week unchanged."
+        : levels.today
+          ? "- Keep the current week's training content unchanged, apart from today's session if it is revised and its \"dietProgress\" target."
+          : '- Keep the current week\'s training content unchanged, apart from its "dietProgress" target.',
   );
   lines.push(
     input.revision.day
       ? '- Create or revise today\'s session and return it in "today".'
-      : "- Keep today's session as supplied.",
+      : !levels.today
+        ? "- Keep the stored today's session unchanged."
+        : "- Keep today's session as supplied.",
   );
   lines.push(
     input.revision.tomorrow
       ? '- Return tomorrow\'s session in "tomorrow" and place its outline in the current week or the next week.'
-      : "- Keep tomorrow's session as supplied, or null when there is none.",
+      : !levels.tomorrow
+        ? "- Keep the stored tomorrow's session unchanged."
+        : "- Keep tomorrow's session as supplied, or null when there is none.",
   );
   lines.push(
     input.revision.nextWeek
       ? `- Create the next week starting on ${input.nextWeekStartDate ?? startOfWeek(addDays(input.today, 1))} and return it in "nextWeek".`
-      : '- Keep the next week\'s training content as supplied, apart from its "dietProgress" target, or null when there is none.',
+      : !levels.nextWeek
+        ? "- Keep the stored next week unchanged."
+        : '- Keep the next week\'s training content as supplied, apart from its "dietProgress" target, or null when there is none.',
   );
   lines.push(
     input.revision.nextBlock
       ? `- Create the next block starting on ${input.nextBlockStartDate ?? input.block.endDate} and return it in "nextBlock".`
-      : '- Keep the next block\'s training content as supplied, apart from its "dietProgress" target, or null when there is none.',
+      : !levels.nextBlock
+        ? "- Keep the stored next block unchanged."
+        : '- Keep the next block\'s training content as supplied, apart from its "dietProgress" target, or null when there is none.',
   );
   if (input.revision.progress) {
     lines.push(
@@ -239,13 +368,17 @@ function revisionInstructions(input: PlanUpdateInput): string[] {
 }
 
 export function buildPlanUpdateMessages(input: PlanUpdateInput): LlmMessage[] {
+  const levels = planUpdateResponseLevels(input.revision);
   return systemUserMessages(
-    PLAN_UPDATE_SYSTEM_PROMPT,
-    buildPlanUpdatePrompt(input),
+    planUpdateSystemPrompt(levels),
+    buildPlanUpdatePrompt(input, levels),
   );
 }
 
-function buildPlanUpdatePrompt(input: PlanUpdateInput): string {
+function buildPlanUpdatePrompt(
+  input: PlanUpdateInput,
+  levels: PlanUpdateResponseLevels,
+): string {
   const weekStart = startOfWeek(input.today);
   const tomorrowDate = addDays(input.today, 1);
   const nextWeekStart = startOfWeek(tomorrowDate);
@@ -279,7 +412,7 @@ function buildPlanUpdatePrompt(input: PlanUpdateInput): string {
     `Tomorrow is ${tomorrowDate}.`,
     `Fully detail the day objects dated ${detailedDates}. Keep every session in the current week, including ${detailedDates}, as a short outline.`,
     "",
-    ...revisionInstructions(input),
+    ...revisionInstructions(input, levels),
     ...(input.revision.season &&
     input.coachingSurveyAdjustments !== undefined &&
     input.coachingSurveyAdjustments.length > 0
@@ -294,17 +427,7 @@ function buildPlanUpdatePrompt(input: PlanUpdateInput): string {
       ? ["", `${weekDatesRule(nextWeekStart, "next week")}.`]
       : []),
     "",
-    jsonTopLevelKeys([
-      "season",
-      "block",
-      "week",
-      "today",
-      "tomorrow",
-      "nextWeek",
-      "nextBlock",
-      "diet",
-      "bodyMetrics",
-    ]),
+    jsonTopLevelKeys(planUpdateTopLevelKeys(levels)),
   ].join("\n");
 }
 

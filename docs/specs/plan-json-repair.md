@@ -32,10 +32,11 @@ before the generation fails.
    the single plan-update prompt).
 5. Keep the original opaque phrase as a prefix so existing UI/reporting remains
    recognisable.
-6. The plan-update response is validated as a complete plan: today must be one
-   of the current week's sessions, tomorrow must be in the current or next
-   week, and a returned next week must start on its Monday. The repair turn
-   repeats those dates.
+6. The plan-update response is validated against the levels its revision asks
+   for: a returned today must be one of the current week's sessions, a returned
+   tomorrow must be in the current or next week, and a returned next week must
+   start on its Monday. The repair turn repeats only the dates and levels the
+   contract asks for. See ADR 0063.
 
 ### Out of scope
 
