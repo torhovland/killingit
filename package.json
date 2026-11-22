@@ -9,6 +9,9 @@
     "packages/*",
     "tools/*"
   ],
+  "overrides": {
+    "sentry": "^0.50.0"
+  },
   "scripts": {
     "dev": "bun run db:migrate && bun run --parallel dev:web dev:api dev:garmin",
     "dev:web": "bun run --filter @killingit/web dev",
