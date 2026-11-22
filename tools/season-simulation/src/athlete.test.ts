@@ -7,7 +7,11 @@ import {
   isTrainingDay,
   plannedSessionTss,
 } from "./athlete.js";
-import { advanceAthleteState, initialAthleteState } from "./progression.js";
+import {
+  advanceAthleteState,
+  advanceThroughDate,
+  initialAthleteState,
+} from "./progression.js";
 
 function intensityFor(target: number, minutes: number): number {
   return Math.sqrt(target / (100 * (minutes / 60)));
@@ -123,6 +127,34 @@ describe("progression", () => {
       ATHLETE,
     );
     expect(beyond.ftpWatts).toBe(285);
+  });
+
+  it("advances rest days up to, but not including, the session day", () => {
+    const base = initialAthleteState(ATHLETE, "2026-11-22");
+    const monday = advanceThroughDate(base, "2026-11-23", ATHLETE);
+    expect(monday.date).toBe("2026-11-22");
+    const thursday = advanceThroughDate(
+      { ...base, date: "2026-11-23" },
+      "2026-11-26",
+      ATHLETE,
+    );
+    expect(thursday.date).toBe("2026-11-25");
+  });
+
+  it("counts each training day as one chronic-load step", () => {
+    let state = initialAthleteState(ATHLETE, "2026-11-22");
+    for (const date of [
+      "2026-11-23",
+      "2026-11-24",
+      "2026-11-25",
+      "2026-11-26",
+      "2026-11-27",
+      "2026-11-28",
+      "2026-11-29",
+    ]) {
+      state = advanceAthleteState(state, date, 43, ATHLETE);
+    }
+    expect(state.ctl).toBeCloseTo(43 * (1 - (41 / 42) ** 7), 6);
   });
 
   it("moves slowly toward the peak across a season of training", () => {

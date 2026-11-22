@@ -391,17 +391,28 @@ function goalFindings(result: ScenarioResult): string[] {
   return result.races.map((race) => {
     const outcome = race.met ? "met" : "missed";
     const gap = Math.round((race.predictedSeconds - race.targetSeconds) / 60);
+    const relation =
+      gap >= 0
+        ? `${String(gap)} min outside`
+        : `${String(Math.abs(gap))} min inside`;
     const extra =
       race.soloPredictedSeconds === null
         ? ""
         : ` Solo it would be ${formatClock(race.soloPredictedSeconds)}, so the group case is doing real work.`;
-    return `${race.title}: ${outcome} at ${formatClock(race.predictedSeconds)} against ${formatClock(race.targetSeconds)} (${String(gap)} min ${gap >= 0 ? "outside" : "inside"} the target).${extra}`;
+    return `${race.title}: ${outcome} at ${formatClock(race.predictedSeconds)} against ${formatClock(race.targetSeconds)} (${relation} the target).${extra}`;
   });
 }
 
 /** How high the plan's own load estimates went, against the athlete's offer. */
 function loadFinding(result: ScenarioResult): string {
   const planned = result.weeks.map((week) => week.plannedTss);
+  const hours = result.weeks.map(
+    (week) =>
+      week.sessions.reduce(
+        (sum, entry) => sum + entry.session.durationMinutes,
+        0,
+      ) / 60,
+  );
   const peakPlan = planned.length === 0 ? 0 : Math.max(...planned);
   const meanPlan =
     planned.length === 0
@@ -410,7 +421,22 @@ function loadFinding(result: ScenarioResult): string {
           planned.reduce((sum, value) => sum + value, 0) / planned.length,
         );
   const peakCtl = Math.max(...result.weeks.map((week) => week.stateAtEnd.ctl));
-  return `Test 1's own session estimates peaked at ${String(peakPlan)} TSS a week (mean ${String(meanPlan)}) and chronic load peaked at ${peakCtl.toFixed(0)} CTL. That is a coherent plan, but a low ceiling for an athlete who offered 8–10 training hours a week and needed to regain a 285 W FTP.`;
+  const meanHours =
+    hours.length === 0
+      ? 0
+      : hours.reduce((sum, value) => sum + value, 0) / hours.length;
+  const peakHours = hours.length === 0 ? 0 : Math.max(...hours);
+  const half = result.races.find((race) => race.kind === "half");
+  const gravel = result.races.find((race) => race.kind === "gravel");
+  const halfText =
+    half?.met === true
+      ? "That was enough for the half marathon"
+      : "That was not enough for the half marathon";
+  const gravelGap =
+    gravel === undefined
+      ? 0
+      : Math.round((gravel.predictedSeconds - gravel.targetSeconds) / 60);
+  return `The plan averaged ${meanHours.toFixed(1)} training hours a week (peak ${peakHours.toFixed(1)} h), using only part of the 8–10 h the athlete offered, and its own estimates peaked at ${String(peakPlan)} TSS a week (mean ${String(meanPlan)}) with chronic load at ${peakCtl.toFixed(0)} CTL. ${halfText}, but the gravel target was missed by ${String(gravelGap)} minutes: the block after the half never rebuilt FTP toward the ~281 W the 3:10 target needs.`;
 }
 
 /** Contrasts a confident race-week claim with the independent check. */
@@ -423,17 +449,13 @@ function coachClaimFinding(result: ScenarioResult): string | null {
   return `In the gravel race week the coach described the endurance as built, while the independent model still placed the athlete ${String(gap)} minutes outside the target. The plan was structurally sound but the load did not match the claim.`;
 }
 
-/** Whether the race-week briefs presented an out-of-reach target as reachable. */
+/** Whether a race-week brief presented an out-of-reach target as reachable. */
 function raceWeekCaveat(result: ScenarioResult): string | null {
-  const missed = result.races.filter((race) => !race.met);
-  const gravel = missed.find((race) => race.kind === "gravel");
-  if (gravel === undefined) return null;
-  const framesTarget = /sub-2:00 goal|3:10 goal|goal in mind|toward your/i.test(
-    result.races.map((race) => race.coachText).join(" "),
-  );
-  if (!framesTarget) return null;
+  const gravel = result.races.find((race) => race.kind === "gravel");
+  if (gravel === undefined || gravel.met) return null;
+  if (!/3:10 goal|toward your/i.test(gravel.coachText)) return null;
   const gap = Math.round((gravel.predictedSeconds - gravel.targetSeconds) / 60);
-  return `The race-week briefs framed both targets as reachable ("sub-2:00 goal", "pacing steadily toward your 3:10 goal") without telling the athlete the gap; the independent model put the gravel race ${String(gap)} minutes outside the target.`;
+  return `The gravel race-week brief framed the 3:10 target as reachable ("pacing steadily toward your 3:10 goal") without flagging the gap; the independent model put the race ${String(gap)} minutes outside the target.`;
 }
 
 function comparisonFindings(

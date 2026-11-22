@@ -38,7 +38,11 @@ import {
   writeThresholds,
 } from "./db.js";
 import { createRecordedLlm } from "./llm.js";
-import { advanceAthleteState, initialAthleteState } from "./progression.js";
+import {
+  advanceAthleteState,
+  advanceThroughDate,
+  initialAthleteState,
+} from "./progression.js";
 import type {
   AthleteState,
   Capability,
@@ -337,7 +341,7 @@ async function simulateWeek(input: SimulateWeekInput): Promise<SimulatedWeek> {
   let completedTss = 0;
 
   for (const session of input.weekPlan.sessions) {
-    state = advanceTo(state, session.date);
+    state = advanceThroughDate(state, session.date, ATHLETE);
     const raceGoal = raceGoalOn(session.date);
     let record: SessionRecord;
     if (raceGoal !== null) {
@@ -383,15 +387,6 @@ async function simulateWeek(input: SimulateWeekInput): Promise<SimulatedWeek> {
     state,
     nextId,
   };
-}
-
-/** Advances the model to a date without adding training stress. */
-function advanceTo(state: AthleteState, date: string): AthleteState {
-  let next = state;
-  while (next.date < date) {
-    next = advanceAthleteState(next, addDays(next.date, 1), 0, ATHLETE);
-  }
-  return next;
 }
 
 interface TrainingDayBuild {

@@ -1,3 +1,4 @@
+import { addDays } from "@killingit/shared";
 import { CTL_FULL_REGAIN, REGAIN_EXPONENT } from "./course.js";
 import type { AthleteProfile, AthleteState, Capability } from "./types.js";
 
@@ -47,4 +48,21 @@ export function advanceAthleteState(
 ): AthleteState {
   const ctl = state.ctl + (Math.max(0, tss) - state.ctl) / CTL_DAYS;
   return { date, ctl, ...capabilityFromCtl(profile, ctl) };
+}
+
+/**
+ * Advances the rest days before `date` without touching `date` itself. The
+ * caller applies the session's own TSS on `date`, so a training day is one EWMA
+ * step, not a zero step followed by a training step.
+ */
+export function advanceThroughDate(
+  state: AthleteState,
+  date: string,
+  profile: AthleteProfile,
+): AthleteState {
+  let next = state;
+  while (addDays(next.date, 1) < date) {
+    next = advanceAthleteState(next, addDays(next.date, 1), 0, profile);
+  }
+  return next;
 }
