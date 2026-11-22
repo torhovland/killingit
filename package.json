@@ -36,7 +36,8 @@
     "db:generate": "bun run --filter @killingit/api db:generate",
     "db:migrate": "bun run --filter @killingit/api db:migrate",
     "benchmark:llm": "bun run tools/benchmark/src/cli.ts",
-    "benchmark:prompts": "bun run tools/benchmark/src/cli.ts prompts"
+    "benchmark:prompts": "bun run tools/benchmark/src/cli.ts prompts",
+    "simulate:season": "bun run tools/season-simulation/src/cli.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -48,7 +49,7 @@
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.14.0",
-    "knip": "^6.47.0",
+    "knip": "^6.48.0",
     "prettier": "^3.10.1",
     "typescript-eslint": "^8.73.0",
     "typescript7": "npm:typescript@^7.0.2"

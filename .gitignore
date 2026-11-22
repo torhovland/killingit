@@ -56,3 +56,7 @@ __pycache__/
 benchmarks/prompts/runs
 # Generated prompt-benchmark reports are local previews, not source.
 benchmarks/prompts/reports/
+
+# Season simulation scratch files. The report and the two real result files are committed.
+benchmarks/season-simulation/state-*.json
+benchmarks/season-simulation/results-*-smoke*.json

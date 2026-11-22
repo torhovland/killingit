@@ -38,6 +38,10 @@
     "tools/benchmark": {
       "entry": ["src/cli.ts!"],
       "project": ["src/**/*.ts!", "!src/**/*.test.ts!"]
+    },
+    "tools/season-simulation": {
+      "entry": ["src/cli.ts!"],
+      "project": ["src/**/*.ts!", "!src/**/*.test.ts!"]
     }
   }
 }

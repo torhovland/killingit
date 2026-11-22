@@ -30,7 +30,7 @@ export interface LlmMessage {
  * progress the athlete can absorb rather than the safest plan that can be
  * defended, while still avoiding illness and injury.
  */
-export const COACH_AMBITION_RULES = `Plan the most progress the athlete can absorb, not the safest plan you can defend. Weigh their goal, available time, current fitness and form, recent training, recovery data, and everything they say in the survey, notes and comments, then choose the load that drives the best possible progress while avoiding illness and injury. Do not make the plan timid to avoid every risk, and do not take risks the data does not support.`;
+export const COACH_AMBITION_RULES = `Plan the most progress the athlete can absorb, not the safest plan you can defend. Weigh their goal, available time, current fitness and form, recent training, recovery data, and everything they say in the survey, notes and comments, then choose the load that drives the best possible progress while avoiding illness and injury. Do not make the plan timid to avoid every risk, and do not take risks the data does not support. When the athlete states how much time they can train, treat that as capacity to use, not only as a ceiling: if using more of it would make the plan more effective and the athlete can absorb it, use it. Do not leave stated training time unused without a reason.`;
 
 /**
  * How the coach treats a workout the athlete has already committed to and the
@@ -110,7 +110,14 @@ export const TEXT_FORMATTING_RULES = `Use short paragraphs and lists when a fiel
  * every plan prompt so a race, a trip, or a dated target is planned around at
  * every level and no prompt invents one.
  */
-const ATHLETE_EVENT_RULES = `The athlete's dated goals and events are dates the athlete told you about, such as a race, a sportive, a trip, or a dated target. Plan around them. A race or target event anchors the week and block that contain it: keep the days before it easy or tapering, and do not schedule a hard session on the day before it. A trip or appointment removes the days it covers from training. When an event changes the plan, name it in the relevant week focus, session description, or rationale. Never add an event the athlete did not state, and never move a date they gave.`;
+const ATHLETE_EVENT_RULES = `The athlete's dated goals and events are dates the athlete told you about, such as a race, a sportive, a trip, or a dated target. Plan around them. A race or target event anchors the week and block that contain it: keep the days before it easy or tapering, and do not schedule a hard session on the day before it. A trip or appointment removes the days it covers from training. When an event changes the plan, name it in the relevant week focus, session description, or rationale. Never add an event the athlete did not state, and never move a date they gave. When you plan the week or the day that contains a race or goal event, include an explicit readiness assessment in that week's focus or rationale, or that day's description: what the athlete's recent training predicts, whether the stated goal is realistic, and what would need to change. Do not merely restate the target.`;
+
+/**
+ * The plan's own goal check: after planning a season, block or week, compare it
+ * with the athlete's stated goals and recent training, and say plainly when the
+ * goal is out of reach instead of restating the target.
+ */
+const GOAL_FEASIBILITY_RULES = `After you plan a season, a block, or a week, check it against the athlete's stated goals and the training they have actually completed. Is the plan on track? If it is not, say so plainly in the relevant goal, focus, or rationale, and say whether catching up is realistic. If the goal cannot realistically be reached from here, say that too and explain what is realistic. Never present a goal as certain when the training data does not support it.`;
 
 /**
  * How the coach reads the athlete's food log. Shared by every prompt that can
@@ -193,6 +200,7 @@ Use the date the statement refers to. For a number in the profile that names no 
 
 The stored history tells you what is already known; do not repeat a value for the same date.`,
   ATHLETE_EVENT_RULES,
+  GOAL_FEASIBILITY_RULES,
   DAILY_HEALTH_RULES,
   DIET_RULES,
   DIET_PROGRESS_RULES,
@@ -203,7 +211,7 @@ The stored history tells you what is already known; do not repeat a value for th
  * How season blocks tile the season. Every prompt that returns season blocks
  * uses this: the API rejects a season whose blocks share a day or skip one.
  */
-export const SEASON_BLOCK_RULES = `Season blocks tile the season: each block starts the day after the previous block ends. Never start a block on the day the previous one ends — a block that ends on 2026-11-23 is followed by one that starts on 2026-11-24 — so no date belongs to two blocks and no date between blocks is left unplanned. The first block starts on the season's start date and the last block ends on the season's end date.`;
+export const SEASON_BLOCK_RULES = `Season blocks tile the season: each block starts the day after the previous block ends. Never start a block on the day the previous one ends — a block that ends on 2026-11-23 is followed by one that starts on 2026-11-24 — so no date belongs to two blocks and no date between blocks is left unplanned. The first block starts on the season's start date and the last block ends on the season's end date. The app's training weeks run Monday to Sunday, so every block boundary between the first and last must fall between calendar weeks: a block that does not start on the season's start date starts on a Monday, and a block that does not end on the season's end date ends on a Sunday.`;
 
 /**
  * How a new season opens: the coach meets the athlete. The greeting lives on the
@@ -324,7 +332,7 @@ export const TSS_ESTIMATE_GUIDE = `A score of 100 is roughly one hour at the ath
  * only explains how to read the supplied projections and when leaving the
  * Productive band is justified.
  */
-const FORM_TARGET_RULES = `Each projected training load shows ATL, CTL, TSB and the TSB form label. TSB between -30 and -10 is Productive, -10 to +5 Maintaining, +5 to +25 Fresh, above +25 Detraining, and below -30 Risk. Keep the planned week's projected TSB inside Productive by default, building load gradually rather than spiking it. A recovery or taper week may move TSB into Fresh, and a deliberate overload may briefly enter Risk, but only when the athlete's goal, a race, travel, illness, or their stated feedback gives a clear reason; state that reason in the week's rationale. When the projected week sits outside Productive without such a reason, adjust the sessions' estimated TSS or their placement before returning the plan. When the plan has no projected days yet, use today's current form as the starting point.`;
+const FORM_TARGET_RULES = `Each projected training load shows ATL, CTL, TSB and the TSB form label. TSB between -30 and -10 is Productive, -10 to +5 Maintaining, +5 to +25 Fresh, above +25 Detraining, and below -30 Risk. Productive is the target for a normal build week, not a floor to stay above: a build week that leaves the athlete Maintaining or Fresh is under-loaded unless the week is deliberately a recovery or taper week, so add sessions, duration or intensity until the projected TSB is inside Productive. Do not spike into Risk. A recovery or taper week may move TSB into Fresh, and a deliberate overload may briefly enter Risk, but only when the athlete's goal, a race, travel, illness, or their stated feedback gives a clear reason; state that reason in the week's rationale. When the projected week sits outside Productive without such a reason, adjust the sessions' estimated TSS or their placement before returning the plan. When the plan has no projected days yet, use today's current form as the starting point.`;
 
 /**
  * The data-availability caveat shared by prompts that judge a recorded
@@ -339,7 +347,7 @@ const ACTIVITY_DATA_LIMITS_RULE = `Recorded activities can be incomplete: an ind
  * the FTP stated in the athlete's profile; without one the feature stays off.
  */
 export const TRAINING_LOAD_RULES = promptSections(
-  `When the athlete's profile states an FTP (functional threshold power), estimate how it will change day by day from the training they have actually completed, their recent form, and the plan's progression. Set "estimatedFtpWatts" on every week session from today onward, including rest days, to your estimate for that date; this daily projection feeds the athlete's FTP chart. Set the week's "estimatedFtpWatts" to the estimate for the day the week is shown from (today in the current week, otherwise the week's first day) so the Week view can show it once. Leave a past session's "estimatedFtpWatts" null. When the response contract also includes the block, set the weekly estimate in every week of the block so the athlete can see the progression. Be realistic: consistent completed load supports small gains, a deload or a missed week holds or reduces the estimate, and you never invent a large jump. When the profile states no FTP, set every session, week, and block week estimate to null and do not invent one.`,
+  `When the athlete's profile states an FTP (functional threshold power), estimate how it will change day by day from the training they have actually completed, their recent form, and the plan's progression. Set "estimatedFtpWatts" on every week session from today onward, including rest days, to your estimate for that date; this daily projection feeds the athlete's FTP chart. Set the week's "estimatedFtpWatts" to the estimate for the day the week is shown from (today in the current week, otherwise the week's first day) so the Week view can show it once. Leave a past session's "estimatedFtpWatts" null. When the response contract also includes the block, set the weekly estimate in every week of the block so the athlete can see the progression. Be realistic but not needlessly conservative: consistent completed load can support meaningful gains, especially when the athlete is regaining fitness they held before, and a deload or a missed week holds or reduces the estimate. Project the gain the training and history support rather than the smallest defensible one, and do not invent an unsupported leap. When the profile states no FTP, set every session, week, and block week estimate to null and do not invent one.`,
   `Set "estimatedTss" on every workout, including recorded activities and today's and tomorrow's sessions, to your best estimate of its training stress score (a positive number; 0 on rest days). Use the session's duration and intensity, the athlete's thresholds for that sport when known, and any recorded power or heart-rate data. When those channels are missing, still estimate TSS as best you can from the elapsed time, the session type, and any other recorded effort.`,
   ACTIVITY_DATA_LIMITS_RULE,
   TSS_ESTIMATE_GUIDE,

@@ -1,0 +1,1179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Season simulation report</title>
+<style>
+:root { --ink:#14201b; --muted:#5d6b64; --line:#d8e0db; --good:#1f7a4d; --bad:#b3261e; --warn:#9a6700; --bg:#f7faf8; }
+* { box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: var(--ink); margin: 0; font-size: 10.5px; line-height: 1.45; }
+h1 { font-size: 22px; margin: 0 0 4px; }
+h2 { font-size: 15px; margin: 22px 0 8px; border-bottom: 2px solid var(--ink); padding-bottom: 4px; }
+h3 { font-size: 12px; margin: 14px 0 6px; }
+p { margin: 0 0 8px; }
+.subtitle { color: var(--muted); margin-bottom: 16px; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 9.5px; background: var(--bg); padding: 1px 3px; border-radius: 3px; }
+table { width: 100%; border-collapse: collapse; margin: 6px 0 12px; font-size: 8.6px; }
+th, td { text-align: left; padding: 3px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
+td:first-child { white-space: nowrap; }
+th { background: var(--bg); font-weight: 600; }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+.good { color: var(--good); font-weight: 600; }
+.bad { color: var(--bad); font-weight: 600; }
+.warn { color: var(--warn); font-weight: 600; }
+.cards { display: flex; gap: 10px; flex-wrap: wrap; margin: 8px 0 12px; }
+.card { border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; flex: 1 1 150px; background: #fff; }
+.card .label { color: var(--muted); font-size: 8.6px; text-transform: uppercase; letter-spacing: .04em; }
+.card .value { font-size: 15px; font-weight: 700; margin-top: 2px; }
+.note { background: var(--bg); border-left: 3px solid var(--muted); padding: 6px 9px; margin: 8px 0; }
+.quote { font-style: italic; color: #33413a; border-left: 3px solid var(--line); padding-left: 8px; margin: 6px 0; }
+.small { font-size: 8.6px; color: var(--muted); }
+.pb { page-break-before: always; }
+svg { max-width: 100%; page-break-inside: avoid; }
+.legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 8.6px; margin: 4px 0; }
+.legend span::before { content: ""; display: inline-block; width: 9px; height: 3px; margin-right: 4px; vertical-align: middle; background: var(--c); }
+</style>
+</head>
+<body>
+<h1>Can the coach get this athlete to the goals?</h1>
+<p class="subtitle">A two-scenario season simulation against the real plan pipeline. Generated 2026-11-22T23:38:57.661Z with <code>openai/gpt-6.1-sol</code>.</p>
+<div class="cards">
+<div class="card"><div class="label">Half marathon · Compliant athlete</div><div class="value good">Met</div><div class="small">1:54:03 vs target 2:00:00</div></div>
+<div class="card"><div class="label">Gravel race · Compliant athlete</div><div class="value good">Met</div><div class="small">3:08:38 vs target 3:10:00 · solo 3:17:38</div></div>
+<div class="card"><div class="label">Half marathon · Alternate-day athlete</div><div class="value bad">Missed</div><div class="small">2:06:03 vs target 2:00:00</div></div>
+<div class="card"><div class="label">Gravel race · Alternate-day athlete</div><div class="value bad">Missed</div><div class="small">3:36:42 vs target 3:10:00 · solo 3:47:49</div></div>
+</div>
+<p>Test 1 (Compliant athlete) completed 237 of 237 prescribed workouts and recorded 16025 TSS. Test 2 (Alternate-day athlete) completed 95 of 183 for 3991 TSS.</p>
+<h2>Method</h2>
+<p><strong>Athlete.</strong> Male, 50, 85 kg, 187 cm, Trondheim (Europe/Oslo). Starting FTP 180 W, running threshold 6:00 /km, resting HR 55, maximum HR 185, no recent training. Five years ago: FTP about 285 W, and the same 100 km / 1,170 m gravel race in 3:20 at an average heart rate of 163.</p>
+<p><strong>Goals.</strong> A half marathon under 2:00 on 2027-05-23, and the 100 km / 1,170 m gravel race in 3:10 or faster on 2027-08-22. The season runs from 2026-11-22 to 2027-08-29.</p>
+<p><strong>Loop.</strong> A real <code>newSeason</code> build starts the season. Every Sunday at 21:00 the harness records the week's activities, writes the modelled FTP and threshold pace as Garmin-style estimates, and runs a real plan refresh with <code>includeTomorrow</code>. The next week is read from <code>nextWeek</code>, then simulated day by day. Sundays continue until the season ends.</p>
+<p><strong>Activities.</strong> Each prescribed session is converted into an imported activity with concrete duration, distance, elevation, average and normalized power, average heart rate and pace. Cycling and running TSS therefore comes from measured power or pace, not from free text. A race day is simulated from the athlete's modelled ability on that morning.</p>
+<p><strong>Progression.</strong> Ability is a function of chronic training load (CTL, 42-day EWMA): the athlete regains the gap to the prior peak with diminishing returns and never exceeds it in this model. The model is a simulation assumption, not app logic.</p>
+<p><strong>Feasibility.</strong> The report makes an independent numeric check beside the coach's own words. The half is predicted from threshold pace (half pace = 1.04 × threshold, 1% taper). The gravel race uses a steady-state speed/power model (93 kg system mass, CdA 0.385, Crr 0.0055, 97% drivetrain, 3:10 target). A target is treated as met within a 1% modelling tolerance. The solo and group cases are reported separately.</p>
+<div class="note">Weather and daylight are a deterministic Trondheim-like seasonal approximation rather than a live provider call, so the season is reproducible. The app's real prompt, plan validation, period reviews and stored-plan pipeline are otherwise used unchanged. Test 2 is the alternate-day reference from the earlier prompt set; it is retained to show the adherence effect, not as a controlled model comparison.</div>
+<div class="pb"></div>
+<h2>Test 1 — Compliant athlete</h2>
+<p>Completes every prescribed workout, including optional sessions, on its planned day. Season 2026-11-22 → 2027-08-29. Model openai/gpt-6.1-sol. 92 model calls, $4.25, 1,036,843 prompt and 255,397 completion tokens. Wall time 44.5 min.</p>
+<div class="card">
+<div class="label">Half marathon · 2027-05-23</div>
+<div class="value good">Feasible / target met — 1:54:03</div>
+<div class="small">Target 2:00:00. Threshold 5:15 /km; needs 5:31 /km or faster.</div>
+<div class="quote">Arrive fresh and race — You have earned a proper taper through consistent training, and your comfortable feedback supports retaining a small controlled stimulus rather than adding volume. Approximately 5 hours 15 minutes includes your race and warm-up; the unused training time protects your legs for 23 May.
+
+- Keep four short training exposures before Sunday&#39;s race, with Tuesday providing the only controlled race-rhythm work.
+- Use Wednesday&#39;s dry conditions for a short easy ride and keep Friday completely clear.
+- Keep Saturday very easy: no fitness test, hard strides or extra distance.
+
+From your supplied current form, approximately 160 TSS before race day projects ATL near 38, CTL near 5…</div>
+</div><div class="card">
+<div class="label">100 km gravel race · 2027-08-22</div>
+<div class="value good">Feasible / target met — 3:08:38</div>
+<div class="small">Target 3:10:00 · solo prediction 3:17:38. FTP 285 W (3.35 W/kg); needs 281 W in a group, 309 W solo.</div>
+<div class="quote">Fresh legs for your gravel race — Your completed training and comfortable first taper week support keeping short riding exposures without returning to your usual 8–10 hours. You have 2 hours 45 minutes and approximately 92 TSS before Sunday&#39;s race; the lower volume protects the fitness you have earned.
+
+Tuesday supplies the final compact quality stimulus indoors during the rain. Wednesday offers outdoor handling practice in the better forecast window, Thursday is very light, Friday is full rest and Saturday is easy indoors. No hard work belongs the day before your race.
+
+Projected pre-race ATL is about 30, CTL about 58 and TSB about +28. That unusually fresh form is deliberate for your 22 A…</div>
+</div>
+<h3>Weekly progression</h3>
+<div class="legend"><span style="--c:#1f7a4d">CTL</span><span style="--c:#2b6cb0">FTP (W)</span><span style="--c:#b7791f">Run threshold (s/km)</span><span style="--c:#805ad5">Half prediction (min)</span><span style="--c:#c05621">Gravel group prediction (min)</span></div>
+<h3>Chronic load (CTL)</h3><svg viewBox="0 0 760 190" role="img" aria-label="Chronic load (CTL)"><line x1="42" y1="162" x2="742" y2="162" stroke="#d8e0db" /><text x="37" y="165.0" font-size="8" text-anchor="end" fill="#5d6b64">5</text><text x="37" y="92.0" font-size="8" text-anchor="end" fill="#5d6b64">39</text><text x="37" y="19.0" font-size="8" text-anchor="end" fill="#5d6b64">73</text><text x="42.0" y="182" font-size="8" text-anchor="start" fill="#5d6b64">2026-11-23</text><text x="401.0" y="182" font-size="8" text-anchor="middle" fill="#5d6b64">2027-04-12</text><text x="742.0" y="182" font-size="8" text-anchor="end" fill="#5d6b64">2027-08-23</text><polyline fill="none" stroke="#1f7a4d" stroke-width="2" points="42.0,162.0 59.9,150.6 77.9,139.3 95.8,128.7 113.8,123.0 131.7,114.2 149.7,105.6 167.6,102.4 185.6,95.8 203.5,88.8 221.5,82.6 239.4,76.6 257.4,76.7 275.3,71.0 293.3,65.0 311.2,65.8 329.2,61.6 347.1,56.0 365.1,50.4 383.0,52.5 401.0,47.1 418.9,43.2 436.9,38.5 454.8,35.5 472.8,40.7 490.7,44.7 508.7,58.1 526.6,59.1 544.6,50.1 562.5,46.3 580.5,40.0 598.4,43.0 616.4,34.8 634.3,28.1 652.3,23.0 670.2,16.0 688.2,20.5 706.1,30.4 724.1,32.8 742.0,48.3" /></svg>
+<h3>FTP (W)</h3><svg viewBox="0 0 760 190" role="img" aria-label="FTP (W)"><line x1="42" y1="162" x2="742" y2="162" stroke="#d8e0db" /><text x="37" y="165.0" font-size="8" text-anchor="end" fill="#5d6b64">196</text><text x="37" y="92.0" font-size="8" text-anchor="end" fill="#5d6b64">240</text><text x="37" y="19.0" font-size="8" text-anchor="end" fill="#5d6b64">285</text><text x="42.0" y="182" font-size="8" text-anchor="start" fill="#5d6b64">2026-11-23</text><text x="401.0" y="182" font-size="8" text-anchor="middle" fill="#5d6b64">2027-04-12</text><text x="742.0" y="182" font-size="8" text-anchor="end" fill="#5d6b64">2027-08-23</text><polyline fill="none" stroke="#2b6cb0" stroke-width="2" points="42.0,162.0 59.9,142.3 77.9,124.8 95.8,109.2 113.8,101.2 131.7,89.3 149.7,78.0 167.6,73.8 185.6,65.3 203.5,56.6 221.5,48.9 239.4,41.5 257.4,41.7 275.3,34.8 293.3,27.6 311.2,28.6 329.2,23.6 347.1,17.1 365.1,16.0 383.0,16.0 401.0,16.0 418.9,16.0 436.9,16.0 454.8,16.0 472.8,16.0 490.7,16.0 508.7,19.5 526.6,20.7 544.6,16.0 562.5,16.0 580.5,16.0 598.4,16.0 616.4,16.0 634.3,16.0 652.3,16.0 670.2,16.0 688.2,16.0 706.1,16.0 724.1,16.0 742.0,16.0" /></svg>
+<h3>Running threshold pace (lower is faster)</h3><svg viewBox="0 0 760 190" role="img" aria-label="Running threshold pace (lower is faster)"><line x1="42" y1="162" x2="742" y2="162" stroke="#d8e0db" /><text x="37" y="165.0" font-size="8" text-anchor="end" fill="#5d6b64">315</text><text x="37" y="92.0" font-size="8" text-anchor="end" fill="#5d6b64">334</text><text x="37" y="19.0" font-size="8" text-anchor="end" fill="#5d6b64">353</text><text x="42.0" y="182" font-size="8" text-anchor="start" fill="#5d6b64">2026-11-23</text><text x="401.0" y="182" font-size="8" text-anchor="middle" fill="#5d6b64">2027-04-12</text><text x="742.0" y="182" font-size="8" text-anchor="end" fill="#5d6b64">2027-08-23</text><polyline fill="none" stroke="#b7791f" stroke-width="2" points="42.0,16.0 59.9,35.7 77.9,53.2 95.8,68.8 113.8,76.8 131.7,88.7 149.7,100.0 167.6,104.2 185.6,112.7 203.5,121.4 221.5,129.1 239.4,136.5 257.4,136.3 275.3,143.2 293.3,150.4 311.2,149.4 329.2,154.4 347.1,160.9 365.1,162.0 383.0,162.0 401.0,162.0 418.9,162.0 436.9,162.0 454.8,162.0 472.8,162.0 490.7,162.0 508.7,158.5 526.6,157.3 544.6,162.0 562.5,162.0 580.5,162.0 598.4,162.0 616.4,162.0 634.3,162.0 652.3,162.0 670.2,162.0 688.2,162.0 706.1,162.0 724.1,162.0 742.0,162.0" /></svg>
+<h3>Predicted race times (minutes, lower is faster)</h3><svg viewBox="0 0 760 190" role="img" aria-label="Predicted race times (minutes, lower is faster)"><line x1="42" y1="162" x2="742" y2="162" stroke="#d8e0db" /><text x="37" y="165.0" font-size="8" text-anchor="end" fill="#5d6b64">114</text><text x="37" y="92.0" font-size="8" text-anchor="end" fill="#5d6b64">171</text><text x="37" y="19.0" font-size="8" text-anchor="end" fill="#5d6b64">228</text><text x="42.0" y="182" font-size="8" text-anchor="start" fill="#5d6b64">2026-11-23</text><text x="401.0" y="182" font-size="8" text-anchor="middle" fill="#5d6b64">2027-04-12</text><text x="742.0" y="182" font-size="8" text-anchor="end" fill="#5d6b64">2027-08-23</text><polyline fill="none" stroke="#805ad5" stroke-width="2" points="42.0,144.3 59.9,146.7 77.9,148.8 95.8,150.7 113.8,151.7 131.7,153.1 149.7,154.5 167.6,155.0 185.6,156.0 203.5,157.1 221.5,158.0 239.4,158.9 257.4,158.9 275.3,159.7 293.3,160.6 311.2,160.5 329.2,161.1 347.1,161.9 365.1,162.0 383.0,162.0 401.0,162.0 418.9,162.0 436.9,162.0 454.8,162.0 472.8,162.0 490.7,162.0 508.7,161.6 526.6,161.4 544.6,162.0 562.5,162.0 580.5,162.0 598.4,162.0 616.4,162.0 634.3,162.0 652.3,162.0 670.2,162.0 688.2,162.0 706.1,162.0 724.1,162.0 742.0,162.0" /><polyline fill="none" stroke="#c05621" stroke-width="2" points="42.0,16.0 59.9,25.0 77.9,32.3 95.8,38.3 113.8,41.2 131.7,45.3 149.7,49.0 167.6,50.4 185.6,53.0 203.5,55.6 221.5,57.8 239.4,59.9 257.4,59.8 275.3,61.7 293.3,63.6 311.2,63.3 329.2,64.6 347.1,66.3 365.1,66.6 383.0,66.6 401.0,66.6 418.9,66.6 436.9,66.6 454.8,66.6 472.8,66.6 490.7,66.6 508.7,65.7 526.6,65.4 544.6,66.6 562.5,66.6 580.5,66.6 598.4,66.6 616.4,66.6 634.3,66.6 652.3,66.6 670.2,66.6 688.2,66.6 706.1,66.6 724.1,66.6 742.0,66.6" /></svg>
+<div class="small">40 weeks from 2026-11-23 to 2027-08-23.</div>
+<h3>Weekly detail</h3>
+<table><thead><tr><th>Week</th><th>Block</th><th>Focus</th><th class="num">Plan TSS</th><th class="num">Done TSS</th><th class="num">Sessions</th><th class="num">CTL</th><th class="num">FTP</th><th class="num">Threshold</th><th class="num">Half</th><th class="num">Gravel</th><th></th></tr></thead><tbody><tr>
+<td>2026-11-23</td>
+<td>Return to consistent …</td>
+<td>Establish your routine</td>
+<td class="num">222</td>
+<td class="num">233</td>
+<td class="num">6</td>
+<td class="num">5</td>
+<td class="num">196</td>
+<td class="num">5:53</td>
+<td class="num">2:07:54</td>
+<td class="num">3:48:09</td>
+<td></td>
+</tr><tr>
+<td>2026-11-30</td>
+<td>Return to consistent …</td>
+<td>Extend easy endurance</td>
+<td class="num">256</td>
+<td class="num">276</td>
+<td class="num">6</td>
+<td class="num">10</td>
+<td class="num">208</td>
+<td class="num">5:48</td>
+<td class="num">2:06:02</td>
+<td class="num">3:41:06</td>
+<td></td>
+</tr><tr>
+<td>2026-12-07</td>
+<td>Return to consistent …</td>
+<td>Extend low-impact endurance</td>
+<td class="num">295</td>
+<td class="num">311</td>
+<td class="num">6</td>
+<td class="num">16</td>
+<td class="num">219</td>
+<td class="num">5:43</td>
+<td class="num">2:04:22</td>
+<td class="num">3:35:23</td>
+<td></td>
+</tr><tr>
+<td>2026-12-14</td>
+<td>Return to consistent …</td>
+<td>Build a durable platform</td>
+<td class="num">312</td>
+<td class="num">335</td>
+<td class="num">6</td>
+<td class="num">21</td>
+<td class="num">228</td>
+<td class="num">5:39</td>
+<td class="num">2:02:54</td>
+<td class="num">3:30:43</td>
+<td></td>
+</tr><tr>
+<td>2026-12-21</td>
+<td>Return to consistent …</td>
+<td>Absorb your foundation</td>
+<td class="num">245</td>
+<td class="num">266</td>
+<td class="num">6</td>
+<td class="num">23</td>
+<td class="num">233</td>
+<td class="num">5:37</td>
+<td class="num">2:02:08</td>
+<td class="num">3:28:28</td>
+<td></td>
+</tr><tr>
+<td>2026-12-28</td>
+<td>Winter aerobic founda…</td>
+<td>Reach eight steady hours</td>
+<td class="num">320</td>
+<td class="num">347</td>
+<td class="num">6</td>
+<td class="num">27</td>
+<td class="num">240</td>
+<td class="num">5:34</td>
+<td class="num">2:01:00</td>
+<td class="num">3:25:15</td>
+<td></td>
+</tr><tr>
+<td>2027-01-04</td>
+<td>Winter aerobic founda…</td>
+<td>Extend aerobic durability</td>
+<td class="num">353</td>
+<td class="num">373</td>
+<td class="num">6</td>
+<td class="num">31</td>
+<td class="num">247</td>
+<td class="num">5:31</td>
+<td class="num">1:59:56</td>
+<td class="num">3:22:20</td>
+<td></td>
+</tr><tr>
+<td>2027-01-11</td>
+<td>Winter aerobic founda…</td>
+<td>Consolidate your progress</td>
+<td class="num">261</td>
+<td class="num">287</td>
+<td class="num">6</td>
+<td class="num">33</td>
+<td class="num">250</td>
+<td class="num">5:30</td>
+<td class="num">1:59:32</td>
+<td class="num">3:21:18</td>
+<td></td>
+</tr><tr>
+<td>2027-01-18</td>
+<td>Winter aerobic founda…</td>
+<td>Build frequency and endurance</td>
+<td class="num">369</td>
+<td class="num">369</td>
+<td class="num">6</td>
+<td class="num">36</td>
+<td class="num">255</td>
+<td class="num">5:28</td>
+<td class="num">1:58:44</td>
+<td class="num">3:19:15</td>
+<td></td>
+</tr><tr>
+<td>2027-01-25</td>
+<td>Winter aerobic founda…</td>
+<td>Establish your next baseline</td>
+<td class="num">397</td>
+<td class="num">397</td>
+<td class="num">6</td>
+<td class="num">39</td>
+<td class="num">260</td>
+<td class="num">5:26</td>
+<td class="num">1:57:54</td>
+<td class="num">3:17:13</td>
+<td></td>
+</tr><tr>
+<td>2027-02-01</td>
+<td>Winter aerobic founda…</td>
+<td>Build continuous running</td>
+<td class="num">405</td>
+<td class="num">405</td>
+<td class="num">6</td>
+<td class="num">42</td>
+<td class="num">265</td>
+<td class="num">5:24</td>
+<td class="num">1:57:10</td>
+<td class="num">3:15:29</td>
+<td></td>
+</tr><tr>
+<td>2027-02-08</td>
+<td>Running durability</td>
+<td>Extend comfortable continuity</td>
+<td class="num">421</td>
+<td class="num">420</td>
+<td class="num">6</td>
+<td class="num">45</td>
+<td class="num">269</td>
+<td class="num">5:22</td>
+<td class="num">1:56:28</td>
+<td class="num">3:13:52</td>
+<td></td>
+</tr><tr>
+<td>2027-02-15</td>
+<td>Running durability</td>
+<td>Absorb running progression</td>
+<td class="num">310</td>
+<td class="num">310</td>
+<td class="num">6</td>
+<td class="num">45</td>
+<td class="num">269</td>
+<td class="num">5:22</td>
+<td class="num">1:56:29</td>
+<td class="num">3:13:54</td>
+<td></td>
+</tr><tr>
+<td>2027-02-22</td>
+<td>Running durability</td>
+<td>Introduce controlled running quality</td>
+<td class="num">431</td>
+<td class="num">431</td>
+<td class="num">6</td>
+<td class="num">48</td>
+<td class="num">274</td>
+<td class="num">5:20</td>
+<td class="num">1:55:50</td>
+<td class="num">3:12:27</td>
+<td></td>
+</tr><tr>
+<td>2027-03-01</td>
+<td>Running durability</td>
+<td>Extend long-run durability</td>
+<td class="num">456</td>
+<td class="num">457</td>
+<td class="num">6</td>
+<td class="num">50</td>
+<td class="num">278</td>
+<td class="num">5:18</td>
+<td class="num">1:55:09</td>
+<td class="num">3:10:57</td>
+<td></td>
+</tr><tr>
+<td>2027-03-08</td>
+<td>Running durability</td>
+<td>Consolidate running durability</td>
+<td class="num">332</td>
+<td class="num">333</td>
+<td class="num">6</td>
+<td class="num">50</td>
+<td class="num">277</td>
+<td class="num">5:18</td>
+<td class="num">1:55:15</td>
+<td class="num">3:11:10</td>
+<td></td>
+</tr><tr>
+<td>2027-03-15</td>
+<td>Running durability</td>
+<td>Build sustained running</td>
+<td class="num">435</td>
+<td class="num">435</td>
+<td class="num">6</td>
+<td class="num">52</td>
+<td class="num">280</td>
+<td class="num">5:17</td>
+<td class="num">1:54:47</td>
+<td class="num">3:10:09</td>
+<td></td>
+</tr><tr>
+<td>2027-03-22</td>
+<td>Half-marathon develop…</td>
+<td>Extend controlled running</td>
+<td class="num">478</td>
+<td class="num">478</td>
+<td class="num">6</td>
+<td class="num">55</td>
+<td class="num">284</td>
+<td class="num">5:15</td>
+<td class="num">1:54:09</td>
+<td class="num">3:08:51</td>
+<td></td>
+</tr><tr>
+<td>2027-03-29</td>
+<td>Half-marathon develop…</td>
+<td>Build endurance under control</td>
+<td class="num">498</td>
+<td class="num">498</td>
+<td class="num">6</td>
+<td class="num">57</td>
+<td class="num">285</td>
+<td class="num">5:15</td>
+<td class="num">1:54:03</td>
+<td class="num">3:08:38</td>
+<td></td>
+</tr><tr>
+<td>2027-04-05</td>
+<td>Half-marathon develop…</td>
+<td>Absorb running development</td>
+<td class="num">353</td>
+<td class="num">353</td>
+<td class="num">6</td>
+<td class="num">56</td>
+<td class="num">285</td>
+<td class="num">5:15</td>
+<td class="num">1:54:03</td>
+<td class="num">3:08:38</td>
+<td></td>
+</tr><tr>
+<td>2027-04-12</td>
+<td>Half-marathon develop…</td>
+<td>Develop sustainable race rhythm</td>
+<td class="num">504</td>
+<td class="num">504</td>
+<td class="num">6</td>
+<td class="num">59</td>
+<td class="num">285</td>
+<td class="num">5:15</td>
+<td class="num">1:54:03</td>
+<td class="num">3:08:38</td>
+<td></td>
+</tr><tr>
+<td>2027-04-19</td>
+<td>Half-marathon develop…</td>
+<td>Assess half-marathon trajectory</td>
+<td class="num">514</td>
+<td class="num">488</td>
+<td class="num">6</td>
+<td class="num">61</td>
+<td class="num">285</td>
+<td class="num">5:15</td>
+<td class="num">1:54:03</td>
+<td class="num">3:08:38</td>
+<td></td>
+</tr><tr>
+<td>2027-04-26</td>
+<td>Half-marathon develop…</td>
+<td>Make race pace sustainable</td>
+<td class="num">518</td>
+<td class="num">519</td>
+<td class="num">6</td>
+<td class="num">63</td>
+<td class="num">285</td>
+<td class="num">5:15</td>
+<td class="num">1:54:03</td>
+<td class="num">3:08:38</td>
+<td></td>
+</tr><tr>
+<td>2027-05-03</td>
+<td>Half-marathon specifi…</td>
+<td>Confirm rhythm before tapering</td>
+<td class="num">500</td>
+<td class="num">500</td>
+<td class="num">6</td>
+<td class="num">64</td>
+<td class="num">285</td>
+<td class="num">5:15</td>
+<td class="num">1:54:03</td>
+<td class="num">3:08:38</td>
+<td></td>
+</tr><tr>
+<td>2027-05-10</td>
+<td>Half-marathon specifi…</td>
+<td>Shed fatigue and retain race rhythm</td>
+<td class="num">339</td>
+<td class="num">339</td>
+<td class="num">6</td>
+<td class="num">62</td>
+<td class="num">285</td>
+<td class="num">5:15</td>
+<td class="num">1:54:03</td>
+<td class="num">3:08:38</td>
+<td></td>
+</tr><tr>
+<td>2027-05-17</td>
+<td>Half-marathon taper a…</td>
+<td>Arrive fresh and race</td>
+<td class="num">335</td>
+<td class="num">339</td>
+<td class="num">6</td>
+<td class="num">60</td>
+<td class="num">285</td>
+<td class="num">5:15</td>
+<td class="num">1:54:03</td>
+<td class="num">3:08:38</td>
+<td></td>
+</tr><tr>
+<td>2027-05-24</td>
+<td>Half-marathon taper a…</td>
+<td>Recover and restart easy cycling</td>
+<td class="num">134</td>
+<td class="num">134</td>
+<td class="num">5</td>
+<td class="num">54</td>
+<td class="num">283</td>
+<td class="num">5:16</td>
+<td class="num">1:54:23</td>
+<td class="num">3:09:19</td>
+<td></td>
+</tr><tr>
+<td>2027-05-31</td>
+<td>Recover and transition</td>
+<td>Restore cycling endurance</td>
+<td class="num">354</td>
+<td class="num">354</td>
+<td class="num">6</td>
+<td class="num">53</td>
+<td class="num">282</td>
+<td class="num">5:16</td>
+<td class="num">1:54:30</td>
+<td class="num">3:09:34</td>
+<td></td>
+</tr><tr>
+<td>2027-06-07</td>
+<td>Recover and transition</td>
+<td>Build gravel endurance and sustained power</td>
+<td class="num">555</td>
+<td class="num">555</td>
+<td class="num">6</td>
+<td class="num">57</td>
+<td class="num">285</td>
+<td class="num">5:15</td>
+<td class="num">1:54:03</td>
+<td class="num">3:08:38</td>
+<td></td>
+</tr><tr>
+<td>2027-06-14</td>
+<td>Gravel endurance and …</td>
+<td>Extend repeatable climbing power</td>
+<td class="num">530</td>
+<td class="num">478</td>
+<td class="num">6</td>
+<td class="num">59</td>
+<td class="num">285</td>
+<td class="num">5:15</td>
+<td class="num">1:54:03</td>
+<td class="num">3:08:38</td>
+<td></td>
+</tr><tr>
+<td>2027-06-21</td>
+<td>Gravel endurance and …</td>
+<td>Develop late-ride durability</td>
+<td class="num">543</td>
+<td class="num">537</td>
+<td class="num">6</td>
+<td class="num">62</td>
+<td class="num">285</td>
+<td class="num">5:15</td>
+<td class="num">1:54:03</td>
+<td class="num">3:08:38</td>
+<td></td>
+</tr><tr>
+<td>2027-06-28</td>
+<td>Gravel endurance and …</td>
+<td>Absorb cycling load</td>
+<td class="num">335</td>
+<td class="num">370</td>
+<td class="num">6</td>
+<td class="num">61</td>
+<td class="num">285</td>
+<td class="num">5:15</td>
+<td class="num">1:54:03</td>
+<td class="num">3:08:38</td>
+<td></td>
+</tr><tr>
+<td>2027-07-05</td>
+<td>Gravel endurance and …</td>
+<td>Build sustained gravel power</td>
+<td class="num">570</td>
+<td class="num">591</td>
+<td class="num">6</td>
+<td class="num">64</td>
+<td class="num">285</td>
+<td class="num">5:15</td>
+<td class="num">1:54:03</td>
+<td class="num">3:08:38</td>
+<td></td>
+</tr><tr>
+<td>2027-07-12</td>
+<td>Gravel endurance and …</td>
+<td>Consolidate race-duration endurance</td>
+<td class="num">590</td>
+<td class="num">581</td>
+<td class="num">6</td>
+<td class="num">68</td>
+<td class="num">285</td>
+<td class="num">5:15</td>
+<td class="num">1:54:03</td>
+<td class="num">3:08:38</td>
+<td><span class="warn">1 flag</span></td>
+</tr><tr>
+<td>2027-07-19</td>
+<td>Gravel endurance and …</td>
+<td>Build repeatable race power</td>
+<td class="num">580</td>
+<td class="num">573</td>
+<td class="num">6</td>
+<td class="num">70</td>
+<td class="num">285</td>
+<td class="num">5:15</td>
+<td class="num">1:54:03</td>
+<td class="num">3:08:38</td>
+<td><span class="warn">1 flag</span></td>
+</tr><tr>
+<td>2027-07-26</td>
+<td>Gravel race specifici…</td>
+<td>Prove late-race durability</td>
+<td class="num">575</td>
+<td class="num">626</td>
+<td class="num">6</td>
+<td class="num">73</td>
+<td class="num">285</td>
+<td class="num">5:15</td>
+<td class="num">1:54:03</td>
+<td class="num">3:08:38</td>
+<td><span class="warn">1 flag</span></td>
+</tr><tr>
+<td>2027-08-02</td>
+<td>Gravel race specifici…</td>
+<td>Consolidate race execution</td>
+<td class="num">378</td>
+<td class="num">414</td>
+<td class="num">6</td>
+<td class="num">71</td>
+<td class="num">285</td>
+<td class="num">5:15</td>
+<td class="num">1:54:03</td>
+<td class="num">3:08:38</td>
+<td></td>
+</tr><tr>
+<td>2027-08-09</td>
+<td>Gravel race specifici…</td>
+<td>Retain power and shed fatigue</td>
+<td class="num">286</td>
+<td class="num">288</td>
+<td class="num">6</td>
+<td class="num">67</td>
+<td class="num">285</td>
+<td class="num">5:15</td>
+<td class="num">1:54:03</td>
+<td class="num">3:08:38</td>
+<td></td>
+</tr><tr>
+<td>2027-08-16</td>
+<td>Gravel taper and race</td>
+<td>Fresh legs for your gravel race</td>
+<td class="num">332</td>
+<td class="num">396</td>
+<td class="num">6</td>
+<td class="num">65</td>
+<td class="num">285</td>
+<td class="num">5:15</td>
+<td class="num">1:54:03</td>
+<td class="num">3:08:38</td>
+<td></td>
+</tr><tr>
+<td>2027-08-23</td>
+<td>Gravel taper and race</td>
+<td>Recover and restore easy riding</td>
+<td class="num">102</td>
+<td class="num">125</td>
+<td class="num">4</td>
+<td class="num">58</td>
+<td class="num">285</td>
+<td class="num">5:15</td>
+<td class="num">1:54:03</td>
+<td class="num">3:08:38</td>
+<td></td>
+</tr></tbody></table>
+<h3>What the coach said</h3><p><strong>Season goal:</strong> Complete your season with both goals achieved: a 1:54:03 half marathon and a 3:08:38 finish in your 100 km gravel race.</p><p><strong>Half marathon, 2027-05-23:</strong></p><div class="quote">Arrive fresh and race — You have earned a proper taper through consistent training, and your comfortable feedback supports retaining a small controlled stimulus rather than adding volume. Approximately 5 hours 15 minutes includes your race and warm-up; the unused training time protects your legs for 23 May.
+
+- Keep four short training exposures before Sunday&#39;s race, with Tuesday providing the only controlled race-rhythm work.
+- Use Wednesday&#39;s dry conditions for a short easy ride and keep Friday completely clear.
+- Keep Saturday very easy: no fitness test, hard strides or extra distance.
+
+From your supplied current form, approximately 160 TSS before race day projects ATL near 38, CTL near 57 and TSB around +19. That Fresh range is intentional. Including an estimated 175 TSS race day brings the week to approximately 335 TSS and an end-of-week TSB near +3; race effort makes the final figures uncertain.
+
+Your threshold estimate makes sub-2:00 plausible, but your long runs and unsplit quality sessions do not confirm it. You cannot catch up on missing endurance this week. If Tuesday&#39;s brief goal-rhythm running is controlled, you can consider opening around 5:45/km and settling toward 5…</div><p><strong>100 km gravel race, 2027-08-22:</strong></p><div class="quote">Fresh legs for your gravel race — Your completed training and comfortable first taper week support keeping short riding exposures without returning to your usual 8–10 hours. You have 2 hours 45 minutes and approximately 92 TSS before Sunday&#39;s race; the lower volume protects the fitness you have earned.
+
+Tuesday supplies the final compact quality stimulus indoors during the rain. Wednesday offers outdoor handling practice in the better forecast window, Thursday is very light, Friday is full rest and Saturday is easy indoors. No hard work belongs the day before your race.
+
+Projected pre-race ATL is about 30, CTL about 58 and TSB about +28. That unusually fresh form is deliberate for your 22 August event, not a normal build target. Including an estimated 240 race TSS gives roughly 332 TSS for the week and projected post-race ATL about 60, CTL about 62 and TSB about +2.
+
+You are well prepared for the distance and climbing, but 3:10 remains a stretch: your comparable rehearsals suggest roughly 3:35–3:40 at training speed, not a race prediction. Better group riding and conditions could narrow that gap; rain may work against it. Start controlled, avoid repeated surges above threshold on …</div><p><strong>Recent feasibility language:</strong></p><div class="quote">Your report of comfortable effort supports keeping one controlled climbing session and a shorter gravel rehearsal, not adding another overload. Wednesday&#39;s dry forecast suits outdoor climbing, and Saturday offers the best weekend window for your longer gravel ride, although a little rain remains possible. Your 3:10 goal remains a stretch.</div><div class="quote">Tuesday&#39;s indoor quality and Thursday&#39;s dry-weather gravel session preserve climbing power and race rhythm. That is appropriate for tapering, not a build-week target. Your race-distance endurance is sound, but 3:10 remains an ambitious outcome rather than an evidence-backed prediction.</div><div class="quote">Fresh legs for your gravel race Your completed training and comfortable first taper week support keeping short riding exposures without returning to your usual 8–10 hours. That unusually fresh form is deliberate for your 22 August event, not a normal build target. You are well prepared for the distance and climbing, but 3:10 remains a stretch: your comparable rehearsals suggest roughly 3:35–3:40 at training speed, not a race prediction.</div><div class="quote">Recover and restore easy riding You have achieved both season goals, so this week has nothing left to prove.</div>
+<div class="pb"></div>
+<h2>Test 2 — Alternate-day athlete</h2>
+<p>Completes a prescribed workout only every second calendar day; the in-between days are not trained. Season 2026-11-22 → 2027-08-29. Model openai/gpt-6-luna-pro. 92 model calls, $0.32, 3,174,989 prompt and 319,719 completion tokens. Wall time 23.4 min.</p>
+<div class="card">
+<div class="label">Half marathon · 2027-05-23</div>
+<div class="value bad">Goal not met — 2:06:03</div>
+<div class="small">Target 2:00:00. Threshold 5:48 /km; needs 5:31 /km or faster.</div>
+<div class="quote">Taper into the May 23 half marathon; stay fresh and keep the days before race day easy — The half marathon on May 23 anchors the week. Your recent training volume has been modest, so there is no fitness to gain by cramming now; brief easy running keeps the legs familiar with running while recovery protects your race-day effort. Keep the day before the race easy. — Half marathon — Race the half marathon with a controlled opening and aim for your sub-2:00 goal; about 120 minutes, hard.</div>
+</div><div class="card">
+<div class="label">100 km gravel race · 2027-08-22</div>
+<div class="value bad">Goal not met — 3:36:42</div>
+<div class="small">Target 3:10:00 · solo prediction 3:47:49. FTP 216 W (2.54 W/kg); needs 281 W in a group, 309 W solo.</div>
+<div class="quote">Taper into the August 22 100 km gravel race; keep the legs sharp, reduce training volume and prioritise recovery — Your 100 km gravel race with 1170 m of climbing on August 22 anchors the week. The recent long-ride gap cannot be repaired safely this close to race day, so the aim is to arrive rested and ready to pace and fuel well. Short openers maintain sharpness, easy aerobic riding preserves rhythm, and Friday and Saturday stay light before the race. — 100 km gravel race — Race the 100 km gravel course with 1170 m of climbing. Start controlled, fuel steadily from early in the ride, and build effort as the course and legs allow; target 3:10 or faster. Rain is forecast, so expect potentiall…</div>
+</div>
+<h3>Weekly progression</h3>
+<div class="legend"><span style="--c:#1f7a4d">CTL</span><span style="--c:#2b6cb0">FTP (W)</span><span style="--c:#b7791f">Run threshold (s/km)</span><span style="--c:#805ad5">Half prediction (min)</span><span style="--c:#c05621">Gravel group prediction (min)</span></div>
+<h3>Chronic load (CTL)</h3><svg viewBox="0 0 760 190" role="img" aria-label="Chronic load (CTL)"><line x1="42" y1="162" x2="742" y2="162" stroke="#d8e0db" /><text x="37" y="165.0" font-size="8" text-anchor="end" fill="#5d6b64">2</text><text x="37" y="92.0" font-size="8" text-anchor="end" fill="#5d6b64">12</text><text x="37" y="19.0" font-size="8" text-anchor="end" fill="#5d6b64">22</text><text x="42.0" y="182" font-size="8" text-anchor="start" fill="#5d6b64">2026-11-23</text><text x="401.0" y="182" font-size="8" text-anchor="middle" fill="#5d6b64">2027-04-12</text><text x="742.0" y="182" font-size="8" text-anchor="end" fill="#5d6b64">2027-08-23</text><polyline fill="none" stroke="#1f7a4d" stroke-width="2" points="42.0,162.0 59.9,155.6 77.9,144.1 95.8,132.0 113.8,125.5 131.7,120.0 149.7,113.5 167.6,111.8 185.6,105.1 203.5,113.1 221.5,104.3 239.4,108.8 257.4,102.7 275.3,94.8 293.3,96.4 311.2,94.5 329.2,88.9 347.1,91.4 365.1,78.6 383.0,89.8 401.0,73.5 418.9,80.3 436.9,82.4 454.8,83.9 472.8,91.3 490.7,70.5 508.7,75.9 526.6,91.8 544.6,78.2 562.5,93.7 580.5,75.6 598.4,62.4 616.4,58.7 634.3,77.3 652.3,72.6 670.2,62.5 688.2,67.8 706.1,74.1 724.1,16.0 742.0,41.2" /></svg>
+<h3>FTP (W)</h3><svg viewBox="0 0 760 190" role="img" aria-label="FTP (W)"><line x1="42" y1="162" x2="742" y2="162" stroke="#d8e0db" /><text x="37" y="165.0" font-size="8" text-anchor="end" fill="#5d6b64">188</text><text x="37" y="92.0" font-size="8" text-anchor="end" fill="#5d6b64">210</text><text x="37" y="19.0" font-size="8" text-anchor="end" fill="#5d6b64">231</text><text x="42.0" y="182" font-size="8" text-anchor="start" fill="#5d6b64">2026-11-23</text><text x="401.0" y="182" font-size="8" text-anchor="middle" fill="#5d6b64">2027-04-12</text><text x="742.0" y="182" font-size="8" text-anchor="end" fill="#5d6b64">2027-08-23</text><polyline fill="none" stroke="#2b6cb0" stroke-width="2" points="42.0,162.0 59.9,153.6 77.9,139.6 95.8,126.0 113.8,118.9 131.7,113.0 149.7,106.3 167.6,104.6 185.6,97.8 203.5,105.9 221.5,97.0 239.4,101.6 257.4,95.4 275.3,87.6 293.3,89.1 311.2,87.3 329.2,81.8 347.1,84.3 365.1,72.1 383.0,82.7 401.0,67.3 418.9,73.7 436.9,75.6 454.8,77.1 472.8,84.2 490.7,64.5 508.7,69.5 526.6,84.6 544.6,71.7 562.5,86.5 580.5,69.2 598.4,57.0 616.4,53.6 634.3,70.8 652.3,66.4 670.2,57.1 688.2,61.9 706.1,67.8 724.1,16.0 742.0,37.9" /></svg>
+<h3>Running threshold pace (lower is faster)</h3><svg viewBox="0 0 760 190" role="img" aria-label="Running threshold pace (lower is faster)"><line x1="42" y1="162" x2="742" y2="162" stroke="#d8e0db" /><text x="37" y="165.0" font-size="8" text-anchor="end" fill="#5d6b64">338</text><text x="37" y="92.0" font-size="8" text-anchor="end" fill="#5d6b64">347</text><text x="37" y="19.0" font-size="8" text-anchor="end" fill="#5d6b64">357</text><text x="42.0" y="182" font-size="8" text-anchor="start" fill="#5d6b64">2026-11-23</text><text x="401.0" y="182" font-size="8" text-anchor="middle" fill="#5d6b64">2027-04-12</text><text x="742.0" y="182" font-size="8" text-anchor="end" fill="#5d6b64">2027-08-23</text><polyline fill="none" stroke="#b7791f" stroke-width="2" points="42.0,16.0 59.9,24.4 77.9,38.4 95.8,52.0 113.8,59.1 131.7,65.0 149.7,71.7 167.6,73.4 185.6,80.2 203.5,72.1 221.5,81.0 239.4,76.4 257.4,82.6 275.3,90.4 293.3,88.9 311.2,90.7 329.2,96.2 347.1,93.7 365.1,105.9 383.0,95.3 401.0,110.7 418.9,104.3 436.9,102.4 454.8,100.9 472.8,93.8 490.7,113.5 508.7,108.5 526.6,93.4 544.6,106.3 562.5,91.5 580.5,108.8 598.4,121.0 616.4,124.4 634.3,107.2 652.3,111.6 670.2,120.9 688.2,116.1 706.1,110.2 724.1,162.0 742.0,140.1" /></svg>
+<h3>Predicted race times (minutes, lower is faster)</h3><svg viewBox="0 0 760 190" role="img" aria-label="Predicted race times (minutes, lower is faster)"><line x1="42" y1="162" x2="742" y2="162" stroke="#d8e0db" /><text x="37" y="165.0" font-size="8" text-anchor="end" fill="#5d6b64">122</text><text x="37" y="92.0" font-size="8" text-anchor="end" fill="#5d6b64">178</text><text x="37" y="19.0" font-size="8" text-anchor="end" fill="#5d6b64">233</text><text x="42.0" y="182" font-size="8" text-anchor="start" fill="#5d6b64">2026-11-23</text><text x="401.0" y="182" font-size="8" text-anchor="middle" fill="#5d6b64">2027-04-12</text><text x="742.0" y="182" font-size="8" text-anchor="end" fill="#5d6b64">2027-08-23</text><polyline fill="none" stroke="#805ad5" stroke-width="2" points="42.0,153.2 59.9,153.7 77.9,154.5 95.8,155.4 113.8,155.8 131.7,156.2 149.7,156.6 167.6,156.7 185.6,157.1 203.5,156.6 221.5,157.1 239.4,156.8 257.4,157.2 275.3,157.7 293.3,157.6 311.2,157.7 329.2,158.0 347.1,157.9 365.1,158.6 383.0,158.0 401.0,158.9 418.9,158.5 436.9,158.4 454.8,158.3 472.8,157.9 490.7,159.1 508.7,158.8 526.6,157.9 544.6,158.6 562.5,157.7 580.5,158.8 598.4,159.5 616.4,159.7 634.3,158.7 652.3,159.0 670.2,159.5 688.2,159.2 706.1,158.9 724.1,162.0 742.0,160.7" /><polyline fill="none" stroke="#c05621" stroke-width="2" points="42.0,16.0 59.9,18.1 77.9,21.6 95.8,24.9 113.8,26.5 131.7,27.8 149.7,29.4 167.6,29.7 185.6,31.2 203.5,29.5 221.5,31.4 239.4,30.4 257.4,31.8 275.3,33.4 293.3,33.1 311.2,33.5 329.2,34.6 347.1,34.1 365.1,36.7 383.0,34.5 401.0,37.6 418.9,36.3 436.9,35.9 454.8,35.6 472.8,34.1 490.7,38.2 508.7,37.2 526.6,34.0 544.6,36.7 562.5,33.6 580.5,37.2 598.4,39.7 616.4,40.3 634.3,36.9 652.3,37.8 670.2,39.7 688.2,38.7 706.1,37.5 724.1,47.4 742.0,43.3" /></svg>
+<div class="small">40 weeks from 2026-11-23 to 2027-08-23.</div>
+<h3>Weekly detail</h3>
+<table><thead><tr><th>Week</th><th>Block</th><th>Focus</th><th class="num">Plan TSS</th><th class="num">Done TSS</th><th class="num">Sessions</th><th class="num">CTL</th><th class="num">FTP</th><th class="num">Threshold</th><th class="num">Half</th><th class="num">Gravel</th><th></th></tr></thead><tbody><tr>
+<td>2026-11-23</td>
+<td>Foundation</td>
+<td>Build a repeatable easy-training routine</td>
+<td class="num">130</td>
+<td class="num">101</td>
+<td class="num">4</td>
+<td class="num">2</td>
+<td class="num">188</td>
+<td class="num">5:57</td>
+<td class="num">2:09:05</td>
+<td class="num">3:53:04</td>
+<td></td>
+</tr><tr>
+<td>2026-11-30</td>
+<td>Foundation</td>
+<td>Build consistency with easy aerobic work</td>
+<td class="num">135</td>
+<td class="num">55</td>
+<td class="num">2</td>
+<td class="num">3</td>
+<td class="num">191</td>
+<td class="num">5:55</td>
+<td class="num">2:08:42</td>
+<td class="num">3:51:27</td>
+<td></td>
+</tr><tr>
+<td>2026-12-07</td>
+<td>Foundation</td>
+<td>Build repeatable easy aerobic time</td>
+<td class="num">153</td>
+<td class="num">91</td>
+<td class="num">3</td>
+<td class="num">5</td>
+<td class="num">195</td>
+<td class="num">5:54</td>
+<td class="num">2:08:04</td>
+<td class="num">3:48:49</td>
+<td></td>
+</tr><tr>
+<td>2026-12-14</td>
+<td>Foundation</td>
+<td>Resume steady aerobic consistency</td>
+<td class="num">191</td>
+<td class="num">107</td>
+<td class="num">3</td>
+<td class="num">6</td>
+<td class="num">199</td>
+<td class="num">5:52</td>
+<td class="num">2:07:26</td>
+<td class="num">3:46:21</td>
+<td></td>
+</tr><tr>
+<td>2026-12-21</td>
+<td>Foundation</td>
+<td>Build consistency with controlled aerobic work</td>
+<td class="num">165</td>
+<td class="num">82</td>
+<td class="num">2</td>
+<td class="num">7</td>
+<td class="num">201</td>
+<td class="num">5:51</td>
+<td class="num">2:07:07</td>
+<td class="num">3:45:06</td>
+<td></td>
+</tr><tr>
+<td>2026-12-28</td>
+<td>Foundation</td>
+<td>Build repeatable aerobic volume</td>
+<td class="num">169</td>
+<td class="num">85</td>
+<td class="num">3</td>
+<td class="num">8</td>
+<td class="num">203</td>
+<td class="num">5:50</td>
+<td class="num">2:06:51</td>
+<td class="num">3:44:06</td>
+<td></td>
+</tr><tr>
+<td>2027-01-04</td>
+<td>Foundation</td>
+<td>Build repeatable aerobic volume</td>
+<td class="num">185</td>
+<td class="num">93</td>
+<td class="num">2</td>
+<td class="num">9</td>
+<td class="num">205</td>
+<td class="num">5:49</td>
+<td class="num">2:06:32</td>
+<td class="num">3:42:57</td>
+<td></td>
+</tr><tr>
+<td>2027-01-11</td>
+<td>Foundation</td>
+<td>Absorb the training</td>
+<td class="num">142</td>
+<td class="num">73</td>
+<td class="num">3</td>
+<td class="num">9</td>
+<td class="num">205</td>
+<td class="num">5:49</td>
+<td class="num">2:06:28</td>
+<td class="num">3:42:39</td>
+<td></td>
+</tr><tr>
+<td>2027-01-18</td>
+<td>Foundation</td>
+<td>Begin the half-marathon base with repeatable …</td>
+<td class="num">151</td>
+<td class="num">105</td>
+<td class="num">3</td>
+<td class="num">10</td>
+<td class="num">207</td>
+<td class="num">5:48</td>
+<td class="num">2:06:09</td>
+<td class="num">3:41:31</td>
+<td></td>
+</tr><tr>
+<td>2027-01-25</td>
+<td>Half-marathon base</td>
+<td>Re-establish a repeatable three-run rhythm wi…</td>
+<td class="num">155</td>
+<td class="num">21</td>
+<td class="num">1</td>
+<td class="num">9</td>
+<td class="num">205</td>
+<td class="num">5:49</td>
+<td class="num">2:06:31</td>
+<td class="num">3:42:53</td>
+<td></td>
+</tr><tr>
+<td>2027-02-01</td>
+<td>Half-marathon base</td>
+<td>Build a repeatable three-run week, with a gra…</td>
+<td class="num">159</td>
+<td class="num">113</td>
+<td class="num">3</td>
+<td class="num">10</td>
+<td class="num">207</td>
+<td class="num">5:48</td>
+<td class="num">2:06:07</td>
+<td class="num">3:41:24</td>
+<td></td>
+</tr><tr>
+<td>2027-02-08</td>
+<td>Half-marathon base</td>
+<td>Consolidate with a lighter week while maintai…</td>
+<td class="num">141</td>
+<td class="num">45</td>
+<td class="num">2</td>
+<td class="num">10</td>
+<td class="num">206</td>
+<td class="num">5:49</td>
+<td class="num">2:06:20</td>
+<td class="num">3:42:09</td>
+<td></td>
+</tr><tr>
+<td>2027-02-15</td>
+<td>Half-marathon base</td>
+<td>Resume steady aerobic building with three eas…</td>
+<td class="num">190</td>
+<td class="num">103</td>
+<td class="num">3</td>
+<td class="num">10</td>
+<td class="num">208</td>
+<td class="num">5:48</td>
+<td class="num">2:06:03</td>
+<td class="num">3:41:08</td>
+<td></td>
+</tr><tr>
+<td>2027-02-22</td>
+<td>Half-marathon base</td>
+<td>Rebuild consistent easy running frequency wit…</td>
+<td class="num">164</td>
+<td class="num">120</td>
+<td class="num">3</td>
+<td class="num">11</td>
+<td class="num">210</td>
+<td class="num">5:47</td>
+<td class="num">2:05:41</td>
+<td class="num">3:39:52</td>
+<td></td>
+</tr><tr>
+<td>2027-03-01</td>
+<td>Half-marathon base</td>
+<td>Build repeatable aerobic work while keeping t…</td>
+<td class="num">197</td>
+<td class="num">71</td>
+<td class="num">3</td>
+<td class="num">11</td>
+<td class="num">210</td>
+<td class="num">5:47</td>
+<td class="num">2:05:46</td>
+<td class="num">3:40:07</td>
+<td></td>
+</tr><tr>
+<td>2027-03-08</td>
+<td>Half-marathon base</td>
+<td>Recover and prepare for specific half-maratho…</td>
+<td class="num">160</td>
+<td class="num">88</td>
+<td class="num">2</td>
+<td class="num">12</td>
+<td class="num">210</td>
+<td class="num">5:47</td>
+<td class="num">2:05:40</td>
+<td class="num">3:39:49</td>
+<td></td>
+</tr><tr>
+<td>2027-03-15</td>
+<td>Half-marathon base</td>
+<td>Begin the half-marathon build with controlled…</td>
+<td class="num">171</td>
+<td class="num">113</td>
+<td class="num">3</td>
+<td class="num">12</td>
+<td class="num">212</td>
+<td class="num">5:46</td>
+<td class="num">2:05:25</td>
+<td class="num">3:38:57</td>
+<td></td>
+</tr><tr>
+<td>2027-03-22</td>
+<td>Half-marathon build</td>
+<td>Rebuild consistent running frequency with a c…</td>
+<td class="num">183</td>
+<td class="num">72</td>
+<td class="num">2</td>
+<td class="num">12</td>
+<td class="num">211</td>
+<td class="num">5:47</td>
+<td class="num">2:05:32</td>
+<td class="num">3:39:20</td>
+<td></td>
+</tr><tr>
+<td>2027-03-29</td>
+<td>Half-marathon build</td>
+<td>Build repeatable three-run frequency and stea…</td>
+<td class="num">187</td>
+<td class="num">161</td>
+<td class="num">4</td>
+<td class="num">14</td>
+<td class="num">215</td>
+<td class="num">5:45</td>
+<td class="num">2:04:59</td>
+<td class="num">3:37:25</td>
+<td></td>
+</tr><tr>
+<td>2027-04-05</td>
+<td>Half-marathon build</td>
+<td>Consolidate three-run frequency and add a mod…</td>
+<td class="num">193</td>
+<td class="num">28</td>
+<td class="num">1</td>
+<td class="num">12</td>
+<td class="num">211</td>
+<td class="num">5:47</td>
+<td class="num">2:05:28</td>
+<td class="num">3:39:05</td>
+<td></td>
+</tr><tr>
+<td>2027-04-12</td>
+<td>Half-marathon build</td>
+<td>Build a repeatable three-run week with contro…</td>
+<td class="num">211</td>
+<td class="num">183</td>
+<td class="num">4</td>
+<td class="num">14</td>
+<td class="num">216</td>
+<td class="num">5:45</td>
+<td class="num">2:04:46</td>
+<td class="num">3:36:41</td>
+<td></td>
+</tr><tr>
+<td>2027-04-19</td>
+<td>Half-marathon build</td>
+<td>Consolidate the long-run gain with three purp…</td>
+<td class="num">219</td>
+<td class="num">59</td>
+<td class="num">2</td>
+<td class="num">13</td>
+<td class="num">214</td>
+<td class="num">5:45</td>
+<td class="num">2:05:03</td>
+<td class="num">3:37:40</td>
+<td></td>
+</tr><tr>
+<td>2027-04-26</td>
+<td>Half-marathon build</td>
+<td>Consolidate half-marathon endurance with thre…</td>
+<td class="num">178</td>
+<td class="num">76</td>
+<td class="num">1</td>
+<td class="num">13</td>
+<td class="num">214</td>
+<td class="num">5:46</td>
+<td class="num">2:05:09</td>
+<td class="num">3:37:58</td>
+<td></td>
+</tr><tr>
+<td>2027-05-03</td>
+<td>Half-marathon build</td>
+<td>Begin the half-marathon taper while retaining…</td>
+<td class="num">148</td>
+<td class="num">83</td>
+<td class="num">3</td>
+<td class="num">13</td>
+<td class="num">213</td>
+<td class="num">5:46</td>
+<td class="num">2:05:12</td>
+<td class="num">3:38:12</td>
+<td></td>
+</tr><tr>
+<td>2027-05-10</td>
+<td>Half-marathon taper a…</td>
+<td>Maintain easy running frequency, add one brie…</td>
+<td class="num">120</td>
+<td class="num">42</td>
+<td class="num">1</td>
+<td class="num">12</td>
+<td class="num">211</td>
+<td class="num">5:47</td>
+<td class="num">2:05:32</td>
+<td class="num">3:39:19</td>
+<td></td>
+</tr><tr>
+<td>2027-05-17</td>
+<td>Half-marathon taper a…</td>
+<td>Taper into the May 23 half marathon; stay fre…</td>
+<td class="num">149</td>
+<td class="num">198</td>
+<td class="num">1</td>
+<td class="num">15</td>
+<td class="num">217</td>
+<td class="num">5:44</td>
+<td class="num">2:04:38</td>
+<td class="num">3:36:15</td>
+<td></td>
+</tr><tr>
+<td>2027-05-24</td>
+<td>Half-marathon taper a…</td>
+<td>Recover from the half marathon, then reintrod…</td>
+<td class="num">68</td>
+<td class="num">68</td>
+<td class="num">3</td>
+<td class="num">14</td>
+<td class="num">215</td>
+<td class="num">5:45</td>
+<td class="num">2:04:52</td>
+<td class="num">3:37:01</td>
+<td></td>
+</tr><tr>
+<td>2027-05-31</td>
+<td>Gravel transition and…</td>
+<td>Establish regular easy cycling while allowing…</td>
+<td class="num">145</td>
+<td class="num">0</td>
+<td class="num">0</td>
+<td class="num">12</td>
+<td class="num">211</td>
+<td class="num">5:47</td>
+<td class="num">2:05:33</td>
+<td class="num">3:39:23</td>
+<td></td>
+</tr><tr>
+<td>2027-06-07</td>
+<td>Gravel transition and…</td>
+<td>Build consistent aerobic cycling with one ste…</td>
+<td class="num">165</td>
+<td class="num">165</td>
+<td class="num">4</td>
+<td class="num">14</td>
+<td class="num">215</td>
+<td class="num">5:45</td>
+<td class="num">2:04:58</td>
+<td class="num">3:37:21</td>
+<td></td>
+</tr><tr>
+<td>2027-06-14</td>
+<td>Gravel transition and…</td>
+<td>Progress aerobic cycling with a controlled te…</td>
+<td class="num">195</td>
+<td class="num">0</td>
+<td class="num">0</td>
+<td class="num">12</td>
+<td class="num">210</td>
+<td class="num">5:47</td>
+<td class="num">2:05:38</td>
+<td class="num">3:39:42</td>
+<td></td>
+</tr><tr>
+<td>2027-06-21</td>
+<td>Gravel transition and…</td>
+<td>Consolidate consistent cycling with one contr…</td>
+<td class="num">192</td>
+<td class="num">192</td>
+<td class="num">4</td>
+<td class="num">14</td>
+<td class="num">215</td>
+<td class="num">5:45</td>
+<td class="num">2:04:51</td>
+<td class="num">3:36:58</td>
+<td></td>
+</tr><tr>
+<td>2027-06-28</td>
+<td>Gravel transition and…</td>
+<td>Begin the gravel build with recovery, control…</td>
+<td class="num">200</td>
+<td class="num">180</td>
+<td class="num">3</td>
+<td class="num">16</td>
+<td class="num">219</td>
+<td class="num">5:43</td>
+<td class="num">2:04:17</td>
+<td class="num">3:35:07</td>
+<td></td>
+</tr><tr>
+<td>2027-07-05</td>
+<td>Gravel build</td>
+<td>Extend aerobic volume and repeat controlled s…</td>
+<td class="num">217</td>
+<td class="num">138</td>
+<td class="num">3</td>
+<td class="num">16</td>
+<td class="num">220</td>
+<td class="num">5:43</td>
+<td class="num">2:04:08</td>
+<td class="num">3:34:38</td>
+<td></td>
+</tr><tr>
+<td>2027-07-12</td>
+<td>Gravel build</td>
+<td>Develop climbing strength and sustained grave…</td>
+<td class="num">243</td>
+<td class="num">0</td>
+<td class="num">0</td>
+<td class="num">14</td>
+<td class="num">215</td>
+<td class="num">5:45</td>
+<td class="num">2:04:55</td>
+<td class="num">3:37:13</td>
+<td></td>
+</tr><tr>
+<td>2027-07-19</td>
+<td>Gravel build</td>
+<td>Build gravel endurance with one controlled su…</td>
+<td class="num">235</td>
+<td class="num">130</td>
+<td class="num">3</td>
+<td class="num">15</td>
+<td class="num">216</td>
+<td class="num">5:44</td>
+<td class="num">2:04:43</td>
+<td class="num">3:36:33</td>
+<td></td>
+</tr><tr>
+<td>2027-07-26</td>
+<td>Gravel build</td>
+<td>Resume consistent gravel preparation with con…</td>
+<td class="num">190</td>
+<td class="num">164</td>
+<td class="num">3</td>
+<td class="num">16</td>
+<td class="num">219</td>
+<td class="num">5:43</td>
+<td class="num">2:04:18</td>
+<td class="num">3:35:09</td>
+<td></td>
+</tr><tr>
+<td>2027-08-02</td>
+<td>Gravel build</td>
+<td>Start the gravel-race taper with fresh legs, …</td>
+<td class="num">183</td>
+<td class="num">80</td>
+<td class="num">2</td>
+<td class="num">15</td>
+<td class="num">218</td>
+<td class="num">5:44</td>
+<td class="num">2:04:31</td>
+<td class="num">3:35:52</td>
+<td></td>
+</tr><tr>
+<td>2027-08-09</td>
+<td>Gravel taper and race</td>
+<td>Keep one controlled race-specific effort, mai…</td>
+<td class="num">135</td>
+<td class="num">67</td>
+<td class="num">2</td>
+<td class="num">14</td>
+<td class="num">216</td>
+<td class="num">5:45</td>
+<td class="num">2:04:47</td>
+<td class="num">3:36:45</td>
+<td></td>
+</tr><tr>
+<td>2027-08-16</td>
+<td>Gravel taper and race</td>
+<td>Taper into the August 22 100 km gravel race; …</td>
+<td class="num">298</td>
+<td class="num">439</td>
+<td class="num">4</td>
+<td class="num">22</td>
+<td class="num">231</td>
+<td class="num">5:38</td>
+<td class="num">2:02:25</td>
+<td class="num">3:29:18</td>
+<td></td>
+</tr><tr>
+<td>2027-08-23</td>
+<td>Gravel taper and race</td>
+<td>Recover from the gravel race with rest and ea…</td>
+<td class="num">47</td>
+<td class="num">0</td>
+<td class="num">0</td>
+<td class="num">19</td>
+<td class="num">225</td>
+<td class="num">5:41</td>
+<td class="num">2:03:25</td>
+<td class="num">3:32:21</td>
+<td></td>
+</tr></tbody></table>
+<h3>What the coach said</h3><p><strong>Season goal:</strong> Build back consistent fitness to run the 2027-05-23 half marathon under 2:00, then ride the 2027-08-22 100 km gravel race with 1170 m of climbing in 3:10 or faster.</p><p><strong>Half marathon, 2027-05-23:</strong></p><div class="quote">Taper into the May 23 half marathon; stay fresh and keep the days before race day easy — The half marathon on May 23 anchors the week. Your recent training volume has been modest, so there is no fitness to gain by cramming now; brief easy running keeps the legs familiar with running while recovery protects your race-day effort. Keep the day before the race easy. — Half marathon — Race the half marathon with a controlled opening and aim for your sub-2:00 goal; about 120 minutes, hard.</div><p><strong>100 km gravel race, 2027-08-22:</strong></p><div class="quote">Taper into the August 22 100 km gravel race; keep the legs sharp, reduce training volume and prioritise recovery — Your 100 km gravel race with 1170 m of climbing on August 22 anchors the week. The recent long-ride gap cannot be repaired safely this close to race day, so the aim is to arrive rested and ready to pace and fuel well. Short openers maintain sharpness, easy aerobic riding preserves rhythm, and Friday and Saturday stay light before the race. — 100 km gravel race — Race the 100 km gravel course with 1170 m of climbing. Start controlled, fuel steadily from early in the ride, and build effort as the course and legs allow; target 3:10 or faster. Rain is forecast, so expect potentially wet conditions and take care on descents.</div><p><strong>Recent feasibility language:</strong></p><div class="quote">Start the gravel-race taper with fresh legs, one controlled race-effort touch and a measured endurance ride The 100 km gravel race on August 22 is the anchor for this block. Complete controlled sustained efforts to maintain gravel-race power without accumulating heavy fatigue; about 70 minutes, moderate. Gravel endurance ride.</div><div class="quote">Keep one controlled race-specific effort, maintain aerobic durability and trim volume ahead of race week The August 22 gravel race is the anchor. One controlled sustained-power session to maintain gravel-race sharpness; about 60 minutes, moderate.</div><div class="quote">Taper into the August 22 100 km gravel race; keep the legs sharp, reduce training volume and prioritise recovery Your 100 km gravel race with 1170 m of climbing on August 22 anchors the week. 100 km gravel race. Race the 100 km gravel course with 1170 m of climbing.</div><div class="quote">Recover from the gravel race with rest and easy movement only as your legs allow The race was a substantial load, and your current form was already in the Risk range before the event. Full rest after the gravel race; gentle walking is fine, with no structured training.</div>
+
+<h2>Comparison</h2><table><thead><tr><th>Metric</th><th>Test 1 (full)</th><th>Test 2 (alternate days)</th><th>Ratio</th></tr></thead><tbody><tr><td>Season TSS recorded</td><td class="num">16,025</td><td class="num">3,991</td><td class="num">4.02×</td></tr><tr><td>Sessions completed</td><td class="num">237 / 237</td><td class="num">95 / 183</td><td class="num"></td></tr><tr><td>Peak CTL</td><td class="num">73</td><td class="num">22</td><td class="num">3.28×</td></tr><tr><td>Final CTL</td><td class="num">58</td><td class="num">19</td><td class="num">3.08×</td></tr><tr><td>Peak FTP</td><td class="num">285 W</td><td class="num">231 W</td><td class="num">1.23×</td></tr><tr><td>Final FTP</td><td class="num">285 W</td><td class="num">225 W</td><td class="num">1.27×</td></tr><tr><td>Half race prediction</td><td class="num">1:54:03</td><td class="num">2:06:03</td><td class="num"></td></tr><tr><td>Gravel race prediction</td><td class="num">3:08:38</td><td class="num">3:36:42</td><td class="num"></td></tr><tr><td>Model cost</td><td class="num">$4.25</td><td class="num">$0.32</td><td class="num"></td></tr></tbody></table>
+<h2>Findings</h2><ol><li>Half marathon: met at 1:54:03 against 2:00:00 (6 min inside the target).</li><li>100 km gravel race: met at 3:08:38 against 3:10:00 (1 min inside the target). Solo it would be 3:17:38, so the group case is doing real work.</li><li>The plan averaged 8.3 training hours a week (peak 10.0 h), using the athlete&#39;s stated capacity, and its own estimates peaked at 590 TSS a week (mean 393) with chronic load at 73 CTL. That was enough for the half marathon and enough for the gravel race. The gravel block rebuilt FTP to the level the 3:10 target needs.</li><li>The race-week readiness assessments were cautious — the half was &quot;plausible but unconfirmed&quot; and the gravel &quot;remains a stretch&quot; — while the independent model placed 2 of 2 goals inside their targets. The coach no longer hides a gap, but it may now understate a goal the training actually supports.</li><li>3 recorded session(s) in test 1 exceeded the duration-adjusted intensity cap; these are flagged in the weekly table.</li><li>Training every other day cut recorded TSS to 3,991 (25% of test 1) and peak CTL to 22 from 73.</li><li>Peak FTP was 285 W in test 1 and 231 W in test 2; the half race prediction was 1:54:03 versus 2:06:03, and the gravel race prediction 3:08:38 versus 3:36:42.</li><li>Test 2 completed 95 sessions against test 1&#39;s 237. The slower progression is the expected consequence of the lower chronic load, and it is considerably larger than the week-to-week model noise. Test 2 predates the current prompt set and model, so read this comparison as the adherence effect plus a version difference, not as a controlled model comparison.</li></ol>
+<h2>Caveats</h2>
+<ul>
+<li>The progression curve and the race models are explicit assumptions, not the app's own prediction. They are anchored to the athlete's stated history but a real athlete's response varies.</li>
+<li>Every session is assumed completed exactly as prescribed. The second test changes only how often the athlete trains, not how well a session is executed.</li>
+<li>The gravel model is steady-state and uses average grade; it is not a lap-by-lap simulation and does not model wind, surface changes or group tactics beyond the group-power factor.</li>
+<li>Weather and daylight are synthetic and deterministic. The coach's real prompt, plan validation, reviews and storage path are unchanged.</li>
+<li>One run per scenario. The model is stochastic, so a repeat would differ in detail even with the same athlete.</li>
+</ul>
+</body>
+</html>

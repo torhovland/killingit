@@ -14,3 +14,6 @@ benchmarks/llm-coach/runs/
 # Prompt benchmark artifacts.
 benchmarks/prompts/runs/
 benchmarks/prompts/reports/
+
+# Season simulation artifacts; the harness writes them directly.
+benchmarks/season-simulation/

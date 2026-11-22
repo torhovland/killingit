@@ -132,6 +132,7 @@ the web app, API and Garmin sidecar after migrating.
 | `bun run test:coverage`    | Coverage against each package's baseline                |
 | `bun run outdated`         | Report outdated dependencies                            |
 | `bun run benchmark:llm`    | Model comparison harness (`benchmark:prompts` too)      |
+| `bun run simulate:season`  | Season simulation harness and PDF report                |
 
 ## Observability and agent access
 
@@ -305,4 +306,4 @@ a spec is missing.
 **API and backend:** `docs/specs/api-dependency-wiring.md`, `docs/specs/api-errors.md`, `docs/specs/api-logging.md`, `docs/specs/api-query-validation.md`, `docs/specs/api-server-entry.md`, `docs/specs/api-versioning.md`, `docs/specs/authenticated-user-middleware.md`, `docs/specs/auth-integration.md`, `docs/specs/credential-encryption.md`, `docs/specs/database-connection.md`, `docs/specs/db-executor-types.md`, `docs/specs/route-param-validation.md`, `docs/specs/shared-api-boundary.md`, `docs/specs/shared-date-helpers.md`, `docs/specs/shared-package-barrel.md`,
 `docs/specs/unused-exports.md`.
 
-**Tests, infrastructure and process:** `docs/specs/database-indexes.md`, `docs/specs/database-integration-tests.md`, `docs/specs/e2e-tests.md`, `docs/specs/test-coverage.md`, `docs/specs/test-file-organisation.md`, `docs/specs/agent-access-script.md`, `docs/specs/ci-build-job.md`, `docs/specs/deploy-workflow.md`, `docs/specs/third-party-notices.md`, `docs/specs/typescript-project-coverage.md`, `docs/specs/function-size-limits.md`, `docs/specs/error-monitoring.md`, `docs/specs/account-deletion.md`, `docs/specs/admin-settings.md`, `docs/specs/location-and-weather.md`.
+**Tests, infrastructure and process:** `docs/specs/database-indexes.md`, `docs/specs/database-integration-tests.md`, `docs/specs/e2e-tests.md`, `docs/specs/test-coverage.md`, `docs/specs/test-file-organisation.md`, `docs/specs/agent-access-script.md`, `docs/specs/ci-build-job.md`, `docs/specs/deploy-workflow.md`, `docs/specs/third-party-notices.md`, `docs/specs/typescript-project-coverage.md`, `docs/specs/function-size-limits.md`, `docs/specs/error-monitoring.md`, `docs/specs/account-deletion.md`, `docs/specs/admin-settings.md`, `docs/specs/location-and-weather.md`, `docs/specs/season-simulation.md`.
