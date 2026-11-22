@@ -64,6 +64,7 @@ describe("coach questions", () => {
           model: "test-model",
           generatedAt: new Date("2026-10-20T10:00:00Z"),
           planChangeNeeded: true,
+          planChangeScope: "season",
         }),
       answerCoachQuestion: (input) => {
         saved.value = { answer: input.answer, reply: input.reply };
@@ -155,6 +156,7 @@ describe("coaching by-the-way questions", () => {
           model: "test-model",
           generatedAt: new Date("2026-10-21T12:00:00Z"),
           planChangeNeeded: false,
+          planChangeScope: "none",
         });
       },
       triggerPlanGeneration: () => {

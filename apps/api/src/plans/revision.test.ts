@@ -67,6 +67,7 @@ function flagsFor(
     pending?: Partial<PlanPending>;
     decision?: Partial<RevisionChoice>;
     includeTomorrow?: boolean;
+    keepToday?: boolean;
   } = {},
 ): PlanUpdateFlags {
   return revisionFlags({
@@ -75,6 +76,7 @@ function flagsFor(
     pending: makePending(input.pending),
     decision: { ...NO_REVISION, ...input.decision },
     includeTomorrow: input.includeTomorrow ?? false,
+    keepToday: input.keepToday,
   });
 }
 
@@ -91,6 +93,91 @@ describe("revisionFlags", () => {
         decision: { revisionNeeded: true },
       }),
     ).toEqual(makeFlags({ week: true, day: true, clearNextPeriod: true }));
+  });
+
+  it("refreshes the whole season for an input the coach scoped to the season", () => {
+    expect(
+      flagsFor({
+        decision: { revisionNeeded: true, refreshScope: "season" },
+      }),
+    ).toEqual(
+      makeFlags({
+        season: true,
+        block: true,
+        week: true,
+        day: true,
+        clearNextPeriod: true,
+      }),
+    );
+  });
+
+  it("revises the current block in place for a block-scoped input", () => {
+    expect(
+      flagsFor({
+        decision: { revisionNeeded: true, refreshScope: "block" },
+      }),
+    ).toEqual(
+      makeFlags({
+        block: true,
+        week: true,
+        day: true,
+        clearNextPeriod: true,
+        blockInPlace: true,
+      }),
+    );
+  });
+
+  it("revises the remaining week for a week-scoped input and keeps today", () => {
+    expect(
+      flagsFor({
+        decision: { revisionNeeded: true, refreshScope: "week" },
+      }),
+    ).toEqual(makeFlags({ week: true, clearNextPeriod: true }));
+  });
+
+  it("revises today and the week outline for a day-scoped input", () => {
+    expect(
+      flagsFor({
+        decision: { revisionNeeded: true, refreshScope: "day" },
+      }),
+    ).toEqual(makeFlags({ week: true, day: true, clearNextPeriod: true }));
+  });
+
+  it("revises only the week for a week-scoped review", () => {
+    expect(
+      flagsFor({
+        decision: {
+          revisionNeeded: true,
+          weekReviewPending: true,
+          refreshScope: "week",
+        },
+      }),
+    ).toEqual(makeFlags({ week: true, clearNextPeriod: true }));
+  });
+
+  it("revises today when a week-scoped input is about today", () => {
+    expect(
+      flagsFor({
+        decision: { revisionNeeded: true, refreshScope: "week" },
+        keepToday: true,
+      }),
+    ).toEqual(makeFlags({ week: true, day: true, clearNextPeriod: true }));
+  });
+
+  it("never narrows a pending block to a day-scoped input", () => {
+    expect(
+      flagsFor({
+        pending: { block: true },
+        decision: { revisionNeeded: true, refreshScope: "day" },
+      }),
+    ).toEqual(
+      makeFlags({
+        block: true,
+        week: true,
+        day: true,
+        clearNextPeriod: true,
+      }),
+    );
   });
 
   it("revises the week and day and clears the next period when the week is pending", () => {

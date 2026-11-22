@@ -1,6 +1,7 @@
 import {
   coachPlanResponseSchema,
   hasExportableBikeWorkout,
+  planChangeScopeIncludes,
   planDateSchema,
   planGenerateInputSchema,
   type AthleteLocation,
@@ -23,14 +24,14 @@ import { markPlanPromptsFailed } from "../llm/callStore.js";
 import { loadThresholdHistoryForUser } from "../metrics/store.js";
 import { startOfWeek } from "@killingit/shared";
 import { isStaleRunning } from "../plans/generation.js";
-import { loadCoachingInputs } from "../plans/inputs.js";
+import { loadCoachingInputs, type CoachingInputs } from "../plans/inputs.js";
 import { promoteNextPeriod, weekFor } from "../plans/periods.js";
 import {
   latestAnswerTimestamp,
   planIsStale,
   planPending,
 } from "../plans/status.js";
-import { loadValidatedPlan } from "../plans/store.js";
+import { loadValidatedPlan, type StoredPlan } from "../plans/store.js";
 import { triggerPlanGeneration } from "../plans/trigger.js";
 import { planWeatherChanged } from "../weather/changes.js";
 import { fetchWeatherForecasts } from "../weather/forecast.js";
@@ -99,6 +100,33 @@ function findExportableBikeWorkout(
     description: session.description,
     bikeWorkout: session.bikeWorkout,
   };
+}
+
+/**
+ * Whether a week review makes the block pending. A generated review, or one
+ * whose reply reaches the block, does; a review comment that only changes the
+ * week leaves the block alone. A missing review is never an event: `planIsStale`
+ * treats a missing current timestamp as stale, which would report the block
+ * pending forever.
+ */
+function weekReviewMakesBlockPending(
+  storedPlan: StoredPlan | null,
+  coachingInputs: CoachingInputs,
+): boolean {
+  const scope =
+    coachingInputs.weekReviewScope ??
+    (coachingInputs.weekReviewNeedsRefresh ? "block" : "none");
+  if (
+    storedPlan === null ||
+    coachingInputs.weekReviewUpdatedAt === null ||
+    !planChangeScopeIncludes(scope, "block")
+  ) {
+    return false;
+  }
+  return planIsStale(
+    storedPlan.coachingInputsUpdatedAt,
+    coachingInputs.weekReviewUpdatedAt,
+  );
 }
 
 /** Whether the forecast moved enough to refresh the Week tab. */
@@ -204,22 +232,11 @@ export function createPlanRoute(deps: ResolvedAppDependencies): Hono {
               storedPlan.coachingInputsUpdatedAt,
               coachingInputs.refreshUpdatedAt,
             ));
-    // A generated week review, or an answer to one that asked for a change,
-    // revises the block, even while today is still inside the stored block's
-    // dates.
-    // No week review is not a week review event. `planIsStale` treats a missing
-    // current timestamp as stale, which is right for answers but not here: it
-    // would report the block pending forever while the generator, which checks
-    // that a review exists, has nothing to revise.
-    const weekReviewPending =
-      storedPlan !== null &&
-      coachingInputs.weekReviewNeedsRefresh &&
-      coachingInputs.weekReviewUpdatedAt !== null
-        ? planIsStale(
-            storedPlan.coachingInputsUpdatedAt,
-            coachingInputs.weekReviewUpdatedAt,
-          )
-        : false;
+    // A week review revises the block only when its scope reaches the block.
+    const weekReviewPending = weekReviewMakesBlockPending(
+      storedPlan,
+      coachingInputs,
+    );
     // A significantly different forecast should refresh the Week tab even when
     // the stored plan is otherwise current. Skip while a generation is running:
     // the client is polling, and the finished response checks the saved plan.

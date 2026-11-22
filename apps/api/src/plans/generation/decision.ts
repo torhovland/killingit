@@ -1,8 +1,18 @@
-import type { CoachPlan, PlanPending } from "@killingit/shared";
+import type {
+  CoachPlan,
+  PlanChangeScope,
+  PlanPending,
+} from "@killingit/shared";
+import {
+  planChangeScopeIncludes,
+  widestPlanChangeScope,
+} from "@killingit/shared";
 import { planWeatherChanged } from "../../weather/changes.js";
 import type { PeriodReviewContext } from "../../llm/planContext.js";
 import { isNewer } from "../dates.js";
+import type { PlanRefreshChange } from "../inputChanges.js";
 import { planIsStale, planPending } from "../status.js";
+import type { StoredPlan } from "../store.js";
 import { ensureGenerationCurrent } from "./persist.js";
 import { runTimeZone, seasonModelFor } from "./promptContext.js";
 import type {
@@ -12,11 +22,115 @@ import type {
 } from "./types.js";
 
 /**
+ * The widest scope among the refresh-worthy events the plan has not seen.
+ * Undefined means the caller supplied no per-event scopes, so the decision keeps
+ * the pre-scope behaviour of revising the week and today.
+ */
+function unseenPlanChangeScope(
+  changes: readonly PlanRefreshChange[] | undefined,
+  since: Date | null,
+): PlanChangeScope | undefined {
+  if (changes === undefined) {
+    return undefined;
+  }
+  return widestPlanChangeScope(
+    changes
+      .filter((change) => isNewer(change.updatedAt, since))
+      .map((change) => change.planChangeScope),
+  );
+}
+
+interface RefreshScopeInput {
+  context: PlanGenerationContext;
+  plan: StoredPlan | null;
+  inputsChanged: boolean;
+  activitiesChanged: boolean;
+  weekReviewNewer: boolean;
+  blockReviewNewer: boolean;
+}
+
+/**
+ * The widest level the unseen inputs, analyses and reviews change. A caller
+ * without per-event scopes keeps the old week-and-day behaviour, and a review
+ * keeps its structural default (`block` for a week, `season` for a block).
+ */
+function refreshScopeFor(input: RefreshScopeInput): PlanChangeScope {
+  const { context, plan, inputsChanged, activitiesChanged } = input;
+  const inputScope = inputsChanged
+    ? (unseenPlanChangeScope(
+        context.coachingInputsRefreshChanges,
+        plan?.coachingInputsUpdatedAt ?? null,
+      ) ?? "day")
+    : "none";
+  const activityScope = activitiesChanged
+    ? (unseenPlanChangeScope(
+        context.activitiesRefreshChanges,
+        plan?.activitiesUpdatedAt ?? null,
+      ) ?? "day")
+    : "none";
+  const legacyReviewScopes: PlanChangeScope[] = [];
+  if (context.coachingInputsRefreshChanges === undefined) {
+    if (input.weekReviewNewer) {
+      legacyReviewScopes.push("block");
+    }
+    if (input.blockReviewNewer) {
+      legacyReviewScopes.push("season");
+    }
+  }
+  return widestPlanChangeScope([
+    inputScope,
+    activityScope,
+    ...legacyReviewScopes,
+  ]);
+}
+
+/**
+ * The two ways a run treats the stored season, and whether it instead builds
+ * every level.
+ */
+interface SeasonChoice {
+  refreshSeason: boolean;
+  needsFullPlan: boolean;
+}
+
+/**
+ * Whether this run refreshes the stored season in place or builds every level.
+ * An explicit update, a saved answer, or a season-scoped input refreshes the
+ * existing season; a missing plan, a forced rebuild, a deliberately new season,
+ * or a refresh with no season covering today builds all four levels.
+ */
+function seasonChoice(input: {
+  force: boolean | undefined;
+  mode: GeneratePlanInput["mode"];
+  stale: boolean;
+  refreshScope: PlanChangeScope;
+  currentPlan: CoachPlan | null;
+  today: string;
+}): SeasonChoice {
+  const refreshRequested =
+    input.mode === "updateSeason" ||
+    (input.mode === "auto" && (input.stale || input.refreshScope === "season"));
+  const refreshSeason =
+    input.force !== true &&
+    input.mode !== "newSeason" &&
+    refreshRequested &&
+    input.currentPlan !== null &&
+    seasonCovers(input.currentPlan.season, input.today);
+  const needsFullPlan =
+    input.currentPlan === null ||
+    input.force === true ||
+    input.mode === "newSeason" ||
+    (refreshRequested && !refreshSeason);
+  return { refreshSeason, needsFullPlan };
+}
+
+/**
  * Decides how this run must treat the stored plan. A missing, forced or
  * deliberately new season is rebuilt; a changed input, a completed block's
- * review or an explicit update refreshes the stored season in place; anything
- * else only advances the levels that are missing. An input whose coach reply
- * judged it context only is acknowledged without a plan completion.
+ * review, a season-scoped input or an explicit update refreshes the stored
+ * season in place; anything else only advances the levels that are missing. An
+ * input whose coach reply judged it context only is acknowledged without a plan
+ * completion.
  */
 export function decideRevisionPlan(
   input: GeneratePlanInput,
@@ -41,16 +155,32 @@ export function decideRevisionPlan(
   // A newly generated week review, or an answer to one that asked for a plan
   // change, makes the block pending. The block is revised in place when today
   // is still inside it.
-  const weekReviewPending =
+  const weekReviewNewer =
     plan !== null &&
     context.weekReviewNeedsRefresh !== false &&
     isNewer(context.weekReviewUpdatedAt, plan.coachingInputsUpdatedAt);
   // A newly generated block review, or an answer that asked for a change,
   // refreshes the remaining season around what the completed block achieved.
-  const blockReviewPending =
+  const blockReviewNewer =
     plan !== null &&
     context.blockReviewNeedsRefresh !== false &&
     isNewer(context.blockReviewUpdatedAt, plan.coachingInputsUpdatedAt);
+  // The scope is the widest the coach chose among the events this plan has not
+  // seen. A day-scoped comment must not hide an older season-scoped note, and
+  // an event the plan already used must not widen later runs.
+  const refreshScope = refreshScopeFor({
+    context,
+    plan,
+    inputsChanged,
+    activitiesChanged,
+    weekReviewNewer,
+    blockReviewNewer,
+  });
+  // A week review whose reply only reaches the week revises the week; it does
+  // not make the block pending. A generated review, or one scoped to the block,
+  // does.
+  const weekReviewPending =
+    weekReviewNewer && planChangeScopeIncludes(refreshScope, "block");
   const revisionNeeded =
     inputsChanged || activitiesChanged || weekReviewPending;
   // The plan still stores the newest input and analysis of any kind, so a
@@ -64,26 +194,18 @@ export function decideRevisionPlan(
   const acknowledgementNeeded =
     (unreviewedInputs && !inputsChanged) ||
     (unreviewedActivities && !activitiesChanged);
-  // An explicit update, a saved answer, or a completed block's review
-  // refreshes the existing season instead of silently starting a new one.
+  // An explicit update, a saved answer, or a season-scoped input refreshes the
+  // existing season instead of silently starting a new one. A block or week
+  // review only refreshes the season when its own scope reaches that far.
   // Without a season that covers today there is nothing to refresh.
-  const refreshRequested =
-    mode === "updateSeason" ||
-    (mode === "auto" && (stale || blockReviewPending));
-  const refreshSeason =
-    input.force !== true &&
-    mode !== "newSeason" &&
-    refreshRequested &&
-    currentPlan !== null &&
-    seasonCovers(currentPlan.season, today);
-  // A missing plan, a deliberate fresh start, or an update with no usable
-  // season builds a new season. A refresh of an existing season uses the
-  // single plan-update prompt so the season, block, week and day agree.
-  const needsFullPlan =
-    currentPlan === null ||
-    input.force === true ||
-    mode === "newSeason" ||
-    (refreshRequested && !refreshSeason);
+  const { refreshSeason, needsFullPlan } = seasonChoice({
+    force: input.force,
+    mode,
+    stale,
+    refreshScope,
+    currentPlan,
+    today,
+  });
   // The forecast can move enough to make the stored week's weather advice
   // wrong even when every level is present. Treat that like any other week
   // revision so the coach can move sessions to the better days.
@@ -95,6 +217,7 @@ export function decideRevisionPlan(
     needsFullPlan,
     kind: refreshSeason ? "refresh" : "advance",
     revisionNeeded,
+    refreshScope,
     pending: planPending({
       plan: currentPlan,
       today,

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { planChangeScopeSchema } from "./planChangeScope.js";
 import {
   activitySampleSchema,
   activitySummarySchema,
@@ -358,6 +359,12 @@ export const coachAnalysisSchema = z.object({
    * stored before the flag existed.
    */
   planChangeNeeded: z.boolean().optional(),
+  /**
+   * The highest plan level the coach said the input changes. Optional on the
+   * wire so a stored analysis or reply from before the scope still parses; the
+   * plan loader derives the scope from the boolean when it is absent.
+   */
+  planChangeScope: planChangeScopeSchema.optional(),
 });
 
 /**

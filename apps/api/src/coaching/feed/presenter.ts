@@ -130,6 +130,7 @@ export function withStoredAnalysis(
       model: stored.model,
       generatedAt: stored.generatedAt.toISOString(),
       planChangeNeeded: stored.planChangeNeeded,
+      planChangeScope: stored.planChangeScope,
     },
     analysisError: null,
     programAnalysis: program ? toCoachAnalysis(program) : null,

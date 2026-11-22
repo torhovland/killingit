@@ -1,4 +1,4 @@
-import type { CoachAnalysis } from "@killingit/shared";
+import type { CoachAnalysis, PlanChangeScope } from "@killingit/shared";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "../db/index.js";
 import {
@@ -25,6 +25,8 @@ export interface StoredCoachReply {
   generatedAt: Date;
   /** The coach judged that this input changes the plan. */
   planChangeNeeded: boolean;
+  /** How far the coach said the change reaches; absent on rows before the scope. */
+  planChangeScope?: PlanChangeScope | undefined;
 }
 
 /** The athlete's comment and the coach's reply for one activity. */
@@ -46,6 +48,7 @@ export function toStoredReply(row: CoachReplyRow): StoredCoachReply {
     model: row.model,
     generatedAt: row.updatedAt,
     planChangeNeeded: row.planChangeNeeded,
+    planChangeScope: row.planChangeScope,
   };
 }
 
@@ -54,13 +57,18 @@ export function toCoachAnalysis(reply: {
   text: string;
   model: string;
   generatedAt: Date;
-  planChangeNeeded?: boolean;
+  planChangeNeeded?: boolean | undefined;
+  planChangeScope?: PlanChangeScope | undefined;
 }): CoachAnalysis {
+  const planChangeScope =
+    reply.planChangeScope ??
+    (reply.planChangeNeeded === true ? "season" : "none");
   return {
     text: reply.text,
     model: reply.model,
     generatedAt: reply.generatedAt.toISOString(),
-    planChangeNeeded: reply.planChangeNeeded ?? false,
+    planChangeNeeded: planChangeScope !== "none",
+    planChangeScope,
   };
 }
 
@@ -72,6 +80,7 @@ export async function saveCoachReply(input: {
   reply: string;
   model: string;
   planChangeNeeded: boolean;
+  planChangeScope: PlanChangeScope;
 }): Promise<StoredCoachReply> {
   const now = new Date();
   const [row] = await db
@@ -83,6 +92,7 @@ export async function saveCoachReply(input: {
       reply: input.reply,
       model: input.model,
       planChangeNeeded: input.planChangeNeeded,
+      planChangeScope: input.planChangeScope,
       createdAt: now,
       updatedAt: now,
     })
@@ -92,6 +102,7 @@ export async function saveCoachReply(input: {
         reply: input.reply,
         model: input.model,
         planChangeNeeded: input.planChangeNeeded,
+        planChangeScope: input.planChangeScope,
         updatedAt: now,
       },
     })

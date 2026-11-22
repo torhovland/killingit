@@ -11,7 +11,7 @@ import {
   JSON_ONLY_RULES,
   jsonShape,
   type LlmMessage,
-  PLAN_CHANGE_FLAG_RULES,
+  PLAN_CHANGE_SCOPE_RULES,
   promptSections,
   systemUserMessages,
 } from "./promptRules.js";
@@ -48,7 +48,7 @@ export function buildCoachReplyBatchMessages(
     promptSections(
       COACH_REPLY_SYSTEM_PROMPT,
       BATCH_INSTRUCTION,
-      PLAN_CHANGE_FLAG_RULES,
+      PLAN_CHANGE_SCOPE_RULES,
       BATCH_CONTRACT,
       JSON_ONLY_RULES,
     ),

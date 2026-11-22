@@ -10,6 +10,7 @@ import {
   COACH_AMBITION_RULES,
   ACTIVITY_FTP_ESTIMATE_RULES,
   COACH_ANALYSIS_RESPONSE_RULES,
+  COACH_REPLY_FIELDS_CONTRACT,
   COACH_REPLY_RESPONSE_RULES,
   COACH_RESPONSE_NOTES_RULES,
   COACHING_SURVEY_ADJUSTMENT_RULES,
@@ -28,9 +29,10 @@ import {
   missingDietGoalMessage,
   missingDietProgressMessage,
   PAST_SESSION_RULES,
-  PLAN_CHANGE_FLAG_RULES,
+  PLAN_CHANGE_SCOPE_RULES,
   PLAN_PROMPT_RULES,
   PLAN_UPDATE_SHARED_RULES,
+  REPLY_PLAN_CHANGE_RULES,
   rollExtraPraise,
   SESSION_PURPOSE_RULES,
   SEVEN_SESSIONS_CLAUSE,
@@ -171,17 +173,32 @@ describe("shared prompt composition", () => {
   it("builds the analysis and reply response rules from the shared decisions", () => {
     expect(
       missingFragments(COACH_ANALYSIS_RESPONSE_RULES, [
-        PLAN_CHANGE_FLAG_RULES,
+        PLAN_CHANGE_SCOPE_RULES,
         COACH_RESPONSE_NOTES_RULES,
         JSON_ONLY_RULES,
       ]),
     ).toEqual([]);
     expect(
       missingFragments(COACH_REPLY_RESPONSE_RULES, [
-        PLAN_CHANGE_FLAG_RULES,
+        PLAN_CHANGE_SCOPE_RULES,
         JSON_ONLY_RULES,
       ]),
     ).toEqual([]);
+  });
+
+  it("asks the coach for the highest level its input changes", () => {
+    for (const contract of [
+      COACH_ANALYSIS_RESPONSE_RULES,
+      COACH_REPLY_FIELDS_CONTRACT,
+    ]) {
+      expect(contract).toContain('"planChangeScope"');
+      for (const scope of ["none", "day", "week", "block", "season"]) {
+        expect(contract).toContain(scope);
+      }
+    }
+    // The reply must name the level it will adjust, so it cannot promise a
+    // season change that only revises the week.
+    expect(REPLY_PLAN_CHANGE_RULES).toContain("level");
   });
 
   it("names the default diet goal in the plan rules", () => {

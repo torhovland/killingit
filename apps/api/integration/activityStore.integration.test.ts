@@ -7,7 +7,11 @@ import {
 } from "../src/coaching/activityStore.js";
 import { deleteImportedActivity } from "../src/coaching/deletions.js";
 import { saveAnalysis } from "../src/llm/analysisStore.js";
-import { createActivityComment } from "../src/plans/inputs.js";
+import {
+  createActivityComment,
+  loadCoachingInputs,
+} from "../src/plans/inputs.js";
+import { saveCoachReply } from "../src/plans/replies.js";
 import { dbUserStore } from "../src/users/store.js";
 import { countRows } from "./database.js";
 import { setupIntegrationSuite } from "./setup.js";
@@ -225,6 +229,7 @@ describe("stored activity rows", () => {
       promptVersion: 1,
       text: "A steady aerobic ride.",
       planChangeNeeded: false,
+      planChangeScope: "none",
     });
 
     await deleteImportedActivity(user.id, "1");
@@ -248,16 +253,40 @@ describe("stored activity rows", () => {
       model: "test-model",
       promptVersion: 1,
       text: "A steady aerobic ride.",
-      planChangeNeeded: false,
+      planChangeNeeded: true,
+      planChangeScope: "day",
     });
     await createActivityComment(user.id, {
       activityId: "1",
       comment: "Felt strong.",
     });
+    await saveCoachReply({
+      userId: user.id,
+      kind: "activity_comment",
+      target: "1",
+      reply: "A shorter session tomorrow, then back to the plan.",
+      model: "test-model",
+      planChangeNeeded: true,
+      planChangeScope: "day",
+    });
 
     const feed = await loadStoredActivityFeed(user.id);
 
     expect(feed.activities[0]?.analysis?.text).toBe("A steady aerobic ride.");
+    expect(feed.activities[0]?.analysis?.planChangeScope).toBe("day");
     expect(feed.activities[0]?.comment).toBe("Felt strong.");
+    expect(feed.activities[0]?.coachReply?.planChangeScope).toBe("day");
+
+    const inputs = await loadCoachingInputs(user.id, "2026-09-28");
+    const refreshChanges = inputs.refreshChanges ?? [];
+    expect(refreshChanges).toHaveLength(1);
+    expect(inputs.updatedAt).not.toBeNull();
+    expect(refreshChanges[0]?.updatedAt.getTime()).toBe(
+      inputs.updatedAt?.getTime(),
+    );
+    expect(refreshChanges[0]?.planChangeScope).toBe("day");
+    expect(inputs.refreshUpdatedAt?.getTime()).toBe(
+      inputs.updatedAt?.getTime(),
+    );
   });
 });

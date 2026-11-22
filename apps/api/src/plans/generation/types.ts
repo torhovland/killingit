@@ -28,6 +28,7 @@ import type { LlmProvider } from "../../llm/openrouter.js";
 import type { CoachingSurveyAdjustment } from "../../questions/adjustments.js";
 import type { ThresholdTimeline } from "../../training/thresholds.js";
 import type { CoachQuestionSourceKind } from "../coachQuestions.js";
+import type { PlanRefreshChange } from "../inputChanges.js";
 import type { RevisionChoice } from "../revision.js";
 import type { PlanGenerationStore, PlanStore, StoredPlan } from "../store.js";
 import type { captureCompletedPeriodReviews } from "../../coaching/periodReviews.js";
@@ -63,12 +64,24 @@ export interface PlanGenerationContext {
   coachingInputsUpdatedAt: Date | null;
   /** Newest coaching input whose coach reply asked for a plan change. */
   coachingInputsRefreshUpdatedAt: Date | null;
+  /**
+   * Every refresh-worthy coaching input, with the scope the coach judged. The
+   * decision reads the widest scope among the events newer than the stored
+   * plan. A caller that omits it keeps the pre-scope week-and-day behaviour.
+   */
+  coachingInputsRefreshChanges?: readonly PlanRefreshChange[] | undefined;
   /** Survey answers changed after the stored plan was generated. */
   coachingSurveyAdjustments?: readonly CoachingSurveyAdjustment[];
   /** Newest general coach analysis among the recent activities, if any. */
   activitiesUpdatedAt?: Date | null;
   /** Newest analysis that judged the workout changes the plan. */
   activitiesRefreshUpdatedAt: Date | null;
+  /**
+   * Every plan-changing activity analysis, with the scope the coach judged.
+   * The decision reads the widest scope among the analyses newer than the
+   * stored plan's activity timestamp.
+   */
+  activitiesRefreshChanges?: readonly PlanRefreshChange[] | undefined;
   /** Whether the newest week review event asks for a plan refresh. */
   weekReviewNeedsRefresh?: boolean;
   /** Whether the newest block review event asks for a plan refresh. */

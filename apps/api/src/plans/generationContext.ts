@@ -30,6 +30,7 @@ import {
   latestActivityAnalysisTimestamp,
   latestAnswerTimestamp,
   latestPlanChangingAnalysisTimestamp,
+  planChangingAnalysisChanges,
 } from "./status.js";
 import { PLAN_GENERATION_STEPS } from "./steps.js";
 import { loadValidatedPlan, type StoredPlan } from "./store.js";
@@ -280,6 +281,7 @@ export function buildPlanContext(
     blockReviewUpdatedAt: coachingInputs.blockReviewUpdatedAt,
     coachingInputsUpdatedAt: coachingInputs.updatedAt,
     coachingInputsRefreshUpdatedAt: coachingInputs.refreshUpdatedAt,
+    coachingInputsRefreshChanges: coachingInputs.refreshChanges,
     weekReviewNeedsRefresh: coachingInputs.weekReviewNeedsRefresh,
     blockReviewNeedsRefresh: coachingInputs.blockReviewNeedsRefresh,
     coachingSurveyAdjustments: loaded.surveyAdjustments,
@@ -287,6 +289,9 @@ export function buildPlanContext(
       input.recentActivities,
     ),
     activitiesRefreshUpdatedAt: latestPlanChangingAnalysisTimestamp(
+      input.recentActivities,
+    ),
+    activitiesRefreshChanges: planChangingAnalysisChanges(
       input.recentActivities,
     ),
     timeZone: input.timeZone,

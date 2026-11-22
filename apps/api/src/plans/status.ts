@@ -1,8 +1,13 @@
-import type { CoachPlan, PlanPending } from "@killingit/shared";
+import type {
+  CoachPlan,
+  PlanChangeScope,
+  PlanPending,
+} from "@killingit/shared";
 import { calorieEstimateProblems } from "./calorieEstimates.js";
 import { addDays } from "@killingit/shared";
 import { isNewer } from "./dates.js";
 import { dietProgressPending } from "./dietProgress.js";
+import type { PlanRefreshChange } from "./inputChanges.js";
 import { blockFor, weekFor } from "./periods.js";
 
 export interface PlanPendingInput {
@@ -131,32 +136,54 @@ export function latestActivityAnalysisTimestamp(
   return latest;
 }
 
+/** The analysis fields the refresh decision reads from a recent activity. */
+export interface PlanChangingAnalysis {
+  generatedAt: string;
+  planChangeNeeded?: boolean | undefined;
+  planChangeScope?: PlanChangeScope | undefined;
+}
+
+/**
+ * Every analysis that judged the workout changes the plan, with the scope the
+ * coach chose. An analysis without a scope falls back to its boolean; a missing
+ * boolean fails open to the season. A context-only analysis is left out.
+ */
+export function planChangingAnalysisChanges(
+  activities: readonly { analysis: PlanChangingAnalysis | null }[],
+): PlanRefreshChange[] {
+  const changes: PlanRefreshChange[] = [];
+  for (const activity of activities) {
+    if (activity.analysis === null) {
+      continue;
+    }
+    const scope =
+      activity.analysis.planChangeScope ??
+      (activity.analysis.planChangeNeeded === false ? "none" : "season");
+    if (scope === "none") {
+      continue;
+    }
+    const updatedAt = new Date(activity.analysis.generatedAt);
+    if (Number.isNaN(updatedAt.getTime())) {
+      continue;
+    }
+    changes.push({ updatedAt, planChangeScope: scope });
+  }
+  return changes.sort(
+    (left, right) => left.updatedAt.getTime() - right.updatedAt.getTime(),
+  );
+}
+
 /**
  * The newest analysis that judged the workout changes the plan. An analysis
  * without the flag is context only, so it never makes the plan stale.
  */
 export function latestPlanChangingAnalysisTimestamp(
-  activities: readonly {
-    analysis: {
-      generatedAt: string;
-      planChangeNeeded?: boolean | undefined;
-    } | null;
-  }[],
+  activities: readonly { analysis: PlanChangingAnalysis | null }[],
 ): Date | null {
   let latest: Date | null = null;
-  for (const activity of activities) {
-    if (
-      activity.analysis === null ||
-      activity.analysis.planChangeNeeded === false
-    ) {
-      continue;
-    }
-    const generatedAt = new Date(activity.analysis.generatedAt);
-    if (Number.isNaN(generatedAt.getTime())) {
-      continue;
-    }
-    if (isNewer(generatedAt, latest)) {
-      latest = generatedAt;
+  for (const change of planChangingAnalysisChanges(activities)) {
+    if (isNewer(change.updatedAt, latest)) {
+      latest = change.updatedAt;
     }
   }
   return latest;

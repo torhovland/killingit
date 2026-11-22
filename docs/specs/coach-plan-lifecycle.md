@@ -154,10 +154,11 @@ One row per user (`unique (user_id)`):
   the plan when the analysis asked for a change.
 - `generated_at`, `updated_at`.
 
-The coach's `planChangeNeeded` flag is stored with each analysis
-(`activity_analyses.plan_change_needed`) and each input reply
-(`coach_replies.plan_change_needed`). The refresh-worthy timestamps are derived
-from those flags; see `docs/specs/plan-refresh-judgement.md`.
+The coach's plan change scope is stored with each analysis
+(`activity_analyses.plan_change_scope`) and each input reply
+(`coach_replies.plan_change_scope`). The `plan_change_needed` columns stay as
+the derived boolean (`scope !== 'none'`). The refresh-worthy timestamps are
+derived from the scopes; see `docs/specs/plan-refresh-judgement.md`.
 
 ### `plan_generations`
 

@@ -1,5 +1,7 @@
+import { planChangeScopeSchema, type PlanChangeScope } from "@killingit/shared";
 import { z } from "zod";
 import type { CoachReplyOutcome } from "./coachReply.js";
+import { resolvePlanChange } from "./coachResult.js";
 import type { LlmProvider } from "./openrouter.js";
 import {
   buildCoachReplyBatchMessages,
@@ -21,11 +23,32 @@ const replyBatchSchema = z.object({
     z.object({
       id: z.string().min(1),
       reply: z.string().min(1),
-      /** Fails open: a missing or malformed flag still asks for a plan refresh. */
+      /** The contract's scope; a missing one fails open when a change is asked. */
+      planChangeScope: planChangeScopeSchema.catch("season").optional(),
+      /** Still accepted so an older answer or a model ignoring the contract parses. */
       planChangeNeeded: z.boolean().catch(true),
     }),
   ),
 });
+
+/** One batched reply after the scope and boolean have been made consistent. */
+interface BatchedReply {
+  id: string;
+  text: string;
+  planChangeNeeded: boolean;
+  planChangeScope: PlanChangeScope;
+}
+
+/** Derives each entry's decision, keeping the reply text unchanged. */
+function toBatchedReplies(
+  parsed: z.infer<typeof replyBatchSchema>,
+): BatchedReply[] {
+  return parsed.replies.map((entry) => ({
+    id: entry.id,
+    text: entry.reply.trim(),
+    ...resolvePlanChange(entry),
+  }));
+}
 
 /** Asks the provider to answer several athlete inputs in one completion. */
 export async function generateCoachReplies(
@@ -47,10 +70,11 @@ export async function generateCoachReplies(
   );
   const parsed = parsePlanJson(replyBatchSchema, text);
   const replies = new Map<string, CoachReplyOutcome>();
-  for (const entry of parsed.replies) {
+  for (const entry of toBatchedReplies(parsed)) {
     replies.set(entry.id, {
-      text: entry.reply.trim(),
+      text: entry.text,
       planChangeNeeded: entry.planChangeNeeded,
+      planChangeScope: entry.planChangeScope,
     });
   }
   return replies;

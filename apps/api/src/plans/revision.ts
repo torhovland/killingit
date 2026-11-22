@@ -1,6 +1,7 @@
 import type {
   BlockPlan,
   CoachPlan,
+  PlanChangeScope,
   PlanPending,
   SeasonPlan,
   WeekPlan,
@@ -30,6 +31,12 @@ export interface RevisionChoice {
   revisionNeeded: boolean;
   /** A week review arrived after the stored plan was saved. */
   weekReviewPending: boolean;
+  /**
+   * The highest level the newest unseen input changes, widened across every
+   * unseen input. Absent means the pre-scope behaviour: revise the week and
+   * today. See `docs/specs/plan-refresh-judgement.md`.
+   */
+  refreshScope?: PlanChangeScope | undefined;
 }
 
 export interface RevisionFlagsInput {
@@ -43,6 +50,65 @@ export interface RevisionFlagsInput {
   today: string;
   /** The client is after 18:00, so tomorrow's session is wanted. */
   includeTomorrow: boolean;
+  /** A comment or manual entry about today refreshes today's session too. */
+  keepToday?: boolean | undefined;
+}
+
+/**
+ * The scope a revision uses. A scope the decision did not set falls back to the
+ * pre-scope behaviour: any new input revised the week and today.
+ */
+function revisionScope(decision: RevisionChoice): PlanChangeScope {
+  return decision.refreshScope ?? (decision.revisionNeeded ? "day" : "none");
+}
+
+/** True when the input revises the current block in place. */
+function blockInPlaceFor(
+  current: CoachPlan,
+  today: string,
+  decision: RevisionChoice,
+  scope: PlanChangeScope,
+  seasonRefresh: boolean,
+): boolean {
+  if (seasonRefresh) {
+    return false;
+  }
+  // A direct caller with only the week-review flag keeps the old block-in-place
+  // behaviour; a real decision supplies the scope.
+  const blockScope =
+    scope === "block" || (scope === "none" && decision.weekReviewPending);
+  if (!blockScope) {
+    return false;
+  }
+  return today >= current.block.startDate && today <= current.block.endDate;
+}
+
+/** True when today's session and the week around it are revised. */
+function dayRevisionFor(
+  seasonRefresh: boolean,
+  blockRevision: boolean,
+  pending: PlanPending,
+  scope: PlanChangeScope,
+  keepToday: boolean,
+): boolean {
+  return (
+    seasonRefresh ||
+    blockRevision ||
+    pending.week ||
+    pending.day ||
+    keepToday ||
+    scope === "day"
+  );
+}
+
+/** True when the remaining week is revised, with or without today. */
+function weekRevisionFor(
+  dayRevision: boolean,
+  pending: PlanPending,
+  nextBlockSameWeek: boolean,
+  scope: PlanChangeScope,
+): boolean {
+  return dayRevision || pending.week || nextBlockSameWeek || scope === "week";
 }
 
 /**
@@ -52,33 +118,48 @@ export interface RevisionFlagsInput {
  */
 export function revisionFlags(input: RevisionFlagsInput): PlanUpdateFlags {
   const { current, pending, decision } = input;
-  const { includeTomorrow, today } = input;
-  const seasonRefresh = decision.kind === "refresh";
+  const { includeTomorrow, today, keepToday } = input;
+  const refreshScope = revisionScope(decision);
+  // A season scope is a refresh even when a caller builds the flags from an
+  // advance decision.
+  const seasonRefresh =
+    decision.kind === "refresh" || refreshScope === "season";
   const tomorrowDate = addDays(today, 1);
   const tomorrowWeek = weekFor(current, tomorrowDate);
-  const blockInPlace =
-    decision.weekReviewPending &&
-    !seasonRefresh &&
-    today >= current.block.startDate &&
-    today <= current.block.endDate;
-  const blockRevision =
-    seasonRefresh || pending.block || decision.weekReviewPending;
+  const blockInPlace = blockInPlaceFor(
+    current,
+    today,
+    decision,
+    refreshScope,
+    seasonRefresh,
+  );
+  const blockScope =
+    refreshScope === "block" ||
+    (refreshScope === "none" && decision.weekReviewPending);
+  const blockRevision = seasonRefresh || pending.block || blockScope;
   const nextBlockRevision =
     includeTomorrow && pending.nextBlock && (seasonRefresh || !blockRevision);
   const nextBlockSameWeek =
     nextBlockRevision &&
     tomorrowWeek !== null &&
     tomorrowWeek.startDate === current.week.startDate;
-  // A new day revises today's session and the rest of the week around it. A
+  // A day scope revises today's session and the rest of the week around it. A
+  // week scope revises the remaining week but keeps today's stored session. A
   // next-block transition that lands in the current week revises the week but
   // deliberately keeps today's session.
-  const dayRevision =
-    seasonRefresh ||
-    blockRevision ||
-    decision.revisionNeeded ||
-    pending.week ||
-    pending.day;
-  const weekRevision = dayRevision || nextBlockSameWeek;
+  const dayRevision = dayRevisionFor(
+    seasonRefresh,
+    blockRevision,
+    pending,
+    refreshScope,
+    keepToday === true,
+  );
+  const weekRevision = weekRevisionFor(
+    dayRevision,
+    pending,
+    nextBlockSameWeek,
+    refreshScope,
+  );
   const nextWeekRevision =
     includeTomorrow && startOfWeek(tomorrowDate) !== startOfWeek(today);
   const tomorrowRevision =

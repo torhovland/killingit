@@ -5,6 +5,7 @@ import {
 } from "./activityPrompt.js";
 import {
   coachAnalysisResultSchema,
+  resolvePlanChange,
   type CoachAnalysisResult,
 } from "./coachResult.js";
 import type { LlmProvider } from "./openrouter.js";
@@ -46,7 +47,8 @@ export async function analyzeActivity(
     },
   );
   try {
-    return parsePlanJson(coachAnalysisResultSchema, text);
+    const parsed = parsePlanJson(coachAnalysisResultSchema, text);
+    return { ...parsed, ...resolvePlanChange(parsed) };
   } catch (err) {
     if (!(err instanceof PlanJsonError)) {
       throw err;
@@ -57,8 +59,9 @@ export async function analyzeActivity(
       weightKg: null,
       bodyFatPercent: null,
       // A response that is not the expected JSON never answered the flag, so
-      // fall back to the old behaviour and refresh the plan.
+      // fall back to the widest change and refresh the plan.
       planChangeNeeded: true,
+      planChangeScope: "season",
     };
   }
 }

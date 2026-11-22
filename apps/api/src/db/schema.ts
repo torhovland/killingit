@@ -20,6 +20,7 @@ import {
   DAILY_HEALTH_METRIC_KEYS,
   LLM_MODEL_GRADES,
   LLM_PROMPT_KINDS,
+  PLAN_CHANGE_SCOPES,
 } from "@killingit/shared";
 import { sql, type SQL, type SQLWrapper } from "drizzle-orm";
 import {
@@ -515,8 +516,12 @@ export const activityAnalyses = pgTable(
     analysis: text("analysis").notNull(),
     // The coach's judgement that this workout changes the plan. A newer
     // analysis with the flag set is what triggers a plan refresh; the others
-    // stay context only.
+    // stay context only. The scope says how far the change reaches; the
+    // boolean is its `scope !== "none"` form.
     planChangeNeeded: boolean("plan_change_needed").notNull().default(false),
+    planChangeScope: text("plan_change_scope", { enum: PLAN_CHANGE_SCOPES })
+      .notNull()
+      .default("none"),
     ...timestamps,
   },
   (table) => [
@@ -524,6 +529,10 @@ export const activityAnalyses = pgTable(
       table.userId,
       table.activityId,
       table.kind,
+    ),
+    check(
+      "activity_analyses_plan_change_scope_check",
+      sqlInList(table.planChangeScope, PLAN_CHANGE_SCOPES),
     ),
   ],
 );
@@ -934,8 +943,12 @@ export const coachReplies = pgTable(
     model: text("model").notNull(),
     // The coach's judgement that this input changes the plan. The reply routes
     // use it to skip a plan run, and the plan loader uses it to tell a refresh
-    // from context only.
+    // from context only. The scope says how far the change reaches; the boolean
+    // is its `scope !== "none"` form.
     planChangeNeeded: boolean("plan_change_needed").notNull().default(false),
+    planChangeScope: text("plan_change_scope", { enum: PLAN_CHANGE_SCOPES })
+      .notNull()
+      .default("none"),
     ...timestamps,
   },
   (table) => [
@@ -945,6 +958,10 @@ export const coachReplies = pgTable(
       table.target,
     ),
     check("coach_replies_kind_check", sqlInList(table.kind, COACH_REPLY_KINDS)),
+    check(
+      "coach_replies_plan_change_scope_check",
+      sqlInList(table.planChangeScope, PLAN_CHANGE_SCOPES),
+    ),
   ],
 );
 

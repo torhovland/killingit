@@ -1,3 +1,4 @@
+import type { PlanChangeScope } from "@killingit/shared";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { activityAnalyses, type ActivityAnalysis } from "../db/schema.js";
@@ -13,6 +14,8 @@ export interface StoredAnalysis {
   generatedAt: Date;
   /** The coach judged that this workout changes the plan. */
   planChangeNeeded: boolean;
+  /** How far the coach said the change reaches; absent on rows before the scope. */
+  planChangeScope?: PlanChangeScope | undefined;
 }
 
 /** Maps one stored analysis row to the shape the API is built from. */
@@ -24,6 +27,7 @@ function toStoredAnalysis(row: ActivityAnalysis): StoredAnalysis {
     text: row.analysis,
     generatedAt: row.updatedAt,
     planChangeNeeded: row.planChangeNeeded,
+    planChangeScope: row.planChangeScope,
   };
 }
 
@@ -66,6 +70,7 @@ export async function saveAnalysis(input: {
   promptVersion: number;
   text: string;
   planChangeNeeded: boolean;
+  planChangeScope: PlanChangeScope;
 }): Promise<StoredAnalysis> {
   const kind = input.kind ?? "general";
   const now = new Date();
@@ -79,6 +84,7 @@ export async function saveAnalysis(input: {
       promptVersion: input.promptVersion,
       analysis: input.text,
       planChangeNeeded: input.planChangeNeeded,
+      planChangeScope: input.planChangeScope,
       updatedAt: now,
     })
     .onConflictDoUpdate({
@@ -92,6 +98,7 @@ export async function saveAnalysis(input: {
         promptVersion: input.promptVersion,
         analysis: input.text,
         planChangeNeeded: input.planChangeNeeded,
+        planChangeScope: input.planChangeScope,
         updatedAt: now,
       },
     })

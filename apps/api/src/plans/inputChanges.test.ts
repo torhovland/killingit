@@ -31,7 +31,54 @@ describe("summarizeCoachingInputChanges", () => {
     expect(summarizeCoachingInputChanges([])).toEqual({
       updatedAt: null,
       refreshUpdatedAt: null,
+      refreshChanges: [],
     });
+  });
+
+  it("keeps the scope of every refresh-worthy input", () => {
+    const summary = summarizeCoachingInputChanges([
+      {
+        updatedAt: at("2026-10-20T08:00:00Z"),
+        planChangeNeeded: true,
+        planChangeScope: "day",
+      },
+      {
+        updatedAt: at("2026-10-21T08:00:00Z"),
+        planChangeNeeded: true,
+        planChangeScope: "season",
+      },
+      {
+        updatedAt: at("2026-10-22T08:00:00Z"),
+        planChangeNeeded: false,
+        planChangeScope: "none",
+      },
+    ]);
+
+    // The context-only input is not a refresh, so it cannot hide or widen the
+    // scopes of the two inputs that do ask for one.
+    expect(summary.refreshChanges).toEqual([
+      {
+        updatedAt: at("2026-10-20T08:00:00Z"),
+        planChangeScope: "day",
+      },
+      {
+        updatedAt: at("2026-10-21T08:00:00Z"),
+        planChangeScope: "season",
+      },
+    ]);
+  });
+
+  it("fails a refresh-worthy input without a scope open to the season", () => {
+    const summary = summarizeCoachingInputChanges([
+      { updatedAt: at("2026-10-20T08:00:00Z"), planChangeNeeded: true },
+    ]);
+
+    expect(summary.refreshChanges).toEqual([
+      {
+        updatedAt: at("2026-10-20T08:00:00Z"),
+        planChangeScope: "season",
+      },
+    ]);
   });
 });
 
@@ -68,5 +115,33 @@ describe("summarizeReviewChanges", () => {
     expect(summary.weekNeedsRefresh).toBe(false);
     expect(summary.blockUpdatedAt).toBeNull();
     expect(summary.blockNeedsRefresh).toBe(false);
+  });
+
+  it("keeps the scope of the newest review event per kind", () => {
+    const summary = summarizeReviewChanges([
+      {
+        kind: "week",
+        updatedAt: at("2026-10-20T08:00:00Z"),
+        planChangeNeeded: true,
+        planChangeScope: "season",
+      },
+      {
+        kind: "week",
+        updatedAt: at("2026-10-21T08:00:00Z"),
+        planChangeNeeded: true,
+        planChangeScope: "block",
+      },
+      {
+        kind: "block",
+        updatedAt: at("2026-10-22T08:00:00Z"),
+        planChangeNeeded: true,
+        planChangeScope: "season",
+      },
+    ]);
+
+    // Only the newest event of a kind matters: an older season-scoped week
+    // review must not keep widening the block after the plan has seen it.
+    expect(summary.weekScope).toBe("block");
+    expect(summary.blockScope).toBe("season");
   });
 });
