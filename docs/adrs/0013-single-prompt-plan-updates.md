@@ -1,6 +1,7 @@
 # ADR 0013: Update every affected plan level in one completion
 
-- **Status:** Accepted
+- **Status:** Accepted; a day-only revision now uses the daily prompt (ADR 0062),
+  and a response carries only the levels its revision changes (ADR 0063)
 - **Date:** 2026-10-29
 - **Deciders:** torhovland
 - **Related:** `docs/specs/coach-plan-lifecycle.md`,
@@ -28,8 +29,9 @@ sees the season, block, week, today, tomorrow and the next period together.
 - Add one plan-update prompt that receives every current level: season, block,
   week, today, tomorrow, next week and next block.
 - The prompt also receives a revision request naming the levels that must change
-  and the dates they must use. It returns the complete plan, keeping the levels
-  that were not requested exactly as supplied.
+  and the dates they must use. It returns the levels those changes need; the
+  response contract carries only those levels, and an omitted level keeps its
+  stored content (ADR 0063).
 - The API applies only the levels named in the revision request. A block
   revision applies the returned block, week and day; a week or day revision
   applies the returned week and day; a next-period revision applies the returned
@@ -38,8 +40,9 @@ sees the season, block, week, today, tomorrow and the next period together.
   after 18:00, and a season refresh. A new season still builds the season,
   first block, week and day in separate steps because there is no stored plan
   to update.
-- The update response is the full `CoachPlan` shape, so the coach can keep every
-  level coherent and the API has one contract to validate and repair.
+- The update response was originally the full `CoachPlan` shape. ADR 0063
+  right-sized it to the levels a revision changes while keeping the levels the
+  coach must see as input.
 
 ## Alternatives considered
 
@@ -57,8 +60,8 @@ sees the season, block, week, today, tomorrow and the next period together.
 
 - An update costs one completion instead of up to three. A season refresh also
   drops from three completions to one.
-- The response is larger because it carries every level, but a current plan is
-  still small compared with the 16,384-token output budget.
+- The response must carry enough levels for the coach to keep the changed ones
+  coherent; ADR 0063 removed the levels a revision cannot use.
 - The update prompt is longer and shares the weather, load, bike-workout,
   optionality, rationale and outline rules with the build prompts through
   `promptRules.ts`.
@@ -66,6 +69,7 @@ sees the season, block, week, today, tomorrow and the next period together.
   tomorrow's placement before saving. A response that moves a required block
   start date or leaves tomorrow outside a planned week fails with the existing
   readable error and leaves the old plan in place.
-- The prompt log gains the `plan_update` kind. Historical `daily_update`,
-  `weekly_update`, `block_update`, `target_day_update` and `season_refresh`
-  rows remain readable.
+- The prompt log gains the `plan_update` kind. A day-only revision subsequently
+  moved to the daily prompt and logs `daily_update` again (ADR 0062); historical
+  `daily_update`, `weekly_update`, `block_update`, `target_day_update` and
+  `season_refresh` rows remain readable.

@@ -112,7 +112,12 @@ it: the season, first block, week, day, and unified update prompts.
 - A plan update always refreshes the targets on every level it returns, even
   when the revision keeps that level's training unchanged. The API merges only
   the `dietProgress` fields, so sessions, dates, focus and rationale stay as
-  supplied.
+  supplied. A day-only refresh returns only the week, so it refreshes the week
+  target while the season and block targets wait for the next update that
+  returns those levels. See `docs/specs/daily-plan-refresh.md`. A progress-only
+  update deliberately carries the season, block, week, next week and next block
+  so it can refresh every target; a week-only response carries only the week and
+  its target. See ADR 0063.
 - When a stated goal has a current or future period without a target,
   `GET /api/coaching/plan` reports `pending.dietProgress`. The client then makes
   a progress-only update, and a full build makes one after the daily step when

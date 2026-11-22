@@ -9,6 +9,10 @@
   is stored with the input, mapped into the revision flags alongside the
   structural pending levels, and fails open to the widest scope. The prompt
   right-sizing and reasoning-budget work this enables is a separate change.
+- **Updated:** 2026-11-22 — the day-only part of that right-sizing is now
+  implemented: a revision that changes only today, its week and tomorrow uses
+  the daily prompt instead of the full plan update. See
+  `docs/specs/daily-plan-refresh.md` and ADR 0062.
 - **Related:** `docs/specs/coach-feedback-and-program-review.md`,
   `docs/specs/coach-plan-lifecycle.md`,
   `docs/specs/coach-run-cancellation.md`, `docs/specs/period-reviews.md`,
@@ -83,10 +87,11 @@ volunteered. The scope makes the coach's judgement travel to the revision.
   survey answer, a generated period review, a significant forecast change, a
   moved day, an explicit regeneration and a deleted activity keep refreshing
   the plan as before.
-- **Right-sizing the plan-update prompt and capping its reasoning.** The scope
-  is what makes it safe to ask only for the levels that change and to skip a
-  season re-think on a day-scoped refresh; that work is a separate change and
-  is not part of this spec.
+- **Right-sizing the week, block and season prompts and capping their
+  reasoning.** The scope is what made it safe to route a day-scoped refresh to
+  the smaller daily prompt (`docs/specs/daily-plan-refresh.md`). The remaining
+  revisions now ask the plan-update prompt only for the levels they change
+  (ADR 0063); capping reasoning is still separate.
 
 ## Data model
 

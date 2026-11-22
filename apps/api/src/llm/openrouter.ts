@@ -368,6 +368,8 @@ interface OpenRouterUsage {
   prompt_tokens?: unknown;
   completion_tokens?: unknown;
   total_tokens?: unknown;
+  prompt_tokens_details?: unknown;
+  completion_tokens_details?: unknown;
   cost?: unknown;
 }
 
@@ -379,16 +381,51 @@ function normalizeUsage(raw: OpenRouterUsage | undefined): LlmCallUsage | null {
   const promptTokens = tokenCount(raw.prompt_tokens);
   const completionTokens = tokenCount(raw.completion_tokens);
   const totalTokens = tokenCount(raw.total_tokens);
+  const cachedTokens = detailTokenCount(
+    raw.prompt_tokens_details,
+    "cached_tokens",
+  );
+  const cacheWriteTokens = detailTokenCount(
+    raw.prompt_tokens_details,
+    "cache_write_tokens",
+  );
+  const reasoningTokens = detailTokenCount(
+    raw.completion_tokens_details,
+    "reasoning_tokens",
+  );
   const costUsd = dollarAmount(raw.cost);
   if (
     promptTokens === null &&
     completionTokens === null &&
     totalTokens === null &&
+    cachedTokens === null &&
+    cacheWriteTokens === null &&
+    reasoningTokens === null &&
     costUsd === null
   ) {
     return null;
   }
-  return { promptTokens, completionTokens, totalTokens, costUsd };
+  return {
+    promptTokens,
+    completionTokens,
+    totalTokens,
+    cachedTokens,
+    cacheWriteTokens,
+    reasoningTokens,
+    costUsd,
+  };
+}
+
+/**
+ * Reads one non-negative count from a token-detail object. OpenRouter omits the
+ * object when the capability does not apply, so a missing or malformed detail
+ * yields null rather than failing the whole usage record.
+ */
+function detailTokenCount(details: unknown, key: string): number | null {
+  if (typeof details !== "object" || details === null) {
+    return null;
+  }
+  return tokenCount((details as Record<string, unknown>)[key]);
 }
 
 /** Reads a non-negative USD amount, or null when the value is unusable. */

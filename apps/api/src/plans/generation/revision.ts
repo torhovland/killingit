@@ -1,6 +1,9 @@
 import type { CoachPlan } from "@killingit/shared";
 import { addDays, startOfWeek } from "@killingit/shared";
-import { generatePlanUpdate } from "../../llm/planUpdate.js";
+import {
+  generateDailyUpdate,
+  generatePlanUpdate,
+} from "../../llm/planUpdate.js";
 import { COACH_PLAN_FINALISATION, finalizePlan } from "../finalize.js";
 import { nextBlockStartDate } from "../periods.js";
 import { PlanValidationError } from "../planValidationError.js";
@@ -11,6 +14,7 @@ import {
 } from "../revision.js";
 import { PLAN_GENERATION_STEPS } from "../steps.js";
 import {
+  applyDailyUpdate,
   applyPlanUpdate,
   hasActivityOn,
   restoreTodaysSession,
@@ -103,7 +107,27 @@ export async function advancePlan(
   return finalPlan;
 }
 
-/** Runs the single plan-update prompt and applies only the requested levels. */
+/**
+ * True when the revision changes only today, the week around it and tomorrow. A
+ * week-only, next-period, progress-only or season/block revision needs the full
+ * plan prompt because the daily prompt returns no season, block, next week or
+ * next block. See ADR 0062.
+ */
+function isDayOnlyRevision(flags: PlanUpdateFlags): boolean {
+  return (
+    flags.day &&
+    !flags.season &&
+    !flags.block &&
+    !flags.nextBlock &&
+    !flags.nextWeek
+  );
+}
+
+/**
+ * Runs the prompt a revision needs and applies only the requested levels. A
+ * day-only revision uses the daily prompt; every wider revision uses the full
+ * plan-update prompt.
+ */
 export async function requestPlanUpdate(
   input: GeneratePlanInput,
   current: CoachPlan,
@@ -123,6 +147,27 @@ export async function requestPlanUpdate(
       : PLAN_GENERATION_STEPS.planUpdate,
     input.runId,
   );
+  if (isDayOnlyRevision(flags)) {
+    const update = await generateDailyUpdate(
+      context.provider,
+      credentials(context, model),
+      {
+        ...baseContext(input),
+        ...weatherContext(input),
+        season: current.season,
+        block: current.block,
+        week: current.week,
+        todayPlan: current.today.date === input.today ? current.today : null,
+      },
+    );
+    await recordCoachQuestion(
+      input,
+      update.coachQuestion,
+      "daily_update",
+      model,
+    );
+    return applyDailyUpdate(input, current, update, flags);
+  }
   const update = await generatePlanUpdate(
     context.provider,
     credentials(context, model),

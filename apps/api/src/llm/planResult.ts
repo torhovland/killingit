@@ -8,6 +8,7 @@ import {
   seasonPlanSchema,
   weekPlanSchema,
 } from "@killingit/shared";
+import type { PlanUpdateResponseLevels } from "./planUpdatePrompt.js";
 
 /**
  * The four schemas that parse the coach's structured answers to the plan
@@ -73,6 +74,20 @@ export const dailyPlanUpdateSchema = z
 
 export type DailyPlanUpdate = z.infer<typeof dailyPlanUpdateSchema>;
 
+const planUpdateResponseBaseSchema = z
+  .object({
+    season: seasonPlanSchema,
+    block: blockPlanSchema,
+    week: weekPlanSchema,
+    today: dayPlanSchema,
+    tomorrow: dayPlanSchema.nullable().default(null),
+    nextWeek: weekPlanSchema.nullable().default(null),
+    nextBlock: blockPlanSchema.nullable().default(null),
+    diet: dietPlanSchema.nullable().optional(),
+    bodyMetrics: z.array(bodyMetricEstimateSchema).default([]),
+  })
+  .extend(coachResponseNotesSchema.shape);
+
 /** The weekly build output: the new week plus a revised block plan. */
 export const weeklyPlanUpdateSchema = z
   .object({
@@ -83,3 +98,40 @@ export const weeklyPlanUpdateSchema = z
   .extend(coachResponseNotesSchema.shape);
 
 export type WeeklyPlanUpdate = z.infer<typeof weeklyPlanUpdateSchema>;
+
+/**
+ * The plan-update answer. A revision asks only for the levels it changes, so
+ * the levels it omits are optional here and keep their stored content. The
+ * levels the revision does return are required. See ADR 0063.
+ */
+export function planUpdateResponseSchema(levels: PlanUpdateResponseLevels) {
+  const optional: {
+    [K in keyof typeof planUpdateResponseBaseSchema.shape]?: true;
+  } = {};
+  if (!levels.season) {
+    optional.season = true;
+  }
+  if (!levels.block) {
+    optional.block = true;
+  }
+  if (!levels.week) {
+    optional.week = true;
+  }
+  if (!levels.today) {
+    optional.today = true;
+  }
+  if (!levels.tomorrow) {
+    optional.tomorrow = true;
+  }
+  if (!levels.nextWeek) {
+    optional.nextWeek = true;
+  }
+  if (!levels.nextBlock) {
+    optional.nextBlock = true;
+  }
+  return planUpdateResponseBaseSchema.partial(optional);
+}
+
+export type PlanUpdateResponse = z.infer<
+  ReturnType<typeof planUpdateResponseSchema>
+>;

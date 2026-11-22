@@ -4,6 +4,10 @@ import type {
   WeekPlan,
 } from "@killingit/shared";
 import { activityLocalDate } from "@killingit/shared";
+import type {
+  DailyPlanUpdate,
+  PlanUpdateResponse,
+} from "../../llm/planResult.js";
 import { mergeDietProgressTargets } from "../dietProgress.js";
 import { PlanValidationError } from "../planValidationError.js";
 import {
@@ -19,7 +23,7 @@ import type { GeneratePlanInput, PlanGenerationContext } from "./types.js";
 export function applyPlanUpdate(
   input: GeneratePlanInput,
   current: CoachPlan,
-  update: CoachPlan,
+  update: PlanUpdateResponse,
   revision: PlanUpdateFlags,
   options: {
     expectedBlockStartDate?: string;
@@ -33,6 +37,7 @@ export function applyPlanUpdate(
 
   if (
     revision.block &&
+    update.block !== undefined &&
     options.expectedBlockStartDate !== undefined &&
     plan.block.startDate !== options.expectedBlockStartDate
   ) {
@@ -60,6 +65,34 @@ export function applyPlanUpdate(
     diet: update.diet ?? plan.diet,
     bodyMetrics: mergeBodyMetrics(current.bodyMetrics, update.bodyMetrics),
   };
+}
+
+/**
+ * Applies the today, week, tomorrow, diet and body-metric levels a daily update
+ * returns. The daily response carries no season, block or next period, so the
+ * stored ones stand in for the levels it did not return; a day-only revision
+ * never changes them. See ADR 0062.
+ */
+export function applyDailyUpdate(
+  input: GeneratePlanInput,
+  current: CoachPlan,
+  update: DailyPlanUpdate,
+  revision: PlanUpdateFlags,
+): CoachPlan {
+  return applyPlanUpdate(
+    input,
+    current,
+    {
+      ...current,
+      week: update.week,
+      today: update.today,
+      tomorrow: update.tomorrow,
+      diet: update.diet ?? current.diet,
+      bodyMetrics: update.bodyMetrics,
+    },
+    revision,
+    {},
+  );
 }
 
 /**

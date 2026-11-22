@@ -1,11 +1,6 @@
 import type { CoachPlan, DietPlan } from "@killingit/shared";
 import type { z } from "zod";
-import {
-  addDays,
-  coachPlanSchema,
-  startOfWeek,
-  weekDates,
-} from "@killingit/shared";
+import { addDays, startOfWeek, weekDates } from "@killingit/shared";
 import { isDietGoalProvided } from "../diet/goal.js";
 import {
   dietGoalProblems,
@@ -18,16 +13,20 @@ import { PLAN_MAX_TOKENS } from "./planBudget.js";
 import type { CompletionCredentials } from "./resilientCompletion.js";
 import {
   dailyPlanUpdateSchema,
+  planUpdateResponseSchema,
   weeklyPlanUpdateSchema,
   type DailyPlanUpdate,
+  type PlanUpdateResponse,
   type WeeklyPlanUpdate,
 } from "./planResult.js";
 import {
   buildDailyUpdateMessages,
   buildPlanUpdateMessages,
   buildWeeklyUpdateMessages,
+  planUpdateResponseLevels,
   type DailyUpdateInput,
   type PlanUpdateInput,
+  type PlanUpdateResponseLevels,
   type WeeklyUpdateInput,
 } from "./planUpdatePrompt.js";
 import {
@@ -62,14 +61,67 @@ function hasWeekDates(week: DatedWeek, startDate: string): boolean {
  * the week's sessions" error does not tell the model which dates to use, so the
  * repair turn repeats the exact week.
  */
-function withWeekDates<T extends { week: DatedWeek }>(
+function withWeekDates<T extends { week?: DatedWeek | undefined }>(
   schema: z.ZodType<T>,
   startDate: string,
 ): z.ZodType<T> {
-  return schema.refine((value) => hasWeekDates(value.week, startDate), {
-    message: weekDatesRule(startDate),
-    path: ["week", "sessions"],
-  });
+  return schema.refine(
+    (value) => value.week === undefined || hasWeekDates(value.week, startDate),
+    {
+      message: weekDatesRule(startDate),
+      path: ["week", "sessions"],
+    },
+  );
+}
+
+function withNextWeekDates<
+  T extends { nextWeek?: DatedWeek | null | undefined },
+>(schema: z.ZodType<T>, startDate: string | null): z.ZodType<T> {
+  return schema.refine(
+    (value) =>
+      startDate === null ||
+      value.nextWeek == null ||
+      hasWeekDates(value.nextWeek, startDate),
+    {
+      message:
+        startDate === null
+          ? "The next week must start on a Monday"
+          : weekDatesRule(startDate, "next week"),
+      path: ["nextWeek", "sessions"],
+    },
+  );
+}
+
+function withTomorrowPlacement<
+  T extends {
+    tomorrow?: { date: string } | null | undefined;
+    week?: DatedWeek | undefined;
+    nextWeek?: DatedWeek | null | undefined;
+  },
+>(schema: z.ZodType<T>, input: PlanUpdateInput): z.ZodType<T> {
+  return schema.refine(
+    (value) => {
+      if (value.tomorrow == null) {
+        return true;
+      }
+      const week = value.week ?? input.week;
+      const nextWeek =
+        value.nextWeek === undefined ? input.nextWeek : value.nextWeek;
+      return (
+        week.sessions.some(
+          (session) => session.date === value.tomorrow?.date,
+        ) ||
+        nextWeek?.sessions.some(
+          (session) => session.date === value.tomorrow?.date,
+        ) === true
+      );
+    },
+    {
+      message:
+        "Tomorrow's session must be one of the current week's or the next week's sessions",
+      path: ["tomorrow", "date"],
+    },
+  );
 }
 
 /**
@@ -86,23 +138,51 @@ function withPlausibleCalories<T extends CalorieBearingPlan>(
 }
 
 /**
+ * The full plan a partial answer would save: a level the answer omits keeps the
+ * stored one, which is what the diet checks have to judge.
+ */
+function storedPlanFor(
+  input: PlanUpdateInput,
+  value: PlanUpdateResponse,
+): CoachPlan {
+  return {
+    season: value.season ?? input.season,
+    block: value.block ?? input.block,
+    week: value.week ?? input.week,
+    today: value.today ?? input.todayPlan,
+    tomorrow: value.tomorrow === undefined ? input.tomorrow : value.tomorrow,
+    nextWeek: value.nextWeek === undefined ? input.nextWeek : value.nextWeek,
+    nextBlock:
+      value.nextBlock === undefined ? input.nextBlock : value.nextBlock,
+    diet: value.diet ?? input.dietGoal,
+    bodyMetrics: value.bodyMetrics,
+    coachQuestion: value.coachQuestion,
+    modelsRemarks: value.modelsRemarks,
+  };
+}
+
+/**
  * Rejects a plan that has a stated diet goal but leaves a current or future
- * period without a progress target. The repair turn asks for the missing
+ * period without a progress target. The check covers only the levels the
+ * response carries: a level left out of the contract keeps its stored target,
+ * and its absence must not fail validation. The repair turn asks for the missing
  * `dietProgress` objects instead of letting the coach store a plan whose
  * Season, Block or Week view silently has no target.
  */
-function withRequiredDietProgress<T extends CoachPlan>(
+function withRequiredDietProgress<T extends PlanUpdateResponse>(
   schema: z.ZodType<T>,
   input: PlanUpdateInput,
+  levels: PlanUpdateResponseLevels,
 ): z.ZodType<T> {
   return schema.superRefine((value, ctx) => {
     if (input.dietAdvice !== true) {
       return;
     }
-    for (const problem of dietProgressConsistencyProblems(value)) {
+    const plan = storedPlanFor(input, value);
+    for (const problem of dietProgressConsistencyProblems(plan, levels)) {
       ctx.addIssue({ code: "custom", message: problem });
     }
-    if (input.dietGoal == null && value.diet == null) {
+    if (input.dietGoal == null && plan.diet == null) {
       ctx.addIssue({
         code: "custom",
         message: missingDietGoalMessage(),
@@ -110,21 +190,23 @@ function withRequiredDietProgress<T extends CoachPlan>(
       });
       return;
     }
-    const goal = effectiveDietGoal(input, value);
+    const goal = effectiveDietGoal(input, plan);
     if (isDietGoalProvided(goal) !== true) {
       return;
     }
-    for (const label of missingDietProgressTargets(value, input.today)) {
+    for (const label of missingDietProgressTargets(plan, input.today, levels)) {
       ctx.addIssue({
         code: "custom",
         message: missingDietProgressMessage(label),
       });
     }
-    for (const problem of dietGoalProblems(
-      { ...value, diet: goal },
-      input.today,
-    )) {
-      ctx.addIssue({ code: "custom", message: problem });
+    if (levels.season && levels.block && levels.week) {
+      for (const problem of dietGoalProblems(
+        { ...plan, diet: goal },
+        input.today,
+      )) {
+        ctx.addIssue({ code: "custom", message: problem });
+      }
     }
   });
 }
@@ -210,53 +292,59 @@ function dailyDateHint(today: string, startDate: string): string {
   return `The "today" object's date must be exactly ${today}, and week.sessions must contain a session with that exact date. ${weekDateHint(startDate)}`;
 }
 
+/** The date rules the repair turn repeats for the levels a response carries. */
+function planUpdateDateHint(
+  input: PlanUpdateInput,
+  levels: PlanUpdateResponseLevels,
+  weekStart: string,
+  nextWeekStart: string | null,
+): string[] {
+  const hints: string[] = [];
+  if (levels.week) {
+    hints.push(weekDateHint(weekStart));
+  }
+  if (levels.today) {
+    hints.push(
+      `The "today" object's date must be exactly ${input.today}, and week.sessions must contain a session with that exact date.`,
+    );
+  }
+  if (levels.tomorrow) {
+    hints.push(
+      `Tomorrow is ${addDays(input.today, 1)}; tomorrow's session must be in the current week or the next week${nextWeekStart === null ? "." : `, and the next week must start on ${nextWeekStart}.`}`,
+    );
+  }
+  if (levels.nextWeek && nextWeekStart !== null) {
+    hints.push(weekDateHint(nextWeekStart));
+  }
+  return hints;
+}
+
 /**
  * Asks the coach to update any combination of levels in one completion. The
  * prompt receives every current level and the revision request, and returns the
- * complete plan so the API can keep the unchanged levels and apply the ones the
- * request named.
+ * levels that revision changes; the API keeps the stored level the response
+ * omits.
  */
 export async function generatePlanUpdate(
   provider: LlmProvider,
   credentials: CompletionCredentials,
   input: PlanUpdateInput,
-): Promise<CoachPlan> {
+): Promise<PlanUpdateResponse> {
   const weekStart = startOfWeek(input.today);
   const nextWeekStart = input.revision.nextWeek
     ? startOfWeek(addDays(input.today, 1))
     : null;
-  const schema = withRequiredDietProgress(
-    withWeekDates(withPlausibleCalories(coachPlanSchema), weekStart)
-      .refine(
-        (value) =>
-          nextWeekStart === null ||
-          value.nextWeek === null ||
-          hasWeekDates(value.nextWeek, nextWeekStart),
-        {
-          message:
-            nextWeekStart === null
-              ? "The next week must start on a Monday"
-              : weekDatesRule(nextWeekStart, "next week"),
-          path: ["nextWeek", "sessions"],
-        },
-      )
-      .refine(
-        (value) =>
-          value.tomorrow === null ||
-          value.week.sessions.some(
-            (session) => session.date === value.tomorrow?.date,
-          ) ||
-          value.nextWeek?.sessions.some(
-            (session) => session.date === value.tomorrow?.date,
-          ) === true,
-        {
-          message:
-            "Tomorrow's session must be one of the current week's or the next week's sessions",
-          path: ["tomorrow", "date"],
-        },
+  const levels = planUpdateResponseLevels(input.revision);
+  const responseSchema = withTomorrowPlacement(
+    withPlausibleCalories(
+      withNextWeekDates(
+        withWeekDates(planUpdateResponseSchema(levels), weekStart),
+        nextWeekStart,
       ),
+    ),
     input,
   );
+  const schema = withRequiredDietProgress(responseSchema, input, levels);
   return completePlanJson(
     schema,
     provider,
@@ -264,7 +352,7 @@ export async function generatePlanUpdate(
     buildPlanUpdateMessages(input),
     {
       maxTokens: PLAN_MAX_TOKENS,
-      repairHint: `${dailyDateHint(input.today, weekStart)} Tomorrow is ${addDays(input.today, 1)}; tomorrow's session must be in the current week or the next week${nextWeekStart === null ? "." : `, and the next week must start on ${nextWeekStart}.`} When diet advice is on and no stored goal exists, return ${DIET_REPAIR_HINT}. When the athlete stated a diet goal, every current and future period must carry ${DIET_PROGRESS_REPAIR_HINT}.`,
+      repairHint: `${planUpdateDateHint(input, levels, weekStart, nextWeekStart).join(" ")} When diet advice is on and no stored goal exists, return ${DIET_REPAIR_HINT}. When the athlete stated a diet goal, every returned current and future period must carry ${DIET_PROGRESS_REPAIR_HINT}.`,
       kind: "plan_update",
     },
   );

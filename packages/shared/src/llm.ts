@@ -192,6 +192,15 @@ const llmCallUsageSchema = z.object({
   completionTokens: z.number().int().nonnegative().nullable(),
   totalTokens: z.number().int().nonnegative().nullable(),
   /**
+   * Prompt tokens served from the provider's cache. Optional and nullable so
+   * rows stored before detail capture still parse.
+   */
+  cachedTokens: z.number().int().nonnegative().nullable().optional(),
+  /** Prompt tokens written to the provider's cache on this call. */
+  cacheWriteTokens: z.number().int().nonnegative().nullable().optional(),
+  /** Completion tokens spent on the model's hidden reasoning. */
+  reasoningTokens: z.number().int().nonnegative().nullable().optional(),
+  /**
    * The amount OpenRouter charged for the request, in USD. Older call rows
    * predate cost capture and have no value here.
    */

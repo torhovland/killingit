@@ -2,6 +2,18 @@
 
 - **Status:** Accepted (implemented)
 - **Date:** 2026-10-21
+- **Updated:** 2026-11-22 — the plan-update response contract now carries only
+  the levels a revision changes. A week-only revision returns the week, a block
+  revision returns the season, block, week and today, and a progress-only
+  revision returns every level that carries a diet-progress target. A season
+  refresh keeps the complete contract. The prompt still receives every stored
+  level as context; an omitted level keeps its stored content. See
+  `docs/specs/plan-revision-steps.md` and ADR 0063.
+- **Updated:** 2026-11-22 — a revision that changes only today, its week and
+  tomorrow now uses the daily prompt instead of the full plan update. The daily
+  prompt accepts the stored detailed today plan for a refresh, while a first
+  build renders it as before. See `docs/specs/daily-plan-refresh.md` and
+  ADR 0062.
 - **Updated:** 2026-11-16 — the daily, weekly and plan-update prompts compose
   their shared seven-fragment tail through `PLAN_UPDATE_SHARED_RULES`, which
   takes a prompt's own level rules between the outline and the weather rule.
@@ -201,12 +213,19 @@ and returns `LlmProvider` chat messages.
   block, week, day) so every response fits the model's output budget. There is
   no combined full-plan prompt: the split build and the update prompt are the
   only paths that call the model for a plan.
-- `planUpdatePrompt.ts` also exports `PLAN_UPDATE_SYSTEM_PROMPT`,
-  `buildPlanUpdateMessages(input)` and `PlanUpdateInput` for the single update
-  prompt. It receives every current level (season, block, week, today,
-  tomorrow, next week and next block) and a revision request. The response is
-  the full `CoachPlan` shape, so the coach can show a revised block with its
-  week and day instead of the API chaining separate calls. See ADR 0013.
+- `planUpdatePrompt.ts` also exports `buildPlanUpdateMessages(input)` and
+  `PlanUpdateInput` for the single update prompt. It receives every current
+  level (season, block, week, today, tomorrow, next week and next block) as
+  input and a revision request. `planUpdateResponseLevels(revision)` names the
+  levels the response carries, and the system contract and top-level key
+  sentence are built from that selection, so the coach can show a revised block
+  with its week and day instead of the API chaining separate calls. A season
+  refresh keeps the complete contract; a progress-only update carries the levels
+  whose `dietProgress` targets it refreshes. See ADR 0013 and ADR 0063.
+  A revision that changes only today, its week and tomorrow uses
+  `buildDailyUpdateMessages` instead, with the stored detailed today plan as
+  optional context; a week, next-period, progress-only, block or season
+  revision keeps the plan-update prompt. See ADR 0062.
 - Every plan prompt uses the same rationale, outline, weather, bike-workout,
   training-load, body-metric, session-purpose and enum rules. The initial
   season and block prompts also ask for a rationale and the training-load
@@ -265,4 +284,11 @@ and returns `LlmProvider` chat messages.
   build one, so a new prompt composes `systemUserMessages` rather than repeating
   the pair. The benchmark snapshot in `tools/benchmark` pins the composed text,
   so a refactor that changes a single character fails as well.
+- `planUpdatePrompt.test.ts` asserts the contract each revision selection asks
+  for, including the week-only, progress-only and season-refresh cases.
+  `planUpdate.test.ts` parses a week-only response without the stored season and
+  block, and a progress-only response that refreshes every stored target.
+  `promptContracts.test.ts` still holds every level contract to its shared
+  schema; `planUpdateResponseSchema(levels)` builds the required and optional
+  level keys from the same `planUpdateResponseLevels` selection the prompt uses.
 - Run `bun run typecheck`, `bun run lint`, `bun run format`, and `bun run test`.

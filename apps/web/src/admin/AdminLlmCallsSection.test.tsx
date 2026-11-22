@@ -251,6 +251,47 @@ describe("AdminLlmCallsSection", () => {
     expect(card.textContent).toContain("Prompt tokens");
   });
 
+  it("shows cached and reasoning token details when recorded", async () => {
+    const withDetails: LlmCallDetail = {
+      ...detail,
+      usage: {
+        promptTokens: 100,
+        completionTokens: 20,
+        totalTokens: 120,
+        cachedTokens: 80,
+        cacheWriteTokens: 20,
+        reasoningTokens: 12,
+      },
+    };
+    stubApi([summary], { 12: withDetails });
+    renderSection();
+
+    await selectCall(/openrouter\/model/);
+    const card = await screen.findByTestId("llm-call-detail");
+
+    expect(card.textContent).toContain("Cached tokens");
+    expect(card.textContent).toContain("80");
+    expect(card.textContent).toContain("Cache write tokens");
+    expect(card.textContent).toContain("20");
+    expect(card.textContent).toContain("Reasoning tokens");
+    expect(card.textContent).toContain("12");
+  });
+
+  it("renders a row from before the detail counts without changing it", async () => {
+    stubApi([summary], { 12: detail });
+    renderSection();
+
+    await selectCall(/openrouter\/model/);
+    const card = await screen.findByTestId("llm-call-detail");
+
+    expect(card.textContent).toContain("Prompt tokens");
+    expect(card.textContent).toContain("Completion tokens");
+    expect(card.textContent).toContain("Total tokens");
+    expect(card.textContent).not.toContain("Cached tokens");
+    expect(card.textContent).not.toContain("Cache write tokens");
+    expect(card.textContent).not.toContain("Reasoning tokens");
+  });
+
   it("puts the selected call beside the list instead of below it", async () => {
     stubApi([summary], { 12: detail });
     const { container } = renderSection();

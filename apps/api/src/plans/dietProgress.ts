@@ -5,12 +5,30 @@ import type {
   FitnessDietTarget,
   WeekPlan,
 } from "@killingit/shared";
+import type { PlanUpdateResponse } from "../llm/planResult.js";
 import { isDietGoalProvided } from "../diet/goal.js";
 import { planDietTargets } from "../training/dietTargets.js";
 import { weekEnd } from "./periods.js";
 
 /** How far a target may miss a stated goal and still count as reaching it. */
 const GOAL_TOLERANCE = 0.5;
+
+/** The plan levels whose diet-progress targets a check covers. */
+export interface DietProgressLevelSelection {
+  season: boolean;
+  block: boolean;
+  week: boolean;
+  nextWeek: boolean;
+  nextBlock: boolean;
+}
+
+const ALL_DIET_PROGRESS_LEVELS: DietProgressLevelSelection = {
+  season: true,
+  block: true,
+  week: true,
+  nextWeek: true,
+  nextBlock: true,
+};
 
 /**
  * True when the target at the athlete's goal date does not reach a stated
@@ -102,10 +120,14 @@ function goalCheckpoint(
  * target. A disagreement means two views would show different destinations for
  * the same day.
  */
-export function dietProgressConsistencyProblems(plan: CoachPlan): string[] {
+export function dietProgressConsistencyProblems(
+  plan: CoachPlan,
+  levels: DietProgressLevelSelection = ALL_DIET_PROGRESS_LEVELS,
+): string[] {
   const problems: string[] = [];
   const lastBlock = plan.season.blocks[plan.season.blocks.length - 1];
   if (
+    levels.season &&
     lastBlock !== undefined &&
     lastBlock.endDate === plan.season.endDate &&
     lastBlock.dietProgress != null &&
@@ -120,10 +142,11 @@ export function dietProgressConsistencyProblems(plan: CoachPlan): string[] {
       ),
     );
   }
-  for (const block of [plan.block, plan.nextBlock]) {
-    if (block !== null) {
-      problems.push(...blockWeekProblems(block));
-    }
+  if (levels.block) {
+    problems.push(...blockWeekProblems(plan.block));
+  }
+  if (levels.nextBlock && plan.nextBlock !== null) {
+    problems.push(...blockWeekProblems(plan.nextBlock));
   }
   return problems;
 }
@@ -188,31 +211,40 @@ function targetMismatchProblems(
 export function missingDietProgressTargets(
   plan: CoachPlan,
   today: string,
+  levels: DietProgressLevelSelection = ALL_DIET_PROGRESS_LEVELS,
 ): string[] {
   const missing: string[] = [];
-  if (plan.season.endDate >= today && plan.season.dietProgress == null) {
-    missing.push("the season");
-  }
-  for (const block of plan.season.blocks) {
-    if (block.endDate >= today && block.dietProgress == null) {
-      missing.push(`season block "${block.name}"`);
+  if (levels.season) {
+    if (plan.season.endDate >= today && plan.season.dietProgress == null) {
+      missing.push("the season");
+    }
+    for (const block of plan.season.blocks) {
+      if (block.endDate >= today && block.dietProgress == null) {
+        missing.push(`season block "${block.name}"`);
+      }
     }
   }
-  if (plan.block.endDate >= today && plan.block.dietProgress == null) {
-    missing.push("the current block");
-  }
-  for (const week of plan.block.weeks) {
-    if (weekEnd(week) >= today && week.dietProgress == null) {
-      missing.push(`block week ${week.number}`);
+  if (levels.block) {
+    if (plan.block.endDate >= today && plan.block.dietProgress == null) {
+      missing.push("the current block");
+    }
+    for (const week of plan.block.weeks) {
+      if (weekEnd(week) >= today && week.dietProgress == null) {
+        missing.push(`block week ${week.number}`);
+      }
     }
   }
-  if (plan.week.dietProgress == null) {
+  if (levels.week && plan.week.dietProgress == null) {
     missing.push("the current week");
   }
-  if (plan.nextWeek !== null && plan.nextWeek.dietProgress == null) {
+  if (
+    levels.nextWeek &&
+    plan.nextWeek !== null &&
+    plan.nextWeek.dietProgress == null
+  ) {
     missing.push("the next week");
   }
-  if (plan.nextBlock !== null) {
+  if (levels.nextBlock && plan.nextBlock !== null) {
     if (plan.nextBlock.dietProgress == null) {
       missing.push("the next block");
     }
@@ -278,29 +310,47 @@ function hasAnyDietProgress(plan: CoachPlan): boolean {
  */
 export function mergeDietProgressTargets(
   plan: CoachPlan,
-  update: CoachPlan,
+  update: PlanUpdateResponse,
 ): CoachPlan {
-  const season = {
-    ...plan.season,
-    dietProgress:
-      update.season.dietProgress === undefined
-        ? plan.season.dietProgress
-        : update.season.dietProgress,
-    blocks: withDetailedProgress(plan.season.blocks, update.season.blocks),
-  };
+  const season =
+    update.season === undefined
+      ? plan.season
+      : {
+          ...plan.season,
+          dietProgress:
+            update.season.dietProgress === undefined
+              ? plan.season.dietProgress
+              : update.season.dietProgress,
+          blocks: withDetailedProgress(
+            plan.season.blocks,
+            update.season.blocks,
+          ),
+        };
+  const block =
+    update.block === undefined
+      ? plan.block
+      : mergeBlockProgress(plan.block, update.block);
+  const week =
+    update.week === undefined
+      ? plan.week
+      : mergeWeekProgress(plan.week, update.week);
   const nextBlock =
-    plan.nextBlock === null || update.nextBlock === null
+    plan.nextBlock === null ||
+    update.nextBlock === undefined ||
+    update.nextBlock === null
       ? plan.nextBlock
       : mergeBlockProgress(plan.nextBlock, update.nextBlock);
   const nextWeek =
-    plan.nextWeek === null || update.nextWeek === null
+    plan.nextWeek === null ||
+    update.nextWeek === undefined ||
+    update.nextWeek === null
       ? plan.nextWeek
       : mergeWeekProgress(plan.nextWeek, update.nextWeek);
   return {
     ...plan,
     season,
-    block: mergeBlockProgress(plan.block, update.block),
-    week: mergeWeekProgress(plan.week, update.week),
+    block,
+    week,
     nextWeek,
     nextBlock,
   };

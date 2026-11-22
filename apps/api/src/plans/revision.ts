@@ -7,6 +7,7 @@ import type {
   WeekPlan,
 } from "@killingit/shared";
 import { addDays, startOfWeek } from "@killingit/shared";
+import type { PlanUpdateResponse } from "../llm/planResult.js";
 import type { PlanUpdateRevision } from "../llm/planUpdatePrompt.js";
 import { weekFor } from "./periods.js";
 import { PlanValidationError } from "./planValidationError.js";
@@ -205,14 +206,22 @@ export function planUpdateRevision(flags: PlanUpdateFlags): PlanUpdateRevision {
  */
 export function mergeWeekAndDay(
   current: CoachPlan,
-  update: CoachPlan,
+  update: PlanUpdateResponse,
   flags: PlanUpdateFlags,
 ): CoachPlan {
   if (flags.day) {
-    return { ...current, week: update.week, today: update.today };
+    return {
+      ...current,
+      week: update.week ?? current.week,
+      today: update.today ?? current.today,
+    };
   }
   if (flags.week) {
-    return { ...current, week: update.week, today: current.today };
+    return {
+      ...current,
+      week: update.week ?? current.week,
+      today: current.today,
+    };
   }
   return current;
 }
@@ -226,29 +235,41 @@ export function mergeWeekAndDay(
  */
 export function mergeSeasonAndBlock(
   current: CoachPlan,
-  update: CoachPlan,
+  update: PlanUpdateResponse,
   flags: PlanUpdateFlags,
   today: string,
 ): CoachPlan {
   if (flags.season) {
-    const season = withStoredIntroduction(
-      withCompletedSeasonBlocks(update.season, current.season, today),
-      current.season,
-    );
-    assertRefreshedSeason(season, update.block, today, current.block.startDate);
-    return { ...current, season, block: update.block };
+    const season =
+      update.season === undefined
+        ? current.season
+        : withStoredIntroduction(
+            withCompletedSeasonBlocks(update.season, current.season, today),
+            current.season,
+          );
+    const block = update.block ?? current.block;
+    if (update.season !== undefined && update.block !== undefined) {
+      assertRefreshedSeason(season, block, today, current.block.startDate);
+    }
+    return { ...current, season, block };
   }
   if (flags.block) {
     return {
       ...current,
-      season: withStoredIntroduction(update.season, current.season),
-      block: update.block,
+      season:
+        update.season === undefined
+          ? current.season
+          : withStoredIntroduction(update.season, current.season),
+      block: update.block ?? current.block,
     };
   }
   if (flags.nextBlock) {
     return {
       ...current,
-      season: withStoredIntroduction(update.season, current.season),
+      season:
+        update.season === undefined
+          ? current.season
+          : withStoredIntroduction(update.season, current.season),
     };
   }
   return current;
@@ -260,7 +281,7 @@ export function mergeSeasonAndBlock(
  */
 export function mergeNextPeriod(
   current: CoachPlan,
-  update: CoachPlan,
+  update: PlanUpdateResponse,
   flags: PlanUpdateFlags,
 ): CoachPlan {
   let plan = current;
@@ -270,10 +291,10 @@ export function mergeNextPeriod(
   if (flags.clearNextPeriod && !flags.nextWeek) {
     plan = { ...plan, nextWeek: null };
   }
-  if (flags.nextBlock) {
+  if (flags.nextBlock && update.nextBlock !== undefined) {
     plan = { ...plan, nextBlock: update.nextBlock };
   }
-  if (flags.nextWeek) {
+  if (flags.nextWeek && update.nextWeek !== undefined) {
     plan = { ...plan, nextWeek: update.nextWeek };
   }
   return plan;
@@ -286,7 +307,7 @@ export function mergeNextPeriod(
  */
 export function mergeTomorrow(
   current: CoachPlan,
-  update: CoachPlan,
+  update: PlanUpdateResponse,
   flags: PlanUpdateFlags,
   today: string,
 ): CoachPlan {
@@ -294,7 +315,7 @@ export function mergeTomorrow(
   if (flags.clearNextPeriod && !flags.tomorrow) {
     plan = { ...plan, tomorrow: null };
   }
-  if (flags.tomorrow) {
+  if (flags.tomorrow && update.tomorrow !== undefined) {
     plan = { ...plan, tomorrow: update.tomorrow };
   }
 
@@ -315,11 +336,15 @@ export function mergeTomorrow(
   if (week.startDate === plan.week.startDate) {
     return {
       ...plan,
-      week: withOutlineSession(plan.week, update.week, plan.tomorrow.date),
+      week: withOutlineSession(
+        plan.week,
+        update.week ?? plan.week,
+        plan.tomorrow.date,
+      ),
     };
   }
   const source = update.nextWeek;
-  if (source === null) {
+  if (source == null) {
     // A run that does not want tomorrow does not revise the next week either,
     // and may return no next week even though one is stored. The stored week
     // already holds tomorrow's session, so keep it instead of dropping a level

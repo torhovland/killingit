@@ -114,6 +114,17 @@ const base = {
 
 const todayPlan = makeDay();
 
+const fullRevision = {
+  season: true,
+  block: true,
+  week: true,
+  day: true,
+  tomorrow: true,
+  nextWeek: true,
+  nextBlock: true,
+  progress: true,
+};
+
 function updateInput(
   overrides: Partial<PlanUpdateInput> = {},
 ): PlanUpdateInput {
@@ -212,7 +223,9 @@ const SYSTEM_PROMPTS = [
   },
   {
     name: "plan update",
-    prompt: systemPrompt(buildPlanUpdateMessages(updateInput())),
+    prompt: systemPrompt(
+      buildPlanUpdateMessages(updateInput({ revision: { ...fullRevision } })),
+    ),
     tail: PLAN_UPDATE_SHARED_RULES([
       SESSION_PURPOSE_RULES,
       COACHING_SURVEY_ADJUSTMENT_RULES,
@@ -290,7 +303,7 @@ describe("unified plan update prompt", () => {
       expect(prompt).toContain(label);
     }
     expect(prompt).toContain(
-      'top-level keys are exactly "season", "block", "week", "today", "tomorrow", "nextWeek", "nextBlock", "diet", and "bodyMetrics"',
+      'top-level keys are exactly "season", "block", "week", "today", "diet", and "bodyMetrics"',
     );
     expect(prompt).toContain("Create the current block starting on 2026-10-21");
     expect(prompt).toContain(
@@ -298,6 +311,74 @@ describe("unified plan update prompt", () => {
     );
     expect(prompt).toContain(
       '- Create or revise today\'s session and return it in "today".',
+    );
+  });
+
+  it("asks a week-only revision only for the week", () => {
+    const prompt = updateUserPrompt(
+      updateInput({
+        revision: { ...updateInput().revision, week: true },
+      }),
+    );
+
+    expect(prompt).toContain(
+      'top-level keys are exactly "week", "diet", and "bodyMetrics"',
+    );
+    expect(
+      systemPrompt(
+        buildPlanUpdateMessages(
+          updateInput({ revision: { ...updateInput().revision, week: true } }),
+        ),
+      ),
+    ).not.toContain(SEASON_CONTRACT);
+    expect(prompt).toContain("- Keep the stored season and block unchanged.");
+  });
+
+  it("leaves the next period out of a block-in-place revision", () => {
+    const revision = {
+      ...updateInput().revision,
+      block: true,
+      week: true,
+      day: true,
+      progress: true,
+    };
+    const prompt = updateUserPrompt(
+      updateInput({
+        revision,
+        reviseBlock: true,
+        blockStartDate: "2026-10-21",
+      }),
+    );
+
+    expect(prompt).toContain(
+      'top-level keys are exactly "season", "block", "week", "today", "diet", and "bodyMetrics"',
+    );
+    expect(prompt).not.toContain('"nextWeek"');
+    expect(prompt).not.toContain('"nextBlock"');
+  });
+
+  it("asks a progress-only revision for every level that carries a target", () => {
+    const revision = { ...updateInput().revision, progress: true };
+    const prompt = updateUserPrompt(updateInput({ revision }));
+
+    expect(prompt).toContain(
+      'top-level keys are exactly "season", "block", "week", "nextWeek", "nextBlock", "diet", and "bodyMetrics"',
+    );
+    expect(prompt).toContain(
+      "- Refresh the diet progress target on every level you return",
+    );
+    expect(
+      systemPrompt(buildPlanUpdateMessages(updateInput({ revision }))),
+    ).not.toContain(DAY_CONTRACT);
+  });
+
+  it("keeps the complete contract for a season refresh", () => {
+    const prompt = updateUserPrompt(
+      updateInput({ revision: { ...fullRevision } }),
+    );
+
+    expect(prompt).toContain(
+      'top-level keys are exactly "season", "block", "week", "today", "tomorrow", "nextWeek", "nextBlock", "diet", and "bodyMetrics"',
     );
   });
 
@@ -475,6 +556,34 @@ describe("daily update prompt", () => {
     expect(prompt).toContain('Change only the "dietProgress" objects');
     expect(systemPrompt(buildPlanUpdateMessages(updateInput()))).toContain(
       'except for "dietProgress"',
+    );
+  });
+
+  it("includes the stored detailed today plan for a day refresh", () => {
+    const prompt = dailyUserPrompt({
+      ...base,
+      season,
+      block,
+      week,
+      todayPlan: {
+        ...makeDay("2026-10-21"),
+        title: "Stored intervals",
+        rationale: "Build threshold power.",
+        alternatives: ["Easy spin"],
+        bikeWorkout: {
+          ftpWatts: 250,
+          intervals: [{ durationSeconds: 600, powerPercent: 90 }],
+        },
+      },
+    });
+
+    expect(prompt).toContain("Today's plan:");
+    expect(prompt).toContain("Title: Stored intervals");
+    expect(prompt).toContain("Rationale: Build threshold power.");
+    expect(prompt).toContain("Alternatives: Easy spin");
+    expect(prompt).toContain("Bike workout: power targets at FTP 250 W");
+    expect(prompt).toContain(
+      "Revise today's session and this week's remaining sessions.",
     );
   });
 

@@ -77,6 +77,25 @@ export function makeUpdate(
   return JSON.stringify({ ...makePlan(today), ...overrides });
 }
 
+/** The response the daily-update prompt returns for a day-scoped revision. */
+export function makeDailyUpdate(
+  today = "2026-10-21",
+  overrides: {
+    todayPlan?: CoachPlan["today"];
+    tomorrow?: CoachPlan["tomorrow"];
+    week?: WeekPlan;
+    diet?: CoachPlan["diet"];
+  } = {},
+): string {
+  return JSON.stringify({
+    today: overrides.todayPlan ?? makeDay(today),
+    tomorrow: overrides.tomorrow ?? null,
+    week: overrides.week ?? makeWeek(startOfWeek(today)),
+    diet: overrides.diet,
+    bodyMetrics: [],
+  });
+}
+
 export function weekForecast(icon: DailyWeather["icon"]): DailyWeather[] {
   return Array.from({ length: 7 }, (_, index) => ({
     date: `2026-10-${String(19 + index)}`,
